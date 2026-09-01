@@ -806,7 +806,7 @@ export async function testReentrantWithTenantForTheSameTenantIsAbsorbed(t) {
   await pgQuery("SELECT 1");
   const before = pool.totalCount;
 
-  const seen = await withTenant("tenant-reentrant-same-p1t1fix", async (q) => {
+  const seen = await withTenant("tenant-reentrant-same-p1t1fix", async (_q) => {
     return withTenant("tenant-reentrant-same-p1t1fix", async (innerQ) => {
       const { rows } = await innerQ("SELECT current_setting('nompany.tenant_id', true) AS tid");
       return rows[0].tid;

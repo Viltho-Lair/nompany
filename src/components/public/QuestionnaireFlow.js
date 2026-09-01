@@ -72,7 +72,7 @@ function optionsFor(question, answers) {
 const nameToCode = (name) =>
   COUNTRIES.find((c) => c.name === name)?.code || "";
 
-export default function QuestionnaireFlow({ locale, dict, initialPackage = "", email = "", pages = [], questionnaireId = "" }) {
+export default function QuestionnaireFlow({ locale, dict, initialPackage = "", email = "", pages = [] }) {
   // The survey's own frame, in the reader's language. The QUESTIONS are not
   // here and never will be: they are authored in /super's questionnaire
   // builder, which makes them content rather than copy.

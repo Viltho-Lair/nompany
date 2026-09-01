@@ -244,10 +244,9 @@ export default function StudioSales({ slug, view = "crm-sales" }) {
               onSave={(payload) => send("tickets", editing.row ? "PUT" : "POST", editing.row ? { ...payload, id: editing.row.id } : payload)} />
           </Dialog>
         )}
-        <Tickets tickets={tickets} people={people} canManage={canManageTickets} slug={slug} nav={nav}
+        <Tickets tickets={tickets} people={people} canManage={canManageTickets} slug={slug}
           hasTechnical={hasTechnical} statuses={vocabulary.statuses || []} urgencies={vocabulary.urgencies || []}
           onAdd={() => setEditing({ kind: "ticket", row: null })}
-          onEdit={(row) => setEditing({ kind: "ticket", row })}
           />
       </div>
     );
@@ -261,7 +260,7 @@ export default function StudioSales({ slug, view = "crm-sales" }) {
       {banner}
       {data.canViewDashboard === false
         ? <Empty title={tr.dashboardLocked} body={tr.dashboardLockedBody} />
-        : <SalesOverview slug={slug} tickets={tickets} clients={clients} people={people} nav={nav} level={level} />}
+        : <SalesOverview slug={slug} tickets={tickets} people={people} nav={nav} level={level} />}
     </div>
   );
 }
@@ -271,7 +270,7 @@ export default function StudioSales({ slug, view = "crm-sales" }) {
 // widgets, in SalesDashboard), then the live view and the full ticket list.
 // The dashboard itself is presentational and paid-rung-gated; this wrapper only
 // supplies it the ticket list the screen already holds and the studio's rung.
-function SalesOverview({ slug, tickets, clients, people, nav, level }) {
+function SalesOverview({ slug, tickets, people, nav, level }) {
   const tr = salesDict(useStudioLocale());
   const aliasOf = useMemo(() => Object.fromEntries(people.map((p) => [p.id, p.alias])), [people]);
 
@@ -349,7 +348,7 @@ function SalesOverview({ slug, tickets, clients, people, nav, level }) {
 // Submit PO — happens on the ticket's own page, where the three sit together
 // in the order they happen, rather than one of them being smuggled into a
 // column of a table whose rows are links.
-function Tickets({ tickets, people, canManage, slug, nav, hasTechnical, statuses, urgencies, onAdd, onEdit }) {
+function Tickets({ tickets, people, canManage, slug, hasTechnical, statuses, urgencies, onAdd }) {
   const tr = salesDict(useStudioLocale());
   const TICKET_COLUMNS = useMemo(() => ticketColumns(tr), [tr]);
   const aliasOf = useMemo(() => Object.fromEntries(people.map((p) => [p.id, p.alias])), [people]);

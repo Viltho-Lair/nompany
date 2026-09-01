@@ -442,7 +442,7 @@ function ProjectList({ projects, approvedQuotations, people, clients = [], indus
         <Dialog title={`${detail.number} · ${detail.title}`} description={detail.clientName || undefined}
           onClose={closeDetail} width="max-w-[820px]">
           <ProjectDetail project={detail} people={people} stages={stages} canManage={canManage}
-            aliasOf={aliasOf} slug={slug} nav={nav}
+            slug={slug} nav={nav}
             onSave={(patch) => onSave(detail.id, patch)}
             onDelete={async () => { const ok = await onDelete(detail.id); if (ok) setDetail(null); }}
             onClose={closeDetail} />
@@ -675,7 +675,7 @@ function DirectProject({ people, clients, industries, studioDefaults, busy, setB
   );
 }
 
-function ProjectDetail({ project: p, people, stages, canManage, aliasOf, slug, nav, onSave, onDelete, onClose }) {
+function ProjectDetail({ project: p, people, stages, canManage, slug, nav, onSave, onDelete, onClose }) {
   const tr = projectsDict(useStudioLocale());
   const support = supportStatus(p);
   // Location and the support period commit on blur, dates on pick — the same

@@ -39,7 +39,7 @@ export default async function CareersPage({ params }) {
           </p>
         ) : (
           <div className="border-t border-steel-400/20 dark:border-white/10">
-            {jobs.map((job, i) => (
+            {jobs.map((job) => (
               <Reveal key={job.id}>
                 <Link
                   href={`/${locale}/careers/${job.id}`}

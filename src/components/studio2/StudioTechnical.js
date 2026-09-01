@@ -183,7 +183,7 @@ export default function StudioTechnical({ slug, view = "engineering-docs", secti
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <p className="text-sm text-slate-500">{tr.loadingTechnical}</p>;
 
-  const { canManage: canManageParent, canManageRfq, canManageQuotations, canRequestRfq, rfqs, quotations, openTickets, people, vocabulary, nav, sequences = [], defaultSequenceId } = data;
+  const { canManage: canManageParent, canManageRfq, canManageQuotations, canRequestRfq, rfqs, quotations, openTickets, people, vocabulary, sequences = [], defaultSequenceId } = data;
   // MANAGE IS ASKED OF THE SCREEN BEING SHOWN. `view` is the section key, and
   // the map is keyed the same way, so a sub-section grant answers for its own
   // screen and the parent's answer no longer stands in for all of them.
@@ -234,7 +234,6 @@ export default function StudioTechnical({ slug, view = "engineering-docs", secti
           canManage={canManageRfq}
           canRequestRfq={canRequestRfq}
           aliasOf={aliasOf}
-          people={people}
           statuses={vocabulary.rfqStatuses || []}
           busy={false}
           onRaise={() => setRaising(true)}
@@ -266,7 +265,7 @@ export default function StudioTechnical({ slug, view = "engineering-docs", secti
             onClose={closeEdit}
             onSave={(p) => send("quotations", "PUT", { ...p, id: editingQuote.id }, true)} />
         )}
-        <Quotations quotations={quotations} canManage={canManageQuotations} slug={slug} nav={nav}
+        <Quotations quotations={quotations} canManage={canManageQuotations} slug={slug}
           sectionNames={sectionNames}
           handlerName={handlerName} people={people}
           statuses={vocabulary.quotationStatuses || []} urgencies={vocabulary.urgencies || []}
@@ -317,7 +316,7 @@ export default function StudioTechnical({ slug, view = "engineering-docs", secti
 // The information box is a DRAFT until Save. Nothing is written as you type,
 // because half a decision saved is worse than none. Convert saves first and then
 // opens the quotation, so converting can never silently discard what was typed.
-function RfqHandler({ rfqs, canManage, canRequestRfq, aliasOf, people, statuses, busy, onRaise, onSave, onConvert }) {
+function RfqHandler({ rfqs, canManage, canRequestRfq, aliasOf, statuses, busy, onRaise, onSave, onConvert }) {
   const tr = technicalDict(useStudioLocale());
   const [selectedId, setSelectedId] = useState("");
   const [query, setQuery] = useState("");
@@ -561,7 +560,7 @@ function OriginTag({ fromSales, sectionNames = {} }) {
   );
 }
 
-function Quotations({ quotations, canManage, canUnlock, slug, nav, sectionNames = {}, handlerName, people, statuses, urgencies, onAdd, onOpen, onLock, onUnlock, onRequestApproval }) {
+function Quotations({ quotations, canManage, canUnlock, slug, sectionNames = {}, handlerName, people, statuses, urgencies, onAdd, onOpen, onLock, onUnlock, onRequestApproval }) {
   const tr = technicalDict(useStudioLocale());
   // THE KEYS ARE THE CONTRACT, THE LABELS ARE COPY — see quotationColumns.
   const QUOTATION_COLUMNS = useMemo(() => quotationColumns(tr), [tr]);

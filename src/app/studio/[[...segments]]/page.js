@@ -372,7 +372,6 @@ export default async function StudioPage({ params }) {
       <FullScreen locale={locale}>
         <LiveProvider slug={studio.slug}>
           <StudioPlanner
-            slug={studio.slug}
             planApiBase={planApiBase}
             backHref={`/${studio.slug}/projects-list/${segments[1]}`}
             backLabel={shellDict(locale).backToProject}
@@ -395,7 +394,6 @@ export default async function StudioPage({ params }) {
         <FullScreen locale={locale}>
           <LiveProvider slug={studio.slug}>
             <StudioPlanner
-              slug={studio.slug}
               planApiBase={`/api/studios/${studio.slug}/operations/planner/templates/${segments[2]}`}
               backHref={`/${studio.slug}/projects-planner`}
               backLabel={shellDict(locale).backToPlanner}
@@ -411,7 +409,6 @@ export default async function StudioPage({ params }) {
         <LiveProvider slug={studio.slug}>
           {planId
             ? <StudioPlanner
-                slug={studio.slug}
                 planApiBase={planApiBase}
                 backHref={`/${studio.slug}/projects-planner`}
                 backLabel={shellDict(locale).backToPlanner}
