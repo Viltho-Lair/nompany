@@ -610,7 +610,12 @@ export const SECTION_COLLECTIONS = {
   // own generated documents (above) are a second, unrelated copy of the same
   // collection name, owned by the ticket they were generated against — a
   // ticket is not renamed into CRM & Sales, it already lived there.
-  "crm-sales-quotations": ["quotations", "generatedDocuments"],
+  // Contracts live with quotations rather than in a sub-section of their own,
+  // because a contract is what a won quotation becomes and the two are read
+  // together. Its stage registry entry answers to the same right for the same
+  // reason — see the note there about not minting a permission area for a
+  // record that has no screen yet.
+  "crm-sales-quotations": ["quotations", "generatedDocuments", "contracts", "changeOrders"],
   // engineering-docs
   "engineering-docs-rfq": ["rfqs"],
   // The controlled-document register and the studio's own document taxonomy,
