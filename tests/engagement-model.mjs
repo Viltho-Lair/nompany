@@ -26,6 +26,8 @@ const { FLOW_TEMPLATES, templateProblems, templateStageTypes, templateById } =
 const { INDUSTRIES, industryProblems, defaultTemplateFor, industryByKey } =
   await import("@/platform/engagement/industries");
 const { contribute, emptyContext, statusStage } = await import("@/platform/engagement/context");
+const { attachability, canAttach, canHead, cardinalityFor, attachmentProblem, stageCards,
+  canSitUnassigned, promotionProblem } = await import("@/platform/engagement/membership");
 const { ALL_PERMISSIONS } = await import("@/platform/access");
 const { NO_SCREEN_YET } = await import("@/platform/access/resolve");
 const { SECTION_DEFS } = await import("@/platform/db/keys");
@@ -193,6 +195,89 @@ console.log("== Law 6: money that really happened is detached, not destroyed");
     STAGE_REGISTRY.bill.onDelete === "keep" && STAGE_REGISTRY.expense.onDelete === "keep");
   ok("but a contract dies with the deal it bound",
     STAGE_REGISTRY.contract.onDelete === "cascade", STAGE_REGISTRY.contract.onDelete);
+}
+
+console.log("== Law 7: every cost can attach, and none sits outside the system");
+{
+  const F = templateById("F");   // Logistics job file — lists bill, not expense
+  const A = templateById("A");   // Contracting — lists neither task nor expense
+
+  // THE RULE A TEMPLATE READING WOULD GET WRONG. F lists `bill` and not
+  // `expense`; A lists neither. Both must still accept both, because a cost
+  // that cannot attach is a cost outside the system, and a deal that cannot
+  // attract all its costs reports a profit figure that is fiction.
+  ok("an expense attaches to a deal whose template never mentions it",
+    attachability("expense", F) === "universal", attachability("expense", F));
+  ok("...and to one whose template mentions neither",
+    attachability("task", A) === "universal", attachability("task", A));
+  ok("listing it only promotes it to a first-class card",
+    attachability("bill", F) === "stage", attachability("bill", F));
+
+  // Off-template is displayed, never refused: a record that exists and cannot
+  // be seen is worse than an untidy screen.
+  ok("a type the template does not use still attaches",
+    attachability("rfq", F) === "off-template", attachability("rfq", F));
+  ok("...and only an unregistered type is refused outright",
+    attachability("nonsense", F) === "unknown" && !canAttach("nonsense", F));
+
+  // The pen holds exactly what can exist without a deal.
+  ok("an expense can sit in the pen", canSitUnassigned("expense"));
+  ok("a contract cannot — it has no meaning without a deal", !canSitUnassigned("contract"));
+  ok("nor can a payment, which settles a particular deal's invoice",
+    !canSitUnassigned("payment"));
+  ok("promoting something that was never in the pen says so",
+    promotionProblem("contract", A, []).includes("never in the pen"),
+    promotionProblem("contract", A, []));
+}
+
+console.log("== heads are per template, not per type");
+{
+  const A = templateById("A");
+  const G = templateById("G");
+  const D = templateById("D");
+
+  // A contract heads a deal in G and cannot in A, where it is what a won
+  // quotation produces rather than a starting point. Asking the type alone
+  // would have to answer for all seven flows at once.
+  ok("a contract opens a recurring deal", canHead("contract", G));
+  ok("...and cannot open a contracting one", !canHead("contract", A));
+  ok("a job opens a field-service deal", canHead("job", D));
+  ok("...and cannot open a contracting one", !canHead("job", A));
+}
+
+console.log("== cardinality is the template's, then the registry's");
+{
+  const F = templateById("F");
+  const A = templateById("A");
+  ok("F narrows shipment to one", cardinalityFor("shipment", F) === "one");
+  ok("A leaves it many", cardinalityFor("shipment", A) === "many");
+  ok("a second shipment on a job file is refused, and says why",
+    attachmentProblem("shipment", F, ["shipment"]).includes("already has"),
+    attachmentProblem("shipment", F, ["shipment"]));
+  ok("...but a second one elsewhere is fine",
+    attachmentProblem("shipment", A, ["shipment"]) === "");
+
+  // LAW 3: the flow alerts, it never blocks. A missing predecessor, an
+  // out-of-order arrival and an off-template type are all allowed — a
+  // singleton conflict is the only structural refusal there is.
+  ok("an invoice with no quotation before it is not refused",
+    attachmentProblem("invoice", A, []) === "");
+}
+
+console.log("== the deal screen invites what is missing, and loses nothing");
+{
+  const A = templateById("A");
+  const cards = stageCards(A, ["ticket", "project", "expense"]);
+  const byType = Object.fromEntries(cards.map((c) => [c.type, c]));
+
+  ok("every template stage gets a card", cards.filter((c) => !c.offTemplate).length === A.stages.length,
+    String(cards.filter((c) => !c.offTemplate).length));
+  ok("the ones the deal has are present", byType.ticket.present && byType.project.present);
+  ok("the ones it does not are invitations, not errors", byType.quotation.present === false);
+  ok("cards follow template order",
+    cards.filter((c) => !c.offTemplate).map((c) => c.type).join(",") === A.stages.join(","));
+  ok("an off-template record it carries is still shown",
+    byType.expense.offTemplate === true && byType.expense.present === true);
 }
 
 console.log(fails ? `\n${fails} FAILURES\n` : `\nall passed\n`);
