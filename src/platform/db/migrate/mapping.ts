@@ -90,6 +90,11 @@ export const COLLECTION_TABLE: Readonly<Record<string, string>> = {
   timesheets: "Timesheet",
   inspections: "Inspection",
   jobs: "Job",
+  // "PaymentRecord", not "Payment", matching the type name the module uses and
+  // for the same reason: an invoice already carries a nested `payments` array
+  // whose entries are called payments too. One name for two shapes is how a
+  // later reader maps the wrong one.
+  payments: "PaymentRecord",
   rfqs: "Rfq",
   projects: "Project",
   slas: "Sla",
