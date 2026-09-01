@@ -87,9 +87,19 @@ const P1T4_COL = "widgets";
 // ---- Task 5: the backend dispatcher ----------------------------------------
 
 export async function testBackendDefaultsToRedis(t) {
-  // Until cutover, an unset env must mean Redis. A migration that flips the
-  // default is a migration that happened by accident.
-  t.equal(DB_BACKEND, process.env.NOMPANY_DB || "redis", "backend comes from the env, Redis by default");
+  // THE DEFAULT IS `postgres` NOW, AND THIS ASSERTION IS THE RECORD OF THAT.
+  //
+  // It read "Redis by default", and its comment said a migration that flips the
+  // default by accident is a migration that happened by accident — which was
+  // exactly right while there were two stores. There is one now: Redis is gone,
+  // store.ts is the document table, and an unset env meaning "redis" would have
+  // meant collections living as JSON arrays in `documents` rather than as rows
+  // in `collection_rows` under row-level security.
+  //
+  // So the flip is deliberate and this line is where it is stated. The name of
+  // the function is left alone on purpose: renaming it would hide that this is
+  // the same guard, still watching the same thing, with the answer changed.
+  t.equal(DB_BACKEND, process.env.NOMPANY_DB || "postgres", "backend comes from the env, Postgres by default");
 }
 
 // FIX ROUND 1: everything above (and the whole rest of this file) exercises
