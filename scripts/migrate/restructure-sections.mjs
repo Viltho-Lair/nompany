@@ -98,7 +98,7 @@ const { listSections, plantMissingSections } = await import("@/platform/db/secti
 const { editArr, readArr } = await import("@/platform/db/store");
 const { S, SEC, SECTION_DEFS, ALL_SECTION_KEYS } = await import("@/platform/db/keys");
 const {
-  SECTION_KEY_MAP, COLLECTION_MOVES, mapSectionKey, mapPermissionKey,
+  COLLECTION_MOVES, mapSectionKey, mapPermissionKey,
 } = await import("@/platform/db/restructure");
 
 // ---- the sixth thing: re-parenting, derived from SECTION_DEFS, not hardcoded --

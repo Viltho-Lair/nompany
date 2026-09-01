@@ -85,7 +85,6 @@ export default function Shell({ children, admin }) {
         <div className="ad-content flex min-h-screen flex-col transition-[margin] duration-300">
           <Header
             admin={admin}
-            collapsed={state.collapsed}
             onToggleCollapse={() => set("collapsed", !state.collapsed)}
             onOpenMobile={() => setMobileOpen(true)}
             onOpenCustomizer={() => setCustomizerOpen(true)}

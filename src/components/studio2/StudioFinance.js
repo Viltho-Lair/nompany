@@ -8,7 +8,7 @@ import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import RecordLink from "@/components/studio2/RecordLink";
 import { StudioDataGridSkeleton } from "@/components/studio2/StudioDataGrid.skeleton";
 import { linkToProject, linkIf } from "@/modules/main/studioLinks";
-import { Field, BARE_CONTROL } from "@/components/fields/Field";
+import { Field } from "@/components/fields/Field";
 import StudioDate from "@/components/fields/StudioDate";
 import FinanceDashboard from "@/components/studio2/FinanceDashboard";
 import { useAnalyticsLevel } from "@/components/studio2/analyticsLevel";

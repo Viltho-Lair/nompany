@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { technicalDict } from "@/shared/studio/technical";
-import { btn, btnGhost, input, label, money } from "@/components/studio2/ui";
+import { btn, btnGhost, input, money } from "@/components/studio2/ui";
 import { Icon } from "@/components/studio2/icons";
 import Combo from "@/components/studio2/Combo";
 import { MAX_TABLES, MAX_TABLE_ROWS, netUnitPrice } from "@/modules/technical/quotations";

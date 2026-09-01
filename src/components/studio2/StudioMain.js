@@ -3,9 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { Icon } from "@/components/studio2/icons";
-import { panel, h2, sub, microLabel, money, fmtDate, StatTile, Empty } from "@/components/studio2/ui";
+import { panel, h2, sub, microLabel, money, fmtDate, StatTile } from "@/components/studio2/ui";
 import MainDashboard from "@/components/studio2/MainDashboard";
-import { useStudioLocale } from "@/components/studio2/locale";
 import { mainDict } from "@/shared/studio/main";
 import { sectionName } from "@/shared/studio/sections";
 import { useStudioLocale as useLocale } from "@/components/studio2/locale";

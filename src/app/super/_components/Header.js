@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Icon from "./Icon";
 import { FLAT, BASE } from "./nav";
 import { CURRENT_USER, ROLE } from "./session";
-import { toneBg, toneFg, toneInk } from "./ui";
+import { toneBg, toneInk } from "./ui";
 import { initialsOf } from "@/lib/initials";
 import useSuperNotifications from "@/components/super/useSuperNotifications";
 import { ago } from "@/lib/format";
@@ -221,7 +221,7 @@ const TONE_BG = Object.fromEntries(TONE_NAMES.map((t) => [t, toneBg(t)]));
 
 /* ---- header -------------------------------------------------------------- */
 
-export default function Header({ admin, collapsed, onToggleCollapse, onOpenMobile, onOpenCustomizer }) {
+export default function Header({ admin, onToggleCollapse, onOpenMobile, onOpenCustomizer }) {
   const [mode, setMode] = useTheme();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const router = useRouter();

@@ -8,7 +8,7 @@ import { Icon } from "@/components/studio2/icons";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { panel, h2, sub, btn, btnGhost, money, fmtDate, Dialog } from "@/components/studio2/ui";
 import { TicketForm } from "@/components/studio2/StudioSales";
-import { Field, BARE_CONTROL } from "@/components/fields/Field";
+import { Field } from "@/components/fields/Field";
 import { Money } from "@/components/Currency";
 import { canRequestRfqStatus } from "@/modules/sales/tickets";
 import { rfqInfo } from "@/modules/sales/salesAnalytics";

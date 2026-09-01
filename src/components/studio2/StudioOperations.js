@@ -9,7 +9,7 @@ import { linkToProject, linkIf } from "@/modules/main/studioLinks";
 import { microLabel, Dialog, fmtDate, fmtWeekday } from "@/components/studio2/ui";
 import OperationsDashboard from "@/components/studio2/OperationsDashboard";
 import { useAnalyticsLevel } from "@/components/studio2/analyticsLevel";
-import { Field, BARE_CONTROL } from "@/components/fields/Field";
+import { Field } from "@/components/fields/Field";
 import StudioDate from "@/components/fields/StudioDate";
 import {
   DAYS, normalizeSchedule, normalizeLegend, visibleWindow, startOfWeekSunday, addDays as addCalendarDays,

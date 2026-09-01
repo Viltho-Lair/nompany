@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  ELEMENTS, GROUPS, TOGGLES, byType, hasOptions, isStructure, newQuestion,
+  ELEMENTS, GROUPS, TOGGLES, byType, hasOptions, newQuestion,
 } from "@/lib/questionnaireElements";
 import { INDUSTRIES } from "@/lib/industries";
 import { COUNTRIES } from "@/shared/countries";

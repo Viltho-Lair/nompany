@@ -29,7 +29,7 @@ import { Field, BARE_CONTROL } from "@/components/fields/Field";
 import StudioDate from "@/components/fields/StudioDate";
 import {
   slaVisits, emergencyVisits, nextVisit, contractEndDate, supportStatus,
-  fmtDate as slaDate, daysUntil,
+  fmtDate as slaDate,
 } from "@/modules/projects/sla";
 import { hoursBetween } from "@/modules/projects/projectSchedule";
 

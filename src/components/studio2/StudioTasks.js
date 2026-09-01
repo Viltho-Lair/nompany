@@ -7,7 +7,7 @@ import RecordLink from "@/components/studio2/RecordLink";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { linkToProject, linkToQuotation, linkIf } from "@/modules/main/studioLinks";
 import { fmtDate, fmtDateTime } from "@/lib/format";
-import { Field, BARE_CONTROL } from "@/components/fields/Field";
+import { Field } from "@/components/fields/Field";
 import StudioDate from "@/components/fields/StudioDate";
 import { StatusPill } from "@/components/studio2/StatusPill";
 import { btnRow, btnRowPrimary } from "@/components/studio2/ui";

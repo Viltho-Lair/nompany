@@ -14,10 +14,9 @@
 // Nothing in Wave 2 starts until this is green.
 
 import * as KEYS from "@/platform/db/keys";
-import { KEY_PREFIX } from "@/platform/db/keys";
 import { createUser, updateUser, mintSession } from "@/platform/auth/users";
 import { createStudio, updateStudio } from "@/modules/main/studios";
-import { addCollaborator, getCollaboratorByUser, updateCollaborator } from "@/platform/auth/collaborators";
+import { addCollaborator, getCollaboratorByUser } from "@/platform/auth/collaborators";
 import { listRoles, createRole } from "@/modules/people/roles";
 import { ALL_PERMISSIONS, AREAS, ADMIN_ROLE_ID, effectivePermissions } from "@/platform/access";
 import { STATUS } from "@/platform/http/httpStatus";

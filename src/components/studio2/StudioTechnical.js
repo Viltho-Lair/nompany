@@ -9,7 +9,7 @@ import { Icon } from "@/components/studio2/icons";
 import { StudioDataGridSkeleton } from "@/components/studio2/StudioDataGrid.skeleton";
 import { useFocusedRecord } from "@/components/studio2/useFocusedRecord";
 import {
-  panel, h2, sub, input, inputRO, microLabel, label, btn, btnGhost, btnRow,
+  panel, h2, sub, input, inputRO, label, btn, btnGhost, btnRow,
   URGENCY_BADGE, money, fmtDate, fmtDateTime, useTablePrefs,
   Dialog, Toolbar, FilterButton, FilterPanel, ColumnPicker, Empty,
 } from "@/components/studio2/ui";

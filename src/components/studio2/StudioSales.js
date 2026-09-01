@@ -13,7 +13,7 @@ import StudioDate from "@/components/fields/StudioDate";
 import ClientBlock from "@/components/studio2/ClientBlock";
 import { useFocusedRecord } from "@/components/studio2/useFocusedRecord";
 import {
-  panel, h2, sub, input, microLabel, label, btn, btnGhost, btnAmber, th,
+  panel, h2, sub, input, microLabel, label, btn, btnGhost, th,
   URGENCY_BADGE, URGENCY_TONE, money, fmtDate, useTablePrefs,
   Dialog, Toolbar, FilterButton, FilterPanel, ColumnPicker, Empty,
 } from "@/components/studio2/ui";

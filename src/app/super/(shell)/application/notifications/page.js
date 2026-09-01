@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  PageHeader, Card, CardHead, CardBody, Row, Col, StatCard, StatCardSkeleton, Skeleton, Icon, toneBg, toneFg, toneInk,} from "../../../_components/ui";
+  PageHeader, Card, CardHead, CardBody, Row, Col, StatCard, StatCardSkeleton, Skeleton, Icon, toneBg, toneInk,} from "../../../_components/ui";
 import { BASE } from "../../../_components/nav";
 import useSuperNotifications from "@/components/super/useSuperNotifications";
 import { ago } from "@/lib/format";

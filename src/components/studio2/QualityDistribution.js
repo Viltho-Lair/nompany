@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { qualityDict } from "@/shared/studio/quality";
-import { Dialog, btn, btnGhost, input, label, microLabel } from "@/components/studio2/ui";
+import { Dialog, btn, btnGhost, input, microLabel } from "@/components/studio2/ui";
 import { Field } from "@/components/fields/Field";
 
 // DISTRIBUTION — who has to read this, who has, and who has not.

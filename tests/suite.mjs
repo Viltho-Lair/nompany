@@ -52,8 +52,7 @@ import {
 } from "@/modules/technical/technical";
 import { rfqInfo } from "@/modules/sales/salesAnalytics";
 import { landedUnitCost, crossRate } from "@/shared/currencies";
-import { qualityContext, watermarkFor } from "@/modules/quality/quality";
-import { getJSON } from "@/platform/db/store";
+import { qualityContext } from "@/modules/quality/quality";
 import { NODES, EDGES, pathBetween, reachableFrom, traverse } from "@/platform/relations";
 import { SECTION_COLLECTIONS, ALL_SECTION_KEYS } from "@/platform/db/keys";
 import { activityByDay, periodDelta, activitySeriesFromCounts, trendFromCounts, readAggregate } from "@/modules/main/executive";
@@ -61,7 +60,7 @@ import { MAIN_AGG_SOURCES, utcDay, aggField } from "@/platform/db/mainAgg";
 import { mainContext } from "@/modules/main/main";
 import { rankQueue } from "@/modules/main/awaiting";
 import { mergeValuesFor, fieldsFor, bindSubject, subjectOptions } from "@/modules/quality/quality";
-import { isFieldKey, legalKeyFor, availableFields, isBlockSource, blockByKey, reachOf } from "@/modules/quality/qualityFields";
+import { isFieldKey, legalKeyFor, availableFields, reachOf } from "@/modules/quality/qualityFields";
 import {
   createDoc, getDoc, listDocs, saveContent, savePageSetup, removeDoc,
 } from "@/modules/quality/qualityDocs";
@@ -70,8 +69,7 @@ import {
   workflowFor, listRevisions as listDocRevisions,
 } from "@/modules/quality/qualityDocRevisions";
 import { resolveBlocks, blocksFor } from "@/modules/quality/quality";
-import { documentState, pendingRevision } from "@/modules/quality/qualityDocuments";
-import { listSections, plantMissingSections, updateRow, getSectionByKey, addRow, readCol } from "@/platform/db/sections";
+import { listSections, plantMissingSections, getSectionByKey, addRow, readCol } from "@/platform/db/sections";
 import { readArr, writeArr } from "@/platform/db/store";
 import { S, REG as REG_KEYS } from "@/platform/db/keys";
 import { financeContext, createInvoice, editInvoice, recordPayment, createExpense, removeInvoice, listInvoices } from "@/modules/finance/finance";

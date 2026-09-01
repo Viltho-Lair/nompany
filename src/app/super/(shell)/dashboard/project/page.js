@@ -1,6 +1,6 @@
 import {
   PageHeader, Card, CardHead, CardBody, Row, Col, Badge, Avatar, Progress, StatCard, Table, Icon,
-  toneBg, toneFg, toneInk,} from "../../../_components/ui";
+  toneBg, toneInk,} from "../../../_components/ui";
 import { AreaChart, ChartFrame, BarList, Radial } from "@/components/charts";
 import { BASE } from "../../../_components/nav";
 
