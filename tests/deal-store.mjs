@@ -154,6 +154,56 @@ try {
   ok("an unregistered type is the one thing refused outright",
     unknown.includes("unknown-stage"), unknown);
 
+
+  console.log("== Law 7: the pen holds what has no deal yet, visibly");
+  await E.parkUnassigned(S, "expense", "exp_loose");
+  ok("a cost with no deal is parked rather than lost",
+    (await E.listUnassigned(S, "expense")).includes("exp_loose"));
+  ok("...and answers that it belongs to the pen, not to nothing",
+    (await E.engagementOf(S, "expense", "exp_loose")) === "__unassigned",
+    String(await E.engagementOf(S, "expense", "exp_loose")));
+
+  let parkRefused = "";
+  try { await E.parkUnassigned(S, "contract", "con_loose"); }
+  catch (e) { parkRefused = e.message; }
+  ok("a contract cannot be parked — it would be a contract to nothing",
+    parkRefused.includes("park-refused"), parkRefused.slice(0, 70));
+
+  console.log("== promotion moves membership and never rewrites the record");
+  await E.promote(S, "expense", "exp_loose", project.id);
+  ok("the promoted cost is a member of the deal",
+    (await E.listMembers(S, project.id, "expense")).includes("exp_loose"));
+  ok("...and is gone from the pen",
+    !(await E.listUnassigned(S, "expense")).includes("exp_loose"));
+  ok("...and its reverse pointer moved with it",
+    (await E.engagementOf(S, "expense", "exp_loose")) === project.id);
+
+  // PROMOTION RESPECTS THE DESTINATION'S SHAPE. Before this, promote validated
+  // nothing, so a side entrance could create the exact state attachRecord
+  // refuses at the front door.
+  await E.parkUnassigned(S, "task", "task_loose");
+  await E.promote(S, "task", "task_loose", "eng_derived_for_attach");
+  ok("promoting through an alias lands on the real deal",
+    (await E.listMembers(S, project.id, "task")).includes("task_loose"));
+
+  // A TYPE THAT WAS NEVER PARKABLE CANNOT BE PROMOTED, and this is the refusal
+  // that actually fires. I first asserted the destination-cardinality case here
+  // — promoting a second shipment into a job file — and it refused for a
+  // different and better reason: a shipment cannot sit in the pen at all, so it
+  // was never there to promote.
+  //
+  // Which makes the cardinality check in promote() DEFENSIVE rather than
+  // reachable today: the four parkable types are all `many` in the registry and
+  // no built-in template narrows any of them. It stays because a tenant flow
+  // editor can narrow one, and the day it does, a promotion must not be the
+  // side entrance that creates the state attachRecord refuses at the front.
+  let promoteRefused = "";
+  try { await E.promote(S, "shipment", "shp_5", jobFile.id); }
+  catch (e) { promoteRefused = e.message; }
+  ok("promoting a type that could never have been in the pen is refused",
+    promoteRefused.includes("promote-refused") && promoteRefused.includes("never in the pen"),
+    promoteRefused.slice(0, 85));
+
 } finally {
   const swept = await delPrefix(process.env.NOMPANY_KEY_PREFIX);
   console.log(`\nswept ${swept} rows from "${process.env.NOMPANY_KEY_PREFIX}"`);

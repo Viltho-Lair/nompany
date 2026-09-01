@@ -8,7 +8,7 @@ import { buildEngagements } from "../engagement/backfill";
 import type { EngagementDescriptor } from "../engagement/backfill";
 import { contribute, emptyContext } from "../engagement/context";
 import { templateById } from "../engagement/templates";
-import { attachmentProblem } from "../engagement/membership";
+import { attachmentProblem, canSitUnassigned, promotionProblem } from "../engagement/membership";
 import type { DealContext, ContextProvenance, ContextSource, ContributionResult } from "../engagement/context";
 
 export type Engagement = {
@@ -380,19 +380,74 @@ export async function unassignedEngagement(studioId: string): Promise<Engagement
   return eng;
 }
 
-// Promote a loose member into a real engagement: a SET move, no record rewrite.
-// (The caller updates the record's own engagementId field in Phase 1.)
+/**
+ * PARK A RECORD IN THE PEN — Law 7's "never silently outside the system".
+ *
+ * A cost that arrives with no deal does not vanish and does not block. It sits
+ * here, visible, until somebody promotes it. That is the whole mechanism behind
+ * "a deal must attract ALL its costs or its profit figure is fiction": the
+ * alternative is a cost nobody can see, and a profit number nobody can trust.
+ *
+ * ONLY WHAT CAN EXIST WITHOUT A DEAL MAY BE PARKED. A contract with no deal is
+ * not a loose cost awaiting a home, it is a contract to nothing — and letting
+ * one in would make the pen a dumping ground for records that are simply wrong.
+ */
+export async function parkUnassigned(studioId: string, type: string, recId: string, createdAt = nowISO()): Promise<void> {
+  if (!stageOf(type)) throw new Error(`unknown-stage:${type}`);
+  if (!canSitUnassigned(type)) {
+    throw new Error(
+      `park-refused:${type}: this type cannot exist without a deal, so it does not belong in the pen`,
+    );
+  }
+  await unassignedEngagement(studioId);
+  await zAdd(ENG.members(studioId, UNASSIGNED_ENG, type), Date.parse(createdAt) || 0, recId);
+  await zAdd(ENG.dept(studioId, type), Date.parse(createdAt) || 0, recId);
+  await setJSON(ENG.recEng(studioId, type, recId), UNASSIGNED_ENG);
+}
+
+/** What is waiting in the pen, of one type. */
+export async function listUnassigned(
+  studioId: string, type: string, { limit, rev }: { limit?: number; rev?: boolean } = {},
+): Promise<string[]> {
+  const stop = limit && limit > 0 ? limit - 1 : -1;
+  return zRange(ENG.members(studioId, UNASSIGNED_ENG, type), 0, stop, { rev });
+}
+
+/**
+ * PROMOTE A LOOSE RECORD INTO A REAL DEAL — a membership move, never a rewrite.
+ *
+ * §2.2 is explicit that promotion "moves membership; it never rewrites the
+ * record". The expense is the same expense before and after; what changes is
+ * which deal claims it. Rewriting the row would make promotion an EDIT, and an
+ * edit is a thing that can be wrong about the past — it would put a deal id on
+ * a record that did not have one when it was created, and nothing would
+ * distinguish that from the record having always belonged there.
+ *
+ * VALIDATED AGAINST THE DESTINATION, which it was not before: promoting into a
+ * deal has to respect that deal's own shape. Its template may narrow the type
+ * to one, and promoting a second one would create exactly the state attachRecord
+ * refuses at the front door — the same invariant broken by a side entrance.
+ */
 export async function promote(studioId: string, type: string, recId: string, toEngId: string): Promise<void> {
   if (isSingleton(type)) throw new Error("promote-singleton");
+
+  // Through the alias, for the same reason attachRecord is: a promotion must
+  // land on the deal that exists rather than on an id nothing else resolves to.
+  const dealId = await resolveDealId(studioId, toEngId);
+
+  const problem = promotionProblem(type, await templateOf(studioId, dealId),
+    (await listMembers(studioId, dealId, type)).length ? [type] : []);
+  if (problem) throw new Error(`promote-refused:${type}: ${problem}`);
+
   const score = await scoreOf(studioId, UNASSIGNED_ENG, type, recId);
   await zRem(ENG.members(studioId, UNASSIGNED_ENG, type), recId);
-  await zAdd(ENG.members(studioId, toEngId, type), score, recId);
-  await sAdd(ENG.hasStage(studioId, type), toEngId);
+  await zAdd(ENG.members(studioId, dealId, type), score, recId);
+  await sAdd(ENG.hasStage(studioId, type), dealId);
   // The reverse index moves WITH the member. attachRecord writes it, so leaving
   // it here would make a promoted record still answer "__unassigned" to
   // engagementOf — and a later delete would then detach it from the bucket it
   // no longer belongs to while its real engagement kept the phantom.
-  await setJSON(ENG.recEng(studioId, type, recId), toEngId);
+  await setJSON(ENG.recEng(studioId, type, recId), dealId);
 }
 
 // Phase-0 simplification: both branches return Date.now(), because the record's
