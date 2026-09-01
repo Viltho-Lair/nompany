@@ -194,7 +194,7 @@ export async function reversePayment(ctx: FinanceContext, id: string, reason?: u
     // THE OPPOSITE DIRECTION, THE SAME POSITIVE AMOUNT — which is what actually
     // happens in the world when a receipt is given back. It also means
     // paymentTotals cancels the pair without knowing anything about reversals.
-    direction: OPPOSITE[original.direction as PaymentDirection],
+    direction: OPPOSITE[original.direction],
     amount: original.amount,
     currency: original.currency,
     // THE REVERSAL'S OWN VALUE DATE IS TODAY, not the original's. The money went
@@ -214,7 +214,7 @@ export async function reversePayment(ctx: FinanceContext, id: string, reason?: u
 
   // The reversal joins the deal too — see the header. Not swallowed, for the
   // same reason the original's attach is not.
-  await attachRecord(studio.id, String(original.dealId || ""), "payment", reversal.id, reversal.createdAt);
+  await attachRecord(studio.id, original.dealId, "payment", reversal.id, reversal.createdAt);
 
   // STAMP THE ORIGINAL so it cannot be reversed again. A FUNCTION patch, so
   // "mark this reversed" stays a flip under contention (invariant 8) rather than

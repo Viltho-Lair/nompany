@@ -198,7 +198,7 @@ export async function setJobStatus(ctx: ScheduleContext, id: string, next: strin
   const current = await Jobs.byId({ studio, section }, id);
   if (!current) return { error: "notfound" };
 
-  const from = current.status as JobStatus;
+  const from = current.status;
   if (!NEXT_STATUS[from]?.includes(next)) return { error: "transition", from, to: next };
 
   // CAPTURED ONCE, OUTSIDE THE CLOSURE. This is a function patch (invariant 8),

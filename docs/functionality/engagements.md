@@ -157,6 +157,37 @@ to live once; 7 engagements proven.
 
 ## Not built yet — do not assume otherwise
 
+- **P2's six stage records have a schema, a collection and a service, and NO ROUTE, NO
+  SCREEN and NO PERMISSION AREA of their own.** `contract` and `change_order`
+  (`src/modules/sales/`), `timesheet` and `inspection` (`src/modules/projects/`), `job`
+  (`src/modules/operations/`) and `payment` (`src/modules/finance/`) can be created and
+  read by a caller holding their module's context, and nothing in the product calls one
+  yet. Each answers to an EXISTING permission — `crmSales.quotations`, `projects.list`,
+  `fieldService.schedule`, `finance.cash` — because minting an area for a record with no
+  screen would move the 123-key matrix and every golden pinning it; each gets its own
+  verbs when it gets a screen. Three consequences to know about while that is true:
+  `inspection` belongs to Quality & HSE and is filed under Projects, `change_order` is
+  approved under `edit` rather than an `approve` verb, and `payment` is reversed under
+  `create`.
+- **None of the six has a delete verb**, so each is only ever removed by its deal's
+  cascade — and `payment` is `onDelete: "keep"`, so a deleted deal DETACHES it and leaves
+  the row standing. Nothing detaches one individually, because nothing deletes one.
+- **A change order does not adjust anything by itself.** `approvedValueDelta` sums the
+  approved deltas for a caller that asks; no contract, deal or report reads it yet, so a
+  deal's contract value is still the contract's own `value`.
+- **A timesheet does not supersede `overtimes` yet.** Both collections exist, `overtimes`
+  keeps its live screen, and nothing migrates or reconciles the two — so overtime booked
+  the old way is invisible to `timesheetTotals` and vice versa.
+- **A change order, a timesheet and a payment teach the deal nothing.** Each says why in
+  its own service file; the short version is that a variation's title names the amendment
+  rather than the deal, a timesheet knows only who worked and for how much, and a
+  payment's counterparty on an outbound payment is a supplier rather than the client.
+- **A change order cannot move the deal's deadline**, and neither can a job. Both are
+  ranked against the contract by `platform/engagement/context.ts` — a change order is
+  `commitment`, equal rank, and equal ranks never overwrite; a job is `execution` and
+  WOULD overwrite, so it deliberately does not offer its dates at all, or every new job
+  would drag the deal's deadline to its own. Moving an agreed end date is an explicit,
+  audited edit, and there is no verb for one yet.
 - Records still live in their section array collections, not at `rec:` keys.
 - **Re-pointing a record at a different project does not move it between deals.**
   `editInvoice`, `editOrder`, `updateOvertime` and `updateShipment` each accept a new
