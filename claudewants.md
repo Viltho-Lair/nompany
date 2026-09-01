@@ -8,32 +8,17 @@ sits here — I work around it and come back.
 
 ## Open requests
 
-### 1. Re-run the two auth logins — and it will keep coming back
-
-```
-gcloud auth application-default login
-```
-
-ADC is what the Cloud SQL Auth Proxy authenticates with, and it has now expired
-**twice in one day**. The symptom is deliberately misleading: the proxy keeps
-listening on 5433, TCP connects, and then the connection RESETS — so it reads as a
-database or network fault rather than an expired credential. `ECONNRESET` on 5433
-means this, every time.
-
-`gcloud auth login` (the separate CLI credential, needed for any `gcloud` command)
-expires on its own schedule and may want re-running too.
-
-**Worth fixing properly rather than repeating:** a service-account key for the proxy,
-or `gcloud auth application-default login --no-browser` with a longer-lived session,
-would stop this recurring. Your call — I did not want to create a service-account key
-without asking, since it is a long-lived credential on disk.
-
-Everything that does not need the database keeps working meanwhile: the deal model's
-rules are pure functions and their tests run with no connection at all.
+*(none)*
 
 ---
 
 ## Done
+
+- **01/09** `gcloud auth application-default login` — ADC expired twice in one day.
+  Worth knowing for next time: the proxy keeps listening on 5433 and the connection
+  RESETS, so it reads as a database fault rather than a credential one. `ECONNRESET`
+  on 5433 means this. Restarting the proxy is also required — a running one holds the
+  old credentials in memory.
 
 - **01/09** `gcloud auth login`, `gcloud auth application-default login` — expired
   credentials (two different ones; ADC is what the proxy uses).

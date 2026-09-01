@@ -176,6 +176,17 @@ jobs:
         # nothing.
         run: node tests/engagement-model.mjs
 
+      - name: Tests — the deal container, against a real database
+        # The rules are proved without a store in the step above; this proves
+        # the half only a database can answer — that a derived id resolves
+        # through an alias to a real root, that a contribution persists, and
+        # that two arriving at once do not discard each other. The first bug it
+        # caught was invisible to the pure tests: contributeContext computed its
+        # changes, reported them, and wrote nothing.
+        env:
+          NOMPANY_TEST_SESSION: ci_deal
+        run: node tests/deal-store.mjs
+
       - name: Tests — integration suite
         # Now also runs tests/pg-parity.mjs's schema/RLS/row-primitive/dispatcher
         # assertions (folded in via tests/suite.mjs) against the postgres

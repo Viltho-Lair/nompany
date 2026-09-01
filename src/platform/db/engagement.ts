@@ -548,15 +548,24 @@ export async function contributeContext(
   const dealId = await resolveDealId(studioId, engId);
   let outcome: ContributionResult | null = null;
 
+  // `next`, NOT `value` — and the difference is silent. editJSON treats an
+  // outcome with no `next` as a READ: it returns the result and writes nothing,
+  // successfully. This was written returning `{ value }` first, and every
+  // contribution computed its changes correctly, reported them to the caller,
+  // and persisted none of them.
   await editJSON<Engagement, void>(ENG.root(studioId, dealId), (current) => {
-    if (!current) return { value: current, result: undefined };
+    if (!current) return { result: undefined };
     const context = { ...emptyContext(), ...(current.context as Partial<DealContext>) };
     const provenance = (current.provenance || {}) as ContextProvenance;
     const applied = contribute(context, provenance, proposed, source);
+    // RECOMPUTED ON EVERY ATTEMPT, not carried in from outside the mutator. A
+    // CAS retry re-reads the root, so a contribution that lost a race must be
+    // re-ranked against whatever won it — reusing the first attempt's result
+    // would apply a decision made against a value that no longer exists.
     outcome = applied;
-    if (!applied.changes.length) return { value: current, result: undefined };
+    if (!applied.changes.length) return { result: undefined };
     return {
-      value: {
+      next: {
         ...current,
         context: applied.context as unknown as Record<string, unknown>,
         provenance: applied.provenance,
