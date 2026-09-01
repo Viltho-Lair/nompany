@@ -348,7 +348,16 @@ Shared motion primitives live in `src/components/motion` and are hand-driven —
 `Reveal`, `CountUp`, and the house curves in `tokens.ts`, which the landing imports
 back. Gate A holds the line.
 
-**Browser-pane traps**, two of them, both paid for:
+**Browser-pane traps**, three of them, all paid for:
+
+- **The pane proxies with `x-forwarded-proto: https`, so every auth cookie comes back
+  `Secure` — and a browser drops a `Secure` cookie on `http://localhost`.** Silently. The
+  symptom is a screen stuck on its loading state with 401s in the console while the server
+  log says the login returned 307, which reads as a broken session rather than a dropped
+  cookie. `requestIsHttps()` trusts that header, correctly, for production. `dev-login`
+  therefore passes `false` outright rather than asking: the sandbox is only ever http on
+  localhost, so there is no case where `Secure` is wanted. Also **front the tab** — a
+  hidden pane would not take the cookie even once that was fixed.
 
 - The pane does not composite unless displayed, which freezes CSS transitions, so
   `getComputedStyle` returns stale mid-transition colours. Inject

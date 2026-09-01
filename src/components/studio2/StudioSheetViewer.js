@@ -103,9 +103,13 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
   const [draft, setDraft] = useState({});
   const dirtyRows = Object.keys(draft).length;
 
+  // `setDraft` is listed even though useState guarantees it is stable: React
+  // Compiler infers it as a dependency, and an inferred dependency missing from
+  // the source array makes it skip optimizing the component. A stable value
+  // never changes, so this callback is still built exactly once.
   const edit = useCallback((rowId, key, value) => {
     setDraft((d) => ({ ...d, [rowId]: { ...(d[rowId] || {}), [key]: value } }));
-  }, []);
+  }, [setDraft]);
 
   // Once nothing saves by itself, closing the tab is a way to lose work — so
   // the browser asks. Only while something is actually pending: a prompt on
@@ -186,8 +190,14 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
     return [...by.values()];
   }, [sheets, q]);
 
-  const shownTabs = useMemo(() => projectTabs.filter((p) => !hidden.includes(p.projectId)), [projectTabs, hidden]);
-  const hiddenTabs = useMemo(() => projectTabs.filter((p) => hidden.includes(p.projectId)), [projectTabs, hidden]);
+  // NOT MEMOIZED, DELIBERATELY. These were `useMemo`, and React Compiler
+  // refused to keep that ("memoized in source but not in compilation output"):
+  // it judges a filter over the tab list too cheap to be worth a cache, and one
+  // memo it will not preserve costs the WHOLE component its optimization. A
+  // plain filter is what the compiler wanted, and it re-memoizes if that ever
+  // stops being true.
+  const shownTabs = projectTabs.filter((p) => !hidden.includes(p.projectId));
+  const hiddenTabs = projectTabs.filter((p) => hidden.includes(p.projectId));
 
   // Inventory arrives at ONE sheet by id. Projects arrives at a PROJECT and
   // reads its Main sheet — the quotation as it was sold, which is the list a
