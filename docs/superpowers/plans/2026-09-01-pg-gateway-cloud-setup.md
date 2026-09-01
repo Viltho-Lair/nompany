@@ -193,9 +193,11 @@ was enabled on 31/08/2026 to evaluate it as an alternative and rejected (no bind
 
 - **None of this has been run.** Every command above is written from the API contracts and
   the real OIDC claims, not from a successful execution.
-- **There is no Dockerfile yet.** Step 5 names `services/pg-gateway/Dockerfile`; writing it
-  is outstanding, and it should bundle rather than copy, so the `start.mjs` loader hook that
-  currently resolves the extensionless `./keys` import can go away.
+- ~~**There is no Dockerfile yet.**~~ **Written, and it bundles.** `services/pg-gateway/Dockerfile`
+  builds `src/container-entry.ts` with esbuild from the repository root, which resolves the
+  extensionless `./keys` import at build time; `start.mjs` and its loader hook are deleted,
+  and `npm start` runs the same bundle the image does. The bundle step is proven; **the image
+  has still never been built** — no Docker on this machine.
 - **No rollback procedure is written.** Reverting is `PG_TRANSPORT=direct`, but with the
   public IP already removed there is no direct path from Vercel at all, so the real rollback
   is `NOMPANY_DB=redis`.

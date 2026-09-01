@@ -8,7 +8,8 @@
     "node": ">=22.6.0"
   },
   "scripts": {
-    "start": "node start.mjs",
+    "build": "esbuild src/container-entry.ts --bundle --platform=node --format=esm --target=node22 --packages=external --outfile=dist/main.mjs",
+    "start": "npm run build && node dist/main.mjs",
     "test": "node test/gateway.test.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
@@ -19,6 +20,7 @@
   "devDependencies": {
     "@types/node": "^26.2.0",
     "@types/pg": "^8.23.1",
+    "esbuild": "0.25.10",
     "typescript": "^5.9.3"
   }
 }

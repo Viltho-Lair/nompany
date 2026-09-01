@@ -25,7 +25,8 @@ service exists.**
 
 | Where | What it is |
 |---|---|
-| `services/pg-gateway/start.mjs` | The process entry — registers the module resolver, then `main()` |
+| `services/pg-gateway/Dockerfile` | The image — esbuild bundles the service and its shared guards into one file |
+| `services/pg-gateway/src/container-entry.ts` | The entry the bundle is built from; the only thing that calls `main()` |
 | `services/pg-gateway/src/main.ts` | The wiring: config → pool → the one transaction function → listen |
 | `services/pg-gateway/src/server.ts` | `POST /tx`, `GET /healthz`, the body ceiling, the status codes |
 | `services/pg-gateway/src/request.ts` | The request shape, validated strictly (unknown keys refused) |
@@ -371,15 +372,12 @@ Stated in words, because a silent gap reads as a finished feature.
   per HTTPS call by construction (`tests/pg-gateway-client.mjs` proves the arithmetic), but
   no route has been measured through a deployed gateway, and cold starts remain unbudgeted.
 - **It has never been deployed** (plan Task 6): no Artifact Registry image, no Cloud Run
-  service. There IS now a `Dockerfile`, but **it has never been built** — Docker is not
-  installed on the machine that wrote it — so it is a plan for an image rather than a
-  working one. It bundles with esbuild from the repository root, which is what lets the
-  container drop `start.mjs`'s loader hook (see `src/container-entry.ts`).
+  service. There IS now a `Dockerfile`, and **the bundle step inside it has been run and
+  proven** (`npm run build` → a 28.5 KB `dist/main.mjs` with `keys.ts` inlined, which
+  starts and reaches config), but **the image itself has never been built** — Docker is not
+  installed on the machine that wrote it — so the layering, the `npm ci` steps and the
+  non-root user are a plan rather than a working image.
   `cloudbuild.googleapis.com` is still not enabled, and the image path does not need it.
-- **The container installs no init process and the service handles no SIGTERM.** Node runs
-  as PID 1 in that image, where it gets no default signal handling, and Cloud Run sends
-  SIGTERM before evicting an instance. Until the service installs a handler (or the image
-  gains `--init`), an eviction can cut a transaction short rather than draining it.
 - **The runbook's deploy step has been corrected since this was written.** It used to say
   `gcloud run deploy --source=services/pg-gateway`, which uploads only that directory and
   therefore could not see the shared guards the service imports. It now builds an image
@@ -388,11 +386,12 @@ Stated in words, because a silent gap reads as a finished feature.
   start without `PG_GATEWAY_INSTANCE`, `PG_GATEWAY_DB_USER` and `PG_GATEWAY_DB_NAME`.
   Refusing is the correct behaviour — nothing is hardcoded — but the command needs a
   `--set-env-vars` before it will ever come up.
-- **`start.mjs` registers `tests/loader.mjs`.** A deployable importing a file out of
-  `tests/` is a wart, and it is here because the shared guards reach their siblings with
-  extensionless specifiers that plain Node's ESM resolver cannot follow. A bundling
-  container build would resolve those at build time and the hook would go away. Nothing
-  about the service's behaviour depends on which way that goes.
+- ~~**`start.mjs` registers `tests/loader.mjs`.**~~ **Closed.** The wart — a deployable
+  importing a file out of `tests/` to fill in the extensionless specifiers the shared
+  guards use — is gone with the file. `npm start` now builds the esbuild bundle and runs
+  that, which is the same artifact the image runs, so there is no longer a run-from-source
+  mode with its own resolution rules to keep in step. The cost is real and small: a local
+  start pays a rebuild (~7 ms) and reads a bundled stack trace rather than a source one.
 - **`pgTx` and `pgSchemaQuery` are closed under the gateway, not solved.** Both now refuse
   with a message naming `PG_TRANSPORT=direct`, which is correct for every caller they have
   today — all of them CI or a developer's machine. If something inside a Vercel request

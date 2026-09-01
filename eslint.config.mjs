@@ -37,6 +37,14 @@ export default [
       // The Electron task-bar is a separate project with its own runtime and no
       // build step; linting it from here would only report that it is not Next.
       "../nompany-task-bar/**",
+      // GENERATED OUTPUT, and the reason this line matters is not the five
+      // warnings it removes. `npm run build` in services/pg-gateway writes an
+      // esbuild bundle here, so whether this directory exists at all depends on
+      // whether anyone happened to build — which made the lint COUNT depend on
+      // it too, and a warning budget that moves with an untracked artifact is a
+      // budget that fails in CI for reasons nobody changed. Nothing here is
+      // hand-written; it is src/ again with the imports resolved.
+      "services/pg-gateway/dist/**",
     ],
   },
 

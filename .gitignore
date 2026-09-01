@@ -24,3 +24,8 @@ src/app/api/dev-login/
 # Media exported from production by scripts/migrate-media-to-blob.mjs. Real
 # customer files — never committed, and deleted once the migration is proven.
 media-export/
+
+# The pg-gateway bundle. esbuild output, rebuilt by `npm run build` on every
+# `npm start` and inside the image build — a committed copy would be a second
+# source of truth for code that already lives in src/.
+services/pg-gateway/dist/

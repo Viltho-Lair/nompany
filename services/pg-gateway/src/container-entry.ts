@@ -1,18 +1,19 @@
-// THE CONTAINER'S ENTRY POINT, and the reason it is not `start.mjs`.
+// THE ENTRY POINT — the one the bundle is built from, and so the one both
+// `npm start` and the container run.
 //
-// `start.mjs` runs the service under a loader hook, because Node's ESM resolver
-// cannot follow the extensionless `./keys` specifier inside sqlGuards.ts. That
-// hook is borrowed from tests/loader.mjs, and a deployable reaching into
-// tests/ is a wart its own header admits to.
-//
-// A bundler resolves those specifiers at BUILD time, so the container needs no
-// hook at all — which is why the Dockerfile bundles from this file instead. It
-// exists separately from main.ts only because a bundle entry has to actually
+// It exists separately from main.ts only because a bundle entry has to actually
 // CALL something, and main.ts deliberately exports `main` rather than invoking
 // it (so the test file can import the module without starting a server).
 //
-// `start.mjs` stays for local development, where running from source beats
-// rebuilding a bundle to read a log line.
+// THIS FILE IS WHY THERE IS NO LOADER HOOK. sqlGuards.ts reaches its sibling
+// with an extensionless `./keys` — CLAUDE.md's house rule, and what a bundler
+// expects — which plain Node's ESM resolver cannot follow. The service used to
+// carry a start.mjs that registered tests/loader.mjs to fill the extension in at
+// runtime; a deployable importing out of tests/ was a wart its own header
+// admitted to. esbuild resolves those specifiers at BUILD time instead, so
+// `npm run build` is now the only thing standing between source and a running
+// process, and running from source is no longer a separate mode with separate
+// resolution rules to keep in step.
 import { main } from "./main";
 
 await main();
