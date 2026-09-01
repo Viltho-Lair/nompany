@@ -174,11 +174,17 @@ export const templateStageTypes = (): string[] =>
  * Returns the problems rather than throwing: a caller that wants to fail does
  * so with all of them in hand, which is worth more than the first one.
  */
-export function templateProblems(knownStageTypes: readonly string[]): string[] {
+export function templateProblems(
+  knownStageTypes: readonly string[],
+  templates: readonly FlowTemplate[] = FLOW_TEMPLATES,
+): string[] {
   const known = new Set(knownStageTypes);
   const problems: string[] = [];
 
-  for (const t of FLOW_TEMPLATES) {
+  // TAKES THE LIST TO CHECK, defaulting to the built-ins. The same rules have to
+  // apply to a tenant's edited template as to a seeded one — and it is the
+  // tenant's that is more likely to be wrong, because a person just typed it.
+  for (const t of templates) {
     const own = new Set(t.stages);
     for (const s of t.stages) {
       if (!known.has(s)) problems.push(`template ${t.id}: stage "${s}" is not a registry type`);

@@ -249,6 +249,77 @@ try {
       !JSON.stringify(entries).includes("Plant 9") && !JSON.stringify(entries).includes("Omar"));
   }
 
+
+  console.log("== Law 2: a studio owns its flows, and edits are overrides");
+  {
+    const F = await import("@/platform/db/flows");
+
+    ok("a fresh studio sees the seven built-ins",
+      (await F.listFlowTemplates(S)).length === 7, String((await F.listFlowTemplates(S)).length));
+    ok("...and the twenty-five industries",
+      (await F.listIndustries(S)).length === 25, String((await F.listIndustries(S)).length));
+
+    // A CLONE IS A NEW ID; AN EDIT REUSES ONE. Same storage, and the difference
+    // is only whether a seed exists underneath.
+    await F.saveFlowTemplate(S, {
+      id: "A", name: "Contracting (ours)",
+      stages: ["ticket", "quotation", "project", "invoice"],
+      heads: ["ticket"], statusChain: ["project", "quotation", "ticket"],
+      billingTrigger: "progress", costDrivers: ["expense"], cardinalityOverrides: {},
+    });
+    ok("editing a built-in does not add a template", (await F.listFlowTemplates(S)).length === 7);
+    ok("...and the edit is what the studio now reads",
+      (await F.getFlowTemplate(S, "A"))?.name === "Contracting (ours)",
+      (await F.getFlowTemplate(S, "A"))?.name);
+    ok("...while the other six are untouched built-ins",
+      (await F.getFlowTemplate(S, "G"))?.name === "Recurring Contract");
+
+    // THE POINT OF STORING OVERRIDES RATHER THAN A FULL COPY: another studio is
+    // unaffected, and still gets the built-in.
+    const OTHER = `${S}_other`;
+    ok("another studio still sees the original", (await F.getFlowTemplate(OTHER, "A"))?.name === "Contracting / Project");
+
+    await F.saveFlowTemplate(S, {
+      id: "H", name: "Our own flow",
+      stages: ["ticket", "job", "invoice"], heads: ["ticket"],
+      statusChain: ["job", "ticket"], billingTrigger: "signoff",
+      costDrivers: ["timesheet"], cardinalityOverrides: {},
+    });
+    ok("a clone appends an eighth", (await F.listFlowTemplates(S)).length === 8);
+
+    // REFUSED ON WRITE, because every one of these is invisible at runtime.
+    const bad = [
+      [{ id: "X", name: "x", stages: ["ticket", "nonsense"], heads: ["ticket"], statusChain: ["ticket"], billingTrigger: "progress", costDrivers: [], cardinalityOverrides: {} }, "not a registry type"],
+      [{ id: "X", name: "x", stages: ["ticket"], heads: ["job"], statusChain: ["ticket"], billingTrigger: "progress", costDrivers: [], cardinalityOverrides: {} }, "not one of its own stages"],
+      [{ id: "X", name: "x", stages: ["ticket"], heads: ["ticket"], statusChain: ["project"], billingTrigger: "progress", costDrivers: [], cardinalityOverrides: {} }, "which it does not use"],
+    ];
+    for (const [tpl, expected] of bad) {
+      let msg = "";
+      try { await F.saveFlowTemplate(S, tpl); } catch (e) { msg = e.message; }
+      ok(`a template with a ${expected.split(" ").slice(0, 3).join(" ")} problem is refused`,
+        msg.includes("flow-template-refused") && msg.includes(expected), msg.slice(0, 80));
+    }
+
+    // AN INDUSTRY IS CHECKED AGAINST THIS STUDIO'S TEMPLATES, not the built-ins.
+    await F.saveIndustry(S, { key: "pearl-diving", name: "Pearl Diving", primary: "H", secondary: "", note: "ours" });
+    ok("an industry may point at a template this studio invented",
+      await F.defaultTemplateForStudio(S, "pearl-diving") === "H");
+    ok("...and the seeded twenty-five are still there", (await F.listIndustries(S)).length === 26);
+
+    let indMsg = "";
+    try { await F.saveIndustry(S, { key: "x", name: "X", primary: "ZZ", secondary: "", note: "" }); }
+    catch (e) { indMsg = e.message; }
+    ok("an industry pointing at a template that does not exist is refused",
+      indMsg.includes("industry-refused"), indMsg.slice(0, 70));
+
+    // DELETING AN OVERRIDE REVERTS TO THE SEED; deleting a clone removes it.
+    ok("dropping an edit reverts to the built-in",
+      (await F.deleteFlowTemplate(S, "A")) &&
+      (await F.getFlowTemplate(S, "A"))?.name === "Contracting / Project");
+    ok("dropping a clone removes it entirely",
+      (await F.deleteFlowTemplate(S, "H")) && (await F.getFlowTemplate(S, "H")) === null);
+  }
+
 } finally {
   const swept = await delPrefix(process.env.NOMPANY_KEY_PREFIX);
   console.log(`\nswept ${swept} rows from "${process.env.NOMPANY_KEY_PREFIX}"`);

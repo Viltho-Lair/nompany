@@ -77,11 +77,17 @@ export const defaultTemplateFor = (key: string): string => industryByKey(key)?.p
  * catching: every deal created in that industry would start on nothing, and the
  * symptom would be a deal with no stages rather than an error naming the row.
  */
-export function industryProblems(knownTemplateIds: readonly string[]): string[] {
+export function industryProblems(
+  knownTemplateIds: readonly string[],
+  industries: readonly IndustryEntry[] = INDUSTRIES,
+): string[] {
   const known = new Set(knownTemplateIds);
   const seen = new Set<string>();
   const problems: string[] = [];
-  for (const i of INDUSTRIES) {
+  // TAKES THE LIST TO CHECK, defaulting to the seeded twenty-five. The same
+  // rules must apply to a tenant's own row as to a seeded one — and the
+  // tenant's is the one a person just typed, so it is the one more likely wrong.
+  for (const i of industries) {
     if (seen.has(i.key)) problems.push(`industry "${i.key}" is listed twice`);
     seen.add(i.key);
     if (!known.has(i.primary)) problems.push(`industry "${i.key}": primary template "${i.primary}" does not exist`);

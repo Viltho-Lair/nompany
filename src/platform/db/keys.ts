@@ -315,6 +315,20 @@ export const S = {
   sections: (studioId: string) => `${P}s:${studioId}:sections`,
   roles: (studioId: string) => `${P}s:${studioId}:roles`,
   settings: (studioId: string) => `${P}s:${studioId}:settings`,
+  // LAW 2 — FLOW TEMPLATES AND INDUSTRIES AS DATA A TENANT OWNS.
+  //
+  // The seven built-in templates and twenty-five industries are SEEDS, in
+  // platform/engagement/. These two keys hold what a studio changed: a clone, a
+  // reordered stage list, an industry this trade needs that the seed never had.
+  // Adding an industry has to be a row rather than a release, and a key is what
+  // makes that true.
+  //
+  // Stored as OVERRIDES, not as a full copy of the seed. A studio that edits
+  // one template does not fork the other six — so a later correction to a
+  // built-in still reaches every studio that never touched it, and the ones
+  // that did keep exactly what they changed.
+  flowTemplates: (studioId: string) => `${P}s:${studioId}:flow-templates`,
+  industries:    (studioId: string) => `${P}s:${studioId}:industries`,
   notifications: (studioId: string) => `${P}s:${studioId}:notifications`,
   // HOW MANY REFERENCES OF EACH KIND HAVE EVER BEEN ISSUED — a hash, one field
   // per prefix ("INV", "PO", "ACME"). It exists because "the next number" is
