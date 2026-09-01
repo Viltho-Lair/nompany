@@ -3320,19 +3320,45 @@ console.log("== the audit log: who did what");
   // it already included the entry it was meant to exclude and the trail looked
   // empty. Asking "what is the newest entry right now" only means anything
   // before the thing you are about to measure.
+  // CAPTURE, PLUS THE REQUEST ID. Local to this block on purpose: goldens.mjs's
+  // `capture` feeds `golden()`, which serialises whatever it returns, so adding
+  // a field there rewrites every golden — tried, and it failed 152 of them in
+  // one run. The audit assertions are the only place that needs the id, so the
+  // variant lives with them.
+  const captureWithId = async (handler, request, context) => {
+    const res = await handler(request, context);
+    const text = await res.text();
+    let body;
+    try { body = text ? JSON.parse(text) : null; } catch { body = text; }
+    return { status: res.status, body, requestId: res.headers.get("X-Request-Id") || "" };
+  };
+
   const cursor = await audit.latestId(studio.id);
 
-  const made = await capture(CLIENTS.POST, req(`/api/studios/${slug}/sales/clients`, {
+  const made = await captureWithId(CLIENTS.POST, req(`/api/studios/${slug}/sales/clients`, {
     method: "POST",
     body: { name: `Audited Co ${rand()}`, country: "Saudi Arabia", city: "Riyadh" },
   }), P);
   ok("the write happened", made.status === 201, String(made.status));
 
-  const added = await audit.since(studio.id, cursor, 200);
-  ok("...and it left exactly one entry", added.length === 1,
-    `${added.length} entries after cursor ${cursor || "(start)"}`);
+  // MATCHED BY REQUEST ID, NOT BY BEING THE ONLY THING THERE.
+  //
+  // "exactly one entry appeared" is a claim about the whole trail, and the trail
+  // has other writers: in CI, fifty-six unrelated entries — the first from a
+  // vendor-import route this block never calls — landed between taking the
+  // cursor and reading it. Locally none did, which is why the fragile version
+  // passed here and failed there.
+  //
+  // What this test is actually about is narrower and worth stating exactly: the
+  // write it just made left ONE record, and that record names the action. So it
+  // asks for the entries carrying THIS request's id. Anything else in the trail
+  // belongs to somebody else and is not evidence either way.
+  const added = await audit.since(studio.id, cursor, 500);
+  const mine = added.filter((e) => e.requestId && e.requestId === made.requestId);
+  ok("...and it left exactly one entry", mine.length === 1,
+    `${mine.length} for this request, of ${added.length} after the cursor`);
 
-  const entry = added[0];
+  const entry = mine[0];
   // "crm-sales-clients", not "sales/clients": an audit action is `${method}
   // ${spec.name}`, and the fifteen-section restructure renamed every route
   // spec's `name` to the section key it serves (see the sales routes' specs).
@@ -3357,18 +3383,23 @@ console.log("== the audit log: who did what");
   // Same cursor discipline as above: ask what happened after the last entry
   // already seen, rather than re-reading a page and trusting its tail.
   const readCursor = await audit.latestId(studio.id);
-  await capture(CLIENTS.PUT, req(`/api/studios/${slug}/sales/clients`,
+  const refusedWrite = await captureWithId(CLIENTS.PUT, req(`/api/studios/${slug}/sales/clients`,
     { method: "PUT", body: {} }), P);
   const SALES = await import("@/app/api/studios/[slug]/sales/route.ts");
-  await capture(SALES.GET, req(`/api/studios/${slug}/sales`), P);
-  const afterRead = await audit.since(studio.id, readCursor, 200);
+  const plainRead = await captureWithId(SALES.GET, req(`/api/studios/${slug}/sales`), P);
+  // Same reasoning: the claim is about THESE two calls, not about the trail
+  // being quiet. The refused PUT must leave a record and the GET must not, so
+  // the entries carrying either request's id should be exactly the PUT's one.
+  const afterRead = await audit.since(studio.id, readCursor, 500);
+  const fromThese = afterRead.filter((e) =>
+    e.requestId === refusedWrite.requestId || e.requestId === plainRead.requestId);
   ok("a read leaves no entry, a refused write still does",
-    afterRead.length === 1, `${afterRead.length} entries after the refused write and one read`);
+    fromThese.length === 1, `${fromThese.length} entries from the refused write and the read`);
 
   // A REFUSAL IS RECORDED TOO, and that is the point rather than an oversight:
   // somebody repeatedly attempting what they may not do is exactly what an audit
   // trail is read to find.
-  const refusedEntry = afterRead[0];
+  const refusedEntry = fromThese[0];
   ok("...and the refusal recorded the status it answered",
     Number(refusedEntry?.status) >= 400, refusedEntry?.status);
 
