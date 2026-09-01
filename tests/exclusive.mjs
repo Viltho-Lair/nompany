@@ -94,9 +94,26 @@ export async function claimNamespace(prefix, label) {
 export async function sweepExcept(prefix, lockKey) {
   const { scanPrefix, delKeys } = await import("@/platform/db/store");
   const keys = (await scanPrefix(prefix)).filter((k) => k !== lockKey);
-  if (!keys.length) return 0;
-  await delKeys(...keys);
-  return keys.length;
+  if (keys.length) await delKeys(...keys);
+
+  // STREAMS TOO — they are a second table, and scanPrefix cannot see them.
+  //
+  // This swept `documents` only, which was complete while a stream was a Redis
+  // key and is not any more. What it left behind was every previous run's audit
+  // trail and every event it published, under the same namespace, accumulating
+  // on a database that outlives the run — CI reuses `ci_` on every build.
+  //
+  // The symptom was not a leak, which is why it took a while to find: the audit
+  // test reads a PAGE of the trail and asserts on its last entry, so once the
+  // channel held more than one page, "the last entry I can see" stopped being
+  // "the entry I just wrote" and the assertion failed naming somebody else's
+  // route. delPrefix carries the same fix for the same reason.
+  const { pgQuery } = await import("@/platform/db/pg");
+  const { rowCount } = await pgQuery(
+    `DELETE FROM events WHERE channel LIKE $1 ESCAPE '\\'`,
+    [`${prefix.replace(/([\\%_])/g, "\\$1")}%`],
+  );
+  return keys.length + rowCount;
 }
 
 /** The lock key for a namespace, so a bootstrap can name it before claiming. */

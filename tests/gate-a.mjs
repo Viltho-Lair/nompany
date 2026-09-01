@@ -3313,11 +3313,25 @@ console.log("== the audit log: who did what");
   }), P);
   ok("the write happened", made.status === 201, String(made.status));
 
-  const after = await audit.since(studio.id, "", 200);
-  ok("...and it left exactly one entry", after.length === before.length + 1,
-    `${before.length} then ${after.length}`);
+  // READ FROM A CURSOR, NOT THE LAST OF A PAGE.
+  //
+  // This used to re-read the whole trail and take `after[after.length - 1]`,
+  // which is "the newest entry" only while the trail fits in one page and
+  // nothing else writes to it. Neither held: `since` pages at 200, and CI
+  // reuses one namespace across builds, so the channel outgrew a page and the
+  // assertion started failing while naming an unrelated route — which reads
+  // like the audit log recording the wrong thing rather than like the test
+  // looking in the wrong place.
+  //
+  // The cursor is what the audit API is built around, and asking it for "what
+  // happened after the entry I already saw" is both the precise question and
+  // the one immune to how long the trail is.
+  const cursor = before.length ? before[before.length - 1].id : "";
+  const added = await audit.since(studio.id, cursor, 200);
+  ok("...and it left exactly one entry", added.length === 1,
+    `${added.length} entries after cursor ${cursor || "(start)"}`);
 
-  const entry = after[after.length - 1];
+  const entry = added[0];
   // "crm-sales-clients", not "sales/clients": an audit action is `${method}
   // ${spec.name}`, and the fifteen-section restructure renamed every route
   // spec's `name` to the section key it serves (see the sales routes' specs).
@@ -3339,19 +3353,22 @@ console.log("== the audit log: who did what");
 
   // READS ARE NOT LOGGED. A trail nobody can read through is not one anybody
   // will, and a GET is not an act somebody has to answer for.
+  // Same cursor discipline as above: ask what happened after the last entry
+  // already seen, rather than re-reading a page and trusting its tail.
   const beforeRead = await audit.since(studio.id, "", 200);
+  const readCursor = beforeRead.length ? beforeRead[beforeRead.length - 1].id : "";
   await capture(CLIENTS.PUT, req(`/api/studios/${slug}/sales/clients`,
     { method: "PUT", body: {} }), P);
   const SALES = await import("@/app/api/studios/[slug]/sales/route.ts");
   await capture(SALES.GET, req(`/api/studios/${slug}/sales`), P);
-  const afterRead = await audit.since(studio.id, "", 200);
+  const afterRead = await audit.since(studio.id, readCursor, 200);
   ok("a read leaves no entry, a refused write still does",
-    afterRead.length === beforeRead.length + 1, `${beforeRead.length} then ${afterRead.length}`);
+    afterRead.length === 1, `${afterRead.length} entries after the refused write and one read`);
 
   // A REFUSAL IS RECORDED TOO, and that is the point rather than an oversight:
   // somebody repeatedly attempting what they may not do is exactly what an audit
   // trail is read to find.
-  const refusedEntry = afterRead[afterRead.length - 1];
+  const refusedEntry = afterRead[0];
   ok("...and the refusal recorded the status it answered",
     Number(refusedEntry?.status) >= 400, refusedEntry?.status);
 
@@ -3367,12 +3384,16 @@ console.log("== the audit log: who did what");
       actor: "sup_test", actorType: audit.ACTOR.SUPER,
       action: "PUT super/studios/[id]", subject: studio.id, status: 200,
     });
-    const afterPlatform = await audit.since("", "", 200);
+    // Cursor again, and this channel needed it most: the platform log belongs to
+    // no studio, so every run in the namespace writes to the SAME channel and it
+    // outgrows a page faster than any studio's trail does.
+    const platformCursor = beforePlatform.length ? beforePlatform[beforePlatform.length - 1].id : "";
+    const afterPlatform = await audit.since("", platformCursor, 200);
     ok("a console action lands in the platform log",
-      afterPlatform.length === beforePlatform.length + 1,
-      `${beforePlatform.length} then ${afterPlatform.length}`);
+      afterPlatform.length === 1,
+      `${afterPlatform.length} entries after cursor ${platformCursor || "(start)"}`);
 
-    const platformEntry = afterPlatform[afterPlatform.length - 1];
+    const platformEntry = afterPlatform[0];
     ok("...with no studio to file it under", platformEntry?.studioId === "",
       JSON.stringify(platformEntry?.studioId));
     ok("...and it did NOT land in the studio's log",

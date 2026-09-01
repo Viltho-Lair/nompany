@@ -8,16 +8,7 @@ sits here — I work around it and come back.
 
 ## Open requests
 
-### 1. Remove `REDIS_URL` from Vercel (all environments)
-
-Nothing reads it any more. The `redis` package is uninstalled, `src/platform/db/redis.ts`
-is deleted, and no file in the repo imports either. Leaving the variable set is harmless
-today but it is a live credential to a store the product no longer uses.
-
-**Do this LAST**, after the deploy is confirmed working — while it is still set, rolling
-back to an older build is possible; once it is gone, that build has nothing to connect to.
-
-### 2. Delete the Redis Cloud instance itself — when you are ready
+### 1. Delete the Redis Cloud instance itself — when you are ready
 
 Same reasoning, one step further, and it is the one that ends the subscription. I am not
 touching it: it is an account-level destruction outside this repo, and it should happen
@@ -32,6 +23,8 @@ after the Postgres deploy has run for long enough that you would have noticed a 
 - **01/09** Restore `DATABASE_URL` to a connection string — it held an instance connection
   name, which `pg` silently ignores while falling back to localhost.
 - **01/09** Create the Vercel Blob store and its read/write token.
+- **01/09** Delete `REDIS_URL` from Vercel — nothing reads it; the package is uninstalled
+  and the module deleted.
 - **01/09** Delete `NOMPANY_DB` from production — absence is now verifiable, and the
   default it falls back to is `postgres`.
 
