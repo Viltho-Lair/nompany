@@ -152,6 +152,17 @@ function finish(scope: RequestScope, outcome: string, counted: ReturnType<typeof
     ms: Date.now() - scope.startedAt,
     // Absent when nothing established a command counter — the field being
     // missing is itself informative, so it is not defaulted to zero.
-    ...(counted ? { redisCommands: counted.commands, redisWaves: counted.waves } : {}),
+    //
+    // pgQueries/pgEnvelope are Task 8's SQL-side counterparts of
+    // redisCommands/redisWaves — see commandCount.ts's header for why a caller's
+    // own statement (pgQueries) and the transaction bookkeeping pg.ts wraps
+    // around it (pgEnvelope) are reported separately rather than folded into one
+    // number. Present alongside the Redis fields even when zero, exactly like
+    // them, because a route costing 0 SQL statements is itself informative once
+    // the backend is Postgres.
+    ...(counted ? {
+      redisCommands: counted.commands, redisWaves: counted.waves,
+      pgQueries: counted.queries, pgEnvelope: counted.envelope,
+    } : {}),
   });
 }

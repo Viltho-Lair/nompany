@@ -5,7 +5,7 @@ import { useStudioLocale } from "@/components/studio2/locale";
 import { peopleDict } from "@/shared/studio/people";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { ADMIN_ROLE_ID } from "@/platform/access";
-import { Field, BARE_CONTROL } from "@/components/fields/Field";
+import { Field } from "@/components/fields/Field";
 import { fmtDate } from "@/lib/format";
 
 const panel = "rounded-geex border border-slate-200/70 bg-[var(--geex-surface)] p-6 dark:border-white/10";

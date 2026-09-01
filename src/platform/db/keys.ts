@@ -222,6 +222,22 @@ export const IDEM = {
 // S.media (declared below, still unused) and out of Redis entirely.
 export const MEDIA = {
   blob: (id: string) => `${P}g:media:${id}`,
+  // THE BLOB OBJECT'S PATHNAME — a SECOND namespace, and the one the bytes
+  // actually live in now. `blob()` above namespaces the Redis record; for the
+  // whole time the bytes were base64 inside that record, prefixing it was
+  // enough. It is not any more. Vercel Blob has no equivalent of
+  // NOMPANY_KEY_PREFIX, so an unprefixed pathname puts a test run's objects in
+  // the live store beside production's — the identical fault this block's
+  // header describes, committed a second time in a store that did not exist
+  // when that header was written.
+  //
+  // It is worse here than it was in Redis, because the two halves are swept by
+  // different mechanisms: delPrefix reaps the test run's RECORD, and nothing
+  // reaps the OBJECT it named. The result is precisely the leak deleteMedia
+  // calls "unreachable and unreclaimable" — billed forever, with the only
+  // pointer to it deleted. tests/blob-sweep.mjs is the other half of the fix,
+  // and it can only find those objects because this prefix is here.
+  object: (id: string) => `${P}media/${id}`,
 };
 
 // ---- nompany's own public site (owned by nobody, outside every cascade) ----
@@ -639,3 +655,19 @@ export function isValidSlug(slug: unknown): boolean {
   const s = String(slug || "");
   return SLUG_RE.test(s) && !RESERVED_SLUGS.has(s);
 }
+
+// ---- SQL identifiers (Postgres store swap) ---------------------------------
+// SQL IDENTIFIERS ARE KEYS TOO. Invariant 1 says keys are built only here,
+// never a literal and never a template at a call site — the reason was that a
+// literal in lib/media.js once wrote real blobs from the test suite. A table
+// name interpolated at a call site is the same failure with a bigger blast
+// radius, so the table and its columns are named here and nowhere else.
+export const TBL = {
+  rows: "collection_rows",
+  seq: "collection_rows_seq",
+  cols: {
+    tenant: "tenant_id", section: "section_id", collection: "collection",
+    id: "id", seq: "seq", version: "row_version", payload: "payload",
+    createdAt: "created_at", updatedAt: "updated_at",
+  },
+} as const;

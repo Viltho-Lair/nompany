@@ -131,10 +131,16 @@ export async function approveBill(ctx: FinanceContext, id: string) {
   if (current.status === "Approved" || current.status === "Paid") return { error: "already", status: current.status };
   if (current.status === "Cancelled") return { error: "cancelled" };
 
+  // CAPTURED ONCE — same reasoning as tasks.ts's `now`: this is a
+  // function-patch (invariant 8), so updateRow may invoke it more than once
+  // (a CAS retry under contention, or once per store under NOMPANY_DB=parity),
+  // and a `new Date().toISOString()` called fresh inside the closure would
+  // disagree between those invocations by whatever time separated them.
+  const approvedAt = new Date().toISOString();
   const bill = await Bills.update({ studio, section: payablesSection }, id, () => ({
     status: "Approved",
     approvedByCollaboratorId: collaborator.id,
-    approvedAt: new Date().toISOString(),
+    approvedAt,
   }));
   return bill ? { bill: { ...bill, ...billTotals(bill) } } : { error: "notfound" };
 }

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { qualityDict } from "@/shared/studio/quality";
 import { Dialog, btn, btnGhost, label, microLabel } from "@/components/studio2/ui";
-import { Field, BARE_CONTROL } from "@/components/fields/Field";
+import { Field } from "@/components/fields/Field";
 import StudioDate from "@/components/fields/StudioDate";
 import { REV_LABELS } from "@/modules/quality/qualityDocuments";
 import { StatusPill } from "@/components/studio2/StatusPill";

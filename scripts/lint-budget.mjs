@@ -31,7 +31,13 @@ import { execFileSync } from "node:child_process";
 // 170 → 161 on 22/08/2026, with the 99 route files. Same reason again: nine of
 // those warnings were the .js rules firing at TypeScript, and the ceiling comes
 // down with the count rather than banking the difference as headroom.
-const MAX_WARNINGS = 161;
+// 161 → 147 on 01/09/2026, and this time the backlog really did shrink: 66
+// `no-unused-vars` became 0, by deleting the bindings rather than by turning a
+// rule off. The count had drifted to 213 — ABOVE the ceiling — so this step
+// both fixed a red build and re-tightened the ratchet. Where a value was unused
+// on purpose it lost its binding and kept its comment, since a name that exists
+// only to be ignored says less than a sentence saying why there is none.
+const MAX_WARNINGS = 147;
 
 let report;
 try {

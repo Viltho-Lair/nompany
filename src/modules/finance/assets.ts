@@ -223,11 +223,18 @@ export async function disposeAsset(ctx: FinanceContext, id: string, body: Record
   // Cannot dispose before it was acquired.
   if (current.acquiredOn && disposedOn < current.acquiredOn) return { error: "before-acquired" };
 
+  // CAPTURED ONCE. This is a function-patch (invariant 8), so updateRow may
+  // call it more than once — a CAS retry under contention, or once per store
+  // under NOMPANY_DB=parity — and `new Date().toISOString()` called fresh
+  // inside the closure disagreed by however many milliseconds separated those
+  // calls. Parity's byte-for-byte comparison is what surfaced this exact
+  // pattern in tasks.ts first; the fix is identical.
+  const disposedAt = new Date().toISOString();
   const asset = await Assets.update({ studio, section: assetsSection }, id, () => ({
     disposedOn,
     disposalProceeds: cash(body?.disposalProceeds),
     disposedByCollaboratorId: collaborator.id,
-    disposedAt: new Date().toISOString(),
+    disposedAt,
   }));
   return asset ? { asset: withDepreciation(asset) } : { error: "notfound" };
 }

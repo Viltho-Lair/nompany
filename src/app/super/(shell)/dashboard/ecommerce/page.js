@@ -1,5 +1,5 @@
 import {
-  PageHeader, Card, CardHead, CardBody, Row, Col, Badge, Avatar, Progress, KpiTile, Table, Icon,
+  PageHeader, Card, CardHead, CardBody, Row, Col, Badge, Avatar, KpiTile, Table, Icon,
 } from "../../../_components/ui";
 import { AreaChart, ChartFrame, BarChart, Donut, BarList } from "@/components/charts";
 import { BASE } from "../../../_components/nav";

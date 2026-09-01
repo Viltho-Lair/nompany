@@ -42,7 +42,10 @@ export function TemplateDialog({
   const tr = plannerDict(useStudioLocale());
   const importTasks = usePlannerStore((s) => s.importTasks);
   const setMeta = usePlannerStore((s) => s.setMeta);
-  const slug = React.useMemo(studioSlug, []);
+  // Wrapped rather than passed by reference: React Compiler reads the first
+  // argument to decide what it may memoize, and a bare identifier tells it
+  // nothing about what runs inside.
+  const slug = React.useMemo(() => studioSlug(), []);
   const base = `/api/studios/${slug}/operations/planner/templates`;
 
   const [templates, setTemplates] = React.useState<TemplateRow[] | null>(null);

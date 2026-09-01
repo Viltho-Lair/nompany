@@ -76,13 +76,75 @@ await sweepExcept(process.env.NOMPANY_KEY_PREFIX, lockKeyFor(process.env.NOMPANY
 
 const { gateAFailures } = await import("./gate-a.mjs");
 
+// THE POSTGRES SWEEP (P1 Task 6) — MUST RUN BEFORE THE REDIS SWEEP BELOW, for
+// the identical reason tests/suite.mjs's own copy does: REG.studios ("g:studios")
+// is namespaced by this run's own NOMPANY_KEY_PREFIX and is the only record of
+// which studio(s) Gate A created (see tests/gate-a.mjs's "Gate A Studio")
+// before delPrefix erases that record along with everything else. Under
+// NOMPANY_DB=parity that studio's fixtures were also dual-written into
+// collection_rows, where tenant_id carries none of Redis's namespacing — see
+// tests/pg-sweep.mjs for why an explicit id list is the only safe way to find
+// and remove them once RLS is FORCED.
+const { readArr, delPrefix } = await import("@/platform/db/store");
+const { REG } = await import("@/platform/db/keys");
+const { sweepPgTenants } = await import("./pg-sweep.mjs");
+const { sweepBlobObjects } = await import("./blob-sweep.mjs");
+
+// CRITICAL FIX (whole-branch review): sweepPgTenants used to be called
+// unconditionally, and pg.ts's getPool() THROWS the instant DATABASE_URL is
+// unset — CI's redis:8-only setup left it unset, so this line threw BEFORE
+// the Redis delPrefix below ever ran, stranding this run's namespace. That is
+// exactly the dirty-namespace trap CLAUDE.md documents: the NEXT run (or a
+// concurrent session under a different NOMPANY_TEST_SESSION sharing this
+// prefix by accident) would see stale fixtures and report unrelated
+// "forbidden"/"no-section" failures with nothing pointing at the real cause.
+//
+// So this is now: (1) skip loudly, not silently, when there is no Postgres to
+// sweep — CI always sets DATABASE_URL, so a local run without one is the only
+// case this fires for and losing coverage there is expected, not hidden; (2)
+// on any OTHER failure (a real Postgres problem), catch it here specifically
+// so the Redis sweep two lines down still runs no matter what, and surface
+// the failure via the exit code instead of an unhandled throw.
+let pgSwept = 0;
+let pgSweepFailed = false;
+if (!process.env.DATABASE_URL) {
+  console.warn(`skipping the Postgres sweep — DATABASE_URL is not set (nothing was dual-written to collection_rows this run)`);
+} else {
+  try {
+    const gateAStudioIds = (await readArr(REG.studios)).map((s) => s.id).filter(Boolean);
+    pgSwept = await sweepPgTenants(gateAStudioIds);
+    console.log(`swept ${pgSwept} postgres row(s) across ${gateAStudioIds.length} studio(s) created by this run`);
+  } catch (e) {
+    pgSweepFailed = true;
+    console.error(`Postgres sweep failed — continuing to the Redis sweep below so this run does not strand its namespace: ${e.message}`);
+  }
+}
+
+// THE BLOB SWEEP — see tests/blob-sweep.mjs. Gate A does not upload media
+// today, so this reports 0 and costs one `list` call; it is here so that the
+// day a golden covers an upload, the objects are already being reaped rather
+// than accumulating unnoticed in the live store until somebody reads a bill.
+// Guarded like the Postgres sweep above so a failure cannot stop the Redis
+// sweep below and strand this run's namespace.
+let blobSweepFailed = false;
+if (!process.env.BLOB_READ_WRITE_TOKEN) {
+  console.warn(`skipping the Blob sweep — BLOB_READ_WRITE_TOKEN is not set (nothing was uploaded to Blob this run)`);
+} else {
+  try {
+    const blobSwept = await sweepBlobObjects(process.env.NOMPANY_KEY_PREFIX);
+    console.log(`swept ${blobSwept} blob object(s) under "${process.env.NOMPANY_KEY_PREFIX}media/"`);
+  } catch (e) {
+    blobSweepFailed = true;
+    console.error(`Blob sweep failed — continuing to the Redis sweep below so this run does not strand its namespace: ${e.message}`);
+  }
+}
+
 // Everything Gate A wrote lives under the namespace, so cleanup is one prefix
-// deletion. Runs whatever happened above — a failed assertion must not leave
-// keys behind.
-const { delPrefix } = await import("@/platform/db/store");
+// deletion. Runs whatever happened above — a failed assertion (Redis OR
+// Postgres) must not leave keys behind.
 const { getRedisClient } = await import("@/platform/db/redis");
 const swept = await delPrefix(process.env.NOMPANY_KEY_PREFIX);
 console.log(`swept ${swept} keys from "${process.env.NOMPANY_KEY_PREFIX}"`);
 await (await getRedisClient()).quit();
 
-process.exit(gateAFailures ? 1 : 0);
+process.exit((gateAFailures || pgSweepFailed || blobSweepFailed) ? 1 : 0);

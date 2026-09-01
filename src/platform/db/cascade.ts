@@ -8,15 +8,43 @@
 //  3. sweepOrphans() (weekly cron) verifies registries ↔ indexes ↔ prefixes and
 //     reaps anything a mid-cascade crash stranded.
 //
+// POSTGRES HAS NEITHER A KEY TREE NOR ON DELETE CASCADE EITHER, and it is a
+// SEPARATE SYSTEM from Redis — no transaction spans both, so property 1 above
+// ("cascade = prefix deletion") has no Postgres analogue at all. What a
+// section or studio owns there is instead an EXPLICIT, BOUNDED scope: an
+// exact tenant_id, and for a section an exact section_id too (see
+// pgDeleteAllForSection/pgDeleteAllForTenant in pgRows.ts) — never a
+// predicate that could match more than the caller named (invariant 17). NOT
+// bounded by SECTION_COLLECTIONS, on purpose: the catalogue answers "what to
+// READ" and every parent section key plus every appendSection-minted key
+// answers "[]" to it, which under an earlier draft left exactly the rows a
+// catalogue-blind key still owns undeleted (fix round 1, Important 1 — a
+// one-store survivor measured under parity). Property 2 (children-first,
+// registry-last) still holds
+// ACROSS both stores: every section/studio cascade below reaps Postgres rows
+// and the Redis subtree — in either order between the two, since both are
+// equally "children" — before touching the Redis registry row that names the
+// section or studio, so a crash at any point before that registry write
+// leaves a parent a re-run still finds and finishes, and a crash after it
+// leaves nothing left to redo. Which of the two stores actually holds rows —
+// neither (redis), Postgres only (postgres), or both (parity, where BOTH must
+// be reaped or the next parity comparison sees a phantom) — follows
+// DB_BACKEND (see sections.ts); see PG_HOLDS_ROWS below. Property 3 does NOT
+// extend to Postgres — see the comment above sweepOrphans for why not, and
+// what stays uncovered.
+//
 // Cascade paths (mirrors the approved ER plan):
 //  USER    → profile/verification/questionnaire/sessions → owned studio (full
 //            studio cascade) → their Collaborator rows in OTHER studios →
 //            join-requests → indexes → registry row.
-//  STUDIO  → every s:<id>:* key (sections + all operational data, collaborators,
-//            grants, tokens, notifications, media, settings, activity) →
-//            members' ix:collab back-pointers → slug/owner/token indexes →
-//            join-requests → registry row.
-//  SECTION → its s:<sid>:sec:<id>:* collections → row.
+//  STUDIO  → every collection_rows row this tenant holds (Postgres, when
+//            DB_BACKEND says it holds any) → every s:<id>:* key (sections +
+//            all operational data, collaborators, grants, tokens,
+//            notifications, media, settings, activity) → members' ix:collab
+//            back-pointers → slug/owner/token indexes → join-requests →
+//            registry row.
+//  SECTION → its collection_rows rows (Postgres, ditto) → its
+//            s:<sid>:sec:<id>:* collections → row.
 //  COLLABORATOR → row → their notifications → ix back-pointer.
 //  ROLE    → the `roleIds` reference on every holder → row. The permissions
 //            themselves live ON the row, so they need no reaping.
@@ -29,10 +57,31 @@ import { REG, U, S, SEC, IX, ENG, KEY_PREFIX } from "./keys";
 import { readArr, editArr, delKeys, delPrefix, release, getIndex, sRem, sMembers, scanPrefix, claim, zRem } from "./store";
 import { STAGE_REGISTRY } from "@/platform/engagement/registry";
 import { readEngagement, readEngagementView, detachRecord, isEngagementLocked, SLOT_TYPE } from "./engagement";
-import { listSections, deleteRow } from "./sections";
+import { listSections, deleteRow, DB_BACKEND } from "./sections";
+import { pgDeleteAllForSection, pgDeleteAllForTenant } from "./pgRows";
 import { emitPlatform, PLATFORM } from "@/platform/realtime/events";
 import { hashToken } from "@/platform/auth/passwords";
 import { log } from "@/platform/http/observability";
+
+// ---- which store(s) a cascade must reap ------------------------------------
+// Sections, studios, collaborators, roles and users are REGISTRY objects —
+// Redis-resident arrays under the ownership prefix, unmoved by DB_BACKEND (see
+// keys.ts's table: only the OPERATIONAL ROWS a section owns — tickets,
+// quotations, invoices, the collections named in SECTION_COLLECTIONS — live in
+// Postgres's collection_rows once DB_BACKEND says so). So every cascade below
+// still reads/writes the registry through Redis unconditionally, and this flag
+// is consulted ONLY to decide whether Postgres also holds operational rows
+// that need reaping alongside the Redis ones cascade already knew about.
+//
+//   redis    → Postgres holds nothing for this deployment; the Postgres path
+//              must not run at all (Requirement 3).
+//   postgres → Postgres holds the operational rows; the Redis SEC/S prefix
+//              delete below still runs too, but finds nothing (nothing was
+//              ever written there) and is a harmless no-op scan.
+//   parity   → BOTH stores hold rows (every write went to both), so BOTH must
+//              be reaped or the next parity comparison in this process sees a
+//              phantom row and blames the wrong store for the divergence.
+const PG_HOLDS_ROWS = DB_BACKEND !== "redis";
 
 // ---- what a cascade needs to know about the rows it reaps ------------------
 // NARROW ON PURPOSE. A cascade does not care what a collaborator or a studio IS
@@ -122,9 +171,52 @@ export async function cascadeDeleteSection(studioId: string, sectionId: string):
   const children = rows.filter((s) => s.parentId === sectionId);
   const doomed = [...children.map((c) => c.id), sectionId];
 
-  // children first: every operational collection under each doomed id. Nothing
-  // else points at a section — grants did, and grants are gone.
-  for (const id of doomed) await delPrefix(SEC.prefix(studioId, id));
+  // CHILDREN FIRST, IN BOTH STORES, NEITHER STORE FIRST WITHIN A GIVEN id.
+  // Postgres and Redis are separate systems with no transaction spanning them,
+  // so "atomic" is not on offer — what IS on offer is that the section's own
+  // registry row (removed below, LAST) is the thing every re-run keys off, and
+  // it is untouched until every doomed id's rows are gone from BOTH stores.
+  //
+  // WHAT A CRASH AT EACH POINT LEAVES:
+  //  - mid-loop (id 2 of 3 done, id 3 not started): the registry row still
+  //    lists all three doomed ids (untouched until the loop finishes), so a
+  //    re-run recomputes the identical `doomed` list. id 1 and 2's deletes are
+  //    then no-ops (already empty, matched-zero-rows / empty-prefix-scan) and
+  //    id 3 gets reaped — no orphan, no double-delete.
+  //  - after the loop, before the registry write below: every doomed id's data
+  //    is gone from both stores but the registry still names them. A re-run
+  //    finds `row` present, repeats the (now all-empty) per-id loop as
+  //    harmless no-ops, and completes the registry write it didn't reach
+  //    before.
+  //  - after the registry write: `row` is gone on the next call, which is the
+  //    existing "already gone — idempotent" return below; nothing is re-run
+  //    because there is nothing left to finish.
+  for (const id of doomed) {
+    // Postgres FIRST — see the module header for the PG_HOLDS_ROWS decision.
+    // pgDeleteAllForSection (NOT the catalogue-bounded pgDeleteSectionRows,
+    // fix round 1 Important 1), because deleting a section does not need to
+    // know which collections it owns — SECTION_COLLECTIONS answers "what to
+    // READ", and it answers "[]" for a parent key like crm-sales and for
+    // every key appendSection ever mints, which under the narrower call
+    // meant a section outside the catalogue reaped nothing in Postgres while
+    // Redis's delPrefix reaped everything — a one-store survivor, measured
+    // under parity. Scoped by tenant_id AND section_id, still explicit and
+    // bounded, just not catalogue-limited.
+    //
+    // THE COUNT IS LOGGED, NOT ASSERTED ON: zero is a legitimate result (this
+    // section may genuinely hold no rows), so it cannot distinguish "nothing
+    // to delete" from "the tenant/section scope silently matched nothing" —
+    // but it is the one piece of evidence pgDeleteAllForSection's own header
+    // says this caller must not discard, so a cascade that ran leaves a
+    // record of how much it actually removed.
+    if (PG_HOLDS_ROWS) {
+      const pgDeleted = await pgDeleteAllForSection(studioId, id);
+      log.info(`[cascade] postgres: reaped ${pgDeleted} row(s) for section ${id}`, { studioId, sectionId: id });
+    }
+    // Redis: every operational collection under this id. Nothing else points
+    // at a section — grants did, and grants are gone.
+    await delPrefix(SEC.prefix(studioId, id));
+  }
 
   if (row) {
     await editArr<SectionRef, void>(S.sections(studioId), (all) => ({ next: all.filter((s) => !doomed.includes(s.id)) }));
@@ -143,6 +235,37 @@ export async function cascadeDeleteStudio(studioId: string): Promise<boolean> {
   // members' back-pointers. Time-limited access tokens used to be released
   // here too; nothing ever minted one, so there was nothing to release.
   for (const c of collaborators) await sRem(IX.collab(c.userId), studioId);
+
+  // POSTGRES FIRST, EVERY OPERATIONAL ROW THIS TENANT EVER HELD — the fix for
+  // the defect this task exists to close: without this, deleting a studio
+  // removed its registry row, its sections and its members while every
+  // ticket, quotation, project and invoice stayed in collection_rows forever.
+  // Runs before the Redis subtree below (order between the two stores'
+  // deletes does not matter for correctness — see below — only that BOTH
+  // finish before the registry row, further down, does).
+  //
+  // WHAT A CRASH AT EACH POINT LEAVES: this call is one statement inside one
+  // Postgres transaction (withTenant's BEGIN…COMMIT), so it is atomic in
+  // isolation — it either removes every row this tenant holds, or (a crash or
+  // network failure before COMMIT) leaves all of them untouched. Either way
+  // the studio's REG.studios row is still there (untouched until the very end
+  // of this function), so a re-run reaches this line again: already-empty is
+  // a zero-row no-op, still-populated gets reaped. A crash AFTER this commits
+  // but before the Redis delPrefix below leaves Postgres empty and Redis still
+  // holding the subtree — also fine, because the registry row is still there
+  // to trigger a re-run, and this call repeats as a no-op while the Redis
+  // delete (which had not run yet) completes.
+  //
+  // THE COUNT IS LOGGED, NOT ASSERTED ON — same reasoning as the section
+  // cascade above: zero is legitimate (a studio with no operational rows
+  // yet), so it cannot on its own distinguish "nothing to delete" from "the
+  // tenant scope silently matched nothing" under a forgotten withTenant. It
+  // is still the one piece of evidence pgDeleteAllForTenant's caller must
+  // not discard, so this is the auditable record of what actually left.
+  if (PG_HOLDS_ROWS) {
+    const pgDeleted = await pgDeleteAllForTenant(studioId);
+    log.info(`[cascade] postgres: reaped ${pgDeleted} row(s) for studio ${studioId}`, { studioId });
+  }
 
   // the whole subtree in one stroke: sections + all data, collaborators,
   // notifications, settings
@@ -376,6 +499,36 @@ export function sweepRefusal(
   return null;
 }
 
+// POSTGRES ROWS ARE NOT SWEPT HERE, AND CANNOT BE FROM THIS FUNCTION AS
+// WRITTEN (Requirement 6 — a decision, not a workaround).
+//
+// Every scope this sweep walks is discovered FROM REDIS: REG.users/REG.studios
+// for the repair passes, and a scan of the u:/s: key space for the
+// "stranded prefix" pass below. A studio cascade that already ran to
+// completion under this fix leaves nothing stranded — its Postgres rows went
+// with cascadeDeleteStudio, in order, before the registry row did — so the
+// gap here is specifically studios that were fully cascaded (or otherwise
+// erased) FROM REDIS by something else, or before this fix existed: no
+// registry row, no s:<id>:* subtree, nothing this scan can find. Its
+// Postgres rows, if any survive under that same tenant_id, are invisible to
+// every tool in this codebase, not just this one — RLS on collection_rows is
+// FORCED and the connecting role holds no BYPASSRLS, so there is no query
+// this connection can run to ask "which tenant_ids exist in collection_rows"
+// independently of a tenant id supplied from elsewhere. Enumerating Postgres
+// tenants directly needs a maintenance role scoped by its own RLS policy —
+// the intended future fix, and deliberately not built here (see the cascade
+// Postgres-path report for the reasoning).
+//
+// Stated in the return value rather than left to be inferred from an absent
+// field, so a caller reading `fixed` cannot mistake "this sweep found no
+// stray Postgres rows" for "this sweep checked for stray Postgres rows and
+// found none" — it never checked at all.
+const POSTGRES_SWEEP_NOTE =
+  "sweepOrphans discovers every id it reaps from Redis (registries + a u:/s: key scan); " +
+  "it cannot enumerate Postgres tenant_ids independently (RLS is FORCED, no BYPASSRLS), so a studio " +
+  "already erased from Redis by something else leaves any surviving collection_rows for it unreachable " +
+  "by this sweep. Uncovered until a maintenance role scoped by its own RLS policy exists.";
+
 export async function sweepOrphans() {
   const fixed = { emailIndexRepaired: 0, emailIndexReaped: 0, slugIndexRepaired: 0, slugIndexReaped: 0, ownerIndexReaped: 0, userPrefixesReaped: 0, studioPrefixesReaped: 0, collabSetsCleaned: 0 };
   const users = await readArr<UserRef>(REG.users);
@@ -385,7 +538,7 @@ export async function sweepOrphans() {
   const refusal = sweepRefusal(P, users, studios);
   if (refusal) {
     log.warn(`[sweep] refusing to run: key prefix "${P}" is set and both registries are empty.`);
-    return { skipped: refusal, prefix: P, checked: { users: 0, studios: 0 }, fixed };
+    return { skipped: refusal, prefix: P, checked: { users: 0, studios: 0 }, fixed, postgres: POSTGRES_SWEEP_NOTE };
   }
 
   const userIds = new Set(users.map((u) => u.id));
@@ -435,5 +588,5 @@ export async function sweepOrphans() {
     }
   }
 
-  return { checked: { users: users.length, studios: studios.length }, fixed };
+  return { checked: { users: users.length, studios: studios.length }, fixed, postgres: POSTGRES_SWEEP_NOTE };
 }

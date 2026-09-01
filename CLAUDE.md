@@ -76,7 +76,7 @@ when the code looks cleaner afterwards.
 15. **Cron fails closed.** A missing `CRON_SECRET` refuses; it never opens the door.
 16. **A right nothing can exercise is a bug.**
 17. **No database is destroyed without two confirmations.** Every store is live and
-    shared — Redis now, SQL Server next — so a delete, flush, drop or mass-overwrite
+    shared — Redis now, Postgres (Cloud SQL for PostgreSQL 18) next — so a delete, flush, drop or mass-overwrite
     is unrecoverable and hits every tenant at once. A broad-scan delete
     (`delPrefix("")` / `scanPrefix("")`) once wiped the whole instance. So any such
     action waits on the user confirming it **twice in the same exchange**: the first
@@ -143,7 +143,7 @@ TypeScript as it lands. What has moved has moved for good:
 |---|---|---|
 | `src/shared/**` | Pure values with no dependants — currencies, countries, i18n, slug | TypeScript |
 | `src/platform/access/**` | The permission catalogue and the resolver | TypeScript |
-| `src/platform/db/**` | Everything that knows Redis exists — keys, store, cascade, repo, sections | TypeScript |
+| `src/platform/db/**` | Everything that knows Redis or Postgres exists — keys, store, cascade, repo, sections, `pg.ts` | TypeScript |
 | `src/platform/auth/**` | Identity, the console's own auth, passwords, OTP, devices, rate limits | JavaScript |
 | `src/platform/realtime/**` | The event stream, the pub/sub bus, live patches | JavaScript |
 | `src/platform/notify/**` | Notifications and email | JavaScript |
@@ -187,6 +187,43 @@ file. (`docs/` keeps ISO dates; the logs do not.)
 
 ---
 
+## Working against the live Postgres
+
+`DATABASE_URL` is **equally live and shared** — the P1 store swap's `collection_rows`
+table lives in the same real, shared database production will use, there is no dev
+database here either, and **`NOMPANY_KEY_PREFIX` does NOT protect it.** The prefix is a
+Redis-only mechanism: it namespaces a key string, and `collection_rows` has no such
+string to namespace — `tenant_id` there is a real studio id, exactly what a live tenant
+also uses. A developer who assumes the prefix sandboxes them the way it does for Redis is
+one command away from writing to the real table. This is why `tests/pg-sweep.mjs` deletes
+by an **explicit id list** read back from the run's own `REG.studios`, never a predicate,
+and why `withTenant` is the only door onto the table at all (RLS is FORCED, so nothing can
+even discover which tenants hold rows without one already in hand).
+
+- **`npm run test:parity` (and CI's `NOMPANY_DB=parity` step) write real rows.** Every
+  fixture `tests/pg-parity.mjs` creates is either a synthetic tenant id the test deletes
+  in its own `finally` block, or one of the studios the integration suite / Gate A create
+  for real — those are swept via `sweepPgTenants` using the exact ids `REG.studios`
+  names, the same invariant-17 shape as the Redis sweep, and it must run **before** the
+  Redis `delPrefix` that would otherwise erase that id list.
+- Locally, `DATABASE_URL` lives in `.env.local`, same as `REDIS_URL`. If it is unset,
+  `tests/pg-parity.mjs`'s assertions skip **loudly** (a banner, plus a per-test "skipped"
+  line) rather than the whole suite dying mid-run — but that also means the Postgres
+  paths are **not verified** on that run. CI always sets `DATABASE_URL`, so there the
+  absence of it is a real failure, not a skip.
+- CI connects as a dedicated **non-superuser** role (`ci_app`, `rolsuper=false`,
+  `rolbypassrls=false`) rather than the `postgres:18` image's bootstrap superuser — a
+  superuser bypasses row-level security entirely, which would make every RLS test pass
+  for a reason that does not hold in production. `.github/workflows/ci.yml` asserts the
+  role's shape as its own step.
+- **Never** `DROP TABLE`, `TRUNCATE`, `DROP DATABASE`, or disable/alter the RLS policy on
+  `collection_rows` — `pgSchemaQuery`'s DDL-only door refuses all of these unconditionally
+  (invariant 17), so reaching for them even by accident fails before Postgres is asked.
+- `payload` is `json`, never `jsonb` — `jsonb` normalises key order and the golden
+  responses pin it. Do not "fix" this column type.
+
+---
+
 ## Verification — every change, no exceptions
 
 ```bash
@@ -206,7 +243,7 @@ every push to `main` and every pull request.
   to 8 fails the build.
 - **The bundle budget pins the regression, not the size.** Two gates, and the
   first is the one that matters: the LARGEST CHUNK is 158 KB gz against a 250 KB
-  ceiling, because that is what every route pays. Total client JS is 1568 KB gz
+  ceiling, because that is what every route pays. Total client JS is 1570 KB gz
   against 1600 KB, which catches sprawl rather than splitting. The studio’s
   department screens are `nextDynamic()` now — the chunk fell from 307 to 197 and
   the total rose 12 KB in the same commit, which is the two ceilings doing their
@@ -223,6 +260,11 @@ every push to `main` and every pull request.
   started importing the dictionaries they were already reading — three screens
   shipped with an UNBOUND `tr`, which is a runtime ReferenceError and not a
   build error, so `no-undef` is on for the untyped browser files now.
+  1568 → 1570 across the media→Blob port. `@vercel/blob` is server-only and
+  ships nothing to a browser; what moved is `keys.ts`, which a landing-page
+  component already imports (the reason `platform/db` deliberately has no
+  barrel) and which gained `MEDIA.object`. Measured, not attributed to a single
+  commit — the port landed over several.
 - Tests connect things — real repositories, real route handlers, **one assertion per
   bug that actually happened**. Each block names the defect it guards, so nobody
   deletes it later wondering what it was for.
@@ -306,7 +348,16 @@ Shared motion primitives live in `src/components/motion` and are hand-driven —
 `Reveal`, `CountUp`, and the house curves in `tokens.ts`, which the landing imports
 back. Gate A holds the line.
 
-**Browser-pane traps**, two of them, both paid for:
+**Browser-pane traps**, three of them, all paid for:
+
+- **The pane proxies with `x-forwarded-proto: https`, so every auth cookie comes back
+  `Secure` — and a browser drops a `Secure` cookie on `http://localhost`.** Silently. The
+  symptom is a screen stuck on its loading state with 401s in the console while the server
+  log says the login returned 307, which reads as a broken session rather than a dropped
+  cookie. `requestIsHttps()` trusts that header, correctly, for production. `dev-login`
+  therefore passes `false` outright rather than asking: the sandbox is only ever http on
+  localhost, so there is no case where `Secure` is wanted. Also **front the tab** — a
+  hidden pane would not take the cookie even once that was fixed.
 
 - The pane does not composite unless displayed, which freezes CSS transitions, so
   `getComputedStyle` returns stale mid-transition colours. Inject
@@ -332,13 +383,18 @@ worse than none.)*
 **Waves 0–1 are complete; Gate A is green.** Wave 0 shipped (orphan-sweep guard,
 credential rate limiting, console session expiry, traffic-ingest bounds, media tenancy,
 security headers, bcrypt 12 with rehash-on-login, M-1 dead capabilities). Gate A shipped:
-139 golden responses over every surface, the 102-key permission matrix, hop counting, six
+153 golden responses over every surface, the 123-key permission matrix, hop counting, six
 architectural assertions, **per-route permission enforcement in every module**, **ESLint**
 (flat config + shrink-only warning budget), **observability** (request ids, per-request hop
 counts), and CI enforcing all of it.
 
+Both of those numbers have moved once already — 139 goldens and 102 keys before the
+fifteen-section restructure. They are stated here as MEASURED (`ls tests/goldens | wc -l`, and
+the catalogue assertion in `tests/gate-a.mjs`), because a pass condition quoted from memory is
+a pass condition nobody can check.
+
 **Wave 2 (seams + performance) is mostly done; Gate B is 2 of 3.** Zero direct `readCol` in
-service code ✅, goldens unchanged at 139 ✅, hops ≤2 for the studio route and 3 for sales
+service code ✅, goldens unchanged at 153 ✅, hops ≤2 for the studio route and 3 for sales
 (the structural floor). Done: Seam A (route wrapper, all 96 routes), Seam B (repository
 interface + the `readCol` migration across all 13 modules), Seam C (one context factory,
 killed hop 7), request-scoped cache + batched prefetch (8→2 hops), targeted live updates,

@@ -8,7 +8,7 @@ import {
   panel, label, btn, btnGhost, th, stripeOn, stripeOff,
   Dialog, Toolbar, Empty, fmtDate,
 } from "@/components/studio2/ui";
-import { Field, BARE_CONTROL } from "@/components/fields/Field";
+import { Field } from "@/components/fields/Field";
 import StudioDate from "@/components/fields/StudioDate";
 import { initialsOf } from "@/lib/initials";
 import HrDashboard from "@/components/studio2/HrDashboard";

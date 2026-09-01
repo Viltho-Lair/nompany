@@ -12,7 +12,7 @@ import {
   KpiTile,
   Table,
   Icon,
-  toneBg, toneFg, toneInk,} from "../../../_components/ui";
+  toneBg, toneInk,} from "../../../_components/ui";
 import { AreaChart, ChartFrame, BarList, Radial } from "@/components/charts";
 import { BASE } from "../../../_components/nav";
 import CurrencyRates from "./CurrencyRates";
@@ -108,21 +108,6 @@ const GOALS = [
   { label: "Quarterly", value: 92, color: "var(--ad-chart-2)" },
   { label: "Annual", value: 65, color: "var(--ad-chart-4)" },
 ];
-
-
-function CenterStat({ value, label, sub, tone = "primary" }) {
-  return (
-    <Card className="text-center">
-      <CardBody full>
-        <p className="text-2xl font-600" style={{ color: TONE_FG[tone] }}>
-          {value}
-        </p>
-        <p className="mt-1 text-sm font-500">{label}</p>
-        <p className="mt-0.5 text-xs text-[var(--ad-muted-foreground)]">{sub}</p>
-      </CardBody>
-    </Card>
-  );
-}
 
 export default async function AnalyticsPage() {
   const [active, sat] = await Promise.all([activeUsers(), satisfaction()]);

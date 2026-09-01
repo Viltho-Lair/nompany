@@ -329,6 +329,22 @@ export async function updateTask(ctx: TasksContext, id: string, body: Record<str
     }
   }
 
+  // CAPTURED ONCE, OUTSIDE THE CLOSURE. `apply` is a function-patch (invariant
+  // 8: "flip this field", re-applied against whatever the row now is), which
+  // means updateRow may call it MORE THAN ONCE — once per CAS retry under
+  // contention, and, under NOMPANY_DB=parity, once per store, since the
+  // dispatcher hands the identical function to both. `new Date().toISOString()`
+  // called INSIDE the closure body was fresh on every one of those calls, so a
+  // contended write could already drift its own completedAt from one retry to
+  // the next in production; parity's byte-for-byte comparison is what finally
+  // surfaced it, comparing Redis's invocation against Postgres's a few hundred
+  // milliseconds later and failing on the timestamp alone with both stores
+  // otherwise agreeing. Reading `now` once, before `apply` is defined, makes
+  // the closure pure with respect to wall-clock time — every invocation of it,
+  // by any store, on any retry, computes the identical result from the same
+  // `row`.
+  const now = new Date().toISOString();
+
   // Finishing every checklist item finishes the task; reopening one takes it
   // back to In progress, so status can never contradict the checklist. This runs
   // against `row` — the live record inside the write lock — so the status always
@@ -345,7 +361,7 @@ export async function updateTask(ctx: TasksContext, id: string, body: Record<str
     if (checklist) {
       const done = progressOf(checklist);
       const status = changes.status ?? row.status;
-      if (done === 100 && status !== "Done") { changes.status = "Done"; changes.completedAt = row.completedAt || new Date().toISOString(); }
+      if (done === 100 && status !== "Done") { changes.status = "Done"; changes.completedAt = row.completedAt || now; }
       if (done !== null && done < 100 && status === "Done") { changes.status = "In progress"; changes.completedAt = ""; }
     }
     return changes;
@@ -389,23 +405,36 @@ export async function decideTask(ctx: TasksContext, id: string, body: Record<str
     }
   }
 
+  // CAPTURED ONCE, OUTSIDE THE CLOSURE — same reasoning as updateTask's `now`
+  // above. `apply` is a function-patch, so updateRow may invoke it more than
+  // once (a CAS retry under contention; both stores under NOMPANY_DB=parity),
+  // and `new Date().toISOString()` called fresh inside the closure body made
+  // every one of those invocations disagree by however many milliseconds
+  // separated them. Parity's byte-for-byte comparison is what surfaced it —
+  // Redis's own `at` and Postgres's own `at`, a few hundred ms apart, on an
+  // otherwise identical row — but the same drift was already possible between
+  // one retry and the next, in production, before Postgres ever entered the
+  // picture. Reading `now` once makes the closure pure with respect to
+  // wall-clock time.
+  const now = new Date().toISOString();
+
   // Applied to the live row inside the write lock: two authorities deciding at
   // the same moment must not overwrite each other's approval.
   const apply = (row: Task) => {
     const approvals: Record<string, Approval> = { ...(row.approvals && typeof row.approvals === "object" ? row.approvals as Record<string, Approval> : {}) };
     if (approved) {
-      approvals[authority] = { approved: true, byCollaboratorId: collaborator.id, at: new Date().toISOString() };
+      approvals[authority] = { approved: true, byCollaboratorId: collaborator.id, at: now };
     } else {
       delete approvals[authority];
     }
     const changes: Partial<Task> = { approvals };
-    if (!approved) changes.approvalWithdrawnAt = new Date().toISOString();
+    if (!approved) changes.approvalWithdrawnAt = now;
 
     // Every required authority has signed off, so the decision is made. Taking
     // one back reopens it, so the status can never claim more than the
     // approvals under it actually say.
     const complete = authorities.every((c) => approvals[c]?.approved);
-    if (complete && row.status !== "Done") { changes.status = "Done"; changes.completedAt = row.completedAt || new Date().toISOString(); }
+    if (complete && row.status !== "Done") { changes.status = "Done"; changes.completedAt = row.completedAt || now; }
     if (!complete && row.status === "Done") { changes.status = "In progress"; changes.completedAt = ""; }
     return changes;
   };

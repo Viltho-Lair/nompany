@@ -8,7 +8,7 @@ import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import RecordLink from "@/components/studio2/RecordLink";
 import { StudioDataGridSkeleton } from "@/components/studio2/StudioDataGrid.skeleton";
 import { linkToProject, linkIf } from "@/modules/main/studioLinks";
-import { Field, BARE_CONTROL } from "@/components/fields/Field";
+import { Field } from "@/components/fields/Field";
 import StudioDate from "@/components/fields/StudioDate";
 import FinanceDashboard from "@/components/studio2/FinanceDashboard";
 import { useAnalyticsLevel } from "@/components/studio2/analyticsLevel";
@@ -681,7 +681,7 @@ function Payables({ slug }) {
   if (!data) return <p className="text-sm text-slate-500">{tr.loadingAccountsPayable}</p>;
 
   const canManage = data.manage?.["finance-payables"] ?? data.canManage;
-  const { bills = [], vocabulary = {}, nav } = data;
+  const { bills = [], vocabulary = {} } = data;
 
   return (
     <div className="space-y-6">
@@ -690,7 +690,7 @@ function Payables({ slug }) {
       <div className="flex items-center justify-end">
         {!canManage && <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-600 text-slate-500 dark:bg-white/5 dark:text-slate-400">{tr.viewOnly}</span>}
       </div>
-      <Bills rows={bills} vocab={vocabulary} slug={slug} nav={nav} canManage={canManage} busy={busy} send={send} />
+      <Bills rows={bills} vocab={vocabulary} canManage={canManage} busy={busy} send={send} />
     </div>
   );
 }
@@ -722,7 +722,7 @@ function PayablesSummary({ bills }) {
   );
 }
 
-function Bills({ rows, vocab, slug, nav, canManage, busy, send }) {
+function Bills({ rows, vocab, canManage, busy, send }) {
   const tr = financeDict(useStudioLocale());
   const [drafting, setDrafting] = useState(false);
   const [editing, setEditing] = useState(null);

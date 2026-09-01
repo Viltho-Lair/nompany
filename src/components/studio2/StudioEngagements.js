@@ -118,15 +118,24 @@ export default function StudioEngagements({ slug, canLock = false, canDelete = f
   useLiveUpdates(slug, "engineering-docs", () => { if (!openId) loadList(); });
   useLiveUpdates(slug, "projects", () => { if (!openId) loadList(); });
 
+  // READ THE CURSOR OUT FIRST, so the dependency is the string this callback
+  // actually uses rather than a path into `list`. React Compiler infers `list`
+  // from `list?.nextCursor` — it cannot see that only one field is read — and a
+  // source list narrower than the inferred one makes it skip optimizing the
+  // whole component ("inferred less specific property than source"). Hoisting
+  // makes both sides agree on a plain value, and it is what the body wanted
+  // anyway: this reloads when the cursor moves, not whenever any row changes.
+  const nextCursor = list?.nextCursor;
+
   const loadMore = useCallback(async () => {
-    if (!list?.nextCursor) return;
+    if (!nextCursor) return;
     setLoadingMore(true);
-    const res = await fetch(`/api/studios/${slug}/main/engagements?cursor=${list.nextCursor}`, { cache: "no-store" });
+    const res = await fetch(`/api/studios/${slug}/main/engagements?cursor=${nextCursor}`, { cache: "no-store" });
     setLoadingMore(false);
     if (!res.ok) return;
     const more = await res.json();
     setList((prev) => ({ engagements: [...(prev?.engagements || []), ...more.engagements], nextCursor: more.nextCursor }));
-  }, [slug, list?.nextCursor]);
+  }, [slug, nextCursor]);
 
   // ONE ROW, PATCHED IN PLACE. The list already edits itself this way for
   // "Load more", so a lock flip and a delete follow the same path rather than
@@ -135,11 +144,16 @@ export default function StudioEngagements({ slug, canLock = false, canDelete = f
     setList((prev) => (prev ? { ...prev, engagements: prev.engagements.map((r) => (r.id === id ? { ...r, ...patch } : r)) } : prev));
   }, []);
 
+  // The setters are listed even though useState guarantees they are stable.
+  // React Compiler infers them as dependencies regardless, and an inferred
+  // dependency missing from the source array is enough for it to give up on the
+  // component entirely. Listing them costs nothing — a stable value never
+  // changes, so the callback is still built once.
   const dropRow = useCallback((id, message = "") => {
     setPendingDelete(null);
     setActionError(message);
     setList((prev) => (prev ? { ...prev, engagements: prev.engagements.filter((r) => r.id !== id) } : prev));
-  }, []);
+  }, [setPendingDelete, setActionError, setList]);
 
   // What the delete path calls when the server proves a deal is locked after
   // all. Locking is the SAFE direction, so this is the one place the screen may

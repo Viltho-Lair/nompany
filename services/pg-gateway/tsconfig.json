@@ -1,0 +1,43 @@
+{
+  "//": [
+    "THIS CONFIG TYPECHECKS ONLY — noEmit, no build output. The RUNNABLE output",
+    "comes from esbuild instead (`npm run build` → dist/main.mjs), which both",
+    "`npm start` and the container run. tsc could not produce it: the shared",
+    "guards this service imports reach their siblings with extensionless",
+    "specifiers (`./keys`, CLAUDE.md's house rule) and tsc does not rewrite those",
+    "into something Node's ESM resolver can follow, whereas a bundler resolves",
+    "them at build time. So the two tools split the job — tsc grades the types,",
+    "esbuild produces the artifact — and neither duplicates the other.",
+    "",
+    "It deliberately does NOT extend the root tsconfig: that one carries jsx,",
+    "the DOM lib and Next's plugin, none of which belong in a server with no",
+    "browser and no Next. It repeats the compiler options it needs instead.",
+    "",
+    "`include` reaches OUT of this folder for the two shared modules. That is the",
+    "point of the refactor they came from — the gateway grades the same source",
+    "the app grades, so a change to a guard cannot typecheck here and fail there."
+  ],
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "types": ["node"],
+    "strict": true,
+    "noImplicitAny": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "exactOptionalPropertyTypes": false,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "noEmit": true
+  },
+  "include": [
+    "src/**/*.ts",
+    "../../src/platform/db/sqlGuards.ts",
+    "../../src/platform/db/pgClientGuard.ts"
+  ]
+}

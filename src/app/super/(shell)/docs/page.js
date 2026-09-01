@@ -1,5 +1,4 @@
-import Link from "next/link";
-import { PageHeader, Card, CardHead, CardBody, Row, Col, Badge, Icon, toneBg, toneFg, toneInk } from "../../_components/ui";
+import { PageHeader, Card, CardHead, CardBody, Row, Col, Badge, Icon, toneBg, toneInk } from "../../_components/ui";
 import { BASE } from "../../_components/nav";
 
 export const metadata = { title: "Documentation" };

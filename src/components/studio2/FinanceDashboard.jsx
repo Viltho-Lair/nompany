@@ -182,7 +182,6 @@ export default function FinanceDashboard({ invoices = [], expenses = [], currenc
 // the two read identically and cannot drift (§2.4). Current is calm, the 90+ tail
 // is the warning colour, the middle bands the accent.
 function AgingBars({ aging }) {
-  const tr = financeDict(useStudioLocale());
   return (
     <div className="space-y-2.5">
       {aging.buckets.map((b) => {

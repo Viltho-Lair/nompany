@@ -91,7 +91,9 @@ export function peopleToResources(people, tr) {
 
 const DEBOUNCE_MS = 600;
 
-export default function StudioPlanner({ slug, planApiBase, backHref, backLabel }) {
+// No `slug`: `planApiBase` already carries it, so the planner has nothing to do
+// with the tenant's address beyond the URL it was handed.
+export default function StudioPlanner({ planApiBase, backHref, backLabel }) {
   const hydratePlan = usePlannerStore((s) => s.hydratePlan);
   const setResources = usePlannerStore((s) => s.setResources);
   const setCalendar = usePlannerStore((s) => s.setCalendar);

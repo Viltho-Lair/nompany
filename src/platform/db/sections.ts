@@ -11,11 +11,11 @@
 // the permission catalogue in platform/access/resolve.ts, via the roles on somebody's
 // collaborator row — see the note where the grant helpers used to be.
 
-import { S, SEC, ID, SECTION_COLLECTIONS, SECTION_DEFS, ALL_SECTION_KEYS } from "./keys";
+import { S, ID, SECTION_COLLECTIONS, SECTION_DEFS, ALL_SECTION_KEYS } from "./keys";
 import { readArr, editArr } from "./store";
-import { emit, TYPE } from "@/platform/realtime/events";
-import { bumpMainAgg } from "./mainAgg";
 import type { Row } from "./store";
+import * as R from "./redisRows";
+import * as P from "./pgRows";
 
 // ---- what a section is -----------------------------------------------------
 // A SECTION IS A CONTAINER THAT OWNS COLLECTIONS, and every field here exists
@@ -193,93 +193,105 @@ export function collectionsForKey(sectionKey: string): string[] {
 // Reading is free-form; WRITING is only ever addRow/updateRow/deleteRow. There
 // is deliberately no writeCol(): a blind whole-collection write is exactly the
 // lost update those three exist to prevent, so the door is not left open.
-export async function readCol<T extends Row = Row>(
-  studioId: string, sectionId: string, name: string,
-): Promise<T[]> {
-  return readArr<T>(SEC.col(studioId, sectionId, name));
-}
-// The three mutators each apply their change to the collection AS IT ACTUALLY
-// STANDS at the instant of the write, not to a copy read moments earlier. Two
-// people ticking different checklist items on the same board both land.
-export async function addRow<T extends Row = Row>(
-  studioId: string, sectionId: string, name: string, item: Row,
-): Promise<T> {
-  const row = await editArr<T, T>(SEC.col(studioId, sectionId, name), (rows) => {
-    // `id` STAYS FIRST, before the spread. It reads like a formality and is not:
-    // JSON.stringify emits keys in insertion order, the golden responses pin
-    // that order, and moving this line below `...item` failed 34 of them. The
-    // cast is because `item.id` is `unknown` off a Row — every caller passes a
-    // string or nothing, and ID.row supplies one when they pass nothing.
-    const created = { id: (item.id as string) || ID.row(name), ...item, studioId, sectionId } as unknown as T;
-    return { next: [created, ...rows], result: created };
-  });
-  await emit(studioId, { type: TYPE.rowCreated, sectionId, collection: name, rowId: row.id as string });
-  void bumpMainAgg(studioId, sectionId, name); // best-effort rollup, never awaited (§3)
-  return row;
-}
-
-// MANY ROWS, ONE WRITE. addRow in a loop is correct and unusably slow for an
-// import: each call is its own compare-and-set, so N rows are N contended
-// rounds against the same key plus N events — and every OTHER writer to that
-// collection queues behind the whole run. Appending the batch inside a single
-// editArr costs exactly one write no matter how long the list is.
 //
-// The event carries NO rowId, which is the shape emit already supports (it
-// defaults to ""), and it is the honest one: this announces that the collection
-// changed, not which row. Every consumer today reads the collection back, so
-// naming one row out of two hundred would be a detail nobody could use and a
-// lie to anyone who later tried.
-export async function addRows<T extends Row = Row>(
-  studioId: string, sectionId: string, name: string, items: readonly Row[],
-): Promise<T[]> {
-  if (!items.length) return [];
-  const created = await editArr<T, T[]>(SEC.col(studioId, sectionId, name), (rows) => {
-    // `id` first, before the spread — same reason as addRow: key order is
-    // pinned by the golden responses.
-    const batch = items.map((item) =>
-      ({ id: (item.id as string) || ID.row(name), ...item, studioId, sectionId } as unknown as T));
-    // Prepended as a block, so the batch is newest-first like a single add and
-    // the rows keep the order they arrived in among themselves.
-    return { next: [...batch, ...rows], result: batch };
-  });
-  await emit(studioId, { type: TYPE.rowCreated, sectionId, collection: name });
-  // BY THE SIZE OF THE BATCH. One write, so this fires once — a bare bump would
-  // count two hundred rows as one and leave the nightly reconcile to find it.
-  void bumpMainAgg(studioId, sectionId, name, created.length); // best-effort, never awaited (§3)
-  return created;
+// WHICH STORE ANSWERS. Redis by default, deliberately: an unset variable must
+// never mean "migrate", or a migration happens by accident on the first deploy
+// that forgets it.
+//
+// `parity` is the mode that makes the migration provable. It runs BOTH
+// implementations on every call and throws on any disagreement, which turns the
+// entire existing suite — 153 goldens included — into the parity test. A
+// purpose-built harness can only check what somebody thought of; this checks
+// what the product actually does.
+export const DB_BACKEND = (process.env.NOMPANY_DB || "redis") as "redis" | "postgres" | "parity";
+
+function disagree(fn: string, a: unknown, b: unknown): never {
+  throw new Error(
+    `parity: ${fn} disagreed\n  redis:    ${JSON.stringify(a)}\n  postgres: ${JSON.stringify(b)}`,
+  );
 }
 
-// `patch` may be a function of the current row, which is how a caller expresses
-// "flip this field" rather than "set it to what I last saw". On a contended
-// write the function is re-applied to the row as it now is — so the flip stays
-// a flip instead of silently reverting someone else's change.
-export async function updateRow<T extends Row = Row>(
-  studioId: string, sectionId: string, name: string, rowId: string,
-  patch: Row | ((row: T) => Row),
-): Promise<T | null> {
-  const updated = await editArr<T, T | null>(SEC.col(studioId, sectionId, name), (rows) => {
-    let hit: T | null = null;
-    const next = rows.map((r) => {
-      if (r.id !== rowId) return r;
-      const changes = typeof patch === "function" ? patch(r) : patch;
-      hit = { ...r, ...changes, id: r.id, studioId: r.studioId, sectionId: r.sectionId } as unknown as T;
-      return hit;
-    });
-    return hit ? { next, result: hit } : { result: null };
-  });
-  // Only a real change is announced — a miss changed nothing to tell anyone about.
-  if (updated) await emit(studioId, { type: TYPE.rowUpdated, sectionId, collection: name, rowId });
-  return updated;
+// COMPARED AS JSON TEXT, not with a deep-equal. Key order is the thing most
+// likely to differ and the thing a structural comparison cannot see — which is
+// precisely the failure this whole task exists to catch.
+function same(fn: string, a: unknown, b: unknown) {
+  if (JSON.stringify(a) !== JSON.stringify(b)) disagree(fn, a, b);
+  return a;
 }
-export async function deleteRow(
-  studioId: string, sectionId: string, name: string, rowId: string,
-): Promise<boolean> {
-  const removed = await editArr<Row, boolean>(SEC.col(studioId, sectionId, name), (rows) => {
-    const next = rows.filter((r) => r.id !== rowId);
-    return next.length === rows.length ? { result: false } : { next, result: true };
-  });
-  if (removed) await emit(studioId, { type: TYPE.rowDeleted, sectionId, collection: name, rowId });
-  return removed;
+
+// PARITY WRITES GO TO BOTH STORES, WHICH MEANS BOTH MUST END IN THE SAME
+// STATE. Redis runs first (it is the store of record until cutover); if
+// Postgres then fails, the two stores have already diverged — Redis holds the
+// write and Postgres does not — and every later parity comparison in this run
+// is comparing against a Postgres that is missing state. Swallowing that
+// failure and returning the Redis result anyway would hide exactly the defect
+// this mode exists to surface, so it is never caught here: it is rethrown,
+// named as a DIVERGENCE rather than a bare Postgres error, so whoever reads
+// the log knows the two stores need reconciling before the next comparison in
+// this run can be trusted at all.
+async function second<T>(fn: string, run: () => Promise<T>): Promise<T> {
+  try {
+    return await run();
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    throw new Error(`parity: ${fn} — redis succeeded but postgres failed, stores now diverge: ${msg}`);
+  }
+}
+
+export async function readCol<T extends Row = Row>(s: string, sec: string, n: string): Promise<T[]> {
+  if (DB_BACKEND === "postgres") return P.pgReadCol<T>(s, sec, n);
+  const a = await R.redisReadCol<T>(s, sec, n);
+  if (DB_BACKEND !== "parity") return a;
+  return same("readCol", a, await P.pgReadCol<T>(s, sec, n)) as T[];
+}
+
+export async function addRow<T extends Row = Row>(s: string, sec: string, n: string, item: Row): Promise<T> {
+  if (DB_BACKEND === "postgres") return P.pgAddRow<T>(s, sec, n, item);
+  const a = await R.redisAddRow<T>(s, sec, n, item);
+  if (DB_BACKEND !== "parity") return a;
+  // The id is minted by whichever ran first (Redis), so the second is handed
+  // it explicitly — the comparison is about SHAPE and ORDER, not about two
+  // stores independently inventing the same random id.
+  //
+  // announce: false — Redis already fired emit and bumpMainAgg for this exact
+  // create; this second call exists to verify the DATA matches, not to
+  // re-announce a change that already happened. Found by a real assertion:
+  // "two tracked creates count as +2" landed as +4 (both stores announcing)
+  // before this flag existed. See PgWriteOpts in pgRows.ts.
+  const b = await second("addRow", () => P.pgAddRow<T>(s, sec, n, { ...item, id: a.id }, { announce: false }));
+  return same("addRow", a, b) as T;
+}
+
+export async function addRows<T extends Row = Row>(s: string, sec: string, n: string, items: readonly Row[]): Promise<T[]> {
+  if (DB_BACKEND === "postgres") return P.pgAddRows<T>(s, sec, n, items);
+  const a = await R.redisAddRows<T>(s, sec, n, items);
+  if (DB_BACKEND !== "parity") return a;
+  // Same reasoning as addRow, per row in the batch — each id came from Redis,
+  // seeded into the Postgres call rather than left to mint its own — and the
+  // identical announce: false, for the identical reason.
+  const seeded = items.map((it, i) => ({ ...it, id: a[i]?.id }));
+  const b = await second("addRows", () => P.pgAddRows<T>(s, sec, n, seeded, { announce: false }));
+  return same("addRows", a, b) as T[];
+}
+
+export async function updateRow<T extends Row = Row>(
+  s: string, sec: string, n: string, id: string, patch: Row | ((row: T) => Row),
+): Promise<T | null> {
+  if (DB_BACKEND === "postgres") return P.pgUpdateRow<T>(s, sec, n, id, patch);
+  const a = await R.redisUpdateRow<T>(s, sec, n, id, patch);
+  if (DB_BACKEND !== "parity") return a;
+  // announce: false — see addRow above.
+  const b = await second("updateRow", () => P.pgUpdateRow<T>(s, sec, n, id, patch, { announce: false }));
+  return same("updateRow", a, b) as T | null;
+}
+
+export async function deleteRow(s: string, sec: string, n: string, id: string): Promise<boolean> {
+  if (DB_BACKEND === "postgres") return P.pgDeleteRow(s, sec, n, id);
+  const a = await R.redisDeleteRow(s, sec, n, id);
+  if (DB_BACKEND !== "parity") return a;
+  // announce: false — see addRow above.
+  const b = await second("deleteRow", () => P.pgDeleteRow(s, sec, n, id, { announce: false }));
+  return same("deleteRow", a, b) as boolean;
 }
 
 // ---- access grants (removed) -----------------------------------------------

@@ -52,8 +52,7 @@ import {
 } from "@/modules/technical/technical";
 import { rfqInfo } from "@/modules/sales/salesAnalytics";
 import { landedUnitCost, crossRate } from "@/shared/currencies";
-import { qualityContext, watermarkFor } from "@/modules/quality/quality";
-import { getJSON } from "@/platform/db/store";
+import { qualityContext } from "@/modules/quality/quality";
 import { NODES, EDGES, pathBetween, reachableFrom, traverse } from "@/platform/relations";
 import { SECTION_COLLECTIONS, ALL_SECTION_KEYS } from "@/platform/db/keys";
 import { activityByDay, periodDelta, activitySeriesFromCounts, trendFromCounts, readAggregate } from "@/modules/main/executive";
@@ -61,7 +60,7 @@ import { MAIN_AGG_SOURCES, utcDay, aggField } from "@/platform/db/mainAgg";
 import { mainContext } from "@/modules/main/main";
 import { rankQueue } from "@/modules/main/awaiting";
 import { mergeValuesFor, fieldsFor, bindSubject, subjectOptions } from "@/modules/quality/quality";
-import { isFieldKey, legalKeyFor, availableFields, isBlockSource, blockByKey, reachOf } from "@/modules/quality/qualityFields";
+import { isFieldKey, legalKeyFor, availableFields, reachOf } from "@/modules/quality/qualityFields";
 import {
   createDoc, getDoc, listDocs, saveContent, savePageSetup, removeDoc,
 } from "@/modules/quality/qualityDocs";
@@ -70,8 +69,7 @@ import {
   workflowFor, listRevisions as listDocRevisions,
 } from "@/modules/quality/qualityDocRevisions";
 import { resolveBlocks, blocksFor } from "@/modules/quality/quality";
-import { documentState, pendingRevision } from "@/modules/quality/qualityDocuments";
-import { listSections, plantMissingSections, updateRow, getSectionByKey, addRow, readCol } from "@/platform/db/sections";
+import { listSections, plantMissingSections, getSectionByKey, addRow, readCol } from "@/platform/db/sections";
 import { readArr, writeArr } from "@/platform/db/store";
 import { S, REG as REG_KEYS } from "@/platform/db/keys";
 import { financeContext, createInvoice, editInvoice, recordPayment, createExpense, removeInvoice, listInvoices } from "@/modules/finance/finance";
@@ -197,6 +195,60 @@ import {
   testEveryMappedPermissionTargetIsARealArea, testMapIsIdempotent,
   testTheFiveMovesAreDeclared, testNoRetiredSectionKeySurvivesInSource,
 } from "./restructure.mjs";
+// THE SQL QUERY BUILDER (P1 Postgres store swap, Task 7), same standalone-
+// runner shape as restructure.mjs above: pure functions, no database, and
+// self-checking when run bare via `node tests/pg-query.mjs`. Importing it
+// here folds it into the one command (`npm test`) that already runs
+// everything else, even though it needs none of what integration.test.mjs's
+// bootstrap sets up for it.
+import {
+  testExactMatch, testUndefinedIsIgnoredNotMatched, testArrayMeansOneOf,
+  testContainsIsCaseInsensitive, testTextOrderUsesAnIcuCollation, testNumberOrderCasts,
+  testOrderIsMadeTotal, testDefaultOrderIsNewestFirst, testUnknownOperatorThrows,
+  testNullRequiresKeyPresent, testNeUsesIsDistinctFrom, testNeNullKeepsAnAbsentKey,
+  testInNullMemberRequiresKeyPresent, testNinKeepsAnAbsentKey,
+  testNinExcludesAnExplicitNullOnlyWhenTheArrayHasOne, testOrderCoalescesMissingTextToEmptyString,
+  testContainsEscapesWildcards, testGtCastsNumericForANumberArgument, testGtUsesCollateCForAStringArgument, testGtNullArgumentThrows,
+  testCountMirrorsSelectsWhereClause,
+  testScopeAndCollectionAreAlwaysParameterised, testLimitIsTheLastParameter,
+} from "./pg-query.mjs";
+// THE POSTGRES SEAM, SCHEMA AND ROW PRIMITIVES, PLUS THE DISPATCHER (P1
+// Postgres store swap, Tasks 1, 2, 4 and 5), same standalone-runner shape as
+// pg-query.mjs above: self-checking when run bare via `node
+// tests/pg-parity.mjs`, folded in here so a regression shows up in the one
+// command everything else already goes through. UNLIKE pg-query.mjs this
+// touches a real, live Postgres — DATABASE_URL must be set (pg-parity.mjs
+// exits loudly if it is not) — but every fixture it writes is either a
+// synthetic tenant id cleaned up in the test's own `finally` block or, for
+// the two dispatcher round-trip tests, no-ops outside NOMPANY_DB=parity.
+import {
+  testPgConnects, testPgRejectsNamedPreparedStatements, testQueryTimeoutOutlivesStatementTimeout,
+  testWithTenantSetsTheLocalTenantSetting, testTenantSettingDoesNotLeakAcrossTransactions,
+  testBareQueryAgainstTheTenantTableIsRefused, testWithinTheSeamTheTenantTableIsReachable,
+  testWithTenantRefusesAnEmptyTenantId, testSchemaShape, testRlsIsEnabled, testRlsFiltersRowsBetweenTenants,
+  testCheckConstraintRejectsEmptyTenantId, testPgSchemaQueryRefusesANonDdlStatement,
+  testPgSchemaQueryRefusesDropTableEvenGuarded, testPgSchemaQueryRefusesDropSchema,
+  testPgSchemaQueryRefusesDropOwned, testPgSchemaQueryRefusesDropIndex,
+  testPgSchemaQueryRefusesAlterTableDropColumn, testPgSchemaQueryRefusesAlterTableRename,
+  testPgSchemaQueryRefusesAlterColumnTypeJsonb, testPgSchemaQueryRefusesDisableRls,
+  testPgSchemaQueryRefusesCreateView, testPgSchemaQueryDoesNotLaunderADropThroughAStringLiteral,
+  testPgSchemaQueryRefusesCreateTableAsSelectPlain, testPgSchemaQueryRefusesCreateTableAsSelectWithExtraParens,
+  testPgSchemaQueryAcceptsRealDdl, testFailedTransactionDestroysItsConnectionRatherThanRecyclingIt,
+  testPgTxAlsoDestroysAFailedConnection, testReentrantWithTenantForTheSameTenantIsAbsorbed,
+  testReentrantWithTenantForADifferentTenantFailsFast, testKilledConnectionDoesNotCrashTheProcess,
+  testKeyOrderSurvives, testNewestFirst, testBatchKeepsArrivalOrderAmongItself, testFunctionPatchIsReapplied,
+  testTwentyConcurrentFlipsAllLandNoneRejected, testImmutableFieldsCannotBePatched,
+  testDeleteReportsWhetherAnythingWent, testBackendDefaultsToRedis, testDispatcherParityRoundTrip,
+  testDispatcherDisagreementNamesBothValues, testCascadeDeleteSectionReapsRowsOutsideTheCatalogue,
+} from "./pg-parity.mjs";
+// THE POSTGRES SWEEP (Task 6) — see tests/pg-sweep.mjs. Used once, at the very
+// end, right before the Redis delPrefix that would otherwise erase the one
+// record (REG.studios) naming which tenants this run needs it to clean up.
+import { sweepPgTenants } from "./pg-sweep.mjs";
+// THE BLOB SWEEP (see tests/blob-sweep.mjs) — the third store's cleanup, and
+// the only one whose namespace lives in the object path rather than in a key
+// prefix or a tenant column.
+import { sweepBlobObjects } from "./blob-sweep.mjs";
 
 import {
   seedSuperAdmin, loginSuper, logoutSuper, findSuperBySession, SUPER_COOKIE, SUPER_TTL_SEC,
@@ -204,7 +256,7 @@ import {
 import { ttlOf, editArr, hIncrBounded, pfAdd, pfCount, hGetAll, hSet, memoryPolicy, sMembers } from "@/platform/db/store";
 import * as KEYS from "@/platform/db/keys";
 import { STAT } from "@/platform/db/keys";
-import { putMedia } from "@/lib/media";
+import { putMedia, getMedia } from "@/lib/media";
 import { hashToken } from "@/platform/auth/passwords";
 import { SERVICE_ACTIONS, FIELDS_OF_WORK, FIELD_ACTION_MATRIX, actionsForField, OTHER_FIELD } from "@/shared/fieldsOfWork";
 import { nextPool, cleanNextActive } from "@/modules/studioServiceActions";
@@ -3464,6 +3516,26 @@ console.log("== a private file is readable by its studio, and by nobody else");
     visibility: "private", owner: owner.id,
   });
 
+  // THE OBJECT PATHNAME CARRIES THE TEST NAMESPACE, asserted against the two
+  // things that must agree with it rather than against a literal of its own.
+  //
+  // REGRESSION: `put` was called with a bare `media/${id}` while the Redis
+  // record beside it went through MEDIA.blob() and was namespaced properly.
+  // The suite therefore wrote its fixture objects into the LIVE Blob store
+  // next to production's, and — because delPrefix then reaped the record that
+  // named them — left them unreachable and unreclaimable, billed forever, one
+  // more set per run. Both halves of the fix are asserted here: that the
+  // pathname comes from the key builder (invariant 1), and that it falls
+  // inside the scope tests/blob-sweep.mjs actually lists, since a namespaced
+  // object the sweep cannot see leaks exactly as badly as an unnamespaced one.
+  {
+    const rec = await getMedia(pub.id);
+    ok("an uploaded object's pathname comes from the key builder",
+      rec.pathname === KEYS.MEDIA.object(pub.id), rec.pathname);
+    ok("...and falls inside the scope the blob sweep lists",
+      KEY_PREFIX ? rec.pathname.startsWith(`${KEY_PREFIX}media/`) : true, `prefix "${KEY_PREFIX}"`);
+  }
+
   __signOut();
   ok("a public file is served to anyone", (await serve(pub.id)).status === 200);
   ok("a private file is refused to a stranger", (await serve(priv.id)).status === 404);
@@ -4684,6 +4756,17 @@ console.log("\n== what Nova volunteers, before anybody asks");
   }
 }
 
+// SHARED ADAPTER for every pure, standalone-runner test file below that takes
+// its assertion object as an ARGUMENT rather than importing node:assert
+// itself (restructure.mjs, pg-query.mjs, pg-parity.mjs) — one definition
+// rather than three copies of the identical five lines.
+const asT = {
+  equal: (actual, expected, message = "") => ok(
+    message, actual === expected,
+    actual === expected ? "" : `expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`,
+  ),
+};
+
 // ============================================================================
 console.log("\n== the fifteen-section restructure map (P0 restructure, Task 1)");
 // testEveryMappedTargetActuallyExists, testEveryMappedPermissionTargetIsARealArea
@@ -4693,12 +4776,6 @@ console.log("\n== the fifteen-section restructure map (P0 restructure, Task 1)")
 // has not happened (Task 5). Do not weaken these three to make this block
 // green — them turning green for real is what proves those tasks landed.
 {
-  const asT = {
-    equal: (actual, expected, message = "") => ok(
-      message, actual === expected,
-      actual === expected ? "" : `expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`,
-    ),
-  };
   for (const test of [
     testEveryOldSectionKeyIsAccountedFor,
     testEveryMappedTargetActuallyExists,
@@ -4708,6 +4785,159 @@ console.log("\n== the fifteen-section restructure map (P0 restructure, Task 1)")
     testNoRetiredSectionKeySurvivesInSource,
   ]) {
     await test(asT);
+  }
+}
+
+// ============================================================================
+console.log("\n== the SQL query builder (P1 Postgres store swap, Task 7)");
+// NO REDIS, NO POSTGRES. buildSelect/buildCount are pure — this block asserts
+// the generated SQL text and parameter list only, exactly like
+// tests/pg-query.mjs run bare. It runs here too so a regression shows up in
+// the one command (`npm test`) everything else already goes through.
+{
+  for (const test of [
+    testExactMatch,
+    testUndefinedIsIgnoredNotMatched,
+    testArrayMeansOneOf,
+    testContainsIsCaseInsensitive,
+    testTextOrderUsesAnIcuCollation,
+    testNumberOrderCasts,
+    testOrderIsMadeTotal,
+    testDefaultOrderIsNewestFirst,
+    testUnknownOperatorThrows,
+    testNullRequiresKeyPresent,
+    testNeUsesIsDistinctFrom,
+    testNeNullKeepsAnAbsentKey,
+    testInNullMemberRequiresKeyPresent,
+    testNinKeepsAnAbsentKey,
+    testNinExcludesAnExplicitNullOnlyWhenTheArrayHasOne,
+    testOrderCoalescesMissingTextToEmptyString,
+    testContainsEscapesWildcards,
+    testGtCastsNumericForANumberArgument,
+    testGtUsesCollateCForAStringArgument,
+    testGtNullArgumentThrows,
+    testCountMirrorsSelectsWhereClause,
+    testScopeAndCollectionAreAlwaysParameterised,
+    testLimitIsTheLastParameter,
+  ]) {
+    await test(asT);
+  }
+}
+
+// ============================================================================
+console.log("\n== the postgres seam, schema, row primitives and dispatcher (P1 Postgres store swap, Tasks 1/2/4/5)");
+// A REAL, LIVE POSTGRES, UNLIKE THE BLOCK ABOVE. Same standalone-runner shape
+// (asT, no throw on a failed assertion) as tests/pg-parity.mjs run bare — this
+// is Task 6's own requirement: fold the dispatched-store proof into the one
+// command (`npm test` / `npm run test:parity`) that already runs everything
+// else, so a regression here shows up beside every other test rather than
+// only in a file nobody remembers to run separately. Every fixture is either
+// a synthetic tenant id the test itself deletes in a `finally` block, or (the
+// two dispatcher round-trip tests) a no-op outside NOMPANY_DB=parity — none of
+// this reaches the postgres sweep below, which only ever concerns the real
+// studios createStudio minted further up this file.
+{
+  for (const test of [
+    testPgConnects,
+    testPgRejectsNamedPreparedStatements,
+    testQueryTimeoutOutlivesStatementTimeout,
+    testWithTenantSetsTheLocalTenantSetting,
+    testTenantSettingDoesNotLeakAcrossTransactions,
+    testBareQueryAgainstTheTenantTableIsRefused,
+    testWithinTheSeamTheTenantTableIsReachable,
+    testWithTenantRefusesAnEmptyTenantId,
+    testSchemaShape,
+    testRlsIsEnabled,
+    testRlsFiltersRowsBetweenTenants,
+    testCheckConstraintRejectsEmptyTenantId,
+    testPgSchemaQueryRefusesANonDdlStatement,
+    testPgSchemaQueryRefusesDropTableEvenGuarded,
+    testPgSchemaQueryRefusesDropSchema,
+    testPgSchemaQueryRefusesDropOwned,
+    testPgSchemaQueryRefusesDropIndex,
+    testPgSchemaQueryRefusesAlterTableDropColumn,
+    testPgSchemaQueryRefusesAlterTableRename,
+    testPgSchemaQueryRefusesAlterColumnTypeJsonb,
+    testPgSchemaQueryRefusesDisableRls,
+    testPgSchemaQueryRefusesCreateView,
+    testPgSchemaQueryDoesNotLaunderADropThroughAStringLiteral,
+    testPgSchemaQueryRefusesCreateTableAsSelectPlain,
+    testPgSchemaQueryRefusesCreateTableAsSelectWithExtraParens,
+    testPgSchemaQueryAcceptsRealDdl,
+    testFailedTransactionDestroysItsConnectionRatherThanRecyclingIt,
+    testPgTxAlsoDestroysAFailedConnection,
+    testReentrantWithTenantForTheSameTenantIsAbsorbed,
+    testReentrantWithTenantForADifferentTenantFailsFast,
+    testKilledConnectionDoesNotCrashTheProcess,
+    testKeyOrderSurvives,
+    testNewestFirst,
+    testBatchKeepsArrivalOrderAmongItself,
+    testFunctionPatchIsReapplied,
+    testTwentyConcurrentFlipsAllLandNoneRejected,
+    testImmutableFieldsCannotBePatched,
+    testDeleteReportsWhetherAnythingWent,
+    testBackendDefaultsToRedis,
+    testDispatcherParityRoundTrip,
+    testDispatcherDisagreementNamesBothValues,
+    testCascadeDeleteSectionReapsRowsOutsideTheCatalogue,
+  ]) {
+    await test(asT);
+  }
+}
+
+// ============================================================================
+// THE POSTGRES SWEEP (Task 6) — MUST RUN BEFORE THE REDIS SWEEP BELOW.
+// REG_KEYS.studios ("g:studios") is itself one of the keys delPrefix is about
+// to erase, and it is the only record of which studios THIS run created: the
+// three studios created directly above (Test/Before/Language) plus whichever
+// ones the imported engagement-backfill fixtures minted along the way. Under
+// NOMPANY_DB=parity every one of those studios also dual-wrote into
+// collection_rows; under redis/postgres-only this reports 0 and costs a few
+// no-op queries, because sections.ts never touched Postgres under those
+// backends. See tests/pg-sweep.mjs for why an explicit id list is the only
+// safe shape once RLS is FORCED.
+// CRITICAL FIX (whole-branch review): this call used to be unguarded, and
+// pg.ts's getPool() throws the instant DATABASE_URL is unset — CI's
+// redis:8-only setup left it unset, so this line died before the Redis
+// delPrefix below ever ran, stranding this run's whole namespace (the exact
+// dirty-namespace trap CLAUDE.md documents, surfacing as an unrelated wall of
+// "forbidden"/"no-section" failures in whichever run claims the prefix next).
+// Skip loudly when there is nothing to sweep (no DATABASE_URL — CI always
+// sets one); on any OTHER failure, catch it here so the Redis sweep still
+// runs, and count it as a suite failure via `fails` rather than losing it
+// silently.
+if (!process.env.DATABASE_URL) {
+  console.warn(`skipping the Postgres sweep — DATABASE_URL is not set (nothing was dual-written to collection_rows this run)`);
+} else {
+  try {
+    const studioIds = (await readArr(REG_KEYS.studios)).map((s) => s.id).filter(Boolean);
+    const pgSwept = await sweepPgTenants(studioIds);
+    console.log(`swept ${pgSwept} postgres row(s) across ${studioIds.length} studio(s) created by this run`);
+  } catch (e) {
+    fails += 1;
+    console.error(`Postgres sweep failed — continuing to the Redis sweep below so this run does not strand its namespace: ${e.message}`);
+  }
+}
+
+// THE BLOB SWEEP — see tests/blob-sweep.mjs. Ordered here for a different
+// reason than the Postgres one above: it does not depend on any Redis record
+// to know what it owns (the prefix is in the object pathname itself), so it
+// could run anywhere. It runs BEFORE delPrefix anyway, next to its two
+// siblings, so all three cleanups read as one block rather than one of them
+// sitting apart for no stated reason.
+//
+// Guarded the same way, for the same reason: a failure here must not stop the
+// Redis sweep below and strand the namespace. Counted as a suite failure so a
+// store that quietly stopped accepting deletes does not pass as clean.
+if (!process.env.BLOB_READ_WRITE_TOKEN) {
+  console.warn(`skipping the Blob sweep — BLOB_READ_WRITE_TOKEN is not set (nothing was uploaded to Blob this run)`);
+} else {
+  try {
+    const blobSwept = await sweepBlobObjects(KEY_PREFIX);
+    console.log(`swept ${blobSwept} blob object(s) under "${KEY_PREFIX}media/"`);
+  } catch (e) {
+    fails += 1;
+    console.error(`Blob sweep failed — continuing to the Redis sweep below so this run does not strand its namespace: ${e.message}`);
   }
 }
 

@@ -25,6 +25,8 @@ Three rules that keep this folder worth reading:
 | [engagements.md](engagements.md) | The deal: one engagement, its stages, its client, lock and delete |
 | [language.md](language.md) | EN/AR and RTL: what decides which language, where the buttons are, what is translated |
 | [list-tables.md](list-tables.md) | The department list tables: the shared Data Grid, and the search / filter / column controls above it |
+| [media.md](media.md) | Uploaded files: Blob for the binary, Redis for the record, the membership check on private reads |
+| [pg-gateway.md](pg-gateway.md) | Reaching Cloud SQL from Vercel: the Cloud Run service, one call one transaction, and the guards re-run server-side |
 | [vendor-import.md](vendor-import.md) | Importing a supplier list into Inventory from a CSV: the format, the AI prompt, and the one-write bulk create |
 
 *(Files are written as each area is next touched, not all at once — an unwritten file is

@@ -14,6 +14,9 @@
     "test:integration": "node tests/integration.test.mjs",
     "test": "node tests/access.test.mjs && node tests/integration.test.mjs && node tests/gate-a.test.mjs",
     "test:gate-a": "node tests/gate-a.test.mjs",
+    "test:parity": "node scripts/test-parity.mjs",
+    "test:gateway": "node services/pg-gateway/test/gateway.test.mjs && node tests/pg-gateway-client.mjs",
+    "test:gateway:parity": "node tests/pg-transport-parity.mjs",
     "lint:budget": "node scripts/lint-budget.mjs"
   },
   "dependencies": {
@@ -35,6 +38,7 @@
     "@tiptap/pm": "^3.30.1",
     "@tiptap/react": "^3.30.1",
     "@tiptap/starter-kit": "^3.30.1",
+    "@vercel/blob": "^2.8.0",
     "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -45,6 +49,7 @@
     "next": "16.2.10",
     "openai": "^7.5.0",
     "otpauth": "^9.5.1",
+    "pg": "^8.23.0",
     "qrcode": "^1.5.4",
     "radix-ui": "^1.6.7",
     "react": "19.0.0",
@@ -61,6 +66,7 @@
     "@eslint/eslintrc": "^3.3.6",
     "@tailwindcss/typography": "^0.5.20",
     "@types/node": "^26.2.0",
+    "@types/pg": "^8.23.1",
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",

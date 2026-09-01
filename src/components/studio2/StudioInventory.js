@@ -82,9 +82,19 @@ export default function StudioInventory({ slug, view = "inventory" }) {
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <p className="text-sm text-slate-500">{tr.loadingInventory}</p>;
 
+  // `canManage` IS NOT DESTRUCTURED, and neither is `canManageSheets`. Both are
+  // in the response; neither has a reader here. See the note below for
+  // `canManage` — leaving it unbound in this scope is the point, and binding it
+  // under another name only to never read it said the same thing more quietly.
+  //
+  // `canManageSheets` lost its consumer rather than never having one: there is
+  // no `inventory-sheets` branch below (see the comment where it would be),
+  // because that screen is rendered straight from the studio route. It gates on
+  // a FINER right from a different route — StudioSheetViewer reads
+  // `canWriteInventoryColumns`, which projects/route.ts derives per column
+  // owner — so the coarse flag here answers a question nobody asks any more.
   const {
-    canManage: canManageParent,
-    canManageStock, canManageVendors, canManageItems, canManageSheets, canManageAwb,
+    canManageStock, canManageVendors, canManageItems, canManageAwb,
     vendors, items, movements, orders, projects, shipments, airlines, summary, vocabulary, nav,
     currency: studioCurrency = "",
   } = data;

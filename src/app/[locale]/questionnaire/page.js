@@ -41,7 +41,6 @@ export default async function QuestionnairePage({ params, searchParams }) {
       dict={getDict(locale)}
       email={user.email}
       pages={pages}
-      questionnaireId={def?.id || ""}
       initialPackage={isPackageKey(requested) ? requested : ""}
     />
   );

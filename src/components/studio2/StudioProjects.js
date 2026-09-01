@@ -29,7 +29,7 @@ import { Field, BARE_CONTROL } from "@/components/fields/Field";
 import StudioDate from "@/components/fields/StudioDate";
 import {
   slaVisits, emergencyVisits, nextVisit, contractEndDate, supportStatus,
-  fmtDate as slaDate, daysUntil,
+  fmtDate as slaDate,
 } from "@/modules/projects/sla";
 import { hoursBetween } from "@/modules/projects/projectSchedule";
 
@@ -158,8 +158,10 @@ export default function StudioProjects({ slug, view = "projects" }) {
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <p className="text-sm text-slate-500">{tr.loadingProjects2}</p>;
 
+  // `canManage` is deliberately NOT destructured — see the note below. Binding
+  // it under another name only to never read it made the same point, and cost a
+  // lint warning to say it.
   const {
-    canManage: canManageParent,
     canManageList, canManageSla, canManageOvertimes, canManageSettings,
     projects, approvedQuotations, people, clients = [], slas, overtimes, directory, settings, vocabulary, nav,
   } = data;
@@ -442,7 +444,7 @@ function ProjectList({ projects, approvedQuotations, people, clients = [], indus
         <Dialog title={`${detail.number} · ${detail.title}`} description={detail.clientName || undefined}
           onClose={closeDetail} width="max-w-[820px]">
           <ProjectDetail project={detail} people={people} stages={stages} canManage={canManage}
-            aliasOf={aliasOf} slug={slug} nav={nav}
+            slug={slug} nav={nav}
             onSave={(patch) => onSave(detail.id, patch)}
             onDelete={async () => { const ok = await onDelete(detail.id); if (ok) setDetail(null); }}
             onClose={closeDetail} />
@@ -675,7 +677,7 @@ function DirectProject({ people, clients, industries, studioDefaults, busy, setB
   );
 }
 
-function ProjectDetail({ project: p, people, stages, canManage, aliasOf, slug, nav, onSave, onDelete, onClose }) {
+function ProjectDetail({ project: p, people, stages, canManage, slug, nav, onSave, onDelete, onClose }) {
   const tr = projectsDict(useStudioLocale());
   const support = supportStatus(p);
   // Location and the support period commit on blur, dates on pick — the same

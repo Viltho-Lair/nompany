@@ -48,9 +48,9 @@ export default function ProjectsDashboard({
   const num = (n) => <span className="num">{n}</span>;
   const amt = (n) => <span className="num">{money(n)}</span>;
 
+  // Only the KPI row deep-links: StatTile takes an href, Widget does not, so
+  // the SLA and overtime widgets have nowhere to put one.
   const listHref = nav?.["projects-list"] ? `/${slug}/projects-list` : "";
-  const slaHref = nav?.["projects-sla"] ? `/${slug}/projects-sla` : "";
-  const otHref = nav?.["projects-overtimes"] ? `/${slug}/projects-overtimes` : "";
 
   // ---- KPIs (basic) --------------------------------------------------------
   const stageOf = (p) => p.stage || "Received";

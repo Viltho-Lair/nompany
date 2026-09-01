@@ -13,7 +13,7 @@ import StudioDate from "@/components/fields/StudioDate";
 import ClientBlock from "@/components/studio2/ClientBlock";
 import { useFocusedRecord } from "@/components/studio2/useFocusedRecord";
 import {
-  panel, h2, sub, input, microLabel, label, btn, btnGhost, btnAmber, th,
+  panel, h2, sub, input, microLabel, label, btn, btnGhost, th,
   URGENCY_BADGE, URGENCY_TONE, money, fmtDate, useTablePrefs,
   Dialog, Toolbar, FilterButton, FilterPanel, ColumnPicker, Empty,
 } from "@/components/studio2/ui";
@@ -174,11 +174,18 @@ export default function StudioSales({ slug, view = "crm-sales" }) {
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <p className="text-sm text-slate-500">{tr.loadingSales}</p>;
 
-  const { canManage: canManageParent, canManageTickets, canManageClients, canManageSettings, clients, tickets, people, vocabulary, nav, liveColumns, hasTechnical } = data;
-  // MANAGE IS ASKED OF THE SCREEN BEING SHOWN. `view` is the section key, and
-  // the map is keyed the same way, so a sub-section grant answers for its own
-  // screen and the parent's answer no longer stands in for all of them.
-  const canManage = data.manage?.[view] ?? canManageParent;
+  const { canManageTickets, canManageClients, canManageSettings, clients, tickets, people, vocabulary, nav, liveColumns, hasTechnical } = data;
+  // MANAGE IS ASKED OF THE SCREEN BEING SHOWN, and the per-sub-section flags
+  // above are how — canManageTickets, canManageClients, canManageSettings, each
+  // resolved from its own key and handed to the one screen it answers for.
+  //
+  // There was a second, parallel mechanism here: `data.manage?.[view] ??
+  // canManage`, which computes the same answer generically. It was dead — every
+  // branch below had since been given its own flag — so it has gone rather than
+  // sitting next to the live one looking equally authoritative. `manage` is
+  // still in the response (the goldens pin it) and is now read by nothing on
+  // the client; removing it from the API is a deliberate golden re-record, not
+  // a tidy-up.
 
   const banner = error && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>;
 
@@ -244,10 +251,9 @@ export default function StudioSales({ slug, view = "crm-sales" }) {
               onSave={(payload) => send("tickets", editing.row ? "PUT" : "POST", editing.row ? { ...payload, id: editing.row.id } : payload)} />
           </Dialog>
         )}
-        <Tickets tickets={tickets} people={people} canManage={canManageTickets} slug={slug} nav={nav}
+        <Tickets tickets={tickets} people={people} canManage={canManageTickets} slug={slug}
           hasTechnical={hasTechnical} statuses={vocabulary.statuses || []} urgencies={vocabulary.urgencies || []}
           onAdd={() => setEditing({ kind: "ticket", row: null })}
-          onEdit={(row) => setEditing({ kind: "ticket", row })}
           />
       </div>
     );
@@ -261,7 +267,7 @@ export default function StudioSales({ slug, view = "crm-sales" }) {
       {banner}
       {data.canViewDashboard === false
         ? <Empty title={tr.dashboardLocked} body={tr.dashboardLockedBody} />
-        : <SalesOverview slug={slug} tickets={tickets} clients={clients} people={people} nav={nav} level={level} />}
+        : <SalesOverview slug={slug} tickets={tickets} people={people} nav={nav} level={level} />}
     </div>
   );
 }
@@ -271,7 +277,7 @@ export default function StudioSales({ slug, view = "crm-sales" }) {
 // widgets, in SalesDashboard), then the live view and the full ticket list.
 // The dashboard itself is presentational and paid-rung-gated; this wrapper only
 // supplies it the ticket list the screen already holds and the studio's rung.
-function SalesOverview({ slug, tickets, clients, people, nav, level }) {
+function SalesOverview({ slug, tickets, people, nav, level }) {
   const tr = salesDict(useStudioLocale());
   const aliasOf = useMemo(() => Object.fromEntries(people.map((p) => [p.id, p.alias])), [people]);
 
@@ -349,7 +355,7 @@ function SalesOverview({ slug, tickets, clients, people, nav, level }) {
 // Submit PO — happens on the ticket's own page, where the three sit together
 // in the order they happen, rather than one of them being smuggled into a
 // column of a table whose rows are links.
-function Tickets({ tickets, people, canManage, slug, nav, hasTechnical, statuses, urgencies, onAdd, onEdit }) {
+function Tickets({ tickets, people, canManage, slug, hasTechnical, statuses, urgencies, onAdd }) {
   const tr = salesDict(useStudioLocale());
   const TICKET_COLUMNS = useMemo(() => ticketColumns(tr), [tr]);
   const aliasOf = useMemo(() => Object.fromEntries(people.map((p) => [p.id, p.alias])), [people]);
