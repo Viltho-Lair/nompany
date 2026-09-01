@@ -243,7 +243,7 @@ every push to `main` and every pull request.
   to 8 fails the build.
 - **The bundle budget pins the regression, not the size.** Two gates, and the
   first is the one that matters: the LARGEST CHUNK is 158 KB gz against a 250 KB
-  ceiling, because that is what every route pays. Total client JS is 1570 KB gz
+  ceiling, because that is what every route pays. Total client JS is 1571 KB gz
   against 1600 KB, which catches sprawl rather than splitting. The studio’s
   department screens are `nextDynamic()` now — the chunk fell from 307 to 197 and
   the total rose 12 KB in the same commit, which is the two ceilings doing their
@@ -264,7 +264,10 @@ every push to `main` and every pull request.
   ships nothing to a browser; what moved is `keys.ts`, which a landing-page
   component already imports (the reason `platform/db` deliberately has no
   barrel) and which gained `MEDIA.object`. Measured, not attributed to a single
-  commit — the port landed over several.
+  commit — the port landed over several. 1570 → 1571 with the template-driven
+  deal screen: a flow-name line, an off-template badge, six stage icons and two
+  dictionary strings in two languages. The LARGEST chunk did not move (158 KB), which
+  is the gate that matters — the screen was already `nextDynamic()`.
 - Tests connect things — real repositories, real route handlers, **one assertion per
   bug that actually happened**. Each block names the defect it guards, so nobody
   deletes it later wondering what it was for.

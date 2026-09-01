@@ -913,13 +913,38 @@ console.log("\n== the handler is carried, never copied");
   ok("a present stage carries a ref and a summary", cardsByType.ticket?.present === true && !!cardsByType.ticket.ref,
     JSON.stringify(cardsByType.ticket));
   ok("...the invoice too, once attached", cardsByType.invoice?.present === true, JSON.stringify(cardsByType.invoice));
-  // bill/asset are stages this chain never had — the fixture never raised
-  // one — so they are the ones that prove "does not exist yet" reads as an
-  // optional next step (present:false) rather than as an error or a gap.
+  // contract/payment are stages Template A LISTS and this chain never had — the
+  // fixture never signed one or took one — so they are the ones that prove
+  // "does not exist yet" reads as an optional next step (present:false) rather
+  // than as an error or a gap.
+  //
+  // THIS USED TO ASSERT ON bill/asset, and they are the wrong witnesses now
+  // that the block is template-driven: neither is in Template A, so the flow
+  // does not invite them and no card is emitted at all. Swapping them for two
+  // stages the flow actually walks keeps the guard testing what it was written
+  // to test rather than quietly testing nothing.
   ok("a stage the chain never had reads present:false, not absent",
-    cardsByType.bill?.present === false && cardsByType.bill?.count === 0
-    && cardsByType.asset?.present === false && cardsByType.asset?.count === 0,
-    JSON.stringify({ bill: cardsByType.bill, asset: cardsByType.asset }));
+    cardsByType.contract?.present === false && cardsByType.contract?.count === 0
+    && cardsByType.payment?.present === false && cardsByType.payment?.count === 0,
+    JSON.stringify({ contract: cardsByType.contract, payment: cardsByType.payment }));
+
+  // THE THIRD CASE, which only exists now that the template decides the list. A
+  // withheld stage is absent; a visible in-flow stage the deal lacks is an
+  // invitation; and a visible stage the FLOW does not use is absent too. The
+  // owner holds every right, so bill and asset are withheld from nobody here —
+  // they are simply not part of a contracting project, and a screen that
+  // offered to raise one would be inviting work the flow has no place for.
+  ok("a stage this flow does not use is not offered, even to a reader who could see it",
+    !cardsByType.bill && !cardsByType.asset,
+    JSON.stringify(Object.keys(cardsByType)));
+  ok("...and the cards are in the flow's order, not the registry's",
+    (block.engagement?.cards || []).filter((c) => !c.offTemplate).map((c) => c.type).join(",")
+      === ["ticket", "rfq", "quotation", "contract", "project", "sheet", "order", "delivery",
+           "job", "timesheet", "change_order", "inspection", "invoice", "payment"].join(","),
+    JSON.stringify((block.engagement?.cards || []).map((c) => c.type)));
+  ok("...and the deal names the flow it walks",
+    block.engagement?.templateId === "A" && !!block.engagement?.templateName,
+    JSON.stringify({ id: block.engagement?.templateId, name: block.engagement?.templateName }));
 
   // ---- Task 3 (client-belongs-to-the-engagement): the client's name is
   // resolved LIVE at read time, never from a copy on the engagement root.
@@ -948,7 +973,16 @@ console.log("\n== the handler is carried, never copied");
   // withheld, never blanked (spec §4, "What each person sees inside").
   const salesRole = await createRole(studio.id, {
     name: `Engager ${rand()}`,
-    permissions: ["engagements.view", "crmSales.tickets.view", "finance.payables.view"],
+    // crmSales.quotations.view IS DELIBERATE, and it is what makes the last
+    // assertion in this block possible: it is the right that governs the
+    // `contract` stage, which Template A lists and this deal does not have. The
+    // role previously leaned on `bill` for that, and `bill` is not in Template A
+    // at all — so once the block became template-driven there was no stage this
+    // reader could see, was entitled to, and was still waiting for.
+    permissions: [
+      "engagements.view", "crmSales.tickets.view", "crmSales.quotations.view",
+      "finance.payables.view",
+    ],
   });
   const engager = await person("Engager", null);
   await updateCollaborator(studio.id, engager.collaborator.id, { roleIds: [salesRole.id] });
@@ -971,10 +1005,18 @@ console.log("\n== the handler is carried, never copied");
   const serialised = JSON.stringify(engagerBlock);
   ok("...and the invoice's own reference is nowhere in the serialised body",
     !serialised.includes(invoiceMade.invoice.reference), serialised);
-  // A visible-but-absent stage (bill) still renders as the optional next
+  // A visible-but-absent stage (contract) still renders as the optional next
   // step here too — withholding a whole type must not also break that.
   ok("...while a visible-but-absent stage still reads present:false",
-    engagerCards.find((c) => c.type === "bill")?.present === false, JSON.stringify(engagerCards));
+    engagerCards.find((c) => c.type === "contract")?.present === false, JSON.stringify(engagerCards));
+  // And the withheld type is absent for the RIGHT reason. `bill` is missing
+  // from this payload too, but because Template A does not use it rather than
+  // because it was withheld — so it proves nothing about withholding, which is
+  // exactly why the assertion above no longer rests on it.
+  ok("the withheld invoice and the off-flow bill are both absent, and only one of them is a permission decision",
+    !engagerCards.some((c) => c.type === "invoice") && !engagerCards.some((c) => c.type === "bill")
+    && engagerAccess.has("finance.payables.view"),
+    JSON.stringify(engagerCards.map((c) => c.type)));
 
   // ---- C-1: the block's `context` must not leak the ticket's private fields -
   // A reader who holds engagements.view plus a Finance stage right (NOT

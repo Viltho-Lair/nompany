@@ -32,8 +32,17 @@ The root is small and rarely written:
   createdAt, updatedAt }
 ```
 
-**There is no engagement `status`, deliberately.** A deal's status is its ticket's; its
-delivery status is its project's. A single label is derived on read, never stored.
+**There is no engagement `status`, deliberately.** A single label is derived on read, never
+stored — walked down the **template's** `statusChain` and stopping at the first stage the
+deal carries *and the reader may see*. Two people can therefore read the same deal as having
+different statuses, which is correct: each is told the truth about the part of it they are
+entitled to, and a chain entry they lack the right to see would otherwise disclose the state
+of a record whose existence is meant to stay invisible to them.
+
+A stage with no status vocabulary of its own **is** the status: a contract has no `status`
+field, so a deal whose furthest point is its contract reads "Contract". `statusType` names
+the stage the label came from, so the screen can tell a stage name (translated like every
+other stage name) from a record's own word (passed through).
 
 **Membership lives in ZSETs, not on the root**, so a busy engagement never contends on one
 document. Member keys use the **singular** registry type (`rfq`, `quotation`, `invoice`) —
@@ -108,6 +117,23 @@ A withheld stage is **absent from the payload**; a visible-but-absent stage is
 `present: false`. Those two must never look alike. The context is **projected** to what the
 screen renders — returning `root.context` whole leaks the client's contact name and full site
 address to any holder of `engagements.view` plus any one stage right.
+
+**The block is template-driven.** Cards come back in the order the deal's flow walks, not in
+registry declaration order, and the payload names the flow (`templateId`, `templateName`).
+A stage the template lists and the deal lacks is an **invitation** — never a validation
+error, because the flow alerts and never blocks. A stage the deal carries that its template
+does not list is appended with `offTemplate: true` and shown, because a record that exists
+and cannot be seen is worse than an untidy screen; it is never rendered as an invitation.
+
+The template is resolved as: the deal's own `templateId`, else the default for its
+`industryRef`, else Template A. The fallbacks exist only for deals written before templates
+did, and A is chosen because it is the flow the previously hardcoded status walk was
+approximating — so such a deal reads as it always did rather than becoming statusless.
+
+**Cards are deliberately not numbered.** A withheld stage is absent from the payload, so
+numbering what arrives would label stages 1, 4 and 5 as "1, 2, 3"; numbering them truthfully
+would announce that two stages exist which the reader may not see. Position carries the
+order without either failure.
 
 ### Deleting anything
 
@@ -217,6 +243,15 @@ to live once; 7 engagements proven.
 - No reconcile job runs on a schedule; the backfill is manual.
 - `buildEngagements`' orphan branch fills only `members.quotation` and null singletons, so a
   reconcile cannot heal an internal-quotation deal the way it heals a ticket-headed one.
-- No hop ceiling guards the engagements routes.
+- **The context has two names for the industry and nothing reconciles them.** The backfill
+  writes `industry`; `platform/engagement/context.ts`, which came later, names the fact
+  `industryRef` and that is what `contributeContext` writes. A backfilled deal that has
+  since been contributed to can carry BOTH, with no rule saying which wins. The deal
+  screen's template fallback reads either, deliberately, but that is one caller papering
+  over it rather than a fix — the rename has not been done and no migration exists.
+- No hop ceiling guards the engagements routes — and the block now reads the studio's
+  flow templates as well (one read, or two when a pre-template deal has to be resolved
+  through its industry). The lookup is deliberately one list read rather than one per
+  candidate, but nothing enforces that it stays so.
 - Deep links from a stage card (the backend does not emit `href`), and no `engagements` live
   channel.

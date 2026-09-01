@@ -15,6 +15,8 @@ type Strings = CommonStrings & {
   deleteNamed: (what: string) => string;
   deleteThisDeal: string;
   deletingThisDealDeletes: string;
+  flowNamed: (name: string) => string;
+  notInThisFlow: string;
   iUnderstandDeleted: (what: string) => string;
   moreDealsFurtherDown: string;
   nDeals: (n: number) => string;
@@ -85,6 +87,8 @@ const en: Strings = {
   deleteNamed: (what) => `Delete ${what}`,
   deleteThisDeal: "Delete this deal",
   deletingThisDealDeletes: "Deleting this deal deletes",
+  flowNamed: (name) => `Flow: ${name}`,
+  notInThisFlow: "Outside this flow",
   iUnderstandDeleted: (what: string) => `I understand ${what} will be permanently deleted, and that this cannot be undone.`,
   moreDealsFurtherDown: "More deals may be further down the list — this page just did not have any you have access to.",
   nDeals: (n: number) => `${n} deal${n === 1 ? "" : "s"}`,
@@ -155,6 +159,8 @@ const ar: Strings = {
   deleteNamed: (what) => `حذف ${what}`,
   deleteThisDeal: "احذف هذه الصفقة",
   deletingThisDealDeletes: "حذف هذه الصفقة يحذف",
+  flowNamed: (name) => `المسار: ${name}`,
+  notInThisFlow: "خارج هذا المسار",
   iUnderstandDeleted: (what: string) => `أفهم أن ${what} ستُحذف نهائيًا، وأن هذا لا يمكن التراجع عنه.`,
   moreDealsFurtherDown: "قد تكون هناك صفقات أخرى أسفل القائمة — هذه الصفحة لم يكن فيها ما تملك الوصول إليه فحسب.",
   nDeals: (n: number) => n === 1 ? "صفقة واحدة" : n === 2 ? "صفقتان" : n <= 10 ? `${n} صفقات` : `${n} صفقة`,

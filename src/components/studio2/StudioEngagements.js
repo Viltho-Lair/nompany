@@ -35,6 +35,12 @@ const STAGE_ICON = {
   sheet: "sheets", order: "cart", delivery: "box", shipment: "package",
   task: "checkDouble", overtime: "overtime", invoice: "invoice",
   expense: "wallet", bill: "form", asset: "database",
+  // The six stages the flow templates added. Without an entry here each one
+  // renders as the neutral dot — which is not a crash, and is exactly why they
+  // are easy to forget: a deal screen full of identical grey dots looks like a
+  // styling choice rather than a missing map.
+  contract: "verified", change_order: "edit", timesheet: "clock",
+  job: "tools", inspection: "eye", payment: "money",
 };
 
 const panel = "rounded-geex border border-slate-200/70 bg-[var(--geex-surface)] p-6 dark:border-white/10";
@@ -737,7 +743,8 @@ function EngagementDetail({ slug, block, loading, error }) {
   // BEFORE THE EARLY RETURNS. The error and loading paths returned without
   // ever calling it, so this component ran a different number of hooks
   // depending on what the fetch had done.
-  const tr = engagementsDict(useStudioLocale());
+  const locale = useStudioLocale();
+  const tr = engagementsDict(locale);
   if (error) {
     return (
       <p role="alert" className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">
@@ -749,6 +756,22 @@ function EngagementDetail({ slug, block, loading, error }) {
   if (loading || !block) return <DetailSkeleton />;
 
   const ctx = block.context || {};
+
+  // TRANSLATING THE STATUS NEEDS TO KNOW WHERE IT CAME FROM. The read layer
+  // sends `status` as text plus `statusType`, the stage it was taken from. When
+  // that stage's record carries its own status ("Lead", "In progress") the text
+  // is that record's word and is passed through. When it does not — a contract
+  // has no status field at all — the layer sends the STAGE's English label, and
+  // that is a stage name, so it translates like every other stage name on this
+  // screen rather than being shown in English to an Arabic reader.
+  //
+  // Which case it is, is derivable rather than flagged: the status card is in
+  // `cards`, and a card with no summary is precisely the record that had no
+  // status to give.
+  const statusCard = (block.cards || []).find((c) => c.type === block.statusType);
+  const statusText = block.statusType && !statusCard?.summary
+    ? stageLabel(block.statusType, block.status, locale)
+    : block.status;
 
   return (
     <div className="space-y-6">
@@ -769,12 +792,26 @@ function EngagementDetail({ slug, block, loading, error }) {
                 names it without implying a colour that might be wrong for
                 two of the three sources. */}
             <span className="rounded-full bg-brand-500/10 px-3 py-1 text-xs font-700 text-brand-700 dark:text-brand-300">
-              {block.status}
+              {statusText}
             </span>
+            {/* THE FLOW IS NAMED because the card order below is now its order,
+                and an ordered list whose ordering principle is unnamed reads as
+                an arbitrary one. It also tells a reader why a stage they expect
+                is missing: a different flow does not have it. */}
+            {block.templateName && (
+              <span className="text-xs text-slate-400 dark:text-slate-500">{tr.flowNamed(block.templateName)}</span>
+            )}
           </div>
         </div>
       </section>
 
+      {/* IN THE TEMPLATE'S ORDER, which the read layer decided — the screen
+          renders the sequence it is given and never re-sorts it. Cards are not
+          NUMBERED, deliberately: a withheld stage is absent from the payload,
+          so numbering what arrives would label stages 1, 4 and 5 as "1, 2, 3",
+          and numbering them truthfully would announce that two stages exist
+          which this reader may not see — the exact leak §2.8 forbids. Position
+          carries the order without either failure. */}
       <div className="grid gap-4 sm:grid-cols-2">
         {(block.cards || []).map((card) => <StageCard key={card.type} slug={slug} card={card} />)}
       </div>
@@ -793,7 +830,21 @@ function StageCard({ slug, card }) {
           <Icon name={STAGE_ICON[card.type] || "dot"} className="h-[18px] w-[18px]" />
         </span>
         <div className="min-w-0">
-          <p className="font-600 text-slate-900 dark:text-white">{stageLabel(card.type, card.label, locale)}</p>
+          <p className="flex items-center gap-2 font-600 text-slate-900 dark:text-white">
+            {stageLabel(card.type, card.label, locale)}
+            {/* A stage the deal HAS but its flow does not list — a template
+                changed mid-deal, an import, something nobody modelled. Shown
+                and marked rather than hidden: it is a real record, and a record
+                that exists but cannot be seen is worse than an untidy screen.
+                It is never an invitation, which is why only present cards can
+                carry this badge — the flow does not ask for what it does not
+                use. */}
+            {card.offTemplate && (
+              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-600 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
+                {tr.notInThisFlow}
+              </span>
+            )}
+          </p>
           {card.present && card.count > 1 && (
             <p className="text-xs text-slate-400 dark:text-slate-500">{tr.onThisDeal(card.count)}</p>
           )}

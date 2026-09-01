@@ -9,6 +9,7 @@
 import { requirePermission, can } from "@/platform/access";
 import type { PermissionKey, PermissionSet } from "@/platform/access";
 import { STAGE_REGISTRY } from "@/platform/engagement/registry";
+import { statusStage } from "@/platform/engagement/context";
 import { ENG } from "@/platform/db/keys";
 import { zRange } from "@/platform/db/store";
 import { readEngagement, readEngagementView, engagementIdFor, setEngagementLock } from "@/platform/db/engagement";
@@ -16,6 +17,7 @@ import { cascadeDeleteEngagement } from "@/platform/db/cascade";
 import type { EngagementLineage } from "@/platform/db/engagement";
 import { getSectionByKey } from "@/platform/db/sections";
 import { repo } from "@/platform/db/repo";
+import { listFlowTemplates, defaultTemplateForStudio } from "@/platform/db/flows";
 import type { Refusal } from "@/platform/access";
 
 const PAGE = 25;
@@ -62,15 +64,107 @@ export function visibleStageTypes(access: PermissionSet): string[] {
 
 export type StageCard = {
   type: string; label: string; present: boolean; count: number;
+  /**
+   * True for a stage the deal carries that its template does not list — a
+   * template switched mid-deal, an import, an edge case nobody modelled.
+   *
+   * It is SHOWN rather than hidden: the blueprint's rule is that such a stage
+   * "is displayed, never lost", because a record that exists and cannot be seen
+   * is worse than an untidy screen. It is never an invitation, though — the
+   * flow does not ask for what it does not use.
+   */
+  offTemplate: boolean;
   ref?: string; summary?: string; href?: string;
 };
 
-// A deal's status is not stored (the storage spec removed it deliberately): it
-// is the project's stage when there is a project, else the ticket's status,
-// else the quotation's. Derived here, never written.
-function statusOf(cards: StageCard[]): string {
-  const of = (t: string) => cards.find((c) => c.type === t && c.present)?.summary;
-  return of("project") || of("ticket") || of("quotation") || "Draft";
+// A deal's status is not stored (Law 5, and the storage spec removed the column
+// deliberately): it is walked, at read time, from the TEMPLATE's statusChain.
+//
+// THIS USED TO BE `project || ticket || quotation`, HARDCODED. Two things were
+// wrong with that beyond the hardcoding. It was one template's chain applied to
+// all seven — Template G has no ticket at all, and a recurring contract would
+// have read "Draft" forever. And it was not even A's own order: A's chain is
+// project → contract → quotation → ticket, so a deal with a contract and a
+// ticket reported the ticket's status while the contract sat above it.
+//
+// DERIVED FROM CARDS THE READER CAN SEE, not from every stage present. A chain
+// entry the viewer lacks the right to see is skipped rather than reported: the
+// alternative leaks the state of a record whose existence §2.8 says must stay
+// invisible to them. So two people can legitimately read the same deal as
+// having different statuses, which is correct — each is told the truth about
+// the part of it they are entitled to.
+function statusOf(cards: StageCard[], statusChain: readonly string[]): { status: string; statusType: string } {
+  // THE WALK ITSELF IS statusStage, not a second copy of it here. It is the
+  // pure helper the engagement layer already exposes and tests, and the one the
+  // rest of the model asks when it wants to know how far a deal has got.
+  //
+  // What this function adds is the part that is not pure: turning the stage it
+  // names into the words on the screen, which only the assembled cards know.
+  const type = statusStage(statusChain, cards.filter((c) => c.present).map((c) => c.type));
+  if (!type) return { status: "Draft", statusType: "" };
+
+  const card = cards.find((c) => c.type === type);
+
+  // NOT EVERY STAGE HAS A STATUS OF ITS OWN, and the two that matter most do
+  // not. summarise() reads `row.status || row.stage`, and a CONTRACT has
+  // neither — it is an agreement, not a workflow, so nothing on it moves
+  // through states. Template G's chain is `["contract"]` and nothing else, so
+  // taking the summary blindly would have read EVERY recurring contract as
+  // "Draft" for its whole life, which is the same defect the hardcoded chain
+  // had, arriving by a different road.
+  //
+  // When the record has no status vocabulary, the STAGE is the status: a deal
+  // whose furthest point is its contract is "at contract", and saying so is
+  // both true and the most a reader can be told.
+  if (card?.summary) return { status: card.summary, statusType: type };
+  return { status: card?.label || "Draft", statusType: type };
+}
+
+/**
+ * WHICH FLOW THIS DEAL WALKS.
+ *
+ * Read from the deal first, because a deal's template is a decision somebody
+ * made and must not drift when an industry's default is later edited.
+ *
+ * THE FALLBACKS EXIST FOR DEALS THAT PREDATE TEMPLATES, and they are ordered so
+ * behaviour does not change under anybody: the deal's own templateId, then the
+ * default for its industry, then Template A. A is not a guess dressed as a
+ * default — it is the flow whose chain the hardcoded `project || ticket ||
+ * quotation` was approximating, so a deal written before any of this reads
+ * exactly as it did before, rather than becoming statusless the day templates
+ * arrived.
+ */
+async function dealTemplate(ctx: EngagementCtx, root: { templateId?: string; context: Record<string, unknown> }) {
+  // ONE READ OF THE TEMPLATE LIST, THEN PICKS FROM IT. getFlowTemplate is
+  // listFlowTemplates plus a find — the merge of seeds and tenant overrides is
+  // the whole cost — so calling it once per candidate would read the same key
+  // up to three times to answer one question. Hop counts are part of the
+  // contract here (a route going from 2 round trips to 8 fails the build), and
+  // this is a per-deal read on the deal screen.
+  const templates = await listFlowTemplates(ctx.studio.id);
+  const pick = (id: string) => (id ? templates.find((t) => t.id === id) || null : null);
+
+  const chosen = pick(String(root.templateId || ""));
+  if (chosen) return chosen;
+
+  // The industry costs a SECOND read, so it is asked only when the deal itself
+  // does not know — which is every deal written before templates existed, and
+  // no deal written after.
+  //
+  // BOTH SPELLINGS, and that is not defensive coding. The backfill
+  // (platform/engagement/backfill.ts) writes this fact as `industry`; the
+  // context layer that came later names it `industryRef`. The deals that reach
+  // this fallback at all are precisely the backfilled ones, so reading only the
+  // newer name would have made the industry branch dead code on every deal it
+  // exists to serve — and silently, because falling through to Template A is a
+  // plausible answer rather than an error.
+  const ctxRecord = root.context as Record<string, unknown> | undefined;
+  const industryKey = String(ctxRecord?.industryRef || ctxRecord?.industry || "");
+  if (industryKey) {
+    const viaIndustry = pick(await defaultTemplateForStudio(ctx.studio.id, industryKey));
+    if (viaIndustry) return viaIndustry;
+  }
+  return pick("A");
 }
 
 /** Which stage types this engagement actually has. */
@@ -162,7 +256,7 @@ export async function listEngagements(
 export async function engagementBlock(
   ctx: EngagementCtx,
   engId: string,
-): Promise<{ engagement: { id: string; ref: string; context: Record<string, unknown>; status: string; locked: boolean; cards: StageCard[] } } | Refusal | { error: "notfound" | "forbidden" }> {
+): Promise<{ engagement: { id: string; ref: string; context: Record<string, unknown>; status: string; statusType: string; templateId: string; templateName: string; locked: boolean; cards: StageCard[] } } | Refusal | { error: "notfound" | "forbidden" }> {
   const denied = requirePermission(ctx.access, "engagements.view");
   if (denied) return denied;
 
@@ -176,20 +270,47 @@ export async function engagementBlock(
   // Nothing here is theirs to read.
   if (![...present].some((t) => visible.has(t))) return { error: "forbidden" };
 
+  // THE TEMPLATE DECIDES THE ORDER, AND WHICH BLANKS ARE INVITATIONS.
+  //
+  // Cards used to come out in STAGE_REGISTRY order — the order the types happen
+  // to be declared in — which is not the order any flow walks. A deal screen is
+  // read top to bottom as the shape of the work, so the sequence is the content.
+  //
+  // A stage the template lists and the deal lacks is an INVITATION, never a
+  // validation error (Law 3: the flow alerts, it never blocks). A stage the
+  // template does not list but the deal carries is appended and marked, because
+  // it is displayed, never lost.
+  const template = await dealTemplate(ctx, root);
+  const ordered = template ? [...template.stages] : Object.keys(STAGE_REGISTRY);
+  const listed = new Set(ordered);
+
   const cards: StageCard[] = [];
-  for (const entry of Object.values(STAGE_REGISTRY)) {
-    if (!visible.has(entry.type)) continue;               // withheld, not blanked
-    const ids = idsFor(view, entry.type);
+  const addCard = async (type: string, offTemplate: boolean) => {
+    const entry = STAGE_REGISTRY[type];
+    if (!entry) return;                                   // templateProblems catches this
+    if (!visible.has(type)) return;                       // withheld, not blanked
+    const ids = idsFor(view, type);
+    // An off-template stage the deal does not have is not a card at all — it is
+    // neither something the flow asks for nor something the deal holds.
+    if (offTemplate && !ids.length) return;
     const card: StageCard = {
-      type: entry.type, label: entry.label,
-      present: ids.length > 0, count: ids.length,
+      type, label: entry.label,
+      present: ids.length > 0, count: ids.length, offTemplate,
     };
     if (ids.length) Object.assign(card, await summarise(ctx, entry, ids));
     cards.push(card);
-  }
+  };
+
+  for (const type of ordered) await addCard(type, false);
+  for (const type of present) if (!listed.has(type)) await addCard(type, true);
   // Live, not the stored copy — see clientNameById's comment. One lookup for
   // the single engagement this block renders.
   const nameById = await clientNameById(ctx.studio.id);
+  // Named rather than spread into the object below. The response body is the
+  // contract and its key order is pinned by the goldens, so which keys a line
+  // contributes should be readable at the line, not inferred from a function's
+  // return type.
+  const { status, statusType } = statusOf(cards, template?.statusChain ?? []);
   return {
     engagement: {
       id: engId,
@@ -210,7 +331,12 @@ export async function engagementBlock(
         clientName: resolveClientName(root.context, nameById),
         title: root.context.title ?? "",
       },
-      status: statusOf(cards),
+      status,
+      statusType,
+      // The flow this deal walks, so the screen can name it and the
+      // stage cards mean something beyond a list of nouns.
+      templateId: template?.id ?? "",
+      templateName: template?.name ?? "",
       // Same default as the list row: absent means locked, decided in the store.
       // The block carries it so opening one deal answers "can I act on this?"
       // without asking a second time.

@@ -181,6 +181,27 @@ console.log("== Law 5: status is walked, never stored");
     statusStage(A.statusChain, ["ticket", "quotation", "project"]) === "project");
   ok("a deal with nothing on the chain has no status rather than a wrong one",
     statusStage(A.statusChain, ["invoice"]) === "");
+  // THE DEAL SCREEN DERIVED STATUS FROM A HARDCODED `project || ticket ||
+  // quotation` — Template A's chain, applied to all seven, and not even in A's
+  // own order. Template G is the proof that this was a defect rather than a
+  // shortcut: a recurring contract has NO ticket, no quotation and no project,
+  // so every G deal read "Draft" from the day it opened until the day it
+  // closed, however much work ran under it.
+  //
+  // Asserted against the templates rather than against the old code, so it
+  // keeps holding: a new template whose chain avoids those three would have
+  // been broken the same way, and this fails when one is added.
+  const G = templateById("G");
+  ok("a recurring contract's status comes from its contract",
+    statusStage(G.statusChain, ["contract", "job", "invoice"]) === "contract");
+  ok("...which the hardcoded chain could never have reached",
+    G.statusChain.every((t) => !["project", "ticket", "quotation"].includes(t)));
+
+  // The second half of the same defect: A's chain puts the contract ABOVE the
+  // ticket, and the hardcoded walk asked the ticket first. A signed deal
+  // reported the enquiry it grew out of.
+  ok("a signed deal speaks as its contract, not as the ticket under it",
+    statusStage(A.statusChain, ["ticket", "contract"]) === "contract");
 }
 
 console.log("== Law 6: money that really happened is detached, not destroyed");
