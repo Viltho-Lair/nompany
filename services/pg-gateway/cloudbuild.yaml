@@ -1,0 +1,34 @@
+# HOW THE GATEWAY IMAGE IS BUILT, without Docker on the developer's machine.
+#
+# `gcloud builds submit --config services/pg-gateway/cloudbuild.yaml .`
+#                                                                    ^
+# The trailing `.` is the build context and is load-bearing. This service
+# imports src/platform/db/sqlGuards.ts and pgClientGuard.ts deliberately — those
+# guards also run inside pg.ts, and a copy of a guard is a guard that drifts
+# from the one it mirrors, the copy that drifts being the one in front of a
+# remote SQL endpoint. A context of services/pg-gateway/ cannot see them and the
+# build fails on the import. That is also why `gcloud run deploy --source` is
+# not used: it uploads only the directory it is given.
+#
+# What is NOT uploaded is in /.gcloudignore, and two of its lines are the point:
+# .env.* (live credentials) and media-export/ (real customer files).
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --file=services/pg-gateway/Dockerfile
+      - --tag=me-central1-docker.pkg.dev/$PROJECT_ID/nompany/pg-gateway:$_TAG
+      - --tag=me-central1-docker.pkg.dev/$PROJECT_ID/nompany/pg-gateway:latest
+      # The context, again — the `.` at the end of the submit command names the
+      # tarball; this names the directory inside it.
+      - .
+
+images:
+  - me-central1-docker.pkg.dev/$PROJECT_ID/nompany/pg-gateway:$_TAG
+  - me-central1-docker.pkg.dev/$PROJECT_ID/nompany/pg-gateway:latest
+
+substitutions:
+  _TAG: v1
+
+options:
+  logging: CLOUD_LOGGING_ONLY

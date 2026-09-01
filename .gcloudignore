@@ -1,0 +1,47 @@
+# WHAT DOES NOT GET UPLOADED TO CLOUD BUILD.
+#
+# `gcloud builds submit` tars this directory and sends it to Google. Without a
+# .gcloudignore it falls back to .gitignore semantics, which would happen to
+# cover most of this — but "happens to" is not how a file containing live
+# credentials and real customer media should be excluded. Every line below is
+# stated on purpose, and the first two are the ones that matter.
+
+# LIVE SECRETS. REDIS_URL, DATABASE_URL with its password, the Blob token, the
+# field encryption key, API keys. Nothing in the build needs any of them: the
+# gateway takes its configuration from Cloud Run env vars at boot and refuses to
+# start if a password reaches it at all.
+.env
+.env.*
+
+# REAL CUSTOMER FILES, exported from production by the media migration. They are
+# on disk only until the move is proven and must not leave this machine.
+media-export/
+
+# The dev-only login route. Git-ignored so it can never deploy; the same is true
+# here, and for the same reason.
+src/app/api/dev-login/
+
+# Build output and dependencies — the image installs its own from the lockfile,
+# so uploading these would only make the tarball enormous and the build slower.
+node_modules/
+services/pg-gateway/node_modules/
+services/pg-gateway/dist/
+.next/
+out/
+
+# History, tooling and scratch. None of it reaches the image.
+.git/
+.github/
+.claude/
+.superpowers/
+coverage/
+*.log
+
+# The app's own surface. The gateway's image needs services/pg-gateway and
+# src/platform/db, and nothing else in here — but the build context has to be
+# the repo root for those two to be visible at once, so the rest rides along
+# unless it is named. These are the large ones.
+public/
+docs/
+legal/
+tests/goldens/

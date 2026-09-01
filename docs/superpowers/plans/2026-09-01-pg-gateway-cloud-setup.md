@@ -109,46 +109,50 @@ gcloud iam service-accounts add-iam-policy-binding \
 The project number `17918747100` was read from
 `gcloud projects describe nompany-application --format="value(projectNumber)"` on 01/09/2026.
 
-## 5. Deploy
+## 5. Build and deploy — RUN 01/09/2026
 
-Ingress **internal**, and never `--allow-unauthenticated`. An unauthenticated gateway is a
-remote SQL execution endpoint against every tenant at once — it is the single worst failure
-this design can produce, and one flag is the difference.
+**`--ingress=internal` WAS WRONG IN THIS DOCUMENT AND IS THE ONE ERROR WORTH READING.**
+Internal ingress accepts traffic only from inside the VPC — and Vercel being outside the VPC
+is the entire problem this gateway exists to solve. Deployed that way the service is
+unreachable by the only caller it has. It is `--ingress=all`, and **IAM is the gate, not the
+network**: `--no-allow-unauthenticated` with no `allUsers` binding, so an anonymous request
+gets 403 and only a caller holding `run.invoker` gets through. Verified both ways below.
 
-**`--source=services/pg-gateway` does NOT work, and the reason is the whole point of the
-design.** The service imports `../../../src/platform/db/sqlGuards` and `pgClientGuard`,
-because a guard duplicated into the service is a guard that drifts from the one it mirrors.
-`--source` uploads only the directory it is given, so the build would fail on those two
-imports. The build context must be the **repository root**. (`--source` would also need
-`cloudbuild.googleapis.com`, which is not enabled.)
+**Docker was not installed, so the image is built by Cloud Build** rather than locally.
+`cloudbuild.googleapis.com` was enabled for this (step 0 said it was not). The build context
+is still the repository root, for the same reason `--source=services/pg-gateway` cannot work:
+the service imports `src/platform/db/sqlGuards.ts` on purpose.
 
-So build an image with the repo root as context and push it to Artifact Registry:
+`/.gcloudignore` decides what is uploaded and two of its lines are the point — `.env.*` (live
+credentials) and `media-export/` (real customer files). It brought the tarball to 925 files,
+8 MiB.
+
+```bash
+gcloud services enable cloudbuild.googleapis.com --project=nompany-application
+```
 
 ```bash
 gcloud artifacts repositories create nompany --repository-format=docker \
   --location=me-central1 --project=nompany-application
 ```
 
-```bash
-gcloud auth configure-docker me-central1-docker.pkg.dev
-```
+Cloud Build runs as the Compute Engine default service account, which by default cannot read
+back its own uploaded source (`storage.objects.get` denied — the first build failed on it).
+Granted the three roles the build actually needs rather than the broad
+`roles/cloudbuild.builds.builder`:
 
 ```bash
-docker build -f services/pg-gateway/Dockerfile \
-  -t me-central1-docker.pkg.dev/nompany-application/nompany/pg-gateway:v1 .
+gcloud projects add-iam-policy-binding nompany-application \
+  --member="serviceAccount:17918747100-compute@developer.gserviceaccount.com" \
+  --role=roles/storage.objectViewer --condition=None
 ```
 
-The trailing `.` is the build context and is load-bearing — it is what puts `src/platform/db`
-inside the image alongside the service.
+…and the same for `roles/artifactregistry.writer` and `roles/logging.logWriter`.
 
 ```bash
-docker push me-central1-docker.pkg.dev/nompany-application/nompany/pg-gateway:v1
+gcloud builds submit --config services/pg-gateway/cloudbuild.yaml \
+  --substitutions=_TAG=v1 --project=nompany-application .
 ```
-
-Then deploy that image. **The service refuses to boot without its three required variables**,
-and equally refuses to boot if `PGPASSWORD`, `PG_GATEWAY_DB_PASSWORD` or `DATABASE_URL` is
-set — a password reaching this service at all means something has gone wrong with the IAM
-design, so it fails loudly rather than quietly using one:
 
 ```bash
 gcloud run deploy pg-gateway \
@@ -157,17 +161,35 @@ gcloud run deploy pg-gateway \
   --service-account=pg-gateway@nompany-application.iam.gserviceaccount.com \
   --set-env-vars="PG_GATEWAY_INSTANCE=nompany-application:me-central1:nompany,PG_GATEWAY_DB_USER=pg-gateway@nompany-application.iam,PG_GATEWAY_DB_NAME=nompany,PG_GATEWAY_IP_TYPE=PRIVATE" \
   --network=default --subnet=default --vpc-egress=private-ranges-only \
-  --ingress=internal --no-allow-unauthenticated \
+  --ingress=all --no-allow-unauthenticated \
   --project=nompany-application
 ```
 
-Confirm it is not public before sending it anything real:
+Service URL: `https://pg-gateway-17918747100.me-central1.run.app`
+
+### What was verified against the live service
+
+Boot: `listening on :8080 → …db=nompany user=pg-gateway@nompany-application.iam ip=PRIVATE
+(IAM auth, no password)`.
+
+| Probe | Result |
+|---|---|
+| No token | **403** — IAM is the gate |
+| Identity token, `SELECT 1` | **200** `{"rows":[{"ok":1}]}` — reaches Cloud SQL over the private IP |
+| `collection_rows` with no `tenantId` | **400** — refused, not silently empty |
+| `DROP TABLE collection_rows` | **400** — invariant 17, unconditional |
+| `SELECT 1; DROP TABLE …` in one text | **400** — the simple-protocol batch |
+| `ALTER TABLE … DISABLE ROW LEVEL SECURITY` | **400** — invariant 17 |
+| `$1` bound to `"; DROP TABLE collection_rows --"` | **200**, echoed as a STRING — bind parameters bind |
+
+That last row is the design's whole argument, demonstrated: it is what Cloud SQL's Data API
+could not do, and why it was rejected.
 
 ```bash
 gcloud run services get-iam-policy pg-gateway --region=me-central1 --project=nompany-application
 ```
 
-`allUsers` must not appear. If it does, remove it before going further.
+`allUsers` must not appear. It does not.
 
 ## 6. Vercel
 
