@@ -7,6 +7,8 @@ import { isSingleton, stageOf, STAGE_REGISTRY } from "../engagement/registry";
 import { buildEngagements } from "../engagement/backfill";
 import type { EngagementDescriptor } from "../engagement/backfill";
 import { contribute, emptyContext } from "../engagement/context";
+import { templateById } from "../engagement/templates";
+import { attachmentProblem } from "../engagement/membership";
 import type { DealContext, ContextProvenance, ContextSource, ContributionResult } from "../engagement/context";
 
 export type Engagement = {
@@ -93,20 +95,60 @@ async function claimSingleton(studioId: string, engId: string, type: string, rec
   });
 }
 
+/**
+ * The template this deal walks, or null when it has none yet.
+ *
+ * READ FROM THE DEAL, NOT DERIVED FROM ITS INDUSTRY. An industry's default
+ * template may change; a deal that silently switched flows would gain and lose
+ * stage cards, and start allowing or refusing attachments, for reasons nobody
+ * performed.
+ */
+async function templateOf(studioId: string, dealId: string) {
+  const eng = await readEngagement(studioId, dealId);
+  return eng?.templateId ? templateById(eng.templateId) : null;
+}
+
 export async function attachRecord(
   studioId: string, engId: string, type: string, recId: string, createdAt = nowISO(),
 ): Promise<void> {
   if (!stageOf(type)) throw new Error(`unknown-stage:${type}`);
+
+  // ATTACH THROUGH THE ALIAS. A caller holding a derived id — the backfill, a
+  // rec-eng pointer, anything that computed one rather than read it — must land
+  // on the deal that exists rather than create membership under an id nothing
+  // else resolves to.
+  const dealId = await resolveDealId(studioId, engId);
+
+  // CARDINALITY IS THE TEMPLATE'S FIRST, THE REGISTRY'S SECOND, and this is the
+  // gap that existed until now: `isSingleton` reads the registry alone, so
+  // Template F — where a logistics job file IS one shipment — would happily
+  // take a second one, because `shipment` is `many` everywhere else.
+  //
+  // A template override only ever NARROWS many→one, so it is enforced as a
+  // REFUSAL rather than as a different place to store the row. Storage stays
+  // uniform (the ZSET), reads do not have to ask which shape a type took on
+  // this particular deal, and the one-ness is a constraint where constraints
+  // belong. The registry's own `one` types keep their fixed slots on the root
+  // for the reason they always had: a singleton is claimed atomically.
+  const template = await templateOf(studioId, dealId);
+  // attachmentProblem takes the TYPES this deal already carries, not the record
+  // ids of one of them — passing the ids made `["shp_1"].includes("shipment")`
+  // false on every call, so the check ran and never fired. A registry singleton
+  // is skipped here because claimSingleton below is what enforces it, atomically.
+  const alreadyHas = isSingleton(type) ? [] : await listMembers(studioId, dealId, type);
+  const problem = attachmentProblem(type, template, alreadyHas.length ? [type] : []);
+  if (problem) throw new Error(`attach-refused:${type}: ${problem}`);
+
   if (isSingleton(type)) {
-    await claimSingleton(studioId, engId, type, recId);
+    await claimSingleton(studioId, dealId, type, recId);
   } else {
     // Many-membership is a ZSET add (spec §3.3): atomic per element, so a busy
     // engagement never contends the root document just to attach a record.
-    await zAdd(ENG.members(studioId, engId, type), Date.parse(createdAt) || 0, recId);
+    await zAdd(ENG.members(studioId, dealId, type), Date.parse(createdAt) || 0, recId);
   }
   // Indexes: department listing + has-stage. Best-effort, reconcilable (spec §3.5).
   await zAdd(ENG.dept(studioId, type), Date.parse(createdAt) || 0, recId);
-  await sAdd(ENG.hasStage(studioId, type), engId);
+  await sAdd(ENG.hasStage(studioId, type), dealId);
   // THE REVERSE INDEX, WRITTEN HERE TOO — it used to be applyDescriptor's alone.
   // A backfilled record could answer "which engagement do I belong to?" and a
   // live-attached one could not, so engagementOf returned null for exactly the
@@ -114,9 +156,18 @@ export async function attachRecord(
   // nothing asks the question; the delete path asks it on every removal, and a
   // null there means detaching from nothing. Same value applyDescriptor writes,
   // set (not appended), so a re-attach and a re-run are both idempotent.
-  await setJSON(ENG.recEng(studioId, type, recId), engId);
+  await setJSON(ENG.recEng(studioId, type, recId), dealId);
 }
 
+/**
+ * TAKES A RESOLVED DEAL ID, and deliberately does not resolve one itself.
+ *
+ * attachRecord resolves through the alias table because a write must land on
+ * the deal that exists. This does not, and the reason is hop counts: it is
+ * called once per stage type when a view is built, so an alias lookup inside it
+ * would multiply one read by the number of stages on the screen. A caller
+ * holding a derived id resolves ONCE, at the top, and passes the real id down.
+ */
 export async function listMembers(
   studioId: string, engId: string, type: string, { limit, rev }: { limit?: number; rev?: boolean } = {},
 ): Promise<string[]> {
@@ -576,4 +627,37 @@ export async function contributeContext(
   });
 
   return outcome;
+}
+
+/**
+ * SET WHICH FLOW THIS DEAL WALKS.
+ *
+ * Stored on the deal rather than re-derived from its industry every read, and
+ * that is the whole point: an industry's default template may be edited, and a
+ * deal that silently switched flows would gain and lose stage cards — and start
+ * allowing or refusing attachments — for reasons nobody performed.
+ *
+ * REFUSES A TEMPLATE THAT DOES NOT EXIST. A deal pointing at a missing template
+ * has no stages, no heads and no status chain, so it would render as an empty
+ * container and accept anything: the failure would look like a data problem
+ * rather than a typo.
+ *
+ * Changing the template of a deal that already carries records is deliberately
+ * ALLOWED — the blueprint's own words are that a stage type absent from the
+ * template "is displayed, never lost", which is exactly the mid-deal switch.
+ * What it cannot do is retroactively refuse what already attached.
+ */
+export async function setDealTemplate(studioId: string, engId: string, templateId: string): Promise<void> {
+  if (!templateById(templateId)) {
+    throw new Error(
+      `engagement: no flow template "${templateId}". A deal on a missing template has no stages, ` +
+        "no heads and no status chain, so it would render empty and accept anything.",
+    );
+  }
+  const dealId = await resolveDealId(studioId, engId);
+  await editJSON<Engagement, void>(ENG.root(studioId, dealId), (current) => {
+    if (!current) return { result: undefined };
+    if (current.templateId === templateId) return { result: undefined };
+    return { next: { ...current, templateId, updatedAt: nowISO() }, result: undefined };
+  });
 }

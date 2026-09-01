@@ -312,11 +312,30 @@ export function testEveryStageDeclaresItsDisposition() {
     assert.ok(e.onDelete === "cascade" || e.onDelete === "keep",
       `${e.type} must declare onDelete`);
   }
-  // The four that survive, pinned by name: each can exist with no deal at all,
-  // so its presence on one does not prove that deal created it.
+  // WHAT SURVIVES A DELETE, PINNED BY NAME. Updated deliberately when P2 added
+  // `payment`, which is the interesting one and the reason this guard exists.
+  //
+  // The other four survive because each can exist with NO DEAL AT ALL, so its
+  // presence on one does not prove that deal created it. A payment is different:
+  // it cannot be created without a deal — it settles a particular deal's invoice
+  // — and it still survives, because Law 6 says money that moved in the world is
+  // DETACHED when its deal is deleted, never destroyed. An append-only money
+  // rule that erased a recorded payment because somebody removed the deal would
+  // be no rule at all.
+  //
+  // So "can stand alone" and "survives a delete" are two different properties,
+  // and payment is the type that separates them. It shipped as `cascade` first;
+  // the blueprint's vocabulary table is what caught it.
   const kept = Object.values(STAGE_REGISTRY).filter((e) => e.onDelete === "keep").map((e) => e.type).sort();
-  assert.deepEqual(kept, ["asset", "bill", "expense", "task"],
+  assert.deepEqual(kept, ["asset", "bill", "expense", "payment", "task"],
     "changing this list changes what a delete destroys — say so deliberately");
+
+  // The four that can be CREATED with no deal, which is the other property and
+  // is what the unassigned pen holds. Pinned separately so a future change to
+  // one cannot quietly move the other.
+  const standalone = Object.values(STAGE_REGISTRY).filter((e) => e.unassignable).map((e) => e.type).sort();
+  assert.deepEqual(standalone, ["asset", "bill", "expense", "task"],
+    "these are what the unassigned pen can hold — a payment cannot exist without a deal");
 }
 
 // ============================================================================

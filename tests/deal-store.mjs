@@ -106,6 +106,54 @@ try {
   const landed = facts.filter((f) => final?.context[f]);
   ok("every concurrent contribution lands", landed.length === facts.length,
     `${landed.length}/${facts.length}`);
+
+  console.log("== the template narrows cardinality, and attach enforces it");
+  // TEMPLATE F: a logistics job file IS one shipment. `shipment` is `many` in
+  // the registry and in every other flow, so this is the case that proves the
+  // template is consulted at all — before this, attachRecord read the registry
+  // alone and a job file would take a second shipment without complaint.
+  const jobFile = await E.createEngagement(S, { ref: "F-1" });
+  await E.setDealTemplate(S, jobFile.id, "F");
+  await E.attachRecord(S, jobFile.id, "shipment", "shp_1");
+  ok("the first shipment attaches to a job file", true);
+
+  let refused = "";
+  try { await E.attachRecord(S, jobFile.id, "shipment", "shp_2"); }
+  catch (e) { refused = e.message; }
+  ok("a second shipment on a job file is refused", refused.includes("attach-refused"), refused.slice(0, 70));
+  ok("...and the refusal says why, in words somebody could act on",
+    refused.includes("already has a shipment"), refused.slice(0, 90));
+  ok("...and the second one did not land",
+    (await E.listMembers(S, jobFile.id, "shipment")).length === 1);
+
+  // The same type, on a template that does not narrow it.
+  const project = await E.createEngagement(S, { ref: "A-1" });
+  await E.setDealTemplate(S, project.id, "A");
+  await E.attachRecord(S, project.id, "shipment", "shp_3");
+  await E.attachRecord(S, project.id, "shipment", "shp_4");
+  ok("two shipments attach to a contracting deal, where the flow allows many",
+    (await E.listMembers(S, project.id, "shipment")).length === 2);
+
+  console.log("== attaching through an alias lands on the real deal");
+  await E.setDealAlias(S, "eng_derived_for_attach", project.id);
+  await E.attachRecord(S, "eng_derived_for_attach", "invoice", "inv_1");
+  ok("a record attached by a derived id is a member of the real deal",
+    (await E.listMembers(S, project.id, "invoice")).includes("inv_1"));
+  ok("...and its reverse pointer names the real deal, not the alias",
+    (await E.engagementOf(S, "invoice", "inv_1")) === project.id,
+    String(await E.engagementOf(S, "invoice", "inv_1")));
+
+  console.log("== Law 7 holds at the door: a cost attaches to any deal");
+  await E.attachRecord(S, jobFile.id, "expense", "exp_1");
+  ok("an expense attaches to a job file whose template never lists it",
+    (await E.listMembers(S, jobFile.id, "expense")).includes("exp_1"));
+
+  let unknown = "";
+  try { await E.attachRecord(S, jobFile.id, "nonsense", "x_1"); }
+  catch (e) { unknown = e.message; }
+  ok("an unregistered type is the one thing refused outright",
+    unknown.includes("unknown-stage"), unknown);
+
 } finally {
   const swept = await delPrefix(process.env.NOMPANY_KEY_PREFIX);
   console.log(`\nswept ${swept} rows from "${process.env.NOMPANY_KEY_PREFIX}"`);
