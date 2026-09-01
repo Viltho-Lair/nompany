@@ -376,9 +376,37 @@ prefix and therefore *is* production. Sweep with `npm run dev:sandbox:clean`.
 
 ## Current state
 
-*(Refreshed 26/08/2026 against `docs/progress.md`, dated 21/08/2026. The previous text
-here still said "Gate A in progress"; it has been green for weeks — a stale status is
-worse than none.)*
+*(Refreshed 01/09/2026, when P0 and P1 merged to `main`. Before that this section said Wave 5
+(SQL) was "not started", which stopped being true the day `collection_rows` took its first
+row — a stale status is worse than none.)*
+
+**P0 and P1 are on `main`.** P0 restructured the product into the blueprint's fifteen
+sections. **P1 put Postgres behind the same seam Redis already sat behind**: three modes via
+`NOMPANY_DB` — `redis` (the DEFAULT, and what production runs), `postgres`, and `parity`,
+which runs both and compares them as `JSON.stringify` TEXT because `payload` is `json` not
+`jsonb` and key order is part of the contract. A full parity run dual-writes real rows to
+Cloud SQL and finds zero disagreements, with the disagreement detector itself asserted so a
+silent pass cannot masquerade as agreement.
+
+**Nothing has cut over, and the reason is a network fact rather than caution.** Vercel cannot
+reach Cloud SQL at all: the instance has zero authorized networks and a private IP on a VPC
+Vercel is not in. `services/pg-gateway/` is the answer — a Cloud Run service holding the only
+path, sharing `pg.ts`'s guards through `sqlGuards.ts` rather than copying them, because the
+copy that drifts would be the one in front of a remote SQL endpoint. It is code-complete and
+proven against real Postgres over real HTTP locally; **no cloud resources exist for it yet**,
+so `PG_TRANSPORT` stays `direct`. `NOMPANY_DB` is ABSENT from production (verified by reading
+the environment back, not assumed), so `DB_BACKEND` is `redis`.
+
+Cloud SQL's own Data API was evaluated for the gateway's job and **rejected: it has no bind
+parameters**, and tenant-authored JSON interpolated into SQL text is an injection surface
+across every tenant at once. Recorded in the design so it is not revisited.
+
+**Media has left Redis.** Uploads go to Vercel Blob; the record keeps a couple of hundred
+bytes. The Blob URL is NEVER given to a client — the route fetches server-side after the same
+membership check and streams the bytes, so the access decision stays in code rather than
+being delegated to a store that cannot express "private". The two live files are copied and
+still hold their base64, so the pre-Blob and post-Blob paths are both correct; `--reclaim`
+waits for the gateway.
 
 **Waves 0–1 are complete; Gate A is green.** Wave 0 shipped (orphan-sweep guard,
 credential rate limiting, console session expiry, traffic-ingest bounds, media tenancy,
@@ -410,8 +438,11 @@ the Blob store being created.
 **Wave 3 (TypeScript) is done server-side** — every `.ts`/`.tsx` under `noImplicitAny`, all
 twelve departments in `src/modules/<name>/` with a Zod schema each, all 99 route files
 converted. What remains is `checkJs` over the 212 browser `.js` files and the `app/`
-restructure, deferred into Wave 4. **Wave 4 (UI/UX)** and **Wave 5 (SQL)** are not started;
-W4 is a proposal in `w4-dashboards-and-motion.md` awaiting approval.
+restructure, deferred into Wave 4. **Wave 4 (UI/UX)** is not started — a proposal in
+`w4-dashboards-and-motion.md` awaiting approval. **Wave 5 (SQL) was overtaken by the ERP
+program's P1** and is no longer a separate wave: the store swap it described is on `main`,
+under `NOMPANY_DB`, with the Postgres half written and proven. What remains of it is the
+cutover, which is a network problem rather than a code one.
 
 **The engagement storage model is being built and shipped incrementally** (spec:
 `docs/superpowers/specs/2026-08-26-engagement-storage-model-design.md` — stored engagement root,
