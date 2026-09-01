@@ -183,11 +183,15 @@ export default function StudioTechnical({ slug, view = "engineering-docs", secti
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <p className="text-sm text-slate-500">{tr.loadingTechnical}</p>;
 
-  const { canManage: canManageParent, canManageRfq, canManageQuotations, canRequestRfq, rfqs, quotations, openTickets, people, vocabulary, sequences = [], defaultSequenceId } = data;
-  // MANAGE IS ASKED OF THE SCREEN BEING SHOWN. `view` is the section key, and
-  // the map is keyed the same way, so a sub-section grant answers for its own
-  // screen and the parent's answer no longer stands in for all of them.
-  const canManage = data.manage?.[view] ?? canManageParent;
+  const { canManageRfq, canManageQuotations, canRequestRfq, rfqs, quotations, openTickets, people, vocabulary, sequences = [], defaultSequenceId } = data;
+  // MANAGE IS ASKED OF THE SCREEN BEING SHOWN, and the per-sub-section flags
+  // above are how — canManageRfq and canManageQuotations, each resolved from
+  // its own key, plus data.canManageSettings for the settings screen.
+  //
+  // The generic `data.manage?.[view] ?? canManage` that used to sit here
+  // computed the same answer a second way and was read by nothing. Two
+  // mechanisms for one question is how the wrong one gets used later, so the
+  // dead one is gone. Same note in StudioSales.
 
   const aliasOf = Object.fromEntries(people.map((p) => [p.id, p.alias]));
   // Handlers are collaborator ids, but a quotation created before that — or by

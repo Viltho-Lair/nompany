@@ -10,7 +10,7 @@ import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { currentUser, needsQuestionnaire } from "@/platform/auth/identity";
 import { studioContext, canAdminister, visibleSections, recordStudioVisit } from "@/lib/studios";
-import { sectionManageable, can, NO_SCREEN_YET } from "@/platform/access";
+import { can, NO_SCREEN_YET } from "@/platform/access";
 import { listSections } from "@/platform/db/sections";
 import { getProfile } from "@/platform/auth/users";
 import { loadCatalogues, planOf, hasLiveChat } from "@/lib/plans";
@@ -607,8 +607,7 @@ export default async function StudioPage({ params }) {
         : screenKey === "field-service" ? <StudioOperations slug={studio.slug} view={active?.key} />
         : screenKey === "main" ? <StudioMain slug={studio.slug} />
         : active ? <SectionDashboard section={active} studio={studio} locale={locale}
-            subsections={sections.filter((s) => s.parentId === active.id)}
-            canManage={sectionManageable(access, active.key, sections.map((x) => x.key))} />
+            subsections={sections.filter((s) => s.parentId === active.id)} />
         : <NothingGranted admin={admin} slug={studio.slug} locale={locale} />}
     </StudioFrame>
   );
@@ -619,7 +618,13 @@ export default async function StudioPage({ params }) {
 // deliberately empty of analytics: it exists so that clicking a section always
 // lands somewhere that belongs to that SectionID rather than nowhere at all.
 // Sub-sections, when the section has any, are the way onward from here.
-function SectionDashboard({ section, studio, subsections = [], canManage, locale = "en" }) {
+// NO `canManage`, and it is not an oversight. One was computed and passed here
+// on every render — `sectionManageable(access, active.key, sections.map(...))`,
+// allocating an array to answer a question nothing asked — and destructured
+// without ever being read. This dashboard draws a heading and read-only links
+// to sub-sections; there is no control on it to gate. If one is ever added, the
+// right comes back with it rather than waiting here for it.
+function SectionDashboard({ section, studio, subsections = [], locale = "en" }) {
   return (
     <div className="rounded-geex border border-slate-200/70 bg-white p-8 dark:border-white/10 dark:bg-[#20202c]">
       <h2 className="font-display text-xl font-800 text-slate-900 dark:text-white">{sectionName(section.key, section.name, locale)}</h2>

@@ -158,8 +158,10 @@ export default function StudioProjects({ slug, view = "projects" }) {
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <p className="text-sm text-slate-500">{tr.loadingProjects2}</p>;
 
+  // `canManage` is deliberately NOT destructured — see the note below. Binding
+  // it under another name only to never read it made the same point, and cost a
+  // lint warning to say it.
   const {
-    canManage: canManageParent,
     canManageList, canManageSla, canManageOvertimes, canManageSettings,
     projects, approvedQuotations, people, clients = [], slas, overtimes, directory, settings, vocabulary, nav,
   } = data;

@@ -174,11 +174,18 @@ export default function StudioSales({ slug, view = "crm-sales" }) {
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <p className="text-sm text-slate-500">{tr.loadingSales}</p>;
 
-  const { canManage: canManageParent, canManageTickets, canManageClients, canManageSettings, clients, tickets, people, vocabulary, nav, liveColumns, hasTechnical } = data;
-  // MANAGE IS ASKED OF THE SCREEN BEING SHOWN. `view` is the section key, and
-  // the map is keyed the same way, so a sub-section grant answers for its own
-  // screen and the parent's answer no longer stands in for all of them.
-  const canManage = data.manage?.[view] ?? canManageParent;
+  const { canManageTickets, canManageClients, canManageSettings, clients, tickets, people, vocabulary, nav, liveColumns, hasTechnical } = data;
+  // MANAGE IS ASKED OF THE SCREEN BEING SHOWN, and the per-sub-section flags
+  // above are how — canManageTickets, canManageClients, canManageSettings, each
+  // resolved from its own key and handed to the one screen it answers for.
+  //
+  // There was a second, parallel mechanism here: `data.manage?.[view] ??
+  // canManage`, which computes the same answer generically. It was dead — every
+  // branch below had since been given its own flag — so it has gone rather than
+  // sitting next to the live one looking equally authoritative. `manage` is
+  // still in the response (the goldens pin it) and is now read by nothing on
+  // the client; removing it from the API is a deliberate golden re-record, not
+  // a tidy-up.
 
   const banner = error && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>;
 
