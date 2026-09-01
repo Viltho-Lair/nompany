@@ -9,6 +9,7 @@ import type { EngagementDescriptor } from "../engagement/backfill";
 import { contribute, emptyContext } from "../engagement/context";
 import { templateById } from "../engagement/templates";
 import { attachmentProblem, canSitUnassigned, promotionProblem } from "../engagement/membership";
+import { record as recordAudit } from "@/platform/http/audit";
 import type { DealContext, ContextProvenance, ContextSource, ContributionResult } from "../engagement/context";
 
 export type Engagement = {
@@ -645,11 +646,19 @@ export async function setDealAlias(studioId: string, aliasId: string, dealId: st
  * once must not have one silently discard the other's facts, and a blind
  * whole-root write is exactly how that happens.
  */
+export type ContributionActor = {
+  actor?: string;
+  actorType?: string;
+  ip?: string;
+  requestId?: string;
+};
+
 export async function contributeContext(
   studioId: string,
   engId: string,
   proposed: Partial<DealContext>,
   source: ContextSource,
+  by: ContributionActor = {},
 ): Promise<ContributionResult | null> {
   const dealId = await resolveDealId(studioId, engId);
   let outcome: ContributionResult | null = null;
@@ -680,6 +689,42 @@ export async function contributeContext(
       result: undefined,
     };
   });
+
+  // EVERY OVERWRITE IS AUDITED — Law 4's second half, and the half that makes
+  // the first one safe. "Any stage may fill a blank" is only tolerable because
+  // changing a filled fact leaves a trace: without one, a late record quietly
+  // replacing a client somebody already corrected is indistinguishable from
+  // that client having always been right.
+  //
+  // ONE ENTRY PER FACT, not one per contribution. A stage that overwrites three
+  // facts performed three acts, and a single line saying "context changed"
+  // would be exactly the summary nobody can act on six months later.
+  //
+  // FILLING A BLANK IS NOT AUDITED, deliberately. That is contribution, it
+  // happens constantly as work reveals what it knows, and recording it would
+  // bury the overwrites — the rare, deliberate, arguable events this trail
+  // exists to hold — under thousands of routine ones.
+  //
+  // NO VALUES IN THE ENTRY. The trail already refuses to copy request bodies
+  // because they carry PII, and a deal's contact and site are exactly that. The
+  // record says which fact on which deal changed, and by whom; the values live
+  // on the deal, where they are subject to the same permissions as everything
+  // else about it.
+  const overwrites = (outcome as ContributionResult | null)?.changes.filter((c) => c.overwrite) || [];
+  for (const change of overwrites) {
+    // record() never throws — an audit failure must not fail a write that has
+    // already happened (see its own header).
+    await recordAudit({
+      studioId,
+      actor: by.actor || "",
+      actorType: by.actorType || "",
+      action: source.kind === "edit" ? "EDIT deal-context" : "OVERWRITE deal-context",
+      subject: `${dealId}:${change.fact}`,
+      status: 200,
+      ip: by.ip || "",
+      requestId: by.requestId || "",
+    });
+  }
 
   return outcome;
 }

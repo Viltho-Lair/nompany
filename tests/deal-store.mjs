@@ -204,6 +204,51 @@ try {
     promoteRefused.includes("promote-refused") && promoteRefused.includes("never in the pen"),
     promoteRefused.slice(0, 85));
 
+
+  console.log("== Law 4's other half: every overwrite leaves a trace");
+  {
+    const audit = await import("@/platform/http/audit");
+    const auditDeal = await E.createEngagement(S, { ref: "AUD-1" });
+
+    const cursor = await audit.latestId(S);
+
+    // FILLING A BLANK IS NOT AUDITED. It happens constantly as work reveals
+    // what it knows, and recording it would bury the overwrites — the rare,
+    // arguable events this trail exists to hold — under thousands of routine ones.
+    await E.contributeContext(S, auditDeal.id, { site: "Plant 4", contact: "Sara" },
+      { kind: "stage", objectClass: "execution" }, { actor: "col_1", actorType: "collaborator" });
+    ok("filling two blanks writes no audit entries",
+      (await audit.since(S, cursor, 100)).length === 0,
+      String((await audit.since(S, cursor, 100)).length));
+
+    // A refused overwrite is a disagreement, not an act — the caller is told,
+    // the trail is not.
+    await E.contributeContext(S, auditDeal.id, { site: "Plant 9" },
+      { kind: "stage", objectClass: "commitment" }, { actor: "col_1", actorType: "collaborator" });
+    ok("a REFUSED overwrite writes nothing either",
+      (await audit.since(S, cursor, 100)).length === 0);
+
+    // The act that Law 4 calls explicit and audited.
+    await E.contributeContext(S, auditDeal.id, { site: "Plant 9", contact: "Omar" },
+      { kind: "edit" }, { actor: "col_7", actorType: "collaborator", requestId: "req_abc" });
+    const entries = await audit.since(S, cursor, 100);
+    ok("two overwrites write two entries — one per fact, not one per contribution",
+      entries.length === 2, String(entries.length));
+    ok("...naming the deal and the fact that changed",
+      entries.every((e) => e.subject.startsWith(`${auditDeal.id}:`)) &&
+      entries.map((e) => e.subject.split(":").pop()).sort().join(",") === "contact,site",
+      entries.map((e) => e.subject.split(":").pop()).join(","));
+    ok("...the actor who did it", entries.every((e) => e.actor === "col_7"), entries[0]?.actor);
+    ok("...and tied to the request it arrived on", entries[0]?.requestId === "req_abc");
+    ok("an explicit edit is named as one, not as a stage overwrite",
+      entries.every((e) => e.action === "EDIT deal-context"), entries[0]?.action);
+
+    // NO VALUES IN THE ENTRY. The trail refuses request bodies because they
+    // carry PII, and a deal's contact and site are exactly that.
+    ok("the entry carries no values — a site and a contact are PII",
+      !JSON.stringify(entries).includes("Plant 9") && !JSON.stringify(entries).includes("Omar"));
+  }
+
 } finally {
   const swept = await delPrefix(process.env.NOMPANY_KEY_PREFIX);
   console.log(`\nswept ${swept} rows from "${process.env.NOMPANY_KEY_PREFIX}"`);
