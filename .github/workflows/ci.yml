@@ -206,6 +206,24 @@ jobs:
         # exactly what design D5 says must not happen.
         run: npm run test:gateway
 
+      - name: Tests — the two transports agree (direct vs gateway, real Postgres)
+        # THE ONE GATEWAY SUITE THAT DOES NEED A DATABASE, which is why it is a
+        # step of its own rather than part of `npm run test:gateway` above.
+        # It starts the REAL gateway server in-process against the `postgres:18`
+        # service (as ci_app — non-superuser, NOBYPASSRLS, asserted two steps
+        # up), points a child process's client at it over loopback HTTP, and
+        # compares every pgRows.ts operation between the two transports as
+        # JSON.stringify TEXT. So client → HTTP → server → Postgres → RLS is
+        # exercised here; IAM/WIF/Cloud Run/VPC still are not (plan Task 6).
+        #
+        # DATABASE_URL is set job-wide, so nothing here is skipped. Run under
+        # its own NOMPANY_TEST_SESSION because the tenant ids it writes are
+        # derived from it, and two runs sharing them would sweep each other's
+        # fixtures.
+        env:
+          NOMPANY_TEST_SESSION: ci_transport
+        run: npm run test:gateway:parity
+
       - name: Tests — Postgres + parity (NOMPANY_DB=parity)
         # THE PIECE THAT WAS PRESENT IN package.json AND ABSENT FROM THIS
         # WORKFLOW: `npm test`/the two steps above run with NOMPANY_DB unset,
