@@ -87,6 +87,7 @@ export const COLLECTION_TABLE: Readonly<Record<string, string>> = {
   // import throw, which is the guard doing exactly its job.
   contracts: "Contract",
   changeOrders: "ChangeOrder",
+  timesheets: "Timesheet",
   rfqs: "Rfq",
   projects: "Project",
   slas: "Sla",

@@ -626,8 +626,12 @@ export const SECTION_COLLECTIONS = {
   // name here before then is a key nothing fills.
   "engineering-docs-register": ["qualityDocuments", "qualityTypes", "qualityRevisions",
     "qualityAudit", "qualityAcknowledgements"],
-  // projects
-  "projects-list": ["projects"],
+  // projects — the project list, and the labour booked against it. A timesheet
+  // lives HERE rather than under `projects-overtimes` (which holds the older,
+  // overtime-only record) because it is the full labour record for a deal
+  // whether or not that deal is executed as a project: filing it under a
+  // sub-section named for one kind of hour would hide the normal ones.
+  "projects-list": ["projects", "timesheets"],
   "projects-sla": ["slas"],
   "projects-overtimes": ["overtimes"],
   // procurement — the supplier master, carried over from Inventory's Vendors
