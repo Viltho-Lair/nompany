@@ -1,4 +1,4 @@
-import { getRedisClient } from "@/platform/db/redis";
+import { hGetAll, hIncrBy } from "@/platform/db/store";
 import { S } from "@/platform/db/keys";
 
 // How many live chats a studio has started this month, against what its package
@@ -17,8 +17,7 @@ export const monthKey = (d = new Date()) => new Date(d).toISOString().slice(0, 7
 export async function chatsUsed(studioId: string | null | undefined, month = monthKey()) {
   if (!studioId) return 0;
   try {
-    const client = await getRedisClient();
-    const v = await client.hGet(S.chatUsage(studioId), month);
+    const v = (await hGetAll(S.chatUsage(studioId)))[month];
     return Number(v) || 0;
   } catch { return 0; }
 }
@@ -28,8 +27,7 @@ export async function chatsUsed(studioId: string | null | undefined, month = mon
 export async function recordChatStart(studioId: string | null | undefined, month = monthKey()) {
   if (!studioId) return 0;
   try {
-    const client = await getRedisClient();
-    return Number(await client.hIncrBy(S.chatUsage(studioId), month, 1)) || 0;
+    return Number(await hIncrBy(S.chatUsage(studioId), month, 1)) || 0;
   } catch { return 0; }
 }
 

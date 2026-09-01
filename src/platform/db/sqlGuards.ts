@@ -131,7 +131,14 @@ const ALLOWED_DDL_SHAPES: Array<(stmt: string) => boolean> = [
   // "CREATE INDEX ... AS SELECT" form, so there is no equivalent shape to
   // exclude here; an index expression cannot contain a subquery at all.
   (stmt) =>
-    /^CREATE\s+INDEX\s+IF\s+NOT\s+EXISTS\s+[A-Za-z_][A-Za-z0-9_]*\s+ON\s+[A-Za-z_][A-Za-z0-9_]*\s*\([\s\S]*\)$/i.test(stmt),
+    // A TRAILING `WHERE <predicate>` IS ALLOWED — a partial index. It was not,
+    // and `documents_expiry` (indexing only the rows that actually expire,
+    // rather than the overwhelming majority that never do) was refused by a
+    // door meant to stop destruction. A WHERE here narrows what the index
+    // covers and can destroy nothing; the shapes this allowlist exists to
+    // refuse — DROP, TRUNCATE, DISABLE ROW LEVEL SECURITY — are unreachable
+    // from `CREATE INDEX`, so widening this one form weakens none of them.
+    /^CREATE\s+INDEX\s+IF\s+NOT\s+EXISTS\s+[A-Za-z_][A-Za-z0-9_]*\s+ON\s+[A-Za-z_][A-Za-z0-9_]*\s*\([\s\S]*\)(\s+WHERE\s+[\s\S]+)?$/i.test(stmt),
   // ALTER TABLE <name> ENABLE ROW LEVEL SECURITY
   (stmt) => /^ALTER\s+TABLE\s+[A-Za-z_][A-Za-z0-9_]*\s+ENABLE\s+ROW\s+LEVEL\s+SECURITY$/i.test(stmt),
   // ALTER TABLE <name> FORCE ROW LEVEL SECURITY

@@ -111,3 +111,81 @@ DROP POLICY IF EXISTS collection_rows_tenant ON collection_rows;
 CREATE POLICY collection_rows_tenant ON collection_rows
   USING (tenant_id = current_setting('nompany.tenant_id', true))
   WITH CHECK (tenant_id = current_setting('nompany.tenant_id', true));
+
+-- ============================================================================
+-- THE DOCUMENT STORE — everything that was a Redis key.
+--
+-- collection_rows above holds the operational ROWS a section owns. This table
+-- holds everything else the product kept in Redis: accounts, profiles,
+-- sessions, the studio and user registries, sections, collaborators, media
+-- records, counters, rate-limit windows, uniqueness claims. One table, keyed
+-- by the same string platform/db/keys.ts already builds, because those keys
+-- are already a namespaced hierarchy and inventing a second naming scheme
+-- would mean rewriting every call site to gain nothing.
+--
+-- `value` is json and NOT jsonb, for the same permanent reason collection_rows
+-- gives: jsonb normalises key order, and the golden responses pin it.
+--
+-- expires_at REPLACES REDIS TTL. Null means no expiry. A row past its expiry
+-- is treated as absent by every read (the reads say `expires_at IS NULL OR
+-- expires_at > now()`), so correctness never waits on a sweeper — the sweeper
+-- only reclaims space.
+--
+-- NO ROW-LEVEL SECURITY HERE, deliberately, and it is not a regression. These
+-- keys are platform-scoped, not tenant-scoped: `u:<id>:profile` belongs to an
+-- account, `g:studios` to the platform. There is no tenant column to key a
+-- policy on, and Redis enforced nothing either — access is resolved once in
+-- effectivePermissions (invariant 3), which is where it was and where it
+-- stays. collection_rows keeps its policy because it genuinely is per-tenant.
+CREATE TABLE IF NOT EXISTS documents (
+  key         text COLLATE "C" PRIMARY KEY,
+  value       json        NOT NULL,
+  expires_at  timestamptz,
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  updated_at  timestamptz NOT NULL DEFAULT now(),
+  -- COMPARE-AND-SET, the same discipline editArr/editJSON already enforce
+  -- (invariant 8). A blind whole-document write is what this column exists to
+  -- prevent: a writer reads a version, and its UPDATE carries that version in
+  -- the WHERE, so a concurrent write makes it miss and retry rather than
+  -- silently discarding the other writer's change.
+  row_version integer     NOT NULL DEFAULT 1
+);
+
+-- PREFIX SCANS, which is what delPrefix and the registries need. `text_pattern_ops`
+-- is what makes `key LIKE 'prefix%'` use an index under a non-C collation; the
+-- column is COLLATE "C" already, so this is belt and braces and costs one index.
+CREATE INDEX IF NOT EXISTS documents_prefix ON documents (key text_pattern_ops);
+
+-- EXPIRY SWEEPS read this. Partial, because the overwhelming majority of rows
+-- never expire and indexing them would be dead weight.
+CREATE INDEX IF NOT EXISTS documents_expiry ON documents (expires_at)
+  WHERE expires_at IS NOT NULL;
+
+-- ============================================================================
+-- THE EVENT STREAM — what XADD wrote, and what Last-Event-ID replays.
+--
+-- INVARIANT 12 SURVIVES THE MOVE INTACT, and this table is why. "The stream is
+-- truth; pub/sub is a doorbell" held because XADD landed before publish and the
+-- id was the client's cursor. Here the id IS a bigserial, monotonic per insert,
+-- so a reader resuming from Last-Event-ID asks for `id > cursor` and gets
+-- exactly what it missed — the same guarantee, from the primary key rather than
+-- from a Redis stream id.
+--
+-- NO LISTEN/NOTIFY, and that is a decision rather than an omission. NOTIFY does
+-- not survive transaction-mode pooling, and it cannot cross the Cloud Run
+-- gateway at all, which is a stateless request/response door. The doorbell
+-- becomes a poll of `id > cursor` on this index, which is a primary-key range
+-- scan and cheap. What is lost is sub-second push latency; what is kept is
+-- replay, which is the half that made polling-free reconnection safe.
+CREATE TABLE IF NOT EXISTS events (
+  id         bigserial   PRIMARY KEY,
+  channel    text COLLATE "C" NOT NULL,
+  payload    json        NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- THE READ PATH: one channel, everything after a cursor, in order.
+CREATE INDEX IF NOT EXISTS events_channel_cursor ON events (channel, id);
+
+-- Events are not kept forever; this is what the trim reads.
+CREATE INDEX IF NOT EXISTS events_created ON events (created_at);

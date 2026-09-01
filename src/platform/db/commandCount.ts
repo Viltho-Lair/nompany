@@ -67,6 +67,11 @@ import { AsyncLocalStorage } from "node:async_hooks";
 type Counter = {
   commands: number;
   queries: number;
+  // Statements against the DOCUMENT store (documents/events) rather than the
+  // operational one. Separate from `queries` so a ceiling on "how much did this
+  // route ask of the operational store" survived the document store moving to
+  // Postgres — see statementKind in pg.ts.
+  documents: number;
   envelope: number;
   waves: number;
   inFlight: number;
@@ -79,6 +84,8 @@ export type CountReport<T> = {
   result: T;
   commands: number;
   queries: number;
+  /** Statements against the document store rather than the operational one. */
+  documents: number;
   envelope: number;
   waves: number;
   names: string[];
@@ -118,7 +125,7 @@ export async function withCommandCount<T>(fn: () => T | Promise<T>): Promise<Cou
   if (existing) {
     const before = {
       commands: existing.commands, queries: existing.queries,
-      envelope: existing.envelope, waves: existing.waves,
+      documents: existing.documents, envelope: existing.envelope, waves: existing.waves,
     };
     const beforeNames = existing.names.length;
     const beforeKeys = existing.keys.length;
@@ -129,6 +136,7 @@ export async function withCommandCount<T>(fn: () => T | Promise<T>): Promise<Cou
       // rather than everything that happened to be in flight around it.
       commands: existing.commands - before.commands,
       queries: existing.queries - before.queries,
+      documents: existing.documents - before.documents,
       envelope: existing.envelope - before.envelope,
       waves: existing.waves - before.waves,
       names: existing.names.slice(beforeNames),
@@ -136,11 +144,11 @@ export async function withCommandCount<T>(fn: () => T | Promise<T>): Promise<Cou
     };
   }
 
-  const store: Counter = { commands: 0, queries: 0, envelope: 0, waves: 0, inFlight: 0, names: [], keys: [] };
+  const store: Counter = { commands: 0, queries: 0, documents: 0, envelope: 0, waves: 0, inFlight: 0, names: [], keys: [] };
   const result = await storage.run(store, fn);
   return {
-    result, commands: store.commands, queries: store.queries, envelope: store.envelope,
-    waves: store.waves, names: store.names, keys: store.keys,
+    result, commands: store.commands, queries: store.queries, documents: store.documents,
+    envelope: store.envelope, waves: store.waves, names: store.names, keys: store.keys,
   };
 }
 
@@ -149,7 +157,8 @@ export function currentCount(): Omit<CountReport<never>, "result"> | null {
   const store = storage.getStore();
   return store
     ? {
-      commands: store.commands, queries: store.queries, envelope: store.envelope, waves: store.waves,
+      commands: store.commands, queries: store.queries, documents: store.documents,
+      envelope: store.envelope, waves: store.waves,
       names: [...store.names], keys: [...store.keys],
     }
     : null;
@@ -168,7 +177,7 @@ export function currentCount(): Omit<CountReport<never>, "result"> | null {
 // they increment differs, and only "commands" ever opens a wave: see the
 // module header for why generalising `waves` to SQL would move an existing
 // Redis ceiling for reasons that have nothing to do with the route.
-type CounterKind = "commands" | "queries" | "envelope";
+type CounterKind = "commands" | "queries" | "documents" | "envelope";
 type Handle = { store: Counter; kind: CounterKind } | null;
 
 function opened(name: string, key: unknown, kind: CounterKind): Handle {
@@ -256,9 +265,9 @@ export function countedQuery<T>(
   name: string,
   key: string | undefined,
   fn: () => Promise<T>,
-  kind: "data" | "envelope" = "data",
+  kind: "data" | "document" | "envelope" = "data",
 ): Promise<T> {
-  const handle = opened(name, key, kind === "data" ? "queries" : "envelope");
+  const handle = opened(name, key, kind === "data" ? "queries" : kind === "document" ? "documents" : "envelope");
   return fn().then(
     (v) => { closed(handle); return v; },
     (e) => { closed(handle); throw e; },

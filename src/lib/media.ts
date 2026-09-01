@@ -28,7 +28,7 @@
 // redirect-to-CDN path for public files.
 import { randomUUID, createHash } from "node:crypto";
 import { put, del } from "@vercel/blob";
-import { getRedisClient } from "@/platform/db/redis";
+import { getJSON, setJSON, delKeys, touchTTL } from "@/platform/db/store";
 import { MEDIA } from "@/platform/db/keys";
 
 // MAX_BYTES predates Blob and survives the move, but not for the reason it was
@@ -120,8 +120,7 @@ export async function putMedia(
     sha256,
     createdAt: new Date().toISOString(),
   };
-  const client = await getRedisClient();
-  await client.set(key(id), JSON.stringify(record));
+  await setJSON(key(id), record);
   return { id, url: `/api/media/${id}`, size: record.size };
 }
 
@@ -129,10 +128,9 @@ export async function putMedia(
 // fetches them separately with `readMedia`.
 export async function getMedia(id: string): Promise<MediaRecord | null> {
   if (!id || !/^[a-f0-9]{32}$/i.test(String(id))) return null;
-  const client = await getRedisClient();
-  const raw = await client.get(key(id));
-  if (!raw) return null;
-  return JSON.parse(raw);
+  // getJSON parses; there is nothing left to JSON.parse here. This read used to
+  // take a raw string from Redis and parse it at the call site.
+  return (await getJSON<MediaRecord>(key(id))) ?? null;
 }
 
 // The bytes, fetched from Blob.
@@ -180,8 +178,7 @@ export async function deleteMedia(id: string) {
   if (record.url) {
     await del(record.url);
   }
-  const client = await getRedisClient();
-  return (await client.del(key(id))) === 1;
+  return (await delKeys(key(id))) === 1;
 }
 
 // Time-limit a blob's RECORD (used for short-lived exports/attachments).
@@ -193,6 +190,5 @@ export async function deleteMedia(id: string) {
 // something starts to, it needs to `deleteMedia` before (or instead of)
 // relying on the TTL, or the object leaks forever.
 export async function expireMedia(id: string, seconds: number) {
-  const client = await getRedisClient();
-  return client.expire(key(id), seconds);
+  return touchTTL(key(id), seconds);
 }

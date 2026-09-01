@@ -36,8 +36,8 @@ try {
   }
 } catch { /* CI or a shell that already exported them */ }
 
-if (!process.env.REDIS_URL) {
-  console.error("REDIS_URL is not set — the sandbox still needs a Redis to talk to.");
+if (!process.env.DATABASE_URL) {
+  console.error("DATABASE_URL is not set — the sandbox needs a Postgres to talk to.");
   process.exit(1);
 }
 

@@ -939,7 +939,26 @@ export async function delPrefix(prefix: string): Promise<number> {
   // and a future refactor of delPrefix cannot lose the check.
   assertScopedPrefix(prefix, "delPrefix");
   const keys = await scanPrefix(prefix);
-  return delKeys(keys);
+  const removed = await delKeys(keys);
+
+  // STREAMS LIVE IN A SECOND TABLE, AND THIS IS THE ONLY THING THAT SWEEPS THEM.
+  //
+  // Under Redis a stream WAS a key, so one prefix delete took the whole
+  // namespace — documents, counters and streams alike. Here the stream is
+  // `events`, keyed by `channel`, and a delete over `documents` cannot reach it.
+  // Left as it was, every test run leaked its audit trail and every event it
+  // published into a live shared table, permanently, and the namespace a
+  // teardown reported as swept was only half swept.
+  //
+  // The channel carries the same namespace prefix the keys do — `xAdd` is
+  // called with a key built by keys.ts — so the same escaped LIKE selects
+  // exactly this namespace's channels and nothing else.
+  const { rowCount: eventsRemoved } = await pgQuery(
+    `DELETE FROM ${EV} WHERE ${EC.channel} LIKE $1 ESCAPE '\\'`,
+    [likePrefix(prefix)],
+  );
+
+  return removed + eventsRemoved;
 }
 
 // ---- the expiry sweeper ----------------------------------------------------

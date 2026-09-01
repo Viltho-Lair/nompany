@@ -51,8 +51,8 @@ try {
   }
 } catch { /* CI may supply the environment directly */ }
 
-if (!process.env.REDIS_URL) {
-  console.error("REDIS_URL is not set — the integration suite needs a Redis to talk to.");
+if (!process.env.DATABASE_URL) {
+  console.error("DATABASE_URL is not set — the integration suite needs a Postgres to talk to.");
   process.exit(1);
 }
 

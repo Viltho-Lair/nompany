@@ -19,7 +19,6 @@ import {
   checkCredentialAttempts, recordCredentialFailure, clearCredentialFailures, __limits as LIMITS,
 } from "@/platform/auth/attempts";
 import { delPrefix, getIndex, delKeys } from "@/platform/db/store";
-import { getRedisClient } from "@/platform/db/redis";
 import { createUser, mintSession } from "@/platform/auth/users";
 import { createStudio, renameStudio, getStudioBySlug, updateStudio } from "@/modules/main/studios";
 import { studioLocale, dirFor, preferredLocale, UI_LANG_COOKIE } from "@/shared/locale";
@@ -4967,7 +4966,6 @@ if (!process.env.BLOB_READ_WRITE_TOKEN) {
 // leave keys behind.
 const swept = await delPrefix(KEY_PREFIX);
 console.log(`\nswept ${swept} keys from "${KEY_PREFIX}"`);
-await (await getRedisClient()).quit();
 
 console.log(fails ? `\n${fails} FAILURES\n` : "\nall passed\n");
 process.exit(fails ? 1 : 0);

@@ -1,4 +1,4 @@
-import { getRedisClient } from "@/platform/db/redis";
+import { hSet, hSetNX, hGetAll } from "@/platform/db/store";
 import { REG } from "@/platform/db/keys";
 import { emitPlatform, PLATFORM } from "@/platform/realtime/events";
 import { notifySuper, NOTIFY } from "@/platform/notify/notifications";
@@ -25,8 +25,7 @@ const clampStars = (v: unknown) => {
 export async function setRating(userId: string, stars: unknown) {
   const value = clampStars(stars);
   if (!userId || value === null) return { error: "stars" };
-  const client = await getRedisClient();
-  await client.hSet(REG.ratings, String(userId), String(value));
+  await hSet(REG.ratings, String(userId), String(value));
 
   await emitPlatform({
     type: PLATFORM.ratingLeft,
@@ -52,8 +51,8 @@ export async function setRating(userId: string, stars: unknown) {
 // distinct from a score so it cannot be mistaken for one.
 export async function declineRating(userId: string) {
   if (!userId) return { error: "user" };
-  const client = await getRedisClient();
-  await client.hSetNX(REG.ratings, String(userId), String(DECLINED));
+  // Only-if-absent: a decline must never overwrite a rating somebody left.
+  await hSetNX(REG.ratings, String(userId), String(DECLINED));
   return { declined: true };
 }
 
@@ -61,8 +60,7 @@ export async function declineRating(userId: string) {
 // 0 means they declined — answered in the sense that matters here.
 export async function getRating(userId: string) {
   if (!userId) return null;
-  const client = await getRedisClient();
-  const v = await client.hGet(REG.ratings, String(userId));
+  const v = (await hGetAll(REG.ratings))[String(userId)];
   return v == null ? null : Number(v);
 }
 
@@ -87,8 +85,7 @@ export async function shouldPrompt(
 // is not an unhappy customer, and counting them as one would let a quiet month
 // look like a bad one.
 export async function satisfaction() {
-  const client = await getRedisClient();
-  const all = await client.hGetAll(REG.ratings).catch(() => ({}));
+  const all = await hGetAll(REG.ratings).catch((): Record<string, string> => ({}));
   let positive = 0;
   let negative = 0;
   for (const raw of Object.values(all || {})) {

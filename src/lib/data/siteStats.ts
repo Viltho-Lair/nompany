@@ -1,4 +1,4 @@
-import { getRedisClient } from "@/platform/db/redis";
+import { hGetAll, hSetNX } from "@/platform/db/store";
 import { STAT } from "@/platform/db/keys";
 import { CONTINENTS, CONTINENT_KEYS } from "@/lib/continents";
 import { DEVICES, DEVICE_KEYS } from "@/lib/devices";
@@ -60,10 +60,9 @@ export function daysOfYear(year: number): string[] {
 // and a quiet Sunday reads as quiet instead of vanishing.
 export async function readDays(days: string[]) {
   if (!days.length) return [];
-  const client = await getRedisClient();
-  // node-redis pipelines concurrent commands on one connection, so this is a
-  // single round trip's worth of latency rather than one per day.
-  const hashes = await Promise.all(days.map((day) => client.hGetAll(key(day)).catch((): Record<string, string> => ({}))));
+  // Concurrent reads share the pool, so a month of days costs one pool
+  // checkout each rather than one round trip each in series.
+  const hashes = await Promise.all(days.map((day) => hGetAll(key(day)).catch((): Record<string, string> => ({}))));
   return days.map((day, i) => {
     const h = hashes[i] || {};
     return { day, sessions: n(h[HOME_FIELD]), pageViews: n(h[TOTAL_FIELD]) };
@@ -73,8 +72,7 @@ export async function readDays(days: string[]) {
 // Per-page totals across a span, biggest first — the table's rows.
 export async function readPages(days: string[]) {
   if (!days.length) return [];
-  const client = await getRedisClient();
-  const hashes = await Promise.all(days.map((day) => client.hGetAll(key(day)).catch((): Record<string, string> => ({}))));
+  const hashes = await Promise.all(days.map((day) => hGetAll(key(day)).catch((): Record<string, string> => ({}))));
   const totals: Record<string, number> = {};
   for (const h of hashes) {
     for (const [field, value] of Object.entries(h || {})) {
@@ -94,9 +92,8 @@ export async function readPages(days: string[]) {
 // continent is present even at zero, so the bars do not reshuffle as traffic
 // arrives from somewhere new.
 export async function readContinents(days: string[]) {
-  const client = await getRedisClient();
   const hashes = days.length
-    ? await Promise.all(days.map((day) => client.hGetAll(key(day)).catch((): Record<string, string> => ({}))))
+    ? await Promise.all(days.map((day) => hGetAll(key(day)).catch((): Record<string, string> => ({}))))
     : [];
   const totals: Record<string, number> = Object.fromEntries(CONTINENTS.map((c) => [c, 0]));
   for (const h of hashes) {
@@ -119,9 +116,8 @@ export async function readContinents(days: string[]) {
 // than counts, because the card asks which kind of machine people use, not how
 // many of them there were.
 export async function readDevices(days: string[]) {
-  const client = await getRedisClient();
   const hashes = days.length
-    ? await Promise.all(days.map((day) => client.hGetAll(key(day)).catch((): Record<string, string> => ({}))))
+    ? await Promise.all(days.map((day) => hGetAll(key(day)).catch((): Record<string, string> => ({}))))
     : [];
   const totals: Record<string, number> = Object.fromEntries(DEVICES.map((d) => [d, 0]));
   for (const h of hashes) {
@@ -153,17 +149,17 @@ export async function readDevices(days: string[]) {
 const ACTIVE_FIELD = "users:active";
 
 export async function recordActiveUsers(count: number, day = isoDay(new Date())) {
-  const client = await getRedisClient();
-  try { await client.hSetNX(key(day), ACTIVE_FIELD, String(Math.max(0, Math.trunc(count)))); }
+  // Only-if-absent: the first snapshot of a day is the one kept, so a later
+  // re-run cannot overwrite a settled figure with a partial one.
+  try { await hSetNX(key(day), ACTIVE_FIELD, String(Math.max(0, Math.trunc(count)))); }
   catch { /* a missed snapshot costs one day of comparison, never a page */ }
 }
 
 // Null, not zero, when a day was never recorded — "we did not measure" and
 // "nobody was here" must not read the same, or the delta would invent a number.
 export async function readActiveUsers(day: string) {
-  const client = await getRedisClient();
   try {
-    const v = await client.hGet(key(day), ACTIVE_FIELD);
+    const v = (await hGetAll(key(day)))[ACTIVE_FIELD];
     return v == null ? null : n(v);
   } catch { return null; }
 }

@@ -25,6 +25,7 @@ import { guardAgainstConnectionError } from "./pgClientGuard";
 // called directly. See sqlGuards.ts's header for why one module beats two
 // copies.
 import { assertNotTenantScoped, assertDdlOnly } from "./sqlGuards";
+import { TBL } from "./keys";
 import { gatewayStatement } from "./pgGateway";
 import { log } from "@/platform/http/observability";
 
@@ -235,23 +236,47 @@ export type PgQueryFn = <T = any>(text: string, params?: readonly unknown[]) => 
 // on being able to tell them apart from a caller's own SELECT/INSERT/UPDATE/
 // DELETE, and a text match here is the only place that distinction can be made
 // once both kinds of statement are flowing through the same `run`.
-function statementKind(text: string): { name: string; envelope: boolean } {
+// OPERATIONAL, OR MERELY A DOCUMENT — and the distinction is the whole reason
+// a hop ceiling still means anything.
+//
+// `queries` used to count Postgres statements while Redis served everything
+// else, so "this route makes 0 queries" said something precise: it touches no
+// OPERATIONAL COLLECTION. Once the document store moved to Postgres too, every
+// session read and every registry lookup became a pgQuery, and that assertion
+// would have started counting them — turning a ceiling of `=== 0` into a number
+// nobody could hold, for a reason that has nothing to do with what the route
+// asks of the operational store.
+//
+// So a statement naming collection_rows is "data" and feeds `queries`; anything
+// else, against documents or events, is "document" and feeds its own field.
+// Both are reported, so neither becomes an invisible round trip.
+// `\\b`, NOT `\b`. Inside a template literal `\b` is the BACKSPACE character,
+// so the single-backslash spelling builds a regex that can never match — and it
+// fails silently, classifying every operational statement as a document read.
+// sqlGuards.ts's TENANT_TABLE_RE has the doubled form for the same reason.
+const OPERATIONAL_TABLE_RE = new RegExp(`\\b${TBL.rows}\\b`, "i");
+
+function statementKind(text: string): { name: string; envelope: boolean; operational: boolean } {
   const head = text.trimStart();
-  if (/^BEGIN\b/i.test(head)) return { name: "begin", envelope: true };
-  if (/^COMMIT\b/i.test(head)) return { name: "commit", envelope: true };
-  if (/^ROLLBACK\b/i.test(head)) return { name: "rollback", envelope: true };
-  if (/set_config\s*\(/i.test(head)) return { name: "set_config", envelope: true };
+  if (/^BEGIN\b/i.test(head)) return { name: "begin", envelope: true, operational: false };
+  if (/^COMMIT\b/i.test(head)) return { name: "commit", envelope: true, operational: false };
+  if (/^ROLLBACK\b/i.test(head)) return { name: "rollback", envelope: true, operational: false };
+  if (/set_config\s*\(/i.test(head)) return { name: "set_config", envelope: true, operational: false };
   const leading = /^([A-Za-z]+)/.exec(head);
-  return { name: (leading ? leading[1] : "query").toLowerCase(), envelope: false };
+  return {
+    name: (leading ? leading[1] : "query").toLowerCase(),
+    envelope: false,
+    operational: OPERATIONAL_TABLE_RE.test(text),
+  };
 }
 
 async function run<T>(client: Pool | PoolClient, text: string, params: readonly unknown[]): Promise<PgResult<T>> {
   // `{ text, values }`, never `{ text, values, name }` — see the module header.
-  const { name, envelope } = statementKind(text);
+  const { name, envelope, operational } = statementKind(text);
   return countedQuery(name, text, async () => {
     const res = await client.query({ text, values: params as unknown[] });
     return { rows: res.rows as T[], rowCount: res.rowCount ?? 0 };
-  }, envelope ? "envelope" : "data");
+  }, envelope ? "envelope" : operational ? "data" : "document");
 }
 
 // THE GATEWAY'S `run`. Same job, same counter, a different wire.

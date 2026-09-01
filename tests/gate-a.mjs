@@ -4173,7 +4173,8 @@ console.log("== hop counts: how many round trips a screen costs");
 
   const studioCall = await withCommandCount(() => capture(STUDIO.GET, req(`/api/studios/${slug}`), ctx({ slug })));
   console.log(`       GET /api/studios/<slug>        ${studioCall.commands} commands, ${studioCall.waves} waves`);
-  ok("the studio route is measured at all", studioCall.commands > 0);
+  ok("the studio route is measured at all", studioCall.queries + studioCall.documents > 0,
+    `${studioCall.queries} operational + ${studioCall.documents} document`);
   // 12 → 7 when the route stopped re-reading sections studioContext had already
   // handed it, and 7 → 3 when W8 landed. The measurement is 2, which is the
   // number the plan set as the target for this route.
@@ -4219,8 +4220,8 @@ console.log("== hop counts: how many round trips a screen costs");
     if (n > 1) console.log(`         ×${n}  ${k}`);
   }
 
-  const sectionReads = salesCall.names.filter((n) => n === "get").length;
-  ok("the sales route's read count is recorded", sectionReads > 0, `${sectionReads} GETs`);
+  const sectionReads = salesCall.names.filter((n) => n === "select").length;
+  ok("the sales route's read count is recorded", sectionReads > 0, `${sectionReads} SELECTs`);
 
   // TECHNICAL GREW A SIXTH LIST — vocabulary.clients, for the internal-
   // quotation picker — and the route's own comment says it was folded into
@@ -4230,7 +4231,8 @@ console.log("== hop counts: how many round trips a screen costs");
   // inside the same Promise.all) fails the build instead of shipping quietly.
   const techCall = await withCommandCount(() => capture(TECHHOP.GET, req(`/api/studios/${slug}/technical`), ctx({ slug })));
   console.log(`       GET /api/studios/<slug>/technical  ${techCall.commands} commands, ${techCall.waves} waves`);
-  ok("the technical route is measured at all", techCall.commands > 0);
+  ok("the technical route is measured at all", techCall.queries + techCall.documents > 0,
+    `${techCall.queries} operational + ${techCall.documents} document`);
   ok("the technical route stays under its ceiling — vocabulary.clients joined the existing Promise.all rather than adding one",
     techCall.waves <= 6, `${techCall.waves} waves: ${techCall.names.join(",")}`);
 

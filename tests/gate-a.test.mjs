@@ -47,8 +47,8 @@ try {
   }
 } catch { /* CI may supply the environment directly */ }
 
-if (!process.env.REDIS_URL) {
-  console.error("REDIS_URL is not set — Gate A needs a Redis to talk to.");
+if (!process.env.DATABASE_URL) {
+  console.error("DATABASE_URL is not set — Gate A needs a Postgres to talk to.");
   process.exit(1);
 }
 
@@ -142,9 +142,7 @@ if (!process.env.BLOB_READ_WRITE_TOKEN) {
 // Everything Gate A wrote lives under the namespace, so cleanup is one prefix
 // deletion. Runs whatever happened above — a failed assertion (Redis OR
 // Postgres) must not leave keys behind.
-const { getRedisClient } = await import("@/platform/db/redis");
 const swept = await delPrefix(process.env.NOMPANY_KEY_PREFIX);
 console.log(`swept ${swept} keys from "${process.env.NOMPANY_KEY_PREFIX}"`);
-await (await getRedisClient()).quit();
 
 process.exit((gateAFailures || pgSweepFailed || blobSweepFailed) ? 1 : 0);

@@ -203,7 +203,23 @@ export function collectionsForKey(sectionKey: string): string[] {
 // entire existing suite — 153 goldens included — into the parity test. A
 // purpose-built harness can only check what somebody thought of; this checks
 // what the product actually does.
-export const DB_BACKEND = (process.env.NOMPANY_DB || "redis") as "redis" | "postgres" | "parity";
+// THE DEFAULT IS `postgres` NOW, AND THE OLD NAME NO LONGER MEANS WHAT IT SAYS.
+//
+// `redis` used to mean "collections live in Redis". Redis is gone: store.ts is
+// backed by the `documents` table, so that mode now means "collections live as
+// JSON arrays in the document store" — which works, and is exactly what this
+// product did before P1, but it is not where a collection belongs. Operational
+// rows belong in `collection_rows`: one row per record, indexed, and under FORCE
+// ROW LEVEL SECURITY keyed on tenant_id, which a JSON array in a shared
+// document table cannot be.
+//
+// So the default flipped rather than the mode being deleted. Deleting it would
+// take `parity` with it, and parity is the thing that proved the two agree —
+// it is worth keeping until the operational path has run in production long
+// enough to be boring. The name is now wrong and is left wrong deliberately:
+// renaming it would rewrite every place the migration recorded which store
+// answered, for a mode that is on its way out.
+export const DB_BACKEND = (process.env.NOMPANY_DB || "postgres") as "redis" | "postgres" | "parity";
 
 function disagree(fn: string, a: unknown, b: unknown): never {
   throw new Error(
