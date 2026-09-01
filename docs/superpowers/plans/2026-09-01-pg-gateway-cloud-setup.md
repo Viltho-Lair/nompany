@@ -191,11 +191,32 @@ gcloud run services get-iam-policy pg-gateway --region=me-central1 --project=nom
 
 `allUsers` must not appear. It does not.
 
-## 6. Vercel
+## 6. Vercel — DONE 01/09/2026
 
-Set `PG_TRANSPORT=gateway` and `PG_GATEWAY_URL=<the Cloud Run URL>` in **production only**.
-Leave preview and development on the default `direct` — they have no authorized path anyway,
-and the attribute condition in step 4 deliberately refuses them.
+`PG_TRANSPORT=gateway` and `PG_GATEWAY_URL=https://pg-gateway-17918747100.me-central1.run.app`
+are set in **production only**. Preview and development stay on the default `direct` — they
+have no authorized path anyway, and step 4's attribute condition deliberately refuses them.
+
+**Both are inert until `NOMPANY_DB` is set.** `DB_BACKEND` is `redis` (the variable is absent
+from production, verified by reading the environment back), so nothing on Vercel calls
+Postgres at all and the transport is never consulted. That is deliberate: it makes the
+cutover a change to ONE variable, with everything else already in place and proven.
+
+Vercel reports both as `[SENSITIVE]`, so their values cannot be read back. `parseTransport`
+refuses an unrecognised value rather than defaulting to `direct`, so a typo fails loudly at
+the first Postgres call rather than silently taking a path that does not exist on Vercel.
+
+### The one thing still unproven
+
+**The Vercel → STS → impersonation → `run.invoker` chain has never run.** Everything on the
+Google side is verified — the service answers, the guards hold, IAM refuses anonymous callers
+— but it was proven with a developer's own identity token, which says nothing about whether
+Vercel's OIDC token exchanges correctly through the pool.
+
+It cannot be exercised without a production request that touches Postgres, and none exists
+while `DB_BACKEND` is `redis`. A preview deployment cannot stand in: the attribute condition
+pins `environment=='production'` on purpose. So the first real test of that chain IS the
+cutover, which is a reason to do it deliberately and watching, not a reason to delay it.
 
 ## 7. Only then, close the doors
 
