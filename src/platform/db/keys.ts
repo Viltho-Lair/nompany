@@ -631,7 +631,12 @@ export const SECTION_COLLECTIONS = {
   // overtime-only record) because it is the full labour record for a deal
   // whether or not that deal is executed as a project: filing it under a
   // sub-section named for one kind of hour would hide the normal ones.
-  "projects-list": ["projects", "timesheets"],
+  // Inspections sit here for a reason that is a compromise and says so: they
+  // belong to Quality & HSE, which is in NO_SCREEN_YET and holds no permission
+  // areas by design — a right nothing can exercise is a bug (invariant 16) — so
+  // filing them there would strand real rows under a section that renders
+  // nothing and gates on no right. They move when Quality gets a screen.
+  "projects-list": ["projects", "timesheets", "inspections"],
   "projects-sla": ["slas"],
   "projects-overtimes": ["overtimes"],
   // procurement — the supplier master, carried over from Inventory's Vendors
