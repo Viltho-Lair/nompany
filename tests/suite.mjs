@@ -3502,7 +3502,27 @@ console.log("== a private file is readable by its studio, and by nobody else");
 //
 // Membership, not ownership: a signature is stamped by one person and read by
 // everyone else working to that document.
-{
+// SKIPS LOUDLY WITHOUT A BLOB TOKEN, the same shape tests/pg-parity.mjs uses
+// for DATABASE_URL — a banner plus a visible per-test line, never a silent pass.
+//
+// REGRESSION: this block used to run unconditionally. Once the bytes moved out
+// of Redis, `putMedia` needs a real Blob store, and `@vercel/blob` THROWS on a
+// missing token rather than returning an error — so on a machine without one
+// the suite did not fail an assertion, it died mid-run, taking every later
+// block and Gate A with it. That is exactly what happened in CI, which has no
+// BLOB_READ_WRITE_TOKEN: 0 failed assertions and a red build, which reads like
+// an infrastructure problem rather than a missing secret.
+//
+// NOT SOLVED BY GIVING CI THE PRODUCTION TOKEN. CI gets an ephemeral redis:8
+// container rather than the live Redis for a reason, and pointing it at the
+// live Blob store would be the same mistake in a store where the namespace is
+// a path prefix and a crashed run strands billed objects nobody is looking for.
+// A separate Blob store for CI would be a real answer; until there is one, the
+// coverage is honestly absent rather than quietly faked.
+if (!process.env.BLOB_READ_WRITE_TOKEN) {
+  console.warn("  SKIPPED — BLOB_READ_WRITE_TOKEN is not set, so the media paths are NOT verified in this run");
+  ok("skipped — media needs a Blob store, and this run has no token", true);
+} else {
   const serve = (id) => MEDIA_GET(new Request(`http://localhost/api/media/${id}`), { params: Promise.resolve({ id }) });
   const png = Buffer.from("89504e470d0a1a0a", "hex");
 
