@@ -402,6 +402,20 @@ export const ENG = {
   // record at its engagement without touching the record itself (read-layer
   // only — Phase 1a changes no existing record, route or response).
   recEng:   (studioId: string, type: string, recId: string) => `${P}s:${studioId}:rec-eng:${type}:${recId}`,
+  // AN ALIAS: any historically-derived id → the one true deal id (§2.2, Law 3).
+  //
+  // Identity is minted ONCE, by whichever record opened the deal, and never
+  // moves. But this codebase already mints deterministic ids from a record's
+  // lineage (engagementIdForLineage), and those ids are in the wild — held by
+  // the backfill, by rec-eng pointers, and by anything that derived one rather
+  // than read it. Re-rooting a deal so a derived id keeps resolving is exactly
+  // what Law 3 forbids, so the derived id becomes a LOOKUP HELPER instead: it
+  // maps here, to the deal that actually exists.
+  //
+  // This is what makes "a more important record arrived late" a non-event. The
+  // ticket raised after the project does not re-root anything; it attaches, and
+  // whatever id somebody derived from it points at the same deal.
+  alias:    (studioId: string, aliasId: string) => `${P}s:${studioId}:eng-alias:${aliasId}`,
   // EVERY engagement this studio has, newest first, scored by createdAt — so
   // listing a studio's deals is one ZRANGE instead of re-reading salesTickets
   // and re-deriving the clustering the engagement layer already did. Scored by

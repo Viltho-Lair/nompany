@@ -6,10 +6,25 @@ import { getJSON, setJSON, editJSON, delKeys, zAdd, zRange, zRem, zCard, sAdd, s
 import { isSingleton, stageOf, STAGE_REGISTRY } from "../engagement/registry";
 import { buildEngagements } from "../engagement/backfill";
 import type { EngagementDescriptor } from "../engagement/backfill";
+import { contribute, emptyContext } from "../engagement/context";
+import type { DealContext, ContextProvenance, ContextSource, ContributionResult } from "../engagement/context";
 
 export type Engagement = {
   id: string; studioId: string; ref: string;
   context: Record<string, unknown>;
+  /**
+   * WHICH FLOW THIS DEAL WALKS. Resolved from the industry when the deal opens
+   * and stored, not re-derived: an industry's default template may change, and
+   * a deal that silently switched flows would gain and lose stage cards for
+   * reasons nobody performed.
+   */
+  templateId?: string;
+  /**
+   * WHAT RANK SET EACH FACT — bookkeeping for the contribution rule, kept
+   * beside the context rather than inside it so a reader of `context.site` does
+   * not have to step around a `siteSetBy`.
+   */
+  provenance?: ContextProvenance;
   singletons: Record<string, string | null>;
   createdAt: string; updatedAt: string;
   // LOCKED IS THE INTERLOCK ON A DESTRUCTIVE ACTION, and it is optional here
@@ -464,4 +479,92 @@ export async function setApprovedQuotation(
     if (!eng) return { result: undefined }; // root absent → reconcile will build it
     return { next: { ...eng, singletons: { ...eng.singletons, approvedQuotation: quotationId }, updatedAt: nowISO() } };
   });
+}
+
+// ---- P2: identity, aliases and the shared facts -----------------------------
+
+/**
+ * RESOLVE ANY ID TO THE ONE TRUE DEAL ID (§2.2, Law 3).
+ *
+ * A deal's identity is minted once by the record that opened it and never
+ * moves. But this codebase also DERIVES ids from a record's lineage
+ * (`engagementIdForLineage`), and those derived ids are in the wild. When a
+ * "more important" record arrives late — a sales ticket raised after the
+ * project it belongs to — the derived id changes while the deal must not.
+ *
+ * So a derived id is a lookup helper: it resolves HERE, to the deal that
+ * actually exists, rather than re-rooting anything. That is the whole
+ * difference between an alias table and a migration.
+ *
+ * Returns the input unchanged when no alias exists, so a caller holding a real
+ * deal id pays one read and gets it back.
+ */
+export async function resolveDealId(studioId: string, anyId: string): Promise<string> {
+  if (!studioId || !anyId) return "";
+  const mapped = await getJSON<string>(ENG.alias(studioId, anyId));
+  return typeof mapped === "string" && mapped ? mapped : anyId;
+}
+
+/**
+ * Point a derived id at the deal it should resolve to.
+ *
+ * REFUSES TO REPOINT AN EXISTING ALIAS at a different deal, and that refusal is
+ * the safety property. An alias silently changing target means every record
+ * that resolved through it yesterday belongs to a different deal today, with no
+ * event anywhere recording that it moved. Repointing is a merge, and a merge is
+ * a deliberate operation with its own rules — not something a late-arriving
+ * record does as a side effect.
+ */
+export async function setDealAlias(studioId: string, aliasId: string, dealId: string): Promise<void> {
+  if (!studioId || !aliasId || !dealId || aliasId === dealId) return;
+  const existing = await getJSON<string>(ENG.alias(studioId, aliasId));
+  if (typeof existing === "string" && existing && existing !== dealId) {
+    throw new Error(
+      `engagement: alias "${aliasId}" already resolves to "${existing}" and cannot be repointed to ` +
+        `"${dealId}". Identity is minted once (Law 3); moving a deal's records is a merge, not an alias edit.`,
+    );
+  }
+  await setJSON(ENG.alias(studioId, aliasId), dealId);
+}
+
+/**
+ * APPLY ONE STAGE'S CONTRIBUTION TO A DEAL'S SHARED FACTS (Law 4).
+ *
+ * The rule itself is pure and lives in platform/engagement/context.ts; this is
+ * the part that reads, applies and writes. It returns what changed and what was
+ * REFUSED, because the caller is what audits an overwrite and what surfaces a
+ * disagreement — neither of which this function should decide for it.
+ *
+ * Compare-and-set through editJSON (invariant 8): two stages contributing at
+ * once must not have one silently discard the other's facts, and a blind
+ * whole-root write is exactly how that happens.
+ */
+export async function contributeContext(
+  studioId: string,
+  engId: string,
+  proposed: Partial<DealContext>,
+  source: ContextSource,
+): Promise<ContributionResult | null> {
+  const dealId = await resolveDealId(studioId, engId);
+  let outcome: ContributionResult | null = null;
+
+  await editJSON<Engagement, void>(ENG.root(studioId, dealId), (current) => {
+    if (!current) return { value: current, result: undefined };
+    const context = { ...emptyContext(), ...(current.context as Partial<DealContext>) };
+    const provenance = (current.provenance || {}) as ContextProvenance;
+    const applied = contribute(context, provenance, proposed, source);
+    outcome = applied;
+    if (!applied.changes.length) return { value: current, result: undefined };
+    return {
+      value: {
+        ...current,
+        context: applied.context as unknown as Record<string, unknown>,
+        provenance: applied.provenance,
+        updatedAt: new Date().toISOString(),
+      },
+      result: undefined,
+    };
+  });
+
+  return outcome;
 }
