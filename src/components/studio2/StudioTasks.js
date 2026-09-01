@@ -104,7 +104,7 @@ export default function StudioTasks({ slug, view = "tasks" }) {
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <p className="text-sm text-slate-500">{tr.loadingTasks}</p>;
 
-  const { canManage, tasks, people, projects, summary, vocabulary, nav, me } = data;
+  const { canManage, people, projects, summary, vocabulary, nav, me } = data;
 
   const filters = [
     ["open", `Open (${summary.open})`],

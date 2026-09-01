@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { technicalDict } from "@/shared/studio/technical";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { Icon } from "@/components/studio2/icons";
@@ -43,9 +42,6 @@ export default function SalesQuotationViewer({ slug, ticketId, quotationId }) {
   const tr = technicalDict(useStudioLocale());
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
-  const router = useRouter();
-  const [printing, setPrinting] = useState(false);
-  const [printed, setPrinted] = useState("");
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/sales/quotations?id=${encodeURIComponent(quotationId)}`, { cache: "no-store" });
@@ -67,14 +63,6 @@ export default function SalesQuotationViewer({ slug, ticketId, quotationId }) {
   // the channel its writes now publish on.
   useLiveUpdates(slug, "crm-sales", load);
 
-  // THE WHOLE POINT OF THE BUTTON. Sales presses it; Quality's template runs;
-  // the fields it asked for are fetched from THIS quotation and from everything
-  // the graph reaches out of it — the ticket, its client — and a document comes
-  // back with a number of its own, waiting for review.
-  //
-  // Nothing about WHAT to fetch is decided here. The template said that when it
-  // was written, and the server resolves it. This screen only says which
-  // quotation is in hand.
   // PRINT IS GONE FOR NOW, deliberately rather than by neglect. It generated a
   // document from a template, and both the template and the generation were
   // part of the builder that has been removed. It comes back with call points,
@@ -118,19 +106,7 @@ export default function SalesQuotationViewer({ slug, ticketId, quotationId }) {
         <span className="ms-auto inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-700 text-slate-500 dark:bg-white/5 dark:text-slate-300">
           <Icon name="lock" className="h-3.5 w-3.5" /> {tr.viewOnly}
         </span>
-
-        {/* PRINT, beside View only rather than instead of it — the two do not
-            contradict each other. This produces a NEW document from an approved
-            template; the quotation stays exactly as untouchable here as it was.
-            Drawn only where the server has already said a press would succeed,
-            so it never appears and then refuses. */}
       </div>
-
-      {printed && (
-        <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">
-          {printed}
-        </p>
-      )}
 
       <section className={panel}>
         <div className="flex flex-wrap items-start justify-between gap-3">

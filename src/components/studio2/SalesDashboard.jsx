@@ -41,7 +41,6 @@ export default function SalesDashboard({ tickets = [], slug = "", nav = null }) 
   // tickets, so summing its weighted column is the same figure the forecast
   // widget footers with, told once.
   const weightedPipeline = buckets.reduce((a, b) => a + b.weighted, 0);
-  const rawPipeline = buckets.reduce((a, b) => a + b.value, 0);
 
   // Status mix across every ticket — where the department's work actually sits.
   const mix = STAGE_ORDER

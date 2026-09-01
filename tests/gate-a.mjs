@@ -1221,7 +1221,6 @@ console.log("== technical: converting, locking, and the rights that are not bigg
 //   Bundling an unlock with an edit would be a way to smuggle a change past the
 //   lock in a single write.
 {
-  const RFQS = await import("@/app/api/studios/[slug]/technical/rfqs/route.ts");
   const QUOTES = await import("@/app/api/studios/[slug]/technical/quotations/route.ts");
   const TECH = await import("@/app/api/studios/[slug]/technical/route.ts");
   const APPROVAL = await import("@/app/api/studios/[slug]/technical/quotations/approval/route.ts");
@@ -2163,7 +2162,6 @@ console.log("== finance: a number that only goes forward, and money that is deri
 
   const first = await shot("finance.invoice.raised", await raise({ clientName: "Acme Holdings", lines: LINES }));
   const firstRef = first.body?.invoice?.reference;
-  const firstId = first.body?.invoice?.id;
   ok("the first invoice is numbered", Boolean(firstRef), JSON.stringify(first.body).slice(0, 120));
 
   // MONEY IS DERIVED. 25000 at the default 15% VAT is 3750 and 28750, computed
