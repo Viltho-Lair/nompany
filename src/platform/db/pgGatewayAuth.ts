@@ -47,6 +47,10 @@
 // defaults and not constants — every one is overridable above — but a default
 // that is wrong is worse than no default, so they are stated once, here, with
 // where they came from.
+// The ONE dependency this module takes, and it is not optional: the runtime
+// OIDC token is delivered on the request, not in the environment.
+import { getVercelOidcToken } from "@vercel/functions/oidc";
+
 export const PG_GATEWAY_DEFAULTS = {
   oidcIssuer: "https://oidc.vercel.com/vilthos-projects",
   oidcAudience: "https://vercel.com/vilthos-projects",
@@ -342,21 +346,58 @@ export type MintDeps = {
   now?: () => number;
 };
 
+/**
+ * THE VERCEL IDENTITY, READ FROM THE REQUEST RATHER THAN THE ENVIRONMENT.
+ *
+ * This module read `process.env.VERCEL_OIDC_TOKEN` and said, in its own error
+ * message, that Vercel "injects it automatically when OIDC federation is
+ * enabled". That is true of the BUILD and of a local `vercel env pull`. It is
+ * not true of a running function: the token is short-lived and per-invocation,
+ * so Vercel delivers it on the request and `process.env` never holds it.
+ *
+ * The whole cutover failed on this, and failed in the most misleading way
+ * available — enabling OIDC federation changed nothing observable, because the
+ * variable the code was waiting for is not the mechanism. Every request 500'd
+ * with "VERCEL_OIDC_TOKEN is not set" while the token was in fact being minted
+ * and delivered on each one.
+ *
+ * getVercelOidcToken() reads the request context first and falls back to the
+ * environment variable, which is exactly the order wanted: production gets the
+ * per-request token, local development gets the pulled one. It THROWS when it
+ * finds neither, and that is swallowed here so the caller raises this module's
+ * own error instead of the package's.
+ */
+async function readSubjectToken(): Promise<string | undefined> {
+  try {
+    const token = await getVercelOidcToken();
+    if (token) return token;
+  } catch {
+    // No request context and no pulled token — the caller's error says what to do.
+  }
+  return process.env.VERCEL_OIDC_TOKEN;
+}
+
 /** One full chain, uncached — exported so a test can drive it with a fake fetch. */
 export async function mintGatewayIdToken(deps: MintDeps = {}): Promise<string> {
   const env = deps.env ?? process.env;
   const fetchImpl = deps.fetchImpl ?? ((input, init) => fetch(input, init));
   const cfg = readGatewayAuthConfig(env);
 
-  const subjectToken = env.VERCEL_OIDC_TOKEN;
+  // AN EXPLICIT env WINS, so a test drives this deterministically; otherwise the
+  // token is read from the REQUEST, which is the only place it exists at
+  // runtime. See readSubjectToken.
+  const subjectToken = deps.env ? deps.env.VERCEL_OIDC_TOKEN : await readSubjectToken();
   if (!subjectToken) {
     // ABSENT IS A FAILURE, NOT A FALLBACK. There is no unauthenticated path to
     // fall back to — see this module's header for why that is the one branch
     // that must never exist.
     throw new Error(
-      "pg-gateway auth: VERCEL_OIDC_TOKEN is not set, so there is no identity to exchange. On Vercel it " +
-        "is injected automatically when OIDC federation is enabled for the project; elsewhere there is no " +
-        "identity at all and PG_TRANSPORT must stay `direct`.",
+      "pg-gateway auth: VERCEL_OIDC_TOKEN is not set, so there is no identity to exchange. On Vercel the " +
+        "token is delivered PER REQUEST and read with getVercelOidcToken(); the environment variable of " +
+        "the same name exists only during the build and in a local `vercel env pull`. Check that OIDC " +
+        "federation is enabled for the project, and that this call is inside a request — a module-scope " +
+        "or background call has no request to read it from. Elsewhere there is no identity at all and " +
+        "PG_TRANSPORT must stay `direct`.",
     );
   }
 
