@@ -190,13 +190,20 @@ export async function listMembers(
 // the indexes that describe it, and has-stage goes last because it can only be
 // decided once the membership it summarises is already gone.
 export async function detachRecord(studioId: string, engId: string, type: string, recId: string): Promise<void> {
+  // SYMMETRIC WITH attachRecord, and the asymmetry was the bug. Attach has
+  // resolved through the alias since it was written; detach did not, so a
+  // caller holding a derived id for a minted deal edited a root that does not
+  // exist and took the "no root → nothing to clear" branch below. A detach that
+  // silently succeeds is the worst outcome available here: the record is gone
+  // and its membership survives it.
+  const dealId = await resolveDealId(studioId, engId);
   // 1. THE ROOT'S POINTERS AT THIS RECORD — every slot holding it, not just the
   // slot named `type`. A quotation is a "many" member AND may be the deal's
   // approvedQuotation; clearing only by type would leave the root pointing at a
   // row that no longer exists, which is the phantom this whole path exists to
   // remove. Matching on the VALUE rather than the slot name also means a slot
   // added to the root later is cleared without editing this function.
-  await editJSON<Engagement, void>(ENG.root(studioId, engId), (eng) => {
+  await editJSON<Engagement, void>(ENG.root(studioId, dealId), (eng) => {
     if (!eng) return { result: undefined };                       // no root → nothing to clear
     const held = Object.entries(eng.singletons).filter(([, id]) => id === recId);
     if (!held.length) return { result: undefined };               // already detached → no write
@@ -205,12 +212,12 @@ export async function detachRecord(studioId: string, engId: string, type: string
     return { next: { ...eng, singletons, updatedAt: nowISO() } };
   });
   // 2. MEMBERSHIP. A singleton's membership IS the root slot cleared above.
-  if (!isSingleton(type)) await zRem(ENG.members(studioId, engId, type), recId);
+  if (!isSingleton(type)) await zRem(ENG.members(studioId, dealId, type), recId);
   // 3. THE DEPARTMENT INDEX.
   await zRem(ENG.dept(studioId, type), recId);
   // 4. THE REVERSE INDEX, but only while it still names THIS engagement — a
   // record re-attached elsewhere between the two calls keeps its newer pointer.
-  if ((await getJSON<string>(ENG.recEng(studioId, type, recId))) === engId) {
+  if ((await getJSON<string>(ENG.recEng(studioId, type, recId))) === dealId) {
     await delKeys(ENG.recEng(studioId, type, recId));
   }
   // 5. HAS-STAGE, LAST AND ONLY WHEN THE STAGE IS ACTUALLY GONE.
@@ -228,9 +235,9 @@ export async function detachRecord(studioId: string, engId: string, type: string
   // — an attach interleaving between the count and the SREM can drop an entry
   // the attach just added, which the backfill re-adds on its next pass.
   const remaining = isSingleton(type)
-    ? ((await readEngagement(studioId, engId))?.singletons[type] ? 1 : 0)
-    : await zCard(ENG.members(studioId, engId, type));
-  if (!remaining) await sRem(ENG.hasStage(studioId, type), engId);
+    ? ((await readEngagement(studioId, dealId))?.singletons[type] ? 1 : 0)
+    : await zCard(ENG.members(studioId, dealId, type));
+  if (!remaining) await sRem(ENG.hasStage(studioId, type), dealId);
 }
 
 /** The lineage fields a spine record carries, and all a derivation needs. */

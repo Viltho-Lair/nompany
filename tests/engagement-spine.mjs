@@ -4,6 +4,7 @@ import { KEY_PREFIX, deterministicEngId } from "../src/platform/db/keys.ts";
 import {
   readEngagementView, attachTicketEngagement,
   attachToTicketEngagement, attachQuotationEngagement, setApprovedQuotation,
+  detachRecord, attachRecord, listMembers, createEngagement, setDealAlias,
 } from "../src/platform/db/engagement.ts";
 assert.ok(KEY_PREFIX, "must run under a key prefix");
 
@@ -34,7 +35,25 @@ export async function testSpineHelpers() {
   assert.deepEqual(v2.members.quotation, ["quo_9"]);
 }
 
+export async function testDetachResolvesThroughAlias() {
+  const sid = `s_${Date.now().toString(36)}_da1`;
+
+  // A minted deal with a derived id aliased onto it — the shape Task 3 creates.
+  const deal = await createEngagement(sid, { ref: "ALIAS-DETACH" });
+  const derived = deterministicEngId("ticket", "tk_detach");
+  await setDealAlias(sid, derived, deal.id);
+
+  await attachRecord(sid, derived, "rfq", "rfq_detach");
+  assert.deepEqual(await listMembers(sid, deal.id, "rfq"), ["rfq_detach"],
+    "attach already resolves, so the member lands on the minted deal");
+
+  // THE BUG: detach given the same derived id must reach the same deal.
+  await detachRecord(sid, derived, "rfq", "rfq_detach");
+  assert.deepEqual(await listMembers(sid, deal.id, "rfq"), [],
+    "detach through a derived id removes the member from the minted deal");
+}
+
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
-  (async () => { for (const t of [testSpineHelpers]) { await t(); console.log(`ok ${t.name}`); } })()
+  (async () => { for (const t of [testSpineHelpers, testDetachResolvesThroughAlias]) { await t(); console.log(`ok ${t.name}`); } })()
     .catch((e) => { console.error(e); process.exit(1); });
 }
