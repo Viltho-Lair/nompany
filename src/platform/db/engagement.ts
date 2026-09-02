@@ -613,10 +613,58 @@ export async function readEngagementView(
   return { ref: root.ref, locked: isEngagementLocked(root), context: root.context, singletons: root.singletons, members };
 }
 
+/**
+ * APPLY A DESCRIPTOR AS A DEAL, MINTING AN IDENTITY THE FIRST TIME (Law 3).
+ *
+ * The descriptor is keyed by derivation, which is what makes the backfill
+ * idempotent and what must stop being identity: the moment a more important
+ * record arrives, a derivation yields a different id for the same work, and
+ * every record that resolved through the old one belongs to a deal that is no
+ * longer the same deal. Nothing recorded that it moved, because nothing moved
+ * it — the answer simply changed.
+ *
+ * Four steps, in this order, because the order is the correctness argument:
+ *
+ *   1. the alias, if one exists → the deal was minted earlier; apply there
+ *   2. a root at the derived id → a deal from before this change, whose derived
+ *      id IS its identity and is already fixed (no path edits a lineage, so
+ *      nothing can re-derive it). Grandfathered by fact, not by exception.
+ *   3. otherwise mint, ALIAS FIRST, then apply
+ *
+ * THE ALIAS IS WRITTEN BEFORE THE ROOT. Written after, a failure between the two
+ * leaves a deal that derivation cannot find, so the retry falls past both checks
+ * and mints a SECOND deal for the same chain — the exact failure the alias
+ * exists to prevent, reached by writing it late. In this order the same failure
+ * leaves an alias pointing at a root that does not exist yet, and the retry
+ * resolves through it and applies the descriptor there. It converges instead of
+ * forking, which is the only property worth having from an ordering.
+ */
+async function applyAsDeal(studioId: string, d: EngagementDescriptor): Promise<string> {
+  const derived = d.engId;
+
+  const aliased = await resolveDealId(studioId, derived);
+  if (aliased !== derived) {
+    await applyDescriptor(studioId, d);          // resolves to `aliased` itself
+    return aliased;
+  }
+
+  if (await readEngagement(studioId, derived)) {
+    await applyDescriptor(studioId, d);
+    return derived;
+  }
+
+  const dealId = ID.engagement();
+  await setDealAlias(studioId, derived, dealId);
+  await applyDescriptor(studioId, { ...d, engId: dealId });
+  return dealId;
+}
+
 // Dual-write helper: derive and persist the engagement for a just-created ticket,
 // reusing the SAME clustering the backfill uses so a live ticket and a backfilled
 // one are identical. Children (rfq/quotation/project) attach later as they're
-// created (Phase 1b-ii+). Returns the deterministic engId.
+// created (Phase 1b-ii+). Returns the deal id the descriptor was applied at —
+// a minted id the first time, the derived one for a deal grandfathered from
+// before this change (see applyAsDeal).
 export async function attachTicketEngagement(
   studioId: string, ticket: Record<string, unknown>, client: Record<string, unknown> | null,
 ): Promise<string> {
@@ -624,13 +672,13 @@ export async function attachTicketEngagement(
     salesTickets: [ticket],
     salesClients: client ? [client] : [],
   });
-  await applyDescriptor(studioId, descriptor);
-  return descriptor.engId;
+  return applyAsDeal(studioId, descriptor);
 }
 
 // Attach a spine record (rfq, converted quotation, invoice, …) to the ticket
-// engagement it belongs to. The ticket's engId is deterministic (spec §3.4),
-// so a caller never has to look it up first — no extra hop.
+// engagement it belongs to. The ticket's derived id is enough to name it — no
+// lookup here, because attachRecord resolves the alias itself, so a derived id
+// and a minted one both land on the same deal.
 export async function attachToTicketEngagement(
   studioId: string, type: string, recId: string, ticketId: string,
 ): Promise<void> {
@@ -639,15 +687,15 @@ export async function attachToTicketEngagement(
 
 // An internal (ticket-less) quotation mints its OWN engagement — the backfill's
 // orphan-quotation path, reused so a live internal quotation and a backfilled
-// one match byte-for-byte.
+// one match byte-for-byte. Returns the deal id the descriptor was applied at,
+// which is a minted id the first time (see applyAsDeal), not the derivation.
 export async function attachQuotationEngagement(
   studioId: string, quotation: Record<string, unknown>, client: Record<string, unknown> | null,
 ): Promise<string> {
   const [descriptor] = buildEngagements({
     quotations: [quotation], salesClients: client ? [client] : [],
   });
-  await applyDescriptor(studioId, descriptor);
-  return descriptor.engId;
+  return applyAsDeal(studioId, descriptor);
 }
 
 // A PROJECT RAISED DIRECTLY mints its OWN engagement — the backfill's
@@ -655,14 +703,15 @@ export async function attachQuotationEngagement(
 // match byte-for-byte. Same shape as attachQuotationEngagement one stage up,
 // and for the same reason: two implementations of one clustering is how the
 // live path and the reconciler come to disagree about which deal a record is on.
+// Returns the deal id the descriptor was applied at, which is a minted id the
+// first time (see applyAsDeal), not the derivation.
 export async function attachProjectEngagement(
   studioId: string, project: Record<string, unknown>, client: Record<string, unknown> | null,
 ): Promise<string> {
   const [descriptor] = buildEngagements({
     projects: [project], salesClients: client ? [client] : [],
   });
-  await applyDescriptor(studioId, descriptor);
-  return descriptor.engId;
+  return applyAsDeal(studioId, descriptor);
 }
 
 // Record which quotation a ticket's engagement has approved. A compare-and-set

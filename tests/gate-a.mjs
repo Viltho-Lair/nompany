@@ -2374,7 +2374,7 @@ console.log("== main: the engagement view — two NEW routes, and the safety pro
   // directly here so the fixture is one real invoice sitting on the ticket's
   // engagement exactly the way that dual-write would leave it, rather than a
   // faked-up payload shaped like one.
-  const { attachToTicketEngagement } = await import("@/platform/db/engagement");
+  const { attachToTicketEngagement, resolveDealId } = await import("@/platform/db/engagement");
 
   const P = ctx({ slug });
   const shot = async (name, payload) => {
@@ -2407,8 +2407,10 @@ console.log("== main: the engagement view — two NEW routes, and the safety pro
   const ticketId = ticket.body?.ticket?.id;
   ok("the fixture ticket was created", Boolean(ticketId), JSON.stringify(ticket.body).slice(0, 120));
 
-  // Deterministic, same as the dual-write mints (spec §5.4) — no extra read.
-  const engId = KEYS.deterministicEngId("ticket", ticketId);
+  // The dual-write now MINTS its own id (deal-aliases Task 3) and leaves this
+  // derivation as an alias rather than the deal's identity, so the fixture
+  // resolves it the same way any other caller holding a derived id must.
+  const engId = await resolveDealId(studio.id, KEYS.deterministicEngId("ticket", ticketId));
 
   const invoice = await capture(INVOICES.POST, req(`/api/studios/${slug}/finance/invoices`, { method: "POST", body: {
     clientName: "Engagement View Client", lines: [{ description: "Fixture line", qty: 1, unitPrice: 1000 }],

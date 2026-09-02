@@ -12,7 +12,7 @@ import { STAGE_REGISTRY } from "@/platform/engagement/registry";
 import { statusStage } from "@/platform/engagement/context";
 import { ENG } from "@/platform/db/keys";
 import { zRange } from "@/platform/db/store";
-import { readEngagement, readEngagementView, engagementIdFor, setEngagementLock } from "@/platform/db/engagement";
+import { readEngagement, readEngagementView, engagementIdFor, setEngagementLock, resolveDealId } from "@/platform/db/engagement";
 import { cascadeDeleteEngagement } from "@/platform/db/cascade";
 import type { EngagementLineage } from "@/platform/db/engagement";
 import { getSectionByKey } from "@/platform/db/sections";
@@ -255,9 +255,16 @@ export async function engagementBlock(
   const denied = requirePermission(ctx.access, "engagements.view");
   if (denied) return denied;
 
-  const root = await readEngagement(ctx.studio.id, engId);
+  // RESOLVED THROUGH THE ALIAS (deal-aliases Task 3): the id in this URL may be
+  // a derivation somebody bookmarked, linked from a notification, or typed off
+  // an older screen, and a deal minted after that point answers to a different
+  // id now. Without this the same "the answer simply changed" gap that
+  // detachRecord and applyDescriptor already close would 404 a deal that
+  // plainly exists — the reader's only fault being that their link predates it.
+  const dealId = await resolveDealId(ctx.studio.id, engId);
+  const root = await readEngagement(ctx.studio.id, dealId);
   if (!root) return { error: "notfound" };
-  const view = await readEngagementView(ctx.studio.id, engId);
+  const view = await readEngagementView(ctx.studio.id, dealId);
   if (!view) return { error: "notfound" };
 
   const visible = new Set(visibleStageTypes(ctx.access));
@@ -308,7 +315,10 @@ export async function engagementBlock(
   const { status, statusType } = statusOf(cards, template?.statusChain ?? []);
   return {
     engagement: {
-      id: engId,
+      // THE RESOLVED id, not the one the caller sent — a reader who followed a
+      // derivation should get back the deal's real address, not the alias they
+      // happened to arrive through.
+      id: dealId,
       ref: String(root.ref || ""),
       // PROJECTED, not passed through. root.context is built by buildEngagements
       // (src/platform/engagement/backfill.ts) straight from the sales ticket, so
