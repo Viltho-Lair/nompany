@@ -367,14 +367,45 @@ export type MintDeps = {
  * finds neither, and that is swallowed here so the caller raises this module's
  * own error instead of the package's.
  */
+/** Why each source came up empty, kept so a failure is diagnosable rather than bare. */
+let lastTokenFailure = "";
+
 async function readSubjectToken(): Promise<string | undefined> {
+  const tried: string[] = [];
+
+  // 1. The package's own reader. Uses @vercel/functions' request context.
   try {
     const token = await getVercelOidcToken();
     if (token) return token;
-  } catch {
-    // No request context and no pulled token — the caller's error says what to do.
+    tried.push("getVercelOidcToken() returned empty");
+  } catch (e) {
+    tried.push(`getVercelOidcToken() threw: ${e instanceof Error ? e.message : String(e)}`);
   }
-  return process.env.VERCEL_OIDC_TOKEN;
+
+  // 2. THE REQUEST HEADER, DIRECTLY. The context above is populated for
+  //    functions; a Next SERVER COMPONENT render does not always run inside it,
+  //    and every failing stack in the cutover was an `ssr` chunk rather than a
+  //    route handler. Vercel puts the token on the request as
+  //    `x-vercel-oidc-token`, and next/headers can read it wherever Next itself
+  //    is rendering — which is precisely the case the package's reader missed.
+  //
+  //    Imported dynamically because this module is also loaded outside Next (a
+  //    test, a script), where next/headers does not resolve at all.
+  try {
+    const { headers } = await import("next/headers");
+    const token = (await headers()).get("x-vercel-oidc-token");
+    if (token) return token;
+    tried.push("x-vercel-oidc-token header absent");
+  } catch (e) {
+    tried.push(`next/headers unavailable: ${e instanceof Error ? e.message : String(e)}`);
+  }
+
+  // 3. Build time, and local `vercel env pull`.
+  if (process.env.VERCEL_OIDC_TOKEN) return process.env.VERCEL_OIDC_TOKEN;
+  tried.push("process.env.VERCEL_OIDC_TOKEN unset");
+
+  lastTokenFailure = tried.join("; ");
+  return undefined;
 }
 
 /** One full chain, uncached — exported so a test can drive it with a fake fetch. */
@@ -397,7 +428,11 @@ export async function mintGatewayIdToken(deps: MintDeps = {}): Promise<string> {
         "the same name exists only during the build and in a local `vercel env pull`. Check that OIDC " +
         "federation is enabled for the project, and that this call is inside a request — a module-scope " +
         "or background call has no request to read it from. Elsewhere there is no identity at all and " +
-        "PG_TRANSPORT must stay `direct`.",
+        "PG_TRANSPORT must stay `direct`." +
+        // EVERY SOURCE, AND WHY EACH ONE FAILED. Without this the message names
+        // three possible causes and says nothing about which one actually
+        // happened — and each guess costs a full production deploy to test.
+        (lastTokenFailure ? ` Sources tried — ${lastTokenFailure}.` : ""),
     );
   }
 
