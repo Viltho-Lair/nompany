@@ -20,6 +20,7 @@ s:<sid>:eng:<engId>:members:<type>   ZSET of recIds, scored by createdAt (many-c
 s:<sid>:eng-index                    ZSET of every engId in the studio, scored by createdAt
 s:<sid>:eng-ix:has:<type>            SET of engIds that have this stage
 s:<sid>:rec-eng:<type>:<recId>       reverse index: record -> its engId
+s:<sid>:eng-alias:<aliasId>          a derived id -> the minted deal it now resolves to
 s:<sid>:rec:<type>:<recId>           declared; records still live in the section arrays
 ```
 
@@ -49,12 +50,33 @@ document. Member keys use the **singular** registry type (`rfq`, `quotation`, `i
 the same identifier `attachRecord` uses, so a backfilled record and a live-created one land
 in the same set. Plural keys were a real bug once.
 
-**Ids are deterministic.** `deterministicEngId(headType, headId)` — pure-JS SHA-1 in
-`src/platform/db/engagementId.ts`, deliberately NOT `node:crypto`, because `keys.ts` is
-reachable from a client component and importing crypto there costs ~130 KB gzipped. A
-ticket-headed deal is `deterministicEngId("ticket", ticketId)`; an internal quotation mints
-its own from its own id. Same chain, same id, every time — that is what makes the backfill
-idempotent.
+**Ids are minted, and the derivation is a lookup helper.** A deal opened now carries an
+`ID.engagement()` id that never moves, and `deterministicEngId(headType, headId)` — pure-JS
+SHA-1, see the header of `src/platform/db/engagementId.ts` for why it is not node:crypto —
+is written onto it as an ALIAS (`s:<sid>:eng-alias:<aliasId>`). Anything holding a derived
+id resolves through `resolveDealId` and lands on the deal.
+
+This is Law 3: a record arriving out of order attaches, it never re-roots. A derived
+identity could not promise that, because the moment a more important record arrived the
+derivation yielded a different id for the same work.
+
+**Deals created before this change keep their derived id**, which is still an id that never
+moves — no path in the product edits a record's lineage, so nothing can re-derive them.
+They have no alias and `resolveDealId` returns them unchanged. The two id spaces coexist
+permanently and neither is rewritten.
+
+**The rule for any code holding an engagement id: resolve before you use it, unless the
+function you are calling already will.** `attachRecord`, `detachRecord` and
+`applyDescriptor` resolve through `resolveDealId` for their callers, so a create, a detach or
+a reconcile pass never needs to ask twice. Everything else that receives an id which might be
+a derivation — a URL, a notification, a bookmark, a lineage just computed from a quotation —
+resolves it itself, once, before reading or writing anything: `engagementBlock`,
+`deletionImpact`, `engagementImpact`, `lockEngagement` and `removeEngagement`
+(`src/modules/main/engagements.ts`) each resolve the id in the request before touching the
+root, and `quotationSource` (`src/modules/projects/projects.ts`) resolves the id it derives
+from a quotation's lineage before reading the deal's context for the client. `listMembers` is
+the deliberate exception — see its own comment for why an alias lookup there would multiply
+per stage on every screen instead of once at the top.
 
 **The registry is the single source of what a stage is** —
 `src/platform/engagement/registry.ts`, pure, importable by a client component. One entry per
@@ -266,3 +288,7 @@ to live once; 7 engagements proven.
   candidate, but nothing enforces that it stays so.
 - Deep links from a stage card (the backend does not emit `href`), and no `engagements` live
   channel.
+- **Nothing re-roots a deal, because nothing can.** The alias makes a late-arriving record
+  safe; it does not add one. Attaching a ticket to an existing project is still not
+  possible in the product, and `setDealAlias` refuses to repoint an alias — a merge is a
+  deliberate operation with its own rules and nothing implements it.
