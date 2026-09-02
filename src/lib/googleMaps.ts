@@ -1,10 +1,21 @@
 "use client";
 
-// Single Google Maps JS loader for the whole app — inject the script once and
-// resolve to `window.google`. The key is a NEXT_PUBLIC_ env var; it is a browser
-// key restricted by HTTP referrer in the Cloud Console, never a server secret.
-// If a map is ever needed elsewhere, import this — do not add a second <script>
-// or a second key.
+// Single Google Maps JS loader for the whole app — fetch the key, inject the
+// script once, resolve to `window.google`. If a map is ever needed elsewhere,
+// import this — do not add a second <script> or a second key.
+//
+// THE KEY IS FETCHED FROM THE SERVER, NOT INLINED. It used to be
+// NEXT_PUBLIC_GOOGLE_MAPS_API_KEY, and that prefix is what makes Next bake a
+// value into the static client bundle — readable by anyone who could fetch a JS
+// file, and not revocable without a rebuild. It now comes from
+// `/api/studios/<slug>/operations/maps-key`, which answers only somebody the
+// operations context has already admitted to the studio.
+//
+// THAT DOES NOT MAKE IT SECRET. The Maps JS API takes the key as a URL
+// parameter on a script tag, so it is in the network tab of everybody who sees
+// a map. The narrowing is real (anonymous visitors and the bundle no longer
+// have it) and the protection is still the HTTP-referrer restriction on the key
+// in Google Cloud Console.
 //
 // UNLIKE THE OLD SYSTEM, there is no hard geographic clamp. That product served
 // one company in one city and pinned every map inside Riyadh; this one is
@@ -16,9 +27,39 @@
 // never loaded.
 let promise: Promise<unknown> | null = null;
 
-export function googleMapsKey() {
-  return process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
+/**
+ * WHY A STUDIO'S SCREEN ASKS FOR THE KEY rather than reading it: the route that
+ * answers is membership-gated, so the slug is what makes the question
+ * answerable at all. Memoised per page load — one fetch however many maps the
+ * screen builds — and nulled on failure so a retry is a retry rather than a
+ * cached refusal.
+ */
+let keyPromise: Promise<string> | null = null;
+
+export function googleMapsKey(slug: string): Promise<string> {
+  if (keyPromise) return keyPromise;
+  keyPromise = (async () => {
+    const res = await fetch(`/api/studios/${encodeURIComponent(slug)}/operations/maps-key`, { cache: "no-store" });
+    // A REFUSAL IS NOT "UNCONFIGURED". 403 means this person may not see the
+    // map, which is a different thing from the studio not having one, and
+    // flattening the two would tell somebody a map exists nowhere when it
+    // exists everywhere but for them.
+    if (!res.ok) throw new Error("Google Maps could not be loaded.");
+    const data = (await res.json()) as { key?: unknown };
+    return String(data?.key || "");
+  })();
+  keyPromise = keyPromise.catch((e) => { keyPromise = null; throw e; });
+  return keyPromise;
 }
+
+/**
+ * The refusal a caller must be able to tell apart: the studio has no key, so
+ * there is no map to build and nothing has gone wrong. The screen renders its
+ * "no map configured" panel on this and an error on anything else.
+ */
+export const NOT_CONFIGURED = "maps/not-configured";
+const notConfigured = () =>
+  Object.assign(new Error("Google Maps is not configured."), { code: NOT_CONFIGURED });
 
 // `window.google` IS INJECTED BY A SCRIPT TAG, so nothing in this repository
 // declares it. Narrowed at the one place that reads it rather than declared
@@ -47,34 +88,36 @@ type NamedGlobals = Record<string, unknown>;
 // a retry after a failed load cannot be resolved by the previous script tag.
 let callbackSeq = 0;
 
-export function loadGoogleMaps() {
+export function loadGoogleMaps(slug: string) {
   if (typeof window === "undefined") return Promise.reject(new Error("Google Maps can only load in the browser."));
   const w = window as MapsWindow;
   if (w.google && w.google.maps) return Promise.resolve(w.google);
   if (promise) return promise;
 
-  const key = googleMapsKey();
-  if (!key) return Promise.reject(new Error("Google Maps is not configured."));
-
   promise = new Promise((resolve, reject) => {
     const cb = `__nompanyMapsReady${++callbackSeq}`;
     const globals = w as unknown as NamedGlobals;
     const done = () => { delete globals[cb]; };
-
-    globals[cb] = () => {
-      done();
-      if (w.google && w.google.maps) resolve(w.google);
-      else { promise = null; reject(new Error("Google Maps failed to initialise.")); }
-    };
-
-    const s = document.createElement("script");
-    s.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&v=weekly&loading=async&callback=${cb}`;
-    s.async = true;
-    s.defer = true;
-    // Null the promise on failure so a later attempt can retry rather than
+    // Null the promise on any failure so a later attempt can retry rather than
     // resolving forever against a script that never loaded.
-    s.onerror = () => { done(); promise = null; reject(new Error("Failed to load Google Maps.")); };
-    document.head.appendChild(s);
+    const fail = (err: Error) => { done(); promise = null; reject(err); };
+
+    googleMapsKey(slug).then((key) => {
+      if (!key) return fail(notConfigured());
+
+      globals[cb] = () => {
+        done();
+        if (w.google && w.google.maps) resolve(w.google);
+        else fail(new Error("Google Maps failed to initialise."));
+      };
+
+      const s = document.createElement("script");
+      s.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&v=weekly&loading=async&callback=${cb}`;
+      s.async = true;
+      s.defer = true;
+      s.onerror = () => fail(new Error("Failed to load Google Maps."));
+      document.head.appendChild(s);
+    }, fail);
   });
   return promise;
 }

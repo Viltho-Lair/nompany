@@ -15,7 +15,7 @@ import {
   DAYS, normalizeSchedule, normalizeLegend, visibleWindow, startOfWeekSunday, addDays as addCalendarDays,
   dayKey, barGeometry, dayRoster,
 } from "@/modules/operations/operationsCalendar";
-import { loadGoogleMaps, defaultMapOptions, googleMapsKey } from "@/lib/googleMaps";
+import { loadGoogleMaps, defaultMapOptions, NOT_CONFIGURED } from "@/lib/googleMaps";
 import { StatusPill } from "@/components/studio2/StatusPill";
 
 const panel = "rounded-geex border border-slate-200/70 bg-[var(--geex-surface)] p-6 dark:border-white/10";
@@ -795,6 +795,12 @@ function Tracking({ slug, positions, meId, canManageTracking, onClear, onRefresh
   const [status, setStatus] = useState({ text: tr.notSharing, tone: "idle" });
   const [fix, setFix] = useState(null);
   const [mapError, setMapError] = useState("");
+  // ASSUMED CONFIGURED UNTIL THE LOADER SAYS OTHERWISE. Whether there is a key
+  // is now a question for the server (it is no longer in the bundle — see
+  // lib/googleMaps), so it cannot be answered during the first render. Starting
+  // at `true` means a studio that HAS a map does not flash "no map configured"
+  // on every visit; a studio that has none corrects itself one round trip later.
+  const [mapConfigured, setMapConfigured] = useState(true);
   const mapRef = useRef(null);
   const gRef = useRef(null);
   const mapObj = useRef(null);
@@ -805,19 +811,24 @@ function Tracking({ slug, positions, meId, canManageTracking, onClear, onRefresh
 
   const tone = { live: "text-emerald-600 dark:text-emerald-400", warn: "text-amber-600 dark:text-amber-400", stop: "text-rose-600 dark:text-rose-400", idle: "text-slate-500 dark:text-slate-400" };
 
-  // Build the map once, if there is a key to build it with.
+  // Build the map once. The key is fetched from a membership-gated route, so
+  // "there is no map" and "the map failed" are different answers and are told
+  // apart by the loader's own refusal code rather than by the message text.
   useEffect(() => {
-    if (!googleMapsKey()) return undefined;
     let alive = true;
-    loadGoogleMaps()
+    loadGoogleMaps(slug)
       .then((g) => {
         if (!alive || !mapRef.current) return;
         gRef.current = g;
         mapObj.current = new g.maps.Map(mapRef.current, defaultMapOptions());
       })
-      .catch((e) => { if (alive) setMapError(e.message); });
+      .catch((e) => {
+        if (!alive) return;
+        if (e?.code === NOT_CONFIGURED) setMapConfigured(false);
+        else setMapError(e.message);
+      });
     return () => { alive = false; };
-  }, []);
+  }, [slug]);
 
   // Redraw whenever the reported positions change.
   useEffect(() => {
@@ -933,7 +944,7 @@ function Tracking({ slug, positions, meId, canManageTracking, onClear, onRefresh
         </div>
       </section>
 
-      {!googleMapsKey() ? (
+      {!mapConfigured ? (
         <Empty title={tr.noMapConfigured} body={tr.listBelowStillWorks} />
       ) : (
         <section className={`${panel} p-0`}>
