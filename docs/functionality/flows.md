@@ -116,11 +116,34 @@ reads every industry once. They agree only because the precedence lives in one p
 function — two copies would mean the screen showing one flow while the warning counted
 deals against another.
 
-**Counted from the engagement roots, not from `ENG.hasStage`.** That index looks like
-exactly what this wants — a set of deal ids per stage type — but it is written only by
-`attachRecord` and `promote`, never by `applyDescriptor`, which is the path every
-ticket-minted deal takes. Counting from it would report most of a studio's deals as not
-existing.
+### Counting per stage
+
+"14 deals walk this flow" says the edit is not free; **"9 of them have a quotation you are
+about to drop"** says whether THIS edit is the expensive one. The dialog names each stage
+being removed that the flow's deals actually hold.
+
+That count comes from `ENG.hasStage`, a set of deal ids per stage type. It was **written by
+`attachRecord` and `promote`, never by `applyDescriptor`** — the path every ticket-minted
+deal takes — and **read by nothing at all**, which is why it survived: a half-written index
+that answers no question produces no wrong answer to notice. The first reader got one, and
+it was confident. `applyDescriptor` now maintains it, for members and for singletons, keyed
+by `SLOT_TYPE` rather than the slot (`approvedQuotation` names a record whose type is
+`quotation`, and the index is keyed by type).
+
+**A deal indexed before that is repaired by re-running the backfill**, which routes through
+`applyDescriptor` and is idempotent — a re-apply neither adds a membership nor drops one:
+
+```bash
+NOMPANY_KEY_PREFIX=<ns> node scripts/migrate/backfill-engagements.mjs --apply
+```
+
+**Until it is repaired, no per-stage number is shown.** `stagesComplete` is checked against
+the ROOTS — every filled singleton is a membership the index must hold — rather than by
+asking whether a deal appears in *at least one* set, which passes a PARTIALLY indexed deal.
+That was not hypothetical: a studio reported `stagesComplete: true` beside `{contract: 2}`
+and no tickets, because a contract had been attached (indexed) to deals whose opening ticket
+never was. A confident number missing half its subject is the failure the flag exists to
+prevent, not one it was catching.
 
 **Capped at 500 deals, newest first.** The warning's job is "this edit reaches work that
 already exists", not a census; a saturated studio reports `500+` rather than a round number
@@ -153,15 +176,9 @@ hand-rolled for the same reason.
   pointing at nothing. `defaultTemplateForStudio` returns `""` in that case and the deal
   screen falls back to Template A, so nothing breaks; the industry just stops meaning what
   it says. Re-pointing those industries in the same write would be the fix.
-- **The count is per FLOW, not per stage.** It says "14 deals walk this flow", not "9 of
-  them have a quotation you are about to drop from it". The per-stage number is the one
-  that would actually tell somebody whether a particular removal matters, and it needs an
-  index that does not exist yet — see `ENG.hasStage` below.
-- **`ENG.hasStage` is written, never read, and incompletely maintained.** `attachRecord`
-  and `promote` add to it and `detachRecord` removes from it, but `applyDescriptor` — the
-  path every ticket-minted deal takes — does not, and no code anywhere reads it. It is a
-  dead index with a live cost: every attach pays a write nobody spends. Either make it
-  complete (and use it for the per-stage count above) or delete it.
+- **The per-stage count needs the index to have been backfilled**, and until it has been the
+  screen shows no per-stage numbers at all. `stagesComplete` says whether they can be
+  trusted; see "Counting per stage" above for why a confident zero would be worse than none.
 - **An industry's key cannot be changed** — it is derived from the name on create and shown
   read-only after. That is deliberate (a deal stores it), but there is no rename-and-migrate
   path either.

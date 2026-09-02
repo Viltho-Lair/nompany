@@ -206,7 +206,9 @@ export default function StudioFlowEditor({ slug, tr }) {
         <ConfirmFlowChange
           confirm={confirm}
           industries={data.industries}
+          stored={data.templates.find((t) => t.id === confirm.template.id) || null}
           usage={data.usage}
+          locale={locale}
           tr={tr}
           busy={busy}
           onClose={() => setConfirm(null)}
@@ -429,9 +431,28 @@ function TemplateEditor({ draft, setDraft, tr, locale, busy, usage, onCancel, on
  * through a different flow, shows different stages and reports a different
  * status.
  */
-function ConfirmFlowChange({ confirm, industries, usage, tr, busy, onClose, onGo }) {
+function ConfirmFlowChange({ confirm, industries, stored, usage, locale, tr, busy, onClose, onGo }) {
   const { kind, template } = confirm;
   const n = dealsOn(usage, template.id);
+
+  // WHICH STAGES THE DEALS ALREADY HAVE THAT THIS EDIT WOULD DROP.
+  //
+  // "14 deals walk this flow" tells somebody the edit is not free; this tells
+  // them whether THIS edit is the expensive one. Diffed against the flow as
+  // stored rather than against the seed, because what matters is what these
+  // deals were being read through a moment ago.
+  //
+  // WITHHELD ENTIRELY WHEN THE INDEX IS INCOMPLETE. ENG.hasStage went unwritten
+  // by applyDescriptor for as long as nothing read it, so a studio that has not
+  // re-run the backfill has older deals in no set at all — and "0 deals have a
+  // quotation" for a flow where nine do is a confident wrong number somebody
+  // would act on. No number is the honest answer until the index is whole.
+  const losing = (kind === "edit" && stored && usage?.stagesComplete)
+    ? stored.stages
+      .filter((st) => !template.stages.includes(st))
+      .map((st) => ({ type: st, count: usage.stages?.[template.id]?.[st] || 0 }))
+      .filter((x) => x.count > 0)
+    : [];
   const body = kind === "revert" ? tr.flowConfirmRevert(n, template.name)
     : kind === "delete" ? tr.flowConfirmDelete(n, template.name)
     : tr.flowConfirmEdit(n, template.name);
@@ -447,6 +468,20 @@ function ConfirmFlowChange({ confirm, industries, usage, tr, busy, onClose, onGo
 
   return (
     <Dialog title={tr.flowConfirmHeading} description={body} onClose={onClose} width="max-w-[560px]">
+      {losing.length > 0 && (
+        <div className="mt-3 rounded-xl bg-amber-50 px-4 py-2.5 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
+          <p>{tr.flowStagesLosing}</p>
+          <ul className="mt-1.5 list-disc ps-5">
+            {losing.map((x) => (
+              <li key={x.type}>
+                {stageLabel(x.type, STAGE_REGISTRY[x.type]?.label || x.type, locale)}
+                {" — "}
+                <span className="num">{tr.flowDealCount(x.count)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       <p className="text-sm text-slate-500 dark:text-slate-400">{tr.flowConfirmKept}</p>
       {orphaned.length > 0 && (
         <p className="mt-2 rounded-xl bg-amber-50 px-4 py-2.5 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">

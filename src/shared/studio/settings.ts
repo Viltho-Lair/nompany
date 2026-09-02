@@ -180,6 +180,7 @@ type Strings = {
   flowConfirmKept: string;
   flowConfirmOrphans: (names: string) => string;
   flowConfirmGo: string;
+  flowStagesLosing: string;
 };
 
 const en: Strings = {
@@ -369,6 +370,7 @@ const en: Strings = {
   flowConfirmKept: "No record is deleted. A stage this flow no longer lists is still shown on the deals that have one, marked as outside the flow.",
   flowConfirmOrphans: (names) => `These industries start deals here and would be left pointing at nothing: ${names}.`,
   flowConfirmGo: "I understand — change it",
+  flowStagesLosing: "Stages these deals already have that this flow would stop listing:",
 };
 
 const ar: Strings = {
@@ -577,6 +579,7 @@ const ar: Strings = {
   flowConfirmKept: "لا يُحذف أي سجل. المرحلة التي لم يعد المسار يذكرها تبقى ظاهرة على الصفقات التي تملكها، موسومة بأنها خارج المسار.",
   flowConfirmOrphans: (names) => `هذه القطاعات تبدأ صفقاتها هنا وستبقى تشير إلى لا شيء: ${names}.`,
   flowConfirmGo: "أفهم ذلك — نفّذ التغيير",
+  flowStagesLosing: "مراحل تملكها هذه الصفقات ولن يعود المسار يذكرها:",
 };
 
 const settings = { en, ar };

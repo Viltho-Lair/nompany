@@ -522,9 +522,37 @@ export async function applyDescriptor(studioId: string, d: EngagementDescriptor)
       await zAdd(ENG.members(studioId, d.engId, type), 0, recId);
       await setJSON(ENG.recEng(studioId, type, recId), d.engId);
     }
+    // THE HAS-STAGE INDEX, WRITTEN HERE TOO — it used to be attachRecord's
+    // alone, which is the same shape of bug the reverse index above already
+    // had and the same fix.
+    //
+    // Every ticket-minted deal reaches storage through this function and never
+    // through attachRecord, so the index knew about records attached to a deal
+    // afterwards and nothing about the deal's own opening stages. It went
+    // unnoticed for as long as it did because NOTHING READ IT: a half-written
+    // index costs a write per attach and answers no question, so there was no
+    // wrong answer to notice. The first reader would have got one — most of a
+    // studio's deals reported as not having the stages they were opened with.
+    //
+    // One membership per TYPE, not per record: this answers "does this deal
+    // have a quotation", so a deal with four of them is one member.
+    if (ids.length) await sAdd(ENG.hasStage(studioId, type), d.engId);
   }
   for (const [slot, recId] of Object.entries(d.singletons)) {
-    if (recId) await setJSON(ENG.recEng(studioId, slot, recId), d.engId);
+    if (!recId) continue;
+    // SLOT_TYPE, NOT THE SLOT. `approvedQuotation` is a slot naming a record
+    // whose type is `quotation`, and both of these indexes are keyed by type —
+    // engagementOf and the has-stage count are asked with a registry type, and
+    // nobody has ever asked either of them for an "approvedQuotation".
+    //
+    // The reverse-index write was already harmless rather than wrong: the
+    // approved quotation is also in members.quotation, so the loop above writes
+    // the same key with the same value. What it produced was a dead key nothing
+    // reads. New writes stop making one; the ones already written are
+    // unreferenced rather than incorrect, and are left alone.
+    const type = SLOT_TYPE[slot] || slot;
+    await setJSON(ENG.recEng(studioId, type, recId), d.engId);
+    await sAdd(ENG.hasStage(studioId, type), d.engId);
   }
 }
 

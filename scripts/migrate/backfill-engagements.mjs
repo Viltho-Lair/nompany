@@ -165,8 +165,16 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
     }
   } catch { /* CI or an already-exported shell */ }
 
-  if (!process.env.REDIS_URL) {
-    console.error("REDIS_URL is not set — nothing to read from.");
+  // THE STORE IS POSTGRES NOW, and this checked for REDIS_URL — which no longer
+  // exists anywhere, so the script refused to start at all. It reads through the
+  // store abstraction and never named a backend otherwise; only this guard did.
+  //
+  // It matters beyond starting up: applyDescriptor is what repairs ENG.hasStage
+  // for deals created before that index was maintained on this path, so this
+  // script IS the documented repair and a guard on a deleted variable made it
+  // unrunnable.
+  if (!process.env.DATABASE_URL) {
+    console.error("DATABASE_URL is not set — nothing to read from.");
     process.exit(1);
   }
 

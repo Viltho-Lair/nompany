@@ -25,7 +25,8 @@ import {
   pickTemplate, industryKeyOf,
 } from "@/platform/db/flows";
 import { ENG } from "@/platform/db/keys";
-import { zRange, getJSONMany } from "@/platform/db/store";
+import { SLOT_TYPE } from "@/platform/db/engagement";
+import { zRange, getJSONMany, sMembers } from "@/platform/db/store";
 import type { FlowTemplate, BillingTrigger } from "@/platform/engagement/templates";
 import type { IndustryEntry } from "@/platform/engagement/industries";
 
@@ -105,6 +106,25 @@ const USAGE_SCAN_CAP = 500;
 export type FlowUsage = {
   /** templateId → how many of the scanned deals walk it. */
   deals: Record<string, number>;
+  /**
+   * templateId → stage type → how many of that flow's deals already hold one.
+   *
+   * This is the number that tells somebody whether a particular removal
+   * matters: "14 deals walk this flow" does not, "9 of them have a quotation
+   * you are about to drop from it" does.
+   */
+  stages: Record<string, Record<string, number>>;
+  /**
+   * FALSE WHEN THE COUNTS ABOVE CANNOT BE TRUSTED, and it is not a nicety.
+   *
+   * `ENG.hasStage` was written by attachRecord and never by applyDescriptor, so
+   * until the backfill is re-run a studio's older deals are in no set at all.
+   * The counts would then read "0 of them have a quotation" for a flow where
+   * nine do — and a confident zero is worse than an absent number, because
+   * somebody acts on it. When this is false the screen shows no per-stage
+   * figures at all.
+   */
+  stagesComplete: boolean;
   scanned: number;
   /** True when the studio has more deals than the scan looked at. */
   capped: boolean;
@@ -139,24 +159,94 @@ export async function flowUsage(ctx: Ctx): Promise<FlowUsage> {
   const ids = await zRange(ENG.index(ctx.studioId), 0, USAGE_SCAN_CAP, { rev: true });
   const scanned = Math.min(ids.length, USAGE_SCAN_CAP);
   const roots = scanned
-    ? await getJSONMany<{ templateId?: string; context?: Record<string, unknown> }>(
+    ? await getJSONMany<{
+        templateId?: string;
+        context?: Record<string, unknown>;
+        singletons?: Record<string, string | null>;
+      }>(
         ids.slice(0, scanned).map((id) => ENG.root(ctx.studioId, id)),
       )
     : [];
 
   const deals: Record<string, number> = {};
-  for (const root of roots) {
-    if (!root) continue;
+  const dealsByTemplate = new Map<string, Set<string>>();
+  /** [dealId, stageType] pairs the index is REQUIRED to contain. */
+  const expected: Array<[string, string]> = [];
+  roots.forEach((root, i) => {
+    if (!root) return;
     // The SAME precedence the deal screen resolves with — pickTemplate, shared,
     // so the number here can never disagree with the flow a deal actually walks.
     const industryKey = industryKeyOf(root.context);
     const chosen = pickTemplate(templates, String(root.templateId || ""), primaryOf.get(industryKey) || "");
-    if (chosen) deals[chosen.id] = (deals[chosen.id] ?? 0) + 1;
+    if (!chosen) return;
+    deals[chosen.id] = (deals[chosen.id] ?? 0) + 1;
+    const set = dealsByTemplate.get(chosen.id) || new Set<string>();
+    set.add(ids[i]);
+    dealsByTemplate.set(chosen.id, set);
+
+    // WHAT THE INDEX MUST ALREADY KNOW ABOUT THIS DEAL, taken from the root
+    // rather than from the index being checked. A filled singleton slot is a
+    // stage the deal demonstrably has, so its membership is not a guess — it is
+    // a fact the root states and the index must agree with.
+    //
+    // SLOT_TYPE, not the slot: `approvedQuotation` is a slot naming a record
+    // whose TYPE is `quotation`, and the index is keyed by type.
+    for (const [slot, recId] of Object.entries(root.singletons || {})) {
+      if (recId) expected.push([ids[i], SLOT_TYPE[slot] || slot]);
+    }
+  });
+
+  // ---- per stage, for the flows that actually have deals --------------------
+  //
+  // Only the stages of flows somebody is walking are read. A studio using one
+  // template pays for that template's stages, not for all twenty types across
+  // seven flows it has never touched.
+  const wanted = new Set<string>();
+  for (const id of dealsByTemplate.keys()) {
+    for (const st of templates.find((t) => t.id === id)?.stages || []) wanted.add(st);
+  }
+  const held = new Map<string, Set<string>>();
+  await Promise.all([...wanted].map(async (type) => {
+    held.set(type, new Set(await sMembers(ENG.hasStage(ctx.studioId, type))));
+  }));
+
+  // COMPLETENESS IS CHECKED AGAINST THE ROOTS, one membership at a time.
+  //
+  // The first version of this asked whether a scanned deal appeared in AT LEAST
+  // ONE set. That passes a PARTIALLY indexed deal, and partial is exactly the
+  // state this index was in: attachRecord wrote a contract's membership while
+  // applyDescriptor never wrote the ticket the deal was opened with. The sandbox
+  // duly reported `stagesComplete: true` alongside `{contract: 2}` and no
+  // tickets — a confident number that was missing half its subject, which is
+  // the failure the flag exists to prevent rather than one it was catching.
+  //
+  // Each filled singleton on a root is a membership the index MUST hold. A type
+  // whose set was not read (its flow has no deals) is skipped rather than
+  // counted as missing — absent from `held` means unexamined, not absent from
+  // the index.
+  const missing = expected.filter(([dealId, type]) => held.has(type) && !held.get(type)?.has(dealId));
+
+  const stages: Record<string, Record<string, number>> = {};
+  for (const [templateId, dealIds] of dealsByTemplate) {
+    const perStage: Record<string, number> = {};
+    for (const type of templates.find((t) => t.id === templateId)?.stages || []) {
+      const set = held.get(type);
+      if (!set) continue;
+      let n = 0;
+      for (const dealId of dealIds) if (set.has(dealId)) n += 1;
+      if (n) perStage[type] = n;
+    }
+    stages[templateId] = perStage;
   }
 
   // `ids` is read one past the cap precisely so this can tell the truth about
   // there being more, rather than reporting a round number as if it were all.
-  return { deals, scanned, capped: ids.length > USAGE_SCAN_CAP };
+  return {
+    deals, stages,
+    stagesComplete: missing.length === 0,
+    scanned,
+    capped: ids.length > USAGE_SCAN_CAP,
+  };
 }
 
 // ---- templates --------------------------------------------------------------

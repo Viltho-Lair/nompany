@@ -260,6 +260,68 @@ try {
       JSON.stringify({ site: reapplied?.context.site, rank: reapplied?.provenance?.site }));
   }
 
+  console.log("== the has-stage index is written by BOTH paths, or it is worse than none");
+  {
+    const { ENG } = await import("@/platform/db/keys");
+    const { sMembers } = await import("@/platform/db/store");
+    const memberOf = async (type) => new Set(await sMembers(ENG.hasStage(S, type)));
+
+    // THE DEFECT: ENG.hasStage was written by attachRecord and by promote, and
+    // NOT by applyDescriptor — the path every ticket-minted deal takes. It was
+    // also read by nothing, which is why it survived: a half-written index that
+    // answers no question produces no wrong answer to notice. The first reader
+    // got one, and it was confident — a flow's deals reported as not having the
+    // stage they were opened with.
+    const engId = "eng_hasstage_1";
+    await E.applyDescriptor(S, {
+      engId, ref: "HS-1",
+      context: { title: "Indexed on both paths" },
+      singletons: { ticket: "sal_hs_1", approvedQuotation: "quo_hs_1", project: null },
+      members: { quotation: ["quo_hs_1"], invoice: ["inv_hs_1", "inv_hs_2"] },
+    });
+
+    ok("a descriptor's singleton is indexed", (await memberOf("ticket")).has(engId));
+    ok("...its members are too", (await memberOf("invoice")).has(engId));
+    ok("...and a deal with two invoices is ONE member, not two",
+      [...(await memberOf("invoice"))].filter((x) => x === engId).length === 1);
+
+    // approvedQuotation is a SLOT naming a record whose type is `quotation`, and
+    // the index is keyed by type. Writing it under the slot name would file the
+    // deal under a stage no reader ever asks for.
+    ok("a slot is indexed under its TYPE, not its slot name",
+      (await memberOf("quotation")).has(engId));
+    ok("...and nothing is filed under the slot name itself",
+      (await memberOf("approvedQuotation")).size === 0);
+
+    // Re-applying is what repairs a deal indexed before this path wrote it, so
+    // it has to be idempotent rather than merely tolerated.
+    //
+    // MEASURED AS GROWTH, not as an absolute count: hasStage is studio-wide and
+    // this namespace already holds another ticket-headed deal, so "one member"
+    // was never the right question. A set cannot hold a duplicate anyway — what
+    // a second apply could do is add a SECOND deal id, or drop the first.
+    const ticketsBefore = (await memberOf("ticket")).size;
+    await E.applyDescriptor(S, {
+      engId, ref: "HS-1",
+      context: { title: "Indexed on both paths" },
+      singletons: { ticket: "sal_hs_1", approvedQuotation: "quo_hs_1", project: null },
+      members: { quotation: ["quo_hs_1"], invoice: ["inv_hs_1", "inv_hs_2"] },
+    });
+    const ticketsAfter = await memberOf("ticket");
+    ok("a re-apply neither adds a membership nor drops one",
+      ticketsAfter.size === ticketsBefore && ticketsAfter.has(engId),
+      JSON.stringify({ before: ticketsBefore, after: ticketsAfter.size }));
+
+    // The other half of the pair: the index must forget too, and only once the
+    // LAST record of that type is gone.
+    await E.detachRecord(S, engId, "invoice", "inv_hs_1");
+    ok("detaching one of two invoices keeps the deal in the index",
+      (await memberOf("invoice")).has(engId));
+    await E.detachRecord(S, engId, "invoice", "inv_hs_2");
+    ok("...and detaching the last one removes it",
+      !(await memberOf("invoice")).has(engId));
+  }
+
   console.log("== Law 4's other half: every overwrite leaves a trace");
   {
     const audit = await import("@/platform/http/audit");
