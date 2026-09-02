@@ -4532,6 +4532,20 @@ console.log("== the flow editor: a studio owns its flows, and a refusal says why
 
   const seen = await (await FLOWS.GET(req(), { params: params(slug) })).json();
   ok("a studio reads the seven built-in flows", seen.templates?.length === 7, String(seen.templates?.length));
+  // THE WARNING THIS SCREEN OWES ANYBODY ABOUT TO CHANGE A FLOW. Editing a
+  // template changes what every deal on it shows, which stages it still invites
+  // and what may attach to it — and the editor had no idea any of them existed.
+  // Service Actions next door has warned "N items use this action" since the day
+  // removing one could silently drop a ticket's scope.
+  //
+  // Counted from the engagement ROOTS rather than from ENG.hasStage: that index
+  // looks like exactly what this wants, but applyDescriptor never writes it, so
+  // it does not know about the deals every ticket mints.
+  ok("the flows report how many deals already walk them",
+    (seen.usage?.deals?.A ?? 0) >= 1, JSON.stringify(seen.usage));
+  ok("...and say whether that count is the whole picture or a floor",
+    seen.usage?.capped === false && seen.usage?.scanned >= 1, JSON.stringify(seen.usage));
+
   ok("...and the twenty-five industries", seen.industries?.length === 25, String(seen.industries?.length));
   ok("...and is told it may edit them", seen.canManage === true);
 
@@ -4617,6 +4631,23 @@ console.log("== the flow editor: a studio owns its flows, and a refusal says why
 
   const noSubject = await FLOWS.DELETE(req(), { params: params(slug) });
   ok("a DELETE naming nothing is refused", noSubject.status === 400, String(noSubject.status));
+
+  // USAGE IS MANAGER-ONLY. Somebody who may read the flows but not change them
+  // is offered no warning to act on, so producing one costs them the whole
+  // engagement scan on every GET — and hands a person with no deal rights a
+  // count of how much work the studio is carrying.
+  const readerRole = await createRole(studio.id, {
+    name: `Flow reader ${rand()}`,
+    permissions: ["administration.settings.view"],
+  });
+  const reader = await person("Flow reader", null);
+  await updateCollaborator(studio.id, reader.collaborator.id, { roleIds: [readerRole.id] });
+  await signInAs(reader.user.id);
+  const readerBody = await (await FLOWS.GET(req(), { params: params(slug) })).json();
+  ok("a reader sees the flows themselves", readerBody.templates?.length === 7);
+  ok("...is told they may not manage them", readerBody.canManage === false);
+  ok("...and is given no count of the studio's deals", readerBody.usage === null,
+    JSON.stringify(readerBody.usage));
 
   // A member with no role cannot change them. Whether they may READ is
   // administration.settings.view, which a roleless member does not hold either

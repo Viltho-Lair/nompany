@@ -17,7 +17,7 @@ import { cascadeDeleteEngagement } from "@/platform/db/cascade";
 import type { EngagementLineage } from "@/platform/db/engagement";
 import { getSectionByKey } from "@/platform/db/sections";
 import { repo } from "@/platform/db/repo";
-import { listFlowTemplates, defaultTemplateForStudio } from "@/platform/db/flows";
+import { listFlowTemplates, defaultTemplateForStudio, pickTemplate, industryKeyOf } from "@/platform/db/flows";
 import type { Refusal } from "@/platform/access";
 
 const PAGE = 25;
@@ -142,29 +142,24 @@ async function dealTemplate(ctx: EngagementCtx, root: { templateId?: string; con
   // contract here (a route going from 2 round trips to 8 fails the build), and
   // this is a per-deal read on the deal screen.
   const templates = await listFlowTemplates(ctx.studio.id);
-  const pick = (id: string) => (id ? templates.find((t) => t.id === id) || null : null);
 
-  const chosen = pick(String(root.templateId || ""));
-  if (chosen) return chosen;
+  // THE PRECEDENCE ITSELF LIVES IN pickTemplate, shared with the usage scan.
+  // Two copies of "which flow is this deal on" is two answers, and the screen
+  // showing one while the settings warning counts the other is worse than no
+  // warning at all.
+  const known = String(root.templateId || "");
+  if (known) {
+    const chosen = pickTemplate(templates, known, "");
+    if (chosen?.id === known) return chosen;
+  }
 
   // The industry costs a SECOND read, so it is asked only when the deal itself
   // does not know — which is every deal written before templates existed, and
-  // no deal written after.
-  //
-  // BOTH SPELLINGS, and that is not defensive coding. The backfill
-  // (platform/engagement/backfill.ts) writes this fact as `industry`; the
-  // context layer that came later names it `industryRef`. The deals that reach
-  // this fallback at all are precisely the backfilled ones, so reading only the
-  // newer name would have made the industry branch dead code on every deal it
-  // exists to serve — and silently, because falling through to Template A is a
-  // plausible answer rather than an error.
-  const ctxRecord = root.context as Record<string, unknown> | undefined;
-  const industryKey = String(ctxRecord?.industryRef || ctxRecord?.industry || "");
-  if (industryKey) {
-    const viaIndustry = pick(await defaultTemplateForStudio(ctx.studio.id, industryKey));
-    if (viaIndustry) return viaIndustry;
-  }
-  return pick("A");
+  // no deal written after. The usage scan reads every industry once instead,
+  // which is why pickTemplate takes the answer rather than fetching it.
+  const industryKey = industryKeyOf(root.context as Record<string, unknown> | undefined);
+  const primary = industryKey ? await defaultTemplateForStudio(ctx.studio.id, industryKey) : "";
+  return pickTemplate(templates, known, primary);
 }
 
 /** Which stage types this engagement actually has. */

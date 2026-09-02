@@ -22,7 +22,10 @@ import type { PermissionSet, Refusal } from "@/platform/access";
 import {
   listFlowTemplates, saveFlowTemplate, deleteFlowTemplate,
   listIndustries, saveIndustry, deleteIndustry,
+  pickTemplate, industryKeyOf,
 } from "@/platform/db/flows";
+import { ENG } from "@/platform/db/keys";
+import { zRange, getJSONMany } from "@/platform/db/store";
 import type { FlowTemplate, BillingTrigger } from "@/platform/engagement/templates";
 import type { IndustryEntry } from "@/platform/engagement/industries";
 
@@ -61,18 +64,99 @@ async function refusable(run: () => Promise<void>): Promise<FlowRefusal | null> 
 // ---- reading ----------------------------------------------------------------
 
 export async function readFlows(ctx: Ctx): Promise<
-  { templates: FlowTemplate[]; industries: IndustryEntry[]; canManage: boolean } | Refusal
+  { templates: FlowTemplate[]; industries: IndustryEntry[]; usage: FlowUsage | null; canManage: boolean }
+  | Refusal
 > {
   const denied = requirePermission(ctx.access, "administration.settings.view");
   if (denied) return denied;
+  // The screen draws the same list either way and only hides the controls, so a
+  // viewer sees WHAT their studio's flows are without being offered edits that
+  // would be refused at the door.
+  const canManage = !requirePermission(ctx.access, "administration.settings.edit");
+
   return {
     templates: await listFlowTemplates(ctx.studioId),
     industries: await listIndustries(ctx.studioId),
-    // The screen draws the same list either way and only hides the controls, so
-    // a viewer sees WHAT their studio's flows are without being offered edits
-    // that would be refused at the door.
-    canManage: !requirePermission(ctx.access, "administration.settings.edit"),
+    // USAGE IS MANAGER-ONLY, for both of the reasons the sibling settings route
+    // gives about its own: it exists to warn somebody who is about to change a
+    // flow, and a viewer who cannot change one is offered no warning to read.
+    // Skipping it also saves a viewer the whole engagement scan on every GET —
+    // and, less obviously, avoids handing somebody with no deal rights a count
+    // of how much work the studio has.
+    usage: canManage ? await flowUsage(ctx) : null,
+    canManage,
   };
+}
+
+// ---- who is already walking these flows -------------------------------------
+
+/**
+ * HOW MANY DEALS THIS SCAN WILL LOOK AT.
+ *
+ * The warning's job is "this edit reaches work that already exists", not a
+ * census. A studio with forty thousand deals does not need an exact number to
+ * decide, and reading forty thousand roots to produce one would make opening
+ * Settings the most expensive page in the product.
+ *
+ * Newest first, so the cap keeps the deals most likely to still be moving.
+ */
+const USAGE_SCAN_CAP = 500;
+
+export type FlowUsage = {
+  /** templateId → how many of the scanned deals walk it. */
+  deals: Record<string, number>;
+  scanned: number;
+  /** True when the studio has more deals than the scan looked at. */
+  capped: boolean;
+};
+
+/**
+ * WHICH FLOWS ALREADY HAVE WORK ON THEM.
+ *
+ * Editing a template is not like editing a setting: it changes what every deal
+ * on that flow shows, which stages it invites, and what may attach to it. The
+ * screen next door (Service Actions) has warned "N items use this action" since
+ * the day removing one could silently drop a ticket's scope; the flow editor
+ * has the more consequential edit and had nothing.
+ *
+ * DERIVED FROM THE ROOTS, not from ENG.hasStage. That index looks like exactly
+ * what this wants — a set of deal ids per stage — but it is written only by
+ * attachRecord and promote, NOT by applyDescriptor, which is the path every
+ * ticket-minted deal takes. It is also read by nothing. Counting from it would
+ * report most of a studio's deals as not existing.
+ *
+ * ONE BATCHED READ FOR THE ROOTS. `getJSONMany` is one statement for many keys —
+ * the same shape getProfile's N+1 was collapsed into — so this costs three
+ * round trips whatever the cap: the index, the roots, the industries.
+ */
+export async function flowUsage(ctx: Ctx): Promise<FlowUsage> {
+  const [templates, industries] = await Promise.all([
+    listFlowTemplates(ctx.studioId),
+    listIndustries(ctx.studioId),
+  ]);
+  const primaryOf = new Map(industries.map((i) => [i.key, i.primary]));
+
+  const ids = await zRange(ENG.index(ctx.studioId), 0, USAGE_SCAN_CAP, { rev: true });
+  const scanned = Math.min(ids.length, USAGE_SCAN_CAP);
+  const roots = scanned
+    ? await getJSONMany<{ templateId?: string; context?: Record<string, unknown> }>(
+        ids.slice(0, scanned).map((id) => ENG.root(ctx.studioId, id)),
+      )
+    : [];
+
+  const deals: Record<string, number> = {};
+  for (const root of roots) {
+    if (!root) continue;
+    // The SAME precedence the deal screen resolves with — pickTemplate, shared,
+    // so the number here can never disagree with the flow a deal actually walks.
+    const industryKey = industryKeyOf(root.context);
+    const chosen = pickTemplate(templates, String(root.templateId || ""), primaryOf.get(industryKey) || "");
+    if (chosen) deals[chosen.id] = (deals[chosen.id] ?? 0) + 1;
+  }
+
+  // `ids` is read one past the cap precisely so this can tell the truth about
+  // there being more, rather than reporting a round number as if it were all.
+  return { deals, scanned, capped: ids.length > USAGE_SCAN_CAP };
 }
 
 // ---- templates --------------------------------------------------------------

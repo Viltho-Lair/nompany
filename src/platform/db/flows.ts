@@ -161,3 +161,47 @@ export async function deleteIndustry(studioId: string, key: string): Promise<boo
 export async function defaultTemplateForStudio(studioId: string, industryKey: string): Promise<string> {
   return (await getIndustry(studioId, industryKey))?.primary || "";
 }
+
+// ---- which flow a deal walks ------------------------------------------------
+
+/**
+ * THE INDUSTRY A DEAL NAMES, under either of the two spellings it may carry.
+ *
+ * The backfill writes this fact as `industry`; `platform/engagement/context.ts`,
+ * which came later, names it `industryRef` and that is what `contributeContext`
+ * writes. A backfilled deal that has since been contributed to can hold both,
+ * and nothing has reconciled them yet (see docs/functionality/engagements.md).
+ * Reading only the newer name makes every pre-template deal look industry-less
+ * — silently, because falling through to a default is a plausible answer rather
+ * than an error.
+ */
+export function industryKeyOf(context: Record<string, unknown> | undefined): string {
+  return String(context?.industryRef || context?.industry || "");
+}
+
+/**
+ * WHICH FLOW A DEAL WALKS — the precedence, and nothing else.
+ *
+ * Pure, and takes the lists already in hand, because it has two callers with
+ * very different read patterns: the deal screen resolves ONE deal and wants to
+ * pay for the industry lookup only when it must, while the usage scan resolves
+ * hundreds and reads every industry once up front. A shared function that did
+ * its own reads would force one of them into the other's shape.
+ *
+ * What must not drift is the ORDER: the deal's own templateId, then the default
+ * for its industry, then Template A. Two copies of that is two answers to "which
+ * flow is this deal on", and the screen showing one while the usage warning
+ * counts the other is worse than having no warning.
+ *
+ * Template A is the last resort rather than a guess: it is the flow whose chain
+ * the previously hardcoded status walk was approximating, so a deal written
+ * before templates existed reads as it always did.
+ */
+export function pickTemplate(
+  templates: readonly FlowTemplate[],
+  templateId: string,
+  industryPrimary: string,
+): FlowTemplate | null {
+  const byId = (id: string) => (id ? templates.find((t) => t.id === id) || null : null);
+  return byId(templateId) || byId(industryPrimary) || byId("A");
+}

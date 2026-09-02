@@ -11,7 +11,7 @@ import { stageLabel } from "@/shared/studio/stages";
 // about what is allowed.
 import { STAGE_REGISTRY } from "@/platform/engagement/registry";
 import { BILLING_TRIGGERS, FLOW_TEMPLATES, templateProblems } from "@/platform/engagement/templates";
-import { btn, btnGhost, btnRow, btnRowDanger, input, label as labelCls } from "@/components/studio2/ui";
+import { Dialog, btn, btnGhost, btnRow, btnRowDanger, input, label as labelCls } from "@/components/studio2/ui";
 
 const ALL_STAGES = Object.keys(STAGE_REGISTRY);
 const SEEDS = new Map(FLOW_TEMPLATES.map((t) => [t.id, t]));
@@ -38,6 +38,20 @@ const isEdited = (t) => {
   const seed = SEEDS.get(t.id);
   return Boolean(seed) && canon(seed) !== canon(t);
 };
+
+// HOW MANY DEALS WALK A FLOW, and whether that number is a floor.
+//
+// The scan is capped server-side, so a saturated studio reports "500+" rather
+// than a round number pretending to be a total. A count of zero is rendered as
+// nothing at all: an empty flow needs no warning, and a chip reading "0 deals"
+// on six of seven rows is noise that trains people to ignore the one that says
+// fourteen.
+const dealsOn = (usage, id) => (usage?.deals?.[id] ?? 0);
+const dealChip = (usage, id, tr) => {
+  const n = dealsOn(usage, id);
+  if (!n) return "";
+  return usage.capped && n >= 500 ? tr.flowDealsMore(n) : tr.flowDealCount(n);
+};
 const BANNER_BAD = "rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300";
 const CHIP = "rounded-full border px-3 py-1 text-xs font-600 transition-colors";
 
@@ -57,6 +71,9 @@ export default function StudioFlowEditor({ slug, tr }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [draft, setDraft] = useState(null); // the template being edited, as a working copy
+  // { kind: "edit" | "revert" | "delete", template, run } — what is about to
+  // happen to a flow that already has work on it, held until it is confirmed.
+  const [confirm, setConfirm] = useState(null);
 
   // THE FETCH IS SEPARATE FROM THE STATE IT FEEDS, and both callers await it.
   //
@@ -147,9 +164,20 @@ export default function StudioFlowEditor({ slug, tr }) {
             tr={tr}
             canManage={canManage}
             busy={busy}
+            usage={data.usage}
             onEdit={() => setDraft(cloneTemplate(t))}
             onClone={() => setDraft({ ...cloneTemplate(t), id: freeId(data.templates), name: `${t.name} (2)` })}
-            onRevert={() => drop(`template=${encodeURIComponent(t.id)}`)}
+            onRevert={() => {
+              // A flow nothing is on can be reverted outright — there is
+              // nobody to warn. One that work is already on asks first.
+              const seed = SEEDS.has(t.id);
+              if (!dealsOn(data.usage, t.id)) { drop(`template=${encodeURIComponent(t.id)}`); return; }
+              setConfirm({
+                kind: seed ? "revert" : "delete",
+                template: t,
+                run: () => drop(`template=${encodeURIComponent(t.id)}`),
+              });
+            }}
           />
         ))}
       </div>
@@ -161,8 +189,28 @@ export default function StudioFlowEditor({ slug, tr }) {
           tr={tr}
           locale={locale}
           busy={busy}
+          usage={data.usage}
           onCancel={() => setDraft(null)}
-          onSave={async () => { if (await send({ template: draft })) setDraft(null); }}
+          onSave={() => {
+            const save = async () => { if (await send({ template: draft })) setDraft(null); };
+            // Only a flow that already has deals is worth interrupting for. A
+            // brand-new duplicate has none, and asking about it would teach
+            // people to click through the dialog that matters.
+            if (!dealsOn(data.usage, draft.id)) return save();
+            setConfirm({ kind: "edit", template: draft, run: save });
+          }}
+        />
+      )}
+
+      {confirm && (
+        <ConfirmFlowChange
+          confirm={confirm}
+          industries={data.industries}
+          usage={data.usage}
+          tr={tr}
+          busy={busy}
+          onClose={() => setConfirm(null)}
+          onGo={async () => { const run = confirm.run; setConfirm(null); await run(); }}
         />
       )}
 
@@ -201,7 +249,7 @@ function freeId(templates) {
   return `T${Date.now().toString(36).slice(-4)}`;
 }
 
-function TemplateRow({ template, tr, canManage, busy, onEdit, onClone, onRevert }) {
+function TemplateRow({ template, tr, canManage, busy, usage, onEdit, onClone, onRevert }) {
   // BUILT-IN, EDITED, OR THEIRS — and the studio should be able to tell at a
   // glance, because "Revert to built-in" and "Delete" are the same button doing
   // two very different things depending on which this is.
@@ -218,6 +266,14 @@ function TemplateRow({ template, tr, canManage, busy, onEdit, onClone, onRevert 
           {tr.billingNames[template.billingTrigger] || template.billingTrigger}
         </p>
       </div>
+      {/* THE COUNT SITS BEFORE THE BUTTONS, on the way to them. A warning that
+          only appears in a dialog after the decision is made is a warning about
+          something already chosen. */}
+      {dealChip(usage, template.id, tr) && (
+        <span className="num rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-600 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
+          {dealChip(usage, template.id, tr)}
+        </span>
+      )}
       <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-600 text-slate-600 dark:bg-white/5 dark:text-slate-300">
         {badge}
       </span>
@@ -234,8 +290,9 @@ function TemplateRow({ template, tr, canManage, busy, onEdit, onClone, onRevert 
   );
 }
 
-function TemplateEditor({ draft, setDraft, tr, locale, busy, onCancel, onSave }) {
+function TemplateEditor({ draft, setDraft, tr, locale, busy, usage, onCancel, onSave }) {
   const set = (patch) => setDraft({ ...draft, ...patch });
+  const onThisFlow = dealChip(usage, draft.id, tr);
 
   // VALIDATED AS THEY TYPE, by the SAME function the server refuses with. Not a
   // replacement for the server's check — the door still refuses — but the
@@ -248,6 +305,11 @@ function TemplateEditor({ draft, setDraft, tr, locale, busy, onCancel, onSave })
 
   return (
     <div className="mt-4 rounded-geex border border-brand-200 p-4 dark:border-brand-500/30">
+      {onThisFlow && (
+        <p className="mb-3 rounded-xl bg-amber-50 px-4 py-2.5 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
+          {onThisFlow}
+        </p>
+      )}
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block">
           <span className={labelCls}>{tr.flowNameLabel}</span>
@@ -353,6 +415,49 @@ function TemplateEditor({ draft, setDraft, tr, locale, busy, onCancel, onSave })
         <button type="button" className={btnGhost} disabled={busy} onClick={onCancel}>{tr.flowClose}</button>
       </div>
     </div>
+  );
+}
+
+/**
+ * WHAT AN EDIT WOULD REACH, said before it happens.
+ *
+ * Modelled on ConfirmRetireAction next door, and for the same reason: a
+ * settings screen that quietly changes records elsewhere is how a studio loses
+ * something it never agreed to lose. The difference is what is at risk — no
+ * record is deleted here, so the dialog says so plainly rather than implying a
+ * danger that does not exist. What IS at risk is meaning: the same deal, read
+ * through a different flow, shows different stages and reports a different
+ * status.
+ */
+function ConfirmFlowChange({ confirm, industries, usage, tr, busy, onClose, onGo }) {
+  const { kind, template } = confirm;
+  const n = dealsOn(usage, template.id);
+  const body = kind === "revert" ? tr.flowConfirmRevert(n, template.name)
+    : kind === "delete" ? tr.flowConfirmDelete(n, template.name)
+    : tr.flowConfirmEdit(n, template.name);
+
+  // WHICH INDUSTRIES WOULD BE LEFT POINTING AT NOTHING. Computed here rather
+  // than asked for: the screen already holds every industry, so this costs one
+  // filter instead of a round trip. saveIndustry checks the template exists
+  // when the INDUSTRY is written and nothing re-checks when a template is
+  // dropped, so this is the only place the studio hears about it.
+  const orphaned = kind === "delete"
+    ? industries.filter((i) => i.primary === template.id).map((i) => i.name)
+    : [];
+
+  return (
+    <Dialog title={tr.flowConfirmHeading} description={body} onClose={onClose} width="max-w-[560px]">
+      <p className="text-sm text-slate-500 dark:text-slate-400">{tr.flowConfirmKept}</p>
+      {orphaned.length > 0 && (
+        <p className="mt-2 rounded-xl bg-amber-50 px-4 py-2.5 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
+          {tr.flowConfirmOrphans(orphaned.join(", "))}
+        </p>
+      )}
+      <div className="mt-4 flex flex-wrap gap-2">
+        <button type="button" className={btn} disabled={busy} onClick={onGo}>{tr.flowConfirmGo}</button>
+        <button type="button" className={btnGhost} disabled={busy} onClick={onClose}>{tr.cancel}</button>
+      </div>
+    </Dialog>
   );
 }
 

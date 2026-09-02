@@ -169,6 +169,17 @@ type Strings = {
   industryNone: string;
   industryAdd: string;
   industryNameLabel: string;
+  // The warning before a flow that already has work on it is changed.
+  flowDealCount: (n: number) => string;
+  flowDealsMore: (n: number) => string;
+  flowIndustryCount: (n: number) => string;
+  flowConfirmHeading: string;
+  flowConfirmEdit: (n: number, name: string) => string;
+  flowConfirmRevert: (n: number, name: string) => string;
+  flowConfirmDelete: (n: number, name: string) => string;
+  flowConfirmKept: string;
+  flowConfirmOrphans: (names: string) => string;
+  flowConfirmGo: string;
 };
 
 const en: Strings = {
@@ -348,6 +359,16 @@ const en: Strings = {
   industryNone: "— none —",
   industryAdd: "Add an industry",
   industryNameLabel: "Industry",
+  flowDealCount: (n) => `${n} deal${n === 1 ? "" : "s"}`,
+  flowDealsMore: (n) => `${n}+ deals`,
+  flowIndustryCount: (n) => `${n} industr${n === 1 ? "y" : "ies"} start here`,
+  flowConfirmHeading: "Work is already on this flow",
+  flowConfirmEdit: (n, name) => `${n} deal${n === 1 ? "" : "s"} walk${n === 1 ? "s" : ""} ${name}. Changing it changes what they show, which stages they still invite, and what may be attached to them from now on.`,
+  flowConfirmRevert: (n, name) => `${n} deal${n === 1 ? "" : "s"} walk${n === 1 ? "s" : ""} ${name}. Reverting it puts them back on the built-in flow, which may not be the one they were started under.`,
+  flowConfirmDelete: (n, name) => `${n} deal${n === 1 ? "" : "s"} walk${n === 1 ? "s" : ""} ${name}. Deleting it leaves them with no flow of their own — they fall back to Contracting / Project.`,
+  flowConfirmKept: "No record is deleted. A stage this flow no longer lists is still shown on the deals that have one, marked as outside the flow.",
+  flowConfirmOrphans: (names) => `These industries start deals here and would be left pointing at nothing: ${names}.`,
+  flowConfirmGo: "I understand — change it",
 };
 
 const ar: Strings = {
@@ -546,6 +567,16 @@ const ar: Strings = {
   industryNone: "— بلا —",
   industryAdd: "أضف قطاعًا",
   industryNameLabel: "القطاع",
+  flowDealCount: (n) => n === 1 ? "صفقة واحدة" : n === 2 ? "صفقتان" : n <= 10 ? `${n} صفقات` : `${n} صفقة`,
+  flowDealsMore: (n) => `أكثر من ${n} صفقة`,
+  flowIndustryCount: (n) => n === 1 ? "قطاع واحد يبدأ هنا" : n === 2 ? "قطاعان يبدآن هنا" : n <= 10 ? `${n} قطاعات تبدأ هنا` : `${n} قطاعًا تبدأ هنا`,
+  flowConfirmHeading: "هناك عمل قائم على هذا المسار",
+  flowConfirmEdit: (n, name) => `${n === 1 ? "صفقة واحدة تسير" : n === 2 ? "صفقتان تسيران" : n <= 10 ? `${n} صفقات تسير` : `${n} صفقة تسير`} على ${name}. تعديله يغيّر ما تعرضه، وما يبقى مطلوبًا منها، وما يمكن ربطه بها من الآن.`,
+  flowConfirmRevert: (n, name) => `${n === 1 ? "صفقة واحدة تسير" : n === 2 ? "صفقتان تسيران" : n <= 10 ? `${n} صفقات تسير` : `${n} صفقة تسير`} على ${name}. العودة إلى الجاهز تعيدها إلى المسار الأصلي، وقد لا يكون هو الذي بدأت عليه.`,
+  flowConfirmDelete: (n, name) => `${n === 1 ? "صفقة واحدة تسير" : n === 2 ? "صفقتان تسيران" : n <= 10 ? `${n} صفقات تسير` : `${n} صفقة تسير`} على ${name}. حذفه يتركها بلا مسار خاص — فتعود إلى «المقاولات / المشاريع».`,
+  flowConfirmKept: "لا يُحذف أي سجل. المرحلة التي لم يعد المسار يذكرها تبقى ظاهرة على الصفقات التي تملكها، موسومة بأنها خارج المسار.",
+  flowConfirmOrphans: (names) => `هذه القطاعات تبدأ صفقاتها هنا وستبقى تشير إلى لا شيء: ${names}.`,
+  flowConfirmGo: "أفهم ذلك — نفّذ التغيير",
 };
 
 const settings = { en, ar };

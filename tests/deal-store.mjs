@@ -371,6 +371,32 @@ try {
     ok("dropping an edit reverts to the built-in",
       (await F.deleteFlowTemplate(S, "A")) &&
       (await F.getFlowTemplate(S, "A"))?.name === "Contracting / Project");
+    // WHICH FLOW A DEAL WALKS — the precedence, asserted in one place because it
+    // now has two callers. The deal screen resolves one deal and pays for the
+    // industry lookup only when it must; the settings usage scan resolves
+    // hundreds and reads every industry once. They agree only because they share
+    // pickTemplate: two copies of this order would mean the screen showing one
+    // flow while the warning counted deals against another.
+    const all = await F.listFlowTemplates(S);
+    ok("a deal that names its own template gets it",
+      F.pickTemplate(all, "G", "B")?.id === "G");
+    ok("...one that does not falls to its industry's default",
+      F.pickTemplate(all, "", "B")?.id === "B");
+    ok("...and one with neither falls to A, never to nothing",
+      F.pickTemplate(all, "", "")?.id === "A");
+    ok("a templateId naming a flow this studio deleted does not win",
+      F.pickTemplate(all, "ZZ", "B")?.id === "B");
+
+    // BOTH SPELLINGS OF THE INDUSTRY FACT. The backfill writes `industry`; the
+    // later context layer writes `industryRef`. Reading only the newer name made
+    // the industry branch dead code on every deal it exists to serve.
+    ok("the industry is read under the name the backfill wrote",
+      F.industryKeyOf({ industry: "manufacturing" }) === "manufacturing");
+    ok("...and under the name the context layer writes",
+      F.industryKeyOf({ industryRef: "mining-and-quarrying" }) === "mining-and-quarrying");
+    ok("...with the newer name winning when a deal carries both",
+      F.industryKeyOf({ industry: "old", industryRef: "new" }) === "new");
+
     ok("dropping a clone removes it entirely",
       (await F.deleteFlowTemplate(S, "H")) && (await F.getFlowTemplate(S, "H")) === null);
   }

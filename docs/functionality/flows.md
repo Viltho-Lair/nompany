@@ -91,6 +91,47 @@ field by field. The server merges the two and returns one list, which is the rig
 for every other reader; this screen needs the distinction because "Revert to built-in" and
 "Delete" are the same button doing two very different things.
 
+### The warning before an edit
+
+Editing a template is not like editing a setting: it changes what every deal on that flow
+shows, which stages it still invites, and what may attach to it from now on. `flowUsage`
+counts how many deals walk each flow; the editor puts that count on the row, repeats it
+above the fields, and asks before saving a change to a flow that already has work on it.
+A flow nothing is on saves without a dialog — asking about an empty flow is how people
+learn to click through the one that matters.
+
+The dialog says plainly that **no record is deleted**. That is true because of the
+off-template rule: a stage a flow no longer lists is still shown on the deals that have
+one, marked as outside the flow. What is at risk is meaning, not data — the same deal read
+through a different flow shows different stages and reports a different status.
+
+Deleting a flow also names **the industries that would be left pointing at nothing**,
+computed on the client because it already holds every industry. `saveIndustry` checks the
+template exists when the INDUSTRY is written, and nothing re-checks when a template is
+dropped, so this dialog is the only place a studio hears about it.
+
+**Which flow a deal walks is `pickTemplate`, shared.** The deal screen resolves one deal
+and pays for the industry lookup only when it must; the usage scan resolves hundreds and
+reads every industry once. They agree only because the precedence lives in one pure
+function — two copies would mean the screen showing one flow while the warning counted
+deals against another.
+
+**Counted from the engagement roots, not from `ENG.hasStage`.** That index looks like
+exactly what this wants — a set of deal ids per stage type — but it is written only by
+`attachRecord` and `promote`, never by `applyDescriptor`, which is the path every
+ticket-minted deal takes. Counting from it would report most of a studio's deals as not
+existing.
+
+**Capped at 500 deals, newest first.** The warning's job is "this edit reaches work that
+already exists", not a census; a saturated studio reports `500+` rather than a round number
+pretending to be a total. Three round trips whatever the cap: the index, one batched
+`getJSONMany` of the roots, the industries.
+
+**Usage is manager-only**, for the same two reasons the sibling settings route withholds
+its own: somebody who cannot change a flow is offered no warning to act on, and producing
+one would cost them the whole scan on every GET — as well as handing a person with no deal
+rights a count of how much work the studio is carrying.
+
 ### Permission
 
 `administration.settings.view` to read, `administration.settings.edit` to write — the same
@@ -103,23 +144,31 @@ hand-rolled for the same reason.
 
 ## Not built yet — do not assume otherwise
 
-- **Nothing warns that deals are already walking a template being edited.** Removing a
-  stage changes what every open deal on that flow shows and what may attach to it, with no
-  count of affected deals and no confirmation step. Service Actions does exactly this
-  (`serviceActionUsage`, "N items use this action"); flows does not.
 - **A template id is never reused or renamed, and nothing enforces that.** `freeId` picks
   the first free letter H–Z for a duplicate, and a studio with more than nineteen clones
   gets a timestamp id. Deleting a clone frees its letter for the next duplicate, so a deal
   that stored the old id would resolve to a different flow.
-- **Deleting a template an industry points at is not refused.** `saveIndustry` checks the
-  template exists when the INDUSTRY is written; nothing re-checks when a template is
-  dropped, so an industry can be left pointing at nothing. `defaultTemplateForStudio`
-  returns `""` in that case and the deal screen falls back to Template A.
+- **Deleting a template an industry points at is still not REFUSED** — the confirm dialog
+  now names the industries that would be orphaned, but a studio that goes ahead leaves them
+  pointing at nothing. `defaultTemplateForStudio` returns `""` in that case and the deal
+  screen falls back to Template A, so nothing breaks; the industry just stops meaning what
+  it says. Re-pointing those industries in the same write would be the fix.
+- **The count is per FLOW, not per stage.** It says "14 deals walk this flow", not "9 of
+  them have a quotation you are about to drop from it". The per-stage number is the one
+  that would actually tell somebody whether a particular removal matters, and it needs an
+  index that does not exist yet — see `ENG.hasStage` below.
+- **`ENG.hasStage` is written, never read, and incompletely maintained.** `attachRecord`
+  and `promote` add to it and `detachRecord` removes from it, but `applyDescriptor` — the
+  path every ticket-minted deal takes — does not, and no code anywhere reads it. It is a
+  dead index with a live cost: every attach pays a write nobody spends. Either make it
+  complete (and use it for the per-stage count above) or delete it.
 - **An industry's key cannot be changed** — it is derived from the name on create and shown
   read-only after. That is deliberate (a deal stores it), but there is no rename-and-migrate
   path either.
 - **No audit entries.** Editing a flow changes how every deal in the studio is read, and
-  nothing records who changed it or when. The deal context has an audit trail; this does not.
+  nothing records who changed it or when. The deal context has an audit trail; this does
+  not. The confirm dialog means somebody agreed to the change, and nothing anywhere records
+  that they did.
 - **`cardinalityOverrides` cannot be set for a stage not in the template**, which is correct,
   but the editor also offers no way to see what the registry default it is overriding
   actually is — the option reads "As the stage says" without saying what that is.
