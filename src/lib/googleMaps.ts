@@ -26,6 +26,27 @@ export function googleMapsKey() {
 // thing this loader exists to make impossible.
 type MapsWindow = Window & { google?: { maps?: unknown } };
 
+// The callback slot is written by NAME, so it needs an index signature — but
+// putting one on MapsWindow would make every `window.anything` typed as
+// `unknown` rather than an error, which is a worse trade than one narrow view
+// used by the two lines that need it.
+type NamedGlobals = Record<string, unknown>;
+
+// THE READY SIGNAL, and why it is a callback rather than `script.onload`.
+//
+// `loading=async` (below) is not the same thing as `script.async = true`. The
+// attribute tells the BROWSER not to block parsing; the parameter tells the
+// MAPS API to bootstrap its libraries asynchronously — which is what stops the
+// console warning, and which also means `onload` now fires while
+// `window.google.maps` is still being assembled. The one caller does
+// `new g.maps.Map(...)` on the resolved value, so resolving a moment early
+// would be a TypeError rather than a slow map.
+//
+// `callback=` is the documented signal for exactly that, and it needs a name on
+// `window` because the API calls it by string. The name is unique per attempt so
+// a retry after a failed load cannot be resolved by the previous script tag.
+let callbackSeq = 0;
+
 export function loadGoogleMaps() {
   if (typeof window === "undefined") return Promise.reject(new Error("Google Maps can only load in the browser."));
   const w = window as MapsWindow;
@@ -36,16 +57,23 @@ export function loadGoogleMaps() {
   if (!key) return Promise.reject(new Error("Google Maps is not configured."));
 
   promise = new Promise((resolve, reject) => {
+    const cb = `__nompanyMapsReady${++callbackSeq}`;
+    const globals = w as unknown as NamedGlobals;
+    const done = () => { delete globals[cb]; };
+
+    globals[cb] = () => {
+      done();
+      if (w.google && w.google.maps) resolve(w.google);
+      else { promise = null; reject(new Error("Google Maps failed to initialise.")); }
+    };
+
     const s = document.createElement("script");
-    s.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&v=weekly`;
+    s.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&v=weekly&loading=async&callback=${cb}`;
     s.async = true;
     s.defer = true;
-    s.onload = () => (w.google && w.google.maps
-      ? resolve(w.google)
-      : reject(new Error("Google Maps failed to initialise.")));
     // Null the promise on failure so a later attempt can retry rather than
     // resolving forever against a script that never loaded.
-    s.onerror = () => { promise = null; reject(new Error("Failed to load Google Maps.")); };
+    s.onerror = () => { done(); promise = null; reject(new Error("Failed to load Google Maps.")); };
     document.head.appendChild(s);
   });
   return promise;
