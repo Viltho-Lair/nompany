@@ -62,6 +62,13 @@ export function resolve(specifier, context, next) {
   if (specifier === "next/headers") {
     return next(new URL("tests/nextHeaders.mjs", ROOT).href, context);
   }
+  // `next/server` IS A BUNDLER SUBPATH. The package's exports map has no entry
+  // for it, so Node refuses outright what webpack resolves without comment.
+  // Pointed at the file itself — unlike next/headers there is nothing to stand
+  // in for, because NextResponse is ordinary code over a web Response.
+  if (specifier === "next/server") {
+    return next(new URL("node_modules/next/server.js", ROOT).href, context);
+  }
   if (specifier.startsWith("@/")) {
     return next(resolveFile(`src/${specifier.slice(2)}`), context);
   }
