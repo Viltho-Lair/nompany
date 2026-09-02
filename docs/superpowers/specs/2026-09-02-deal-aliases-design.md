@@ -103,15 +103,24 @@ other dual-write on this spine uses, because they are additive to a record that 
 stands on its own and must never fail the create they are riding on. This one rides on a
 create too, so it is wrapped the same way, and a failure inside `applyAsDeal` propagates
 straight into that catch. **The create still succeeds when the alias write fails.** What
-does not happen is the half-written state the paragraph above warns about: because the
-alias is written before the root (§3.2), a failure at any point before `applyDescriptor`
-returns leaves **nothing** — no root, no alias, no deal a lineage could resolve to and
-disagree with later. That is the ordinary best-effort outcome this spine already lives with
-everywhere else: the create succeeds, the deal is never minted, and the next attempt for the
-same chain — a retry, a reconcile pass, the backfill — starts from the same "nothing exists
-yet" state and mints cleanly. It is §3.2's ordering that makes this safe, not a throw
-reaching the caller: the throw never reaches past the best-effort wrapper, and it does not
-need to, because there is nothing left half-built for it to protect.
+does not happen is the half-written state the paragraph above warns about, and the reason is
+the ordering rather than the throw.
+
+Because the alias is written before the root (§3.2), a swallowed failure leaves exactly one
+of two states, and neither is the dangerous one:
+
+- **Nothing at all** — the alias write itself failed, so there is no alias and no root. The
+  next attempt for the same chain starts from the state this one started from and mints
+  cleanly.
+- **An alias with no root behind it yet** — the alias landed and `applyDescriptor` did not.
+  The next attempt resolves through that alias (step 2) and applies the descriptor at the id
+  it names, which is the convergence §3.2 is written for.
+
+What cannot happen is the third state: a root the lineage cannot find, which is what makes
+the next create mint a **second** deal. Writing the alias last is what would produce it.
+That is why §3.2's ordering carries this and a throw reaching the caller does not need to —
+there is no half-built state for a caller to clean up, only an incomplete one that the next
+attempt completes.
 
 ### 3.2 The alias is written before the root, and the order is load-bearing
 
