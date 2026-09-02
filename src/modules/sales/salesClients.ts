@@ -76,7 +76,13 @@ export function clientSlug(name: unknown) {
 // Fold a contact into a client's list: match on name (case-insensitive) and
 // fill in blanks, else match a nameless duplicate on email/phone, else append.
 // Returns the ORIGINAL array when nothing changed, so callers can skip the write.
-function upsertContact(existing: Contact[] | undefined, { name, email, phone, position }: Contact) {
+//
+// Exported ALONGSIDE upsertLocation, which always was. The pair are one rule
+// applied to two shapes and only one of them could be asked about directly,
+// which is how the merge semantics ended up pinned on one side and inferred on
+// the other. No call site outside this file uses it; the export exists so the
+// contract can be stated rather than reached through resolveClientFor.
+export function upsertContact(existing: Contact[] | undefined, { name, email, phone, position }: Contact) {
   const contacts = Array.isArray(existing) ? [...existing] : [];
   if (!name && !email && !phone) return existing ?? [];
   if (name) {
