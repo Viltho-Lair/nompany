@@ -32,8 +32,7 @@
 /** What a handler may hand back when a bare body is not enough. */
 type Shaped = { status: number; body: unknown; headers?: Record<string, unknown> };
 
-import { cookies } from "next/headers";
-import { currentUser, currentIdentity, SESSION_COOKIE } from "@/platform/auth/identity";
+import { currentUser, currentIdentity, requestSessionToken } from "@/platform/auth/identity";
 import { studioContext } from "@/lib/studios";
 import { getStudioBySlug } from "@/modules/main/studios";
 import { currentSuperAdmin } from "@/platform/auth/superAuth";
@@ -298,7 +297,7 @@ export function route<A = RouteArgs>(spec: RouteSpec<A>, handler: (args: A & Rou
     // /api/track exists as a reminder of what an unbounded public read is worth.
     let warming;
     if (auth === "studio" && params.slug) {
-      const hasSession = Boolean((await cookies()).get(SESSION_COOKIE)?.value);
+      const hasSession = Boolean(await requestSessionToken());
       if (hasSession) warming = getStudioBySlug(params.slug).catch(() => null);
     }
 

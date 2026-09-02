@@ -10,7 +10,7 @@
 // in the Collaborator row inside each studio (src/platform/auth/collaborators.js).
 
 import crypto from "node:crypto";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import {
   createUser, getUserById, getUserByEmail, updateUser,
   getProfile, updateProfile,
@@ -404,9 +404,49 @@ export async function logout(token: string) {
   if (user) await revokeSession(user.id, token);
 }
 
+// SIGNING OUT EVERYWHERE IS A DIFFERENT ACT, and collapsing the two is not a
+// small error: one says "this machine", the other says "every machine, because
+// I think somebody else has one". The token in hand is how we learn whose
+// sessions to drop, so this needs it just as much as the single case does.
+export async function logoutEverywhere(token: string) {
+  const user = await findUserBySession(token);
+  if (user) await revokeAllSessions(user.id);
+}
+
+// The marker the desktop client sends. Not a credential and it grants nothing —
+// it only decides whether the token comes back in the body instead of a cookie.
+export const CLIENT_HEADER = "x-nompany-client";
+// A DESKTOP APP IS A DEVICE TOO, but it has no cookie to be remembered by. The
+// trusted-device id it was issued comes back in this header, so "remember this
+// machine" means the same thing in both clients rather than only working in one.
+export const DEVICE_HEADER = "x-nompany-device";
+export function isDesktopClient(request: Request): boolean {
+  return (request.headers.get(CLIENT_HEADER) || "").toLowerCase() === "desktop";
+}
+
+/**
+ * WHERE THE SESSION TOKEN COMES FROM, and why there are two places.
+ *
+ * A browser carries it in an HttpOnly cookie, which is what stops an XSS from
+ * lifting it. The desktop app has no cookie jar — it holds the token in the OS
+ * keychain and sends it as a bearer — so the same token arrives in a header. The
+ * token is identical either way: same digest, same index, same expiry. This is a
+ * transport difference, not a second auth model, which is why it resolves here
+ * rather than becoming a second kind of session.
+ *
+ * THE HEADER WINS when both are present. A client that sends one means it; a
+ * stale cookie riding along should not get to decide who is asking.
+ */
+export async function requestSessionToken(): Promise<string> {
+  const authorization = (await headers()).get("authorization") || "";
+  const bearer = /^Bearer\s+(.+)$/i.exec(authorization.trim());
+  if (bearer) return bearer[1].trim();
+  return (await cookies()).get(SESSION_COOKIE)?.value || "";
+}
+
 // The signed-in User for this request, or null.
 export async function currentUser() {
-  const token = (await cookies()).get(SESSION_COOKIE)?.value;
+  const token = await requestSessionToken();
   if (!token) return null;
   const user = await findUserBySession(token);
   // Every authenticated request passes through here, which makes it the one
