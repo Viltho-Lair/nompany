@@ -47,10 +47,6 @@
 // defaults and not constants — every one is overridable above — but a default
 // that is wrong is worse than no default, so they are stated once, here, with
 // where they came from.
-// The ONE dependency this module takes, and it is not optional: the runtime
-// OIDC token is delivered on the request, not in the environment.
-import { getVercelOidcToken } from "@vercel/functions/oidc";
-
 export const PG_GATEWAY_DEFAULTS = {
   oidcIssuer: "https://oidc.vercel.com/vilthos-projects",
   oidcAudience: "https://vercel.com/vilthos-projects",
@@ -346,63 +342,44 @@ export type MintDeps = {
   now?: () => number;
 };
 
-/**
- * THE VERCEL IDENTITY, READ FROM THE REQUEST RATHER THAN THE ENVIRONMENT.
- *
- * This module read `process.env.VERCEL_OIDC_TOKEN` and said, in its own error
- * message, that Vercel "injects it automatically when OIDC federation is
- * enabled". That is true of the BUILD and of a local `vercel env pull`. It is
- * not true of a running function: the token is short-lived and per-invocation,
- * so Vercel delivers it on the request and `process.env` never holds it.
- *
- * The whole cutover failed on this, and failed in the most misleading way
- * available — enabling OIDC federation changed nothing observable, because the
- * variable the code was waiting for is not the mechanism. Every request 500'd
- * with "VERCEL_OIDC_TOKEN is not set" while the token was in fact being minted
- * and delivered on each one.
- *
- * getVercelOidcToken() reads the request context first and falls back to the
- * environment variable, which is exactly the order wanted: production gets the
- * per-request token, local development gets the pulled one. It THROWS when it
- * finds neither, and that is swallowed here so the caller raises this module's
- * own error instead of the package's.
- */
 /** Why each source came up empty, kept so a failure is diagnosable rather than bare. */
 let lastTokenFailure = "";
 
-async function readSubjectToken(): Promise<string | undefined> {
+/**
+ * THE VERCEL IDENTITY: the environment first, then the REQUEST.
+ *
+ * The environment variable exists during the BUILD and in a local
+ * `vercel env pull`. It does NOT exist in a running function: the token is
+ * short-lived and per-invocation, so Vercel delivers it on the request as
+ * `x-vercel-oidc-token` and process.env never holds it. This module read only
+ * the variable, and its own error asserted Vercel "injects it automatically" —
+ * which is why enabling OIDC federation changed nothing while every request
+ * carried the identity it was reporting as absent.
+ *
+ * READ THROUGH next/headers RATHER THAN @vercel/functions. That package wraps
+ * this same header, so it bought nothing — and it made the one guarantee that
+ * matters untestable: it resolves a token captured at import time even after a
+ * test clears the environment, so "there is no unauthenticated fallback" passed
+ * while the fallback it forbids was the thing answering. A dependency that
+ * defeats the test of the property it exists to provide is worse than none.
+ *
+ * Imported dynamically because this module also loads outside Next — a test, a
+ * script — where next/headers does not resolve at all.
+ */
+async function readSubjectToken(env: NodeJS.ProcessEnv): Promise<string | undefined> {
   const tried: string[] = [];
 
-  // 1. The package's own reader. Uses @vercel/functions' request context.
-  try {
-    const token = await getVercelOidcToken();
-    if (token) return token;
-    tried.push("getVercelOidcToken() returned empty");
-  } catch (e) {
-    tried.push(`getVercelOidcToken() threw: ${e instanceof Error ? e.message : String(e)}`);
-  }
+  if (env.VERCEL_OIDC_TOKEN) return env.VERCEL_OIDC_TOKEN;
+  tried.push("VERCEL_OIDC_TOKEN unset in the environment");
 
-  // 2. THE REQUEST HEADER, DIRECTLY. The context above is populated for
-  //    functions; a Next SERVER COMPONENT render does not always run inside it,
-  //    and every failing stack in the cutover was an `ssr` chunk rather than a
-  //    route handler. Vercel puts the token on the request as
-  //    `x-vercel-oidc-token`, and next/headers can read it wherever Next itself
-  //    is rendering — which is precisely the case the package's reader missed.
-  //
-  //    Imported dynamically because this module is also loaded outside Next (a
-  //    test, a script), where next/headers does not resolve at all.
   try {
     const { headers } = await import("next/headers");
     const token = (await headers()).get("x-vercel-oidc-token");
     if (token) return token;
-    tried.push("x-vercel-oidc-token header absent");
+    tried.push("x-vercel-oidc-token absent from the request");
   } catch (e) {
     tried.push(`next/headers unavailable: ${e instanceof Error ? e.message : String(e)}`);
   }
-
-  // 3. Build time, and local `vercel env pull`.
-  if (process.env.VERCEL_OIDC_TOKEN) return process.env.VERCEL_OIDC_TOKEN;
-  tried.push("process.env.VERCEL_OIDC_TOKEN unset");
 
   lastTokenFailure = tried.join("; ");
   return undefined;
@@ -414,17 +391,27 @@ export async function mintGatewayIdToken(deps: MintDeps = {}): Promise<string> {
   const fetchImpl = deps.fetchImpl ?? ((input, init) => fetch(input, init));
   const cfg = readGatewayAuthConfig(env);
 
-  // AN EXPLICIT env WINS, so a test drives this deterministically; otherwise the
-  // token is read from the REQUEST, which is the only place it exists at
-  // runtime. See readSubjectToken.
-  const subjectToken = deps.env ? deps.env.VERCEL_OIDC_TOKEN : await readSubjectToken();
+  // ALWAYS THROUGH readSubjectToken, and the env is its LAST source rather than
+  // a branch around it.
+  //
+  // This read `deps.env ? deps.env.VERCEL_OIDC_TOKEN : await readSubjectToken()`
+  // — "an explicit env wins, so a test is deterministic". It defeated the whole
+  // fix: postTx calls getGatewayIdToken({ env }) with env defaulting to
+  // process.env, so deps.env is ALWAYS set and the request-scoped reader was
+  // never reached in production. The symptom was that two deploys of a fix
+  // changed the error message and nothing else.
+  //
+  // Determinism is kept by passing the env INTO the reader as its final source:
+  // a test that sets a token still finds it, one that clears it still gets this
+  // module's error, and production reaches the request first.
+  const subjectToken = await readSubjectToken(env);
   if (!subjectToken) {
     // ABSENT IS A FAILURE, NOT A FALLBACK. There is no unauthenticated path to
     // fall back to — see this module's header for why that is the one branch
     // that must never exist.
     throw new Error(
       "pg-gateway auth: VERCEL_OIDC_TOKEN is not set, so there is no identity to exchange. On Vercel the " +
-        "token is delivered PER REQUEST and read with getVercelOidcToken(); the environment variable of " +
+        "token is delivered PER REQUEST, on the `x-vercel-oidc-token` header; the environment variable of " +
         "the same name exists only during the build and in a local `vercel env pull`. Check that OIDC " +
         "federation is enabled for the project, and that this call is inside a request — a module-scope " +
         "or background call has no request to read it from. Elsewhere there is no identity at all and " +
