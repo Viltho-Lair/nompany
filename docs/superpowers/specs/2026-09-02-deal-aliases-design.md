@@ -97,24 +97,44 @@ mints a **second** deal. The other dual-writes on the spine are deliberately bes
 because they are additive to a record that already stands on its own. This one is not
 additive. It is the identity.
 
+### 3.2 The alias is written before the root, and the order is load-bearing
+
+Mint, then `setDealAlias`, then `applyDescriptor` at the minted id.
+
+Written the other way round — root first, alias second — a failure between the two leaves a
+deal that exists and cannot be found by derivation, so the retry falls through step 2 and
+step 3 and **mints a second deal for the same chain**. That is the exact failure the alias
+exists to prevent, reached by writing it late.
+
+In this order a failure between the two leaves an alias pointing at a root that does not
+exist yet, and the retry resolves through it (step 2) and applies the descriptor there.
+The partial state converges instead of forking, which is the only property worth having
+from an ordering.
+
 ## 4. Where identity is read
 
 | Call site | Today | After |
 |---|---|---|
-| `attachToTicketEngagement` | derives, attaches, no lookup | derives, **resolves**, attaches |
-| `engagementIdFor` | reverse index, falling back to derivation | unchanged first half; the **fallback resolves** |
+| `attachRecord` | **already resolves** | unchanged |
+| `attachToTicketEngagement` | derives, calls `attachRecord` | unchanged — it inherits that resolve |
+| `detachRecord` | edits `ENG.root(engId)` directly, no resolve | **resolves**, symmetric with `attachRecord` |
+| `engagementIdFor` | reverse index, falling back to derivation | unchanged — `detachRecord` resolves what it returns |
 | `engagementIdForLineage` | pure derivation | unchanged — it stays pure, callers resolve |
 | the five new stage types | already call `resolveDealId` | unchanged |
 
-`attachToTicketEngagement`'s comment currently sells the absence of a lookup as a feature
-("no extra hop"). That was true of a derived identity and is not true of a minted one, so
-the comment is rewritten rather than deleted — the reason it existed is the reason the
-trade changed.
+**Only one read-side change is needed, and it is not the one this section first claimed.**
+`attachRecord` has resolved through the alias since it was written, so every attach path
+above it already lands on the right deal. `detachRecord` does not, and that asymmetry is
+the bug: given a derived id for a minted deal it would edit a root that does not exist and
+take the "no root → nothing to clear" branch — a silent no-op on a detach, which is the
+worst available outcome, because the record stays a member of a deal it has left.
 
-**The hop cost is one read on a write path.** The ceilings Gate A pins are on GET routes —
-studio ≤3 waves, sales ≤4, technical ≤6 — and none of them attach. Nothing regresses
-against the contract, and the read is a single `getJSON` on a key the caller builds
-without a scan.
+So detach resolves the way attach does. Every caller stays unchanged, including
+`engagementIdFor`'s derivation fallback, which is free to keep returning a derived id.
+
+**The hop cost is zero on the attach path** (the read is already paid inside `attachRecord`)
+and **one read on detach**. The ceilings Gate A pins are on GET routes — studio ≤3 waves,
+sales ≤4, technical ≤6 — and none of them attach or detach.
 
 `engagementIdForLineage` stays pure and synchronous. It is imported by code that cannot
 await, and turning a pure derivation into an I/O call is how a helper ends up doing a
