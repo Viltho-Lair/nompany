@@ -135,6 +135,17 @@ numbering what arrives would label stages 1, 4 and 5 as "1, 2, 3"; numbering the
 would announce that two stages exist which the reader may not see. Position carries the
 order without either failure.
 
+**A deal owns the facts it opened with.** `applyDescriptor` — the path `createTicket`, the
+internal-quotation mint and the backfill all share — seeds `provenance` for the nine facts at
+the object class of the record that opened the deal (a ticket is `intent`, rank 40). Without
+that seed every fact sat at rank 0 and the first later record of any class won every
+argument: a lump-sum contract (`commitment`, 20) replaced a ticket's title and deadline, and
+Law 4 could not stop it because the ranks it compares against had never been written.
+
+Re-applying a descriptor **preserves what it does not own** — the deal's `templateId`, its
+`provenance`, its `createdAt`, and any fact held at a higher rank than the reconciler's.
+Re-running the backfill is not an event that outranks an intent record or a person's edit.
+
 ### Deleting anything
 
 Every create path owes a delete path, and they are one feature — never ship one without the

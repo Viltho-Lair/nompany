@@ -6,7 +6,7 @@ import { getJSON, setJSON, editJSON, delKeys, zAdd, zRange, zRem, zCard, sAdd, s
 import { isSingleton, stageOf, STAGE_REGISTRY } from "../engagement/registry";
 import { buildEngagements } from "../engagement/backfill";
 import type { EngagementDescriptor } from "../engagement/backfill";
-import { contribute, emptyContext } from "../engagement/context";
+import { contribute, emptyContext, CONTEXT_FACTS, rankOf } from "../engagement/context";
 import { templateById } from "../engagement/templates";
 import { attachmentProblem, canSitUnassigned, promotionProblem } from "../engagement/membership";
 import { record as recordAudit } from "@/platform/http/audit";
@@ -464,9 +464,54 @@ async function scoreOf(studioId: string, engId: string, type: string, recId: str
 // and the reverse index is re-pointed. Writes only ENG.* / recEng keys — never an
 // existing record (read-layer discipline, spec Phase 1a).
 export async function applyDescriptor(studioId: string, d: EngagementDescriptor): Promise<void> {
+  // THE DEAL'S OPENING FACTS ARE OWNED, NOT MERELY WRITTEN.
+  //
+  // This wrote `context` with no `provenance` beside it, which left every fact
+  // a ticket supplies at rank 0 — so the FIRST later record of ANY class won
+  // every argument. Observed live: a lump-sum contract (commitment, rank 20)
+  // silently replaced the title and deadline that the ticket (intent, rank 40)
+  // had opened the deal with. Law 4 exists to stop exactly that, and it could
+  // not, because the ranks it compares against were never recorded.
+  //
+  // Seeded at the class of the record that OPENED the deal, which is what the
+  // descriptor's head names. Only the nine facts get an entry — the descriptor
+  // also carries clientId/clientName/industry/createdAt, which are the
+  // backfill's own shape and not facts anyone contributes to.
+  const head = d.singletons.ticket ? "ticket"
+    : d.singletons.project ? "project"
+    : d.singletons.approvedQuotation || d.members.quotation?.[0] ? "quotation"
+    : "";
+  const headClass = head ? stageOf(head)?.objectClass : undefined;
+  const rank = headClass ? rankOf({ kind: "stage", objectClass: headClass }) : 0;
+
+  // AND A RE-APPLY MUST NOT DESTROY WHAT IT DOES NOT OWN. This was a blind
+  // whole-root setJSON, so re-running the backfill over a deal that had since
+  // been contributed to or given a template erased BOTH — the root has no
+  // templateId or provenance field in the object written above, so they simply
+  // vanished, and the deal quietly went back to walking Template A with
+  // unowned facts. "Idempotent" was true of the fields it wrote and silently
+  // false of the ones it did not.
+  const existing = await readEngagement(studioId, d.engId);
+  const provenance: ContextProvenance = { ...(existing?.provenance || {}) };
+  const context: Record<string, unknown> = { ...d.context };
+  for (const fact of CONTEXT_FACTS) {
+    const held = provenance[fact];
+    if (held != null && held > rank) {
+      // Something better-ranked already owns this fact. Keep its value —
+      // re-running the reconciler is not an event that outranks an intent
+      // record or a person's explicit edit.
+      if (existing && fact in existing.context) context[fact] = existing.context[fact];
+      continue;
+    }
+    const value = d.context[fact];
+    if (value !== undefined && value !== "" && rank > 0) provenance[fact] = rank;
+  }
+
   await setJSON(ENG.root(studioId, d.engId), {
-    id: d.engId, studioId, ref: d.ref, context: d.context,
-    singletons: d.singletons, createdAt: nowISO(), updatedAt: nowISO(),
+    id: d.engId, studioId, ref: d.ref, context,
+    ...(existing?.templateId ? { templateId: existing.templateId } : {}),
+    ...(Object.keys(provenance).length ? { provenance } : {}),
+    singletons: d.singletons, createdAt: existing?.createdAt || nowISO(), updatedAt: nowISO(),
   });
   // The one place a root becomes listable. Every create path funnels through
   // applyDescriptor (ticket dual-write, internal quotation, the backfill), so

@@ -205,6 +205,61 @@ try {
     promoteRefused.slice(0, 85));
 
 
+  console.log("== a deal minted from a descriptor OWNS the facts it opened with");
+  {
+    // THE BUG THIS GUARDS, seen live before it was fixed: a ticket opens a deal
+    // through applyDescriptor (the path createTicket, the internal-quotation
+    // mint and the backfill all share), and applyDescriptor wrote `context`
+    // with NO `provenance` beside it. Every fact therefore sat at rank 0, so
+    // the first later record of ANY class won every argument — a lump-sum
+    // contract (commitment, 20) replaced the title and the deadline that the
+    // ticket (intent, 40) had opened the deal with. Law 4 could not stop it,
+    // because the ranks it compares against had never been recorded.
+    const engId = "eng_descr_own";
+    await E.applyDescriptor(S, {
+      engId, ref: "OWN-1",
+      context: { title: "Cold store extension", deadline: "2026-11-15", urgency: "Normal" },
+      singletons: { ticket: "sal_own_1", approvedQuotation: null, project: null },
+      members: {},
+    });
+
+    const seeded = await E.readEngagement(S, engId);
+    ok("the opening facts are owned at the head record's class, not left at zero",
+      seeded?.provenance?.title === 40 && seeded?.provenance?.deadline === 40,
+      JSON.stringify(seeded?.provenance));
+
+    const beaten = await E.contributeContext(S, engId,
+      { title: "Contract title", deadline: "2027-06-30" },
+      { kind: "stage", objectClass: "commitment" });
+    ok("a commitment cannot overwrite what an intent record opened the deal with",
+      beaten?.refused.length === 2 && beaten?.changes.length === 0,
+      JSON.stringify({ refused: beaten?.refused.length, changes: beaten?.changes.length }));
+    const after = await E.readEngagement(S, engId);
+    ok("...and the deal still reads the ticket's title and deadline",
+      after?.context.title === "Cold store extension" && after?.context.deadline === "2026-11-15",
+      JSON.stringify({ title: after?.context.title, deadline: after?.context.deadline }));
+
+    // RE-APPLYING MUST NOT DESTROY WHAT IT DOES NOT OWN. The write was a blind
+    // whole-root setJSON whose object has no templateId and no provenance
+    // field, so re-running the reconciler over a deal that had since been
+    // given a template, or contributed to, erased both — silently, and the
+    // deal went back to walking Template A with unowned facts.
+    await E.setDealTemplate(S, engId, "B");
+    await E.contributeContext(S, engId, { site: "Yard 2" }, { kind: "edit" });
+    await E.applyDescriptor(S, {
+      engId, ref: "OWN-1",
+      context: { title: "Cold store extension", deadline: "2026-11-15", urgency: "Normal" },
+      singletons: { ticket: "sal_own_1", approvedQuotation: null, project: null },
+      members: {},
+    });
+    const reapplied = await E.readEngagement(S, engId);
+    ok("a re-apply keeps the template the deal was given",
+      reapplied?.templateId === "B", String(reapplied?.templateId));
+    ok("...and keeps a person's explicit edit, which outranks any reconciler",
+      reapplied?.context.site === "Yard 2" && reapplied?.provenance?.site === 100,
+      JSON.stringify({ site: reapplied?.context.site, rank: reapplied?.provenance?.site }));
+  }
+
   console.log("== Law 4's other half: every overwrite leaves a trace");
   {
     const audit = await import("@/platform/http/audit");
