@@ -117,7 +117,7 @@ import {
 // PHASE 1b-i DUAL-WRITE: createTicket mints the engagement layer as a
 // best-effort side effect, reusing the backfill's own clustering.
 import { deterministicEngId } from "@/platform/db/keys";
-import { readEngagementView, readEngagement, engagementOf } from "@/platform/db/engagement";
+import { readEngagementView, readEngagement, engagementOf, resolveDealId } from "@/platform/db/engagement";
 // THE ENGAGEMENTS VIEW (Task 6): the read layer that assembles a deal from
 // the layer above, exercised end to end against a real seeded studio in the
 // spine block below — the pure permission filter (visibleStageTypes) already
@@ -472,8 +472,12 @@ console.log("\n== the handler is carried, never copied");
   });
   ok("a ticket can be raised", !!made.ticket, JSON.stringify(made.error));
 
-  // dual-write: creating a ticket also mints its engagement (Phase 1b-i)
-  const engId = deterministicEngId("ticket", made.ticket.id);
+  // dual-write: creating a ticket also mints its engagement (Phase 1b-i), and
+  // that mint leaves the derived id an ALIAS rather than the deal's own id
+  // (deal-aliases Task 3) — resolved here, once, so every read below (and
+  // every comparison further down this same fixture) is asking about the
+  // deal that actually exists rather than the address it used to have.
+  const engId = await resolveDealId(studio.id, deterministicEngId("ticket", made.ticket.id));
   const view = await readEngagementView(studio.id, engId);
   ok("createTicket mints the ticket's engagement",
     view && view.singletons.ticket === made.ticket.id && !!view.context.clientName,
@@ -709,8 +713,10 @@ console.log("\n== the handler is carried, never copied");
 
     // AND IT JOINS A DEAL. This is the half that fails silently: no ticket and
     // no quotation means no derived engagement id, so without the project-rooted
-    // root the project is invisible on the engagements view.
-    const directEngId = deterministicEngId("project", String(direct.project?.id));
+    // root the project is invisible on the engagements view. Resolved through
+    // the alias (deal-aliases Task 3): the direct-project mint leaves this
+    // derivation pointing at the deal rather than naming it.
+    const directEngId = await resolveDealId(studio.id, deterministicEngId("project", String(direct.project?.id)));
     const directView = await readEngagementView(studio.id, directEngId);
     ok("the direct project roots its own engagement",
       directView?.singletons?.project === direct.project?.id,
@@ -903,7 +909,7 @@ console.log("\n== the handler is carried, never copied");
     title: "A later deal", clientName: "Later Co", deadline: "2026-12-01",
     industry: "Technology", serviceIds: ["Integration"],
   });
-  const laterEngId = deterministicEngId("ticket", laterTicket.ticket.id);
+  const laterEngId = await resolveDealId(studio.id, deterministicEngId("ticket", laterTicket.ticket.id));
   const listAfter = await listEngagements({ studio, access: ownerAccess });
   const idxLater = listAfter.engagements.findIndex((e) => e.id === laterEngId);
   const idxEarlier = listAfter.engagements.findIndex((e) => e.id === engId);
@@ -1217,7 +1223,9 @@ console.log("\n== engagement on-create (Phase 1b-ii, Task 3b): an internal quota
   ok("an internal quotation can be raised with no ticket behind it",
     !!madeInternal.quotation, JSON.stringify(madeInternal.error));
 
-  const ownEngId = deterministicEngId("quotation", madeInternal.quotation?.id);
+  // Resolved through the alias (deal-aliases Task 3): createQuotation's mint
+  // leaves this derivation pointing at the deal, not naming it.
+  const ownEngId = await resolveDealId(studio.id, deterministicEngId("quotation", madeInternal.quotation?.id));
   const ownView = await readEngagementView(studio.id, ownEngId);
   ok("createQuotation mints the quotation's own engagement",
     !!ownView?.members.quotation?.includes(madeInternal.quotation?.id), JSON.stringify(ownView));
@@ -1273,7 +1281,9 @@ console.log("\n== a project opened from a quotation knows whose work it is (Task
   // its PROJECT singleton and the quotation recorded as approved. Before this
   // fix, attachToTicketEngagement(..., ticketId: "") threw inside
   // claimSingleton and the project joined nothing.
-  const quoteEngId = deterministicEngId("quotation", internal.quotation?.id);
+  // Resolved through the alias (deal-aliases Task 3): createQuotation's mint
+  // leaves this derivation pointing at the deal, not naming it.
+  const quoteEngId = await resolveDealId(studio.id, deterministicEngId("quotation", internal.quotation?.id));
   const quoteEngView = await readEngagementView(studio.id, quoteEngId);
   ok("the project joins the quotation's OWN engagement as its PROJECT singleton",
     quoteEngView?.singletons.project === openedInternal.project?.id, JSON.stringify(quoteEngView?.singletons));
@@ -1294,7 +1304,9 @@ console.log("\n== a project opened from a quotation knows whose work it is (Task
     title: "Ticket-headed path stays put", clientName: `Ticket Client ${rand()}`, deadline: "2026-12-01",
     industry: "Technology", serviceIds: [svcRegressionName],
   });
-  const ticketEngId = deterministicEngId("ticket", ticketMade.ticket?.id);
+  // Resolved through the alias (deal-aliases Task 3): the ticket's mint leaves
+  // this derivation pointing at the deal, not naming it.
+  const ticketEngId = await resolveDealId(studio.id, deterministicEngId("ticket", ticketMade.ticket?.id));
   const rfqMade = await requestTicketRfq(salesForRegression, { ticketId: ticketMade.ticket?.id });
   const techForRegression = await technicalContext(owner, slug);
   const convMade = await convertRfq(techForRegression, { rfqId: rfqMade.rfq?.id });
@@ -1337,7 +1349,12 @@ console.log("\n== a project opened from a quotation knows whose work it is (Task
     title: "Engagement root never landed", clientName: `Fallback Client ${rand()}`, deadline: "2026-12-01",
     industry: "Technology", serviceIds: [svcFallbackName],
   });
-  const fallbackEngId = deterministicEngId("ticket", ticketFallback.ticket?.id);
+  // Resolved through the alias (deal-aliases Task 3) to the minted deal — and
+  // deliberately still the MINTED id after this: deleting its root below is
+  // simulating a dual-write that landed the mint (and its alias) but crashed
+  // before the root document was written, which is a truer shape of "never
+  // landed" than deleting a key nothing points at.
+  const fallbackEngId = await resolveDealId(studio.id, deterministicEngId("ticket", ticketFallback.ticket?.id));
   ok("the ticket's engagement exists before it is deliberately removed",
     !!(await readEngagementView(studio.id, fallbackEngId)), fallbackEngId);
   await delKeys(KEYS.ENG.root(studio.id, fallbackEngId));
@@ -1479,9 +1496,11 @@ console.log("\n== CI proves a quotation-born deal carries its client (Task 5, cl
   // null (never inherited, never guessed), the project claimed as the PROJECT
   // singleton, the approved quotation recorded, and the quotation itself among
   // the engagement's own members (createQuotation's dual-write, Phase 1b-ii).
-  const chainEngId = deterministicEngId("quotation", madeQuote.quotation?.id);
+  // Resolved through the alias (deal-aliases Task 3): createQuotation mints
+  // its own deal now, and this derivation names it only by resolving.
+  const chainEngId = await resolveDealId(studio.id, deterministicEngId("quotation", madeQuote.quotation?.id));
   const chainView = await readEngagementView(studio.id, chainEngId);
-  ok("the engagement is deterministicEngId(\"quotation\", quotationId)", !!chainView, chainEngId);
+  ok("the derived id resolves to the deal the internal quotation minted", !!chainView, chainEngId);
   ok("...with no ticket — this deal never had one",
     chainView?.singletons.ticket === null, JSON.stringify(chainView?.singletons));
   ok("...the project claimed as the PROJECT singleton",
@@ -1539,7 +1558,9 @@ console.log("\n== deleting a record takes its engagement state with it");
   ok("fixture: an internal quotation, with its own engagement", !!made.quotation,
     JSON.stringify(made.error));
   const quotationId = made.quotation?.id;
-  const engId = deterministicEngId("quotation", quotationId);
+  // Resolved through the alias (deal-aliases Task 3): createQuotation mints
+  // its own deal, and this derivation only names it by resolving.
+  const engId = await resolveDealId(studio.id, deterministicEngId("quotation", quotationId));
 
   await updateQuotation(await technicalContext(owner, slug), quotationId, { status: "Approved" });
   const proj = await projectsContext(owner, slug);
@@ -1610,7 +1631,10 @@ console.log("\n== deleting a deal keeps the client it merely pointed at");
   ok("fixture: an internal quotation with a real client row", !!made.quotation?.clientId,
     JSON.stringify(made.error || made.quotation));
   const clientId = made.quotation?.clientId;
-  const engId = deterministicEngId("quotation", made.quotation?.id);
+  // Resolved through the alias (deal-aliases Task 3): createQuotation mints
+  // its own deal, and engagementImpact/removeEngagement/lockEngagement below
+  // resolve it themselves now too — this must ask about the same one they do.
+  const engId = await resolveDealId(studio.id, deterministicEngId("quotation", made.quotation?.id));
 
   const access = (await studioContext(owner, slug)).access;
   const engCtx = { studio, access };
@@ -1674,7 +1698,9 @@ console.log("\n== a project's children are in the deal, and leave it when they g
   });
   ok("fixture: an internal quotation with its own engagement", !!made.quotation, JSON.stringify(made.error));
   const quotationId = made.quotation?.id;
-  const engId = deterministicEngId("quotation", quotationId);
+  // Resolved through the alias (deal-aliases Task 3): createQuotation mints
+  // its own deal, and this derivation only names it by resolving.
+  const engId = await resolveDealId(studio.id, deterministicEngId("quotation", quotationId));
   await updateQuotation(await technicalContext(owner, slug), quotationId, { status: "Approved" });
   const opened = await openProject(await projectsContext(owner, slug), { quotationId });
   ok("fixture: a project opened on it", !!opened.project, JSON.stringify(opened.error));

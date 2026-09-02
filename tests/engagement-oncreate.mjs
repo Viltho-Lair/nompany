@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { pathToFileURL } from "node:url";
 import { KEY_PREFIX, deterministicEngId } from "../src/platform/db/keys.ts";
-import { attachTicketEngagement, attachProjectEngagement, readEngagementView } from "../src/platform/db/engagement.ts";
+import { attachTicketEngagement, attachProjectEngagement, readEngagementView, resolveDealId } from "../src/platform/db/engagement.ts";
 import { buildEngagements } from "../src/platform/engagement/backfill.ts";
 assert.ok(KEY_PREFIX, "must run under a key prefix");
 
@@ -10,7 +10,10 @@ export async function testAttachTicketEngagement() {
   const ticket = { id: "tk_9", clientId: "c1", clientName: "Acme", ref: "ACME-001", title: "Roof", industry: "Eng" };
   const client = { id: "c1", name: "Acme" };
   const engId = await attachTicketEngagement(sid, ticket, client);
-  assert.equal(engId, deterministicEngId("ticket", "tk_9"), "deterministic id matches the backfill's");
+  // A deal opened now mints its own id (deal-aliases Task 3); what the
+  // backfill's derivation still gives is a lookup that resolves to it.
+  assert.equal(await resolveDealId(sid, deterministicEngId("ticket", "tk_9")), engId,
+    "the derived id resolves to the minted deal");
   const view = await readEngagementView(sid, engId);
   assert.equal(view.singletons.ticket, "tk_9");
   assert.equal(view.context.clientName, "Acme");
@@ -29,8 +32,10 @@ export async function testDirectProjectMintsItsOwnEngagement() {
   };
   const client = { id: "c9", name: "Northwind", industry: "Logistics" };
   const engId = await attachProjectEngagement(sid, project, client);
-  assert.equal(engId, deterministicEngId("project", "prj_direct1"),
-    "a direct project's engagement id is deterministic off the project");
+  // A direct project mints its own deal now (deal-aliases Task 3); its
+  // derivation off the project is a lookup that resolves to it.
+  assert.equal(await resolveDealId(sid, deterministicEngId("project", "prj_direct1")), engId,
+    "a direct project's derived id resolves to the deal it minted");
   const view = await readEngagementView(sid, engId);
   assert.equal(view.singletons.project, "prj_direct1");
   assert.equal(view.singletons.ticket, null, "nothing invents a ticket");

@@ -17,7 +17,7 @@ import { getJSON, editJSON, delKeys } from "@/platform/db/store";
 import { PROJECT } from "@/platform/db/keys";
 import {
   readEngagement, attachRecord, setApprovedQuotation,
-  detachRecord, engagementIdFor, engagementIdForLineage,
+  detachRecord, engagementIdFor, engagementIdForLineage, resolveDealId,
   attachToProjectEngagement, attachProjectEngagement, detachFromItsEngagement,
 } from "@/platform/db/engagement";
 import { removeProjectPlans, progressByProject } from "@/modules/operations/planner";
@@ -368,7 +368,14 @@ async function quotationSource(
   // delete path has to reach the SAME id to detach what this attached, and two
   // copies of "ticket's, else its own" is exactly the kind of near-miss that
   // detaches from an engagement nobody ever attached to and still reports ok.
-  const engId = engagementIdForLineage({ ticketId: quote.ticketId, quotationId: quote.id });
+  //
+  // RESOLVED THROUGH THE ALIAS (deal-aliases Task 3), because the "once, here"
+  // above is only true if this IS the id everything downstream agrees on — a
+  // ticket or an internal quotation minted after this task answers to a
+  // different id now, and reading its context at the derivation would find
+  // nothing: the client would silently blank again, the exact defect this
+  // function exists to remove, reopened by resolving the wrong half of it.
+  const engId = await resolveDealId(studio.id, engagementIdForLineage({ ticketId: quote.ticketId, quotationId: quote.id }));
 
   // THE CLIENT COMES FROM THE ENGAGEMENT'S CONTEXT, not from the ticket.
   // ticketFacts(quote.ticketId) is blank for every internal quotation — no

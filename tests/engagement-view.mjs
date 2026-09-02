@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { pathToFileURL } from "node:url";
 import { ENG, KEY_PREFIX, deterministicEngId } from "../src/platform/db/keys.ts";
-import { createEngagement, attachTicketEngagement } from "../src/platform/db/engagement.ts";
+import { createEngagement, attachTicketEngagement, resolveDealId } from "../src/platform/db/engagement.ts";
 import { zRange } from "../src/platform/db/store.ts";
 import { ALL_PERMISSIONS, AREAS } from "../src/platform/access/catalogue.ts";
 // listEngagements/engagementBlock need a seeded studio and are exercised in
@@ -21,7 +21,10 @@ export async function testIndex() {
     { id: "tk_1", clientName: "Acme", ref: "ACME-001", createdAt: "2026-01-01T00:00:00Z" },
     { id: "c1", name: "Acme" },
   );
-  assert.equal(engId, deterministicEngId("ticket", "tk_1"));
+  // A deal opened now mints its own id (deal-aliases Task 3); the ticket's
+  // derivation is a lookup that resolves to it, not the id itself.
+  assert.equal(await resolveDealId(sid, deterministicEngId("ticket", "tk_1")), engId,
+    "the derived id resolves to the minted deal");
   assert.deepEqual(await zRange(ENG.index(sid), 0, -1), [engId], "indexed on create");
 
   // Idempotent: re-applying the same engagement does not duplicate it.

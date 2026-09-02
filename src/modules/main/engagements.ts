@@ -401,8 +401,15 @@ export async function deletionImpact(
   const denied = requirePermission(ctx.access, entry.permission as PermissionKey);
   if (denied) return denied;
 
-  const engId = await engagementIdFor(ctx.studio.id, type, record.id, record);
-  if (!engId) return { impact: null };
+  const derivedOrIndexed = await engagementIdFor(ctx.studio.id, type, record.id, record);
+  if (!derivedOrIndexed) return { impact: null };
+  // RESOLVED THROUGH THE ALIAS. engagementIdFor prefers the reverse index —
+  // which already names the real deal, the same as every attach since — but
+  // falls back to a lineage derivation for a record attached before that index
+  // existed (its own comment says so). A derivation is a lookup key now, not
+  // necessarily the deal's own id (see applyAsDeal); skipping this would
+  // answer "nothing to delete" for a warning about a deal that plainly exists.
+  const engId = await resolveDealId(ctx.studio.id, derivedOrIndexed);
   const view = await readEngagementView(ctx.studio.id, engId);
   if (!view) return { impact: null };
 
@@ -463,7 +470,13 @@ export async function engagementImpact(
   const denied = requirePermission(ctx.access, "engagements.view");
   if (denied) return denied;
 
-  const view = await readEngagementView(ctx.studio.id, engId);
+  // RESOLVED THROUGH THE ALIAS, for the same reason engagementBlock is: `engId`
+  // arrives from a URL, a link, a stored reference — anything that could be
+  // holding a derivation from before this deal was minted. Skipping this would
+  // answer "notfound" about what deleting a deal affects, for a deal that is
+  // very much still there.
+  const dealId = await resolveDealId(ctx.studio.id, engId);
+  const view = await readEngagementView(ctx.studio.id, dealId);
   if (!view) return { error: "notfound" };
 
   const visible = new Set(visibleStageTypes(ctx.access));
@@ -476,7 +489,7 @@ export async function engagementImpact(
     (entry.onDelete === "cascade" ? deletes : survives)
       .push({ type: entry.type, label: entry.label, count });
   }
-  return { impact: { id: engId, ref: view.ref || "", locked: view.locked, deletes, survives } };
+  return { impact: { id: dealId, ref: view.ref || "", locked: view.locked, deletes, survives } };
 }
 
 // LOCK OR UNLOCK. Its own right, because holding the power to delete a deal must
@@ -486,7 +499,12 @@ export async function lockEngagement(
 ): Promise<{ ok: true; locked: boolean } | Refusal | { error: "notfound" }> {
   const denied = requirePermission(ctx.access, "engagements.lock");
   if (denied) return denied;
-  const done = await setEngagementLock(ctx.studio.id, engId, locked);
+  // RESOLVED THROUGH THE ALIAS. The lock is the last line of defence before a
+  // destructive delete, so it must find the SAME deal removeEngagement will —
+  // a caller holding a derived id who could not unlock it would be unable to
+  // ever delete the deal at all, not merely inconvenienced.
+  const dealId = await resolveDealId(ctx.studio.id, engId);
+  const done = await setEngagementLock(ctx.studio.id, dealId, locked);
   return done ? { ok: true, locked } : { error: "notfound" };
 }
 
@@ -506,7 +524,12 @@ export async function removeEngagement(
   const denied = requirePermission(ctx.access, "engagements.delete");
   if (denied) return denied;
 
-  const view = await readEngagementView(ctx.studio.id, engId);
+  // RESOLVED THROUGH THE ALIAS, and resolved ONCE — the id below is what
+  // cascadeDeleteEngagement is handed too, so the warning this function reads
+  // (readEngagementView) and the deletion it performs can never disagree about
+  // which deal they mean.
+  const dealId = await resolveDealId(ctx.studio.id, engId);
+  const view = await readEngagementView(ctx.studio.id, dealId);
   if (!view) return { error: "notfound" };
   const visible = new Set(visibleStageTypes(ctx.access));
   const present = Object.values(STAGE_REGISTRY)
@@ -517,5 +540,5 @@ export async function removeEngagement(
   // from this reader is refused.
   if (present.length && !present.some((t) => visible.has(t))) return { error: "forbidden" };
 
-  return cascadeDeleteEngagement(ctx.studio.id, engId);
+  return cascadeDeleteEngagement(ctx.studio.id, dealId);
 }
