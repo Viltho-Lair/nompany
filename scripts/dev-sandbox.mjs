@@ -58,7 +58,7 @@ const root = pathToFileURL(`${process.cwd()}/`).href;
 register(new URL("../tests/loader.mjs", import.meta.url), { data: { root } });
 
 const { seedSuperAdmin } = await import("@/platform/auth/superAuth");
-const { createUser } = await import("@/platform/auth/users");
+const { createUser, getUserByEmail, getQuestionnaire, updateQuestionnaire } = await import("@/platform/auth/users");
 const { createStudio } = await import("@/modules/main/studios");
 const { hashPassword } = await import("@/platform/auth/passwords");
 
@@ -68,12 +68,46 @@ const SLUG = "sandbox";
 
 const admin = await seedSuperAdmin({ email: EMAIL, password: PASSWORD });
 
+// EACH STEP IS SEPARATELY IDEMPOTENT, and no step may swallow the next one's
+// chance to run.
+//
+// This was one try/catch around all three. On the SECOND run createUser threw
+// ("already exists"), which skipped straight past the studio — so a tree whose
+// first run had failed halfway could never repair itself, and every later run
+// still printed the studio URL as though it were there.
 let user = null;
 try {
   const made = await createUser({ email: EMAIL, passwordHash: await hashPassword(PASSWORD) });
   user = made.user || null;
-  if (user) await createStudio({ ownerUserId: user.id, name: "Sandbox Studio", slug: SLUG, ownerAlias: "Owner" });
-} catch { /* already seeded by a previous run — idempotent by email and slug */ }
+} catch { /* the account is already here — the lookup below finds it */ }
+if (!user) user = await getUserByEmail(EMAIL);
+
+if (user) {
+  const studio = await createStudio({ ownerUserId: user.id, name: "Sandbox Studio", slug: SLUG, ownerAlias: "Owner" });
+  // "slug-taken" is the normal second-run answer, not a problem. Anything else
+  // is reported, because a sandbox that silently has no studio is the failure
+  // this whole script exists to avoid.
+  if (studio?.error && studio.error !== "slug-taken") {
+    console.warn(`  ! studio not created: ${studio.error}`);
+  }
+
+  // THE QUESTIONNAIRE GATE, which is why this script did not actually work.
+  //
+  // `/${SLUG}` runs needsQuestionnaire() and redirects to /en/questionnaire
+  // until `completedAt` is set. So the sandbox seeded an account and a studio,
+  // printed the studio's URL, and then bounced every visit to that URL into
+  // onboarding — and CLAUDE.md's "verifying a screen needs a session, and
+  // npm run dev:sandbox is how" was not true of any screen inside a studio.
+  //
+  // Marked complete rather than answered: the sandbox exists to reach the
+  // product, and the questionnaire's own screens are reachable on their own.
+  const answers = await getQuestionnaire(user.id);
+  if (!answers?.completedAt) {
+    // patchDoc takes an OBJECT and merges it over the current document itself,
+    // so this adds completedAt without disturbing any answers already there.
+    await updateQuestionnaire(user.id, { completedAt: new Date().toISOString() });
+  }
+}
 
 console.log(`
   sandbox namespace : ${PREFIX}

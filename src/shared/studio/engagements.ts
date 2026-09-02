@@ -93,7 +93,16 @@ const en: Strings = {
   moreDealsFurtherDown: "More deals may be further down the list — this page just did not have any you have access to.",
   nDeals: (n: number) => `${n} deal${n === 1 ? "" : "s"}`,
   nRecords: (n: number) => `${n} record${n === 1 ? "" : "s"}`,
-  noStageYet: (what) => `No ${what.charAt(0).toLowerCase() + what.slice(1)} yet.`,
+  // AN ACRONYM KEEPS ITS CASE. Lowercasing the first letter unconditionally
+  // turned "RFQ" into "No rFQ yet." on every deal whose flow lists one, which
+  // the template-driven screen shows on nearly all of them. A label is
+  // sentence-cased here only when the REST of it is already lowercase — true of
+  // "Sales ticket" and "Project sheet", false of "RFQ".
+  noStageYet: (what) => {
+    const rest = what.slice(1);
+    const head = rest === rest.toLowerCase() ? what.charAt(0).toLowerCase() : what.charAt(0);
+    return `No ${head}${rest} yet.`;
+  },
   nothingBorrowed: "Nothing was borrowed from elsewhere — everything on this deal was raised on it.",
   nothingNoWorkYet: "Nothing — there is no work on this deal yet.",
   onThisDeal: (n) => `${n} on this deal`,
