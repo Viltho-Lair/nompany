@@ -439,8 +439,10 @@ R6 `lastSeenAt`/`lastLoginAt` off `g:users` onto `u:<id>:activity` — the hotte
 gone, R9 `getProfile` N+1 → one `MGET`), all on `main`. The recurring Gate-A month-end
 **date-drift** is fixed (vacation fixtures are clock-relative now). **Open Wave 2 remnants:** the
 `sweepOrphans` rewrite (M-10); the gap items — soft-delete tombstones, the email/fan-out outbox,
-`schemaVersion` on stored documents; and **media→Vercel Blob**, coded and tested but blocked on
-the Blob store being created.
+`schemaVersion` on stored documents. (**media→Vercel Blob** was listed here as "blocked on the
+Blob store being created" long after the store existed and the port had shipped — the same
+paragraph's own "Media has left Redis" above contradicted it. Only `--reclaim`, which deletes
+the two pre-Blob records' base64, is still outstanding, and it waits on the gateway.)
 
 **Wave 3 (TypeScript) is done server-side** — every `.ts`/`.tsx` under `noImplicitAny`, all
 twelve departments in `src/modules/<name>/` with a Zod schema each, all 99 route files
