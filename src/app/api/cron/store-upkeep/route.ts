@@ -31,6 +31,22 @@ export const dynamic = "force-dynamic";
 // name one table and one condition that is a fact about the row (it expired;
 // it is older than the horizon), take no caller input, and cap how many rows a
 // single run may remove.
+// DAILY, NOT HOURLY, AND THAT IS A PLAN LIMIT RATHER THAN A JUDGEMENT.
+//
+// This ran at "30 * * * *". Vercel's Hobby plan permits at most one run per
+// day per cron, and it REFUSES THE WHOLE DEPLOYMENT over it — not the cron, the
+// deployment. That is how it presented: eight pushes in a row built green in CI
+// and produced no deployment at all, because every one was rejected at
+// validation for this line. Worth knowing before anyone "restores" the hourly
+// schedule and wonders why nothing ships.
+//
+// Safe to slow down precisely because of the paragraph above: expiry is already
+// enforced on every read, so this only decides how quickly dead rows stop
+// occupying space. What it does change is the CEILING — MAX_PER_RUN is per run,
+// so a daily cadence reclaims at most 20,000 rows a day. That is far above this
+// product's churn today and would stop being true long before it mattered; if
+// the table starts growing despite this job, the cadence is the first thing to
+// look at, and an hourly schedule needs the Pro plan.
 const MAX_PER_RUN = 20_000;
 
 // How long an event stays readable. This is the REPLAY WINDOW: a client
