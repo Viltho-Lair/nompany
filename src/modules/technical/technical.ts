@@ -320,9 +320,12 @@ export async function requestRfq(ctx: TechnicalContext, body: Record<string, unk
     createdAt: new Date().toISOString(),
   });
 
-  // Dual-write the engagement layer: the RFQ joins the ticket's engagement, the
-  // SAME deterministic id the backfill would cluster it under. Best-effort — the
-  // RFQ is raised; failing to attach it must not fail that (see attachTicketEngagement).
+  // Dual-write the engagement layer: the RFQ joins the ticket's engagement,
+  // named here by the SAME deterministic id the backfill would cluster it
+  // under — an alias attachToTicketEngagement resolves through the alias
+  // table (see its own comment), not the deal's identity, so this still lands
+  // on the minted deal once one exists. Best-effort — the RFQ is raised;
+  // failing to attach it must not fail that (see attachTicketEngagement).
   try {
     await attachToTicketEngagement(studio.id, "rfq", rfq.id, rfq.ticketId);
   } catch { /* best-effort: reconciled later */ }
@@ -851,8 +854,10 @@ export async function convertRfq(ctx: TechnicalContext, body: Record<string, unk
   });
 
   // Dual-write: the converted quotation joins its TICKET'S engagement — not its
-  // own — the same deterministic id attachToTicketEngagement's ticket-child
-  // caller (requestRfq) writes into. Best-effort, never blocking.
+  // own — named by the same deterministic id requestRfq writes into above.
+  // attachToTicketEngagement resolves that id through the alias table (see its
+  // own comment) rather than treating it as the deal's identity, so this still
+  // lands on the minted deal once one exists. Best-effort, never blocking.
   try {
     await attachToTicketEngagement(studio.id, "quotation", quotation.id, quotation.ticketId || "");
   } catch { /* best-effort: reconciled later */ }

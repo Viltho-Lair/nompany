@@ -94,6 +94,22 @@ export async function testMintingIsIdempotentAndGrandfathers() {
   const second = await attachTicketEngagement(sid, ticket, { id: "c1", name: "Acme" });
   assert.equal(second, first, "a second create for the same chain returns the same deal");
 
+  // NO SECOND ROOT. The second create's derived id already resolves to `first`
+  // (the alias the first create wrote), so applyAsDeal takes the aliased
+  // branch and applies AT `first` — it must not also leave a root sitting at
+  // the derivation itself, which is exactly the "two deals for one chain" §3.1
+  // and §3.2 exist to prevent.
+  const derivedTk = deterministicEngId("ticket", "tk_m");
+  assert.equal(await readEngagement(sid, derivedTk), null,
+    "the second create writes no root at the derived id — one deal, one root, at the minted id");
+
+  // NO SECOND ALIAS. The aliased branch never calls setDealAlias at all (only
+  // the mint branch does), so the derived id's alias entry is exactly the one
+  // the first create wrote — still resolving to `first`, not repointed and not
+  // duplicated by the retry.
+  assert.equal(await resolveDealId(sid, derivedTk), first,
+    "the derived id still resolves to the one deal the first create minted — no second alias was written");
+
   // A DEAL FROM BEFORE THIS CHANGE: a root sitting at its derived id, no alias.
   const sid2 = `s_${Date.now().toString(36)}_da4`;
   const legacy = { id: "tk_old", clientId: "c2", clientName: "Old", ref: "OLD-1" };
@@ -113,15 +129,24 @@ export async function testMintingIsIdempotentAndGrandfathers() {
 // uses in this repo for a property that is a fact about the SHAPE of a
 // function rather than about what it returns under a forced failure.
 //
-// Spec §7's last bullet asks for "a failed alias write fails the create.
-// Assert the refusal surfaces rather than being swallowed." Mocking the store
-// to make setDealAlias throw would prove only that a throw propagates through
-// an ordinary async function — true of every function in this file, and proof
-// of nothing about THIS one. What actually matters is READ off the source: has
-// nobody wrapped the setDealAlias call in a try/catch that would swallow it,
-// and does it still run BEFORE applyDescriptor (§3.2) rather than after. A
-// mock cannot catch a later refactor that adds either of those; a scan of the
-// text can, because the property under test is the text.
+// This is a guard on `applyAsDeal`'s OWN shape, not a claim about whether a
+// create can fail — it cannot make that claim, because it doesn't reach
+// `applyAsDeal`'s callers at all. All three of those (`attachTicketEngagement`,
+// `attachQuotationEngagement`, `attachProjectEngagement`) wrap the call in
+// their own best-effort try/catch, the same shape every other dual-write on
+// this spine uses, so a failure inside `applyAsDeal` DOES get swallowed one
+// frame up — deliberately, and that is fine (spec §3.1). What has to stay true
+// is narrower: nothing INSIDE `applyAsDeal` itself catches the refusal before
+// it gets that far, and the alias write still runs BEFORE applyDescriptor
+// (§3.2) rather than after — because that ordering, not the throw reaching a
+// caller, is what keeps a swallowed failure converging on retry instead of
+// forking a second deal. Mocking the store to make setDealAlias throw would
+// prove only that a throw propagates through an ordinary async function — true
+// of every function in this file, and proof of nothing about THIS one. What
+// actually matters is READ off the source: has nobody wrapped the setDealAlias
+// call in a try/catch that would swallow it here, and does it still run before
+// applyDescriptor. A mock cannot catch a later refactor that adds either of
+// those; a scan of the text can, because the property under test is the text.
 function applyAsDealSource() {
   // Line-based, matching functionBody's own technique in
   // tests/auth-refusals.mjs: find the function by its signature, take
@@ -165,8 +190,11 @@ export function testAliasWriteIsNotBestEffort() {
   const opens = (before.match(/\btry\s*\{/g) || []).length;
   const closes = (before.match(/\}\s*catch\b/g) || []).length;
   assert.equal(opens, closes,
-    "setDealAlias is not wrapped in a try/catch — a failed alias write must " +
-    "fail the create (spec §3.1), not be swallowed into a best-effort one");
+    "setDealAlias is not wrapped in a try/catch inside applyAsDeal — a failed " +
+    "alias write reaches applyAsDeal's own caller rather than being swallowed " +
+    "here, and it is that plus the alias-before-root ordering (spec §3.2), not " +
+    "this throw alone, that keeps a failure converging instead of forking a " +
+    "second deal (spec §3.1)");
 }
 
 // THE BEHAVIOURAL HALF: §3.2's actual promise is convergence, not merely that

@@ -644,7 +644,12 @@ async function applyAsDeal(studioId: string, d: EngagementDescriptor): Promise<s
 
   const aliased = await resolveDealId(studioId, derived);
   if (aliased !== derived) {
-    await applyDescriptor(studioId, d);          // resolves to `aliased` itself
+    // Pass the resolved id straight through. applyDescriptor also resolves
+    // d.engId itself (it has its own callers that still hand it a derived
+    // one, e.g. the backfill), but we already paid for that read above —
+    // handing it `derived` again would make it pay a second time for an
+    // answer this function already has.
+    await applyDescriptor(studioId, { ...d, engId: aliased });
     return aliased;
   }
 

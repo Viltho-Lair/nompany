@@ -402,6 +402,21 @@ export type EngagementCascade =
   | { ok: true; deleted: Array<{ type: string; id: string }>; kept: Array<{ type: string; id: string }> }
   | { error: "notfound" | "locked" };
 
+// `engId` MUST ALREADY BE RESOLVED, through `resolveDealId`, before it reaches
+// here. This function does not resolve it itself, and that is deliberate, not
+// an oversight: cascade is the ONE deletion path (invariant 11), so it gains no
+// lookups of its own — every read it performs is one this destructive walk
+// actually needs, not a courtesy for a caller that skipped a step. Its only
+// caller today (`removeEngagement`) resolves once and hands the same id to both
+// the warning it reads and the deletion it performs, which is also what keeps
+// them from disagreeing about which deal they mean. But that is a property of
+// the caller, not of this function — the same asymmetry `detachRecord` used to
+// have, and the lock check below already says why that is not enough on its
+// own: "an interlock on a destructive action that lives only in its caller is
+// an interlock until somebody writes a second caller." A second
+// caller handing this a derived id would delete nothing (the root it reads
+// would not exist) rather than delete the wrong deal, but "silently deletes
+// nothing" is still the wrong answer for a delete somebody asked for.
 export async function cascadeDeleteEngagement(
   studioId: string, engId: string,
 ): Promise<EngagementCascade> {

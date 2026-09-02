@@ -88,14 +88,30 @@ answer to a minted one with the derivation aliased onto it. Neither is ever rewr
 and `resolveDealId` returns its input for the first kind — which is exactly what it is
 documented to do for a caller already holding a real deal id.
 
-### 3.1 The alias write is not best-effort
+### 3.1 The alias write is not swallowed inside the mint — the callers around it are
 
-`setDealAlias` runs in the same call as the mint, and a failure there fails the create. A
-minted deal whose derived id resolves to nothing is worse than either alternative: the
-deal exists, the lineage points at empty space, and the next create for the same chain
-mints a **second** deal. The other dual-writes on the spine are deliberately best-effort
-because they are additive to a record that already stands on its own. This one is not
-additive. It is the identity.
+`applyAsDeal` — the function that mints, writes the alias and applies the descriptor — lets
+`setDealAlias` throw. Nothing inside it catches the refusal. That much is true today and is
+worth keeping true: a minted deal whose derived id resolves to nothing is worse than either
+alternative, because the deal exists, the lineage points at empty space, and the next create
+for the same chain mints a **second** deal.
+
+But `applyAsDeal` is not the create. It is called from inside `attachTicketEngagement`,
+`attachQuotationEngagement` and `attachProjectEngagement`, and every one of THOSE is called
+from its own `try { … } catch { /* best-effort */ }` at the call site — the same shape every
+other dual-write on this spine uses, because they are additive to a record that already
+stands on its own and must never fail the create they are riding on. This one rides on a
+create too, so it is wrapped the same way, and a failure inside `applyAsDeal` propagates
+straight into that catch. **The create still succeeds when the alias write fails.** What
+does not happen is the half-written state the paragraph above warns about: because the
+alias is written before the root (§3.2), a failure at any point before `applyDescriptor`
+returns leaves **nothing** — no root, no alias, no deal a lineage could resolve to and
+disagree with later. That is the ordinary best-effort outcome this spine already lives with
+everywhere else: the create succeeds, the deal is never minted, and the next attempt for the
+same chain — a retry, a reconcile pass, the backfill — starts from the same "nothing exists
+yet" state and mints cleanly. It is §3.2's ordering that makes this safe, not a throw
+reaching the caller: the throw never reaches past the best-effort wrapper, and it does not
+need to, because there is nothing left half-built for it to protect.
 
 ### 3.2 The alias is written before the root, and the order is load-bearing
 
@@ -188,8 +204,11 @@ Written before the implementation, in `tests/engagement-spine.mjs` — the spine
   derived id is absent and the minted root still holds its members.
 - **A pre-change deal resolves to itself.** Write a root at a derived id with no alias, the
   way a deal created before this change looks, and assert every path finds it.
-- **A failed alias write fails the create.** Assert the refusal surfaces rather than being
-  swallowed, so a minted deal is never left with its lineage pointing at empty space.
+- **`applyAsDeal` does not swallow a failed alias write.** Assert the refusal reaches
+  `applyAsDeal`'s own caller rather than being caught inside it. That caller — one of the
+  three best-effort wrappers on the spine — is what actually decides the create's fate (see
+  §3.1), so this test is a guard on `applyAsDeal`'s shape, not a claim about whether a create
+  can fail: the ordering in §3.2 is what keeps a swallowed failure from stranding a deal.
 
 Golden responses are untouched. `main.engagements.list.json` and
 `main.engagements.block.json` are the only two carrying an engagement id, and both redact
