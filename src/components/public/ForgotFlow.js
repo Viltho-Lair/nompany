@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useAccountLocale } from "@/components/public/locale";
-import { accountDict } from "@/shared/account";
+import { accountDict, tooManyAttemptsIn } from "@/shared/account";
 import Link from "next/link";
 import { PASSWORD_RULES, checkPassword, describeFailures } from "@/platform/auth/passwordPolicy";
 
@@ -58,8 +58,16 @@ export default function ForgotFlow({ locale, initialEmail = "" }) {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
+        // "rate-limited" IS THE ONE THAT MATTERS HERE. The credential gate
+        // covers this door and the sign-in door together — deliberately, so
+        // somebody stopped at one cannot walk round to the other — which means
+        // a person who has just failed a few sign-ins arrives at the reset page
+        // already locked out. Unnamed, that answered "we couldn't reset your
+        // password", which describes a broken feature rather than a wait, and
+        // the `retryAfter` that would have explained it was thrown away.
         setError(
-          data.error === "invalid" ? tr.codeIsnRightAddress
+          data.error === "rate-limited" ? tooManyAttemptsIn(tr, data.retryAfter)
+          : data.error === "invalid" ? tr.codeIsnRightAddress
           : data.error === "expired" ? tr.codeExpiredRequestNew
           : data.error === "locked" ? tr.tooManyAttemptsRequest
           : data.error === "weak" ? describeFailures(data.failed)

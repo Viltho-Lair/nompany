@@ -162,6 +162,8 @@ type Strings = {
   tooManyAttemptsSendNew: string;
   tooManyAttemptsTry: string;
   tooManyAttemptsWait: string;
+  tooManyAttemptsInMinute: string;
+  tooManyAttemptsInMinutes: string;
   total: string;
   trustDevice30: string;
   trusted: string;
@@ -334,6 +336,8 @@ const en: Strings = {
   tooManyAttemptsSendNew: "Too many attempts. Send a new code to continue.",
   tooManyAttemptsTry: "Too many attempts. Try again later.",
   tooManyAttemptsWait: "Too many attempts. Give it a few minutes, then try again.",
+  tooManyAttemptsInMinute: "Too many attempts. Try again in about a minute.",
+  tooManyAttemptsInMinutes: "Too many attempts. Try again in about {n} minutes.",
   total: "total",
   trustDevice30: "Trust this device for 30 days",
   trusted: "Trusted",
@@ -506,6 +510,8 @@ const ar: Strings = {
   tooManyAttemptsSendNew: "محاولات كثيرة. أرسل رمزًا جديدًا للمتابعة.",
   tooManyAttemptsTry: "محاولات كثيرة. حاول لاحقًا.",
   tooManyAttemptsWait: "محاولات كثيرة. انتظر بضع دقائق ثم حاول مجددًا.",
+  tooManyAttemptsInMinute: "محاولات كثيرة. حاول مجددًا بعد دقيقة تقريبًا.",
+  tooManyAttemptsInMinutes: "محاولات كثيرة. حاول مجددًا بعد {n} دقيقة تقريبًا.",
   total: "إجمالًا",
   trustDevice30: "وثِّق هذا الجهاز لمدة 30 يومًا",
   trusted: "موثوق",
@@ -523,6 +529,24 @@ const ar: Strings = {
 };
 
 const account = { en, ar };
+
+/**
+ * HOW LONG THE LOCKOUT HAS LEFT, in words.
+ *
+ * A 429 from the credential gate carries `retryAfter` in seconds, and a lockout
+ * somebody cannot time is one they read as a broken screen — so they retry,
+ * which is the one thing that cannot help. Both the sign-in screen and the
+ * reset screen say it, so the two doors give the same answer.
+ *
+ * Falls back to the vague line when the server sent no number, rather than
+ * inventing one: "a few minutes" is honest, "0 minutes" is not.
+ */
+export function tooManyAttemptsIn(tr: Strings, retryAfter?: unknown) {
+  const seconds = Number(retryAfter) || 0;
+  if (seconds <= 0) return tr.tooManyAttemptsWait;
+  const minutes = Math.ceil(seconds / 60);
+  return minutes <= 1 ? tr.tooManyAttemptsInMinute : tr.tooManyAttemptsInMinutes.replace("{n}", String(minutes));
+}
 
 export function accountDict(locale: string): Strings {
   return account[locale as Locale] || account[defaultLocale];

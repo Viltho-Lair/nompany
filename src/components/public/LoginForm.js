@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useAccountLocale } from "@/components/public/locale";
-import { accountDict } from "@/shared/account";
+import { accountDict, tooManyAttemptsIn } from "@/shared/account";
 import Link from "next/link";
 import OtpStep from "@/components/public/OtpStep";
 import SocialButtons from "@/components/public/SocialButtons";
@@ -92,12 +92,26 @@ export default function LoginForm({ locale, dict, providers = [] }) {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        if (data.error === "rate-email" || data.error === "rate-ip") {
+        // EVERY REFUSAL NAMED, and the catch-all left for the ones nobody
+        // has named yet.
+        //
+        // "rate-limited" — the credential gate, which refuses BEFORE the
+        // password is verified — used to fall through to the else and answer
+        // "that email or password isn't right", about a password the server
+        // never looked at. Somebody locked out for five wrong tries was told
+        // their sixth was wrong too, so they tried a seventh. The two codes
+        // below it are the OTP SEND limits, a different limiter entirely, and
+        // covering those two was what made the gap look covered.
+        if (data.error === "rate-limited") {
+          setError({ kind: "wait", message: tooManyAttemptsIn(tr, data.retryAfter) });
+        } else if (data.error === "rate-email" || data.error === "rate-ip") {
           setError({ kind: "wait", message: tr.tooManyAttemptsWait });
         } else if (data.error === "suspended") {
           setError({ kind: "bad", message: tr.accountSuspendedOwner });
-        } else {
+        } else if (data.error === "invalid") {
           setError({ kind: "bad", message: t.errInvalid || "That email or password isn't right." });
+        } else {
+          setError({ kind: "bad", message: t.errGeneric || "Something went wrong. Try again." });
         }
         setLoading(false);
         return;

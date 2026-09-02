@@ -243,7 +243,7 @@ every push to `main` and every pull request.
   to 8 fails the build.
 - **The bundle budget pins the regression, not the size.** Two gates, and the
   first is the one that matters: the LARGEST CHUNK is 158 KB gz against a 250 KB
-  ceiling, because that is what every route pays. Total client JS is 1576 KB gz
+  ceiling, because that is what every route pays. Total client JS is 1577 KB gz
   against 1600 KB, which catches sprawl rather than splitting. The studio’s
   department screens are `nextDynamic()` now — the chunk fell from 307 to 197 and
   the total rose 12 KB in the same commit, which is the two ceilings doing their
@@ -273,7 +273,9 @@ every push to `main` and every pull request.
   the SAME function the server refuses with, rather than a second copy free to
   disagree about what is allowed. The largest chunk again did not move. 1574 → 1576 with the
   warning before a flow that already has work on it is changed — a deal count, a
-  confirm dialog and eleven strings in two languages.
+  confirm dialog and eleven strings in two languages. 1576 → 1577 when a locked-out
+  sign-in and a locked-out reset started saying how long the wait is — four strings
+  in two languages and the pure function that chooses between them.
 - Tests connect things — real repositories, real route handlers, **one assertion per
   bug that actually happened**. Each block names the defect it guards, so nobody
   deletes it later wondering what it was for.
