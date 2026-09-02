@@ -397,14 +397,39 @@ which runs both and compares them as `JSON.stringify` TEXT because `payload` is 
 Cloud SQL and finds zero disagreements, with the disagreement detector itself asserted so a
 silent pass cannot masquerade as agreement.
 
-**Nothing has cut over, and the reason is a network fact rather than caution.** Vercel cannot
-reach Cloud SQL at all: the instance has zero authorized networks and a private IP on a VPC
-Vercel is not in. `services/pg-gateway/` is the answer — a Cloud Run service holding the only
-path, sharing `pg.ts`'s guards through `sqlGuards.ts` rather than copying them, because the
-copy that drifts would be the one in front of a remote SQL endpoint. It is code-complete and
-proven against real Postgres over real HTTP locally; **no cloud resources exist for it yet**,
-so `PG_TRANSPORT` stays `direct`. `NOMPANY_DB` is ABSENT from production (verified by reading
-the environment back, not assumed), so `DB_BACKEND` is `redis`.
+**THE CUTOVER IS DONE. Production runs Postgres through the Cloud Run gateway, live
+02/09/2026,** and it is proven by a write rather than assumed: a request to the live site
+lands a row in Cloud SQL via Vercel → OIDC → STS → impersonation → Cloud Run → Cloud SQL.
+
+**Redis is gone entirely.** No `REDIS_URL` in any Vercel environment or in `.env.local`,
+nothing in `src` reads it, and nothing imports a Redis client. `DB_BACKEND` is
+`NOMPANY_DB || "postgres"` and `NOMPANY_DB` is absent from production, so the default IS the
+production configuration — do not read the old "absent means redis" note anywhere; it is
+inverted now. Vercel still cannot reach Cloud SQL directly (zero authorized networks, private
+IP on a VPC it is not in), so `PG_TRANSPORT=gateway` is load-bearing:
+`services/pg-gateway/` holds the only path and shares `pg.ts`'s guards through
+`sqlGuards.ts` rather than copying them.
+
+**Four things blocked it, and every one was invisible in its own way.** Written down because
+each cost a production deploy to discover:
+
+1. **The deployment was refused for a cron.** `store-upkeep` asked for `30 * * * *`; Hobby
+   allows one run per day and rejects THE WHOLE DEPLOYMENT over it. Eight pushes built green
+   in CI and produced no deployment at all, which reads as a dead Git integration.
+2. **The OIDC token is delivered PER REQUEST, on the `x-vercel-oidc-token` header** — not in
+   `process.env`. The variable exists only during the build and in a local `vercel env pull`.
+   Enabling OIDC federation therefore changed nothing observable while every request was
+   already carrying the identity the code reported as missing.
+3. **`run.invoker` was never granted to the service account.** The runbook's verification used
+   a developer identity token, and that account holds Owner — so a 200 proved the service
+   worked and said nothing about whether `pg-gateway@…` could invoke it.
+4. **The database grants covered `collection_rows` only.** `documents` and `events` arrived
+   later with the store swap; the IAM database user had no privileges on them, which surfaced
+   as `permission denied for table documents` through the gateway.
+
+**Redis's old data was NOT migrated.** The instance was deleted deliberately — this is a
+from-zero Postgres database, registration included, and `ensureDefaultPlan()` self-seeds
+packages and tiers on first use.
 
 Cloud SQL's own Data API was evaluated for the gateway's job and **rejected: it has no bind
 parameters**, and tenant-authored JSON interpolated into SQL text is an injection surface

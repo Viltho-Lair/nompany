@@ -244,3 +244,35 @@ was enabled on 31/08/2026 to evaluate it as an alternative and rejected (no bind
 - **No rollback procedure is written.** Reverting is `PG_TRANSPORT=direct`, but with the
   public IP already removed there is no direct path from Vercel at all, so the real rollback
   is `NOMPANY_DB=redis`.
+
+## 7. What was actually missing — CUT OVER 02/09/2026
+
+The chain ran for the first time on 02/09/2026 and failed four times before it worked. Each
+failure is recorded because none of them was visible from the step that caused it.
+
+**`run.invoker` had never been granted to the service account.** Section 5's table shows
+"Identity token, `SELECT 1` → 200", and that token was a DEVELOPER's — an account holding
+Owner, which is allowed regardless. It proved the service worked; it never proved the caller
+could invoke it. The real caller got `403 Forbidden … /tx`. The missing binding:
+
+```bash
+gcloud run services add-iam-policy-binding pg-gateway   --region=me-central1 --project=nompany-application   --member="serviceAccount:pg-gateway@nompany-application.iam.gserviceaccount.com"   --role="roles/run.invoker"
+```
+
+**Section 3's grants covered `collection_rows` only.** `documents` and `events` came later
+with the store swap, so the IAM database user could not read them — `permission denied for
+table documents`, arriving as a gateway 500. Granted the same four verbs, plus
+`events_id_seq`; still no owner and still no `BYPASSRLS`.
+
+**The Vercel OIDC token is not an environment variable at runtime.** It is delivered per
+request on `x-vercel-oidc-token`; `process.env.VERCEL_OIDC_TOKEN` exists only during the
+build and in a local `vercel env pull`. `@vercel/functions` was tried and removed: it wraps
+the same header, and it resolves a token captured at import time even after a test clears the
+environment — which made `testThereIsNoUnauthenticatedFallback` pass while the fallback it
+forbids was the thing answering.
+
+**Issuer mode must be Team.** `Global` mints `https://oidc.vercel.com`, and the provider is
+pinned to `https://oidc.vercel.com/vilthos-projects`.
+
+**A preview still cannot test any of this** — the attribute condition pins
+`environment=='production'`, by design. Production is the only place it can be exercised.
