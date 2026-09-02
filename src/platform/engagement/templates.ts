@@ -22,14 +22,26 @@
 // silently never renders.
 
 /** What triggers an invoice. The word is the template's, not a schedule. */
-export type BillingTrigger =
-  | "progress"           // A — periodic IPCs against percentage complete
-  | "shipment"           // B — when goods leave
-  | "delivery"           // C — when goods arrive
-  | "signoff"            // D — when the customer accepts the job
-  | "milestone-or-time"  // E — whichever the engagement was sold on
-  | "pod"                // F — proof of delivery closes the file
-  | "calendar";          // G — the contract bills on a period, not an event
+/**
+ * WHEN A DEAL ON THIS FLOW BILLS.
+ *
+ * A RUNTIME LIST, WITH THE TYPE DERIVED FROM IT rather than the other way
+ * round. This was a bare union, which has no runtime form at all — so anything
+ * that had to CHECK a trigger (a tenant typing one into the flow editor, most
+ * of all) had to write the seven words out again, and the copy would be free to
+ * drift from the type that no longer constrained it.
+ */
+export const BILLING_TRIGGERS = Object.freeze([
+  "progress",           // A — periodic IPCs against percentage complete
+  "shipment",           // B — when goods leave
+  "delivery",           // C — when goods arrive
+  "signoff",            // D — when the customer accepts the job
+  "milestone-or-time",  // E — whichever the engagement was sold on
+  "pod",                // F — proof of delivery closes the file
+  "calendar",           // G — the contract bills on a period, not an event
+] as const);
+
+export type BillingTrigger = (typeof BILLING_TRIGGERS)[number];
 
 export type FlowTemplate = {
   /** "A".."G" for the built-ins; a clone gets its own id. */
@@ -200,6 +212,22 @@ export function templateProblems(
     }
     if (!t.heads.length) problems.push(`template ${t.id}: no heads — nothing could ever start a deal`);
     if (!t.statusChain.length) problems.push(`template ${t.id}: empty statusChain — no deal could report a status`);
+
+    // THE TWO A TENANT CAN GET WRONG THAT NOTHING ELSE CATCHES. Both were
+    // unchecked while the only templates were the seven written here, and both
+    // become reachable the moment somebody can type one.
+    //
+    // A nameless template is unpickable: the editor lists flows by name and an
+    // industry points at one by id, so an empty name is a row nobody can
+    // identify in the list they must choose from.
+    //
+    // An unknown billingTrigger is worse, because it is invisible. It decides
+    // when a deal on this flow bills; a value outside the seven simply matches
+    // nothing, and the failure surfaces later as revenue that never triggered.
+    if (!t.name) problems.push(`template ${t.id}: no name — nothing could pick it from a list`);
+    if (!(BILLING_TRIGGERS as readonly string[]).includes(t.billingTrigger)) {
+      problems.push(`template ${t.id}: billingTrigger "${t.billingTrigger}" is not one of ${BILLING_TRIGGERS.join(", ")}`);
+    }
   }
   return problems;
 }

@@ -268,6 +268,7 @@ const MAIN_ROLLUP = (await import("@/app/api/cron/main-rollup/route.ts")).GET;
 const TRACK = (await import("@/app/api/track/route.ts")).POST;
 const MEDIA_GET = (await import("@/app/api/media/[id]/route.ts")).GET;
 const SVC_ACTIONS = await import("@/app/api/studios/[slug]/settings/service-actions/route.ts");
+const FLOWS = await import("@/app/api/studios/[slug]/settings/flows/route.ts");
 
 // ---- harness ---------------------------------------------------------------
 let fails = 0;
@@ -4521,6 +4522,130 @@ console.log("== service-actions: an action a TICKET names must retire, not drop"
     (afterPool.retiredServiceActions || []).includes("Commissioning"), JSON.stringify(afterPool));
   ok("...and it left the active pool",
     !(afterPool.serviceActions || []).includes("Commissioning"), JSON.stringify(afterPool));
+}
+
+// ============================================================================
+console.log("== the flow editor: a studio owns its flows, and a refusal says why");
+{
+  await signInAs(owner.id);
+  const req = (path = "") => new Request(`http://localhost/test${path}`);
+
+  const seen = await (await FLOWS.GET(req(), { params: params(slug) })).json();
+  ok("a studio reads the seven built-in flows", seen.templates?.length === 7, String(seen.templates?.length));
+  ok("...and the twenty-five industries", seen.industries?.length === 25, String(seen.industries?.length));
+  ok("...and is told it may edit them", seen.canManage === true);
+
+  // A REFUSAL IS 400 AND CARRIES ITS REASON. This is the whole reason flows.ts
+  // validates on write rather than on read: "statusChain names X, which it does
+  // not use" is something the studio can act on while it is still their edit.
+  // A bare code, or the 500 a thrown Error would become, throws that away.
+  const bad = await FLOWS.PUT(jsonReq({
+    template: {
+      id: "A", name: "Ours", stages: ["ticket"], heads: ["ticket"],
+      statusChain: ["project"], billingTrigger: "progress",
+      costDrivers: [], cardinalityOverrides: {},
+    },
+  }), { params: params(slug) });
+  const badBody = await bad.json();
+  ok("a template naming a stage it does not use is refused", bad.status === 400, String(bad.status));
+  ok("...and the reason reaches the studio, in words about their edit",
+    badBody.error === "refused" && badBody.detail.includes("which it does not use"),
+    JSON.stringify(badBody).slice(0, 120));
+
+  // THE TWO templateProblems DID NOT CHECK until a tenant could type them. Both
+  // are invisible at runtime: a nameless flow cannot be picked from the list an
+  // industry must choose from, and a billingTrigger outside the seven matches
+  // nothing, surfacing later as revenue that never triggered.
+  const nameless = await FLOWS.PUT(jsonReq({
+    template: {
+      id: "Z", name: "", stages: ["ticket"], heads: ["ticket"], statusChain: ["ticket"],
+      billingTrigger: "progress", costDrivers: [], cardinalityOverrides: {},
+    },
+  }), { params: params(slug) });
+  ok("a nameless template is refused", nameless.status === 400, String(nameless.status));
+  const noTrigger = await FLOWS.PUT(jsonReq({
+    template: {
+      id: "Z", name: "Z", stages: ["ticket"], heads: ["ticket"], statusChain: ["ticket"],
+      billingTrigger: "whenever", costDrivers: [], cardinalityOverrides: {},
+    },
+  }), { params: params(slug) });
+  const triggerBody = await noTrigger.json();
+  ok("a billingTrigger outside the seven is refused, and named",
+    noTrigger.status === 400 && String(triggerBody.detail).includes("billingTrigger"),
+    JSON.stringify(triggerBody).slice(0, 120));
+
+  // A GOOD EDIT IS AN OVERRIDE, not a fork: the other six stay built-in.
+  const good = await FLOWS.PUT(jsonReq({
+    template: {
+      id: "A", name: "Contracting (ours)", stages: ["ticket", "quotation", "project"],
+      heads: ["ticket"], statusChain: ["project", "ticket"], billingTrigger: "progress",
+      costDrivers: ["timesheet"], cardinalityOverrides: {},
+    },
+  }), { params: params(slug) });
+  ok("a valid edit is accepted", good.status === 200, String(good.status));
+  const edited = await (await FLOWS.GET(req(), { params: params(slug) })).json();
+  ok("...and editing a built-in does not add an eighth", edited.templates.length === 7);
+  ok("...and the edit is what the studio now reads",
+    edited.templates.find((t) => t.id === "A")?.name === "Contracting (ours)");
+  ok("...while the other six are untouched",
+    edited.templates.find((t) => t.id === "G")?.name === "Recurring Contract");
+
+  // AN INDUSTRY IS CHECKED AGAINST THIS STUDIO'S TEMPLATES, not the built-ins.
+  const badIndustry = await FLOWS.PUT(jsonReq({
+    industry: { key: "made-up", name: "Made Up", primary: "ZZ", secondary: "", note: "" },
+  }), { params: params(slug) });
+  ok("an industry pointing at a template that does not exist is refused",
+    badIndustry.status === 400, String(badIndustry.status));
+  const goodIndustry = await FLOWS.PUT(jsonReq({
+    industry: { key: "made-up", name: "Made Up", primary: "A", secondary: "", note: "ours" },
+  }), { params: params(slug) });
+  ok("...and one pointing at a real template is accepted", goodIndustry.status === 200);
+  const withIndustry = await (await FLOWS.GET(req(), { params: params(slug) })).json();
+  ok("a new industry appends a twenty-sixth", withIndustry.industries.length === 26,
+    String(withIndustry.industries.length));
+
+  // DELETING AN OVERRIDE REVERTS TO THE BUILT-IN — one operation, and which it
+  // is depends only on whether a seed exists underneath.
+  const reverted = await FLOWS.DELETE(req("?template=A"), { params: params(slug) });
+  ok("dropping an override reports that one existed", (await reverted.json()).existed === true);
+  const afterRevert = await (await FLOWS.GET(req(), { params: params(slug) })).json();
+  ok("...and the built-in is back",
+    afterRevert.templates.find((t) => t.id === "A")?.name === "Contracting / Project");
+  const again = await FLOWS.DELETE(req("?template=A"), { params: params(slug) });
+  ok("...and a second drop is a no-op, not an error",
+    again.status === 200 && (await again.json()).existed === false);
+
+  const noSubject = await FLOWS.DELETE(req(), { params: params(slug) });
+  ok("a DELETE naming nothing is refused", noSubject.status === 400, String(noSubject.status));
+
+  // A member with no role cannot change them. Whether they may READ is
+  // administration.settings.view, which a roleless member does not hold either
+  // — so this asserts the door, not a particular one of the two answers.
+  await signInAs(nobody.user.id);
+  const viewer = await FLOWS.GET(req(), { params: params(slug) });
+  ok("a member without settings.view is refused the read, or told they cannot manage",
+    viewer.status === 403 || (await viewer.clone().json()).canManage === false, String(viewer.status));
+  const viewerWrite = await FLOWS.PUT(jsonReq({
+    template: {
+      id: "A", name: "Theirs", stages: ["ticket"], heads: ["ticket"], statusChain: ["ticket"],
+      billingTrigger: "progress", costDrivers: [], cardinalityOverrides: {},
+    },
+  }), { params: params(slug) });
+  ok("...and their write is refused", viewerWrite.status === 403, String(viewerWrite.status));
+
+  // A TRUE non-member learns nothing about the contents, on every verb.
+  const flowOutsider = (await createUser({ email: `flow-outsider-${rand()}@test.invalid`, passwordHash: "x" })).user;
+  await signInAs(flowOutsider.id);
+  for (const [verb, res] of [
+    ["GET", await FLOWS.GET(req(), { params: params(slug) })],
+    ["PUT", await FLOWS.PUT(jsonReq({ template: { id: "A" } }), { params: params(slug) })],
+    ["DELETE", await FLOWS.DELETE(req("?template=A"), { params: params(slug) })],
+  ]) {
+    ok(`a non-member's ${verb} is refused, not answered`,
+      res.status === 403 || res.status === 404, String(res.status));
+  }
+
+  await signInAs(owner.id);
 }
 
 // ============================================================================

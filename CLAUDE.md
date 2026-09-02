@@ -243,7 +243,7 @@ every push to `main` and every pull request.
   to 8 fails the build.
 - **The bundle budget pins the regression, not the size.** Two gates, and the
   first is the one that matters: the LARGEST CHUNK is 158 KB gz against a 250 KB
-  ceiling, because that is what every route pays. Total client JS is 1571 KB gz
+  ceiling, because that is what every route pays. Total client JS is 1574 KB gz
   against 1600 KB, which catches sprawl rather than splitting. The studio’s
   department screens are `nextDynamic()` now — the chunk fell from 307 to 197 and
   the total rose 12 KB in the same commit, which is the two ceilings doing their
@@ -267,7 +267,11 @@ every push to `main` and every pull request.
   commit — the port landed over several. 1570 → 1571 with the template-driven
   deal screen: a flow-name line, an off-template badge, six stage icons and two
   dictionary strings in two languages. The LARGEST chunk did not move (158 KB), which
-  is the gate that matters — the screen was already `nextDynamic()`.
+  is the gate that matters — the screen was already `nextDynamic()`. 1571 → 1574 with the flow
+  editor: the seven templates, the twenty-five industries and `templateProblems`
+  now ship to the browser, deliberately — a studio editing a flow is validated by
+  the SAME function the server refuses with, rather than a second copy free to
+  disagree about what is allowed. The largest chunk again did not move.
 - Tests connect things — real repositories, real route handlers, **one assertion per
   bug that actually happened**. Each block names the defect it guards, so nobody
   deletes it later wondering what it was for.

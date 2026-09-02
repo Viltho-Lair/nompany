@@ -13,6 +13,7 @@ import { settingsDict } from "@/shared/studio/settings";
 import { fmtDate } from "@/lib/format";
 import { Field } from "@/components/fields/Field";
 import { actionsForField, OTHER_FIELD } from "@/shared/fieldsOfWork";
+import StudioFlowEditor from "@/components/studio2/StudioFlowEditor";
 
 // THE SCREEN'S WORDS, HANDED DOWN RATHER THAN THREADED.
 //
@@ -259,6 +260,15 @@ export default function StudioSettings({ slug, locale = "en" }) {
           the general settings PUT above no longer accepts `serviceActions` at
           all, so this section cannot share the parent's `save`. */}
       <ServiceActions slug={slug} />
+
+      {/* THE DEAL FLOWS (Law 2). Its own fetch/save cycle against the flows
+          route, for the same reason ServiceActions has one: the general
+          settings PUT does not accept templates, and a refused flow carries a
+          reason that has to reach the screen intact. `tr` is handed down as a
+          prop rather than read from the words context above — that context is
+          not exported, and importing it into a component this file imports
+          would close a cycle for one value. */}
+      <StudioFlowEditor slug={slug} tr={tr} />
 
       {/* ENDING THE STUDIO. Kept apart from the settings above and framed in red,
           because it is not a setting — it is the end of the thing the settings

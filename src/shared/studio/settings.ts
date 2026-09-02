@@ -125,6 +125,50 @@ type Strings = {
   remove: string;
   noLogoToRemove: string;
   logoFormats: string;
+  // THE DEAL-FLOW EDITOR (Law 2 — flow templates are data a studio owns).
+  //
+  // Stage names are NOT here: they are STAGE_REGISTRY tokens and already
+  // translate on display through shared/studio/stages, keyed by the stored
+  // token. A second list of them here would be a second answer to "what is a
+  // quotation called", free to disagree with the one every other screen uses.
+  flowsHeading: string;
+  flowsLead: string;
+  flowsAdminOnly: string;
+  flowsLoadFailed: string;
+  flowBuiltIn: string;
+  flowEdited: string;
+  flowYours: string;
+  flowStagesLabel: string;
+  flowHeadsLabel: string;
+  flowStatusChainLabel: string;
+  flowCostDriversLabel: string;
+  flowBillingLabel: string;
+  flowCardinalityLabel: string;
+  flowAddStage: string;
+  flowMoveUp: string;
+  flowMoveDown: string;
+  flowRemove: string;
+  flowClone: string;
+  flowRevert: string;
+  flowDelete: string;
+  flowNoStages: string;
+  flowRefused: (why: string) => string;
+  flowCardDefault: string;
+  flowOne: string;
+  flowMany: string;
+  flowEdit: string;
+  flowClose: string;
+  flowNameLabel: string;
+  flowStageCount: (n: number) => string;
+  billingNames: Record<string, string>;
+  industriesHeading: string;
+  industriesLead: string;
+  industryPrimary: string;
+  industrySecondary: string;
+  industryNote: string;
+  industryNone: string;
+  industryAdd: string;
+  industryNameLabel: string;
 };
 
 const en: Strings = {
@@ -258,6 +302,52 @@ const en: Strings = {
   remove: "Remove",
   noLogoToRemove: "No logo to remove",
   logoFormats: "JPG, PNG or WebP, up to 2 MB.",
+  flowsHeading: "Deal flows",
+  flowsLead: "How work moves through this studio: which stages a deal walks, in what order, and what may start one.",
+  flowsAdminOnly: " Only an admin can change them.",
+  flowsLoadFailed: "The flows could not be loaded.",
+  flowBuiltIn: "Built-in",
+  flowEdited: "Edited",
+  flowYours: "Yours",
+  flowStagesLabel: "Stages, in the order a deal walks them",
+  flowHeadsLabel: "May start a deal",
+  flowStatusChainLabel: "Speaks for the deal — most authoritative first",
+  flowCostDriversLabel: "Counts as cost",
+  flowBillingLabel: "Bills on",
+  flowCardinalityLabel: "How many per deal",
+  flowAddStage: "Add a stage…",
+  flowMoveUp: "Move up",
+  flowMoveDown: "Move down",
+  flowRemove: "Remove",
+  flowClone: "Duplicate",
+  flowRevert: "Revert to built-in",
+  flowDelete: "Delete",
+  flowNoStages: "No stages yet — a deal on this flow would show nothing.",
+  flowRefused: (why) => `That flow was refused: ${why}`,
+  flowCardDefault: "As the stage says",
+  flowOne: "One",
+  flowMany: "Many",
+  flowEdit: "Edit",
+  flowClose: "Close",
+  flowNameLabel: "Name",
+  flowStageCount: (n) => `${n} stage${n === 1 ? "" : "s"}`,
+  billingNames: {
+    progress: "Progress claimed as work completes",
+    shipment: "When the goods leave",
+    delivery: "When the goods arrive",
+    signoff: "When the customer accepts the job",
+    "milestone-or-time": "Milestones, or time spent",
+    pod: "Proof of delivery",
+    calendar: "A period, not an event",
+  },
+  industriesHeading: "Industries",
+  industriesLead: "Which flow a new deal starts on, by the trade it belongs to.",
+  industryPrimary: "Starts on",
+  industrySecondary: "Also common",
+  industryNote: "Why",
+  industryNone: "— none —",
+  industryAdd: "Add an industry",
+  industryNameLabel: "Industry",
 };
 
 const ar: Strings = {
@@ -410,6 +500,52 @@ const ar: Strings = {
   remove: "إزالة",
   noLogoToRemove: "لا يوجد شعار لإزالته",
   logoFormats: "JPG أو PNG أو WebP، حتى 2 ميجابايت.",
+  flowsHeading: "مسارات الصفقات",
+  flowsLead: "كيف يسير العمل في هذا الاستوديو: ما المراحل التي تمر بها الصفقة، وبأي ترتيب، وما الذي يمكنه بدؤها.",
+  flowsAdminOnly: " التعديل للمشرف وحده.",
+  flowsLoadFailed: "تعذّر تحميل المسارات.",
+  flowBuiltIn: "جاهز",
+  flowEdited: "معدَّل",
+  flowYours: "خاص بكم",
+  flowStagesLabel: "المراحل، بالترتيب الذي تمر به الصفقة",
+  flowHeadsLabel: "يمكنه بدء صفقة",
+  flowStatusChainLabel: "يتحدث باسم الصفقة — الأعلى أولًا",
+  flowCostDriversLabel: "يُحتسب تكلفة",
+  flowBillingLabel: "تُفوتر عند",
+  flowCardinalityLabel: "كم واحدة لكل صفقة",
+  flowAddStage: "أضف مرحلة…",
+  flowMoveUp: "لأعلى",
+  flowMoveDown: "لأسفل",
+  flowRemove: "إزالة",
+  flowClone: "نسخة",
+  flowRevert: "العودة إلى الجاهز",
+  flowDelete: "حذف",
+  flowNoStages: "لا مراحل بعد — صفقة على هذا المسار لن تعرض شيئًا.",
+  flowRefused: (why) => `رُفض هذا المسار: ${why}`,
+  flowCardDefault: "حسب المرحلة",
+  flowOne: "واحدة",
+  flowMany: "متعددة",
+  flowEdit: "تعديل",
+  flowClose: "إغلاق",
+  flowNameLabel: "الاسم",
+  flowStageCount: (n) => n === 1 ? "مرحلة واحدة" : n === 2 ? "مرحلتان" : n <= 10 ? `${n} مراحل` : `${n} مرحلة`,
+  billingNames: {
+    progress: "مستخلصات مع تقدم العمل",
+    shipment: "عند خروج البضاعة",
+    delivery: "عند وصول البضاعة",
+    signoff: "عند قبول العميل للعمل",
+    "milestone-or-time": "مراحل إنجاز أو وقت مبذول",
+    pod: "إثبات التسليم",
+    calendar: "فترة زمنية، لا حدث",
+  },
+  industriesHeading: "القطاعات",
+  industriesLead: "على أي مسار تبدأ صفقة جديدة، بحسب المجال الذي تنتمي إليه.",
+  industryPrimary: "تبدأ على",
+  industrySecondary: "شائع أيضًا",
+  industryNote: "السبب",
+  industryNone: "— بلا —",
+  industryAdd: "أضف قطاعًا",
+  industryNameLabel: "القطاع",
 };
 
 const settings = { en, ar };
