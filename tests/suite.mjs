@@ -139,7 +139,7 @@ import {
 // here pulls in only the one exported test function, run explicitly further
 // down through the same try/catch adapter (node:assert throws are not this
 // file's ok() shape).
-import { testSpineHelpers, testDetachResolvesThroughAlias } from "./engagement-spine.mjs";
+import { testSpineHelpers, testDetachResolvesThroughAlias, testDescriptorFollowsTheAlias } from "./engagement-spine.mjs";
 // THE ENGAGEMENTS VIEW's own tests (Task 6/7). Same standalone-runner shape as
 // the four modules above — importing it here pulls in only the three exported
 // test functions, run explicitly further down through the same try/catch
@@ -4733,7 +4733,7 @@ console.log("\n== engagement on-create (Phase 1b-i)");
 // ============================================================================
 console.log("\n== engagement spine (Phase 1b-ii, Task 5)");
 {
-  for (const t of [testSpineHelpers, testDetachResolvesThroughAlias]) {
+  for (const t of [testSpineHelpers, testDetachResolvesThroughAlias, testDescriptorFollowsTheAlias]) {
     try {
       await t();
       ok(t.name, true);

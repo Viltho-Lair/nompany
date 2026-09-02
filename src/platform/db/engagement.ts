@@ -471,6 +471,16 @@ async function scoreOf(studioId: string, engId: string, type: string, recId: str
 // and the reverse index is re-pointed. Writes only ENG.* / recEng keys — never an
 // existing record (read-layer discipline, spec Phase 1a).
 export async function applyDescriptor(studioId: string, d: EngagementDescriptor): Promise<void> {
+  // THE DESCRIPTOR IS KEYED BY DERIVATION; THE DEAL MAY NOT BE.
+  //
+  // buildEngagements computes engId by hashing the chain's head, which is what
+  // makes the backfill idempotent. Once a deal has been minted (see applyAsDeal)
+  // that derived id is an ALIAS, and writing here would put a second root under
+  // it — two deals for one chain, with the alias pointing past both. Resolving
+  // first is what keeps the reconciler, the CLI and the live create paths asking
+  // one question and getting one answer.
+  const engId = await resolveDealId(studioId, d.engId);
+
   // THE DEAL'S OPENING FACTS ARE OWNED, NOT MERELY WRITTEN.
   //
   // This wrote `context` with no `provenance` beside it, which left every fact
@@ -498,7 +508,7 @@ export async function applyDescriptor(studioId: string, d: EngagementDescriptor)
   // vanished, and the deal quietly went back to walking Template A with
   // unowned facts. "Idempotent" was true of the fields it wrote and silently
   // false of the ones it did not.
-  const existing = await readEngagement(studioId, d.engId);
+  const existing = await readEngagement(studioId, engId);
   const provenance: ContextProvenance = { ...(existing?.provenance || {}) };
   const context: Record<string, unknown> = { ...d.context };
   for (const fact of CONTEXT_FACTS) {
@@ -514,8 +524,8 @@ export async function applyDescriptor(studioId: string, d: EngagementDescriptor)
     if (value !== undefined && value !== "" && rank > 0) provenance[fact] = rank;
   }
 
-  await setJSON(ENG.root(studioId, d.engId), {
-    id: d.engId, studioId, ref: d.ref, context,
+  await setJSON(ENG.root(studioId, engId), {
+    id: engId, studioId, ref: d.ref, context,
     ...(existing?.templateId ? { templateId: existing.templateId } : {}),
     ...(Object.keys(provenance).length ? { provenance } : {}),
     singletons: d.singletons, createdAt: existing?.createdAt || nowISO(), updatedAt: nowISO(),
@@ -523,11 +533,11 @@ export async function applyDescriptor(studioId: string, d: EngagementDescriptor)
   // The one place a root becomes listable. Every create path funnels through
   // applyDescriptor (ticket dual-write, internal quotation, the backfill), so
   // this single line indexes them all; ZADD per id keeps a re-run idempotent.
-  await zAdd(ENG.index(studioId), Date.parse(String(d.context.createdAt || "")) || Date.now(), d.engId);
+  await zAdd(ENG.index(studioId), Date.parse(String(d.context.createdAt || "")) || Date.now(), engId);
   for (const [type, ids] of Object.entries(d.members)) {
     for (const recId of ids) {
-      await zAdd(ENG.members(studioId, d.engId, type), 0, recId);
-      await setJSON(ENG.recEng(studioId, type, recId), d.engId);
+      await zAdd(ENG.members(studioId, engId, type), 0, recId);
+      await setJSON(ENG.recEng(studioId, type, recId), engId);
     }
     // THE HAS-STAGE INDEX, WRITTEN HERE TOO — it used to be attachRecord's
     // alone, which is the same shape of bug the reverse index above already
@@ -543,7 +553,7 @@ export async function applyDescriptor(studioId: string, d: EngagementDescriptor)
     //
     // One membership per TYPE, not per record: this answers "does this deal
     // have a quotation", so a deal with four of them is one member.
-    if (ids.length) await sAdd(ENG.hasStage(studioId, type), d.engId);
+    if (ids.length) await sAdd(ENG.hasStage(studioId, type), engId);
   }
   for (const [slot, recId] of Object.entries(d.singletons)) {
     if (!recId) continue;
@@ -558,8 +568,8 @@ export async function applyDescriptor(studioId: string, d: EngagementDescriptor)
     // reads. New writes stop making one; the ones already written are
     // unreferenced rather than incorrect, and are left alone.
     const type = SLOT_TYPE[slot] || slot;
-    await setJSON(ENG.recEng(studioId, type, recId), d.engId);
-    await sAdd(ENG.hasStage(studioId, type), d.engId);
+    await setJSON(ENG.recEng(studioId, type, recId), engId);
+    await sAdd(ENG.hasStage(studioId, type), engId);
   }
 }
 

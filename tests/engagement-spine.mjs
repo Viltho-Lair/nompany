@@ -5,6 +5,7 @@ import {
   readEngagementView, attachTicketEngagement,
   attachToTicketEngagement, attachQuotationEngagement, setApprovedQuotation,
   detachRecord, attachRecord, listMembers, createEngagement, setDealAlias,
+  applyDescriptor, readEngagement,
 } from "../src/platform/db/engagement.ts";
 assert.ok(KEY_PREFIX, "must run under a key prefix");
 
@@ -53,7 +54,36 @@ export async function testDetachResolvesThroughAlias() {
     "detach through a derived id removes the member from the minted deal");
 }
 
+export async function testDescriptorFollowsTheAlias() {
+  const sid = `s_${Date.now().toString(36)}_da2`;
+
+  const deal = await createEngagement(sid, { ref: "ALIAS-DESC" });
+  const derived = deterministicEngId("ticket", "tk_desc");
+  await setDealAlias(sid, derived, deal.id);
+
+  // What a backfill re-run hands over: a descriptor still keyed by derivation.
+  await applyDescriptor(sid, {
+    engId: derived,
+    ref: "ALIAS-DESC",
+    context: { createdAt: "2026-09-02T00:00:00.000Z" },
+    singletons: { ticket: "tk_desc", approvedQuotation: null, project: null },
+    members: { ticket: ["tk_desc"] },
+  });
+
+  assert.equal(await readEngagement(sid, derived), null,
+    "no second root is written at the derived id");
+  const root = await readEngagement(sid, deal.id);
+  assert.ok(root, "the minted deal still exists");
+  assert.equal(root.singletons.ticket, "tk_desc",
+    "the descriptor landed on the deal the alias names");
+}
+
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
-  (async () => { for (const t of [testSpineHelpers, testDetachResolvesThroughAlias]) { await t(); console.log(`ok ${t.name}`); } })()
+  (async () => {
+    for (const t of [testSpineHelpers, testDetachResolvesThroughAlias, testDescriptorFollowsTheAlias]) {
+      await t();
+      console.log(`ok ${t.name}`);
+    }
+  })()
     .catch((e) => { console.error(e); process.exit(1); });
 }
