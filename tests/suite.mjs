@@ -141,7 +141,8 @@ import {
 // file's ok() shape).
 import {
   testSpineHelpers, testDetachResolvesThroughAlias, testDescriptorFollowsTheAlias,
-  testMintingIsIdempotentAndGrandfathers,
+  testMintingIsIdempotentAndGrandfathers, testAliasWriteIsNotBestEffort,
+  testConvergesWhenAliasLandedButRootDidNot,
 } from "./engagement-spine.mjs";
 // THE ENGAGEMENTS VIEW's own tests (Task 6/7). Same standalone-runner shape as
 // the four modules above — importing it here pulls in only the three exported
@@ -4764,7 +4765,8 @@ console.log("\n== engagement spine (Phase 1b-ii, Task 5)");
 {
   for (const t of [
     testSpineHelpers, testDetachResolvesThroughAlias, testDescriptorFollowsTheAlias,
-    testMintingIsIdempotentAndGrandfathers,
+    testMintingIsIdempotentAndGrandfathers, testAliasWriteIsNotBestEffort,
+    testConvergesWhenAliasLandedButRootDidNot,
   ]) {
     try {
       await t();

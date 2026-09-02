@@ -760,17 +760,32 @@ export async function resolveDealId(studioId: string, anyId: string): Promise<st
  * event anywhere recording that it moved. Repointing is a merge, and a merge is
  * a deliberate operation with its own rules — not something a late-arriving
  * record does as a side effect.
+ *
+ * COMPARE-AND-SET (invariant 8), not read-then-write. A read of "no alias yet"
+ * followed by a separate write is exactly the window two concurrent
+ * first-creates for the same chain race in: both read nothing, both decide
+ * they are the one minting, and the second write silently wins over the
+ * first's — no refusal fires, because neither read ever saw the other's alias.
+ * That is the double-mint this whole mechanism exists to prevent, reached by
+ * going around the refusal above rather than through it. editJSON re-reads the
+ * key on every contended attempt (`store.ts`'s own comment on it), so the
+ * refusal is asked of whatever is ACTUALLY there at write time, not of a value
+ * that may already be stale by the time this function's caller resumes.
  */
 export async function setDealAlias(studioId: string, aliasId: string, dealId: string): Promise<void> {
   if (!studioId || !aliasId || !dealId || aliasId === dealId) return;
-  const existing = await getJSON<string>(ENG.alias(studioId, aliasId));
-  if (typeof existing === "string" && existing && existing !== dealId) {
-    throw new Error(
-      `engagement: alias "${aliasId}" already resolves to "${existing}" and cannot be repointed to ` +
-        `"${dealId}". Identity is minted once (Law 3); moving a deal's records is a merge, not an alias edit.`,
-    );
-  }
-  await setJSON(ENG.alias(studioId, aliasId), dealId);
+  await editJSON<string, void>(ENG.alias(studioId, aliasId), (existing) => {
+    if (typeof existing === "string" && existing && existing !== dealId) {
+      throw new Error(
+        `engagement: alias "${aliasId}" already resolves to "${existing}" and cannot be repointed to ` +
+          `"${dealId}". Identity is minted once (Law 3); moving a deal's records is a merge, not an alias edit.`,
+      );
+    }
+    // Already set to this exact target — a no-op read, not a write, so a
+    // retry that lands here twice never bumps the version for nothing.
+    if (existing === dealId) return { result: undefined };
+    return { next: dealId, result: undefined };
+  });
 }
 
 /**
