@@ -243,7 +243,7 @@ every push to `main` and every pull request.
   to 8 fails the build.
 - **The bundle budget pins the regression, not the size.** Two gates, and the
   first is the one that matters: the LARGEST CHUNK is 158 KB gz against a 250 KB
-  ceiling, because that is what every route pays. Total client JS is 1577 KB gz
+  ceiling, because that is what every route pays. Total client JS is 1582 KB gz
   against 1600 KB, which catches sprawl rather than splitting. The studio’s
   department screens are `nextDynamic()` now — the chunk fell from 307 to 197 and
   the total rose 12 KB in the same commit, which is the two ceilings doing their
@@ -287,8 +287,11 @@ every push to `main` and every pull request.
   document of lines and the project board's information sidebar. A department
   skeleton on those screens reserves a chart where a document is coming, which
   makes the arrival a jump. 1577 to 1578 with the bill approval chain: nine strings
-  in two languages and the block that draws how far a bill has got. The largest
-  chunk did not move at any point (158 KB), which is the gate that matters.
+  in two languages and the block that draws how far a bill has got. 1578 → 1582 with
+  the Google Calendar screen: `src/shared/calendar.ts` is a few hundred bytes of pure
+  arithmetic with zero imports, plus two client components on a screen that was
+  already there. The largest chunk did not move at any point (158 KB), which is the
+  gate that matters.
 - Tests connect things — real repositories, real route handlers, **one assertion per
   bug that actually happened**. Each block names the defect it guards, so nobody
   deletes it later wondering what it was for.
