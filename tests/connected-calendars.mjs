@@ -140,5 +140,47 @@ console.log("\ndecrypt-and-gate contract (no store)");
     decryptStored(unreadable) === null);
 }
 
+const { isDue, expiryFrom, refreshAccessToken, REFRESH_BUFFER_MS } =
+  await import("../src/platform/auth/calendarOAuth.ts");
+
+console.log("\ntoken lifecycle");
+{
+  ok("the buffer is five minutes", REFRESH_BUFFER_MS === 5 * 60_000);
+  // A TOKEN STILL VALID WHEN WE CHECK CAN BE EXPIRED WHEN IT ARRIVES. The
+  // buffer is what turns "expired mid-flight" from a failure mode into
+  // arithmetic.
+  ok("a token inside the buffer is due", isDue(1_000_000, 700_000) === true);
+  ok("...and one outside it is not", isDue(1_000_000, 600_000) === false);
+  ok("an absent expiry is always due", isDue(0, 1) === true);
+
+  ok("expires_in becomes an absolute stamp", expiryFrom(3600, 1_000) === 1_000 + 3600_000);
+  for (const bad of [undefined, null, "", "soon", -1]) {
+    let threw = false;
+    try { expiryFrom(bad, 1_000); } catch { threw = true; }
+    ok(`an unusable expires_in is refused (${JSON.stringify(bad)})`, threw);
+  }
+
+  // MICROSOFT ROTATES REFRESH TOKENS. Every refresh may return a NEW one which
+  // must replace the stored one. Writing the old one back leaves a connection
+  // that works until the next refresh and then fails permanently, days later
+  // and far from the cause.
+  const rotating = async () => new Response(JSON.stringify({
+    access_token: "AT2", expires_in: 3600, refresh_token: "RT2",
+  }), { status: 200 });
+  const rotated = await refreshAccessToken({ provider: "microsoft", refreshToken: "RT1", fetchImpl: rotating, now: () => 1000 });
+  ok("a rotated refresh token is returned so the caller can store it", rotated.refreshToken === "RT2", JSON.stringify(rotated));
+
+  const steady = async () => new Response(JSON.stringify({ access_token: "AT2", expires_in: 3600 }), { status: 200 });
+  const kept = await refreshAccessToken({ provider: "google", refreshToken: "RT1", fetchImpl: steady, now: () => 1000 });
+  ok("a provider that does not rotate returns none, and the old one stands",
+    kept.refreshToken === undefined, JSON.stringify(kept));
+
+  const refused = async () => new Response(JSON.stringify({ error: "invalid_grant" }), { status: 400 });
+  let msg = "";
+  try { await refreshAccessToken({ provider: "google", refreshToken: "RT1", fetchImpl: refused }); }
+  catch (e) { msg = e.message; }
+  ok("a refused refresh names the provider's own reason", /invalid_grant/.test(msg), msg);
+}
+
 console.log(fails ? `\n${fails} failure(s)` : "\nall good");
 process.exitCode = fails ? 1 : 0;
