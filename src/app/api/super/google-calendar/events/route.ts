@@ -1,5 +1,5 @@
 import { route } from "@/platform/http/route";
-import { getConnection, listEvents, GoogleCalendarError } from "@/lib/data/googleCalendar";
+import { getConnection, listEvents } from "@/lib/data/googleCalendar";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -31,7 +31,16 @@ export const GET = route({ auth: "super", name: "super/google-calendar/events" }
   try {
     return { connected: true, calendarId: connection.calendarId, events: await listEvents({ calendarId: connection.calendarId, from, to }) };
   } catch (e) {
-    if (e instanceof GoogleCalendarError) return { status: 502, body: { error: "google", detail: e.message } };
-    throw e;
+    // REPORTED, NOT JUST GoogleCalendarError — see the matching comment in
+    // ../route.ts. listEvents's own Google refusal throws GoogleCalendarError,
+    // but a failure in the identity chain underneath it (no VERCEL_OIDC_TOKEN,
+    // an expired one, STS or IAM Credentials refusing) throws a plain Error
+    // before any Calendar API call happens, and would otherwise fall through to
+    // a 500 with an empty body that told the operator nothing. On this route
+    // that failure is exactly what invariant "the board must never render an
+    // empty week for a broken connection" (task 7 brief) depends on being able
+    // to show — a swallowed message here is an empty week wearing a disguise.
+    const detail = e instanceof Error ? e.message : String(e);
+    return { status: 502, body: { error: "google", detail } };
   }
 });

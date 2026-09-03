@@ -179,8 +179,11 @@ export default function CalendarBoard({ connection }) {
       if (!res.ok) {
         // Google's own message, verbatim — a 502 here means the connection is
         // broken, and rendering an empty week in its place would look exactly
-        // like a quiet month rather than a calendar that stopped working.
-        setProblem(body?.detail || body?.error || "Couldn't load events.");
+        // like a quiet month rather than a calendar that stopped working. The
+        // route now reports every failure on the Google/identity path with a
+        // `detail` (see the route's own comment), so an empty body should not
+        // happen — the status fallback is a diagnosable dead end if it ever does.
+        setProblem(body?.detail || body?.error || `Couldn't load events (HTTP ${res.status}).`);
         setEvents([]);
         return;
       }

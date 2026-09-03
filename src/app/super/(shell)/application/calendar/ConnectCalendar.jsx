@@ -85,7 +85,12 @@ export default function ConnectCalendar({ serviceAccount }) {
         // shared", "shared with too little access" look identical from this
         // screen otherwise, and each has a different one-line fix.
         const body = await res.json().catch(() => ({}));
-        setError(String(body?.detail || body?.error || "Couldn't connect that calendar."));
+        // THE STATUS IS NAMED WHEN NOTHING ELSE IS. Both routes now report every
+        // failure on the Google/identity path with a `detail` (see the route's
+        // own comment), so an empty body here should not happen — but if some
+        // future hole reopens it, "Couldn't connect that calendar (HTTP 500)."
+        // is a diagnosable dead end rather than a silent, identical-looking one.
+        setError(String(body?.detail || body?.error || `Couldn't connect that calendar (HTTP ${res.status}).`));
         return;
       }
       router.refresh();

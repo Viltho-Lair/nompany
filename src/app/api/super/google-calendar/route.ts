@@ -1,6 +1,6 @@
 import { route } from "@/platform/http/route";
 import {
-  getConnection, saveConnection, clearConnection, getCalendar, listCalendars, GoogleCalendarError,
+  getConnection, saveConnection, clearConnection, getCalendar, listCalendars,
 } from "@/lib/data/googleCalendar";
 import { calendarServiceAccount } from "@/platform/auth/googleCalendarAuth";
 
@@ -54,8 +54,19 @@ export const PUT = route({ ...spec, body: true }, async ({ body, admin }) => {
   try {
     calendar = await getCalendar(calendarId);
   } catch (e) {
-    if (e instanceof GoogleCalendarError) return { status: 400, body: { error: "google", detail: e.message } };
-    throw e;
+    // REPORTED, NOT JUST GoogleCalendarError. getCalendar's own Google refusal
+    // (API disabled, not shared, insufficient access) throws GoogleCalendarError
+    // — but the identity chain underneath it (googleCalendarAuth.ts: no
+    // VERCEL_OIDC_TOKEN, an expired one, STS refusing the exchange, IAM
+    // Credentials refusing the impersonation) throws a PLAIN Error, before any
+    // Google Calendar API call is even made. Catching only GoogleCalendarError
+    // let those fall through uncaught to the route wrapper's generic 500 with
+    // an EMPTY body, which named nothing an operator could act on. This is
+    // nompany's own console with one operator: the message names the exact env
+    // var or Google refusal to go fix, so every failure on this path is
+    // reported here rather than only the one shape being rethrown.
+    const detail = e instanceof Error ? e.message : String(e);
+    return { status: 400, body: { error: "google", detail } };
   }
   return {
     ok: true,
