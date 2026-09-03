@@ -275,7 +275,14 @@ every push to `main` and every pull request.
   warning before a flow that already has work on it is changed — a deal count, a
   confirm dialog and eleven strings in two languages. 1576 → 1577 when a locked-out
   sign-in and a locked-out reset started saying how long the wait is — four strings
-  in two languages and the pure function that chooses between them.
+  in two languages and the pure function that chooses between them. 1577 → 1580 with
+  the studio's loading boundary (`app/studio/loading.js`): until it existed the App
+  Router had nothing to show for a `force-dynamic` page and BLOCKED the navigation —
+  measured, the DOM did not change at all and the URL took 767ms to move. Three
+  kilobytes buys the shell's geometry, which it has to reproduce in full because
+  with no `layout.js` a loading boundary replaces the whole studio, sidebar
+  included. It gets smaller, not larger, when the shell moves into a real layout
+  (`docs/superpowers/plans/2026-09-03-studio-shell-layout.md`).
 - Tests connect things — real repositories, real route handlers, **one assertion per
   bug that actually happened**. Each block names the defect it guards, so nobody
   deletes it later wondering what it was for.

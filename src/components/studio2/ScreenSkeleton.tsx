@@ -34,9 +34,19 @@ export default function ScreenSkeleton(
   const word = loadingLabel ?? fallback;
   return (
     <div className="space-y-6" aria-busy="true" aria-live="polite">
-      <span className="sr-only">{word}</span>
-
-      <div className="skel skel-text h-6 w-48" />
+      {/* THE ANNOUNCEMENT RIDES INSIDE THE TITLE BAR, NOT ABOVE IT.
+          As a sibling it was the FIRST child, which made the title bar the
+          second — and `space-y-6` puts its 1.5rem on every child except the
+          first. The span is `sr-only` so nothing was visible to explain it, and
+          the margin collapsed straight out through <main>, which has `pb-8` and
+          no padding-top to stop it. Measured in the sandbox: <main> sat at
+          y=112 while the skeleton stood and at y=88 once the screen arrived, so
+          every screen in the studio jumped 24px upward on load — this component
+          is the loading fallback for about twenty of them.
+          Inside the bar it announces identically (sr-only is 1px and absolute,
+          so it adds no height) and it is no longer a sibling, which makes the
+          title bar the first child again and leaves it with no margin. */}
+      <div className="skel skel-text h-6 w-48"><span className="sr-only">{word}</span></div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {Array.from({ length: 4 }, (_, i) => (
