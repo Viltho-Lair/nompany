@@ -3,6 +3,7 @@ import {
   getConnection, saveConnection, clearConnection, getCalendar, listCalendars,
 } from "@/lib/data/googleCalendar";
 import { calendarServiceAccount } from "@/platform/auth/googleCalendarAuth";
+import { log } from "@/platform/http/observability";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -65,7 +66,26 @@ export const PUT = route({ ...spec, body: true }, async ({ body, admin }) => {
     // nompany's own console with one operator: the message names the exact env
     // var or Google refusal to go fix, so every failure on this path is
     // reported here rather than only the one shape being rethrown.
+    //
+    // LOGGED HERE AS WELL AS RETURNED — deliberately both, not one or the
+    // other. Catching the error to shape the response is exactly what stops it
+    // reaching `withRequest`'s own catch (observability.ts), which is the ONLY
+    // other place an error gets logged; returning it as an ordinary value
+    // means the try succeeds and nothing there ever sees this. The response
+    // and the log answer different questions: the response tells the operator
+    // what to go fix, the log is how anyone re-reading the server output later
+    // — including whether this was ever a bug in OUR code rather than Google's
+    // or the environment's — finds out, the same way the STS refusal that
+    // exposed this whole gap was originally read off the log rather than the
+    // screen. The stack's first frame is what tells the two apart: Google's own
+    // refusals and the identity chain's env-driven ones point back into
+    // googleCalendar.ts/googleCalendarAuth.ts, so a frame anywhere else is the
+    // sign this was a programmer error, not an operator one.
     const detail = e instanceof Error ? e.message : String(e);
+    log.error("google-calendar connect failed", {
+      error: detail,
+      stack: e instanceof Error ? e.stack?.split("\n")[1]?.trim() : undefined,
+    });
     return { status: 400, body: { error: "google", detail } };
   }
   return {

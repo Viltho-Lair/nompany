@@ -1,5 +1,6 @@
 import { route } from "@/platform/http/route";
 import { getConnection, listEvents } from "@/lib/data/googleCalendar";
+import { log } from "@/platform/http/observability";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -40,7 +41,23 @@ export const GET = route({ auth: "super", name: "super/google-calendar/events" }
     // that failure is exactly what invariant "the board must never render an
     // empty week for a broken connection" (task 7 brief) depends on being able
     // to show — a swallowed message here is an empty week wearing a disguise.
+    //
+    // LOGGED HERE AS WELL AS RETURNED — see ../route.ts's fuller note. Catching
+    // the error to shape the response stops it reaching `withRequest`'s own
+    // catch, the only other place anything gets logged, so returning it as an
+    // ordinary value would make it exist ONLY in the HTTP body — nobody
+    // watching the server output would ever see it. The response and the log
+    // answer different questions: the response is what the operator fixes, the
+    // log is how anyone re-reading the server output later tells an
+    // operator's misconfiguration apart from a bug in this route's own code —
+    // which the stack's first frame does, by naming whether the failure
+    // actually originated in googleCalendar.ts/googleCalendarAuth.ts or
+    // somewhere else.
     const detail = e instanceof Error ? e.message : String(e);
+    log.error("google-calendar events fetch failed", {
+      error: detail,
+      stack: e instanceof Error ? e.stack?.split("\n")[1]?.trim() : undefined,
+    });
     return { status: 502, body: { error: "google", detail } };
   }
 });
