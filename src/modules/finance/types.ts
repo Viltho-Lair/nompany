@@ -8,6 +8,7 @@ export type { Account, JournalLine, JournalEntry } from "./schema";
 export type { Bill, FixedAsset } from "./schema";
 
 import type { Invoice } from "./schema";
+import type { ApprovalChain } from "@/platform/approval/chains";
 
 /** What `invoiceTotals` computes. Derived on every read, never stored. */
 export type InvoiceTotals = {
@@ -54,4 +55,6 @@ export type FinanceContext = ModuleContext & {
   canViewSettings: boolean;
   canManageSettings: boolean;
   cashCategories: string[];
+  /** The bill approval chains this studio uses — seeds merged with its overrides. */
+  approvalChains: Record<string, ApprovalChain>;
 };

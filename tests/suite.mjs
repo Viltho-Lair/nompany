@@ -71,7 +71,7 @@ import { resolveBlocks, blocksFor } from "@/modules/quality/quality";
 import { listSections, plantMissingSections, getSectionByKey, addRow, readCol } from "@/platform/db/sections";
 import { readArr, writeArr } from "@/platform/db/store";
 import { S, REG as REG_KEYS } from "@/platform/db/keys";
-import { financeContext, createInvoice, editInvoice, recordPayment, createExpense, removeInvoice, listInvoices } from "@/modules/finance/finance";
+import { financeContext, createInvoice, editInvoice, recordPayment, createExpense, removeInvoice, listInvoices, saveFinanceSettings } from "@/modules/finance/finance";
 import { listAccounts, postEntry, reverseEntry, listJournal, trialBalance, postInvoice, postExpense, postPayment, postBill, postBillPayment } from "@/modules/finance/ledger";
 import { arAging, topDebtors, collectionRate, dso, incomeVsExpense, expenseMix, apAging, topVendors, assetRegister } from "@/modules/finance/analytics";
 import { listBills, createBill, editBill, approveBill, recordBillPayment, removeBill } from "@/modules/finance/payables";
@@ -2510,6 +2510,64 @@ console.log("\n== Finance 1b: accounts payable mirrors the invoice");
   const listed = await listBills(fin);
   const row = listed.find((b) => b.id === bill.bill.id);
   ok("the bill lists with derived totals", row?.total === 1150 && row?.paid === 1150, JSON.stringify(row && { total: row.total, paid: row.paid }));
+}
+
+// ============================================================================
+console.log("\n== bill approval chains: seeded, overridable, validated on write");
+// P2's approval engine. A chain is the studio's own answer to "who signs
+// this, and above what amount" - stored as an override over the seeded one,
+// so a corrected built-in still reaches a studio that never edited theirs.
+{
+  const fin = await financeContext(owner, slug);
+
+  // A STUDIO THAT HAS NEVER TOUCHED THEM STILL HAS THEM. The seed is the
+  // answer, not an empty object: a studio with no chain would approve nothing,
+  // which is the hole chainProblems refuses on write.
+  ok("a fresh studio has the seeded bill chain",
+    fin.approvalChains?.bill?.steps?.length === 2, JSON.stringify(fin.approvalChains?.bill));
+
+  // AN OVERRIDE STORES ONLY WHAT CHANGED.
+  const saved = await saveFinanceSettings(fin, {
+    approvalChains: { bill: { type: "bill", steps: [
+      { permission: "finance.payables.approve", from: 0, label: "Finance" },
+      { permission: "finance.payables.approveHigh", from: 5000, label: "Director" },
+    ] } },
+  });
+  ok("a studio can move its own threshold",
+    saved.approvalChains?.bill?.steps?.[1]?.from === 5000,
+    JSON.stringify(saved.error ?? saved.approvalChains?.bill));
+
+  // ...AND THE OTHER SETTING ON THE SAME BLOB SURVIVES IT. Both live in the
+  // finance-settings section's `settings`, so a writer that rebuilt the object
+  // instead of extending it would silently drop the categories.
+  ok("...without dropping the cash categories beside it",
+    Array.isArray(saved.cashCategories) && saved.cashCategories.length > 0,
+    JSON.stringify(saved.cashCategories));
+
+  // REFUSED ON WRITE, IN WORDS ABOUT THE EDIT.
+  const bad = await saveFinanceSettings(fin, {
+    approvalChains: { bill: { type: "bill", steps: [
+      { permission: "finance.payables.approveHigh", from: 100, label: "only one" },
+    ] } },
+  });
+  ok("a chain with no always-on step is refused", bad.error === "refused", JSON.stringify(bad));
+  ok("...and the refusal says what to fix", /from: 0/.test(bad.detail || ""), bad.detail);
+
+  const unknown = await saveFinanceSettings(fin, {
+    approvalChains: { bill: { type: "bill", steps: [
+      { permission: "finance.payables.nuke", from: 0, label: "nope" },
+    ] } },
+  });
+  ok("a chain naming a permission that does not exist is refused",
+    unknown.error === "refused" && /nuke/.test(unknown.detail || ""), JSON.stringify(unknown));
+
+  // AND NEITHER REFUSAL WROTE. A validator that refuses and saves anyway is
+  // worse than no validator, and the ordering that produces it (write, then
+  // check) looks identical from the call site.
+  const after = await financeContext(owner, slug);
+  ok("a refused chain was not stored",
+    after.approvalChains?.bill?.steps?.[1]?.from === 5000,
+    JSON.stringify(after.approvalChains?.bill));
 }
 
 // ============================================================================
