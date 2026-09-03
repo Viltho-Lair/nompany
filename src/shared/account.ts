@@ -24,6 +24,7 @@ type Strings = {
   calendarConnected: string;
   calendarConnectedSince: (date: string) => string;
   calendarNoEmailOnFile: string;
+  calendarRedirectHint: (paths: string) => string;
   calendarUnreachable: (providerName: string) => string;
   calendars: string;
   calendarsBlurb: string;
@@ -218,6 +219,13 @@ const en: Strings = {
   calendarConnected: "Your calendar is connected.",
   calendarConnectedSince: (date: string) => `Connected ${date}`,
   calendarNoEmailOnFile: "No account email on file",
+  // A CONNECT BUTTON APPEARS AS SOON AS SIGN-IN IS CONFIGURED, because the same
+  // client id and secret drive both. Registering the calendar callback is a
+  // SEPARATE step, and skipping it fails at the provider with
+  // "redirect_uri_mismatch" — a message with nothing in the product to explain
+  // it. The /super calendar screen says the same thing about its own path.
+  calendarRedirectHint: (paths: string) =>
+    `If the provider answers "redirect_uri_mismatch", ${paths} still has to be registered as a redirect URI on its OAuth client.`,
   calendarUnreachable: (providerName: string) => `We couldn't reach your ${providerName} calendar:`,
   calendars: "Calendars",
   calendarsBlurb: "Connect your Google or Microsoft calendar to see your own events here. Nothing about it is shared with any studio.",
@@ -412,6 +420,8 @@ const ar: Strings = {
   calendarConnected: "تقويمك مرتبط الآن.",
   calendarConnectedSince: (date: string) => `مرتبط منذ ${date}`,
   calendarNoEmailOnFile: "لا يوجد بريد إلكتروني مسجَّل للحساب",
+  calendarRedirectHint: (paths: string) =>
+    `إذا ردّ المزوّد بـ "redirect_uri_mismatch"، فلا يزال يلزم تسجيل ${paths} كعنوان إعادة توجيه في تطبيق OAuth الخاص به.`,
   calendarUnreachable: (providerName: string) => `تعذّر الوصول إلى تقويم ${providerName}:`,
   calendars: "التقويمات",
   calendarsBlurb: "اربط تقويم Google أو Microsoft لترى أحداثك هنا. لا يُشارَك شيء منه مع أي استوديو.",

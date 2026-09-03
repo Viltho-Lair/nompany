@@ -60,40 +60,51 @@ export const GET = route(
     const code = url.searchParams.get("code");
     if (url.searchParams.get("error") || !code) return landOn(request, next, "cancelled");
 
-    let exchanged;
+    // THE STORE WRITE IS INSIDE THIS try, NOT AFTER IT. saveConnection
+    // encrypts both tokens, and encryptField THROWS when FIELD_ENCRYPTION_KEY
+    // is missing or malformed — a deployment problem, but one that surfaces
+    // here at the worst possible moment: the person has already consented, so
+    // the grant is LIVE AT THE PROVIDER with nothing on this side recording
+    // it. Left outside, that threw out of the handler and the person got a
+    // bare 500 from an API route they never meant to visit. Inside, it lands
+    // like every other failure this flow already knows how to end — back on
+    // their own page with ?calendar=error, which the screen renders as "we
+    // couldn't connect your calendar. Try again."
     try {
-      exchanged = await exchangeCode({ provider, code, request });
+      const exchanged = await exchangeCode({ provider, code, request });
+
+      // Best-effort label for the account screen — see fetchAccountEmail's own
+      // comment for why a failed lookup falls back to "" rather than failing
+      // the connection that already succeeded. Omitted from the patch entirely
+      // when empty, not passed through as "" — saveConnection only writes a
+      // field it is GIVEN, so passing "" here would overwrite a good email
+      // already on file the moment a RECONNECT's lookup has a transient
+      // failure. Leaving it out lets saveConnection's own fallback
+      // (`patch.accountEmail ?? existing?.accountEmail ?? ""`) keep whatever
+      // was already stored.
+      const accountEmail = await fetchAccountEmail(provider, exchanged.accessToken);
+
+      // THE CONNECTION IS STORED AGAINST THE SIGNED-IN USER FROM THE SESSION,
+      // NEVER AGAINST ANYTHING IN `state`. The reference document this work
+      // started from put a tenant id in `state` and keyed the tokens off it —
+      // which makes a signed cookie the only thing standing between one
+      // tenant's calendar and another's. Here `state` decides a redirect and
+      // nothing else: forged, the worst outcome is landing on the wrong page,
+      // already connected as yourself.
+      await saveConnection(String(user.id), provider, {
+        accessToken: exchanged.accessToken,
+        expiresAtMs: exchanged.expiresAtMs,
+        refreshToken: exchanged.refreshToken,
+        ...(accountEmail ? { accountEmail } : {}),
+      });
     } catch {
       // The provider's own reason (invalid code, revoked consent, network
       // blip) is not for this redirect to carry — see calendarOAuth.ts: no
       // token and no provider detail may reach a redirect URL or a log line.
+      // The same holds for a storage failure: nothing about the key, the
+      // cipher or the store belongs in a URL a browser will keep.
       return landOn(request, next, "error");
     }
-
-    // Best-effort label for the account screen — see fetchAccountEmail's own
-    // comment for why a failed lookup falls back to "" rather than failing
-    // the connection that already succeeded. Omitted from the patch entirely
-    // when empty, not passed through as "" — saveConnection only writes a
-    // field it is GIVEN, so passing "" here would overwrite a good email
-    // already on file the moment a RECONNECT's lookup has a transient
-    // failure. Leaving it out lets saveConnection's own fallback
-    // (`patch.accountEmail ?? existing?.accountEmail ?? ""`) keep whatever
-    // was already stored.
-    const accountEmail = await fetchAccountEmail(provider, exchanged.accessToken);
-
-    // THE CONNECTION IS STORED AGAINST THE SIGNED-IN USER FROM THE SESSION,
-    // NEVER AGAINST ANYTHING IN `state`. The reference document this work
-    // started from put a tenant id in `state` and keyed the tokens off it —
-    // which makes a signed cookie the only thing standing between one
-    // tenant's calendar and another's. Here `state` decides a redirect and
-    // nothing else: forged, the worst outcome is landing on the wrong page,
-    // already connected as yourself.
-    await saveConnection(String(user.id), provider, {
-      accessToken: exchanged.accessToken,
-      expiresAtMs: exchanged.expiresAtMs,
-      refreshToken: exchanged.refreshToken,
-      ...(accountEmail ? { accountEmail } : {}),
-    });
 
     return landOn(request, next, "connected");
   },

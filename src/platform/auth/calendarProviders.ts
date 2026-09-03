@@ -85,6 +85,14 @@ export const CALENDAR_PROVIDERS: Record<CalendarProvider, ProviderConfig> = {
   },
 };
 
+// EVERY CALL TO A PROVIDER IS BOUNDED. undici's default is no timeout at all
+// (~300s before a socket gives up), and each of these runs inside a serverless
+// invocation somebody is waiting on — a token exchange and the account-email
+// lookup happen mid-REDIRECT, with the person parked on a blank page until they
+// answer. One exported number rather than a literal per call site, because a
+// second copy is how two of them end up disagreeing.
+export const CALENDAR_FETCH_TIMEOUT_MS = 10_000;
+
 export function isCalendarProvider(v: unknown): v is CalendarProvider {
   return v === "google" || v === "microsoft";
 }

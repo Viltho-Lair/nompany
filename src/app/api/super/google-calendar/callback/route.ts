@@ -52,9 +52,14 @@ export const GET = route(
     const code = url.searchParams.get("code");
     if (url.searchParams.get("error") || !code) return landOn(request, "cancelled");
 
-    let exchanged;
+    // THE STORE WRITE IS INSIDE THIS try, NOT AFTER IT — same reasoning, and
+    // the same fix, as the account-level callback one door over: saveConnection
+    // encrypts both tokens, and encryptField THROWS on a missing or malformed
+    // FIELD_ENCRYPTION_KEY. That would leave a grant LIVE AT GOOGLE with
+    // nothing here recording it, and hand the operator a bare 500 from an API
+    // route rather than the calendar screen saying the connection failed.
     try {
-      exchanged = await exchangeCode({
+      const exchanged = await exchangeCode({
         provider: "google",
         code,
         request,
@@ -63,32 +68,44 @@ export const GET = route(
         // here with an `invalid_grant` that says nothing about why.
         redirectUri: consoleCalendarRedirectUri(request),
       });
+
+      // Best-effort label for the screen; a failed lookup must not fail a
+      // connection that already succeeded (see fetchAccountEmail). Omitted from
+      // the patch when empty rather than passed as "", so a RECONNECT whose
+      // lookup blips keeps the address already on file.
+      const accountEmail = await fetchAccountEmail("google", exchanged.accessToken);
+
+      // NO calendarId IS SET HERE. Connected and chosen are two different
+      // states and the screen renders them differently: the operator picks a
+      // calendar from the dropdown next, which is a thing this flow could only
+      // guess at. saveConnection carries an existing choice forward, so
+      // reconnecting an expired grant does not silently unpick the calendar.
+      //
+      // NO connectedAt EITHER, AND THAT IS THE POINT. This used to pass
+      // Date.now(), which reset the field on every reconnect — while the
+      // account-level callback let saveConnection's own
+      // `patch.connectedAt ?? existing?.connectedAt ?? Date.now()` preserve the
+      // original. One field cannot mean "first connected" on one screen and
+      // "last reconnected" on the other. Preserving is the better reading of
+      // the name, so this omits the field and gets the same fallback: the
+      // stored value on a reconnect, Date.now() on a first connection.
+      // `connectedBy` is deliberately NOT preserved — it answers "who did this",
+      // and the operator who reconnects is the one who did it.
+      await saveConnection({
+        accessToken: exchanged.accessToken,
+        expiresAtMs: exchanged.expiresAtMs,
+        refreshToken: exchanged.refreshToken,
+        connectedBy: String(admin?.email || ""),
+        ...(accountEmail ? { accountEmail } : {}),
+      });
     } catch {
       // Google's own reason (invalid code, revoked consent, a network blip) is
       // not for this redirect to carry — see calendarOAuth.ts: no token and no
-      // provider detail may reach a redirect URL or a log line.
+      // provider detail may reach a redirect URL or a log line. The same holds
+      // for a storage failure: nothing about the key, the cipher or the store
+      // belongs in a URL a browser will keep.
       return landOn(request, "error");
     }
-
-    // Best-effort label for the screen; a failed lookup must not fail a
-    // connection that already succeeded (see fetchAccountEmail). Omitted from
-    // the patch when empty rather than passed as "", so a RECONNECT whose
-    // lookup blips keeps the address already on file.
-    const accountEmail = await fetchAccountEmail("google", exchanged.accessToken);
-
-    // NO calendarId IS SET HERE. Connected and chosen are two different
-    // states and the screen renders them differently: the operator picks a
-    // calendar from the dropdown next, which is a thing this flow could only
-    // guess at. saveConnection carries an existing choice forward, so
-    // reconnecting an expired grant does not silently unpick the calendar.
-    await saveConnection({
-      accessToken: exchanged.accessToken,
-      expiresAtMs: exchanged.expiresAtMs,
-      refreshToken: exchanged.refreshToken,
-      connectedAt: Date.now(),
-      connectedBy: String(admin?.email || ""),
-      ...(accountEmail ? { accountEmail } : {}),
-    });
 
     return landOn(request, "connected");
   },

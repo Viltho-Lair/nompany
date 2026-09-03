@@ -16,7 +16,9 @@
 // (its `error`/`error_description`) may be surfaced — that is what lets
 // `invalid_grant` be told apart from a network blip — but the refresh token or
 // access token this file sends never appears in anything thrown here.
-import { CALENDAR_PROVIDERS, calendarRedirectUri, type CalendarProvider } from "./calendarProviders";
+import {
+  CALENDAR_PROVIDERS, CALENDAR_FETCH_TIMEOUT_MS, calendarRedirectUri, type CalendarProvider,
+} from "./calendarProviders";
 import { getConnection, saveConnection, clearConnection, type CalendarConnection } from "./calendarConnections";
 // REUSED, NOT REDECLARED: googleFederation.ts already exports the shape a fake
 // fetch needs to satisfy for a test (`(input: string, init: RequestInit) =>
@@ -109,6 +111,13 @@ export async function exchangeCode(
       grant_type: "authorization_code",
       redirect_uri: redirectUri ?? calendarRedirectUri(request, provider),
     }),
+    // THIS RUNS INSIDE A BROWSER-BLOCKING REDIRECT. The person is sitting on a
+    // blank page between the provider's consent screen and their own, so a
+    // provider that accepts the connection and then stalls parks them there for
+    // undici's default (no timeout — a socket eventually gives up around 300s)
+    // while holding a serverless invocation open. Ten seconds turns that into a
+    // failed exchange the callback already knows how to land as ?calendar=error.
+    signal: AbortSignal.timeout(CALENDAR_FETCH_TIMEOUT_MS),
   });
   const body = await readTokenBody(res);
   if (!res.ok) {
@@ -211,7 +220,15 @@ export async function fetchAccountEmail(
 ): Promise<string> {
   try {
     const cfg = CALENDAR_PROVIDERS[provider];
-    const res = await fetchImpl(cfg.calendarsUrl, { headers: { authorization: `Bearer ${accessToken}` } });
+    const res = await fetchImpl(cfg.calendarsUrl, {
+      headers: { authorization: `Bearer ${accessToken}` },
+      // SAME REDIRECT, ONE STEP LATER. This is best-effort — a failure only
+      // blanks a label — but "best-effort" and "unbounded" are different
+      // things: without this, a stalled lookup holds the redirect open long
+      // after the connection it decorates already succeeded. A timeout lands in
+      // the catch below and falls back to "", exactly like every other failure.
+      signal: AbortSignal.timeout(CALENDAR_FETCH_TIMEOUT_MS),
+    });
     if (!res.ok) return "";
     const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
     if (provider === "google") {

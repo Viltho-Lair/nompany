@@ -1341,6 +1341,22 @@ function Calendars({ locale, outcome }) {
               </a>
             </div>
           ))}
+
+          {/* WHAT THE BUTTON ABOVE CANNOT TELL YOU ON ITS OWN. `available` is
+              driven by the SIGN-IN credentials — one client id and secret serve
+              both — so Connect appears the moment Google or Microsoft sign-in
+              works, whether or not anybody registered this feature's own
+              callback path. Without it the provider answers
+              redirect_uri_mismatch and the product says nothing at all. The
+              path is written out here rather than imported: calendarRedirectUri
+              (calendarProviders.ts) needs a Request and pulls in oauth.ts,
+              which is server-only — same reason the /start href above is a
+              literal. */}
+          {connectable.length > 0 && (
+            <p className="px-1 text-xs text-slate-400 dark:text-slate-500">
+              {tr.calendarRedirectHint(connectable.map((p) => `/api/auth/calendar/callback/${p}`).join(" · "))}
+            </p>
+          )}
         </div>
       )}
 

@@ -12,7 +12,9 @@
 // supplies the token and the userId argument is unused. That injection point
 // is why this file needs no console-shaped fork.
 import { getCalendarAccessToken } from "@/platform/auth/calendarOAuth";
-import { CALENDAR_PROVIDERS, type CalendarProvider } from "@/platform/auth/calendarProviders";
+import {
+  CALENDAR_PROVIDERS, CALENDAR_FETCH_TIMEOUT_MS, type CalendarProvider,
+} from "@/platform/auth/calendarProviders";
 import { normaliseEvent, normaliseMicrosoftEvent, type CalendarEvent } from "@/shared/calendar";
 // REUSED, NOT REDECLARED — same reasoning as calendarOAuth.ts importing this
 // same type from this same file: it is exactly `(input, init) =>
@@ -69,9 +71,9 @@ export async function callProvider(
   const res = await fetchImpl(url, {
     headers: { authorization: `Bearer ${accessToken}` },
     cache: "no-store",
-    // A HUNG CALL IS A HELD SERVERLESS INVOCATION — same reason
-    // googleCalendar.ts's own fetch carries one.
-    signal: AbortSignal.timeout(10_000),
+    // A HUNG CALL IS A HELD SERVERLESS INVOCATION — the same reason, and now
+    // literally the same number, as the OAuth-path fetches in calendarOAuth.ts.
+    signal: AbortSignal.timeout(CALENDAR_FETCH_TIMEOUT_MS),
   });
   const body = await res.json().catch(() => ({}));
   if (!res.ok) {

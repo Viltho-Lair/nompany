@@ -243,7 +243,7 @@ every push to `main` and every pull request.
   to 8 fails the build.
 - **The bundle budget pins the regression, not the size.** Two gates, and the
   first is the one that matters: the LARGEST CHUNK is 158 KB gz against a 250 KB
-  ceiling, because that is what every route pays. Total client JS is 1586 KB gz
+  ceiling, because that is what every route pays. Total client JS is 1587 KB gz
   against 1600 KB, which catches sprawl rather than splitting. The studio’s
   department screens are `nextDynamic()` now — the chunk fell from 307 to 197 and
   the total rose 12 KB in the same commit, which is the two ceilings doing their
@@ -293,7 +293,10 @@ every push to `main` and every pull request.
   already there. 1582 → 1586 with connected calendars: a Calendars panel on the
   account screen and nineteen strings in two languages. The whole OAuth subsystem —
   both providers, the token lifecycle, the connection store — is server-only and ships
-  nothing; what a browser gets is the panel. The largest chunk did not move at any
+  nothing; what a browser gets is the panel. 1586 → 1587 when the Microsoft
+  normaliser started converting Graph's offset-less date-times through `Intl`
+  instead of copying them verbatim, plus the redirect-URI hint's two strings.
+  The largest chunk did not move at any
   point (158 KB), which is the gate that matters.
 - Tests connect things — real repositories, real route handlers, **one assertion per
   bug that actually happened**. Each block names the defect it guards, so nobody

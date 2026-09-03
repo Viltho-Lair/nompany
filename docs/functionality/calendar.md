@@ -107,8 +107,17 @@ account may sign in one way and keep meetings in another. Both buttons are offer
 that provider is configured, and a provider with no client id/secret is not offered at all
 rather than offered and broken.
 
+`available` is driven by the **sign-in** credentials — one client id and secret serve both — so
+a Connect button appears as soon as Google or Microsoft sign-in works, whether or not anybody
+registered *this* feature's callback path. The panel therefore names that path
+(`/api/auth/calendar/callback/<provider>`) under the buttons, so an operator meeting
+`redirect_uri_mismatch` at the provider is told where it comes from; the console screen says the
+same about its own.
+
 Connected rows show the account email and when it was connected, with Disconnect behind a
-confirm. Below them, the person's next events across **every** connection, merged and sorted.
+confirm. **`connectedAt` means first connected, on both surfaces** — reconnecting an expired
+grant carries the original stamp forward rather than resetting it. (`connectedBy`, which only
+the console has, does the opposite: it answers "who did this", so it records whoever reconnected.) Below them, the person's next events across **every** connection, merged and sorted.
 A provider that fails is reported by name alongside the events that did load — failing the
 whole request throws away a calendar that still works, and quietly returning half of it tells
 somebody their calendar is empty when it is actually broken.
@@ -190,6 +199,19 @@ recurrence at all while `/me/calendarView` does — the same trap, a different s
 providers' all-day events carry an **exclusive** end, which paints an all-day event one cell
 too wide if taken as inclusive.
 
+A third, in `shared/calendar.ts`: **Microsoft Graph returns a date-time with no offset
+designator** and puts the zone in a sibling field — `{ dateTime: "2026-09-03T09:30:00.0000000",
+timeZone: "UTC" }` — while JavaScript parses an offset-less date-time as *local* time. Copied
+through verbatim, a 09:30 UTC meeting rendered as 09:30 in Riyadh instead of 12:30, on every
+timed Microsoft event, with nothing on screen saying so. A Graph `Prefer: outlook.timezone`
+header does not fix it: that changes which zone Graph answers in, not whether the designator is
+there. So `normaliseMicrosoftEvent` converts: a value that already carries an offset is kept, a
+`timeZone` naming UTC gets `Z` appended exactly, and an IANA name is resolved through `Intl`,
+which reads the zone's real offset *at that instant* (twice — the first read is necessarily
+taken at the wrong instant, and a DST transition inside that gap makes it an hour out).
+All-day events are deliberately **not** converted: a holiday is the 3rd everywhere, and
+converting its local midnight moves it onto the 2nd east of Greenwich.
+
 ## Not built yet
 
 Stated in words, because a silent gap reads as a finished feature.
@@ -216,6 +238,12 @@ Stated in words, because a silent gap reads as a finished feature.
   a fresh request to the provider. Access tokens are reused until they are near expiry, which
   is the token lifecycle doing its job; event data is never cached, server-side or across
   requests.
+- **A Windows zone name is not converted.** Graph returns one (`"Arab Standard Time"` rather
+  than `"Asia/Riyadh"`) when an event was written in its organiser's own zone, and mapping it
+  needs a Windows→IANA table this codebase does not ship — `Intl` rejects the name outright.
+  Such a value is left exactly as Graph sent it, offset-less, so it renders in the viewer's own
+  zone: an unconverted time rather than a confidently wrong one. Shipping the table (or asking
+  Graph for UTC on every read) is the fix when it is worth the weight.
 - **No end-to-end proof against a live provider.** Every pure part is asserted with a fake
   fetch (`tests/connected-calendars.mjs`, `tests/google-calendar.mjs`) and the unconnected
   routes are pinned by goldens. That Google or Microsoft accept a real client, that consent
