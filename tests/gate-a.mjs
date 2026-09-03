@@ -4018,6 +4018,33 @@ console.log("== CSRF: a write arriving from somebody else's page");
     String(readCross.status));
 }
 
+console.log("== account calendar: the unconnected state is network-free");
+// TWO GOLDENS, BOTH FOR NOBODY HAVING CONNECTED A CALENDAR YET. This fixture
+// never writes a calendarConnections row, so what they pin is not just the
+// response SHAPE but the fact that reaching it costs no provider call —
+// listConnections (calendarConnections.ts) is a handful of Redis reads and
+// never touches Google or Microsoft, so a golden built from a live network
+// call would be exactly the flapping test CLAUDE.md refuses to keep. Same
+// argument as the console's own super.calendar.unconnected golden, one door
+// over.
+{
+  const CAL = await import("@/app/api/account/calendar/route.ts");
+  const CAL_EVENTS = await import("@/app/api/account/calendar/events/route.ts");
+
+  const shot = async (name, payload) => {
+    const r = golden(name, payload, EXTRA);
+    if (!r.recorded) ok(`${name} matches its golden`, r.ok, r.detail);
+    return payload;
+  };
+
+  await signIn(owner.id);
+  await shot("account.calendar.none", await capture(CAL.GET, req("/api/account/calendar"), ctx()));
+  await shot("account.calendar.events.none", await capture(
+    CAL_EVENTS.GET,
+    req("/api/account/calendar/events?from=2026-09-01T00:00:00Z&to=2026-09-30T00:00:00Z"),
+    ctx()));
+}
+
 // ============================================================================
 console.log("== migration export: the .sql dump the console and CLI both emit");
 // THE ONE PLACE /super/application/migration DOES something rather than describes
