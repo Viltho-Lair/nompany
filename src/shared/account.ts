@@ -18,6 +18,15 @@ type Strings = {
   alreadyOwnStudio: string;
   askStudioAccessUsing: string;
   asksCode: string;
+  calendarAllDay: (date: string) => string;
+  calendarCancelled: string;
+  calendarConnectFailed: string;
+  calendarConnected: string;
+  calendarConnectedSince: (date: string) => string;
+  calendarNoEmailOnFile: string;
+  calendarUnreachable: (providerName: string) => string;
+  calendars: string;
+  calendarsBlurb: string;
   cancel: string;
   capitalsFineStoreMatch: string;
   change: string;
@@ -40,8 +49,11 @@ type Strings = {
   companyName2: string;
   confirmEmail: string;
   confirmEmailAddressFirst: string;
+  confirmDisconnectCalendar: (providerName: string) => string;
   confirmNewPassword: string;
   confirmPassword: string;
+  connectGoogleCalendar: string;
+  connectMicrosoftCalendar: string;
   continueWith: string;
   couldnCreateAccountTry: string;
   couldnCreateStudio: string;
@@ -61,6 +73,8 @@ type Strings = {
   currentPassword: string;
   currentPasswordIncorrect: string;
   didnSave: string;
+  disconnectCalendar: string;
+  disconnecting: string;
   documentation: string;
   done: string;
   dontOwnStudio: string;
@@ -84,6 +98,7 @@ type Strings = {
   keySaved: string;
   keySetNovaUses: string;
   loadingAccount: string;
+  loadingEvents: string;
   locationUnknown: string;
   microsoft: string;
   myCollaborations: string;
@@ -93,15 +108,18 @@ type Strings = {
   newCodeOnWay: string;
   newPassword: string;
   newPasswordDoesnMeet: string;
+  noCalendarProvidersAvailable: string;
   noPictureRemove: string;
   noStudioUsesCode: string;
   noTrustedDevices: string;
   nompanyCom: string;
   notCollaborating: string;
+  noUpcomingEvents: string;
   nothingChange: string;
   novaAiKey: string;
   novaNotSet: string;
   onlyOwnerCanRename: string;
+  openEvent: string;
   openStudio: string;
   overview: string;
   ownStudio: string;
@@ -169,6 +187,7 @@ type Strings = {
   trusted: string;
   trustedDevices: string;
   twoPasswordsMatch: string;
+  upcomingEvents: string;
   updating: string;
   uploading: string;
   use3LettersNumbers: string;
@@ -178,6 +197,7 @@ type Strings = {
   verify: string;
   viewAll: string;
   workspacesYouOwn: string;
+  yesDisconnect: string;
 };
 
 const en: Strings = {
@@ -192,6 +212,15 @@ const en: Strings = {
   alreadyOwnStudio: "You already own a studio.",
   askStudioAccessUsing: "Ask a studio for access using its company code. Someone there approves the request.",
   asksCode: "Asks for a code",
+  calendarAllDay: (date: string) => `All day · ${date}`,
+  calendarCancelled: "Connecting your calendar was cancelled.",
+  calendarConnectFailed: "We couldn't connect your calendar. Try again.",
+  calendarConnected: "Your calendar is connected.",
+  calendarConnectedSince: (date: string) => `Connected ${date}`,
+  calendarNoEmailOnFile: "No account email on file",
+  calendarUnreachable: (providerName: string) => `We couldn't reach your ${providerName} calendar:`,
+  calendars: "Calendars",
+  calendarsBlurb: "Connect your Google or Microsoft calendar to see your own events here. Nothing about it is shared with any studio.",
   cancel: "Cancel",
   capitalsFineStoreMatch: "Capitals are fine — we store and match your address in lowercase.",
   change: "Change",
@@ -214,8 +243,11 @@ const en: Strings = {
   companyName2: "Company name",
   confirmEmail: "Confirm email",
   confirmEmailAddressFirst: "Confirm your email address first.",
+  confirmDisconnectCalendar: (providerName: string) => `Disconnect ${providerName}? This revokes nompany's access to your calendar.`,
   confirmNewPassword: "Confirm new password",
   confirmPassword: "Confirm password",
+  connectGoogleCalendar: "Connect Google Calendar",
+  connectMicrosoftCalendar: "Connect Microsoft Calendar",
   continueWith: "Continue",
   couldnCreateAccountTry: "We couldn't create your account. Try again.",
   couldnCreateStudio: "We couldn't create your studio.",
@@ -235,6 +267,8 @@ const en: Strings = {
   currentPassword: "Current password",
   currentPasswordIncorrect: "The current password is incorrect.",
   didnSave: "That didn't save.",
+  disconnectCalendar: "Disconnect",
+  disconnecting: "Disconnecting…",
   documentation: "Documentation",
   done: "Done",
   dontOwnStudio: "You don't own a studio yet.",
@@ -258,6 +292,7 @@ const en: Strings = {
   keySaved: "Key saved.",
   keySetNovaUses: "A key is set. Nova uses it to answer inside your studios.",
   loadingAccount: "Loading your account…",
+  loadingEvents: "Loading your events…",
   locationUnknown: "Location unknown",
   microsoft: "Microsoft",
   myCollaborations: "My Collaborations",
@@ -267,15 +302,18 @@ const en: Strings = {
   newCodeOnWay: "A new code is on its way.",
   newPassword: "New password",
   newPasswordDoesnMeet: "Your new password doesn't meet the requirements yet.",
+  noCalendarProvidersAvailable: "No calendar providers are available yet.",
   noPictureRemove: "No picture to remove",
   noStudioUsesCode: "No studio uses that code.",
   noTrustedDevices: "No trusted devices.",
   nompanyCom: "nompany.com/",
   notCollaborating: "You're not collaborating in any studio yet.",
+  noUpcomingEvents: "No upcoming events.",
   nothingChange: "Nothing to change.",
   novaAiKey: "Nova / AI key",
   novaNotSet: "Not set — Nova needs your own AI key to work.",
   onlyOwnerCanRename: "Only the owner can rename a studio.",
+  openEvent: "Open",
   openStudio: "Open studio",
   overview: "Overview",
   ownStudio: "That's your own studio.",
@@ -343,6 +381,7 @@ const en: Strings = {
   trusted: "Trusted",
   trustedDevices: "Trusted devices",
   twoPasswordsMatch: "The two passwords don't match.",
+  upcomingEvents: "Upcoming events",
   updating: "Updating…",
   uploading: "Uploading…",
   use3LettersNumbers: "Use 3+ letters, numbers or dashes.",
@@ -352,6 +391,7 @@ const en: Strings = {
   verify: "Verify",
   viewAll: "View all",
   workspacesYouOwn: "Workspaces you own. Renaming one, or changing its link, takes effect at 12:00 am.",
+  yesDisconnect: "Yes, disconnect",
 };
 
 const ar: Strings = {
@@ -366,6 +406,15 @@ const ar: Strings = {
   alreadyOwnStudio: "تملك استوديو بالفعل.",
   askStudioAccessUsing: "اطلب الوصول إلى استوديو برمز الشركة. وسيوافق أحدهم هناك على الطلب.",
   asksCode: "يطلب رمزًا",
+  calendarAllDay: (date: string) => `طوال اليوم · ${date}`,
+  calendarCancelled: "أُلغي ربط تقويمك.",
+  calendarConnectFailed: "تعذّر ربط تقويمك. حاول مرة أخرى.",
+  calendarConnected: "تقويمك مرتبط الآن.",
+  calendarConnectedSince: (date: string) => `مرتبط منذ ${date}`,
+  calendarNoEmailOnFile: "لا يوجد بريد إلكتروني مسجَّل للحساب",
+  calendarUnreachable: (providerName: string) => `تعذّر الوصول إلى تقويم ${providerName}:`,
+  calendars: "التقويمات",
+  calendarsBlurb: "اربط تقويم Google أو Microsoft لترى أحداثك هنا. لا يُشارَك شيء منه مع أي استوديو.",
   cancel: "إلغاء",
   capitalsFineStoreMatch: "الأحرف الكبيرة مقبولة — نخزّن العنوان ونطابقه بأحرف صغيرة.",
   change: "تغيير",
@@ -388,8 +437,11 @@ const ar: Strings = {
   companyName2: "اسم الشركة",
   confirmEmail: "تأكيد البريد",
   confirmEmailAddressFirst: "أكّد بريدك الإلكتروني أولًا.",
+  confirmDisconnectCalendar: (providerName: string) => `فصل ${providerName}؟ هذا يُلغي وصول nompany إلى تقويمك.`,
   confirmNewPassword: "تأكيد كلمة المرور الجديدة",
   confirmPassword: "تأكيد كلمة المرور",
+  connectGoogleCalendar: "اربط تقويم Google",
+  connectMicrosoftCalendar: "اربط تقويم Microsoft",
   continueWith: "المتابعة",
   couldnCreateAccountTry: "تعذّر إنشاء حسابك. حاول مرة أخرى.",
   couldnCreateStudio: "تعذّر إنشاء استوديوك.",
@@ -409,6 +461,8 @@ const ar: Strings = {
   currentPassword: "كلمة المرور الحالية",
   currentPasswordIncorrect: "كلمة المرور الحالية غير صحيحة.",
   didnSave: "لم يُحفظ ذلك.",
+  disconnectCalendar: "فصل",
+  disconnecting: "جارٍ الفصل…",
   documentation: "التوثيق",
   done: "تم",
   dontOwnStudio: "لا تملك استوديو بعد.",
@@ -432,6 +486,7 @@ const ar: Strings = {
   keySaved: "حُفظ المفتاح.",
   keySetNovaUses: "المفتاح مضبوط. تستخدمه نوفا للإجابة داخل استوديوهاتك.",
   loadingAccount: "جارٍ تحميل حسابك…",
+  loadingEvents: "جارٍ تحميل أحداثك…",
   locationUnknown: "موقع غير معروف",
   microsoft: "Microsoft",
   myCollaborations: "تعاوناتي",
@@ -441,15 +496,18 @@ const ar: Strings = {
   newCodeOnWay: "رمز جديد في الطريق.",
   newPassword: "كلمة المرور الجديدة",
   newPasswordDoesnMeet: "كلمة المرور الجديدة لا تستوفي المتطلبات بعد.",
+  noCalendarProvidersAvailable: "لا تتوفر مزوّدات تقويم بعد.",
   noPictureRemove: "لا توجد صورة لحذفها",
   noStudioUsesCode: "لا يوجد استوديو بهذا الرمز.",
   noTrustedDevices: "لا توجد أجهزة موثوقة.",
   nompanyCom: "nompany.com/",
   notCollaborating: "لا تتعاون في أي استوديو بعد.",
+  noUpcomingEvents: "لا توجد أحداث قادمة.",
   nothingChange: "لا شيء لتغييره.",
   novaAiKey: "مفتاح نوفا / الذكاء الاصطناعي",
   novaNotSet: "غير مضبوط — تحتاج نوفا إلى مفتاحك الخاص للعمل.",
   onlyOwnerCanRename: "المالك وحده يمكنه إعادة تسمية استوديو.",
+  openEvent: "فتح",
   openStudio: "افتح الاستوديو",
   overview: "نظرة عامة",
   ownStudio: "هذا استوديوك أنت.",
@@ -517,6 +575,7 @@ const ar: Strings = {
   trusted: "موثوق",
   trustedDevices: "الأجهزة الموثوقة",
   twoPasswordsMatch: "كلمتا المرور غير متطابقتين.",
+  upcomingEvents: "الأحداث القادمة",
   updating: "جارٍ التحديث…",
   uploading: "جارٍ الرفع…",
   use3LettersNumbers: "استخدم 3 أحرف أو أرقام أو شرطات فأكثر.",
@@ -526,6 +585,7 @@ const ar: Strings = {
   verify: "تحقّق",
   viewAll: "عرض الكل",
   workspacesYouOwn: "مساحات العمل التي تملكها. وإعادة تسمية إحداها أو تغيير رابطها يسري عند منتصف الليل.",
+  yesDisconnect: "نعم، افصل",
 };
 
 const account = { en, ar };

@@ -15,6 +15,7 @@ import { locales, LANGUAGE_NAMES, LANGUAGE_SHORT } from "@/shared/locale";
 import ThemeToggle from "@/components/ThemeToggle";
 import { cn } from "@/lib/utils";
 import { NOVA_PROVIDERS, providerMeta } from "@/lib/nova/providers";
+import { fmtDate, fmtDateTime } from "@/lib/format";
 
 // The account hub, laid out like the Google Account console:
 //   • brand mark top-left, ABOVE the fixed sidebar
@@ -63,8 +64,15 @@ const navFor = (tr) => [
   { key: "studios", label: tr.myStudios, icon: "building", tone: "text-accent-600 dark:text-accent-400", bg: "bg-accent-500/10" },
   { key: "collabs", label: tr.myCollaborations, icon: "team", tone: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-500/10" },
   { key: "personal", label: tr.personalInfo, icon: "person", tone: "text-amber-600 dark:text-amber-400", bg: "bg-amber-500/10" },
+  { key: "calendars", label: tr.calendars, icon: "calendar", tone: "text-sky-600 dark:text-sky-400", bg: "bg-sky-500/10" },
   { key: "security", label: tr.security, icon: "shield", tone: "text-rose-600 dark:text-rose-400", bg: "bg-rose-500/10" },
 ];
+
+// Every valid `view` key, in one place — the OAuth connect flow round-trips
+// through a browser redirect (never a fetch) and needs to say which tab to
+// reopen via `?view=`, so an arbitrary query value must be checked against
+// something before it drives `setView`.
+const VIEW_KEYS = ["overview", "studios", "collabs", "personal", "calendars", "security"];
 
 const slugify = (s) => String(s || "").toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 const initialsOf = (s) => String(s || "?").trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
@@ -77,6 +85,11 @@ export default function AccountHome({ locale, chrome }) {
   const [view, setView] = useState("overview");
   const [loading, setLoading] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
+  // Which way the last "connect a calendar" attempt went — "connected",
+  // "cancelled" or "error", read off the OAuth callback's redirect (see
+  // calendar/callback/[provider]/route.ts's landOn). null until that redirect
+  // has actually happened.
+  const [calendarOutcome, setCalendarOutcome] = useState(null);
 
   const load = useCallback(async () => {
     const [meRes, stRes, dvRes] = await Promise.all([
@@ -92,6 +105,29 @@ export default function AccountHome({ locale, chrome }) {
   }, [locale]);
 
   useEffect(() => { load(); }, [load]);
+
+  // The calendar connect flow is a browser redirect, not a fetch (a consent
+  // screen cannot happen inside one) — it lands back here carrying `view` (so
+  // the Calendars tab reopens rather than Overview) and `calendar` (how the
+  // attempt went). Read once and stripped immediately, so refreshing this page
+  // afterward doesn't keep replaying a stale "connected" banner.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const v = params.get("view");
+    const outcome = params.get("calendar");
+    // Same accepted shape as every other load-on-mount effect in this file
+    // (eslint.config.mjs's "known backlog" note) — this one reads
+    // window.location instead of fetching, but it is the same pattern.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (v && VIEW_KEYS.includes(v)) setView(v);
+    if (outcome) setCalendarOutcome(outcome);
+    if (v || outcome) {
+      params.delete("view");
+      params.delete("calendar");
+      const qs = params.toString();
+      window.history.replaceState(null, "", window.location.pathname + (qs ? `?${qs}` : ""));
+    }
+  }, []);
 
   if (loading) {
     return <div className={cn(PAGE, "flex items-center justify-center")}><p className="text-sm text-slate-500">{tr.loadingAccount}</p></div>;
@@ -198,6 +234,7 @@ export default function AccountHome({ locale, chrome }) {
           {view === "studios" && <StudioList title={tr.myStudios} note={tr.workspacesYouOwn} studios={owned} empty={tr.dontOwnStudio} onChanged={load} />}
           {view === "collabs" && <StudioGrid title={tr.myCollaborations} note={tr.studiosOthersGave} studios={collabs} empty={tr.notCollaborating} />}
           {view === "personal" && <PersonalInfo identity={identity} onSaved={load} />}
+          {view === "calendars" && <Calendars locale={locale} outcome={calendarOutcome} />}
           {view === "security" && <Security devices={devices} onChanged={load} locale={locale} user={identity?.user} />}
 
         </main>
@@ -1157,6 +1194,202 @@ function Security({ devices, onChanged, locale, user }) {
       {devices.length > 0 && (
         <button className={cn(BTN_GHOST, "mt-4")} onClick={revokeAll} disabled={busy}>{busy ? tr.removing : tr.removeAllDevices}</button>
       )}
+    </div>
+  );
+}
+
+// ---- calendars -----------------------------------------------------------
+// Google / Microsoft calendars connected to THIS ACCOUNT, never a studio's —
+// see api/account/calendar/route.ts's own comment on why `auth: "user"`. This
+// is deliberately the only screen that ever calls that route: a connection is
+// personal, reachable from every studio the person is in and gated on none.
+function Calendars({ locale, outcome }) {
+  const tr = accountDict(useAccountLocale());
+  const [data, setData] = useState({ connections: [], available: [] });
+  const [loading, setLoading] = useState(true);
+  // Which provider is mid-confirm ("disconnect this one?") — at most one row
+  // at a time, so a provider id is enough; no per-row state needed.
+  const [confirming, setConfirming] = useState(null);
+  const [busyProvider, setBusyProvider] = useState(null);
+  const [events, setEvents] = useState([]);
+  const [eventErrors, setEventErrors] = useState([]);
+  const [eventsLoading, setEventsLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    const res = await fetch("/api/account/calendar", { cache: "no-store" });
+    if (res.ok) setData(await res.json());
+    setLoading(false);
+  }, []);
+
+  const loadEvents = useCallback(async () => {
+    setEventsLoading(true);
+    // A fixed two-week look-ahead — "the person's own events" (this task's
+    // brief), not a date picker. The route bounds any span to 400 days on its
+    // own; this just keeps the account page to what's actually useful here.
+    const from = new Date();
+    const to = new Date(from.getTime() + 14 * 86_400_000);
+    const res = await fetch(
+      `/api/account/calendar/events?from=${encodeURIComponent(from.toISOString())}&to=${encodeURIComponent(to.toISOString())}`,
+      { cache: "no-store" },
+    );
+    // A NON-OK RESPONSE HERE IS A MALFORMED REQUEST (see the route's own
+    // guard), NOT A BROKEN CONNECTION — a broken connection is still `ok`
+    // with its failure inside `errors`, which is what the banner below reads.
+    if (res.ok) {
+      const out = await res.json();
+      setEvents(out.events || []);
+      setEventErrors(out.errors || []);
+    }
+    setEventsLoading(false);
+  }, []);
+
+  // The same load-on-mount shape every other panel in this file uses (see the
+  // file-level "known backlog" note in eslint.config.mjs) — not a new pattern,
+  // one more of it.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { load(); loadEvents(); }, [load, loadEvents]);
+
+  async function disconnect(provider) {
+    setBusyProvider(provider);
+    await fetch(`/api/account/calendar?provider=${provider}`, { method: "DELETE" });
+    setBusyProvider(null);
+    setConfirming(null);
+    load();
+    loadEvents();
+  }
+
+  const connectedProviders = new Set(data.connections.map((c) => c.provider));
+  // OFFER A CONNECT BUTTON ONLY FOR A PROVIDER IN `available` — one missing a
+  // client id/secret has nowhere to send the person but a consent screen that
+  // can only fail (see the route's own comment).
+  const connectable = data.available.filter((p) => !connectedProviders.has(p));
+  const providerLabel = (p) => (p === "google" ? tr.google : p === "microsoft" ? tr.microsoft : p);
+
+  return (
+    <div className="mx-auto w-full max-w-[640px] py-6">
+      <h2 className="font-display text-[1.75rem] font-500 leading-[1.2857] text-slate-900 dark:text-white">{tr.calendars}</h2>
+      <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{tr.calendarsBlurb}</p>
+
+      {outcome && (
+        <p className={cn(outcome === "connected" ? BANNER_GOOD : BANNER_BAD, "mt-4")}>
+          {outcome === "connected" ? tr.calendarConnected
+            : outcome === "cancelled" ? tr.calendarCancelled
+            : tr.calendarConnectFailed}
+        </p>
+      )}
+
+      {!loading && (
+        <div className={cn(STACK, "mt-4")}>
+          {data.connections.length === 0 && connectable.length === 0 && (
+            <div className={ROW}>
+              <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center">
+                <Icon name="calendar" className="h-[18px] w-[18px] text-slate-400 dark:text-slate-500" />
+              </span>
+              <span className={ROW_VALUE}>{tr.noCalendarProvidersAvailable}</span>
+            </div>
+          )}
+
+          {data.connections.map((c) => (
+            <div key={c.provider} className={cn(ROW, "flex-col items-stretch gap-2 sm:flex-row sm:items-center")}>
+              <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center">
+                <Icon name="calendar" className="h-[18px] w-[18px] text-slate-400 dark:text-slate-500" />
+              </span>
+              <div className="flex min-w-0 flex-1 flex-col justify-center">
+                <span className={ROW_LABEL}>{providerLabel(c.provider)}</span>
+                {/* accountEmail is what lets someone with two Google accounts tell
+                    which one they linked — an empty value says so plainly rather
+                    than rendering a blank next to the bullet. */}
+                <span className={ROW_VALUE}>
+                  {c.accountEmail || tr.calendarNoEmailOnFile} · {tr.calendarConnectedSince(fmtDate(c.connectedAt))}
+                </span>
+              </div>
+              {confirming === c.provider ? (
+                <span className="flex shrink-0 flex-wrap items-center gap-2">
+                  <span className="text-xs text-rose-600 dark:text-rose-300">{tr.confirmDisconnectCalendar(providerLabel(c.provider))}</span>
+                  <button type="button" onClick={() => disconnect(c.provider)} disabled={busyProvider === c.provider}
+                    className="rounded-full bg-rose-600 px-3 py-1.5 text-xs font-600 text-white disabled:opacity-60">
+                    {busyProvider === c.provider ? tr.disconnecting : tr.yesDisconnect}
+                  </button>
+                  <button type="button" onClick={() => setConfirming(null)} disabled={busyProvider === c.provider}
+                    className="rounded-full px-3 py-1.5 text-xs font-600 text-slate-500 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-white/5">
+                    {tr.cancel}
+                  </button>
+                </span>
+              ) : (
+                <button type="button" onClick={() => setConfirming(c.provider)}
+                  className="ms-auto shrink-0 rounded-full px-3 py-1.5 text-xs font-600 text-rose-600 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-500/10">
+                  {tr.disconnectCalendar}
+                </button>
+              )}
+            </div>
+          ))}
+
+          {connectable.map((p) => (
+            <div key={p} className={ROW}>
+              <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center">
+                <Icon name="calendar" className="h-[18px] w-[18px] text-slate-400 dark:text-slate-500" />
+              </span>
+              <span className={cn(ROW_LABEL, "min-w-0 flex-1")}>{providerLabel(p)}</span>
+              {/* A BROWSER NAVIGATION, NOT A FETCH — the provider's consent
+                  screen has to happen in the tab itself. `next` brings the
+                  person back to this exact tab, in their own language. */}
+              <a
+                href={`/api/auth/calendar/${p}/start?next=${encodeURIComponent(`/${locale}/account?view=calendars`)}`}
+                className="ms-auto shrink-0 rounded-full bg-brand-700 px-3 py-1.5 text-xs font-600 text-white transition-colors hover:bg-brand-950"
+              >
+                {p === "google" ? tr.connectGoogleCalendar : tr.connectMicrosoftCalendar}
+              </a>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="mt-8">
+        <h3 className={H2}>{tr.upcomingEvents}</h3>
+
+        {/* A BROKEN CONNECTION MUST NEVER LOOK LIKE AN EMPTY CALENDAR — errors
+            render next to whatever events DID come back, never in place of
+            them (see account/calendar/events/route.ts's own comment: a person
+            can hold one working connection and one broken one at once). */}
+        {eventErrors.length > 0 && (
+          <div className="mt-2 flex flex-col gap-2">
+            {eventErrors.map((e) => (
+              <p key={e.provider} className={BANNER_BAD}>
+                {tr.calendarUnreachable(providerLabel(e.provider))} {e.message}
+              </p>
+            ))}
+          </div>
+        )}
+
+        {eventsLoading ? (
+          <p className="mt-2 text-sm text-slate-400">{tr.loadingEvents}</p>
+        ) : events.length === 0 ? (
+          <p className="mt-2 text-sm text-slate-400">{tr.noUpcomingEvents}</p>
+        ) : (
+          <ul className="mt-2 divide-y divide-slate-100 dark:divide-white/5">
+            {events.map((e) => (
+              <li key={e.id} className="flex items-center gap-3 py-2.5">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-500 text-slate-900 dark:text-white">{e.title}</p>
+                  {/* No colour dot here: Microsoft's colorId is always "" (Graph
+                      has no equivalent field), so anything keyed on it would
+                      quietly never render for half of what this screen shows. */}
+                  <p className="truncate text-xs text-slate-500 dark:text-slate-400">
+                    {e.allDay ? tr.calendarAllDay(fmtDate(e.start)) : fmtDateTime(e.start)}
+                    {e.location ? ` · ${e.location}` : ""}
+                  </p>
+                </div>
+                {e.htmlLink && (
+                  <a href={e.htmlLink} target="_blank" rel="noreferrer"
+                    className="shrink-0 text-xs font-600 text-brand-700 hover:underline dark:text-brand-300">
+                    {tr.openEvent}
+                  </a>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }
