@@ -53,6 +53,15 @@ type Strings = CommonStrings & {
   addLine: string;
   amount: string;
   apAwaitingApproval: string;
+  // Approval chains. `approvalOf` counts signatures rather than naming them,
+  // because a step's own label is tenant-authored and never translated.
+  approvalOf: (signed: number, required: number) => string;
+  approvalSignedBy: string;
+  approvalAwaiting: string;
+  approvalNoStudioCurrency: string;
+  approvalUnquoted: string;
+  approvalNoChain: string;
+  approvalYouSigned: string;
   apBilled: string;
   apOutstanding: string;
   apOverdue: string;
@@ -304,6 +313,13 @@ const en: Strings = {
   addLine: "Add line",
   amount: "Amount",
   apAwaitingApproval: "Awaiting approval",
+  approvalOf: (signed, required) => `${signed} of ${required} signed`,
+  approvalSignedBy: "Signed by",
+  approvalAwaiting: "Still needs",
+  approvalNoStudioCurrency: "Set your studio's currency before approving bills — an amount cannot be judged against a limit without one. An owner or admin sets it in Studio settings.",
+  approvalUnquoted: "Today's exchange rates do not quote this bill's currency, so it cannot be judged against the approval limit yet.",
+  approvalNoChain: "No approval steps are configured for bills.",
+  approvalYouSigned: "You have signed this",
   apBilled: "Billed",
   apOutstanding: "Outstanding",
   apOverdue: "Overdue",
@@ -555,6 +571,13 @@ const ar: Strings = {
   addLine: "إضافة سطر",
   amount: "المبلغ",
   apAwaitingApproval: "بانتظار الاعتماد",
+  approvalOf: (signed, required) => `تم توقيع ${signed} من ${required}`,
+  approvalSignedBy: "وقّعها",
+  approvalAwaiting: "لا تزال تحتاج",
+  approvalNoStudioCurrency: "عيّن عملة الاستوديو قبل اعتماد الفواتير — لا يمكن قياس مبلغ مقابل حد دونها. يضبطها المالك أو المسؤول من إعدادات الاستوديو.",
+  approvalUnquoted: "أسعار الصرف اليوم لا تشمل عملة هذه الفاتورة، لذا لا يمكن قياسها مقابل حد الاعتماد بعد.",
+  approvalNoChain: "لا توجد خطوات اعتماد مضبوطة للفواتير.",
+  approvalYouSigned: "لقد وقّعت عليها",
   apBilled: "المفوتر علينا",
   apOutstanding: "المستحق",
   apOverdue: "المتأخر",

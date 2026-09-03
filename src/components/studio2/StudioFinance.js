@@ -674,6 +674,67 @@ const termLabel = (tr) => ({
   "net-30": tr.termNet302, "net-60": tr.termNet602,
 });
 
+// WHERE A BILL HAS GOT TO IN ITS APPROVAL CHAIN, and why it cannot move when
+// it cannot. A workflow that waits silently waits forever: without this the
+// only visible difference between "needs one more signature" and "approved"
+// was the absence of a button, which reads as a broken screen rather than a
+// pending one.
+//
+// THE REFUSAL IS TRANSLATED HERE, keyed by the token the server sent, rather
+// than printed from the server's own sentence. The studio is bilingual and
+// resolveApprovalPlan writes English; sending prose the screen cannot
+// translate would put an English apology on an Arabic page. Statuses and
+// engagement stages already translate on display for the same reason.
+function BillApproval({ bill }) {
+  const tr = financeDict(useStudioLocale());
+  const signatures = bill.approvals || [];
+  const required = bill.approvalRequired || 0;
+
+  if (bill.approvalBlocked) {
+    const why = {
+      "no-studio-currency": tr.approvalNoStudioCurrency,
+      unquoted: tr.approvalUnquoted,
+      "no-chain": tr.approvalNoChain,
+    }[bill.approvalBlocked];
+    return (
+      <p className="mt-3 rounded-xl border-s-2 border-amber-400 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
+        {why || tr.approvalNoChain}
+      </p>
+    );
+  }
+
+  // A single step with nothing signed is the ordinary case and says nothing
+  // worth a paragraph — the Approve button is the whole story.
+  if (required <= 1 && signatures.length === 0) return null;
+
+  const outstanding = (bill.approvalPlan?.steps || []).filter(
+    (s) => !signatures.some((sig) => sig.permission === s.permission),
+  );
+
+  return (
+    <div className="mt-3 border-t border-slate-200 pt-3 dark:border-white/10">
+      <p className="text-xs font-700 uppercase tracking-wide text-slate-500 dark:text-slate-400">
+        {tr.approvalOf(signatures.length, required)}
+      </p>
+      {signatures.length > 0 && (
+        <ul className="mt-1 space-y-0.5 text-sm text-slate-600 dark:text-slate-300">
+          {signatures.map((s, i) => (
+            <li key={i} className="flex justify-between gap-4">
+              <span>{tr.approvalSignedBy} {s.byAlias || "—"}</span>
+              <span className="text-slate-400">{fmt(s.at.slice(0, 10))}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {outstanding.length > 0 && (
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+          {tr.approvalAwaiting} {outstanding.map((s) => s.label).join(" · ")}
+        </p>
+      )}
+    </div>
+  );
+}
+
 function Payables({ slug }) {
   const tr = financeDict(useStudioLocale());
   const { data, error, busy, send } = useFinanceResource(slug, "bills");
@@ -774,7 +835,13 @@ function Bills({ rows, vocab, canManage, busy, send }) {
                 {rows.map((b) => {
                   const noHistory = (b.payments || []).length === 0;
                   const editable = ["Draft", "Received", "Disputed"].includes(b.status) && noHistory;
-                  const approvable = ["Received", "Disputed"].includes(b.status);
+                  // THE SERVER SAYS WHETHER THIS PERSON CAN SIGN, not the status.
+                  // A bill's status cannot express "waiting on the second
+                  // signature", nor whether the viewer is the raiser, has
+                  // already signed, or holds the outstanding step's right —
+                  // availableApproval asks all four, so the button is drawn only
+                  // where pressing it would succeed.
+                  const approvable = !!b.nextApproval;
                   const payable = !["Draft", "Cancelled", "Paid"].includes(b.status) && b.outstanding > 0;
                   return (
                     <Fragment key={b.id}>
@@ -791,12 +858,30 @@ function Bills({ rows, vocab, canManage, busy, send }) {
                         </td>
                         <td className={`${td} text-end font-600 tabular-nums text-slate-900 dark:text-white`}>{money(b.total)}</td>
                         <td className={`${td} text-end tabular-nums text-slate-600 dark:text-slate-300`}>{money(b.outstanding)}</td>
-                        <td className={td}><StatusPill kind="bill" status={b.status} /></td>
+                        <td className={td}>
+                          <StatusPill kind="bill" status={b.status} />
+                          {/* ONLY WHERE IT SAYS SOMETHING. A one-step bill that is
+                              signed or unsigned is fully described by its status;
+                              "1 of 2 signed" is the state the status cannot carry. */}
+                          {(b.approvalRequired || 0) > 1 && b.status !== "Approved" && b.status !== "Paid" && (
+                            <span className="ms-2 whitespace-nowrap rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-600 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
+                              {tr.approvalOf(b.approvalSigned || 0, b.approvalRequired)}
+                            </span>
+                          )}
+                        </td>
                         <td className={`${td} text-end`}>
                           {canManage && (
                             <span className="flex flex-wrap justify-end gap-2">
                               {b.status === "Draft" && <button className={btnGhost} disabled={busy} onClick={() => send("PUT", { id: b.id, status: "Received" })}>{tr.markReceived}</button>}
-                              {approvable && <button className={btn} disabled={busy} onClick={() => send("PUT", { id: b.id, approve: true })}>{tr.approve}</button>}
+                              {approvable && (
+                                <button className={btn} disabled={busy} onClick={() => send("PUT", { id: b.id, approve: true })}>
+                                  {/* The step's own label, and it is NOT translated: a
+                                      studio names its own steps in Finance settings, and
+                                      a tenant-authored word is data — the same rule that
+                                      leaves section names and service actions alone. */}
+                                  {(b.approvalRequired || 0) > 1 ? `${tr.approve} · ${b.nextApproval.label}` : tr.approve}
+                                </button>
+                              )}
                               {payable && <button className={btn} onClick={() => setPaying(b)}>{tr.recordPayment}</button>}
                               {editable && <button className={btnGhost} onClick={() => setEditing(b)}>{tr.edit}</button>}
                               {b.status === "Received" && <button className={btnGhost} disabled={busy} onClick={() => send("PUT", { id: b.id, status: "Disputed" })}>{tr.dispute}</button>}
@@ -830,6 +915,7 @@ function Bills({ rows, vocab, canManage, busy, send }) {
                                 {tr.billedOn} {b.billDate ? fmt(b.billDate) : "—"} · {tr.termsLabel} {termLabel(tr)[b.terms] || b.terms || "—"}
                               </p>
                               {b.notes && <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{b.notes}</p>}
+                              <BillApproval bill={b} />
                               {(b.payments || []).length > 0 && (
                                 <div className="mt-3 border-t border-slate-200 pt-3 dark:border-white/10">
                                   <p className="text-xs font-700 uppercase tracking-wide text-slate-500 dark:text-slate-400">{tr.payments}</p>

@@ -1,7 +1,7 @@
 import { route, refused } from "@/platform/http/route";
 import { financeContext, PAYMENT_METHODS, DEFAULT_VAT_RATE } from "@/modules/finance/finance";
 import {
-  listBills, createBill, editBill, approveBill, recordBillPayment, removeBill,
+  listBillsForScreen, createBill, editBill, approveBill, recordBillPayment, removeBill,
   BILL_STATUSES, BILL_TERMS,
 } from "@/modules/finance/payables";
 
@@ -22,7 +22,11 @@ export const GET = route(
       canManage: fin.canManage,
       manage: fin.manage,
       nav: fin.nav,
-      bills: await listBills(fin),
+      // EACH ROW CARRIES ITS OWN APPROVAL ANSWER — the plan it is routed
+      // under, how far along it is, and the step THIS viewer could sign.
+      // Computed in the service from the same plan approveBill enforces, so
+      // the screen never has to decide who may approve what.
+      bills: await listBillsForScreen(fin),
       vocabulary: {
         billStatuses: BILL_STATUSES,
         billTerms: BILL_TERMS,

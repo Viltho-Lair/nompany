@@ -57,52 +57,112 @@ export async function listBills({ studio, payablesSection }: Pick<FinanceContext
 // only way the stored row carries it without a second write.
 type Priceable = Pick<Bill, "lines" | "vatRate" | "payments" | "currency">;
 
+/** Today's rates, or the fact that none were needed. */
+type Fx = { rates: Record<string, number> | null; updatedAt: number; stale: boolean };
+const NO_FX: Fx = { rates: null, updatedAt: 0, stale: false };
+
+/**
+ * FETCH THE RATE TABLE ONCE, FOR A WHOLE LIST, AND ONLY IF SOMETHING NEEDS IT.
+ *
+ * Taken for the set rather than per bill because the bills screen resolves a
+ * plan for every row: per-bill fetching would put one round trip per FOREIGN
+ * bill on a single GET, and hop counts are part of this repo's contract. A
+ * studio billed only in its own currency never touches FX at all.
+ */
+async function fxFor(ctx: FinanceContext, bills: readonly Priceable[]): Promise<Fx> {
+  const studioCurrency = str(ctx.studio.currency, 8).toUpperCase();
+  if (!studioCurrency) return NO_FX;
+  const foreign = bills.some((b) => {
+    const c = str(b.currency, 8).toUpperCase();
+    return !!c && c !== studioCurrency;
+  });
+  if (!foreign) return NO_FX;
+  const snapshot = await getExchangeSnapshot();
+  return { rates: snapshot.rates ?? null, updatedAt: Number(snapshot.updatedAt) || 0, stale: !!snapshot.stale };
+}
+
 /**
  * THE PLAN THIS BILL IS ROUTED UNDER, resolved from its own total.
  *
- * FX IS FETCHED ONLY WHEN IT IS NEEDED. A bill already in the studio's own
- * currency — most of them — adds zero reads, because hop counts are part of
- * this repo's contract and a conversion nobody needs is a round trip nobody
- * asked for.
+ * Pure given `fx`, which is what lets a list resolve every row against one
+ * fetch. `str` rather than a bare read on the currencies: studio.currency comes
+ * off StudioRef's index signature, so it is `{}` to the compiler until
+ * something narrows it.
  */
-async function planFor(ctx: FinanceContext, bill: Priceable): Promise<ResolvedPlan | PlanRefusal> {
+function planWith(ctx: FinanceContext, bill: Priceable, fx: Fx): ResolvedPlan | PlanRefusal {
   const { total } = billTotals(bill as Bill);
-  // `str` rather than a bare read: studio.currency comes off StudioRef's index
-  // signature, so it is `{}` to the compiler until something narrows it.
   const studioCurrency = str(ctx.studio.currency, 8);
   const billCurrency = (str(bill.currency, 8) || studioCurrency).toUpperCase();
-
-  let rates: Record<string, number> | null = null;
-  let updatedAt = 0;
-  let stale = false;
-  if (billCurrency && studioCurrency && billCurrency !== studioCurrency.toUpperCase()) {
-    const snapshot = await getExchangeSnapshot();
-    rates = snapshot.rates ?? null;
-    updatedAt = Number(snapshot.updatedAt) || 0;
-    stale = !!snapshot.stale;
-  }
-
   return resolveApprovalPlan({
     chain: ctx.approvalChains.bill, amount: total, currency: billCurrency,
-    studioCurrency, rates, updatedAt, stale,
+    studioCurrency, rates: fx.rates, updatedAt: fx.updatedAt, stale: fx.stale,
   });
+}
+
+/** One bill's plan, fetching FX only if that one bill needs it. */
+async function planFor(ctx: FinanceContext, bill: Priceable): Promise<ResolvedPlan | PlanRefusal> {
+  return planWith(ctx, bill, await fxFor(ctx, [bill]));
 }
 
 /**
  * Which step this person could sign right now, or null.
  *
- * Read by the screen so a button is drawn only where pressing it would succeed
- * — and computed from the same plan the walk enforces, so the two cannot
- * disagree. This is availableMoves's job in modules/technical/signables.ts, and
- * it is here for the same reason.
+ * Read by the screen so a button is drawn only where pressing it would succeed.
+ * IT ASKS EVERY QUESTION approveBill ASKS, in the same order and for the same
+ * reasons — the raiser never signs, nobody signs twice on one record, the step
+ * must be outstanding, and they must hold its right. A screen that checked
+ * fewer of them would offer buttons that refuse; one that lived in the
+ * component would be a second copy of the rule, free to drift.
+ *
+ * This is availableMoves's job in modules/technical/signables.ts, and it is
+ * here for the same reason.
  */
 export function availableApproval(
   bill: Bill,
   plan: ResolvedPlan | PlanRefusal | null,
   holds: (permission: string) => boolean,
+  actorCollaboratorId: string,
 ): ApprovalStep | null {
+  if (!plan || plan.ok !== true) return null;
+  if (bill.createdByCollaboratorId === actorCollaboratorId) return null;
+  if ((bill.approvals || []).some((s) => s.byCollaboratorId === actorCollaboratorId)) return null;
   const step = firstUnsignedStep(plan, bill.approvals || []);
   return step && holds(step.permission) ? step : null;
+}
+
+/**
+ * THE BILLS LIST AS A SCREEN NEEDS TO DRAW IT: each row plus the plan it is
+ * routed under, the step this viewer could sign, and — when no plan could be
+ * resolved — the REASON, as a token rather than a sentence.
+ *
+ * The reason is a token because the sentence resolveApprovalPlan writes is
+ * English, and the studio is bilingual: statuses and refusals translate on
+ * DISPLAY, keyed by what was stored, exactly as engagement stages do. Sending
+ * prose the screen cannot translate would put an English apology on an Arabic
+ * page.
+ *
+ * The plan is RE-RESOLVED here rather than read off the row, for the same
+ * reason approveBill re-resolves it: a bill raised before chains existed has
+ * none, and the screen must not offer a button the service will refuse.
+ */
+export async function listBillsForScreen(ctx: FinanceContext) {
+  const bills = await listBills(ctx);
+  const fx = await fxFor(ctx, bills);
+  const me = ctx.collaborator.id;
+  const holds = (permission: string) => !requirePermission(ctx.access, permission as PermissionKey);
+
+  return bills.map((bill) => {
+    const plan = planWith(ctx, bill, fx);
+    const signed = (bill.approvals || []).length;
+    return {
+      ...bill,
+      approvalPlan: plan.ok ? plan : null,
+      approvalBlocked: plan.ok ? null : plan.reason,
+      approvalSigned: signed,
+      approvalRequired: plan.ok ? plan.steps.length : 0,
+      nextApproval: availableApproval(bill as Bill, plan, holds, me),
+    };
+  });
 }
 
 export async function createBill(ctx: FinanceContext, body: Record<string, unknown>) {
