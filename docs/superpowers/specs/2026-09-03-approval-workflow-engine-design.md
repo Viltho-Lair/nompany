@@ -88,6 +88,18 @@ that the first signer can also clear is not a second step.
 it was routed under. Changing the threshold changes what happens next, not what already
 happened — the same reasoning that freezes a revision's page setup when the paper changes.
 
+**D9 — A bill gains a `currency`.** Found while turning this spec into a plan, and recorded
+because the spec was wrong until it was: `BillSchema` has no currency field, so every bill is
+implicitly in the studio's own money and **D3's conversion had no input**. That would have made
+the whole FX half of §5 code nothing could reach — the dead-capability shape invariant 16
+refuses, arrived at from the other direction.
+
+A bill is the odd one out rather than the rule: `contractSchema` declares `currency`, and
+`contracts.ts`, `payments.ts` and `changeOrders.ts` all default it the same way
+(`str(body?.currency, 8) || studio.currency || ""`). Adding it to a bill follows the
+established pattern instead of inventing one, and a foreign supplier invoice is an ordinary
+thing for the studios this product is for.
+
 ## 3. What a chain is
 
 `src/platform/approval/chains.ts` — **pure, no I/O**, so a client component may import it
@@ -168,7 +180,7 @@ store.
 ```ts
 resolveApprovalPlan({ chain, amount, currency, studioCurrency, rates })
   => { ok: true,  steps: ApprovalStep[], amountInBase: number, rate: number | null,
-       asOf: string, stale: boolean }
+       updatedAt: number, stale: boolean }
    | { ok: false, reason: "no-studio-currency" | "unquoted" | "no-chain", detail: string }
 ```
 
@@ -181,8 +193,9 @@ different places.
   admin sets it.
 - **rate missing for the pair → refuse**, naming the pair.
 - **stale snapshot with a real rate → route, flagged.** Yesterday's rate with an honest
-  `asOf` beats blocking every foreign bill because a fetch failed. Only a *missing* rate
-  refuses. `getExchangeSnapshot()` already returns `stale` and its own `asOf`.
+  stamp beats blocking every foreign bill because a fetch failed. Only a *missing* rate
+  refuses. `getExchangeSnapshot()` already returns `stale` and the provider's own `updatedAt`
+  (a unix number, not a date string — the field is called `updatedAt`, not `asOf`).
 - **same currency as the studio → no conversion**, no rate needed, `rate: null`. A studio
   that never deals in foreign currency never touches FX at all.
 - **no chain configured for this type → refuse.** It cannot arise for bills, whose chain is
@@ -190,7 +203,7 @@ different places.
   type, so a caller naming a type nothing has configured gets a reason rather than an
   approval that silently requires nobody.
 
-**The resolved plan is stored on the bill** — steps, `amountInBase`, `rate`, `asOf` — and
+**The resolved plan is stored on the bill** — steps, `amountInBase`, `rate`, `updatedAt` — and
 **re-derived whenever the bill's amount or currency changes**, which `updateBill` already
 permits only while the bill is open (it refuses edits once `Approved` or `Paid`). This is
 what answers the D3 objection: the routing of a bill is a recorded fact carrying the rate
@@ -202,8 +215,9 @@ The bill gains one field:
 
 ```ts
 approvals: { permission: string; byCollaboratorId: string; byAlias: string; at: string }[]
+currency: string   // new — D9; defaults to the studio's own
 approvalPlan: { steps: ApprovalStep[]; amountInBase: number; rate: number | null;
-                asOf: string; stale: boolean } | null
+                updatedAt: number; stale: boolean } | null
 ```
 
 **`status` does not change, and `BILL_STATUSES` does not gain a value.** `Approved` is
@@ -237,14 +251,24 @@ same reason.
 chain, and `escalates()` covers it with no change — so it does not become the dead capability
 the catalogue's own rule forbids (invariant 16).
 
-**Two contract changes, both deliberate, both in their own commit with the reason stated:**
+**The contract change is smaller than it looks, and the measurement is worth stating** because
+the first estimate of it was wrong twice over:
 
-- the permission matrix goes **123 → 124** keys (`tests/gate-a.mjs` asserts the count);
-- the bill response gains `approvals`, `approvalPlan` and the available-step field, so the
-  payables goldens are re-recorded.
+- the permission matrix goes **123 → 124** keys. `tests/gate-a.mjs` hardcodes the count
+  deliberately, so adding a right is a visible act; its comment gains a line saying which
+  right and why.
+- **exactly one golden moves: `tests/goldens/owner.roles.json`.** It is the only one of the
+  153 that carries the catalogue's areas and their `extra` lists (`grep -rl "Approve bills"
+  tests/goldens/` returns it alone), so `approveHigh` appears there and nowhere else.
+- **the bill response moves no golden at all.** Nothing in `tests/goldens.mjs` calls the
+  bills route — AP has no golden — so `approvals` and `approvalPlan` are free of the
+  contract. That is a gap rather than a licence: this phase ADDS a bills golden, because a
+  response with a multi-step approval on it is exactly the kind of thing the goldens exist
+  to pin, and shipping the feature without one leaves the next change to it unguarded.
 
 `NOMPANY_RECORD_GOLDENS` is never set in CI, and a golden that changes as a side effect of a
-feature commit is a contract nobody can check. These land separately from the behaviour.
+feature commit is a contract nobody can check. The re-record of `owner.roles.json` lands in
+its own commit, separate from the behaviour.
 
 ## 8. Testing
 
@@ -285,3 +309,6 @@ Stated in words, because a silent gap reads as a finished feature.
 - **Conditions other than amount** — supplier, cost code, deal — are not expressible. That
   is a predicate language, and the spec asks for value limits.
 - **The studio's currency is not made mandatory product-wide** (D4).
+- **A bill's currency is a field, not a conversion everywhere else.** D9 gives a bill the
+  currency it was missing so approval can judge it; it does not revalue AP reporting, and
+  the aging report still sums raw totals. That is P3's job.
