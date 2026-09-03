@@ -66,6 +66,9 @@ export async function createBill(ctx: FinanceContext, body: Record<string, unkno
     orderId: str(body?.orderId, 60),
     projectId: str(body?.projectId, 60),
     lines,
+    // Defaulted to the studio's own, the same expression contracts.ts,
+    // payments.ts and changeOrders.ts already use.
+    currency: str(body?.currency, 8) || studio.currency || "",
     vatRate: body?.vatRate === undefined ? 15 : Math.max(0, Math.min(100, Number(body.vatRate) || 0)),
     // A bill arrives already owed — its default is Received, not Draft — unless
     // the caller is only drafting it.
@@ -97,6 +100,10 @@ export async function editBill(ctx: FinanceContext, id: string, body: Record<str
   if (body?.vendorName !== undefined) { const v = str(body.vendorName, 160); if (!v) return { error: "vendor" }; patch.vendorName = v; }
   if (body?.lines !== undefined) { const l = cleanLines(body.lines); if (!l.length) return { error: "lines" }; patch.lines = l; }
   if (body?.vatRate !== undefined) patch.vatRate = Math.max(0, Math.min(100, Number(body.vatRate) || 0));
+  // EDITABLE WHILE THE BILL IS OPEN. A currency typed wrong at entry is exactly
+  // the kind of thing corrected before anybody approves it, and the approval
+  // engine re-derives its plan from whatever it now says.
+  if (body?.currency !== undefined) patch.currency = str(body.currency, 8);
   if (body?.billDate !== undefined) patch.billDate = day(body.billDate);
   if (body?.dueDate !== undefined) patch.dueDate = day(body.dueDate);
   if (body?.terms !== undefined && BILL_TERMS.includes(String(body.terms))) patch.terms = String(body.terms);

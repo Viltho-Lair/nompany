@@ -2466,6 +2466,20 @@ console.log("\n== Finance 1b: accounts payable mirrors the invoice");
   ok("...with a reference from the counter", /^BILL-\d+$/.test(bill.bill?.reference || ""), bill.bill?.reference);
   ok("...totalling like an invoice (net + VAT)", bill.bill.subtotal === 1000 && bill.bill.total === 1150 && bill.bill.outstanding === 1150, JSON.stringify(bill.bill));
 
+  // D9: a bill carries the currency it was billed in, defaulted to the
+  // studio's — exactly as a contract, a payment and a change order already do.
+  // A bill was simply the one record of the family that never got the field,
+  // which left the approval engine with nothing to convert.
+  ok("a bill defaults to the studio's own currency",
+    bill.bill.currency === (studio.currency || ""), JSON.stringify(bill.bill.currency));
+
+  const eurBill = await createBill(fin, {
+    vendorName: "Bremen GmbH", currency: "EUR",
+    lines: [{ description: "Valves", qty: 1, unitPrice: 100 }],
+  });
+  ok("...and a foreign supplier invoice keeps its own",
+    eurBill.bill.currency === "EUR", JSON.stringify(eurBill.bill.currency));
+
   // INVARIANT 7: the owner raised it, so the owner cannot approve it.
   const selfApprove = await approveBill(fin, bill.bill.id);
   ok("the raiser cannot approve their own bill", selfApprove.error === "same-signer", JSON.stringify(selfApprove));

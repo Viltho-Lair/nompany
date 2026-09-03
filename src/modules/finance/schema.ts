@@ -185,6 +185,17 @@ export const BillSchema = z.object({
   projectId: z.string().max(60).optional(),
   lines: z.array(InvoiceLineSchema),        // same line shape as an invoice
   vatRate: z.number().min(0).max(100),
+  // THE CURRENCY THIS WAS BILLED IN. Until it existed every bill was
+  // implicitly in the studio's own money, which made a foreign supplier
+  // invoice unrecordable and left the approval engine with nothing to convert.
+  // Same shape and same default as contractSchema's, so AP stops being the one
+  // record of its family without one — contracts, payments and change orders
+  // all carry it already.
+  //
+  // OPTIONAL, because every bill already in the database predates it. It does
+  // NOT revalue the aging report, which still sums raw totals; that is P3's
+  // job. What reads it today is which approvals the bill needs.
+  currency: z.string().max(8).optional(),
   status: z.string(),                        // Draft|Received|Approved|Paid|Cancelled|Disputed
   billDate: z.string(),
   dueDate: z.string(),
