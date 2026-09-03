@@ -17,8 +17,14 @@
 // access token this file sends never appears in anything thrown here.
 import { CALENDAR_PROVIDERS, calendarRedirectUri, type CalendarProvider } from "./calendarProviders";
 import { getConnection, saveConnection, clearConnection, type CalendarConnection } from "./calendarConnections";
-
-export type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
+// REUSED, NOT REDECLARED: googleFederation.ts already exports the shape a fake
+// fetch needs to satisfy for a test (`(input: string, init: RequestInit) =>
+// Promise<Response>`). Its `init` is required where a from-scratch version
+// here would default it optional, but every call site in this file always
+// passes one, and the global `fetch` this defaults to still satisfies the
+// stricter type — so there is nothing this file needs that the shared type
+// does not already give it.
+import type { FetchLike } from "./googleFederation";
 
 // A TOKEN STILL VALID WHEN WE CHECK IT CAN BE EXPIRED BY THE TIME IT REACHES
 // THE PROVIDER — the request itself takes time, and a background refresh
@@ -68,6 +74,19 @@ function providerReason(body: TokenResponseBody, res: Response): string {
   return typeof body.error === "string" && body.error ? body.error : `http ${res.status}`;
 }
 
+// EXACT MATCH ON PURPOSE, AND A KNOWN TRADE-OFF. Both providers document
+// `error: "invalid_grant"` as a flat top-level string on a 400, which is what
+// this checks for. A provider that ever nested it (`{ error: { code:
+// "invalid_grant" } }`) or renamed the field would not be recognised — the
+// refresh would then fail every time with a plain Error, forever, and the
+// person would never be told to reconnect. Accepted rather than guarded
+// against: guessing at alternate shapes risks the opposite mistake, treating
+// some other refusal as a revocation and disconnecting somebody who never
+// touched their consent screen.
+function isInvalidGrant(body: TokenResponseBody): boolean {
+  return body.error === "invalid_grant";
+}
+
 export async function exchangeCode(
   { provider, code, request, fetchImpl = fetch }:
     { provider: CalendarProvider; code: string; request: Request; fetchImpl?: FetchLike },
@@ -97,9 +116,16 @@ export async function exchangeCode(
   if (typeof body.refresh_token !== "string" || !body.refresh_token) {
     throw new Error(`${provider} did not return a refresh token`);
   }
+  // Same shape of failure as the refresh_token check above: a 200 with no
+  // access_token is not "connected with an empty token", it is a connection
+  // that will fail the moment anything tries to use it. Refused here, at
+  // connect time, rather than stored as "" and discovered later.
+  if (typeof body.access_token !== "string" || !body.access_token) {
+    throw new Error(`${provider} did not return an access token`);
+  }
   return {
     refreshToken: body.refresh_token,
-    accessToken: typeof body.access_token === "string" ? body.access_token : "",
+    accessToken: body.access_token,
     expiresAtMs: expiryFrom(body.expires_in, Date.now()),
   };
 }
@@ -121,17 +147,27 @@ export async function refreshAccessToken(
   });
   const body = await readTokenBody(res);
   if (!res.ok) {
-    const reason = providerReason(body, res);
-    const message = `${provider} refresh failed: ${reason}`;
+    const message = `${provider} refresh failed: ${providerReason(body, res)}`;
     // invalid_grant IS THE ONLY FAILURE THAT MEANS THE PERSON REVOKED ACCESS.
     // Everything else — a timeout, a 500, a transient DNS blip — must leave
-    // the stored connection alone; only this reason is worth a distinct error
-    // type a caller can act on.
-    if (reason === "invalid_grant") throw new CalendarGrantRevokedError(message);
+    // the stored connection alone; only this reason gets a distinct error
+    // TYPE (not just a message a caller would have to pattern-match) so
+    // getCalendarAccessToken can tell "clear the record" apart from
+    // "try again later" with `instanceof`, not a string test that a changed
+    // wording could silently break.
+    if (isInvalidGrant(body)) throw new CalendarGrantRevokedError(message);
     throw new Error(message);
   }
+  // A 200 with no access_token is not "refreshed to nothing" — it is
+  // indistinguishable from success unless checked. Left unguarded, this
+  // patches the stored connection to an empty access token with a real
+  // (hour-out) expiry: isDue then reads false and every read returns "" until
+  // the expiry the provider gave for a token it never actually issued.
+  if (typeof body.access_token !== "string" || !body.access_token) {
+    throw new Error(`${provider} refresh returned no access_token`);
+  }
   return {
-    accessToken: typeof body.access_token === "string" ? body.access_token : "",
+    accessToken: body.access_token,
     expiresAtMs: expiryFrom(body.expires_in, now()),
     // MICROSOFT ROTATES REFRESH TOKENS on (most) refreshes; Google usually
     // does not send one back. `undefined` here — not the old value — is what
@@ -143,6 +179,46 @@ export async function refreshAccessToken(
 }
 
 export type ConnectionPatch = { accessToken: string; expiresAtMs: number; refreshToken?: string };
+
+/**
+ * Optional dependencies threaded through the core and both wrappers, same
+ * shape as googleFederation.ts's `MintDeps` for the same reason: a function
+ * with no injection point can only ever be driven against the real `fetch`
+ * and the real clock, which makes "a rotated token is returned", "invalid_grant
+ * clears the record" and "a 500 does not" all unprovable without a live
+ * network call.
+ */
+export type CalendarAuthDeps = {
+  fetchImpl?: FetchLike;
+  now?: () => number;
+  /**
+   * DEDUPES CONCURRENT REFRESHES OF THE SAME STORED CONNECTION. CAS on the
+   * WRITE (saveConnection, invariant 8) makes the write safe; it does nothing
+   * about the REQUEST. Two callers racing on one connection — Task 6 reading
+   * two calendars for the same person, or two open tabs — both see `isDue`
+   * true and both POST a refresh_token that Microsoft accepts exactly once.
+   * Whichever CAS write loses is discarded, and the refresh_token it carried
+   * is gone with it: the connection then keeps working on the winner's access
+   * token until the NEXT refresh, which fails permanently — the same failure
+   * shape as forgetting rotation entirely, just delayed by however long the
+   * access token has left.
+   *
+   * Same shape as googleCalendarAuth.ts's module-scope `inFlight` (this
+   * file's sibling, same folder) — a promise a second caller awaits instead
+   * of starting its own request. That file only ever has ONE calendar, so one
+   * variable is enough; this one serves many stored connections, so it is a
+   * `key` a caller opts into rather than an unconditional module-scope slot.
+   * No key = no dedup, which is the correct default here specifically because
+   * `freshAccessToken` cannot derive one on its own: two calls holding
+   * separately-fetched CalendarConnection objects have no shared identity it
+   * is safe to assume, and coalescing two DIFFERENT people's connections
+   * because they happened to share an object shape would silently run one
+   * person's persist callback with another person's refreshed token.
+   */
+  key?: string;
+};
+
+const inFlightRefresh = new Map<string, Promise<string>>();
 
 /**
  * THE CORE. Provider- and storage-agnostic: given a live connection and a way
@@ -159,14 +235,41 @@ export type ConnectionPatch = { accessToken: string; expiresAtMs: number; refres
 export async function freshAccessToken(
   connection: CalendarConnection,
   persist: (patch: ConnectionPatch) => Promise<unknown>,
+  deps: CalendarAuthDeps = {},
 ): Promise<string> {
-  if (!isDue(connection.expiresAtMs, Date.now())) return connection.accessToken;
+  const now = deps.now ?? Date.now;
+  if (!isDue(connection.expiresAtMs, now())) return connection.accessToken;
 
-  const refreshed = await refreshAccessToken({ provider: connection.provider, refreshToken: connection.refreshToken });
-  const patch: ConnectionPatch = { accessToken: refreshed.accessToken, expiresAtMs: refreshed.expiresAtMs };
-  if (refreshed.refreshToken !== undefined) patch.refreshToken = refreshed.refreshToken;
-  await persist(patch);
-  return refreshed.accessToken;
+  if (deps.key) {
+    const existing = inFlightRefresh.get(deps.key);
+    if (existing) return existing;
+  }
+
+  const attempt = (async () => {
+    const refreshed = await refreshAccessToken({
+      provider: connection.provider,
+      refreshToken: connection.refreshToken,
+      now: deps.now,
+      fetchImpl: deps.fetchImpl,
+    });
+    const patch: ConnectionPatch = { accessToken: refreshed.accessToken, expiresAtMs: refreshed.expiresAtMs };
+    if (refreshed.refreshToken !== undefined) patch.refreshToken = refreshed.refreshToken;
+    await persist(patch);
+    return refreshed.accessToken;
+  })();
+
+  if (!deps.key) return attempt;
+
+  // Registered synchronously, right after `attempt` is created and before
+  // this function's own next `await` — so a second call sharing `key`, even
+  // one resuming on the very next microtask, is guaranteed to see it rather
+  // than racing to create its own.
+  inFlightRefresh.set(deps.key, attempt);
+  try {
+    return await attempt;
+  } finally {
+    inFlightRefresh.delete(deps.key);
+  }
 }
 
 /**
@@ -174,15 +277,28 @@ export async function freshAccessToken(
  * connection, runs it through the core, writes back through
  * calendarConnections.ts's own compare-and-set `saveConnection` (invariant 8
  * — never a blind overwrite, so a refresh in flight can't clobber a connect
- * that lands mid-request or vice versa).
+ * that lands mid-request or vice versa). Defaults the single-flight `key` to
+ * `<provider>:<userId>` — the exact identity two concurrent calls to THIS
+ * function with the same arguments share — so a caller gets the dedup
+ * described on CalendarAuthDeps.key without having to know it exists;
+ * `deps.key` can still override it, which is what lets the test below drive
+ * the same behaviour on `freshAccessToken` directly, with no store involved.
  */
-export async function getCalendarAccessToken(userId: string, provider: CalendarProvider): Promise<string> {
+export async function getCalendarAccessToken(
+  userId: string,
+  provider: CalendarProvider,
+  deps: CalendarAuthDeps = {},
+): Promise<string> {
   const connection = await getConnection(userId, provider);
   if (!connection) {
     throw new Error(`no ${provider} calendar is connected; the person must connect one first`);
   }
   try {
-    return await freshAccessToken(connection, (patch) => saveConnection(userId, provider, patch));
+    return await freshAccessToken(
+      connection,
+      (patch) => saveConnection(userId, provider, patch),
+      { ...deps, key: deps.key ?? `${provider}:${userId}` },
+    );
   } catch (err) {
     if (err instanceof CalendarGrantRevokedError) {
       // The ONLY failure that clears the record. A network blip, a 500, a
@@ -195,19 +311,34 @@ export async function getCalendarAccessToken(userId: string, provider: CalendarP
   }
 }
 
+export type RevokeConnectionDeps = {
+  fetchImpl?: FetchLike;
+  // Injected so the "microsoft never calls the provider" branch is provable
+  // with no live store, the same way `key`/`now`/`fetchImpl` make the core
+  // provable above — defaulting to the real calendarConnections.ts functions
+  // for every real caller.
+  getConnectionImpl?: typeof getConnection;
+  clearConnectionImpl?: typeof clearConnection;
+};
+
 export async function revokeConnection(
   userId: string,
   provider: CalendarProvider,
-  fetchImpl: FetchLike = fetch,
+  deps: RevokeConnectionDeps = {},
 ): Promise<void> {
+  const fetchImpl = deps.fetchImpl ?? fetch;
+  const loadConnection = deps.getConnectionImpl ?? getConnection;
+  const dropConnection = deps.clearConnectionImpl ?? clearConnection;
   const cfg = CALENDAR_PROVIDERS[provider];
   // Microsoft's revoke is "" — delegated (user) tokens have no revocation
   // endpoint there (see the comment on CALENDAR_PROVIDERS.microsoft.revoke in
   // calendarProviders.ts for why this was considered, not forgotten), so
-  // there is nothing to call and disconnecting simply drops our own copy
-  // below; the token expires on Microsoft's side on its own schedule.
+  // there is nothing to call — not even loadConnection, which exists purely
+  // to build the revoke request below — and disconnecting simply drops our
+  // own copy at the bottom; the token expires on Microsoft's side on its own
+  // schedule.
   if (cfg.revoke) {
-    const connection = await getConnection(userId, provider);
+    const connection = await loadConnection(userId, provider);
     if (connection) {
       try {
         await fetchImpl(cfg.revoke, {
@@ -227,5 +358,5 @@ export async function revokeConnection(
       }
     }
   }
-  await clearConnection(userId, provider);
+  await dropConnection(userId, provider);
 }

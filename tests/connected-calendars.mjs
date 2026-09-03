@@ -182,5 +182,132 @@ console.log("\ntoken lifecycle");
   ok("a refused refresh names the provider's own reason", /invalid_grant/.test(msg), msg);
 }
 
+// SECOND PASS, after review. The block above only proved a message CONTAINS
+// "invalid_grant" — a plain Error passes that regex too, so it could not have
+// failed if CalendarGrantRevokedError had never been written, or was deleted
+// tomorrow while the class-based clear-on-revoke branch in
+// getCalendarAccessToken silently stopped firing. These four blocks each pin
+// a property the first pass left provable-but-unproven.
+const { freshAccessToken, CalendarGrantRevokedError, revokeConnection } =
+  await import("../src/platform/auth/calendarOAuth.ts");
+
+console.log("\ntoken lifecycle — error TYPE, not message shape");
+{
+  // THE PROPERTY THIS FEATURE EXISTS TO GET RIGHT: invalid_grant is
+  // DISTINGUISHABLE, by type, from every other refusal — not just a string
+  // that happens to match a regex today.
+  const invalidGrant = async () => new Response(JSON.stringify({ error: "invalid_grant" }), { status: 400 });
+  let grantErr = null;
+  try { await refreshAccessToken({ provider: "google", refreshToken: "RT1", fetchImpl: invalidGrant, now: () => 1000 }); }
+  catch (e) { grantErr = e; }
+  ok("invalid_grant throws CalendarGrantRevokedError specifically, not a plain Error",
+    grantErr instanceof CalendarGrantRevokedError, String(grantErr));
+
+  // A NETWORK BLIP MUST NOT DISCONNECT ANYBODY. A 500 is a refusal too, and
+  // the earlier regex-only assertion could not tell this apart from
+  // invalid_grant — this is the test that actually pins "must not clear".
+  const serverError = async () => new Response(JSON.stringify({ error: "server_error" }), { status: 500 });
+  let serverErr = null;
+  try { await refreshAccessToken({ provider: "google", refreshToken: "RT1", fetchImpl: serverError, now: () => 1000 }); }
+  catch (e) { serverErr = e; }
+  ok("...but a 500 (a blip, not a revocation) throws a plain Error, not CalendarGrantRevokedError",
+    serverErr !== null && !(serverErr instanceof CalendarGrantRevokedError), String(serverErr));
+}
+
+console.log("\ntoken lifecycle — a 200 with no access_token is refused, not persisted empty");
+{
+  // Every neighbouring field is guarded this way (expiryFrom throws on a bad
+  // expires_in, exchangeCode refuses a missing refresh_token) — an absent
+  // access_token was the one gap: silently returning "" would patch a good
+  // stored token to empty with a real hour-out expiry, so isDue reads false
+  // and every read returns "" until that expiry lapses on its own.
+  const noAccessToken = async () => new Response(JSON.stringify({ expires_in: 3600 }), { status: 200 });
+  let emptyMsg = "";
+  try { await refreshAccessToken({ provider: "google", refreshToken: "RT1", fetchImpl: noAccessToken, now: () => 1000 }); }
+  catch (e) { emptyMsg = e.message; }
+  ok("a 200 with no access_token throws instead of returning \"\"", emptyMsg !== "", emptyMsg);
+}
+
+console.log("\ntoken lifecycle — the refresh token travels in the POST body, never the URL");
+{
+  // A fake fetchImpl that ignores its own arguments cannot prove grant_type or
+  // where the secret travels — this one inspects what it was actually called
+  // with.
+  let capturedUrl = null;
+  let capturedInit = null;
+  const capturing = async (url, init) => {
+    capturedUrl = url;
+    capturedInit = init;
+    return new Response(JSON.stringify({ access_token: "AT3", expires_in: 3600 }), { status: 200 });
+  };
+  await refreshAccessToken({ provider: "google", refreshToken: "RT-SECRET-VALUE", fetchImpl: capturing, now: () => 1000 });
+  ok("the refresh token never appears in the request URL",
+    typeof capturedUrl === "string" && !capturedUrl.includes("RT-SECRET-VALUE"), String(capturedUrl));
+  const bodyStr = String(capturedInit && capturedInit.body);
+  ok("...it travels in the POST body, alongside grant_type=refresh_token",
+    bodyStr.includes("grant_type=refresh_token") && bodyStr.includes("RT-SECRET-VALUE"), bodyStr);
+}
+
+console.log("\ntoken lifecycle — concurrent refreshes on one connection make exactly one request");
+{
+  // THE CAS ON THE WRITE (saveConnection) MAKES THE WRITE SAFE; IT DOES NOT
+  // MAKE THE REQUEST SAFE. Two callers racing on the same connection would
+  // otherwise both POST a refresh_token Microsoft accepts exactly once —
+  // whichever CAS write loses discards a still-valid rotated token, and the
+  // connection dies at the NEXT refresh instead of this one. `key` is what
+  // collapses genuinely-concurrent calls into a single request; this drives
+  // freshAccessToken directly (no store) using two calls that share a key,
+  // exactly as getCalendarAccessToken's default `${provider}:${userId}` key
+  // would for two real concurrent calls on the same person's connection.
+  let calls = 0;
+  const counted = async () => {
+    calls += 1;
+    return new Response(JSON.stringify({
+      access_token: "AT-CONCURRENT", expires_in: 3600, refresh_token: "RT-CONCURRENT",
+    }), { status: 200 });
+  };
+  const persisted = [];
+  const persist = async (patch) => { persisted.push(patch); };
+  const dueConnection = {
+    provider: "microsoft", accountEmail: "a@b.test",
+    refreshToken: "RT0", accessToken: "STALE", expiresAtMs: 0, calendarIds: [], connectedAt: 0,
+  };
+  const [a, b] = await Promise.all([
+    freshAccessToken(dueConnection, persist, { fetchImpl: counted, now: () => 1000, key: "concurrency-test:microsoft" }),
+    freshAccessToken(dueConnection, persist, { fetchImpl: counted, now: () => 1000, key: "concurrency-test:microsoft" }),
+  ]);
+  ok("two concurrent refreshes on the same connection make exactly one network request",
+    calls === 1, String(calls));
+  ok("...both callers get the same, freshly-refreshed access token",
+    a === "AT-CONCURRENT" && b === "AT-CONCURRENT", JSON.stringify([a, b]));
+  ok("...and persist runs exactly once, carrying the rotated refresh token",
+    persisted.length === 1 && persisted[0].refreshToken === "RT-CONCURRENT", JSON.stringify(persisted));
+}
+
+console.log("\nrevoke — microsoft has no revocation endpoint, so disconnecting never calls one");
+{
+  // Microsoft's `revoke` is "" (calendarProviders.ts). getConnectionImpl and
+  // clearConnectionImpl are injected — same reasoning as fetchImpl/now/key on
+  // the core above — so this is provable with no live store: a real
+  // getConnection would need a real encrypted row to read, and this property
+  // (the revoke branch is never entered) does not depend on one existing.
+  let revokeCalls = 0;
+  let getConnectionCalls = 0;
+  let clearCalls = 0;
+  const trackingFetch = async () => { revokeCalls += 1; return new Response("{}", { status: 200 }); };
+  const trackingGetConnection = async () => { getConnectionCalls += 1; return null; };
+  const trackingClearConnection = async () => { clearCalls += 1; };
+  await revokeConnection("user-x", "microsoft", {
+    fetchImpl: trackingFetch,
+    getConnectionImpl: trackingGetConnection,
+    clearConnectionImpl: trackingClearConnection,
+  });
+  ok("microsoft's empty revoke URL means getConnection is never even called",
+    getConnectionCalls === 0, String(getConnectionCalls));
+  ok("...and the provider is never called either", revokeCalls === 0, String(revokeCalls));
+  ok("...but the stored record is still cleared, unconditionally",
+    clearCalls === 1, String(clearCalls));
+}
+
 console.log(fails ? `\n${fails} failure(s)` : "\nall good");
 process.exitCode = fails ? 1 : 0;
