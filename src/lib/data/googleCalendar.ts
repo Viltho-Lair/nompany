@@ -17,7 +17,12 @@ export type CalendarConnection = {
 
 export async function getConnection(): Promise<CalendarConnection | null> {
   const stored = await getJSON<Partial<CalendarConnection>>(REG.googleCalendar);
-  if (!stored?.calendarId) return null;
+  // TRIM BEFORE THE NULL CHECK, not after: a whitespace-only calendarId is
+  // truthy raw, and clean() below would trim it to "" — returning a non-null
+  // connection with an empty id. The screen (Task 7) branches on exactly
+  // null-vs-not to decide between the calendar grid and the setup steps, so a
+  // stray-whitespace id must read as "not connected", the same as absent.
+  if (!stored?.calendarId?.trim()) return null;
   return clean(stored);
 }
 
