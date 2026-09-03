@@ -352,8 +352,12 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
     }
   } catch { /* CI or an already-exported shell */ }
 
-  if (!process.env.REDIS_URL) {
-    console.error("REDIS_URL is not set — nothing to read from.");
+  // THE STORE IS POSTGRES NOW — see backfill-engagements.mjs for the same fix.
+  // This reads and writes through @/platform/db/store and imports no client of
+  // its own, so the deleted REDIS_URL was the only thing naming a backend, and
+  // guarding on it made the script unrunnable rather than safe.
+  if (!process.env.DATABASE_URL) {
+    console.error("DATABASE_URL is not set — nothing to read from.");
     process.exit(1);
   }
 
