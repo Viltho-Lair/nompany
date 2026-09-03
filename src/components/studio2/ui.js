@@ -162,7 +162,7 @@ export function Dialog({ title, description, onClose, children, width = "max-w-[
   // any transform, filter, backdrop-filter, perspective, contain or
   // will-change on something above it silently re-anchors `inset-0` to THAT
   // element's box instead. In the studio the dialog is written deep inside the
-  // shell (page → ps-72 column → sticky header sibling → main), so one such
+  // shell (page → ps-[23.5rem] column → sticky header sibling → main), so one such
   // property anywhere up that chain crops the backdrop to the content column
   // and pushes it below the header. Portalling to the body puts the dialog
   // outside the whole chain, so it cannot be caught by a style added later

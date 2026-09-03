@@ -33,7 +33,7 @@ import { toneOf } from "@/lib/planColors";
 // name is never exposed.
 //
 // The look is the Old System's Geex control panel: a floating rounded sidebar
-// pinned inset-4, content offset by ps-72, and a sticky header carrying the
+// pinned inset-4, content offset by ps-[23.5rem], and a sticky header carrying the
 // section title. Rendered in nompany's own brand-*/steel-* palette rather than
 // the Old System's navy, and the nav stays DB-driven — sections come from the
 // tenant, so there is no hardcoded route list to copy.
@@ -103,7 +103,7 @@ const SECTION_ICONS = {
 // itself (itemClass); a parent group hands it to the link and the chevron
 // button separately, so each is a full-height hit target of its own.
 const rowClass = (active) =>
-  `flex items-center justify-between gap-3 rounded-lg text-sm font-500 transition-colors ${
+  `flex items-center justify-between gap-3 rounded-lg text-[12px] font-500 transition-colors ${
     active
       ? "bg-brand-500/10 text-brand-700 dark:bg-brand-500/20 dark:text-brand-400"
       : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white"
@@ -326,7 +326,7 @@ export default function StudioFrame({
             : <Image src="/brand/logo-icon.png" alt="" width={36} height={36} className="h-full w-full object-contain" />}
         </span>
         <span className="flex min-w-0 flex-col leading-tight">
-          <span className="truncate font-display text-[15px] font-700 tracking-tight text-slate-900 dark:text-white">
+          <span className="truncate font-display text-[13px] font-700 tracking-tight text-slate-900 dark:text-white">
             {studio.name}
           </span>
           <span className="truncate font-mono text-[10px] font-500 tracking-tight text-slate-400 dark:text-slate-500">
@@ -357,7 +357,7 @@ export default function StudioFrame({
         <Link
           href={`/${studio.slug}/documentation`}
           onClick={() => setOpen(false)}
-          className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-500 text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white"
+          className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-[12px] font-500 text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white"
         >
           <Icon name="services" className="h-[18px] w-[18px] text-slate-400 dark:text-slate-500" />
           {tr.documentation}
@@ -368,7 +368,7 @@ export default function StudioFrame({
         <Link
           href={`/${studio.slug}/administration-settings`}
           onClick={() => setOpen(false)}
-          className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-500 ${
+          className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-[12px] font-500 ${
             activeKey === "administration-settings"
               ? "bg-brand-500/10 text-brand-700 dark:bg-brand-500/20 dark:text-brand-400"
               : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white"
@@ -464,18 +464,18 @@ export default function StudioFrame({
         and pays nothing. */}
     <Rtl on={dirFor(locale) === "rtl"}>
       {/* Floating rounded sidebar — Geex control-panel style */}
-      <aside className="fixed inset-y-4 start-4 z-30 hidden w-64 overflow-hidden rounded-geex bg-[var(--geex-surface)] shadow-geex lg:block">
+      <aside className="fixed inset-y-4 start-4 z-30 hidden w-[21.5rem] overflow-hidden rounded-geex bg-[var(--geex-surface)] shadow-geex lg:block">
         {sidebar}
       </aside>
 
       {open && (
         <div className="fixed inset-0 z-40 lg:hidden">
           <button type="button" aria-label={tr.closeMenu} className="absolute inset-0 bg-slate-900/40" onClick={() => setOpen(false)} />
-          <aside aria-label={tr.departments} className="absolute inset-y-0 start-0 w-64 bg-[var(--geex-surface)] shadow-xl">{sidebar}</aside>
+          <aside aria-label={tr.departments} className="absolute inset-y-0 start-0 w-[21.5rem] bg-[var(--geex-surface)] shadow-xl">{sidebar}</aside>
         </div>
       )}
 
-      <div className="lg:ps-72">
+      <div className="lg:ps-[23.5rem]">
         <header className="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-3 bg-[var(--geex-page)] px-5 py-4 sm:px-8">
           <div className="flex min-w-0 items-center gap-3">
             <button
