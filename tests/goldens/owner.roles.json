@@ -475,6 +475,10 @@
           {
             "key": "pay",
             "label": "Record payments"
+          },
+          {
+            "key": "approveHigh",
+            "label": "Approve bills above the limit"
           }
         ]
       },
