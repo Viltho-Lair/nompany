@@ -45,8 +45,17 @@ try {
   }
 } catch { /* CI or an already-exported shell */ }
 
-if (!process.env.REDIS_URL) {
-  console.error("REDIS_URL is not set — nothing to read from.");
+// THE STORE IS POSTGRES NOW, and this checked for REDIS_URL -- which no longer
+// exists anywhere, so the script refused to start at all. Same defect and same
+// fix as backfill-engagements.mjs; it reads through the store abstraction and
+// never named a backend otherwise, only this guard did.
+//
+// It matters beyond starting up: this script IS how a seeded section key added
+// after a studio was created reaches that studio, now that listSections no
+// longer reconciles on every read. A guard on a deleted variable made the
+// documented repair unrunnable.
+if (!process.env.DATABASE_URL) {
+  console.error("DATABASE_URL is not set — nothing to read from.");
   process.exit(1);
 }
 
