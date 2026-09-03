@@ -199,9 +199,21 @@ function finish(scope: RequestScope, outcome: string, counted: ReturnType<typeof
     // number. Present alongside the Redis fields even when zero, exactly like
     // them, because a route costing 0 SQL statements is itself informative once
     // the backend is Postgres.
+    // pgDocuments WAS MISSING, and its absence made the studio look free.
+    //
+    // commandCount splits SQL three ways: a caller's statement against the
+    // OPERATIONAL store (`queries`), the transaction bookkeeping around it
+    // (`envelope`), and statements against the DOCUMENT store (`documents` —
+    // see statementKind in pg.ts). Only the first two were reported. Every read
+    // the studio's shell and page make is a document read, so the completion
+    // line for a section click said `pgQueries=0 pgEnvelope=0` for a render
+    // that had just done ten round trips — a number that is not merely
+    // incomplete but actively misleading, because zero reads like "nothing to
+    // see here". Found while measuring the shell-into-a-layout move, which the
+    // log could not confirm until this was here.
     ...(counted ? {
       redisCommands: counted.commands, redisWaves: counted.waves,
-      pgQueries: counted.queries, pgEnvelope: counted.envelope,
+      pgQueries: counted.queries, pgDocuments: counted.documents, pgEnvelope: counted.envelope,
     } : {}),
   });
 }
