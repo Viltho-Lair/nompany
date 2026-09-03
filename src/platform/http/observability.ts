@@ -110,6 +110,31 @@ export const log = {
 /** The current request's id, or "" outside one. Put it on error responses. */
 export const requestId = (): string => storage.getStore()?.id || "";
 
+// REDIRECTING IS NOT FAILING, AND NEITHER IS A 404.
+//
+// `redirect()` and `notFound()` are how the App Router says "this render ends
+// here" — both do it by THROWING, so a wrapper that treats every throw as a
+// failure reports the studio's own sign-in bounce as an error with a stack.
+// That was harmless while only route handlers were wrapped, because a handler
+// returns a Response rather than redirecting; the studio PAGE does both on its
+// most ordinary paths (no session, not a member), which would have made "request
+// failed" the most common line in the log.
+//
+// Matched on the DIGEST PREFIX rather than by importing Next's own
+// `isRedirectError`/`isHTTPAccessFallbackError`: those live under
+// `next/dist/client/components/…`, which is an internal path with no stability
+// promise, and the two prefixes are the part that has survived every version.
+// Being wrong here is cheap in one direction only — an unrecognised signal is
+// logged as an error, which is noise; a real error mistaken for a signal would
+// be SILENT, so the match stays narrow.
+const FRAMEWORK_SIGNALS = ["NEXT_REDIRECT", "NEXT_HTTP_ERROR_FALLBACK"];
+
+function frameworkSignal(error: unknown): string | null {
+  const digest = (error as { digest?: unknown })?.digest;
+  if (typeof digest !== "string") return null;
+  return FRAMEWORK_SIGNALS.find((code) => digest.startsWith(code)) || null;
+}
+
 /**
  * Run a request inside a logging scope, and emit one completion line.
  *
@@ -120,12 +145,17 @@ export const requestId = (): string => storage.getStore()?.id || "";
 export async function withRequest<T>(route: string, fn: (scope: RequestScope) => Promise<T> | T): Promise<T> {
   const scope = { id: randomUUID(), route, startedAt: Date.now() };
   return storage.run(scope, async () => {
+    // The command counter is established HERE rather than by the caller, so
+    // the completion line can report hops without every route remembering to
+    // ask for them. A number that has to be opted into is a number that is
+    // missing from the routes nobody suspected.
+    //
+    // DECLARED OUTSIDE THE `try` so the catch can still report it: a render that
+    // ends in a redirect did all its reads first, and those are exactly the hops
+    // worth knowing about — dropping them would leave the studio's most common
+    // paths as the only ones with no number.
+    let counted: ReturnType<typeof currentCount> = null;
     try {
-      // The command counter is established HERE rather than by the caller, so
-      // the completion line can report hops without every route remembering to
-      // ask for them. A number that has to be opted into is a number that is
-      // missing from the routes nobody suspected.
-      let counted: ReturnType<typeof currentCount> = null;
       const { result } = await withCommandCount(async () => withRequestCache(async () => {
         const out = await fn(scope);
         // Read WHILE the counting scope is still open — finish() runs after it
@@ -136,6 +166,15 @@ export async function withRequest<T>(route: string, fn: (scope: RequestScope) =>
       finish(scope, "ok", counted);
       return result;
     } catch (error) {
+      // A framework signal is the render ENDING, not the render breaking — see
+      // frameworkSignal above. Reported as its own outcome so a redirect is
+      // still one legible line with its hop count, and rethrown untouched so the
+      // App Router does what it was told.
+      const signal = frameworkSignal(error);
+      if (signal) {
+        finish(scope, signal === "NEXT_REDIRECT" ? "redirect" : "not-found", counted);
+        throw error;
+      }
       // The one place an unhandled error is guaranteed to be seen WITH its
       // request id, before whatever the caller does with it.
       const err = error as Error;
