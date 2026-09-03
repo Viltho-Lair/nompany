@@ -11,7 +11,7 @@
 import { REG, U, IX, ID, normEmail } from "@/platform/db/keys";
 import { readArr, editArr, editJSON, getJSON, getJSONMany, setJSON, claim, getIndex, release } from "@/platform/db/store";
 import { newSessionToken, hashToken } from "./passwords";
-import { listStudios, ownedStudioId, collaborationStudioIds } from "@/modules/main/studios";
+import { listStudios, collaborationStudioIds } from "@/modules/main/studios";
 import { isAssignableRole } from "@/lib/platformRoles";
 import { emitPlatform, PLATFORM } from "@/platform/realtime/events";
 
@@ -166,19 +166,26 @@ export async function listUsersForConsole() {
 
   return Promise.all(
     rows.map(async (u) => {
-      const [profile, activity, ownedId, collabIds] = await Promise.all([
+      const [profile, activity, collabIds] = await Promise.all([
         getProfile(u.id),
         // Activity moved off the registry row (R6). Read it here — where the
         // profile is already fetched per person — and fall back to whatever the
         // old g:users row still carries, so a user last seen before the move is
         // not suddenly shown as never having been around.
         getActivity(u.id),
-        ownedStudioId(u.id),
         collaborationStudioIds(u.id),
       ]);
-      // Owned first — it is the studio that dies with them — then the ones they
-      // were let into, deduped in case the owner also holds a collaborator row.
-      const names = [ownedId, ...(collabIds || [])]
+      // Owned first — those are the studios that die with them — then the ones
+      // they were let into, deduped since an owner also holds a collaborator row.
+      //
+      // OWNERSHIP IS READ OFF THE REGISTRY ALREADY IN HAND. This used to be a
+      // getIndex(ix:owner) per user, one round trip each to learn a field of a
+      // row `studios` was holding the whole time. The index is gone and so is
+      // the hop; `byId` is the same map `nameOf` uses.
+      const ownedIds = studios
+        .filter((st) => String((st as { ownerUserId?: unknown }).ownerUserId || "") === u.id)
+        .map((st) => String(st.id));
+      const names = [...ownedIds, ...(collabIds || [])]
         .filter(Boolean)
         .map(nameOf)
         .filter(Boolean);

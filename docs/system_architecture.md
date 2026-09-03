@@ -130,7 +130,13 @@ Every operational collection. Each row carries `{ id, studioId, sectionId, … }
 The **employee record is the collaborator row** — there is no `employees` collection. People arrive by joining and leave by being removed; HR only fills employment fields on the row that already exists. Likewise `departments` and `positions` are gone: a department *is* a top-level section (`lib/departments.js` projects them), and a position *is* a role.
 
 ### 4.5 Indexes and claims — `ix:*`
-`ix:email:<email>` → UserID · `ix:slug:<slug>` → StudioID · `ix:owner:<UserID>` → StudioID (ownership is 0..1, enforced by the claim) · `ix:session:<token>` → UserID (`EX` = real expiry) · `ix:collab:<UserID>` → **set** of StudioIDs · `ix:stoken:<token>` **⊘ dead** · `ix:qshare:<token>` **⊘ dead**.
+`ix:email:<email>` → UserID · `ix:slug:<slug>` → StudioID · `ix:session:<token>` → UserID (`EX` = real expiry) · `ix:collab:<UserID>` → **set** of StudioIDs · `ix:stoken:<token>` **⊘ dead** · `ix:qshare:<token>` **⊘ dead**.
+
+**There is no `ix:owner`.** Ownership is `ownerUserId` on the `g:studios` row, derived
+rather than indexed — a cap of two free studios per person turns on each row's
+`packageId`, which no uniqueness claim can express. `SWEEP_SCOPES` still scans
+`ix:owner:` so the keys left behind are reaped as the orphans they now are. See
+`docs/functionality/studio-ownership.md`.
 
 ### 4.6 Ownerless and ephemeral
 `otp:<challengeId>` (TTL) · `chat:room:<id>`, `chat:room:<id>:held`, `chat:live` (TTL — a conversation is never kept; ending one leaves a short grace window for the transcript, then it is gone) · `fx:usd` + `fx:lock` (one USD-based rate table a day; every other pair is derived by division, so API calls stay independent of how many currencies anyone views) · `rl:*` (fixed-window counters) · `stat:day:<date>` + `stat:vis:<date>` (website traffic — **no TTL, deliberately**; see C-3).

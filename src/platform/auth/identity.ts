@@ -20,7 +20,7 @@ import {
 } from "./users";
 import type { User, Questionnaire } from "./users";
 import type { DeviceFacts } from "./otp";
-import { getOwnedStudio, listUserCollaborations } from "@/modules/main/studios";
+import { listOwnedStudios, listUserCollaborations } from "@/modules/main/studios";
 import { listForUser as listJoinRequestsForUser } from "@/modules/people/joinRequests";
 import {
   createChallenge, verifyChallenge, resendChallenge, checkSendLimits,
@@ -456,15 +456,20 @@ export async function currentUser() {
   return user;
 }
 
-// Everything the account UI needs, in one read. `studio` = the ONE studio they
-// own (Phase 3 creates it); `collaborations` = the studios they were approved
-// into, derived from ix:collab.
+// Everything the account UI needs, in one read. `studios` = the ones they OWN;
+// `collaborations` = the ones they were approved into, derived from ix:collab.
+//
+// `studios` WAS `studio`, a single object or null, from when a person could own
+// at most one. It is a list now rather than a list beside the old field, because
+// two names for one fact is how the account screen and the API come to disagree
+// about which studio is "theirs". Nothing consumed the old field — only the
+// golden pinned it, and that was re-recorded deliberately.
 export async function currentIdentity() {
   const user = await currentUser();
   if (!user) return null;
-  const [profile, verification, questionnaire, studio, collaborations, requests] = await Promise.all([
+  const [profile, verification, questionnaire, studios, collaborations, requests] = await Promise.all([
     getProfile(user.id), getVerification(user.id), getQuestionnaire(user.id),
-    getOwnedStudio(user.id), listUserCollaborations(user.id),
+    listOwnedStudios(user.id), listUserCollaborations(user.id),
     // WHAT BECAME OF THE STUDIOS THEY ASKED TO JOIN — finding M-2. Added to the
     // wave that was already running rather than fetched on its own, so the
     // account screen learns this for no extra round trip.
@@ -475,7 +480,7 @@ export async function currentIdentity() {
     profile: profile || {},
     emailVerified: Boolean(verification?.emailVerifiedAt),
     questionnaire: questionnaire || {},
-    studio: studio ? { id: studio.id, name: studio.name, slug: studio.slug } : null,
+    studios: studios.map((s) => ({ id: s.id, name: s.name, slug: s.slug })),
     collaborations: collaborations.map((s) => ({ id: s.id, name: s.name, slug: s.slug })),
     // A PERSON WHO ASKED TO JOIN WAS NEVER TOLD THE ANSWER — finding M-2, and
     // the most visible consequence of four notification types that were declared

@@ -454,7 +454,6 @@ const normEmail = (e: unknown) => String(e || "").trim().toLowerCase();
 export const IX = {
   email: (email: string) => `${P}ix:email:${normEmail(email)}`,     // → UserID (uniqueness of login email)
   slug: (slug: string) => `${P}ix:slug:${String(slug || "").toLowerCase()}`, // → StudioID
-  owner: (userId: string) => `${P}ix:owner:${userId}`,              // → StudioID (0..1 owned studio)
   session: (token: string) => `${P}ix:session:${token}`,            // → UserID (EX = real expiry)
   // → SuperAdminID (EX = real expiry). Takes the DIGEST, not the token: this
   // module is imported by a client component, so it must not pull node:crypto

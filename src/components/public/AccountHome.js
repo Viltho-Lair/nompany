@@ -72,7 +72,7 @@ const initialsOf = (s) => String(s || "?").trim().split(/\s+/).slice(0, 2).map((
 export default function AccountHome({ locale, chrome }) {
   const tr = accountDict(useAccountLocale());
   const [identity, setIdentity] = useState(null);
-  const [studios, setStudios] = useState({ owned: null, collaborations: [] });
+  const [studios, setStudios] = useState({ owned: [], collaborations: [] });
   const [devices, setDevices] = useState([]);
   const [view, setView] = useState("overview");
   const [loading, setLoading] = useState(true);
@@ -98,9 +98,11 @@ export default function AccountHome({ locale, chrome }) {
   }
 
   const name = identity?.profile?.fullName || identity?.user?.email || "there";
-  // The API models 0..1 owned studios today; the UI is written against a list so
-  // it is already correct if that cap is ever lifted.
-  const owned = studios.owned ? [studios.owned] : [];
+  // The API sends a list now — a person may own two studios on the free package
+  // and any number on a paid one. This was `studios.owned ? [studios.owned] : []`,
+  // written against a list before the API had one precisely so that lifting the
+  // cap would not reach into the render; it did not.
+  const owned = studios.owned || [];
   const collabs = studios.collaborations || [];
   const signOut = async () => { await fetch("/api/identity/logout", { method: "POST" }); window.location.assign(`/${locale}/login`); };
 
@@ -548,7 +550,7 @@ function CreateStudio({ onDone, onClose }) {
     if (res.ok) { onDone(); return; }
     setError(
       data.error === "unverified" ? tr.confirmEmailAddressFirst
-      : data.error === "already-owner" ? tr.alreadyOwnStudio
+      : data.error === "free-studio-limit" ? tr.freeStudioLimit(data.limit)
       : data.error === "slug-taken" ? tr.codeTakenPickAnother
       : data.error === "slug-reserved" ? tr.codeReservedPickAnother
       : data.error === "slug-invalid" ? tr.use3LettersNumbers

@@ -5,16 +5,18 @@ import { createStudioForUser, studiosForUser } from "@/lib/studios";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// The studios this person can reach: the ONE they own + the ones they were
-// approved into (derived from ix:collab — never a stored second copy).
+// The studios this person can reach: the ones they OWN (derived from the registry
+// row's ownerUserId) + the ones they were approved into (derived from ix:collab).
+// Neither is a stored second copy.
 export async function GET() {
   const user = await currentUser();
   if (!user) return Response.json({ error: "unauthorized" }, { status: 401 });
   return Response.json(await studiosForUser(user.id));
 }
 
-// Create the studio this user owns. 0..1 per user, verified email required, and
-// the slug (company code) must be free — all enforced in the data layer.
+// Create a studio this user will own. Two on the default package, unlimited on
+// any other; verified email required; the slug (company code) must be free — all
+// enforced in the data layer, none of it re-decided here.
 export async function POST(request: Request) {
   const user = await currentUser();
   if (!user) return Response.json({ error: "unauthorized" }, { status: 401 });
@@ -24,9 +26,15 @@ export async function POST(request: Request) {
   const result = await createStudioForUser(user, { name: body.name, slug: body.slug });
   if (refused(result)) {
     const status = result.error === "unverified" ? 403
-      : result.error === "already-owner" || result.error === "slug-taken" ? 409
+      : result.error === "free-studio-limit" || result.error === "slug-taken" ? 409
       : 400;
-    return Response.json({ error: result.error }, { status });
+    // `limit` rides along on the cap refusal so the dialog can say what the
+    // ceiling actually is rather than hardcoding a number that would drift —
+    // the same shape the member-limit refusal uses.
+    return Response.json(
+      { error: result.error, ...(result.limit !== undefined ? { limit: result.limit } : {}) },
+      { status },
+    );
   }
   return Response.json(
     { ok: true, studio: result.studio, sections: (result.sections || []).map((s) => ({ id: s.id, key: s.key, name: s.name })) },

@@ -20,7 +20,7 @@ import {
 } from "@/platform/auth/attempts";
 import { delPrefix, getIndex, delKeys } from "@/platform/db/store";
 import { createUser, mintSession } from "@/platform/auth/users";
-import { createStudio, renameStudio, getStudioBySlug, updateStudio } from "@/modules/main/studios";
+import { createStudio, renameStudio, getStudioBySlug, updateStudio, listOwnedStudios, countFreeStudios, FREE_STUDIO_LIMIT } from "@/modules/main/studios";
 import { studioLocale, dirFor, preferredLocale, UI_LANG_COOKIE } from "@/shared/locale";
 import { compile, serialize, middleware, stringify, prefixer } from "stylis";
 // RESOLVED THE WAY THE BUNDLER RESOLVES IT. stylis-plugin-rtl ships both
@@ -34,7 +34,7 @@ import * as SETTINGS from "@/app/api/studios/[slug]/settings/route.ts";
 import { addCollaborator, updateCollaborator, getCollaboratorByUser } from "@/platform/auth/collaborators";
 import { listRoles, createRole } from "@/modules/people/roles";
 import { SESSION_COOKIE, login as identityLogin } from "@/platform/auth/identity";
-import { studioContext, canAdminister } from "@/lib/studios";
+import { studioContext, canAdminister, studiosForUser } from "@/lib/studios";
 import { explain, ADMIN_ROLE_ID, ALL_PERMISSIONS } from "@/platform/access";
 import { tasksContext, createTask, updateTask, removeTask, decideTask } from "@/modules/tasks/tasks";
 import { listForCollaborator, NOTIFY } from "@/platform/notify/notifications";
@@ -3182,6 +3182,131 @@ console.log("\n== renaming happens now, not at midnight");
 
   const noop = await renameStudio(made.studio.id, { name: "After", slug: renamed });
   ok("renaming to what it already is changes nothing", noop.changed === false, JSON.stringify(noop));
+}
+
+// ============================================================================
+console.log("\n== a person may own more than one studio");
+// OWNERSHIP USED TO BE 0..1, held by an ix:owner SET NX claim. The cap is now two
+// studios ON THE DEFAULT PACKAGE and none at all on any other, which a claim
+// cannot express — so the claim is gone, the count is derived from the registry
+// rows, and it is checked inside the same compare-and-set that writes the new row.
+{
+  const multi = (await createUser({ email: `multi-${rand()}@test.invalid`, passwordHash: "x" })).user;
+  const mkSlug = () => `t-${rand()}${rand()}`;
+
+  const one = await createStudio({ ownerUserId: multi.id, name: "One", slug: mkSlug() });
+  ok("a first studio is created", !one.error, JSON.stringify(one.error));
+  const two = await createStudio({ ownerUserId: multi.id, name: "Two", slug: mkSlug() });
+  ok("...and a second, which the ix:owner claim used to refuse outright",
+    !two.error, JSON.stringify(two.error));
+
+  // THE CAP ITSELF. A third studio, still on the default package.
+  const takenSlug = mkSlug();
+  const three = await createStudio({ ownerUserId: multi.id, name: "Three", slug: takenSlug });
+  ok("a third studio on the free package is refused",
+    three.error === "free-studio-limit", JSON.stringify(three));
+  ok("...and the refusal says what the ceiling is, so no screen hardcodes it",
+    three.limit === FREE_STUDIO_LIMIT, String(three.limit));
+
+  // A REFUSAL MUST NOT BURN THE ADDRESS. The slug is claimed before the cap is
+  // re-checked inside the registry write, so a refusal that forgot to release it
+  // would leave that address unusable by anyone, forever, with no row to explain
+  // why. Asserted by looking for the claim, which is the only proof it is free.
+  ok("...and the address it tried to take is still free",
+    (await getIndex(IX.slug(takenSlug))) === null);
+
+  ok("both studios come back from the derived lookup",
+    (await listOwnedStudios(multi.id)).length === 2);
+
+  // UPGRADING ONE FREES A SLOT. This is the whole point of counting packages
+  // rather than studios: the cap is on what somebody takes for free.
+  await updateStudio(one.studio.id, { packageId: "pkg_paid_fixture" });
+  const four = await createStudio({ ownerUserId: multi.id, name: "Four", slug: mkSlug() });
+  ok("upgrading one off the default package lets another free studio be created",
+    !four.error, JSON.stringify(four.error));
+
+  const five = await createStudio({ ownerUserId: multi.id, name: "Five", slug: mkSlug() });
+  ok("...but only one — two free studios is still the ceiling",
+    five.error === "free-studio-limit", JSON.stringify(five));
+
+  // UNLIMITED ON A PAID PACKAGE. Every studio is BORN on the default package, so
+  // reaching a third paid one means upgrading as you go; what must not happen is
+  // a wall once the paid ones outnumber the free allowance.
+  await updateStudio(two.studio.id, { packageId: "pkg_paid_fixture" });
+  await updateStudio(four.studio.id, { packageId: "pkg_paid_fixture" });
+  const six = await createStudio({ ownerUserId: multi.id, name: "Six", slug: mkSlug() });
+  ok("with three upgraded, a fourth is allowed — paid studios are uncapped",
+    !six.error, JSON.stringify(six.error));
+  // FOUR, not six: "three" and "five" were refused, so they were never written.
+  // Asserted because a refusal that half-created a studio would leave a row here
+  // with no way to reach it, and the count is the only place that would show.
+  ok("...and the owner holds exactly the four that were not refused",
+    (await listOwnedStudios(multi.id)).length === 4,
+    String((await listOwnedStudios(multi.id)).length));
+
+  // THE COUNT, PURELY. The cap that actually holds runs inside a compare-and-set,
+  // where a test cannot reach it with a database, so the function it calls is
+  // asserted on its own — the same reason SWEEP_SCOPES is a pure value.
+  const rows = [
+    { ownerUserId: "u1", packageId: "free" },
+    { ownerUserId: "u1", packageId: "paid" },
+    { ownerUserId: "u1" },                      // absent id — counts as free
+    { ownerUserId: "u2", packageId: "free" },   // somebody else entirely
+  ];
+  ok("the count sees only this owner's default-package studios",
+    countFreeStudios(rows, "u1", "free") === 2, String(countFreeStudios(rows, "u1", "free")));
+  ok("...and an absent packageId counts as free, never as a free pass",
+    countFreeStudios([{ ownerUserId: "u1" }], "u1", "free") === 1);
+}
+
+// ============================================================================
+console.log("\n== two studios owned by one person share nothing");
+// A STUDIO IS A TENANT, AND OWNING BOTH CHANGES THAT NOT AT ALL. This was
+// unassertable until now — nobody could own two — so the moment the cap lifted it
+// became the first thing worth proving: the id spaces are separate, the person is
+// a different collaborator in each, and a row written in one is absent from the
+// other.
+{
+  const both = (await createUser({ email: `both-${rand()}@test.invalid`, passwordHash: "x" })).user;
+  const a = await createStudio({ ownerUserId: both.id, name: "Alpha", slug: `t-${rand()}${rand()}`, ownerAlias: "Me" });
+  const b = await createStudio({ ownerUserId: both.id, name: "Beta", slug: `t-${rand()}${rand()}`, ownerAlias: "Me" });
+  ok("both studios exist", !a.error && !b.error, JSON.stringify(a.error || b.error));
+
+  // SECTION KEYS ARE SHARED; SECTION IDS ARE NOT. Every collection key is
+  // SEC.col(studioId, sectionId, name), so a shared SectionID would be the one way
+  // two studios could name the same bucket even with different studio ids.
+  const aSecs = await listSections(a.studio.id);
+  const bSecs = await listSections(b.studio.id);
+  const aIds = new Set(aSecs.map((x) => x.id));
+  const shared = bSecs.filter((x) => aIds.has(x.id));
+  ok("the two studios seeded the same section keys",
+    aSecs.map((x) => x.key).sort().join() === bSecs.map((x) => x.key).sort().join());
+  ok("...and not one section id in common", shared.length === 0, shared.map((x) => x.id).join());
+
+  // ONE PERSON, TWO COLLABORATOR IDENTITIES — invariant 6. Notifications,
+  // signatures and assignments are addressed to a CollaboratorID, so sharing one
+  // across studios would deliver a studio's work into its neighbour.
+  const meInA = await getCollaboratorByUser(a.studio.id, both.id);
+  const meInB = await getCollaboratorByUser(b.studio.id, both.id);
+  ok("the owner is a collaborator in each", Boolean(meInA && meInB));
+  ok("...with a different CollaboratorID in each", meInA.id !== meInB.id, `${meInA.id} / ${meInB.id}`);
+
+  // AND THE DATA ITSELF, which is what all of the above is in service of.
+  const aSales = await getSectionByKey(a.studio.id, "crm-sales-clients");
+  const bSales = await getSectionByKey(b.studio.id, "crm-sales-clients");
+  await addRow(a.studio.id, aSales.id, "salesClients", { name: "Alpha only" });
+  const inA = await readCol(a.studio.id, aSales.id, "salesClients");
+  const inB = await readCol(b.studio.id, bSales.id, "salesClients");
+  ok("a row written in one studio is there", inA.some((r) => r.name === "Alpha only"));
+  ok("...and is not in the other", inB.length === 0, JSON.stringify(inB));
+
+  // THE ACCOUNT VIEW. Owning two must not report one of them as a studio somebody
+  // else let this person into — the owner holds a collaborator row in both, so
+  // subtracting only the first owned id would have done exactly that.
+  const mine = await studiosForUser(both.id);
+  ok("both owned studios are listed as owned", mine.owned.length === 2, JSON.stringify(mine.owned));
+  ok("...and neither is listed as a collaboration",
+    mine.collaborations.length === 0, JSON.stringify(mine.collaborations));
 }
 
 // ============================================================================

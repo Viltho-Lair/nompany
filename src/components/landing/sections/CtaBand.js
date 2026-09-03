@@ -18,8 +18,12 @@ export function CtaBand({ onNavigate }) {
                 const me = await fetch("/api/identity/me", { cache: "no-store" });
                 if (!me.ok) { if (alive) setSession({ signedIn: false }); return; }
                 const st = await fetch("/api/studios", { cache: "no-store" });
-                const studios = st.ok ? await st.json() : { owned: null };
-                if (alive) setSession({ signedIn: true, studio: studios.owned || null });
+                const studios = st.ok ? await st.json() : { owned: [] };
+                // The band offers ONE door, so it takes the first owned studio —
+                // which studiosForUser has already sorted most-opened first, so it
+                // is the one this person actually works in rather than whichever
+                // the registry happened to hold first.
+                if (alive) setSession({ signedIn: true, studio: studios.owned?.[0] || null });
             } catch {
                 if (alive) setSession({ signedIn: false }); // resolve to guest, never hang
             }
