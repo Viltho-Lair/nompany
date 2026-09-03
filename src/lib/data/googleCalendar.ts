@@ -6,6 +6,8 @@
 // only which calendar was chosen and what it is called.
 import { getJSON, setJSON, delKeys } from "@/platform/db/store";
 import { REG } from "@/platform/db/keys";
+import { getCalendarAccessToken, calendarServiceAccount } from "@/platform/auth/googleCalendarAuth";
+import { normaliseEvent, type CalendarEvent } from "@/shared/calendar";
 
 export type CalendarConnection = {
   calendarId: string;
@@ -48,4 +50,95 @@ function clean(v: Partial<CalendarConnection>): CalendarConnection {
     connectedAt: Number(v.connectedAt) || Date.now(),
     connectedBy: String(v.connectedBy || "").trim(),
   };
+}
+
+const API = "https://www.googleapis.com/calendar/v3";
+
+/**
+ * Google's own refusal, carried rather than flattened.
+ *
+ * EVERY ONE OF THESE LOOKS LIKE "THE CALENDAR IS BROKEN" FROM THE SCREEN, and
+ * each has a different fix — the API is not enabled, the calendar was never
+ * shared, the impersonation binding is missing. Losing Google's reason turns
+ * three distinct one-line fixes into one afternoon.
+ */
+export class GoogleCalendarError extends Error {
+  status: number;
+  reason: string;
+  constructor(status: number, reason: string, message: string) {
+    super(message);
+    this.name = "GoogleCalendarError";
+    this.status = status;
+    this.reason = reason;
+  }
+}
+
+async function google(path: string, params: Record<string, string> = {}) {
+  const token = await getCalendarAccessToken();
+  const url = `${API}${path}${Object.keys(params).length ? `?${new URLSearchParams(params)}` : ""}`;
+  const res = await fetch(url, {
+    headers: { authorization: `Bearer ${token}` },
+    cache: "no-store",
+    // A HUNG CALL IS A HELD SERVERLESS INVOCATION, the same reason the auth legs
+    // carry one.
+    signal: AbortSignal.timeout(10_000),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const reason = String(body?.error?.errors?.[0]?.reason || body?.error?.status || "");
+    throw new GoogleCalendarError(res.status, reason, explain(res.status, reason, body));
+  }
+  return body;
+}
+
+/** The five failures an operator can actually fix, each naming its fix. */
+function explain(status: number, reason: string, body: any): string {
+  const sa = calendarServiceAccount();
+  const said = String(body?.error?.message || "").slice(0, 300);
+  if (reason === "accessNotConfigured") {
+    return `The Google Calendar API is not enabled on this project. Enable it at APIs & Services → Library → Google Calendar API. Google said: ${said}`;
+  }
+  if (status === 404) {
+    return `That calendar is not visible to ${sa}. Share it in Google Calendar → Settings → the calendar → "Share with specific people" → ${sa}, with "See all event details". Google said: ${said}`;
+  }
+  if (status === 403) {
+    return `Google refused the read. Usually the calendar is shared with less than "See all event details". Google said: ${said}`;
+  }
+  return `Google refused with ${status}${reason ? ` (${reason})` : ""}: ${said}`;
+}
+
+/**
+ * A CALENDAR SHARED WITH A SERVICE ACCOUNT DOES NOT RELIABLY APPEAR HERE. List
+ * entries need an acceptance step a service account never performs, while
+ * events.list against the id works regardless. So this populates a convenience
+ * dropdown and an empty result is NORMAL — never treat it as "not connected",
+ * and never make it the only way to choose a calendar.
+ */
+export async function listCalendars(): Promise<{ id: string; summary: string; timeZone: string }[]> {
+  const body = await google("/users/me/calendarList", { maxResults: "50", minAccessRole: "reader" });
+  return (body.items || []).map((c: any) => ({
+    id: String(c.id || ""), summary: String(c.summary || ""), timeZone: String(c.timeZone || "UTC"),
+  })).filter((c: { id: string }) => c.id);
+}
+
+/** Reads a calendar by id — how a pasted id is validated and its real name shown back. */
+export async function getCalendar(id: string): Promise<{ id: string; summary: string; timeZone: string }> {
+  const c = await google(`/calendars/${encodeURIComponent(id)}`);
+  return { id: String(c.id || id), summary: String(c.summary || id), timeZone: String(c.timeZone || "UTC") };
+}
+
+export async function listEvents(
+  { calendarId, from, to }: { calendarId: string; from: string; to: string },
+): Promise<CalendarEvent[]> {
+  const body = await google(`/calendars/${encodeURIComponent(calendarId)}/events`, {
+    // singleEvents EXPANDS a recurring series into its instances. Without it a
+    // weekly standup is ONE event with a recurrence rule, and the grid would
+    // show it once a year.
+    singleEvents: "true",
+    orderBy: "startTime",
+    timeMin: from,
+    timeMax: to,
+    maxResults: "250",
+  });
+  return (body.items || []).map(normaliseEvent).filter(Boolean) as CalendarEvent[];
 }

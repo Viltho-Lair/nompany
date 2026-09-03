@@ -167,5 +167,48 @@ console.log("\ncalendar access token");
   ok("...and listing the sources it tried", /Sources tried/.test(msg), msg);
 }
 
+const { normaliseEvent, eventDayKeys } = await import("../src/shared/calendar.ts");
+
+console.log("\nevent normaliser");
+{
+  const timed = normaliseEvent({
+    id: "e1", summary: "Platform standup", location: "Room 2",
+    htmlLink: "https://calendar.google.com/e1", colorId: "5",
+    start: { dateTime: "2026-09-03T09:30:00+03:00" },
+    end: { dateTime: "2026-09-03T09:45:00+03:00" },
+  });
+  ok("a timed event is not all-day", timed.allDay === false);
+  ok("...and keeps its title", timed.title === "Platform standup");
+  ok("...and its link", timed.htmlLink === "https://calendar.google.com/e1");
+
+  // GOOGLE'S ALL-DAY `end.date` IS EXCLUSIVE. A one-day event on the 3rd is
+  // stored as start 2026-09-03, end 2026-09-04. Treating that end as inclusive
+  // paints every all-day event one cell too wide — the bug this function is
+  // factored out to assert against.
+  const oneDay = normaliseEvent({
+    id: "e2", summary: "Beta freeze",
+    start: { date: "2026-09-03" }, end: { date: "2026-09-04" },
+  });
+  ok("an all-day event is all-day", oneDay.allDay === true);
+  ok("a one-day all-day event occupies exactly one cell",
+    JSON.stringify(eventDayKeys(oneDay)) === JSON.stringify(["2026-09-03"]),
+    JSON.stringify(eventDayKeys(oneDay)));
+
+  const threeDay = normaliseEvent({
+    id: "e3", summary: "Offsite", start: { date: "2026-09-03" }, end: { date: "2026-09-06" },
+  });
+  ok("a three-day all-day event occupies three cells",
+    JSON.stringify(eventDayKeys(threeDay)) ===
+      JSON.stringify(["2026-09-03", "2026-09-04", "2026-09-05"]),
+    JSON.stringify(eventDayKeys(threeDay)));
+
+  ok("an event with no id is dropped rather than rendered blank",
+    normaliseEvent({ summary: "x", start: { date: "2026-09-03" } }) === null);
+  ok("a cancelled-shaped payload with no start is dropped",
+    normaliseEvent({ id: "e4", summary: "x" }) === null);
+  ok("an untitled event gets a readable placeholder",
+    normaliseEvent({ id: "e5", start: { date: "2026-09-03" }, end: { date: "2026-09-04" } }).title === "(no title)");
+}
+
 console.log(fails ? `\n${fails} failure(s)` : "\nall good");
 process.exitCode = fails ? 1 : 0;
