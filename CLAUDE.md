@@ -279,10 +279,11 @@ every push to `main` and every pull request.
   the studio's loading boundary (`app/studio/loading.js`): until it existed the App
   Router had nothing to show for a `force-dynamic` page and BLOCKED the navigation —
   measured, the DOM did not change at all and the URL took 767ms to move. Three
-  kilobytes buys the shell's geometry, which it has to reproduce in full because
-  with no `layout.js` a loading boundary replaces the whole studio, sidebar
-  included. It gets smaller, not larger, when the shell moves into a real layout
-  (`docs/superpowers/plans/2026-09-03-studio-shell-layout.md`).
+  kilobytes bought the shell's geometry, which that file had to reproduce in full
+  because with no `layout.js` a loading boundary replaces the whole studio, sidebar
+  included. **1580 → 1576 when the shell became a real `layout.js`** and the boundary
+  gave all of it back — it is `<ScreenSkeleton />` and nothing else now. The largest
+  chunk did not move (158 KB), which is the gate that matters.
 - Tests connect things — real repositories, real route handlers, **one assertion per
   bug that actually happened**. Each block names the defect it guards, so nobody
   deletes it later wondering what it was for.

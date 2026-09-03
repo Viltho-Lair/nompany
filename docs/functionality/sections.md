@@ -67,23 +67,43 @@ a decision somebody records rather than an accident that hides it.
 
 ## What opening one looks like
 
-The studio page is `force-dynamic`, so a section click is a server round trip before anything can
-render. `src/app/studio/loading.js` is what stands there while it happens: the shell's own
-geometry — the same fixed `w-64` sidebar panel, the same header, the same content column — drawn
-as skeletons. The studio greys out in place; it does not blink out and come back.
+**The shell is a layout and the screen is a page**, and that split is what a section click costs.
+`src/app/studio/layout.js` resolves the studio, the person and their sections and renders
+`StudioFrame`; `[[...segments]]/page.js` renders only the screen inside it. A layout persists
+across the navigations below it, so clicking a section re-renders the screen alone — the sidebar
+is not rebuilt, not re-sent in the RSC payload, and not remounted.
 
-That file **reproduces the whole shell, sidebar included, on purpose.** There is no `layout.js`
-under `src/app/studio/`, so the page IS the layout and a loading boundary replaces everything.
-Until that changes, the boundary also has to guess the reader's direction from the `lang` cookie
-alone, because the tenant's default language is a database read and a loading boundary runs
-before any read — right for every English studio and for anyone who has ever used the language
-menu, wrong only for a member of an Arabic-default studio who never set a preference. The plan
-that removes both the duplication and the guess is
-`docs/superpowers/plans/2026-09-03-studio-shell-layout.md`.
+Measured in the sandbox, warm, against the real database:
 
-Without it the App Router had nothing to show and **blocked the navigation**: measured in the
-sandbox, not one node in the page changed during a transition and the address bar itself did not
-move for 767ms, so the click read as broken rather than slow.
+| | document reads |
+|---|---|
+| A section click (page only) | **10** |
+| A full load (layout, page shares it) | 14 |
+
+Before the split the page did all fourteen on every click. The four it sheds — the plan
+catalogues, the profile, the chat allowance — exist to draw sidebar furniture, so a screen that
+does not draw the sidebar should not pay for them. The remaining ten are the irreducible core:
+who you are, which studio, what you may open. `src/app/studio/_shell.js` holds both halves as
+React `cache()`d functions, which is what lets the layout and the page share one resolution on a
+full load; the repo's own `withRequestCache` cannot, because a layout and a page are two separate
+`withRequest` scopes.
+
+`loading.js` is what stands in the content box while the server answers. Without it the App
+Router had nothing to show and **blocked the navigation**: measured, not one node in the page
+changed during a transition and the address bar itself did not move for 767ms, so the click read
+as broken rather than slow. With it the first paint lands at ~64ms.
+
+**Seven screens take the whole window** — the manual, the two live views, Engagements, the
+document register, a project's board and the planner. They used to return out of the page before
+the shell was built, which only worked while the page *was* the shell. The shell now recognises
+those addresses itself, through the one shared derivation in `src/shared/studioRoute.ts`, and
+draws no chrome around them. Four of the seven are **grant-gated**: without the grant the page
+falls through to an ordinary framed refusal, so the same function consults the visible section
+list rather than the path alone. Gate A holds the two halves level.
+
+That module is also where the active nav row comes from. A layout is never handed the route's
+segments, so the shell reads `usePathname()` — the same address the page reads from `params` —
+rather than being told by a prop.
 
 ## Not built yet
 

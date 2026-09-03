@@ -8,6 +8,56 @@
 
 **Tech Stack:** Next.js 16.2.10 App Router, React 19, TypeScript (`noImplicitAny`), Postgres via `src/platform/db/store` under `PG_TRANSPORT=gateway`.
 
+---
+
+## OUTCOME — done 03/09/2026
+
+Shipped. A section click costs **10 document reads, down from 14**; the first paint of the
+pending state lands at ~64ms and the sidebar no longer moves at all.
+
+**Three things this plan got wrong, recorded because the plan was wrong and the code is right:**
+
+1. **"The one hard problem" had a better answer than any of the three options.** The plan's
+   Option A made full-screen screens `fixed inset-0` overlays over a shell that stayed rendered,
+   and accepted an `inert` requirement to keep the hidden chrome out of the tab order. That is
+   not what shipped. Task 1 gave `StudioFrame` the pathname for `activeKey`, and once it had the
+   address it could answer "does this address want chrome" itself — through the same shared
+   module, as `isFullScreenPath`. So the chrome is simply **not rendered**: no overlay, no
+   z-index, no `inert`, and nothing hidden behind anything. Option A would have worked and been
+   worse.
+
+2. **A layout does not save reads by "rendering once", and the plan implied it does.** On a soft
+   navigation Next re-renders only the changed segment and serves the layout from the router
+   cache — so the layout not running is exactly why the page cannot lean on it. The saving comes
+   from the page NEEDING LESS, which is why `_shell.js` splits into `studioRequest` (the core,
+   what the page needs) and `studioShell` (core plus the three sidebar-only reads). Without that
+   split the move would have saved zero round trips.
+
+3. **The plan did not anticipate `LiveProvider`.** Each full-screen screen carried its own,
+   because it rendered outside the shell. Rendering them inside it would have nested a second
+   EventSource per tab against a browser cap of six (invariant 14). They are removed; the shell's
+   connection is the studio's only one. Verified by patching the `EventSource` constructor and
+   walking framed → full-screen → back: **zero opened, zero closed** across the whole trip, where
+   before, entering a full-screen screen tore the shell down and rebuilt it.
+
+**Two defects found while measuring, both fixed here:**
+
+- **The completion line was blind to the studio's entire cost.** `finish()` logged `pgQueries`
+  and `pgEnvelope` but not `pgDocuments`, and every read the studio makes is a document read — so
+  a section click reported `pgQueries=0 pgEnvelope=0` after ten round trips. Zero reads as
+  "nothing to see here", which is worse than a missing field.
+- **`ScreenSkeleton` shifted the layout 24px** (fixed in the previous commit; see there).
+
+**Task 4's direction guess is gone, as predicted.** The loading boundary is now four lines —
+`<ScreenSkeleton />` — because the layout has already resolved the studio and declared `lang`/
+`dir`. Verified with `lang=ar`: the skeleton renders `dir=rtl` and the sidebar does not move.
+
+**One cost deliberately not removed.** `needsQuestionnaire` is still checked on every navigation,
+one sequential round trip. Moving it to the layout would save it, but its ordering — before
+membership, so "you are not a member" never fires first and hides why somebody is being sent to
+onboarding — is documented as deliberate, and overturning that to save one read is a decision for
+a person, not a refactor.
+
 **Spec:** none — this is a restructure of existing behaviour, not new behaviour. The measurements it is built on are in this document.
 
 ---
