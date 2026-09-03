@@ -1,15 +1,16 @@
 // The token lifecycle for a connected calendar — the single door everything
 // else (Tasks 4, 6, 8) reads a calendar's access token through.
 //
-// TWO LAYERS, DELIBERATELY. `freshAccessToken` is the core: it takes a
-// CalendarConnection and a `persist` write-back callback and knows nothing
-// about where that connection is stored. `getCalendarAccessToken` is the
-// user-keyed wrapper around it — loads via calendarConnections.ts's
+// TWO LAYERS, DELIBERATELY, AND BOTH ARE NOW IN USE. `freshAccessToken` is the
+// core: it takes a CalendarConnection and a `persist` write-back callback and
+// knows nothing about where that connection is stored. `getCalendarAccessToken`
+// is the user-keyed wrapper around it — loads via calendarConnections.ts's
 // `getConnection`, writes back through `saveConnection`. The console's single
-// calendar (REG.googleCalendar, Task 8) belongs to no user, so it needed its
-// own wrapper over the SAME core rather than a second copy of the refresh
-// logic, or `getCalendarAccessToken(userId, provider)`'s signature would have
-// had to grow a "there might not be a userId" branch into every call site.
+// calendar belongs to no user (it lives at REG.googleCalendar), so it has its
+// own wrapper over the SAME core — `consoleCalendarAccessToken` in
+// lib/data/googleCalendar.ts — rather than a second copy of the refresh logic,
+// which is what `getCalendarAccessToken(userId, provider)` would have become
+// once its signature grew a "there might not be a userId" branch.
 //
 // NO TOKEN MAY REACH A LOG LINE OR AN ERROR MESSAGE. A provider's error BODY
 // (its `error`/`error_description`) may be surfaced — that is what lets
@@ -88,8 +89,14 @@ function isInvalidGrant(body: TokenResponseBody): boolean {
 }
 
 export async function exchangeCode(
-  { provider, code, request, fetchImpl = fetch }:
-    { provider: CalendarProvider; code: string; request: Request; fetchImpl?: FetchLike },
+  // `redirectUri` MUST BE THE EXACT STRING /authorize WAS GIVEN — both
+  // providers compare the two byte for byte and refuse the exchange otherwise.
+  // It is optional here only so the account-level flow, which uses the default,
+  // stays unchanged; the console flow (Task 8) passes
+  // consoleCalendarRedirectUri(request), the same builder its own start route
+  // hands calendarAuthorizeUrl.
+  { provider, code, request, redirectUri, fetchImpl = fetch }:
+    { provider: CalendarProvider; code: string; request: Request; redirectUri?: string; fetchImpl?: FetchLike },
 ): Promise<{ refreshToken: string; accessToken: string; expiresAtMs: number }> {
   const cfg = CALENDAR_PROVIDERS[provider];
   const res = await fetchImpl(cfg.token, {
@@ -100,7 +107,7 @@ export async function exchangeCode(
       client_secret: process.env[cfg.secretEnv] || "",
       code,
       grant_type: "authorization_code",
-      redirect_uri: calendarRedirectUri(request, provider),
+      redirect_uri: redirectUri ?? calendarRedirectUri(request, provider),
     }),
   });
   const body = await readTokenBody(res);
@@ -246,11 +253,11 @@ export type CalendarAuthDeps = {
    * shape as forgetting rotation entirely, just delayed by however long the
    * access token has left.
    *
-   * Same shape as googleCalendarAuth.ts's module-scope `inFlight` (this
-   * file's sibling, same folder) — a promise a second caller awaits instead
-   * of starting its own request. That file only ever has ONE calendar, so one
-   * variable is enough; this one serves many stored connections, so it is a
-   * `key` a caller opts into rather than an unconditional module-scope slot.
+   * A promise a second caller awaits instead of starting its own request —
+   * the shape the deleted service-account path (googleCalendarAuth.ts) had as
+   * a single module-scope `inFlight` variable, because it only ever served ONE
+   * calendar. This one serves many stored connections, so it is a `key` a
+   * caller opts into rather than an unconditional module-scope slot.
    * No key = no dedup, which is the correct default here specifically because
    * `freshAccessToken` cannot derive one on its own: two calls holding
    * separately-fetched CalendarConnection objects have no shared identity it

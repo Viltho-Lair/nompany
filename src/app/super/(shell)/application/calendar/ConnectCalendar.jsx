@@ -3,189 +3,176 @@
 // THE HONEST EMPTY STATE. No grid, no invented events — a screen that renders a
 // month full of chips before anything is connected is indistinguishable from a
 // working integration, which is exactly how this screen came to be mistaken for
-// one (see docs/functionality/calendar.md). This shows the three things an
-// operator actually needs: who to share the calendar with, and where to paste
-// its id once they have.
+// one (see docs/functionality/calendar.md).
+//
+// IT USED TO BE THREE SETUP STEPS: copy a service account address, share the
+// calendar with it in Google Calendar, then paste the calendar's id back here.
+// None of that survives OAuth — the console presses Connect, consents as a
+// Google account, and picks from that account's own calendars. Pasting an id
+// is gone too, and deliberately: it existed because a calendar shared with a
+// service account routinely never appeared in that account's calendarList, so
+// the dropdown could not be trusted to be complete. An account's grant over its
+// own calendars has no such gap.
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardHead, CardBody, Icon } from "../../../_components/ui";
 
-function Step({ n, children }) {
-  return (
-    <li className="flex gap-3">
-      <span
-        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-700 text-white"
-        style={{ backgroundColor: "var(--ad-primary)" }}
-      >
-        {n}
-      </span>
-      <div className="min-w-0 flex-1 pt-0.5">{children}</div>
-    </li>
-  );
-}
+// What the OAuth callback appends to this screen's URL on its way back.
+const OUTCOMES = {
+  cancelled: "Connecting was cancelled — nothing was changed.",
+  error: "Google didn't complete the connection. Try again.",
+};
 
-export default function ConnectCalendar({ serviceAccount }) {
+export default function ConnectCalendar({ configured, connected, accountEmail }) {
   const router = useRouter();
-  const [calendarId, setCalendarId] = useState("");
-  const [copied, setCopied] = useState(false);
+  const outcome = useSearchParams().get("calendar");
 
-  // DISCOVERY IS OPT-IN, matching the route: `?discover=1` costs a live round
-  // trip through STS and IAM Credentials to Google, so it only runs when this
-  // button is pressed, never on mount.
-  const [discovering, setDiscovering] = useState(false);
-  const [discovered, setDiscovered] = useState(false);
   const [calendars, setCalendars] = useState([]);
-  const [discoverProblem, setDiscoverProblem] = useState("");
-
-  const [connecting, setConnecting] = useState(false);
+  const [calendarId, setCalendarId] = useState("");
+  const [loading, setLoading] = useState(connected);
+  const [problem, setProblem] = useState("");
+  const [choosing, setChoosing] = useState(false);
   const [error, setError] = useState("");
 
-  async function copyServiceAccount() {
+  // NO setState BEFORE THE FIRST `await` — the effect below calls this
+  // directly, and everything up to a function's first `await` runs
+  // synchronously; a setState there is the cascading-render pattern the lint
+  // rule warns about. The fetch is the first statement, so nothing runs
+  // synchronously at all. (Same note as CalendarBoard's `load`.)
+  const load = useCallback(async () => {
     try {
-      await navigator.clipboard.writeText(serviceAccount);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
-      // Clipboard access can be denied (permissions, insecure context); the
-      // address is still selectable text right there, so nothing is lost.
-    }
-  }
-
-  async function discover() {
-    setDiscovering(true);
-    setDiscoverProblem("");
-    try {
-      const res = await fetch("/api/super/google-calendar?discover=1", { cache: "no-store" });
+      const res = await fetch("/api/super/google-calendar", { cache: "no-store" });
       const body = await res.json().catch(() => ({}));
       setCalendars(Array.isArray(body.calendars) ? body.calendars : []);
-      setDiscoverProblem(String(body.problem || ""));
+      setProblem(String(body.problem || ""));
     } catch {
-      setDiscoverProblem("Couldn't reach Google.");
+      setProblem("Couldn't reach the calendar service.");
     } finally {
-      setDiscovering(false);
-      setDiscovered(true);
+      setLoading(false);
     }
-  }
+  }, []);
 
-  async function connect(e) {
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { if (connected) load(); }, [connected, load]);
+
+  async function choose(e) {
     e.preventDefault();
-    const id = calendarId.trim();
-    if (!id || connecting) return;
-    setConnecting(true);
+    if (!calendarId || choosing) return;
+    setChoosing(true);
     setError("");
     try {
       const res = await fetch("/api/super/google-calendar", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ calendarId: id }),
+        body: JSON.stringify({ calendarId }),
       });
       if (!res.ok) {
-        // GOOGLE'S OWN MESSAGE, VERBATIM. "The API is not enabled", "not
-        // shared", "shared with too little access" look identical from this
-        // screen otherwise, and each has a different one-line fix.
+        // GOOGLE'S OWN MESSAGE, VERBATIM. "The API is not enabled", "that
+        // calendar is gone" and "the grant was revoked" look identical from
+        // this screen otherwise, and each has a different one-line fix. The
+        // route reports every failure on the Google path with a `detail`, so
+        // an empty body should not happen — the status fallback is a
+        // diagnosable dead end if some future hole reopens it.
         const body = await res.json().catch(() => ({}));
-        // THE STATUS IS NAMED WHEN NOTHING ELSE IS. Both routes now report every
-        // failure on the Google/identity path with a `detail` (see the route's
-        // own comment), so an empty body here should not happen — but if some
-        // future hole reopens it, "Couldn't connect that calendar (HTTP 500)."
-        // is a diagnosable dead end rather than a silent, identical-looking one.
-        setError(String(body?.detail || body?.error || `Couldn't connect that calendar (HTTP ${res.status}).`));
+        setError(String(body?.detail || body?.error || `Couldn't use that calendar (HTTP ${res.status}).`));
         return;
       }
       router.refresh();
     } catch {
       setError("Couldn't reach the calendar service.");
     } finally {
-      setConnecting(false);
+      setChoosing(false);
     }
+  }
+
+  async function disconnect() {
+    setChoosing(true);
+    await fetch("/api/super/google-calendar", { method: "DELETE" });
+    setChoosing(false);
+    router.refresh();
   }
 
   return (
     <Card>
       <CardHead
-        title="Connect a Google calendar"
+        title={connected ? "Choose a calendar" : "Connect a Google calendar"}
         sub="Read-only. This console can show what's on the calendar — it never creates, edits or cancels anything on it."
       />
       <CardBody>
-        <ol className="space-y-6">
-          <Step n={1}>
-            <p className="text-sm">
-              In Google Calendar, share the calendar with this service account, with{" "}
-              <strong className="font-600">&ldquo;See all event details&rdquo;</strong> access.
-            </p>
-            <div className="mt-2 flex items-center gap-2">
-              <code
-                className="min-w-0 flex-1 truncate rounded-md border px-3 py-2 font-mono text-xs"
-                style={{ borderColor: "var(--ad-border)", backgroundColor: "rgb(var(--ad-muted-rgb) / 0.6)" }}
-              >
-                {serviceAccount}
-              </code>
-              <button type="button" className="ad-icon-btn h-9 w-9 shrink-0" onClick={copyServiceAccount} aria-label="Copy service account address">
-                <Icon name="copy" className="h-3.5 w-3.5" />
-              </button>
-            </div>
-            {copied ? <p className="mt-1 text-xs text-[var(--ad-success)]">Copied.</p> : null}
-          </Step>
+        {OUTCOMES[outcome] ? (
+          <p className="mb-4 text-sm text-[var(--ad-muted-foreground)]">{OUTCOMES[outcome]}</p>
+        ) : null}
 
-          <Step n={2}>
-            <p className="text-sm">
-              Make sure the Google Calendar API is enabled on this project. If it isn&apos;t, connecting below will say so.
+        {!connected ? (
+          // NOT CONFIGURED IS SAID, NOT HIDDEN. Without a client id and secret
+          // the button can only ever land on a Google error page, and a
+          // disabled control with no explanation reads as a broken console.
+          !configured ? (
+            <p className="text-sm text-[var(--ad-muted-foreground)]">
+              Google sign-in isn&apos;t configured on this deployment. Set <code className="font-mono text-xs">GOOGLE_CLIENT_ID</code>{" "}
+              and <code className="font-mono text-xs">GOOGLE_CLIENT_SECRET</code>, and register{" "}
+              <code className="font-mono text-xs">/api/super/google-calendar/callback</code> as a redirect URI on that OAuth client.
             </p>
-          </Step>
+          ) : (
+            <>
+              <p className="text-sm">
+                Sign in with the Google account whose calendar this console should show. You&apos;ll be asked to grant
+                read-only calendar access, and you can withdraw it here or from your Google account at any time.
+              </p>
+              {/* A PLAIN LINK, NOT A fetch. The start route answers with a 302
+                  to Google's consent screen, which the browser has to follow as
+                  a navigation — an XHR would follow it invisibly and hand back
+                  Google's HTML. */}
+              <a className="ad-btn ad-btn-primary mt-4" href="/api/super/google-calendar/start">
+                <Icon name="calendar" className="h-3.5 w-3.5" /> Connect Google Calendar
+              </a>
+            </>
+          )
+        ) : (
+          <>
+            <p className="text-sm">
+              Connected{accountEmail ? <> as <strong className="font-600">{accountEmail}</strong></> : null}. Pick which
+              of that account&apos;s calendars this console should show.
+            </p>
 
-          <Step n={3}>
-            <p className="text-sm">Find the calendar&apos;s id (Settings and sharing → Integrate calendar) and connect it.</p>
+            {loading ? (
+              <p className="mt-4 text-sm text-[var(--ad-muted-foreground)]">Loading calendars…</p>
+            ) : problem ? (
+              <p className="mt-4 text-sm text-[var(--ad-destructive)]">{problem}</p>
+            ) : calendars.length === 0 ? (
+              <p className="mt-4 text-sm text-[var(--ad-muted-foreground)]">
+                That account has no calendars this console can read.
+              </p>
+            ) : (
+              <form onSubmit={choose} className="mt-4 flex flex-col gap-2 sm:flex-row">
+                <select
+                  className="ad-select flex-1"
+                  value={calendarId}
+                  onChange={(e) => setCalendarId(e.target.value)}
+                >
+                  <option value="" disabled>Pick a calendar…</option>
+                  {calendars.map((c) => (
+                    <option key={c.id} value={c.id}>{c.summary || c.id}</option>
+                  ))}
+                </select>
+                <button type="submit" className="ad-btn ad-btn-primary shrink-0" disabled={choosing || !calendarId}>
+                  {choosing ? "Saving…" : "Use this calendar"}
+                </button>
+              </form>
+            )}
+            {error ? <p className="mt-2 text-sm text-[var(--ad-destructive)]">{error}</p> : null}
 
             <button
               type="button"
-              className="ad-btn ad-btn-outline ad-btn-sm mt-3"
-              onClick={discover}
-              disabled={discovering}
+              className="ad-btn ad-btn-outline ad-btn-sm mt-6"
+              onClick={disconnect}
+              disabled={choosing}
             >
-              <Icon name="search" className="h-3.5 w-3.5" /> {discovering ? "Looking up your calendars…" : "Look up my calendars"}
+              <Icon name="trash" className="h-3.5 w-3.5" /> Disconnect this account
             </button>
-
-            {calendars.length > 0 ? (
-              <select
-                className="ad-select mt-3"
-                defaultValue=""
-                onChange={(e) => { if (e.target.value) setCalendarId(e.target.value); }}
-              >
-                <option value="" disabled>Pick a calendar…</option>
-                {calendars.map((c) => (
-                  <option key={c.id} value={c.id}>{c.summary || c.id}</option>
-                ))}
-              </select>
-            ) : discovered && discoverProblem ? (
-              <p className="mt-2 text-xs text-[var(--ad-muted-foreground)]">
-                Couldn&apos;t look up calendars automatically ({discoverProblem}) — paste the id below instead.
-              </p>
-            ) : discovered ? (
-              // AN EMPTY LIST IS NORMAL, not a failure — a calendar shared with a
-              // service account routinely never appears in that account's own
-              // calendarList, which is exactly why pasting an id is the primary
-              // path rather than a fallback.
-              <p className="mt-2 text-xs text-[var(--ad-muted-foreground)]">
-                Nothing showed up — that&apos;s normal for a calendar shared with a service account. Paste its id below.
-              </p>
-            ) : null}
-
-            <form onSubmit={connect} className="mt-3 flex flex-col gap-2 sm:flex-row">
-              <input
-                type="text"
-                className="ad-input flex-1"
-                placeholder="calendar id, e.g. team@group.calendar.google.com"
-                value={calendarId}
-                onChange={(e) => setCalendarId(e.target.value)}
-              />
-              <button type="submit" className="ad-btn ad-btn-primary shrink-0" disabled={connecting || !calendarId.trim()}>
-                {connecting ? "Connecting…" : "Connect"}
-              </button>
-            </form>
-            {error ? <p className="mt-2 text-sm text-[var(--ad-destructive)]">{error}</p> : null}
-          </Step>
-        </ol>
+          </>
+        )}
       </CardBody>
     </Card>
   );

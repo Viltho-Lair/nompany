@@ -1,7 +1,7 @@
 import { PageHeader, Icon } from "../../../_components/ui";
 import { BASE } from "../../../_components/nav";
 import { getConnection } from "@/lib/data/googleCalendar";
-import { calendarServiceAccount } from "@/platform/auth/googleCalendarAuth";
+import { providerConfigured } from "@/platform/auth/calendarProviders";
 import ConnectCalendar from "./ConnectCalendar";
 import CalendarBoard from "./CalendarBoard";
 
@@ -14,11 +14,20 @@ export const dynamic = "force-dynamic";
 // THIS SCREEN USED TO BE A TEMPLATE with April 2026, five invented calendars
 // and a dozen made-up events written into the file. It now reads the ONE
 // Google calendar the console is connected to (see docs/functionality/calendar.md)
-// and renders one of two honest states: the real grid, or the setup steps —
+// and renders one of two honest states: the real grid, or the connect flow —
 // never a convincing fake standing in for either.
+//
+// THREE STATES UNDERNEATH THE TWO. Nothing connected, connected but no calendar
+// chosen yet, and connected-and-chosen — ConnectCalendar renders the first two,
+// which are the same screen at different steps, and the board the third.
 export default async function CalendarPage() {
   const connection = await getConnection();
-  const serviceAccount = calendarServiceAccount();
+  // READ HERE, NOT SERVED FROM THE API. `providerConfigured` is purely
+  // process.env, and putting it in the GET response would make that route's
+  // golden depend on whichever developer's .env.local was loaded — the exact
+  // flapping the account surface's own goldens had to clear four env vars to
+  // avoid. A server component has no golden, so it can just ask.
+  const configured = providerConfigured("google");
 
   return (
     <>
@@ -26,7 +35,7 @@ export default async function CalendarPage() {
         title="Calendar"
         breadcrumb={[{ label: "Home", href: `${BASE}/dashboard/analytics` }, { label: "Application" }, { label: "Calendar" }]}
         actions={
-          connection ? (
+          connection?.calendarId ? (
             // "New event" became this. calendar.readonly cannot write, and a
             // button that lies about creating an event is worse than no button.
             <a
@@ -41,7 +50,25 @@ export default async function CalendarPage() {
         }
       />
 
-      {connection ? <CalendarBoard connection={connection} /> : <ConnectCalendar serviceAccount={serviceAccount} />}
+      {connection?.calendarId ? (
+        // ONLY THE PUBLIC FIELDS CROSS INTO A CLIENT COMPONENT. `connection`
+        // holds decrypted tokens in memory here; handing the whole object to
+        // CalendarBoard would serialise them into the RSC payload, which is
+        // the page's own HTML. The board needs three fields and gets three.
+        <CalendarBoard
+          connection={{
+            calendarId: connection.calendarId,
+            summary: connection.summary,
+            timeZone: connection.timeZone,
+          }}
+        />
+      ) : (
+        <ConnectCalendar
+          configured={configured}
+          connected={Boolean(connection)}
+          accountEmail={connection?.accountEmail || ""}
+        />
+      )}
     </>
   );
 }

@@ -23,6 +23,7 @@ Three rules that keep this folder worth reading:
 | File | Covers |
 |---|---|
 | [approvals.md](approvals.md) | Who signs a bill and above what amount: chains, thresholds, the currency rule, and what is not covered |
+| [calendar.md](calendar.md) | Connected calendars: the OAuth flow for both providers, the token lifecycle, the account panel and the console's one calendar |
 | [engagements.md](engagements.md) | The deal: one engagement, its stages, its client, lock and delete |
 | [flows.md](flows.md) | Flow templates and industries: what a studio may edit, what is refused and why, and where the editor lives |
 | [language.md](language.md) | EN/AR and RTL: what decides which language, where the buttons are, what is translated |

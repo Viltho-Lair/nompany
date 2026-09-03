@@ -8,9 +8,18 @@
 //           -> a FEDERATED ACCESS TOKEN for the pool's principal
 //
 // What a caller does with that token is its own business: pgGatewayAuth.ts
-// mints an ID token audienced to Cloud Run, googleCalendarAuth.ts mints an
-// access token scoped to calendar.readonly. Both impersonate the same service
-// account, through the same iam.serviceAccountTokenCreator binding.
+// mints an ID token audienced to Cloud Run, impersonating the service account
+// through an iam.serviceAccountTokenCreator binding.
+//
+// IT HAS ONE CALLER AGAIN, AND THAT IS DELIBERATE. The second was the /super
+// calendar (googleCalendarAuth.ts), which minted an access token scoped to
+// calendar.readonly for a calendar an operator had shared with the same service
+// account by hand. That whole path is deleted — the console connects by OAuth
+// now, as a Google account, with a refresh token of its own (see
+// docs/functionality/calendar.md) — and this file was NOT folded back into
+// pgGatewayAuth.ts when it went. Reverting a split of live auth code, which the
+// production database path depends on and a 36-block suite pins, to tidy up a
+// motivation that no longer applies is risk bought for nothing.
 //
 // NO SERVICE-ACCOUNT JSON KEY IS EVER CREATED, STORED IN VERCEL, OR ROTATED —
 // design D3. That is the entire reason this is three network calls rather than
@@ -22,7 +31,9 @@
 // the second consumer. It is a move, not a rewrite: every comment below was
 // written for the gateway and is still true. The one change is that error
 // messages take a `who` prefix, because "pg-gateway auth: …" on a calendar
-// failure sends the reader to the database.
+// failure sent the reader to the database. That prefix outlived the caller that
+// needed it; it defaults to "pg-gateway auth", so every message the gateway
+// produces is byte-identical either way.
 //
 // NOTHING HERE IS HARDCODED, AND THE DEFAULTS ARE STILL REAL. Every value below
 // comes from the environment, with the values read from a live token and a live

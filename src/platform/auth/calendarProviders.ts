@@ -28,6 +28,8 @@ export type ProviderConfig = {
   /** Extra authorize params this provider needs to issue a refresh token. */
   offlineParams: Record<string, string>;
   calendarsUrl: string;
+  /** ONE calendar by id — where calendarsUrl is the whole list. */
+  calendarUrl: (calendarId: string) => string;
   eventsUrl: (calendarId: string, fromISO: string, toISO: string) => string;
 };
 
@@ -47,6 +49,8 @@ export const CALENDAR_PROVIDERS: Record<CalendarProvider, ProviderConfig> = {
     scope: "https://www.googleapis.com/auth/calendar.readonly",
     offlineParams: { access_type: "offline", prompt: "consent" },
     calendarsUrl: "https://www.googleapis.com/calendar/v3/users/me/calendarList",
+    calendarUrl: (calendarId) =>
+      `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}`,
     // GOOGLE: singleEvents EXPANDS a recurring series into instances. Without
     // it a weekly standup is ONE event carrying a recurrence rule.
     eventsUrl: (calendarId, fromISO, toISO) =>
@@ -71,6 +75,8 @@ export const CALENDAR_PROVIDERS: Record<CalendarProvider, ProviderConfig> = {
     scope: "Calendars.Read offline_access",
     offlineParams: {},
     calendarsUrl: "https://graph.microsoft.com/v1.0/me/calendars",
+    calendarUrl: (calendarId) =>
+      `https://graph.microsoft.com/v1.0/me/calendars/${encodeURIComponent(calendarId)}`,
     // MICROSOFT: /me/events does NOT expand recurrence; /me/calendarView DOES.
     // Same trap as Google's singleEvents, different spelling.
     eventsUrl: (_calendarId, fromISO, toISO) =>
@@ -136,8 +142,36 @@ export function calendarRedirectUri(request: Request, p: CalendarProvider): stri
   return `${origin(request)}/api/auth/calendar/callback/${p}`;
 }
 
+/**
+ * THE CONSOLE'S OWN CALLBACK, and a SEPARATE ROUTE ON PURPOSE — not a flag on
+ * the one above.
+ *
+ * The connection this lands writes the DEPLOYMENT's calendar (REG.googleCalendar),
+ * not a person's, so the request that starts it must be authorised as a console
+ * operator (`auth: "super"`), never as any signed-in user. Folding it into
+ * /api/auth/calendar/callback/<provider> — which is `auth: "user"` — and
+ * branching on something inside `state` would put the console's calendar one
+ * forged-looking `next` away from any account holder: `state` is signed, but it
+ * is minted by a route ANY user may reach, so the signature proves only that we
+ * wrote it, never that a console operator asked for it.
+ *
+ * Costs one more redirect URI on the Google OAuth client
+ * (`https://<host>/api/super/google-calendar/callback`), which the operator
+ * registers alongside the two account-level ones. That is the price of the
+ * separation and it is worth paying.
+ */
+export function consoleCalendarRedirectUri(request: Request): string {
+  return `${origin(request)}/api/super/google-calendar/callback`;
+}
+
 export function calendarAuthorizeUrl(
-  { provider, request, state }: { provider: CalendarProvider; request: Request; state: string },
+  // `redirectUri` OVERRIDES, IT DOES NOT ADD A FLOW. Google matches the
+  // redirect_uri sent to /authorize against the one sent to /token byte for
+  // byte, so the two calls have to be handed the same string — which is why
+  // this is a parameter both the account flow and the console flow supply from
+  // one of the two builders above, rather than each rebuilding it.
+  { provider, request, state, redirectUri }:
+    { provider: CalendarProvider; request: Request; state: string; redirectUri?: string },
 ): string {
   const cfg = CALENDAR_PROVIDERS[provider];
   const params: Record<string, string> = {
@@ -145,7 +179,7 @@ export function calendarAuthorizeUrl(
     // — same call as oauth.ts's authorizeUrl: let the provider refuse the
     // empty value with a message that says so, rather than checking here.
     client_id: process.env[cfg.idEnv] || "",
-    redirect_uri: calendarRedirectUri(request, provider),
+    redirect_uri: redirectUri ?? calendarRedirectUri(request, provider),
     response_type: "code",
     scope: cfg.scope,
     state,

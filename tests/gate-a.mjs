@@ -2847,14 +2847,22 @@ console.log("== /super: a second identity, and the wall between them");
   await shot("super.catalog.unknownkind", await capture(
     SUPER_CATALOG.GET, req("/api/super/catalog/nonsense"), ctx({ kind: "nonsense" })));
 
-  // ---- the calendar, unconnected and unconfigured --------------------------
-  // WHAT THESE PIN. There is no connection saved by this fixture, and the plain
-  // GET touches no network (see the route's own comment on why discovery is
-  // opt-in) — so the shape pinned here is a null connection and the
-  // service-account address the screen tells the operator to share the
-  // calendar with. That address is a fixed string (googleFederation.ts's
-  // GOOGLE_FEDERATION_DEFAULTS), not something STS returns, so it is
-  // deterministic without needing a placeholder.
+  // ---- the calendar, unconnected -------------------------------------------
+  // WHAT THESE PIN, AND WHY THEY COST NO NETWORK CALL. This fixture saves no
+  // connection, and with nothing connected there is no token to call Google
+  // with — the GET returns `{ connection: null }` and stops, the events route
+  // returns `{ events: [], connected: false }` and stops. That is a property of
+  // the routes, not luck: a golden built from a live Google response would read
+  // differently on every machine that recorded it, which is exactly the
+  // flapping test this repo refuses to keep (CLAUDE.md).
+  //
+  // NOTHING ENV-DERIVED REACHES THESE BODIES EITHER. `super.calendar.unconnected`
+  // used to carry `serviceAccount` — the address an operator had to share the
+  // calendar with by hand — which was safe to pin only because it was a
+  // hardcoded constant. The OAuth flow replaced it, and whether Google is
+  // configured is now read by the SCREEN (a server component, which has no
+  // golden) rather than served here, so this route never has to clear four env
+  // vars the way account.calendar.none does.
   await shot("super.calendar.unconnected", await capture(
     SUPER_CAL.GET, req("/api/super/google-calendar"), ctx()));
   await shot("super.calendar.noid", await capture(
@@ -4038,10 +4046,9 @@ console.log("== account calendar: the unconnected state is network-free");
   };
 
   // account.calendar.none PINS `available`, WHICH IS PURELY ENV-DERIVED.
-  // enabledCalendarProviders() has no fallback the way the console's
-  // calendarServiceAccount() does (a hardcoded constant, stable with no env
-  // at all) — it is exactly the four vars Google/Microsoft sign-in already
-  // reads. `vercel env pull`, which is the routine way this repo refreshes
+  // enabledCalendarProviders() is exactly the four vars Google/Microsoft
+  // sign-in already reads, with no fallback value to be stable against an
+  // empty environment. `vercel env pull`, which is the routine way this repo refreshes
   // the OIDC token, would also populate those four and silently turn
   // `available: []` into `["google","microsoft"]` on that developer's
   // machine, reading as an unrelated regression rather than as what it is:

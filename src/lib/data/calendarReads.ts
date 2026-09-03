@@ -1,12 +1,16 @@
-// READING A PERSON'S OWN CONNECTED CALENDAR — either provider, one shape out.
+// READING A CONNECTED CALENDAR — either provider, one shape out.
 //
-// This is googleCalendar.ts's per-user sibling, not a replacement for it:
-// that file reads the CONSOLE's single Google calendar (REG.googleCalendar,
-// no userId, service-account auth). This one reads a calendar a PERSON
-// connected via OAuth (calendarConnections.ts, one row per user+provider),
-// for either Google or Microsoft, through the single door
-// getCalendarAccessToken already provides — this file never touches a
-// refresh token, an expiry, or the store a connection lives in.
+// This is the provider-facing half, and it is deliberately keyless: it never
+// touches a refresh token, an expiry, or the store a connection lives in. Who
+// the calendar belongs to arrives as an access token, from whichever wrapper
+// over calendarOAuth.ts's core produced it.
+//
+// TWO CALLERS, TWO STORES, ONE READ PATH. The account surface passes a userId
+// and reads through calendarConnections.ts (one row per user+provider). The
+// /super console passes `getAccessTokenImpl` instead — its single calendar
+// lives at REG.googleCalendar and belongs to no user, so googleCalendar.ts
+// supplies the token and the userId argument is unused. That injection point
+// is why this file needs no console-shaped fork.
 import { getCalendarAccessToken } from "@/platform/auth/calendarOAuth";
 import { CALENDAR_PROVIDERS, type CalendarProvider } from "@/platform/auth/calendarProviders";
 import { normaliseEvent, normaliseMicrosoftEvent, type CalendarEvent } from "@/shared/calendar";
@@ -46,7 +50,14 @@ function providerMessage(body: any, res: Response): string {
   return typeof said === "string" && said ? said : `http ${res.status}`;
 }
 
-async function callProvider(
+/**
+ * ONE GET AGAINST A PROVIDER, with its refusal carried. Exported so the
+ * console's own reads (googleCalendar.ts's `getCalendar`, which hits an
+ * endpoint neither function below covers) go through the SAME request shape,
+ * the same 10s abort and the same CalendarApiError rather than growing a
+ * second, subtly different copy of all three.
+ */
+export async function callProvider(
   provider: CalendarProvider,
   url: string,
   accessToken: string,
@@ -78,10 +89,16 @@ async function callProvider(
 export async function listCalendars(
   userId: string,
   provider: CalendarProvider,
+  // SAME INJECTION POINT AS listEvents, for the same two reasons: a test can
+  // drive this with no stored connection, and the console — whose calendar has
+  // no userId to load by — supplies its own token here rather than forcing a
+  // second copy of this function to exist for it.
+  deps: CalendarReadDeps = {},
 ): Promise<{ id: string; summary: string }[]> {
-  const accessToken = await getCalendarAccessToken(userId, provider);
+  const getAccessToken = deps.getAccessTokenImpl ?? getCalendarAccessToken;
+  const accessToken = await getAccessToken(userId, provider);
   const cfg = CALENDAR_PROVIDERS[provider];
-  const body = await callProvider(provider, cfg.calendarsUrl, accessToken);
+  const body = await callProvider(provider, cfg.calendarsUrl, accessToken, deps.fetchImpl);
   const rows: any[] = (provider === "google" ? body.items : body.value) || [];
   return rows
     .map((c) => ({
@@ -93,9 +110,11 @@ export async function listCalendars(
 
 // Injected so paging is provable without a live connection or a live network
 // call — same shape as calendarOAuth.ts's CalendarAuthDeps, for the same
-// reason. `getAccessTokenImpl` exists purely for that: a fake fetch alone
-// cannot drive listEvents through a real getCalendarAccessToken, which needs
-// a real stored, encrypted connection to load.
+// reason. `getAccessTokenImpl` started out purely for that (a fake fetch alone
+// cannot drive listEvents through a real getCalendarAccessToken, which needs a
+// real stored, encrypted connection to load) and now carries a second, equally
+// load-bearing caller: the /super console, whose calendar has no userId at all
+// and hands its own token in through exactly this seam.
 export type CalendarReadDeps = {
   fetchImpl?: FetchLike;
   getAccessTokenImpl?: (userId: string, provider: CalendarProvider) => Promise<string>;

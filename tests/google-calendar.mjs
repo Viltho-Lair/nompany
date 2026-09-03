@@ -2,11 +2,20 @@
 // and no network in the room. The integration halves — the four routes and their
 // goldens — live in tests/gate-a.mjs, because they need a console session.
 //
-// WHAT THIS FILE CANNOT PROVE, stated rather than implied: that Google STS
-// accepts a real Vercel token, that pg-gateway@ may be impersonated for the
-// calendar scope, that the Calendar API is enabled, or that any calendar has
-// been shared. Those need cloud state nobody here can create; the operator steps
-// are in the spec's §11.
+// THIS FILE SHRANK WHEN THE SERVICE ACCOUNT WENT. Its middle section drove the
+// old credential chain (Vercel OIDC → STS → IAM Credentials → an impersonated
+// access token) end to end against a recording fetch. That chain is deleted —
+// the console connects by OAuth now, like everybody else — so those assertions
+// went with their subject rather than being kept as a monument. What is left is
+// what still describes live behaviour: the shared federation reader the Cloud
+// Run gateway depends on, the console connection's own public shape, and the
+// calendar arithmetic the board renders from.
+//
+// WHAT THIS FILE CANNOT PROVE, stated rather than implied: that Google accepts
+// a real OAuth client, that consent works, or that a token refreshes against
+// the live endpoint. Those need registrations only the operator can create; see
+// the spec's §10. The token lifecycle itself is asserted, with a fake fetch, in
+// tests/connected-calendars.mjs.
 import { register } from "node:module";
 import { pathToFileURL } from "node:url";
 
@@ -53,7 +62,12 @@ console.log("\ngoogle federation");
     PG_GATEWAY_DEFAULTS.oidcIssuer === GOOGLE_FEDERATION_DEFAULTS.oidcIssuer &&
     PG_GATEWAY_DEFAULTS.projectNumber === GOOGLE_FEDERATION_DEFAULTS.projectNumber);
 
-  ok("the service account is the one the calendar must be shared with",
+  // NO LONGER ANYTHING TO DO WITH THE CALENDAR. This used to read "the service
+  // account is the one the calendar must be shared with"; nothing is shared
+  // with it any more. It is the gateway's identity and only the gateway's, and
+  // it is pinned here because the value is a production constant a typo in
+  // would break every database call.
+  ok("the federation default names the gateway's service account",
     GOOGLE_FEDERATION_DEFAULTS.serviceAccount === "pg-gateway@nompany-application.iam.gserviceaccount.com",
     GOOGLE_FEDERATION_DEFAULTS.serviceAccount);
 
@@ -78,93 +92,82 @@ console.log("\ngoogle federation");
   // from Task 1's review. Left unset, it must still say "pg-gateway auth" so
   // the gateway's existing messages and `readGatewayAuthConfig`'s single-
   // argument call site stay byte-identical.
+  //
+  // ITS SECOND CALLER IS GONE. googleCalendarAuth.ts passed "google-calendar
+  // auth" so a calendar misconfiguration would not report itself as a database
+  // problem; the calendar no longer uses federation at all. The parameter is
+  // kept rather than unpicked — this is production auth code the Cloud Run
+  // gateway depends on, and reverting a split to tidy up a motivation is risk
+  // for nothing — so the override stays asserted here rather than becoming a
+  // branch nothing ever proves.
   let skewMsg = "";
   try { readFederationConfig({ PG_GATEWAY_TOKEN_SKEW_MS: "not-a-number" }); } catch (e) { skewMsg = e.message; }
   ok("readFederationConfig defaults its own `who` to pg-gateway auth",
     /^pg-gateway auth: PG_GATEWAY_TOKEN_SKEW_MS/.test(skewMsg), skewMsg);
 
-  let calendarSkewMsg = "";
+  let otherSkewMsg = "";
   try {
-    readFederationConfig({ PG_GATEWAY_TOKEN_SKEW_MS: "not-a-number" }, "google-calendar auth");
-  } catch (e) { calendarSkewMsg = e.message; }
-  ok("...and a passed `who` overrides it, so a calendar misconfiguration does not name the database",
-    /^google-calendar auth: PG_GATEWAY_TOKEN_SKEW_MS/.test(calendarSkewMsg), calendarSkewMsg);
+    readFederationConfig({ PG_GATEWAY_TOKEN_SKEW_MS: "not-a-number" }, "some other caller");
+  } catch (e) { otherSkewMsg = e.message; }
+  ok("...and a passed `who` still overrides it",
+    /^some other caller: PG_GATEWAY_TOKEN_SKEW_MS/.test(otherSkewMsg), otherSkewMsg);
 }
 
-const {
-  CALENDAR_SCOPE, calendarServiceAccount, expiryFromExpireTime, mintCalendarAccessToken,
-  getCalendarAccessToken, _resetCalendarTokenCacheForTests,
-} = await import("../src/platform/auth/googleCalendarAuth.ts");
+// A real key, scoped to this test process only. fieldCrypto's encryptField
+// throws without one (deliberately — see its header), so this must be set
+// BEFORE googleCalendar.ts's functions are called, not merely imported. Same
+// value and same reason as tests/connected-calendars.mjs.
+process.env.FIELD_ENCRYPTION_KEY = "test-only-key-never-used-outside-this-process";
 
-console.log("\ncalendar access token");
+const { publicConnection, decryptStored } = await import("../src/lib/data/googleCalendar.ts");
+const { encryptField } = await import("../src/platform/auth/fieldCrypto.ts");
+
+console.log("\nthe console connection's public shape");
 {
-  ok("the scope is read-only", CALENDAR_SCOPE === "https://www.googleapis.com/auth/calendar.readonly");
-  ok("the default impersonation target is pg-gateway@",
-    calendarServiceAccount({}) === "pg-gateway@nompany-application.iam.gserviceaccount.com");
-  ok("...and is overridable",
-    calendarServiceAccount({ GOOGLE_CALENDAR_SERVICE_ACCOUNT: "other@x.iam.gserviceaccount.com" }) ===
-      "other@x.iam.gserviceaccount.com");
-
-  // THE EXPIRY IS READ, NOT GUESSED. generateAccessToken returns an OPAQUE
-  // token — there is no JWT to decode, unlike the gateway's ID token — plus an
-  // RFC-3339 expireTime. A response without one must be refused: a token cached
-  // forever is one that starts failing every request the moment it lapses, with
-  // nothing in the code that would ever mint another.
-  ok("expireTime is parsed to epoch ms",
-    expiryFromExpireTime("2026-09-03T12:00:00Z") === Date.parse("2026-09-03T12:00:00Z"));
-  for (const bad of [undefined, null, "", "not a date", 12345]) {
-    let threw = false;
-    try { expiryFromExpireTime(bad); } catch { threw = true; }
-    ok(`a missing or unreadable expireTime is refused (${JSON.stringify(bad)})`, threw);
-  }
-
-  // ---- the chain, with a fetch that records instead of connecting ----------
-  const ISSUER = "https://oidc.vercel.com/vilthos-projects";
-  const AUDIENCE = "https://vercel.com/vilthos-projects";
-  const b64c = (o) => Buffer.from(JSON.stringify(o), "utf8").toString("base64url");
-  const VERCEL_TOKEN = `${b64c({ alg: "RS256" })}.${b64c({ iss: ISSUER, aud: AUDIENCE })}.c2ln`;
-  const env = { VERCEL_OIDC_TOKEN: VERCEL_TOKEN };
-
-  const calls = [];
-  const at = (msFromNow) => new Date(Date.now() + msFromNow).toISOString();
-  const fetchImpl = async (url, init) => {
-    calls.push({ url, body: JSON.parse(init.body) });
-    if (url.includes("sts.googleapis.com")) {
-      return new Response(JSON.stringify({ access_token: "federated" }), { status: 200 });
-    }
-    return new Response(JSON.stringify({ accessToken: "ya29.calendar", expireTime: at(3600_000) }), { status: 200 });
+  // THE ONE SHAPE A ROUTE MAY RETURN. Built by naming its fields rather than
+  // by deleting two from a spread, because a spread that forgets a field added
+  // later leaks a token silently, into a response body and every log line that
+  // records one. Asserted by handing it a connection that carries obvious
+  // tokens and checking that NOTHING resembling one survives — a whole-object
+  // check, not a per-field one, so a field added to the record tomorrow
+  // without being added to publicConnection is caught by this test rather than
+  // by a support ticket.
+  const full = {
+    accountEmail: "ops@nompany.test",
+    refreshToken: "1//refresh-secret",
+    accessToken: "ya29.access-secret",
+    expiresAtMs: 1_800_000,
+    calendarId: "team@group.calendar.google.com",
+    summary: "Team",
+    timeZone: "Asia/Riyadh",
+    connectedAt: 1_700_000,
+    connectedBy: "ops@nompany.test",
   };
+  const pub = publicConnection(full);
+  const serialised = JSON.stringify(pub);
+  ok("no refresh token survives", !serialised.includes("refresh-secret"), serialised);
+  ok("no access token survives", !serialised.includes("access-secret"), serialised);
+  ok("no expiry survives either — it describes a token and nothing else",
+    !("expiresAtMs" in pub), serialised);
+  ok("and the six fields the screen actually reads do",
+    JSON.stringify(Object.keys(pub).sort()) ===
+      JSON.stringify(["accountEmail", "calendarId", "connectedAt", "connectedBy", "summary", "timeZone"]),
+    JSON.stringify(Object.keys(pub)));
 
-  _resetCalendarTokenCacheForTests();
-  const minted = await mintCalendarAccessToken({ env, fetchImpl });
-  ok("the chain returns an access token", minted.token === "ya29.calendar", minted.token);
-  ok("two legs, in order",
-    calls.length === 2 && calls[0].url.includes("sts.googleapis.com") &&
-    calls[1].url.includes("iamcredentials.googleapis.com"),
-    calls.map((c) => c.url).join(" , "));
-  ok("the second leg impersonates pg-gateway@",
-    calls[1].url.includes(encodeURIComponent("pg-gateway@nompany-application.iam.gserviceaccount.com")),
-    calls[1].url);
-  ok("...and asks for generateAccessToken, not generateIdToken",
-    calls[1].url.endsWith(":generateAccessToken"), calls[1].url);
-  ok("...with the read-only calendar scope and nothing else",
-    JSON.stringify(calls[1].body.scope) === JSON.stringify([CALENDAR_SCOPE]),
-    JSON.stringify(calls[1].body));
-
-  // ONE INSTANCE MUST NOT MINT PER REQUEST. Two calls, one chain.
-  calls.length = 0;
-  _resetCalendarTokenCacheForTests();
-  await getCalendarAccessToken({ env, fetchImpl });
-  await getCalendarAccessToken({ env, fetchImpl });
-  ok("a fresh token is reused rather than re-minted", calls.length === 2, `${calls.length} calls`);
-
-  // AND A MISSING IDENTITY IS A FAILURE, NEVER A FALLBACK.
-  _resetCalendarTokenCacheForTests();
-  let msg = "";
-  try { await getCalendarAccessToken({ env: {}, fetchImpl }); } catch (e) { msg = e.message; }
-  ok("no Vercel identity throws", /VERCEL_OIDC_TOKEN/.test(msg), msg);
-  ok("...naming the calendar, not the gateway", /^google-calendar auth:/.test(msg), msg);
-  ok("...and listing the sources it tried", /Sources tried/.test(msg), msg);
+  // A CONNECTION WHOSE REFRESH TOKEN DOES NOT DECRYPT IS NOT A CONNECTION.
+  // decryptField fails soft (returns "" rather than throwing) so a rotated
+  // FIELD_ENCRYPTION_KEY or a corrupted value would otherwise hand back
+  // something that looks connected right up until the access token expired
+  // with nothing left to renew it.
+  ok("an unreadable refresh token reads as no connection",
+    decryptStored({ ...full, refreshToken: "enc:v1:not-really-ciphertext", accessToken: "" }) === null);
+  const good = decryptStored({
+    ...full,
+    refreshToken: encryptField("1//refresh-secret"),
+    accessToken: encryptField("ya29.access-secret"),
+  });
+  ok("...and a readable one comes back decrypted", good?.refreshToken === "1//refresh-secret");
+  ok("...with the chosen calendar intact", good?.calendarId === "team@group.calendar.google.com");
 }
 
 const { normaliseEvent, eventDayKeys } = await import("../src/shared/calendar.ts");
