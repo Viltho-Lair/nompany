@@ -91,7 +91,7 @@ async function google(path: string, params: Record<string, string> = {}) {
   return body;
 }
 
-/** The five failures an operator can actually fix, each naming its fix. */
+/** The four failures an operator can actually fix, each naming its fix. */
 function explain(status: number, reason: string, body: any): string {
   const sa = calendarServiceAccount();
   const said = String(body?.error?.message || "").slice(0, 300);

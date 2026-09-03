@@ -41,7 +41,20 @@ export const GET = route(spec, async ({ request }) => {
     // AN EMPTY OR FAILING LIST IS NOT A BROKEN CONNECTION. A calendar shared
     // with a service account routinely does not appear in its calendarList, so
     // this is reported alongside the connection rather than instead of it.
-    problem = e instanceof Error ? e.message : String(e);
+    //
+    // LOGGED HERE AS WELL AS RETURNED — see the matching comment in the PUT
+    // handler below. An EMPTY calendars array reaching the response is normal
+    // and is never logged; what is logged here is a THROW — the identity chain
+    // (STS, IAM Credentials) or the Calendar API itself refusing the call — and
+    // that is a different thing that must not disappear once it is reshaped
+    // into `problem` for the screen, or a log-reading operator sees no evidence
+    // the call ever failed.
+    const detail = e instanceof Error ? e.message : String(e);
+    log.error("google-calendar discover failed", {
+      error: detail,
+      stack: e instanceof Error ? e.stack?.split("\n")[1]?.trim() : undefined,
+    });
+    problem = detail;
   }
   return { connection, calendars, problem, serviceAccount };
 });

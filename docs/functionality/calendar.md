@@ -81,9 +81,11 @@ service-account chain mints a fresh one on the next read.
 
 ## The failure messages, and what each one means
 
-All five come from `explain()` in `googleCalendar.ts`, are shown **verbatim** (never replaced
+All four come from `explain()` in `googleCalendar.ts`, are shown **verbatim** (never replaced
 with "something went wrong"), and each names its own fix because the three Google failures
-below look identical from this screen otherwise:
+below look identical from this screen otherwise. The table below has five rows because the
+last one restates the same four messages as they appear on the events grid, rather than being
+a fifth `explain()` branch:
 
 | Where it shows | Message | What it means |
 |---|---|---|
