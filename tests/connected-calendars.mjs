@@ -18,7 +18,7 @@ const ok = (label, cond, detail = "") => {
 
 const {
   CALENDAR_PROVIDERS, isCalendarProvider, providerConfigured, enabledCalendarProviders,
-  calendarAuthorizeUrl, calendarRedirectUri,
+  calendarAuthorizeUrl, calendarRedirectUri, safeReturnPath, DEFAULT_CALENDAR_RETURN_PATH,
 } = await import("../src/platform/auth/calendarProviders.ts");
 
 // `host` is a FORBIDDEN header name in the Fetch spec — `new Request(url, {
@@ -84,6 +84,55 @@ console.log("\ncalendar providers");
     url.includes(encodeURIComponent("Calendars.Read offline_access")), url);
 }
 
+console.log("\nsafeReturnPath — the open-redirect guard");
+{
+  const SITE = "https://nompany.com";
+
+  // GENUINELY OFF-SITE ONCE A REAL URL PARSER RESOLVES THEM. The three
+  // control-character rows are what `?next=/%0A/evil.example` (and the tab /
+  // CR equivalents) decode to by the time this function sees them: a control
+  // character sitting between the leading "/" and a second "/". A prefix
+  // test (`startsWith("//")`) does not see it — the string visibly starts
+  // with one "/" — but the WHATWG URL parser strips every ASCII tab/CR/LF
+  // from its ENTIRE input BEFORE parsing, which collapses it to
+  // "//evil.example" underneath: protocol-relative, off-site. THIS BLOCK
+  // MUST FAIL IF THE GUARD EVER REVERTS TO STRING PREFIX MATCHING.
+  const rejected = {
+    "protocol-relative (//evil.example)": "//evil.example",
+    "absolute, different origin": "https://evil.example",
+    // "/" immediately followed by "\", OR two backslashes with no leading
+    // "/" at all: the WHATWG parser's "special authority ignore slashes"
+    // state treats a slash-or-backslash PAIR the same as "//" for a special
+    // scheme (https), so `evil.example` here is parsed as a HOST, not a path
+    // segment — genuinely off-site, confirmed by inspecting `.origin`, not
+    // assumed from how the string looks.
+    "backslash variant (/\\)": "/\\evil.example",
+    "double backslash, no leading /": "\\\\evil.example",
+    "embedded LF, decodes from /%0A/evil.example": "/\n/evil.example",
+    "embedded TAB, decodes from /%09/evil.example": "/\t/evil.example",
+    "embedded CR, decodes from /%0D/evil.example": "/\r/evil.example",
+    "not a string": 12345,
+  };
+  for (const [label, v] of Object.entries(rejected)) {
+    const out = safeReturnPath(v, SITE);
+    ok(`rejects ${label}, falls back to the default`,
+      out === DEFAULT_CALENDAR_RETURN_PATH, `${JSON.stringify(v)} -> ${out}`);
+  }
+
+  // ACCEPTED: an ordinary same-site value comes back as its normalised
+  // pathname+search+hash.
+  const accepted = {
+    "/en/account": "/en/account",
+    "/foo?a=1#b": "/foo?a=1#b",
+    "": DEFAULT_CALENDAR_RETURN_PATH,
+  };
+  for (const [v, expected] of Object.entries(accepted)) {
+    const out = safeReturnPath(v, SITE);
+    ok(`resolves same-site value ${JSON.stringify(v)} to ${JSON.stringify(expected)}`,
+      out === expected, out);
+  }
+}
+
 // A real key, scoped to this test process only. fieldCrypto's encryptField
 // throws without one (deliberately — see its header), so this must be set
 // BEFORE calendarConnections.ts's functions are called, not just imported.
@@ -140,8 +189,59 @@ console.log("\ndecrypt-and-gate contract (no store)");
     decryptStored(unreadable) === null);
 }
 
-const { isDue, expiryFrom, refreshAccessToken, REFRESH_BUFFER_MS } =
+const { isDue, expiryFrom, refreshAccessToken, REFRESH_BUFFER_MS, fetchAccountEmail } =
   await import("../src/platform/auth/calendarOAuth.ts");
+
+console.log("\nfetchAccountEmail — the account-screen label, best-effort");
+{
+  // GOOGLE: the calendarList entry marked primary carries the account email
+  // as its `id` — not a dedicated email field, which is why this asserts the
+  // exact row is picked out among several rather than trusting "the first
+  // one".
+  const googleBody = {
+    items: [
+      { id: "someone-elses-shared-calendar@group.calendar.google.com", primary: false },
+      { id: "me@gmail.test", primary: true },
+    ],
+  };
+  const googleFetch = async () => new Response(JSON.stringify(googleBody), { status: 200 });
+  const googleEmail = await fetchAccountEmail("google", "AT-TEST", googleFetch);
+  ok("google: the primary calendar's id is the account email", googleEmail === "me@gmail.test", googleEmail);
+
+  // MICROSOFT: the default calendar's owner.address is the account email —
+  // a different field, on a different row-selector (isDefaultCalendar), same
+  // "don't just take the first row" shape as Google above.
+  const msBody = {
+    value: [
+      { id: "shared", isDefaultCalendar: false, owner: { address: "someone-else@outlook.test" } },
+      { id: "primary", isDefaultCalendar: true, owner: { address: "me@outlook.test" } },
+    ],
+  };
+  const msFetch = async () => new Response(JSON.stringify(msBody), { status: 200 });
+  const msEmail = await fetchAccountEmail("microsoft", "AT-TEST", msFetch);
+  ok("microsoft: the default calendar's owner.address is the account email", msEmail === "me@outlook.test", msEmail);
+
+  // A FAILED LOOKUP MUST NOT THROW — the connection it is labelling already
+  // succeeded, and a network blip here must cost nothing but the label.
+  const failing = async () => { throw new Error("network blip"); };
+  const onError = await fetchAccountEmail("google", "AT-TEST", failing);
+  ok("a network failure resolves to \"\" rather than throwing", onError === "", onError);
+
+  const badStatus = async () => new Response("nope", { status: 500 });
+  const onBadStatus = await fetchAccountEmail("microsoft", "AT-TEST", badStatus);
+  ok("a non-2xx response resolves to \"\" rather than throwing", onBadStatus === "", onBadStatus);
+
+  // The token travels only in the header, exactly like every other call in
+  // this file.
+  let capturedInit = null;
+  const capturing = async (_url, init) => {
+    capturedInit = init;
+    return new Response(JSON.stringify({ items: [] }), { status: 200 });
+  };
+  await fetchAccountEmail("google", "AT-SECRET-VALUE", capturing);
+  ok("the access token travels in the Authorization header",
+    String(capturedInit?.headers?.authorization) === "Bearer AT-SECRET-VALUE", JSON.stringify(capturedInit));
+}
 
 console.log("\ntoken lifecycle");
 {

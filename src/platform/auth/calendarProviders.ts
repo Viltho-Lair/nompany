@@ -92,16 +92,31 @@ export const DEFAULT_CALENDAR_RETURN_PATH = "/en/account";
 // link like `.../calendar/google/start?next=https://evil.example` would mint
 // state carrying that URL, and the callback would 302 there once the person
 // has connected a calendar as themselves: an open redirect wearing this
-// feature's own trust. Accepting only a same-site path — one leading "/" and
-// not the "//" or "/\" that some browsers still resolve as protocol-relative
-// — is what keeps `next` a page on this site and nothing else. Checked again
-// in the callback, not just at mint time, because the cost of checking twice
-// is nothing and the cost of trusting the first check alone is an open
-// redirect the moment a second call site forgets it.
-export function safeReturnPath(v: unknown, fallback: string = DEFAULT_CALENDAR_RETURN_PATH): string {
-  const s = typeof v === "string" ? v : "";
-  if (s.startsWith("/") && !s.startsWith("//") && !s.startsWith("/\\")) return s;
-  return fallback;
+// feature's own trust.
+//
+// A PREFIX TEST CANNOT MODEL WHAT THE URL PARSER DOES, so this used to be one
+// (`startsWith("/") && !startsWith("//")`) and it was wrong: the WHATWG URL
+// parser strips every ASCII tab/CR/LF out of its ENTIRE input before it looks
+// at a single character, so `"/\n/evil.example"` — which is exactly what
+// `?next=/%0A/evil.example` decodes to by the time it reaches here — passes
+// a prefix test (it starts with one "/", not two) and then, once the browser
+// parses it, becomes `"//evil.example"`, which IS protocol-relative. The only
+// check that cannot disagree with what a browser actually resolves is to
+// resolve it the same way: parse `v` against the real origin and compare the
+// RESULT's origin, not the raw string. Checked again in the callback, not
+// just at mint time, because the cost of checking twice is nothing and the
+// cost of trusting the first check alone is an open redirect the moment a
+// second call site forgets it.
+export function safeReturnPath(v: unknown, siteOrigin: string, fallback: string = DEFAULT_CALENDAR_RETURN_PATH): string {
+  if (typeof v !== "string" || !v) return fallback;
+  let parsed: URL;
+  try {
+    parsed = new URL(v, siteOrigin);
+  } catch {
+    return fallback;
+  }
+  if (parsed.origin !== siteOrigin) return fallback;
+  return `${parsed.pathname}${parsed.search}${parsed.hash}`;
 }
 
 export function providerConfigured(p: CalendarProvider, env: NodeJS.ProcessEnv = process.env): boolean {

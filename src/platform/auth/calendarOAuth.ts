@@ -178,6 +178,49 @@ export async function refreshAccessToken(
   };
 }
 
+// BEST-EFFORT, NEVER THROWS — called right after exchangeCode, before
+// saveConnection has written anything, so this is handed the fresh access
+// token directly rather than going through getCalendarAccessToken (which
+// loads a STORED connection; there isn't one yet, and there is no reason to
+// add a Redis round trip for a token already sitting in hand).
+//
+// Google's calendarList entry for the account's own calendar has its `id`
+// EQUAL to the account's email address; Microsoft's /me/calendars carries
+// `owner.address` on the row where `isDefaultCalendar` is true. Neither read
+// needs a scope beyond calendar.readonly / Calendars.Read, which the connect
+// flow already asked for.
+//
+// A failed lookup — network blip, malformed body, an account with zero
+// calendars — must not fail a successful connection: the calendar IS
+// connected either way, only the label the account screen shows goes blank
+// rather than wrong. Nothing here can leak a token: the request carries it
+// in an Authorization header exactly like every other call in this file, and
+// nothing about the outcome (success or the empty-string fallback) reveals
+// what was sent.
+export async function fetchAccountEmail(
+  provider: CalendarProvider,
+  accessToken: string,
+  fetchImpl: FetchLike = fetch,
+): Promise<string> {
+  try {
+    const cfg = CALENDAR_PROVIDERS[provider];
+    const res = await fetchImpl(cfg.calendarsUrl, { headers: { authorization: `Bearer ${accessToken}` } });
+    if (!res.ok) return "";
+    const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+    if (provider === "google") {
+      const rows = Array.isArray(body.items) ? (body.items as Record<string, unknown>[]) : [];
+      const primary = rows.find((r) => r?.primary === true);
+      return typeof primary?.id === "string" ? primary.id : "";
+    }
+    const rows = Array.isArray(body.value) ? (body.value as Record<string, unknown>[]) : [];
+    const def = rows.find((r) => r?.isDefaultCalendar === true) ?? rows[0];
+    const owner = def?.owner as Record<string, unknown> | undefined;
+    return typeof owner?.address === "string" ? owner.address : "";
+  } catch {
+    return "";
+  }
+}
+
 export type ConnectionPatch = { accessToken: string; expiresAtMs: number; refreshToken?: string };
 
 /**
