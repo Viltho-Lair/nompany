@@ -243,7 +243,7 @@ every push to `main` and every pull request.
   to 8 fails the build.
 - **The bundle budget pins the regression, not the size.** Two gates, and the
   first is the one that matters: the LARGEST CHUNK is 158 KB gz against a 250 KB
-  ceiling, because that is what every route pays. Total client JS is 1582 KB gz
+  ceiling, because that is what every route pays. Total client JS is 1586 KB gz
   against 1600 KB, which catches sprawl rather than splitting. The studio’s
   department screens are `nextDynamic()` now — the chunk fell from 307 to 197 and
   the total rose 12 KB in the same commit, which is the two ceilings doing their
@@ -290,8 +290,11 @@ every push to `main` and every pull request.
   in two languages and the block that draws how far a bill has got. 1578 → 1582 with
   the Google Calendar screen: `src/shared/calendar.ts` is a few hundred bytes of pure
   arithmetic with zero imports, plus two client components on a screen that was
-  already there. The largest chunk did not move at any point (158 KB), which is the
-  gate that matters.
+  already there. 1582 → 1586 with connected calendars: a Calendars panel on the
+  account screen and nineteen strings in two languages. The whole OAuth subsystem —
+  both providers, the token lifecycle, the connection store — is server-only and ships
+  nothing; what a browser gets is the panel. The largest chunk did not move at any
+  point (158 KB), which is the gate that matters.
 - Tests connect things — real repositories, real route handlers, **one assertion per
   bug that actually happened**. Each block names the defect it guards, so nobody
   deletes it later wondering what it was for.
