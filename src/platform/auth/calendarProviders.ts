@@ -83,6 +83,27 @@ export function isCalendarProvider(v: unknown): v is CalendarProvider {
   return v === "google" || v === "microsoft";
 }
 
+// Where the connect flow lands somebody when it wasn't told anywhere better.
+export const DEFAULT_CALENDAR_RETURN_PATH = "/en/account";
+
+// `next` travels inside SIGNED state (oauth.ts's makeState/readState), so it
+// cannot be forged in transit — but the value that gets signed in the first
+// place comes straight off a query string somebody else can construct. A
+// link like `.../calendar/google/start?next=https://evil.example` would mint
+// state carrying that URL, and the callback would 302 there once the person
+// has connected a calendar as themselves: an open redirect wearing this
+// feature's own trust. Accepting only a same-site path — one leading "/" and
+// not the "//" or "/\" that some browsers still resolve as protocol-relative
+// — is what keeps `next` a page on this site and nothing else. Checked again
+// in the callback, not just at mint time, because the cost of checking twice
+// is nothing and the cost of trusting the first check alone is an open
+// redirect the moment a second call site forgets it.
+export function safeReturnPath(v: unknown, fallback: string = DEFAULT_CALENDAR_RETURN_PATH): string {
+  const s = typeof v === "string" ? v : "";
+  if (s.startsWith("/") && !s.startsWith("//") && !s.startsWith("/\\")) return s;
+  return fallback;
+}
+
 export function providerConfigured(p: CalendarProvider, env: NodeJS.ProcessEnv = process.env): boolean {
   const cfg = CALENDAR_PROVIDERS[p];
   return Boolean(env[cfg.idEnv] && env[cfg.secretEnv]);
