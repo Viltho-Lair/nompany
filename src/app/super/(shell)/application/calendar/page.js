@@ -1,187 +1,47 @@
-import { PageHeader, Card, CardHead, CardBody, Row, Col, Badge, Icon, toneBg, toneInk } from "../../../_components/ui";
+import { PageHeader, Icon } from "../../../_components/ui";
 import { BASE } from "../../../_components/nav";
+import { getConnection } from "@/lib/data/googleCalendar";
+import { calendarServiceAccount } from "@/platform/auth/googleCalendarAuth";
+import ConnectCalendar from "./ConnectCalendar";
+import CalendarBoard from "./CalendarBoard";
 
 export const metadata = { title: "Calendar" };
+// The connection is read from the store on every request, and the board's own
+// fetch is `cache: "no-store"` besides — a stale "connected" flag pointing at a
+// calendar id nobody can read any more is worse than the extra round trip.
+export const dynamic = "force-dynamic";
 
-const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+// THIS SCREEN USED TO BE A TEMPLATE with April 2026, five invented calendars
+// and a dozen made-up events written into the file. It now reads the ONE
+// Google calendar the console is connected to (see docs/functionality/calendar.md)
+// and renders one of two honest states: the real grid, or the setup steps —
+// never a convincing fake standing in for either.
+export default async function CalendarPage() {
+  const connection = await getConnection();
+  const serviceAccount = calendarServiceAccount();
 
-// April 2026 starts on a Wednesday, so the grid opens with two trailing March days.
-const LEAD = [30, 31];
-const DAYS = Array.from({ length: 30 }, (_, i) => i + 1);
-const TRAIL = [1, 2, 3];
-const TODAY = 8;
-
-const EVENTS = {
-  2: [{ title: "Beta freeze", tone: "primary" }],
-  6: [{ title: "Bilal starts", tone: "success" }],
-  8: [
-    { title: "Platform standup", tone: "info" },
-    { title: "Falcon renewal call", tone: "warning" },
-  ],
-  12: [{ title: "Falcon QBR", tone: "warning" }],
-  14: [{ title: "Security review", tone: "danger" }],
-  15: [{ title: "Invoice run", tone: "primary" }],
-  19: [{ title: "Nourah renewal", tone: "success" }],
-  22: [{ title: "Board meeting", tone: "danger" }],
-  27: [{ title: "Sprint 25 planning", tone: "info" }],
-};
-
-const UPCOMING = [
-  { title: "Platform standup", when: "Today · 09:30 – 09:45", tone: "info", icon: "users" },
-  { title: "Falcon renewal call", when: "Today · 15:00 – 16:00", tone: "warning", icon: "phone" },
-  { title: "Falcon QBR", when: "Sun 12 Apr · 11:00", tone: "warning", icon: "briefcase" },
-  { title: "Security review", when: "Tue 14 Apr · 13:00", tone: "danger", icon: "shield" },
-  { title: "Invoice run", when: "Wed 15 Apr · 08:00", tone: "primary", icon: "invoice" },
-];
-
-// The tone table, built from the console's ONE tone helper rather than being a
-// ninth copy of the same hand-mixed rgba() values. See toneBg/toneFg in
-// _components/ui: the tint composes from the semantic token, so it follows the
-// design system and the theme instead of freezing the template's palette.
-const TONE_NAMES = ["primary", "success", "warning", "info", "danger"];
-const TONE_FG = Object.fromEntries(TONE_NAMES.map((t) => [t, toneInk(t)]));
-const TONE_BG = Object.fromEntries(TONE_NAMES.map((t) => [t, toneBg(t)]));
-
-function Cell({ day, muted, today, events = [] }) {
-  return (
-    <div
-      className="min-h-[104px] border-b border-e p-2"
-      style={{ borderColor: "var(--ad-border)", opacity: muted ? 0.4 : 1 }}
-    >
-      <span
-        className={`num inline-flex h-6 w-6 items-center justify-center rounded-full text-xs ${today ? "font-700 text-white" : "font-500"}`}
-        style={today ? { backgroundColor: "var(--ad-primary)" } : undefined}
-      >
-        {day}
-      </span>
-      <div className="mt-1.5 space-y-1">
-        {events.map((e) => (
-          <p
-            key={e.title}
-            className="truncate rounded px-1.5 py-0.5 text-[11px] font-500"
-            style={{ backgroundColor: TONE_BG[e.tone], color: TONE_FG[e.tone] }}
-            title={e.title}
-          >
-            {e.title}
-          </p>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-export default function CalendarPage() {
   return (
     <>
       <PageHeader
         title="Calendar"
         breadcrumb={[{ label: "Home", href: `${BASE}/dashboard/analytics` }, { label: "Application" }, { label: "Calendar" }]}
-        actions={<button type="button" className="ad-btn ad-btn-primary ad-btn-sm"><Icon name="plus" className="h-3.5 w-3.5" /> New event</button>}
+        actions={
+          connection ? (
+            // "New event" became this. calendar.readonly cannot write, and a
+            // button that lies about creating an event is worse than no button.
+            <a
+              className="ad-btn ad-btn-primary ad-btn-sm"
+              href={`https://calendar.google.com/calendar/u/0/r?cid=${encodeURIComponent(connection.calendarId)}`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <Icon name="external" className="h-3.5 w-3.5" /> Open in Google Calendar
+            </a>
+          ) : null
+        }
       />
 
-      <Row>
-        <Col span={9}>
-          <Card>
-            <CardHead
-              title="April 2026"
-              action={
-                <div className="flex items-center gap-2">
-                  <div className="inline-flex rounded-md border p-0.5" style={{ borderColor: "var(--ad-border)" }}>
-                    {["Month", "Week", "Day"].map((v, i) => (
-                      <button
-                        key={v}
-                        type="button"
-                        className="rounded px-2.5 py-1 text-xs font-500"
-                        style={i === 0 ? { backgroundColor: "var(--ad-primary)", color: "var(--ad-primary-foreground)" } : { color: "var(--ad-muted-foreground)" }}
-                      >
-                        {v}
-                      </button>
-                    ))}
-                  </div>
-                  <button type="button" className="ad-icon-btn h-9 w-9" aria-label="Previous month"><Icon name="chevronLeft" className="h-4 w-4" /></button>
-                  <button type="button" className="ad-icon-btn h-9 w-9" aria-label="Next month"><Icon name="chevronRight" className="h-4 w-4" /></button>
-                </div>
-              }
-            />
-            <div className="overflow-x-auto">
-              <div className="min-w-[720px]">
-                <div className="grid grid-cols-7 border-t" style={{ borderColor: "var(--ad-border)" }}>
-                  {DOW.map((d) => (
-                    <div
-                      key={d}
-                      className="border-b border-e px-2 py-2.5 text-center text-[11px] font-600 uppercase tracking-wider text-[var(--ad-muted-foreground)]"
-                      style={{ borderColor: "var(--ad-border)" }}
-                    >
-                      {d}
-                    </div>
-                  ))}
-                </div>
-                <div className="grid grid-cols-7">
-                  {LEAD.map((d) => <Cell key={`lead-${d}`} day={d} muted />)}
-                  {DAYS.map((d) => (
-                    <Cell key={d} day={d} today={d === TODAY} events={EVENTS[d]} />
-                  ))}
-                  {TRAIL.map((d) => <Cell key={`trail-${d}`} day={d} muted />)}
-                </div>
-              </div>
-            </div>
-          </Card>
-        </Col>
-
-        <Col span={3}>
-          <div className="flex flex-col gap-6">
-            <Card>
-              <CardHead title="Upcoming" />
-              <CardBody>
-                <ul className="space-y-4">
-                  {UPCOMING.map((e) => (
-                    <li key={e.title} className="flex items-start gap-3">
-                      <span
-                        className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
-                        style={{ backgroundColor: TONE_BG[e.tone], color: TONE_FG[e.tone] }}
-                      >
-                        <Icon name={e.icon} className="h-4 w-4" />
-                      </span>
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-500">{e.title}</p>
-                        <p className="mt-0.5 text-xs text-[var(--ad-muted-foreground)]">{e.when}</p>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </CardBody>
-            </Card>
-
-            <Card>
-              <CardHead title="Calendars" />
-              <CardBody>
-                <ul className="space-y-3">
-                  {[
-                    { label: "Platform", tone: "primary" },
-                    { label: "Revenue", tone: "success" },
-                    { label: "Customer", tone: "warning" },
-                    { label: "Security", tone: "danger" },
-                    { label: "Team", tone: "info" },
-                  ].map((c) => (
-                    <li key={c.label} className="flex items-center gap-2.5">
-                      <input type="checkbox" className="ad-check" defaultChecked aria-label={c.label} />
-                      <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: TONE_FG[c.tone] }} />
-                      <span className="text-sm">{c.label}</span>
-                    </li>
-                  ))}
-                </ul>
-              </CardBody>
-            </Card>
-
-            <Card>
-              <CardBody full className="flex items-center gap-3">
-                <Badge tone="primary">12</Badge>
-                <p className="text-xs text-[var(--ad-muted-foreground)]">events scheduled this month</p>
-              </CardBody>
-            </Card>
-          </div>
-        </Col>
-      </Row>
+      {connection ? <CalendarBoard connection={connection} /> : <ConnectCalendar serviceAccount={serviceAccount} />}
     </>
   );
 }
