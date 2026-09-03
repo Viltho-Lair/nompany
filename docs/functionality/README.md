@@ -22,6 +22,7 @@ Three rules that keep this folder worth reading:
 
 | File | Covers |
 |---|---|
+| [approvals.md](approvals.md) | Who signs a bill and above what amount: chains, thresholds, the currency rule, and what is not covered |
 | [engagements.md](engagements.md) | The deal: one engagement, its stages, its client, lock and delete |
 | [flows.md](flows.md) | Flow templates and industries: what a studio may edit, what is refused and why, and where the editor lives |
 | [language.md](language.md) | EN/AR and RTL: what decides which language, where the buttons are, what is translated |

@@ -1,0 +1,65 @@
+{
+  "status": 200,
+  "body": {
+    "ok": true,
+    "bill": {
+      "id": "<bil_ID>",
+      "reference": "BILL-0001",
+      "vendorId": "",
+      "vendorName": "Steel Co",
+      "orderId": "",
+      "projectId": "",
+      "lines": [
+        {
+          "description": "I-beams",
+          "qty": 1,
+          "unitPrice": 60000
+        }
+      ],
+      "currency": "SAR",
+      "vatRate": 15,
+      "approvals": [
+        {
+          "permission": "finance.payables.approve",
+          "byCollaboratorId": "<col_ID>",
+          "byAlias": "billapprover",
+          "at": "<timestamp>"
+        }
+      ],
+      "approvalPlan": {
+        "ok": true,
+        "steps": [
+          {
+            "permission": "finance.payables.approve",
+            "from": 0,
+            "label": "Finance"
+          },
+          {
+            "permission": "finance.payables.approveHigh",
+            "from": 50000,
+            "label": "Above the limit"
+          }
+        ],
+        "amountInBase": 69000,
+        "rate": null,
+        "updatedAt": 0,
+        "stale": false
+      },
+      "status": "Received",
+      "billDate": "<today>",
+      "dueDate": "",
+      "terms": "on-receipt",
+      "notes": "",
+      "payments": [],
+      "createdByCollaboratorId": "<col_ID>",
+      "createdAt": "<timestamp>",
+      "studioId": "<std_ID>",
+      "sectionId": "<sub_ID>",
+      "subtotal": 60000,
+      "vat": 9000,
+      "total": 69000,
+      "paid": 0,
+      "outstanding": 69000
+    }
+  }
+}

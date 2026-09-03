@@ -2143,6 +2143,7 @@ console.log("== finance: a number that only goes forward, and money that is deri
   const FINANCE = await import("@/app/api/studios/[slug]/finance/route.ts");
   const INVOICES = await import("@/app/api/studios/[slug]/finance/invoices/route.ts");
   const EXPENSES = await import("@/app/api/studios/[slug]/finance/expenses/route.ts");
+  const BILLS = await import("@/app/api/studios/[slug]/finance/bills/route.ts");
 
   const P = ctx({ slug });
   const shot = async (name, payload) => {
@@ -2216,6 +2217,58 @@ console.log("== finance: a number that only goes forward, and money that is deri
   const board = await capture(FINANCE.GET, req(`/api/studios/${slug}/finance`), P);
   ok("the finance board lists what was raised", (board.body?.invoices?.length ?? 0) >= 4,
     String(board.body?.invoices?.length));
+
+  // ---- accounts payable: a bill mid-approval-chain -------------------------
+  //
+  // AP HAD NO GOLDEN AT ALL until the approval engine landed, which is a gap
+  // rather than a licence: nothing in this file called the bills route, so the
+  // response could change in any way at all and no contract would notice.
+  //
+  // THE STATE PINNED HERE IS THE ONE THE FEATURE INTRODUCED — a bill that has
+  // been signed ONCE and is still waiting. Its status is Received, not
+  // Approved, which is exactly the distinction a single-right approval could
+  // not express: one signature used to be the whole approval whatever the
+  // amount.
+  //
+  // THE STUDIO'S CURRENCY IS SET AND PUT BACK. An amount cannot be judged
+  // against a limit without one, so the plan resolves to nothing until it is
+  // set — but seven other goldens echo `currency`, so leaving it set would
+  // move bodies this block has no business touching. Set, used, restored.
+  {
+    await updateStudio(studio.id, { currency: "SAR" });
+
+    // 60000 + 15% = 69000, over the seeded 50000 threshold, so the chain asks
+    // for two signatures rather than one. Stated because the whole golden turns
+    // on which side of that line the total falls.
+    const raised = await capture(BILLS.POST, req(`/api/studios/${slug}/finance/bills`, {
+      method: "POST",
+      body: { vendorName: "Steel Co", lines: [{ description: "I-beams", qty: 1, unitPrice: 60000 }] },
+    }), P);
+    ok("a bill is raised for the approval golden", raised.status === 201,
+      `${raised.status} ${JSON.stringify(raised.body).slice(0, 120)}`);
+    ok("...and its plan asks for two signatures",
+      raised.body?.bill?.approvalPlan?.steps?.length === 2,
+      JSON.stringify(raised.body?.bill?.approvalPlan?.steps));
+
+    // A DIFFERENT PERSON SIGNS. The owner raised it, and the raiser never signs
+    // their own bill (invariant 7) — so an owner-signed golden could not exist.
+    const approver = await personWith(
+      ["finance.payables.view", "finance.payables.approve"], "billapprover");
+    await signIn(approver.id);
+    const signed = await shot("finance.bill.partly-approved", await capture(
+      BILLS.PUT, req(`/api/studios/${slug}/finance/bills`, {
+        method: "PUT", body: { id: raised.body?.bill?.id, approve: true },
+      }), P));
+
+    ok("one signature does not approve a bill over the limit",
+      signed.body?.bill?.status === "Received", String(signed.body?.bill?.status));
+    ok("...and the signature is recorded against the step it cleared",
+      signed.body?.bill?.approvals?.[0]?.permission === "finance.payables.approve",
+      JSON.stringify(signed.body?.bill?.approvals));
+
+    await signIn(owner.id);
+    await updateStudio(studio.id, { currency: "" });
+  }
 
   // ---- rights --------------------------------------------------------------
   const viewer = await personWith(["finance.cash.view"], "financeviewer");

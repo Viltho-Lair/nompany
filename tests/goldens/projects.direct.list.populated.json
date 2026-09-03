@@ -254,6 +254,10 @@
       },
       {
         "id": "<col_ID>",
+        "alias": "billapprover"
+      },
+      {
+        "id": "<col_ID>",
         "alias": "hrasker"
       },
       {
@@ -353,6 +357,12 @@
     "overtimes": [],
     "directory": {
       "people": [
+        {
+          "id": "<col_ID>",
+          "alias": "billapprover",
+          "departmentId": "",
+          "departmentName": ""
+        },
         {
           "id": "<col_ID>",
           "alias": "engblind",

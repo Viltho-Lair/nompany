@@ -286,8 +286,9 @@ every push to `main` and every pull request.
   with `RecordSkeleton`, the three shapes ScreenSkeleton is not: a record profile, a
   document of lines and the project board's information sidebar. A department
   skeleton on those screens reserves a chart where a document is coming, which
-  makes the arrival a jump. The largest chunk did not move at any point (158 KB),
-  which is the gate that matters.
+  makes the arrival a jump. 1577 to 1578 with the bill approval chain: nine strings
+  in two languages and the block that draws how far a bill has got. The largest
+  chunk did not move at any point (158 KB), which is the gate that matters.
 - Tests connect things — real repositories, real route handlers, **one assertion per
   bug that actually happened**. Each block names the defect it guards, so nobody
   deletes it later wondering what it was for.
@@ -512,6 +513,30 @@ Main a child would gate the parent and hide Main from every member without the r
 `docs/progress.md` and the
 `docs/superpowers/plans/2026-08-2{6,7}-engagement-*.md` plans. The read/write paths are NOT
 wired to any route yet — the engagement layer is written alongside, reconciled by the backfill.
+
+**P2's approval engine is built, for bills.** A studio sets the amount above which a bill
+needs a second signature (Finance & Accounting settings), and `approveBill` walks the chain
+instead of asking one right: the permission is chosen at runtime, invariant 7 is enforced
+twice (the raiser never signs, and nobody signs two steps of one record), and `Approved` is
+written only on the last step so `BILL_STATUSES` gained no value. Amounts convert to the
+studio's currency through the daily FX table, and the rate that routed a bill is stored ON
+the bill, so a rate moving overnight cannot re-route one already mid-chain. Catalogue 123 to
+124 (`finance.payables.approveHigh`). `docs/functionality/approvals.md` is the file.
+
+**AP had no golden at all** until this landed — nothing called the bills route, so the
+response could have changed in any way without a contract noticing. It has one now, pinning
+the state the feature introduced: a bill signed once and still `Received`.
+
+**THE ROLLOUT CONSEQUENCE, because it is live behaviour and not a quiet default:** approving
+a bill now requires the studio to have set its own currency, and **`createStudio` has never
+set one**. So every existing studio must set a currency in Studio settings before it can
+approve a bill. The Payables screen says exactly that, in both languages, in place of the
+button. An amount cannot be judged against a limit without one; the alternative was
+approving under an unknown amount.
+
+**Only bills.** The controlled-document ladder (`moveSignable`) and the submit/answer pairs
+on change orders and timesheets are untouched, and there is no approval inbox, no delegation
+and no condition other than amount. See the "Not built yet" section of the functionality file.
 
 **Open decisions (waiting on a person):** the Wave 4 palette (marketing dark-first
 indigo/Sora vs the ERP's light-first blue/Saira); and whether to denormalise the slug index
