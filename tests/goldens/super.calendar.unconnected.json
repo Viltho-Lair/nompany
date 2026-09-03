@@ -1,7 +1,6 @@
 {
   "status": 200,
   "body": {
-    "connection": null,
-    "serviceAccount": "pg-gateway@nompany-application.iam.gserviceaccount.com"
+    "connection": null
   }
 }
