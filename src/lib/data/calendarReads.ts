@@ -10,6 +10,11 @@
 import { getCalendarAccessToken } from "@/platform/auth/calendarOAuth";
 import { CALENDAR_PROVIDERS, type CalendarProvider } from "@/platform/auth/calendarProviders";
 import { normaliseEvent, normaliseMicrosoftEvent, type CalendarEvent } from "@/shared/calendar";
+// REUSED, NOT REDECLARED — same reasoning as calendarOAuth.ts importing this
+// same type from this same file: it is exactly `(input, init) =>
+// Promise<Response>`, which is what a fake fetch needs to satisfy for a test,
+// and the real global `fetch` already satisfies it too.
+import type { FetchLike } from "@/platform/auth/googleFederation";
 
 /**
  * The provider's own refusal, carried rather than flattened.
@@ -41,8 +46,16 @@ function providerMessage(body: any, res: Response): string {
   return typeof said === "string" && said ? said : `http ${res.status}`;
 }
 
-async function callProvider(provider: CalendarProvider, url: string, accessToken: string): Promise<any> {
-  const res = await fetch(url, {
+async function callProvider(
+  provider: CalendarProvider,
+  url: string,
+  accessToken: string,
+  // Defaults to the real fetch so every existing call site is unchanged;
+  // listEvents below is the only caller that ever overrides it, so a test can
+  // drive pagination without a live network call.
+  fetchImpl: FetchLike = fetch as FetchLike,
+): Promise<any> {
+  const res = await fetchImpl(url, {
     headers: { authorization: `Bearer ${accessToken}` },
     cache: "no-store",
     // A HUNG CALL IS A HELD SERVERLESS INVOCATION — same reason
@@ -78,15 +91,64 @@ export async function listCalendars(
     .filter((c) => c.id);
 }
 
+// Injected so paging is provable without a live connection or a live network
+// call — same shape as calendarOAuth.ts's CalendarAuthDeps, for the same
+// reason. `getAccessTokenImpl` exists purely for that: a fake fetch alone
+// cannot drive listEvents through a real getCalendarAccessToken, which needs
+// a real stored, encrypted connection to load.
+export type CalendarReadDeps = {
+  fetchImpl?: FetchLike;
+  getAccessTokenImpl?: (userId: string, provider: CalendarProvider) => Promise<string>;
+};
+
+// A CALENDAR CAN HOLD MORE EVENTS THAN ONE RESPONSE PAGE HOLDS. Both
+// providers cap a single page — Google's maxResults=250, Microsoft's
+// $top=250 (both set in calendarProviders.ts's eventsUrl) — and neither
+// errors when there's more; each just says so, differently: Google returns
+// `nextPageToken`, Microsoft returns `@odata.nextLink`. NOT FOLLOWING EITHER
+// IS SILENT DATA LOSS — the person sees a calendar that is quietly missing
+// entries, with nothing on screen or in the response saying anything was
+// dropped. MAX_EVENT_PAGES bounds how far this follows, deliberately: an
+// unbounded loop turns one calendar's worth of history into a stuck request.
+// 4 pages * 250 events/page = 1000 events over the requested range — past
+// that the result is still truncated, but only for a range far outside what
+// this screen's month/week views ever ask for.
+const MAX_EVENT_PAGES = 4;
+
 export async function listEvents(
   { userId, provider, calendarId, from, to }:
     { userId: string; provider: CalendarProvider; calendarId: string; from: string; to: string },
+  deps: CalendarReadDeps = {},
 ): Promise<CalendarEvent[]> {
-  const accessToken = await getCalendarAccessToken(userId, provider);
+  const getAccessToken = deps.getAccessTokenImpl ?? getCalendarAccessToken;
+  const accessToken = await getAccessToken(userId, provider);
   const cfg = CALENDAR_PROVIDERS[provider];
-  const url = cfg.eventsUrl(calendarId, from, to);
-  const body = await callProvider(provider, url, accessToken);
-  const rows: any[] = (provider === "google" ? body.items : body.value) || [];
   const normalise = provider === "google" ? normaliseEvent : normaliseMicrosoftEvent;
-  return rows.map(normalise).filter((e): e is CalendarEvent => e !== null);
+  const firstUrl = cfg.eventsUrl(calendarId, from, to);
+
+  const events: CalendarEvent[] = [];
+  let url: string | undefined = firstUrl;
+  for (let page = 0; page < MAX_EVENT_PAGES && url; page++) {
+    const body = await callProvider(provider, url, accessToken, deps.fetchImpl);
+    const rows: any[] = (provider === "google" ? body.items : body.value) || [];
+    for (const row of rows) {
+      const e = normalise(row);
+      if (e) events.push(e);
+    }
+    if (provider === "google") {
+      // Google's continuation is a TOKEN, not a URL — it travels back as a
+      // query param on the SAME request, so the base url (with its
+      // singleEvents/orderBy/timeMin/timeMax) is reused rather than rebuilt.
+      const nextToken = body.nextPageToken;
+      url = typeof nextToken === "string" && nextToken
+        ? `${firstUrl}&pageToken=${encodeURIComponent(nextToken)}`
+        : undefined;
+    } else {
+      // Microsoft's continuation IS a full URL, already carrying its own
+      // query — fetched directly, never rebuilt from calendarId/from/to.
+      const nextLink = body["@odata.nextLink"];
+      url = typeof nextLink === "string" && nextLink ? nextLink : undefined;
+    }
+  }
+  return events;
 }

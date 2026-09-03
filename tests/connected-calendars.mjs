@@ -343,5 +343,77 @@ console.log("\nmicrosoft normaliser");
     normaliseMicrosoftEvent({ id: "m3", isAllDay: false, start: { dateTime: "2026-09-03T09:00:00" }, end: { dateTime: "2026-09-03T10:00:00" } }).title === "(no title)");
 }
 
+const { listEvents } = await import("../src/lib/data/calendarReads.ts");
+
+console.log("\nlistEvents — a single page is not the whole story");
+{
+  // GOOGLE: a fake fetch returns `nextPageToken` on the first response and a
+  // final page with none. THIS TEST MUST FAIL IF THE PAGING LOOP IS EVER
+  // REMOVED — without it, page two's event silently never comes back, which
+  // is exactly the truncation this proves against.
+  const googleCalls = [];
+  const googleFetch = async (url) => {
+    googleCalls.push(url);
+    if (googleCalls.length === 1) {
+      return new Response(JSON.stringify({
+        items: [{
+          id: "g1", summary: "Page one event",
+          start: { dateTime: "2026-09-03T09:00:00Z" }, end: { dateTime: "2026-09-03T10:00:00Z" },
+        }],
+        nextPageToken: "TOKEN2",
+      }), { status: 200 });
+    }
+    return new Response(JSON.stringify({
+      items: [{
+        id: "g2", summary: "Page two event",
+        start: { dateTime: "2026-09-04T09:00:00Z" }, end: { dateTime: "2026-09-04T10:00:00Z" },
+      }],
+    }), { status: 200 });
+  };
+  const googleEvents = await listEvents(
+    { userId: "u1", provider: "google", calendarId: "primary", from: "2026-09-01T00:00:00Z", to: "2026-09-30T00:00:00Z" },
+    { fetchImpl: googleFetch, getAccessTokenImpl: async () => "AT-TEST" },
+  );
+  ok("google follows nextPageToken onto a second request", googleCalls.length === 2, String(googleCalls.length));
+  ok("...and the second request's url carries the token",
+    googleCalls[1].includes("pageToken=TOKEN2"), googleCalls[1]);
+  ok("...both pages' events come back, in order",
+    JSON.stringify(googleEvents.map((e) => e.id)) === JSON.stringify(["g1", "g2"]),
+    JSON.stringify(googleEvents.map((e) => e.id)));
+
+  // MICROSOFT: the continuation is a full URL (@odata.nextLink), already
+  // carrying its own query — fetched directly rather than rebuilt from
+  // calendarId/from/to, exactly as calendarReads.ts's comment says it must.
+  const msCalls = [];
+  const msNextLink = "https://graph.microsoft.com/v1.0/me/calendarView?$skip=250";
+  const msFetch = async (url) => {
+    msCalls.push(url);
+    if (msCalls.length === 1) {
+      return new Response(JSON.stringify({
+        value: [{
+          id: "m1", subject: "Page one", isAllDay: false,
+          start: { dateTime: "2026-09-03T09:00:00" }, end: { dateTime: "2026-09-03T10:00:00" },
+        }],
+        "@odata.nextLink": msNextLink,
+      }), { status: 200 });
+    }
+    return new Response(JSON.stringify({
+      value: [{
+        id: "m2", subject: "Page two", isAllDay: false,
+        start: { dateTime: "2026-09-04T09:00:00" }, end: { dateTime: "2026-09-04T10:00:00" },
+      }],
+    }), { status: 200 });
+  };
+  const msEvents = await listEvents(
+    { userId: "u1", provider: "microsoft", calendarId: "primary", from: "2026-09-01T00:00:00Z", to: "2026-09-30T00:00:00Z" },
+    { fetchImpl: msFetch, getAccessTokenImpl: async () => "AT-TEST" },
+  );
+  ok("microsoft follows @odata.nextLink onto a second request", msCalls.length === 2, String(msCalls.length));
+  ok("...fetched directly, exactly as the provider gave it", msCalls[1] === msNextLink, msCalls[1]);
+  ok("...both pages' events come back, in order",
+    JSON.stringify(msEvents.map((e) => e.id)) === JSON.stringify(["m1", "m2"]),
+    JSON.stringify(msEvents.map((e) => e.id)));
+}
+
 console.log(fails ? `\n${fails} failure(s)` : "\nall good");
 process.exitCode = fails ? 1 : 0;
