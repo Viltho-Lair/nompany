@@ -40,11 +40,21 @@ export const GET = route({ auth: "user", name: "account/calendar/events" }, asyn
     // calendarIds IS EMPTY ON A FRESH CONNECTION — nothing in this phase's
     // connect flow (Task 5) populates it, and a calendar picker is later
     // work. "primary" is Google's own alias for the account's default
-    // calendar, and Microsoft's eventsUrl (calendarProviders.ts) ignores
-    // calendarId entirely — so it stands in safely for "every calendar this
-    // person has not yet chosen among" rather than fetching nothing and
-    // showing an empty calendar that looks connected.
-    const calendarIds = c.calendarIds.length ? c.calendarIds : ["primary"];
+    // calendar, so it stands in safely for "every calendar this person has
+    // not yet chosen among" rather than fetching nothing and showing an
+    // empty calendar that looks connected.
+    //
+    // MICROSOFT IS COLLAPSED TO ONE ID REGARDLESS OF HOW MANY ARE STORED.
+    // Graph's calendarView (calendarProviders.ts's microsoft.eventsUrl) is
+    // per-MAILBOX, not per-calendar — it takes `_calendarId` and ignores it,
+    // always hitting /me/calendarView. Looping N ids through it the way
+    // Google's per-calendar endpoint wants would not widen the result, it
+    // would issue N identical requests and return every event N times with
+    // no id to dedupe against. So Microsoft always fetches exactly once;
+    // only Google's loop actually varies by calendarId.
+    const calendarIds = c.provider === "microsoft"
+      ? ["primary"]
+      : c.calendarIds.length ? c.calendarIds : ["primary"];
     try {
       const perCalendar = await Promise.all(
         calendarIds.map((calendarId) =>
@@ -74,9 +84,18 @@ export const GET = route({ auth: "user", name: "account/calendar/events" }, asyn
     }
   }));
 
+  // UNREACHABLE TODAY, GUARDED ANYWAY: both normalisers (shared/calendar.ts)
+  // drop any raw event whose start is falsy, so nothing here should ever
+  // carry an unparseable one. Date.parse on garbage is NaN, and NaN in a
+  // comparator sorts nothing — a malformed entry would otherwise sit wherever
+  // it happened to land rather than visibly last.
+  const startMs = (e: CalendarEvent) => {
+    const ms = Date.parse(e.start);
+    return Number.isFinite(ms) ? ms : Infinity;
+  };
   const events = perConnection
     .flatMap((r) => r.events)
-    .sort((a, b) => Date.parse(a.start) - Date.parse(b.start));
+    .sort((a, b) => startMs(a) - startMs(b));
   const errors = perConnection
     .filter((r) => r.error)
     .map((r) => ({ provider: r.provider, message: r.error }));

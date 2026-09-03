@@ -4037,12 +4037,35 @@ console.log("== account calendar: the unconnected state is network-free");
     return payload;
   };
 
+  // account.calendar.none PINS `available`, WHICH IS PURELY ENV-DERIVED.
+  // enabledCalendarProviders() has no fallback the way the console's
+  // calendarServiceAccount() does (a hardcoded constant, stable with no env
+  // at all) — it is exactly the four vars Google/Microsoft sign-in already
+  // reads. `vercel env pull`, which is the routine way this repo refreshes
+  // the OIDC token, would also populate those four and silently turn
+  // `available: []` into `["google","microsoft"]` on that developer's
+  // machine, reading as an unrelated regression rather than as what it is:
+  // the golden disagreeing with itself between machines. So the four vars
+  // are cleared for the duration of just these two captures and restored
+  // immediately after, which is what makes the recorded shape a property of
+  // the ROUTE rather than of whoever's `.env.local` happens to be loaded.
+  const CAL_ENV_VARS = ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "MICROSOFT_CLIENT_ID", "MICROSOFT_CLIENT_SECRET"];
+  const savedCalEnv = Object.fromEntries(CAL_ENV_VARS.map((k) => [k, process.env[k]]));
+  for (const k of CAL_ENV_VARS) delete process.env[k];
+
   await signIn(owner.id);
-  await shot("account.calendar.none", await capture(CAL.GET, req("/api/account/calendar"), ctx()));
-  await shot("account.calendar.events.none", await capture(
-    CAL_EVENTS.GET,
-    req("/api/account/calendar/events?from=2026-09-01T00:00:00Z&to=2026-09-30T00:00:00Z"),
-    ctx()));
+  try {
+    await shot("account.calendar.none", await capture(CAL.GET, req("/api/account/calendar"), ctx()));
+    await shot("account.calendar.events.none", await capture(
+      CAL_EVENTS.GET,
+      req("/api/account/calendar/events?from=2026-09-01T00:00:00Z&to=2026-09-30T00:00:00Z"),
+      ctx()));
+  } finally {
+    for (const k of CAL_ENV_VARS) {
+      if (savedCalEnv[k] === undefined) delete process.env[k];
+      else process.env[k] = savedCalEnv[k];
+    }
+  }
 }
 
 // ============================================================================
