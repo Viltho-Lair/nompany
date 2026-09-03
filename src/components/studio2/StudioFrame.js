@@ -60,6 +60,16 @@ const SECTION_ICONS = {
   "quality-hse": "verified",
   website: "gallery",
   hr: "team",
+  // ADMINISTRATION'S ROWS ARE SECTIONS NOW, so they arrive under their section
+  // keys rather than the pre-restructure "people" / "access". Both old keys are
+  // deliberately kept beside the new ones: a retired address resolves to the
+  // new key before it reaches here, so nothing should ask for them \u2014 but this
+  // map is best-effort by design, and a stale entry costs a line where a
+  // missing one costs a row its icon.
+  "administration-members": "user",
+  "administration-access": "lock",
+  "administration-settings": "gears",
+  administration: "gears",
   people: "user",
   access: "lock",
   engagements: "link",
@@ -236,13 +246,17 @@ export default function StudioFrame({
   const isOpen = (node) => openKey === node.key;
   const toggleGroup = (key) => setOpenKey((k) => (k === key ? null : key));
 
+  // ENGAGEMENTS IS THE ONLY ONE LEFT. People and Access were here beside it —
+  // People shown to everyone, Access gated on canAdminister — because neither
+  // was a section anybody could be granted. Both are sections now and arrive
+  // through the tree below, which is also what gives them the group behaviour,
+  // the active-row highlight and the Arabic labels they never had here.
+  //
+  // Engagements stays because it genuinely is not a section: giving Main a
+  // child would gate the parent and hide Main from every member without the
+  // right. engagements.view is a right of its own, held by any role.
   const admin = [
-    // Placed above People (design §3): engagements.view is a right on its own,
-    // held by any role — not an admin-only screen — so it sits with the other
-    // non-section destinations rather than gated behind canAdminister.
     { href: `/${studio.slug}/engagements`, key: "engagements", label: tr.engagements, show: me.canSeeEngagements },
-    { href: `/${studio.slug}/people`, key: "people", label: me.canAdminister ? tr.peopleAndRequests : tr.people, show: true },
-    { href: `/${studio.slug}/access`, key: "access", label: tr.access, show: me.canAdminister },
   ].filter((i) => i.show);
 
   const activeSection = sections.find((s) => s.key === activeKey);
@@ -362,21 +376,17 @@ export default function StudioFrame({
           <Icon name="services" className="h-[18px] w-[18px] text-slate-400 dark:text-slate-500" />
           {tr.documentation}
         </Link>
-        {/* This slot used to hold "My account". The account is the PERSON and
-            belongs with the header avatar, which now carries it; the sidebar
-            belongs to the studio, so the studio's own settings live here. */}
-        <Link
-          href={`/${studio.slug}/administration-settings`}
-          onClick={() => setOpen(false)}
-          className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-[12px] font-500 ${
-            activeKey === "administration-settings"
-              ? "bg-brand-500/10 text-brand-700 dark:bg-brand-500/20 dark:text-brand-400"
-              : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white"
-          }`}
-        >
-          <Icon name="gears" className={`h-[18px] w-[18px] ${activeKey === "administration-settings" ? "text-brand-600 dark:text-brand-400" : "text-slate-400 dark:text-slate-500"}`} />
-          {tr.studioSettings}
-        </Link>
+        {/* STUDIO SETTINGS IS NOT PINNED HERE ANY MORE. It was a footer link
+            because it was reached by a literal key match rather than through
+            the section list — there was nowhere else to put it. It is
+            Administration & Settings' own child now, and it appears under that
+            group only for somebody holding administration.settings.view, which
+            is the change: this link showed to every member regardless.
+
+            The slot before it held "My account", which moved to the header
+            avatar because the account is the PERSON and the sidebar belongs to
+            the studio. Documentation stays: it is a full-screen route, not a
+            section. */}
       </div>
     </div>
   );
