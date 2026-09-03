@@ -4358,14 +4358,25 @@ console.log("== the studio's address resolves to one section, from either side o
     resolveActiveKey("finance", visible) === "main");
   ok("no sections at all highlights nothing", resolveActiveKey("finance", []) === "");
 
-  // THE THREE SCREENS THAT ARE NOT SECTIONS. `administration-settings` is a
-  // real catalog key AND is short-circuited by the page before the section
-  // lookup — so it must win here too, or the two disagree.
+  // THE THREE SCREENS THAT USED TO BYPASS THE SECTION LOOKUP, asserted from
+  // the other side now.
+  //
+  // `people`, `access` and `administration-settings` were once returned by
+  // resolveActiveKey WITHOUT being looked up in the section list, because the
+  // page short-circuited them first. That is how three screens stayed
+  // reachable while their sections were invisible to sectionViewable, and why
+  // nobody noticed SECTION_AREAS had no entry for any of them.
+  //
+  // The Administration fold deleted SCREEN_KEYS and made all three ordinary
+  // sections — see the comment that replaced it in shared/studioRoute.ts. So
+  // they are the active row when GRANTED and fall back like anything else when
+  // they are not. This block asserts the fold rather than the bypass: if a
+  // future change reintroduces a short-circuit, this is what fails.
   for (const key of ["people", "access", "administration-settings"]) {
-    ok(`${key} is its own active row, ahead of the section lookup`,
-      resolveActiveKey(key, visible) === key);
+    ok(`${key} no longer bypasses the section lookup when it is not granted`,
+      resolveActiveKey(key, visible) === "main");
   }
-  ok("...even when it is also a visible section",
+  ok("...and administration-settings is the active row once it IS a visible section",
     resolveActiveKey("administration-settings",
       [...visible, { key: "administration-settings" }]) === "administration-settings");
 
