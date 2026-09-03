@@ -59,7 +59,8 @@
           "hr.vacations.create",
           "hr.vacations.edit",
           "hr.vacations.approve",
-          "engineeringDocs.rfq.convert"
+          "engineeringDocs.rfq.convert",
+          "administration.members.view"
         ],
         "scopes": {
           "hr.employees": "department",
@@ -99,7 +100,8 @@
           "fieldService.tracking.view",
           "fieldService.tracking.create",
           "fieldService.tracking.edit",
-          "hr.vacations.view"
+          "hr.vacations.view",
+          "administration.members.view"
         ],
         "scopes": {
           "hr.vacations": "own"
