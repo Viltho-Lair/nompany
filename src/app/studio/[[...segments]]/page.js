@@ -11,7 +11,7 @@ import Link from "next/link";
 import { currentUser, needsQuestionnaire } from "@/platform/auth/identity";
 import { studioContext, canAdminister, visibleSections, recordStudioVisit } from "@/lib/studios";
 import { can, NO_SCREEN_YET } from "@/platform/access";
-import { listSections } from "@/platform/db/sections";
+import { withRequest } from "@/platform/http/observability";
 import { getProfile } from "@/platform/auth/users";
 import { loadCatalogues, planOf, hasLiveChat } from "@/lib/plans";
 import { chatDisplayName } from "@/lib/chatConstants";
@@ -135,13 +135,37 @@ const StudioEngagements = nextDynamic(
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Studio", robots: { index: false, follow: false } };
 
+// THE PAGE GETS THE SAME SCOPE EVERY API ROUTE ALREADY HAD.
+//
+// `withRequest` establishes the request cache, the command counter and the
+// completion line. Until now the ONLY thing that called it was the route
+// wrapper (platform/http/route.ts), so all 96 API routes were de-duplicated and
+// measured and the single most-rendered surface in the product — this page, on
+// every section click — was neither.
+//
+// The de-duplication is the half with a number on it. `withRequestCache` holds
+// PROMISES, so two reads of one key inside a `Promise.all` collapse into one
+// command rather than two (see requestCache.ts), which is precisely the shape
+// this render has: the shell's reads and the screen's reads overlap and neither
+// side knows the other ran.
+//
+// The counting is the half that keeps it fixed. Invariant: a route regressing
+// from 2 round trips to 8 fails the build — a ceiling this page could not have
+// been held to, because nothing was counting it. Now the completion line reports
+// `pgQueries` for a section click the same way it does for /api/…, so the next
+// duplicate read is visible the day it lands instead of the day somebody
+// profiles the studio again.
+export default async function StudioPage({ params }) {
+  return withRequest("studio-page", () => renderStudio(params));
+}
+
 // THE STUDIO. Served at the tenant's own address — www.nompany.com/<slug> — via
 // the proxy rewrite; this internal folder name never appears in the browser.
 //
 // Tenancy is SLUG-DRIVEN: the URL names the tenant (x-studio-slug, set by the
 // proxy) and MEMBERSHIP authorises it. Section access is then filtered per
 // person, default-deny, so a member only ever sees what they were granted.
-export default async function StudioPage({ params }) {
+async function renderStudio(params) {
   const slug = (await headers()).get("x-studio-slug") || "";
   // READ ONCE. The screens that fire before a studio is resolved — you are
   // not a member of this one — still have to be in the reader's language,
@@ -178,7 +202,16 @@ export default async function StudioPage({ params }) {
 
   // `access` comes from studioContext; dropping it here is what silently
   // disarms every check downstream.
-  const { studio, collaborator, access } = context;
+  //
+  // AND SO DO THE SECTIONS. studioContext reads them in the same wave as the
+  // collaborator and the roles, and returns them for its callers — `access`
+  // itself is resolved from the roles and does not consult them. This
+  // destructure used to stop at `access`, and the wave below then called
+  // `listSections(studio.id)` a second time for the identical rows: one
+  // guaranteed extra round trip on every section click, and under
+  // PG_TRANSPORT=gateway a round trip is a whole HTTPS call to Cloud Run,
+  // because the gateway sends one statement per call and never batches.
+  const { studio, collaborator, access, sections: allSections } = context;
 
   // WHICH LANGUAGE THIS PERSON READS THE SHELL IN — resolved here, as soon as
   // the studio record exists, because the full-screen screens below return
@@ -201,8 +234,8 @@ export default async function StudioPage({ params }) {
   recordStudioVisit(user.id, studio.id).catch(() => {});
 
   const admin = canAdminister(access);
-  const [allSections, catalogues, profile] = await Promise.all([
-    listSections(studio.id), loadCatalogues(), getProfile(user.id),
+  const [catalogues, profile] = await Promise.all([
+    loadCatalogues(), getProfile(user.id),
   ]);
   const plan = planOf(studio, catalogues.packages, catalogues.tiers);
   const sections = visibleSections(studio, collaborator, allSections, access);
