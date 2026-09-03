@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
+import { RecordSkeleton } from "@/components/studio2/RecordSkeleton";
 import { miscDict } from "@/shared/studio/misc";
 import Link from "next/link";
 import { Icon } from "@/components/studio2/icons";
@@ -180,7 +181,7 @@ export default function StudioTicketProfile({ slug, ticketId }) {
   }
 
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
-  if (!data) return <p className="text-sm text-slate-500">{tr.loadingTicket}</p>;
+  if (!data) return <RecordSkeleton loadingLabel={tr.loadingTicket} />;
   if (!ticket) {
     return (
       <div className="space-y-4">

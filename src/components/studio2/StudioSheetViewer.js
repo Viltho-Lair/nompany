@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
+import { LinesSkeleton } from "@/components/studio2/RecordSkeleton";
 import { projectsDict } from "@/shared/studio/projects";
 // Status reads Technical's words — "Fulfilled" is a quotation line's
 // condition, not a project's, and it is already written there.
@@ -263,7 +264,7 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
 
   // ---- returns, all of them below every hook -------------------------------
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
-  if (!data) return <p className="text-sm text-slate-500">{tr.loadingSheet}</p>;
+  if (!data) return <LinesSkeleton loadingLabel={tr.loadingSheet} />;
 
   // THE WORK PORTION IS EMPTY UNTIL A SHEET IS CHOSEN. The bar stays, because
   // the bar is how one is chosen — an inventory person opens this screen to get

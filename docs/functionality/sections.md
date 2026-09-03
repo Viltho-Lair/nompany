@@ -99,8 +99,17 @@ then the screen's own fetch, because a department screen is a client component t
 API after it mounts. The third was a bare line of text — `Loading Sales…` — in every screen, so a
 click went skeleton, skeleton, then a sentence in the corner of an empty box. It was the
 longest of the three waits and the only one that said nothing about what was coming. All
-three are `<ScreenSkeleton />` now; the sentence survives as its `loadingLabel`, `sr-only`, so
-a screen reader still hears which screen is loading.
+three draw a skeleton now; the sentence survives as its `loadingLabel`, `sr-only`, so a screen
+reader still hears which screen is loading.
+
+**Which skeleton depends on what is coming.** `ScreenSkeleton` reserves a department
+dashboard — title, figures, chart, table — and that is what the section screens and Main use.
+The record and viewer screens would be a lie in that shape, so `RecordSkeleton.jsx` holds the
+three they need: a record profile (the ticket screen — a details card beside a reserved 320px
+column), a document of lines (the quotation viewer and the project sheet), and a bare table for
+the two Live views, which draw their own header. The project board's is the odd one and worth
+knowing: its wait happens inside the 380px information sidebar, not on the page, so a
+page-shaped skeleton there would have been drawn inside a 380px column.
 
 **Seven screens take the whole window** — the manual, the two live views, Engagements, the
 document register, a project's board and the planner. They used to return out of the page before

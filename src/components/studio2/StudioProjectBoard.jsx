@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
+import { InfoPanelSkeleton } from "@/components/studio2/RecordSkeleton";
 import { projectsDict } from "@/shared/studio/projects";
 import { boardDict } from "@/shared/studio/board";
 import Link from "next/link";
@@ -159,7 +160,7 @@ export default function StudioProjectBoard({ slug, projectId }) {
           {infoError && !data ? (
             <p className="text-sm text-rose-600 dark:text-rose-300">{infoError}</p>
           ) : !data ? (
-            <p className="text-sm text-slate-500">{tr.loadingProject}</p>
+            <InfoPanelSkeleton loadingLabel={tr.loadingProject} />
           ) : !project ? (
             <p className="text-sm text-slate-500">{tr.projectNoLongerExists}</p>
           ) : (

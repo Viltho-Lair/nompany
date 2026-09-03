@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
+import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { Icon } from "@/components/studio2/icons";
 import { panel, h2, sub, microLabel, money, fmtDate, StatTile } from "@/components/studio2/ui";
 import MainDashboard from "@/components/studio2/MainDashboard";
@@ -39,7 +40,7 @@ export default function StudioMain({ slug }) {
   useLiveUpdates(slug, "projects", load);
 
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
-  if (!data) return <p className="text-sm text-slate-500">{tr.loading}</p>;
+  if (!data) return <ScreenSkeleton loadingLabel={tr.loading} />;
 
   const { studio, me, headlines, recent, sections, nav, executive } = data;
   const href = (key) => (nav?.[key] ? `/${slug}/${key}` : "");

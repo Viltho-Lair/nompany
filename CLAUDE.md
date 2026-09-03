@@ -282,8 +282,12 @@ every push to `main` and every pull request.
   kilobytes bought the shell's geometry, which that file had to reproduce in full
   because with no `layout.js` a loading boundary replaces the whole studio, sidebar
   included. **1580 → 1576 when the shell became a real `layout.js`** and the boundary
-  gave all of it back — it is `<ScreenSkeleton />` and nothing else now. The largest
-  chunk did not move (158 KB), which is the gate that matters.
+  gave all of it back — it is `<ScreenSkeleton />` and nothing else now. 1576 → 1577
+  with `RecordSkeleton`, the three shapes ScreenSkeleton is not: a record profile, a
+  document of lines and the project board's information sidebar. A department
+  skeleton on those screens reserves a chart where a document is coming, which
+  makes the arrival a jump. The largest chunk did not move at any point (158 KB),
+  which is the gate that matters.
 - Tests connect things — real repositories, real route handlers, **one assertion per
   bug that actually happened**. Each block names the defect it guards, so nobody
   deletes it later wondering what it was for.

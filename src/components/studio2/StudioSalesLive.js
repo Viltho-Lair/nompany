@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
+import { TableSkeleton } from "@/components/studio2/RecordSkeleton";
 import { miscDict } from "@/shared/studio/misc";
 import { salesDict, liveColumnLabel } from "@/shared/studio/sales";
 import Link from "next/link";
@@ -116,7 +117,7 @@ export default function StudioSalesLive({ studio }) {
 
       <main className="px-5 py-6 sm:px-8">
         {error && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>}
-        {!data && !error && <p className="text-sm text-slate-500">{tr.loading}</p>}
+        {!data && !error && <TableSkeleton loadingLabel={tr.loading} />}
 
         {data && columns.length === 0 && (
           <p className="rounded-geex border border-slate-200/70 bg-[var(--geex-surface)] p-8 text-center text-sm text-slate-500 dark:border-white/10 dark:text-slate-400">

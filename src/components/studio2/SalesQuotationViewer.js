@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
+import { LinesSkeleton } from "@/components/studio2/RecordSkeleton";
 import { technicalDict } from "@/shared/studio/technical";
 import Link from "next/link";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
@@ -81,7 +82,7 @@ export default function SalesQuotationViewer({ slug, ticketId, quotationId }) {
       </div>
     );
   }
-  if (!data) return <p className="text-sm text-slate-500">{tr.loadingQuotation}</p>;
+  if (!data) return <LinesSkeleton loadingLabel={tr.loadingQuotation} />;
 
   const { quotation: q, ticket, currency } = data;
   const tables = Array.isArray(q.tables) ? q.tables : [];
