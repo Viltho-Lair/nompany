@@ -4211,6 +4211,119 @@ console.log("== status codes: what each refusal claims to be");
 }
 
 // ============================================================================
+console.log("== the studio's address resolves to one section, from either side of it");
+// THE DERIVATION THE SHELL AND THE SCREEN BOTH READ.
+//
+// The page parses `params.segments` to choose a screen; the shell parses
+// `usePathname()` to highlight a row, because a layout is never handed the
+// route's segments. Those are two different inputs to one question, and before
+// this module they were two different pieces of code — which fails quietly, as
+// a nav row highlighting one section while the screen below shows another.
+//
+// Asserted here rather than in a browser because it is arithmetic on strings:
+// the pane cannot tell a correct highlight from a lucky one, and this can.
+{
+  const { studioSegments, requestedKey, resolveActiveKey } = await import("@/shared/studioRoute");
+  const { SECTION_DEFS } = await import("@/platform/db/keys");
+
+  const seen = (path, slugName = "acme") => requestedKey(studioSegments(path, slugName));
+
+  ok("the studio root names no section", seen("/acme") === "", seen("/acme"));
+  ok("a section is its first segment", seen("/acme/inventory") === "inventory");
+  ok("a sub-section is its own key, not its parent's",
+    seen("/acme/inventory-stock") === "inventory-stock");
+  // The shape that made this worth extracting: a record id must NOT become the
+  // section. `/acme/crm-sales-tickets/tkt_123` is still the tickets section.
+  ok("a record id under a section does not become the section",
+    seen("/acme/crm-sales-tickets/tkt_123") === "crm-sales-tickets");
+  ok("...and neither does a third segment",
+    seen("/acme/crm-sales-tickets/tkt_123/quotations/quo_9") === "crm-sales-tickets");
+
+  // A SLUG IS NOT A SECTION KEY. A studio whose slug equalled a section key
+  // would eat its own first segment if the prefix were matched loosely.
+  ok("a path belonging to another studio names nothing",
+    seen("/other/inventory", "acme") === "", seen("/other/inventory", "acme"));
+  ok("a studio whose slug looks like a section key still drops the slug",
+    seen("/inventory/inventory-stock", "inventory") === "inventory-stock");
+
+  // EVERY REAL KEY ROUND-TRIPS. Not a sample — the whole catalogue, so a key
+  // added later is covered without anybody remembering to add it here.
+  const allKeys = SECTION_DEFS.map((s) => s.key);
+  const broken = allKeys.filter((k) => seen(`/acme/${k}`) !== k);
+  ok("every section key in the catalogue survives the round trip",
+    broken.length === 0, broken.join(", ") || `${allKeys.length} keys`);
+
+  // ---- which row is highlighted -------------------------------------------
+  const visible = [{ key: "main" }, { key: "crm-sales" }, { key: "inventory" }];
+
+  ok("a granted section is the active row",
+    resolveActiveKey("inventory", visible) === "inventory");
+  // THE FALLBACK IS WHAT PUTS YOU ON MAIN AT THE ROOT...
+  ok("the root falls back to the first row", resolveActiveKey("", visible) === "main");
+  // ...AND IT IS DELIBERATE FOR A SECTION THIS PERSON CANNOT OPEN. The page
+  // renders its refusal; the shell highlights the first row they DO have,
+  // rather than a row that is not there.
+  ok("a section they were not granted falls back too",
+    resolveActiveKey("finance", visible) === "main");
+  ok("no sections at all highlights nothing", resolveActiveKey("finance", []) === "");
+
+  // THE THREE SCREENS THAT ARE NOT SECTIONS. `administration-settings` is a
+  // real catalog key AND is short-circuited by the page before the section
+  // lookup — so it must win here too, or the two disagree.
+  for (const key of ["people", "access", "administration-settings"]) {
+    ok(`${key} is its own active row, ahead of the section lookup`,
+      resolveActiveKey(key, visible) === key);
+  }
+  ok("...even when it is also a visible section",
+    resolveActiveKey("administration-settings",
+      [...visible, { key: "administration-settings" }]) === "administration-settings");
+
+  // ---- which addresses want the whole window ------------------------------
+  //
+  // THE SHELL AND THE PAGE MUST AGREE, or the studio breaks in one of two
+  // visible ways: chrome drawn around a screen built to fill the window, or a
+  // section screen rendered with no nav to leave it by. The page's branches and
+  // `isFullScreenPath` are the two halves, and this is what holds them level.
+  const { isFullScreenPath } = await import("@/shared/studioRoute");
+  const withProjects = [{ key: "main" }, { key: "projects-list" }, { key: "projects-planner" },
+    { key: "engineering-docs-register" }];
+  const full = (path, secs = withProjects) =>
+    isFullScreenPath(studioSegments(path, "acme"), secs);
+
+  ok("an ordinary section is framed", full("/acme/inventory") === false);
+  ok("the studio root is framed", full("/acme") === false);
+
+  // Membership alone — no section grant is consulted, so an empty section list
+  // must not change the answer.
+  for (const key of ["documentation", "crm-sales-live", "engineering-docs-live", "engagements"]) {
+    ok(`${key} is full-screen for any member`, full(`/acme/${key}`, []) === true);
+  }
+
+  // GRANT-GATED. The page falls THROUGH to the framed refusal when the section
+  // is not granted, so the shell must keep its chrome in exactly that case.
+  ok("the document register is full-screen when granted",
+    full("/acme/engineering-docs-register") === true);
+  ok("...and framed when it is not, so the refusal has a nav",
+    full("/acme/engineering-docs-register", []) === false);
+  ok("the planner is full-screen when granted", full("/acme/projects-planner") === true);
+  ok("...and framed when it is not", full("/acme/projects-planner", []) === false);
+
+  // THE PROJECT ROUTES, which are the fiddly ones and the reason this is a
+  // function rather than a list of keys.
+  ok("a project's board is full-screen", full("/acme/projects-list/pro_1") === true);
+  ok("the projects LIST itself is framed", full("/acme/projects-list") === false);
+  // The quotation viewer hangs off a project and is deliberately in-frame.
+  ok("a project's quotation viewer stays framed",
+    full("/acme/projects-list/pro_1/quotation") === false);
+  ok("a project's plan is full-screen",
+    full("/acme/projects-list/pro_1/plans/pln_9") === true);
+  ok("...but /plans with no plan id is not a screen",
+    full("/acme/projects-list/pro_1/plans") === false);
+  ok("a project's board is framed without the grant",
+    full("/acme/projects-list/pro_1", []) === false);
+}
+
+// ============================================================================
 console.log("== hop counts: how many round trips a screen costs");
 // The audit's largest finding, expressed as a number a build can fail on.
 // `commands` is every command sent; `waves` is how many times the code WAITED,

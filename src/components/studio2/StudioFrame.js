@@ -6,9 +6,10 @@ import NovaLauncher from "@/components/studio2/NovaLauncher";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { dirFor, locales, LANGUAGE_NAMES, LANGUAGE_SHORT } from "@/shared/locale";
+import { studioSegments, requestedKey, resolveActiveKey, isFullScreenPath } from "@/shared/studioRoute";
 import { shellDict } from "@/shared/studio/shell";
 import { sectionName } from "@/shared/studio/sections";
 import { StudioLocaleProvider } from "@/components/studio2/locale";
@@ -136,11 +137,29 @@ function PlanTag({ color, label, children }) {
 }
 
 export default function StudioFrame({
-  studio, me, sections, activeKey, chat = null, locale = "en",
+  studio, me, sections, activeKey: activeKeyProp, chat = null, locale = "en",
   analytics = null, novaEnabled = false, children,
 }) {
   const [open, setOpen] = useState(false);
   const router = useRouter();
+  // WHICH ROW IS THE CURRENT ONE, DERIVED FROM THE PATH.
+  //
+  // This was a prop, and it could be while the page rendered the shell: the
+  // page has `params`. The shell lives in a `layout.js` now, and a layout is
+  // never given the route's segments — so the address is the only thing left
+  // that knows, and `usePathname()` is how a client component reads it.
+  //
+  // Derived through shared/studioRoute, NOT re-implemented here, because the
+  // page still parses the same address to choose a screen. Two derivations
+  // would be free to disagree, and the way that shows up is a nav row
+  // highlighting one section while the screen below shows another.
+  //
+  // The prop still wins when it is passed. `Denied` renders this shell with an
+  // explicit `activeKey=""` to highlight nothing at all, and that is a
+  // statement about the screen rather than about the address.
+  const pathname = usePathname();
+  const segments = studioSegments(pathname, studio.slug);
+  const activeKey = activeKeyProp ?? resolveActiveKey(requestedKey(segments), sections);
   // The shell's own words. Imported rather than passed down as a prop: it is a
   // few hundred bytes, it is needed on literally every studio render, and a
   // prop would put it in the RSC payload of every navigation instead. See the
@@ -363,6 +382,39 @@ export default function StudioFrame({
   );
 
   const avatarLetter = (me.alias?.[0] || me.role?.[0] || "?").toUpperCase();
+
+  // SEVEN SCREENS WANT THE WHOLE WINDOW, AND THE SHELL IS WHAT GRANTS IT.
+  //
+  // The manual, the two live views, Engagements, the document register, a
+  // project's board and the planner are full-screen by design. They used to
+  // `return` out of the page before the shell was built, which only worked
+  // while the page WAS the shell — a layout wraps everything below it, so the
+  // page can no longer decline to be wrapped. The shell declines on its behalf,
+  // reading the same address through the same module (shared/studioRoute).
+  //
+  // WHAT THEY STILL GET, because it is not chrome and they would break without
+  // it: the locale context, `lang`/`dir`, the RTL cache for MUI, and the
+  // studio's ONE live connection. Each of those screens used to carry its own
+  // `LiveProvider` precisely because it rendered outside this component; now
+  // that they render inside it, keeping those would open a SECOND EventSource
+  // per tab against a browser cap of six (invariant 14). They have been removed
+  // from the page for that reason — this is where the connection comes from now,
+  // for the full-screen screens exactly as for the framed ones.
+  //
+  // AFTER EVERY HOOK. An early return above them would call a different number
+  // of hooks on a full-screen route than on a framed one, which is the rules-of-
+  // hooks violation React cannot recover from.
+  if (isFullScreenPath(segments, sections)) {
+    return (
+      <StudioLocaleProvider locale={locale}>
+        <LiveProvider slug={studio.slug}>
+          <div lang={locale} dir={dirFor(locale)} className="min-h-screen">
+            <Rtl on={dirFor(locale) === "rtl"}>{children}</Rtl>
+          </div>
+        </LiveProvider>
+      </StudioLocaleProvider>
+    );
+  }
 
   return (
     // The studio's one live connection, opened here on the SHELL so every board
