@@ -120,7 +120,8 @@ const ar: SectionMap = {
   // (shared/studio/access.ts's areas map) so the sidebar and the access grid
   // say the same thing for the same screen.
   administration: "الإدارة والإعدادات",
-  "administration-members": "الأشخاص والصلاحيات",
+  "administration-members": "الأشخاص",
+  "administration-access": "الصلاحيات",
   "administration-master": "البيانات الأساسية",
   "administration-settings": "إعدادات الاستوديو",
 

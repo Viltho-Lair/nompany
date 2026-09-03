@@ -574,6 +574,13 @@ export const SECTION_DEFS = [
   // sections, plus the master data that used to be Operations' locations tab.
   { key: "administration", name: "Administration & Settings", children: [
     { key: "administration-members", name: "People" },
+    // ACCESS ARRIVES LATE, and that is why it is the one new seeded key in the
+    // fold. The roles screen existed throughout the restructure but was never a
+    // section: it was a hardcoded nav row gated on canAdminister, a mechanism
+    // nothing else in the nav uses. Giving it a section and an area of its own
+    // is what lets a studio hand role management to somebody without making
+    // them an admin — escalates() still decides what any of them may grant.
+    { key: "administration-access", name: "Access" },
     { key: "administration-master", name: "Master data" },
     { key: "administration-settings", name: "Studio settings" },
   ] },

@@ -254,7 +254,13 @@ console.log("== the permission matrix: one key grants exactly itself");
   // finance.settings.edit — configuring the limit and clearing a payment under
   // it are the two acts invariant 7 exists to keep apart, and one key for both
   // would let whoever sets the threshold approve everything above it.
-  ok("the catalogue is the size we last agreed", ALL_PERMISSIONS.length === 124, String(ALL_PERMISSIONS.length));
+  // 126 with administration.access (view + edit). The roles screen had no area
+  // at all — it was admin-only via canAdminister, which is not a right anybody
+  // can be GRANTED, only a shortcut the resolver short-circuits on. Making it a
+  // right is what lets a studio delegate role management without handing over
+  // everything else an admin can do, and it is the one new seeded key in the
+  // Administration fold.
+  ok("the catalogue is the size we last agreed", ALL_PERMISSIONS.length === 126, String(ALL_PERMISSIONS.length));
 
   const leaks = [];
   const missing = [];
