@@ -210,5 +210,42 @@ console.log("\nevent normaliser");
     normaliseEvent({ id: "e5", start: { date: "2026-09-03" }, end: { date: "2026-09-04" } }).title === "(no title)");
 }
 
+const { monthGrid, eventsByDay } = await import("../src/shared/calendar.ts");
+
+console.log("\nmonth grid");
+{
+  // THE WEEK STARTS MONDAY — the existing screen's DOW row is Mon…Sun and the
+  // grid must agree with it. September 2026 starts on a Tuesday, so there is
+  // exactly one lead cell.
+  const g = monthGrid({ year: 2026, month: 9, todayKey: "2026-09-03" });
+  ok("the grid is whole weeks", g.length % 7 === 0, String(g.length));
+  ok("September 2026 opens with one trailing August day",
+    g.filter((c) => !c.inMonth && c.key < "2026-09-01").length === 1,
+    JSON.stringify(g.slice(0, 3)));
+  ok("...and holds all thirty days", g.filter((c) => c.inMonth).length === 30);
+  ok("the first cell is Monday 31 August", g[0].key === "2026-08-31", g[0].key);
+  ok("today is marked exactly once", g.filter((c) => c.isToday).length === 1);
+  ok("...on the right day", g.find((c) => c.isToday).key === "2026-09-03");
+
+  // A MONTH THAT STARTS ON A MONDAY HAS NO LEAD CELLS — the off-by-one that a
+  // hardcoded LEAD array can never express. June 2026 starts on a Monday.
+  const june = monthGrid({ year: 2026, month: 6, todayKey: "2026-09-03" });
+  ok("a month starting on Monday has no lead cells", june[0].key === "2026-06-01", june[0].key);
+  ok("...and no day is marked today when today is elsewhere",
+    june.every((c) => !c.isToday));
+
+  // FEBRUARY IN A LEAP YEAR, because 28 is the number everyone hardcodes.
+  const feb = monthGrid({ year: 2028, month: 2, todayKey: "2026-09-03" });
+  ok("February 2028 has twenty-nine days", feb.filter((c) => c.inMonth).length === 29);
+
+  const events = [
+    { id: "a", title: "A", start: "2026-09-03", end: "2026-09-04", allDay: true, location: "", htmlLink: "", colorId: "" },
+    { id: "b", title: "B", start: "2026-09-03T09:00:00Z", end: "2026-09-03T10:00:00Z", allDay: false, location: "", htmlLink: "", colorId: "" },
+  ];
+  const byDay = eventsByDay(events);
+  ok("both events land on the third", byDay["2026-09-03"].length === 2, JSON.stringify(Object.keys(byDay)));
+  ok("and nothing lands on the fourth", byDay["2026-09-04"] === undefined);
+}
+
 console.log(fails ? `\n${fails} failure(s)` : "\nall good");
 process.exitCode = fails ? 1 : 0;

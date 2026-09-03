@@ -64,3 +64,46 @@ export function eventDayKeys(event: CalendarEvent): string[] {
 function dayBefore(key: string): string {
   return new Date(Date.parse(`${key}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
 }
+
+export type GridCell = { key: string; day: number; inMonth: boolean; isToday: boolean };
+
+/**
+ * The month's cells, as whole Monday-start weeks.
+ *
+ * `month` IS 1-BASED (September is 9). The JS Date constructor is 0-based, and
+ * mixing the two is a whole-month-off bug that renders perfectly.
+ *
+ * ALL ARITHMETIC IS UTC. These are date keys, not instants; stepping them
+ * through a local Date drops or repeats a day across a DST boundary, in exactly
+ * the two weeks of the year nobody is testing.
+ */
+export function monthGrid({ year, month, todayKey }: { year: number; month: number; todayKey: string }): GridCell[] {
+  const firstMs = Date.UTC(year, month - 1, 1);
+  // getUTCDay is 0=Sunday; the screen's header row is Mon…Sun, so Monday is 0.
+  const lead = (new Date(firstMs).getUTCDay() + 6) % 7;
+  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const total = Math.ceil((lead + daysInMonth) / 7) * 7;
+
+  const cells: GridCell[] = [];
+  for (let i = 0; i < total; i++) {
+    const ms = firstMs + (i - lead) * 86_400_000;
+    const d = new Date(ms);
+    const key = d.toISOString().slice(0, 10);
+    cells.push({
+      key,
+      day: d.getUTCDate(),
+      inMonth: d.getUTCMonth() === month - 1 && d.getUTCFullYear() === year,
+      isToday: key === todayKey,
+    });
+  }
+  return cells;
+}
+
+/** Events keyed by the day cells they paint. One event may appear in several. */
+export function eventsByDay(events: CalendarEvent[]): Record<string, CalendarEvent[]> {
+  const out: Record<string, CalendarEvent[]> = {};
+  for (const e of events) {
+    for (const key of eventDayKeys(e)) (out[key] ||= []).push(e);
+  }
+  return out;
+}
