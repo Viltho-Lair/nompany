@@ -207,6 +207,31 @@ export const BillSchema = z.object({
   createdAt: z.string().optional(),
   createdByCollaboratorId: z.string().optional(),
 
+  // ---- approval, spec 2026-09-03 -------------------------------------------
+  // ONE SIGNATURE PER STEP, and the plan that says which steps were required.
+  //
+  // BOTH OPTIONAL, because every bill already in the database predates them. A
+  // bill with no plan is one raised before chains existed; it resolves one on
+  // its next approval attempt rather than being migrated, because a plan is
+  // cheap to derive and a backfill over live rows is not.
+  //
+  // `status` is NOT extended for this. Approved is written only when the last
+  // required step is signed, so BILL_STATUSES gains no value and everything
+  // deriving from status keeps reading what it reads today.
+  approvals: z.array(z.object({
+    permission: z.string(),
+    byCollaboratorId: z.string(),
+    byAlias: z.string(),
+    at: z.string(),
+  })).optional(),
+  approvalPlan: z.object({
+    steps: z.array(z.object({ permission: z.string(), from: z.number(), label: z.string() })),
+    amountInBase: z.number(),
+    rate: z.number().nullable(),
+    updatedAt: z.number(),
+    stale: z.boolean(),
+  }).nullable().optional(),
+
   // ---- derived by billTotals, never stored --------------------------------
   subtotal: z.number().optional(),
   vat: z.number().optional(),

@@ -2450,11 +2450,40 @@ console.log("\n== Main executive: the entitled/locked split the route gates on")
 }
 
 // ============================================================================
+console.log("\n== a bill cannot be approved by a studio with no currency of its own");
+// SPEC D4, and this runs BEFORE the block below sets one because it is the
+// state every studio is really in: createStudio has never written a currency,
+// so this is what an untouched studio does today. Everything else about the
+// studio keeps working \u2014 only the act where an unknown amount matters stops.
+{
+  const fin = await financeContext(owner, slug);
+  const bill = await createBill(fin, {
+    vendorName: "Currencyless Co",
+    lines: [{ description: "Anything", qty: 1, unitPrice: 100 }],
+  });
+  // RAISING IT STILL WORKS. An obligation that already exists must not wait on
+  // an exchange rate; losing the record would be worse than not approving it.
+  ok("a bill is still raised without a studio currency", !!bill.bill, JSON.stringify(bill.error ?? "raised"));
+  ok("...and stores no plan, rather than a wrong one",
+    bill.bill.approvalPlan === null, JSON.stringify(bill.bill.approvalPlan));
+
+  const viewerFin0 = await financeContext(viewer.user, slug);
+  const denied = await approveBill(viewerFin0, bill.bill.id);
+  ok("but approving it refuses by name", denied.error === "no-studio-currency", JSON.stringify(denied));
+  ok("...and the refusal says where to fix it", /settings/i.test(denied.detail || ""), denied.detail);
+}
+
 console.log("\n== Finance 1b: accounts payable mirrors the invoice");
 // A bill is the AP counterpart of an invoice — same lines, same VAT, same aging
 // arithmetic — with one thing an invoice lacks: APPROVAL, and invariant 7 on it
 // (the raiser may not approve their own bill).
 {
+  // THE STUDIO NEEDS A CURRENCY OF ITS OWN before a bill can be judged against
+  // a limit (spec D4), and createStudio has never set one. Set here rather than
+  // in the fixture bootstrap so the block above can still prove the refusal on
+  // a studio without one \u2014 and BEFORE financeContext, which snapshots the
+  // studio it was built from.
+  await updateStudio(studio.id, { currency: "SAR" });
   const fin = await financeContext(owner, slug);
 
   const bill = await createBill(fin, {
@@ -2470,8 +2499,12 @@ console.log("\n== Finance 1b: accounts payable mirrors the invoice");
   // studio's — exactly as a contract, a payment and a change order already do.
   // A bill was simply the one record of the family that never got the field,
   // which left the approval engine with nothing to convert.
+  // SAR, not `studio.currency` — the fixture object is a snapshot taken at
+  // creation and does not see the updateStudio above it. Naming the value the
+  // block actually set is the assertion; reading it back off a stale snapshot
+  // would have compared the default against itself.
   ok("a bill defaults to the studio's own currency",
-    bill.bill.currency === (studio.currency || ""), JSON.stringify(bill.bill.currency));
+    bill.bill.currency === "SAR", JSON.stringify(bill.bill.currency));
 
   const eurBill = await createBill(fin, {
     vendorName: "Bremen GmbH", currency: "EUR",
@@ -2568,6 +2601,77 @@ console.log("\n== bill approval chains: seeded, overridable, validated on write"
   ok("a refused chain was not stored",
     after.approvalChains?.bill?.steps?.[1]?.from === 5000,
     JSON.stringify(after.approvalChains?.bill));
+}
+
+// ============================================================================
+console.log("\n== a bill over the studio's limit needs two signatures");
+// THE DEFECT THIS WHOLE FEATURE EXISTS TO PREVENT. Threshold is 5000, set by
+// the block above. Three people, because invariant 7 needs two and the
+// signed-an-earlier-step rule needs three to prove itself.
+//
+// BOTH APPROVERS ARE ADMINS, and that is load-bearing rather than lazy. Admin
+// is the seeded wildcard role, so approverA HOLDS finance.payables.approveHigh
+// \u2014 which is the only way the same-signer assertion below proves what it
+// claims. Give approverA the junior right alone and the second attempt would
+// refuse for want of a permission, and the test would pass proving nothing.
+{
+  const approverAPerson = await person("ApproverA", "Admin");
+  const approverBPerson = await person("ApproverB", "Admin");
+  const raiser = await financeContext(owner, slug);
+  const approverA = await financeContext(approverAPerson.user, slug);
+  const approverB = await financeContext(approverBPerson.user, slug);
+
+  const small = await createBill(raiser, { vendorName: "Small Co", lines: [{ description: "x", qty: 1, unitPrice: 1000 }] });
+  ok("a bill under the limit plans one step",
+    small.bill?.approvalPlan?.steps?.length === 1, JSON.stringify(small.bill?.approvalPlan?.steps));
+  const a1 = await approveBill(approverA, small.bill.id);
+  ok("...and is Approved after one signature",
+    a1.bill?.status === "Approved", JSON.stringify(a1.error ?? a1.bill?.status));
+
+  const big = await createBill(raiser, { vendorName: "Big Co", lines: [{ description: "x", qty: 1, unitPrice: 90000 }] });
+  ok("a bill over the limit plans two steps",
+    big.bill?.approvalPlan?.steps?.length === 2, JSON.stringify(big.bill?.approvalPlan?.steps));
+  const b1 = await approveBill(approverA, big.bill.id);
+  ok("...and is NOT Approved after one signature",
+    b1.bill?.status !== "Approved", JSON.stringify(b1.error ?? b1.bill?.status));
+  ok("...though one signature is recorded",
+    b1.bill?.approvals?.length === 1, JSON.stringify(b1.bill?.approvals));
+
+  // Invariant 7 about the RECORD, not the pair of rights. approverA is a
+  // wildcard Admin, so this refuses because they already signed \u2014 not for
+  // want of the right, which is the whole distinction.
+  const sameAgain = await approveBill(approverA, big.bill.id);
+  ok("the same person cannot sign the second step", sameAgain.error === "same-signer", JSON.stringify(sameAgain));
+
+  const b2 = await approveBill(approverB, big.bill.id);
+  ok("a second person completes it", b2.bill?.status === "Approved", JSON.stringify(b2.error ?? b2.bill?.status));
+  ok("...and approvedByCollaboratorId is the FINAL approver",
+    b2.bill?.approvedByCollaboratorId === approverB.collaborator.id,
+    JSON.stringify([b2.bill?.approvedByCollaboratorId, approverB.collaborator.id]));
+  ok("...with both signatures kept, in order",
+    b2.bill?.approvals?.length === 2
+      && b2.bill.approvals[0].permission === "finance.payables.approve"
+      && b2.bill.approvals[1].permission === "finance.payables.approveHigh",
+    JSON.stringify(b2.bill?.approvals?.map((a) => a.permission)));
+
+  // UNCHANGED, and re-asserted because the walk rewrote the function that
+  // used to enforce it.
+  const own = await createBill(raiser, { vendorName: "Own Co", lines: [{ description: "x", qty: 1, unitPrice: 100 }] });
+  const byRaiser = await approveBill(raiser, own.bill.id);
+  ok("the raiser still cannot approve their own bill", byRaiser.error === "same-signer", JSON.stringify(byRaiser));
+}
+
+console.log("\n== a bill edited across the limit is re-planned");
+// The one way this feature could be wrong without anything looking wrong: an
+// edit that moves a bill over the threshold, routed by the old plan.
+{
+  const raiser = await financeContext(owner, slug);
+  const made = await createBill(raiser, { vendorName: "Growing Co", lines: [{ description: "x", qty: 1, unitPrice: 1000 }] });
+  ok("it starts needing one step",
+    made.bill?.approvalPlan?.steps?.length === 1, JSON.stringify(made.bill?.approvalPlan?.steps));
+  const edited = await editBill(raiser, made.bill.id, { lines: [{ description: "x", qty: 1, unitPrice: 90000 }] });
+  ok("editing it over the limit re-derives the plan",
+    edited.bill?.approvalPlan?.steps?.length === 2, JSON.stringify(edited.bill?.approvalPlan?.steps));
 }
 
 // ============================================================================
