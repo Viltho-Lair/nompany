@@ -28,11 +28,13 @@
       "packageKey": "",
       "completedAt": ""
     },
-    "studio": {
-      "id": "<std_ID>",
-      "name": "<studio-name>",
-      "slug": "<slug>"
-    },
+    "studios": [
+      {
+        "id": "<std_ID>",
+        "name": "<studio-name>",
+        "slug": "<slug>"
+      }
+    ],
     "collaborations": [
       {
         "id": "<std_ID>",

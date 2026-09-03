@@ -1,13 +1,15 @@
 {
   "status": 200,
   "body": {
-    "owned": {
-      "id": "<std_ID>",
-      "name": "<studio-name>",
-      "slug": "<slug>",
-      "logo": "",
-      "visits": 0
-    },
+    "owned": [
+      {
+        "id": "<std_ID>",
+        "name": "<studio-name>",
+        "slug": "<slug>",
+        "logo": "",
+        "visits": 0
+      }
+    ],
     "collaborations": []
   }
 }
