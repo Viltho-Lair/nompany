@@ -214,8 +214,20 @@ const OWN_AREAS = [
   // Raising a bill and AUTHORISING it are two acts (invariant 7: raiser ≠
   // approver), and paying is a third — so approve and pay are extra powers
   // outside the view/create/edit/delete ladder.
+  //
+  // `approveHigh` is a FOURTH, and it exists because `approve` could not
+  // express an amount: one right meant a 200-unit stationery bill and a
+  // 2,000,000 subcontractor bill took the same path, so the only way a studio
+  // could say "the FD sees the big ones" was to withhold approval from
+  // everybody who handles the small ones — a bottleneck, not a control. WHICH
+  // amount counts as high is the STUDIO's to set (Finance settings, as an
+  // approval chain); this key is only who may clear a bill once it is.
   { key: "finance.payables", group: "Finance & Accounting", label: "Payables", verbs: ["view", "create", "edit", "delete"],
-    extra: [{ key: "approve", label: "Approve bills" }, { key: "pay", label: "Record payments" }] },
+    extra: [
+      { key: "approve", label: "Approve bills" },
+      { key: "pay", label: "Record payments" },
+      { key: "approveHigh", label: "Approve bills above the limit" },
+    ] },
   { key: "finance.assets", group: "Finance & Accounting", label: "Fixed assets", verbs: ["view", "create", "edit"],
     extra: [{ key: "dispose", label: "Dispose of an asset" }] },
   { key: "finance.settings", group: "Finance & Accounting", label: "Settings", verbs: ["view", "edit"] },

@@ -248,7 +248,13 @@ console.log("== the permission matrix: one key grants exactly itself");
   // (declared for a locations screen that does not exist; `locations` no longer
   // moves, so the right had nothing to gate). Each was a section's NAME on the
   // blueprint mistaken for a screen existing.
-  ok("the catalogue is the size we last agreed", ALL_PERMISSIONS.length === 123, String(ALL_PERMISSIONS.length));
+  // 124 again, and this time an ADDITION rather than the restructure's
+  // subtraction: finance.payables.approveHigh, the second step of the bill
+  // approval chain. Deliberately a right of its own rather than a reuse of
+  // finance.settings.edit — configuring the limit and clearing a payment under
+  // it are the two acts invariant 7 exists to keep apart, and one key for both
+  // would let whoever sets the threshold approve everything above it.
+  ok("the catalogue is the size we last agreed", ALL_PERMISSIONS.length === 124, String(ALL_PERMISSIONS.length));
 
   const leaks = [];
   const missing = [];

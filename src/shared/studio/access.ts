@@ -106,6 +106,7 @@ const extras: Record<Locale, Record<string, string>> = {
     "finance.ledger.reverse": "عكس القيود",
     "finance.payables.approve": "اعتماد الفواتير",
     "finance.payables.pay": "تسجيل المدفوعات",
+    "finance.payables.approveHigh": "اعتماد الفواتير فوق الحد",
     "finance.assets.dispose": "استبعاد أصل",
     "engineeringDocs.register.review": "التوقيع كمراجع",
     "engineeringDocs.register.approve": "التوقيع كمعتمد",
