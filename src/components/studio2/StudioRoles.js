@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
+import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { peopleDict } from "@/shared/studio/people";
 import { areaGroup, areaLabel, extraLabel } from "@/shared/studio/access";
 import { panel, h2, sub, input, label, btn, btnGhost, Empty } from "@/components/studio2/ui";
@@ -85,7 +86,7 @@ export default function StudioRoles({ slug }) {
   // endpoint on /roles is still there and still guarded; this screen simply
   // stopped being a second door onto it.
 
-  if (!data) return <p className="text-sm text-slate-500">{tr.loadingRoles}</p>;
+  if (!data) return <ScreenSkeleton loadingLabel={tr.loadingRoles} />;
   const { roles = [], areas = [], canEdit } = data;
 
   if (editing) {

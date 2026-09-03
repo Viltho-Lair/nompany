@@ -2,6 +2,7 @@
 
 import { Fragment, useCallback, useEffect, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
+import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { financeDict } from "@/shared/studio/finance";
 import nextDynamic from "next/dynamic";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
@@ -94,7 +95,7 @@ function FinanceCash({ slug, view = "finance" }) {
   }, [slug, load]);
 
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
-  if (!data) return <p className="text-sm text-slate-500">{tr.loadingFinance}</p>;
+  if (!data) return <ScreenSkeleton loadingLabel={tr.loadingFinance} />;
 
   const { canManage: canManageParent, invoices, expenses, projects, profitability, summary, vocabulary, nav } = data;
   // MANAGE IS ASKED OF THE SCREEN BEING SHOWN. `view` is the section key, and
@@ -678,7 +679,7 @@ function Payables({ slug }) {
   const { data, error, busy, send } = useFinanceResource(slug, "bills");
 
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
-  if (!data) return <p className="text-sm text-slate-500">{tr.loadingAccountsPayable}</p>;
+  if (!data) return <ScreenSkeleton loadingLabel={tr.loadingAccountsPayable} />;
 
   const canManage = data.manage?.["finance-payables"] ?? data.canManage;
   const { bills = [], vocabulary = {} } = data;
@@ -961,7 +962,7 @@ function Assets({ slug }) {
   const { data, error, busy, send } = useFinanceResource(slug, "assets");
 
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
-  if (!data) return <p className="text-sm text-slate-500">{tr.loadingFixedAssets}</p>;
+  if (!data) return <ScreenSkeleton loadingLabel={tr.loadingFixedAssets} />;
 
   const canManage = data.manage?.["finance-assets"] ?? data.canManage;
   const { assets = [], vocabulary = {}, nav } = data;

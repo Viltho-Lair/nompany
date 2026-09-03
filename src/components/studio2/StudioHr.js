@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
+import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { hrDict } from "@/shared/studio/hr";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import {
@@ -93,7 +94,7 @@ export default function StudioHr({ slug, view = "hr" }) {
   }, [slug, load]);
 
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
-  if (!data) return <p className="text-sm text-slate-500">{tr.loadingHumanResources}</p>;
+  if (!data) return <ScreenSkeleton loadingLabel={tr.loadingHumanResources} />;
 
   const { canManage: canManageParent, departments, roles, certifications, employees, vacations, expiring, headcount, vocabulary, me, nav } = data;
   // MANAGE IS ASKED OF THE SCREEN BEING SHOWN. `view` is the section key, and

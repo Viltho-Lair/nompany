@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
+import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { tasksDict } from "@/shared/studio/tasks";
 import RecordLink from "@/components/studio2/RecordLink";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
@@ -102,7 +103,7 @@ export default function StudioTasks({ slug, view = "tasks" }) {
   }, [data, filter]);
 
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
-  if (!data) return <p className="text-sm text-slate-500">{tr.loadingTasks}</p>;
+  if (!data) return <ScreenSkeleton loadingLabel={tr.loadingTasks} />;
 
   const { canManage, people, projects, summary, vocabulary, nav, me } = data;
 

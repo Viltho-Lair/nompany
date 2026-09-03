@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
+import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { operationsDict } from "@/shared/studio/operations";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import RecordLink from "@/components/studio2/RecordLink";
@@ -111,7 +112,7 @@ export default function StudioOperations({ slug, view = "field-service" }) {
   }, [slug, load]);
 
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
-  if (!data) return <p className="text-sm text-slate-500">{tr.loadingOperations}</p>;
+  if (!data) return <ScreenSkeleton loadingLabel={tr.loadingOperations} />;
 
   const {
     canManage: canManageParent, canManageTracking, canManageSettings, canManagePlaces,

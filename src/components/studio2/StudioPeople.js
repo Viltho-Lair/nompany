@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
+import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { peopleDict } from "@/shared/studio/people";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { ADMIN_ROLE_ID } from "@/platform/access";
@@ -96,7 +97,7 @@ export default function StudioPeople({ slug, canAdminister, myCollaboratorId }) 
     load();
   }
 
-  if (loading) return <p className="text-sm text-slate-500">{tr.loadingPeople}</p>;
+  if (loading) return <ScreenSkeleton loadingLabel={tr.loadingPeople} />;
 
   return (
     <div className="space-y-6">

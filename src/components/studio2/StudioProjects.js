@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
+import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { projectsDict } from "@/shared/studio/projects";
 import { useRouter } from "next/navigation";
 import nextDynamic from "next/dynamic";
@@ -156,7 +157,7 @@ export default function StudioProjects({ slug, view = "projects" }) {
   }, [slug, load]);
 
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
-  if (!data) return <p className="text-sm text-slate-500">{tr.loadingProjects2}</p>;
+  if (!data) return <ScreenSkeleton loadingLabel={tr.loadingProjects2} />;
 
   // `canManage` is deliberately NOT destructured — see the note below. Binding
   // it under another name only to never read it made the same point, and cost a

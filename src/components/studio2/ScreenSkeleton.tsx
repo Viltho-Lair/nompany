@@ -1,10 +1,28 @@
-// WHAT A DEPARTMENT SCREEN LOOKS LIKE BEFORE ITS CHUNK ARRIVES.
+// WHAT A DEPARTMENT SCREEN LOOKS LIKE BEFORE IT HAS ANYTHING TO SHOW.
 //
-// The studio's screens are `nextDynamic()` now, one chunk each, so between
-// clicking Finance and seeing Finance there is a fetch. Without something in
-// the content area the shell renders around a hole — the nav and the header
-// stay, the middle goes white, and the effect reads as a broken page rather
-// than a loading one.
+// OPENING A SECTION WAITS THREE TIMES, and this is what stands there for all
+// three. They happen in this order and the reader should not be able to tell
+// where one ends and the next begins:
+//
+//   1. THE SERVER ROUND TRIP — app/studio/loading.js, the route's loading
+//      boundary, while the page resolves.
+//   2. THE CHUNK — the `nextDynamic` loading fallback in the studio page.
+//      Every screen is code-split, so between clicking Finance and having
+//      Finance there is a fetch.
+//   3. THE SCREEN'S OWN DATA — each screen is a client component that fetches
+//      from its own API after it mounts, and until that lands it has nothing
+//      to draw.
+//
+// The third one used to be a bare line of text — `<p>Loading Sales…</p>` — in
+// every department screen, so a section click went skeleton, skeleton, then a
+// sentence in the top-left corner of an empty box, and only then the screen.
+// The text was the only one of the three that told you nothing about what was
+// coming, and it was the longest of the three waits. It is this component now,
+// with the sentence kept as the `loadingLabel` so screen readers still hear it.
+//
+// Without something in the content area the shell renders around a hole — the
+// nav and the header stay, the middle goes white, and the effect reads as a
+// broken page rather than a loading one.
 //
 // IT RESERVES THE BOX RATHER THAN FILLING IT. Title, a row of figures, a chart
 // and a table: the shape almost every department screen actually has, so the

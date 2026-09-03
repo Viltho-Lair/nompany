@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import nextDynamic from "next/dynamic";
 import { useStudioLocale } from "@/components/studio2/locale";
+import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { technicalDict, liveColumnLabel, leadDisplay } from "@/shared/studio/technical";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { Icon } from "@/components/studio2/icons";
@@ -181,7 +182,7 @@ export default function StudioTechnical({ slug, view = "engineering-docs", secti
   }
 
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
-  if (!data) return <p className="text-sm text-slate-500">{tr.loadingTechnical}</p>;
+  if (!data) return <ScreenSkeleton loadingLabel={tr.loadingTechnical} />;
 
   const { canManageRfq, canManageQuotations, canRequestRfq, rfqs, quotations, openTickets, people, vocabulary, sequences = [], defaultSequenceId } = data;
   // MANAGE IS ASKED OF THE SCREEN BEING SHOWN, and the per-sub-section flags

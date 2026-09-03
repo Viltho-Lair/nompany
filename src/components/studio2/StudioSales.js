@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import nextDynamic from "next/dynamic";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
+import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import useLiveRows from "@/components/studio2/useLiveRows";
 import RecordLink from "@/components/studio2/RecordLink";
 import { Icon } from "@/components/studio2/icons";
@@ -172,7 +173,7 @@ export default function StudioSales({ slug, view = "crm-sales" }) {
   }
 
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
-  if (!data) return <p className="text-sm text-slate-500">{tr.loadingSales}</p>;
+  if (!data) return <ScreenSkeleton loadingLabel={tr.loadingSales} />;
 
   const { canManageTickets, canManageClients, canManageSettings, clients, tickets, people, vocabulary, nav, liveColumns, hasTechnical } = data;
   // MANAGE IS ASKED OF THE SCREEN BEING SHOWN, and the per-sub-section flags

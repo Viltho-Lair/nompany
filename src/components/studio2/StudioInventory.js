@@ -2,6 +2,7 @@
 
 import { CURRENCIES_FROM_EXCHANGE_API } from "@/shared/currencies";
 import { useStudioLocale } from "@/components/studio2/locale";
+import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { inventoryDict } from "@/shared/studio/inventory";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import nextDynamic from "next/dynamic";
@@ -80,7 +81,7 @@ export default function StudioInventory({ slug, view = "inventory" }) {
   }, [slug, load]);
 
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
-  if (!data) return <p className="text-sm text-slate-500">{tr.loadingInventory}</p>;
+  if (!data) return <ScreenSkeleton loadingLabel={tr.loadingInventory} />;
 
   // `canManage` IS NOT DESTRUCTURED, and neither is `canManageSheets`. Both are
   // in the response; neither has a reader here. See the note below for
