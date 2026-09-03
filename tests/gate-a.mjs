@@ -2783,6 +2783,8 @@ console.log("== /super: a second identity, and the wall between them");
   const SUPER_STUDIOS = await import("@/app/api/super/studios/[id]/route.ts");
   const SUPER_CATALOG = await import("@/app/api/super/catalog/[kind]/route.ts");
   const SUPER_NOTIF = await import("@/app/api/super/notifications/route.ts");
+  const SUPER_CAL = await import("@/app/api/super/google-calendar/route.ts");
+  const SUPER_CAL_EVENTS = await import("@/app/api/super/google-calendar/events/route.ts");
   const STUDIO = await import("@/app/api/studios/[slug]/route.ts");
   const SALES = await import("@/app/api/studios/[slug]/sales/route.ts");
 
@@ -2799,6 +2801,13 @@ console.log("== /super: a second identity, and the wall between them");
   await shot("super.unauth.users", await capture(
     SUPER_USERS.PATCH, req(`/api/super/users/${owner.id}`, { method: "PATCH", body: { platformRole: "support" } }),
     ctx({ userId: owner.id })));
+  // Not a `shot` — the four calendar goldens pin the CONFIGURED shapes below;
+  // this only proves the door, so it asserts the status directly rather than
+  // adding a fifth recording of the same 401 body every other super.unauth.*
+  // golden already carries.
+  const calUnauth = await capture(SUPER_CAL.GET, req("/api/super/google-calendar"), ctx());
+  ok("the calendar routes are behind the console door", calUnauth.status === 401,
+    `${calUnauth.status} ${JSON.stringify(calUnauth.body)}`);
 
   // THE FIRST DIRECTION. A signed-in SUBSCRIBER — the owner of a studio, who
   // holds a perfectly good nc_sid — reaching the console. Their cookie is real,
@@ -2831,6 +2840,23 @@ console.log("== /super: a second identity, and the wall between them");
     SUPER_CATALOG.GET, req("/api/super/catalog/packages"), ctx({ kind: "packages" })));
   await shot("super.catalog.unknownkind", await capture(
     SUPER_CATALOG.GET, req("/api/super/catalog/nonsense"), ctx({ kind: "nonsense" })));
+
+  // ---- the calendar, unconnected and unconfigured --------------------------
+  // WHAT THESE PIN. There is no connection saved by this fixture, and the plain
+  // GET touches no network (see the route's own comment on why discovery is
+  // opt-in) — so the shape pinned here is a null connection and the
+  // service-account address the screen tells the operator to share the
+  // calendar with. That address is a fixed string (googleFederation.ts's
+  // GOOGLE_FEDERATION_DEFAULTS), not something STS returns, so it is
+  // deterministic without needing a placeholder.
+  await shot("super.calendar.unconnected", await capture(
+    SUPER_CAL.GET, req("/api/super/google-calendar"), ctx()));
+  await shot("super.calendar.noid", await capture(
+    SUPER_CAL.PUT, req("/api/super/google-calendar", { method: "PUT", body: {} }), ctx()));
+  await shot("super.calendar.events.unconnected", await capture(
+    SUPER_CAL_EVENTS.GET, req("/api/super/google-calendar/events?from=2026-09-01T00:00:00Z&to=2026-09-30T00:00:00Z"), ctx()));
+  await shot("super.calendar.events.badrange", await capture(
+    SUPER_CAL_EVENTS.GET, req("/api/super/google-calendar/events?from=2026-09-30T00:00:00Z&to=2026-09-01T00:00:00Z"), ctx()));
 
   // ---- THE SECOND DIRECTION, and the one that is easy to forget ------------
   // The console cookie is now in the jar. On its own — with no subscriber
