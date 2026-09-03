@@ -139,6 +139,19 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
   if (context.error) {
     return Response.json({ error: context.error }, { status: context.error === "notfound" ? 404 : 403 });
   }
+  // ENFORCED AT LAST. This route checked membership and stopped there, so
+  // administration.settings.view was grantable and granted nobody anything --
+  // for as long as the Studio settings screen was reached by a route that
+  // bypassed the section mechanism, nothing existed to read it.
+  //
+  // It has to land in the same change as the nav gating rather than after it:
+  // a gated screen over an open endpoint is worse than either alone, because
+  // the screen disappears while the whole studio record stays readable by any
+  // member. The refused body carries no studio at all, which is asserted --
+  // a 403 returning the payload would be the same leak wearing a status code.
+  const deniedView = requirePermission(context.access, "administration.settings.view");
+  if (deniedView) return Response.json(deniedView, { status: 403 });
+
   const { studio, collaborator } = context;
   return Response.json({
     studio: clean(studio),

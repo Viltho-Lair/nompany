@@ -4160,6 +4160,39 @@ console.log("== a person's own language overrides the studio's, and only theirs"
 }
 
 // ============================================================================
+console.log("== studio settings enforces the right that used to grant nothing");
+// administration.settings.view existed all through the fifteen-section
+// restructure and enforced NOTHING: this GET checked membership and stopped
+// there, so the right was grantable and granted nobody anything. It survived
+// because the only thing that would have read it \u2014 the section lookup \u2014 was
+// bypassed for this key on purpose.
+//
+// A right nothing can exercise is the dead capability the catalogue's own rule
+// forbids (invariant 16), and gating the nav on it while leaving the endpoint
+// open would have been worse than either: the screen would vanish while its
+// data stayed readable by any member.
+{
+  await signInAs(nobody.user.id);
+  const denied = await SETTINGS.GET(new Request("http://localhost/test"), { params: params(slug) });
+  ok("a member holding none of it cannot read studio settings",
+    denied.status === 403, String(denied.status));
+
+  // AND THE BODY IS A REFUSAL, not a partial payload. A 403 carrying the
+  // studio would be the same leak wearing a status code.
+  const deniedBody = await denied.json();
+  ok("...and the response carries no studio at all",
+    deniedBody.studio === undefined, JSON.stringify(Object.keys(deniedBody)));
+
+  // THE OWNER STILL READS IT. The owner short-circuit in effectivePermissions
+  // is what makes this pass without granting anything explicitly, and the two
+  // existing SETTINGS.GET callers in this file rely on it \u2014 which is why
+  // adding the check did not move them.
+  await signInAs(owner.id);
+  const allowed = await SETTINGS.GET(new Request("http://localhost/test"), { params: params(slug) });
+  ok("...and somebody holding the right still can", allowed.status === 200, String(allowed.status));
+}
+
+// ============================================================================
 console.log("== the settings payload displays the field of work, but does not write it");
 // settings/service-actions/route.ts is the SOLE writer of fieldOfWork,
 // fieldOfWorkOther, serviceActions and retiredServiceActions — choosing a field
