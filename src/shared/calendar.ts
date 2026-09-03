@@ -41,6 +41,43 @@ export function normaliseEvent(raw: unknown): CalendarEvent | null {
 }
 
 /**
+ * One Microsoft Graph event → one CalendarEvent, the SAME shape the Google
+ * normaliser above produces — so nothing downstream (eventDayKeys, the grid)
+ * knows or cares which provider a meeting came from.
+ *
+ * MICROSOFT'S ALL-DAY END IS EXCLUSIVE TOO, exactly like Google's `end.date`:
+ * a one-day event on the 3rd is `start: 2026-09-03T00:00`, `end:
+ * 2026-09-04T00:00`. Graph has no separate date-only field the way Google
+ * does (`start.date` vs `start.dateTime`) — every event carries `dateTime`,
+ * and `isAllDay` is what says which arithmetic applies. Trimming to the date
+ * part HERE, for an all-day event only, is what feeds eventDayKeys' existing
+ * exclusive-end handling unchanged rather than growing a second copy of that
+ * off-by-one logic.
+ */
+export function normaliseMicrosoftEvent(raw: unknown): CalendarEvent | null {
+  const e = (raw ?? {}) as Record<string, any>;
+  const id = String(e.id || "");
+  const rawStart = String(e.start?.dateTime || "");
+  if (!id || !rawStart) return null;
+  const allDay = Boolean(e.isAllDay);
+  const rawEnd = String(e.end?.dateTime || rawStart);
+  const start = allDay ? rawStart.slice(0, 10) : rawStart;
+  const end = allDay ? rawEnd.slice(0, 10) : rawEnd;
+  return {
+    id,
+    // Same reasoning as Google's placeholder: a Microsoft event may genuinely
+    // carry no subject, and an empty chip explains nothing.
+    title: String(e.subject || "(no title)"),
+    start,
+    end,
+    allDay,
+    location: String(e.location?.displayName || ""),
+    htmlLink: String(e.webLink || ""),
+    colorId: "",
+  };
+}
+
+/**
  * Which day cells an event paints, as "YYYY-MM-DD", inclusive of both ends.
  *
  * GOOGLE'S ALL-DAY `end.date` IS EXCLUSIVE: a one-day event on the 3rd is stored

@@ -309,5 +309,39 @@ console.log("\nrevoke — microsoft has no revocation endpoint, so disconnecting
     clearCalls === 1, String(clearCalls));
 }
 
+const { normaliseMicrosoftEvent, eventDayKeys } = await import("../src/shared/calendar.ts");
+
+console.log("\nmicrosoft normaliser");
+{
+  const timed = normaliseMicrosoftEvent({
+    id: "m1", subject: "Design review", isAllDay: false,
+    webLink: "https://outlook.office.com/m1",
+    location: { displayName: "Room 4" },
+    start: { dateTime: "2026-09-03T09:30:00.0000000", timeZone: "UTC" },
+    end: { dateTime: "2026-09-03T10:00:00.0000000", timeZone: "UTC" },
+  });
+  ok("a timed Microsoft event keeps its subject", timed.title === "Design review");
+  ok("...is not all-day", timed.allDay === false);
+  ok("...and keeps its link", timed.htmlLink === "https://outlook.office.com/m1");
+  ok("...and its location", timed.location === "Room 4");
+
+  // MICROSOFT'S ALL-DAY END IS EXCLUSIVE TOO, exactly like Google's end.date.
+  // A one-day event on the 3rd runs 2026-09-03T00:00 to 2026-09-04T00:00 and
+  // must occupy ONE cell, not two.
+  const oneDay = normaliseMicrosoftEvent({
+    id: "m2", subject: "Public holiday", isAllDay: true,
+    start: { dateTime: "2026-09-03T00:00:00.0000000", timeZone: "UTC" },
+    end: { dateTime: "2026-09-04T00:00:00.0000000", timeZone: "UTC" },
+  });
+  ok("an all-day Microsoft event is all-day", oneDay.allDay === true);
+  ok("...and occupies exactly one cell",
+    JSON.stringify(eventDayKeys(oneDay)) === JSON.stringify(["2026-09-03"]),
+    JSON.stringify(eventDayKeys(oneDay)));
+
+  ok("an event with no id is dropped", normaliseMicrosoftEvent({ subject: "x" }) === null);
+  ok("an untitled event gets a readable placeholder",
+    normaliseMicrosoftEvent({ id: "m3", isAllDay: false, start: { dateTime: "2026-09-03T09:00:00" }, end: { dateTime: "2026-09-03T10:00:00" } }).title === "(no title)");
+}
+
 console.log(fails ? `\n${fails} failure(s)` : "\nall good");
 process.exitCode = fails ? 1 : 0;
