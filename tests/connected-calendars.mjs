@@ -84,5 +84,27 @@ console.log("\ncalendar providers");
     url.includes(encodeURIComponent("Calendars.Read offline_access")), url);
 }
 
+const { publicConnection } = await import("../src/platform/auth/calendarConnections.ts");
+
+console.log("\nconnection shape");
+{
+  const full = {
+    provider: "google", accountEmail: "a@b.test",
+    refreshToken: "REFRESH-SECRET", accessToken: "ACCESS-SECRET",
+    expiresAtMs: 123, calendarIds: ["primary"], connectedAt: 456,
+  };
+  const pub = publicConnection(full);
+  const serialised = JSON.stringify(pub);
+  // THE ONE ASSERTION THIS FILE EXISTS FOR. A token reaching a response body is
+  // the worst failure available to this feature, and a spread that forgets a
+  // field added later is exactly how it would happen.
+  ok("no token survives publicConnection",
+    !serialised.includes("REFRESH-SECRET") && !serialised.includes("ACCESS-SECRET"), serialised);
+  ok("...nor does the expiry, which is nobody's business either",
+    !("expiresAtMs" in pub));
+  ok("what the client needs does survive",
+    pub.provider === "google" && pub.accountEmail === "a@b.test" && pub.connectedAt === 456);
+}
+
 console.log(fails ? `\n${fails} failure(s)` : "\nall good");
 process.exitCode = fails ? 1 : 0;

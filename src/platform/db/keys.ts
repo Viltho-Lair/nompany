@@ -156,6 +156,17 @@ export const U = {
   // dies with the user via the u:<id>:* prefix; like u:<id>:sessions it is not
   // (yet) in the SQL export mapping.
   activity: (userId: string) => `${P}u:${userId}:activity`,
+  // A CONNECTED CALENDAR ACCOUNT, one per provider. Keyed under the USER and not
+  // under a studio because the Google or Microsoft account is the person's, not
+  // the tenant's — they connect once and it works in every studio they belong
+  // to, and it dies with them via the u:<id>:* prefix.
+  //
+  // ITS OWN KEY, NOT A FIELD ON THE COLLABORATOR ROW. s:<sid>:collaborators is
+  // one key holding the whole list and every write to it is a compare-and-set;
+  // an hourly per-person token refresh landing there would contend with every
+  // membership edit in the studio, for a value no other reader of that row wants.
+  calendarConnection: (userId: string, provider: string) =>
+    `${P}u:${userId}:cal:${provider}`,
 };
 
 // ---- OTP challenges (NOT user-scoped, deliberately) ------------------------
