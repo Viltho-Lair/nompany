@@ -84,8 +84,15 @@ export function positiveInt(raw: string | undefined, fallback: number, name: str
  *
  * NO GATEWAY URL IS ASKED FOR. This reader is shared, and the calendar
  * addresses nothing — the destination is each consumer's own business.
+ *
+ * `who` NAMES THE CALLER IN THE TWO positiveInt ERRORS BELOW. Defaulted to
+ * "pg-gateway auth" so the gateway's existing messages, and
+ * `readGatewayAuthConfig`'s single-argument call site, stay byte-identical —
+ * a calendar deployment with a malformed `PG_GATEWAY_TOKEN_SKEW_MS` passes
+ * "google-calendar auth" instead, so the error points at the calendar rather
+ * than the database that variable's name suggests.
  */
-export function readFederationConfig(env: NodeJS.ProcessEnv): FederationConfig {
+export function readFederationConfig(env: NodeJS.ProcessEnv, who: string = "pg-gateway auth"): FederationConfig {
   const projectNumber = env.GCP_PROJECT_NUMBER || GOOGLE_FEDERATION_DEFAULTS.projectNumber;
   const pool = env.GCP_WORKLOAD_IDENTITY_POOL || GOOGLE_FEDERATION_DEFAULTS.workloadIdentityPool;
   const provider = env.GCP_WORKLOAD_IDENTITY_PROVIDER || GOOGLE_FEDERATION_DEFAULTS.workloadIdentityProvider;
@@ -112,8 +119,8 @@ export function readFederationConfig(env: NodeJS.ProcessEnv): FederationConfig {
     // They are production-tunable configuration; renaming them would change
     // what a deployment already sets, which is the one thing a move must not
     // do.
-    refreshSkewMs: positiveInt(env.PG_GATEWAY_TOKEN_SKEW_MS, 120_000, "PG_GATEWAY_TOKEN_SKEW_MS", "pg-gateway auth"),
-    timeoutMs: positiveInt(env.PG_GATEWAY_AUTH_TIMEOUT_MS, 10_000, "PG_GATEWAY_AUTH_TIMEOUT_MS", "pg-gateway auth"),
+    refreshSkewMs: positiveInt(env.PG_GATEWAY_TOKEN_SKEW_MS, 120_000, "PG_GATEWAY_TOKEN_SKEW_MS", who),
+    timeoutMs: positiveInt(env.PG_GATEWAY_AUTH_TIMEOUT_MS, 10_000, "PG_GATEWAY_AUTH_TIMEOUT_MS", who),
   };
 }
 
