@@ -93,6 +93,15 @@ Router had nothing to show and **blocked the navigation**: measured, not one nod
 changed during a transition and the address bar itself did not move for 767ms, so the click read
 as broken rather than slow. With it the first paint lands at ~64ms.
 
+**Opening a section waits three times, and all three look the same.** The route's loading
+boundary while the server answers; the chunk, because every screen is `nextDynamic()`; and
+then the screen's own fetch, because a department screen is a client component that asks its
+API after it mounts. The third was a bare line of text — `Loading Sales…` — in every screen, so a
+click went skeleton, skeleton, then a sentence in the corner of an empty box. It was the
+longest of the three waits and the only one that said nothing about what was coming. All
+three are `<ScreenSkeleton />` now; the sentence survives as its `loadingLabel`, `sr-only`, so
+a screen reader still hears which screen is loading.
+
 **Seven screens take the whole window** — the manual, the two live views, Engagements, the
 document register, a project's board and the planner. They used to return out of the page before
 the shell was built, which only worked while the page *was* the shell. The shell now recognises
