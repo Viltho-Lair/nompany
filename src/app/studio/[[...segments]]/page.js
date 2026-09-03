@@ -5,24 +5,15 @@
 // this, and the fix is the import, never the export: renaming the config would
 // silently make the studio statically rendered.
 import nextDynamic from "next/dynamic";
-import { cookies, headers } from "next/headers";
-import { redirect, notFound } from "next/navigation";
+import { notFound } from "next/navigation";
 import Link from "next/link";
-import { currentUser, needsQuestionnaire } from "@/platform/auth/identity";
-import { studioContext, canAdminister, visibleSections, recordStudioVisit } from "@/lib/studios";
 import { can, NO_SCREEN_YET } from "@/platform/access";
 import { withRequest } from "@/platform/http/observability";
-import { getProfile } from "@/platform/auth/users";
-import { loadCatalogues, planOf, hasLiveChat } from "@/lib/plans";
-import { chatDisplayName } from "@/lib/chatConstants";
-import { studioLocale, preferredLocale, dirFor, UI_LANG_COOKIE } from "@/shared/i18n";
+import { requestedKey } from "@/shared/studioRoute";
 import { shellDict } from "@/shared/studio/shell";
 import { sectionName } from "@/shared/studio/sections";
-import { StudioLocaleProvider } from "@/components/studio2/locale";
-import { chatsUsed, allowanceOf } from "@/lib/data/chatUsage";
-import StudioFrame from "@/components/studio2/StudioFrame";
-import LiveProvider from "@/components/studio2/LiveProvider";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
+import { studioRequest } from "../_shell";
 
 // ONE SCREEN IS RENDERED PER REQUEST, SO ONE SCREEN IS DOWNLOADED.
 //
@@ -39,8 +30,9 @@ import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 // would be wrong anyway: these screens should still render on the server, they
 // simply should not all be shipped at once.
 //
-// StudioFrame and LiveProvider stay static. Every request renders both, so
-// splitting them would buy a round trip and save nothing.
+// StudioFrame and LiveProvider are the LAYOUT's now and are not imported here
+// at all — see layout.js. Every request renders both, so splitting them would
+// buy a round trip and save nothing.
 const StudioDocs = nextDynamic(() => import("@/components/studio2/StudioDocs"));
 const DocumentList = nextDynamic(() =>
   import("@/components/quality/documents/document-list").then((m) => m.DocumentList));
@@ -68,10 +60,11 @@ const StudioTicketProfile = nextDynamic(
   () => import("@/components/studio2/StudioTicketProfile"),
   { loading: () => <ScreenSkeleton /> },
 );
-// THE PROJECT PROFILE IS THE KANBAN BOARD NOW. Full-screen, so it renders
-// outside StudioFrame like the manual and the live views (see the early-return
-// below). dnd-kit and the board store ride this chunk, fetched only when a
-// project is opened.
+// THE PROJECT PROFILE IS THE KANBAN BOARD NOW. Full-screen, like the manual and
+// the live views — which no longer means "rendered outside StudioFrame": the
+// shell is a layout and wraps everything, so it recognises the address instead
+// and draws no chrome (shared/studioRoute, isFullScreenPath). dnd-kit and the
+// board store ride this chunk, fetched only when a project is opened.
 const StudioProjectBoard = nextDynamic(
   () => import("@/components/studio2/StudioProjectBoard"),
   { loading: () => <ScreenSkeleton /> },
@@ -166,133 +159,61 @@ export default async function StudioPage({ params }) {
 // proxy) and MEMBERSHIP authorises it. Section access is then filtered per
 // person, default-deny, so a member only ever sees what they were granted.
 async function renderStudio(params) {
-  const slug = (await headers()).get("x-studio-slug") || "";
-  // READ ONCE. The screens that fire before a studio is resolved — you are
-  // not a member of this one — still have to be in the reader's language,
-  // and they have no tenant default to fall back to. Everything below that
-  // does have one reuses this value rather than reading the jar again.
-  const uiLang = (await cookies()).get(UI_LANG_COOKIE)?.value;
-  if (!slug) notFound();
-
-  const user = await currentUser();
-  // BOTH DESTINATIONS ARE LOCALE-ADDRESSED and both were pinned to /en, so an
-  // Arabic reader bounced out of a studio landed on an English login and an
-  // English survey. There is no studio record to consult on either path — the
-  // person is not signed in, or has not finished registering — so the cookie is
-  // the only thing that knows, and it is exactly what it is for.
-  if (!user) redirect(`/${preferredLocale(uiLang)}/login`);
-  // Same gate as the account hub, checked BEFORE membership: someone who has
-  // not answered the survey has no business inside a studio either, and this
-  // way the studio's own 404-for-non-members never fires first and hides why.
-  if (await needsQuestionnaire(user.id)) redirect(`/${preferredLocale(uiLang)}/questionnaire`);
-
-  const context = await studioContext(user, slug);
-  // THESE TWO ARE NOT THE SAME SCREEN, and the comment that used to sit here
-  // claimed they were. A missing slug 404s; a real studio you are not in gets
-  // NotAMember, which names the slug and tells you to ask an admin.
+  // RESOLVED ONCE FOR THE WHOLE REQUEST, by the same call the layout makes.
+  // React's `cache` means the second caller pays nothing — see _shell.js for
+  // why that mechanism and not the repo's own request cache, which cannot span
+  // a layout and its page.
   //
-  // That is deliberate, not a leak. A slug is a public address — requestJoinByCode
-  // exists so somebody can type one they were told — so existence was never the
-  // secret. The contents are: no row, no name, no count, no section reaches
-  // anyone who is not a collaborator.
-  if (context.error) {
-    if (context.error === "forbidden") return <NotAMember slug={slug} locale={preferredLocale(uiLang)} />;
-    notFound();
-  }
+  // Every refusal except one has already happened inside it, by throwing:
+  // no slug 404s, no session and an unfinished questionnaire redirect. Those
+  // end the render for the layout and this page alike, so there is no window
+  // where one has refused and the other has not.
+  const context = await studioRequest();
 
-  // `access` comes from studioContext; dropping it here is what silently
-  // disarms every check downstream.
-  //
-  // AND SO DO THE SECTIONS. studioContext reads them in the same wave as the
-  // collaborator and the roles, and returns them for its callers — `access`
-  // itself is resolved from the roles and does not consult them. This
-  // destructure used to stop at `access`, and the wave below then called
-  // `listSections(studio.id)` a second time for the identical rows: one
-  // guaranteed extra round trip on every section click, and under
-  // PG_TRANSPORT=gateway a round trip is a whole HTTPS call to Cloud Run,
-  // because the gateway sends one statement per call and never batches.
-  const { studio, collaborator, access, sections: allSections } = context;
+  // THE NON-MEMBER, WHICH RENDERS RATHER THAN THROWS (invariant 2). The layout
+  // draws that screen and does not render `children`, so React never renders
+  // this component and returning null costs nothing. It is checked anyway:
+  // "the layout will not render me" is an assumption about the framework, and
+  // the thing it would be guarding is a studio's contents leaking to somebody
+  // who is not in it. Cheap insurance against a rendering-order change.
+  if (context.error) return null;
 
-  // WHICH LANGUAGE THIS PERSON READS THE SHELL IN — resolved here, as soon as
-  // the studio record exists, because the full-screen screens below return
-  // before the shell is ever built and they need it too.
-  //
-  // The studio's own setting is the default — what the company was set up in —
-  // and a cookie the person set from the header menu overrides it. Resolved on
-  // the server so `lang`/`dir` and the dictionaries all ship in the first byte
-  // of HTML: a shell that mirrored itself after paint would flash the whole
-  // layout the wrong way round on every load.
-  //
-  // Costs no Redis hop: the studio record is already in hand and the cookie
-  // rode in on the request. See preferredLocale in shared/locale for why this
-  // is a cookie and not a field on the collaborator.
-  const locale = preferredLocale(uiLang, studioLocale(studio));
-
-  // Tally the visit so the account overview can rank studios by how much this
-  // person actually uses them. Fire-and-forget: ranking is a convenience, and a
-  // failed tally must never cost the page a render or a millisecond of latency.
-  recordStudioVisit(user.id, studio.id).catch(() => {});
-
-  const admin = canAdminister(access);
-  const [catalogues, profile] = await Promise.all([
-    loadCatalogues(), getProfile(user.id),
-  ]);
-  const plan = planOf(studio, catalogues.packages, catalogues.tiers);
-  const sections = visibleSections(studio, collaborator, allSections, access);
-
-  // Live chat with nompany: every package except Free. Computed here so the
-  // shell knows whether to draw the button at all; /api/chat/start decides the
-  // same question again for the request, which is the answer that binds.
-  // Whether the package includes chat at all, and how much of this month's
-  // allowance is left. The button is DRAWN whenever the package has chat and
-  // disabled when the allowance is spent — a button that vanishes leaves
-  // somebody wondering what they did wrong.
-  const chatUsed = hasLiveChat(plan) ? await chatsUsed(studio.id) : 0;
-  const chat = {
-    enabled: hasLiveChat(plan),
-    userName: chatDisplayName({ alias: collaborator.alias, profile, email: user.email }),
-    ...allowanceOf(chatUsed, plan.chatPerMonth),
-  };
+  const { studio, collaborator, access, allSections, sections, locale, admin } = context;
 
   const { segments = [] } = await params;
-  const requested = segments[0] || "";
+  // THE SAME DERIVATION THE SHELL USES, from the other end of the same address.
+  // This is `segments[0] || ""` and always was; it is imported rather than
+  // written because the shell now has to answer the identical question from
+  // `usePathname()` and two copies would be free to disagree.
+  const requested = requestedKey(segments);
 
-  // The manual is full-screen: it renders OUTSIDE StudioFrame, so it returns
-  // before the shell is built. Membership was already established above, so it
-  // is available to every member regardless of section grants. Checked ahead of
-  // the section lookup, so it wins over a section that happened to use the key.
+  // THE FULL-SCREEN SCREENS RETURN A BARE SCREEN, and the shell is what makes
+  // that work now. They used to be wrapped here in `FullScreen` (for lang/dir
+  // and the locale context) and most of them in a `LiveProvider` of their own,
+  // because they rendered OUTSIDE StudioFrame and nothing else would have given
+  // them either. They render INSIDE it now — a layout wraps everything below
+  // it — and StudioFrame recognises a full-screen address through
+  // shared/studioRoute and draws no chrome around them.
+  //
+  // So both wrappers are gone from every branch below, and the LiveProvider is
+  // the one that MATTERS: kept, it would have nested a second EventSource
+  // inside the shell's, one per tab, against a browser cap of six
+  // (invariant 14). The shell's connection is the studio's only one again.
+  //
+  // The manual is available to every member regardless of section grants —
+  // membership was established in _shell. Checked ahead of the section lookup,
+  // so it wins over a section that happened to use the key.
   if (requested === "documentation") {
-    return (
-      <FullScreen locale={locale}>
-        <StudioDocs studio={{ name: studio.name, slug: studio.slug }} locale={locale} />
-      </FullScreen>
-    );
+    return <StudioDocs studio={{ name: studio.name, slug: studio.slug }} locale={locale} />;
   }
 
-  // Sales Live view is full-screen too, so it also returns before the shell.
-  // It needs the Sales grant, which its own API call re-checks server-side.
-  //
-  // Each carries its OWN LiveProvider. StudioFrame normally supplies it, and
-  // these two deliberately render outside the shell — so without this they
-  // would be the only boards in the studio with no live connection, which on a
-  // screen literally called "Live view" is the worst possible place for it.
+  // The two Live views need their section's grant, which their own API calls
+  // re-check server-side.
   if (requested === "crm-sales-live") {
-    return (
-      <FullScreen locale={locale}>
-        <LiveProvider slug={studio.slug}>
-          <StudioSalesLive studio={{ name: studio.name, slug: studio.slug }} />
-        </LiveProvider>
-      </FullScreen>
-    );
+    return <StudioSalesLive studio={{ name: studio.name, slug: studio.slug }} />;
   }
   if (requested === "engineering-docs-live") {
-    return (
-      <FullScreen locale={locale}>
-        <LiveProvider slug={studio.slug}>
-          <StudioTechnicalLive studio={{ name: studio.name, slug: studio.slug }} />
-        </LiveProvider>
-      </FullScreen>
-    );
+    return <StudioTechnicalLive studio={{ name: studio.name, slug: studio.slug }} />;
   }
 
   // ENGAGEMENTS IS NOT A SECTION, deliberately. Making it one would give Main a
@@ -304,23 +225,19 @@ async function renderStudio(params) {
   if (requested === "engagements") {
     if (!can(access, "engagements.view")) notFound();
     return (
-      <FullScreen locale={locale}>
-      <LiveProvider slug={studio.slug}>
-        {/* THE TWO ACTION RIGHTS ARE RESOLVED HERE, once, and handed down as
-            flags — the same way canSeeEngagements and the Documents screen's
-            canCreate/canDelete are (invariant 3: no client re-derives access).
-            They are separate keys on purpose: being able to delete a deal must
-            not by itself confer the power to take the safety off it, so a
-            reader can legitimately hold one and not the other, and the screen
-            has to be able to draw that. The server checks both again — these
-            flags only decide whether a control is offered. */}
-        <StudioEngagements
-          slug={studio.slug}
-          canLock={can(access, "engagements.lock")}
-          canDelete={can(access, "engagements.delete")}
-        />
-      </LiveProvider>
-      </FullScreen>
+      /* THE TWO ACTION RIGHTS ARE RESOLVED HERE, once, and handed down as
+         flags — the same way canSeeEngagements and the Documents screen's
+         canCreate/canDelete are (invariant 3: no client re-derives access).
+         They are separate keys on purpose: being able to delete a deal must
+         not by itself confer the power to take the safety off it, so a
+         reader can legitimately hold one and not the other, and the screen
+         has to be able to draw that. The server checks both again — these
+         flags only decide whether a control is offered. */
+      <StudioEngagements
+        slug={studio.slug}
+        canLock={can(access, "engagements.lock")}
+        canDelete={can(access, "engagements.delete")}
+      />
     );
   }
 
@@ -334,7 +251,7 @@ async function renderStudio(params) {
   // granted" for every other section, and a second refusal screen of its own
   // would be the same sentence in a different voice.
   if (requested === "engineering-docs-register" && sections.some((s) => s.key === "engineering-docs-register")) {
-    const shell = { name: studio.name, slug: studio.slug };
+    const studioProps = { name: studio.name, slug: studio.slug };
     // NO SETUP SCREEN. Document types, prefixes, department codes and the
     // studio letterhead were all settings the old builder needed: it could not
     // number a document without a type, and it drew one letterhead for every
@@ -348,69 +265,52 @@ async function renderStudio(params) {
     // exactly what it draws, so there is nothing left for a second screen to
     // show. /<id>/preview is gone with it.
     if (segments[1]) {
-      return (
-        <FullScreen locale={locale}>
-          <DocumentView studio={shell} documentId={segments[1]} />
-        </FullScreen>
-      );
+      return <DocumentView studio={studioProps} documentId={segments[1]} />;
     }
 
     return (
-      <FullScreen locale={locale}>
-        <DocumentList
-          studio={shell}
-          canCreate={can(access, "engineeringDocs.register.create")}
-          canDelete={can(access, "engineeringDocs.register.delete")}
-        />
-      </FullScreen>
+      <DocumentList
+        studio={studioProps}
+        canCreate={can(access, "engineeringDocs.register.create")}
+        canDelete={can(access, "engineeringDocs.register.delete")}
+      />
     );
   }
 
-  // THE PROJECT PROFILE IS THE KANBAN BOARD, and the board is full-screen — so,
-  // like the manual and the live views, it renders OUTSIDE StudioFrame and
-  // returns before the shell is built. /<slug>/projects-list/<id> is one
-  // project's board; the /quotation sub-route is left to the in-frame viewer
-  // below, so this deliberately does not catch it.
+  // THE PROJECT PROFILE IS THE KANBAN BOARD, and the board is full-screen.
+  // /<slug>/projects-list/<id> is one project's board; the /quotation sub-route
+  // is left to the in-frame viewer below, so this deliberately does not catch
+  // it — and `isFullScreenPath` makes the same exception, or the shell would
+  // drop its chrome around a screen that wants it.
   //
   // It rides the projects-list grant: the section must be visible to this person
   // (its /board API re-checks server-side, and the write re-checks the edit
-  // right). It carries its OWN LiveProvider, because it renders outside the shell
-  // that usually supplies one and the sidebar's live updates need it. A refusal
-  // falls THROUGH to the shell below, which already answers "not granted".
+  // right). A refusal falls THROUGH to the framed screens below, which already
+  // answer "not granted" — which is why the grant is part of the shell's
+  // full-screen test too, rather than the path alone.
   if (
     requested === "projects-list" && segments[1] &&
     segments[2] !== "quotation" && segments[2] !== "plans" &&
     sections.some((s) => s.key === "projects-list")
   ) {
-    return (
-      <FullScreen locale={locale}>
-        <LiveProvider slug={studio.slug}>
-          <StudioProjectBoard slug={studio.slug} projectId={segments[1]} />
-        </LiveProvider>
-      </FullScreen>
-    );
+    return <StudioProjectBoard slug={studio.slug} projectId={segments[1]} />;
   }
 
   // A PROJECT'S PLAN — /<slug>/projects-list/<id>/plans/<planId>. The plan opens
   // full-screen in the planner, reached through the PROJECT'S grant, so no
   // Operations access is needed to see (or, for a project editor, work on) it.
-  // Its own LiveProvider, like every screen outside the shell. Back goes to the
-  // project's board.
+  // Back goes to the project's board.
   if (
     requested === "projects-list" && segments[1] && segments[2] === "plans" && segments[3] &&
     sections.some((s) => s.key === "projects-list")
   ) {
     const planApiBase = `/api/studios/${studio.slug}/projects/${segments[1]}/plans/${segments[3]}`;
     return (
-      <FullScreen locale={locale}>
-        <LiveProvider slug={studio.slug}>
-          <StudioPlanner
-            planApiBase={planApiBase}
-            backHref={`/${studio.slug}/projects-list/${segments[1]}`}
-            backLabel={shellDict(locale).backToProject}
-          />
-        </LiveProvider>
-      </FullScreen>
+      <StudioPlanner
+        planApiBase={planApiBase}
+        backHref={`/${studio.slug}/projects-list/${segments[1]}`}
+        backLabel={shellDict(locale).backToProject}
+      />
     );
   }
 
@@ -424,32 +324,24 @@ async function renderStudio(params) {
     // It IS the planner, pointed at the template document instead of a plan.
     if (segments[1] === "templates" && segments[2]) {
       return (
-        <FullScreen locale={locale}>
-          <LiveProvider slug={studio.slug}>
-            <StudioPlanner
-              planApiBase={`/api/studios/${studio.slug}/operations/planner/templates/${segments[2]}`}
-              backHref={`/${studio.slug}/projects-planner`}
-              backLabel={shellDict(locale).backToPlanner}
-            />
-          </LiveProvider>
-        </FullScreen>
+        <StudioPlanner
+          planApiBase={`/api/studios/${studio.slug}/operations/planner/templates/${segments[2]}`}
+          backHref={`/${studio.slug}/projects-planner`}
+          backLabel={shellDict(locale).backToPlanner}
+        />
       );
     }
     const planId = segments[1] || "";
     const planApiBase = `/api/studios/${studio.slug}/operations/planner/${planId}`;
-    return (
-      <FullScreen locale={locale}>
-        <LiveProvider slug={studio.slug}>
-          {planId
-            ? <StudioPlanner
-                planApiBase={planApiBase}
-                backHref={`/${studio.slug}/projects-planner`}
-                backLabel={shellDict(locale).backToPlanner}
-              />
-            : <StudioPlannerList slug={studio.slug} />}
-        </LiveProvider>
-      </FullScreen>
-    );
+    return planId
+      ? (
+        <StudioPlanner
+          planApiBase={planApiBase}
+          backHref={`/${studio.slug}/projects-planner`}
+          backLabel={shellDict(locale).backToPlanner}
+        />
+      )
+      : <StudioPlannerList slug={studio.slug} />;
   }
 
   // A second segment on a crm-sales-tickets URL names ONE ticket: /<slug>/
@@ -496,10 +388,7 @@ async function renderStudio(params) {
 
   // Admin-only screens.
   if (isAccess && !admin) {
-    return (
-      <Denied studio={studio} sections={sections} me={collaborator} admin={admin}
-        canSeeEngagements={can(access, "engagements.view")} locale={locale} />
-    );
+    return <Denied locale={locale} />;
   }
 
   const active = isPeople || isAccess || isSettings ? null : (sections.find((s) => s.key === requested) || sections[0] || null);
@@ -533,44 +422,18 @@ async function renderStudio(params) {
     ? (allSections.find((s) => s.id === active.parentId)?.key || active.key)
     : active?.key;
 
-  const frameProps = {
-    studio: {
-      name: studio.name, slug: studio.slug, logo: studio.logo || "",
-      packageName: plan.packageName, packageColor: plan.packageColor,
-      tierName: plan.tierName, tierColor: plan.tierColor,
-    },
-    me: {
-      alias: collaborator.alias || "", role: collaborator.role, canAdminister: admin,
-      // Resolved once, here, the same way `admin` is — StudioFrame draws the
-      // nav entry off this flag rather than re-deriving access itself.
-      canSeeEngagements: can(access, "engagements.view"),
-    },
-    // parentId drives the expandable nav.
-    sections: sections.map((s) => ({ id: s.id, key: s.key, name: s.name, enabled: s.enabled, parentId: s.parentId || null })),
-    activeKey: isPeople ? "people" : isAccess ? "access" : isSettings ? "administration-settings" : (active?.key || ""),
-    chat,
-    // NOT THE URL'S — a studio's address is its slug, so there is nowhere in it
-    // to put a locale. The tenant's setting, overridden by this person's own
-    // choice; resolved above.
-    locale,
-    // The studio's dashboard entitlement, resolved once here (the shell already
-    // reads the plan for the package/tier tags), so dashboards can gate paid
-    // components without a per-request read that would add a Redis hop. The tier
-    // sells dashboards by selection — a master switch and a per-component list —
-    // so the three fields ride down and the client resolves the visible set.
-    analytics: {
-      analyticsEnabled: plan.analyticsEnabled,
-      dashboardWidgets: plan.dashboardWidgets,
-      analyticsLevel: plan.analyticsLevel,
-    },
-    // Whether this studio's package includes Nova — the shell shows the assistant
-    // launcher only when it does. The endpoint re-checks this, so the flag is a
-    // convenience for the UI, not the gate.
-    novaEnabled: plan.novaEnabled,
-  };
-
+  // NO frameProps, AND NO StudioFrame AROUND WHAT FOLLOWS.
+  //
+  // The shell is the layout's now, so everything that used to be assembled
+  // here for it — the studio's name and plan tags, the person's alias and
+  // role, the visible sections, the chat allowance, the analytics
+  // entitlement — is resolved once per REQUEST rather than once per screen,
+  // and is not re-sent in the RSC payload of every navigation.
+  //
+  // `activeKey` went with it and did not move: the shell derives it from
+  // `usePathname()`, because a layout is never handed the route's segments.
   return (
-    <StudioFrame {...frameProps}>
+    <>
       {isPeople ? <StudioPeople slug={studio.slug} canAdminister={admin} myCollaboratorId={collaborator.id} />
         : isAccess ? (
           /* The per-person section grid is gone. It wrote grants, and nothing
@@ -642,7 +505,7 @@ async function renderStudio(params) {
         : active ? <SectionDashboard section={active} studio={studio} locale={locale}
             subsections={sections.filter((s) => s.parentId === active.id)} />
         : <NothingGranted admin={admin} slug={studio.slug} locale={locale} />}
-    </StudioFrame>
+    </>
   );
 }
 
@@ -677,25 +540,6 @@ function SectionDashboard({ section, studio, subsections = [], locale = "en" }) 
   );
 }
 
-// EVERY SCREEN THAT RENDERS OUTSIDE StudioFrame NEEDS THIS.
-//
-// The manual, the two live views, Engagements, Documents, the project board
-// and the planner all return before the shell is built — they are full-screen
-// by design. The shell is where `lang`/`dir` and the locale context normally
-// come from, so without a wrapper each of them was a screen with no direction
-// and no language: an Arabic reader got left-to-right layout and English
-// chrome on six of the studio's screens, and the bug was invisible until you
-// opened one.
-//
-// One component rather than six copies, so the seventh full-screen screen
-// somebody adds inherits it by wrapping rather than by remembering.
-function FullScreen({ locale, children }) {
-  return (
-    <div lang={locale} dir={dirFor(locale)} className="min-h-screen">
-      <StudioLocaleProvider locale={locale}>{children}</StudioLocaleProvider>
-    </div>
-  );
-}
 
 function NoSectionAccess({ locale = "en", notBuiltYet = false }) {
   const t = shellDict(locale);
@@ -726,41 +570,21 @@ function NothingGranted({ admin, slug, locale = "en" }) {
   );
 }
 
-function Denied({ studio, sections, me, admin, canSeeEngagements = false, locale = "en" }) {
+// ADMINS ONLY — the message, and nothing around it.
+//
+// This used to render a whole StudioFrame of its own, with an explicit
+// `activeKey=""` so no nav row was highlighted. The shell is the layout's
+// now and is already drawn around whatever this returns, so all that is left
+// is the refusal itself. The nav row question answers itself: `access` is one
+// of the three keys resolveActiveKey treats as a screen rather than a
+// section, so the shell highlights nothing without being told to.
+function Denied({ locale = "en" }) {
   const t = shellDict(locale);
   return (
-    <StudioFrame
-      studio={{ name: studio.name, slug: studio.slug }}
-      me={{ alias: me.alias || "", role: me.role, canAdminister: admin, canSeeEngagements }}
-      sections={sections.map((s) => ({ id: s.id, key: s.key, name: s.name, enabled: s.enabled }))}
-      activeKey=""
-      locale={locale}
-    >
-      <div className="rounded-geex border border-slate-200/70 bg-white p-8 text-center dark:border-white/10 dark:bg-[#20202c]">
-        <h2 className="font-display text-lg font-800 text-slate-900 dark:text-white">{t.adminsOnly}</h2>
-        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{t.deniedAccessBody}</p>
-      </div>
-    </StudioFrame>
+    <div className="rounded-geex border border-slate-200/70 bg-white p-8 text-center dark:border-white/10 dark:bg-[#20202c]">
+      <h2 className="font-display text-lg font-800 text-slate-900 dark:text-white">{t.adminsOnly}</h2>
+      <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{t.deniedAccessBody}</p>
+    </div>
   );
 }
 
-function NotAMember({ slug, locale = "en" }) {
-  const t = shellDict(locale);
-  return (
-    /* THIS SCREEN CARRIES ITS OWN lang/dir. Everything else in the studio
-       inherits them from StudioFrame, and this is the one screen that
-       renders outside it — a non-member has no shell. Without them an
-       Arabic reader got mirrored copy in a left-to-right box. */
-    <main lang={locale} dir={dirFor(locale)} className="flex min-h-screen items-center justify-center bg-[var(--geex-page)] px-5">
-      <div className="max-w-md rounded-geex border border-slate-200/70 bg-white p-8 text-center dark:border-white/10 dark:bg-[#20202c]">
-        <h1 className="font-display text-xl font-800 text-slate-900 dark:text-white">{t.notAMember}</h1>
-        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-          {t.notAMemberBefore}<span className="font-mono">{slug}</span>{t.notAMemberAfter}
-        </p>
-        <Link href={`/${locale}/account`} className="mt-5 inline-block rounded-full bg-brand-600 px-5 py-2.5 font-display text-sm font-700 text-white hover:bg-brand-700">
-          {t.backToAccount}
-        </Link>
-      </div>
-    </main>
-  );
-}
