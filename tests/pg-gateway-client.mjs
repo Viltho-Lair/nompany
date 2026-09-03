@@ -52,10 +52,14 @@ process.env.VERCEL_OIDC_TOKEN = VERCEL_TOKEN;
 
 const { pgQuery, pgTx, pgSchemaQuery, withTenant, parseTransport, pgTransport } =
   await import("../src/platform/db/pg.ts");
-const {
-  readGatewayAuthConfig, decodeJwtClaims, jwtExpiryMs, isFresh, assertVercelTokenMatchesPool,
-  _resetGatewayTokenCacheForTests, PG_GATEWAY_DEFAULTS,
-} = await import("../src/platform/db/pgGatewayAuth.ts");
+const { readGatewayAuthConfig, _resetGatewayTokenCacheForTests, PG_GATEWAY_DEFAULTS } =
+  await import("../src/platform/db/pgGatewayAuth.ts");
+// THE FOUR THAT MOVED. googleFederation.ts is the Vercel→STS half, shared with
+// the /super calendar; pgGatewayAuth.ts is the Cloud Run half. Imported from
+// where they live rather than through a re-export, so this file asserts the
+// structure that actually exists.
+const { decodeJwtClaims, jwtExpiryMs, isFresh, assertVercelTokenMatchesPool } =
+  await import("../src/platform/auth/googleFederation.ts");
 const { readGatewayUrl } = await import("../src/platform/db/pgGateway.ts");
 // THE SERVER'S OWN PARSER, imported across the service boundary on purpose.
 // pgGateway.ts restates the wire shape rather than importing the service's
@@ -427,7 +431,7 @@ export async function testATokenFromAnotherIssuerIsRefusedBeforeSts(t) {
   // `invalid_grant`, and this names the claim.
   const cfg = readGatewayAuthConfig({ PG_GATEWAY_URL: GATEWAY_URL });
   const wrong = fakeJwt({ iss: "https://oidc.vercel.com/someone-else", aud: AUDIENCE });
-  const e = await threw(() => assertVercelTokenMatchesPool(wrong, cfg));
+  const e = await threw(() => assertVercelTokenMatchesPool(wrong, cfg, "pg-gateway auth"));
   t.equal(/someone-else/.test(e?.message || ""), true, "the issuer it saw is named");
   t.equal(new RegExp(ISSUER).test(e?.message || ""), true, "alongside the one it wanted");
 }
@@ -436,7 +440,7 @@ export async function testAnArrayAudienceIsAccepted(t) {
   // The JWT spec allows `aud` to be a string or an array. Vercel emits the
   // string form today; depending on that is a bug waiting for the day it does not.
   const cfg = readGatewayAuthConfig({ PG_GATEWAY_URL: GATEWAY_URL });
-  const e = await threw(() => assertVercelTokenMatchesPool(fakeJwt({ iss: ISSUER, aud: ["other", AUDIENCE] }), cfg));
+  const e = await threw(() => assertVercelTokenMatchesPool(fakeJwt({ iss: ISSUER, aud: ["other", AUDIENCE] }), cfg, "pg-gateway auth"));
   t.equal(e, null, "an array audience containing the expected value passes");
 }
 

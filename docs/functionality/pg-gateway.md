@@ -38,7 +38,8 @@ service exists.**
 | `src/platform/db/pgClientGuard.ts` | The held-client crash guard, likewise shared |
 | `src/platform/db/pg.ts` | The transport switch — which wire `pgQuery`/`withTenant` take |
 | `src/platform/db/pgGateway.ts` | The client: one statement, one POST, the error and result mapping |
-| `src/platform/db/pgGatewayAuth.ts` | Vercel OIDC → Google STS → an impersonated ID token, cached |
+| `src/platform/auth/googleFederation.ts` | Vercel OIDC → Google STS, the leg **shared** with the /super calendar |
+| `src/platform/db/pgGatewayAuth.ts` | The Cloud Run leg — an impersonated ID token audienced to the service, cached |
 
 **The contract is one call, one transaction:**
 
@@ -209,7 +210,8 @@ reads as the number of network round trips (design D4), exactly rather than appr
 ## How Vercel proves who it is
 
 No service-account key is ever created, stored in Vercel, or rotated (design D3). Three
-steps, in `pgGatewayAuth.ts`:
+steps — the first two in `platform/auth/googleFederation.ts`, which the /super calendar
+shares, the third in `pgGatewayAuth.ts`:
 
 1. `VERCEL_OIDC_TOKEN` — injected by Vercel, short-lived.
 2. `POST sts.googleapis.com/v1/token` — a Workload Identity Federation token exchange,
