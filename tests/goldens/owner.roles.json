@@ -599,7 +599,16 @@
       {
         "key": "administration.members",
         "group": "Administration & Settings",
-        "label": "People & access",
+        "label": "People",
+        "verbs": [
+          "view",
+          "edit"
+        ]
+      },
+      {
+        "key": "administration.access",
+        "group": "Administration & Settings",
+        "label": "Roles and access",
         "verbs": [
           "view",
           "edit"

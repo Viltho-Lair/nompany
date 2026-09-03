@@ -55,6 +55,7 @@
       "reports": false,
       "administration": false,
       "administration-members": false,
+      "administration-access": false,
       "administration-master": false,
       "administration-settings": false,
       "tasks": false,

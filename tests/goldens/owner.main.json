@@ -53,10 +53,11 @@
       "finance-assets": true,
       "finance-settings": true,
       "reports": false,
-      "administration": false,
-      "administration-members": false,
+      "administration": true,
+      "administration-members": true,
+      "administration-access": true,
       "administration-master": false,
-      "administration-settings": false,
+      "administration-settings": true,
       "tasks": true,
       "tasks-settings": true
     },
@@ -249,6 +250,26 @@
       {
         "key": "finance-settings",
         "name": "Settings",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "administration",
+        "name": "Administration & Settings",
+        "parentId": null
+      },
+      {
+        "key": "administration-members",
+        "name": "People",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "administration-access",
+        "name": "Access",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "administration-settings",
+        "name": "Studio settings",
         "parentId": "<sec_ID>"
       },
       {
