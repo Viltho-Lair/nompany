@@ -234,8 +234,9 @@ week.
 
 `npm test`, `npx tsc --noEmit`, `npx tsc --noEmit -p tsconfig.strict.json`, `npx next build`.
 
-- `tests/pg-gateway-client.mjs` stays green with no change beyond splitting one import statement into two —
-  the gate on the extraction. Every assertion in it keeps asserting exactly what it asserts today.
+- **`npm run test:gateway`**, separately — `tests/pg-gateway-client.mjs` is **not** in the `npm test` chain, and
+  it is the gate on the extraction. It stays green with no change beyond splitting one import statement into
+  two, and every assertion in it keeps asserting exactly what it asserts today.
 - New goldens for the four routes in their unconfigured state.
 - Pure-function tests, with no Google in the room: the federation config reader, the `expireTime` expiry parse
   and its refusal of a missing one, the freshness/skew arithmetic, the event normaliser (including the exclusive
