@@ -300,7 +300,19 @@ const OWN_AREAS = [
   { key: "tasks.board", group: "Tasks", label: "Task board", verbs: ["view", "create", "edit", "delete"] },
   { key: "tasks.settings", group: "Tasks", label: "Settings", verbs: ["view", "edit"] },
 
-  { key: "administration.members", group: "Administration & Settings", label: "People & access", verbs: ["view", "edit"] },
+  // "PEOPLE", NOT "PEOPLE & ACCESS" ANY MORE. This area covered both screens
+  // while Access had no right of its own; now that it does, a label claiming
+  // access would have two areas answering for the same word on the grid
+  // somebody grants from.
+  { key: "administration.members", group: "Administration & Settings", label: "People", verbs: ["view", "edit"] },
+  // ROLES ARE A GRANT NOW, not an admin-only screen. `canAdminister` remains
+  // the owner/admin shortcut inside the resolver and still short-circuits
+  // everything; what changes is that opening this screen no longer DEPENDS on
+  // it, so a studio can delegate role management without handing over
+  // everything else being an admin carries. escalates() is untouched and still
+  // refuses anybody a grant they do not hold themselves — widening who may
+  // open the screen does not widen what any of them may hand out.
+  { key: "administration.access", group: "Administration & Settings", label: "Roles and access", verbs: ["view", "edit"] },
   { key: "administration.settings", group: "Administration & Settings", label: "Studio settings", verbs: ["view", "edit"] },
   // NO `administration.master`. It was declared for the locations screen that
   // Master data will own — and the declaration outlived its own justification

@@ -725,6 +725,57 @@ export async function testCompoundRootsCoversEveryDashedRoot(t) {
   }
 }
 
+export async function testAdministrationFollowsItsChildren(t) {
+  // THE PARENT IS VISIBLE AS A CONSEQUENCE, not by a rule of its own — the
+  // same fallthrough every other parent uses. Before the fold, all four
+  // administration keys were in NO_SCREEN_YET and SECTION_AREAS had no entry
+  // for any of them, so sectionViewable answered false however much somebody
+  // held; the three screens were reached by routes that bypassed it on
+  // purpose, which is why nobody noticed.
+  const nobody = new Set(["crmSales.tickets.view"]);
+  for (const key of ["administration", "administration-members", "administration-access", "administration-settings"]) {
+    t.equal(sectionViewable(nobody, key, ALL_SECTION_KEYS), false,
+      `${key} stays hidden from somebody holding none of its rights`);
+  }
+
+  // ONE RIGHT OPENS ONE CHILD AND THE PARENT, and nothing else. A member given
+  // People must not thereby see Access or Studio settings — the whole point of
+  // gating them separately rather than folding the nav and leaving the areas
+  // deciding nothing.
+  const peopleOnly = new Set(["administration.members.view"]);
+  t.equal(sectionViewable(peopleOnly, "administration", ALL_SECTION_KEYS), true,
+    "the parent shows for somebody holding one child's right");
+  t.equal(sectionViewable(peopleOnly, "administration-members", ALL_SECTION_KEYS), true,
+    "...and that child shows");
+  t.equal(sectionViewable(peopleOnly, "administration-access", ALL_SECTION_KEYS), false,
+    "...and Access does not");
+  t.equal(sectionViewable(peopleOnly, "administration-settings", ALL_SECTION_KEYS), false,
+    "...nor Studio settings");
+
+  // AND THE OTHER TWO ANSWER THE SAME WAY ON THEIR OWN, so the wiring is
+  // proved per key rather than inferred from one of them working.
+  const accessOnly = new Set(["administration.access.view"]);
+  t.equal(sectionViewable(accessOnly, "administration-access", ALL_SECTION_KEYS), true,
+    "the Access right opens Access");
+  t.equal(sectionViewable(accessOnly, "administration-members", ALL_SECTION_KEYS), false,
+    "...and not People");
+
+  const settingsOnly = new Set(["administration.settings.view"]);
+  t.equal(sectionViewable(settingsOnly, "administration-settings", ALL_SECTION_KEYS), true,
+    "the Settings right opens Studio settings");
+  t.equal(sectionViewable(settingsOnly, "administration-members", ALL_SECTION_KEYS), false,
+    "...and not People");
+
+  // MASTER DATA STAYS ABSENT. It has no screen and no area; the locations move
+  // that would give it one is a separate change. A nav row that opens nothing
+  // is worse than an absent one, which is the rule NO_SCREEN_YET exists for.
+  const everything = new Set([
+    "administration.members.view", "administration.access.view", "administration.settings.view",
+  ]);
+  t.equal(sectionViewable(everything, "administration-master", ALL_SECTION_KEYS), false,
+    "master data has no screen and stays hidden even from somebody holding every other right");
+}
+
 export async function testEveryContextualSectionKeyLiteralExists(t) {
   const { execFileSync } = await import("node:child_process");
   const bad = [];
@@ -880,6 +931,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       testEverySectionHasAnArabicName,
       testEmptySectionsDoNotRender,
       testEveryKeyWithNothingToShowIsDeclared,
+      testAdministrationFollowsItsChildren,
       testEveryContextualSectionKeyLiteralExists,
       testCompoundRootsCoversEveryDashedRoot,
     ];

@@ -35,20 +35,43 @@ export function studioSegments(pathname: string, slug: string): string[] {
   return parts.slice(1);
 }
 
+// THE TWO PRE-RESTRUCTURE ADDRESSES.
+//
+// People and Access lived at these keys before Administration & Settings became
+// a real section, and they are not merely bookmarked: notifications ALREADY
+// DELIVERED link to `/people`, and a delivered notification cannot be
+// rewritten. So the old address has to keep resolving — and resolving it to
+// the NEW key, rather than serving the screen at the old one, is what also
+// makes the shell highlight the right nav row for somebody who arrives on one.
+//
+// IN `requestedKey` RATHER THAN `resolveActiveKey`, deliberately: the page
+// reads requestedKey directly (page.js) while the shell reads resolveActiveKey,
+// so an alias placed in the latter would render the screen while the nav
+// highlighted nothing — the exact quiet failure this module exists to prevent.
+const RETIRED_ADDRESSES: Record<string, string> = {
+  people: "administration-members",
+  access: "administration-access",
+};
+
 /** The section key a set of segments asks for. `""` at the studio root. */
 export function requestedKey(segments: readonly string[]): string {
-  return segments[0] || "";
+  const asked = segments[0] || "";
+  return RETIRED_ADDRESSES[asked] ?? asked;
 }
 
-// THE THREE KEYS THAT ARE SCREENS RATHER THAN SECTIONS.
+// SCREEN_KEYS IS GONE, and its absence is the Administration fold in one line.
 //
-// People and Access are studio administration and have never been rows in the
-// section tree. `administration-settings` IS a real catalog key — the
-// Administration & Settings section's own "Studio settings" child — and it is
-// still listed here because the page short-circuits it BEFORE the section
-// lookup, so the two must agree about the order or the shell highlights a row
-// the page did not render.
-const SCREEN_KEYS = ["people", "access", "administration-settings"];
+// It held "people", "access" and "administration-settings" — the three
+// addresses resolveActiveKey returned WITHOUT looking them up in the section
+// list, because the page short-circuited them before its own lookup. That is
+// how three screens stayed reachable while their sections were invisible to
+// sectionViewable, and it is why nobody noticed that SECTION_AREAS had no
+// entry for any of them.
+//
+// All three are ordinary sections now. A key that needs to bypass the section
+// list again belongs here, with the reason it cannot be a section — but there
+// is no such key today, and reintroducing the list "just in case" would
+// reintroduce exactly the divergence it used to hide.
 
 // DOES THIS ADDRESS WANT THE SHELL, OR THE WHOLE WINDOW?
 //
@@ -116,7 +139,6 @@ export function resolveActiveKey(
   requested: string,
   sections: readonly { key: string }[],
 ): string {
-  if (SCREEN_KEYS.includes(requested)) return requested;
   // The fallback to `sections[0]` is what makes `/‹slug›` (no segment at all)
   // land on Main, and it is deliberate for a denied section too — see above.
   return (sections.find((s) => s.key === requested) || sections[0])?.key || "";

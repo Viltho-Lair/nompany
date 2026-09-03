@@ -372,8 +372,7 @@ async function renderStudio(params) {
   const isSheets = requested === "inventory-sheets";
   const sheetId = isSheets ? (segments[1] || "") : "";
 
-  const isPeople = requested === "people";
-  const isAccess = requested === "access";
+
   // Keyed "administration-settings", not bare "settings": that is the real
   // catalog key SECTION_DEFS gives the Administration & Settings section's own
   // Studio settings child (keys.ts). Reusing that exact key costs nothing —
@@ -384,17 +383,18 @@ async function renderStudio(params) {
   // Administration & Settings a real "administration-settings" child of its
   // own) so this screen could never be shadowed by a catalog key of the same
   // name — that concern is moot now that the catalog key IS this screen.
-  const isSettings = requested === "administration-settings";
 
-  // Admin-only screens.
-  if (isAccess && !admin) {
-    return <Denied locale={locale} />;
-  }
-
-  const active = isPeople || isAccess || isSettings ? null : (sections.find((s) => s.key === requested) || sections[0] || null);
+  // NO SPECIAL CASES LEFT. People, Access and Studio settings were matched by
+  // literal key here and resolved to `active = null`, which is what let them
+  // render while their sections were invisible. They are ordinary sections
+  // now, so they resolve through the same lookup as everything else — and the
+  // admin-only branch that used to guard Access goes with them, because
+  // `administration.access.view` answers that question and `deniedSection`
+  // below is what says no.
+  const active = sections.find((s) => s.key === requested) || sections[0] || null;
   // Asked for a real section they haven't been granted → say so rather than
   // silently showing something else.
-  const deniedSection = !isPeople && !isAccess && !isSettings && requested && !sections.some((s) => s.key === requested)
+  const deniedSection = requested && !sections.some((s) => s.key === requested)
     && allSections.some((s) => s.key === requested);
   // ONE OF THE ORDERING-ONLY ROOTS — NO_SCREEN_YET names eight keys (platform/
   // access/resolve.ts), but the four administration ones DO have real screens
@@ -411,8 +411,14 @@ async function renderStudio(params) {
   // permission behind the key to hold, admin included, confirmed in the
   // sandbox walk where even the studio's Owner sees this. A distinct message
   // says so instead of implying a grant would help.
-  const notBuiltYet = deniedSection
-    && NO_SCREEN_YET.includes(requested) && !requested.startsWith("administration");
+  // THE ADMINISTRATION FILTER IS GONE. It excluded the whole prefix because
+  // four administration keys were in NO_SCREEN_YET while having real screens
+  // reached elsewhere. Three of them are ordinary sections now, and the one
+  // still listed — `administration-master` — genuinely has no screen anywhere,
+  // so it wants exactly the message this flag produces. Keeping the filter
+  // would have told somebody asking for Master data to go and ask an admin for
+  // a grant that does not exist.
+  const notBuiltYet = deniedSection && NO_SCREEN_YET.includes(requested);
 
   // Which component to render: a sub-section resolves to its parent's module.
   // The module then decides the screen from the ACTIVE key — Sales does this
@@ -434,15 +440,22 @@ async function renderStudio(params) {
   // `usePathname()`, because a layout is never handed the route's segments.
   return (
     <>
-      {isPeople ? <StudioPeople slug={studio.slug} canAdminister={admin} myCollaboratorId={collaborator.id} />
-        : isAccess ? (
+      {/* ADMINISTRATION'S THREE SCREENS, matched by `active?.key` like
+          Procurement's Suppliers and Logistics's Shipments below — and for the
+          same reason: `screenKey` collapses a child onto the root its parentId
+          names, and `administration` has no dashboard of its own to collapse
+          onto. They were literal `requested ===` matches until the fold, which
+          is what let them render while their sections were invisible. */}
+      {active?.key === "administration-members"
+        ? <StudioPeople slug={studio.slug} canAdminister={admin} myCollaboratorId={collaborator.id} />
+        : active?.key === "administration-access" ? (
           /* The per-person section grid is gone. It wrote grants, and nothing
              reads grants any more — it would have saved successfully and
              changed nothing, which is worse than a screen that refuses. Access
              is now a role here and an assignment on People. */
           <StudioRoles slug={studio.slug} />
         )
-        : isSettings ? <StudioSettings slug={studio.slug} locale={locale} />
+        : active?.key === "administration-settings" ? <StudioSettings slug={studio.slug} locale={locale} />
         : deniedSection ? <NoSectionAccess locale={locale} notBuiltYet={notBuiltYet} />
         : quotationId ? <SalesQuotationViewer slug={studio.slug} ticketId={ticketId} quotationId={quotationId} />
         : ticketId ? <StudioTicketProfile slug={studio.slug} ticketId={ticketId} />
@@ -570,21 +583,14 @@ function NothingGranted({ admin, slug, locale = "en" }) {
   );
 }
 
-// ADMINS ONLY — the message, and nothing around it.
+// `Denied` IS DELETED. It said "admins only" and had exactly one caller: the
+// branch that refused Access to a non-admin, back when the screen was gated on
+// canAdminister rather than on a right. Access is a section with an area now,
+// so refusing it is `deniedSection` — the same refusal every other section
+// gives, in the same words, which is the point of it being a section.
 //
-// This used to render a whole StudioFrame of its own, with an explicit
-// `activeKey=""` so no nav row was highlighted. The shell is the layout's
-// now and is already drawn around whatever this returns, so all that is left
-// is the refusal itself. The nav row question answers itself: `access` is one
-// of the three keys resolveActiveKey treats as a screen rather than a
-// section, so the shell highlights nothing without being told to.
-function Denied({ locale = "en" }) {
-  const t = shellDict(locale);
-  return (
-    <div className="rounded-geex border border-slate-200/70 bg-white p-8 text-center dark:border-white/10 dark:bg-[#20202c]">
-      <h2 className="font-display text-lg font-800 text-slate-900 dark:text-white">{t.adminsOnly}</h2>
-      <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{t.deniedAccessBody}</p>
-    </div>
-  );
-}
+// Its `adminsOnly` / `deniedAccessBody` strings stay in the shell dictionary
+// for now rather than being removed in the same commit: this file was their
+// only reader, but proving that across two languages and the whole dictionary
+// is a separate sweep from moving a screen between routes.
 

@@ -2546,6 +2546,58 @@ console.log("\n== Finance 1b: accounts payable mirrors the invoice");
 }
 
 // ============================================================================
+// ============================================================================
+console.log("\n== Administration is reached by its own keys, and the old paths still resolve");
+// The three screens were reached at "people", "access" and a literal match on
+// "administration-settings" \u2014 all three listed in studioRoute.ts's SCREEN_KEYS,
+// which is what told resolveActiveKey to return an address WITHOUT looking it
+// up in the section list. That is how three screens stayed reachable while
+// their sections were invisible.
+//
+// Two of those keys are pre-restructure and are in bookmarks and in
+// notification payloads ALREADY DELIVERED \u2014 a notification links to /people
+// and those records cannot be rewritten \u2014 so the old address has to keep
+// resolving, and resolving to the NEW key is also what makes the shell
+// highlight the right row for somebody who arrives on one.
+{
+  const { resolveActiveKey, requestedKey, studioSegments } = await import("@/shared/studioRoute");
+  const visible = [{ key: "main" }, { key: "administration" },
+    { key: "administration-members" }, { key: "administration-access" },
+    { key: "administration-settings" }];
+  const keyFor = (path) => resolveActiveKey(requestedKey(studioSegments(path, slug)), visible);
+
+  ok("the People key resolves to its own section",
+    keyFor(`/${slug}/administration-members`) === "administration-members",
+    keyFor(`/${slug}/administration-members`));
+  ok("the Access key resolves to its own section",
+    keyFor(`/${slug}/administration-access`) === "administration-access",
+    keyFor(`/${slug}/administration-access`));
+
+  ok("the old People path resolves to the new key",
+    keyFor(`/${slug}/people`) === "administration-members", keyFor(`/${slug}/people`));
+  ok("the old Access path resolves to the new key",
+    keyFor(`/${slug}/access`) === "administration-access", keyFor(`/${slug}/access`));
+
+  // THE PAGE READS requestedKey DIRECTLY (page.js:188) while the shell reads
+  // resolveActiveKey, so the alias has to live in the one they share or the
+  // page would render People while the nav highlighted nothing. Asserted at
+  // that level rather than only through resolveActiveKey.
+  ok("the alias is in the derivation the PAGE reads, not only the shell's",
+    requestedKey(studioSegments(`/${slug}/people`, slug)) === "administration-members",
+    requestedKey(studioSegments(`/${slug}/people`, slug)));
+
+  // A SECTION SOMEBODY CANNOT SEE still falls back the way it always did \u2014 the
+  // alias must not turn a denied section into a resolved one.
+  const noAdmin = [{ key: "main" }];
+  ok("a retired address with no section granted falls back to Main",
+    resolveActiveKey(requestedKey(studioSegments(`/${slug}/people`, slug)), noAdmin) === "main");
+
+  // AND A RECORD PATH UNDER A RETIRED ADDRESS keeps its second segment, so a
+  // deep link is aliased rather than truncated.
+  ok("a retired address keeps the segments below it",
+    studioSegments(`/${slug}/people/col_1`, slug).length === 2);
+}
+
 console.log("\n== bill approval chains: seeded, overridable, validated on write");
 // P2's approval engine. A chain is the studio's own answer to "who signs
 // this, and above what amount" - stored as an override over the seeded one,
@@ -4105,6 +4157,39 @@ console.log("== a person's own language overrides the studio's, and only theirs"
   // is a preference that saves and never applies.
   ok("the cookie the client writes is the cookie the server reads",
     UI_LANG_COOKIE === "lang", UI_LANG_COOKIE);
+}
+
+// ============================================================================
+console.log("== studio settings enforces the right that used to grant nothing");
+// administration.settings.view existed all through the fifteen-section
+// restructure and enforced NOTHING: this GET checked membership and stopped
+// there, so the right was grantable and granted nobody anything. It survived
+// because the only thing that would have read it \u2014 the section lookup \u2014 was
+// bypassed for this key on purpose.
+//
+// A right nothing can exercise is the dead capability the catalogue's own rule
+// forbids (invariant 16), and gating the nav on it while leaving the endpoint
+// open would have been worse than either: the screen would vanish while its
+// data stayed readable by any member.
+{
+  await signInAs(nobody.user.id);
+  const denied = await SETTINGS.GET(new Request("http://localhost/test"), { params: params(slug) });
+  ok("a member holding none of it cannot read studio settings",
+    denied.status === 403, String(denied.status));
+
+  // AND THE BODY IS A REFUSAL, not a partial payload. A 403 carrying the
+  // studio would be the same leak wearing a status code.
+  const deniedBody = await denied.json();
+  ok("...and the response carries no studio at all",
+    deniedBody.studio === undefined, JSON.stringify(Object.keys(deniedBody)));
+
+  // THE OWNER STILL READS IT. The owner short-circuit in effectivePermissions
+  // is what makes this pass without granting anything explicitly, and the two
+  // existing SETTINGS.GET callers in this file rely on it \u2014 which is why
+  // adding the check did not move them.
+  await signInAs(owner.id);
+  const allowed = await SETTINGS.GET(new Request("http://localhost/test"), { params: params(slug) });
+  ok("...and somebody holding the right still can", allowed.status === 200, String(allowed.status));
 }
 
 // ============================================================================

@@ -120,6 +120,23 @@ export const SECTION_AREAS: Readonly<Record<string, readonly string[]>> = {
   "field-service-schedule": ["fieldService.schedule"],
   "field-service-tracking": ["fieldService.tracking"],
   "field-service-settings": ["fieldService.settings"],
+
+  // ADMINISTRATION, WIRED AT LAST. These three areas existed in the catalogue
+  // throughout the fifteen-section restructure and mapped to nothing, which is
+  // why sectionViewable answered false for the whole branch and why all four
+  // keys sat in NO_SCREEN_YET. The screens were reachable the entire time — by
+  // routes that bypassed this mechanism on purpose — so the gap cost nobody a
+  // screen and nobody noticed it.
+  //
+  // What it did cost: administration.settings.view was grantable and enforced
+  // NOTHING, because the only thing that would have read it was the section
+  // lookup that never ran. Wiring the areas is what turns it into a right.
+  //
+  // NO ENTRY FOR "administration-master". It has no screen and no area, and
+  // stays in NO_SCREEN_YET below until the locations move gives it one.
+  "administration-members": ["administration.members"],
+  "administration-access": ["administration.access"],
+  "administration-settings": ["administration.settings"],
   // MOVED TO ENGINEERING & DOCUMENTS — the register is the technical truth now
   // (blueprint §3.4); Quality & HSE keeps the evidence (inspections, NCRs,
   // audits, incidents, permits), not the record itself.
@@ -301,28 +318,26 @@ const anyKey = (access: PermissionSet, sectionKey: string, suffixes: readonly st
 // so a NINTH one added later without a SECTION_AREAS entry fails a test
 // instead of silently vanishing from the sidebar for every studio.
 //
-// FOUR genuinely have no screen anywhere yet — declared in SECTION_DEFS
+// FIVE genuinely have no screen anywhere yet — declared in SECTION_DEFS
 // (keys.ts) for ordering only, until a later phase: nothing can ever grant
 // these, because there is no permission to hold.
 //
-// FOUR MORE do have real screens, reached by a route that bypasses this
-// mechanism ON PURPOSE, not by a gap in it:
-//   - "administration-settings" is StudioSettings, reached by the router's
-//     own literal key match (page.js's `isSettings`) because reading it is
-//     open to any member (settings/route.ts) — ungated by design, the same
-//     shape as Main, just not the studio's own home, so it does not get
-//     Main's pass either.
-//   - "administration-members" is the People screen, reached at the
-//     entirely different, pre-restructure key "people" (StudioFrame.js's
-//     hardcoded nav item, shown to everyone) — this key has never had a
-//     route of its own.
-//   - "administration-master" has no screen at all yet (catalogue.ts:
-//     "until that rewire lands").
-//   - "administration" itself, the parent, has no dashboard of its own (no
-//     `screenKey === "administration"` case in page.js) and is correctly
-//     invisible as a CONSEQUENCE of its three children being invisible, not
-//     by a rule of its own — named here anyway so the list is a complete
-//     answer to "why doesn't sectionViewable show this", not a partial one.
+// THE ADMINISTRATION BRANCH USED TO BE HERE TOO, and the reason it left is
+// worth keeping, because it was not a gap being closed — it was a deliberate
+// arrangement being replaced. Its three screens were reached by routes that
+// bypassed this mechanism ON PURPOSE: People at the pre-restructure key
+// "people" via a hardcoded nav row shown to everyone, Studio settings by a
+// literal key match in page.js because reading it was open to any member, and
+// Access by a nav row gated on canAdminister rather than on a right at all.
+// So all three worked, nobody lost a screen, and nobody noticed that
+// SECTION_AREAS had no entry for any of them.
+//
+// What it cost was quieter: administration.settings.view was grantable and
+// enforced nothing, because the lookup that would have read it never ran. The
+// fold wired the areas, gated the screens on them and made the endpoint ask
+// for the same right the nav does. Only "administration-master" is left,
+// because it still has no screen — the locations screen that could fill it
+// moves in its own change.
 export const NO_SCREEN_YET = [
   "tendering", "manufacturing", "assets", "reports",
   // QUALITY & HSE JOINS THE PLACEHOLDERS, and it is the one that reads oddly,
@@ -335,7 +350,13 @@ export const NO_SCREEN_YET = [
   // the permit register arrive together in the phase that builds them, and this
   // entry goes when they do.
   "quality-hse",
-  "administration", "administration-members", "administration-master", "administration-settings",
+  // ADMINISTRATION-MASTER IS THE LAST ONE STANDING. Its three siblings left
+  // this list when the section was folded together: each has a SECTION_AREAS
+  // entry now, and the parent follows its children the way every other parent
+  // does. Master data does not, because it still has no screen — currencies,
+  // UoM, numbering series and cost codes are a later phase, and the locations
+  // screen that could fill it today moves in a change of its own.
+  "administration-master",
 ] as const;
 
 // A section is worth showing if the person may see anything in it.
