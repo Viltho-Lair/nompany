@@ -122,6 +122,15 @@ export const REG = {
   // edited in /super → Application → Nova; qualifies every studio's Nova the way
   // catalogSettings qualifies every package. Platform-level, no cascade.
   novaConfig: `${P}g:novaConfig`,
+  // WHICH GOOGLE CALENDAR THE CONSOLE SHOWS. One small object — the calendar's
+  // id, its name and timezone, and who connected it. Platform-level, no
+  // cascade, the same lifecycle as novaConfig.
+  //
+  // IT HOLDS NO CREDENTIAL, and that is the whole point of the design: the
+  // calendar is read by impersonating pg-gateway@, so there is no access token
+  // to encrypt, no refresh token to protect and no expiry to track. See
+  // docs/superpowers/specs/2026-09-03-super-google-calendar-design.md §3.
+  googleCalendar: `${P}g:googleCalendar`,
 };
 
 // ---- per-user keys (1:1 / 1:N satellites; die with the user) ---------------
