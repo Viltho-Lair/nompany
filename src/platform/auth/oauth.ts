@@ -54,7 +54,11 @@ export function enabledProviders() {
   return Object.keys(PROVIDERS).filter(providerConfigured);
 }
 
-function origin(request: Request) {
+// Exported so calendarProviders.ts (a sibling, same folder) reuses this rather
+// than writing a second copy — the two files agree on how a request's origin
+// is read (x-forwarded-proto/-host first, since both sit behind Vercel) by
+// construction, not by convention.
+export function origin(request: Request) {
   const proto = request.headers.get("x-forwarded-proto") || new URL(request.url).protocol.replace(":", "");
   const host = request.headers.get("x-forwarded-host") || request.headers.get("host");
   return `${proto}://${host}`;

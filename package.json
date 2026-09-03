@@ -14,7 +14,7 @@
     "test:desktop": "node tests/desktop-transport.test.mjs",
     "test:auth-refusals": "node tests/auth-refusals.mjs",
     "test:integration": "node tests/integration.test.mjs",
-    "test": "node tests/access.test.mjs && node tests/approval-model.mjs && node tests/desktop-transport.test.mjs && node tests/auth-refusals.mjs && node tests/engagement-model.mjs && node tests/deal-store.mjs && node tests/integration.test.mjs && node tests/google-calendar.mjs && node tests/gate-a.test.mjs",
+    "test": "node tests/access.test.mjs && node tests/approval-model.mjs && node tests/desktop-transport.test.mjs && node tests/auth-refusals.mjs && node tests/engagement-model.mjs && node tests/deal-store.mjs && node tests/integration.test.mjs && node tests/google-calendar.mjs && node tests/connected-calendars.mjs && node tests/gate-a.test.mjs",
     "test:gate-a": "node tests/gate-a.test.mjs",
     "test:parity": "node scripts/test-parity.mjs",
     "test:gateway": "node services/pg-gateway/test/gateway.test.mjs && node tests/pg-gateway-client.mjs",
