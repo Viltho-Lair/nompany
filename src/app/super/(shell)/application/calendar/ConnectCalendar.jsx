@@ -123,7 +123,16 @@ export default function ConnectCalendar({ configured, connected, accountEmail })
               {/* A PLAIN LINK, NOT A fetch. The start route answers with a 302
                   to Google's consent screen, which the browser has to follow as
                   a navigation — an XHR would follow it invisibly and hand back
-                  Google's HTML. */}
+                  Google's HTML.
+                  AND NOT next/link EITHER, which is what the rule below asks
+                  for: Link does a client-side transition and expects a React
+                  page at the other end. This is an API route whose whole job is
+                  to redirect the browser off-site, so a soft navigation to it
+                  is not a slower version of the right thing — it is the wrong
+                  thing. (The account surface's own Connect buttons are the same
+                  `<a>`; the rule does not fire there only because their href is
+                  a template literal it cannot resolve statically.) */}
+              {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
               <a className="ad-btn ad-btn-primary mt-4" href="/api/super/google-calendar/start">
                 <Icon name="calendar" className="h-3.5 w-3.5" /> Connect Google Calendar
               </a>
