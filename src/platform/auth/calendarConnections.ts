@@ -8,7 +8,7 @@
 // store and decrypted only in memory, on the way back out. `publicConnection`
 // is the ONLY shape a route may return — see its own comment below for why it
 // is a whitelist and not a spread.
-import { getJSON, setJSON, delKeys } from "@/platform/db/store";
+import { getJSON, editJSON, delKeys } from "@/platform/db/store";
 import { U } from "@/platform/db/keys";
 import { encryptField, decryptField } from "./fieldCrypto";
 import { CALENDAR_PROVIDERS, type CalendarProvider } from "./calendarProviders";
@@ -23,13 +23,20 @@ export type CalendarConnection = {
   connectedAt: number;
 };
 
-// The shape actually written to the store: identical, except the two token
-// fields hold fieldCrypto's "enc:v1:…" ciphertext rather than a plain value.
-// A separate type rather than reusing CalendarConnection so a call site can't
-// accidentally hand a decrypted record straight to setJSON.
+// The shape actually written to the store: identical fields to
+// CalendarConnection, but refreshToken/accessToken hold fieldCrypto's
+// "enc:v1:…" ciphertext instead of a decrypted value.
+//
+// A SEPARATE NAME, NOT A TYPE-LEVEL GUARANTEE. `Omit<CalendarConnection, …> &
+// {...}` is structurally identical to CalendarConnection — both fields are
+// still plain `string` — so TypeScript accepts a decrypted record wherever
+// this type is expected, and the two remain mutually assignable. Nothing here
+// stops a call site from handing decrypted values to editJSON's `next`. The
+// discipline that actually holds the line is in the code below: encrypt right
+// before `next`, decrypt right after `current`, never in between.
 type StoredCalendarConnection = Omit<CalendarConnection, "refreshToken" | "accessToken"> & {
-  refreshToken: string; // encrypted
-  accessToken: string;  // encrypted
+  refreshToken: string; // encrypted (enc:v1:…), by naming convention only
+  accessToken: string;  // encrypted (enc:v1:…), by naming convention only
 };
 
 /**
@@ -54,19 +61,36 @@ export function publicConnection(c: CalendarConnection): PublicCalendarConnectio
   };
 }
 
+/**
+ * THE DECRYPT-AND-GATE STEP, pulled out of getConnection so it is testable
+ * with no store: hand it a stored shape (real or hand-built with
+ * `encryptField`) and it proves the one property that matters most in this
+ * file. A record whose refreshToken does not survive decryption reads as NO
+ * CONNECTION — decryptField fails soft (returns "" and logs, rather than
+ * throwing) so a rotated FIELD_ENCRYPTION_KEY or a corrupted value would
+ * otherwise hand back a connection object with a blank refresh token: it
+ * would look connected right up until the access token expired and there was
+ * nothing left to renew it with. A connection that cannot be refreshed is not
+ * one.
+ */
+export function decryptStored(stored: StoredCalendarConnection): CalendarConnection | null {
+  const refreshToken = decryptField(stored.refreshToken);
+  if (!refreshToken) return null;
+  return {
+    provider: stored.provider,
+    accountEmail: stored.accountEmail,
+    refreshToken,
+    accessToken: decryptField(stored.accessToken),
+    expiresAtMs: stored.expiresAtMs,
+    calendarIds: stored.calendarIds,
+    connectedAt: stored.connectedAt,
+  };
+}
+
 export async function getConnection(userId: string, provider: CalendarProvider): Promise<CalendarConnection | null> {
   const stored = await getJSON<StoredCalendarConnection>(U.calendarConnection(userId, provider));
   if (!stored) return null;
-  const refreshToken = decryptField(stored.refreshToken);
-  // A RECORD WHOSE refreshToken DOES NOT SURVIVE DECRYPTION READS AS NO
-  // CONNECTION. decryptField fails soft (returns "" and logs, rather than
-  // throwing — see its own header) so a rotated FIELD_ENCRYPTION_KEY or a
-  // corrupted value would otherwise hand back a connection object with a
-  // blank refresh token: it would look connected right up until the access
-  // token expired and there was nothing left to renew it with. A connection
-  // that cannot be refreshed is not one.
-  if (!refreshToken) return null;
-  return { ...stored, refreshToken, accessToken: decryptField(stored.accessToken) };
+  return decryptStored(stored);
 }
 
 export async function saveConnection(
@@ -75,29 +99,60 @@ export async function saveConnection(
   patch: Partial<CalendarConnection>,
 ): Promise<CalendarConnection> {
   const key = U.calendarConnection(userId, provider);
-  // Read the existing record RAW (still encrypted) rather than through
-  // getConnection: a patch that only carries a fresh accessToken (the hourly
-  // refresh case) must not be blocked by getConnection's "no refreshToken ->
-  // null" rule, which exists for callers reading the connection, not for the
-  // write path that maintains it.
-  const existing = await getJSON<StoredCalendarConnection>(key);
-  const merged: CalendarConnection = {
-    provider,
-    accountEmail: patch.accountEmail ?? existing?.accountEmail ?? "",
-    refreshToken: patch.refreshToken ?? (existing ? decryptField(existing.refreshToken) : ""),
-    accessToken: patch.accessToken ?? (existing ? decryptField(existing.accessToken) : ""),
-    expiresAtMs: patch.expiresAtMs ?? existing?.expiresAtMs ?? 0,
-    calendarIds: patch.calendarIds ?? existing?.calendarIds ?? [],
-    // Set once, on the first save, and never moved by a later refresh.
-    connectedAt: existing?.connectedAt ?? Date.now(),
-  };
-  const toStore: StoredCalendarConnection = {
-    ...merged,
-    refreshToken: encryptField(merged.refreshToken),
-    accessToken: encryptField(merged.accessToken),
-  };
-  await setJSON(key, toStore);
-  return merged;
+  // COMPARE-AND-SET (invariant 8), not a bare getJSON/setJSON pair. A blind
+  // read-modify-write here loses exactly the value that must never be lost:
+  // Task 3's connect callback writes a full record while an hourly
+  // access-token refresh is in flight, and without CAS the refresh's stale
+  // read wins the race and overwrites the brand-new refreshToken with the old
+  // one. editJSON re-applies this function on every contended attempt against
+  // whatever is actually there, so the merge always starts from current data.
+  return editJSON<StoredCalendarConnection, CalendarConnection>(key, (existing) => {
+    const connectedAt = existing?.connectedAt ?? Date.now();
+
+    // STORAGE FIELDS: a token the patch does not supply is carried forward AS
+    // STORED — the existing ciphertext, unchanged — rather than decrypted and
+    // re-encrypted. That distinction is what stops a transient key problem
+    // from becoming permanent data loss: decryptField fails soft ("" on a
+    // wrong/rotated key) and encryptField("") ALSO returns "" via its own
+    // empty-value shortcut, before it ever gets to the key check — so a
+    // decrypt-then-encrypt round trip on an unreadable value would silently
+    // persist an empty string over the only copy of a token that cannot be
+    // re-derived without the person consenting again. encryptField is
+    // idempotent on its own output (`isEncrypted` short-circuits it before
+    // the key check), so handing it either a fresh plaintext value or an
+    // already-encrypted one to pass through is equally safe.
+    const storedRefreshToken = patch.refreshToken !== undefined
+      ? encryptField(patch.refreshToken)
+      : encryptField(existing?.refreshToken ?? "");
+    const storedAccessToken = patch.accessToken !== undefined
+      ? encryptField(patch.accessToken)
+      : encryptField(existing?.accessToken ?? "");
+
+    const next: StoredCalendarConnection = {
+      provider,
+      accountEmail: patch.accountEmail ?? existing?.accountEmail ?? "",
+      refreshToken: storedRefreshToken,
+      accessToken: storedAccessToken,
+      expiresAtMs: patch.expiresAtMs ?? existing?.expiresAtMs ?? 0,
+      calendarIds: patch.calendarIds ?? existing?.calendarIds ?? [],
+      connectedAt,
+    };
+
+    // THE RETURN VALUE is decrypted in memory, per this module's contract —
+    // decrypted for the caller, who just supplied or already held the
+    // plaintext; never for what actually gets written above.
+    const result: CalendarConnection = {
+      provider,
+      accountEmail: next.accountEmail,
+      refreshToken: decryptField(next.refreshToken),
+      accessToken: decryptField(next.accessToken),
+      expiresAtMs: next.expiresAtMs,
+      calendarIds: next.calendarIds,
+      connectedAt,
+    };
+
+    return { next, result };
+  });
 }
 
 export async function clearConnection(userId: string, provider: CalendarProvider): Promise<void> {

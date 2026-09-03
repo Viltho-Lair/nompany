@@ -84,7 +84,13 @@ console.log("\ncalendar providers");
     url.includes(encodeURIComponent("Calendars.Read offline_access")), url);
 }
 
-const { publicConnection } = await import("../src/platform/auth/calendarConnections.ts");
+// A real key, scoped to this test process only. fieldCrypto's encryptField
+// throws without one (deliberately — see its header), so this must be set
+// BEFORE calendarConnections.ts's functions are called, not just imported.
+process.env.FIELD_ENCRYPTION_KEY = "test-only-key-never-used-outside-this-process";
+
+const { publicConnection, decryptStored } = await import("../src/platform/auth/calendarConnections.ts");
+const { encryptField } = await import("../src/platform/auth/fieldCrypto.ts");
 
 console.log("\nconnection shape");
 {
@@ -104,6 +110,34 @@ console.log("\nconnection shape");
     !("expiresAtMs" in pub));
   ok("what the client needs does survive",
     pub.provider === "google" && pub.accountEmail === "a@b.test" && pub.connectedAt === 456);
+}
+
+console.log("\ndecrypt-and-gate contract (no store)");
+{
+  const stored = {
+    provider: "google", accountEmail: "a@b.test",
+    refreshToken: encryptField("REFRESH-SECRET"), accessToken: encryptField("ACCESS-SECRET"),
+    expiresAtMs: 999, calendarIds: ["primary"], connectedAt: 111,
+  };
+  // WHAT WOULD BE WRITTEN IS CIPHERTEXT, NOT PLAINTEXT — the property
+  // saveConnection depends on (it stores exactly this shape).
+  ok("the stored refresh token is ciphertext, not the plaintext",
+    !stored.refreshToken.includes("REFRESH-SECRET") && stored.refreshToken.startsWith("enc:v1:"),
+    stored.refreshToken);
+
+  const live = decryptStored(stored);
+  ok("a readable stored record decrypts back to the real tokens",
+    live?.refreshToken === "REFRESH-SECRET" && live?.accessToken === "ACCESS-SECRET",
+    JSON.stringify(live));
+
+  // THE SECOND MOST IMPORTANT BEHAVIOUR IN THIS FILE. A stored record whose
+  // refreshToken cannot be decrypted — corrupted, or written under a key that
+  // has since rotated — must read as NO CONNECTION rather than as a connection
+  // with a blank refresh token, because the latter looks fine right up until
+  // the access token expires with nothing left to renew it.
+  const unreadable = { ...stored, refreshToken: "enc:v1:not-a-real-payload" };
+  ok("an unreadable refreshToken reads as no connection (null), not a broken one",
+    decryptStored(unreadable) === null);
 }
 
 console.log(fails ? `\n${fails} failure(s)` : "\nall good");
