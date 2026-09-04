@@ -78,6 +78,7 @@ const SECTION_ICONS = {
   // neutral dot, so the group reads as three destinations instead of a list.
   "crm-sales-tickets": "ticket",
   "crm-sales-clients": "group",
+  "crm-sales-contracts": "verified",
   "crm-sales-live": "live",
   // Technical sub-sections, same idea. Live view reuses the broadcast mark the
   // Sales one already uses — it is the same kind of screen, so it should not

@@ -41,7 +41,7 @@ const CONTRACT_SOURCE = {
 };
 
 export async function listContracts(ctx: SalesContext) {
-  const denied = requirePermission(ctx.access, "crmSales.quotations.view");
+  const denied = requirePermission(ctx.access, "crmSales.contracts.view");
   if (denied) return denied;
   const { studio, quotationsSection } = ctx;
   // A STUDIO MAY NOT HAVE THIS SECTION. Sections are per-studio rows, so the
@@ -63,7 +63,7 @@ export async function listContracts(ctx: SalesContext) {
  * deal that exists rather than on one nothing else can find.
  */
 export async function createContract(ctx: SalesContext, body: Record<string, unknown>) {
-  const denied = requirePermission(ctx.access, "crmSales.quotations.create");
+  const denied = requirePermission(ctx.access, "crmSales.contracts.create");
   if (denied) return denied;
 
   const { studio, quotationsSection, collaborator } = ctx;
@@ -127,7 +127,7 @@ export async function createContract(ctx: SalesContext, body: Record<string, unk
 }
 
 export async function updateContract(ctx: SalesContext, id: string, body: Record<string, unknown>) {
-  const denied = requirePermission(ctx.access, "crmSales.quotations.edit");
+  const denied = requirePermission(ctx.access, "crmSales.contracts.edit");
   if (denied) return denied;
 
   const { studio, quotationsSection } = ctx;

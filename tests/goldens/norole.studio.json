@@ -45,6 +45,12 @@
       },
       {
         "id": "<sub_ID>",
+        "key": "crm-sales-contracts",
+        "name": "Contracts",
+        "enabled": true
+      },
+      {
+        "id": "<sub_ID>",
         "key": "crm-sales-live",
         "name": "Live view",
         "enabled": true

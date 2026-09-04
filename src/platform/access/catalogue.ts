@@ -165,6 +165,23 @@ const OWN_AREAS = [
       { key: "lock", label: "Lock permanently" },
       { key: "unlock", label: "Unlock a locked quotation" },
     ] },
+  // CONTRACTS AND THE VARIATIONS AGAINST THEM, under one area on purpose.
+  // The stage registry already says a change order "answers to the same right
+  // the contract does": scope moving after signature is the same authority as
+  // the signature. Both records were built in P2 borrowing
+  // crmSales.quotations, with a note that each "gets its own area when it gets
+  // a screen" — this is that.
+  //
+  // NO `delete`. A contract is a commitment somebody signed; it is amended by a
+  // change order or ended, never removed, which is the same reasoning that
+  // keeps a ledger entry reversible rather than editable.
+  //
+  // `approve` IS ITS OWN POWER because answering a variation is not raising
+  // one. Invariant 7 is enforced at the transition — the person who submitted
+  // a change order may not answer it — and holding both rights stays
+  // legitimate; using both on one record does not.
+  { key: "crmSales.contracts", group: "CRM & Sales", label: "Contracts", verbs: ["view", "create", "edit"],
+    extra: [{ key: "approve", label: "Answer a change order" }] },
   { key: "engineeringDocs.live", group: "Engineering & Documents", label: "Live view", verbs: ["view"] },
   { key: "engineeringDocs.settings", group: "Engineering & Documents", label: "Settings", verbs: ["view", "edit"] },
 

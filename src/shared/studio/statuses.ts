@@ -23,6 +23,10 @@ type StatusMap = Record<string, Record<string, string>>;
 // the token unchanged. Writing one out would be a second copy of the tokens to
 // keep in step with the first, for no gain.
 const ar: StatusMap = {
+  changeOrder: {
+    draft: "مسودة", submitted: "مُقدّمة",
+    approved: "معتمدة", rejected: "مرفوضة",
+  },
   invoice: { Draft: "مسودة", Sent: "مُرسلة", Paid: "مدفوعة", Cancelled: "ملغاة" },
   bill: {
     Draft: "مسودة", Received: "مستلمة", Approved: "معتمدة",

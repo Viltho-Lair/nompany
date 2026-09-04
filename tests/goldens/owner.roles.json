@@ -284,6 +284,22 @@
         ]
       },
       {
+        "key": "crmSales.contracts",
+        "group": "CRM & Sales",
+        "label": "Contracts",
+        "verbs": [
+          "view",
+          "create",
+          "edit"
+        ],
+        "extra": [
+          {
+            "key": "approve",
+            "label": "Answer a change order"
+          }
+        ]
+      },
+      {
         "key": "engineeringDocs.live",
         "group": "Engineering & Documents",
         "label": "Live view",

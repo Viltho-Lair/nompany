@@ -500,6 +500,14 @@ export const SECTION_DEFS = [
     { key: "crm-sales-tickets", name: "Tickets" },
     { key: "crm-sales-clients", name: "Customers" },
     { key: "crm-sales-quotations", name: "Quotations" },
+    // THE REGISTER, NOT THE ROWS. Contracts and change orders were built as
+    // records in P2 with routes and no screen, and they stay in the
+    // `crm-sales-quotations` collection below — a contract is what a won
+    // quotation becomes, and the two are read together. What this section owns
+    // is the DESTINATION: somewhere to go and look at them, and a right that
+    // says who may. It deliberately owns no collection, exactly as Live view
+    // does, so deleting it takes no records with it.
+    { key: "crm-sales-contracts", name: "Contracts" },
     { key: "crm-sales-live", name: "Live view" },
     { key: "crm-sales-settings", name: "Settings" },
   ] },

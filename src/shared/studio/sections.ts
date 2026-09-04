@@ -44,6 +44,7 @@ const ar: SectionMap = {
   "crm-sales-tickets": "التذاكر",
   "crm-sales-clients": "العملاء",
   "crm-sales-quotations": "عروض الأسعار",
+  "crm-sales-contracts": "العقود",
   "crm-sales-live": "العرض المباشر",
   "crm-sales-settings": "الإعدادات",
 

@@ -72,6 +72,11 @@ export const STATUS_TONES = {
   asset:     { service: "success", disposed: "neutral" },
   // StudioSales — ticket stages (STATUS_TONE).
   sales:     { Lead: "neutral", Opportunity: "info", Commit: "warning", "Closed Won": "success", "Closed Lost": "danger", "Cancelled by Client": "danger", "On-Hold": "neutral", Dropped: "danger" },
+  // StudioContracts — a variation's answer. `submitted` is amber because it is
+  // WAITING ON SOMEBODY, which is the state the register exists to surface;
+  // approved is brand rather than emerald for the same reason a bill's is — it
+  // means authorised, not finished.
+  changeOrder: { draft: "neutral", submitted: "warning", approved: "progress", rejected: "danger" },
   // StudioTasks — task board (STATUS_TONE).
   task:      { Open: "neutral", "In progress": "progress", Blocked: "danger", Done: "success" },
   // StudioInventory + InventoryDashboard — stock-move kind (MOVE_TONE).

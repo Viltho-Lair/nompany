@@ -87,6 +87,7 @@ export const SECTION_AREAS: Readonly<Record<string, readonly string[]>> = {
   // even though the RFQ it is raised from stays behind (restructure.ts's
   // SECTION_KEY_MAP).
   "crm-sales-quotations": ["crmSales.quotations"],
+  "crm-sales-contracts": ["crmSales.contracts"],
   "engineering-docs-live": ["engineeringDocs.live"],
   "engineering-docs-settings": ["engineeringDocs.settings"],
   "projects-list": ["projects.list"],

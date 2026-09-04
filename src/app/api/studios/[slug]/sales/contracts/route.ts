@@ -1,4 +1,5 @@
 import { route, refused } from "@/platform/http/route";
+import { requirePermission } from "@/platform/access";
 import { salesContext } from "@/modules/sales/sales";
 import { listContracts, createContract, updateContract } from "@/modules/sales/contracts";
 
@@ -26,7 +27,18 @@ const spec = { auth: "studio", context: salesContext, body: true, name: "crm-sal
 export const GET = route({ ...spec, body: false }, async (sales) => {
   const result = await listContracts(sales);
   if (refused(result)) return result;
-  return { ok: true, contracts: result.contracts };
+  // THE RIGHTS TRAVEL WITH THE LIST, so the register draws a control only
+  // where the route would accept it. `approve` is asked separately from `edit`
+  // because answering a variation is its own power — and the screen still
+  // cannot know who SUBMITTED one, so invariant 7's refusal is surfaced in
+  // words when it comes rather than predicted here.
+  return {
+    ok: true,
+    contracts: result.contracts,
+    canCreate: !requirePermission(sales.access, "crmSales.contracts.create"),
+    canEdit: !requirePermission(sales.access, "crmSales.contracts.edit"),
+    canApprove: !requirePermission(sales.access, "crmSales.contracts.approve"),
+  };
 });
 
 export const POST = route(spec, async (sales) => {

@@ -61,6 +61,7 @@ const areas: Record<Locale, Record<string, string>> = {
     "crmSales.settings": "الإعدادات",
     "engineeringDocs.rfq": "طلبات عروض الأسعار",
     "crmSales.quotations": "عروض الأسعار",
+    "crmSales.contracts": "العقود",
     "engineeringDocs.live": "العرض المباشر",
     "engineeringDocs.settings": "الإعدادات",
     "projects.list": "المشاريع",

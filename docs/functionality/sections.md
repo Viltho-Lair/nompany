@@ -32,7 +32,7 @@ cross-cutting control (the `task` type wraps every stage). Neither is a blueprin
 
 | Section | Owns | State |
 |---|---|---|
-| CRM & Sales | tickets, clients, **quotations**, live view, settings | Working |
+| CRM & Sales | tickets, clients, **quotations**, **contracts**, live view, settings | Partial — no pipeline, customer 360 or catalog |
 | Tendering & Estimating | — | **Not built yet** |
 | Projects | project list, SLA, overtimes, **planner**, settings | Working |
 | Engineering & Documents | **document register**, RFQ, live view, settings | Working |

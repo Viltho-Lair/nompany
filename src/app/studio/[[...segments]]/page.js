@@ -56,6 +56,10 @@ const StudioMasterData = nextDynamic(
   () => import("@/components/studio2/StudioMasterData"),
   { loading: () => <ScreenSkeleton /> },
 );
+const StudioContracts = nextDynamic(
+  () => import("@/components/studio2/StudioContracts"),
+  { loading: () => <ScreenSkeleton /> },
+);
 const StudioSales = nextDynamic(
   () => import("@/components/studio2/StudioSales"),
   { loading: () => <ScreenSkeleton /> },
@@ -484,6 +488,7 @@ async function renderStudio(params) {
         // the CRM & Sales dashboard that left `crmSales.quotations.create`/
         // `.edit` as rights nothing could exercise (invariant 16). Checked
         // ahead of the `screenKey === "crm-sales"` case below for that reason.
+        : active?.key === "crm-sales-contracts" ? <StudioContracts slug={studio.slug} />
         : active?.key === "crm-sales-quotations" ? (
           <StudioTechnical slug={studio.slug} view={active?.key}
             sectionNames={Object.fromEntries(sections.map((x) => [x.key, x.name]))} />

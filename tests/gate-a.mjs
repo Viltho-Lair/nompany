@@ -265,7 +265,13 @@ console.log("== the permission matrix: one key grants exactly itself");
   // not toggled — so it takes the full ladder where its three siblings take
   // view/edit. The key was declared once before and deleted in the same
   // restructure because the screen did not exist; it comes back with it.
-  ok("the catalogue is the size we last agreed", ALL_PERMISSIONS.length === 130, String(ALL_PERMISSIONS.length));
+  // 134 with crmSales.contracts (view/create/edit + approve). P4a's first
+  // slice. Contracts and change orders were built in P2 as records that
+  // borrowed crmSales.quotations, and the stage registry said each would get
+  // its own area when it got a screen — a right that gates two records with no
+  // screen is the dead capability the catalogue forbids, so the debt was
+  // recorded rather than paid early. It is paid here.
+  ok("the catalogue is the size we last agreed", ALL_PERMISSIONS.length === 134, String(ALL_PERMISSIONS.length));
 
   const leaks = [];
   const missing = [];

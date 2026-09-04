@@ -15,6 +15,20 @@ type Strings = CommonStrings & {
   // The department's own name, for the shared no-access sentence.
   changeColumns: string;
   colCity: string;
+  // The contracts register. `contracts` is the section's own name and the
+  // heading; the rest are the register's words.
+  contracts: string;
+  contractsWhatWasAgreed: string;
+  loadingContracts: string;
+  noContractsYet: string;
+  contractsAppearWhenQuotationWon: string;
+  signedOn: string;
+  variations: string;
+  noVariationsYet: string;
+  nVariationsWaiting: (n: number) => string;
+  cannotAnswerYourOwn: string;
+  approve: string;
+  reject: string;
   colClientBudget: string;
   colContact: string;
   colIndustry: string;
@@ -137,6 +151,21 @@ const en: Strings = {
   ...commonEn,
   changeColumns: "Change columns",
   colCity: "City",
+  contracts: "Contracts",
+  contractsWhatWasAgreed: "What was agreed, and what has moved since.",
+  loadingContracts: "Loading contracts…",
+  noContractsYet: "No contracts yet",
+  contractsAppearWhenQuotationWon: "A contract is what a won quotation becomes. Sign one against a deal and it appears here.",
+  signedOn: "Signed",
+  variations: "Variations",
+  noVariationsYet: "No variations against this contract.",
+  nVariationsWaiting: (n) => `${n} waiting`,
+  // INVARIANT 7, in words somebody can act on. The route refuses the person who
+  // submitted a variation, however much they hold, so the message says who
+  // rather than what.
+  cannotAnswerYourOwn: "You submitted this variation, so somebody else has to answer it.",
+  approve: "Approve",
+  reject: "Reject",
   colClientBudget: "Client budget",
   colContact: "Contact",
   colIndustry: "Industry",
@@ -264,6 +293,18 @@ const ar: Strings = {
   ...commonAr,
   changeColumns: "غيّر الأعمدة",
   colCity: "المدينة",
+  contracts: "العقود",
+  contractsWhatWasAgreed: "ما تمّ الاتفاق عليه، وما تغيّر منذ ذلك.",
+  loadingContracts: "جارٍ تحميل العقود…",
+  noContractsYet: "لا توجد عقود بعد",
+  contractsAppearWhenQuotationWon: "العقد هو ما يصير إليه عرض السعر المربوح. وقّع عقدًا على صفقة وسيظهر هنا.",
+  signedOn: "تاريخ التوقيع",
+  variations: "التغييرات",
+  noVariationsYet: "لا توجد تغييرات على هذا العقد.",
+  nVariationsWaiting: (n) => `${n} بانتظار الرد`,
+  cannotAnswerYourOwn: "أنت من قدّم هذا التغيير، لذا يجب أن يردّ عليه شخص آخر.",
+  approve: "اعتماد",
+  reject: "رفض",
   colClientBudget: "ميزانية العميل",
   colContact: "جهة الاتصال",
   colIndustry: "القطاع",

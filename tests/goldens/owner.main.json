@@ -15,6 +15,7 @@
       "crm-sales-tickets": true,
       "crm-sales-clients": true,
       "crm-sales-quotations": true,
+      "crm-sales-contracts": true,
       "crm-sales-live": true,
       "crm-sales-settings": true,
       "tendering": false,
@@ -85,6 +86,11 @@
       {
         "key": "crm-sales-quotations",
         "name": "Quotations",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "crm-sales-contracts",
+        "name": "Contracts",
         "parentId": "<sec_ID>"
       },
       {

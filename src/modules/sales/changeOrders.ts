@@ -43,7 +43,7 @@ const signed = (v: unknown) => {
 // something a variation does on the way past.
 
 export async function listChangeOrders(ctx: SalesContext) {
-  const denied = requirePermission(ctx.access, "crmSales.quotations.view");
+  const denied = requirePermission(ctx.access, "crmSales.contracts.view");
   if (denied) return denied;
   const { studio, quotationsSection } = ctx;
   // A STUDIO MAY NOT HAVE THIS SECTION — it is foreign to Sales' own root, so
@@ -82,7 +82,7 @@ export function approvedValueDelta(changeOrders: readonly ChangeOrder[]): number
  * unassigned pen's list of types for exactly that reason.
  */
 export async function createChangeOrder(ctx: SalesContext, body: Record<string, unknown>) {
-  const denied = requirePermission(ctx.access, "crmSales.quotations.create");
+  const denied = requirePermission(ctx.access, "crmSales.contracts.create");
   if (denied) return denied;
 
   const { studio, quotationsSection, collaborator } = ctx;
@@ -136,7 +136,7 @@ export async function createChangeOrder(ctx: SalesContext, body: Record<string, 
 }
 
 export async function updateChangeOrder(ctx: SalesContext, id: string, body: Record<string, unknown>) {
-  const denied = requirePermission(ctx.access, "crmSales.quotations.edit");
+  const denied = requirePermission(ctx.access, "crmSales.contracts.edit");
   if (denied) return denied;
 
   const { studio, quotationsSection } = ctx;
@@ -183,7 +183,7 @@ export async function updateChangeOrder(ctx: SalesContext, id: string, body: Rec
  * half of the invariant-7 check below.
  */
 export async function submitChangeOrder(ctx: SalesContext, id: string) {
-  const denied = requirePermission(ctx.access, "crmSales.quotations.edit");
+  const denied = requirePermission(ctx.access, "crmSales.contracts.edit");
   if (denied) return denied;
 
   const { studio, quotationsSection, collaborator } = ctx;
@@ -213,15 +213,20 @@ export async function submitChangeOrder(ctx: SalesContext, id: string) {
  * the one who approves it. Holding both rights is legitimate; using both on one
  * record is not.
  *
- * GUARDED BY `edit` RATHER THAN BY AN `approve` VERB, and that is a deliberate
- * limit rather than an oversight. `crmSales.quotations` carries
- * view/create/edit/delete, and minting an area for a record that has no screen
- * yet would move the 123-key permission matrix and every golden that pins it —
- * the same reason the stage registry entry reuses this permission. It gets its
- * own verb when it gets a screen.
+ * ITS OWN VERB NOW. This was guarded by `edit` on crmSales.quotations, and the
+ * note here said that was a deliberate limit rather than an oversight: minting
+ * an area for a record with no screen would have moved the permission matrix
+ * and every golden pinning it, in order to gate something nobody could open.
+ * The screen exists, so the debt is paid — crmSales.contracts.approve.
+ *
+ * WHY IT IS A SEPARATE POWER. Answering a variation is not raising one, and a
+ * studio that lets a coordinator draft change orders does not thereby let them
+ * approve their own. Invariant 7 still does the real work at the transition
+ * below — the submitter may not answer, whatever they hold — and the right only
+ * decides who may be in that position at all.
  */
 export async function answerChangeOrder(ctx: SalesContext, id: string, approve: boolean) {
-  const denied = requirePermission(ctx.access, "crmSales.quotations.edit");
+  const denied = requirePermission(ctx.access, "crmSales.contracts.approve");
   if (denied) return denied;
 
   const { studio, quotationsSection, collaborator } = ctx;
