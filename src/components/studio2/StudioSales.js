@@ -224,7 +224,7 @@ export default function StudioSales({ slug, view = "crm-sales" }) {
               onSave={(payload) => send("clients", editing.row ? "PUT" : "POST", editing.row ? { ...payload, id: editing.row.id } : payload)} />
           </Dialog>
         )}
-        <Clients clients={clients} tickets={tickets} people={people} canManage={canManageClients} focus={focusClient}
+        <Clients slug={slug} clients={clients} tickets={tickets} people={people} canManage={canManageClients} focus={focusClient}
           onAdd={() => setEditing({ kind: "client", row: null })}
           onEdit={(row) => setEditing({ kind: "client", row })}
           onDelete={(row) => send("clients", "DELETE", { id: row.id })} />
@@ -601,7 +601,7 @@ function Tickets({ tickets, people, canManage, slug, hasTechnical, statuses, urg
 // ---- clients ---------------------------------------------------------------
 // A table rather than cards: a client is read across its columns — who to call,
 // where the site is, when it came in — and columns line those up between rows.
-function Clients({ clients, tickets, people, canManage, focus, onAdd, onEdit, onDelete }) {
+function Clients({ slug, clients, tickets, people, canManage, focus, onAdd, onEdit, onDelete }) {
   const tr = salesDict(useStudioLocale());
   const aliasOf = useMemo(() => Object.fromEntries(people.map((p) => [p.id, p.alias])), [people]);
   const ticketCount = useMemo(() => {
@@ -658,7 +658,14 @@ function Clients({ clients, tickets, people, canManage, focus, onAdd, onEdit, on
                   <tr key={c.id} {...focus.focusProps(c.id)}
                     className={`border-b border-slate-100 align-top last:border-0 dark:border-white/5 ${focus.focusProps(c.id).className || ""}`}>
                     <td className="py-3 pe-3">
-                      <p className="font-600 text-slate-900 dark:text-white">{c.name}</p>
+                      {/* THE NAME IS THE DOOR. It was plain text, because the
+                          page it would open did not exist — linkToClient
+                          pointed back at this very list with a ?client= that
+                          scrolled you to the row you were already looking at. */}
+                      <a href={linkToClient(slug, c.id)} title={tr.openCustomer}
+                        className="font-600 text-slate-900 hover:text-brand-700 hover:underline dark:text-white dark:hover:text-brand-300">
+                        {c.name}
+                      </a>
                       <p className="font-mono text-[11px] text-slate-400">{c.code}</p>
                       {c.industry && <p className="text-xs text-slate-500 dark:text-slate-400">{c.industry}</p>}
                     </td>

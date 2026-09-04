@@ -1094,6 +1094,7 @@ console.log("== sales: the module's whole surface, with data in it");
   const TICKETS = await import("@/app/api/studios/[slug]/sales/tickets/route.ts");
   const RFQ = await import("@/app/api/studios/[slug]/sales/tickets/rfq/route.ts");
   const PIPELINE = await import("@/app/api/studios/[slug]/sales/pipeline/route.ts");
+  const CUSTOMER = await import("@/app/api/studios/[slug]/sales/customer/route.ts");
   const QUOTATIONS = await import("@/app/api/studios/[slug]/sales/quotations/route.ts");
   const SALES = await import("@/app/api/studios/[slug]/sales/route.ts");
 
@@ -1237,6 +1238,37 @@ console.log("== sales: the module's whole surface, with data in it");
   await shot("sales.refused.reopen", await capture(
     TICKETS.PUT, req(`/api/studios/${slug}/sales/tickets`, { method: "PUT", body: { id: losing, status: "Lead" } }), P));
 
+  // ---- customer 360: one company, and who may see how much of it ---------
+  //
+  // By this point the client has two deals — one an RFQ moved to Opportunity,
+  // one closed as lost with a reason — so the profile pinned here carries a
+  // live deal, a decided one and the totals over both.
+  const customer = await capture(
+    CUSTOMER.GET, req(`/api/studios/${slug}/sales/customer?id=${clientId}`), P);
+  await shot("sales.customer", customer);
+  ok("the customer's own record comes back", customer.body?.client?.name === "Acme Holdings", customer.body?.client?.name);
+  ok("...with its open deal", customer.body?.deals?.open?.some((d) => d.id === ticketId));
+  ok("...and its decided one", customer.body?.deals?.decided?.some((d) => d.id === losing));
+  // THE REASON, READ BACK. A losing close is made to say why (pipeline.ts); a
+  // reason nothing ever displays is the dead field it used to be.
+  ok("...carrying why that one was lost",
+    customer.body?.deals?.decided?.[0]?.lostReason === "Client went with the incumbent",
+    customer.body?.deals?.decided?.[0]?.lostReason);
+  ok("nothing has been won, so the win rate is nought",
+    customer.body?.deals?.winRate === 0 && customer.body?.deals?.wonValue === 0,
+    JSON.stringify({ winRate: customer.body?.deals?.winRate, won: customer.body?.deals?.wonValue }));
+  ok("the owner may see every block", JSON.stringify(customer.body?.may) === JSON.stringify(
+    { deals: true, quotations: true, contracts: true, projects: true }), JSON.stringify(customer.body?.may));
+
+  await shot("sales.customer.missing", await capture(
+    CUSTOMER.GET, req(`/api/studios/${slug}/sales/customer?id=sal_doesnotexist000`), P));
+
+  // The other half of this page — what a reader who may see the COMPANY and
+  // none of its commerce gets — is asserted further down, on the clerk the
+  // refusal cases already create. That person holds clients.view and nothing
+  // else, which is exactly the reader in question, and minting a second one
+  // would put them in the studio every block in this file shares.
+
   // ---- a quotation that does not exist is a 404, not a leak --------------
   await shot("sales.quotation.missing", await capture(
     QUOTATIONS.GET, req(`/api/studios/${slug}/sales/quotations?id=quo_doesnotexist0000`), P));
@@ -1256,6 +1288,29 @@ console.log("== sales: the module's whole surface, with data in it");
     TICKETS.POST, req(`/api/studios/${slug}/sales/tickets`, { method: "POST", body: { title: "Not mine to raise", clientId, industry: "Commercial", deadline: "2026-12-03", serviceIds: [serviceId] } }), P));
   await shot("sales.allowed.client", await capture(
     CLIENTS.POST, req(`/api/studios/${slug}/sales/clients`, { method: "POST", body: { name: "Second Client" } }), P));
+
+  // CUSTOMER 360 FOR A READER WHO MAY SEE THE COMPANY AND NOTHING ELSE, which
+  // is the assertion the feature exists to keep. `crmSales.clients.view` opens
+  // the page; it does not open the contents. Every block is gated by the right
+  // over its own records, a refused block is never READ at all, and the totals
+  // are computed from what THIS reader can see rather than from the whole
+  // company — a figure derived from records somebody cannot open would leak
+  // exactly what the gate is for.
+  const thin = await capture(
+    CUSTOMER.GET, req(`/api/studios/${slug}/sales/customer?id=${clientId}`), P);
+  await shot("sales.customer.clientsonly", thin);
+  ok("a clients-only reader still gets the company", thin.body?.client?.name === "Acme Holdings", thin.body?.client?.name);
+  ok("...and no block at all", JSON.stringify(thin.body?.may) === JSON.stringify(
+    { deals: false, quotations: false, contracts: false, projects: false }), JSON.stringify(thin.body?.may));
+  ok("...no deals, rather than an empty list of them",
+    (thin.body?.deals?.open?.length ?? -1) === 0 && (thin.body?.deals?.decided?.length ?? -1) === 0);
+  // THE TOTALS MOVE WITH THE READER, which is the design rather than a bug:
+  // each is told the truth about the part of this company they may see.
+  ok("...and the money reads nought, not the company's real figure",
+    thin.body?.deals?.wonValue === 0 && thin.body?.contractValue === 0,
+    JSON.stringify({ won: thin.body?.deals?.wonValue, contracts: thin.body?.contractValue }));
+  ok("...with no win rate at all, having decided nothing it can see",
+    thin.body?.deals?.winRate === null, String(thin.body?.deals?.winRate));
 
   // Settings answer to their own right, not to "can write in Sales". The
   // service catalogue this used to POST to is gone (see sales.ts) — Sales

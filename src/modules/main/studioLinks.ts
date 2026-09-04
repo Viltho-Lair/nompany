@@ -16,7 +16,14 @@ const to = (slug: string, section: string, params: Record<string, unknown>) => {
   return `/${slug}/${section}${query ? `?${query}` : ""}`;
 };
 
-export const linkToClient = (slug: string, id: string) => (id ? to(slug, "crm-sales", { client: id }) : "");
+// A PATH NOW, NOT A QUERY, and it is the only one of these that is. Every other
+// link below deep-links INTO a list: the screen reads the parameter, switches
+// tab and rings the row. A client has its own page — /<slug>/crm-sales-clients/
+// <id>, the same second-segment shape a ticket has — so pointing at the list and
+// scrolling would be pointing past it. The `?client=` form still works where it
+// was already used, because `useFocusedRecord("client")` on the list is
+// untouched; nothing in the product emits it any more.
+export const linkToClient = (slug: string, id: string) => (id ? `/${slug}/crm-sales-clients/${id}` : "");
 export const linkToTicket = (slug: string, id: string) => (id ? to(slug, "crm-sales", { ticket: id }) : "");
 export const linkToRfq = (slug: string, id: string) => (id ? to(slug, "engineering-docs", { rfq: id }) : "");
 // crm-sales, not engineering-docs — quotations moved WITH the section

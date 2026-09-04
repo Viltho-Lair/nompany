@@ -1,0 +1,35 @@
+{
+  "status": 200,
+  "body": {
+    "ok": true,
+    "client": {
+      "id": "<sal_ID>",
+      "name": "Acme Holdings",
+      "code": "Acme-Holdings",
+      "industry": "",
+      "website": "",
+      "notes": "",
+      "createdAt": "<timestamp>",
+      "contacts": [],
+      "locations": []
+    },
+    "may": {
+      "deals": false,
+      "quotations": false,
+      "contracts": false,
+      "projects": false
+    },
+    "deals": {
+      "open": [],
+      "decided": [],
+      "openValue": 0,
+      "weighted": 0,
+      "wonValue": 0,
+      "winRate": null
+    },
+    "quotations": [],
+    "contracts": [],
+    "contractValue": 0,
+    "projects": []
+  }
+}

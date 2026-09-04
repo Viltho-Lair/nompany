@@ -311,6 +311,10 @@ every push to `main` and every pull request.
   while a build of the branch before the strip landed measured 1589, so the
   headline had drifted two kilobytes behind the script — the delta is the four
   the strip actually cost, not the six the stale number would have implied.
+  1597 → 1601 with the customer page, which is four kilobytes for a screen
+  that adds no library at all: its thirty-two strings in two languages, and
+  the page itself. It imports `modules/sales/pipeline.ts`, already in the
+  bundle for the board.
   1593 → 1595 with the contracts register, 1595 → 1597 with the pipeline
   board — two screens, their strings in two languages, and
   `modules/sales/pipeline.ts`, which reaches the browser DELIBERATELY: the
@@ -494,7 +498,7 @@ waits for the gateway.
 **Waves 0–1 are complete; Gate A is green.** Wave 0 shipped (orphan-sweep guard,
 credential rate limiting, console session expiry, traffic-ingest bounds, media tenancy,
 security headers, bcrypt 12 with rehash-on-login, M-1 dead capabilities). Gate A shipped:
-167 golden responses over every surface, the 135-key permission matrix, hop counting, six
+170 golden responses over every surface, the 135-key permission matrix, hop counting, six
 architectural assertions, **per-route permission enforcement in every module**, **ESLint**
 (flat config + shrink-only warning budget, 142 today), **observability** (request ids, per-request hop
 counts), and CI enforcing all of it.
@@ -505,7 +509,7 @@ the catalogue assertion in `tests/gate-a.mjs`), because a pass condition quoted 
 a pass condition nobody can check.
 
 **Wave 2 (seams + performance) is mostly done; Gate B is 2 of 3.** Zero direct `readCol` in
-service code ✅, goldens unchanged by the seam work ✅ (167 today), hops ≤2 for the studio route and 3 for sales
+service code ✅, goldens unchanged by the seam work ✅ (170 today), hops ≤2 for the studio route and 3 for sales
 (the structural floor). Done: Seam A (route wrapper, all 96 routes), Seam B (repository
 interface + the `readCol` migration across all 13 modules), Seam C (one context factory,
 killed hop 7), request-scoped cache + batched prefetch (8→2 hops), targeted live updates,
@@ -629,6 +633,26 @@ against the deals a live studio already has. **No backfill.**
 
 **A stale count found on the way:** the Manager starter role never named `crmSales.contracts`,
 so slice 1 shipped a section whose own Manager could not open it. Both rights are seeded now.
+
+**Slice 3 — customer 360** (`crm-sales-customer-360`), and it adds **no permission key and no
+record**: catalogue stays at 135. `/<slug>/crm-sales-clients/<id>` is one client's page, the
+same second-segment shape a ticket has, resolving through `crm-sales-clients`.
+`docs/functionality/customer-360.md` is the file.
+
+Before it, a client was a ROW: `linkToClient` appended `?client=<id>` and scrolled you to the
+row you were already looking at, so "what is this relationship worth" meant opening four
+screens and filtering each by hand. **Every block is gated by the right over its own records
+— deals, quotations, contracts, projects — and a block the reader may not see is never READ,
+so it costs no round trip either.** `crmSales.clients.view` opens the page; it does not open
+the contents. **The totals move with the reader**, which is the design rather than a bug and
+is pinned by two goldens of the same customer: the owner sees 1 open deal, 1 decided and a
+0% win rate; a clients-only reader sees the same company with every block false, no deals and
+a NULL win rate. A figure derived from records somebody cannot open would leak the very thing
+the gate is for.
+
+Won value is the figure the page exists for and no screen could answer before. "Open value"
+excludes On-Hold, **matching the pipeline board exactly** — the same words for the same figure,
+or the words stop meaning anything.
 
 **Open decisions (waiting on a person):** the Wave 4 palette (marketing dark-first
 indigo/Sora vs the ERP's light-first blue/Saira); and whether to denormalise the slug index

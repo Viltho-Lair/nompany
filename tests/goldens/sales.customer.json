@@ -1,0 +1,69 @@
+{
+  "status": 200,
+  "body": {
+    "ok": true,
+    "client": {
+      "id": "<sal_ID>",
+      "name": "Acme Holdings",
+      "code": "Acme-Holdings",
+      "industry": "",
+      "website": "",
+      "notes": "",
+      "createdAt": "<timestamp>",
+      "contacts": [],
+      "locations": []
+    },
+    "may": {
+      "deals": true,
+      "quotations": true,
+      "contracts": true,
+      "projects": true
+    },
+    "deals": {
+      "open": [
+        {
+          "id": "<sal_ID>",
+          "ref": "ACME-HOLDINGS-001",
+          "title": "Boardroom refit, phase 1",
+          "status": "Opportunity",
+          "closed": false,
+          "won": false,
+          "value": 0,
+          "probability": 0,
+          "forecast": true,
+          "weighted": 0,
+          "deadline": "2031-12-01",
+          "lostReason": "",
+          "closedAt": "",
+          "days": 0
+        }
+      ],
+      "decided": [
+        {
+          "id": "<sal_ID>",
+          "ref": "ACME-HOLDINGS-002",
+          "title": "Cannot start won",
+          "status": "Closed Lost",
+          "closed": true,
+          "won": false,
+          "value": 0,
+          "probability": 0,
+          "forecast": false,
+          "weighted": 0,
+          "deadline": "2031-12-02",
+          "lostReason": "Client went with the incumbent",
+          "closedAt": "<timestamp>",
+          "days": 0
+        }
+      ],
+      "openValue": 0,
+      "weighted": 0,
+      "wonValue": 0,
+      "winRate": 0
+    },
+    "quotations": [],
+    "contracts": [],
+    "contractValue": 0,
+    "projects": []
+  }
+}

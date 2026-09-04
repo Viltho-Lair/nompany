@@ -158,6 +158,12 @@ const KNOWN_COLLISIONS = {
   "src/components/studio2/StudioSales.js": [
     { value: "sales", reason: "StatusPill.jsx's STATUS_TONES record-kind key for ticket-stage colours" },
   ],
+  "src/components/studio2/StudioCustomer.js": [
+    // Twice, on the two deal blocks: the customer page draws a deal's stage
+    // with the same ticket-stage pill the board and the list use. Not a
+    // section key, and never resolved as one.
+    { value: "sales", reason: "StatusPill.jsx's STATUS_TONES record-kind key for ticket-stage colours" },
+  ],
   "src/components/studio2/StudioPipeline.js": [
     // The same key as StudioSales above, and for the same reason: the board
     // draws its columns and its move options with the pill's ticket-stage

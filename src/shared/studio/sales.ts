@@ -15,6 +15,35 @@ type Strings = CommonStrings & {
   // The department's own name, for the shared no-access sentence.
   changeColumns: string;
   colCity: string;
+  // CUSTOMER 360 — one client, whole. The blocks it can draw are gated one by
+  // one, so these are the words for a page that may legitimately show four
+  // sections to one reader and one to another.
+  loadingCustomer: string;
+  customerNotFound: string;
+  customerSince: string;
+  clientCode: string;
+  wonValue: string;
+  contractValue: string;
+  openDeals: string;
+  decidedDeals: string;
+  noDealsForCustomer: string;
+  noDecidedYet: string;
+  quotationsHeading: string;
+  noQuotationsForCustomer: string;
+  projectsHeading: string;
+  noProjectsForCustomer: string;
+  contactsHeading: string;
+  noContactsYet: string;
+  sitesHeading: string;
+  noSitesYet: string;
+  noContractsForCustomer: string;
+  openCustomer: string;
+  // The page a member with `crmSales.clients.view` and no commercial right
+  // sees: the company and its people, and deliberately nothing else. Said in
+  // words, because a page that simply stops looks broken.
+  onlyTheCompany: string;
+  onlyTheCompanyBody: string;
+
   // THE PIPELINE BOARD. `pipeline` is the section's own name and the heading.
   //
   // The STAGE NAMES are not here and must not be: they come from the pill's
@@ -189,6 +218,28 @@ const en: Strings = {
   ...commonEn,
   changeColumns: "Change columns",
   colCity: "City",
+  loadingCustomer: "Loading the customer…",
+  customerNotFound: "This customer no longer exists.",
+  customerSince: "Customer since",
+  clientCode: "Code",
+  wonValue: "Won",
+  contractValue: "Under contract",
+  openDeals: "Open deals",
+  decidedDeals: "Decided",
+  noDealsForCustomer: "No deals have been raised for this customer.",
+  noDecidedYet: "Nothing has been won or lost yet.",
+  quotationsHeading: "Quotations",
+  noQuotationsForCustomer: "No quotations have been raised for this customer.",
+  projectsHeading: "Projects",
+  noProjectsForCustomer: "No projects have been opened for this customer.",
+  contactsHeading: "Contacts",
+  noContactsYet: "No contacts recorded.",
+  sitesHeading: "Sites",
+  noSitesYet: "No sites recorded.",
+  noContractsForCustomer: "No contracts have been signed with this customer.",
+  openCustomer: "Open this customer",
+  onlyTheCompany: "The company, and no commercial history",
+  onlyTheCompanyBody: "Deals, quotations, contracts and projects each need their own access. Ask an administrator if you should be seeing them here.",
   pipeline: "Pipeline",
   pipelineSub: "Where every open deal stands, and what the funnel is worth.",
   loadingPipeline: "Loading the pipeline…",
@@ -355,6 +406,28 @@ const ar: Strings = {
   ...commonAr,
   changeColumns: "غيّر الأعمدة",
   colCity: "المدينة",
+  loadingCustomer: "جارٍ تحميل العميل…",
+  customerNotFound: "هذا العميل لم يعد موجودًا.",
+  customerSince: "عميل منذ",
+  clientCode: "الرمز",
+  wonValue: "المربوح",
+  contractValue: "قيمة العقود",
+  openDeals: "الصفقات المفتوحة",
+  decidedDeals: "المحسومة",
+  noDealsForCustomer: "لم تُرفع أي صفقة لهذا العميل.",
+  noDecidedYet: "لم يُحسم ربح أو خسارة بعد.",
+  quotationsHeading: "عروض الأسعار",
+  noQuotationsForCustomer: "لم يُرفع أي عرض سعر لهذا العميل.",
+  projectsHeading: "المشاريع",
+  noProjectsForCustomer: "لم يُفتح أي مشروع لهذا العميل.",
+  contactsHeading: "جهات الاتصال",
+  noContactsYet: "لا توجد جهات اتصال مسجّلة.",
+  sitesHeading: "المواقع",
+  noSitesYet: "لا توجد مواقع مسجّلة.",
+  noContractsForCustomer: "لم يُوقّع أي عقد مع هذا العميل.",
+  openCustomer: "فتح ملف العميل",
+  onlyTheCompany: "بيانات الشركة فقط، دون السجلّ التجاري",
+  onlyTheCompanyBody: "الصفقات وعروض الأسعار والعقود والمشاريع يحتاج كلّ منها إلى صلاحية خاصة به. راجع المسؤول إن كان ينبغي أن تراها هنا.",
   pipeline: "مسار الصفقات",
   pipelineSub: "أين تقف كلّ صفقة مفتوحة، وكم يساوي المسار.",
   loadingPipeline: "جارٍ تحميل مسار الصفقات…",

@@ -13,6 +13,7 @@ import { requestedKey } from "@/shared/studioRoute";
 import { shellDict } from "@/shared/studio/shell";
 import { sectionName } from "@/shared/studio/sections";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
+import { RecordSkeleton } from "@/components/studio2/RecordSkeleton";
 import { studioRequest } from "../_shell";
 
 // ONE SCREEN IS RENDERED PER REQUEST, SO ONE SCREEN IS DOWNLOADED.
@@ -63,6 +64,13 @@ const StudioContracts = nextDynamic(
 const StudioPipeline = nextDynamic(
   () => import("@/components/studio2/StudioPipeline"),
   { loading: () => <ScreenSkeleton /> },
+);
+const StudioCustomer = nextDynamic(
+  () => import("@/components/studio2/StudioCustomer"),
+  // RecordSkeleton, not ScreenSkeleton: this is a record PROFILE, and a
+  // department skeleton would reserve a chart where a document is coming,
+  // which makes the arrival a jump.
+  { loading: () => <RecordSkeleton /> },
 );
 const StudioSales = nextDynamic(
   () => import("@/components/studio2/StudioSales"),
@@ -363,6 +371,13 @@ async function renderStudio(params) {
   // crm-sales-tickets/<id> is that ticket's own page. It still resolves through
   // the crm-sales-tickets section, so the same grant governs it.
   const ticketId = requested === "crm-sales-tickets" ? (segments[1] || "") : "";
+
+  // AND A SECOND SEGMENT ON crm-sales-clients NAMES ONE CUSTOMER. The same
+  // shape as the ticket above, and it resolves through the same
+  // crm-sales-clients section, so `crmSales.clients.view` governs the page
+  // exactly as it governs the list. What the page then SHOWS is gated block by
+  // block by the rights over those records — see modules/sales/customer.ts.
+  const customerId = requested === "crm-sales-clients" ? (segments[1] || "") : "";
   // And a THIRD segment names one of that ticket's quotations:
   // /<slug>/crm-sales-tickets/<id>/quotations/<quotationId> is the Sales-side
   // viewer — the document as Sales reads it, view only. It hangs off the ticket
@@ -498,6 +513,7 @@ async function renderStudio(params) {
         // branch for either — would quietly render the department dashboard
         // instead. A section that silently renders the wrong screen is how a
         // right ends up exercising nothing (invariant 16).
+        : customerId ? <StudioCustomer slug={studio.slug} clientId={customerId} />
         : active?.key === "crm-sales-pipeline" ? <StudioPipeline slug={studio.slug} />
         : active?.key === "crm-sales-contracts" ? <StudioContracts slug={studio.slug} />
         : active?.key === "crm-sales-quotations" ? (
