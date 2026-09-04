@@ -86,7 +86,9 @@ export async function createLocation(ctx: MasterContext, body: Record<string, un
     city: str(body?.city, 80),
     mapUrl: str(body?.mapUrl, 500),
     notes: str(body?.notes, 1000),
-    createdByCollaboratorId: ctx.collaborator.id,
+    // NO createdByCollaboratorId. The original writer did not record one and
+    // the golden pins that; a module moving between sections is not a reason
+    // for its response body to grow a field.
     createdAt: new Date().toISOString(),
   });
   return { location };

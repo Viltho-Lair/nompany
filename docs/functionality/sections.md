@@ -39,14 +39,14 @@ cross-cutting control (the `task` type wraps every stage). Neither is a blueprin
 | Procurement & Subcontracting | suppliers | Partial — suppliers only |
 | Inventory & Warehouse | stock, items, project sheets, deliveries | Working |
 | Manufacturing & Production | — | **Not built yet** |
-| Field Operations & Service | schedule, tracking, settings, shifts, permits, locations | Working |
+| Field Operations & Service | schedule, tracking, settings, shifts, permits | Working |
 | Logistics & Fleet | shipments (AWB) | Partial — waybills only |
 | Assets & Equipment | — | **Not built yet** |
 | Quality & HSE | — | **Not built yet** |
 | Human Resources | employees, certifications, vacations | Working |
 | Finance & Accounting | cash, ledger, payables, assets, settings | Working |
 | Reports & BI | — | **Not built yet** |
-| Administration & Settings | **People**, **Access**, studio settings | Partial — no master-data screen |
+| Administration & Settings | **People**, **Access**, **Master data**, studio settings | Partial — master data holds locations only |
 
 Quotations moved to CRM & Sales because the offer is a sales act, while the RFQ it is raised
 from stayed with Engineering & Documents. The controlled document register moved the other way:
@@ -61,10 +61,10 @@ that opens nothing is worse than no row. Reaching one by URL says it is not buil
 deliberately different from the access-denied message a real section gives someone who lacks the
 right.
 
-**`administration-master` is in that list too, and it is the only CHILD in it.** Master data has
-no screen and no permission area; currencies, UoM, numbering series and cost codes are a later
-phase, and the locations screen that could fill it today moves in a change of its own. Its three
-siblings left the list when Administration was folded together — see below.
+**`NO_SCREEN_YET` now holds only whole sections again.** `administration-master` left it when
+Master data got a screen and a permission area — which is the condition a collection has to meet
+before anything is re-homed into it (`restructure.ts`'s `COLLECTION_MOVES`): a section that
+renders nothing would leave rows alive, correct, and reachable by nobody.
 
 `testEveryKeyWithNothingToShowIsDeclared` refuses any section that has neither a right behind it
 (directly or via a descendant) nor an entry in that list, so adding a section without a screen is
@@ -105,6 +105,32 @@ does not widen what any of them may hand out.
 Existing studios were backfilled by `scripts/migrate/grant-administration.mjs`: additive,
 idempotent, dry-run by default, granting by role id rather than name because a studio can rename
 a starter role. It never removes a permission.
+
+## Locations belong to Master data, and Field Operations reads them
+
+A place the studio works from outlives any one rota. Field Operations drew the list because it
+was the first screen to need one, but a permit to work names a place too, and Quality's
+inspections and Projects' sites will want the same list — reference data three departments read
+belongs to none of them. So the `locations` collection is **Administration's** now
+(`SECTION_COLLECTIONS`, and `COLLECTION_MOVES` performs the move), and Field Operations reads it
+through a foreign section, the same mechanism Finance uses for Projects.
+
+**Both screens still edit places**, through one service and one route
+(`administration/locations`) — a dispatcher adding a site should not have to leave the rota. Two
+screens rendering one panel is not two doors; two routes would be.
+
+**The right moved with the collection.** Creating a place asked for
+`fieldService.tracking.create` and asks `administration.master.create` now, so somebody who runs
+the rota needs Master data's right to add one and sees the list read-only without it.
+`administration.master` takes the full create/edit/delete ladder where its three siblings take
+view/edit, because master data is records rather than a settings form.
+
+**Two couplings worth knowing.** Deleting a location has to ask *another* section whether a shift
+or a permit still names it — they live under Field Operations and hold `locationId` — and the
+refusal carries the counts so the screen can say which rota to fix. And `cascadeDeleteSection` on
+Master data would take locations out from under a rota that still points at them; nothing routes
+there today, but the fold made Administration a real section, which is when such a thing stops
+being hypothetical.
 
 ## What opening one looks like
 
@@ -174,12 +200,11 @@ Stated in words, because a silent gap reads as a finished feature.
   purchase orders, subcontracts, GRN and three-way matching are not built.
 - **Logistics holds only waybill tracking.** Trips, fleet register, customs files and landed cost
   are not built.
-- **Administration has no master-data screen.** `administration-master` exists as a key with no
-  screen and no right; the studio's locations still live on the Field Operations screen that
-  draws them, and move when that screen is built. It is the one child in `NO_SCREEN_YET`.
-- **No master data at all**: currencies, UoM, numbering series, cost codes, the industry taxonomy
-  and the flow-template editor are a later phase. The flow editor exists but lives in Studio
-  settings.
+- **Master data is locations and nothing else.** Currencies, units of measure, numbering series,
+  cost codes, the industry taxonomy and the flow templates all belong there on the blueprint.
+  Four of those already exist and live in Studio settings — relocating a working screen is a
+  visibility decision each time, so they move in their own change. Two (UoM, cost codes) have no
+  records at all yet, and a tab promising an empty registry reads as a finished feature.
 - **`finance-ledger` and `finance-settings` have no screens of their own** and currently fall
   through to the Cash view. Pre-existing, and not caused by the restructure.
 - **The dead-capability audit in `tests/access.test.mjs` is largely blind.** It walks `src/lib`

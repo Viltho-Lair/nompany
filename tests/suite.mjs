@@ -196,7 +196,7 @@ import {
 import {
   testEveryOldSectionKeyIsAccountedFor, testEveryMappedTargetActuallyExists,
   testEveryMappedPermissionTargetIsARealArea, testMapIsIdempotent,
-  testTheFiveMovesAreDeclared, testNoRetiredSectionKeySurvivesInSource,
+  testEveryDeclaredMoveIsListed, testNoRetiredSectionKeySurvivesInSource,
 } from "./restructure.mjs";
 // THE SQL QUERY BUILDER (P1 Postgres store swap, Task 7), same standalone-
 // runner shape as restructure.mjs above: pure functions, no database, and
@@ -5418,7 +5418,7 @@ console.log("\n== the fifteen-section restructure map (P0 restructure, Task 1)")
     testEveryMappedTargetActuallyExists,
     testEveryMappedPermissionTargetIsARealArea,
     testMapIsIdempotent,
-    testTheFiveMovesAreDeclared,
+    testEveryDeclaredMoveIsListed,
     testNoRetiredSectionKeySurvivesInSource,
   ]) {
     await test(asT);

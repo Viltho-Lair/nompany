@@ -68,6 +68,7 @@ const SECTION_ICONS = {
   // missing one costs a row its icon.
   "administration-members": "user",
   "administration-access": "lock",
+  "administration-master": "vendors",
   "administration-settings": "gears",
   administration: "gears",
   people: "user",

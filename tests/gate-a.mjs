@@ -2309,7 +2309,11 @@ console.log("== operations & tasks: a shift knows about leave, and finishing is 
 {
   const OPS = await import("@/app/api/studios/[slug]/operations/route.ts");
   const SHIFTS = await import("@/app/api/studios/[slug]/operations/schedule/shifts/route.ts");
-  const LOCATIONS = await import("@/app/api/studios/[slug]/operations/locations/route.ts");
+  // LOCATIONS MOVED TO ADMINISTRATION. The collection is Master data's now, so
+  // the route is too — and the golden below still calls it from this block
+  // because a location is what a shift and a permit name, which is what the
+  // rest of these assertions are about.
+  const LOCATIONS = await import("@/app/api/studios/[slug]/administration/locations/route.ts");
   const TASKS = await import("@/app/api/studios/[slug]/tasks/route.ts");
 
   const P = ctx({ slug });
@@ -2329,7 +2333,7 @@ console.log("== operations & tasks: a shift knows about leave, and finishing is 
 
   // ---- operations ---------------------------------------------------------
   const location = await shot("operations.location.created", await capture(
-    LOCATIONS.POST, req(`/api/studios/${slug}/operations/locations`, { method: "POST", body: {
+    LOCATIONS.POST, req(`/api/studios/${slug}/administration/locations`, { method: "POST", body: {
       name: "Riyadh HQ", city: "Riyadh", country: "Saudi Arabia",
     } }), P));
   const locationId = location.body?.location?.id;

@@ -52,6 +52,10 @@ const StudioSettings = nextDynamic(
   () => import("@/components/studio2/StudioSettings"),
   { loading: () => <ScreenSkeleton /> },
 );
+const StudioMasterData = nextDynamic(
+  () => import("@/components/studio2/StudioMasterData"),
+  { loading: () => <ScreenSkeleton /> },
+);
 const StudioSales = nextDynamic(
   () => import("@/components/studio2/StudioSales"),
   { loading: () => <ScreenSkeleton /> },
@@ -458,6 +462,7 @@ async function renderStudio(params) {
              is now a role here and an assignment on People. */
           <StudioRoles slug={studio.slug} />
         )
+        : active?.key === "administration-master" ? <StudioMasterData slug={studio.slug} />
         : active?.key === "administration-settings" ? <StudioSettings slug={studio.slug} locale={locale} />
         : deniedSection ? <NoSectionAccess locale={locale} notBuiltYet={notBuiltYet} />
         : quotationId ? <SalesQuotationViewer slug={studio.slug} ticketId={ticketId} quotationId={quotationId} />

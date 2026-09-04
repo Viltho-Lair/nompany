@@ -9,6 +9,7 @@ import RecordLink from "@/components/studio2/RecordLink";
 import { linkToProject, linkIf } from "@/modules/main/studioLinks";
 import { microLabel, Dialog, fmtDate, fmtWeekday } from "@/components/studio2/ui";
 import OperationsDashboard from "@/components/studio2/OperationsDashboard";
+import LocationsPanel from "@/components/studio2/LocationsPanel";
 import { useAnalyticsLevel } from "@/components/studio2/analyticsLevel";
 import { Field } from "@/components/fields/Field";
 import StudioDate from "@/components/fields/StudioDate";
@@ -98,9 +99,17 @@ export default function StudioOperations({ slug, view = "field-service" }) {
   useLiveUpdates(slug, "field-service", load);
 
   // `kind` is the sub-path: "" addresses the section itself (settings).
+  //
+  // LOCATIONS ARE THE ONE EXCEPTION, and they earn it: the collection moved to
+  // Administration's Master data, so its route moved with it. This screen still
+  // EDITS places — a dispatcher adding a site should not have to leave the rota
+  // — but it writes through Master data's door, which is the only writer there
+  // is. Two screens on one route is not two doors; two routes would be.
   const send = useCallback(async (kind, method, payload) => {
     setError(""); setBusy(true);
-    const url = kind ? `/api/studios/${slug}/operations/${kind}` : `/api/studios/${slug}/operations`;
+    const url = kind === "locations"
+      ? `/api/studios/${slug}/administration/locations`
+      : kind ? `/api/studios/${slug}/operations/${kind}` : `/api/studios/${slug}/operations`;
     const res = await fetch(url, {
       method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
     });
@@ -181,7 +190,15 @@ export default function StudioOperations({ slug, view = "field-service" }) {
           <Permits rows={permits} locations={locations} people={people} projects={projects} types={vocabulary.permitTypes}
             windowDays={vocabulary.expiryWindowDays} slug={slug} nav={nav} canManage={canManagePlaces} busy={busy} send={send} />
         ) : (
-          <Locations rows={locations} kinds={vocabulary.locationKinds} canManage={canManagePlaces} busy={busy} send={send} />
+          // NOT `canManagePlaces`. That asked whether the caller may manage the
+          // Field Operations root, which stopped being the right question when
+          // locations became Administration's: running the rota does not confer
+          // editing the studio's places. The route answers with Master data's
+          // own rights and the panel draws from those, so a button appears only
+          // where the write would be accepted.
+          <LocationsPanel rows={locations} kinds={vocabulary.locationKinds}
+            canManage={data.canManageLocations} canCreate={data.canCreateLocations}
+            canDelete={data.canDeleteLocations} busy={busy} send={send} />
         )}
         <OperationsBottomBar active={sub} onTab={selectSub} />
       </div>
@@ -669,102 +686,8 @@ function PermitForm({ permit, locations, people, projects, types, busy, onCancel
 }
 
 // ---- locations -------------------------------------------------------------
-function Locations({ rows, kinds, canManage, busy, send }) {
-  const tr = operationsDict(useStudioLocale());
-  const [adding, setAdding] = useState(false);
-  const [editing, setEditing] = useState(null);
-
-  return (
-    <>
-      {canManage && <button className={btn} onClick={() => setAdding(true)}>{tr.addLocation}</button>}
-      {(adding || editing) && (
-        <Dialog
-          title={editing ? tr.editLocation : tr.newLocation}
-          description={tr.placeWorkHappensSite}
-          onClose={() => { setAdding(false); setEditing(null); }}
-        >
-        <SimpleForm title={editing ? tr.editLocation : tr.newLocation} busy={busy}
-          fields={[
-            { key: "name", label: tr.name, required: true, value: editing?.name || "" },
-            { key: "kind", label: tr.kind, value: editing?.kind || kinds[0], options: kinds.map((k) => ({ value: k, text: k })) },
-            { key: "city", label: tr.city, value: editing?.city || "" },
-            { key: "address", label: tr.address, value: editing?.address || "" },
-            { key: "mapUrl", label: tr.mapLink, value: editing?.mapUrl || "" },
-            { key: "notes", label: tr.notes, area: true, value: editing?.notes || "" },
-          ]}
-          onCancel={() => { setAdding(false); setEditing(null); }}
-          onSave={async (v) => { if (await send("locations", editing ? "PUT" : "POST", editing ? { ...v, id: editing.id } : v)) { setAdding(false); setEditing(null); } }} />
-        </Dialog>
-      )}
-
-      {rows.length === 0 ? <Empty title={tr.noLocationsYet} body={tr.locationsPlacesWorkHappens} /> : (
-        <section className={panel}>
-          <ul className="divide-y divide-slate-100 dark:divide-white/5">
-            {rows.map((l) => (
-              <li key={l.id} className="flex flex-wrap items-center justify-between gap-3 py-4 first:pt-0 last:pb-0">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-600 text-slate-900 dark:text-white">{l.name}</span>
-                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-600 text-slate-500 dark:bg-white/5 dark:text-slate-400">{l.kind}</span>
-                  </div>
-                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                    {[l.address, l.city].filter(Boolean).join(", ") || tr.noAddress}
-                    {l.mapUrl && (
-                      <a href={l.mapUrl} target="_blank" rel="noopener noreferrer"
-                        className="ms-2 text-brand-700 hover:underline dark:text-brand-300">map</a>
-                    )}
-                  </p>
-                </div>
-                {canManage && (
-                  <div className="flex gap-2">
-                    <button className={btnGhost} onClick={() => setEditing(l)}>{tr.edit}</button>
-                    <button className={btnDanger} disabled={busy} onClick={() => send("locations", "DELETE", { id: l.id })}>{tr.delete}</button>
-                  </div>
-                )}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-    </>
-  );
-}
 
 // ---- shared bits -----------------------------------------------------------
-function SimpleForm({ title, fields, busy, onCancel, onSave }) {
-  const tr = operationsDict(useStudioLocale());
-  const [values, setValues] = useState(() => Object.fromEntries(fields.map((f) => [f.key, f.value ?? ""])));
-  const ready = fields.filter((f) => f.required).every((f) => String(values[f.key] ?? "").trim());
-
-  return (
-    <section className={`${panel} border-brand-500/40`}>
-      <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">{title}</h3>
-      <div className="mt-4 grid gap-4 sm:grid-cols-2">
-        {fields.map((f) => (
-          f.options ? (
-            <Field key={f.key} label={f.label} as="select" required={f.required}
-              value={values[f.key]}
-              onChange={(v) => setValues((vv) => ({ ...vv, [f.key]: v }))}
-              options={f.options.map((o) => ({ value: o.value, label: o.text }))} />
-          ) : f.area ? (
-            <Field key={f.key} label={f.label} as="textarea" required={f.required}
-              value={values[f.key]}
-              onChange={(v) => setValues((vv) => ({ ...vv, [f.key]: v }))}
-              className="sm:col-span-2" />
-          ) : (
-            <Field key={f.key} label={f.label} required={f.required}
-              value={values[f.key]}
-              onChange={(v) => setValues((vv) => ({ ...vv, [f.key]: v }))} />
-          )
-        ))}
-      </div>
-      <div className="mt-5 flex flex-wrap gap-2">
-        <button className={btn} disabled={busy || !ready} onClick={() => onSave(values)}>{busy ? tr.saving : tr.save}</button>
-        <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
-      </div>
-    </section>
-  );
-}
 
 function Empty({ title, body }) {
   return (

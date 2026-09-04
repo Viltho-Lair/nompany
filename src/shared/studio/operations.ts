@@ -48,6 +48,10 @@ type Strings = CommonStrings & {
   location: string;
   locationError: string;
   locations: string;
+  loadingMasterData: string;
+  // The route refuses a delete with the counts of what still points at the
+  // place, so the message can name them rather than saying only "no".
+  locationInUse: (shifts: number, permits: number) => string;
   locationsPlacesWorkHappens: string;
   mDidntSave: string;
   mDuplicate: string;
@@ -173,6 +177,13 @@ const en: Strings = {
   location: "Location",
   locationError: "Location error",
   locations: "Locations",
+  loadingMasterData: "Loading master data…",
+  locationInUse: (shifts, permits) => {
+    const parts: string[] = [];
+    if (shifts) parts.push(`${shifts} shift${shifts === 1 ? "" : "s"}`);
+    if (permits) parts.push(`${permits} permit${permits === 1 ? "" : "s"}`);
+    return `Still used by ${parts.join(" and ")}. Change those first, then delete the place.`;
+  },
   locationsPlacesWorkHappens: "Locations are the places work happens — sites, offices, warehouses. Shifts and permits point at them.",
   mDidntSave: "That didn't save.",
   mDuplicate: "That name is already in use.",
@@ -298,6 +309,13 @@ const ar: Strings = {
   location: "الموقع",
   locationError: "خطأ في تحديد الموقع",
   locations: "المواقع",
+  loadingMasterData: "جارٍ تحميل البيانات الأساسية…",
+  locationInUse: (shifts, permits) => {
+    const parts: string[] = [];
+    if (shifts) parts.push(`${shifts} مناوبة`);
+    if (permits) parts.push(`${permits} تصريح`);
+    return `لا يزال مستخدمًا في ${parts.join(" و")}. غيّر ذلك أولًا ثم احذف الموقع.`;
+  },
   locationsPlacesWorkHappens: "المواقع هي الأماكن التي يجري فيها العمل — مواقع العمل والمكاتب والمستودعات. وتشير إليها الورديات والتصاريح.",
   mDidntSave: "لم يُحفظ ذلك.",
   mDuplicate: "هذا الاسم مستخدم بالفعل.",
