@@ -3,7 +3,7 @@ import Image from "next/image";
 import { motion } from "motion/react";
 import { EASE_OUT_EXPO } from "@/components/landing/lib/motion";
 /**
- * The company logo — the four-node nompany mark (`public/brand/logo-icon.png`).
+ * The company logo — the nompany hexagon mark (`public/brand/logo-icon.png`).
  * `animated` reveals it with a scale/fade instead of showing it instantly; a
  * raster mark can't be stroke-drawn the way an SVG path can, so the preloader
  * gets a settle rather than a draw-on.

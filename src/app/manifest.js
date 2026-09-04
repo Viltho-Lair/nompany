@@ -12,8 +12,13 @@ export default function manifest() {
     dir: "ltr",
     categories: ["business", "productivity", "finance"],
     icons: [
-      { src: "/brand/logo-icon.png", sizes: "any", type: "image/png", purpose: "any" },
-      { src: "/brand/logo-icon.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+      { src: "/brand/logo-icon.svg", sizes: "any", type: "image/svg+xml", purpose: "any" },
+      { src: "/brand/logo-icon.png", sizes: "512x512", type: "image/png", purpose: "any" },
+      // A SEPARATE FILE, not the same one relabelled. A maskable icon is
+      // cropped by the launcher — a circle on Android — and only the centre
+      // 80% survives; the mark is taller than it is wide, so pointing this at
+      // the edge-to-edge icon cuts its top and bottom points off.
+      { src: "/brand/logo-maskable.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
     ],
   };
 }

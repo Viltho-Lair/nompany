@@ -26,8 +26,16 @@ export async function generateMetadata() {
     publisher: BRAND,
     category: "technology",
     formatDetection: { email: false, address: false, telephone: false },
+    // THREE FORMATS, BECAUSE THREE DIFFERENT AGENTS READ THIS.
+    // The .ico is the only thing some Windows surfaces and older crawlers will
+    // take; the .svg is what a current browser prefers and is the one that
+    // stays sharp at any tab-bar density; the .png is what iOS pins to a home
+    // screen, and Safari has never accepted an SVG there.
     icons: {
-      icon: "/brand/logo-icon.png",
+      icon: [
+        { url: "/brand/favicon.ico", sizes: "any" },
+        { url: "/brand/logo-icon.svg", type: "image/svg+xml" },
+      ],
       apple: "/brand/logo-icon.png",
     },
     robots: {

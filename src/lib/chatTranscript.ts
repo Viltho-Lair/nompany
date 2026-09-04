@@ -76,7 +76,11 @@ export async function downloadTranscript(chat: ChatRoom & { handledBy?: string }
 
   const logo = await logoDataUrl();
   if (logo) {
-    try { doc.addImage(String(logo), "PNG", MARGIN, y - 26, 120, 34); } catch { /* header just goes without it */ }
+    // 34pt TALL, AND THE WIDTH FOLLOWS FROM IT. This used to be a fixed
+    // 120x34 box, which was written for a wordmark that never existed —
+    // logo-full.png has always held the square mark, so the header stretched
+    // it 3.5:1. The file is square, so a square is what gets drawn.
+    try { doc.addImage(String(logo), "PNG", MARGIN, y - 26, 34, 34); } catch { /* header just goes without it */ }
   }
   doc.setFont("helvetica", "bold");
   doc.setFontSize(16);
