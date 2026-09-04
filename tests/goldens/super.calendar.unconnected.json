@@ -1,6 +1,7 @@
 {
   "status": 200,
   "body": {
-    "connection": null
+    "connection": null,
+    "redirectUri": "http://nompany.test/api/super/google-calendar/callback"
   }
 }
