@@ -433,7 +433,6 @@ function RowMenu({ task }: { task: ComputedTask }) {
       top = Math.max(8, Math.min(b.top - h - 4, window.innerHeight - h - 8));
     }
     setPos((p) => (p.top === top ? p : { ...p, top }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   React.useEffect(() => {

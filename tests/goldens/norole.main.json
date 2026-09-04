@@ -12,6 +12,7 @@
     "nav": {
       "main": true,
       "crm-sales": false,
+      "crm-sales-pipeline": false,
       "crm-sales-tickets": false,
       "crm-sales-clients": false,
       "crm-sales-quotations": false,

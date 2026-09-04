@@ -78,6 +78,14 @@ export const ServiceRequirementSchema = z.object({
   withoutProgramming: z.boolean(),
 });
 
+/** One stage a deal has been in, and who put it there. */
+export const StageEntrySchema = z.object({
+  status: z.string(),
+  at: z.string(),
+  /** A CollaboratorID (invariant 6). Empty for the moves the chain makes itself. */
+  byCollaboratorId: z.string(),
+});
+
 /**
  * A SALES TICKET — the head of the chain, and the record with the most rules
  * around what may NOT be set from a request.
@@ -123,8 +131,20 @@ export const SalesTicketSchema = z.object({
   rfqId: z.string().optional(),
   quotationId: z.string().optional(),
   projectId: z.string().optional(),
+  // ---- the pipeline -------------------------------------------------------
+  // These three were declared here from the beginning and written by NOTHING.
+  // A deal closed and the studio could not say when or why, which is the
+  // record-level shape of invariant 16 — a field nothing can exercise. The
+  // stage transition in ./pipeline is what writes all three now.
   closedAt: z.string().optional(),
   lostReason: z.string().optional(),
+  /**
+   * Every stage this deal has been in, appended never rewritten — the same
+   * rule comments follow. It is what makes "how long has this sat in
+   * Opportunity" answerable, which is the one number a pipeline exists to
+   * produce and the one a status string alone can never give.
+   */
+  stageHistory: z.array(StageEntrySchema).optional(),
   comments: z.array(z.unknown()).optional(),
 });
 

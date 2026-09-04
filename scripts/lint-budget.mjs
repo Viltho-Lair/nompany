@@ -37,7 +37,22 @@ import { execFileSync } from "node:child_process";
 // both fixed a red build and re-tightened the ratchet. Where a value was unused
 // on purpose it lost its binding and kept its comment, since a name that exists
 // only to be ignored says less than a sentence saying why there is none.
-const MAX_WARNINGS = 147;
+// 147 → 142 on 04/09/2026. The count had drifted to 149 — ABOVE the ceiling, so
+// main was red — and the two extra warnings were mine: the contracts register
+// and the master-data screen each fetch in an effect, which is the backlog
+// pattern above. A third screen (the pipeline board) was about to make it 150.
+//
+// Paid for by deleting EIGHT eslint-disable directives that suppressed nothing.
+// ESLint reports each as "Unused eslint-disable directive", so a comment
+// claiming a rule fires where it does not costs a line of the budget AND
+// misleads the next reader about why the code is shaped as it is. Four were
+// no-img-element disables sitting on the line before a ternary rather than on
+// the element, so they never applied to anything.
+//
+// The ceiling comes down to the measured count rather than banking the
+// difference, which is the whole point of a one-way ratchet: the next screen
+// that fetches in an effect has to pay for itself the same way this one did.
+const MAX_WARNINGS = 142;
 
 let report;
 try {

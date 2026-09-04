@@ -20,6 +20,7 @@ import { moduleContext } from "../context";
 
 import { listCollaborators } from "@/platform/auth/collaborators";
 import { TICKET_STATUSES, DEFAULT_STATUS, TICKET_URGENCIES, DEFAULT_URGENCY, TICKET_INDUSTRIES, TICKET_LIVE_COLUMNS, DEFAULT_LIVE_COLUMNS, cleanLiveColumns, normaliseProbability } from "./tickets";
+import { stageProblem, stagePatch } from "./pipeline";
 import { normaliseClientName, clientSlug, resolveClientFor, upsertLocation } from "./salesClients";
 import { nextUniqueRef } from "@/modules/main/references";
 import { traverseIn } from "@/platform/relations";
@@ -1077,7 +1078,15 @@ export async function editTicket(ctx: SalesContext, id: string, body: Record<str
   }
 
   if (body?.title !== undefined) { const v = str(body.title, 200); if (!v) return { error: "title" }; patch.title = v; }
-  if (body?.status !== undefined && TICKET_STATUSES.includes(String(body.status))) patch.status = String(body.status);
+  // A STAGE MOVE IS A TRANSITION, NOT AN ASSIGNMENT, and this line used to be
+  // the assignment: any member of TICKET_STATUSES was accepted from the
+  // payload, so a Closed Won deal could be dragged back to Lead and the win
+  // would leave every count that had already been taken off it. It is decided
+  // below, once the ticket has been read — stageProblem needs to know where the
+  // deal is NOW and whether it has a quotation, and neither is in the payload.
+  const stageMove = body?.status !== undefined && TICKET_STATUSES.includes(String(body.status))
+    ? { to: String(body.status), lostReason: str(body.lostReason, 400) }
+    : null;
   if (body?.urgency !== undefined && TICKET_URGENCIES.includes(String(body.urgency))) patch.urgency = String(body.urgency);
   if (body?.industry !== undefined) { const v = str(body.industry, 80); if (!v) return { error: "industry" }; patch.industry = v; }
   if (body?.deadline !== undefined) { const v = str(body.deadline, 10); if (!v) return { error: "deadline" }; patch.deadline = v; }
@@ -1121,9 +1130,45 @@ export async function editTicket(ctx: SalesContext, id: string, body: Record<str
   // Ownership is not editable: it means "who raised this", which cannot change
   // after the fact. Editing a ticket therefore leaves the owner alone, and an
   // assignedToCollaboratorId in the payload is ignored rather than honoured.
+
+  // THE REFUSAL IS JUDGED ON WHAT THE PERSON SAW. One read, only when the stage
+  // is actually moving — an edit that renames a ticket pays nothing for this.
+  if (stageMove) {
+    const existing = (await Tickets.find({ studio, section: ticketsSection })).find((t) => t.id === id);
+    if (!existing) return { error: "notfound" };
+    const problem = stageProblem({
+      from: existing.status,
+      to: stageMove.to,
+      lostReason: stageMove.lostReason,
+      // WHETHER A QUOTATION EXISTS, from the ticket itself. ./tickets has always
+      // said the post-approval statuses are pickable "only after the quotation
+      // approval is complete" and nothing enforced it; `quotationId` is written
+      // by the chain, so asking the ticket costs no read at all.
+      hasQuotation: !!existing.quotationId,
+    });
+    if (problem) return { error: problem };
+  }
+
   patch.updatedAt = now();
 
-  const ticket = await Tickets.update({ studio, section: ticketsSection }, id, patch);
+  // AND THE WRITE IS A FUNCTION PATCH WHEN THE STAGE MOVES (invariant 8). The
+  // history is appended to the row as it stands AT WRITE TIME rather than to
+  // the copy read a moment ago for the refusal — two people closing the same
+  // deal in the same second must leave two entries, not one that silently
+  // overwrites the other.
+  const ticket = await Tickets.update({ studio, section: ticketsSection }, id, stageMove
+    ? (row: SalesTicket) => ({
+      ...patch,
+      ...stagePatch({
+        from: row.status,
+        to: stageMove.to,
+        at: String(patch.updatedAt),
+        byCollaboratorId: collaborator?.id || "",
+        lostReason: stageMove.lostReason,
+        history: row.stageHistory,
+      }),
+    })
+    : patch);
   if (!ticket) return { error: "notfound" };
 
   // AND FOLD THE SITE BACK INTO THE CLIENT, the same way creating a ticket

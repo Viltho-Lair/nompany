@@ -168,7 +168,6 @@ export default function SalesQuotationViewer({ slug, ticketId, quotationId }) {
                     <tr key={r.id || k} className="border-b border-slate-50 last:border-0 dark:border-white/5">
                       <td className="px-3 py-2">
                         <span className="grid h-10 w-10 place-items-center overflow-hidden rounded-lg border border-slate-200 bg-slate-50 dark:border-white/10 dark:bg-white/5">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
                           {r.image
                             ? <img src={r.image} alt="" className="h-full w-full object-cover" />
                             : <Icon name="services" className="h-4 w-4 text-slate-300" />}

@@ -8,7 +8,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import type { RunArgs, NovaToolResult } from "../client";
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 export async function run({ apiKey, model, system, messages, tools, execute, maxTurns }: RunArgs): Promise<NovaToolResult> {
   const genAI = new GoogleGenerativeAI(apiKey);
   // Gemini rejects an empty parameter schema, so a no-argument tool declares no

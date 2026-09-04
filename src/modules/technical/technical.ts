@@ -22,6 +22,7 @@ import { listRoles } from "@/modules/people/roles";
 import { notifyCollaborators, NOTIFY } from "@/platform/notify/notifications";
 import { RFQ_STATUSES, pendingRfq, approvedQuotationFor, latestTicketQuotation } from "./rfqs";
 import { DEFAULT_STATUS, RFQ_REJECTED_TICKET_STATUS } from "@/modules/sales/tickets";
+import { stagePatch, CHAIN_LOST_REASON } from "@/modules/sales/pipeline";
 import { resolveClientFor } from "@/modules/sales/salesClients";
 import {
   quotationApproved, readTaskAssignees, resolveTaskAssignees, TASK_AUTHORITIES,
@@ -364,9 +365,20 @@ export async function requestRfq(ctx: TechnicalContext, body: Record<string, unk
   // RFQ" — move the ticket identically. A ticket already past Lead is left
   // alone: a second RFQ must not drag it backwards.
   if (ticket.status === DEFAULT_STATUS) {
-    await Tickets.update({ studio, section: salesTicketsSection }, ticketId, {
-      status: "Opportunity", updatedAt: new Date().toISOString(),
-    });
+    // THROUGH stagePatch, not by assigning `status`. This move is the single
+    // most informative entry in a deal's history — it is the moment the work
+    // was actually asked for — and writing it by hand here would have left the
+    // history with a hole exactly where the interesting move was. A function
+    // patch so the append is a flip (invariant 8), and no collaborator id
+    // because the chain made this move, not a person (invariant 6 addresses
+    // people; the empty string says plainly that nobody is being named).
+    const at = new Date().toISOString();
+    await Tickets.update({ studio, section: salesTicketsSection }, ticketId, (row) => ({
+      ...stagePatch({
+        from: row.status, to: "Opportunity", at, byCollaboratorId: "", history: row.stageHistory,
+      }),
+      updatedAt: at,
+    }));
   }
 
   // TELL THE PEOPLE WHO WILL QUOTE IT. An RFQ sitting unhandled is the Sales →
@@ -429,9 +441,18 @@ export async function updateRfq(ctx: TechnicalContext, id: string, body: Record<
     const tickets = await Tickets.find({ studio, section: salesTicketsSection });
     const ticket = tickets.find((t) => t.id === rfq.ticketId);
     if (ticket && (ticket.status === DEFAULT_STATUS || ticket.status === "Opportunity")) {
-      await Tickets.update({ studio, section: salesTicketsSection }, String(rfq.ticketId || ""), {
-        status: RFQ_REJECTED_TICKET_STATUS, updatedAt: new Date().toISOString(),
-      });
+      // AND THIS CLOSE CARRIES ITS REASON. Every losing close does now, and
+      // this one is the only close the system makes on its own — so it says
+      // why in the one vocabulary a screen can translate, rather than leaving
+      // the studio to wonder later why a deal it never touched is marked lost.
+      const at = new Date().toISOString();
+      await Tickets.update({ studio, section: salesTicketsSection }, String(rfq.ticketId || ""), (row) => ({
+        ...stagePatch({
+          from: row.status, to: RFQ_REJECTED_TICKET_STATUS, at,
+          byCollaboratorId: "", lostReason: CHAIN_LOST_REASON, history: row.stageHistory,
+        }),
+        updatedAt: at,
+      }));
     }
   }
   return { rfq };

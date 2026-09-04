@@ -80,6 +80,7 @@ export const SECTION_AREAS: Readonly<Record<string, readonly string[]>> = {
   "crm-sales-tickets": ["crmSales.tickets"],
   "crm-sales-clients": ["crmSales.clients"],
   "crm-sales-live": ["crmSales.live"],
+  "crm-sales-pipeline": ["crmSales.pipeline"],
   "crm-sales-settings": ["crmSales.settings"],
   "engineering-docs-rfq": ["engineeringDocs.rfq"],
   // QUOTATIONS GAINED BY CRM & SALES — the offer is a sales act (blueprint

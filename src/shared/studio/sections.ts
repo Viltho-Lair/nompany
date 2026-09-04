@@ -41,6 +41,7 @@ const ar: SectionMap = {
 
   // SALES BECAME CRM & SALES AND GAINED QUOTATIONS (keys.ts SECTION_DEFS).
   "crm-sales": "المبيعات وإدارة العملاء",
+  "crm-sales-pipeline": "مسار الصفقات",
   "crm-sales-tickets": "التذاكر",
   "crm-sales-clients": "العملاء",
   "crm-sales-quotations": "عروض الأسعار",

@@ -151,6 +151,17 @@ type Strings = CommonStrings & {
   urgency: string;
   usuallyReplyFewMinutes: string;
   valueQuoted: string;
+  // WHY A DEAL ENDED, on the record where the deal is read. `lostReason` is
+  // written by the pipeline's stage transition (modules/sales/pipeline.ts); a
+  // reason nobody is ever shown would be the same dead field it used to be,
+  // with a value in it.
+  lostReasonLabel: string;
+  closedOn: string;
+  // The one reason the SYSTEM writes, as a token rather than a sentence
+  // (pipeline.CHAIN_LOST_REASON) — an English sentence in the database is one
+  // an Arabic studio would be shown verbatim. What a person typed is data and
+  // is shown exactly as typed.
+  reasonRfqRejected: string;
   viewOnlyAccessSales: string;
   waitingForSomeone: string;
   waitingSomeoneJoin: string;
@@ -303,6 +314,9 @@ const en: Strings = {
   urgency: "Urgency",
   usuallyReplyFewMinutes: "We usually reply in a few minutes",
   valueQuoted: "Value Quoted",
+  lostReasonLabel: "Reason lost",
+  closedOn: "Closed",
+  reasonRfqRejected: "Technical turned the RFQ down.",
   viewOnlyAccessSales: "You have view-only access to Sales.",
   waitingForSomeone: "Waiting for someone from nompany to join. You can start describing the problem now.",
   waitingSomeoneJoin: "Waiting for someone to join…",
@@ -462,6 +476,9 @@ const ar: Strings = {
   urgency: "الاستعجال",
   usuallyReplyFewMinutes: "نردّ عادةً خلال دقائق",
   valueQuoted: "القيمة المعروضة",
+  lostReasonLabel: "سبب الخسارة",
+  closedOn: "تاريخ الإغلاق",
+  reasonRfqRejected: "القسم الفني رفض طلب عرض السعر.",
   viewOnlyAccessSales: "لديك صلاحية عرض فقط على المبيعات.",
   waitingForSomeone: "بانتظار انضمام أحد من nompany. يمكنك البدء بوصف المشكلة الآن.",
   waitingSomeoneJoin: "بانتظار انضمام أحدهم…",

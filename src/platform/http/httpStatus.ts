@@ -117,6 +117,11 @@ const CONFLICT = [
   // being wrong: the stock would go negative, the delivery exceeds what is still
   // outstanding, or the order has not been placed yet.
   "insufficient", "over-receive", "not-ordered",
+  // A deal that has already closed. The same shape: nothing about the request
+  // needs changing, the record has moved past it. Its siblings `no-quotation`
+  // and `reason-required` are 400 by default and belong there — both say the
+  // caller must send something different.
+  "already-closed",
 ];
 
 // 429 — SLOW DOWN. Separated from 403 on purpose: a rate limit is temporary and

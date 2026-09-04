@@ -12,6 +12,7 @@
     "nav": {
       "main": true,
       "crm-sales": true,
+      "crm-sales-pipeline": true,
       "crm-sales-tickets": true,
       "crm-sales-clients": true,
       "crm-sales-quotations": true,
@@ -72,6 +73,11 @@
         "key": "crm-sales",
         "name": "CRM & Sales",
         "parentId": null
+      },
+      {
+        "key": "crm-sales-pipeline",
+        "name": "Pipeline",
+        "parentId": "<sec_ID>"
       },
       {
         "key": "crm-sales-tickets",

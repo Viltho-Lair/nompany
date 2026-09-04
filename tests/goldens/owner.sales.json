@@ -9,6 +9,7 @@
     "nav": {
       "main": true,
       "crm-sales": true,
+      "crm-sales-pipeline": true,
       "crm-sales-tickets": true,
       "crm-sales-clients": true,
       "crm-sales-quotations": true,
@@ -62,6 +63,7 @@
     "manage": {
       "main": false,
       "crm-sales": true,
+      "crm-sales-pipeline": false,
       "crm-sales-tickets": true,
       "crm-sales-clients": true,
       "crm-sales-quotations": true,

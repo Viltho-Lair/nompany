@@ -306,7 +306,12 @@ every push to `main` and every pull request.
   while a build of the branch before the strip landed measured 1589, so the
   headline had drifted two kilobytes behind the script — the delta is the four
   the strip actually cost, not the six the stale number would have implied.
-  The largest chunk did not move at any
+  1593 → 1595 with the contracts register, 1595 → 1597 with the pipeline
+  board — two screens, their strings in two languages, and
+  `modules/sales/pipeline.ts`, which reaches the browser DELIBERATELY: the
+  board offers a stage move only where the server would accept one, decided by
+  the same function, because two copies of "a closed deal cannot be reopened"
+  are two copies free to disagree. The largest chunk did not move at any
   point (158 KB), which is the gate that matters. **Measured 1593 on 04/09/2026**,
   against a headline that said 1582 — drift from somewhere between those two
   commits, NOT from the Privacy Policy that measured it: the legal documents are
@@ -484,9 +489,9 @@ waits for the gateway.
 **Waves 0–1 are complete; Gate A is green.** Wave 0 shipped (orphan-sweep guard,
 credential rate limiting, console session expiry, traffic-ingest bounds, media tenancy,
 security headers, bcrypt 12 with rehash-on-login, M-1 dead capabilities). Gate A shipped:
-162 golden responses over every surface, the 126-key permission matrix, hop counting, six
+167 golden responses over every surface, the 135-key permission matrix, hop counting, six
 architectural assertions, **per-route permission enforcement in every module**, **ESLint**
-(flat config + shrink-only warning budget), **observability** (request ids, per-request hop
+(flat config + shrink-only warning budget, 142 today), **observability** (request ids, per-request hop
 counts), and CI enforcing all of it.
 
 Both of those numbers keep moving — 139 goldens and 102 keys before the
@@ -495,7 +500,7 @@ the catalogue assertion in `tests/gate-a.mjs`), because a pass condition quoted 
 a pass condition nobody can check.
 
 **Wave 2 (seams + performance) is mostly done; Gate B is 2 of 3.** Zero direct `readCol` in
-service code ✅, goldens unchanged by the seam work ✅ (162 today), hops ≤2 for the studio route and 3 for sales
+service code ✅, goldens unchanged by the seam work ✅ (167 today), hops ≤2 for the studio route and 3 for sales
 (the structural floor). Done: Seam A (route wrapper, all 96 routes), Seam B (repository
 interface + the `readCol` migration across all 13 modules), Seam C (one context factory,
 killed hop 7), request-scoped cache + batched prefetch (8→2 hops), targeted live updates,
@@ -578,8 +583,9 @@ GRANTED screen now. Managers and Team Leads hold it by default; **Members and Vi
 settings now needs `administration.settings.view`**, a right that existed throughout the
 restructure and enforced nothing, because the GET checked membership and stopped. Existing
 studios were backfilled by `scripts/migrate/grant-administration.mjs` (additive, idempotent,
-dry-run by default, by role id rather than name); **it has been run against the sandbox only —
-running it against production is a separate, deliberate act.** `/people` and `/access` still
+dry-run by default, by role id rather than name); **it has been run against production, 04/09/2026**
+— dry run, apply, a second apply reporting zero changes, and an independent read-back. This line
+said "sandbox only" for a day after that stopped being true. `/people` and `/access` still
 resolve, aliased in `requestedKey`, because delivered notifications link to `/people` and cannot
 be rewritten. `docs/functionality/sections.md` is the file.
 
@@ -588,6 +594,36 @@ missing `REDIS_URL`, deleted at the Postgres cutover, while reading through the 
 abstraction and naming no backend otherwise. That mattered most for `plant-sections.mjs`, which
 is the only way a seeded section key added after a studio exists reaches that studio now that
 `listSections` no longer reconciles on read — and the fold adds exactly such a key.
+
+**P4a is under way, in CRM & Sales.** Two slices are on `main`.
+
+**Slice 1 — the contracts register** (`crm-sales-contracts`). Contracts and change orders were
+built in P2 as records with schemas, services and routes and NO SCREEN: a contract existed and
+was invisible. They borrowed `crmSales.quotations` for their guards, which the stage registry
+recorded as a debt to be paid when a screen arrived. The screen arrived, so
+`crmSales.contracts` is real (view/create/edit + `approve` for answering a variation) and
+catalogue 130 → 134. The register shows a contract's signed value, its approved movement and
+its current value together, because only approved variations count and that sum is the number
+a project manager needs. No delete: a contract is the deal's value baseline.
+
+**Slice 2 — the pipeline** (`crm-sales-pipeline`), catalogue 134 → 135 (`crmSales.pipeline.view`,
+view ALONE — moving a deal is editing its ticket and answers to `crmSales.tickets.edit`).
+`docs/functionality/pipeline.md` is the file.
+
+Every stage on the board already existed: `TICKET_STATUSES` has carried Lead, Opportunity and
+Commit from the beginning. What did not exist was anything treating them AS a pipeline — and
+**`closedAt` and `lostReason` were declared on `SalesTicketSchema` and written by nothing at
+all**, which is invariant 16 at the record level. A stage move is a transition now, not an
+assignment: a closed deal cannot be reopened (409), Commit and Closed Won need a quotation (the
+rule `tickets.ts` stated in prose and nothing enforced), and a losing close must say why. One
+function decides what a move writes, because `editTicket` is not the only writer — Technical's
+RFQ paths move the ticket too, and the one that forgot would leave a hole exactly where the
+interesting move was. `stageHistory` is appended under a FUNCTION patch (invariant 8), and
+days-in-stage falls back through `updatedAt` to `createdAt` so the board works on day one
+against the deals a live studio already has. **No backfill.**
+
+**A stale count found on the way:** the Manager starter role never named `crmSales.contracts`,
+so slice 1 shipped a section whose own Manager could not open it. Both rights are seeded now.
 
 **Open decisions (waiting on a person):** the Wave 4 palette (marketing dark-first
 indigo/Sora vs the ERP's light-first blue/Saira); and whether to denormalise the slug index

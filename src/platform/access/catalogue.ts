@@ -147,6 +147,13 @@ const OWN_AREAS = [
   { key: "crmSales.tickets", group: "CRM & Sales", label: "Tickets", verbs: ["view", "create", "edit"] },
   { key: "crmSales.clients", group: "CRM & Sales", label: "Clients", verbs: ["view", "create", "edit", "delete"] },
   { key: "crmSales.live", group: "CRM & Sales", label: "Live view", verbs: ["view"] },
+  // VIEW AND NOTHING ELSE, and the absent verbs are the design rather than an
+  // omission. The board writes nothing of its own — dragging a deal to the next
+  // stage IS editing that ticket, and it goes through `editTicket` and answers
+  // to `crmSales.tickets.edit` like every other change to it. A `pipeline.edit`
+  // would be a second right over the same act, free to disagree with the first
+  // about who may move a deal; this right decides who may SEE the funnel.
+  { key: "crmSales.pipeline", group: "CRM & Sales", label: "Pipeline", verbs: ["view"] },
   { key: "crmSales.settings", group: "CRM & Sales", label: "Settings", verbs: ["view", "edit"] },
 
   { key: "engineeringDocs.rfq", group: "Engineering & Documents", label: "RFQ", verbs: ["view", "create", "edit"],

@@ -27,6 +27,12 @@
       },
       {
         "id": "<sub_ID>",
+        "key": "crm-sales-pipeline",
+        "name": "Pipeline",
+        "enabled": true
+      },
+      {
+        "id": "<sub_ID>",
         "key": "crm-sales-tickets",
         "name": "Tickets",
         "enabled": true

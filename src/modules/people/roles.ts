@@ -96,6 +96,14 @@ export const STARTER_ROLES = [
       ...level("projects.dashboard", "view"), ...level("inventory.dashboard", "view"),
       ...level("hr.dashboard", "view"), ...level("finance.dashboard", "view"),
       ...level("crmSales.tickets", "full"), ...level("crmSales.clients", "full"), ...level("crmSales.live", "view"),
+      ...level("crmSales.pipeline", "view"),
+      // THE REGISTER SHIPPED WITHOUT THIS. crm-sales-contracts landed as a
+      // section and a screen and no starter role named it, so a new studio got
+      // a Contracts entry its own Manager could not open. `approve` is listed
+      // by hand because keysForLevel walks an area's VERBS and answering a
+      // variation is an extra — the same reason hr.vacations.approve is spelled
+      // out two lines below.
+      ...level("crmSales.contracts", "full"), "crmSales.contracts.approve",
       ...level("engineeringDocs.rfq", "edit"), ...level("crmSales.quotations", "full"),
       ...level("projects.list", "full"), ...level("projects.sla", "edit"),
       ...level("inventory.stock", "view"), ...level("inventory.items", "view"),

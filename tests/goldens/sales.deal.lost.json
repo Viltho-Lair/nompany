@@ -1,0 +1,55 @@
+{
+  "status": 200,
+  "body": {
+    "ok": true,
+    "ticket": {
+      "id": "<sal_ID>",
+      "ref": "ACME-HOLDINGS-002",
+      "title": "Cannot start won",
+      "clientId": "<sal_ID>",
+      "clientName": "Acme Holdings",
+      "contactName": "",
+      "contactEmail": "",
+      "contactPhone": "",
+      "contactPosition": "",
+      "location": {
+        "name": "",
+        "country": "",
+        "city": "",
+        "url": ""
+      },
+      "description": "",
+      "status": "Closed Lost",
+      "urgency": "Normal",
+      "industry": "Commercial",
+      "deadline": "2031-12-02",
+      "serviceIds": [
+        "Audio Visual Solutions"
+      ],
+      "serviceRequirements": {
+        "Audio Visual Solutions": {
+          "withoutInstallation": false,
+          "withoutProgramming": false
+        }
+      },
+      "clientBudget": null,
+      "probability": 0,
+      "value": 0,
+      "assignedToCollaboratorId": "<col_ID>",
+      "createdByCollaboratorId": "<col_ID>",
+      "createdAt": "<timestamp>",
+      "updatedAt": "<timestamp>",
+      "studioId": "<std_ID>",
+      "sectionId": "<sub_ID>",
+      "stageHistory": [
+        {
+          "status": "Closed Lost",
+          "at": "<timestamp>",
+          "byCollaboratorId": "<col_ID>"
+        }
+      ],
+      "closedAt": "<timestamp>",
+      "lostReason": "Client went with the incumbent"
+    }
+  }
+}

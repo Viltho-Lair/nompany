@@ -197,7 +197,6 @@ export function Avatar({ name = "", size = 36, tone, src, className = "" }) {
     .toUpperCase();
   const pick = tone || AVATAR_TONES[(name.charCodeAt(0) || 0) % AVATAR_TONES.length];
   if (src) {
-    // eslint-disable-next-line @next/next/no-img-element
     return (
       <img
         src={src}

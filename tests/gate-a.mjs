@@ -271,7 +271,12 @@ console.log("== the permission matrix: one key grants exactly itself");
   // its own area when it got a screen — a right that gates two records with no
   // screen is the dead capability the catalogue forbids, so the debt was
   // recorded rather than paid early. It is paid here.
-  ok("the catalogue is the size we last agreed", ALL_PERMISSIONS.length === 134, String(ALL_PERMISSIONS.length));
+  // 135 with crmSales.pipeline (view alone). P4a's second slice. The verbs it
+  // does NOT have are the design: moving a deal along the funnel IS editing the
+  // ticket that deal is, so it goes through editTicket and answers to
+  // crmSales.tickets.edit. A pipeline.edit would be a second right over one act,
+  // free to disagree with the first about who may move a deal.
+  ok("the catalogue is the size we last agreed", ALL_PERMISSIONS.length === 135, String(ALL_PERMISSIONS.length));
 
   const leaks = [];
   const missing = [];
@@ -1088,6 +1093,7 @@ console.log("== sales: the module's whole surface, with data in it");
   const CLIENTS = await import("@/app/api/studios/[slug]/sales/clients/route.ts");
   const TICKETS = await import("@/app/api/studios/[slug]/sales/tickets/route.ts");
   const RFQ = await import("@/app/api/studios/[slug]/sales/tickets/rfq/route.ts");
+  const PIPELINE = await import("@/app/api/studios/[slug]/sales/pipeline/route.ts");
   const QUOTATIONS = await import("@/app/api/studios/[slug]/sales/quotations/route.ts");
   const SALES = await import("@/app/api/studios/[slug]/sales/route.ts");
 
@@ -1182,6 +1188,54 @@ console.log("== sales: the module's whole surface, with data in it");
   // pair is the assertion: the move is caused by the RFQ, not by time passing.
   const untouched = populated.body?.tickets?.find((t) => t.title === "Cannot start won");
   ok("a ticket with no RFQ stays a Lead", untouched?.status === "Lead", untouched?.status);
+
+  // ---- the pipeline: the funnel, and the three moves it refuses ----------
+  //
+  // The board reads the SAME tickets this block has been raising, so the shape
+  // pinned here is the shape a studio actually gets: one deal an RFQ moved to
+  // Opportunity, one still a Lead. Every refusal below is a move `editTicket`
+  // used to accept — it checked that a status was a member of TICKET_STATUSES
+  // and nothing more.
+  const board = await capture(PIPELINE.GET, req(`/api/studios/${slug}/sales/pipeline`), P);
+  await shot("sales.pipeline", board);
+  const colOf = (st) => board.body?.columns?.find((c) => c.status === st);
+  ok("the RFQ'd deal is in the Opportunity column",
+    colOf("Opportunity")?.deals?.some((d) => d.id === ticketId), JSON.stringify(colOf("Opportunity")?.count));
+  ok("...and the one with no RFQ is still a Lead", colOf("Lead")?.count === 1, JSON.stringify(colOf("Lead")?.count));
+  // A HELD COLUMN REPORTS NULL, NOT ZERO — "these deals are worth nothing" is a
+  // different and false claim from "this is deliberately not forecast".
+  ok("the held column offers no forecast at all", colOf("On-Hold")?.weighted === null);
+  ok("nothing has been decided, so there is no win rate", board.body?.winRate === null, String(board.body?.winRate));
+
+  // COMMIT MEANS THE CLIENT HAS A QUOTATION. ./tickets has said so in prose
+  // since the beginning and nothing enforced it.
+  await shot("sales.refused.noquotation", await capture(
+    TICKETS.PUT, req(`/api/studios/${slug}/sales/tickets`, { method: "PUT", body: { id: ticketId, status: "Commit" } }), P));
+
+  // A LOSING CLOSE MUST SAY WHY. `lostReason` was on the schema from the
+  // beginning and written by nothing at all.
+  await shot("sales.refused.reasonrequired", await capture(
+    TICKETS.PUT, req(`/api/studios/${slug}/sales/tickets`, { method: "PUT", body: { id: ticketId, status: "Closed Lost" } }), P));
+
+  // The deal that never had an RFQ is the one closed here: its own assertion
+  // ("a ticket with no RFQ stays a Lead") has already run, so closing it now
+  // costs no earlier golden.
+  const losing = untouched?.id;
+  const lost = await shot("sales.deal.lost", await capture(
+    TICKETS.PUT, req(`/api/studios/${slug}/sales/tickets`, { method: "PUT", body: {
+      id: losing, status: "Closed Lost", lostReason: "Client went with the incumbent",
+    } }), P));
+  ok("a lost deal records when it closed", Boolean(lost.body?.ticket?.closedAt));
+  ok("...and why", lost.body?.ticket?.lostReason === "Client went with the incumbent", lost.body?.ticket?.lostReason);
+  ok("...and how it got there",
+    lost.body?.ticket?.stageHistory?.at(-1)?.status === "Closed Lost",
+    JSON.stringify(lost.body?.ticket?.stageHistory));
+
+  // AND A CLOSED DEAL IS HISTORY. Reopening it would delete a decision from
+  // every count already taken off it — the reason this is a 409 rather than a
+  // 400: nothing about the request needs changing, the record has moved past it.
+  await shot("sales.refused.reopen", await capture(
+    TICKETS.PUT, req(`/api/studios/${slug}/sales/tickets`, { method: "PUT", body: { id: losing, status: "Lead" } }), P));
 
   // ---- a quotation that does not exist is a 404, not a leak --------------
   await shot("sales.quotation.missing", await capture(

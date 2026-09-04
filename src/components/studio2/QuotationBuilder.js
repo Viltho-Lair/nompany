@@ -264,7 +264,6 @@ export default function QuotationBuilder({ quote, catalogue = [], currency = "",
                               later changes. */}
                           <td className="py-1.5 pe-3">
                             <span className="grid h-10 w-10 place-items-center overflow-hidden rounded-lg border border-slate-200 bg-slate-50 dark:border-white/10 dark:bg-white/5">
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
                               {row.image
                                 ? <img src={row.image} alt="" className="h-full w-full object-cover" />
                                 : <Icon name="services" className="h-4 w-4 text-slate-300" />}

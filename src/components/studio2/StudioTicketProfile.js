@@ -12,6 +12,7 @@ import { TicketForm } from "@/components/studio2/StudioSales";
 import { Field } from "@/components/fields/Field";
 import { Money } from "@/components/Currency";
 import { canRequestRfqStatus } from "@/modules/sales/tickets";
+import { CHAIN_LOST_REASON } from "@/modules/sales/pipeline";
 import { rfqInfo } from "@/modules/sales/salesAnalytics";
 
 // ONE TICKET, on its own page — the layout in the brief: the ticket's own
@@ -254,6 +255,24 @@ export default function StudioTicketProfile({ slug, ticketId }) {
             <dl className="mt-4 grid gap-x-6 gap-y-3 sm:grid-cols-2">
               <DetailField label={tr.reference} value={ticket.ref} mono />
               <DetailField label={tr.status} value={ticket.status} />
+              {/* WHY THIS DEAL ENDED, WHERE THE DEAL IS READ. `lostReason` was
+                  on the ticket schema from the beginning and written by
+                  nothing; the pipeline's stage transition writes it now, and a
+                  reason nobody is ever shown would be the same dead field with
+                  a value in it.
+
+                  The chain's own close stores a TOKEN (pipeline's
+                  CHAIN_LOST_REASON) rather than a sentence, because a sentence
+                  written by the code would be English sitting in the database
+                  for an Arabic studio to read verbatim. What a PERSON typed is
+                  data and is shown exactly as typed. */}
+              {ticket.lostReason && (
+                <DetailField
+                  label={tr.lostReasonLabel}
+                  value={ticket.lostReason === CHAIN_LOST_REASON ? tr.reasonRfqRejected : ticket.lostReason}
+                />
+              )}
+              {ticket.closedAt && <DetailField label={tr.closedOn} value={fmtDate(ticket.closedAt)} />}
               <DetailField label={tr.urgency} value={ticket.urgency} />
               <DetailField label={tr.deadline} value={fmtDate(ticket.deadline)} />
               <DetailField label={tr.industry} value={ticket.industry} />

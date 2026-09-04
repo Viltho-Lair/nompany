@@ -15,6 +15,44 @@ type Strings = CommonStrings & {
   // The department's own name, for the shared no-access sentence.
   changeColumns: string;
   colCity: string;
+  // THE PIPELINE BOARD. `pipeline` is the section's own name and the heading.
+  //
+  // The STAGE NAMES are not here and must not be: they come from the pill's
+  // vocabulary in ./statuses, keyed by the stored token, because the board and
+  // the ticket list have to call the same stage the same thing. What is here is
+  // everything the board says ABOUT a stage.
+  pipeline: string;
+  pipelineSub: string;
+  loadingPipeline: string;
+  noDealsYet: string;
+  // What to DO, not the heading repeated. A deal starts as a ticket today —
+  // there is no lead capture yet, and saying so is better than implying the
+  // board fills itself.
+  noDealsYetBody: string;
+  noDealsHere: string;
+  weighted: string;
+  notForecast: string;
+  openValue: string;
+  winRate: string;
+  nDecided: (n: number) => string;
+  nDaysHere: (n: number) => string;
+  moveTo: string;
+  moveDeal: string;
+  cancel: string;
+  whyLost: string;
+  whyLostHint: string;
+  // The dialog ASKS ("why was this deal lost?") and its field is LABELLED
+  // ("reason lost"). The ticket profile states the same fact, and states it
+  // from misc.ts — that screen reads miscDict, not this one. Two surfaces, two
+  // dictionaries, deliberately: nothing may enumerate them.
+  lostReasonLabel: string;
+  // A stage refusal, one sentence each. The route hands back the token and the
+  // screen chooses the sentence, so the same refusal reads correctly in both
+  // languages rather than arriving pre-written in one of them.
+  refuseAlreadyClosed: string;
+  refuseNoQuotation: string;
+  refuseReasonRequired: string;
+  overdue: string;
   // The contracts register. `contracts` is the section's own name and the
   // heading; the rest are the register's words.
   contracts: string;
@@ -151,6 +189,30 @@ const en: Strings = {
   ...commonEn,
   changeColumns: "Change columns",
   colCity: "City",
+  pipeline: "Pipeline",
+  pipelineSub: "Where every open deal stands, and what the funnel is worth.",
+  loadingPipeline: "Loading the pipeline…",
+  noDealsYet: "No open deals",
+  noDealsYetBody: "A deal starts as a ticket. Raise one and it appears here, at the stage it has reached.",
+  noDealsHere: "Nothing at this stage.",
+  weighted: "Weighted",
+  // Said in place of a number on the held column, because zero would be a
+  // claim about those deals rather than a refusal to guess at them.
+  notForecast: "Not forecast",
+  openValue: "Open value",
+  winRate: "Win rate",
+  nDecided: (n) => `${n} decided`,
+  nDaysHere: (n) => (n === 1 ? "1 day here" : `${n} days here`),
+  moveTo: "Move to",
+  moveDeal: "Move",
+  cancel: "Cancel",
+  whyLost: "Why was this deal lost?",
+  whyLostHint: "Required. It is the only record of why — and the only way the studio can ever answer the question across deals.",
+  lostReasonLabel: "Reason lost",
+  refuseAlreadyClosed: "This deal has already closed. A closed deal is history, not a stage it can be moved out of.",
+  refuseNoQuotation: "There is no quotation on this deal yet, and this stage means the client has one.",
+  refuseReasonRequired: "Say why it was lost before closing it.",
+  overdue: "Overdue",
   contracts: "Contracts",
   contractsWhatWasAgreed: "What was agreed, and what has moved since.",
   loadingContracts: "Loading contracts…",
@@ -293,6 +355,28 @@ const ar: Strings = {
   ...commonAr,
   changeColumns: "غيّر الأعمدة",
   colCity: "المدينة",
+  pipeline: "مسار الصفقات",
+  pipelineSub: "أين تقف كلّ صفقة مفتوحة، وكم يساوي المسار.",
+  loadingPipeline: "جارٍ تحميل مسار الصفقات…",
+  noDealsYet: "لا توجد صفقات مفتوحة",
+  noDealsYetBody: "تبدأ الصفقة بتذكرة. أنشئ واحدة وستظهر هنا في المرحلة التي بلغتها.",
+  noDealsHere: "لا شيء في هذه المرحلة.",
+  weighted: "القيمة المرجّحة",
+  notForecast: "خارج التوقّع",
+  openValue: "قيمة المفتوح",
+  winRate: "نسبة الفوز",
+  nDecided: (n) => `${n} محسومة`,
+  nDaysHere: (n) => (n === 1 ? "يوم واحد هنا" : `${n} يومًا هنا`),
+  moveTo: "نقل إلى",
+  moveDeal: "نقل",
+  cancel: "إلغاء",
+  whyLost: "لماذا خسرنا هذه الصفقة؟",
+  whyLostHint: "مطلوب. هذا هو السجلّ الوحيد للسبب — والطريقة الوحيدة لمعرفة الأسباب عبر الصفقات لاحقًا.",
+  lostReasonLabel: "سبب الخسارة",
+  refuseAlreadyClosed: "هذه الصفقة مغلقة بالفعل. الصفقة المغلقة سجلّ، وليست مرحلة يمكن نقلها منها.",
+  refuseNoQuotation: "لا يوجد عرض سعر على هذه الصفقة بعد، وهذه المرحلة تعني أنّ لدى العميل عرضًا.",
+  refuseReasonRequired: "اذكر سبب الخسارة قبل الإغلاق.",
+  overdue: "متأخرة",
   contracts: "العقود",
   contractsWhatWasAgreed: "ما تمّ الاتفاق عليه، وما تغيّر منذ ذلك.",
   loadingContracts: "جارٍ تحميل العقود…",

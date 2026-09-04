@@ -60,6 +60,10 @@ const StudioContracts = nextDynamic(
   () => import("@/components/studio2/StudioContracts"),
   { loading: () => <ScreenSkeleton /> },
 );
+const StudioPipeline = nextDynamic(
+  () => import("@/components/studio2/StudioPipeline"),
+  { loading: () => <ScreenSkeleton /> },
+);
 const StudioSales = nextDynamic(
   () => import("@/components/studio2/StudioSales"),
   { loading: () => <ScreenSkeleton /> },
@@ -488,6 +492,13 @@ async function renderStudio(params) {
         // the CRM & Sales dashboard that left `crmSales.quotations.create`/
         // `.edit` as rights nothing could exercise (invariant 16). Checked
         // ahead of the `screenKey === "crm-sales"` case below for that reason.
+        // BOTH OF THESE SIT AHEAD OF THE `screenKey === "crm-sales"` CASE for the
+        // reason the note above gives about quotations: their PARENT is
+        // `crm-sales`, so screenKey collapses and StudioSales — which has no
+        // branch for either — would quietly render the department dashboard
+        // instead. A section that silently renders the wrong screen is how a
+        // right ends up exercising nothing (invariant 16).
+        : active?.key === "crm-sales-pipeline" ? <StudioPipeline slug={studio.slug} />
         : active?.key === "crm-sales-contracts" ? <StudioContracts slug={studio.slug} />
         : active?.key === "crm-sales-quotations" ? (
           <StudioTechnical slug={studio.slug} view={active?.key}

@@ -7,6 +7,7 @@
     "nav": {
       "main": true,
       "crm-sales": true,
+      "crm-sales-pipeline": true,
       "crm-sales-tickets": true,
       "crm-sales-clients": true,
       "crm-sales-quotations": true,
@@ -60,6 +61,7 @@
     "manage": {
       "main": false,
       "crm-sales": true,
+      "crm-sales-pipeline": false,
       "crm-sales-tickets": true,
       "crm-sales-clients": true,
       "crm-sales-quotations": true,
@@ -193,7 +195,7 @@
         "name": "Manager",
         "description": "Runs a department: full control of its work, sight of the rest.",
         "wildcard": false,
-        "permissionCount": 44,
+        "permissionCount": 49,
         "held": 0
       },
       {

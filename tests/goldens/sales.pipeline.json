@@ -1,0 +1,94 @@
+{
+  "status": 200,
+  "body": {
+    "ok": true,
+    "columns": [
+      {
+        "status": "Lead",
+        "kind": "open",
+        "deals": [
+          {
+            "id": "<sal_ID>",
+            "ref": "ACME-HOLDINGS-002",
+            "title": "Cannot start won",
+            "clientName": "Acme Holdings",
+            "status": "Lead",
+            "value": 0,
+            "probability": 0,
+            "weighted": 0,
+            "deadline": "2031-12-02",
+            "days": 0,
+            "hasQuotation": false
+          }
+        ],
+        "count": 1,
+        "value": 0,
+        "weighted": 0
+      },
+      {
+        "status": "Opportunity",
+        "kind": "open",
+        "deals": [
+          {
+            "id": "<sal_ID>",
+            "ref": "ACME-HOLDINGS-001",
+            "title": "Boardroom refit, phase 1",
+            "clientName": "Acme Holdings",
+            "status": "Opportunity",
+            "value": 0,
+            "probability": 0,
+            "weighted": 0,
+            "deadline": "2031-12-01",
+            "days": 0,
+            "hasQuotation": false
+          }
+        ],
+        "count": 1,
+        "value": 0,
+        "weighted": 0
+      },
+      {
+        "status": "Commit",
+        "kind": "open",
+        "deals": [],
+        "count": 0,
+        "value": 0,
+        "weighted": 0
+      },
+      {
+        "status": "On-Hold",
+        "kind": "paused",
+        "deals": [],
+        "count": 0,
+        "value": 0,
+        "weighted": null
+      }
+    ],
+    "closed": [
+      {
+        "status": "Closed Won",
+        "count": 0,
+        "value": 0
+      },
+      {
+        "status": "Closed Lost",
+        "count": 0,
+        "value": 0
+      },
+      {
+        "status": "Cancelled by Client",
+        "count": 0,
+        "value": 0
+      },
+      {
+        "status": "Dropped",
+        "count": 0,
+        "value": 0
+      }
+    ],
+    "winRate": null,
+    "openValue": 0,
+    "weightedValue": 0,
+    "canMove": true
+  }
+}

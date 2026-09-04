@@ -42,7 +42,7 @@ export default function PhoneInput({ value, onChange, autoFocus = false, error =
     const top = above ? r.top - POP_H - 8 : Math.min(r.bottom + 8, window.innerHeight - POP_H - 8);
     setPos({ left, top: Math.max(8, top), width });
   };
-  useLayoutEffect(() => { if (open) place(); }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  useLayoutEffect(() => { if (open) place(); }, [open]);
   useEffect(() => {
     if (!open) return;
     searchRef.current?.focus();
@@ -59,7 +59,7 @@ export default function PhoneInput({ value, onChange, autoFocus = false, error =
       document.removeEventListener("mousedown", onDoc);
       window.removeEventListener("keydown", onKey);
     };
-  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open]);
 
   // RANKED, not merely filtered. A plain substring match puts Brunei and Guinea
   // above Nepal for "Ne", which is not what someone typing "Ne" is after. Names

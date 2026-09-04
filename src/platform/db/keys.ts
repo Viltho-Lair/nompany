@@ -497,6 +497,12 @@ export const SECTION_DEFS = [
   // quotation in §3.1 because the offer is a sales act; Tendering contributes
   // its BOQ face in P4a, on the same record.
   { key: "crm-sales", name: "CRM & Sales", children: [
+    // THE FUNNEL COMES FIRST, because it is the front of the process: a lead
+    // exists before there is a ticket worth opening, and the board is where a
+    // studio looks to decide what to work on today. It owns NO COLLECTION — the
+    // deals on it are salesTickets, read where they live, the same arrangement
+    // Live view and Contracts have. Deleting this section takes no records.
+    { key: "crm-sales-pipeline", name: "Pipeline" },
     { key: "crm-sales-tickets", name: "Tickets" },
     { key: "crm-sales-clients", name: "Customers" },
     { key: "crm-sales-quotations", name: "Quotations" },
