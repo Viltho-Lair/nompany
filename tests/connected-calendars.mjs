@@ -649,5 +649,236 @@ console.log("\ncalendar share list");
   ok("absent reads as nobody", JSON.stringify(cleanSharers(undefined)) === JSON.stringify([]));
 }
 
+const { mergeBusy, availabilityViewToIntervals } = await import("../src/shared/calendar.ts");
+
+console.log("\nfree/busy");
+{
+  ok("overlapping intervals coalesce",
+    JSON.stringify(mergeBusy([
+      { start: "2026-09-03T09:00:00.000Z", end: "2026-09-03T10:00:00.000Z" },
+      { start: "2026-09-03T09:30:00.000Z", end: "2026-09-03T11:00:00.000Z" },
+    ])) === JSON.stringify([{ start: "2026-09-03T09:00:00.000Z", end: "2026-09-03T11:00:00.000Z" }]));
+
+  ok("touching intervals coalesce",
+    mergeBusy([
+      { start: "2026-09-03T09:00:00.000Z", end: "2026-09-03T10:00:00.000Z" },
+      { start: "2026-09-03T10:00:00.000Z", end: "2026-09-03T11:00:00.000Z" },
+    ]).length === 1);
+
+  ok("a gap is preserved",
+    mergeBusy([
+      { start: "2026-09-03T09:00:00.000Z", end: "2026-09-03T10:00:00.000Z" },
+      { start: "2026-09-03T11:00:00.000Z", end: "2026-09-03T12:00:00.000Z" },
+    ]).length === 2);
+
+  ok("unsorted input still merges",
+    mergeBusy([
+      { start: "2026-09-03T11:00:00.000Z", end: "2026-09-03T12:00:00.000Z" },
+      { start: "2026-09-03T09:00:00.000Z", end: "2026-09-03T11:00:00.000Z" },
+    ]).length === 1);
+
+  ok("nothing in, nothing out", mergeBusy([]).length === 0);
+
+  // MICROSOFT'S availabilityView IS A STRING OF SLOT CODES: "0" free, anything
+  // else busy. It is the ONLY field this codebase reads from getSchedule,
+  // because scheduleItems carries subject and location and this phase promises
+  // colleagues never see either.
+  const iv = availabilityViewToIntervals("002200", "2026-09-03T09:00:00.000Z", 30);
+  ok("free slots produce no interval, busy slots do", iv.length === 1, JSON.stringify(iv));
+  ok("...spanning exactly the busy run",
+    iv[0].start === "2026-09-03T10:00:00.000Z" && iv[0].end === "2026-09-03T11:00:00.000Z",
+    JSON.stringify(iv[0]));
+  ok("an all-free view is empty", availabilityViewToIntervals("0000", "2026-09-03T09:00:00.000Z", 30).length === 0);
+  ok("an all-busy view is one interval", availabilityViewToIntervals("2222", "2026-09-03T09:00:00.000Z", 30).length === 1);
+  ok("an empty view is empty", availabilityViewToIntervals("", "2026-09-03T09:00:00.000Z", 30).length === 0);
+
+  // A CONTAINED INTERVAL MUST NOT SHORTEN THE ONE AROUND IT — a fifteen-minute
+  // call inside a two-hour workshop would otherwise end the workshop early, and
+  // a colleague would book into the hour that remains.
+  ok("an interval entirely inside another does not shorten it",
+    JSON.stringify(mergeBusy([
+      { start: "2026-09-03T09:00:00.000Z", end: "2026-09-03T11:00:00.000Z" },
+      { start: "2026-09-03T09:15:00.000Z", end: "2026-09-03T09:30:00.000Z" },
+    ])) === JSON.stringify([{ start: "2026-09-03T09:00:00.000Z", end: "2026-09-03T11:00:00.000Z" }]));
+
+  // DROPPED, NOT REPAIRED. A guessed end renders as somebody being busy when
+  // they are not, and nothing on screen would say it was invented.
+  ok("an unparseable or backwards interval is dropped",
+    mergeBusy([
+      { start: "not-a-date", end: "2026-09-03T10:00:00.000Z" },
+      { start: "2026-09-03T11:00:00.000Z", end: "2026-09-03T10:00:00.000Z" },
+    ]).length === 0);
+
+  // GOOGLE SPELLS THE SAME INSTANT WITHOUT MILLISECONDS. Two providers must not
+  // produce two string shapes for one moment, or a caller comparing them
+  // compares text instead of time.
+  ok("output is re-serialised to one shape, whatever the provider spelled",
+    mergeBusy([{ start: "2026-09-03T09:00:00Z", end: "2026-09-03T10:00:00Z" }])[0].start ===
+      "2026-09-03T09:00:00.000Z");
+}
+
+const { busyFor } = await import("../src/lib/data/calendarFreeBusy.ts");
+
+console.log("\nbusyFor — when, and never what");
+{
+  // GOOGLE: freeBusy is a POST, and "primary" resolves against whoever the
+  // token belongs to — no stored read is needed, which is why no connection is
+  // injected here at all.
+  let googleInit = null;
+  let googleUrl = null;
+  const googleFetch = async (url, init) => {
+    googleUrl = url;
+    googleInit = init;
+    return new Response(JSON.stringify({
+      calendars: { primary: { busy: [
+        { start: "2026-09-03T10:00:00Z", end: "2026-09-03T11:00:00Z" },
+        { start: "2026-09-03T10:30:00Z", end: "2026-09-03T11:30:00Z" },
+      ] } },
+    }), { status: 200 });
+  };
+  const googleBusy = await busyFor(
+    { userId: "u1", provider: "google", from: "2026-09-03T09:00:00.000Z", to: "2026-09-03T17:00:00.000Z" },
+    { fetchImpl: googleFetch, getAccessTokenImpl: async () => "AT-TEST" },
+  );
+  ok("google asks freeBusy, not the events endpoint",
+    googleUrl === "https://www.googleapis.com/calendar/v3/freeBusy", String(googleUrl));
+  ok("...as a POST carrying the primary calendar and the window",
+    googleInit?.method === "POST" &&
+    JSON.parse(String(googleInit?.body)).items[0].id === "primary" &&
+    JSON.parse(String(googleInit?.body)).timeMin === "2026-09-03T09:00:00.000Z", String(googleInit?.body));
+  ok("...and overlapping periods come back merged",
+    JSON.stringify(googleBusy) === JSON.stringify([
+      { start: "2026-09-03T10:00:00.000Z", end: "2026-09-03T11:30:00.000Z" },
+    ]), JSON.stringify(googleBusy));
+
+  // GOOGLE REPORTS A PER-CALENDAR REFUSAL INSIDE A 200. Unexamined it decodes
+  // to `busy: []`, which renders as free all week — a failure that does not
+  // look like one.
+  const googleRefusing = async () => new Response(JSON.stringify({
+    calendars: { primary: { errors: [{ domain: "global", reason: "notFound" }], busy: [] } },
+  }), { status: 200 });
+  let googleErr = "";
+  try {
+    await busyFor({ userId: "u1", provider: "google", from: "2026-09-03T09:00:00.000Z", to: "2026-09-03T17:00:00.000Z" },
+      { fetchImpl: googleRefusing, getAccessTokenImpl: async () => "AT-TEST" });
+  } catch (e) { googleErr = e.message; }
+  ok("a per-calendar freeBusy error throws rather than reading as a free week",
+    /notFound/.test(googleErr), googleErr);
+}
+
+console.log("\nbusyFor — microsoft reads availabilityView and nothing else");
+{
+  const connection = { provider: "microsoft", accountEmail: "me@outlook.test", refreshToken: "RT", accessToken: "AT", expiresAtMs: 0, calendarIds: [], connectedAt: 0 };
+  let msInit = null;
+  let msUrl = null;
+  const msFetch = async (url, init) => {
+    msUrl = url;
+    msInit = init;
+    return new Response(JSON.stringify({
+      value: [{
+        scheduleId: "me@outlook.test",
+        availabilityView: "002200",
+        // THE FIELD THIS CODE MUST NEVER READ. Graph really does return these
+        // alongside availabilityView, and they carry exactly what a colleague
+        // is promised not to see.
+        scheduleItems: [{
+          status: "busy",
+          subject: "Salary review with Dana",
+          location: "Meeting room 3",
+          start: { dateTime: "2026-09-03T10:00:00.0000000", timeZone: "UTC" },
+          end: { dateTime: "2026-09-03T11:00:00.0000000", timeZone: "UTC" },
+        }],
+      }],
+    }), { status: 200 });
+  };
+  const msBusy = await busyFor(
+    { userId: "u1", provider: "microsoft", from: "2026-09-03T09:00:00.000Z", to: "2026-09-03T12:00:00.000Z" },
+    { fetchImpl: msFetch, getAccessTokenImpl: async () => "AT-TEST", getConnectionImpl: async () => connection },
+  );
+  ok("microsoft asks getSchedule, not calendarView",
+    msUrl === "https://graph.microsoft.com/v1.0/me/calendar/getSchedule", String(msUrl));
+  const sent = JSON.parse(String(msInit?.body));
+  // GRAPH IDENTIFIES A CALENDAR BY EMAIL ADDRESS, NOT BY THE TOKEN — the stored
+  // connection is the only place that address lives.
+  ok("...naming the stored account email in schedules",
+    JSON.stringify(sent.schedules) === JSON.stringify(["me@outlook.test"]), String(msInit?.body));
+  ok("...in 30-minute slots, the size the decoder counts in",
+    sent.availabilityViewInterval === 30, String(sent.availabilityViewInterval));
+  ok("...and the busy run decodes off availabilityView",
+    JSON.stringify(msBusy) === JSON.stringify([
+      { start: "2026-09-03T10:00:00.000Z", end: "2026-09-03T11:00:00.000Z" },
+    ]), JSON.stringify(msBusy));
+
+  // THE ASSERTION THIS WHOLE PHASE EXISTS FOR. scheduleItems was present, and
+  // carried both fields — nothing about them may survive into what a colleague
+  // is handed. THIS MUST FAIL THE DAY SOMEBODY MAPS scheduleItems.
+  const serialised = JSON.stringify(msBusy);
+  ok("no meeting subject survives into the answer",
+    !serialised.includes("Salary review"), serialised);
+  ok("...and neither does its location", !serialised.includes("Meeting room 3"), serialised);
+  ok("...the intervals carry two fields and no others",
+    msBusy.every((b) => JSON.stringify(Object.keys(b).sort()) === JSON.stringify(["end", "start"])), serialised);
+}
+
+console.log("\nbusyFor — an empty account email never becomes an empty schedules array");
+{
+  // GRAPH ANSWERS `schedules: []` WITH A 200 AND AN EMPTY value — no error, no
+  // warning — which decodes to no intervals and renders as somebody being free
+  // every hour of every day. A colleague would book over a full calendar and
+  // nothing would have said the lookup never happened. So the request is not
+  // made at all, and the reason is thrown where it can be seen.
+  let calls = 0;
+  const countingFetch = async () => { calls += 1; return new Response("{}", { status: 200 }); };
+  const blankEmail = { provider: "microsoft", accountEmail: "", refreshToken: "RT", accessToken: "AT", expiresAtMs: 0, calendarIds: [], connectedAt: 0 };
+  let msg = "";
+  try {
+    await busyFor({ userId: "u1", provider: "microsoft", from: "2026-09-03T09:00:00.000Z", to: "2026-09-03T12:00:00.000Z" },
+      { fetchImpl: countingFetch, getAccessTokenImpl: async () => "AT-TEST", getConnectionImpl: async () => blankEmail });
+  } catch (e) { msg = e.message; }
+  ok("graph is never called with an empty schedules array", calls === 0, String(calls));
+  ok("...and the reason is visible rather than disguised as a free week",
+    /account email/.test(msg), msg);
+}
+
+console.log("\nbusyFor — a graph refusal surfaces, it never falls back to reading events");
+{
+  // getSchedule can need more than Calendars.Read in some tenants. The obvious
+  // rescue — read /me/calendarView and derive busy blocks from events — is
+  // refused: it would pull every meeting's subject and location into this
+  // process for a colleague-facing feature, silently, in the one case nobody is
+  // watching. THIS BLOCK MUST FAIL THE DAY SUCH A FALLBACK IS ADDED.
+  const urls = [];
+  const refusing = async (url) => {
+    urls.push(url);
+    return new Response(JSON.stringify({
+      error: { code: "ErrorAccessDenied", message: "Access is denied. Check credentials and try again." },
+    }), { status: 403 });
+  };
+  const connection = { provider: "microsoft", accountEmail: "me@outlook.test", refreshToken: "RT", accessToken: "AT", expiresAtMs: 0, calendarIds: [], connectedAt: 0 };
+  let msg = "";
+  let threw = false;
+  try {
+    await busyFor({ userId: "u1", provider: "microsoft", from: "2026-09-03T09:00:00.000Z", to: "2026-09-03T12:00:00.000Z" },
+      { fetchImpl: refusing, getAccessTokenImpl: async () => "AT-TEST", getConnectionImpl: async () => connection });
+  } catch (e) { threw = true; msg = e.message; }
+  ok("a refused getSchedule throws rather than returning an empty day", threw, msg);
+  ok("...carrying graph's own reason", /Access is denied/.test(msg), msg);
+  ok("...and exactly one request was made — no calendarView fallback",
+    urls.length === 1 && !urls.some((u) => String(u).includes("calendarView")), JSON.stringify(urls));
+
+  // A PER-SCHEDULE ERROR ARRIVES INSIDE A 200, the same trap as Google's
+  // per-calendar errors above.
+  const rowError = async () => new Response(JSON.stringify({
+    value: [{ scheduleId: "me@outlook.test", error: { message: "ErrorMailboxNotEnabledForRESTAPI" } }],
+  }), { status: 200 });
+  let rowMsg = "";
+  try {
+    await busyFor({ userId: "u1", provider: "microsoft", from: "2026-09-03T09:00:00.000Z", to: "2026-09-03T12:00:00.000Z" },
+      { fetchImpl: rowError, getAccessTokenImpl: async () => "AT-TEST", getConnectionImpl: async () => connection });
+  } catch (e) { rowMsg = e.message; }
+  ok("a per-schedule error inside a 200 throws rather than reading as a free week",
+    /ErrorMailboxNotEnabledForRESTAPI/.test(rowMsg), rowMsg);
+}
+
 console.log(fails ? `\n${fails} failure(s)` : "\nall good");
 process.exitCode = fails ? 1 : 0;

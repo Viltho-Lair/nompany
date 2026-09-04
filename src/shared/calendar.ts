@@ -252,3 +252,114 @@ export function eventsByDay(events: CalendarEvent[]): Record<string, CalendarEve
   }
   return out;
 }
+
+/**
+ * WHEN SOMEBODY IS BUSY, AND NOTHING ELSE. No id, no title, no location, no
+ * organiser — deliberately two fields, so that a colleague-facing surface built
+ * on this type cannot render a detail it was never given.
+ *
+ * Both ends are ISO instants (…Z). A wall-clock string would be meaningless
+ * here: this is compared against another person's calendar, in another zone.
+ */
+export type BusyInterval = { start: string; end: string };
+
+/**
+ * Busy intervals from anywhere → sorted, non-overlapping, back-to-back runs
+ * fused into one.
+ *
+ * ONE FUNCTION FOR BOTH PROVIDERS. Google's freeBusy returns raw, possibly
+ * overlapping periods (a person double-booked at 09:30 gets two rows covering
+ * the same minutes); Microsoft's availabilityView is already a run of slots.
+ * Merging both through here is what makes "busy from 09:00 to 11:00" mean the
+ * same thing whichever calendar it came from, and it is why a caller can count
+ * intervals without knowing the provider.
+ *
+ * TOUCHING INTERVALS FUSE (`<=`, not `<`). Two back-to-back half-hours are one
+ * busy hour to anybody looking for a gap; leaving them as two rows invites a
+ * reader to see a zero-length opening between them that does not exist.
+ *
+ * OUTPUT IS RE-SERIALISED, NOT COPIED THROUGH. Google says
+ * "2026-09-03T09:00:00Z" and the Microsoft path computes from milliseconds —
+ * two spellings of one instant. Normalising here means a caller comparing or
+ * de-duplicating two providers' answers is comparing instants, not strings.
+ *
+ * An unparseable or backwards interval is DROPPED rather than repaired: a
+ * guessed end time renders as somebody being busy when they are not, and
+ * nothing on screen would say it was invented.
+ */
+export function mergeBusy(intervals: BusyInterval[]): BusyInterval[] {
+  const spans: { start: number; end: number }[] = [];
+  for (const iv of intervals || []) {
+    const start = Date.parse(iv?.start ?? "");
+    const end = Date.parse(iv?.end ?? "");
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) continue;
+    spans.push({ start, end });
+  }
+  // SORTED FIRST, ALWAYS. Neither provider promises ordered periods, and a
+  // single unsorted pass leaves overlapping rows uncoalesced — which reads as
+  // twice as many meetings as there are.
+  spans.sort((a, b) => a.start - b.start);
+
+  const out: BusyInterval[] = [];
+  let open: { start: number; end: number } | null = null;
+  for (const span of spans) {
+    if (open && span.start <= open.end) {
+      // CONTAINMENT IS NOT EXTENSION: a short meeting sitting entirely inside a
+      // long one must not shorten the long one's end.
+      if (span.end > open.end) open.end = span.end;
+      continue;
+    }
+    if (open) out.push(isoSpan(open));
+    open = { start: span.start, end: span.end };
+  }
+  if (open) out.push(isoSpan(open));
+  return out;
+}
+
+function isoSpan(span: { start: number; end: number }): BusyInterval {
+  return { start: new Date(span.start).toISOString(), end: new Date(span.end).toISOString() };
+}
+
+/**
+ * Microsoft's `availabilityView` → busy intervals.
+ *
+ * THE STRING IS ONE CHARACTER PER SLOT, and the slots run consecutively from
+ * the window's start: "002200" over 30-minute slots from 09:00 means free,
+ * free, busy, busy, free, free — one busy interval, 10:00 to 11:00. "0" is
+ * free; every other code (1 tentative, 2 busy, 3 out of office, 4 working
+ * elsewhere) is some form of not-free and is treated identically here. That
+ * flattening is deliberate: the distinction between "tentative" and "out of
+ * office" is a fact about a person's day that this feature promises not to
+ * tell colleagues, and it is not needed to answer "is there a gap".
+ *
+ * THIS FIELD IS THE WHOLE REASON THE MICROSOFT PATH IS SAFE — see the comment
+ * at its read in lib/data/calendarFreeBusy.ts.
+ *
+ * ARITHMETIC IN UTC, from a millisecond stamp: the slot grid is a count of
+ * minutes from an instant, so stepping a local Date through it would drop or
+ * repeat a slot across a DST boundary.
+ */
+export function availabilityViewToIntervals(view: string, fromISO: string, slotMinutes: number): BusyInterval[] {
+  const from = Date.parse(fromISO);
+  const slotMs = Math.round(slotMinutes * 60_000);
+  // A bad anchor or slot size cannot produce a defensible interval, and
+  // inventing one would put a colleague's day at a time nothing measured.
+  if (!view || !Number.isFinite(from) || !(slotMs > 0)) return [];
+
+  const out: BusyInterval[] = [];
+  let runStart = -1;
+  // ONE PAST THE END, so a run that reaches the last slot is closed by the same
+  // branch that closes every other run rather than by a copy of it after the loop.
+  for (let i = 0; i <= view.length; i++) {
+    const busy = i < view.length && view[i] !== "0";
+    if (busy) {
+      if (runStart < 0) runStart = i;
+      continue;
+    }
+    if (runStart >= 0) {
+      out.push(isoSpan({ start: from + runStart * slotMs, end: from + i * slotMs }));
+      runStart = -1;
+    }
+  }
+  return out;
+}

@@ -53,11 +53,19 @@ function providerMessage(body: any, res: Response): string {
 }
 
 /**
- * ONE GET AGAINST A PROVIDER, with its refusal carried. Exported so the
+ * ONE CALL AGAINST A PROVIDER, with its refusal carried. Exported so the
  * console's own reads (googleCalendar.ts's `getCalendar`, which hits an
  * endpoint neither function below covers) go through the SAME request shape,
  * the same 10s abort and the same CalendarApiError rather than growing a
  * second, subtly different copy of all three.
+ *
+ * `jsonBody` IS WHAT MAKES IT "ONE CALL" RATHER THAN "ONE GET". Both providers'
+ * free/busy endpoints are POSTs with a JSON body (calendarFreeBusy.ts), and the
+ * two things they need from this function — the shared abort and the
+ * CalendarApiError that carries the provider's own words — have nothing to do
+ * with the verb. A separate postProvider would have been a second copy of both,
+ * free to drift on the timeout, which is the thing CALENDAR_FETCH_TIMEOUT_MS
+ * exists to stop.
  */
 export async function callProvider(
   provider: CalendarProvider,
@@ -67,9 +75,16 @@ export async function callProvider(
   // listEvents below is the only caller that ever overrides it, so a test can
   // drive pagination without a live network call.
   fetchImpl: FetchLike = fetch as FetchLike,
+  // Absent = GET. Present (even `{}`) = POST carrying it as JSON.
+  jsonBody?: unknown,
 ): Promise<any> {
+  const posting = jsonBody !== undefined;
   const res = await fetchImpl(url, {
-    headers: { authorization: `Bearer ${accessToken}` },
+    method: posting ? "POST" : "GET",
+    headers: posting
+      ? { authorization: `Bearer ${accessToken}`, "content-type": "application/json" }
+      : { authorization: `Bearer ${accessToken}` },
+    ...(posting ? { body: JSON.stringify(jsonBody) } : {}),
     cache: "no-store",
     // A HUNG CALL IS A HELD SERVERLESS INVOCATION — the same reason, and now
     // literally the same number, as the OAuth-path fetches in calendarOAuth.ts.

@@ -31,6 +31,12 @@ export type ProviderConfig = {
   /** ONE calendar by id — where calendarsUrl is the whole list. */
   calendarUrl: (calendarId: string) => string;
   eventsUrl: (calendarId: string, fromISO: string, toISO: string) => string;
+  /**
+   * WHEN somebody is busy, never WHAT they are doing. A row here rather than a
+   * literal in lib/data/calendarFreeBusy.ts, for the same reason as every other
+   * URL in this record: a third provider is a row, not a fork.
+   */
+  freeBusyUrl: string;
 };
 
 // A RECORD, so a provider name that came off a URL segment can index it —
@@ -56,6 +62,11 @@ export const CALENDAR_PROVIDERS: Record<CalendarProvider, ProviderConfig> = {
     eventsUrl: (calendarId, fromISO, toISO) =>
       `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?` +
       new URLSearchParams({ singleEvents: "true", orderBy: "startTime", timeMin: fromISO, timeMax: toISO, maxResults: "250" }),
+    // GOOGLE'S freeBusy CANNOT RETURN A TITLE — the endpoint has no such field;
+    // a period is a start and an end and nothing else. The privacy guarantee is
+    // structural on this provider, which is exactly what makes Microsoft's the
+    // one that needs a rule (see the microsoft row below).
+    freeBusyUrl: "https://www.googleapis.com/calendar/v3/freeBusy",
   },
   microsoft: {
     idEnv: "MICROSOFT_CLIENT_ID",
@@ -82,6 +93,13 @@ export const CALENDAR_PROVIDERS: Record<CalendarProvider, ProviderConfig> = {
     eventsUrl: (_calendarId, fromISO, toISO) =>
       `https://graph.microsoft.com/v1.0/me/calendarView?` +
       new URLSearchParams({ startDateTime: fromISO, endDateTime: toISO, $top: "250", $orderby: "start/dateTime" }),
+    // GRAPH'S getSchedule CAN RETURN TITLES — its `scheduleItems` rows carry
+    // `subject` and `location`. That is why the caller reads `availabilityView`
+    // and nothing else: on this provider the promise that a colleague sees only
+    // WHEN, never WHAT, is a rule the code has to keep rather than a shape the
+    // API enforces. /me/calendar/getSchedule, not /me/calendarView — deriving
+    // busy blocks from events would pull those same subjects into this process.
+    freeBusyUrl: "https://graph.microsoft.com/v1.0/me/calendar/getSchedule",
   },
 };
 
