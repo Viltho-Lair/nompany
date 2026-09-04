@@ -158,6 +158,13 @@ const KNOWN_COLLISIONS = {
   "src/components/studio2/StudioSales.js": [
     { value: "sales", reason: "StatusPill.jsx's STATUS_TONES record-kind key for ticket-stage colours" },
   ],
+  "src/components/studio2/StudioPipeline.js": [
+    // The same key as StudioSales above, and for the same reason: the board
+    // draws its columns and its move options with the pill's ticket-stage
+    // vocabulary, so it names that record-kind twice — once for StatusPill and
+    // once for statusLabel. Neither is ever resolved against SECTION_KEY_MAP.
+    { value: "sales", reason: "StatusPill.jsx's STATUS_TONES record-kind key for ticket-stage colours" },
+  ],
   "src/components/studio2/QualityWorkflow.js": [
     { value: "quality", reason: "StatusPill.jsx's STATUS_TONES record-kind key for revision-state colours" },
   ],
@@ -176,6 +183,13 @@ const KNOWN_COLLISIONS = {
   ],
 };
 
+// A TRAP WORTH KNOWING, because it cost a red build: both assertions below
+// shell out to `git grep`, which searches TRACKED FILES ONLY. A brand-new
+// source file is untracked until it is `git add`-ed, so it is INVISIBLE to
+// this check — the suite passes locally, and the same tree fails in CI the
+// moment the file is committed. If you have just written a new screen or
+// module, stage it before you believe a green run here.
+//
 // Every double-quoted token on a line, so a hit can be checked against
 // KNOWN_COLLISIONS by the EXACT literal that matched rather than by the
 // looser substring the grep pattern itself allows.

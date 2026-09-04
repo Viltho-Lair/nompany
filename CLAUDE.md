@@ -238,6 +238,11 @@ npx next build
 CI (`.github/workflows/ci.yml`) runs all three plus `scripts/bundle-budget.mjs` on
 every push to `main` and every pull request.
 
+- **`git add` a new file BEFORE you believe a green suite.** The architectural
+  assertions in `tests/restructure.mjs` shell out to `git grep`, which searches TRACKED
+  files only — so a brand-new screen or module is invisible to them, the suite passes
+  locally, and the identical tree fails in CI the moment it is committed. This cost a red
+  build on the pipeline board.
 - **Golden responses are the contract.** If a response body changes, the change is
   wrong until deliberately re-recorded in its own commit with a stated reason.
   `NOMPANY_RECORD_GOLDENS` is never set in CI.
