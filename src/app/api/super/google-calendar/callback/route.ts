@@ -4,6 +4,7 @@ import { readState, clearedStateCookie, OAUTH_STATE_COOKIE, origin } from "@/pla
 import { providerConfigured, consoleCalendarRedirectUri } from "@/platform/auth/calendarProviders";
 import { exchangeCode, fetchAccountEmail } from "@/platform/auth/calendarOAuth";
 import { saveConnection } from "@/lib/data/googleCalendar";
+import { log } from "@/platform/http/observability";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,7 +39,10 @@ export const GET = route(
   { auth: "super", name: "super/google-calendar/callback" },
   async ({ request, admin }) => {
     const url = new URL(request.url);
-    if (!providerConfigured("google")) return landOn(request, "error");
+    if (!providerConfigured("google")) {
+      log.error("console calendar connect failed", { reason: "provider-not-configured" });
+      return landOn(request, "error");
+    }
 
     // CSRF, CHECKED BEFORE ANYTHING ELSE TOUCHES THE CODE: the state must be
     // ours (readState verifies the HMAC and the TTL) AND match the cookie set
@@ -46,6 +50,15 @@ export const GET = route(
     const cookieState = (await cookies()).get(OAUTH_STATE_COOKIE)?.value || "";
     const stateParam = url.searchParams.get("state");
     if (!stateParam || stateParam !== cookieState || !readState(stateParam)) {
+      // The same four cases, told apart the same way, as the account callback
+      // one door over: the browser gets one flag, so without this line a failed
+      // console connection leaves no record anywhere at all.
+      log.error("console calendar connect failed", {
+        reason: !stateParam ? "no-state-param"
+          : !cookieState ? "no-state-cookie"
+          : stateParam !== cookieState ? "state-cookie-mismatch"
+          : "state-unverifiable",
+      });
       return landOn(request, "error");
     }
 
@@ -98,7 +111,10 @@ export const GET = route(
         connectedBy: String(admin?.email || ""),
         ...(accountEmail ? { accountEmail } : {}),
       });
-    } catch {
+    } catch (e) {
+      // Logged for the operator, not put in the redirect — see the account
+      // callback's own note on why those are two different audiences.
+      log.error("console calendar connect failed", { reason: (e as Error)?.message || "unknown" });
       // Google's own reason (invalid code, revoked consent, a network blip) is
       // not for this redirect to carry — see calendarOAuth.ts: no token and no
       // provider detail may reach a redirect URL or a log line. The same holds

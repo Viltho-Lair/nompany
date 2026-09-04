@@ -6,6 +6,7 @@ import {
 } from "@/platform/auth/calendarProviders";
 import { exchangeCode, fetchAccountEmail } from "@/platform/auth/calendarOAuth";
 import { saveConnection } from "@/platform/auth/calendarConnections";
+import { log } from "@/platform/http/observability";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -39,6 +40,19 @@ export const GET = route(
     const url = new URL(request.url);
     const { provider } = params;
     if (!isCalendarProvider(provider) || !providerConfigured(provider)) {
+      // LOGGED, LIKE EVERY OTHER EXIT FROM THIS ROUTE. What the browser gets
+      // back is one flag — deliberately, because a redirect URL the person
+      // keeps must not carry a provider's reason — and that left the ONLY
+      // record of a failed connection being the words "try again" on a screen.
+      // A dropped FIELD_ENCRYPTION_KEY, an unregistered redirect URI and a
+      // refused exchange all looked identical from the outside AND left nothing
+      // behind on the inside. `reason` names the stage; redact()
+      // (observability.ts) still applies, and providerReason only ever yields
+      // an error CODE.
+      log.error("calendar connect failed", {
+        provider: String(provider),
+        reason: "unknown-or-unconfigured-provider",
+      });
       return landOn(request, DEFAULT_CALENDAR_RETURN_PATH, "error");
     }
 
@@ -49,7 +63,24 @@ export const GET = route(
     const cookieState = (await cookies()).get(OAUTH_STATE_COOKIE)?.value || "";
     const stateParam = url.searchParams.get("state");
     const parsedState = stateParam && stateParam === cookieState ? readState(stateParam) : null;
-    if (!parsedState) return landOn(request, DEFAULT_CALENDAR_RETURN_PATH, "error");
+    if (!parsedState) {
+      // WHICH of the four, because they are four different bugs: no state came
+      // back at all, no cookie survived the round trip (a dropped Set-Cookie, a
+      // cross-site landing), a cookie that does not match the parameter (a
+      // second flow started in another tab overwrote it), or one that matches
+      // and still does not verify — expired past the 600s TTL, or signed with a
+      // different secret, since stateSecret() falls back through OTP_SECRET and
+      // then FIELD_ENCRYPTION_KEY and a deploy that changes either invalidates
+      // every state in flight.
+      log.error("calendar connect failed", {
+        provider: String(provider),
+        reason: !stateParam ? "no-state-param"
+          : !cookieState ? "no-state-cookie"
+          : stateParam !== cookieState ? "state-cookie-mismatch"
+          : "state-unverifiable",
+      });
+      return landOn(request, DEFAULT_CALENDAR_RETURN_PATH, "error");
+    }
 
     // Re-validated, not just trusted because it came out of signed state: the
     // signature proves WE minted it, not that the path inside it was ever
@@ -97,7 +128,18 @@ export const GET = route(
         refreshToken: exchanged.refreshToken,
         ...(accountEmail ? { accountEmail } : {}),
       });
-    } catch {
+    } catch (e) {
+      // THE MESSAGE IS LOGGED; THE REDIRECT STILL CARRIES NOTHING. Those are
+      // two different audiences — a URL survives in browser history and in
+      // whatever the person pastes into a support thread, a server log does not
+      // leave the deployment. exchangeCode composes its messages out of
+      // providerReason, which yields an error CODE ("invalid_grant") or
+      // "http <status>" and never a token or a response body; a storage failure
+      // yields the cipher layer's own wording, which names no key material.
+      log.error("calendar connect failed", {
+        provider: String(provider),
+        reason: (e as Error)?.message || "unknown",
+      });
       // The provider's own reason (invalid code, revoked consent, network
       // blip) is not for this redirect to carry — see calendarOAuth.ts: no
       // token and no provider detail may reach a redirect URL or a log line.
