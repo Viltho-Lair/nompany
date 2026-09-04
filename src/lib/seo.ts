@@ -2,10 +2,23 @@ import { locales, defaultLocale } from "@/shared/i18n";
 import { youtubeVideoId, youtubeThumbnailUrl } from "@/lib/youtube";
 import { CONTACT, SITE_DESCRIPTION } from "@/lib/site";
 
-// Canonical site origin. Override with NEXT_PUBLIC_SITE_URL when a custom
-// domain is connected; falls back to the current production URL.
+// Canonical site origin, and the "www." is load-bearing rather than cosmetic.
+// The site SERVES on www.nompany.com; the apex 308-redirects to it. This
+// fallback said `https://nompany.com`, so every canonical, og:url, hreflang
+// alternate and sitemap entry named a URL that redirects — search engines were
+// being pointed one hop away from the page they were reading, and Google's
+// OAuth verification checks the privacy-policy URL against the domain it is
+// actually served from.
+//
+// It is the same apex-vs-www mismatch that produced a `redirect_uri_mismatch`
+// on the calendar OAuth client (docs/functionality/calendar.md), where a real
+// operator registered the apex and providers compared byte for byte.
+//
+// Production overrides this with NEXT_PUBLIC_SITE_URL. The fallback matters
+// anyway: it is what preview builds and local development use, and a default
+// that disagrees with production is a default nobody can trust.
 export const SITE_URL = (
-  process.env.NEXT_PUBLIC_SITE_URL || "https://nompany.com"
+  process.env.NEXT_PUBLIC_SITE_URL || "https://www.nompany.com"
 ).replace(/\/$/, "");
 
 // OpenGraph locale codes for each app locale.
