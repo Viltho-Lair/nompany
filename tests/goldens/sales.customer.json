@@ -17,7 +17,8 @@
       "deals": true,
       "quotations": true,
       "contracts": true,
-      "projects": true
+      "projects": true,
+      "editRates": true
     },
     "deals": {
       "open": [
@@ -62,6 +63,8 @@
       "winRate": 0
     },
     "quotations": [],
+    "rates": [],
+    "catalogue": [],
     "contracts": [],
     "contractValue": 0,
     "projects": []

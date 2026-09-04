@@ -210,6 +210,11 @@ type Strings = CommonStrings & {
   typeIndustryRequired: string;
   unit: string;
   unitPrice: string;
+  // Where a line's price came from, when it is worth saying: this
+  // customer's agreed rate, or the cost fallback that means nobody has
+  // priced the item. The ordinary sell price says nothing.
+  priceFromCustomerRate: string;
+  priceFromCost: string;
   unlock: string;
   urgency: string;
   urgencyBreakdown: string;
@@ -426,6 +431,8 @@ const en: Strings = {
   typeIndustryRequired: "Type of industry is required.",
   unit: "Unit",
   unitPrice: "Unit price",
+  priceFromCustomerRate: "Customer’s agreed rate",
+  priceFromCost: "At cost — not priced",
   unlock: "Unlock",
   urgency: "Urgency",
   urgencyBreakdown: "Urgency breakdown",
@@ -649,6 +656,8 @@ const ar: Strings = {
   typeIndustryRequired: "نوع النشاط مطلوب.",
   unit: "الوحدة",
   unitPrice: "سعر الوحدة",
+  priceFromCustomerRate: "سعر متفق عليه مع العميل",
+  priceFromCost: "بسعر التكلفة — غير مسعّر",
   unlock: "فتح القفل",
   urgency: "الاستعجال",
   urgencyBreakdown: "توزيع الاستعجال",

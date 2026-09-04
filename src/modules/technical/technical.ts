@@ -29,6 +29,7 @@ import {
 } from "@/modules/tasks/taskRouting";
 import { getExchangeSnapshot } from "@/lib/data/exchangeRates";
 import { landedUnitCost } from "@/shared/currencies";
+import { resolveUnitPrice, ratesByItem } from "@/shared/pricing";
 import { attachToTicketEngagement, attachQuotationEngagement, detachRecord, engagementIdFor } from "@/platform/db/engagement";
 import {
   QUOTATION_STATUSES, DEFAULT_QUOTATION_STATUS, DEFAULT_VAT_RATE, LEAD_INTERNAL,
@@ -1158,9 +1159,31 @@ export async function openTickets({
 
 // The catalogue as the BUILDER needs it: what a line may be, and nothing more.
 // Sorted by name because that is what somebody types.
-export async function catalogueItems({ studio, inventoryItemsSection }: Pick<TechnicalContext, "studio" | "inventoryItemsSection">) {
+//
+// PRICED FOR A CUSTOMER WHEN ONE IS NAMED. `unitPrice` used to be landed COST,
+// and the comment below said the margin "belongs on the item" — it does now,
+// and a rate agreed with this customer beats it. The order lives in
+// shared/pricing.ts because the builder resolves with the same function.
+//
+// THE RATE TABLE NEVER LEAVES THIS FUNCTION. Technical is handed the resolved
+// price and a token saying where it came from, never the customer's agreed
+// prices for every other item — seeing what this line costs is inherent to
+// quoting it; the rest of the relationship's pricing is not.
+export async function catalogueItems(
+  { studio, inventoryItemsSection, salesClientsSection }: Pick<TechnicalContext, "studio" | "inventoryItemsSection" | "salesClientsSection">,
+  clientId?: string,
+) {
   if (!inventoryItemsSection) return [];
   const rows = await InventoryItems.find({ studio, section: inventoryItemsSection });
+
+  // ONE EXTRA READ, AND ONLY WHEN A CUSTOMER IS NAMED. The technical screen
+  // lists the catalogue once for every quotation it might open, and has no
+  // customer at that point; a builder opened on a real quotation asks again
+  // with its client, which is the only time a rate can apply.
+  const client = clientId && salesClientsSection
+    ? await Clients.byId({ studio, section: salesClientsSection }, clientId)
+    : null;
+  const rates = ratesByItem((client as { rates?: unknown } | null)?.rates);
 
   // TODAY'S RATES, ONCE FOR THE WHOLE CATALOGUE. An item bought abroad is priced
   // in somebody else's money, and a quotation is written in the studio's — so
@@ -1186,13 +1209,29 @@ export async function catalogueItems({ studio, inventoryItemsSection }: Pick<Tec
     // studio needs to quote above cost, that margin belongs on the item.
     .map((r) => {
       const landed = landedUnitCost(r, String(studio.currency || ""), snapshot.rates);
+      const resolved = resolveUnitPrice({
+        cost: landed.unitPrice,
+        sellPrice: (r as { sellPrice?: unknown }).sellPrice,
+        customerRate: rates[String(r.id)],
+      });
       return {
         id: r.id, name: String(r.name), sku: String(r.sku || ""),
         unit: String(r.unit || ""), image: String(r.image || ""),
         // ALWAYS IN THE STUDIO'S MONEY — this is what a quotation line is priced
         // at, and every total downstream adds it up without asking where it came
-        // from. Zero when it could not be converted, which `priced` explains.
-        unitPrice: landed.unitPrice,
+        // from. It is the RESOLVED price now: the customer's agreed rate, else
+        // the studio's own sell price, else landed cost. It used to be cost
+        // outright, which is how a studio quoted its work at what it paid.
+        unitPrice: resolved.price,
+        // WHERE THAT NUMBER CAME FROM, as a token the screen translates. Without
+        // it a builder cannot tell a considered price from the cost fallback,
+        // and the two look identical on the line.
+        priceBasis: resolved.basis,
+        sellPrice: Number((r as { sellPrice?: unknown }).sellPrice) || 0,
+        // The landed cost, kept beside the price rather than replaced by it:
+        // the margin on a line is the one number a reviewer wants and it cannot
+        // be recovered from the price alone.
+        landedUnit: landed.unitPrice,
         // WHAT IT IS IN and what it was BEFORE, so the builder can show its
         // working rather than a number that silently differs from Registered
         // Items. Nothing here is priced from these — they are the explanation.

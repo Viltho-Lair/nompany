@@ -41,6 +41,13 @@ export const SiteSchema = z.object({
  * `code` is derived from the name and is what every ticket reference is built
  * on — ACME-001 — so it is stored rather than recomputed.
  */
+/** One item's agreed price for one customer. Mirrors shared/pricing's CustomerRate. */
+export const CustomerRateSchema = z.object({
+  itemId: z.string().max(60),
+  unitPrice: z.number(),
+  note: z.string().max(200),
+});
+
 export const ClientSchema = z.object({
   id: z.string(),
   studioId: z.string(),
@@ -54,6 +61,20 @@ export const ClientSchema = z.object({
   notes: z.string().max(2000),
   contacts: z.array(ContactSchema),
   locations: z.array(SiteSchema),
+  /**
+   * WHAT THIS CUSTOMER HAS BEEN PROMISED, per registered item.
+   *
+   * On the CLIENT rather than in a collection of its own, for the same reason
+   * contacts and locations are: a rate is a fact about this relationship, it is
+   * read whenever the client is, and it dies with them. Capped (shared/pricing
+   * MAX_RATES) because a row is a document — a studio with a genuinely
+   * catalogue-wide price list for one customer wants a list, which is a
+   * different feature and is written down as not built.
+   *
+   * A rate BEATS the studio's own sell price when a line for this customer is
+   * priced; see shared/pricing.ts for the order and why cost is last.
+   */
+  rates: z.array(CustomerRateSchema).optional(),
 
   // LEGACY, pre-dating `contacts`. Nothing writes these any more; records made
   // before the list existed still carry them, and `clientContacts` reads either

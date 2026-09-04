@@ -1,6 +1,7 @@
 "use client";
 
 import { CURRENCIES_FROM_EXCHANGE_API } from "@/shared/currencies";
+import { marginPct } from "@/shared/pricing";
 import { useStudioLocale } from "@/components/studio2/locale";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { inventoryDict } from "@/shared/studio/inventory";
@@ -278,6 +279,28 @@ function Items({ items, vendors, units, serviceActions, studioCurrency, canManag
                   renderCell: ({ row }) => <span className="num text-slate-600 dark:text-slate-300">{row.unitCost > 0 ? money(row.unitCost) : "—"}</span>,
                 },
                 {
+                  // SELL PRICE AND THE MARGIN IT IMPLIES, beside the cost. The
+                  // margin is shown rather than left to be worked out: it is
+                  // the number somebody scanning this list is actually after,
+                  // and it is the one that reveals an item priced below cost.
+                  field: "sellPrice", headerName: tr.sellPrice, type: "number", minWidth: 130, flex: 0.8,
+                  align: "right", headerAlign: "right",
+                  renderCell: ({ row }) => {
+                    const m = marginPct(row.sellPrice, row.unitCost);
+                    if (!(row.sellPrice > 0)) return <span className="text-slate-400">—</span>;
+                    return (
+                      <span className="num text-slate-700 dark:text-slate-200">
+                        {money(row.sellPrice)}
+                        {m != null && (
+                          <span className={`ms-1.5 text-[11px] font-600 ${m < 0 ? "text-rose-600 dark:text-rose-300" : "text-slate-400"}`}>
+                            {m}%
+                          </span>
+                        )}
+                      </span>
+                    );
+                  },
+                },
+                {
                   field: "onHand", headerName: tr.hand, type: "number", minWidth: 110, flex: 0.7,
                   align: "right", headerAlign: "right",
                   renderCell: ({ row }) => (
@@ -370,9 +393,17 @@ function ItemForm({ row, vendors, units, serviceActions = [], studioCurrency = "
     itemType: row?.itemType || "", deliveryWeeks: row?.deliveryWeeks ?? "",
     scope: Array.isArray(row?.scope) ? row.scope : [],
     reorderLevel: row?.reorderLevel || "", unitCost: row?.unitCost || "", notes: row?.notes || "",
+    sellPrice: row?.sellPrice || "",
     currency: row?.currency || "", image: row?.image || "",
     shippingCharges: row?.shippingCharges ?? "", customsCharges: row?.customsCharges ?? "",
   });
+
+  // THE MARGIN THE TYPED PRICE IMPLIES, as it is typed. A price BELOW cost is
+  // the mistake this catches and it is invisible otherwise — two numbers in
+  // different boxes do not compare themselves. Null when there is no cost to
+  // compare against, which is an unknown margin rather than a margin of 100%.
+  const margin = marginPct(f.sellPrice, f.unitCost);
+  const sellHint = margin == null ? undefined : tr.marginIs(margin);
   const vendor = vendors.find((v) => v.id === f.vendorId);
   const types = Array.isArray(vendor?.itemTypes) ? vendor.itemTypes : [];
 
@@ -417,6 +448,15 @@ function ItemForm({ row, vendors, units, serviceActions = [], studioCurrency = "
           <Field label={tr.currency} as="select" required value={f.currency} onChange={(v) => setF((s) => ({ ...s, currency: v }))}
             options={[{ value: "", label: tr.studio }, ...CURRENCIES_FROM_EXCHANGE_API.map((c) => ({ value: c.code, label: c.code }))]} />
         </div>
+        {/* WHAT IT SELLS FOR, in the studio's own money whatever it was
+            bought in — the cost above is converted before anything is quoted
+            (landedUnitCost), and a sell price in a second currency would have
+            to be converted too and would be one more thing to keep true.
+            Blank means unpriced: shared/pricing falls back to cost and says so,
+            rather than quoting a nought somebody has to notice. */}
+        <Field label={tr.sellPrice} type="number" min="0" value={f.sellPrice}
+          onChange={(v) => setF((s) => ({ ...s, sellPrice: v }))} inputProps={{ step: "0.01" }}
+          hint={sellHint} />
         <Field label={tr.reorderLevel} type="number" min="0" value={f.reorderLevel} onChange={(v) => setF((s) => ({ ...s, reorderLevel: v }))} />
         {/* Only for an item priced in somebody else's money — and then both are
             asked for, because "we didn't say" and "it was nothing" are

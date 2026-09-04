@@ -302,6 +302,7 @@ export default function QuotationBuilder({ quote, catalogue = [], currency = "",
                               ? <>{money(num(row.unitPrice))} <span className="text-slate-400">{currency}</span></>
                               : <span className="font-sans text-slate-400">—</span>}
                             <Conversion src={itemById[row.itemId]} />
+                            <PriceBasis src={itemById[row.itemId]} tr={tr} />
                           </td>
                           {/* The % sits beside the field rather than inside the
                               value, so what is typed stays a plain number and
@@ -405,6 +406,31 @@ export default function QuotationBuilder({ quote, catalogue = [], currency = "",
 // The full sum is on the hover title rather than in the row, because the cell is
 // a narrow column in a wide table — the line says WHAT was converted and at what
 // rate, and the title says how that figure was reached.
+// WHERE THE PRICE CAME FROM, under the price.
+//
+// The catalogue resolves a line's price from three places — what this customer
+// was promised, the studio's own sell price, or landed cost (shared/pricing.ts).
+// Two of those are worth saying out loud on the line itself: a CUSTOMER rate,
+// because the person checking the document should know this figure is not the
+// list price and did not come from a typo; and COST, because it means nobody
+// has priced the item and the studio is about to quote its work at what it
+// paid. The sell price is the ordinary case and says nothing.
+//
+// Not stored on the row, for the reason the note above `itemById` gives: a line
+// holds what was quoted, and where that came from is the catalogue's business.
+function PriceBasis({ src, tr }) {
+  const basis = src?.priceBasis;
+  if (basis !== "customer" && basis !== "cost") return null;
+  const customer = basis === "customer";
+  return (
+    <p className={`mt-0.5 font-sans text-[11px] font-600 ${
+      customer ? "text-brand-700 dark:text-brand-300" : "text-amber-700 dark:text-amber-300"
+    }`}>
+      {customer ? tr.priceFromCustomerRate : tr.priceFromCost}
+    </p>
+  );
+}
+
 function Conversion({ src }) {
   if (!src?.converted) return null;
 

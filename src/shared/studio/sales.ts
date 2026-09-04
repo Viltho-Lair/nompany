@@ -38,6 +38,18 @@ type Strings = CommonStrings & {
   noSitesYet: string;
   noContractsForCustomer: string;
   openCustomer: string;
+  // AGREED RATES — what this customer pays, whatever the list says.
+  agreedRates: string;
+  agreedRatesSub: string;
+  noRatesYet: string;
+  editRates: string;
+  addRate: string;
+  rateItem: string;
+  ratePrice: string;
+  rateNote: string;
+  listPriceIs: (v: string) => string;
+  itemNoLongerExists: string;
+  save: string;
   // The page a member with `crmSales.clients.view` and no commercial right
   // sees: the company and its people, and deliberately nothing else. Said in
   // words, because a page that simply stops looks broken.
@@ -238,6 +250,19 @@ const en: Strings = {
   noSitesYet: "No sites recorded.",
   noContractsForCustomer: "No contracts have been signed with this customer.",
   openCustomer: "Open this customer",
+  agreedRates: "Agreed rates",
+  agreedRatesSub: "What this customer pays, whatever the list says. A rate here beats the item's sell price on every quotation raised for them.",
+  noRatesYet: "No rates agreed with this customer.",
+  editRates: "Edit rates",
+  addRate: "Add a rate",
+  rateItem: "Item",
+  ratePrice: "Agreed price",
+  rateNote: "Note",
+  listPriceIs: (v) => `List ${v}`,
+  // A rate whose item has since been deleted. Shown rather than hidden: it is a
+  // promise the studio made, and the next save is what clears it.
+  itemNoLongerExists: "This item no longer exists",
+  save: "Save",
   onlyTheCompany: "The company, and no commercial history",
   onlyTheCompanyBody: "Deals, quotations, contracts and projects each need their own access. Ask an administrator if you should be seeing them here.",
   pipeline: "Pipeline",
@@ -426,6 +451,17 @@ const ar: Strings = {
   noSitesYet: "لا توجد مواقع مسجّلة.",
   noContractsForCustomer: "لم يُوقّع أي عقد مع هذا العميل.",
   openCustomer: "فتح ملف العميل",
+  agreedRates: "الأسعار المتفق عليها",
+  agreedRatesSub: "ما يدفعه هذا العميل، مهما كان سعر القائمة. السعر هنا يسبق سعر بيع الصنف في كلّ عرض سعر يُرفع له.",
+  noRatesYet: "لا توجد أسعار متفق عليها مع هذا العميل.",
+  editRates: "تعديل الأسعار",
+  addRate: "إضافة سعر",
+  rateItem: "الصنف",
+  ratePrice: "السعر المتفق عليه",
+  rateNote: "ملاحظة",
+  listPriceIs: (v) => `سعر القائمة ${v}`,
+  itemNoLongerExists: "لم يعد هذا الصنف موجودًا",
+  save: "حفظ",
   onlyTheCompany: "بيانات الشركة فقط، دون السجلّ التجاري",
   onlyTheCompanyBody: "الصفقات وعروض الأسعار والعقود والمشاريع يحتاج كلّ منها إلى صلاحية خاصة به. راجع المسؤول إن كان ينبغي أن تراها هنا.",
   pipeline: "مسار الصفقات",

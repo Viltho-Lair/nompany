@@ -1,0 +1,28 @@
+{
+  "status": 200,
+  "body": {
+    "ok": true,
+    "client": {
+      "id": "<sal_ID>",
+      "name": "Second Client",
+      "code": "Second-Client",
+      "industry": "",
+      "website": "",
+      "logo": "",
+      "notes": "",
+      "contacts": [],
+      "locations": [],
+      "createdByCollaboratorId": "<col_ID>",
+      "createdAt": "<timestamp>",
+      "studioId": "<std_ID>",
+      "sectionId": "<sub_ID>",
+      "rates": [
+        {
+          "itemId": "<inv_ID>",
+          "unitPrice": 120,
+          "note": "Framework agreement 2026"
+        }
+      ]
+    }
+  }
+}

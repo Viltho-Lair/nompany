@@ -446,6 +446,10 @@ export async function createItem(ctx: InventoryContext, body: Record<string, unk
     serials: cleanSerials(body?.serials),
     reorderLevel: qty(body?.reorderLevel) > 0 ? qty(body.reorderLevel) : 0,
     unitCost: money(body?.unitCost),
+    // WHAT IT SELLS FOR, beside what it cost. Zero means unpriced rather than
+    // free — shared/pricing.ts falls back to cost and says so, instead of
+    // quoting a nought somebody would have to notice.
+    sellPrice: money(body?.sellPrice),
     // What that cost is IN. Blank means the studio's own currency, so an item
     // priced in the studio's money needs nothing said about it.
     currency,
@@ -494,6 +498,7 @@ export async function editItem(ctx: InventoryContext, id: string, body: Record<s
   if (body?.notes !== undefined) patch.notes = str(body.notes, 1000);
   if (body?.reorderLevel !== undefined) patch.reorderLevel = qty(body.reorderLevel) > 0 ? qty(body.reorderLevel) : 0;
   if (body?.unitCost !== undefined) patch.unitCost = money(body.unitCost);
+  if (body?.sellPrice !== undefined) patch.sellPrice = money(body.sellPrice);
   // The currency and its two charges are decided together: what the charges
   // must be follows the currency the item ENDS UP with, not the one this
   // request happened to mention. An edit that touches none of the three — a

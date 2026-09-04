@@ -106,6 +106,39 @@ export default function StudioTechnical({ slug, view = "engineering-docs", secti
   }, [slug]);
   useEffect(() => { load(); }, [load]);
 
+  // A CATALOGUE PRICED FOR THE CUSTOMER THIS QUOTATION IS FOR.
+  //
+  // The screen's own load has no customer in mind — it lists every quotation
+  // there might be — so its catalogue carries the studio's list prices. A
+  // builder is opened on ONE quotation, which names one client, and what that
+  // client has been promised beats the list price. So the catalogue is asked
+  // for again, with the client, exactly when a builder opens.
+  //
+  // Only the catalogue is taken from the answer: replacing `data` wholesale
+  // while a dialog is open would swap the row the dialog is editing underneath
+  // it.
+  //
+  // IT CARRIES WHOSE PRICES THEY ARE, and the reader below uses it only when
+  // that matches the customer on screen. Clearing it when the builder changes
+  // would leave a window — between the new client being set and the new answer
+  // arriving — in which the OLD customer's rates are on offer for the new one.
+  // Silently quoting one client at another's agreed prices is the worst thing
+  // this feature could do, so it is made structurally impossible rather than
+  // timed away.
+  const [priced, setPriced] = useState(null);
+  const quoteClientId = editingQuote?.clientId || "";
+  useEffect(() => {
+    if (!quoteClientId) return;
+    let current = true;
+    (async () => {
+      const res = await fetch(`/api/studios/${slug}/technical?clientId=${encodeURIComponent(quoteClientId)}`, { cache: "no-store" });
+      if (!res.ok) return;
+      const body = await res.json().catch(() => null);
+      if (current && body) setPriced({ clientId: quoteClientId, items: body.catalogue || [] });
+    })();
+    return () => { current = false; };
+  }, [slug, quoteClientId]);
+
   // A deep link — /<slug>/technical-quotations?quotation=<id> — OPENS that
   // quotation rather than ringing its row. The list is a paginated Data Grid
   // now and cannot scroll to a row that may sit on another page, so the link
@@ -265,7 +298,9 @@ export default function StudioTechnical({ slug, view = "engineering-docs", secti
           <QuotationBuilder
             quote={quotations.find((q) => q.id === editingQuote.id) || editingQuote}
             canManage={canManageQuotations}
-            catalogue={data.catalogue || []}
+            catalogue={quoteClientId && priced?.clientId === quoteClientId
+              ? priced.items
+              : (data.catalogue || [])}
             currency={data.currency || ""}
             onClose={closeEdit}
             onSave={(p) => send("quotations", "PUT", { ...p, id: editingQuote.id }, true)} />

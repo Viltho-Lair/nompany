@@ -20,7 +20,8 @@ import { useStudioLocale } from "@/components/studio2/locale";
 import { salesDict } from "@/shared/studio/sales";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
-import { panel, h2, sub, microLabel, Empty, StatTile, money, fmtDate } from "@/components/studio2/ui";
+import { panel, h2, sub, btn, btnGhost, microLabel, Empty, Dialog, StatTile, money, fmtDate } from "@/components/studio2/ui";
+import { Field } from "@/components/fields/Field";
 import { StatusPill } from "@/components/studio2/StatusPill";
 
 // A heading and its rows, or a sentence saying there are none. Written once
@@ -66,6 +67,11 @@ export default function StudioCustomer({ slug, clientId }) {
   const tr = salesDict(useStudioLocale());
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
+  // The rate editor's working copy. Null when closed — opening takes a copy of
+  // what is stored, so cancelling genuinely cancels rather than leaving the
+  // screen showing edits nobody saved.
+  const [draft, setDraft] = useState(null);
+  const [busy, setBusy] = useState(false);
 
   // READ AND APPLY ARE SEPARATE, and the reason is a race this page can lose in
   // a way a department screen cannot. Every other studio screen is pointed at
@@ -102,6 +108,28 @@ export default function StudioCustomer({ slug, clientId }) {
   // on screen, and a teardown replaces the subscription with it.
   const reload = useCallback(async () => { apply(await read()); }, [read, apply]);
   useLiveUpdates(slug, reload);
+
+  // THROUGH THE CLIENT'S OWN DOOR. A rate is a field on the client, like a
+  // contact or a site, so it is written by the route that already writes those
+  // — there is no customer-page write endpoint, and adding one would be a second
+  // set of rules over one record.
+  //
+  // The whole list is sent, which is what `cleanRates` expects: it is the one
+  // place that decides what a stored rate may be, and a row priced at zero is
+  // how the editor removes one.
+  const saveRates = async () => {
+    setBusy(true);
+    const res = await fetch(`/api/studios/${slug}/sales/clients`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: clientId, rates: draft.map((r) => ({ itemId: r.itemId, unitPrice: Number(r.unitPrice) || 0, note: r.note })) }),
+    });
+    const out = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (!res.ok) { setError(out.error || "failed"); return; }
+    setDraft(null);
+    apply(await read());
+  };
 
   if (error) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <ScreenSkeleton loadingLabel={tr.loadingCustomer} />;
@@ -202,6 +230,47 @@ export default function StudioCustomer({ slug, clientId }) {
         </>
       )}
 
+      {/* WHAT THIS COMPANY PAYS. Beside each agreed rate is the list price it
+          overrides, so somebody can see what was given away without opening
+          Inventory and comparing by hand — which is the whole reason a rate is
+          worth recording rather than remembering. */}
+      <section className={panel}>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className={h2}>{tr.agreedRates}</h3>
+            <p className={sub}>{tr.agreedRatesSub}</p>
+          </div>
+          {may.editRates && (
+            <button type="button" className={btnGhost} onClick={() => setDraft(data.rates.map((r) => ({ ...r })))}>
+              {tr.editRates}
+            </button>
+          )}
+        </div>
+        {data.rates.length === 0 ? (
+          <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">{tr.noRatesYet}</p>
+        ) : (
+          <ul className="mt-4 divide-y divide-slate-100 dark:divide-white/5">
+            {data.rates.map((r) => (
+              <li key={r.itemId} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-3 first:pt-0 last:pb-0">
+                <span className="min-w-0">
+                  <span className="font-600 text-slate-900 dark:text-white">
+                    {r.name || <span className="text-rose-600 dark:text-rose-300">{tr.itemNoLongerExists}</span>}
+                  </span>
+                  {r.sku && <span className="ms-2 font-mono text-[11px] text-slate-400">{r.sku}</span>}
+                  {r.note && <span className="ms-2 text-xs text-slate-500 dark:text-slate-400">{r.note}</span>}
+                </span>
+                <span className="num text-sm text-slate-700 dark:text-slate-200">
+                  {money(r.unitPrice)}
+                  {r.sellPrice > 0 && (
+                    <span className="ms-2 text-[11px] text-slate-400">{tr.listPriceIs(money(r.sellPrice))}</span>
+                  )}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
       {may.quotations && (
         <Block title={tr.quotationsHeading} empty={tr.noQuotationsForCustomer} rows={quotations.length}>
           {quotations.map((q) => (
@@ -239,6 +308,38 @@ export default function StudioCustomer({ slug, clientId }) {
               right={p.value ? money(p.value) : ""} />
           ))}
         </Block>
+      )}
+
+      {draft && (
+        <Dialog title={tr.agreedRates} description={tr.agreedRatesSub} onClose={() => setDraft(null)} width="max-w-[720px]">
+          <div className="space-y-4">
+            {draft.map((r, i) => (
+              <div key={i} className="grid gap-3 sm:grid-cols-[1fr,9rem,1fr,auto] sm:items-start">
+                <Field label={tr.rateItem} as="select" value={r.itemId}
+                  onChange={(v) => setDraft((d) => d.map((x, j) => (j === i ? { ...x, itemId: v } : x)))}
+                  options={(data.catalogue || []).map((c) => ({ value: c.id, label: c.name }))} />
+                <Field label={tr.ratePrice} type="number" value={r.unitPrice}
+                  onChange={(v) => setDraft((d) => d.map((x, j) => (j === i ? { ...x, unitPrice: v } : x)))}
+                  inputProps={{ step: "0.01", min: "0" }} />
+                <Field label={tr.rateNote} value={r.note || ""}
+                  onChange={(v) => setDraft((d) => d.map((x, j) => (j === i ? { ...x, note: v } : x)))}
+                  inputProps={{ maxLength: 200 }} />
+                <button type="button" className={`${btnGhost} sm:mt-2`}
+                  onClick={() => setDraft((d) => d.filter((_, j) => j !== i))}>×</button>
+              </div>
+            ))}
+            <div className="flex flex-wrap justify-between gap-2">
+              <button type="button" className={btnGhost}
+                onClick={() => setDraft((d) => [...d, { itemId: "", unitPrice: "", note: "" }])}>
+                {tr.addRate}
+              </button>
+              <span className="flex gap-2">
+                <button type="button" className={btnGhost} onClick={() => setDraft(null)}>{tr.cancel}</button>
+                <button type="button" className={btn} disabled={busy} onClick={saveRates}>{tr.save}</button>
+              </span>
+            </div>
+          </div>
+        </Dialog>
       )}
 
       {client.notes && (

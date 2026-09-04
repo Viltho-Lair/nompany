@@ -24,8 +24,20 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
     return Response.json({ error: tech.error }, { status });
   }
 
+  // WHOSE PRICES. A quotation is written FOR somebody, and what that customer
+  // has been promised beats the studio's list price (shared/pricing.ts). The
+  // screen lists the catalogue once with no customer in mind; a builder opened
+  // on a real quotation asks again with that quotation's client, and the extra
+  // read happens only then.
+  //
+  // The rate table itself never comes back — only the resolved price and a
+  // token saying where it came from. Reading what THIS line costs is inherent
+  // to quoting it; the rest of the relationship's pricing is not, and this
+  // route is reached on Technical's grant rather than on Sales'.
+  const clientId = new URL(request.url).searchParams.get("clientId") || "";
+
   const [rfqs, quotations, tickets, people, catalogue, clients] = await Promise.all([
-    listRfqs(tech), listQuotations(tech), openTickets(tech), technicalPeople(tech), catalogueItems(tech),
+    listRfqs(tech), listQuotations(tech), openTickets(tech), technicalPeople(tech), catalogueItems(tech, clientId),
     // The Sales clients, for the internal-quotation picker — folded into this
     // same wave rather than read after, so the screen still costs one round of
     // waiting regardless of how many lists it now shows.

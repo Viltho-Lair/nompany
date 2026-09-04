@@ -31,6 +31,7 @@ Three rules that keep this folder worth reading:
 | [language.md](language.md) | EN/AR and RTL: what decides which language, where the buttons are, what is translated |
 | [list-tables.md](list-tables.md) | The department list tables: the shared Data Grid, and the search / filter / column controls above it |
 | [media.md](media.md) | Uploaded files: Blob for the binary, Redis for the record, the membership check on private reads |
+| [pricing.md](pricing.md) | What a quotation line is priced at: the customer's agreed rate, the studio's sell price, or cost — and how each is shown |
 | [pipeline.md](pipeline.md) | The sales funnel: the stages a deal moves through, the moves that are refused, how long it has sat where it is, and why it ended |
 | [pg-gateway.md](pg-gateway.md) | Reaching Cloud SQL from Vercel: the Cloud Run service, one call one transaction, and the guards re-run server-side |
 | [studio-ownership.md](studio-ownership.md) | Who owns a studio and how many: two on the free package, unlimited on any other, and why there is no `ix:owner` |

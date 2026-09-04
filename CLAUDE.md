@@ -503,7 +503,7 @@ waits for the gateway.
 **Waves 0–1 are complete; Gate A is green.** Wave 0 shipped (orphan-sweep guard,
 credential rate limiting, console session expiry, traffic-ingest bounds, media tenancy,
 security headers, bcrypt 12 with rehash-on-login, M-1 dead capabilities). Gate A shipped:
-170 golden responses over every surface, the 135-key permission matrix, hop counting, six
+171 golden responses over every surface, the 135-key permission matrix, hop counting, six
 architectural assertions, **per-route permission enforcement in every module**, **ESLint**
 (flat config + shrink-only warning budget, 142 today), **observability** (request ids, per-request hop
 counts), and CI enforcing all of it.
@@ -514,7 +514,7 @@ the catalogue assertion in `tests/gate-a.mjs`), because a pass condition quoted 
 a pass condition nobody can check.
 
 **Wave 2 (seams + performance) is mostly done; Gate B is 2 of 3.** Zero direct `readCol` in
-service code ✅, goldens unchanged by the seam work ✅ (170 today), hops ≤2 for the studio route and 3 for sales
+service code ✅, goldens unchanged by the seam work ✅ (171 today), hops ≤2 for the studio route and 3 for sales
 (the structural floor). Done: Seam A (route wrapper, all 96 routes), Seam B (repository
 interface + the `readCol` migration across all 13 modules), Seam C (one context factory,
 killed hop 7), request-scoped cache + batched prefetch (8→2 hops), targeted live updates,
@@ -658,6 +658,29 @@ the gate is for.
 Won value is the figure the page exists for and no screen could answer before. "Open value"
 excludes On-Hold, **matching the pipeline board exactly** — the same words for the same figure,
 or the words stop meaning anything.
+
+**Slice 4 — pricing and customer rates**, and again **no permission key**: catalogue stays at
+135. `docs/functionality/pricing.md` is the file.
+
+**A quotation line was priced at LANDED COST.** `catalogueItems` said so itself: "unitCost is
+the only price Registered Items holds — if the studio needs to quote above cost, that margin
+belongs on the item." It did not belong on the item because it **was not on the item**, so a
+studio that did not hand-edit every line quoted its work at what it had paid. There are three
+sources now, most specific first (`src/shared/pricing.ts`, pure and shared with the screens):
+what THIS customer was promised (`rates` on the client, beside contacts and locations), then
+the studio's own `sellPrice`, then cost — **and the basis travels with the number**, because on
+a line a considered price and the cost fallback are the same digits.
+
+**The rate table never leaves the server**: Technical is handed the resolved price and a token,
+never the customer's prices for every other item. The catalogue is asked for WITH a customer
+only when a builder opens on a real quotation, and the answer **carries whose prices they are**
+— the screen uses it only when that matches the customer on screen, so quoting one client at
+another's agreed rates is structurally impossible rather than timed away.
+
+**`ItemSchema` gained `unitCost`, `notes` and `image`, which it stored all along and never
+declared** — so `Item` did not have them and every reader wrote its own inline shape to reach
+them. The same class of bug as `closedAt`/`lostReason`, from the other end: written but
+undeclared rather than declared but unwritten.
 
 **Open decisions (waiting on a person):** the Wave 4 palette (marketing dark-first
 indigo/Sora vs the ERP's light-first blue/Saira); and whether to denormalise the slug index

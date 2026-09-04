@@ -145,6 +145,7 @@
         "serials": [],
         "reorderLevel": 0,
         "unitCost": 420,
+        "sellPrice": 0,
         "currency": "USD",
         "shippingCharges": 25,
         "customsCharges": 15,

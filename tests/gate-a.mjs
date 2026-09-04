@@ -1258,7 +1258,7 @@ console.log("== sales: the module's whole surface, with data in it");
     customer.body?.deals?.winRate === 0 && customer.body?.deals?.wonValue === 0,
     JSON.stringify({ winRate: customer.body?.deals?.winRate, won: customer.body?.deals?.wonValue }));
   ok("the owner may see every block", JSON.stringify(customer.body?.may) === JSON.stringify(
-    { deals: true, quotations: true, contracts: true, projects: true }), JSON.stringify(customer.body?.may));
+    { deals: true, quotations: true, contracts: true, projects: true, editRates: true }), JSON.stringify(customer.body?.may));
 
   await shot("sales.customer.missing", await capture(
     CUSTOMER.GET, req(`/api/studios/${slug}/sales/customer?id=sal_doesnotexist000`), P));
@@ -1301,7 +1301,7 @@ console.log("== sales: the module's whole surface, with data in it");
   await shot("sales.customer.clientsonly", thin);
   ok("a clients-only reader still gets the company", thin.body?.client?.name === "Acme Holdings", thin.body?.client?.name);
   ok("...and no block at all", JSON.stringify(thin.body?.may) === JSON.stringify(
-    { deals: false, quotations: false, contracts: false, projects: false }), JSON.stringify(thin.body?.may));
+    { deals: false, quotations: false, contracts: false, projects: false, editRates: false }), JSON.stringify(thin.body?.may));
   ok("...no deals, rather than an empty list of them",
     (thin.body?.deals?.open?.length ?? -1) === 0 && (thin.body?.deals?.decided?.length ?? -1) === 0);
   // THE TOTALS MOVE WITH THE READER, which is the design rather than a bug:
@@ -2085,6 +2085,112 @@ console.log("== inventory: one shared row, two owners, and a check digit");
       Array.from({ length: 501 }, (_, i) => ({ line: i + 2, name: `Flood ${i}` }))), P);
     ok("...and so is one past the ceiling", flood.status === 400 && flood.body?.error === "too-many", JSON.stringify(flood.body));
   }
+}
+
+// ============================================================================
+console.log("== pricing: a line is quoted at what was agreed, not at what it cost");
+// THE DEFECT THIS BLOCK GUARDS. `catalogueItems` copied LANDED COST onto a
+// quotation line, and said so in a comment: "unitCost is the only price
+// Registered Items holds — if the studio needs to quote above cost, that margin
+// belongs on the item." It did not belong on the item because it was not on the
+// item, so a studio that did not hand-edit every line quoted its work at what
+// it paid for it.
+//
+// Three sources now, most specific first (shared/pricing.ts): what THIS
+// customer was promised, then the studio's own sell price, then cost — and the
+// basis travels with the number so a screen can tell a considered price from
+// the fallback. All three are exercised here on one item, through the routes a
+// person actually uses.
+{
+  const ITEMS = await import("@/app/api/studios/[slug]/inventory/items/route.ts");
+  const INVENTORY = await import("@/app/api/studios/[slug]/inventory/route.ts");
+  const CLIENTS = await import("@/app/api/studios/[slug]/sales/clients/route.ts");
+  const SALES = await import("@/app/api/studios/[slug]/sales/route.ts");
+  const TECH = await import("@/app/api/studios/[slug]/technical/route.ts");
+
+  const P = ctx({ slug });
+  // Each block declares its own recorder, the way every other block here
+  // does — `golden`'s EXTRA normalisation is block-local.
+  const shot = async (name, payload) => {
+    const r = golden(name, payload, EXTRA);
+    if (!r.recorded) ok(`${name} matches its golden`, r.ok, r.detail);
+    return payload;
+  };
+  await signIn(owner.id);
+
+  // The vendor and the client this studio already has, found rather than made:
+  // every block in this file shares one studio, and a fixture minted here would
+  // move goldens belonging to modules this block never touches.
+  const inv = await capture(INVENTORY.GET, req(`/api/studios/${slug}/inventory`), P);
+  const vendorId = inv.body?.vendors?.[0]?.id || "";
+  const salesNow = await capture(SALES.GET, req(`/api/studios/${slug}/sales`), P);
+  const clientId = salesNow.body?.clients?.[0]?.id || "";
+  ok("fixture: a vendor and a client already exist", Boolean(vendorId && clientId), `${vendorId} / ${clientId}`);
+
+  // PRICED IN THE STUDIO'S OWN MONEY, so no exchange rate stands between the
+  // cost and the assertion. The FX path has its own coverage; this block is
+  // about which of three numbers wins.
+  const made = await capture(ITEMS.POST, req(`/api/studios/${slug}/inventory/items`, { method: "POST", body: {
+    name: "Rack shelf", sku: "RACK-SHELF-1U", vendorId, unitCost: 100,
+  } }), P);
+  const itemId = made.body?.item?.id;
+  ok("fixture: an item costing 100 in the studio's own money", Boolean(itemId), JSON.stringify(made.body).slice(0, 120));
+
+  const priceOf = async (id, forClient) => {
+    const res = await capture(TECH.GET, req(`/api/studios/${slug}/technical${forClient ? `?clientId=${forClient}` : ""}`), P);
+    const row = (res.body?.catalogue || []).find((c) => c.id === id);
+    return { price: row?.unitPrice, basis: row?.priceBasis, sell: row?.sellPrice, cost: row?.landedUnit };
+  };
+
+  // 1. NOTHING PRICED IT, so it falls back to cost — and SAYS SO. The basis is
+  // the whole point: at cost and priced-at-cost look identical on a line.
+  const atCost = await priceOf(itemId);
+  ok("an unpriced item quotes at cost", atCost.price === 100 && atCost.basis === "cost", JSON.stringify(atCost));
+
+  // 2. THE STUDIO'S OWN SELL PRICE, which is the field whose absence caused all
+  // of this. It beats cost and the basis stops warning.
+  await capture(ITEMS.PUT, req(`/api/studios/${slug}/inventory/items`, { method: "PUT", body: { id: itemId, sellPrice: 150 } }), P);
+  const atList = await priceOf(itemId);
+  ok("a sell price beats cost", atList.price === 150 && atList.basis === "sell", JSON.stringify(atList));
+  ok("...and the cost is still carried beside it", atList.cost === 100, String(atList.cost));
+
+  // 3. WHAT THIS CUSTOMER WAS PROMISED beats both — but only when the catalogue
+  // is asked FOR that customer. The screen lists it once with nobody in mind.
+  const rated = await shot("sales.client.rated", await capture(
+    CLIENTS.PUT, req(`/api/studios/${slug}/sales/clients`, { method: "PUT", body: {
+      id: clientId, rates: [{ itemId, unitPrice: 120, note: "Framework agreement 2026" }],
+    } }), P));
+  ok("the rate is stored against the item it names",
+    rated.body?.client?.rates?.[0]?.unitPrice === 120, JSON.stringify(rated.body?.client?.rates));
+
+  const forThem = await priceOf(itemId, clientId);
+  ok("the customer's agreed rate beats the sell price",
+    forThem.price === 120 && forThem.basis === "customer", JSON.stringify(forThem));
+  // AND ONLY FOR THEM. A catalogue asked for with no customer must not carry
+  // one customer's prices — quoting somebody else at those rates is the worst
+  // thing this feature could do.
+  const forNobody = await priceOf(itemId);
+  ok("...and nobody else is quoted at it", forNobody.price === 150 && forNobody.basis === "sell", JSON.stringify(forNobody));
+
+  // A RATE AGAINST AN ITEM THAT DOES NOT EXIST prices nothing and would sit in
+  // the record looking like a promise the studio had made, so it is dropped
+  // rather than stored.
+  const bogus = await capture(CLIENTS.PUT, req(`/api/studios/${slug}/sales/clients`, { method: "PUT", body: {
+    id: clientId, rates: [{ itemId, unitPrice: 120, note: "" }, { itemId: "inv_doesnotexist00", unitPrice: 5, note: "" }],
+  } }), P);
+  ok("a rate naming no item is dropped", (bogus.body?.client?.rates || []).length === 1,
+    JSON.stringify(bogus.body?.client?.rates));
+
+  // ZERO IS A DELETION, not a promise to supply for nothing — it is how the
+  // editor removes a rate without a second verb.
+  const cleared = await capture(CLIENTS.PUT, req(`/api/studios/${slug}/sales/clients`, { method: "PUT", body: {
+    id: clientId, rates: [{ itemId, unitPrice: 0, note: "" }],
+  } }), P);
+  ok("a rate of zero removes it", (cleared.body?.client?.rates || []).length === 0,
+    JSON.stringify(cleared.body?.client?.rates));
+  const afterClear = await priceOf(itemId, clientId);
+  ok("...and the item goes back to the list price", afterClear.price === 150 && afterClear.basis === "sell",
+    JSON.stringify(afterClear));
 }
 
 // ============================================================================

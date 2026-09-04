@@ -59,6 +59,31 @@ export const ItemSchema = z.object({
   currency: z.string().optional(),
   shippingCharges: z.number().optional(),
   customsCharges: z.number().optional(),
+
+  // ---- what it costs, and what it sells for --------------------------------
+  /**
+   * WHAT THE STUDIO PAID. Declared here at last: `createItem` has written it
+   * and `stockValue` and `landedUnitCost` have read it from the beginning, and
+   * it was never on this schema — so `Item` did not have the field, and every
+   * reader declared its own inline shape to get at it. The same undeclared
+   * shape as `notes` and `image` below.
+   */
+  unitCost: z.number().optional(),
+  /**
+   * WHAT THE STUDIO SELLS IT FOR, and the field whose absence meant a studio
+   * quoted its work at cost.
+   *
+   * `catalogueItems` copied landed COST onto a quotation line and said so in a
+   * comment: "unitCost is the only price Registered Items holds — if the studio
+   * needs to quote above cost, that margin belongs on the item." It does now.
+   * Blank rather than zero when unset: an item nobody has priced is not an item
+   * priced at nothing (shared/pricing.ts, `basis: "none"`).
+   */
+  sellPrice: z.number().optional(),
+  /** Free text on the item. Written by editItem, never declared until now. */
+  notes: z.string().max(1000).optional(),
+  /** A stored data URI. Read by the quotation builder, never declared until now. */
+  image: z.string().optional(),
 });
 
 /**

@@ -223,6 +223,11 @@ type Strings = CommonStrings & {
   unassigned: string;
   unit: string;
   unitCost: string;
+  // WHAT IT SELLS FOR, and the margin that implies. `marginIs` takes a
+  // number rather than a formatted string so each language decides where
+  // the sign goes.
+  sellPrice: string;
+  marginIs: (pct: number) => string;
   unknownVendor: string;
   upload: string;
   uploading: string;
@@ -472,6 +477,8 @@ Here is my vendor list:`,
   unassigned: "Unassigned",
   unit: "Unit",
   unitCost: "Unit cost",
+  sellPrice: "Sell price",
+  marginIs: (pct) => (pct < 0 ? `Below cost (${pct}% margin)` : `${pct}% margin`),
   unknownVendor: "Unknown vendor",
   upload: "Upload",
   uploading: "Uploading…",
@@ -721,6 +728,8 @@ Name,Contact Name,Email,Phone,Item Types
   unassigned: "غير مُسند",
   unit: "الوحدة",
   unitCost: "تكلفة الوحدة",
+  sellPrice: "سعر البيع",
+  marginIs: (pct) => (pct < 0 ? `دون التكلفة (هامش ${pct}%)` : `هامش ${pct}%`),
   unknownVendor: "مورّد غير معروف",
   upload: "رفع",
   uploading: "جارٍ الرفع…",

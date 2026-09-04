@@ -21,6 +21,7 @@ import { moduleContext } from "../context";
 import { listCollaborators } from "@/platform/auth/collaborators";
 import { TICKET_STATUSES, DEFAULT_STATUS, TICKET_URGENCIES, DEFAULT_URGENCY, TICKET_INDUSTRIES, TICKET_LIVE_COLUMNS, DEFAULT_LIVE_COLUMNS, cleanLiveColumns, normaliseProbability } from "./tickets";
 import { stageProblem, stagePatch } from "./pipeline";
+import { cleanRates } from "@/shared/pricing";
 import { normaliseClientName, clientSlug, resolveClientFor, upsertLocation } from "./salesClients";
 import { nextUniqueRef } from "@/modules/main/references";
 import { traverseIn } from "@/platform/relations";
@@ -58,6 +59,9 @@ const PROJECTS = "projects";
 // what stops a query naming another tenant's keys and what lets one object
 // answer for a sibling department's rows as easily as its own.
 const Clients = repo<Client>(CLIENTS);
+// Registered Items, read on exactly one path: checking a customer's agreed
+// rates against the catalogue they name (editClient).
+const InventoryItems = repo<{ id: string }>("inventoryItems");
 const Projects = repo<Project>(PROJECTS);
 const Quotations = repo<Quotation>(QUOTATIONS);
 const Rfqs = repo<Rfq>(RFQS);
@@ -103,6 +107,10 @@ export const salesContext = moduleContext<SalesContext>({
     tasks: "tasks",
     tasksSettings: ["tasks-settings", "tasks"],
     projects: ["projects-list", "projects"],
+    // Registered Items, so a customer's agreed rate can be checked against the
+    // catalogue it names. Read on ONE path only — an edit that actually carries
+    // rates — and never otherwise.
+    inventoryItems: ["inventory-items", "inventory"],
   },
   flags: ["tickets", "clients", "settings"],
   extend: ({ tasksSettingsSection, settingsSection }) => ({
@@ -258,6 +266,21 @@ export async function editClient(ctx: SalesContext, id: string, body: Record<str
   if (body?.logo !== undefined) patch.logo = str(body.logo, 400000);
   if (body?.contacts !== undefined) patch.contacts = cleanContacts(body.contacts);
   if (body?.locations !== undefined) patch.locations = cleanLocations(body.locations);
+
+  // AGREED RATES, CHECKED AGAINST THE CATALOGUE THEY NAME — and the catalogue
+  // is read ONLY on a request that actually carries rates. Renaming a client or
+  // adding a contact is the common edit and pays nothing for this.
+  //
+  // A rate against an item that no longer exists prices nothing and would sit
+  // in the record forever looking like a promise the studio had made, so
+  // cleanRates drops it. A studio with no Inventory section has no catalogue to
+  // check against, and storing rates nothing could ever match would be worse
+  // than refusing: `no-catalogue` says which of the two is missing.
+  if (body?.rates !== undefined) {
+    if (!ctx.inventoryItemsSection) return { error: "no-catalogue" };
+    const items = await InventoryItems.find({ studio, section: ctx.inventoryItemsSection });
+    patch.rates = cleanRates(body.rates, new Set(items.map((i) => i.id)));
+  }
 
   const client = await Clients.update({ studio, section: clientsSection }, id, patch);
   return client ? { client } : { error: "notfound" };

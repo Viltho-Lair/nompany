@@ -28,6 +28,7 @@ import type { Contract } from "./contractSchema";
 import type { ChangeOrder } from "./changeOrderSchema";
 import type { Quotation } from "@/modules/technical/types";
 import type { Project } from "@/modules/projects/types";
+import type { Item } from "@/modules/inventory/types";
 
 const Clients = repo<Client>("salesClients");
 const Tickets = repo<SalesTicket>("salesTickets");
@@ -35,6 +36,8 @@ const Quotations = repo<Quotation>("quotations");
 const Contracts = repo<Contract>("contracts");
 const ChangeOrders = repo<ChangeOrder>("changeOrders");
 const Projects = repo<Project>("projects");
+// Registered Items, for naming a customer's rates and for the editor's picker.
+const Items = repo<Item>("inventoryItems");
 
 const num = (v: unknown) => (Number(v) > 0 ? Number(v) : 0);
 
@@ -57,6 +60,12 @@ export async function customerProfile(ctx: SalesContext, id: string) {
     quotations: !requirePermission(access, "crmSales.quotations.view"),
     contracts: !requirePermission(access, "crmSales.contracts.view"),
     projects: !requirePermission(access, "projects.list.view"),
+    // RATES ARE THE CLIENT'S OWN DATA, like their contacts and their sites, so
+    // whoever may read the client may read what the client was promised — there
+    // is no separate right and the page's own `crmSales.clients.view` covers it.
+    // Changing one is editing the client, and answers to clients.edit; the
+    // catalogue below is fetched only for somebody who may actually pick from it.
+    editRates: !requirePermission(access, "crmSales.clients.edit"),
   };
 
   // WHERE IS DATA, NOT A PREDICATE — repo.find's declared vocabulary, so this
@@ -67,7 +76,7 @@ export async function customerProfile(ctx: SalesContext, id: string) {
   // studio without Projects simply has no projects block — an empty result is
   // the honest answer, and offering an error would be inventing a fault.
   const byClient = { where: { clientId: id } };
-  const [tickets, quotations, contracts, changeOrders, projects] = await Promise.all([
+  const [tickets, quotations, contracts, changeOrders, projects, items] = await Promise.all([
     may.deals && ticketsSection ? Tickets.find({ studio, section: ticketsSection }, byClient) : [],
     may.quotations && quotationsSection ? Quotations.find({ studio, section: quotationsSection }, byClient) : [],
     may.contracts && quotationsSection ? Contracts.find({ studio, section: quotationsSection }, byClient) : [],
@@ -76,7 +85,36 @@ export async function customerProfile(ctx: SalesContext, id: string) {
     // contracts already narrowed above, which is the only join that exists.
     may.contracts && quotationsSection ? ChangeOrders.find({ studio, section: quotationsSection }) : [],
     may.projects && projectsSection ? Projects.find({ studio, section: projectsSection }, byClient) : [],
+    // THE CATALOGUE, for two jobs: naming the items this customer has rates on,
+    // and offering the rest to whoever may add one. Read whenever the studio has
+    // an Inventory section, because a rate whose item cannot be NAMED is a row
+    // that reads "some item: 900", which is worse than not showing it.
+    ctx.inventoryItemsSection
+      ? Items.find({ studio, section: ctx.inventoryItemsSection })
+      : [],
   ]);
+
+  // The agreed rates, each carrying the name of what it prices and the numbers
+  // it is to be judged against. `cost` and `sellPrice` sit beside the rate so a
+  // reader can see what was given away without opening Inventory.
+  const itemById = new Map<string, Item>(items.map((i) => [i.id, i] as const));
+  const rates = (Array.isArray(client.rates) ? client.rates : [])
+    .map((r) => {
+      const item = itemById.get(r.itemId);
+      return {
+        itemId: r.itemId,
+        name: item?.name || "",
+        sku: item?.sku || "",
+        unitPrice: Number(r.unitPrice) || 0,
+        note: r.note || "",
+        sellPrice: Number(item?.sellPrice) || 0,
+        cost: Number(item?.unitCost) || 0,
+      };
+    })
+    // AN ITEM THAT HAS SINCE BEEN DELETED still shows, named as missing rather
+    // than dropped: cleanRates removes it on the next write, and silently
+    // hiding a promise the studio made until then would be the wrong way round.
+    .sort((a, b) => (a.name || "\uffff").localeCompare(b.name || "\uffff"));
 
   const nowMs = Date.now();
   const deals = tickets
@@ -168,6 +206,14 @@ export async function customerProfile(ctx: SalesContext, id: string) {
       status: q.status || "", total: num(q.total), currency: q.currency || "",
       ticketId: q.ticketId || "",
     })),
+    rates,
+    // What is left to price, for the editor's picker. Only for somebody who may
+    // edit — a reader who cannot change a rate has no use for the catalogue and
+    // should not be handed it.
+    catalogue: may.editRates
+      ? items.map((i) => ({ id: i.id, name: i.name || "", sku: i.sku || "", sellPrice: Number(i.sellPrice) || 0, cost: Number(i.unitCost) || 0 }))
+        .sort((a, b) => a.name.localeCompare(b.name))
+      : [],
     contracts: contractRows,
     contractValue: contractRows.reduce((s, c) => s + c.current, 0),
     projects: projects.map((p) => ({
