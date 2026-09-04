@@ -607,6 +607,9 @@ export const SECTION_DEFS = [
     // is what lets a studio hand role management to somebody without making
     // them an admin — escalates() still decides what any of them may grant.
     { key: "administration-access", name: "Access" },
+    // MASTER DATA OWNS LOCATIONS NOW (SECTION_COLLECTIONS below). It is the
+    // studio's own reference records rather than any department's, which is
+    // why a location belongs here and not on the rota that happens to use one.
     { key: "administration-master", name: "Master data" },
     { key: "administration-settings", name: "Studio settings" },
   ] },
@@ -711,12 +714,16 @@ export const SECTION_COLLECTIONS = {
   // schedule collection.
   "finance-payables": ["bills"],
   "finance-assets": ["fixedAssets"],
-  // field-service — was Operations. All three stay: permits and locations are
-  // tabs of this screen, and the shift rota is the third. The blueprint puts
-  // permits under Quality & HSE and locations under Administration's master
-  // data, and they will go there — in the phase that BUILDS those screens.
-  // Moving them now would strand real rows in sections that render nothing.
-  "field-service": ["shifts", "permits", "locations"],
+  // field-service — was Operations. LOCATIONS HAVE LEFT: Administration's
+  // Master data screen exists now, so the condition this comment used to state
+  // is met, and a collection is re-homed only into a section that can actually
+  // open it. Permits stay until Quality & HSE has a screen, on the same rule.
+  //
+  // Operations still READS locations — a shift and a permit each name one —
+  // through a foreign section on its context, the same way Finance reads
+  // Projects. Reading a collection is not owning it; what moved is which
+  // section deletes them.
+  "field-service": ["shifts", "permits"],
   // A JOB IS DISPATCHED FROM THE SCHEDULE, so it is owned by the Schedule
   // sub-section rather than by the field-service root: a studio that deletes
   // Schedule is a studio that stopped dispatching, and its jobs should go with
@@ -725,6 +732,15 @@ export const SECTION_COLLECTIONS = {
   "field-service-schedule": ["jobs"],
   // One last-known position per person, never a movement trail.
   "field-service-tracking": ["trackingPositions"],
+  // administration — the studio's own reference records, owned by no department.
+  // A LOCATION IS NOT THE ROTA'S. Shifts and permits each name one, which is
+  // why it lived on the Field Operations screen that drew it; but a place the
+  // studio works from outlives any one rota, and Quality's permits and
+  // Projects' sites will want the same list. Master data owns it, Operations
+  // reads it through a foreign section, and deleting Master data is what
+  // deletes locations — which is exactly the coupling worth being deliberate
+  // about, because shifts and permits hold ids into this collection.
+  "administration-master": ["locations"],
   // tasks
   tasks: ["tasks"],
 };

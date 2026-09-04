@@ -260,7 +260,12 @@ console.log("== the permission matrix: one key grants exactly itself");
   // right is what lets a studio delegate role management without handing over
   // everything else an admin can do, and it is the one new seeded key in the
   // Administration fold.
-  ok("the catalogue is the size we last agreed", ALL_PERMISSIONS.length === 126, String(ALL_PERMISSIONS.length));
+  // 130 with administration.master (view/create/edit/delete). Master data is
+  // RECORDS rather than a settings form — a location is created and deleted,
+  // not toggled — so it takes the full ladder where its three siblings take
+  // view/edit. The key was declared once before and deleted in the same
+  // restructure because the screen did not exist; it comes back with it.
+  ok("the catalogue is the size we last agreed", ALL_PERMISSIONS.length === 130, String(ALL_PERMISSIONS.length));
 
   const leaks = [];
   const missing = [];

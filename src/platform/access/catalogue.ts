@@ -314,15 +314,20 @@ const OWN_AREAS = [
   // open the screen does not widen what any of them may hand out.
   { key: "administration.access", group: "Administration & Settings", label: "Roles and access", verbs: ["view", "edit"] },
   { key: "administration.settings", group: "Administration & Settings", label: "Studio settings", verbs: ["view", "edit"] },
-  // NO `administration.master`. It was declared for the locations screen that
-  // Master data will own — and the declaration outlived its own justification
-  // within one commit. `locations` no longer moves in this phase (see
-  // restructure.ts's COLLECTION_MOVES): the collection stays on the
-  // field-service screen that draws it, because `administration-master` renders
-  // nothing and moving rows into a section nobody can open strands them. With
-  // no screen and no collection, the right had nothing to gate — invariant 16,
-  // the third time in this restructure that a section's NAME on the blueprint
-  // was mistaken for a screen existing. It comes back with the screen.
+  // MASTER DATA, AND THE SCREEN ARRIVED WITH IT. This key was declared once
+  // before and deleted in the same restructure, because `administration-master`
+  // rendered nothing: a right over a screen that does not exist is invariant
+  // 16's dead capability, and the note here said it would come back WITH the
+  // screen rather than ahead of it. This is that commit.
+  //
+  // FULL CRUD, unlike its three siblings, because master data is records rather
+  // than a settings form — locations are created and deleted, not toggled. The
+  // rest of the blueprint's master data (currencies, UoM, numbering series,
+  // cost codes, the industry taxonomy, the flow templates) is not here: four of
+  // those already live in Studio settings and move in their own change, and
+  // three have no records at all yet. A tab per absent record would be the same
+  // dead capability wearing a screen.
+  { key: "administration.master", group: "Administration & Settings", label: "Master data", verbs: ["view", "create", "edit", "delete"] },
 
 
   // THE ENGAGEMENT VIEW. One key, and deliberately unscoped: what a person sees

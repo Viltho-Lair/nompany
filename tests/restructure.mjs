@@ -84,15 +84,34 @@ export async function testMapIsIdempotent(t) {
   }
 }
 
-export async function testTheFiveMovesAreDeclared(t) {
+export async function testEveryDeclaredMoveIsListed(t) {
+  // RENAMED FROM testTheFiveMovesAreDeclared. It counted P0's five moves, and
+  // the list is not closed: `locations` joined when Administration's Master
+  // data got a screen it could be opened from. The name said five because five
+  // was true once, which is exactly how a test name stops describing the test.
+  //
+  // WHAT IT GUARDS is unchanged and worth keeping: a collection cannot change
+  // owner without somebody adding it here, so a silent re-home — rows alive,
+  // correct, and reachable by nobody — fails a test rather than going
+  // unnoticed until a screen comes up empty.
   const moved = COLLECTION_MOVES.map((m) => m.collection).sort();
   t.equal(
     moved.join(","),
-    ["awbAirlines", "awbShipments", "generatedDocuments", "qualityAcknowledgements",
-     "qualityAudit", "qualityDocuments", "qualityRevisions", "qualityTypes",
-     "quotations"].sort().join(","),
+    ["awbAirlines", "awbShipments", "generatedDocuments", "locations",
+     "qualityAcknowledgements", "qualityAudit", "qualityDocuments",
+     "qualityRevisions", "qualityTypes", "quotations"].sort().join(","),
     "every collection that changes owner is declared",
   );
+
+  // AND EACH MOVES INTO A SECTION THAT CAN OPEN IT. That is the rule
+  // COLLECTION_MOVES has always followed and the reason locations could not
+  // move until now: a target still in NO_SCREEN_YET renders nothing, so rows
+  // sent there are stranded. Permits are the live example — they are NOT in
+  // the list above, because quality-hse is still declared and screenless.
+  for (const m of COLLECTION_MOVES) {
+    t.equal(NO_SCREEN_YET.includes(m.to), false,
+      `${m.collection} moves into ${m.to}, which must not be a section that renders nothing`);
+  }
 }
 
 export async function testNoAreaExistsForASectionWithNoScreen(t) {
@@ -914,7 +933,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       testEveryMappedTargetActuallyExists,
       testEveryMappedPermissionTargetIsARealArea,
       testMapIsIdempotent,
-      testTheFiveMovesAreDeclared,
+      testEveryDeclaredMoveIsListed,
       testNoAreaExistsForASectionWithNoScreen,
       testEveryAreaGroupIsARealSectionLabel,
       testNoRetiredPermissionKeySurvivesInSource,

@@ -64,8 +64,15 @@ export const operationsContext = moduleContext<OperationsContext>({
   root: "field-service",
   sub: { tracking: "field-service-tracking", settings: "field-service-settings" },
   // HR, because a shift must not be scheduled over leave HR has approved, and
-  // Projects because a shift is worked against one.
-  foreign: { hr: "hr", projectsList: ["projects-list", "projects"] },
+  // Projects because a shift is worked against one. MASTER because locations
+  // live there now — a shift and a permit each name one, and reading a
+  // collection is not owning it. Falls back to the administration root the way
+  // projectsList falls back to projects, and is nullable: a studio without the
+  // section simply has no places to offer.
+  foreign: {
+    hr: "hr", projectsList: ["projects-list", "projects"],
+    master: ["administration-master", "administration"],
+  },
   flags: ["tracking", "settings"],
   extend: ({ settingsSection }) => ({
     settings: (settingsSection as { settings?: Record<string, unknown> })?.settings || {},
@@ -100,6 +107,8 @@ export const scheduleContext = moduleContext<ScheduleContext>({
   foreign: {
     operationsMain: "field-service", settings: "field-service-settings",
     hr: "hr", projectsList: ["projects-list", "projects"],
+    // Locations moved to Administration's Master data; the rota still names one.
+    master: ["administration-master", "administration"],
   },
 });
 
@@ -135,9 +144,11 @@ export async function scheduleView(ctx: ScheduleContext) {
   // they are read from `section` (the foreign operationsMainSection), not a
   // collection of the schedule sub-section's own.
   const [shifts, locations, permits, people, projects] = await Promise.all([
-    listShifts({ studio: ctx.studio, section }),
-    listLocations({ studio: ctx.studio, section }),
-    listPermits({ studio: ctx.studio, section }),
+    listShifts({ studio: ctx.studio, section, masterSection: ctx.masterSection }),
+    // Locations come from Master data, not from `section` — they moved, and
+    // the rota reads them rather than owning them.
+    listLocations({ studio: ctx.studio, masterSection: ctx.masterSection }),
+    listPermits({ studio: ctx.studio, section, masterSection: ctx.masterSection }),
     schedulablePeople(ctx),
     operationsProjects({ studio: ctx.studio }),
   ]);
@@ -275,77 +286,30 @@ export async function clearPosition(ctx: OperationsContext, collaboratorId: stri
   return removed ? { ok: true } : { error: "notfound" };
 }
 
-// ---- locations -------------------------------------------------------------
-export async function listLocations({ studio, section }: Pick<OperationsContext, "studio" | "section">) {
-  const rows = await Locations.find({ studio, section });
+// ---- locations: READ ONLY, and owned elsewhere ------------------------------
+//
+// THEY LIVE UNDER ADMINISTRATION'S MASTER DATA NOW (modules/administration/
+// master.ts), not under this module's own section. A place the studio works
+// from outlives any one rota — a permit to work names one too, and Quality's
+// inspections and Projects' sites will want the same list — so it is the
+// studio's reference data rather than Field Operations'.
+//
+// WHAT OPERATIONS KEPT IS THE READ. A shift and a permit each name a location
+// and have to render it, and validating a write against the list is still this
+// module's job. Creating, editing and deleting a place are Master data's, and
+// they left with the collection — there is deliberately no writer here, so
+// there is exactly one door onto these rows.
+//
+// `masterSection` IS NULLABLE, like every foreign section. A studio whose
+// Master data section is missing has no places to offer rather than an error:
+// the rota still draws and the picker is simply empty. That is the same answer
+// financeContext gives for a studio with no Projects section.
+export async function listLocations(
+  { studio, masterSection }: Pick<OperationsContext, "studio" | "masterSection">,
+) {
+  if (!masterSection) return [];
+  const rows = await Locations.find({ studio, section: masterSection });
   return [...rows].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-}
-
-export async function createLocation(ctx: OperationsContext, body: Record<string, unknown>) {
-  // Guarded before anything is read or written — see platform/access/resolve.ts.
-  const denied = requirePermission(ctx.access, "fieldService.tracking.create");
-  if (denied) return denied;
-
-  const { studio, section } = ctx;
-  const name = str(body?.name, 160);
-  if (!name) return { error: "name" };
-
-  const rows = await Locations.find({ studio, section });
-  if (rows.some((l) => l.name.toLowerCase() === name.toLowerCase())) return { error: "duplicate" };
-
-  const location = await Locations.create({ studio, section }, {
-    name,
-    kind: LOCATION_KINDS.includes(String(body?.kind)) ? String(body?.kind) : LOCATION_KINDS[0],
-    address: str(body?.address, 300),
-    city: str(body?.city, 80),
-    mapUrl: str(body?.mapUrl, 500),
-    notes: str(body?.notes, 1000),
-    createdAt: new Date().toISOString(),
-  });
-  return { location };
-}
-
-export async function editLocation(ctx: OperationsContext, id: string, body: Record<string, unknown>) {
-  // Guarded before anything is read or written — see platform/access/resolve.ts.
-  const denied = requirePermission(ctx.access, "fieldService.tracking.edit");
-  if (denied) return denied;
-
-  const { studio, section } = ctx;
-  const patch: Record<string, unknown> = {};
-  if (body?.name !== undefined) {
-    const name = str(body.name, 160);
-    if (!name) return { error: "name" };
-    const rows = await Locations.find({ studio, section });
-    if (rows.some((l) => l.id !== id && l.name.toLowerCase() === name.toLowerCase())) return { error: "duplicate" };
-    patch.name = name;
-  }
-  if (body?.kind !== undefined && LOCATION_KINDS.includes(String(body.kind))) patch.kind = body.kind;
-  for (const f of ["address", "mapUrl"]) if (body?.[f] !== undefined) patch[f] = str(body[f], 500);
-  if (body?.city !== undefined) patch.city = str(body.city, 80);
-  if (body?.notes !== undefined) patch.notes = str(body.notes, 1000);
-
-  const location = await Locations.update({ studio, section }, id, patch);
-  return location ? { location } : { error: "notfound" };
-}
-
-// Refuses while permits or shifts still point at it — deleting would leave a
-// rota and a stack of paperwork referring to a place that no longer exists.
-export async function removeLocation(ctx: OperationsContext, id: string) {
-  // Guarded before anything is read or written — see platform/access/resolve.ts.
-  const denied = requirePermission(ctx.access, "fieldService.tracking.delete");
-  if (denied) return denied;
-
-  const { studio, section } = ctx;
-  const [permits, shifts] = await Promise.all([
-    Permits.find({ studio, section }),
-    Shifts.find({ studio, section }),
-  ]);
-  const p = permits.filter((x) => x.locationId === id).length;
-  const s = shifts.filter((x) => x.locationId === id).length;
-  if (p || s) return { error: "in-use", permits: p, shifts: s };
-
-  const removed = await Locations.remove({ studio, section }, id);
-  return removed ? { ok: true } : { error: "notfound" };
 }
 
 // ---- permits ---------------------------------------------------------------
@@ -359,10 +323,15 @@ export function permitState(permit: Permit, when = today()) {
   return new Date(`${permit.validTo}T00:00:00`) <= limit ? "Expiring" : "Valid";
 }
 
-export async function listPermits({ studio, section }: Pick<OperationsContext, "studio" | "section">) {
+export async function listPermits(
+  { studio, section, masterSection }: Pick<OperationsContext, "studio" | "section" | "masterSection">,
+) {
   const [permits, locations, people, projects] = await Promise.all([
     Permits.find({ studio, section }),
-    Locations.find({ studio, section }),
+    // FROM MASTER DATA. A record names a place; places are Administration's
+    // now. A studio with no Master data section gets no names rather than an
+    // error — the row still renders, its location is simply blank.
+    masterSection ? Locations.find({ studio, section: masterSection }) : [],
     listCollaborators(studio.id),
     projectRows({ studio }),
   ]);
@@ -396,7 +365,11 @@ export async function createPermit(ctx: OperationsContext, body: Record<string, 
 
   const locationId = str(body?.locationId, 60);
   if (locationId) {
-    const locations = await Locations.find({ studio, section });
+    // VALIDATED AGAINST MASTER DATA'S LIST. Operations no longer owns places,
+    // but it still refuses to point a record at one that does not exist — and
+    // a studio with no Master data section has no valid place to name.
+    if (!ctx.masterSection) return { error: "location" };
+    const locations = await Locations.find({ studio, section: ctx.masterSection });
     if (!locations.some((l) => l.id === locationId)) return { error: "location" };
   }
   const projectId = str(body?.projectId, 60);
@@ -447,7 +420,9 @@ export async function editPermit(ctx: OperationsContext, id: string, body: Recor
   if (body?.locationId !== undefined) {
     const locationId = str(body.locationId, 60);
     if (locationId) {
-      const locations = await Locations.find({ studio, section });
+      // Same rule as the create path: Master data's list decides.
+      if (!ctx.masterSection) return { error: "location" };
+      const locations = await Locations.find({ studio, section: ctx.masterSection });
       if (!locations.some((l) => l.id === locationId)) return { error: "location" };
     }
     patch.locationId = locationId;
@@ -493,12 +468,15 @@ export function shiftHours(shift: Shift) {
 }
 
 export async function listShifts(
-  { studio, section }: Pick<OperationsContext, "studio" | "section">,
+  { studio, section, masterSection }: Pick<OperationsContext, "studio" | "section" | "masterSection">,
   { from = "", to = "" }: { from?: string; to?: string } = {},
 ) {
   const [shifts, locations, people] = await Promise.all([
     Shifts.find({ studio, section }),
-    Locations.find({ studio, section }),
+    // FROM MASTER DATA. A record names a place; places are Administration's
+    // now. A studio with no Master data section gets no names rather than an
+    // error — the row still renders, its location is simply blank.
+    masterSection ? Locations.find({ studio, section: masterSection }) : [],
     listCollaborators(studio.id),
   ]);
   const locName = Object.fromEntries(locations.map((l) => [l.id, l.name]));
@@ -531,7 +509,11 @@ export async function createShift(ctx: ScheduleContext, body: Record<string, unk
 
   const locationId = str(body?.locationId, 60);
   if (locationId) {
-    const locations = await Locations.find({ studio, section });
+    // VALIDATED AGAINST MASTER DATA'S LIST. Operations no longer owns places,
+    // but it still refuses to point a record at one that does not exist — and
+    // a studio with no Master data section has no valid place to name.
+    if (!ctx.masterSection) return { error: "location" };
+    const locations = await Locations.find({ studio, section: ctx.masterSection });
     if (!locations.some((l) => l.id === locationId)) return { error: "location" };
   }
 
@@ -586,7 +568,9 @@ export async function editShift(ctx: ScheduleContext, id: string, body: Record<s
   if (body?.locationId !== undefined) {
     const locationId = str(body.locationId, 60);
     if (locationId) {
-      const locations = await Locations.find({ studio, section });
+      // Same rule as the create path: Master data's list decides.
+      if (!ctx.masterSection) return { error: "location" };
+      const locations = await Locations.find({ studio, section: ctx.masterSection });
       if (!locations.some((l) => l.id === locationId)) return { error: "location" };
     }
     patch.locationId = locationId;

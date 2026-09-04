@@ -136,6 +136,7 @@ export const SECTION_AREAS: Readonly<Record<string, readonly string[]>> = {
   // stays in NO_SCREEN_YET below until the locations move gives it one.
   "administration-members": ["administration.members"],
   "administration-access": ["administration.access"],
+  "administration-master": ["administration.master"],
   "administration-settings": ["administration.settings"],
   // MOVED TO ENGINEERING & DOCUMENTS — the register is the technical truth now
   // (blueprint §3.4); Quality & HSE keeps the evidence (inspections, NCRs,
@@ -350,13 +351,6 @@ export const NO_SCREEN_YET = [
   // the permit register arrive together in the phase that builds them, and this
   // entry goes when they do.
   "quality-hse",
-  // ADMINISTRATION-MASTER IS THE LAST ONE STANDING. Its three siblings left
-  // this list when the section was folded together: each has a SECTION_AREAS
-  // entry now, and the parent follows its children the way every other parent
-  // does. Master data does not, because it still has no screen — currencies,
-  // UoM, numbering series and cost codes are a later phase, and the locations
-  // screen that could fill it today moves in a change of its own.
-  "administration-master",
 ] as const;
 
 // A section is worth showing if the person may see anything in it.

@@ -39,6 +39,8 @@ export type OperationsContext = ModuleContext & {
   settingsSection: Section;
   hrSection: Section | null;
   projectsListSection: Section | null;
+  /** Administration's Master data, where locations live. Nullable like every foreign section. */
+  masterSection: Section | null;
   canViewTracking: boolean;
   canManageTracking: boolean;
   canViewSettings: boolean;
@@ -63,4 +65,6 @@ export type ScheduleContext = ModuleContext & {
   settingsSection: Section | null;
   hrSection: Section | null;
   projectsListSection: Section | null;
+  /** Administration's Master data, where locations live. */
+  masterSection: Section | null;
 };

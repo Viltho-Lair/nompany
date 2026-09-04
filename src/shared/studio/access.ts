@@ -88,6 +88,7 @@ const areas: Record<Locale, Record<string, string>> = {
     "tasks.settings": "الإعدادات",
     "administration.members": "الأشخاص",
     "administration.access": "الأدوار والصلاحيات",
+    "administration.master": "البيانات الأساسية",
     "administration.settings": "إعدادات الاستوديو",
     engagements: "الارتباطات",
   },

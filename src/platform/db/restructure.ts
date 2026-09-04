@@ -175,16 +175,19 @@ export const COLLECTION_MOVES: { collection: string; from: string; to: string }[
   { collection: "awbAirlines",             from: "inventory-awb",        to: "logistics-shipments" },
   // Plans are studio-scoped, not section-scoped, so the planner's restructure is
   // a permission and navigation move only; the collection has no entry here.
-  // PERMITS AND LOCATIONS DELIBERATELY DO NOT MOVE, and the reason is the whole
-  // discipline of this phase: a restructure re-homes a collection only into a
-  // section that can actually OPEN it. Permits to work belong to Quality & HSE
-  // and locations to Administration's master data on the blueprint's map, and
-  // both will go there — but `quality-hse` and `administration-master` render
-  // nothing today (no case for either in the studio router), so moving them now
-  // would leave real rows alive, correct, and reachable by nobody. Stranded data
-  // is worse than data in an unfashionable place: nothing fails, so nothing gets
-  // fixed. They stay on the field-service screen that draws them and travel in
-  // the phase that builds their new homes.
+  //
+  // LOCATIONS MOVE NOW, and the rule this list has always followed is why they
+  // could not before: a restructure re-homes a collection only into a section
+  // that can actually OPEN it. `administration-master` rendered nothing, so
+  // moving them would have left real rows alive, correct, and reachable by
+  // nobody — stranded data is worse than data in an unfashionable place,
+  // because nothing fails and so nothing gets fixed. Master data has a screen
+  // and a permission area now, so the condition is met.
+  { collection: "locations", from: "field-service", to: "administration-master" },
+  // PERMITS STILL DO NOT MOVE, on the same rule and for the same reason:
+  // Quality & HSE renders nothing, holds no permission area, and is still in
+  // NO_SCREEN_YET. They stay on the field-service screen that draws them and
+  // travel in the phase that builds their new home.
 ];
 
 const selfMap = (m: Record<string, string>) => {

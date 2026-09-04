@@ -1,4 +1,5 @@
 import { route, refused } from "@/platform/http/route";
+import { requirePermission } from "@/platform/access";
 import {
   operationsContext, listLocations, listPermits, listShifts, operationsProjects,
   schedulablePeople, weekWindow, summarise, listPositions,
@@ -33,6 +34,15 @@ export const GET = route(spec, async (g) => {
     manage: g.manage,
     me: { collaboratorId: g.collaborator.id },
     locations, permits, shifts, projects, people, window, positions,
+    // WHETHER THIS PERSON MAY EDIT A PLACE, which is no longer the same
+    // question as whether they may manage Field Operations. Locations moved to
+    // Administration's Master data and took their rights with them, so a
+    // dispatcher who runs the rota sees the list read-only unless they also
+    // hold administration.master. Asked here so the screen draws the button
+    // only where the route would accept the write.
+    canManageLocations: !requirePermission(g.access, "administration.master.edit"),
+    canCreateLocations: !requirePermission(g.access, "administration.master.create"),
+    canDeleteLocations: !requirePermission(g.access, "administration.master.delete"),
     // The week comes from STUDIO SETTINGS. Operations used to keep its own
     // copy, which meant one studio could describe two different working
     // weeks depending on which screen you asked.
