@@ -76,13 +76,25 @@ const MAX_CHUNK_GZIP_KB = 250;
 // because the screens are client components. As `app/` is restructured in Wave
 // 4 and screens move server-side, each one's words can be handed down as a prop
 // instead and leave the bundle entirely.
-// Lowered 1700 -> 1600 when jsPDF stopped shipping the three packages it only
-// needs for doc.html() and SVG. html2canvas and canvg (which drags core-js)
-// were resolvable optionalDependencies, so Turbopack emitted them as lazy
-// chunks nothing ever loaded: 100 KB gz, 1659 -> 1559. The ceiling comes down
-// with the number, because headroom left behind after a win is where the next
-// regression hides. See next.config.mjs and src/lib/jspdfOptional.ts.
-const MAX_TOTAL_GZIP_KB = 1700;
+// THE LINE BELOW SAID 1700 WHILE THIS COMMENT SAID 1600, for a week.
+//
+// jsPDF stopped shipping the three packages it only needs for doc.html() and
+// SVG (html2canvas and canvg, which drags core-js) — resolvable
+// optionalDependencies that Turbopack emitted as lazy chunks nothing ever
+// loaded: 100 KB gz, 1659 -> 1559. The commit that won that wrote down
+// "Lowered 1700 -> 1600" and DID NOT LOWER IT: 362fda1 had raised it to 1700
+// the day before, and 5ea63ea added this note over the untouched constant.
+// CLAUDE.md repeated the 1600 as fact. So the gate everyone believed was 1600
+// was really 1700, and the total drifted 1559 -> 1601 with a hundred
+// kilobytes of slack nobody knew about — which is exactly what this comment
+// warns against: headroom left behind after a win is where the next
+// regression hides.
+//
+// Set to the measured 1601 plus a deliberate 9, not to a round number. The
+// total moves a few KB per screen legitimately, and a ceiling with zero
+// headroom makes every feature commit a ceiling edit, which is how a ratchet
+// stops being read. See next.config.mjs and src/lib/jspdfOptional.ts.
+const MAX_TOTAL_GZIP_KB = 1610;
 
 const DIR = ".next/static";
 if (!existsSync(DIR)) {
