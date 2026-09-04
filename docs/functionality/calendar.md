@@ -139,6 +139,67 @@ nobody can see. Microsoft has no revocation endpoint for delegated tokens — th
 not forgotten — so there disconnecting drops our copy and the grant expires on Microsoft's own
 schedule.
 
+## Availability inside a studio
+
+Phase 2 of the design (`docs/superpowers/specs/2026-09-03-connected-calendars-design.md` §8.1).
+Colleagues in one studio can see **when** each other are busy, and never **what** — no title,
+no location, no attendees, no organiser.
+
+**Consent is per studio, and off until asked for.** `s:<studioId>:calendarShare` holds a list
+of CollaboratorIDs (invariant 6) who opted in *here*. It is a separate key from the person's
+connection on purpose: cascade-by-prefix destroys it with its studio and leaves the connection
+alone, so somebody who leaves one studio and stays in another keeps exactly the right
+visibility. A flag on the connection could not express "shared here, not there" at all.
+
+**Two conditions, both required.** A person's busy blocks appear only if they are a member of
+this studio **and** on this studio's share list. Membership alone is not consent — everyone is
+a member — and consent alone is not enough either, because a share-list entry outlives the
+person the day they leave. A member who has done nothing is **absent** from the answer rather
+than present with an empty `busy`, because an empty `busy` is also what a genuinely free
+person looks like and "not shared" must never render as "free all week".
+
+| Route | What it answers |
+|---|---|
+| `GET /api/studios/[slug]/calendar-share` | `{ sharing }` — the caller's own flag |
+| `PUT /api/studios/[slug]/calendar-share` | Sets the caller's **own** flag; `{ sharing: boolean }` in, the stored state out |
+| `GET /api/studios/[slug]/availability?from=&to=` | `{ people: [{ collaboratorId, busy, error? }] }` |
+
+**`PUT` takes the CollaboratorID from the resolved context, never from the request.** Not the
+body, not the query, not a header. Reading it from anywhere the caller can write would let one
+person publish another person's availability, which is the exact inverse of the promise, and
+it would look like a working feature from every screen.
+
+**No permission key, deliberately.** Membership plus the person's own opt-in is the whole gate.
+A grantable right here would be a second gate free to disagree with the flag — somebody holding
+"may share" with their flag off, or losing the right with it on — and there would be no correct
+answer for which one wins. Invariant 16 asks it from the other end: a right whose only job is
+to duplicate a flag exercises nothing.
+
+**The range is bounded at 62 days**, and a reversed or unparseable one is `{ error: "invalid" }`
+→ 400. Graph's availability view is one character per 30-minute slot anchored at the range
+start, so a year-long window is a 17,520-character string per person for a strip that can draw
+none of it. For the same reason `from` is **rounded down onto the 30-minute grid** before the
+providers are asked: ask from 09:07 and every slot boundary lands at :07 and :37, so a 09:30
+meeting decodes as starting 09:07 with nothing on the wire saying the grid moved. Rounding
+down rather than up can only widen the window, never hide a block straddling the start.
+
+**A failed lookup says only that it failed.** Where a provider refuses for one person, the row
+keeps `busy` from whatever *other* connection of theirs answered and carries `error:
+"unavailable"` — the key is always present, because a silent `busy: []` would show a broken
+lookup as an open afternoon. The provider's own words are deliberately not forwarded here:
+Graph's per-target refusal embeds the calendar owner's account email verbatim, and the rest of
+a message we do not author cannot be bounded by a pattern written today. The person themselves
+still gets the full reason on their own account screen, where it is their data and actionable.
+
+**An upstream calendar failure is 502, mapped rather than forwarded.** `CalendarApiError.status`
+is the provider's status plus two values that are not statuses of ours at all — 409 when we
+refuse to ask (a stored Microsoft connection with no account email) and 200 when a per-target
+refusal arrives inside a successful response. Passing it through would answer a failure with
+`200`, or with `401` telling the caller their own session is bad when a colleague's grant is
+what lapsed.
+
+**Nothing is stored but the flag.** No busy block, no event, no interval is ever written down.
+
 ## The console's calendar
 
 `/super → Application → Calendar`. One Google calendar, read-only, for nompany's own staff.
@@ -199,7 +260,12 @@ An empty week and a calendar that stopped working must never look the same.
 | `src/platform/auth/calendarConnections.ts` | A person's connection: encrypted read/write, `publicConnection()` |
 | `src/lib/data/calendarReads.ts` | The provider reads — `listCalendars`, `listEvents` (following both providers' pagination), `callProvider` |
 | `src/lib/data/googleCalendar.ts` | The console's connection and its console-keyed token wrapper |
-| `src/shared/calendar.ts` | Pure, client-safe: `monthGrid`, `eventsByDay`, `eventDayKeys`, and a normaliser per provider |
+| `src/platform/auth/calendarShare.ts` | Who opted in, per studio. No calendar data, no credential — CollaboratorIDs only |
+| `src/lib/data/calendarFreeBusy.ts` | `busyFor` — one person's busy blocks from either provider, and the `availabilityView`-only rule that keeps Microsoft honest |
+| `src/lib/data/studioAvailability.ts` | `visibleSharers` (the pure membership ∩ consent intersection) and `teamAvailability` |
+| `src/app/api/studios/[slug]/calendar-share/route.ts` | The caller's own opt-in, read and written |
+| `src/app/api/studios/[slug]/availability/route.ts` | The studio's visible availability over a bounded, grid-aligned window |
+| `src/shared/calendar.ts` | Pure, client-safe and importing nothing: `monthGrid`, `eventsByDay`, `eventDayKeys`, a normaliser per provider, and free/busy's own two — `mergeBusy` and `availabilityViewToIntervals` |
 | `src/components/public/AccountHome.js` | The account surface's Calendars panel |
 | `src/app/super/(shell)/application/calendar/*` | The console's screen: `page.js`, `ConnectCalendar.jsx`, `CalendarBoard.jsx` |
 
@@ -230,12 +296,11 @@ Stated in words, because a silent gap reads as a finished feature.
 - **Nothing writes to anybody's calendar.** Both scopes are read-only by design. Creating,
   editing, moving or cancelling an event is a different scope and a fresh consent from every
   person who has connected — not a flag to flip.
-- **Colleagues cannot see each other's availability.** This is Phase 2 of the design
-  (`docs/superpowers/specs/2026-09-03-connected-calendars-design.md` §8.1): a per-studio
-  "let colleagues here see when I'm busy" opt-in, a free/busy read path on both providers, and
-  an availability strip on the planner. None of it exists yet. There is no
-  `s:<studioId>:calendarShare` key, no opt-in toggle, and no way for one person to see
-  anything at all about another person's calendar.
+- **Nothing on screen shows a colleague's availability yet.** The whole read path exists (see
+  "Availability inside a studio" above) and both routes answer, but no screen calls them — the
+  planner's availability strip and the opt-in toggle are still to come. Until then the feature
+  is reachable only by a client that knows the two URLs, and every person's flag starts off,
+  so in practice nobody is visible to anybody.
 - **No studio has a calendar of its own.** A connection is a person's, or the console's. A
   studio-wide shared calendar is not this feature.
 - **The console shows one calendar, not several.** Choosing a second replaces the first —

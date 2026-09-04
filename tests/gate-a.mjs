@@ -4075,6 +4075,56 @@ console.log("== account calendar: the unconnected state is network-free");
   }
 }
 
+console.log("== studio availability: nobody has opted in, so nothing is asked of a provider");
+// THE TWO STUDIO ROUTES OF PHASE 2, PINNED IN THE STATE THAT MATTERS MOST:
+// nobody in this studio has said colleagues may see when they are busy.
+//
+// NETWORK-FREE, AND THAT IS THE PROPERTY BEING RECORDED as much as the shape.
+// This fixture never writes an S.calendarShare entry, so listSharers answers
+// `[]`, visibleSharers intersects that with the collaborator rows to `[]`, and
+// teamAvailability's per-person fan-out runs zero iterations — nothing reaches
+// listConnections, getCalendarAccessToken, Google or Microsoft. Same argument
+// as account.calendar.events.none directly above and the console's
+// super.calendar.unconnected: a golden built from a live provider call would
+// be exactly the flapping test CLAUDE.md refuses to keep.
+//
+// AND IT IS THE SAFETY DEFAULT, not merely a convenient empty case. Silence
+// must mean "not shared", never "free all week" — a member who has done
+// nothing must be ABSENT from `people` rather than present with an empty
+// `busy`, because the second reads as bookable. The owner is a full member of
+// this studio here and still does not appear.
+{
+  const SHARE = await import("@/app/api/studios/[slug]/calendar-share/route.ts");
+  const AVAIL = await import("@/app/api/studios/[slug]/availability/route.ts");
+
+  const P = ctx({ slug });
+  const shot = async (name, payload) => {
+    const r = golden(name, payload, EXTRA);
+    if (!r.recorded) ok(`${name} matches its golden`, r.ok, r.detail);
+    return payload;
+  };
+
+  await signIn(owner.id);
+
+  const off = await shot("studio.calendarshare.off", await capture(
+    SHARE.GET, req(`/api/studios/${slug}/calendar-share`), P));
+  ok("a member who never opted in reads as not sharing", off.body?.sharing === false,
+    JSON.stringify(off.body));
+
+  // The dates are the same fixed pair account.calendar.events.none uses, and
+  // they never reach the response — capture() records status and body only —
+  // so no clock-derived placeholder can rewrite them.
+  const empty = await shot("studio.availability.empty", await capture(
+    AVAIL.GET,
+    req(`/api/studios/${slug}/availability?from=2026-09-01T00:00:00Z&to=2026-09-30T00:00:00Z`),
+    P));
+  ok("...and nobody at all appears in the studio's availability",
+    Array.isArray(empty.body?.people) && empty.body.people.length === 0,
+    JSON.stringify(empty.body));
+
+  __signOut();
+}
+
 // ============================================================================
 console.log("== migration export: the .sql dump the console and CLI both emit");
 // THE ONE PLACE /super/application/migration DOES something rather than describes

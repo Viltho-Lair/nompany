@@ -40,7 +40,14 @@ import type { FetchLike } from "@/platform/auth/googleFederation";
 // One constant because the two must agree: ask for 30-minute slots and decode
 // as 60 and every meeting renders at the wrong time, at twice its length, with
 // nothing saying so.
-const SLOT_MINUTES = 30;
+//
+// EXPORTED FOR A THIRD READER, NOT AS A GENERAL SETTING. Graph anchors the
+// availability view at the range START, so the studio availability route rounds
+// its `from` down onto this grid before asking (see that route's comment). That
+// makes three places the number has to agree, and a literal 30 in the route
+// would be the fourth copy of a value whose whole point is that the copies
+// cannot diverge.
+export const SLOT_MINUTES = 30;
 
 // Same injection shape as calendarReads.ts's CalendarReadDeps, for the same
 // reason — a function with no seam can only be driven against the real network
