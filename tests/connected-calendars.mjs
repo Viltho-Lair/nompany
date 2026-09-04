@@ -880,5 +880,23 @@ console.log("\nbusyFor — a graph refusal surfaces, it never falls back to read
     /ErrorMailboxNotEnabledForRESTAPI/.test(rowMsg), rowMsg);
 }
 
+const { visibleSharers } = await import("../src/lib/data/studioAvailability.ts");
+
+console.log("\nwho is visible");
+{
+  const members = [{ id: "col_a" }, { id: "col_b" }];
+  ok("a member who opted in is visible",
+    JSON.stringify(visibleSharers(["col_a"], members)) === JSON.stringify(["col_a"]));
+  ok("a member who did not opt in is not",
+    JSON.stringify(visibleSharers([], members)) === JSON.stringify([]));
+  // A STALE ID IS THE ONE THAT MATTERS. Somebody leaves the studio; their id can
+  // linger on the share list. It must resolve to nobody rather than to a person
+  // who is no longer a member.
+  ok("an id left behind by somebody who left resolves to nobody",
+    JSON.stringify(visibleSharers(["col_gone"], members)) === JSON.stringify([]));
+  ok("order follows the member list, not the share list",
+    JSON.stringify(visibleSharers(["col_b", "col_a"], members)) === JSON.stringify(["col_a", "col_b"]));
+}
+
 console.log(fails ? `\n${fails} failure(s)` : "\nall good");
 process.exitCode = fails ? 1 : 0;
