@@ -45,6 +45,30 @@ export type TeamAvailability = {
   collaboratorId: string;
   busy: BusyInterval[];
   /**
+   * WHETHER THERE WAS ANYTHING TO ASK. False for somebody who opted in and has
+   * connected no calendar at all.
+   *
+   * THIS FIELD EXISTS BECAUSE `busy: []` IS AMBIGUOUS WITHOUT IT, and the
+   * ambiguity resolves in the dangerous direction. An empty array is what a
+   * connected, genuinely free person looks like AND what somebody with no
+   * connection looks like — and the second of those is not free, it is
+   * unknown: nobody knows one thing about their time. A screen that cannot
+   * tell them apart draws an unknown calendar as a bookable one, which is the
+   * precise failure this whole phase was built to prevent, and it is worse
+   * than the absent case (a person who never opted in is missing from this
+   * array entirely, and absence at least LOOKS like absence).
+   *
+   * It was added after the fact: the strip on the planner found the hole by
+   * having to render it. The row shape below carried "opted in, nothing
+   * connected" and "connected, nothing on" as the same two fields, so the only
+   * honest thing a screen could do was guess.
+   *
+   * FALSE, NOT TRUE, WHEN THE LOOKUP FAILED. `error` already says the row is
+   * unknown; claiming a connection we could not read would be asserting
+   * something nothing established.
+   */
+  connected: boolean;
+  /**
    * THE PARTIAL-FAILURE DECISION. teamAvailability fans out across several
    * people and, per person, across however many calendars they connected.
    * One provider can fail on its own — a revoked grant, an outage — while
@@ -94,11 +118,14 @@ export type TeamAvailabilityDeps = {
  * sharer's UserID is looked up here only long enough to reach
  * listConnections and busyFor — it never appears on the returned row.
  *
- * A VISIBLE SHARER WITH NO CONNECTION STILL GETS A ROW, with `busy: []`.
- * They opted in; they simply have nothing hooked up yet. Omitting the row
- * would read the same on a strip as "not on the share list at all", which
- * collapses two different facts (unknown vs. genuinely nothing to show) into
- * one blank space. A person who did NOT opt in, by contrast, is absent from
+ * A VISIBLE SHARER WITH NO CONNECTION STILL GETS A ROW, with `busy: []` AND
+ * `connected: false`. They opted in; they simply have nothing hooked up yet.
+ * Omitting the row would read the same on a strip as "not on the share list at
+ * all", which collapses two different facts (unknown vs. genuinely nothing to
+ * show) into one blank space — and `busy: []` ALONE would have been worse
+ * still, because it reads as "free all week" about a person nothing was ever
+ * asked about. `connected` is what keeps those three apart; see its own note
+ * on the type above. A person who did NOT opt in, by contrast, is absent from
  * this array entirely — visibleSharers already filtered them out — because
  * for them absence is the only honest answer: an empty array would claim
  * "free all day" about a calendar this feature was never allowed to look at.
@@ -133,7 +160,7 @@ export async function teamAvailability(
     // always set — the guard exists so a future change to that intersection
     // fails as "no busy shown" rather than as a crash reading .userId off
     // undefined.
-    if (!member) return { collaboratorId, busy: [] };
+    if (!member) return { collaboratorId, busy: [], connected: false };
 
     // THE WHOLE PER-PERSON LOOKUP IS WRAPPED, NOT JUST THE busyFor FAN-OUT
     // BELOW. listConnections is a store read like any other, and this
@@ -147,7 +174,7 @@ export async function teamAvailability(
     // wraps, never the read that has to succeed before it can start.
     try {
       const connections = await listConnectionsFn(member.userId);
-      if (!connections.length) return { collaboratorId, busy: [] };
+      if (!connections.length) return { collaboratorId, busy: [], connected: false };
 
       // EACH CONNECTION SUCCEEDS OR FAILS ON ITS OWN. allSettled, not
       // Promise.all — a rejected Microsoft lookup must not throw away a
@@ -167,14 +194,14 @@ export async function teamAvailability(
         else failures.push(outcome.reason instanceof Error ? outcome.reason.message : String(outcome.reason));
       }
 
-      const row: TeamAvailability[number] = { collaboratorId, busy: mergeBusy(intervals) };
+      const row: TeamAvailability[number] = { collaboratorId, busy: mergeBusy(intervals), connected: true };
       if (failures.length) row.error = failures.join("; ");
       return row;
     } catch (e) {
       // listConnections failed outright for this one person. Same shape as a
       // failed provider above — an error row, not a thrown exception — so
       // this person's failure costs exactly their own row and nothing else.
-      return { collaboratorId, busy: [], error: e instanceof Error ? e.message : String(e) };
+      return { collaboratorId, busy: [], connected: false, error: e instanceof Error ? e.message : String(e) };
     }
   }));
 }

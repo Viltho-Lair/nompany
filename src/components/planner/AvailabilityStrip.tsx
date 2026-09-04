@@ -35,8 +35,14 @@ import { Avatar } from './Avatar';
 /** One person's lane. Shorter than a task row — this is a footnote to the plan. */
 const LANE_HEIGHT = 22;
 
-/** What one person's lookup came back as, exactly as the availability route answers. */
-type PersonRow = { collaboratorId: string; busy: BusyInterval[]; error?: string };
+/**
+ * What one person's lookup came back as, exactly as the availability route
+ * answers. `connected` is optional HERE and required there: a browser holding
+ * an older bundle than the server, or the other way round, must degrade to the
+ * states that existed before the field did rather than read `undefined` as
+ * `false` and tell everybody their colleagues have no calendar.
+ */
+type PersonRow = { collaboratorId: string; busy: BusyInterval[]; connected?: boolean; error?: string };
 
 /** Where the strip is between asking and knowing. */
 type Phase = 'idle' | 'loading' | 'ready' | 'failed';
@@ -90,12 +96,28 @@ function hatch(color: string): React.CSSProperties {
   };
 }
 
+/**
+ * The second texture: "there is nothing to ask".
+ *
+ * A DIFFERENT SHAPE, NOT A DIFFERENT SHADE. It sits beside hatching on the same
+ * strip, and the two say different things — a calendar that was never shared
+ * with you against one that does not exist. Two greys at different opacities
+ * would be one grey to anybody not comparing them side by side.
+ */
+function dots(color: string): React.CSSProperties {
+  return {
+    backgroundImage: `radial-gradient(${color} 1px, transparent 1.2px)`,
+    backgroundSize: '5px 5px',
+  };
+}
+
 export function AvailabilityStrip({
   slug,
   timeline,
   people,
   syncFrom,
   gutterWidth,
+  timelineVisible,
 }: {
   /** The tenant's own address. The two routes this reads are studio-scoped. */
   slug: string;
@@ -116,6 +138,18 @@ export function AvailabilityStrip({
    * because it is the width it lays the information table out at.
    */
   gutterWidth: number;
+  /**
+   * Whether the waterfall is on screen. False in the information-table view,
+   * where there is no timeline to draw lanes against.
+   *
+   * THE BAND STILL RENDERS THERE, WITHOUT ITS LANES. It used to be hidden
+   * outright, which meant somebody who works only in the table could never
+   * reach their own consent switch — a privacy control that exists but cannot
+   * be found is not much better than one that does not exist. The lanes go and
+   * the switch stays, and nothing is fetched from anyone's calendar provider,
+   * because there is nothing here that could draw the answer.
+   */
+  timelineVisible: boolean;
 }) {
   const locale = useStudioLocale();
   const tr = plannerDict(locale);
@@ -155,7 +189,10 @@ export function AvailabilityStrip({
   const requestKey = `${fromISO}|${toISO}|${reload}`;
   const current = answer && answer.key === requestKey ? answer : null;
   const byId = current?.byId ?? null;
-  const phase: Phase = !open ? 'idle' : !current ? 'loading' : byId ? 'ready' : 'failed';
+  // Nothing is asked for while the lanes are not on screen, so nothing is
+  // pending either — `idle` covers both the closed band and the table view.
+  const asking = open && timelineVisible;
+  const phase: Phase = !asking ? 'idle' : !current ? 'loading' : byId ? 'ready' : 'failed';
 
   /* ---- follow the chart sideways ----
    * The band opens LONG AFTER the chart has scrolled itself to today, so the
@@ -166,14 +203,14 @@ export function AvailabilityStrip({
    * that both scroll, and these lanes never scroll on their own. */
   React.useEffect(() => {
     const source = syncFrom.current;
-    if (!open || !source) return;
+    if (!asking || !source) return;
     const follow = () => {
       if (lanesRef.current) lanesRef.current.scrollLeft = source.scrollLeft;
     };
     follow();
     source.addEventListener('scroll', follow, { passive: true });
     return () => source.removeEventListener('scroll', follow);
-  }, [open, syncFrom, people.length, timeline.width]);
+  }, [asking, syncFrom, people.length, timeline.width]);
 
   /* ---- my own consent, and whether I have anything to consent with ---- */
   React.useEffect(() => {
@@ -201,7 +238,7 @@ export function AvailabilityStrip({
 
   /* ---- the strip itself ---- */
   React.useEffect(() => {
-    if (!open) return;
+    if (!asking) return;
     let alive = true;
     (async () => {
       try {
@@ -230,7 +267,7 @@ export function AvailabilityStrip({
     return () => {
       alive = false;
     };
-  }, [open, slug, fromISO, toISO, requestKey]);
+  }, [asking, slug, fromISO, toISO, requestKey]);
 
   async function toggleSharing(next: boolean) {
     setSaving(true);
@@ -286,11 +323,17 @@ export function AvailabilityStrip({
 
         {open && (
           <>
-            <span className="text-[11px] text-slate-400">
-              {formatMediumDate(from, locale)} → {formatMediumDate(to, locale)}
-            </span>
+            {/* The window and the legend describe the lanes, so they go where
+                the lanes are. In the table view the switch is the whole band. */}
+            {timelineVisible && (
+              <>
+                <span className="text-[11px] text-slate-400">
+                  {formatMediumDate(from, locale)} → {formatMediumDate(to, locale)}
+                </span>
 
-            <Legend />
+                <Legend />
+              </>
+            )}
 
             {/* THE SWITCH SITS BESIDE WHAT IT CONTROLS, on purpose: somebody
                 deciding whether to share can see, in the same glance, exactly
@@ -338,7 +381,11 @@ export function AvailabilityStrip({
       )}
 
       {/* ---------------------------- the lanes ---------------------------- */}
-      {open && (
+      {/* A LANE IS A TIMELINE OR IT IS NOTHING. In the information-table view
+          there is no waterfall to align to, so the band keeps its switch — the
+          reason it renders there at all — and drops the drawing, rather than
+          inventing a second timeline of its own beside a table that has none. */}
+      {open && timelineVisible && (
         people.length === 0 ? (
           <p className="px-3 pb-2 text-[11px] text-slate-400">{tr.availabilityNobodyAssigned}</p>
         ) : (
@@ -409,7 +456,8 @@ function Lane({
   timeline: Timeline;
   tr: ReturnType<typeof plannerDict>;
 }) {
-  /* THE FOUR STATES THIS STRIP EXISTS TO KEEP APART.
+  /* THE FIVE STATES THIS STRIP EXISTS TO KEEP APART. Only ONE of them may
+   * look like an open afternoon, and it is the last one.
    *
    *  absent from `people`  → UNKNOWN. They never opted in. An empty lane here
    *                          would advertise a private calendar as bookable,
@@ -418,8 +466,17 @@ function Lane({
    *  `error` on the row    → UNKNOWN, WITH A REASON. Their provider could not
    *                          be reached. Also never free: a lookup that failed
    *                          and an open afternoon are opposite facts.
-   *  `busy: []`, no error  → FREE. They opted in and there is genuinely
-   *                          nothing there. The only state that may look empty.
+   *  `connected: false`    → UNKNOWN, WITH NOTHING TO ASK. They opted in and
+   *                          have hooked no calendar up, so their `busy` is
+   *                          empty for a reason that says nothing whatever
+   *                          about their time. This one is the most dangerous
+   *                          of the three unknowns, because it arrives looking
+   *                          EXACTLY like the free case below — same empty
+   *                          array, same absent error — and only the field
+   *                          studioAvailability.ts carries tells them apart.
+   *  `busy: []`, connected → FREE. They opted in, a calendar answered, and
+   *                          there is genuinely nothing there. The only state
+   *                          that may look empty.
    *  `busy: [...]`         → BUSY, and nothing more than that.
    *
    * A row may be both: `busy` still carries whatever one provider answered
@@ -428,8 +485,12 @@ function Lane({
   const pending = !known;
   const missing = known && !row;
   const failed = Boolean(row?.error);
+  // EXPLICITLY `=== false`, not `!row.connected`. An older server that does not
+  // send the field at all must fall through to the states that existed before
+  // it, not silently mark every colleague as having no calendar.
+  const unconnected = Boolean(row) && !failed && row?.connected === false;
   const busy = row?.busy ?? [];
-  const free = known && row && !failed && busy.length === 0;
+  const free = known && row && !failed && !unconnected && busy.length === 0;
 
   const caption = pending
     ? phase === 'failed'
@@ -439,11 +500,13 @@ function Lane({
       ? tr.availabilityNotShared
       : failed
         ? tr.availabilityUnavailable
-        : free
-          ? tr.availabilityFree
-          : '';
+        : unconnected
+          ? tr.availabilityNoCalendarConnected
+          : free
+            ? tr.availabilityFree
+            : '';
 
-  const unknown = pending || missing || failed;
+  const unknown = pending || missing || failed || unconnected;
 
   return (
     <div
@@ -451,11 +514,24 @@ function Lane({
       style={{ height: LANE_HEIGHT }}
       aria-label={`${person.name}: ${caption || tr.availabilityBusy}`}
     >
-      {/* the unknown wash, when the whole lane is unknown */}
+      {/* THE UNKNOWN WASH, and three textures rather than one colour. The three
+          unknowns are different facts and a reader has to be able to tell them
+          apart at a glance: stripes for a calendar that was never shared, dots
+          for one that does not exist, amber stripes for one that could not be
+          reached. Texture and not merely tint, because a pale wash and an empty
+          lane are the same thing to a tired reader and to a colour-blind one —
+          and the fact they would be confusing is "bookable" against "nobody
+          knows". */}
       {unknown && (
         <div
           className="pointer-events-none absolute inset-0"
-          style={hatch(failed ? 'rgba(217,119,6,0.32)' : 'rgba(100,116,139,0.22)')}
+          style={
+            failed
+              ? hatch('rgba(217,119,6,0.32)')
+              : unconnected
+                ? dots('rgba(100,116,139,0.42)')
+                : hatch('rgba(100,116,139,0.22)')
+          }
         />
       )}
 
@@ -548,7 +624,7 @@ function OutsideWindow({
 function Legend() {
   const tr = plannerDict(useStudioLocale());
   return (
-    <span className="flex items-center gap-2.5 text-[11px] text-slate-500">
+    <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px] text-slate-500">
       <span className="flex items-center gap-1">
         <span className="h-2.5 w-4 rounded-[2px] bg-slate-500/70" />
         {tr.availabilityBusy}
@@ -559,6 +635,13 @@ function Legend() {
           style={hatch('rgba(100,116,139,0.35)')}
         />
         {tr.availabilityNotShared}
+      </span>
+      <span className="flex items-center gap-1">
+        <span
+          className="h-2.5 w-4 rounded-[2px] border border-slate-200"
+          style={dots('rgba(100,116,139,0.55)')}
+        />
+        {tr.availabilityNoCalendarConnected}
       </span>
       <span className="flex items-center gap-1">
         <span

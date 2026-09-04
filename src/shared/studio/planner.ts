@@ -24,6 +24,7 @@ type Strings = CommonStrings & {
   availabilityConnectInAccount: string;
   availabilityFree: string;
   availabilityNoCalendar: string;
+  availabilityNoCalendarConnected: string;
   availabilityNobodyAssigned: string;
   availabilityNotShared: string;
   availabilityOutsideWindow: string;
@@ -227,6 +228,7 @@ const en: Strings = {
   availabilityConnectInAccount: "Connect one in your account settings",
   availabilityFree: "Free",
   availabilityNoCalendar: "You have no calendar connected, so there is nothing to share yet.",
+  availabilityNoCalendarConnected: "No calendar connected",
   availabilityNobodyAssigned: "Nobody is assigned to this plan yet.",
   availabilityNotShared: "Not shared",
   availabilityOutsideWindow: "Not checked",
@@ -430,6 +432,7 @@ const ar: Strings = {
   availabilityConnectInAccount: "اربط تقويمًا من إعدادات حسابك",
   availabilityFree: "متفرّغ",
   availabilityNoCalendar: "لا يوجد تقويم مرتبط بحسابك، فلا شيء لمشاركته بعد.",
+  availabilityNoCalendarConnected: "لا تقويم مرتبط",
   availabilityNobodyAssigned: "لم يُسنَد أحد إلى هذه الخطة بعد.",
   availabilityNotShared: "غير مُشارَك",
   availabilityOutsideWindow: "لم يُفحص",

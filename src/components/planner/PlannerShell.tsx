@@ -479,17 +479,21 @@ export function PlannerShell({
                 occupies (plus the splitter's own pixel), so lane x=0 lands on
                 the chart's x=0 and the columns cannot part company. The same
                 `timeline` object the chart is drawn from does the rest.
-                Waterfall views only: the information table has no timeline to
-                draw on. Shown to a read-only viewer too — the switch is that
-                person's own consent, which has nothing to do with whether
-                they may edit this plan. */}
-            {showChart && studioSlug && (
+                In the information-table view it keeps its switch and drops its
+                lanes — there is no waterfall to align to, and hiding the band
+                outright left somebody who works only in the table with no way
+                to reach their own consent control at all. Shown to a read-only
+                viewer too, for the same reason: the switch is that person's own
+                consent, which has nothing to do with whether they may edit
+                this plan. */}
+            {studioSlug && (
               <AvailabilityStrip
                 slug={studioSlug}
                 timeline={timeline}
                 people={assignedResources}
                 syncFrom={chartBodyRef}
                 gutterWidth={view === 'split' ? gridWidth + 1 : 0}
+                timelineVisible={showChart}
               />
             )}
 

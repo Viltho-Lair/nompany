@@ -158,11 +158,19 @@ person the day they leave. A member who has done nothing is **absent** from the 
 than present with an empty `busy`, because an empty `busy` is also what a genuinely free
 person looks like and "not shared" must never render as "free all week".
 
+**`connected` says whether there was anything to ask.** A person who opted in and has hooked no
+calendar up gets a row with `busy: []` and `connected: false`. Without that field their row is
+byte-identical to a connected person whose week is genuinely empty, and the two are opposite
+facts — one is free, the other is unknown. The ambiguity resolves to "bookable", which is the
+dangerous direction, so the flag exists to stop a screen having to guess. It is `false`, not
+`true`, when the connection lookup itself failed: `error` already says the row is unknown, and
+claiming a connection nothing managed to read would assert something never established.
+
 | Route | What it answers |
 |---|---|
 | `GET /api/studios/[slug]/calendar-share` | `{ sharing }` — the caller's own flag |
 | `PUT /api/studios/[slug]/calendar-share` | Sets the caller's **own** flag; `{ sharing: boolean }` in, the stored state out |
-| `GET /api/studios/[slug]/availability?from=&to=` | `{ people: [{ collaboratorId, busy, error? }] }` |
+| `GET /api/studios/[slug]/availability?from=&to=` | `{ people: [{ collaboratorId, busy, connected, error? }] }` |
 
 **`PUT` takes the CollaboratorID from the resolved context, never from the request.** Not the
 body, not the query, not a header. Reading it from anywhere the caller can write would let one
@@ -214,13 +222,15 @@ plus the splitter's pixel. A strip whose columns drift from the chart above it i
 strip. Positions are physical `left`, like the chart's, because the waterfall lays its calendar
 out left-to-right in both languages; the band's prose uses logical properties and mirrors.
 
-**Four states, kept apart on purpose** — the whole reason the band exists:
+**Five states, kept apart on purpose** — the whole reason the band exists. Only the second may
+look like an open afternoon:
 
 | On screen | Means |
 |---|---|
 | A shaded block, no label, no tooltip | Busy. There is nothing else to show: no title was ever fetched |
-| A plain empty lane, "Free" | Opted in, and genuinely nothing there |
+| A plain empty lane, "Free" | Opted in, a calendar answered, and genuinely nothing there |
 | Grey hatching, "Not shared" | Absent from the answer — never opted in. **Not** free |
+| Grey dots, "No calendar connected" | `connected: false`. They opted in and hooked nothing up, so their empty `busy` says nothing about their time. **Not** free |
 | Amber hatching, "Couldn't be checked" | The row carried `error`. Also **not** free |
 
 A row can be both: `busy` still carries whatever one provider answered when another failed, so
@@ -332,9 +342,11 @@ Stated in words, because a silent gap reads as a finished feature.
   editing, moving or cancelling an event is a different scope and a fresh consent from every
   person who has connected — not a flag to flip.
 - **The planner is the only screen that shows availability.** The strip and its switch live
-  under the waterfall and nowhere else — there is no studio-wide "who is free this week" view,
-  nothing on the project board, and nothing in People. A person who is never put on a plan has
-  no surface on which their consent can be seen being used.
+  on a plan and nowhere else — there is no studio-wide "who is free this week" view, nothing on
+  the project board, and nothing in People. A person who is never put on a plan has no surface
+  on which their consent can be seen being used. (Within the planner the band is on every view:
+  the information table keeps the switch and drops the lanes, since there is no timeline there
+  to draw them against.)
 - **The strip covers at most 62 days of a longer plan.** It clamps its request to
   `AVAILABILITY_MAX_SPAN_DAYS`, anchored a day before today when today is inside the plan. The
   rest of the drawn timeline is hatched and labelled "Not checked" rather than left blank,

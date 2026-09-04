@@ -99,8 +99,17 @@ export const GET = route(
     // a genuinely free person looks like — collapsing the two would show a
     // failed lookup as an open afternoon, which is the one way this feature
     // must never be wrong.
+    //
+    // `connected` IS CARRIED THROUGH, not dropped with the message. It says
+    // whether there was anything to ask at all, which is a fact about our own
+    // store rather than about the provider's answer, and a strip needs it to
+    // tell "opted in, nothing hooked up" from "connected and genuinely free".
+    // It leaks nothing: a colleague already learns as much from the row's mere
+    // existence, which says this person opted in.
     const people: TeamAvailability = rows.map((row) => (
-      row.error ? { collaboratorId: row.collaboratorId, busy: row.busy, error: "unavailable" } : row
+      row.error
+        ? { collaboratorId: row.collaboratorId, busy: row.busy, connected: row.connected, error: "unavailable" }
+        : row
     ));
 
     return { people };

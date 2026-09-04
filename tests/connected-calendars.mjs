@@ -942,11 +942,63 @@ console.log("\nteamAvailability — one person's failure costs only that person'
     JSON.stringify(rowA?.busy) === JSON.stringify([]), JSON.stringify(rowA));
   ok("...and names what went wrong",
     /store blip/.test(rowA?.error || ""), JSON.stringify(rowA));
+  // A CONNECTION WE COULD NOT READ IS NOT A CONNECTION. Claiming `connected:
+  // true` here would assert something the failed read never established, and
+  // it is the assertion a screen would then draw as "connected and free".
+  ok("...and does not claim a connection it never managed to read",
+    rowA?.connected === false, JSON.stringify(rowA));
   ok("the OTHER person's row is untouched by col_a's failure — this is the assertion the finding exists for",
     JSON.stringify(rowB) === JSON.stringify({
       collaboratorId: "col_b",
       busy: [{ start: "2026-09-03T09:00:00.000Z", end: "2026-09-03T10:00:00.000Z" }],
+      connected: true,
     }), JSON.stringify(rowB));
+}
+
+console.log("\nteamAvailability — opted in with nothing connected is not the same as free");
+{
+  // THE DEFECT THIS PINS. `busy: []` used to be the whole answer for BOTH a
+  // person whose calendar is genuinely empty and a person who has connected no
+  // calendar at all — and the second of those is not free, it is unknown.
+  // Rendering them identically makes an unknown calendar look bookable, which
+  // is the precise failure this phase exists to prevent, so the two rows have
+  // to differ on the wire before any screen can be asked to tell them apart.
+  const rawMembers = [
+    { id: "col_none", userId: "u_none" },   // opted in, connected nothing
+    { id: "col_free", userId: "u_free" },   // connected, and genuinely free
+  ];
+  const deps = {
+    listSharersImpl: async () => ["col_none", "col_free"],
+    listCollaboratorsImpl: async () => rawMembers,
+    listConnectionsImpl: async (userId) => (
+      userId === "u_none"
+        ? []
+        : [{ provider: "google", accountEmail: "free@example.test", connectedAt: 0, calendarIds: [] }]
+    ),
+    busyForImpl: async () => [],
+  };
+
+  const result = await teamAvailability(
+    { studioId: "s1", from: "2026-09-03T00:00:00.000Z", to: "2026-09-04T00:00:00.000Z" },
+    deps,
+  );
+  const none = result.find((r) => r.collaboratorId === "col_none");
+  const free = result.find((r) => r.collaboratorId === "col_free");
+
+  ok("somebody who opted in with no calendar still gets a row",
+    Boolean(none), JSON.stringify(result));
+  ok("...and it says there was nothing to ask",
+    none?.connected === false, JSON.stringify(none));
+  ok("...with no error, because nothing failed — there was simply nothing there",
+    none?.error === undefined, JSON.stringify(none));
+  ok("a connected person with an empty calendar says the opposite",
+    free?.connected === true, JSON.stringify(free));
+  // THE ASSERTION THE DEFECT EXISTS FOR: the two rows are identical apart from
+  // this one field, so without it a screen has nothing to choose between them.
+  ok("...and the two rows differ ONLY in `connected` — which is why it had to exist",
+    JSON.stringify(none?.busy) === JSON.stringify(free?.busy)
+      && none?.connected !== free?.connected,
+    `${JSON.stringify(none)} vs ${JSON.stringify(free)}`);
 }
 
 console.log(fails ? `\n${fails} failure(s)` : "\nall good");
