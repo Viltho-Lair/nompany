@@ -880,7 +880,7 @@ console.log("\nbusyFor — a graph refusal surfaces, it never falls back to read
     /ErrorMailboxNotEnabledForRESTAPI/.test(rowMsg), rowMsg);
 }
 
-const { visibleSharers } = await import("../src/lib/data/studioAvailability.ts");
+const { visibleSharers, teamAvailability } = await import("../src/lib/data/studioAvailability.ts");
 
 console.log("\nwho is visible");
 {
@@ -896,6 +896,57 @@ console.log("\nwho is visible");
     JSON.stringify(visibleSharers(["col_gone"], members)) === JSON.stringify([]));
   ok("order follows the member list, not the share list",
     JSON.stringify(visibleSharers(["col_b", "col_a"], members)) === JSON.stringify(["col_a", "col_b"]));
+}
+
+console.log("\nteamAvailability — one person's failure costs only that person's row");
+{
+  // NO STORE NEEDED — every dependency teamAvailability actually reaches for
+  // is injected, the same convention calendarOAuth.ts's freshAccessToken
+  // uses. This is the property the review found missing: listConnections
+  // failing for col_a (a store fault — the exact shape of the Cloud SQL
+  // proxy being down right now) must not take col_b's row down with it.
+  const sharers = ["col_a", "col_b"];
+  const rawMembers = [
+    { id: "col_a", userId: "u_a" },
+    { id: "col_b", userId: "u_b" },
+  ];
+  const deps = {
+    listSharersImpl: async () => sharers,
+    listCollaboratorsImpl: async () => rawMembers,
+    listConnectionsImpl: async (userId) => {
+      // THE BUG THIS PINS: this throw, unwrapped, used to escape the whole
+      // Promise.all(visible.map(...)) fan-out and reject teamAvailability()
+      // outright — discarding col_b's perfectly good row along with it.
+      if (userId === "u_a") throw new Error("store blip reading connections");
+      return [{ provider: "google", accountEmail: "b@example.test", connectedAt: 0, calendarIds: [] }];
+    },
+    busyForImpl: async () => [
+      { start: "2026-09-03T09:00:00.000Z", end: "2026-09-03T10:00:00.000Z" },
+    ],
+  };
+
+  let result = null;
+  let threw = false;
+  try {
+    result = await teamAvailability({ studioId: "s1", from: "2026-09-03T00:00:00.000Z", to: "2026-09-04T00:00:00.000Z" }, deps);
+  } catch {
+    threw = true;
+  }
+  ok("teamAvailability itself does not reject when one person's read throws", threw === false);
+  ok("...both rows still come back, one per visible person",
+    Array.isArray(result) && result.length === 2, JSON.stringify(result));
+
+  const rowA = result?.find((r) => r.collaboratorId === "col_a");
+  const rowB = result?.find((r) => r.collaboratorId === "col_b");
+  ok("the failing person's row carries an empty busy array, not a thrown exception",
+    JSON.stringify(rowA?.busy) === JSON.stringify([]), JSON.stringify(rowA));
+  ok("...and names what went wrong",
+    /store blip/.test(rowA?.error || ""), JSON.stringify(rowA));
+  ok("the OTHER person's row is untouched by col_a's failure — this is the assertion the finding exists for",
+    JSON.stringify(rowB) === JSON.stringify({
+      collaboratorId: "col_b",
+      busy: [{ start: "2026-09-03T09:00:00.000Z", end: "2026-09-03T10:00:00.000Z" }],
+    }), JSON.stringify(rowB));
 }
 
 console.log(fails ? `\n${fails} failure(s)` : "\nall good");

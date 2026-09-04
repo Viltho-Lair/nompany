@@ -76,6 +76,17 @@ export type TeamAvailability = {
   error?: string;
 }[];
 
+// INJECTED, SAME CONVENTION AS calendarOAuth.ts's freshAccessToken/deps
+// PATTERN — every one of these four is a store or network call, and this is
+// the only door onto them, so a test proving the isolation below holds needs
+// no store: hand it fakes that resolve or reject on cue.
+export type TeamAvailabilityDeps = {
+  listSharersImpl?: typeof listSharers;
+  listCollaboratorsImpl?: typeof listCollaborators;
+  listConnectionsImpl?: typeof listConnections;
+  busyForImpl?: typeof busyFor;
+};
+
 /**
  * One studio's visible availability over a window.
  *
@@ -94,10 +105,16 @@ export type TeamAvailability = {
  */
 export async function teamAvailability(
   { studioId, from, to }: { studioId: string; from: string; to: string },
+  deps: TeamAvailabilityDeps = {},
 ): Promise<TeamAvailability> {
+  const listSharersFn = deps.listSharersImpl ?? listSharers;
+  const listCollaboratorsFn = deps.listCollaboratorsImpl ?? listCollaborators;
+  const listConnectionsFn = deps.listConnectionsImpl ?? listConnections;
+  const busyForFn = deps.busyForImpl ?? busyFor;
+
   const [sharers, rawMembers] = await Promise.all([
-    listSharers(studioId),
-    listCollaborators(studioId),
+    listSharersFn(studioId),
+    listCollaboratorsFn(studioId),
   ]);
   // listCollaborators reads a generic Row (Record<string, unknown>) — most of
   // its many callers only ever compare or re-stringify `.id`/`.userId`
@@ -118,31 +135,46 @@ export async function teamAvailability(
     // undefined.
     if (!member) return { collaboratorId, busy: [] };
 
-    const connections = await listConnections(member.userId);
-    if (!connections.length) return { collaboratorId, busy: [] };
+    // THE WHOLE PER-PERSON LOOKUP IS WRAPPED, NOT JUST THE busyFor FAN-OUT
+    // BELOW. listConnections is a store read like any other, and this
+    // callback runs inside Promise.all(visible.map(...)) — a rejection
+    // escaping here (a transient database fault, exactly the failure mode
+    // this machine is in right now with the Cloud SQL proxy down) would
+    // propagate through Promise.all and fail teamAvailability() entirely,
+    // discarding every OTHER person's row along with it. try/catch is what
+    // actually keeps a failure local to this one callback; the allSettled
+    // fan-out one level down only ever protected the busyFor calls it
+    // wraps, never the read that has to succeed before it can start.
+    try {
+      const connections = await listConnectionsFn(member.userId);
+      if (!connections.length) return { collaboratorId, busy: [] };
 
-    // EACH CONNECTION SUCCEEDS OR FAILS ON ITS OWN. allSettled, not
-    // Promise.all — a rejected Microsoft lookup must not throw away a
-    // Google lookup that already came back for the same person, and must
-    // not throw away every OTHER person's row either (that failure stays
-    // local to this one map() callback).
-    const outcomes = await Promise.allSettled(
-      connections.map((c) => busyFor({ userId: member.userId, provider: c.provider, from, to })),
-    );
+      // EACH CONNECTION SUCCEEDS OR FAILS ON ITS OWN. allSettled, not
+      // Promise.all — a rejected Microsoft lookup must not throw away a
+      // Google lookup that already came back for the same person.
+      const outcomes = await Promise.allSettled(
+        connections.map((c) => busyForFn({ userId: member.userId, provider: c.provider, from, to })),
+      );
 
-    const intervals: BusyInterval[] = [];
-    const failures: string[] = [];
-    for (const outcome of outcomes) {
-      if (outcome.status === "fulfilled") intervals.push(...outcome.value);
-      // busyFor's rejections carry the provider's own words (CalendarApiError,
-      // ./calendarFreeBusy) or a plain Error's — never a token, which is what
-      // makes surfacing the message here safe, exactly as the events route
-      // already relies on.
-      else failures.push(outcome.reason instanceof Error ? outcome.reason.message : String(outcome.reason));
+      const intervals: BusyInterval[] = [];
+      const failures: string[] = [];
+      for (const outcome of outcomes) {
+        if (outcome.status === "fulfilled") intervals.push(...outcome.value);
+        // busyFor's rejections carry the provider's own words (CalendarApiError,
+        // ./calendarFreeBusy) or a plain Error's — never a token, which is what
+        // makes surfacing the message here safe, exactly as the events route
+        // already relies on.
+        else failures.push(outcome.reason instanceof Error ? outcome.reason.message : String(outcome.reason));
+      }
+
+      const row: TeamAvailability[number] = { collaboratorId, busy: mergeBusy(intervals) };
+      if (failures.length) row.error = failures.join("; ");
+      return row;
+    } catch (e) {
+      // listConnections failed outright for this one person. Same shape as a
+      // failed provider above — an error row, not a thrown exception — so
+      // this person's failure costs exactly their own row and nothing else.
+      return { collaboratorId, busy: [], error: e instanceof Error ? e.message : String(e) };
     }
-
-    const row: TeamAvailability[number] = { collaboratorId, busy: mergeBusy(intervals) };
-    if (failures.length) row.error = failures.join("; ");
-    return row;
   }));
 }
