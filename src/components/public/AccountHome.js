@@ -1203,9 +1203,15 @@ function Security({ devices, onChanged, locale, user }) {
 
 // ---- calendars -----------------------------------------------------------
 // Google / Microsoft calendars connected to THIS ACCOUNT, never a studio's —
-// see api/account/calendar/route.ts's own comment on why `auth: "user"`. This
-// is deliberately the only screen that ever calls that route: a connection is
-// personal, reachable from every studio the person is in and gated on none.
+// see api/account/calendar/route.ts's own comment on why `auth: "user"`. A
+// connection is personal, reachable from every studio the person is in and
+// gated on none — which is exactly why this is the only screen that MANAGES
+// one. It is no longer the only screen that reads the route: the planner's
+// availability strip GETs it too, to tell somebody with no calendar connected
+// that connecting happens here rather than leaving them with a share switch
+// that appears to do nothing. Reading is safe from anywhere signed in
+// (`listConnections` already returns the public shape, no token in it);
+// connecting and disconnecting stay here.
 function Calendars({ locale, outcome }) {
   const tr = accountDict(useAccountLocale());
   const [data, setData] = useState({ connections: [], available: [], redirectUris: {} });

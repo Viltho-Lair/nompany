@@ -307,6 +307,7 @@ async function renderStudio(params) {
     const planApiBase = `/api/studios/${studio.slug}/projects/${segments[1]}/plans/${segments[3]}`;
     return (
       <StudioPlanner
+        slug={studio.slug}
         planApiBase={planApiBase}
         backHref={`/${studio.slug}/projects-list/${segments[1]}`}
         backLabel={shellDict(locale).backToProject}
@@ -325,6 +326,7 @@ async function renderStudio(params) {
     if (segments[1] === "templates" && segments[2]) {
       return (
         <StudioPlanner
+          slug={studio.slug}
           planApiBase={`/api/studios/${studio.slug}/operations/planner/templates/${segments[2]}`}
           backHref={`/${studio.slug}/projects-planner`}
           backLabel={shellDict(locale).backToPlanner}
@@ -336,6 +338,7 @@ async function renderStudio(params) {
     return planId
       ? (
         <StudioPlanner
+          slug={studio.slug}
           planApiBase={planApiBase}
           backHref={`/${studio.slug}/projects-planner`}
           backLabel={shellDict(locale).backToPlanner}

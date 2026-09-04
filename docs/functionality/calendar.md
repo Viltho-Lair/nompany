@@ -200,6 +200,40 @@ what lapsed.
 
 **Nothing is stored but the flag.** No busy block, no event, no interval is ever written down.
 
+### The strip on the planner
+
+`/<slug>/projects-planner/<planId>` (and a plan opened from a project) carries a **"Who is
+busy"** band under the waterfall, one lane per person assigned to the plan. It is **closed
+until opened** — opening it is what polls every sharer's provider, and nobody's Google account
+should be queried because somebody glanced at a Gantt chart.
+
+**It borrows the chart's geometry rather than computing its own.** Every block is placed with
+the same `timeline.x(date)` the header ticks and task bars use, from the same `Timeline`
+object, and the lanes are pushed clear of the information table by exactly that table's width
+plus the splitter's pixel. A strip whose columns drift from the chart above it is worse than no
+strip. Positions are physical `left`, like the chart's, because the waterfall lays its calendar
+out left-to-right in both languages; the band's prose uses logical properties and mirrors.
+
+**Four states, kept apart on purpose** — the whole reason the band exists:
+
+| On screen | Means |
+|---|---|
+| A shaded block, no label, no tooltip | Busy. There is nothing else to show: no title was ever fetched |
+| A plain empty lane, "Free" | Opted in, and genuinely nothing there |
+| Grey hatching, "Not shared" | Absent from the answer — never opted in. **Not** free |
+| Amber hatching, "Couldn't be checked" | The row carried `error`. Also **not** free |
+
+A row can be both: `busy` still carries whatever one provider answered when another failed, so
+an error row draws its blocks *and* its hatching.
+
+**The switch sits in the band's own header**, labelled "Let colleagues in this studio see when
+I'm busy", with a line underneath saying colleagues see *when*, never *what*. It PUTs
+`calendar-share` and believes the **stored** state that comes back, not the state it asked for.
+Somebody with no connected calendar is told so and linked to their account settings (a new tab,
+so an open plan is not thrown away) rather than left with a switch that appears to do nothing.
+Shown to a read-only viewer too: consent is that person's own, and has nothing to do with
+whether they may edit the plan.
+
 ## The console's calendar
 
 `/super → Application → Calendar`. One Google calendar, read-only, for nompany's own staff.
@@ -265,7 +299,8 @@ An empty week and a calendar that stopped working must never look the same.
 | `src/lib/data/studioAvailability.ts` | `visibleSharers` (the pure membership ∩ consent intersection) and `teamAvailability` |
 | `src/app/api/studios/[slug]/calendar-share/route.ts` | The caller's own opt-in, read and written |
 | `src/app/api/studios/[slug]/availability/route.ts` | The studio's visible availability over a bounded, grid-aligned window |
-| `src/shared/calendar.ts` | Pure, client-safe and importing nothing: `monthGrid`, `eventsByDay`, `eventDayKeys`, a normaliser per provider, and free/busy's own two — `mergeBusy` and `availabilityViewToIntervals` |
+| `src/shared/calendar.ts` | Pure, client-safe and importing nothing: `monthGrid`, `eventsByDay`, `eventDayKeys`, a normaliser per provider, free/busy's own two — `mergeBusy` and `availabilityViewToIntervals` — and `AVAILABILITY_MAX_SPAN_DAYS`, which the route refuses past and the strip clamps to |
+| `src/components/planner/AvailabilityStrip.tsx` | The strip and the switch beside it: one lane per person on the plan, drawn in the waterfall's own `Timeline` |
 | `src/components/public/AccountHome.js` | The account surface's Calendars panel |
 | `src/app/super/(shell)/application/calendar/*` | The console's screen: `page.js`, `ConnectCalendar.jsx`, `CalendarBoard.jsx` |
 
@@ -296,11 +331,16 @@ Stated in words, because a silent gap reads as a finished feature.
 - **Nothing writes to anybody's calendar.** Both scopes are read-only by design. Creating,
   editing, moving or cancelling an event is a different scope and a fresh consent from every
   person who has connected — not a flag to flip.
-- **Nothing on screen shows a colleague's availability yet.** The whole read path exists (see
-  "Availability inside a studio" above) and both routes answer, but no screen calls them — the
-  planner's availability strip and the opt-in toggle are still to come. Until then the feature
-  is reachable only by a client that knows the two URLs, and every person's flag starts off,
-  so in practice nobody is visible to anybody.
+- **The planner is the only screen that shows availability.** The strip and its switch live
+  under the waterfall and nowhere else — there is no studio-wide "who is free this week" view,
+  nothing on the project board, and nothing in People. A person who is never put on a plan has
+  no surface on which their consent can be seen being used.
+- **The strip covers at most 62 days of a longer plan.** It clamps its request to
+  `AVAILABILITY_MAX_SPAN_DAYS`, anchored a day before today when today is inside the plan. The
+  rest of the drawn timeline is hatched and labelled "Not checked" rather than left blank,
+  because blank would read as everybody being free out there.
+- **The strip does not refresh itself.** No polling, no live updates. It reads once when the
+  band is opened, and again when the range or the switch changes.
 - **No studio has a calendar of its own.** A connection is a person's, or the console's. A
   studio-wide shared calendar is not this feature.
 - **The console shows one calendar, not several.** Choosing a second replaces the first —

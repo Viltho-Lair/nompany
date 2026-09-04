@@ -264,6 +264,24 @@ export function eventsByDay(events: CalendarEvent[]): Record<string, CalendarEve
 export type BusyInterval = { start: string; end: string };
 
 /**
+ * THE WIDEST AVAILABILITY WINDOW ANYBODY MAY ASK FOR, in calendar days.
+ *
+ * busyFor's from/to are unbounded, and Graph's availability view is one
+ * character per 30-minute slot anchored at the range start — a year-long
+ * window is a 17,520-character string per person, for a screen that can render
+ * none of it. Two months of slack over the widest strip anyone plausibly draws.
+ *
+ * IT LIVES HERE BECAUSE BOTH ENDS NEED IT. The studio availability route
+ * refuses a wider range; the planner's availability strip has to clamp its
+ * request to the same number BEFORE sending it, or a plan spanning a year
+ * would answer 400 and render as "nobody could be checked" — which is the one
+ * shape this feature must never wear by accident. Two copies of the bound are
+ * two things free to disagree, and the disagreement is invisible until a long
+ * plan is opened.
+ */
+export const AVAILABILITY_MAX_SPAN_DAYS = 62;
+
+/**
  * Busy intervals from anywhere → sorted, non-overlapping, back-to-back runs
  * fused into one.
  *

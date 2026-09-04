@@ -15,6 +15,22 @@ type Strings = CommonStrings & {
   addTaskBelow: string;
   auto: string;
   autoSchedule: string;
+  // THE AVAILABILITY STRIP — when a colleague is busy, and never what they are
+  // doing. Every word here has to survive that distinction, so none of them
+  // names an event, a place or a person: "Busy" is the whole vocabulary.
+  availability: string;
+  availabilityBusy: string;
+  availabilityChecking: string;
+  availabilityConnectInAccount: string;
+  availabilityFree: string;
+  availabilityNoCalendar: string;
+  availabilityNobodyAssigned: string;
+  availabilityNotShared: string;
+  availabilityOutsideWindow: string;
+  availabilityShareFailed: string;
+  availabilityShareHint: string;
+  availabilityShareLabel: string;
+  availabilityUnavailable: string;
   byAssignee: string;
   byPhase: string;
   byPriority: string;
@@ -205,6 +221,19 @@ const en: Strings = {
   addTaskBelow: "Add task below",
   auto: "Auto",
   autoSchedule: "Auto-schedule",
+  availability: "Who is busy",
+  availabilityBusy: "Busy",
+  availabilityChecking: "Checking…",
+  availabilityConnectInAccount: "Connect one in your account settings",
+  availabilityFree: "Free",
+  availabilityNoCalendar: "You have no calendar connected, so there is nothing to share yet.",
+  availabilityNobodyAssigned: "Nobody is assigned to this plan yet.",
+  availabilityNotShared: "Not shared",
+  availabilityOutsideWindow: "Not checked",
+  availabilityShareFailed: "That couldn't be saved. Try again.",
+  availabilityShareHint: "Colleagues see when you are busy — never what you are doing, where, or with whom.",
+  availabilityShareLabel: "Let colleagues in this studio see when I'm busy",
+  availabilityUnavailable: "Couldn't be checked",
   byAssignee: "Assignee",
   byPhase: "Phase",
   byPriority: "Priority",
@@ -395,6 +424,19 @@ const ar: Strings = {
   addTaskBelow: "أضف مهمة أدناه",
   auto: "تلقائي",
   autoSchedule: "جدولة تلقائية",
+  availability: "من المشغول",
+  availabilityBusy: "مشغول",
+  availabilityChecking: "جارٍ التحقق…",
+  availabilityConnectInAccount: "اربط تقويمًا من إعدادات حسابك",
+  availabilityFree: "متفرّغ",
+  availabilityNoCalendar: "لا يوجد تقويم مرتبط بحسابك، فلا شيء لمشاركته بعد.",
+  availabilityNobodyAssigned: "لم يُسنَد أحد إلى هذه الخطة بعد.",
+  availabilityNotShared: "غير مُشارَك",
+  availabilityOutsideWindow: "لم يُفحص",
+  availabilityShareFailed: "تعذّر حفظ هذا. حاول مرة أخرى.",
+  availabilityShareHint: "يرى الزملاء متى تكون مشغولًا — لا ماذا تفعل ولا أين ولا مع مَن.",
+  availabilityShareLabel: "اسمح لزملائي في هذا الاستوديو برؤية أوقات انشغالي",
+  availabilityUnavailable: "تعذّر التحقق",
   byAssignee: "المسؤول",
   byPhase: "المرحلة",
   byPriority: "الأولوية",

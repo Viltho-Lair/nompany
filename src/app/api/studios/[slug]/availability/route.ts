@@ -2,6 +2,7 @@ import { route } from "@/platform/http/route";
 import { teamAvailability, type TeamAvailability } from "@/lib/data/studioAvailability";
 import { SLOT_MINUTES } from "@/lib/data/calendarFreeBusy";
 import { CalendarApiError } from "@/lib/data/calendarReads";
+import { AVAILABILITY_MAX_SPAN_DAYS } from "@/shared/calendar";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,12 +18,12 @@ export const dynamic = "force-dynamic";
 // discarded — no cache, no key. A stale copy of when somebody is busy is both
 // wrong and a copy of data this feature only ever promised to pass through.
 
-// A SCHEDULING STRIP ASKS FOR A WEEK, NOT A YEAR. busyFor's from/to are
-// unbounded, and Graph's availability view is one character per 30-minute slot
-// anchored at the range start — a year-long window is a 17,520-character string
-// per person, for a screen that can render none of it. Two months of slack over
-// the widest strip anyone plausibly draws.
-const MAX_SPAN_DAYS = 62;
+// A SCHEDULING STRIP ASKS FOR A WEEK, NOT A YEAR — the reasoning is on the
+// constant itself, in shared/calendar.ts. It lives there rather than here
+// because the planner's strip has to clamp its request to the SAME number
+// before sending it, and a second copy in a client file would be free to drift
+// from this one with nothing to notice.
+const MAX_SPAN_DAYS = AVAILABILITY_MAX_SPAN_DAYS;
 
 const SLOT_MS = SLOT_MINUTES * 60_000;
 

@@ -91,9 +91,15 @@ export function peopleToResources(people, tr) {
 
 const DEBOUNCE_MS = 600;
 
-// No `slug`: `planApiBase` already carries it, so the planner has nothing to do
-// with the tenant's address beyond the URL it was handed.
-export default function StudioPlanner({ planApiBase, backHref, backLabel }) {
+// `slug` IS PASSED NOW, and it did not used to be: this comment used to say the
+// planner had nothing to do with the tenant's address beyond the URL it was
+// handed, because `planApiBase` carried the slug and the plan document was the
+// only thing the planner ever read. The availability strip broke that — it
+// reads two STUDIO-scoped routes (`calendar-share`, `availability`) that are
+// nothing to do with this plan, and pulling the slug back out of `planApiBase`
+// with a regex would be a second, silent parser for an address we are already
+// holding one component higher up.
+export default function StudioPlanner({ planApiBase, slug, backHref, backLabel }) {
   const hydratePlan = usePlannerStore((s) => s.hydratePlan);
   const setResources = usePlannerStore((s) => s.setResources);
   const setCalendar = usePlannerStore((s) => s.setCalendar);
@@ -243,7 +249,7 @@ export default function StudioPlanner({ planApiBase, backHref, backLabel }) {
             </div>
           ) : (
             <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={enGB}>
-              <PlannerShell readOnly={!state.canEdit} />
+              <PlannerShell readOnly={!state.canEdit} studioSlug={slug} />
             </LocalizationProvider>
           )}
         </div>

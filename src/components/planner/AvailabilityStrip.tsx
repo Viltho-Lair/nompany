@@ -1,0 +1,576 @@
+'use client';
+
+import * as React from 'react';
+import { ChevronDown } from 'lucide-react';
+import { useStudioLocale } from '@/components/studio2/locale';
+import { plannerDict } from '@/shared/studio/planner';
+import { AVAILABILITY_MAX_SPAN_DAYS, type BusyInterval } from '@/shared/calendar';
+import type { Resource } from '@/components/planner/lib/types';
+import type { Timeline } from '@/components/planner/lib/timeline';
+import { Switch } from '@/components/planner/ui/primitives';
+import { cn, formatMediumDate } from '@/components/planner/lib/utils';
+import { Avatar } from './Avatar';
+
+/* ------------------------------------------------------------------ *
+ * WHEN A COLLEAGUE IS BUSY. Never what they are doing.
+ *
+ * A block on this strip carries no title, no location and no guest —
+ * not because they are hidden here, but because none was ever fetched:
+ * the whole path behind it (shared/calendar's BusyInterval, busyFor,
+ * teamAvailability, the availability route) is two instants wide by
+ * construction. Nothing on this screen may promise a detail that does
+ * not exist, which is why a busy block has no tooltip: a tooltip is a
+ * promise that hovering will tell you more, and hovering cannot.
+ *
+ * THE GEOMETRY IS THE CHART'S, NOT A SECOND COPY. Every position here
+ * comes from the same `Timeline` object GanttHeader and GanttBody are
+ * drawn from, through the same `timeline.x(date)`. A strip that
+ * recomputed pixels-per-day from the same dates would agree today and
+ * part company the first time the chart's padding, alignment or "fit to
+ * tasks" trimming changed — and a strip whose columns drift from the
+ * chart above it is worse than no strip, because it is confidently
+ * wrong about a colleague's afternoon.
+ * ------------------------------------------------------------------ */
+
+/** One person's lane. Shorter than a task row — this is a footnote to the plan. */
+const LANE_HEIGHT = 22;
+
+/** What one person's lookup came back as, exactly as the availability route answers. */
+type PersonRow = { collaboratorId: string; busy: BusyInterval[]; error?: string };
+
+/** Where the strip is between asking and knowing. */
+type Phase = 'idle' | 'loading' | 'ready' | 'failed';
+
+/**
+ * One answer, tagged with the request that produced it. `byId: null` is a
+ * request that failed — which is NOT the same as one that came back empty, and
+ * the difference is the whole strip: an empty answer means nobody opted in, a
+ * failed one means we know nothing at all.
+ */
+type Answer = { key: string; byId: Map<string, PersonRow> | null };
+
+/**
+ * THE WINDOW ACTUALLY ASKED FOR, which is not always the window drawn.
+ *
+ * A plan may span a year; the availability route refuses anything wider than
+ * AVAILABILITY_MAX_SPAN_DAYS, for the reason recorded on that constant. So the
+ * request is clamped here — and anchored on TODAY when today falls inside the
+ * plan, because that is where the chart scrolls itself on open and therefore
+ * the part of the timeline somebody is actually looking at. A plan entirely in
+ * the past gets its last window; one entirely in the future gets its first.
+ *
+ * Pure, and exported for that reason: it is the one piece of arithmetic in this
+ * file that can be wrong in a way the eye cannot catch.
+ */
+export function availabilityWindow(origin: Date, end: Date, now: Date): { from: Date; to: Date } {
+  const maxMs = AVAILABILITY_MAX_SPAN_DAYS * 86_400_000;
+  const originMs = origin.getTime();
+  const endMs = end.getTime();
+  if (endMs - originMs <= maxMs) return { from: origin, to: end };
+  // One day of lead-in before today, so a block that started yesterday evening
+  // and runs into this morning is not sliced off at the window's edge.
+  const wanted = now.getTime() - 86_400_000;
+  const latestStart = endMs - maxMs;
+  const fromMs = Math.min(Math.max(wanted, originMs), latestStart);
+  return { from: new Date(fromMs), to: new Date(fromMs + maxMs) };
+}
+
+/**
+ * Diagonal hatching — the texture of "we do not know".
+ *
+ * NOT A COLOUR ON ITS OWN. A pale grey lane and an empty lane are the same
+ * thing to a tired reader and to a colour-blind one, and the two facts they
+ * would be carrying are opposites: "this calendar was never shown to you" and
+ * "this calendar is open all week". Texture is what makes them impossible to
+ * confuse at a glance, which is the entire reason this strip exists.
+ */
+function hatch(color: string): React.CSSProperties {
+  return {
+    backgroundImage: `repeating-linear-gradient(45deg, ${color} 0 3px, transparent 3px 7px)`,
+  };
+}
+
+export function AvailabilityStrip({
+  slug,
+  timeline,
+  people,
+  syncFrom,
+  gutterWidth,
+}: {
+  /** The tenant's own address. The two routes this reads are studio-scoped. */
+  slug: string;
+  /** The chart's timeline. Read, never rebuilt. */
+  timeline: Timeline;
+  /** The plan's people, in the order the header's avatar stack shows them. */
+  people: Resource[];
+  /**
+   * The chart's own scroll pane. The lanes mirror its horizontal position so a
+   * column under the strip is the column above it — one-way, because the lanes
+   * do not scroll on their own and so can never push back.
+   */
+  syncFrom: React.RefObject<HTMLDivElement | null>;
+  /**
+   * How far the chart column starts from the shell's inline edge. The strip
+   * spans the whole pane so its controls have room, so its lanes have to begin
+   * exactly where the chart's do — and the shell already knows that number,
+   * because it is the width it lays the information table out at.
+   */
+  gutterWidth: number;
+}) {
+  const locale = useStudioLocale();
+  const tr = plannerDict(locale);
+  const switchId = React.useId();
+
+  // CLOSED UNTIL ASKED FOR. Opening this band is what sends a request to every
+  // sharer's calendar provider, so it must be a deliberate act rather than a
+  // side effect of opening a plan — nobody's Google account should be polled
+  // because somebody glanced at a Gantt chart.
+  const [open, setOpen] = React.useState(false);
+  const [sharing, setSharing] = React.useState<boolean | null>(null);
+  const [hasConnection, setHasConnection] = React.useState<boolean | null>(null);
+  const [saveFailed, setSaveFailed] = React.useState(false);
+  const [saving, setSaving] = React.useState(false);
+  // THE ANSWER CARRIES THE QUESTION IT ANSWERS. "Loading" is then derived —
+  // the answer in hand is for a different window than the one now drawn —
+  // rather than written into state at the top of the effect. Two reasons, and
+  // the second is the one that matters: a synchronous setState in an effect
+  // body costs a cascading render, and, far worse, an answer for last window
+  // would otherwise still be on screen for the frame between the range
+  // changing and the effect running. On this strip that frame shows one
+  // person's busy blocks against another window's dates.
+  const [answer, setAnswer] = React.useState<Answer | null>(null);
+  // Bumped after a successful save so the strip re-reads: switching sharing on
+  // has to make your own row appear, and off has to make it disappear.
+  const [reload, setReload] = React.useState(0);
+  const lanesRef = React.useRef<HTMLDivElement>(null);
+
+  const { from, to } = React.useMemo(
+    () => availabilityWindow(timeline.origin, timeline.end, new Date()),
+    [timeline.origin, timeline.end],
+  );
+  const fromISO = from.toISOString();
+  const toISO = to.toISOString();
+  // What is being asked, as one value: the window, plus the reload counter so a
+  // save invalidates an answer that is otherwise for the same window.
+  const requestKey = `${fromISO}|${toISO}|${reload}`;
+  const current = answer && answer.key === requestKey ? answer : null;
+  const byId = current?.byId ?? null;
+  const phase: Phase = !open ? 'idle' : !current ? 'loading' : byId ? 'ready' : 'failed';
+
+  /* ---- follow the chart sideways ----
+   * The band opens LONG AFTER the chart has scrolled itself to today, so the
+   * first thing this does is catch up; without that the lanes would sit at day
+   * zero under a chart showing next month, which is the drift this component
+   * exists not to have. A plain listener rather than the shell's mirrored
+   * onScroll handlers: those guard against a feedback loop between two panes
+   * that both scroll, and these lanes never scroll on their own. */
+  React.useEffect(() => {
+    const source = syncFrom.current;
+    if (!open || !source) return;
+    const follow = () => {
+      if (lanesRef.current) lanesRef.current.scrollLeft = source.scrollLeft;
+    };
+    follow();
+    source.addEventListener('scroll', follow, { passive: true });
+    return () => source.removeEventListener('scroll', follow);
+  }, [open, syncFrom, people.length, timeline.width]);
+
+  /* ---- my own consent, and whether I have anything to consent with ---- */
+  React.useEffect(() => {
+    if (!open) return;
+    let alive = true;
+    (async () => {
+      // Both are the caller's own state; neither takes a collaborator id,
+      // because neither route accepts one (see calendar-share/route.ts).
+      const [share, account] = await Promise.all([
+        fetch(`/api/studios/${encodeURIComponent(slug)}/calendar-share`, { cache: 'no-store' })
+          .then((r) => (r.ok ? r.json() : null))
+          .catch(() => null),
+        fetch('/api/account/calendar', { cache: 'no-store' })
+          .then((r) => (r.ok ? r.json() : null))
+          .catch(() => null),
+      ]);
+      if (!alive) return;
+      if (share) setSharing(Boolean(share.sharing));
+      if (account) setHasConnection((account.connections || []).length > 0);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [open, slug]);
+
+  /* ---- the strip itself ---- */
+  React.useEffect(() => {
+    if (!open) return;
+    let alive = true;
+    (async () => {
+      try {
+        const res = await fetch(
+          `/api/studios/${encodeURIComponent(slug)}/availability?from=${encodeURIComponent(fromISO)}&to=${encodeURIComponent(toISO)}`,
+          { cache: 'no-store' },
+        );
+        if (!alive) return;
+        // A REFUSAL IS NOT AN EMPTY STRIP. `{ people: [] }` means nobody in
+        // this studio has opted in — a real, sayable fact. A 400 or a dropped
+        // connection means we know nothing at all, and rendering the two the
+        // same way would report every colleague as free because a query string
+        // was malformed.
+        if (!res.ok) {
+          setAnswer({ key: requestKey, byId: null });
+          return;
+        }
+        const body = await res.json();
+        if (!alive) return;
+        const rows: PersonRow[] = Array.isArray(body?.people) ? body.people : [];
+        setAnswer({ key: requestKey, byId: new Map(rows.map((r) => [String(r.collaboratorId), r])) });
+      } catch {
+        if (alive) setAnswer({ key: requestKey, byId: null });
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [open, slug, fromISO, toISO, requestKey]);
+
+  async function toggleSharing(next: boolean) {
+    setSaving(true);
+    setSaveFailed(false);
+    try {
+      const res = await fetch(`/api/studios/${encodeURIComponent(slug)}/calendar-share`, {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ sharing: next }),
+      });
+      const body = await res.json().catch(() => ({}));
+      // THE ANSWER IS THE STORED STATE, NOT WHAT WAS ASKED FOR — the route
+      // reads it back out of a compare-and-set. Believing the request instead
+      // would show a switch that is on while the store says off, which is the
+      // worst possible lie for a consent control.
+      if (!res.ok || typeof body?.sharing !== 'boolean') {
+        setSaveFailed(true);
+      } else {
+        setSharing(body.sharing);
+        setReload((n) => n + 1);
+      }
+    } catch {
+      setSaveFailed(true);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // Where the answered window sits inside the drawn one, in the chart's own
+  // pixels. See the overlay below for what is done with the gap.
+  const headX = Math.max(0, timeline.x(from));
+  const tailX = Math.min(timeline.width, timeline.x(to));
+
+  return (
+    <div data-planner-chrome className="shrink-0 border-t border-slate-200 bg-white">
+      {/* ------------------------- the control row ------------------------- */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-1.5">
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+          className="flex items-center gap-1.5 text-[12px] font-semibold text-slate-700 hover:text-slate-900"
+        >
+          {/* Closed, the chevron points at the band's inline start — so it has
+              to turn the other way in Arabic. `-rotate-90` with an `rtl:`
+              override rather than an `ltr:` variant, which needs a `dir`
+              attribute on an ancestor to fire at all. */}
+          <ChevronDown
+            className={cn('h-3.5 w-3.5 transition-transform', !open && '-rotate-90 rtl:rotate-90')}
+          />
+          {tr.availability}
+        </button>
+
+        {open && (
+          <>
+            <span className="text-[11px] text-slate-400">
+              {formatMediumDate(from, locale)} → {formatMediumDate(to, locale)}
+            </span>
+
+            <Legend />
+
+            {/* THE SWITCH SITS BESIDE WHAT IT CONTROLS, on purpose: somebody
+                deciding whether to share can see, in the same glance, exactly
+                what a colleague would then see — a shaded band and nothing
+                else. A consent control on a settings page three screens away
+                is a promise the person has to take on trust. */}
+            <div className="ms-auto flex items-center gap-2 text-[12px] text-slate-600">
+              <Switch
+                id={switchId}
+                checked={Boolean(sharing)}
+                disabled={sharing === null || saving}
+                onCheckedChange={toggleSharing}
+              />
+              <label htmlFor={switchId} className="cursor-pointer font-medium">
+                {tr.availabilityShareLabel}
+              </label>
+            </div>
+          </>
+        )}
+      </div>
+
+      {open && (
+        <div className="flex flex-wrap items-center gap-x-2 px-3 pb-1.5 text-[11px] text-slate-500">
+          <span>{tr.availabilityShareHint}</span>
+          {/* SOMEBODY WITH NO CALENDAR CONNECTED IS TOLD SO, rather than left
+              with a switch that appears to do nothing. Connecting is an
+              ACCOUNT act, not a studio one — a connection is reachable from
+              every studio a person is in — so the link leaves for the account
+              screen, and in a new tab so an open plan is not thrown away. */}
+          {hasConnection === false && (
+            <>
+              <span className="text-amber-700">{tr.availabilityNoCalendar}</span>
+              <a
+                href={`/${locale}/account?view=calendars`}
+                target="_blank"
+                rel="noreferrer"
+                className="font-semibold text-primary underline underline-offset-2"
+              >
+                {tr.availabilityConnectInAccount}
+              </a>
+            </>
+          )}
+          {saveFailed && <span className="text-rose-600">{tr.availabilityShareFailed}</span>}
+        </div>
+      )}
+
+      {/* ---------------------------- the lanes ---------------------------- */}
+      {open && (
+        people.length === 0 ? (
+          <p className="px-3 pb-2 text-[11px] text-slate-400">{tr.availabilityNobodyAssigned}</p>
+        ) : (
+          <div className="flex pb-1.5">
+            {/* The chart column's own inline offset, so lane x=0 lands on
+                timeline origin x=0 exactly as it does in the header above. */}
+            <div className="shrink-0" style={{ width: gutterWidth }} />
+            <div
+              ref={lanesRef}
+              className="no-scrollbar min-w-0 flex-1 overflow-x-hidden"
+              aria-busy={phase === 'loading'}
+            >
+              <div className="relative" style={{ width: timeline.width }}>
+                {people.map((person) => (
+                  <Lane
+                    key={person.id}
+                    person={person}
+                    row={byId ? byId.get(person.id) : undefined}
+                    known={Boolean(byId)}
+                    phase={phase}
+                    timeline={timeline}
+                    tr={tr}
+                  />
+                ))}
+
+                {/* THE PART OF THE DRAWN TIMELINE NOBODY ASKED ABOUT. Drawn
+                    ONCE, across every lane, rather than per person — it is a
+                    fact about the request, not about anyone's calendar, and
+                    repeating it inside each lane would make it read as a
+                    fifth per-person state. Left blank it would say "everybody
+                    is free out here", which is the same mistake as rendering
+                    a private calendar as an empty one, one range wide instead
+                    of one person wide. */}
+                {headX > 0 && (
+                  <OutsideWindow left={0} width={headX} align="end" label={tr.availabilityOutsideWindow} />
+                )}
+                {tailX < timeline.width && (
+                  <OutsideWindow
+                    left={tailX}
+                    width={timeline.width - tailX}
+                    align="start"
+                    label={tr.availabilityOutsideWindow}
+                  />
+                )}
+              </div>
+            </div>
+          </div>
+        )
+      )}
+    </div>
+  );
+}
+
+/* ================================= LANE ================================= */
+
+function Lane({
+  person,
+  row,
+  known,
+  phase,
+  timeline,
+  tr,
+}: {
+  person: Resource;
+  row: PersonRow | undefined;
+  known: boolean;
+  phase: Phase;
+  timeline: Timeline;
+  tr: ReturnType<typeof plannerDict>;
+}) {
+  /* THE FOUR STATES THIS STRIP EXISTS TO KEEP APART.
+   *
+   *  absent from `people`  → UNKNOWN. They never opted in. An empty lane here
+   *                          would advertise a private calendar as bookable,
+   *                          which is precisely the failure this whole phase
+   *                          was built to prevent.
+   *  `error` on the row    → UNKNOWN, WITH A REASON. Their provider could not
+   *                          be reached. Also never free: a lookup that failed
+   *                          and an open afternoon are opposite facts.
+   *  `busy: []`, no error  → FREE. They opted in and there is genuinely
+   *                          nothing there. The only state that may look empty.
+   *  `busy: [...]`         → BUSY, and nothing more than that.
+   *
+   * A row may be both: `busy` still carries whatever one provider answered
+   * when another failed, so an error row draws its blocks AND its hatching.
+   */
+  const pending = !known;
+  const missing = known && !row;
+  const failed = Boolean(row?.error);
+  const busy = row?.busy ?? [];
+  const free = known && row && !failed && busy.length === 0;
+
+  const caption = pending
+    ? phase === 'failed'
+      ? tr.availabilityUnavailable
+      : tr.availabilityChecking
+    : missing
+      ? tr.availabilityNotShared
+      : failed
+        ? tr.availabilityUnavailable
+        : free
+          ? tr.availabilityFree
+          : '';
+
+  const unknown = pending || missing || failed;
+
+  return (
+    <div
+      className="relative border-b border-slate-100 last:border-b-0"
+      style={{ height: LANE_HEIGHT }}
+      aria-label={`${person.name}: ${caption || tr.availabilityBusy}`}
+    >
+      {/* the unknown wash, when the whole lane is unknown */}
+      {unknown && (
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={hatch(failed ? 'rgba(217,119,6,0.32)' : 'rgba(100,116,139,0.22)')}
+        />
+      )}
+
+      {/* BUSY BLOCKS. Positioned with physical `left`, exactly as every tick in
+          GanttHeader and every bar in GanttBody is: the chart lays its calendar
+          out left-to-right in both languages, and a lane using
+          inset-inline-start would mirror in Arabic while the chart above it did
+          not — the two would part company by the width of the whole plan. The
+          band's own chrome, which is prose, uses logical properties throughout. */}
+      {busy.map((interval) => {
+        const start = timeline.x(new Date(interval.start));
+        const width = Math.max(timeline.x(new Date(interval.end)) - start, 2);
+        return (
+          <div
+            key={`${interval.start}-${interval.end}`}
+            aria-hidden="true"
+            className="pointer-events-none absolute rounded-[2px] bg-slate-500/70"
+            style={{ left: start, width, top: 5, height: LANE_HEIGHT - 10 }}
+          />
+        );
+      })}
+
+      {/* Identity, pinned to the start of the scroll port so it survives being
+          scrolled away from. An avatar rather than a name: it occludes twenty
+          pixels of lane instead of a hundred and forty, and it carries the name
+          in the tooltip the planner already gives every avatar. */}
+      <div className="pointer-events-none sticky left-0 z-10 flex h-full w-fit items-center gap-1.5 ps-1">
+        <span className="pointer-events-auto rounded-full bg-white/85">
+          <Avatar resource={person} size={16} />
+        </span>
+        {caption && (
+          <span
+            className={cn(
+              'whitespace-nowrap rounded bg-white/85 px-1 text-[10px] font-medium leading-none',
+              failed ? 'text-amber-700' : missing ? 'text-slate-500' : 'text-slate-400',
+            )}
+          >
+            {caption}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ========================== OUTSIDE THE WINDOW ========================== */
+
+/**
+ * A region of the drawn timeline the request did not cover, labelled.
+ *
+ * A DIFFERENT TEXTURE FROM AN UNKNOWN LANE, deliberately. Both are "we do not
+ * know", but a reader has to be able to tell WHY: one is a colleague who did
+ * not opt in, the other is a stretch of calendar nobody was asked about. The
+ * word does that work; the dotted edge marks where the answer stops.
+ *
+ * `left`/`width` in pixels, physical — same frame as the lanes and the chart.
+ * `align` is which of the region's own edges the label hugs, which is the edge
+ * next to the answered range, so the word sits where the boundary is.
+ */
+function OutsideWindow({
+  left,
+  width,
+  align,
+  label,
+}: {
+  left: number;
+  width: number;
+  align: 'start' | 'end';
+  label: string;
+}) {
+  return (
+    <div
+      className="pointer-events-none absolute inset-y-0 flex items-center overflow-hidden"
+      style={{
+        left,
+        width,
+        justifyContent: align === 'start' ? 'flex-start' : 'flex-end',
+        ...hatch('rgba(148,163,184,0.30)'),
+      }}
+    >
+      <span className="whitespace-nowrap bg-white/80 px-1 text-[10px] font-medium text-slate-400">
+        {label}
+      </span>
+    </div>
+  );
+}
+
+/* =============================== LEGEND ================================= */
+
+function Legend() {
+  const tr = plannerDict(useStudioLocale());
+  return (
+    <span className="flex items-center gap-2.5 text-[11px] text-slate-500">
+      <span className="flex items-center gap-1">
+        <span className="h-2.5 w-4 rounded-[2px] bg-slate-500/70" />
+        {tr.availabilityBusy}
+      </span>
+      <span className="flex items-center gap-1">
+        <span
+          className="h-2.5 w-4 rounded-[2px] border border-slate-200"
+          style={hatch('rgba(100,116,139,0.35)')}
+        />
+        {tr.availabilityNotShared}
+      </span>
+      <span className="flex items-center gap-1">
+        <span
+          className="h-2.5 w-4 rounded-[2px] border border-amber-200"
+          style={hatch('rgba(217,119,6,0.45)')}
+        />
+        {tr.availabilityUnavailable}
+      </span>
+      <span className="flex items-center gap-1">
+        <span className="h-2.5 w-4 rounded-[2px] border border-slate-200 bg-white" />
+        {tr.availabilityFree}
+      </span>
+    </span>
+  );
+}

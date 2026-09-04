@@ -243,7 +243,7 @@ every push to `main` and every pull request.
   to 8 fails the build.
 - **The bundle budget pins the regression, not the size.** Two gates, and the
   first is the one that matters: the LARGEST CHUNK is 158 KB gz against a 250 KB
-  ceiling, because that is what every route pays. Total client JS is 1587 KB gz
+  ceiling, because that is what every route pays. Total client JS is 1593 KB gz
   against 1600 KB, which catches sprawl rather than splitting. The studio’s
   department screens are `nextDynamic()` now — the chunk fell from 307 to 197 and
   the total rose 12 KB in the same commit, which is the two ceilings doing their
@@ -296,6 +296,14 @@ every push to `main` and every pull request.
   nothing; what a browser gets is the panel. 1586 → 1587 when the Microsoft
   normaliser started converting Graph's offset-less date-times through `Intl`
   instead of copying them verbatim, plus the redirect-URI hint's two strings.
+  1589 → 1593 with the planner's availability strip — thirteen strings in two
+  languages, the strip itself, and `src/shared/calendar.ts` reaching a second
+  bundle because the client has to clamp its request to the SAME 62-day bound
+  the availability route refuses past (two copies of that number would be free
+  to disagree). Both ends measured on this branch: the line above SAID 1587
+  while a build of the branch before the strip landed measured 1589, so the
+  headline had drifted two kilobytes behind the script — the delta is the four
+  the strip actually cost, not the six the stale number would have implied.
   The largest chunk did not move at any
   point (158 KB), which is the gate that matters.
 - Tests connect things — real repositories, real route handlers, **one assertion per

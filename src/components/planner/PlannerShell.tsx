@@ -20,6 +20,7 @@ import { usePlannerStore, ALL_COLUMNS } from '@/components/planner/lib/store/pla
 import { TooltipProvider } from '@/components/planner/ui/primitives';
 import { Button } from '@/components/planner/ui/button';
 import { AvatarStack } from './Avatar';
+import { AvailabilityStrip } from './AvailabilityStrip';
 import { GanttBody, GanttHeader } from './GanttChart';
 import { Inspector } from './Inspector';
 import { TaskTable, TaskTableHeader } from './TaskTable';
@@ -38,7 +39,16 @@ const PROJECT_STATUS = {
   on_hold: { labelKey: 'phOnHold', dot: '#9CA3AF' },
 } as const;
 
-export function PlannerShell({ printHref, readOnly = false }: { printHref?: string; readOnly?: boolean } = {}) {
+// `studioSlug` is the tenant's address, and the planner asks for it for exactly
+// one reason: the availability strip reads two STUDIO-scoped routes
+// (calendar-share and availability), which the plan's own API base cannot
+// stand in for. Optional, so a plan rendered outside a studio (a print view, a
+// story) is a planner without the strip rather than a planner that throws.
+export function PlannerShell({
+  printHref,
+  readOnly = false,
+  studioSlug,
+}: { printHref?: string; readOnly?: boolean; studioSlug?: string } = {}) {
   const locale = useStudioLocale();
   const tr = plannerDict(locale);
   const {
@@ -460,6 +470,27 @@ export function PlannerShell({ printHref, readOnly = false }: { printHref?: stri
                   </div>
                 )}
               </div>
+            )}
+
+            {/* WHEN THE PLAN'S PEOPLE ARE BUSY — never what they are doing.
+                It sits under both panes rather than inside the chart column so
+                its controls have the width to read, and its lanes are pushed
+                clear of the information table by exactly the width that table
+                occupies (plus the splitter's own pixel), so lane x=0 lands on
+                the chart's x=0 and the columns cannot part company. The same
+                `timeline` object the chart is drawn from does the rest.
+                Waterfall views only: the information table has no timeline to
+                draw on. Shown to a read-only viewer too — the switch is that
+                person's own consent, which has nothing to do with whether
+                they may edit this plan. */}
+            {showChart && studioSlug && (
+              <AvailabilityStrip
+                slug={studioSlug}
+                timeline={timeline}
+                people={assignedResources}
+                syncFrom={chartBodyRef}
+                gutterWidth={view === 'split' ? gridWidth + 1 : 0}
+              />
             )}
 
             <div data-planner-chrome className="contents">
