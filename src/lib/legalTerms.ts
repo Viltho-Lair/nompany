@@ -1,20 +1,28 @@
+import { GOOGLE_DATA_BLOCKS } from "./legalGoogleData";
+
 // Structured content for the public /terms page. The legal body is authored in
 // English (the authoritative language per §20.7); the page chrome (hero, labels,
 // notes) is localized via the i18n dictionary. Keeping the terms here — rather
 // than inline in the page — keeps the route file small and the text reviewable
 // in one place. Mirror any change here into legal/terms-and-conditions.md.
+//
+// Its sibling is legalPrivacy.ts, the Privacy Policy. The two share one section
+// (legalGoogleData.ts) and otherwise CROSS-REFERENCE each other rather than
+// restating: the retention schedule, the security measures and the sub-processor
+// commitment are written once, here, and the Privacy Policy points at them.
 
+// `updated` moves and `effective` does not: Annex B DISCLOSES what the product
+// already does rather than changing it, so §17's thirty-day notice period for a
+// material change is not engaged and the terms in force are still the ones that
+// took effect on the date below.
 export const TERMS_META = {
-  version: "1.0",
+  version: "1.1",
   effective: "07/08/2026",
-  updated: "07/08/2026",
+  updated: "04/09/2026",
 };
 
-// Block shapes:
-//   { type: "p", lead?, text }            paragraph (optional bold lead-in)
-//   { type: "ul", items: [] }             bullet list
-//   { type: "h3", text }                  sub-heading
-//   { type: "table", head: [], rows: [] } data table
+// Block shapes are declared in ./legalBlocks (LegalBlock) and rendered by
+// components/LegalDocument.js: "p" (optional bold lead-in), "h3", "ul", "table".
 export const TERMS_SECTIONS = [
   {
     id: "acceptance",
@@ -24,7 +32,7 @@ export const TERMS_SECTIONS = [
       { type: "p", text: 'The "Service" means the nompany modular enterprise resource planning (ERP) software-as-a-service platform, including its web application, APIs, associated modules (such as Sales, Projects, Inventory, HR/Employees, Finance, Operations and Logistics), documentation, and support, made available on a subscription basis.' },
       { type: "p", text: 'By creating an account, clicking "I accept", signing an Order Form, or otherwise accessing or using the Service, you confirm that you have read, understood, and agree to be bound by these Terms. If you do not agree, you must not access or use the Service.' },
       { type: "p", text: 'If you accept these Terms on behalf of an organisation, you represent and warrant that you have authority to bind that organisation, and "you" refers to that organisation.' },
-      { type: "p", lead: "Order of precedence.", text: 'These Terms incorporate by reference the following, which together form the "Agreement": (a) any executed Order Form or subscription confirmation; (b) the Data Processing Agreement ("DPA"); (c) the Service Level Agreement ("SLA"); (d) the Acceptable Use Policy; and (e) our Privacy Notice. In the event of conflict, these documents govern in the order listed, with the Order Form taking highest precedence, except that the DPA prevails on matters of personal-data protection.' },
+      { type: "p", lead: "Order of precedence.", text: 'These Terms incorporate by reference the following, which together form the "Agreement": (a) any executed Order Form or subscription confirmation; (b) the Data Processing Agreement ("DPA"); (c) the Service Level Agreement ("SLA"); (d) the Acceptable Use Policy; and (e) our Privacy Policy. In the event of conflict, these documents govern in the order listed, with the Order Form taking highest precedence, except that the DPA prevails on matters of personal-data protection.' },
     ],
   },
   {
@@ -207,6 +215,7 @@ export const TERMS_SECTIONS = [
     title: "16. Third-party services and integrations",
     blocks: [
       { type: "p", text: "The Service may interoperate with third-party services (such as payment, email, mapping, or storage providers). Your use of those services is governed by their own terms, and nompany is not responsible for third-party services. Enabling an integration authorises the exchange of relevant Customer Data necessary for the integration to function." },
+      { type: "p", lead: "Google APIs.", text: "Where an integration obtains data through Google APIs — signing in with a Google Account, or connecting a Google Calendar — Annex B sets out what nompany accesses, how it is used, stored, protected, shared, retained and deleted, and prevails over this Section to the extent of any conflict." },
     ],
   },
   {
@@ -265,6 +274,21 @@ export const TERMS_SECTIONS = [
         ["Security measures", "Per Section 9"],
         ["Deletion/return", "Per Sections 10 and 12"],
       ] },
+    ],
+  },
+  // Annex B carries the Google API Services disclosure, and it is the SAME array
+  // the Privacy Policy renders as its section 4 (src/lib/legalGoogleData.ts) —
+  // see that file for why the text lives outside both documents. Only the
+  // framing sentence below belongs to this one.
+  //
+  // It is an ANNEX rather than a renumbered section because every heading in
+  // this file is a published anchor somebody may already have linked to.
+  {
+    id: "google-user-data",
+    title: "Annex B — Google user data (Google API Services)",
+    blocks: [
+      { type: "p", text: "This Annex is nompany's disclosure for data obtained through Google APIs, and is reproduced as section 4 of the Privacy Policy. It applies in addition to Sections 9, 10 and 16, and only where you choose to sign in to nompany with a Google Account or to connect a Google Calendar from Account → Calendars. If you do neither, nompany receives no Google user data about you." },
+      ...GOOGLE_DATA_BLOCKS,
     ],
   },
 ];

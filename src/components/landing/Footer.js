@@ -36,6 +36,7 @@ const columnsFor = (locale, tr) => [
             { label: tr.lnkApiReference },
             { label: tr.lnkImplementation },
             { label: tr.lnkTerms, href: `/${locale}/terms` },
+            { label: tr.lnkPrivacy, href: `/${locale}/privacy` },
         ],
     },
 ];

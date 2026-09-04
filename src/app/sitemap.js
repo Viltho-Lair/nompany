@@ -5,7 +5,7 @@ import { urlFor, alternatesFor } from "@/lib/seo";
 // features, pricing and contact as in-page views rather than routes of their
 // own — so there is nothing else to list for them. Admin and API are excluded
 // on purpose.
-const PATHS = ["", "/careers", "/terms", "/signup", "/login"];
+const PATHS = ["", "/careers", "/terms", "/privacy", "/signup", "/login"];
 
 export default async function sitemap() {
   const now = new Date();

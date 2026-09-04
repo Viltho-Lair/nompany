@@ -139,6 +139,15 @@ nobody can see. Microsoft has no revocation endpoint for delegated tokens — th
 not forgotten — so there disconnecting drops our copy and the grant expires on Microsoft's own
 schedule.
 
+## What the user is told about all this
+
+`docs/functionality/legal-pages.md`. Section 4 of the Privacy Policy (`/{en,ar}/privacy`) is
+the disclosure Google's OAuth verification reviews, and every claim in it is taken from this
+file and from the code it describes: the scopes, the event fields `normaliseEvent` reads, the
+two encrypted tokens, that no calendar content is stored, and that disconnecting revokes
+before it forgets. **Change any of those and the disclosure changes in the same commit** —
+it is the one document a third party checks against the implementation.
+
 ## Availability inside a studio
 
 Phase 2 of the design (`docs/superpowers/specs/2026-09-03-connected-calendars-design.md` §8.1).

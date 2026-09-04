@@ -56,6 +56,7 @@ export default function Nav({ locale, dict }) {
     { href: `/${locale}`, label: dict.nav.home, exact: true },
     { href: `/${locale}/careers`, label: dict.nav.careers },
     { href: `/${locale}/terms`, label: dict.nav.terms },
+    { href: `/${locale}/privacy`, label: dict.nav.privacy },
   ];
 
   // Primary auth actions → public SaaS sign-up / login.

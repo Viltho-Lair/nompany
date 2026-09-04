@@ -178,6 +178,7 @@ type Strings = {
   studiosOthersGave: string;
   studiosOthersGaveShort: string;
   terms: string;
+  privacy: string;
   thatAddress: string;
   tooManyAttemptsRequest: string;
   tooManyAttemptsSendNew: string;
@@ -388,6 +389,7 @@ const en: Strings = {
   studiosOthersGave: "Studios other people have given you access to. Your own studio is under My Studios.",
   studiosOthersGaveShort: "Studios other people have given you access to.",
   terms: "Terms",
+  privacy: "Privacy",
   thatAddress: "that address",
   tooManyAttemptsRequest: "Too many attempts. Request a new code.",
   tooManyAttemptsSendNew: "Too many attempts. Send a new code to continue.",
@@ -585,6 +587,7 @@ const ar: Strings = {
   studiosOthersGave: "استوديوهات منحك أصحابها الوصول إليها. أما استوديوك أنت فتحت «استوديوهاتي».",
   studiosOthersGaveShort: "استوديوهات منحك أصحابها الوصول إليها.",
   terms: "الشروط",
+  privacy: "الخصوصية",
   thatAddress: "ذلك العنوان",
   tooManyAttemptsRequest: "محاولات كثيرة. اطلب رمزًا جديدًا.",
   tooManyAttemptsSendNew: "محاولات كثيرة. أرسل رمزًا جديدًا للمتابعة.",

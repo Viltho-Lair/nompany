@@ -22,6 +22,7 @@ export default function Footer({ locale, dict }) {
     { href: `/${locale}`, label: dict.nav.home },
     { href: `/${locale}/careers`, label: dict.nav.careers },
     { href: `/${locale}/terms`, label: dict.nav.terms },
+    { href: `/${locale}/privacy`, label: dict.nav.privacy },
   ];
 
   const socials = CONTACT.socials;

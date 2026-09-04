@@ -1,8 +1,8 @@
 # nompany ERP — Terms & Conditions of Service
 
-**Version:** 1.0
+**Version:** 1.1
 **Effective date:** 07/08/2026
-**Last updated:** 07/08/2026
+**Last updated:** 04/09/2026
 
 > **Internal note (remove before printing/exporting for signature).** This document is the source of truth for the public `/terms` page. The governing law, competent courts, and the registered legal-entity details are deliberately left open until the company's incorporation is finalised — do **not** insert a specific country until then. Other items requiring confirmation are marked `‹…›` (e.g. dedicated legal/privacy/security mailboxes). The substantive terms below are prepared to reflect EMEA regulatory expectations and GDPR (EU GDPR, UK GDPR & DPA 2018) for data protection and internet usage, but are **not legal advice** and should be reviewed by qualified counsel in the eventual jurisdiction of establishment before signature.
 
@@ -18,7 +18,7 @@
 
 1.4 If you accept these Terms on behalf of an organisation, you represent and warrant that you have authority to bind that organisation, and "you" refers to that organisation.
 
-1.5 **Order of precedence.** These Terms incorporate by reference the following, which together form the **"Agreement"**: (a) any executed Order Form or subscription confirmation; (b) the Data Processing Agreement ("DPA"); (c) the Service Level Agreement ("SLA"); (d) the Acceptable Use Policy; and (e) our Privacy Notice. In the event of conflict, these documents govern in the order listed, with the Order Form taking highest precedence, except that the DPA prevails on matters of personal-data protection.
+1.5 **Order of precedence.** These Terms incorporate by reference the following, which together form the **"Agreement"**: (a) any executed Order Form or subscription confirmation; (b) the Data Processing Agreement ("DPA"); (c) the Service Level Agreement ("SLA"); (d) the Acceptable Use Policy; and (e) our Privacy Policy. In the event of conflict, these documents govern in the order listed, with the Order Form taking highest precedence, except that the DPA prevails on matters of personal-data protection.
 
 ---
 
@@ -236,6 +236,8 @@
 
 16.1 The Service may interoperate with third-party services (such as payment, email, mapping, or storage providers). Your use of those services is governed by their own terms, and nompany is not responsible for third-party services. Enabling an integration authorises the exchange of relevant Customer Data necessary for the integration to function.
 
+16.2 **Google APIs.** Where an integration obtains data through Google APIs — signing in with a Google Account, or connecting a Google Calendar — Annex B sets out what nompany accesses, how it is used, stored, protected, shared, retained and deleted, and prevails over this Section to the extent of any conflict.
+
 ---
 
 ## 17. Changes to the Terms and the Service
@@ -299,6 +301,57 @@ Neither party is liable for failure or delay in performance (other than payment 
 | **International transfers** | Safeguarded per Section 9.5 (SCCs / UK IDTA / equivalent) |
 | **Security measures** | Per Section 9.3 |
 | **Deletion/return** | Per Sections 10 and 12.4 |
+
+---
+
+## Annex B — Google user data (Google API Services)
+
+This Annex is nompany's disclosure for data obtained through Google APIs, and is reproduced as section 4 of the Privacy Policy. It applies in addition to Sections 9, 10 and 16, and only where you choose to sign in to nompany with a Google Account or to connect a Google Calendar from Account → Calendars. If you do neither, nompany receives no Google user data about you.
+
+### What Google user data nompany accesses
+
+nompany requests the narrowest scope that makes each feature work, and accesses nothing beyond it:
+
+| Feature | Google scope requested | Data accessed |
+|---------|------------------------|---------------|
+| Sign in with Google | `openid`, `email`, `profile` | Your Google account identifier, email address, name, and profile picture URL |
+| Connected calendar | `https://www.googleapis.com/auth/calendar.readonly` | The calendars on your account (identifier and name); for the date range being displayed, each event's identifier, title, start and end time, all-day flag, location, colour, and Google Calendar link; and free/busy periods (start and end times only) |
+
+**Read-only, and nothing else.** The calendar scope is read-only: nompany cannot and does not create, modify, or delete any event, calendar, or setting in your Google Account. It does not read event descriptions, attendees, organisers, or attachments, and it does not access Gmail, Drive, Contacts, or any other Google service — no scope granting access to those is ever requested.
+
+### How nompany uses it
+
+- Sign-in data is used solely to create and authenticate your nompany account and to identify you within it.
+- Calendar data is used solely to show you your own upcoming events inside your nompany account.
+- Where — and only where — you have explicitly opted a particular studio in to calendar sharing, colleagues who are members of that same studio can see **when** you are busy: start and end times only. They are never shown a title, location, attendee, organiser, or link. Sharing is off until you turn it on, and is granted per studio rather than once for all of them.
+
+**What it is never used for.** nompany does not use Google user data for advertising of any kind (including personalised, interest-based, or retargeted advertising); does not sell it; does not transfer it to data brokers or information resellers; does not use it to determine creditworthiness or for lending purposes; and does not use it to develop, improve, or train generalised or non-personalised artificial-intelligence or machine-learning models. It is not used to build a profile of you for any purpose other than the features described above.
+
+### What nompany stores, and what it does not
+
+**No calendar content is stored.** No event, title, time, location, link, or busy period is ever written to nompany's database. Calendar content is fetched from Google for the request that displays it and is discarded with that response.
+
+**What is stored.** For a connected calendar, nompany stores only the email address of the connected Google account, the identifiers of the calendars you selected, the date you connected, and the OAuth refresh and access tokens. Both tokens are encrypted with AES-256-GCM before they are written and are decrypted only in memory, for the duration of a request; no token is ever returned in an API response, written to a log line, or placed in a URL. For sign-in, your email address and name are stored on your nompany account record, as they would be for any other sign-in method.
+
+### How nompany protects it
+
+All traffic to and from Google APIs is encrypted in transit with TLS, and stored tokens are encrypted at rest as described above. Access to production systems is role-based, least-privilege, and logged. These measures are in addition to the technical and organisational measures described in Section 9.
+
+### Who it is shared with
+
+nompany does not sell, rent, or trade Google user data, and does not share it with any third party for that third party's own purposes. It is disclosed only to (a) the infrastructure Sub-processors that host and operate the Service, which act solely on nompany's instructions under the terms of Section 9 of the Terms, and (b) a competent authority where disclosure is required by law, in which case we will notify you unless legally prohibited. Within the Service, calendar data is shown only to you and — where you have opted a studio in — as busy start and end times to members of that studio, as described above.
+
+### Retention, revocation, and deletion
+
+- Because no calendar content is stored, there is no stored calendar content to retain or delete.
+- Stored tokens are retained only for as long as the connection exists, and are deleted when you disconnect, when you revoke access at Google, or when your nompany account is deleted.
+- Disconnecting inside nompany (Account → Calendars → Disconnect) revokes the grant with Google first and then deletes nompany's stored copy — it does not merely forget a grant that would otherwise remain live.
+- You may revoke nompany's access at any time, independently of nompany, at <https://myaccount.google.com/permissions>. The connection stops working immediately, and nompany deletes its stored record the next time it attempts to use the revoked grant.
+- To request deletion of Google user data, or to ask a question about it, write to info@nompany.com.
+
+### Limited Use
+
+nompany's use and transfer of information received from Google APIs to any other app adheres to the [Google API Services User Data Policy](https://developers.google.com/terms/api-services-user-data-policy), including the Limited Use requirements.
 
 ---
 

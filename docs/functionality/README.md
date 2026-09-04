@@ -26,6 +26,7 @@ Three rules that keep this folder worth reading:
 | [calendar.md](calendar.md) | Connected calendars: the OAuth flow for both providers, the token lifecycle, the account panel and the console's one calendar |
 | [engagements.md](engagements.md) | The deal: one engagement, its stages, its client, lock and delete |
 | [flows.md](flows.md) | Flow templates and industries: what a studio may edit, what is refused and why, and where the editor lives |
+| [legal-pages.md](legal-pages.md) | The Terms and the Privacy Policy: one renderer, the Google disclosure shared by both, and what Google's OAuth verification requires |
 | [language.md](language.md) | EN/AR and RTL: what decides which language, where the buttons are, what is translated |
 | [list-tables.md](list-tables.md) | The department list tables: the shared Data Grid, and the search / filter / column controls above it |
 | [media.md](media.md) | Uploaded files: Blob for the binary, Redis for the record, the membership check on private reads |

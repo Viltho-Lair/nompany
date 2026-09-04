@@ -307,7 +307,12 @@ every push to `main` and every pull request.
   headline had drifted two kilobytes behind the script — the delta is the four
   the strip actually cost, not the six the stale number would have implied.
   The largest chunk did not move at any
-  point (158 KB), which is the gate that matters.
+  point (158 KB), which is the gate that matters. **Measured 1593 on 04/09/2026**,
+  against a headline that said 1582 — drift from somewhere between those two
+  commits, NOT from the Privacy Policy that measured it: the legal documents are
+  server-rendered and `grep -rl "Limited Use requirements" .next/static` finds
+  nothing, before or after. Stated as measured rather than attributed, because a
+  number this file cannot account for is still better than one it gets wrong.
 - Tests connect things — real repositories, real route handlers, **one assertion per
   bug that actually happened**. Each block names the defect it guards, so nobody
   deletes it later wondering what it was for.
@@ -479,18 +484,18 @@ waits for the gateway.
 **Waves 0–1 are complete; Gate A is green.** Wave 0 shipped (orphan-sweep guard,
 credential rate limiting, console session expiry, traffic-ingest bounds, media tenancy,
 security headers, bcrypt 12 with rehash-on-login, M-1 dead capabilities). Gate A shipped:
-153 golden responses over every surface, the 123-key permission matrix, hop counting, six
+162 golden responses over every surface, the 126-key permission matrix, hop counting, six
 architectural assertions, **per-route permission enforcement in every module**, **ESLint**
 (flat config + shrink-only warning budget), **observability** (request ids, per-request hop
 counts), and CI enforcing all of it.
 
-Both of those numbers have moved once already — 139 goldens and 102 keys before the
+Both of those numbers keep moving — 139 goldens and 102 keys before the
 fifteen-section restructure. They are stated here as MEASURED (`ls tests/goldens | wc -l`, and
 the catalogue assertion in `tests/gate-a.mjs`), because a pass condition quoted from memory is
 a pass condition nobody can check.
 
 **Wave 2 (seams + performance) is mostly done; Gate B is 2 of 3.** Zero direct `readCol` in
-service code ✅, goldens unchanged at 153 ✅, hops ≤2 for the studio route and 3 for sales
+service code ✅, goldens unchanged by the seam work ✅ (162 today), hops ≤2 for the studio route and 3 for sales
 (the structural floor). Done: Seam A (route wrapper, all 96 routes), Seam B (repository
 interface + the `readCol` migration across all 13 modules), Seam C (one context factory,
 killed hop 7), request-scoped cache + batched prefetch (8→2 hops), targeted live updates,

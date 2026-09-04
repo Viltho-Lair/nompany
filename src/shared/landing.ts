@@ -116,6 +116,7 @@ type Strings = {
   lnkSecurity: string;
   lnkStatus: string;
   lnkTerms: string;
+  lnkPrivacy: string;
   loadingPrices: string;
   logIn: string;
   margin: string;
@@ -341,6 +342,7 @@ const en: Strings = {
   lnkSecurity: "Security",
   lnkStatus: "Status",
   lnkTerms: "Terms & conditions",
+  lnkPrivacy: "Privacy policy",
   loadingPrices: "Loading prices…",
   logIn: "Log in",
   margin: "Margin",
@@ -566,6 +568,7 @@ const ar: Strings = {
   lnkSecurity: "الأمان",
   lnkStatus: "حالة الخدمة",
   lnkTerms: "الشروط والأحكام",
+  lnkPrivacy: "سياسة الخصوصية",
   loadingPrices: "جارٍ تحميل الأسعار…",
   logIn: "تسجيل الدخول",
   margin: "الهامش",

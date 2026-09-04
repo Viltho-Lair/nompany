@@ -52,6 +52,18 @@ export const PAGES: Record<string, Record<string, PageCopy> | undefined> = {
         "الشروط التي تحكم استخدام منصة nompany لتخطيط موارد المؤسسات — الاشتراكات والمدفوعات والاستردادات وحماية البيانات وفق اللائحة الأوروبية (GDPR) وأنظمة منطقة EMEA والاحتفاظ بالبيانات.",
     },
   },
+  "/privacy": {
+    en: {
+      title: "Privacy Policy",
+      description:
+        "How nompany handles personal data — what is collected and why, who it is shared with, how it is protected, how long it is kept, and the disclosure for data obtained through Google APIs.",
+    },
+    ar: {
+      title: "سياسة الخصوصية",
+      description:
+        "كيف تتعامل nompany مع البيانات الشخصية — ما الذي يُجمع ولماذا، ومع من يُشارَك، وكيف يُحمى، ومدة الاحتفاظ به، والإفصاح الخاص بالبيانات المُتحصَّل عليها عبر واجهات Google.",
+    },
+  },
 };
 
 const KEYWORDS: Record<string, string[]> = {

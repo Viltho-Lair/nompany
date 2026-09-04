@@ -24,6 +24,7 @@ const dictionaries = {
       home: "Home",
       careers: "Careers",
       terms: "Terms",
+      privacy: "Privacy",
       login: "Log in",
       signup: "Start free",
       account: "My account",
@@ -212,6 +213,24 @@ const dictionaries = {
       contactTitle: "Questions?",
       contactLead:
         "For any questions about these Terms, your subscription, billing, privacy or data retention, contact us.",
+      privacyLink: "Read the Privacy Policy →",
+    },
+    // The Privacy Policy's chrome. Same shape as `terms` — LegalDocument takes
+    // either as its `copy`, so a key added to one belongs in the other.
+    privacy: {
+      eyebrow: "Legal",
+      title: "Privacy Policy",
+      lead: "How nompany handles personal data — what we collect, why, who it is shared with, how it is protected, and how long it is kept.",
+      versionLabel: "Version",
+      effectiveLabel: "Effective",
+      updatedLabel: "Updated",
+      tocTitle: "On this page",
+      langNote:
+        "This Policy is published in English and Arabic. The English version is the authoritative text; if there is any conflict, the English version prevails unless mandatory local law requires otherwise. It sits alongside the Terms and Conditions, which govern the business records a customer organisation stores in the platform.",
+      contactTitle: "Questions?",
+      contactLead:
+        "For any question about this Policy, a request to exercise your data-protection rights, or a request to delete data obtained through Google APIs, contact us.",
+      termsLink: "Read the Terms & Conditions →",
     },
   },
   ar: {
@@ -219,6 +238,7 @@ const dictionaries = {
       home: "الرئيسية",
       careers: "الوظائف",
       terms: "الشروط والأحكام",
+      privacy: "سياسة الخصوصية",
       login: "تسجيل الدخول",
       signup: "ابدأ مجانًا",
       account: "حسابي",
@@ -398,6 +418,22 @@ const dictionaries = {
       contactTitle: "لديك أسئلة؟",
       contactLead:
         "لأي استفسار حول هذه الشروط أو اشتراكك أو الفوترة أو الخصوصية أو الاحتفاظ بالبيانات، تواصل معنا.",
+      privacyLink: "اطّلع على سياسة الخصوصية ←",
+    },
+    privacy: {
+      eyebrow: "قانوني",
+      title: "سياسة الخصوصية",
+      lead: "كيف تتعامل nompany مع البيانات الشخصية — ما الذي نجمعه ولماذا، ومع من تُشارَك، وكيف تُحمى، ومدة الاحتفاظ بها.",
+      versionLabel: "الإصدار",
+      effectiveLabel: "تاريخ السريان",
+      updatedLabel: "آخر تحديث",
+      tocTitle: "في هذه الصفحة",
+      langNote:
+        "تُنشر هذه السياسة بالعربية والإنجليزية. النص الإنجليزي هو النص المُعتمَد؛ وفي حال وجود أي تعارض تسود النسخة الإنجليزية ما لم يقتضِ القانون المحلي الإلزامي خلاف ذلك. وتأتي هذه السياسة إلى جانب الشروط والأحكام التي تحكم سجلات الأعمال التي تحفظها المؤسسة العميلة داخل المنصة.",
+      contactTitle: "لديك أسئلة؟",
+      contactLead:
+        "لأي استفسار حول هذه السياسة، أو لطلب ممارسة حقوقك في حماية البيانات، أو لطلب حذف بيانات تم الحصول عليها عبر واجهات Google، تواصل معنا.",
+      termsLink: "اطّلع على الشروط والأحكام ←",
     },
   },
 };

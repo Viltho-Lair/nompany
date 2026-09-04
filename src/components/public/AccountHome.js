@@ -249,6 +249,7 @@ export default function AccountHome({ locale, chrome }) {
       <footer className="flex shrink-0 items-center gap-6 px-5 pb-4 pt-2 sm:px-8">
         <div className={cn(RAIL_W, "hidden shrink-0 flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 dark:text-slate-400 lg:flex")}>
           <Link href={`/${locale}/terms`} className="hover:text-slate-900 hover:underline dark:hover:text-white">{tr.terms}</Link>
+          <Link href={`/${locale}/privacy`} className="hover:text-slate-900 hover:underline dark:hover:text-white">{tr.privacy}</Link>
           <Link href={`/${locale}/contact`} className="hover:text-slate-900 hover:underline dark:hover:text-white">{tr.help}</Link>
           {owned[0]
             ? <a href={`/${owned[0].slug}/documentation`} className="hover:text-slate-900 hover:underline dark:hover:text-white">{tr.documentation}</a>
