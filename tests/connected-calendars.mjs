@@ -634,5 +634,20 @@ console.log("\nmicrosoft normaliser — the zone lives in a sibling field, and i
     allDayZoned.start === "2026-09-03", allDayZoned.start);
 }
 
+const { cleanSharers } = await import("../src/platform/auth/calendarShare.ts");
+
+console.log("\ncalendar share list");
+{
+  ok("a stored list of ids survives",
+    JSON.stringify(cleanSharers(["col_a", "col_b"])) === JSON.stringify(["col_a", "col_b"]));
+  // THE WRITE BOUNDARY. Anything that is not a non-empty string is dropped, so a
+  // malformed body cannot put a null or an object into a list the availability
+  // route later resolves to real people.
+  ok("non-strings are dropped", JSON.stringify(cleanSharers(["col_a", null, 7, {}, ""])) === JSON.stringify(["col_a"]));
+  ok("duplicates collapse", JSON.stringify(cleanSharers(["col_a", "col_a"])) === JSON.stringify(["col_a"]));
+  ok("a non-array reads as nobody", JSON.stringify(cleanSharers("col_a")) === JSON.stringify([]));
+  ok("absent reads as nobody", JSON.stringify(cleanSharers(undefined)) === JSON.stringify([]));
+}
+
 console.log(fails ? `\n${fails} failure(s)` : "\nall good");
 process.exitCode = fails ? 1 : 0;

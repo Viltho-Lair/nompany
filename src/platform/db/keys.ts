@@ -335,6 +335,13 @@ export const S = {
   sections: (studioId: string) => `${P}s:${studioId}:sections`,
   roles: (studioId: string) => `${P}s:${studioId}:roles`,
   settings: (studioId: string) => `${P}s:${studioId}:settings`,
+  // WHO IN THIS STUDIO LETS COLLEAGUES SEE WHEN THEY ARE BUSY — CollaboratorIDs,
+  // per invariant 6. A SEPARATE KEY from the person's calendar connection
+  // (u:<id>:cal:<provider>) on purpose: cascade-by-prefix destroys this list with
+  // its studio while leaving the connection alone, which is the right outcome for
+  // somebody who leaves one studio and stays in another. A flag on the connection
+  // could not express "shared here, not there" at all.
+  calendarShare: (studioId: string) => `${P}s:${studioId}:calendarShare`,
   // LAW 2 — FLOW TEMPLATES AND INDUSTRIES AS DATA A TENANT OWNS.
   //
   // The seven built-in templates and twenty-five industries are SEEDS, in
