@@ -46,7 +46,7 @@ cross-cutting control (the `task` type wraps every stage). Neither is a blueprin
 | Human Resources | employees, certifications, vacations | Working |
 | Finance & Accounting | cash, ledger, payables, assets, settings | Working |
 | Reports & BI | — | **Not built yet** |
-| Administration & Settings | People, studio settings | Partial — no master-data screen |
+| Administration & Settings | **People**, **Access**, studio settings | Partial — no master-data screen |
 
 Quotations moved to CRM & Sales because the offer is a sales act, while the RFQ it is raised
 from stayed with Engineering & Documents. The controlled document register moved the other way:
@@ -61,9 +61,50 @@ that opens nothing is worse than no row. Reaching one by URL says it is not buil
 deliberately different from the access-denied message a real section gives someone who lacks the
 right.
 
+**`administration-master` is in that list too, and it is the only CHILD in it.** Master data has
+no screen and no permission area; currencies, UoM, numbering series and cost codes are a later
+phase, and the locations screen that could fill it today moves in a change of its own. Its three
+siblings left the list when Administration was folded together — see below.
+
 `testEveryKeyWithNothingToShowIsDeclared` refuses any section that has neither a right behind it
 (directly or via a descendant) nor an entry in that list, so adding a section without a screen is
 a decision somebody records rather than an accident that hides it.
+
+## Administration & Settings is a real section now, and that changed who sees what
+
+Until 03/09/2026 the fifteen-section restructure had landed for fourteen sections. Administration
+was declared with children and rendered as three loose nav rows: People at the pre-restructure
+key `/people` shown to **everyone**, Access at `/access` gated on `canAdminister`, and Studio
+settings pinned in the footer. All three were reached by routes that bypassed the section
+mechanism on purpose, which is why they worked and why nobody noticed that `SECTION_AREAS` had no
+entry for any of them.
+
+They are ordinary sections now, each gated on its own area, and the parent follows its children
+through the same rule every other parent uses. **Access gained a right of its own**
+(`administration.access`) — it was admin-only via `canAdminister`, which is not something anybody
+can be granted, so a studio could not delegate role management without handing over everything
+else being an admin carries. `escalates()` is untouched, so widening who may OPEN the roles screen
+does not widen what any of them may hand out.
+
+**Three consequences, all live:**
+
+1. **People is a granted screen.** Managers and Team Leads hold it by default; **Members and
+   Viewers do not, and lost it.** Who else is in the studio, and with what roles, is a management
+   view. A studio that disagrees grants `administration.members.view` — which it could not do
+   before, because the right decided nothing.
+2. **Reading Studio settings needs `administration.settings.view`.** That right existed
+   throughout the restructure and enforced *nothing*: the GET checked membership and stopped.
+   Gating the nav on a right the endpoint ignored would have hidden the screen while its data
+   stayed readable by any member.
+3. **`/people` and `/access` still resolve.** They alias to the new keys in `requestedKey`
+   (`shared/studioRoute.ts`) rather than 404, because notifications already delivered link to
+   `/people` and a delivered notification cannot be rewritten. The alias sits in `requestedKey`
+   rather than `resolveActiveKey` deliberately — the page reads the first and the shell reads the
+   second, so putting it in the wrong one renders the screen while the nav highlights nothing.
+
+Existing studios were backfilled by `scripts/migrate/grant-administration.mjs`: additive,
+idempotent, dry-run by default, granting by role id rather than name because a studio can rename
+a starter role. It never removes a permission.
 
 ## What opening one looks like
 
@@ -135,7 +176,10 @@ Stated in words, because a silent gap reads as a finished feature.
   are not built.
 - **Administration has no master-data screen.** `administration-master` exists as a key with no
   screen and no right; the studio's locations still live on the Field Operations screen that
-  draws them, and move when that screen is built.
+  draws them, and move when that screen is built. It is the one child in `NO_SCREEN_YET`.
+- **No master data at all**: currencies, UoM, numbering series, cost codes, the industry taxonomy
+  and the flow-template editor are a later phase. The flow editor exists but lives in Studio
+  settings.
 - **`finance-ledger` and `finance-settings` have no screens of their own** and currently fall
   through to the Cash view. Pre-existing, and not caused by the restructure.
 - **The dead-capability audit in `tests/access.test.mjs` is largely blind.** It walks `src/lib`

@@ -15,6 +15,8 @@ Reports and Quality & HSE. They are listed in `NO_SCREEN_YET` (`platform/access/
 and are hidden from the sidebar rather than shown empty, and they hold no permission areas:
 a right nothing can exercise is a bug (invariant 16). Adding a screen means removing its
 entry there, and a test refuses any section that has neither a right nor a declaration.
+**`administration-master` is in that list too and is the only CHILD in it** — Master data has
+no screen; its three siblings left when Administration was folded (see Current state).
 
 **What each thing does is written down: `docs/functionality/`, one file per system
 functionality.** Read the one file you need and start — do not re-derive it from the code,
@@ -554,6 +556,33 @@ approving under an unknown amount.
 **Only bills.** The controlled-document ladder (`moveSignable`) and the submit/answer pairs
 on change orders and timesheets are untouched, and there is no approval inbox, no delegation
 and no condition other than amount. See the "Not built yet" section of the functionality file.
+
+**Administration & Settings is a real section, live 03/09/2026, and it changed who sees
+what.** The fifteen-section restructure had landed for fourteen sections; Administration was
+declared with children and rendered as three loose nav rows — People at the pre-restructure key
+`/people` shown to EVERYONE, Access on `canAdminister`, Studio settings pinned in the footer.
+All three were reached by routes that bypassed the section mechanism deliberately, which is why
+they worked and why nobody noticed `SECTION_AREAS` had no entry for any of them. They are
+ordinary gated sections now and the parent follows its children. Catalogue 124 to 126
+(`administration.access` view/edit) — the roles screen had no area at all, so a studio could not
+delegate role management without making somebody an admin. `escalates()` is untouched.
+
+**THE ROLLOUT CONSEQUENCE, because it is live behaviour on every existing studio:** People is a
+GRANTED screen now. Managers and Team Leads hold it by default; **Members and Viewers lost it**
+— who else is in the studio, and with what roles, is a management view. And **reading Studio
+settings now needs `administration.settings.view`**, a right that existed throughout the
+restructure and enforced nothing, because the GET checked membership and stopped. Existing
+studios were backfilled by `scripts/migrate/grant-administration.mjs` (additive, idempotent,
+dry-run by default, by role id rather than name); **it has been run against the sandbox only —
+running it against production is a separate, deliberate act.** `/people` and `/access` still
+resolve, aliased in `requestedKey`, because delivered notifications link to `/people` and cannot
+be rewritten. `docs/functionality/sections.md` is the file.
+
+**All four `scripts/migrate/*.mjs` were unrunnable** until the same day: each refused on a
+missing `REDIS_URL`, deleted at the Postgres cutover, while reading through the store
+abstraction and naming no backend otherwise. That mattered most for `plant-sections.mjs`, which
+is the only way a seeded section key added after a studio exists reaches that studio now that
+`listSections` no longer reconciles on read — and the fold adds exactly such a key.
 
 **Open decisions (waiting on a person):** the Wave 4 palette (marketing dark-first
 indigo/Sora vs the ERP's light-first blue/Saira); and whether to denormalise the slug index
