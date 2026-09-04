@@ -626,6 +626,17 @@
         ]
       },
       {
+        "key": "administration.master",
+        "group": "Administration & Settings",
+        "label": "Master data",
+        "verbs": [
+          "view",
+          "create",
+          "edit",
+          "delete"
+        ]
+      },
+      {
         "key": "engagements",
         "group": "Main",
         "label": "Engagements",

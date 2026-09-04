@@ -52,7 +52,7 @@
       "administration": true,
       "administration-members": true,
       "administration-access": true,
-      "administration-master": false,
+      "administration-master": true,
       "administration-settings": true,
       "tasks": true,
       "tasks-settings": true
@@ -104,7 +104,7 @@
       "administration": true,
       "administration-members": true,
       "administration-access": true,
-      "administration-master": false,
+      "administration-master": true,
       "administration-settings": true,
       "tasks": true,
       "tasks-settings": true
@@ -123,7 +123,7 @@
         "notes": "",
         "createdAt": "<timestamp>",
         "studioId": "<std_ID>",
-        "sectionId": "<sec_ID>"
+        "sectionId": "<sub_ID>"
       }
     ],
     "permits": [],
@@ -219,6 +219,9 @@
       "to": "<today+6>"
     },
     "positions": [],
+    "canManageLocations": true,
+    "canCreateLocations": true,
+    "canDeleteLocations": true,
     "settings": {
       "workSchedule": {
         "Sunday": {

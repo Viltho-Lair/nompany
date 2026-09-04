@@ -56,7 +56,7 @@
       "administration": true,
       "administration-members": true,
       "administration-access": true,
-      "administration-master": false,
+      "administration-master": true,
       "administration-settings": true,
       "tasks": true,
       "tasks-settings": true
@@ -265,6 +265,11 @@
       {
         "key": "administration-access",
         "name": "Access",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "administration-master",
+        "name": "Master data",
         "parentId": "<sec_ID>"
       },
       {

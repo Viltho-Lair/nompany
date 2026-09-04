@@ -62,7 +62,7 @@
       "administration": true,
       "administration-members": true,
       "administration-access": true,
-      "administration-master": false,
+      "administration-master": true,
       "administration-settings": true,
       "tasks": true,
       "tasks-settings": true
@@ -114,7 +114,7 @@
       "administration": true,
       "administration-members": true,
       "administration-access": true,
-      "administration-master": false,
+      "administration-master": true,
       "administration-settings": true,
       "tasks": true,
       "tasks-settings": true

@@ -12,7 +12,7 @@
       "notes": "",
       "createdAt": "<timestamp>",
       "studioId": "<std_ID>",
-      "sectionId": "<sec_ID>"
+      "sectionId": "<sub_ID>"
     }
   }
 }
