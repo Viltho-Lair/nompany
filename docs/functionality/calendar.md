@@ -109,10 +109,16 @@ rather than offered and broken.
 
 `available` is driven by the **sign-in** credentials — one client id and secret serve both — so
 a Connect button appears as soon as Google or Microsoft sign-in works, whether or not anybody
-registered *this* feature's callback path. The panel therefore names that path
-(`/api/auth/calendar/callback/<provider>`) under the buttons, so an operator meeting
-`redirect_uri_mismatch` at the provider is told where it comes from; the console screen says the
-same about its own.
+registered *this* feature's callback path. The panel therefore shows that path under the
+buttons — not just written out, but the **exact address the server will send**: a real
+operator registered `https://nompany.com/api/auth/calendar/callback/google` and was refused
+with `redirect_uri_mismatch`, because the site actually serves on `www.nompany.com` and
+providers compare byte for byte. `GET /api/account/calendar` now returns a `redirectUris` map
+(`calendarRedirectUri(request, provider)`, one entry per provider in `available`) built from
+the **request that asked**, so the string on screen is never a guess — it is shown in a
+monospace, select-all, click-to-copy control (`CopyableCode`, `src/components/CopyableCode.js`)
+so it can go straight into the provider's console with nothing retyped. The `/super` calendar
+screen shows the same thing about its own, different, callback path.
 
 Connected rows show the account email and when it was connected, with Disconnect behind a
 confirm. **`connectedAt` means first connected, on both surfaces** — reconnecting an expired
@@ -124,7 +130,7 @@ somebody their calendar is empty when it is actually broken.
 
 | Route | What it answers |
 |---|---|
-| `GET /api/account/calendar` | `{ connections, available }` — `available` is the configured providers |
+| `GET /api/account/calendar` | `{ connections, available, redirectUris }` — `available` is the configured providers, `redirectUris` the exact callback address per provider in `available` |
 | `DELETE /api/account/calendar?provider=` | Revokes at the provider, then clears |
 | `GET /api/account/calendar/events?from=&to=` | Merged, sorted events plus a per-provider `errors` list |
 
@@ -147,8 +153,13 @@ it. See `docs/functionality/pg-gateway.md`.)
 
 Three states, two screens:
 
-- **Not connected** — one Connect button, or a plain sentence naming the two env vars and the
-  redirect URI if Google is not configured on this deployment.
+- **Not connected** — one Connect button, or a plain sentence naming the two env vars if Google
+  is not configured on this deployment. Either way, the exact redirect URI to register
+  (`consoleCalendarRedirectUri(request)` — a *different* path from the account surface's own,
+  `/api/super/google-calendar/callback`) is shown underneath in the same `CopyableCode`
+  control the account panel uses, computed by `GET /api/super/google-calendar`'s
+  `redirectUri` field rather than hardcoded in the screen — it used to name the bare path with
+  no host at all, which is not what any provider will actually compare against.
 - **Connected, no calendar chosen** — a dropdown of that account's calendars. Under the
   service account this list was unreliable (a calendar shared with a service account routinely
   never appeared in its own `calendarList`, which is why pasting an id by hand used to be the
@@ -166,7 +177,7 @@ an event when nothing here can is worse than no button.
 
 | Route | What it answers |
 |---|---|
-| `GET /api/super/google-calendar` | `{ connection: null }`, or the public connection plus `calendars` and `problem` |
+| `GET /api/super/google-calendar` | `{ connection: null, redirectUri }`, or the public connection plus `calendars`, `problem` and `redirectUri` |
 | `PUT /api/super/google-calendar` | Chooses a calendar id; validated by reading it, so "saved" means "readable" |
 | `DELETE /api/super/google-calendar` | Revokes at Google, then clears |
 | `GET /api/super/google-calendar/events?from=&to=` | The events in a range |

@@ -16,6 +16,7 @@ import ThemeToggle from "@/components/ThemeToggle";
 import { cn } from "@/lib/utils";
 import { NOVA_PROVIDERS, providerMeta } from "@/lib/nova/providers";
 import { fmtDate, fmtDateTime } from "@/lib/format";
+import CopyableCode from "@/components/CopyableCode";
 
 // The account hub, laid out like the Google Account console:
 //   • brand mark top-left, ABOVE the fixed sidebar
@@ -1207,7 +1208,7 @@ function Security({ devices, onChanged, locale, user }) {
 // personal, reachable from every studio the person is in and gated on none.
 function Calendars({ locale, outcome }) {
   const tr = accountDict(useAccountLocale());
-  const [data, setData] = useState({ connections: [], available: [] });
+  const [data, setData] = useState({ connections: [], available: [], redirectUris: {} });
   const [loading, setLoading] = useState(true);
   // Which provider is mid-confirm ("disconnect this one?") — at most one row
   // at a time, so a provider id is enough; no per-row state needed.
@@ -1327,7 +1328,7 @@ function Calendars({ locale, outcome }) {
           ))}
 
           {connectable.map((p) => (
-            <div key={p} className={ROW}>
+            <div key={p} className={cn(ROW, "flex-col items-stretch gap-2 sm:flex-row sm:items-center")}>
               <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center">
                 <Icon name="calendar" className="h-[18px] w-[18px] text-slate-400 dark:text-slate-500" />
               </span>
@@ -1349,15 +1350,33 @@ function Calendars({ locale, outcome }) {
               both — so Connect appears the moment Google or Microsoft sign-in
               works, whether or not anybody registered this feature's own
               callback path. Without it the provider answers
-              redirect_uri_mismatch and the product says nothing at all. The
-              path is written out here rather than imported: calendarRedirectUri
-              (calendarProviders.ts) needs a Request and pulls in oauth.ts,
-              which is server-only — same reason the /start href above is a
-              literal. */}
+              redirect_uri_mismatch and the product says nothing at all — the
+              real failure that prompted this block: the operator registered
+              what the address bar showed (nompany.com) while the site actually
+              served on www.nompany.com, and the two are different strings to a
+              provider that compares byte for byte. So the address shown here is
+              `data.redirectUris[p]`, computed server-side from THIS request
+              (route.ts, calendarRedirectUri) rather than guessed at in this
+              file — the same string the server will actually send. */}
           {connectable.length > 0 && (
-            <p className="px-1 text-xs text-slate-400 dark:text-slate-500">
-              {tr.calendarRedirectHint(connectable.map((p) => `/api/auth/calendar/callback/${p}`).join(" · "))}
-            </p>
+            <div className="flex flex-col gap-2 px-1">
+              <p className="text-xs text-slate-400 dark:text-slate-500">{tr.calendarRedirectHint}</p>
+              {connectable.map((p) => (
+                data.redirectUris?.[p] ? (
+                  <div key={p} className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                    <span className="shrink-0 font-500">{providerLabel(p)}:</span>
+                    <CopyableCode
+                      value={data.redirectUris[p]}
+                      className="min-w-0 flex-1"
+                      codeClassName="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] text-slate-700 dark:border-white/15 dark:bg-[#191921] dark:text-slate-200"
+                      buttonClassName="rounded-full px-2.5 py-1 text-[11px] font-600 text-brand-700 hover:bg-brand-50 dark:text-brand-300 dark:hover:bg-brand-500/10"
+                      copyLabel={tr.copyRedirectUri}
+                      copiedLabel={tr.copied}
+                    />
+                  </div>
+                ) : null
+              ))}
+            </div>
           )}
         </div>
       )}

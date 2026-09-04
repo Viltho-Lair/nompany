@@ -2,6 +2,7 @@ import { route } from "@/platform/http/route";
 import {
   getConnection, publicConnection, saveConnection, disconnect, getCalendar, listCalendars,
 } from "@/lib/data/googleCalendar";
+import { consoleCalendarRedirectUri } from "@/platform/auth/calendarProviders";
 import { log } from "@/platform/http/observability";
 
 export const runtime = "nodejs";
@@ -25,9 +26,15 @@ const spec = { auth: "super", name: "super/google-calendar" };
 //
 // NO TOKEN REACHES THIS BODY. `publicConnection` names its six fields rather
 // than deleting two from a spread — see its comment in lib/data/googleCalendar.ts.
-export const GET = route(spec, async () => {
+export const GET = route(spec, async ({ request }) => {
+  // THE CONSOLE'S OWN CALLBACK PATH, and a DIFFERENT ONE from the account
+  // flow's (calendarProviders.ts) — an operator who registers the account
+  // redirect URI here would be refused the same way as one who registers
+  // nompany.com's URI while the site serves on www. Computed from THIS
+  // request, not hardcoded, for the same reason.
+  const redirectUri = consoleCalendarRedirectUri(request);
   const connection = await getConnection();
-  if (!connection) return { connection: null };
+  if (!connection) return { connection: null, redirectUri };
 
   let calendars: { id: string; summary: string }[] = [];
   let problem = "";
@@ -56,7 +63,7 @@ export const GET = route(spec, async () => {
     });
     problem = detail;
   }
-  return { connection: publicConnection(connection), calendars, problem };
+  return { connection: publicConnection(connection), calendars, problem, redirectUri };
 });
 
 // WHICH calendar of the connected account to show. Connecting and choosing are

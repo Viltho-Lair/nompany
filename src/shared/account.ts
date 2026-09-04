@@ -24,8 +24,10 @@ type Strings = {
   calendarConnected: string;
   calendarConnectedSince: (date: string) => string;
   calendarNoEmailOnFile: string;
-  calendarRedirectHint: (paths: string) => string;
+  calendarRedirectHint: string;
   calendarUnreachable: (providerName: string) => string;
+  copied: string;
+  copyRedirectUri: string;
   calendars: string;
   calendarsBlurb: string;
   cancel: string;
@@ -227,10 +229,15 @@ const en: Strings = {
   // client id and secret drive both. Registering the calendar callback is a
   // SEPARATE step, and skipping it fails at the provider with
   // "redirect_uri_mismatch" — a message with nothing in the product to explain
-  // it. The /super calendar screen says the same thing about its own path.
-  calendarRedirectHint: (paths: string) =>
-    `If the provider answers "redirect_uri_mismatch", ${paths} still has to be registered as a redirect URI on its OAuth client.`,
+  // it, let alone the exact string to fix it with. The /super calendar screen
+  // says the same thing about its own path. Providers compare byte for byte —
+  // no trailing slash, and which host served the request (www or not) both
+  // matter — which is why the address shown next to this is the one the
+  // server actually computed, not typed out here.
+  calendarRedirectHint: "This exact address must be registered as a redirect URI on the provider's OAuth client — it's matched byte for byte, so no trailing slash and the exact host (including any \"www\") both matter.",
   calendarUnreachable: (providerName: string) => `We couldn't reach your ${providerName} calendar:`,
+  copied: "Copied",
+  copyRedirectUri: "Copy",
   calendars: "Calendars",
   calendarsBlurb: "Connect your Google or Microsoft calendar to see your own events here. Nothing about it is shared with any studio.",
   cancel: "Cancel",
@@ -424,9 +431,10 @@ const ar: Strings = {
   calendarConnected: "تقويمك مرتبط الآن.",
   calendarConnectedSince: (date: string) => `مرتبط منذ ${date}`,
   calendarNoEmailOnFile: "لا يوجد بريد إلكتروني مسجَّل للحساب",
-  calendarRedirectHint: (paths: string) =>
-    `إذا ردّ المزوّد بـ "redirect_uri_mismatch"، فلا يزال يلزم تسجيل ${paths} كعنوان إعادة توجيه في تطبيق OAuth الخاص به.`,
+  calendarRedirectHint: "يجب تسجيل هذا العنوان بالضبط كعنوان إعادة توجيه في تطبيق OAuth الخاص بالمزوّد — تتم مطابقته حرفًا بحرف، فلا فرق يُهمَل، لا شرطة مائلة زائدة، والنطاق (بما في ذلك \"www\") مهمّان تمامًا.",
   calendarUnreachable: (providerName: string) => `تعذّر الوصول إلى تقويم ${providerName}:`,
+  copied: "تم النسخ",
+  copyRedirectUri: "نسخ",
   calendars: "التقويمات",
   calendarsBlurb: "اربط تقويم Google أو Microsoft لترى أحداثك هنا. لا يُشارَك شيء منه مع أي استوديو.",
   cancel: "إلغاء",
