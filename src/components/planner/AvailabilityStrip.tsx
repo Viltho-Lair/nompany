@@ -618,15 +618,22 @@ function Lane({
           scrolled away from. An avatar rather than a name: it occludes twenty
           pixels of lane instead of a hundred and forty, and it carries the name
           in the tooltip the planner already gives every avatar. */}
-      {/* PHYSICAL PADDING, TO MATCH THE PHYSICAL PIN. This element sticks to
-          `left: 0` because that is where the chart's day zero is in both
-          languages; `ps-1` beside it would have flipped to the other side in
-          Arabic and pushed the avatar off the edge it is pinned to. Inline
-          rather than `pl-1`, so the exception to the house rule is stated
-          where it is made instead of reading as a slip. */}
+      {/* PINNED AND PADDED PHYSICALLY, BOTH INLINE, WHICH IS HOW ITS NEIGHBOUR
+          DOES IT. This element sticks to the timeline's left edge because that
+          is where the chart's day zero is in both languages, and `ps-1` beside
+          it would have flipped to the other side in Arabic and pushed the
+          avatar off the very edge it is pinned to.
+
+          The physical values are inline styles rather than Tailwind utilities
+          for the same reason GanttChart's every tick, bar and marker is: an
+          inline style is a stated exception at the place it is made, while a
+          physical utility class is one more entry in the count Gate A holds a
+          ceiling over, and that ceiling exists to stop a mirroring backlog
+          growing before Wave 4 rewrites these screens. Only `sticky` is a
+          class, because sticky has no handedness at all. */}
       <div
-        className="pointer-events-none sticky left-0 z-10 flex h-full w-fit items-center gap-1.5"
-        style={{ paddingLeft: 4 }}
+        className="pointer-events-none sticky z-10 flex h-full w-fit items-center gap-1.5"
+        style={{ left: 0, paddingLeft: 4 }}
       >
         <span className="pointer-events-auto rounded-full bg-white/85">
           <Avatar resource={person} size={16} />
