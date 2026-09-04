@@ -79,7 +79,7 @@ const NOT_FOUND = [
 // moved on" — which is a retry-after-refresh, not a bug in the caller.
 const CONFLICT = [
   "already", "already-member", "already-issued", "already-decided",
-  "already-open", "already-owner", "received-already",
+  "already-open", "free-studio-limit", "received-already",
   "duplicate", "duplicate-sku", "exists", "taken", "slug-taken",
   "in-use", "has-payments",
   "locked",            // see the note below — this name is overloaded

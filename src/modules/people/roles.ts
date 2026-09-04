@@ -102,6 +102,12 @@ export const STARTER_ROLES = [
       ...level("fieldService.tracking", "edit"), ...level("tasks.board", "full"),
       ...level("hr.employees", "view"), ...level("hr.vacations", "edit"),
       "hr.vacations.approve", "engineeringDocs.rfq.convert",
+      // WHO ELSE IS IN THE STUDIO. People was visible to every member until
+      // Administration became a real section; gating it is the point of that
+      // change rather than a side effect, and running a department is the case
+      // for holding it. NOT administration.access: seeing who is here is not
+      // the same as deciding what they may do.
+      "administration.members.view",
     ],
     scopes: { "hr.employees": "department", "hr.vacations": "department" },
   },
@@ -120,6 +126,13 @@ export const STARTER_ROLES = [
       ...level("projects.list", "edit"), ...level("tasks.board", "full"),
       ...level("inventory.items", "view"), ...level("fieldService.tracking", "edit"),
       ...level("hr.vacations", "view"),
+      // A LEAD ASSIGNS WORK, so a lead needs the list of people to assign it
+      // to. This is deliberately NOT in tension with the note above about HR:
+      // that withholds hr.employees, which is the employment record — pay,
+      // contract, documents. This is studio membership and the roles people
+      // hold, which is the thing the task board and the shift rota already
+      // show them by name.
+      "administration.members.view",
     ],
     scopes: { "hr.vacations": "own" },
   },

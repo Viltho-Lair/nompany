@@ -8,7 +8,9 @@
 //   node scripts/migrate/backfill.mjs [--out FILE] [--studio ID] [--load] [--allow-live-read]
 //
 // SAFETY — two locks, the KEY_PREFIX philosophy from keys.ts, because the read is
-// against the LIVE, SHARED Redis (CLAUDE.md: there is no dev database):
+// against the LIVE, SHARED store (CLAUDE.md: there is no dev database — it was
+// Redis when this was written and is Postgres now; the locks are the same
+// either way, because what they guard is the NAMESPACE rather than the engine):
 //   • READ-ONLY. The core calls getJSON / hGetAll / scanPrefix and nothing that
 //     writes — no set, no del, no FLUSHDB, no sweep.
 //   • It refuses the live namespace unless you say so: run under NOMPANY_KEY_PREFIX
@@ -41,8 +43,13 @@ try {
   }
 } catch { /* CI or an already-exported shell */ }
 
-if (!process.env.REDIS_URL) {
-  console.error("REDIS_URL is not set — nothing to read from.");
+// THE STORE IS POSTGRES NOW, and this checked for REDIS_URL — which no longer
+// exists anywhere, so the script refused to start. It reads through the store
+// abstraction (extract → getJSON / scanPrefix) and never named a backend
+// otherwise; only this guard did. Same fix as backfill-engagements.mjs and
+// plant-sections.mjs.
+if (!process.env.DATABASE_URL) {
+  console.error("DATABASE_URL is not set — nothing to read from.");
   process.exit(1);
 }
 
@@ -106,7 +113,7 @@ const counts = [...tables.entries()].map(([t, rows]) => [t, rows.length]).sort((
 for (const [table, n] of counts) console.log(`  ${table.padEnd(22)} ${String(n).padStart(7)}`);
 
 if (unmapped.size) {
-  console.log(`\nUnmapped keys (deferred to a later pass, NOT lost in Redis):\n  ${[...unmapped].join("\n  ")}`);
+  console.log(`\nUnmapped keys (deferred to a later pass, NOT lost — they stay in the store):\n  ${[...unmapped].join("\n  ")}`);
 }
 if (anomalies.length) {
   console.log(`\n⚠  ${anomalies.length} coercion anomalies — review before Stage 3:`);

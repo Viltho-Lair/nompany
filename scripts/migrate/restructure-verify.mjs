@@ -227,8 +227,11 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
     }
   } catch { /* CI or an already-exported shell */ }
 
-  if (!process.env.REDIS_URL) {
-    console.error("REDIS_URL is not set — nothing to read from.");
+  // THE STORE IS POSTGRES NOW — see backfill-engagements.mjs for the same fix.
+  // This one is read-only and is the thing you reach for to check a restructure
+  // landed, which is exactly when a script refusing to start is least welcome.
+  if (!process.env.DATABASE_URL) {
+    console.error("DATABASE_URL is not set — nothing to read from.");
     process.exit(1);
   }
 

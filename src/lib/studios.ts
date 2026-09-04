@@ -15,7 +15,7 @@ import { listRoles } from "@/modules/people/roles";
 import { studioLocale } from "@/shared/locale";
 import { notifyCollaborators, NOTIFY } from "@/platform/notify/notifications";
 import {
-  createStudio, getStudioById, getStudioBySlug, getOwnedStudio,
+  createStudio, getStudioById, getStudioBySlug, listOwnedStudios,
   listUserCollaborations, changeStudioSlug,
   recordStudioVisit, studioVisitCounts, pruneStudioVisits,
 } from "@/modules/main/studios";
@@ -39,9 +39,11 @@ import type { PermissionSet, Role } from "@/platform/access";
 import type { CollaboratorRef } from "@/modules/context";
 import type { StudioRow } from "@/modules/main/studios";
 
-// ---- creating the one studio a user may own --------------------------------
+// ---- creating a studio this user will own ----------------------------------
 // Gated on a verified email: the address must be proven before a company can
-// exist under it. Ownership is 0..1, enforced by the ix:owner claim underneath.
+// exist under it. HOW MANY they may own is decided underneath, in createStudio:
+// two on the default package, unlimited on any other. It is not re-stated here,
+// because a copy of a cap is a copy free to disagree with the one that holds.
 export async function createStudioForUser(
   user: { id?: unknown },
   { name, slug }: { name?: unknown; slug?: unknown },
@@ -86,7 +88,7 @@ export async function slugAvailability(rawSlug: unknown) {
 // nothing yet instead of letting it drift between requests.
 export async function studiosForUser(userId: string) {
   const [owned, collaborations, visits] = await Promise.all([
-    getOwnedStudio(userId),
+    listOwnedStudios(userId),
     listUserCollaborations(userId),
     studioVisitCounts(userId),
   ]);
@@ -104,17 +106,25 @@ export async function studiosForUser(userId: string) {
   // the studio you own. Collaboration means a studio SOMEONE ELSE let you into,
   // so the owned one is subtracted here — at the source, where every caller and
   // the visit ranking both get it right.
-  const joined = owned ? collaborations.filter((s) => s.id !== owned.id) : collaborations;
+  //
+  // A SET, not a single id, since a person may own several — subtracting only
+  // the first would have listed their other studios as places somebody let them
+  // into, which is the opposite of what the word means.
+  const ownedIds = new Set(owned.map((s) => String(s.id)));
+  const joined = collaborations.filter((s) => !ownedIds.has(String(s.id)));
 
   // We already hold the live set, so drop tallies for studios this person can no
   // longer reach. Fire-and-forget, and it only writes when something is stale.
-  const live = [...(owned ? [String(owned.id)] : []), ...joined.map((s) => String(s.id))];
+  const live = [...ownedIds, ...joined.map((s) => String(s.id))];
   if (Object.keys(visits).some((id) => !live.includes(id))) {
     pruneStudioVisits(userId, live).catch(() => {});
   }
 
   return {
-    owned: owned ? shape(owned) : null,
+    // Owned studios rank the same way collaborations do — most-opened first —
+    // because with more than one of them the registry's newest-first order stops
+    // being the order that matters to the person reading the list.
+    owned: owned.map(shape).sort(byVisits),
     collaborations: joined.map(shape).sort(byVisits),
   };
 }

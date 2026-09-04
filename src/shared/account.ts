@@ -15,7 +15,7 @@ type Strings = {
   address364Characters: string;
   addressAlreadyTaken: string;
   alreadyHaveCode: string;
-  alreadyOwnStudio: string;
+  freeStudioLimit: (n: number) => string;
   askStudioAccessUsing: string;
   asksCode: string;
   calendarAllDay: (date: string) => string;
@@ -210,7 +210,11 @@ const en: Strings = {
   address364Characters: "An address is 3–64 characters: lowercase letters, numbers and hyphens.",
   addressAlreadyTaken: "That address is already taken.",
   alreadyHaveCode: "I already have a code",
-  alreadyOwnStudio: "You already own a studio.",
+  // The cap is on FREE studios, not on studios, so the message says so — "you
+  // already own the most we allow" would be false the moment they upgrade one,
+  // and would read as a wall where there is a door. `n` comes from the refusal
+  // rather than being written in, so the number cannot drift from the server's.
+  freeStudioLimit: (n: number) => `You can own ${n} free studio${n === 1 ? "" : "s"}. Upgrade one of yours to create another.`,
   askStudioAccessUsing: "Ask a studio for access using its company code. Someone there approves the request.",
   asksCode: "Asks for a code",
   calendarAllDay: (date: string) => `All day · ${date}`,
@@ -411,7 +415,7 @@ const ar: Strings = {
   address364Characters: "العنوان من 3 إلى 64 حرفًا: حروف إنجليزية صغيرة وأرقام وشرطات.",
   addressAlreadyTaken: "هذا العنوان محجوز.",
   alreadyHaveCode: "لديّ رمز بالفعل",
-  alreadyOwnStudio: "تملك استوديو بالفعل.",
+  freeStudioLimit: (n: number) => `يمكنك امتلاك ${n === 1 ? "استوديو مجاني واحد" : n === 2 ? "استوديوهين مجانيين" : n <= 10 ? `${n} استوديوهات مجانية` : `${n} استوديو مجاني`}. رقِّ أحدها لإنشاء استوديو آخر.`,
   askStudioAccessUsing: "اطلب الوصول إلى استوديو برمز الشركة. وسيوافق أحدهم هناك على الطلب.",
   asksCode: "يطلب رمزًا",
   calendarAllDay: (date: string) => `طوال اليوم · ${date}`,

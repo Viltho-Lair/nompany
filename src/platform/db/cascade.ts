@@ -271,11 +271,9 @@ export async function cascadeDeleteStudio(studioId: string): Promise<boolean> {
   // notifications, settings
   await delPrefix(S.prefix(studioId));
 
-  // uniqueness claims
-  if (studio) {
-    await release(IX.slug(studio.slug));
-    await release(IX.owner(studio.ownerUserId));
-  }
+  // uniqueness claims. The slug is the only one a studio holds — ix:owner is
+  // gone, ownership being a field on the registry row that dies with it.
+  if (studio) await release(IX.slug(studio.slug));
 
   // join-requests targeting this studio
   await editArr(REG.joinRequests, (jrs) => ({ next: jrs.filter((r) => r.studioId !== studioId) }));
@@ -303,10 +301,23 @@ export async function cascadeDeleteUser(userId: string): Promise<boolean> {
   const users = await readArr<UserRef>(REG.users);
   const user = users.find((u) => u.id === userId);
 
-  // 1) the studio they OWN (full studio cascade — sections, data, everyone's
-  //    access to it, tokens, media: all gone)
-  const ownedId = await getIndex(IX.owner(userId));
-  if (ownedId) await cascadeDeleteStudio(ownedId);
+  // 1) EVERY studio they OWN — not the first one (full studio cascade: sections,
+  //    data, everyone's access to it, tokens, media: all gone). This read the
+  //    ix:owner index and deleted the single id it returned; a person may own
+  //    several now, and deleting one of them while leaving the rest would have
+  //    left studios whose owner does not exist — rows nobody can reach, since
+  //    ownership is what grants the owner role.
+  //
+  //    Sequential on purpose: each cascade ends in a compare-and-set on the
+  //    studio registry, and running them in parallel would just make them
+  //    contend for it.
+  //    Derived HERE rather than through modules/main/studios' listOwnedStudios,
+  //    which answers the same question: platform/db sits under modules, and a
+  //    cascade reaching up into one would invert that. The registry read is the
+  //    whole of the derivation either way.
+  const ownedStudios = (await readArr<{ id?: unknown; ownerUserId?: unknown }>(REG.studios))
+    .filter((st) => String(st.ownerUserId || "") === userId);
+  for (const st of ownedStudios) await cascadeDeleteStudio(String(st.id));
 
   // 2) their Collaborator rows in every OTHER studio (removes them from those
   //    studios' lists; their business records survive per the plan)
@@ -490,6 +501,10 @@ export async function cascadeDeleteEngagement(
 export const SWEEP_SCOPES = Object.freeze({
   email: `${P}ix:email:`,
   slug: `${P}ix:slug:`,
+  // NOTHING WRITES ix:owner ANY MORE — ownership derives from the registry row.
+  // The scope stays because that makes every remaining ix:owner key an orphan by
+  // definition, and reaping orphans is this function's whole job; dropping the
+  // scope would strand them instead. Nothing reads them in the meantime.
   owner: `${P}ix:owner:`,
   collab: `${P}ix:collab:`,
   user: `${P}u:`,

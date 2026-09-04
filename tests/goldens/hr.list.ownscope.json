@@ -191,7 +191,7 @@
         "name": "Manager",
         "description": "Runs a department: full control of its work, sight of the rest.",
         "wildcard": false,
-        "permissionCount": 43,
+        "permissionCount": 44,
         "held": 0
       },
       {
@@ -287,7 +287,7 @@
         "name": "Team Lead",
         "description": "Does the work and assigns it, without settings or deletion.",
         "wildcard": false,
-        "permissionCount": 27,
+        "permissionCount": 28,
         "held": 0
       },
       {
