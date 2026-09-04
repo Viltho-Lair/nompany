@@ -32,7 +32,12 @@ export async function POST(request: Request) {
     // ceiling actually is rather than hardcoding a number that would drift —
     // the same shape the member-limit refusal uses.
     return Response.json(
-      { error: result.error, ...(result.limit !== undefined ? { limit: result.limit } : {}) },
+      // `"limit" in result` rather than `result.limit !== undefined`. The two
+      // refusal arms are a union and only ONE carries `limit`, so reading the
+      // property to test it is an error on the arm that lacks it — tsc was red
+      // on exactly this. The `in` operator narrows the union instead of
+      // assuming every arm has the field.
+      { error: result.error, ...("limit" in result ? { limit: result.limit } : {}) },
       { status },
     );
   }
