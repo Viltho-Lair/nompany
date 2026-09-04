@@ -31,6 +31,7 @@ type Strings = CommonStrings & {
   availabilityShareFailed: string;
   availabilityShareHint: string;
   availabilityShareLabel: string;
+  availabilityShareUnreadable: string;
   availabilityUnavailable: string;
   byAssignee: string;
   byPhase: string;
@@ -235,6 +236,7 @@ const en: Strings = {
   availabilityShareFailed: "That couldn't be saved. Try again.",
   availabilityShareHint: "Colleagues see when you are busy — never what you are doing, where, or with whom.",
   availabilityShareLabel: "Let colleagues in this studio see when I'm busy",
+  availabilityShareUnreadable: "Your sharing setting couldn't be read, so it can't be changed here yet.",
   availabilityUnavailable: "Couldn't be checked",
   byAssignee: "Assignee",
   byPhase: "Phase",
@@ -439,6 +441,7 @@ const ar: Strings = {
   availabilityShareFailed: "تعذّر حفظ هذا. حاول مرة أخرى.",
   availabilityShareHint: "يرى الزملاء متى تكون مشغولًا — لا ماذا تفعل ولا أين ولا مع مَن.",
   availabilityShareLabel: "اسمح لزملائي في هذا الاستوديو برؤية أوقات انشغالي",
+  availabilityShareUnreadable: "تعذّرت قراءة إعداد المشاركة، فلا يمكن تغييره هنا الآن.",
   availabilityUnavailable: "تعذّر التحقق",
   byAssignee: "المسؤول",
   byPhase: "المرحلة",

@@ -176,6 +176,13 @@ export function AvailabilityStrip({
   // Bumped after a successful save so the strip re-reads: switching sharing on
   // has to make your own row appear, and off has to make it disappear.
   const [reload, setReload] = React.useState(0);
+  // The consent read's own two pieces of state: whether the last attempt came
+  // back at all, and a counter the retry button bumps to attempt it again.
+  // `sharing === null` alone cannot say which of "still loading" and "could not
+  // be read" is true, and the switch has to stay disabled through both while
+  // only one of them is worth putting words on screen for.
+  const [shareUnreadable, setShareUnreadable] = React.useState(false);
+  const [shareReload, setShareReload] = React.useState(0);
   const lanesRef = React.useRef<HTMLDivElement>(null);
 
   const { from, to } = React.useMemo(
@@ -228,13 +235,30 @@ export function AvailabilityStrip({
           .catch(() => null),
       ]);
       if (!alive) return;
+      // A FAILED READ IS SAID OUT LOUD, exactly as a failed save already is.
+      // It used to be swallowed here: `sharing` stayed null, `disabled` stayed
+      // true, and the one control this screen exists for sat permanently grey
+      // with nothing on screen explaining why — one blip at mount was enough,
+      // and nothing retried. Silence is the worst outcome for a consent
+      // control, because a dead switch is indistinguishable from a switch
+      // somebody has already decided about.
+      //
+      // AND IT IS NOT DEFAULTED TO OFF. Rendering "not sharing" when the value
+      // could not be read would assert something nothing established — the
+      // same class of error as drawing an unknown calendar as a free one, one
+      // control instead of one lane. So the switch stays disabled while the
+      // answer is genuinely unknown, and the line below says why.
+      setShareUnreadable(!share);
       if (share) setSharing(Boolean(share.sharing));
+      // The account read gets no such treatment, on purpose: its only job is
+      // to decide whether to OFFER the connect hint, and a failure there falls
+      // back to not offering it. Nothing is disabled and nothing is asserted.
       if (account) setHasConnection((account.connections || []).length > 0);
     })();
     return () => {
       alive = false;
     };
-  }, [open, slug]);
+  }, [open, slug, shareReload]);
 
   /* ---- the strip itself ---- */
   React.useEffect(() => {
@@ -377,6 +401,28 @@ export function AvailabilityStrip({
             </>
           )}
           {saveFailed && <span className="text-rose-600">{tr.availabilityShareFailed}</span>}
+          {/* The read failed, so the switch above is disabled and this says so.
+              A retry rather than a reload of the whole plan: the plan itself is
+              fine, and re-running one effect is the smallest thing that can put
+              the control back. */}
+          {shareUnreadable && (
+            <>
+              <span className="text-rose-600">{tr.availabilityShareUnreadable}</span>
+              <button
+                type="button"
+                onClick={() => {
+                  // Cleared first, so the retry reads as an attempt in progress
+                  // (disabled, no message) rather than as a message that
+                  // ignored the click.
+                  setShareUnreadable(false);
+                  setShareReload((n) => n + 1);
+                }}
+                className="font-semibold text-primary underline underline-offset-2"
+              >
+                {tr.retry}
+              </button>
+            </>
+          )}
         </div>
       )}
 
@@ -483,6 +529,10 @@ function Lane({
    * when another failed, so an error row draws its blocks AND its hatching.
    */
   const pending = !known;
+  // Which kind of "no answer yet" this is: still in flight, or the request
+  // came back refused. They caption differently, so they must draw differently.
+  const pendingWait = pending && phase !== 'failed';
+  const pendingFailed = pending && phase === 'failed';
   const missing = known && !row;
   const failed = Boolean(row?.error);
   // EXPLICITLY `=== false`, not `!row.connected`. An older server that does not
@@ -521,16 +571,26 @@ function Lane({
           reached. Texture and not merely tint, because a pale wash and an empty
           lane are the same thing to a tired reader and to a colour-blind one —
           and the fact they would be confusing is "bookable" against "nobody
-          knows". */}
+          knows".
+
+          A WHOLE-REQUEST FAILURE TAKES THE AMBER, not the grey. Every lane is
+          unknown then, and the caption on each already reads "Couldn't be
+          checked" — wearing the stripes the legend labels "Not shared" would
+          have made the legend briefly disagree with the caption beside it. A
+          request still in flight gets neither texture but a plain wash, which
+          is in no legend entry at all, because it is a state that resolves on
+          its own and nothing should be looked up to understand it. */}
       {unknown && (
         <div
-          className="pointer-events-none absolute inset-0"
+          className={cn('pointer-events-none absolute inset-0', pendingWait && 'bg-slate-100/70')}
           style={
-            failed
-              ? hatch('rgba(217,119,6,0.32)')
-              : unconnected
-                ? dots('rgba(100,116,139,0.42)')
-                : hatch('rgba(100,116,139,0.22)')
+            pendingWait
+              ? undefined
+              : failed || pendingFailed
+                ? hatch('rgba(217,119,6,0.32)')
+                : unconnected
+                  ? dots('rgba(100,116,139,0.42)')
+                  : hatch('rgba(100,116,139,0.22)')
           }
         />
       )}
@@ -558,7 +618,16 @@ function Lane({
           scrolled away from. An avatar rather than a name: it occludes twenty
           pixels of lane instead of a hundred and forty, and it carries the name
           in the tooltip the planner already gives every avatar. */}
-      <div className="pointer-events-none sticky left-0 z-10 flex h-full w-fit items-center gap-1.5 ps-1">
+      {/* PHYSICAL PADDING, TO MATCH THE PHYSICAL PIN. This element sticks to
+          `left: 0` because that is where the chart's day zero is in both
+          languages; `ps-1` beside it would have flipped to the other side in
+          Arabic and pushed the avatar off the edge it is pinned to. Inline
+          rather than `pl-1`, so the exception to the house rule is stated
+          where it is made instead of reading as a slip. */}
+      <div
+        className="pointer-events-none sticky left-0 z-10 flex h-full w-fit items-center gap-1.5"
+        style={{ paddingLeft: 4 }}
+      >
         <span className="pointer-events-auto rounded-full bg-white/85">
           <Avatar resource={person} size={16} />
         </span>

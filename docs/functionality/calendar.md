@@ -241,6 +241,10 @@ I'm busy", with a line underneath saying colleagues see *when*, never *what*. It
 `calendar-share` and believes the **stored** state that comes back, not the state it asked for.
 Somebody with no connected calendar is told so and linked to their account settings (a new tab,
 so an open plan is not thrown away) rather than left with a switch that appears to do nothing.
+**A failed *read* of the setting says so too**, with a retry: the switch stays disabled, because
+the value is genuinely unknown, but it is never defaulted to off — showing "not sharing" when
+nothing could be read would assert something never established, the same class of error as
+drawing an unknown calendar as a free one.
 Shown to a read-only viewer too: consent is that person's own, and has nothing to do with
 whether they may edit the plan.
 
