@@ -717,7 +717,74 @@ console.log("\nfree/busy");
       "2026-09-03T09:00:00.000Z");
 }
 
-const { busyFor } = await import("../src/lib/data/calendarFreeBusy.ts");
+const { busyFor, SLOT_MINUTES } = await import("../src/lib/data/calendarFreeBusy.ts");
+const { availabilityWindow, availabilityRangeStart, AVAILABILITY_MAX_SPAN_MS } =
+  await import("../src/shared/calendar.ts");
+
+console.log("\nthe availability window and the route that answers it, against each other");
+{
+  // THE BUG THIS BLOCK EXISTS FOR. The strip clamped its request to EXACTLY the
+  // maximum span; the route bounded the span AFTER rounding `from` down onto
+  // the slot grid, which adds up to one slot of width the caller never asked
+  // for. Any `from` not already slot-aligned — which is every `now`-derived one
+  // — therefore overshot, and every plan longer than the bound answered 400.
+  // The strip read that as `phase: failed` and drew every lane amber
+  // "Couldn't be checked", permanently, on exactly the plans the band was built
+  // for. It fails safe (nobody renders as free) and it never works.
+  //
+  // NEITHER HALF WAS WRONG ON ITS OWN READING, which is why this is asserted
+  // with the REAL functions and the REAL constants rather than two literals: a
+  // test restating 62 and 30 would agree with itself and with neither end.
+  const SLOT_MS = SLOT_MINUTES * 60_000;
+
+  // A plan far wider than the bound, containing a `now` with arbitrary
+  // milliseconds on it — the worst case, and the ordinary one, since `now` is
+  // where the strip anchors and a clock lands nowhere near a slot boundary.
+  const now = new Date("2026-09-04T13:07:23.451Z");
+  const origin = new Date("2026-01-01T00:00:00.000Z");
+  const end = new Date("2026-12-31T00:00:00.000Z");
+  const w = availabilityWindow(origin, end, now);
+  const span = w.to.getTime() - w.from.getTime();
+
+  ok("a plan wider than the bound is clamped to exactly the bound",
+    span === AVAILABILITY_MAX_SPAN_MS, `${span} vs ${AVAILABILITY_MAX_SPAN_MS}`);
+  ok("...and its start is NOT slot-aligned, which is the whole difficulty",
+    w.from.getTime() % SLOT_MS !== 0, String(w.from.getTime() % SLOT_MS));
+
+  // THE CROSS-CHECK ITSELF: the widest thing the client will ever ask for is a
+  // thing the route answers. This is the assertion that was missing.
+  const startMs = availabilityRangeStart(w.from.getTime(), w.to.getTime(), SLOT_MS);
+  ok("the widest window the strip will request is one the route accepts",
+    startMs !== null, `${w.from.toISOString()} → ${w.to.toISOString()}`);
+  ok("...and the route still rounds its start down onto the slot grid",
+    startMs !== null && startMs % SLOT_MS === 0 && startMs <= w.from.getTime(), String(startMs));
+
+  // A plan SHORTER than the bound is passed through untouched, and must also be
+  // answerable — the same misalignment applies to a plan's own origin.
+  const shortFrom = new Date("2026-09-01T09:07:11.003Z");
+  const shortTo = new Date("2026-09-20T09:07:11.003Z");
+  const short = availabilityWindow(shortFrom, shortTo, now);
+  ok("a plan inside the bound is asked for whole, and accepted",
+    short.from.getTime() === shortFrom.getTime() && short.to.getTime() === shortTo.getTime() &&
+    availabilityRangeStart(short.from.getTime(), short.to.getTime(), SLOT_MS) !== null);
+
+  // THE BOUND STILL BITES. Moving it to the requested span rather than the
+  // aligned one must not turn it into no bound at all — a caller that is not
+  // the strip can still ask for a year, and must still be refused.
+  ok("one millisecond past the bound is refused",
+    availabilityRangeStart(w.from.getTime(), w.to.getTime() + 1, SLOT_MS) === null);
+  ok("a year is refused", availabilityRangeStart(Date.parse("2026-01-01T00:00:00Z"),
+    Date.parse("2027-01-01T00:00:00Z"), SLOT_MS) === null);
+
+  // AND THE ORDERING IS NOT AN ACCIDENT OF THE BOUND. A reversed range whose
+  // two ends sit inside ONE slot is the case that rounding-before-judging would
+  // rescue into a forward one (10:20 → 10:10 becomes 10:00 → 10:10).
+  ok("a range reversed inside a single slot is still refused",
+    availabilityRangeStart(Date.parse("2026-09-03T10:20:00Z"),
+      Date.parse("2026-09-03T10:10:00Z"), SLOT_MS) === null);
+  ok("an unparseable end is refused rather than read as an instant",
+    availabilityRangeStart(Date.parse("2026-09-03T10:00:00Z"), Date.parse("nonsense"), SLOT_MS) === null);
+}
 
 console.log("\nbusyFor — when, and never what");
 {

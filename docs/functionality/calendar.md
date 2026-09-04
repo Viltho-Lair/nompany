@@ -191,6 +191,16 @@ providers are asked: ask from 09:07 and every slot boundary lands at :07 and :37
 meeting decodes as starting 09:07 with nothing on the wire saying the grid moved. Rounding
 down rather than up can only widen the window, never hide a block straddling the start.
 
+**The bound is measured on the range as sent, before that rounding** — the two judgements are
+one function, `availabilityRangeStart`, and the order matters. Bounding the *rounded* range
+charges the caller for up to a slot of width the route itself added, so a client clamping to
+exactly 62 days was refused for being minutes too wide; the strip read that as a failure and
+drew every lane "Couldn't be checked" on precisely the long plans the band exists for. The
+slot grid is an internal detail of the Microsoft adapter and no caller can anticipate it, so
+whatever the alignment then adds is the route's own cost. Reversal is judged on the sent range
+for a sharper reason: rounding first would rescue a reversed range whose ends sit inside one
+slot (10:20 → 10:10 becomes 10:00 → 10:10) into a forward one.
+
 **A failed lookup says only that it failed.** Where a provider refuses for one person, the row
 keeps `busy` from whatever *other* connection of theirs answered and carries `error:
 "unavailable"` — the key is always present, because a silent `busy: []` would show a broken
@@ -198,6 +208,12 @@ lookup as an open afternoon. The provider's own words are deliberately not forwa
 Graph's per-target refusal embeds the calendar owner's account email verbatim, and the rest of
 a message we do not author cannot be bounded by a pattern written today. The person themselves
 still gets the full reason on their own account screen, where it is their data and actionable.
+
+**It is not lost, though — it goes to the server log at error level**, whole, with the studio
+and the CollaboratorID beside it. An operator watching every lane turn amber otherwise has no
+thread at all to pull. That log line keeps the address the wire redacts, deliberately: the two
+readers are not the same person, and for whoever operates the deployment "which mailbox did the
+provider refuse" *is* the diagnosis.
 
 **An upstream calendar failure is 502, mapped rather than forwarded.** `CalendarApiError.status`
 is the provider's status plus two values that are not statuses of ours at all — 409 when we
@@ -313,7 +329,7 @@ An empty week and a calendar that stopped working must never look the same.
 | `src/lib/data/studioAvailability.ts` | `visibleSharers` (the pure membership ∩ consent intersection) and `teamAvailability` |
 | `src/app/api/studios/[slug]/calendar-share/route.ts` | The caller's own opt-in, read and written |
 | `src/app/api/studios/[slug]/availability/route.ts` | The studio's visible availability over a bounded, grid-aligned window |
-| `src/shared/calendar.ts` | Pure, client-safe and importing nothing: `monthGrid`, `eventsByDay`, `eventDayKeys`, a normaliser per provider, free/busy's own two — `mergeBusy` and `availabilityViewToIntervals` — and `AVAILABILITY_MAX_SPAN_DAYS`, which the route refuses past and the strip clamps to |
+| `src/shared/calendar.ts` | Pure, client-safe and importing nothing: `monthGrid`, `eventsByDay`, `eventDayKeys`, a normaliser per provider, free/busy's own two — `mergeBusy` and `availabilityViewToIntervals` — and the availability window's **two halves side by side**: `AVAILABILITY_MAX_SPAN_DAYS`/`_MS`, `availabilityWindow` (what the strip asks for) and `availabilityRangeStart` (what the route accepts). They live in one module because they are one contract, and `tests/connected-calendars.mjs` asserts the widest thing the first produces is something the second answers |
 | `src/components/planner/AvailabilityStrip.tsx` | The strip and the switch beside it: one lane per person on the plan, drawn in the waterfall's own `Timeline` |
 | `src/components/public/AccountHome.js` | The account surface's Calendars panel |
 | `src/app/super/(shell)/application/calendar/*` | The console's screen: `page.js`, `ConnectCalendar.jsx`, `CalendarBoard.jsx` |

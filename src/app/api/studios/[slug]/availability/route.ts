@@ -2,7 +2,8 @@ import { route } from "@/platform/http/route";
 import { teamAvailability, type TeamAvailability } from "@/lib/data/studioAvailability";
 import { SLOT_MINUTES } from "@/lib/data/calendarFreeBusy";
 import { CalendarApiError } from "@/lib/data/calendarReads";
-import { AVAILABILITY_MAX_SPAN_DAYS } from "@/shared/calendar";
+import { availabilityRangeStart } from "@/shared/calendar";
+import { log } from "@/platform/http/observability";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,13 +19,13 @@ export const dynamic = "force-dynamic";
 // discarded — no cache, no key. A stale copy of when somebody is busy is both
 // wrong and a copy of data this feature only ever promised to pass through.
 
-// A SCHEDULING STRIP ASKS FOR A WEEK, NOT A YEAR — the reasoning is on the
-// constant itself, in shared/calendar.ts. It lives there rather than here
-// because the planner's strip has to clamp its request to the SAME number
-// before sending it, and a second copy in a client file would be free to drift
-// from this one with nothing to notice.
-const MAX_SPAN_DAYS = AVAILABILITY_MAX_SPAN_DAYS;
-
+// A SCHEDULING STRIP ASKS FOR A WEEK, NOT A YEAR — and the rule that says so
+// is availabilityRangeStart, in shared/calendar.ts, not a copy here. It lives
+// there because the planner's strip (availabilityWindow, the same module) has
+// to clamp its request to the SAME bound before sending it, and the two halves
+// were in two files that no test could hold against each other. They drifted:
+// see the ordering note on availabilityRangeStart. The only number this file
+// contributes is the slot size, which is the free/busy reader's own.
 const SLOT_MS = SLOT_MINUTES * 60_000;
 
 export const GET = route(
@@ -38,27 +39,11 @@ export const GET = route(
     const url = new URL(request.url);
     const from = String(url.searchParams.get("from") || "");
     const to = String(url.searchParams.get("to") || "");
-    const fromMs = Date.parse(from);
-    const toMs = Date.parse(to);
-    // REVERSAL IS JUDGED ON WHAT THE CALLER ACTUALLY SENT, before the alignment
-    // below. Rounding `from` DOWN first would rescue a genuinely reversed range
-    // whose two ends sit inside one slot (10:20 → 10:10 becomes 10:00 → 10:10)
-    // and answer it as though it were fine.
-    if (!Number.isFinite(fromMs) || !Number.isFinite(toMs) || toMs <= fromMs) return { error: "invalid" };
-
-    // MICROSOFT ANCHORS ITS SLOTS AT THE RANGE START, not at the hour. Graph's
-    // availabilityView is a string of fixed-width slots counted from whatever
-    // `startTime` we send, so asking from 09:07 puts every boundary at :07 and
-    // :37 — a 09:30 meeting then decodes as starting 09:07, and nothing on the
-    // wire says the grid moved. Rounding `from` DOWN onto the 30-minute grid is
-    // the cheap fix: boundaries land where a reader expects, and rounding down
-    // rather than up can only widen the window, never hide a busy block that
-    // straddles the start. Google is unaffected — freeBusy returns real
-    // instants — so aligning is harmless there.
-    const alignedFromMs = Math.floor(fromMs / SLOT_MS) * SLOT_MS;
-    // The span is bounded on the ALIGNED range, which is the one actually
-    // asked for; alignment can only add up to one slot, so the ceiling holds.
-    if (toMs - alignedFromMs > MAX_SPAN_DAYS * 86_400_000) return { error: "invalid" };
+    // FINITE, FORWARD, WITHIN THE BOUND, AND ROUNDED ONTO THE SLOT GRID — one
+    // decision, made in one pure function so the strip that has to satisfy it
+    // can be tested against it. Every reason is written down there.
+    const alignedFromMs = availabilityRangeStart(Date.parse(from), Date.parse(to), SLOT_MS);
+    if (alignedFromMs === null) return { error: "invalid" };
     const alignedFrom = new Date(alignedFromMs).toISOString();
 
     let rows: TeamAvailability;
@@ -106,11 +91,35 @@ export const GET = route(
     // tell "opted in, nothing hooked up" from "connected and genuinely free".
     // It leaks nothing: a colleague already learns as much from the row's mere
     // existence, which says this person opted in.
-    const people: TeamAvailability = rows.map((row) => (
-      row.error
-        ? { collaboratorId: row.collaboratorId, busy: row.busy, connected: row.connected, error: "unavailable" }
-        : row
-    ));
+    //
+    // AND THE REASON GOES SOMEWHERE, rather than being dropped on the floor.
+    // Redacting it on the wire is what a colleague is owed; an operator
+    // watching every lane turn amber is owed the opposite, and until this line
+    // existed there was no thread to pull anywhere — the message died in this
+    // `.map`. The spec's failure table (§9) asks for exactly this: the
+    // provider's own reason, at error level, in the server log.
+    //
+    // THE LOG KEEPS THE MESSAGE WHOLE, INCLUDING AN ADDRESS IT MAY CARRY.
+    // Graph's per-target refusal embeds the calendar owner's account email, and
+    // observability.ts's header lists email addresses among what a log line
+    // does not carry. This is a deliberate, narrow exception rather than an
+    // oversight: the two audiences are not the same one. Redaction upstairs
+    // protects a colleague from learning a co-worker's address off a screen;
+    // this line is read by whoever operates the deployment, for whom "which
+    // mailbox did the provider refuse" IS the diagnosis, and a message trimmed
+    // to fit the rule would leave a failure that cannot be acted on. The wire
+    // stays redacted regardless of what happens here.
+    const people: TeamAvailability = rows.map((row) => {
+      if (!row.error) return row;
+      log.error("availability lookup failed for one person", {
+        studioId: String(studio.id),
+        // CollaboratorID, never UserID (invariant 6) — and it is what the
+        // studio's own People screen can be searched by.
+        collaboratorId: row.collaboratorId,
+        reason: row.error,
+      });
+      return { collaboratorId: row.collaboratorId, busy: row.busy, connected: row.connected, error: "unavailable" };
+    });
 
     return { people };
   },

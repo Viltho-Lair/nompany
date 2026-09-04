@@ -4,7 +4,7 @@ import * as React from 'react';
 import { ChevronDown } from 'lucide-react';
 import { useStudioLocale } from '@/components/studio2/locale';
 import { plannerDict } from '@/shared/studio/planner';
-import { AVAILABILITY_MAX_SPAN_DAYS, type BusyInterval } from '@/shared/calendar';
+import { availabilityWindow, type BusyInterval } from '@/shared/calendar';
 import type { Resource } from '@/components/planner/lib/types';
 import type { Timeline } from '@/components/planner/lib/timeline';
 import { Switch } from '@/components/planner/ui/primitives';
@@ -37,10 +37,11 @@ const LANE_HEIGHT = 22;
 
 /**
  * What one person's lookup came back as, exactly as the availability route
- * answers. `connected` is optional HERE and required there: a browser holding
- * an older bundle than the server, or the other way round, must degrade to the
- * states that existed before the field did rather than read `undefined` as
- * `false` and tell everybody their colleagues have no calendar.
+ * answers. `connected` is optional HERE and required there — not to tolerate an
+ * older server, but because NOTHING VALIDATES THIS BODY: the fetch below casts
+ * `body.people`, it does not parse it, so at runtime the field genuinely may be
+ * absent and the type has to say so. What matters is which way the absence
+ * resolves, and it resolves to unknown; see `unconnected` in Lane.
  */
 type PersonRow = { collaboratorId: string; busy: BusyInterval[]; connected?: boolean; error?: string };
 
@@ -55,31 +56,15 @@ type Phase = 'idle' | 'loading' | 'ready' | 'failed';
  */
 type Answer = { key: string; byId: Map<string, PersonRow> | null };
 
-/**
- * THE WINDOW ACTUALLY ASKED FOR, which is not always the window drawn.
- *
- * A plan may span a year; the availability route refuses anything wider than
- * AVAILABILITY_MAX_SPAN_DAYS, for the reason recorded on that constant. So the
- * request is clamped here — and anchored on TODAY when today falls inside the
- * plan, because that is where the chart scrolls itself on open and therefore
- * the part of the timeline somebody is actually looking at. A plan entirely in
- * the past gets its last window; one entirely in the future gets its first.
- *
- * Pure, and exported for that reason: it is the one piece of arithmetic in this
- * file that can be wrong in a way the eye cannot catch.
+/*
+ * THE WINDOW ACTUALLY ASKED FOR — availabilityWindow, which used to live here
+ * and now sits in shared/calendar.ts beside the rule the route judges it by.
+ * It was the one piece of arithmetic in this file that could be wrong in a way
+ * the eye cannot catch, and it WAS: exported for testability, imported by
+ * nothing, and a JSX file is not something the suite's loader can import. Next
+ * to the route's own rule it is one import away from both, and the two are
+ * asserted against each other in tests/connected-calendars.mjs.
  */
-export function availabilityWindow(origin: Date, end: Date, now: Date): { from: Date; to: Date } {
-  const maxMs = AVAILABILITY_MAX_SPAN_DAYS * 86_400_000;
-  const originMs = origin.getTime();
-  const endMs = end.getTime();
-  if (endMs - originMs <= maxMs) return { from: origin, to: end };
-  // One day of lead-in before today, so a block that started yesterday evening
-  // and runs into this morning is not sliced off at the window's edge.
-  const wanted = now.getTime() - 86_400_000;
-  const latestStart = endMs - maxMs;
-  const fromMs = Math.min(Math.max(wanted, originMs), latestStart);
-  return { from: new Date(fromMs), to: new Date(fromMs + maxMs) };
-}
 
 /**
  * Diagonal hatching — the texture of "we do not know".
@@ -512,7 +497,7 @@ function Lane({
    *  `error` on the row    → UNKNOWN, WITH A REASON. Their provider could not
    *                          be reached. Also never free: a lookup that failed
    *                          and an open afternoon are opposite facts.
-   *  `connected: false`    → UNKNOWN, WITH NOTHING TO ASK. They opted in and
+   *  not `connected: true` → UNKNOWN, WITH NOTHING TO ASK. They opted in and
    *                          have hooked no calendar up, so their `busy` is
    *                          empty for a reason that says nothing whatever
    *                          about their time. This one is the most dangerous
@@ -535,10 +520,15 @@ function Lane({
   const pendingFailed = pending && phase === 'failed';
   const missing = known && !row;
   const failed = Boolean(row?.error);
-  // EXPLICITLY `=== false`, not `!row.connected`. An older server that does not
-  // send the field at all must fall through to the states that existed before
-  // it, not silently mark every colleague as having no calendar.
-  const unconnected = Boolean(row) && !failed && row?.connected === false;
+  // `!== true`, NOT `=== false`. This read `=== false`, defended as tolerance
+  // for a browser and a server on different bundles — but the field and this
+  // strip shipped in the same commit, so no server that omits it has ever
+  // existed, and the branch only decided what to do with a body that arrived
+  // MALFORMED. It decided "free": `connected` absent with an empty `busy` fell
+  // through to the one state this whole phase exists to forbid. Absent is not
+  // false, but it is certainly not `connected: true` either, and every way of
+  // not being true is an unknown.
+  const unconnected = Boolean(row) && !failed && row?.connected !== true;
   const busy = row?.busy ?? [];
   const free = known && row && !failed && !unconnected && busy.length === 0;
 

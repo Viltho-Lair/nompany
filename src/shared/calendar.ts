@@ -281,6 +281,79 @@ export type BusyInterval = { start: string; end: string };
  */
 export const AVAILABILITY_MAX_SPAN_DAYS = 62;
 
+/** The same bound in milliseconds, so neither end restates the arithmetic. */
+export const AVAILABILITY_MAX_SPAN_MS = AVAILABILITY_MAX_SPAN_DAYS * 86_400_000;
+
+/**
+ * THE WINDOW A STRIP ACTUALLY ASKS FOR, which is not always the window drawn.
+ *
+ * A plan may span a year; the route below refuses anything wider than
+ * AVAILABILITY_MAX_SPAN_MS. So the request is clamped here — and anchored on
+ * TODAY when today falls inside the plan, because that is where the chart
+ * scrolls itself on open and therefore the part of the timeline somebody is
+ * actually looking at. A plan entirely in the past gets its last window; one
+ * entirely in the future gets its first.
+ *
+ * IT LIVES BESIDE THE ROUTE'S OWN RULE, not in the component that calls it,
+ * and that is the whole point: the asking end and the answering end are two
+ * halves of one contract, and they were kept in two files that could not be
+ * tested against each other. They disagreed — the strip asked for exactly the
+ * maximum, the route measured the span AFTER rounding `from` down onto the
+ * slot grid, and every plan longer than the bound answered 400 and rendered as
+ * "nobody could be checked". Neither half was wrong on its own reading. Only
+ * putting them within one import of each other made the gap assertable.
+ */
+export function availabilityWindow(origin: Date, end: Date, now: Date): { from: Date; to: Date } {
+  const originMs = origin.getTime();
+  const endMs = end.getTime();
+  if (endMs - originMs <= AVAILABILITY_MAX_SPAN_MS) return { from: origin, to: end };
+  // One day of lead-in before today, so a block that started yesterday evening
+  // and runs into this morning is not sliced off at the window's edge.
+  const wanted = now.getTime() - 86_400_000;
+  const latestStart = endMs - AVAILABILITY_MAX_SPAN_MS;
+  const fromMs = Math.min(Math.max(wanted, originMs), latestStart);
+  return { from: new Date(fromMs), to: new Date(fromMs + AVAILABILITY_MAX_SPAN_MS) };
+}
+
+/**
+ * The availability route's whole judgement on a requested range: the instant it
+ * will actually read from, or `null` for a range it refuses.
+ *
+ * THE SPAN IS MEASURED ON WHAT THE CALLER SENT, BEFORE ALIGNMENT — this is the
+ * ordering, and it is the fix for the bug the comment above describes. Rounding
+ * first and bounding second charges the caller for slack the ROUTE added:
+ * `from` at 09:07 becomes 09:00, so a span of exactly the maximum grows by up
+ * to one slot and is refused for being 23 minutes too wide. No caller can
+ * anticipate that — the slot grid is an internal detail of the Microsoft
+ * adapter, not part of this route's contract — so a caller that clamps to the
+ * documented maximum must be answered, and the up-to-one-slot widening the
+ * alignment then adds is the route's own business. It costs one extra slot of
+ * provider work against a bound whose reasoning is orders of magnitude
+ * (a year of half-hour codes), so nothing about that bound is weakened.
+ *
+ * REVERSAL IS JUDGED THE SAME WAY, for a sharper reason: rounding `from` down
+ * first would rescue a genuinely reversed range whose two ends sit inside one
+ * slot (10:20 → 10:10 becomes 10:00 → 10:10) and answer it as though it were
+ * fine.
+ *
+ * WHY ALIGN AT ALL — MICROSOFT ANCHORS ITS SLOTS AT THE RANGE START, not at the
+ * hour. Graph's availabilityView is a string of fixed-width slots counted from
+ * whatever `startTime` we send, so asking from 09:07 puts every boundary at :07
+ * and :37 — a 09:30 meeting then decodes as starting 09:07, and nothing on the
+ * wire says the grid moved. Rounding DOWN rather than up can only widen the
+ * window, never hide a busy block that straddles the start. Google is
+ * unaffected — freeBusy returns real instants — so aligning is harmless there.
+ *
+ * `slotMs` is passed in rather than imported: the slot size belongs to the
+ * free/busy reader (SLOT_MINUTES in lib/data/calendarFreeBusy), which is
+ * server-only, and this file may not reach for anything a browser cannot load.
+ */
+export function availabilityRangeStart(fromMs: number, toMs: number, slotMs: number): number | null {
+  if (!Number.isFinite(fromMs) || !Number.isFinite(toMs) || toMs <= fromMs) return null;
+  if (toMs - fromMs > AVAILABILITY_MAX_SPAN_MS) return null;
+  return Math.floor(fromMs / slotMs) * slotMs;
+}
+
 /**
  * Busy intervals from anywhere → sorted, non-overlapping, back-to-back runs
  * fused into one.
