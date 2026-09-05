@@ -70,6 +70,12 @@ export function cleanCodePart(value: unknown, max = 4) {
   return CODE_PART_RE.test(s) ? s : "";
 }
 
+// The default short code for a department, which IS a top-level section key
+// (see lib/departments.js). "human-resources" -> "HUM", "crm-sales" -> "SAL".
+// Editable afterwards; this only decides what it starts as.
+export const defaultDeptCode = (sectionKey: unknown) =>
+  cleanCodePart(String(sectionKey || "").replace(/[^a-zA-Z0-9]/g, "").slice(0, 3)) || "GEN";
+
 // The highest sequence already issued for one type+department, read off the
 // documents that exist. Feeds bumpCounter's floor so a studio that already holds
 // documents — or one whose counter was never primed — cannot be handed a number

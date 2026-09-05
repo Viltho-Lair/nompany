@@ -40,12 +40,6 @@ export type ExpiringDocument = {
 // Generated from the spec in hr.ts — see the note in modules/tasks/types.ts.
 export type HrContext = ModuleContext & {
   employeesSection: Section;
-  /**
-   * Master data, read for the org chart. FOREIGN, so nullable — a foreign
-   * section never falls back to the root, and "this studio has no Master data
-   * section" is a real answer meaning it has no departments yet.
-   */
-  masterSection: Section | null;
   canViewEmployees: boolean;
   canManageEmployees: boolean;
   canAssignRoles: boolean;

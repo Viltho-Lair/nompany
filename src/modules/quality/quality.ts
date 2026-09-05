@@ -30,7 +30,7 @@ import { repo } from "@/platform/db/repo";
 import { DOCS } from "./qualityDocs";
 import { moduleContext } from "../context";
 import { listCollaborators } from "@/platform/auth/collaborators";
-import { departmentsAsStored } from "@/modules/administration/departments";
+import { departmentsFromSections } from "@/lib/departments";
 import { NODES, traverse } from "@/platform/relations";
 import {
   STATIC_FIELDS, BLOCK_SOURCES, availableFields, availableBlocks, groupFields,
@@ -80,13 +80,9 @@ const money = (v: unknown) => {
 
 export const qualityContext = moduleContext<QualityContext>({
   root: "engineering-docs-register",
-  // THE ORG CHART IS READ, NOT DERIVED, and therefore not built here. `extend`
-  // is synchronous — it composes what the context already holds — and the
-  // register is a stored collection under Master data. So the section is
-  // resolved here and the rows are read at the one place that needs them,
-  // `mergeValuesFor`, rather than on every quality request whether or not a
-  // document is being rendered.
-  foreign: { master: "administration-master" },
+  // Departments are the studio's own top-level sections, so this list is
+  // whatever the studio is actually divided into today.
+  extend: ({ sections }) => ({ departments: departmentsFromSections(sections) }),
 });
 
 // ---- rendering a document ---------------------------------------------------
@@ -165,11 +161,9 @@ export async function mergeValuesFor(
   document: QualityDocument,
   { rev = null }: { rev?: number | null } = {},
 ) {
-  const [people, departments] = await Promise.all([
-    listCollaborators(ctx.studio.id),
-    departmentsAsStored(ctx.studio, ctx.masterSection),
-  ]);
-  const department = departments.find((d) => d.id === document.departmentId);
+  const people = await listCollaborators(ctx.studio.id);
+  const department = (ctx.departments as { id: string; name?: string }[] | undefined)
+    ?.find((d) => d.id === document.departmentId);
   const alias = (id: unknown) => String(people.find((c) => c.id === id)?.alias || "");
 
   const values: Record<string, string> = {
