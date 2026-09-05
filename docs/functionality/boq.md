@@ -112,6 +112,8 @@ Stated in words, because a silent gap reads as a finished feature.
   additions (overhead, profit, preliminaries as a percentage) — every line is quantity × rate.
 - **No units vocabulary.** Units are free text, so `m3`, `M3` and `cu.m` are three units.
 - **No revisions.** A bill is edited in place: there is no record of what a line was priced at
-  before, and no comparison between one revision and the next.
+  before, and no comparison between one revision and the next. It stops editing altogether once
+  its tender is handed over — see `handover.md` — which makes the LAST state the record, not
+  every state before it.
 - **Nothing carries the bill onward.** A won tender's bill does not become a quotation, a
   project budget or a `sheet` — that is the handover slice, and it is not built.

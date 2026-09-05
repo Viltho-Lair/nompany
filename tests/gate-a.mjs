@@ -2847,6 +2847,54 @@ console.log("== tendering: a register whose dates are the point");
     (bulkSheet?.tables || []).every((t) => t.id === "unassigned"),
     JSON.stringify((bulkSheet?.tables || []).map((t) => t.id)));
 
+
+  // ---- and the bill freezes -----------------------------------------------
+  //
+  // THE DEFECT THIS CLOSES, recorded in handover.md when the handover landed:
+  // the project's `value` is COPIED at handover and its sheets follow the bill
+  // LIVE, so a line edited afterwards moved the sheet the buyers work from and
+  // left the project's headline figure where it was -- two numbers for one job
+  // with nothing saying they had ever agreed.
+  const frozenBill = await capture(
+    BOQ.GET, req(`/api/studios/${slug}/tendering/boq?tenderId=${wonId}`), P);
+  ok("a handed-over tender's bill reports itself frozen", frozenBill.body?.frozen === true,
+    JSON.stringify(frozenBill.body?.frozen));
+
+  const frozenLineId = (frozenBill.body?.lines || [])[0]?.id;
+  await shot("tendering.boq.frozen.edit", await capture(
+    BOQ.PUT, req(`/api/studios/${slug}/tendering/boq`, { method: "PUT", body: {
+      id: frozenLineId, rate: 1,
+    } }), P));
+  // ALL THREE WRITES, not only the edit. Adding a line puts work on the sheet
+  // the project was never opened at, and removing one takes work off it -- the
+  // same drift from the other two directions.
+  await shot("tendering.boq.frozen.add", await capture(
+    BOQ.POST, req(`/api/studios/${slug}/tendering/boq`, { method: "POST", body: {
+      tenderId: wonId, description: "Sneaked in afterwards", qty: 1, rate: 5,
+    } }), P));
+  await shot("tendering.boq.frozen.delete", await capture(
+    BOQ.DELETE, req(`/api/studios/${slug}/tendering/boq`, { method: "DELETE", body: {
+      id: frozenLineId,
+    } }), P));
+
+  const stillThere = await capture(
+    BOQ.GET, req(`/api/studios/${slug}/tendering/boq?tenderId=${wonId}`), P);
+  ok("...and the bill is exactly as it was",
+    (stillThere.body?.lines || []).length === 2 && stillThere.body?.totals?.total === 180000,
+    JSON.stringify(stillThere.body?.totals));
+
+  // A BILL WHOSE TENDER WAS NOT HANDED OVER STILL EDITS. The freeze is derived
+  // from the projects, so it must not have leaked onto every bill in the studio.
+  const openBill = await capture(
+    BOQ.GET, req(`/api/studios/${slug}/tendering/boq?tenderId=${bidTenderId}`), P);
+  ok("a bill on a tender nobody handed over is not frozen",
+    openBill.body?.frozen === false, JSON.stringify(openBill.body?.frozen));
+  const stillEdits = await capture(BOQ.PUT, req(`/api/studios/${slug}/tendering/boq`, {
+    method: "PUT", body: { id: (openBill.body?.lines || [])[0]?.id, qty: 41 },
+  }), P);
+  ok("...and still takes an edit", stillEdits.body?.item?.qty === 41,
+    JSON.stringify(stillEdits.body?.error || stillEdits.body?.item?.qty));
+
   // A TENDER THAT DOES NOT EXIST is a refusal, not an orphan project.
   await shot("tendering.handover.notender", await handOver({ tenderId: "ten_doesnotexist00" }));
 

@@ -19,6 +19,41 @@ import type { TenderingContext } from "./types";
 const Items = repo<BoqItem>("boqItems");
 const Tenders = repo<Tender>("tenders");
 
+/** Only the field the freeze reads. Projects holds a great deal more. */
+const Projects = repo<{ id: string; tenderId?: string }>("projects");
+
+/**
+ * A BILL IS FROZEN ONCE ITS TENDER HAS BEEN HANDED OVER.
+ *
+ * WHY, and it is the defect `handover.md` recorded rather than a new rule: the
+ * project's `value` is COPIED at handover and its sheets follow the bill LIVE.
+ * So a line edited afterwards moves the sheet the buyers work from and leaves
+ * the project's headline figure where it was — two numbers for one job, with
+ * nothing saying they had ever agreed. Freezing is the answer that needs no
+ * second number to keep in step.
+ *
+ * DERIVED FROM THE PROJECTS, not from a flag on the tender, for the reason
+ * `handover.ts` states at length: a flag would be a second answer free to
+ * disagree with the projects it describes, and deriving it means deleting the
+ * project genuinely thaws the bill rather than leaving it locked forever
+ * against work nobody is doing.
+ *
+ * THE COST IS ONE NARROWED READ PER WRITE, and it is paid deliberately. The
+ * grid saves a cell at a time, so this is the busiest write in the section —
+ * but `where` narrows to one tender's projects rather than fetching the list,
+ * and a wrong number carried into a project is not something a round trip is
+ * worth saving.
+ *
+ * A STUDIO WITH NO PROJECTS SECTION CANNOT HAVE HANDED ANYTHING OVER, so it
+ * pays nothing at all.
+ */
+async function handedOver(ctx: TenderingContext, tenderId: string): Promise<boolean> {
+  const { studio, projectsListSection } = ctx;
+  if (!projectsListSection || !tenderId) return false;
+  const rows = await Projects.find({ studio, section: projectsListSection }, { where: { tenderId } });
+  return rows.length > 0;
+}
+
 const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
 const num = (v: unknown) => {
   const n = Number(v);
@@ -49,6 +84,11 @@ export async function listBoq(ctx: TenderingContext, tenderId: string) {
   return {
     tender,
     lines,
+    // SO THE GRID CAN GO READ-ONLY rather than offering edits the server will
+    // refuse. Read here, on the one call the screen already makes, instead of
+    // the screen inferring it from the handover block beside it — which would
+    // be the screen deciding a rule the server owns.
+    frozen: await handedOver(ctx, tenderId),
     // TOTALS FROM THE SERVER TOO, not only from the grid. The bid figure is
     // read by things that are not this screen — and `complete` is the half that
     // matters: a total over a part-priced bill is a number, not the bid.
@@ -70,6 +110,11 @@ export async function addBoqLine(ctx: TenderingContext, body: Record<string, unk
   // request mints orphan lines that no screen shows and no cascade removes.
   const tender = await Tenders.byId({ studio, section: registerSection }, tenderId);
   if (!tender) return { error: "notfound" };
+
+  // ADDING A LINE AFTER THE HANDOVER changes the baseline as much as editing
+  // one: it puts work on the sheet the buyers read that the project was never
+  // opened at.
+  if (await handedOver(ctx, tenderId)) return { error: "handed-over" };
 
   const existing = await Items.find({ studio, section: registerSection }, { where: { tenderId } });
   const item = await Items.create({ studio, section: registerSection }, {
@@ -97,6 +142,15 @@ export async function editBoqLine(ctx: TenderingContext, id: string, body: Recor
   if (denied) return denied;
 
   const { studio, registerSection } = ctx;
+
+  // THE LINE IS READ TO LEARN WHOSE BILL IT IS. `editBoqLine` used to write
+  // without reading anything; the freeze needs the tender, and only the line
+  // knows it — taking `tenderId` off the body would be trusting the caller with
+  // the guard that is supposed to refuse them.
+  const current = await Items.byId({ studio, section: registerSection }, id);
+  if (!current) return { error: "notfound" };
+  if (await handedOver(ctx, String(current.tenderId || ""))) return { error: "handed-over" };
+
   const patch: Record<string, unknown> = {};
 
   if (body?.description !== undefined) {
@@ -134,6 +188,12 @@ export async function removeBoqLine(ctx: TenderingContext, id: string) {
   // DELETE ANSWERS TO `edit`, NOT TO `tendering.tenders.delete`. Removing a
   // line is editing the bill; the delete verb is about erasing a TENDER, which
   // is a different act with a different rule (it is refused once the bid is in).
+  const current = await Items.byId({ studio, section: registerSection }, id);
+  if (!current) return { error: "notfound" };
+  // AND REMOVING ONE AFTER THE HANDOVER takes work off the sheet the buyers
+  // are working from, which is the same drift from the other direction.
+  if (await handedOver(ctx, String(current.tenderId || ""))) return { error: "handed-over" };
+
   const gone = await Items.remove({ studio, section: registerSection }, id);
   return gone ? { ok: true } : { error: "notfound" };
 }

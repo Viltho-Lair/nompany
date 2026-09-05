@@ -895,10 +895,15 @@ should and **Bulk degrades honestly** — every line stands alone under "No vend
 `composeSheet` already does for any row with no item. There are three kinds of empty sheet now
 and the viewer says which.
 
-**What remains:** the bill is NOT FROZEN once a tender is handed over. Its lines still edit and
-the sheets follow them live, while the project's `value` was copied at handover and does not —
-so the two can disagree with nothing saying so. Freezing it would cost a Projects read on every
-BOQ write.
+**AND THE BILL FREEZES ON HANDOVER.** All three writes — add, edit, remove — refuse with
+`handed-over`, because the project's `value` was COPIED at handover while its sheets follow the
+bill LIVE: a line edited afterwards moved what the buyers work from and left the headline figure
+behind it. DERIVED from the projects, never a flag on the tender, so deleting the project thaws
+the bill rather than locking it forever against work nobody is doing. The cost is one `where`-
+narrowed read per write, paid deliberately on the section's busiest write (the grid saves a cell
+at a time) because a wrong number carried into a project is not worth a saved round trip. The
+grid goes read-only and SAYS why — a grid that has quietly stopped accepting edits reads as
+broken.
 
 **Three guards caught real mistakes in this slice, each named in the file that caught it.**
 `next build` refused until `tenders` was in `COLLECTION_TABLE` (`platform/db/migrate/mapping.ts`)

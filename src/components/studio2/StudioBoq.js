@@ -80,7 +80,13 @@ export default function StudioBoq({ slug, tenderId }) {
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <RecordSkeleton loadingLabel={tr.loadingBoq} />;
 
-  const { tender, canEdit, review, handover } = data;
+  const { tender, review, handover } = data;
+  // THE BILL IS WHAT WAS BID, once the work became a project. The project's
+  // value was copied at handover and its sheets follow these lines LIVE, so an
+  // edit here would move what the buyers work from and leave the project's
+  // headline figure behind it. `frozen` comes from the server, which refuses
+  // the same writes this hides.
+  const canEdit = data.canEdit && !data.frozen;
   const lines = data.lines || [];
   const rates = data.rates || [];
   // TOTALLED WITH THE SERVER'S OWN FUNCTION. The route sends `totals` too; this
@@ -155,6 +161,15 @@ export default function StudioBoq({ slug, tenderId }) {
             sub={tender?.currency || ""} accent="rgb(var(--chart-3))" />
         </div>
       </div>
+
+      {/* SAID, NOT JUST ENFORCED. A grid that has quietly stopped accepting
+          edits reads as broken; one that says the bill is now the project's
+          baseline reads as a rule. */}
+      {data.frozen && (
+        <p className="rounded-xl bg-slate-100 px-4 py-3 text-sm font-600 text-slate-700 dark:bg-white/5 dark:text-slate-200">
+          {tr.billFrozen}
+        </p>
+      )}
 
       {!totals.complete && totals.lines > 0 && (
         <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm font-600 text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">

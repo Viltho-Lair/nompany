@@ -48,6 +48,9 @@ export function refusal(tr, token) {
     case "handover-forbidden":
     case "read-only": return tr.refuseHandoverForbidden;
 
+    // A bill frozen because its tender became a project.
+    case "handed-over": return tr.refuseHandedOver;
+
     // ---- the pack ----
     case "in-chain": return tr.cannotDeleteInChain;
     case "superseded-replacement":

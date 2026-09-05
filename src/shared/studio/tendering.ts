@@ -191,6 +191,8 @@ type Strings = CommonStrings & {
   refuseHandoverForbidden: string;
   refuseNoTendering: string;
   refuseNoTender: string;
+  billFrozen: string;
+  refuseHandedOver: string;
 };
 
 const en: Strings = {
@@ -373,6 +375,8 @@ const en: Strings = {
   refuseHandoverForbidden: "Handing over opens a project, and you do not have the right to create one.",
   refuseNoTendering: "This studio has no tender register.",
   refuseNoTender: "That tender no longer exists.",
+  billFrozen: "This tender has been handed over, so its bill is the project’s baseline and no longer edits. The project’s sheets read these lines.",
+  refuseHandedOver: "This tender has been handed over. Its bill is the project’s baseline now and cannot be changed.",
 };
 
 const ar: Strings = {
@@ -548,6 +552,8 @@ const ar: Strings = {
   refuseHandoverForbidden: "التسليم يفتح مشروعاً، ولا تملك صلاحية إنشاء المشاريع.",
   refuseNoTendering: "لا يوجد سجلّ مناقصات في هذه المنشأة.",
   refuseNoTender: "لم تعد هذه المناقصة موجودة.",
+  billFrozen: "سُلّمت هذه المناقصة، فصار جدولها أساس المشروع ولم يعد يُعدّل. تقرأ جداول المشروع هذه البنود.",
+  refuseHandedOver: "سُلّمت هذه المناقصة. صار جدولها أساس المشروع ولا يمكن تغييره.",
 };
 
 // KEYED BY LOCALE WITH A FALLBACK, like every other surface's dictionary — not

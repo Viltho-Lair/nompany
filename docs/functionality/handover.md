@@ -126,10 +126,10 @@ never fill from that screen.
 
 Stated in words, because a silent gap reads as a finished feature.
 
-- **The bill is not frozen.** Editing a BOQ line after the handover changes the tender's total
-  and does *not* change the project's `value`, which was copied at handover — the SHEET follows
-  the bill live, so the sheet and the project's headline figure can disagree. Freezing the bill
-  once a project exists is the obvious fix and would cost a Projects read on every BOQ write.
+- **A frozen bill cannot be thawed except by deleting the project.** Freezing is DERIVED from
+  the projects, so there is no unlock: correcting a bill after handover means deleting the
+  project the handover made, which is a heavier act than the correction usually deserves. A
+  variation against the project is the intended route and Projects owns it.
 - **No handover to Sales.** A won tender does not become a ticket, an RFQ or a quotation, so a
   studio whose delivery runs through the Sales chain still re-enters it.
 - **Nothing is notified.** The project's manager is notified by `openProject` as on any other

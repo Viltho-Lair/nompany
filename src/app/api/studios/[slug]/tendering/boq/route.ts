@@ -41,6 +41,10 @@ export const GET = route({ ...spec, body: false }, async (tendering) => {
     rates: refused(rates) ? [] : rates.rates,
     review,
     handover,
+    // FROZEN ONCE THE TENDER HAS BEEN HANDED OVER — decided by the service,
+    // never by the screen reading `handover.projectId` beside it. A screen
+    // inferring a rule the server owns is a second copy of that rule.
+    frozen: result.frozen,
     canEdit: !requirePermission(tendering.access, "tendering.tenders.edit"),
   };
 });

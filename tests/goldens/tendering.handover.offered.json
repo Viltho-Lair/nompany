@@ -143,6 +143,7 @@
       "canHandOver": true,
       "blocked": null
     },
+    "frozen": false,
     "canEdit": true
   }
 }

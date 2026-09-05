@@ -84,6 +84,7 @@
       "canHandOver": false,
       "blocked": "not-won"
     },
+    "frozen": false,
     "canEdit": true
   }
 }
