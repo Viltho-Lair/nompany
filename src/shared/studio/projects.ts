@@ -114,6 +114,7 @@ type Strings = CommonStrings & {
   // project was raised directly — where a quotation with no priced lines is
   // waiting on somebody to price it. See quotationNoPricedLines below.
   noQuotationBehindProject: string;
+  billHasNoLines: string;
   noServiceActionsYet: string;
   noSlaContractsYet: string;
   noSlaContractsYet2: string;
@@ -343,6 +344,7 @@ const en: Strings = {
   noProjectsSignedYet: "No projects signed yet.",
   noProjectsYet: "No projects yet",
   noQuotationBehindProject: "This project has no quotation behind it, so there are no lines to work. Sheets fill from an approved quotation's priced rows.",
+  billHasNoLines: "This project was handed over from a tender whose bill of quantities has no lines yet. The sheet fills from the bill, which is written in Tendering.",
   noServiceActionsYet: "No service actions yet — add them in Studio Settings, then weight them here.",
   noSlaContractsYet: "No SLA contracts yet",
   noSlaContractsYet2: "No SLA contracts yet.",
@@ -570,6 +572,7 @@ const ar: Strings = {
   noProjectsSignedYet: "لم تُوقَّع أي مشاريع بعد.",
   noProjectsYet: "لا توجد مشاريع بعد",
   noQuotationBehindProject: "لا يوجد عرض سعر خلف هذا المشروع، فليست هناك بنود للعمل عليها. تمتلئ الجداول من البنود المسعّرة في عرض سعر معتمد.",
+  billHasNoLines: "سُلّم هذا المشروع من مناقصة لم يُكتب لها جدول كميات بعد. تمتلئ الجداول من جدول الكميات، ويُكتب في قسم المناقصات.",
   noServiceActionsYet: "لا إجراءات خدمة بعد — أضفها في إعدادات الاستوديو ثم وزّع أوزانها هنا.",
   noSlaContractsYet: "لا توجد عقود مستوى خدمة بعد",
   noSlaContractsYet2: "لا توجد عقود مستوى خدمة بعد.",

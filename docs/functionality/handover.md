@@ -86,18 +86,50 @@ order. Before the handover it says what the project will open at; after it, it n
 and links to it, and says the number is not issued yet when Finance has not issued one. The
 refusals travel as tokens and are translated on display.
 
+## The sheets fill from the bill
+
+**A sheet stores no lines: it composes a document's tables with what Inventory added to them,
+keyed by row id.** That document could only ever be a quotation, so a handed-over project used
+to have its pair of sheets and nothing in them. The bill is offered in the same `{ tables }`
+shape now — `boqAsTables`, pure, in `modules/tendering/boq` — so `composeSheet` reads ONE
+shape and there is no second composition path to disagree with the first.
+
+**The bill's groups become the tables, in the document's order.** That order is the thing a
+bill is never allowed to lose: an estimator checks it against the client's document line by
+line, and so now does whoever is buying the work.
+
+**Nothing is copied.** The rows come off the bill on every read, so a line corrected in
+Tendering shows through on the sheet immediately — the same property the quotation path has,
+and the reason a sheet holds no lines of its own.
+
+**No rate crosses.** `composeSheet` carries only the fields it names and `boqAsTables` returns
+only the fields it names, so what the studio priced the bid at stays in Tendering. A sheet is
+read by whoever is buying and delivering the work, and the bid price is not theirs — the same
+rule that drops a quotation's prices at the point of reading. Asserted from both ends.
+
+**`itemId` is blank, and that is the truth rather than a gap.** A quotation row names a
+Registered Item, which is what makes serial allocation and vendor grouping work; a bill line is
+a description, a unit and a quantity priced against nothing anybody has bought yet. So **Main
+reads exactly as it should and Bulk degrades honestly** — every line stands alone under "No
+vendor yet", which `composeSheet` already does for any row with no item.
+
+**The bills are read once for the whole screen, and only when something needs one.** A studio
+whose projects all came from quotations never touches the tender register: hop counts are part
+of this repo's contract, and a read nobody needs is a round trip nobody asked for.
+
+**There are three kinds of empty sheet now**, and the viewer says which: a quotation with no
+priced lines (waiting on somebody to price it), a bill with no lines (waiting on somebody to
+write one, in Tendering), and a project raised directly with no document at all, which can
+never fill from that screen.
+
 ## Not built yet
 
 Stated in words, because a silent gap reads as a finished feature.
 
-- **The bill does not become sheet rows.** A project's Main and Bulk sheets compose their tables
-  from a **quotation**, and a handed-over project has none — so its sheets are drawn up and
-  empty, exactly as a direct project's are. The bill stays on the tender and is one link away.
-  This is the largest remaining piece of "estimate → budget baseline".
 - **The bill is not frozen.** Editing a BOQ line after the handover changes the tender's total
-  and does *not* change the project's `value`, which was copied at handover. The two can drift,
-  and nothing says so. Freezing the bill once a project exists is the obvious fix and would cost
-  a Projects read on every BOQ write.
+  and does *not* change the project's `value`, which was copied at handover — the SHEET follows
+  the bill live, so the sheet and the project's headline figure can disagree. Freezing the bill
+  once a project exists is the obvious fix and would cost a Projects read on every BOQ write.
 - **No handover to Sales.** A won tender does not become a ticket, an RFQ or a quotation, so a
   studio whose delivery runs through the Sales chain still re-enters it.
 - **Nothing is notified.** The project's manager is notified by `openProject` as on any other
@@ -109,3 +141,10 @@ Stated in words, because a silent gap reads as a finished feature.
   view shows the project rather than the bid that won it, and nothing cascades from the tender.
 - **No reverse view.** Projects has no "opened from tenders" filter; the link is one project at
   a time, from either end.
+- **A bill line cannot be pointed at a Registered Item.** That is what would make Bulk group by
+  vendor and serials allocatable on a handed-over project's sheet, and it is a change to the BOQ
+  grid rather than to the handover — the bill would have to offer an item picker the way a
+  quotation line does.
+- **The bill has no cost behind it**, so a sheet composed from one still cannot show what the
+  work will cost to buy against what it was sold for. `boq.md` records the same gap from the
+  other end.

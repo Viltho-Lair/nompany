@@ -68,7 +68,7 @@
       {
         "id": "<boq_ID>",
         "tenderId": "<ten_ID>",
-        "group": "",
+        "group": "Plant",
         "code": "",
         "description": "Chillers",
         "unit": "no",
@@ -85,7 +85,7 @@
       {
         "id": "<boq_ID>",
         "tenderId": "<ten_ID>",
-        "group": "",
+        "group": "Distribution",
         "code": "",
         "description": "Pipework",
         "unit": "m",

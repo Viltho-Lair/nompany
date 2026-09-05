@@ -218,6 +218,7 @@
         "projectTitle": "Boardroom refit, phase 1",
         "clientName": "Acme Holdings",
         "quotationNumber": "Q-0001",
+        "tenderRef": "",
         "poNumber": "",
         "tables": [],
         "lineCount": 0,
@@ -234,6 +235,7 @@
         "projectTitle": "Boardroom refit, phase 1",
         "clientName": "Acme Holdings",
         "quotationNumber": "Q-0001",
+        "tenderRef": "",
         "poNumber": "",
         "tables": [],
         "lineCount": 0,
@@ -250,9 +252,47 @@
         "projectTitle": "Data centre cooling",
         "clientName": "A bank that is not yet a client",
         "quotationNumber": "",
+        "tenderRef": "TND-0006",
         "poNumber": "",
-        "tables": [],
-        "lineCount": 0,
+        "tables": [
+          {
+            "id": "unassigned",
+            "title": "No vendor yet",
+            "rows": [
+              {
+                "rowId": "<boq_ID>",
+                "tableId": "Plant",
+                "tableTitle": "",
+                "itemId": "",
+                "description": "Chillers",
+                "modelNumber": "",
+                "unit": "no",
+                "qty": 4,
+                "availableSerials": [],
+                "inStock": 0,
+                "fromRows": [
+                  "<boq_ID>"
+                ]
+              },
+              {
+                "rowId": "<boq_ID>",
+                "tableId": "Distribution",
+                "tableTitle": "",
+                "itemId": "",
+                "description": "Pipework",
+                "modelNumber": "",
+                "unit": "m",
+                "qty": 500,
+                "availableSerials": [],
+                "inStock": 0,
+                "fromRows": [
+                  "<boq_ID>"
+                ]
+              }
+            ]
+          }
+        ],
+        "lineCount": 2,
         "serials": []
       },
       {
@@ -266,9 +306,47 @@
         "projectTitle": "Data centre cooling",
         "clientName": "A bank that is not yet a client",
         "quotationNumber": "",
+        "tenderRef": "TND-0006",
         "poNumber": "",
-        "tables": [],
-        "lineCount": 0,
+        "tables": [
+          {
+            "id": "Plant",
+            "title": "Plant",
+            "rows": [
+              {
+                "rowId": "<boq_ID>",
+                "tableId": "Plant",
+                "tableTitle": "Plant",
+                "itemId": "",
+                "description": "Chillers",
+                "modelNumber": "",
+                "unit": "no",
+                "qty": 4,
+                "availableSerials": [],
+                "inStock": 0
+              }
+            ]
+          },
+          {
+            "id": "Distribution",
+            "title": "Distribution",
+            "rows": [
+              {
+                "rowId": "<boq_ID>",
+                "tableId": "Distribution",
+                "tableTitle": "Distribution",
+                "itemId": "",
+                "description": "Pipework",
+                "modelNumber": "",
+                "unit": "m",
+                "qty": 500,
+                "availableSerials": [],
+                "inStock": 0
+              }
+            ]
+          }
+        ],
+        "lineCount": 2,
         "serials": []
       },
       {
@@ -282,6 +360,7 @@
         "projectTitle": "Warehouse fit-out",
         "clientName": "Northwind Logistics",
         "quotationNumber": "",
+        "tenderRef": "",
         "poNumber": "",
         "tables": [],
         "lineCount": 0,
@@ -298,6 +377,7 @@
         "projectTitle": "Warehouse fit-out",
         "clientName": "Northwind Logistics",
         "quotationNumber": "",
+        "tenderRef": "",
         "poNumber": "",
         "tables": [],
         "lineCount": 0,

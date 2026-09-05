@@ -99,6 +99,57 @@ ok("no bill defers to the typed estimate", B.valueFromBoq(B.boqTotals([])) === n
 ok("a bill priced at nothing is still a bill",
   B.valueFromBoq(B.boqTotals([line(1, 0)])) === 0);
 
+console.log("\n== the bill read as a project sheet's tables");
+
+// A PROJECT HANDED OVER FROM A WON TENDER HAS NO QUOTATION, and a sheet
+// composes its tables from a document. Before this the bill was not offered as
+// one, so a handed-over project had sheets and nothing in them.
+const billed = [
+  { id: "l1", group: "Preliminaries", description: "Site setup", unit: "item", qty: 1, rate: 5000 },
+  { id: "l2", group: "Frame", description: "Steel", unit: "t", qty: 12, rate: 900 },
+  { id: "l3", group: "Preliminaries", description: "Hoarding", unit: "m", qty: 60, rate: 45 },
+];
+const tables = B.boqAsTables(billed);
+
+// THE DOCUMENT'S ORDER, not alphabetical -- the same rule boqGroups follows,
+// and now it is what whoever is BUYING the work reads too.
+ok("the bill's groups become the tables, in the document's order",
+  tables.map((t) => t.title).join() === "Preliminaries,Frame",
+  tables.map((t) => t.title).join());
+ok("...gathering each group's lines wherever they sit",
+  tables[0].rows.map((r) => r.id).join() === "l1,l3", tables[0].rows.map((r) => r.id).join());
+
+// KEYED BY ROW ID, because that is what a sheet stores its own columns against.
+// A row that changed id would silently orphan whatever Inventory had written.
+ok("a row keeps the bill line's id", tables[1].rows[0].id === "l2");
+ok("...and carries description, unit and quantity",
+  tables[1].rows[0].description === "Steel" && tables[1].rows[0].unit === "t"
+  && tables[1].rows[0].qty === 12, JSON.stringify(tables[1].rows[0]));
+
+// THE ASSERTION THIS ADAPTER EXISTS TO BE SAFE ABOUT. A sheet is read by people
+// buying and delivering the work, and what the studio priced the bid at is not
+// theirs -- the quotation path drops prices at the point of reading for exactly
+// this reason, and the bill must not smuggle a rate in through the back door.
+ok("no rate crosses into the sheet",
+  JSON.stringify(tables).includes("rate") === false, JSON.stringify(tables).slice(0, 120));
+ok("...not even as an extension", JSON.stringify(tables).includes("5000") === false);
+
+// BLANK ITEM ID IS THE TRUTH, not a gap. A bill line is a description, a unit
+// and a quantity priced against nothing anybody has bought; only a Registered
+// Item can be allocated a serial or grouped under a vendor. composeSheet
+// already treats a row with no item as standing alone, which is the correct
+// reading of a bill on the Bulk sheet rather than a degraded one.
+ok("a bill row names no registered item",
+  tables.every((t) => t.rows.every((r) => r.itemId === "")));
+
+// An unnamed group is a real group -- a bill with no headings at all is one
+// table, not none -- and two unnamed ones must not collapse into each other.
+const unnamed = B.boqAsTables([{ id: "a", description: "x", qty: 1 }]);
+ok("a bill with no headings is one table", unnamed.length === 1 && unnamed[0].title === "");
+ok("...with an id something can still key off", Boolean(unnamed[0].id));
+ok("an empty bill is no tables at all", B.boqAsTables([]).length === 0);
+ok("nonsense is no tables either", B.boqAsTables(null).length === 0);
+
 console.log("\n== the file stays pure");
 
 const { readFileSync } = await import("node:fs");

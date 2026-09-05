@@ -874,10 +874,31 @@ every other head resolves one, because bidding is frequently how a company becom
 (invariant 10), and it has to read correctly on the project in a studio where the reader cannot
 open Tendering at all.
 
-**What remains is the other half of "estimate → budget baseline":** a project's sheets compose
-from a QUOTATION, and a handed-over project has none, so they are drawn up empty exactly as a
-direct project's are. The bill stays on the tender, is not frozen, and can drift from the
-project's value after the handover.
+**AND THE SHEETS FILL FROM THE BILL.** A sheet stores no lines — it composes a DOCUMENT's
+tables with what Inventory added to them, keyed by row id — and that document could only ever
+be a quotation, so a handed-over project had its pair of sheets and nothing in them. The bill is
+offered in the same `{ tables }` shape now (`boqAsTables`, pure, in `modules/tendering/boq`), so
+`composeSheet` reads ONE shape and there is no second composition path free to disagree with the
+first. The bill's GROUPS become the tables, in the document's order — the one thing a bill is
+never allowed to lose, now carried through to whoever is buying the work.
+
+**Nothing is copied and no rate crosses.** The rows come off the bill on every read, so a line
+corrected in Tendering shows on the sheet immediately; and `composeSheet` carries only the
+fields it names while `boqAsTables` returns only the fields it names, so what the studio priced
+the bid at stays in Tendering — the same rule that drops a quotation's prices at the point of
+reading, asserted from both ends.
+
+**`itemId` IS BLANK AND THAT IS THE TRUTH, not a gap.** A quotation row names a Registered Item,
+which is what makes serial allocation and vendor grouping work; a bill line is a description, a
+unit and a quantity priced against nothing anybody has bought yet. So Main reads exactly as it
+should and **Bulk degrades honestly** — every line stands alone under "No vendor yet", which
+`composeSheet` already does for any row with no item. There are three kinds of empty sheet now
+and the viewer says which.
+
+**What remains:** the bill is NOT FROZEN once a tender is handed over. Its lines still edit and
+the sheets follow them live, while the project's `value` was copied at handover and does not —
+so the two can disagree with nothing saying so. Freezing it would cost a Projects read on every
+BOQ write.
 
 **Three guards caught real mistakes in this slice, each named in the file that caught it.**
 `next build` refused until `tenders` was in `COLLECTION_TABLE` (`platform/db/migrate/mapping.ts`)

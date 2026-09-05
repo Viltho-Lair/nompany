@@ -37,6 +37,8 @@ import type { PermissionKey } from "@/platform/access";
 import type { Section } from "@/platform/db/sections";
 import type { Quotation, QuotationTable, QuotationLine } from "@/modules/technical/types";
 import type { Project } from "@/modules/projects/types";
+import { boqAsTables } from "@/modules/tendering/boq";
+import type { BoqItem } from "@/modules/tendering/schema";
 import type { Row } from "@/platform/db/store";
 import type { Task } from "@/modules/tasks/types";
 
@@ -86,6 +88,7 @@ const Items = repo<Item>(ITEMS);
 const Orders = repo<Order>(ORDERS);
 const Projects = repo(PROJECTS);
 const Quotations = repo(QUOTATIONS);
+const BoqItems = repo<BoqItem>("boqItems");
 const Sheets = repo<Sheet>(SHEETS);
 const Stock = repo<Movement>(STOCK);
 const Tasks = repo<Task>(TASKS);
@@ -164,6 +167,10 @@ export const inventoryContext = moduleContext<InventoryContext>({
     projects: "projects",
     projectsList: ["projects-list", "projects"],
     quotations: ["crm-sales-quotations", "crm-sales"],
+    // The tender register, for a project handed over from a won bid: its sheet
+    // composes from the BILL, because it has no quotation. Foreign and
+    // therefore nullable — a studio that does not tender simply has none.
+    tenderRegister: ["tendering-register", "tendering"],
     tasks: "tasks",
   },
   flags: ["stock", "vendors", "items", "sheets", "awb"],
@@ -657,10 +664,18 @@ export async function adjustStock(ctx: InventoryContext, body: Record<string, un
 // ---- purchase orders -------------------------------------------------------
 // WHERE THE QUOTATION'S ROWS AND THE SHEET'S OWN DATA ARE PUT TOGETHER.
 //
-// A sheet stores no lines. The quotation owns the tables and the rows; a sheet
-// stores only what THIS department added to them, keyed by the quotation row it
-// belongs to. So every read composes the two, and a quotation that is edited or
-// revised shows through immediately rather than leaving the sheet stale.
+// A sheet stores no lines. THE DOCUMENT owns the tables and the rows; a sheet
+// stores only what THIS department added to them, keyed by the row it belongs
+// to. So every read composes the two, and a document that is edited or revised
+// shows through immediately rather than leaving the sheet stale.
+//
+// THE DOCUMENT IS A QUOTATION, OR A TENDER'S BILL. A project handed over from a
+// won tender has no quotation and had sheets with nothing in them; its bill is
+// offered here in the same `{ tables }` shape (`boqAsTables`, pure, in
+// modules/tendering/boq), so this function reads ONE shape and there is no
+// second composition path to disagree with the first. What differs between the
+// two sources is only what is true of them — see boqAsTables on why a bill row
+// has no `itemId` and what that correctly costs Bulk.
 //
 // PRICES ARE DROPPED HERE, not stored-without. The rows are the same rows Sales
 // reads with prices on; what a department may see of them is decided at the
@@ -874,6 +889,13 @@ export type SheetReader = {
   itemsSection: Section | null;
   vendorsSection: Section | null;
   tasksSection?: Section | null;
+  /**
+   * The tender register, for a project handed over from a won bid. OPTIONAL,
+   * because `SheetReader` is a structural type several callers satisfy by
+   * hand — a caller that does not have one composes a handed-over project's
+   * sheet from nothing, which is what happened to every sheet before this.
+   */
+  tenderRegisterSection?: Section | null;
 };
 
 export async function listProjectSheets(ctx: SheetReader) {
@@ -903,6 +925,34 @@ export async function listProjectSheets(ctx: SheetReader) {
   // project or a quotation, which is the rule sales.js states in so many words.
   const projectById = new Map<string, Project>(projects.map((p) => [p.id, p] as [string, Project]));
   const quoteById = new Map<string, Quotation>(quotes.map((q) => [q.id, q] as [string, Quotation]));
+
+  // THE BILLS, AND ONLY IF SOMETHING ON THIS SCREEN NEEDS ONE. A studio whose
+  // projects all came from quotations never touches the tender register at all
+  // — the same discipline `fxFor` states in payables, and for the same reason:
+  // hop counts are part of this repo's contract and a read nobody needs is a
+  // round trip nobody asked for.
+  //
+  // ONE READ FOR EVERY SHEET, not one per sheet. `where` narrows to the tenders
+  // in hand rather than fetching a bill at a time.
+  const handedOver = projects.filter((p) => p.tenderId);
+  const boqByTender = new Map<string, BoqItem[]>();
+  if (handedOver.length && ctx.tenderRegisterSection) {
+    const lines = await BoqItems.find({ studio, section: ctx.tenderRegisterSection });
+    const wanted = new Set(handedOver.map((p) => String(p.tenderId)));
+    for (const line of lines) {
+      const key = String(line.tenderId || "");
+      if (!wanted.has(key)) continue;
+      const rows = boqByTender.get(key);
+      if (rows) rows.push(line);
+      else boqByTender.set(key, [line]);
+    }
+    // THE DOCUMENT'S OWN ORDER, restored after the grouping. `sortOrder` is the
+    // order the bill was issued in, and re-sorting it is the one thing the BOQ
+    // is not allowed to do to itself.
+    for (const rows of boqByTender.values()) {
+      rows.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+    }
+  }
   const itemById = new Map<string, Item>(items.map((i) => [i.id, i]));
   const vendorById = new Map<string, Vendor>(vendors.map((v) => [v.id, v]));
   const vendorOf = (itemId: string) => vendorById.get(String(itemById.get(itemId)?.vendorId || "")) || null;
@@ -932,7 +982,14 @@ export async function listProjectSheets(ctx: SheetReader) {
     .map((sheet) => {
       const project = projectById.get(sheet.projectId) || null;
       const quote = quoteById.get(sheet.quotationId) || null;
-      const tables = composeSheet(sheet, quote, vendorOf, stockFor, modelOf);
+      // WHICHEVER DOCUMENT THIS PROJECT HAS. The quotation wins where there is
+      // one — a project cannot have both, because openProject's heads are
+      // exclusive — and a bill is read through the project rather than off the
+      // sheet, so nothing had to be written onto the sheets that already exist.
+      const bill = !quote && project?.tenderId
+        ? { tables: boqAsTables(boqByTender.get(String(project.tenderId)) || []) }
+        : null;
+      const tables = composeSheet(sheet, quote || (bill as Quotation | null), vendorOf, stockFor, modelOf);
       return {
         id: sheet.id,
         kind: sheet.kind === "bulk" ? "bulk" : "main",
@@ -945,6 +1002,11 @@ export async function listProjectSheets(ctx: SheetReader) {
         projectTitle: project?.title || "",
         clientName: project?.clientName || "",
         quotationNumber: quote?.number || "",
+        // THE OTHER DOCUMENT A SHEET CAN COMPOSE FROM. Read off the project
+        // rather than stored on the sheet, the same way projectNumber is — the
+        // sheet holds keys and no labels. Blank on every sheet that has a
+        // quotation, and on a direct project's, which has neither.
+        tenderRef: project?.tenderRef || "",
         // What the client's own order says — the PO's description is where a PO
         // number is written, since a PO is a document rather than a field.
         poNumber: poFor(sheet.quotationId)?.po?.description || "",

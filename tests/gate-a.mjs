@@ -2736,10 +2736,10 @@ console.log("== tendering: a register whose dates are the point");
   // A BILL, so the project opens at what the work was costed at rather than at
   // the 777,777 somebody typed. This is the whole point of the handover.
   await capture(BOQ.POST, req(`/api/studios/${slug}/tendering/boq`, { method: "POST", body: {
-    tenderId: wonId, description: "Chillers", unit: "no", qty: 4, rate: 30000,
+    tenderId: wonId, group: "Plant", description: "Chillers", unit: "no", qty: 4, rate: 30000,
   } }), P);
   await capture(BOQ.POST, req(`/api/studios/${slug}/tendering/boq`, { method: "POST", body: {
-    tenderId: wonId, description: "Pipework", unit: "m", qty: 500, rate: 120,
+    tenderId: wonId, group: "Distribution", description: "Pipework", unit: "m", qty: 500, rate: 120,
   } }), P);
 
   await capture(TENDERS.PUT, req(`/api/studios/${slug}/tendering/tenders`, {
@@ -2798,6 +2798,54 @@ console.log("== tendering: a register whose dates are the point");
   ok("...and offers the handover no longer",
     afterHandover.body?.handover?.canHandOver === false
     && afterHandover.body?.handover?.blocked === "already");
+
+
+  // ---- and the project's sheets fill from the BILL ------------------------
+  //
+  // A SHEET COMPOSES FROM A DOCUMENT, and until this the document could only
+  // be a quotation -- so a handed-over project had its pair of sheets and
+  // nothing in them. The bill is offered in the same shape now
+  // (`boqAsTables`), so composeSheet reads ONE shape and there is no second
+  // composition path to disagree with the first.
+  const withSheets = await capture(PROJECTS.GET, req(`/api/studios/${slug}/projects`), P);
+  const handedSheets = (withSheets.body?.sheets || []).filter((sh) => sh.projectId === newProjectId);
+  ok("the handed-over project has its pair of sheets", handedSheets.length === 2,
+    String(handedSheets.length));
+
+  const mainSheet = handedSheets.find((sh) => sh.kind === "main");
+  await shot("tendering.handover.sheet", { status: 200, body: mainSheet });
+  // THE ASSERTION THIS SLICE TURNS ON: the sheet is no longer empty, and what
+  // is in it is the bill.
+  ok("...and its Main sheet has the bill's lines", mainSheet?.lineCount === 2,
+    String(mainSheet?.lineCount));
+  // PLANT BEFORE DISTRIBUTION, which is the order they were entered and NOT
+  // alphabetical -- the one thing a bill's order is not allowed to lose, now
+  // carried through to whoever is buying the work.
+  ok("...as the bill's own groups, in the document's order",
+    (mainSheet?.tables || []).map((t) => t.title).join() === "Plant,Distribution",
+    JSON.stringify((mainSheet?.tables || []).map((t) => t.title)));
+  ok("...naming the tender it composes from", mainSheet?.tenderRef === wonRef,
+    JSON.stringify(mainSheet?.tenderRef));
+  ok("...and no quotation it never had", mainSheet?.quotationNumber === "");
+
+  // NO RATE CROSSES INTO A SHEET. A sheet is read by whoever is buying and
+  // delivering the work; what the studio priced the bid at is not theirs, which
+  // is the same rule the quotation path follows when it drops prices at the
+  // point of reading. 30000 and 120 are the two rates on this bill.
+  const sheetJson = JSON.stringify(handedSheets);
+  ok("no rate from the bill reaches the sheet",
+    !sheetJson.includes("30000") && !sheetJson.includes("\"rate\""),
+    sheetJson.slice(0, 120));
+
+  // BULK DEGRADES HONESTLY rather than wrongly. A bill line names no Registered
+  // Item -- it is a description, a unit and a quantity priced against nothing
+  // anybody has bought -- so every line stands alone with no vendor, which is
+  // what composeSheet already does for any row with no item.
+  const bulkSheet = handedSheets.find((sh) => sh.kind === "bulk");
+  ok("Bulk reads the same bill", bulkSheet?.lineCount === 2, String(bulkSheet?.lineCount));
+  ok("...with nothing yet assigned to a vendor",
+    (bulkSheet?.tables || []).every((t) => t.id === "unassigned"),
+    JSON.stringify((bulkSheet?.tables || []).map((t) => t.id)));
 
   // A TENDER THAT DOES NOT EXIST is a refusal, not an orphan project.
   await shot("tendering.handover.notender", await handOver({ tenderId: "ten_doesnotexist00" }));

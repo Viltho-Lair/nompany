@@ -123,10 +123,9 @@ subsections exist now.** The BOQ grid and rate library shipped as slice 2
 (`docs/functionality/handover.md`) — all four bullets used to sit in this list saying
 otherwise, and a gap list that has not caught up with what shipped is worse than none.
 
-- **A won tender's bill does not become the project's sheet rows.** The handover carries the
-  VALUE across and links the two records; a project's sheets compose from a quotation, and a
-  handed-over project has none, so they are drawn up empty. That is the remaining half of
-  "estimate → budget baseline" — see `handover.md`.
+- **The bill is not frozen once a tender is handed over.** Its lines still edit, the project's
+  sheets follow them live, and the project's `value` — copied at handover — does not, so the
+  two can disagree with nothing saying so. See `handover.md`.
 - **A tender is not an engagement.** It has no entry in the stage registry, so it does not
   appear on the engagements view and nothing cascades from it.
 - **No comments and no notifications.** A deadline approaching tells nobody, and an addendum

@@ -18,6 +18,12 @@ export type BoqLine = {
   group?: unknown;
   qty?: unknown;
   rate?: unknown;
+  // READ ONLY BY `boqAsTables`, and declared `unknown` like the rest: this file
+  // is handed whatever the store holds and narrows at the point of use, which
+  // is what lets it stay import-free and be handed a plain row from anywhere.
+  id?: unknown;
+  description?: unknown;
+  unit?: unknown;
 };
 
 const num = (v: unknown): number => {
@@ -102,4 +108,53 @@ export function boqGroups(lines: readonly BoqLine[]): Array<{ group: string; lin
  */
 export function valueFromBoq(totals: BoqTotals): number | null {
   return totals.lines > 0 ? totals.total : null;
+}
+
+/**
+ * THE BILL, READ AS TABLES OF ROWS — the shape a project sheet composes from.
+ *
+ * A sheet stores no lines of its own: it composes a document's tables with what
+ * Inventory added to them, keyed by row id. That document has always been a
+ * QUOTATION, so a project handed over from a tender had sheets and nothing in
+ * them. This is the bill offered in the same shape, so `composeSheet` reads one
+ * function and not two — a second composition path would be a second set of
+ * answers about what a sheet row is.
+ *
+ * THE GROUPS BECOME THE TABLES, in the document's order (`boqGroups`), because
+ * that order is the thing a bill's own comment says must never be re-sorted: an
+ * estimator checks it against the client's document line by line, and so does
+ * whoever is now buying the work.
+ *
+ * `itemId` IS BLANK AND THAT IS THE TRUTH, not a gap to fill in later. A
+ * quotation row names a Registered Item, which is what makes serial allocation
+ * and vendor grouping possible; a bill line is a description, a unit and a
+ * quantity, priced against nothing anybody has bought yet. So Main reads
+ * exactly as it should and Bulk degrades honestly — every line stands alone
+ * under "No vendor yet", which `composeSheet` already does for any row with no
+ * item and is the correct answer rather than a degraded one.
+ *
+ * NO RATE CROSSES. `composeSheet` carries only the fields it names, and this
+ * returns only the fields it names, so what the bill was priced at stays in
+ * Tendering — the same rule that drops a quotation's prices on the way in.
+ */
+export function boqAsTables(lines: readonly BoqLine[]): Array<{
+  id: string;
+  title: string;
+  rows: Array<{ id: string; itemId: string; description: string; unit: string; qty: number }>;
+}> {
+  return boqGroups(lines).map((g, i) => ({
+    // The group NAME is the id, so a sheet's stored per-row data survives a
+    // group being renamed — the rows are keyed by row id, and the table id is
+    // only what the screen draws a heading from. `i` keeps an unnamed group
+    // distinct from another unnamed one rather than collapsing the two.
+    id: g.group || `group-${i}`,
+    title: g.group,
+    rows: g.lines.map((l) => ({
+      id: String(l?.id ?? ""),
+      itemId: "",
+      description: String(l?.description ?? ""),
+      unit: String(l?.unit ?? ""),
+      qty: num(l?.qty),
+    })),
+  }));
 }

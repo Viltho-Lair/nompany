@@ -172,7 +172,7 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
   // two ways of reading that project rather than two projects.
   const projectTabs = useMemo(() => {
     const matches = (sh) => !q || [
-      sh.projectNumber, sh.quotationNumber, sh.projectTitle, sh.clientName, sh.poNumber,
+      sh.projectNumber, sh.quotationNumber, sh.tenderRef, sh.projectTitle, sh.clientName, sh.poNumber,
       ...(sh.serials || []),
     ].filter(Boolean).some((v) => String(v).toLowerCase().includes(q));
 
@@ -322,6 +322,9 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
           <p className="truncate text-xs text-slate-500 dark:text-slate-400">
             {sheet.projectNumber || tr.noProjectNumberYet}
             {sheet.quotationNumber ? ` · ${sheet.quotationNumber}` : ""}
+            {/* A sheet composes from ONE document. Whichever it is, its
+                reference belongs in the same place. */}
+            {sheet.tenderRef ? ` · ${sheet.tenderRef}` : ""}
             {sheet.clientName ? ` · ${sheet.clientName}` : ""}
           </p>
         </div>
@@ -378,12 +381,18 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
 
       {sheet.tables.length === 0 ? (
         <p className={`${panel} text-sm text-slate-500`}>
-          {/* TWO KINDS OF EMPTY, and they mean different things. A sheet with
-              no quotation behind it can never fill from this screen — the
-              project was raised directly — where a quotation with no priced
-              lines is waiting on somebody to price it. Saying "no priced
-              lines" for the first reads as a bug in a screen that is working. */}
-          {sheet.quotationId ? tr.quotationNoPricedLines : tr.noQuotationBehindProject}
+          {/* THREE KINDS OF EMPTY NOW, and they mean different things. A
+              quotation with no priced lines is waiting on somebody to price it.
+              A tender's BILL with no lines is waiting on somebody to write one
+              — which is work done in Tendering, not here. And a project raised
+              directly has no document at all and can never fill from this
+              screen. Saying "no priced lines" for the third reads as a bug in a
+              screen that is working, and saying "no quotation" for the second
+              sends somebody looking for a document that was never going to
+              exist. */}
+          {sheet.quotationId ? tr.quotationNoPricedLines
+            : sheet.tenderRef ? tr.billHasNoLines
+              : tr.noQuotationBehindProject}
         </p>
       ) : sheet.tables.map((table) => (
         <section key={table.id} className={panel}>

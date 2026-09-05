@@ -28,6 +28,9 @@ export type InventoryContext = ModuleContext & {
   projectsSection: Section | null;
   projectsListSection: Section | null;
   quotationsSection: Section | null;
+  // A handed-over project's sheet composes from its tender's BILL, so the
+  // register is read here the same way the quotations are.
+  tenderRegisterSection: Section | null;
   tasksSection: Section | null;
   canViewStock: boolean;
   canManageStock: boolean;

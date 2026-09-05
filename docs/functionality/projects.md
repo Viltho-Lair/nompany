@@ -125,7 +125,7 @@ root when the reverse index was never written.
 
 ## The sheets
 
-**Both project sheets — Main and Bulk — are created on either path**, in
+**Both project sheets — Main and Bulk — are created on every path**, in
 `openProject`, and again lazily by `ensureSheetsExist`
 (`src/modules/inventory/inventory.ts`) for any project opened before a sheet
 existed. Neither guards on `quotationId`: a direct project gets its pair
