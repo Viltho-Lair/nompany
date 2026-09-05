@@ -2705,6 +2705,121 @@ console.log("== tendering: a register whose dates are the point");
   // does not use the grid.
   ok("...and is not treated as an unfinished bill", guessedBill.body?.review?.blocked === null);
 
+
+  // ---- the handover to Projects ------------------------------------------
+  //
+  // THE LAST OF TENDERING'S FIVE. Until this, tendering.md said it plainly: a
+  // won tender did not become a deal, a project or a budget baseline, and
+  // somebody re-entered it in CRM & Sales by hand with nothing linking the two
+  // records.
+  //
+  // The tender used here is a fresh one taken all the way to Won, because the
+  // register block's TND-0001 was Lost and a lost tender has nothing to
+  // deliver -- which is the first refusal below.
+  const PROJECTS = await import("@/app/api/studios/[slug]/projects/route.ts");
+  const handOver = (body) => capture(
+    PROJECTS.POST, req(`/api/studios/${slug}/projects`, { method: "POST", body }), P);
+
+  // A LOST TENDER IS NOT HANDED OVER. Asked of TND-0001, which the register
+  // block closed as Lost.
+  await shot("tendering.handover.notwon", await handOver({ tenderId }));
+
+  const winner = await capture(TENDERS.POST, req(`/api/studios/${slug}/tendering/tenders`, {
+    method: "POST", body: {
+      title: "Data centre cooling", issuer: "A bank that is not yet a client",
+      submissionDeadline: "2031-09-01", estimatedValue: 777777,
+    },
+  }), P);
+  const wonId = winner.body?.tender?.id;
+  const wonRef = winner.body?.tender?.ref;
+
+  // A BILL, so the project opens at what the work was costed at rather than at
+  // the 777,777 somebody typed. This is the whole point of the handover.
+  await capture(BOQ.POST, req(`/api/studios/${slug}/tendering/boq`, { method: "POST", body: {
+    tenderId: wonId, description: "Chillers", unit: "no", qty: 4, rate: 30000,
+  } }), P);
+  await capture(BOQ.POST, req(`/api/studios/${slug}/tendering/boq`, { method: "POST", body: {
+    tenderId: wonId, description: "Pipework", unit: "m", qty: 500, rate: 120,
+  } }), P);
+
+  await capture(TENDERS.PUT, req(`/api/studios/${slug}/tendering/tenders`, {
+    method: "PUT", body: { id: wonId, status: "Preparing" } }), P);
+  await signIn(bidSigner.id);
+  await capture(TENDERS.PUT, req(`/api/studios/${slug}/tendering/tenders`, {
+    method: "PUT", body: { id: wonId, approve: true } }), P);
+  await signIn(owner.id);
+  await capture(TENDERS.PUT, req(`/api/studios/${slug}/tendering/tenders`, {
+    method: "PUT", body: { id: wonId, status: "Submitted" } }), P);
+  const wonNow = await capture(TENDERS.PUT, req(`/api/studios/${slug}/tendering/tenders`, {
+    method: "PUT", body: { id: wonId, status: "Won" } }), P);
+  ok("a bid signed and sent can be won", wonNow.body?.tender?.status === "Won",
+    JSON.stringify(wonNow.body?.error || wonNow.body?.tender?.status));
+
+  // 4 x 30000 + 500 x 120 = 180000, which is NOT 777777.
+  const beforeHandover = await capture(
+    BOQ.GET, req(`/api/studios/${slug}/tendering/boq?tenderId=${wonId}`), P);
+  await shot("tendering.handover.offered", beforeHandover);
+  ok("a won tender offers the handover", beforeHandover.body?.handover?.canHandOver === true,
+    JSON.stringify(beforeHandover.body?.handover));
+
+  const handed = await shot("tendering.handover.done", await handOver({ tenderId: wonId }));
+  const newProjectId = handed.body?.project?.id;
+  ok("the tender became a project", Boolean(newProjectId), JSON.stringify(handed.body).slice(0, 160));
+  // THE ASSERTION THE WHOLE SLICE TURNS ON. A project opened at the typed
+  // estimate would be opened at a figure nobody signed, while the bid review
+  // went on saying the bid was approved -- at 180,000.
+  ok("...at the BILL's total, not the typed estimate",
+    handed.body?.project?.value === 180000, String(handed.body?.project?.value));
+  ok("...carrying the tender it came from",
+    handed.body?.project?.tenderId === wonId && handed.body?.project?.tenderRef === wonRef,
+    JSON.stringify({ id: handed.body?.project?.tenderId, ref: handed.body?.project?.tenderRef }));
+  // AND NO CHAIN IT DOES NOT HAVE. A handover has no ticket, RFQ or quotation
+  // behind it, and a project claiming one would put a dead link on its lineage.
+  ok("...and no quotation chain it never had",
+    !handed.body?.project?.quotationId && !handed.body?.project?.ticketId && !handed.body?.project?.rfqId);
+  // THE PROJECT NUMBER IS FINANCE'S TO ISSUE, on this head exactly as on the
+  // other two: nothing about being handed over issues one early.
+  ok("...and no number nobody issued", handed.body?.project?.number === "");
+
+  // THE ISSUER BECAME A CLIENT. A tender's issuer is free text and frequently
+  // not a client yet -- that is what bidding is -- so the handover resolves it
+  // into Sales' model the way every other project head resolves one.
+  ok("the issuer was resolved into a client", Boolean(handed.body?.project?.clientId),
+    JSON.stringify(handed.body?.project?.clientName));
+
+  // ONE PROJECT PER TENDER, derived from the projects rather than from a flag
+  // written back onto the tender.
+  await shot("tendering.handover.twice", await handOver({ tenderId: wonId }));
+  const afterHandover = await capture(
+    BOQ.GET, req(`/api/studios/${slug}/tendering/boq?tenderId=${wonId}`), P);
+  ok("the tender now shows what it became",
+    afterHandover.body?.handover?.projectId === newProjectId,
+    JSON.stringify(afterHandover.body?.handover));
+  ok("...and offers the handover no longer",
+    afterHandover.body?.handover?.canHandOver === false
+    && afterHandover.body?.handover?.blocked === "already");
+
+  // A TENDER THAT DOES NOT EXIST is a refusal, not an orphan project.
+  await shot("tendering.handover.notender", await handOver({ tenderId: "ten_doesnotexist00" }));
+
+  // HANDING OVER IS OPENING A PROJECT, so it answers to projects.list.create --
+  // not to any Tendering right. Asked of somebody who may READ projects and not
+  // create them, so the refusal is the create right rather than the section
+  // gate: `pricer` would be refused for holding no Projects right at all, which
+  // proves nothing about which right the handover actually needs.
+  const projectReader = await personWith(
+    ["tendering.tenders.view", "projects.list.view"], "handoverreader");
+  await signIn(projectReader.id);
+  await shot("tendering.handover.forbidden", await handOver({ tenderId: wonId }));
+
+  // AND THE SCREEN SAYS SO RATHER THAN OFFERING A BUTTON THAT REFUSES: the
+  // tender still shows what it became, and offers nothing.
+  const asReader = await capture(
+    BOQ.GET, req(`/api/studios/${slug}/tendering/boq?tenderId=${wonId}`), P);
+  ok("a reader who cannot open projects is offered no handover",
+    asReader.body?.handover?.canHandOver === false, JSON.stringify(asReader.body?.handover));
+  await signIn(owner.id);
+
   // The studio's currency goes back, so nothing after this section sees it.
   await updateStudio(studio.id, { currency: "" });
 
@@ -3336,8 +3451,17 @@ console.log("== projects: the second way in — work handed to the studio direct
 
   const bothWays = await capture(PROJECTS.GET, req(`/api/studios/${slug}/projects`), P);
   await shot("projects.direct.list.populated", bothWays);
-  ok("the list holds the quotation-opened project and the direct one",
-    bothWays.body?.projects?.length === 2, String(bothWays.body?.projects?.length));
+  // THREE, NOT TWO, AND THE THIRD IS THE POINT OF THE COUNT. This block is
+  // named "the second way in" and asserted two for as long as there were two
+  // heads; the handover to Projects is the THIRD, opened back in the tendering
+  // section from a won tender. Bumping the number without saying so would turn
+  // a real assertion about how many ways a project can begin into a fixture
+  // count nobody could read.
+  ok("the list holds one project from each of the three ways in",
+    bothWays.body?.projects?.length === 3, String(bothWays.body?.projects?.length));
+  ok("...and exactly one of them was handed over from a tender",
+    (bothWays.body?.projects || []).filter((p) => p.tenderId).length === 1,
+    JSON.stringify((bothWays.body?.projects || []).map((p) => p.tenderRef || "-")));
 
   __signOut();
 }

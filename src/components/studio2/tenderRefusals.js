@@ -32,6 +32,22 @@ export function refusal(tr, token) {
     case "unquoted": return tr.refuseUnquoted;
     case "no-chain": return tr.refuseNoChain;
 
+    // ---- the handover ----
+    case "not-won": return tr.refuseNotWon;
+    case "no-projects": return tr.refuseNoProjects;
+    case "no-tendering": return tr.refuseNoTendering;
+    // The POST's word for a tender that does not exist.
+    case "tender": return tr.refuseNoTender;
+    // `already` IS SAFE TO CLAIM HERE and would not be in a product-wide
+    // mapper: openProject sends it for a second project on one QUOTATION too,
+    // but no tendering screen ever opens a project from a quotation, so within
+    // this file it can only mean a tender handed over twice.
+    case "already": return tr.refuseAlreadyHandedOver;
+    // Its own token rather than the bare `forbidden` every route sends, so a
+    // shared mapper cannot answer an unrelated refusal with this sentence.
+    case "handover-forbidden":
+    case "read-only": return tr.refuseHandoverForbidden;
+
     // ---- the pack ----
     case "in-chain": return tr.cannotDeleteInChain;
     case "superseded-replacement":

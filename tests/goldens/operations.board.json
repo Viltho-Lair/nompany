@@ -158,6 +158,10 @@
       {
         "id": "<pro_ID>",
         "number": ""
+      },
+      {
+        "id": "<pro_ID>",
+        "number": ""
       }
     ],
     "people": [
@@ -184,6 +188,10 @@
       {
         "id": "<col_ID>",
         "alias": "notender"
+      },
+      {
+        "id": "<col_ID>",
+        "alias": "handoverreader"
       },
       {
         "id": "<col_ID>",

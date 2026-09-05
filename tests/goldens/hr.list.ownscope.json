@@ -236,6 +236,14 @@
       },
       {
         "id": "<rol_ID>",
+        "name": "role-handoverreader",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 2,
+        "held": 1
+      },
+      {
+        "id": "<rol_ID>",
         "name": "role-hradmin",
         "description": "",
         "wildcard": false,

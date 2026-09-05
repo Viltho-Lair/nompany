@@ -39,7 +39,14 @@ export const tenderingContext = moduleContext<TenderingContext>({
   // tender's own story rather than a window into somebody else's queue — the
   // same reasoning Sales uses for the RFQ column it draws without a Technical
   // right. A studio with no CRM & Sales section simply gets no name resolved.
-  foreign: { salesClients: ["crm-sales-clients", "crm-sales"] },
+  foreign: {
+    salesClients: ["crm-sales-clients", "crm-sales"],
+    // Projects, for the handover. Read-only and without a grant on that
+    // department, the same terms the clients read above takes: what a won
+    // tender BECAME is the tender's own story. A studio with no Projects
+    // section simply cannot hand anything over.
+    projectsList: ["projects-list", "projects"],
+  },
   flags: ["register", "rates"],
 });
 

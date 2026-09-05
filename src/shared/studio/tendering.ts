@@ -176,6 +176,21 @@ type Strings = CommonStrings & {
   refuseAlreadyApproved: string;
   convertedAt: (rate: string) => string;
   ratesAreStale: string;
+
+  // The handover to Projects.
+  handover: string;
+  handoverSub: string;
+  handOverNow: string;
+  becameProject: string;
+  openTheProject: string;
+  projectNotNumberedYet: string;
+  handoverValueNote: string;
+  refuseNotWon: string;
+  refuseAlreadyHandedOver: string;
+  refuseNoProjects: string;
+  refuseHandoverForbidden: string;
+  refuseNoTendering: string;
+  refuseNoTender: string;
 };
 
 const en: Strings = {
@@ -344,6 +359,20 @@ const en: Strings = {
   refuseAlreadyApproved: "This bid is already signed off.",
   convertedAt: (rate) => `Converted at ${rate}`,
   ratesAreStale: "Judged against yesterday’s rates — today’s have not arrived.",
+
+  handover: "Handover",
+  handoverSub: "What this tender became once it was won.",
+  handOverNow: "Open a project from this tender",
+  becameProject: "This tender became a project.",
+  openTheProject: "Open the project",
+  projectNotNumberedYet: "Not numbered yet — Finance issues the number when the client’s PO is authorised.",
+  handoverValueNote: "The project opens at the bill’s total, not at the typed estimate.",
+  refuseNotWon: "Only a won tender is handed over. A lost or withdrawn one has nothing to deliver.",
+  refuseAlreadyHandedOver: "This tender has already been handed over.",
+  refuseNoProjects: "This studio has no Projects section, so there is nothing to hand over to.",
+  refuseHandoverForbidden: "Handing over opens a project, and you do not have the right to create one.",
+  refuseNoTendering: "This studio has no tender register.",
+  refuseNoTender: "That tender no longer exists.",
 };
 
 const ar: Strings = {
@@ -505,6 +534,20 @@ const ar: Strings = {
   refuseAlreadyApproved: "هذا العرض مُعتمد بالفعل.",
   convertedAt: (rate) => `حُوّل بسعر ${rate}`,
   ratesAreStale: "مقيس على أسعار الأمس — لم تصل أسعار اليوم بعد.",
+
+  handover: "التسليم",
+  handoverSub: "ما آلت إليه هذه المناقصة بعد الفوز بها.",
+  handOverNow: "فتح مشروع من هذه المناقصة",
+  becameProject: "أصبحت هذه المناقصة مشروعاً.",
+  openTheProject: "فتح المشروع",
+  projectNotNumberedYet: "بلا رقم بعد — تُصدره المالية عند اعتماد أمر شراء العميل.",
+  handoverValueNote: "يُفتح المشروع على إجمالي الجدول، لا على القيمة التقديرية.",
+  refuseNotWon: "لا يُسلّم إلا ما فازت به. المناقصة الخاسرة أو المسحوبة لا شيء فيها يُنفّذ.",
+  refuseAlreadyHandedOver: "سُلّمت هذه المناقصة بالفعل.",
+  refuseNoProjects: "لا يوجد قسم مشاريع في هذه المنشأة، فلا جهة يُسلّم إليها.",
+  refuseHandoverForbidden: "التسليم يفتح مشروعاً، ولا تملك صلاحية إنشاء المشاريع.",
+  refuseNoTendering: "لا يوجد سجلّ مناقصات في هذه المنشأة.",
+  refuseNoTender: "لم تعد هذه المناقصة موجودة.",
 };
 
 // KEYED BY LOCALE WITH A FALLBACK, like every other surface's dictionary — not

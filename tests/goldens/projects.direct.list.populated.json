@@ -129,6 +129,8 @@
         "quotationNumber": "",
         "rfqId": "",
         "ticketId": "",
+        "tenderId": "",
+        "tenderRef": "",
         "clientId": "<sal_ID>",
         "clientName": "Northwind Logistics",
         "value": 42000,
@@ -150,11 +152,41 @@
       {
         "id": "<pro_ID>",
         "number": "",
+        "title": "Data centre cooling",
+        "quotationId": "",
+        "quotationNumber": "",
+        "rfqId": "",
+        "ticketId": "",
+        "tenderId": "<ten_ID>",
+        "tenderRef": "TND-0006",
+        "clientId": "<sal_ID>",
+        "clientName": "A bank that is not yet a client",
+        "value": 180000,
+        "stage": "Received",
+        "managerCollaboratorId": "",
+        "location": "",
+        "supportPeriodDays": 365,
+        "receivedDate": "<today>",
+        "startDate": "",
+        "endDate": "",
+        "notes": "",
+        "openedByCollaboratorId": "<col_ID>",
+        "createdAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>",
+        "ticketRef": "",
+        "progress": 0
+      },
+      {
+        "id": "<pro_ID>",
+        "number": "",
         "title": "Boardroom refit, phase 1",
         "quotationId": "<quo_ID>",
         "quotationNumber": "Q-0001",
         "rfqId": "<rfq_ID>",
         "ticketId": "<sal_ID>",
+        "tenderId": "",
+        "tenderRef": "",
         "clientId": "<sal_ID>",
         "clientName": "Acme Holdings",
         "value": 0,
@@ -202,6 +234,38 @@
         "projectTitle": "Boardroom refit, phase 1",
         "clientName": "Acme Holdings",
         "quotationNumber": "Q-0001",
+        "poNumber": "",
+        "tables": [],
+        "lineCount": 0,
+        "serials": []
+      },
+      {
+        "id": "<pro_ID>",
+        "kind": "bulk",
+        "projectId": "<pro_ID>",
+        "quotationId": "",
+        "rfqId": "",
+        "ticketId": "",
+        "projectNumber": "",
+        "projectTitle": "Data centre cooling",
+        "clientName": "A bank that is not yet a client",
+        "quotationNumber": "",
+        "poNumber": "",
+        "tables": [],
+        "lineCount": 0,
+        "serials": []
+      },
+      {
+        "id": "<pro_ID>",
+        "kind": "main",
+        "projectId": "<pro_ID>",
+        "quotationId": "",
+        "rfqId": "",
+        "ticketId": "",
+        "projectNumber": "",
+        "projectTitle": "Data centre cooling",
+        "clientName": "A bank that is not yet a client",
+        "quotationNumber": "",
         "poNumber": "",
         "tables": [],
         "lineCount": 0,
@@ -281,6 +345,10 @@
       {
         "id": "<col_ID>",
         "alias": "notender"
+      },
+      {
+        "id": "<col_ID>",
+        "alias": "handoverreader"
       },
       {
         "id": "<col_ID>",
@@ -370,6 +438,13 @@
       },
       {
         "id": "<sal_ID>",
+        "name": "A bank that is not yet a client",
+        "logo": "",
+        "contacts": [],
+        "locations": []
+      },
+      {
+        "id": "<sal_ID>",
         "name": "Second Client",
         "logo": "",
         "contacts": [],
@@ -426,6 +501,12 @@
         {
           "id": "<col_ID>",
           "alias": "financeviewer",
+          "departmentId": "",
+          "departmentName": ""
+        },
+        {
+          "id": "<col_ID>",
+          "alias": "handoverreader",
           "departmentId": "",
           "departmentName": ""
         },

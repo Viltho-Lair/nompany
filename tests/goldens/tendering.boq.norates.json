@@ -147,6 +147,13 @@
       "next": null,
       "mine": false
     },
+    "handover": {
+      "projectId": "",
+      "projectTitle": "",
+      "projectNumber": "",
+      "canHandOver": false,
+      "blocked": "not-won"
+    },
     "canEdit": false
   }
 }

@@ -80,7 +80,7 @@ export default function StudioBoq({ slug, tenderId }) {
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <RecordSkeleton loadingLabel={tr.loadingBoq} />;
 
-  const { tender, canEdit, review } = data;
+  const { tender, canEdit, review, handover } = data;
   const lines = data.lines || [];
   const rates = data.rates || [];
   // TOTALLED WITH THE SERVER'S OWN FUNCTION. The route sends `totals` too; this
@@ -91,6 +91,27 @@ export default function StudioBoq({ slug, tenderId }) {
   const groups = boqGroups(lines);
 
   const saveCell = (line, patch) => send("PUT", { id: line.id, ...patch });
+
+  // THE HANDOVER POSTS TO PROJECTS. It is the only call this screen makes
+  // outside /tendering, and deliberately so: opening the project is Projects'
+  // act, taken through the same route and the same guard every other project
+  // creation takes.
+  const handOver = async () => {
+    setError(""); setBusy(true);
+    const res = await fetch(`/api/studios/${slug}/projects`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tenderId }),
+    });
+    const out = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (!res.ok) { setError(refusal(tr, out.error || "failed")); return; }
+    // RELOADED IN PLACE rather than redirected. The block then says what the
+    // tender became and offers a link to it, which leaves the person on the
+    // page that answers "what did we bid" beside the one that answers "what do
+    // we now deliver" — and it is the same state anybody arriving later sees,
+    // so there is only one rendering of a handed-over tender to get right.
+    await reload();
+  };
 
   const addLine = async () => {
     const done = await send("POST", {
@@ -223,6 +244,60 @@ export default function StudioBoq({ slug, tenderId }) {
                 <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{tr.cannotSignOwnBid}</p>
               )}
             </>
+          )}
+        </section>
+      )}
+
+      {/* ---- the handover ----------------------------------------------
+          WHAT A WON TENDER BECAME, and the one control that makes it one.
+          It sits under the bid review because the sequence is the studio's:
+          price it, sign it, send it, win it, deliver it — and each of those
+          four blocks is on this page in that order.
+
+          THE BUTTON POSTS TO PROJECTS, not to Tendering, because the act is
+          opening a project. `tenderSource` is a head of `openProject` for the
+          reason that file states: everything below the split — the row, the
+          two sheets, the engagement, the manager notification — must not be
+          written by a second create path. */}
+      {handover && (
+        <section className={panel}>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className={h2}>{tr.handover}</h2>
+              <p className={sub}>{tr.handoverSub}</p>
+            </div>
+            {handover.canHandOver && (
+              <button type="button" className={btn} disabled={busy} onClick={handOver}>
+                {tr.handOverNow}
+              </button>
+            )}
+          </div>
+
+          {handover.projectId ? (
+            <div className="mt-3">
+              <p className="text-sm font-600 text-emerald-700 dark:text-emerald-400">{tr.becameProject}</p>
+              <p className="mt-1 text-sm text-slate-800 dark:text-slate-100">
+                {handover.projectNumber
+                  ? <span className="font-mono text-xs text-slate-400">{handover.projectNumber}</span>
+                  : null}
+                <span className={handover.projectNumber ? "ms-2" : ""}>{handover.projectTitle}</span>
+              </p>
+              {!handover.projectNumber && (
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{tr.projectNotNumberedYet}</p>
+              )}
+              <a href={`/${slug}/projects-list/${handover.projectId}`}
+                className="mt-2 inline-block text-sm text-brand-700 hover:underline dark:text-brand-300">
+                {tr.openTheProject} →
+              </a>
+            </div>
+          ) : handover.canHandOver ? (
+            // SAID BEFORE IT HAPPENS, because the figure is the point of the
+            // whole handover and it is not the one on the tender's own form.
+            <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">{tr.handoverValueNote}</p>
+          ) : (
+            <p className="mt-3 rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-600 dark:bg-white/5 dark:text-slate-300">
+              {refusal(tr, handover.blocked)}
+            </p>
           )}
         </section>
       )}

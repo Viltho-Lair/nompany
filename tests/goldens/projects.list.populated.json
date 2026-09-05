@@ -129,6 +129,8 @@
         "quotationNumber": "Q-0001",
         "rfqId": "<rfq_ID>",
         "ticketId": "<sal_ID>",
+        "tenderId": "",
+        "tenderRef": "",
         "clientId": "<sal_ID>",
         "clientName": "Acme Holdings",
         "value": 0,

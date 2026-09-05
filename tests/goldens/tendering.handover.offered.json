@@ -4,16 +4,16 @@
     "ok": true,
     "tender": {
       "id": "<ten_ID>",
-      "ref": "TND-0001",
-      "title": "Airport terminal AV",
-      "issuer": "General Authority of Civil Aviation",
+      "ref": "TND-0006",
+      "title": "Data centre cooling",
+      "issuer": "A bank that is not yet a client",
       "clientId": "",
-      "source": "Etimad portal",
-      "issueDate": "2031-01-05",
-      "submissionDeadline": "2031-02-20",
-      "estimatedValue": 1250000,
-      "currency": "",
-      "status": "Lost",
+      "source": "",
+      "issueDate": "",
+      "submissionDeadline": "2031-09-01",
+      "estimatedValue": 777777,
+      "currency": "SAR",
+      "status": "Won",
       "notes": "",
       "assignedToCollaboratorId": "",
       "createdByCollaboratorId": "<col_ID>",
@@ -33,7 +33,7 @@
           "byCollaboratorId": "<col_ID>"
         },
         {
-          "status": "Lost",
+          "status": "Won",
           "at": "<timestamp>",
           "byCollaboratorId": "<col_ID>"
         }
@@ -44,12 +44,6 @@
           "byCollaboratorId": "<col_ID>",
           "byAlias": "bidstep1",
           "at": "<timestamp>"
-        },
-        {
-          "permission": "tendering.tenders.approveHigh",
-          "byCollaboratorId": "<col_ID>",
-          "byAlias": "bidstep2",
-          "at": "<timestamp>"
         }
       ],
       "approvalPlan": {
@@ -59,32 +53,27 @@
             "permission": "tendering.tenders.approve",
             "from": 0,
             "label": "Estimating"
-          },
-          {
-            "permission": "tendering.tenders.approveHigh",
-            "from": 500000,
-            "label": "Above the limit"
           }
         ],
-        "amountInBase": 1250000,
+        "amountInBase": 180000,
         "rate": null,
         "updatedAt": 0,
         "stale": false
       },
       "submittedAt": "<timestamp>",
       "decidedAt": "<timestamp>",
-      "decisionReason": "Undercut by 12%"
+      "decisionReason": ""
     },
     "lines": [
       {
         "id": "<boq_ID>",
         "tenderId": "<ten_ID>",
-        "group": "Earthworks",
-        "code": "1.1",
-        "description": "Excavate to reduce level",
-        "unit": "m3",
-        "qty": 120,
-        "rate": 45,
+        "group": "",
+        "code": "",
+        "description": "Chillers",
+        "unit": "no",
+        "qty": 4,
+        "rate": 30000,
         "rateId": "",
         "notes": "",
         "sortOrder": 0,
@@ -96,12 +85,12 @@
       {
         "id": "<boq_ID>",
         "tenderId": "<ten_ID>",
-        "group": "Earthworks",
-        "code": "1.2",
-        "description": "Disposal off site",
-        "unit": "m3",
-        "qty": 80,
-        "rate": 0,
+        "group": "",
+        "code": "",
+        "description": "Pipework",
+        "unit": "m",
+        "qty": 500,
+        "rate": 120,
         "rateId": "",
         "notes": "",
         "sortOrder": 1,
@@ -113,32 +102,17 @@
     ],
     "totals": {
       "lines": 2,
-      "priced": 1,
-      "unpriced": 1,
-      "total": 5400,
-      "complete": false
+      "priced": 2,
+      "unpriced": 0,
+      "total": 180000,
+      "complete": true
     },
-    "rates": [
-      {
-        "id": "<ten_ID>",
-        "code": "EX-01",
-        "description": "Excavate to reduce level",
-        "unit": "m3",
-        "rate": 45,
-        "category": "Earthworks",
-        "notes": "",
-        "createdByCollaboratorId": "<col_ID>",
-        "createdAt": "<timestamp>",
-        "updatedAt": "<timestamp>",
-        "studioId": "<std_ID>",
-        "sectionId": "<sub_ID>"
-      }
-    ],
+    "rates": [],
     "review": {
       "value": {
-        "amount": 5400,
+        "amount": 180000,
         "basis": "boq",
-        "complete": false,
+        "complete": true,
         "lines": 2
       },
       "plan": {
@@ -150,13 +124,13 @@
             "label": "Estimating"
           }
         ],
-        "amountInBase": 5400,
+        "amountInBase": 180000,
         "rate": null,
         "updatedAt": 0,
         "stale": false
       },
-      "blocked": "bill-incomplete",
-      "signed": 2,
+      "blocked": null,
+      "signed": 1,
       "required": 1,
       "approved": true,
       "next": null,
@@ -166,8 +140,8 @@
       "projectId": "",
       "projectTitle": "",
       "projectNumber": "",
-      "canHandOver": false,
-      "blocked": "not-won"
+      "canHandOver": true,
+      "blocked": null
     },
     "canEdit": true
   }

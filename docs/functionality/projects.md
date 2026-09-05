@@ -4,19 +4,24 @@
 
 **A project is delivered work**, with a stage (`Received` → `In Progress` → `On
 Hold` → `Completed`), a manager, dates, a support window, and — once a project
-has children — a board and a plan. There are **two ways one begins**:
+has children — a board and a plan. There are **three ways one begins**:
 
 1. **From an approved quotation.** The whole chain — ticket, RFQ, quotation —
    is already known, so the dialog asks for three things (which quotation,
    who manages it, where) and the server reads everything else off the chain.
-2. **Directly.** The studio was handed the job with no ticket, no RFQ, no
+2. **From a won tender.** Tendering's handover — `docs/functionality/handover.md`.
+   The gate is that the tender is **Won**; the project opens at the BILL's total
+   rather than the typed estimate, the issuer is resolved into a client, and the
+   tender's reference is carried onto the project. One project per tender.
+3. **Directly.** The studio was handed the job with no ticket, no RFQ, no
    quotation behind it — work brought in by a call, a walk-in, a referral.
    The client, the title, the industry, a description, a value, dates and the
    support period are typed on the spot.
 
 `src/modules/projects/projects.ts`'s `openProject` decides which one ran by
-whether the request body carries a `quotationId` — there is no mode flag a
-client could set to skip the gate. Everything below that split — the row
+whether the request body carries a `quotationId`, else a `tenderId` — there is
+no mode flag a client could set to skip either gate, and a body carrying both
+ids opens from the quotation, the stricter of the two. Everything below that split — the row
 itself, the two sheets, the engagement attach, the manager notification —
 cannot tell which head ran, and that is deliberate: a second create path is a
 second place the engagement dual-write could be forgotten, which is exactly
@@ -27,15 +32,16 @@ halves of the dialog.
 
 ## What each path supplies
 
-| Fact | From a quotation | Direct |
-|---|---|---|
-| Title | the ticket's, else the quotation's | typed |
-| Client | the engagement's `context.clientId`/`clientName`, live | resolved by `resolveClientFor` |
-| Value | the quotation's `total` | typed, defaults to 0 |
-| `ticketId` / `rfqId` / `quotationId` / `quotationNumber` | the chain | all `""` |
-| Industry | not read; irrelevant to this path | typed, written onto the Client record |
-| Description (`notes`) | never sent; stays `""` | typed |
-| Dates, support period | typed on the shared dialog fields either way | — |
+| Fact | From a quotation | From a tender | Direct |
+|---|---|---|---|
+| Title | the ticket's, else the quotation's | the tender's | typed |
+| Client | the engagement's `context.clientId`/`clientName`, live | the issuer, via `resolveClientFor` | resolved by `resolveClientFor` |
+| Value | the quotation's `total` | the BILL's total, else the typed estimate | typed, defaults to 0 |
+| `ticketId` / `rfqId` / `quotationId` / `quotationNumber` | the chain | all `""` | all `""` |
+| `tenderId` / `tenderRef` | both `""` | the tender's | both `""` |
+| Industry | not read; irrelevant to this path | not read | typed, written onto the Client record |
+| Description (`notes`) | never sent; stays `""` | never sent; stays `""` | typed |
+| Dates, support period | typed on the shared dialog fields either way | not asked — the handover is one button | — |
 
 **From a quotation, the commercial gate is hard.** `quotationSource` asks
 `quotationApproved(quote, tasks)` — approval is a fact about the `po` approval

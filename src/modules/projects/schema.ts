@@ -24,6 +24,21 @@ export const ProjectSchema = z.looseObject({
   quotationNumber: z.string(),
   rfqId: z.string(),
   ticketId: z.string(),
+  /**
+   * THE WON TENDER THIS PROJECT WAS HANDED OVER FROM, and its reference.
+   *
+   * OPTIONAL, because every project already in the database predates the
+   * handover — the same reason a bill's `approvals` is optional. A project
+   * from a quotation or raised directly writes "" for both.
+   *
+   * `tenderRef` is COPIED and the rest of the tender is not, which is the one
+   * exception this lineage makes to reading live: the ref is the number a
+   * client and a bid bond quote, it never changes once issued (invariant 10),
+   * and it has to read correctly on the project even in a studio where nobody
+   * can open the Tendering section.
+   */
+  tenderId: z.string().optional(),
+  tenderRef: z.string().optional(),
   clientId: z.string(),
   clientName: z.string(),
   value: z.number(),

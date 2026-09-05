@@ -77,6 +77,13 @@
       "next": null,
       "mine": true
     },
+    "handover": {
+      "projectId": "",
+      "projectTitle": "",
+      "projectNumber": "",
+      "canHandOver": false,
+      "blocked": "not-won"
+    },
     "canEdit": true
   }
 }

@@ -152,5 +152,29 @@ ok("a No Bid needs no approval",
 ok("winning still requires having submitted",
   stages.tenderProblem({ from: "Preparing", to: "Won", approved: true }) === "not-submitted");
 
+
+console.log("\n== the handover opens at the same number the signature was given for");
+
+// A SOURCE-LEVEL ASSERTION, and it guards one specific temptation.
+// `tenderSource` (modules/projects) must value a handed-over project with
+// `valueFromBoq` -- the SAME precedence `bidValue` routes the approval by.
+// A project opened at the typed `estimatedValue` would be opened at a figure
+// nobody signed, while the screen went on saying the bid was approved. It is
+// asserted here rather than only in Gate A because the wrong version still
+// passes every runtime test on a tender whose two numbers happen to agree.
+const { readFileSync } = await import("node:fs");
+const projectsSrc = readFileSync(new URL("../src/modules/projects/projects.ts", import.meta.url), "utf8");
+const head = projectsSrc.slice(
+  projectsSrc.indexOf("async function tenderSource"),
+  projectsSrc.indexOf("// THE QUOTATION HEAD"));
+ok("the handover head exists to read at all", head.length > 200, String(head.length));
+ok("the handover values a project from the bill", head.includes("valueFromBoq("));
+ok("...and falls back to the typed estimate only when there is no bill",
+  head.includes("fromBoq === null"));
+// AND ONE PROJECT PER TENDER, derived rather than stored -- a flag written
+// back onto the tender would be a second answer to the same question.
+ok("...and refuses a second project on one tender",
+  head.includes("p.tenderId === tenderId"));
+
 console.log(fails ? `\n${fails} FAILED\n` : "\nall passed\n");
 process.exit(fails ? 1 : 0);

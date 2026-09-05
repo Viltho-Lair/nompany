@@ -4,6 +4,7 @@ import { tenderingContext } from "@/modules/tendering/tenders";
 import { listBoq, addBoqLine, editBoqLine, removeBoqLine } from "@/modules/tendering/boqItems";
 import { listRates } from "@/modules/tendering/rates";
 import { bidReview } from "@/modules/tendering/bid";
+import { handoverState } from "@/modules/tendering/handover";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -29,6 +30,9 @@ export const GET = route({ ...spec, body: false }, async (tendering) => {
   // here rather than on the register because the thing being signed IS the
   // bill — a reviewer needs the price in front of them, not a row in a list.
   const review = await bidReview(tendering, result.tender, result.lines);
+  // WHAT BECAME OF IT, on the same page as the bill and the review, because
+  // "we won this — now what" is asked while looking at the price that won it.
+  const handover = await handoverState(tendering, result.tender);
   return {
     ok: true,
     tender: result.tender,
@@ -36,6 +40,7 @@ export const GET = route({ ...spec, body: false }, async (tendering) => {
     totals: result.totals,
     rates: refused(rates) ? [] : rates.rates,
     review,
+    handover,
     canEdit: !requirePermission(tendering.access, "tendering.tenders.edit"),
   };
 });

@@ -341,7 +341,9 @@ every push to `main` and every pull request.
   review, and ONE kilobyte is the point: `platform/approval` is read on the
   server and ships nothing, so what a browser gets is the review block and
   twenty-four strings. A feature does not cost what it weighs; it costs what
-  crosses the wire.
+  crosses the wire. 1619 → 1620 with the handover, for the same reason:
+  `tenderSource` is server-only, and the browser gets one panel and fifteen
+  strings.
 - Tests connect things — real repositories, real route handlers, **one assertion per
   bug that actually happened**. Each block names the defect it guards, so nobody
   deletes it later wondering what it was for.
@@ -846,8 +848,36 @@ authorises a figure that is going to change.
 currency, and `createStudio` has never set one. The refusal names the fix and the screen says
 it in place of the button.
 
-**One of the five subsections does not exist**: the handover to Projects. A won tender does not
-become a deal, a project or a budget baseline yet.
+**Slice 5 is the handover to Projects** (`docs/functionality/handover.md`), and Tendering's five
+subsections are all built now. It adds **no permission key** — the catalogue stays at 145 —
+because handing over IS opening a project and answers to `projects.list.create`.
+
+**IT IS A THIRD HEAD OF `openProject`, NOT A FUNCTION IN TENDERING**, and that is the whole
+structural decision. `openProject`'s own comment asks for it: everything below the head split —
+the row, the two sheets, the engagement attach, the manager notification — cannot tell which
+head ran, and "a second create path is a second place the engagement dual-write could be
+forgotten, which is exactly how a record ends up on no deal at all". So `tenderSource` sits
+beside `quotationSource` and `directSource`; a body with a `quotationId` opens from the
+quotation, one with a `tenderId` hands over, one with neither is direct, and a body carrying
+both takes the stricter gate.
+
+**The project opens at the BILL's total, not the typed estimate** — `valueFromBoq`, the same
+precedence `bid.ts` routes the approval by, so the number a project opens at is the number that
+was signed. A source-level assertion in `tests/bid-review.mjs` guards it, because the wrong
+version still passes every runtime test on a tender whose two numbers happen to agree.
+
+**Only a WON tender is handed over** (the counterpart of `quotationApproved`), **one project per
+tender** — derived from the projects rather than a flag written back onto the tender, so
+deleting the project frees it — and the ISSUER is resolved into Sales' client model the way
+every other head resolves one, because bidding is frequently how a company becomes a client.
+`tenderRef` is COPIED and the rest is not: the ref is a number a client quotes, it never moves
+(invariant 10), and it has to read correctly on the project in a studio where the reader cannot
+open Tendering at all.
+
+**What remains is the other half of "estimate → budget baseline":** a project's sheets compose
+from a QUOTATION, and a handed-over project has none, so they are drawn up empty exactly as a
+direct project's are. The bill stays on the tender, is not frozen, and can drift from the
+project's value after the handover.
 
 **Three guards caught real mistakes in this slice, each named in the file that caught it.**
 `next build` refused until `tenders` was in `COLLECTION_TABLE` (`platform/db/migrate/mapping.ts`)

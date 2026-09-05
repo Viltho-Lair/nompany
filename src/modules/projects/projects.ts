@@ -35,6 +35,9 @@ import { departmentsFromSections } from "@/lib/departments";
 // Whether a quotation is approved is answered by its APPROVAL, not by a copy of
 // one — see the note on quotationApproved.
 import { quotationApproved } from "@/modules/tasks/taskRouting";
+import { isWonTender } from "@/modules/tendering/stages";
+import { boqTotals, valueFromBoq } from "@/modules/tendering/boq";
+import type { Tender, BoqItem } from "@/modules/tendering/schema";
 import type { ProjectsContext, Project, Sla, Overtime } from "./types";
 import type { Section } from "@/platform/db/sections";
 import type { Row } from "@/platform/db/store";
@@ -63,6 +66,8 @@ const TASKS = "tasks";
 // answer for a sibling department's rows as easily as its own.
 const Overtimes = repo<Overtime>(OVERTIMES);
 const Projects = repo<Project>(PROJECTS);
+const Tenders = repo<Tender>("tenders");
+const BoqItems = repo<BoqItem>("boqItems");
 const Quotations = repo(QUOTATIONS);
 // Sales owns clients; Projects only reads them (see listProjectClients).
 const Clients = repo<Client>(CLIENTS);
@@ -91,6 +96,10 @@ export const projectsContext = moduleContext<ProjectsContext>({
     quotations: ["crm-sales-quotations", "crm-sales"],
     salesTickets: ["crm-sales-tickets", "crm-sales"],
     salesClients: ["crm-sales-clients", "crm-sales"],
+    // The tender register, for the handover head. Foreign and therefore
+    // nullable: a studio that does not tender has no register, and asking for a
+    // handover in one is a refusal rather than a crash.
+    tenderRegister: ["tendering-register", "tendering"],
     sheets: ["inventory-sheets", "inventory"],
     items: ["inventory-items", "inventory"],
     vendors: ["procurement-suppliers", "inventory"],
@@ -260,6 +269,8 @@ type ProjectSource = {
   quotationNumber: string;
   rfqId: string;
   ticketId: string;
+  tenderId: string;
+  tenderRef: string;
   // THE ENGAGEMENT THIS PROJECT JOINS, when it is knowable before the row
   // exists. Blank for the direct head, whose engagement is rooted ON the
   // project and therefore cannot be derived until the project has an id — see
@@ -327,6 +338,93 @@ async function directSource(
     // default, not a refusal.
     value: nonNeg(body?.value, 0),
     quotationId: "", quotationNumber: "", rfqId: "", ticketId: "",
+    tenderId: "", tenderRef: "",
+    engId: "",
+    client,
+  };
+}
+
+// THE HANDOVER HEAD — a tender the studio WON becomes the work it now has to
+// deliver. Until this, `tendering.md` said it out loud: "a won tender does not
+// become a deal, a project or a budget baseline; today somebody re-enters it in
+// CRM & Sales by hand, and nothing links the two records."
+//
+// WHY IT IS A HEAD OF openProject RATHER THAN A FUNCTION IN TENDERING. This
+// file's own comment asks for exactly that: everything below the split — the
+// row, the two sheets, the engagement attach, the manager notification —
+// cannot tell which head ran, and "a second create path is a second place the
+// engagement dual-write could be forgotten, which is exactly how a record ends
+// up on no deal at all". A handover written in modules/tendering would be that
+// second path.
+//
+// IT ROOTS ITS OWN ENGAGEMENT, like the direct head and unlike the quotation
+// head: a tender has no engagement to join. `tendering.md` records that as a
+// gap rather than an oversight — a tender is not in the stage registry — so
+// there is no id to derive and `engId` is blank, which sends openProject down
+// the mint branch.
+async function tenderSource(
+  ctx: ProjectsContext, body: Record<string, unknown>,
+): Promise<ProjectSource | { error: string }> {
+  const { studio, listSection, tenderRegisterSection, salesClientsSection, collaborator } = ctx;
+  if (!tenderRegisterSection) return { error: "no-tendering" };
+  if (!salesClientsSection) return { error: "client" };
+
+  const tenderId = str(body?.tenderId, 60);
+  const tenders = await Tenders.find({ studio, section: tenderRegisterSection });
+  const tender = tenders.find((t) => t.id === tenderId);
+  if (!tender) return { error: "tender" };
+
+  // ONLY A WON TENDER IS HANDED OVER, and this is the whole commercial gate —
+  // the counterpart of the quotation head's `quotationApproved`. A lost or
+  // withdrawn tender has nothing to deliver, and one still being priced has not
+  // been awarded to anybody. Asked of the STATUS here rather than of a task,
+  // because unlike a quotation a tender's outcome IS written onto it, by a
+  // stage transition that already refuses to record a win on a bid that never
+  // went in.
+  if (!isWonTender(String(tender.status || ""))) return { error: "not-won" };
+
+  // ONE PROJECT PER TENDER, derived rather than stored — exactly as the
+  // quotation head derives it. A flag written back onto the tender would be a
+  // second answer to the same question, free to disagree with the projects it
+  // is supposed to describe.
+  const existing = await Projects.find({ studio, section: listSection });
+  if (existing.some((p) => p.tenderId === tenderId)) return { error: "already" };
+
+  // THE VALUE IS THE BILL'S, and this is what the handover is FOR: a project
+  // opened at the figure the work was actually costed at rather than at the
+  // guess somebody typed the day the tender was noticed. `valueFromBoq` returns
+  // null when there is no bill at all, and only then does the typed estimate
+  // stand — the same precedence `modules/tendering/bid` uses to route the
+  // approval, so the number a project opens at is the number that was signed.
+  const lines = await BoqItems.find({ studio, section: tenderRegisterSection }, { where: { tenderId } });
+  const fromBoq = valueFromBoq(boqTotals(lines));
+
+  // The ISSUER becomes the client, resolved into Sales' model the way every
+  // other head resolves one. A tender's issuer is free text and its `clientId`
+  // optional — bidding is frequently how a client becomes one — so both are
+  // handed over and resolveClientFor decides: by id, else by normalised name,
+  // else it creates the record.
+  const client = await resolveClientFor(
+    { studio, section: salesClientsSection },
+    {
+      clientId: str(tender.clientId, 60),
+      clientName: str(tender.issuer, 200),
+      industry: "",
+      contact: { name: "", email: "", phone: "", position: "" },
+      site: { name: "", country: "", city: "", url: "" },
+      collaboratorId: collaborator.id,
+    },
+  );
+  if (!client) return { error: "client" };
+
+  return {
+    title: str(tender.title, 200),
+    clientId: client.id,
+    clientName: client.name || "",
+    value: fromBoq === null ? nonNeg(tender.estimatedValue, 0) : fromBoq,
+    quotationId: "", quotationNumber: "", rfqId: "", ticketId: "",
+    tenderId,
+    tenderRef: str(tender.ref, 40),
     engId: "",
     client,
   };
@@ -451,6 +549,8 @@ async function quotationSource(
     value: Number(quote.total) || 0,
     quotationId, quotationNumber: String(quote.number || ""),
     rfqId: String(quote.rfqId || ""), ticketId: String(quote.ticketId || ""),
+    // Blank: this project's lineage runs through the quotation, not a bid.
+    tenderId: "", tenderRef: "",
     engId, client: null,
   };
 }
@@ -463,12 +563,17 @@ export async function openProject(ctx: ProjectsContext, body: Record<string, unk
   const { studio, listSection, collaborator, sheetsSection } = ctx;
 
   // WHICH HEAD RUNS IS DECIDED BY THE BODY, not by a mode flag. A payload with
-  // a quotationId is opening a project from that quotation and must pass the
-  // commercial gate; a payload without one is raising new work directly. There
-  // is no third case, and no flag a client could set to skip the gate.
+  // a quotationId is opening a project from that quotation and must pass its
+  // commercial gate; one with a tenderId is handing over a tender the studio
+  // WON and must pass that gate instead; a payload with neither is raising new
+  // work directly. No flag a client could set skips either gate, and the two
+  // ids are mutually exclusive by the order they are read — a body carrying
+  // both is opening from the quotation, which is the stricter of the two.
   const source = str(body?.quotationId, 60)
     ? await quotationSource(ctx, body)
-    : await directSource(ctx, body);
+    : str(body?.tenderId, 60)
+      ? await tenderSource(ctx, body)
+      : await directSource(ctx, body);
   if ("error" in source) return source;
 
   const now = new Date().toISOString();
@@ -488,6 +593,7 @@ export async function openProject(ctx: ProjectsContext, body: Record<string, unk
     // project, which has no chain behind it and must not pretend to one.
     quotationId: source.quotationId, quotationNumber: source.quotationNumber,
     rfqId: source.rfqId, ticketId: source.ticketId,
+    tenderId: source.tenderId, tenderRef: source.tenderRef,
     clientId: source.clientId, clientName: source.clientName,
     value: source.value,
     stage: DEFAULT_STAGE,
