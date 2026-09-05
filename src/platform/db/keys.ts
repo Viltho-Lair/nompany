@@ -525,6 +525,11 @@ export const SECTION_DEFS = [
   // Projects follow.
   { key: "tendering", name: "Tendering & Estimating", children: [
     { key: "tendering-register", name: "Tender register" },
+    // The library is a register in its own right — the studio's rates, kept
+    // between bids — so it gets a nav row. The BILL of quantities does not: a
+    // bill belongs to one tender and is reached from it, the same way a
+    // ticket's profile is reached from the ticket list.
+    { key: "tendering-rates", name: "Rate library" },
   ] },
 
   { key: "projects", name: "Projects", children: [
@@ -676,7 +681,11 @@ export const SECTION_COLLECTIONS = {
   // tendering. The register OWNS its records — unlike crm-sales-contracts,
   // which is a destination over somebody else's rows — so deleting the section
   // takes the tenders with it (invariant 11, children first).
-  "tendering-register": ["tenders"],
+  // The register owns the tenders AND their bills: a bill has no meaning apart
+  // from the tender it prices, so deleting the section takes both (invariant
+  // 11, children first).
+  "tendering-register": ["tenders", "boqItems"],
+  "tendering-rates": ["tenderRates"],
   // engineering-docs
   "engineering-docs-rfq": ["rfqs"],
   // The controlled-document register and the studio's own document taxonomy,

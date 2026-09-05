@@ -65,6 +65,16 @@ const StudioPipeline = nextDynamic(
   () => import("@/components/studio2/StudioPipeline"),
   { loading: () => <ScreenSkeleton /> },
 );
+const StudioRates = nextDynamic(
+  () => import("@/components/studio2/StudioRates"),
+  { loading: () => <ScreenSkeleton /> },
+);
+const StudioBoq = nextDynamic(
+  () => import("@/components/studio2/StudioBoq"),
+  // A record page, so the record skeleton: a department skeleton would reserve
+  // a chart where a priced table is coming.
+  { loading: () => <RecordSkeleton /> },
+);
 const StudioTenders = nextDynamic(
   () => import("@/components/studio2/StudioTenders"),
   { loading: () => <ScreenSkeleton /> },
@@ -382,6 +392,12 @@ async function renderStudio(params) {
   // exactly as it governs the list. What the page then SHOWS is gated block by
   // block by the rights over those records — see modules/sales/customer.ts.
   const customerId = requested === "crm-sales-clients" ? (segments[1] || "") : "";
+
+  // AND A SECOND SEGMENT ON tendering-register NAMES ONE TENDER'S BILL. The
+  // same shape the ticket and the customer use, resolving through the same
+  // section — a bill belongs to one tender and is reached from it, which is why
+  // it has no nav row of its own.
+  const boqTenderId = requested === "tendering-register" ? (segments[1] || "") : "";
   // And a THIRD segment names one of that ticket's quotations:
   // /<slug>/crm-sales-tickets/<id>/quotations/<quotationId> is the Sales-side
   // viewer — the document as Sales reads it, view only. It hangs off the ticket
@@ -518,6 +534,8 @@ async function renderStudio(params) {
         // instead. A section that silently renders the wrong screen is how a
         // right ends up exercising nothing (invariant 16).
         : customerId ? <StudioCustomer slug={studio.slug} clientId={customerId} />
+        : boqTenderId ? <StudioBoq slug={studio.slug} tenderId={boqTenderId} />
+        : active?.key === "tendering-rates" ? <StudioRates slug={studio.slug} />
         : screenKey === "tendering" ? <StudioTenders slug={studio.slug} />
         : active?.key === "crm-sales-pipeline" ? <StudioPipeline slug={studio.slug} />
         : active?.key === "crm-sales-contracts" ? <StudioContracts slug={studio.slug} />

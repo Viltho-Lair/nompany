@@ -503,7 +503,7 @@ waits for the gateway.
 **Waves 0–1 are complete; Gate A is green.** Wave 0 shipped (orphan-sweep guard,
 credential rate limiting, console session expiry, traffic-ingest bounds, media tenancy,
 security headers, bcrypt 12 with rehash-on-login, M-1 dead capabilities). Gate A shipped:
-181 golden responses over every surface, the 139-key permission matrix, hop counting, six
+189 golden responses over every surface, the 143-key permission matrix, hop counting, six
 architectural assertions, **per-route permission enforcement in every module**, **ESLint**
 (flat config + shrink-only warning budget, 142 today), **observability** (request ids, per-request hop
 counts), and CI enforcing all of it.
@@ -514,7 +514,7 @@ the catalogue assertion in `tests/gate-a.mjs`), because a pass condition quoted 
 a pass condition nobody can check.
 
 **Wave 2 (seams + performance) is mostly done; Gate B is 2 of 3.** Zero direct `readCol` in
-service code ✅, goldens unchanged by the seam work ✅ (181 today), hops ≤2 for the studio route and 3 for sales
+service code ✅, goldens unchanged by the seam work ✅ (189 today), hops ≤2 for the studio route and 3 for sales
 (the structural floor). Done: Seam A (route wrapper, all 96 routes), Seam B (repository
 interface + the `readCol` migration across all 13 modules), Seam C (one context factory,
 killed hop 7), request-scoped cache + batched prefetch (8→2 hops), targeted live updates,
@@ -751,9 +751,30 @@ Seen in the sandbox — three tenders created before planting, zero visible afte
 references NOT reissued (TND-0004 followed TND-0003), which is invariant 10 preventing the one
 thing that would have made it worse.
 
-**Four of the five subsections do not exist**: the BOQ grid with its rate library, bid documents
-and clarifications, bid review on P2's engine, and the handover to Projects. A won tender does
-not become anything yet.
+**Slice 2, the BOQ grid and the rate library, is on `main`.** Two collections — `boqItems`
+under the register and `tenderRates` under a new `tendering-rates` sub-section — and ONE new
+area, `tendering.rates` (catalogue 139 → 143). `docs/functionality/boq.md` is the file.
+
+**The bill mints no right of its own**: a bill IS the tender's content, so it answers to
+`tendering.tenders`, and a second right over the same act would be free to disagree with the
+first about who works on a tender. The LIBRARY is the studio's reference data rather than any
+tender's — "may price a bid" and "may change what the company charges" are different powers.
+
+**The one thing the screen must never do is call the total of a part-priced bill the bid.**
+`boqTotals` returns `complete`, true only when every line carries a rate, and it travels with
+every total — per group as well as overall, so an estimator is told where to look. An unpriced
+line shows a dash, not `0.00`: nought is a price and that line has none. `boqItems` is its own
+collection rather than an array on the tender, because the migration design already names
+nested line arrays "the arrays that grow without bound".
+
+**A rate is applied by COPY.** Editing a library rate reprices nothing already written,
+deleting a library row breaks no bill, and typing over a library rate clears `rateId` because
+the number is no longer that row's. Asserted all three ways in Gate A.
+
+**Three of the five subsections do not exist**: bid documents and clarifications, bid review on
+P2's engine, and the handover to Projects. A won tender does not become anything yet — and
+`valueFromBoq` is written and tested and CALLED BY NOTHING, so a tender's typed
+`estimatedValue` and its bill's total are still two numbers for one tender.
 
 **Three guards caught real mistakes in this slice, each named in the file that caught it.**
 `next build` refused until `tenders` was in `COLLECTION_TABLE` (`platform/db/migrate/mapping.ts`)

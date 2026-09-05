@@ -21,6 +21,7 @@
       "crm-sales-settings": true,
       "tendering": true,
       "tendering-register": true,
+      "tendering-rates": true,
       "projects": true,
       "projects-list": true,
       "projects-sla": true,
@@ -118,6 +119,11 @@
       {
         "key": "tendering-register",
         "name": "Tender register",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "tendering-rates",
+        "name": "Rate library",
         "parentId": "<sec_ID>"
       },
       {

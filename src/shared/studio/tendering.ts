@@ -60,6 +60,48 @@ type Strings = CommonStrings & {
   refuseAlreadySubmitted: string;
   refuseReasonRequired: string;
   refuseDeleteSubmitted: string;
+
+  // THE BILL OF QUANTITIES.
+  boq: string;
+  boqSub: string;
+  loadingBoq: string;
+  noLinesYet: string;
+  noLinesBody: string;
+  addLine: string;
+  colGroup: string;
+  colCode: string;
+  colDescription: string;
+  colUnit: string;
+  colQty: string;
+  colRate: string;
+  colAmount: string;
+  ungrouped: string;
+  // The two figures that must never be confused for one another.
+  billTotal: string;
+  nUnpriced: (n: number) => string;
+  notTheBidYet: string;
+  fullyPriced: string;
+  applyRate: string;
+  pickRate: string;
+  fromLibrary: string;
+  backToRegister: string;
+  deleteLine: string;
+
+  // THE RATE LIBRARY.
+  rates: string;
+  ratesSub: string;
+  loadingRates: string;
+  noRatesYet: string;
+  noRatesBody: string;
+  addRate: string;
+  editRate: string;
+  rateCode: string;
+  rateDescription: string;
+  rateCategory: string;
+  rateAmount: string;
+  uncategorised: string;
+  duplicateCode: string;
+  editingARateRepricesNothing: string;
 };
 
 const en: Strings = {
@@ -109,6 +151,48 @@ const en: Strings = {
   refuseAlreadySubmitted: "The bid has already gone in. Withdrawing it is not the same as never having bid.",
   refuseReasonRequired: "Say why before recording this decision.",
   refuseDeleteSubmitted: "The bid has gone in, so this tender is a record of something the studio did. Withdraw it instead.",
+
+  boq: "Bill of quantities",
+  boqSub: "The work, item by item, and what the studio would charge for each.",
+  loadingBoq: "Loading the bill\u2026",
+  noLinesYet: "Nothing priced yet",
+  noLinesBody: "Add the items from the tender documents, in the order they appear. Rates can come from the library or be typed.",
+  addLine: "Add a line",
+  colGroup: "Section",
+  colCode: "Item",
+  colDescription: "Description",
+  colUnit: "Unit",
+  colQty: "Qty",
+  colRate: "Rate",
+  colAmount: "Amount",
+  ungrouped: "Unsectioned",
+  billTotal: "Bill total",
+  nUnpriced: (n) => (n === 1 ? "1 line has no rate" : `${n} lines have no rate`),
+  // THE SENTENCE THE WHOLE SCREEN EXISTS TO SAY. A total over a part-priced
+  // bill is a number, not the bid, and a studio that mistakes the two bids for
+  // work it has not costed.
+  notTheBidYet: "This is the total so far, not the bid \u2014 some lines are still unpriced.",
+  fullyPriced: "Every line is priced.",
+  applyRate: "Apply",
+  pickRate: "From the library",
+  fromLibrary: "Library rate",
+  backToRegister: "Back to the register",
+  deleteLine: "Remove",
+
+  rates: "Rate library",
+  ratesSub: "What the studio charges for a unit of work, kept between bids so the next one does not start from nothing.",
+  loadingRates: "Loading the library\u2026",
+  noRatesYet: "No rates yet",
+  noRatesBody: "Add the rates you price with. A rate is copied onto a bill when applied, so changing one here never reprices a bid already made.",
+  addRate: "Add a rate",
+  editRate: "Edit rate",
+  rateCode: "Code",
+  rateDescription: "Description",
+  rateCategory: "Category",
+  rateAmount: "Rate",
+  uncategorised: "Uncategorised",
+  duplicateCode: "A rate with that code already exists.",
+  editingARateRepricesNothing: "Changing a rate affects the next bid only. Bills already priced keep the number they were given.",
 };
 
 const ar: Strings = {
@@ -156,6 +240,45 @@ const ar: Strings = {
   refuseAlreadySubmitted: "العرض قُدّم بالفعل. الانسحاب ليس كعدم التقدّم أصلًا.",
   refuseReasonRequired: "اذكر السبب قبل تسجيل هذا القرار.",
   refuseDeleteSubmitted: "العرض قُدّم، فصارت هذه المناقصة سجلًّا لشيء فعلته الشركة. اسحبها بدلًا من حذفها.",
+
+  boq: "جدول الكميات",
+  boqSub: "الأعمال بندًا بندًا، وما ستتقاضاه الشركة عن كلّ منها.",
+  loadingBoq: "جارٍ تحميل الجدول…",
+  noLinesYet: "لم يُسعّر شيء بعد",
+  noLinesBody: "أضف بنود وثائق المناقصة بترتيبها. يمكن أخذ السعر من المكتبة أو كتابته.",
+  addLine: "إضافة بند",
+  colGroup: "القسم",
+  colCode: "البند",
+  colDescription: "الوصف",
+  colUnit: "الوحدة",
+  colQty: "الكمية",
+  colRate: "السعر",
+  colAmount: "القيمة",
+  ungrouped: "بلا قسم",
+  billTotal: "إجمالي الجدول",
+  nUnpriced: (n) => (n === 1 ? "بند واحد بلا سعر" : `${n} بندًا بلا سعر`),
+  notTheBidYet: "هذا الإجمالي حتّى الآن، وليس قيمة العرض — بعض البنود لم تُسعّر بعد.",
+  fullyPriced: "جميع البنود مُسعّرة.",
+  applyRate: "تطبيق",
+  pickRate: "من المكتبة",
+  fromLibrary: "سعر من المكتبة",
+  backToRegister: "العودة إلى السجلّ",
+  deleteLine: "حذف",
+
+  rates: "مكتبة الأسعار",
+  ratesSub: "ما تتقاضاه الشركة عن وحدة العمل، محفوظًا بين العروض لئلاّ يبدأ العرض التالي من لا شيء.",
+  loadingRates: "جارٍ تحميل المكتبة…",
+  noRatesYet: "لا توجد أسعار بعد",
+  noRatesBody: "أضف الأسعار التي تُسعّر بها. يُنسخ السعر إلى الجدول عند تطبيقه، فتغييره هنا لا يُعيد تسعير عرض سابق.",
+  addRate: "إضافة سعر",
+  editRate: "تعديل السعر",
+  rateCode: "الرمز",
+  rateDescription: "الوصف",
+  rateCategory: "التصنيف",
+  rateAmount: "السعر",
+  uncategorised: "بلا تصنيف",
+  duplicateCode: "يوجد سعر بهذا الرمز بالفعل.",
+  editingARateRepricesNothing: "تغيير السعر يؤثر على العرض التالي فقط. الجداول المُسعّرة تحتفظ بأسعارها.",
 };
 
 // KEYED BY LOCALE WITH A FALLBACK, like every other surface's dictionary — not

@@ -16,6 +16,7 @@
       "crm-sales-settings": false,
       "tendering": false,
       "tendering-register": false,
+      "tendering-rates": false,
       "projects": false,
       "projects-list": false,
       "projects-sla": false,
@@ -71,6 +72,7 @@
       "crm-sales-settings": false,
       "tendering": false,
       "tendering-register": false,
+      "tendering-rates": false,
       "projects": false,
       "projects-list": false,
       "projects-sla": false,
@@ -197,7 +199,7 @@
         "name": "Manager",
         "description": "Runs a department: full control of its work, sight of the rest.",
         "wildcard": false,
-        "permissionCount": 53,
+        "permissionCount": 57,
         "held": 0
       },
       {
@@ -214,6 +216,14 @@
         "description": "",
         "wildcard": false,
         "permissionCount": 4,
+        "held": 1
+      },
+      {
+        "id": "<rol_ID>",
+        "name": "role-norates",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 1,
         "held": 1
       },
       {
@@ -348,6 +358,30 @@
         "hasPassport": true,
         "idExpiry": "2030-01-01",
         "passportExpiry": "2031-06-30",
+        "idNumber": "",
+        "passportNumber": ""
+      },
+      {
+        "id": "<col_ID>",
+        "alias": "norates",
+        "role": "member",
+        "photo": "",
+        "departmentId": "",
+        "departmentName": "",
+        "roleIds": [
+          "<rol_ID>"
+        ],
+        "roleNames": [
+          "role-norates"
+        ],
+        "employeeCode": "",
+        "dateOfJoin": "",
+        "mobile": "",
+        "certificationIds": [],
+        "hasId": false,
+        "hasPassport": false,
+        "idExpiry": "",
+        "passportExpiry": "",
         "idNumber": "",
         "passportNumber": ""
       },
@@ -609,8 +643,8 @@
         "tasks": 0,
         "tendering": 0
       },
-      "unassigned": 12,
-      "total": 12
+      "unassigned": 13,
+      "total": 13
     },
     "vocabulary": {
       "leaveTypes": [

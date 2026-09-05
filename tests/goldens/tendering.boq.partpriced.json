@@ -1,0 +1,106 @@
+{
+  "status": 200,
+  "body": {
+    "ok": true,
+    "tender": {
+      "id": "<ten_ID>",
+      "ref": "TND-0001",
+      "title": "Airport terminal AV",
+      "issuer": "General Authority of Civil Aviation",
+      "clientId": "",
+      "source": "Etimad portal",
+      "issueDate": "2031-01-05",
+      "submissionDeadline": "2031-02-20",
+      "estimatedValue": 1250000,
+      "currency": "",
+      "status": "Lost",
+      "notes": "",
+      "assignedToCollaboratorId": "",
+      "createdByCollaboratorId": "<col_ID>",
+      "createdAt": "<timestamp>",
+      "updatedAt": "<timestamp>",
+      "studioId": "<std_ID>",
+      "sectionId": "<sub_ID>",
+      "stageHistory": [
+        {
+          "status": "Preparing",
+          "at": "<timestamp>",
+          "byCollaboratorId": "<col_ID>"
+        },
+        {
+          "status": "Submitted",
+          "at": "<timestamp>",
+          "byCollaboratorId": "<col_ID>"
+        },
+        {
+          "status": "Lost",
+          "at": "<timestamp>",
+          "byCollaboratorId": "<col_ID>"
+        }
+      ],
+      "submittedAt": "<timestamp>",
+      "decidedAt": "<timestamp>",
+      "decisionReason": "Undercut by 12%"
+    },
+    "lines": [
+      {
+        "id": "<boq_ID>",
+        "tenderId": "<ten_ID>",
+        "group": "Earthworks",
+        "code": "1.1",
+        "description": "Excavate to reduce level",
+        "unit": "m3",
+        "qty": 120,
+        "rate": 45,
+        "rateId": "",
+        "notes": "",
+        "sortOrder": 0,
+        "createdAt": "<timestamp>",
+        "updatedAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>"
+      },
+      {
+        "id": "<boq_ID>",
+        "tenderId": "<ten_ID>",
+        "group": "Earthworks",
+        "code": "1.2",
+        "description": "Disposal off site",
+        "unit": "m3",
+        "qty": 80,
+        "rate": 0,
+        "rateId": "",
+        "notes": "",
+        "sortOrder": 1,
+        "createdAt": "<timestamp>",
+        "updatedAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>"
+      }
+    ],
+    "totals": {
+      "lines": 2,
+      "priced": 1,
+      "unpriced": 1,
+      "total": 5400,
+      "complete": false
+    },
+    "rates": [
+      {
+        "id": "<ten_ID>",
+        "code": "EX-01",
+        "description": "Excavate to reduce level",
+        "unit": "m3",
+        "rate": 45,
+        "category": "Earthworks",
+        "notes": "",
+        "createdByCollaboratorId": "<col_ID>",
+        "createdAt": "<timestamp>",
+        "updatedAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>"
+      }
+    ],
+    "canEdit": true
+  }
+}

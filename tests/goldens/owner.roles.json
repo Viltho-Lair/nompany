@@ -36,6 +36,10 @@
           "tendering.tenders.create",
           "tendering.tenders.edit",
           "tendering.tenders.delete",
+          "tendering.rates.view",
+          "tendering.rates.create",
+          "tendering.rates.edit",
+          "tendering.rates.delete",
           "crmSales.contracts.view",
           "crmSales.contracts.create",
           "crmSales.contracts.edit",
@@ -258,6 +262,17 @@
         "key": "tendering.tenders",
         "group": "Tendering & Estimating",
         "label": "Tender register",
+        "verbs": [
+          "view",
+          "create",
+          "edit",
+          "delete"
+        ]
+      },
+      {
+        "key": "tendering.rates",
+        "group": "Tendering & Estimating",
+        "label": "Rate library",
         "verbs": [
           "view",
           "create",

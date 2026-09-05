@@ -1,0 +1,23 @@
+{
+  "status": 201,
+  "body": {
+    "ok": true,
+    "item": {
+      "id": "<boq_ID>",
+      "tenderId": "<ten_ID>",
+      "group": "Earthworks",
+      "code": "1.1",
+      "description": "Excavate to reduce level",
+      "unit": "m3",
+      "qty": 120,
+      "rate": 45,
+      "rateId": "",
+      "notes": "",
+      "sortOrder": 0,
+      "createdAt": "<timestamp>",
+      "updatedAt": "<timestamp>",
+      "studioId": "<std_ID>",
+      "sectionId": "<sub_ID>"
+    }
+  }
+}

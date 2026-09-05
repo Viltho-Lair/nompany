@@ -81,8 +81,11 @@ export const SECTION_AREAS: Readonly<Record<string, readonly string[]>> = {
   "crm-sales-clients": ["crmSales.clients"],
   "crm-sales-live": ["crmSales.live"],
   "crm-sales-pipeline": ["crmSales.pipeline"],
-  "tendering": ["tendering.tenders"],
+  // The ROOT is viewable on either — a person who may only maintain rates still
+  // needs the department to appear in the nav to reach them.
+  "tendering": ["tendering.tenders", "tendering.rates"],
   "tendering-register": ["tendering.tenders"],
+  "tendering-rates": ["tendering.rates"],
   "crm-sales-settings": ["crmSales.settings"],
   "engineering-docs-rfq": ["engineeringDocs.rfq"],
   // QUOTATIONS GAINED BY CRM & SALES — the offer is a sales act (blueprint

@@ -164,6 +164,19 @@ const OWN_AREAS = [
   // one whose bid has gone in.
   { key: "tendering.tenders", group: "Tendering & Estimating", label: "Tender register",
     verbs: ["view", "create", "edit", "delete"] },
+  // THE RATE LIBRARY IS ITS OWN AREA, and the bill of quantities is NOT.
+  //
+  // A bill is a tender's content: whoever may read a tender may read what it is
+  // made of, and whoever may edit one may price it — so the BOQ answers to
+  // `tendering.tenders`, and a second right over the same act would be free to
+  // disagree with the first about who works on a tender.
+  //
+  // The library is different in kind. It is the STUDIO's reference data rather
+  // than any tender's, it is read by every estimator and maintained by few, and
+  // "may price a bid" and "may change what the company charges" are genuinely
+  // different powers — which is exactly when an area is worth minting.
+  { key: "tendering.rates", group: "Tendering & Estimating", label: "Rate library",
+    verbs: ["view", "create", "edit", "delete"] },
   { key: "crmSales.settings", group: "CRM & Sales", label: "Settings", verbs: ["view", "edit"] },
 
   { key: "engineeringDocs.rfq", group: "Engineering & Documents", label: "RFQ", verbs: ["view", "create", "edit"],

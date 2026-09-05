@@ -4,7 +4,7 @@
 import type { ModuleContext } from "../context";
 import type { Section } from "@/platform/db/sections";
 
-export type { Tender, TenderStageEntry } from "./schema";
+export type { Tender, TenderStageEntry, BoqItem, TenderRate } from "./schema";
 
 /**
  * A SUB-SECTION FALLS BACK TO THE ROOT and is therefore always present; a
@@ -14,7 +14,10 @@ export type { Tender, TenderStageEntry } from "./schema";
  */
 export type TenderingContext = ModuleContext & {
   registerSection: Section;
+  ratesSection: Section;
   salesClientsSection: Section | null;
   canViewRegister: boolean;
   canManageRegister: boolean;
+  canViewRates: boolean;
+  canManageRates: boolean;
 };

@@ -21,6 +21,7 @@
       "crm-sales-settings": false,
       "tendering": false,
       "tendering-register": false,
+      "tendering-rates": false,
       "projects": false,
       "projects-list": false,
       "projects-sla": false,

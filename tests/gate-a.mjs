@@ -284,7 +284,14 @@ console.log("== the permission matrix: one key grants exactly itself");
   // where a deal is a thing that happened. There is deliberately no
   // `tendering.dashboard`: that right is minted by DASHBOARD_MODULES, and
   // Tendering has no dashboard screen to gate.
-  ok("the catalogue is the size we last agreed", ALL_PERMISSIONS.length === 139, String(ALL_PERMISSIONS.length));
+  // 143 with tendering.rates (view/create/edit/delete). The BILL of quantities
+  // deliberately mints NOTHING: a bill is the tender's content, so it answers
+  // to tendering.tenders, and a second right over the same act would be free to
+  // disagree with the first about who works on a tender. The LIBRARY is the
+  // studio's reference data rather than any tender's — "may price a bid" and
+  // "may change what the company charges" are different powers, which is when
+  // an area is worth minting.
+  ok("the catalogue is the size we last agreed", ALL_PERMISSIONS.length === 143, String(ALL_PERMISSIONS.length));
 
   const leaks = [];
   const missing = [];
@@ -2300,6 +2307,107 @@ console.log("== tendering: a register whose dates are the point");
     Number.isFinite(Date.parse(String(list.body?.asOf))), String(list.body?.asOf));
   await shot("tendering.list", list);
   ok("the register comes back", (list.body?.tenders || []).length === 1, String((list.body?.tenders || []).length));
+
+
+  // ---- the rate library, and a bill priced from it ----------------------
+  //
+  // TWO FIGURES THAT MUST NEVER BE CONFUSED. A bill with an unpriced line has a
+  // total; it is not the bid. `complete` is what separates them, and a studio
+  // that reads the first as the second bids work it has not costed.
+  const RATES = await import("@/app/api/studios/[slug]/tendering/rates/route.ts");
+  const BOQ = await import("@/app/api/studios/[slug]/tendering/boq/route.ts");
+
+  const rate = await shot("tendering.rate.created", await capture(
+    RATES.POST, req(`/api/studios/${slug}/tendering/rates`, { method: "POST", body: {
+      code: "EX-01", description: "Excavate to reduce level", unit: "m3", rate: 45, category: "Earthworks",
+    } }), P));
+  const rateId = rate.body?.rate?.id;
+  ok("the rate was added", Boolean(rateId), JSON.stringify(rate.body).slice(0, 120));
+
+  // A LIBRARY WITH TWO ROWS FOR ONE CODE IS NOT A LIBRARY — the code is how a
+  // bill records which rate it used, so a duplicate makes that ambiguous.
+  await shot("tendering.rate.duplicate", await capture(
+    RATES.POST, req(`/api/studios/${slug}/tendering/rates`, { method: "POST", body: {
+      code: "ex-01", description: "Same code, different case", rate: 10,
+    } }), P));
+
+  // A bill on the tender the register block created (TND-0001, still Identified).
+  const addLine = (body) => capture(BOQ.POST, req(`/api/studios/${slug}/tendering/boq`, { method: "POST", body }), P);
+
+  const priced = await shot("tendering.boq.line", await addLine({
+    tenderId, group: "Earthworks", code: "1.1", description: "Excavate to reduce level",
+    unit: "m3", qty: 120, rate: 45,
+  }));
+  const pricedId = priced.body?.item?.id;
+  ok("a priced line was added", Boolean(pricedId));
+
+  const bare = await addLine({
+    tenderId, group: "Earthworks", code: "1.2", description: "Disposal off site", unit: "m3", qty: 80,
+  });
+  const bareId = bare.body?.item?.id;
+  ok("...and one with no rate", Boolean(bareId) && bare.body?.item?.rate === 0);
+
+  // A LINE MUST BELONG TO A TENDER THAT EXISTS, or a crafted request mints
+  // orphans no screen shows and no cascade reaps.
+  await shot("tendering.boq.notender", await addLine({
+    tenderId: "ten_doesnotexist00", description: "Orphan",
+  }));
+
+  const partly = await capture(BOQ.GET, req(`/api/studios/${slug}/tendering/boq?tenderId=${tenderId}`), P);
+  await shot("tendering.boq.partpriced", partly);
+  ok("the bill totals only what is priced", partly.body?.totals?.total === 5400, String(partly.body?.totals?.total));
+  // THE ASSERTION THE WHOLE FEATURE TURNS ON.
+  ok("...and says it is NOT the bid yet",
+    partly.body?.totals?.complete === false && partly.body?.totals?.unpriced === 1,
+    JSON.stringify(partly.body?.totals));
+  ok("the library travels with the bill, for the screen that prices from it",
+    (partly.body?.rates || []).some((r) => r.id === rateId));
+
+  // APPLYING A LIBRARY RATE COPIES THE NUMBER and records where it came from.
+  const applied = await shot("tendering.boq.applied", await capture(
+    BOQ.PUT, req(`/api/studios/${slug}/tendering/boq`, { method: "PUT", body: {
+      id: bareId, rate: 45, rateId,
+    } }), P));
+  ok("the rate landed on the line", applied.body?.item?.rate === 45);
+  ok("...with its provenance", applied.body?.item?.rateId === rateId);
+
+  const whole = await capture(BOQ.GET, req(`/api/studios/${slug}/tendering/boq?tenderId=${tenderId}`), P);
+  ok("the bill is complete once every line carries a rate",
+    whole.body?.totals?.complete === true && whole.body?.totals?.total === 9000,
+    JSON.stringify(whole.body?.totals));
+
+  // EDITING THE LIBRARY REPRICES NOTHING. The bill copied the number; the row
+  // it came from is remembered for provenance only.
+  await capture(RATES.PUT, req(`/api/studios/${slug}/tendering/rates`, { method: "PUT", body: { id: rateId, rate: 999 } }), P);
+  const afterRateChange = await capture(BOQ.GET, req(`/api/studios/${slug}/tendering/boq?tenderId=${tenderId}`), P);
+  ok("changing a library rate does not reprice a bill already priced",
+    afterRateChange.body?.totals?.total === 9000, String(afterRateChange.body?.totals?.total));
+
+  // AND DELETING THE LIBRARY ROW BREAKS NOTHING EITHER.
+  await capture(RATES.DELETE, req(`/api/studios/${slug}/tendering/rates`, { method: "DELETE", body: { id: rateId } }), P);
+  const afterRateGone = await capture(BOQ.GET, req(`/api/studios/${slug}/tendering/boq?tenderId=${tenderId}`), P);
+  ok("deleting the library row leaves the bill reading correctly",
+    afterRateGone.body?.totals?.total === 9000 && afterRateGone.body?.totals?.complete === true,
+    JSON.stringify(afterRateGone.body?.totals));
+
+  // TYPING OVER A LIBRARY RATE DROPS THE PROVENANCE, because the number is no
+  // longer that library row's.
+  const retyped = await capture(BOQ.PUT, req(`/api/studios/${slug}/tendering/boq`, { method: "PUT", body: {
+    id: bareId, rate: 50,
+  } }), P);
+  ok("typing a rate over a library one clears the provenance",
+    retyped.body?.item?.rate === 50 && retyped.body?.item?.rateId === "", JSON.stringify(retyped.body?.item?.rateId));
+
+  // A reader with the tender right and NOT the rates right prices the bill and
+  // is offered no library — rather than the library arriving because the same
+  // route happened to fetch it.
+  const noRates = await personWith(["tendering.tenders.view"], "norates");
+  await signIn(noRates.id);
+  const thin = await capture(BOQ.GET, req(`/api/studios/${slug}/tendering/boq?tenderId=${tenderId}`), P);
+  await shot("tendering.boq.norates", thin);
+  ok("a reader without the rates right still sees the bill", (thin.body?.lines || []).length === 2);
+  ok("...and is handed no library at all", (thin.body?.rates || []).length === 0);
+  await signIn(owner.id);
 
   // A READER WITH NO TENDERING RIGHT IS REFUSED OUTRIGHT, not shown an empty
   // register — an empty list would say "this studio bids nothing", which is a

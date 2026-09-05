@@ -52,6 +52,7 @@ const ar: SectionMap = {
   // NEW ROOT, no children yet (see keys.ts) — declared for ordering alone.
   tendering: "المناقصات والتسعير",
   "tendering-register": "سجلّ المناقصات",
+  "tendering-rates": "مكتبة الأسعار",
 
   projects: "المشاريع",
   "projects-list": "قائمة المشاريع",

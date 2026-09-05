@@ -16,6 +16,7 @@
       "crm-sales-settings": true,
       "tendering": true,
       "tendering-register": true,
+      "tendering-rates": true,
       "projects": true,
       "projects-list": true,
       "projects-sla": true,
@@ -71,6 +72,7 @@
       "crm-sales-settings": true,
       "tendering": true,
       "tendering-register": true,
+      "tendering-rates": true,
       "projects": true,
       "projects-list": true,
       "projects-sla": true,
@@ -197,7 +199,7 @@
         "name": "Manager",
         "description": "Runs a department: full control of its work, sight of the rest.",
         "wildcard": false,
-        "permissionCount": 53,
+        "permissionCount": 57,
         "held": 0
       },
       {
@@ -207,6 +209,14 @@
         "wildcard": false,
         "permissionCount": 13,
         "held": 0
+      },
+      {
+        "id": "<rol_ID>",
+        "name": "role-norates",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 1,
+        "held": 1
       },
       {
         "id": "<rol_ID>",
@@ -318,6 +328,30 @@
         "passportExpiry": "2031-06-30",
         "idNumber": "1098765432",
         "passportNumber": "K01234567"
+      },
+      {
+        "id": "<col_ID>",
+        "alias": "norates",
+        "role": "member",
+        "photo": "",
+        "departmentId": "",
+        "departmentName": "",
+        "roleIds": [
+          "<rol_ID>"
+        ],
+        "roleNames": [
+          "role-norates"
+        ],
+        "employeeCode": "",
+        "dateOfJoin": "",
+        "mobile": "",
+        "certificationIds": [],
+        "hasId": false,
+        "hasPassport": false,
+        "idExpiry": "",
+        "passportExpiry": "",
+        "idNumber": "",
+        "passportNumber": ""
       },
       {
         "id": "<col_ID>",
@@ -577,8 +611,8 @@
         "tasks": 0,
         "tendering": 0
       },
-      "unassigned": 11,
-      "total": 11
+      "unassigned": 12,
+      "total": 12
     },
     "vocabulary": {
       "leaveTypes": [

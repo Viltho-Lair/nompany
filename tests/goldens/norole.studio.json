@@ -80,6 +80,12 @@
         "enabled": true
       },
       {
+        "id": "<sub_ID>",
+        "key": "tendering-rates",
+        "name": "Rate library",
+        "enabled": true
+      },
+      {
         "id": "<sec_ID>",
         "key": "projects",
         "name": "Projects",

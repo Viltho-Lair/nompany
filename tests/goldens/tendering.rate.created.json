@@ -1,0 +1,20 @@
+{
+  "status": 201,
+  "body": {
+    "ok": true,
+    "rate": {
+      "id": "<ten_ID>",
+      "code": "EX-01",
+      "description": "Excavate to reduce level",
+      "unit": "m3",
+      "rate": 45,
+      "category": "Earthworks",
+      "notes": "",
+      "createdByCollaboratorId": "<col_ID>",
+      "createdAt": "<timestamp>",
+      "updatedAt": "<timestamp>",
+      "studioId": "<std_ID>",
+      "sectionId": "<sub_ID>"
+    }
+  }
+}

@@ -20,6 +20,7 @@
       "crm-sales-settings": true,
       "tendering": true,
       "tendering-register": true,
+      "tendering-rates": true,
       "projects": true,
       "projects-list": true,
       "projects-sla": true,
@@ -75,6 +76,7 @@
       "crm-sales-settings": true,
       "tendering": true,
       "tendering-register": true,
+      "tendering-rates": true,
       "projects": true,
       "projects-list": true,
       "projects-sla": true,
@@ -282,6 +284,10 @@
       },
       {
         "id": "<col_ID>",
+        "alias": "norates"
+      },
+      {
+        "id": "<col_ID>",
         "alias": "projectmanager"
       },
       {
@@ -414,6 +420,12 @@
         {
           "id": "<col_ID>",
           "alias": "Member",
+          "departmentId": "",
+          "departmentName": ""
+        },
+        {
+          "id": "<col_ID>",
+          "alias": "norates",
           "departmentId": "",
           "departmentName": ""
         },

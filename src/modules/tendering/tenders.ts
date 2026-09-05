@@ -32,14 +32,14 @@ const now = () => new Date().toISOString();
 
 export const tenderingContext = moduleContext<TenderingContext>({
   root: "tendering",
-  sub: { register: "tendering-register" },
+  sub: { register: "tendering-register", rates: "tendering-rates" },
   // THE SALES CLIENTS, READ-ONLY AND WITHOUT A GRANT ON THAT DEPARTMENT. A
   // tender's issuer is often already a client, and showing which one is the
   // tender's own story rather than a window into somebody else's queue — the
   // same reasoning Sales uses for the RFQ column it draws without a Technical
   // right. A studio with no CRM & Sales section simply gets no name resolved.
   foreign: { salesClients: ["crm-sales-clients", "crm-sales"] },
-  flags: ["register"],
+  flags: ["register", "rates"],
 });
 
 /**

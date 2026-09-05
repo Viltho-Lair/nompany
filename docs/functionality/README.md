@@ -23,6 +23,7 @@ Three rules that keep this folder worth reading:
 | File | Covers |
 |---|---|
 | [approvals.md](approvals.md) | Who signs a bill and above what amount: chains, thresholds, the currency rule, and what is not covered |
+| [boq.md](boq.md) | The bill of quantities and the rate library: what makes a total the bid, and why a rate is copied rather than referenced |
 | [calendar.md](calendar.md) | Connected calendars: the OAuth flow for both providers, the token lifecycle, the account panel and the console's one calendar |
 | [customer-360.md](customer-360.md) | One client's page: the blocks each reader may see, how the totals move with them, and what is deliberately absent |
 | [engagements.md](engagements.md) | The deal: one engagement, its stages, its client, lock and delete |
