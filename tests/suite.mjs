@@ -984,15 +984,22 @@ console.log("\n== the handler is carried, never copied");
   // withheld, never blanked (spec §4, "What each person sees inside").
   const salesRole = await createRole(studio.id, {
     name: `Engager ${rand()}`,
-    // crmSales.quotations.view IS DELIBERATE, and it is what makes the last
+    // crmSales.contracts.view IS DELIBERATE, and it is what makes the last
     // assertion in this block possible: it is the right that governs the
     // `contract` stage, which Template A lists and this deal does not have. The
     // role previously leaned on `bill` for that, and `bill` is not in Template A
     // at all — so once the block became template-driven there was no stage this
     // reader could see, was entitled to, and was still waiting for.
+    //
+    // IT USED TO SAY crmSales.quotations.view, and that was true when written:
+    // contracts BORROWED the quotations right until they had a screen of their
+    // own. The register gave them `crmSales.contracts.*`, the services were
+    // switched and the stage registry was not, so this line kept passing while
+    // pointing at the wrong right — which is precisely the drift the registry
+    // fix closed.
     permissions: [
       "engagements.view", "crmSales.tickets.view", "crmSales.quotations.view",
-      "finance.payables.view",
+      "crmSales.contracts.view", "finance.payables.view",
     ],
   });
   const engager = await person("Engager", null);

@@ -25,6 +25,20 @@ export type ObjectClass =
 
 export type StageEntry = {
   type: string;          // key segment: s:<sid>:rec:<type>:<id>
+  /**
+   * WHERE THE STAGE'S SCREEN IS, when that is not where its ROWS are.
+   *
+   * `sectionKey` was doing both jobs and they have diverged. It answers "which
+   * section holds these records" — `getSectionByKey`, for reading them — and it
+   * was also the href the engagement card links to. Contracts live in the
+   * crm-sales-quotations section (the register deliberately owns no collection)
+   * but are READ at crm-sales-contracts, so one value cannot be right for both
+   * any more: the link sent people to Quotations to look at a contract.
+   *
+   * Optional, and falls back to `sectionKey` — for every other stage the two are
+   * the same and saying so twice would be the duplication this avoids.
+   */
+  screenKey?: string;
   objectClass: ObjectClass;
   cardinality: Cardinality;
   sectionKey: string;    // permission + section ownership (unchanged model)
@@ -136,8 +150,20 @@ export const STAGE_REGISTRY: Record<string, StageEntry> = {
   //                 like bill/expense/asset: those exist without a deal, a
   //                 payment settles THIS deal's invoice and has no meaning
   //                 detached from it.
-  contract:     { type: "contract", objectClass: "commitment",     cardinality: "one",  sectionKey: "crm-sales-quotations", permission: "crmSales.quotations.view", unassignable: false, collection: "contracts",    label: "Contract",     onDelete: "cascade" },
-  change_order: { type: "change_order", objectClass: "commitment", cardinality: "many", sectionKey: "crm-sales-quotations", permission: "crmSales.quotations.view", unassignable: false, collection: "changeOrders", label: "Change order", onDelete: "cascade" },
+  // CONTRACTS AND VARIATIONS ANSWER TO crmSales.contracts NOW. This registry said
+  // `crmSales.quotations.view` because that is what they borrowed while they had
+  // no screen, and it recorded the swap as a debt to pay when one arrived. The
+  // register arrived and the SERVICES were switched; these two lines were not —
+  // so on the engagements view, whether somebody saw a deal's contract was still
+  // decided by the quotations right. Both directions were wrong: a reader
+  // granted contracts and not quotations could open the register and not see the
+  // stage, and one granted quotations and not contracts saw the stage and was
+  // refused the register.
+  //
+  // `sectionKey` stays crm-sales-quotations because that is genuinely where the
+  // ROWS live; `screenKey` is where a person goes to read them.
+  contract:     { type: "contract", objectClass: "commitment",     cardinality: "one",  sectionKey: "crm-sales-quotations", screenKey: "crm-sales-contracts", permission: "crmSales.contracts.view", unassignable: false, collection: "contracts",    label: "Contract",     onDelete: "cascade" },
+  change_order: { type: "change_order", objectClass: "commitment", cardinality: "many", sectionKey: "crm-sales-quotations", screenKey: "crm-sales-contracts", permission: "crmSales.contracts.view", unassignable: false, collection: "changeOrders", label: "Change order", onDelete: "cascade" },
   timesheet:    { type: "timesheet", objectClass: "resource",    cardinality: "many", sectionKey: "projects-list",        permission: "projects.list.view",       unassignable: false, collection: "timesheets",   label: "Timesheet",    onDelete: "cascade" },
   job:          { type: "job", objectClass: "execution",          cardinality: "many", sectionKey: "field-service-schedule", permission: "fieldService.schedule.view", unassignable: false, collection: "jobs",       label: "Job",          onDelete: "cascade" },
   inspection:   { type: "inspection", objectClass: "evidence",   cardinality: "many", sectionKey: "projects-list",        permission: "projects.list.view",       unassignable: false, collection: "inspections",  label: "Inspection",   onDelete: "cascade" },

@@ -859,7 +859,7 @@ function StageCard({ slug, card }) {
           </div>
           {entry && (
             <Link
-              href={`/${slug}/${entry.sectionKey}`}
+              href={`/${slug}/${entry.screenKey || entry.sectionKey}`}
               className="shrink-0 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-600 text-slate-600 transition-colors hover:bg-slate-50 dark:border-white/15 dark:text-slate-300 dark:hover:bg-white/5"
             >
               {tr.openIn(stageLabel(entry.type, entry.label, locale))}
