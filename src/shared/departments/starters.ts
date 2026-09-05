@@ -49,11 +49,20 @@ export type DepartmentSeed = {
 // these three — so restating them per field would be twenty-five copies free to
 // disagree about what Finance is called.
 //
+// EXPORTED, because it is also what a studio with NO field of work gets.
+// `createStudio` has never set one, so "not chosen yet" is the state every
+// studio starts in, and an empty register there means an empty DEPARTMENT
+// dropdown and nobody placeable anywhere — worse than the sixteen wrong
+// departments this replaced. These three are not a guess about a trade: they
+// are the part of the chart that was identical in all twenty-five, which is
+// exactly why they were factored out. The operating line still waits until the
+// studio says what it does.
+//
 // Procurement is NOT here. A contractor and a manufacturer buy for a living; a
 // consultancy and an insurer do not have a procurement department at all, and a
 // seeded row nobody needs is the dead capability this product keeps deleting.
 // Fields that buy name it themselves below.
-const BACK_OFFICE: readonly DepartmentSeed[] = Object.freeze([
+export const UNIVERSAL_DEPARTMENTS: readonly DepartmentSeed[] = Object.freeze([
   { name: "Finance & Accounting", code: "FIN", parent: "", sectionKeys: ["finance"] },
   { name: "Human Resources", code: "HR", parent: "", sectionKeys: ["hr"] },
   { name: "Administration", code: "ADM", parent: "", sectionKeys: ["administration"] },
@@ -67,10 +76,10 @@ const SUPPLY: readonly DepartmentSeed[] = Object.freeze([
 ]);
 
 const spine = (...extra: readonly DepartmentSeed[]): readonly DepartmentSeed[] =>
-  Object.freeze([...extra, ...BACK_OFFICE]);
+  Object.freeze([...extra, ...UNIVERSAL_DEPARTMENTS]);
 
 const trading = (...extra: readonly DepartmentSeed[]): readonly DepartmentSeed[] =>
-  Object.freeze([...extra, ...SUPPLY, ...BACK_OFFICE]);
+  Object.freeze([...extra, ...SUPPLY, ...UNIVERSAL_DEPARTMENTS]);
 
 /**
  * Field of work → the departments a company in that trade usually has.
@@ -277,7 +286,7 @@ export const DEPARTMENT_STARTERS: Record<string, readonly DepartmentSeed[]> = {
     { name: "Hard Services", code: "HRD", parent: "OPS", sectionKeys: ["field-service", "assets"] },
     { name: "Soft Services", code: "SFT", parent: "OPS", sectionKeys: ["field-service"] },
     { name: "Security Services", code: "SEC", parent: "", sectionKeys: ["field-service"] },
-    { name: "Helpdesk & Scheduling", code: "HD", parent: "", sectionKeys: ["tasks", "field-service"] },
+    { name: "Helpdesk & Scheduling", code: "HD", parent: "", sectionKeys: ["field-service"] },
     { name: "Mobilisation & Manpower", code: "MOB", parent: "", sectionKeys: ["hr", "projects"] },
     { name: "Bids & Contracts", code: "BID", parent: "", sectionKeys: ["tendering", "crm-sales"] },
   ),

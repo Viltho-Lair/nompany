@@ -25,6 +25,8 @@ type Strings = CommonStrings & {
   acrossEveryScheduledShift: string;
   activePermits: string;
   addLocation: string;
+  addDepartment: string;
+  manager: string;
   addStandardDepartments: string;
   code: string;
   departmentCycle: string;
@@ -65,6 +67,7 @@ type Strings = CommonStrings & {
   location: string;
   locationError: string;
   locations: string;
+  masterData: string;
   loadingMasterData: string;
   // The route refuses a delete with the counts of what still points at the
   // place, so the message can name them rather than saying only "no".
@@ -171,6 +174,8 @@ const en: Strings = {
   acrossEveryScheduledShift: "Across every scheduled shift",
   activePermits: "Active permits",
   addLocation: "Add location",
+  addDepartment: "Add department",
+  manager: "Manager",
   addStandardDepartments: "Add the ones we're missing",
   code: "Code",
   departmentCycle: "A department cannot report into one of its own sub-departments.",
@@ -216,6 +221,7 @@ const en: Strings = {
   location: "Location",
   locationError: "Location error",
   locations: "Locations",
+  masterData: "Master data",
   loadingMasterData: "Loading master data…",
   locationInUse: (shifts, permits) => {
     const parts: string[] = [];
@@ -325,6 +331,8 @@ const ar: Strings = {
   acrossEveryScheduledShift: "عبر كل وردية مجدولة",
   activePermits: "التصاريح السارية",
   addLocation: "إضافة موقع",
+  addDepartment: "إضافة قسم",
+  manager: "المدير",
   addStandardDepartments: "أضف الأقسام الناقصة",
   code: "الرمز",
   departmentCycle: "لا يمكن أن يتبع القسم أحد أقسامه الفرعية.",
@@ -370,6 +378,7 @@ const ar: Strings = {
   location: "الموقع",
   locationError: "خطأ في تحديد الموقع",
   locations: "المواقع",
+  masterData: "البيانات الأساسية",
   loadingMasterData: "جارٍ تحميل البيانات الأساسية…",
   locationInUse: (shifts, permits) => {
     const parts: string[] = [];

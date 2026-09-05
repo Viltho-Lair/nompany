@@ -387,8 +387,10 @@ function EmployeeEditor({ person, departments, roles, certifications, canAssignR
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {/* THE STUDIO'S SECTIONS ARE ITS DEPARTMENTS. Nothing to maintain,
-            and no way for this list to disagree with the nav. */}
+        {/* THE STUDIO'S OWN DEPARTMENTS, not the product's sections. This list
+            used to be the nav — fifteen entries plus Tasks, four of them screens
+            that render nothing — and is the register under Master data now.
+            Placing somebody is HR's; maintaining the list is not. */}
         <Field label={tr.department} as="select" value={form.departmentId}
           onChange={(v) => setForm((f) => ({ ...f, departmentId: v }))}
           options={departments.map((d) => ({ value: d.id, label: d.name }))}

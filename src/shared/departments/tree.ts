@@ -118,6 +118,13 @@ export const MAX_DEPARTMENT_DEPTH = 4;
  * Rows in tree order — parents before their children, siblings by name — each
  * carrying the depth the screen indents by.
  *
+ * `depth` HERE IS 0-BASED AND `depthOf` IS 1-BASED, deliberately, because they
+ * answer different questions. This one is an INDENT LEVEL: a top-level row is
+ * flush with the edge, so it is 0. `depthOf` counts a row's own ancestry
+ * INCLUDING itself, so a top-level row is 1 and the four-level cap reads as 4.
+ * Making either match the other breaks the thing it is for — a 1-based indent
+ * pushes the whole chart right, and a 0-based cap lets five levels through.
+ *
  * ORPHANS ARE LISTED, at the end and at the top level. A row whose parent was
  * deleted is exactly the row somebody needs to re-file, so hiding it until the
  * data is tidy is backwards.

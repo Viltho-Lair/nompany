@@ -39,7 +39,7 @@ import { repo } from "@/platform/db/repo";
 import { ID, ALL_SECTION_KEYS } from "@/platform/db/keys";
 import { NO_SCREEN_YET } from "@/platform/access";
 import { listCollaborators } from "@/platform/auth/collaborators";
-import { departmentsForField } from "@/shared/departments/starters";
+import { departmentsForField, UNIVERSAL_DEPARTMENTS } from "@/shared/departments/starters";
 import { wouldCycle, depthOf, MAX_DEPARTMENT_DEPTH } from "@/shared/departments/tree";
 import type { Department, MasterContext } from "./types";
 import type { StudioRef } from "../context";
@@ -119,11 +119,24 @@ async function seedDepartments(
   field: string,
   existing: readonly Department[],
 ): Promise<Department[]> {
+  // A STUDIO WITH NO FIELD OF WORK STILL GETS A CHART, and this fallback is the
+  // difference between the register being useful on day one and being empty.
+  // `createStudio` has never set a field, so "not chosen yet" is the state every
+  // studio starts in — and an empty register means an empty DEPARTMENT dropdown
+  // and nobody placeable at all, which is worse than the sixteen wrong
+  // departments this replaced.
+  //
+  // What it falls back to is not a guess about a trade: Finance, HR and
+  // Administration were identical in all twenty-five fields, which is why they
+  // were factored out of the starters in the first place. The operating line
+  // still waits until the studio says what it does, and the screen then offers
+  // it as an addition.
   const seeds = departmentsForField(field);
-  if (!seeds.length) return [];
+  const chart = seeds.length ? seeds : UNIVERSAL_DEPARTMENTS.map((d) => ({ ...d }));
+  if (!chart.length) return [];
 
   const heldCodes = new Set(existing.map((d) => String(d.code || "").toUpperCase()));
-  const wanted = seeds.filter((s) => !heldCodes.has(s.code.toUpperCase()));
+  const wanted = chart.filter((s) => !heldCodes.has(s.code.toUpperCase()));
   if (!wanted.length) return [];
 
   // Codes to ids, for THIS batch plus whatever the studio already holds — so a

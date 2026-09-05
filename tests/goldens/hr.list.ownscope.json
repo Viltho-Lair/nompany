@@ -121,68 +121,43 @@
     },
     "departments": [
       {
-        "id": "administration",
-        "name": "Administration & Settings"
+        "id": "<dep_ID>",
+        "name": "Administration",
+        "code": "ADM",
+        "parentId": "",
+        "managerCollaboratorId": "",
+        "sectionKeys": [
+          "administration"
+        ],
+        "createdAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>"
       },
       {
-        "id": "assets",
-        "name": "Assets & Equipment"
+        "id": "<dep_ID>",
+        "name": "Finance & Accounting",
+        "code": "FIN",
+        "parentId": "",
+        "managerCollaboratorId": "",
+        "sectionKeys": [
+          "finance"
+        ],
+        "createdAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>"
       },
       {
-        "id": "crm-sales",
-        "name": "CRM & Sales"
-      },
-      {
-        "id": "engineering-docs",
-        "name": "Engineering & Documents"
-      },
-      {
-        "id": "field-service",
-        "name": "Field Operations & Service"
-      },
-      {
-        "id": "finance",
-        "name": "Finance & Accounting"
-      },
-      {
-        "id": "hr",
-        "name": "Human Resources"
-      },
-      {
-        "id": "inventory",
-        "name": "Inventory & Warehouse"
-      },
-      {
-        "id": "logistics",
-        "name": "Logistics & Fleet"
-      },
-      {
-        "id": "manufacturing",
-        "name": "Manufacturing & Production"
-      },
-      {
-        "id": "procurement",
-        "name": "Procurement & Subcontracting"
-      },
-      {
-        "id": "projects",
-        "name": "Projects"
-      },
-      {
-        "id": "quality-hse",
-        "name": "Quality & HSE"
-      },
-      {
-        "id": "reports",
-        "name": "Reports & BI"
-      },
-      {
-        "id": "tasks",
-        "name": "Tasks"
-      },
-      {
-        "id": "tendering",
-        "name": "Tendering & Estimating"
+        "id": "<dep_ID>",
+        "name": "Human Resources",
+        "code": "HR",
+        "parentId": "",
+        "managerCollaboratorId": "",
+        "sectionKeys": [
+          "hr"
+        ],
+        "createdAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>"
       }
     ],
     "roles": [
@@ -394,22 +369,9 @@
     "expiring": [],
     "headcount": {
       "byDepartment": {
-        "administration": 0,
-        "assets": 0,
-        "crm-sales": 0,
-        "engineering-docs": 0,
-        "field-service": 0,
-        "finance": 0,
-        "hr": 0,
-        "inventory": 0,
-        "logistics": 0,
-        "manufacturing": 0,
-        "procurement": 0,
-        "projects": 0,
-        "quality-hse": 0,
-        "reports": 0,
-        "tasks": 0,
-        "tendering": 0
+        "<dep_ID>": 0,
+        "<dep_ID>": 0,
+        "<dep_ID>": 0
       },
       "unassigned": 1,
       "total": 1
