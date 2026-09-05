@@ -677,6 +677,26 @@ only when a builder opens on a real quotation, and the answer **carries whose pr
 — the screen uses it only when that matches the customer on screen, so quoting one client at
 another's agreed rates is structurally impossible rather than timed away.
 
+**Slice 5 — the CRM & Sales dashboard**, no key and no route: it is drawn from the ticket list
+`/sales` already returns. `docs/functionality/sales-dashboard.md` is the file.
+
+**The dashboard kept its own vocabulary.** `salesAnalytics` held its own list of closed
+statuses, its own copy of the stage climb and its own weighted-value arithmetic — three answers
+to questions `modules/sales/pipeline` owns. They agreed the day they were written, which is the
+only day duplication looks harmless: a stage added to `TICKET_STATUSES` and not to the
+hand-written arrays does not throw, it stops being COUNTED. All three now come from the
+registry, and a test asserts the two agree on every status.
+
+**It also spoke English to Arabic studios.** The funnel returned `label: "Lead"` and the screen
+drew that string; the donut, the at-risk rows and five hard-coded fragments ("tickets",
+"12d overdue") had no dictionary entry at all. The funnel returns TOKENS now and the screen
+chooses the words, statuses through `./statuses` like everywhere else.
+
+**Two widgets for what the earlier slices recorded and nothing showed:** why deals are lost
+(grouped `lostReason`, commonest first — the field was written on every losing close and read
+back one deal at a time, which cannot tell a studio it loses on price) and stalled deals (open,
+30+ days in one stage, longest first). Won VALUE joins won count on the free row.
+
 **`ItemSchema` gained `unitCost`, `notes` and `image`, which it stored all along and never
 declared** — so `Item` did not have them and every reader wrote its own inline shape to reach
 them. The same class of bug as `closedAt`/`lostReason`, from the other end: written but

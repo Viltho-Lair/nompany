@@ -4,6 +4,10 @@
 // No fetching and no formatting happen here.
 
 import { daysUntil } from "@/modules/projects/sla";
+import {
+  OPEN_STAGES, WON_STAGE, isClosed as stageIsClosed, weightedValue,
+  enteredStageAt, daysSince, CHAIN_LOST_REASON,
+} from "./pipeline";
 import type { TicketView, RfqSummary } from "./types";
 
 const num = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : 0);
@@ -12,23 +16,37 @@ const num = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 // Dropped, Cancelled by Client, Closed Lost) is not a stage a ticket "reached"
 // — it left the pipeline, so it counts toward no bar rather than inflating the
 // ones below it.
-const PIPELINE = ["Lead", "Opportunity", "Commit", "Closed Won"];
+//
+// DERIVED FROM THE STAGE REGISTRY, not listed again. This file used to hold its
+// own copy of the climb AND its own list of which statuses are closed; ./pipeline
+// now owns both, and two lists of "which stages are which" are two lists free to
+// disagree the day a stage is added — silently, because a status missing from a
+// hardcoded array does not throw, it just stops being counted.
+const PIPELINE = [...OPEN_STAGES, WON_STAGE].filter(Boolean);
 const rank = (status: string) => PIPELINE.indexOf(status);
 const reached = (status: string, stage: number) => rank(status) >= stage;
 
-// A ticket nobody is chasing any more: won, lost, or abandoned.
-export const CLOSED_STATUSES = ["Closed Won", "Closed Lost", "Cancelled by Client", "Dropped"];
-export const isClosed = (t: TicketView | null | undefined) => CLOSED_STATUSES.includes(String(t?.status));
+// A ticket nobody is chasing any more: won, lost, or abandoned. The QUESTION is
+// asked of ./pipeline; what this adds is the ticket-shaped signature every
+// caller here already uses.
+export const isClosed = (t: TicketView | null | undefined) => stageIsClosed(String(t?.status ?? ""));
 
 // Lead → Opportunity → RFQ → Quotation → Won. Each stage counts the distinct
 // tickets that reached at least that milestone, so the bars descend.
+//
+// RETURNS TOKENS, NOT WORDS. It used to return `label: "Lead"` and the screen
+// drew that string, so an Arabic studio read an English funnel. Three of the
+// five rungs ARE ticket statuses and translate through ./statuses keyed by the
+// stored token, like every status in the product; the other two are milestones
+// of this funnel and are ordinary dictionary strings. Only the caller knows
+// which dictionary it holds, so only the caller can choose.
 export function salesFunnel(tickets: TicketView[]) {
   return [
-    { label: "Lead", value: tickets.filter((t) => reached(t.status, 0)).length },
-    { label: "Opportunity", value: tickets.filter((t) => reached(t.status, 1)).length },
-    { label: "RFQ", value: tickets.filter((t) => (t.rfqCount || 0) > 0).length },
-    { label: "Quotation", value: tickets.filter((t) => t.rfq?.quotationId).length },
-    { label: "Won", value: tickets.filter((t) => t.status === "Closed Won").length },
+    { key: PIPELINE[0] || "", kind: "status" as const, value: tickets.filter((t) => reached(t.status, 0)).length },
+    { key: PIPELINE[1] || "", kind: "status" as const, value: tickets.filter((t) => reached(t.status, 1)).length },
+    { key: "rfq", kind: "milestone" as const, value: tickets.filter((t) => (t.rfqCount || 0) > 0).length },
+    { key: "quotation", kind: "milestone" as const, value: tickets.filter((t) => t.rfq?.quotationId).length },
+    { key: WON_STAGE, kind: "status" as const, value: tickets.filter((t) => t.status === WON_STAGE).length },
   ];
 }
 
@@ -52,7 +70,11 @@ export function probabilityBuckets(tickets: TicketView[]) {
       label: r.label,
       count: inBucket.length,
       value: inBucket.reduce((a, t) => a + num(t.value), 0),
-      weighted: inBucket.reduce((a, t) => a + num(t.value) * (num(t.probability) / 100), 0),
+      // THE SAME ARITHMETIC THE BOARD AND THE CUSTOMER PAGE USE. It was written
+      // out here as `value * probability / 100`, which is what weightedValue
+      // does — and which rounds, so the two disagreed by fractions of a unit on
+      // screens a person can hold side by side.
+      weighted: inBucket.reduce((a, t) => a + weightedValue(t.value, t.probability), 0),
     };
   });
 }
@@ -144,4 +166,55 @@ export function rfqInfo(
 // raised yet. This is what the amber stripe down the row means.
 export function isUnresolved(ticket: TicketView | null | undefined) {
   return (ticket?.status === "Lead" || ticket?.status === "Opportunity") && !(ticket?.rfqCount > 0);
+}
+
+/**
+ * WHY DEALS ARE LOST, grouped.
+ *
+ * This is the question `lostReason` was added to answer and that nothing has
+ * asked yet: the field is written on every losing close and read back on one
+ * deal at a time. One deal at a time cannot tell a studio it loses on price.
+ *
+ * The reason the CHAIN writes is a token, not a sentence (pipeline's
+ * CHAIN_LOST_REASON), so it is passed through as that token and the screen
+ * translates it — the same rule statuses follow. A reason a PERSON typed is
+ * data and groups exactly as typed, which is also why this is a count of
+ * strings rather than an analysis: "price" and "too expensive" are two answers
+ * until a studio has a vocabulary to pick from, and that is not built.
+ */
+export function lostReasons(tickets: TicketView[]) {
+  const byReason = new Map<string, { reason: string; count: number; value: number }>();
+  for (const t of tickets) {
+    const reason = String((t as { lostReason?: unknown }).lostReason ?? "").trim();
+    if (!reason) continue;
+    const row = byReason.get(reason) || { reason, count: 0, value: 0 };
+    row.count += 1;
+    row.value += num(t.value);
+    byReason.set(reason, row);
+  }
+  return [...byReason.values()].sort((a, b) => b.count - a.count || b.value - a.value);
+}
+
+/** True for the one reason the system writes itself, so a screen can translate it. */
+export const isChainLostReason = (reason: string) => reason === CHAIN_LOST_REASON;
+
+/**
+ * DEALS THAT HAVE STOPPED MOVING — open, and sitting in one stage longer than
+ * `days`.
+ *
+ * The pipeline board shows this per column; nobody could see it across the
+ * department. It is the number a review is actually for: a list sorted by
+ * creation date buries the deal that has been stuck for ninety days under the
+ * one raised this morning.
+ *
+ * `enteredStageAt` falls back through updatedAt to createdAt, so this works on
+ * the deals a studio already has rather than only on ones moved since the
+ * history existed.
+ */
+export function stalledDeals(tickets: TicketView[], days = 30, nowMs = Date.now()) {
+  return tickets
+    .filter((t) => !isClosed(t))
+    .map((t) => ({ ticket: t, days: daysSince(enteredStageAt(t), nowMs) }))
+    .filter((row) => row.days >= days)
+    .sort((a, b) => b.days - a.days);
 }

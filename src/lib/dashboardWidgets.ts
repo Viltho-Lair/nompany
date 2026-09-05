@@ -56,6 +56,10 @@ export const DASHBOARD_WIDGETS: WidgetDef[] = [
   { key: "sales.probability-forecast", label: "Probability forecast", section: "crm-sales", rung: "simple" },
   { key: "sales.stage-mix", label: "Stage mix", section: "crm-sales", rung: "simple" },
   { key: "sales.at-risk", label: "At-risk tickets", section: "crm-sales", rung: "moderate" },
+  // A KEY IS FROZEN ONCE IT SHIPS — renaming one is a data migration, because a
+  // tier stores the keys it includes. These two are new rather than renamed.
+  { key: "sales.loss-reasons", label: "Why deals are lost", section: "crm-sales", rung: "moderate" },
+  { key: "sales.stalled", label: "Stalled deals", section: "crm-sales", rung: "moderate" },
   // Technical
   { key: "technical.quotation-volume", label: "Quotation volume", section: "crm-sales", rung: "simple" },
   { key: "technical.rfq-funnel", label: "RFQ funnel", section: "engineering-docs", rung: "simple" },

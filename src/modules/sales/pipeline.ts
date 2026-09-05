@@ -93,6 +93,18 @@ const ordered = (kinds: StageKind[]) =>
 export const BOARD_COLUMNS = ordered(["open", "paused"]);
 /** The ways a deal ends. Summarised beneath the board rather than given columns. */
 export const CLOSED_STAGES = ordered(["closed"]);
+/**
+ * THE CLIMB, without the pause. A deal in these stages is progressing, which is
+ * what a funnel counts — On-Hold is live but going nowhere, so a funnel that
+ * included it would report movement that is not happening.
+ *
+ * Exported rather than filtered at the call site because the dashboard's funnel
+ * needs exactly this list, and a second `filter(kind === "open")` somewhere else
+ * is a second definition of "progressing".
+ */
+export const OPEN_STAGES = ordered(["open"]);
+/** The one closed stage that is a success. Empty-string only if nothing is won-flagged. */
+export const WON_STAGE = CLOSED_STAGES.find((s) => STAGES[s]?.won) || "";
 
 export const isClosed = (status: string) => STAGES[status]?.kind === "closed";
 export const isWon = (status: string) => STAGES[status]?.won === true;

@@ -9,6 +9,26 @@ import { commonEn, commonAr, type CommonStrings } from "./common";
 
 type Strings = CommonStrings & {
   weightedForecast: (amount: string) => string;
+  // FIVE OF THESE WERE HARD-CODED ENGLISH IN THE SCREEN — the donut's "tickets",
+  // and "12d overdue" / "3d left" built by template. An Arabic studio read them
+  // exactly as written. The two funnel milestones that are NOT ticket statuses
+  // are here too; the ones that are statuses translate through ./statuses, keyed
+  // by the stored token, like every other status in the product.
+  ticketsWord: string;
+  nDaysOverdue: (n: number) => string;
+  nDaysLeft: (n: number) => string;
+  funnelRfq: string;
+  funnelQuotation: string;
+  // What the last three slices made answerable.
+  wonValue: string;
+  whyLost: string;
+  whyLostHint: string;
+  noLossesRecorded: string;
+  stalled: string;
+  stalledHint: (days: number) => string;
+  nothingStalled: string;
+  nDaysInStage: (n: number) => string;
+  reasonRfqRejected: string;
   distinctTicketsReachedEach: string;
   noDate: string;
   noOpenPipelineYet: string;
@@ -34,6 +54,20 @@ const en: Strings = {
   weightedForecast: (amount) => `Weighted forecast: ${amount}`,
   distinctTicketsReachedEach: "Distinct tickets that reached each stage",
   noDate: "No date",
+  ticketsWord: "tickets",
+  nDaysOverdue: (n) => `${n}d overdue`,
+  nDaysLeft: (n) => `${n}d left`,
+  funnelRfq: "RFQ",
+  funnelQuotation: "Quotation",
+  wonValue: "Won value",
+  whyLost: "Why deals are lost",
+  whyLostHint: "Every closed-lost deal, grouped by the reason given at the time.",
+  noLossesRecorded: "No deal has been closed with a reason yet.",
+  stalled: "Stalled deals",
+  stalledHint: (days) => `Open, and sitting in one stage for ${days} days or more.`,
+  nothingStalled: "Nothing has been sitting still.",
+  nDaysInStage: (n) => (n === 1 ? "1 day in stage" : `${n} days in stage`),
+  reasonRfqRejected: "Technical turned the RFQ down",
   noOpenPipelineYet: "No open pipeline yet.",
   noTicketsYet: "No tickets yet.",
   nothingRiskAllClear: "Nothing at risk — all clear.",
@@ -57,6 +91,20 @@ const ar: Strings = {
   weightedForecast: (amount) => `التوقّع المرجّح: ${amount}`,
   distinctTicketsReachedEach: "التذاكر المتمايزة التي بلغت كل مرحلة",
   noDate: "بلا تاريخ",
+  ticketsWord: "تذكرة",
+  nDaysOverdue: (n) => `متأخر ${n} يومًا`,
+  nDaysLeft: (n) => `بقي ${n} يومًا`,
+  funnelRfq: "طلب عرض سعر",
+  funnelQuotation: "عرض السعر",
+  wonValue: "قيمة المربوح",
+  whyLost: "لماذا نخسر الصفقات",
+  whyLostHint: "كلّ صفقة أُغلقت بالخسارة، مجمّعة بحسب السبب المذكور وقتها.",
+  noLossesRecorded: "لم تُغلق أي صفقة مع ذكر السبب بعد.",
+  stalled: "صفقات متوقّفة",
+  stalledHint: (days) => `مفتوحة، وباقية في مرحلة واحدة ${days} يومًا أو أكثر.`,
+  nothingStalled: "لا شيء متوقّف.",
+  nDaysInStage: (n) => (n === 1 ? "يوم واحد في المرحلة" : `${n} يومًا في المرحلة`),
+  reasonRfqRejected: "القسم الفني رفض طلب عرض السعر",
   noOpenPipelineYet: "لا يوجد مسار مفتوح بعد.",
   noTicketsYet: "لا توجد تذاكر بعد.",
   nothingRiskAllClear: "لا شيء معرّض للخطر — كل شيء على ما يرام.",
