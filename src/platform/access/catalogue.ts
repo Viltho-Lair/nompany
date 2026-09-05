@@ -154,6 +154,16 @@ const OWN_AREAS = [
   // would be a second right over the same act, free to disagree with the first
   // about who may move a deal; this right decides who may SEE the funnel.
   { key: "crmSales.pipeline", group: "CRM & Sales", label: "Pipeline", verbs: ["view"] },
+
+  // TENDERING & ESTIMATING'S FIRST AREA. The section was declared at the
+  // fifteen-section restructure and has held no right since, because it had no
+  // screen and a right nothing can exercise is a bug (invariant 16). It has one
+  // now. DELETE is real here and is not on tickets or contracts: a tender
+  // entered from a misread notice is a mistake to erase, where a deal or a
+  // contract is a thing that happened — and the service still refuses to delete
+  // one whose bid has gone in.
+  { key: "tendering.tenders", group: "Tendering & Estimating", label: "Tender register",
+    verbs: ["view", "create", "edit", "delete"] },
   { key: "crmSales.settings", group: "CRM & Sales", label: "Settings", verbs: ["view", "edit"] },
 
   { key: "engineeringDocs.rfq", group: "Engineering & Documents", label: "RFQ", verbs: ["view", "create", "edit"],

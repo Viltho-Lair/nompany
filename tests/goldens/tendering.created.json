@@ -1,0 +1,26 @@
+{
+  "status": 201,
+  "body": {
+    "ok": true,
+    "tender": {
+      "id": "<ten_ID>",
+      "ref": "TND-0001",
+      "title": "Airport terminal AV",
+      "issuer": "General Authority of Civil Aviation",
+      "clientId": "",
+      "source": "Etimad portal",
+      "issueDate": "2031-01-05",
+      "submissionDeadline": "2031-02-20",
+      "estimatedValue": 1250000,
+      "currency": "",
+      "status": "Identified",
+      "notes": "",
+      "assignedToCollaboratorId": "",
+      "createdByCollaboratorId": "<col_ID>",
+      "createdAt": "<timestamp>",
+      "updatedAt": "<timestamp>",
+      "studioId": "<std_ID>",
+      "sectionId": "<sub_ID>"
+    }
+  }
+}

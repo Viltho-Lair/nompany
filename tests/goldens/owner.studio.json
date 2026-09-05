@@ -74,6 +74,12 @@
         "enabled": true
       },
       {
+        "id": "<sub_ID>",
+        "key": "tendering-register",
+        "name": "Tender register",
+        "enabled": true
+      },
+      {
         "id": "<sec_ID>",
         "key": "projects",
         "name": "Projects",

@@ -1,0 +1,52 @@
+{
+  "status": 200,
+  "body": {
+    "ok": true,
+    "asOf": "<timestamp>",
+    "tenders": [
+      {
+        "id": "<ten_ID>",
+        "ref": "TND-0001",
+        "title": "Airport terminal AV",
+        "issuer": "General Authority of Civil Aviation",
+        "clientId": "",
+        "source": "Etimad portal",
+        "issueDate": "2031-01-05",
+        "submissionDeadline": "2031-02-20",
+        "estimatedValue": 1250000,
+        "currency": "",
+        "status": "Lost",
+        "notes": "",
+        "assignedToCollaboratorId": "",
+        "createdByCollaboratorId": "<col_ID>",
+        "createdAt": "<timestamp>",
+        "updatedAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>",
+        "stageHistory": [
+          {
+            "status": "Preparing",
+            "at": "<timestamp>",
+            "byCollaboratorId": "<col_ID>"
+          },
+          {
+            "status": "Submitted",
+            "at": "<timestamp>",
+            "byCollaboratorId": "<col_ID>"
+          },
+          {
+            "status": "Lost",
+            "at": "<timestamp>",
+            "byCollaboratorId": "<col_ID>"
+          }
+        ],
+        "submittedAt": "<timestamp>",
+        "decidedAt": "<timestamp>",
+        "decisionReason": "Undercut by 12%"
+      }
+    ],
+    "canCreate": true,
+    "canEdit": true,
+    "canDelete": true
+  }
+}

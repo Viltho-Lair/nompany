@@ -98,6 +98,15 @@ export const STATUS_TONES = {
   rfq:       { New: "info", "In-review": "warning", Converted: "success", Rejected: "danger" },
   // StudioTechnical — quotation status (Q_TONE). Note Approved is emerald here,
   // unlike a bill's brand Approved — that is why `kind` exists.
+  // StudioTenders — a tender's stage. Submitted is BRAND rather than success:
+  // the bid is in, which is an achievement and not an outcome. No Bid is muted
+  // rather than danger — declining deliberately is a decision, not a failure,
+  // and colouring it like one would discourage recording the very thing the
+  // register is most useful for.
+  tenderStage: {
+    Identified: "neutral", Preparing: "info", Submitted: "progress",
+    Won: "success", Lost: "danger", "No Bid": "muted", Withdrawn: "neutral",
+  },
   quotation: { New: "info", Draft: "warning", Completed: "success", Sent: "info", Approved: "success", Rejected: "danger" },
   // StudioOperations — permit state (PERMIT_TONE).
   permit:    { Valid: "success", Expiring: "warning", Expired: "danger", "Not yet valid": "neutral" },

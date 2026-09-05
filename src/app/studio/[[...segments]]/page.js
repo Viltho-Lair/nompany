@@ -65,6 +65,10 @@ const StudioPipeline = nextDynamic(
   () => import("@/components/studio2/StudioPipeline"),
   { loading: () => <ScreenSkeleton /> },
 );
+const StudioTenders = nextDynamic(
+  () => import("@/components/studio2/StudioTenders"),
+  { loading: () => <ScreenSkeleton /> },
+);
 const StudioCustomer = nextDynamic(
   () => import("@/components/studio2/StudioCustomer"),
   // RecordSkeleton, not ScreenSkeleton: this is a record PROFILE, and a
@@ -514,6 +518,7 @@ async function renderStudio(params) {
         // instead. A section that silently renders the wrong screen is how a
         // right ends up exercising nothing (invariant 16).
         : customerId ? <StudioCustomer slug={studio.slug} clientId={customerId} />
+        : screenKey === "tendering" ? <StudioTenders slug={studio.slug} />
         : active?.key === "crm-sales-pipeline" ? <StudioPipeline slug={studio.slug} />
         : active?.key === "crm-sales-contracts" ? <StudioContracts slug={studio.slug} />
         : active?.key === "crm-sales-quotations" ? (

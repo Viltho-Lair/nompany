@@ -19,7 +19,8 @@
       "crm-sales-contracts": true,
       "crm-sales-live": true,
       "crm-sales-settings": true,
-      "tendering": false,
+      "tendering": true,
+      "tendering-register": true,
       "projects": true,
       "projects-list": true,
       "projects-sla": true,
@@ -107,6 +108,16 @@
       {
         "key": "crm-sales-settings",
         "name": "Settings",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "tendering",
+        "name": "Tendering & Estimating",
+        "parentId": null
+      },
+      {
+        "key": "tendering-register",
+        "name": "Tender register",
         "parentId": "<sec_ID>"
       },
       {

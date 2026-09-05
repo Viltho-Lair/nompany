@@ -56,6 +56,7 @@ const areas: Record<Locale, Record<string, string>> = {
     "fieldService.dashboard": "الشاشة الرئيسية",
     "qualityHse.dashboard": "لوحة الجودة",
     "crmSales.pipeline": "مسار الصفقات",
+    "tendering.tenders": "سجلّ المناقصات",
     "crmSales.tickets": "التذاكر",
     "crmSales.clients": "العملاء",
     "crmSales.live": "العرض المباشر",

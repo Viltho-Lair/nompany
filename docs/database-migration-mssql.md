@@ -180,7 +180,11 @@ CREATE TABLE dbo.CollaboratorOverride (   -- overrides.allow / .deny
 
 ### 2.3 Operational collections
 
-Each of the 32 collections becomes a real table. The pattern, using `SalesTicket`:
+Each collection becomes a real table — **41 of them today**, and the authority is
+`COLLECTION_TABLE` in `src/platform/db/migrate/mapping.ts`, not this page. A collection
+missing from that map is a hard build error rather than a silent skip, which is what keeps
+it true; this list is written by hand and has drifted behind it more than once.
+The pattern, using `SalesTicket`:
 
 ```sql
 CREATE TABLE dbo.SalesTicket (
@@ -214,7 +218,8 @@ CREATE INDEX IX_SalesTicket_Status ON dbo.SalesTicket(StudioId, Status) WHERE De
 
 | Module | Tables |
 |---|---|
-| Sales | `SalesTicket`, `SalesClient`, `SalesService`, `GeneratedDocument` |
+| Sales | `SalesTicket`, `SalesClient`, `SalesService`, `GeneratedDocument`, `Contract`, `ChangeOrder` |
+| Tendering | `Tender` |
 | Technical | `Rfq`, `Quotation`, `QuotationLine` *(new — lines are a nested array today)* |
 | Projects | `Project`, `Sla`, `Overtime` |
 | Inventory | `InventoryItem`, `InventoryVendor`, `InventoryStock`, `ProjectSheet`, `SheetRow` *(new)*, `MaterialOrder`, `Delivery`, `AwbShipment`, `AwbAirline` |
@@ -224,6 +229,11 @@ CREATE INDEX IX_SalesTicket_Status ON dbo.SalesTicket(StudioId, Status) WHERE De
 | Tasks | `Task` |
 | Quality | `QualityDocument`, `QualityType`, `QualityRevision`, `QualityAudit`, `QualityAcknowledgement`, `QualityShareLink` |
 | Cross | `Notification`, `JoinRequest`, `Counter`, `AuditLog` *(new — H-11)* |
+
+**Behind the map, as of 05/09/2026:** `Timesheet`, `Inspection`, `Job`, `PaymentRecord`,
+`Account`, `JournalEntry`, `Bill` and `FixedAsset` are in `COLLECTION_TABLE` and are not in
+the rows above. Stated rather than quietly added, because a hand-written list that claims to
+be complete and is not is worse than one that says where it stands.
 
 **Three nested arrays are promoted to child tables** — quotation lines, invoice lines, sheet rows. They are the arrays that grow without bound and that people want to filter and total, and leaving them as JSON would carry the current model's worst property into the new one.
 

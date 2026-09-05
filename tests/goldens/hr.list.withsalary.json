@@ -14,7 +14,8 @@
       "crm-sales-contracts": true,
       "crm-sales-live": true,
       "crm-sales-settings": true,
-      "tendering": false,
+      "tendering": true,
+      "tendering-register": true,
       "projects": true,
       "projects-list": true,
       "projects-sla": true,
@@ -68,7 +69,8 @@
       "crm-sales-contracts": true,
       "crm-sales-live": false,
       "crm-sales-settings": true,
-      "tendering": false,
+      "tendering": true,
+      "tendering-register": true,
       "projects": true,
       "projects-list": true,
       "projects-sla": true,
@@ -195,7 +197,7 @@
         "name": "Manager",
         "description": "Runs a department: full control of its work, sight of the rest.",
         "wildcard": false,
-        "permissionCount": 49,
+        "permissionCount": 53,
         "held": 0
       },
       {
@@ -205,6 +207,14 @@
         "wildcard": false,
         "permissionCount": 13,
         "held": 0
+      },
+      {
+        "id": "<rol_ID>",
+        "name": "role-notender",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 1,
+        "held": 1
       },
       {
         "id": "<rol_ID>",
@@ -308,6 +318,30 @@
         "passportExpiry": "2031-06-30",
         "idNumber": "1098765432",
         "passportNumber": "K01234567"
+      },
+      {
+        "id": "<col_ID>",
+        "alias": "notender",
+        "role": "member",
+        "photo": "",
+        "departmentId": "",
+        "departmentName": "",
+        "roleIds": [
+          "<rol_ID>"
+        ],
+        "roleNames": [
+          "role-notender"
+        ],
+        "employeeCode": "",
+        "dateOfJoin": "",
+        "mobile": "",
+        "certificationIds": [],
+        "hasId": false,
+        "hasPassport": false,
+        "idExpiry": "",
+        "passportExpiry": "",
+        "idNumber": "",
+        "passportNumber": ""
       },
       {
         "id": "<col_ID>",
@@ -543,8 +577,8 @@
         "tasks": 0,
         "tendering": 0
       },
-      "unassigned": 10,
-      "total": 10
+      "unassigned": 11,
+      "total": 11
     },
     "vocabulary": {
       "leaveTypes": [

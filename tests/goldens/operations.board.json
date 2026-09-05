@@ -15,7 +15,8 @@
       "crm-sales-contracts": true,
       "crm-sales-live": true,
       "crm-sales-settings": true,
-      "tendering": false,
+      "tendering": true,
+      "tendering-register": true,
       "projects": true,
       "projects-list": true,
       "projects-sla": true,
@@ -69,7 +70,8 @@
       "crm-sales-contracts": true,
       "crm-sales-live": false,
       "crm-sales-settings": true,
-      "tendering": false,
+      "tendering": true,
+      "tendering-register": true,
       "projects": true,
       "projects-list": true,
       "projects-sla": true,
@@ -176,6 +178,10 @@
       {
         "id": "<col_ID>",
         "alias": "hradmin"
+      },
+      {
+        "id": "<col_ID>",
+        "alias": "notender"
       },
       {
         "id": "<col_ID>",

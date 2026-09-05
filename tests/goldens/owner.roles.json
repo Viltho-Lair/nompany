@@ -32,6 +32,10 @@
           "crmSales.clients.delete",
           "crmSales.live.view",
           "crmSales.pipeline.view",
+          "tendering.tenders.view",
+          "tendering.tenders.create",
+          "tendering.tenders.edit",
+          "tendering.tenders.delete",
           "crmSales.contracts.view",
           "crmSales.contracts.create",
           "crmSales.contracts.edit",
@@ -248,6 +252,17 @@
         "label": "Pipeline",
         "verbs": [
           "view"
+        ]
+      },
+      {
+        "key": "tendering.tenders",
+        "group": "Tendering & Estimating",
+        "label": "Tender register",
+        "verbs": [
+          "view",
+          "create",
+          "edit",
+          "delete"
         ]
       },
       {

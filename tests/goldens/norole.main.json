@@ -20,6 +20,7 @@
       "crm-sales-live": false,
       "crm-sales-settings": false,
       "tendering": false,
+      "tendering-register": false,
       "projects": false,
       "projects-list": false,
       "projects-sla": false,

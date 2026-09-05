@@ -518,10 +518,14 @@ export const SECTION_DEFS = [
     { key: "crm-sales-settings", name: "Settings" },
   ] },
 
-  // NO CHILDREN YET, AND THAT IS DELIBERATE. Tendering's five subsections land
-  // in P4a. A nav row that opens nothing is worse than an absent one, so this
-  // root is declared for ordering and nothing else until then.
-  { key: "tendering", name: "Tendering & Estimating" },
+  // THE FIRST OF TENDERING'S FIVE. The root was declared for ordering alone at
+  // the restructure — "a nav row that opens nothing is worse than an absent
+  // one" — and was hidden by NO_SCREEN_YET until it had one. The register is
+  // that screen; the BOQ grid, bid documents, bid approval and the handover to
+  // Projects follow.
+  { key: "tendering", name: "Tendering & Estimating", children: [
+    { key: "tendering-register", name: "Tender register" },
+  ] },
 
   { key: "projects", name: "Projects", children: [
     { key: "projects-list", name: "Project list" },
@@ -663,10 +667,16 @@ export const SECTION_COLLECTIONS = {
   // ticket is not renamed into CRM & Sales, it already lived there.
   // Contracts live with quotations rather than in a sub-section of their own,
   // because a contract is what a won quotation becomes and the two are read
-  // together. Its stage registry entry answers to the same right for the same
-  // reason — see the note there about not minting a permission area for a
-  // record that has no screen yet.
+  // together — the crm-sales-contracts REGISTER owns no collection, only the
+  // destination. Its stage registry entry used to answer to the quotations
+  // right for the same reason and no longer does: the register gave contracts
+  // `crmSales.contracts.*`, so the entry names that and carries a `screenKey`
+  // pointing at the register, while THIS line still says where the rows live.
   "crm-sales-quotations": ["quotations", "generatedDocuments", "contracts", "changeOrders"],
+  // tendering. The register OWNS its records — unlike crm-sales-contracts,
+  // which is a destination over somebody else's rows — so deleting the section
+  // takes the tenders with it (invariant 11, children first).
+  "tendering-register": ["tenders"],
   // engineering-docs
   "engineering-docs-rfq": ["rfqs"],
   // The controlled-document register and the studio's own document taxonomy,

@@ -276,7 +276,15 @@ console.log("== the permission matrix: one key grants exactly itself");
   // ticket that deal is, so it goes through editTicket and answers to
   // crmSales.tickets.edit. A pipeline.edit would be a second right over one act,
   // free to disagree with the first about who may move a deal.
-  ok("the catalogue is the size we last agreed", ALL_PERMISSIONS.length === 135, String(ALL_PERMISSIONS.length));
+  // 139 with tendering.tenders (view/create/edit/delete). Tendering & Estimating
+  // was declared at the fifteen-section restructure and held NO area at all
+  // until it had a screen — a right nothing can exercise is a bug — so this is
+  // the section's first four. DELETE is real here and is not on tickets or
+  // contracts: a tender entered from a misread notice is a mistake to erase,
+  // where a deal is a thing that happened. There is deliberately no
+  // `tendering.dashboard`: that right is minted by DASHBOARD_MODULES, and
+  // Tendering has no dashboard screen to gate.
+  ok("the catalogue is the size we last agreed", ALL_PERMISSIONS.length === 139, String(ALL_PERMISSIONS.length));
 
   const leaks = [];
   const missing = [];
@@ -2191,6 +2199,116 @@ console.log("== pricing: a line is quoted at what was agreed, not at what it cos
   const afterClear = await priceOf(itemId, clientId);
   ok("...and the item goes back to the list price", afterClear.price === 150 && afterClear.basis === "sell",
     JSON.stringify(afterClear));
+}
+
+// ============================================================================
+console.log("== tendering: a register whose dates are the point");
+// TENDERING & ESTIMATING'S FIRST SCREEN. The section was declared at the
+// fifteen-section restructure and rendered nothing for a fortnight: it sat in
+// NO_SCREEN_YET and held no permission area, because a right nothing can
+// exercise is a bug (invariant 16).
+//
+// The rules asserted here are about SUBMISSION, which is what makes a tender
+// different from a deal: it has a date, it is either bid or not, and it cannot
+// be won unless it was sent. A studio counting wins in contests it never
+// entered is the failure this block exists to prevent.
+{
+  const TENDERS = await import("@/app/api/studios/[slug]/tendering/tenders/route.ts");
+
+  const P = ctx({ slug });
+  const shot = async (name, payload) => {
+    const r = golden(name, payload, EXTRA);
+    if (!r.recorded) ok(`${name} matches its golden`, r.ok, r.detail);
+    return payload;
+  };
+  // Its own, like `shot` above and like every other block's: these helpers are
+  // per-block by construction, and a block that borrows one it did not declare
+  // throws at the line that uses it — after its earlier goldens have already
+  // been written, which is how a crash can look like a pass.
+  const personWith = async (permissions, alias) => {
+    const u = (await createUser({ email: `g-${alias}-${rand()}@test.invalid`, passwordHash: "x" })).user;
+    const role = await createRole(studio.id, { name: `role-${alias}`, permissions });
+    await addCollaborator(studio.id, { userId: u.id, alias, role: "member", roleIds: [role.id] });
+    return u;
+  };
+  await signIn(owner.id);
+
+  const made = await shot("tendering.created", await capture(
+    TENDERS.POST, req(`/api/studios/${slug}/tendering/tenders`, { method: "POST", body: {
+      title: "Airport terminal AV", issuer: "General Authority of Civil Aviation",
+      source: "Etimad portal", issueDate: "2031-01-05", submissionDeadline: "2031-02-20",
+      estimatedValue: 1250000,
+    } }), P));
+  const tenderId = made.body?.tender?.id;
+  ok("the tender was recorded", Boolean(tenderId), JSON.stringify(made.body).slice(0, 140));
+  // NOTICED, NOT BID. A tender born "Submitted" would carry a submission date
+  // that never happened, so the status is automated on create like a ticket's.
+  ok("...as Identified, whatever was asked for", made.body?.tender?.status === "Identified", made.body?.tender?.status);
+  ok("...and numbered from the counter", /^TND-\d{4}$/.test(String(made.body?.tender?.ref || "")), made.body?.tender?.ref);
+
+  // A REGISTER CANNOT DO WITHOUT THE DATE. Everything else about a tender is
+  // learned over time; one with no closing date cannot be chased or sorted.
+  await shot("tendering.refused.nodeadline", await capture(
+    TENDERS.POST, req(`/api/studios/${slug}/tendering/tenders`, { method: "POST", body: {
+      title: "No date", issuer: "Someone",
+    } }), P));
+
+  const move = (body) => capture(TENDERS.PUT, req(`/api/studios/${slug}/tendering/tenders`, { method: "PUT", body }), P);
+
+  // THE RULE THE SECTION EXISTS FOR.
+  await shot("tendering.refused.notsubmitted", await move({ id: tenderId, status: "Won" }));
+  await shot("tendering.refused.noreason", await move({ id: tenderId, status: "No Bid" }));
+
+  const preparing = await move({ id: tenderId, status: "Preparing" });
+  ok("a tender can be taken up", preparing.body?.tender?.status === "Preparing", preparing.body?.tender?.status);
+  ok("...without stamping a submission", !preparing.body?.tender?.submittedAt);
+
+  const sent = await shot("tendering.submitted", await move({ id: tenderId, status: "Submitted" }));
+  // STAMPED BY THE MOVE, never typed — so the date and the status cannot
+  // disagree the way a hand-set pair does.
+  ok("submitting stamps when the bid went in", Boolean(sent.body?.tender?.submittedAt));
+  // AND ONCE IT HAS GONE IN, declining is no longer available: the honest exit
+  // is Withdrawn, which says something different to whoever reads it later.
+  await shot("tendering.refused.nobidafterbid", await move({ id: tenderId, status: "No Bid", decisionReason: "changed our mind" }));
+
+  const lost = await shot("tendering.lost", await move({
+    id: tenderId, status: "Lost", decisionReason: "Undercut by 12%",
+  }));
+  ok("a decided tender records when", Boolean(lost.body?.tender?.decidedAt));
+  ok("...and why", lost.body?.tender?.decisionReason === "Undercut by 12%", lost.body?.tender?.decisionReason);
+  await shot("tendering.refused.reopen", await move({ id: tenderId, status: "Preparing" }));
+
+  // DELETE IS FOR A MISTAKE, NOT A DECISION. Once the bid has gone in the
+  // tender is a record of something the studio did.
+  await shot("tendering.refused.deletesubmitted", await capture(
+    TENDERS.DELETE, req(`/api/studios/${slug}/tendering/tenders`, { method: "DELETE", body: { id: tenderId } }), P));
+
+  // ...but one entered by mistake goes.
+  const typo = await capture(TENDERS.POST, req(`/api/studios/${slug}/tendering/tenders`, { method: "POST", body: {
+    title: "Duplicate notice", issuer: "Misread", submissionDeadline: "2031-03-01",
+  } }), P);
+  const gone = await capture(TENDERS.DELETE, req(`/api/studios/${slug}/tendering/tenders`, { method: "DELETE", body: { id: typo.body?.tender?.id } }), P);
+  ok("a tender entered by mistake can be removed", gone.status === 200, JSON.stringify(gone.body));
+
+  const list = await capture(TENDERS.GET, req(`/api/studios/${slug}/tendering/tenders`), P);
+  // ASSERTED BEFORE THE GOLDEN IS TAKEN. `golden` normalises timestamps to
+  // stable placeholders — that is what makes a recorded response comparable at
+  // all — so reading `asOf` as a number afterwards gets the placeholder, not the
+  // clock. The register is measured from this value, so it is worth an
+  // assertion of its own rather than only a pinned shape.
+  ok("the register carries the clock it was measured at",
+    Number.isFinite(Date.parse(String(list.body?.asOf))), String(list.body?.asOf));
+  await shot("tendering.list", list);
+  ok("the register comes back", (list.body?.tenders || []).length === 1, String((list.body?.tenders || []).length));
+
+  // A READER WITH NO TENDERING RIGHT IS REFUSED OUTRIGHT, not shown an empty
+  // register — an empty list would say "this studio bids nothing", which is a
+  // different and false claim.
+  const outsiderToTenders = await personWith(["crmSales.tickets.view"], "notender");
+  await signIn(outsiderToTenders.id);
+  await shot("tendering.refused.forbidden", await capture(
+    TENDERS.GET, req(`/api/studios/${slug}/tendering/tenders`), P));
+  await signIn(owner.id);
 }
 
 // ============================================================================

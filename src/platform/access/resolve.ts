@@ -81,6 +81,8 @@ export const SECTION_AREAS: Readonly<Record<string, readonly string[]>> = {
   "crm-sales-clients": ["crmSales.clients"],
   "crm-sales-live": ["crmSales.live"],
   "crm-sales-pipeline": ["crmSales.pipeline"],
+  "tendering": ["tendering.tenders"],
+  "tendering-register": ["tendering.tenders"],
   "crm-sales-settings": ["crmSales.settings"],
   "engineering-docs-rfq": ["engineeringDocs.rfq"],
   // QUOTATIONS GAINED BY CRM & SALES — the offer is a sales act (blueprint
@@ -342,7 +344,7 @@ const anyKey = (access: PermissionSet, sectionKey: string, suffixes: readonly st
 // because it still has no screen — the locations screen that could fill it
 // moves in its own change.
 export const NO_SCREEN_YET = [
-  "tendering", "manufacturing", "assets", "reports",
+  "manufacturing", "assets", "reports",
   // QUALITY & HSE JOINS THE PLACEHOLDERS, and it is the one that reads oddly,
   // because it is not new — it is what is LEFT of Quality once the controlled
   // document register moved to Engineering & Documents, where the blueprint

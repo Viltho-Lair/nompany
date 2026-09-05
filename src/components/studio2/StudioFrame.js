@@ -76,6 +76,7 @@ const SECTION_ICONS = {
   engagements: "link",
   // Sales sub-sections carry their own icons rather than falling back to the
   // neutral dot, so the group reads as three destinations instead of a list.
+  "tendering-register": "rfp",
   "crm-sales-pipeline": "kanban",
   "crm-sales-tickets": "ticket",
   "crm-sales-clients": "group",

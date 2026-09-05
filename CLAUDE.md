@@ -10,8 +10,8 @@ Inventory & Warehouse, Manufacturing & Production, Field Operations & Service, L
 Fleet, Assets & Equipment, Quality & HSE, Human Resources, Finance & Accounting, Reports &
 BI, Administration & Settings.
 
-Five of those are declared and **render nothing yet** — Tendering, Manufacturing, Assets,
-Reports and Quality & HSE. They are listed in `NO_SCREEN_YET` (`platform/access/resolve.ts`)
+Four of those are declared and **render nothing yet** — Manufacturing, Assets,
+Reports and Quality & HSE. (Tendering was the fifth until its register landed.) They are listed in `NO_SCREEN_YET` (`platform/access/resolve.ts`)
 and are hidden from the sidebar rather than shown empty, and they hold no permission areas:
 a right nothing can exercise is a bug (invariant 16). Adding a screen means removing its
 entry there, and a test refuses any section that has neither a right nor a declaration.
@@ -503,7 +503,7 @@ waits for the gateway.
 **Waves 0–1 are complete; Gate A is green.** Wave 0 shipped (orphan-sweep guard,
 credential rate limiting, console session expiry, traffic-ingest bounds, media tenancy,
 security headers, bcrypt 12 with rehash-on-login, M-1 dead capabilities). Gate A shipped:
-171 golden responses over every surface, the 135-key permission matrix, hop counting, six
+181 golden responses over every surface, the 139-key permission matrix, hop counting, six
 architectural assertions, **per-route permission enforcement in every module**, **ESLint**
 (flat config + shrink-only warning budget, 142 today), **observability** (request ids, per-request hop
 counts), and CI enforcing all of it.
@@ -514,7 +514,7 @@ the catalogue assertion in `tests/gate-a.mjs`), because a pass condition quoted 
 a pass condition nobody can check.
 
 **Wave 2 (seams + performance) is mostly done; Gate B is 2 of 3.** Zero direct `readCol` in
-service code ✅, goldens unchanged by the seam work ✅ (171 today), hops ≤2 for the studio route and 3 for sales
+service code ✅, goldens unchanged by the seam work ✅ (181 today), hops ≤2 for the studio route and 3 for sales
 (the structural floor). Done: Seam A (route wrapper, all 96 routes), Seam B (repository
 interface + the `readCol` migration across all 13 modules), Seam C (one context factory,
 killed hop 7), request-scoped cache + batched prefetch (8→2 hops), targeted live updates,
@@ -701,6 +701,45 @@ back one deal at a time, which cannot tell a studio it loses on price) and stall
 declared** — so `Item` did not have them and every reader wrote its own inline shape to reach
 them. The same class of bug as `closedAt`/`lostReason`, from the other end: written but
 undeclared rather than declared but unwritten.
+
+**P4a's second section is open: Tendering & Estimating.** The root was declared at the
+restructure and rendered nothing for a fortnight — it sat in `NO_SCREEN_YET` and held no
+permission area, because a right nothing can exercise is a bug. **Slice 1, the tender register,
+is on `main`:** a `tendering-register` sub-section owning a new `tenders` collection,
+`tendering.tenders` view/create/edit/delete (catalogue 135 → 139), and a screen sorted by
+DEADLINE rather than by entry date. `docs/functionality/tendering.md` is the file.
+
+A tender is **not a deal**: most end in a decision not to bid or in somebody else winning, and
+recording only the winners is how a studio loses the ability to say what it keeps losing. The
+ladder is its own (`modules/tendering/stages.ts`) rather than a reuse of the pipeline's, which
+is what the program design asks for — P4a is hand-built "so P4b's abstraction is extracted from
+real screens". **A tender cannot be won or lost unless it was submitted**, a submitted one
+cannot become a No Bid (the honest exit is Withdrawn), and delete is refused once the bid has
+gone in. The list carries `asOf` and the screen never reads its own clock.
+
+**THE ROLLOUT CONSEQUENCE, because it is live behaviour and the order matters:** run
+`scripts/migrate/plant-sections.mjs` **before** anybody uses the register on an existing
+studio, not after. A sub-section FALLS BACK TO THE ROOT when absent — which is what makes every
+module context safe — so the register works before its section is planted and writes tenders
+under the `tendering` root. Planting afterwards moves `registerSection` to the child and leaves
+those rows under the parent, where nothing reads them: not deleted, not corrupted, invisible.
+Seen in the sandbox — three tenders created before planting, zero visible after, and their
+references NOT reissued (TND-0004 followed TND-0003), which is invariant 10 preventing the one
+thing that would have made it worse.
+
+**Four of the five subsections do not exist**: the BOQ grid with its rate library, bid documents
+and clarifications, bid review on P2's engine, and the handover to Projects. A won tender does
+not become anything yet.
+
+**Three guards caught real mistakes in this slice, each named in the file that caught it.**
+`next build` refused until `tenders` was in `COLLECTION_TABLE` (`platform/db/migrate/mapping.ts`)
+— the same guard that once caught `contracts`. The permission matrix refused a
+`tendering.dashboard` nothing enforces: `DASHBOARD_MODULES` is the list of modules that HAVE a
+dashboard, not a list of group labels, and an area carries its own `group` string. And ESLint's
+`no-undef` found a per-block Gate A helper (`personWith`) my block had borrowed without
+declaring — it had thrown AFTER writing its earlier goldens, so **the run read as "0 failures"
+while having crashed**. Exit code and "gate A: all passed" are the signals; a FAIL count alone
+is not.
 
 **Open decisions (waiting on a person):** the Wave 4 palette (marketing dark-first
 indigo/Sora vs the ERP's light-first blue/Saira); and whether to denormalise the slug index

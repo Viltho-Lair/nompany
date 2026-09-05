@@ -33,6 +33,10 @@ const ar: StatusMap = {
     Paid: "مدفوعة", Cancelled: "ملغاة", Disputed: "معترض عليها",
   },
   asset: { service: "قيد الخدمة", disposed: "مستبعد" },
+  tenderStage: {
+    Identified: "مرصودة", Preparing: "قيد الإعداد", Submitted: "مُقدّمة",
+    Won: "مربوحة", Lost: "خاسرة", "No Bid": "لم نتقدّم", Withdrawn: "مسحوبة",
+  },
   ticketStage: {
     Lead: "مبدئي", Opportunity: "فرصة", Commit: "التزام",
     "Closed Won": "أُغلق بالفوز", "Closed Lost": "أُغلق بالخسارة",

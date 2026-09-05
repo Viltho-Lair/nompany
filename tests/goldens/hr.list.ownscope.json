@@ -15,6 +15,7 @@
       "crm-sales-live": false,
       "crm-sales-settings": false,
       "tendering": false,
+      "tendering-register": false,
       "projects": false,
       "projects-list": false,
       "projects-sla": false,
@@ -69,6 +70,7 @@
       "crm-sales-live": false,
       "crm-sales-settings": false,
       "tendering": false,
+      "tendering-register": false,
       "projects": false,
       "projects-list": false,
       "projects-sla": false,
@@ -195,7 +197,7 @@
         "name": "Manager",
         "description": "Runs a department: full control of its work, sight of the rest.",
         "wildcard": false,
-        "permissionCount": 49,
+        "permissionCount": 53,
         "held": 0
       },
       {
@@ -217,6 +219,14 @@
       {
         "id": "<rol_ID>",
         "name": "role-hrown",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 1,
+        "held": 1
+      },
+      {
+        "id": "<rol_ID>",
+        "name": "role-notender",
         "description": "",
         "wildcard": false,
         "permissionCount": 1,

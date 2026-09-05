@@ -97,6 +97,11 @@ export const STARTER_ROLES = [
       ...level("hr.dashboard", "view"), ...level("finance.dashboard", "view"),
       ...level("crmSales.tickets", "full"), ...level("crmSales.clients", "full"), ...level("crmSales.live", "view"),
       ...level("crmSales.pipeline", "view"),
+      // A manager runs a department, and bidding is department work. Seeded now
+      // rather than left — the contracts register shipped without a starter role
+      // able to open it, and a section whose own Manager is refused is the same
+      // bug from the other end.
+      ...level("tendering.tenders", "full"),
       // THE REGISTER SHIPPED WITHOUT THIS. crm-sales-contracts landed as a
       // section and a screen and no starter role named it, so a new studio got
       // a Contracts entry its own Manager could not open. `approve` is listed

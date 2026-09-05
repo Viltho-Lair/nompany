@@ -87,6 +87,10 @@ export const COLLECTION_TABLE: Readonly<Record<string, string>> = {
   // import throw, which is the guard doing exactly its job.
   contracts: "Contract",
   changeOrders: "ChangeOrder",
+  // Tendering's register. The guard caught this one too, exactly as it caught
+  // contracts and changeOrders: the collection reached SECTION_COLLECTIONS and
+  // `next build` refused to collect the export route until it was named here.
+  tenders: "Tender",
   timesheets: "Timesheet",
   inspections: "Inspection",
   jobs: "Job",
