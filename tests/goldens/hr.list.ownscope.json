@@ -199,7 +199,7 @@
         "name": "Manager",
         "description": "Runs a department: full control of its work, sight of the rest.",
         "wildcard": false,
-        "permissionCount": 57,
+        "permissionCount": 58,
         "held": 0
       },
       {
@@ -209,6 +209,30 @@
         "wildcard": false,
         "permissionCount": 13,
         "held": 0
+      },
+      {
+        "id": "<rol_ID>",
+        "name": "role-bidpricer",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 2,
+        "held": 1
+      },
+      {
+        "id": "<rol_ID>",
+        "name": "role-bidstep1",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 2,
+        "held": 1
+      },
+      {
+        "id": "<rol_ID>",
+        "name": "role-bidstep2",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 2,
+        "held": 1
       },
       {
         "id": "<rol_ID>",

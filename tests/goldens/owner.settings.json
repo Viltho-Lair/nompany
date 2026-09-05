@@ -19,7 +19,39 @@
       "serviceActions": [],
       "fieldOfWork": "",
       "fieldOfWorkOther": "",
-      "retiredServiceActions": []
+      "retiredServiceActions": [],
+      "approvalChains": {
+        "bill": {
+          "type": "bill",
+          "steps": [
+            {
+              "permission": "finance.payables.approve",
+              "from": 0,
+              "label": "Finance"
+            },
+            {
+              "permission": "finance.payables.approveHigh",
+              "from": 50000,
+              "label": "Above the limit"
+            }
+          ]
+        },
+        "tender": {
+          "type": "tender",
+          "steps": [
+            {
+              "permission": "tendering.tenders.approve",
+              "from": 0,
+              "label": "Estimating"
+            },
+            {
+              "permission": "tendering.tenders.approveHigh",
+              "from": 500000,
+              "label": "Above the limit"
+            }
+          ]
+        }
+      }
     },
     "fx": {
       "base": "",

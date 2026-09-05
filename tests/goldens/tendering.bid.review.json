@@ -1,0 +1,82 @@
+{
+  "status": 200,
+  "body": {
+    "ok": true,
+    "tender": {
+      "id": "<ten_ID>",
+      "ref": "TND-0003",
+      "title": "Clinic fit-out",
+      "issuer": "A hospital",
+      "clientId": "",
+      "source": "",
+      "issueDate": "",
+      "submissionDeadline": "2031-08-01",
+      "estimatedValue": 999999,
+      "currency": "SAR",
+      "status": "Identified",
+      "notes": "",
+      "assignedToCollaboratorId": "",
+      "createdByCollaboratorId": "<col_ID>",
+      "createdAt": "<timestamp>",
+      "updatedAt": "<timestamp>",
+      "studioId": "<std_ID>",
+      "sectionId": "<sub_ID>"
+    },
+    "lines": [
+      {
+        "id": "<boq_ID>",
+        "tenderId": "<ten_ID>",
+        "group": "",
+        "code": "",
+        "description": "Partitions",
+        "unit": "m2",
+        "qty": 40,
+        "rate": 75,
+        "rateId": "",
+        "notes": "",
+        "sortOrder": 0,
+        "createdAt": "<timestamp>",
+        "updatedAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>"
+      }
+    ],
+    "totals": {
+      "lines": 1,
+      "priced": 1,
+      "unpriced": 0,
+      "total": 3000,
+      "complete": true
+    },
+    "rates": [],
+    "review": {
+      "value": {
+        "amount": 3000,
+        "basis": "boq",
+        "complete": true,
+        "lines": 1
+      },
+      "plan": {
+        "ok": true,
+        "steps": [
+          {
+            "permission": "tendering.tenders.approve",
+            "from": 0,
+            "label": "Estimating"
+          }
+        ],
+        "amountInBase": 3000,
+        "rate": null,
+        "updatedAt": 0,
+        "stale": false
+      },
+      "blocked": null,
+      "signed": 0,
+      "required": 1,
+      "approved": false,
+      "next": null,
+      "mine": true
+    },
+    "canEdit": true
+  }
+}

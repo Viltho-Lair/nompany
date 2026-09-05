@@ -36,6 +36,7 @@
           "tendering.tenders.create",
           "tendering.tenders.edit",
           "tendering.tenders.delete",
+          "tendering.tenders.approve",
           "tendering.rates.view",
           "tendering.rates.create",
           "tendering.rates.edit",
@@ -267,6 +268,16 @@
           "create",
           "edit",
           "delete"
+        ],
+        "extra": [
+          {
+            "key": "approve",
+            "label": "Approve a bid"
+          },
+          {
+            "key": "approveHigh",
+            "label": "Approve a bid above the limit"
+          }
         ]
       },
       {

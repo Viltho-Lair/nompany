@@ -101,7 +101,13 @@ export const STARTER_ROLES = [
       // rather than left — the contracts register shipped without a starter role
       // able to open it, and a section whose own Manager is refused is the same
       // bug from the other end.
-      ...level("tendering.tenders", "full"), ...level("tendering.rates", "full"),
+      // `approve` spelled out for the reason the contracts line below states:
+      // keysForLevel walks an area's VERBS and signing a bid is an extra. NOT
+      // `approveHigh` — the second step exists precisely to reach past whoever
+      // runs the department, and seeding both here would make the two-step
+      // chain a one-step chain on every new studio.
+      ...level("tendering.tenders", "full"), "tendering.tenders.approve",
+      ...level("tendering.rates", "full"),
       // THE REGISTER SHIPPED WITHOUT THIS. crm-sales-contracts landed as a
       // section and a screen and no starter role named it, so a new studio got
       // a Contracts entry its own Manager could not open. `approve` is listed

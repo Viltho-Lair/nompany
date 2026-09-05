@@ -16,6 +16,7 @@
 // it is recomputed on every read.
 
 import { requirePermission, ALL_PERMISSIONS } from "@/platform/access";
+import { approvalChainsFor } from "@/platform/approval/store";
 import { SEEDED_CHAINS, chainProblems } from "@/platform/approval/chains";
 import type { ApprovalChain } from "@/platform/approval/chains";
 import { repo } from "@/platform/db/repo";
@@ -67,9 +68,11 @@ export const financeContext = moduleContext<FinanceContext>({
   // own story, and a studio without those sections simply has no margin column.
   foreign: { projectsList: ["projects-list", "projects"], sheets: ["inventory-sheets", "inventory"] },
   flags: ["cash", "ledger", "payables", "assets", "settings"],
-  extend: ({ settingsSection }) => ({
+  extend: ({ settingsSection, studio }) => ({
     cashCategories: readCashCategories(settingsSection as { settings?: Record<string, unknown> }),
-    approvalChains: readApprovalChains(settingsSection as { settings?: Record<string, unknown> }),
+    // The studio's own chains layered over what Finance stored before the
+    // store moved — see readApprovalChains.
+    approvalChains: readApprovalChains(settingsSection as { settings?: Record<string, unknown> }, studio),
   }),
 });
 
@@ -91,33 +94,28 @@ export function readCashCategories(settingsSection: { settings?: Record<string, 
 }
 
 /**
- * THE APPROVAL CHAINS THIS STUDIO USES — the seeds, as it has edited them.
+ * THE APPROVAL CHAINS THIS STUDIO USES — now read from the STUDIO, not from
+ * here.
  *
- * STORED AS OVERRIDES, NEVER AS A FULL COPY, which is flows.ts's rule and is
- * here for the same two reasons: a later correction to a built-in still reaches
- * every studio that never touched it, and a studio's stored data is exactly
- * what it changed rather than a snapshot of everything that existed the day it
- * first opened the screen.
+ * THE MOVE POINT ARRIVED, exactly as this comment used to predict it would: a
+ * chain governing a record outside Finance does not belong in Finance's
+ * settings, and Tendering's bid review is that record. The store is
+ * `platform/approval/store`, on the studio beside its currency; this function
+ * is now the COMPATIBILITY READ for what a studio configured before the move.
  *
- * KEYED BY DOCUMENT TYPE from the first commit, so a second type is a key
- * rather than a rewrite. IT LIVES IN FINANCE'S SETTINGS because bills are the
- * only type there is — THE MOVE POINT is a chain governing a record outside
- * Finance, and that is the commit where this becomes a store of its own rather
- * than a blob hanging off one section.
+ * It stays rather than being migrated because a manual backfill gets forgotten
+ * — `administration-access` shipped and was still missing from two of three
+ * live studios two days later with nothing complaining. `approvalChainsFor`
+ * layers the studio's own OVER this, so the first edit in Studio settings
+ * becomes the answer and stays it.
  */
 export function readApprovalChains(
   settingsSection: { settings?: Record<string, unknown> } | null | undefined,
+  // An index-signature bag, not a declared optional field — see store.ts.
+  studio?: { readonly [key: string]: unknown } | null,
 ): Record<string, ApprovalChain> {
   const raw = settingsSection?.settings?.approvalChains;
-  const overrides = (raw && typeof raw === "object" ? raw : {}) as Record<string, ApprovalChain>;
-  const out: Record<string, ApprovalChain> = { ...SEEDED_CHAINS };
-  for (const [type, chain] of Object.entries(overrides)) {
-    // A stored chain with no steps is not an override, it is a broken row —
-    // and honouring it would leave the studio approving nothing, which is the
-    // exact hole chainProblems refuses on write. The seed stands instead.
-    if (chain?.steps?.length) out[type] = chain;
-  }
-  return out;
+  return approvalChainsFor(studio, (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>);
 }
 
 export async function saveFinanceSettings(ctx: FinanceContext, body: Record<string, unknown>) {

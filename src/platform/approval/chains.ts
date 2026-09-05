@@ -48,6 +48,21 @@ export const SEEDED_CHAINS: Record<string, ApprovalChain> = {
       { permission: "finance.payables.approveHigh", from: 50000, label: "Above the limit" },
     ],
   },
+  // THE SECOND TYPE, AND THE ONE THAT MOVED THE STORE (see ./store).
+  //
+  // A BID IS THE OPPOSITE END OF A BILL and takes the same shape for a
+  // different reason. A bill asks "we owe this, may I pay it"; a bid asks "may
+  // we promise to do this work for this money" — and the second is the one a
+  // studio cannot take back. The first step is always-on because somebody other
+  // than the estimator should read every bid; 500000 is only where the second
+  // starts, and it is the studio's dial like Finance's 50000.
+  tender: {
+    type: "tender",
+    steps: [
+      { permission: "tendering.tenders.approve", from: 0, label: "Estimating" },
+      { permission: "tendering.tenders.approveHigh", from: 500000, label: "Above the limit" },
+    ],
+  },
 };
 
 /**

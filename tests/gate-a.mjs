@@ -291,7 +291,15 @@ console.log("== the permission matrix: one key grants exactly itself");
   // studio's reference data rather than any tender's — "may price a bid" and
   // "may change what the company charges" are different powers, which is when
   // an area is worth minting.
-  ok("the catalogue is the size we last agreed", ALL_PERMISSIONS.length === 143, String(ALL_PERMISSIONS.length));
+  // 145 with tendering.tenders.approve and .approveHigh \u2014 EXTRAS on the
+  // register rather than an area of their own, which is the bill of quantities'
+  // argument again: signing a bid is an act ON a tender. What makes them
+  // separate RIGHTS is that "may price a bid" and "may commit the company to
+  // it" are different powers \u2014 the test tendering.rates passed and the bill
+  // failed. They are the second document type P2's approval engine governs, and
+  // the chain naming them is seeded and lives on the STUDIO now
+  // (platform/approval/store) rather than in Finance's settings.
+  ok("the catalogue is the size we last agreed", ALL_PERMISSIONS.length === 145, String(ALL_PERMISSIONS.length));
 
   const leaks = [];
   const missing = [];
@@ -2270,6 +2278,76 @@ console.log("== tendering: a register whose dates are the point");
   ok("a tender can be taken up", preparing.body?.tender?.status === "Preparing", preparing.body?.tender?.status);
   ok("...without stamping a submission", !preparing.body?.tender?.submittedAt);
 
+  // A BID NEEDS A SIGNATURE BEFORE IT GOES OUT, and this block predates that
+  // rule \u2014 the move below used to succeed on `tendering.tenders.edit` alone.
+  // It is fixed here rather than worked around because the new sequence IS what
+  // a studio now does: somebody other than the raiser signs, then it is sent.
+  await shot("tendering.refused.unapproved", await move({ id: tenderId, status: "Submitted" }));
+
+  // The owner raised this tender and therefore cannot sign it (invariant 7),
+  // so every signature below comes from somebody else holding the step's
+  // right. 1,250,000 is over the seeded second threshold, so this bid needs
+  // BOTH steps, which is what makes the partial state further down worth
+  // asserting.
+  const bidSigner = await personWith(
+    ["tendering.tenders.view", "tendering.tenders.approve"], "bidstep1");
+  const bidSignerHigh = await personWith(
+    ["tendering.tenders.view", "tendering.tenders.approveHigh"], "bidstep2");
+
+  // THE ONE THING THAT WILL SURPRISE EVERY EXISTING STUDIO, pinned before it is
+  // fixed. `createStudio` has never set a currency, and an amount cannot be
+  // judged against an approval limit without one — so a bid cannot be signed
+  // off until somebody sets it in Studio settings, exactly as a bill cannot.
+  // The refusal NAMES the fix, because a refusal nobody can act on is an outage.
+
+  // ASKED AS THE REVIEWER, NOT AS THE OWNER, and that ordering is the point:
+  // approveBid checks identity BEFORE it resolves a plan, so the owner would
+  // be refused as the raiser and this golden would quietly pin `same-signer`
+  // while claiming to be about currency.
+  await signIn(bidSigner.id);
+  await shot("tendering.bid.nocurrency", await move({ id: tenderId, approve: true }));
+  // SET, USED, AND PUT BACK at the end of this section — the same discipline
+  // the finance block states for the same reason: other goldens echo
+  // `currency`, so leaving it set would move bodies this block has no business
+  // touching.
+  await updateStudio(studio.id, { currency: "SAR" });
+
+  // AND NOW THE RAISER, with the currency set, is refused for the OTHER
+  // reason -- identity, which no setting can fix.
+  await signIn(owner.id);
+  await shot("tendering.bid.ownbid", await move({ id: tenderId, approve: true }));
+
+  await signIn(bidSigner.id);
+  const firstStep = await shot("tendering.bid.step1", await move({ id: tenderId, approve: true }));
+  ok("one signature is not the whole chain above the limit",
+    firstStep.body?.approved === false && firstStep.body?.required === 2,
+    JSON.stringify({ signed: firstStep.body?.signed, required: firstStep.body?.required }));
+
+  // INVARIANT 7, SECOND HALF, AND IT IS A DIFFERENT RULE FROM THE FIRST: this
+  // person holds only step one's right, but even holding both they could not
+  // clear step two \u2014 a second step the first signer can sign is not a second
+  // step. Holding both rights stays legitimate; using both on one record does
+  // not.
+  await signIn(owner.id);
+  await shot("tendering.bid.stillunapproved", await move({ id: tenderId, status: "Submitted" }));
+
+  await signIn(bidSignerHigh.id);
+  const secondStep = await move({ id: tenderId, approve: true });
+  ok("the second signature completes the chain", secondStep.body?.approved === true,
+    JSON.stringify({ signed: secondStep.body?.signed, required: secondStep.body?.required }));
+  ok("...and both signatures are on the record",
+    (secondStep.body?.tender?.approvals || []).length === 2);
+  ok("...each naming the step it cleared",
+    (secondStep.body?.tender?.approvals || []).map((a) => a.permission).join() ===
+      "tendering.tenders.approve,tendering.tenders.approveHigh",
+    (secondStep.body?.tender?.approvals || []).map((a) => a.permission).join());
+  // NO STATUS WAS WRITTEN BY EITHER SIGNATURE. A signed bid is still Preparing
+  // until somebody submits it \u2014 approval is a precondition of that move, not
+  // a stage \u2014 so TENDER_STAGES gained no value.
+  ok("signing does not move the tender's stage", secondStep.body?.tender?.status === "Preparing",
+    secondStep.body?.tender?.status);
+  await signIn(owner.id);
+
   const sent = await shot("tendering.submitted", await move({ id: tenderId, status: "Submitted" }));
   // STAMPED BY THE MOVE, never typed — so the date and the status cannot
   // disagree the way a hand-set pair does.
@@ -2513,6 +2591,122 @@ console.log("== tendering: a register whose dates are the point");
     method: "DELETE", body: { id: loose.body?.document?.id },
   }), P);
   ok("a document in no chain may be deleted", looseGone.status === 200, String(looseGone.status));
+
+
+  // ---- the bid review, on the bill it is actually signing -----------------
+  //
+  // A FRESH TENDER, because TND-0001 above is Lost by now and a decided tender
+  // is history. This one is valued from a BILL rather than a typed estimate,
+  // which is the case the register block cannot show.
+  const priceable = await capture(TENDERS.POST, req(`/api/studios/${slug}/tendering/tenders`, {
+    method: "POST", body: { title: "Clinic fit-out", issuer: "A hospital", submissionDeadline: "2031-08-01", estimatedValue: 999999 },
+  }), P);
+  const bidTenderId = priceable.body?.tender?.id;
+  await capture(BOQ.POST, req(`/api/studios/${slug}/tendering/boq`, { method: "POST", body: {
+    tenderId: bidTenderId, description: "Partitions", unit: "m2", qty: 40, rate: 75,
+  } }), P);
+
+  const bidBill = await capture(BOQ.GET, req(`/api/studios/${slug}/tendering/boq?tenderId=${bidTenderId}`), P);
+  await shot("tendering.bid.review", bidBill);
+  // THE BILL WINS OVER THE TYPED ESTIMATE. `valueFromBoq` has been written,
+  // tested and called by NOTHING since the BOQ slice; this is where the two
+  // numbers for one tender stop being two numbers. 3000, not 999999.
+  ok("the bid is valued from the BILL, not the typed estimate",
+    bidBill.body?.review?.value?.basis === "boq" && bidBill.body?.review?.value?.amount === 3000,
+    JSON.stringify(bidBill.body?.review?.value));
+  // AND 3000 IS UNDER THE SECOND THRESHOLD, so the same chain asks for one
+  // signature here and two above. That is the whole point of a threshold over
+  // a single approve right.
+  ok("...and the chain asks for one step at this value", bidBill.body?.review?.required === 1,
+    String(bidBill.body?.review?.required));
+  ok("the raiser is told why there is no button",
+    bidBill.body?.review?.next === null && bidBill.body?.review?.mine === true);
+
+  // Not shot: `tendering.bid.ownbid` above already pins this refusal, and one
+  // golden per refusal is the rule -- a second body for the same answer is a
+  // second thing to keep in step.
+  const raiserRefused = await capture(
+    TENDERS.PUT, req(`/api/studios/${slug}/tendering/tenders`, { method: "PUT", body: {
+      id: bidTenderId, approve: true,
+    } }), P);
+  ok("the raiser is refused on identity alone, whatever else they hold",
+    raiserRefused.body?.error === "same-signer", JSON.stringify(raiserRefused.body));
+
+  // SIGNING A BID IS NOT EDITING ONE, which is the separation the whole feature
+  // exists for: `tendering.tenders.edit` is the right that types every rate
+  // into the bill, and it does not carry the signature.
+  const pricer = await personWith(["tendering.tenders.view", "tendering.tenders.edit"], "bidpricer");
+  await signIn(pricer.id);
+  await shot("tendering.bid.pricercannotsign", await capture(
+    TENDERS.PUT, req(`/api/studios/${slug}/tendering/tenders`, { method: "PUT", body: {
+      id: bidTenderId, approve: true,
+    } }), P));
+
+  await signIn(bidSigner.id);
+  const offered = await capture(BOQ.GET, req(`/api/studios/${slug}/tendering/boq?tenderId=${bidTenderId}`), P);
+  ok("a reviewer IS offered the step they can clear",
+    offered.body?.review?.next?.permission === "tendering.tenders.approve",
+    JSON.stringify(offered.body?.review?.next));
+  const signedBid = await capture(TENDERS.PUT, req(`/api/studios/${slug}/tendering/tenders`, {
+    method: "PUT", body: { id: bidTenderId, approve: true },
+  }), P);
+  ok("one step is the whole chain at this value", signedBid.body?.approved === true);
+  // THE PLAN IS FROZEN ONTO THE RECORD, so the steps and rate that routed this
+  // bid are a recorded fact about it rather than something re-derived later and
+  // possibly differently.
+  ok("the plan that routed it was stored with it",
+    (signedBid.body?.tender?.approvalPlan?.steps || []).length === 1);
+  // Signing again is refused for a DIFFERENT reason from the raiser's refusal.
+  await shot("tendering.bid.twice", await capture(
+    TENDERS.PUT, req(`/api/studios/${slug}/tendering/tenders`, { method: "PUT", body: {
+      id: bidTenderId, approve: true,
+    } }), P));
+  await signIn(owner.id);
+
+  // A PART-PRICED BILL CANNOT BE SIGNED OFF \u2014 the rule that joins this slice
+  // to the BOQ's. A bill with an unpriced line has a total; it is NOT the bid,
+  // and a signature against it authorises a figure that is going to change.
+  const halfTender = await capture(TENDERS.POST, req(`/api/studios/${slug}/tendering/tenders`, {
+    method: "POST", body: { title: "Half-priced", issuer: "Somebody", submissionDeadline: "2031-06-01" },
+  }), P);
+  const halfId = halfTender.body?.tender?.id;
+  await capture(BOQ.POST, req(`/api/studios/${slug}/tendering/boq`, { method: "POST", body: {
+    tenderId: halfId, description: "Priced", qty: 1, rate: 100,
+  } }), P);
+  await capture(BOQ.POST, req(`/api/studios/${slug}/tendering/boq`, { method: "POST", body: {
+    tenderId: halfId, description: "Not priced yet", qty: 1,
+  } }), P);
+
+  const halfBill = await capture(BOQ.GET, req(`/api/studios/${slug}/tendering/boq?tenderId=${halfId}`), P);
+  ok("a part-priced bill blocks its own review",
+    halfBill.body?.review?.blocked === "bill-incomplete", JSON.stringify(halfBill.body?.review?.blocked));
+  ok("...and offers nobody a button", halfBill.body?.review?.next === null);
+
+  await signIn(bidSigner.id);
+  await shot("tendering.bid.incomplete", await capture(
+    TENDERS.PUT, req(`/api/studios/${slug}/tendering/tenders`, { method: "PUT", body: {
+      id: halfId, approve: true,
+    } }), P));
+  await signIn(owner.id);
+
+  // A TENDER WITH NO BILL AT ALL is valued from the typed estimate, because
+  // plenty of tenders are priced outside this product and refusing those would
+  // make the feature unusable for the studios that do.
+  const guessed = await capture(TENDERS.POST, req(`/api/studios/${slug}/tendering/tenders`, {
+    method: "POST", body: { title: "No bill", issuer: "Somebody", submissionDeadline: "2031-07-01", estimatedValue: 1200 },
+  }), P);
+  const guessedBill = await capture(
+    BOQ.GET, req(`/api/studios/${slug}/tendering/boq?tenderId=${guessed.body?.tender?.id}`), P);
+  ok("a tender with no bill is valued from its typed estimate",
+    guessedBill.body?.review?.value?.basis === "estimate" && guessedBill.body?.review?.value?.amount === 1200,
+    JSON.stringify(guessedBill.body?.review?.value));
+  // COMPLETE because there is no part-priced bill to be wrong about, not
+  // because anything was checked. A false here would block every studio that
+  // does not use the grid.
+  ok("...and is not treated as an unfinished bill", guessedBill.body?.review?.blocked === null);
+
+  // The studio's currency goes back, so nothing after this section sees it.
+  await updateStudio(studio.id, { currency: "" });
 
   // A READER WITH NO TENDERING RIGHT IS REFUSED OUTRIGHT, not shown an empty
   // register — an empty list would say "this studio bids nothing", which is a

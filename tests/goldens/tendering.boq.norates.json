@@ -38,6 +38,39 @@
           "byCollaboratorId": "<col_ID>"
         }
       ],
+      "approvals": [
+        {
+          "permission": "tendering.tenders.approve",
+          "byCollaboratorId": "<col_ID>",
+          "byAlias": "bidstep1",
+          "at": "<timestamp>"
+        },
+        {
+          "permission": "tendering.tenders.approveHigh",
+          "byCollaboratorId": "<col_ID>",
+          "byAlias": "bidstep2",
+          "at": "<timestamp>"
+        }
+      ],
+      "approvalPlan": {
+        "ok": true,
+        "steps": [
+          {
+            "permission": "tendering.tenders.approve",
+            "from": 0,
+            "label": "Estimating"
+          },
+          {
+            "permission": "tendering.tenders.approveHigh",
+            "from": 500000,
+            "label": "Above the limit"
+          }
+        ],
+        "amountInBase": 1250000,
+        "rate": null,
+        "updatedAt": 0,
+        "stale": false
+      },
       "submittedAt": "<timestamp>",
       "decidedAt": "<timestamp>",
       "decisionReason": "Undercut by 12%"
@@ -86,6 +119,34 @@
       "complete": true
     },
     "rates": [],
+    "review": {
+      "value": {
+        "amount": 9400,
+        "basis": "boq",
+        "complete": true,
+        "lines": 2
+      },
+      "plan": {
+        "ok": true,
+        "steps": [
+          {
+            "permission": "tendering.tenders.approve",
+            "from": 0,
+            "label": "Estimating"
+          }
+        ],
+        "amountInBase": 9400,
+        "rate": null,
+        "updatedAt": 0,
+        "stale": false
+      },
+      "blocked": null,
+      "signed": 2,
+      "required": 1,
+      "approved": true,
+      "next": null,
+      "mine": false
+    },
     "canEdit": false
   }
 }

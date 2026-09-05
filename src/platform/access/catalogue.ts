@@ -162,8 +162,19 @@ const OWN_AREAS = [
   // entered from a misread notice is a mistake to erase, where a deal or a
   // contract is a thing that happened — and the service still refuses to delete
   // one whose bid has gone in.
+  //
+  // APPROVE AND APPROVEHIGH ARE THE BID REVIEW, and they are extras on this
+  // area rather than an area of their own for the reason the BOQ is not one
+  // either: signing a bid is an act ON a tender, so it answers to the tender
+  // register. What makes them separate RIGHTS is that "may price a bid" and
+  // "may commit the company to it" are different powers — which is the same
+  // test `tendering.rates` passed and the bill of quantities failed.
   { key: "tendering.tenders", group: "Tendering & Estimating", label: "Tender register",
-    verbs: ["view", "create", "edit", "delete"] },
+    verbs: ["view", "create", "edit", "delete"],
+    extra: [
+      { key: "approve", label: "Approve a bid" },
+      { key: "approveHigh", label: "Approve a bid above the limit" },
+    ] },
   // THE RATE LIBRARY IS ITS OWN AREA, and the bill of quantities is NOT.
   //
   // A bill is a tender's content: whoever may read a tender may read what it is

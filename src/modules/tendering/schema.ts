@@ -61,6 +61,32 @@ export const TenderSchema = z.object({
   /** Why it was lost, declined or withdrawn. Empty on a win. */
   decisionReason: z.string().optional(),
   stageHistory: z.array(TenderStageEntrySchema).optional(),
+
+  // ---- the bid review (P2's engine, second document type) ------------------
+  //
+  // BOTH OPTIONAL, because every tender already in the database predates them,
+  // and a tender with no plan resolves one on its next approval attempt rather
+  // than being migrated — a plan is cheap to derive and a backfill over live
+  // rows is not. The same shape a bill carries, deliberately: two shapes for
+  // one engine would be two things to keep in step.
+  //
+  // `status` is NOT extended for this. A signed bid is still Preparing until
+  // somebody submits it — approval is a PRECONDITION of that move, not a stage
+  // of its own — so TENDER_STAGES gains no value and every reader deriving
+  // from status keeps reading what it reads today.
+  approvals: z.array(z.object({
+    permission: z.string(),
+    byCollaboratorId: z.string(),
+    byAlias: z.string(),
+    at: z.string(),
+  })).optional(),
+  approvalPlan: z.object({
+    steps: z.array(z.object({ permission: z.string(), from: z.number(), label: z.string() })),
+    amountInBase: z.number(),
+    rate: z.number().nullable(),
+    updatedAt: z.number(),
+    stale: z.boolean(),
+  }).nullable().optional(),
 });
 
 export type Tender = z.infer<typeof TenderSchema>;

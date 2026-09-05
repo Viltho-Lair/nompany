@@ -199,7 +199,7 @@
         "name": "Manager",
         "description": "Runs a department: full control of its work, sight of the rest.",
         "wildcard": false,
-        "permissionCount": 57,
+        "permissionCount": 58,
         "held": 0
       },
       {
@@ -209,6 +209,30 @@
         "wildcard": false,
         "permissionCount": 13,
         "held": 0
+      },
+      {
+        "id": "<rol_ID>",
+        "name": "role-bidpricer",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 2,
+        "held": 1
+      },
+      {
+        "id": "<rol_ID>",
+        "name": "role-bidstep1",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 2,
+        "held": 1
+      },
+      {
+        "id": "<rol_ID>",
+        "name": "role-bidstep2",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 2,
+        "held": 1
       },
       {
         "id": "<rol_ID>",
@@ -317,6 +341,78 @@
     ],
     "certifications": [],
     "employees": [
+      {
+        "id": "<col_ID>",
+        "alias": "bidpricer",
+        "role": "member",
+        "photo": "",
+        "departmentId": "",
+        "departmentName": "",
+        "roleIds": [
+          "<rol_ID>"
+        ],
+        "roleNames": [
+          "role-bidpricer"
+        ],
+        "employeeCode": "",
+        "dateOfJoin": "",
+        "mobile": "",
+        "certificationIds": [],
+        "hasId": false,
+        "hasPassport": false,
+        "idExpiry": "",
+        "passportExpiry": "",
+        "idNumber": "",
+        "passportNumber": ""
+      },
+      {
+        "id": "<col_ID>",
+        "alias": "bidstep1",
+        "role": "member",
+        "photo": "",
+        "departmentId": "",
+        "departmentName": "",
+        "roleIds": [
+          "<rol_ID>"
+        ],
+        "roleNames": [
+          "role-bidstep1"
+        ],
+        "employeeCode": "",
+        "dateOfJoin": "",
+        "mobile": "",
+        "certificationIds": [],
+        "hasId": false,
+        "hasPassport": false,
+        "idExpiry": "",
+        "passportExpiry": "",
+        "idNumber": "",
+        "passportNumber": ""
+      },
+      {
+        "id": "<col_ID>",
+        "alias": "bidstep2",
+        "role": "member",
+        "photo": "",
+        "departmentId": "",
+        "departmentName": "",
+        "roleIds": [
+          "<rol_ID>"
+        ],
+        "roleNames": [
+          "role-bidstep2"
+        ],
+        "employeeCode": "",
+        "dateOfJoin": "",
+        "mobile": "",
+        "certificationIds": [],
+        "hasId": false,
+        "hasPassport": false,
+        "idExpiry": "",
+        "passportExpiry": "",
+        "idNumber": "",
+        "passportNumber": ""
+      },
       {
         "id": "<col_ID>",
         "alias": "hradmin",
@@ -643,8 +739,8 @@
         "tasks": 0,
         "tendering": 0
       },
-      "unassigned": 13,
-      "total": 13
+      "unassigned": 16,
+      "total": 16
     },
     "vocabulary": {
       "leaveTypes": [

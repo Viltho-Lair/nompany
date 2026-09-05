@@ -284,7 +284,19 @@
       },
       {
         "id": "<col_ID>",
+        "alias": "bidpricer"
+      },
+      {
+        "id": "<col_ID>",
         "alias": "norates"
+      },
+      {
+        "id": "<col_ID>",
+        "alias": "bidstep2"
+      },
+      {
+        "id": "<col_ID>",
+        "alias": "bidstep1"
       },
       {
         "id": "<col_ID>",
@@ -375,6 +387,24 @@
     "overtimes": [],
     "directory": {
       "people": [
+        {
+          "id": "<col_ID>",
+          "alias": "bidpricer",
+          "departmentId": "",
+          "departmentName": ""
+        },
+        {
+          "id": "<col_ID>",
+          "alias": "bidstep1",
+          "departmentId": "",
+          "departmentName": ""
+        },
+        {
+          "id": "<col_ID>",
+          "alias": "bidstep2",
+          "departmentId": "",
+          "departmentName": ""
+        },
         {
           "id": "<col_ID>",
           "alias": "billapprover",

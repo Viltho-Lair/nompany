@@ -154,6 +154,28 @@ type Strings = CommonStrings & {
   billIsBehind: string;
   billIsBehindBody: (n: number) => string;
   lastPricedOn: string;
+
+  // The bid review.
+  bidReview: string;
+  bidReviewSub: string;
+  bidValue: string;
+  fromTheBill: string;
+  fromTheEstimate: string;
+  approveBid: string;
+  signStep: (label: string) => string;
+  nOfMSigned: (n: number, m: number) => string;
+  bidApproved: string;
+  awaitingSignature: string;
+  stepUnsigned: string;
+  cannotSignOwnBid: string;
+  refuseBillIncomplete: string;
+  refuseNoStudioCurrency: string;
+  refuseUnquoted: string;
+  refuseNoChain: string;
+  refuseNotApproved: string;
+  refuseAlreadyApproved: string;
+  convertedAt: (rate: string) => string;
+  ratesAreStale: string;
 };
 
 const en: Strings = {
@@ -299,6 +321,29 @@ const en: Strings = {
     ? "1 document or answer landed after the last line was priced. Check whether it changes anything."
     : `${n} documents or answers landed after the last line was priced. Check whether they change anything.`),
   lastPricedOn: "Last priced",
+
+  bidReview: "Bid review",
+  bidReviewSub: "Who has signed off this bid, and what it still needs before it can go out.",
+  bidValue: "Bid value",
+  fromTheBill: "From the bill of quantities",
+  fromTheEstimate: "From the typed estimate — there is no bill",
+  approveBid: "Sign off the bid",
+  signStep: (label) => `Sign: ${label}`,
+  nOfMSigned: (n, m) => `${n} of ${m} signed`,
+  bidApproved: "Signed off. This bid can be submitted.",
+  awaitingSignature: "Not signed off yet — this bid cannot be submitted.",
+  // A LABEL, NOT A SENTENCE. The line above says what the BID needs; a step row
+  // needs two words, and repeating the sentence per row reads as an error.
+  stepUnsigned: "Not signed",
+  cannotSignOwnBid: "You raised this tender, so somebody else signs it off.",
+  refuseBillIncomplete: "Some lines still have no rate. A bid cannot be signed off against a total that is going to change.",
+  refuseNoStudioCurrency: "This studio has not set its own currency, so a bid value cannot be judged against an approval limit. An owner or admin sets it in Studio settings.",
+  refuseUnquoted: "Today’s exchange rates do not quote this tender’s currency against the studio’s, so its value cannot be judged against an approval limit.",
+  refuseNoChain: "No approval chain is configured for bids.",
+  refuseNotApproved: "This bid has not been signed off yet, so it cannot be submitted.",
+  refuseAlreadyApproved: "This bid is already signed off.",
+  convertedAt: (rate) => `Converted at ${rate}`,
+  ratesAreStale: "Judged against yesterday’s rates — today’s have not arrived.",
 };
 
 const ar: Strings = {
@@ -439,6 +484,27 @@ const ar: Strings = {
     ? "وصل مستند أو ردّ واحد بعد تسعير آخر بند. راجع أثره."
     : `وصل ${n} مستنداً أو ردّاً بعد تسعير آخر بند. راجع أثرها.`),
   lastPricedOn: "آخر تسعير",
+
+  bidReview: "مراجعة العرض",
+  bidReviewSub: "من اعتمد هذا العرض، وما يلزمه قبل أن يُقدّم.",
+  bidValue: "قيمة العرض",
+  fromTheBill: "من جدول الكميات",
+  fromTheEstimate: "من القيمة التقديرية — لا يوجد جدول",
+  approveBid: "اعتماد العرض",
+  signStep: (label) => `اعتماد: ${label}`,
+  nOfMSigned: (n, m) => `اعتُمد ${n} من ${m}`,
+  bidApproved: "اعتُمد. يمكن تقديم هذا العرض.",
+  awaitingSignature: "لم يُعتمد بعد — لا يمكن تقديم هذا العرض.",
+  stepUnsigned: "بانتظار الاعتماد",
+  cannotSignOwnBid: "أنت من أنشأ هذه المناقصة، فيعتمدها شخص آخر.",
+  refuseBillIncomplete: "بعض البنود بلا سعر. لا يُعتمد عرض على إجمالٍ سيتغيّر.",
+  refuseNoStudioCurrency: "لم تُحدّد عملة المنشأة، فلا يمكن قياس قيمة العرض على حدّ اعتماد. يضبطها المالك أو المسؤول من إعدادات المنشأة.",
+  refuseUnquoted: "أسعار الصرف اليوم لا تغطّي عملة هذه المناقصة مقابل عملة المنشأة.",
+  refuseNoChain: "لا توجد سلسلة اعتماد مضبوطة للعروض.",
+  refuseNotApproved: "لم يُعتمد هذا العرض بعد، فلا يمكن تقديمه.",
+  refuseAlreadyApproved: "هذا العرض مُعتمد بالفعل.",
+  convertedAt: (rate) => `حُوّل بسعر ${rate}`,
+  ratesAreStale: "مقيس على أسعار الأمس — لم تصل أسعار اليوم بعد.",
 };
 
 // KEYED BY LOCALE WITH A FALLBACK, like every other surface's dictionary — not

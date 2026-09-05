@@ -187,7 +187,19 @@
       },
       {
         "id": "<col_ID>",
+        "alias": "bidpricer"
+      },
+      {
+        "id": "<col_ID>",
         "alias": "norates"
+      },
+      {
+        "id": "<col_ID>",
+        "alias": "bidstep2"
+      },
+      {
+        "id": "<col_ID>",
+        "alias": "bidstep1"
       },
       {
         "id": "<col_ID>",

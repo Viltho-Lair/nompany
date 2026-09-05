@@ -1,7 +1,8 @@
 # Approvals — who signs a bill, and above what amount
 
 **Spec:** `docs/superpowers/specs/2026-09-03-approval-workflow-engine-design.md`.
-**Bills only.** Every other approval in the product is unchanged — see "Not built yet".
+**Bills and bids.** Bids came second — see `bid-review.md`, which is where the chain store
+moved out of Finance. Every other approval in the product is unchanged — see "Not built yet".
 
 ## What it is
 
@@ -31,8 +32,12 @@ ones — a bottleneck, not a control.
 
 ## What it stores
 
-**The chains** live on the `finance-settings` sub-section's own `settings` object, as
-`approvalChains`, keyed by document type. No new key builder and no new collection.
+**The chains live on the STUDIO record now**, beside `currency`, read through
+`platform/approval/store` — see `bid-review.md` for why they left Finance. What Finance stored
+before that move is still READ, layered underneath the studio's own, so a studio that
+configured a bill chain keeps it with nobody running a backfill; and Finance's settings screen
+is still the door that EDITS a bill chain, because one door per type is what keeps two writers
+from disagreeing. No new key builder and no new collection.
 
 They are **overrides merged over the seed**, the way flow templates are: a studio stores only
 what it changed, so a later correction to the built-in still reaches every studio that never
@@ -114,8 +119,8 @@ display, so an Arabic studio does not get an English apology.
 
 Stated in words, because a silent gap reads as a finished feature.
 
-- **Bills only.** Invoices, expenses, change orders, timesheets, vacations and controlled
-  documents keep the approval they already had. The controlled-document ladder
+- **Bills and bids only.** Invoices, expenses, change orders, timesheets, vacations and
+  controlled documents keep the approval they already had. The controlled-document ladder
   (`moveSignable`) and the submit/answer pairs are untouched.
 - **No parallel steps, no delegation, no out-of-office reassignment, and no reminder** on a
   step that has waited. Each is a real requirement of a mature approval system; none is
@@ -127,6 +132,7 @@ Stated in words, because a silent gap reads as a finished feature.
 - **The studio's currency is not mandatory product-wide** — only for approving a bill.
 - **AP reporting is not revalued.** A bill carries a currency now, but the aging report still
   sums raw totals. That is P3's job.
-- **No second document type.** The storage is keyed by type so a second is a key rather than
-  a rewrite, but a chain governing a record outside Finance does not belong in Finance's
-  settings, and that is the commit where this becomes a store of its own.
+- **The bill chain has no editor outside Finance's settings screen.** Reading is unified on
+  the studio; editing is not, and moving that screen is a commit of its own — at which point
+  `bill` joins `STUDIO_EDITABLE_CHAINS` and `saveFinanceSettings` stops accepting chains, in
+  that same commit, so there is never a moment with two writers.

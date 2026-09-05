@@ -73,6 +73,14 @@ export function tenderProblem(input: {
   from: string;
   to: string;
   reason?: string;
+  /**
+   * Whether the bid review is satisfied. UNDEFINED MEANS "NOT ASKED", not
+   * "no" — this function is called from screens that have no way to resolve an
+   * approval plan, and defaulting a missing answer to a refusal would make
+   * every one of them draw a Submit button that is greyed out for a reason it
+   * cannot explain. The SERVER always passes it; see editTender.
+   */
+  approved?: boolean;
 }): string | null {
   const { from, to } = input;
   const target = STAGES[to];
@@ -95,6 +103,18 @@ export function tenderProblem(input: {
   if (to === "No Bid" && isSubmitted(from)) return "already-submitted";
 
   if (target.needsReason && !String(input.reason || "").trim()) return "reason-required";
+
+  // A BID GOES OUT ONLY ONCE SOMEBODY HAS SIGNED IT. This is the gap
+  // tendering.md named from the day the register shipped: moving a tender to
+  // Submitted needed `tendering.tenders.edit`, the same right that types a rate
+  // into the bill, so whoever priced the work also committed the company to it.
+  //
+  // CHECKED ON THE MOVE TO SUBMITTED ALONE. Won and Lost already require
+  // having been submitted, so they are behind this by construction, and putting
+  // it on every closed stage would refuse a No Bid — deciding NOT to bid is
+  // the one exit that needs no signature at all.
+  if (target.kind === "submitted" && input.approved === false) return "not-approved";
+
   return null;
 }
 

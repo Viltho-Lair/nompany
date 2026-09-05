@@ -337,7 +337,11 @@ every push to `main` and every pull request.
   panel, and `modules/tendering/documents.ts`, which reaches the browser
   DELIBERATELY so the screen offers a supersede only where the server would
   accept one. The largest chunk did not move (158 KB), which is the gate that
-  matters — the tender page is `nextDynamic()`.
+  matters — the tender page is `nextDynamic()`. 1618 → 1619 with the bid
+  review, and ONE kilobyte is the point: `platform/approval` is read on the
+  server and ships nothing, so what a browser gets is the review block and
+  twenty-four strings. A feature does not cost what it weighs; it costs what
+  crosses the wire.
 - Tests connect things — real repositories, real route handlers, **one assertion per
   bug that actually happened**. Each block names the defect it guards, so nobody
   deletes it later wondering what it was for.
@@ -808,10 +812,42 @@ priced is not behind anything; that is what `complete` already says.
 had just shipped a register, must hold no rights: it kept a HAND-TYPED copy of NO_SCREEN_YET.
 It reads the real list now, and the file is in `npm test`.
 
-**Two of the five subsections do not exist**: bid review on P2's engine, and the handover to
-Projects. A won tender does not become anything yet — and `valueFromBoq` is written and tested
-and CALLED BY NOTHING, so a tender's typed `estimatedValue` and its bill's total are still two
-numbers for one tender.
+**Slice 4 is the bid review** (`docs/functionality/bid-review.md`), and it is P2's approval
+engine's SECOND document type rather than a second engine. Catalogue 143 → 145
+(`tendering.tenders.approve`, `.approveHigh` — extras on the register, because signing a bid is
+an act ON a tender; what makes them separate RIGHTS is that "may price a bid" and "may commit
+the company to it" are different powers).
+
+**Submitting used to need `tendering.tenders.edit`** — the same right that types a rate into
+the bill — so whoever priced the work also committed the company to it. A bid now walks a
+seeded chain (Estimating at 0, Above the limit at 500000), invariant 7 is enforced twice, and
+`tenderProblem` refuses the move to Submitted with `not-approved`. **Only that move**: Won and
+Lost are behind it by construction, and a No Bid needs no signature because it commits the
+company to nothing. **`status` gained no value** — a signed bid is still Preparing until
+somebody submits it.
+
+**THE CHAIN STORE LEFT FINANCE**, which `approvals.md` named as this exact commit: *"a chain
+governing a record outside Finance does not belong in Finance's settings."* Chains live on the
+STUDIO record now (`platform/approval/store`), beside `currency`, which approval already
+depends on — one right (`administration.settings.edit`) rather than one per department, and no
+section read from any module context. **Reading is layered** (seeds → what Finance stored →
+the studio's own), so a studio that configured a bill chain keeps it with nobody running a
+backfill. **Writing has one door per type** and `bill` is still Finance's; the day that editor
+moves, `bill` joins `STUDIO_EDITABLE_CHAINS` and `saveFinanceSettings` stops accepting chains
+IN THE SAME COMMIT, so there is never a moment with two writers.
+
+**`valueFromBoq` is finally called.** The bill wins over the typed `estimatedValue` where there
+is one, and `basis` travels with the number because on screen the two are the same digits and
+mean different things. **A part-priced bill cannot be signed off** — `complete` exists because
+the total of a part-priced bill is a number and not the bid, and a signature against it
+authorises a figure that is going to change.
+
+**THE ROLLOUT CONSEQUENCE, the same one bills carry:** approving a bid needs the studio's own
+currency, and `createStudio` has never set one. The refusal names the fix and the screen says
+it in place of the button.
+
+**One of the five subsections does not exist**: the handover to Projects. A won tender does not
+become a deal, a project or a budget baseline yet.
 
 **Three guards caught real mistakes in this slice, each named in the file that caught it.**
 `next build` refused until `tenders` was in `COLLECTION_TABLE` (`platform/db/migrate/mapping.ts`)

@@ -21,10 +21,11 @@ import { useStudioLocale } from "@/components/studio2/locale";
 import { tenderingDict } from "@/shared/studio/tendering";
 import { RecordSkeleton } from "@/components/studio2/RecordSkeleton";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
-import { panel, h2, sub, btn, btnGhost, microLabel, Empty, Dialog, StatTile, money } from "@/components/studio2/ui";
+import { panel, h2, sub, btn, btnGhost, microLabel, Empty, Dialog, StatTile, money, fmtDateTime } from "@/components/studio2/ui";
 import { Field } from "@/components/fields/Field";
 import { StatusPill } from "@/components/studio2/StatusPill";
 import { boqGroups, boqTotals, extension, isPriced } from "@/modules/tendering/boq";
+import { refusal } from "@/components/studio2/tenderRefusals";
 import StudioTenderDocs from "@/components/studio2/StudioTenderDocs";
 
 const cell = "w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm text-slate-800 outline-none focus:border-brand-500 dark:border-white/15 dark:bg-white/5 dark:text-slate-100";
@@ -79,7 +80,7 @@ export default function StudioBoq({ slug, tenderId }) {
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <RecordSkeleton loadingLabel={tr.loadingBoq} />;
 
-  const { tender, canEdit } = data;
+  const { tender, canEdit, review } = data;
   const lines = data.lines || [];
   const rates = data.rates || [];
   // TOTALLED WITH THE SERVER'S OWN FUNCTION. The route sends `totals` too; this
@@ -138,6 +139,92 @@ export default function StudioBoq({ slug, tenderId }) {
         <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm font-600 text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
           {tr.notTheBidYet}
         </p>
+      )}
+
+      {/* ---- the bid review -------------------------------------------
+          WHY IT SITS WITH THE BILL and not on the register: the thing being
+          signed IS the price, and a reviewer asked to commit the company to a
+          number needs that number in front of them rather than a row in a list.
+
+          THE BUTTON IS DRAWN ONLY WHERE PRESSING IT WOULD SUCCEED. `review.next`
+          comes from `availableBidApproval`, which asks every question
+          `approveBid` asks — the raiser never signs, nobody signs twice on one
+          record, the step must be outstanding, and they must hold its right. A
+          screen checking fewer of them offers buttons that refuse; one checking
+          them here would be a second copy of the rule, free to drift. */}
+      {review && (
+        <section className={panel}>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className={h2}>{tr.bidReview}</h2>
+              <p className={sub}>{tr.bidReviewSub}</p>
+            </div>
+            {review.next && (
+              <button type="button" className={btn} disabled={busy}
+                onClick={async () => { await send("PUT", { id: tenderId, approve: true }); }}>
+                {tr.signStep(review.next.label)}
+              </button>
+            )}
+          </div>
+
+          <div className="mt-4 flex flex-wrap items-baseline gap-x-6 gap-y-2">
+            <span>
+              <span className={microLabel}>{tr.bidValue}</span>
+              <span className="num text-xl font-800 text-slate-900 dark:text-white">{money(review.value.amount)}</span>
+            </span>
+            {/* THE BASIS TRAVELS WITH THE NUMBER, because the bill's total and
+                the typed estimate are the same digits and mean entirely
+                different things. */}
+            <span className="text-xs text-slate-500 dark:text-slate-400">
+              {review.value.basis === "boq" ? tr.fromTheBill : tr.fromTheEstimate}
+            </span>
+            {review.plan?.rate != null && (
+              <span className="text-xs text-slate-400">{tr.convertedAt(String(review.plan.rate))}</span>
+            )}
+          </div>
+
+          {review.plan?.stale && (
+            <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">{tr.ratesAreStale}</p>
+          )}
+
+          {review.blocked ? (
+            <p className="mt-3 rounded-xl bg-amber-50 px-4 py-3 text-sm font-600 text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
+              {refusal(tr, review.blocked)}
+            </p>
+          ) : (
+            <>
+              <p className={`mt-3 text-sm font-600 ${review.approved ? "text-emerald-700 dark:text-emerald-400" : "text-amber-700 dark:text-amber-300"}`}>
+                {tr.nOfMSigned(review.signed, review.required)} · {review.approved ? tr.bidApproved : tr.awaitingSignature}
+              </p>
+              {/* EVERY STEP, SIGNED OR NOT, in the order they must be walked —
+                  so somebody looking at a half-signed bid can see what it is
+                  still waiting for rather than only how far it has come. The
+                  step LABEL is tenant-authored and never translated. */}
+              <ol className="mt-3 space-y-2">
+                {(review.plan?.steps || []).map((step) => {
+                  const sig = (tender?.approvals || []).find((a) => a.permission === step.permission);
+                  return (
+                    <li key={step.permission} className="flex flex-wrap items-baseline justify-between gap-2 border-s-2 ps-3 text-sm"
+                      style={{ borderInlineStartColor: sig ? "rgb(16 185 129)" : "rgb(148 163 184 / 0.4)" }}>
+                      <span className="text-slate-800 dark:text-slate-100">
+                        {step.label}
+                        {step.from > 0 && <span className="ms-2 num text-xs text-slate-400">≥ {money(step.from)}</span>}
+                      </span>
+                      <span className="text-xs text-slate-500 dark:text-slate-400">
+                        {sig ? `${sig.byAlias || "—"} · ${fmtDateTime(sig.at)}` : tr.stepUnsigned}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ol>
+              {/* Said rather than left as an absent button: somebody who raised
+                  the tender and holds the right will otherwise look for one. */}
+              {!review.next && !review.approved && review.mine && (
+                <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{tr.cannotSignOwnBid}</p>
+              )}
+            </>
+          )}
+        </section>
       )}
 
       {lines.length === 0 ? <Empty title={tr.noLinesYet} body={tr.noLinesBody} /> : (

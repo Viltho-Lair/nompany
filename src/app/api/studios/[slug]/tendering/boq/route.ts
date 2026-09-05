@@ -3,6 +3,7 @@ import { requirePermission } from "@/platform/access";
 import { tenderingContext } from "@/modules/tendering/tenders";
 import { listBoq, addBoqLine, editBoqLine, removeBoqLine } from "@/modules/tendering/boqItems";
 import { listRates } from "@/modules/tendering/rates";
+import { bidReview } from "@/modules/tendering/bid";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,12 +24,18 @@ export const GET = route({ ...spec, body: false }, async (tendering) => {
   // price a bid and may not see the rate library gets the bill and no picker,
   // rather than the library arriving because it was convenient.
   const rates = await listRates(tendering);
+  // THE BID REVIEW RIDES ALONG WITH THE BILL, and costs no second collection
+  // read: `bidReview` is handed the lines this route already fetched. It is
+  // here rather than on the register because the thing being signed IS the
+  // bill — a reviewer needs the price in front of them, not a row in a list.
+  const review = await bidReview(tendering, result.tender, result.lines);
   return {
     ok: true,
     tender: result.tender,
     lines: result.lines,
     totals: result.totals,
     rates: refused(rates) ? [] : rates.rates,
+    review,
     canEdit: !requirePermission(tendering.access, "tendering.tenders.edit"),
   };
 });

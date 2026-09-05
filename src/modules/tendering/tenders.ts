@@ -16,7 +16,8 @@ import { requirePermission } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
 import { moduleContext } from "../context";
 import { nextReference } from "@/modules/main/references";
-import { DEFAULT_TENDER_STAGE, TENDER_STAGES, tenderProblem, tenderPatch } from "./stages";
+import { DEFAULT_TENDER_STAGE, TENDER_STAGES, tenderProblem, tenderPatch, tenderStage } from "./stages";
+import { bidApproved } from "./bid";
 import type { Tender, TenderingContext } from "./types";
 
 const TENDERS = "tenders";
@@ -174,7 +175,15 @@ export async function editTender(ctx: TenderingContext, id: string, body: Record
   if (move) {
     const existing = await Tenders.byId({ studio, section: registerSection }, id);
     if (!existing) return { error: "notfound" };
-    const problem = tenderProblem({ from: existing.status, to: move.to, reason: move.reason });
+    // THE BID REVIEW IS ASKED ONLY WHEN A BID IS ABOUT TO GO OUT. Every other
+    // move — Preparing, No Bid, Withdrawn, and the decisions that already
+    // require having submitted — needs no plan, so it costs no read: resolving
+    // one means a collection read for the bill and possibly an FX fetch, and a
+    // studio moving a tender to Preparing should pay for neither.
+    const approved = tenderStage(move.to)?.kind === "submitted"
+      ? await bidApproved(ctx, existing)
+      : undefined;
+    const problem = tenderProblem({ from: existing.status, to: move.to, reason: move.reason, approved });
     if (problem) return { error: problem };
   }
 

@@ -115,14 +115,12 @@ the mess worse.
 
 ## Not built yet
 
-Stated in words, because a silent gap reads as a finished feature. **Two of Tendering's five
-subsections do not exist.** The BOQ grid and rate library shipped as slice 2
-(`docs/functionality/boq.md`), and the pack and clarification log as slice 3
-(`docs/functionality/bid-documents.md`) — those two bullets used to sit in this list saying
+Stated in words, because a silent gap reads as a finished feature. **One of Tendering's five
+subsections does not exist.** The BOQ grid and rate library shipped as slice 2
+(`docs/functionality/boq.md`), the pack and clarification log as slice 3
+(`docs/functionality/bid-documents.md`), and the bid review as slice 4
+(`docs/functionality/bid-review.md`) — all three bullets used to sit in this list saying
 otherwise, and a gap list that has not caught up with what shipped is worse than none.
-
-- **No bid review or approval.** P2's approval engine exists and is wired to bills only; a bid
-  going out at a price nobody senior signed is the gap.
 - **No handover to Projects.** A won tender does not become a deal, a project or a budget
   baseline `sheet`. Today somebody re-enters it in CRM & Sales by hand, and nothing links the
   two records.

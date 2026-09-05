@@ -18,6 +18,7 @@ import { tenderingDict } from "@/shared/studio/tendering";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { panel, h2, sub, btn, btnGhost, btnRow, btnRowDanger, microLabel, Empty, Dialog, fmtDate, fmtDateTime } from "@/components/studio2/ui";
 import { Field } from "@/components/fields/Field";
+import { refusal } from "@/components/studio2/tenderRefusals";
 import {
   chainFor, currentDocuments, documentSummary, isAnswered, openClarifications,
 } from "@/modules/tendering/documents";
@@ -69,12 +70,6 @@ export default function StudioTenderDocs({ slug, tenderId }) {
   const reload = useCallback(async () => { apply(await read()); }, [read, apply]);
   useLiveUpdates(slug, reload);
 
-  const say = useCallback((code) => (
-    code === "in-chain" ? tr.cannotDeleteInChain
-      : code === "already-superseded" || code === "superseded-replacement" ? tr.cannotSupersede
-        : code || "failed"
-  ), [tr]);
-
   const send = useCallback(async (what, method, payload) => {
     setError(""); setBusy(true);
     const res = await fetch(`/api/studios/${slug}/tendering/${what}`, {
@@ -82,10 +77,10 @@ export default function StudioTenderDocs({ slug, tenderId }) {
     });
     const out = await res.json().catch(() => ({}));
     setBusy(false);
-    if (!res.ok) { setError(say(out.error)); return false; }
+    if (!res.ok) { setError(refusal(tr, out.error || "failed")); return false; }
     await reload();
     return true;
-  }, [slug, reload, say]);
+  }, [slug, reload, tr]);
 
   const documents = useMemo(() => data?.documents || [], [data]);
   const clarifications = useMemo(() => data?.clarifications || [], [data]);

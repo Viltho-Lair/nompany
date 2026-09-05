@@ -1,0 +1,7 @@
+{
+  "status": 400,
+  "body": {
+    "error": "no-studio-currency",
+    "detail": "This studio has not set its own currency, so an amount cannot be judged against an approval limit. An owner or admin sets it in Studio settings."
+  }
+}

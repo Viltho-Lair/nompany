@@ -13,7 +13,7 @@
       "submissionDeadline": "2031-02-20",
       "estimatedValue": 1250000,
       "currency": "",
-      "status": "Submitted",
+      "status": "Preparing",
       "notes": "",
       "assignedToCollaboratorId": "",
       "createdByCollaboratorId": "<col_ID>",
@@ -26,11 +26,6 @@
           "status": "Preparing",
           "at": "<timestamp>",
           "byCollaboratorId": "<col_ID>"
-        },
-        {
-          "status": "Submitted",
-          "at": "<timestamp>",
-          "byCollaboratorId": "<col_ID>"
         }
       ],
       "approvals": [
@@ -38,12 +33,6 @@
           "permission": "tendering.tenders.approve",
           "byCollaboratorId": "<col_ID>",
           "byAlias": "bidstep1",
-          "at": "<timestamp>"
-        },
-        {
-          "permission": "tendering.tenders.approveHigh",
-          "byCollaboratorId": "<col_ID>",
-          "byAlias": "bidstep2",
           "at": "<timestamp>"
         }
       ],
@@ -65,8 +54,10 @@
         "rate": null,
         "updatedAt": 0,
         "stale": false
-      },
-      "submittedAt": "<timestamp>"
-    }
+      }
+    },
+    "approved": false,
+    "signed": 1,
+    "required": 2
   }
 }

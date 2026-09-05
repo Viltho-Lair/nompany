@@ -1,6 +1,7 @@
 import { route, refused } from "@/platform/http/route";
 import { requirePermission } from "@/platform/access";
 import { tenderingContext, listTenders, createTender, editTender, removeTender } from "@/modules/tendering/tenders";
+import { approveBid } from "@/modules/tendering/bid";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -39,7 +40,19 @@ export const POST = route(spec, async (tendering) => {
 
 export const PUT = route(spec, async (tendering) => {
   if (!tendering.body.id) return { error: "missing" };
-  const result = await editTender(tendering, String(tendering.body.id), tendering.body);
+  const id = String(tendering.body.id);
+
+  // SIGNING IS ITS OWN VERB, not a field on the edit — the same decision the
+  // pack made about superseding, and here it is load-bearing rather than tidy.
+  // `editTender` opens on `tendering.tenders.edit`; a signature must NOT, or
+  // whoever priced the bid could sign it by sending one more key.
+  if (tendering.body.approve) {
+    const signed = await approveBid(tendering, id);
+    if (refused(signed)) return signed;
+    return { ok: true, tender: signed.tender, approved: signed.approved, signed: signed.signed, required: signed.required };
+  }
+
+  const result = await editTender(tendering, id, tendering.body);
   if (refused(result)) return result;
   return { ok: true, tender: result.tender };
 });

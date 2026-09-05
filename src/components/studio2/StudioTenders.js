@@ -28,19 +28,17 @@ import {
   tenderStage, tenderProblem, isDecided, isSubmitted, isWonTender,
   daysToDeadline, isAtRisk,
 } from "@/modules/tendering/stages";
+import { refusal } from "@/components/studio2/tenderRefusals";
 
 // A tender closing within this many days is worth pulling to the top of the
 // eye's attention. Named because it is a judgement about bidding, not a
 // rendering detail.
 const CLOSING_SOON_DAYS = 7;
 
-function refusal(tr, token) {
-  if (token === "already-decided") return tr.refuseAlreadyDecided;
-  if (token === "not-submitted") return tr.refuseNotSubmitted;
-  if (token === "already-submitted") return tr.refuseAlreadySubmitted;
-  if (token === "reason-required") return tr.refuseReasonRequired;
-  return token;
-}
+// The refusal mapper MOVED OUT when the bid review arrived. Two screens now
+// show the same tokens — the register refuses a stage move, the bill refuses a
+// signature — and a second copy would be one screen quietly falling behind the
+// server’s vocabulary. See components/studio2/tenderRefusals.
 
 // How long is left, in words, with the tone the number deserves. A missed
 // deadline is not "overdue" — it is gone, and the register's job is to make

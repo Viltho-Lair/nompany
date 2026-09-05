@@ -6,6 +6,9 @@ import { currentUser } from "@/platform/auth/identity";
 import { studioContext } from "@/lib/studios";
 import { updateStudio } from "@/modules/main/studios";
 import { studioLocale, isLocale, defaultLocale } from "@/shared/i18n";
+import { ALL_PERMISSIONS } from "@/platform/access/catalogue";
+import { chainProblems, type ApprovalChain } from "@/platform/approval/chains";
+import { approvalChainOverrides, approvalChainsFor } from "@/platform/approval/store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -34,6 +37,11 @@ const FIELDS = [
   // the tenant has decided, and the goldens over it are unchanged.
   "language",
   "workingHours", "legalInfo", "favoriteCurrencies",
+  // WHO SIGNS WHAT, AND ABOVE WHAT AMOUNT — see platform/approval/store for
+  // why the chains live on the studio rather than in a department's settings.
+  // It sits beside `currency` because approval already depends on that one:
+  // an amount cannot be judged against a limit without it.
+  "approvalChains",
   // fieldOfWork, fieldOfWorkOther, serviceActions and retiredServiceActions are
   // deliberately NOT here. Writing a service action is not "set this text" — it
   // is "recompute the pool": choosing a field re-seeds it from the matrix, and
@@ -114,6 +122,11 @@ const clean = (studio: Record<string, unknown>) => ({
   fieldOfWork: String(studio.fieldOfWork || ""),
   fieldOfWorkOther: String(studio.fieldOfWorkOther || ""),
   retiredServiceActions: Array.isArray(studio.retiredServiceActions) ? studio.retiredServiceActions : [],
+  // WHAT IS IN FORCE, not what is stored — seeds included, so the editor shows
+  // the chain a record would actually walk rather than an empty object that
+  // means "the built-in". `bill` appears here and is edited in Finance settings
+  // (see STUDIO_EDITABLE_CHAINS); this route refuses to write it.
+  approvalChains: approvalChainsFor(studio),
 });
 
 // Rates from the studio's own currency out to each favourite. Anything the
@@ -221,6 +234,23 @@ export async function PUT(request: Request, ctx: { params: Promise<Record<string
     if (!(key in body)) continue;
     // Working hours is the one structured field; everything else is text, and
     // "" is a real value — it is how the logo is removed.
+    // APPROVAL CHAINS ARE REFUSED ON WRITE, never on read, and BEFORE anything
+    // is stored. A step naming a permission that does not exist blocks every
+    // record reaching it — silently, forever, on a screen nobody thinks to
+    // doubt — so the studio hears about its own edit while it is still their
+    // edit and in words about the edit. This is the same door
+    // saveFinanceSettings held for bills; it moved here with the store.
+    if (key === "approvalChains") {
+      const incoming = approvalChainOverrides(body[key]);
+      if ("error" in incoming) return Response.json({ error: "refused", detail: incoming.error }, { status: 400 });
+      const problems: string[] = [];
+      for (const chain of Object.values(incoming.chains)) {
+        problems.push(...chainProblems(chain as ApprovalChain, ALL_PERMISSIONS));
+      }
+      if (problems.length) return Response.json({ error: "refused", detail: problems.join("; ") }, { status: 400 });
+      patch[key] = incoming.chains;
+      continue;
+    }
     patch[key] = key === "workingHours" ? cleanHours(body[key])
       // Refused rather than coerced: an unrecognised language would set the
       // whole tenant to a dictionary that does not exist. `isLocale` is the
