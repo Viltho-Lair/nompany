@@ -51,7 +51,7 @@ export default function SalesDashboard({ tickets = [], slug = "", nav = null }) 
 
   // A stage token in the studio's own language. The funnel's two milestones are
   // not statuses and take their words from this screen's dictionary instead.
-  const stageName = (key) => statusLabel("sales", key, locale);
+  const stageName = (key) => statusLabel("ticketStage", key, locale);
   const rungName = (r) => (r.kind === "status" ? stageName(r.key)
     : r.key === "rfq" ? tr.funnelRfq : tr.funnelQuotation);
 

@@ -210,7 +210,7 @@ export default function StudioCustomer({ slug, clientId }) {
           <Block title={tr.openDeals} empty={tr.noDealsForCustomer} rows={deals.open.length}>
             {deals.open.map((d) => (
               <Row key={d.id} href={`/${slug}/crm-sales-tickets/${d.id}`} code={d.ref || d.id} title={d.title}
-                pill={<StatusPill kind="sales" status={d.status} />}
+                pill={<StatusPill kind="ticketStage" status={d.status} />}
                 sub={tr.nDaysHere(d.days)}
                 right={d.value ? money(d.value) : ""} />
             ))}
@@ -219,7 +219,7 @@ export default function StudioCustomer({ slug, clientId }) {
           <Block title={tr.decidedDeals} empty={tr.noDecidedYet} rows={deals.decided.length}>
             {deals.decided.map((d) => (
               <Row key={d.id} href={`/${slug}/crm-sales-tickets/${d.id}`} code={d.ref || d.id} title={d.title}
-                pill={<StatusPill kind="sales" status={d.status} />}
+                pill={<StatusPill kind="ticketStage" status={d.status} />}
                 // WHY IT WAS LOST, on the row. This is the payoff of making a
                 // losing close say why: a reason written once and never read
                 // back would be the dead field it used to be.

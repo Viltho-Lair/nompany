@@ -155,22 +155,11 @@ const KNOWN_COLLISIONS = {
   "src/components/studio2/StudioTechnical.js": [
     { value: "sales", reason: "icons.js's icon-name registry key for the quotation's origin badge" },
   ],
-  "src/components/studio2/StudioSales.js": [
-    { value: "sales", reason: "StatusPill.jsx's STATUS_TONES record-kind key for ticket-stage colours" },
-  ],
-  "src/components/studio2/StudioCustomer.js": [
-    // Twice, on the two deal blocks: the customer page draws a deal's stage
-    // with the same ticket-stage pill the board and the list use. Not a
-    // section key, and never resolved as one.
-    { value: "sales", reason: "StatusPill.jsx's STATUS_TONES record-kind key for ticket-stage colours" },
-  ],
-  "src/components/studio2/StudioPipeline.js": [
-    // The same key as StudioSales above, and for the same reason: the board
-    // draws its columns and its move options with the pill's ticket-stage
-    // vocabulary, so it names that record-kind twice — once for StatusPill and
-    // once for statusLabel. Neither is ever resolved against SECTION_KEY_MAP.
-    { value: "sales", reason: "StatusPill.jsx's STATUS_TONES record-kind key for ticket-stage colours" },
-  ],
+  // GONE, ALL THREE, and deliberately not replaced by a fourth. Every screen
+  // drawing a ticket-stage pill named the pill's record-kind "sales", which is
+  // spelled exactly like a retired SECTION key — so each needed an exemption
+  // here saying "not that sales", and the next such screen needed another. The
+  // kind is `ticketStage` now (StatusPill.jsx), which collides with nothing.
   "src/components/studio2/QualityWorkflow.js": [
     { value: "quality", reason: "StatusPill.jsx's STATUS_TONES record-kind key for revision-state colours" },
   ],

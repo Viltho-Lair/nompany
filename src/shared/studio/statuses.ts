@@ -33,7 +33,7 @@ const ar: StatusMap = {
     Paid: "مدفوعة", Cancelled: "ملغاة", Disputed: "معترض عليها",
   },
   asset: { service: "قيد الخدمة", disposed: "مستبعد" },
-  sales: {
+  ticketStage: {
     Lead: "مبدئي", Opportunity: "فرصة", Commit: "التزام",
     "Closed Won": "أُغلق بالفوز", "Closed Lost": "أُغلق بالخسارة",
     "Cancelled by Client": "ألغاه العميل", "On-Hold": "معلّق", Dropped: "متروك",

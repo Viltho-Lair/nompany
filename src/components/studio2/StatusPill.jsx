@@ -71,7 +71,13 @@ export const STATUS_TONES = {
   // "In service" / "Fully depreciated" / "Disposed".
   asset:     { service: "success", disposed: "neutral" },
   // StudioSales — ticket stages (STATUS_TONE).
-  sales:     { Lead: "neutral", Opportunity: "info", Commit: "warning", "Closed Won": "success", "Closed Lost": "danger", "Cancelled by Client": "danger", "On-Hold": "neutral", Dropped: "danger" },
+  // NOT the bare word sales, unquoted here on purpose: that is a retired
+  // SECTION key, and the architectural grep that guards retired keys reads
+  // quoted tokens — including ones in comments. A record-kind spelled like
+  // that made every screen drawing a stage pill collide with it. The kind is
+  // what a status BELONGS to — a ticket's stage — which is what it should have
+  // said in the first place.
+  ticketStage: { Lead: "neutral", Opportunity: "info", Commit: "warning", "Closed Won": "success", "Closed Lost": "danger", "Cancelled by Client": "danger", "On-Hold": "neutral", Dropped: "danger" },
   // StudioContracts — a variation's answer. `submitted` is amber because it is
   // WAITING ON SOMEBODY, which is the state the register exists to surface;
   // approved is brand rather than emerald for the same reason a bill's is — it
@@ -111,7 +117,7 @@ export const STATUS_TONES = {
 // sensible unstyled-but-legible default the task asks for.
 export const STATUS_TONE_FALLBACK = {
   bill: "neutral",       // was `|| BILL_TONE.Received`
-  sales: "neutral",      // was `|| STATUS_TONE.Lead`
+  ticketStage: "neutral", // was `|| STATUS_TONE.Lead`
   movement: "warning",   // was `|| MOVE_TONE.adjust`
   project: "neutral",    // was `|| STAGE_TONE.Received`
   quotation: "warning",  // was `|| Q_TONE.Draft`

@@ -147,7 +147,7 @@ export default function StudioPipeline({ slug }) {
             {(data.columns || []).map((col) => (
               <section key={col.status} className={`${panel} w-[19rem] shrink-0 !p-4`}>
                 <div className="flex items-baseline justify-between gap-2">
-                  <StatusPill kind="sales" status={col.status} />
+                  <StatusPill kind="ticketStage" status={col.status} />
                   <span className="num text-xs text-slate-500 dark:text-slate-400">{col.count}</span>
                 </div>
                 <p className="num mt-2 font-700 text-slate-900 dark:text-white">{money(col.value)}</p>
@@ -215,7 +215,7 @@ export default function StudioPipeline({ slug }) {
                               value=""
                               disabled={busy}
                               onChange={(to) => onPick(d, to)}
-                              options={targetsFor(d).map((to) => ({ value: to, label: statusLabel("sales", to, locale) }))}
+                              options={targetsFor(d).map((to) => ({ value: to, label: statusLabel("ticketStage", to, locale) }))}
                             />
                           </div>
                         )}
@@ -238,7 +238,7 @@ export default function StudioPipeline({ slug }) {
           <ul className="mt-3 flex flex-wrap gap-x-6 gap-y-2">
             {(data.closed || []).filter((c) => c.count > 0).map((c) => (
               <li key={c.status} className="flex items-center gap-2">
-                <StatusPill kind="sales" status={c.status} />
+                <StatusPill kind="ticketStage" status={c.status} />
                 <span className="num text-sm text-slate-600 dark:text-slate-300">{c.count} · {money(c.value)}</span>
               </li>
             ))}
@@ -250,7 +250,7 @@ export default function StudioPipeline({ slug }) {
         <Dialog title={tr.whyLost} description={tr.whyLostHint} onClose={() => setMove(null)} width="max-w-[520px]">
           <div className="space-y-4">
             <p className="text-sm text-slate-600 dark:text-slate-300">
-              {move.deal.ref} · {move.deal.title} → <StatusPill kind="sales" status={move.to} />
+              {move.deal.ref} · {move.deal.title} → <StatusPill kind="ticketStage" status={move.to} />
             </p>
             <Field
               label={tr.lostReasonLabel}
