@@ -25,6 +25,7 @@ import { panel, h2, sub, btn, btnGhost, microLabel, Empty, Dialog, StatTile, mon
 import { Field } from "@/components/fields/Field";
 import { StatusPill } from "@/components/studio2/StatusPill";
 import { boqGroups, boqTotals, extension, isPriced } from "@/modules/tendering/boq";
+import StudioTenderDocs from "@/components/studio2/StudioTenderDocs";
 
 const cell = "w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm text-slate-800 outline-none focus:border-brand-500 dark:border-white/15 dark:bg-white/5 dark:text-slate-100";
 
@@ -230,6 +231,14 @@ export default function StudioBoq({ slug, tenderId }) {
           {tr.addLine}
         </button>
       )}
+
+      {/* THE PACK AND THE QUESTIONS, BENEATH THE BILL THEY ARE ABOUT.
+          A SEPARATE COMPONENT WITH ITS OWN FETCH, deliberately: the bill
+          is the busier route and it stays at the hop count its golden
+          pins, while the paperwork’s own route reads the lines it needs
+          to answer the one question the bill cannot ask itself — whether
+          anything arrived after the last line was priced. */}
+      <StudioTenderDocs slug={slug} tenderId={tenderId} />
 
       {adding && (
         <Dialog title={tr.addLine} onClose={() => setAdding(null)} width="max-w-[680px]">

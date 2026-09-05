@@ -1,0 +1,26 @@
+{
+  "status": 201,
+  "body": {
+    "ok": true,
+    "document": {
+      "id": "<ten_ID>",
+      "tenderId": "<ten_ID>",
+      "kind": "received",
+      "title": "Invitation to tender",
+      "reference": "ITT-88",
+      "revision": "A",
+      "issuedOn": "2026-04-01",
+      "url": "",
+      "filename": "",
+      "size": 0,
+      "notes": "",
+      "supersededById": "",
+      "supersededAt": "",
+      "uploadedByCollaboratorId": "<col_ID>",
+      "createdAt": "<timestamp>",
+      "updatedAt": "<timestamp>",
+      "studioId": "<std_ID>",
+      "sectionId": "<sub_ID>"
+    }
+  }
+}

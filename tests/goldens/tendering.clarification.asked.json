@@ -1,0 +1,23 @@
+{
+  "status": 201,
+  "body": {
+    "ok": true,
+    "clarification": {
+      "id": "<ten_ID>",
+      "tenderId": "<ten_ID>",
+      "seq": 1,
+      "question": "Is temporary power in our scope?",
+      "askedOn": "2026-04-03",
+      "askedByCollaboratorId": "<col_ID>",
+      "answer": "",
+      "answeredAt": "",
+      "answeredByCollaboratorId": "",
+      "affectsPrice": false,
+      "documentId": "",
+      "createdAt": "<timestamp>",
+      "updatedAt": "<timestamp>",
+      "studioId": "<std_ID>",
+      "sectionId": "<sub_ID>"
+    }
+  }
+}

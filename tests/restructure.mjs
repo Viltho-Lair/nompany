@@ -115,9 +115,22 @@ export async function testEveryDeclaredMoveIsListed(t) {
 }
 
 export async function testNoAreaExistsForASectionWithNoScreen(t) {
-  // A right nothing can exercise is a bug (invariant 16). These four sections
-  // are declared for ordering and have no screens until P4a/P5/P6/P7.
-  const empty = ["tendering", "manufacturing", "assets", "reports"];
+  // A right nothing can exercise is a bug (invariant 16). These sections are
+  // declared for ordering and have no screens until P5/P6/P7.
+  //
+  // READ FROM NO_SCREEN_YET RATHER THAN LISTED HERE, and that is the whole
+  // point of the change. The list used to be typed out — "tendering,
+  // manufacturing, assets, reports" — and when Tendering got its register the
+  // list was not updated, so this assertion went red and STAYED red, asserting
+  // that a section which had just shipped a screen must not have any rights.
+  // A hand-kept copy of NO_SCREEN_YET is a second answer to "what renders
+  // nothing", free to disagree with the one the product actually resolves
+  // against, which is exactly what happened.
+  //
+  // administration-master is skipped: it is the one CHILD in the list, and a
+  // child's rights are its parent's business, not its own.
+  const empty = NO_SCREEN_YET.filter((key) => !key.includes("-"));
+  t.equal(empty.length > 0, true, "there is still at least one screenless section to check");
   for (const key of empty) {
     const found = AREAS.filter((a) => a.key.startsWith(`${key}.`));
     t.equal(found.length, 0, `${key} has no rights yet: ${found.map((a) => a.key).join(",")}`);

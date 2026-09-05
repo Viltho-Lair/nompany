@@ -115,14 +115,12 @@ the mess worse.
 
 ## Not built yet
 
-Stated in words, because a silent gap reads as a finished feature. **Four of Tendering's five
-subsections do not exist**, and the register is deliberately standalone until they do.
+Stated in words, because a silent gap reads as a finished feature. **Two of Tendering's five
+subsections do not exist.** The BOQ grid and rate library shipped as slice 2
+(`docs/functionality/boq.md`), and the pack and clarification log as slice 3
+(`docs/functionality/bid-documents.md`) — those two bullets used to sit in this list saying
+otherwise, and a gap list that has not caught up with what shipped is worse than none.
 
-- **No BOQ grid and no rate library.** There is an `estimatedValue` somebody types and no
-  estimate behind it: no bill of quantities, no line items, no rates, no build-up from cost.
-  This is the section's largest missing piece.
-- **No bid documents and no clarifications.** Nowhere to keep the tender documents, the
-  addenda, or the questions and answers exchanged before submission.
 - **No bid review or approval.** P2's approval engine exists and is wired to bills only; a bid
   going out at a price nobody senior signed is the gap.
 - **No handover to Projects.** A won tender does not become a deal, a project or a budget
@@ -130,8 +128,9 @@ subsections do not exist**, and the register is deliberately standalone until th
   two records.
 - **A tender is not an engagement.** It has no entry in the stage registry, so it does not
   appear on the engagements view and nothing cascades from it.
-- **No documents, no comments, no notifications.** A deadline approaching tells nobody; the
-  register has to be looked at.
+- **No comments and no notifications.** A deadline approaching tells nobody, and an addendum
+  filed today tells the estimator nothing — the register has to be looked at. (Documents
+  themselves arrived with slice 3.)
 - **No bid bond, no tender fee, no earnest money** — the money a tender requires up front is
   not modelled.
 - **The owner is stored and never shown.** `assignedToCollaboratorId` is written by the API and

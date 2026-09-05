@@ -2409,6 +2409,111 @@ console.log("== tendering: a register whose dates are the point");
   ok("...and is handed no library at all", (thin.body?.rates || []).length === 0);
   await signIn(owner.id);
 
+
+  // ---- the pack, and the questions asked about it -----------------------
+  //
+  // THE ONE THING THIS FEATURE EXISTS TO CATCH: a bill priced before the
+  // paperwork it is priced against finished changing. A BOQ line has no idea a
+  // document was reissued, so the pack is the only thing that can say so, and
+  // `lag.stale` is where it does. The bill above has already been priced by
+  // this point, which is what makes the assertion meaningful rather than
+  // vacuous.
+  const DOCS = await import("@/app/api/studios/[slug]/tendering/documents/route.ts");
+  const CLARS = await import("@/app/api/studios/[slug]/tendering/clarifications/route.ts");
+
+  const addDoc = (body) => capture(
+    DOCS.POST, req(`/api/studios/${slug}/tendering/documents`, { method: "POST", body }), P);
+
+  const invitation = await shot("tendering.doc.created", await addDoc({
+    tenderId, kind: "received", title: "Invitation to tender", reference: "ITT-88", revision: "A",
+    issuedOn: "2026-04-01",
+  }));
+  const invitationId = invitation.body?.document?.id;
+  ok("a document was filed", Boolean(invitationId), JSON.stringify(invitation.body).slice(0, 120));
+  ok("...and is current until something replaces it",
+    invitation.body?.document?.supersededById === "");
+
+  // A DOCUMENT MUST BELONG TO A TENDER THAT EXISTS \u2014 the same guard the bill
+  // takes, because a crafted request otherwise files paperwork where no screen
+  // shows it and no cascade reaps it.
+  await shot("tendering.doc.notender", await addDoc({
+    tenderId: "ten_doesnotexist00", title: "Orphan",
+  }));
+
+  const revB = await addDoc({
+    tenderId, kind: "addendum", title: "Invitation to tender", reference: "ITT-88", revision: "B",
+  });
+  const revBId = revB.body?.document?.id;
+  ok("a second revision was filed", Boolean(revBId));
+
+  // A REISSUE DOES NOT OVERWRITE. Rev A is MARKED as replaced and stays, because
+  // "what did we price against" has to be answerable afterwards.
+  const superseded = await shot("tendering.doc.superseded", await capture(
+    DOCS.PUT, req(`/api/studios/${slug}/tendering/documents`, { method: "PUT", body: {
+      id: invitationId, supersededById: revBId,
+    } }), P));
+  ok("the old revision points at the new one",
+    superseded.body?.document?.supersededById === revBId);
+  ok("...and carries when it was replaced", Boolean(superseded.body?.document?.supersededAt));
+
+  // AND IS NOT DELETABLE. Either end of a chain is the record of what was
+  // priced against; deleting one loses it and there is nothing to cascade to.
+  await shot("tendering.doc.chainlocked", await capture(
+    DOCS.DELETE, req(`/api/studios/${slug}/tendering/documents`, { method: "DELETE", body: {
+      id: invitationId,
+    } }), P));
+
+  // A SUPERSEDED DOCUMENT MAY NOT BE THE REPLACEMENT, which is the rule that
+  // makes a chain a chain rather than a loop nobody can read.
+  await shot("tendering.doc.badsupersede", await capture(
+    DOCS.PUT, req(`/api/studios/${slug}/tendering/documents`, { method: "PUT", body: {
+      id: revBId, supersededById: invitationId,
+    } }), P));
+
+  const asked = await shot("tendering.clarification.asked", await capture(
+    CLARS.POST, req(`/api/studios/${slug}/tendering/clarifications`, { method: "POST", body: {
+      tenderId, question: "Is temporary power in our scope?", askedOn: "2026-04-03",
+    } }), P));
+  const clarId = asked.body?.clarification?.id;
+  ok("a question was recorded", Boolean(clarId));
+  // OUTSTANDING UNTIL ANSWERED, and the empty stamp is what says so.
+  ok("...and is outstanding until it is answered", asked.body?.clarification?.answeredAt === "");
+
+  const pack = await capture(DOCS.GET, req(`/api/studios/${slug}/tendering/documents?tenderId=${tenderId}`), P);
+  await shot("tendering.pack", pack);
+  ok("the pack lists both revisions, not only the current one",
+    (pack.body?.documents || []).length === 2, String((pack.body?.documents || []).length));
+  // THE ASSERTION THE WHOLE SLICE TURNS ON. Everything above was filed AFTER
+  // the bill was priced, so the bill is behind it and the pack says which.
+  ok("the bill is reported as behind the paperwork", pack.body?.lag?.stale === true,
+    JSON.stringify(pack.body?.lag?.behind?.length));
+  ok("...and the superseded revision is not counted beside its replacement",
+    (pack.body?.lag?.behind || []).every((c) => c.id !== invitationId));
+
+  const answered = await capture(
+    CLARS.PUT, req(`/api/studios/${slug}/tendering/clarifications`, { method: "PUT", body: {
+      id: clarId, answer: "No \u2014 the employer provides it.", affectsPrice: true,
+    } }), P);
+  ok("answering stamps when, on the server", Boolean(answered.body?.clarification?.answeredAt));
+  ok("...and who", Boolean(answered.body?.clarification?.answeredByCollaboratorId));
+
+  // WITHDRAWING AN ANSWER LEAVES THE QUESTION OUTSTANDING. Keeping the stamp
+  // would report it as settled while showing no answer.
+  const withdrawn = await capture(
+    CLARS.PUT, req(`/api/studios/${slug}/tendering/clarifications`, { method: "PUT", body: {
+      id: clarId, answer: "",
+    } }), P);
+  ok("clearing the answer clears the stamp too",
+    withdrawn.body?.clarification?.answeredAt === "" && withdrawn.body?.clarification?.answer === "");
+
+  // A LOOSE DOCUMENT \u2014 one nothing links to \u2014 is an upload somebody got
+  // wrong, and that one goes.
+  const loose = await addDoc({ tenderId, title: "Filed by mistake" });
+  const looseGone = await capture(DOCS.DELETE, req(`/api/studios/${slug}/tendering/documents`, {
+    method: "DELETE", body: { id: loose.body?.document?.id },
+  }), P);
+  ok("a document in no chain may be deleted", looseGone.status === 200, String(looseGone.status));
+
   // A READER WITH NO TENDERING RIGHT IS REFUSED OUTRIGHT, not shown an empty
   // register — an empty list would say "this studio bids nothing", which is a
   // different and false claim.

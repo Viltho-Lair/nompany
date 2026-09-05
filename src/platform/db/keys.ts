@@ -684,7 +684,10 @@ export const SECTION_COLLECTIONS = {
   // The register owns the tenders AND their bills: a bill has no meaning apart
   // from the tender it prices, so deleting the section takes both (invariant
   // 11, children first).
-  "tendering-register": ["tenders", "boqItems"],
+  // THE PACK AND THE QUESTIONS BELONG TO THE TENDER, so they live in the
+  // register's section with it and the bill — a document is reached from the
+  // tender it belongs to, never from a register of its own.
+  "tendering-register": ["tenders", "boqItems", "tenderDocuments", "tenderClarifications"],
   "tendering-rates": ["tenderRates"],
   // engineering-docs
   "engineering-docs-rfq": ["rfqs"],

@@ -102,6 +102,58 @@ type Strings = CommonStrings & {
   uncategorised: string;
   duplicateCode: string;
   editingARateRepricesNothing: string;
+
+  // The pack, and the questions asked about it.
+  documents: string;
+  documentsSub: string;
+  addDocument: string;
+  editDocument: string;
+  docTitle: string;
+  docReference: string;
+  docRevision: string;
+  docIssuedOn: string;
+  docKind: string;
+  kindReceived: string;
+  kindAddendum: string;
+  kindSubmitted: string;
+  attachFile: string;
+  noFileAttached: string;
+  openFile: string;
+  noDocumentsYet: string;
+  noDocumentsBody: string;
+  replacedBy: string;
+  replaces: string;
+  markReplaced: string;
+  markReplacedHint: string;
+  pickReplacement: string;
+  nSuperseded: (n: number) => string;
+  currentDocuments: string;
+  cannotDeleteInChain: string;
+  cannotSupersede: string;
+  uploadFailed: string;
+  fileTooLarge: string;
+
+  clarifications: string;
+  clarificationsSub: string;
+  askQuestion: string;
+  theQuestion: string;
+  theAnswer: string;
+  recordAnswer: string;
+  askedOn: string;
+  answeredOn: string;
+  awaitingAnswer: string;
+  affectsPrice: string;
+  affectsPriceHint: string;
+  noQuestionsYet: string;
+  noQuestionsBody: string;
+  nOpenQuestions: (n: number) => string;
+  allAnswered: string;
+  submittedWithOpenQuestions: (n: number) => string;
+
+  // The warning the whole slice exists for.
+  billIsBehind: string;
+  billIsBehindBody: (n: number) => string;
+  lastPricedOn: string;
 };
 
 const en: Strings = {
@@ -193,6 +245,60 @@ const en: Strings = {
   uncategorised: "Uncategorised",
   duplicateCode: "A rate with that code already exists.",
   editingARateRepricesNothing: "Changing a rate affects the next bid only. Bills already priced keep the number they were given.",
+
+  documents: "Documents",
+  documentsSub: "The pack as it was issued, and every change to it since.",
+  addDocument: "Add a document",
+  editDocument: "Edit document",
+  docTitle: "Title",
+  docReference: "Issuer reference",
+  docRevision: "Revision",
+  docIssuedOn: "Issued on",
+  docKind: "Kind",
+  kindReceived: "Received",
+  kindAddendum: "Addendum",
+  kindSubmitted: "Submitted",
+  attachFile: "Attach a file",
+  noFileAttached: "Recorded without a file",
+  openFile: "Open",
+  noDocumentsYet: "No documents yet",
+  noDocumentsBody: "File the invitation, the drawings and every addendum here. What you priced against is only defensible if it was written down.",
+  replacedBy: "Replaced by",
+  replaces: "Replaces",
+  markReplaced: "Mark as replaced",
+  markReplacedHint: "Upload the new revision first, then point this one at it. The old revision is kept \u2014 it is the record of what was priced against.",
+  pickReplacement: "Replaced by which document?",
+  nSuperseded: (n) => `${n} superseded`,
+  currentDocuments: "Current",
+  cannotDeleteInChain: "This document is part of a revision history and cannot be deleted. Deleting it would lose the record of what was priced against.",
+  cannotSupersede: "That document has already been replaced. Point this one at the current revision instead.",
+  uploadFailed: "The file did not upload. Try again.",
+  fileTooLarge: "That file is too large.",
+
+  clarifications: "Clarifications",
+  clarificationsSub: "What was asked of the issuer, and what came back.",
+  askQuestion: "Record a question",
+  theQuestion: "Question",
+  theAnswer: "Answer",
+  recordAnswer: "Record the answer",
+  askedOn: "Asked",
+  answeredOn: "Answered",
+  awaitingAnswer: "Awaiting an answer",
+  affectsPrice: "This answer changes the price",
+  affectsPriceHint: "Your judgement, not a calculation \u2014 nothing here can read an answer and tell whether it moves the bid.",
+  noQuestionsYet: "No questions raised",
+  noQuestionsBody: "Record every question you put to the issuer. The ones still unanswered at submission are assumptions you have priced.",
+  nOpenQuestions: (n) => (n === 1 ? "1 question still unanswered" : `${n} questions still unanswered`),
+  allAnswered: "Every question has been answered",
+  submittedWithOpenQuestions: (n) => (n === 1
+    ? "This bid went in with 1 question unanswered."
+    : `This bid went in with ${n} questions unanswered.`),
+
+  billIsBehind: "The bill was priced before some of this arrived",
+  billIsBehindBody: (n) => (n === 1
+    ? "1 document or answer landed after the last line was priced. Check whether it changes anything."
+    : `${n} documents or answers landed after the last line was priced. Check whether they change anything.`),
+  lastPricedOn: "Last priced",
 };
 
 const ar: Strings = {
@@ -279,6 +385,60 @@ const ar: Strings = {
   uncategorised: "بلا تصنيف",
   duplicateCode: "يوجد سعر بهذا الرمز بالفعل.",
   editingARateRepricesNothing: "تغيير السعر يؤثر على العرض التالي فقط. الجداول المُسعّرة تحتفظ بأسعارها.",
+
+  documents: "المستندات",
+  documentsSub: "الملف كما صدر، وكلّ تغيير طرأ عليه بعد ذلك.",
+  addDocument: "إضافة مستند",
+  editDocument: "تعديل المستند",
+  docTitle: "العنوان",
+  docReference: "مرجع جهة الطرح",
+  docRevision: "المراجعة",
+  docIssuedOn: "تاريخ الإصدار",
+  docKind: "النوع",
+  kindReceived: "مُستلم",
+  kindAddendum: "ملحق",
+  kindSubmitted: "مُقدّم",
+  attachFile: "إرفاق ملف",
+  noFileAttached: "مُسجّل بلا ملف",
+  openFile: "فتح",
+  noDocumentsYet: "لا توجد مستندات بعد",
+  noDocumentsBody: "احفظ هنا الدعوة والمخططات وكلّ ملحق. ما سعّرت عليه لا يُدافع عنه إلا إذا كان مكتوباً.",
+  replacedBy: "استُبدل بـ",
+  replaces: "يستبدل",
+  markReplaced: "تعليمه كمُستبدل",
+  markReplacedHint: "ارفع المراجعة الجديدة أولاً ثمّ أشر إليها. تُحفظ المراجعة القديمة — فهي سجلّ ما جرى التسعير عليه.",
+  pickReplacement: "استُبدل بأيّ مستند؟",
+  nSuperseded: (n) => `${n} مُستبدل`,
+  currentDocuments: "الساري",
+  cannotDeleteInChain: "هذا المستند جزء من سجلّ مراجعات ولا يمكن حذفه، فحذفه يُضيع سجلّ ما جرى التسعير عليه.",
+  cannotSupersede: "هذا المستند استُبدل من قبل. أشر إلى المراجعة السارية بدلاً من ذلك.",
+  uploadFailed: "لم يُرفع الملف. حاول مرّة أخرى.",
+  fileTooLarge: "حجم الملف كبير جداً.",
+
+  clarifications: "الاستيضاحات",
+  clarificationsSub: "ما سُئلت عنه جهة الطرح، وما جاء من ردّ.",
+  askQuestion: "تسجيل سؤال",
+  theQuestion: "السؤال",
+  theAnswer: "الردّ",
+  recordAnswer: "تسجيل الردّ",
+  askedOn: "سُئل",
+  answeredOn: "أُجيب",
+  awaitingAnswer: "بانتظار الردّ",
+  affectsPrice: "هذا الردّ يغيّر السعر",
+  affectsPriceHint: "تقديرك أنت، لا حساب — لا شيء هنا يقرأ ردّاً ويحكم إن كان يحرّك العرض.",
+  noQuestionsYet: "لم تُطرح أسئلة",
+  noQuestionsBody: "سجّل كلّ سؤال توجّهت به إلى جهة الطرح. ما يبقى بلا ردّ عند التقديم هو افتراضات سعّرتها.",
+  nOpenQuestions: (n) => (n === 1 ? "سؤال واحد بلا ردّ" : `${n} أسئلة بلا ردّ`),
+  allAnswered: "كلّ الأسئلة أُجيبت",
+  submittedWithOpenQuestions: (n) => (n === 1
+    ? "قُدّم هذا العرض وسؤال واحد بلا ردّ."
+    : `قُدّم هذا العرض و${n} أسئلة بلا ردّ.`),
+
+  billIsBehind: "جرى تسعير الجدول قبل وصول بعض هذا",
+  billIsBehindBody: (n) => (n === 1
+    ? "وصل مستند أو ردّ واحد بعد تسعير آخر بند. راجع أثره."
+    : `وصل ${n} مستنداً أو ردّاً بعد تسعير آخر بند. راجع أثرها.`),
+  lastPricedOn: "آخر تسعير",
 };
 
 // KEYED BY LOCALE WITH A FALLBACK, like every other surface's dictionary — not

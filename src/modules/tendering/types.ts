@@ -4,7 +4,9 @@
 import type { ModuleContext } from "../context";
 import type { Section } from "@/platform/db/sections";
 
-export type { Tender, TenderStageEntry, BoqItem, TenderRate } from "./schema";
+export type {
+  Tender, TenderStageEntry, BoqItem, TenderRate, TenderDocument, TenderClarification,
+} from "./schema";
 
 /**
  * A SUB-SECTION FALLS BACK TO THE ROOT and is therefore always present; a

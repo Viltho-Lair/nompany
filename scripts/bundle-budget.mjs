@@ -105,7 +105,17 @@ const MAX_CHUNK_GZIP_KB = 250;
 // across three slices, which is the ratchet working rather than the ceiling
 // being wrong — a total that legitimately moves a few KB per screen wants a
 // small margin, not a round number nobody measured.
-const MAX_TOTAL_GZIP_KB = 1620;
+//
+// 1620 → 1626 on 05/09/2026, measured 1618, with the tender pack and its
+// clarification log. Six kilobytes for a screen that adds no library: about
+// fifty strings in two languages, the panel itself, and
+// modules/tendering/documents.ts, which reaches the browser DELIBERATELY — the
+// screen offers a supersede only where the server would accept one, and refuses
+// a delete for the same reason it does, decided by the same function. Two
+// copies of "a document in a revision chain cannot be deleted" are two copies
+// free to disagree. The largest chunk did not move (158 KB), which is the gate
+// that matters: the tender page is nextDynamic(), so no other route pays it.
+const MAX_TOTAL_GZIP_KB = 1626;
 
 const DIR = ".next/static";
 if (!existsSync(DIR)) {

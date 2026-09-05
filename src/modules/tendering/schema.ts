@@ -140,3 +140,81 @@ export const TenderRateSchema = z.object({
 
 export type BoqItem = z.infer<typeof BoqItemSchema>;
 export type TenderRate = z.infer<typeof TenderRateSchema>;
+
+/**
+ * A DOCUMENT IN THE TENDER PACK — what we were given, what changed, what we sent.
+ *
+ * THE FILE ITSELF IS NOT HERE. `url` is a media record's URL, uploaded private
+ * and served by `/api/media/<id>` after the same membership check every other
+ * upload in the product takes; the record keeps a couple of hundred bytes. A
+ * document with no file is legitimate — a pack listed before it arrives, or a
+ * transmittal recorded from an email.
+ *
+ * `supersededById` IS WHAT MAKES THIS A REGISTER RATHER THAN A FOLDER. A
+ * reissued document does not overwrite the one before it: the old revision is
+ * marked as replaced and stays, because "what did we price against" has to be
+ * answerable after the fact. The rules live in ./documents, pure, so the screen
+ * refuses exactly what the server does.
+ */
+export const TenderDocumentSchema = z.object({
+  id: z.string(),
+  studioId: z.string(),
+  sectionId: z.string(),
+  tenderId: z.string().max(60),
+  /** `received` | `addendum` | `submitted` — the role, never the trade. */
+  kind: z.string().max(20),
+  title: z.string().max(200),
+  /** The issuer's own document number, where the pack carries one. */
+  reference: z.string().max(80),
+  revision: z.string().max(40),
+  /** The date the issuer put on it, as typed. NOT the clock staleness uses. */
+  issuedOn: z.string().max(10),
+  /** The media record's URL. Empty when the document is recorded without a file. */
+  url: z.string().max(500),
+  filename: z.string().max(200),
+  /** Bytes, as the upload reported them — shown, never trusted for a limit. */
+  size: z.number(),
+  notes: z.string().max(2000),
+  /** The document that replaced this one. Empty means this is the current one. */
+  supersededById: z.string().max(60),
+  supersededAt: z.string().max(40),
+  uploadedByCollaboratorId: z.string(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
+/**
+ * A QUESTION PUT TO THE ISSUER, AND WHAT CAME BACK.
+ *
+ * ITS OWN RECORD RATHER THAN A NOTE ON THE TENDER, because the unanswered ones
+ * are the point. A studio that submits with three questions outstanding has
+ * priced three assumptions, and a register that only kept the answers could
+ * never say so.
+ *
+ * `affectsPrice` IS THE ESTIMATOR'S JUDGEMENT, not a derivation. Whether an
+ * answer moves the bid is a reading of the answer; nothing here can compute it,
+ * and pretending otherwise would be worse than asking.
+ */
+export const TenderClarificationSchema = z.object({
+  id: z.string(),
+  studioId: z.string(),
+  sectionId: z.string(),
+  tenderId: z.string().max(60),
+  /** Per tender, from the count — a display order, never a stored reference. */
+  seq: z.number(),
+  question: z.string().max(4000),
+  askedOn: z.string().max(10),
+  askedByCollaboratorId: z.string(),
+  answer: z.string().max(4000),
+  /** Set the moment an answer is recorded. Empty means still outstanding. */
+  answeredAt: z.string().max(40),
+  answeredByCollaboratorId: z.string(),
+  affectsPrice: z.boolean(),
+  /** The addendum that carried the answer, when one did. */
+  documentId: z.string().max(60),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
+export type TenderDocument = z.infer<typeof TenderDocumentSchema>;
+export type TenderClarification = z.infer<typeof TenderClarificationSchema>;

@@ -332,6 +332,12 @@ every push to `main` and every pull request.
   server-rendered and `grep -rl "Limited Use requirements" .next/static` finds
   nothing, before or after. Stated as measured rather than attributed, because a
   number this file cannot account for is still better than one it gets wrong.
+  1612 → 1618 with the tender pack, ceiling 1620 → 1626 — six kilobytes for a
+  screen that adds no library at all: about fifty strings in two languages, the
+  panel, and `modules/tendering/documents.ts`, which reaches the browser
+  DELIBERATELY so the screen offers a supersede only where the server would
+  accept one. The largest chunk did not move (158 KB), which is the gate that
+  matters — the tender page is `nextDynamic()`.
 - Tests connect things — real repositories, real route handlers, **one assertion per
   bug that actually happened**. Each block names the defect it guards, so nobody
   deletes it later wondering what it was for.
@@ -771,10 +777,41 @@ nested line arrays "the arrays that grow without bound".
 deleting a library row breaks no bill, and typing over a library rate clears `rateId` because
 the number is no longer that row's. Asserted all three ways in Gate A.
 
-**Three of the five subsections do not exist**: bid documents and clarifications, bid review on
-P2's engine, and the handover to Projects. A won tender does not become anything yet — and
-`valueFromBoq` is written and tested and CALLED BY NOTHING, so a tender's typed
-`estimatedValue` and its bill's total are still two numbers for one tender.
+**Slice 3 is the tender pack and the clarification log** (`docs/functionality/bid-documents.md`),
+and it adds **no permission key** — the catalogue stays at 143. Two collections
+(`tenderDocuments`, `tenderClarifications`) under `tendering-register`, both answering to
+`tendering.tenders` on the bill's own argument: the pack IS the tender. Files go to Vercel Blob
+through `/api/media?kind=private`, which verifies membership before it writes and again before
+it serves — nothing new was built for storage.
+
+**A reissued document does not overwrite the one before it.** Rev A is MARKED as replaced and
+stays, because "what did we price against" has to be answerable afterwards. Three rules make a
+chain a chain, all in the pure `modules/tendering/documents.ts` so the screen refuses exactly
+what the server refuses: the replacement must itself be CURRENT — which is what stops
+A←B←C←A from ever being WRITTEN, rather than detected afterwards by a walk that has to
+guess — nothing is replaced twice, and **a document in a chain cannot be deleted at either
+end**: deleting the old one destroys the history, deleting its replacement leaves the old one
+reading as replaced by nothing.
+
+**`changesSincePricing` answers the one question the bill cannot ask itself:** did anything
+arrive after the last line was priced? A BOQ line has no idea a document was reissued, so
+nothing in the bill can notice an addendum landing on Tuesday against a bill priced on Monday.
+Measured from `createdAt`, NOT from the issuer's date — the question is whether the estimator
+had it in front of them, and a document dated the 1st and uploaded on the 10th was not available
+to a bill priced on the 5th. **Priced lines alone set the clock**, or typing in scope would
+clear the warning by doing the one kind of work that does not answer it. A bill with nothing
+priced is not behind anything; that is what `complete` already says.
+
+**`tests/restructure.mjs` was orphaned — nothing ran it**, and this file has credited it with
+"six architectural assertions" enforced by CI throughout. That is how its
+`testNoAreaExistsForASectionWithNoScreen` sat red since slice 1, asserting that Tendering, which
+had just shipped a register, must hold no rights: it kept a HAND-TYPED copy of NO_SCREEN_YET.
+It reads the real list now, and the file is in `npm test`.
+
+**Two of the five subsections do not exist**: bid review on P2's engine, and the handover to
+Projects. A won tender does not become anything yet — and `valueFromBoq` is written and tested
+and CALLED BY NOTHING, so a tender's typed `estimatedValue` and its bill's total are still two
+numbers for one tender.
 
 **Three guards caught real mistakes in this slice, each named in the file that caught it.**
 `next build` refused until `tenders` was in `COLLECTION_TABLE` (`platform/db/migrate/mapping.ts`)
