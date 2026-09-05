@@ -717,7 +717,31 @@ real screens". **A tender cannot be won or lost unless it was submitted**, a sub
 cannot become a No Bid (the honest exit is Withdrawn), and delete is refused once the bid has
 gone in. The list carries `asOf` and the screen never reads its own clock.
 
-**THE ROLLOUT CONSEQUENCE, because it is live behaviour and the order matters:** run
+**THE SECTION LIST IS THE PRODUCT'S, NOT THE SIGNUP DATE'S — and it catches up on read
+again.** A studio is still seeded complete at creation, but `listSections` now checks the rows
+it has ALREADY fetched against `ALL_SECTION_KEYS` and plants what is short. R2 was right that
+the old version was expensive and wrong about which part: it called `plantMissingSections`,
+which did its OWN read, so the funnel every reader passes through paid TWO round trips. The
+question costs a set membership test over rows in hand; only a studio genuinely short pays a
+write, once. `sectionsAsStored` is the non-healing reader, and exists because
+`plant-sections.mjs`'s dry run must not plant the rows it is reporting.
+
+Why it went back: a manual backfill gets forgotten. `administration-access` shipped 03/09 and
+was still missing from two of three live studios on 05/09 with nothing complaining, and the
+tender register would have been unreachable on all three. **`plant-sections.mjs` remains**, for
+walking every studio deliberately rather than waiting for each to be opened. It inherits one
+assumption, stated on `plantMissingSections`: a seeded key missing from a studio can only mean
+the studio predates it, never that somebody removed it — nothing deletes sections today, and if
+that ever ships this resurrects what was just deleted.
+
+**ROLES DO NOT CATCH UP, and that is the half this does not solve.** `STARTER_ROLES` seeds only
+when a studio has ZERO roles (`listRoles`: `if (rows.length) return rows`), so a right added to
+the Manager role never reaches an existing studio. The OWNER never notices —
+`effectivePermissions` short-circuits on `role === "owner"` — which is exactly why it goes
+unseen. `grant-administration.mjs` is the pattern; there is no equivalent yet for
+`crmSales.pipeline`, `crmSales.contracts` or `tendering.tenders`.
+
+**THE ORDER STILL MATTERS FOR A SECTION THAT OWNS A COLLECTION:** run
 `scripts/migrate/plant-sections.mjs` **before** anybody uses the register on an existing
 studio, not after. A sub-section FALLS BACK TO THE ROOT when absent — which is what makes every
 module context safe — so the register works before its section is planted and writes tenders

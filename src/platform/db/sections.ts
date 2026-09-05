@@ -37,18 +37,75 @@ export type Section = {
 };
 
 // ---- section rows ----------------------------------------------------------
-export async function listSections(studioId: string): Promise<Section[]> {
-  // A PLAIN READ NOW — reconciliation moved OFF the read path (R2).
-  //
-  // This used to call plantMissingSections on every request, at "the ONE funnel
-  // every reader passes through", so a section added to SECTION_DEFS would reach
-  // studios created before it. That put a reconciliation pass on every module
-  // load for a list that changes approximately never. A studio is instead seeded
-  // COMPLETE at creation (createStudio writes the full SECTION_DEFS), and a
-  // section added to the defs later reaches existing studios through the one-off
-  // idempotent backfill (scripts/migrate/plant-sections.mjs → plantMissingSections),
-  // run once when the defs change — not re-derived on every read.
+
+/**
+ * IS THIS STUDIO'S LIST THE PRODUCT'S LIST? Answered from rows already in hand.
+ *
+ * The section list belongs to the deployed PRODUCT, not to the date a tenant
+ * signed up: two studios registered a month apart must have the same sections,
+ * because an update is shared with everyone. The rows themselves are the whole
+ * truth about that — which is why there is no stored version stamp. A stamp
+ * would be a second source of truth able to disagree with the rows it describes
+ * (version 7, one row short), and it would need backfilling onto every existing
+ * studio, which is the migration problem this is here to remove.
+ */
+const isComplete = (rows: Section[]): boolean => {
+  if (rows.length < ALL_SECTION_KEYS.length) return false;
+  const have = new Set(rows.map((r) => r.key));
+  return ALL_SECTION_KEYS.every((k) => have.has(k));
+};
+
+/**
+ * THE ROWS AS STORED, with no catch-up. For readers that must not write.
+ *
+ * `listSections` plants what a studio is short of, which is what keeps every
+ * tenant on the same product — but it makes a read a potential write, and there
+ * is one caller for which that is wrong: scripts/migrate/plant-sections.mjs
+ * asks what each studio is MISSING, and its whole contract is that a dry run
+ * changes nothing. Reading through the catch-up would have made the dry run
+ * plant the very rows it was reporting, then announce "nothing written", and
+ * report zero planted on the apply run because the work was already done.
+ *
+ * Named for what it is rather than taking a flag, so a caller has to choose
+ * deliberately and a reader can see which one it chose.
+ */
+export async function sectionsAsStored(studioId: string): Promise<Section[]> {
   const rows = await readArr<Section>(S.sections(studioId));
+  return [...rows].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+}
+
+export async function listSections(studioId: string): Promise<Section[]> {
+  // ONE READ, AND THE CATCH-UP COSTS NOTHING WHEN THERE IS NOTHING TO CATCH.
+  //
+  // R2 took reconciliation off this path because it ran plantMissingSections on
+  // every request — and that function did its OWN read, so the funnel every
+  // reader passes through paid TWO round trips for a list that changes
+  // approximately never. The expense was the second read, not the question.
+  //
+  // So the question is asked of the rows already fetched: a set membership test
+  // over ~45 short strings, no I/O. A studio that is up to date — every studio,
+  // almost always — pays exactly what it paid before. A studio created before a
+  // section existed plants it the first time anybody opens it, once, and is then
+  // in the fast path forever.
+  //
+  // WHY ON READ AT ALL, when scripts/migrate/plant-sections.mjs exists. Because
+  // a manual step gets forgotten: `administration-access` shipped on 03/09 and
+  // was still missing from two of three live studios two days later, with
+  // nothing complaining. A tenant should not see a different product because of
+  // when they signed up.
+  //
+  // THE ASSUMPTION THIS INHERITS, stated on plantMissingSections below and worth
+  // repeating here because auto-planting is what makes it load-bearing: a
+  // seeded key missing from a studio can only mean the studio predates the key,
+  // never that somebody removed it. Nothing deletes sections today. If section
+  // deletion ever ships, this resurrects what was just deleted, and both need a
+  // record of which keys have been planted.
+  const rows = await readArr<Section>(S.sections(studioId));
+  if (!isComplete(rows)) {
+    // Already ordered and renumbered by the planter, and handed back from the
+    // same write — no third round trip to read what was just written.
+    return plantMissingSections(studioId, rows);
+  }
   return [...rows].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
 }
 
@@ -72,10 +129,12 @@ export async function listSections(studioId: string): Promise<Section[]> {
 // every seeded key (the common case), and only PLANTS missing rows and re-derives
 // their running order otherwise — inside editArr, so two runs arriving together
 // cannot plant twice. Safe to re-run; it never deletes.
-export async function plantMissingSections(studioId: string): Promise<Section[]> {
-  const rows = await readArr<Section>(S.sections(studioId));
-  const have = new Set(rows.map((s) => s.key));
-  if (ALL_SECTION_KEYS.every((k) => have.has(k))) return rows;
+export async function plantMissingSections(studioId: string, known?: Section[]): Promise<Section[]> {
+  // `known` is the caller's already-fetched rows. listSections passes them so
+  // the catch-up costs no extra read; the migration script passes nothing and
+  // this reads for itself, which is what lets it walk every studio unattended.
+  const rows = known ?? await readArr<Section>(S.sections(studioId));
+  if (isComplete(rows)) return [...rows].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
 
   return editArr<Section, Section[]>(S.sections(studioId), (current) => {
     const held = new Set(current.map((s) => s.key));

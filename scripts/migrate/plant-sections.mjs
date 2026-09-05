@@ -76,7 +76,10 @@ const root = pathToFileURL(`${process.cwd()}/`).href;
 register(new URL("../../tests/loader.mjs", import.meta.url), { data: { root } });
 
 const { listStudios } = await import("@/modules/main/studios");
-const { plantMissingSections, listSections } = await import("@/platform/db/sections");
+// `sectionsAsStored`, NOT `listSections`: the latter plants what a studio is
+// short of, which would make this dry run write the rows it is reporting and
+// then say nothing was written.
+const { plantMissingSections, sectionsAsStored } = await import("@/platform/db/sections");
 const { ALL_SECTION_KEYS } = await import("@/platform/db/keys");
 
 // ---- run -------------------------------------------------------------------
@@ -93,7 +96,7 @@ let planted = 0;
 for (const s of studios) {
   const id = String(s.id || "");
   if (!id) continue;
-  const before = await listSections(id);
+  const before = await sectionsAsStored(id);
   const have = new Set(before.map((r) => r.key));
   const missing = [...seeded].filter((k) => !have.has(k));
   if (!missing.length) continue;

@@ -68,7 +68,7 @@ import {
   workflowFor, listRevisions as listDocRevisions,
 } from "@/modules/quality/qualityDocRevisions";
 import { resolveBlocks, blocksFor } from "@/modules/quality/quality";
-import { listSections, plantMissingSections, getSectionByKey, addRow, readCol } from "@/platform/db/sections";
+import { listSections, sectionsAsStored, plantMissingSections, getSectionByKey, addRow, readCol } from "@/platform/db/sections";
 import { readArr, writeArr } from "@/platform/db/store";
 import { S, REG as REG_KEYS } from "@/platform/db/keys";
 import { financeContext, createInvoice, editInvoice, recordPayment, createExpense, removeInvoice, listInvoices, saveFinanceSettings } from "@/modules/finance/finance";
@@ -3387,12 +3387,23 @@ console.log("\n== a studio that predates a section still gets it");
 // only. Quality was the first to land that way, and planting what is missing is
 // the only reason the module is reachable at all in a studio created before it.
 //
-// R2 MOVED THE PLANTING OFF THE READ PATH — listSections no longer reconciles on
-// every request (a pass on a list that changes approximately never). The defect
-// this guards is unchanged: a studio predating a section must still get it. It is
-// healed by the one-off backfill now — plantMissingSections, run from
-// scripts/migrate/plant-sections.mjs when SECTION_DEFS gains a key — so this
-// exercises that entry point, with every guarantee it used to make on read.
+// THE READ HEALS AGAIN, and the round trip R2 objected to is gone rather than
+// reinstated. R2 moved planting off this path because listSections called
+// plantMissingSections, which did its OWN read — so the funnel every reader
+// passes through paid two round trips for a list that changes approximately
+// never. The expense was the second read, not the question: the check is now a
+// set membership test over the rows already fetched, and the planting write
+// happens only for a studio that is genuinely short.
+//
+// WHY IT WENT BACK. A manual backfill gets forgotten. `administration-access`
+// shipped on 03/09 and was still missing from two of three live studios two
+// days later with nothing complaining, and the tender register would have been
+// unreachable on all three. The section list belongs to the deployed PRODUCT,
+// not to the date a tenant signed up: two studios registered a month apart must
+// see the same sections, because an update is shared with everyone.
+//
+// scripts/migrate/plant-sections.mjs remains, for walking every studio
+// deliberately rather than waiting for each to be opened.
 {
   const key = S.sections(studio.id);
   const before = await readArr(key);
@@ -3408,12 +3419,20 @@ console.log("\n== a studio that predates a section still gets it");
   ok("the section is genuinely gone first",
     !(await readArr(key)).some((x) => x.key === "engineering-docs"));
 
-  // A plain read no longer heals — it returns exactly what is stored (R2).
-  const unhealed = await listSections(studio.id);
-  ok("a plain read does NOT plant on the read path any more", !unhealed.some((x) => x.key === "engineering-docs"));
+  // THE READER THAT MUST NOT WRITE, first — it is what makes the migration
+  // script's dry run honest, and reading through the healing one would have made
+  // that dry run plant the rows it was reporting and then say nothing was
+  // written.
+  const stored = await sectionsAsStored(studio.id);
+  ok("sectionsAsStored returns what is stored, and plants nothing",
+    !stored.some((x) => x.key === "engineering-docs"));
+  ok("...and really did not write", !(await readArr(key)).some((x) => x.key === "engineering-docs"));
 
-  const healed = await plantMissingSections(studio.id);
-  ok("the backfill plants the parent", healed.some((x) => x.key === "engineering-docs"));
+  // AND THE READ EVERY MODULE GOES THROUGH HEALS. This is the assertion the
+  // whole change exists for: a studio created before a section existed catches
+  // up the first time anybody opens it, with no script and nobody remembering.
+  const healed = await listSections(studio.id);
+  ok("a plain read plants what the studio is short of", healed.some((x) => x.key === "engineering-docs"));
   ok("...and its sub-section", healed.some((x) => x.key === "engineering-docs-register"));
   const parent = healed.find((x) => x.key === "engineering-docs");
   const child = healed.find((x) => x.key === "engineering-docs-register");
@@ -3422,13 +3441,21 @@ console.log("\n== a studio that predates a section still gets it");
     healed.findIndex((x) => x.key === "engineering-docs") < healed.findIndex((x) => x.key === "tasks"));
 
   // Planting must be idempotent, or every run mints a new SectionID and the
-  // section's own data is orphaned behind it.
+  // section's own data is orphaned behind it — which now matters on every read,
+  // not only on a script run.
   const again = await plantMissingSections(studio.id);
   ok("running the backfill again plants nothing new", again.length === healed.length);
   ok("...and keeps the same SectionID", again.find((x) => x.key === "engineering-docs").id === parent.id);
-  // And a subsequent plain read now sees the planted section, since it is stored.
+
+  // A SECOND READ MUST NOT WRITE AGAIN. The catch-up is one write for one
+  // studio, once: a read path that kept writing would be a write on every
+  // request, which is the thing R2 was right to object to.
   const afterRead = await listSections(studio.id);
-  ok("a plain read sees the backfilled section", afterRead.some((x) => x.key === "engineering-docs"));
+  ok("a later read sees the planted section", afterRead.some((x) => x.key === "engineering-docs"));
+  ok("...and keeps its SectionID, so nothing was re-minted",
+    afterRead.find((x) => x.key === "engineering-docs").id === parent.id);
+  ok("...and the stored rows are identical, so the second read wrote nothing",
+    JSON.stringify(await sectionsAsStored(studio.id)) === JSON.stringify(afterRead));
 }
 
 // ============================================================================
