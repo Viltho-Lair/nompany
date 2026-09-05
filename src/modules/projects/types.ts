@@ -13,6 +13,8 @@ export type { Project, Sla, Overtime, EmergencyVisit } from "./schema";
 // and is therefore always present; a FOREIGN one never does, so it is nullable —
 // "this studio has no Technical section" is a real answer the screens handle.
 export type ProjectsContext = ModuleContext & {
+  /** Master data, read for the org chart an overtime entry's person sits in. */
+  masterSection: Section | null;
   listSection: Section;
   slaSection: Section;
   overtimesSection: Section;
@@ -26,6 +28,7 @@ export type ProjectsContext = ModuleContext & {
   // the context's index signature, so a typo in `tenderSource` is a build error.
   tenderRegisterSection: Section | null;
   payablesSection: Section | null;
+  ordersSection: Section | null;
   sheetsSection: Section | null;
   itemsSection: Section | null;
   vendorsSection: Section | null;

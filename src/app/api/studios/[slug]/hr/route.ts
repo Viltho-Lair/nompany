@@ -14,11 +14,12 @@ export const dynamic = "force-dynamic";
 export const GET = route(
   { auth: "studio", context: hrContext, name: "hr" },
   async (g) => {
-  // Departments are DERIVED from the section list the context already carries,
-  // so there is nothing to await for them.
-  const departments = listDepartments(g);
-  const [roles, certifications, employees, vacations] = await Promise.all([
-    listHrRoles(g), listCertifications(g),
+  // Departments are STORED now — Master data's collection, read through this
+  // module's foreign section. They join the other four reads rather than
+  // preceding them, so the screen costs the same round trips it did when the
+  // list was derived from sections already in hand.
+  const [departments, roles, certifications, employees, vacations] = await Promise.all([
+    listDepartments(g), listHrRoles(g), listCertifications(g),
     listEmployees(g, g.collaborator.id),
     listVacations(g, { meId: g.collaborator.id }),
   ]);

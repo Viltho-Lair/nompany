@@ -144,7 +144,15 @@ type Strings = CommonStrings & {
   refuseAlreadySeeded: string;
   refuseNoBill: string;
   refuseNoTenderBehind: string;
-  noForecastYet: string;
+  costCommitted: string;
+  costForecast: string;
+  costVariance: string;
+  totalCommitted: string;
+  totalForecast: string;
+  willOverrun: string;
+  uncommittedSpend: string;
+  uncommittedSpendHint: string;
+  forecastNote: string;
   noServiceActionsYet: string;
   noSlaContractsYet: string;
   noSlaContractsYet2: string;
@@ -403,7 +411,15 @@ const en: Strings = {
   refuseAlreadySeeded: "This project already has a breakdown. Starting from the bill is a first step, not a merge.",
   refuseNoBill: "That tender has no bill of quantities to start from.",
   refuseNoTenderBehind: "This project was not handed over from a tender, so there is no bill to start from.",
-  noForecastYet: "There is no forecast column: purchase orders are not coded yet, so a projection from invoices alone would ignore everything already ordered.",
+  costCommitted: "Committed",
+  costForecast: "Forecast",
+  costVariance: "Variance",
+  totalCommitted: "Committed",
+  totalForecast: "Forecast",
+  willOverrun: "Heading over",
+  uncommittedSpend: "Orders with no cost code",
+  uncommittedSpendHint: "Purchase orders on this project that name no code, or one that has since been deleted. Counted in the forecast — leaving them out would show the job finishing cheaper than it will.",
+  forecastNote: "Forecast is what has been spent plus what is still ordered, or the budget — whichever is larger. A code inside its allowance is expected to spend it, because the work is not done.",
   noServiceActionsYet: "No service actions yet — add them in Studio Settings, then weight them here.",
   noSlaContractsYet: "No SLA contracts yet",
   noSlaContractsYet2: "No SLA contracts yet.",
@@ -660,7 +676,15 @@ const ar: Strings = {
   refuseAlreadySeeded: "لهذا المشروع توزيع بالفعل. البدء من الجدول خطوة أولى وليس دمجاً.",
   refuseNoBill: "لا يوجد جدول كميات لتلك المناقصة.",
   refuseNoTenderBehind: "لم يُسلّم هذا المشروع من مناقصة، فلا جدول يُبدأ منه.",
-  noForecastYet: "لا يوجد عمود توقّع: أوامر الشراء لا تُقيّد بعد، وتوقّع مبني على الفواتير وحدها يتجاهل كلّ ما طُلب.",
+  costCommitted: "ملتزم به",
+  costForecast: "المتوقّع",
+  costVariance: "الفرق",
+  totalCommitted: "ملتزم به",
+  totalForecast: "المتوقّع",
+  willOverrun: "متجه للتجاوز",
+  uncommittedSpend: "أوامر شراء بلا بند تكلفة",
+  uncommittedSpendHint: "أوامر شراء على هذا المشروع لا تذكر بنداً، أو تذكر بنداً حُذف. تُحسب ضمن المتوقّع — إسقاطها يُظهر العمل منتهياً أرخص ممّا سيكون.",
+  forecastNote: "المتوقّع هو ما صُرف زائد ما لا يزال مطلوباً، أو الميزانية، أيّهما أكبر. البند داخل ميزانيته يُتوقّع أن ينفقها، لأنّ العمل لم ينتهِ.",
   noServiceActionsYet: "لا إجراءات خدمة بعد — أضفها في إعدادات الاستوديو ثم وزّع أوزانها هنا.",
   noSlaContractsYet: "لا توجد عقود مستوى خدمة بعد",
   noSlaContractsYet2: "لا توجد عقود مستوى خدمة بعد.",

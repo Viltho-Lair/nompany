@@ -330,7 +330,12 @@ async function renderStudio(params) {
   // full-screen test too, rather than the path alone.
   if (
     requested === "projects-list" && segments[1] &&
-    segments[2] !== "quotation" && segments[2] !== "plans" &&
+    // EVERY THIRD SEGMENT THIS PROJECT HAS IS AN EXEMPTION, and the list has to
+    // grow with them: the board is a FULL-SCREEN early return, so a segment
+    // missing from here is not "unhandled" — it silently renders the board
+    // instead, which reads as a route that does not exist. `costs` did exactly
+    // that until it was added, and only opening the screen showed it.
+    segments[2] !== "quotation" && segments[2] !== "plans" && segments[2] !== "costs" &&
     sections.some((s) => s.key === "projects-list")
   ) {
     return <StudioProjectBoard slug={studio.slug} projectId={segments[1]} />;

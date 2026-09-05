@@ -24,7 +24,30 @@ export type CostedBill = {
   projectId?: unknown;
   status?: unknown;
   total?: unknown;
+  /** The purchase order this invoice answers, when it answers one. */
+  orderId?: unknown;
 };
+
+/** Only what a purchase order has to expose. */
+export type CostedOrder = {
+  id?: unknown;
+  costCodeId?: unknown;
+  status?: unknown;
+  total?: unknown;
+};
+
+/**
+ * AN ORDER THAT IS NOT A COMMITMENT. `Draft` was never placed with anybody and
+ * `Cancelled` was withdrawn, so neither is money the studio has promised.
+ * Everything else is — including `Received`, whose goods have arrived and whose
+ * invoice may not have: an order stops being a commitment when it is INVOICED,
+ * not when it is delivered, which is why what is left of it is netted below
+ * rather than switched off by a status.
+ */
+const NOT_COMMITTED = new Set(["Draft", "Cancelled"]);
+
+export const isPlaced = (order: CostedOrder | null | undefined): boolean =>
+  Boolean(order) && !NOT_COMMITTED.has(text(order?.status));
 
 /**
  * A BILL THAT IS NOT SPEND. `Draft` was never raised against anybody and
@@ -54,17 +77,46 @@ export type CodeRollUp = {
   budget: number;
   /** Billed against this code, whatever its approval state. */
   actual: number;
+  /**
+   * Ordered and not yet invoiced. Money the studio has promised somebody and
+   * has not been asked for — the half a spend report cannot see, and the reason
+   * there was no forecast until purchase orders carried a code.
+   */
+  committed: number;
+  /**
+   * What this code is expected to finish at: `actual + committed`, or the
+   * budget, whichever is LARGER.
+   *
+   * The asymmetry is the point. A code that has spent and committed less than
+   * its allowance is still expected to spend it — the work is not done, and
+   * reporting the money not yet promised as a saving would show every project
+   * under budget on the day it opened. A code already past its allowance will
+   * not come back down, so there the two sums are the forecast.
+   *
+   * WHAT IT IS NOT is a judgement. Nobody has been asked for an
+   * estimate-to-complete; this is what the ledger implies, and a studio that
+   * knows better revises the budget.
+   */
+  forecast: number;
   /** What is left of the allowance. NEGATIVE when the code is over. */
   remaining: number;
+  /** Budget less forecast. Negative is an overrun this code is heading for. */
+  variance: number;
   /** How much of the budget has been spent, 0–1, or null when there is none. */
   used: number | null;
+  /** Already spent past the allowance. */
   over: boolean;
+  /** Not yet past it, but will be once what is ordered arrives. */
+  willOverrun: boolean;
 };
 
 export type ProjectCosting = {
   codes: CodeRollUp[];
   budget: number;
   actual: number;
+  committed: number;
+  forecast: number;
+  variance: number;
   remaining: number;
   /**
    * Spend on this project that names no code. NOT an error and not hidden: a
@@ -80,7 +132,14 @@ export type ProjectCosting = {
    * be looking at rather than an error.
    */
   unallocated: number;
-  /** True when every code is inside its allowance and nothing is uncoded. */
+  /**
+   * Ordered against this project and coded to nothing — or to a code somebody
+   * has deleted. Kept apart from `uncoded` because the two are fixed in
+   * different places: one is a bill Finance has not filed, the other a purchase
+   * order Procurement has not.
+   */
+  uncommitted: number;
+  /** True when every code is inside its allowance and nothing is unfiled. */
   clean: boolean;
 };
 
@@ -91,29 +150,56 @@ export type ProjectCosting = {
  * make the caller's `where` look optional, and a caller that then dropped it
  * would silently report the whole studio's spend against one job.
  *
- * THERE IS NO FORECAST COLUMN, and its absence is deliberate rather than
- * pending. A forecast is `actual + committed + cost-to-complete`, and nothing
- * here knows what is COMMITTED — purchase orders are not coded yet — so a
- * forecast computed from actuals alone would read as a full projection while
- * silently ignoring every order already placed. That is worse than no column:
- * it would be most wrong exactly when a project has ordered heavily and
- * invoiced little, which is every project at its start.
+ * A BILL AGAINST AN ORDER INHERITS THE ORDER'S CODE when it carries none of its
+ * own. Somebody codes the purchase order once and every invoice answering it
+ * follows, which is both what a person expects and the thing that keeps
+ * `uncoded` down to what genuinely has not been filed. A bill with a code of its
+ * own keeps it — the invoice is the later and more specific decision.
  */
 export function projectCosting(
   codes: readonly CostCode[],
   bills: readonly CostedBill[],
+  orders: readonly CostedOrder[] = [],
   projectValue: unknown = 0,
 ): ProjectCosting {
   const rows = Array.isArray(codes) ? codes : [];
   const spend = (Array.isArray(bills) ? bills : []).filter(isSpend);
+  const placed = (Array.isArray(orders) ? orders : []).filter(isPlaced);
+  const orderById = new Map(placed.map((o) => [text(o.id), o] as const));
+
+  const codeOf = (bill: CostedBill): string =>
+    text(bill.costCodeId) || text(orderById.get(text(bill.orderId))?.costCodeId);
 
   const byCode = new Map<string, number>();
   let uncoded = 0;
   for (const bill of spend) {
-    const id = text(bill.costCodeId);
+    const id = codeOf(bill);
     const amount = num(bill.total);
     if (!id) { uncoded = money(uncoded + amount); continue; }
     byCode.set(id, money((byCode.get(id) || 0) + amount));
+  }
+
+  // WHAT IS LEFT OF EACH ORDER, netted against what has been invoiced on it.
+  // An order stops being a commitment as it is billed, not when it is
+  // delivered — counting a fully invoiced order as still committed would
+  // double every cost the moment its goods arrived.
+  //
+  // FLOORED AT ZERO: over-invoicing an order is a real thing and it is not a
+  // negative commitment. The excess is already in `actual`, where it belongs.
+  const billedOnOrder = new Map<string, number>();
+  for (const bill of spend) {
+    const oid = text(bill.orderId);
+    if (!oid) continue;
+    billedOnOrder.set(oid, money((billedOnOrder.get(oid) || 0) + num(bill.total)));
+  }
+  const committedByCode = new Map<string, number>();
+  let uncommitted = 0;
+  for (const order of placed) {
+    const open = Math.max(0, money(num(order.total) - (billedOnOrder.get(text(order.id)) || 0)));
+    if (!open) continue;
+    const id = text(order.costCodeId);
+    if (!id) { uncommitted = money(uncommitted + open); continue; }
+    committedByCode.set(id, money((committedByCode.get(id) || 0) + open));
   }
 
   const known = new Set(rows.map((c) => text(c.id)));
@@ -121,22 +207,30 @@ export function projectCosting(
   // deleted after bills were filed against it would otherwise take their money
   // out of the report entirely — the total would drop and nothing would say
   // why. It rejoins `uncoded`, which is the honest place for money whose code
-  // cannot be resolved.
+  // cannot be resolved. The same holds for an order.
   for (const [id, amount] of byCode) {
     if (!known.has(id)) uncoded = money(uncoded + amount);
+  }
+  for (const [id, amount] of committedByCode) {
+    if (!known.has(id)) uncommitted = money(uncommitted + amount);
   }
 
   const out: CodeRollUp[] = rows.map((c) => {
     const id = text(c.id);
     const budget = money(num(c.budget));
     const actual = byCode.get(id) || 0;
+    const committed = committedByCode.get(id) || 0;
+    const forecast = Math.max(budget, money(actual + committed));
     return {
       id,
       code: text(c.code),
       name: text(c.name),
       budget,
       actual,
+      committed,
+      forecast,
       remaining: money(budget - actual),
+      variance: money(budget - forecast),
       // NULL, NOT ZERO, on a code with no budget. Nought spent against nought
       // allowed is not "0% used" — it is a code nobody has budgeted, and a
       // progress bar reading empty would say the opposite of that.
@@ -144,20 +238,35 @@ export function projectCosting(
       // A code with no budget is over the moment anything is spent on it: the
       // money went somewhere nobody allowed for.
       over: actual > budget,
+      // NOT YET OVER, BUT HEADING THERE. Distinct from `over` because they are
+      // acted on differently: one is a number to explain, the other is an
+      // order somebody could still stop.
+      willOverrun: !(actual > budget) && money(actual + committed) > budget,
     };
   });
 
   const budget = money(out.reduce((n, c) => n + c.budget, 0));
   const actual = money(out.reduce((n, c) => n + c.actual, 0) + uncoded);
+  const committed = money(out.reduce((n, c) => n + c.committed, 0) + uncommitted);
+  // THE PROJECT'S FORECAST IS THE SUM OF ITS CODES' — not `max(budget, actual +
+  // committed)` over the totals. Taking the maximum at the top would let a code
+  // running under its allowance cancel out one running over, and the whole
+  // point of a breakdown is that those two do not cancel. The unfiled money has
+  // no budget to be under, so it joins at face value.
+  const forecast = money(out.reduce((n, c) => n + c.forecast, 0) + uncoded + uncommitted);
 
   return {
     codes: out,
     budget,
     actual,
+    committed,
+    forecast,
+    variance: money(budget - forecast),
     remaining: money(budget - actual),
     uncoded,
+    uncommitted,
     unallocated: money(num(projectValue) - budget),
-    clean: uncoded === 0 && out.every((c) => !c.over),
+    clean: uncoded === 0 && uncommitted === 0 && out.every((c) => !c.over && !c.willOverrun),
   };
 }
 

@@ -35,11 +35,11 @@ refusal names `projects.costs.view`.
 `projects-list` maps to both areas, so somebody holding only the costs right can still reach the
 screen it hangs off.
 
-**Coded per bill, not per line**, deliberately and with a cost: a supplier invoice spanning two
-trades has to be split into two bills. Per-line coding is the more correct model and is where
-this goes — the roll-up would prefer a line's code and fall back to the bill's, so it is an
-addition rather than a change. What per-bill buys is that a studio can start coding today with
-one picker instead of one per row.
+**Coded per bill and per purchase order, not per line**, deliberately and with a cost: a
+supplier invoice spanning two trades has to be split into two bills. Per-line coding is the more
+correct model and is where this goes — the roll-up would prefer a line's code and fall back to
+the document's, so it is an addition rather than a change. What per-document buys is that a
+studio can start coding today with one picker instead of one per row.
 
 ## What it does
 
@@ -90,24 +90,57 @@ says, on the control itself, that the figures are prices and not costs.
 it twice on a breakdown somebody has since edited would either duplicate every code or quietly
 overwrite their numbers.
 
-### There is no forecast column
+### Committed, and the forecast
 
-Stated on the screen rather than left as an absence. A forecast is `actual + committed +
-cost-to-complete`, and **nothing here knows what is committed** — purchase orders are not coded
-yet. A forecast computed from invoices alone would read as a full projection while silently
-ignoring every order already placed, which is most wrong exactly when a project has ordered
-heavily and invoiced little: every project at its start. A test asserts the word does not appear
-in the roll-up.
+**Committed is what has been ordered and not yet invoiced** — money the studio has promised a
+supplier and has not been asked for. It is the half a spend report cannot see, and until purchase
+orders carried a cost code there was no honest way to forecast at all.
+
+**An order stops being a commitment when it is INVOICED, not when it is delivered.** So a
+`Received` order whose invoice has not arrived is still committed, and what is left of every
+placed order is **netted against what has been billed on it** — counting a fully invoiced order
+as still committed would double every cost the moment its goods turned up. `Draft` and
+`Cancelled` commit nothing: one was never placed with anybody, the other was withdrawn.
+
+**Over-invoicing an order commits nothing further**, floored at zero. The excess is already in
+`actual`, where it belongs; a negative commitment would be a credit nobody has.
+
+**A bill answering an order inherits the order's code** when it carries none of its own. Somebody
+codes the purchase order once and every invoice against it follows — both what a person expects,
+and what keeps `uncoded` down to what genuinely has not been filed. A bill with a code of its own
+keeps it: the invoice is the later and more specific decision.
+
+**An uncoded ORDER is kept apart from an uncoded BILL** (`uncommitted` beside `uncoded`), because
+the two are fixed in different places: one is a bill Finance has not filed, the other a purchase
+order Procurement has not.
+
+**Forecast is `actual + committed`, or the budget, whichever is larger**, and the asymmetry is
+the point. A code that has spent and committed less than its allowance is still expected to spend
+it — the work is not done, and reporting the money not yet promised as a saving would show every
+project under budget on the day it opened. A code already past its allowance will not come back
+down, so there the two sums are the forecast. **It is not a judgement**: nobody has been asked for
+an estimate-to-complete, this is what the ledger implies, and a studio that knows better revises
+the budget. The screen says the rule, because a forecast equal to the budget on a code nobody has
+spent anything on reads as a bug until you know why.
+
+**The project's forecast is the sum of its codes', not a maximum over the totals.** Taking the
+maximum at the top would let a code running under its allowance cancel one running over, and the
+whole point of a breakdown is that those two do not cancel.
+
+**`over` and `willOverrun` are two different flags**, because they are acted on differently: one
+is a number to explain, the other an order somebody could still stop.
 
 ## Not built yet
 
 Stated in words, because a silent gap reads as a finished feature.
 
-- **Nothing is committed.** Purchase orders carry no cost code, so there is no committed column
-  and therefore no forecast and no variance-at-completion. This is the next slice and it is what
-  makes the report a cost report rather than a spend report.
 - **No earned value.** EV/PV/AC/SPI/CPI need a schedule and a budget joined together; the budget
-  half exists now and the planner holds the other, and nothing joins them.
+  half exists now and the planner holds the other, and nothing joins them. AC is the `actual`
+  here, so this is the closest remaining piece.
+- **No estimate-to-complete.** Nobody can say "this code will finish at X" — the forecast is
+  derived, and the only way to change it is to change the budget.
+- **A subcontract is not a commitment.** Only purchase orders are; subcontracts, framework
+  agreements and anything else the studio has promised are invisible to the forecast.
 - **No coding on anything but a bill.** Expenses, timesheets, stock issues and subcontractor
   certificates all cost a project money and none of them names a code.
 - **No studio-wide chart of cost codes.** Every project's breakdown is its own list, so two

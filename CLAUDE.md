@@ -346,7 +346,8 @@ every push to `main` and every pull request.
   strings. 1620 → 1622 with the project cost breakdown — a table, a dialog and
   about thirty strings in two languages; `modules/projects/costing.ts` reaches
   the browser DELIBERATELY, so the screen totals with the same function the
-  server does.
+  server does. 1622 → 1623 with committed and forecast: two columns, two
+  banners and nine strings.
 - Tests connect things — real repositories, real route handlers, **one assertion per
   bug that actually happened**. Each block names the defect it guards, so nobody
   deletes it later wondering what it was for.
@@ -743,10 +744,29 @@ housekeeping. Spend counts from `Received`, not from `Approved`: approval author
 and a report that waited for it would call a job under budget for as long as its paperwork was
 behind.
 
-**THERE IS NO FORECAST COLUMN, and the screen says why.** Nothing knows what is COMMITTED —
-purchase orders carry no cost code yet — so a projection from invoices alone would read as a
-full forecast while ignoring every order already placed, which is most wrong exactly when a
-project has ordered heavily and invoiced little. That is the next slice.
+**SLICE 2 CODED THE PURCHASE ORDERS**, which is what turns a spend report into a cost report.
+`committed` is what has been ordered and NOT yet invoiced — the half a spend report cannot see.
+An order stops being a commitment when it is INVOICED rather than when it is delivered, so what
+is left of every placed order is NETTED against what has been billed on it: counting a fully
+invoiced order as still committed would double every cost the moment its goods turned up.
+
+**A bill answering an order INHERITS the order's code** when it carries none of its own — code
+the PO once and every invoice against it follows, which is what keeps `uncoded` to what genuinely
+has not been filed. An uncoded ORDER is kept apart from an uncoded BILL (`uncommitted` beside
+`uncoded`) because the two are fixed in different places.
+
+**Forecast is `actual + committed`, or the budget, whichever is LARGER**, and the asymmetry is
+the point: a code inside its allowance is still expected to spend it, because the work is not
+done, and reporting money not yet promised as a saving would show every project under budget on
+the day it opened. The PROJECT's forecast is the sum of its codes' rather than a maximum over
+the totals — taking the maximum at the top would let a code running under cancel one running
+over, which is the one thing a breakdown exists to prevent.
+
+**A ROUTING BUG THE TESTS COULD NOT SEE, found by opening the screen.** The project board is a
+FULL-SCREEN early return gated on a hand-typed list of third segments, so `/costs` rendered the
+board instead of the cost breakdown — the branch further down was unreachable and nothing failed,
+because both halves were individually valid. `tests/restructure.mjs` now reads both lists out of
+the file and asserts every handled project segment is exempt.
 
 **P4a's second section is complete: Tendering & Estimating.** The root was declared at the
 restructure and rendered nothing for a fortnight — it sat in `NO_SCREEN_YET` and held no

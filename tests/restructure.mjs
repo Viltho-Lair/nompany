@@ -817,6 +817,55 @@ export async function testAdministrationFollowsItsChildren(t) {
     "master data has no screen and stays hidden even from somebody holding every other right");
 }
 
+/**
+ * EVERY THIRD SEGMENT A PROJECT HANDLES MUST BE EXEMPT FROM THE BOARD'S
+ * FULL-SCREEN EARLY RETURN.
+ *
+ * THE BUG THIS GUARDS ALREADY HAPPENED. `/<slug>/projects-list/<id>` returns the
+ * board BEFORE the framed screens are chosen, and the return is gated on the
+ * third segment not being one of a hand-typed list. The cost breakdown shipped
+ * with a branch further down that could never be reached: every request for
+ * `/costs` rendered the board instead, which reads as a route that does not
+ * exist rather than as a missing exemption. Nothing failed — not the build, not
+ * a type, not a golden — because both halves were individually valid. Only
+ * opening the screen showed it.
+ *
+ * READ FROM THE FILE, both halves, so a fourth segment cannot be added to one
+ * list and forgotten in the other. That is the whole point: a hand-kept copy of
+ * a list is the thing that goes stale, which is the same lesson
+ * NO_SCREEN_YET taught this file two slices ago.
+ */
+export async function testProjectSegmentsAreExemptFromTheBoard(t) {
+  const { readFileSync } = await import("node:fs");
+  const src = readFileSync(new URL("../src/app/studio/[[...segments]]/page.js", import.meta.url), "utf8");
+
+  // THE PROJECT'S OWN third-segment branches, and only those. A ticket has one
+  // too (`/crm-sales-tickets/<id>/quotations/<id>`) and it has nothing to do
+  // with the board — matching every `segments[2] ===` in the file would demand
+  // an exemption for a segment that never reaches this route.
+  //
+  // Two shapes, both anchored on the project: the `projectId && ...` form the
+  // derived flags use, and the `requested === "projects-list" && ...` form the
+  // full-screen plan return uses.
+  const handled = new Set([
+    ...[...src.matchAll(/projectId\s*&&\s*segments\[2\]\s*===\s*"([a-z-]+)"/g)].map((m) => m[1]),
+    ...[...src.matchAll(/requested === "projects-list"[^;]*?segments\[2\]\s*===\s*"([a-z-]+)"/gs)].map((m) => m[1]),
+  ]);
+  // And the exemptions the board's early return lists: `segments[2] !== "<name>"`.
+  const exempt = new Set(
+    [...src.matchAll(/segments\[2\]\s*!==\s*"([a-z-]+)"/g)].map((m) => m[1]),
+  );
+
+  t.equal(handled.size > 0, true, "the page handles at least one third segment");
+  t.equal(exempt.size > 0, true, "the board's early return exempts at least one");
+
+  for (const segment of handled) {
+    t.equal(exempt.has(segment), true,
+      `/<slug>/projects-list/<id>/${segment} is handled, so the board's early return must exempt it — otherwise it silently renders the board`);
+  }
+}
+
+
 export async function testEveryContextualSectionKeyLiteralExists(t) {
   const { execFileSync } = await import("node:child_process");
   const bad = [];
@@ -973,6 +1022,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       testEmptySectionsDoNotRender,
       testEveryKeyWithNothingToShowIsDeclared,
       testAdministrationFollowsItsChildren,
+      testProjectSegmentsAreExemptFromTheBoard,
       testEveryContextualSectionKeyLiteralExists,
       testCompoundRootsCoversEveryDashedRoot,
     ];

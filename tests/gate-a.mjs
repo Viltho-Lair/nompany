@@ -3027,6 +3027,86 @@ console.log("== tendering: a register whose dates are the point");
   ok("the breakdown does not yet account for the whole job",
     withSpend.body?.costing?.unallocated === 0, String(withSpend.body?.costing?.unallocated));
 
+
+  // ---- and what has been ordered but not yet invoiced ---------------------
+  //
+  // THE HALF A SPEND REPORT CANNOT SEE. Until purchase orders carried a cost
+  // code there was no committed column and therefore no forecast: a projection
+  // from invoices alone reads as complete while ignoring every order already
+  // placed, which is most wrong exactly when a project has ordered heavily and
+  // invoiced little -- every project at its start.
+  const ORDERS = await import("@/app/api/studios/[slug]/inventory/orders/route.ts");
+  const VENDORS2 = await import("@/app/api/studios/[slug]/inventory/vendors/route.ts");
+  const ITEMS2 = await import("@/app/api/studios/[slug]/inventory/items/route.ts");
+  // Its OWN vendor and item: every block in this file scopes its fixtures, so
+  // the inventory block's are not in scope here.
+  const poVendor = await capture(VENDORS2.POST, req(`/api/studios/${slug}/inventory/vendors`, {
+    method: "POST", body: { name: "Pipe Co" },
+  }), P);
+  const vendorId = poVendor.body?.vendor?.id;
+  const poItem = await capture(ITEMS2.POST, req(`/api/studios/${slug}/inventory/items`, {
+    method: "POST", body: { name: "Copper pipe", sku: "PIPE-01", vendorId, unitCost: 9000 },
+  }), P);
+  const itemId = poItem.body?.item?.id;
+  ok("the purchase-order fixtures exist", Boolean(vendorId && itemId),
+    JSON.stringify({ vendorId, itemId }));
+  const placed = await capture(ORDERS.POST, req(`/api/studios/${slug}/inventory/orders`, {
+    method: "POST",
+    body: {
+      vendorId, projectId: newProjectId, costCodeId: codeIds[1],
+      lines: [{ itemId, qty: 2, unitPrice: 9000 }],
+    },
+  }), P);
+  const orderId = placed.body?.order?.id;
+  ok("a purchase order can name the cost code it belongs to",
+    placed.body?.order?.costCodeId === codeIds[1], JSON.stringify(placed.body?.order?.costCodeId));
+
+  // A DRAFT ORDER WAS NEVER PLACED WITH ANYBODY, so it commits nothing. Orders
+  // are born Draft, which is why this one is moved on before it counts.
+  const draftOnly = await readCosts(newProjectId);
+  ok("a draft order commits nothing", draftOnly.body?.costing?.committed === 0,
+    String(draftOnly.body?.costing?.committed));
+
+  await capture(ORDERS.PUT, req(`/api/studios/${slug}/inventory/orders`, {
+    method: "PUT", body: { id: orderId, status: "Ordered" },
+  }), P);
+
+  const committed = await readCosts(newProjectId);
+  await shot("projects.costs.committed", committed);
+  ok("a placed order is committed in full until something is invoiced on it",
+    committed.body?.costing?.codes?.[1]?.committed === 18000,
+    String(committed.body?.costing?.codes?.[1]?.committed));
+  // 18000 committed against a 60000 allowance with nothing spent: the code is
+  // inside its budget, so the forecast is the BUDGET. Reporting the money not
+  // yet promised as a saving would show every project under budget on day one.
+  ok("...and a code inside its allowance still forecasts at the budget",
+    committed.body?.costing?.codes?.[1]?.forecast === 60000,
+    String(committed.body?.costing?.codes?.[1]?.forecast));
+
+  // THE ASSERTION THIS SLICE TURNS ON. An order stops being a commitment as it
+  // is INVOICED -- counting a billed order as still committed would double
+  // every cost the moment its goods arrived.
+  await capture(PAYABLES.POST, req(`/api/studios/${slug}/finance/bills`, {
+    method: "POST",
+    body: {
+      vendorName: "Pipe Co", projectId: newProjectId, orderId, vatRate: 0,
+      lines: [{ description: "Part delivery", qty: 1, unitPrice: 7000 }],
+    },
+  }), P);
+  const netted = await readCosts(newProjectId);
+  ok("an order is netted against what has been invoiced on it",
+    netted.body?.costing?.codes?.[1]?.committed === 11000,
+    String(netted.body?.costing?.codes?.[1]?.committed));
+  // AND THE BILL INHERITED THE ORDER'S CODE, though it named none of its own:
+  // somebody codes the purchase order once and every invoice answering it
+  // follows, which is what keeps `uncoded` to what genuinely has not been filed.
+  ok("...and an uncoded bill inherits the code of the order it answers",
+    netted.body?.costing?.codes?.[1]?.actual === 7000,
+    String(netted.body?.costing?.codes?.[1]?.actual));
+  ok("...so the two never double-count",
+    netted.body?.costing?.codes?.[1]?.actual
+    + netted.body?.costing?.codes?.[1]?.committed === 18000);
+
   // DELETING A CODE DOES NOT DELETE WHAT WAS SPENT ON IT. The bill keeps its
   // costCodeId and the money returns to `uncoded`, where it stays visible --
   // silently dropping it would make a project look cheaper for having deleted
@@ -3035,8 +3115,10 @@ console.log("== tendering: a register whose dates are the point");
     method: "DELETE", body: { id: codeIds[0] },
   }), P);
   const afterDelete = await readCosts(newProjectId);
+  // 130000 coded here + 4000 nobody filed + 7000 that came in on the order
+  // below. The number this asserts is that the total does not MOVE.
   ok("deleting a code does not lose what was spent on it",
-    afterDelete.body?.costing?.actual === 134000, String(afterDelete.body?.costing?.actual));
+    afterDelete.body?.costing?.actual === 141000, String(afterDelete.body?.costing?.actual));
   ok("...it becomes uncoded, where it stays visible",
     afterDelete.body?.costing?.uncoded === 134000, String(afterDelete.body?.costing?.uncoded));
   await updateStudio(studio.id, { currency: "" });

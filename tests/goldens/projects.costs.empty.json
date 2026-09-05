@@ -33,8 +33,12 @@
       "codes": [],
       "budget": 0,
       "actual": 0,
+      "committed": 0,
+      "forecast": 0,
+      "variance": 0,
       "remaining": 0,
       "uncoded": 0,
+      "uncommitted": 0,
       "unallocated": 180000,
       "clean": true
     },

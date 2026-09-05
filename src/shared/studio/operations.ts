@@ -25,6 +25,23 @@ type Strings = CommonStrings & {
   acrossEveryScheduledShift: string;
   activePermits: string;
   addLocation: string;
+  addStandardDepartments: string;
+  code: string;
+  departmentCycle: string;
+  departmentInUse: (people: number, children: number) => string;
+  departmentTooDeep: string;
+  departments: string;
+  departmentsOrgChart: string;
+  duplicateCode: string;
+  editDepartment: string;
+  locationsTab: string;
+  newDepartment: string;
+  noDepartmentsYet: string;
+  reportsInto: string;
+  standardMissing: (names: string[]) => string;
+  topLevel: string;
+  unplaced: string;
+  worksIn: string;
   addPermit: string;
   address: string;
   browserCantReport: string;
@@ -154,6 +171,28 @@ const en: Strings = {
   acrossEveryScheduledShift: "Across every scheduled shift",
   activePermits: "Active permits",
   addLocation: "Add location",
+  addStandardDepartments: "Add the ones we're missing",
+  code: "Code",
+  departmentCycle: "A department cannot report into one of its own sub-departments.",
+  departmentInUse: (people, children) => {
+    const parts: string[] = [];
+    if (people) parts.push(`${people} ${people === 1 ? "person" : "people"}`);
+    if (children) parts.push(`${children} sub-${children === 1 ? "department" : "departments"}`);
+    return `Still in use by ${parts.join(" and ")}. Move them first.`;
+  },
+  departmentTooDeep: "That would nest the chart more than four levels deep.",
+  departments: "Departments",
+  departmentsOrgChart: "Your own org chart — who reports where. Not the same as the product's sections: a department may span several, or none.",
+  duplicateCode: "Another department already uses that code.",
+  editDepartment: "Edit department",
+  locationsTab: "Locations",
+  newDepartment: "New department",
+  noDepartmentsYet: "No departments yet",
+  reportsInto: "Reports into",
+  standardMissing: (names) => `Companies in your field usually also have: ${names.join(", ")}.`,
+  topLevel: "Top level",
+  unplaced: "Not placed",
+  worksIn: "Works in",
   addPermit: "Add permit",
   address: "Address",
   browserCantReport: "This browser can't report a location.",
@@ -286,6 +325,28 @@ const ar: Strings = {
   acrossEveryScheduledShift: "عبر كل وردية مجدولة",
   activePermits: "التصاريح السارية",
   addLocation: "إضافة موقع",
+  addStandardDepartments: "أضف الأقسام الناقصة",
+  code: "الرمز",
+  departmentCycle: "لا يمكن أن يتبع القسم أحد أقسامه الفرعية.",
+  departmentInUse: (people, children) => {
+    const parts: string[] = [];
+    if (people) parts.push(`${people} من الموظفين`);
+    if (children) parts.push(`${children} من الأقسام الفرعية`);
+    return `ما زال مستخدماً من ${parts.join(" و")}. انقلهم أولاً.`;
+  },
+  departmentTooDeep: "هذا يجعل الهيكل أعمق من أربعة مستويات.",
+  departments: "الأقسام",
+  departmentsOrgChart: "الهيكل التنظيمي الخاص بك — من يتبع من. وهو ليس أقسام النظام: قد يمتد القسم الواحد على عدة أقسام في النظام، أو لا يرتبط بأي منها.",
+  duplicateCode: "هذا الرمز مستخدم في قسم آخر.",
+  editDepartment: "تعديل القسم",
+  locationsTab: "المواقع",
+  newDepartment: "قسم جديد",
+  noDepartmentsYet: "لا توجد أقسام بعد",
+  reportsInto: "يتبع",
+  standardMissing: (names) => `الشركات في مجالك عادةً لديها أيضاً: ${names.join("، ")}.`,
+  topLevel: "مستوى أعلى",
+  unplaced: "غير محدد",
+  worksIn: "يعمل في",
   addPermit: "إضافة تصريح",
   address: "العنوان",
   browserCantReport: "لا يستطيع هذا المتصفح الإبلاغ عن موقع.",

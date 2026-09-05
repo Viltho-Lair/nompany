@@ -130,6 +130,20 @@ export const OrderSchema = z.object({
   reference: z.string(),
   vendorId: z.string().max(60),
   projectId: z.string().max(60),
+  /**
+   * WHICH PART OF THE PROJECT'S BUDGET THIS COMMITMENT BELONGS TO.
+   *
+   * The half a spend report cannot see: money the studio has promised a
+   * supplier and has not yet been asked for. Without it there was no committed
+   * column and therefore no forecast — a projection from invoices alone reads
+   * as complete while ignoring every order already placed.
+   *
+   * OPTIONAL, and an uncoded order is not an error: `projectCosting` reports it
+   * as `uncommitted` rather than dropping it. A BILL ANSWERING THIS ORDER
+   * INHERITS THIS CODE when it carries none of its own, so coding the order
+   * once carries through to every invoice against it.
+   */
+  costCodeId: z.string().max(60).optional(),
   lines: z.array(OrderLineSchema),
   status: z.string(),
   expectedAt: z.string(),

@@ -27,8 +27,12 @@ import { emit, SCOPE, TYPE } from "@/platform/realtime/events";
 //                the profile now, on every read, the way People always did it.
 //   positionId — a job title beside the roleIds that say what the job may do.
 //                One list now: roleIds is what somebody is.
-//   departmentId is still here and still studio-local, but it holds a SECTION
-//                KEY rather than a row id — see lib/departments.js.
+//   departmentId is still here and still studio-local. It held a row id, then
+//                a SECTION KEY while departments were derived from the nav, and
+//                holds a row id again now that the register is stored under
+//                Master data — see modules/administration/departments.ts. The
+//                field name never changed because the question it asks never
+//                did; what changed is what answers it.
 const HR_DEFAULTS = {
   departmentId: "", employeeCode: "", dateOfJoin: "",
   mobile: "", certificationIds: [],

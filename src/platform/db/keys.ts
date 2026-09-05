@@ -729,11 +729,12 @@ export const SECTION_COLLECTIONS = {
   // hr — the reference list belongs to the Employees screen; vacations are
   // studio-wide HR settings.
   //
-  // `departments` and `positions` are deliberately gone. A department is a
-  // top-level SECTION (see lib/departments.js) and a position was a second name
-  // for a role, which lives in s:<StudioID>:roles — neither is a collection any
-  // more, and leaving the names here would keep minting empty keys for lists
-  // nothing writes.
+  // `departments` and `positions` are deliberately not HR's. The org chart is
+  // a collection again, but under `administration-master` above: reference data
+  // that HR, Projects and Quality all read belongs to none of them, and
+  // re-parenting a department widens an access scope. A position was a second
+  // name for a role, which lives in s:<StudioID>:roles — that one is still gone
+  // for good.
   hr: ["vacations"],
   "hr-employees": ["certifications"],
   // finance
@@ -778,7 +779,13 @@ export const SECTION_COLLECTIONS = {
   // reads it through a foreign section, and deleting Master data is what
   // deletes locations — which is exactly the coupling worth being deliberate
   // about, because shifts and permits hold ids into this collection.
-  "administration-master": ["locations"],
+  // DEPARTMENTS JOIN LOCATIONS, and for the same reason. A studio's org chart
+  // is read by HR (whose records you may see), by Projects (who an assignment
+  // belongs to) and by Quality (which department owns a controlled document) —
+  // reference data three departments read belongs to none of them. It used to
+  // be derived from the section list, which made every studio's org chart the
+  // product's fifteen nav entries; see shared/departments/starters.ts.
+  "administration-master": ["locations", "departments"],
   // tasks
   tasks: ["tasks"],
 };

@@ -1075,6 +1075,12 @@ export async function createOrder(ctx: InventoryContext, body: Record<string, un
     // draft is deleted — derived, not counted. See modules/main/references.js.
     reference: await nextReference(studio.id, { rows: orders, field: "reference", prefix: "PO" }),
     vendorId, projectId,
+    // TAKEN AS GIVEN and not verified against the project's breakdown: an
+    // uncoded or wrongly-coded order is money the project has promised either
+    // way, and `projectCosting` reports it as `uncommitted` rather than
+    // dropping it. Verifying here would trade that for an order somebody could
+    // not raise at all.
+    costCodeId: str(body?.costCodeId, 60),
     lines,
     status: "Draft",
     expectedAt: day(body?.expectedAt),
@@ -1109,6 +1115,9 @@ export async function editOrder(ctx: InventoryContext, id: string, body: Record<
     patch.status = body.status;
   }
   if (body?.expectedAt !== undefined) patch.expectedAt = day(body.expectedAt);
+  // RE-CODED WITHOUT RE-ORDERING. Which budget a commitment belongs to is a
+  // filing decision, not a change to what was ordered.
+  if (body?.costCodeId !== undefined) patch.costCodeId = str(body.costCodeId, 60);
   if (body?.notes !== undefined) patch.notes = str(body.notes, 2000);
   if (body?.lines !== undefined) {
     // Lines are frozen once anything has been received against them.

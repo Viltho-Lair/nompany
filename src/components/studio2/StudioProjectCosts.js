@@ -125,15 +125,19 @@ export default function StudioProjectCosts({ slug, projectId }) {
             accent="rgb(var(--chart-2))" />
         </div>
         <div className={panel}>
-          <StatTile label={tr.costBudget} value={<span className="num">{money(project?.value)}</span>}
-            sub={tr.costBreakdownSub} accent="rgb(var(--chart-3))" />
+          {/* THE HEADLINE THIS SLICE ADDED. Spend alone said where a project had
+              been; this says where it is going, and the variance beside it is
+              the number somebody can still act on. */}
+          <StatTile label={tr.totalForecast} value={<span className="num">{money(costing.forecast)}</span>}
+            sub={`${tr.costCommitted}: ${money(costing.committed)} · ${tr.costVariance}: ${money(costing.variance)}`}
+            tone={costing.variance < 0 ? "text-rose-600 dark:text-rose-300" : "text-emerald-600 dark:text-emerald-400"}
+            accent="rgb(var(--chart-3))" />
         </div>
       </div>
 
-      {/* SAID WHERE IT IS TRUE, rather than left as a column nobody can explain.
-          A forecast built from invoices alone would read as a full projection
-          while ignoring every order already placed. */}
-      <p className="text-xs text-slate-500 dark:text-slate-400">{tr.noForecastYet}</p>
+      {/* THE RULE SAID OUT LOUD, because a forecast that equals the budget on a
+          code nobody has spent anything on reads as a bug until you know why. */}
+      <p className="text-xs text-slate-500 dark:text-slate-400">{tr.forecastNote}</p>
 
       {costing.uncoded > 0 && (
         <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 dark:border-amber-500/30 dark:bg-amber-500/10">
@@ -141,6 +145,18 @@ export default function StudioProjectCosts({ slug, projectId }) {
             {tr.uncodedSpend}: <span className="num">{money(costing.uncoded)}</span>
           </p>
           <p className="mt-1 text-xs text-amber-800 dark:text-amber-200/90">{tr.uncodedSpendHint}</p>
+        </div>
+      )}
+
+      {/* KEPT APART FROM THE UNCODED SPEND, because the two are fixed in
+          different places: one is a bill Finance has not filed, the other a
+          purchase order Procurement has not. */}
+      {costing.uncommitted > 0 && (
+        <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 dark:border-amber-500/30 dark:bg-amber-500/10">
+          <p className="text-sm font-700 text-amber-900 dark:text-amber-200">
+            {tr.uncommittedSpend}: <span className="num">{money(costing.uncommitted)}</span>
+          </p>
+          <p className="mt-1 text-xs text-amber-800 dark:text-amber-200/90">{tr.uncommittedSpendHint}</p>
         </div>
       )}
 
@@ -181,7 +197,9 @@ export default function StudioProjectCosts({ slug, projectId }) {
                   <th className="px-4 py-3 text-start text-xs font-700 uppercase tracking-wide text-slate-500">{tr.costName}</th>
                   <th className="px-4 py-3 text-end text-xs font-700 uppercase tracking-wide text-slate-500">{tr.costBudget}</th>
                   <th className="px-4 py-3 text-end text-xs font-700 uppercase tracking-wide text-slate-500">{tr.costActual}</th>
-                  <th className="px-4 py-3 text-end text-xs font-700 uppercase tracking-wide text-slate-500">{tr.costRemaining}</th>
+                  <th className="px-4 py-3 text-end text-xs font-700 uppercase tracking-wide text-slate-500">{tr.costCommitted}</th>
+                  <th className="px-4 py-3 text-end text-xs font-700 uppercase tracking-wide text-slate-500">{tr.costForecast}</th>
+                  <th className="px-4 py-3 text-end text-xs font-700 uppercase tracking-wide text-slate-500">{tr.costVariance}</th>
                   <th />
                 </tr>
               </thead>
@@ -196,9 +214,18 @@ export default function StudioProjectCosts({ slug, projectId }) {
                       {c.used === null ? <span className="text-slate-400">{tr.noBudgetSet}</span> : money(c.budget)}
                     </td>
                     <td className="num px-4 py-3 text-end text-slate-700 dark:text-slate-200">{money(c.actual)}</td>
-                    <td className={`num px-4 py-3 text-end font-600 ${c.over ? "text-rose-600 dark:text-rose-300" : "text-slate-900 dark:text-white"}`}>
-                      {money(c.remaining)}
+                    <td className="num px-4 py-3 text-end text-slate-500 dark:text-slate-400">{money(c.committed)}</td>
+                    <td className="num px-4 py-3 text-end text-slate-700 dark:text-slate-200">{money(c.forecast)}</td>
+                    {/* VARIANCE, NOT REMAINING. Remaining answers "how much of
+                        the allowance is left" and goes on saying yes while an
+                        order nobody has invoiced eats all of it; variance is
+                        the number that has already taken that into account. */}
+                    <td className={`num px-4 py-3 text-end font-600 ${c.variance < 0 ? "text-rose-600 dark:text-rose-300" : "text-slate-900 dark:text-white"}`}>
+                      {money(c.variance)}
                       {c.over && <span className="ms-2 rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-700 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300">{tr.overBudget}</span>}
+                      {/* TWO DIFFERENT FLAGS. One is a number to explain, the
+                          other an order somebody could still stop. */}
+                      {c.willOverrun && <span className="ms-2 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-700 text-amber-800 dark:bg-amber-500/15 dark:text-amber-200">{tr.willOverrun}</span>}
                     </td>
                     <td className="px-4 py-3 text-end">
                       <span className="flex justify-end gap-2 text-xs">

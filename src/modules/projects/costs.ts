@@ -11,11 +11,13 @@
 // figures from the same function the server does.
 import { requirePermission } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
-import { projectCosting, codesFromBill, type CostedBill } from "./costing";
+import { projectCosting, codesFromBill, type CostedBill, type CostedOrder } from "./costing";
 import { boqGroups } from "@/modules/tendering/boq";
 import { invoiceTotals } from "@/modules/finance/finance";
+import { orderTotal } from "@/modules/inventory/inventory";
 import type { Bill } from "@/modules/finance/schema";
 import type { BoqItem } from "@/modules/tendering/schema";
+import type { Order } from "@/modules/inventory/schema";
 import type { ProjectCost, Project } from "./schema";
 import type { ProjectsContext } from "./types";
 
@@ -23,6 +25,8 @@ const Costs = repo<ProjectCost>("projectCosts");
 const Projects = repo<Project>("projects");
 const Bills = repo<Bill>("bills");
 const BoqItems = repo<BoqItem>("boqItems");
+// `materialOrders`, which is what a purchase order is called in the store.
+const Orders = repo<Order>("materialOrders");
 
 const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
 const money = (v: unknown) => {
@@ -57,7 +61,32 @@ async function spendFor(
     costCodeId: b.costCodeId || "",
     projectId: b.projectId || "",
     status: b.status,
+    orderId: b.orderId || "",
     total: invoiceTotals(b).total,
+  }));
+}
+
+/**
+ * THE PURCHASE ORDERS THIS PROJECT HAS PLACED, reduced to what the roll-up
+ * reads. `orderTotal` is the one function that says what an order comes to, for
+ * the reason `invoiceTotals` is used above.
+ *
+ * Foreign and nullable: a studio with no Inventory section has placed no orders,
+ * so its breakdown reads as spend with nothing committed — which is exactly
+ * what the report looked like for every studio before this.
+ */
+async function commitmentsFor(
+  ctx: ProjectsContext, projectId: string,
+): Promise<CostedOrder[]> {
+  const { ordersSection } = ctx;
+  if (!ordersSection) return [];
+  const orders = await Orders.find(
+    { studio: ctx.studio, section: ordersSection }, { where: { projectId } });
+  return orders.map((o) => ({
+    id: o.id,
+    costCodeId: o.costCodeId || "",
+    status: o.status,
+    total: orderTotal(o.lines),
   }));
 }
 
@@ -68,10 +97,11 @@ export async function listProjectCosts(ctx: ProjectsContext, projectId: string) 
   if (!projectId) return { error: "missing" };
 
   const { studio, listSection } = ctx;
-  const [project, rows, spend] = await Promise.all([
+  const [project, rows, spend, commitments] = await Promise.all([
     Projects.byId({ studio, section: listSection }, projectId),
     Costs.find({ studio, section: listSection }, { where: { projectId } }),
     spendFor(ctx, projectId),
+    commitmentsFor(ctx, projectId),
   ]);
   if (!project) return { error: "notfound" };
 
@@ -85,7 +115,7 @@ export async function listProjectCosts(ctx: ProjectsContext, projectId: string) 
     // spent is read by things that are not this screen, and `uncoded` is the
     // half that matters — a report that dropped it would say a job was inside
     // its budget for as long as its paperwork was behind.
-    costing: projectCosting(codes, spend, project.value),
+    costing: projectCosting(codes, spend, commitments, project.value),
   };
 }
 
