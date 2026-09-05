@@ -4,11 +4,12 @@
     "ok": true,
     "bill": {
       "id": "<bil_ID>",
-      "reference": "BILL-0001",
+      "reference": "BILL-0004",
       "vendorId": "",
       "vendorName": "Steel Co",
       "orderId": "",
       "projectId": "",
+      "costCodeId": "",
       "lines": [
         {
           "description": "I-beams",

@@ -1,5 +1,7 @@
 # Projects — where work is delivered
 
+**The cost breakdown is its own file: `docs/functionality/cost-codes.md`.**
+
 ## What it is
 
 **A project is delivered work**, with a stage (`Received` → `In Progress` → `On

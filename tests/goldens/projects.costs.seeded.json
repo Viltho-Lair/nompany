@@ -1,0 +1,36 @@
+{
+  "status": 201,
+  "body": {
+    "ok": true,
+    "codes": [
+      {
+        "id": "<pro_ID>",
+        "projectId": "<pro_ID>",
+        "code": "01",
+        "name": "Plant",
+        "budget": 120000,
+        "notes": "",
+        "sortOrder": 0,
+        "createdByCollaboratorId": "<col_ID>",
+        "createdAt": "<timestamp>",
+        "updatedAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>"
+      },
+      {
+        "id": "<pro_ID>",
+        "projectId": "<pro_ID>",
+        "code": "02",
+        "name": "Distribution",
+        "budget": 60000,
+        "notes": "",
+        "sortOrder": 1,
+        "createdByCollaboratorId": "<col_ID>",
+        "createdAt": "<timestamp>",
+        "updatedAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>"
+      }
+    ]
+  }
+}

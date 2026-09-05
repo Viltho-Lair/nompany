@@ -25,6 +25,7 @@ export type ProjectsContext = ModuleContext & {
   // The tender register, for the handover head. Declared rather than left to
   // the context's index signature, so a typo in `tenderSource` is a build error.
   tenderRegisterSection: Section | null;
+  payablesSection: Section | null;
   sheetsSection: Section | null;
   itemsSection: Section | null;
   vendorsSection: Section | null;

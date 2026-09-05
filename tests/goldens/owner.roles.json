@@ -382,6 +382,17 @@
         ]
       },
       {
+        "key": "projects.costs",
+        "group": "Projects",
+        "label": "Cost breakdown",
+        "verbs": [
+          "view",
+          "create",
+          "edit",
+          "delete"
+        ]
+      },
+      {
         "key": "projects.sla",
         "group": "Projects",
         "label": "SLA",

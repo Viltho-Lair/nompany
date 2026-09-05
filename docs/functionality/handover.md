@@ -141,6 +141,8 @@ Stated in words, because a silent gap reads as a finished feature.
   view shows the project rather than the bid that won it, and nothing cascades from the tender.
 - **No reverse view.** Projects has no "opened from tenders" filter; the link is one project at
   a time, from either end.
+- The bill's groups DO now reach the project as a proposed cost breakdown — see
+  `cost-codes.md`. What the handover itself still carries across is the value and the reference.
 - **A bill line cannot be pointed at a Registered Item.** That is what would make Bulk group by
   vendor and serials allocatable on a handed-over project's sheet, and it is a change to the BOQ
   grid rather than to the handover — the bill would have to offer an item picker the way a

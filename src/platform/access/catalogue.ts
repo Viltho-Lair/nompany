@@ -227,6 +227,14 @@ const OWN_AREAS = [
   { key: "engineeringDocs.settings", group: "Engineering & Documents", label: "Settings", verbs: ["view", "edit"] },
 
   { key: "projects.list", group: "Projects", label: "Projects", verbs: ["view", "create", "edit", "delete"] },
+  // COSTS ARE THEIR OWN AREA, and by the test tendering.rates passed rather
+  // than the one the bill of quantities failed. A project's budget is not the
+  // project's content the way a bill is a tender's: "may run this job" and "may
+  // see what it is allowed to cost, and set that" are genuinely different
+  // powers. A site engineer opens the project and has no business reading the
+  // margin, which is what a breakdown beside the value amounts to.
+  { key: "projects.costs", group: "Projects", label: "Cost breakdown",
+    verbs: ["view", "create", "edit", "delete"] },
   { key: "projects.sla", group: "Projects", label: "SLA", verbs: ["view", "create", "edit", "delete"] },
   { key: "projects.overtimes", group: "Projects", label: "Overtimes", verbs: ["view", "create", "edit", "delete"] },
   { key: "projects.settings", group: "Projects", label: "Settings", verbs: ["view", "edit"] },

@@ -284,6 +284,14 @@
       },
       {
         "id": "<rol_ID>",
+        "name": "role-projectrunner",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 2,
+        "held": 1
+      },
+      {
+        "id": "<rol_ID>",
         "name": "role-projlister",
         "description": "",
         "wildcard": false,

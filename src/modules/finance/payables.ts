@@ -191,6 +191,12 @@ export async function createBill(ctx: FinanceContext, body: Record<string, unkno
     vendorName,
     orderId: str(body?.orderId, 60),
     projectId: str(body?.projectId, 60),
+    // WHICH PART OF THE PROJECT'S BUDGET THIS SPEND BELONGS TO. Taken as given
+    // and not verified against the breakdown: an uncoded or wrongly-coded bill
+    // is money the project spent either way, and `projectCosting` reports it as
+    // `uncoded` rather than dropping it — which is the behaviour a refusal here
+    // would trade for a bill somebody could not file at all.
+    costCodeId: str(body?.costCodeId, 60),
     lines,
     // Defaulted to the studio's own, the same expression contracts.ts,
     // payments.ts and changeOrders.ts already use.
@@ -236,6 +242,10 @@ export async function editBill(ctx: FinanceContext, id: string, body: Record<str
   if (body?.dueDate !== undefined) patch.dueDate = day(body.dueDate);
   if (body?.terms !== undefined && BILL_TERMS.includes(String(body.terms))) patch.terms = String(body.terms);
   if (body?.projectId !== undefined) patch.projectId = str(body.projectId, 60);
+  // RE-CODED WITHOUT RE-APPROVING. Which budget a cost belongs to is a filing
+  // decision, not a change to what is owed, so it does not disturb a chain
+  // mid-walk the way editing the AMOUNT does.
+  if (body?.costCodeId !== undefined) patch.costCodeId = str(body.costCodeId, 60);
   if (body?.notes !== undefined) patch.notes = str(body.notes, 2000);
   if (body?.status !== undefined) {
     const s = String(body.status);

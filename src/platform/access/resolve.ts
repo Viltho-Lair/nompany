@@ -96,7 +96,9 @@ export const SECTION_AREAS: Readonly<Record<string, readonly string[]>> = {
   "crm-sales-contracts": ["crmSales.contracts"],
   "engineering-docs-live": ["engineeringDocs.live"],
   "engineering-docs-settings": ["engineeringDocs.settings"],
-  "projects-list": ["projects.list"],
+  // The cost breakdown hangs off the project list's own section, so somebody
+  // holding ONLY the costs right can still reach the screen it lives on.
+  "projects-list": ["projects.list", "projects.costs"],
   "projects-sla": ["projects.sla"],
   "projects-overtimes": ["projects.overtimes"],
   "projects-settings": ["projects.settings"],

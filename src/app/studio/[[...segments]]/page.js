@@ -65,6 +65,12 @@ const StudioPipeline = nextDynamic(
   () => import("@/components/studio2/StudioPipeline"),
   { loading: () => <ScreenSkeleton /> },
 );
+const StudioProjectCosts = nextDynamic(
+  () => import("@/components/studio2/StudioProjectCosts"),
+  // A record page — a department skeleton would reserve a chart where a table
+  // of budgets is coming.
+  { loading: () => <RecordSkeleton /> },
+);
 const StudioRates = nextDynamic(
   () => import("@/components/studio2/StudioRates"),
   { loading: () => <ScreenSkeleton /> },
@@ -413,6 +419,12 @@ async function renderStudio(params) {
   // /<slug>/projects-list/<id>/quotation is the Projects version — the
   // quotation's rows without prices, with the columns Projects owns.
   const projectQuotation = projectId && segments[2] === "quotation";
+  // AND A THIRD SEGMENT OPENS ITS COST BREAKDOWN:
+  // /<slug>/projects-list/<id>/costs is what the job is allowed to cost against
+  // what it has. It resolves through the same projects-list section, which now
+  // maps to `projects.costs` as well as `projects.list` — so somebody holding
+  // only the costs right can still reach the row this hangs off.
+  const projectCosts = projectId && segments[2] === "costs";
 
   // PROJECT SHEETS ARE INVENTORY'S, and the sub-section IS the workspace:
   // /<slug>/inventory-sheets opens it empty, and /<slug>/inventory-sheets/<id>
@@ -512,6 +524,7 @@ async function renderStudio(params) {
         : ticketId ? <StudioTicketProfile slug={studio.slug} ticketId={ticketId} />
         : isSheets ? <StudioSheetViewer slug={studio.slug} sheetId={sheetId} perspective="inventory" />
         : projectQuotation ? <StudioSheetViewer slug={studio.slug} projectId={projectId} perspective="projects" />
+        : projectCosts ? <StudioProjectCosts slug={studio.slug} projectId={projectId} />
         // CRM & SALES'S QUOTATIONS ARE STILL RENDERED BY TECHNICAL, by key
         // rather than by screenKey, same pattern and same reason as Procurement's
         // Suppliers and Logistics's Shipments below. Quotations moved to CRM &

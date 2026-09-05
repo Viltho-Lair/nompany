@@ -100,6 +100,11 @@ export const projectsContext = moduleContext<ProjectsContext>({
     // nullable: a studio that does not tender has no register, and asking for a
     // handover in one is a refusal rather than a crash.
     tenderRegister: ["tendering-register", "tendering"],
+    // Payables, for the cost breakdown: what a project has SPENT is what its
+    // suppliers have invoiced against it. Read-only and without a grant on
+    // Finance — the same terms the quotations above are read on, and the same
+    // reasoning: what a project cost is part of the project's own story.
+    payables: ["finance-payables", "finance"],
     sheets: ["inventory-sheets", "inventory"],
     items: ["inventory-items", "inventory"],
     vendors: ["procurement-suppliers", "inventory"],

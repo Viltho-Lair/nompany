@@ -709,7 +709,9 @@ export const SECTION_COLLECTIONS = {
   // areas by design — a right nothing can exercise is a bug (invariant 16) — so
   // filing them there would strand real rows under a section that renders
   // nothing and gates on no right. They move when Quality gets a screen.
-  "projects-list": ["projects", "timesheets", "inspections"],
+  // The cost breakdown lives with the project it belongs to — it is reached
+  // from one and from nowhere else, the way a bill is reached from its tender.
+  "projects-list": ["projects", "timesheets", "inspections", "projectCosts"],
   "projects-sla": ["slas"],
   "projects-overtimes": ["overtimes"],
   // procurement — the supplier master, carried over from Inventory's Vendors

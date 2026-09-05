@@ -93,6 +93,7 @@ export const COLLECTION_TABLE: Readonly<Record<string, string>> = {
   tenders: "Tender",
   boqItems: "BoqItem",
   tenderRates: "TenderRate",
+  projectCosts: "ProjectCost",
   tenderDocuments: "TenderDocument",
   tenderClarifications: "TenderClarification",
   timesheets: "Timesheet",

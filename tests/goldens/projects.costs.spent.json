@@ -1,0 +1,96 @@
+{
+  "status": 200,
+  "body": {
+    "ok": true,
+    "project": {
+      "id": "<pro_ID>",
+      "number": "",
+      "title": "Data centre cooling",
+      "quotationId": "",
+      "quotationNumber": "",
+      "rfqId": "",
+      "ticketId": "",
+      "tenderId": "<ten_ID>",
+      "tenderRef": "TND-0006",
+      "clientId": "<sal_ID>",
+      "clientName": "A bank that is not yet a client",
+      "value": 180000,
+      "stage": "Received",
+      "managerCollaboratorId": "",
+      "location": "",
+      "supportPeriodDays": 365,
+      "receivedDate": "<today>",
+      "startDate": "",
+      "endDate": "",
+      "notes": "",
+      "openedByCollaboratorId": "<col_ID>",
+      "createdAt": "<timestamp>",
+      "studioId": "<std_ID>",
+      "sectionId": "<sub_ID>"
+    },
+    "codes": [
+      {
+        "id": "<pro_ID>",
+        "projectId": "<pro_ID>",
+        "code": "01",
+        "name": "Plant",
+        "budget": 120000,
+        "notes": "",
+        "sortOrder": 0,
+        "createdByCollaboratorId": "<col_ID>",
+        "createdAt": "<timestamp>",
+        "updatedAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>"
+      },
+      {
+        "id": "<pro_ID>",
+        "projectId": "<pro_ID>",
+        "code": "02",
+        "name": "Distribution",
+        "budget": 60000,
+        "notes": "",
+        "sortOrder": 1,
+        "createdByCollaboratorId": "<col_ID>",
+        "createdAt": "<timestamp>",
+        "updatedAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>"
+      }
+    ],
+    "costing": {
+      "codes": [
+        {
+          "id": "<pro_ID>",
+          "code": "01",
+          "name": "Plant",
+          "budget": 120000,
+          "actual": 130000,
+          "remaining": -10000,
+          "used": 1.0833333333333333,
+          "over": true
+        },
+        {
+          "id": "<pro_ID>",
+          "code": "02",
+          "name": "Distribution",
+          "budget": 60000,
+          "actual": 0,
+          "remaining": 60000,
+          "used": 0,
+          "over": false
+        }
+      ],
+      "budget": 180000,
+      "actual": 134000,
+      "remaining": 46000,
+      "uncoded": 4000,
+      "unallocated": 0,
+      "clean": false
+    },
+    "canCreate": true,
+    "canEdit": true,
+    "canDelete": true,
+    "canSeedFromBill": false
+  }
+}

@@ -343,7 +343,10 @@ every push to `main` and every pull request.
   twenty-four strings. A feature does not cost what it weighs; it costs what
   crosses the wire. 1619 → 1620 with the handover, for the same reason:
   `tenderSource` is server-only, and the browser gets one panel and fifteen
-  strings.
+  strings. 1620 → 1622 with the project cost breakdown — a table, a dialog and
+  about thirty strings in two languages; `modules/projects/costing.ts` reaches
+  the browser DELIBERATELY, so the screen totals with the same function the
+  server does.
 - Tests connect things — real repositories, real route handlers, **one assertion per
   bug that actually happened**. Each block names the defect it guards, so nobody
   deletes it later wondering what it was for.
@@ -714,7 +717,38 @@ declared** — so `Item` did not have them and every reader wrote its own inline
 them. The same class of bug as `closedAt`/`lostReason`, from the other end: written but
 undeclared rather than declared but unwritten.
 
-**P4a's second section is open: Tendering & Estimating.** The root was declared at the
+**P4a's THIRD section is open: Projects, deepened** — and its first bullet, WBS/Gantt with
+dependencies, was already built: the planner has `parentId`, `predecessorId`, durations,
+milestones and a progress rollup. Only the critical path is missing from it. **Slice 1 is the
+cost breakdown** (`docs/functionality/cost-codes.md`), catalogue 145 → 149 (`projects.costs`).
+
+**A project had exactly ONE number** — `value`, what the studio will be paid — and nothing said
+what any of it was allowed to COST, so "are we over on this trade" could not be asked. The
+handover sharpened that rather than fixing it: it carries a tender's bill total in as the value,
+and the bill's own groups are precisely the breakdown there was nowhere to record. A
+handed-over project is now OFFERED them, in the document's order, budgeted at what each section
+was SOLD for — proposed and not imposed, an action rather than a seed at handover, because the
+groups are how the work was sold and a studio budgets by how it expects to buy.
+
+**`projects.costs` is its own area** by the test `tendering.rates` passed: a project's budget is
+not its content the way a bill is a tender's, and a site engineer opening the job has no
+business reading what amounts to the margin. Gate A pins it — somebody who may view and edit
+every project is refused the breakdown by name.
+
+**MONEY NOBODY FILED PROPERLY IS STILL THE PROJECT'S MONEY**, and that is what the roll-up turns
+on. A bill naming no code, and a bill coded to a code somebody has since DELETED, both land in
+`uncoded`, counted in the actual and shown in their own right. Deleting a code cascades nothing.
+A total that quietly fell when somebody tidied a list would be a report that punishes
+housekeeping. Spend counts from `Received`, not from `Approved`: approval authorises PAYMENT,
+and a report that waited for it would call a job under budget for as long as its paperwork was
+behind.
+
+**THERE IS NO FORECAST COLUMN, and the screen says why.** Nothing knows what is COMMITTED —
+purchase orders carry no cost code yet — so a projection from invoices alone would read as a
+full forecast while ignoring every order already placed, which is most wrong exactly when a
+project has ordered heavily and invoiced little. That is the next slice.
+
+**P4a's second section is complete: Tendering & Estimating.** The root was declared at the
 restructure and rendered nothing for a fortnight — it sat in `NO_SCREEN_YET` and held no
 permission area, because a right nothing can exercise is a bug. **Slice 1, the tender register,
 is on `main`:** a `tendering-register` sub-section owning a new `tenders` collection,

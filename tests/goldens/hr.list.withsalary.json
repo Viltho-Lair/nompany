@@ -268,6 +268,14 @@
       },
       {
         "id": "<rol_ID>",
+        "name": "role-projectrunner",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 2,
+        "held": 1
+      },
+      {
+        "id": "<rol_ID>",
         "name": "role-projlister",
         "description": "",
         "wildcard": false,
@@ -551,6 +559,30 @@
       },
       {
         "id": "<col_ID>",
+        "alias": "projectrunner",
+        "role": "member",
+        "photo": "",
+        "departmentId": "",
+        "departmentName": "",
+        "roleIds": [
+          "<rol_ID>"
+        ],
+        "roleNames": [
+          "role-projectrunner"
+        ],
+        "employeeCode": "",
+        "dateOfJoin": "",
+        "mobile": "",
+        "certificationIds": [],
+        "hasId": false,
+        "hasPassport": false,
+        "idExpiry": "",
+        "passportExpiry": "",
+        "idNumber": "",
+        "passportNumber": ""
+      },
+      {
+        "id": "<col_ID>",
         "alias": "projlister",
         "role": "member",
         "photo": "",
@@ -739,8 +771,8 @@
         "tasks": 0,
         "tendering": 0
       },
-      "unassigned": 16,
-      "total": 16
+      "unassigned": 17,
+      "total": 17
     },
     "vocabulary": {
       "leaveTypes": [

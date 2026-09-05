@@ -115,6 +115,36 @@ type Strings = CommonStrings & {
   // waiting on somebody to price it. See quotationNoPricedLines below.
   noQuotationBehindProject: string;
   billHasNoLines: string;
+
+  // The cost breakdown.
+  costBreakdown: string;
+  costBreakdownSub: string;
+  loadingCosts: string;
+  noCostCodesYet: string;
+  noCostCodesBody: string;
+  addCostCode: string;
+  editCostCode: string;
+  seedFromBill: string;
+  seedFromBillHint: string;
+  costCode: string;
+  costName: string;
+  costBudget: string;
+  costActual: string;
+  costRemaining: string;
+  totalBudget: string;
+  totalActual: string;
+  unallocated: string;
+  overAllocated: string;
+  uncodedSpend: string;
+  uncodedSpendHint: string;
+  overBudget: string;
+  noBudgetSet: string;
+  backToProject: string;
+  refuseDuplicateCode: string;
+  refuseAlreadySeeded: string;
+  refuseNoBill: string;
+  refuseNoTenderBehind: string;
+  noForecastYet: string;
   noServiceActionsYet: string;
   noSlaContractsYet: string;
   noSlaContractsYet2: string;
@@ -345,6 +375,35 @@ const en: Strings = {
   noProjectsYet: "No projects yet",
   noQuotationBehindProject: "This project has no quotation behind it, so there are no lines to work. Sheets fill from an approved quotation's priced rows.",
   billHasNoLines: "This project was handed over from a tender whose bill of quantities has no lines yet. The sheet fills from the bill, which is written in Tendering.",
+
+  costBreakdown: "Cost breakdown",
+  costBreakdownSub: "What this job is allowed to cost, and what it has.",
+  loadingCosts: "Loading the breakdown…",
+  noCostCodesYet: "No cost codes yet",
+  noCostCodesBody: "A project has one number — what you will be paid. Break it into the parts you buy separately, and every bill filed against one of them tells you where you stand.",
+  addCostCode: "Add a cost code",
+  editCostCode: "Edit cost code",
+  seedFromBill: "Start from the bill of quantities",
+  seedFromBillHint: "One code per section of the bill, budgeted at what that section was SOLD for. That is a starting point and not a cost — edit each one down to what you expect to spend.",
+  costCode: "Code",
+  costName: "Description",
+  costBudget: "Budget",
+  costActual: "Actual",
+  costRemaining: "Remaining",
+  totalBudget: "Budgeted",
+  totalActual: "Spent",
+  unallocated: "Not yet budgeted",
+  overAllocated: "Budgeted above the project’s value",
+  uncodedSpend: "Spend with no cost code",
+  uncodedSpendHint: "Bills on this project that name no code, or one that has since been deleted. It is counted in the total — dropping it would make the job look cheaper than it is.",
+  overBudget: "Over",
+  noBudgetSet: "No budget",
+  backToProject: "Back to the project",
+  refuseDuplicateCode: "A cost code with that reference already exists on this project.",
+  refuseAlreadySeeded: "This project already has a breakdown. Starting from the bill is a first step, not a merge.",
+  refuseNoBill: "That tender has no bill of quantities to start from.",
+  refuseNoTenderBehind: "This project was not handed over from a tender, so there is no bill to start from.",
+  noForecastYet: "There is no forecast column: purchase orders are not coded yet, so a projection from invoices alone would ignore everything already ordered.",
   noServiceActionsYet: "No service actions yet — add them in Studio Settings, then weight them here.",
   noSlaContractsYet: "No SLA contracts yet",
   noSlaContractsYet2: "No SLA contracts yet.",
@@ -573,6 +632,35 @@ const ar: Strings = {
   noProjectsYet: "لا توجد مشاريع بعد",
   noQuotationBehindProject: "لا يوجد عرض سعر خلف هذا المشروع، فليست هناك بنود للعمل عليها. تمتلئ الجداول من البنود المسعّرة في عرض سعر معتمد.",
   billHasNoLines: "سُلّم هذا المشروع من مناقصة لم يُكتب لها جدول كميات بعد. تمتلئ الجداول من جدول الكميات، ويُكتب في قسم المناقصات.",
+
+  costBreakdown: "توزيع التكلفة",
+  costBreakdownSub: "ما يُسمح لهذا العمل أن يكلّف، وما كلّف فعلاً.",
+  loadingCosts: "جارٍ تحميل التوزيع…",
+  noCostCodesYet: "لا توجد بنود تكلفة بعد",
+  noCostCodesBody: "للمشروع رقم واحد — ما ستُقبض. قسّمه إلى الأجزاء التي تشتريها منفصلة، وكلّ فاتورة تُقيّد على أحدها تقول لك أين أنت.",
+  addCostCode: "إضافة بند تكلفة",
+  editCostCode: "تعديل بند التكلفة",
+  seedFromBill: "البدء من جدول الكميات",
+  seedFromBillHint: "بند لكلّ قسم من جدول الكميات، بميزانية ما بيع به ذلك القسم. هذه نقطة بداية وليست تكلفة — عدّل كلّ بند إلى ما تتوقّع إنفاقه.",
+  costCode: "الرمز",
+  costName: "الوصف",
+  costBudget: "الميزانية",
+  costActual: "المنصرف",
+  costRemaining: "المتبقّي",
+  totalBudget: "إجمالي الميزانية",
+  totalActual: "المنصرف",
+  unallocated: "غير موزّع بعد",
+  overAllocated: "الميزانية تتجاوز قيمة المشروع",
+  uncodedSpend: "منصرف بلا بند تكلفة",
+  uncodedSpendHint: "فواتير على هذا المشروع لا تذكر بنداً، أو تذكر بنداً حُذف. تُحسب ضمن الإجمالي — إسقاطها يُظهر العمل أرخص ممّا هو.",
+  overBudget: "تجاوز",
+  noBudgetSet: "بلا ميزانية",
+  backToProject: "العودة إلى المشروع",
+  refuseDuplicateCode: "يوجد بند تكلفة بهذا الرمز في هذا المشروع.",
+  refuseAlreadySeeded: "لهذا المشروع توزيع بالفعل. البدء من الجدول خطوة أولى وليس دمجاً.",
+  refuseNoBill: "لا يوجد جدول كميات لتلك المناقصة.",
+  refuseNoTenderBehind: "لم يُسلّم هذا المشروع من مناقصة، فلا جدول يُبدأ منه.",
+  noForecastYet: "لا يوجد عمود توقّع: أوامر الشراء لا تُقيّد بعد، وتوقّع مبني على الفواتير وحدها يتجاهل كلّ ما طُلب.",
   noServiceActionsYet: "لا إجراءات خدمة بعد — أضفها في إعدادات الاستوديو ثم وزّع أوزانها هنا.",
   noSlaContractsYet: "لا توجد عقود مستوى خدمة بعد",
   noSlaContractsYet2: "لا توجد عقود مستوى خدمة بعد.",

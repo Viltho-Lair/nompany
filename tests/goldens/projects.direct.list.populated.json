@@ -428,6 +428,10 @@
       },
       {
         "id": "<col_ID>",
+        "alias": "projectrunner"
+      },
+      {
+        "id": "<col_ID>",
         "alias": "handoverreader"
       },
       {
@@ -635,6 +639,12 @@
         {
           "id": "<col_ID>",
           "alias": "projectmanager",
+          "departmentId": "",
+          "departmentName": ""
+        },
+        {
+          "id": "<col_ID>",
+          "alias": "projectrunner",
           "departmentId": "",
           "departmentName": ""
         },

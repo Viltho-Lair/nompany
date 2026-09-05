@@ -183,6 +183,21 @@ export const BillSchema = z.object({
   vendorName: z.string().max(160),
   orderId: z.string().max(60).optional(),   // → a material order, when the bill answers a PO
   projectId: z.string().max(60).optional(),
+  /**
+   * WHICH PART OF THE PROJECT'S BUDGET THIS SPEND BELONGS TO.
+   *
+   * PER BILL RATHER THAN PER LINE, deliberately and with a cost: a supplier
+   * invoice spanning two trades has to be split into two bills. Per-line coding
+   * is the more correct model and is where this goes — the roll-up would prefer
+   * a line's code and fall back to the bill's, so it is an addition rather than
+   * a change. What per-bill buys is that a studio can start coding today with
+   * one picker instead of one per row.
+   *
+   * OPTIONAL, and an uncoded bill is NOT an error: it is money the project
+   * spent that nobody has filed yet, and `projectCosting` reports it as exactly
+   * that rather than dropping it.
+   */
+  costCodeId: z.string().max(60).optional(),
   lines: z.array(InvoiceLineSchema),        // same line shape as an invoice
   vatRate: z.number().min(0).max(100),
   // THE CURRENCY THIS WAS BILLED IN. Until it existed every bill was

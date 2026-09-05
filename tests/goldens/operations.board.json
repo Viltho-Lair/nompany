@@ -191,6 +191,10 @@
       },
       {
         "id": "<col_ID>",
+        "alias": "projectrunner"
+      },
+      {
+        "id": "<col_ID>",
         "alias": "handoverreader"
       },
       {

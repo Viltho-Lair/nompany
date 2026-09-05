@@ -110,7 +110,43 @@ export const OvertimeSchema = z.looseObject({
   createdAt: z.string().optional(),
 });
 
+/**
+ * ONE LINE OF A PROJECT'S COST BREAKDOWN — what a part of the job is allowed to
+ * cost.
+ *
+ * A project has always had exactly ONE number, `value`: what the studio will be
+ * paid. Nothing said what any of it was allowed to COST, so "are we over on
+ * this trade" could not be asked. The handover made that sharper rather than
+ * better — it carries a tender's bill total in as the value, and the bill's own
+ * groups are precisely the breakdown there was nowhere to record.
+ *
+ * ITS OWN COLLECTION, not an array on the project, for the reason a BOQ line is
+ * its own: a breakdown grows with the job, and the migration design names
+ * nested line arrays as the shape it is moving away from.
+ *
+ * `budget` IS A COST, NOT A PRICE. What a group of the bill was SOLD for is
+ * where a proposed breakdown starts (`codesFromBill`), and a studio that
+ * expects to spend less than it charged edits it down — which is the entire
+ * point of keeping the two apart.
+ */
+export const ProjectCostSchema = z.object({
+  id: z.string(),
+  studioId: z.string(),
+  sectionId: z.string(),
+  projectId: z.string().max(60),
+  /** The studio's own reference for this part of the job. Unique per project. */
+  code: z.string().max(40),
+  name: z.string().max(200),
+  budget: z.number(),
+  notes: z.string().max(1000),
+  sortOrder: z.number(),
+  createdByCollaboratorId: z.string(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
 export type Project = z.infer<typeof ProjectSchema>;
+export type ProjectCost = z.infer<typeof ProjectCostSchema>;
 export type Sla = z.infer<typeof SlaSchema>;
 export type EmergencyVisit = z.infer<typeof EmergencyVisitSchema>;
 export type Overtime = z.infer<typeof OvertimeSchema>;

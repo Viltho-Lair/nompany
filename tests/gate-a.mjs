@@ -299,7 +299,13 @@ console.log("== the permission matrix: one key grants exactly itself");
   // failed. They are the second document type P2's approval engine governs, and
   // the chain naming them is seeded and lives on the STUDIO now
   // (platform/approval/store) rather than in Finance's settings.
-  ok("the catalogue is the size we last agreed", ALL_PERMISSIONS.length === 145, String(ALL_PERMISSIONS.length));
+  // 149 with projects.costs (view/create/edit/delete). ITS OWN AREA, and by the
+  // test tendering.rates passed rather than the one the bill of quantities
+  // failed: a project's budget is not the project's content the way a bill is a
+  // tender's. "May run this job" and "may see what it is allowed to cost" are
+  // genuinely different powers -- a site engineer opens the project and has no
+  // business reading what amounts to the margin.
+  ok("the catalogue is the size we last agreed", ALL_PERMISSIONS.length === 149, String(ALL_PERMISSIONS.length));
 
   const leaks = [];
   const missing = [];
@@ -2914,6 +2920,133 @@ console.log("== tendering: a register whose dates are the point");
     BOQ.GET, req(`/api/studios/${slug}/tendering/boq?tenderId=${wonId}`), P);
   ok("a reader who cannot open projects is offered no handover",
     asReader.body?.handover?.canHandOver === false, JSON.stringify(asReader.body?.handover));
+  await signIn(owner.id);
+
+
+  // ---- the cost breakdown -------------------------------------------------
+  //
+  // A PROJECT HAS ALWAYS HAD EXACTLY ONE NUMBER -- `value`, what the studio
+  // will be paid -- and nothing said what any of it was allowed to COST. The
+  // handover made that sharper rather than better: it carries a tender's bill
+  // total in as the value, and the bill's own groups are precisely the
+  // breakdown there was nowhere to record.
+  const COSTS = await import("@/app/api/studios/[slug]/projects/costs/route.ts");
+  const costs = (body) => capture(
+    COSTS.POST, req(`/api/studios/${slug}/projects/costs`, { method: "POST", body }), P);
+  const readCosts = (id) => capture(
+    COSTS.GET, req(`/api/studios/${slug}/projects/costs?projectId=${id}`), P);
+
+  const emptyCosts = await readCosts(newProjectId);
+  await shot("projects.costs.empty", emptyCosts);
+  ok("a handed-over project is offered a breakdown from its bill",
+    emptyCosts.body?.canSeedFromBill === true, JSON.stringify(emptyCosts.body?.canSeedFromBill));
+
+  // THE BILL'S GROUPS ARE ALREADY A BREAKDOWN, priced by whoever worked out
+  // what the job was worth. Plant 120000 and Distribution 60000.
+  const seeded = await shot("projects.costs.seeded", await costs({
+    seedFromBill: true, projectId: newProjectId,
+  }));
+  ok("a code is proposed per section of the bill", (seeded.body?.codes || []).length === 2,
+    String((seeded.body?.codes || []).length));
+  ok("...budgeted at what that section was SOLD for",
+    (seeded.body?.codes || []).map((c) => c.budget).join() === "120000,60000",
+    JSON.stringify((seeded.body?.codes || []).map((c) => c.budget)));
+
+  // A STARTING POINT, NOT A MERGE. Running it twice on a breakdown somebody has
+  // since edited would duplicate every code or overwrite their numbers.
+  await shot("projects.costs.seededtwice", await costs({
+    seedFromBill: true, projectId: newProjectId,
+  }));
+
+  const codeIds = (seeded.body?.codes || []).map((c) => c.id);
+  // A BREAKDOWN WITH TWO ROWS FOR ONE CODE IS NOT A BREAKDOWN: the code is what
+  // a bill names, so a duplicate makes every bill coded to it ambiguous.
+  await shot("projects.costs.duplicate", await costs({
+    projectId: newProjectId, code: "01", name: "Same reference", budget: 1,
+  }));
+  // And a code must belong to a project that exists, or a crafted request files
+  // a budget against nothing.
+  await shot("projects.costs.noproject", await costs({
+    projectId: "pro_doesnotexist00", code: "ZZ", name: "Orphan", budget: 1,
+  }));
+
+  // ---- and a bill spends against one ---------------------------------------
+  //
+  // A COST IS INCURRED WHEN THE SUPPLIER INVOICES, not when Finance signs, so
+  // this bill is left unapproved on purpose: a report that waited for approval
+  // would say a job was under budget for as long as its paperwork was behind.
+  // Its OWN import: the finance block that declares BILLS runs after this one.
+  const PAYABLES = await import("@/app/api/studios/[slug]/finance/bills/route.ts");
+  await updateStudio(studio.id, { currency: "SAR" });
+  const codedBill = await capture(PAYABLES.POST, req(`/api/studios/${slug}/finance/bills`, {
+    method: "POST",
+    body: {
+      vendorName: "Chiller Co", projectId: newProjectId, costCodeId: codeIds[0], vatRate: 0,
+      lines: [{ description: "Chillers", qty: 1, unitPrice: 130000 }],
+    },
+  }), P);
+  ok("a bill can name the cost code it belongs to",
+    codedBill.body?.bill?.costCodeId === codeIds[0], JSON.stringify(codedBill.body?.bill?.costCodeId));
+
+  // AN UNCODED BILL IS NOT AN ERROR, and not dropped either: it is money the
+  // project spent that nobody has filed yet.
+  await capture(PAYABLES.POST, req(`/api/studios/${slug}/finance/bills`, {
+    method: "POST",
+    body: {
+      vendorName: "Somebody", projectId: newProjectId, vatRate: 0,
+      lines: [{ description: "Unfiled", qty: 1, unitPrice: 4000 }],
+    },
+  }), P);
+  // AND A DRAFT IS NOT SPEND. Nobody owes it.
+  await capture(PAYABLES.POST, req(`/api/studios/${slug}/finance/bills`, {
+    method: "POST",
+    body: {
+      vendorName: "Not yet", projectId: newProjectId, vatRate: 0, status: "Draft",
+      lines: [{ description: "Draft only", qty: 1, unitPrice: 999999 }],
+    },
+  }), P);
+
+  const withSpend = await readCosts(newProjectId);
+  await shot("projects.costs.spent", withSpend);
+  ok("the coded bill lands on its code",
+    withSpend.body?.costing?.codes?.[0]?.actual === 130000,
+    String(withSpend.body?.costing?.codes?.[0]?.actual));
+  // 130000 against a 120000 allowance.
+  ok("...and a code past its allowance says so",
+    withSpend.body?.costing?.codes?.[0]?.over === true
+    && withSpend.body?.costing?.codes?.[0]?.remaining === -10000,
+    JSON.stringify(withSpend.body?.costing?.codes?.[0]?.remaining));
+  // THE ASSERTION THIS SLICE TURNS ON: money nobody filed is still the
+  // project's money. A total that counted only what was coded would say this
+  // job was 4,000 cheaper than it is.
+  ok("an uncoded bill is reported rather than dropped",
+    withSpend.body?.costing?.uncoded === 4000, String(withSpend.body?.costing?.uncoded));
+  ok("...and is in the project's actual", withSpend.body?.costing?.actual === 134000,
+    String(withSpend.body?.costing?.actual));
+  ok("a draft bill is not spend at all", withSpend.body?.costing?.actual === 134000);
+  ok("the breakdown does not yet account for the whole job",
+    withSpend.body?.costing?.unallocated === 0, String(withSpend.body?.costing?.unallocated));
+
+  // DELETING A CODE DOES NOT DELETE WHAT WAS SPENT ON IT. The bill keeps its
+  // costCodeId and the money returns to `uncoded`, where it stays visible --
+  // silently dropping it would make a project look cheaper for having deleted
+  // a row.
+  await capture(COSTS.DELETE, req(`/api/studios/${slug}/projects/costs`, {
+    method: "DELETE", body: { id: codeIds[0] },
+  }), P);
+  const afterDelete = await readCosts(newProjectId);
+  ok("deleting a code does not lose what was spent on it",
+    afterDelete.body?.costing?.actual === 134000, String(afterDelete.body?.costing?.actual));
+  ok("...it becomes uncoded, where it stays visible",
+    afterDelete.body?.costing?.uncoded === 134000, String(afterDelete.body?.costing?.uncoded));
+  await updateStudio(studio.id, { currency: "" });
+
+  // COSTS ARE THEIR OWN RIGHT. Somebody who may run every project in the studio
+  // and does not hold it is refused the breakdown -- which is the whole reason
+  // the area was minted rather than answering to projects.list.
+  const runner = await personWith(["projects.list.view", "projects.list.edit"], "projectrunner");
+  await signIn(runner.id);
+  await shot("projects.costs.forbidden", await readCosts(newProjectId));
   await signIn(owner.id);
 
   // The studio's currency goes back, so nothing after this section sees it.
