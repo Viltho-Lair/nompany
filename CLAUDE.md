@@ -250,8 +250,8 @@ every push to `main` and every pull request.
   to 8 fails the build.
 - **The bundle budget pins the regression, not the size.** Two gates, and the
   first is the one that matters: the LARGEST CHUNK is 158 KB gz against a 250 KB
-  ceiling, because that is what every route pays. Total client JS is 1601 KB gz
-  against 1610 KB, which catches sprawl rather than splitting. **This line said
+  ceiling, because that is what every route pays. Total client JS is 1612 KB gz
+  against 1620 KB, which catches sprawl rather than splitting. **This line said
   1593 against 1600 and BOTH halves were wrong**: the script's constant was 1700,
   never lowered — the commit that claimed to lower it wrote the comment and left
   the number — so the real gate was a hundred kilobytes slacker than this file,

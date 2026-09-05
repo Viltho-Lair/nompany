@@ -94,7 +94,18 @@ const MAX_CHUNK_GZIP_KB = 250;
 // total moves a few KB per screen legitimately, and a ceiling with zero
 // headroom makes every feature commit a ceiling edit, which is how a ratchet
 // stops being read. See next.config.mjs and src/lib/jspdfOptional.ts.
-const MAX_TOTAL_GZIP_KB = 1610;
+// 1610 → 1620 on 05/09/2026, and the question this file tells you to ask first
+// has an answer: it is NOT one chunk every page loads. The largest chunk — what
+// every route actually pays — has not moved from 158 KB through the pipeline
+// board, customer 360, pricing, the dashboard, the tender register and now the
+// BOQ grid. The growth is route-specific splits: every one of those screens is
+// nextDynamic(), so no other page carries them.
+//
+// Set to the measured 1612 plus eight. The previous nine were spent in a day
+// across three slices, which is the ratchet working rather than the ceiling
+// being wrong — a total that legitimately moves a few KB per screen wants a
+// small margin, not a round number nobody measured.
+const MAX_TOTAL_GZIP_KB = 1620;
 
 const DIR = ".next/static";
 if (!existsSync(DIR)) {
