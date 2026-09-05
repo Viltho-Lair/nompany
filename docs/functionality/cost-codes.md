@@ -130,15 +130,81 @@ whole point of a breakdown is that those two do not cancel.
 **`over` and `willOverrun` are two different flags**, because they are acted on differently: one
 is a number to explain, the other an order somebody could still stop.
 
+### Earned value
+
+**The join.** Every input already existed and nothing read two of them together: the budget came
+with the breakdown, how far the work has got has been in the planner since it was built, and AC
+is the same `actual` the codes roll up. Earned value is the one question that needs all three,
+which is why it could not be asked before. `src/modules/projects/earnedValue.ts`, pure.
+
+| | |
+|---|---|
+| **BAC** | the sum of the breakdown's allowances |
+| **AC** | what has been billed — the roll-up's `actual`, uncoded included |
+| **EV** | BAC × how much of the work the plan says is done |
+| **PV** | BAC × how much of the schedule has elapsed |
+| **SPI / CPI** | EV ÷ PV, EV ÷ AC |
+| **SV / CV** | EV − PV, EV − AC — the same two in money |
+| **EAC / VAC** | BAC ÷ CPI, and BAC − EAC |
+
+**Null rather than zero, everywhere.** Each figure has a state where it is genuinely undefined,
+and zero is a real answer to all of them and the wrong one. *"0% complete"* and *"we do not know
+how complete"* look identical on a progress bar and mean opposite things.
+
+**The three partial states are three sentences, not one**, because they send somebody to three
+different places:
+
+- **`no-budget`** — nothing is budgeted, so there is no value to earn. Add cost codes.
+- **`no-plan`** — how far the work has got cannot be measured. Draw a plan. **Distinct from a
+  plan nobody has started**, which earns nothing and is a real answer; `percentComplete` is
+  nullable rather than defaulted precisely so the two cannot render the same.
+- **`no-dates`** — a cost story with no schedule story. EV, CV, CPI, EAC all still answer; only
+  the planned half is withheld. Withholding both because one is missing would be the wrong trade.
+
+**Nothing divides by nought.** Nothing spent is not infinite efficiency — a project that has
+earned something and been billed for nothing is one whose invoices have not arrived, so CPI is
+null and EAC with it. Before the start date nothing was planned, so PV is nought (a real planned
+value) and SPI over it is null rather than Infinity. One Gate A assertion guards every one of
+these at once.
+
+**Planned value is a straight line, and the screen says so.** The budget is taken to be spread
+evenly across the calendar. The real curve is the plan's own — each task's budget over its own
+dates — and the planner does not *store* task dates: it derives them in the browser from
+durations and dependencies, so a truthful S-curve would mean running the scheduling engine
+server-side.
+
+**Elapsed is clamped at both ends.** Before the start nothing was planned to be done; after the
+end everything was, so an overrunning project goes on accruing schedule variance instead of
+quietly stopping.
+
+**EAC is least trustworthy exactly when a project is youngest.** CPI is EV ÷ AC, so a job that
+has done a lot of work and been invoiced for little reads as enormously efficient and projects a
+finish far under budget — in the sandbox, 34,440 earned against 4,000 billed gave CPI 8.61 and an
+EAC of 6,667 on a 57,400 budget. Nothing there is wrong; it is what the ledger implies, and the
+ledger is behind. It is the sharpest reason both forecasts are shown rather than one.
+
+**There are two forecasts and they are not the same number.** `forecast` on the breakdown is the
+**ledger** one — spent plus ordered. `eac` is the **performance** one — the budget at the cost
+rate so far. They answer different questions, a screen showing one while calling it the other is
+worse than showing neither, and the contract keeps them apart: in Gate A's own fixture they read
+194,000 and 281,250.
+
+**The clock travels with the answer.** `asOf` is on the response, so how much of the schedule has
+gone is measured from one instant rather than from whenever a screen rendered — and it is an ISO
+string, not an epoch, because the golden normaliser scrubs the first and cannot see the second.
+
 ## Not built yet
 
 Stated in words, because a silent gap reads as a finished feature.
 
-- **No earned value.** EV/PV/AC/SPI/CPI need a schedule and a budget joined together; the budget
-  half exists now and the planner holds the other, and nothing joins them. AC is the `actual`
-  here, so this is the closest remaining piece.
-- **No estimate-to-complete.** Nobody can say "this code will finish at X" — the forecast is
-  derived, and the only way to change it is to change the budget.
+- **No estimate-to-complete.** Nobody can say "this code will finish at X" — both forecasts are
+  derived, and the only way to move either is to change the budget or the ledger.
+- **Earned value is whole-project only.** There is no EV per cost code, because nothing maps a
+  plan task to a code: a task carries no `costCodeId`, so the plan's progress can only be
+  weighed against the budget as a whole. That mapping is what would make the straight-line
+  planned value unnecessary as well, since each code would earn over its own tasks' dates.
+- **One plan per project is read.** `progressByProject` takes the first; a project with two
+  plans has the second ignored rather than weighted in.
 - **A subcontract is not a commitment.** Only purchase orders are; subcontracts, framework
   agreements and anything else the studio has promised are invisible to the forecast.
 - **No coding on anything but a bill.** Expenses, timesheets, stock issues and subcontractor

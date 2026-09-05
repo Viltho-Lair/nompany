@@ -12,6 +12,8 @@
 import { requirePermission } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
 import { projectCosting, codesFromBill, type CostedBill, type CostedOrder } from "./costing";
+import { earnedValue } from "./earnedValue";
+import { listProjectPlans } from "@/modules/operations/planner";
 import { boqGroups } from "@/modules/tendering/boq";
 import { invoiceTotals } from "@/modules/finance/finance";
 import { orderTotal } from "@/modules/inventory/inventory";
@@ -97,16 +99,22 @@ export async function listProjectCosts(ctx: ProjectsContext, projectId: string) 
   if (!projectId) return { error: "missing" };
 
   const { studio, listSection } = ctx;
-  const [project, rows, spend, commitments] = await Promise.all([
+  const [project, rows, spend, commitments, plans] = await Promise.all([
     Projects.byId({ studio, section: listSection }, projectId),
     Costs.find({ studio, section: listSection }, { where: { projectId } }),
     spendFor(ctx, projectId),
     commitmentsFor(ctx, projectId),
+    // THE OTHER HALF OF EARNED VALUE. One key read for the studio's plan index,
+    // filtered here — the plan DOCUMENTS are never opened, because the progress
+    // figure is cached onto the summary on save for exactly this reason.
+    listProjectPlans(studio.id, projectId),
   ]);
   if (!project) return { error: "notfound" };
 
   const codes = [...rows].sort((a, b) =>
     (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || (a.code || "").localeCompare(b.code || ""));
+  const costing = projectCosting(codes, spend, commitments, project.value);
+  const asOf = new Date().toISOString();
 
   return {
     project,
@@ -115,7 +123,29 @@ export async function listProjectCosts(ctx: ProjectsContext, projectId: string) 
     // spent is read by things that are not this screen, and `uncoded` is the
     // half that matters — a report that dropped it would say a job was inside
     // its budget for as long as its paperwork was behind.
-    costing: projectCosting(codes, spend, commitments, project.value),
+    costing,
+    // WHEN THIS ANSWER WAS TRUE. Every "how much of the schedule has gone" is
+    // measured from one instant and it is this one, so the screen never reads
+    // its own clock — the same discipline the tender register states, and what
+    // makes `elapsedFraction` a function of its arguments rather than of when
+    // it happened to run. ISO, not an epoch: the golden normaliser scrubs the
+    // first and cannot see the second.
+    asOf,
+    // EARNED VALUE IS A JOIN, and this is the only place all three halves are
+    // in hand: the budget from the breakdown, the spend from the same roll-up
+    // the codes use, and how far the work has got from the plan.
+    //
+    // `percentComplete` IS NULL WITH NO PLAN, never 0. A plan nobody has
+    // started earns nothing, which is a real answer; having no plan cannot be
+    // measured at all, and the two must not render the same.
+    earned: earnedValue({
+      bac: costing.budget,
+      ac: costing.actual,
+      percentComplete: plans.length ? Number(plans[0].progress) || 0 : null,
+      startDate: project.startDate,
+      endDate: project.endDate,
+      asOf: asOf.slice(0, 10),
+    }),
   };
 }
 

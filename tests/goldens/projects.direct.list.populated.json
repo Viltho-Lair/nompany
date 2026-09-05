@@ -167,15 +167,15 @@
         "location": "",
         "supportPeriodDays": 365,
         "receivedDate": "<today>",
-        "startDate": "",
-        "endDate": "",
+        "startDate": "2031-01-01",
+        "endDate": "2031-03-01",
         "notes": "",
         "openedByCollaboratorId": "<col_ID>",
         "createdAt": "<timestamp>",
         "studioId": "<std_ID>",
         "sectionId": "<sub_ID>",
         "ticketRef": "",
-        "progress": 0
+        "progress": 50
       },
       {
         "id": "<pro_ID>",

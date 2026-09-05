@@ -22,6 +22,11 @@ export const GET = route({ ...spec, body: false }, async (projects) => {
     project: result.project,
     codes: result.codes,
     costing: result.costing,
+    // THE CLOCK TRAVELS WITH THE ANSWER, so "how much of the schedule has gone"
+    // is measured from one instant rather than from whenever the screen
+    // rendered.
+    asOf: result.asOf,
+    earned: result.earned,
     // THE RIGHTS TRAVEL WITH THE ANSWER, so the screen draws a control only
     // where the service would accept what is behind it.
     canCreate: !requirePermission(projects.access, "projects.costs.create"),

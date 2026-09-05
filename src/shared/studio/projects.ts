@@ -153,6 +153,29 @@ type Strings = CommonStrings & {
   uncommittedSpend: string;
   uncommittedSpendHint: string;
   forecastNote: string;
+
+  // Earned value.
+  earnedValue: string;
+  earnedValueSub: string;
+  evEarned: string;
+  evPlanned: string;
+  evSpent: string;
+  evScheduleIndex: string;
+  evCostIndex: string;
+  evScheduleVariance: string;
+  evCostVariance: string;
+  evAtCompletion: string;
+  evVarianceAtCompletion: string;
+  evAhead: string;
+  evBehind: string;
+  evUnderCost: string;
+  evOverCost: string;
+  evNoBudget: string;
+  evNoPlan: string;
+  evNoDates: string;
+  evStraightLine: string;
+  evTwoForecasts: string;
+  evElapsed: (pct: number) => string;
   noServiceActionsYet: string;
   noSlaContractsYet: string;
   noSlaContractsYet2: string;
@@ -420,6 +443,28 @@ const en: Strings = {
   uncommittedSpend: "Orders with no cost code",
   uncommittedSpendHint: "Purchase orders on this project that name no code, or one that has since been deleted. Counted in the forecast — leaving them out would show the job finishing cheaper than it will.",
   forecastNote: "Forecast is what has been spent plus what is still ordered, or the budget — whichever is larger. A code inside its allowance is expected to spend it, because the work is not done.",
+
+  earnedValue: "Earned value",
+  earnedValueSub: "What the work done is worth, against what it cost and what it should have cost by now.",
+  evEarned: "Earned",
+  evPlanned: "Planned",
+  evSpent: "Spent",
+  evScheduleIndex: "Schedule index",
+  evCostIndex: "Cost index",
+  evScheduleVariance: "Schedule variance",
+  evCostVariance: "Cost variance",
+  evAtCompletion: "At this rate",
+  evVarianceAtCompletion: "Against budget",
+  evAhead: "Ahead of schedule",
+  evBehind: "Behind schedule",
+  evUnderCost: "Costing less than it earns",
+  evOverCost: "Costing more than it earns",
+  evNoBudget: "Nothing is budgeted yet, so there is no value to earn. Add cost codes below.",
+  evNoPlan: "This project has no plan, so how far the work has got cannot be measured. Draw one in the planner.",
+  evNoDates: "This project has no start and end date, so there is nothing to measure the schedule against. The cost half is below.",
+  evStraightLine: "Planned value assumes the budget is spread evenly across the calendar. The plan’s own curve needs task dates the planner does not store.",
+  evTwoForecasts: "Two forecasts, and they answer different questions: “At this rate” projects the budget at the cost performance so far; “Forecast” above is the ledger — what is spent plus what is ordered.",
+  evElapsed: (pct) => `${pct}% of the schedule has gone`,
   noServiceActionsYet: "No service actions yet — add them in Studio Settings, then weight them here.",
   noSlaContractsYet: "No SLA contracts yet",
   noSlaContractsYet2: "No SLA contracts yet.",
@@ -685,6 +730,28 @@ const ar: Strings = {
   uncommittedSpend: "أوامر شراء بلا بند تكلفة",
   uncommittedSpendHint: "أوامر شراء على هذا المشروع لا تذكر بنداً، أو تذكر بنداً حُذف. تُحسب ضمن المتوقّع — إسقاطها يُظهر العمل منتهياً أرخص ممّا سيكون.",
   forecastNote: "المتوقّع هو ما صُرف زائد ما لا يزال مطلوباً، أو الميزانية، أيّهما أكبر. البند داخل ميزانيته يُتوقّع أن ينفقها، لأنّ العمل لم ينتهِ.",
+
+  earnedValue: "القيمة المكتسبة",
+  earnedValueSub: "ما يساويه العمل المنجز، مقابل ما كلّف وما كان ينبغي أن يكلّف حتّى الآن.",
+  evEarned: "المكتسب",
+  evPlanned: "المخطّط",
+  evSpent: "المنصرف",
+  evScheduleIndex: "مؤشر الجدول الزمني",
+  evCostIndex: "مؤشر التكلفة",
+  evScheduleVariance: "فرق الجدول",
+  evCostVariance: "فرق التكلفة",
+  evAtCompletion: "على هذا المعدّل",
+  evVarianceAtCompletion: "مقابل الميزانية",
+  evAhead: "متقدّم عن الجدول",
+  evBehind: "متأخّر عن الجدول",
+  evUnderCost: "يكلّف أقلّ ممّا يكسب",
+  evOverCost: "يكلّف أكثر ممّا يكسب",
+  evNoBudget: "لا توجد ميزانية بعد، فلا قيمة تُكتسب. أضف بنود التكلفة أدناه.",
+  evNoPlan: "لا خطّة لهذا المشروع، فلا يمكن قياس ما أُنجز من العمل. ارسم خطّة في المخطّط.",
+  evNoDates: "لا تاريخ بداية ونهاية لهذا المشروع، فلا شيء يُقاس عليه الجدول. الشقّ المالي أدناه.",
+  evStraightLine: "القيمة المخطّطة تفترض توزيع الميزانية بالتساوي على المدّة. منحنى الخطّة نفسها يحتاج تواريخ مهامّ لا يحفظها المخطّط.",
+  evTwoForecasts: "توقّعان يجيبان سؤالين مختلفين: «على هذا المعدّل» يسقط الميزانية على أداء التكلفة حتّى الآن؛ و«المتوقّع» أعلاه هو الدفتر: ما صُرف زائد ما طُلب.",
+  evElapsed: (pct) => `مضى ${pct}% من المدّة`,
   noServiceActionsYet: "لا إجراءات خدمة بعد — أضفها في إعدادات الاستوديو ثم وزّع أوزانها هنا.",
   noSlaContractsYet: "لا توجد عقود مستوى خدمة بعد",
   noSlaContractsYet2: "لا توجد عقود مستوى خدمة بعد.",

@@ -42,6 +42,21 @@
       "unallocated": 180000,
       "clean": true
     },
+    "asOf": "<timestamp>",
+    "earned": {
+      "bac": 0,
+      "ac": 0,
+      "ev": null,
+      "pv": null,
+      "sv": null,
+      "cv": null,
+      "spi": null,
+      "cpi": null,
+      "eac": null,
+      "vac": null,
+      "elapsed": null,
+      "blocked": "no-budget"
+    },
     "canCreate": true,
     "canEdit": true,
     "canDelete": true,

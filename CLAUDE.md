@@ -347,7 +347,9 @@ every push to `main` and every pull request.
   about thirty strings in two languages; `modules/projects/costing.ts` reaches
   the browser DELIBERATELY, so the screen totals with the same function the
   server does. 1622 → 1623 with committed and forecast: two columns, two
-  banners and nine strings.
+  banners and nine strings. 1623 → 1625 with earned value — a panel, three
+  indices and twenty-three strings; `modules/projects/earnedValue.ts` is a few
+  hundred bytes and reaches the browser so the screen and the server agree.
 - Tests connect things — real repositories, real route handlers, **one assertion per
   bug that actually happened**. Each block names the defect it guards, so nobody
   deletes it later wondering what it was for.
@@ -761,6 +763,33 @@ done, and reporting money not yet promised as a saving would show every project 
 the day it opened. The PROJECT's forecast is the sum of its codes' rather than a maximum over
 the totals — taking the maximum at the top would let a code running under cancel one running
 over, which is the one thing a breakdown exists to prevent.
+
+**SLICE 3 IS EARNED VALUE**, and it is a JOIN rather than new data: the budget came with the
+breakdown, how far the work has got has been in the planner since it was built, and AC is the
+same `actual` the codes roll up. `modules/projects/earnedValue.ts`, pure. **No permission key** —
+it reads what `projects.costs.view` already opens.
+
+**NULL RATHER THAN ZERO, EVERYWHERE**, because every figure has a state where it is genuinely
+undefined and zero is a real answer to all of them: "0% complete" and "we do not know how
+complete" look identical on a progress bar and mean opposite things. Three partial states, and
+they are three SENTENCES because they send somebody to three different places — `no-budget` (add
+cost codes), `no-plan` (draw one), `no-dates` (a cost story with no schedule story, where EV, CV,
+CPI and EAC all still answer). **A plan nobody has started is a real 0 and earns nothing**, which
+is why `percentComplete` is nullable rather than defaulted.
+
+**Nothing divides by nought.** Nothing spent is not infinite efficiency — a project billed for
+nothing is one whose invoices have not arrived — so CPI and EAC are null; before the start date
+PV is nought and SPI over it is null rather than Infinity. One Gate A assertion guards every one.
+
+**PLANNED VALUE IS A STRAIGHT LINE and the screen says so.** The real curve is the plan's own,
+and the planner does not STORE task dates — it derives them in the browser from durations and
+dependencies — so a truthful S-curve means running the scheduling engine server-side.
+
+**THERE ARE TWO FORECASTS AND THEY ARE NOT THE SAME NUMBER.** `costing.forecast` is the LEDGER
+one (spent plus ordered); `earned.eac` is the PERFORMANCE one (the budget at the cost rate so
+far). In Gate A's own fixture they read 194,000 and 281,250. A screen showing one while calling
+it the other is worse than showing neither, so the contract keeps them apart and the screen
+labels both.
 
 **A ROUTING BUG THE TESTS COULD NOT SEE, found by opening the screen.** The project board is a
 FULL-SCREEN early return gated on a hand-typed list of third segments, so `/costs` rendered the

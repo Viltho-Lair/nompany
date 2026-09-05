@@ -3107,6 +3107,114 @@ console.log("== tendering: a register whose dates are the point");
     netted.body?.costing?.codes?.[1]?.actual
     + netted.body?.costing?.codes?.[1]?.committed === 18000);
 
+
+  // ---- earned value -------------------------------------------------------
+  //
+  // THE JOIN. Every input existed already and nothing read two of them
+  // together: the budget came with the breakdown above, how far the work has
+  // got has been in the planner since it was built, and AC is the same
+  // `actual` the codes roll up. Earned value is the one question that needs
+  // all three, which is why it could not be asked before.
+
+  // NO PLAN YET, so the schedule half cannot be measured -- and that is a
+  // DIFFERENT state from a plan nobody has started, which earns nothing and is
+  // a real answer. Pinned because the two render identically if anybody ever
+  // defaults the missing one to zero.
+  const beforePlan = await readCosts(newProjectId);
+  ok("a project with no plan cannot have its work measured",
+    beforePlan.body?.earned?.blocked === "no-plan", JSON.stringify(beforePlan.body?.earned?.blocked));
+  ok("...so nothing is earned, and it is null rather than nought",
+    beforePlan.body?.earned?.ev === null, JSON.stringify(beforePlan.body?.earned?.ev));
+  ok("...but what was spent is still reported",
+    beforePlan.body?.earned?.ac === beforePlan.body?.costing?.actual,
+    String(beforePlan.body?.earned?.ac));
+
+  // A PLAN. The planner caches the progress figure onto the summary on
+  // save, which is why this costs one key read and never opens the document.
+  // TWO DOORS, DELIBERATELY: Projects CREATES a plan (its own grant), and the
+  // planner SAVES one (operations.planner.edit). Using both is what the
+  // product does, so the fixture does too.
+  const PLANS = await import("@/app/api/studios/[slug]/projects/[projectId]/plans/route.ts");
+  const PLANNER = await import("@/app/api/studios/[slug]/operations/planner/[planId]/route.ts");
+  const plan = await capture(PLANS.POST,
+    req(`/api/studios/${slug}/projects/${newProjectId}/plans`, { method: "POST", body: {} }),
+    ctx({ slug, projectId: newProjectId }));
+  const planId = plan.body?.planId;
+  ok("a plan was drawn for the project", Boolean(planId), JSON.stringify(plan.body).slice(0, 140));
+
+  // HALF THE WEIGHTED WORK DONE: two ten-day leaves, one finished. planProgress
+  // weights leaves by duration, so this is 50%.
+  await capture(PLANNER.PUT, req(`/api/studios/${slug}/operations/planner/${planId}`, {
+    method: "PUT",
+    body: {
+      plan: {
+        meta: { name: "Cooling works", status: "on_track", startDate: "2031-01-01" },
+        tasks: [
+          { id: "t1", title: "Chillers", duration: 10, durationUnit: "days", percentComplete: 100 },
+          { id: "t2", title: "Pipework", duration: 10, durationUnit: "days", percentComplete: 0 },
+        ],
+      },
+    },
+  }), ctx({ slug, planId }));
+
+  // AND DATES ON THE PROJECT, or there is nothing to measure the schedule
+  // against. Without them the cost half still answers, which is the point of
+  // `no-dates` being a partial state rather than a refusal.
+  const noDatesYet = await readCosts(newProjectId);
+  ok("a project with a plan and no dates has a cost story and no schedule one",
+    noDatesYet.body?.earned?.blocked === "no-dates",
+    JSON.stringify(noDatesYet.body?.earned?.blocked));
+  ok("...EV answers", noDatesYet.body?.earned?.ev !== null, JSON.stringify(noDatesYet.body?.earned?.ev));
+  ok("...and the planned half does not",
+    noDatesYet.body?.earned?.pv === null && noDatesYet.body?.earned?.spi === null);
+
+  await capture(PROJECTS.PUT, req(`/api/studios/${slug}/projects`, {
+    method: "PUT", body: { id: newProjectId, startDate: "2031-01-01", endDate: "2031-03-01" },
+  }), P);
+
+  const ev = await readCosts(newProjectId);
+  await shot("projects.costs.earned", ev);
+  ok("the whole picture answers once budget, plan and dates are all there",
+    ev.body?.earned?.blocked === null, JSON.stringify(ev.body?.earned?.blocked));
+  // 180000 budgeted, half the plan's weighted work done.
+  ok("EV is the budget times the work done", ev.body?.earned?.ev === 90000,
+    String(ev.body?.earned?.ev));
+  ok("...and BAC is the breakdown's own total",
+    ev.body?.earned?.bac === ev.body?.costing?.budget, String(ev.body?.earned?.bac));
+  ok("...and AC is the same actual the codes roll up",
+    ev.body?.earned?.ac === ev.body?.costing?.actual, String(ev.body?.earned?.ac));
+
+  // THE CLOCK TRAVELS WITH THE ANSWER, so how much of the schedule has gone is
+  // measured from one instant rather than from whenever a screen rendered --
+  // and an ISO string, not an epoch, because the golden normaliser scrubs the
+  // first and cannot see the second.
+  ok("the answer says when it was true", typeof ev.body?.asOf === "string"
+    && ev.body.asOf.includes("T"), JSON.stringify(ev.body?.asOf));
+  // 2031 is well ahead of any clock this suite runs under, so the schedule has
+  // not started: PV is nought, which is a REAL planned value, and a schedule
+  // index over it is undefined rather than infinite.
+  ok("before the schedule starts nothing was planned to be done",
+    ev.body?.earned?.pv === 0 && ev.body?.earned?.elapsed === 0,
+    JSON.stringify({ pv: ev.body?.earned?.pv, elapsed: ev.body?.earned?.elapsed }));
+  ok("...so there is no schedule index, rather than an infinite one",
+    ev.body?.earned?.spi === null, String(ev.body?.earned?.spi));
+
+  // NO INDEX IS EVER INFINITY. The single assertion that guards every
+  // divide-by-nought on this screen at once.
+  const indices = [ev.body?.earned?.spi, ev.body?.earned?.cpi,
+    ev.body?.earned?.eac, ev.body?.earned?.vac];
+  ok("no index or forecast is Infinity",
+    indices.every((n) => n === null || Number.isFinite(n)), JSON.stringify(indices));
+
+  // TWO FORECASTS, AND THEY ARE NOT THE SAME NUMBER. `forecast` is the LEDGER
+  // one -- spent plus ordered; `eac` is the PERFORMANCE one -- the budget at
+  // the cost rate so far. A screen showing one while calling it the other is
+  // worse than showing neither, so the contract keeps them apart.
+  ok("the ledger forecast and the performance forecast are separate figures",
+    typeof ev.body?.costing?.forecast === "number"
+    && Object.prototype.hasOwnProperty.call(ev.body?.earned || {}, "eac"),
+    JSON.stringify({ ledger: ev.body?.costing?.forecast, performance: ev.body?.earned?.eac }));
+
   // DELETING A CODE DOES NOT DELETE WHAT WAS SPENT ON IT. The bill keeps its
   // costCodeId and the money returns to `uncoded`, where it stays visible --
   // silently dropping it would make a project look cheaper for having deleted

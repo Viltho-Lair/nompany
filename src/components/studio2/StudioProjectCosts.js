@@ -14,7 +14,7 @@ import { useStudioLocale } from "@/components/studio2/locale";
 import { projectsDict } from "@/shared/studio/projects";
 import { RecordSkeleton } from "@/components/studio2/RecordSkeleton";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
-import { panel, h2, sub, btn, btnGhost, btnRow, btnRowDanger, Empty, Dialog, StatTile, money } from "@/components/studio2/ui";
+import { panel, h2, sub, btn, btnGhost, btnRow, btnRowDanger, microLabel, Empty, Dialog, StatTile, money } from "@/components/studio2/ui";
 import { Field } from "@/components/fields/Field";
 
 function refusal(tr, token) {
@@ -77,7 +77,13 @@ export default function StudioProjectCosts({ slug, projectId }) {
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <RecordSkeleton loadingLabel={tr.loadingCosts} />;
 
-  const { project, codes, costing, canCreate, canEdit, canDelete, canSeedFromBill } = data;
+  const { project, codes, costing, earned, canCreate, canEdit, canDelete, canSeedFromBill } = data;
+
+  // AN INDEX IS A RATIO, NOT MONEY, so it is not put through `money()` — two
+  // decimals and no thousands separator. A dash where it is null: an index that
+  // cannot be computed is not 0.00, and the two must not look alike.
+  const idx = (n) => (n === null || n === undefined ? "—" : n.toFixed(2));
+  const evBlocked = earned?.blocked;
 
   const openForm = (row) => setForm(row ? { ...row } : { code: "", name: "", budget: "", notes: "" });
 
@@ -158,6 +164,98 @@ export default function StudioProjectCosts({ slug, projectId }) {
           </p>
           <p className="mt-1 text-xs text-amber-800 dark:text-amber-200/90">{tr.uncommittedSpendHint}</p>
         </div>
+      )}
+
+      {/* ---- earned value ------------------------------------------------
+          THE JOIN. Every figure here existed already and nothing read two of
+          them together: the budget came with the breakdown below, the progress
+          has been in the planner since it was built, and what was spent is the
+          same `actual` the codes roll up.
+
+          WHY THE BLOCKED STATES ARE THREE SENTENCES AND NOT ONE. They send
+          somebody to three different places — add a cost code, draw a plan, put
+          dates on the project — and a single "not enough data" would leave them
+          guessing which. */}
+      {earned && (
+        <section className={panel}>
+          <div>
+            <h2 className={h2}>{tr.earnedValue}</h2>
+            <p className={sub}>{tr.earnedValueSub}</p>
+          </div>
+
+          {evBlocked === "no-budget" ? (
+            <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">{tr.evNoBudget}</p>
+          ) : evBlocked === "no-plan" ? (
+            <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">{tr.evNoPlan}</p>
+          ) : (
+            <>
+              <div className="mt-4 grid gap-4 sm:grid-cols-3">
+                <StatTile label={tr.evEarned} value={<span className="num">{money(earned.ev)}</span>}
+                  sub={tr.evCostVariance + ": " + money(earned.cv)}
+                  tone={earned.cv < 0 ? "text-rose-600 dark:text-rose-300" : "text-emerald-600 dark:text-emerald-400"} />
+                {/* WITHHELD RATHER THAN GUESSED when the project has no dates.
+                    The cost half below still answers, which is the whole point
+                    of `no-dates` being a partial state. */}
+                <StatTile label={tr.evPlanned}
+                  value={<span className="num">{earned.pv === null ? "—" : money(earned.pv)}</span>}
+                  sub={earned.elapsed === null
+                    ? tr.evNoDates
+                    : tr.evElapsed(Math.round(earned.elapsed * 100))}
+                  accent="rgb(var(--chart-2))" />
+                <StatTile label={tr.evSpent} value={<span className="num">{money(earned.ac)}</span>}
+                  sub={tr.evScheduleVariance + ": " + (earned.sv === null ? "—" : money(earned.sv))}
+                  accent="rgb(var(--chart-3))" />
+              </div>
+
+              <div className="mt-4 flex flex-wrap items-baseline gap-x-8 gap-y-3">
+                <span>
+                  <span className={microLabel}>{tr.evScheduleIndex}</span>
+                  <span className={`num text-lg font-800 ${earned.spi === null ? "text-slate-400"
+                    : earned.spi < 1 ? "text-amber-700 dark:text-amber-300" : "text-emerald-600 dark:text-emerald-400"}`}>
+                    {idx(earned.spi)}
+                  </span>
+                  {earned.spi !== null && (
+                    <span className="ms-2 text-xs text-slate-500 dark:text-slate-400">
+                      {earned.spi < 1 ? tr.evBehind : tr.evAhead}
+                    </span>
+                  )}
+                </span>
+                <span>
+                  <span className={microLabel}>{tr.evCostIndex}</span>
+                  <span className={`num text-lg font-800 ${earned.cpi === null ? "text-slate-400"
+                    : earned.cpi < 1 ? "text-rose-600 dark:text-rose-300" : "text-emerald-600 dark:text-emerald-400"}`}>
+                    {idx(earned.cpi)}
+                  </span>
+                  {earned.cpi !== null && (
+                    <span className="ms-2 text-xs text-slate-500 dark:text-slate-400">
+                      {earned.cpi < 1 ? tr.evOverCost : tr.evUnderCost}
+                    </span>
+                  )}
+                </span>
+                <span>
+                  <span className={microLabel}>{tr.evAtCompletion}</span>
+                  <span className="num text-lg font-800 text-slate-900 dark:text-white">
+                    {earned.eac === null ? "—" : money(earned.eac)}
+                  </span>
+                  {earned.vac !== null && (
+                    <span className={`ms-2 text-xs ${earned.vac < 0 ? "text-rose-600 dark:text-rose-300" : "text-slate-500 dark:text-slate-400"}`}>
+                      {tr.evVarianceAtCompletion}: {money(earned.vac)}
+                    </span>
+                  )}
+                </span>
+              </div>
+
+              {/* BOTH ASSUMPTIONS SAID OUT LOUD. A straight-line planned value
+                  and a performance forecast sitting beside a ledger one are
+                  each read as more than they are unless the screen says what
+                  they rest on. */}
+              <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">{tr.evStraightLine}</p>
+              {earned.eac !== null && (
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{tr.evTwoForecasts}</p>
+              )}
+            </>
+          )}
+        </section>
       )}
 
       <div className="flex flex-wrap items-start justify-between gap-3">
