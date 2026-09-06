@@ -232,5 +232,65 @@ const differing = [...byName.entries()].filter(([, shapes]) => shapes.size > 1);
 ok("a repeated job title can carry different access in different places",
   differing.length > 0, `${differing.length} such titles`);
 
+console.log("\n== retiring the four generic roles");
+
+const RT = await import("@/shared/roles/retire");
+
+// A studio that still has all five, with nobody holding the four.
+const fiveRoles = [
+  { id: R.ADMIN_ROLE_ID, name: "Admin" },
+  { id: "role_manager", name: "Manager" },
+  { id: "role_lead", name: "Team Lead" },
+  { id: "role_member", name: "Member" },
+  { id: "role_viewer", name: "Viewer" },
+  { id: "rol_custom", name: "Site Engineer" },
+];
+
+const clear = RT.retirePlan({ roles: fiveRoles, people: [{ id: "c1", roleIds: [] }] });
+ok("an unheld studio clears all four", clear.remove.length === 4,
+  clear.remove.map((r) => r.id).join(", "));
+ok("...and is not refused", clear.refused === false);
+
+// ADMIN IS NEVER TOUCHED. It is the one wildcard and the role that has to
+// keep meaning everything as the product grows.
+ok("Admin is never removed", !clear.remove.some((r) => r.id === R.ADMIN_ROLE_ID),
+  clear.remove.map((r) => r.id).join(", "));
+
+// Nor is anything the studio made for itself.
+ok("a studio's own roles are never removed",
+  !clear.remove.some((r) => r.id === "rol_custom"));
+
+// THE REFUSAL IS THE WHOLE SAFETY OF THIS SCRIPT. Deleting a held role takes
+// its access off everybody holding it.
+const held = RT.retirePlan({
+  roles: fiveRoles,
+  people: [{ id: "c1", roleIds: ["role_manager"] }, { id: "c2", roleIds: ["role_manager"] }],
+});
+ok("a studio where somebody holds one is refused", held.refused === true);
+ok("...naming the role and the count", held.holders.role_manager === 2,
+  JSON.stringify(held.holders));
+
+// REFUSED MEANS NOTHING IS REMOVED, not "remove the three that are free". A
+// studio left holding Manager and nothing else is halfway between two role
+// models, and nobody chose that state.
+ok("...and nothing at all is removed, not even the unheld three",
+  held.remove.length === 0, JSON.stringify(held.remove));
+
+// Idempotent: a studio already migrated has nothing to do.
+const done = RT.retirePlan({
+  roles: [{ id: R.ADMIN_ROLE_ID, name: "Admin" }, { id: "rol_x", name: "Estimator" }],
+  people: [{ id: "c1", roleIds: ["rol_x"] }],
+});
+ok("a studio already retired has nothing to do", RT.nothingToRetire(done));
+
+// A RENAMED STARTER ROLE IS STILL THAT ROLE. Matching by name would leave
+// "Head of Department" behind on any studio that renamed Manager.
+const renamed = RT.retirePlan({
+  roles: [{ id: "role_manager", name: "Head of Department" }],
+  people: [],
+});
+ok("a renamed starter role is still retired", renamed.remove.length === 1,
+  JSON.stringify(renamed.remove));
+
 console.log(fails ? `\n${fails} FAILED\n` : "\nall passed\n");
 process.exit(fails ? 1 : 0);
