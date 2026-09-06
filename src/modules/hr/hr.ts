@@ -145,6 +145,13 @@ export async function listHrRoles(ctx: HrContext) {
       // What Access has said about it, carried so HR can show whether the job
       // has been given any access yet without a second call.
       permissionCount: r.wildcard ? null : (r.permissions || []).length,
+      // WHICH DEPARTMENT THIS JOB SITS IN, "" for studio-wide. The screen groups
+      // by it; it decides nothing about access.
+      departmentId: String(r.departmentId || ""),
+      // Whether it came out of the role library or was typed. The screen treats
+      // the two differently — a library role arrived with access, a custom one
+      // started empty — so it has to be able to tell them apart.
+      source: r.source === "library" ? "library" : "custom",
       held: held(r.id),
     }));
 }
@@ -157,13 +164,36 @@ export async function createHrRole(ctx: HrContext, body: Record<string, unknown>
   const name = str(body?.name, 60);
   if (!name) return { error: "name" };
 
+  // PLACED IN A DEPARTMENT, checked against the studio's own register. Blank is
+  // legal and means studio-wide, which is what Admin is; anything else must
+  // name a department that exists right now, so a role cannot be filed under
+  // one deleted between the screen loading and the save.
+  const departmentId = str(body?.departmentId, 60);
+  if (departmentId) {
+    const departments = await listDepartments(ctx);
+    if (!departments.some((d) => d.id === departmentId)) return { error: "department" };
+  }
+
   const roles = await listRoles(ctx.studio.id);
-  if (roles.some((r) => (r.name || "").toLowerCase() === name.toLowerCase())) return { error: "duplicate" };
+  // UNIQUE WITHIN THE DEPARTMENT, NOT THE STUDIO — and this is the line that
+  // had to change for departmental roles to mean anything. A studio-wide check
+  // refused the second "Manager", which is precisely the row the whole design
+  // exists to allow: a Manager in Finance and a Manager in Site Execution are
+  // two rows on purpose, because they must be able to hold different access.
+  //
+  // Two names still cannot collide INSIDE one department, because there the
+  // name is the only thing telling them apart.
+  const clash = roles.some((r) => String(r.departmentId || "") === departmentId
+    && (r.name || "").toLowerCase() === name.toLowerCase());
+  if (clash) return { error: "duplicate" };
 
   // NO PERMISSIONS AND NO SCOPES, whatever the payload says. cleanRole would
-  // keep them, and this route is not the one that may hand access out.
+  // keep them, and this route is not the one that may hand access out. A role
+  // typed by hand starts empty; only a library role arrives carrying access,
+  // and it arrives through addLibraryRoles rather than here.
   const role = await createRole(ctx.studio.id, {
     name, description: str(body?.description, 200), permissions: [], scopes: {},
+    departmentId, source: "custom",
   });
   return { role };
 }
@@ -183,7 +213,12 @@ export async function editHrRole(ctx: HrContext, id: string, body: Record<string
   if (body?.name !== undefined) {
     const name = str(body.name, 60);
     if (!name) return { error: "name" };
-    if (roles.some((r) => r.id !== id && (r.name || "").toLowerCase() === name.toLowerCase())) return { error: "duplicate" };
+    // Scoped to the role's OWN department, for the same reason the create
+    // check is — renaming a Finance role to "Manager" must not be refused
+    // because Site Execution already has one.
+    const home = String(current.departmentId || "");
+    if (roles.some((r) => r.id !== id && String(r.departmentId || "") === home
+      && (r.name || "").toLowerCase() === name.toLowerCase())) return { error: "duplicate" };
     patch.name = name;
   }
   if (body?.description !== undefined) patch.description = str(body.description, 200);

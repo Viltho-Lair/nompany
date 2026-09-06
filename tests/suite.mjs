@@ -312,8 +312,43 @@ const created = await createStudio({ ownerUserId: owner.id, name: "Test Studio",
 if (created.error) { console.error("fixture failed:", created.error); process.exit(1); }
 const studio = created.studio;
 
-const roles = await listRoles(studio.id);            // seeds the starter roles
+const roles = await listRoles(studio.id);            // seeds Admin
 const roleId = (name) => roles.find((r) => r.name === name)?.id;
+
+// THE FIXTURE STATES ITS OWN ACCESS RATHER THAN INHERITING IT.
+//
+// These two used to be starter roles — `person("Viewer", "Viewer")` looked up
+// a row the product seeded — and the day Member and Viewer stopped being
+// seeded, every fixture built on them silently got NO role. The symptom was
+// not a permission failure: it was `repo: scope needs a studio and a section`
+// thrown from inside updateTask, because a person with no role cannot open a
+// module context and the error object was passed on as if it were one.
+//
+// A fixture that depends on what the product happens to seed is a fixture
+// coupled to a product decision it is not testing. So the suite creates them,
+// with the permissions the assertions below actually rely on — copied from
+// the starter roles as they were at 8e313e2, so those assertions go on
+// testing what they were written to test.
+async function fixtureRole(name, permissions, scopes = {}) {
+  const existing = roleId(name);
+  if (existing) return existing;
+  const made = await createRole(studio.id, { name, description: `${name} (fixture)`, permissions, scopes });
+  roles.push(made);
+  return made.id;
+}
+
+await fixtureRole("Member", [
+  "crmSales.tickets.view", "crmSales.tickets.create", "crmSales.tickets.edit",
+  "crmSales.clients.view", "crmSales.quotations.view", "projects.list.view",
+  "tasks.board.view", "tasks.board.create", "tasks.board.edit",
+  "inventory.items.view",
+  "hr.vacations.view", "hr.vacations.create", "hr.vacations.edit",
+], { "hr.vacations": "own" });
+
+await fixtureRole("Viewer", [
+  "crmSales.tickets.view", "crmSales.clients.view", "crmSales.quotations.view",
+  "projects.list.view", "inventory.items.view", "tasks.board.view",
+]);
 
 async function person(alias, roleName) {
   const user = (await createUser({ email: `${alias}-${rand()}@test.invalid`, passwordHash: "x" })).user;
@@ -3084,15 +3119,70 @@ console.log("\n== HR: departments are Master data's, positions are roles");
   ok("reading again seeds nothing further", again.length === departments.length,
     `${departments.length} then ${again.length}`);
 
-  // The starter roles the studio ships with. Admin is the built-in wildcard —
-  // not something anybody created, and not HR's to rename or delete.
+  // WHAT THE STUDIO SHIPS WITH, and this block used to assert the opposite.
+  //
+  // It listed five — Admin, Manager, Team Lead, Member, Viewer — and they were
+  // the same five whatever the studio did. Departments are seeded per industry
+  // now and bring their own roles, so the generic four have somewhere better to
+  // be: a Site Engineer under Site Execution says what Member never could, and
+  // two roles of one name in different departments can hold different access.
+  //
+  // Kept and inverted rather than deleted, so the file still records what
+  // changed. Member and Viewer appear below only because THIS SUITE creates
+  // them as fixtures — see fixtureRole at the top — which is exactly the
+  // coupling that made them look seeded when they no longer were.
   const hrRoles = await listHrRoles(hr);
   const named = hrRoles.map((r) => r.name);
-  for (const want of ["Admin", "Manager", "Team Lead", "Member", "Viewer"]) {
-    ok(`the studio ships with ${want}`, named.includes(want), named.join(", "));
+  ok("the studio ships with Admin", named.includes("Admin"), named.join(", "));
+  for (const gone of ["Manager", "Team Lead"]) {
+    ok(`${gone} is no longer seeded`, !named.includes(gone), named.join(", "));
   }
   ok("Admin is the wildcard", hrRoles.find((r) => r.name === "Admin")?.wildcard === true);
 
+  // A ROLE IS CREATED INSIDE A DEPARTMENT, and the id is checked against the
+  // studio's own register — so a role cannot be filed under a department that
+  // was deleted between the screen loading and the save.
+  const deptForRole = (await listDepartments(hr))[0];
+  const roleInDept = await createHrRole(hr, {
+    name: `Site Engineer ${rand()}`, departmentId: deptForRole.id,
+  });
+  ok("HR can name a job inside a department", roleInDept.role?.departmentId === deptForRole.id,
+    JSON.stringify(roleInDept.error || roleInDept.role?.departmentId));
+  ok("...and it still starts with no access at all", (roleInDept.role?.permissions || []).length === 0,
+    JSON.stringify(roleInDept.role?.permissions));
+  ok("...marked custom rather than claiming a library origin",
+    roleInDept.role?.source === "custom", JSON.stringify(roleInDept.role?.source));
+
+  const nowhere = await createHrRole(hr, { name: `Ghost ${rand()}`, departmentId: "dep_not_real" });
+  ok("a role cannot be filed under a department that does not exist",
+    nowhere.error === "department", JSON.stringify(nowhere));
+
+  // THE DEFECT THIS GUARDS, and it is the line the whole design turns on.
+  // The duplicate check was STUDIO-WIDE, so the second "Manager" was refused
+  // — which is exactly the row departmental roles exist to allow. A Manager
+  // in Finance and a Manager in Site Execution are two rows on purpose,
+  // because they have to be able to hold different access.
+  const departmentsForDup = await listDepartments(hr);
+  const twinName = `Manager ${rand()}`;
+  const inFirst = await createHrRole(hr, { name: twinName, departmentId: departmentsForDup[0].id });
+  const inSecond = await createHrRole(hr, { name: twinName, departmentId: departmentsForDup[1].id });
+  ok("the same job name can exist in two departments",
+    !!inFirst.role && !!inSecond.role, JSON.stringify(inSecond.error));
+  ok("...as two separate rows, so their access can diverge",
+    inFirst.role?.id !== inSecond.role?.id);
+
+  // AND STILL NOT TWICE IN ONE DEPARTMENT, where the name is the only thing
+  // telling two rows apart.
+  const twiceInOne = await createHrRole(hr, { name: twinName, departmentId: departmentsForDup[0].id });
+  ok("but not twice inside one department", twiceInOne.error === "duplicate", JSON.stringify(twiceInOne));
+
+  // The list carries both new fields, because the screen groups by one and
+  // treats library and custom rows differently on the other.
+  const listed = await listHrRoles(hr);
+  const listedTwin = listed.find((r) => r.id === inFirst.role?.id);
+  ok("the roles list says which department a job sits in",
+    listedTwin?.departmentId === departmentsForDup[0].id, JSON.stringify(listedTwin?.departmentId));
+  ok("...and where it came from", listedTwin?.source === "custom", JSON.stringify(listedTwin?.source));
   const made = await createHrRole(hr, { name: `Sales Engineer ${rand()}`, description: "Raises and works tickets." });
   ok("HR can name a new job", !!made.role, JSON.stringify(made.error));
   // The whole reason naming is allowed on an HR grant: it hands out nothing.
