@@ -939,7 +939,29 @@ export function TicketForm({ row, clients, vocabulary, cities = [], positions = 
           <Combo value={f.clientName} onChange={(v) => setF((p) => ({ ...p, clientName: v }))}
             options={clients.map((c) => c.name)} inputClassName={BARE_CONTROL} disabled={!!row} />
         </Field>
+      </div>
 
+      {/* THE SHARED BLOCK. These eight fields, their known-contact and saved-site
+          autofill and their country/city cascade used to live here and nowhere
+          else, which is why the internal-quotation form asked for none of them.
+          One component, two forms — see ClientBlock. */}
+      <ClientBlock value={f} onChange={(patch) => setF((p) => ({ ...p, ...patch }))}
+        client={matched} positions={positions} cities={cities} />
+
+      {/* WHAT THE WORK IS, kept BELOW the client block — the same order the
+          quotation form reads in: who it is for (title, client, then the
+          contact and the site), and only then what is being asked for. These
+          sat between the client name and the client block, which split one
+          subject in two: you named the company, were asked for a deadline, an
+          industry, a budget and a probability, and were then asked for that
+          same company's contact and site.
+
+          They land ABOVE the services rather than below the description,
+          because the services and the description are what the work is too —
+          scalars first, then the actions, then the free text. Same grid, so
+          the probability slider still spans both columns and Status and
+          Urgency still pair up on an edit. */}
+      <div className="mt-4 grid gap-4 sm:grid-cols-2">
         <Field label={tr.deadline} required filled={!!f.deadline}>
           <StudioDate value={f.deadline} onChange={(iso) => setF((p) => ({ ...p, deadline: iso }))} />
         </Field>
@@ -955,11 +977,17 @@ export function TicketForm({ row, clients, vocabulary, cities = [], positions = 
           prefix={studioDefaults.currency ? <CurrencySymbol code={studioDefaults.currency} /> : null}
           hint={<>{tr.valueQuotedHintBefore}<span className="font-600">{tr.valueQuotedHintTerm}</span>{tr.valueQuotedHintAfter}</>} />
 
+        {/* A ROW OF THEIR OWN, not two loose cells. Left to flow, Status landed
+            beside Client budget and Urgency was orphaned on the next line — the
+            pair that means one thing read as two unrelated halves. Nesting them
+            in a full-width two-column grid starts them on a fresh row whatever
+            sits above, so they stay together and Client budget keeps the line
+            its hint hangs under. */}
         {row && (
-          <>
+          <div className="grid gap-4 sm:col-span-2 sm:grid-cols-2">
             <Field label={tr.status} as="select" required value={f.status} onChange={(v) => setF((p) => ({ ...p, status: v }))} options={vocabulary.statuses || []} />
             <Field label={tr.urgency} as="select" required value={f.urgency} onChange={(v) => setF((p) => ({ ...p, urgency: v }))} options={vocabulary.urgencies || []} />
-          </>
+          </div>
         )}
 
         <div className="sm:col-span-2">
@@ -973,13 +1001,6 @@ export function TicketForm({ row, clients, vocabulary, cities = [], positions = 
           </div>
         </div>
       </div>
-
-      {/* THE SHARED BLOCK. These eight fields, their known-contact and saved-site
-          autofill and their country/city cascade used to live here and nowhere
-          else, which is why the internal-quotation form asked for none of them.
-          One component, two forms — see ClientBlock. */}
-      <ClientBlock value={f} onChange={(patch) => setF((p) => ({ ...p, ...patch }))}
-        client={matched} positions={positions} cities={cities} />
 
       <p className="mt-5 text-xs font-600 uppercase tracking-wide text-slate-400 dark:text-slate-500">{tr.servicesHeading}</p>
       {serviceActions.length === 0 ? (
