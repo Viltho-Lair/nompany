@@ -97,7 +97,7 @@ import {
 import { masterContext } from "@/modules/administration/master";
 import {
   listDepartments as listStudioDepartments, createDepartment, editDepartment,
-  removeDepartment, addMissingStarters, assignableSectionKeys,
+  removeDepartment, addMissingStarters, assignableSectionKeys, departmentsState,
 } from "@/modules/administration/departments";
 import { updateProfile } from "@/platform/auth/users";
 import { __signIn, __signOut } from "./nextHeaders.mjs";
@@ -3251,6 +3251,72 @@ console.log("\n== the departments register refuses what would corrupt the chart"
   // destroy an org chart it had already edited.
   const topUp = await addMissingStarters(master);
   ok("topping up adds nothing when the chart is complete", topUp.added === 0, JSON.stringify(topUp.added));
+}
+
+console.log("\n== the seed refuses to fire over an un-migrated studio");
+
+// THE DEFECT THIS GUARDS, and it reached production before it was caught.
+//
+// While departments were derived from the nav, `departmentId` on a person
+// held a SECTION KEY. If the register seeds a trade chart before those
+// people are re-pointed, the studio holds two org charts at once — a fresh
+// one it can see and an old one it cannot — and the migration then has to
+// decide which seeded department each legacy key belongs to. It cannot:
+// FIVE seeded departments claim "crm-sales" across the starter charts, so a
+// matching rule that trusted the section link filed a contractor's sales
+// team into Business Development, silently and unrecoverably.
+//
+// So the seed refuses, the register reads as empty, and the screen says why.
+{
+  const legacyStudio = await createStudio({
+    ownerUserId: owner.id, name: `Legacy ${rand()}`, slug: `legacy-${rand()}`, ownerAlias: "Owner",
+  });
+  ok("a studio for the legacy case was created", !!legacyStudio?.studio?.id, JSON.stringify(legacyStudio?.error));
+
+  const legacySlug = legacyStudio.studio.slug;
+  const master = await masterContext(owner, legacySlug);
+  ok("...and its Master data opens", !master.error, master.error);
+
+  // It seeds on creation now, so clear the register to reproduce the state a
+  // studio that predates the feature is actually in: people placed, no rows.
+  const seeded = await listStudioDepartments(master);
+  for (const d of seeded) {
+    const gone = await removeDepartment(master, d.id);
+    ok(`the seeded ${d.code} deletes`, gone.ok === true, JSON.stringify(gone));
+  }
+
+  // NOT ASSERTED BY READING THE LIST BACK, and the first version of this test
+  // was wrong for exactly that reason: reading an empty register SEEDS it, so
+  // the check re-created the three rows it was checking were gone and then
+  // reported the deletes as broken. The deletes were fine. That re-seed is
+  // real behaviour and is asserted at the end of this block rather than
+  // tripped over in the middle of it.
+
+  // The owner is the only collaborator; put them on a SECTION KEY, which is
+  // exactly what every person on a live studio still holds. Done BEFORE the
+  // next read, because the read is what would seed.
+  await updateCollaborator(legacyStudio.studio.id, master.collaborator.id, { departmentId: "crm-sales" });
+
+  const state = await departmentsState(master);
+  ok("the seed does not fire while somebody is on a section key",
+    state.departments.length === 0, JSON.stringify(state.departments.map((d) => d.name)));
+  ok("...and it says so, rather than reading as an empty register",
+    state.awaitingMigration === true, JSON.stringify(state));
+
+  // The top-up button is the same seed by another door, so it takes the
+  // same refusal — and it is a button, so it would be reached deliberately.
+  const topUp = await addMissingStarters(master);
+  ok("the add-standard-departments action is refused too",
+    topUp.error === "awaiting-migration", JSON.stringify(topUp));
+
+  // Once nobody is on a legacy value, the seed is free to do its job — which
+  // is also the re-seed the comment above refers to: an empty register is a
+  // state a studio cannot stay in unless it is waiting to be migrated.
+  await updateCollaborator(legacyStudio.studio.id, master.collaborator.id, { departmentId: "" });
+  const after = await departmentsState(master);
+  ok("with nobody on a legacy value the chart seeds normally",
+    after.departments.length > 0 && after.awaitingMigration === false,
+    JSON.stringify(after.departments.map((d) => d.code)));
 }
 
 console.log("\n== renaming happens now, not at midnight");

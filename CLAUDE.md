@@ -15,8 +15,10 @@ Reports and Quality & HSE. (Tendering was the fifth until its register landed.) 
 and are hidden from the sidebar rather than shown empty, and they hold no permission areas:
 a right nothing can exercise is a bug (invariant 16). Adding a screen means removing its
 entry there, and a test refuses any section that has neither a right nor a declaration.
-**`administration-master` is in that list too and is the only CHILD in it** — Master data has
-no screen; its three siblings left when Administration was folded (see Current state).
+(**`administration-master` was in that list and is not any more** — Master data has a real
+screen now: Locations, and Departments beside it. Its three siblings left when
+Administration was folded; it left when its screen shipped. This file asserted the opposite
+for longer than it was true.)
 
 **What each thing does is written down: `docs/functionality/`, one file per system
 functionality.** Read the one file you need and start — do not re-derive it from the code,

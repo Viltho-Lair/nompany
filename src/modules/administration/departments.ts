@@ -36,7 +36,7 @@
 
 import { requirePermission } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
-import { ID, ALL_SECTION_KEYS } from "@/platform/db/keys";
+import { ID, SECTION_DEFS } from "@/platform/db/keys";
 import { NO_SCREEN_YET } from "@/platform/access";
 import { listCollaborators } from "@/platform/auth/collaborators";
 import { departmentsForField, UNIVERSAL_DEPARTMENTS } from "@/shared/departments/starters";
@@ -68,6 +68,16 @@ const str = (v: unknown, max = 300) => String(v ?? "").trim().slice(0, max);
  * `projects-planner`. The list is the top-level operating sections and nothing
  * else, which is what made the old screen offer sixteen departments.
  *
+ * TOP-LEVEL IS READ FROM SECTION_DEFS, not guessed from the key's punctuation.
+ * This filtered `!key.includes("-")` to drop sub-sections, and that silently
+ * dropped THREE REAL TOP-LEVEL SECTIONS with hyphens in their names —
+ * `crm-sales`, `engineering-docs` and `field-service`. The picker never offered
+ * them, and because `cleanSectionKeys` filters writes through the same list,
+ * every seeded chart quietly lost its links to them: a contractor's Site
+ * Execution kept `projects` and lost `field-service`, and Business Development
+ * stored an empty list. Nothing failed; the links were just never there. Found
+ * by opening the screen and seeing a raw `crm-sales` where a name belonged.
+ *
  * THE FOUR PLACEHOLDERS COME BACK ON THEIR OWN. This reads NO_SCREEN_YET rather
  * than restating it, so the day Manufacturing gets a screen it becomes
  * assignable without anybody remembering this file — the same reason
@@ -81,9 +91,8 @@ const NEVER_A_DEPARTMENTS_SECTION = new Set(["main", "tasks"]);
 const NO_SCREEN: readonly string[] = NO_SCREEN_YET;
 
 export const assignableSectionKeys = (): string[] =>
-  ALL_SECTION_KEYS.filter((k) => !k.includes("-")
-    && !NEVER_A_DEPARTMENTS_SECTION.has(k)
-    && !NO_SCREEN.includes(k));
+  SECTION_DEFS.map((d) => d.key)
+    .filter((k) => !NEVER_A_DEPARTMENTS_SECTION.has(k) && !NO_SCREEN.includes(k));
 
 const cleanSectionKeys = (v: unknown): string[] => {
   const allowed = new Set(assignableSectionKeys());
@@ -181,14 +190,55 @@ async function seedDepartments(
  * a generic chart would be the product guessing at a trade it was never told.
  */
 export async function listDepartments(
-  { studio, section }: Pick<MasterContext, "studio" | "section">,
+  scope: Pick<MasterContext, "studio" | "section">,
 ): Promise<Department[]> {
+  return (await departmentsState(scope)).departments;
+}
+
+/**
+ * The register, plus whether this studio is waiting to be migrated.
+ *
+ * THE SEED REFUSES TO FIRE OVER AN UN-MIGRATED STUDIO, and this is the guard
+ * that makes the rollout order safe by construction rather than by somebody
+ * remembering it.
+ *
+ * The hazard it closes: while departments were derived from the nav, a person's
+ * `departmentId` held a SECTION KEY. If the register seeds a trade chart before
+ * those people are re-pointed, the studio ends up in a mixed state — a fresh
+ * org chart beside an old one nobody can see — and the migration then has to
+ * decide which seeded department each legacy key belongs to. It cannot: FIVE
+ * seeded departments claim "crm-sales" across the starter charts, so any
+ * matching rule that looked at the section link filed a contractor's sales team
+ * into Business Development, silently. That rule is gone, and this stops the
+ * state that made it tempting from arising at all.
+ *
+ * SO AN UN-MIGRATED STUDIO READS AS EMPTY, deliberately, and the screen says
+ * why rather than showing a picker with nothing in it. Empty is honest here:
+ * this studio HAS an org chart, it is just still written in the old vocabulary,
+ * and inventing a second one beside it is the thing to avoid.
+ *
+ * THE EXTRA READ IS PAID ONLY WHILE THE REGISTER IS EMPTY. Once a studio has
+ * departments — seeded or migrated — the first line returns and nothing else
+ * runs. A studio in the waiting state pays one collaborators read per load,
+ * which the request-scoped cache mostly absorbs because HR reads the same list
+ * anyway, and which stops entirely the moment the migration runs.
+ */
+export async function departmentsState(
+  { studio, section }: Pick<MasterContext, "studio" | "section">,
+): Promise<{ departments: Department[]; awaitingMigration: boolean }> {
   const rows = await Departments.find({ studio, section });
-  if (!rows.length) {
-    const seeded = await seedDepartments({ studio, section }, str(studio.fieldOfWork, 200), rows);
-    if (seeded.length) return sorted(await Departments.find({ studio, section }));
+  if (rows.length) return { departments: sorted(rows), awaitingMigration: false };
+
+  // The register is empty, so no stored departmentId can name a row in it —
+  // which makes any non-empty value a legacy section key by definition.
+  const people = await listCollaborators(studio.id);
+  if (people.some((c) => String(c.departmentId || ""))) {
+    return { departments: [], awaitingMigration: true };
   }
-  return sorted(rows);
+
+  const seeded = await seedDepartments({ studio, section }, str(studio.fieldOfWork, 200), rows);
+  if (!seeded.length) return { departments: [], awaitingMigration: false };
+  return { departments: sorted(await Departments.find({ studio, section })), awaitingMigration: false };
 }
 
 const sorted = (rows: Department[]) =>
@@ -255,6 +305,14 @@ export async function addMissingStarters(ctx: MasterContext) {
 
   const { studio, section } = ctx;
   const existing = await Departments.find({ studio, section });
+  // THE SAME SEED BY ANOTHER DOOR, so it takes the same guard. Adding the trade
+  // chart to a studio whose people are still on section keys creates exactly
+  // the mixed state departmentsState exists to prevent — and this one is a
+  // button, so it would be reached deliberately rather than by accident.
+  if (!existing.length) {
+    const people = await listCollaborators(studio.id);
+    if (people.some((c) => String(c.departmentId || ""))) return { error: "awaiting-migration" };
+  }
   const added = await seedDepartments({ studio, section }, str(studio.fieldOfWork, 200), existing);
   return { added: added.length, departments: sorted(await Departments.find({ studio, section })) };
 }

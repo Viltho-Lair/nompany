@@ -33,6 +33,8 @@ type Strings = CommonStrings & {
   departmentInUse: (people: number, children: number) => string;
   departmentTooDeep: string;
   departments: string;
+  departmentsAwaitingMigration: string;
+  departmentsNotMigrated: string;
   departmentsOrgChart: string;
   duplicateCode: string;
   editDepartment: string;
@@ -187,6 +189,8 @@ const en: Strings = {
   },
   departmentTooDeep: "That would nest the chart more than four levels deep.",
   departments: "Departments",
+  departmentsAwaitingMigration: "This studio's people are still filed under the old section-based departments. Until those are moved across, no chart is created here — so nothing is invented beside the one you already have. An administrator needs to run the departments migration.",
+  departmentsNotMigrated: "Departments not moved across yet",
   departmentsOrgChart: "Your own org chart — who reports where. Not the same as the product's sections: a department may span several, or none.",
   duplicateCode: "Another department already uses that code.",
   editDepartment: "Edit department",
@@ -344,6 +348,8 @@ const ar: Strings = {
   },
   departmentTooDeep: "هذا يجعل الهيكل أعمق من أربعة مستويات.",
   departments: "الأقسام",
+  departmentsAwaitingMigration: "ما زال موظفو هذا الاستوديو مصنفين ضمن الأقسام القديمة المبنية على أقسام النظام. ولن يتم إنشاء هيكل جديد هنا قبل نقلهم، حتى لا يُستحدث هيكل موازٍ للهيكل الحالي. يلزم أن يقوم المسؤول بتشغيل عملية ترحيل الأقسام.",
+  departmentsNotMigrated: "لم يتم نقل الأقسام بعد",
   departmentsOrgChart: "الهيكل التنظيمي الخاص بك — من يتبع من. وهو ليس أقسام النظام: قد يمتد القسم الواحد على عدة أقسام في النظام، أو لا يرتبط بأي منها.",
   duplicateCode: "هذا الرمز مستخدم في قسم آخر.",
   editDepartment: "تعديل القسم",

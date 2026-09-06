@@ -94,6 +94,7 @@ export default function StudioMasterData({ slug }) {
         cycle: () => tr.departmentCycle,
         "too-deep": () => tr.departmentTooDeep,
         "duplicate-code": () => tr.duplicateCode,
+        "awaiting-migration": () => tr.departmentsAwaitingMigration,
       }[out.error];
       setError(named ? named() : (out.error || "failed"));
       return false;
@@ -154,11 +155,13 @@ export default function StudioMasterData({ slug }) {
           {!depts ? <ScreenSkeleton loadingLabel={tr.loadingMasterData} /> : (
             <DepartmentsPanel
               rows={depts.departments || []}
+              awaitingMigration={Boolean(depts.awaitingMigration)}
               missing={depts.missing || []}
-              sectionKeys={depts.sectionKeys || []}
-              // THE NAMES COME FROM THE NAV the studio is already reading, so a
-              // renamed section reads correctly here without a second list.
-              sectionNames={Object.fromEntries((data.nav || []).map((n) => [n.key, n.name]))}
+              // KEY AND NAME TOGETHER, from the route. `nav` was the wrong
+              // source and not merely an awkward one: it is a { key: boolean }
+              // map of what this viewer may open, so it carries no names and
+              // mapping over it threw.
+              sections={depts.sections || []}
               people={data.people || []}
               canManage={data.canManageLocations}
               canCreate={data.canCreateLocations}

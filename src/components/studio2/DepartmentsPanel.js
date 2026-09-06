@@ -25,11 +25,11 @@ import { Field } from "@/components/fields/Field";
 
 const btnDanger = "rounded-full border border-rose-200 px-4 py-2 font-display text-sm font-600 text-rose-600 transition-colors hover:bg-rose-50 disabled:opacity-60 dark:border-rose-500/30 dark:text-rose-300 dark:hover:bg-rose-500/10";
 
-// Section keys are the product's, so their labels come from the nav the studio
-// is already reading rather than from a second list here — `sectionNames` is
-// built by the screen from what it was served.
+// `sections` arrives as [{ key, name }] from the route, already narrowed to the
+// ones a department may claim. The names are the STUDIO's — it can rename a
+// section — so they are served rather than restated here.
 export default function DepartmentsPanel({
-  rows, missing, sectionKeys, sectionNames, people,
+  rows, missing, sections, people, awaitingMigration,
   canCreate, canManage, canDelete, busy, send,
 }) {
   const tr = operationsDict(useStudioLocale());
@@ -38,6 +38,7 @@ export default function DepartmentsPanel({
 
   const tree = orderedTree(rows);
   const nameOf = (id) => rows.find((d) => d.id === id)?.name || "";
+  const sectionName = (key) => sections.find((s) => s.key === key)?.name || key;
   const close = () => { setAdding(false); setEditing(null); };
 
   // A department may not be its own parent, and offering itself in the picker
@@ -53,13 +54,23 @@ export default function DepartmentsPanel({
 
   return (
     <>
+      {/* NOT THE SAME AS "no departments yet". This studio HAS an org chart —
+          its people are still filed under the old section keys — so seeding a
+          fresh one beside it is exactly what must not happen, and the screen
+          says why rather than offering an empty picker. */}
+      {awaitingMigration && (
+        <p className="mb-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
+          {tr.departmentsAwaitingMigration}
+        </p>
+      )}
+
       <div className="flex flex-wrap items-center gap-3">
-        {canCreate && <button className={btn} onClick={() => setAdding(true)}>{tr.addDepartment}</button>}
+        {canCreate && !awaitingMigration && <button className={btn} onClick={() => setAdding(true)}>{tr.addDepartment}</button>}
         {/* OFFERED, NEVER APPLIED. A studio that changed its field of work sees
             what the standard chart for the new trade would add and decides for
             itself — re-seeding on its behalf would overwrite an org chart it
             had already edited. */}
-        {canCreate && missing.length > 0 && (
+        {canCreate && !awaitingMigration && missing.length > 0 && (
           <button className={btnGhost} disabled={busy} onClick={() => send("POST", { action: "add-standard" })}>
             {tr.addStandardDepartments}
           </button>
@@ -79,8 +90,7 @@ export default function DepartmentsPanel({
             row={editing}
             busy={busy}
             parentOptions={parentOptions}
-            sectionKeys={sectionKeys}
-            sectionNames={sectionNames}
+            sections={sections}
             people={people}
             tr={tr}
             onCancel={close}
@@ -93,7 +103,10 @@ export default function DepartmentsPanel({
       )}
 
       {rows.length === 0 ? (
-        <Empty title={tr.noDepartmentsYet} body={tr.departmentsOrgChart} />
+        <Empty
+          title={awaitingMigration ? tr.departmentsNotMigrated : tr.noDepartmentsYet}
+          body={awaitingMigration ? tr.departmentsAwaitingMigration : tr.departmentsOrgChart}
+        />
       ) : (
         <section className={`${panel} mt-4`}>
           <ul className="divide-y divide-slate-100 dark:divide-white/5">
@@ -114,7 +127,7 @@ export default function DepartmentsPanel({
                     {d.parentId && <span>{tr.reportsInto}: {nameOf(d.parentId) || tr.unplaced}  ·  </span>}
                     <span>
                       {tr.worksIn}: {(d.sectionKeys || []).length
-                        ? d.sectionKeys.map((k) => sectionNames[k] || k).join(", ")
+                        ? d.sectionKeys.map(sectionName).join(", ")
                         : "—"}
                     </span>
                   </p>
@@ -136,7 +149,7 @@ export default function DepartmentsPanel({
   );
 }
 
-function DepartmentForm({ row, busy, parentOptions, sectionKeys, sectionNames, people, tr, onCancel, onSave }) {
+function DepartmentForm({ row, busy, parentOptions, sections, people, tr, onCancel, onSave }) {
   const [form, setForm] = useState({
     name: row?.name || "",
     code: row?.code || "",
@@ -168,11 +181,11 @@ function DepartmentForm({ row, busy, parentOptions, sectionKeys, sectionNames, p
       <div>
         <p className="text-[11px] font-600 uppercase tracking-wide text-slate-400">{tr.worksIn}</p>
         <div className="mt-2 grid grid-cols-1 gap-x-4 gap-y-1 sm:grid-cols-2">
-          {sectionKeys.map((key) => (
+          {sections.map(({ key, name }) => (
             <label key={key} className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-white/5">
               <input type="checkbox" className="h-4 w-4 shrink-0 accent-brand-600"
                 checked={form.sectionKeys.includes(key)} onChange={() => toggleSection(key)} />
-              <span className="min-w-0 flex-1 truncate">{sectionNames[key] || key}</span>
+              <span className="min-w-0 flex-1 truncate">{name}</span>
             </label>
           ))}
         </div>

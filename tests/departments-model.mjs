@@ -29,6 +29,7 @@ const T = await import("@/shared/departments/tree");
 const S = await import("@/shared/departments/starters");
 const { ALL_SECTION_KEYS } = await import("@/platform/db/keys");
 const { FIELDS_OF_WORK } = await import("@/shared/fieldsOfWork");
+const M = await import("@/shared/departments/migrate");
 
 let fails = 0;
 const ok = (label, cond, extra = "") => {
@@ -185,5 +186,136 @@ ok("...or in Tasks, which is a control rather than a section",
   !seedsNotADepartment.includes("tasks"), seedsNotADepartment.join(", "));
 console.log(`  note  ${seedsDead.length} seeded links name a section with no screen yet (expected: they arrive with the screen)`);
 
+console.log("\n== the migration off section keys");
+
+// THIS RUNS ONCE, AGAINST LIVE DATA, BY SOMEBODY WHO CANNOT UNDO IT — which
+// is exactly why the deciding half is pure and asserted here rather than
+// discovered by running the CLI twice against a database and squinting.
+//
+// The state it migrates: while departments were derived from the nav,
+// `departmentId` on a collaborator held a SECTION KEY. Every one of those
+// now names nothing.
+const SECTION_NAMES = {
+  "crm-sales": "CRM & Sales",
+  projects: "Projects",
+  hr: "Human Resources",
+};
+
+const legacyPeople = [
+  { id: "c1", departmentId: "crm-sales" },
+  { id: "c2", departmentId: "crm-sales" },
+  { id: "c3", departmentId: "projects" },
+  { id: "c4", departmentId: "" },
+  { id: "c5" },
+];
+
+const first = M.departmentMigrationPlan({
+  people: legacyPeople, departments: [], sectionNames: SECTION_NAMES,
+});
+
+ok("one department per distinct legacy value, not one per person",
+  first.create.length === 2, JSON.stringify(first.create.map((c) => c.key)));
+ok("...named after the section people were filed under",
+  first.create[0].name === "CRM & Sales", JSON.stringify(first.create[0]));
+ok("...carrying that section key, so the link survives the move",
+  JSON.stringify(first.create[0].sectionKeys) === JSON.stringify(["crm-sales"]));
+ok("everybody holding a legacy value moves", first.moving.length === 3,
+  first.moving.join(","));
+
+// THE UNPLACED STAY UNPLACED. Filing them somewhere would be the script
+// inventing an org chart fact nobody stated, and it is the one thing a
+// migration cannot be asked to guess.
+ok("a blank departmentId is left alone",
+  !first.moving.includes("c4") && !first.moving.includes("c5"), first.moving.join(","));
+
+console.log("\n== running it twice");
+
+// Idempotence BY CONSTRUCTION rather than by a flag: the legacy set is
+// defined as the values that are not department ids, so a person who has
+// been re-pointed cannot appear in it again. Asserted, because "it should be
+// idempotent" written in a comment has never stopped anything.
+const migrated = [
+  { id: "dep_sales", name: "CRM & Sales", sectionKeys: ["crm-sales"] },
+  { id: "dep_proj", name: "Projects", sectionKeys: ["projects"] },
+];
+const settledPeople = [
+  { id: "c1", departmentId: "dep_sales" },
+  { id: "c2", departmentId: "dep_sales" },
+  { id: "c3", departmentId: "dep_proj" },
+  { id: "c4", departmentId: "" },
+  { id: "c5" },
+];
+const second = M.departmentMigrationPlan({
+  people: settledPeople, departments: migrated, sectionNames: SECTION_NAMES,
+});
+ok("a second run plans nothing at all", M.planIsEmpty(second), JSON.stringify(second));
+
+// A HALF-RUN MIGRATION IS THE REALISTIC FAILURE, not a clean one: the process
+// dies, or somebody Ctrl-Cs it. What is left must be resumable, and the
+// people already moved must not move twice.
+const halfway = M.departmentMigrationPlan({
+  people: [
+    { id: "c1", departmentId: "dep_sales" },
+    { id: "c3", departmentId: "projects" },
+  ],
+  departments: [migrated[0]],
+  sectionNames: SECTION_NAMES,
+});
+ok("a half-run migration resumes on what is left",
+  halfway.moving.length === 1 && halfway.moving[0] === "c3", JSON.stringify(halfway.moving));
+ok("...and does not touch what already moved",
+  !halfway.moving.includes("c1"), JSON.stringify(halfway.moving));
+
+console.log("\n== what it must not duplicate");
+
+// A studio that edited its register between runs — or ran the CLI, then
+// created the department by hand — must not end up with two rows for one
+// team. Matching on the SECTION KEY and on the NAME is what covers both.
+// THIS ASSERTION USED TO EXPECT THE OPPOSITE, and it was wrong in the
+// dangerous direction. Reusing any department that merely NAMES the section
+// silently absorbs people: five seeded departments claim "crm-sales" across the
+// starter charts, so a contractor's CRM & Sales people would have landed in
+// Business Development, invisibly, on any studio whose register had been seeded
+// first — which is the default order, because the register seeds the first time
+// anybody opens HR.
+const byKey = M.departmentMigrationPlan({
+  people: [{ id: "c1", departmentId: "crm-sales" }],
+  departments: [{ id: "dep_x", name: "Business Development", sectionKeys: ["crm-sales"] }],
+  sectionNames: SECTION_NAMES,
+});
+ok("a seeded department that merely names the section does NOT absorb people",
+  byKey.create.length === 1 && byKey.create[0].name === "CRM & Sales",
+  JSON.stringify(byKey));
+ok("...so the studio can see both and merge them deliberately",
+  Object.keys(byKey.reuse).length === 0, JSON.stringify(byKey.reuse));
+
+const byName = M.departmentMigrationPlan({
+  people: [{ id: "c1", departmentId: "crm-sales" }],
+  departments: [{ id: "dep_y", name: "CRM & Sales", sectionKeys: [] }],
+  sectionNames: SECTION_NAMES,
+});
+ok("a department under the section's exact name IS reused, so a half-run resumes",
+  byName.create.length === 0 && byName.reuse["crm-sales"] === "dep_y", JSON.stringify(byName));
+
+// A section can be renamed or removed after people were filed under it. The
+// value is carried through under its own name rather than dropped: visible
+// and fixable beats silently vanished.
+const orphanKey = M.departmentMigrationPlan({
+  people: [{ id: "c1", departmentId: "a-section-that-went-away" }],
+  departments: [],
+  sectionNames: SECTION_NAMES,
+});
+ok("a legacy value with no section survives under its own name",
+  orphanKey.create[0]?.name === "a-section-that-went-away", JSON.stringify(orphanKey.create));
+ok("...and claims no section link it cannot justify",
+  JSON.stringify(orphanKey.create[0]?.sectionKeys) === "[]", JSON.stringify(orphanKey.create));
+
+// THE THING IT IS FORBIDDEN TO DO. Mapping "projects" people onto Site
+// Execution because the studio builds things would be a guess nobody can see
+// happening and nobody can undo. The plan names sections, never starters.
+const starterNames = new Set(S.departmentsForField("Construction & Contracting").map((d) => d.name));
+ok("the plan never invents a starter department",
+  !first.create.some((c) => starterNames.has(c.name)),
+  first.create.map((c) => c.name).join(", "));
 console.log(fails ? `\n${fails} FAILED\n` : "\nall passed\n");
 process.exit(fails ? 1 : 0);

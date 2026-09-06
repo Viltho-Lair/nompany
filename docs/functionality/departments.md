@@ -146,10 +146,49 @@ about a deleted cost code. They keep the id and read as unplaced.
 Nothing is cascaded. A delete that quietly rewrites a person's placement or a
 document's owner is the kind nobody can undo.
 
+## An existing studio, and the state it waits in
+
+A studio created before this feature has people whose `departmentId` holds a
+**section key** (`"crm-sales"`), and an empty register. That is not a studio
+without an org chart — it has one, written in the old vocabulary.
+
+**So the seed refuses to fire over it.** `departmentsState` checks whether
+anybody still holds a legacy value before seeding, and if so returns an empty
+register with `awaitingMigration: true`; the screen says why rather than
+offering an empty picker. The "add the standard departments" button takes the
+same refusal (`awaiting-migration`), because it is the same seed by another
+door and a button is reached deliberately.
+
+**Why this guard exists rather than an instruction to run things in order.**
+Seeding a trade chart over an un-migrated studio leaves two org charts at once
+— a fresh one it can see and an old one it cannot — and the migration then has
+to decide which seeded department each legacy key belongs to. It cannot: **five
+seeded departments claim `crm-sales`** across the starter charts (Sales &
+Marketing, Business Development, Retail Operations, Wholesale & Key Accounts,
+Customer Service). A rule that trusted the section link filed a contractor's
+sales team into Business Development, silently, and unrecoverably — the record
+of where they were is the thing being overwritten.
+
+The extra read is paid **only while the register is empty**. Once a studio has
+departments, seeded or migrated, nothing else runs.
+
+Until the migration runs, such a studio sees every employee as unplaced, its
+headcount counts them all as unassigned, and a manager scoped to `department`
+sees only their own record. Nothing is lost — the original value is still on
+every row — and the scope fails **closed**, which is the right direction.
+
 ## The migration
 
 `scripts/migrate/departments.mjs` — dry-run by default, `--allow-live` to touch
-the live namespace, idempotent.
+the live namespace, idempotent. The decision half is pure and lives in
+`src/shared/departments/migrate.ts`, so what it would do is assertable without
+a database; the CLI reads, calls it, and writes.
+
+**It reuses a department only on an exact name match** — what a previous run of
+the migration creates — and **never** on the section link, for the reason
+above. A half-run still resumes, because the department it made is named after
+the section. A department the studio named something else is a department the
+studio meant something else by.
 
 Existing people carry `departmentId = "<section key>"`. The script creates one
 department per distinct legacy value, named after that section and carrying its
@@ -175,6 +214,9 @@ lesson `plant-sections.mjs` paid for.
   usually staffed with; nothing seeds or suggests a role from a department.
 - **No cost centres and no budgets.** A department has a code, and nothing
   posts against it.
+- **The waiting state has no self-service exit.** A studio sitting on legacy
+  placements needs somebody with a shell to run the migration; there is no
+  button, and the screen deliberately does not print a CLI command at a tenant.
 - **No soft delete.** The product has no tombstones, so a deleted department is
   gone, and records stamped with it read as unplaced.
 - **The `department` scope is the only reader of `parentId`.** Dashboards,

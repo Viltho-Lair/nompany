@@ -16,7 +16,7 @@
 import { route, refused } from "@/platform/http/route";
 import { masterContext } from "@/modules/administration/master";
 import {
-  listDepartments, createDepartment, editDepartment, removeDepartment,
+  departmentsState, createDepartment, editDepartment, removeDepartment,
   addMissingStarters, missingStarters, assignableSectionKeys,
 } from "@/modules/administration/departments";
 
@@ -26,17 +26,32 @@ export const dynamic = "force-dynamic";
 const spec = { auth: "studio", context: masterContext, body: true, name: "administration/departments" };
 
 export const GET = route({ ...spec, body: false }, async (master) => {
-  const departments = await listDepartments(master);
+  const { departments, awaitingMigration } = await departmentsState(master);
   return {
     departments,
+    // WHY THE REGISTER IS EMPTY, when it is. A studio whose people still hold
+    // section keys is not a studio without an org chart — it has one, written
+    // in the old vocabulary — so the seed refuses to fire over it and the
+    // screen says so. An empty picker with no explanation reads as broken, and
+    // that is how this feature has already misled somebody once.
+    awaitingMigration,
     // WHAT THE STANDARD CHART WOULD ADD, offered and never applied. A studio
     // that changed its field of work sees the names it is missing and decides;
     // re-seeding on its behalf would destroy an org chart it had edited.
     missing: missingStarters(String(master.studio.fieldOfWork || ""), departments),
-    // The sections a department may say it works in — top-level, with a screen.
-    // Served rather than derived on the client so the picker cannot offer a key
-    // the writer would silently drop.
-    sectionKeys: assignableSectionKeys(),
+    // The sections a department may say it works in — top-level, with a screen,
+    // AND NAMED. Served rather than derived on the client for two reasons: the
+    // picker cannot offer a key the writer would silently drop, and a section's
+    // name is the studio's own (it renames them), so the only correct source is
+    // the section rows this context already holds.
+    //
+    // The screen used to build these names from `nav`, which does not carry
+    // them — nav is a { key: boolean } visibility map, so `.map()` on it threw
+    // and the page failed to load. Neither tsc nor next build catches that in an
+    // untyped screen; it throws on the first request.
+    sections: master.sections
+      .filter((s) => assignableSectionKeys().includes(s.key))
+      .map((s) => ({ key: s.key, name: s.name || s.key })),
     canManage: master.canManage,
   };
 });

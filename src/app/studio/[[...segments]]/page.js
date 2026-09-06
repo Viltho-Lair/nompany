@@ -480,11 +480,14 @@ async function renderStudio(params) {
   // says so instead of implying a grant would help.
   // THE ADMINISTRATION FILTER IS GONE. It excluded the whole prefix because
   // four administration keys were in NO_SCREEN_YET while having real screens
-  // reached elsewhere. Three of them are ordinary sections now, and the one
-  // still listed — `administration-master` — genuinely has no screen anywhere,
-  // so it wants exactly the message this flag produces. Keeping the filter
-  // would have told somebody asking for Master data to go and ask an admin for
-  // a grant that does not exist.
+  // reached elsewhere. All four are ordinary sections now: the last of them,
+  // `administration-master`, left NO_SCREEN_YET when its screen shipped, and it
+  // renders StudioMasterData a few lines below — Locations and Departments.
+  // (This said the key was "still listed" and "genuinely has no screen
+  // anywhere" long after both stopped being true, which is the drift the list
+  // being read rather than restated is meant to prevent.) Nothing under
+  // administration reaches this flag now; it is the four product sections that
+  // still render nothing.
   const notBuiltYet = deniedSection && NO_SCREEN_YET.includes(requested);
 
   // Which component to render: a sub-section resolves to its parent's module.

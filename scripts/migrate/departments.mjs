@@ -88,6 +88,12 @@ const { listStudios } = await import("@/modules/main/studios");
 const { listSections } = await import("@/platform/db/sections");
 const { listCollaborators, updateCollaborator } = await import("@/platform/auth/collaborators");
 const { repo } = await import("@/platform/db/repo");
+// WHAT IT WOULD DO IS DECIDED WITHOUT A STORE, in shared/departments/migrate.ts,
+// so it can be asserted on a laptop with no connection. This file reads, calls
+// that, and writes. A migration is the one kind of code run once against live
+// data by somebody who cannot undo it; the deciding half should not require a
+// database to inspect.
+const { departmentMigrationPlan, planIsEmpty } = await import("@/shared/departments/migrate");
 
 const Departments = repo("departments");
 
@@ -117,52 +123,44 @@ for (const studio of studios) {
     Departments.find({ studio, section: master }),
   ]);
 
-  const byId = new Set(existing.map((d) => d.id));
-  const sectionName = Object.fromEntries(sections.map((s) => [s.key, s.name || s.key]));
-  // Already a department row → nothing to do. Blank → nothing to do either: an
-  // unplaced person stays unplaced rather than being filed somewhere by a script.
-  const legacy = [...new Set(people
-    .map((c) => String(c.departmentId || ""))
-    .filter((v) => v && !byId.has(v)))];
-
-  if (!legacy.length) continue;
+  const sectionNames = Object.fromEntries(sections.map((sec) => [sec.key, sec.name || sec.key]));
+  const plan = departmentMigrationPlan({ people, departments: existing, sectionNames });
+  if (planIsEmpty(plan)) continue;
 
   const lines = [];
-  const idFor = {};
-  for (const key of legacy) {
-    // A value that is not a section key either is a department row from a
-    // studio that has already been migrated (caught above) or is data nobody
-    // can account for. Named after the section where there is one, after
-    // itself where there is not — visible and fixable either way.
-    const name = sectionName[key] || key;
-    const already = existing.find((d) => (d.sectionKeys || []).includes(key) || d.name === name);
-    if (already) { idFor[key] = already.id; lines.push(`    ${key} → existing "${already.name}"`); continue; }
-    lines.push(`    ${key} → new department "${name}"`);
+  const idFor = { ...plan.reuse };
+  for (const [key, id] of Object.entries(plan.reuse)) {
+    lines.push(`    ${key} -> existing "${existing.find((d) => d.id === id)?.name || id}"`);
+  }
+  for (const row of plan.create) {
+    lines.push(`    ${row.key} -> new department "${row.name}"`);
     if (APPLY) {
-      const row = await Departments.create({ studio, section: master }, {
-        name,
+      const created = await Departments.create({ studio, section: master }, {
+        name: row.name,
         code: "",
         parentId: "",
         managerCollaboratorId: "",
-        sectionKeys: sectionName[key] ? [key] : [],
+        sectionKeys: row.sectionKeys,
         createdAt: new Date().toISOString(),
       });
-      idFor[key] = row.id;
+      idFor[row.key] = created.id;
       createdRows += 1;
     }
   }
 
-  const moving = people.filter((c) => legacy.includes(String(c.departmentId || "")));
-  lines.push(`    ${moving.length} person(s) re-pointed`);
+  lines.push(`    ${plan.moving.length} person(s) re-pointed`);
   if (APPLY) {
-    for (const person of moving) {
-      const next = idFor[String(person.departmentId)];
+    // BY THE PLAN'S OWN LIST, not by re-reading the people: the plan decided
+    // who moves, and re-deriving it here would be a second answer free to
+    // disagree with the one that was printed in the dry run.
+    const byId = Object.fromEntries(people.map((c) => [c.id, c]));
+    for (const collaboratorId of plan.moving) {
+      const next = idFor[String(byId[collaboratorId]?.departmentId || "")];
       if (!next) continue;
-      await updateCollaborator(studio.id, person.id, { departmentId: next });
+      await updateCollaborator(studio.id, collaboratorId, { departmentId: next });
       movedPeople += 1;
     }
   }
-
   changedStudios += 1;
   console.log(`  ${studio.id}${studio.slug ? ` (${studio.slug})` : ""}:`);
   for (const line of lines) console.log(line);
