@@ -175,7 +175,8 @@ language it was written in, so every counted phrase is a function in the diction
   and half-right. Neither has been decided.
 - **The public site's `<meta>` description, the manifest and `lib/seo.ts` are
   English-only.** They are rendered per-locale, so the Arabic site is served with English
-  metadata — a discoverability bug rather than a reading one, and `seo-improver`'s to take.
+  metadata — a discoverability bug rather than a reading one. Unowned: it was assigned to
+  the `seo-improver` agent, and the agent team has been disabled since 29/08/2026.
 - **Reference lists are English-only**: `lib/cities.ts`, `lib/industries.ts`,
   `lib/legalTerms.ts`, the questionnaire's own elements, and the pricing labels. Some of
   those are catalogue data a studio picks from rather than copy, and at least two of them

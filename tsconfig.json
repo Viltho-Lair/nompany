@@ -1,5 +1,5 @@
 {
-  "//": "TypeScript covers the document application only. The rest of the repo is plain JavaScript and stays that way: allowJs lets a .tsx import a .js module, and checkJs keeps the compiler from grading a hundred files nobody wrote types for.",
+  "//": "TypeScript covers everything server-side — platform, modules, shared, lib, and all 153 API routes. What is left in JavaScript is the 272 browser files under src/components and src/app, which convert with the UI work in Wave 4: allowJs lets a .tsx import one of them, and checkJs keeps the compiler from grading files nobody wrote types for. This line said the reverse ('TypeScript covers the document application only; the rest stays plain JavaScript') long after Wave 3 made it false. See tsconfig.strict.json, which grades every .ts/.tsx with noImplicitAny on.",
   "compilerOptions": {
     "target": "ES2022",
     "lib": [

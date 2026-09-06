@@ -92,6 +92,10 @@ Not an attack — an accident waiting on a configuration. `sweepOrphans()` repai
 | **Super admin is all-or-nothing** | No roles, no scoping, no MFA, no IP allowlist on the console — combined with H-11, no accountability either. |
 | **Write and read rights diverge on PII** (M-9) | `hr.employees.edit` writes `idNumber`; `hr.employees.salary` reads it. You can overwrite what you cannot see. |
 | **`quality.documents.share` grants nothing** (M-1) | A permission on the Access grid that does nothing. The catalogue's own rule says a right nothing can exercise is a bug. |
+| **Media upload has no MIME/extension allowlist** | `src/app/api/media/route.ts` stores `contentType: file.type` — the browser's own claim, unchecked — and the media route serves those bytes back. A same-origin stored-XSS vector: the UI gate is the first line, the serve headers the second. Still open, verified 06/09/2026. |
+| **`sanitizeRichHtml` is a regex sanitiser** | `src/lib/richText.ts` strips tags outside a twelve-tag allowlist with regular expressions, and neither it nor the ProseMirror-trusting copy sink has a regression test. Correct today and fragile: widening the allowlist is the path that breaks it, and a parser-based sanitiser is the safer replacement if it grows. Still open, verified 06/09/2026. |
+
+*(The last two were recorded **only** in the constraint log of `.claude/agents/frontend-ui.md` — one of ten agent briefs that are disabled, fully commented out, and slated for deletion. They are live findings, verified against the code on 06/09/2026, so they are recorded here where the audit can see them rather than in a file nobody loads. The third finding in that log — "zod is a dependency but dormant" — is **no longer true**: `src/modules` and the API routes carry 18 runtime `parse`/`safeParse` calls, so it was dropped rather than migrated.)*
 
 ## 4. Hardening plan
 

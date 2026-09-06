@@ -6,9 +6,10 @@ four questions: what it is, what it stores, what it does, and what is NOT built 
 
 When you change behaviour, **update that one file in the same commit**. Rewrite the
 section, or append the new fact — never leave the file describing an intention as if it
-were behaviour. That mistake has already cost this project real time: `backend-db.md`
-carried the clause "Deletion is the reverse", which read as a description of how the
-system worked, while `detachRecord` had zero production callers for five increments.
+were behaviour. That mistake has already cost this project real time: one of the old
+agent briefs carried the clause "Deletion is the reverse", which read as a description
+of how the system worked, while `detachRecord` had zero production callers for five
+increments.
 
 Three rules that keep this folder worth reading:
 
