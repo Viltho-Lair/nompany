@@ -52,8 +52,8 @@ function Timeline({ order }) {
               }}
             >
               {done ? (
-                // A heavier stroke: a 1.7 check inside a 10px dot is a smudge.
-                <Icon name="check" className="h-2.5 w-2.5 text-white" strokeWidth={3} />
+                // The bold cut: a regular-weight check inside a 10px dot is a smudge.
+                <Icon name="checkBold" className="h-2.5 w-2.5 text-white" />
               ) : null}
             </span>
             <p className={`text-sm ${done ? "font-500" : "text-[var(--ad-muted-foreground)]"}`}>{label}</p>
@@ -69,7 +69,7 @@ function Timeline({ order }) {
             className="absolute -start-6 top-1 flex h-4 w-4 items-center justify-center rounded-full"
             style={{ backgroundColor: toneFg(statusTone(order.status)) }}
           >
-            <Icon name="x" className="h-2.5 w-2.5 text-white" strokeWidth={3} />
+            <Icon name="xBold" className="h-2.5 w-2.5 text-white" />
           </span>
           <p className="text-sm font-500">{order.status}</p>
           <Num className="mt-0.5 block text-xs text-[var(--ad-muted-foreground)]">{order.date}</Num>

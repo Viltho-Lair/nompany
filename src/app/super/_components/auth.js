@@ -413,7 +413,7 @@ export function NoticeScreen({ variant = "v1", icon, tone = "primary", title, su
           className="mb-6 flex h-16 w-16 items-center justify-center rounded-full"
           style={{ backgroundColor: t.bg, color: t.fg }}
         >
-          <Icon name={icon} className="h-7 w-7" strokeWidth={1.6} />
+          <Icon name={icon} className="h-7 w-7" />
         </span>
         {cta ? (
           <Link href={ctaHref} className="ad-btn ad-btn-primary w-full">

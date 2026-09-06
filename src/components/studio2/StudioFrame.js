@@ -41,37 +41,43 @@ import { toneOf } from "@/lib/planColors";
 // Section keys are tenant data, so the icon map is best-effort and falls back
 // to a neutral dot for anything unrecognised.
 //
-// THE CRM & SALES ROW'S ICON NAME IS THE BARE WORD "sales" — icons.js's own
-// registry key for it (icons.js: `sales: "sales.png"`), unrelated to and
-// unrenamed by the P0 restructure: an icon name is not a section key.
-// tests/restructure.mjs's KNOWN_COLLISIONS allowlist knows about this one.
+// THE CRM & SALES ROW'S ICON NAME IS THE BARE WORD "sales" — the icon set's own
+// registry key for it, unrelated to and unrenamed by the P0 restructure: an icon
+// name is not a section key. tests/restructure.mjs's KNOWN_COLLISIONS allowlist
+// knows about this one. (It used to name `sales.png`; the set is Phosphor
+// artwork now and there is no PNG behind any of these names.)
 const SECTION_ICONS = {
   main: "home",
-  tasks: "checkDouble",
+  tasks: "tasks",
   "crm-sales": "sales",
-  "engineering-docs": "technicalSupport",
+  tendering: "tender",
   projects: "projects",
+  "engineering-docs": "engineeringDocs",
+  procurement: "procurement",
+  inventory: "box",
+  manufacturing: "manufacturing",
   // Engineering, not the plain gear: Field Service is a section of its own,
   // and sharing the gear with every module's Settings made the parent and its
   // own Settings child render identically side by side.
   "field-service": "engineering",
-  inventory: "vendors",
-  finance: "services",
-  "quality-hse": "verified",
-  website: "gallery",
+  logistics: "selection",
+  assets: "assets",
+  "quality-hse": "hse",
   hr: "team",
+  finance: "bank",
+  reports: "reports",
+  administration: "gears",
   // ADMINISTRATION'S ROWS ARE SECTIONS NOW, so they arrive under their section
   // keys rather than the pre-restructure "people" / "access". Both old keys are
   // deliberately kept beside the new ones: a retired address resolves to the
-  // new key before it reaches here, so nothing should ask for them \u2014 but this
+  // new key before it reaches here, so nothing should ask for them — but this
   // map is best-effort by design, and a stale entry costs a line where a
   // missing one costs a row its icon.
-  "administration-members": "user",
+  "administration-members": "team",
   "administration-access": "lock",
-  "administration-master": "vendors",
+  "administration-master": "database",
   "administration-settings": "gears",
-  administration: "gears",
-  people: "user",
+  people: "team",
   access: "lock",
   engagements: "link",
   // Sales sub-sections carry their own icons rather than falling back to the
@@ -81,29 +87,38 @@ const SECTION_ICONS = {
   "crm-sales-pipeline": "kanban",
   "crm-sales-tickets": "ticket",
   "crm-sales-clients": "group",
-  "crm-sales-contracts": "verified",
+  "crm-sales-contracts": "contract",
   "crm-sales-live": "live",
   // Technical sub-sections, same idea. Live view reuses the broadcast mark the
   // Sales one already uses — it is the same kind of screen, so it should not
   // arrive wearing a different badge.
   "crm-sales-quotations": "report",
-  "engineering-docs-rfq": "rfp",
+  "engineering-docs-rfq": "form",
   "engineering-docs-live": "live",
-  // Projects sub-sections.
+  "engineering-docs-register": "book",
+  // Projects sub-sections. SLA is a promise about TIME, so it wears the clock
+  // rather than the toolbox it used to.
   "projects-list": "blueprint",
-  "projects-sla": "tools",
+  "projects-sla": "clock",
   "projects-overtimes": "overtime",
-  // Inventory sub-sections.
+  "projects-planner": "calendar",
+  // Inventory, procurement and logistics.
   "inventory-items": "registeredItems",
   "inventory-stock": "readyStock",
-  "procurement-suppliers": "selection",
   "inventory-sheets": "sheets",
-  "engineering-docs-register": "book",
+  "procurement-suppliers": "vendors",
+  "logistics-shipments": "box",
   "hr-employees": "teamwork",
+  // FINANCE'S FOUR CHILDREN DREW A BARE DOT UNTIL NOW — the map had an entry
+  // for Cash and nothing for the Ledger, the Payables or the Fixed assets, so
+  // three of the four rows in the section a studio spends most of its day in
+  // were unlabelled. Same for Procurement, Logistics and their children.
   "finance-cash": "cash",
+  "finance-ledger": "ledger",
+  "finance-payables": "invoice",
+  "finance-assets": "assets",
   "field-service-schedule": "calendar",
-  "field-service-tracking": "locations",
-  "projects-planner": "calendar",
+  "field-service-tracking": "tracking",
   // Every module's Settings wears the same gear. They are the same KIND of
   // screen in five different places, so giving each its own mark would imply a
   // difference that is not there.
@@ -112,6 +127,63 @@ const SECTION_ICONS = {
   "projects-settings": "gears",
   "finance-settings": "gears",
   "field-service-settings": "gears",
+  "tasks-settings": "gears",
+};
+
+// A HUE PER SECTION, AND SUB-SECTIONS INHERIT THEIR PARENT'S.
+//
+// Every mark in this nav used to be drawn at `text-slate-400`: fifteen sections
+// and seventeen sub-sections in one grey, so the only thing distinguishing a row
+// from the row above it was the word. Colour does that work far faster than
+// reading does, and a section keeps its hue everywhere it appears — which is
+// what makes the nav learnable rather than merely colourful.
+//
+// A CHILD IS NOT ITS OWN COLOUR. Giving Payables a hue of its own would say it
+// is a peer of Finance rather than part of it, so the accent is resolved from
+// the ROOT and every child of Finance is the same green. The group reads as a
+// group even when it is scrolled away from its parent.
+//
+// The hues are spread around the wheel rather than picked one at a time, so no
+// two adjacent sections collide, and each is a 600/400 pair because a mid-tone
+// that reads on white disappears on the dark shell. Written as whole class
+// strings because Tailwind scans source text for them — a composed
+// `text-${hue}-600` is not there to find and arrives unstyled.
+const SECTION_ACCENTS = {
+  main: "text-blue-600 dark:text-blue-400",
+  tasks: "text-violet-600 dark:text-violet-400",
+  "crm-sales": "text-sky-600 dark:text-sky-400",
+  tendering: "text-purple-600 dark:text-purple-400",
+  projects: "text-indigo-600 dark:text-indigo-400",
+  "engineering-docs": "text-cyan-600 dark:text-cyan-400",
+  procurement: "text-orange-600 dark:text-orange-400",
+  inventory: "text-amber-600 dark:text-amber-400",
+  manufacturing: "text-stone-600 dark:text-stone-400",
+  "field-service": "text-teal-600 dark:text-teal-400",
+  logistics: "text-lime-600 dark:text-lime-400",
+  assets: "text-stone-600 dark:text-stone-400",
+  "quality-hse": "text-rose-600 dark:text-rose-400",
+  hr: "text-fuchsia-600 dark:text-fuchsia-400",
+  finance: "text-emerald-600 dark:text-emerald-400",
+  reports: "text-pink-600 dark:text-pink-400",
+  administration: "text-slate-500 dark:text-slate-400",
+  engagements: "text-blue-600 dark:text-blue-400",
+  people: "text-slate-500 dark:text-slate-400",
+  access: "text-slate-500 dark:text-slate-400",
+};
+
+// LONGEST PREFIX, NOT `split("-")[0]`. Four section keys contain a hyphen of
+// their own — crm-sales, engineering-docs, field-service, quality-hse — so
+// splitting on the first one sends every CRM child to a root called "crm" that
+// does not exist. Sorted long-to-short so `crm-sales-clients` matches
+// `crm-sales` and never the shorter neighbour it also starts with.
+const ACCENT_ROOTS = Object.keys(SECTION_ACCENTS).sort((a, b) => b.length - a.length);
+
+// Section keys are TENANT DATA — a studio can add its own — so an unrecognised
+// key is expected rather than exceptional, and it gets the neutral grey the
+// whole nav used to wear.
+const accentOf = (key) => {
+  const root = ACCENT_ROOTS.find((r) => key === r || key.startsWith(`${r}-`));
+  return root ? SECTION_ACCENTS[root] : "text-slate-400 dark:text-slate-500";
 };
 
 // The row's shell — shape and colour, no padding. A plain row adds the padding
@@ -126,8 +198,13 @@ const rowClass = (active) =>
 
 const itemClass = (active) => `${rowClass(active)} px-3 py-2.5`;
 
-const iconClass = (active) =>
-  `h-[18px] w-[18px] ${active ? "text-brand-600 dark:text-brand-400" : "text-slate-400 dark:text-slate-500"}`;
+// THE MARK KEEPS ITS SECTION'S COLOUR WHETHER THE ROW IS ACTIVE OR NOT, which
+// is the opposite of what this used to do: it drew grey normally and turned
+// brand blue on the active row, so the colour said "you are here" and nothing
+// said "this is Finance". The row already answers the first question twice over
+// — a tinted background and a darker label — so the icon is free to answer the
+// second one, on every row at once, including the fourteen you are not on.
+const iconClass = (key) => `h-[18px] w-[18px] ${accentOf(key)}`;
 
 // The plan chips. Every colour the tag needs is handed to CSS as a variable
 // rather than set inline, because which text colour is readable depends on the
@@ -292,7 +369,7 @@ export default function StudioFrame({
             onClick={() => { setOpen(false); if (active) toggleGroup(node.key); }}
             className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5"
           >
-            <Icon name={SECTION_ICONS[node.key] || "dot"} className={iconClass(active)} />
+            <Icon name={SECTION_ICONS[node.key] || "dot"} className={iconClass(node.key)} />
             <span className="truncate">{sectionName(node.key, node.name, locale)}</span>
           </Link>
           <button
@@ -322,7 +399,7 @@ export default function StudioFrame({
     return (
       <Link key={key} href={href} onClick={() => setOpen(false)} className={`${itemClass(active)} ${extraClass}`}>
         <span className="flex items-center gap-3">
-          <Icon name={SECTION_ICONS[key] || "dot"} className={iconClass(active)} />
+          <Icon name={SECTION_ICONS[key] || "dot"} className={iconClass(key)} />
           {label}
         </span>
       </Link>
@@ -378,7 +455,11 @@ export default function StudioFrame({
           onClick={() => setOpen(false)}
           className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-[12px] font-500 text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white"
         >
-          <Icon name="services" className="h-[18px] w-[18px] text-slate-400 dark:text-slate-500" />
+          {/* The manual, so it wears the manual's mark. It asked for "services"
+              — a wrench in the new set — which is a tool, not a document. It stays
+              neutral grey rather than taking an accent: it is not a section, and
+              colouring it would put it in the same visual class as the fifteen. */}
+          <Icon name="book" className="h-[18px] w-[18px] text-slate-400 dark:text-slate-500" />
           {tr.documentation}
         </Link>
         {/* STUDIO SETTINGS IS NOT PINNED HERE ANY MORE. It was a footer link

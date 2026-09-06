@@ -38,7 +38,7 @@ export default function StatusPage({
           className="mx-auto mb-8 flex h-20 w-20 items-center justify-center rounded-2xl"
           style={{ backgroundColor: t.bg, color: t.fg }}
         >
-          <Icon name={icon} className="h-9 w-9" strokeWidth={1.5} />
+          <Icon name={icon} className="h-9 w-9" />
         </span>
 
         {code ? (

@@ -16,10 +16,13 @@ import { Icon as StudioIcon, iconNames } from "@/components/studio2/icons";
 //   ALIASES. The console and the Studio grew different words for the same
 //   drawing. Rather than rename ~40 call sites — or, worse, add a duplicate mark
 //   under the console's word and be back where we started — the console's
-//   vocabulary is translated here. `user` is the interesting one: the Studio
-//   answers that name with a PNG silhouette (see IMAGES), which beside a row of
-//   stroked glyphs reads as a different weight entirely, so the console asks for
-//   the stroked `person` instead.
+//   vocabulary is translated here.
+//
+//   `user` used to be the interesting one: the Studio answered that name with a
+//   PNG silhouette, which beside a row of stroked glyphs read as a different
+//   weight entirely, so the console asked for `person` instead. The PNGs are
+//   gone and both names now resolve to the same Phosphor mark, so that entry is
+//   a no-op — kept because removing it changes nothing and costs a diff.
 //
 //   A LOUD FAILURE. The Studio's Icon falls back to `dot` for a name it does not
 //   know, which is right there — a missing section icon should not blank the
@@ -35,7 +38,7 @@ const ALIASES = {
   x: "close",
 };
 
-export default function Icon({ name, className = "h-4 w-4", strokeWidth }) {
+export default function Icon({ name, className = "h-4 w-4" }) {
   const resolved = ALIASES[name] || name;
 
   if (process.env.NODE_ENV !== "production" && !iconNames.includes(resolved)) {
@@ -45,7 +48,7 @@ export default function Icon({ name, className = "h-4 w-4", strokeWidth }) {
     );
   }
 
-  return <StudioIcon name={resolved} className={className} strokeWidth={strokeWidth} />;
+  return <StudioIcon name={resolved} className={className} />;
 }
 
 export { iconNames };
