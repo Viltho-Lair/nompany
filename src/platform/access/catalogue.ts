@@ -235,6 +235,15 @@ const OWN_AREAS = [
   // margin, which is what a breakdown beside the value amounts to.
   { key: "projects.costs", group: "Projects", label: "Cost breakdown",
     verbs: ["view", "create", "edit", "delete"] },
+  // ITS OWN AREA, and the axis it splits on is not the cost breakdown's.
+  // `projects.costs` exists because "may run this job" and "may see what it is
+  // allowed to cost" are different powers. Billing splits the same project
+  // along a different line: a commercial manager raising applications for
+  // payment has no need of supplier costs, and a project manager watching spend
+  // has no need of the client's payment schedule. Folding the two together
+  // would hand each of them the other's screen.
+  { key: "projects.billing", group: "Projects", label: "Billing schedule",
+    verbs: ["view", "create", "edit", "delete"] },
   { key: "projects.sla", group: "Projects", label: "SLA", verbs: ["view", "create", "edit", "delete"] },
   { key: "projects.overtimes", group: "Projects", label: "Overtimes", verbs: ["view", "create", "edit", "delete"] },
   { key: "projects.settings", group: "Projects", label: "Settings", verbs: ["view", "edit"] },

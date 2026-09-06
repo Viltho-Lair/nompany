@@ -65,6 +65,10 @@ const StudioPipeline = nextDynamic(
   () => import("@/components/studio2/StudioPipeline"),
   { loading: () => <ScreenSkeleton /> },
 );
+const StudioProjectBilling = nextDynamic(
+  () => import("@/components/studio2/StudioProjectBilling"),
+  { loading: () => <RecordSkeleton /> },
+);
 const StudioProjectCosts = nextDynamic(
   () => import("@/components/studio2/StudioProjectCosts"),
   // A record page — a department skeleton would reserve a chart where a table
@@ -336,6 +340,7 @@ async function renderStudio(params) {
     // instead, which reads as a route that does not exist. `costs` did exactly
     // that until it was added, and only opening the screen showed it.
     segments[2] !== "quotation" && segments[2] !== "plans" && segments[2] !== "costs" &&
+    segments[2] !== "billing" &&
     sections.some((s) => s.key === "projects-list")
   ) {
     return <StudioProjectBoard slug={studio.slug} projectId={segments[1]} />;
@@ -430,6 +435,12 @@ async function renderStudio(params) {
   // maps to `projects.costs` as well as `projects.list` — so somebody holding
   // only the costs right can still reach the row this hangs off.
   const projectCosts = projectId && segments[2] === "costs";
+  // AND A THIRD OPENS ITS PAYMENT SCHEDULE:
+  // /<slug>/projects-list/<id>/billing is what the job may be billed against
+  // what it has been. It resolves through the same projects-list section, which
+  // maps to `projects.billing` as well — so somebody holding only the billing
+  // right can still reach the row this hangs off.
+  const projectBilling = projectId && segments[2] === "billing";
 
   // PROJECT SHEETS ARE INVENTORY'S, and the sub-section IS the workspace:
   // /<slug>/inventory-sheets opens it empty, and /<slug>/inventory-sheets/<id>
@@ -533,6 +544,7 @@ async function renderStudio(params) {
         : isSheets ? <StudioSheetViewer slug={studio.slug} sheetId={sheetId} perspective="inventory" />
         : projectQuotation ? <StudioSheetViewer slug={studio.slug} projectId={projectId} perspective="projects" />
         : projectCosts ? <StudioProjectCosts slug={studio.slug} projectId={projectId} />
+        : projectBilling ? <StudioProjectBilling slug={studio.slug} projectId={projectId} />
         // CRM & SALES'S QUOTATIONS ARE STILL RENDERED BY TECHNICAL, by key
         // rather than by screenKey, same pattern and same reason as Procurement's
         // Suppliers and Logistics's Shipments below. Quotations moved to CRM &

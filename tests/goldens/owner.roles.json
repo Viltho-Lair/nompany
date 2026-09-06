@@ -393,6 +393,17 @@
         ]
       },
       {
+        "key": "projects.billing",
+        "group": "Projects",
+        "label": "Billing schedule",
+        "verbs": [
+          "view",
+          "create",
+          "edit",
+          "delete"
+        ]
+      },
+      {
         "key": "projects.sla",
         "group": "Projects",
         "label": "SLA",

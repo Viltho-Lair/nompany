@@ -1,0 +1,22 @@
+{
+  "status": 201,
+  "body": {
+    "ok": true,
+    "milestone": {
+      "id": "<pro_ID>",
+      "projectId": "<pro_ID>",
+      "code": "M1",
+      "name": "Mobilisation",
+      "amount": 50000,
+      "dueDate": "2031-03-01",
+      "status": "Pending",
+      "notes": "",
+      "sortOrder": 0,
+      "createdByCollaboratorId": "<col_ID>",
+      "createdAt": "<timestamp>",
+      "updatedAt": "<timestamp>",
+      "studioId": "<std_ID>",
+      "sectionId": "<sub_ID>"
+    }
+  }
+}

@@ -362,6 +362,13 @@ every push to `main` and every pull request.
   banners and nine strings. 1623 → 1625 with earned value — a panel, three
   indices and twenty-three strings; `modules/projects/earnedValue.ts` is a few
   hundred bytes and reaches the browser so the screen and the server agree.
+  **Measured 1637 again with the billing schedule**, on a tree that also
+  carried the icon port below while that was still uncommitted — so the two
+  cannot be separated and NO delta is claimed for either. What can be said is
+  what the gate is for: the ceiling did not move, and the LARGEST CHUNK did not
+  move (158 KB), which is the half every route pays. The screen adds no library
+  and is `nextDynamic()`; `modules/projects/billing.ts` crosses the wire
+  deliberately, so the table totals with the same function the server does.
   **1638 → 1637 across the Phosphor icon port, and the direction is the point**:
   the entire icon set was replaced and the client got a kilobyte SMALLER. ~110
   hand-drawn stroke glyphs and 22 PNG masks became 144 Phosphor marks — 97
@@ -904,6 +911,56 @@ FULL-SCREEN early return gated on a hand-typed list of third segments, so `/cost
 board instead of the cost breakdown — the branch further down was unreachable and nothing failed,
 because both halves were individually valid. `tests/restructure.mjs` now reads both lists out of
 the file and asserts every handled project segment is exempt.
+
+**SLICE 5 IS BILLING MILESTONES AND RETENTION** (`docs/functionality/billing-milestones.md`),
+and it is the MIRROR of slice 1 rather than more of it. Catalogue 149 → 153
+(`projects.billing`).
+
+**A PROJECT HAD A COST SIDE AND NO REVENUE SIDE.** Four slices built what a job is allowed to
+cost, what has been ordered, what has been invoiced and how the work is performing against all
+three. What it may BILL stayed a single number — `value`, copied at handover — with nothing
+saying when any of it could be claimed. So a project could report itself twelve per cent over on
+Plant and could not say what had been invoiced, which is the half that decides whether there is
+money to be over WITH. **And retention existed nowhere at all:** a studio reading its invoiced
+total as its expected cash was wrong by exactly what its clients were holding.
+
+**ITS OWN AREA, and the axis is NOT the cost breakdown's.** `projects.costs` was split out
+because "may run this job" and "may see what it is allowed to cost" are different powers.
+Billing splits the same project the other way — a commercial manager raising applications for
+payment needs none of the supplier costs, and a project manager watching spend needs none of the
+client's payment schedule. Gate A pins it from the side that matters: somebody holding
+`projects.costs.view` is refused the schedule by name.
+
+**THE AMOUNT IS ABSOLUTE, never a percentage of the value.** A stored percentage would silently
+re-price every line the moment `value` moved and give one number two sources; `unscheduled` is
+surfaced instead, the exact counterpart of `unallocated`. The dialog offers "% of value" as an
+ENTRY convenience that resolves to an amount and is then forgotten.
+
+**THERE IS NO `Invoiced` STATUS.** A milestone is Pending or Ready; whether it has been billed is
+DERIVED from the invoices naming it, because a stored flag and a real invoice part company the
+first time one is cancelled. `InvoiceSchema` gained `milestoneId`, the exact mirror of
+`costCodeId` on a bill — **deliberately unvalidated at the write**, because `projectBilling`
+attributes only ids in THIS project's own milestone set, so a foreign or deleted id lands in
+`unattributed` and is counted rather than believed. The containment is in the reader, where it
+also covers deletion, which no write-time check could.
+
+**NULL RATHER THAN ZERO ON RETENTION.** `releasable` is null when nobody has set a release date
+and a real 0 when the date is in the future — "nothing is due yet" and "we do not know when
+anything is due" are different answers. Releasing it is FINANCE'S act: retention becomes money
+when somebody raises an invoice, and growing a second invoicing path out of a project screen
+would be two ways to bill one client.
+
+**A FIXTURE-ORDER BUG THE FEATURE DID NOT CAUSE, and it is the lesson worth keeping.** Sat inside
+the projects block, this slice's Gate A section moved SIX goldens belonging to other modules:
+`finance.invoice.raised` recorded INV-0003 because two invoices here had taken the first two
+numbers, three `hr.list.*` goldens and `operations.board` named the newest collaborator it mints,
+and `projects.direct.list.populated` grew a `retentionPercent`. No route changed in any of them.
+The direct-projects block already documents the rule — this studio is SHARED and several goldens
+are whole-studio snapshots — and the block sits immediately before "no golden is left behind"
+now: after every section that records one, and before the check that counts them. **Seated after
+that check instead, it failed by exactly its own nine names**, which is the check doing its job.
+Two goldens change and both are the feature: `owner.roles` gains the area, and
+`finance.invoice.raised` gains one line, `"milestoneId": ""`.
 
 **P4a's second section is complete: Tendering & Estimating.** The root was declared at the
 restructure and rendered nothing for a fortnight — it sat in `NO_SCREEN_YET` and held no

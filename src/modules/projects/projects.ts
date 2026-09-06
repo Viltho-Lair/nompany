@@ -110,6 +110,13 @@ export const projectsContext = moduleContext<ProjectsContext>({
     // Finance — the same terms the quotations above are read on, and the same
     // reasoning: what a project cost is part of the project's own story.
     payables: ["finance-payables", "finance"],
+    // Invoices, for the BILLING schedule: what a project has been paid for is
+    // what its client has been invoiced. Read on exactly the terms payables is
+    // read on above — a project's revenue is part of the project's own story —
+    // and nullable for the same reason: a studio with no Finance section has
+    // raised no invoices, which is a real answer and reads as a schedule with
+    // nothing claimed against it.
+    cash: ["finance-cash", "finance"],
     // Purchase orders, for the COMMITTED half of the cost report: money the
     // studio has promised a supplier and has not been asked for. They live
     // under inventory-sheets (`materialOrders`), which this context already

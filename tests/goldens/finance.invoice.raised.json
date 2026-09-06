@@ -6,6 +6,7 @@
       "id": "<inv_ID>",
       "reference": "INV-0001",
       "projectId": "",
+      "milestoneId": "",
       "clientName": "Acme Holdings",
       "lines": [
         {

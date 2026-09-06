@@ -41,6 +41,16 @@ export const InvoiceSchema = z.object({
   sectionId: z.string(),
   reference: z.string(),
   projectId: z.string().max(60),
+  /**
+   * THE PAYMENT-SCHEDULE LINE THIS INVOICE CLAIMS, when it claims one. The
+   * exact mirror of `costCodeId` on a bill, and it is what lets a project say
+   * what has been billed against what it was entitled to bill.
+   *
+   * OPTIONAL and frequently blank: an invoice against no milestone is ordinary
+   * — a project with no schedule, or a claim nobody has filed — and
+   * `projectBilling` reports that money as `unattributed` rather than losing it.
+   */
+  milestoneId: z.string().max(60).optional(),
   clientName: z.string().max(160),
   lines: z.array(InvoiceLineSchema),
   vatRate: z.number().min(0).max(100),

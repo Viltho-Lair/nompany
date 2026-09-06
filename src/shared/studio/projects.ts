@@ -119,6 +119,54 @@ type Strings = CommonStrings & {
   // The cost breakdown.
   costBreakdown: string;
   costBreakdownSub: string;
+  loadingBilling: string;
+  paymentSchedule: string;
+  paymentScheduleSub: string;
+  totalScheduled: string;
+  unscheduled: string;
+  overScheduled: string;
+  totalInvoiced: string;
+  outstanding: string;
+  claimable: string;
+  claimableHint: string;
+  retention: string;
+  retentionSub: string;
+  editRetention: string;
+  noRetentionAgreed: string;
+  retentionHeld: string;
+  ofInvoiced: string;
+  retentionNet: string;
+  retentionNetHint: string;
+  retentionReleasable: string;
+  noReleaseDate: string;
+  releaseDue: string;
+  retentionPercent: string;
+  retentionReleaseDate: string;
+  retentionReleaseHint: string;
+  unattributedBilling: string;
+  unattributedBillingHint: string;
+  addMilestone: string;
+  editMilestone: string;
+  noMilestones: string;
+  noMilestonesHint: string;
+  milestoneCode: string;
+  milestoneName: string;
+  milestoneDue: string;
+  milestoneAmount: string;
+  milestoneInvoiced: string;
+  milestoneRemaining: string;
+  milestoneReady: string;
+  milestonePending: string;
+  milestoneOverdue: string;
+  billedInFull: string;
+  billedInPart: string;
+  markReady: string;
+  markPending: string;
+  percentOfValue: string;
+  percentOfValueHint: string;
+  refuseDuplicateMilestone: string;
+  refuseRetentionPercent: string;
+  refuseMilestoneStatus: string;
   loadingCosts: string;
   noCostCodesYet: string;
   noCostCodesBody: string;
@@ -409,6 +457,54 @@ const en: Strings = {
 
   costBreakdown: "Cost breakdown",
   costBreakdownSub: "What this job is allowed to cost, and what it has.",
+  loadingBilling: "Loading the schedule…",
+  paymentSchedule: "Payment schedule",
+  paymentScheduleSub: "What may be billed, and when it is earned.",
+  totalScheduled: "Scheduled",
+  unscheduled: "Not yet scheduled",
+  overScheduled: "Scheduled above the project value",
+  totalInvoiced: "Invoiced",
+  outstanding: "Outstanding",
+  claimable: "Ready to claim",
+  claimableHint: "Marked done and not yet billed",
+  retention: "Retention",
+  retentionSub: "What the client withholds from each claim, and when the last of it is due.",
+  editRetention: "Retention terms",
+  noRetentionAgreed: "No retention on this contract — every claim is payable in full.",
+  retentionHeld: "Held",
+  ofInvoiced: "of invoiced",
+  retentionNet: "Net of retention",
+  retentionNetHint: "What you can expect to be paid",
+  retentionReleasable: "Releasable now",
+  noReleaseDate: "No release date set — nobody has said when this is due.",
+  releaseDue: "Due",
+  retentionPercent: "Retention %",
+  retentionReleaseDate: "Release date",
+  retentionReleaseHint: "The defects-liability end. Releasing retention means raising an invoice for it, which is done in Finance — this screen only says what is held and when it falls due.",
+  unattributedBilling: "Billed against no milestone",
+  unattributedBillingHint: "Invoices raised on this project that name no schedule line, or name one since deleted. Real money, counted in the totals above — file them against a line to see where they belong.",
+  addMilestone: "Add a milestone",
+  editMilestone: "Edit milestone",
+  noMilestones: "No payment schedule yet",
+  noMilestonesHint: "A project has one number — what you will be paid. Break it into what you may claim and when, and every invoice raised against a line tells you what is left to bill.",
+  milestoneCode: "Code",
+  milestoneName: "Milestone",
+  milestoneDue: "Due",
+  milestoneAmount: "Amount",
+  milestoneInvoiced: "Invoiced",
+  milestoneRemaining: "Left to bill",
+  milestoneReady: "Ready",
+  milestonePending: "Pending",
+  milestoneOverdue: "Overdue",
+  billedInFull: "billed in full",
+  billedInPart: "part billed",
+  markReady: "Mark ready",
+  markPending: "Mark pending",
+  percentOfValue: "% of value",
+  percentOfValueHint: "A shortcut that fills the amount. Nothing is stored as a percentage — the amount is what is kept.",
+  refuseDuplicateMilestone: "Another line on this project already uses that code.",
+  refuseRetentionPercent: "Retention must be between 0 and 100 per cent.",
+  refuseMilestoneStatus: "A milestone is Pending or Ready. Whether it has been billed comes from the invoices themselves.",
   loadingCosts: "Loading the breakdown…",
   noCostCodesYet: "No cost codes yet",
   noCostCodesBody: "A project has one number — what you will be paid. Break it into the parts you buy separately, and every bill filed against one of them tells you where you stand.",
@@ -696,6 +792,54 @@ const ar: Strings = {
 
   costBreakdown: "توزيع التكلفة",
   costBreakdownSub: "ما يُسمح لهذا العمل أن يكلّف، وما كلّف فعلاً.",
+  loadingBilling: "جارٍ تحميل جدول الدفعات…",
+  paymentSchedule: "جدول الدفعات",
+  paymentScheduleSub: "ما يجوز إصدار فاتورة به، ومتى يُستحقّ.",
+  totalScheduled: "المجدول",
+  unscheduled: "غير مجدول بعد",
+  overScheduled: "المجدول يتجاوز قيمة المشروع",
+  totalInvoiced: "المُفوتر",
+  outstanding: "المستحقّ القائم",
+  claimable: "جاهز للمطالبة",
+  claimableHint: "مُعلم كمنجَز ولم تُصدر به فاتورة",
+  retention: "المحتجز",
+  retentionSub: "ما يحجزه العميل من كلّ مطالبة، ومتى يُستحقّ آخره.",
+  editRetention: "شروط الاحتجاز",
+  noRetentionAgreed: "لا احتجاز في هذا العقد — كلّ مطالبة مستحقّة بالكامل.",
+  retentionHeld: "المحتجز",
+  ofInvoiced: "من المُفوتر",
+  retentionNet: "الصافي بعد الاحتجاز",
+  retentionNetHint: "ما يمكن توقّع قبضه",
+  retentionReleasable: "قابل للإفراج الآن",
+  noReleaseDate: "لم يُحدّد تاريخ إفراج — لم يقل أحد متى يُستحقّ هذا.",
+  releaseDue: "يُستحقّ",
+  retentionPercent: "نسبة الاحتجاز %",
+  retentionReleaseDate: "تاريخ الإفراج",
+  retentionReleaseHint: "نهاية فترة ضمان العيوب. الإفراج عن المحتجز يعني إصدار فاتورة به، وذلك يجري في المالية — هذه الشاشة تقول فقط كم المحتجز ومتى يُستحقّ.",
+  unattributedBilling: "مُفوتر دون بند",
+  unattributedBillingHint: "فواتير صدرت على هذا المشروع ولا تسمّي بند جدول، أو تسمّي بنداً حُذف. مال حقيقي، محسوب في الإجماليات أعلاه — قيّدها على بند لتعرف أين مكانها.",
+  addMilestone: "إضافة بند",
+  editMilestone: "تعديل البند",
+  noMilestones: "لا يوجد جدول دفعات بعد",
+  noMilestonesHint: "للمشروع رقم واحد — ما ستُقبض. قسّمه إلى ما يجوز لك المطالبة به ومتى، وكلّ فاتورة تُصدر على بند تقول لك كم بقي.",
+  milestoneCode: "الرمز",
+  milestoneName: "البند",
+  milestoneDue: "الاستحقاق",
+  milestoneAmount: "المبلغ",
+  milestoneInvoiced: "المُفوتر",
+  milestoneRemaining: "المتبقّي للفوترة",
+  milestoneReady: "جاهز",
+  milestonePending: "معلّق",
+  milestoneOverdue: "متأخّر",
+  billedInFull: "مُفوتر بالكامل",
+  billedInPart: "مُفوتر جزئياً",
+  markReady: "تعليم كجاهز",
+  markPending: "إعادة إلى معلّق",
+  percentOfValue: "% من القيمة",
+  percentOfValueHint: "اختصار يملأ المبلغ. لا يُخزّن شيء كنسبة — المبلغ هو ما يُحفظ.",
+  refuseDuplicateMilestone: "يوجد بند آخر في هذا المشروع يستخدم هذا الرمز.",
+  refuseRetentionPercent: "يجب أن تكون نسبة الاحتجاز بين 0 و100 بالمئة.",
+  refuseMilestoneStatus: "البند إمّا معلّق أو جاهز. أمّا هل صدرت به فاتورة فتقوله الفواتير نفسها.",
   loadingCosts: "جارٍ تحميل التوزيع…",
   noCostCodesYet: "لا توجد بنود تكلفة بعد",
   noCostCodesBody: "للمشروع رقم واحد — ما ستُقبض. قسّمه إلى الأجزاء التي تشتريها منفصلة، وكلّ فاتورة تُقيّد على أحدها تقول لك أين أنت.",

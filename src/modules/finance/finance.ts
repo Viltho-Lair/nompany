@@ -232,7 +232,22 @@ export async function createInvoice(ctx: FinanceContext, body: Record<string, un
     // deleting a draft must not hand its number to the next invoice, and two
     // raised at once must not both be INV-0004. See modules/main/references.js.
     reference: await nextReference(studio.id, { rows: invoices, field: "reference", prefix: "INV" }),
-    projectId, clientName,
+    projectId,
+    // THE PAYMENT-SCHEDULE LINE THIS CLAIMS, when it claims one. Stored only
+    // where there is a project to claim against — a milestone belongs to a
+    // project, so an invoice naming one and no project is a contradiction
+    // rather than a partial record.
+    //
+    // DELIBERATELY NOT VALIDATED HERE, and it costs nothing to leave it: this
+    // is Finance, the milestone lives in Projects, and reading it would put a
+    // cross-department round trip on the busiest write in the department to
+    // catch a case that cannot do any harm. `projectBilling` attributes only
+    // ids that are in THIS project's own milestone set, so an id naming
+    // somebody else's line — or one since deleted — lands in `unattributed`
+    // and is counted in full rather than believed. The containment is in the
+    // reader, where it also covers deletion, which no write-time check could.
+    milestoneId: projectId ? str(body?.milestoneId, 60) : "",
+    clientName,
     lines,
     vatRate: body?.vatRate === undefined ? DEFAULT_VAT_RATE : Math.max(0, Math.min(100, Number(body.vatRate) || 0)),
     status: "Draft",
@@ -295,6 +310,12 @@ export async function editInvoice(ctx: FinanceContext, id: string, body: Record<
     }
     patch.projectId = projectId;
   }
+  // FILING A CLAIM AGAINST A SCHEDULE LINE IS NOT CHANGING WHAT WAS BILLED, so
+  // it is allowed on an ISSUED invoice where `lines` and `projectId` are not.
+  // The client is owed the same money either way; what changes is which
+  // milestone the studio reckons it against, and refusing that would mean an
+  // invoice raised before the schedule existed could never be filed at all.
+  if (body?.milestoneId !== undefined) patch.milestoneId = str(body.milestoneId, 60);
   if (body?.dueDate !== undefined) patch.dueDate = day(body.dueDate);
   if (body?.issueDate !== undefined) patch.issueDate = day(body.issueDate);
   if (body?.notes !== undefined) patch.notes = str(body.notes, 2000);

@@ -711,7 +711,7 @@ export const SECTION_COLLECTIONS = {
   // nothing and gates on no right. They move when Quality gets a screen.
   // The cost breakdown lives with the project it belongs to — it is reached
   // from one and from nowhere else, the way a bill is reached from its tender.
-  "projects-list": ["projects", "timesheets", "inspections", "projectCosts"],
+  "projects-list": ["projects", "timesheets", "inspections", "projectCosts", "projectMilestones"],
   "projects-sla": ["slas"],
   "projects-overtimes": ["overtimes"],
   // procurement — the supplier master, carried over from Inventory's Vendors

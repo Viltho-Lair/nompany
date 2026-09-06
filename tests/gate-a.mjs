@@ -305,7 +305,15 @@ console.log("== the permission matrix: one key grants exactly itself");
   // tender's. "May run this job" and "may see what it is allowed to cost" are
   // genuinely different powers -- a site engineer opens the project and has no
   // business reading what amounts to the margin.
-  ok("the catalogue is the size we last agreed", ALL_PERMISSIONS.length === 149, String(ALL_PERMISSIONS.length));
+  // 153 with projects.billing (view/create/edit/delete). ITS OWN AREA, and the
+  // axis it splits on is NOT the cost breakdown's: projects.costs exists
+  // because "may run this job" and "may see what it is allowed to cost" are
+  // different powers, and billing splits the same project the other way -- a
+  // commercial manager raising applications for payment needs none of the
+  // supplier costs, and a project manager watching spend needs none of the
+  // client's payment schedule. Folding them together would hand each of them
+  // the other's screen.
+  ok("the catalogue is the size we last agreed", ALL_PERMISSIONS.length === 153, String(ALL_PERMISSIONS.length));
 
   const leaks = [];
   const missing = [];
@@ -3362,6 +3370,7 @@ console.log("== tendering: a register whose dates are the point");
   // The studio's currency goes back, so nothing after this section sees it.
   await updateStudio(studio.id, { currency: "" });
 
+
   // A READER WITH NO TENDERING RIGHT IS REFUSED OUTRIGHT, not shown an empty
   // register — an empty list would say "this studio bids nothing", which is a
   // different and false claim.
@@ -5726,6 +5735,270 @@ console.log("== migration extract: reads one studio, scoped and read-only");
     fullDetail = e.message; // a WRONGTYPE from any registry or satellite lands here
   }
   ok("the full export reads every registry and the studioVisits hash without WRONGTYPE", fullOk, fullDetail);
+}
+
+// ============================================================================
+console.log("== projects: the payment schedule, and what the client holds back");
+// THE MIRROR OF THE COST BREAKDOWN. Four slices built the COST side of a
+// project in full; the revenue side stayed a single `value` with nothing
+// saying when any of it might be claimed. So a project could report itself
+// twelve per cent over on Plant and could not say what had been invoiced --
+// which is the half that decides whether there is money to be over WITH.
+// Retention existed nowhere at all.
+//
+// PLACED LAST, and for the reason the direct-projects block states above it:
+// this studio is SHARED, and several goldens are whole-studio snapshots. Sat
+// inside the projects block, this one moved six contracts that belong to other
+// modules and had nothing to do with billing -- `finance.invoice.raised`
+// recorded INV-0003 because two invoices here had taken the first two numbers,
+// three `hr.list.*` goldens and `operations.board` named the newest
+// collaborator this block mints, and `projects.direct.list.populated` grew a
+// retentionPercent because the project it lists is the one this block sets
+// terms on. No route changed in any of them; the fixture order did. Running
+// after every other module's capture adds nine goldens and moves none.
+//
+// IT OPENS ITS OWN PROJECT rather than borrowing the handed-over one, so the
+// schedule below is measured against a value nothing else asserts.
+{
+  const PROJECTS = await import("@/app/api/studios/[slug]/projects/route.ts");
+  const BILLING = await import("@/app/api/studios/[slug]/projects/billing/route.ts");
+  const INVOICES = await import("@/app/api/studios/[slug]/finance/invoices/route.ts");
+
+  const P = ctx({ slug });
+  const shot = async (name, payload) => {
+    const r = golden(name, payload, EXTRA);
+    if (!r.recorded) ok(`${name} matches its golden`, r.ok, r.detail);
+    return payload;
+  };
+  // ITS OWN, declared rather than borrowed: a helper reached from another
+  // block is a ReferenceError that throws AFTER the earlier goldens are
+  // written, so the run reads as passing while having crashed.
+  const billingPersonWith = async (permissions, alias) => {
+    const u = (await createUser({ email: `g-${alias}-${rand()}@test.invalid`, passwordHash: "x" })).user;
+    const role = await createRole(studio.id, { name: `role-${alias}`, permissions });
+    await addCollaborator(studio.id, { userId: u.id, alias, role: "member", roleIds: [role.id] });
+    return u;
+  };
+
+  await signIn(owner.id);
+
+  const opened = await capture(
+    PROJECTS.POST, req(`/api/studios/${slug}/projects`, { method: "POST", body: {
+      clientName: "Halcyon Estates", title: "Riverside phase two",
+      industry: "Construction", value: 200000, location: "Amman",
+    } }), P);
+  const billedProject = opened.body?.project?.id;
+  ok("a project to bill against", Boolean(billedProject),
+    JSON.stringify(opened.body).slice(0, 160));
+
+  const milestone = (body) => capture(
+    BILLING.POST, req(`/api/studios/${slug}/projects/billing`, { method: "POST", body }), P);
+  const editMilestone = (body) => capture(
+    BILLING.PUT, req(`/api/studios/${slug}/projects/billing`, { method: "PUT", body }), P);
+  const readBilling = (id) => capture(
+    BILLING.GET, req(`/api/studios/${slug}/projects/billing?projectId=${id}`), P);
+
+  // A PARTIAL STATE, NOT AN EMPTY ONE. With no milestones the project's
+  // invoices are still summed and still true; only the schedule half is
+  // missing, which is why `blocked` names it rather than the whole answer
+  // being withheld.
+  const emptySchedule = await shot("projects.billing.empty", await readBilling(billedProject));
+  ok("a project with no schedule says so rather than reading as nought",
+    emptySchedule.body?.billing?.blocked === "no-schedule",
+    String(emptySchedule.body?.billing?.blocked));
+  // NULL, NOT ZERO. Nought billed against nought scheduled is not 0% billed.
+  ok("...and the billed fraction is null, not 0",
+    emptySchedule.body?.billing?.billedFraction === null,
+    String(emptySchedule.body?.billing?.billedFraction));
+
+  const stage1 = await shot("projects.billing.created", await milestone({
+    projectId: billedProject, code: "M1", name: "Mobilisation",
+    amount: 50000, dueDate: "2031-03-01",
+  }));
+  const stage1Id = stage1.body?.milestone?.id;
+  ok("a milestone is scheduled", Boolean(stage1Id));
+  // BORN PENDING, ALWAYS. Marking work done is its own act, and a status taken
+  // from the create body would be the side entrance around it.
+  ok("...as Pending, whatever was asked for",
+    stage1.body?.milestone?.status === "Pending", stage1.body?.milestone?.status);
+
+  const stage2 = await milestone({
+    projectId: billedProject, code: "M2", name: "Practical completion", amount: 100000,
+  });
+  const stage2Id = stage2.body?.milestone?.id;
+
+  // A SCHEDULE WITH TWO LINES FOR ONE CODE IS NOT A SCHEDULE.
+  await shot("projects.billing.duplicate", await milestone({
+    projectId: billedProject, code: "M1", name: "Same reference", amount: 1,
+  }));
+  // And a line must belong to a project that exists.
+  await shot("projects.billing.noproject", await milestone({
+    projectId: "pro_doesnotexist00", code: "ZZ", name: "Orphan", amount: 1,
+  }));
+
+  // THERE IS NO `Invoiced` STATUS TO MOVE TO. Whether a line has been billed
+  // comes from the invoices naming it, and accepting it as a status would
+  // create a second answer free to disagree with the ledger.
+  await shot("projects.billing.badstatus", await editMilestone({
+    id: stage1Id, status: "Invoiced",
+  }));
+
+  // A PENDING MILESTONE IS NOT CLAIMABLE however overdue it is: the studio has
+  // not said the work behind it is done.
+  const beforeReady = await readBilling(billedProject);
+  ok("a pending milestone is not claimable",
+    beforeReady.body?.billing?.claimable === 0,
+    String(beforeReady.body?.billing?.claimable));
+  // THE COUNTERPART OF `unallocated` ON THE COST SIDE: 200,000 of value with
+  // 150,000 scheduled leaves 50,000 nobody has said when to bill.
+  ok("...and what is not yet scheduled is stated rather than assumed away",
+    beforeReady.body?.billing?.scheduled === 150000
+    && beforeReady.body?.billing?.unscheduled === 50000,
+    JSON.stringify({ scheduled: beforeReady.body?.billing?.scheduled,
+      unscheduled: beforeReady.body?.billing?.unscheduled }));
+
+  await editMilestone({ id: stage1Id, status: "Ready" });
+  const ready = await readBilling(billedProject);
+  ok("work marked done becomes claimable",
+    ready.body?.billing?.claimable === 50000, String(ready.body?.billing?.claimable));
+
+  // ---- and an invoice claims against one -----------------------------------
+  //
+  // A DRAFT INVOICE HAS BEEN SHOWN TO NOBODY, so it is not a claim -- the same
+  // two-member rule the cost side applies to a bill, and the reason `Sent` is
+  // what moves these numbers.
+  const raised = await capture(INVOICES.POST, req(`/api/studios/${slug}/finance/invoices`, {
+    method: "POST",
+    body: {
+      projectId: billedProject, milestoneId: stage1Id, vatRate: 0,
+      lines: [{ description: "Mobilisation", qty: 1, unitPrice: 30000 }],
+    },
+  }), P);
+  const invoiceId = raised.body?.invoice?.id;
+  ok("an invoice carries the milestone it claims",
+    raised.body?.invoice?.milestoneId === stage1Id, String(raised.body?.invoice?.milestoneId));
+
+  const stillDraft = await readBilling(billedProject);
+  ok("a DRAFT invoice is not a claim",
+    stillDraft.body?.billing?.invoiced === 0, String(stillDraft.body?.billing?.invoiced));
+
+  await capture(INVOICES.PUT, req(`/api/studios/${slug}/finance/invoices`, {
+    method: "PUT", body: { id: invoiceId, status: "Sent" },
+  }), P);
+  const claimedOnce = await shot("projects.billing.claimed", await readBilling(billedProject));
+  ok("an issued invoice is a claim", claimedOnce.body?.billing?.invoiced === 30000,
+    String(claimedOnce.body?.billing?.invoiced));
+  // PART BILLED IS ITS OWN STATE. 30,000 of a 50,000 line is neither nothing
+  // nor finished, and what is left is still claimable.
+  const m1 = (claimedOnce.body?.billing?.milestones || []).find((m) => m.id === stage1Id);
+  ok("...and a part-billed line says so", m1?.billed === "part", String(m1?.billed));
+  ok("...with the remainder still claimable", m1?.claimable === 20000, String(m1?.claimable));
+  // NOT PAID. Invoiced and settled are different questions, and a screen that
+  // confused them would report money as received on the day it was asked for.
+  ok("invoiced is not paid", claimedOnce.body?.billing?.paid === 0
+    && claimedOnce.body?.billing?.outstanding === 30000,
+    JSON.stringify({ paid: claimedOnce.body?.billing?.paid,
+      out: claimedOnce.body?.billing?.outstanding }));
+
+  // ---- retention -----------------------------------------------------------
+  //
+  // MONEY EARNED, INVOICED, AND DELIBERATELY NOT YET PAYABLE. Without it a
+  // studio's invoiced total reads as its expected cash and is wrong by
+  // whatever its clients are holding.
+  //
+  // REFUSED RATHER THAN CLAMPED at the door: `retentionOn` clamps too, because
+  // a stored row is not to be trusted, but a person typing 150 has made a
+  // mistake worth telling them about.
+  await shot("projects.billing.badpercent", await editMilestone({
+    retention: true, projectId: billedProject, retentionPercent: 150,
+  }));
+
+  await editMilestone({ retention: true, projectId: billedProject, retentionPercent: 10 });
+  const held = await shot("projects.billing.retained", await readBilling(billedProject));
+  ok("retention is taken on what has been BILLED, not what was scheduled",
+    held.body?.billing?.retention?.held === 3000,
+    String(held.body?.billing?.retention?.held));
+  ok("...leaving the net the studio can expect",
+    held.body?.billing?.retention?.net === 27000,
+    String(held.body?.billing?.retention?.net));
+  // NULL, NOT ZERO. "Nothing is due yet" and "nobody has said when anything is
+  // due" are different answers, and a 0 shown for both would state the first
+  // while meaning the second.
+  ok("...and releasable is NULL until somebody says when",
+    held.body?.billing?.retention?.releasable === null
+    && held.body?.billing?.retention?.blocked === "no-release-date",
+    JSON.stringify(held.body?.billing?.retention));
+
+  // A DATE IN THE FUTURE IS A REAL ZERO -- nothing is due yet, and that is
+  // knowable, which is exactly what distinguishes it from the null above.
+  await editMilestone({
+    retention: true, projectId: billedProject, retentionReleaseDate: "2099-01-01",
+  });
+  const notYet = await readBilling(billedProject);
+  ok("a future release date is a real 0, not a null",
+    notYet.body?.billing?.retention?.releasable === 0,
+    String(notYet.body?.billing?.retention?.releasable));
+
+  await editMilestone({
+    retention: true, projectId: billedProject, retentionReleaseDate: "2020-01-01",
+  });
+  const due = await readBilling(billedProject);
+  ok("once the date has passed the whole held sum is releasable",
+    due.body?.billing?.retention?.releasable === 3000,
+    String(due.body?.billing?.retention?.releasable));
+
+  // ---- money nobody filed --------------------------------------------------
+  //
+  // AN INVOICE NAMING NO MILESTONE IS STILL AN INVOICE, and it is counted in
+  // full. A report that dropped it would understate what a client had been
+  // asked for by however much nobody had filed.
+  const looseClaim = await capture(INVOICES.POST, req(`/api/studios/${slug}/finance/invoices`, {
+    method: "POST",
+    body: {
+      projectId: billedProject, vatRate: 0,
+      lines: [{ description: "Site welfare", qty: 1, unitPrice: 5000 }],
+    },
+  }), P);
+  await capture(INVOICES.PUT, req(`/api/studios/${slug}/finance/invoices`, {
+    method: "PUT", body: { id: looseClaim.body?.invoice?.id, status: "Sent" },
+  }), P);
+  const withLoose = await readBilling(billedProject);
+  ok("an invoice against no milestone is counted, not dropped",
+    withLoose.body?.billing?.unattributed === 5000,
+    String(withLoose.body?.billing?.unattributed));
+  ok("...and joins the invoiced total",
+    withLoose.body?.billing?.invoiced === 35000,
+    String(withLoose.body?.billing?.invoiced));
+
+  // DELETING A LINE DOES NOT DELETE WHAT WAS BILLED AGAINST IT. The invoice
+  // keeps its milestoneId and the money rejoins `unattributed`, where it stays
+  // visible -- dropping it would make a project look under-billed for having
+  // tidied a list.
+  await capture(BILLING.DELETE, req(`/api/studios/${slug}/projects/billing`, {
+    method: "DELETE", body: { id: stage1Id },
+  }), P);
+  const afterDrop = await readBilling(billedProject);
+  ok("deleting a milestone does not lose what was billed on it",
+    afterDrop.body?.billing?.invoiced === 35000,
+    String(afterDrop.body?.billing?.invoiced));
+  ok("...it becomes unattributed, where it stays visible",
+    afterDrop.body?.billing?.unattributed === 35000,
+    String(afterDrop.body?.billing?.unattributed));
+  // AND IT CASCADES TO NOTHING. The sibling line is untouched -- deleting one
+  // milestone is not a way to rewrite the rest of the schedule.
+  ok("...and the rest of the schedule is untouched",
+    (afterDrop.body?.billing?.milestones || []).map((m) => m.id).join() === stage2Id
+    && afterDrop.body?.billing?.scheduled === 100000,
+    JSON.stringify((afterDrop.body?.billing?.milestones || []).map((m) => m.id)));
+
+  // BILLING IS ITS OWN RIGHT, and the axis is not the cost breakdown's.
+  // Somebody who may see every cost on this job is refused the schedule: what
+  // a job costs and what its client is billed are different powers.
+  const coster = await billingPersonWith(
+    ["projects.list.view", "projects.costs.view"], "projectcoster");
+  await signIn(coster.id);
+  await shot("projects.billing.forbidden", await readBilling(billedProject));
+  await signIn(owner.id);
 }
 
 // ============================================================================

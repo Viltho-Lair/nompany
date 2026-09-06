@@ -57,6 +57,20 @@ export const ProjectSchema = z.looseObject({
   createdAt: z.string().optional(),
   /** How long the studio supports it after handover. Set on the project, not the SLA. */
   supportPeriodDays: z.number().optional(),
+  /**
+   * RETENTION — the percentage a client withholds from each claim, and the date
+   * the last of it becomes payable (the defects-liability end).
+   *
+   * BOTH OPTIONAL, because every project already in the database predates them,
+   * the same reason `tenderId` above is. Absent reads as a contract with no
+   * retention, which is a real and common arrangement rather than a gap.
+   *
+   * They live on the PROJECT rather than on each milestone because retention is
+   * a term of the contract, not of a claim: one percentage governs the job, and
+   * a copy per line would be free to disagree with itself.
+   */
+  retentionPercent: z.number().optional(),
+  retentionReleaseDate: z.string().optional(),
 });
 
 /**
@@ -129,6 +143,40 @@ export const OvertimeSchema = z.looseObject({
  * expects to spend less than it charged edits it down — which is the entire
  * point of keeping the two apart.
  */
+/**
+ * A LINE OF THE PAYMENT SCHEDULE — what may be billed, and when it is earned.
+ *
+ * THE AMOUNT IS ABSOLUTE, never a percentage of the project's value. A stored
+ * percentage would silently re-price every milestone the moment `value` moved
+ * and give one number two sources; `projectBilling` surfaces `unscheduled`
+ * instead, exactly as the cost breakdown surfaces `unallocated`. The screen
+ * offers "% of value" as an entry convenience that resolves to an amount before
+ * it is stored.
+ *
+ * THERE IS NO `Invoiced` STATUS. Whether a milestone has been billed is derived
+ * from the invoices naming it, because a stored flag and a real invoice are two
+ * answers that part company the first time one is cancelled. `status` is
+ * Pending or Ready and nothing else — see MILESTONE_STATUSES.
+ */
+export const ProjectMilestoneSchema = z.object({
+  id: z.string(),
+  studioId: z.string(),
+  sectionId: z.string(),
+  projectId: z.string().max(60),
+  /** The studio's own reference for this claim. Unique per project. */
+  code: z.string().max(40),
+  name: z.string().max(200),
+  amount: z.number(),
+  /** When the work behind it is due. Optional: not every schedule is dated. */
+  dueDate: z.string(),
+  status: z.string(),
+  notes: z.string().max(1000),
+  sortOrder: z.number(),
+  createdByCollaboratorId: z.string(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
 export const ProjectCostSchema = z.object({
   id: z.string(),
   studioId: z.string(),
@@ -147,6 +195,7 @@ export const ProjectCostSchema = z.object({
 
 export type Project = z.infer<typeof ProjectSchema>;
 export type ProjectCost = z.infer<typeof ProjectCostSchema>;
+export type ProjectMilestone = z.infer<typeof ProjectMilestoneSchema>;
 export type Sla = z.infer<typeof SlaSchema>;
 export type EmergencyVisit = z.infer<typeof EmergencyVisitSchema>;
 export type Overtime = z.infer<typeof OvertimeSchema>;
