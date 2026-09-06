@@ -12,6 +12,7 @@ import { moduleContext } from "../context";
 import { requirePermission } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
 import { nextReference } from "@/modules/main/references";
+import { listCollaborators } from "@/platform/auth/collaborators";
 import {
   requisitionTotals, requisitionProblem, requisitionEditable, requisitionDeletable,
   lineIsReal,
@@ -92,11 +93,25 @@ async function ordersByRequisition(ctx: ProcurementContext): Promise<Map<string,
 }
 
 /** One requisition, as a list row needs it: the record, its totals, its order. */
-function decorate(req: Requisition, order: Order | undefined) {
+function decorate(
+  req: Requisition,
+  order: Order | undefined,
+  aliasOf: Map<string, string>,
+) {
   const totals = requisitionTotals(req.lines);
   return {
     ...req,
     totals,
+    // RESOLVED LIVE off the collaborator list rather than copied onto the
+    // record, which is the rule changeOrders states: somebody renamed after
+    // raising a request reads correctly on it, and a stored copy cannot.
+    //
+    // BESIDE THE IDS, NEVER INSTEAD OF THEM. The id is what invariant 7
+    // compares — a screen holding only the name could not tell two people
+    // called the same thing apart, and that comparison decides who may sign.
+    createdByAlias: aliasOf.get(String(req.createdByCollaboratorId || "")) || "",
+    submittedByAlias: aliasOf.get(String(req.submittedByCollaboratorId || "")) || "",
+    answeredByAlias: aliasOf.get(String(req.answeredByCollaboratorId || "")) || "",
     // THE DERIVED HALF OF THE LADDER. `status` says Approved; whether it has
     // been bought is this.
     orderId: order?.id || "",
@@ -110,17 +125,23 @@ export async function listRequisitions(ctx: ProcurementContext) {
   if (denied) return denied;
 
   const { studio, requisitionsSection } = ctx;
-  const [rows, orders] = await Promise.all([
+  // One read for the whole list, not one per row.
+  const [rows, orders, people] = await Promise.all([
     Requisitions.find({ studio, section: requisitionsSection }),
     ordersByRequisition(ctx),
+    listCollaborators(studio.id),
   ]);
+  const aliasOf = new Map(
+    (people as { id?: unknown; alias?: unknown }[])
+      .map((c) => [String(c?.id ?? ""), String(c?.alias ?? "")] as const),
+  );
 
   // NEWEST FIRST. A requisition is read to answer "what is waiting on me",
   // which is a question about the recent ones — unlike a tender, which is read
   // by deadline.
   const requisitions = [...rows]
     .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")))
-    .map((r) => decorate(r, orders.get(r.id)));
+    .map((r) => decorate(r, orders.get(r.id), aliasOf));
 
   return {
     requisitions,

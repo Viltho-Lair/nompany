@@ -6119,12 +6119,34 @@ console.log("== procurement: the request that stands before a purchase order");
     approved.body?.requisition?.status === "Approved", approved.body?.requisition?.status);
   ok("...and it is recorded as approved", approved.body?.approved === true);
 
+  // ---- the list row, which is a DIFFERENT SHAPE from the record -----------
+  //
+  // EVERY GOLDEN ABOVE CAPTURES A WRITE RESPONSE, which returns the stored
+  // record; the list DECORATES it with totals, the resolved aliases and the
+  // derived order. So without this shot the decorated fields were pinned by
+  // nothing at all and could change or vanish in silence — which is exactly
+  // what happened: the alias fields were added, the whole suite re-recorded,
+  // and not one golden moved.
+  await signIn(owner.id);
+  const populated = await shot("procurement.requisitions.list", await readReqs());
+  const row = (populated.body?.requisitions || [])[0];
+  // RESOLVED LIVE off the collaborator list rather than stored on the record,
+  // so somebody renamed after raising a request still reads correctly.
+  ok("the list names the person, not their id",
+    Boolean(row?.createdByAlias) && row.createdByAlias !== row.createdByCollaboratorId,
+    JSON.stringify({ alias: row?.createdByAlias, id: row?.createdByCollaboratorId })); 
+  // BESIDE THE ID, NEVER INSTEAD OF IT: the id is what invariant 7 compares,
+  // and a screen holding only names could not tell two people called the same
+  // thing apart.
+  ok("...and keeps the id beside it", Boolean(row?.createdByCollaboratorId));
+  ok("...and carries its own totals", row?.totals?.complete === true,
+    JSON.stringify(row?.totals));
+
   // ---- and it becomes an order --------------------------------------------
   //
   // THROUGH INVENTORY'S OWN CREATE, not a second write path. `openProject`'s
   // comment makes the argument: a second create is a second place the
   // engagement attach can be forgotten.
-  await signIn(owner.id);
   // ITS OWN VENDOR, created here rather than borrowed from the inventory block:
   // that block runs earlier and this one must not depend on what it happened to
   // leave behind. The vendors route has no GET at all -- the list comes off the

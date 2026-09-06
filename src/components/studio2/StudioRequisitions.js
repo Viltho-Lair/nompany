@@ -166,7 +166,11 @@ export default function StudioRequisitions({ slug }) {
                       <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{r.justification}</p>
                     )}
                     <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
-                      {tr.raisedBy}: {r.createdByCollaboratorId || "—"}
+                      {/* THE NAME, FALLING BACK TO THE ID rather than to a
+                          dash: a collaborator who has since been removed still
+                          raised this, and an id is a worse answer than a name
+                          but a far better one than nothing. */}
+                      {tr.raisedBy}: {r.createdByAlias || r.createdByCollaboratorId || "—"}
                       {r.neededBy ? ` · ${tr.neededBy} ${fmtDate(r.neededBy)}` : ""}
                       {r.ordered ? ` · ${tr.orderedAs} ${r.orderReference}` : ""}
                     </p>
@@ -285,27 +289,27 @@ export default function StudioRequisitions({ slug }) {
                       <tr key={i} className="border-t border-slate-100 dark:border-slate-800">
                         <td className="px-2 py-2">
                           <input className="w-full rounded-lg border border-slate-200 px-2 py-1 text-sm dark:border-white/10 dark:bg-transparent"
-                            value={l.description} maxLength={400}
+                            value={l.description} maxLength={400} aria-label={tr.lineDescription}
                             onChange={(e) => setLine(i, { description: e.target.value })} />
                         </td>
                         <td className="px-2 py-2">
                           <input className="w-20 rounded-lg border border-slate-200 px-2 py-1 text-sm dark:border-white/10 dark:bg-transparent"
-                            value={l.unit} maxLength={40}
+                            value={l.unit} maxLength={40} aria-label={tr.lineUnit}
                             onChange={(e) => setLine(i, { unit: e.target.value })} />
                         </td>
                         <td className="px-2 py-2 text-end">
                           <input type="number" className="num w-24 rounded-lg border border-slate-200 px-2 py-1 text-end text-sm dark:border-white/10 dark:bg-transparent"
-                            value={l.qty}
+                            value={l.qty} aria-label={tr.lineQty}
                             onChange={(e) => setLine(i, { qty: e.target.value })} />
                         </td>
                         <td className="px-2 py-2 text-end">
                           <input type="number" step="0.01" className="num w-28 rounded-lg border border-slate-200 px-2 py-1 text-end text-sm dark:border-white/10 dark:bg-transparent"
-                            value={l.estUnitCost}
+                            value={l.estUnitCost} aria-label={tr.lineEstCost}
                             onChange={(e) => setLine(i, { estUnitCost: e.target.value })} />
                         </td>
                         <td className="px-2 py-2">
                           <input className="w-32 rounded-lg border border-slate-200 px-2 py-1 text-sm dark:border-white/10 dark:bg-transparent"
-                            value={l.itemId} maxLength={60}
+                            value={l.itemId} maxLength={60} aria-label={tr.lineItem}
                             onChange={(e) => setLine(i, { itemId: e.target.value })} />
                         </td>
                       </tr>
