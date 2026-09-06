@@ -170,7 +170,7 @@
         "name": "Accounts Assistant",
         "description": "",
         "wildcard": false,
-        "permissionCount": 17,
+        "permissionCount": 22,
         "departmentId": "<dep_ID>",
         "source": "library",
         "held": 0
@@ -180,7 +180,7 @@
         "name": "Accounts Payable Accountant",
         "description": "",
         "wildcard": false,
-        "permissionCount": 17,
+        "permissionCount": 22,
         "departmentId": "<dep_ID>",
         "source": "library",
         "held": 0
@@ -190,7 +190,7 @@
         "name": "Accounts Receivable Accountant",
         "description": "",
         "wildcard": false,
-        "permissionCount": 17,
+        "permissionCount": 22,
         "departmentId": "<dep_ID>",
         "source": "library",
         "held": 0
@@ -210,7 +210,7 @@
         "name": "Artistic Director",
         "description": "",
         "wildcard": false,
-        "permissionCount": 140,
+        "permissionCount": 162,
         "departmentId": "<dep_ID>",
         "source": "library",
         "held": 0
@@ -220,7 +220,7 @@
         "name": "Auditor General",
         "description": "",
         "wildcard": false,
-        "permissionCount": 6,
+        "permissionCount": 8,
         "departmentId": "<dep_ID>",
         "source": "library",
         "held": 0
@@ -230,7 +230,7 @@
         "name": "Board Audit Committee Chair",
         "description": "",
         "wildcard": false,
-        "permissionCount": 17,
+        "permissionCount": 22,
         "departmentId": "<dep_ID>",
         "source": "library",
         "held": 0
@@ -240,7 +240,7 @@
         "name": "Board Member",
         "description": "",
         "wildcard": false,
-        "permissionCount": 140,
+        "permissionCount": 162,
         "departmentId": "<dep_ID>",
         "source": "library",
         "held": 0
@@ -250,7 +250,7 @@
         "name": "Branch Manager",
         "description": "",
         "wildcard": false,
-        "permissionCount": 140,
+        "permissionCount": 162,
         "departmentId": "<dep_ID>",
         "source": "library",
         "held": 0
@@ -260,7 +260,7 @@
         "name": "Brand / Franchise Director",
         "description": "",
         "wildcard": false,
-        "permissionCount": 140,
+        "permissionCount": 162,
         "departmentId": "<dep_ID>",
         "source": "library",
         "held": 0
@@ -270,7 +270,7 @@
         "name": "Bursar / Chief Financial Officer",
         "description": "",
         "wildcard": false,
-        "permissionCount": 17,
+        "permissionCount": 22,
         "departmentId": "<dep_ID>",
         "source": "library",
         "held": 0
@@ -280,7 +280,7 @@
         "name": "Business Unit Head",
         "description": "",
         "wildcard": false,
-        "permissionCount": 140,
+        "permissionCount": 162,
         "departmentId": "<dep_ID>",
         "source": "library",
         "held": 0
@@ -290,7 +290,7 @@
         "name": "Chairman",
         "description": "",
         "wildcard": false,
-        "permissionCount": 140,
+        "permissionCount": 162,
         "departmentId": "<dep_ID>",
         "source": "library",
         "held": 0
@@ -300,7 +300,7 @@
         "name": "Chairman / Board",
         "description": "",
         "wildcard": false,
-        "permissionCount": 140,
+        "permissionCount": 162,
         "departmentId": "<dep_ID>",
         "source": "library",
         "held": 0
@@ -310,7 +310,7 @@
         "name": "Chairman / Board",
         "description": "",
         "wildcard": false,
-        "permissionCount": 140,
+        "permissionCount": 162,
         "departmentId": "<dep_ID>",
         "source": "library",
         "held": 0
@@ -320,7 +320,7 @@
         "name": "Chief Credit Officer",
         "description": "",
         "wildcard": false,
-        "permissionCount": 25,
+        "permissionCount": 33,
         "departmentId": "<dep_ID>",
         "source": "library",
         "held": 0
@@ -330,7 +330,7 @@
         "name": "Chief Financial Officer",
         "description": "",
         "wildcard": false,
-        "permissionCount": 17,
+        "permissionCount": 22,
         "departmentId": "<dep_ID>",
         "source": "library",
         "held": 0
@@ -340,7 +340,7 @@
         "name": "Chief Financial Officer",
         "description": "",
         "wildcard": false,
-        "permissionCount": 17,
+        "permissionCount": 22,
         "departmentId": "<dep_ID>",
         "source": "library",
         "held": 0
@@ -350,7 +350,7 @@
         "name": "Chief Financial Officer",
         "description": "",
         "wildcard": false,
-        "permissionCount": 17,
+        "permissionCount": 22,
         "departmentId": "<dep_ID>",
         "source": "library",
         "held": 0
@@ -360,7 +360,7 @@
         "name": "Compensation & Benefits Specialist",
         "description": "",
         "wildcard": false,
-        "permissionCount": 25,
+        "permissionCount": 33,
         "departmentId": "<dep_ID>",
         "source": "library",
         "held": 0
@@ -370,7 +370,7 @@
         "name": "Director of Finance",
         "description": "",
         "wildcard": false,
-        "permissionCount": 17,
+        "permissionCount": 22,
         "departmentId": "<dep_ID>",
         "source": "library",
         "held": 0
@@ -380,7 +380,7 @@
         "name": "Director of Human Resources",
         "description": "",
         "wildcard": false,
-        "permissionCount": 25,
+        "permissionCount": 33,
         "departmentId": "<dep_ID>",
         "source": "library",
         "held": 0
@@ -390,7 +390,7 @@
         "name": "Director of Mineral Resources & Reserves",
         "description": "",
         "wildcard": false,
-        "permissionCount": 25,
+        "permissionCount": 33,
         "departmentId": "<dep_ID>",
         "source": "library",
         "held": 0
@@ -400,7 +400,7 @@
         "name": "Director of Training",
         "description": "",
         "wildcard": false,
-        "permissionCount": 25,
+        "permissionCount": 33,
         "departmentId": "<dep_ID>",
         "source": "library",
         "held": 0
@@ -410,7 +410,7 @@
         "name": "Employee Relations Officer",
         "description": "",
         "wildcard": false,
-        "permissionCount": 25,
+        "permissionCount": 33,
         "departmentId": "<dep_ID>",
         "source": "library",
         "held": 0
@@ -420,7 +420,7 @@
         "name": "Finance Director",
         "description": "",
         "wildcard": false,
-        "permissionCount": 17,
+        "permissionCount": 22,
         "departmentId": "<dep_ID>",
         "source": "library",
         "held": 0
@@ -430,7 +430,7 @@
         "name": "Government Relations Officer",
         "description": "",
         "wildcard": false,
-        "permissionCount": 25,
+        "permissionCount": 33,
         "departmentId": "<dep_ID>",
         "source": "library",
         "held": 0
@@ -440,7 +440,7 @@
         "name": "Head of Corporate Training",
         "description": "",
         "wildcard": false,
-        "permissionCount": 25,
+        "permissionCount": 33,
         "departmentId": "<dep_ID>",
         "source": "library",
         "held": 0
@@ -450,7 +450,7 @@
         "name": "Head of E-Learning",
         "description": "",
         "wildcard": false,
-        "permissionCount": 25,
+        "permissionCount": 33,
         "departmentId": "<dep_ID>",
         "source": "library",
         "held": 0
@@ -460,7 +460,7 @@
         "name": "Head of Learning & Development",
         "description": "",
         "wildcard": false,
-        "permissionCount": 25,
+        "permissionCount": 33,
         "departmentId": "<dep_ID>",
         "source": "library",
         "held": 0
@@ -470,7 +470,7 @@
         "name": "Head of Training & Standards",
         "description": "",
         "wildcard": false,
-        "permissionCount": 25,
+        "permissionCount": 33,
         "departmentId": "<dep_ID>",
         "source": "library",
         "held": 0
