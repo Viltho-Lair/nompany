@@ -100,6 +100,42 @@ export async function listTenders(ctx: TenderingContext) {
   };
 }
 
+/**
+ * THE REGISTER'S WHOLE PAYLOAD, COMPOSED ONCE.
+ *
+ * This assembly used to live in the route handler, which was fine while the
+ * route was the only thing that produced it. The studio page server-renders the
+ * screen's first payload now — see the design in
+ * docs/superpowers/specs/2026-09-06-server-rendered-first-payload-design.md —
+ * and two copies of "what the register answers" would be two answers free to
+ * disagree, with only ONE of them pinned by a golden. The disagreement would not
+ * be visible until a studio saw it.
+ *
+ * CALLED FROM EXACTLY TWO PLACES: this module's route, and the studio page. A
+ * third caller is how the second composition path comes back.
+ */
+export async function tendersView(ctx: TenderingContext) {
+  const result = await listTenders(ctx);
+  // NOT `refused()` — that helper lives in platform/http/route, and a service
+  // importing a route helper points the dependency backwards: modules know
+  // nothing about HTTP. Same shape, asked here.
+  if (result && typeof result === "object" && "error" in result) return result;
+  return {
+    ok: true as const,
+    // THE CLOCK TRAVELS WITH THE ANSWER. Every "days left" on the register is
+    // measured from this one instant and the screen never reads its own — so
+    // leaving it behind here left `nowMs` at zero and made every deadline read
+    // as missed by twenty thousand days.
+    asOf: result.asOf,
+    tenders: result.tenders,
+    // THE RIGHTS TRAVEL WITH THE LIST, so the register draws a control only
+    // where the service would accept the request behind it.
+    canCreate: !requirePermission(ctx.access, "tendering.tenders.create"),
+    canEdit: !requirePermission(ctx.access, "tendering.tenders.edit"),
+    canDelete: !requirePermission(ctx.access, "tendering.tenders.delete"),
+  };
+}
+
 export async function createTender(ctx: TenderingContext, body: Record<string, unknown>) {
   // THE GUARD, BEFORE ANYTHING IS READ OR WRITTEN. Not in the route: routes get
   // added and forgotten, and the function that does the work cannot be reached

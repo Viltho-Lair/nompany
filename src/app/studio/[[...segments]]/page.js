@@ -15,6 +15,14 @@ import { sectionName } from "@/shared/studio/sections";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { RecordSkeleton } from "@/components/studio2/RecordSkeleton";
 import { studioRequest } from "../_shell";
+// THE FIRST SCREEN THAT COMPOSES ITS OWN PAYLOAD HERE rather than letting the
+// browser fetch it. Server-only, all three: the module resolves a context and
+// reads rows, the ceiling is consulted before anything is handed down, and `log`
+// records the one case where it is not. See the design in
+// docs/superpowers/specs/2026-09-06-server-rendered-first-payload-design.md.
+import { tenderingContext, tendersView } from "@/modules/tendering/tenders";
+import { fitsInRscPayload } from "@/shared/rscPayload";
+import { log } from "@/platform/http/observability";
 
 // ONE SCREEN IS RENDERED PER REQUEST, SO ONE SCREEN IS DOWNLOADED.
 //
@@ -513,6 +521,50 @@ async function renderStudio(params) {
     ? (allSections.find((s) => s.id === active.parentId)?.key || active.key)
     : active?.key;
 
+  // THE TENDER REGISTER'S FIRST PAYLOAD, COMPOSED HERE RATHER THAN FETCHED BY THE
+  // BROWSER. This is the whole of the change: the screen used to mount empty and
+  // then ask an API route which re-resolved the user, the studio, the
+  // collaborator, the roles and the sections from scratch — because a second HTTP
+  // request cannot share a request cache with the first, and no mechanism can
+  // make it. Two requests became one.
+  //
+  // INSIDE THIS RENDER, DELIBERATELY. `tenderingContext` resolves the studio
+  // itself (moduleContext calls studioContext), and it is free HERE and nowhere
+  // else: readArr and getIndex read through cachedRead, the map holds PROMISES so
+  // even concurrent duplicates collapse, and withRequestCache is established by
+  // the withRequest that wraps this render. Move this call outside that scope and
+  // every one of those reads becomes a real round trip again — which would make
+  // the page slower than the thing it replaced.
+  //
+  // ONLY THE REGISTER. `boqTenderId` means a second segment, which is the BOQ
+  // grid rather than the list, and `deniedSection` means there is no screen to
+  // hand a payload to.
+  let tendersInitial;
+  let tendersError = "";
+  if (screenKey === "tendering" && !deniedSection && !boqTenderId) {
+    const ctx = await tenderingContext(context.user, studio.slug);
+    if (ctx.error) {
+      // A REFUSAL IS A VALUE HERE, NOT A THROWN RESPONSE. Throwing would take the
+      // whole screen down where the fetch path showed a message in place of the
+      // list — a worse answer to the same fact.
+      tendersError = String(ctx.error);
+    } else {
+      const payload = await tendersView(ctx);
+      if (payload?.error) {
+        tendersError = String(payload.error);
+      } else if (fitsInRscPayload(payload)) {
+        tendersInitial = payload;
+      } else {
+        // OVER THE CEILING: hand down nothing and let the screen fetch, exactly as
+        // it did before this existed. Degrading rather than refusing — a studio
+        // with five thousand tenders gets the old behaviour, not a broken screen.
+        // LOGGED because a tenant permanently over the ceiling is permanently
+        // paying the round trip, and nobody would otherwise ever find out.
+        log.info("rsc payload over ceiling", { screen: "tendering", slug: studio.slug });
+      }
+    }
+  }
+
   // NO frameProps, AND NO StudioFrame AROUND WHAT FOLLOWS.
   //
   // The shell is the layout's now, so everything that used to be assembled
@@ -573,7 +625,7 @@ async function renderStudio(params) {
         : customerId ? <StudioCustomer slug={studio.slug} clientId={customerId} />
         : boqTenderId ? <StudioBoq slug={studio.slug} tenderId={boqTenderId} />
         : active?.key === "tendering-rates" ? <StudioRates slug={studio.slug} />
-        : screenKey === "tendering" ? <StudioTenders slug={studio.slug} />
+        : screenKey === "tendering" ? <StudioTenders slug={studio.slug} initial={tendersInitial} initialError={tendersError} />
         : active?.key === "crm-sales-pipeline" ? <StudioPipeline slug={studio.slug} />
         : active?.key === "crm-sales-contracts" ? <StudioContracts slug={studio.slug} />
         : active?.key === "crm-sales-quotations" ? (
