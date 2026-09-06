@@ -635,13 +635,29 @@ function DirectProject({ people, clients, industries, studioDefaults, busy, setB
             options={clients.map((c) => c.name)} inputClassName={BARE_CONTROL} />
         </Field>
 
+        <Field className="sm:col-span-2" label={tr.title} required value={f.title}
+          onChange={(v) => set({ title: v })} />
+      </div>
+
+      {/* The same block a new quotation raises a client with. Positions are
+          offered from the contacts this client already has — Projects has no
+          contact-position vocabulary of its own, and inventing a second one to
+          hold the same words is how two lists drift. */}
+      <ClientBlock value={f} onChange={(patch) => set(patch)} client={matched}
+        positions={[...new Set((matched?.contacts || []).map((c) => c.position).filter(Boolean))]} />
+
+      {/* WHAT THE WORK IS AND WHO RUNS IT, kept BELOW the client block — the
+          same order the ticket and quotation forms read in: who it is for
+          (client, title, then the contact and the site), and only then what
+          is being built. The industry in particular sat BETWEEN the client
+          name and the title, which put a classification in the middle of
+          naming the job and then asked for the same client's contact and site
+          four fields later. */}
+      <div className="mt-4 grid gap-4 sm:grid-cols-2">
         <Field label={tr.typeIndustry} filled={!!f.industry}>
           <Combo value={f.industry} onChange={(v) => set({ industry: v })}
             options={industries} inputClassName={BARE_CONTROL} />
         </Field>
-
-        <Field className="sm:col-span-2" label={tr.title} required value={f.title}
-          onChange={(v) => set({ title: v })} />
 
         <Field className="sm:col-span-2" label={tr.descriptionOfTheWork} as="textarea"
           value={f.notes} onChange={(v) => set({ notes: v })} />
@@ -661,13 +677,6 @@ function DirectProject({ people, clients, industries, studioDefaults, busy, setB
           <StudioDate value={f.endDate} onChange={(iso) => set({ endDate: iso })} />
         </Field>
       </div>
-
-      {/* The same block a new quotation raises a client with. Positions are
-          offered from the contacts this client already has — Projects has no
-          contact-position vocabulary of its own, and inventing a second one to
-          hold the same words is how two lists drift. */}
-      <ClientBlock value={f} onChange={(patch) => set(patch)} client={matched}
-        positions={[...new Set((matched?.contacts || []).map((c) => c.position).filter(Boolean))]} />
 
       <div className="mt-5 flex gap-3">
         <button className={btn} disabled={busy || !ready} onClick={save}>
