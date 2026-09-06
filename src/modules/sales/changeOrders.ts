@@ -7,6 +7,7 @@
 import { repo } from "@/platform/db/repo";
 import { requirePermission } from "@/platform/access";
 import { attachRecord, resolveDealId } from "@/platform/db/engagement";
+import { listCollaborators } from "@/platform/auth/collaborators";
 import type { ChangeOrder } from "./changeOrderSchema";
 import { CHANGE_ORDER_STATUSES } from "./changeOrderSchema";
 
@@ -50,7 +51,34 @@ export async function listChangeOrders(ctx: SalesContext) {
   // its absence is a real answer rather than an error. Nothing is wrong, so an
   // empty list is the honest reply.
   if (!quotationsSection) return { changeOrders: [] };
-  return { changeOrders: await ChangeOrders.find({ studio, section: quotationsSection }) };
+
+  // WHO ASKED AND WHO ANSWERED, IN WORDS. The record stores CollaboratorIDs and
+  // must (invariant 6) — they are the identity invariant 7 is enforced between.
+  // But an id is not a name, and a register that printed `col_mtn66poe…` beside
+  // a variation told a reader nothing about who to go and talk to.
+  //
+  // RESOLVED LIVE off the collaborator list rather than copied onto the record
+  // (Law 4): somebody renamed after answering a variation reads correctly on
+  // it, which a stored copy cannot do. One read for the whole list, not one per
+  // row.
+  const [rows, people] = await Promise.all([
+    ChangeOrders.find({ studio, section: quotationsSection }),
+    listCollaborators(studio.id),
+  ]);
+  const aliasOf = new Map(
+    (people as { id?: unknown; alias?: unknown }[])
+      .map((c) => [String(c?.id ?? ""), String(c?.alias ?? "")] as const),
+  );
+  return {
+    changeOrders: rows.map((co) => ({
+      ...co,
+      // Beside the ids, never instead of them: the id is what the transition
+      // compares, and a screen that only had the name could not tell two people
+      // called the same thing apart.
+      submittedByAlias: aliasOf.get(String(co.submittedByCollaboratorId || "")) || "",
+      approvedByAlias: aliasOf.get(String(co.approvedByCollaboratorId || "")) || "",
+    })),
+  };
 }
 
 /**

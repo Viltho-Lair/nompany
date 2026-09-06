@@ -14,6 +14,19 @@
 // NO DELETE, and the route agrees: a contract is the deal's value baseline,
 // invoices claim against it and change orders adjust it. Ending one is a state
 // it HAS, not the absence of a record.
+//
+// A VARIATION CAN BE RAISED HERE NOW, and until it could the rest of this
+// screen was unreachable: the service, the route and the approve/reject buttons
+// below all existed, but nothing created a change order and nothing submitted
+// one, so no variation could ever reach `submitted` and those buttons could
+// never appear. A feature nobody can enter is a feature nobody can test, which
+// is how the route came to pass its whole request body where `answerChangeOrder`
+// expects a boolean — rejecting a variation approved it, and no test reached
+// the transition to notice.
+//
+// THE THREE ACTS ARE THREE VERBS, matching the service: raise/edit (a draft, on
+// PUT and POST), submit (draft → submitted), answer (approve or reject). Only
+// the last carries invariant 7, and only it is a PATCH.
 "use client";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
@@ -24,7 +37,8 @@ import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 // refuses a raw toLocaleString in a studio screen, and it caught exactly that
 // in the first draft of this file — a per-screen formatter is how two screens
 // end up disagreeing about what a number looks like.
-import { panel, h2, sub, btn, btnGhost, Empty, fmtDate, money } from "@/components/studio2/ui";
+import { panel, h2, sub, btn, btnGhost, btnRow, Empty, Dialog, fmtDate, fmtDateTime, money } from "@/components/studio2/ui";
+import { Field } from "@/components/fields/Field";
 import { StatusPill } from "@/components/studio2/StatusPill";
 
 export default function StudioContracts({ slug }) {
@@ -35,6 +49,11 @@ export default function StudioContracts({ slug }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState(null);
+  // The variation being written. `contractId` and `dealId` are carried on it
+  // because a variation is raised AGAINST a contract and the dialog is opened
+  // from that contract's row — there is no picker, and no way to raise one
+  // against a contract you were not looking at.
+  const [variation, setVariation] = useState(null);
 
   // TWO READS, because they are two routes. They were built separately in P2
   // and each guards itself; joining them here rather than adding a third
@@ -69,7 +88,12 @@ export default function StudioContracts({ slug }) {
     if (!res.ok) {
       // `same-signer` is invariant 7 speaking, and it deserves its own sentence
       // rather than a raw token: the person reading it submitted this variation.
-      setError(out.error === "same-signer" ? tr.cannotAnswerYourOwn : (out.error || "failed"));
+      setError(
+        out.error === "same-signer" ? tr.cannotAnswerYourOwn
+          : out.error === "not-submitted" ? tr.refuseNotSubmittedVariation
+            : out.error === "already" ? tr.refuseAlreadyAnswered
+              : (out.error || "failed"),
+      );
       return false;
     }
     await load();
@@ -145,7 +169,19 @@ export default function StudioContracts({ slug }) {
                       {c.notes && <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{c.notes}</p>}
 
                       <div className="mt-3 border-t border-slate-200 pt-3 dark:border-white/10">
-                        <p className="text-xs font-700 uppercase tracking-wide text-slate-500 dark:text-slate-400">{tr.variations}</p>
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <p className="text-xs font-700 uppercase tracking-wide text-slate-500 dark:text-slate-400">{tr.variations}</p>
+                          {rights.canCreate && (
+                            <button type="button" className={btnRow}
+                              onClick={() => setVariation({
+                                contractId: c.id, dealId: c.dealId || "",
+                                title: "", scope: "", valueDelta: "", timeDeltaDays: "", notes: "",
+                              })}>
+                              {tr.raiseVariation}
+                            </button>
+                          )}
+                        </div>
+                        <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">{tr.onlyApprovedCount}</p>
                         {mine.length === 0 ? (
                           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{tr.noVariationsYet}</p>
                         ) : (
@@ -155,11 +191,49 @@ export default function StudioContracts({ slug }) {
                                 <span className="min-w-0 text-slate-700 dark:text-slate-200">
                                   {co.title}
                                   <span className="ms-2"><StatusPill kind="changeOrder" status={co.status} /></span>
+                                  {/* WHAT IT DOES TO THE TIME, beside what it
+                                      does to the value. An extension of time is
+                                      half of what a variation grants and the
+                                      register showed only the money. */}
+                                  {Number(co.timeDeltaDays) !== 0 && (
+                                    <span className="ms-2 num text-xs text-slate-500 dark:text-slate-400">
+                                      {tr.nDaysDelta(Number(co.timeDeltaDays) || 0)}
+                                    </span>
+                                  )}
+                                  {co.scope && (
+                                    <span className="mt-1 block text-xs text-slate-500 dark:text-slate-400">{co.scope}</span>
+                                  )}
+                                  {/* WHO ASKED AND WHO ANSWERED. Both are stored
+                                      precisely so invariant 7 can be enforced
+                                      between them, and a register that showed
+                                      neither made the refusal unexplainable. */}
+                                  <span className="mt-1 block text-xs text-slate-400 dark:text-slate-500">
+                                    {co.status === "draft" ? tr.variationDraft
+                                      : co.status === "submitted"
+                                        ? tr.submittedByOn(co.submittedByAlias || co.submittedByCollaboratorId || "—", fmtDateTime(co.submittedAt))
+                                        : tr.answeredByOn(co.approvedByAlias || co.approvedByCollaboratorId || "—", fmtDateTime(co.approvedAt))}
+                                  </span>
                                 </span>
                                 <span className="flex items-center gap-3">
                                   <span className="num text-slate-600 dark:text-slate-300">
                                     {(Number(co.valueDelta) || 0) >= 0 ? "+" : "−"}{money(Math.abs(co.valueDelta))}
                                   </span>
+                                  {/* A DRAFT IS THE ONLY THING THAT EDITS, and
+                                      the service agrees: once submitted, the
+                                      thing somebody was asked to answer must not
+                                      change underneath them. */}
+                                  {rights.canEdit && co.status === "draft" && (
+                                    <>
+                                      <button type="button" className={btnRow} disabled={busy}
+                                        onClick={() => setVariation({ ...co })}>
+                                        {tr.edit}
+                                      </button>
+                                      <button type="button" className={btn} disabled={busy}
+                                        onClick={() => send("change-orders", "PATCH", { id: co.id, action: "submit" })}>
+                                        {tr.submitVariation}
+                                      </button>
+                                    </>
+                                  )}
                                   {/* ANSWERING IS OFFERED ONLY WHERE IT WOULD BE
                                       ACCEPTED. The route refuses the submitter
                                       (invariant 7) whatever they hold, and this
@@ -191,6 +265,65 @@ export default function StudioContracts({ slug }) {
             })}
           </ul>
         </section>
+      )}
+
+      {variation && (
+        <Dialog
+          title={variation.id ? tr.editVariation : tr.raiseVariation}
+          onClose={() => setVariation(null)}
+          width="max-w-[640px]"
+        >
+          <div className="space-y-4">
+            <Field label={tr.variationTitle} required value={variation.title || ""}
+              onChange={(v) => setVariation((f) => ({ ...f, title: v }))} inputProps={{ maxLength: 200 }} />
+            <Field label={tr.variationScope} as="textarea" value={variation.scope || ""}
+              onChange={(v) => setVariation((f) => ({ ...f, scope: v }))} inputProps={{ maxLength: 4000 }} />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                {/* SIGNED, AND THE HINT SAYS SO. A negative delta is the only
+                    honest way to record an omission, and a field that looked
+                    like "the new value" would invite exactly the absolute
+                    figure the schema refuses to store. */}
+                <Field label={tr.variationValueDelta} type="number" value={variation.valueDelta ?? ""}
+                  onChange={(v) => setVariation((f) => ({ ...f, valueDelta: v }))}
+                  inputProps={{ step: "0.01" }} />
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{tr.variationValueDeltaHint}</p>
+              </div>
+              <div>
+                <Field label={tr.variationTimeDelta} type="number" value={variation.timeDeltaDays ?? ""}
+                  onChange={(v) => setVariation((f) => ({ ...f, timeDeltaDays: v }))}
+                  inputProps={{ step: "1" }} />
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{tr.variationTimeDeltaHint}</p>
+              </div>
+            </div>
+            <Field label={tr.notes} as="textarea" value={variation.notes || ""}
+              onChange={(v) => setVariation((f) => ({ ...f, notes: v }))} inputProps={{ maxLength: 4000 }} />
+            <div className="flex justify-end gap-2">
+              <button type="button" className={btnGhost} onClick={() => setVariation(null)}>{tr.cancel}</button>
+              <button type="button" className={btn} disabled={busy || !variation.title?.trim()}
+                onClick={async () => {
+                  const payload = {
+                    title: variation.title,
+                    scope: variation.scope,
+                    valueDelta: Number(variation.valueDelta) || 0,
+                    timeDeltaDays: Number(variation.timeDeltaDays) || 0,
+                    notes: variation.notes,
+                  };
+                  // BORN A DRAFT, ALWAYS. The create path takes no status and
+                  // the screen sends none: submitting is its own verb, and a
+                  // status accepted here would be the side entrance around it.
+                  const done = variation.id
+                    ? await send("change-orders", "PUT", { ...payload, id: variation.id })
+                    : await send("change-orders", "POST", {
+                      ...payload, contractId: variation.contractId, dealId: variation.dealId,
+                    });
+                  if (done) setVariation(null);
+                }}>
+                {tr.save}
+              </button>
+            </div>
+          </div>
+        </Dialog>
       )}
     </div>
   );

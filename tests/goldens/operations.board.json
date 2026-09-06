@@ -247,6 +247,10 @@
       },
       {
         "id": "<col_ID>",
+        "alias": "variationanswerer"
+      },
+      {
+        "id": "<col_ID>",
         "alias": "Member"
       },
       {

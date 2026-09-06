@@ -250,8 +250,8 @@ every push to `main` and every pull request.
   to 8 fails the build.
 - **The bundle budget pins the regression, not the size.** Two gates, and the
   first is the one that matters: the LARGEST CHUNK is 158 KB gz against a 250 KB
-  ceiling, because that is what every route pays. Total client JS is **1628 KB gz
-  against 1634 KB** (measured 06/09/2026), which catches sprawl rather than
+  ceiling, because that is what every route pays. Total client JS is **1638 KB gz
+  against 1644 KB** (measured 06/09/2026), which catches sprawl rather than
   splitting. **This line said
   1593 against 1600 and BOTH halves were wrong**: the script's constant was 1700,
   never lowered — the commit that claimed to lower it wrote the comment and left
@@ -856,6 +856,32 @@ one (spent plus ordered); `earned.eac` is the PERFORMANCE one (the budget at the
 far). In Gate A's own fixture they read 194,000 and 281,250. A screen showing one while calling
 it the other is worse than showing neither, so the contract keeps them apart and the screen
 labels both.
+
+**SLICE 4 IS VARIATIONS** (`docs/functionality/variations.md`), and it adds **no permission
+key** — a variation IS a contract's content, so it answers to `crmSales.contracts`, whose
+`approve` verb was minted for exactly this when the register shipped.
+
+**EVERYTHING EXCEPT A WAY IN ALREADY EXISTED.** The schema, the service, the route and the
+approve/reject buttons were all written in P2, and nothing could RAISE a variation or SUBMIT
+one — so none could ever reach `submitted`, and the answer path was unreachable code behind a
+working-looking screen.
+
+**THAT IS HOW A REAL DEFECT SURVIVED, and it is the lesson worth keeping.** The route passed its
+whole request body where `answerChangeOrder` expects a boolean, so `{ action: "reject" }` — an
+object, therefore truthy — **APPROVED the variation it was rejecting**, adding its value to the
+contract. The compiler could not see it (a route handler's `body` is not statically typed) and
+no test could reach it (the transition was unenterable). Gate A had **no change-order coverage
+at all**; it does now, and the block that proves the fix is the coverage that was missing.
+
+**Three acts, three verbs**, matching the service: raise/edit (POST/PUT), submit (draft →
+submitted), answer (PATCH). Only the last carries invariant 7, asked of the OWNER in Gate A —
+who holds every right in the product and is refused on identity alone. A draft is the only thing
+that edits; both deltas are SIGNED because an omission is a variation too; and only APPROVED
+variations move the contract value, which the register now says above the list.
+
+**The deal id is the engagement's, not the ticket's** — a contract and a variation attach to the
+engagement, whose dual-write mints its own id and leaves the derived one as an alias. Passing a
+raw row id throws `no-engagement`, which is what the Gate A fixture hit first.
 
 **A ROUTING BUG THE TESTS COULD NOT SEE, found by opening the screen.** The project board is a
 FULL-SCREEN early return gated on a hand-typed list of third segments, so `/costs` rendered the

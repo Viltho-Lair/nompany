@@ -131,7 +131,21 @@ const MAX_CHUNK_GZIP_KB = 250;
 // server-only and ships nothing; the twenty-five seeded charts do not cross the
 // wire. The largest chunk did not move (158 KB), which is the gate that
 // matters.
-const MAX_TOTAL_GZIP_KB = 1634;
+//
+// 1634 → 1644 on 06/09/2026, measured 1638, with the variations dialog on the
+// contracts register. TEN KILOBYTES AND A NINETIETH CHUNK, and the cause was
+// measured rather than guessed — the same tree without the change builds 1628
+// across 89. What appeared is `components/fields/Field`, which the contracts
+// screen never imported before and which now splits out as its own chunk
+// because a second route group wants it. That is a route-specific split rather
+// than weight every page carries: THE LARGEST CHUNK DID NOT MOVE (158 KB),
+// which is the gate that matters.
+//
+// The alternative was hand-rolled inputs on that one dialog, and it was
+// refused: every control in this product goes through the floating-label Field
+// so forms stay visually aligned, and a screen with its own inputs is how two
+// screens start disagreeing about what a form looks like.
+const MAX_TOTAL_GZIP_KB = 1644;
 
 const DIR = ".next/static";
 if (!existsSync(DIR)) {

@@ -322,6 +322,14 @@
         "held": 1
       },
       {
+        "id": "<rol_ID>",
+        "name": "role-variationanswerer",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 2,
+        "held": 1
+      },
+      {
         "id": "role_lead",
         "name": "Team Lead",
         "description": "Does the work and assigns it, without settings or deletion.",

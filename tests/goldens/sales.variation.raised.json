@@ -1,0 +1,28 @@
+{
+  "status": 201,
+  "body": {
+    "ok": true,
+    "changeOrder": {
+      "id": "<cha_ID>",
+      "number": "",
+      "title": "Additional ductwork to level 3",
+      "dealId": "<eng_ID>",
+      "contractId": "<con_ID>",
+      "valueDelta": 15000,
+      "currency": "",
+      "timeDeltaDays": 10,
+      "scope": "Extra runs, third floor",
+      "status": "draft",
+      "submittedByCollaboratorId": "",
+      "submittedAt": "",
+      "approvedByCollaboratorId": "",
+      "approvedAt": "",
+      "notes": "",
+      "createdByCollaboratorId": "<col_ID>",
+      "createdAt": "<timestamp>",
+      "updatedAt": "<timestamp>",
+      "studioId": "<std_ID>",
+      "sectionId": "<sub_ID>"
+    }
+  }
+}

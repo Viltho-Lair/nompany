@@ -306,6 +306,14 @@
         "held": 1
       },
       {
+        "id": "<rol_ID>",
+        "name": "role-variationanswerer",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 2,
+        "held": 1
+      },
+      {
         "id": "role_lead",
         "name": "Team Lead",
         "description": "Does the work and assigns it, without settings or deletion.",
@@ -723,6 +731,30 @@
         "passportExpiry": "",
         "idNumber": "",
         "passportNumber": ""
+      },
+      {
+        "id": "<col_ID>",
+        "alias": "variationanswerer",
+        "role": "member",
+        "photo": "",
+        "departmentId": "",
+        "departmentName": "",
+        "roleIds": [
+          "<rol_ID>"
+        ],
+        "roleNames": [
+          "role-variationanswerer"
+        ],
+        "employeeCode": "",
+        "dateOfJoin": "",
+        "mobile": "",
+        "certificationIds": [],
+        "hasId": false,
+        "hasPassport": false,
+        "idExpiry": "",
+        "passportExpiry": "",
+        "idNumber": "",
+        "passportNumber": ""
       }
     ],
     "vacations": [],
@@ -733,8 +765,8 @@
         "<dep_ID>": 0,
         "<dep_ID>": 0
       },
-      "unassigned": 17,
-      "total": 17
+      "unassigned": 18,
+      "total": 18
     },
     "vocabulary": {
       "leaveTypes": [

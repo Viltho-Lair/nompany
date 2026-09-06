@@ -106,6 +106,23 @@ type Strings = CommonStrings & {
   noVariationsYet: string;
   nVariationsWaiting: (n: number) => string;
   cannotAnswerYourOwn: string;
+  raiseVariation: string;
+  editVariation: string;
+  submitVariation: string;
+  variationTitle: string;
+  variationScope: string;
+  variationValueDelta: string;
+  variationValueDeltaHint: string;
+  variationTimeDelta: string;
+  variationTimeDeltaHint: string;
+  nDaysDelta: (n: number) => string;
+  variationDraft: string;
+  submittedByOn: (who: string, when: string) => string;
+  answeredByOn: (who: string, when: string) => string;
+  awaitingAnAnswer: string;
+  refuseNotSubmittedVariation: string;
+  refuseAlreadyAnswered: string;
+  onlyApprovedCount: string;
   approve: string;
   reject: string;
   colClientBudget: string;
@@ -302,6 +319,23 @@ const en: Strings = {
   // submitted a variation, however much they hold, so the message says who
   // rather than what.
   cannotAnswerYourOwn: "You submitted this variation, so somebody else has to answer it.",
+  raiseVariation: "Raise a variation",
+  editVariation: "Edit variation",
+  submitVariation: "Submit for an answer",
+  variationTitle: "What is changing",
+  variationScope: "Scope",
+  variationValueDelta: "Change in value",
+  variationValueDeltaHint: "Signed: negative for an omission. Never the new total — two variations approved out of order would each claim to know it.",
+  variationTimeDelta: "Change in time (days)",
+  variationTimeDeltaHint: "Signed, in days. The contract keeps its own end date; this is what the variation grants.",
+  nDaysDelta: (n) => (n > 0 ? `+${n} days` : `${n} days`),
+  variationDraft: "Not submitted yet — nobody has been asked.",
+  submittedByOn: (who, when) => `Submitted by ${who} · ${when}`,
+  answeredByOn: (who, when) => `Answered by ${who} · ${when}`,
+  awaitingAnAnswer: "Waiting for an answer",
+  refuseNotSubmittedVariation: "That variation has not been submitted, so there is nothing to answer.",
+  refuseAlreadyAnswered: "That variation has already been answered.",
+  onlyApprovedCount: "Only approved variations move the contract value. A submitted one is a claim.",
   approve: "Approve",
   reject: "Reject",
   colClientBudget: "Client budget",
@@ -495,7 +529,24 @@ const ar: Strings = {
   variations: "التغييرات",
   noVariationsYet: "لا توجد تغييرات على هذا العقد.",
   nVariationsWaiting: (n) => `${n} بانتظار الرد`,
-  cannotAnswerYourOwn: "أنت من قدّم هذا التغيير، لذا يجب أن يردّ عليه شخص آخر.",
+  cannotAnswerYourOwn: "أنت من قدّم هذا التغيير، فيجيب عليه شخص آخر.",
+  raiseVariation: "إضافة تغيير",
+  editVariation: "تعديل التغيير",
+  submitVariation: "إرسال للردّ",
+  variationTitle: "ما الذي يتغيّر",
+  variationScope: "النطاق",
+  variationValueDelta: "التغيّر في القيمة",
+  variationValueDeltaHint: "بإشارة: سالب للحذف. وليس الإجمالي الجديد — تغييران يُعتمدان بغير ترتيب يدّعي كلّ منهما معرفته.",
+  variationTimeDelta: "التغيّر في المدّة (أيام)",
+  variationTimeDeltaHint: "بإشارة، بالأيام. يحتفظ العقد بتاريخ نهايته؛ هذا ما يمنحه التغيير.",
+  nDaysDelta: (n) => (n > 0 ? `+${n} يوم` : `${n} يوم`),
+  variationDraft: "لم يُرسل بعد — لم يُسأل أحد.",
+  submittedByOn: (who, when) => `قدّمه ${who} · ${when}`,
+  answeredByOn: (who, when) => `أجاب ${who} · ${when}`,
+  awaitingAnAnswer: "بانتظار الردّ",
+  refuseNotSubmittedVariation: "لم يُرسل هذا التغيير، فلا شيء يُجاب عليه.",
+  refuseAlreadyAnswered: "أُجيب عن هذا التغيير بالفعل.",
+  onlyApprovedCount: "لا تحرّك قيمة العقد إلا التغييرات المعتمدة. المُرسل مجرّد مطالبة.",
   approve: "اعتماد",
   reject: "رفض",
   colClientBudget: "ميزانية العميل",

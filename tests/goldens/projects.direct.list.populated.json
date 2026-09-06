@@ -484,6 +484,10 @@
       },
       {
         "id": "<col_ID>",
+        "alias": "variationanswerer"
+      },
+      {
+        "id": "<col_ID>",
         "alias": "Member"
       },
       {
@@ -699,6 +703,12 @@
         {
           "id": "<col_ID>",
           "alias": "techpricer",
+          "departmentId": "",
+          "departmentName": ""
+        },
+        {
+          "id": "<col_ID>",
+          "alias": "variationanswerer",
           "departmentId": "",
           "departmentName": ""
         }

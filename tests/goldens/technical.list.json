@@ -155,6 +155,11 @@
     "openTickets": [
       {
         "id": "<sal_ID>",
+        "ref": "ACME-HOLDINGS-003",
+        "title": "Fit-out, level 3"
+      },
+      {
+        "id": "<sal_ID>",
         "ref": "ACME-HOLDINGS-002",
         "title": "Cannot start won"
       }
@@ -167,6 +172,10 @@
       {
         "id": "<col_ID>",
         "alias": "salesviewer"
+      },
+      {
+        "id": "<col_ID>",
+        "alias": "variationanswerer"
       },
       {
         "id": "<col_ID>",

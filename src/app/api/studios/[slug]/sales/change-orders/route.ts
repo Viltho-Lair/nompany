@@ -49,7 +49,14 @@ export const PATCH = route(spec, async (sales) => {
   const result = action === "submit"
     ? await submitChangeOrder(sales, id)
     : action === "approve" || action === "reject"
-      ? await answerChangeOrder(sales, id, sales.body)
+      // THE THIRD ARGUMENT IS A BOOLEAN, and it used to be `sales.body` — the
+      // whole request object, which is truthy, so REJECTING A VARIATION
+      // APPROVED IT. Nothing caught it: the handler's `body` is not statically
+      // typed, so the compiler saw no mismatch; no test reached the transition
+      // because a variation cannot become `submitted` without a screen to
+      // submit it, and one that never reaches `submitted` can never be
+      // answered. The feature was unreachable, so the defect was invisible.
+      ? await answerChangeOrder(sales, id, action === "approve")
       : { error: "action" };
 
   if (refused(result)) return result;

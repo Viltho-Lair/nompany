@@ -1289,6 +1289,126 @@ console.log("== sales: the module's whole surface, with data in it");
   ok("the owner may see every block", JSON.stringify(customer.body?.may) === JSON.stringify(
     { deals: true, quotations: true, contracts: true, projects: true, editRates: true }), JSON.stringify(customer.body?.may));
 
+
+  // ---- contracts and their variations ------------------------------------
+  //
+  // THERE WAS NO COVERAGE HERE AT ALL, and that is how the defect below lived.
+  // The change-order service, its route and the approve/reject buttons were all
+  // written in P2 and none of them could be REACHED: nothing created a
+  // variation and nothing submitted one, so none could ever become `submitted`
+  // and the answer path was dead code wearing a working screen. Unreachable
+  // code is untested code by construction.
+  const CONTRACTS = await import("@/app/api/studios/[slug]/sales/contracts/route.ts");
+  const VARIATIONS = await import("@/app/api/studios/[slug]/sales/change-orders/route.ts");
+
+  // ITS OWN DEAL. The block's main ticket has been closed Lost by this point,
+  // and a contract attaches to its deal's engagement — so borrowing that one
+  // ties this fixture to how far the block above happens to have got.
+  const varyTicket = await capture(TICKETS.POST, req(`/api/studios/${slug}/sales/tickets`, {
+    method: "POST",
+    body: {
+      title: "Fit-out, level 3", clientId, industry: "Commercial",
+      deadline: "2031-06-01", serviceIds: [serviceId],
+    },
+  }), P);
+  // THE DEAL, NOT THE TICKET. A contract and a variation both attach to the
+  // ENGAGEMENT, and the dual-write mints its own id and leaves the derived one
+  // as an alias — so a fixture holding a ticket id has to resolve it the same
+  // way any other caller does. Passing the raw ticket id here is what threw
+  // `no-engagement`: the alias table is keyed on the derived id, not the row's.
+  const { resolveDealId: resolveDeal } = await import("@/platform/db/engagement");
+  const varyDealId = await resolveDeal(
+    studio.id, KEYS.deterministicEngId("ticket", varyTicket.body?.ticket?.id));
+  ok("a deal to vary was raised", Boolean(varyDealId), JSON.stringify(varyTicket.body).slice(0, 120));
+
+  const contract = await shot("sales.contract.created", await capture(
+    CONTRACTS.POST, req(`/api/studios/${slug}/sales/contracts`, { method: "POST", body: {
+      title: "Fit-out agreement", dealId: varyDealId, value: 200000, signedDate: "2031-02-01",
+      feeBasis: "lump-sum",
+    } }), P));
+  const contractId = contract.body?.contract?.id;
+  ok("a contract was signed", Boolean(contractId), JSON.stringify(contract.body).slice(0, 140));
+
+  const raise = (body) => capture(
+    VARIATIONS.POST, req(`/api/studios/${slug}/sales/change-orders`, { method: "POST", body }), P);
+  const act = (body) => capture(
+    VARIATIONS.PATCH, req(`/api/studios/${slug}/sales/change-orders`, { method: "PATCH", body }), P);
+
+  const added = await shot("sales.variation.raised", await raise({
+    title: "Additional ductwork to level 3", dealId: varyDealId, contractId,
+    valueDelta: 15000, timeDeltaDays: 10, scope: "Extra runs, third floor",
+  }));
+  const addedId = added.body?.changeOrder?.id;
+  ok("a variation was raised", Boolean(addedId));
+  // ALWAYS BORN A DRAFT. A caller cannot post an approved variation into
+  // existence: approval is a transition with invariant 7 on it, and a status
+  // taken from the body would be the side entrance around it.
+  ok("...as a draft, whatever was asked for", added.body?.changeOrder?.status === "draft",
+    added.body?.changeOrder?.status);
+
+  // AN OMISSION IS A VARIATION TOO, so the delta is SIGNED. A schema that
+  // clamped it would make reducing a contract unrecordable.
+  const omission = await raise({
+    title: "Ceiling tiles omitted", dealId: varyDealId, contractId, valueDelta: -4000,
+  });
+  ok("a negative delta records an omission",
+    omission.body?.changeOrder?.valueDelta === -4000,
+    String(omission.body?.changeOrder?.valueDelta));
+
+  // A VARIATION WITH NOTHING TO VARY IS NOT A RECORD. Both refusals name the
+  // field, because the screens' ladders are keyed on the name.
+  await shot("sales.variation.nocontract", await raise({ title: "Loose", dealId: varyDealId }));
+
+  // NOTHING TO ANSWER UNTIL IT IS SUBMITTED.
+  await shot("sales.variation.notsubmitted", await act({ id: addedId, action: "approve" }));
+
+  const submitted = await shot("sales.variation.submitted", await act({ id: addedId, action: "submit" }));
+  ok("a draft can be submitted", submitted.body?.changeOrder?.status === "submitted");
+  ok("...stamping who asked", Boolean(submitted.body?.changeOrder?.submittedByCollaboratorId));
+  // AND ONLY ONCE: a second submit is refused rather than re-stamping the
+  // record with a later date and a different asker.
+  await shot("sales.variation.submittedtwice", await act({ id: addedId, action: "submit" }));
+
+  // INVARIANT 7 AT THE TRANSITION. The owner submitted it and holds every right
+  // in the product; identity is what refuses them.
+  await shot("sales.variation.ownanswer", await act({ id: addedId, action: "approve" }));
+
+  const answerer = await personWith(
+    ["crmSales.contracts.view", "crmSales.contracts.approve"], "variationanswerer");
+  await signIn(answerer.id);
+
+  // THE ASSERTION THIS SLICE EXISTS FOR. `reject` used to APPROVE: the route
+  // passed its whole request body where answerChangeOrder expects a boolean,
+  // and an object is truthy. Nothing caught it -- the handler's `body` is not
+  // statically typed, so the compiler saw no mismatch, and no test could reach
+  // a transition the product had no way of entering.
+  const rejected = await shot("sales.variation.rejected", await act({ id: addedId, action: "reject" }));
+  ok("REJECTING A VARIATION REJECTS IT", rejected.body?.changeOrder?.status === "rejected",
+    rejected.body?.changeOrder?.status);
+  // STAMPED ON A REJECTION TOO: "nobody answered" and "this person said no"
+  // are different states, and a rejection with no signatory is the first
+  // wearing the second's status.
+  ok("...and records who said no", Boolean(rejected.body?.changeOrder?.approvedByCollaboratorId));
+
+  await signIn(owner.id);
+  const secondId = omission.body?.changeOrder?.id;
+  await act({ id: secondId, action: "submit" });
+  await signIn(answerer.id);
+  const approved = await act({ id: secondId, action: "approve" });
+  ok("and approving approves", approved.body?.changeOrder?.status === "approved",
+    approved.body?.changeOrder?.status);
+  await signIn(owner.id);
+
+  // ONLY APPROVED VARIATIONS MOVE THE CONTRACT VALUE. The rejected 15,000 is
+  // not in it and the approved -4,000 is: a claim in somebody's inbox has not
+  // changed what was agreed.
+  const withVariations = await capture(
+    CONTRACTS.GET, req(`/api/studios/${slug}/sales/contracts`), P);
+  await shot("sales.contracts.varied", withVariations);
+  const varied = (withVariations.body?.contracts || []).find((x) => x.id === contractId);
+  ok("the contract keeps the value it was signed at", varied?.value === 200000,
+    String(varied?.value));
+
   await shot("sales.customer.missing", await capture(
     CUSTOMER.GET, req(`/api/studios/${slug}/sales/customer?id=sal_doesnotexist000`), P));
 
