@@ -164,27 +164,313 @@
     ],
     "roles": [
       {
+        "id": "<rol_ID>",
+        "name": "Accounts Assistant",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 17,
+        "departmentId": "<dep_ID>",
+        "source": "library",
+        "held": 0
+      },
+      {
+        "id": "<rol_ID>",
+        "name": "Accounts Payable Accountant",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 17,
+        "departmentId": "<dep_ID>",
+        "source": "library",
+        "held": 0
+      },
+      {
+        "id": "<rol_ID>",
+        "name": "Accounts Receivable Accountant",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 17,
+        "departmentId": "<dep_ID>",
+        "source": "library",
+        "held": 0
+      },
+      {
         "id": "role_admin",
         "name": "Admin",
         "description": "Everything, including capabilities added in future releases.",
         "wildcard": true,
         "permissionCount": null,
+        "departmentId": "",
+        "source": "custom",
         "held": 0
       },
       {
-        "id": "role_manager",
-        "name": "Manager",
-        "description": "Runs a department: full control of its work, sight of the rest.",
+        "id": "<rol_ID>",
+        "name": "Artistic Director",
+        "description": "",
         "wildcard": false,
-        "permissionCount": 67,
+        "permissionCount": 136,
+        "departmentId": "<dep_ID>",
+        "source": "library",
         "held": 0
       },
       {
-        "id": "role_member",
-        "name": "Member",
-        "description": "Does the work: raises and edits records, deletes nothing.",
+        "id": "<rol_ID>",
+        "name": "Auditor General",
+        "description": "",
         "wildcard": false,
-        "permissionCount": 13,
+        "permissionCount": 6,
+        "departmentId": "<dep_ID>",
+        "source": "library",
+        "held": 0
+      },
+      {
+        "id": "<rol_ID>",
+        "name": "Board Audit Committee Chair",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 17,
+        "departmentId": "<dep_ID>",
+        "source": "library",
+        "held": 0
+      },
+      {
+        "id": "<rol_ID>",
+        "name": "Board Member",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 136,
+        "departmentId": "<dep_ID>",
+        "source": "library",
+        "held": 0
+      },
+      {
+        "id": "<rol_ID>",
+        "name": "Branch Manager",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 136,
+        "departmentId": "<dep_ID>",
+        "source": "library",
+        "held": 0
+      },
+      {
+        "id": "<rol_ID>",
+        "name": "Brand / Franchise Director",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 136,
+        "departmentId": "<dep_ID>",
+        "source": "library",
+        "held": 0
+      },
+      {
+        "id": "<rol_ID>",
+        "name": "Bursar / Chief Financial Officer",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 17,
+        "departmentId": "<dep_ID>",
+        "source": "library",
+        "held": 0
+      },
+      {
+        "id": "<rol_ID>",
+        "name": "Business Unit Head",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 136,
+        "departmentId": "<dep_ID>",
+        "source": "library",
+        "held": 0
+      },
+      {
+        "id": "<rol_ID>",
+        "name": "Chairman",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 136,
+        "departmentId": "<dep_ID>",
+        "source": "library",
+        "held": 0
+      },
+      {
+        "id": "<rol_ID>",
+        "name": "Chairman / Board",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 136,
+        "departmentId": "<dep_ID>",
+        "source": "library",
+        "held": 0
+      },
+      {
+        "id": "<rol_ID>",
+        "name": "Chairman / Board",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 136,
+        "departmentId": "<dep_ID>",
+        "source": "library",
+        "held": 0
+      },
+      {
+        "id": "<rol_ID>",
+        "name": "Chief Credit Officer",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 25,
+        "departmentId": "<dep_ID>",
+        "source": "library",
+        "held": 0
+      },
+      {
+        "id": "<rol_ID>",
+        "name": "Chief Financial Officer",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 17,
+        "departmentId": "<dep_ID>",
+        "source": "library",
+        "held": 0
+      },
+      {
+        "id": "<rol_ID>",
+        "name": "Chief Financial Officer",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 17,
+        "departmentId": "<dep_ID>",
+        "source": "library",
+        "held": 0
+      },
+      {
+        "id": "<rol_ID>",
+        "name": "Chief Financial Officer",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 17,
+        "departmentId": "<dep_ID>",
+        "source": "library",
+        "held": 0
+      },
+      {
+        "id": "<rol_ID>",
+        "name": "Compensation & Benefits Specialist",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 25,
+        "departmentId": "<dep_ID>",
+        "source": "library",
+        "held": 0
+      },
+      {
+        "id": "<rol_ID>",
+        "name": "Director of Finance",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 17,
+        "departmentId": "<dep_ID>",
+        "source": "library",
+        "held": 0
+      },
+      {
+        "id": "<rol_ID>",
+        "name": "Director of Human Resources",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 25,
+        "departmentId": "<dep_ID>",
+        "source": "library",
+        "held": 0
+      },
+      {
+        "id": "<rol_ID>",
+        "name": "Director of Mineral Resources & Reserves",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 25,
+        "departmentId": "<dep_ID>",
+        "source": "library",
+        "held": 0
+      },
+      {
+        "id": "<rol_ID>",
+        "name": "Director of Training",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 25,
+        "departmentId": "<dep_ID>",
+        "source": "library",
+        "held": 0
+      },
+      {
+        "id": "<rol_ID>",
+        "name": "Employee Relations Officer",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 25,
+        "departmentId": "<dep_ID>",
+        "source": "library",
+        "held": 0
+      },
+      {
+        "id": "<rol_ID>",
+        "name": "Finance Director",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 17,
+        "departmentId": "<dep_ID>",
+        "source": "library",
+        "held": 0
+      },
+      {
+        "id": "<rol_ID>",
+        "name": "Government Relations Officer",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 25,
+        "departmentId": "<dep_ID>",
+        "source": "library",
+        "held": 0
+      },
+      {
+        "id": "<rol_ID>",
+        "name": "Head of Corporate Training",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 25,
+        "departmentId": "<dep_ID>",
+        "source": "library",
+        "held": 0
+      },
+      {
+        "id": "<rol_ID>",
+        "name": "Head of E-Learning",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 25,
+        "departmentId": "<dep_ID>",
+        "source": "library",
+        "held": 0
+      },
+      {
+        "id": "<rol_ID>",
+        "name": "Head of Learning & Development",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 25,
+        "departmentId": "<dep_ID>",
+        "source": "library",
+        "held": 0
+      },
+      {
+        "id": "<rol_ID>",
+        "name": "Head of Training & Standards",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 25,
+        "departmentId": "<dep_ID>",
+        "source": "library",
         "held": 0
       },
       {
@@ -193,6 +479,8 @@
         "description": "",
         "wildcard": false,
         "permissionCount": 2,
+        "departmentId": "",
+        "source": "custom",
         "held": 1
       },
       {
@@ -201,6 +489,8 @@
         "description": "",
         "wildcard": false,
         "permissionCount": 2,
+        "departmentId": "",
+        "source": "custom",
         "held": 1
       },
       {
@@ -209,6 +499,8 @@
         "description": "",
         "wildcard": false,
         "permissionCount": 2,
+        "departmentId": "",
+        "source": "custom",
         "held": 1
       },
       {
@@ -217,6 +509,8 @@
         "description": "",
         "wildcard": false,
         "permissionCount": 2,
+        "departmentId": "",
+        "source": "custom",
         "held": 1
       },
       {
@@ -225,6 +519,8 @@
         "description": "",
         "wildcard": false,
         "permissionCount": 4,
+        "departmentId": "",
+        "source": "custom",
         "held": 1
       },
       {
@@ -233,6 +529,8 @@
         "description": "",
         "wildcard": false,
         "permissionCount": 1,
+        "departmentId": "",
+        "source": "custom",
         "held": 1
       },
       {
@@ -241,6 +539,8 @@
         "description": "",
         "wildcard": false,
         "permissionCount": 1,
+        "departmentId": "",
+        "source": "custom",
         "held": 1
       },
       {
@@ -249,6 +549,8 @@
         "description": "",
         "wildcard": false,
         "permissionCount": 3,
+        "departmentId": "",
+        "source": "custom",
         "held": 1
       },
       {
@@ -257,6 +559,8 @@
         "description": "",
         "wildcard": false,
         "permissionCount": 2,
+        "departmentId": "",
+        "source": "custom",
         "held": 1
       },
       {
@@ -265,6 +569,8 @@
         "description": "",
         "wildcard": false,
         "permissionCount": 3,
+        "departmentId": "",
+        "source": "custom",
         "held": 1
       },
       {
@@ -273,6 +579,8 @@
         "description": "",
         "wildcard": false,
         "permissionCount": 2,
+        "departmentId": "",
+        "source": "custom",
         "held": 1
       },
       {
@@ -281,6 +589,8 @@
         "description": "",
         "wildcard": false,
         "permissionCount": 1,
+        "departmentId": "",
+        "source": "custom",
         "held": 1
       },
       {
@@ -289,6 +599,8 @@
         "description": "",
         "wildcard": false,
         "permissionCount": 2,
+        "departmentId": "",
+        "source": "custom",
         "held": 1
       },
       {
@@ -297,6 +609,8 @@
         "description": "",
         "wildcard": false,
         "permissionCount": 3,
+        "departmentId": "",
+        "source": "custom",
         "held": 1
       },
       {
@@ -305,6 +619,8 @@
         "description": "",
         "wildcard": false,
         "permissionCount": 3,
+        "departmentId": "",
+        "source": "custom",
         "held": 1
       },
       {
@@ -313,6 +629,8 @@
         "description": "",
         "wildcard": false,
         "permissionCount": 3,
+        "departmentId": "",
+        "source": "custom",
         "held": 1
       },
       {
@@ -321,23 +639,9 @@
         "description": "",
         "wildcard": false,
         "permissionCount": 2,
+        "departmentId": "",
+        "source": "custom",
         "held": 1
-      },
-      {
-        "id": "role_lead",
-        "name": "Team Lead",
-        "description": "Does the work and assigns it, without settings or deletion.",
-        "wildcard": false,
-        "permissionCount": 28,
-        "held": 0
-      },
-      {
-        "id": "role_viewer",
-        "name": "Viewer",
-        "description": "Reads, changes nothing.",
-        "wildcard": false,
-        "permissionCount": 6,
-        "held": 0
       }
     ],
     "certifications": [],
