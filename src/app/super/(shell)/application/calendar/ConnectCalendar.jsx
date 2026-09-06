@@ -18,6 +18,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardHead, CardBody, Icon } from "../../../_components/ui";
 import CopyableCode from "@/components/CopyableCode";
+import SelectMenu from "@/components/fields/SelectMenu";
 
 // What the OAuth callback appends to this screen's URL on its way back.
 const OUTCOMES = {
@@ -185,16 +186,14 @@ export default function ConnectCalendar({ configured, connected, accountEmail })
               </p>
             ) : (
               <form onSubmit={choose} className="mt-4 flex flex-col gap-2 sm:flex-row">
-                <select
+                <SelectMenu
                   className="ad-select flex-1"
                   value={calendarId}
-                  onChange={(e) => setCalendarId(e.target.value)}
-                >
-                  <option value="" disabled>Pick a calendar…</option>
-                  {calendars.map((c) => (
-                    <option key={c.id} value={c.id}>{c.summary || c.id}</option>
-                  ))}
-                </select>
+                  onChange={setCalendarId}
+                  aria-label="Calendar"
+                  placeholder="Pick a calendar…"
+                  options={calendars.map((c) => ({ value: c.id, label: c.summary || c.id }))}
+                />
                 <button type="submit" className="ad-btn ad-btn-primary shrink-0" disabled={choosing || !calendarId}>
                   {choosing ? "Saving…" : "Use this calendar"}
                 </button>

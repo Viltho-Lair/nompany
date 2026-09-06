@@ -10,6 +10,7 @@ import { technicalDict } from "@/shared/studio/technical";
 import Link from "next/link";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { panel, input, btn, btnGhost, th } from "@/components/studio2/ui";
+import SelectMenu from "@/components/fields/SelectMenu";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
 import { SHEET_COLUMNS, SHEET_OWNERS, rowStatus } from "@/modules/inventory/sheetColumns";
@@ -618,11 +619,10 @@ function Cell({ column, row, draft, pool = [], disabled, onEdit }) {
 
   if (column.kind === "choice") {
     return (
-      <select className={`${input} ${mark} w-auto py-1 text-xs`} value={value || ""} aria-label={column.label}
-        onChange={(e) => onEdit(e.target.value)}>
-        <option value="">—</option>
-        {column.options.map((o) => <option key={o} value={o}>{o}</option>)}
-      </select>
+      <SelectMenu className={`${input} ${mark} w-auto py-1 text-xs`} value={value || ""} aria-label={column.label}
+        onChange={onEdit}
+        options={[{ value: "", label: "—" }, ...column.options.map((o) => ({ value: o, label: o }))]}
+      />
     );
   }
   if (column.kind === "number") {
@@ -644,11 +644,10 @@ function Cell({ column, row, draft, pool = [], disabled, onEdit }) {
 
   if (column.kind === "choice") {
     return (
-      <select className={`${input} ${mark} w-auto py-1 text-xs`} value={value || ""} aria-label={column.label}
-        onChange={(e) => onEdit(e.target.value)}>
-        <option value="">—</option>
-        {column.options.map((o) => <option key={o} value={o}>{o}</option>)}
-      </select>
+      <SelectMenu className={`${input} ${mark} w-auto py-1 text-xs`} value={value || ""} aria-label={column.label}
+        onChange={onEdit}
+        options={[{ value: "", label: "—" }, ...column.options.map((o) => ({ value: o, label: o }))]}
+      />
     );
   }
   if (column.kind === "number") {
@@ -681,13 +680,11 @@ function Cell({ column, row, draft, pool = [], disabled, onEdit }) {
           </span>
         )}
         {!full && (
-          <select className={`${input} w-36 py-1 text-xs`} value="" aria-label={`Allocate a unit to ${row.description}`}
-            onChange={(e) => { if (e.target.value) onEdit([...chosen, e.target.value]); }}>
-            <option value="">{tr.allocate}</option>
-            {pool.filter((sn) => !chosen.includes(sn)).map((sn) => (
-              <option key={sn} value={sn}>{sn}</option>
-            ))}
-          </select>
+          <SelectMenu className={`${input} w-36 py-1 text-xs`} value="" aria-label={`Allocate a unit to ${row.description}`}
+            onChange={(v) => { if (v) onEdit([...chosen, v]); }}
+            options={[{ value: "", label: tr.allocate },
+              ...pool.filter((sn) => !chosen.includes(sn)).map((sn) => ({ value: sn, label: sn }))]}
+          />
         )}
       </span>
     );

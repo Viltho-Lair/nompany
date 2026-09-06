@@ -8,6 +8,7 @@ import {
 import { INDUSTRIES } from "@/lib/industries";
 import { COUNTRIES } from "@/shared/countries";
 import { ERP_SYSTEMS } from "@/lib/questionnaire";
+import SelectMenu from "@/components/fields/SelectMenu";
 
 // What each bound source actually contains, so a question wired to one can SHOW
 // its choices instead of naming a list the author has to take on trust.
@@ -389,13 +390,16 @@ function Settings({ q, onPatch, onRemove }) {
           <h3 className="text-xs font-700 uppercase tracking-wide text-[var(--ad-muted-foreground)]">Choices from</h3>
           {/* Some lists are far too long to type and two of them depend on
               another answer, so they are bound rather than authored. */}
-          <select value={q.source || ""} onChange={(e) => onPatch({ source: e.target.value })} className="ad-select mt-2">
-            <option value="">Choices below</option>
-            <option value="industries">Industries</option>
-            <option value="countries">Countries</option>
-            <option value="cities">Cities (follows a country answer)</option>
-            <option value="erps">ERP systems</option>
-          </select>
+          <SelectMenu value={q.source || ""} onChange={(v) => onPatch({ source: v })} className="ad-select mt-2"
+            aria-label="Choices from"
+            options={[
+              { value: "", label: "Choices below" },
+              { value: "industries", label: "Industries" },
+              { value: "countries", label: "Countries" },
+              { value: "cities", label: "Cities (follows a country answer)" },
+              { value: "erps", label: "ERP systems" },
+            ]}
+          />
           {q.source === "cities" && (
             <input value={q.dependsOn || ""} onChange={(e) => onPatch({ dependsOn: e.target.value.trim() })}
               className={`${field} mt-2 font-mono text-xs`} placeholder="country" />

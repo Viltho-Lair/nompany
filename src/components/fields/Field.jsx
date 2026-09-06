@@ -2,6 +2,8 @@
 
 import { useId, useState } from "react";
 
+import SelectMenu from "@/components/fields/SelectMenu";
+
 // THE ONE FIELD for every studio form (UI/UX overhaul §2.2 / §3.2).
 //
 // A floating label that lifts on focus or when the field has a value, a hint
@@ -118,6 +120,14 @@ export function Field({
     label
   );
 
+  // An empty first option so an unset select shows blank — UNLESS the caller
+  // already supplies its own empty-value option with a real label ("Unassigned",
+  // "Studio"), in which case doubling it would add a stray blank row above it.
+  const selectOptions =
+    as === "select" && !required && !options.some((o) => (typeof o === "string" ? o : o.value) === "")
+      ? [{ value: "", label: "" }, ...options]
+      : options;
+
   let control;
   if (readOnly && !wrapping) {
     // A stamped value: same box, same metrics as an input so it lines up flush,
@@ -156,35 +166,24 @@ export function Field({
       />
     );
   } else if (as === "select") {
+    // The product's own listbox, not the browser's (see SelectMenu). The box,
+    // the floating label and the chevron below are this field's, exactly as
+    // they were for the native control it replaces — what changed is the panel
+    // that opens, which the operating system used to draw and now cannot.
     control = (
-      <select
+      <SelectMenu
         id={id}
-        className={`${CONTROL} appearance-none pe-9`}
+        className={`${CONTROL} pe-9`}
         value={value ?? ""}
-        onChange={(e) => onChange?.(e.target.value)}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
+        onChange={(v) => onChange?.(v)}
+        options={selectOptions}
         disabled={disabled}
         required={required}
-        aria-invalid={error ? true : undefined}
+        invalid={!!error}
+        chevron={false}
         aria-describedby={describedBy}
         {...inputProps}
-      >
-        {/* An empty first option so an unset select shows blank — UNLESS the
-            caller already supplies its own empty-value option with a real label
-            ("Unassigned", "Studio"), in which case doubling it would add a stray
-            blank line above it. */}
-        {!required && !options.some((o) => (typeof o === "string" ? o : o.value) === "") && <option value="" />}
-        {options.map((o) => {
-          const v = typeof o === "string" ? o : o.value;
-          const t = typeof o === "string" ? o : o.label;
-          return (
-            <option key={v} value={v}>
-              {t}
-            </option>
-          );
-        })}
-      </select>
+      />
     );
   } else {
     control = (
@@ -212,10 +211,12 @@ export function Field({
     <div className={className}>
       <div
         className={`${BOX_BASE} ${BOX_STATE(focused, error, disabled)}`}
-        // For wrapped children, focus can land on any element inside; capture it
-        // at the box so the label floats for a Combo or the date field too.
-        onFocusCapture={wrapping ? () => setFocused(true) : undefined}
-        onBlurCapture={wrapping ? () => setFocused(false) : undefined}
+        // For wrapped children — and for the select, which is its own button
+        // rather than a control this field puts handlers on — focus can land on
+        // any element inside; capture it at the box so the label floats and the
+        // border lights for a Combo, the date field and the listbox alike.
+        onFocusCapture={wrapping || as === "select" ? () => setFocused(true) : undefined}
+        onBlurCapture={wrapping || as === "select" ? () => setFocused(false) : undefined}
         // A control that draws its own resting placeholder — the MUI date field's
         // dd/mm/yyyy, or a native date/time input's --:-- / mm/dd/yyyy — collides
         // with this field's centred label. Flag the empty-and-blurred state (label

@@ -26,6 +26,7 @@ Three rules that keep this folder worth reading:
 | [boq.md](boq.md) | The bill of quantities and the rate library: what makes a total the bid, and why a rate is copied rather than referenced |
 | [calendar.md](calendar.md) | Connected calendars: the OAuth flow for both providers, the token lifecycle, the account panel and the console's one calendar |
 | [customer-360.md](customer-360.md) | One client's page: the blocks each reader may see, how the totals move with them, and what is deliberately absent |
+| [dropdowns.md](dropdowns.md) | Every option list in the product: one panel the product draws itself, why the browser's could not be themed, and what it still cannot do |
 | [engagements.md](engagements.md) | The deal: one engagement, its stages, its client, lock and delete |
 | [flows.md](flows.md) | Flow templates and industries: what a studio may edit, what is refused and why, and where the editor lives |
 | [legal-pages.md](legal-pages.md) | The Terms and the Privacy Policy: one renderer, the Google disclosure shared by both, and what Google's OAuth verification requires |

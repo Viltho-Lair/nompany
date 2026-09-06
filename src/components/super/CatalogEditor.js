@@ -5,6 +5,7 @@ import { Card, CardHead, CardBody, Table, Button, Badge, Icon } from "@/app/supe
 import { toneOf, normalizeColor, PRESETS, DEFAULT_HEX } from "@/lib/planColors";
 import { widgetsBySection, widgetsForRung } from "@/lib/dashboardWidgets";
 import { ANALYTICS_LEVELS } from "@/lib/analytics";
+import SelectMenu from "@/components/fields/SelectMenu";
 
 // Packages and Tiers are the same screen with different fields, so they are one
 // component driven by a field list rather than two that drift apart. A row is
@@ -157,11 +158,12 @@ export default function CatalogEditor({ kind, title, fields, services = null, on
                       onChange={(keys) => setDraft((d) => ({ ...d, [f.key]: keys }))}
                     />
                   ) : f.type === "select" ? (
-                    <select id={`f-${f.key}`} className={input}
+                    <SelectMenu id={`f-${f.key}`} className={input}
                       value={draft[f.key] ?? f.options[0].value}
-                      onChange={(e) => setDraft((d) => ({ ...d, [f.key]: e.target.value }))}>
-                      {f.options.map((o) => (<option key={o.value} value={o.value}>{o.label}</option>))}
-                    </select>
+                      aria-label={f.label}
+                      onChange={(v) => setDraft((d) => ({ ...d, [f.key]: v }))}
+                      options={f.options}
+                    />
                   ) : f.type === "lines" ? (
                     // One bullet per line. A textarea rather than a repeater
                     // because writing a feature list is writing, and five

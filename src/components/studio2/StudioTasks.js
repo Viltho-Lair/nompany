@@ -12,6 +12,7 @@ import { Field } from "@/components/fields/Field";
 import StudioDate from "@/components/fields/StudioDate";
 import { StatusPill } from "@/components/studio2/StatusPill";
 import { btnRow, btnRowPrimary } from "@/components/studio2/ui";
+import SelectMenu from "@/components/fields/SelectMenu";
 
 const panel = "rounded-geex border border-slate-200/70 bg-[var(--geex-surface)] p-6 dark:border-white/10";
 const h2 = "font-display text-lg font-800 text-slate-900 dark:text-white";
@@ -353,10 +354,10 @@ function TaskRow({ task: t, canManage, canDelete, canOpenProject, people, slugFo
               picker would let somebody claim it is Done while an authority has
               not signed. */}
           {canAct && !typed && (
-            <select className={`${input} w-auto`} value={t.status} disabled={busy}
-              onChange={(e) => onSend("PUT", { id: t.id, status: e.target.value })}>
-              {statuses.map((s) => <option key={s} value={s}>{s}</option>)}
-            </select>
+            <SelectMenu className={`${input} w-auto`} value={t.status} disabled={busy}
+              onChange={(v) => onSend("PUT", { id: t.id, status: v })}
+              options={statuses}
+            />
           )}
           {/* NEITHER BUTTON IS OFFERED ON A TYPED TASK. It is a decision the
               product raised, not a to-do somebody wrote: editing it would
@@ -721,11 +722,10 @@ function OpenProject({ task, people, slug, onOpened }) {
     <div className="mt-2 rounded-xl border border-slate-200 p-3 dark:border-white/10">
       <p className="text-xs font-600 text-slate-700 dark:text-slate-200">{tr.approvedOpenProject}</p>
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        <select className={`${input} w-auto`} value={handler} aria-label={tr.projectHandler}
-          onChange={(e) => setHandler(e.target.value)}>
-          <option value="">{tr.projectHandler2}</option>
-          {people.map((p) => <option key={p.id} value={p.id}>{p.alias}</option>)}
-        </select>
+        <SelectMenu className={`${input} w-auto`} value={handler} aria-label={tr.projectHandler}
+          onChange={setHandler}
+          options={[{ value: "", label: tr.projectHandler2 }, ...people.map((p) => ({ value: p.id, label: p.alias }))]}
+        />
         <button className={btn} disabled={busy || !handler} onClick={open}>
           {busy ? tr.opening : tr.createProjectSheet}
         </button>

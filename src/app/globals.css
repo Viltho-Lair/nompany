@@ -951,6 +951,129 @@ html.studio-chrome ::-webkit-scrollbar-corner {
 }
 
 /* ============================================================================
+   NATIVE CONTROLS FOLLOW THE THEME
+
+   `color-scheme` is the ONLY way to tell a browser which palette to paint the
+   chrome it draws itself with: the popup of a <select>, the calendar of a date
+   input, a clock, a colour swatch, scrollbars, autofill.
+
+   IT WAS NEVER DECLARED, and that was a legibility bug rather than a polish
+   one. Every select in the product sets the theme's text colour, <option>
+   inherits it, and in dark mode that is near-white ink — painted by the browser
+   onto the LIGHT popup it still believed it should draw. The list rendered as a
+   blank white rectangle. A dark studio could not read its own dropdowns.
+
+   The product draws its own dropdown now (SelectMenu), so this is no longer
+   what makes a <select> readable — but it is what makes every OTHER native
+   control follow the theme, and it is the net under any control that is still
+   the browser's. `.light` is stated as well as `.dark` because the theme script
+   writes both classes, and a studio pinned to light inside a dark OS must not
+   inherit the OS's answer.
+   ========================================================================= */
+:root { color-scheme: light; }
+html.light { color-scheme: light; }
+html.dark { color-scheme: dark; }
+
+/* ============================================================================
+   THE MENU SURFACE — one dropdown panel for the whole product.
+
+   SelectMenu paints from these and nothing else, which is what lets ONE control
+   serve the studio, the account pages and /super. The alternative was tried and
+   does not work: a panel written against `--geex-surface` renders correctly in
+   the studio and TRANSPARENT everywhere else, because that token is scoped to
+   `html.studio-chrome` and resolves to nothing outside it. Same shape as the
+   chart ramp — a role defined on `:root`, re-pointed by the one surface that
+   wants its own answer (`.admindek`, in super.css).
+
+   Stated against the PRIMITIVES rather than the `--doc-*` ramp, because the
+   default has to serve the charcoal surfaces — the studio, the account pages,
+   the auth screens — and `--doc-popover` is the console's blue steel. A menu
+   opening over a charcoal card in steel reads as a fragment of another
+   application.
+
+   The hover and chosen states are translucent overlays rather than solid
+   colours on purpose: an overlay is correct on whatever surface it lands on, so
+   one definition covers a white card and a charcoal one both.
+   ========================================================================= */
+:root {
+  --menu-surface: var(--p-white);
+  --menu-inset: var(--p-slate-50);
+  --menu-ink: var(--p-slate-900);
+  --menu-muted: var(--p-slate-500);
+  --menu-line: var(--p-slate-200);
+  --menu-hover: rgb(15 23 42 / 0.06);
+  --menu-chosen: rgb(var(--doc-primary) / 0.1);
+  --menu-chosen-strong: rgb(var(--doc-primary) / 0.16);
+  --menu-chosen-ink: rgb(var(--doc-primary));
+}
+.dark {
+  --menu-surface: var(--p-charcoal);
+  --menu-inset: var(--p-charcoal-2);
+  --menu-ink: var(--p-white);
+  --menu-muted: var(--p-slate-400);
+  --menu-line: rgb(255 255 255 / 0.15);
+  --menu-hover: rgb(255 255 255 / 0.07);
+}
+
+/* THE PANEL'S LOOK LIVES HERE RATHER THAN IN className STRINGS, and the reason
+   is the client-JS ceiling rather than taste. SelectMenu is imported by around
+   thirty modules across eleven route chunks, and the bundler inlines a COPY of
+   it into each — so every utility string in it is paid for eleven times, in
+   eleven separately-compressed chunks that cannot share a dictionary. Stated
+   once here, it is paid for once, in a stylesheet every page already loads.
+   Measured: this moved two kilobytes off the client bundle. */
+.menu-panel {
+  overflow: hidden;
+  border-radius: 0.75rem;
+  border: 1px solid var(--menu-line);
+  background-color: var(--menu-surface);
+  box-shadow: 0 14px 40px -18px rgba(20, 30, 72, 0.16);
+}
+.menu-search-wrap { border-bottom: 1px solid var(--menu-line); padding: 0.5rem; }
+.menu-search {
+  width: 100%;
+  border-radius: 0.5rem;
+  border: 1px solid var(--menu-line);
+  background-color: var(--menu-inset);
+  padding: 0.375rem 0.75rem;
+  font-size: 0.875rem;
+  color: var(--menu-ink);
+  outline: none;
+}
+.menu-search::placeholder { color: var(--menu-muted); }
+.menu-search:focus { border-color: #3b82f6; box-shadow: 0 0 0 2px rgb(59 130 246 / 0.2); }
+.menu-list { overflow-y: auto; padding-block: 0.25rem; }
+.menu-empty { padding: 1.5rem 0.875rem; text-align: center; font-size: 0.875rem; color: var(--menu-muted); }
+.menu-row {
+  display: flex;
+  width: 100%;
+  cursor: pointer;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.875rem;
+  text-align: start;
+  font-size: 0.875rem;
+  color: var(--menu-ink);
+  transition: background-color 0.15s;
+}
+.menu-row[data-active] { background-color: var(--menu-hover); }
+.menu-row[data-chosen] { background-color: var(--menu-chosen); color: var(--menu-chosen-ink); font-weight: 600; }
+.menu-row[data-chosen][data-active] { background-color: var(--menu-chosen-strong); }
+.menu-row[disabled] { cursor: not-allowed; color: var(--menu-muted); opacity: 0.6; background-color: transparent; }
+.menu-row-label { min-width: 0; flex: 1 1 0%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.menu-row-label[data-blank] { color: var(--menu-muted); }
+.menu-tick { height: 1rem; width: 1rem; flex-shrink: 0; }
+/* The trigger keeps whatever box its caller gave it — that is how a converted
+   control keeps the exact field it wore — so this only lays the value out
+   against the chevron. */
+.menu-trigger { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; text-align: start; }
+.menu-trigger:disabled { cursor: not-allowed; }
+.menu-value { min-width: 0; flex: 1 1 0%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.menu-value[data-blank] { color: var(--menu-muted); }
+.menu-chevron { height: 1rem; width: 1rem; flex-shrink: 0; color: var(--menu-muted); transition: transform 0.15s; }
+.menu-chevron[data-open] { transform: rotate(180deg); }
+
+/* ============================================================================
    THE DOCUMENT EDITOR
 
    Sheets, running bands, and the spacers the pagination plugin inserts. Ported

@@ -125,6 +125,23 @@
   --ad-chart-4: rgb(var(--ad-chart-4-rgb));
   --ad-chart-5: rgb(var(--ad-chart-5-rgb));
 
+  /* The dropdown panel, re-pointed onto the console's own steel. The defaults
+     on `:root` serve the charcoal surfaces (the studio, the account pages), and
+     a menu opening over an `.admindek` card has to be that card's colour.
+
+     ALSO APPLIED TO THE PANEL ITSELF. SelectMenu portals its panel to <body>,
+     which is outside this element — `.admindek` is a wrapper div, not <html>,
+     the way `.studio-chrome` is — so the panel copies this class from whatever
+     opened it and the tokens resolve for it there. */
+  --menu-surface: var(--ad-popover);
+  --menu-inset: rgb(var(--ad-muted-rgb) / 0.6);
+  --menu-ink: var(--ad-popover-foreground);
+  --menu-muted: var(--ad-muted-foreground);
+  --menu-line: var(--ad-border);
+  --menu-chosen: rgb(var(--ad-primary-rgb) / 0.12);
+  --menu-chosen-strong: rgb(var(--ad-primary-rgb) / 0.18);
+  --menu-chosen-ink: var(--ad-primary);
+
   --ad-sidebar: rgb(var(--ad-sidebar-rgb));
   --ad-sidebar-foreground: rgb(var(--ad-sidebar-foreground-rgb));
   --ad-sidebar-caption: rgb(var(--ad-sidebar-caption-rgb));

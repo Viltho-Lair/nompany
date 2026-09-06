@@ -12,6 +12,7 @@ import { stageLabel } from "@/shared/studio/stages";
 import { STAGE_REGISTRY } from "@/platform/engagement/registry";
 import { BILLING_TRIGGERS, FLOW_TEMPLATES, templateProblems } from "@/platform/engagement/templates";
 import { Dialog, btn, btnGhost, btnRow, btnRowDanger, input, label as labelCls } from "@/components/studio2/ui";
+import SelectMenu from "@/components/fields/SelectMenu";
 
 const ALL_STAGES = Object.keys(STAGE_REGISTRY);
 const SEEDS = new Map(FLOW_TEMPLATES.map((t) => [t.id, t]));
@@ -319,12 +320,11 @@ function TemplateEditor({ draft, setDraft, tr, locale, busy, usage, onCancel, on
         </label>
         <label className="block">
           <span className={labelCls}>{tr.flowBillingLabel}</span>
-          <select className={input} value={draft.billingTrigger} onChange={(e) => set({ billingTrigger: e.target.value })}>
-            <option value="">—</option>
-            {BILLING_TRIGGERS.map((b) => (
-              <option key={b} value={b}>{tr.billingNames[b] || b}</option>
-            ))}
-          </select>
+          <SelectMenu className={input} value={draft.billingTrigger} onChange={(v) => set({ billingTrigger: v })}
+            aria-label={tr.flowBillingLabel}
+            options={[{ value: "", label: "—" },
+              ...BILLING_TRIGGERS.map((b) => ({ value: b, label: tr.billingNames[b] || b }))]}
+          />
         </label>
       </div>
 
@@ -386,19 +386,21 @@ function TemplateEditor({ draft, setDraft, tr, locale, busy, usage, onCancel, on
               <span className="min-w-0 flex-1 truncate text-slate-700 dark:text-slate-200">
                 {stageLabel(s, STAGE_REGISTRY[s]?.label || s, locale)}
               </span>
-              <select
+              <SelectMenu
                 className={`${input} w-auto`}
                 value={draft.cardinalityOverrides[s] || ""}
-                onChange={(e) => {
+                aria-label={stageLabel(s, STAGE_REGISTRY[s]?.label || s, locale)}
+                onChange={(v) => {
                   const next = { ...draft.cardinalityOverrides };
-                  if (e.target.value) next[s] = e.target.value; else delete next[s];
+                  if (v) next[s] = v; else delete next[s];
                   set({ cardinalityOverrides: next });
                 }}
-              >
-                <option value="">{tr.flowCardDefault}</option>
-                <option value="one">{tr.flowOne}</option>
-                <option value="many">{tr.flowMany}</option>
-              </select>
+                options={[
+                  { value: "", label: tr.flowCardDefault },
+                  { value: "one", label: tr.flowOne },
+                  { value: "many", label: tr.flowMany },
+                ]}
+              />
             </label>
           ))}
         </div>
@@ -541,16 +543,14 @@ function OrderedStages({ legend, value, options, tr, locale, empty, onChange }) 
         ))}
       </ol>
       {available.length > 0 && (
-        <select
+        <SelectMenu
           className={`${input} mt-2`}
           value=""
-          onChange={(e) => e.target.value && onChange([...value, e.target.value])}
-        >
-          <option value="">{tr.flowAddStage}</option>
-          {available.map((s) => (
-            <option key={s} value={s}>{stageLabel(s, STAGE_REGISTRY[s]?.label || s, locale)}</option>
-          ))}
-        </select>
+          aria-label={tr.flowAddStage}
+          onChange={(v) => v && onChange([...value, v])}
+          options={[{ value: "", label: tr.flowAddStage },
+            ...available.map((s) => ({ value: s, label: stageLabel(s, STAGE_REGISTRY[s]?.label || s, locale) }))]}
+        />
       )}
     </fieldset>
   );
@@ -670,16 +670,17 @@ function IndustryForm({ entry, isNew, templates, tr, busy, onCancel, onSave, onD
         </label>
         <label className="block">
           <span className={labelCls}>{tr.industryPrimary}</span>
-          <select className={input} value={form.primary} onChange={(e) => set({ primary: e.target.value })}>
-            {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-          </select>
+          <SelectMenu className={input} value={form.primary} onChange={(v) => set({ primary: v })}
+            aria-label={tr.industryPrimary}
+            options={templates.map((t) => ({ value: t.id, label: t.name }))}
+          />
         </label>
         <label className="block">
           <span className={labelCls}>{tr.industrySecondary}</span>
-          <select className={input} value={form.secondary} onChange={(e) => set({ secondary: e.target.value })}>
-            <option value="">{tr.industryNone}</option>
-            {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-          </select>
+          <SelectMenu className={input} value={form.secondary} onChange={(v) => set({ secondary: v })}
+            aria-label={tr.industrySecondary}
+            options={[{ value: "", label: tr.industryNone }, ...templates.map((t) => ({ value: t.id, label: t.name }))]}
+          />
         </label>
         <label className="block">
           <span className={labelCls}>{tr.industryNote}</span>

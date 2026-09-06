@@ -12,6 +12,7 @@ import { locales, LANGUAGE_NAMES } from "@/shared/locale";
 import { settingsDict } from "@/shared/studio/settings";
 import { fmtDate } from "@/lib/format";
 import { Field } from "@/components/fields/Field";
+import SelectMenu from "@/components/fields/SelectMenu";
 import { actionsForField, OTHER_FIELD } from "@/shared/fieldsOfWork";
 import StudioFlowEditor from "@/components/studio2/StudioFlowEditor";
 
@@ -189,24 +190,24 @@ export default function StudioSettings({ slug, locale = "en" }) {
           value={studio.currency
             ? <span className="inline-flex items-center gap-2"><CurrencySymbol code={studio.currency} /> {studio.currency}</span>
             : ""}
+          editValue={studio.currency || ""}
           hint={tr.currencyUnset}
           onSave={(v) => save({ currency: v })}
           render={(draft, set) => (
             /* The full ExchangeRate-API list, the same vocabulary the
                favourites are picked from — and a real select, because a
                free-typed currency is one nothing can be priced against. */
-            <select className={INPUT} value={draft} onChange={(e) => set(e.target.value)}>
-              <option value="">{tr.currencyNone}</option>
-              {CURRENCIES_FROM_EXCHANGE_API.map((c) => (
-                <option key={c.code} value={c.code}>{c.code} — {c.name}</option>
-              ))}
-            </select>
+            <SelectMenu className={INPUT} value={draft} onChange={set} aria-label={tr.currency}
+              options={[{ value: "", label: tr.currencyNone },
+                ...CURRENCIES_FROM_EXCHANGE_API.map((c) => ({ value: c.code, label: `${c.code} — ${c.name}` }))]}
+            />
           )}
         />
 
         <EditRow
           icon="globe" label={tr.language} canManage={canManage}
           value={LANGUAGE_NAMES[studio.language] || LANGUAGE_NAMES.en}
+          editValue={studio.language || "en"}
           hint={tr.languageHint}
           onSave={(v) => save({ language: v })}
           render={(draft, set) => (
@@ -219,11 +220,9 @@ export default function StudioSettings({ slug, locale = "en" }) {
                It stays admin-only because it is still a decision ABOUT the
                studio — it is what everyone who never opens the menu will see,
                which for most people is everyone. */
-            <select className={INPUT} value={draft || "en"} onChange={(e) => set(e.target.value)}>
-              {locales.map((code) => (
-                <option key={code} value={code}>{LANGUAGE_NAMES[code]}</option>
-              ))}
-            </select>
+            <SelectMenu className={INPUT} value={draft} onChange={set} aria-label={tr.language}
+              options={locales.map((code) => ({ value: code, label: LANGUAGE_NAMES[code] }))}
+            />
           )}
         />
 
@@ -892,13 +891,23 @@ function FavouriteCurrencies({ codes, base, fx, canManage, onSave }) {
 // A row that edits ONE value in place. Pressing it opens the editor beneath the
 // label rather than in a dialog: these are single fields, and a modal for one
 // field is more ceremony than the change deserves.
-function EditRow({ icon, label, value, canManage, hint, onSave, render }) {
+// WHAT IS SHOWN IS NOT ALWAYS WHAT IS EDITED, and `editValue` is where the two
+// part company. Most rows display the stored string and edit the same string.
+// Two do not: Currency SHOWS a symbol beside a code (a React element) and
+// Language SHOWS "English" while the record holds "en" — so seeding the draft
+// from the display value handed the editor an element and a display name to
+// save back. It survived because a native <select> silently falls back to its
+// first option when its value matches none, which LOOKS like a working control
+// with nothing chosen; the product's own listbox shows the truth, which is an
+// empty trigger. The fallback was hiding it, not preventing it.
+function EditRow({ icon, label, value, editValue, canManage, hint, onSave, render }) {
   const tr = useT();
+  const seed = editValue !== undefined ? editValue : value;
   const [open, setOpen] = useState(false);
-  const [draft, setDraft] = useState(value || "");
+  const [draft, setDraft] = useState(seed || "");
   const [busy, setBusy] = useState(false);
 
-  function start() { setDraft(value || ""); setOpen(true); }
+  function start() { setDraft(seed || ""); setOpen(true); }
   async function commit() {
     setBusy(true);
     const ok = await onSave(String(draft || "").trim());

@@ -145,7 +145,35 @@ const MAX_CHUNK_GZIP_KB = 250;
 // refused: every control in this product goes through the floating-label Field
 // so forms stay visually aligned, and a screen with its own inputs is how two
 // screens start disagreeing about what a form looks like.
-const MAX_TOTAL_GZIP_KB = 1644;
+// 1644 → 1674 on 06/09/2026, measured 1667, with SelectMenu — the product's own
+// dropdown, replacing every native <select> in src (docs/functionality/dropdowns.md).
+// TWENTY-FOUR KILOBYTES, THE LARGEST SINGLE RISE THIS FILE HAS RECORDED, and it
+// is stated with what it actually is rather than dressed up.
+//
+// THE BASELINE IT IS MEASURED AGAINST WAS NOT THE ONE WRITTEN DOWN. A build of
+// this same tree WITHOUT the change measures 1643 — one kilobyte under the
+// ceiling, not the six CLAUDE.md claimed. The margin had already been spent by
+// commits that never re-measured, so the honest delta is 1643 → 1667 and the
+// new ceiling is that plus the customary seven.
+//
+// WHERE THE TWENTY-FOUR GO, measured rather than guessed: eleven route chunks
+// carry a COPY of the component, at about 2.2 KB gzip each. It is imported by
+// ~30 modules, and Field imports it too — so it follows Field into every screen
+// that has a form. That is duplication rather than weight, which is why THE
+// LARGEST CHUNK DID NOT MOVE (158 KB): no single route pays 24 KB, each pays
+// about two. The lever for later is the duplication, not the component.
+//
+// The look was moved OUT of className strings into `.menu-*` rules in
+// globals.css for exactly this reason — a utility string in that file is paid
+// for eleven times, a stylesheet rule once. Measured at two kilobytes, which is
+// small; it is recorded because the reasoning generalises to anything else
+// imported this widely.
+//
+// It could have been half this by lazy-loading the panel behind nextDynamic.
+// Refused: a dropdown that waits on a network request before it opens is a
+// dropdown that feels broken, and the whole point of the change was that these
+// controls were unusable.
+const MAX_TOTAL_GZIP_KB = 1674;
 
 const DIR = ".next/static";
 if (!existsSync(DIR)) {

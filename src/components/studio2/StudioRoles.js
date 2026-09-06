@@ -6,6 +6,7 @@ import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { peopleDict } from "@/shared/studio/people";
 import { areaGroup, areaLabel, extraLabel } from "@/shared/studio/access";
 import { panel, h2, sub, input, label, btn, btnGhost, Empty } from "@/components/studio2/ui";
+import SelectMenu from "@/components/fields/SelectMenu";
 import { Field } from "@/components/fields/Field";
 import { LEVEL_VERBS, SCOPES, levelsFor, levelOf, keysForLevel } from "@/platform/access";
 
@@ -326,15 +327,14 @@ function RoleEditor({ role, roles = [], areas, busy, error, onCancel, onSave }) 
                           {/* Scope only where it means something. A disabled
                               control on every row teaches people to ignore it. */}
                           {a.scoped && (
-                            <select className={`${input} w-auto`} value={draft.scopes[a.key] || "own"}
+                            <SelectMenu className={`${input} w-auto`} value={draft.scopes[a.key] || "own"}
                               aria-label={`${areaLabel(a.key, a.label, locale)} ${tr.scope}`}
-                              onChange={(e) => setScope(a, e.target.value)}>
-                              {SCOPES.map((s) => (
-                                <option key={s} value={s}>
-                                  {s === "own" ? tr.ownRecords : s === "department" ? tr.department : tr.everyone}
-                                </option>
-                              ))}
-                            </select>
+                              onChange={(v) => setScope(a, v)}
+                              options={SCOPES.map((s) => ({
+                                value: s,
+                                label: s === "own" ? tr.ownRecords : s === "department" ? tr.department : tr.everyone,
+                              }))}
+                            />
                           )}
                         </div>
 
@@ -502,16 +502,14 @@ function WhyPanel({ slug, people, areas }) {
     <div className="mt-5 rounded-geex border border-slate-200/70 p-4 dark:border-white/10">
       <p className="text-sm font-600 text-slate-700 dark:text-slate-200">{tr.checkWhatSomeoneCan}</p>
       <div className="mt-3 flex flex-wrap items-end gap-3">
-        <select className={`${input} w-auto`} value={who} aria-label={tr.person}
-          onChange={(e) => { setWho(e.target.value); setAnswer(null); }}>
-          <option value="">{tr.who}</option>
-          {people.map((p) => (<option key={p.id} value={p.id}>{p.alias || tr.unnamed}</option>))}
-        </select>
-        <select className={`${input} w-auto max-w-full`} value={key} aria-label={tr.action}
-          onChange={(e) => { setKey(e.target.value); setAnswer(null); }}>
-          <option value="">{tr.what}</option>
-          {actions.map((a) => (<option key={a.key} value={a.key}>{a.label}</option>))}
-        </select>
+        <SelectMenu className={`${input} w-auto`} value={who} aria-label={tr.person}
+          onChange={(v) => { setWho(v); setAnswer(null); }}
+          options={[{ value: "", label: tr.who }, ...people.map((p) => ({ value: p.id, label: p.alias || tr.unnamed }))]}
+        />
+        <SelectMenu className={`${input} w-auto max-w-full`} value={key} aria-label={tr.action}
+          onChange={(v) => { setKey(v); setAnswer(null); }}
+          options={[{ value: "", label: tr.what }, ...actions.map((a) => ({ value: a.key, label: a.label }))]}
+        />
         <button className={btnGhost} disabled={busy || !who || !key} onClick={ask}>
           {busy ? tr.checking : tr.check}
         </button>

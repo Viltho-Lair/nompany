@@ -4,6 +4,7 @@ import { BASE } from "../../../_components/nav";
 import { CURRENT_USER } from "../../../_components/session";
 import { currentSuperAdmin, superSecuritySummary, listSuperAdminEmails } from "@/platform/auth/superAuth";
 import SessionsCard from "../security/SessionsCard";
+import SelectMenu from "@/components/fields/SelectMenu";
 
 export const metadata = { title: "Settings" };
 
@@ -142,27 +143,24 @@ export default async function ProfileSettingsPage() {
                 </div>
                 <div>
                   <label className="ad-label" htmlFor="p-tz">Time zone</label>
-                  <select id="p-tz" className="ad-select" defaultValue="Asia/Riyadh">
-                    <option>Asia/Riyadh</option>
-                    <option>Asia/Dubai</option>
-                    <option>Europe/London</option>
-                    <option>UTC</option>
-                  </select>
+                  <SelectMenu id="p-tz" className="ad-select" defaultValue="Asia/Riyadh"
+                    aria-label="Time zone"
+                    options={["Asia/Riyadh", "Asia/Dubai", "Europe/London", "UTC"]}
+                  />
                 </div>
                 <div>
                   <label className="ad-label" htmlFor="p-lang">Language</label>
-                  <select id="p-lang" className="ad-select" defaultValue="English">
-                    <option>English</option>
-                    <option>العربية</option>
-                  </select>
+                  <SelectMenu id="p-lang" className="ad-select" defaultValue="English"
+                    aria-label="Language"
+                    options={["English", "العربية"]}
+                  />
                 </div>
                 <div>
                   <label className="ad-label" htmlFor="p-format">Date format</label>
-                  <select id="p-format" className="ad-select" defaultValue="MMM D, YYYY">
-                    <option>MMM D, YYYY</option>
-                    <option>DD/MM/YYYY</option>
-                    <option>YYYY-MM-DD</option>
-                  </select>
+                  <SelectMenu id="p-format" className="ad-select" defaultValue="MMM D, YYYY"
+                    aria-label="Date format"
+                    options={["MMM D, YYYY", "DD/MM/YYYY", "YYYY-MM-DD"]}
+                  />
                 </div>
                 <div className="sm:col-span-2">
                   <label className="ad-label" htmlFor="p-bio">Bio</label>

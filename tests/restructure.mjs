@@ -316,6 +316,69 @@ export async function testNoRetiredPermissionKeySurvivesInSource(t) {
   }
 }
 
+export async function testNoNativeSelectSurvivesInSource(t) {
+  // AN ARCHITECTURAL ASSERTION FOR A BUG THAT SHIPPED. A native <select> hands
+  // its option list to the operating system, and the OPEN list cannot be
+  // themed. That is not cosmetic: every control in this product sets the
+  // theme's text colour (--geex-ink in the studio, --ad-foreground in the
+  // console), <option> INHERITS it, and in dark mode that is near-white ink
+  // painted onto the white popup the browser still believes it should draw.
+  // The list rendered as a blank rectangle — a dark studio could not read its
+  // own Department dropdown, and nothing failed anywhere.
+  //
+  // Every one of them is `SelectMenu` now (src/components/fields/SelectMenu.jsx,
+  // docs/functionality/dropdowns.md). Nothing about a new <select> would fail
+  // either, in any test or either compiler, so grep is the only thing that
+  // finds one — the same reason the two key assertions around this one exist.
+  //
+  // ONE EXEMPTION, deliberate and narrow: `cell-format-dialog.tsx` uses Radix's
+  // Select, which paints its own themed popup and never reaches the platform
+  // control. It is matched by `<Select`, not `<select`, so nothing here excuses
+  // it — the pattern below is lower-case and git grep is case-sensitive.
+  //
+  // execFileSync, not execSync + a shell string, for the Windows reason
+  // documented at length on the two assertions either side of this one.
+  //
+  // git grep searches TRACKED files only, so a brand-new screen holding a
+  // <select> is invisible to this until it is `git add`ed. CLAUDE.md says the
+  // same thing about believing a green suite; it applies here first.
+  const { execFileSync } = await import("node:child_process");
+  let files;
+  try {
+    files = execFileSync(
+      "git",
+      ["grep", "-l", "--", "<select", "src"],
+      { encoding: "utf8" },
+    ).trim().split("\n").filter(Boolean);
+  } catch (e) {
+    // Exit code 1 is git grep's "no match" — the good outcome, not an error.
+    if (e.status === 1) files = [];
+    else throw e;
+  }
+  // A PROSE MENTION IS NOT A CONTROL. Five files explain in comments why the
+  // native one was abandoned — this file included — and deleting that reasoning
+  // to satisfy a grep would throw away the only record of why the product draws
+  // its own. So the comments come OUT before the search, rather than the search
+  // trying to recognise one line at a time: these are multi-line block comments
+  // whose continuation lines carry no marker of their own, and a per-line test
+  // reads those as code.
+  //
+  // The `[^:]` guard on the line-comment strip is for `https://…` in a string,
+  // which is not the start of a comment. `<select` must then be followed by
+  // something that can END a tag name, so the word "selection" is not a match.
+  const { readFileSync } = await import("node:fs");
+  const bad = [];
+  for (const file of files) {
+    const stripped = readFileSync(file, "utf8")
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/(^|[^:])\/\/.*$/gm, "$1");
+    stripped.split("\n").forEach((text, i) => {
+      if (/<select[\s>/]/.test(text)) bad.push(`${file}:${i + 1}: ${text.trim()}`);
+    });
+  }
+  t.equal(bad.join("\n"), "", `no source file renders a native <select> — use SelectMenu\n${bad.join("\n")}`);
+}
+
 export async function testNoRetiredSectionKeySurvivesInSource(t) {
   // THE ARCHITECTURAL ASSERTION. A literal "sales-tickets" left behind in a
   // module looks up a section that no longer exists, and getSectionByKey returns
@@ -1023,6 +1086,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       testNoAreaExistsForASectionWithNoScreen,
       testEveryAreaGroupIsARealSectionLabel,
       testNoRetiredPermissionKeySurvivesInSource,
+      testNoNativeSelectSurvivesInSource,
       testNoRetiredSectionKeySurvivesInSource,
       testAnOldStoredGrantStillResolves,
       testANewStoredGrantResolvesUnchanged,

@@ -13,6 +13,7 @@ import { useFocusedRecord } from "@/components/studio2/useFocusedRecord";
 import ProjectsDashboard from "@/components/studio2/ProjectsDashboard";
 import { useAnalyticsLevel } from "@/components/studio2/analyticsLevel";
 import { StatusPill } from "@/components/studio2/StatusPill";
+import SelectMenu from "@/components/fields/SelectMenu";
 import {
   panel, h2, sub, input, inputRO, microLabel, label, btn, btnGhost, th, stripeOn, stripeOff,
   money, fmtDate, useTablePrefs,
@@ -1257,11 +1258,12 @@ function AddOvertime({ projects, directory, defaultDepartmentId, onSave, onCance
           <div className="mb-1.5 flex items-center justify-between gap-3">
             <label className={`${label} mb-0`}>People {collaboratorIds.length ? `(${collaboratorIds.length})` : ""}</label>
             {directory.departments.length > 0 && (
-              <select className="rounded-lg border border-slate-200 bg-[var(--geex-inset)] px-2 py-1 text-xs dark:border-white/15 dark:text-white"
-                value={departmentId} onChange={(e) => setDepartmentId(e.target.value)}>
-                <option value="">{tr.allDepartments}</option>
-                {directory.departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-              </select>
+              <SelectMenu
+                className="rounded-lg border border-slate-200 bg-[var(--geex-inset)] px-2 py-1 text-xs text-[var(--geex-ink)] dark:border-white/15"
+                value={departmentId} onChange={setDepartmentId}
+                aria-label={tr.allDepartments}
+                options={[{ value: "", label: tr.allDepartments }, ...directory.departments.map((d) => ({ value: d.id, label: d.name }))]}
+              />
             )}
           </div>
           <div className="max-h-56 space-y-1 overflow-y-auto rounded-xl border border-slate-200 p-2 dark:border-white/15">

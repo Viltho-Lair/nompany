@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { plannerDict } from "@/shared/studio/planner";
 import { Dialog, input, label, btn, btnGhost } from "@/components/studio2/ui";
+import SelectMenu from "@/components/fields/SelectMenu";
 
 // THE NEW-PLAN DEFAULTS EDITOR. What a fresh plan opens with — configured once
 // per studio, persisted through the planner PUT, and applied to every plan the
@@ -77,18 +78,14 @@ export default function PlannerPresetsDialog({ slug, presets, canEdit, onClose, 
         >
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label={tr.defaultZoom}>
-              <select className={input} value={zoom} onChange={(e) => setZoom(e.target.value)}>
-                {ZOOM_LEVELS.map((z) => (
-                  <option key={z} value={z}>{z.charAt(0).toUpperCase() + z.slice(1)}</option>
-                ))}
-              </select>
+              <SelectMenu className={input} value={zoom} onChange={setZoom} aria-label={tr.defaultZoom}
+                options={ZOOM_LEVELS.map((z) => ({ value: z, label: z.charAt(0).toUpperCase() + z.slice(1) }))}
+              />
             </Field>
             <Field label={tr.defaultColour}>
-              <select className={input} value={colorBy} onChange={(e) => setColorBy(e.target.value)}>
-                {COLOR_BY.map((c) => (
-                  <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>
-                ))}
-              </select>
+              <SelectMenu className={input} value={colorBy} onChange={setColorBy} aria-label={tr.defaultColour}
+                options={COLOR_BY.map((c) => ({ value: c, label: c.charAt(0).toUpperCase() + c.slice(1) }))}
+              />
             </Field>
           </div>
         </Section>

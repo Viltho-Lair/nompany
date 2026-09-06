@@ -7,6 +7,7 @@ import { Card, CardHead, CardBody, Badge, Avatar, Icon } from "../../../_compone
 import SuperDataGrid from "@/components/super/SuperDataGrid";
 import { USERS_COLUMNS, USERS_PAGE_SIZE } from "./columns";
 import { ASSIGNABLE_ROLES, ROLE_OPTIONS, MEMBER_ROLE, SUPER_ROLE, STATUS } from "@/lib/platformRoles";
+import SelectMenu from "@/components/fields/SelectMenu";
 
 // The interactive half of the Users console. Rows arrive already ordered and
 // already labelled by the server; this decides only what is shown — the search
@@ -272,17 +273,13 @@ export default function UsersTable({ rows }) {
                 onChange={(e) => setQuery(e.target.value)}
               />
             </div>
-            <select
+            <SelectMenu
               className="ad-select w-40"
               aria-label="Filter by role"
               value={role}
-              onChange={(e) => setRole(e.target.value)}
-            >
-              <option value="">All roles</option>
-              {ROLE_OPTIONS.map((r) => (
-                <option key={r} value={r}>{r}</option>
-              ))}
-            </select>
+              onChange={setRole}
+              options={[{ value: "", label: "All roles" }, ...ROLE_OPTIONS]}
+            />
           </div>
         }
       />

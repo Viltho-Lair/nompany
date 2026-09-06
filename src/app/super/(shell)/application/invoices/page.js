@@ -2,6 +2,7 @@ import {
   PageHeader, Card, CardHead, CardBody, Row, Col, Badge, StatCard, Table, Icon,
 } from "../../../_components/ui";
 import { BASE } from "../../../_components/nav";
+import SelectMenu from "@/components/fields/SelectMenu";
 
 export const metadata = { title: "Invoices" };
 
@@ -43,13 +44,9 @@ export default function InvoicesPage() {
             <CardHead
               title="All Invoices"
               action={
-                <select className="ad-select w-32" aria-label="Filter by status" defaultValue="">
-                  <option value="">All statuses</option>
-                  <option>Paid</option>
-                  <option>Sent</option>
-                  <option>Overdue</option>
-                  <option>Draft</option>
-                </select>
+                <SelectMenu className="ad-select w-32" aria-label="Filter by status" defaultValue=""
+                  options={[{ value: "", label: "All statuses" }, "Paid", "Sent", "Overdue", "Draft"]}
+                />
               }
             />
             <Table head={["Invoice", "Client", "Due", "Amount", { label: "Status", align: "end" }]}>

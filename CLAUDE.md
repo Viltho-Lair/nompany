@@ -252,8 +252,8 @@ every push to `main` and every pull request.
   to 8 fails the build.
 - **The bundle budget pins the regression, not the size.** Two gates, and the
   first is the one that matters: the LARGEST CHUNK is 158 KB gz against a 250 KB
-  ceiling, because that is what every route pays. Total client JS is **1638 KB gz
-  against 1644 KB** (measured 06/09/2026), which catches sprawl rather than
+  ceiling, because that is what every route pays. Total client JS is **1667 KB gz
+  against 1674 KB** (measured 06/09/2026), which catches sprawl rather than
   splitting. **This line said
   1593 against 1600 and BOTH halves were wrong**: the script's constant was 1700,
   never lowered — the commit that claimed to lower it wrote the comment and left
@@ -383,6 +383,23 @@ every push to `main` and every pull request.
   PNGs are DELETED rather than ported — their filenames are Flaticon slugs,
   Flaticon's free tier wants visible attribution on every page they appear on,
   and this repo carried none. `LICENSES.md` is the file.
+  **1643 → 1667, ceiling 1644 → 1674, with `SelectMenu` — the biggest single
+  rise this line records, and the baseline is the lesson.** A build of the same
+  tree WITHOUT the change measures **1643**, not the 1638 this file claimed: the
+  margin had already been spent by commits that never re-measured, so the real
+  headroom was one kilobyte and this paragraph was the last to know. Measure the
+  branch you are ON, both ends, before attributing a delta to anything.
+  Twenty-four kilobytes is what it costs to replace every native `<select>` in
+  the product, and it is **duplication rather than weight**: eleven route chunks
+  carry a copy at ~2.2 KB gz each, because ~30 modules import it and `Field`
+  imports it too, so it follows `Field` into every screen with a form. **The
+  largest chunk did not move (158 KB)** — no route pays 24 KB, each pays about
+  two. The component's look lives in `.menu-*` rules in `globals.css` rather
+  than in `className` strings for exactly that reason (a utility string is paid
+  for eleven times, a stylesheet rule once; measured at two kilobytes), and the
+  panel was deliberately NOT put behind `nextDynamic()` — a dropdown that waits
+  on a request before it opens is a dropdown that feels broken, which is the
+  thing this change existed to fix.
 - Tests connect things — real repositories, real route handlers, **one assertion per
   bug that actually happened**. Each block names the defect it guards, so nobody
   deletes it later wondering what it was for.

@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { NOVA_PROVIDERS, providerMeta } from "@/lib/nova/providers";
 import { fmtDate, fmtDateTime } from "@/lib/format";
 import CopyableCode from "@/components/CopyableCode";
+import SelectMenu from "@/components/fields/SelectMenu";
 
 // The account hub, laid out like the Google Account console:
 //   • brand mark top-left, ABOVE the fixed sidebar
@@ -773,13 +774,12 @@ function PersonalInfo({ identity, onSaved }) {
         {/* Which AI you subscribe to, then the key for it. Nova talks to whichever
             you pick — Claude, ChatGPT or Gemini. */}
         <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,11rem)_1fr_auto]">
-          <select
+          <SelectMenu
             value={provider}
-            onChange={(e) => { setProvider(e.target.value); setKeyMsg(""); }}
+            onChange={(v) => { setProvider(v); setKeyMsg(""); }}
             className={cn(INPUT, "text-sm")}
-          >
-            {NOVA_PROVIDERS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
-          </select>
+            options={NOVA_PROVIDERS.map((p) => ({ value: p.id, label: p.label }))}
+          />
           <input
             type="password"
             value={novaKey}

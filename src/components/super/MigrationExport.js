@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Card, CardHead, CardBody, Button, Badge, Icon } from "@/app/super/_components/ui";
+import SelectMenu from "@/components/fields/SelectMenu";
 
 // THE EXPORT CONTROLS — the one place this section DOES something rather than just
 // describing the plan. Two paths, matching the two decisions the export offers:
@@ -36,19 +37,15 @@ export default function MigrationExport({ studios = [] }) {
             A single studio
           </label>
           <div className="flex flex-wrap items-center gap-2">
-            <select
+            <SelectMenu
               id="mig-studio"
               value={studioId}
-              onChange={(e) => setStudioId(e.target.value)}
+              onChange={setStudioId}
+              aria-label="A single studio"
               className="min-w-56 rounded-geex border border-[var(--ad-border)] bg-[var(--ad-background)] px-3 py-2 text-sm text-[var(--ad-foreground)]"
-            >
-              <option value="">Choose a studio…</option>
-              {studios.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name || s.slug || s.id}
-                </option>
-              ))}
-            </select>
+              options={[{ value: "", label: "Choose a studio…" },
+                ...studios.map((s) => ({ value: s.id, label: s.name || s.slug || s.id }))]}
+            />
             <Button
               variant="outline"
               disabled={!studioId}

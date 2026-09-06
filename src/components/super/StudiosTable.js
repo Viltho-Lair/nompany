@@ -5,6 +5,7 @@ import { Card, CardHead, Button, Num, Icon } from "@/app/super/_components/ui";
 import SuperDataGrid from "@/components/super/SuperDataGrid";
 import { STUDIOS_COLUMNS, STUDIOS_PAGE_SIZE } from "@/components/super/studiosColumns";
 import { toneOf } from "@/lib/planColors";
+import SelectMenu from "@/components/fields/SelectMenu";
 
 // Every studio, searchable, with its plan editable in place.
 //
@@ -234,17 +235,15 @@ function StudioDialog({ studio, packages, tiers, onClose, onSaved }) {
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label className="ad-label" htmlFor="pkg">Package</label>
-              <select id="pkg" className="ad-select" value={packageId} onChange={(e) => setPackageId(e.target.value)}>
-                <option value="">— none —</option>
-                {packages.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
+              <SelectMenu id="pkg" className="ad-select" value={packageId} onChange={setPackageId} aria-label="Package"
+                options={[{ value: "", label: "— none —" }, ...packages.map((p) => ({ value: p.id, label: p.name }))]}
+              />
             </div>
             <div>
               <label className="ad-label" htmlFor="tier">Tier</label>
-              <select id="tier" className="ad-select" value={tierId} onChange={(e) => setTierId(e.target.value)}>
-                <option value="">— none —</option>
-                {tiers.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-              </select>
+              <SelectMenu id="tier" className="ad-select" value={tierId} onChange={setTierId} aria-label="Tier"
+                options={[{ value: "", label: "— none —" }, ...tiers.map((t) => ({ value: t.id, label: t.name }))]}
+              />
             </div>
           </div>
 
