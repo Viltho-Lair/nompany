@@ -70,9 +70,15 @@ jobs:
       NEXT_TELEMETRY_DISABLED: "1"
 
     steps:
-      - uses: actions/checkout@v4
+      # v5 RATHER THAN v4 BECAUSE v4 IS BUILT ON NODE 20, which GitHub has
+      # deprecated: the runner already forces those steps onto Node 24 and
+      # annotates every run saying so. Nothing was broken — the point of moving
+      # is that the forcing is a courtesy with an end date, and a build that is
+      # only green because the runner is being generous is a build with a clock
+      # on it.
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm

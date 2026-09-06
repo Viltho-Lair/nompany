@@ -4,7 +4,17 @@
 this one is where we actually are. Updated when a wave item closes, not on a
 schedule.
 
-**Last updated:** 2026-08-27 · engagement storage model Phase 0 + 1a + 1b on `main`; the engagements view built
+**Last updated:** 2026-09-06 · the ERP programme through P4a Projects slice 5
+(billing milestones and retention).
+
+**THIS FILE WENT NINE DAYS AND 280 COMMITS OUT OF DATE**, and the state it
+described had been false for most of them: it called the engagements view "in
+progress on a branch" long after it shipped, counted 148 goldens when there were
+242, and knew nothing of the Postgres cutover, P2 or any of P4a. Recorded rather
+than quietly corrected, because a status file nobody trusts is worse than none —
+the same reason `CLAUDE.md` says so about its own numbers. Per-change
+documentation lives in `CLAUDE.md` and `docs/functionality/`, which is where the
+detail has been going; this file is the map.
 
 ---
 
@@ -12,10 +22,61 @@ schedule.
 
 | | |
 |---|---|
-| **Done** | Wave 0, Gate A, Wave 2 seams (A, B, C), **W7 speed refactors R6/R2/R9**, and the **engagement storage model Phase 0 + 1a + 1b** (all on `main`, green) |
-| **In progress** | **The engagements view** (`/<slug>/engagements`) on branch `engagements-view` — the first surface that reads the layer |
-| **Blocked on nothing** | CI green on every push; goldens **148** (144 + the engagement view's four) |
-| **Next gate** | Gate B met in practice (sales at its 3-hop structural floor); the engagement model is the repository-seam endgame ahead of the SQL migration |
+| **Done** | Waves 0–3, Gate A, the engagement storage model Phase 0–1b, **P0** (fifteen-section restructure), **P1 + the cutover** (production runs Postgres; Redis is gone), **P2's approval engine** (bills, then bids), and **P4a's first three sections** |
+| **In progress** | **P4a — Projects, deepened.** Five slices on `main`; the critical path is the one bullet left in WBS/Gantt |
+| **Blocked on nothing** | CI green on every push; goldens **242**, catalogue **153** keys, lint **142/0**, bundle **1637 KB gz against 1644** (largest chunk 158 KB against 250) |
+| **Next gate** | Gate B is 2 of 3 and sales sits at its 3-hop structural floor. Gate C (Wave 3) is done server-side; what is left is `checkJs` over the browser `.js` files and the `app/` restructure |
+
+---
+
+## The ERP programme — where the sections are
+
+The waves below are the platform work. The **P-numbered programme** is the
+product: fifteen sections, built one at a time, hand-written so that P4b's
+abstraction is extracted from real screens rather than guessed at.
+
+| Phase | What it is | State |
+|---|---|---|
+| **P0** | The fifteen-section restructure | ✅ on `main` |
+| **P1** | Postgres behind the store seam (`NOMPANY_DB`: redis / postgres / parity) | ✅ on `main` |
+| **The cutover** | Production runs Postgres through the Cloud Run gateway, live 02/09/2026, proven by a write rather than assumed. **Redis is gone entirely** — no `REDIS_URL` anywhere, nothing in `src` reads it | ✅ done |
+| **P2** | The approval engine — a chain chosen at runtime, invariant 7 enforced twice. Two document types: bills, then bids. Chains live on the STUDIO record (`platform/approval/store`), not in Finance's settings | ✅ on `main` |
+| **P4a** | Section-by-section depth. Three sections done, one in progress | 🟡 |
+| **P4b** | The abstraction, extracted from the screens P4a builds | ⬜ not started |
+
+### P4a, slice by slice
+
+Every slice below is on `main` and green. Each names its own file in
+`docs/functionality/`, which is where the behaviour is written down.
+
+| Section | Slices | State |
+|---|---|---|
+| **CRM & Sales** | contracts register · pipeline board · customer 360 · pricing and customer rates · the dashboard | ✅ complete |
+| **Tendering & Estimating** | tender register · BOQ grid and rate library · tender pack and clarifications · bid review · handover to Projects | ✅ complete |
+| **Projects, deepened** | cost breakdown · purchase orders coded (committed and forecast) · earned value · variations · **billing milestones and retention** | 🟡 four of five bullets; the critical path remains |
+| **Administration & Settings** | a real gated section (03/09) · Master data with Locations and the departments register | ✅ complete |
+
+**Four sections still render nothing** and are hidden rather than shown empty:
+Manufacturing, Assets, Reports, and Quality & HSE. They are listed in
+`NO_SCREEN_YET` and hold no permission area, because a right nothing can
+exercise is a bug (invariant 16). Tendering was the fifth until its register
+landed.
+
+**What the last slice added, as the shape of all of them:** a payment schedule
+and retention on a project (`projects.billing`, catalogue 149 → 153), the pure
+`modules/projects/billing.ts` shared with the screen, `milestoneId` on
+`InvoiceSchema`, nine goldens, and `docs/functionality/billing-milestones.md`
+with an honest "Not built yet" — nothing raises the invoice, no starter role
+holds the right, and variations still move neither the schedule nor the budget.
+
+**A LESSON THIS FILE SHOULD KEEP, because it cost a full Gate A cycle:** a Gate A
+block that mints a person, raises an invoice or writes to a shared fixture must
+run AFTER every section that records a golden and BEFORE `no golden is left
+behind`. Seated inside the projects block, the billing section moved six goldens
+belonging to other modules — an invoice reference, three HR lists, the operations
+board and a project list — with no route having changed. Seated after the
+completeness check instead, it failed by exactly its own nine names. The
+direct-projects block documents the rule; it is not obvious from anywhere else.
 
 ---
 
@@ -30,8 +91,9 @@ is being built and shipped incrementally. On `main`:
 | **Phase 1a — backfill read layer** | pure chain-clustering (`backfill.ts`), a guarded backfill CLI (`scripts/migrate/backfill-engagements.mjs`), `readEngagementView`, a `recEng` reverse index | ✅ on `main`, **applied to live** (7 engagements on the reference studio, proven read-only) |
 | **Phase 1b-i — ticket dual-write** | `createTicket` also mints its engagement, same deterministic id/clustering, guarded best-effort, response byte-identical | ✅ on `main` |
 | **Phase 1b-rest** | RFQ / quotation / project creation attach to their engagement; internal quotation mints its own; approved quotation recorded — the whole spine now dual-writes on create | ✅ on `main` |
-| **The engagements view** | `/<slug>/engagements` — the first surface that READS the layer: a `createdAt`-scored index, the grantable `engagements.view` key, a read layer filtering every stage by the permission its registry entry declares, two GET routes, four goldens, and a screen with a nav entry above People | ✅ built (`engagements-view`) |
-| **Direct project creation** *(2026-08-29)* | Projects gains a second create path with no ticket/RFQ/quotation behind it — the client resolved by `resolveClientFor`, industry written onto the Client row rather than the project, a direct project rooting its own engagement (`attachProjectEngagement`, matched by a third `buildEngagements` branch), and both project sheets seeded either way, permanently empty on the direct path until a quotation is attached. `docs/functionality/projects.md` written. | ✅ on branch `direct-project-creation` |
+| **The engagements view** | `/<slug>/engagements` — the first surface that READS the layer: a `createdAt`-scored index, the grantable `engagements.view` key, a read layer filtering every stage by the permission its registry entry declares, two GET routes, four goldens, and a screen with a nav entry above People | ✅ on `main` |
+| **Direct project creation** *(2026-08-29)* | Projects gains a second create path with no ticket/RFQ/quotation behind it — the client resolved by `resolveClientFor`, industry written onto the Client row rather than the project, a direct project rooting its own engagement (`attachProjectEngagement`, matched by a third `buildEngagements` branch), and both project sheets seeded either way, permanently empty on the direct path until a quotation is attached. `docs/functionality/projects.md` written. | ✅ on `main` |
+| **A third create path** *(2026-09)* | The handover from a won tender — `tenderSource` beside `quotationSource` and `directSource`, deliberately a third HEAD of `openProject` rather than a function in Tendering, so the engagement dual-write below the split cannot be forgotten | ✅ on `main` |
 
 Plans: `docs/superpowers/plans/2026-08-2{6,7}-engagement-*.md`. Deferred (ledgered): the project's
 children attaching on create, score-members-by-`createdAt`, `dept`/`hasStage` on backfilled
@@ -56,7 +118,7 @@ A gate is a promise the build keeps, not a milestone anybody declares.
 | `readCol` in service code | 0 | ✅ **0** |
 | Hops — `/api/studios/[slug]` | ≤2 | ✅ **2 waves** *(was 8)* |
 | Hops — `…/sales` | ≤2 | **3 waves** *(was 8)* — 3 is the structural floor |
-| Goldens unchanged | 148 | ✅ the original 144 byte-identical throughout; the engagement view ADDED four |
+| Goldens unchanged | 242 | ✅ changed only when a feature deliberately changed a response, each re-recorded with a stated reason |
 
 The studio route meets the ≤2 target. Sales sits at 3, and 3 is the structural
 floor rather than a convenient stopping point: the section list cannot be fetched
@@ -110,7 +172,7 @@ because somebody looked at a screen and asked why it was empty.
 | W7 — speed refactors | ✅ | R1 (via Seam C), **R2** (`plantMissingSections` off the read path + backfill CLI), **R6** (`lastSeenAt`/`lastLoginAt` off `g:users` onto `u:<id>:activity`), **R9** (`getProfile` N+1 → one `MGET`) — all on `main` |
 | W8 — cache + prefetch | ✅ | 8 waves → 2 (studio) and 3 (sales) |
 | W9 — targeted live updates | ✅ | The stream names the row; the doorbell stopped carrying the message |
-| W10 — media to Blob · audit log | 🟡 | Audit log ✅. Blob is written and tested, blocked on the store being created |
+| W10 — media to Blob · audit log | 🟡 | Audit log ✅. **The Blob port shipped** — uploads go to Vercel Blob and the URL is never given to a client; the route fetches server-side after the membership check. Only `--reclaim` (deleting the two pre-Blob records' base64) is outstanding |
 | W11 — security round 2 · notifications | ✅ | Session digests at rest, console MFA, real console sessions |
 | W12 — repository adoption · sweep rewrite | 🟡 | The `readCol` migration below |
 
