@@ -50,7 +50,7 @@ ok("no caller can mint a second wildcard through the body",
 console.log("\n== the eleven archetypes");
 
 const A = await import("@/modules/people/archetypes");
-const { ALL_PERMISSIONS } = await import("@/platform/access");
+const { ALL_PERMISSIONS, AREAS } = await import("@/platform/access");
 
 ok("there are eleven", A.ARCHETYPES.length === 11, String(A.ARCHETYPES.length));
 
@@ -63,6 +63,55 @@ const strays = A.ARCHETYPES.flatMap((a) => A.permissionsFor(a.id).filter((k) => 
 ok("every archetype names only real permission keys", strays.length === 0, strays.join(", "));
 ok("archetypeProblems agrees", A.archetypeProblems(ALL_PERMISSIONS).length === 0,
   A.archetypeProblems(ALL_PERMISSIONS).slice(0, 3).join(" | "));
+
+// THE OTHER DIRECTION, which nothing checked until it had already gone wrong
+// twice. `archetypeProblems` asserts every key an archetype NAMES exists; it
+// says nothing about whether every key the catalogue OFFERS is named by
+// somebody. Both holes below were found by a second session reading the model
+// rather than by any test here.
+//
+// KEYS THE LADDER CANNOT REACH. `keysForLevel` walks an area's `verbs`, and
+// VERBS is exactly view/create/edit/delete. Everything else — approve, pay,
+// salary, lock, publish — lives in `area.extra`, so an archetype built only
+// from [key, level] holds none of it. principal was built exactly that way and
+// held 0 of 21, which left the approval chains unwalkable by any library role.
+const EXTRA_KEYS = AREAS.flatMap((a) => (a.extra || []).map((x) => `${a.key}.${x.key}`));
+const principal = new Set(A.permissionsFor("principal"));
+const principalMissing = EXTRA_KEYS.filter((k) => !principal.has(k));
+ok("principal holds every extra the catalogue offers", principalMissing.length === 0,
+  principalMissing.slice(0, 4).join(", "));
+
+// SHRINK-ONLY, exactly like the lint budget, and for the same reason: an
+// exemption list has to be maintained and argued with, a number only has to go
+// down. Both ceilings are what the model measures TODAY, and both residues are
+// deliberate rather than accidental — which is why they are allowed to sit
+// here rather than being driven to zero.
+//
+// A new area or a new extra covered by nothing but principal pushes one of
+// these over and fails the build, which is the pressure the guard exists to
+// apply. If the residue is genuinely right, lower nothing and say why here.
+const nonPrincipal = new Set(
+  A.ARCHETYPES.filter((a) => a.id !== "principal").flatMap((a) => A.permissionsFor(a.id)),
+);
+
+// The nine are every *.settings area plus the three administration ones:
+// configuring a department and deciding who may do what are administrative
+// acts, not jobs a trade has a title for.
+const PRINCIPAL_ONLY_AREAS = 9;
+const lonelyAreas = AREAS
+  .map((a) => a.key)
+  .filter((key) => ![...nonPrincipal].some((k) => k.startsWith(`${key}.`)));
+ok(`at most ${PRINCIPAL_ONLY_AREAS} areas are reachable by no archetype but principal`,
+  lonelyAreas.length <= PRINCIPAL_ONLY_AREAS, `${lonelyAreas.length}: ${lonelyAreas.join(", ")}`);
+
+// The five are the three approveHigh keys, hr.employees.salary and
+// crmSales.quotations.unlock. Signing above a studio's own limit, reading pay,
+// and reopening something already committed are decisions a studio makes about
+// a PERSON — the same argument `money` already makes for declining approveHigh.
+const PRINCIPAL_ONLY_EXTRAS = 5;
+const lonelyExtras = EXTRA_KEYS.filter((k) => !nonPrincipal.has(k));
+ok(`at most ${PRINCIPAL_ONLY_EXTRAS} extras are held by no archetype but principal`,
+  lonelyExtras.length <= PRINCIPAL_ONLY_EXTRAS, `${lonelyExtras.length}: ${lonelyExtras.join(", ")}`);
 
 // A SECOND WILDCARD IS FORBIDDEN: exactly one exists and it is Admin, which
 // "has to keep meaning everything as the product grows". So principal is an
