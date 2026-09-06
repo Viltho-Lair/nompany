@@ -23,8 +23,8 @@ detail has been going; this file is the map.
 | | |
 |---|---|
 | **Done** | Waves 0–3, Gate A, the engagement storage model Phase 0–1b, **P0** (fifteen-section restructure), **P1 + the cutover** (production runs Postgres; Redis is gone), **P2's approval engine** (bills, then bids), and **P4a's first three sections** |
-| **In progress** | **P4a — Procurement & Subcontracting**, the spec's fourth hand-built section. Requisitions on `main`; RFQ and quote comparison, subcontracts, GRN and the dashboard remain |
-| **Blocked on nothing** | CI green on every push; goldens **242**, catalogue **153** keys, lint **142/0**, bundle **1637 KB gz against 1644** (largest chunk 158 KB against 250) |
+| **In progress** | **P4a — Procurement & Subcontracting**, the spec's fourth hand-built section. Four of seven slices are on `main` — requisitions, RFQ and quote comparison, orders with expediting, subcontracts. Supplier qualification, GRN with 3-way match and the dashboard remain |
+| **Blocked on nothing** | CI green on every push; goldens **291**, catalogue **171** keys, lint **142/0**, bundle **1678 KB gz against 1680** (largest chunk 158 KB against 250). Measured 07/09/2026 — `ls tests/goldens | wc -l` and the catalogue assertion in `tests/gate-a.mjs`, not quoted from the line above them |
 | **Next gate** | Gate B is 2 of 3 and sales sits at its 3-hop structural floor. Gate C (Wave 3) is done server-side; what is left is `checkJs` over the browser `.js` files and the `app/` restructure |
 
 ---
@@ -53,8 +53,8 @@ Every slice below is on `main` and green. Each names its own file in
 |---|---|---|
 | **CRM & Sales** | contracts register · pipeline board · customer 360 · pricing and customer rates · the dashboard | ✅ complete |
 | **Tendering & Estimating** | tender register · BOQ grid and rate library · tender pack and clarifications · bid review · handover to Projects | ✅ complete |
-| **Projects, deepened** | cost breakdown · purchase orders coded · earned value · variations · billing milestones and retention · the critical path | 🟡 **not complete** — see below |
-| **Procurement & Subcontracting** | **purchase requisitions** · supplier RFQ and quote comparison · purchase orders with expediting · subcontracts · supplier qualification · GRN with 3-way match · dashboard | 🟡 one of seven |
+| **Projects, deepened** | **cost breakdown** · **purchase orders coded** · **earned value** · **variations** · **billing milestones and retention** · the critical path · daily site reports · closure with punch list and warranty | 🟡 **not complete** — see below |
+| **Procurement & Subcontracting** | **purchase requisitions** · **supplier RFQ and quote comparison** · **purchase orders with expediting** · **subcontracts** · supplier qualification · GRN with 3-way match · dashboard | 🟡 **four of seven** |
 | **Administration & Settings** | a real gated section (03/09) · Master data with Locations and the departments register | ✅ complete |
 
 **PROJECTS IS NOT COMPLETE, AND THIS FILE SAID IT WAS.** The row above was marked ✅ from
@@ -137,7 +137,7 @@ A gate is a promise the build keeps, not a milestone anybody declares.
 | `readCol` in service code | 0 | ✅ **0** |
 | Hops — `/api/studios/[slug]` | ≤2 | ✅ **2 waves** *(was 8)* |
 | Hops — `…/sales` | ≤2 | **3 waves** *(was 8)* — 3 is the structural floor |
-| Goldens unchanged | 242 | ✅ changed only when a feature deliberately changed a response, each re-recorded with a stated reason |
+| Goldens unchanged | 291 | ✅ changed only when a feature deliberately changed a response, each re-recorded with a stated reason |
 
 The studio route meets the ≤2 target. Sales sits at 3, and 3 is the structural
 floor rather than a convenient stopping point: the section list cannot be fetched
