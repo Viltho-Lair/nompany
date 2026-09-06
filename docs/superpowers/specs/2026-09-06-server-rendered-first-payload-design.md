@@ -247,6 +247,25 @@ second segment.
 *Rule:* one screen per commit, each independently green. Never a commit that
 converts several.
 
+**6. `nav` IS A MAP, NOT AN ARRAY — and this trap is created BY this design.**
+`sectionNav` returns `{ [sectionKey]: boolean }`: a visibility map carrying no
+section names at all. `.map` or `.flatMap` on it throws during render and the
+screen fails to load — and `tsc`, strict `tsc`, `next build`, the goldens and the
+full suite are all green over it, because none of them render a component. A
+neighbouring session shipped exactly that to production on 06/09/2026.
+
+Every EXISTING call site is bracket access (`nav?.["tendering-register"]`), which
+is immune. The hazard is new composition, which is precisely what this design
+introduces — nineteen more screens, each a fresh opportunity to reach for
+`Object.entries(nav).map(...)`. Carry the mistake across the fan-out and it is
+carried nineteen times.
+
+*Rule:* a view function passes `nav` through untouched or not at all, and never
+iterates it. **If a screen needs section NAMES they come from the section rows**,
+which is the only correct source anyway — a studio renames its sections, and the
+map has never held a name. Phase 2's manifest work adds a source-level assertion
+that no view function iterates `nav`.
+
 ---
 
 ## Testing
@@ -257,6 +276,23 @@ byte-identical.
 
 > **No golden may be re-recorded for this work. If a golden moves, the refactor
 > is wrong.**
+
+**THAT RULE IS ONLY SOUND OVER THE GOLDENS THIS WORK OWNS, and stating it without
+that qualifier nearly caused a correct refactor to be reverted.** Gate A runs against
+a SHARED fixture studio, and several agent sessions work this repository at once — so
+another session's legitimate change moves goldens in the same run. The scope is
+`tendering.*` and `owner.*`; a movement anywhere else is somebody else's feature and
+must be checked with them rather than treated as evidence about this one. A pass
+condition that cannot tell whose change moved what is not a pass condition.
+
+**And confirm WHICH response a golden pins before trusting it.** A golden over a
+WRITE returns the stored record; a list or page renders from a decorated row, a
+different code path with different fields. A neighbouring session added fields to a
+list row that no golden covered and got a green "nothing moved" that meant "nothing
+was watching". Checked here: `tests/goldens/tendering.list.json` pins the GET —
+`ok`, `asOf`, `tenders`, `canCreate`, `canEdit`, `canDelete` — which is exactly what
+`tendersView` composes, so the payload the page server-renders is pinned rather than
+merely adjacent to something that is.
 
 There are **242 goldens** as measured today (`ls tests/goldens | wc -l`).
 `CLAUDE.md` says 189 and is stale; correcting it is part of the first commit,
@@ -285,8 +321,28 @@ Beyond that:
 | Phase | Scope | Exit |
 |---|---|---|
 | 1 | **Tendering only.** `tendersView`, page wiring, `initial` prop, the ceiling and its test | a section click re-measured against Frankfurt; goldens unmoved |
-| 2 | Normalise the dispatch into a named screen id; add the two manifests and their assertions | `restructure.mjs` green with zero further screens converted |
+| 2 | **Extract `useInitialPayload`** (see below); normalise the dispatch into a named screen id; add the two manifests and their assertions | `restructure.mjs` green with zero further screens converted |
 | 3 | Fan out, one screen per commit | every screen converted or explicitly declared as not |
+
+### Phase 2 gained a prerequisite, and it was found by measuring
+
+**Task 3 cost 1 KB of client JS.** Measured 06/09/2026: 1643 KB against the 1644 ceiling, largest
+chunk unmoved at 158 KB. One kilobyte is nothing — **and twenty screens is nineteen more than
+fits.**
+
+The cause is duplication I wrote without noticing: every converted screen carries its own copy
+of the `if (initial) return` guard and the focus-reload effect. The house rule is explicit about
+this — when you copy a block into a second place, extract it instead.
+
+**So the fan-out does not start until `useInitialPayload(initial, reload)` exists**, shipped
+once, leaving the per-screen cost at roughly a prop name. That is not only a size argument: the
+`asOf` staleness rule currently lives in a comment block inside one screen, and re-implementing
+it nineteen times is nineteen chances to get "only when a server payload was actually used"
+subtly wrong. One hook, one rule, one place to fix it.
+
+Deliberately NOT extracted in Phase 1. One caller is not a pattern, and extracting on
+speculation is how an abstraction ends up shaped for a case that never arrives. Two would have
+been the moment; the measurement simply says the moment comes before the third.
 
 **Phase 1 gates phase 2.** Tendering needs no manifest — `screenKey === "tendering"`
 is one clean branch — which is why it goes first: it proves the seam before

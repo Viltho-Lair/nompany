@@ -113,6 +113,34 @@ references were NOT reissued to the next three (TND-0004 followed TND-0003), bec
 counter only moves forward — invariant 10 doing its job on the one thing that would have made
 the mess worse.
 
+## Where the register's first page comes from
+
+**The list arrives with the page, not after it.** Opening the register used to be two HTTP
+requests: the page rendered an empty screen, the browser downloaded its chunk, mounted it, and
+only then fetched `/api/studios/<slug>/tendering/tenders` — a route that re-resolved the
+reader, the studio, the collaborator, the roles and the sections from scratch, because a
+second request cannot share a request cache with the first. The page composes that payload
+itself now and hands it to the screen.
+
+**The body is composed by ONE function, `tendersView`.** The route is a thin HTTP head over
+it. This matters more than it looks: the screen and the API must answer the same question the
+same way, and only the route's half is pinned by a golden — so a second copy of the assembly
+would be free to drift with nothing noticing. Gate A calls `tendersView` directly and compares
+it to the route's body on every run.
+
+**`asOf` is the one thing that changed behaviour.** Every "days left" on this register is
+measured from that instant and the screen never reads its own clock. Next serves an RSC
+payload from the client router cache on a back-navigation, so a server-rendered payload can be
+redrawn from a moment that has passed — which the old fetch-on-mount never could, because it
+re-read every time. **The screen re-reads when the tab regains focus**, which bounds the
+staleness to one navigation. Only when a server payload was actually used.
+
+**A payload over 48 KiB is not sent.** The page hands down nothing, the screen fetches as it
+always did, and the fallback is logged. `scripts/bundle-budget.mjs` measures client JS and is
+structurally blind to the RSC stream, so this ceiling is checked per request instead — see
+`src/shared/rscPayload.ts` for the derivation. A studio with a very large register pays the
+old round trip rather than an unbounded response.
+
 ## Not built yet
 
 Stated in words, because a silent gap reads as a finished feature. **All five of Tendering's
@@ -123,6 +151,12 @@ subsections exist now.** The BOQ grid and rate library shipped as slice 2
 (`docs/functionality/handover.md`) — all four bullets used to sit in this list saying
 otherwise, and a gap list that has not caught up with what shipped is worse than none.
 
+- **The register is the ONLY screen whose first payload is server-rendered.** Every other
+  studio screen still mounts empty and fetches, and still pays the second request described
+  above. Phase 1 of the design converted one screen deliberately, to prove the seam before
+  nineteen more depend on it — see
+  `docs/superpowers/specs/2026-09-06-server-rendered-first-payload-design.md`. The manifest
+  and the dispatch normalisation that the rest needs do not exist yet.
 - **The bill is not frozen once a tender is handed over.** Its lines still edit, the project's
   sheets follow them live, and the project's `value` — copied at handover — does not, so the
   two can disagree with nothing saying so. See `handover.md`.

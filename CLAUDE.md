@@ -554,7 +554,7 @@ waits for the gateway.
 **Waves 0–1 are complete; Gate A is green.** Wave 0 shipped (orphan-sweep guard,
 credential rate limiting, console session expiry, traffic-ingest bounds, media tenancy,
 security headers, bcrypt 12 with rehash-on-login, M-1 dead capabilities). Gate A shipped:
-189 golden responses over every surface, the 143-key permission matrix, hop counting, six
+256 golden responses over every surface, the 159-key permission matrix, hop counting, six
 architectural assertions, **per-route permission enforcement in every module**, **ESLint**
 (flat config + shrink-only warning budget, 142 today), **observability** (request ids, per-request hop
 counts), and CI enforcing all of it.
@@ -562,10 +562,14 @@ counts), and CI enforcing all of it.
 Both of those numbers keep moving — 139 goldens and 102 keys before the
 fifteen-section restructure. They are stated here as MEASURED (`ls tests/goldens | wc -l`, and
 the catalogue assertion in `tests/gate-a.mjs`), because a pass condition quoted from memory is
-a pass condition nobody can check.
+a pass condition nobody can check. **Re-measured 06/09/2026 and both were stale — this
+said 189 and 143 against a real 256 and 159**, which is the paragraph failing its own rule
+in the same breath as stating it. A number nobody re-measures decays silently, and these two
+had drifted through the tender-pack, requisitions and departments slices without anybody
+noticing, because nothing fails when prose disagrees with a test.
 
 **Wave 2 (seams + performance) is mostly done; Gate B is 2 of 3.** Zero direct `readCol` in
-service code ✅, goldens unchanged by the seam work ✅ (189 today), hops ≤2 for the studio route and 3 for sales
+service code ✅, goldens unchanged by the seam work ✅ (256 today), hops ≤2 for the studio route and 3 for sales
 (the structural floor). Done: Seam A (route wrapper, all 96 routes), Seam B (repository
 interface + the `readCol` migration across all 13 modules), Seam C (one context factory,
 killed hop 7), request-scoped cache + batched prefetch (8→2 hops), targeted live updates,
