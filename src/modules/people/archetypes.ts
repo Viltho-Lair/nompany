@@ -65,6 +65,27 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
     grants: AREAS
       .filter((a) => a.key !== "administration.access")
       .map((a) => [a.key, "full"] as const),
+    // AND EVERY EXTRA, which was ABSENT rather than declined. `keysForLevel`
+    // walks an area's `verbs`, and VERBS is exactly view/create/edit/delete;
+    // extras live in `area.extra` and no level can reach them. So a shape built
+    // from [key, "full"] held none of the twenty-one, and the comment above
+    // justified excluding administration.access while saying nothing about
+    // them — which is what marks it as an oversight rather than a decision.
+    //
+    // IT LEFT THE APPROVAL CHAINS UNWALKABLE, and that is the part that makes
+    // this a defect rather than a preference. A bill over the studio's limit
+    // needs finance.payables.approveHigh; no archetype held it, so no library
+    // role could be the second signature and only the account holder — who
+    // short-circuits effectivePermissions on role === "owner" — could sign at
+    // all. Same for a bid over 500000 and a requisition over 10000.
+    //
+    // Invariant 7 is not an argument against this: reviewer — approver is
+    // enforced AT THE TRANSITION, and CLAUDE.md is explicit that holding both
+    // rights is legitimate while using both on one record is not. Withholding
+    // the key buys none of that separation; it only breaks the role.
+    extras: AREAS
+      .filter((a) => a.key !== "administration.access")
+      .flatMap((a) => (a.extra || []).map((x) => `${a.key}.${x.key}`)),
   },
   {
     id: "department-head",
@@ -75,11 +96,28 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
       ["projects.list", "full"], ["projects.planner", "edit"], ["projects.sla", "edit"],
       ["tasks.board", "full"], ["hr.employees", "view"], ["hr.vacations", "edit"],
       ["administration.members", "view"], ["crmSales.tickets", "view"],
+      // Seen so the approvals below are exercisable. A right to answer a
+      // document you cannot open is a right in name only.
+      ["tendering.tenders", "view"], ["procurement.requisitions", "view"],
+      ["engineeringDocs.register", "view"], ["engagements", "view"],
     ],
     // Running a department includes answering its leave, which is an extra
     // rather than a rung on the ladder — the same reason STARTER_ROLES spells
     // it out by hand.
-    extras: ["hr.vacations.approve"],
+    // THE ARCHETYPE THAT ANSWERS, which is what a department head does that
+    // nobody below them can. Each of these is deliberately away from the person
+    // who raises the thing being answered:
+    //   — tenders.approve, because "may price a bid" and "may commit the
+    //     company to it" are different powers (bidder holds neither).
+    //   — requisitions.approve, because approving authorises somebody else's
+    //     spend; buyer is the one spending and holds the area, not this.
+    //   — register.approve, because checker holds `review` and invariant 7 is
+    //     the reason it stops there.
+    extras: [
+      "hr.vacations.approve", "tendering.tenders.approve",
+      "procurement.requisitions.approve", "engineeringDocs.register.approve",
+      "engagements.lock",
+    ],
   },
   {
     id: "winner-of-work",
@@ -87,7 +125,13 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
     grants: [
       ["crmSales.tickets", "full"], ["crmSales.clients", "full"], ["crmSales.quotations", "edit"],
       ["crmSales.pipeline", "view"], ["crmSales.dashboard", "view"], ["crmSales.live", "view"],
+      ["engineeringDocs.rfq", "edit"],
     ],
+    // Turning an enquiry into a quotation is the selling motion, and locking a
+    // quotation is finishing it. UNLOCK is deliberately not here: it reopens
+    // something already committed, and Gate A pins that holding one does not
+    // imply the other.
+    extras: ["crmSales.quotations.lock", "engineeringDocs.rfq.convert"],
   },
   {
     id: "bidder",
@@ -106,8 +150,13 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
     grants: [
       ["projects.list", "full"], ["projects.planner", "edit"], ["projects.sla", "edit"],
       ["projects.overtimes", "edit"], ["tasks.board", "full"], ["inventory.sheets", "edit"],
-      ["crmSales.contracts", "view"], ["projects.dashboard", "view"],
+      ["crmSales.contracts", "edit"], ["projects.dashboard", "view"],
+      ["engagements", "view"], ["engineeringDocs.live", "view"],
     ],
+    // A variation IS the contract's content, and the project manager whose job
+    // it changes is who answers it — which is the act crmSales.contracts.approve
+    // was minted for when the register shipped.
+    extras: ["crmSales.contracts.approve"],
   },
   {
     id: "front-line",
@@ -117,7 +166,7 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
       ["projects.list", "view"], ["hr.vacations", "view"],
       // A lead assigns work, so a lead needs the list of people to assign it to.
       // Deliberately not hr.employees, which is the employment record.
-      ["administration.members", "view"],
+      ["administration.members", "view"], ["fieldService.dashboard", "view"],
     ],
   },
   {
@@ -163,12 +212,22 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
     grants: [
       ["finance.cash", "full"], ["finance.payables", "full"], ["finance.assets", "full"],
       ["finance.ledger", "view"], ["finance.dashboard", "view"], ["projects.costs", "view"],
+      // What the client owes and what is being held back. Deliberately the
+      // BILLING half rather than more of costs: the two areas were split so a
+      // commercial reader needs none of the supplier costs, and this is the
+      // side that raises the invoices.
+      ["projects.billing", "edit"],
     ],
     // Posting, approving and paying are extras rather than rungs, and they are
     // the three that distinguish somebody who runs the ledger from somebody who
     // reads it. approveHigh is deliberately absent: signing above the studio's
     // own limit is a decision a studio makes about a person, not a default.
-    extras: ["finance.ledger.post", "finance.payables.approve", "finance.payables.pay"],
+    extras: [
+      "finance.ledger.post", "finance.payables.approve", "finance.payables.pay",
+      // Reversing a posting is the same job as making one, and disposing of an
+      // asset is the ledger act that ends it.
+      "finance.ledger.reverse", "finance.assets.dispose",
+    ],
   },
   {
     id: "checker",
@@ -186,7 +245,13 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
       ["engineeringDocs.register", "view"], ["projects.list", "view"],
       ["fieldService.tracking", "view"], ["inventory.sheets", "view"], ["crmSales.contracts", "view"],
     ],
-    extras: ["engineeringDocs.register.review"],
+    // Publishing and obsoleting are the controller's housekeeping — moving a
+    // document that has ALREADY been approved by somebody else. They are not
+    // the approval decision, which is why they sit here and `approve` does not.
+    extras: [
+      "engineeringDocs.register.review", "engineeringDocs.register.publish",
+      "engineeringDocs.register.obsolete",
+    ],
   },
 ]);
 

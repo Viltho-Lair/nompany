@@ -81,6 +81,47 @@ without `administration.access`: running the company and deciding who may do
 what are different acts, and the second is the one that can hand somebody else
 everything.
 
+**It holds every EXTRA too, and for a while it held none.** `keysForLevel`
+walks an area's `verbs`, and those are exactly view/create/edit/delete;
+everything else — approve, approveHigh, pay, salary, lock, publish, award —
+lives in `area.extra`, which no level can reach. So a shape built from
+`[key, "full"]` held **0 of 21**, and the comment justifying the
+`administration.access` exclusion said nothing about extras, which is what
+marked it as an oversight rather than a decision.
+
+**That left the approval chains unwalkable.** A bill over the studio's limit
+needs `finance.payables.approveHigh`; no archetype held it, so no library role
+could be the second signature and only the account holder — who short-circuits
+`effectivePermissions` on `role === "owner"` — could sign at all. The same for a
+bid over 500000 and a requisition over 10000. Invariant 7 is not an argument
+against fixing it: reviewer — approver is enforced AT THE TRANSITION, and
+holding both rights is legitimate while using both on one record is not, so
+withholding the key bought none of that separation and only broke the role.
+
+**Answering is a department head's job, and it sits away from whoever raised the
+thing.** `tendering.tenders.approve` is not the bidder's, because pricing a bid
+and committing the company to it are different powers;
+`procurement.requisitions.approve` is not the buyer's, because approving
+authorises somebody else's spend; `engineeringDocs.register.approve` is not the
+checker's, because the checker holds `review`. A variation is answered by the
+project manager whose work it changes.
+
+**Five extras stay principal's alone, deliberately:** the three `approveHigh`
+keys, `hr.employees.salary` and `crmSales.quotations.unlock`. Signing above a
+studio's own limit, reading pay, and reopening something already committed are
+decisions a studio makes about a **person**, which is the argument `money`
+already makes for declining `approveHigh` itself.
+
+**Coverage is asserted in both directions now.** `archetypeProblems` only ever
+checked that every key an archetype NAMES exists; nothing checked that every key
+the catalogue OFFERS is named by somebody, which is how both holes survived.
+`tests/roles-model.mjs` now carries two **shrink-only** counts — at most 9 areas
+and at most 5 extras reachable by no archetype but principal — on the lint
+budget's reasoning: an exemption list has to be maintained and argued with, a
+number only has to go down. The nine areas are every `*.settings` plus the three
+`administration.*` ones, which are administrative acts rather than jobs a trade
+has a title for.
+
 ## Adding a role
 
 | Act | Where | Right |
