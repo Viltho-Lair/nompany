@@ -3348,15 +3348,24 @@ console.log("\n== a library role arrives with access, copied");
   const hr = await hrContext(owner, slug);
   ok("owner can open HR", !hr.error, hr.error);
 
-  const depts = await listDepartments(hr);
-  const target = depts[0];
+  // THE STUDIO HAS TO SAY WHAT IT DOES. The picker requires both narrowings —
+  // a field of work and a department code — because an unfiltered catalogue
+  // offers Farm Operations Manager for a sales department, which is the one
+  // error the department mapping exists to prevent. createStudio sets no field,
+  // so the fixture picks one, exactly as a real studio does in Studio settings.
+  await updateStudio(studio.id, { fieldOfWork: "Construction & Contracting" });
+  const hrWithTrade = await hrContext(owner, slug);
 
-  const offered = await libraryRolesFor(hr, { departmentId: target.id });
+  const depts = await listDepartments(hrWithTrade);
+  const target = depts.find((d) => d.code) || depts[0];
+  ok("the fixture department has a code the catalogue can place", !!target.code, JSON.stringify(target.code));
+
+  const offered = await libraryRolesFor(hrWithTrade, { departmentId: target.id });
   ok("the library offers roles for a department", (offered.results || []).length > 0,
     JSON.stringify(offered.error || (offered.results || []).length));
 
   const firstTwo = (offered.results || []).slice(0, 2).map((r) => r.name);
-  const added = await addLibraryRoles(hr, { departmentId: target.id, names: firstTwo });
+  const added = await addLibraryRoles(hrWithTrade, { departmentId: target.id, names: firstTwo });
   ok("adding from the library creates them", added.added === firstTwo.length,
     JSON.stringify(added.error || added.added));
   ok("...inside the department they were added to",
@@ -3376,22 +3385,22 @@ console.log("\n== a library role arrives with access, copied");
 
   // A MULTI-SELECT RE-SELECTING WHAT IS ALREADY THERE IS QUIET. The studio
   // asked for that role to exist and it does; an error would be pedantry.
-  const twice = await addLibraryRoles(hr, { departmentId: target.id, names: firstTwo });
+  const twice = await addLibraryRoles(hrWithTrade, { departmentId: target.id, names: firstTwo });
   ok("adding the same roles again adds nothing", twice.added === 0, JSON.stringify(twice));
 
   // A name the catalogue cannot place is SKIPPED rather than created empty,
   // or a stale screen would produce a permissionless role that looks added.
-  const bogus = await addLibraryRoles(hr, { departmentId: target.id, names: ["Chief Wizard"] });
+  const bogus = await addLibraryRoles(hrWithTrade, { departmentId: target.id, names: ["Chief Wizard"] });
   ok("a name the library does not hold is not invented", bogus.added === 0, JSON.stringify(bogus));
 
-  const nowhere = await addLibraryRoles(hr, { departmentId: "dep_not_real", names: firstTwo });
+  const nowhere = await addLibraryRoles(hrWithTrade, { departmentId: "dep_not_real", names: firstTwo });
   ok("...and roles cannot be added to a department that does not exist",
     nowhere.error === "department", JSON.stringify(nowhere));
 
   // The picker marks what is already held rather than hiding it — a search
   // that silently drops your own roles reads as a search that cannot find
   // them.
-  const after = await libraryRolesFor(hr, { departmentId: target.id });
+  const after = await libraryRolesFor(hrWithTrade, { departmentId: target.id });
   ok("the picker marks what the department already holds",
     (after.results || []).some((r) => r.held), JSON.stringify(after.results?.slice(0, 3)));
 }
@@ -3452,8 +3461,17 @@ console.log("\n== the departments register refuses what would corrupt the chart"
   // ADDING THE STANDARD CHART IS ADDITIVE AND IDEMPOTENT. This is what a studio
   // presses after changing its field of work; re-seeding on its behalf would
   // destroy an org chart it had already edited.
+  // IDEMPOTENCE IS THE PROPERTY, not completeness. This used to assert that a
+  // top-up adds nothing — true only while the studio had no field of work, and
+  // it stopped being true the moment an earlier block gave it one, because the
+  // standard chart for a trade genuinely has more departments than the
+  // universal back office. The behaviour was right and the assertion had
+  // expired. What must hold whatever the trade is: running it twice adds
+  // nothing the second time.
   const topUp = await addMissingStarters(master);
-  ok("topping up adds nothing when the chart is complete", topUp.added === 0, JSON.stringify(topUp.added));
+  const topUpAgain = await addMissingStarters(master);
+  ok("topping up twice adds nothing the second time", topUpAgain.added === 0,
+    `first ${topUp.added}, second ${topUpAgain.added}`);
 }
 
 console.log("\n== the seed refuses to fire over an un-migrated studio");

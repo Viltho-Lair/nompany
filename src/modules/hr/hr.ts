@@ -232,8 +232,14 @@ export async function addLibraryRoles(
   const department = departments.find((d) => d.id === departmentId);
   if (!department) return { error: "department" };
 
+  // THE SAME TWO NARROWINGS THE PICKER REQUIRES. findLibraryRole would
+  // otherwise match a name from any trade, so a stale screen could add Farm
+  // Operations Manager to a sales department — the write must refuse on the
+  // same terms the read does, or the guard is decoration.
   const industry = str(ctx.studio.fieldOfWork, 200);
   const code = String(department.code || "");
+  if (!industry || !code) return { added: 0, roles: [], reason: !industry ? "no-industry" : "no-code" };
+
   const existing = await listRoles(ctx.studio.id);
   const held = new Set(existing
     .filter((r) => String(r.departmentId || "") === departmentId)
@@ -277,6 +283,22 @@ export async function libraryRolesFor(
   const department = departments.find((d) => d.id === departmentId);
   if (!department) return { error: "department" };
 
+  // AN UNFILTERED CATALOGUE IS WORSE THAN AN EMPTY ONE, and this was visible
+  // the moment the picker was opened on a real screen. `searchLibrary` treats a
+  // blank industry or department as "no filter", so a studio with no field of
+  // work, opening a department the migration created without a code, was
+  // offered the first twenty rows of the whole library — Farm Operations
+  // Manager and Head of Agronomy, for a CRM & Sales department.
+  //
+  // Nothing failed. It would have quietly invited somebody to file a role in a
+  // department it has no business in, which is the one error the department
+  // mapping is held to 95% to avoid. So both narrowings are REQUIRED, and the
+  // screen is told which one is missing rather than shown a plausible list.
+  const industry = str(ctx.studio.fieldOfWork, 200);
+  const code = String(department.code || "");
+  if (!industry) return { results: [], reason: "no-industry" };
+  if (!code) return { results: [], reason: "no-code" };
+
   const held = new Set((await listRoles(ctx.studio.id))
     .filter((r) => String(r.departmentId || "") === departmentId)
     .map((r) => (r.name || "").toLowerCase()));
@@ -284,11 +306,8 @@ export async function libraryRolesFor(
   // ALREADY-HELD ROLES ARE MARKED RATHER THAN HIDDEN. A picker that silently
   // drops what you already have reads as a search that cannot find it.
   return {
-    results: searchLibrary(q, {
-      industry: str(ctx.studio.fieldOfWork, 200),
-      department: String(department.code || ""),
-      limit: 20,
-    }).map((e) => ({ name: e.name, archetype: e.archetype, held: held.has(e.name.toLowerCase()) })),
+    results: searchLibrary(q, { industry, department: code, limit: 20 })
+      .map((e) => ({ name: e.name, archetype: e.archetype, held: held.has(e.name.toLowerCase()) })),
   };
 }
 
