@@ -2368,6 +2368,10 @@ console.log("== tendering: a register whose dates are the point");
 // entered is the failure this block exists to prevent.
 {
   const TENDERS = await import("@/app/api/studios/[slug]/tendering/tenders/route.ts");
+  // THE SERVICE MODULE ITSELF, so the payload the studio PAGE server-renders can
+  // be compared against the body the ROUTE returns. See the assertion below the
+  // register's golden.
+  const TENDERING = await import("@/modules/tendering/tenders");
 
   const P = ctx({ slug });
   const shot = async (name, payload) => {
@@ -2523,6 +2527,27 @@ console.log("== tendering: a register whose dates are the point");
   ok("the register carries the clock it was measured at",
     Number.isFinite(Date.parse(String(list.body?.asOf))), String(list.body?.asOf));
   await shot("tendering.list", list);
+
+  // ONE COMPOSITION PATH, ASSERTED FROM BOTH ENDS.
+  //
+  // The studio page server-renders this screen's first payload by calling
+  // tendersView; the route calls the same function. If the two ever diverge, the
+  // screen and the API disagree about a studio's own register — and only the
+  // route's half has a golden pinning it, so the disagreement would be invisible
+  // until a studio saw it. That is the whole reason the composition left the
+  // route handler, and this is the assertion that keeps it gone.
+  //
+  // `asOf` IS EXCLUDED AND SEPARATELY ASSERTED. It is a clock and these are two
+  // calls, so it differs by construction; comparing it would be asserting that
+  // time does not pass. What matters is that both carry a real one.
+  const viaView = await TENDERING.tendersView(await TENDERING.tenderingContext(owner, slug));
+  const withoutClock = (o) => { const { asOf, ...rest } = o || {}; return rest; };
+  ok("the route's body IS the view function's output",
+    JSON.stringify(withoutClock(viaView)) === JSON.stringify(withoutClock(list.body)),
+    `${JSON.stringify(withoutClock(viaView)).slice(0, 160)} vs ${JSON.stringify(withoutClock(list.body)).slice(0, 160)}`);
+  ok("...and both carry their own clock",
+    Number.isFinite(Date.parse(String(viaView.asOf))) && Number.isFinite(Date.parse(String(list.body?.asOf))),
+    `${viaView.asOf} / ${list.body?.asOf}`);
   ok("the register comes back", (list.body?.tenders || []).length === 1, String((list.body?.tenders || []).length));
 
 

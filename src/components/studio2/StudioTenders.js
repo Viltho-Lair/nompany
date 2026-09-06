@@ -64,11 +64,20 @@ function Deadline({ tr, tender, nowMs }) {
   );
 }
 
-export default function StudioTenders({ slug }) {
+// `initial` IS THE ROUTE'S OWN BODY, composed on the server by `tendersView` so
+// the first paint costs no round trip. Everything below it is unchanged: `read`
+// and `reload` still exist, still call the same route, and are still what a
+// mutation and a live update go through. Only the FIRST fetch is skipped.
+//
+// ABSENT IS A NORMAL STATE, not a failure. The page hands down nothing when the
+// reader was refused, or when the payload was over the RSC ceiling — and then
+// this behaves exactly as it did before any of this existed. Every other studio
+// screen is still on that path, so it is the well-trodden one.
+export default function StudioTenders({ slug, initial, initialError = "" }) {
   const locale = useStudioLocale();
   const tr = tenderingDict(locale);
-  const [data, setData] = useState(null);
-  const [error, setError] = useState("");
+  const [data, setData] = useState(initial ?? null);
+  const [error, setError] = useState(initialError);
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState(null);
   const [move, setMove] = useState(null);
@@ -85,17 +94,41 @@ export default function StudioTenders({ slug }) {
     setData(body);
   }, []);
 
+  // THE FIRST FETCH IS THE ONE THIS SAVES. With a server payload in hand there is
+  // nothing to ask for, and asking anyway would spend the round trip the whole
+  // change exists to remove.
   useEffect(() => {
+    if (initial) return undefined;
     let current = true;
     (async () => {
       const answer = await read();
       if (current) apply(answer);
     })();
     return () => { current = false; };
-  }, [read, apply]);
+  }, [initial, read, apply]);
 
   const reload = useCallback(async () => { apply(await read()); }, [read, apply]);
   useLiveUpdates(slug, reload);
+
+  // A SERVER PAYLOAD IS A MOMENT, AND THE ROUTER CACHES IT.
+  //
+  // Every "days left" on this register is measured from `asOf` — the screen
+  // deliberately never reads its own clock, so that two rows a day apart cannot
+  // read the same because a render straddled midnight. That is exactly what makes
+  // a SERVER-rendered payload a new problem: Next serves an RSC payload from the
+  // client router cache on a back-navigation, so returning to the register could
+  // redraw deadlines measured from an instant that has since passed. The old
+  // fetch-on-mount re-read every single time and never had this.
+  //
+  // Bounded to one navigation: coming back to the tab re-reads. Only when a server
+  // payload was actually used — a screen that fetched on mount is already as fresh
+  // as it has ever been, and arming this for it would be a round trip for nothing.
+  useEffect(() => {
+    if (!initial) return undefined;
+    const onFocus = () => { reload(); };
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [initial, reload]);
 
   const send = useCallback(async (method, payload) => {
     setError(""); setBusy(true);
