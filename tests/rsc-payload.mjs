@@ -13,6 +13,7 @@
 // fixture proves anything about a real tenant.
 import { register } from "node:module";
 import { pathToFileURL } from "node:url";
+import { readFile } from "node:fs/promises";
 
 const root = pathToFileURL(`${process.cwd()}/`).href;
 register(new URL("./loader.mjs", import.meta.url), { data: { root } });
@@ -68,6 +69,32 @@ ok("an unserialisable value does not fit", !R.fitsInRscPayload(circular));
 // where JSON.stringify neither throws nor returns text. A page that composed
 // nothing must fall back rather than hand the screen a payload of `undefined`.
 ok("undefined is not a payload", !R.fitsInRscPayload(undefined));
+
+// A SOURCE-LEVEL ASSERTION, because the wrong version passes every test above.
+//
+// `Buffer.byteLength` gives the identical answer to `TextEncoder` on Node, so
+// this whole file would stay green with a Node-only global in a module that
+// src/shared's own contract says a CLIENT component may import. The failure is a
+// browser ReferenceError that `tsc` cannot see (@types/node resolves it) and
+// `next build` cannot see (it does not know which runtime the importer is in).
+// So the guard has to read the source, and it names the reason so nobody
+// "simplifies" it back.
+// COMMENTS ARE STRIPPED FIRST, and the first version of this assertion failed
+// because they were not: the module's own note explaining WHY `Buffer` is wrong
+// contains the word, so the guard flagged the fix as the bug. A rule that cannot
+// tell code from the comment warning against it would force the reason to be
+// deleted to make the test pass, which is the opposite of what this repo wants.
+//
+// NOTE FOR THE NEXT ONE OF THESE. `tests/restructure.mjs` has several assertions
+// in the same family, built on `git grep`. They have not hit this because they
+// guard PATHS — a path does not appear in the prose arguing against it. The first
+// one that guards an IDENTIFIER will trip exactly as this did, and the fix is
+// here rather than in a commit message so it is found by whoever writes it.
+const source = await readFile(new URL("../src/shared/rscPayload.ts", import.meta.url), "utf8");
+const code = source.replace(/\/\/.*$/gm, "");
+ok("the ceiling is measured with no Node-only global",
+  !/\bBuffer\b/.test(code) && code.includes("TextEncoder"),
+  /\bBuffer\b/.test(code) ? "Buffer is Node-only and src/shared is client-importable" : "");
 
 console.log(fails ? `\n${fails} FAILED\n` : "\nall passed\n");
 process.exit(fails ? 1 : 0);

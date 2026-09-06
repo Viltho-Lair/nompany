@@ -19,6 +19,22 @@
 // list regresses the wire invisibly — no gate would fail and nobody would know.
 export const RSC_PAYLOAD_CEILING_BYTES = 49_152; // 48 KiB
 
+// `TextEncoder`, NOT `Buffer.byteLength`, AND THE DIFFERENCE IS A REAL BUG.
+//
+// This file lives in src/shared, which this repo defines as pure values with no
+// dependants — the folder a CLIENT component may safely import from. `Buffer` is
+// Node-only, so the first client component to import this would throw
+// `Buffer is not defined` in the browser, and NEITHER `tsc` NOR `next build`
+// would say a word: the types resolve because @types/node is installed, and the
+// build has no idea which runtime the importer ends up in. It is the same class
+// as a `.jsx` reading an unbound `tr` — a runtime ReferenceError that every
+// static gate waves through.
+//
+// TextEncoder is on both runtimes and gives the identical UTF-8 byte count.
+// Constructed once: it is stateless, and building one per call on a list read is
+// waste on the exact path this file exists to make cheap.
+const UTF8 = new TextEncoder();
+
 /**
  * Whether `value` is small enough to hand down as a server-rendered payload.
  *
@@ -39,7 +55,7 @@ export function fitsInRscPayload(value: unknown): boolean {
     // that neither throws nor yields a string. A page that composed nothing must
     // fall back, not hand the screen a payload that is not one.
     if (typeof json !== "string") return false;
-    return Buffer.byteLength(json, "utf8") <= RSC_PAYLOAD_CEILING_BYTES;
+    return UTF8.encode(json).length <= RSC_PAYLOAD_CEILING_BYTES;
   } catch {
     return false;
   }
