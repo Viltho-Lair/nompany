@@ -214,8 +214,12 @@ pull request, and four things `npm test` does not: `npm run lint:budget`,
   trips to 8 fails the build.
 - **The bundle budget pins the regression, not the size.** Two gates, and the
   first is the one that matters: the **largest chunk is 158 KB gz against a 250 KB
-  ceiling**, because that is what every route pays. Total client JS is **1669 KB gz
-  against 1674 KB** (measured 06/09/2026), which catches sprawl rather than
+  ceiling**, because that is what every route pays. Total client JS is **1673 KB gz
+  against 1680 KB** (measured 06/09/2026, raised from 1674 with the expediting
+  screen at ONE kilobyte of headroom, having deliberately declined to raise it at
+  two — a ceiling with two kilobytes under it still discriminates, one with a
+  single kilobyte trips on everything, which is how this number drifted before),
+  which catches sprawl rather than
   splitting. `scripts/bundle-budget.mjs` holds both numbers and explains why a
   whole-directory total would penalise code-splitting.
 

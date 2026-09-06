@@ -562,6 +562,7 @@ export const SECTION_DEFS = [
   { key: "procurement", name: "Procurement & Subcontracting", children: [
     { key: "procurement-requisitions", name: "Requisitions" },
     { key: "procurement-rfq", name: "Supplier quotes" },
+    { key: "procurement-expediting", name: "Expediting" },
     { key: "procurement-suppliers", name: "Suppliers" },
   ] },
 

@@ -1,0 +1,37 @@
+{
+  "status": 201,
+  "body": {
+    "ok": true,
+    "order": {
+      "id": "<mat_ID>",
+      "reference": "PO-0002",
+      "vendorId": "<inv_ID>",
+      "projectId": "",
+      "costCodeId": "",
+      "requisitionId": "",
+      "lines": [
+        {
+          "itemId": "<inv_ID>",
+          "qty": 10,
+          "unitPrice": 20,
+          "received": 0
+        }
+      ],
+      "status": "Ordered",
+      "expectedAt": "2020-03-01",
+      "notes": "",
+      "createdByCollaboratorId": "<col_ID>",
+      "createdAt": "<timestamp>",
+      "studioId": "<std_ID>",
+      "sectionId": "<sub_ID>",
+      "chases": [
+        {
+          "at": "<today>",
+          "byCollaboratorId": "<col_ID>",
+          "note": "Spoke to the yard; boards are on next week's lorry.",
+          "promisedAt": ""
+        }
+      ]
+    }
+  }
+}

@@ -110,6 +110,7 @@ export const SECTION_AREAS: Readonly<Record<string, readonly string[]>> = {
   // belonged; Inventory kept the screen only because that is where it was built.
   "procurement-requisitions": ["procurement.requisitions"],
   "procurement-rfq": ["procurement.rfq"],
+  "procurement-expediting": ["procurement.expediting"],
   "procurement-suppliers": ["procurement.suppliers"],
   "inventory-items": ["inventory.items"],
   "inventory-sheets": ["inventory.sheets"],

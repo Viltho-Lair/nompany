@@ -36,6 +36,7 @@
       "procurement": true,
       "procurement-requisitions": true,
       "procurement-rfq": true,
+      "procurement-expediting": true,
       "procurement-suppliers": true,
       "inventory": true,
       "inventory-stock": true,
@@ -196,6 +197,11 @@
       {
         "key": "procurement-rfq",
         "name": "Supplier quotes",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "procurement-expediting",
+        "name": "Expediting",
         "parentId": "<sec_ID>"
       },
       {

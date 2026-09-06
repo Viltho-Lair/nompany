@@ -16,6 +16,7 @@ export type { Rfq, RfqLine, SupplierQuote, QuoteLine } from "./rfqSchema";
 export type ProcurementContext = ModuleContext & {
   requisitionsSection: Section;
   rfqSection: Section;
+  expeditingSection: Section;
   suppliersSection: Section;
   /**
    * PURCHASE ORDERS, which live under Inventory (`materialOrders` beneath
@@ -35,6 +36,8 @@ export type ProcurementContext = ModuleContext & {
   ordersSection: Section | null;
   projectsListSection: Section | null;
   itemsSection: Section | null;
+  canViewExpediting: boolean;
+  canManageExpediting: boolean;
   canViewRfq: boolean;
   canManageRfq: boolean;
   canViewRequisitions: boolean;

@@ -193,7 +193,7 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
     note: "Procurement Manager, Buyer, Subcontracts Administrator, Expeditor.",
     grants: [
       ["procurement.suppliers", "full"], ["procurement.requisitions", "edit"],
-      ["procurement.rfq", "edit"],
+      ["procurement.rfq", "edit"], ["procurement.expediting", "edit"],
       ["finance.payables", "edit"], ["inventory.items", "view"],
     ],
     // AWARDING IS THE ONE THING A BUYER DOES, so it is here even though this

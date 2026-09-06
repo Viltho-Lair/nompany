@@ -155,6 +155,34 @@ export const OrderSchema = z.object({
    * rule, same reason, as one-project-per-tender.
    */
   requisitionId: z.string().max(60).optional(),
+  /**
+   * THE PROMISE IN FORCE NOW, where the supplier has moved it.
+   *
+   * `expectedAt` above is what was promised when the order was PLACED and is
+   * never written again. Overwriting it when a supplier re-promises would erase
+   * the fact that they slipped, and that fact is the entire input to supplier
+   * rating — a supplier who has re-promised four times would become
+   * indistinguishable from one who was always on time.
+   *
+   * Blank means the promise has not moved, which is not the same as a slip of
+   * zero days.
+   */
+  promisedAt: z.string().optional(),
+  /**
+   * EVERY TIME SOMEBODY CHASED, appended and never rewritten.
+   *
+   * A small bounded array on the record rather than a collection of its own —
+   * the shape a bill's `approvals` takes, and for the same reason: it is only
+   * ever read with the order it belongs to, and it is bounded by how many times
+   * a human being picks up a telephone.
+   */
+  chases: z.array(z.object({
+    at: z.string(),
+    byCollaboratorId: z.string(),
+    note: z.string().max(1000),
+    /** What they promised this time, if anything. Blank when they did not say. */
+    promisedAt: z.string(),
+  })).optional(),
   lines: z.array(OrderLineSchema),
   status: z.string(),
   expectedAt: z.string(),

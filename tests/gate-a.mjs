@@ -321,7 +321,11 @@ console.log("== the permission matrix: one key grants exactly itself");
   // 164 with procurement.rfq: view/create/edit/delete plus `award` as an EXTRA.
   // Assembling the request and typing in what came back is one job; naming the
   // supplier the money goes to is another, which is what an extra verb is for.
-  ok("the catalogue is the size we last agreed", ALL_PERMISSIONS.length === 164, String(ALL_PERMISSIONS.length));
+  // 166 with procurement.expediting: view and edit, and nothing else. An
+  // expediting screen owns no record — it reads purchase orders, which live in
+  // Inventory and are raised there, and appends a chase to one. There is
+  // nothing to create and nothing to delete.
+  ok("the catalogue is the size we last agreed", ALL_PERMISSIONS.length === 166, String(ALL_PERMISSIONS.length));
 
   const leaks = [];
   const missing = [];
@@ -6499,6 +6503,159 @@ console.log("== procurement: asking several suppliers, and choosing one");
   const outsider = await rfqPersonWith(["crmSales.tickets.view"], "norfq");
   await signIn(outsider.id);
   await shot("procurement.rfq.forbidden", await readRfqs());
+  await signIn(owner.id);
+}
+
+// ============================================================================
+console.log("== procurement: what is late, and who has been chased");
+// A PURCHASE ORDER HAS CARRIED `expectedAt` SINCE IT WAS BUILT and nothing has
+// ever compared it to today. An order three weeks late looked exactly like one
+// placed this morning.
+//
+// PLACED HERE for the reason the blocks above state: this studio is SHARED and
+// several goldens are whole-studio snapshots. This one mints a person and
+// writes to an order, so it runs after every section that records a golden.
+{
+  const EXP = await import("@/app/api/studios/[slug]/procurement/expediting/route.ts");
+  const ORDERS = await import("@/app/api/studios/[slug]/inventory/orders/route.ts");
+  const VENDORS = await import("@/app/api/studios/[slug]/inventory/vendors/route.ts");
+  const ITEMS = await import("@/app/api/studios/[slug]/inventory/items/route.ts");
+
+  const P = ctx({ slug });
+  const shot = async (name, payload) => {
+    const r = golden(name, payload, EXTRA);
+    if (!r.recorded) ok(`${name} matches its golden`, r.ok, r.detail);
+    return payload;
+  };
+  const expPersonWith = async (permissions, alias) => {
+    const u = (await createUser({ email: `g-${alias}-${rand()}@test.invalid`, passwordHash: "x" })).user;
+    const role = await createRole(studio.id, { name: `role-${alias}`, permissions });
+    await addCollaborator(studio.id, { userId: u.id, alias, role: "member", roleIds: [role.id] });
+    return u;
+  };
+
+  const readExp = () => capture(
+    EXP.GET, req(`/api/studios/${slug}/procurement/expediting`), P);
+  const chase = (body) => capture(
+    EXP.POST, req(`/api/studios/${slug}/procurement/expediting`, { method: "POST", body }), P);
+
+  await signIn(owner.id);
+
+  // ITS OWN VENDOR AND ITEM, created here rather than borrowed from the
+  // inventory block: that block runs earlier and this one must not depend on
+  // what it happened to leave behind.
+  const vendor = await capture(VENDORS.POST, req(`/api/studios/${slug}/inventory/vendors`, {
+    method: "POST", body: { name: `Late Supplies ${rand()}` },
+  }), P);
+  const vendorId = vendor.body?.vendor?.id || "";
+  const item = await capture(ITEMS.POST, req(`/api/studios/${slug}/inventory/items`, {
+    method: "POST", body: { name: `Scaffold board ${rand()}`, unit: "pcs", unitCost: 20 },
+  }), P);
+  const itemId = item.body?.item?.id || "";
+  ok("a vendor and an item to order", Boolean(vendorId) && Boolean(itemId));
+
+  // A DATE WELL IN THE PAST so it is unambiguously late whatever day this runs.
+  // Not clock-relative: the golden normaliser scrubs `<today+N>` placeholders
+  // and a fixture that drifted into one would fail on the calendar rather than
+  // on a change — the recurring Gate-A date drift.
+  const placed = await capture(ORDERS.POST, req(`/api/studios/${slug}/inventory/orders`, {
+    method: "POST",
+    body: {
+      vendorId, expectedAt: "2020-03-01",
+      lines: [{ itemId, qty: 10, unitPrice: 20 }],
+    },
+  }), P);
+  const orderId = placed.body?.order?.id;
+  ok("an order to be late", Boolean(orderId), JSON.stringify(placed.body).slice(0, 140));
+
+  // A DRAFT ORDER IS NOT OUTSTANDING — nobody has placed it, so nobody is
+  // waiting for it and there is nothing to chase.
+  const asDraft = await readExp();
+  ok("a draft order is not expedited",
+    (asDraft.body?.view?.orders || []).every((o) => o.id !== orderId),
+    String((asDraft.body?.view?.orders || []).length));
+  await shot("procurement.expediting.chasedraft", await chase({
+    orderId, note: "rang about a draft",
+  }));
+
+  await capture(ORDERS.PUT, req(`/api/studios/${slug}/inventory/orders`, {
+    method: "PUT", body: { id: orderId, status: "Ordered" },
+  }), P);
+
+  const late = await shot("procurement.expediting.late", await readExp());
+  const row = (late.body?.view?.orders || []).find((o) => o.id === orderId);
+  ok("a placed order past its date is late", row?.bucket === "late", String(row?.bucket));
+  ok("...by a positive number of days", (row?.lateDays || 0) > 0, String(row?.lateDays));
+  // NEVER RE-PROMISED IS NULL, NOT ZERO: a supplier who never moved the date
+  // and one who moved it by nothing are different, and only the first is
+  // silence.
+  ok("...having never been re-promised", row?.slippedDays === null, String(row?.slippedDays));
+  ok("...and never chased", row?.chases === 0 && late.body?.view?.unchased >= 1,
+    JSON.stringify({ chases: row?.chases, unchased: late.body?.view?.unchased }));
+
+  // A CHASE THAT SAYS NOTHING AND MOVES NOTHING IS NOT A RECORD.
+  await shot("procurement.expediting.emptychase", await chase({ orderId }));
+
+  await shot("procurement.expediting.chased", await chase({
+    orderId, note: "Spoke to the yard; boards are on next week's lorry.",
+  }));
+  const afterChase = await readExp();
+  const chased = (afterChase.body?.view?.orders || []).find((o) => o.id === orderId);
+  ok("a chase is counted", chased?.chases === 1, String(chased?.chases));
+  // A CHASE WITH NO NEW DATE LEAVES THE PROMISE WHERE IT WAS rather than
+  // blanking it: "we rang and they did not commit" must not un-date the order.
+  ok("...and one with no new date leaves the promise alone",
+    chased?.dueAt === "2020-03-01" && chased?.slippedDays === null,
+    JSON.stringify({ due: chased?.dueAt, slipped: chased?.slippedDays }));
+
+  // THE ASSERTION THIS SLICE EXISTS FOR. A re-promise moves `promisedAt` and
+  // NEVER `expectedAt`, so the slip stays measurable — which is the entire
+  // input to supplier rating, this section's fifth bullet.
+  await chase({
+    orderId, note: "They have re-promised.", promisedAt: "2020-04-01",
+  });
+  const reprom = await shot("procurement.expediting.repromised", await readExp());
+  const moved = (reprom.body?.view?.orders || []).find((o) => o.id === orderId);
+  ok("THE ORIGINAL PROMISE SURVIVES THE SECOND ONE",
+    moved?.expectedAt === "2020-03-01", String(moved?.expectedAt));
+  ok("...the current promise is what it is due against",
+    moved?.dueAt === "2020-04-01", String(moved?.dueAt));
+  ok("...AND THE SLIP IS VISIBLE", moved?.slippedDays === 31, String(moved?.slippedDays));
+  ok("...with both chases recorded", moved?.chases === 2, String(moved?.chases));
+
+  // A RECEIVED ORDER IS NOBODY'S PROBLEM — receiving the goods takes it off the
+  // board rather than leaving it late for ever.
+  //
+  // THROUGH THE RECEIPT, NOT BY ASSERTING THE STATUS. `editOrder` refuses
+  // `Received` and `Partly received` with `derived-status`, on the same rule an
+  // invoice follows for `Paid`: they are consequences of goods arriving, and a
+  // status you can assert is a status that can contradict the ledger. This
+  // fixture tried to assert it and was correctly refused, which is the guard
+  // doing its job on the first test to reach it.
+  await capture(ORDERS.PUT, req(`/api/studios/${slug}/inventory/orders`, {
+    method: "PUT", body: { id: orderId, receive: [{ itemId, qty: 10 }] },
+  }), P);
+  const done = await readExp();
+  ok("a received order leaves the board",
+    (done.body?.view?.orders || []).every((o) => o.id !== orderId));
+  await shot("procurement.expediting.chasereceived", await chase({
+    orderId, note: "rang after it arrived",
+  }));
+
+  // SOMEBODY WHO MAY SEE WHAT IS LATE MAY NOT NECESSARILY RECORD A CHASE.
+  const watcher = await expPersonWith(["procurement.expediting.view"], "expwatcher");
+  await signIn(watcher.id);
+  const asWatcher = await readExp();
+  ok("a view-only reader is offered no chase", asWatcher.body?.canChase === false,
+    String(asWatcher.body?.canChase));
+  await shot("procurement.expediting.chaseforbidden", await chase({
+    orderId, note: "should be refused",
+  }));
+
+  // AND SOMEBODY WITH NO PROCUREMENT RIGHT IS REFUSED OUTRIGHT.
+  const outsider = await expPersonWith(["crmSales.tickets.view"], "noexp");
+  await signIn(outsider.id);
+  await shot("procurement.expediting.forbidden", await readExp());
   await signIn(owner.id);
 }
 

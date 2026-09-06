@@ -171,6 +171,12 @@
       },
       {
         "id": "<sub_ID>",
+        "key": "procurement-expediting",
+        "name": "Expediting",
+        "enabled": true
+      },
+      {
+        "id": "<sub_ID>",
         "key": "procurement-suppliers",
         "name": "Suppliers",
         "enabled": true

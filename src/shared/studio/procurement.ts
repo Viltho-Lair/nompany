@@ -8,6 +8,37 @@
 type Strings = {
   requisitions: string;
   rfqs: string;
+  expediting: string;
+  expeditingSub: string;
+  loadingExpediting: string;
+  nothingOutstanding: string;
+  nothingOutstandingBody: string;
+  lateCount: string;
+  dueSoonCount: string;
+  undatedCount: string;
+  unchasedCount: string;
+  unchasedHint: string;
+  orderRef: string;
+  supplier: string;
+  originallyDue: string;
+  dueNow: string;
+  daysLate: (n: number) => string;
+  daysUntil: (n: number) => string;
+  slippedBy: (n: number) => string;
+  noDatePromised: string;
+  partlyReceived: (pct: number) => string;
+  chasedTimes: (n: number) => string;
+  neverChased: string;
+  lastChased: string;
+  chase: string;
+  chaseNote: string;
+  chaseNoteHint: string;
+  newPromisedDate: string;
+  newPromisedDateHint: string;
+  chaseHistory: string;
+  refuseNotOutstanding: string;
+  refuseEmptyChase: string;
+  refuseNoInventory: string;
   rfqsSub: string;
   loadingRfqs: string;
   noRfqs: string;
@@ -124,6 +155,37 @@ const AR_STATUS: Record<string, string> = {
 const en: Strings = {
   requisitions: "Requisitions",
   rfqs: "Supplier quotes",
+  expediting: "Expediting",
+  expeditingSub: "What is late, by how long, and who has already been chased.",
+  loadingExpediting: "Loading outstanding orders…",
+  nothingOutstanding: "Nothing outstanding",
+  nothingOutstandingBody: "Every purchase order has either arrived, been cancelled, or not been placed yet. When one is running late it appears here with how long it has been waiting.",
+  lateCount: "Late",
+  dueSoonCount: "Due soon",
+  undatedCount: "No date promised",
+  unchasedCount: "Late and never chased",
+  unchasedHint: "The number worth making zero — an order nobody has rung about.",
+  orderRef: "Order",
+  supplier: "Supplier",
+  originallyDue: "Originally due",
+  dueNow: "Due",
+  daysLate: (n) => (n === 1 ? "1 day late" : `${n} days late`),
+  daysUntil: (n) => (n === 0 ? "due today" : n === 1 ? "due tomorrow" : `due in ${n} days`),
+  slippedBy: (n) => (n === 1 ? "re-promised 1 day later" : `re-promised ${n} days later`),
+  noDatePromised: "Nobody promised a date",
+  partlyReceived: (pct) => `${pct}% still to come`,
+  chasedTimes: (n) => (n === 1 ? "chased once" : `chased ${n} times`),
+  neverChased: "never chased",
+  lastChased: "last chased",
+  chase: "Record a chase",
+  chaseNote: "What they said",
+  chaseNoteHint: "Write down a no-answer too — a blank row inflates the chase count without telling the next reader anything.",
+  newPromisedDate: "New promised date",
+  newPromisedDateHint: "Leave blank if they did not commit to one. The original due date is never overwritten, so the slip stays visible.",
+  chaseHistory: "Chases",
+  refuseNotOutstanding: "That order has arrived, been cancelled, or was never placed — there is nothing to chase.",
+  refuseEmptyChase: "Say what happened, or give a new date. A blank chase records nothing.",
+  refuseNoInventory: "This studio has no Inventory section, so no purchase orders exist to expedite.",
   rfqsSub: "What the market says it costs — asked of several, compared, and awarded to one.",
   loadingRfqs: "Loading supplier quotes…",
   noRfqs: "No requests for quotation yet",
@@ -222,6 +284,37 @@ const en: Strings = {
 const ar: Strings = {
   requisitions: "طلبات الشراء",
   rfqs: "عروض الموردين",
+  expediting: "متابعة التوريد",
+  expeditingSub: "ما تأخّر، وكم تأخّر، ومن جرت متابعته بالفعل.",
+  loadingExpediting: "جارٍ تحميل الأوامر القائمة…",
+  nothingOutstanding: "لا يوجد قائم",
+  nothingOutstandingBody: "كلّ أمر شراء إمّا وصل أو أُلغي أو لم يصدر بعد. وحين يتأخّر أحدها يظهر هنا مع مدّة انتظاره.",
+  lateCount: "متأخّر",
+  dueSoonCount: "يستحقّ قريباً",
+  undatedCount: "بلا تاريخ موعود",
+  unchasedCount: "متأخّر ولم تجرِ متابعته",
+  unchasedHint: "الرقم الذي يستحقّ أن يكون صفراً — أمر لم يتّصل بشأنه أحد.",
+  orderRef: "الأمر",
+  supplier: "المورّد",
+  originallyDue: "الاستحقاق الأصلي",
+  dueNow: "الاستحقاق",
+  daysLate: (n) => (n === 1 ? "متأخّر يوماً" : `متأخّر ${n} يوماً`),
+  daysUntil: (n) => (n === 0 ? "يستحقّ اليوم" : n === 1 ? "يستحقّ غداً" : `يستحقّ خلال ${n} يوماً`),
+  slippedBy: (n) => (n === 1 ? "أُجّل يوماً واحداً" : `أُجّل ${n} يوماً`),
+  noDatePromised: "لم يَعِد أحد بتاريخ",
+  partlyReceived: (pct) => `${pct}% لم يصل بعد`,
+  chasedTimes: (n) => (n === 1 ? "متابعة واحدة" : `${n} متابعات`),
+  neverChased: "بلا متابعة",
+  lastChased: "آخر متابعة",
+  chase: "تسجيل متابعة",
+  chaseNote: "ماذا قالوا",
+  chaseNoteHint: "سجّل عدم الردّ أيضاً — الصفّ الفارغ يضخّم عدّاد المتابعات ولا يفيد القارئ التالي بشيء.",
+  newPromisedDate: "تاريخ موعود جديد",
+  newPromisedDateHint: "اتركه فارغاً إن لم يلتزموا بتاريخ. لا يُستبدل تاريخ الاستحقاق الأصلي أبداً، فيبقى التأجيل ظاهراً.",
+  chaseHistory: "المتابعات",
+  refuseNotOutstanding: "هذا الأمر وصل أو أُلغي أو لم يصدر — فلا شيء يُتابَع.",
+  refuseEmptyChase: "اذكر ما حدث، أو أعطِ تاريخاً جديداً. المتابعة الفارغة لا تسجّل شيئاً.",
+  refuseNoInventory: "لا يوجد قسم مخزون في هذا الاستوديو، فلا أوامر شراء تُتابع.",
   rfqsSub: "ما تقوله السوق من تكلفة — يُسأل عنه عدّة موردين، ثم يُقارن، ثم يُرسى على واحد.",
   loadingRfqs: "جارٍ تحميل عروض الموردين…",
   noRfqs: "لا توجد طلبات عروض بعد",

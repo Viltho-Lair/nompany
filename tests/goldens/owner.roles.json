@@ -914,6 +914,8 @@
           "procurement.rfq.create",
           "procurement.rfq.edit",
           "procurement.rfq.delete",
+          "procurement.expediting.view",
+          "procurement.expediting.edit",
           "procurement.suppliers.view",
           "procurement.suppliers.create",
           "procurement.suppliers.edit",
@@ -1145,6 +1147,8 @@
           "procurement.rfq.create",
           "procurement.rfq.edit",
           "procurement.rfq.delete",
+          "procurement.expediting.view",
+          "procurement.expediting.edit",
           "procurement.suppliers.view",
           "procurement.suppliers.create",
           "procurement.suppliers.edit",
@@ -1320,6 +1324,8 @@
           "procurement.rfq.create",
           "procurement.rfq.edit",
           "procurement.rfq.delete",
+          "procurement.expediting.view",
+          "procurement.expediting.edit",
           "procurement.suppliers.view",
           "procurement.suppliers.create",
           "procurement.suppliers.edit",
@@ -1495,6 +1501,8 @@
           "procurement.rfq.create",
           "procurement.rfq.edit",
           "procurement.rfq.delete",
+          "procurement.expediting.view",
+          "procurement.expediting.edit",
           "procurement.suppliers.view",
           "procurement.suppliers.create",
           "procurement.suppliers.edit",
@@ -1670,6 +1678,8 @@
           "procurement.rfq.create",
           "procurement.rfq.edit",
           "procurement.rfq.delete",
+          "procurement.expediting.view",
+          "procurement.expediting.edit",
           "procurement.suppliers.view",
           "procurement.suppliers.create",
           "procurement.suppliers.edit",
@@ -1845,6 +1855,8 @@
           "procurement.rfq.create",
           "procurement.rfq.edit",
           "procurement.rfq.delete",
+          "procurement.expediting.view",
+          "procurement.expediting.edit",
           "procurement.suppliers.view",
           "procurement.suppliers.create",
           "procurement.suppliers.edit",
@@ -2020,6 +2032,8 @@
           "procurement.rfq.create",
           "procurement.rfq.edit",
           "procurement.rfq.delete",
+          "procurement.expediting.view",
+          "procurement.expediting.edit",
           "procurement.suppliers.view",
           "procurement.suppliers.create",
           "procurement.suppliers.edit",
@@ -2195,6 +2209,8 @@
           "procurement.rfq.create",
           "procurement.rfq.edit",
           "procurement.rfq.delete",
+          "procurement.expediting.view",
+          "procurement.expediting.edit",
           "procurement.suppliers.view",
           "procurement.suppliers.create",
           "procurement.suppliers.edit",
@@ -2608,6 +2624,15 @@
             "key": "award",
             "label": "Award an RFQ to a supplier"
           }
+        ]
+      },
+      {
+        "key": "procurement.expediting",
+        "group": "Procurement & Subcontracting",
+        "label": "Expediting",
+        "verbs": [
+          "view",
+          "edit"
         ]
       },
       {

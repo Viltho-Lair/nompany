@@ -280,6 +280,12 @@ const OWN_AREAS = [
     extra: [
       { key: "award", label: "Award an RFQ to a supplier" },
     ] },
+  // VIEW AND EDIT ONLY, and there is nothing to create or delete: an expediting
+  // screen owns no record of its own. It reads purchase orders — which live in
+  // Inventory and are raised there — and writes a chase onto one. `edit` is
+  // recording that you rang somebody; `view` is seeing what is late.
+  { key: "procurement.expediting", group: "Procurement & Subcontracting", label: "Expediting",
+    verbs: ["view", "edit"] },
   { key: "procurement.suppliers", group: "Procurement & Subcontracting", label: "Suppliers", verbs: ["view", "create", "edit", "delete"] },
   { key: "inventory.items", group: "Inventory & Warehouse", label: "Registered items", verbs: ["view", "create", "edit", "delete"] },
   // NO LONGER VIEW ONLY. It was, while a sheet was just the screen over purchase

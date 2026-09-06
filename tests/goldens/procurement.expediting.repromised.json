@@ -1,0 +1,109 @@
+{
+  "status": 200,
+  "body": {
+    "ok": true,
+    "view": {
+      "orders": [
+        {
+          "id": "<mat_ID>",
+          "reference": "PO-0002",
+          "vendorId": "<inv_ID>",
+          "projectId": "",
+          "status": "Ordered",
+          "expectedAt": "2020-03-01",
+          "dueAt": "2020-04-01",
+          "slippedDays": 31,
+          "lateDays": 2349,
+          "chases": 2,
+          "lastChasedAt": "<today>",
+          "partly": false,
+          "outstandingFraction": 1,
+          "bucket": "late"
+        },
+        {
+          "id": "<mat_ID>",
+          "reference": "PO-0001",
+          "vendorId": "<inv_ID>",
+          "projectId": "<pro_ID>",
+          "status": "Ordered",
+          "expectedAt": "",
+          "dueAt": "",
+          "slippedDays": null,
+          "lateDays": null,
+          "chases": 0,
+          "lastChasedAt": "",
+          "partly": false,
+          "outstandingFraction": 1,
+          "bucket": "undated"
+        }
+      ],
+      "late": 1,
+      "dueSoon": 0,
+      "undated": 1,
+      "unchased": 0,
+      "asOf": "<today>"
+    },
+    "chaseLog": {
+      "<mat_ID>": [
+        {
+          "at": "<today>",
+          "byCollaboratorId": "<col_ID>",
+          "note": "Spoke to the yard; boards are on next week's lorry.",
+          "promisedAt": ""
+        },
+        {
+          "at": "<today>",
+          "byCollaboratorId": "<col_ID>",
+          "note": "They have re-promised.",
+          "promisedAt": "2020-04-01"
+        }
+      ],
+      "<mat_ID>": []
+    },
+    "chasers": {
+      "<col_ID>": "norfq",
+      "<col_ID>": "rfqasker",
+      "<col_ID>": "noprocure",
+      "<col_ID>": "reqasker",
+      "<col_ID>": "reqbuyer",
+      "<col_ID>": "projectcoster",
+      "<col_ID>": "Booker",
+      "<col_ID>": "Nosy",
+      "<col_ID>": "Joiner",
+      "<col_ID>": "qapprover",
+      "<col_ID>": "qpureapprover",
+      "<col_ID>": "qboth",
+      "<col_ID>": "qauthor",
+      "<col_ID>": "engblind",
+      "<col_ID>": "engviewer",
+      "<col_ID>": "taskeditor",
+      "<col_ID>": "taskdoer",
+      "<col_ID>": "financeviewer",
+      "<col_ID>": "billapprover",
+      "<col_ID>": "hrasker",
+      "<col_ID>": "hrown",
+      "<col_ID>": "hradmin",
+      "<col_ID>": "notender",
+      "<col_ID>": "projectrunner",
+      "<col_ID>": "handoverreader",
+      "<col_ID>": "bidpricer",
+      "<col_ID>": "norates",
+      "<col_ID>": "bidstep2",
+      "<col_ID>": "bidstep1",
+      "<col_ID>": "projectmanager",
+      "<col_ID>": "storeman",
+      "<col_ID>": "projlister",
+      "<col_ID>": "techlocker",
+      "<col_ID>": "techpricer",
+      "<col_ID>": "techeditor",
+      "<col_ID>": "salesclerk",
+      "<col_ID>": "salesviewer",
+      "<col_ID>": "variationanswerer",
+      "<col_ID>": "Member",
+      "<col_ID>": "Owner"
+    },
+    "asOf": "<timestamp>",
+    "soonDays": 1,
+    "canChase": true
+  }
+}

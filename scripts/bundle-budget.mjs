@@ -190,7 +190,24 @@ const MAX_CHUNK_GZIP_KB = 250;
 //
 // The largest chunk did not move (158 KB), which is the gate that matters: both
 // screens were already nextDynamic(), so no other route pays for them.
-const MAX_TOTAL_GZIP_KB = 1674;
+//
+// 1674 → 1680 on 06/09/2026, measured 1673, with the expediting screen — two
+// kilobytes for four stat tiles, a chase dialog and thirty-one strings in two
+// languages. The largest chunk did not move (158 KB), which is the gate that
+// matters.
+//
+// RAISED AT ONE KILOBYTE OF HEADROOM, HAVING DECLINED TO RAISE IT AT TWO, and
+// the difference is the point rather than inconsistency. A ceiling with two
+// kilobytes under it still discriminates: something careless trips it and
+// something small does not. A ceiling with ONE trips on everything, so the next
+// person raises it under the pressure of a red build rather than deliberately —
+// which is exactly how this number came to sit a hundred kilobytes adrift from
+// the file that quoted it. Six is the margin the SelectMenu rise used.
+//
+// Leaving it at 1674 and letting the next slice fail was considered and refused:
+// it converts a deliberate decision into somebody else's emergency, and the
+// emergency version is the one that gets nudged without a measurement.
+const MAX_TOTAL_GZIP_KB = 1680;
 
 const DIR = ".next/static";
 if (!existsSync(DIR)) {
