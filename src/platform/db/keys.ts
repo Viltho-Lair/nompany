@@ -563,6 +563,7 @@ export const SECTION_DEFS = [
     { key: "procurement-requisitions", name: "Requisitions" },
     { key: "procurement-rfq", name: "Supplier quotes" },
     { key: "procurement-expediting", name: "Expediting" },
+    { key: "procurement-subcontracts", name: "Subcontracts" },
     { key: "procurement-suppliers", name: "Suppliers" },
   ] },
 
@@ -728,6 +729,11 @@ export const SECTION_COLLECTIONS = {
   // opens the envelope, so nesting them on the request would make recording one
   // supplier's price a write to the row every other supplier is quoting against.
   "procurement-rfq": ["supplierRfqs", "supplierQuotes"],
+  // THE PACKAGE AND ITS VALUATIONS ARE SEPARATE. A certificate is a periodic
+  // document with its own number, status and back-charges; nesting them would
+  // make writing one period a write to the record every other period is also
+  // valued against.
+  "procurement-subcontracts": ["subcontracts", "paymentCertificates"],
   "procurement-suppliers": ["inventoryVendors"],
   // inventory — Project Sheets owns the sheets and their orders sub-sheet,
   // matching the Old System, where Sheets lives under Inventory (not Projects).

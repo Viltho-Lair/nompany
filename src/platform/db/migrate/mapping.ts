@@ -98,6 +98,8 @@ export const COLLECTION_TABLE: Readonly<Record<string, string>> = {
   requisitions: "Requisition",
   supplierRfqs: "Rfq",
   supplierQuotes: "SupplierQuote",
+  subcontracts: "Subcontract",
+  paymentCertificates: "PaymentCertificate",
   tenderDocuments: "TenderDocument",
   tenderClarifications: "TenderClarification",
   timesheets: "Timesheet",

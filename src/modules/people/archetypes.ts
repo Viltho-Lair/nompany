@@ -152,11 +152,23 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
       ["projects.overtimes", "edit"], ["tasks.board", "full"], ["inventory.sheets", "edit"],
       ["crmSales.contracts", "edit"], ["projects.dashboard", "view"],
       ["engagements", "view"], ["engineeringDocs.live", "view"],
+      // Sight of the packages on their own job, so a certificate is signed
+      // against something the signer can read rather than a number in a
+      // dialogue. Not `edit`: administering the subcontract is the buyer's.
+      ["procurement.subcontracts", "view"],
     ],
     // A variation IS the contract's content, and the project manager whose job
     // it changes is who answers it — which is the act crmSales.contracts.approve
     // was minted for when the register shipped.
-    extras: ["crmSales.contracts.approve"],
+    //
+    // CERTIFYING A SUBCONTRACTOR'S PAYMENT IS THE SAME ACT: attesting that work
+    // was done. It sits here rather than on `buyer` for the reason
+    // `procurement.requisitions.approve` does — writing the valuation is
+    // administration, agreeing it creates a debt, and the person who can say
+    // the work happened is the one running the job rather than the one who
+    // placed the order. `buyer` holds `procurement.subcontracts` at edit and
+    // deliberately not this.
+    extras: ["crmSales.contracts.approve", "procurement.subcontracts.certify"],
   },
   {
     id: "front-line",
@@ -194,6 +206,7 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
     grants: [
       ["procurement.suppliers", "full"], ["procurement.requisitions", "edit"],
       ["procurement.rfq", "edit"], ["procurement.expediting", "edit"],
+      ["procurement.subcontracts", "edit"],
       ["finance.payables", "edit"], ["inventory.items", "view"],
     ],
     // AWARDING IS THE ONE THING A BUYER DOES, so it is here even though this

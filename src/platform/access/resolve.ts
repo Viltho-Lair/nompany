@@ -111,6 +111,7 @@ export const SECTION_AREAS: Readonly<Record<string, readonly string[]>> = {
   "procurement-requisitions": ["procurement.requisitions"],
   "procurement-rfq": ["procurement.rfq"],
   "procurement-expediting": ["procurement.expediting"],
+  "procurement-subcontracts": ["procurement.subcontracts"],
   "procurement-suppliers": ["procurement.suppliers"],
   "inventory-items": ["inventory.items"],
   "inventory-sheets": ["inventory.sheets"],

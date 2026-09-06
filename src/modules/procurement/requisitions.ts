@@ -30,6 +30,7 @@ export const procurementContext = moduleContext<ProcurementContext>({
     requisitions: "procurement-requisitions",
     rfq: "procurement-rfq",
     expediting: "procurement-expediting",
+    subcontracts: "procurement-subcontracts",
     suppliers: "procurement-suppliers",
   },
   foreign: {
@@ -40,7 +41,7 @@ export const procurementContext = moduleContext<ProcurementContext>({
     projectsList: ["projects-list", "projects"],
     items: ["inventory-items", "inventory"],
   },
-  flags: ["requisitions", "rfq", "expediting", "suppliers"],
+  flags: ["requisitions", "rfq", "expediting", "subcontracts", "suppliers"],
 });
 
 const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);

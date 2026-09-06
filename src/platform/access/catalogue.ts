@@ -286,6 +286,15 @@ const OWN_AREAS = [
   // recording that you rang somebody; `view` is seeing what is late.
   { key: "procurement.expediting", group: "Procurement & Subcontracting", label: "Expediting",
     verbs: ["view", "edit"] },
+  // CERTIFY IS AN EXTRA, and it is the verb that matters here: writing a
+  // valuation is administration, and AGREEING it is the act that creates a debt
+  // — the same separation `procurement.requisitions.approve` draws, and the
+  // reason neither is a rung on the view/edit ladder.
+  { key: "procurement.subcontracts", group: "Procurement & Subcontracting", label: "Subcontracts",
+    verbs: ["view", "create", "edit", "delete"],
+    extra: [
+      { key: "certify", label: "Certify a payment" },
+    ] },
   { key: "procurement.suppliers", group: "Procurement & Subcontracting", label: "Suppliers", verbs: ["view", "create", "edit", "delete"] },
   { key: "inventory.items", group: "Inventory & Warehouse", label: "Registered items", verbs: ["view", "create", "edit", "delete"] },
   // NO LONGER VIEW ONLY. It was, while a sheet was just the screen over purchase

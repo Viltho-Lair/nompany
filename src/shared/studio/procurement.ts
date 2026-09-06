@@ -9,6 +9,52 @@ type Strings = {
   requisitions: string;
   rfqs: string;
   expediting: string;
+  subcontracts: string;
+  subcontractsSub: string;
+  loadingSubcontracts: string;
+  noSubcontracts: string;
+  noSubcontractsBody: string;
+  newSubcontract: string;
+  editSubcontract: string;
+  packageTitle: string;
+  packageScope: string;
+  packageValue: string;
+  subcontractor: string;
+  retentionPct: string;
+  retentionRelease: string;
+  retentionLockedHint: string;
+  startsOn: string;
+  endsOn: string;
+  certifiedToDate: string;
+  remainingToCertify: string;
+  netCertified: string;
+  heldBack: string;
+  overValuedWarning: string;
+  noCertificatesYet: string;
+  certificates: string;
+  newCertificate: string;
+  certNumber: string;
+  periodEnd: string;
+  cumulativeValue: string;
+  cumulativeValueHint: string;
+  thisPeriod: string;
+  backCharges: string;
+  backChargeWhat: string;
+  backChargeAmount: string;
+  netPayable: string;
+  certify: string;
+  certifiedBy: (who: string) => string;
+  markLive: string;
+  markComplete: string;
+  terminate: string;
+  refuseNotLive: string;
+  refuseTerminated: string;
+  refuseBelowPrevious: string;
+  refuseCertified: string;
+  refuseAlreadyCertified: string;
+  refuseRetentionLocked: string;
+  refuseHasCertificates: string;
+  refuseNotCertifiable: string;
   expeditingSub: string;
   loadingExpediting: string;
   nothingOutstanding: string;
@@ -156,6 +202,52 @@ const en: Strings = {
   requisitions: "Requisitions",
   rfqs: "Supplier quotes",
   expediting: "Expediting",
+  subcontracts: "Subcontracts",
+  subcontractsSub: "What a trade package is worth, what has been valued, and what is held back.",
+  loadingSubcontracts: "Loading subcontracts…",
+  noSubcontracts: "No subcontracts yet",
+  noSubcontractsBody: "A purchase order buys goods against a line list and is received. A subcontract buys work against a value and is valued, period by period, with retention withheld and back-charges deducted.",
+  newSubcontract: "New subcontract",
+  editSubcontract: "Edit subcontract",
+  packageTitle: "Package",
+  packageScope: "Scope",
+  packageValue: "Agreed value",
+  subcontractor: "Subcontractor",
+  retentionPct: "Retention %",
+  retentionRelease: "Retention released",
+  retentionLockedHint: "Retention terms cannot change once anything has been certified — every certificate already written withheld this percentage.",
+  startsOn: "Starts",
+  endsOn: "Ends",
+  certifiedToDate: "Certified to date",
+  remainingToCertify: "Left to certify",
+  netCertified: "Net of retention and back-charges",
+  heldBack: "Retention held",
+  overValuedWarning: "Valued above the agreed package value. Usually a variation agreed off-system — worth checking.",
+  noCertificatesYet: "Nothing certified yet.",
+  certificates: "Payment certificates",
+  newCertificate: "New certificate",
+  certNumber: "No.",
+  periodEnd: "Period ending",
+  cumulativeValue: "Work valued to date",
+  cumulativeValueHint: "Cumulative, not this period. Each certificate values the whole package to date and pays the difference — so a mistake in one period is put right by the next rather than riding through all of them.",
+  thisPeriod: "This period",
+  backCharges: "Back-charges",
+  backChargeWhat: "What is being deducted",
+  backChargeAmount: "Amount",
+  netPayable: "Net payable",
+  certify: "Certify",
+  certifiedBy: (who) => `Certified by ${who}`,
+  markLive: "Mark live",
+  markComplete: "Mark complete",
+  terminate: "Terminate",
+  refuseNotLive: "That subcontract is still a draft — nobody has signed it, so there is nothing to value against.",
+  refuseTerminated: "That subcontract has been terminated.",
+  refuseBelowPrevious: "A valuation cannot be lower than the last certified one. Deduct with a back-charge instead, which says why.",
+  refuseCertified: "That certificate has been agreed. Correct it in the next one — a cumulative valuation restates the total.",
+  refuseAlreadyCertified: "That certificate has already been certified.",
+  refuseRetentionLocked: "Retention has already been withheld on a certificate, so the terms cannot change.",
+  refuseHasCertificates: "That subcontract has been valued. Terminate it rather than deleting the record of what was owed.",
+  refuseNotCertifiable: "Certifying is its own act, not a status you set.",
   expeditingSub: "What is late, by how long, and who has already been chased.",
   loadingExpediting: "Loading outstanding orders…",
   nothingOutstanding: "Nothing outstanding",
@@ -285,6 +377,52 @@ const ar: Strings = {
   requisitions: "طلبات الشراء",
   rfqs: "عروض الموردين",
   expediting: "متابعة التوريد",
+  subcontracts: "عقود الباطن",
+  subcontractsSub: "قيمة الحزمة، وما جرى تقييمه، وما يُحتجز منه.",
+  loadingSubcontracts: "جارٍ تحميل عقود الباطن…",
+  noSubcontracts: "لا توجد عقود باطن بعد",
+  noSubcontractsBody: "أمر الشراء يشتري بضاعة مقابل قائمة بنود ثم تُستلم. وعقد الباطن يشتري عملاً مقابل قيمة، فيُقيَّم فترةً بعد فترة، مع احتجاز نسبة وخصم المستقطعات.",
+  newSubcontract: "عقد باطن جديد",
+  editSubcontract: "تعديل العقد",
+  packageTitle: "الحزمة",
+  packageScope: "النطاق",
+  packageValue: "القيمة المتّفق عليها",
+  subcontractor: "مقاول الباطن",
+  retentionPct: "نسبة الاحتجاز %",
+  retentionRelease: "الإفراج عن المحتجز",
+  retentionLockedHint: "لا تتغيّر شروط الاحتجاز بعد اعتماد أيّ شهادة — فكلّ شهادة صدرت احتجزت هذه النسبة.",
+  startsOn: "يبدأ",
+  endsOn: "ينتهي",
+  certifiedToDate: "المعتمد حتى تاريخه",
+  remainingToCertify: "المتبقّي للاعتماد",
+  netCertified: "الصافي بعد الاحتجاز والمستقطعات",
+  heldBack: "المحتجز",
+  overValuedWarning: "التقييم يتجاوز قيمة الحزمة المتّفق عليها. غالباً تغيير اتُّفق عليه خارج النظام — يستحقّ المراجعة.",
+  noCertificatesYet: "لم يُعتمد شيء بعد.",
+  certificates: "شهادات الدفع",
+  newCertificate: "شهادة جديدة",
+  certNumber: "رقم",
+  periodEnd: "نهاية الفترة",
+  cumulativeValue: "العمل المُقيَّم حتى تاريخه",
+  cumulativeValueHint: "تراكمي، لا قيمة هذه الفترة. كلّ شهادة تُقيّم الحزمة كاملةً حتى تاريخها وتدفع الفرق — فيصحّح الخطأ في فترة بالفترة التي تليها بدل أن يسري في جميعها.",
+  thisPeriod: "هذه الفترة",
+  backCharges: "المستقطعات",
+  backChargeWhat: "ما الذي يُخصم",
+  backChargeAmount: "المبلغ",
+  netPayable: "الصافي المستحقّ",
+  certify: "اعتماد",
+  certifiedBy: (who) => `اعتمدها ${who}`,
+  markLive: "تفعيل",
+  markComplete: "إنهاء",
+  terminate: "إنهاء العقد",
+  refuseNotLive: "هذا العقد ما زال مسوّدة — لم يوقّعه أحد، فلا شيء يُقيَّم عليه.",
+  refuseTerminated: "أُنهي هذا العقد.",
+  refuseBelowPrevious: "لا يجوز أن يقلّ التقييم عن آخر تقييم معتمد. اخصم بمستقطع بدلاً من ذلك، فهو يذكر السبب.",
+  refuseCertified: "اعتُمدت هذه الشهادة. صحّحها في التالية — فالتقييم التراكمي يعيد ذكر الإجمالي.",
+  refuseAlreadyCertified: "سبق اعتماد هذه الشهادة.",
+  refuseRetentionLocked: "احتُجزت نسبة على شهادة بالفعل، فلا تتغيّر الشروط.",
+  refuseHasCertificates: "جرى تقييم هذا العقد. أنهِه بدلاً من حذف سجلّ ما كان مستحقّاً.",
+  refuseNotCertifiable: "الاعتماد فعل قائم بذاته، لا حالة تُضبط.",
   expeditingSub: "ما تأخّر، وكم تأخّر، ومن جرت متابعته بالفعل.",
   loadingExpediting: "جارٍ تحميل الأوامر القائمة…",
   nothingOutstanding: "لا يوجد قائم",

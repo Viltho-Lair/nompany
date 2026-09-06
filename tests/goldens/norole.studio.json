@@ -177,6 +177,12 @@
       },
       {
         "id": "<sub_ID>",
+        "key": "procurement-subcontracts",
+        "name": "Subcontracts",
+        "enabled": true
+      },
+      {
+        "id": "<sub_ID>",
         "key": "procurement-suppliers",
         "name": "Suppliers",
         "enabled": true

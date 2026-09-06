@@ -1,0 +1,23 @@
+{
+  "status": 200,
+  "body": {
+    "ok": true,
+    "certificate": {
+      "id": "<pay_ID>",
+      "subcontractId": "<sub_ID>",
+      "number": "1",
+      "periodEnd": "2031-04-30",
+      "cumulativeValue": 30000,
+      "backCharges": [],
+      "status": "Certified",
+      "notes": "",
+      "createdByCollaboratorId": "<col_ID>",
+      "createdAt": "<timestamp>",
+      "updatedAt": "<timestamp>",
+      "studioId": "<std_ID>",
+      "sectionId": "<sub_ID>",
+      "certifiedByCollaboratorId": "<col_ID>",
+      "certifiedAt": "<timestamp>"
+    }
+  }
+}

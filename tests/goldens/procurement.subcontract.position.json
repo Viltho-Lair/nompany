@@ -1,0 +1,120 @@
+{
+  "status": 200,
+  "body": {
+    "ok": true,
+    "subcontracts": [
+      {
+        "id": "<sub_ID>",
+        "reference": "SC-0001",
+        "title": "Drylining package",
+        "scope": "Metal stud, boarding and taping to levels 1-4.",
+        "vendorId": "v-dryline",
+        "projectId": "",
+        "costCodeId": "",
+        "value": 100000,
+        "retentionPercent": 5,
+        "retentionReleaseDate": "",
+        "startDate": "",
+        "endDate": "2031-09-30",
+        "status": "Live",
+        "notes": "",
+        "createdByCollaboratorId": "<col_ID>",
+        "createdAt": "<timestamp>",
+        "updatedAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>",
+        "certificates": [
+          {
+            "id": "<pay_ID>",
+            "subcontractId": "<sub_ID>",
+            "number": "2",
+            "periodEnd": "2031-05-31",
+            "cumulativeValue": 50000,
+            "backCharges": [
+              {
+                "description": "Skip hire recharged",
+                "amount": 800
+              }
+            ],
+            "status": "Certified",
+            "notes": "",
+            "createdByCollaboratorId": "<col_ID>",
+            "createdAt": "<timestamp>",
+            "updatedAt": "<timestamp>",
+            "studioId": "<std_ID>",
+            "sectionId": "<sub_ID>",
+            "certifiedByCollaboratorId": "<col_ID>",
+            "certifiedAt": "<timestamp>",
+            "certifiedByAlias": "Owner"
+          },
+          {
+            "id": "<pay_ID>",
+            "subcontractId": "<sub_ID>",
+            "number": "1",
+            "periodEnd": "2031-04-30",
+            "cumulativeValue": 30000,
+            "backCharges": [],
+            "status": "Certified",
+            "notes": "",
+            "createdByCollaboratorId": "<col_ID>",
+            "createdAt": "<timestamp>",
+            "updatedAt": "<timestamp>",
+            "studioId": "<std_ID>",
+            "sectionId": "<sub_ID>",
+            "certifiedByCollaboratorId": "<col_ID>",
+            "certifiedAt": "<timestamp>",
+            "certifiedByAlias": "Owner"
+          }
+        ],
+        "position": {
+          "certificates": [
+            {
+              "id": "<pay_ID>",
+              "number": "1",
+              "status": "Certified",
+              "periodEnd": "2031-04-30",
+              "cumulativeValue": 30000,
+              "thisPeriod": 30000,
+              "retentionHeld": 1500,
+              "backCharges": 0,
+              "netPayable": 28500
+            },
+            {
+              "id": "<pay_ID>",
+              "number": "2",
+              "status": "Certified",
+              "periodEnd": "2031-05-31",
+              "cumulativeValue": 50000,
+              "thisPeriod": 20000,
+              "retentionHeld": 1000,
+              "backCharges": 800,
+              "netPayable": 18200
+            }
+          ],
+          "value": 100000,
+          "certifiedToDate": 50000,
+          "remaining": 50000,
+          "completeFraction": 0.5,
+          "retention": {
+            "percent": 5,
+            "held": 2500,
+            "net": 47500,
+            "releasable": null,
+            "releaseDate": "",
+            "blocked": "no-release-date"
+          },
+          "totalBackCharges": 800,
+          "netCertified": 46700,
+          "overValued": false,
+          "blocked": null
+        },
+        "createdByAlias": "Owner"
+      }
+    ],
+    "asOf": "<timestamp>",
+    "canCreate": true,
+    "canEdit": true,
+    "canDelete": true,
+    "canCertify": true
+  }
+}

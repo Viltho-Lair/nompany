@@ -37,6 +37,7 @@
       "procurement-requisitions": false,
       "procurement-rfq": false,
       "procurement-expediting": false,
+      "procurement-subcontracts": false,
       "procurement-suppliers": false,
       "inventory": false,
       "inventory-stock": false,

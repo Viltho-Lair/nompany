@@ -325,7 +325,11 @@ console.log("== the permission matrix: one key grants exactly itself");
   // expediting screen owns no record — it reads purchase orders, which live in
   // Inventory and are raised there, and appends a chase to one. There is
   // nothing to create and nothing to delete.
-  ok("the catalogue is the size we last agreed", ALL_PERMISSIONS.length === 166, String(ALL_PERMISSIONS.length));
+  // 171 with procurement.subcontracts: view/create/edit/delete plus `certify`
+  // as an EXTRA. Writing a valuation is administration; AGREEING it creates a
+  // debt, which is the separation procurement.requisitions.approve draws and
+  // the reason neither is a rung on the view/edit ladder.
+  ok("the catalogue is the size we last agreed", ALL_PERMISSIONS.length === 171, String(ALL_PERMISSIONS.length));
 
   const leaks = [];
   const missing = [];
@@ -6656,6 +6660,162 @@ console.log("== procurement: what is late, and who has been chased");
   const outsider = await expPersonWith(["crmSales.tickets.view"], "noexp");
   await signIn(outsider.id);
   await shot("procurement.expediting.forbidden", await readExp());
+  await signIn(owner.id);
+}
+
+// ============================================================================
+console.log("== procurement: a package valued period by period");
+// A PURCHASE ORDER BUYS GOODS AGAINST A LINE LIST AND IS RECEIVED. A
+// subcontract buys WORK against a value and is VALUED, periodically, as a
+// proportion of something nobody can count in a warehouse — which is why it is
+// its own record and why its certificates are cumulative.
+//
+// PLACED HERE for the reason the blocks above state: this studio is SHARED and
+// several goldens are whole-studio snapshots.
+{
+  const SUB = await import("@/app/api/studios/[slug]/procurement/subcontracts/route.ts");
+
+  const P = ctx({ slug });
+  const shot = async (name, payload) => {
+    const r = golden(name, payload, EXTRA);
+    if (!r.recorded) ok(`${name} matches its golden`, r.ok, r.detail);
+    return payload;
+  };
+  const subPersonWith = async (permissions, alias) => {
+    const u = (await createUser({ email: `g-${alias}-${rand()}@test.invalid`, passwordHash: "x" })).user;
+    const role = await createRole(studio.id, { name: `role-${alias}`, permissions });
+    await addCollaborator(studio.id, { userId: u.id, alias, role: "member", roleIds: [role.id] });
+    return u;
+  };
+
+  const post = (body) => capture(
+    SUB.POST, req(`/api/studios/${slug}/procurement/subcontracts`, { method: "POST", body }), P);
+  const put = (body) => capture(
+    SUB.PUT, req(`/api/studios/${slug}/procurement/subcontracts`, { method: "PUT", body }), P);
+  const readSubs = () => capture(
+    SUB.GET, req(`/api/studios/${slug}/procurement/subcontracts`), P);
+
+  await signIn(owner.id);
+
+  const made = await shot("procurement.subcontract.created", await post({
+    title: "Drylining package",
+    scope: "Metal stud, boarding and taping to levels 1-4.",
+    vendorId: "v-dryline",
+    value: 100000,
+    retentionPercent: 5,
+    endDate: "2031-09-30",
+  }));
+  const subId = made.body?.subcontract?.id;
+  ok("a subcontract is raised", Boolean(subId));
+  ok("...as a draft", made.body?.subcontract?.status === "Draft");
+  ok("...carrying a reference", /^SC-\d+$/.test(String(made.body?.subcontract?.reference || "")),
+    String(made.body?.subcontract?.reference));
+
+  // A DRAFT SUBCONTRACT HAS BEEN AGREED WITH NOBODY, so there is nothing to
+  // value work against.
+  await shot("procurement.subcontract.valuedraft", await post({
+    certificate: true, subcontractId: subId, periodEnd: "2031-04-30", cumulativeValue: 30000,
+  }));
+
+  await put({ id: subId, status: "Live" });
+
+  const first = await shot("procurement.subcontract.certificate", await post({
+    certificate: true, subcontractId: subId, periodEnd: "2031-04-30", cumulativeValue: 30000,
+  }));
+  const cert1 = first.body?.certificate?.id;
+  ok("a certificate is written", Boolean(cert1));
+  // NUMBERED WITHIN THE SUBCONTRACT: a subcontractor talks about "certificate 3
+  // on the drylining", and a studio-wide sequence would mean nothing to them.
+  ok("...numbered within the subcontract", first.body?.certificate?.number === "1",
+    String(first.body?.certificate?.number));
+  ok("...as a draft", first.body?.certificate?.status === "Draft");
+
+  // A DRAFT CERTIFICATE IS NOT MONEY OWED.
+  const beforeCertifying = await readSubs();
+  const s0 = (beforeCertifying.body?.subcontracts || []).find((x) => x.id === subId);
+  ok("a draft certificate does not move certified-to-date",
+    s0?.position?.certifiedToDate === 0, String(s0?.position?.certifiedToDate));
+
+  // CERTIFYING IS ITS OWN ACT. A status written through the edit path would
+  // route the signature around the right that exists for it.
+  await shot("procurement.subcontract.statusedit", await put({
+    id: cert1, certificate: true, status: "Certified",
+  }));
+
+  // AND ITS OWN RIGHT: somebody who may write the valuation may not agree it.
+  const clerk = await subPersonWith(
+    ["procurement.subcontracts.view", "procurement.subcontracts.edit"], "subclerk");
+  await signIn(clerk.id);
+  await shot("procurement.subcontract.certifyforbidden", await put({
+    id: cert1, action: "certify",
+  }));
+  await signIn(owner.id);
+
+  const certified = await shot("procurement.subcontract.certified", await put({
+    id: cert1, action: "certify",
+  }));
+  ok("certifying agrees the valuation",
+    certified.body?.certificate?.status === "Certified", certified.body?.certificate?.status);
+  ok("...stamping who agreed it",
+    Boolean(certified.body?.certificate?.certifiedByCollaboratorId));
+  await shot("procurement.subcontract.certifiedtwice", await put({ id: cert1, action: "certify" }));
+
+  // A CERTIFIED CERTIFICATE NO LONGER EDITS: it states what somebody agreed was
+  // owed, and the correction belongs in the NEXT cumulative valuation where it
+  // is visible.
+  await shot("procurement.subcontract.editcertified", await put({
+    id: cert1, certificate: true, cumulativeValue: 35000,
+  }));
+
+  // RETENTION FREEZES ONCE ANYTHING IS CERTIFIED. Changing the percentage
+  // afterwards would re-price money the studio has already told a
+  // subcontractor it was holding.
+  await shot("procurement.subcontract.retentionlocked", await put({
+    id: subId, retentionPercent: 10,
+  }));
+
+  // A SECOND PERIOD PAYS THE DIFFERENCE.
+  const second = await post({
+    certificate: true, subcontractId: subId, periodEnd: "2031-05-31", cumulativeValue: 50000,
+    backCharges: [{ description: "Skip hire recharged", amount: 800 }],
+  });
+  await put({ id: second.body?.certificate?.id, action: "certify" });
+
+  const position = await shot("procurement.subcontract.position", await readSubs());
+  const s1 = (position.body?.subcontracts || []).find((x) => x.id === subId);
+  const pos = s1?.position || {};
+  // THE ASSERTION THIS SLICE EXISTS FOR: certified-to-date is the LAST
+  // cumulative, not 30000 + 50000. Summing counts a corrected period twice.
+  ok("CERTIFIED TO DATE IS THE LAST CUMULATIVE, NOT A SUM",
+    pos.certifiedToDate === 50000, String(pos.certifiedToDate));
+  ok("...and the second period pays the difference",
+    pos.certificates?.[1]?.thisPeriod === 20000, String(pos.certificates?.[1]?.thisPeriod));
+  // 20000 less 5% retention (1000) less an 800 back-charge.
+  ok("...net of retention and the back-charge",
+    pos.certificates?.[1]?.netPayable === 18200, String(pos.certificates?.[1]?.netPayable));
+  ok("retention is held on the whole certified position",
+    pos.retention?.held === 2500, String(pos.retention?.held));
+  // NULL RATHER THAN ZERO, from billing's own retentionOn — the same function
+  // the client side uses, so ten per cent cannot mean two things.
+  ok("...and releasable is null with no release date",
+    pos.retention?.releasable === null, String(pos.retention?.releasable));
+
+  // CUMULATIVE CANNOT GO BACKWARDS. That is what a back-charge is for, and a
+  // back-charge says why while a reversed valuation says nothing.
+  await shot("procurement.subcontract.belowprevious", await post({
+    certificate: true, subcontractId: subId, periodEnd: "2031-06-30", cumulativeValue: 40000,
+  }));
+
+  // A VALUED SUBCONTRACT IS A RECORD OF MONEY OWED — terminate it rather than
+  // orphaning every certificate written against it.
+  await shot("procurement.subcontract.deletevalued", await capture(
+    SUB.DELETE, req(`/api/studios/${slug}/procurement/subcontracts`, {
+      method: "DELETE", body: { id: subId },
+    }), P));
+
+  const outsider = await subPersonWith(["crmSales.tickets.view"], "nosub");
+  await signIn(outsider.id);
+  await shot("procurement.subcontract.forbidden", await readSubs());
   await signIn(owner.id);
 }
 
