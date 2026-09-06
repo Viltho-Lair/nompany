@@ -77,122 +77,34 @@ export function cleanRole(body: Record<string, unknown>) {
   };
 }
 
-// A studio starts with roles rather than a blank editor. An empty permission
-// grid is where over-granting begins: faced with 110 unchecked boxes, people
-// tick everything to make the product work and never come back.
+// A STUDIO STARTS WITH ADMIN, AND ITS DEPARTMENTS BRING THE REST.
+//
+// It used to start with five — Admin, Manager, Team Lead, Member, Viewer — and
+// the reason was sound: an empty permission grid is where over-granting begins,
+// because faced with 159 unchecked boxes people tick everything to make the
+// product work and never come back. That reason has not gone away. What changed
+// is who answers it.
+//
+// Departments are real records now, seeded per field of work, and each brings
+// the roles its trade usually has. So a new studio still never meets a blank
+// editor — it meets "Site Engineer" under Site Execution and "Estimator" under
+// Estimation, which is what the generic four could never say. Two of them in
+// different departments can also hold different access, which one flat list
+// could not express at all.
+//
+// ADMIN STAYS, AND STAYS STUDIO-WIDE. It is the one wildcard, and a
+// per-department wildcard is a contradiction: "everything, within one
+// department" is not everything. It is also the role that has to keep meaning
+// everything as the product grows, which is why it holds no explicit list.
+//
 // A STARTER ROLE NAMES AREAS THAT EXIST, so a miss here is a typo in the list
 // below rather than a runtime condition — but the seeded roles are what every
 // new studio gets, so it fails loudly rather than silently granting nothing.
-const level = (areaKey: string, lvl: Level) => {
-  const area = AREAS.find((a) => a.key === areaKey);
-  if (!area) throw new Error(`roles: starter role names an area that does not exist: ${areaKey}`);
-  return keysForLevel(area, lvl);
-};
-
 export const STARTER_ROLES = [
   {
     id: ADMIN_ROLE_ID, name: "Admin", wildcard: true,
     description: "Everything, including capabilities added in future releases.",
-    permissions: [], scopes: {},
-  },
-  {
-    id: "role_manager", name: "Manager",
-    description: "Runs a department: full control of its work, sight of the rest.",
-    permissions: [
-      // THE DASHBOARDS. A module's summary is now its own right, so it has to be
-      // granted rather than arriving with any child. A manager runs a
-      // department, so seeing the department whole is the job.
-      ...level("crmSales.dashboard", "view"), ...level("engineeringDocs.dashboard", "view"),
-      ...level("projects.dashboard", "view"), ...level("inventory.dashboard", "view"),
-      ...level("hr.dashboard", "view"), ...level("finance.dashboard", "view"),
-      ...level("crmSales.tickets", "full"), ...level("crmSales.clients", "full"), ...level("crmSales.live", "view"),
-      ...level("crmSales.pipeline", "view"),
-      // A manager runs a department, and bidding is department work. Seeded now
-      // rather than left — the contracts register shipped without a starter role
-      // able to open it, and a section whose own Manager is refused is the same
-      // bug from the other end.
-      // `approve` spelled out for the reason the contracts line below states:
-      // keysForLevel walks an area's VERBS and signing a bid is an extra. NOT
-      // `approveHigh` — the second step exists precisely to reach past whoever
-      // runs the department, and seeding both here would make the two-step
-      // chain a one-step chain on every new studio.
-      ...level("tendering.tenders", "full"), "tendering.tenders.approve",
-      ...level("tendering.rates", "full"),
-      // THE REGISTER SHIPPED WITHOUT THIS. crm-sales-contracts landed as a
-      // section and a screen and no starter role named it, so a new studio got
-      // a Contracts entry its own Manager could not open. `approve` is listed
-      // by hand because keysForLevel walks an area's VERBS and answering a
-      // variation is an extra — the same reason hr.vacations.approve is spelled
-      // out two lines below.
-      ...level("crmSales.contracts", "full"), "crmSales.contracts.approve",
-      ...level("engineeringDocs.rfq", "edit"), ...level("crmSales.quotations", "full"),
-      ...level("projects.list", "full"), ...level("projects.sla", "edit"),
-      // PROCUREMENT HAD NO STARTER GRANT AT ALL, and Suppliers has been on the
-      // nav since the restructure — the same defect the contracts register
-      // shipped with, found the same way and fixed in the slice that found it.
-      // `approveHigh` is deliberately absent: the second step exists to reach
-      // past whoever runs the department, and seeding both would make the
-      // two-step chain a one-step chain on every new studio.
-      ...level("procurement.requisitions", "full"), "procurement.requisitions.approve",
-      ...level("procurement.suppliers", "full"),
-      ...level("inventory.stock", "view"), ...level("inventory.items", "view"),
-      ...level("fieldService.tracking", "edit"), ...level("tasks.board", "full"),
-      ...level("hr.employees", "view"), ...level("hr.vacations", "edit"),
-      "hr.vacations.approve", "engineeringDocs.rfq.convert",
-      // WHO ELSE IS IN THE STUDIO. People was visible to every member until
-      // Administration became a real section; gating it is the point of that
-      // change rather than a side effect, and running a department is the case
-      // for holding it. NOT administration.access: seeing who is here is not
-      // the same as deciding what they may do.
-      "administration.members.view",
-    ],
-    scopes: { "hr.employees": "department", "hr.vacations": "department" },
-  },
-  {
-    id: "role_lead", name: "Team Lead",
-    description: "Does the work and assigns it, without settings or deletion.",
-    permissions: [
-      // The three they work in. Not Finance, and not HR — a lead assigns work,
-      // which is not the same as being shown what the department costs or who
-      // is in it. Member and Viewer get no dashboard at all: the summary is the
-      // thing a studio most often means to withhold, so it is not a default.
-      ...level("crmSales.dashboard", "view"), ...level("engineeringDocs.dashboard", "view"),
-      ...level("projects.dashboard", "view"),
-      ...level("crmSales.tickets", "edit"), ...level("crmSales.clients", "edit"),
-      ...level("engineeringDocs.rfq", "edit"), ...level("crmSales.quotations", "edit"),
-      ...level("projects.list", "edit"), ...level("tasks.board", "full"),
-      ...level("inventory.items", "view"), ...level("fieldService.tracking", "edit"),
-      ...level("hr.vacations", "view"),
-      // A LEAD ASSIGNS WORK, so a lead needs the list of people to assign it
-      // to. This is deliberately NOT in tension with the note above about HR:
-      // that withholds hr.employees, which is the employment record — pay,
-      // contract, documents. This is studio membership and the roles people
-      // hold, which is the thing the task board and the shift rota already
-      // show them by name.
-      "administration.members.view",
-    ],
-    scopes: { "hr.vacations": "own" },
-  },
-  {
-    id: "role_member", name: "Member",
-    description: "Does the work: raises and edits records, deletes nothing.",
-    permissions: [
-      ...level("crmSales.tickets", "edit"), ...level("crmSales.clients", "view"),
-      ...level("crmSales.quotations", "view"), ...level("projects.list", "view"),
-      ...level("tasks.board", "edit"), ...level("inventory.items", "view"),
-      ...level("hr.vacations", "edit"),
-    ],
-    scopes: { "hr.vacations": "own" },
-  },
-  {
-    id: "role_viewer", name: "Viewer",
-    description: "Reads, changes nothing.",
-    permissions: [
-      ...level("crmSales.tickets", "view"), ...level("crmSales.clients", "view"),
-      ...level("crmSales.quotations", "view"), ...level("projects.list", "view"),
-      ...level("inventory.items", "view"), ...level("tasks.board", "view"),
-    ],
-    scopes: {},
+    permissions: [], scopes: {}, departmentId: "", source: "custom" as const,
   },
 ];
 

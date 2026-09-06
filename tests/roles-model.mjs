@@ -110,5 +110,45 @@ ok("an unknown archetype grants nothing", A.permissionsFor("nonsense").length ==
 ok("...and is not mistaken for a real one",
   !A.isArchetypeId("nonsense") && A.isArchetypeId("doer"));
 
+console.log("\n== what a new studio starts with");
+
+ok("exactly one starter role", R.STARTER_ROLES.length === 1, String(R.STARTER_ROLES.length));
+ok("...and it is Admin", R.STARTER_ROLES[0]?.id === R.ADMIN_ROLE_ID, String(R.STARTER_ROLES[0]?.id));
+ok("...the wildcard", R.STARTER_ROLES[0]?.wildcard === true);
+ok("...studio-wide, not inside a department",
+  (R.STARTER_ROLES[0]?.departmentId || "") === "");
+
+// THE FOUR THAT LEFT. Manager, Team Lead, Member and Viewer were the same
+// four whatever the studio did. Departments are seeded per industry now and
+// bring their own roles, so "Site Engineer" under Site Execution says what
+// "Member" never could — and two of them in different departments can hold
+// different access, which one flat list could not express at all.
+const starterNames = R.STARTER_ROLES.map((r) => r.name);
+for (const gone of ["Manager", "Team Lead", "Member", "Viewer"]) {
+  ok(`${gone} is no longer seeded`, !starterNames.includes(gone), starterNames.join(", "));
+}
+
+// A STARTER ROLE STILL NAMES AREAS THAT EXIST. Admin holds no explicit list
+// — it is the wildcard — so this is really asserting that nothing crept back
+// in with a hand-written key beside it.
+ok("the starter role carries no explicit permissions",
+  (R.STARTER_ROLES[0]?.permissions || []).length === 0,
+  JSON.stringify(R.STARTER_ROLES[0]?.permissions));
+
+// THE TRANSLATIONS FOLLOW THE ROLES. Eight entries covered the four that
+// left; leaving them behind would be dead data keyed to strings nothing
+// seeds any more.
+const SR = await import("@/shared/studio/starterRoles");
+ok("Admin still speaks Arabic", SR.starterRoleWord("ar", "Admin") !== "Admin");
+for (const gone of ["Manager", "Team Lead", "Member", "Viewer"]) {
+  ok(`no dead translation for ${gone}`, SR.starterRoleWord("ar", gone) === gone,
+    SR.starterRoleWord("ar", gone));
+}
+
+// A string nobody translated falls through to the English it was given,
+// which is what keeps a library role name readable rather than blank.
+ok("an untranslated name falls through to English",
+  SR.starterRoleWord("ar", "Site Engineer") === "Site Engineer");
+
 console.log(fails ? `\n${fails} FAILED\n` : "\nall passed\n");
 process.exit(fails ? 1 : 0);
