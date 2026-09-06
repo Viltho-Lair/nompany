@@ -150,5 +150,87 @@ for (const gone of ["Manager", "Team Lead", "Member", "Viewer"]) {
 ok("an untranslated name falls through to English",
   SR.starterRoleWord("ar", "Site Engineer") === "Site Engineer");
 
+console.log("\n== the role library");
+
+const L = await import("@/modules/people/roleLibrary");
+const { FIELDS_OF_WORK } = await import("@/shared/fieldsOfWork");
+const S = await import("@/shared/departments/starters");
+
+ok("the library has entries", L.LIBRARY.length > 1000, String(L.LIBRARY.length));
+
+const codesByIndustry = Object.fromEntries(
+  FIELDS_OF_WORK.map((f) => [f, S.departmentsForField(f).map((d) => d.code)]),
+);
+const libProblems = L.libraryProblems(FIELDS_OF_WORK, codesByIndustry);
+ok("every library entry is well formed", libProblems.length === 0,
+  libProblems.slice(0, 3).join(" | "));
+
+// EVERY FIELD MUST HAVE ROLES, or a studio in that trade seeds departments
+// with nothing in them — the blank-grid problem one level down.
+const emptyFields = FIELDS_OF_WORK.filter((f) =>
+  !L.LIBRARY.some((e) => e.industry === f));
+ok("every field of work has roles of its own", emptyFields.length === 0, emptyFields.join(", "));
+
+// AND EVERY DEPARTMENT, for the same reason. This is the assertion that
+// caught two empty desks — the air/ocean freight desk and the FM helpdesk —
+// which the generator now has hints for.
+const emptyDepts = [];
+for (const f of FIELDS_OF_WORK) {
+  for (const code of codesByIndustry[f]) {
+    if (!L.starterRolesFor(f, code).length) emptyDepts.push(`${f}/${code}`);
+  }
+}
+ok("every seeded department has at least one role", emptyDepts.length === 0,
+  emptyDepts.slice(0, 4).join(", "));
+
+ok("no department seeds more than ten",
+  FIELDS_OF_WORK.every((f) => codesByIndustry[f].every((c) => L.starterRolesFor(f, c).length <= 10)));
+
+// SENIOR FIRST. A department arriving with ten operatives and no lead is a
+// worse starting point than one with its head, its supervisor and its
+// professionals.
+const constructionOps = L.starterRolesFor("Construction & Contracting", "OPS");
+ok("a department is seeded most senior first",
+  constructionOps.length > 1 && constructionOps[0].tier <= constructionOps[constructionOps.length - 1].tier,
+  constructionOps.map((r) => `${r.name}:${r.tier}`).join(" "));
+
+// THE SPINE IS STORED ONCE AND REACHES EVERY FIELD. Writing it per industry
+// doubled the file for no information; the readers treat "*" as matching any
+// field, so Finance gets its accountants in all twenty-five trades.
+const spineRows = L.LIBRARY.filter((e) => e.industry === "*");
+ok("the universal spine is stored once", spineRows.length > 0 && spineRows.length < 200,
+  String(spineRows.length));
+ok("...and reaches a field that has none of its own back office",
+  L.starterRolesFor("Management Consulting", "FIN").length > 0,
+  L.starterRolesFor("Management Consulting", "FIN").map((r) => r.name).join(", "));
+
+// Search is what the screen uses; it must find by substring, case-blind, and
+// must never hand back the catalogue.
+ok("search finds by substring", L.searchLibrary("engineer", { limit: 5 }).length === 5);
+ok("...case-insensitively", L.searchLibrary("ENGINEER", { limit: 1 }).length === 1);
+ok("...and is capped even with no search term at all",
+  L.searchLibrary("", { limit: 20 }).length === 20);
+
+// A COPY, NOT A REFERENCE — the BOQ rate rule. Editing an archetype later
+// must reprice nothing already created.
+const entry = L.LIBRARY.find((e) => e.archetype === "doer");
+const copied = L.permissionsForLibraryRole(entry);
+copied.push("crmSales.tickets.delete");
+ok("a library role hands out a fresh permission list",
+  !L.permissionsForLibraryRole(entry).includes("crmSales.tickets.delete"));
+
+// THE PROPERTY THE WHOLE DESIGN TURNS ON: one name, two departments, two
+// different access shapes. If the library cannot express this, departmental
+// roles are just a grouping.
+const byName = new Map();
+for (const e of L.LIBRARY) {
+  const seen = byName.get(e.name) || new Set();
+  seen.add(e.archetype);
+  byName.set(e.name, seen);
+}
+const differing = [...byName.entries()].filter(([, shapes]) => shapes.size > 1);
+ok("a repeated job title can carry different access in different places",
+  differing.length > 0, `${differing.length} such titles`);
+
 console.log(fails ? `\n${fails} FAILED\n` : "\nall passed\n");
 process.exit(fails ? 1 : 0);
