@@ -65,6 +65,10 @@ const StudioPipeline = nextDynamic(
   () => import("@/components/studio2/StudioPipeline"),
   { loading: () => <ScreenSkeleton /> },
 );
+const StudioRequisitions = nextDynamic(
+  () => import("@/components/studio2/StudioRequisitions"),
+  { loading: () => <ScreenSkeleton /> },
+);
 const StudioProjectBilling = nextDynamic(
   () => import("@/components/studio2/StudioProjectBilling"),
   { loading: () => <RecordSkeleton /> },
@@ -604,6 +608,8 @@ async function renderStudio(params) {
         // of their own the way Inventory does, so their OWN root screen still
         // wants the generic SectionDashboard (a heading and its subsection
         // cards), not the whole Inventory dashboard wearing their name.
+        : active?.key === "procurement-requisitions"
+          ? <StudioRequisitions slug={studio.slug} />
         : active?.key === "procurement-suppliers" || active?.key === "logistics-shipments"
           ? <StudioInventory slug={studio.slug} view={active?.key} />
         : screenKey === "inventory" ? <StudioInventory slug={studio.slug} view={active?.key} />

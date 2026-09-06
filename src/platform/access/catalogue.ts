@@ -253,6 +253,18 @@ const OWN_AREAS = [
   // belonged; Inventory kept the screen only because that is where it was
   // built. Relabelled to match the section it now sits in
   // (procurement-suppliers, "Suppliers", in keys.ts's SECTION_DEFS).
+  // ASKING AND AUTHORISING ARE DIFFERENT POWERS, which is why `approve` and
+  // `approveHigh` are extras on the same area rather than the CRUD verbs
+  // covering them: everybody who buys anything raises requisitions, and the
+  // point of the record is that somebody else says yes. `approveHigh` is the
+  // second step, and it is deliberately NOT seeded to the Manager role — the
+  // step exists to reach past whoever runs the department.
+  { key: "procurement.requisitions", group: "Procurement & Subcontracting", label: "Requisitions",
+    verbs: ["view", "create", "edit", "delete"],
+    extra: [
+      { key: "approve", label: "Approve a requisition" },
+      { key: "approveHigh", label: "Approve a requisition above the limit" },
+    ] },
   { key: "procurement.suppliers", group: "Procurement & Subcontracting", label: "Suppliers", verbs: ["view", "create", "edit", "delete"] },
   { key: "inventory.items", group: "Inventory & Warehouse", label: "Registered items", verbs: ["view", "create", "edit", "delete"] },
   // NO LONGER VIEW ONLY. It was, while a sheet was just the screen over purchase

@@ -313,7 +313,12 @@ console.log("== the permission matrix: one key grants exactly itself");
   // supplier costs, and a project manager watching spend needs none of the
   // client's payment schedule. Folding them together would hand each of them
   // the other's screen.
-  ok("the catalogue is the size we last agreed", ALL_PERMISSIONS.length === 153, String(ALL_PERMISSIONS.length));
+  // 159 with procurement.requisitions: view/create/edit/delete, plus approve
+  // and approveHigh as EXTRAS on the same area rather than a second one.
+  // Asking to buy something and authorising the spend are different powers
+  // over the SAME record, which is what an extra verb is for; a second area
+  // would be a second answer to "who works on requisitions".
+  ok("the catalogue is the size we last agreed", ALL_PERMISSIONS.length === 159, String(ALL_PERMISSIONS.length));
 
   const leaks = [];
   const missing = [];
@@ -5999,6 +6004,209 @@ console.log("== projects: the payment schedule, and what the client holds back")
   await signIn(coster.id);
   await shot("projects.billing.forbidden", await readBilling(billedProject));
   await signIn(owner.id);
+}
+
+// ============================================================================
+console.log("== procurement: the request that stands before a purchase order");
+// A PURCHASE ORDER APPEARS IN THIS PRODUCT WITH NOBODY HAVING ASKED FOR IT.
+// `materialOrders` records a vendor, a project, lines and a cost code, and
+// nothing about who needed the goods or who authorised the money -- so the only
+// control over what a studio bought was who held `inventory.stock.create`, a
+// right that cannot express a limit.
+//
+// PLACED HERE for the reason the two blocks above state: this studio is SHARED,
+// several goldens are whole-studio snapshots, and this block mints people and
+// writes an order. After every section that records a golden, before the check
+// that counts them.
+{
+  const REQS = await import("@/app/api/studios/[slug]/procurement/requisitions/route.ts");
+  const ORDERS = await import("@/app/api/studios/[slug]/inventory/orders/route.ts");
+
+  const P = ctx({ slug });
+  const shot = async (name, payload) => {
+    const r = golden(name, payload, EXTRA);
+    if (!r.recorded) ok(`${name} matches its golden`, r.ok, r.detail);
+    return payload;
+  };
+  // ITS OWN, declared rather than borrowed: a helper reached from another block
+  // is a ReferenceError thrown AFTER the earlier goldens are written, so the
+  // run reads as passing while having crashed.
+  const reqPersonWith = async (permissions, alias) => {
+    const u = (await createUser({ email: `g-${alias}-${rand()}@test.invalid`, passwordHash: "x" })).user;
+    const role = await createRole(studio.id, { name: `role-${alias}`, permissions });
+    await addCollaborator(studio.id, { userId: u.id, alias, role: "member", roleIds: [role.id] });
+    return u;
+  };
+
+  const raise = (body) => capture(
+    REQS.POST, req(`/api/studios/${slug}/procurement/requisitions`, { method: "POST", body }), P);
+  const act = (body) => capture(
+    REQS.PUT, req(`/api/studios/${slug}/procurement/requisitions`, { method: "PUT", body }), P);
+  const readReqs = () => capture(
+    REQS.GET, req(`/api/studios/${slug}/procurement/requisitions`), P);
+
+  // AN AMOUNT CANNOT BE JUDGED AGAINST A LIMIT WITHOUT A CURRENCY, and
+  // createStudio has never set one. Same rollout consequence as a bill's and a
+  // bid's; the refusal names the fix.
+  await updateStudio(studio.id, { currency: "SAR" });
+  await signIn(owner.id);
+
+  const empty = await shot("procurement.requisitions.empty", await readReqs());
+  ok("the register opens empty rather than refusing",
+    Array.isArray(empty.body?.requisitions) && empty.body.requisitions.length === 0,
+    JSON.stringify(empty.body?.requisitions));
+
+  const raised = await shot("procurement.requisitions.raised", await raise({
+    title: "Scaffold for the east elevation",
+    justification: "The hired towers go back on the 14th.",
+    neededBy: "2031-05-01",
+    lines: [
+      { description: "Scaffold hire", unit: "week", qty: 4, estUnitCost: 250 },
+      { description: "Edge protection", unit: "m", qty: 100, estUnitCost: 12 },
+    ],
+  }));
+  const reqId = raised.body?.requisition?.id;
+  ok("a requisition is raised", Boolean(reqId));
+  // BORN A DRAFT, ALWAYS: submitting is its own verb, and a status taken from
+  // the create body would be the side entrance around the approval.
+  ok("...as a draft, whatever was asked for",
+    raised.body?.requisition?.status === "Draft", raised.body?.requisition?.status);
+  // A REFERENCE ONLY MOVES FORWARD (invariant 10).
+  ok("...carrying a reference", /^PR-\d+$/.test(String(raised.body?.requisition?.reference || "")),
+    String(raised.body?.requisition?.reference));
+
+  // APPROVED IS NOT A STATUS SOMEBODY ASSIGNS. This is the shape that let a
+  // rejected change order approve itself: a generic edit accepting a status
+  // routes the answer around invariant 7.
+  await shot("procurement.requisitions.notanswerable", await act({
+    id: reqId, status: "Approved",
+  }));
+
+  // NOTHING TO ANSWER UNTIL IT IS ASKED.
+  await shot("procurement.requisitions.notsubmitted", await act({
+    id: reqId, action: "approve",
+  }));
+
+  const submitted = await shot("procurement.requisitions.submitted", await act({
+    id: reqId, action: "submit",
+  }));
+  ok("a draft can be submitted", submitted.body?.requisition?.status === "Submitted");
+  ok("...stamping who asked", Boolean(submitted.body?.requisition?.submittedByCollaboratorId));
+
+  // A SUBMITTED REQUEST NO LONGER EDITS: the thing somebody was asked about
+  // must not change underneath them.
+  await shot("procurement.requisitions.frozen", await act({
+    id: reqId, title: "Something else entirely",
+  }));
+
+  // INVARIANT 7, FIRST HALF. The owner raised it and holds every right in the
+  // product; identity is what refuses them.
+  await shot("procurement.requisitions.ownanswer", await act({
+    id: reqId, action: "approve",
+  }));
+
+  const buyer = await reqPersonWith(
+    ["procurement.requisitions.view", "procurement.requisitions.approve"], "reqbuyer");
+  await signIn(buyer.id);
+  const approved = await shot("procurement.requisitions.approved", await act({
+    id: reqId, action: "approve",
+  }));
+  // 1000 + 1200 = 2200, under the seeded second step's 10000, so ONE signature
+  // completes the chain and Approved is written on the last step -- the same
+  // rule BILL_STATUSES follows, which is why the ladder gained no value for
+  // "partly signed".
+  ok("one signature clears a request under the limit",
+    approved.body?.requisition?.status === "Approved", approved.body?.requisition?.status);
+  ok("...and it is recorded as approved", approved.body?.approved === true);
+
+  // ---- and it becomes an order --------------------------------------------
+  //
+  // THROUGH INVENTORY'S OWN CREATE, not a second write path. `openProject`'s
+  // comment makes the argument: a second create is a second place the
+  // engagement attach can be forgotten.
+  await signIn(owner.id);
+  // ITS OWN VENDOR, created here rather than borrowed from the inventory block:
+  // that block runs earlier and this one must not depend on what it happened to
+  // leave behind. The vendors route has no GET at all -- the list comes off the
+  // inventory route -- so this is also the only way to hold an id.
+  const vendorMade = await capture(
+    (await import("@/app/api/studios/[slug]/inventory/vendors/route.ts")).POST,
+    req(`/api/studios/${slug}/inventory/vendors`, {
+      method: "POST", body: { name: `Scaffold Hire ${rand()}` },
+    }), P);
+  const vendorId = vendorMade.body?.vendor?.id || "";
+  ok("a vendor to order from", Boolean(vendorId), JSON.stringify(vendorMade.body).slice(0, 140));
+
+  // A REQUISITION OF FREE TEXT CANNOT BECOME AN ORDER, and the refusal says so
+  // rather than producing an empty one: `cleanLines` drops any line without a
+  // known Registered Item, because an order moves stock.
+  await shot("procurement.requisitions.noitems", await capture(
+    ORDERS.POST, req(`/api/studios/${slug}/inventory/orders`, {
+      method: "POST", body: { requisitionId: reqId, vendorId },
+    }), P));
+
+  // AND A REQUEST THAT WAS NEVER APPROVED CANNOT EITHER -- ordering against a
+  // draft routes the money around the signature the record exists to collect.
+  const second = await raise({ title: "Unapproved", lines: [{ description: "x", qty: 1, estUnitCost: 1 }] });
+  await shot("procurement.requisitions.orderunapproved", await capture(
+    ORDERS.POST, req(`/api/studios/${slug}/inventory/orders`, {
+      method: "POST", body: { requisitionId: second.body?.requisition?.id, vendorId },
+    }), P));
+
+  // ---- refusing one -------------------------------------------------------
+  const toRefuse = await raise({
+    title: "Second scaffold order",
+    lines: [{ description: "Scaffold hire", unit: "week", qty: 2, estUnitCost: 250 }],
+  });
+  const refuseId = toRefuse.body?.requisition?.id;
+  await act({ id: refuseId, action: "submit" });
+  await signIn(buyer.id);
+  const rejected = await shot("procurement.requisitions.rejected", await act({
+    id: refuseId, action: "reject", reason: "The towers are staying another month.",
+  }));
+  // REJECTING REJECTS. The change-order route passed its whole body where a
+  // boolean was expected and approved what it was refusing; this route computes
+  // the boolean from the action instead, and this is the assertion that says so.
+  ok("REJECTING A REQUISITION REJECTS IT",
+    rejected.body?.requisition?.status === "Rejected", rejected.body?.requisition?.status);
+  ok("...stamped with who said no",
+    Boolean(rejected.body?.requisition?.answeredByCollaboratorId));
+  ok("...and why", String(rejected.body?.requisition?.rejectedReason || "").length > 0);
+  // A REFUSAL IS AN ANSWER, so there is nothing left to answer.
+  await shot("procurement.requisitions.answeredtwice", await act({
+    id: refuseId, action: "approve",
+  }));
+
+  await signIn(owner.id);
+  // ONLY A DRAFT DELETES. A submitted request is a question somebody was asked
+  // and a decided one is the answer; deleting either erases a decision.
+  await shot("procurement.requisitions.deletedecided", await capture(
+    REQS.DELETE, req(`/api/studios/${slug}/procurement/requisitions`, {
+      method: "DELETE", body: { id: refuseId },
+    }), P));
+
+  // SOMEBODY WHO MAY RAISE ONE MAY NOT ANSWER IT. The two verbs are on the same
+  // area precisely so this is expressible: asking to buy and authorising the
+  // spend are different powers over one record.
+  const asker = await reqPersonWith(
+    ["procurement.requisitions.view", "procurement.requisitions.create"], "reqasker");
+  await signIn(asker.id);
+  const asAsker = await readReqs();
+  ok("a requester is offered no signature on anything",
+    (asAsker.body?.requisitions || []).every((r) => !r.review?.next),
+    JSON.stringify((asAsker.body?.requisitions || []).map((r) => Boolean(r.review?.next))));
+  ok("...and is not offered the order button either",
+    asAsker.body?.canOrder === false, String(asAsker.body?.canOrder));
+
+  // AND SOMEBODY WITH NO PROCUREMENT RIGHT IS REFUSED OUTRIGHT, not shown an
+  // empty register -- an empty list would say "this studio buys nothing".
+  const outsider = await reqPersonWith(["crmSales.tickets.view"], "noprocure");
+  await signIn(outsider.id);
+  await shot("procurement.requisitions.forbidden", await readReqs());
+  await signIn(owner.id);
+
+  // The studio's currency goes back, so nothing after this section sees it.
+  await updateStudio(studio.id, { currency: "" });
 }
 
 // ============================================================================

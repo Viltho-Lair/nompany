@@ -76,6 +76,7 @@ const ar: SectionMap = {
   // NEW ROOT. Starts with the supplier master, carried over from Inventory's
   // former Vendors screen.
   procurement: "المشتريات والمقاولات من الباطن",
+  "procurement-requisitions": "طلبات الشراء",
   "procurement-suppliers": "الموردون",
 
   inventory: "المخزون والمستودعات",

@@ -34,6 +34,7 @@
       "engineering-docs-live": false,
       "engineering-docs-settings": false,
       "procurement": false,
+      "procurement-requisitions": false,
       "procurement-suppliers": false,
       "inventory": false,
       "inventory-stock": false,

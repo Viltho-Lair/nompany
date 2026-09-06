@@ -80,7 +80,7 @@ export function approvalChainsFor(
  * list and `saveFinanceSettings` stops accepting chains — in that one commit,
  * so there is never a moment with two writers.
  */
-export const STUDIO_EDITABLE_CHAINS: readonly string[] = ["tender"];
+export const STUDIO_EDITABLE_CHAINS: readonly string[] = ["tender", "requisition"];
 
 /**
  * What may be STORED, out of what a settings screen sent — the overrides alone.

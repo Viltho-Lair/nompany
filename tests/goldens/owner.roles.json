@@ -59,6 +59,15 @@
           "projects.sla.view",
           "projects.sla.create",
           "projects.sla.edit",
+          "procurement.requisitions.view",
+          "procurement.requisitions.create",
+          "procurement.requisitions.edit",
+          "procurement.requisitions.delete",
+          "procurement.requisitions.approve",
+          "procurement.suppliers.view",
+          "procurement.suppliers.create",
+          "procurement.suppliers.edit",
+          "procurement.suppliers.delete",
           "inventory.stock.view",
           "inventory.items.view",
           "fieldService.tracking.view",
@@ -443,6 +452,27 @@
           "create",
           "edit",
           "delete"
+        ]
+      },
+      {
+        "key": "procurement.requisitions",
+        "group": "Procurement & Subcontracting",
+        "label": "Requisitions",
+        "verbs": [
+          "view",
+          "create",
+          "edit",
+          "delete"
+        ],
+        "extra": [
+          {
+            "key": "approve",
+            "label": "Approve a requisition"
+          },
+          {
+            "key": "approveHigh",
+            "label": "Approve a requisition above the limit"
+          }
         ]
       },
       {

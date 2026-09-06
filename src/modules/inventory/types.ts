@@ -26,6 +26,7 @@ export type InventoryContext = ModuleContext & {
   // despite not appearing in the sub list.
   deliveriesSection: Section;
   projectsSection: Section | null;
+  requisitionsSection: Section | null;
   projectsListSection: Section | null;
   quotationsSection: Section | null;
   // A handed-over project's sheet composes from its tender's BILL, so the

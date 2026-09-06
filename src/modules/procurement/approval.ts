@@ -21,7 +21,6 @@ import {
   type ApprovalSignature, type PlanRefusal, type ResolvedPlan,
 } from "@/platform/approval/resolve";
 import type { ApprovalStep } from "@/platform/approval/chains";
-import { getExchangeSnapshot } from "@/lib/data/exchangeRates";
 import { requisitionTotals } from "./model";
 import type { Requisition } from "./schema";
 import type { ProcurementContext } from "./types";
@@ -33,28 +32,33 @@ const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
 /**
  * WHICH SIGNATURES THIS REQUEST NEEDS.
  *
- * The FX read is made only when the requisition is in a currency other than the
- * studio's — `resolveApprovalPlan` is handed a table rather than fetching one,
- * so a request already in the studio's currency costs no round trip. Hop counts
- * are part of this repo's contract.
+ * NO FX READ AT ALL, and that is a fact about the record rather than a shortcut.
+ * A bill carries the supplier's own currency because they invoiced in it, and a
+ * tender carries the client's; a requisition carries neither — its estimates are
+ * what somebody inside this studio expects to spend, typed in the money the
+ * studio works in. The amount is therefore already in base, and
+ * `resolveApprovalPlan` takes `rates: null` rather than being handed a table it
+ * would not consult.
  *
- * A requisition has no currency of its own today: its estimates are typed in
- * whatever the studio works in, so the amount is already in base and the
- * snapshot is fetched only because the resolver's contract asks for one. The
- * field exists on bills because a supplier invoices in their own money; when a
- * requisition grows one, this is where it plugs in.
+ * Hop counts are part of this repo's contract, and a conversion nobody needs is
+ * a round trip nobody asked for. When a requisition grows a currency of its
+ * own, `fxFor` in modules/tendering/bid.ts is the shape to copy — it already
+ * skips the read when the two currencies match.
  */
 async function requisitionPlan(
   ctx: ProcurementContext, amount: number,
 ): Promise<ResolvedPlan | PlanRefusal> {
-  const chains = approvalChainsFor(ctx.studio);
-  const snapshot = await getExchangeSnapshot();
+  const studioCurrency = str(ctx.studio.currency, 8).toUpperCase();
   return resolveApprovalPlan({
-    chain: chains.requisition,
+    // The studio's chains, seeds included — `requisition` is seeded, so unlike a
+    // type nobody configured this can never resolve to `no-chain`.
+    chain: approvalChainsFor(ctx.studio).requisition,
     amount,
-    currency: String(ctx.studio.currency || ""),
-    studioCurrency: String(ctx.studio.currency || ""),
-    rates: snapshot,
+    currency: studioCurrency,
+    studioCurrency,
+    rates: null,
+    updatedAt: 0,
+    stale: false,
   });
 }
 

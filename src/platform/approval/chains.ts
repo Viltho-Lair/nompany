@@ -63,6 +63,23 @@ export const SEEDED_CHAINS: Record<string, ApprovalChain> = {
       { permission: "tendering.tenders.approveHigh", from: 500000, label: "Above the limit" },
     ],
   },
+  // THE THIRD TYPE, AND THE FIRST ONE THAT GUARDS A SPEND BEFORE IT HAPPENS.
+  //
+  // A bill asks "we owe this, may I pay it" and a bid asks "may we promise
+  // this" — both after the fact of the commitment. A requisition asks BEFORE
+  // there is one, which is the only point at which the answer can still be no
+  // without a conversation with a supplier. Its first step is always-on for the
+  // same reason Finance sees every bill: the control is that somebody other
+  // than the requester says yes, whatever the amount. 10000 is where the second
+  // starts and it is the studio's dial, lower than a bill's 50000 because this
+  // is where the money is stopped rather than where it is paid.
+  requisition: {
+    type: "requisition",
+    steps: [
+      { permission: "procurement.requisitions.approve", from: 0, label: "Procurement" },
+      { permission: "procurement.requisitions.approveHigh", from: 10000, label: "Above the limit" },
+    ],
+  },
 };
 
 /**

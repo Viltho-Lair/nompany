@@ -144,6 +144,17 @@ export const OrderSchema = z.object({
    * once carries through to every invoice against it.
    */
   costCodeId: z.string().max(60).optional(),
+  /**
+   * THE REQUISITION THIS ORDER ANSWERS, when it answers one.
+   *
+   * OPTIONAL, and blank is the common case: every order raised before
+   * Procurement existed has none, and buying stock for the shelf never needed a
+   * request. What it buys is the other direction — Procurement derives whether
+   * a requisition has been ordered from THIS field rather than writing a flag
+   * back onto the request, so deleting the order frees the request again. Same
+   * rule, same reason, as one-project-per-tender.
+   */
+  requisitionId: z.string().max(60).optional(),
   lines: z.array(OrderLineSchema),
   status: z.string(),
   expectedAt: z.string(),

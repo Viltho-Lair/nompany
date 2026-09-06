@@ -991,6 +991,49 @@ that check instead, it failed by exactly its own nine names**, which is the chec
 Two goldens change and both are the feature: `owner.roles` gains the area, and
 `finance.invoice.raised` gains one line, `"milestoneId": ""`.
 
+**P4a'S FOURTH SECTION IS OPEN: Procurement & Subcontracting**, and slice 1 is purchase
+requisitions (`docs/functionality/requisitions.md`). Catalogue 153 → 159
+(`procurement.requisitions`, with `approve`/`approveHigh` as EXTRAS on the same area).
+
+**A PURCHASE ORDER APPEARS IN THIS PRODUCT WITH NOBODY HAVING ASKED FOR IT.** `materialOrders`
+records a vendor, a project, lines and a cost code, and nothing about who needed the goods or
+who authorised the money. So the only control a studio had over its spending was who held
+`inventory.stock.create` — and a right cannot express a limit, so "the FD sees the big ones"
+meant withholding ordering from everybody who handles the small ones. A requisition is the
+first document that can be refused CHEAPLY: a bill asks "may I pay this" and a bid asks "may we
+promise this", both after the commitment exists; this asks before there is one.
+
+**IT IS P2'S ENGINE'S THIRD DOCUMENT TYPE, not a third engine.** Seeded chain: Procurement at 0,
+a second step at **10000** — lower than a bill's 50000 because this is where the money is
+stopped rather than where it is paid. Invariant 7 twice. **`Approved` and `Rejected` are not
+moves**: `requisitionProblem` refuses them by name and `editRequisition` refuses a status
+outright, because routing an answer through a generic edit is exactly the shape that let a
+rejected change order approve itself. **No FX read at all** — a requisition carries neither the
+supplier's currency nor the client's, so the amount is already in base and `rates` is null.
+
+**CONVERSION REUSES INVENTORY'S `createOrder` RATHER THAN WRITING AN ORDER.** `openProject`'s
+comment makes the argument: a second create path is a second place the engagement attach can be
+forgotten. So `createOrder` gained a `requisitionId` — a fourth source beside quotation, direct
+and tender — and **`Ordered` is DERIVED** from an order naming the request, so deleting the
+order frees it again. Only an approved request, and only once. **A free-text requisition cannot
+become an order at all** and refuses by name: `cleanLines` drops any line without a Registered
+Item because an order moves stock, and an empty order would read as success and buy nothing.
+
+**PURCHASE ORDERS STAY UNDER INVENTORY.** The programme spec assigns them here; moving the
+collection would strand every existing order under the section it was written to — the tender
+register's mistake at a larger scale — so it is a deliberate migration, not a side effect.
+
+**AND THIS IS THE THIRD SECTION TO SHIP WITH NO STARTER GRANT AT ALL.** Procurement had none —
+not even `procurement.suppliers`, on the nav since the restructure — after contracts and
+tendering had the same defect: a section whose own Manager cannot open it, each found by
+somebody tripping over it. Fixed here (Manager gets suppliers and requisitions; `approveHigh`
+deliberately not seeded), and it moves three `hr.list.*` goldens by `permissionCount` 58 → 67.
+**Nothing asserts this property**, which is why it has happened three times; the guard belongs
+beside `testNoAreaExistsForASectionWithNoScreen` as its mirror — a section WITH a screen must be
+reachable by some seeded role — and is best written as a SHRINK-ONLY count rather than an
+exemption list, so the two deliberately owner-only Administration sections are absorbed without
+being named.
+
 **P4a's second section is complete: Tendering & Estimating.** The root was declared at the
 restructure and rendered nothing for a fortnight — it sat in `NO_SCREEN_YET` and held no
 permission area, because a right nothing can exercise is a bug. **Slice 1, the tender register,

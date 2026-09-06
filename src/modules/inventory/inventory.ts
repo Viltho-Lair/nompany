@@ -86,6 +86,8 @@ const QUOTATIONS = "quotations";
 const Deliveries = repo<Delivery>(DELIVERIES);
 const Items = repo<Item>(ITEMS);
 const Orders = repo<Order>(ORDERS);
+// Read-only, and never written from here: Procurement owns the register.
+const Requisitions = repo<{ id: string; status?: string; lines?: unknown; costCodeId?: string }>("requisitions");
 const Projects = repo(PROJECTS);
 const Quotations = repo(QUOTATIONS);
 const BoqItems = repo<BoqItem>("boqItems");
@@ -165,6 +167,10 @@ export const inventoryContext = moduleContext<InventoryContext>({
   },
   foreign: {
     projects: "projects",
+    // The requisition register, so an order can answer a request. Foreign and
+    // therefore nullable: a studio that has not opened Procurement raises
+    // orders exactly as it did before.
+    requisitions: ["procurement-requisitions", "procurement"],
     projectsList: ["projects-list", "projects"],
     quotations: ["crm-sales-quotations", "crm-sales"],
     // The tender register, for a project handed over from a won bid: its sheet
@@ -1065,9 +1071,48 @@ export async function createOrder(ctx: InventoryContext, body: Record<string, un
   const projectId = str(body?.projectId, 60);
   if (projectId && !(await projectExists(ctx, projectId))) return { error: "project" };
 
+  // ---- answering a requisition --------------------------------------------
+  //
+  // THE FOURTH SOURCE, AND IT IS A BRANCH HERE RATHER THAN A SECOND CREATE.
+  // `openProject`'s comment makes the argument this follows: a second create
+  // path is a second place the engagement attach below could be forgotten,
+  // which is exactly how a record ends up on no deal at all. Procurement
+  // therefore asks THIS function for its order rather than writing the row.
+  //
+  // It stays entirely optional: an order raised with no requisition behaves
+  // exactly as it did before, which is every order in every live studio today.
+  const requisitionId = str(body?.requisitionId, 60);
+  let fromRequisition: { lines?: unknown } | null = null;
+  if (requisitionId) {
+    if (!ctx.requisitionsSection) return { error: "no-procurement" };
+    const req = await Requisitions.byId(
+      { studio, section: ctx.requisitionsSection }, requisitionId);
+    if (!req) return { error: "requisition" };
+    // ONLY AN APPROVED REQUEST BECOMES AN ORDER. Ordering against a draft or a
+    // submitted one would route the money around the signature the record
+    // exists to collect, which is the whole feature.
+    if (String(req.status || "") !== "Approved") return { error: "requisition-not-approved" };
+    // AND ONLY ONCE, derived from the orders rather than a flag on the request:
+    // two orders against one requisition is one approval spent twice.
+    const placed = await Orders.find({ studio, section: sheetsSection }, { where: { requisitionId } });
+    if (placed.length) return { error: "requisition-ordered" };
+    fromRequisition = req as { lines?: unknown };
+  }
+
   const items = await Items.find({ studio, section: itemsSection });
-  const lines = cleanLines(body?.lines, items);
-  if (!lines.length) return { error: "lines" };
+  // THE REQUEST'S OWN LINES WHERE THE CALLER SENDS NONE, so the copy happens
+  // once, here, rather than in a screen that would be free to alter it on the
+  // way past. A caller that sends lines has edited them deliberately and those
+  // win — a buyer who has been quoted a real price should not be made to retype
+  // the order to record it.
+  const lines = cleanLines(body?.lines ?? fromRequisition?.lines, items);
+  // A REQUISITION OF FREE TEXT CANNOT BECOME AN ORDER, and the refusal names
+  // why. `cleanLines` drops any line without a KNOWN ITEM, because an order
+  // moves stock and stock is Registered Items — so a request for services, or
+  // for something nobody has registered, converts to nothing. Returning an
+  // empty order would be worse than refusing: it reads as success and buys
+  // nothing. See requisitions.md's "Not built yet".
+  if (!lines.length) return { error: requisitionId ? "requisition-no-items" : "lines" };
 
   const orders = await Orders.find({ studio, section: sheetsSection });
   const order = await Orders.create({ studio, section: sheetsSection }, {
@@ -1080,7 +1125,12 @@ export async function createOrder(ctx: InventoryContext, body: Record<string, un
     // way, and `projectCosting` reports it as `uncommitted` rather than
     // dropping it. Verifying here would trade that for an order somebody could
     // not raise at all.
-    costCodeId: str(body?.costCodeId, 60),
+    // THE REQUEST'S CODE WHERE THE ORDER CARRIES NONE, so coding the
+    // requisition once follows the money all the way to the bill — the same
+    // inheritance a bill takes from an order in projectCosting.
+    costCodeId: str(body?.costCodeId, 60)
+      || str((fromRequisition as { costCodeId?: unknown } | null)?.costCodeId, 60),
+    requisitionId,
     lines,
     status: "Draft",
     expectedAt: day(body?.expectedAt),

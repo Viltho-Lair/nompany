@@ -1,0 +1,52 @@
+{
+  "status": 200,
+  "body": {
+    "ok": true,
+    "requisition": {
+      "id": "<req_ID>",
+      "reference": "PR-0003",
+      "title": "Second scaffold order",
+      "justification": "",
+      "projectId": "",
+      "costCodeId": "",
+      "vendorId": "",
+      "neededBy": "",
+      "lines": [
+        {
+          "description": "Scaffold hire",
+          "unit": "week",
+          "qty": 2,
+          "estUnitCost": 250,
+          "itemId": ""
+        }
+      ],
+      "status": "Rejected",
+      "notes": "",
+      "createdByCollaboratorId": "<col_ID>",
+      "createdAt": "<timestamp>",
+      "updatedAt": "<timestamp>",
+      "studioId": "<std_ID>",
+      "sectionId": "<sub_ID>",
+      "submittedByCollaboratorId": "<col_ID>",
+      "submittedAt": "<timestamp>",
+      "answeredByCollaboratorId": "<col_ID>",
+      "answeredAt": "<timestamp>",
+      "rejectedReason": "The towers are staying another month.",
+      "approvalPlan": {
+        "ok": true,
+        "steps": [
+          {
+            "permission": "procurement.requisitions.approve",
+            "from": 0,
+            "label": "Procurement"
+          }
+        ],
+        "amountInBase": 500,
+        "rate": null,
+        "updatedAt": 0,
+        "stale": false
+      }
+    },
+    "approved": false
+  }
+}

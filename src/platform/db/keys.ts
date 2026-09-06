@@ -560,6 +560,7 @@ export const SECTION_DEFS = [
   // Procurement starts with the supplier master, which is the one part of it
   // that already exists — it was Inventory's Vendors screen.
   { key: "procurement", name: "Procurement & Subcontracting", children: [
+    { key: "procurement-requisitions", name: "Requisitions" },
     { key: "procurement-suppliers", name: "Suppliers" },
   ] },
 
@@ -716,6 +717,10 @@ export const SECTION_COLLECTIONS = {
   "projects-overtimes": ["overtimes"],
   // procurement — the supplier master, carried over from Inventory's Vendors
   // screen.
+  // THE REQUEST THAT STANDS BEFORE A PURCHASE ORDER. Its own collection rather
+  // than a status on `materialOrders`: an order that was never approved is a
+  // contradiction, and a requisition that is refused must still be a record.
+  "procurement-requisitions": ["requisitions"],
   "procurement-suppliers": ["inventoryVendors"],
   // inventory — Project Sheets owns the sheets and their orders sub-sheet,
   // matching the Old System, where Sheets lives under Inventory (not Projects).

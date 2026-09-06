@@ -159,6 +159,12 @@
       },
       {
         "id": "<sub_ID>",
+        "key": "procurement-requisitions",
+        "name": "Requisitions",
+        "enabled": true
+      },
+      {
+        "id": "<sub_ID>",
         "key": "procurement-suppliers",
         "name": "Suppliers",
         "enabled": true

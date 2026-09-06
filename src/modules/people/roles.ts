@@ -117,6 +117,14 @@ export const STARTER_ROLES = [
       ...level("crmSales.contracts", "full"), "crmSales.contracts.approve",
       ...level("engineeringDocs.rfq", "edit"), ...level("crmSales.quotations", "full"),
       ...level("projects.list", "full"), ...level("projects.sla", "edit"),
+      // PROCUREMENT HAD NO STARTER GRANT AT ALL, and Suppliers has been on the
+      // nav since the restructure — the same defect the contracts register
+      // shipped with, found the same way and fixed in the slice that found it.
+      // `approveHigh` is deliberately absent: the second step exists to reach
+      // past whoever runs the department, and seeding both would make the
+      // two-step chain a one-step chain on every new studio.
+      ...level("procurement.requisitions", "full"), "procurement.requisitions.approve",
+      ...level("procurement.suppliers", "full"),
       ...level("inventory.stock", "view"), ...level("inventory.items", "view"),
       ...level("fieldService.tracking", "edit"), ...level("tasks.board", "full"),
       ...level("hr.employees", "view"), ...level("hr.vacations", "edit"),

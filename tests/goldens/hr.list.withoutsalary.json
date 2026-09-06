@@ -29,6 +29,7 @@
       "engineering-docs-live": false,
       "engineering-docs-settings": false,
       "procurement": false,
+      "procurement-requisitions": false,
       "procurement-suppliers": false,
       "inventory": false,
       "inventory-stock": false,
@@ -85,6 +86,7 @@
       "engineering-docs-live": false,
       "engineering-docs-settings": false,
       "procurement": false,
+      "procurement-requisitions": false,
       "procurement-suppliers": false,
       "inventory": false,
       "inventory-stock": false,
@@ -174,7 +176,7 @@
         "name": "Manager",
         "description": "Runs a department: full control of its work, sight of the rest.",
         "wildcard": false,
-        "permissionCount": 58,
+        "permissionCount": 67,
         "held": 0
       },
       {

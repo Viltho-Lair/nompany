@@ -50,6 +50,21 @@
               "label": "Above the limit"
             }
           ]
+        },
+        "requisition": {
+          "type": "requisition",
+          "steps": [
+            {
+              "permission": "procurement.requisitions.approve",
+              "from": 0,
+              "label": "Procurement"
+            },
+            {
+              "permission": "procurement.requisitions.approveHigh",
+              "from": 10000,
+              "label": "Above the limit"
+            }
+          ]
         }
       }
     },
