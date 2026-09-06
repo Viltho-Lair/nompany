@@ -1,6 +1,6 @@
 # nompany — working notes
 
-Multi-tenant ERP. Next.js 16 · React 19 · Redis · Tailwind v3 + shadcn/ui + MUI v9 · Vercel.
+Multi-tenant ERP. Next.js 16 · React 19 · Postgres · Tailwind v3 + shadcn/ui + MUI v9 · Vercel.
 Three surfaces in one app: the tenant ERP at `nompany.com/<slug>/…` (rewritten by
 `src/proxy.js` → `src/app/studio`), account pages at `/{en,ar}/…`, and nompany's own
 console at `/super`. **Fifteen sections** (the blueprint's), plus Main and Tasks, which are
@@ -39,7 +39,7 @@ when the code looks cleaner afterwards.
 1. **Keys are built only in `src/platform/db/keys.ts`.** Never a literal, never a
    template at a call site. Two incidents came from this: `sweepOrphans` reaped
    bare `u:`/`s:` prefixes and would have prefix-deleted production, and
-   `lib/media.js` wrote its blob key from a literal so the test suite put real
+   `lib/media.ts` wrote its blob key from a literal so the test suite put real
    blobs in the live key space. The suite asserts every builder is namespaced — a
    new builder is covered automatically, a new literal is the third incident.
 2. **Membership authorises; the URL never does.** A slug names a tenant, and a slug
@@ -68,28 +68,35 @@ when the code looks cleaner afterwards.
 10. **Reference numbers only move forward.** `bumpCounter(key, field, floor)` is
     self-seeding; deleting the newest invoice must not let the next create reissue a
     number a client holds.
-11. **Deletion is children-first, registry-last**, and only through `cascade.js`, so a
+11. **Deletion is children-first, registry-last**, and only through `cascade.ts`, so a
     crashed cascade is idempotent on re-run.
-12. **The stream is truth; pub/sub is a doorbell.** `XADD` strictly before `publish` —
-    the id is the client's cursor. `Last-Event-ID` replay is what makes polling-free
-    safe.
-13. **One Redis subscriber connection per process**, fan-out in memory. Connection
-    count is this deployment's hard ceiling and cannot be raised.
+12. **The stream is truth; the doorbell is only a doorbell.** `xAdd` strictly before
+    `publish` — the id is the client's cursor. `Last-Event-ID` replay is what makes
+    polling-free safe. The doorbell is a POLL of the `events` table now rather than
+    Redis pub/sub (`platform/realtime/bus.ts` says why LISTEN/NOTIFY is not an
+    option), which costs up to `BUS_POLL_MS` of latency and costs correctness
+    nothing: a doorbell that rings a second late still rings.
+13. **One poller per process**, fan-out in memory — never one per subscriber. A
+    poller per handler multiplies one identical query by the number of open SSE
+    streams, which on a busy studio is dozens of connections asking the same
+    question.
 14. **One `EventSource` per tab**, not per hook — browsers cap 6 per domain and
-    `useLiveUpdates` has 21 call sites.
+    `useLiveUpdates` has 43 call sites across 33 files (measured; this said 21).
 15. **Cron fails closed.** A missing `CRON_SECRET` refuses; it never opens the door.
 16. **A right nothing can exercise is a bug.**
-17. **No database is destroyed without two confirmations.** Every store is live and
-    shared — Redis now, Postgres (Cloud SQL for PostgreSQL 18) next — so a delete, flush, drop or mass-overwrite
-    is unrecoverable and hits every tenant at once. A broad-scan delete
-    (`delPrefix("")` / `scanPrefix("")`) once wiped the whole instance. So any such
-    action waits on the user confirming it **twice in the same exchange**: the first
-    answer authorises the plan, the second — asked back with the exact scope spelled
-    out — authorises the run. `FLUSHDB`/`FLUSHALL`/`SCRIPT FLUSH`/`CONFIG SET`, an
-    empty-or-unbounded prefix, and `sweepOrphans()` from a test or script are never
-    run at all. When a twice-confirmed deletion does proceed: export first, delete by
-    an explicit key list, re-scan to prove it. Verification stays read-only by
-    default. (Rule 7 in every `.claude/agents/*.md` says the same.)
+17. **No database is destroyed without two confirmations.** The store is live and
+    shared — Postgres, Cloud SQL for PostgreSQL 18 — so a delete, drop or
+    mass-overwrite is unrecoverable and hits every tenant at once. A broad-scan
+    delete (`delPrefix("")` / `scanPrefix("")`) once wiped the whole instance. So any
+    such action waits on the user confirming it **twice in the same exchange**: the
+    first answer authorises the plan, the second — asked back with the exact scope
+    spelled out — authorises the run. `DROP TABLE`/`TRUNCATE`/`DROP DATABASE`, any
+    change to the RLS policy on `collection_rows`, an empty-or-unbounded prefix, and
+    `sweepOrphans()` from a test or script are never run at all — `pgSchemaQuery`'s
+    DDL-only door refuses the first three unconditionally, so reaching for them by
+    accident fails before Postgres is asked. When a twice-confirmed deletion does
+    proceed: export first, delete by an explicit key list, re-scan to prove it.
+    Verification stays read-only by default.
 
 ---
 
@@ -140,20 +147,25 @@ question only when the answer changes what happens next.
 
 ## Where the code lives
 
-Wave 3 is moving `src/lib` apart, one folder per step, and each folder becomes
-TypeScript as it lands. What has moved has moved for good:
+The `src/lib` split is done, and every folder below is TypeScript. What is left in
+JavaScript is the **272 browser files** under `src/components` and `src/app`, which
+convert with the UI work in Wave 4 — that is the whole of what `checkJs: false` and
+the `allowJs` escape hatch are still holding open.
 
-| Folder | Holds | State |
-|---|---|---|
-| `src/shared/**` | Pure values with no dependants — currencies, countries, i18n, slug | TypeScript |
-| `src/platform/access/**` | The permission catalogue and the resolver | TypeScript |
-| `src/platform/db/**` | Everything that knows Redis or Postgres exists — keys, store, cascade, repo, sections, `pg.ts` | TypeScript |
-| `src/platform/auth/**` | Identity, the console's own auth, passwords, OTP, devices, rate limits | JavaScript |
-| `src/platform/realtime/**` | The event stream, the pub/sub bus, live patches | JavaScript |
-| `src/platform/notify/**` | Notifications and email | JavaScript |
-| `src/platform/http/**` | The route wrapper, the status table, idempotency, audit, observability | JavaScript |
-| `src/modules/<name>/**` | The twelve departments, one folder each | JavaScript |
-| `src/lib/**` | What has not been assigned yet — chat, media, the catalogue, presentation helpers | JavaScript |
+| Folder | Holds |
+|---|---|
+| `src/shared/**` | Pure values with no dependants — currencies, countries, i18n, slug, departments |
+| `src/platform/access/**` | The permission catalogue and the resolver |
+| `src/platform/db/**` | Everything that knows Postgres exists — keys, store, cascade, repo, sections, `pg.ts`, the gateway client |
+| `src/platform/auth/**` | Identity, the console's own auth, passwords, OTP, devices, rate limits, calendar OAuth |
+| `src/platform/realtime/**` | The event stream, the doorbell bus, live patches |
+| `src/platform/notify/**` | Notifications and email |
+| `src/platform/http/**` | The route wrapper, the status table, idempotency, audit, observability |
+| `src/platform/approval/**` | The approval chain store and walker (bills, bids, requisitions) |
+| `src/platform/engagement/**` | The stage registry and the engagement backfill |
+| `src/platform/nova/**` | Nova |
+| `src/modules/<name>/**` | The departments, one folder each — fourteen today |
+| `src/lib/**` | What belongs to no department — chat, media, the catalogue, presentation helpers |
 
 Two rules that came out of doing it:
 
@@ -161,57 +173,50 @@ Two rules that came out of doing it:
   A folder's internals routing through its own public door is how a module ends
   up importing itself once a barrel exists.
 - **A barrel is a judgement call, not a habit.** `platform/access` has one,
-  because nothing in it touches Redis and a client component may safely import
-  any of it. `platform/db` deliberately has none: `store` imports `redis`, which
-  opens a connection, and a landing-page component already imports a key builder.
+  because nothing in it touches the database and a client component may safely
+  import any of it. `platform/db` deliberately has none: `store` reaches Postgres,
+  and a landing-page component already imports a key builder.
 
-**Constraint-log and Do-Not-list dates are `dd/mm/yyyy`.** Always, in every agent
-file. (`docs/` keeps ISO dates; the logs do not.)
-
----
-
-## Working against the live Redis
-
-`REDIS_URL` is a **live, shared** Redis Cloud instance. There is no dev database.
-
-- Tests run under `NOMPANY_KEY_PREFIX` and sweep that namespace at the end. CI gets
-  an ephemeral `redis:8` container instead, so the prefix is the second line of
-  defence there and the only one locally.
-- **Never call `sweepOrphans()` from a test.** The suite shares one Redis with
-  production, so a test that ran it to prove it safe would be the thing it guards
-  against — and would fire hardest when the fix was absent. Its two guards are pure
-  values (`SWEEP_SCOPES`, `sweepRefusal`) precisely so they assert without a `DEL`.
-- **Never** `FLUSHDB`, `FLUSHALL`, `SCRIPT FLUSH`, `CONFIG SET`.
-- Before deleting anything live: export, delete by **explicit key list**, re-scan to
-  prove the result.
-- The connection drops occasionally and self-heals via `redis.js`. Pre-existing.
-- **Gotcha:** a JS template literal normalises CRLF→LF at parse time. Files here are
-  CRLF on disk, so an embedded Lua script has LF endings at runtime — a SHA-1 taken
-  over the on-disk text will never match what Redis cached.
+**Dates in this file and in the logs are `dd/mm/yyyy`.** (`docs/` keeps ISO dates;
+the logs do not.)
 
 ---
 
 ## Working against the live Postgres
 
-`DATABASE_URL` is **equally live and shared** — the P1 store swap's `collection_rows`
-table lives in the same real, shared database production will use, there is no dev
-database here either, and **`NOMPANY_KEY_PREFIX` does NOT protect it.** The prefix is a
-Redis-only mechanism: it namespaces a key string, and `collection_rows` has no such
-string to namespace — `tenant_id` there is a real studio id, exactly what a live tenant
-also uses. A developer who assumes the prefix sandboxes them the way it does for Redis is
-one command away from writing to the real table. This is why `tests/pg-sweep.mjs` deletes
-by an **explicit id list** read back from the run's own `REG.studios`, never a predicate,
-and why `withTenant` is the only door onto the table at all (RLS is FORCED, so nothing can
-even discover which tenants hold rows without one already in hand).
+`DATABASE_URL` is a **live, shared** Cloud SQL instance. There is no dev database.
+It is the only store — Redis is gone: the package is uninstalled, no file imports a
+client, and no environment carries a `REDIS_URL`.
 
+**THE KEY PREFIX PROTECTS ONE HALF OF THE DATABASE AND NOT THE OTHER, which is the
+trap worth reading twice.** `NOMPANY_KEY_PREFIX` namespaces a key *string*, so it
+covers the `documents` and `events` tables, whose rows are addressed by the keys
+`keys.ts` builds. **It does NOT protect `collection_rows`**, which has no such
+string to namespace — `tenant_id` there is a real studio id, exactly what a live
+tenant also uses. A developer who assumes the prefix sandboxes the whole database
+is one command away from writing to the real table. This is why
+`tests/pg-sweep.mjs` deletes by an **explicit id list** read back from the run's own
+`REG.studios`, never a predicate, and why `withTenant` is the only door onto the
+table at all (RLS is FORCED, so nothing can even discover which tenants hold rows
+without one already in hand).
+
+- Tests run under `NOMPANY_KEY_PREFIX` and sweep that namespace at the end. CI gets
+  an ephemeral `postgres:18` container instead, so the prefix is the second line of
+  defence there and the only one locally.
+- **Never call `sweepOrphans()` from a test.** The suite shares one database with
+  production, so a test that ran it to prove it safe would be the thing it guards
+  against — and would fire hardest when the fix was absent. Its two guards are pure
+  values (`SWEEP_SCOPES`, `sweepRefusal`) precisely so they assert without a delete.
+- Before deleting anything live: export, delete by **explicit key list**, re-scan to
+  prove the result.
 - **`npm run test:parity` (and CI's `NOMPANY_DB=parity` step) write real rows.** Every
   fixture `tests/pg-parity.mjs` creates is either a synthetic tenant id the test deletes
   in its own `finally` block, or one of the studios the integration suite / Gate A create
   for real — those are swept via `sweepPgTenants` using the exact ids `REG.studios`
-  names, the same invariant-17 shape as the Redis sweep, and it must run **before** the
-  Redis `delPrefix` that would otherwise erase that id list.
-- Locally, `DATABASE_URL` lives in `.env.local`, same as `REDIS_URL`. If it is unset,
-  `tests/pg-parity.mjs`'s assertions skip **loudly** (a banner, plus a per-test "skipped"
+  names, the same invariant-17 shape as the key sweep, and it must run **before** the
+  `delPrefix` that would otherwise erase that id list.
+- Locally, `DATABASE_URL` lives in `.env.local`. If it is unset, `tests/pg-parity.mjs`'s
+  assertions skip **loudly** (a banner, plus a per-test "skipped"
   line) rather than the whole suite dying mid-run — but that also means the Postgres
   paths are **not verified** on that run. CI always sets `DATABASE_URL`, so there the
   absence of it is a real failure, not a skip.
@@ -231,14 +236,16 @@ even discover which tenants hold rows without one already in hand).
 ## Verification — every change, no exceptions
 
 ```bash
-npm test            # access rules, integration suite, Gate A — real routes, real Redis, prefixed namespace
+npm test            # model tests, restructure assertions, integration suite, Gate A — real routes, real Postgres, prefixed namespace
 npx tsc --noEmit
-npx tsc --noEmit -p tsconfig.strict.json   # converted folders, with noImplicitAny
+npx tsc --noEmit -p tsconfig.strict.json   # every .ts/.tsx, with noImplicitAny
 npx next build
 ```
 
-CI (`.github/workflows/ci.yml`) runs all three plus `scripts/bundle-budget.mjs` on
-every push to `main` and every pull request.
+CI (`.github/workflows/ci.yml`) runs all of that on every push to `main` and every
+pull request, and four things `npm test` does not: `npm run lint:budget`,
+`npm run test:gateway`, `npm run test:gateway:parity`, `npm run test:parity`
+(`NOMPANY_DB=parity`), plus `scripts/bundle-budget.mjs` after the build.
 
 - **`git add` a new file BEFORE you believe a green suite.** The architectural
   assertions in `tests/restructure.mjs` shell out to `git grep`, which searches TRACKED
@@ -248,158 +255,48 @@ every push to `main` and every pull request.
 - **Golden responses are the contract.** If a response body changes, the change is
   wrong until deliberately re-recorded in its own commit with a stated reason.
   `NOMPANY_RECORD_GOLDENS` is never set in CI.
-- **Hop counts are part of the contract.** A route regressing from 2 Redis round trips
-  to 8 fails the build.
+- **Hop counts are part of the contract.** A route regressing from 2 database round
+  trips to 8 fails the build.
 - **The bundle budget pins the regression, not the size.** Two gates, and the
-  first is the one that matters: the LARGEST CHUNK is 158 KB gz against a 250 KB
-  ceiling, because that is what every route pays. Total client JS is **1667 KB gz
+  first is the one that matters: the **largest chunk is 158 KB gz against a 250 KB
+  ceiling**, because that is what every route pays. Total client JS is **1667 KB gz
   against 1674 KB** (measured 06/09/2026), which catches sprawl rather than
-  splitting. **This line said
-  1593 against 1600 and BOTH halves were wrong**: the script's constant was 1700,
-  never lowered — the commit that claimed to lower it wrote the comment and left
-  the number — so the real gate was a hundred kilobytes slacker than this file,
-  the script's own comment and everybody reading either. Corrected in both places
-  on 04/09/2026, to the measured total plus a deliberate nine. The studio’s
-  department screens are `nextDynamic()` now — the chunk fell from 307 to 197 and
-  the total rose 12 KB in the same commit, which is the two ceilings doing their
-  job. The total came down 1659 → 1559 when jsPDF stopped shipping html2canvas
-  and canvg, which it only needs for `doc.html()` and SVG and which nothing ever
-  loaded; the ceiling came down with it. Lower the chunk ceiling further as the
-  screens are rewritten. (This line said 1091/1200, then 305/400, then 1529/1600,
-  as the script moved on — a stale number in the invariants file is worse than
-  none.) 1559 → 1562 with the vendor CSV import: a dependency-free reader and a
-  dialog, which is what NOT taking `xlsx` (~400 KB gz) buys. 1562 → 1566 with
-  Nova's speech bubble — four of those kilobytes are its twenty sentences in two
-  languages, which is the price of translating on DISPLAY rather than shipping
-  prose from an API. 1566 → 1568 when the planner and the sheet viewer
-  started importing the dictionaries they were already reading — three screens
-  shipped with an UNBOUND `tr`, which is a runtime ReferenceError and not a
-  build error, so `no-undef` is on for the untyped browser files now.
-  1568 → 1570 across the media→Blob port. `@vercel/blob` is server-only and
-  ships nothing to a browser; what moved is `keys.ts`, which a landing-page
-  component already imports (the reason `platform/db` deliberately has no
-  barrel) and which gained `MEDIA.object`. Measured, not attributed to a single
-  commit — the port landed over several. 1570 → 1571 with the template-driven
-  deal screen: a flow-name line, an off-template badge, six stage icons and two
-  dictionary strings in two languages. The LARGEST chunk did not move (158 KB), which
-  is the gate that matters — the screen was already `nextDynamic()`. 1571 → 1574 with the flow
-  editor: the seven templates, the twenty-five industries and `templateProblems`
-  now ship to the browser, deliberately — a studio editing a flow is validated by
-  the SAME function the server refuses with, rather than a second copy free to
-  disagree about what is allowed. The largest chunk again did not move. 1574 → 1576 with the
-  warning before a flow that already has work on it is changed — a deal count, a
-  confirm dialog and eleven strings in two languages. 1576 → 1577 when a locked-out
-  sign-in and a locked-out reset started saying how long the wait is — four strings
-  in two languages and the pure function that chooses between them. 1577 → 1580 with
-  the studio's loading boundary (`app/studio/loading.js`): until it existed the App
-  Router had nothing to show for a `force-dynamic` page and BLOCKED the navigation —
-  measured, the DOM did not change at all and the URL took 767ms to move. Three
-  kilobytes bought the shell's geometry, which that file had to reproduce in full
-  because with no `layout.js` a loading boundary replaces the whole studio, sidebar
-  included. **1580 → 1576 when the shell became a real `layout.js`** and the boundary
-  gave all of it back — it is `<ScreenSkeleton />` and nothing else now. 1576 → 1577
-  with `RecordSkeleton`, the three shapes ScreenSkeleton is not: a record profile, a
-  document of lines and the project board's information sidebar. A department
-  skeleton on those screens reserves a chart where a document is coming, which
-  makes the arrival a jump. 1577 to 1578 with the bill approval chain: nine strings
-  in two languages and the block that draws how far a bill has got. 1578 → 1582 with
-  the Google Calendar screen: `src/shared/calendar.ts` is a few hundred bytes of pure
-  arithmetic with zero imports, plus two client components on a screen that was
-  already there. 1582 → 1586 with connected calendars: a Calendars panel on the
-  account screen and nineteen strings in two languages. The whole OAuth subsystem —
-  both providers, the token lifecycle, the connection store — is server-only and ships
-  nothing; what a browser gets is the panel. 1586 → 1587 when the Microsoft
-  normaliser started converting Graph's offset-less date-times through `Intl`
-  instead of copying them verbatim, plus the redirect-URI hint's two strings.
-  1589 → 1593 with the planner's availability strip — thirteen strings in two
-  languages, the strip itself, and `src/shared/calendar.ts` reaching a second
-  bundle because the client has to clamp its request to the SAME 62-day bound
-  the availability route refuses past (two copies of that number would be free
-  to disagree). Both ends measured on this branch: the line above SAID 1587
-  while a build of the branch before the strip landed measured 1589, so the
-  headline had drifted two kilobytes behind the script — the delta is the four
-  the strip actually cost, not the six the stale number would have implied.
-  1597 → 1601 with the customer page, which is four kilobytes for a screen
-  that adds no library at all: its thirty-two strings in two languages, and
-  the page itself. It imports `modules/sales/pipeline.ts`, already in the
-  bundle for the board.
-  1593 → 1595 with the contracts register, 1595 → 1597 with the pipeline
-  board — two screens, their strings in two languages, and
-  `modules/sales/pipeline.ts`, which reaches the browser DELIBERATELY: the
-  board offers a stage move only where the server would accept one, decided by
-  the same function, because two copies of "a closed deal cannot be reopened"
-  are two copies free to disagree. The largest chunk did not move at any
-  point (158 KB), which is the gate that matters. **Measured 1593 on 04/09/2026**,
-  against a headline that said 1582 — drift from somewhere between those two
-  commits, NOT from the Privacy Policy that measured it: the legal documents are
-  server-rendered and `grep -rl "Limited Use requirements" .next/static` finds
-  nothing, before or after. Stated as measured rather than attributed, because a
-  number this file cannot account for is still better than one it gets wrong.
-  1612 → 1618 with the tender pack, ceiling 1620 → 1626 — six kilobytes for a
-  screen that adds no library at all: about fifty strings in two languages, the
-  panel, and `modules/tendering/documents.ts`, which reaches the browser
-  DELIBERATELY so the screen offers a supersede only where the server would
-  accept one. The largest chunk did not move (158 KB), which is the gate that
-  matters — the tender page is `nextDynamic()`. 1618 → 1619 with the bid
-  review, and ONE kilobyte is the point: `platform/approval` is read on the
-  server and ships nothing, so what a browser gets is the review block and
-  twenty-four strings. A feature does not cost what it weighs; it costs what
-  crosses the wire. 1619 → 1620 with the handover, for the same reason:
-  `tenderSource` is server-only, and the browser gets one panel and fifteen
-  strings. 1620 → 1622 with the project cost breakdown — a table, a dialog and
-  about thirty strings in two languages; `modules/projects/costing.ts` reaches
-  the browser DELIBERATELY, so the screen totals with the same function the
-  server does. 1626 → 1634, measured 1628, when two features that each measured
-  inside the old ceiling on their own branch met in one tree — the earned-value
-  column and the departments register. Stated as MEASURED rather than attributed
-  to either commit, because neither is individually responsible. The departments
-  half is a panel and about twenty strings in two languages;
-  `shared/departments/tree.ts` crosses the wire deliberately, because the screen
-  draws the org chart with the same walk the server scopes a manager's reach
-  with, and two walks over one hierarchy would be two answers to who reports to
-  whom. `starters.ts` is server-only — the twenty-five seeded charts ship
-  nothing. The largest chunk did not move (158 KB). 1622 → 1623 with committed and forecast: two columns, two
-  banners and nine strings. 1623 → 1625 with earned value — a panel, three
-  indices and twenty-three strings; `modules/projects/earnedValue.ts` is a few
-  hundred bytes and reaches the browser so the screen and the server agree.
-  **Measured 1637 again with the billing schedule**, on a tree that also
-  carried the icon port below while that was still uncommitted — so the two
-  cannot be separated and NO delta is claimed for either. What can be said is
-  what the gate is for: the ceiling did not move, and the LARGEST CHUNK did not
-  move (158 KB), which is the half every route pays. The screen adds no library
-  and is `nextDynamic()`; `modules/projects/billing.ts` crosses the wire
-  deliberately, so the table totals with the same function the server does.
-  **1638 → 1637 across the Phosphor icon port, and the direction is the point**:
-  the entire icon set was replaced and the client got a kilobyte SMALLER. ~110
-  hand-drawn stroke glyphs and 22 PNG masks became 144 Phosphor marks — 97
-  duotone, 47 regular — as raw path data in
-  `src/components/studio2/icons.art.js`, generated by
-  `scripts/generate-icons.mjs` (`npm run icons`) out of the
-  `@phosphor-icons/core` DEVdependency. Taking `@phosphor-icons/react` instead
-  would have cost ~30-40 KB gz against six kilobytes of headroom; the artwork
-  alone is a few hundred bytes a mark, and a duotone path PAIR still compresses
-  to less than the JSX element tree each hand-drawn glyph used to ship. The
-  largest chunk did not move (158 KB), which is the gate that matters. The 22
-  PNGs are DELETED rather than ported — their filenames are Flaticon slugs,
-  Flaticon's free tier wants visible attribution on every page they appear on,
-  and this repo carried none. `LICENSES.md` is the file.
-  **1643 → 1667, ceiling 1644 → 1674, with `SelectMenu` — the biggest single
-  rise this line records, and the baseline is the lesson.** A build of the same
-  tree WITHOUT the change measures **1643**, not the 1638 this file claimed: the
-  margin had already been spent by commits that never re-measured, so the real
-  headroom was one kilobyte and this paragraph was the last to know. Measure the
-  branch you are ON, both ends, before attributing a delta to anything.
-  Twenty-four kilobytes is what it costs to replace every native `<select>` in
-  the product, and it is **duplication rather than weight**: eleven route chunks
-  carry a copy at ~2.2 KB gz each, because ~30 modules import it and `Field`
-  imports it too, so it follows `Field` into every screen with a form. **The
-  largest chunk did not move (158 KB)** — no route pays 24 KB, each pays about
-  two. The component's look lives in `.menu-*` rules in `globals.css` rather
-  than in `className` strings for exactly that reason (a utility string is paid
-  for eleven times, a stylesheet rule once; measured at two kilobytes), and the
-  panel was deliberately NOT put behind `nextDynamic()` — a dropdown that waits
-  on a request before it opens is a dropdown that feels broken, which is the
-  thing this change existed to fix.
+  splitting. `scripts/bundle-budget.mjs` holds both numbers and explains why a
+  whole-directory total would penalise code-splitting.
+
+  **MEASURE THE BRANCH YOU ARE ON, BOTH ENDS, before attributing a delta to
+  anything.** This bullet used to carry a per-commit changelog of every kilobyte,
+  and it was wrong more than once in ways that cost real work: it said 1593/1600
+  when the script's constant was 1700, so the gate was a hundred kilobytes slacker
+  than this file and the script's own comment; and it said 1638 when a build of the
+  same tree measured 1643, so a change that looked like it had six kilobytes of
+  headroom had one. A number nobody re-measures decays silently. The changelog is
+  gone; the ceilings live in the script, which cannot drift from itself.
+
+  Three things that log did establish, and they are the reasons rather than the
+  numbers:
+
+  - **A feature does not cost what it weighs; it costs what crosses the wire.**
+    `platform/approval`, `tenderSource`, the twenty-five seeded org charts and the
+    whole calendar OAuth subsystem are server-only and ship nothing. The bid review
+    added one kilobyte.
+  - **Some duplication is bought deliberately.** `modules/sales/pipeline`,
+    `modules/tendering/documents`, `modules/projects/costing`, `shared/departments/tree`
+    and `shared/calendar` all reach the browser on purpose, so a screen offers
+    exactly what the server would accept. Two copies of "a closed deal cannot be
+    reopened" are two copies free to disagree.
+  - **Cost that lands in eleven route chunks is styling's problem, not
+    JavaScript's.** `SelectMenu` is the biggest single rise this budget has seen
+    (24 KB), and it is duplication rather than weight — ~2.2 KB in each of eleven
+    chunks, because `Field` imports it and `Field` is on every screen with a form.
+    Its look lives in `.menu-*` rules in `globals.css` rather than in `className`
+    strings for exactly that reason: a utility string is paid for eleven times, a
+    stylesheet rule once (measured at two kilobytes). The largest chunk did not
+    move, which is the gate that matters.
+
+  The studio's department screens are `nextDynamic()`, which is what took the
+  largest chunk from 307 KB to 197 and then to 158. Lower that ceiling further as
+  the screens are rewritten.
 - Tests connect things — real repositories, real route handlers, **one assertion per
   bug that actually happened**. Each block names the defect it guards, so nobody
   deletes it later wondering what it was for.
@@ -537,11 +434,18 @@ row — a stale status is worse than none.)*
 
 **P0 and P1 are on `main`.** P0 restructured the product into the blueprint's fifteen
 sections. **P1 put Postgres behind the same seam Redis already sat behind**: three modes via
-`NOMPANY_DB` — `redis` (the DEFAULT, and what production runs), `postgres`, and `parity`,
+`NOMPANY_DB` — `postgres` (the DEFAULT, and what production runs), `redis`, and `parity`,
 which runs both and compares them as `JSON.stringify` TEXT because `payload` is `json` not
 `jsonb` and key order is part of the contract. A full parity run dual-writes real rows to
 Cloud SQL and finds zero disagreements, with the disagreement detector itself asserted so a
 silent pass cannot masquerade as agreement.
+
+**THE MODE NAMED `redis` NO LONGER TALKS TO REDIS, and the name is the only thing left of
+it.** `redisRows.ts` holds the key-based row primitives unchanged, but they read and write
+through `store.ts`, which is a facade over the Postgres `documents` table now. So `parity`
+compares two Postgres REPRESENTATIONS — JSON arrays under a key against `collection_rows` —
+rather than two databases, and it still works precisely because of that. Do not read the
+mode name as a live Redis path; nothing in the tree can open one.
 
 **THE CUTOVER IS DONE. Production runs Postgres through the Cloud Run gateway, live
 02/09/2026,** and it is proven by a write rather than assumed: a request to the live site
@@ -585,8 +489,17 @@ across every tenant at once. Recorded in the design so it is not revisited.
 bytes. The Blob URL is NEVER given to a client — the route fetches server-side after the same
 membership check and streams the bytes, so the access decision stays in code rather than
 being delegated to a store that cannot express "private". The two live files are copied and
-still hold their base64, so the pre-Blob and post-Blob paths are both correct; `--reclaim`
-waits for the gateway.
+still hold their base64, so the pre-Blob and post-Blob paths are both correct.
+
+**THE `--reclaim` STEP IS NOT "WAITING" ON ANYTHING — ITS SCRIPT IS GONE.** This file said it
+waited on the gateway, and the gateway went live 02/09/2026, so the stated blocker has not
+applied for days. The real state is worse and quieter:
+`scripts/migrate-media-to-blob.mjs` is **not in the tree** — `scripts/` holds no media
+script at all — while `docs/functionality/media.md` still documents its three flags and
+`docs/progress.md` still lists `--reclaim` as the outstanding half of W10. So the 1.41 MB of
+base64 on those two records cannot be reclaimed by running anything; the script has to come
+back first. Recorded as a finding rather than fixed here, because restoring a deletion tool
+that writes to live data is its own change with its own authorisation.
 
 **Waves 0–1 are complete; Gate A is green.** Wave 0 shipped (orphan-sweep guard,
 credential rate limiting, console session expiry, traffic-ingest bounds, media tenancy,
@@ -613,8 +526,8 @@ Re-measure at the commit you are writing, not at the one you were reading.
 
 **Wave 2 (seams + performance) is mostly done; Gate B is 2 of 3.** Zero direct `readCol` in
 service code ✅, goldens unchanged by the seam work ✅ (257 today), hops ≤2 for the studio route and 3 for sales
-(the structural floor). Done: Seam A (route wrapper, all 96 routes), Seam B (repository
-interface + the `readCol` migration across all 13 modules), Seam C (one context factory,
+(the structural floor). Done: Seam A (route wrapper, every route), Seam B (repository
+interface + the `readCol` migration across every module), Seam C (one context factory,
 killed hop 7), request-scoped cache + batched prefetch (8→2 hops), targeted live updates,
 audit log, security round 2 (session digests at rest, console MFA), notification producers.
 **W7 speed refactors are done** (R2 `plantMissingSections` off the read path + a backfill CLI,
@@ -622,15 +535,18 @@ R6 `lastSeenAt`/`lastLoginAt` off `g:users` onto `u:<id>:activity` — the hotte
 gone, R9 `getProfile` N+1 → one `MGET`), all on `main`. The recurring Gate-A month-end
 **date-drift** is fixed (vacation fixtures are clock-relative now). **Open Wave 2 remnants:** the
 `sweepOrphans` rewrite (M-10); the gap items — soft-delete tombstones, the email/fan-out outbox,
-`schemaVersion` on stored documents. (**media→Vercel Blob** was listed here as "blocked on the
-Blob store being created" long after the store existed and the port had shipped — the same
-paragraph's own "Media has left Redis" above contradicted it. Only `--reclaim`, which deletes
-the two pre-Blob records' base64, is still outstanding, and it waits on the gateway.)
+`schemaVersion` on stored documents; and the media `--reclaim` step, whose script is missing
+from the tree (see "Media has left Redis" above). (**media→Vercel Blob** was listed here as
+"blocked on the Blob store being created" long after the store existed and the port had
+shipped — the same paragraph's own "Media has left Redis" above contradicted it.)
 
-**Wave 3 (TypeScript) is done server-side** — every `.ts`/`.tsx` under `noImplicitAny`, all
-twelve departments in `src/modules/<name>/` with a Zod schema each, all 99 route files
-converted. What remains is `checkJs` over the 212 browser `.js` files and the `app/`
-restructure, deferred into Wave 4. **Wave 4 (UI/UX)** is not started — a proposal in
+**Wave 3 (TypeScript) is done server-side** — every `.ts`/`.tsx` under `noImplicitAny`, every
+department in `src/modules/<name>/` with a Zod schema each, and every route file converted
+(**153 today, all `route.ts`, none left in JavaScript**). What remains is `checkJs` over the
+**272** browser `.js` files and the `app/` restructure, deferred into Wave 4. (Both counts
+are measured — `find src/app/api -name 'route.*'` and `find src/components src/app -name
+'*.js' -o -name '*.jsx'`. They said 99 and 212 for long enough to be quoted as facts;
+`tsconfig.strict.json`'s own comment still says 212, which is the same drift one layer down.) **Wave 4 (UI/UX)** is not started — a proposal in
 `w4-dashboards-and-motion.md` awaiting approval. **Wave 5 (SQL) was overtaken by the ERP
 program's P1** and is no longer a separate wave: the store swap it described is on `main`,
 under `NOMPANY_DB`, with the Postgres half written and proven. What remains of it is the
