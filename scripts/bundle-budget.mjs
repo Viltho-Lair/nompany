@@ -115,7 +115,23 @@ const MAX_CHUNK_GZIP_KB = 250;
 // copies of "a document in a revision chain cannot be deleted" are two copies
 // free to disagree. The largest chunk did not move (158 KB), which is the gate
 // that matters: the tender page is nextDynamic(), so no other route pays it.
-const MAX_TOTAL_GZIP_KB = 1626;
+// 1626 -> 1634 on 06/09/2026, MEASURED 1628, when two features that each
+// measured inside the old ceiling on their own branch met in one tree: the
+// earned-value column on the project cost breakdown, and the departments
+// register. Stated as measured rather than attributed to one commit, because
+// neither is individually responsible and pretending otherwise is how the
+// number in CLAUDE.md drifted from the number here once before.
+//
+// What the departments half costs is one panel and about twenty strings in two
+// languages. `shared/departments/tree.ts` reaches the browser DELIBERATELY: the
+// Master data screen draws the org chart with `orderedTree`, and the server
+// scopes a manager's reach with `subtreeIds` from the same file — two walks
+// over one hierarchy would be two answers to the question of who reports to
+// whom, and the one that disagreed would be a permission bug. `starters.ts` is
+// server-only and ships nothing; the twenty-five seeded charts do not cross the
+// wire. The largest chunk did not move (158 KB), which is the gate that
+// matters.
+const MAX_TOTAL_GZIP_KB = 1634;
 
 const DIR = ".next/static";
 if (!existsSync(DIR)) {

@@ -250,8 +250,9 @@ every push to `main` and every pull request.
   to 8 fails the build.
 - **The bundle budget pins the regression, not the size.** Two gates, and the
   first is the one that matters: the LARGEST CHUNK is 158 KB gz against a 250 KB
-  ceiling, because that is what every route pays. Total client JS is 1612 KB gz
-  against 1620 KB, which catches sprawl rather than splitting. **This line said
+  ceiling, because that is what every route pays. Total client JS is **1628 KB gz
+  against 1634 KB** (measured 06/09/2026), which catches sprawl rather than
+  splitting. **This line said
   1593 against 1600 and BOTH halves were wrong**: the script's constant was 1700,
   never lowered — the commit that claimed to lower it wrote the comment and left
   the number — so the real gate was a hundred kilobytes slacker than this file,
@@ -346,7 +347,16 @@ every push to `main` and every pull request.
   strings. 1620 → 1622 with the project cost breakdown — a table, a dialog and
   about thirty strings in two languages; `modules/projects/costing.ts` reaches
   the browser DELIBERATELY, so the screen totals with the same function the
-  server does. 1622 → 1623 with committed and forecast: two columns, two
+  server does. 1626 → 1634, measured 1628, when two features that each measured
+  inside the old ceiling on their own branch met in one tree — the earned-value
+  column and the departments register. Stated as MEASURED rather than attributed
+  to either commit, because neither is individually responsible. The departments
+  half is a panel and about twenty strings in two languages;
+  `shared/departments/tree.ts` crosses the wire deliberately, because the screen
+  draws the org chart with the same walk the server scopes a manager's reach
+  with, and two walks over one hierarchy would be two answers to who reports to
+  whom. `starters.ts` is server-only — the twenty-five seeded charts ship
+  nothing. The largest chunk did not move (158 KB). 1622 → 1623 with committed and forecast: two columns, two
   banners and nine strings. 1623 → 1625 with earned value — a panel, three
   indices and twenty-three strings; `modules/projects/earnedValue.ts` is a few
   hundred bytes and reaches the browser so the screen and the server agree.
@@ -620,6 +630,62 @@ dry-run by default, by role id rather than name); **it has been run against prod
 said "sandbox only" for a day after that stopped being true. `/people` and `/access` still
 resolve, aliased in `requestedKey`, because delivered notifications link to `/people` and cannot
 be rewritten. `docs/functionality/sections.md` is the file.
+
+**A STUDIO'S DEPARTMENTS ARE ITS OWN AGAIN, and this is the third answer that
+line has had.** HR once owned a `departments` collection; it was deleted for a
+real reason — every studio wrote its structure down twice, once as the nav and
+once as an HR list, and the two agreed only on the day somebody typed them —
+and the replacement was "a department IS a top-level section". That
+over-corrected: it deleted the org unit instead of giving each list its own
+job. What a studio actually saw was **sixteen departments — the fifteen
+sections plus Tasks, which is not a section — four of them (Manufacturing,
+Assets, Quality & HSE, Reports) screens that render nothing.** A construction
+company was being offered Manufacturing & Production as part of its org chart.
+`docs/functionality/departments.md` is the file.
+
+A section is a product surface and an access boundary; a department is an org
+unit. Identity between them can express none of the three shapes a real company
+has: two departments in one section, one department across several, and a
+department with no section at all (Legal, a branch office). The link survives as
+`sectionKeys` ON the department, many-to-one and optional — and it **grants
+nothing**, because roles decide access and a second mechanism would be free to
+disagree with the first.
+
+**IT ADDS NO PERMISSION KEY — the catalogue is unchanged.** The register is a
+second tab under Master data on `administration.master.*`, which already carried
+full CRUD for locations. **And it is deliberately NOT HR's**, which is where a
+person is placed: `parentId` drives the `department` access scope, so
+re-parenting widens what a manager sees — an HR clerk holding `hr.employees.edit`
+could otherwise enlarge a manager's reach over employee records and leave without
+holding `administration.access` and without `escalates()` ever being asked.
+Invariant 5 through a side door.
+
+**THE SCOPE IS THE POINT.** `scope === "department"` compared two departmentId
+strings, which on the derived model meant "the same SECTION" — an Operations
+Manager with three teams under them saw none of the three. It resolves to the
+department AND ITS DESCENDANTS now (`subtreeIds`, pure, shared with the screen
+that draws the same tree so the two cannot disagree about anybody's reach). On a
+flat register this is identical to before; the moment a studio nests, a scoped
+manager sees more people and more leave. Live behaviour, so it is written down.
+
+**Seeding is per trade and never overwrites.** A new studio gets the universal
+back office at creation — Finance, HR, Administration, the three that were
+identical in all twenty-five fields — because nothing sets a field of work at
+creation and an empty register means an empty dropdown and nobody placeable at
+all. Setting the field seeds that trade's chart. **Changing it later overwrites
+nothing**: the screen offers what is missing and adds only that, by code, the
+same courtesy `nextPool` extends to service actions.
+
+**A GOLDEN CAUGHT THE ONE REAL DESIGN HOLE.** Projects reads the register
+without ever seeding it (a list route must not write one as a side effect), so
+whether the overtime filter had departments depended on whether somebody had
+opened HR first — two Gate A goldens recorded `[]` and `[...]` in the SAME run,
+a contract encoding fixture order. `createStudio` seeds the register now, the
+way it seeds sections. Six goldens re-recorded (three HR, three Projects).
+`scripts/migrate/departments.mjs` re-points existing people off section keys; it
+is a faithful rename and maps nobody onto the starter chart, because guessing
+that a studio's "projects" people belong in Site Execution is a guess they
+cannot see happening and cannot undo.
 
 **All four `scripts/migrate/*.mjs` were unrunnable** until the same day: each refused on a
 missing `REDIS_URL`, deleted at the Postgres cutover, while reading through the store

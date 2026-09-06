@@ -94,6 +94,11 @@ import {
   listDepartments, listHrRoles, createHrRole, editHrRole, removeHrRole,
   listEmployees, saveEmployment,
 } from "@/modules/hr/hr";
+import { masterContext } from "@/modules/administration/master";
+import {
+  listDepartments as listStudioDepartments, createDepartment, editDepartment,
+  removeDepartment, addMissingStarters, assignableSectionKeys,
+} from "@/modules/administration/departments";
 import { updateProfile } from "@/platform/auth/users";
 import { __signIn, __signOut } from "./nextHeaders.mjs";
 // ENGAGEMENT FOUNDATIONS (Phase 0). tests/engagement.mjs carries its own
@@ -3032,7 +3037,7 @@ console.log("\n== leave: the requester hears the verdict");
 }
 
 // ============================================================================
-console.log("\n== HR: departments are sections, positions are roles");
+console.log("\n== HR: departments are Master data's, positions are roles");
 // Three lists became one apiece, and each collapse is a place a copy used to
 // live:
 //   • departments  — an HR collection somebody typed, beside the sections the
@@ -3049,12 +3054,35 @@ console.log("\n== HR: departments are sections, positions are roles");
   const hr = await hrContext(owner, slug);
   ok("owner can open HR", !hr.error, hr.error);
 
-  const departments = listDepartments(hr);
-  ok("departments come from the section list", departments.length > 0, JSON.stringify(departments));
-  ok("...identified by section key, not a row id", departments.every((d) => /^[a-z-]+$/.test(d.id)),
-    departments.map((d) => d.id).join(", "));
-  ok("...and Main is not one of them", !departments.some((d) => d.id === "main"));
-  ok("...Sales is", departments.some((d) => d.id === "crm-sales"), departments.map((d) => d.id).join(", "));
+  // THE ORG CHART IS STORED, AND THIS BLOCK USED TO ASSERT THE OPPOSITE.
+  //
+  // It read "departments come from the section list" and "identified by section
+  // key, not a row id", which was true while a department WAS a top-level
+  // section — and which is exactly the model that offered every studio sixteen
+  // departments, four of them screens that render nothing and one (Tasks) not a
+  // section at all. The assertions are kept rather than deleted, inverted, so
+  // the file still says what changed and why.
+  const departments = await listDepartments(hr);
+  ok("a studio has departments without anybody typing one", departments.length > 0,
+    JSON.stringify(departments.map((d) => d.name)));
+  ok("...identified by a row id, not a section key",
+    departments.every((d) => d.id.startsWith("dep_")), departments.map((d) => d.id).join(", "));
+  ok("...seeded from the field of work rather than from the nav",
+    departments.some((d) => d.code === "FIN") && departments.some((d) => d.code === "HR"),
+    departments.map((d) => d.code).join(", "));
+  // The sixteen-entry bug, asserted from both ends: neither is a department now.
+  ok("...and Main is not one of them", !departments.some((d) => (d.sectionKeys || []).includes("main")));
+  ok("...nor is Tasks", !departments.some((d) => (d.sectionKeys || []).includes("tasks")));
+  ok("a department may not claim a section that renders nothing",
+    !assignableSectionKeys().some((k) => ["manufacturing", "assets", "reports", "quality-hse", "main", "tasks"].includes(k)),
+    assignableSectionKeys().join(", "));
+
+  // SEEDING IS ONCE. A second read must not deal a second chart — the register
+  // is only empty the first time, and a seeder that re-fired would double every
+  // studio's org chart on every visit.
+  const again = await listDepartments(hr);
+  ok("reading again seeds nothing further", again.length === departments.length,
+    `${departments.length} then ${again.length}`);
 
   // The starter roles the studio ships with. Admin is the built-in wildcard —
   // not something anybody created, and not HR's to rename or delete.
@@ -3076,12 +3104,18 @@ console.log("\n== HR: departments are sections, positions are roles");
   const undeletable = await removeHrRole(hr, ADMIN_ROLE_ID);
   ok("...nor deleted", undeletable.error === "protected", JSON.stringify(undeletable));
 
-  // A department is checked against the SECTIONS now, so a made-up one is
-  // refused where an HR row id used to be looked up.
-  const placed = await saveEmployment(hr, member.collaborator.id, { departmentId: "crm-sales" });
-  ok("somebody can be placed in a section", placed.ok === true, JSON.stringify(placed));
-  const nonsense = await saveEmployment(hr, member.collaborator.id, { departmentId: "not-a-section" });
-  ok("...but not in one that does not exist", nonsense.error === "department", JSON.stringify(nonsense));
+  // A department is a ROW again, so it is checked against the studio's own
+  // register rather than against the section list. This assertion used to
+  // place somebody in "crm-sales" and is kept, inverted: a section key is
+  // now exactly the kind of value that must be refused, because a person
+  // filed under one points at nothing the register can name.
+  const target = (await listDepartments(hr))[0];
+  const placed = await saveEmployment(hr, member.collaborator.id, { departmentId: target.id });
+  ok("somebody can be placed in a department", placed.ok === true, JSON.stringify(placed));
+  const stale = await saveEmployment(hr, member.collaborator.id, { departmentId: "crm-sales" });
+  ok("...but not in a bare section key any more", stale.error === "department", JSON.stringify(stale));
+  const nonsense = await saveEmployment(hr, member.collaborator.id, { departmentId: "not-a-department" });
+  ok("...nor in one that does not exist", nonsense.error === "department", JSON.stringify(nonsense));
 
   // THE GUARD THAT MATTERS. Somebody holding HR and nothing else must not be
   // able to hand out access through the employee editor — that would make
@@ -3159,6 +3193,66 @@ console.log("\n== HR: departments are sections, positions are roles");
 }
 
 // ============================================================================
+console.log("\n== the departments register refuses what would corrupt the chart");
+
+// EVERY REFUSAL HERE IS A REAL FAILURE MODE, not a validation exercise.
+//
+// The register is what the `department` access scope walks, so a chart that
+// can be corrupted is a permission model that can be corrupted. A cycle hangs
+// or truncates the walk; an orphaned child reads as TOP LEVEL, which is MORE
+// visibility rather than less; and a deleted department leaves the people who
+// stood in it pointing at nothing.
+{
+  const master = await masterContext(owner, slug);
+  ok("owner can open Master data", !master.error, master.error);
+
+  const rows = await listStudioDepartments(master);
+  const parent = rows[0];
+  const child = await createDepartment(master, { name: `Sub ${rand()}`, parentId: parent.id });
+  ok("a department can be created under another", !!child.department, JSON.stringify(child.error));
+  ok("...and remembers who it reports into", child.department?.parentId === parent.id);
+
+  // REFUSED AT THE DOOR rather than detected afterwards by a walk that has to
+  // guess which link to break — the same argument the tender document chain
+  // makes about A<-B<-C<-A.
+  const loop = await editDepartment(master, parent.id, { parentId: child.department.id });
+  ok("a department cannot report into its own child", loop.error === "cycle", JSON.stringify(loop));
+  const self = await editDepartment(master, parent.id, { parentId: parent.id });
+  ok("...nor into itself", self.error === "cycle", JSON.stringify(self));
+
+  // A code is what a report keys off, so two departments sharing one makes both
+  // unfindable. A BLANK code stays legal: forcing one before a studio can name
+  // a department is a field nobody asked for standing in the way.
+  const dupCode = await createDepartment(master, { name: `Other ${rand()}`, code: parent.code || "FIN" });
+  ok("two departments cannot share a code", dupCode.error === "duplicate-code", JSON.stringify(dupCode));
+  const blank = await createDepartment(master, { name: `Codeless ${rand()}` });
+  ok("...but a department needs no code at all", !!blank.department, JSON.stringify(blank.error));
+
+  // A SECTION KEY THAT IS NOT ASSIGNABLE IS DROPPED, not stored. Writing it
+  // would put Tasks and the four screenless sections back into the org chart
+  // through the API after the picker stopped offering them.
+  const withDead = await editDepartment(master, blank.department.id,
+    { sectionKeys: ["projects", "tasks", "main", "not-a-section"] });
+  ok("only assignable sections are stored",
+    JSON.stringify(withDead.department?.sectionKeys) === JSON.stringify(["projects"]),
+    JSON.stringify(withDead.department?.sectionKeys));
+
+  // DELETING IS REFUSED WITH THE COUNTS, so the screen can say what to re-file
+  // rather than only "no" — the shape removeLocation already uses for rotas.
+  const blocked = await removeDepartment(master, parent.id);
+  ok("a department with a sub-department cannot be deleted", blocked.error === "in-use", JSON.stringify(blocked));
+  ok("...and the refusal counts them", blocked.children >= 1, JSON.stringify(blocked));
+
+  const freed = await removeDepartment(master, child.department.id);
+  ok("the child deletes once nothing hangs off it", freed.ok === true, JSON.stringify(freed));
+
+  // ADDING THE STANDARD CHART IS ADDITIVE AND IDEMPOTENT. This is what a studio
+  // presses after changing its field of work; re-seeding on its behalf would
+  // destroy an org chart it had already edited.
+  const topUp = await addMissingStarters(master);
+  ok("topping up adds nothing when the chart is complete", topUp.added === 0, JSON.stringify(topUp.added));
+}
+
 console.log("\n== renaming happens now, not at midnight");
 // A studio's name and address used to be stored as a request and applied by a
 // cron at 00:00. They apply on save. The address is the half that matters: the

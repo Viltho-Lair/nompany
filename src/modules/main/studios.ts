@@ -23,6 +23,7 @@
 import { REG, U, S, IX, ID, SECTION_DEFS, isValidSlug } from "@/platform/db/keys";
 import { readArr, writeArr, editArr, setJSON, claim, getIndex, release, delPrefix, sMembers, hIncrBy, hGetAll, hDel } from "@/platform/db/store";
 import { addCollaborator } from "@/platform/auth/collaborators";
+import { listDepartments } from "@/modules/administration/departments";
 import { ensureDefaultPlan } from "@/lib/data/catalog";
 import { emitPlatform, PLATFORM } from "@/platform/realtime/events";
 import { notifySuper, NOTIFY } from "@/platform/notify/notifications";
@@ -123,6 +124,23 @@ export async function createStudio(
     });
     await writeArr(S.sections(id), sections);
     await setJSON(S.settings(id), {});
+
+    // THE ORG CHART EXISTS FROM THE MOMENT THE STUDIO DOES, like its sections.
+    //
+    // listDepartments seeds lazily too — that is what carries studios created
+    // before the register existed — but lazily is not good enough HERE, and a
+    // golden proved it: Projects reads the register without ever seeding it (a
+    // list route must not write one as a side effect), so whether the overtime
+    // filter had any departments in it depended on whether somebody had opened
+    // HR first. Two Gate A goldens recorded that as `departments: []` and
+    // `departments: [...]` in the same run — a contract encoding fixture order.
+    //
+    // A new studio has no field of work yet (nothing sets one at creation), so
+    // what lands here is the universal back office. The trade's own operating
+    // line arrives when the studio says what it does, offered rather than
+    // applied — see seedDepartments.
+    const masterSection = sections.find((sec) => sec.key === "administration-master");
+    if (masterSection) await listDepartments({ studio, section: masterSection });
 
     // The owner is a Collaborator like everyone else (uniform people table).
     // No role is assigned and none is needed: `role: "owner"` is what
