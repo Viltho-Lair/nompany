@@ -47,5 +47,68 @@ ok("an unknown source falls back to custom", bogus.source === "custom", JSON.str
 ok("no caller can mint a second wildcard through the body",
   R.cleanRole({ name: "Sneaky", wildcard: true }).wildcard === false);
 
+console.log("\n== the eleven archetypes");
+
+const A = await import("@/modules/people/archetypes");
+const { ALL_PERMISSIONS } = await import("@/platform/access");
+
+ok("there are eleven", A.ARCHETYPES.length === 11, String(A.ARCHETYPES.length));
+
+// EVERY KEY MUST BE REAL, and this is the whole argument for eleven sets
+// rather than 2,900. The catalogue has moved twelve times in this repo's life
+// and moved again while the spec was being written; with eleven sets a move is
+// visible here, with 2,900 it would be silent.
+const known = new Set(ALL_PERMISSIONS);
+const strays = A.ARCHETYPES.flatMap((a) => A.permissionsFor(a.id).filter((k) => !known.has(k)));
+ok("every archetype names only real permission keys", strays.length === 0, strays.join(", "));
+ok("archetypeProblems agrees", A.archetypeProblems(ALL_PERMISSIONS).length === 0,
+  A.archetypeProblems(ALL_PERMISSIONS).slice(0, 3).join(" | "));
+
+// A SECOND WILDCARD IS FORBIDDEN: exactly one exists and it is Admin, which
+// "has to keep meaning everything as the product grows". So principal is an
+// explicit list rather than a shortcut to the same place.
+ok("principal is an explicit list, not a wildcard",
+  A.permissionsFor("principal").length > 0
+  && !A.ARCHETYPES.find((a) => a.id === "principal")?.wildcard);
+
+// Running the company and deciding who may do what are different acts, and
+// the second is the one that can hand somebody else everything.
+ok("...and does not carry administration.access",
+  !A.permissionsFor("principal").some((k) => k.startsWith("administration.access")),
+  A.permissionsFor("principal").filter((k) => k.startsWith("administration.access")).join(", "));
+
+// Eleven names describing one shape would be eleven names for nothing.
+const shapes = new Set(A.ARCHETYPES.map((a) => A.permissionsFor(a.id).slice().sort().join("|")));
+ok("all eleven differ from one another", shapes.size === 11, `${shapes.size} distinct`);
+
+// "Raises and edits records, deletes nothing" is the line the Member starter
+// role drew, and it survives the role model changing underneath it.
+ok("a doer deletes nothing",
+  !A.permissionsFor("doer").some((k) => k.endsWith(".delete")),
+  A.permissionsFor("doer").filter((k) => k.endsWith(".delete")).join(", "));
+
+// THE ARCHETYPE NO STARTER ROLE EVER COVERED. A checker reads widely and
+// signs; building one by hand meant assembling view rights plus a review
+// extra, which is why nobody did.
+ok("a checker reads and signs but creates nothing",
+  A.permissionsFor("checker").includes("engineeringDocs.register.review")
+  && !A.permissionsFor("checker").some((k) => k.endsWith(".create")),
+  A.permissionsFor("checker").filter((k) => k.endsWith(".create")).join(", "));
+
+// A COPY, NOT A REFERENCE. If a caller can mutate what this returns, one
+// studio adding a role changes every future one — the same class of bug
+// departmentsForField returns a fresh array to avoid.
+const firstDoer = A.permissionsFor("doer");
+firstDoer.push("crmSales.tickets.delete");
+ok("permissionsFor hands out a fresh array",
+  !A.permissionsFor("doer").includes("crmSales.tickets.delete"));
+
+// An unknown id answers with nothing rather than throwing: it arrives from
+// stored library data, and a bad row should cost one role its defaults, not
+// take down the seed that was reading it.
+ok("an unknown archetype grants nothing", A.permissionsFor("nonsense").length === 0);
+ok("...and is not mistaken for a real one",
+  !A.isArchetypeId("nonsense") && A.isArchetypeId("doer"));
+
 console.log(fails ? `\n${fails} FAILED\n` : "\nall passed\n");
 process.exit(fails ? 1 : 0);
