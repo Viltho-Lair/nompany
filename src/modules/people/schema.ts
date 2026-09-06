@@ -49,6 +49,23 @@ export const RoleSchema = z.object({
   description: z.string().max(200).optional(),
   color: z.string().optional(),
   wildcard: z.boolean().optional(),
+  // THE DEPARTMENT THIS ROLE BELONGS TO, "" for studio-wide.
+  //
+  // A role's department decides where it is LISTED and what it is FOR. It does
+  // NOT decide what the role may reach — that is `permissions`, granted by an
+  // administrator — and it does not decide who may hold it. Keeping those apart
+  // is why a department's `sectionKeys` can go on granting nothing.
+  //
+  // Admin is the only seeded studio-wide role: a per-department wildcard is a
+  // contradiction, because "everything, within one department" is not
+  // everything.
+  departmentId: z.string().default(""),
+  // Where the row came from. "library" was copied out of the role catalogue and
+  // arrived carrying an archetype's permissions; "custom" was typed by hand and
+  // started empty. Stored because the two are edited with different
+  // expectations, and because a screen offering to re-sync a role from the
+  // library must never offer it for one somebody wrote themselves.
+  source: z.enum(["library", "custom"]).default("custom"),
   permissions: z.array(z.string()),
   scopes: z.record(z.string(), z.enum(SCOPES)),
   createdAt: z.string(),

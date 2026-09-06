@@ -63,6 +63,16 @@ export function cleanRole(body: Record<string, unknown>) {
     // Only where the area declares itself scoped; anywhere else a scope would
     // be a stored value nothing reads.
     scopes: cleanScopes(body?.scopes),
+    // "" IS A REAL ANSWER — the studio-wide role — so this is deliberately NOT
+    // checked against the register here. cleanRole is a pure shaper with no
+    // studio in scope; the caller that HAS a department context does the
+    // checking, and a blank one needs none.
+    departmentId: str(body?.departmentId, 60),
+    // Anything but the two known values is "custom". The field decides how a
+    // screen treats the row, so a third value would mean neither of the two
+    // things it can mean — the same reason cleanScopes drops a scope the area
+    // never declared.
+    source: body?.source === "library" ? "library" : "custom",
     wildcard: false,
   };
 }
