@@ -7,6 +7,48 @@
 
 type Strings = {
   requisitions: string;
+  rfqs: string;
+  rfqsSub: string;
+  loadingRfqs: string;
+  noRfqs: string;
+  noRfqsBody: string;
+  newRfq: string;
+  editRfq: string;
+  fromRequisition: string;
+  rfqTitle: string;
+  quotesDueBy: string;
+  suppliersAsked: string;
+  sendRfq: string;
+  cancelRfq: string;
+  recordQuote: string;
+  quoteFrom: string;
+  quoteValidUntil: string;
+  quoteLeadWeeks: string;
+  quoteReceivedAt: string;
+  quoteReplaced: string;
+  comparison: string;
+  comparisonSub: string;
+  cheapest: string;
+  fastest: string;
+  partPriced: (priced: number, total: number) => string;
+  partPricedHint: string;
+  quoteExpired: string;
+  notComparable: string;
+  noQuotesYet: string;
+  noneComparable: string;
+  award: string;
+  awardTo: string;
+  awardReason: string;
+  awardReasonRequired: string;
+  awardedTo: (vendor: string, who: string) => string;
+  weeks: (n: number) => string;
+  perLineBest: string;
+  refuseNotSent: string;
+  refuseQuoteIncomplete: string;
+  refuseQuoteExpired: string;
+  refuseReasonRequired: string;
+  refuseNotAwardable: string;
+  refuseNoLinesRfq: string;
   requisitionsSub: string;
   loadingRequisitions: string;
   noRequisitions: string;
@@ -81,6 +123,48 @@ const AR_STATUS: Record<string, string> = {
 
 const en: Strings = {
   requisitions: "Requisitions",
+  rfqs: "Supplier quotes",
+  rfqsSub: "What the market says it costs — asked of several, compared, and awarded to one.",
+  loadingRfqs: "Loading supplier quotes…",
+  noRfqs: "No requests for quotation yet",
+  noRfqsBody: "A requisition says what is needed and estimates what it costs. This asks suppliers what it actually costs — several of them, on the same list of lines, so the answers can be compared.",
+  newRfq: "Ask for quotes",
+  editRfq: "Edit request",
+  fromRequisition: "From requisition",
+  rfqTitle: "What is being quoted",
+  quotesDueBy: "Quotes wanted by",
+  suppliersAsked: "Suppliers asked",
+  sendRfq: "Mark as sent",
+  cancelRfq: "Withdraw",
+  recordQuote: "Record a quote",
+  quoteFrom: "Quote from",
+  quoteValidUntil: "Held until",
+  quoteLeadWeeks: "Lead time (weeks)",
+  quoteReceivedAt: "Received on",
+  quoteReplaced: "That supplier had already quoted, so this replaced it.",
+  comparison: "Comparison",
+  comparisonSub: "Only complete, unexpired quotes are ranked.",
+  cheapest: "Cheapest",
+  fastest: "Fastest",
+  partPriced: (priced, total) => `${priced} of ${total} lines priced`,
+  partPricedHint: "This total is not what that supplier is offering, so it is not ranked against the others.",
+  quoteExpired: "Price no longer held",
+  notComparable: "Not comparable",
+  noQuotesYet: "Nothing has come back yet.",
+  noneComparable: "Nothing that came back prices every line, or every price has lapsed — so there is nothing to recommend.",
+  award: "Award",
+  awardTo: "Award to",
+  awardReason: "Why this supplier",
+  awardReasonRequired: "This is not the cheapest comparable quote, so the reason is recorded with the decision.",
+  awardedTo: (vendor, who) => `Awarded to ${vendor} by ${who}`,
+  weeks: (n) => `${n} weeks`,
+  perLineBest: "cheapest on this line",
+  refuseNotSent: "That request has not been sent, so there is nothing to quote against.",
+  refuseQuoteIncomplete: "That quote does not price every line, so its total is not what the supplier is offering. It cannot be awarded.",
+  refuseQuoteExpired: "That price is no longer being held. Ask for a fresh quote.",
+  refuseReasonRequired: "That is not the cheapest comparable quote — say why, and the reason is stored with the award.",
+  refuseNotAwardable: "Awarding names a quote, so it goes through the award rather than through an edit.",
+  refuseNoLinesRfq: "A request with no lines asks a supplier to price nothing.",
   requisitionsSub: "What somebody needs, and who said yes — before there is an order.",
   loadingRequisitions: "Loading requisitions…",
   noRequisitions: "No requisitions yet",
@@ -137,6 +221,48 @@ const en: Strings = {
 
 const ar: Strings = {
   requisitions: "طلبات الشراء",
+  rfqs: "عروض الموردين",
+  rfqsSub: "ما تقوله السوق من تكلفة — يُسأل عنه عدّة موردين، ثم يُقارن، ثم يُرسى على واحد.",
+  loadingRfqs: "جارٍ تحميل عروض الموردين…",
+  noRfqs: "لا توجد طلبات عروض بعد",
+  noRfqsBody: "طلب الشراء يقول ما المطلوب ويقدّر تكلفته. وهذا يسأل الموردين عن التكلفة الفعلية — عدّة منهم، على القائمة نفسها، حتّى تُقارن الإجابات.",
+  newRfq: "طلب عروض",
+  editRfq: "تعديل الطلب",
+  fromRequisition: "من طلب شراء",
+  rfqTitle: "ما المطلوب تسعيره",
+  quotesDueBy: "موعد استلام العروض",
+  suppliersAsked: "الموردون المسؤولون",
+  sendRfq: "تعليم كمُرسل",
+  cancelRfq: "سحب الطلب",
+  recordQuote: "تسجيل عرض",
+  quoteFrom: "عرض من",
+  quoteValidUntil: "سارٍ حتّى",
+  quoteLeadWeeks: "مدة التوريد (أسابيع)",
+  quoteReceivedAt: "تاريخ الاستلام",
+  quoteReplaced: "كان لهذا المورد عرض سابق، فحلّ هذا محلّه.",
+  comparison: "المقارنة",
+  comparisonSub: "لا يُرتّب إلا العرض المكتمل غير المنتهي.",
+  cheapest: "الأرخص",
+  fastest: "الأسرع",
+  partPriced: (priced, total) => `سُعّر ${priced} من ${total} بنداً`,
+  partPricedHint: "هذا الإجمالي ليس ما يعرضه المورد، فلا يُرتّب مع البقية.",
+  quoteExpired: "السعر لم يعد محفوظاً",
+  notComparable: "غير قابل للمقارنة",
+  noQuotesYet: "لم يصل شيء بعد.",
+  noneComparable: "لا يوجد عرض يُسعّر كلّ البنود، أو انتهت صلاحية الأسعار — فلا توصية.",
+  award: "الإرساء",
+  awardTo: "الإرساء على",
+  awardReason: "لماذا هذا المورد",
+  awardReasonRequired: "هذا ليس أرخص عرض قابل للمقارنة، فيُسجّل السبب مع القرار.",
+  awardedTo: (vendor, who) => `أُرسي على ${vendor} بواسطة ${who}`,
+  weeks: (n) => `${n} أسبوع`,
+  perLineBest: "الأرخص في هذا البند",
+  refuseNotSent: "لم يُرسل هذا الطلب، فلا شيء يُسعّر عليه.",
+  refuseQuoteIncomplete: "هذا العرض لا يُسعّر كلّ البنود، فإجماليه ليس ما يعرضه المورد، ولا يجوز إرساؤه.",
+  refuseQuoteExpired: "لم يعد هذا السعر محفوظاً. اطلب عرضاً جديداً.",
+  refuseReasonRequired: "هذا ليس أرخص عرض قابل للمقارنة — اذكر السبب، ويُحفظ مع الإرساء.",
+  refuseNotAwardable: "الإرساء يسمّي عرضاً، فيمرّ بالإرساء لا بالتعديل.",
+  refuseNoLinesRfq: "طلب بلا بنود يطلب من المورد تسعير لا شيء.",
   requisitionsSub: "ما يحتاجه أحدهم، ومن وافق عليه — قبل أن يوجد أمر شراء.",
   loadingRequisitions: "جارٍ تحميل طلبات الشراء…",
   noRequisitions: "لا توجد طلبات شراء بعد",

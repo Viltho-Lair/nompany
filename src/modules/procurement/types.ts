@@ -5,6 +5,7 @@ import type { ModuleContext } from "../context";
 import type { Section } from "@/platform/db/sections";
 
 export type { Requisition, RequisitionLine } from "./schema";
+export type { Rfq, RfqLine, SupplierQuote, QuoteLine } from "./rfqSchema";
 
 // ---- this department's context ---------------------------------------------
 // Generated from the spec in the service file: `sub` and `foreign` become
@@ -14,6 +15,7 @@ export type { Requisition, RequisitionLine } from "./schema";
 // a real answer the screens handle.
 export type ProcurementContext = ModuleContext & {
   requisitionsSection: Section;
+  rfqSection: Section;
   suppliersSection: Section;
   /**
    * PURCHASE ORDERS, which live under Inventory (`materialOrders` beneath
@@ -33,6 +35,8 @@ export type ProcurementContext = ModuleContext & {
   ordersSection: Section | null;
   projectsListSection: Section | null;
   itemsSection: Section | null;
+  canViewRfq: boolean;
+  canManageRfq: boolean;
   canViewRequisitions: boolean;
   canManageRequisitions: boolean;
   canViewSuppliers: boolean;

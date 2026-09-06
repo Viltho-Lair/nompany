@@ -109,6 +109,7 @@ export const SECTION_AREAS: Readonly<Record<string, readonly string[]>> = {
   // MOVED TO PROCUREMENT & SUBCONTRACTING — buying is where Vendors always
   // belonged; Inventory kept the screen only because that is where it was built.
   "procurement-requisitions": ["procurement.requisitions"],
+  "procurement-rfq": ["procurement.rfq"],
   "procurement-suppliers": ["procurement.suppliers"],
   "inventory-items": ["inventory.items"],
   "inventory-sheets": ["inventory.sheets"],

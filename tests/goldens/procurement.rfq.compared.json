@@ -1,0 +1,215 @@
+{
+  "status": 200,
+  "body": {
+    "ok": true,
+    "rfqs": [
+      {
+        "id": "<sup_ID>",
+        "reference": "SRQ-0001",
+        "title": "Scaffold for the east elevation",
+        "requisitionId": "",
+        "projectId": "",
+        "vendorIds": [
+          "v-alpha",
+          "v-beta",
+          "v-gamma"
+        ],
+        "lines": [
+          {
+            "id": "<rln_ID>",
+            "description": "Scaffold hire",
+            "unit": "week",
+            "qty": 10,
+            "itemId": ""
+          },
+          {
+            "id": "<rln_ID>",
+            "description": "Edge protection",
+            "unit": "m",
+            "qty": 4,
+            "itemId": ""
+          }
+        ],
+        "status": "Sent",
+        "dueBy": "2031-04-01",
+        "notes": "",
+        "createdByCollaboratorId": "<col_ID>",
+        "createdAt": "<timestamp>",
+        "updatedAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>",
+        "sentByCollaboratorId": "<col_ID>",
+        "sentAt": "<timestamp>",
+        "quotes": [
+          {
+            "id": "<sup_ID>",
+            "rfqId": "<sup_ID>",
+            "vendorId": "v-gamma",
+            "lines": [
+              {
+                "rfqLineId": "<rln_ID>",
+                "unitPrice": 10,
+                "leadWeeks": ""
+              }
+            ],
+            "leadWeeks": "",
+            "validUntil": "2031-12-01",
+            "notes": "",
+            "receivedAt": "<today>",
+            "recordedByCollaboratorId": "<col_ID>",
+            "updatedAt": "<timestamp>",
+            "createdAt": "<timestamp>",
+            "studioId": "<std_ID>",
+            "sectionId": "<sub_ID>"
+          },
+          {
+            "id": "<sup_ID>",
+            "rfqId": "<sup_ID>",
+            "vendorId": "v-beta",
+            "lines": [
+              {
+                "rfqLineId": "<rln_ID>",
+                "unitPrice": 90,
+                "leadWeeks": ""
+              },
+              {
+                "rfqLineId": "<rln_ID>",
+                "unitPrice": 60,
+                "leadWeeks": ""
+              }
+            ],
+            "leadWeeks": 2,
+            "validUntil": "2031-12-01",
+            "notes": "",
+            "receivedAt": "<today>",
+            "recordedByCollaboratorId": "<col_ID>",
+            "updatedAt": "<timestamp>",
+            "createdAt": "<timestamp>",
+            "studioId": "<std_ID>",
+            "sectionId": "<sub_ID>"
+          },
+          {
+            "id": "<sup_ID>",
+            "rfqId": "<sup_ID>",
+            "vendorId": "v-alpha",
+            "lines": [
+              {
+                "rfqLineId": "<rln_ID>",
+                "unitPrice": 100,
+                "leadWeeks": ""
+              },
+              {
+                "rfqLineId": "<rln_ID>",
+                "unitPrice": 50,
+                "leadWeeks": ""
+              }
+            ],
+            "leadWeeks": 8,
+            "validUntil": "2031-12-01",
+            "notes": "",
+            "receivedAt": "<today>",
+            "recordedByCollaboratorId": "<col_ID>",
+            "updatedAt": "<timestamp>",
+            "createdAt": "<timestamp>",
+            "studioId": "<std_ID>",
+            "sectionId": "<sub_ID>"
+          }
+        ],
+        "comparison": {
+          "quotes": [
+            {
+              "id": "<sup_ID>",
+              "vendorId": "v-gamma",
+              "lines": [
+                {
+                  "rfqLineId": "<rln_ID>",
+                  "unitPrice": 10,
+                  "qty": 10,
+                  "total": 100,
+                  "leadWeeks": null
+                },
+                {
+                  "rfqLineId": "<rln_ID>",
+                  "unitPrice": null,
+                  "qty": 4,
+                  "total": null,
+                  "leadWeeks": null
+                }
+              ],
+              "total": 100,
+              "complete": false,
+              "priced": 1,
+              "leadWeeks": null,
+              "expired": false
+            },
+            {
+              "id": "<sup_ID>",
+              "vendorId": "v-beta",
+              "lines": [
+                {
+                  "rfqLineId": "<rln_ID>",
+                  "unitPrice": 90,
+                  "qty": 10,
+                  "total": 900,
+                  "leadWeeks": null
+                },
+                {
+                  "rfqLineId": "<rln_ID>",
+                  "unitPrice": 60,
+                  "qty": 4,
+                  "total": 240,
+                  "leadWeeks": null
+                }
+              ],
+              "total": 1140,
+              "complete": true,
+              "priced": 2,
+              "leadWeeks": 2,
+              "expired": false
+            },
+            {
+              "id": "<sup_ID>",
+              "vendorId": "v-alpha",
+              "lines": [
+                {
+                  "rfqLineId": "<rln_ID>",
+                  "unitPrice": 100,
+                  "qty": 10,
+                  "total": 1000,
+                  "leadWeeks": null
+                },
+                {
+                  "rfqLineId": "<rln_ID>",
+                  "unitPrice": 50,
+                  "qty": 4,
+                  "total": 200,
+                  "leadWeeks": null
+                }
+              ],
+              "total": 1200,
+              "complete": true,
+              "priced": 2,
+              "leadWeeks": 8,
+              "expired": false
+            }
+          ],
+          "cheapestId": "<sup_ID>",
+          "fastestId": "<sup_ID>",
+          "cheapestByLine": {
+            "<rln_ID>": "<sup_ID>",
+            "<rln_ID>": "<sup_ID>"
+          },
+          "comparable": 2,
+          "blocked": null
+        },
+        "createdByAlias": "Owner",
+        "awardedByAlias": ""
+      }
+    ],
+    "asOf": "<timestamp>",
+    "canCreate": true,
+    "canEdit": true,
+    "canDelete": true,
+    "canAward": true
+  }
+}

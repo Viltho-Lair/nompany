@@ -265,6 +265,21 @@ const OWN_AREAS = [
       { key: "approve", label: "Approve a requisition" },
       { key: "approveHigh", label: "Approve a requisition above the limit" },
     ] },
+  // ASKING AND AWARDING ARE DIFFERENT POWERS over the same record, which is
+  // what an extra verb is for — `award` names a supplier and a price and is the
+  // act that decides where the money goes, while view/create/edit is the work of
+  // assembling the request and typing in what came back.
+  //
+  // ITS OWN AREA rather than riding `procurement.requisitions`, by the test
+  // `tendering.rates` passed: a requisition is what somebody needs, and an RFQ
+  // is what the market says it costs. "May ask for something" and "may choose
+  // who we buy it from" are genuinely different jobs in every studio large
+  // enough to separate them.
+  { key: "procurement.rfq", group: "Procurement & Subcontracting", label: "Supplier quotes",
+    verbs: ["view", "create", "edit", "delete"],
+    extra: [
+      { key: "award", label: "Award an RFQ to a supplier" },
+    ] },
   { key: "procurement.suppliers", group: "Procurement & Subcontracting", label: "Suppliers", verbs: ["view", "create", "edit", "delete"] },
   { key: "inventory.items", group: "Inventory & Warehouse", label: "Registered items", verbs: ["view", "create", "edit", "delete"] },
   // NO LONGER VIEW ONLY. It was, while a sheet was just the screen over purchase

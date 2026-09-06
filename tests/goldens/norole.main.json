@@ -35,6 +35,7 @@
       "engineering-docs-settings": false,
       "procurement": false,
       "procurement-requisitions": false,
+      "procurement-rfq": false,
       "procurement-suppliers": false,
       "inventory": false,
       "inventory-stock": false,

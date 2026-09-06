@@ -26,7 +26,11 @@ const Orders = repo<Order>("materialOrders");
 
 export const procurementContext = moduleContext<ProcurementContext>({
   root: "procurement",
-  sub: { requisitions: "procurement-requisitions", suppliers: "procurement-suppliers" },
+  sub: {
+    requisitions: "procurement-requisitions",
+    rfq: "procurement-rfq",
+    suppliers: "procurement-suppliers",
+  },
   foreign: {
     // Purchase orders, where they already live. See the note on
     // ProcurementContext: this reads them, and conversion writes one through
@@ -35,7 +39,7 @@ export const procurementContext = moduleContext<ProcurementContext>({
     projectsList: ["projects-list", "projects"],
     items: ["inventory-items", "inventory"],
   },
-  flags: ["requisitions", "suppliers"],
+  flags: ["requisitions", "rfq", "suppliers"],
 });
 
 const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);

@@ -144,8 +144,18 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
     note: "Procurement Manager, Buyer, Subcontracts Administrator, Expeditor.",
     grants: [
       ["procurement.suppliers", "full"], ["procurement.requisitions", "edit"],
+      ["procurement.rfq", "edit"],
       ["finance.payables", "edit"], ["inventory.items", "view"],
     ],
+    // AWARDING IS THE ONE THING A BUYER DOES, so it is here even though this
+    // archetype deliberately holds no `procurement.requisitions.approve`. The
+    // two extras are not the same kind of power: approving a requisition
+    // authorises somebody else's spend, which is why it sits away from the
+    // person who does the buying; awarding chooses between quotes for a spend
+    // that has ALREADY been authorised, which is the buying itself. A buyer who
+    // may ask three suppliers for a price and may not pick one has been given
+    // half a job.
+    extras: ["procurement.rfq.award"],
   },
   {
     id: "money",

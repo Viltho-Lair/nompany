@@ -165,6 +165,12 @@
       },
       {
         "id": "<sub_ID>",
+        "key": "procurement-rfq",
+        "name": "Supplier quotes",
+        "enabled": true
+      },
+      {
+        "id": "<sub_ID>",
         "key": "procurement-suppliers",
         "name": "Suppliers",
         "enabled": true

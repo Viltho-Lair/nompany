@@ -318,7 +318,10 @@ console.log("== the permission matrix: one key grants exactly itself");
   // Asking to buy something and authorising the spend are different powers
   // over the SAME record, which is what an extra verb is for; a second area
   // would be a second answer to "who works on requisitions".
-  ok("the catalogue is the size we last agreed", ALL_PERMISSIONS.length === 159, String(ALL_PERMISSIONS.length));
+  // 164 with procurement.rfq: view/create/edit/delete plus `award` as an EXTRA.
+  // Assembling the request and typing in what came back is one job; naming the
+  // supplier the money goes to is another, which is what an extra verb is for.
+  ok("the catalogue is the size we last agreed", ALL_PERMISSIONS.length === 164, String(ALL_PERMISSIONS.length));
 
   const leaks = [];
   const missing = [];
@@ -6289,6 +6292,214 @@ console.log("== procurement: the request that stands before a purchase order");
 
   // The studio's currency goes back, so nothing after this section sees it.
   await updateStudio(studio.id, { currency: "" });
+}
+
+// ============================================================================
+console.log("== procurement: asking several suppliers, and choosing one");
+// NOTHING IN THIS PRODUCT EVER ASKED A SUPPLIER FOR A PRICE. A requisition's
+// `vendorId` records who the requester EXPECTS to buy from and binds nobody, so
+// purchasing was one person's estimate followed by one person's order.
+//
+// PLACED HERE for the reason the blocks above state: this studio is SHARED and
+// several goldens are whole-studio snapshots. After every section that records
+// one, before the check that counts them.
+{
+  const RFQ = await import("@/app/api/studios/[slug]/procurement/rfq/route.ts");
+
+  const P = ctx({ slug });
+  const shot = async (name, payload) => {
+    const r = golden(name, payload, EXTRA);
+    if (!r.recorded) ok(`${name} matches its golden`, r.ok, r.detail);
+    return payload;
+  };
+  const rfqPersonWith = async (permissions, alias) => {
+    const u = (await createUser({ email: `g-${alias}-${rand()}@test.invalid`, passwordHash: "x" })).user;
+    const role = await createRole(studio.id, { name: `role-${alias}`, permissions });
+    await addCollaborator(studio.id, { userId: u.id, alias, role: "member", roleIds: [role.id] });
+    return u;
+  };
+
+  const post = (body) => capture(
+    RFQ.POST, req(`/api/studios/${slug}/procurement/rfq`, { method: "POST", body }), P);
+  const put = (body) => capture(
+    RFQ.PUT, req(`/api/studios/${slug}/procurement/rfq`, { method: "PUT", body }), P);
+  const readRfqs = () => capture(
+    RFQ.GET, req(`/api/studios/${slug}/procurement/rfq`), P);
+
+  await signIn(owner.id);
+
+  const raised = await shot("procurement.rfq.raised", await post({
+    title: "Scaffold for the east elevation",
+    dueBy: "2031-04-01",
+    vendorIds: ["v-alpha", "v-beta", "v-gamma"],
+    lines: [
+      { description: "Scaffold hire", unit: "week", qty: 10 },
+      { description: "Edge protection", unit: "m", qty: 4 },
+    ],
+  }));
+  const rfqId = raised.body?.rfq?.id;
+  ok("a request is raised", Boolean(rfqId));
+  // SRQ, NOT RFQ. `engineeringDocs.rfq` is the request coming IN from Sales;
+  // two records both reading RFQ-0001 in one product is a confusion nobody
+  // would forgive.
+  ok("...with an SRQ reference, not an RFQ one",
+    /^SRQ-\d+$/.test(String(raised.body?.rfq?.reference || "")),
+    String(raised.body?.rfq?.reference));
+  ok("...as a draft", raised.body?.rfq?.status === "Draft");
+  // LINE IDS ARE MINTED, never positional: every quote references a line by id,
+  // so an index would re-point prices the moment a line was inserted above.
+  const lineIds = (raised.body?.rfq?.lines || []).map((l) => l.id);
+  // SHAPED LIKE EVERY OTHER ID IN THE PRODUCT, and asserted against the
+  // normaliser's OWN pattern rather than against a prefix. A hand-rolled
+  // minter here produced `rl_<8 chars>` — two letters where the convention is
+  // three, and short — which the golden normaliser does not rewrite, so the
+  // recorded response kept a live timestamp and four goldens could never match
+  // twice. Asserting the prefix alone would not have caught it; asserting the
+  // pattern that decides whether a golden is reproducible does.
+  ok("...and every line carries an id the golden normaliser will scrub",
+    lineIds.length === 2 && lineIds.every((id) => /^[a-z]{3,4}_[a-z0-9]{10,}$/.test(String(id))),
+    JSON.stringify(lineIds));
+
+  // A DRAFT HAS BEEN SENT TO NOBODY, so a quote against it came from nowhere.
+  await shot("procurement.rfq.quotebeforesent", await post({
+    quote: true, rfqId, vendorId: "v-alpha",
+    lines: [{ rfqLineId: lineIds[0], unitPrice: 100 }],
+  }));
+
+  const sent = await shot("procurement.rfq.sent", await put({ id: rfqId, action: "send" }));
+  ok("a draft with lines can be sent", sent.body?.rfq?.status === "Sent");
+
+  // THE LINE LIST FREEZES WHEN IT GOES OUT. A supplier quoting two lines must
+  // not find a third appearing afterwards.
+  await shot("procurement.rfq.linesfrozen", await put({
+    id: rfqId, lines: [{ description: "Something else", unit: "ea", qty: 1 }],
+  }));
+
+  // ---- three suppliers answer ---------------------------------------------
+  // alpha: complete, 10x100 + 4x50 = 1200, eight weeks
+  await post({
+    quote: true, rfqId, vendorId: "v-alpha", leadWeeks: 8, validUntil: "2031-12-01",
+    lines: [
+      { rfqLineId: lineIds[0], unitPrice: 100 },
+      { rfqLineId: lineIds[1], unitPrice: 50 },
+    ],
+  });
+  // beta: complete, 10x90 + 4x60 = 1140, two weeks -> cheapest AND fastest
+  await post({
+    quote: true, rfqId, vendorId: "v-beta", leadWeeks: 2, validUntil: "2031-12-01",
+    lines: [
+      { rfqLineId: lineIds[0], unitPrice: 90 },
+      { rfqLineId: lineIds[1], unitPrice: 60 },
+    ],
+  });
+  // gamma: ONE line at a keen rate. Its total is 100 -- the lowest number on
+  // the page -- and it is not an offer.
+  await post({
+    quote: true, rfqId, vendorId: "v-gamma", validUntil: "2031-12-01",
+    lines: [{ rfqLineId: lineIds[0], unitPrice: 10 }],
+  });
+
+  const compared = await shot("procurement.rfq.compared", await readRfqs());
+  const row = (compared.body?.rfqs || []).find((r) => r.id === rfqId);
+  const cmp = row?.comparison || {};
+  const byVendor = Object.fromEntries((cmp.quotes || []).map((q) => [q.vendorId, q]));
+
+  // THE ASSERTION THIS SLICE EXISTS FOR. gamma's total is the smallest number
+  // on the screen and gamma is not recommended, because a supplier who priced
+  // one line of two has not offered what was asked for.
+  ok("the part-priced quote has the lowest total",
+    byVendor["v-gamma"]?.total === 100, String(byVendor["v-gamma"]?.total));
+  ok("...and says it is not complete", byVendor["v-gamma"]?.complete === false);
+  ok("...AND IS NOT RECOMMENDED", cmp.cheapestId === byVendor["v-beta"]?.id,
+    JSON.stringify({ cheapest: cmp.cheapestId, beta: byVendor["v-beta"]?.id }));
+  // A BLANK IS A SILENCE, NOUGHT IS A PRICE.
+  ok("...with the unpriced line null rather than zero",
+    byVendor["v-gamma"]?.lines?.find((l) => l.rfqLineId === lineIds[1])?.unitPrice === null);
+
+  ok("the cheapest is beta", byVendor["v-beta"]?.total === 1140,
+    String(byVendor["v-beta"]?.total));
+  ok("...and it is also the fastest here", cmp.fastestId === byVendor["v-beta"]?.id);
+  // PER LINE, ACROSS EVERY QUOTE THAT PRICED IT -- including the one that
+  // cannot be ranked as a whole. That is what a split award is made of.
+  ok("the per-line best can come from the unrankable quote",
+    cmp.cheapestByLine?.[lineIds[0]] === byVendor["v-gamma"]?.id,
+    JSON.stringify(cmp.cheapestByLine));
+
+  // ONE QUOTE PER SUPPLIER: a second submission REPLACES the first, because a
+  // comparison listing one vendor twice is a comparison nobody can read.
+  const again = await post({
+    quote: true, rfqId, vendorId: "v-alpha", leadWeeks: 6, validUntil: "2031-12-01",
+    lines: [
+      { rfqLineId: lineIds[0], unitPrice: 95 },
+      { rfqLineId: lineIds[1], unitPrice: 55 },
+    ],
+  });
+  ok("a second quote from one supplier replaces the first",
+    again.body?.replaced === true, String(again.body?.replaced));
+  const afterReplace = await readRfqs();
+  const cmp2 = (afterReplace.body?.rfqs || []).find((r) => r.id === rfqId)?.comparison || {};
+  ok("...so that supplier still appears once",
+    (cmp2.quotes || []).filter((q) => q.vendorId === "v-alpha").length === 1,
+    String((cmp2.quotes || []).filter((q) => q.vendorId === "v-alpha").length));
+
+  // ---- the award ----------------------------------------------------------
+  //
+  // A PART-PRICED QUOTE IS NOT AN OFFER and cannot be awarded: its total is a
+  // number and it is not what that supplier said the job costs.
+  await shot("procurement.rfq.awardincomplete", await put({
+    id: rfqId, action: "award", quoteId: byVendor["v-gamma"]?.id,
+  }));
+
+  // AWARDING NAMES A QUOTE, so it can never be reached by editing a status --
+  // the shape that let a rejected change order approve itself.
+  await shot("procurement.rfq.statusedit", await put({ id: rfqId, status: "Awarded" }));
+
+  // THE REASON IS REQUIRED ONLY WHERE THE CHOICE NEEDS ONE. alpha is not the
+  // cheapest comparable quote, so awarding it without saying why is refused.
+  await shot("procurement.rfq.reasonrequired", await put({
+    id: rfqId, action: "award", quoteId: byVendor["v-alpha"]?.id,
+  }));
+
+  // AND SOMEBODY WHO MAY ASSEMBLE THE REQUEST MAY NOT CHOOSE THE SUPPLIER.
+  // `award` is an extra verb precisely so this is expressible.
+  const asker = await rfqPersonWith(
+    ["procurement.rfq.view", "procurement.rfq.create", "procurement.rfq.edit"], "rfqasker");
+  await signIn(asker.id);
+  await shot("procurement.rfq.awardforbidden", await put({
+    id: rfqId, action: "award", quoteId: byVendor["v-beta"]?.id,
+  }));
+  await signIn(owner.id);
+
+  const awarded = await shot("procurement.rfq.awarded", await put({
+    id: rfqId, action: "award", quoteId: byVendor["v-alpha"]?.id,
+    reason: "Alpha hold stock on site; beta cannot start before the 12th.",
+  }));
+  ok("awarding with a reason succeeds", awarded.body?.rfq?.status === "Awarded",
+    awarded.body?.rfq?.status);
+  ok("...naming the quote", awarded.body?.rfq?.awardedQuoteId === byVendor["v-alpha"]?.id);
+  // THE REASON IS THE WHOLE AUDIT VALUE: six months later it is the only thing
+  // anybody can check the decision against.
+  ok("...and storing why", String(awarded.body?.rfq?.awardReason || "").length > 0);
+  ok("...with who decided it", Boolean(awarded.body?.rfq?.awardedByCollaboratorId));
+
+  // NOTHING TO AWARD TWICE.
+  await shot("procurement.rfq.awardedtwice", await put({
+    id: rfqId, action: "award", quoteId: byVendor["v-beta"]?.id, reason: "changed my mind",
+  }));
+
+  // AND A DECIDED REQUEST TAKES NO MORE QUOTES: a price arriving afterwards
+  // cannot change a decision without erasing what it was made on.
+  await shot("procurement.rfq.quoteafteraward", await post({
+    quote: true, rfqId, vendorId: "v-delta",
+    lines: [{ rfqLineId: lineIds[0], unitPrice: 1 }],
+  }));
+
+  // A READER WITH NO PROCUREMENT RIGHT IS REFUSED OUTRIGHT, not shown an empty
+  // register -- an empty list would say "this studio asks nobody for prices".
+  const outsider = await rfqPersonWith(["crmSales.tickets.view"], "norfq");
+  await signIn(outsider.id);
+  await shot("procurement.rfq.forbidden", await readRfqs());
+  await signIn(owner.id);
 }
 
 // ============================================================================

@@ -561,6 +561,7 @@ export const SECTION_DEFS = [
   // that already exists — it was Inventory's Vendors screen.
   { key: "procurement", name: "Procurement & Subcontracting", children: [
     { key: "procurement-requisitions", name: "Requisitions" },
+    { key: "procurement-rfq", name: "Supplier quotes" },
     { key: "procurement-suppliers", name: "Suppliers" },
   ] },
 
@@ -721,6 +722,11 @@ export const SECTION_COLLECTIONS = {
   // than a status on `materialOrders`: an order that was never approved is a
   // contradiction, and a requisition that is refused must still be a record.
   "procurement-requisitions": ["requisitions"],
+  // THE REQUEST AND THE ANSWERS ARE SEPARATE COLLECTIONS. A quote is another
+  // party's document: it arrives on its own schedule and is written by whoever
+  // opens the envelope, so nesting them on the request would make recording one
+  // supplier's price a write to the row every other supplier is quoting against.
+  "procurement-rfq": ["supplierRfqs", "supplierQuotes"],
   "procurement-suppliers": ["inventoryVendors"],
   // inventory — Project Sheets owns the sheets and their orders sub-sheet,
   // matching the Old System, where Sheets lives under Inventory (not Projects).
