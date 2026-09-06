@@ -33,7 +33,7 @@ export const POST = route(spec, async (hr) => {
   if (hr.body.action === "add-library") {
     const added = await addLibraryRoles(hr, {
       departmentId: String(hr.body.departmentId || ""),
-      names: Array.isArray(hr.body.names) ? hr.body.names.map((n) => String(n)) : [],
+      names: Array.isArray(hr.body.names) ? hr.body.names.map((n: unknown) => String(n)) : [],
     });
     if (refused(added)) return added;
     return { status: 201, body: { ok: true, ...added } };
