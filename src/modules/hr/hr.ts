@@ -7,9 +7,15 @@
 // TWO LISTS HR USED TO OWN ARE GONE, and both for the same reason: they were a
 // second copy of something the studio already said.
 //
-//   departments — the studio's top-level SECTIONS are its departments. See
-//                 lib/departments.js. Nothing to create, nothing to delete,
-//                 and no way for the org chart to disagree with the nav.
+//   departments — MOVED, not deleted, and this line has now been true in three
+//                 different ways. HR owned a departments collection; it was
+//                 replaced by "a department IS a top-level section", which made
+//                 every studio's org chart the product's fifteen nav entries
+//                 plus Tasks — a shape no company has. The register is stored
+//                 again, under Master data, because an org unit and a product
+//                 surface are different things and re-parenting one is an
+//                 access act. HR reads it and places people in it; see
+//                 modules/administration/departments.ts.
 //   positions   — a position was a job title with a description, sitting
 //                 beside the ROLES that decide what a job may actually do.
 //                 Two lists naming the same thing, one of which was load-
@@ -34,7 +40,8 @@ import { moduleContext } from "../context";
 
 import { listCollaborators, getCollaborator, updateCollaborator } from "@/platform/auth/collaborators";
 import { listRoles, createRole, updateRole, deleteRole, ADMIN_ROLE_ID } from "@/modules/people/roles";
-import { departmentsFromSections } from "@/lib/departments";
+import { listDepartmentsIn } from "@/modules/administration/departments";
+import { subtreeIds } from "@/shared/departments/tree";
 import { getProfilesByIds } from "@/platform/auth/users";
 import { notifyCollaborators, NOTIFY } from "@/platform/notify/notifications";
 import { encryptField, decryptField } from "@/platform/auth/fieldCrypto";
@@ -68,9 +75,14 @@ const day = (v: unknown) => /^\d{4}-\d{2}-\d{2}$/.test(String(v ?? "").trim()) ?
 // which is what keeps a query from ever naming another tenant's keys.
 export const hrContext = moduleContext<HrContext>({
   root: "hr",
-  // Employees owns the reference lists (departments/certifications); vacations
-  // stay on the parent as studio-wide HR settings.
+  // Employees owns the reference lists (certifications); vacations stay on the
+  // parent as studio-wide HR settings.
   sub: { employees: "hr-employees" },
+  // THE ORG CHART IS MASTER DATA'S, and HR reads it. Foreign, so it is null on
+  // a studio that somehow has no Master data section — which reads as "no
+  // departments" rather than a 500, the same way a studio with no Field
+  // Operations has nothing that could point at a location.
+  foreign: { master: "administration-master" },
   flags: ["employees"],
   extend: ({ access }) => ({
     // Handing somebody a role is an ACCESS act, not an HR one, so it is gated on
@@ -80,12 +92,17 @@ export const hrContext = moduleContext<HrContext>({
 });
 
 // ---- departments -----------------------------------------------------------
-// DERIVED, NOT STORED. There is no departments collection any more and no CRUD
-// to reach it — the studio's top-level sections are its departments, so this is
-// a projection of the section list the context already carries. See
-// lib/departments.js for why.
-export function listDepartments({ sections }: { sections: Section[] }) {
-  return departmentsFromSections(sections);
+// STORED, AND NOT HR'S. The studio's org chart lives under Master data — see
+// modules/administration/departments.ts for why an org unit and a section are
+// different things, and why re-parenting one is an access act that must not sit
+// behind an HR right.
+//
+// HR READS IT AND PLACES PEOPLE IN IT. That split is the whole of this module's
+// relationship with departments: the picker below is fed from here, and
+// `updateEmployee` validates a chosen id against it, but nothing in HR creates,
+// renames or re-parents a department.
+export async function listDepartments(ctx: Pick<HrContext, "studio" | "masterSection">) {
+  return listDepartmentsIn(ctx.studio, ctx.masterSection);
 }
 
 // ---- roles -------------------------------------------------------------------
@@ -275,11 +292,11 @@ export async function removeCertification(ctx: HrContext, id: string) {
 // screen never has to branch on permission to render a row.
 export async function listEmployees(ctx: HrContext, meId = "") {
   const { studio } = ctx;
-  const [people, roles] = await Promise.all([
+  const [people, roles, departments] = await Promise.all([
     listCollaborators(studio.id),
     listRoles(studio.id),
+    listDepartments(ctx),
   ]);
-  const departments = listDepartments(ctx);
 
   // TWO SEPARATE QUESTIONS, and they used to be one boolean.
   //
@@ -290,9 +307,18 @@ export async function listEmployees(ctx: HrContext, meId = "") {
   const scope = scopeFor(ctx, "hr.employees");
   const reveal = can(ctx.access, "hr.employees.salary");
   const me = people.find((c) => c.id === meId);
+  // MY DEPARTMENT AND THE ONES UNDER IT.
+  //
+  // This was `c.departmentId === me.departmentId` — the same string — which on
+  // the derived model meant "the same SECTION" and could not express a manager
+  // with teams beneath them at all. An Operations Manager over three sites saw
+  // none of the three. `subtreeIds` is the pure walk that answers it, shared
+  // with the screen that draws the same tree so the two cannot disagree about
+  // anybody's reach.
+  const mine = scope === "department" ? subtreeIds(departments, String(me?.departmentId || "")) : null;
   const inScope = (c: CollaboratorRef) => scope === "all"
     || c.id === meId
-    || (scope === "department" && Boolean(me?.departmentId) && c.departmentId === me?.departmentId);
+    || Boolean(mine && mine.has(String(c.departmentId || "")));
   const depName = Object.fromEntries(departments.map((d) => [d.id, d.name]));
   const roleName = Object.fromEntries(roles.map((r) => [r.id, r.name || ""]));
 
@@ -357,11 +383,13 @@ export async function saveEmployment(ctx: HrContext, collaboratorId: string, bod
 
   const patch: Record<string, unknown> = {};
 
-  // A DEPARTMENT IS A SECTION KEY now, so what it is checked against is the
-  // studio's own section list rather than a collection of HR's.
+  // PLACING SOMEBODY IS HR'S; the register is not. The id is checked against
+  // the studio's stored org chart, so a person cannot be filed under a
+  // department that was deleted between the screen loading and the save.
   if (body?.departmentId !== undefined) {
     const departmentId = str(body.departmentId, 60);
-    if (departmentId && !listDepartments(ctx).some((d) => d.id === departmentId)) return { error: "department" };
+    const departments = await listDepartments(ctx);
+    if (departmentId && !departments.some((d) => d.id === departmentId)) return { error: "department" };
     patch.departmentId = departmentId;
   }
 
@@ -428,9 +456,15 @@ export function expiringDocuments(employees: Record<string, unknown>[], today = 
 // ---- leave -----------------------------------------------------------------
 export async function listVacations(ctx: HrContext, { meId }: { meId?: string }) {
   const { studio, section } = ctx;
-  const [rows, people] = await Promise.all([
+  const [rows, people, departments] = await Promise.all([
     Vacations.find({ studio, section }),
     listCollaborators(studio.id),
+    // READ EVEN WHEN THE SCOPE IS `own` OR `all`, because scopeFor has not been
+    // asked yet and asking it first would mean two code paths through this
+    // function for one list. The register is a handful of rows on a section the
+    // context already resolved; branching to save that read is the kind of
+    // cleverness that leaves the department arm untested.
+    listDepartments(ctx),
   ]);
   const aliasById = Object.fromEntries(people.map((c) => [c.id, c.alias || "Unnamed"]));
 
@@ -441,10 +475,14 @@ export async function listVacations(ctx: HrContext, { meId }: { meId?: string })
   const scope = scopeFor(ctx, "hr.vacations");
   const me = people.find((c) => c.id === meId);
   const mine = (v: Vacation) => v.collaboratorId === meId;
+  // The same subtree the employee list is scoped by — a lead who may see their
+  // department's records and its sub-teams' must see the same people's leave,
+  // or the two screens disagree about who reports to them.
+  const underMe = subtreeIds(departments, String(me?.departmentId || ""));
   const sameDepartment = (v: Vacation) => {
     if (!me?.departmentId) return false;
     const owner = people.find((c) => c.id === v.collaboratorId);
-    return owner?.departmentId === me.departmentId;
+    return underMe.has(String(owner?.departmentId || ""));
   };
   const inScope = scope === "all" ? () => true
     : scope === "department" ? (v: Vacation) => mine(v) || sameDepartment(v)

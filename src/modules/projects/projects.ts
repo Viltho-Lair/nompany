@@ -31,7 +31,7 @@ import { notifyCollaborators, NOTIFY } from "@/platform/notify/notifications";
 import { DEFAULT_SUPPORT_DAYS, hoursBetween } from "./projectSchedule";
 import { nextReference } from "@/modules/main/references";
 import { ticketFacts } from "@/modules/technical/technical";
-import { departmentsFromSections } from "@/lib/departments";
+import { departmentsAsStored } from "@/modules/administration/departments";
 // Whether a quotation is approved is answered by its APPROVAL, not by a copy of
 // one — see the note on quotationApproved.
 import { quotationApproved } from "@/modules/tasks/taskRouting";
@@ -76,9 +76,10 @@ const Clients = repo<Client>(CLIENTS);
 const Sheets = repo(SHEETS);
 const Slas = repo<Sla>(SLAS);
 const Tasks = repo<Task>(TASKS);
-// A department is a top-level SECTION, so the overtime picker's filter is
-// derived from the studio's own structure rather than read out of HR — see
-// lib/departments.js.
+// The overtime picker's department filter is the studio's own org chart, read
+// from Master data through a foreign section — never seeded from here, because
+// a list route must not write one as a side effect of being read. See
+// modules/administration/departments.ts.
 const str = (v: unknown, max = 300) => String(v ?? "").trim().slice(0, max);
 const nonNeg = (v: unknown, fallback = 0) => { const n = Number(v); return Number.isFinite(n) && n >= 0 ? n : fallback; };
 
@@ -92,6 +93,10 @@ export const projectsContext = moduleContext<ProjectsContext>({
     projectsList: "projects-list",
   },
   foreign: {
+    // The org chart, to name the department an overtime entry's person sits in.
+    // Read-only: Projects stamps a department onto an assignment and never
+    // creates one.
+    master: "administration-master",
     technical: "engineering-docs",
     quotations: ["crm-sales-quotations", "crm-sales"],
     salesTickets: ["crm-sales-tickets", "crm-sales"],
@@ -1034,12 +1039,16 @@ export async function listOvertimes({ studio, overtimesSection }: Pick<ProjectsC
 // Who overtime can be logged against, and the departments the picker filters by.
 // People are COLLABORATORS — the studio-local identity every other module
 // assigns work to — carrying whatever department HR has put them in.
-export async function overtimeDirectory({ studio, sections }: Pick<ProjectsContext, "studio" | "sections">) {
-  const people = await listCollaborators(studio.id);
-  // NOT HR'S COLLECTION ANY MORE. A department is a top-level section, so the
-  // filter is derived from the studio's own structure — which also means
-  // Projects no longer needs the HR section to exist before it can name one.
-  const departments = departmentsFromSections(sections);
+export async function overtimeDirectory(
+  { studio, masterSection }: Pick<ProjectsContext, "studio" | "masterSection">,
+) {
+  // MASTER DATA'S REGISTER, read and never seeded. Projects names a person's
+  // department; it is not a place anybody manages the org chart, so a list
+  // route here must not write one as a side effect of being read.
+  const [people, departments] = await Promise.all([
+    listCollaborators(studio.id),
+    departmentsAsStored(studio, masterSection),
+  ]);
   const depName = Object.fromEntries(departments.map((d) => [d.id, d.name]));
   return {
     people: people

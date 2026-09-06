@@ -127,7 +127,7 @@ Every operational collection. Each row carries `{ id, studioId, sectionId, … }
 | `tasks` | `tasks` |
 | `quality-documents` | `qualityDocuments`, `qualityTypes`, `qualityRevisions`, `qualityAudit`, `qualityAcknowledgements`, `qualityShareLinks` **⊘** |
 
-The **employee record is the collaborator row** — there is no `employees` collection. People arrive by joining and leave by being removed; HR only fills employment fields on the row that already exists. Likewise `departments` and `positions` are gone: a department *is* a top-level section (`lib/departments.js` projects them), and a position *is* a role.
+The **employee record is the collaborator row** — there is no `employees` collection. People arrive by joining and leave by being removed; HR only fills employment fields on the row that already exists. `positions` is gone for good: a position *was* a second name for a role, and roles are what somebody is. `departments` came back — as a stored register under **Master data** (`modules/administration/departments.ts`), not as HR's. It was briefly derived from the section list, which made every studio's org chart the product's fifteen nav entries plus Tasks; a section is a product surface and an access boundary, a department is an org unit, and the identity could express none of the shapes a real company has. HR reads the register and places people in it; `parentId` is what the `department` access scope resolves against.
 
 ### 4.5 Indexes and claims — `ix:*`
 `ix:email:<email>` → UserID · `ix:slug:<slug>` → StudioID · `ix:session:<token>` → UserID (`EX` = real expiry) · `ix:collab:<UserID>` → **set** of StudioIDs · `ix:stoken:<token>` **⊘ dead** · `ix:qshare:<token>` **⊘ dead**.
