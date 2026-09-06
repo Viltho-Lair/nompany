@@ -129,7 +129,22 @@ export async function testNoAreaExistsForASectionWithNoScreen(t) {
   //
   // administration-master is skipped: it is the one CHILD in the list, and a
   // child's rights are its parent's business, not its own.
-  const empty = NO_SCREEN_YET.filter((key) => !key.includes("-"));
+  //
+  // WHICH ONES ARE CHILDREN IS READ FROM SECTION_DEFS, never guessed from
+  // punctuation. This filtered `!key.includes("-")` and therefore skipped
+  // `quality-hse` — a real top-level section with no screen, which is exactly
+  // what this assertion exists to check. It was testing three of four and
+  // saying nothing. `crm-sales`, `engineering-docs` and `field-service` are
+  // hyphenated top-level sections too, so any of them entering the list would
+  // have gone unchecked the same way.
+  //
+  // The identical heuristic bit `assignableSectionKeys` in
+  // modules/administration/departments.ts, where it silently dropped those
+  // three from the org chart's picker. A dash means nothing about depth.
+  const children = new Set(
+    SECTION_DEFS.flatMap((d) => (d.children || []).map((c) => c.key)),
+  );
+  const empty = NO_SCREEN_YET.filter((key) => !children.has(key));
   t.equal(empty.length > 0, true, "there is still at least one screenless section to check");
   for (const key of empty) {
     const found = AREAS.filter((a) => a.key.startsWith(`${key}.`));
