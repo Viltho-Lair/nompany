@@ -132,6 +132,30 @@ export async function createRole(studioId: string, body: Record<string, unknown>
   return row;
 }
 
+/**
+ * Append MANY roles in ONE write.
+ *
+ * Not `createRole` in a loop, and the difference is not a micro-optimisation:
+ * looping is one compare-and-set per row, so seeding a department's ten roles
+ * is ten contended rounds on one key while every other writer to that studio's
+ * roles waits. This is one round whatever the length — the same reasoning
+ * `createMany` states for collection rows.
+ *
+ * ONE ANNOUNCEMENT, not one per role. `announce` re-resolves every open
+ * connection's permissions, so firing it ten times for one seed would do the
+ * expensive thing nine times for nothing.
+ */
+export async function createRoles(studioId: string, bodies: readonly Record<string, unknown>[]) {
+  if (!bodies.length) return [];
+  const now = new Date().toISOString();
+  const batch = bodies.map((body) => ({
+    id: ID.role(), studioId, ...cleanRole(body), createdAt: now,
+  }));
+  await editArr(S.roles(studioId), (rows) => ({ next: [...rows, ...batch] }));
+  await announce(studioId);
+  return batch;
+}
+
 export async function updateRole(studioId: string, id: string, body: Record<string, unknown>) {
   // The wildcard's permission list is meaningless and its name is load-bearing,
   // so Admin takes a description and nothing else.

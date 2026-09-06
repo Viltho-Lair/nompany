@@ -92,7 +92,7 @@ import { inventoryContext, createItem, editItem, createVendor, createOrder, edit
 import {
   hrContext, requestVacation, decideVacation,
   listDepartments, listHrRoles, createHrRole, editHrRole, removeHrRole,
-  listEmployees, saveEmployment,
+  listEmployees, saveEmployment, addLibraryRoles, libraryRolesFor,
 } from "@/modules/hr/hr";
 import { masterContext } from "@/modules/administration/master";
 import {
@@ -3283,6 +3283,66 @@ console.log("\n== HR: departments are Master data's, positions are roles");
 }
 
 // ============================================================================
+console.log("\n== a library role arrives with access, copied");
+
+// THE COPY RULE, AND IT IS THE ONE THAT MATTERS MOST HERE. A library role is
+// given its archetype's permissions at the moment it is added. If it held a
+// REFERENCE instead, editing an archetype later — or shipping a corrected
+// one — would silently re-permission every role already created from it, in
+// every studio, with nobody having asked. A BOQ rate follows the same rule
+// for the same reason.
+{
+  const hr = await hrContext(owner, slug);
+  ok("owner can open HR", !hr.error, hr.error);
+
+  const depts = await listDepartments(hr);
+  const target = depts[0];
+
+  const offered = await libraryRolesFor(hr, { departmentId: target.id });
+  ok("the library offers roles for a department", (offered.results || []).length > 0,
+    JSON.stringify(offered.error || (offered.results || []).length));
+
+  const firstTwo = (offered.results || []).slice(0, 2).map((r) => r.name);
+  const added = await addLibraryRoles(hr, { departmentId: target.id, names: firstTwo });
+  ok("adding from the library creates them", added.added === firstTwo.length,
+    JSON.stringify(added.error || added.added));
+  ok("...inside the department they were added to",
+    (added.roles || []).every((r) => r.departmentId === target.id));
+  ok("...marked as library rows, not custom",
+    (added.roles || []).every((r) => r.source === "library"));
+  ok("...carrying access, unlike a role typed by hand",
+    (added.roles || []).every((r) => (r.permissions || []).length > 0),
+    JSON.stringify((added.roles || []).map((r) => (r.permissions || []).length)));
+
+  // Every permission it arrived with is a real catalogue key. An archetype
+  // naming a stale key would grant nothing and look like it had worked.
+  const cataloguedKeys = new Set(ALL_PERMISSIONS);
+  const strayGrants = (added.roles || []).flatMap((r) => (r.permissions || []))
+    .filter((k) => !cataloguedKeys.has(k));
+  ok("...and every key it carries is real", strayGrants.length === 0, strayGrants.join(", "));
+
+  // A MULTI-SELECT RE-SELECTING WHAT IS ALREADY THERE IS QUIET. The studio
+  // asked for that role to exist and it does; an error would be pedantry.
+  const twice = await addLibraryRoles(hr, { departmentId: target.id, names: firstTwo });
+  ok("adding the same roles again adds nothing", twice.added === 0, JSON.stringify(twice));
+
+  // A name the catalogue cannot place is SKIPPED rather than created empty,
+  // or a stale screen would produce a permissionless role that looks added.
+  const bogus = await addLibraryRoles(hr, { departmentId: target.id, names: ["Chief Wizard"] });
+  ok("a name the library does not hold is not invented", bogus.added === 0, JSON.stringify(bogus));
+
+  const nowhere = await addLibraryRoles(hr, { departmentId: "dep_not_real", names: firstTwo });
+  ok("...and roles cannot be added to a department that does not exist",
+    nowhere.error === "department", JSON.stringify(nowhere));
+
+  // The picker marks what is already held rather than hiding it — a search
+  // that silently drops your own roles reads as a search that cannot find
+  // them.
+  const after = await libraryRolesFor(hr, { departmentId: target.id });
+  ok("the picker marks what the department already holds",
+    (after.results || []).some((r) => r.held), JSON.stringify(after.results?.slice(0, 3)));
+}
+
 console.log("\n== the departments register refuses what would corrupt the chart");
 
 // EVERY REFUSAL HERE IS A REAL FAILURE MODE, not a validation exercise.
