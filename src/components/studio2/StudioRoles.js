@@ -88,7 +88,34 @@ export default function StudioRoles({ slug }) {
   // stopped being a second door onto it.
 
   if (!data) return <ScreenSkeleton loadingLabel={tr.loadingRoles} />;
-  const { roles = [], areas = [], canEdit } = data;
+  const { roles = [], areas = [], departments = [], canEdit } = data;
+
+  // GROUPED BY DEPARTMENT, the same shape the HR roles tab uses — so the two
+  // screens describe one org chart rather than two.
+  //
+  // GROUPING ONLY. Every permission key stays grantable inside every group: a
+  // department'''s sectionKeys decide where its work LIVES, not what its roles
+  // may reach. Constraining the grid by department would be a second mechanism
+  // deciding access, free to disagree with the roles that already decide it —
+  // which is the duplication this catalogue keeps deleting.
+  const byDepartment = new Map(departments.map((d) => [d.id, []]));
+  const studioWide = [];
+  const orphaned = [];
+  for (const role of roles) {
+    const id = String(role.departmentId || "");
+    if (!id) studioWide.push(role);
+    else if (byDepartment.has(id)) byDepartment.get(id).push(role);
+    else orphaned.push(role);
+  }
+  const groups = [
+    ...(studioWide.length ? [{ key: "studio", label: tr.rolesStudioWide, rows: studioWide }] : []),
+    ...departments
+      .map((d) => ({ key: d.id, label: d.name, rows: byDepartment.get(d.id) || [] }))
+      .filter((g) => g.rows.length > 0),
+    // A role whose department was deleted keeps its id. Hiding it would leave
+    // access granted to a row nobody can find, which is worse than untidy.
+    ...(orphaned.length ? [{ key: "orphaned", label: tr.rolesNotPlaced, rows: orphaned }] : []),
+  ];
 
   if (editing) {
     return (
@@ -132,8 +159,13 @@ export default function StudioRoles({ slug }) {
       {roles.length === 0 ? (
         <Empty title={tr.noRolesYet} body={tr.studiosStartAdminManager} />
       ) : (
-        <ul className="mt-4 divide-y divide-slate-100 dark:divide-white/5">
-          {roles.map((r) => (
+        groups.map((group) => (
+        <div key={group.key} className="mt-6">
+          <h3 className="font-display text-sm font-700 uppercase tracking-wide text-slate-500 dark:text-slate-400">
+            {group.label} <span className="font-500 text-slate-400">· {group.rows.length}</span>
+          </h3>
+        <ul className="mt-2 divide-y divide-slate-100 dark:divide-white/5">
+          {group.rows.map((r) => (
             <li key={r.id} className="flex flex-wrap items-center gap-3 py-3">
               <div className="min-w-0 flex-1">
                 <p className="font-600 text-slate-900 dark:text-white">
@@ -165,6 +197,8 @@ export default function StudioRoles({ slug }) {
             </li>
           ))}
         </ul>
+        </div>
+        ))
       )}
     </section>
   );
