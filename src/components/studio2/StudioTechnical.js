@@ -975,7 +975,26 @@ function NewQuotation({ people, sequences = [], defaultSequenceId, clients = [],
 
         <Field className="sm:col-span-2" label={tr.title} required value={f.title}
           onChange={(v) => set({ title: v })} />
+      </div>
 
+      {/* The same block the Sales ticket raises a client with — one component,
+          so a quotation captures the contact and the site exactly as a ticket
+          does rather than a poorer version of it. Positions are offered from
+          the contacts this client already has: Technical has no contact-position
+          vocabulary of its own, and inventing a second one to hold the same
+          words is how two lists drift. */}
+      <ClientBlock value={f} onChange={(patch) => set(patch)} client={matched}
+        positions={[...new Set((matched?.contacts || []).map((c) => c.position).filter(Boolean))]} />
+
+      {/* WHAT THE WORK IS AND WHO OWNS IT, kept BELOW the client block.
+          The form now reads in the order the record is built: who it is for
+          (sequence, client, title, then the contact and the site), and only
+          then what is being quoted and who is handling it. These six sat
+          between the title and the client block, which split the client's
+          details in two and put the read-only stamps in the middle of the
+          form rather than at the end of it. Same grid, so Description still
+          spans both columns and Handled by still lines up with the stamps. */}
+      <div className="mt-4 grid gap-4 sm:grid-cols-2">
         <Field label={tr.typeIndustry} required filled={!!f.industry}>
           <Combo value={f.industry} onChange={(v) => set({ industry: v })}
             options={industries} inputClassName={BARE_CONTROL} />
@@ -1005,15 +1024,6 @@ function NewQuotation({ people, sequences = [], defaultSequenceId, clients = [],
           <Field label={tr.created4} readOnly value={fmtDate(new Date().toISOString())} />
         </div>
       </div>
-
-      {/* The same block the Sales ticket raises a client with — one component,
-          so a quotation captures the contact and the site exactly as a ticket
-          does rather than a poorer version of it. Positions are offered from
-          the contacts this client already has: Technical has no contact-position
-          vocabulary of its own, and inventing a second one to hold the same
-          words is how two lists drift. */}
-      <ClientBlock value={f} onChange={(patch) => set(patch)} client={matched}
-        positions={[...new Set((matched?.contacts || []).map((c) => c.position).filter(Boolean))]} />
 
       <div className="mt-5 flex gap-3">
         <button className={btn} disabled={busy || !ready} onClick={save}>
