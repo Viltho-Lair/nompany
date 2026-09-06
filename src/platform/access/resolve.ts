@@ -142,8 +142,10 @@ export const SECTION_AREAS: Readonly<Record<string, readonly string[]>> = {
   // NOTHING, because the only thing that would have read it was the section
   // lookup that never ran. Wiring the areas is what turns it into a right.
   //
-  // NO ENTRY FOR "administration-master". It has no screen and no area, and
-  // stays in NO_SCREEN_YET below until the locations move gives it one.
+  // "administration-master" HAS AN ENTRY NOW. This comment said it had none —
+  // no screen, no area, still in NO_SCREEN_YET — and stayed above the entry
+  // that contradicted it. The screen shipped (Locations, and Departments beside
+  // it), so the area is real and the section left the list below.
   "administration-members": ["administration.members"],
   "administration-access": ["administration.access"],
   "administration-master": ["administration.master"],
@@ -346,9 +348,9 @@ const anyKey = (access: PermissionSet, sectionKey: string, suffixes: readonly st
 // What it cost was quieter: administration.settings.view was grantable and
 // enforced nothing, because the lookup that would have read it never ran. The
 // fold wired the areas, gated the screens on them and made the endpoint ask
-// for the same right the nav does. Only "administration-master" is left,
-// because it still has no screen — the locations screen that could fill it
-// moves in its own change.
+// for the same right the nav does. "administration-master" was the last one
+// left, and it left too when its screen shipped — Locations, with Departments
+// beside it. Nothing under Administration is a placeholder any more.
 export const NO_SCREEN_YET = [
   "manufacturing", "assets", "reports",
   // QUALITY & HSE JOINS THE PLACEHOLDERS, and it is the one that reads oddly,
