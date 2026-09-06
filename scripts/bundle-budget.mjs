@@ -173,6 +173,23 @@ const MAX_CHUNK_GZIP_KB = 250;
 // Refused: a dropdown that waits on a network request before it opens is a
 // dropdown that feels broken, and the whole point of the change was that these
 // controls were unusable.
+// MEASURED 1669 ON 06/09/2026 with departmental roles on top of the above, and
+// THE CEILING DID NOT MOVE: 1674 already had the room, so raising it would have
+// spent headroom the SelectMenu change had paid for. Five kilobytes of slack is
+// the gate doing its job, not a number to top up.
+//
+// Two screens grouped by department, a role-library PICKER that fetches twenty
+// matches at a time, and about thirty strings in two languages.
+//
+// WHAT DELIBERATELY DID NOT SHIP is the interesting half. The role library is
+// ~3,000 job titles and a few hundred kilobytes, and the eleven archetypes with
+// it; both are server-only, and Gate A asserts no client component imports
+// either. Had they crossed the wire this line would read 1900-odd and the build
+// would still be green under a ceiling nobody thought to question -- which is
+// why the assertion exists rather than the ceiling being trusted to notice.
+//
+// The largest chunk did not move (158 KB), which is the gate that matters: both
+// screens were already nextDynamic(), so no other route pays for them.
 const MAX_TOTAL_GZIP_KB = 1674;
 
 const DIR = ".next/static";
