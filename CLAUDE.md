@@ -507,6 +507,26 @@ back. Gate A holds the line.
 the login — `sandbox@nompany.test` at `localhost:3010/sandbox`. `npm run dev` has no
 prefix and therefore *is* production. Sweep with `npm run dev:sandbox:clean`.
 
+**That sweep covered one store of three until 06/09/2026, and reported it as all
+of them.** `delPrefix` reaches `documents` and `events` — everything with a key to
+namespace — and reaches neither `collection_rows` (keyed by a real `tenant_id`, which
+is exactly what the Postgres section above warns the prefix cannot protect) nor Vercel
+Blob (no key space at all). So every sandbox session since the cutover left its rows in
+the live shared table permanently while the script printed "swept": measured, a clean
+run reported 299 rows and left 38 behind. It now calls `sweepPgTenants` and
+`sweepBlobObjects` — the suites' own halves rather than a second copy — and **the order
+is load-bearing**: the tenant sweep runs FIRST, because `REG.studios` is the only thing
+naming which studios are the sandbox's and `delPrefix` deletes it. Same constraint
+`test:parity` carries, same trap. It refuses outright if `REG.studios` does not resolve
+under the prefix, which is what a too-late `NOMPANY_KEY_PREFIX` or a `NODE_ENV` of
+`production` would silently produce — the live registry, handed to a DELETE.
+
+**Stop the sandbox dev server before running `npm test`.** The local `cloud-sql-proxy`
+fails on connection bursts, and a dev server holding pool connections is one: a suite run
+alongside it died at connect entering the integration suite, and the identical tree
+passed everything with the server stopped. Also note `preview_stop` can leave the
+`next dev` child alive — check for one on 3010 before blaming the proxy.
+
 ---
 
 ## Current state
