@@ -3283,6 +3283,59 @@ console.log("\n== HR: departments are Master data's, positions are roles");
 }
 
 // ============================================================================
+console.log("\n== a department arrives with its trade's roles");
+
+// AN EMPTY DEPARTMENT IS THE BLANK-GRID PROBLEM ONE LEVEL DOWN. Faced with a
+// department containing no roles, a studio invents "Member" — which is the
+// generic vocabulary this whole change exists to replace.
+{
+  const hr = await hrContext(owner, slug);
+  const depts = await listDepartments(hr);
+  const allRoles = await listRoles(studio.id);
+
+  const seededSomewhere = depts.filter((d) =>
+    allRoles.some((r) => String(r.departmentId || "") === d.id));
+  ok("seeded departments arrive with roles", seededSomewhere.length > 0,
+    `${seededSomewhere.length} of ${depts.length} departments have roles`);
+
+  const sample = seededSomewhere[0];
+  // THE SEEDED ROWS ONLY. Counting everything in a department conflates the
+  // seed with whatever the studio has added since — and this suite adds its
+  // own, so the first version of these two assertions failed on roles it had
+  // created itself a few hundred lines earlier.
+  const seededIn = (id) => allRoles.filter((r) =>
+    String(r.departmentId || "") === id && r.source === "library");
+  const inSample = seededIn(sample.id);
+  ok("...no more than ten seeded each", depts.every((d) => seededIn(d.id).length <= 10),
+    JSON.stringify(depts.map((d) => seededIn(d.id).length)));
+  ok("...marked as library rows", inSample.every((r) => r.source === "library"),
+    JSON.stringify(inSample.map((r) => r.source)));
+  ok("...carrying access", inSample.some((r) => (r.permissions || []).length > 0));
+
+  // A SEEDED ROLE GRANTS NOTHING UNTIL SOMEBODY IS PUT IN IT. The chart
+  // contains powerful roles by design — a Managing Director holds nearly the
+  // whole catalogue — and that is safe precisely because existing is not the
+  // same as being held. Assignment is a deliberate act, and escalates() still
+  // refuses handing out what the actor does not hold themselves.
+  // `held` comes back on every row from listHrRoles, which is the same count
+  // the screen shows beside a role before offering to delete it.
+  const hrRows = await listHrRoles(hr);
+  const seededNames = new Set(allRoles.filter((r) => r.source === "library").map((r) => r.id));
+  const heldSeeded = hrRows.filter((r) => seededNames.has(r.id) && r.held > 0);
+  ok("nobody holds a seeded role until they are given one", heldSeeded.length === 0,
+    heldSeeded.map((r) => `${r.name}:${r.held}`).join(", "));
+
+  // TOPPING UP ADDS ONE DEPARTMENT'S ROLES, NOT THE WHOLE CHART'S AGAIN. The
+  // roles of departments the studio already had are the studio's, possibly
+  // edited, and re-seeding over them would undo that.
+  const master = await masterContext(owner, slug);
+  const before = (await listRoles(studio.id)).length;
+  const topUp = await addMissingStarters(master);
+  const afterTopUp = (await listRoles(studio.id)).length;
+  ok("topping up a complete chart adds no roles either",
+    topUp.added === 0 && afterTopUp === before, `${before} -> ${afterTopUp}`);
+}
+
 console.log("\n== a library role arrives with access, copied");
 
 // THE COPY RULE, AND IT IS THE ONE THAT MATTERS MOST HERE. A library role is

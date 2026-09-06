@@ -41,6 +41,8 @@ import { NO_SCREEN_YET } from "@/platform/access";
 import { listCollaborators } from "@/platform/auth/collaborators";
 import { departmentsForField, UNIVERSAL_DEPARTMENTS } from "@/shared/departments/starters";
 import { wouldCycle, depthOf, MAX_DEPARTMENT_DEPTH } from "@/shared/departments/tree";
+import { starterRolesFor, permissionsForLibraryRole } from "@/modules/people/roleLibrary";
+import { createRoles, listRoles } from "@/modules/people/roles";
 import type { Department, MasterContext } from "./types";
 import type { StudioRef } from "../context";
 import type { Section } from "@/platform/db/sections";
@@ -170,7 +172,50 @@ async function seedDepartments(
     createdAt: now,
   }));
 
-  return Departments.createMany(scope, rows);
+  const created = await Departments.createMany(scope, rows);
+
+  // A DEPARTMENT ARRIVES WITH THE ROLES ITS TRADE USUALLY HAS.
+  //
+  // Seeded here rather than lazily on the roles screen, for the same reason the
+  // register itself is seeded at studio creation: a list that fills only when
+  // somebody happens to open the right screen is a list whose contents depend
+  // on who visited first, and two Gate A goldens already recorded that once.
+  //
+  // ONLY FOR THE DEPARTMENTS JUST CREATED. A top-up that adds one department
+  // seeds one department's roles, not the whole chart's again — the roles of
+  // departments the studio already had are the studio's, possibly edited, and
+  // re-seeding over them would undo that.
+  //
+  // ONE WRITE PER DEPARTMENT rather than one per role: createRoles is a single
+  // compare-and-set, and it announces once instead of ten times.
+  // ADMIN FIRST, AND THIS ORDERING IS LOAD-BEARING.
+  //
+  // listRoles seeds the starter role ONLY INTO AN EMPTY LIST. Creating a
+  // department'''s roles here makes the list non-empty, so seeding departments
+  // before anybody had read the roles left a studio with a hundred library
+  // roles and NO ADMIN — and the symptom was not "Admin is missing": it was a
+  // repo scope error thrown from inside approveBill, because a fixture person
+  // given an undefined role id has no access, cannot open a module context, and
+  // the error object was passed on as if it were one.
+  //
+  // Reading the roles first is what makes the seed idempotent in both
+  // directions. It costs one read on a path that is already writing.
+  if (created.length) await listRoles(scope.studio.id);
+
+  for (const department of created) {
+    const entries = starterRolesFor(field, String(department.code || ""));
+    if (!entries.length) continue;
+    await createRoles(scope.studio.id, entries.map((e) => ({
+      name: e.name,
+      description: "",
+      departmentId: department.id,
+      source: "library",
+      permissions: permissionsForLibraryRole(e),
+      scopes: {},
+    })));
+  }
+
+  return created;
 }
 
 // ---- reading -----------------------------------------------------------------
