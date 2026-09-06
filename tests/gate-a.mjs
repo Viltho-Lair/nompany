@@ -585,6 +585,41 @@ console.log("== the architecture, asserted rather than remembered");
       .filter((f) => !f.path.startsWith("src/components/landing/"))
       .map((f) => f.path);
     ok("motion/react stays inside the landing", leaked.length === 0, leaked.join(", "));
+
+    // (d) THE ROLE LIBRARY NEVER REACHES A BROWSER.
+    //
+    // ~3,000 job titles, a few hundred kilobytes, against a 1634 KB total
+    // budget — for a list a picker needs twenty rows of. A client component
+    // importing it would fail nothing: the build would succeed, every test
+    // would pass, and the budget would quietly be a sixth smaller. That is
+    // exactly the shape of regression a ceiling catches only once it has
+    // already been paid for.
+    //
+    // COMMENTS ARE STRIPPED BEFORE MATCHING. An assertion that guards an
+    // identifier trips over the comment explaining why the identifier is
+    // banned — the note above says "roleLibrary" three times and would match
+    // itself. This one greps a path, so it would have been safe by luck
+    // rather than by design; it strips anyway, because the day somebody
+    // widens it to an identifier nobody will remember why it mattered.
+    const stripComments = (text) => text
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/^\s*\/\/.*$/gm, "");
+    const clientFiles = sources.filter((f) =>
+      /^src\/components\//.test(f.path) || /"use client"/.test(f.text));
+    const carriesLibrary = clientFiles
+      .filter((f) => /roleLibrary/.test(stripComments(f.text)))
+      .map((f) => f.path);
+    ok("the role library never reaches a client component",
+      carriesLibrary.length === 0, carriesLibrary.join(", "));
+
+    // And the archetypes with it: they are only ever read on the server, when
+    // a library role is added or a department is seeded. The screens show a
+    // role's permissions, never the shape that suggested them.
+    const carriesArchetypes = clientFiles
+      .filter((f) => /modules\/people\/archetypes/.test(stripComments(f.text)))
+      .map((f) => f.path);
+    ok("...and neither do the archetypes", carriesArchetypes.length === 0,
+      carriesArchetypes.join(", "));
     // ...and the scan can see it at all, or the line above passes on an empty set.
     const usesIt = sources.filter((f) => f.text.includes('"motion/react"')).length;
     ok("...and the scan is finding real imports of it", usesIt > 5, String(usesIt));
