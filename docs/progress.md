@@ -23,7 +23,7 @@ detail has been going; this file is the map.
 | | |
 |---|---|
 | **Done** | Waves 0–3, Gate A, the engagement storage model Phase 0–1b, **P0** (fifteen-section restructure), **P1 + the cutover** (production runs Postgres; Redis is gone), **P2's approval engine** (bills, then bids), and **P4a's first three sections** |
-| **In progress** | **P4a — Projects, deepened.** Five slices on `main`; the critical path is the one bullet left in WBS/Gantt |
+| **In progress** | **P4a.** Four sections done. The critical path turned out to be built already — what was missing was that a partial stored task white-screened the planner, so nobody could reach it |
 | **Blocked on nothing** | CI green on every push; goldens **242**, catalogue **153** keys, lint **142/0**, bundle **1637 KB gz against 1644** (largest chunk 158 KB against 250) |
 | **Next gate** | Gate B is 2 of 3 and sales sits at its 3-hop structural floor. Gate C (Wave 3) is done server-side; what is left is `checkJs` over the browser `.js` files and the `app/` restructure |
 
@@ -53,7 +53,7 @@ Every slice below is on `main` and green. Each names its own file in
 |---|---|---|
 | **CRM & Sales** | contracts register · pipeline board · customer 360 · pricing and customer rates · the dashboard | ✅ complete |
 | **Tendering & Estimating** | tender register · BOQ grid and rate library · tender pack and clarifications · bid review · handover to Projects | ✅ complete |
-| **Projects, deepened** | cost breakdown · purchase orders coded (committed and forecast) · earned value · variations · **billing milestones and retention** | 🟡 four of five bullets; the critical path remains |
+| **Projects, deepened** | cost breakdown · purchase orders coded (committed and forecast) · earned value · variations · billing milestones and retention · **the critical path** | ✅ complete |
 | **Administration & Settings** | a real gated section (03/09) · Master data with Locations and the departments register | ✅ complete |
 
 **Four sections still render nothing** and are hidden rather than shown empty:
@@ -62,7 +62,17 @@ Manufacturing, Assets, Reports, and Quality & HSE. They are listed in
 exercise is a bug (invariant 16). Tendering was the fifth until its register
 landed.
 
-**What the last slice added, as the shape of all of them:** a payment schedule
+**THE CRITICAL PATH WAS ALREADY BUILT, and this file said it "remains" — for about an hour,
+because I copied the claim out of `CLAUDE.md` while writing the very section that criticises
+this file for being stale.** Recorded rather than silently fixed: the failure mode is
+believing a document instead of the code, and I did it in the act of complaining about it.
+The engine has computed late finish, total float and `critical` since it was written, and
+four places render it. What was missing was that `savePlan` validates nothing inside a plan
+document, so a task like `{ id: "t1" }` — which the API accepts — threw
+`t.dependencies is not iterable` and took the whole planner with it. `normalizeTask` at the
+store boundary fixes it, and `tests/planner-schedule.mjs` is the engine's first coverage.
+
+**What the billing slice added, as the shape of all of them:** a payment schedule
 and retention on a project (`projects.billing`, catalogue 149 → 153), the pure
 `modules/projects/billing.ts` shared with the screen, `milestoneId` on
 `InvoiceSchema`, nine goldens, and `docs/functionality/billing-milestones.md`

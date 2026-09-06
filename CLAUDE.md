@@ -811,7 +811,36 @@ undeclared rather than declared but unwritten.
 
 **P4a's THIRD section is open: Projects, deepened** — and its first bullet, WBS/Gantt with
 dependencies, was already built: the planner has `parentId`, `predecessorId`, durations,
-milestones and a progress rollup. Only the critical path is missing from it. **Slice 1 is the
+milestones and a progress rollup.
+
+**THE CRITICAL PATH WAS ALSO ALREADY BUILT, and this file said otherwise for a fortnight.**
+The line here read "only the critical path is missing from it"; the engine has computed a
+full backward pass — late finish, total float, `critical` per row — since it was written,
+and four places render it (red bars, thickened dependency links, a rose WBS number, an
+Inspector badge) behind a translated toolbar toggle. Nothing was missing. Corrected rather
+than quietly deleted, because this is the third stale claim in this file found by checking
+it against the code, and the pattern is worth seeing.
+
+**WHAT WAS ACTUALLY WRONG IS THAT NOBODY COULD REACH IT ON A REAL PLAN.** `savePlan` writes
+the plan document WHOLE — an object, that exists, under a byte cap, and nothing inside it is
+validated — so `tasks` is whatever was PUT and the `Task[]` handed to the engine is an
+assertion rather than a guarantee. A document holding `[{ id: "t1" }]` is accepted by the API
+today, and it white-screened the entire planner: `t.dependencies is not iterable`, thrown on
+the engine's first loop, before one row rendered. `tsc` believes the assertion and **no test
+imported the engine at all**, so the only thing that could find it was opening the screen.
+
+`normalizeTask` now runs at the store's boundary, inside `normalizeOrder`, which is the one
+door every task passes through — hydrate, mutation, import and template alike. It fills the
+contract and **guesses nothing**: the row that broke this stored `title` and no `name`, and
+filling one from the other would be a migration nobody asked for and nobody could see
+happening. An empty name is the truth about that row. The server half already read these
+tasks defensively (`planProgress` coerces every field it touches, so the projects list cannot
+fall over on one bad plan); this is the client half of the same posture.
+
+`tests/planner-schedule.mjs` is the engine's FIRST coverage: the shape that crashed it, and
+the CPM arithmetic that was written and never asserted — the longest path critical, the slack
+branch not, float measured separately from the flag, a summary row excluded, and cycles and
+dangling predecessors reported rather than thrown. **Slice 1 is the
 cost breakdown** (`docs/functionality/cost-codes.md`), catalogue 145 → 149 (`projects.costs`).
 
 **A project had exactly ONE number** — `value`, what the studio will be paid — and nothing said

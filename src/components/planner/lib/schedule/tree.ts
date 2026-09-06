@@ -81,8 +81,82 @@ export function ancestorsOf(id: string, index: TreeIndex): string[] {
  * Called after every structural mutation so that "the array order is the
  * visible order" stays an invariant the rest of the app can rely on.
  */
+/* ------------------------------------------------------------------ *
+ * A STORED TASK IS NOT A `Task`, whatever the type says.
+ *
+ * `savePlan` writes the plan document whole: it checks that the body is
+ * an object, that the plan exists and that it is under the byte cap, and
+ * validates nothing inside it. So `tasks` is whatever was PUT, and the
+ * `Task[]` the store hands the engine is an assertion rather than a
+ * guarantee. A document with `[{ id: 't1' }]` in it is accepted by the
+ * API today.
+ *
+ * That was not theoretical: it white-screened the whole planner with
+ * `t.dependencies is not iterable` on the engine's first loop, and it is
+ * invisible to every guard we have — `tsc` believes the assertion, and
+ * no suite renders the planner. Only opening it showed it.
+ *
+ * The server half already reads these tasks defensively: `planProgress`
+ * in modules/operations/planner coerces every field it touches, because
+ * the projects list must not fall over on one bad plan. This is the
+ * client half of the same posture, and it belongs beside the orphan
+ * reparenting below for the same reason — a broken row should render
+ * wrong, never take the screen with it.
+ *
+ * WHAT IT DOES NOT DO IS GUESS. A task with no `name` gets `''`, not a
+ * name invented from some other field: an empty title is the truth about
+ * that row, and a rename inferred from a neighbouring key would be a
+ * migration nobody asked for and nobody could see happening.
+ * ------------------------------------------------------------------ */
+const STATUSES = new Set([
+  'not_started', 'in_progress', 'on_track', 'at_risk', 'blocked', 'complete',
+]);
+const PRIORITIES = new Set(['low', 'medium', 'high', 'critical']);
+
+const str = (v: unknown, fallback = '') =>
+  (typeof v === 'string' ? v : fallback);
+const num = (v: unknown, fallback = 0) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : fallback;
+};
+
+export function normalizeTask(raw: unknown): Task {
+  const t = (raw ?? {}) as Partial<Task> & Record<string, unknown>;
+  // Dependencies are the field that actually crashed, and each ENTRY is
+  // trusted by the engine too — a dep with no `predecessorId` reads as a
+  // missing predecessor and is reported, which is already handled.
+  const deps = Array.isArray(t.dependencies) ? t.dependencies : [];
+  return {
+    ...t,
+    id: str(t.id),
+    parentId: typeof t.parentId === 'string' ? t.parentId : null,
+    name: str(t.name),
+    notes: str(t.notes),
+    assigneeIds: Array.isArray(t.assigneeIds) ? t.assigneeIds : [],
+    start: str(t.start),
+    end: str(t.end),
+    duration: num(t.duration),
+    durationUnit: t.durationUnit === 'hours' ? 'hours' : 'days',
+    dependencies: deps,
+    status: STATUSES.has(String(t.status)) ? t.status! : 'not_started',
+    // Clamped, because a stored number is a number somebody typed: the
+    // engine weights roll-ups by it and 400% would carry a parent past
+    // complete.
+    percentComplete: Math.min(100, Math.max(0, num(t.percentComplete))),
+    priority: PRIORITIES.has(String(t.priority)) ? t.priority! : 'medium',
+    scheduleMode: t.scheduleMode === 'manual' ? 'manual' : 'auto',
+    milestone: Boolean(t.milestone),
+    collapsed: Boolean(t.collapsed),
+    effortHours: num(t.effortHours),
+  };
+}
+
 export function normalizeOrder(tasks: Task[]): Task[] {
-  const index = buildTreeIndex(tasks);
+  // Normalised BEFORE the index is built: buildTreeIndex keys by `t.id`,
+  // so a row with no id would otherwise land under `undefined` and take
+  // any other id-less row with it.
+  const clean = (Array.isArray(tasks) ? tasks : []).map(normalizeTask);
+  const index = buildTreeIndex(clean);
   return index.order.map((id) => index.byId.get(id)!);
 }
 
