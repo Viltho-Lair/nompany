@@ -722,23 +722,37 @@ function Roles({ rows, departments, slug, canManage, canAssignRoles, busy, send 
 // cannot find it.
 function LibraryPicker({ slug, department, busy, tr, onClose, onAdd }) {
   const [q, setQ] = useState("");
-  const [results, setResults] = useState([]);
-  const [reason, setReason] = useState("");
   const [chosen, setChosen] = useState([]);
-  const [loading, setLoading] = useState(false);
+
+  // ONE STATE FOR THE ANSWER, TAGGED WITH THE QUESTION IT ANSWERS, so "still
+  // loading" is DERIVED rather than stored: it is the answer on hand not being
+  // the one for the query on screen. A separate `loading` flag set at the top
+  // of the effect renders twice before the fetch has even started, which is
+  // what react-hooks/set-state-in-effect flags — and the lint budget here only
+  // ever shrinks, so a new warning is a build failure rather than a note.
+  //
+  // Tagging also fixes a race the flag could not see: a slow response for an
+  // earlier query sets `view.key` to that earlier query, which does NOT match
+  // what is typed, so it reads as still-loading instead of being shown as the
+  // answer to a question nobody asked.
+  const [view, setView] = useState({ key: "", results: [], reason: "" });
+
+  const key = `${department.id}|${q}`;
+  const loading = view.key !== key;
+  const { results, reason } = view;
 
   useEffect(() => {
     let live = true;
-    setLoading(true);
     const url = `/api/studios/${slug}/hr/roles/library`
       + `?department=${encodeURIComponent(department.id)}&q=${encodeURIComponent(q)}`;
     fetch(url, { cache: "no-store" })
       .then((r) => r.json())
-      .then((out) => { if (live) { setResults(out.results || []); setReason(out.reason || ""); } })
-      .catch(() => { if (live) setResults([]); })
-      .finally(() => { if (live) setLoading(false); });
+      .then((out) => { if (live) setView({ key, results: out.results || [], reason: out.reason || "" }); })
+      // A FAILED FETCH STILL ANSWERS THE QUERY. Leaving the tag unset would
+      // leave `loading` true for ever, and the picker sitting on an ellipsis.
+      .catch(() => { if (live) setView({ key, results: [], reason: "" }); });
     return () => { live = false; };
-  }, [slug, department.id, q]);
+  }, [slug, department.id, q, key]);
 
   const toggle = (name) => setChosen((c) =>
     c.includes(name) ? c.filter((n) => n !== name) : [...c, name]);
