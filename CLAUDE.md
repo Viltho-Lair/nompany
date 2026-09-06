@@ -214,7 +214,7 @@ pull request, and four things `npm test` does not: `npm run lint:budget`,
   trips to 8 fails the build.
 - **The bundle budget pins the regression, not the size.** Two gates, and the
   first is the one that matters: the **largest chunk is 158 KB gz against a 250 KB
-  ceiling**, because that is what every route pays. Total client JS is **1667 KB gz
+  ceiling**, because that is what every route pays. Total client JS is **1669 KB gz
   against 1674 KB** (measured 06/09/2026), which catches sprawl rather than
   splitting. `scripts/bundle-budget.mjs` holds both numbers and explains why a
   whole-directory total would penalise code-splitting.
@@ -1152,6 +1152,58 @@ dashboard, not a list of group labels, and an area carries its own `group` strin
 declaring — it had thrown AFTER writing its earlier goldens, so **the run read as "0 failures"
 while having crashed**. Exit code and "gate A: all passed" are the signals; a FAIL count alone
 is not.
+
+**DEPARTMENTS ARE REAL RECORDS, AND A ROLE BELONGS TO ONE.** Live behaviour on every
+studio, and it adds NO permission key — the catalogue stays at 159.
+`docs/functionality/departments.md` and `roles.md` are the files.
+
+**The DEPARTMENT dropdown was listing the fifteen sections.** A section is what the product
+does; a department is how a company is arranged, and a contractor has no "Reports & BI"
+department. Departments are their own collection under Administration — Master data now,
+seeded per field of work, with a parent and a manager. **A department's `sectionKeys` grants
+NOTHING** — it decides where a role is listed and what it is for, never what it may reach.
+That line is held on both screens deliberately: constraining the permission grid by a
+department's sections would be a second mechanism deciding access, free to disagree with the
+roles that already decide it.
+
+**A studio no longer starts with five generic roles.** `STARTER_ROLES` is Admin alone. The
+five existed for a good reason that has not gone away — an empty permission grid is where
+over-granting begins, and faced with 159 unchecked boxes people tick everything. What changed
+is who answers it: a seeded department brings up to ten roles from its own trade, so a new
+studio meets Site Engineer under Site Execution rather than "Member".
+
+**Eleven archetypes, not 2,900 permission lists.** The library is ~3,000 job titles across the
+25 fields, generated from `docs/research/industry-roles.md`, **server-only** — a few hundred
+kilobytes for a list a picker needs twenty rows of, and Gate A asserts no client component
+imports it, because a client import would fail nothing and quietly spend a sixth of the
+budget. Each entry names one of eleven access shapes. Eleven rather than 2,900 because the
+catalogue has changed at least twelve times (102 — 159 keys) and each change would have
+staled 2,900 hand-written lists SILENTLY, surfacing only as somebody holding the wrong access.
+**A library role's permissions are COPIED on add** — the BOQ rate rule, for the BOQ rate's
+reason. **`principal` is not a wildcard**: the model allows exactly one and it is Admin, so
+principal is every area at full deliberately WITHOUT `administration.access`. Running the
+company and deciding who may do what are different acts.
+
+**Two bugs worth the space, both invisible to every gate.** `listRoles` seeds the starter role
+only into an EMPTY list, so creating a department's roles first left a studio with a hundred
+roles and no Admin at all — which surfaced as `cannot give yourself the Admin role: got 200`,
+nothing like an ordering problem. Admin is read before any library role is written now. And the
+picker, handed neither a field of work nor a department, had nothing to narrow by and offered
+Farm Operations Manager to a sales department; both the read AND the write refuse without both
+narrowings, or a stale screen could add what the picker would not offer.
+
+**THE ROLLOUT CONSEQUENCE:** existing studios still hold Manager, Team Lead, Member and
+Viewer. `scripts/migrate/departmental-roles.mjs` removes them — dry-run by default, by role
+id rather than name, and it **refuses a studio where anybody still holds one**, whole rather
+than partially: a studio left holding Manager alone is halfway between two role models. The
+exit is a person re-roling those people, because the only way a script could clear the refusal
+itself is by guessing which departmental role each person should hold, and that guess is
+somebody's access. **It has not been run against live, not even in the sandbox.** Four goldens
+were re-recorded for the department a role now carries.
+
+**The department on a library entry is ~95% accurate and REPORTED, not certified** —
+`node scripts/generate/role-library.mjs --report` prints the per-department spread and how many
+assignments fell back to a default rather than matching a rule.
 
 **Open decisions (waiting on a person):** the Wave 4 palette (marketing dark-first
 indigo/Sora vs the ERP's light-first blue/Saira); and whether to denormalise the slug index

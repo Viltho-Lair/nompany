@@ -150,7 +150,8 @@ export default function StudioHr({ slug, view = "hr" }) {
           onSave={(collaboratorId, patch) => send("employees", "PUT", { collaboratorId, patch })} />
       )}
       {tab === "roles" && (
-        <Roles rows={roles} slug={slug} canManage={canManage} canAssignRoles={data.canAssignRoles} busy={busy} send={send} />
+        <Roles rows={roles} departments={departments} slug={slug} canManage={canManage}
+          canAssignRoles={data.canAssignRoles} busy={busy} send={send} />
       )}
       {tab === "certifications" && (
         <Certifications rows={certifications} employees={employees} canManage={canManage} busy={busy} send={send} />
@@ -538,15 +539,59 @@ function EmployeeEditor({ person, departments, roles, certifications, canAssignR
 // is an HR fact. Access says what the job may do, because handing out
 // permissions is its own right and must not be reachable through an HR grant.
 // Each row here says which half has been done.
-function Roles({ rows, slug, canManage, canAssignRoles, busy, send }) {
+function Roles({ rows, departments, slug, canManage, canAssignRoles, busy, send }) {
   const tr = hrDict(useStudioLocale());
   const [form, setForm] = useState(null);
   const [confirming, setConfirming] = useState("");
+  const [picker, setPicker] = useState(null);
   const closeForm = useCallback(() => setForm(null), []);
+
+  // GROUPED BY DEPARTMENT, because that is what a role now belongs to. A flat
+  // list of a hundred job titles is the thing this change exists to end.
+  //
+  // THREE GROUPS, AND THE THIRD IS THE INTERESTING ONE. Studio-wide holds Admin.
+  // Each department holds its own. And "not in a department" holds anything left
+  // over — a role whose department was deleted keeps its id, and a row that
+  // appears in no group at all is a row nobody can see or fix.
+  const byDepartment = new Map((departments || []).map((d) => [d.id, []]));
+  const studioWide = [];
+  const orphaned = [];
+  for (const role of rows) {
+    const id = String(role.departmentId || "");
+    if (!id) studioWide.push(role);
+    else if (byDepartment.has(id)) byDepartment.get(id).push(role);
+    else orphaned.push(role);
+  }
+
+  const groups = [
+    { key: "studio", label: tr.rolesStudioWide, hint: tr.rolesStudioWideHint, rows: studioWide, departmentId: "" },
+    ...(departments || []).map((d) => ({
+      key: d.id, label: d.name, hint: "", rows: byDepartment.get(d.id) || [], departmentId: d.id,
+    })),
+    ...(orphaned.length
+      ? [{ key: "orphaned", label: tr.rolesNotPlaced, hint: "", rows: orphaned, departmentId: "" }]
+      : []),
+  ];
 
   return (
     <>
       <Toolbar canManage={canManage} label={tr.addRole} onAdd={() => setForm({ row: null })} />
+
+      {picker && (
+        <LibraryPicker
+          slug={slug}
+          department={picker}
+          busy={busy}
+          tr={tr}
+          onClose={() => setPicker(null)}
+          onAdd={async (names) => {
+            const ok = await send("roles", "POST", {
+              action: "add-library", departmentId: picker.id, names,
+            });
+            if (ok) setPicker(null);
+          }}
+        />
+      )}
 
       {form && (
         <Dialog title={form.row ? `Rename ${form.row.name}` : tr.newRole}
@@ -563,9 +608,30 @@ function Roles({ rows, slug, canManage, canAssignRoles, busy, send }) {
         </Dialog>
       )}
 
-      <section className={panel}>
+      {groups.map((group) => (
+      <section key={group.key} className={`${panel} mt-4`}>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h3 className="font-display text-base font-700 text-slate-900 dark:text-white">
+              {group.label} <span className="text-sm font-500 text-slate-400">· {group.rows.length}</span>
+            </h3>
+            {group.hint && <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">{group.hint}</p>}
+          </div>
+          {/* THE LIBRARY IS OFFERED PER DEPARTMENT, never studio-wide: a
+              pre-built role is defined by the department it belongs to, and
+              "add Site Engineer to nowhere" is not a thing the catalogue can
+              answer. */}
+          {canManage && group.departmentId && (
+            <button className={btnGhost} onClick={() => setPicker({ id: group.departmentId, name: group.label })}>
+              {tr.addFromLibrary}
+            </button>
+          )}
+        </div>
+        {group.rows.length === 0 ? (
+          <p className="py-2 text-sm text-slate-500 dark:text-slate-400">{tr.noRolesInDepartment}</p>
+        ) : (
         <ul className="divide-y divide-slate-100 dark:divide-white/5">
-          {rows.map((r) => (
+          {group.rows.map((r) => (
             <li key={r.id} className="flex flex-wrap items-center justify-between gap-3 py-4 first:pt-0 last:pb-0">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
@@ -575,6 +641,15 @@ function Roles({ rows, slug, canManage, canAssignRoles, busy, send }) {
                   {r.wildcard && (
                     <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-700 text-amber-700 dark:text-amber-300">
                       {tr.builtInEverything}
+                    </span>
+                  )}
+                  {/* Where the row came from. A pre-built role arrived with the
+                      access its archetype carries; a role typed here started
+                      empty, which is why only the second gets the amber
+                      "no access granted yet" note below. */}
+                  {r.source === "library" && (
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-600 text-slate-500 dark:bg-white/5 dark:text-slate-400">
+                      {tr.prebuiltRole}
                     </span>
                   )}
                   <span className="text-xs text-slate-400">
@@ -614,7 +689,12 @@ function Roles({ rows, slug, canManage, canAssignRoles, busy, send }) {
             </li>
           ))}
         </ul>
-        <p className="mt-4 border-t border-slate-100 pt-4 text-xs text-slate-500 dark:border-white/10 dark:text-slate-400">
+        )}
+      </section>
+      ))}
+
+      <section className={panel}>
+        <p className="text-xs text-slate-500 dark:text-slate-400">
           What each role is allowed to do is set on the access screen
           {/* Same defect as the Role panel above: this used to read the
               People screen's nav key off the nav map, which is never a nav
@@ -626,6 +706,96 @@ function Roles({ rows, slug, canManage, canAssignRoles, busy, send }) {
         </p>
       </section>
     </>
+  );
+}
+
+// ---- the role library picker -----------------------------------------------
+//
+// THE CATALOGUE NEVER CROSSES THE WIRE. It is ~3,000 job titles and a few
+// hundred kilobytes against a 1634 KB client budget; this asks the server for
+// twenty matches at a time and holds nothing else. Gate A asserts that no
+// client file imports the library itself, which is what stops somebody
+// 'simplifying' this into a static import.
+//
+// ALREADY-HELD TITLES ARE SHOWN AND DISABLED rather than filtered out. A
+// picker that silently drops what you already have reads as a search that
+// cannot find it.
+function LibraryPicker({ slug, department, busy, tr, onClose, onAdd }) {
+  const [q, setQ] = useState("");
+  const [chosen, setChosen] = useState([]);
+
+  // ONE STATE FOR THE ANSWER, TAGGED WITH THE QUESTION IT ANSWERS, so "still
+  // loading" is DERIVED rather than stored: it is the answer on hand not being
+  // the one for the query on screen. A separate `loading` flag set at the top
+  // of the effect renders twice before the fetch has even started, which is
+  // what react-hooks/set-state-in-effect flags — and the lint budget here only
+  // ever shrinks, so a new warning is a build failure rather than a note.
+  //
+  // Tagging also fixes a race the flag could not see: a slow response for an
+  // earlier query sets `view.key` to that earlier query, which does NOT match
+  // what is typed, so it reads as still-loading instead of being shown as the
+  // answer to a question nobody asked.
+  const [view, setView] = useState({ key: "", results: [], reason: "" });
+
+  const key = `${department.id}|${q}`;
+  const loading = view.key !== key;
+  const { results, reason } = view;
+
+  useEffect(() => {
+    let live = true;
+    const url = `/api/studios/${slug}/hr/roles/library`
+      + `?department=${encodeURIComponent(department.id)}&q=${encodeURIComponent(q)}`;
+    fetch(url, { cache: "no-store" })
+      .then((r) => r.json())
+      .then((out) => { if (live) setView({ key, results: out.results || [], reason: out.reason || "" }); })
+      // A FAILED FETCH STILL ANSWERS THE QUERY. Leaving the tag unset would
+      // leave `loading` true for ever, and the picker sitting on an ellipsis.
+      .catch(() => { if (live) setView({ key, results: [], reason: "" }); });
+    return () => { live = false; };
+  }, [slug, department.id, q, key]);
+
+  const toggle = (name) => setChosen((c) =>
+    c.includes(name) ? c.filter((n) => n !== name) : [...c, name]);
+
+  return (
+    <Dialog title={`${tr.addFromLibrary} — ${department.name}`}
+      description={tr.namingJobHrWhat} onClose={onClose} width="max-w-[560px]">
+      <Field label={tr.librarySearchPlaceholder} value={q} onChange={setQ} />
+
+      <div className="mt-3 max-h-[320px] overflow-y-auto rounded-xl border border-slate-200 dark:border-white/10">
+        {loading && results.length === 0 ? (
+          <p className="px-3 py-4 text-sm text-slate-500 dark:text-slate-400">…</p>
+        ) : results.length === 0 ? (
+          // WHICH NARROWING IS MISSING, rather than "no matches". An empty
+          // picker with no explanation reads as a broken search; the two
+          // reasons each name the screen that fixes them.
+          <p className="px-3 py-4 text-sm text-slate-500 dark:text-slate-400">
+            {reason === "no-industry" ? tr.libraryNeedsIndustry
+              : reason === "no-code" ? tr.libraryNeedsCode
+              : tr.noMatchingTitles}
+          </p>
+        ) : results.map((r) => (
+          <label key={r.name}
+            className={`flex items-center gap-2.5 px-3 py-2 text-sm ${r.held
+              ? "cursor-default text-slate-400"
+              : "cursor-pointer text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-white/5"}`}>
+            <input type="checkbox" className="h-4 w-4 shrink-0 accent-brand-600"
+              disabled={r.held} checked={r.held || chosen.includes(r.name)}
+              onChange={() => toggle(r.name)} />
+            <span className="min-w-0 flex-1 truncate">{r.name}</span>
+            {r.held && <span className="shrink-0 text-xs">{tr.alreadyAdded}</span>}
+          </label>
+        ))}
+      </div>
+
+      <div className="mt-4 flex justify-end gap-2">
+        <button className={btnGhost} onClick={onClose}>{tr.cancel}</button>
+        <button className={btn} disabled={busy || chosen.length === 0}
+          onClick={() => onAdd(chosen)}>
+          {tr.addSelected(chosen.length)}
+        </button>
+      </div>
+    </Dialog>
   );
 }
 

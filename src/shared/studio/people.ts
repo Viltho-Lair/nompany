@@ -66,6 +66,8 @@ type Strings = CommonStrings & {
   noRole: string;
   noRoleNoAccess: string;
   noRolesYet: string;
+  rolesStudioWide: string;
+  rolesNotPlaced: string;
   nothingMatchesRolesNamed: string;
   nothingYet: string;
   ownRecords: string;
@@ -165,6 +167,8 @@ const en: Strings = {
   noRole: "No role",
   noRoleNoAccess: "No role — no access",
   noRolesYet: "No roles yet",
+  rolesStudioWide: "Studio-wide",
+  rolesNotPlaced: "Not in a department",
   nothingMatchesRolesNamed: "Nothing matches. Roles are named in Human Resources.",
   nothingYet: "Nothing yet.",
   ownRecords: "Own records",
@@ -264,6 +268,8 @@ const ar: Strings = {
   noRole: "بلا دور",
   noRoleNoAccess: "بلا دور — بلا صلاحيات",
   noRolesYet: "لا توجد أدوار بعد",
+  rolesStudioWide: "على مستوى الاستوديو",
+  rolesNotPlaced: "غير تابع لقسم",
   nothingMatchesRolesNamed: "لا شيء يطابق. تُسمّى الأدوار في الموارد البشرية.",
   nothingYet: "لا شيء بعد.",
   ownRecords: "سجلاته الخاصة",

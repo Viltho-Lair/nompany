@@ -39,7 +39,8 @@ import { repo } from "@/platform/db/repo";
 import { moduleContext } from "../context";
 
 import { listCollaborators, getCollaborator, updateCollaborator } from "@/platform/auth/collaborators";
-import { listRoles, createRole, updateRole, deleteRole, ADMIN_ROLE_ID } from "@/modules/people/roles";
+import { listRoles, createRole, createRoles, updateRole, deleteRole, ADMIN_ROLE_ID } from "@/modules/people/roles";
+import { findLibraryRole, permissionsForLibraryRole, searchLibrary } from "@/modules/people/roleLibrary";
 import { listDepartmentsIn } from "@/modules/administration/departments";
 import { subtreeIds } from "@/shared/departments/tree";
 import { getProfilesByIds } from "@/platform/auth/users";
@@ -145,6 +146,13 @@ export async function listHrRoles(ctx: HrContext) {
       // What Access has said about it, carried so HR can show whether the job
       // has been given any access yet without a second call.
       permissionCount: r.wildcard ? null : (r.permissions || []).length,
+      // WHICH DEPARTMENT THIS JOB SITS IN, "" for studio-wide. The screen groups
+      // by it; it decides nothing about access.
+      departmentId: String(r.departmentId || ""),
+      // Whether it came out of the role library or was typed. The screen treats
+      // the two differently — a library role arrived with access, a custom one
+      // started empty — so it has to be able to tell them apart.
+      source: r.source === "library" ? "library" : "custom",
       held: held(r.id),
     }));
 }
@@ -157,15 +165,150 @@ export async function createHrRole(ctx: HrContext, body: Record<string, unknown>
   const name = str(body?.name, 60);
   if (!name) return { error: "name" };
 
+  // PLACED IN A DEPARTMENT, checked against the studio's own register. Blank is
+  // legal and means studio-wide, which is what Admin is; anything else must
+  // name a department that exists right now, so a role cannot be filed under
+  // one deleted between the screen loading and the save.
+  const departmentId = str(body?.departmentId, 60);
+  if (departmentId) {
+    const departments = await listDepartments(ctx);
+    if (!departments.some((d) => d.id === departmentId)) return { error: "department" };
+  }
+
   const roles = await listRoles(ctx.studio.id);
-  if (roles.some((r) => (r.name || "").toLowerCase() === name.toLowerCase())) return { error: "duplicate" };
+  // UNIQUE WITHIN THE DEPARTMENT, NOT THE STUDIO — and this is the line that
+  // had to change for departmental roles to mean anything. A studio-wide check
+  // refused the second "Manager", which is precisely the row the whole design
+  // exists to allow: a Manager in Finance and a Manager in Site Execution are
+  // two rows on purpose, because they must be able to hold different access.
+  //
+  // Two names still cannot collide INSIDE one department, because there the
+  // name is the only thing telling them apart.
+  const clash = roles.some((r) => String(r.departmentId || "") === departmentId
+    && (r.name || "").toLowerCase() === name.toLowerCase());
+  if (clash) return { error: "duplicate" };
 
   // NO PERMISSIONS AND NO SCOPES, whatever the payload says. cleanRole would
-  // keep them, and this route is not the one that may hand access out.
+  // keep them, and this route is not the one that may hand access out. A role
+  // typed by hand starts empty; only a library role arrives carrying access,
+  // and it arrives through addLibraryRoles rather than here.
   const role = await createRole(ctx.studio.id, {
     name, description: str(body?.description, 200), permissions: [], scopes: {},
+    departmentId, source: "custom",
   });
   return { role };
+}
+
+/**
+ * Add roles to a department from the library.
+ *
+ * THE PERMISSIONS ARE COPIED, NOT REFERENCED — the same rule a BOQ rate
+ * follows, and for the same reason: editing the library afterwards must
+ * reprice nothing already created. A role added today keeps what it was given
+ * today, and an administrator adjusting it afterwards is adjusting the studio's
+ * own row rather than the catalogue.
+ *
+ * THIS IS THE ONE HR DOOR THAT HANDS OUT ACCESS, and it is worth being explicit
+ * about why that is safe when `createHrRole` deliberately refuses to. A custom
+ * role is a name somebody typed, so granting anything through it would let HR
+ * write its own permissions. A library role's access is decided by the
+ * archetype the catalogue assigned, which nobody in the studio can edit — HR
+ * chooses WHICH pre-built job to add, not what it may do. An administrator
+ * still adjusts it afterwards on the access screen.
+ *
+ * ADDING THE SAME NAME TWICE IS A NO-OP RATHER THAN A REFUSAL. The screen
+ * offers a multi-select, and re-selecting something already there should be
+ * quiet rather than an error — the studio asked for that role to exist, and it
+ * does.
+ */
+export async function addLibraryRoles(
+  ctx: HrContext,
+  { departmentId, names }: { departmentId: string; names: string[] },
+) {
+  const denied = requirePermission(ctx.access, "hr.employees.create");
+  if (denied) return denied;
+
+  const departments = await listDepartments(ctx);
+  const department = departments.find((d) => d.id === departmentId);
+  if (!department) return { error: "department" };
+
+  // THE SAME TWO NARROWINGS THE PICKER REQUIRES. findLibraryRole would
+  // otherwise match a name from any trade, so a stale screen could add Farm
+  // Operations Manager to a sales department — the write must refuse on the
+  // same terms the read does, or the guard is decoration.
+  const industry = str(ctx.studio.fieldOfWork, 200);
+  const code = String(department.code || "");
+  if (!industry || !code) return { added: 0, roles: [], reason: !industry ? "no-industry" : "no-code" };
+
+  const existing = await listRoles(ctx.studio.id);
+  const held = new Set(existing
+    .filter((r) => String(r.departmentId || "") === departmentId)
+    .map((r) => (r.name || "").toLowerCase()));
+
+  const wanted: Record<string, unknown>[] = [];
+  for (const raw of Array.isArray(names) ? names : []) {
+    const name = str(raw, 60);
+    if (!name || held.has(name.toLowerCase())) continue;
+    // A NAME THE LIBRARY DOES NOT HOLD FOR THIS DEPARTMENT IS SKIPPED, not
+    // created empty. The screen only ever offers names it was served, so a name
+    // arriving here that the catalogue cannot place is a stale screen or a
+    // hand-made request — and inventing a permissionless role from it would
+    // look like the add worked.
+    const entry = findLibraryRole(name, industry, code);
+    if (!entry) continue;
+    held.add(name.toLowerCase());
+    wanted.push({
+      name: entry.name,
+      description: "",
+      departmentId,
+      source: "library",
+      permissions: permissionsForLibraryRole(entry),
+      scopes: {},
+    });
+  }
+
+  const added = await createRoles(ctx.studio.id, wanted);
+  return { added: added.length, roles: added };
+}
+
+/** What the library offers for one department, for the screen's picker. */
+export async function libraryRolesFor(
+  ctx: HrContext,
+  { departmentId, q = "" }: { departmentId: string; q?: string },
+) {
+  const denied = requirePermission(ctx.access, "hr.employees.create");
+  if (denied) return denied;
+
+  const departments = await listDepartments(ctx);
+  const department = departments.find((d) => d.id === departmentId);
+  if (!department) return { error: "department" };
+
+  // AN UNFILTERED CATALOGUE IS WORSE THAN AN EMPTY ONE, and this was visible
+  // the moment the picker was opened on a real screen. `searchLibrary` treats a
+  // blank industry or department as "no filter", so a studio with no field of
+  // work, opening a department the migration created without a code, was
+  // offered the first twenty rows of the whole library — Farm Operations
+  // Manager and Head of Agronomy, for a CRM & Sales department.
+  //
+  // Nothing failed. It would have quietly invited somebody to file a role in a
+  // department it has no business in, which is the one error the department
+  // mapping is held to 95% to avoid. So both narrowings are REQUIRED, and the
+  // screen is told which one is missing rather than shown a plausible list.
+  const industry = str(ctx.studio.fieldOfWork, 200);
+  const code = String(department.code || "");
+  if (!industry) return { results: [], reason: "no-industry" };
+  if (!code) return { results: [], reason: "no-code" };
+
+  const held = new Set((await listRoles(ctx.studio.id))
+    .filter((r) => String(r.departmentId || "") === departmentId)
+    .map((r) => (r.name || "").toLowerCase()));
+
+  // ALREADY-HELD ROLES ARE MARKED RATHER THAN HIDDEN. A picker that silently
+  // drops what you already have reads as a search that cannot find it.
+  return {
+    results: searchLibrary(q, { industry, department: code, limit: 20 })
+      .map((e) => ({ name: e.name, archetype: e.archetype, held: held.has(e.name.toLowerCase()) })),
+  };
 }
 
 export async function editHrRole(ctx: HrContext, id: string, body: Record<string, unknown>) {
@@ -183,7 +326,12 @@ export async function editHrRole(ctx: HrContext, id: string, body: Record<string
   if (body?.name !== undefined) {
     const name = str(body.name, 60);
     if (!name) return { error: "name" };
-    if (roles.some((r) => r.id !== id && (r.name || "").toLowerCase() === name.toLowerCase())) return { error: "duplicate" };
+    // Scoped to the role's OWN department, for the same reason the create
+    // check is — renaming a Finance role to "Manager" must not be refused
+    // because Site Execution already has one.
+    const home = String(current.departmentId || "");
+    if (roles.some((r) => r.id !== id && String(r.departmentId || "") === home
+      && (r.name || "").toLowerCase() === name.toLowerCase())) return { error: "duplicate" };
     patch.name = name;
   }
   if (body?.description !== undefined) patch.description = str(body.description, 200);

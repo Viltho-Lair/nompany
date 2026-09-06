@@ -1,5 +1,5 @@
 import { route, refused } from "@/platform/http/route";
-import { hrContext, createHrRole, editHrRole, removeHrRole } from "@/modules/hr/hr";
+import { hrContext, createHrRole, editHrRole, removeHrRole, addLibraryRoles } from "@/modules/hr/hr";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,6 +20,24 @@ const manageable = (hr: { canManage: boolean }) => (hr.canManage ? null : { erro
 export const POST = route(spec, async (hr) => {
   const refusal = manageable(hr);
   if (refusal) return refusal;
+
+  // ONE DOOR, TWO ACTS: naming a job from scratch, and taking pre-built ones
+  // from the catalogue. Both are hr.employees.create and both are refused for
+  // the same person, so a second route would be a second place to keep that in
+  // step — the same shape the departments route uses for add-standard.
+  //
+  // They differ in exactly one way and it is worth stating: a role typed here
+  // starts with NO permissions, because HR must not be able to write its own
+  // access; a library role arrives with the archetype the catalogue assigned,
+  // which nobody in the studio can edit.
+  if (hr.body.action === "add-library") {
+    const added = await addLibraryRoles(hr, {
+      departmentId: String(hr.body.departmentId || ""),
+      names: Array.isArray(hr.body.names) ? hr.body.names.map((n: unknown) => String(n)) : [],
+    });
+    if (refused(added)) return added;
+    return { status: 201, body: { ok: true, ...added } };
+  }
 
   const result = await createHrRole(hr, hr.body);
   if (refused(result)) return result;

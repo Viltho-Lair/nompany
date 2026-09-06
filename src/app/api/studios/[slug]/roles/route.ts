@@ -6,6 +6,7 @@ import { studioContext } from "@/lib/studios";
 import { requirePermission, escalates, AREAS } from "@/platform/access";
 import { listRoles, createRole, updateRole, deleteRole, cleanRole, ADMIN_ROLE_ID } from "@/modules/people/roles";
 import { studioLocale } from "@/shared/locale";
+import { departmentsAsStored } from "@/modules/administration/departments";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -43,6 +44,22 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
     // its verbs without a second call, and can never offer a key the server
     // would refuse.
     areas: AREAS,
+    // THE ORG CHART TRAVELS TOO, because the editor groups roles by it now.
+    //
+    // Served from here rather than fetched separately: the departments route
+    // answers to administration.master, and somebody granted the ACCESS screen
+    // and nothing else would be refused it — so the grouping would silently
+    // collapse for exactly the person the screen is for. Reading it on the same
+    // terms as the roles is consistent with what this route already says: a
+    // department name is no more sensitive than a role name, and the People
+    // screen shows both already.
+    //
+    // NEVER SEEDS. departmentsAsStored is the non-writing reader; a list route
+    // must not create an org chart as a side effect of being read.
+    departments: await departmentsAsStored(
+      g.context.studio,
+      g.context.sections.find((s) => s.key === "administration-master") || null,
+    ),
     canEdit: !requirePermission(g.context.access, "administration.members.edit"),
   });
 }

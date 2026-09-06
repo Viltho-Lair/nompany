@@ -17,6 +17,18 @@ type Strings = CommonStrings & {
   accessHumanResourcesStudio: string;
   addCertification: string;
   addRole: string;
+  addFromLibrary: string;
+  libraryNeedsIndustry: string;
+  libraryNeedsCode: string;
+  addSelected: (n: number) => string;
+  alreadyAdded: string;
+  librarySearchPlaceholder: string;
+  noMatchingTitles: string;
+  noRolesInDepartment: string;
+  rolesStudioWide: string;
+  rolesStudioWideHint: string;
+  rolesNotPlaced: string;
+  prebuiltRole: string;
   adminComesStudioCan: string;
   approve: string;
   approvedNotYetStarted: string;
@@ -133,6 +145,18 @@ const en: Strings = {
   accessHumanResourcesStudio: "You don't have access to Human Resources in this studio.",
   addCertification: "Add certification",
   addRole: "Add role",
+  addFromLibrary: "Add pre-built roles",
+  libraryNeedsIndustry: "Set the studio's field of work in Studio settings, and the catalogue will know which roles this trade uses.",
+  libraryNeedsCode: "Give this department a code in Master data, and the catalogue will know which roles belong to it.",
+  addSelected: (n) => `Add ${n} ${n === 1 ? "role" : "roles"}`,
+  alreadyAdded: "Already added",
+  librarySearchPlaceholder: "Search job titles…",
+  noMatchingTitles: "No job titles match",
+  noRolesInDepartment: "No roles here yet",
+  rolesStudioWide: "Studio-wide",
+  rolesStudioWideHint: "Roles that belong to the studio rather than to one department.",
+  rolesNotPlaced: "Not in a department",
+  prebuiltRole: "Pre-built",
   adminComesStudioCan: "Admin comes with the studio — it can't be renamed or deleted.",
   approve: "Approve",
   approvedNotYetStarted: "Approved and not yet started",
@@ -249,6 +273,18 @@ const ar: Strings = {
   accessHumanResourcesStudio: "لا تملك صلاحية الوصول إلى الموارد البشرية في هذا الاستوديو.",
   addCertification: "إضافة شهادة",
   addRole: "إضافة دور",
+  addFromLibrary: "إضافة أدوار جاهزة",
+  libraryNeedsIndustry: "حدّد مجال عمل الاستوديو في إعدادات الاستوديو، ليعرف الدليل الأدوار المستخدمة في هذا المجال.",
+  libraryNeedsCode: "امنح هذا القسم رمزاً في البيانات الأساسية، ليعرف الدليل الأدوار التابعة له.",
+  addSelected: (n) => `إضافة ${n} ${n === 1 ? "دور" : "أدوار"}`,
+  alreadyAdded: "مضاف بالفعل",
+  librarySearchPlaceholder: "ابحث في المسميات الوظيفية…",
+  noMatchingTitles: "لا توجد مسميات مطابقة",
+  noRolesInDepartment: "لا توجد أدوار هنا بعد",
+  rolesStudioWide: "على مستوى الاستوديو",
+  rolesStudioWideHint: "أدوار تخص الاستوديو ككل وليست تابعة لقسم بعينه.",
+  rolesNotPlaced: "غير تابع لقسم",
+  prebuiltRole: "جاهز",
   adminComesStudioCan: "دور المسؤول يأتي مع الاستوديو — لا يمكن إعادة تسميته أو حذفه.",
   approve: "اعتماد",
   approvedNotYetStarted: "معتمدة ولم تبدأ بعد",

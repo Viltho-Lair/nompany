@@ -844,6 +844,33 @@ export async function testCompoundRootsCoversEveryDashedRoot(t) {
   }
 }
 
+// A TEST FILE NOTHING RUNS IS NOT A TEST, and this repo has paid for that twice.
+// tests/restructure.mjs — this file — was orphaned for weeks while CLAUDE.md
+// credited it with enforcing six architectural assertions; one of them sat RED
+// the whole time. Then tests/roles-model.mjs shipped with nine passing
+// assertions that nothing invoked and nothing imported.
+//
+// Both failures look identical from outside: a green suite, a file full of
+// assertions, and no connection between them. Nobody notices, because the
+// evidence of the bug is an ABSENCE — a test name that never appears in the
+// output — and nobody reads a passing log for names that are missing.
+//
+// The rule is the naming convention, so it needs no list to maintain:
+// "*-model.mjs" is what this repo calls a pure model test, and every one of
+// them must appear in the `test` script. A helper imported by another test is
+// not named that way, so nothing legitimate is caught by accident.
+export async function testEveryModelTestIsActuallyRun(t) {
+  const { readdirSync, readFileSync } = await import("node:fs");
+  const script = JSON.parse(readFileSync("package.json", "utf8")).scripts.test;
+  for (const file of readdirSync("tests").filter((f) => f.endsWith("-model.mjs"))) {
+    t.equal(
+      script.includes(`tests/${file}`),
+      true,
+      `tests/${file} is run by \`npm test\` — add it to the "test" script in package.json, or it asserts nothing`,
+    );
+  }
+}
+
 export async function testAdministrationFollowsItsChildren(t) {
   // THE PARENT IS VISIBLE AS A CONSEQUENCE, not by a rule of its own — the
   // same fallthrough every other parent uses. Before the fold, all four
@@ -1104,6 +1131,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       testProjectSegmentsAreExemptFromTheBoard,
       testEveryContextualSectionKeyLiteralExists,
       testCompoundRootsCoversEveryDashedRoot,
+      testEveryModelTestIsActuallyRun,
     ];
     let totalFails = 0;
     for (const test of tests) {

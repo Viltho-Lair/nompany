@@ -92,7 +92,7 @@ import { inventoryContext, createItem, editItem, createVendor, createOrder, edit
 import {
   hrContext, requestVacation, decideVacation,
   listDepartments, listHrRoles, createHrRole, editHrRole, removeHrRole,
-  listEmployees, saveEmployment,
+  listEmployees, saveEmployment, addLibraryRoles, libraryRolesFor,
 } from "@/modules/hr/hr";
 import { masterContext } from "@/modules/administration/master";
 import {
@@ -312,8 +312,43 @@ const created = await createStudio({ ownerUserId: owner.id, name: "Test Studio",
 if (created.error) { console.error("fixture failed:", created.error); process.exit(1); }
 const studio = created.studio;
 
-const roles = await listRoles(studio.id);            // seeds the starter roles
+const roles = await listRoles(studio.id);            // seeds Admin
 const roleId = (name) => roles.find((r) => r.name === name)?.id;
+
+// THE FIXTURE STATES ITS OWN ACCESS RATHER THAN INHERITING IT.
+//
+// These two used to be starter roles — `person("Viewer", "Viewer")` looked up
+// a row the product seeded — and the day Member and Viewer stopped being
+// seeded, every fixture built on them silently got NO role. The symptom was
+// not a permission failure: it was `repo: scope needs a studio and a section`
+// thrown from inside updateTask, because a person with no role cannot open a
+// module context and the error object was passed on as if it were one.
+//
+// A fixture that depends on what the product happens to seed is a fixture
+// coupled to a product decision it is not testing. So the suite creates them,
+// with the permissions the assertions below actually rely on — copied from
+// the starter roles as they were at 8e313e2, so those assertions go on
+// testing what they were written to test.
+async function fixtureRole(name, permissions, scopes = {}) {
+  const existing = roleId(name);
+  if (existing) return existing;
+  const made = await createRole(studio.id, { name, description: `${name} (fixture)`, permissions, scopes });
+  roles.push(made);
+  return made.id;
+}
+
+await fixtureRole("Member", [
+  "crmSales.tickets.view", "crmSales.tickets.create", "crmSales.tickets.edit",
+  "crmSales.clients.view", "crmSales.quotations.view", "projects.list.view",
+  "tasks.board.view", "tasks.board.create", "tasks.board.edit",
+  "inventory.items.view",
+  "hr.vacations.view", "hr.vacations.create", "hr.vacations.edit",
+], { "hr.vacations": "own" });
+
+await fixtureRole("Viewer", [
+  "crmSales.tickets.view", "crmSales.clients.view", "crmSales.quotations.view",
+  "projects.list.view", "inventory.items.view", "tasks.board.view",
+]);
 
 async function person(alias, roleName) {
   const user = (await createUser({ email: `${alias}-${rand()}@test.invalid`, passwordHash: "x" })).user;
@@ -3084,15 +3119,70 @@ console.log("\n== HR: departments are Master data's, positions are roles");
   ok("reading again seeds nothing further", again.length === departments.length,
     `${departments.length} then ${again.length}`);
 
-  // The starter roles the studio ships with. Admin is the built-in wildcard —
-  // not something anybody created, and not HR's to rename or delete.
+  // WHAT THE STUDIO SHIPS WITH, and this block used to assert the opposite.
+  //
+  // It listed five — Admin, Manager, Team Lead, Member, Viewer — and they were
+  // the same five whatever the studio did. Departments are seeded per industry
+  // now and bring their own roles, so the generic four have somewhere better to
+  // be: a Site Engineer under Site Execution says what Member never could, and
+  // two roles of one name in different departments can hold different access.
+  //
+  // Kept and inverted rather than deleted, so the file still records what
+  // changed. Member and Viewer appear below only because THIS SUITE creates
+  // them as fixtures — see fixtureRole at the top — which is exactly the
+  // coupling that made them look seeded when they no longer were.
   const hrRoles = await listHrRoles(hr);
   const named = hrRoles.map((r) => r.name);
-  for (const want of ["Admin", "Manager", "Team Lead", "Member", "Viewer"]) {
-    ok(`the studio ships with ${want}`, named.includes(want), named.join(", "));
+  ok("the studio ships with Admin", named.includes("Admin"), named.join(", "));
+  for (const gone of ["Manager", "Team Lead"]) {
+    ok(`${gone} is no longer seeded`, !named.includes(gone), named.join(", "));
   }
   ok("Admin is the wildcard", hrRoles.find((r) => r.name === "Admin")?.wildcard === true);
 
+  // A ROLE IS CREATED INSIDE A DEPARTMENT, and the id is checked against the
+  // studio's own register — so a role cannot be filed under a department that
+  // was deleted between the screen loading and the save.
+  const deptForRole = (await listDepartments(hr))[0];
+  const roleInDept = await createHrRole(hr, {
+    name: `Site Engineer ${rand()}`, departmentId: deptForRole.id,
+  });
+  ok("HR can name a job inside a department", roleInDept.role?.departmentId === deptForRole.id,
+    JSON.stringify(roleInDept.error || roleInDept.role?.departmentId));
+  ok("...and it still starts with no access at all", (roleInDept.role?.permissions || []).length === 0,
+    JSON.stringify(roleInDept.role?.permissions));
+  ok("...marked custom rather than claiming a library origin",
+    roleInDept.role?.source === "custom", JSON.stringify(roleInDept.role?.source));
+
+  const nowhere = await createHrRole(hr, { name: `Ghost ${rand()}`, departmentId: "dep_not_real" });
+  ok("a role cannot be filed under a department that does not exist",
+    nowhere.error === "department", JSON.stringify(nowhere));
+
+  // THE DEFECT THIS GUARDS, and it is the line the whole design turns on.
+  // The duplicate check was STUDIO-WIDE, so the second "Manager" was refused
+  // — which is exactly the row departmental roles exist to allow. A Manager
+  // in Finance and a Manager in Site Execution are two rows on purpose,
+  // because they have to be able to hold different access.
+  const departmentsForDup = await listDepartments(hr);
+  const twinName = `Manager ${rand()}`;
+  const inFirst = await createHrRole(hr, { name: twinName, departmentId: departmentsForDup[0].id });
+  const inSecond = await createHrRole(hr, { name: twinName, departmentId: departmentsForDup[1].id });
+  ok("the same job name can exist in two departments",
+    !!inFirst.role && !!inSecond.role, JSON.stringify(inSecond.error));
+  ok("...as two separate rows, so their access can diverge",
+    inFirst.role?.id !== inSecond.role?.id);
+
+  // AND STILL NOT TWICE IN ONE DEPARTMENT, where the name is the only thing
+  // telling two rows apart.
+  const twiceInOne = await createHrRole(hr, { name: twinName, departmentId: departmentsForDup[0].id });
+  ok("but not twice inside one department", twiceInOne.error === "duplicate", JSON.stringify(twiceInOne));
+
+  // The list carries both new fields, because the screen groups by one and
+  // treats library and custom rows differently on the other.
+  const listed = await listHrRoles(hr);
+  const listedTwin = listed.find((r) => r.id === inFirst.role?.id);
+  ok("the roles list says which department a job sits in",
+    listedTwin?.departmentId === departmentsForDup[0].id, JSON.stringify(listedTwin?.departmentId));
+  ok("...and where it came from", listedTwin?.source === "custom", JSON.stringify(listedTwin?.source));
   const made = await createHrRole(hr, { name: `Sales Engineer ${rand()}`, description: "Raises and works tickets." });
   ok("HR can name a new job", !!made.role, JSON.stringify(made.error));
   // The whole reason naming is allowed on an HR grant: it hands out nothing.
@@ -3193,6 +3283,128 @@ console.log("\n== HR: departments are Master data's, positions are roles");
 }
 
 // ============================================================================
+console.log("\n== a department arrives with its trade's roles");
+
+// AN EMPTY DEPARTMENT IS THE BLANK-GRID PROBLEM ONE LEVEL DOWN. Faced with a
+// department containing no roles, a studio invents "Member" — which is the
+// generic vocabulary this whole change exists to replace.
+{
+  const hr = await hrContext(owner, slug);
+  const depts = await listDepartments(hr);
+  const allRoles = await listRoles(studio.id);
+
+  const seededSomewhere = depts.filter((d) =>
+    allRoles.some((r) => String(r.departmentId || "") === d.id));
+  ok("seeded departments arrive with roles", seededSomewhere.length > 0,
+    `${seededSomewhere.length} of ${depts.length} departments have roles`);
+
+  const sample = seededSomewhere[0];
+  // THE SEEDED ROWS ONLY. Counting everything in a department conflates the
+  // seed with whatever the studio has added since — and this suite adds its
+  // own, so the first version of these two assertions failed on roles it had
+  // created itself a few hundred lines earlier.
+  const seededIn = (id) => allRoles.filter((r) =>
+    String(r.departmentId || "") === id && r.source === "library");
+  const inSample = seededIn(sample.id);
+  ok("...no more than ten seeded each", depts.every((d) => seededIn(d.id).length <= 10),
+    JSON.stringify(depts.map((d) => seededIn(d.id).length)));
+  ok("...marked as library rows", inSample.every((r) => r.source === "library"),
+    JSON.stringify(inSample.map((r) => r.source)));
+  ok("...carrying access", inSample.some((r) => (r.permissions || []).length > 0));
+
+  // A SEEDED ROLE GRANTS NOTHING UNTIL SOMEBODY IS PUT IN IT. The chart
+  // contains powerful roles by design — a Managing Director holds nearly the
+  // whole catalogue — and that is safe precisely because existing is not the
+  // same as being held. Assignment is a deliberate act, and escalates() still
+  // refuses handing out what the actor does not hold themselves.
+  // `held` comes back on every row from listHrRoles, which is the same count
+  // the screen shows beside a role before offering to delete it.
+  const hrRows = await listHrRoles(hr);
+  const seededNames = new Set(allRoles.filter((r) => r.source === "library").map((r) => r.id));
+  const heldSeeded = hrRows.filter((r) => seededNames.has(r.id) && r.held > 0);
+  ok("nobody holds a seeded role until they are given one", heldSeeded.length === 0,
+    heldSeeded.map((r) => `${r.name}:${r.held}`).join(", "));
+
+  // TOPPING UP ADDS ONE DEPARTMENT'S ROLES, NOT THE WHOLE CHART'S AGAIN. The
+  // roles of departments the studio already had are the studio's, possibly
+  // edited, and re-seeding over them would undo that.
+  const master = await masterContext(owner, slug);
+  const before = (await listRoles(studio.id)).length;
+  const topUp = await addMissingStarters(master);
+  const afterTopUp = (await listRoles(studio.id)).length;
+  ok("topping up a complete chart adds no roles either",
+    topUp.added === 0 && afterTopUp === before, `${before} -> ${afterTopUp}`);
+}
+
+console.log("\n== a library role arrives with access, copied");
+
+// THE COPY RULE, AND IT IS THE ONE THAT MATTERS MOST HERE. A library role is
+// given its archetype's permissions at the moment it is added. If it held a
+// REFERENCE instead, editing an archetype later — or shipping a corrected
+// one — would silently re-permission every role already created from it, in
+// every studio, with nobody having asked. A BOQ rate follows the same rule
+// for the same reason.
+{
+  const hr = await hrContext(owner, slug);
+  ok("owner can open HR", !hr.error, hr.error);
+
+  // THE STUDIO HAS TO SAY WHAT IT DOES. The picker requires both narrowings —
+  // a field of work and a department code — because an unfiltered catalogue
+  // offers Farm Operations Manager for a sales department, which is the one
+  // error the department mapping exists to prevent. createStudio sets no field,
+  // so the fixture picks one, exactly as a real studio does in Studio settings.
+  await updateStudio(studio.id, { fieldOfWork: "Construction & Contracting" });
+  const hrWithTrade = await hrContext(owner, slug);
+
+  const depts = await listDepartments(hrWithTrade);
+  const target = depts.find((d) => d.code) || depts[0];
+  ok("the fixture department has a code the catalogue can place", !!target.code, JSON.stringify(target.code));
+
+  const offered = await libraryRolesFor(hrWithTrade, { departmentId: target.id });
+  ok("the library offers roles for a department", (offered.results || []).length > 0,
+    JSON.stringify(offered.error || (offered.results || []).length));
+
+  const firstTwo = (offered.results || []).slice(0, 2).map((r) => r.name);
+  const added = await addLibraryRoles(hrWithTrade, { departmentId: target.id, names: firstTwo });
+  ok("adding from the library creates them", added.added === firstTwo.length,
+    JSON.stringify(added.error || added.added));
+  ok("...inside the department they were added to",
+    (added.roles || []).every((r) => r.departmentId === target.id));
+  ok("...marked as library rows, not custom",
+    (added.roles || []).every((r) => r.source === "library"));
+  ok("...carrying access, unlike a role typed by hand",
+    (added.roles || []).every((r) => (r.permissions || []).length > 0),
+    JSON.stringify((added.roles || []).map((r) => (r.permissions || []).length)));
+
+  // Every permission it arrived with is a real catalogue key. An archetype
+  // naming a stale key would grant nothing and look like it had worked.
+  const cataloguedKeys = new Set(ALL_PERMISSIONS);
+  const strayGrants = (added.roles || []).flatMap((r) => (r.permissions || []))
+    .filter((k) => !cataloguedKeys.has(k));
+  ok("...and every key it carries is real", strayGrants.length === 0, strayGrants.join(", "));
+
+  // A MULTI-SELECT RE-SELECTING WHAT IS ALREADY THERE IS QUIET. The studio
+  // asked for that role to exist and it does; an error would be pedantry.
+  const twice = await addLibraryRoles(hrWithTrade, { departmentId: target.id, names: firstTwo });
+  ok("adding the same roles again adds nothing", twice.added === 0, JSON.stringify(twice));
+
+  // A name the catalogue cannot place is SKIPPED rather than created empty,
+  // or a stale screen would produce a permissionless role that looks added.
+  const bogus = await addLibraryRoles(hrWithTrade, { departmentId: target.id, names: ["Chief Wizard"] });
+  ok("a name the library does not hold is not invented", bogus.added === 0, JSON.stringify(bogus));
+
+  const nowhere = await addLibraryRoles(hrWithTrade, { departmentId: "dep_not_real", names: firstTwo });
+  ok("...and roles cannot be added to a department that does not exist",
+    nowhere.error === "department", JSON.stringify(nowhere));
+
+  // The picker marks what is already held rather than hiding it — a search
+  // that silently drops your own roles reads as a search that cannot find
+  // them.
+  const after = await libraryRolesFor(hrWithTrade, { departmentId: target.id });
+  ok("the picker marks what the department already holds",
+    (after.results || []).some((r) => r.held), JSON.stringify(after.results?.slice(0, 3)));
+}
+
 console.log("\n== the departments register refuses what would corrupt the chart");
 
 // EVERY REFUSAL HERE IS A REAL FAILURE MODE, not a validation exercise.
@@ -3249,8 +3461,17 @@ console.log("\n== the departments register refuses what would corrupt the chart"
   // ADDING THE STANDARD CHART IS ADDITIVE AND IDEMPOTENT. This is what a studio
   // presses after changing its field of work; re-seeding on its behalf would
   // destroy an org chart it had already edited.
+  // IDEMPOTENCE IS THE PROPERTY, not completeness. This used to assert that a
+  // top-up adds nothing — true only while the studio had no field of work, and
+  // it stopped being true the moment an earlier block gave it one, because the
+  // standard chart for a trade genuinely has more departments than the
+  // universal back office. The behaviour was right and the assertion had
+  // expired. What must hold whatever the trade is: running it twice adds
+  // nothing the second time.
   const topUp = await addMissingStarters(master);
-  ok("topping up adds nothing when the chart is complete", topUp.added === 0, JSON.stringify(topUp.added));
+  const topUpAgain = await addMissingStarters(master);
+  ok("topping up twice adds nothing the second time", topUpAgain.added === 0,
+    `first ${topUp.added}, second ${topUpAgain.added}`);
 }
 
 console.log("\n== the seed refuses to fire over an un-migrated studio");
