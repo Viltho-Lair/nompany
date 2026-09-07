@@ -20,11 +20,26 @@
 //
 // SO THIS GUARDS NOTHING BEYOND MEMBERSHIP, DELIBERATELY. The engine's gate is
 // per-TYPE and lives in `records.ts`, which asks `engine.<typeKey>.<verb>` on
-// every read and every write and answers notfound BEFORE forbidden, so a
-// refusal never discloses which type keys a studio has. A section-level guard
-// here would be a second gate over the same act, free to disagree with the
-// first — and it is precisely the gate that refused the holder of the engine's
-// own right.
+// every read and every write. A section-level guard here would be a second gate
+// over the same act, free to disagree with the first — and it is precisely the
+// gate that refused the holder of the engine's own right.
+//
+// WHAT `records.ts` ANSWERING notfound BEFORE forbidden ACTUALLY BUYS, because
+// this comment claimed the opposite of the truth and the claim is worth keeping
+// visible. It said the ordering means "a refusal never discloses which type
+// keys a studio has". It is the ordering that makes them ENUMERABLE by probing:
+// a member holding no engine right gets 404 for an absent type and 403 for a
+// present one, so the pair of answers is a directory of the studio's types.
+//
+// NOTHING IS BROKEN BY THAT. Membership is the boundary invariant 2 draws — a
+// non-member learns nothing about the contents — and a member is already handed
+// the studio's whole section list, engine sub-sections included, so probing
+// reveals to a member what the sidebar would have told them. What the ordering
+// is FOR is different: A TYPE THAT DOES NOT EXIST IS NOT A PERMISSION QUESTION.
+// Answering `forbidden` for a mistyped segment sends the caller off to ask for a
+// right that would not have helped; 404 tells them to fix the URL. A false
+// safety claim is worst in the file whose whole job is justifying a removed
+// guard, which is why this is corrected at length rather than deleted.
 //
 // ACCESS IS STILL RESOLVED ONCE (invariant 3). `studioContext` resolves it,
 // exactly as `moduleContext` has it resolved, and nothing here re-derives a

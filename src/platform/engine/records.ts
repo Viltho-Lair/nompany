@@ -39,11 +39,13 @@ const prefixOf = (typeKey: string) => typeKey.slice(0, 3).toUpperCase();
  * WHAT THIS SERVICE NEEDS FROM A MODULE CONTEXT, AND NO MORE.
  *
  * `ModuleContext`'s index signature does not name `settingsSection` — that
- * field is produced by whichever department's `moduleContext({ sub: {
- * settings: "administration-settings" } })` call builds the caller's context
- * (Task 5's route uses Administration's), so it is typed here structurally
- * rather than by widening the shared `ModuleContext` for every other module
- * that has no such field.
+ * field is produced by `engineContext` (`platform/engine/context.ts`), which
+ * resolves where the engine's two collections live and replaced the
+ * `moduleContext({ sub: { settings: "administration-settings" } })` call this
+ * comment used to name. It is typed here STRUCTURALLY rather than against that
+ * context, so the service names what it needs and nothing more: the shared
+ * `ModuleContext` is not widened for every module that has no such field, and
+ * this file does not import the route's context to describe its own argument.
  */
 export type EngineCallerContext = {
   studio: StudioRef;
@@ -76,9 +78,19 @@ export async function listRecordTypes(ctx: EngineCallerContext) {
 
 export async function listRecords(ctx: EngineCallerContext, typeKey: string) {
   const { scope, type } = await typeFor(ctx, typeKey);
-  // NOTFOUND BEFORE FORBIDDEN, deliberately: a type that does not exist is not
-  // a permission question, and answering "forbidden" would tell an outsider
-  // which type keys exist.
+  // NOTFOUND BEFORE FORBIDDEN, deliberately — AND NOT FOR THE REASON THIS ONCE
+  // GAVE. It said answering "forbidden" would hide which type keys exist; the
+  // ordering does the opposite, and the inverted claim is corrected rather than
+  // deleted. A member holding no engine right gets 404 for an absent type and
+  // 403 for a present one, so the two answers together enumerate the studio's
+  // types. That costs nothing: MEMBERSHIP is the boundary (invariant 2), and a
+  // member is already handed the studio's section list with every engine
+  // sub-section in it.
+  //
+  // WHAT THE ORDER IS FOR: a type that does not exist is not a permission
+  // question. `forbidden` would send the caller to ask for a right that would
+  // not have helped — the fix is the URL, not a grant. `context.ts` carries the
+  // long version, beside the guard it justifies removing.
   if (!type) return { error: "notfound" as const };
 
   const denied = requirePermission(ctx.access, `engine.${typeKey}.view`);

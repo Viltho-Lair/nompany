@@ -23,8 +23,8 @@ detail has been going; this file is the map.
 | | |
 |---|---|
 | **Done** | Waves 0–3, Gate A, the engagement storage model Phase 0–1b, **P0** (fifteen-section restructure), **P1 + the cutover** (production runs Postgres; Redis is gone), **P2's approval engine** (bills, then bids), and **P4a's first three sections** |
-| **In progress** | **P4a is COMPLETE** — all five sections, 07/09/2026. The only thread left from it is the closure slice's Gate A block, which could not be recorded because the machine's ADC credentials expired. **Next is P4b**, the abstraction extracted from the screens P4a built |
-| **Blocked on nothing** | CI green on every push; goldens **316**, catalogue **174** keys, lint **142/0**, bundle **1687 KB gz against 1688**. The largest chunk is **165 KB against 250**, up from 158 with the Procurement dashboard — consolidation rather than sprawl (the chunk count fell 92 → 91 as `components/dashboard` was hoisted into the shared chunk), but it is the number every route pays and the one to watch. Measured 07/09/2026 at the commit that states them, not quoted from the line above |
+| **In progress** | **P4a is COMPLETE** — all five sections, 07/09/2026. The only thread left from it is the closure slice's Gate A block, which could not be recorded because the machine's ADC credentials expired. **P4b phase 1 is on `main`** — a record type declared as a row, one built-in type end to end; phases 2 and 3 are ahead |
+| **Blocked on nothing** | CI green on every push; goldens **343**, catalogue **177** keys, lint **142/0**, bundle **1687 KB gz against 1688**. The largest chunk is **165 KB against 250**, up from 158 with the Procurement dashboard — consolidation rather than sprawl (the chunk count fell 92 → 91 as `components/dashboard` was hoisted into the shared chunk), but it is the number every route pays and the one to watch. **Goldens and the catalogue were re-measured at the P4b phase-1 commit** (`ls tests/goldens \| wc -l`, and the `ALL_PERMISSIONS.length` assertion in `tests/gate-a.mjs`). This row said 316 and 174, which were both TRUE when written at `ada60616` and decayed on `main` afterwards — 174 → 177 and 316 → 336 before P4b began, then 336 → 343 with the engine's seven goldens. **The engine added no catalogue key at all**, and never will: `engine.<typeKey>.<verb>` is structural, minted from a row, and cannot enter a compile-time list. The bundle and lint figures are the P4a-closure build's and are NOT re-measured here |
 | **The size of what is left** | **≈32 of the spec's ≈65.5 weeks.** P3's statutory half (ledger periods, statements, tax, auto-posting), P4b, P5, P6 and P7. See **The spec, subsection by subsection** below — the four empty sections are the visible part and the smaller one |
 | **Next gate** | Gate B is 2 of 3 and sales sits at its 3-hop structural floor. Gate C (Wave 3) is done server-side; what is left is `checkJs` over the browser `.js` files and the `app/` restructure |
 
@@ -43,7 +43,7 @@ abstraction is extracted from real screens rather than guessed at.
 | **The cutover** | Production runs Postgres through the Cloud Run gateway, live 02/09/2026, proven by a write rather than assumed. **Redis is gone entirely** — no `REDIS_URL` anywhere, nothing in `src` reads it | ✅ done |
 | **P2** | The approval engine — a chain chosen at runtime, invariant 7 enforced twice. Two document types: bills, then bids. Chains live on the STUDIO record (`platform/approval/store`), not in Finance's settings | ✅ on `main` |
 | **P4a** | Section-by-section depth, five sections hand-built | ✅ on `main` 07/09/2026, with one Gate A block outstanding (see below) |
-| **P4b** | The abstraction, extracted from the screens P4a builds | ⬜ not started |
+| **P4b** | The record engine — the abstraction, extracted from the screens P4a built | 🟡 phase 1 on `main` |
 
 ### P4a, slice by slice
 
@@ -170,11 +170,33 @@ pass today, because there is no ledger to reconcile to beyond a trial balance.
 
 All five, slice by slice, in the table further up this file.
 
-### P4b — the record engine ⬜ not started
+### P4b — the record engine 🟡 phase 1 on `main`
 
 A record type declared as data; the engine supplies list, card, create and edit, workflow,
 attachments, comments, audit, live updates and permission filtering. **Roughly 50 of the
 remaining subsections ride it**, which is why it precedes P5.
+
+**Phase 1 shipped one built-in type end to end** — `transmittal`, seeded at studio creation
+under Engineering & Documents. Two collections (`recordTypes`, `engineRecords`, one for
+every instance of every type because a collection per type would need a deploy per type),
+the `engine.<typeKey>.<verb>` permission namespace (structural, so **the catalogue is
+unchanged at 177**, and `cleanPermissions` no longer drops such a grant silently), one
+route (`/api/studios/<slug>/records/<typeKey>`, the type from the URL and never the body),
+one generic screen, the sub-section planted in the same write as the type row, and seven
+goldens. `docs/functionality/record-engine.md` is the file.
+
+**Phase 2 is the second and third built-in types** — the registers P5's Engineering &
+Documents needs beside transmittals — which is what proves the declaration is general
+rather than shaped around one example. **Phase 3 is tenant self-service:** a studio
+declaring its own types through a screen, which is the whole reason the declaration is a
+row, and which brings type deletion and the orphaned-grant report with it.
+
+**THE ROLLOUT CONSEQUENCE:** `seedBuiltinTypes` runs inside `createStudio` and nowhere
+else, so no existing studio has the built-in type and no read path can catch it up — the
+catch-up would be gated on `engine.transmittal.view`, which no existing role holds.
+`scripts/migrate/seed-builtin-types.mjs` is the way in (dry-run by default, additive,
+idempotent, and `plant-sections.mjs` first on an old studio). **It has not been run against
+live or the sandbox.**
 
 Bespoke screens the spec says it must never be stretched to cover: BOQ grid, Gantt, cost
 sheet, dispatch board, shop-floor terminal, MRP and capacity planner, mobile field view,
@@ -212,7 +234,7 @@ hand** — the BOQ grid and the Gantt — which is the line holding where the sp
 ### What that adds up to
 
 The spec sizes the programme at **≈65.5 weeks**. Done: P0 (2) + P1 (5) + P2 (8.5) + P4a
-(14) ≈ **29.5**. Remaining: P3's statutory half, P4b (4), P5 (8), P6 (11), P7 (6) — call
+(14) ≈ **29.5**. Remaining: P3's statutory half, **the rest of P4b (4, of which phase 1 is done)**, P5 (8), P6 (11), P7 (6) — call
 it **≈32 weeks**, or a little under half the programme still ahead.
 
 **The four empty sections are the visible part and the smaller part.** P3's ledger work and

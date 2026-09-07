@@ -143,12 +143,24 @@ export async function createStudio(
     const masterSection = sections.find((sec) => sec.key === "administration-master");
     if (masterSection) await listDepartments({ studio, section: masterSection });
 
-    // THE BUILT-IN RECORD TYPES, seeded the way the sections above and the
-    // departments register are — and for the same reason: a seeded thing added
-    // after a studio exists never reaches that studio on its own, and a manual
-    // backfill gets forgotten. `administration-access` shipped on 03/09 and was
-    // still missing from two of three live studios two days later with nothing
-    // complaining.
+    // THE BUILT-IN RECORD TYPES, seeded HERE AND NOWHERE ELSE — which is the
+    // one way this differs from the two seeds above it, and the difference is
+    // the whole rollout story.
+    //
+    // Sections catch up on read (`listSections` plants what a studio is short
+    // of) and the departments register seeds on read, so a studio created
+    // before either of those shipped repairs itself the next time somebody
+    // opens it. `seedBuiltinTypes` runs inside `createStudio` only, so A STUDIO
+    // CREATED BEFORE THIS SHIPPED GETS NOTHING.
+    //
+    // AND A READ-PATH CATCH-UP COULD NOT RESCUE IT. Every engine read is gated
+    // on `engine.<typeKey>.view`, a key no existing studio's roles carry, so
+    // the request that would trigger a catch-up is the request that is refused
+    // before it gets there — the seed would be waiting on a door only the seed
+    // can open. `scripts/migrate/seed-builtin-types.mjs` is the way in: every
+    // studio walked deliberately rather than each waiting to be opened. It
+    // CALLS this function, so there is one seed rather than two free to
+    // disagree.
     //
     // AFTER the section write, because seeding a type plants that type's own
     // sub-section under a parent that has to exist already — and it reads the

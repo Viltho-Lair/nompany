@@ -104,20 +104,30 @@ export function typeProblem(
  *
  * TWO REFUSALS, AND THEY ARE WORTH DIFFERENT STATUSES.
  *
- * `wrong-state` (409) is a status the type does not declare AT ALL. It is not
- * `status`, which eight modules already use to mean "you sent a status value we
- * do not recognise" and which is correctly 400 there — reusing the name here
- * would be a collision, not a shared meaning. The difference is that in those
- * modules the status list is CODE and a bad value is the caller's mistake,
- * while here the list is a ROW: the likeliest way to ask for an undeclared
- * status is a screen holding a declaration the studio has since edited. That is
- * "the request was fine, the world has moved on" — refresh and retry — which is
- * exactly what `wrong-state` means in `platform/http/httpStatus.ts`, where it
- * already stands for the signable transition table refusing a move.
+ * AN UNKNOWN VALUE IS STALE; AN UNKNOWN PAIR IS A DIFFERENT ASK. That is the
+ * whole of the split, and it is stated carefully because the first version of
+ * this comment rested it on the wrong thing: "the list is a ROW, so the likeliest
+ * cause is a screen holding a declaration the studio has since edited". That is
+ * true of BOTH refusals — a studio that deletes a TRANSITION while keeping both
+ * statuses leaves exactly the same stale screen, and that one answers 400. The
+ * declaration being a row is why this file exists at all; it does not separate
+ * these two.
  *
- * `not-allowed` STAYS 400. A move the chain does not declare — Issued back to
- * Draft, when no transition says so — is not a record that moved on: no refresh
- * makes it legal, and the caller has to ask for something else.
+ * `wrong-state` (409) is a status the type does not declare AT ALL — a VALUE
+ * that has ceased to exist. Re-reading the type is the entire repair, because
+ * the value the caller used is gone from it: "the request was fine, the world
+ * has moved on", which is what `wrong-state` means in
+ * `platform/http/httpStatus.ts`, where it already stands for the signable
+ * transition table refusing a move. It is deliberately not `status`, which eight
+ * modules use for "you sent a status value we do not recognise" and which is
+ * correctly 400 there: in those the list is CODE, so a bad value is the caller's
+ * own mistake with nothing to re-read.
+ *
+ * `not-allowed` STAYS 400. Both statuses ARE declared and the move between them
+ * is not — Issued back to Draft, when no transition says so. No refresh makes an
+ * undeclared move legal: the declaration as it stands is what refuses, so the
+ * caller is not behind the world, they are asking for something else and have to
+ * ask for something else again.
  */
 export function transitionProblem(decl: TypeDecl, from: unknown, to: unknown): string | null {
   const statuses = new Set(list<string>(decl?.statuses).map(text));
