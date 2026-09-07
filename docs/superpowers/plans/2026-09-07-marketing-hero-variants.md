@@ -83,6 +83,7 @@ connections is one.
 | `src/shared/marketing/departments.ts` | **Create.** The eleven live departments, derived from `SECTION_DEFS` minus `NO_SCREEN_YET`, named in both locales. Pure. |
 | `src/shared/marketing/claims.ts` | **Create.** The claims register: id, both-locale text, and the module + export that backs each. Strings only — no source module is imported here, so a client component may carry it. |
 | `src/shared/marketing/hero.ts` | **Create.** Hero copy, both locales, one typed object. |
+| `src/shared/marketing/company.ts` | **Create.** The one canonical company description and the brand names. A **draft awaiting revision** — see Task 3. |
 | `src/components/landing/hero/variants/HeroV1Assembly.tsx` | **Create.** V1 — the studio assembling itself. |
 | `src/components/landing/hero/variants/HeroV2Scroll.tsx` | **Create.** V2 — V1 plus a scroll-driven tilt and expansion. |
 | `src/components/landing/hero/variants/HeroV3Continuity.tsx` | **Create.** V3 — badge, two-line headline with a rotating department name, dual CTA. |
@@ -572,10 +573,11 @@ EOF
 
 ---
 
-## Task 3: The hero copy module
+## Task 3: The hero copy module, and the canonical company description
 
 **Files:**
 - Create: `src/shared/marketing/hero.ts`
+- Create: `src/shared/marketing/company.ts`
 - Modify: `tests/marketing-model.mjs`
 
 **Interfaces:**
@@ -730,12 +732,101 @@ export function heroCopy(locale: string): HeroStrings {
 export type { HeroStrings };
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [ ] **Step 4: Write the canonical company description**
+
+Spec §12.2 requires this drafted now and **marked for revision** rather than left blank:
+every external profile and the `Organization` schema reuse it verbatim, and profiles created
+from different drafts are a permanent inconsistency. It is deliberately **unused until
+sequencing step 7** (the About page) — it exists so there is one draft to revise rather than
+four written independently later.
+
+Create `src/shared/marketing/company.ts`:
+
+```typescript
+import { defaultLocale, type Locale } from "@/shared/locale";
+
+// THE ENTITY, DESCRIBED ONCE.
+//
+// One sentence, in both languages, reused verbatim by: the About page, the
+// Organization schema, OpenGraph, and every external profile created later.
+// Five profiles written from five drafts is a permanent inconsistency that
+// nobody can fix afterwards without editing five sites.
+//
+// ⚠️ THE DESCRIPTION IS A DRAFT AWAITING REVISION (spec §12.2). It is written
+// rather than left blank because a blank one gets filled in four places at
+// once; it is marked because publishing an unrevised draft externally is the
+// thing this module exists to prevent. REVISE BEFORE ANY EXTERNAL PROFILE IS
+// CREATED — after that it is expensive to change and partly out of our hands.
+//
+// WHAT IT MAY NOT SAY, and this is not stylistic (spec §12.1): the company is
+// not based anywhere yet, is not Saudi, and will be based in Jordan. The market
+// is the whole region. No city, no country claim, no ZATCA, no regulatory
+// posture. src/lib/seo.ts still asserts Riyadh/SA in Organization schema and is
+// corrected in the SEO pass; nothing new may repeat it.
+
+/** The Latin brand string. Lowercase, everywhere. `Nompany` appears nowhere. */
+export const BRAND = "nompany";
+
+/**
+ * The Arabic-script brand name (spec §12.1).
+ *
+ * Settled deliberately rather than transliterated per page: an Arabic searcher
+ * typing the brand phonetically previously matched nothing, and this is
+ * irreversible in practice once it is on a directory listing.
+ */
+export const BRAND_AR = "نومباني";
+
+type CompanyStrings = {
+  /** One sentence. DRAFT — see the warning above. */
+  description: string;
+};
+
+const en: CompanyStrings = {
+  description:
+    "nompany is an ERP for small and medium companies across the region — sales, tendering, projects, procurement, inventory, field work, logistics, engineering, people and finance on one data model, in Arabic and English.",
+};
+
+const ar: CompanyStrings = {
+  description:
+    "نومباني نظام تخطيط موارد للشركات الصغيرة والمتوسطة في المنطقة — المبيعات والمناقصات والمشاريع والمشتريات والمخزون والعمل الميداني والخدمات اللوجستية والهندسة والموارد البشرية والمالية على نموذج بيانات واحد، بالعربية والإنجليزية.",
+};
+
+const company = { en, ar };
+
+export function companyCopy(locale: string): CompanyStrings {
+  return company[locale as Locale] || company[defaultLocale];
+}
+```
+
+Append its assertions to `tests/marketing-model.mjs`, before the final `console.log`:
+
+```javascript
+console.log("\n== the entity, described once");
+
+const CO = await import("@/shared/marketing/company");
+
+ok("the Latin brand is lowercase", CO.BRAND === "nompany");
+ok("the Arabic brand is settled", CO.BRAND_AR === "نومباني");
+
+for (const locale of ["en", "ar"]) {
+  const d = CO.companyCopy(locale).description;
+  ok(`${locale} has a description`, typeof d === "string" && d.trim().length > 0);
+  ok(`${locale} spells the brand one way`, !/Nompany/.test(d));
+  // THE COMPANY IS NOT SAUDI AND ZATCA IS NOT IN SCOPE (spec §12.1). A public
+  // sentence implying either is the same class of defect as a fabricated
+  // uptime figure, and it is the one the owner named explicitly.
+  ok(`${locale} claims no location`, !/Riyadh|السعودية|Saudi|ZATCA|KSA/i.test(d));
+}
+ok("the Arabic description carries no diacritics",
+  !DIACRITICS.test(CO.companyCopy("ar").description));
+```
+
+- [ ] **Step 5: Run the test to verify it passes**
 
 Run: `node tests/marketing-model.mjs`
-Expected: PASS across all three sections.
+Expected: PASS across all four sections.
 
-- [ ] **Step 5: Both type passes**
+- [ ] **Step 6: Both type passes**
 
 ```bash
 npx tsc --noEmit && npx tsc --noEmit -p tsconfig.strict.json
@@ -744,10 +835,10 @@ npx tsc --noEmit && npx tsc --noEmit -p tsconfig.strict.json
 Expected: clean. Every field of `HeroStrings` must be present in both `en` and `ar` or this
 step is where it is caught.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
-git add src/shared/marketing/hero.ts tests/marketing-model.mjs
+git add src/shared/marketing/hero.ts src/shared/marketing/company.ts tests/marketing-model.mjs
 git commit -m "$(cat <<'EOF'
 The hero's copy says only what the product does
 
@@ -1889,20 +1980,27 @@ one. The commit that adopts a winner:
 Then sequencing step 2 (shared chrome) and step 3 (home, platform, pricing), each with its
 own plan.
 
-**Two things this plan surfaces for a person to decide**, neither blocking:
+**Both of the questions this plan originally left open are answered** (spec §12, 07/09/2026),
+and the answers are why the copy above reads as it does:
 
-- **The positioning of the H1.** `SEO-PLAN.md` §6.3 argues hard that "tender and cost control
-  software for Saudi contractors" is nearly uncontested while the generalist category is
-  unwinnable — but §9.4 lists "which vertical leads" as an open decision, so the copy here
-  stays generalist. Narrowing it to contractors is a one-line change in
-  `src/shared/marketing/hero.ts` and a large change to everything downstream of it.
-- **The Arabic-script brand name** (spec §12.1). Nothing in this plan needs it — the hero
-  never spells the brand in Arabic — but it blocks Arabic titles and `alternateName` from
-  step 9 onward, and it is irreversible in practice once published.
+- **The positioning is generalist SMEs, region-wide.** `SEO-PLAN.md` §6.3 argues hard for
+  narrowing to Saudi contractors; that is answered no. The construction depth stays a real
+  differentiator to name on `/platform`, but it is depth the product has rather than the
+  audience it addresses.
+- **The Arabic brand name is `نومباني`.** The hero never spells the brand in Arabic, so no
+  variant uses it — it lives in `src/shared/marketing/company.ts` for the About page,
+  `alternateName` and external profiles.
 
-**One thing this plan does not need but the next ones do**, recorded here so it is not asked
-again: `sales@nompany.com` and `support@nompany.com` are live aliases onto
-`abdullah@nompany.com` and both deliver (confirmed 07/09/2026). That gives the contact
-backend (§6.3, step 4) a real address to notify and half-answers spec §12.2 — an address
-existing is not the same as the 10+ sales path being chosen between email, WhatsApp and the
-form alone, which is still open.
+**Three things this plan does not need but the next ones do**, recorded so they are not
+asked again:
+
+- `sales@nompany.com` and `support@nompany.com` are live aliases onto the owner's mailbox and
+  both deliver. That gives the contact backend (§6.3, step 4) a real address; whether the 10+
+  path is that address, WhatsApp, or the form alone is still open.
+- **`src/lib/seo.ts` asserts a Riyadh address and Saudi `areaServed` in `organizationLd`, and
+  `localBusinessLd` carries opening hours.** The company is not Saudi and has no address yet
+  (spec §12.1), so those are live false claims in machine-readable form — the exact class of
+  defect §7.3's register exists to prevent, sitting in the schema rather than the copy. Not
+  step 1's to fix, and it should not wait until step 9 by default.
+- **The stop rule** (`SEO-PLAN.md` §9.6) is still unwritten, and it has to be written before
+  the content cadence starts rather than after the numbers arrive.

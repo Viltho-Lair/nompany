@@ -138,14 +138,16 @@ session digests at rest, an append-only audit log, credential rate limiting, sec
 headers, private media served only after a membership check.
 
 States plainly what is **not** claimed: no ISO certification, no SOC 2, no NCA assessment,
-no data residency in KSA today. Saying so is worth more than silence to the buyer who asks.
+no stated data residency anywhere, and no company address yet (§12.1). Saying so is worth
+more than silence to the buyer who asks — and it is the page where the location answer
+belongs, rather than a schema field quietly asserting a city.
 
 ### 4.6 About
 
 The entity home. What the company is, where it is, what it makes, contact. Carries the one
 canonical description (§7.3) that every external profile will reuse verbatim.
 
-Schema: `Organization` with `sameAs` populated, `alternateName` in Arabic once §12 is
+Schema: `Organization` with `sameAs` populated and `alternateName` `نومباني` (§12.1). No
 answered.
 
 ### 4.7 Contact
@@ -338,12 +340,58 @@ load-bearing.
 
 ## 12 · Open questions
 
-Neither blocks starting; both block publishing, and only one person can answer them:
+Both of the questions this section opened are **answered**, 2026-09-07, along with five of
+`SEO-PLAN.md` §9's seven. The answers are recorded here rather than only in the log because
+two of them change what may be written on a page.
 
-1. **The Arabic-script brand name.** Blocks Arabic titles, `alternateName`, and every
-   external profile. Irreversible in practice once published.
-2. **The sales path for 10+ teams** — an email, a WhatsApp number, or the contact form
-   alone.
+1. **The Arabic-script brand name is `نومباني`.** Settled. The Latin string stays `nompany`,
+   lowercase, everywhere, and Arabic copy carries no diacritics. Unblocks Arabic titles,
+   `alternateName` on `Organization`, and every external profile — all of which must now be
+   created from this one spelling, because a profile made from a second draft is a permanent
+   inconsistency.
+2. **The sales path for 10+ teams is still open**, but its address is not:
+   `sales@nompany.com` and `support@nompany.com` are live aliases onto the owner's mailbox
+   and both deliver. Whether the 10+ path is that address, a WhatsApp number, or the contact
+   form alone is the part still to decide; §6.3's backend can be built against the address
+   either way.
+
+### 12.1 · The three answers that change the copy
+
+**THE PRODUCT IS NOT SAUDI.** The company is not based anywhere yet, is not originally
+Saudi, and **will be based in Jordan**. The market is **the whole region**, not one country.
+Nothing on a public page may imply otherwise — and `src/lib/seo.ts` currently asserts the
+opposite in machine-readable form: `organizationLd` hardcodes `addressLocality: "Riyadh"`,
+`addressCountry: "SA"` and `areaServed` Saudi Arabia, and `localBusinessLd` carries opening
+hours for a place that does not exist. Those are live false claims of exactly the kind §7.3's
+register exists to prevent, and they are corrected in the SEO pass (§13 step 9) at the latest.
+`SEO-PLAN.md` §2.5's advice to drop the opening-hours claim stands for a stronger reason
+than it was written for.
+
+**ZATCA IS NOT IN SCOPE, AND NOT ON THE ROADMAP.** `SEO-PLAN.md` builds its whole
+competitive thesis on the opposite — §2.1 defers the regulatory hubs only until the adapter
+ships, §6.2.5 and §6.3 call it "the unlock that makes all three compound", and §6.4's Q3–Q4
+is nothing else. **That thesis does not hold and the plan is wrong there.** What survives is
+its evidence: the Arabic-market competitor measurements, the structured-content-family
+argument, and axis 2 — the assets this product already holds. What does not survive is
+anything conditional on clearing an invoice or on a government directory listing.
+
+**THE POSITIONING LEADS WITH GENERALIST SMEs**, region-wide — not contractors.
+`SEO-PLAN.md` §6.3 argues for narrowing to Saudi contractors; that argument is now
+answered no. The construction depth (tendering, BOQ, variations, retention, cost codes,
+earned value) stays a genuine differentiator worth naming on `/platform`, but it is depth
+the product has rather than the audience it addresses.
+
+### 12.2 · Still open, and needing a person
+
+- **The one canonical company description** (§7.3), in both languages. A draft is written
+  during the build and **marked for revision** rather than left blank, because every external
+  profile and the `Organization` schema reuse it verbatim and profiles created from different
+  drafts are a permanent inconsistency. Revise it before anything external is created.
+- **The stop rule** (`SEO-PLAN.md` §9.6): what result, two quarters after the marketing
+  routes are live, would mean stop spending hours here and put them back into the product.
+  Written before the data arrives or it is not a rule — every number has a story afterwards.
+
+Closed with no work: there is no earlier or previous brand domain (§9.7).
 
 ## 13 · Sequencing for the implementation session
 
