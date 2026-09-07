@@ -106,6 +106,60 @@ ok("an unfilled number field is null, not nought",
   empty.count === null, JSON.stringify(empty.count));
 ok("an unfilled boolean is false", empty.done === false);
 
+console.log("\n== an edit does not destroy a field the type has dropped ==\n");
+
+// THE DEFECT THIS GUARDS. `coerceRecord` above honours "removed from the type,
+// kept in the store" on the READ. The WRITE did not: `editRecord` rebuilt
+// `values` from the current declaration, so a value whose field had gone
+// survived every read and was deleted by the next edit — the one operation
+// that can silently destroy the only record of what a row said when somebody
+// signed it. A built-in type's fields change by DEPLOY, so this is the
+// version-1-to-version-2 case the design's own acceptance criteria name, not a
+// shape that cannot arrive.
+//
+// ASSERTED HERE, PURELY, rather than in Gate A's engine block: the premise is
+// "the declaration changed", and phase 1 ships built-ins with no type editor,
+// so a route test could only fake it by writing a type row behind the API's
+// back. Two declarations constructed side by side say the thing the test is
+// about.
+const v1 = decl({
+  fields: [field({}), field({ key: "recipient", label: "Recipient", kind: "text" })],
+  columns: ["title"], version: 1,
+});
+const v2 = decl({ fields: [field({})], columns: ["title"], version: 2 });
+
+// Written under version 1, with both fields filled in.
+const storedV1 = M.mergeRecord(v1, {}, { title: "Rebar drawings", recipient: "Main contractor" });
+ok("a create writes exactly the declared fields",
+  JSON.stringify(storedV1)
+    === JSON.stringify({ title: "Rebar drawings", recipient: "Main contractor" }),
+  JSON.stringify(storedV1));
+
+// The type loses `recipient`, and the row is then edited under version 2.
+const afterEdit = M.mergeRecord(v2, storedV1, { title: "Rebar drawings rev B" });
+ok("AN EDIT UNDER THE NEW VERSION KEEPS THE DROPPED FIELD IN THE STORE",
+  afterEdit.recipient === "Main contractor", JSON.stringify(afterEdit));
+ok("...while writing the declared field from the body",
+  afterEdit.title === "Rebar drawings rev B", JSON.stringify(afterEdit.title));
+// THE TWO HALVES STATE ONE RULE: present in the store, absent from the render.
+ok("...and the reader still does not render it",
+  !("recipient" in M.coerceRecord(v2, afterEdit)),
+  JSON.stringify(M.coerceRecord(v2, afterEdit)));
+// A SECOND EDIT MUST NOT LOSE IT EITHER, which a merge that laid the values
+// over the type's declaration rather than over the stored row would.
+ok("...and a second edit keeps it too",
+  M.mergeRecord(v2, afterEdit, { title: "rev C" }).recipient === "Main contractor");
+
+// AN EDIT STILL REPLACES EVERY DECLARED FIELD. The merge must not turn omission
+// into "leave the old value alone" — clearing a field is an edit somebody meant.
+const cleared = M.mergeRecord(v1, storedV1, { title: "only this" });
+ok("A DECLARED FIELD OMITTED FROM THE BODY IS CLEARED, NOT PRESERVED",
+  cleared.recipient === "", JSON.stringify(cleared));
+// AND NOTHING UNDECLARED ENTERS BY THIS DOOR. The carry-through is for keys
+// already in the store, never for a body naming a field the type never had.
+ok("...and an undeclared field in the BODY is still dropped",
+  !("smuggled" in M.mergeRecord(v1, storedV1, { title: "t", smuggled: "x" })));
+
 console.log("\n== the section a type plants ==\n");
 
 // IT LIVES IN THE CATALOGUE, not in `platform/engine/sections`, and the move is

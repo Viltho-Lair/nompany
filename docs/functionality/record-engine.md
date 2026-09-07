@@ -168,13 +168,31 @@ because the type no longer declares it. That is what makes a version change harm
 reader coerces, exactly as `normalizeTask` and `planProgress` already do at their own
 boundaries.
 
-**That is true of the READ, and the next EDIT drops it.** `editRecord` rebuilds `values`
-from the declaration (`valuesFrom`), so a field the type no longer names does not survive
-a write of the record that holds it. Nothing exercises that today — a studio cannot remove
-a field in phase 1 because no route edits a type at all — but it is stated rather than
-left for somebody to find. The day the type editor ships, whether an edit preserves values
-the declaration has dropped is a decision that has to be made on purpose, not inherited
-from `valuesFrom` naming only the fields it knows about.
+**AND THE EDIT MERGES, so the write says the same thing the read does.** `editRecord`
+lays the incoming values over the STORED ones (`mergeRecord`) rather than rebuilding
+`values` from the current declaration: declared fields come wholly from the body, and a
+key the declaration no longer names is carried through untouched. Nothing can invent one
+on the way in — the incoming half is `coerceRecord`, which writes exactly the declared
+keys — and the merge happens inside `updateRow`'s function patch, over the row the
+compare-and-set actually won, so it is a merge rather than a read-then-write race
+(invariant 8).
+
+**This paragraph used to say the opposite, and called it unreachable.** It read: an edit
+rebuilds `values` from the declaration, nothing exercises it because a studio cannot
+remove a field in phase 1, and the day the type editor ships somebody should decide on
+purpose. That was wrong about the reachability rather than about the behaviour. A
+BUILT-IN type's fields change by DEPLOY — version 1's rows are in the store the moment
+version 2 ships — which is exactly the case the acceptance criteria name: *a record
+written under version 1 still reads after the type moves to version 2, with the removed
+field absent from the render and present in the store*. The render half held; the store
+half was false on the first edit. A field removed from a type is the only record of what
+a row said when somebody acted on it, and an edit is the one operation that can silently
+destroy it.
+
+`tests/engine-model.mjs` asserts it purely — two declarations built side by side, a row
+written under the first, an edit under the second — because the premise is "the
+declaration changed" and phase 1 ships built-ins with no type editor, so a route test
+could only fake it by writing a type row behind the API's back.
 
 **NULL rather than nought** for a number nobody filled in. Nought is a real answer and an
 empty field is not, and a list column showing `0` for both is a bug this product has fixed

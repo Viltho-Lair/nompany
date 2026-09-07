@@ -180,3 +180,40 @@ export function coerceRecord(
   }
   return out;
 }
+
+/**
+ * WHAT A WRITE PUTS IN `values`: the incoming body read through the
+ * declaration, LAID OVER what is already stored rather than replacing it.
+ *
+ * THE OTHER HALF OF THE RULE ABOVE, and without it that rule is only half
+ * true. `coerceRecord` stops RENDERING a field the type no longer declares;
+ * this is what stops the next EDIT from deleting it. A read that hides a value
+ * and a write that rebuilds `values` from the current declaration agree on
+ * every row right up until the type loses a field — and then the read is right
+ * and the write silently destroys the value, which is the only record of what
+ * the row said when somebody signed it. An edit is the one operation that can
+ * do that.
+ *
+ * IT IS NOT A SHAPE THAT CANNOT ARRIVE. A built-in type's fields change by
+ * DEPLOY, so version 1's rows are in the store the moment version 2 ships, and
+ * the first edit after it is where they would go. This is the store half of
+ * what the reader already honours: absent from the render, present in the
+ * store.
+ *
+ * DECLARED FIELDS STILL COME WHOLLY FROM THE BODY — an edit REPLACES every
+ * field the type declares, so omitting one clears it rather than leaving the
+ * old value standing. Only keys the declaration no longer names are carried
+ * through, and nothing here can invent one: `coerceRecord` writes exactly the
+ * declared keys, so a body naming a field the type never had is dropped on the
+ * way in exactly as it always was.
+ *
+ * A CREATE PASSES NO STORED VALUES and gets the declaration's own keys and
+ * nothing else, which is what it got before this existed.
+ */
+export function mergeRecord(
+  decl: TypeDecl,
+  stored: Record<string, unknown>,
+  incoming: Record<string, unknown>,
+): Record<string, unknown> {
+  return { ...(stored || {}), ...coerceRecord(decl, incoming) };
+}

@@ -9,8 +9,8 @@ import { requirePermission } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
 import { nextReference } from "@/modules/main/references";
 import { listCollaborators } from "@/platform/auth/collaborators";
-import { transitionProblem, coerceRecord, coerceValue } from "./types";
-import type { RecordType, EngineRecord, FieldDecl } from "./schema";
+import { transitionProblem, coerceRecord, mergeRecord } from "./types";
+import type { RecordType, EngineRecord } from "./schema";
 import type { PermissionSet } from "@/platform/access";
 import type { StudioRef, CollaboratorRef } from "@/modules/context";
 import type { Section } from "@/platform/db/sections";
@@ -122,15 +122,9 @@ export async function listRecords(ctx: EngineCallerContext, typeKey: string) {
   };
 }
 
-/** Every declared field, taken from the body and nothing else carried through. */
-function valuesFrom(type: RecordType, body: Record<string, unknown>) {
-  const raw = (body?.values || {}) as Record<string, unknown>;
-  const out: Record<string, unknown> = {};
-  for (const f of (type.fields || []) as FieldDecl[]) {
-    out[f.key] = coerceValue(f, raw[f.key]);
-  }
-  return out;
-}
+/** The values half of a write body, before the declaration is applied to it. */
+const valuesIn = (body: Record<string, unknown>) =>
+  (body?.values || {}) as Record<string, unknown>;
 
 export async function createRecord(
   ctx: EngineCallerContext, typeKey: string, body: Record<string, unknown>,
@@ -153,7 +147,9 @@ export async function createRecord(
       // THE FIRST DECLARED STATUS. A record born outside the chain could never
       // move, because every transition names a `from`.
       status: (type.statuses || [])[0] || "",
-      values: valuesFrom(type, body),
+      // NOTHING IS STORED YET, so this is the declaration's own keys and no
+      // more — `mergeRecord` with an empty left-hand side is `coerceRecord`.
+      values: mergeRecord(type, {}, valuesIn(body)),
       createdByCollaboratorId: ctx.collaborator.id,
       createdAt: at,
       updatedAt: at,
@@ -176,7 +172,17 @@ export async function editRecord(
   return {
     record: await Records.update(scope, id, (row) => ({
       ...row,
-      values: valuesFrom(type, body),
+      // MERGED ONTO WHAT IS STORED, not rebuilt from the declaration. A field
+      // the type has since dropped survives the edit; `mergeRecord` carries the
+      // argument, and `coerceRecord` on the read is its other half.
+      //
+      // MERGED INSIDE THE PATCH FUNCTION, off `row` rather than off `existing`
+      // above — invariant 8. `existing` is read to answer "does this record
+      // exist and is it this type", which is a question a later write cannot
+      // falsify; what a merge lays its values over must be the row the
+      // compare-and-set actually won, or the merge is a read-then-write race
+      // that loses whatever landed in between.
+      values: mergeRecord(type, (row.values || {}) as Record<string, unknown>, valuesIn(body)),
       // RE-STAMPED ON WRITE. The row now conforms to the type as it is, which
       // is what the version means: what it was written under.
       typeVersion: type.version,
