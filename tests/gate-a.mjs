@@ -809,6 +809,55 @@ console.log("== the architecture, asserted rather than remembered");
     // And the counter itself has to be able to see them, or the line above is a
     // pass that proves nothing — the same failure the write-scan had.
     ok("...and the scan is reading real files", offenders.length > 0, String(offenders.length));
+
+    // A PORTAL LEAVES THE ELEMENT THAT DECLARES `dir`, and in the studio that
+    // element is the SHELL. The root layout writes <html lang dir> from the
+    // proxy's x-locale, and proxy.js sets no x-locale on a tenant address — so
+    // <html> is dir="ltr" on EVERY studio route no matter what the tenant
+    // speaks, and anything rendered into document.body inherits LTR from it.
+    //
+    // The studio Dialog did exactly that, and 36 files reach it: every dialog in
+    // an Arabic studio rendered left-to-right — field alignment, button order,
+    // and the Arabic font with them, since the font rule is anchored
+    // `html.studio-chrome [dir="rtl"]` and could not match a node outside the
+    // shell. NOTHING FAILS when this regresses: it builds, it deploys, every
+    // test passes, and only somebody reading Arabic ever sees it. That is what
+    // this line is for.
+    //
+    // BACKSLASHES VIA `BS`, the same reason the date block below does it: these
+    // patterns are written into the file by tooling that eats escapes, and a
+    // regex that quietly loses one matches nothing — which reads as "all clear".
+    const BSP = String.fromCharCode(92);
+    const PORTAL_CALL = new RegExp("createPortal" + BSP + "s*" + BSP + "(");
+    const PORTAL_BODY = new RegExp(BSP + "n" + BSP + "s*document" + BSP + ".body,");
+    const HAS_DIR = new RegExp("dir=" + BSP + "{");
+    const portals = sources.filter((f) =>
+      PORTAL_CALL.test(f.text) && PORTAL_BODY.test(f.text));
+    // ...and the scan can see them at all, or the assertion below passes on an
+    // empty set — the same failure mode the write-scan had.
+    ok("the portal scan finds real portals", portals.length >= 3, String(portals.length));
+
+    const PORTAL_LTR_OK = [
+      // English-only by design, and it goes with the /super placeholder sweep —
+      // the same reason the date-formatter block below skips that surface.
+      "src/app/super/(shell)/application/users/UsersTable.js",
+      // KNOWN AND OPEN, not accepted. The planner's row menu is this same bug in
+      // a smaller place: it is placed by measured physical coordinates so it
+      // lands on the right edge either way, but its CONTENTS still read
+      // left-to-right in an Arabic studio. Wrap it the way Dialog is wrapped and
+      // delete this line.
+      "src/components/planner/TaskTable.tsx",
+    ];
+    const undirected = portals
+      .filter((f) => !HAS_DIR.test(f.text))
+      .filter((f) => !PORTAL_LTR_OK.includes(f.path))
+      .map((f) => f.path);
+    ok("every portal to document.body declares its own dir",
+      undirected.length === 0, undirected.join(", "));
+    // An exemption that outlives its file is a hole nobody widened on purpose.
+    const stalePortalExempt = PORTAL_LTR_OK.filter((x) => !sources.some((f) => f.path === x));
+    ok("...and no portal exemption outlives its file",
+      stalePortalExempt.length === 0, stalePortalExempt.join(", "));
   }
 
   // ---- 6. dates render through the one formatter -------------------------

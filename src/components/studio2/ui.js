@@ -6,6 +6,7 @@ import { Icon } from "@/components/studio2/icons";
 import { useFocusTrap } from "@/components/studio2/useFocusTrap";
 import { fmtDate as fmtDateCanonical, fmtDateTime as fmtDateTimeCanonical, fmtWeekday } from "@/lib/format";
 import { useStudioLocale } from "@/components/studio2/locale";
+import { dirFor } from "@/shared/locale";
 import { chromeDict } from "@/shared/studio/chrome";
 
 // SHARED STUDIO CHROME. The modules each own their own screens, but a dialog, a
@@ -156,7 +157,8 @@ export function useTablePrefs(module, slug, { columnKeys, defaultColumns, emptyF
 // BODY scrolls inside a dialog capped below the viewport height; the page
 // behind it stays put rather than scrolling two things at once.
 export function Dialog({ title, description, onClose, children, width = "max-w-[720px]" }) {
-  const tr = chromeDict(useStudioLocale());
+  const locale = useStudioLocale();
+  const tr = chromeDict(locale);
   // RENDERED INTO document.body, not where it is written. `position: fixed` is
   // only viewport-relative while no ancestor establishes a containing block —
   // any transform, filter, backdrop-filter, perspective, contain or
@@ -187,24 +189,46 @@ export function Dialog({ title, description, onClose, children, width = "max-w-[
   if (!mounted) return null; // no document to portal into until the client runs
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby={titleId}>
-      {/* Light touch on purpose: a heavy tint flattened the whole studio —
-          sidebar, header and the list behind it — into grey while the form was
-          open. The blur separates the dialog from what is behind it, so the
-          studio stays legible instead of being blanked out. */}
-      <div className="absolute inset-0 bg-slate-900/20 backdrop-blur-sm dark:bg-slate-950/30" onClick={onClose} />
-      <div ref={panelRef} className={`relative flex max-h-[88vh] w-full flex-col overflow-hidden rounded-geex bg-[var(--geex-surface)] shadow-geex ${width}`}>
-        <div className="flex items-start gap-3 border-b border-slate-200/70 px-6 py-4 dark:border-white/10">
-          <div className="min-w-0">
-            <h3 id={titleId} className="font-display text-lg font-800 text-[var(--geex-ink)]">{title}</h3>
-            {description && <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">{description}</p>}
+    // LANG AND DIR TRAVEL WITH IT, because the portal leaves the element that
+    // declares them. A studio's language is the tenant's, so it is declared on
+    // the SHELL rather than on <html> — the root layout never reads the studio
+    // record, and proxy.js sets no x-locale on a tenant address, so <html> is
+    // `dir="ltr"` on EVERY studio route whatever the tenant speaks. Portalling
+    // to the body lands the dialog outside the one element that says otherwise,
+    // so every dialog in an Arabic studio came out left-to-right: field
+    // alignment, button order, and the Arabic FONT with them — that rule is
+    // anchored `html.studio-chrome [dir="rtl"]`, so it matches this wrapper and
+    // stops falling through to a Latin face with no Arabic glyphs.
+    //
+    // `display: contents` is what makes the wrapper free: it generates NO box,
+    // so the `fixed inset-0` child below is still positioned against the
+    // viewport and no containing block is created — which is the whole reason
+    // the portal exists. Same technique, same reason, as kanban's PortalScope.
+    //
+    // MUI needs nothing added here. MuiRtlProvider is React CONTEXT and context
+    // crosses a portal, so the dialog always had the `muirtl` cache and the rtl
+    // theme; it was the DOM half that was missing, which left MUI controls
+    // doubly wrong — RTL-rewritten physical CSS applied in an LTR context.
+    <div lang={locale} dir={dirFor(locale)} className="contents">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby={titleId}>
+        {/* Light touch on purpose: a heavy tint flattened the whole studio —
+            sidebar, header and the list behind it — into grey while the form was
+            open. The blur separates the dialog from what is behind it, so the
+            studio stays legible instead of being blanked out. */}
+        <div className="absolute inset-0 bg-slate-900/20 backdrop-blur-sm dark:bg-slate-950/30" onClick={onClose} />
+        <div ref={panelRef} className={`relative flex max-h-[88vh] w-full flex-col overflow-hidden rounded-geex bg-[var(--geex-surface)] shadow-geex ${width}`}>
+          <div className="flex items-start gap-3 border-b border-slate-200/70 px-6 py-4 dark:border-white/10">
+            <div className="min-w-0">
+              <h3 id={titleId} className="font-display text-lg font-800 text-[var(--geex-ink)]">{title}</h3>
+              {description && <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">{description}</p>}
+            </div>
+            <button type="button" onClick={onClose} aria-label={tr.close}
+              className="ms-auto inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 dark:text-slate-400 dark:hover:bg-white/5">
+              <Icon name="close" className="h-[18px] w-[18px]" />
+            </button>
           </div>
-          <button type="button" onClick={onClose} aria-label={tr.close}
-            className="ms-auto inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 dark:text-slate-400 dark:hover:bg-white/5">
-            <Icon name="close" className="h-[18px] w-[18px]" />
-          </button>
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6 pt-5">{children}</div>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6 pt-5">{children}</div>
       </div>
     </div>,
     document.body,
