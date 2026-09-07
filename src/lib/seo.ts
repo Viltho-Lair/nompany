@@ -77,6 +77,22 @@ export const PAGES: Record<string, Record<string, PageCopy> | undefined> = {
         "امن على مستوى الصف مفروض في قاعدة البيانات، وصلاحية بالعضوية وحدها، وتشفير كلمات المرور بمعامل 12، وتحقق متعدد العوامل للوحة التحكم، وسجل لكل تغيير، وبلا اي جافاسكربت من طرف ثالث. مع قائمة صريحة بما لا نملكه من شهادات.",
     },
   },
+  // NO DEMO IS OFFERED, in either language, because there is none to book and
+  // the page says so in its own first sentence. A description that promised one
+  // would be the meta tag disagreeing with the page it describes — and it is
+  // the promise the whole contact copy was rewritten to stop making.
+  "/contact": {
+    en: {
+      title: "Contact — ask a question, reach a person",
+      description:
+        "There is no demo to book: the free tier is the whole product. Send a question and it reaches a mailbox somebody reads — support for teams under ten, sales from ten people up.",
+    },
+    ar: {
+      title: "تواصل معنا — اسأل وتصل رسالتك الى شخص",
+      description:
+        "لا يوجد عرض توضيحي تحجزه، فالخطة المجانية هي المنتج كاملا. ارسل سؤالك ليصل الى صندوق بريد يقرأه شخص — الدعم للفرق دون العشرة، والمبيعات من عشرة افراد فاكثر.",
+    },
+  },
   "/about": {
     en: {
       title: "About nompany",
