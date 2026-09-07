@@ -11,16 +11,22 @@ import LangMenu from "@/components/LangMenu";
 import { locales, LANGUAGE_NAMES, LANGUAGE_SHORT } from "@/shared/locale";
 import { LogoMark, Wordmark } from "../Logo";
 import { MagneticButton } from "../ui/MagneticButton";
-import { viewsFor } from "../views/views";
 import { getDict } from "@/shared/i18n";
-/* Navigation for the simulated router (TECHNIQUE 9).
-   The active-tab pill is a shared `layoutId`, so switching tabs makes it
-   glide between items instead of blinking on and off. */
-// `view`/`onNavigate` ARE OPTIONAL. This nav began life on a single page with
-// in-page views; it is now also the nav of five real routes, where there is no
-// view to switch and nothing to call. Absent, the view pills simply are not
-// rendered — the real page links carry the navigation.
-export function TopNav({ view, onNavigate, locale = "en" }) {
+/* THE NAV OF A REAL SITE, not of a simulated router.
+   ------------------------------------------------------------------
+   It began life on a single page with in-page views, switching them with
+   a `layoutId` pill and an `onNavigate` callback. Every destination it
+   offers is a route now — pricing went first, contact last — so the
+   pill, the `view` prop and the callback are gone and every item here is
+   an anchor. That is not tidying: a <button> that swaps a client view
+   cannot be opened in a new tab, cannot be linked to from anywhere, and
+   is invisible to a crawler, which is what a site's navigation exists to
+   be followed by.
+
+   THE ANCHORS ARE PLAIN, not next/link, on purpose: this nav also sits
+   on the client-rendered landing page, and a hard navigation is what
+   leaves that shell for the server-rendered route. */
+export function TopNav({ locale = "en" }) {
   const tr = landingDict(useLandingLocale());
   // The site dictionary owns the page names, so the nav and the site footer
   // cannot call the same page two different things.
@@ -85,23 +91,18 @@ export function TopNav({ view, onNavigate, locale = "en" }) {
             paddingTop: condensed ? 8 : 12,
             paddingBottom: condensed ? 8 : 12,
         }} transition={{ duration: 0.4, ease: EASE_OUT_EXPO }} className="flex w-full max-w-6xl items-center gap-1.5 rounded-full border px-2.5 backdrop-blur-xl sm:gap-4 sm:px-5">
-        <button onClick={() => onNavigate("overview")} className="flex shrink-0 items-center gap-2.5 pr-1 sm:pr-2" aria-label={tr.nompanyHome}>
+        <a href={`/${locale}`} className="flex shrink-0 items-center gap-2.5 pr-1 sm:pr-2" aria-label={tr.nompanyHome}>
           <LogoMark size={26} priority/>
           <Wordmark className="hidden sm:block"/>
-        </button>
+        </a>
 
-        {/* REAL PAGES FIRST, then whatever is still an in-page view.
-            Platform and Pricing have addresses now, so they are links: a
-            <button> that swaps a client view cannot be opened in a new tab,
-            cannot be linked to from anywhere, and is invisible to a crawler —
-            which is why the price list reached no engine while it lived here.
-            They are plain anchors rather than next/link on purpose: this nav
-            sits on the landing page, and a hard navigation is what leaves the
-            client-rendered shell for the server-rendered route. */}
+        {/* The page names come from the site dictionary, so the nav, the
+            footer and the page itself cannot call one page three things. */}
         <div className="ml-auto flex items-center gap-1 rounded-full bg-ink/40 p-1">
           {[
             { href: `/${locale}/platform`, label: nav.platform },
             { href: `/${locale}/pricing`, label: nav.pricing },
+            { href: `/${locale}/contact`, label: nav.contact },
           ].map((l) => (
             <a
               key={l.href}
@@ -111,13 +112,6 @@ export function TopNav({ view, onNavigate, locale = "en" }) {
               {l.label}
             </a>
           ))}
-          {onNavigate ? viewsFor(tr).map((v) => {
-            const isActive = v.id === view;
-            return (<button key={v.id} onClick={() => onNavigate(v.id)} aria-current={isActive ? "page" : undefined} className={`relative rounded-full px-2 py-1.5 text-xs font-medium transition-colors duration-300 sm:px-3.5 sm:text-sm ${isActive ? "text-white" : "text-fg-muted hover:text-fg"}`}>
-                {isActive && (<motion.span layoutId="nav-pill" className="absolute inset-0 rounded-full bg-gradient-to-r from-iris to-violet" transition={{ type: "spring", stiffness: 380, damping: 32 }}/>)}
-                <span className="relative z-10">{v.label}</span>
-              </button>);
-        }) : null}
         </div>
 
         {/* Light / dark / system. Writes the same `theme` cookie the account

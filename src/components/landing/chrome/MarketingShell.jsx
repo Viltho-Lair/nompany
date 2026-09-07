@@ -4,6 +4,7 @@ import { dirFor } from "@/shared/locale";
 import { LandingLocaleProvider } from "@/components/landing/locale";
 import { AmbientBackground } from "@/components/landing/AmbientBackground";
 import { TopNav } from "@/components/landing/nav/TopNav";
+import { PointerProvider } from "@/components/landing/providers/PointerProvider";
 import { SiteFooter } from "./SiteFooter";
 
 /* ==================================================================
@@ -31,11 +32,24 @@ export function MarketingShell({ locale = "en", children }) {
   return (
     <div dir={dirFor(locale)} className="landing-page relative min-h-screen">
       <LandingLocaleProvider locale={locale}>
-        <AmbientBackground />
-        <TopNav locale={locale} />
-        {/* The nav is fixed, so the content needs its height back. */}
-        <main className="pt-28 lg:pt-32">{children}</main>
-        <SiteFooter locale={locale} />
+        {/* THE CURSOR CONTEXT BELONGS TO THE CHROME, not to the home page.
+            `usePointer` is deliberately safe to call outside its provider — it
+            hands back inert MotionValues — so `AmbientBackground` has been
+            rendering here since this shell was extracted, reading a pointer
+            that never moves, and nothing anywhere reported it. It surfaced when
+            contact became a route: its mascot follows the cursor, and it would
+            have arrived here with dead eyes and a passing build.
+
+            A component must not change behaviour by changing address, so the
+            provider moved to where the components that read it are. Every
+            marketing route gets the drift the home page always had. */}
+        <PointerProvider>
+          <AmbientBackground />
+          <TopNav locale={locale} />
+          {/* The nav is fixed, so the content needs its height back. */}
+          <main className="pt-28 lg:pt-32">{children}</main>
+          <SiteFooter locale={locale} />
+        </PointerProvider>
       </LandingLocaleProvider>
     </div>
   );

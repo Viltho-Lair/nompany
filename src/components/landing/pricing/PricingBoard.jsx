@@ -180,6 +180,23 @@ export function PricingBoard({ initial = null, locale = "en" }) {
   const loading = live === null;
   const signupHref = (plan) => `/${locale}/signup?package=${packageKeyFor(plan)}`;
 
+  // EVERY CARD'S BUTTON IS A LINK, and the premium one was not.
+  //
+  // It called `onNavigate("contact")` — a prop this component has never
+  // declared and this page can never pass, because `pricing/page.js` is a
+  // Server Component and a function does not cross that boundary. So the
+  // board's own "Contact sales" threw the moment anybody pressed it, and it is
+  // the only thing in the repository ESLint calls an error rather than a
+  // warning: `no-undef` was reporting a runtime crash, not a style.
+  //
+  // The fix is the address, not the prop. Contact was the last in-page view,
+  // and its own comment said it becomes a route once it has a backend that
+  // sends; `/api/contact` sends. A button that swaps a client view cannot be
+  // opened in a new tab, linked to, or followed by a crawler — which is the
+  // argument that moved this very board out of the views.
+  const ctaHref = (plan) =>
+    plan.cta === "contact" ? `/${locale}/contact` : signupHref(plan);
+
   // Fixed by the card type, not chosen per package: the words are a promise
   // about what pressing the button does, and that follows from the shape.
   const ctaLabel = (plan) =>
@@ -401,25 +418,17 @@ export function PricingBoard({ initial = null, locale = "en" }) {
                 </span>
 
                 <div className="mt-6">
-                  {plan.cta === "contact" ? (
-                    <MagneticButton
-                      variant="ghost"
-                      strength={10}
-                      onClick={() => onNavigate("contact")}
-                      className="w-full justify-center px-5 py-3"
-                    >
-                      {ctaLabel(plan)}
-                    </MagneticButton>
-                  ) : (
-                    <MagneticButton
-                      variant={plan.popular ? "primary" : "ghost"}
-                      strength={10}
-                      href={signupHref(plan)}
-                      className="w-full justify-center px-5 py-3"
-                    >
-                      {ctaLabel(plan)}
-                    </MagneticButton>
-                  )}
+                  {/* One button, two destinations. The premium card stays ghost
+                      whether or not it is marked popular — "Contact sales" is
+                      not the press this page is steering anybody towards. */}
+                  <MagneticButton
+                    variant={plan.cta !== "contact" && plan.popular ? "primary" : "ghost"}
+                    strength={10}
+                    href={ctaHref(plan)}
+                    className="w-full justify-center px-5 py-3"
+                  >
+                    {ctaLabel(plan)}
+                  </MagneticButton>
                 </div>
 
                 <p className="mt-7 text-[0.65rem] uppercase tracking-[0.16em] text-fg-dim">
