@@ -564,6 +564,7 @@ export const SECTION_DEFS = [
     { key: "procurement-rfq", name: "Supplier quotes" },
     { key: "procurement-expediting", name: "Expediting" },
     { key: "procurement-subcontracts", name: "Subcontracts" },
+    { key: "procurement-receiving", name: "Receiving" },
     { key: "procurement-suppliers", name: "Suppliers" },
   ] },
 
@@ -745,7 +746,12 @@ export const SECTION_COLLECTIONS = {
   inventory: ["deliveries"],
   "inventory-stock": ["inventoryStock"],
   "inventory-items": ["inventoryItems"],
-  "inventory-sheets": ["projectSheets", "materialOrders"],
+  // GOODS RECEIPTS SIT WITH THE ORDERS THEY ANSWER. `receiveOrder` is
+  // Inventory's and writes them, so they are written where Inventory already
+  // writes; Procurement's Receiving screen reads them through its foreign
+  // `orders` section. Putting them under `procurement-receiving` would strand
+  // every receipt the day the section was planted.
+  "inventory-sheets": ["projectSheets", "materialOrders", "goodsReceipts"],
   // AWB tracking owns the shipments it follows and the airline registry that
   // resolves a waybill's 3-digit prefix to a carrier.
   "logistics-shipments": ["awbShipments", "awbAirlines"],

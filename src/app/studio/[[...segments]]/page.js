@@ -81,6 +81,10 @@ const StudioSuppliers = nextDynamic(
   () => import("@/components/studio2/StudioSuppliers"),
   { loading: () => <ScreenSkeleton /> },
 );
+const StudioReceiving = nextDynamic(
+  () => import("@/components/studio2/StudioReceiving"),
+  { loading: () => <ScreenSkeleton /> },
+);
 const StudioExpediting = nextDynamic(
   () => import("@/components/studio2/StudioExpediting"),
   { loading: () => <ScreenSkeleton /> },
@@ -684,6 +688,8 @@ async function renderStudio(params) {
           ? <StudioExpediting slug={studio.slug} />
         : active?.key === "procurement-subcontracts"
           ? <StudioSubcontracts slug={studio.slug} />
+        : active?.key === "procurement-receiving"
+          ? <StudioReceiving slug={studio.slug} />
         : active?.key === "procurement-suppliers"
           ? <StudioSuppliers slug={studio.slug} />
         : active?.key === "logistics-shipments"

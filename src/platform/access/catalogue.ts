@@ -302,6 +302,16 @@ const OWN_AREAS = [
   // site thought of a delivery is an opinion, and gating it behind a governance
   // permission would mean the only people who could write one are the people
   // who never see the goods.
+  // VIEW ALONE, the same shape as `crmSales.pipeline`. Booking goods in MOVES
+  // STOCK, so it answers to `inventory.stock.edit` at the one door that does
+  // — and a `create` here would be a right nothing exercises, which is
+  // invariant 16. What this area opens is the REGISTER and the match: what was
+  // ordered, what turned up, and what the supplier is charging for it.
+  //
+  // The invoice leg is gated again inside, on `finance.payables.view`. A
+  // storekeeper booking in a pallet has no business seeing what it cost.
+  { key: "procurement.receiving", group: "Procurement & Subcontracting", label: "Receiving",
+    verbs: ["view"] },
   { key: "procurement.suppliers", group: "Procurement & Subcontracting", label: "Suppliers",
     verbs: ["view", "create", "edit", "delete"],
     extra: [

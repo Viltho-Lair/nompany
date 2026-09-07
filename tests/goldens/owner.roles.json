@@ -920,6 +920,7 @@
           "procurement.subcontracts.create",
           "procurement.subcontracts.edit",
           "procurement.subcontracts.delete",
+          "procurement.receiving.view",
           "procurement.suppliers.view",
           "procurement.suppliers.create",
           "procurement.suppliers.edit",
@@ -1159,6 +1160,7 @@
           "procurement.subcontracts.create",
           "procurement.subcontracts.edit",
           "procurement.subcontracts.delete",
+          "procurement.receiving.view",
           "procurement.suppliers.view",
           "procurement.suppliers.create",
           "procurement.suppliers.edit",
@@ -1342,6 +1344,7 @@
           "procurement.subcontracts.create",
           "procurement.subcontracts.edit",
           "procurement.subcontracts.delete",
+          "procurement.receiving.view",
           "procurement.suppliers.view",
           "procurement.suppliers.create",
           "procurement.suppliers.edit",
@@ -1525,6 +1528,7 @@
           "procurement.subcontracts.create",
           "procurement.subcontracts.edit",
           "procurement.subcontracts.delete",
+          "procurement.receiving.view",
           "procurement.suppliers.view",
           "procurement.suppliers.create",
           "procurement.suppliers.edit",
@@ -1708,6 +1712,7 @@
           "procurement.subcontracts.create",
           "procurement.subcontracts.edit",
           "procurement.subcontracts.delete",
+          "procurement.receiving.view",
           "procurement.suppliers.view",
           "procurement.suppliers.create",
           "procurement.suppliers.edit",
@@ -1891,6 +1896,7 @@
           "procurement.subcontracts.create",
           "procurement.subcontracts.edit",
           "procurement.subcontracts.delete",
+          "procurement.receiving.view",
           "procurement.suppliers.view",
           "procurement.suppliers.create",
           "procurement.suppliers.edit",
@@ -2074,6 +2080,7 @@
           "procurement.subcontracts.create",
           "procurement.subcontracts.edit",
           "procurement.subcontracts.delete",
+          "procurement.receiving.view",
           "procurement.suppliers.view",
           "procurement.suppliers.create",
           "procurement.suppliers.edit",
@@ -2257,6 +2264,7 @@
           "procurement.subcontracts.create",
           "procurement.subcontracts.edit",
           "procurement.subcontracts.delete",
+          "procurement.receiving.view",
           "procurement.suppliers.view",
           "procurement.suppliers.create",
           "procurement.suppliers.edit",
@@ -2698,6 +2706,14 @@
             "key": "certify",
             "label": "Certify a payment"
           }
+        ]
+      },
+      {
+        "key": "procurement.receiving",
+        "group": "Procurement & Subcontracting",
+        "label": "Receiving",
+        "verbs": [
+          "view"
         ]
       },
       {

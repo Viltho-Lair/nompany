@@ -221,7 +221,12 @@ const MAX_CHUNK_GZIP_KB = 250;
 // Set at 1684 rather than 1682 deliberately. Three kilobytes of headroom still
 // discriminates; one trips on everything and is how this ceiling drifted
 // before, which is why the raise before this one was DECLINED at two.
-const MAX_TOTAL_GZIP_KB = 1684;
+// 1684 -> 1688 on 07/09/2026, with the receiving register. Both ends measured
+// again: 1681 at the supplier commit, 1685 after this slice. +4 KB, another
+// `nextDynamic` screen only its own route loads, and the LARGEST CHUNK DID NOT
+// MOVE (158 KB against 250) — the gate that matters, because every route pays
+// it. Three kilobytes of headroom, for the reason the note above gives.
+const MAX_TOTAL_GZIP_KB = 1688;
 
 const DIR = ".next/static";
 if (!existsSync(DIR)) {

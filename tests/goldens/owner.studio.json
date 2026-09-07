@@ -183,6 +183,12 @@
       },
       {
         "id": "<sub_ID>",
+        "key": "procurement-receiving",
+        "name": "Receiving",
+        "enabled": true
+      },
+      {
+        "id": "<sub_ID>",
         "key": "procurement-suppliers",
         "name": "Suppliers",
         "enabled": true

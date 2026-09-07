@@ -347,7 +347,11 @@ console.log("== the permission matrix: one key grants exactly itself");
   // had its four verbs. Editing a supplier corrects their phone number;
   // APPROVING one says the company may commit money to them. Rating adds no
   // key at all -- see the note on the area.
-  ok("the catalogue is the size we last agreed", ALL_PERMISSIONS.length === 172, String(ALL_PERMISSIONS.length));
+  // 173 with procurement.receiving.view — VIEW ALONE, the same shape as
+  // crmSales.pipeline. Booking goods in moves stock and answers to
+  // inventory.stock.edit at the one door that does; a create verb here would
+  // be a right nothing exercises.
+  ok("the catalogue is the size we last agreed", ALL_PERMISSIONS.length === 173, String(ALL_PERMISSIONS.length));
 
   const leaks = [];
   const missing = [];
@@ -7027,6 +7031,182 @@ console.log("== procurement: who the studio may buy from, and how they performed
   const outsider = await supPersonWith(["crmSales.tickets.view"], "nosup");
   await signIn(outsider.id);
   await shot("procurement.supplier.forbidden", await readSuppliers());
+  await signIn(owner.id);
+}
+
+// ============================================================================
+console.log("== procurement: ordered, received, billed");
+// THE MIDDLE LEG IS THE ONE THAT DID NOT EXIST. An order knew what it asked
+// for and a bill knew what it was charging; receiving incremented a running
+// total and kept no record of the events that produced it, so a mistyped ten
+// was permanent and nobody could say what arrived on which day.
+//
+// THE ASSERTION THIS BLOCK EXISTS FOR is that the received leg is summed from
+// the RECEIPTS. Reading `line.received` instead would pass every test here
+// while making the match blind to the drift it exists to catch.
+//
+// PLACED HERE for the reason the blocks above state: this studio is SHARED and
+// several goldens are whole-studio snapshots.
+{
+  const RECV = await import("@/app/api/studios/[slug]/procurement/receiving/route.ts");
+  const ORD = await import("@/app/api/studios/[slug]/inventory/orders/route.ts");
+  const VEN = await import("@/app/api/studios/[slug]/inventory/vendors/route.ts");
+  const ITM = await import("@/app/api/studios/[slug]/inventory/items/route.ts");
+  const BIL = await import("@/app/api/studios/[slug]/finance/bills/route.ts");
+
+  const P = ctx({ slug });
+  const shot = async (name, payload) => {
+    const r = golden(name, payload, EXTRA);
+    if (!r.recorded) ok(`${name} matches its golden`, r.ok, r.detail);
+    return payload;
+  };
+  const recvPersonWith = async (permissions, alias) => {
+    const u = (await createUser({ email: `g-${alias}-${rand()}@test.invalid`, passwordHash: "x" })).user;
+    const role = await createRole(studio.id, { name: `role-${alias}`, permissions });
+    await addCollaborator(studio.id, { userId: u.id, alias, role: "member", roleIds: [role.id] });
+    return u;
+  };
+
+  const readRecv = () => capture(
+    RECV.GET, req(`/api/studios/${slug}/procurement/receiving`), P);
+  const put = (body) => capture(
+    ORD.PUT, req(`/api/studios/${slug}/inventory/orders`, { method: "PUT", body }), P);
+  const rowFor = async (id) => {
+    const all = await readRecv();
+    return (all.body?.orders || []).find((o) => o.id === id) || {};
+  };
+
+  await signIn(owner.id);
+
+  // ITS OWN VENDOR AND ITEM, on the same rule every block here follows. FIXED
+  // NAMES, not `rand()`: a name reaches the response body where the normaliser
+  // cannot help.
+  const ven = await capture(VEN.POST, req(`/api/studios/${slug}/inventory/vendors`, {
+    method: "POST", body: { name: "Cementia" },
+  }), P);
+  const vendorId = ven.body?.vendor?.id;
+  const itm = await capture(ITM.POST, req(`/api/studios/${slug}/inventory/items`, {
+    method: "POST", body: { name: "Cement bag", sku: "CEM-01", vendorId, unitCost: 100 },
+  }), P);
+  const itemId = itm.body?.item?.id;
+  ok("the receiving fixtures exist", Boolean(vendorId && itemId));
+
+  // Ten at 100, so every figure below is legible: ordered 1000.
+  const made = await capture(ORD.POST, req(`/api/studios/${slug}/inventory/orders`, {
+    method: "POST", body: { vendorId, lines: [{ itemId, qty: 10, unitPrice: 100 }] },
+  }), P);
+  const orderId = made.body?.order?.id;
+  ok("an order to receive against", Boolean(orderId));
+
+  // A DRAFT ORDER WAS NEVER PLACED WITH ANYBODY, so nothing can arrive on it.
+  await shot("procurement.receiving.draft", await put({
+    id: orderId, receive: [{ itemId, qty: 1 }],
+  }));
+  await put({ id: orderId, status: "Ordered" });
+
+  // ---- the note itself -----------------------------------------------------
+  const first = await shot("procurement.receiving.booked", await put({
+    id: orderId, receivedAt: "2031-05-01", supplierRef: "DN-88",
+    receive: [{ itemId, qty: 4, rejected: 1 }],
+  }));
+  ok("receiving books the goods in", first.status === 200, String(first.status));
+
+  const partly = await rowFor(orderId);
+  ok("a receipt is written with its own reference",
+    /^GRN-\d+$/.test(String(partly.receipts?.[0]?.reference || "")),
+    String(partly.receipts?.[0]?.reference));
+  ok("...carrying the supplier's own note number",
+    partly.receipts?.[0]?.supplierRef === "DN-88", String(partly.receipts?.[0]?.supplierRef));
+  // THE DAY THE GOODS ARRIVED, not the day this ran. A route that dropped the
+  // field would silently stamp today and misreport every supplier.
+  ok("...and the day the goods actually arrived",
+    partly.receipts?.[0]?.receivedAt === "2031-05-01", String(partly.receipts?.[0]?.receivedAt));
+
+  // REJECTED GOODS ARE NOT RECEIVED GOODS. Four accepted at 100, not five.
+  ok("REJECTED IS EXCLUDED FROM THE RECEIVED VALUE",
+    partly.match?.receivedValue === 400, String(partly.match?.receivedValue));
+  ok("...and reported in its own right", partly.match?.rejectedQty === 1);
+  ok("...with the order part delivered", partly.match?.flags?.includes("part-delivered"));
+  // NULL, NOT NOUGHT: nothing has been invoiced yet.
+  ok("BILLED IS NULL WITH NO BILL", partly.match?.billedValue === null,
+    String(partly.match?.billedValue));
+
+  // OVER-RECEIPT IS STILL REFUSED, unchanged: a mismatch with the delivery note
+  // is something a human needs to look at.
+  await shot("procurement.receiving.overreceive", await put({
+    id: orderId, receivedAt: "2031-05-02", receive: [{ itemId, qty: 99 }],
+  }));
+
+  // ---- a correction walks it back -----------------------------------------
+  const grnId = partly.receipts?.[0]?.id;
+  await shot("procurement.receiving.correctionstray", await put({
+    id: orderId, receivedAt: "2031-05-03", correctionOf: "nope",
+    receive: [{ itemId, qty: -1 }],
+  }));
+  await shot("procurement.receiving.negative", await put({
+    id: orderId, receivedAt: "2031-05-03", receive: [{ itemId, qty: -1 }],
+  }));
+  await shot("procurement.receiving.overcorrect", await put({
+    id: orderId, receivedAt: "2031-05-03", correctionOf: grnId,
+    receive: [{ itemId, qty: -99 }],
+  }));
+
+  await put({
+    id: orderId, receivedAt: "2031-05-03", correctionOf: grnId,
+    receive: [{ itemId, qty: -1 }],
+  });
+  const corrected = await rowFor(orderId);
+  ok("A CORRECTION WALKS THE RECEIPT BACK",
+    corrected.match?.receivedValue === 300, String(corrected.match?.receivedValue));
+  ok("...and is marked as one",
+    corrected.receipts?.some((r) => r.correctionOf === grnId));
+
+  // ---- the three-way match -------------------------------------------------
+  await put({ id: orderId, receivedAt: "2031-05-10", receive: [{ itemId, qty: 7 }] });
+  const full = await rowFor(orderId);
+  ok("the order is fully received", full.match?.fullyReceived === true,
+    String(full.match?.receivedValue));
+
+  const bill = await capture(BIL.POST, req(`/api/studios/${slug}/finance/bills`, {
+    method: "POST", body: {
+      vendorId, vendorName: "Cementia", orderId,
+      lines: [{ description: "Cement", qty: 12, unitPrice: 100 }],
+    },
+  }), P);
+  ok("a bill against the order", Boolean(bill.body?.bill?.id), String(bill.status));
+
+  const matched = await shot("procurement.receiving.match", await readRecv());
+  const row = (matched.body?.orders || []).find((o) => o.id === orderId) || {};
+  // THE FLAG THE WHOLE CONTROL EXISTS FOR: charged for twelve, ten turned up.
+  ok("BILLED FOR MORE THAN TURNED UP IS FLAGGED",
+    row.match?.flags?.includes("over-billed"), (row.match?.flags || []).join(","));
+  ok("...and the register counts it as needing attention",
+    matched.body?.needsAttention >= 1, String(matched.body?.needsAttention));
+
+  // ---- the invoice leg is gated on its own right ---------------------------
+  // A storekeeper booking in a pallet has no business seeing what it cost.
+  const store = await recvPersonWith(["procurement.receiving.view"], "storekeep");
+  await signIn(store.id);
+  const withheld = await shot("procurement.receiving.nobills", await readRecv());
+  const theirRow = (withheld.body?.orders || []).find((o) => o.id === orderId) || {};
+  ok("WITHOUT finance.payables.view THE INVOICE LEG IS WITHHELD",
+    withheld.body?.canSeeBills === false, String(withheld.body?.canSeeBills));
+  ok("...billed reads null rather than a figure",
+    theirRow.match?.billedValue === null, String(theirRow.match?.billedValue));
+  // AND THE FLAG DERIVED FROM IT GOES WITH IT. Telling somebody an order is
+  // over-billed IS telling them the invoice exceeds the delivery, which is the
+  // very thing the gate withholds.
+  ok("...and so does the flag derived from it",
+    !(theirRow.match?.flags || []).includes("over-billed"),
+    (theirRow.match?.flags || []).join(","));
+  ok("...while what they may see is unchanged",
+    theirRow.match?.receivedValue === row.match?.receivedValue,
+    String(theirRow.match?.receivedValue));
+  await signIn(owner.id);
+
+  const outsider = await recvPersonWith(["crmSales.tickets.view"], "norecv");
+  await signIn(outsider.id);
+  await shot("procurement.receiving.forbidden", await readRecv());
   await signIn(owner.id);
 }
 

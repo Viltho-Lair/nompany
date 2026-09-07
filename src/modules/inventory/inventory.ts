@@ -30,6 +30,10 @@ import { moduleContext } from "../context";
 import { listCollaborators } from "@/platform/auth/collaborators";
 import { notifyCollaborators, NOTIFY } from "@/platform/notify/notifications";
 import { nextReference } from "@/modules/main/references";
+// THE RULES A RECEIPT FOLLOWS ARE PROCUREMENT'S, and pure, so the screen
+// refuses exactly what this refuses.
+import { receiptProblem } from "@/modules/procurement/receivingModel";
+import type { GoodsReceipt, ReceiptLine } from "@/modules/procurement/receivingSchema";
 // What each department adds to a quotation row, and who owns which column.
 import { SHEET_OWNERS, cleanSheetLine } from "./sheetColumns";
 import type {
@@ -89,6 +93,11 @@ const QUOTATIONS = "quotations";
 const Deliveries = repo<Delivery>(DELIVERIES);
 const Items = repo<Item>(ITEMS);
 const Orders = repo<Order>(ORDERS);
+// GOODS RECEIPTS SIT WITH THE ORDERS THEY ANSWER, under `inventory-sheets`.
+// Procurement's Receiving screen reads them through its foreign `orders`
+// section; putting them under that screen's own section would strand every
+// receipt the day it was planted. See modules/procurement/receivingSchema.
+const Receipts = repo<GoodsReceipt>("goodsReceipts");
 // Read-only, and never written from here: Procurement owns the register.
 const Requisitions = repo<{ id: string; status?: string; lines?: unknown; costCodeId?: string }>("requisitions");
 const Projects = repo(PROJECTS);
@@ -1220,12 +1229,44 @@ export async function receiveOrder(ctx: InventoryContext, id: string, body: Reco
   if (order.status === "Cancelled") return { error: "cancelled" };
   if (order.status === "Draft") return { error: "not-ordered" };
 
-  const asked = new Map();
+  // A CORRECTION WALKS AN EARLIER RECEIPT BACK, and is the reason this function
+  // is no longer add-only. Until it existed a mistyped ten was permanent: the
+  // running total could go up and never down, so the warehouse and the record
+  // disagreed for ever and the only fix was a stock adjustment that said
+  // nothing about which delivery had been wrong.
+  //
+  // It must NAME the receipt it corrects. A bare negative line is
+  // indistinguishable from a typo, and the register has to stay readable as a
+  // history of what turned up.
+  const correctionOf = str(body?.correctionOf, 60);
+  const receipts = await Receipts.find({ studio, section: sheetsSection });
+  if (correctionOf && !receipts.some((r) => r.id === correctionOf && r.orderId === id)) {
+    return { error: "correction-target" };
+  }
+
+  const asked = new Map<string, number>();
+  const rejected = new Map<string, number>();
   for (const r of Array.isArray(body?.lines) ? body.lines : []) {
     const amount = qty(r?.qty);
-    if (amount > 0) asked.set(str(r?.itemId, 60), amount);
+    const itemId = str(r?.itemId, 60);
+    // Signs are checked by `receiptProblem` below, which is where that rule
+    // lives for both the screen and the server.
+    if (amount !== 0) asked.set(itemId, amount);
+    const turnedAway = qty(r?.rejected);
+    if (turnedAway > 0) rejected.set(itemId, turnedAway);
   }
-  if (!asked.size) return { error: "nothing" };
+  if (!asked.size && !rejected.size) return { error: "nothing" };
+
+  const receivedAt = str(body?.receivedAt, 10) || new Date().toISOString().slice(0, 10);
+  const problem = receiptProblem({
+    orderId: id,
+    receivedAt,
+    correctionOf,
+    lines: [...new Set([...asked.keys(), ...rejected.keys()])].map((itemId) => ({
+      itemId, qty: asked.get(itemId) || 0, rejected: rejected.get(itemId) || 0,
+    })),
+  }, order);
+  if (problem) return { error: problem };
 
   // Over-receiving is refused outright rather than silently clamped — a
   // mismatch with the delivery note is something a human needs to look at.
@@ -1233,8 +1274,20 @@ export async function receiveOrder(ctx: InventoryContext, id: string, body: Reco
   for (const [itemId, amount] of asked) {
     const line = lines.find((l) => l.itemId === itemId);
     if (!line) return { error: "line", itemId };
-    const remaining = (line.qty || 0) - Number(line.received || 0);
+    const already = Number(line.received || 0);
+    // OVER-RECEIPT IS STILL REFUSED OUTRIGHT, unchanged: a mismatch with the
+    // delivery note is something a human needs to look at, and clamping it
+    // silently is how the eleventh of ten ends up in the warehouse and nowhere
+    // else. `threeWayMatch` REPORTS the state because the store can still reach
+    // it through a correction on one line and a receipt on another.
+    const remaining = (line.qty || 0) - already;
     if (amount > remaining) return { error: "over-receive", itemId, remaining };
+    // AND A CORRECTION MAY NOT TAKE A LINE BELOW NOUGHT. Un-receiving more than
+    // was ever received is not a correction of anything.
+    if (already + amount < 0) return { error: "over-correct", itemId, received: already };
+  }
+  for (const itemId of rejected.keys()) {
+    if (!lines.some((l) => l.itemId === itemId)) return { error: "line", itemId };
   }
 
   for (const [itemId, amount] of asked) {
@@ -1244,17 +1297,52 @@ export async function receiveOrder(ctx: InventoryContext, id: string, body: Reco
     // writing anything" property that makes a partial receive impossible.
     const line = lines.find((l) => l.itemId === itemId) as OrderLine;
     line.received = Math.round((Number(line.received || 0) + amount) * 1000) / 1000;
+    // A CORRECTION MOVES STOCK BACK OUT. The movement ledger is what every
+    // on-hand figure is summed from, so a receipt walked back on the order and
+    // left in the ledger would be a quantity that exists in one place only.
     await record(ctx, {
-      itemId, kind: "in", quantity: amount,
-      reason: `Received on ${order.reference}`,
+      itemId, kind: amount < 0 ? "out" : "in", quantity: Math.abs(amount),
+      reason: amount < 0
+        ? `Correction to ${order.reference}`
+        : `Received on ${order.reference}`,
       sourceType: "order", sourceId: order.id,
     });
   }
 
+  // THE NOTE ITSELF, written whether or not anything was accepted: a lorry that
+  // turned up and was sent away is precisely what this record is for, and it is
+  // the only evidence that the goods were ever offered.
+  //
+  // REJECTED QUANTITIES NEVER REACH STOCK. Something turned away at the gate was
+  // never accepted, so it is recorded here and moves nothing — an invoice
+  // covering it is over-billing, and a receipt that booked it in would report
+  // the paperwork as fine.
+  const receipt = await Receipts.create({ studio, section: sheetsSection }, {
+    reference: await nextReference(studio.id, { rows: receipts, field: "reference", prefix: "GRN" }),
+    orderId: id,
+    supplierRef: str(body?.supplierRef, 120),
+    receivedAt,
+    receivedByCollaboratorId: ctx.collaborator.id,
+    lines: [...new Set([...asked.keys(), ...rejected.keys()])].map((itemId) => ({
+      itemId,
+      qty: asked.get(itemId) || 0,
+      rejected: rejected.get(itemId) || 0,
+      note: "",
+    })) as ReceiptLine[],
+    notes: str(body?.notes, 2000),
+    ...(correctionOf ? { correctionOf } : {}),
+    createdAt: new Date().toISOString(),
+  });
+
+  // A CORRECTION CAN TAKE AN ORDER BACK OFF `Received`, which is the point:
+  // the status is derived from the numbers, so walking the numbers back has to
+  // walk the status back with them or the order stops appearing on the
+  // expediting board while goods are still owed.
   const complete = lines.every((l) => Number(l.received || 0) >= (l.qty || 0));
+  const anything = lines.some((l) => Number(l.received || 0) > 0);
   const updated = await Orders.update({ studio, section: sheetsSection }, id, {
     lines,
-    status: complete ? "Received" : "Partly received",
+    status: complete ? "Received" : anything ? "Partly received" : "Ordered",
     receivedAt: complete ? new Date().toISOString() : order.receivedAt || "",
   });
 
@@ -1286,7 +1374,7 @@ export async function receiveOrder(ctx: InventoryContext, id: string, body: Reco
       );
     }
   }
-  return { order: updated };
+  return { order: updated, receipt };
 }
 
 // An order that has received stock is never deleted — the movements it created

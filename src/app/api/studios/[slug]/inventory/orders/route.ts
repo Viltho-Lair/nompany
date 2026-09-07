@@ -18,7 +18,15 @@ export const POST = route(spec, async (inv) => {
 
 // Editing an order, or receiving goods against it. Receiving is a PUT with
 // `receive` lines because it changes the same record — but it goes through its
-// own service call, since it also writes the stock movements.
+// own service call, since it also writes the stock movements AND the goods
+// received note.
+//
+// THE REST OF THE RECEIPT TRAVELS WITH THE LINES. This forwarded `lines`
+// alone, so the supplier's own note number, the day the goods actually arrived
+// and the receipt being corrected were all accepted by the route and dropped
+// before the service saw them — silently, because every one of them is
+// optional. Named explicitly rather than spreading the body, so a field has to
+// be added here on purpose.
 //
 // An `over-receive` refusal carries the itemId and how much of it is still
 // outstanding, so the line that is wrong can say so.
@@ -28,7 +36,13 @@ export const PUT = route(spec, async (inv) => {
   if (!inv.body.id) return { error: "missing" };
 
   const result = inv.body.receive
-    ? await receiveOrder(inv, inv.body.id, { lines: inv.body.receive })
+    ? await receiveOrder(inv, inv.body.id, {
+      lines: inv.body.receive,
+      supplierRef: inv.body.supplierRef,
+      receivedAt: inv.body.receivedAt,
+      notes: inv.body.notes,
+      correctionOf: inv.body.correctionOf,
+    })
     : await editOrder(inv, inv.body.id, inv.body);
 
   if (refused(result)) return result;

@@ -1,0 +1,221 @@
+{
+  "status": 200,
+  "body": {
+    "ok": true,
+    "orders": [
+      {
+        "id": "<mat_ID>",
+        "reference": "PO-0005",
+        "vendorId": "<inv_ID>",
+        "vendorName": "Cementia",
+        "projectId": "",
+        "status": "Received",
+        "expectedAt": "",
+        "match": {
+          "orderId": "<mat_ID>",
+          "reference": "PO-0005",
+          "vendorId": "<inv_ID>",
+          "lines": [
+            {
+              "itemId": "<inv_ID>",
+              "description": "Cement bag",
+              "orderedQty": 10,
+              "receivedQty": 10,
+              "rejectedQty": 1,
+              "unitPrice": 100,
+              "orderedValue": 1000,
+              "receivedValue": 1000,
+              "outstandingQty": 0,
+              "overReceivedQty": 0
+            }
+          ],
+          "orderedValue": 1000,
+          "receivedValue": 1000,
+          "billedValue": null,
+          "billCount": 0,
+          "variance": null,
+          "matched": false,
+          "flags": [
+            "no-bill",
+            "received-not-billed"
+          ],
+          "rejectedQty": 1,
+          "fullyReceived": true
+        },
+        "receipts": [
+          {
+            "id": "<goo_ID>",
+            "reference": "GRN-0004",
+            "orderId": "<mat_ID>",
+            "supplierRef": "",
+            "receivedAt": "2031-05-10",
+            "receivedByCollaboratorId": "<col_ID>",
+            "lines": [
+              {
+                "itemId": "<inv_ID>",
+                "qty": 7,
+                "rejected": 0,
+                "note": ""
+              }
+            ],
+            "notes": "",
+            "createdAt": "<timestamp>",
+            "studioId": "<std_ID>",
+            "sectionId": "<sub_ID>",
+            "receivedByAlias": "Owner"
+          },
+          {
+            "id": "<goo_ID>",
+            "reference": "GRN-0003",
+            "orderId": "<mat_ID>",
+            "supplierRef": "",
+            "receivedAt": "2031-05-03",
+            "receivedByCollaboratorId": "<col_ID>",
+            "lines": [
+              {
+                "itemId": "<inv_ID>",
+                "qty": -1,
+                "rejected": 0,
+                "note": ""
+              }
+            ],
+            "notes": "",
+            "correctionOf": "<goo_ID>",
+            "createdAt": "<timestamp>",
+            "studioId": "<std_ID>",
+            "sectionId": "<sub_ID>",
+            "receivedByAlias": "Owner"
+          },
+          {
+            "id": "<goo_ID>",
+            "reference": "GRN-0002",
+            "orderId": "<mat_ID>",
+            "supplierRef": "DN-88",
+            "receivedAt": "2031-05-01",
+            "receivedByCollaboratorId": "<col_ID>",
+            "lines": [
+              {
+                "itemId": "<inv_ID>",
+                "qty": 4,
+                "rejected": 1,
+                "note": ""
+              }
+            ],
+            "notes": "",
+            "createdAt": "<timestamp>",
+            "studioId": "<std_ID>",
+            "sectionId": "<sub_ID>",
+            "receivedByAlias": "Owner"
+          }
+        ]
+      },
+      {
+        "id": "<mat_ID>",
+        "reference": "PO-0002",
+        "vendorId": "<inv_ID>",
+        "vendorName": "Late Supplies",
+        "projectId": "",
+        "status": "Received",
+        "expectedAt": "<today-40>",
+        "match": {
+          "orderId": "<mat_ID>",
+          "reference": "PO-0002",
+          "vendorId": "<inv_ID>",
+          "lines": [
+            {
+              "itemId": "<inv_ID>",
+              "description": "Scaffold board",
+              "orderedQty": 10,
+              "receivedQty": 10,
+              "rejectedQty": 0,
+              "unitPrice": 20,
+              "orderedValue": 200,
+              "receivedValue": 200,
+              "outstandingQty": 0,
+              "overReceivedQty": 0
+            }
+          ],
+          "orderedValue": 200,
+          "receivedValue": 200,
+          "billedValue": null,
+          "billCount": 0,
+          "variance": null,
+          "matched": false,
+          "flags": [
+            "no-bill",
+            "received-not-billed"
+          ],
+          "rejectedQty": 0,
+          "fullyReceived": true
+        },
+        "receipts": [
+          {
+            "id": "<goo_ID>",
+            "reference": "GRN-0001",
+            "orderId": "<mat_ID>",
+            "supplierRef": "",
+            "receivedAt": "<today>",
+            "receivedByCollaboratorId": "<col_ID>",
+            "lines": [
+              {
+                "itemId": "<inv_ID>",
+                "qty": 10,
+                "rejected": 0,
+                "note": ""
+              }
+            ],
+            "notes": "",
+            "createdAt": "<timestamp>",
+            "studioId": "<std_ID>",
+            "sectionId": "<sub_ID>",
+            "receivedByAlias": "Owner"
+          }
+        ]
+      },
+      {
+        "id": "<mat_ID>",
+        "reference": "PO-0001",
+        "vendorId": "<inv_ID>",
+        "vendorName": "Pipe Co",
+        "projectId": "<pro_ID>",
+        "status": "Ordered",
+        "expectedAt": "",
+        "match": {
+          "orderId": "<mat_ID>",
+          "reference": "PO-0001",
+          "vendorId": "<inv_ID>",
+          "lines": [
+            {
+              "itemId": "<inv_ID>",
+              "description": "Copper pipe",
+              "orderedQty": 2,
+              "receivedQty": 0,
+              "rejectedQty": 0,
+              "unitPrice": 9000,
+              "orderedValue": 18000,
+              "receivedValue": 0,
+              "outstandingQty": 2,
+              "overReceivedQty": 0
+            }
+          ],
+          "orderedValue": 18000,
+          "receivedValue": 0,
+          "billedValue": null,
+          "billCount": 0,
+          "variance": null,
+          "matched": false,
+          "flags": [
+            "no-bill"
+          ],
+          "rejectedQty": 0,
+          "fullyReceived": false
+        },
+        "receipts": []
+      }
+    ],
+    "asOf": "<timestamp>",
+    "canSeeBills": false,
+    "canReceive": false,
+    "needsAttention": 0
+  }
+}

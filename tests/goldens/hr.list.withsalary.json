@@ -33,6 +33,7 @@
       "procurement-rfq": true,
       "procurement-expediting": true,
       "procurement-subcontracts": true,
+      "procurement-receiving": true,
       "procurement-suppliers": true,
       "inventory": true,
       "inventory-stock": true,
@@ -93,6 +94,7 @@
       "procurement-rfq": true,
       "procurement-expediting": true,
       "procurement-subcontracts": true,
+      "procurement-receiving": false,
       "procurement-suppliers": true,
       "inventory": true,
       "inventory-stock": true,
@@ -214,7 +216,7 @@
         "name": "Artistic Director",
         "description": "",
         "wildcard": false,
-        "permissionCount": 170,
+        "permissionCount": 171,
         "departmentId": "<dep_ID>",
         "source": "library",
         "held": 0
@@ -244,7 +246,7 @@
         "name": "Board Member",
         "description": "",
         "wildcard": false,
-        "permissionCount": 170,
+        "permissionCount": 171,
         "departmentId": "<dep_ID>",
         "source": "library",
         "held": 0
@@ -254,7 +256,7 @@
         "name": "Branch Manager",
         "description": "",
         "wildcard": false,
-        "permissionCount": 170,
+        "permissionCount": 171,
         "departmentId": "<dep_ID>",
         "source": "library",
         "held": 0
@@ -264,7 +266,7 @@
         "name": "Brand / Franchise Director",
         "description": "",
         "wildcard": false,
-        "permissionCount": 170,
+        "permissionCount": 171,
         "departmentId": "<dep_ID>",
         "source": "library",
         "held": 0
@@ -284,7 +286,7 @@
         "name": "Business Unit Head",
         "description": "",
         "wildcard": false,
-        "permissionCount": 170,
+        "permissionCount": 171,
         "departmentId": "<dep_ID>",
         "source": "library",
         "held": 0
@@ -294,7 +296,7 @@
         "name": "Chairman",
         "description": "",
         "wildcard": false,
-        "permissionCount": 170,
+        "permissionCount": 171,
         "departmentId": "<dep_ID>",
         "source": "library",
         "held": 0
@@ -304,7 +306,7 @@
         "name": "Chairman / Board",
         "description": "",
         "wildcard": false,
-        "permissionCount": 170,
+        "permissionCount": 171,
         "departmentId": "<dep_ID>",
         "source": "library",
         "held": 0
@@ -314,7 +316,7 @@
         "name": "Chairman / Board",
         "description": "",
         "wildcard": false,
-        "permissionCount": 170,
+        "permissionCount": 171,
         "departmentId": "<dep_ID>",
         "source": "library",
         "held": 0

@@ -32,6 +32,7 @@ export const procurementContext = moduleContext<ProcurementContext>({
     expediting: "procurement-expediting",
     subcontracts: "procurement-subcontracts",
     suppliers: "procurement-suppliers",
+    receiving: "procurement-receiving",
   },
   foreign: {
     // Purchase orders, where they already live. See the note on
@@ -40,8 +41,12 @@ export const procurementContext = moduleContext<ProcurementContext>({
     orders: ["inventory-sheets", "inventory"],
     projectsList: ["projects-list", "projects"],
     items: ["inventory-items", "inventory"],
+    // THE THIRD LEG OF THE MATCH. Foreign and therefore nullable: a studio with
+    // no Finance section has no bills, and the match still answers on the two
+    // legs it has rather than refusing.
+    bills: ["finance-payables", "finance"],
   },
-  flags: ["requisitions", "rfq", "expediting", "subcontracts", "suppliers"],
+  flags: ["requisitions", "rfq", "expediting", "subcontracts", "suppliers", "receiving"],
 });
 
 const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);

@@ -9,6 +9,45 @@ type Strings = {
   requisitions: string;
   rfqs: string;
   expediting: string;
+  receiving: string;
+  receivingSub: string;
+  loadingReceiving: string;
+  noReceiving: string;
+  noReceivingBody: string;
+  needsAttention: (n: number) => string;
+  allMatched: string;
+  orderedLeg: string;
+  receivedLeg: string;
+  billedLeg: string;
+  billedWithheld: string;
+  varianceLabel: string;
+  matchedLabel: string;
+  awaitingBill: string;
+  flagOverBilled: string;
+  flagBilledNotReceived: string;
+  flagOverReceived: string;
+  flagReceivedNotBilled: string;
+  flagPartDelivered: string;
+  bookIn: string;
+  bookInFor: (ref: string) => string;
+  supplierRefLabel: string;
+  arrivedOn: string;
+  arrivedOnHint: string;
+  acceptedQty: string;
+  rejectedQty: string;
+  outstandingQty: string;
+  receiptNotes: string;
+  noReceiptsYet: string;
+  receiptsHeading: string;
+  correctionBadge: string;
+  rejectedCount: (n: number) => string;
+  refuseOverReceive: string;
+  refuseOverCorrect: string;
+  refuseNothing: string;
+  refuseNegative: string;
+  refuseCorrectionPositive: string;
+  refuseCorrectionTarget: string;
+  refuseNotOrdered: string;
   suppliers: string;
   suppliersSub: string;
   loadingSuppliers: string;
@@ -273,6 +312,45 @@ const en: Strings = {
   requisitions: "Requisitions",
   rfqs: "Supplier quotes",
   expediting: "Expediting",
+  receiving: "Receiving",
+  receivingSub: "What was ordered, what turned up, and what the supplier is charging for it.",
+  loadingReceiving: "Loading receiving…",
+  noReceiving: "Nothing to receive",
+  noReceivingBody: "Once an order has been placed it appears here, so what arrives can be booked in against it and checked against the invoice.",
+  needsAttention: (n) => (n === 1 ? "1 order needs looking at" : `${n} orders need looking at`),
+  allMatched: "Nothing needs looking at.",
+  orderedLeg: "Ordered",
+  receivedLeg: "Received",
+  billedLeg: "Billed",
+  billedWithheld: "Not shown",
+  varianceLabel: "Difference",
+  matchedLabel: "Matched",
+  awaitingBill: "No invoice yet",
+  flagOverBilled: "Billed for more than turned up.",
+  flagBilledNotReceived: "Invoiced with nothing received at all.",
+  flagOverReceived: "More arrived than was ordered.",
+  flagReceivedNotBilled: "Delivered and not yet invoiced.",
+  flagPartDelivered: "Part delivered.",
+  bookIn: "Book in",
+  bookInFor: (ref) => `Book in against ${ref}`,
+  supplierRefLabel: "Supplier’s note number",
+  arrivedOn: "Arrived on",
+  arrivedOnHint: "The day the goods arrived, not the day you are typing this. Dating a Friday delivery on Monday misreports the supplier.",
+  acceptedQty: "Accepted",
+  rejectedQty: "Rejected",
+  outstandingQty: "Still due",
+  receiptNotes: "Notes",
+  noReceiptsYet: "Nothing booked in yet.",
+  receiptsHeading: "Goods received",
+  correctionBadge: "Correction",
+  rejectedCount: (n) => `${n} rejected`,
+  refuseOverReceive: "That is more than the order still has outstanding. Check it against the delivery note — a mismatch is worth a person looking at.",
+  refuseOverCorrect: "That would take the line below nothing. You cannot un-receive more than was received.",
+  refuseNothing: "Nothing to book in — enter what was accepted, or what was turned away.",
+  refuseNegative: "A negative quantity is a correction. Correct the receipt it belongs to instead.",
+  refuseCorrectionPositive: "A correction takes goods off. Book a new receipt in to add them.",
+  refuseCorrectionTarget: "That correction does not name a receipt on this order.",
+  refuseNotOrdered: "That order has not been placed yet, so nothing can arrive against it.",
   suppliers: "Suppliers",
   suppliersSub: "Who the studio may buy from, and how they have actually performed.",
   loadingSuppliers: "Loading suppliers…",
@@ -519,6 +597,45 @@ const ar: Strings = {
   requisitions: "طلبات الشراء",
   rfqs: "عروض الموردين",
   expediting: "متابعة التوريد",
+  receiving: "الاستلام",
+  receivingSub: "ما طُلب، وما وصل، وما يطالب به المورّد.",
+  loadingReceiving: "جارٍ تحميل الاستلام…",
+  noReceiving: "لا شيء لاستلامه",
+  noReceivingBody: "بعد إصدار أمر الشراء يظهر هنا، ليُقيّد ما يصل عليه ويُقارن بالفاتورة.",
+  needsAttention: (n) => (n === 1 ? "أمر واحد يحتاج مراجعة" : `${n} أوامر تحتاج مراجعة`),
+  allMatched: "لا شيء يحتاج مراجعة.",
+  orderedLeg: "المطلوب",
+  receivedLeg: "المستلم",
+  billedLeg: "المفوتر",
+  billedWithheld: "غير معروض",
+  varianceLabel: "الفرق",
+  matchedLabel: "متطابق",
+  awaitingBill: "لا فاتورة بعد",
+  flagOverBilled: "الفاتورة تتجاوز ما وصل فعلاً.",
+  flagBilledNotReceived: "فاتورة ولم يصل شيء إطلاقاً.",
+  flagOverReceived: "وصل أكثر ممّا طُلب.",
+  flagReceivedNotBilled: "وصل ولم ترد فاتورته بعد.",
+  flagPartDelivered: "توريد جزئي.",
+  bookIn: "تقييد استلام",
+  bookInFor: (ref) => `تقييد استلام على ${ref}`,
+  supplierRefLabel: "رقم إشعار المورّد",
+  arrivedOn: "تاريخ الوصول",
+  arrivedOnHint: "يوم وصول البضاعة، لا يوم إدخالك لها. فتأريخ توريد الجمعة بيوم الاثنين يظلم المورّد.",
+  acceptedQty: "المقبول",
+  rejectedQty: "المرفوض",
+  outstandingQty: "المتبقّي",
+  receiptNotes: "ملاحظات",
+  noReceiptsYet: "لم يُقيّد شيء بعد.",
+  receiptsHeading: "محاضر الاستلام",
+  correctionBadge: "تصحيح",
+  rejectedCount: (n) => `مرفوض ${n}`,
+  refuseOverReceive: "هذا أكثر ممّا تبقّى على الأمر. راجعه مع إشعار التوريد — فالاختلاف يستحقّ نظرة إنسان.",
+  refuseOverCorrect: "هذا ينزل بالبند تحت الصفر. لا يُلغى استلام أكثر ممّا استُلم.",
+  refuseNothing: "لا شيء لتقييده — أدخل المقبول أو المرفوض.",
+  refuseNegative: "الكمية السالبة تصحيح. صحّح المحضر الذي تخصّه بدلاً من ذلك.",
+  refuseCorrectionPositive: "التصحيح يخصم فقط. لإضافة بضاعة قيّد محضر استلام جديداً.",
+  refuseCorrectionTarget: "التصحيح لا يشير إلى محضر على هذا الأمر.",
+  refuseNotOrdered: "لم يُصدر هذا الأمر بعد، فلا شيء يصل عليه.",
   suppliers: "المورّدون",
   suppliersSub: "ممّن يجوز الشراء، وكيف كان أداؤهم فعلاً.",
   loadingSuppliers: "جارٍ تحميل المورّدين…",

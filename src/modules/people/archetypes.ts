@@ -198,6 +198,16 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
     grants: [
       ["inventory.stock", "full"], ["inventory.items", "full"], ["inventory.sheets", "edit"],
       ["logistics.shipments", "edit"], ["inventory.dashboard", "view"],
+      // THE RECEIVING REGISTER IS THIS ARCHETYPE'S OWN SCREEN: `inventory.stock`
+      // at full is what books goods in, and this is where that work is done and
+      // read back. VIEW is the whole area — receiving is not a verb here.
+      //
+      // AND IT HOLDS NO `finance.payables`, which is the point: the invoice leg
+      // of the match is withheld from a store keeper by the gate inside
+      // `listReceiving`. That gate is exercised by a SEEDED role rather than
+      // only by a test fixture, which is the difference between a rule and a
+      // rule somebody remembers.
+      ["procurement.receiving", "view"],
     ],
   },
   {
@@ -208,6 +218,11 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
       ["procurement.rfq", "edit"], ["procurement.expediting", "edit"],
       ["procurement.subcontracts", "edit"],
       ["finance.payables", "edit"], ["inventory.items", "view"],
+      // THE OTHER HALF OF THE SAME SCREEN. A buyer holds `finance.payables`, so
+      // they see the invoice leg the store keeper cannot — and they are who acts
+      // on an over-billed order, because arguing with the supplier is the
+      // buying job rather than the warehouse one.
+      ["procurement.receiving", "view"],
     ],
     // AWARDING IS THE ONE THING A BUYER DOES, so it is here even though this
     // archetype deliberately holds no `procurement.requisitions.approve`. The
