@@ -1,0 +1,53 @@
+{
+  "status": 200,
+  "body": {
+    "ok": true,
+    "closures": [
+      {
+        "id": "<pro_ID>",
+        "number": "",
+        "title": "Closeout House",
+        "clientName": "Closeout Client",
+        "stage": "Received",
+        "finalAccountAt": "",
+        "position": {
+          "practicalCompletionAt": "2031-06-01",
+          "handoverAt": "2031-06-10",
+          "supportPeriodDays": 365,
+          "warrantyEndsAt": "2032-06-09",
+          "warrantyDaysLeft": 2102,
+          "warrantyState": "running",
+          "closedAt": "",
+          "isClosed": false,
+          "punch": {
+            "open": 1,
+            "closed": 0,
+            "total": 1,
+            "oldestOpenDays": 0,
+            "openIds": [
+              "<ins_ID>"
+            ]
+          },
+          "blockers": [
+            "open-snags"
+          ],
+          "canClose": false
+        },
+        "snags": [
+          {
+            "id": "<ins_ID>",
+            "reference": "",
+            "title": "Cracked tile to lobby",
+            "result": "pending",
+            "location": "",
+            "scheduledDate": "",
+            "inspectedAt": ""
+          }
+        ],
+        "closedByAlias": ""
+      }
+    ],
+    "asOf": "<timestamp>",
+    "canEdit": true
+  }
+}

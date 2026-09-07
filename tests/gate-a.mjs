@@ -7456,6 +7456,130 @@ console.log("== projects: the diary, and where it is missing");
 }
 
 // ============================================================================
+console.log("== projects: a job does not close over open defects");
+// THE ASSERTION THIS BLOCK EXISTS FOR is that the punch list stops a closure.
+// A punch list is the only place the remaining defects are written down, so
+// closing a project while snags are open deletes that list from the one screen
+// anybody would look at.
+//
+// AND IT ADDS NO PERMISSION KEY: closure IS a project's content, the way a
+// variation is a contract's, so every act here answers to `projects.list`.
+//
+// PLACED HERE for the reason the blocks above state: this studio is SHARED and
+// several goldens are whole-studio snapshots.
+{
+  const CLO = await import("@/app/api/studios/[slug]/projects/closure/route.ts");
+  const PRJ = await import("@/app/api/studios/[slug]/projects/route.ts");
+  const INS = await import("@/app/api/studios/[slug]/projects/inspections/route.ts");
+
+  const P = ctx({ slug });
+  const shot = async (name, payload) => {
+    const r = golden(name, payload, EXTRA);
+    if (!r.recorded) ok(`${name} matches its golden`, r.ok, r.detail);
+    return payload;
+  };
+  const put = (body) => capture(
+    CLO.PUT, req(`/api/studios/${slug}/projects/closure`, { method: "PUT", body }), P);
+  const readClosure = (id) => capture(
+    CLO.GET, req(`/api/studios/${slug}/projects/closure?projectId=${id}`), P);
+
+  await signIn(owner.id);
+
+  const made = await capture(PRJ.POST, req(`/api/studios/${slug}/projects`, {
+    method: "POST", body: { title: "Closeout House", clientName: "Closeout Client", direct: true },
+  }), P);
+  const projectId = made.body?.project?.id;
+  ok("a project to close", Boolean(projectId), JSON.stringify(made.body).slice(0, 140));
+
+  // ---- nothing recorded yet -------------------------------------------------
+  const fresh = await shot("projects.closure.fresh", await readClosure(projectId));
+  const p0 = fresh.body?.closures?.[0]?.position || {};
+  ok("a fresh project cannot close", p0.canClose === false);
+  ok("...because practical completion is missing",
+    p0.blockers?.includes("no-practical-completion"), (p0.blockers || []).join(","));
+  // NULL RATHER THAN A GUESSED DATE: the clock has not started, which is not
+  // the same as it having run out.
+  ok("NO HANDOVER MEANS NO SUPPORT END DATE",
+    p0.warrantyEndsAt === null, String(p0.warrantyEndsAt));
+  ok("...and the state is unknown, not expired",
+    p0.warrantyState === "unknown", String(p0.warrantyState));
+
+  // ---- the dates ------------------------------------------------------------
+  // Handing over works that are not complete is a different event with a
+  // different name, and stored this way round the clock sits behind it.
+  await shot("projects.closure.handoverbefore", await put({
+    id: projectId, practicalCompletionAt: "2031-06-01", handoverAt: "2031-05-01",
+  }));
+  await shot("projects.closure.badwarranty", await put({
+    id: projectId, supportPeriodDays: 99999,
+  }));
+
+  await put({
+    id: projectId, practicalCompletionAt: "2031-06-01", handoverAt: "2031-06-10",
+    supportPeriodDays: 365,
+  });
+  const dated = await readClosure(projectId);
+  const p1 = dated.body?.closures?.[0]?.position || {};
+  // THE CLOCK RUNS FROM HANDOVER, on the period `supportPeriodDays` already
+  // stored and nothing ever read.
+  ok("THE SUPPORT PERIOD IS COUNTED FROM HANDOVER",
+    p1.warrantyEndsAt === "2032-06-09", String(p1.warrantyEndsAt));
+  ok("...and the job is now ready to close", p1.canClose === true,
+    (p1.blockers || []).join(","));
+
+  // ---- an open snag stops it ------------------------------------------------
+  const snag = await capture(INS.POST, req(`/api/studios/${slug}/projects/inspections`, {
+    method: "POST", body: {
+      title: "Cracked tile to lobby", projectId, dealId: projectId,
+      kind: "snag", result: "pending",
+    },
+  }), P);
+  ok("a snag is raised", Boolean(snag.body?.inspection?.id), String(snag.status));
+
+  const snagged = await shot("projects.closure.snagged", await readClosure(projectId));
+  const p2 = snagged.body?.closures?.[0]?.position || {};
+  ok("THE PUNCH LIST IS THE INSPECTIONS' OWN SNAGS", p2.punch?.open === 1,
+    String(p2.punch?.open));
+  ok("...and an open one blocks closing", p2.canClose === false);
+  ok("...saying so by name", p2.blockers?.includes("open-snags"),
+    (p2.blockers || []).join(","));
+  // THE LIST TRAVELS, not only the count: a screen that says "one open" and
+  // cannot say which one sends somebody to another screen.
+  ok("...and the snag itself travels with it",
+    snagged.body?.closures?.[0]?.snags?.length === 1);
+  await shot("projects.closure.blocked", await put({ id: projectId, action: "close" }));
+
+  // ---- clear it and close ---------------------------------------------------
+  // PATCH, NOT PUT. Recording a result is its own verb because a result is
+  // recorded ONCE — an inspection that passed and then passed differently is a
+  // second inspection, not an edit — which is the same posture this slice takes
+  // with closing. Sending it as a PUT edits the row and leaves `result` alone,
+  // so the snag stayed open and the close was refused: the fixture was wrong
+  // and the refusal was right.
+  await capture(INS.PATCH, req(`/api/studios/${slug}/projects/inspections`, {
+    method: "PATCH", body: { id: snag.body?.inspection?.id, result: "pass" },
+  }), P);
+  const cleared = await readClosure(projectId);
+  ok("a passed snag clears the list",
+    cleared.body?.closures?.[0]?.position?.punch?.open === 0,
+    String(cleared.body?.closures?.[0]?.position?.punch?.open));
+
+  const closed = await shot("projects.closure.closed", await put({
+    id: projectId, action: "close",
+  }));
+  ok("the project closes", Boolean(closed.body?.project?.closedAt), String(closed.status));
+  ok("...stamped with who closed it",
+    Boolean(closed.body?.project?.closedByCollaboratorId));
+
+  // CLOSING IS A STATEMENT ABOUT THE WHOLE JOB, and un-saying it quietly is how
+  // a support period restarts without anybody deciding to restart it.
+  await shot("projects.closure.reopen", await put({
+    id: projectId, practicalCompletionAt: "2031-07-01",
+  }));
+  await shot("projects.closure.closedtwice", await put({ id: projectId, action: "close" }));
+}
+
+// ============================================================================
 console.log("== no golden is left behind");
 // A golden file that no case produces is debris. It is almost always the old
 // name of a case that was renamed, and it is worse than an empty file: it sits

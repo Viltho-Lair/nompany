@@ -1,0 +1,36 @@
+{
+  "status": 200,
+  "body": {
+    "ok": true,
+    "project": {
+      "id": "<pro_ID>",
+      "number": "",
+      "title": "Closeout House",
+      "quotationId": "",
+      "quotationNumber": "",
+      "rfqId": "",
+      "ticketId": "",
+      "tenderId": "",
+      "tenderRef": "",
+      "clientId": "<sal_ID>",
+      "clientName": "Closeout Client",
+      "value": 0,
+      "stage": "Received",
+      "managerCollaboratorId": "",
+      "location": "",
+      "supportPeriodDays": 365,
+      "receivedDate": "<today>",
+      "startDate": "",
+      "endDate": "",
+      "notes": "",
+      "openedByCollaboratorId": "<col_ID>",
+      "createdAt": "<timestamp>",
+      "studioId": "<std_ID>",
+      "sectionId": "<sub_ID>",
+      "practicalCompletionAt": "2031-06-01",
+      "handoverAt": "2031-06-10",
+      "closedAt": "<timestamp>",
+      "closedByCollaboratorId": "<col_ID>"
+    }
+  }
+}
