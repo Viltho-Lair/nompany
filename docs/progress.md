@@ -107,6 +107,135 @@ direct-projects block documents the rule; it is not obvious from anywhere else.
 
 ---
 
+# THE DOCUMENT REGISTER — all 110 markdown files, audited 07/09/2026
+
+**THIS FILE IS THE ONLY PROGRESS FILE.** Everything proposed, accepted, rejected, deleted
+or changed is recorded here and nowhere else. No new `.md` may be created for a feature, a
+plan, a status or a suggestion. See "The one-file rule" below.
+
+Audited by reading every file's heading, size and stated status, and by checking the code
+each one claims to describe. The categories are mine; the verdicts are measured.
+
+## A — DEAD. Describes something that does not exist. Delete.
+
+| File | Lines | Why |
+|---|---|---|
+| `docs/erp-guide.md` | 239 | **DELETED 07/09/2026.** Described the pre-restructure product; its own heading said "the twelve departments". |
+| `DOCUMENTATION.md` | 229 | Describes an in-studio **Documentation section that was removed**: `src/lib/documentation.js`, `DocumentationGuide.js` and the `documentation` permission node are all gone. The file still opens with "This file is the source of truth". |
+| `docs/database-migration-mssql.md` | 396 | "Redis to Microsoft SQL Server". **Neither end is real** — Redis is gone and the target was Postgres. A migration that never happened, to a database never used. |
+| `scripts/migrate/README.md` | 317 | "Redis to SQL Server backfill (CLI)". The same fiction, documenting flags for scripts that now run against Postgres. |
+| `docs/README.md` | 60 | Surveyed 20/08/2026 at "12 departments" with Redis latency figures, and its index points at `erp-guide.md`, now deleted. |
+
+## B — STALE. Real subject, wrong facts. Fix or fold in.
+
+| File | Lines | Why |
+|---|---|---|
+| `docs/system_architecture.md` | 392 | **14 mentions of Redis**, which no file in `src` can open. |
+| `docs/planner-kanban-integration.md` | 252 | 3 Redis mentions; the planner shipped and this still reads as a proposal. |
+| `docs/ui-ux-progress.md` | 194 | **A second progress file.** Last updated 23/08/2026 — two weeks stale. It calls itself "the sibling of progress.md", which is the problem. |
+| `docs/functionality/sections.md` | 219 | Four stale rows: Tendering "not built", CRM missing pipeline and 360, Procurement "suppliers only", Master data "locations only". |
+| `claudewants.md` | 44 | Empty. Harmless, but it is a channel nobody reads. |
+
+## C — SEPARATE TRACK. Not progress files; leave or fold deliberately.
+
+`SEO-PLAN.md` (703) and `SEO-LOG.md` (96) run their own backlog and dated log. `DESIGN.md`
+(283), `LICENSES.md` (49), `README.md` (153), `legal/privacy-policy.md`,
+`legal/terms-and-conditions.md`, `docs/glossary.md` (575) and
+`docs/research/industry-roles.md` (3,968) are reference rather than status.
+
+## D — THE WAVE PLAN. Superseded by the ERP programme, still cited.
+
+| File | State |
+|---|---|
+| `docs/execution-plan.md` (397) | Waves 0 to 3 done, Wave 4 not started, Wave 5 **overtaken by P1** and no longer a wave. |
+| `docs/recommendations.md` (383) | The audit that produced the waves. Findings assigned; several closed. |
+| `docs/performance-audit.md` (241) | Wave 2. Largely delivered (8 hops to 2, request cache, batched prefetch). |
+| `docs/security-and-notifications.md` (289) | Waves 0 and 2. Delivered. |
+| `docs/typescript-modularization.md` (260) | Wave 3. **Done server-side**; its own comment still says 212 browser files, now 272. |
+| `docs/refactoring-strategy.md` (233) | The `src/lib` split. Done. |
+| `docs/ui-ux-overhaul.md` (465) | **Wave 4 — NOT STARTED.** |
+| `docs/w4-dashboards-and-motion.md` (1,161) | **Wave 4 proposal — AWAITING A DECISION FROM YOU** (palette: marketing indigo/Sora against the ERP light-first blue/Saira). |
+
+## E — SPECS AND PLANS. 36 files. Historical record of shipped work, except three.
+
+Every `docs/superpowers/specs/*` and `plans/*` dated 23/08 to 06/09 describes work that
+**shipped**: Nova, the executive dashboard and rollup, engagements phases 0 to 1b, service
+actions, the engagements view, direct project creation, deal aliases, P0's restructure,
+P1's Postgres swap, the Cloud Run gateway, the administration fold, the approval engine,
+connected calendars, the /super calendar, departmental roles.
+
+**The ones that are NOT shipped, and the first is the important one:**
+
+| File | State |
+|---|---|
+| `2026-09-07-record-engine-design.md` + `-phase-1.md` (1,732 lines) | **P4b — NOT BUILT.** No `modules/record*` or `platform/record*` exists. **Roughly 50 of the ~68 outstanding subsections are meant to ride this.** The single highest-leverage unbuilt thing in the programme. |
+| `2026-09-07-marketing-site-rebuild-design.md` (360) | Active. The design landed on `main`; the site is not rebuilt. |
+| `2026-09-06-server-rendered-first-payload-*` (967) | Phase 1, Tendering. No matching code found by grep. **Unverified — confirm before trusting either way.** |
+
+## F — WHAT WILL HURT THE CODE
+
+1. **The record engine is not built.** Everything else here is documentation; this is the
+   reason the remaining ~68 subsections are being hand-built at roughly one slice a day.
+   It is the rate limiter on the entire programme.
+2. **`scripts/migrate/departmental-roles.mjs` has never been run**, live or sandbox. Every
+   existing studio holds Manager, Team Lead, Member and Viewer alongside the new
+   departmental roles. Two role models at once.
+3. **Roles do not catch up.** `listRoles` seeds only into an EMPTY list, so a right added
+   to a starter role never reaches an existing studio — and the owner never notices,
+   because `effectivePermissions` short-circuits on `role === "owner"`.
+4. **Seeded roles never reach departments that already exist.** `seedDepartments` seeds
+   roles only for departments in `created`, so Finance, HR and Administration — seeded at
+   studio creation, before role-seeding existed — can never receive theirs by any path.
+5. **Nova tells every tenant "Money is in SAR"**, whatever currency that studio set.
+6. **`tests/access.test.mjs`'s dead-capability audit is blind.** It walks `.js` under
+   `src/lib` and `src/app/api`; every guarded write moved to `src/modules/**.ts` in Wave 3.
+   It reports that no write permission reaches a guard, and its companion assertion passes
+   **vacuously**.
+7. **The architectural greps read `src/` and not `tests/`.** A fixture naming a retired
+   section key is caught by nothing.
+8. **The media `--reclaim` script is missing from the tree** while `media.md` documents its
+   three flags. The 1.41 MB of base64 cannot be reclaimed by running anything.
+
+## G — DRIFT: what was said, and what then happened
+
+| Said | What happened |
+|---|---|
+| "The catalogue stays at 159; I am adding no permission keys" | True of departmental roles, then moved to 166 by two Procurement slices. Fine — but it was stated as a stable fact. |
+| "principal is every area at full" | It was every area at full **and no extra at all**, which left the approval chains unwalkable by any library role. Found by another session, not by a test. Fixed 07/09. |
+| Bundle ceiling "1638 against 1644" | Three separate numbers here and in `CLAUDE.md` were stale when written. Now 1671 against 1674, with 3 KB of headroom. |
+| "46 subsections declared" | **42.** Written one paragraph after the warning not to carry numbers forward. |
+| "Nothing in the product hard-codes a currency" | **False.** `pricing/route.ts` authors in SAR, the landing page defaults to SAR, `/super` prices in SAR, and there is a hand-drawn riyal glyph. |
+| Four sections "render nothing" read as the whole gap | They are 23 of ~68 outstanding subsections. The other 45 sit inside sections that already render and read as finished. |
+| The Fifteen Sections artifact as the picture of progress | Hand-written HTML, four days stale, ~25 grey bullets already green. |
+
+## H — THE ONE-FILE RULE
+
+**No new `.md` file for a feature, a plan, a status, an audit or a suggestion.**
+Everything lands here.
+
+- A **new major feature** I propose gets a row in the ledger below, not a spec file.
+- If you **reject** it, the row is marked `REJECTED` and stays.
+- If you ask to **delete** it, the row is marked `DELETED` and stays.
+- If you ask to **change** it, the row is marked `CHANGED TO: <what>` and stays.
+- Rows are never removed. A decision you cannot see is a decision that gets re-argued.
+- Minor changes get no row.
+
+### The decision ledger
+
+| Date | Proposal | Status |
+|---|---|---|
+| 07/09/2026 | Delete `docs/erp-guide.md` | **DONE** |
+| 07/09/2026 | Delete the five dead documents in category A | **PROPOSED** |
+| 07/09/2026 | Top-up seeded roles for departments that already exist | **PROPOSED** |
+| 07/09/2026 | Studio Settings points at Master data when the industry changes | **PROPOSED** |
+| 07/09/2026 | Fix Nova's hardcoded "Money is in SAR" to use the studio currency | **PROPOSED** |
+| 07/09/2026 | Generate the Fifteen Sections view from `SECTION_DEFS` rather than hand-writing it | **PROPOSED** |
+| 07/09/2026 | Move pricing off a SAR base | **YOUR CALL — commercial, not code** |
+| 07/09/2026 | Build P4b, the record engine, before more hand-built slices | **PROPOSED — the highest-leverage item on this page** |
+
+
+---
+
 ## The spec, subsection by subsection
 
 **THIS TABLE EXISTS BECAUSE THIS FILE DID NOT HAVE ONE, and its absence hid the size of
@@ -116,19 +245,144 @@ were invisible, and the four visibly-empty sections read as the whole gap. They 
 
 **The authority is `docs/superpowers/specs/2026-08-30-erp-multi-industry-program-design.md`,
 phases P2 to P7.** It is the ONLY document that enumerates the target subsections.
-`docs/erp-guide.md` describes the PRE-RESTRUCTURE product — its own heading says "the
-twelve departments" — and must not be read as the target.
+`docs/erp-guide.md` DESCRIBED THE PRE-RESTRUCTURE PRODUCT — its own heading said "the
+twelve departments" — and was deleted on 07/09/2026 for exactly that reason: a file that
+describes a shape the product left behind is read as the target by whoever finds it
+first.
 
 **EVERY ROW BELOW WAS CHECKED AGAINST THE CODE on 07/09/2026, not copied from prose.**
 That is the discipline this file keeps failing: four separate figures in it were stale on
 the day they were read, and each had been carried forward rather than measured. When you
 change this table, grep for the thing; do not trust the row above.
 
-**Counts as at 07/09/2026: 46 subsections declared** in `SECTION_DEFS`; the spec expects
-roughly 50 more. **This said 41 when first written, one hour after the paragraph above
-warned about carrying numbers forward** — the first count came from a `grep -A 8` that
+**Counts as at 07/09/2026: 42 subsections declared** in `SECTION_DEFS` (17 roots, 59 keys
+in `ALL_SECTION_KEYS`, so 59 minus 17); the spec expects roughly 50 more. **THIS SAID 46
+AND 46 WAS WRONG, in the paragraph that had just finished telling you to grep rather than
+trust the row above** — and wrong in the flattering direction, claiming more built than
+exists. Re-measured by deriving children as `ALL_SECTION_KEYS` minus the root keys, which
+cannot drift from the defs because it is computed from them. **This said 41 when first
+written, one hour after the paragraph above warned about carrying numbers forward** — the first count came from a `grep -A 8` that
 truncated every section with more than a few children. Re-measured by parsing the block. Four sections render nothing and hold no permission area — Manufacturing
 & Production, Assets & Equipment, Quality & HSE, Reports & BI.
+
+### The fifteen, subsection by subsection
+
+**SOURCE OF THE LIST: the "The Fifteen Sections" artifact** (published 03/09/2026), which
+enumerates the programme design's target subsections and is the only place they were ever
+written out in full. **SOURCE OF EVERY STATUS: the code, re-checked 07/09/2026.** The two
+are kept apart deliberately {M} the artifact is hand-written HTML and had drifted badly by the
+time it was read back: it still showed Tendering as "renders nothing" four days after all
+five of its subsections shipped, and roughly twenty-five of its greyed bullets were green.
+**Do not copy a status from it. Copy the list, then grep.**
+
+Legend: ✅ built · 🟡 built with a named gap (see the functionality file) · ⬜ not built.
+
+#### Main {M} `main` ✅  ·  Tasks {M} `tasks` ✅
+Neither is a blueprint section. Main is the home surface and deliberately has no children;
+Tasks holds the board and its settings.
+
+#### §1 CRM & Sales {M} `crm-sales` ✅ 10 / 10
+Tickets ✅ · Customers ✅ · Quotations ✅ · Live view ✅ · Settings ✅ · Leads &
+opportunities pipeline ✅ · Customer 360 ✅ · Sales orders & contracts register ✅ ·
+Pricing & catalogue, customer rates ✅ · Dashboard ✅
+**The only section complete against its target.**
+
+#### §2 Tendering & Estimating {M} `tendering` ✅ 5 / 5
+Tender register ✅ · BOQ grid with rate library ✅ · Bid documents & clarifications ✅ ·
+Bid review & approval ✅ · Handover to Projects as budget baseline ✅
+
+#### §3 Projects {M} `projects` 🟡 12 / 13
+Project list ✅ · SLA ✅ · Overtimes ✅ · Planner ✅ · Settings ✅ · WBS/Gantt with
+critical path ✅ · Daily site reports 🟡 (photos upload but do not display; no addendum) ·
+Earned value ✅ · Variations & change orders ✅ · Cost codes ✅ · Billing milestones &
+retention ✅ · Closure, punch list, warranty 🟡 (closing sets a date and does nothing else)
+· **Resource planning ⬜**
+
+#### §4 Engineering & Documents {M} `engineering-docs` ⬜ 4 / 9
+Document register ✅ · RFQ ✅ · Live view ✅ · Settings ✅ · **Transmittals ⬜ · RFI
+register with ball-in-court ⬜ · Submittal register ⬜ · EBOM & specs ⬜ · Technical
+library ⬜**
+
+#### §5 Procurement & Subcontracting 🟡 7 / 8
+Suppliers ✅ · Purchase requisitions ✅ · Supplier RFQ & quote comparison 🟡 (an award
+creates no purchase order) · Purchase orders with expediting 🟡 (a chase sends nothing) ·
+Subcontracts, certificates, retention 🟡 (`Paid` is a status nothing sets; no bill is
+raised) · GRN with 3-way match 🟡 (exact, no tolerance; order level not line level) ·
+Dashboard 🟡 (one widget of four) · **Supplier qualification & rating ⬜**
+
+#### §6 Inventory & Warehouse ⬜ 3 / 8
+Stock ✅ · Items ✅ · Project sheets ✅ · **Locations & bins ⬜ · Batch & serial lifecycle
+⬜ · Stocktaking & adjustment approval ⬜ · Valuation method ⬜ · Dashboard ⬜**
+
+#### §7 Manufacturing & Production ⬜ 0 / 6
+**BOM & routing ⬜ · Work orders ⬜ · MRP & capacity planning ⬜ · Shop-floor terminal to
+timesheets ⬜ · Production QC ⬜ · Dashboard ⬜**  {M}  renders nothing.
+
+#### §8 Field Operations & Service ⬜ 3 / 10
+Schedule ✅ · Tracking ✅ · Settings ✅ · **Service orders & job cards ⬜ · Dispatch board
+⬜ · Maintenance contracts (AMC) ⬜ · Preventive-maintenance plans ⬜ · Mobile field view
+with e-signature ⬜ · Installed base ⬜ · Dashboard ⬜**
+
+#### §9 Logistics & Fleet ⬜ 1 / 6
+Shipments (AWB) ✅ · **Deliveries with POD ⬜ · Trips & routing ⬜ · Fleet register &
+compliance ⬜ · Customs & freight, landed cost ⬜ · Dashboard ⬜**
+**The thinnest built section in the product**, against Delivery & Transportation being a
+sellable service action in 13 of the 25 fields of work.
+
+#### §10 Assets & Equipment ⬜ 0 / 4
+**Allocation to deals with internal hire rates ⬜ · Utilisation & cost charged to deals ⬜
+· Equipment maintenance ⬜ · Calibration ⬜**  {M}  renders nothing.
+**Needed by 20 of the 25 fields of work** {M} the widest gap in the product.
+
+#### §11 Quality & HSE ⬜ 0 / 8
+**ITPs ⬜ · Inspection & test records ⬜ · NCR / CAPA ⬜ · Audits ⬜ · HSE incidents with
+LTIFR ⬜ · Permits to work & toolbox talks ⬜ · Certifications ⬜ · Dashboard ⬜**
+Renders nothing. **Needed by 17 of the 25 fields** {M} Testing & Inspection is a sellable
+action with nowhere to record the result.
+
+#### §12 Human Resources ⬜ 2 / 10
+Employees ✅ · Leave & employee requests 🟡 (vacations exist; the wider request model does
+not) · **Attendance ⬜ · Recruitment & onboarding ⬜ · Performance ⬜ · Training & skills
+⬜ · Manpower planning ⬜ · Payroll runs, allowances, deductions ⬜ · Payslips and bank/WPS
+files ⬜ · Payroll posting to the ledger ⬜**
+The artifact's note here {M} *"a department IS a top-level section"* {M} **is reversed**:
+departments are their own records under Administration as of 06/09/2026.
+
+#### §13 Finance & Accounting ⬜ 7 / 18
+Cash ✅ · Ledger ✅ · Payables ✅ · Fixed assets ✅ · Settings ✅ · Payment as an
+allocatable record ✅ · Retention & progress billing (IPC) ✅ · Budgets & commitment
+control 🟡 (at project level only, not in the ledger) · Multi-currency 🟡 (daily FX and
+rate-at-approval; no revaluation) · **Dimensions on every journal line ⬜ · Periods &
+close ⬜ · P&L, balance sheet, cash flow ⬜ (only `trialBalance`) · Credit notes ⬜ · Tax
+engine, ZATCA adapter, WHT ⬜ · Bank reconciliation ⬜ · Cash-flow forecast and PDCs ⬜ ·
+Letters of guarantee & credit ⬜ · Auto-posting from every module ⬜**
+**The largest single body of unbuilt work in the programme.**
+
+#### §14 Reports & BI ⬜ 0 / 5
+**Executive dashboard ⬜ · Report builder ⬜ · Saved, scheduled & exported reports ⬜ ·
+Analytics ⬜ · KPI targets & alert rules ⬜**  {M}  renders nothing.
+
+#### §15 Administration & Settings 🟡 4 / 10
+People ✅ · Access ✅ · Studio settings ✅ · Master data 🟡 (locations and departments
+only) · **Currencies and units of measure ⬜ · Numbering series and cost codes ⬜ ·
+Categories and industry taxonomy ⬜ · Flow templates ⬜ · Integrations & API ⬜ ·
+Notification templates & print formats ⬜**
+The artifact's footer {M} *"all four of its keys sit in `NO_SCREEN_YET`… hardcoded standalone
+entries"* {M} **is reversed**: the fold landed 03/09/2026 and Administration is an ordinary
+gated section.
+
+#### Where that leaves the programme
+
+| | Built | Target | |
+|---|---|---|---|
+| Complete | 2 sections | CRM & Sales, Tendering | |
+| Partial | 6 sections | Projects, Procurement, Administration, Engineering, Field Service, Finance | |
+| One subsection only | 2 sections | Logistics, HR | |
+| Renders nothing | 4 sections | Manufacturing, Assets, Quality & HSE, Reports | |
+| **Subsections** | **42 declared** | **~110 in the target list** | **roughly 38%** |
+
+**The four empty sections are NOT the gap.** They are 23 of the ~68 outstanding
+subsections. The other 45 sit inside sections that already render and read as finished.
 
 ### P2 — Engine ✅ essentially complete
 
@@ -163,6 +417,39 @@ pass today, because there is no ledger to reconcile to beyond a trial balance.
 | Statements from the ledger — P&L, balance sheet, cash flow | ⬜ only `trialBalance` exists |
 | Credit notes as corrections | ⬜ |
 | Configurable tax engine, ZATCA adapter, withholding | ⬜ |
+
+**THE PRODUCT IS NOT A SAUDI PRODUCT, AND THE TENANT-FACING ERP HARD-CODES NO
+JURISDICTION.** Finance is jurisdiction-neutral by design decision D5 of the programme
+spec: *a configurable tax engine, not a Saudi tax module.* ZATCA is the FIRST country
+adapter to be written, the way any engine needs one implementation to prove the shape, not
+the abstraction itself. A studio sets its own currency, language and locale; amounts
+convert through the daily FX table and the rate that routed an approval is stored on the
+record. `Asia/Riyadh` in `functionality/calendar.md` and a spec's JSON sample is a sample
+timezone picked to be visibly non-UTC, and the Hijri calendar is named in
+`w4-dashboards-and-motion.md` as a thing to AVOID rendering.
+
+**BUT NOMPANY'S OWN COMMERCIAL LAYER IS SAR-DENOMINATED, WHICH IS A DIFFERENT THING AND IS
+NOT WRITTEN DOWN ANYWHERE ELSE.** This paragraph first claimed "nothing in the product
+hard-codes a country, a currency, a calendar or a tax authority", and that was FALSE —
+written from a grep that searched for "Saudi" and "ZATCA" and not for "SAR", which is where
+all of it actually lives:
+
+- `src/app/api/pricing/route.ts` — `const BASE = "SAR"`. The price list is AUTHORED in
+  riyal and every other currency is converted from it.
+- `src/components/landing/views/PricingView.js` — the public pricing page opens on SAR.
+- `src/app/super/.../packages/page.js` — packages and tiers are priced `SAR `.
+- `src/components/Currency.js` / `Money.js` — a hand-drawn riyal glyph, special-cased by
+  `isRiyal()`, because the symbol has no usable font glyph.
+
+Selling in one's own currency is a business decision rather than a jurisdiction leaking
+into the product, and the two must not be conflated — but the decision is nowhere recorded,
+so anybody re-reading it later would have to infer it from a constant.
+
+**ONE OF THEM IS AN OUTRIGHT BUG.** `src/app/api/studios/[slug]/nova/route.ts` puts
+*"Money is in SAR"* into the system prompt of EVERY tenant, whatever currency that studio
+set. A studio trading in euros has an assistant told otherwise, and it will read amounts
+back in the wrong unit. That line should take the studio's own currency, which the context
+already holds.
 | Bank reconciliation, cash-flow forecast, PDCs, LGs | ⬜ |
 | Auto-posting from every module | ⬜ |
 

@@ -26,6 +26,28 @@ and do not read the whole folder. Every file ends with "Not built yet", stated i
 because a silent gap reads as a finished feature. When you change behaviour, update that
 file in the same commit.
 
+**ONE PROGRESS FILE: `docs/progress.md`. DO NOT CREATE ANOTHER MARKDOWN FILE.**
+
+This is a standing instruction from the user, given 07/09/2026, and it overrides the habit
+of writing a spec or a plan per feature. **No new `.md` for a feature, a plan, a status, an
+audit, a proposal or a suggestion.** It all goes in `docs/progress.md`.
+
+Why: 110 markdown files existed on that date, and the audit in `progress.md` found five
+describing things that no longer exist at all — including a 229-line file opening with
+"this file is the source of truth" for a section that had been deleted, and a 396-line
+migration to a database this product has never used. Three separate files claimed to track
+progress. Every count quoted from prose rather than measured was wrong. **The cost is not
+tidiness; it is that the user cannot tell what is true, and neither can I.**
+
+**Major features get a ROW in the decision ledger** at the end of `progress.md`, never a
+file. When the user rejects one, mark the row `REJECTED` and leave it. Deleted, `DELETED`.
+Changed, `CHANGED TO: <what>`. **Rows are never removed** — a decision nobody can see is a
+decision that gets argued again. Minor changes get no row.
+
+`docs/functionality/` stays as it is: one file per shipped behaviour, each ending in "Not
+built yet". Those describe what the product DOES; `progress.md` is the only thing that says
+where the work IS.
+
 Full detail lives in `docs/` — architecture, audit, and the wave plan. This file is
 only what must be true in every session.
 
