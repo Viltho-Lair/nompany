@@ -1,4 +1,7 @@
 import { route } from "@/platform/http/route";
+// Interpolated rather than typed into the prompt, so the number Nova states and the
+// number the product applies cannot drift apart.
+import { DEFAULT_VAT_RATE } from "@/modules/finance/finance";
 import { studioHasNova } from "@/lib/plans";
 import { getNovaConfig } from "@/lib/data/novaConfig";
 import { runNova, type NeutralMessage } from "@/platform/nova/client";
@@ -57,7 +60,7 @@ export const POST = route(spec, async (g) => {
   const result = await runNova({
     provider,
     apiKey,
-    system: novaSystem(String(studio.name || "this studio"), String(collaborator.alias || "there"), toolset.count),
+    system: novaSystem(String(studio.name || "this studio"), String(collaborator.alias || "there"), toolset.count, String(studio.currency || "")),
     messages,
     tools: toolset.tools,
     execute: (name, input) => toolset.execute(user, slug, name, input),
@@ -84,7 +87,7 @@ function sanitiseHistory(raw: unknown): NeutralMessage[] {
   return out;
 }
 
-function novaSystem(studioName: string, alias: string, toolCount: number): string {
+function novaSystem(studioName: string, alias: string, toolCount: number, currency: string): string {
   return [
     `You are Nova, the assistant inside the ${studioName} workspace on nompany, an ERP.`,
     `You are helping ${alias}.`,
@@ -93,15 +96,33 @@ function novaSystem(studioName: string, alias: string, toolCount: number): strin
     `- Answer only from the ${toolCount} tools you have been given. Never invent figures, names, dates or statuses — if a tool did not return it, say you don't have it.`,
     "- If no tool covers the question, say so plainly and suggest where in the app they'd find it, rather than guessing.",
     "- The tools already return only what this person is allowed to see. Do not ask them to widen access or mention other studios.",
-    "- Be concise and specific. Money is in SAR; write dates as dd/mm/yyyy. Prefer a short answer with the key numbers to a long one.",
+    // THE STUDIO'S OWN CURRENCY, NEVER A LITERAL. This said "Money is in SAR" to
+    // every tenant on the platform whatever currency they had set, so a studio
+    // trading in dinars had an assistant reading its figures back in riyal. The
+    // product is sold regionally and then globally; one country's currency has no
+    // business in a prompt every tenant receives.
+    //
+    // A studio that has not set one gets no claim at all rather than a guess —
+    // createStudio has never set a currency, so "unset" is a real and common state.
+    currency
+      ? `- Be concise and specific. Money is in ${currency}; write dates as dd/mm/yyyy. Prefer a short answer with the key numbers to a long one.`
+      : "- Be concise and specific. Amounts are in the studio's own currency, which is not set yet — give the number without naming a currency. Write dates as dd/mm/yyyy.",
     "- When you name a record, include its reference so they can find it.",
     "- Some tools DO things (request leave, add a comment). They only PREPARE the action — gather the fields, then a confirm card appears for the user. Never say an action is done; say you've prepared it and ask them to confirm.",
     "",
     "How this ERP works, so you can also explain how to USE it (guided help), not just report data:",
-    "- Twelve departments: Main (home), Sales (tickets, clients), Technical (RFQs, quotations), Projects, Inventory (items, vendors, orders, deliveries, AWB shipments), HR (employees, leave, certifications), Finance (invoices, expenses, bills/payables, fixed assets, ledger, dashboards), Operations (locations, permits, shifts), Quality (controlled documents), Tasks (board), People (members, roles), Access (roles & permissions).",
-    "- The main flow: a Sales ticket → a Technical RFQ against it → a priced quotation → approval (routed as a task; the raiser can't approve their own) → an approved quotation opens a Project → the project is invoiced in Finance.",
+    // THE FIFTEEN SECTIONS, NOT THE OLD TWELVE DEPARTMENTS. This paragraph still
+    // described the pre-restructure product months after P0 landed, so Nova's
+    // guided help sent people to a nav that no longer exists: it named Technical
+    // for quotations (they are CRM & Sales'), Quality for the controlled document
+    // register (Engineering & Documents'), and Operations for locations
+    // (Administration's). Reporting figures correctly and then directing somebody
+    // to a screen that is not there is worse than declining to help.
+    "- Fifteen sections, plus Main (the home surface) and Tasks (a cross-cutting board), which are not sections: CRM & Sales (tickets, clients, quotations, contracts, pipeline), Tendering & Estimating (tenders, BOQ, rate library), Projects (list, planner, costs, billing), Engineering & Documents (controlled documents, internal RFQ), Procurement & Subcontracting (requisitions, supplier RFQ, orders, subcontracts, receiving, suppliers), Inventory & Warehouse (stock, items, project sheets), Field Operations & Service (schedule, tracking), Logistics & Fleet (shipments), Human Resources (employees, leave, certifications), Finance & Accounting (invoices, expenses, payables, fixed assets, ledger), Administration & Settings (people, access, master data, studio settings).",
+    "- Four sections are declared but render nothing yet — Manufacturing & Production, Assets & Equipment, Quality & HSE, and Reports & BI. If somebody asks for one, say it is not built yet rather than sending them looking.",
+    "- The main flow: a CRM & Sales ticket → an Engineering & Documents RFQ against it → a priced quotation (in CRM & Sales) → approval (routed as a task; the raiser can't approve their own) → an approved quotation opens a Project → the project is invoiced in Finance. A won tender in Tendering & Estimating opens a project the same way.",
     "- Access: default-deny; roles are built on Access and assigned on People; the owner and Admin hold everything; reviewer ≠ approver on anything signed off; nobody grants a right they don't hold.",
-    "- Finance: invoices carry 15% VAT by default and 'Paid' is derived from payments; bills (payables) need approval by someone other than who raised them; fixed-asset depreciation is derived; the ledger is double-entry and entries are reversed, never edited.",
+    `- Finance: invoices carry ${DEFAULT_VAT_RATE}% VAT by default (a product default the studio overrides per invoice, NOT a rate for any one country) and 'Paid' is derived from payments; bills (payables) need approval by someone other than who raised them; fixed-asset depreciation is derived; the ledger is double-entry and entries are reversed, never edited.`,
     "- Plans: a PACKAGE sets headcount/chat/Nova; a TIER sets which dashboard analytics show.",
     "When asked how to do something, give the short path (which department, which button), and if it's an action you can prepare, offer to do it.",
   ].join("\n");

@@ -228,9 +228,13 @@ Everything lands here.
 | 07/09/2026 | Delete the five dead documents in category A | **PROPOSED** |
 | 07/09/2026 | Top-up seeded roles for departments that already exist | **PROPOSED** |
 | 07/09/2026 | Studio Settings points at Master data when the industry changes | **PROPOSED** |
-| 07/09/2026 | Fix Nova's hardcoded "Money is in SAR" to use the studio currency | **PROPOSED** |
+| 07/09/2026 | Fix Nova's hardcoded "Money is in SAR" to use the studio currency | **DONE** |
+| 07/09/2026 | Fix Nova's prompt naming the pre-restructure twelve departments | **DONE** |
+| 07/09/2026 | Make the VAT rate a per-studio setting; stop defaulting to 15 | **PROPOSED — highest priority of the country items** |
 | 07/09/2026 | Generate the Fifteen Sections view from `SECTION_DEFS` rather than hand-writing it | **PROPOSED** |
-| 07/09/2026 | Move pricing off a SAR base | **YOUR CALL — commercial, not code** |
+| 07/09/2026 | Move pricing off a SAR base (company is in Jordan; market regional then global) | **YOUR CALL — which base currency?** |
+| 07/09/2026 | Revisit ZATCA as the first tax adapter | **PROPOSED** |
+| 07/09/2026 | Clear `+966` and `Asia/Riyadh` defaults from the /super console | **PROPOSED** |
 | 07/09/2026 | Build P4b, the record engine, before more hand-built slices | **PROPOSED — the highest-leverage item on this page** |
 
 
@@ -379,10 +383,17 @@ gated section.
 | Partial | 6 sections | Projects, Procurement, Administration, Engineering, Field Service, Finance | |
 | One subsection only | 2 sections | Logistics, HR | |
 | Renders nothing | 4 sections | Manufacturing, Assets, Quality & HSE, Reports | |
-| **Subsections** | **42 declared** | **~110 in the target list** | **roughly 38%** |
+| **Subsections** | **58 built** | **130 in the target list** | **45%** |
 
-**The four empty sections are NOT the gap.** They are 23 of the ~68 outstanding
-subsections. The other 45 sit inside sections that already render and read as finished.
+**The four empty sections are NOT the gap.** They are 23 of the **72** outstanding
+subsections. The other **49** sit inside sections that already render and read as finished.
+
+**THE SUMMARY ROW ABOVE FIRST READ 42 / ~110 / 38%, AND ALL THREE WERE WRONG.** 42 is the
+count of declared keys in `SECTION_DEFS`, which is a different unit from the artifact's
+subsection list — CRM declares 7 keys and covers 10 target subsections — so the row divided
+one thing by another. 110 was a guess. The figures here are the sum of the fifteen rows
+above, which are themselves checked against code. Same failure as the 46-that-was-42, one
+level up: a total invented rather than added.
 
 ### P2 — Engine ✅ essentially complete
 
@@ -418,28 +429,19 @@ pass today, because there is no ledger to reconcile to beyond a trial balance.
 | Credit notes as corrections | ⬜ |
 | Configurable tax engine, ZATCA adapter, withholding | ⬜ |
 
-**THE PRODUCT IS NOT A SAUDI PRODUCT, AND THE TENANT-FACING ERP HARD-CODES NO
-JURISDICTION.** Finance is jurisdiction-neutral by design decision D5 of the programme
-spec: *a configurable tax engine, not a Saudi tax module.* ZATCA is the FIRST country
-adapter to be written, the way any engine needs one implementation to prove the shape, not
-the abstraction itself. A studio sets its own currency, language and locale; amounts
-convert through the daily FX table and the rate that routed an approval is stored on the
-record. `Asia/Riyadh` in `functionality/calendar.md` and a spec's JSON sample is a sample
-timezone picked to be visibly non-UTC, and the Hijri calendar is named in
-`w4-dashboards-and-motion.md` as a thing to AVOID rendering.
+**THE COMPANY IS BASED IN JORDAN. THE MARKET IS REGIONAL, THEN GLOBAL. NO SINGLE
+COUNTRY IS TO BE NAMED ANYWHERE IN THE PRODUCT.** Stated by the user 07/09/2026, and
+recorded here because two rounds of assumption preceded it: the product carried Saudi
+defaults nobody had chosen, and I then guessed at the reason rather than asking. Neither
+the defaults nor the guess were the user's.
 
-**BUT NOMPANY'S OWN COMMERCIAL LAYER IS SAR-DENOMINATED, WHICH IS A DIFFERENT THING AND IS
-NOT WRITTEN DOWN ANYWHERE ELSE.** This paragraph first claimed "nothing in the product
-hard-codes a country, a currency, a calendar or a tax authority", and that was FALSE —
-written from a grep that searched for "Saudi" and "ZATCA" and not for "SAR", which is where
-all of it actually lives:
+Finance is jurisdiction-neutral by design decision D5 of the programme spec — *a
+configurable tax engine, not a Saudi tax module* — and the tenant-facing ERP holds to
+that: a studio sets its own currency, amounts convert through the daily FX table, and the
+rate that routed an approval is stored on the record.
 
-- `src/app/api/pricing/route.ts` — `const BASE = "SAR"`. The price list is AUTHORED in
-  riyal and every other currency is converted from it.
-- `src/components/landing/views/PricingView.js` — the public pricing page opens on SAR.
-- `src/app/super/.../packages/page.js` — packages and tiers are priced `SAR `.
-- `src/components/Currency.js` / `Money.js` — a hand-drawn riyal glyph, special-cased by
-  `isRiyal()`, because the symbol has no usable font glyph.
+**BUT THE DEFAULTS WERE SAUDI, AND DEFAULTS ARE WHAT EVERY STUDIO ACTUALLY GETS.** Measured
+07/09/2026, worst first:
 
 Selling in one's own currency is a business decision rather than a jurisdiction leaking
 into the product, and the two must not be conflated — but the decision is nowhere recorded,
@@ -494,21 +496,26 @@ hand** — the BOQ grid and the Gantt — which is the line holding where the sp
 
 | Section | Built | Missing |
 |---|---|---|
-| **Engineering & Documents** | document register, approval workflows, live view | transmittals, RFI and submittal registers with ball-in-court, EBOM and specs, technical library |
-| **Inventory completion** | stock, items, serials, sheets, dashboard | locations and bins, batch lifecycle, stocktaking and adjustment approval, valuation method |
-| **Assets & Equipment** | — | everything: allocation to deals, internal hire rates, utilization, maintenance, calibration |
-| **Quality & HSE** | `inspections` exist, filed under Projects | ITPs, NCR/CAPA, audits, HSE incidents with LTIFR, permits to work, toolbox talks, certifications, dashboard |
-| **Logistics & Fleet** | shipments and AWB | POD, trips and routing, fleet register and compliance, customs and freight files with landed cost, dashboard |
+| `modules/finance/finance.ts:53` | **`DEFAULT_VAT_RATE = 15`** — the Saudi rate, applied to every studio's invoices and quotations. Overridable per invoice; **there is no per-studio setting.** Jordan is 16, the UAE 5, Egypt 14. | ⬜ **OPEN — the worst of these.** A wrong number on real financial documents, not a label. |
+| `api/studios/[slug]/nova/route.ts` | Told every tenant *"Money is in SAR"* and *"invoices carry 15% VAT"*, whatever that studio had set. | ✅ **FIXED 07/09/2026** — takes the studio's currency, says nothing when unset, and interpolates `DEFAULT_VAT_RATE` so prompt and code cannot drift. |
+| `api/pricing/route.ts:17` | `const BASE = "SAR"` — nompany's own price list is authored in riyal and every currency converts from it. | ⬜ **OPEN — commercial decision.** |
+| `landing/views/PricingView.js:68` | The public pricing page opens on SAR. | ⬜ OPEN — follows the base above. |
+| `super/.../packages/page.js:48,50` | Packages and tiers priced `SAR `. | ⬜ OPEN — follows the base above. |
+| `super/.../settings/profile/page.js:142,146` | Placeholder phone `+966 55 000 0000`; timezone defaults to `Asia/Riyadh`. | ⬜ OPEN — cosmetic, in nompany's own console. |
+| Programme spec D5 | **ZATCA named as the first tax adapter.** Nothing is built — `ZATCA` appears nowhere in `src`. | ⬜ **OPEN — revisit.** A clearance-model regime with cryptographic stamping is an expensive way to prove an abstraction for a market you are not selling to first. |
 
-### P6 — other centres of gravity ⬜ barely begun
+**NOT A PROBLEM, and worth separating so it is not "fixed" by mistake:** `Money.js` and
+`Currency.js` render the riyal glyph *when the currency is SAR*, because that symbol has no
+usable font glyph. That is correct support for one currency among many, not a country
+assumption. Supporting SAR is right; **defaulting to it is what was wrong.**
 
-| Section | Built | Missing |
-|---|---|---|
-| **Human Resources** | employees, leave, org chart, roles | attendance, employee requests, recruitment and onboarding, performance, training and skills, manpower planning, **and payroll entirely** — salary runs, allowances, deductions, payslips, bank/WPS files, payroll posting |
-| **Field Operations & Service** | schedule, tracking | service orders and job cards, dispatch board, AMC contracts, preventive-maintenance plans, mobile field view with e-signature, installed base, dashboard |
-| **Manufacturing & Production** | — | everything: BOM and routing, work orders, MRP and capacity planning, shop-floor terminal, production QC, dashboard |
+**Also found in the same sweep, and unrelated to any country:** Nova's system prompt still
+described the **pre-restructure twelve departments** — naming Technical for quotations,
+Quality for the controlled document register and Operations for locations, none of which
+has been true since P0. Every tenant asking Nova how to do something was being sent to a
+nav that does not exist. Fixed in the same commit, and it now names the fifteen sections
+and says which four render nothing.
 
-### P7 — cross-cutting and readiness ⬜ barely begun
 
 | Item | State |
 |---|---|
