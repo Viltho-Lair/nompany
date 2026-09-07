@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { useStudioLocale } from '@/components/studio2/locale';
+import { dirFor } from '@/shared/locale';
 import { plannerDict, plannerWord } from '@/shared/studio/planner';
 import { createPortal } from 'react-dom';
 import {
@@ -394,7 +395,8 @@ const Row = React.memo(function Row({
 // onClick runs the action directly. It portals to <body> with fixed positioning
 // so the row's overflow can never clip it, and closes on outside-press or Escape.
 function RowMenu({ task }: { task: ComputedTask }) {
-  const tr = plannerDict(useStudioLocale());
+  const locale = useStudioLocale();
+  const tr = plannerDict(locale);
   const {
     addTaskBelow,
     addSubtask,
@@ -490,62 +492,78 @@ function RowMenu({ task }: { task: ComputedTask }) {
 
       {open &&
         createPortal(
-          <div
-            ref={menuRef}
-            role="menu"
-            // The menu is portaled, but React still routes its events up the
-            // COMPONENT tree — so a press on an item reached the row's onMouseDown
-            // and selected the task, and the item taking focus fired a focusout
-            // that closed the menu before the click could land. preventDefault
-            // stops the focus-steal (menu stays put, click completes); stopProp-
-            // agation keeps the press off the row's select. This is THE fix for
-            // "delete highlights the bar but doesn't delete".
-            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
-            style={{ position: 'fixed', top: pos.top, right: pos.right, zIndex: 70 }}
-            className="min-w-[200px] overflow-hidden rounded-lg border border-slate-200 bg-white p-1 shadow-lg"
-          >
-            <RowMenuItem icon={Plus} onClick={() => run(() => select(addTaskBelow(task.id)))}>
-              {tr.addTaskBelow}
-            </RowMenuItem>
-            <RowMenuItem icon={CornerDownRight} onClick={() => run(() => select(addSubtask(task.id)))}>
-              {tr.addSubtask}
-            </RowMenuItem>
-            <RowMenuItem icon={Flag} onClick={() => run(() => select(addMilestone(task.id, tr.newMilestone)))}>
-              {tr.addMilestone}
-            </RowMenuItem>
-            <RowMenuSep />
-            <RowMenuItem icon={IndentIncrease} onClick={() => run(() => indent(task.id))}>
-              {tr.indent}
-            </RowMenuItem>
-            <RowMenuItem icon={IndentDecrease} onClick={() => run(() => outdent(task.id))}>
-              {tr.outdent}
-            </RowMenuItem>
-            <RowMenuItem icon={Copy} onClick={() => run(() => duplicateTask(task.id))}>
-              {tr.duplicate}
-            </RowMenuItem>
-            <RowMenuSep />
-            <RowMenuItem
-              icon={Pin}
-              onClick={() =>
-                run(() =>
-                  updateTask(task.id, {
-                    scheduleMode: task.scheduleMode === 'auto' ? 'manual' : 'auto',
-                  }),
-                )
-              }
+          // LANG AND DIR TRAVEL WITH IT. `dir` sits on the studio SHELL, not on
+          // <html> — the root layout never reads the studio record and proxy.js
+          // sets no x-locale on a tenant address — so a node portalled into the
+          // body is a SIBLING of the shell and inherits ltr on every studio route,
+          // whatever the tenant speaks. The menu still LANDED correctly in Arabic,
+          // because `right` is measured off the trigger in physical pixels; it was
+          // the CONTENTS that read left-to-right — icon before label, and the
+          // Latin face, since the Arabic font rule is anchored
+          // `html.studio-chrome [dir="rtl"]` and cannot match outside the shell.
+          //
+          // `display: contents` generates no box, so the fixed positioning above
+          // is untouched and no containing block is created. Same wrapper, same
+          // reason, as the studio Dialog and kanban's PortalScope. Gate A asserts
+          // every portal to document.body declares its own dir.
+          <div lang={locale} dir={dirFor(locale)} className="contents">
+            <div
+              ref={menuRef}
+              role="menu"
+              // The menu is portaled, but React still routes its events up the
+              // COMPONENT tree — so a press on an item reached the row's onMouseDown
+              // and selected the task, and the item taking focus fired a focusout
+              // that closed the menu before the click could land. preventDefault
+              // stops the focus-steal (menu stays put, click completes); stopProp-
+              // agation keeps the press off the row's select. This is THE fix for
+              // "delete highlights the bar but doesn't delete".
+              onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+              style={{ position: 'fixed', top: pos.top, right: pos.right, zIndex: 70 }}
+              className="min-w-[200px] overflow-hidden rounded-lg border border-slate-200 bg-white p-1 shadow-lg"
             >
-              {task.scheduleMode === 'auto' ? tr.pinStartDate : tr.autoSchedule}
-            </RowMenuItem>
-            <RowMenuItem
-              icon={Diamond}
-              onClick={() => run(() => updateTask(task.id, { milestone: !task.milestone }))}
-            >
-              {task.milestone ? tr.convertToTask : tr.convertToMilestone}
-            </RowMenuItem>
-            <RowMenuSep />
-            <RowMenuItem icon={Trash2} destructive onClick={() => run(() => deleteTask(task.id))}>
-              {tr.delete}{task.isSummary ? tr.withSubtasks : ''}
-            </RowMenuItem>
+              <RowMenuItem icon={Plus} onClick={() => run(() => select(addTaskBelow(task.id)))}>
+                {tr.addTaskBelow}
+              </RowMenuItem>
+              <RowMenuItem icon={CornerDownRight} onClick={() => run(() => select(addSubtask(task.id)))}>
+                {tr.addSubtask}
+              </RowMenuItem>
+              <RowMenuItem icon={Flag} onClick={() => run(() => select(addMilestone(task.id, tr.newMilestone)))}>
+                {tr.addMilestone}
+              </RowMenuItem>
+              <RowMenuSep />
+              <RowMenuItem icon={IndentIncrease} onClick={() => run(() => indent(task.id))}>
+                {tr.indent}
+              </RowMenuItem>
+              <RowMenuItem icon={IndentDecrease} onClick={() => run(() => outdent(task.id))}>
+                {tr.outdent}
+              </RowMenuItem>
+              <RowMenuItem icon={Copy} onClick={() => run(() => duplicateTask(task.id))}>
+                {tr.duplicate}
+              </RowMenuItem>
+              <RowMenuSep />
+              <RowMenuItem
+                icon={Pin}
+                onClick={() =>
+                  run(() =>
+                    updateTask(task.id, {
+                      scheduleMode: task.scheduleMode === 'auto' ? 'manual' : 'auto',
+                    }),
+                  )
+                }
+              >
+                {task.scheduleMode === 'auto' ? tr.pinStartDate : tr.autoSchedule}
+              </RowMenuItem>
+              <RowMenuItem
+                icon={Diamond}
+                onClick={() => run(() => updateTask(task.id, { milestone: !task.milestone }))}
+              >
+                {task.milestone ? tr.convertToTask : tr.convertToMilestone}
+              </RowMenuItem>
+              <RowMenuSep />
+              <RowMenuItem icon={Trash2} destructive onClick={() => run(() => deleteTask(task.id))}>
+                {tr.delete}{task.isSummary ? tr.withSubtasks : ''}
+              </RowMenuItem>
+            </div>
           </div>,
           document.body,
         )}

@@ -841,12 +841,6 @@ console.log("== the architecture, asserted rather than remembered");
       // English-only by design, and it goes with the /super placeholder sweep —
       // the same reason the date-formatter block below skips that surface.
       "src/app/super/(shell)/application/users/UsersTable.js",
-      // KNOWN AND OPEN, not accepted. The planner's row menu is this same bug in
-      // a smaller place: it is placed by measured physical coordinates so it
-      // lands on the right edge either way, but its CONTENTS still read
-      // left-to-right in an Arabic studio. Wrap it the way Dialog is wrapped and
-      // delete this line.
-      "src/components/planner/TaskTable.tsx",
     ];
     const undirected = portals
       .filter((f) => !HAS_DIR.test(f.text))
