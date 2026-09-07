@@ -5,11 +5,11 @@
 // type, and a grant naming a type that does not exist opens nothing.
 //
 // THE RULES ARE IN ./types, which is pure. Nothing is decided here.
-import { requirePermission } from "@/platform/access";
+import { requirePermission, engineSectionKey } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
 import { nextReference } from "@/modules/main/references";
 import { listCollaborators } from "@/platform/auth/collaborators";
-import { transitionProblem, coerceRecord, mergeRecord } from "./types";
+import { transitionProblem, coerceRecord, mergeRecord, recordProblem } from "./types";
 import type { RecordType, EngineRecord } from "./schema";
 import type { PermissionSet } from "@/platform/access";
 import type { StudioRef, CollaboratorRef } from "@/modules/context";
@@ -52,16 +52,41 @@ export type EngineCallerContext = {
   collaborator: CollaboratorRef;
   access: PermissionSet;
   settingsSection: Section;
+  /** Every section the studio has, so a type's own section can be found by key. */
+  sections: Section[];
 };
 
 /**
- * THE TYPE, AND THE SECTION ITS ROWS LIVE IN. Both collections sit under the
- * studio-settings section, so one scope serves types and instances alike.
+ * THE TYPE, AND THE SECTION ITS ROWS LIVE IN — WHICH ARE NOT THE SAME SECTION.
+ *
+ * The DECLARATION is studio configuration and sits under administration-settings
+ * beside the flow templates. The RECORDS sit under the type's OWN section, the
+ * one `plantTypeSection` mints, and they used to sit beside the declaration.
+ *
+ * WHY THEY MOVED, and it is a permission bug rather than tidiness. Every write
+ * publishes an event carrying the SECTION IT WAS WRITTEN UNDER, and the stream
+ * route decides who hears it with `sectionViewable(access, section.key)`.
+ * `administration-settings` answers from `administration.settings` — so a member
+ * holding exactly `engine.transmittal.view`, the whole audience this engine was
+ * built for, received no event at all and their screen silently never updated;
+ * and the converse leaked, because a settings-holder with no engine right DID
+ * receive `{collection: "engineRecords", rowId}` for records they may not read.
+ * `sectionViewable` already answers `engine-<typeKey>` from `engine.<typeKey>
+ * .view`, so putting the rows where the permission is makes both true at once,
+ * with nothing special-cased in a route that must stay generic.
+ *
+ * A MISSING SECTION IS `no-section`, NOT AN EMPTY LIST. `plantTypeSection` runs
+ * in the same write as the type row precisely so this cannot happen; if it has
+ * happened anyway the rows cannot be addressed, and answering "no records"
+ * would report an unaddressable collection as an empty one.
  */
 async function typeFor(ctx: EngineCallerContext, typeKey: string) {
-  const scope = { studio: ctx.studio, section: ctx.settingsSection };
-  const types = await Types.find(scope);
-  return { scope, type: types.find((t) => t.key === typeKey) || null };
+  const types = await Types.find({ studio: ctx.studio, section: ctx.settingsSection });
+  const type = types.find((t) => t.key === typeKey) || null;
+  const section = type
+    ? ctx.sections.find((x) => x.key === engineSectionKey(String(type.key))) || null
+    : null;
+  return { scope: section && { studio: ctx.studio, section }, type };
 }
 
 export async function listRecordTypes(ctx: EngineCallerContext) {
@@ -95,6 +120,7 @@ export async function listRecords(ctx: EngineCallerContext, typeKey: string) {
 
   const denied = requirePermission(ctx.access, `engine.${typeKey}.view`);
   if (denied) return denied;
+  if (!scope) return { error: "no-section" as const };
 
   const [rows, people] = await Promise.all([
     Records.find(scope, { where: { typeKey } }),
@@ -134,6 +160,15 @@ export async function createRecord(
 
   const denied = requirePermission(ctx.access, `engine.${typeKey}.create`);
   if (denied) return denied;
+  if (!scope) return { error: "no-section" as const };
+
+  // REFUSED BEFORE A REFERENCE IS MINTED. `nextReference` only moves forward
+  // (invariant 10), so a create that fails validation after taking a number
+  // burns one — and a client holding TRA-0002 with no TRA-0001 anywhere is a
+  // question nobody can answer.
+  const values = mergeRecord(type, {}, valuesIn(body));
+  const problem = recordProblem(type, values);
+  if (problem) return { error: problem };
 
   const rows = await Records.find(scope, { where: { typeKey } });
   const at = now();
@@ -149,7 +184,7 @@ export async function createRecord(
       status: (type.statuses || [])[0] || "",
       // NOTHING IS STORED YET, so this is the declaration's own keys and no
       // more — `mergeRecord` with an empty left-hand side is `coerceRecord`.
-      values: mergeRecord(type, {}, valuesIn(body)),
+      values,
       createdByCollaboratorId: ctx.collaborator.id,
       createdAt: at,
       updatedAt: at,
@@ -165,9 +200,20 @@ export async function editRecord(
 
   const denied = requirePermission(ctx.access, `engine.${typeKey}.edit`);
   if (denied) return denied;
+  if (!scope) return { error: "no-section" as const };
 
   const existing = await Records.byId(scope, id);
   if (!existing || existing.typeKey !== typeKey) return { error: "notfound" as const };
+
+  // ASKED OF WHAT THE EDIT WOULD PRODUCE, not of the body: a required field the
+  // caller left out of the body is still filled if the row already holds it,
+  // and only a merge knows that. Asked against `existing` rather than inside
+  // the patch because a refusal must be an answer, and a patch function's job
+  // is to return a row — it has nowhere to put a refusal.
+  const problem = recordProblem(
+    type, mergeRecord(type, (existing.values || {}) as Record<string, unknown>, valuesIn(body)),
+  );
+  if (problem) return { error: problem };
 
   return {
     record: await Records.update(scope, id, (row) => ({
@@ -204,6 +250,7 @@ export async function moveRecord(
 
   const denied = requirePermission(ctx.access, `engine.${typeKey}.edit`);
   if (denied) return denied;
+  if (!scope) return { error: "no-section" as const };
 
   const existing = await Records.byId(scope, id);
   if (!existing || existing.typeKey !== typeKey) return { error: "notfound" as const };
@@ -224,6 +271,7 @@ export async function removeRecord(ctx: EngineCallerContext, typeKey: string, id
 
   const denied = requirePermission(ctx.access, `engine.${typeKey}.delete`);
   if (denied) return denied;
+  if (!scope) return { error: "no-section" as const };
 
   const existing = await Records.byId(scope, id);
   if (!existing || existing.typeKey !== typeKey) return { error: "notfound" as const };

@@ -15,6 +15,14 @@
 //
 //   node scripts/migrate/seed-builtin-types.mjs [--studio ID] [--apply] [--allow-live]
 //
+// `NOMPANY_KEY_PREFIX` PROTECTS HALF OF WHAT THIS WRITES, AND ONLY HALF. It
+// namespaces the SECTION write, which is a key (`S.sections`) in `documents`.
+// It does NOT namespace the type ROW, which goes to `collection_rows` under a
+// real `tenant_id` — the trap CLAUDE.md spells out twice. So a sandbox run of
+// this leaves real rows in the live shared table, cleaned only by
+// `sweepPgTenants` against the ids `REG.studios` names. Do not read the prefix
+// as a sandbox for this script.
+//
 // RUN `plant-sections.mjs` FIRST ON AN OLD STUDIO. A type plants its own
 // sub-section under a parent that has to exist already, and a studio missing
 // `engineering-docs` or `administration-settings` is REPORTED here and skipped

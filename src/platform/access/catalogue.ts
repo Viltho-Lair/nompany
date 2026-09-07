@@ -560,7 +560,17 @@ const KNOWN: ReadonlySet<string> = new Set(ALL_PERMISSIONS);
 // ONE SEGMENT ONLY, and one of the four verbs: `engine.<typeKey>.<verb>`. A
 // nested key would let `engine.a.b.view` past, and the route resolves a type
 // from ONE segment of the URL.
-export const ENGINE_KEY_RE = /^engine\.[a-z0-9-]+\.(view|create|edit|delete)$/;
+//
+// AND THE SEGMENT IS BOUNDED, which it was not. Before the engine, this
+// catalogue bounded ITSELF: `cleanPermissions` could return at most the 177
+// declared keys, each about forty characters, however large a request was. An
+// unbounded `[a-z0-9-]+` gave that up — a holder of `administration.access.edit`
+// could store a role whose permissions were thousands of megabyte-long but
+// structurally VALID engine keys, and `effectivePermissions` reads that role on
+// every request in the studio. 60 is what a role's own name and department id
+// are capped at (`modules/people/roles.ts`), and a type key becomes a URL
+// segment, so nothing legitimate comes close.
+export const ENGINE_KEY_RE = /^engine\.[a-z0-9-]{1,60}\.(view|create|edit|delete)$/;
 
 export const isEnginePermission = (key: unknown): boolean =>
   ENGINE_KEY_RE.test(String(key ?? ""));
@@ -602,8 +612,19 @@ export const areaOf = (key: string | null | undefined): Area | null =>
 
 // Only known keys survive, and duplicates collapse. A permission the product
 // does not recognise cannot be stored, whatever a request says.
+//
+// AND NOT MORE OF THEM THAN THE PRODUCT COULD EVER HAVE. The declared catalogue
+// used to be the ceiling by construction; engine keys are structural, so the
+// ceiling has to be written down. It is the declared count plus a generous
+// allowance for a studio's own types — far more than any studio will declare,
+// and small enough that a role row stays a row. The cap is on the OUTPUT, after
+// the set collapses duplicates, so a request repeating one key ten thousand
+// times is not what runs into it.
+const MAX_PERMISSIONS = ALL_PERMISSIONS.length + 500;
+
 export function cleanPermissions(list: unknown): PermissionKey[] {
-  return [...new Set((Array.isArray(list) ? list : []).map(String).filter(isPermission))];
+  return [...new Set((Array.isArray(list) ? list : []).map(String).filter(isPermission))]
+    .slice(0, MAX_PERMISSIONS);
 }
 
 // THE RUNGS THIS AREA ACTUALLY HAS. An area with no delete verb — a sales

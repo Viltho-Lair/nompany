@@ -40,6 +40,7 @@ type Strings = CommonStrings & {
   recordsEmptyBody: string;
   recordsLoading: string;
   refuseNotAllowed: string;
+  refuseMissing: string;
   refuseStatusUnknown: string;
   search1900Fonts: string;
 };
@@ -62,6 +63,7 @@ const en: Strings = {
   recordsEmptyBody: "Records of this kind will appear here once somebody adds one.",
   recordsLoading: "Loading…",
   refuseNotAllowed: "That move is not one this record type allows.",
+  refuseMissing: "Fill in every required field before saving.",
   refuseStatusUnknown: "That is not a status this record type has.",
   search1900Fonts: "Search 1,900+ fonts",
 };
@@ -84,6 +86,7 @@ const ar: Strings = {
   recordsEmptyBody: "تظهر السجلات من هذا النوع هنا بعد أن يضيف أحدهم واحداً.",
   recordsLoading: "جارٍ التحميل…",
   refuseNotAllowed: "هذه النقلة لا يسمح بها هذا النوع من السجلات.",
+  refuseMissing: "أكمل كل حقل مطلوب قبل الحفظ.",
   refuseStatusUnknown: "ليست هذه حالة يحملها هذا النوع من السجلات.",
   search1900Fonts: "ابحث في أكثر من 1,900 خط",
 };

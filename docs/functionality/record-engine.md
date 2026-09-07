@@ -89,10 +89,30 @@ holds every instance of every type, discriminated by `typeKey`.
 collection lists in `keys.ts` are compile-time, so a collection per type would need a
 deploy per type — which is the exact thing runtime was chosen to avoid.
 
-Both live under `administration-settings`, which here is **storage rather than a screen
-anybody opens**: one scope addresses types and instances alike, and `engineContext`
-refuses `no-section` when it is missing, the same answer every other context gives when
-the rows cannot be addressed at all.
+**The declaration and the records live in DIFFERENT sections, and that is a permission
+decision rather than a filing one.** `recordTypes` sits under `administration-settings`,
+which here is storage rather than a screen anybody opens — a type is studio configuration,
+beside the flow templates. `engineRecords` sits under the type's OWN planted section,
+`engine-<typeKey>`.
+
+**They used to sit together, and it made live updates dead for exactly the people the
+engine is for.** Every write publishes an event carrying the section it was written under,
+and the stream route decides who hears it by asking `sectionViewable` about that key.
+Under `administration-settings` the question was `administration.settings` — so a member
+holding precisely `engine.transmittal.view` heard nothing about their own records and
+their screen silently never refreshed, while a settings-holder with no engine right heard
+about records they may not read. Putting the rows where the permission already points
+makes both true at once, with no special case in a route that has to stay generic.
+
+**Nothing is stranded by a section key the compile-time map cannot name.**
+`SECTION_COLLECTIONS` answers "what to read"; deletion does not use it — `cascadeDeleteSection`
+calls `pgDeleteAllForSection`, scoped by tenant and section id rather than by catalogue,
+a decision made for an earlier one-store survivor and the thing that makes a runtime
+section safe to store rows under at all.
+
+`engineContext` refuses `no-section` when `administration-settings` is missing, and each
+verb refuses it when the type's own section is; the same answer every other context gives
+when rows cannot be addressed at all.
 
 ## The section, planted in the same write
 
@@ -157,6 +177,30 @@ member is already handed the studio's whole section list. What the order buys is
 type that does not exist is not a permission question: `forbidden` would send the caller
 off to ask for a right that would not have helped, and 404 tells them to fix the URL.
 
+## What a value may be
+
+**The field kinds are a closed set the engine owns**, and until the final review they were
+only half closed. `select` drew a dropdown and stored whatever arrived, so it was `text`
+wearing a costume; a value the declaration does not offer is now no value at all. Unset
+rather than refused, because that is what removing an option leaves behind on every row
+that held it, and a stored row has to stay readable after its type is edited.
+
+**And nothing bounded a stored value.** Every hand-built register caps what it stores at
+its own service; the engine has no hand-written service to put a cap in, so `coerceValue`
+fell through to `String(raw)` and one request could write a five-megabyte row that came
+back on every list read. Text is capped at 200, the product's commonest cap, and
+`longtext` — the only kind meant to hold a paragraph — at 2000. **Truncated, not refused**,
+which is what the rest of the product does at this boundary; two answers to "what happens
+to an over-long field" would be worse than either.
+
+**`required` is enforced now, and was not.** It was declared, stored, validated as a
+declaration and passed to the control — and read by no server path, in a dialog with no
+`<form>` for the browser to read it either, so an empty body minted a reference with an
+empty title. `recordProblem` lives beside the other rules in the pure model, the screen
+imports it rather than restating it, and a create is refused **before** a reference is
+minted: `nextReference` only moves forward, so a create that fails after taking a number
+burns one, and a client holding TRA-0002 with no TRA-0001 is a question nobody can answer.
+
 ## Versioning — a removed field is not rendered and not deleted
 
 A type carries a `version`; a record carries the `typeVersion` it was last written under.
@@ -217,11 +261,20 @@ disagree with the first. **Run `plant-sections.mjs` first on an old studio**: a 
 missing `engineering-docs` or `administration-settings` is reported and skipped whole
 rather than seeded into nothing.
 
-**No starter role holds an engine right.** That has been the defect three sections shipped
-with — contracts, tendering and procurement each shipped a section whose own Manager could
-not open it — and it is stated here rather than discovered: a studio grants
-`engine.transmittal.view` to a role deliberately, and until it does, only the owner and
-Admin can open transmittals.
+**No starter role holds an engine right, AND NO SCREEN CAN GRANT ONE.** The first half is
+the defect three sections shipped with — contracts, tendering and procurement each shipped
+a section whose own Manager could not open it. The second half is worse and this file
+claimed the opposite of it: it said a studio grants `engine.transmittal.view` to a role
+"deliberately", as though the grant were a choice somebody had not yet made.
+
+**It is not a choice. There is no checkbox.** `StudioRoles` builds its permission grid,
+its ladders and its WhyPanel from `AREAS`, which by construction contains no engine key —
+so there is nothing to tick, and nobody can even ask why Sara cannot open transmittals.
+The right is grantable only by hand-crafting an HTTP POST to the roles route. **So the
+whole of phase 1 is reachable by the owner and Admin alone**, and that is a phase-3
+question rather than an oversight: a grid drawn from a compile-time catalogue cannot offer
+a right minted from a row, and the fix is the type-management UI, not a special case in
+the grid.
 
 ## Not built yet
 
@@ -239,6 +292,21 @@ demonstrated by one.
 **`listRecordTypes` is reached by no route.** It is the catalogue reader phase 3's type
 management needs, filtered to the rights the caller holds, written alongside and not wired
 up — the same posture the engagement layer already takes.
+
+**No screen grants an engine key** — see the rollout section above. Phase 3's type
+management is where a studio gets a checkbox; until then the feature belongs to the owner
+and Admin.
+
+**`onDelete`, the card layout and the deal-stage type are declared in the design and not
+built.** `removeRecord` hard-deletes unconditionally: there is no soft delete, no refusal
+for a type whose records something else points at, and no per-type deletion policy.
+
+**More of the pure model is written than is wired.** `typeProblem`, `fieldProblem`,
+`FIELD_KINDS`, `KEY_RE`, `FIELD_KEY_RE`, `ENGINE_KEY_RE`, `RecordTypeSchema` and
+`EngineRecordSchema` are reached by tests and by nothing in `src/`, for the same reason
+`listRecordTypes` is: they are what phase 3 validates a tenant's declaration with, and
+phase 1 has no tenant declaration to validate. Named here so the gap is a seam rather than
+a discovery.
 
 **`collaborator` and `reference` fields render as plain text inputs.** Both kinds are
 declarable, validated and stored; the screen has no people picker and no record picker for

@@ -822,10 +822,24 @@ export const SECTION_COLLECTIONS = {
   //
   // UNDER `administration-settings` because a record TYPE is studio
   // configuration, not any one department's data — the same place the flow
-  // templates and the studio's own settings live. The RECORDS sit here too so
-  // one scope serves both; their own nav section is planted separately, per
-  // `platform/engine/sections.ts`.
-  "administration-settings": ["recordTypes", "engineRecords"],
+  // templates and the studio's own settings live.
+  //
+  // THE RECORDS ARE NOT HERE, AND THEY WERE. They live under the type's OWN
+  // planted section (`engine-<typeKey>`, per `platform/engine/sections.ts`),
+  // which this map cannot name because it is compile-time and a type is a row.
+  // They moved because a write publishes an event carrying the section it was
+  // written under, and the stream route asks `sectionViewable` about that key:
+  // under this one the question was `administration.settings`, so a member
+  // holding exactly `engine.<typeKey>.view` heard nothing about their own
+  // records while a settings-holder heard about records they may not read.
+  //
+  // NOTHING IS STRANDED BY BEING UNNAMEABLE HERE. This map answers "what to
+  // READ", and `cascadeDeleteSection` deliberately does not use it — it calls
+  // `pgDeleteAllForSection`, scoped by tenant and section id rather than by
+  // catalogue, precisely so the keys `appendSection` mints at runtime are
+  // reaped too. That decision was made for an earlier one-store survivor and it
+  // is what makes a runtime section safe to store rows under at all.
+  "administration-settings": ["recordTypes"],
   // tasks
   tasks: ["tasks"],
 };

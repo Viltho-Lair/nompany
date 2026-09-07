@@ -38,14 +38,26 @@ import { panel, h2, th, btn, btnGhost, btnRow, btnRowDanger, Empty, Dialog, fmtD
 import { Field } from "@/components/fields/Field";
 import StudioDate from "@/components/fields/StudioDate";
 import { StatusPill } from "@/components/studio2/StatusPill";
+// THE SERVER'S OWN RULE, IMPORTED RATHER THAN RESTATED. `platform/engine/types`
+// is pure and imports nothing, which is what makes it safe to pull into a client
+// bundle — and the whole reason it is pure is that the screen must refuse
+// exactly what the server refuses. Two copies of "this field is required" are
+// two copies free to disagree.
+import { recordProblem } from "@/platform/engine/types";
 
-// THE SECTION THE ROWS ACTUALLY LIVE IN, which is not the section the screen is
-// reached through. Both engine collections are addressed under
-// `administration-settings` (keys.ts, and `engineContext` says so), so that is
-// the key a change event carries — `engine-<typeKey>` is where the nav puts the
-// screen and no event is ever tagged with it. Subscribing to the visible key
-// would compile, render and silently never fire.
-const RECORDS_WATCH = "administration-settings";
+// THE SECTION THE ROWS LIVE IN, WHICH IS THE ONE THIS SCREEN IS REACHED
+// THROUGH — and it was not, which is why this comment is longer than it looks
+// like it needs to be.
+//
+// This watched `administration-settings`, correctly, because both engine
+// collections were addressed there. It fired for nobody who mattered: the
+// stream route decides who hears an event with `sectionViewable(access,
+// key)`, and that key answers from `administration.settings`, so a member
+// holding exactly `engine.<typeKey>.view` — everybody this screen exists for —
+// received nothing and the list silently never updated. The rows moved to the
+// type's own section (`platform/engine/records.ts` carries the argument), so
+// the key the event carries and the right that opens the screen are now the
+// same question.
 
 function refusal(tr, token) {
   switch (token) {
@@ -55,6 +67,10 @@ function refusal(tr, token) {
     // two sentences, because they send somebody to two different places.
     case "wrong-state": return tr.refuseStatusUnknown;
     case "not-allowed": return tr.refuseNotAllowed;
+    // `missing` is a required field left empty. The screen refuses it before
+    // sending and the route refuses it again; both land here, so the reader is
+    // told the same thing whichever door said no.
+    case "missing": return tr.refuseMissing;
     default: return token;
   }
 }
@@ -182,7 +198,7 @@ export default function StudioRecords({ slug, typeKey }) {
   }, [read, apply]);
 
   const reload = useCallback(async () => { apply(await read()); }, [read, apply]);
-  useLiveUpdates(slug, RECORDS_WATCH, reload);
+  useLiveUpdates(slug, `engine-${typeKey}`, reload);
 
   const send = useCallback(async (method, payload) => {
     setError(""); setBusy(true);
@@ -308,6 +324,12 @@ export default function StudioRecords({ slug, typeKey }) {
                   // what the route already expects: POST mints the reference
                   // and the first declared status, PUT without an `action`
                   // rewrites the fields and touches neither.
+                  // REFUSED HERE TOO, not only at the route. The dialog has
+                  // no <form>, so `required` on a control is inert — the
+                  // browser never validates a button that does not submit —
+                  // and a round trip to be told a field is empty is a round
+                  // trip the reader can be spared.
+                  if (recordProblem(type, form.values)) { setError(refusal(tr, "missing")); return; }
                   const ok = form.id
                     ? await send("PUT", { id: form.id, values: form.values })
                     : await send("POST", { values: form.values });

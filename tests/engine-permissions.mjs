@@ -47,5 +47,19 @@ ok("the declared catalogue is unchanged at 177",
 ok("...and contains no engine key",
   !M.ALL_PERMISSIONS.some((k) => k.startsWith("engine.")));
 
+// AND THE SECTION HALF OF THE NAMESPACE, which was guarded only by prose. The
+// line above stops an AREA keyed `engine` being declared; nothing stopped a
+// SECTION key beginning `engine-`, and `sectionViewable` answers those from
+// `engine.<rest>.view`. Declare `engine-audit` today and it is invisible to
+// every granted member, visible to the owner (whose wildcard matches the
+// shape), and nothing fails — the quietest possible way to lose a section.
+const K = await import("@/platform/db/keys");
+ok("no declared section key begins with the engine's prefix",
+  !K.ALL_SECTION_KEYS.some((k) => /^engine-/.test(k)),
+  K.ALL_SECTION_KEYS.filter((k) => /^engine-/.test(k)).join(","));
+// `engineering-docs` is the adjacent one, and it must survive the check above.
+ok("...and engineering-docs is still a declared section",
+  K.ALL_SECTION_KEYS.includes("engineering-docs"));
+
 console.log(`\n${fails ? `${fails} FAILURES` : "all passed"}\n`);
 process.exit(fails ? 1 : 0);

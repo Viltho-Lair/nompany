@@ -138,6 +138,24 @@ export function transitionProblem(decl: TypeDecl, from: unknown, to: unknown): s
 }
 
 /**
+ * HOW LONG A STORED VALUE MAY BE.
+ *
+ * IT USED TO BE UNBOUNDED, and that is a hole this engine opened rather than
+ * inherited. Every hand-built register in the product caps what it stores at
+ * the service (`slice(0, 200)` for a title, 500 for a note); the engine has no
+ * hand-written service to put a cap in, so `coerceValue` fell through to
+ * `String(raw)` and a five-million-character title was a five-megabyte row in
+ * `collection_rows`, returned in full on every list read by everybody.
+ *
+ * TRUNCATED, NOT REFUSED, because that is what the rest of the product does at
+ * this boundary and two answers to "what happens to an over-long field" would
+ * be worse than either. 200 is the product's commonest cap and what a text
+ * field is for; `longtext` is the only kind meant to hold a paragraph, and 2000
+ * is bounded without making it a different class of row.
+ */
+export const FIELD_MAX = { text: 200, longtext: 2000, select: 200 } as const;
+
+/**
  * ONE STORED VALUE, READ THROUGH ITS DECLARATION.
  *
  * NULL RATHER THAN NOUGHT for a number nobody filled in: nought is a real
@@ -145,7 +163,8 @@ export function transitionProblem(decl: TypeDecl, from: unknown, to: unknown): s
  * bug this product has fixed a dozen times elsewhere.
  */
 export function coerceValue(field: FieldDecl, raw: unknown): unknown {
-  switch (text(field?.kind)) {
+  const kind = text(field?.kind);
+  switch (kind) {
     case "number":
     case "money": {
       if (raw === "" || raw === null || raw === undefined) return null;
@@ -156,8 +175,20 @@ export function coerceValue(field: FieldDecl, raw: unknown): unknown {
       return raw === true || raw === "true" || raw === "yes" || raw === 1;
     case "date":
       return text(raw).slice(0, 10);
+    case "select": {
+      // A VALUE THE DECLARATION DOES NOT OFFER IS NOT A VALUE. The option list
+      // was decorative until this: it reached the screen as a dropdown and the
+      // server stored whatever arrived, so `select` was `text` wearing a
+      // costume — and "field types are a CLOSED SET the engine owns" is the
+      // whole argument for building a schema from a row at all. Unset rather
+      // than refused, because that is what an option removed from the list
+      // leaves behind on every row that held it, and a stored row must stay
+      // readable after its type is edited.
+      const v = text(raw).slice(0, FIELD_MAX.select);
+      return list<string>(field?.options).map(text).includes(v) ? v : "";
+    }
     default:
-      return text(raw);
+      return text(raw).slice(0, kind === "longtext" ? FIELD_MAX.longtext : FIELD_MAX.text);
   }
 }
 
@@ -216,4 +247,36 @@ export function mergeRecord(
   incoming: Record<string, unknown>,
 ): Record<string, unknown> {
   return { ...(stored || {}), ...coerceRecord(decl, incoming) };
+}
+
+/**
+ * WHAT STOPS A WRITE, asked of the values a caller sent.
+ *
+ * `required` WAS DECLARED, STORED, VALIDATED AS A DECLARATION AND RENDERED —
+ * and enforced by nothing. `fieldProblem` accepted it, the schema kept it, the
+ * built-in set it on `title`, and the screen passed it to `Field`; no server
+ * path ever read it, and the dialog has no `<form>` to make the browser read it
+ * either, so `{"values":{}}` minted a reference with an empty title. A
+ * declaration nothing can exercise is the same bug as a right nothing can
+ * exercise (invariant 16), one layer down.
+ *
+ * ASKED OF THE COERCED VALUES, not the raw body: an over-long title is
+ * truncated before this sees it, and a `select` outside its options is already
+ * unset — so "required" means "there is a value after the type has read it",
+ * which is the only meaning that cannot disagree with what gets stored.
+ *
+ * A NUMBER OF NOUGHT AND A BOOLEAN OF FALSE ARE VALUES. Only `null` and the
+ * empty string are absence, because nought is a real answer and treating it as
+ * missing is the bug this file already refuses to make in `coerceValue`.
+ */
+export function recordProblem(
+  decl: TypeDecl,
+  values: Record<string, unknown>,
+): string | null {
+  for (const f of list<FieldDecl>(decl?.fields)) {
+    if (!f?.required) continue;
+    const v = (values || {})[text(f.key)];
+    if (v === null || v === undefined || v === "") return "missing";
+  }
+  return null;
 }

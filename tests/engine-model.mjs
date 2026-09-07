@@ -185,5 +185,70 @@ ok("...and empty for a declared section", S.engineTypeKeyOf("engineering-docs") 
 ok("...and empty for the bare prefix", S.engineTypeKeyOf("engine-") === "");
 ok("...and empty for nothing at all", S.engineTypeKeyOf(undefined) === "");
 
+console.log("\n== who hears a record change ==\n");
+
+// THE DEFECT THIS GUARDS, and it is the one no fixture could show. Every write
+// publishes an event carrying THE SECTION IT WAS WRITTEN UNDER, and the stream
+// route decides who hears it with `sectionViewable(access, key)`. The engine's
+// rows sat under `administration-settings`, whose area is
+// `administration.settings` — so the whole audience the engine exists for, a
+// member holding exactly `engine.<typeKey>.view`, heard nothing about their own
+// records and their screen silently never updated. It looked right everywhere,
+// because the owner, the Admin and any settings-holder DID hear them.
+//
+// The rows moved to the type's own section. These are that move: the key an
+// event now carries is one the engine-only reader can hear, and the key it used
+// to carry is one they cannot.
+const engineOnly = new Set(["engine.transmittal.view"]);
+const sectionKeys = ["administration-settings", "engine-transmittal"];
+ok("AN ENGINE-ONLY READER HEARS THEIR OWN TYPE'S SECTION",
+  S.sectionViewable(engineOnly, "engine-transmittal", sectionKeys));
+ok("...and could not hear the section the rows used to be written under",
+  !S.sectionViewable(engineOnly, "administration-settings", sectionKeys));
+
+// AND THE CONVERSE LEAK, the same move read from the other end: a settings
+// holder with no engine right was receiving `{collection: "engineRecords",
+// rowId}` for records they may not read — a trace of contents, which is the one
+// thing the design says a reader without the right never gets.
+const settingsOnly = new Set(["administration.settings.view"]);
+ok("A SETTINGS-HOLDER WITH NO ENGINE RIGHT HEARS NOTHING ABOUT THE TYPE",
+  !S.sectionViewable(settingsOnly, "engine-transmittal", sectionKeys));
+
+console.log("\n== what a value may be, and what a write may omit ==\n");
+
+// UNBOUNDED UNTIL NOW, and the engine opened the hole rather than inheriting
+// it: every hand-built register caps what it stores at its own service, and the
+// engine has no hand-written service to put a cap in. `coerceValue` fell
+// through to `String(raw)`, so one POST wrote a five-megabyte row into
+// collection_rows and handed it back on every list read, to everybody.
+const capped = M.coerceValue(field({ kind: "text" }), "x".repeat(5000));
+ok("A TEXT VALUE IS CAPPED, not stored whole", capped.length === M.FIELD_MAX.text, capped.length);
+const long = M.coerceValue(field({ kind: "longtext" }), "y".repeat(50000));
+ok("...and longtext has its own, larger cap",
+  long.length === M.FIELD_MAX.longtext && M.FIELD_MAX.longtext > M.FIELD_MAX.text, long.length);
+
+// A SELECT'S OPTIONS WERE DECORATIVE. The screen drew a dropdown and the server
+// stored whatever arrived, so `select` was `text` wearing a costume — and "the
+// field kinds are a CLOSED SET the engine owns" is the whole argument for
+// building a schema out of a row at all.
+const sel = field({ kind: "select", options: ["Low", "High"] });
+ok("A DECLARED OPTION IS KEPT", M.coerceValue(sel, "High") === "High");
+ok("...and one the declaration does not offer is not a value",
+  M.coerceValue(sel, "Catastrophic") === "");
+
+// `required` WAS DECLARED, STORED, VALIDATED AND RENDERED — and enforced
+// nowhere: no server path read it and the dialog has no form for the browser to
+// read it either, so `{"values":{}}` minted a reference with an empty title.
+const req = decl({ fields: [field({ key: "title", label: "Title", kind: "text", required: true })] });
+ok("A MISSING REQUIRED FIELD IS REFUSED", M.recordProblem(req, { title: "" }) === "missing");
+ok("...and a filled one is not", M.recordProblem(req, { title: "Rebar" }) === null);
+// NOUGHT AND FALSE ARE VALUES. Treating either as absence is the bug this file
+// already refuses to make when it returns null rather than 0 for an empty
+// number.
+const num = decl({ fields: [field({ key: "count", label: "Count", kind: "number", required: true })] });
+ok("...and a required number of nought is present, not missing",
+  M.recordProblem(num, { count: 0 }) === null);
+ok("...while one nobody filled in is missing", M.recordProblem(num, { count: null }) === "missing");
+
 console.log(`\n${fails ? `${fails} FAILURES` : "all passed"}\n`);
 process.exit(fails ? 1 : 0);
