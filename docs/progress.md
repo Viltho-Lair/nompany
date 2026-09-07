@@ -53,7 +53,7 @@ Every slice below is on `main` and green. Each names its own file in
 |---|---|---|
 | **CRM & Sales** | contracts register · pipeline board · customer 360 · pricing and customer rates · the dashboard | ✅ complete |
 | **Tendering & Estimating** | tender register · BOQ grid and rate library · tender pack and clarifications · bid review · handover to Projects | ✅ complete |
-| **Projects, deepened** | **cost breakdown** · **purchase orders coded** · **earned value** · **variations** · **billing milestones and retention** · the critical path · daily site reports · closure with punch list and warranty | 🟡 **not complete** — see below |
+| **Projects, deepened** | **cost breakdown** · **purchase orders coded** · **earned value** · **variations** · **billing milestones and retention** · **the critical path** · daily site reports · closure with punch list and warranty | 🟡 **not complete** — see below |
 | **Procurement & Subcontracting** | **purchase requisitions** · **supplier RFQ and quote comparison** · **purchase orders with expediting** · **subcontracts** · supplier qualification · GRN with 3-way match · dashboard | 🟡 **four of seven** |
 | **Administration & Settings** | a real gated section (03/09) · Master data with Locations and the departments register | ✅ complete |
 
