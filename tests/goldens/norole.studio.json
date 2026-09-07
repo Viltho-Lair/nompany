@@ -366,6 +366,12 @@
         "key": "tasks-settings",
         "name": "Task settings",
         "enabled": true
+      },
+      {
+        "id": "<sub_ID>",
+        "key": "engine-transmittal",
+        "name": "Transmittals",
+        "enabled": true
       }
     ]
   }

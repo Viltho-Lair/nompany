@@ -8,7 +8,7 @@
 // product, and a claim whose source is removed fails the build.
 //
 // IT IMPORTS NOTHING, DELIBERATELY. The obvious shape is a `verify()` predicate
-// per claim — but a predicate has to import PLANS, SECTION_DEFS and the 159-key
+// per claim — but a predicate has to import PLANS, SECTION_DEFS and the whole
 // permission catalogue, and this module is imported by CLIENT components, so
 // every source it touched would land in the marketing bundle. So a claim carries
 // its source as an ADDRESS, and tests/marketing-model.mjs imports each named

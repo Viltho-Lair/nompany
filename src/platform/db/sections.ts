@@ -114,12 +114,18 @@ export async function listSections(studioId: string): Promise<Section[]> {
 // walks every studio and calls this once after SECTION_DEFS gains a key. It reads
 // its own rows so a caller needs only the studio id.
 //
-// The seeded list is the whole truth about which sections a studio has: nothing
-// appends one (appendSection has no caller) and nothing deletes one (no route
-// reaches cascadeDeleteSection). So a seeded key missing from a studio can only
-// mean the studio was created before that key existed — never that somebody
-// removed it — and planting it is restoring the studio to the list it is
-// supposed to have.
+// The seeded list is the whole truth about which SEEDED sections a studio has,
+// and nothing deletes one (no route reaches cascadeDeleteSection). So a seeded
+// key missing from a studio can only mean the studio was created before that
+// key existed — never that somebody removed it — and planting it is restoring
+// the studio to the list it is supposed to have.
+//
+// SECTIONS ARE APPENDED NOW, and the inference survives it. `appendSection`
+// still has no caller, but P4b's `plantTypeSection` appends a record type's own
+// `engine-<typeKey>` row. That is not a seeded key: it is never in SECTION_DEFS,
+// so `isComplete` never misses it and nothing here plants or removes it, and
+// this function only ever ADDS — the sort below carries an unrecognised key to
+// the end rather than dropping it.
 //
 // IF SECTION DELETION EVER SHIPS, that inference stops holding and this needs a
 // record of which keys have ever been planted, or it will resurrect the section

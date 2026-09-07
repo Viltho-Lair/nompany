@@ -552,7 +552,7 @@ that writes to live data is its own change with its own authorisation.
 **Waves 0–1 are complete; Gate A is green.** Wave 0 shipped (orphan-sweep guard,
 credential rate limiting, console session expiry, traffic-ingest bounds, media tenancy,
 security headers, bcrypt 12 with rehash-on-login, M-1 dead capabilities). Gate A shipped:
-257 golden responses over every surface, the 159-key permission matrix, hop counting, six
+343 golden responses over every surface, the 177-key permission matrix, hop counting, six
 architectural assertions, **per-route permission enforcement in every module**, **ESLint**
 (flat config + shrink-only warning budget, 142 today), **observability** (request ids, per-request hop
 counts), and CI enforcing all of it.
@@ -569,11 +569,12 @@ noticing, because nothing fails when prose disagrees with a test.
 **AND THE CORRECTION WAS ITSELF OFF BY ONE, which is the sharper lesson.** It landed as 256,
 measured accurately at `682eda7` and written down on top of `a2044ff` — one commit later, and
 that commit added `procurement.requisitions.list.json`. So a number was measured, was true when
-measured, and was stale by the time it was committed. `ls tests/goldens | wc -l` says 257.
+measured, and was stale by the time it was committed. `ls tests/goldens | wc -l` says 343,
+measured 07/09/2026.
 Re-measure at the commit you are writing, not at the one you were reading.
 
 **Wave 2 (seams + performance) is mostly done; Gate B is 2 of 3.** Zero direct `readCol` in
-service code ✅, goldens unchanged by the seam work ✅ (257 today), hops ≤2 for the studio route and 3 for sales
+service code ✅, goldens unchanged by the seam work ✅ (343 today), hops ≤2 for the studio route and 3 for sales
 (the structural floor). Done: Seam A (route wrapper, every route), Seam B (repository
 interface + the `readCol` migration across every module), Seam C (one context factory,
 killed hop 7), request-scoped cache + batched prefetch (8→2 hops), targeted live updates,
@@ -1261,7 +1262,7 @@ roles that already decide it.
 
 **A studio no longer starts with five generic roles.** `STARTER_ROLES` is Admin alone. The
 five existed for a good reason that has not gone away — an empty permission grid is where
-over-granting begins, and faced with 159 unchecked boxes people tick everything. What changed
+over-granting begins, and faced with 177 unchecked boxes people tick everything. What changed
 is who answers it: a seeded department brings up to ten roles from its own trade, so a new
 studio meets Site Engineer under Site Execution rather than "Member".
 
@@ -1270,7 +1271,7 @@ studio meets Site Engineer under Site Execution rather than "Member".
 kilobytes for a list a picker needs twenty rows of, and Gate A asserts no client component
 imports it, because a client import would fail nothing and quietly spend a sixth of the
 budget. Each entry names one of eleven access shapes. Eleven rather than 2,900 because the
-catalogue has changed at least twelve times (102 — 159 keys) and each change would have
+catalogue has changed at least twelve times (102 — 177 keys) and each change would have
 staled 2,900 hand-written lists SILENTLY, surfacing only as somebody holding the wrong access.
 **A library role's permissions are COPIED on add** — the BOQ rate rule, for the BOQ rate's
 reason. **`principal` is not a wildcard**: the model allows exactly one and it is Admin, so
@@ -1297,6 +1298,47 @@ were re-recorded for the department a role now carries.
 **The department on a library entry is ~95% accurate and REPORTED, not certified** —
 `node scripts/generate/role-library.mjs --report` prints the per-department spread and how many
 assignments fell back to a default rather than matching a rule.
+
+**P4b PHASE 1 IS ON `main`: A RECORD TYPE IS A ROW, and the engine supplies the rest.**
+`docs/functionality/record-engine.md` is the file. `recordTypes` holds a type's label,
+fields, list columns, statuses and transitions; `engineRecords` holds every instance of
+every type in ONE collection, discriminated by `typeKey`, because `COLLECTION_TABLE` and
+`keys.ts` are compile-time and a collection per type would need a deploy per type — the
+exact thing runtime was chosen to avoid. One route
+(`/api/studios/<slug>/records/<typeKey>`, the type read from the URL segment and never
+the body), one generic screen, one built-in type (`transmittal`, under Engineering &
+Documents), seven goldens, and the sub-section planted in the SAME write as the type row
+— the tender register paid for the other order.
+
+**IT ADDS NO PERMISSION KEY AND NEVER WILL — the catalogue still reads 177.**
+`engine.<typeKey>.<verb>` is structural, minted from a row, so it cannot be in
+`ALL_PERMISSIONS`; `isEnginePermission` is the one place the catalogue stops being a
+closed set, and `cleanPermissions` used to drop such a grant SILENTLY. The wildcards had
+to learn the shape too: `new Set(ALL_PERMISSIONS)` answered false for every engine key, so
+the owner was refused a GET of their own transmittals AND `escalates()` refused the owner
+GRANTING the right to anybody. `WildcardPermissions` answers rather than lists — **`has`
+is the authority, `size` and `[...access]` are not**, and both report the declared
+catalogue alone.
+
+**THE ONE THING A FUTURE SESSION MUST NOT DO IS DECLARE A SECTION ROOT OR PERMISSION AREA
+NAMED `engine`.** The whole namespace rests on `engine.` and `engine-` belonging to the
+engine alone — `engineeringDocs.*` and `engineering-docs` are adjacent and distinct only
+because the prefix carries the dot and the hyphen, which is why the inverse is a regex and
+not a `startsWith("engine")`. Nothing in the build would complain; every engine right and
+every engine section would start answering for something else.
+
+**THE ROLLOUT CONSEQUENCE:** `seedBuiltinTypes` runs inside `createStudio` and NOWHERE
+ELSE, which is the one way it differs from the seeds beside it — sections catch up on read
+and departments seed on read, so a studio predating either repairs itself. **No existing
+studio has the built-in type, and a read-path catch-up could not give it one:** the
+catch-up would be gated on `engine.transmittal.view`, which no existing role holds, so the
+seed would wait on a door only the seed can open.
+`scripts/migrate/seed-builtin-types.mjs` is the way in — dry-run by default, additive,
+idempotent, calling `seedBuiltinTypes` rather than copying it, and needing
+`plant-sections.mjs` first on a studio short of `engineering-docs`. **It has not been run,
+not against live and not in the sandbox.** And **no starter role holds an engine right**,
+stated here rather than discovered: contracts, tendering and procurement each shipped a
+section their own Manager could not open.
 
 **Open decisions (waiting on a person):** the Wave 4 palette (marketing dark-first
 indigo/Sora vs the ERP's light-first blue/Saira); and whether to denormalise the slug index

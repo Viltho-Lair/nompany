@@ -525,7 +525,11 @@ type PermsOf<A> = A extends Area
 
 export type PermissionKey =
   | `${DashboardModule}.dashboard.view`
-  | PermsOf<(typeof OWN_AREAS)[number]>;
+  | PermsOf<(typeof OWN_AREAS)[number]>
+  // The engine's arm. Deliberately `string` in the middle: the type key is a
+  // stored row's key and cannot be known at compile time. Static keys above
+  // stay exact, so a typo in one is still a red squiggle.
+  | `engine.${string}.${Verb}`;
 
 // The same set as a value: "crmSales.tickets.view", "hr.employees.salary".
 //
@@ -540,21 +544,87 @@ export const ALL_PERMISSIONS = AREAS.flatMap((a) => [
 
 const KNOWN: ReadonlySet<string> = new Set(ALL_PERMISSIONS);
 
+// ENGINE KEYS ARE STRUCTURAL, NOT DECLARED — and this is the one place the
+// catalogue stops being a closed set.
+//
+// A record type is a ROW (P4b is runtime), so its permission cannot be in
+// ALL_PERMISSIONS: the catalogue is compile-time and the type is not. Without
+// this, `cleanPermissions` drops every engine grant SILENTLY — no error, no
+// log, a right that never arrives — because its filter is `KNOWN.has(key)`.
+//
+// THE NAMESPACE IS THE CONTAINMENT. Of the 47 declared area keys, none begins
+// `engine.`; `engineeringDocs.*` is adjacent and distinct because the prefix
+// carries the dot. A future area keyed `engine` would break that and must never
+// be declared.
+//
+// ONE SEGMENT ONLY, and one of the four verbs: `engine.<typeKey>.<verb>`. A
+// nested key would let `engine.a.b.view` past, and the route resolves a type
+// from ONE segment of the URL.
+//
+// AND THE SEGMENT IS BOUNDED, which it was not. Before the engine, this
+// catalogue bounded ITSELF: `cleanPermissions` could return at most the 177
+// declared keys, each about forty characters, however large a request was. An
+// unbounded `[a-z0-9-]+` gave that up — a holder of `administration.access.edit`
+// could store a role whose permissions were thousands of megabyte-long but
+// structurally VALID engine keys, and `effectivePermissions` reads that role on
+// every request in the studio. 60 is what a role's own name and department id
+// are capped at (`modules/people/roles.ts`), and a type key becomes a URL
+// segment, so nothing legitimate comes close.
+export const ENGINE_KEY_RE = /^engine\.[a-z0-9-]{1,60}\.(view|create|edit|delete)$/;
+
+export const isEnginePermission = (key: unknown): boolean =>
+  ENGINE_KEY_RE.test(String(key ?? ""));
+
+// THE SECTION A TYPE PLANTS, AND THE WAY BACK FROM IT — and both live HERE,
+// beside the permission namespace they are the other half of.
+//
+// Two unrelated places need the same answer and neither may import the other:
+// `platform/engine/sections.ts` WRITES the row, and `sectionViewable` /
+// `sectionManageable` in `./resolve` have to RECOGNISE it, because
+// `SECTION_AREAS` is compile-time and a record type is a row — so an engine
+// section is invisible to the nav unless something teaches it the namespace.
+// `platform/access` cannot import the engine (the engine reaches the database
+// and a client component imports this folder), so the definition sits on the
+// side both can reach. One definition, not two that agree until they do not.
+//
+// `engine-` MIRRORS `engine.` ABOVE, and the containment argument is the same:
+// no declared section key begins `engine-`. `engineering-docs` is adjacent and
+// distinct because the prefix carries the hyphen, which is exactly why the
+// inverse below is a regex rather than a `startsWith("engine")`.
+export const engineSectionKey = (typeKey: string): string => `engine-${typeKey}`;
+
+const ENGINE_SECTION_RE = /^engine-([a-z0-9-]+)$/;
+
+/** The type key an engine section names, or "" for a section that is not one. */
+export const engineTypeKeyOf = (sectionKey: unknown): string =>
+  ENGINE_SECTION_RE.exec(String(sectionKey ?? ""))?.[1] || "";
+
 // A TYPE GUARD, not a boolean. This is the border: everything on the far side
 // of it — a role's stored permissions, an override, a request body — is a
 // string from Redis, and this is the single place a string becomes a
 // PermissionKey. Typing it `key is PermissionKey` is what lets cleanPermissions
 // below return the union without a cast of its own.
 export const isPermission = (key: unknown): key is PermissionKey =>
-  KNOWN.has(String(key ?? ""));
+  KNOWN.has(String(key ?? "")) || isEnginePermission(key);
 
 export const areaOf = (key: string | null | undefined): Area | null =>
   AREAS.find((a) => String(key || "").startsWith(`${a.key}.`)) || null;
 
 // Only known keys survive, and duplicates collapse. A permission the product
 // does not recognise cannot be stored, whatever a request says.
+//
+// AND NOT MORE OF THEM THAN THE PRODUCT COULD EVER HAVE. The declared catalogue
+// used to be the ceiling by construction; engine keys are structural, so the
+// ceiling has to be written down. It is the declared count plus a generous
+// allowance for a studio's own types — far more than any studio will declare,
+// and small enough that a role row stays a row. The cap is on the OUTPUT, after
+// the set collapses duplicates, so a request repeating one key ten thousand
+// times is not what runs into it.
+const MAX_PERMISSIONS = ALL_PERMISSIONS.length + 500;
+
 export function cleanPermissions(list: unknown): PermissionKey[] {
-  return [...new Set((Array.isArray(list) ? list : []).map(String).filter(isPermission))];
+  return [...new Set((Array.isArray(list) ? list : []).map(String).filter(isPermission))]
+    .slice(0, MAX_PERMISSIONS);
 }
 
 // THE RUNGS THIS AREA ACTUALLY HAS. An area with no delete verb — a sales

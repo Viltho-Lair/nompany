@@ -74,7 +74,8 @@
       "administration-master": true,
       "administration-settings": true,
       "tasks": true,
-      "tasks-settings": true
+      "tasks-settings": true,
+      "engine-transmittal": true
     },
     "manage": {
       "main": false,
@@ -135,7 +136,8 @@
       "administration-master": true,
       "administration-settings": true,
       "tasks": true,
-      "tasks-settings": true
+      "tasks-settings": true,
+      "engine-transmittal": true
     },
     "rfqs": [
       {

@@ -37,6 +37,7 @@ Three rules that keep this folder worth reading:
 | [pricing.md](pricing.md) | What a quotation line is priced at: the customer's agreed rate, the studio's sell price, or cost — and how each is shown |
 | [pipeline.md](pipeline.md) | The sales funnel: the stages a deal moves through, the moves that are refused, how long it has sat where it is, and why it ended |
 | [pg-gateway.md](pg-gateway.md) | Reaching Cloud SQL from Vercel: the Cloud Run service, one call one transaction, and the guards re-run server-side |
+| [record-engine.md](record-engine.md) | A record type declared as a row: the `engine.*` permission namespace, one collection for every instance, the section planted with the type, and why an existing studio needs a script to get one |
 | [sales-dashboard.md](sales-dashboard.md) | The CRM & Sales dashboard: what each widget answers, the one vocabulary it reads, and what it still cannot show |
 | [tendering.md](tendering.md) | The tender register: the stages, why a tender cannot be won unless it was bid, and the four subsections that do not exist yet |
 | [studio-ownership.md](studio-ownership.md) | Who owns a studio and how many: two on the free package, unlimited on any other, and why there is no `ix:owner` |

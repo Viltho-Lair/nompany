@@ -1,0 +1,66 @@
+{
+  "status": 200,
+  "body": {
+    "ok": true,
+    "type": {
+      "id": "<rec_ID>",
+      "key": "transmittal",
+      "label": "Transmittals",
+      "parentSectionKey": "engineering-docs",
+      "fields": [
+        {
+          "key": "title",
+          "label": "Title",
+          "kind": "text",
+          "required": true
+        },
+        {
+          "key": "recipient",
+          "label": "Recipient",
+          "kind": "text"
+        },
+        {
+          "key": "issuedOn",
+          "label": "Issued",
+          "kind": "date"
+        },
+        {
+          "key": "notes",
+          "label": "Notes",
+          "kind": "longtext"
+        }
+      ],
+      "columns": [
+        "title",
+        "recipient",
+        "issuedOn"
+      ],
+      "statuses": [
+        "Draft",
+        "Issued",
+        "Acknowledged"
+      ],
+      "transitions": [
+        {
+          "from": "Draft",
+          "to": "Issued"
+        },
+        {
+          "from": "Issued",
+          "to": "Acknowledged"
+        }
+      ],
+      "version": 1,
+      "sectionKey": "engine-transmittal",
+      "origin": "builtin",
+      "createdAt": "<timestamp>",
+      "updatedAt": "<timestamp>",
+      "studioId": "<std_ID>",
+      "sectionId": "<sub_ID>"
+    },
+    "records": [],
+    "canCreate": true,
+    "canEdit": true,
+    "canDelete": true
+  }
+}

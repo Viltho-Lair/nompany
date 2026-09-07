@@ -1,4 +1,4 @@
-import { ALL_PERMISSIONS, isPermission } from "./catalogue";
+import { ALL_PERMISSIONS, isPermission, isEnginePermission, engineTypeKeyOf } from "./catalogue";
 import type { PermissionKey, Scope } from "./catalogue";
 // SIBLING-STYLE RELATIVE IMPORT ACROSS FOLDERS, matching platform/engagement's
 // own reach into platform/db (`../db/keys`) — see backfill.ts. platform/db
@@ -212,6 +212,54 @@ function resolveGrant(raw: string): PermissionKey | null {
   return isPermission(mapped) ? mapped : null;
 }
 
+/**
+ * EVERYTHING, INCLUDING THE KEYS THAT DO NOT EXIST YET.
+ *
+ * `ALL_PERMISSIONS` is the COMPILE-TIME catalogue, and an engine key cannot be
+ * in it by construction: a record type is a ROW, so `engine.<typeKey>.<verb>`
+ * is not knowable when this array is built. `new Set(ALL_PERMISSIONS)`
+ * therefore answered `false` for every engine key — and the two identities that
+ * exist precisely so nobody can be locked out were the two that could not open
+ * a seeded built-in type at all.
+ *
+ * It bit twice, in opposite directions, which is why this is a fix rather than
+ * a convenience: the owner was refused a GET of their own studio's
+ * transmittals, and `escalates` refused the owner GRANTING `engine.x.view` to
+ * anybody, because an engine key was something the actor provably "did not
+ * hold". A right nothing can exercise and nobody can delegate — invariant 16
+ * twice over.
+ *
+ * ENUMERATING THE STUDIO'S TYPES HERE IS NOT AVAILABLE. Resolution is pure and
+ * synchronous by design (invariant 3: access is resolved once, cheaply), and
+ * the types are rows behind an await. So the wildcard is expressed as a set
+ * that ANSWERS the question rather than one that lists the answers. Membership
+ * is the only thing any guard asks — `can` is `access.has(key)` — and nothing
+ * in the product enumerates a PermissionSet or serialises one, so this is
+ * indistinguishable from the old value everywhere the old value was right.
+ *
+ * SO `has` IS THE AUTHORITY AND `size` IS NOT — nor is any other way of asking
+ * this set what it contains. `size`, `[...access]`, `Array.from(access)`,
+ * `forEach`, `keys()` and `JSON.stringify` all report the DECLARED catalogue
+ * alone, and every one of them under-reports what an owner or an Admin actually
+ * holds. That is deliberate where it is measured — "the owner holds everything"
+ * is still `ALL_PERMISSIONS.length`, which is what `tests/access.test.mjs` and
+ * Gate A assert — and it is a trap everywhere else. Nothing in `src/` enumerates
+ * or serialises a PermissionSet today (grepped; `permissionCount` counts a
+ * ROLE's stored list, not this). The day something does, it must ask `has` per
+ * key or filter with `isEnginePermission` beside it: a `[...access]` that
+ * quietly misses every engine key fails nothing and shows an owner a screen
+ * missing their own rights.
+ *
+ * IT DOES NOT WIDEN A NON-WILDCARD ROLE. Only the two branches below return it,
+ * and both already meant "everything".
+ */
+class WildcardPermissions extends Set<PermissionKey> {
+  has(key: PermissionKey): boolean {
+    return super.has(key) || isEnginePermission(key);
+  }
+}
+const everything = (): PermissionSet => new WildcardPermissions(ALL_PERMISSIONS);
+
 // Everything this person may do in this studio, as a flat Set of keys.
 //
 // Roles and personal overrides, and nothing else. There is no fallback: a
@@ -220,7 +268,7 @@ function resolveGrant(raw: string): PermissionKey | null {
 export function effectivePermissions({ collaborator, roles = [] }: Subject): PermissionSet {
   // The owner is not permissioned. They own the studio, and a studio that can
   // lock out its own owner is a support ticket that cannot be answered.
-  if (collaborator?.role === "owner") return new Set(ALL_PERMISSIONS);
+  if (collaborator?.role === "owner") return everything();
 
   const held = new Set<PermissionKey>();
   const assigned = Array.isArray(collaborator?.roleIds) ? collaborator.roleIds : [];
@@ -228,7 +276,7 @@ export function effectivePermissions({ collaborator, roles = [] }: Subject): Per
 
   // Exactly one wildcard, and it is Admin. Everything else is an explicit list,
   // which is what stops a new permission reaching anyone by accident.
-  if (mine.some((r) => r.wildcard)) return new Set(ALL_PERMISSIONS);
+  if (mine.some((r) => r.wildcard)) return everything();
 
   for (const r of mine) for (const raw of r.permissions || []) { const k = resolveGrant(raw); if (k) held.add(k); }
 
@@ -374,6 +422,30 @@ export const NO_SCREEN_YET = [
   "quality-hse",
 ] as const;
 
+// A RECORD TYPE'S SECTION IS ANSWERED FIRST, AND BY ITS OWN KEY.
+//
+// `SECTION_AREAS` is compile-time and a record type is a ROW, so an engine
+// section can never have an entry there — and with no areas and no children it
+// fell through to `return sectionKey === "main"`, which is false. So the section
+// the engine plants at studio creation rendered in NO nav, for nobody, the owner
+// included: the type existed, its rights were grantable, and the screen was
+// unreachable. The design claimed planting "reuses SECTION_AREAS so the sidebar
+// needs no special case"; that was true of `listSections` and false here, and
+// the acceptance criterion naming a nav entry passed vacuously because of it.
+//
+// BOTH FUNCTIONS BELOW RETURN ON IT rather than falling through. An engine
+// section has no declared areas and no children by construction, so anything
+// after this would answer false for a key whose right the caller demonstrably
+// holds — and the wildcards answer true because `WildcardPermissions.has`
+// recognises the key SHAPE, which is the same fix from the other end.
+const engineSectionRight = (
+  access: PermissionSet, sectionKey: string, verbs: readonly string[],
+): boolean | null => {
+  const typeKey = engineTypeKeyOf(sectionKey);
+  if (!typeKey) return null;
+  return verbs.some((v) => access.has(`engine.${typeKey}.${v}` as PermissionKey));
+};
+
 // A section is worth showing if the person may see anything in it.
 //
 // A section with no areas of its own is a HEADING — "Sales" — and is shown when
@@ -391,6 +463,8 @@ export const NO_SCREEN_YET = [
 // make the dashboard right unwithholdable, since anybody who may see a child
 // would see the summary of all of them.
 export function sectionViewable(access: PermissionSet, sectionKey: string, allKeys: readonly string[] = []): boolean {
+  const engine = engineSectionRight(access, sectionKey, ["view"]);
+  if (engine !== null) return engine;
   const own = SECTION_AREAS[sectionKey];
   if (own && anyKey(access, sectionKey, ["view"])) return true;
   const children = allKeys.filter((k) => k.startsWith(`${sectionKey}-`));
@@ -406,6 +480,12 @@ export function sectionViewable(access: PermissionSet, sectionKey: string, allKe
 // Deliberately coarse: this only decides whether buttons are offered. What each
 // button actually does is guarded by its own key at the point of doing it.
 export function sectionManageable(access: PermissionSet, sectionKey: string, allKeys: readonly string[] = []): boolean {
+  // THE ENGINE'S THREE WRITE VERBS, asked the same way and for the same reason
+  // as the view above. Coarse deliberately, like every other answer here: this
+  // decides whether buttons are offered, and `records.ts` asks the exact key
+  // again at the point of doing the thing.
+  const engine = engineSectionRight(access, sectionKey, ["create", "edit", "delete"]);
+  if (engine !== null) return engine;
   const own = SECTION_AREAS[sectionKey];
   if (own && anyKey(access, sectionKey, ["create", "edit", "delete"])) return true;
   // A HEADING has no writes of its own — `crm-sales` is a nav parent, not a

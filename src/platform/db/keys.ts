@@ -815,6 +815,31 @@ export const SECTION_COLLECTIONS = {
   // be derived from the section list, which made every studio's org chart the
   // product's fifteen nav entries; see shared/departments/starters.ts.
   "administration-master": ["locations", "departments"],
+  // THE ENGINE'S TWO COLLECTIONS, and no more. A record type is a ROW, so a
+  // collection per type would need a deploy per type — the thing runtime was
+  // chosen to avoid. Instances are discriminated by `typeKey` inside
+  // `engineRecords`. Invariant 1 is untouched: two builders, not one per type.
+  //
+  // UNDER `administration-settings` because a record TYPE is studio
+  // configuration, not any one department's data — the same place the flow
+  // templates and the studio's own settings live.
+  //
+  // THE RECORDS ARE NOT HERE, AND THEY WERE. They live under the type's OWN
+  // planted section (`engine-<typeKey>`, per `platform/engine/sections.ts`),
+  // which this map cannot name because it is compile-time and a type is a row.
+  // They moved because a write publishes an event carrying the section it was
+  // written under, and the stream route asks `sectionViewable` about that key:
+  // under this one the question was `administration.settings`, so a member
+  // holding exactly `engine.<typeKey>.view` heard nothing about their own
+  // records while a settings-holder heard about records they may not read.
+  //
+  // NOTHING IS STRANDED BY BEING UNNAMEABLE HERE. This map answers "what to
+  // READ", and `cascadeDeleteSection` deliberately does not use it — it calls
+  // `pgDeleteAllForSection`, scoped by tenant and section id rather than by
+  // catalogue, precisely so the keys `appendSection` mints at runtime are
+  // reaped too. That decision was made for an earlier one-store survivor and it
+  // is what makes a runtime section safe to store rows under at all.
+  "administration-settings": ["recordTypes"],
   // tasks
   tasks: ["tasks"],
 };
