@@ -218,6 +218,23 @@ const KNOWN_COLLISIONS = {
     { value: "operations", reason: "the unmoved API route segment (src/app/api/studios/[slug]/operations/)" },
     { value: "operations/schedule", reason: "same — the schedule sub-route, never renamed" },
   ],
+  // THE MAILBOX, NOT THE SECTION. The contact form routes an enquiry to one of
+  // two addresses by team size — sales@ for the larger ones, support@ for the
+  // rest — and `mailboxFor` returns the literal "sales" as that choice. It is
+  // never resolved against SECTION_KEY_MAP, SECTION_DEFS or getSectionByKey;
+  // checked in all three files before being listed here, the same way the eight
+  // above were. The collision is only that a mailbox and a retired section were
+  // given the same English word.
+  "src/shared/marketing/enquiry.ts": [
+    { value: "sales", reason: "the mailbox mailboxFor() picks, sales@ vs support@" },
+    { value: "support", reason: "the other half of the same return type" },
+  ],
+  "src/app/api/contact/route.ts": [
+    { value: "sales", reason: "same mailbox choice, read back to select the address" },
+  ],
+  "src/components/landing/views/ContactView.js": [
+    { value: "sales", reason: "same mailbox choice, shown to the sender as a mailto fallback" },
+  ],
 };
 
 // A TRAP WORTH KNOWING, because it cost a red build: both assertions below

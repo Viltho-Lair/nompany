@@ -34,8 +34,8 @@ export const CORE = {
 // Capacity multipliers by active user count.
 export const TIERS = [
   { mult: 1.0, name: { en: "Tier 1", ar: "الفئة 1" }, users: { en: "1–10 users", ar: "1–10 مستخدمين" } },
-  { mult: 2.5, name: { en: "Tier 2", ar: "الفئة 2" }, users: { en: "11–50 users", ar: "11–50 مستخدمًا" } },
-  { mult: 5.0, name: { en: "Tier 3", ar: "الفئة 3" }, users: { en: "50+ users", ar: "أكثر من 50 مستخدمًا" } },
+  { mult: 2.5, name: { en: "Tier 2", ar: "الفئة 2" }, users: { en: "11–50 users", ar: "11–50 مستخدما" } },
+  { mult: 5.0, name: { en: "Tier 3", ar: "الفئة 3" }, users: { en: "50+ users", ar: "أكثر من 50 مستخدما" } },
 ];
 
 // Optional departments (à-la-carte). `sar` = full-department price.
@@ -57,8 +57,8 @@ export const DEPARTMENTS = [
   },
   {
     key: "inventory", sar: 870,
-    name: { en: "Inventory & AWB", ar: "المخزون وتتبّع الشحن الجوي" },
-    desc: { en: "Items, stock, project sheets and shipment tracking.", ar: "الأصناف والمخزون وكشوف المشاريع وتتبّع الشحنات." },
+    name: { en: "Inventory & AWB", ar: "المخزون وتتبع الشحن الجوي" },
+    desc: { en: "Items, stock, project sheets and shipment tracking.", ar: "الأصناف والمخزون وكشوف المشاريع وتتبع الشحنات." },
   },
   {
     key: "hr", sar: 640,
@@ -73,7 +73,7 @@ export const DEPARTMENTS = [
   {
     key: "field-service", sar: 510,
     name: { en: "Operations", ar: "العمليات" },
-    desc: { en: "Work schedules, permit watch and live GPS tracking.", ar: "جداول العمل ومتابعة التصاريح والتتبّع المباشر بالموقع." },
+    desc: { en: "Work schedules, permit watch and live GPS tracking.", ar: "جداول العمل ومتابعة التصاريح والتتبع المباشر بالموقع." },
   },
 ];
 
@@ -94,7 +94,7 @@ export const PRESETS = [
     key: "field-service", sar: 2650, popular: true,
     moduleKeys: ["projects", "inventory", "field-service"],
     name: { en: "Operations Suite", ar: "باقة العمليات" },
-    tagline: { en: "Run projects, stock and the field.", ar: "أدِر المشاريع والمخزون والميدان." },
+    tagline: { en: "Run projects, stock and the field.", ar: "أدر المشاريع والمخزون والميدان." },
     includes: {
       en: ["Core platform", "Project Management (all)", "Inventory & AWB (all)", "Operations (all)"],
       ar: ["المنصة الأساسية", "إدارة المشاريع (كاملة)", "المخزون والشحن الجوي (كامل)", "العمليات (كاملة)"],
@@ -218,12 +218,12 @@ export const PLANS: Plan[] = [
     minUsers: 10, maxUsers: 49, defaultUsers: 15,
     bands: [{ upTo: 25, rate: 150, label: "10–25" }, { upTo: 49, rate: 175, label: "26–49" }],
     name: { en: "Small", ar: "صغيرة" },
-    tagline: { en: "Small companies — 10 to 49 employees.", ar: "الشركات الصغيرة — من 10 إلى 49 موظفًا." },
-    users: { en: "10–49 users", ar: "10–49 مستخدمًا" },
+    tagline: { en: "Small companies — 10 to 49 employees.", ar: "الشركات الصغيرة — من 10 إلى 49 موظفا." },
+    users: { en: "10–49 users", ar: "10–49 مستخدما" },
     cta: "choose",
     features: {
       en: ["Everything in Micro", "10–49 employees", "Priced by your team size", "Priority email support"],
-      ar: ["كل ما في متناهية الصغر", "من 10 إلى 49 موظفًا", "التسعير حسب حجم فريقك", "دعم بريدي ذو أولوية"],
+      ar: ["كل ما في متناهية الصغر", "من 10 إلى 49 موظفا", "التسعير حسب حجم فريقك", "دعم بريدي ذو أولوية"],
     },
   },
   {
@@ -231,24 +231,24 @@ export const PLANS: Plan[] = [
     minUsers: 50, maxUsers: 249, defaultUsers: 75, popular: true,
     bands: [{ upTo: 99, rate: 200, label: "50–99" }, { upTo: 249, rate: 225, label: "100–249" }],
     name: { en: "Medium", ar: "متوسطة" },
-    tagline: { en: "Medium-sized companies — 50 to 249 employees.", ar: "الشركات المتوسطة — من 50 إلى 249 موظفًا." },
-    users: { en: "50–249 users", ar: "50–249 مستخدمًا" },
+    tagline: { en: "Medium-sized companies — 50 to 249 employees.", ar: "الشركات المتوسطة — من 50 إلى 249 موظفا." },
+    users: { en: "50–249 users", ar: "50–249 مستخدما" },
     cta: "choose",
     features: {
       en: ["Everything in Small", "50–249 employees", "Priced by your team size", "Guided onboarding"],
-      ar: ["كل ما في الصغيرة", "من 50 إلى 249 موظفًا", "التسعير حسب حجم فريقك", "إعداد موجّه"],
+      ar: ["كل ما في الصغيرة", "من 50 إلى 249 موظفا", "التسعير حسب حجم فريقك", "إعداد موجه"],
     },
   },
   {
     key: "large",
     invoicedMonthly: true, minUsers: 250, maxUsers: null, unlimited: true,
     name: { en: "Large", ar: "كبيرة" },
-    tagline: { en: "Large enterprises — 250 or more employees.", ar: "المؤسسات الكبيرة — 250 موظفًا أو أكثر." },
-    users: { en: "250+ users", ar: "250+ مستخدمًا" },
+    tagline: { en: "Large enterprises — 250 or more employees.", ar: "المؤسسات الكبيرة — 250 موظفا أو أكثر." },
+    users: { en: "250+ users", ar: "250+ مستخدما" },
     cta: "contact",
     features: {
       en: ["Everything in Medium", "Unlimited employees", "Invoiced monthly by headcount", "Dedicated support & SLA"],
-      ar: ["كل ما في المتوسطة", "موظفون بلا حدود", "فاتورة شهرية حسب عدد الموظفين", "دعم مخصّص واتفاقية مستوى خدمة"],
+      ar: ["كل ما في المتوسطة", "موظفون بلا حدود", "فاتورة شهرية حسب عدد الموظفين", "دعم مخصص واتفاقية مستوى خدمة"],
     },
   },
 ];

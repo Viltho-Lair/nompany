@@ -25,6 +25,17 @@ Hand-written CSS mirrors from the attribute alone (`ps-`/`pe-`/`ms-`/`me-`/`bord
 does not, so an Arabic studio nests `MuiRtlProvider`, loaded through `dynamic()` so an
 English tenant never fetches it.
 
+**Anything portalled has to declare `dir` itself.** `dir` sits on the studio SHELL, not on
+`<html>` — the root layout never reads the studio record, and `proxy.js` sets `x-studio-slug`
+on a tenant address and no `x-locale`, so `<html>` is `dir="ltr"` on every studio route
+whatever the tenant speaks. A node rendered into `document.body` is therefore a SIBLING of the
+shell and inherits LTR: field alignment, button order, and the Arabic font with them, since
+the font rule is anchored `html.studio-chrome [dir="rtl"]` and cannot match outside the shell.
+The studio `Dialog` and `SelectMenu` both carry their own `dir` for this reason, `Dialog`
+through a `display: contents` wrapper that restores inheritance without generating a box —
+the overlay must stay `fixed` against the viewport, which is why it is portalled at all.
+Gate A asserts it, because nothing else fails when it regresses.
+
 ## What it stores
 
 ```
