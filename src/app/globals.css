@@ -117,6 +117,21 @@
   font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
   background-color: var(--color-ink);
   color: var(--color-fg);
+
+  /* NOTHING ON THIS SURFACE MAY SCROLL THE PAGE SIDEWAYS.
+     Several things here are deliberately wider than their parent and are
+     meant to be clipped rather than reached: the hero's glow bed sits at
+     `-inset-8`, its satellite cards hang off the panel at `-right-8`, the
+     marquee track is `w-max`, and the view transition slides a full-width
+     element 64px on entry — so the page scrolled horizontally on load and
+     at every narrow width, which reads as a broken layout.
+
+     `clip`, NOT `hidden`. `overflow: hidden` makes this element a scroll
+     container, which breaks `position: sticky` inside it and gives the
+     browser a box to scroll programmatically on focus; `clip` cuts the
+     overflow without creating one. The `fixed` ambient layer is unaffected
+     either way because it escapes to the viewport. */
+  overflow-x: clip;
 }
 
 /* ARABIC GETS THE ARABIC FACES BACK. The [dir="rtl"] block near the top sets

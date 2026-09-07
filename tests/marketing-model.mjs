@@ -436,40 +436,22 @@ for (const locale of ["en", "ar"]) {
 ok("the Arabic platform copy carries no diacritics",
   !DIACRITICS.test(JSON.stringify(P.platformCopy("ar"))));
 
-console.log("
-== the pricing page writes no price of its own");
-
-const PR = await import("@/shared/marketing/pricing");
-
-for (const locale of ["en", "ar"]) {
-  const copy = PR.pricingCopy(locale);
-  ok(`${locale} pricing copy is written`,
-    copy.title.trim().length > 0 && copy.lead.trim().length > 0);
-  ok(`${locale} pricing copy spells the brand one way`,
-    !/Nompany/.test(JSON.stringify(copy)));
-
-  // NO FIGURE IS TYPED INTO THE COPY. Every number on that page — the bands,
-  // the rates, the free tier's ceiling — is read from `PLANS` at render. A
-  // price written into a copy module is free to disagree with the one actually
-  // charged, and the reader has no way to tell which is which. The percentages
-  // are the exception the page reads from VAT_RATE and YEARLY_DISCOUNT, so
-  // even those are not written here.
-  const digits = JSON.stringify(copy).match(/\d+/g) || [];
-  ok(`${locale} pricing copy states no figure`, digits.length === 0, digits.join(" "));
-}
-ok("the Arabic pricing copy carries no diacritics",
-  !DIACRITICS.test(JSON.stringify(PR.pricingCopy("ar"))));
+// THE PRICING COPY MODULE IS GONE, and with it the assertion that it held no
+// digits. The page renders /super's packages catalogue now — the names,
+// bullets, bands and every figure are edited in the console rather than
+// authored in this repository, so there is no copy module left to keep clean.
+// A price is a save, not a deploy.
 
 console.log("
 == the footers claim nothing that is not true");
 
-const landingFooter = readFileSync("src/components/landing/Footer.js", "utf8");
+const landingFooter = readFileSync("src/components/landing/chrome/SiteFooter.jsx", "utf8");
 const footerCode = stripComments(landingFooter);
 
 // A DUTCH LEGAL ENTITY, ON EVERY PAGE, for a company that is not incorporated
 // anywhere yet and will be based in Jordan — and spelling the brand with a
 // capital while doing it.
-ok("the landing footer names no legal entity that does not exist",
+ok("the footer names no legal entity that does not exist",
   !/\bBV\b/.test(footerCode));
 ok("...and spells the brand one way", !/Nompany/.test(footerCode));
 

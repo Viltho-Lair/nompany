@@ -6,7 +6,7 @@ import { platformCopy } from "@/shared/marketing/platform";
 import { claimText } from "@/shared/marketing/claims";
 import { heroCopy } from "@/shared/marketing/hero";
 import { getDict } from "@/shared/i18n";
-import { dirFor } from "@/shared/locale";
+import { MarketingShell } from "@/components/landing/chrome/MarketingShell";
 
 /* THE PLATFORM — the system explained on one page.
    ------------------------------------------------------------------
@@ -35,7 +35,6 @@ export default async function PlatformPage({ params }) {
   const { locale } = await params;
   const tr = platformCopy(locale);
   const dict = getDict(locale);
-  const dir = dirFor(locale);
   const departments = liveDepartments(locale);
 
   const structured = [
@@ -59,7 +58,8 @@ export default async function PlatformPage({ params }) {
   return (
     <>
       <JsonLd data={structured} />
-      <div dir={dir} className="container-page py-14 sm:py-20">
+      <MarketingShell locale={locale}>
+      <div className="mx-auto max-w-6xl px-6 py-4">
         <header className="max-w-3xl">
           <h1 className="font-display text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
             {tr.title}
@@ -122,6 +122,7 @@ export default async function PlatformPage({ params }) {
           </Link>
         </section>
       </div>
+    </MarketingShell>
     </>
   );
 }

@@ -16,6 +16,10 @@ import { getDict } from "@/shared/i18n";
 /* Navigation for the simulated router (TECHNIQUE 9).
    The active-tab pill is a shared `layoutId`, so switching tabs makes it
    glide between items instead of blinking on and off. */
+// `view`/`onNavigate` ARE OPTIONAL. This nav began life on a single page with
+// in-page views; it is now also the nav of five real routes, where there is no
+// view to switch and nothing to call. Absent, the view pills simply are not
+// rendered — the real page links carry the navigation.
 export function TopNav({ view, onNavigate, locale = "en" }) {
   const tr = landingDict(useLandingLocale());
   // The site dictionary owns the page names, so the nav and the site footer
@@ -67,7 +71,12 @@ export function TopNav({ view, onNavigate, locale = "en" }) {
         const next = v > 24;
         setCondensed((prev) => (prev === next ? prev : next));
     });
-    return (<motion.header initial={{ y: -70, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.8, delay: 0.15, ease: EASE_OUT_EXPO }} className="fixed inset-x-0 top-0 z-50 flex justify-center px-4 pt-4">
+    // THE NAV DOES NOT START INVISIBLE. `initial` is written into the
+    // server-rendered style attribute, so an opacity of 0 here shipped the
+    // site's entire navigation as `style="opacity:0"` — and navigation is
+    // exactly what a crawler follows to find the other pages. It drops in from
+    // above instead, which is the same entrance without the hiding.
+    return (<motion.header initial={{ y: -70 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.8, delay: 0.15, ease: EASE_OUT_EXPO }} className="fixed inset-x-0 top-0 z-50 flex justify-center px-4 pt-4">
       <motion.nav animate={{
             backgroundColor: condensed
                 ? "color-mix(in oklab, var(--color-ink-soft) 82%, transparent)"
@@ -102,13 +111,13 @@ export function TopNav({ view, onNavigate, locale = "en" }) {
               {l.label}
             </a>
           ))}
-          {viewsFor(tr).map((v) => {
+          {onNavigate ? viewsFor(tr).map((v) => {
             const isActive = v.id === view;
             return (<button key={v.id} onClick={() => onNavigate(v.id)} aria-current={isActive ? "page" : undefined} className={`relative rounded-full px-2 py-1.5 text-xs font-medium transition-colors duration-300 sm:px-3.5 sm:text-sm ${isActive ? "text-white" : "text-fg-muted hover:text-fg"}`}>
                 {isActive && (<motion.span layoutId="nav-pill" className="absolute inset-0 rounded-full bg-gradient-to-r from-iris to-violet" transition={{ type: "spring", stiffness: 380, damping: 32 }}/>)}
                 <span className="relative z-10">{v.label}</span>
               </button>);
-        })}
+        }) : null}
         </div>
 
         {/* Light / dark / system. Writes the same `theme` cookie the account

@@ -14,7 +14,15 @@ import { CONTACT } from "@/lib/site";
 
 // Locale-relative routes that render their own full-screen chrome. Shared with
 // Footer.js — keep the two in step.
-export const BARE_ROUTES = ["", "/login", "/signup", "/forgot", "/account", "/questionnaire"];
+export const BARE_ROUTES = [
+  "", "/login", "/signup", "/forgot", "/account", "/questionnaire",
+  // THE PUBLIC MARKETING PAGES BRING THEIR OWN CHROME. They used to inherit
+  // this editorial header and the account footer, so following a link from the
+  // home page landed on what looked like a different website — different
+  // palette, different nav, different footer. One shell renders all of them
+  // now (components/landing/chrome/MarketingShell) and these stand down.
+  "/platform", "/pricing", "/security", "/about",
+];
 
 // Minimal editorial header (inspired by the reference site): a slim bar with the
 // wordmark, theme + language controls and a Menu button that opens a full-screen

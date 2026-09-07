@@ -5,7 +5,7 @@ import { aboutCopy } from "@/shared/marketing/about";
 import { companyCopy, BRAND_AR } from "@/shared/marketing/company";
 import { CONTACT } from "@/lib/site";
 import { getDict } from "@/shared/i18n";
-import { dirFor } from "@/shared/locale";
+import { MarketingShell } from "@/components/landing/chrome/MarketingShell";
 
 /* ABOUT — the entity home.
    ------------------------------------------------------------------
@@ -62,7 +62,8 @@ export default async function AboutPage({ params }) {
           org,
         ]}
       />
-      <div dir={dirFor(locale)} className="container-page py-14 sm:py-20">
+      <MarketingShell locale={locale}>
+      <div className="mx-auto max-w-6xl px-6 py-4">
         <header className="max-w-2xl">
           <h1 className="font-display text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
             {tr.title}
@@ -100,6 +101,7 @@ export default async function AboutPage({ params }) {
           </div>
         </section>
       </div>
+    </MarketingShell>
     </>
   );
 }

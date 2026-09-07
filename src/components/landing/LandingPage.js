@@ -4,7 +4,7 @@ import { useCallback, useRef, useState } from "react";
 import { dirFor } from "@/shared/locale";
 import { LandingLocaleProvider } from "@/components/landing/locale";
 import { AmbientBackground } from "@/components/landing/AmbientBackground";
-import { Footer } from "@/components/landing/Footer";
+import { SiteFooter } from "@/components/landing/chrome/SiteFooter";
 import { TopNav } from "@/components/landing/nav/TopNav";
 import { PointerProvider } from "@/components/landing/providers/PointerProvider";
 import { ContactView } from "@/components/landing/views/ContactView";
@@ -69,7 +69,7 @@ export default function LandingPage({ locale = "en" }) {
           {view === "contact" && <ContactView />}
         </ViewTransition>
 
-        <Footer onNavigate={navigate} locale={locale} />
+        <SiteFooter locale={locale} />
       </PointerProvider>
       </LandingLocaleProvider>
     </div>

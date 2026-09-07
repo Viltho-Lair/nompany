@@ -87,9 +87,21 @@ export default async function RootLayout({ children }) {
   // on the visitor's OS), so that one case still falls to the script below.
   const themeChoice = (await cookies()).get("theme")?.value || "";
   const pathname = h.get("x-pathname") || "";
+  // EVERY PAGE THAT WEARS THE MARKETING CHROME, not just the home page.
+  //
+  // This listed the locale root and the three auth screens, which was right
+  // while those were the only pages carrying the dark shell. Platform, pricing,
+  // security and about now render through the same MarketingShell — dark
+  // palette, dark nav, dark footer — and were being handed `light`, so the
+  // shell painted its own dark background while every token inside it resolved
+  // to a light value. The page came out unreadable in patches rather than
+  // obviously broken, which is why it survived being looked at.
+  //
+  // A saved `theme` cookie still wins over all of this: what is decided here is
+  // only the default for somebody who has never chosen.
   const isMarketing =
     pathname === "/" ||
-    /^\/(en|ar)(\/(login|signup|forgot))?\/?$/.test(pathname);
+    /^\/(en|ar)(\/(login|signup|forgot|platform|pricing|security|about))?\/?$/.test(pathname);
   const theme = themeChoice || (isMarketing ? "dark" : "light");
   // `light` ships too, not just `dark`: MUI scopes its light variables to
   // `.light`, so without it MUI components render unstyled until its provider

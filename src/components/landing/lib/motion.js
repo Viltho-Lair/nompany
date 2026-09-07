@@ -34,11 +34,32 @@ export const SPRING_CURSOR = {
     damping: 18,
     mass: 0.4,
 };
-/** Generic fade-up entrance, driven by a parent's `staggerChildren`. */
+/** Generic rise entrance, driven by a parent's `staggerChildren`.
+ *
+ * IT NO LONGER FADES, AND THE NAME IS KEPT ON PURPOSE — every call site still
+ * reads `fadeUp`, and renaming it across the marketing site would have turned a
+ * correctness fix into a diff nobody could review.
+ *
+ * WHY IT CHANGED. `hidden` was `{ opacity: 0, y: 24 }`, and `motion/react`
+ * writes a component's initial variant into the SERVER-RENDERED style
+ * attribute. Combined with `whileInView`, that meant most of the marketing
+ * site shipped as `style="opacity:0"` and became readable only once JavaScript
+ * had run and an intersection observer had fired. Google renders JavaScript;
+ * ChatGPT, Claude and Perplexity's crawlers do not.
+ *
+ * It was measured on the pricing page, where it mattered most: the cards
+ * carrying every plan name, band and figure were all invisible in the HTML —
+ * so the page went to the trouble of rendering /super's prices on the server
+ * and then hid them behind an observer. The whole reason that page exists is
+ * that no engine had ever seen a price.
+ *
+ * The movement is kept and the disappearing is dropped: translate only, from a
+ * fully opaque resting state. Anything that genuinely wants to fade in — a
+ * decorative layer carrying no text — should say `opacity` at its own call
+ * site, where somebody has to think about what is being hidden. */
 export const fadeUp = {
-    hidden: { opacity: 0, y: 24 },
+    hidden: { y: 24 },
     show: {
-        opacity: 1,
         y: 0,
         transition: { duration: 0.7, ease: EASE_OUT_EXPO },
     },
