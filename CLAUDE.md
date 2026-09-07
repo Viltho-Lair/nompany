@@ -252,21 +252,42 @@ and when.
   first is the one that matters: **per-route FIRST LOAD, against a recorded baseline
   plus an 8 KB margin** (`scripts/bundle-baselines.json`, rewritten with
   `node scripts/bundle-budget.mjs --record`; an unlisted route is held to 300 KB, so a
-  new route is gated from its first build). Then the largest chunk (158 KB gz against
-  250) and total client JS (**1783 against 1792**, measured 07/09/2026), which catch
-  one enormous file and sprawl respectively. `scripts/bundle-budget.mjs` holds the
-  numbers and explains why a whole-directory total would penalise code-splitting.
+  new route is gated from its first build). Then the largest chunk (250 KB gz) and
+  total client JS (**1825 against 1833**, CI's measurement on 07/09/2026), which
+  catch one enormous file and sprawl respectively. `scripts/bundle-budget.mjs` holds
+  the numbers and explains why a whole-directory total would penalise code-splitting.
 
   **THIS BULLET SAID "1681 against 1684" AND WAS ALREADY TWO GENERATIONS STALE
-  when it was corrected.** The script's own total ceiling had moved twice since:
-  1684 → 1716 as the studio's screens picked up their planned weight, then
-  1716 → 1792 for the hero-variant preview route this branch added. The ceiling
-  is conditional now rather than a constant somebody has to remember to lower:
-  `scripts/bundle-budget.mjs` reads whether `/[locale]/preview/hero/[variant]`
-  still has a baseline entry and is 1792 while it does, 1716 the moment it does
-  not — so deleting the preview route (which the winning-variant commit must do
-  anyway) ratchets this number down as a side effect, rather than as a promise
-  in a comment nobody re-reads until the gate fails.
+  when it was corrected — then went stale twice more before this line was
+  rewritten.** The ceiling has moved four times: 1684 → 1716 as the studio's
+  screens picked up their planned weight, 1716 → 1792 for the hero-variant
+  preview route, 1792 → 1716 again when that route was deleted, and
+  1716 → 1833 for four marketing pages nobody had re-measured the total for.
+
+  **THE THIRD OF THOSE FIRED BY ITSELF, AND THE CONDITIONAL THAT DID IT IS NOW
+  GONE.** It read `baselines[PREVIEW_ROUTE] ? 1792 : 1716`, bound to the preview
+  route's baseline row so the adopt-a-winner commit lowered the ceiling by deleting
+  the route rather than by remembering to, and it worked exactly as designed. What
+  was left afterwards is a branch whose 1792 arm can never be taken again —
+  `tests/marketing-model.mjs` asserts that row stays absent — so it is a plain
+  constant again. The mechanism is worth reusing; that instance is spent. Do not
+  go looking for the conditional this bullet used to describe.
+
+  **AND A CEILING THAT FIRES CORRECTLY CAN STILL BE WRONG.** 1716 went red at 1825
+  on a tree where EVERY per-route number was at or under its baseline — the studio
+  681 against 680, `/[locale]` and the questionnaire each a kilobyte UNDER. Nothing
+  had regressed. Four real pages (`/[locale]/pricing`, `/about`, `/platform`,
+  `/security`) had landed since 1716 was measured, and 117 KB for four of them is
+  the shared-shell shape rather than sprawl — they render inside MarketingShell,
+  which `/[locale]` had already paid for. A self-lowering ceiling ratchets against
+  the tree it was measured on, not the one that exists.
+
+  **THOSE FOUR ARE STILL UNBASELINED, recorded as a debt rather than paid.** They
+  fall to the 300 KB default, so each may drift up to 38 KB before anything
+  complains, which falsifies this bullet's own claim that a new route is gated from
+  its first build. Paying it needs `--record`, which needs a build. The next commit
+  that builds should record the four and lower 1833 to measured + 8 in the same
+  change.
 
   **THIS BULLET SAID THE LARGEST CHUNK IS "WHAT EVERY ROUTE PAYS", AND IT IS NOT —
   it is six times under.** Next 16 publishes the real figure
