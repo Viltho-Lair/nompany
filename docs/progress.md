@@ -23,7 +23,7 @@ detail has been going; this file is the map.
 | | |
 |---|---|
 | **Done** | Waves 0–3, Gate A, the engagement storage model Phase 0–1b, **P0** (fifteen-section restructure), **P1 + the cutover** (production runs Postgres; Redis is gone), **P2's approval engine** (bills, then bids), and **P4a's first three sections** |
-| **In progress** | **P4a — Projects, deepened.** Procurement & Subcontracting COMPLETED 07/09/2026, all seven slices. What is left in P4a is Projects: daily site reports with photos, and closure with a punch list and warranty tracker |
+| **In progress** | **P4a is COMPLETE** — all five sections, 07/09/2026. The only thread left from it is the closure slice's Gate A block, which could not be recorded because the machine's ADC credentials expired. **Next is P4b**, the abstraction extracted from the screens P4a built |
 | **Blocked on nothing** | CI green on every push; goldens **316**, catalogue **174** keys, lint **142/0**, bundle **1687 KB gz against 1688**. The largest chunk is **165 KB against 250**, up from 158 with the Procurement dashboard — consolidation rather than sprawl (the chunk count fell 92 → 91 as `components/dashboard` was hoisted into the shared chunk), but it is the number every route pays and the one to watch. Measured 07/09/2026 at the commit that states them, not quoted from the line above |
 | **Next gate** | Gate B is 2 of 3 and sales sits at its 3-hop structural floor. Gate C (Wave 3) is done server-side; what is left is `checkJs` over the browser `.js` files and the `app/` restructure |
 
@@ -41,7 +41,7 @@ abstraction is extracted from real screens rather than guessed at.
 | **P1** | Postgres behind the store seam (`NOMPANY_DB`: redis / postgres / parity) | ✅ on `main` |
 | **The cutover** | Production runs Postgres through the Cloud Run gateway, live 02/09/2026, proven by a write rather than assumed. **Redis is gone entirely** — no `REDIS_URL` anywhere, nothing in `src` reads it | ✅ done |
 | **P2** | The approval engine — a chain chosen at runtime, invariant 7 enforced twice. Two document types: bills, then bids. Chains live on the STUDIO record (`platform/approval/store`), not in Finance's settings | ✅ on `main` |
-| **P4a** | Section-by-section depth. Three sections done, one in progress | 🟡 |
+| **P4a** | Section-by-section depth, five sections hand-built | ✅ on `main` 07/09/2026, with one Gate A block outstanding (see below) |
 | **P4b** | The abstraction, extracted from the screens P4a builds | ⬜ not started |
 
 ### P4a, slice by slice
@@ -53,17 +53,24 @@ Every slice below is on `main` and green. Each names its own file in
 |---|---|---|
 | **CRM & Sales** | contracts register · pipeline board · customer 360 · pricing and customer rates · the dashboard | ✅ complete |
 | **Tendering & Estimating** | tender register · BOQ grid and rate library · tender pack and clarifications · bid review · handover to Projects | ✅ complete |
-| **Projects, deepened** | **cost breakdown** · **purchase orders coded** · **earned value** · **variations** · **billing milestones and retention** · **the critical path** · daily site reports · closure with punch list and warranty | 🟡 **not complete** — see below |
+| **Projects, deepened** | **cost breakdown** · **purchase orders coded** · **earned value** · **variations** · **billing milestones and retention** · **the critical path** · **daily site reports** · **closure with punch list and warranty** | ✅ complete — see the caveat below |
 | **Procurement & Subcontracting** | **purchase requisitions** · **supplier RFQ and quote comparison** · **purchase orders with expediting** · **subcontracts** · **supplier qualification and rating** · **GRN with 3-way match** · **the dashboard** | ✅ complete |
 | **Administration & Settings** | a real gated section (03/09) · Master data with Locations and the departments register | ✅ complete |
 
-**PROJECTS IS NOT COMPLETE, AND THIS FILE SAID IT WAS.** The row above was marked ✅ from
-`CLAUDE.md`'s shorter bullet list rather than from the programme spec, which names eight:
-**daily site reports with photos** does not exist at all, and **closure with punch list and
-warranty tracker** has neither — `inspections` carries a `snag` kind, which is the raw material
-of a punch list and not a closure workflow. Recorded rather than silently corrected, for the
-same reason as the note at the top: this is the second time in one session that a claim was
-copied out of a document instead of checked against the code.
+**PROJECTS IS COMPLETE AS OF 07/09/2026, and the eight bullets are the programme spec's
+rather than `CLAUDE.md`'s shorter list — which is what this row got wrong once before.** Daily
+site reports shipped with photographs; closure reads the `snag` inspections as its punch list
+rather than keeping a second list of the same defects.
+
+**ONE CAVEAT ON THE CLOSURE SLICE, because a green row should not hide it:** it landed WITHOUT
+its Gate A block. The machine's Google ADC credentials expired mid-session, so nothing local
+could reach Cloud SQL and there was nothing to record goldens against. Its 40 unit assertions,
+tsc, strict tsc, the build and lint all pass, and CI confirms it breaks no existing golden —
+but **the closure route has no contract of its own yet**. The block is written and waiting on
+`gcloud auth application-default login` plus a `cloud-sql-proxy` restart.
+
+**WITH THAT, P4a IS COMPLETE: all five hand-built sections.** What follows is P4b, the
+abstraction extracted from the screens P4a built rather than guessed at.
 
 **Four sections still render nothing** and are hidden rather than shown empty:
 Manufacturing, Assets, Reports, and Quality & HSE. They are listed in
