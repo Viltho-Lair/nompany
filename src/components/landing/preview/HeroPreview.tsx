@@ -7,6 +7,7 @@ import { LandingLocaleProvider } from "@/components/landing/locale";
 import { PointerProvider } from "@/components/landing/providers/PointerProvider";
 import { AmbientBackground } from "@/components/landing/AmbientBackground";
 import { HeroV1Assembly } from "@/components/landing/hero/variants/HeroV1Assembly";
+import { HeroV2Scroll } from "@/components/landing/hero/variants/HeroV2Scroll";
 
 /* ==================================================================
    THE HERO PREVIEW SHELL — three variants, one URL each, judged side
@@ -76,6 +77,7 @@ export default function HeroPreview({
           </div>
 
           {variant === "v1" && <HeroV1Assembly locale={locale} />}
+          {variant === "v2" && <HeroV2Scroll locale={locale} />}
         </PointerProvider>
       </LandingLocaleProvider>
     </div>

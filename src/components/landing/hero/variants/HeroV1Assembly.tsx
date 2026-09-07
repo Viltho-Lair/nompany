@@ -13,9 +13,9 @@ import { DashboardAssembly } from "@/components/landing/hero/DashboardAssembly";
 
    THE COPY COLUMN CARRIES NO ENTRANCE ANIMATION, and that is the whole
    point of the variant rather than an omission. `motion/react` writes
-   `initial` into the server-rendered style attribute, so a headline
-   whose initial opacity is zero renders `style="opacity:0"` in the
-   HTML — which Google renders past and ChatGPT, Claude and
+   `initial` into the server-rendered style attribute, so an
+   `initial={{ opacity: 0 }}` on a headline is `style="opacity:0"` in
+   the HTML — which Google renders past and ChatGPT, Claude and
    Perplexity's crawlers do not. The motion lives on the visual column,
    which is decorative, and the words are settled from the first byte.
 

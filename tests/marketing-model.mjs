@@ -232,8 +232,21 @@ const variantFiles = existsSync(VARIANT_DIR)
   : [];
 ok("...and at least one variant is in it", variantFiles.length > 0);
 
+// COMMENTS ARE STRIPPED BEFORE MATCHING, same treatment as gate-a.mjs's own
+// `stripComments` (see its note by `carriesLibrary`). An assertion that guards
+// a pattern trips over the comment explaining why the pattern is banned — the
+// opacity-0 check below exists BECAUSE `initial={{ opacity: 0 }}` is dangerous,
+// which is exactly the phrase its own doc comment needs to name. Task 4 dodged
+// this once by rewording HeroV1Assembly's comment around the raw grep; that is
+// a one-time cost paid again by every variant after it. Strip instead, so the
+// checks guard real code and never a comment about it.
+const stripComments = (text) => text
+  .replace(/\/\*[\s\S]*?\*\//g, "")
+  .replace(/^\s*\/\/.*$/gm, "");
+
 for (const file of variantFiles) {
   const src = readFileSync(`${VARIANT_DIR}/${file}`, "utf8");
+  const code = stripComments(src);
 
   // NOTHING IN A HERO STARTS INVISIBLE.
   //
@@ -245,17 +258,17 @@ for (const file of variantFiles) {
   // server renders; this is that rule as a grep. A decorative element that
   // wants an entrance animates transform or scale, which is visible at rest.
   ok(`${file} parks nothing at opacity 0`,
-    !/initial=\{\{[^}]*opacity:\s*0/.test(src), file);
+    !/initial=\{\{[^}]*opacity:\s*0/.test(code), file);
 
   // THE H1 IS A SINGLE TEXT NODE. AnimatedHeadline splits a headline into
   // per-character aria-hidden spans; a tag-stripping extractor reads the live
   // page's H1 as `T h e O p e r a t i n g S y s t e m`.
-  ok(`${file} does not split its headline`, !/AnimatedHeadline/.test(src), file);
+  ok(`${file} does not split its headline`, !/AnimatedHeadline/.test(code), file);
 
   // EVERY CLAIM ON THE PAGE IS REGISTERED. A variant reaches its figures
   // through claimText or through the copy module that does; a number typed
   // straight into JSX is how 99.99% uptime got onto the live page.
-  const digitsInJsx = src.match(/>\s*[0-9][0-9,.]*\+?\s*</g) || [];
+  const digitsInJsx = code.match(/>\s*[0-9][0-9,.]*\+?\s*</g) || [];
   ok(`${file} states no unregistered figure`, digitsInJsx.length === 0,
     digitsInJsx.join(" "));
 }
