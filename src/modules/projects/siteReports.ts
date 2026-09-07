@@ -170,6 +170,12 @@ export async function editSiteReport(ctx: ProjectsContext, id: string, body: Rec
   const problem = reportProblem(merged, rows, id);
   if (problem) return { error: problem };
 
+  // Read once, outside the patch: a patch FUNCTION may run more than once — once
+  // per contended round, and once per store under NOMPANY_DB=parity — so a fresh
+  // clock read inside it answers differently on each invocation, which parity
+  // compares and refuses. Same rule chase.ts states and the record engine pays.
+  const at = now();
+
   return {
     report: await Reports.update({ studio, section: listSection }, id, (row) => ({
       ...row,
@@ -182,7 +188,7 @@ export async function editSiteReport(ctx: ProjectsContext, id: string, body: Rec
       progress: body?.progress === undefined ? row.progress : str(body.progress, 8000),
       visitors: body?.visitors === undefined ? row.visitors : str(body.visitors, 2000),
       photos: body?.photos === undefined ? row.photos : cleanPhotos(body.photos),
-      updatedAt: now(),
+      updatedAt: at,
     })),
   };
 }
