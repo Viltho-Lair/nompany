@@ -224,9 +224,6 @@ type Strings = {
   themeLight: string;
   themeSystem: string;
   thisQuarter: string;
-  viewContact: string;
-  viewOverview: string;
-  viewPricing: string;
   whatRunningToday: string;
   workEmail: string;
   yourAccount: string;
@@ -450,9 +447,6 @@ const en: Strings = {
   themeLight: "Light",
   themeSystem: "System",
   thisQuarter: "this quarter",
-  viewContact: "Contact",
-  viewOverview: "Overview",
-  viewPricing: "Pricing",
   whatRunningToday: "What are you running today?",
   workEmail: "Work email",
   yourAccount: "Your account",
@@ -676,9 +670,6 @@ const ar: Strings = {
   themeLight: "فاتح",
   themeSystem: "النظام",
   thisQuarter: "هذا الربع",
-  viewContact: "تواصل معنا",
-  viewOverview: "نظرة عامة",
-  viewPricing: "الأسعار",
   whatRunningToday: "ما الذي تشغله اليوم؟",
   workEmail: "بريد العمل",
   yourAccount: "حسابك",

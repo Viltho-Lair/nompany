@@ -5,7 +5,6 @@ import { useLandingLocale } from "@/components/landing/locale";
 import { landingDict } from "@/shared/landing";
 import { AnimatePresence, motion } from "motion/react";
 import { fmtCurrencyAmount } from "@/lib/pricing";
-import { CONTACT } from "@/lib/site";
 import { CURRENCIES_FROM_EXCHANGE_API } from "@/shared/currencies";
 import { EASE_OUT_EXPO, fadeUp, stagger, VIEWPORT } from "@/components/landing/lib/motion";
 import { MagneticButton } from "../ui/MagneticButton";
@@ -185,6 +184,23 @@ export function PricingBoard({ initial = null, locale = "en" }) {
   // stale hardcoded prices would say something false with confidence.
   const loading = live === null;
   const signupHref = (plan) => `/${locale}/signup?package=${packageKeyFor(plan)}`;
+
+  // EVERY CARD'S BUTTON IS A LINK, and the premium one was not.
+  //
+  // It called `onNavigate("contact")` — a prop this component has never
+  // declared and this page can never pass, because `pricing/page.js` is a
+  // Server Component and a function does not cross that boundary. So the
+  // board's own "Contact sales" threw the moment anybody pressed it, and it is
+  // the only thing in the repository ESLint calls an error rather than a
+  // warning: `no-undef` was reporting a runtime crash, not a style.
+  //
+  // The fix is the address, not the prop. Contact was the last in-page view,
+  // and its own comment said it becomes a route once it has a backend that
+  // sends; `/api/contact` sends. A button that swaps a client view cannot be
+  // opened in a new tab, linked to, or followed by a crawler — which is the
+  // argument that moved this very board out of the views.
+  const ctaHref = (plan) =>
+    plan.cta === "contact" ? `/${locale}/contact` : signupHref(plan);
 
   // Fixed by the card type, not chosen per package: the words are a promise
   // about what pressing the button does, and that follows from the shape.
@@ -402,47 +418,40 @@ export function PricingBoard({ initial = null, locale = "en" }) {
                 </span>
 
                 <div className="mt-6">
-                  {plan.cta === "contact" ? (
-                    /* A REAL DESTINATION, because this button had none. It
-                       called `onNavigate("contact")` — a prop this component
-                       does not take and never has, left behind when the board
-                       stopped being an in-page view (`views/PricingView`) and
-                       became a route: inside the landing page's tab tree that
-                       function was in scope, and on `/[locale]/pricing` there is
-                       nothing to swap and nothing to call. So the premium plan's
-                       only call to action THREW when it was clicked. ESLint knew
-                       (`no-undef`), and lint:budget was failing on it.
+                  {/* A REAL DESTINATION, and it took two commits to get one.
+                      This button called `onNavigate("contact")` — a prop the
+                      component does not take and never has, left behind when
+                      the board stopped being an in-page view
+                      (`views/PricingView`) and became a route: inside the
+                      landing page's tab tree that function was in scope, and on
+                      `/[locale]/pricing` there is nothing to swap and nothing to
+                      call. So the premium plan's only call to action THREW when
+                      it was clicked, ESLint knew (`no-undef`), and lint:budget
+                      was failing on it.
 
-                       IT IS THE SALES MAILBOX, not the contact form, and that is
-                       a deliberate stop rather than the end state. The form is
-                       still an in-page view with no address of its own — see
-                       views/views.js, which says contact becomes a route in the
-                       change that gives it a backend, and it now has one — so
-                       there is no URL to send anybody to yet. Until there is,
-                       this does what the Security page's contact section already
-                       does with the same CONTACT constants, and it goes to
-                       `sales` because `mailboxFor` sends any team of ten or more
-                       there and every plan carrying this CTA is larger than
-                       that. A mailto that works beats a form you cannot link
-                       to. */
-                    <MagneticButton
-                      variant="ghost"
-                      strength={10}
-                      href={`mailto:${CONTACT.sales}`}
-                      className="w-full justify-center px-5 py-3"
-                    >
-                      {ctaLabel(plan)}
-                    </MagneticButton>
-                  ) : (
-                    <MagneticButton
-                      variant={plan.popular ? "primary" : "ghost"}
-                      strength={10}
-                      href={signupHref(plan)}
-                      className="w-full justify-center px-5 py-3"
-                    >
-                      {ctaLabel(plan)}
-                    </MagneticButton>
-                  )}
+                      IT WENT TO `mailto:CONTACT.sales` FIRST, deliberately and
+                      temporarily: the contact FORM was still an in-page view
+                      with no address, so there was no URL to send anybody to,
+                      and a mailto that works beats a form you cannot link to.
+                      `views/views.js` set the release condition — contact
+                      becomes a route in the change that gives it a backend that
+                      actually sends. `/api/contact` sends, the route exists, so
+                      the stop is over and this is the destination it was
+                      standing in for. The mailbox is not lost: the form still
+                      routes by team size through `mailboxFor`, which is more
+                      than a hardcoded `sales` could do.
+
+                      One button, two destinations. The premium card stays ghost
+                      whether or not it is marked popular — "Contact sales" is
+                      not the press this page is steering anybody towards. */}
+                  <MagneticButton
+                    variant={plan.cta !== "contact" && plan.popular ? "primary" : "ghost"}
+                    strength={10}
+                    href={ctaHref(plan)}
+                    className="w-full justify-center px-5 py-3"
+                  >
+                    {ctaLabel(plan)}
+                  </MagneticButton>
                 </div>
 
                 <p className="mt-7 text-[0.65rem] uppercase tracking-[0.16em] text-fg-dim">

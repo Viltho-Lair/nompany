@@ -24,42 +24,42 @@ type StatusMap = Record<string, Record<string, string>>;
 // keep in step with the first, for no gain.
 const ar: StatusMap = {
   changeOrder: {
-    draft: "مسودة", submitted: "مُقدّمة",
+    draft: "مسودة", submitted: "مقدمة",
     approved: "معتمدة", rejected: "مرفوضة",
   },
-  invoice: { Draft: "مسودة", Sent: "مُرسلة", Paid: "مدفوعة", Cancelled: "ملغاة" },
+  invoice: { Draft: "مسودة", Sent: "مرسلة", Paid: "مدفوعة", Cancelled: "ملغاة" },
   bill: {
     Draft: "مسودة", Received: "مستلمة", Approved: "معتمدة",
     Paid: "مدفوعة", Cancelled: "ملغاة", Disputed: "معترض عليها",
   },
   asset: { service: "قيد الخدمة", disposed: "مستبعد" },
   tenderStage: {
-    Identified: "مرصودة", Preparing: "قيد الإعداد", Submitted: "مُقدّمة",
-    Won: "مربوحة", Lost: "خاسرة", "No Bid": "لم نتقدّم", Withdrawn: "مسحوبة",
+    Identified: "مرصودة", Preparing: "قيد الإعداد", Submitted: "مقدمة",
+    Won: "مربوحة", Lost: "خاسرة", "No Bid": "لم نتقدم", Withdrawn: "مسحوبة",
   },
   ticketStage: {
     Lead: "مبدئي", Opportunity: "فرصة", Commit: "التزام",
-    "Closed Won": "أُغلق بالفوز", "Closed Lost": "أُغلق بالخسارة",
-    "Cancelled by Client": "ألغاه العميل", "On-Hold": "معلّق", Dropped: "متروك",
+    "Closed Won": "أغلق بالفوز", "Closed Lost": "أغلق بالخسارة",
+    "Cancelled by Client": "ألغاه العميل", "On-Hold": "معلق", Dropped: "متروك",
   },
   task: { Open: "مفتوحة", "In progress": "قيد التنفيذ", Blocked: "متوقفة", Done: "منجزة" },
   movement: { in: "وارد", out: "صادر", adjust: "تسوية" },
   order: {
-    Draft: "مسودة", Ordered: "مطلوب", "Partly received": "مستلم جزئيًا",
+    Draft: "مسودة", Ordered: "مطلوب", "Partly received": "مستلم جزئيا",
     Received: "مستلم", Cancelled: "ملغى",
   },
   delivery: { Draft: "مسودة", Issued: "صادر", Cancelled: "ملغى" },
-  project: { Received: "مستلم", "In Progress": "قيد التنفيذ", "On Hold": "معلّق", Completed: "مكتمل" },
+  project: { Received: "مستلم", "In Progress": "قيد التنفيذ", "On Hold": "معلق", Completed: "مكتمل" },
   rfq: { New: "جديد", "In-review": "قيد المراجعة", Converted: "تم تحويله", Rejected: "مرفوض" },
   quotation: {
     New: "جديد", Draft: "مسودة", Completed: "مكتمل",
-    Sent: "مُرسل", Approved: "معتمد", Rejected: "مرفوض",
+    Sent: "مرسل", Approved: "معتمد", Rejected: "مرفوض",
   },
-  permit: { Valid: "ساري", Expiring: "يوشك على الانتهاء", Expired: "منتهٍ", "Not yet valid": "لم يسرِ بعد" },
+  permit: { Valid: "ساري", Expiring: "يوشك على الانتهاء", Expired: "منته", "Not yet valid": "لم يسر بعد" },
   leave: { Pending: "قيد الانتظار", Approved: "معتمد", Declined: "مرفوض", Cancelled: "ملغى" },
   quality: {
     draft: "مسودة", rejected: "مرفوضة", review: "قيد المراجعة", approval: "قيد الاعتماد",
-    approved: "معتمدة", effective: "سارية", superseded: "مُستبدَلة",
+    approved: "معتمدة", effective: "سارية", superseded: "مستبدلة",
   },
   awb: { intransit: "قيد الشحن", delivered: "تم التسليم", exception: "استثناء", notmoved: "لم يتحرك" },
 };

@@ -30,7 +30,7 @@ const ar: StageMap = {
   invoice: "فاتورة",
   task: "مهمة",
   expense: "مصروف",
-  bill: "فاتورة مورّد",
+  bill: "فاتورة مورد",
   asset: "أصل ثابت",
 };
 

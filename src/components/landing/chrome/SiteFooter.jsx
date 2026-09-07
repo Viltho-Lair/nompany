@@ -52,6 +52,7 @@ export function SiteFooter({ locale: localeProp }) {
         { href: `/${locale}/platform`, label: nav.platform },
         { href: `/${locale}/pricing`, label: nav.pricing },
         { href: `/${locale}/security`, label: nav.security },
+        { href: `/${locale}/contact`, label: nav.contact },
       ],
     },
     {
