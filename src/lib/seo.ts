@@ -204,12 +204,15 @@ export function organizationLd(settings?: unknown, locale: string = defaultLocal
     description: SITE_DESCRIPTION[locale] || SITE_DESCRIPTION.en,
     email: CONTACT.email,
     telephone: CONTACT.phone,
-    areaServed: { "@type": "Country", name: "Saudi Arabia" },
-    address: {
-      "@type": "PostalAddress",
-      addressLocality: "Riyadh",
-      addressCountry: "SA",
-    },
+    // NO ADDRESS AND NO areaServed, and their absence is the correction.
+    //
+    // This asserted `addressLocality: "Riyadh"`, `addressCountry: "SA"` and an
+    // areaServed of Saudi Arabia, on every public page, in the one format built
+    // to be believed without being read. The company is not incorporated
+    // anywhere, is not Saudi, and is heading for Jordan; the market is the whole
+    // region rather than one country. Schema.org has no way to say "not yet",
+    // so the fields are omitted — an absent claim is the only honest form of a
+    // claim you cannot make, and they come back when there is an address.
     sameAs: sameAs(),
   };
 }
@@ -226,16 +229,6 @@ export function websiteLd(settings?: unknown, locale: string = defaultLocale) {
   };
 }
 
-// Turn "Sunday – Thursday, 8:30 AM – 5:30 PM" into a schema.org spec.
-function openingHours() {
-  return {
-    "@type": "OpeningHoursSpecification",
-    dayOfWeek: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday"],
-    opens: "08:30",
-    closes: "17:30",
-  };
-}
-
 export function localBusinessLd(settings?: unknown, locale: string = defaultLocale) {
   const name = "nompany";
   return {
@@ -249,13 +242,11 @@ export function localBusinessLd(settings?: unknown, locale: string = defaultLoca
     telephone: CONTACT.phone,
     priceRange: "$$$",
     description: SITE_DESCRIPTION[locale] || SITE_DESCRIPTION.en,
-    address: {
-      "@type": "PostalAddress",
-      addressLocality: "Riyadh",
-      addressCountry: "SA",
-    },
-    areaServed: { "@type": "Country", name: "Saudi Arabia" },
-    openingHoursSpecification: [openingHours()],
+    // NO ADDRESS, NO areaServed AND NO OPENING HOURS. A LocalBusiness with
+    // opening hours describes a place somebody could walk into; there is no
+    // staffed office anywhere, so the hours were a schedule for a door that
+    // does not exist. Nobody buys an ERP from a map result either, which is why
+    // this is left thin rather than filled in.
     sameAs: sameAs(),
   };
 }
@@ -291,7 +282,6 @@ export function servicesLd(
         name: locale === "ar" ? svc.title_ar || svc.title_en : svc.title_en,
         description: locale === "ar" ? svc.desc_ar || svc.desc_en : svc.desc_en,
         provider: { "@id": `${SITE_URL}/#organization` },
-        areaServed: { "@type": "Country", name: "Saudi Arabia" },
         serviceType: svc.title_en,
       },
     })),
@@ -322,9 +312,11 @@ export function jobPostingLd(job: Record<string, string>, settings: unknown, loc
       "@type": "Place",
       address: {
         "@type": "PostalAddress",
-        addressLocality:
-          (locale === "ar" ? job.location_ar : job.location_en) || "Riyadh",
-        addressCountry: "SA",
+        // THE POSTING'S OWN LOCATION, and no fallback. This defaulted to
+        // Riyadh, SA for any opening that did not state one — inventing a place
+        // of work for a company with no office. A posting with no location says
+        // none.
+        addressLocality: (locale === "ar" ? job.location_ar : job.location_en) || undefined,
       },
     },
     industry: "Enterprise Software (ERP / SaaS)",

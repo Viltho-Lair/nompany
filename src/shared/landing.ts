@@ -359,7 +359,7 @@ const en: Strings = {
   nothingMatches: "Nothing matches that.",
   novaAlwaysOn: "Nova · always on",
   novaName: "Nova",
-  novaNompanyAiAssistant: "Nova, the Nompany AI assistant",
+  novaNompanyAiAssistant: "Nova, the nompany AI assistant",
   novaSitsIn: "Nova will sit in on the call and map your entities live.",
   novaWatchesEveryEvent: "Nova watches every event as it lands, spots the pattern, and brings you the decision — not another dashboard to interpret.",
   officesAmericas: "Austin · Toronto",

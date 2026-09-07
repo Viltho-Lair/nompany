@@ -2,7 +2,11 @@
 import { useRef } from "react";
 import { motion, useMotionValue, useReducedMotion, useSpring } from "motion/react";
 import { SPRING_CURSOR } from "@/components/landing/lib/motion";
-export function MagneticButton({ children, onClick, href, variant = "primary", strength = 14, className = "", type = "button", ariaLabel, }) {
+// `disabled` IS HONOURED RATHER THAN DROPPED. The props are destructured one by
+// one instead of spread, so a caller passing `disabled` got a button that looked
+// ordinary and stayed clickable — the contact form passed exactly that while a
+// send was in flight. It reaches the element now, and the cursor says so.
+export function MagneticButton({ children, onClick, href, variant = "primary", strength = 14, className = "", type = "button", ariaLabel, disabled = false, }) {
     const reduceMotion = useReducedMotion();
     const ref = useRef(null);
     const rect = useRef(null);
@@ -66,7 +70,7 @@ export function MagneticButton({ children, onClick, href, variant = "primary", s
         {inner}
       </motion.a>);
     }
-    return (<motion.button ref={ref} type={type} {...shellProps}>
+    return (<motion.button ref={ref} type={type} disabled={disabled} aria-disabled={disabled || undefined} {...shellProps}>
       {inner}
     </motion.button>);
 }

@@ -9,9 +9,25 @@
 
 export const CONTACT = {
   email: "info@nompany.com",
+  // WHERE AN ENQUIRY ACTUALLY LANDS. Both are live aliases onto a mailbox a
+  // person reads; the contact form picks between them by the team size it was
+  // given, because ten people or more is a conversation about an invoice and
+  // below that is somebody using a free tier.
+  sales: "sales@nompany.com",
+  support: "support@nompany.com",
   phone: "+966 53 068 8184",
-  address: { en: "Riyadh, KSA", ar: "الرياض، المملكة العربية السعودية" },
-  city: { en: "Riyadh", ar: "الرياض" },
+
+  // THERE IS NO ADDRESS, AND STATING ONE WAS A FALSE CLAIM.
+  //
+  // This said "Riyadh, KSA" and fed `addressLocality: "Riyadh"`,
+  // `addressCountry: "SA"` into the Organization schema on every public page —
+  // machine-readable, which is the worst place for it. The company is not
+  // incorporated anywhere yet, is not Saudi, and is heading for Jordan. An
+  // address is asserted again when there is one to assert; until then the
+  // honest answer is silence, and the security page says so in words rather
+  // than leaving a buyer to infer it from a schema field.
+  address: null as { en: string; ar: string } | null,
+  city: null as { en: string; ar: string } | null,
   // No public social links yet. The element type is named anyway, so the SEO
   // helper that maps over it does not have to guess at an empty array.
   socials: [] as { href: string; label?: string }[],

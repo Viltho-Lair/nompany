@@ -307,6 +307,13 @@ export const RL = {
   // unauthenticated caller can make WRITE, so it is the only one where "how
   // often" has to be enforced rather than assumed.
   trackIp: (ip: string) => `${P}rl:track:i:${String(ip || "unknown")}`,
+  // The contact form, per IP. The SECOND endpoint an unauthenticated caller can
+  // make write — and unlike traffic ingest, what it writes is an email into a
+  // person's inbox, so an unthrottled one is a relay pointed at the owner.
+  // Deliberately NOT the credential counters: a contact submission is not a
+  // failed login, and borrowing those would let somebody lock themselves out of
+  // their own account by filling in a form five times.
+  contactIp: (ip: string) => `${P}rl:contact:i:${String(ip || "unknown")}`,
 
   // FAILED CREDENTIAL ATTEMPTS — password sign-in and password reset.
   //

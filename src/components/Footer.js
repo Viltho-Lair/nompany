@@ -29,7 +29,13 @@ export default function Footer({ locale, dict }) {
   ];
 
   const socials = CONTACT.socials;
-  const addressText = CONTACT.address[locale] || CONTACT.address.en;
+  // THERE IS NO ADDRESS TO PRINT. This read `CONTACT.address[locale]` and
+  // rendered "Riyadh, KSA" in the footer of every page; the company is not
+  // incorporated anywhere and is heading for Jordan, so the field is null now
+  // and this guards for it rather than assuming. The block below already
+  // renders nothing when the text is empty, which is the correct behaviour and
+  // the reason nothing else here had to change.
+  const addressText = CONTACT.address ? CONTACT.address[locale] || CONTACT.address.en : "";
   const siteName = dict.common.brand;
   const heading = "mb-5 font-display text-xs font-700 uppercase tracking-[0.24em] text-brand-300";
   const link = "text-sm text-white/70 transition-colors hover:text-white";
