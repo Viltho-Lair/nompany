@@ -124,8 +124,10 @@ That is the discipline this file keeps failing: four separate figures in it were
 the day they were read, and each had been carried forward rather than measured. When you
 change this table, grep for the thing; do not trust the row above.
 
-**Counts as at 07/09/2026:** 41 subsections declared in `SECTION_DEFS`; the spec expects
-roughly 50 more. Four sections render nothing and hold no permission area — Manufacturing
+**Counts as at 07/09/2026: 46 subsections declared** in `SECTION_DEFS`; the spec expects
+roughly 50 more. **This said 41 when first written, one hour after the paragraph above
+warned about carrying numbers forward** — the first count came from a `grep -A 8` that
+truncated every section with more than a few children. Re-measured by parsing the block. Four sections render nothing and hold no permission area — Manufacturing
 & Production, Assets & Equipment, Quality & HSE, Reports & BI.
 
 ### P2 — Engine ✅ essentially complete
