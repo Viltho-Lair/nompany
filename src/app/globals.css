@@ -678,9 +678,12 @@ html.studio-chrome ::-webkit-scrollbar-corner {
 }
 
 /* THE DEPARTMENT MARQUEE. Two copies of the list translate by exactly -50%,
-   which lands the second copy where the first began — that is what makes the
-   loop seamless rather than snapping. Transform only, so it runs on the
-   compositor and repaints nothing.
+   which lands the second copy where the first began ONLY because each copy
+   (DepartmentMarquee.tsx) carries its own trailing gap rather than the gap
+   sitting between the two copies — a gap on the shared track would make the
+   copies land half a gap short of a seam and the loop would visibly jump
+   once a cycle. Transform only, so it runs on the compositor and repaints
+   nothing.
 
    RTL IS NOT A SEPARATE ANIMATION. The track's own direction reverses with the
    document, so the same negative translation carries names the other way. */

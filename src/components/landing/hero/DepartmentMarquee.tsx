@@ -18,8 +18,15 @@ import { heroCopy } from "@/shared/marketing/hero";
    prefers-reduced-motion stops it with a media query rather than a
    hook. The library would cost bundle and frames for nothing.
 
-   THE LIST IS RENDERED TWICE and the track translates by exactly -50%,
-   which is what makes the loop seamless. The second copy is
+   THE LIST IS RENDERED TWICE and the track translates by exactly -50%
+   — but -50% of the TRACK is only the seam it needs when the gap
+   between the two copies is the same width as the gap between two
+   chips. A flex `gap` on the track sits BETWEEN its two children, so
+   without this the second copy lands half a gap short of where the
+   first began and the loop visibly jumps once a cycle. Each copy
+   carries its OWN trailing gap (`pe-4`, logical so it survives RTL)
+   instead, so the repeating unit is "chips + one gap" and -50% of two
+   identical units is exactly one unit — no jump. The second copy is
    aria-hidden: a screen reader should hear eleven departments, not
    twenty-two.
 ================================================================== */
@@ -35,7 +42,10 @@ export function DepartmentMarquee({ locale }: { locale: string }) {
       </p>
 
       {/* The mask fades both ends so names enter and leave rather than being
-          clipped. Logical inset so it mirrors with the document direction. */}
+          clipped. `to right` is a PHYSICAL direction, not a logical one — CSS
+          gradients have no logical keyword — but the fade needs none: it is
+          symmetric (12% in from each edge), so the identical string reads the
+          same whether the track is scrolling ltr or rtl. */}
       <div
         className="relative overflow-hidden"
         style={{
@@ -45,11 +55,14 @@ export function DepartmentMarquee({ locale }: { locale: string }) {
             "linear-gradient(to right, transparent, black 12%, black 88%, transparent)",
         }}
       >
-        <div className="marquee-track flex w-max gap-4">
+        {/* No gap here on the track itself — see the header comment. Each
+            copy below carries its own trailing gap instead, so the two
+            copies plus their gaps repeat as one unit and -50% is seamless. */}
+        <div className="marquee-track flex w-max">
           {[false, true].map((isClone) => (
             <div
               key={String(isClone)}
-              className="flex shrink-0 gap-4"
+              className="flex shrink-0 gap-4 pe-4"
               aria-hidden={isClone || undefined}
             >
               {departments.map((d) => (

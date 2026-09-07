@@ -217,9 +217,20 @@ pull request, and four things `npm test` does not: `npm run lint:budget`,
   plus an 8 KB margin** (`scripts/bundle-baselines.json`, rewritten with
   `node scripts/bundle-budget.mjs --record`; an unlisted route is held to 300 KB, so a
   new route is gated from its first build). Then the largest chunk (158 KB gz against
-  250) and total client JS (**1681 against 1684**, measured 07/09/2026), which catch
+  250) and total client JS (**1783 against 1792**, measured 07/09/2026), which catch
   one enormous file and sprawl respectively. `scripts/bundle-budget.mjs` holds the
   numbers and explains why a whole-directory total would penalise code-splitting.
+
+  **THIS BULLET SAID "1681 against 1684" AND WAS ALREADY TWO GENERATIONS STALE
+  when it was corrected.** The script's own total ceiling had moved twice since:
+  1684 → 1716 as the studio's screens picked up their planned weight, then
+  1716 → 1792 for the hero-variant preview route this branch added. The ceiling
+  is conditional now rather than a constant somebody has to remember to lower:
+  `scripts/bundle-budget.mjs` reads whether `/[locale]/preview/hero/[variant]`
+  still has a baseline entry and is 1792 while it does, 1716 the moment it does
+  not — so deleting the preview route (which the winning-variant commit must do
+  anyway) ratchets this number down as a side effect, rather than as a promise
+  in a comment nobody re-reads until the gate fails.
 
   **THIS BULLET SAID THE LARGEST CHUNK IS "WHAT EVERY ROUTE PAYS", AND IT IS NOT —
   it is six times under.** Next 16 publishes the real figure
@@ -407,7 +418,7 @@ Shared motion primitives live in `src/components/motion` and are hand-driven —
 `Reveal`, `CountUp`, and the house curves in `tokens.ts`, which the landing imports
 back. Gate A holds the line.
 
-**Browser-pane traps**, three of them, all paid for:
+**Browser-pane traps**, four of them, all paid for:
 
 - **The pane proxies with `x-forwarded-proto: https`, so every auth cookie comes back
   `Secure` — and a browser drops a `Secure` cookie on `http://localhost`.** Silently. The
@@ -425,6 +436,16 @@ back. Gate A holds the line.
   never delivers, so **an animation cannot be observed there at all** — a working
   count-up and a broken one look identical. Assert the arithmetic instead, and have
   the component server-render its settled state so the pane is still worth looking at.
+- **The pane serves a cached document and drops the path from the request, so it
+  never re-renders the ROOT layout.** Every `navigate` reports the bare origin in the
+  logs regardless of the path given, which means it cannot verify anything the root
+  layout resolves from a request header — theme, `dir`, `lang`, studio chrome. Measured
+  this session: a theme fix that `curl` proved correct on three separate paths still
+  rendered light in the pane, and clearing the cookie, setting it explicitly, and
+  cache-busting the URL all failed to change what rendered. This cost a real fix being
+  doubted as broken when the instrument, not the code, was wrong. `curl` is the
+  instrument for that class of check — anything the ROOT layout reads from the request
+  rather than the client.
 
 **Verifying a screen needs a session, and `npm run dev:sandbox` is how.** It sets
 `NOMPANY_KEY_PREFIX` before Next starts, seeds one account and one studio, and prints

@@ -370,8 +370,11 @@ const MAX_CHUNK_GZIP_KB = 250;
 // have bought duplicate chunk glue for code with no future.
 //
 // MEASURED, at this commit, by this script — not quoted from memory. Set at
-// measured + 8, the same margin every other entry here uses.
-const MAX_TOTAL_GZIP_KB = 1792;
+// measured + 8, the same margin every other entry here uses. THE RATCHET NOW
+// FIRES ITSELF rather than waiting on this comment being read: the constant
+// is declared below, once the route baselines are loaded, because the
+// adopt-a-winner commit has to remove this route's baseline entry anyway —
+// see MAX_TOTAL_GZIP_KB near `const baselines`.
 
 // THE MARGIN, and why it is the same for a 178 KB route and a 951 KB one.
 //
@@ -502,6 +505,19 @@ if (!existsSync(BASELINES_FILE)) {
   process.exit(1);
 }
 const baselines = JSON.parse(readFileSync(BASELINES_FILE, "utf8"));
+
+// BOUND TO THE THING THAT GOES AWAY, not to a comment promising a return to
+// 1716. A comment is only read when the gate FAILS, so once the preview route
+// is deleted the ceiling would sit at 1792 with 76 KB of slack forever unless
+// somebody remembered to lower it — the exact decay CLAUDE.md already records
+// ("it said 1593/1600 when the script's constant was 1700"). Reading the
+// baselines this way means the ratchet fires itself: the adopt-a-winner
+// commit must delete the route, the shell and the losing variants, which
+// necessarily drops this row from scripts/bundle-baselines.json, which is
+// what this checks.
+const PREVIEW_ROUTE = "/[locale]/preview/hero/[variant]";
+// 1792 while the temporary hero-preview route exists, 1716 once it is deleted.
+const MAX_TOTAL_GZIP_KB = baselines[PREVIEW_ROUTE] ? 1792 : 1716;
 
 const totalKb = files.reduce((sum, f) => sum + f.gzip, 0) / 1024;
 const biggest = files[0];
