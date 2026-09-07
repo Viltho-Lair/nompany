@@ -7,7 +7,6 @@ import { AnimatePresence, motion } from "motion/react";
 import { fmtCurrencyAmount } from "@/lib/pricing";
 import { CONTACT } from "@/lib/site";
 import { CURRENCIES_FROM_EXCHANGE_API } from "@/shared/currencies";
-import Riyal from "@/components/Riyal";
 import { EASE_OUT_EXPO, fadeUp, stagger, VIEWPORT } from "@/components/landing/lib/motion";
 import { MagneticButton } from "../ui/MagneticButton";
 import { SectionHeading } from "../ui/SectionHeading";
@@ -83,23 +82,29 @@ export function PricingBoard({ initial = null, locale = "en" }) {
   // THE SERVER ALWAYS RENDERS THE BASE CURRENCY, and the reader's own is
   // applied after mount.
   //
-  // Prices are authored in SAR, and SAR is what has to reach the HTML: the
-  // measurement that started this rebuild was that the string appeared nowhere
-  // in the served markup of a product with a published price list. Opening in a
-  // geo-guessed currency during the first render would have put USD there
-  // instead and quietly reproduced the defect — with the JSON-LD still saying
-  // SAR, so the page and its own markup would have disagreed about what the
-  // product costs.
+  // The prices are authored in ONE currency and that currency is what has to
+  // reach the HTML: the measurement that started this rebuild was that it
+  // appeared nowhere in the served markup of a product with a published price
+  // list. Opening in a geo-guessed currency during the first render would put a
+  // different one there and quietly reproduce the defect — with the JSON-LD
+  // still quoting the base, so the page and its own markup would disagree about
+  // what the product costs.
+  //
+  // WHICH currency that is comes from `catalogSettings.baseCurrency` and is
+  // carried here on `initial.base`. It used to be the literal "SAR", which made
+  // one country's money the origin in a product built in Jordan and sold
+  // regionally and then globally. The argument above is unchanged and holds for
+  // any base; only the hard-coding is gone.
   //
   // The switch below is a DEFAULT for a person, not a decision: it runs once,
   // only if the snapshot actually quotes that currency, and never after the
   // picker has been touched — reaching in afterwards would fight the reader.
-  const [currency, setCurrency] = useState("SAR");
+  const [currency, setCurrency] = useState(initial?.base || "USD");
   const pickedOwn = useRef(false);
   useEffect(() => {
     if (pickedOwn.current) return;
     const own = initial?.currency;
-    if (own && own !== "SAR" && initial?.rates?.[own]) setCurrency(own);
+    if (own && own !== (initial?.base || "USD") && initial?.rates?.[own]) setCurrency(own);
   }, [initial]);
 
   // ALREADY HERE, rendered on the server by the route that mounts this. It
@@ -186,18 +191,13 @@ export function PricingBoard({ initial = null, locale = "en" }) {
   const ctaLabel = (plan) =>
     plan.type === "free" ? tr.startFree : plan.type === "premium" ? tr.contactSales : tr.pvGetStarted;
 
-  const Sym = ({ big = false }) =>
-    currency === "SAR" ? (
-      <Riyal
-        className={
-          big
-            ? "inline-block h-[0.72em] w-[0.65em] align-[-0.02em]"
-            : "inline-block h-[0.85em] w-[0.78em] align-[-0.05em]"
-        }
-      />
-    ) : (
-      <span className={big ? "font-display text-lg font-600" : ""}>{currency}</span>
-    );
+  // EVERY CURRENCY, ONE TREATMENT. SAR used to be drawn here as a glyph while the
+  // other 165 showed their letters — one country's money given a courtesy no
+  // other gets, on the public pricing page of a product sold regionally and then
+  // globally. `components/Riyal` is deleted rather than left unused.
+  const Sym = ({ big = false }) => (
+    <span className={big ? "font-display text-lg font-600" : ""}>{currency}</span>
+  );
 
   return (
     <section className="mx-auto max-w-7xl px-6 pb-24 pt-32 lg:pt-40">

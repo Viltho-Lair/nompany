@@ -1,7 +1,7 @@
 {
   "status": 200,
   "body": {
-    "base": "SAR",
+    "base": "USD",
     "cards": [
       {
         "id": "<pkg_ID>",
@@ -26,12 +26,12 @@
     ],
     "yearlyDiscountPct": 0,
     "rates": {
-      "USD": 0.26666666666666666,
-      "SAR": 1,
-      "EUR": 0.24533333333333335,
-      "GBP": 0.21066666666666667,
-      "AED": 0.9786666666666667,
-      "JPY": 40
+      "USD": 1,
+      "SAR": 3.75,
+      "EUR": 0.92,
+      "GBP": 0.79,
+      "AED": 3.67,
+      "JPY": 150
     },
     "currency": "USD",
     "stale": false

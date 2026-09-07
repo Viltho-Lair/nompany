@@ -58,15 +58,34 @@ function cleanLines(v: unknown) {
   return list.map((x) => str(x, 160)).filter(Boolean).slice(0, 20);
 }
 
-export const DEFAULT_CATALOG_SETTINGS = { yearlyDiscountPct: 0 };
+// THE CURRENCY THE PRICE LIST IS AUTHORED IN, and it is DATA rather than a
+// constant in a route. It was `const BASE = "SAR"` in api/pricing, which made one
+// country's money the origin every other rate converted from, in a product sold
+// regionally and then globally.
+//
+// Changing this does NOT re-price anything — it declares what the numbers already
+// typed into /super MEAN. Set it to the currency those figures are written in.
+export const DEFAULT_CATALOG_SETTINGS = { yearlyDiscountPct: 0, baseCurrency: "USD" };
+
+const CODE = (v: unknown, fallback: string) => {
+  const c = String(v ?? "").trim().toUpperCase();
+  return /^[A-Z]{3}$/.test(c) ? c : fallback;
+};
 
 export async function getCatalogSettings() {
-  const stored = (await getJSON<{ yearlyDiscountPct?: unknown }>(REG.catalogSettings)) || {};
-  return { ...DEFAULT_CATALOG_SETTINGS, ...stored, yearlyDiscountPct: pct(stored.yearlyDiscountPct) };
+  const stored = (await getJSON<{ yearlyDiscountPct?: unknown; baseCurrency?: unknown }>(REG.catalogSettings)) || {};
+  return {
+    ...DEFAULT_CATALOG_SETTINGS, ...stored,
+    yearlyDiscountPct: pct(stored.yearlyDiscountPct),
+    baseCurrency: CODE(stored.baseCurrency, DEFAULT_CATALOG_SETTINGS.baseCurrency),
+  };
 }
 
 export async function saveCatalogSettings(patch: Record<string, unknown>) {
-  const next = { yearlyDiscountPct: pct(patch?.yearlyDiscountPct) };
+  const next = {
+    yearlyDiscountPct: pct(patch?.yearlyDiscountPct),
+    baseCurrency: CODE(patch?.baseCurrency, DEFAULT_CATALOG_SETTINGS.baseCurrency),
+  };
   await setJSON(REG.catalogSettings, next);
   return next;
 }

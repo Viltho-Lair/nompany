@@ -50,7 +50,17 @@ export const EXPENSE_CATEGORIES = [
   "Rent", "Utilities", "Software", "Equipment", "Fees", "Other",
 ];
 export const PAYMENT_METHODS = ["Bank transfer", "Cash", "Card", "Cheque", "Other"];
-export const DEFAULT_VAT_RATE = 15;
+// NO DEFAULT TAX RATE. There was one — 15, duplicated here and in
+// modules/technical/quotations.ts, where its comment said "KSA standard rate"
+// outright. It applied to every studio's invoices and quotations on a platform
+// sold regionally and then globally, so a studio in Amman raised documents at
+// Riyadh's rate unless somebody noticed and retyped it. Jordan is 16, the UAE 5,
+// Egypt 14; there is no number that is right for everyone, and a wrong one on a
+// financial document is worse than an empty field somebody has to fill.
+//
+// Nought is not a guess at a rate — it is the absence of one, and the studio
+// supplies it per document. Where a per-studio setting belongs is Finance
+// settings, and that is a feature rather than a constant.
 
 export const str = (v: unknown, max = 300) => String(v ?? "").trim().slice(0, max);
 export const day = (v: unknown) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v ?? "").trim()) ? String(v).trim() : "");
@@ -249,7 +259,7 @@ export async function createInvoice(ctx: FinanceContext, body: Record<string, un
     milestoneId: projectId ? str(body?.milestoneId, 60) : "",
     clientName,
     lines,
-    vatRate: body?.vatRate === undefined ? DEFAULT_VAT_RATE : Math.max(0, Math.min(100, Number(body.vatRate) || 0)),
+    vatRate: body?.vatRate === undefined ? 0 : Math.max(0, Math.min(100, Number(body.vatRate) || 0)),
     status: "Draft",
     issueDate: day(body?.issueDate) || today,
     dueDate: day(body?.dueDate),

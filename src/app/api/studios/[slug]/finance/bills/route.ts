@@ -1,5 +1,5 @@
 import { route, refused } from "@/platform/http/route";
-import { financeContext, PAYMENT_METHODS, DEFAULT_VAT_RATE } from "@/modules/finance/finance";
+import { financeContext, PAYMENT_METHODS } from "@/modules/finance/finance";
 import {
   listBillsForScreen, createBill, editBill, approveBill, recordBillPayment, removeBill,
   BILL_STATUSES, BILL_TERMS,
@@ -31,7 +31,6 @@ export const GET = route(
         billStatuses: BILL_STATUSES,
         billTerms: BILL_TERMS,
         paymentMethods: PAYMENT_METHODS,
-        defaultVatRate: DEFAULT_VAT_RATE,
       },
     };
   },

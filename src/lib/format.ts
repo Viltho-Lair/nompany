@@ -1,7 +1,10 @@
 // App-wide display formatters. Money + dates are now PER-COMPANY: the studio
 // shell loads the tenant's settings once (client) and calls configureFormat(),
 // after which every consumer of these helpers renders in the company's currency,
-// decimals and date locale. Defaults are KSA (SAR / en-GB) — see companySettings.
+// decimals and date locale. THE DEFAULTS NAME NO COUNTRY — no currency, no tax
+// rate, UTC — because this product is built in Jordan and sold regionally and
+// then globally, and a default is what every studio that never opens settings
+// actually gets. They used to be Saudi. See companySettings.
 //
 // SAFETY: the active config is a CLIENT-only module variable. On the server it
 // stays null (the shell effect never runs there), so server renders always use
@@ -34,7 +37,7 @@ export function fmtMoney(v: unknown) { return formatMoney(v, active()); }
 export const fmtSAR = fmtMoney;
 
 // Rendered pieces of a money value (tenant currency) for the <Money> component,
-// so amounts can show the Riyal glyph instead of the "SAR" text. See Money.js.
+// so a caller can render the amount and its currency separately. See Money.js.
 export function moneyParts(v: unknown) { return formatMoneyParts(v, active()); }
 
 // The active VAT rate (tenant's, else default) — for consumers that compute tax.

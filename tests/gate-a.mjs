@@ -546,6 +546,7 @@ console.log("== the architecture, asserted rather than remembered");
     "api/super/logout/route.ts": "clears a cookie",
     "api/fonts/route.ts": "the document editor's font catalogue; no tenant data",
     "api/media/[id]/route.ts": "public blobs are public by definition; private ones check membership",
+    "api/contact/route.ts": "the marketing contact form; a stranger with a question has no account, and it is rate-limited and origin-checked instead",
   };
 
   const routes = sources.filter((f) => /app\/api\/.*route\.(js|ts)$/.test(f.path));
@@ -3707,13 +3708,18 @@ console.log("== finance: a number that only goes forward, and money that is deri
   await shot("finance.invoice.refused.nolines", await raise({ clientName: "Acme Holdings", lines: [] }));
   await shot("finance.invoice.refused.noclient", await raise({ lines: LINES }));
 
-  const first = await shot("finance.invoice.raised", await raise({ clientName: "Acme Holdings", lines: LINES }));
+  // THE RATE IS ASKED FOR, not inherited. There used to be a DEFAULT_VAT_RATE of
+  // 15 — the Saudi rate, applied to every studio on a platform sold regionally
+  // and then globally, and duplicated in two modules. It is gone, so a fixture
+  // that wants tax in the arithmetic has to name a rate.
+  const first = await shot("finance.invoice.raised",
+    await raise({ clientName: "Acme Holdings", lines: LINES, vatRate: 15 }));
   const firstRef = first.body?.invoice?.reference;
   ok("the first invoice is numbered", Boolean(firstRef), JSON.stringify(first.body).slice(0, 120));
 
-  // MONEY IS DERIVED. 25000 at the default 15% VAT is 3750 and 28750, computed
-  // from the line rather than taken from the request — a client that posted its
-  // own total would be posting a number nobody checked.
+  // MONEY IS DERIVED. 25000 at the 15% asked for above is 3750 and 28750,
+  // computed from the line rather than taken from the request — a client that
+  // posted its own total would be posting a number nobody checked.
   const inv = first.body?.invoice;
   ok("the subtotal comes from the lines", inv?.subtotal === 25000, String(inv?.subtotal));
   ok("...the VAT from the rate", inv?.vat === 3750, String(inv?.vat));

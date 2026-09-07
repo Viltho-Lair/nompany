@@ -26,6 +26,28 @@ and do not read the whole folder. Every file ends with "Not built yet", stated i
 because a silent gap reads as a finished feature. When you change behaviour, update that
 file in the same commit.
 
+**ONE PROGRESS FILE: `docs/progress.md`. DO NOT CREATE ANOTHER MARKDOWN FILE.**
+
+This is a standing instruction from the user, given 07/09/2026, and it overrides the habit
+of writing a spec or a plan per feature. **No new `.md` for a feature, a plan, a status, an
+audit, a proposal or a suggestion.** It all goes in `docs/progress.md`.
+
+Why: 110 markdown files existed on that date, and the audit in `progress.md` found five
+describing things that no longer exist at all — including a 229-line file opening with
+"this file is the source of truth" for a section that had been deleted, and a 396-line
+migration to a database this product has never used. Three separate files claimed to track
+progress. Every count quoted from prose rather than measured was wrong. **The cost is not
+tidiness; it is that the user cannot tell what is true, and neither can I.**
+
+**Major features get a ROW in the decision ledger** at the end of `progress.md`, never a
+file. When the user rejects one, mark the row `REJECTED` and leave it. Deleted, `DELETED`.
+Changed, `CHANGED TO: <what>`. **Rows are never removed** — a decision nobody can see is a
+decision that gets argued again. Minor changes get no row.
+
+`docs/functionality/` stays as it is: one file per shipped behaviour, each ending in "Not
+built yet". Those describe what the product DOES; `progress.md` is the only thing that says
+where the work IS.
+
 Full detail lives in `docs/` — architecture, audit, and the wave plan. This file is
 only what must be true in every session.
 
@@ -636,13 +658,16 @@ service code ✅, goldens unchanged by the seam work ✅ (343 today), hops ≤2 
 interface + the `readCol` migration across every module), Seam C (one context factory,
 killed hop 7), request-scoped cache + batched prefetch (8→2 hops), targeted live updates,
 audit log, security round 2 (session digests at rest, console MFA), notification producers.
-**W7 speed refactors are done** (R2 `plantMissingSections` off the read path + a backfill CLI,
+**W7 speed refactors are done** (R2 took reconciliation off the read path — see the section-list note below — plus a backfill CLI,
 R6 `lastSeenAt`/`lastLoginAt` off `g:users` onto `u:<id>:activity` — the hottest CAS contention
 gone, R9 `getProfile` N+1 → one `MGET`), all on `main`. The recurring Gate-A month-end
-**date-drift** is fixed (vacation fixtures are clock-relative now). **Open Wave 2 remnants:** the
-`sweepOrphans` rewrite (M-10); the gap items — soft-delete tombstones, the email/fan-out outbox,
-`schemaVersion` on stored documents; and the media `--reclaim` step, whose script is missing
-from the tree (see "Media has left Redis" above). (**media→Vercel Blob** was listed here as
+**date-drift** is fixed (vacation fixtures are clock-relative now). **Open Wave 2 remnants:**
+the email/fan-out outbox. **The `sweepOrphans` rewrite (M-10), soft-delete tombstones,
+`schemaVersion` on stored documents and the media `--reclaim` step were dropped on 07/09/2026**
+— four planned changes that existed only as intentions, each of which would have touched
+deletion, the cascade or the stored shape of every document. `deletedAt` left
+`migrate/transform.ts` with the tombstones; it had never been written by anything. Dropped
+rather than deferred: a plan nobody is executing reads as work in flight. (**media→Vercel Blob** was listed here as
 "blocked on the Blob store being created" long after the store existed and the port had
 shipped — the same paragraph's own "Media has left Redis" above contradicted it.)
 
@@ -1118,22 +1143,24 @@ real screens". **A tender cannot be won or lost unless it was submitted**, a sub
 cannot become a No Bid (the honest exit is Withdrawn), and delete is refused once the bid has
 gone in. The list carries `asOf` and the screen never reads its own clock.
 
-**THE SECTION LIST IS THE PRODUCT'S, NOT THE SIGNUP DATE'S — and it catches up on read
-again.** A studio is still seeded complete at creation, but `listSections` now checks the rows
-it has ALREADY fetched against `ALL_SECTION_KEYS` and plants what is short. R2 was right that
-the old version was expensive and wrong about which part: it called `plantMissingSections`,
-which did its OWN read, so the funnel every reader passes through paid TWO round trips. The
-question costs a set membership test over rows in hand; only a studio genuinely short pays a
-write, once. `sectionsAsStored` is the non-healing reader, and exists because
-`plant-sections.mjs`'s dry run must not plant the rows it is reporting.
+**THE SECTION LIST NEVER PLANTS ON READ. Planting is deliberate.** A studio is seeded
+complete at creation; `listSections` returns what is stored and reconciles nothing. Two hazards
+came out with the auto-planting, and both were live:
 
-Why it went back: a manual backfill gets forgotten. `administration-access` shipped 03/09 and
-was still missing from two of three live studios on 05/09 with nothing complaining, and the
-tender register would have been unreachable on all three. **`plant-sections.mjs` remains**, for
-walking every studio deliberately rather than waiting for each to be opened. It inherits one
-assumption, stated on `plantMissingSections`: a seeded key missing from a studio can only mean
-the studio predates it, never that somebody removed it — nothing deletes sections today, and if
-that ever ships this resurrects what was just deleted.
+- **A sub-section falls back to its ROOT when absent**, so a section that owns a collection had
+  to be planted BEFORE anybody used it. Planted afterwards, rows already written stayed under
+  the parent where nothing reads them — not deleted, not corrupted, invisible. Three tenders
+  went that way in the sandbox, and four sections still have no screen, each of which will add
+  collection-owning children.
+- **It assumed a missing seeded key could only mean the studio predates it**, never that
+  somebody removed it. Nothing deletes sections today; the day that ships, a healing read
+  resurrects what was just deleted.
+
+**`scripts/migrate/plant-sections.mjs` is the only planter now.** Run it when you add a seeded
+key. **THE COST IS THAT A BACKFILL CAN BE FORGOTTEN** — `administration-access` shipped 03/09
+and was still missing from two of three live studios on 05/09 with nothing complaining. That
+trade was made deliberately: a forgotten backfill is visible the moment somebody opens the
+screen, and stranded rows are visible to nobody, ever.
 
 **ROLES DO NOT CATCH UP, and that is the half this does not solve.** `STARTER_ROLES` seeds only
 when a studio has ZERO roles (`listRoles`: `if (rows.length) return rows`), so a right added to

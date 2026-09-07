@@ -32,7 +32,7 @@ import { landedUnitCost } from "@/shared/currencies";
 import { resolveUnitPrice, ratesByItem } from "@/shared/pricing";
 import { attachToTicketEngagement, attachQuotationEngagement, detachRecord, engagementIdFor } from "@/platform/db/engagement";
 import {
-  QUOTATION_STATUSES, DEFAULT_QUOTATION_STATUS, DEFAULT_VAT_RATE, LEAD_INTERNAL,
+  QUOTATION_STATUSES, DEFAULT_QUOTATION_STATUS, LEAD_INTERNAL,
   QUOTATION_LIVE_COLUMNS, DEFAULT_QUOTATION_LIVE_COLUMNS, cleanQuotationLiveColumns,
   cleanQuotationTables, itemsFromTables, isFinishedQuotation,
 } from "./quotations";
@@ -41,7 +41,7 @@ import type { SalesTicket } from "@/modules/sales/types";
 import type { Section } from "@/platform/db/sections";
 import type { Task } from "@/modules/tasks/types";
 
-export { RFQ_STATUSES, QUOTATION_STATUSES, DEFAULT_QUOTATION_STATUS, DEFAULT_VAT_RATE, LEAD_INTERNAL,
+export { RFQ_STATUSES, QUOTATION_STATUSES, DEFAULT_QUOTATION_STATUS, LEAD_INTERNAL,
   QUOTATION_LIVE_COLUMNS, DEFAULT_QUOTATION_LIVE_COLUMNS, cleanQuotationLiveColumns };
 
 const RFQS = "rfqs";
@@ -748,7 +748,7 @@ export async function createQuotation(ctx: TechnicalContext, body: Record<string
   // Pricing an empty quotation into being was the RFQ screen doing the builder's
   // work badly.
   const items: QuotationItem[] = [];
-  const vatRate = DEFAULT_VAT_RATE;
+  const vatRate = 0;
   // handledBy IS NOW OPTIONAL — defaults to whoever is creating it, so nothing
   // downstream (the Handled-by column, the Live view) reads a blank. The
   // screen's "Handled by" is a PERSON PICKER, so what arrives is already a
@@ -829,7 +829,7 @@ export async function convertRfq(ctx: TechnicalContext, body: Record<string, unk
   // quotation into being was the RFQ screen doing the builder's work badly.
   const tables = prior ? cleanQuotationTables(prior.tables) : [];
   const items = prior ? cleanItems(itemsFromTables(tables)) : [];
-  const vatRate = prior ? num(prior.vatRate) : DEFAULT_VAT_RATE;
+  const vatRate = prior ? num(prior.vatRate) : 0;
   const handledByCollaboratorId = str(body?.handledByCollaboratorId, 60);
   // The ticket, for the ONE thing the document authors out of it: its opening
   // description, which Technical then edits. Everything else the ticket owns is

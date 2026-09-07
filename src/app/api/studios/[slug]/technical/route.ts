@@ -3,7 +3,7 @@ import { nextNumberForSequence } from "@/modules/technical/technical";
 import { currentUser } from "@/platform/auth/identity";
 import {
   technicalContext, listRfqs, listQuotations, openTickets, technicalPeople, technicalClients, catalogueItems,
-  RFQ_STATUSES, QUOTATION_STATUSES, DEFAULT_VAT_RATE, QUOTATION_LIVE_COLUMNS, saveTechnicalSettings,
+  RFQ_STATUSES, QUOTATION_STATUSES, QUOTATION_LIVE_COLUMNS, saveTechnicalSettings,
 } from "@/modules/technical/technical";
 import { TICKET_URGENCIES, TICKET_INDUSTRIES } from "@/modules/sales/tickets";
 
@@ -88,7 +88,7 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
     })),
     // Which sequence a Sales-ticket conversion numbers against by default.
     defaultSequenceId: tech.defaultSequenceId,
-    vocabulary: { rfqStatuses: RFQ_STATUSES, quotationStatuses: QUOTATION_STATUSES, defaultVatRate: DEFAULT_VAT_RATE,
+    vocabulary: { rfqStatuses: RFQ_STATUSES, quotationStatuses: QUOTATION_STATUSES,
       // Urgency is Sales' field, carried here read-only — the Technical screens
       // filter by it, so they need the same list Sales uses.
       urgencies: TICKET_URGENCIES,

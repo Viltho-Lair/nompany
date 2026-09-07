@@ -2197,7 +2197,17 @@ console.log("\n== the ledger posts the documents that feed it");
   const idOf = (code) => chart.find((a) => a.code === code)?.id;
 
   // A 100 + 15% VAT invoice, issued so it can be posted.
-  const inv = await createInvoice(fin, { clientName: "Ledger Co", lines: [{ description: "Work", qty: 1, unitPrice: 100 }] });
+  //
+  // THE RATE IS NAMED HERE, not inherited. It used to rely on DEFAULT_VAT_RATE,
+  // which was 15 — the Saudi rate, applied to every studio on a platform sold
+  // regionally and then globally. That constant is gone and there is no default
+  // any more, so a test that wants tax in the entry has to ask for it. The
+  // arithmetic below (Dr AR 115 = Cr Revenue 100 + Cr VAT 15) is what is being
+  // asserted, and it needs a rate to be true of.
+  const inv = await createInvoice(fin, {
+    clientName: "Ledger Co", vatRate: 15,
+    lines: [{ description: "Work", qty: 1, unitPrice: 100 }],
+  });
   ok("an invoice exists to post", !!inv.invoice, JSON.stringify(inv.error));
 
   // A DRAFT IS NOT POSTABLE — it is not yet a claim on anyone.
@@ -3809,33 +3819,50 @@ console.log("\n== a studio that predates a section still gets it");
     !stored.some((x) => x.key === "engineering-docs"));
   ok("...and really did not write", !(await readArr(key)).some((x) => x.key === "engineering-docs"));
 
-  // AND THE READ EVERY MODULE GOES THROUGH HEALS. This is the assertion the
-  // whole change exists for: a studio created before a section existed catches
-  // up the first time anybody opens it, with no script and nobody remembering.
-  const healed = await listSections(studio.id);
-  ok("a plain read plants what the studio is short of", healed.some((x) => x.key === "engineering-docs"));
-  ok("...and its sub-section", healed.some((x) => x.key === "engineering-docs-register"));
-  const parent = healed.find((x) => x.key === "engineering-docs");
-  const child = healed.find((x) => x.key === "engineering-docs-register");
+  // AND THE READ EVERY MODULE GOES THROUGH PLANTS NOTHING EITHER. This is the
+  // assertion the change exists for, and it is the REVERSE of what this block
+  // asserted until 07/09/2026.
+  //
+  // listSections used to reconcile against ALL_SECTION_KEYS and write what was
+  // short, so a studio caught up the first time anybody opened it. Two hazards
+  // came with that, and the first was live: A SUB-SECTION FALLS BACK TO ITS ROOT
+  // when absent, so a section owning a collection had to be planted BEFORE
+  // anybody used it — planted afterwards, the rows already written stayed under
+  // the parent where nothing reads them. Not deleted, not corrupted, invisible.
+  // Three tenders went that way in the sandbox. The second: it assumed a missing
+  // seeded key could only mean the studio predates it, never that somebody
+  // deleted it, so the day section deletion ships a read resurrects what was
+  // just removed.
+  const read = await listSections(studio.id);
+  ok("a plain read plants nothing", !read.some((x) => x.key === "engineering-docs"));
+  ok("...and wrote nothing either", !(await readArr(key)).some((x) => x.key === "engineering-docs"));
+
+  // PLANTING IS DELIBERATE NOW, and this is the only door: the migration CLI
+  // calls exactly this. THE COST is that a backfill can be forgotten —
+  // administration-access shipped 03/09 and was still missing from two of three
+  // live studios on 05/09 with nothing complaining. That trade was made on
+  // purpose: a forgotten backfill shows the moment somebody opens the screen,
+  // and stranded rows show to nobody, ever.
+  const planted = await plantMissingSections(studio.id);
+  ok("the planter plants what the studio is short of", planted.some((x) => x.key === "engineering-docs"));
+  ok("...and its sub-section", planted.some((x) => x.key === "engineering-docs-register"));
+  const parent = planted.find((x) => x.key === "engineering-docs");
+  const child = planted.find((x) => x.key === "engineering-docs-register");
   ok("...pointing at the parent it belongs to", child?.parentId === parent?.id);
   ok("...and placed in the nav where it belongs, not at the end",
-    healed.findIndex((x) => x.key === "engineering-docs") < healed.findIndex((x) => x.key === "tasks"));
+    planted.findIndex((x) => x.key === "engineering-docs") < planted.findIndex((x) => x.key === "tasks"));
 
   // Planting must be idempotent, or every run mints a new SectionID and the
-  // section's own data is orphaned behind it — which now matters on every read,
-  // not only on a script run.
+  // section's own data is orphaned behind it.
   const again = await plantMissingSections(studio.id);
-  ok("running the backfill again plants nothing new", again.length === healed.length);
+  ok("running the backfill again plants nothing new", again.length === planted.length);
   ok("...and keeps the same SectionID", again.find((x) => x.key === "engineering-docs").id === parent.id);
 
-  // A SECOND READ MUST NOT WRITE AGAIN. The catch-up is one write for one
-  // studio, once: a read path that kept writing would be a write on every
-  // request, which is the thing R2 was right to object to.
   const afterRead = await listSections(studio.id);
   ok("a later read sees the planted section", afterRead.some((x) => x.key === "engineering-docs"));
   ok("...and keeps its SectionID, so nothing was re-minted",
     afterRead.find((x) => x.key === "engineering-docs").id === parent.id);
-  ok("...and the stored rows are identical, so the second read wrote nothing",
+  ok("...and the stored rows are identical, so the read wrote nothing",
     JSON.stringify(await sectionsAsStored(studio.id)) === JSON.stringify(afterRead));
 }
 
