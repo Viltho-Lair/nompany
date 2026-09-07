@@ -604,17 +604,28 @@ console.log("\n== the hero's copy");
 
 const H = await import("@/shared/marketing/hero");
 
+// REQUIRED vs MERELY PRESENT, and the distinction is real rather than
+// bookkeeping. `rotatingSuffix` is legitimately EMPTY in both languages today —
+// V3's line reads "One system for <department>" with nothing after it — and an
+// empty string is the correct value, not a missing one. Asserting it non-empty
+// would force a word onto the page to satisfy a test. Both lists are checked
+// for type; only the first for content.
+const REQUIRED = ["badge", "h1", "lead", "ctaPrimary", "ctaSecondary", "footnote",
+  "marqueeLabel", "rotatingPrefix", "previewLabel"];
+const MAY_BE_EMPTY = ["rotatingSuffix"];
+
 for (const locale of ["en", "ar"]) {
   const c = H.heroCopy(locale);
-  const fields = ["badge", "h1", "lead", "ctaPrimary", "ctaSecondary", "footnote",
-    "marqueeLabel", "rotatingPrefix", "rotatingSuffix", "previewLabel"];
-  for (const f of fields) {
+  for (const f of REQUIRED) {
     ok(`${locale}.${f} is written`, typeof c[f] === "string" && c[f].trim().length > 0);
+  }
+  for (const f of MAY_BE_EMPTY) {
+    ok(`${locale}.${f} is a string`, typeof c[f] === "string");
   }
   ok(`${locale} names all three variants`,
     ["v1", "v2", "v3"].every((v) => c.variantLabels[v]?.trim().length > 0));
   ok(`${locale} spells the brand one way`,
-    !fields.some((f) => /Nompany/.test(c[f])));
+    ![...REQUIRED, ...MAY_BE_EMPTY].some((f) => /Nompany/.test(c[f])));
 }
 
 // THE H1 IS ONE STRING, not two lines to be split and animated per character.
