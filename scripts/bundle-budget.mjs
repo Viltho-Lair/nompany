@@ -394,14 +394,25 @@ const MAX_CHUNK_GZIP_KB = 250;
 // against a /[locale] of 285, and the total moved by less than half of one of
 // them.
 //
-// THOSE FOUR ARE STILL UNBASELINED, and that is a debt this entry is recording
-// rather than paying. They fall to DEFAULT_ROUTE_GZIP_KB, so each may drift to
-// 300 KB — up to 38 unnoticed — before anything complains, which breaks the
-// claim below that "every route in the build today is baselined". Paying it
-// needs `--record`, which needs a build, and this commit was written where one
-// could not run: the numbers here are CI's, from the run that failed. The next
-// commit that builds should run `node scripts/bundle-budget.mjs --record` and
-// lower this to measured + 8 in the same change.
+// THOSE FOUR ARE RECORDED NOW, at 273/262/262/262, and the claim below that
+// "every route in the build today is baselined" is true again. Three more
+// ratcheted DOWN a kilobyte each while the file was open — /[locale] 285->284,
+// the questionnaire 293->292, careers/[jobId] 194->193 — which is the whole
+// argument for recording the set rather than only the new rows: a win nobody
+// re-records is slack, and these three had fallen under a gate nobody had
+// re-measured. The total does not move: baselines are per-route, and 1825 is
+// the same 1825.
+//
+// ONE ROW IS DELIBERATELY NOT THE MEASURED VALUE, and this is where to find
+// out why. `/studio/[[...segments]]` measures 681 and stays recorded at 680.
+// It passes either way — 681 is inside the 8 KB margin — and the kilobyte
+// cannot be attributed: the build before this run's lineage failed at Lint and
+// produced no bundle step at all, so there is no earlier measurement of the
+// same tree to compare against. Recording it would make an unexplained
+// kilobyte the new normal on the heaviest route in the product, which is the
+// one this file says should be allowed the least drift. A later `--record`
+// will offer 681 again; whoever accepts it should be able to say what bought
+// it.
 
 // THE MARGIN, and why it is the same for a 178 KB route and a 951 KB one.
 //
