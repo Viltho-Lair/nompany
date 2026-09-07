@@ -188,19 +188,35 @@ without one already in hand).
 
 ---
 
-## Verification — every change, no exceptions
+## Verification — CI does it, not you
+
+**DO NOT RUN THE SUITE, THE TYPECHECKS OR THE BUILD LOCALLY.** Commit, push, and let CI
+answer. This heading said "every change, no exceptions" and listed four commands to run by
+hand; an agent reading it ran a ten-minute suite before handing over anything at all, and
+did it once per task — hours of the owner's day spent re-deriving, on a laptop with a flaky
+`cloud-sql-proxy`, an answer GitHub was already computing for free on every push. That is
+what it cost, which is why the heading changed.
+
+CI (`.github/workflows/ci.yml`) runs, on every push to `main` and every pull request:
 
 ```bash
-npm test            # model tests, restructure assertions, integration suite, Gate A — real routes, real Postgres, prefixed namespace
+npm test            # model tests, restructure assertions, integration suite, Gate A — real routes, real Postgres
 npx tsc --noEmit
 npx tsc --noEmit -p tsconfig.strict.json   # every .ts/.tsx, with noImplicitAny
 npx next build
 ```
 
-CI (`.github/workflows/ci.yml`) runs all of that on every push to `main` and every
-pull request, and four things `npm test` does not: `npm run lint:budget`,
-`npm run test:gateway`, `npm run test:gateway:parity`, `npm run test:parity`
-(`NOMPANY_DB=parity`), plus `scripts/bundle-budget.mjs` after the build.
+plus four things `npm test` does not — `npm run lint:budget`, `npm run test:gateway`,
+`npm run test:gateway:parity`, `npm run test:parity` (`NOMPANY_DB=parity`) — and
+`scripts/bundle-budget.mjs` after the build. CI is also the more trustworthy verifier: it
+runs on an ephemeral `postgres:18` as a non-superuser, so its RLS results hold for reasons
+the local shared instance cannot reproduce.
+
+**The one thing that IS run locally is `npm run dev:sandbox`**, because a screen has to be
+opened to be verified and no pipeline can do that. Everything else — a suite, a build, a
+migration, a script, `gcloud auth`, restarting the proxy — is ASKED FOR FIRST. Ask, get a
+yes, then run it. The requirements below have not weakened; what changed is who checks them
+and when.
 
 - **`git add` a new file BEFORE you believe a green suite.** The architectural
   assertions in `tests/restructure.mjs` shell out to `git grep`, which searches TRACKED
