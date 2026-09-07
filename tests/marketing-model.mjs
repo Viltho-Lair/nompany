@@ -206,28 +206,21 @@ console.log("\n== the hero's copy");
 
 // H is imported above, alongside C, so the composed-claim check can use it.
 
-// REQUIRED vs MERELY PRESENT, and the distinction is real rather than
-// bookkeeping. `rotatingSuffix` is legitimately EMPTY in both languages today —
-// V3's line reads "One system for <department>" with nothing after it — and an
-// empty string is the correct value, not a missing one. Asserting it non-empty
-// would force a word onto the page to satisfy a test. Both lists are checked
-// for type; only the first for content.
+// EVERY FIELD THE HERO STILL HAS, and every one must be written in both
+// languages. There was a second list here — fields allowed to be empty — for
+// the rotating variant's suffix, which was legitimately "" because its line
+// read "One system for <department>" with nothing after it. That variant lost
+// and its fields went with it, so the distinction has nothing left to describe.
 const REQUIRED = ["badge", "h1", "lead", "ctaPrimary", "ctaSecondary", "footnote",
-  "marqueeLabel", "rotatingPrefix", "previewLabel"];
-const MAY_BE_EMPTY = ["rotatingSuffix"];
+  "marqueeLabel"];
 
 for (const locale of ["en", "ar"]) {
   const c = H.heroCopy(locale);
   for (const f of REQUIRED) {
     ok(`${locale}.${f} is written`, typeof c[f] === "string" && c[f].trim().length > 0);
   }
-  for (const f of MAY_BE_EMPTY) {
-    ok(`${locale}.${f} is a string`, typeof c[f] === "string");
-  }
-  ok(`${locale} names all three variants`,
-    ["v1", "v2", "v3"].every((v) => c.variantLabels[v]?.trim().length > 0));
   ok(`${locale} spells the brand one way`,
-    ![...REQUIRED, ...MAY_BE_EMPTY].some((f) => /Nompany/.test(c[f])));
+    !REQUIRED.some((f) => /Nompany/.test(c[f])));
 }
 
 // THE H1 IS ONE STRING, not two lines to be split and animated per character.
@@ -260,13 +253,13 @@ ok("an unknown locale falls back to English",
 const LOCATION_PATTERN = /Riyadh|السعودية|Saudi|ZATCA|KSA/i;
 
 // COLLECT EVERY STRING VALUE AT ANY DEPTH, not only the top level. A copy
-// module's shape is not flat and gets less flat as more pages are added —
-// heroCopy already nests three variant labels under `variantLabels` — so a
-// guard that walks only `Object.entries(copy)` and skips non-string values
-// quietly stops covering a field the day somebody nests one. Before this,
-// `variantLabels.v1`/`v2`/`v3` were never checked against LOCATION_PATTERN at
-// all: `typeof v !== "string"` skipped the object holding them and nothing
-// ever looked inside it.
+// module's shape is not flat and gets less flat as more pages are added, so a
+// guard that walks `Object.entries(copy)` and skips non-string values quietly
+// stops covering a field the day somebody nests one. That is not hypothetical:
+// heroCopy used to nest three labels under `variantLabels`, and every one of
+// them went unchecked against LOCATION_PATTERN because `typeof v !== "string"`
+// skipped the object holding them. The nesting is gone; the walk stays, because
+// the next copy module will nest something and nobody will remember this.
 const collectStrings = (obj, prefix = "") => {
   const out = [];
   for (const [k, v] of Object.entries(obj)) {
@@ -316,12 +309,18 @@ console.log("\n== the hero variants, at the source");
 const { readFileSync, readdirSync, existsSync } = await import("node:fs");
 
 const VARIANT_DIR = "src/components/landing/hero/variants";
-ok("the variants have a home", existsSync(VARIANT_DIR));
+// ONE HERO NOW, NOT THREE. Three variants were built behind a preview route and
+// judged running rather than described; the assembly won, and the losing two,
+// the route, its shell and the chrome hooks it needed were deleted with the
+// choice. The directory keeps its name because the checks below are about what
+// a hero may DO, not about how many there are — a second one would land here
+// and be covered without an edit.
+ok("the hero has a home", existsSync(VARIANT_DIR));
 
 const variantFiles = existsSync(VARIANT_DIR)
   ? readdirSync(VARIANT_DIR).filter((f) => /\.(tsx|jsx?)$/.test(f))
   : [];
-ok("...and at least one variant is in it", variantFiles.length > 0);
+ok("...and a hero is in it", variantFiles.length > 0);
 
 // COMMENTS ARE STRIPPED BEFORE MATCHING, same treatment as gate-a.mjs's own
 // `stripComments` (see its note by `carriesLibrary`). An assertion that guards
@@ -364,19 +363,43 @@ for (const file of variantFiles) {
     digitsInJsx.join(" "));
 }
 
-// THE PREVIEW IS NOT A PUBLIC PAGE. It ships to production because that is
-// where it gets looked at, and a preview surface in the index is the thin-URL
-// problem this rebuild exists to fix.
-const routeFile = "src/app/[locale]/preview/hero/[variant]/page.js";
-ok("the preview route exists", existsSync(routeFile));
-if (existsSync(routeFile)) {
-  const route = readFileSync(routeFile, "utf8");
-  ok("...and is noindex", /index:\s*false/.test(route) && /follow:\s*false/.test(route));
-}
-const sitemap = readFileSync("src/app/sitemap.js", "utf8");
-ok("...and is absent from the sitemap", !/preview/.test(sitemap));
+// THE SCAFFOLDING IS GONE, and this asserts it rather than trusting it.
+//
+// The preview route shipped to production deliberately, noindex and disallowed,
+// because that is where three variants get looked at. It was always meant to be
+// deleted in the commit that adopted a winner — and the failure mode of that
+// plan is nobody doing it, leaving a preview surface live forever carrying two
+// discarded designs. So the deletion is a test now, not an intention.
+//
+// It also guards three things that existed ONLY to serve that route and would
+// otherwise sit in shared files as puzzling dead code: a robots disallow for a
+// path that 404s, a theme branch in the root layout, and a prefix matcher in
+// the site nav that matches nothing.
+ok("the preview route is deleted",
+  !existsSync("src/app/[locale]/preview/hero/[variant]/page.js"));
+ok("...and its shell with it",
+  !existsSync("src/components/landing/preview/HeroPreview.tsx"));
+ok("...and the losing variants",
+  !existsSync(`${VARIANT_DIR}/HeroV2Scroll.tsx`)
+  && !existsSync(`${VARIANT_DIR}/HeroV3Continuity.tsx`));
+
 const robots = readFileSync("src/app/robots.js", "utf8");
-ok("...and disallowed in robots.txt", /\/\*\/preview/.test(robots));
+ok("...so robots.txt no longer disallows a path that does not exist",
+  !/preview/.test(robots));
+const rootLayout = readFileSync("src/app/layout.js", "utf8");
+ok("...and the root layout has no preview theme branch",
+  !/preview/.test(rootLayout));
+const nav = readFileSync("src/components/Nav.js", "utf8");
+ok("...and the nav's prefix matcher went with the family it matched",
+  !/BARE_PREFIXES/.test(nav));
+
+// AND THE CEILING RATCHETED ITSELF. bundle-budget.mjs reads 1792 while the
+// preview route holds a baseline entry and 1716 once it does not, so deleting
+// the route restores the tighter gate with nobody remembering to. This asserts
+// the mechanism fired, rather than that somebody edited a constant.
+const baselines = JSON.parse(readFileSync("scripts/bundle-baselines.json", "utf8"));
+ok("...and the preview route's bundle baseline went too",
+  !("/[locale]/preview/hero/[variant]" in baselines));
 
 console.log(fails ? `\n${fails} FAILED\n` : "\nmarketing model: all passed\n");
 process.exit(fails ? 1 : 0);

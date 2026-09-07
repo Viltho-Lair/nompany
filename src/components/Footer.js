@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { CONTACT } from "@/lib/site";
-import { BARE_ROUTES, BARE_PREFIXES } from "@/components/Nav";
+import { BARE_ROUTES } from "@/components/Nav";
 
 // Editorial footer (adapted from the reference site): a big "Let's connect"
 // band, then a minimal dark strip with an Explore nav list, the office / contact
@@ -13,8 +13,7 @@ export default function Footer({ locale, dict }) {
   // The landing page, the auth screens and the account hub each own their
   // whole viewport and bring their own chrome (Nav.js suppresses itself on the
   // same list).
-  const isBare = BARE_ROUTES.some((r) => pathname === `/${locale}${r}`)
-    || BARE_PREFIXES.some((r) => pathname.startsWith(`/${locale}${r}`));
+  const isBare = BARE_ROUTES.some((r) => pathname === `/${locale}${r}`);
   const year = new Date().getFullYear();
 
   // Features, pricing, about, team and contact are in-page views on the

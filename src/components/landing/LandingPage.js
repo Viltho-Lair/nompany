@@ -21,7 +21,6 @@ import { VIEW_ORDER } from "@/components/landing/views/views";
 
    It owns the three pieces of state the choreography depends on:
      phase      'loading' → 'live'   (preloader)
-     dataReady  false → true         (skeleton hand-off)
      view       overview|pricing|…   (view transitions)
 
    The page is English-only and permanently dark, so it forces `ltr`
@@ -32,7 +31,6 @@ import { VIEW_ORDER } from "@/components/landing/views/views";
 
 export default function LandingPage({ locale = "en" }) {
   const [phase, setPhase] = useState("loading");
-  const [dataReady, setDataReady] = useState(false);
   const [view, setView] = useState("overview");
   // +1 = moving right through the tab order, -1 = moving back.
   const [direction, setDirection] = useState(1);
@@ -48,8 +46,11 @@ export default function LandingPage({ locale = "en" }) {
 
   const handleLoaded = useCallback(() => {
     setPhase("live");
-    // Beat between "UI revealed as skeleton" and "data resolved".
-    timers.current.push(window.setTimeout(() => setDataReady(true), 900));
+    // THE SKELETON HAND-OFF WENT WITH THE SKELETON. A 900ms timer used to flip
+    // a readiness flag so the hero could cross-fade a shimmering placeholder
+    // into the real panel — a wait manufactured in order to be filled. The hero
+    // it served is replaced by one whose settled state is what the server
+    // renders, so there is nothing to hand off to and nothing to wait for.
   }, []);
 
   useEffect(() => {
@@ -88,7 +89,7 @@ export default function LandingPage({ locale = "en" }) {
 
         <ViewTransition viewKey={view} direction={direction}>
           {view === "overview" && (
-            <OverviewView dataReady={dataReady} onNavigate={navigate} />
+            <OverviewView onNavigate={navigate} />
           )}
           {view === "pricing" && (
             <PricingView onNavigate={navigate} locale={locale} />

@@ -23,12 +23,6 @@ type HeroStrings = {
   ctaSecondary: string;
   footnote: string;
   marqueeLabel: string;
-  /** V3's rotating line reads `<prefix> <department> <suffix>`. */
-  rotatingPrefix: string;
-  rotatingSuffix: string;
-  /** The preview shell's own chrome — never shipped on a public page. */
-  previewLabel: string;
-  variantLabels: { v1: string; v2: string; v3: string };
 };
 
 const en: HeroStrings = {
@@ -41,14 +35,6 @@ const en: HeroStrings = {
   ctaSecondary: "See how it works",
   footnote: claimText("paid-from-ten", "en"),
   marqueeLabel: "The departments, today",
-  rotatingPrefix: "One system for",
-  rotatingSuffix: "",
-  previewLabel: "Hero preview — not a public page",
-  variantLabels: {
-    v1: "V1 · Assembly",
-    v2: "V2 · Scroll reveal",
-    v3: "V3 · Continuity",
-  },
 };
 
 // HAND-WRITTEN, NEVER MACHINE-TRANSLATED (SEO-PLAN §2.9). Arabic-speaking buyers
@@ -71,14 +57,6 @@ const ar: HeroStrings = {
   // chosen over لإدارة deliberately: لإدارة reads redundantly against "المبيعات
   // وإدارة العملاء" and awkwardly against "الإدارة والإعدادات", while يشمل is
   // grammatical and natural against all eleven department names.
-  rotatingPrefix: "نظام واحد يشمل",
-  rotatingSuffix: "",
-  previewLabel: "معاينة الواجهة — ليست صفحة عامة",
-  variantLabels: {
-    v1: "الأول · التجميع",
-    v2: "الثاني · الكشف بالتمرير",
-    v3: "الثالث · الاستمرارية",
-  },
 };
 
 const hero = { en, ar };

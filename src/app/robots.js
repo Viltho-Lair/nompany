@@ -15,10 +15,6 @@ export default function robots() {
           "/super",
           "/*/account",
           "/*/questionnaire",
-          // The hero preview ships to production because that is where it is
-          // looked at, and it is a preview surface rather than a page. Refused
-          // by path as well as by the route's own noindex.
-          "/*/preview",
           "/*/subscribe",
           "/*/verify",
           "/*/reset",
