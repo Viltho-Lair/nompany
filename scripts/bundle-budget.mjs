@@ -560,8 +560,21 @@ for (const r of routes) {
 }
 const stale = Object.keys(baselines).filter((route) => !routes.some((r) => r.route === route));
 
+// EVERY ROUTE, NOT THE HEAVIEST EIGHT.
+//
+// The table was truncated, and the truncation had a cost that only surfaced
+// when somebody tried to pay a debt with it: recording a baseline for a NEW
+// route needs that route's measured size, and a route below the eighth line
+// never printed one. Four marketing pages went unbaselined for exactly that
+// reason — three of them were visible in the log and `/[locale]/security` was
+// not, so the set could not be recorded from a CI run at all.
+//
+// Thirty-two lines is not a log problem, and the numbers are the artefact:
+// this is the only place the gating measurement is ever written down where a
+// person can read it, because `--record` needs a build and the machine that
+// most often needs the answer is one that cannot run one.
 console.log(`first load: ${routes.length} routes, heaviest first`);
-for (const r of routes.slice(0, 8)) {
+for (const r of routes) {
   const baseline = baselines[r.route];
   const against = baseline === undefined ? `no baseline, default ${DEFAULT_ROUTE_GZIP_KB}` : `baseline ${baseline}`;
   console.log(`  ${r.kb.toFixed(0).padStart(5)} KB gz / ${String(r.chunks).padStart(2)} chunks  (${against})  ${r.route}`);
@@ -581,6 +594,19 @@ if (ratchet.length) {
 }
 if (stale.length) {
   console.log(`\n${stale.length} baseline(s) for routes this build does not have: ${stale.slice(0, 5).join(", ")}`);
+}
+// REPORTED, NOT FAILED. DEFAULT_ROUTE_GZIP_KB above says an unrecorded route
+// is deliberately allowed — gated from its first build rather than ungated —
+// so this must not be an error. It may not be silent either: that same
+// comment claims "every route in the build today is baselined", and the claim
+// went false for four marketing pages with nothing anywhere saying so, each
+// free to drift to the 300 KB default unnoticed. Naming them is what turns
+// the claim into something a reader can check rather than trust.
+const unbaselined = routes.filter((r) => baselines[r.route] === undefined);
+if (unbaselined.length) {
+  console.log(`\n${unbaselined.length} route(s) with no recorded baseline, held to ${DEFAULT_ROUTE_GZIP_KB} KB:`);
+  for (const r of unbaselined) console.log(`  ${r.route}: ${r.kb.toFixed(0)} KB`);
+  console.log("  Run `node scripts/bundle-budget.mjs --record` to hold each to its own size.");
 }
 
 const failures = [];
