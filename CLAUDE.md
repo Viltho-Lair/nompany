@@ -230,16 +230,54 @@ without one already in hand).
 
 ---
 
-## Verification — CI does it, not you
+## Verification — you do it, not CI
 
-**DO NOT RUN THE SUITE, THE TYPECHECKS OR THE BUILD LOCALLY.** Commit, push, and let CI
-answer. This heading said "every change, no exceptions" and listed four commands to run by
-hand; an agent reading it ran a ten-minute suite before handing over anything at all, and
-did it once per task — hours of the owner's day spent re-deriving, on a laptop with a flaky
-`cloud-sql-proxy`, an answer GitHub was already computing for free on every push. That is
-what it cost, which is why the heading changed.
+**DO NOT PUSH TO `main` TO FIND OUT WHETHER SOMETHING WORKS.** Verify locally, hold your
+work on a branch, and let the owner decide when it lands. CI is GitHub's, not this
+project's workflow — the owner's instruction, 07/09/2026: *"we DO NOT use CI, CI is for
+Github."*
 
-CI (`.github/workflows/ci.yml`) runs, on every push to `main` and every pull request:
+**THIS HEADING HAS NOW SAID BOTH THINGS, AND BOTH REASONS ARE REAL.** It is written out so
+nobody flips it a third time on the strength of one bad afternoon:
+
+- It first said "every change, no exceptions" and listed four commands to run by hand. An
+  agent reading it ran a ten-minute suite before handing over anything at all, once per
+  task — hours of the owner's day spent re-deriving, on a laptop with a flaky
+  `cloud-sql-proxy`, an answer GitHub was computing for free.
+- So it became "commit, push, and let CI answer" — and that turned `main` into the
+  verification loop. **On 07/09/2026 nine of twelve runs on `main` failed and two were
+  cancelled mid-run**, and five separate commits moved the bundle ceiling in one afternoon
+  (`753b2320`, `ec360323`, `6b0bf06d`, `4b8c928d`, `a585944e`), each session re-deriving a
+  number the previous one had just changed. A shared branch is not a scratchpad, and a
+  pipeline is not a REPL.
+
+**THE ANSWER TO BOTH IS THE SAME: run the cheap checks, ask before the expensive ones.**
+The ten-minute suite was never the only instrument, and treating it as the only one is what
+made both mistakes look necessary.
+
+Run these yourself, without asking — they need no database, take seconds, and catch most of
+what actually breaks:
+
+```bash
+npx eslint .        # errors are never budgeted; lint:budget is shrink-only
+npx tsc --noEmit
+node tests/<the-model-test-for-what-you-changed>.mjs   # pure, no Postgres
+```
+
+ASK FIRST for anything slow, stateful or outward-facing — `npm test`, `npx next build`,
+`npm run test:parity`, `test:gateway*`, a migration, a script, `gcloud auth`, restarting
+the proxy. Ask, get a yes, then run it.
+
+**`npm run dev:sandbox` stays the way a SCREEN is verified**, because a screen has to be
+opened and no pipeline can do that.
+
+**AND DO NOT OPEN A PULL REQUEST AS A WAY OF RUNNING THE CHECKS.**
+`.github/workflows/ci.yml` is `on: push: [main]` **and `on: pull_request` with no branch
+filter**, so a PR is a standing CI trigger exactly like a push to `main` is. The workflow
+file still exists and still fires; what changed is that neither is a step you take to learn
+whether your work is correct.
+
+What CI runs, when it runs, is still the definitive list of what must hold:
 
 ```bash
 npm test            # model tests, restructure assertions, integration suite, Gate A — real routes, real Postgres
@@ -250,15 +288,12 @@ npx next build
 
 plus four things `npm test` does not — `npm run lint:budget`, `npm run test:gateway`,
 `npm run test:gateway:parity`, `npm run test:parity` (`NOMPANY_DB=parity`) — and
-`scripts/bundle-budget.mjs` after the build. CI is also the more trustworthy verifier: it
-runs on an ephemeral `postgres:18` as a non-superuser, so its RLS results hold for reasons
-the local shared instance cannot reproduce.
+`scripts/bundle-budget.mjs` after the build. One thing it has that a laptop cannot: it runs
+on an ephemeral `postgres:18` as a NON-SUPERUSER, so its RLS results hold for a reason the
+local shared instance cannot reproduce. **That is an argument for asking the owner to run
+it before something merges, not for pushing to `main` to see.**
 
-**The one thing that IS run locally is `npm run dev:sandbox`**, because a screen has to be
-opened to be verified and no pipeline can do that. Everything else — a suite, a build, a
-migration, a script, `gcloud auth`, restarting the proxy — is ASKED FOR FIRST. Ask, get a
-yes, then run it. The requirements below have not weakened; what changed is who checks them
-and when.
+The requirements below have not weakened; what changed is who checks them and when.
 
 - **`git add` a new file BEFORE you believe a green suite.** The architectural
   assertions in `tests/restructure.mjs` shell out to `git grep`, which searches TRACKED
