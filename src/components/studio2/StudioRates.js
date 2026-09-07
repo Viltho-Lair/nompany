@@ -45,7 +45,10 @@ export default function StudioRates({ slug }) {
   }, [read, apply]);
 
   const reload = useCallback(async () => { apply(await read()); }, [read, apply]);
-  useLiveUpdates(slug, reload);
+  // The library is the studio's own reference data and owns its own section
+  // (`tenderRates` under `tendering-rates`). A bill's rates are COPIES and live
+  // with their tender, so nothing here needs to hear the register.
+  useLiveUpdates(slug, "tendering-rates", reload);
 
   const send = useCallback(async (method, payload) => {
     setError(""); setBusy(true);

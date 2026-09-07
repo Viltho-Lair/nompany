@@ -33,6 +33,7 @@ Three rules that keep this folder worth reading:
 | [legal-pages.md](legal-pages.md) | The Terms and the Privacy Policy: one renderer, the Google disclosure shared by both, and what Google's OAuth verification requires |
 | [language.md](language.md) | EN/AR and RTL: what decides which language, where the buttons are, what is translated |
 | [list-tables.md](list-tables.md) | The department list tables: the shared Data Grid, and the search / filter / column controls above it |
+| [live-updates.md](live-updates.md) | How a board hears that somebody else changed a record: one connection per tab, what a watch key must name, and the two ways to write one that can never fire |
 | [media.md](media.md) | Uploaded files: Blob for the binary, Redis for the record, the membership check on private reads |
 | [pricing.md](pricing.md) | What a quotation line is priced at: the customer's agreed rate, the studio's sell price, or cost — and how each is shown |
 | [pipeline.md](pipeline.md) | The sales funnel: the stages a deal moves through, the moves that are refused, how long it has sat where it is, and why it ended |

@@ -17,7 +17,7 @@ import { useLive } from "@/components/studio2/LiveProvider";
 //
 // The connection itself is NOT opened here. It is opened once per tab by
 // LiveProvider and shared — see the note there about the browser's six
-// connections per domain, which 21 call sites would otherwise exhaust.
+// connections per domain, which 63 call sites would otherwise exhaust.
 //
 // Still true, and still the point:
 //  • A HIDDEN TAB COSTS NOTHING. The provider drops the connection after a
@@ -28,10 +28,44 @@ import { useLive } from "@/components/studio2/LiveProvider";
 /**
  * @param {string} slug     the studio (kept for call-site compatibility; the
  *                          connection's studio comes from LiveProvider)
- * @param {string} watch    a section key ("tasks", "finance", …) or "people"
+ * @param {string} watch    the section key the board's records are WRITTEN
+ *                          under — the sub-section, not the department root,
+ *                          unless the root is where the collection lives (see
+ *                          SECTION_COLLECTIONS in platform/db/keys.ts) — or
+ *                          "people". A parent key also hears its children; see
+ *                          the fan-out note in LiveProvider.
  * @param {Function} onChange  called when something this board shows has changed
  */
 export default function useLiveUpdates(slug, watch, onChange) {
+  // THREE ARGUMENTS, AND THE SECOND IS THE SECTION KEY — CHECKED, because for
+  // nineteen boards it was not.
+  //
+  // They called `useLiveUpdates(slug, reload)`. The handler landed in `watch`,
+  // `onChange` was undefined, and every one of them was dead in a way nothing
+  // could report: `subscribe()` was handed a FUNCTION as a section key, which no
+  // event's key can ever equal, and the handler it never received was the one
+  // that would have been called. So the board simply never refreshed when a
+  // colleague changed a record.
+  //
+  // NOTHING WAS GOING TO CATCH IT. These are browser `.js` files, which
+  // `checkJs: false` exempts from tsc; a missing argument is legal JavaScript;
+  // and the symptom — a board that does not refresh — is indistinguishable from
+  // a board with nothing to refresh. It took building a new screen to notice.
+  //
+  // So the twentieth occurrence cannot be quiet. In development this THROWS,
+  // which is the loudest thing a hook can do and the only signal a developer
+  // will actually see. In production it does not: a board that has stopped
+  // updating is a stale screen, a board that throws is no screen at all, and the
+  // second is worse for a tenant than the first. CI is the real door —
+  // tests/restructure.mjs refuses the shape at source level, so neither the
+  // throw nor the console line should ever fire.
+  if (typeof watch !== "string" || typeof onChange !== "function") {
+    const problem = "useLiveUpdates(slug, watch, onChange) needs a section key and a handler, "
+      + `got (${typeof watch}, ${typeof onChange})`;
+    if (process.env.NODE_ENV !== "production") throw new Error(problem);
+    console.error(`[useLiveUpdates] ${problem}`);
+  }
+
   const live = useLive();
   // Held in a ref so a re-render with a new closure never re-subscribes.
   //

@@ -126,7 +126,12 @@ export default function StudioSuppliers({ slug }) {
   }, [read, apply]);
 
   const reload = useCallback(async () => { apply(await read()); }, [read, apply]);
-  useLiveUpdates(slug, reload);
+  // The supplier master and its scorecards are this section's own
+  // (`inventoryVendors`, `supplierScorecards`). The delivery performance beside
+  // them is not — it is counted off purchase orders, which live under Inventory's
+  // Project sheets, so a receipt landing there changes a figure on this screen.
+  useLiveUpdates(slug, "procurement-suppliers", reload);
+  useLiveUpdates(slug, "inventory-sheets", reload);
 
   const send = useCallback(async (method, payload) => {
     setError(""); setBusy(true);

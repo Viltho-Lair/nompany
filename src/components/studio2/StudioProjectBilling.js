@@ -64,7 +64,12 @@ export default function StudioProjectBilling({ slug, projectId }) {
   }, [read, apply]);
 
   const reload = useCallback(async () => { apply(await read()); }, [read, apply]);
-  useLiveUpdates(slug, reload);
+  // The milestones are the project's own rows (`projectMilestones`, under the
+  // project list). Whether one has been BILLED is not stored — it is derived from
+  // the invoices naming it, and an invoice is written under Finance's Cash
+  // section, so raising one there is exactly what this screen must notice.
+  useLiveUpdates(slug, "projects-list", reload);
+  useLiveUpdates(slug, "finance-cash", reload);
 
   const send = useCallback(async (method, payload) => {
     setError(""); setBusy(true);

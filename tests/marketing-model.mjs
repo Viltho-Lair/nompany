@@ -401,8 +401,7 @@ const baselines = JSON.parse(readFileSync("scripts/bundle-baselines.json", "utf8
 ok("...and the preview route's bundle baseline went too",
   !("/[locale]/preview/hero/[variant]" in baselines));
 
-console.log("
-== the platform page describes exactly the live departments");
+console.log("\n== the platform page describes exactly the live departments");
 
 const P = await import("@/shared/marketing/platform");
 
@@ -442,8 +441,7 @@ ok("the Arabic platform copy carries no diacritics",
 // authored in this repository, so there is no copy module left to keep clean.
 // A price is a save, not a deploy.
 
-console.log("
-== the footers claim nothing that is not true");
+console.log("\n== the footers claim nothing that is not true");
 
 const landingFooter = readFileSync("src/components/landing/chrome/SiteFooter.jsx", "utf8");
 const footerCode = stripComments(landingFooter);

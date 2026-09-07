@@ -81,7 +81,27 @@ when the code looks cleaner afterwards.
     streams, which on a busy studio is dozens of connections asking the same
     question.
 14. **One `EventSource` per tab**, not per hook — browsers cap 6 per domain and
-    `useLiveUpdates` has 43 call sites across 33 files (measured; this said 21).
+    `useLiveUpdates` has 63 call sites across 38 files (measured 07/09/2026; this
+    said 43, and 21 before that).
+
+    **AND A WATCH KEY NAMES THE SECTION THE ROWS ARE *WRITTEN* UNDER**, never the
+    section the screen sits in. Nineteen boards passed the handler where `watch`
+    belongs — `useLiveUpdates(slug, reload)`, two arguments to a three-argument
+    hook — so `subscribe()` was handed a FUNCTION as a section key and every one
+    of those screens was dead. Nothing could report it: `checkJs: false` exempts
+    the browser `.js` files from tsc, a missing argument is legal JavaScript, and
+    a board that never refreshes looks exactly like a board with nothing to
+    refresh. The hook throws on that shape in development now, and
+    `testEveryLiveWatchCanActuallyFire` (`tests/restructure.mjs`) refuses it in
+    CI along with the subtler half: a key that is real and still unhearable,
+    because nothing is written at it or beneath it. `crm-sales-pipeline`,
+    `crm-sales-contracts`, `procurement-expediting` and `procurement-receiving`
+    are all real sections that own no collection — the board's rows live
+    somewhere else, and `SECTION_COLLECTIONS` is the authority on where.
+    LiveProvider fans an event out to the watchers of every ANCESTOR of its
+    section, which is what makes a department root (`finance`, `projects`) a
+    legitimate watch again — it stopped being one the day the restructure moved
+    the collections into sub-sections, silently, for a fortnight.
 15. **Cron fails closed.** A missing `CRON_SECRET` refuses; it never opens the door.
 16. **A right nothing can exercise is a bug.**
 17. **No database is destroyed without two confirmations.** The store is live and

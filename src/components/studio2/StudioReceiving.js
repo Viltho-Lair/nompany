@@ -86,7 +86,12 @@ export default function StudioReceiving({ slug }) {
   }, [read, apply]);
 
   const reload = useCallback(async () => { apply(await read()); }, [read, apply]);
-  useLiveUpdates(slug, reload);
+  // THE SCREEN IS IN PROCUREMENT AND ITS RECORDS ARE NOT. Goods receipts sit with
+  // the orders they answer — both under `inventory-sheets`, deliberately, so a
+  // receipt is not stranded the day `procurement-receiving` is planted — and the
+  // third leg of the match is Payables' bills.
+  useLiveUpdates(slug, "inventory-sheets", reload);
+  useLiveUpdates(slug, "finance-payables", reload);
 
   // BOOKING IN GOES TO INVENTORY'S OWN ENDPOINT, because `receiveOrder` is the
   // one door that moves stock, updates the order line and writes the note

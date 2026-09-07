@@ -68,7 +68,10 @@ export default function StudioTenderDocs({ slug, tenderId }) {
   }, [read, apply]);
 
   const reload = useCallback(async () => { apply(await read()); }, [read, apply]);
-  useLiveUpdates(slug, reload);
+  // The pack and the clarification log belong to the tender, so they live in the
+  // register's section with it — `tenderDocuments` and `tenderClarifications`
+  // under `tendering-register`, never a section of their own.
+  useLiveUpdates(slug, "tendering-register", reload);
 
   const send = useCallback(async (what, method, payload) => {
     setError(""); setBusy(true);

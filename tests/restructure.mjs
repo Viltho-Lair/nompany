@@ -32,7 +32,7 @@ const {
   SECTION_KEY_MAP, PERMISSION_KEY_MAP, COLLECTION_MOVES,
   mapSectionKey, mapPermissionKey,
 } = await import("../src/platform/db/restructure.ts");
-const { SECTION_DEFS, ALL_SECTION_KEYS } = await import("../src/platform/db/keys.ts");
+const { SECTION_DEFS, ALL_SECTION_KEYS, SECTION_COLLECTIONS } = await import("../src/platform/db/keys.ts");
 // Dynamic for the same reason as every import in this file — see above.
 const { departmentOf } = await import("../src/shared/studio/insights.ts");
 const { AREAS } = await import("../src/platform/access/index.ts");
@@ -190,6 +190,20 @@ const KNOWN_COLLISIONS = {
   // kind is `ticketStage` now (StatusPill.jsx), which collides with nothing.
   "src/components/studio2/QualityWorkflow.js": [
     { value: "quality", reason: "StatusPill.jsx's STATUS_TONES record-kind key for revision-state colours" },
+  ],
+  // THE MARKETING SITE'S ENQUIRY MAILBOX, which is a WHO-to-email and not a
+  // section: mailboxFor() answers "sales" or "support", the contact route picks
+  // CONTACT.sales or CONTACT.support from it, and the view prints the address it
+  // resolved. Three files, one token, and no section anywhere near it — the
+  // landing pages have no section tree at all.
+  "src/app/api/contact/route.ts": [
+    { value: "sales", reason: "enquiry.ts's mailbox code — which address a contact form goes to" },
+  ],
+  "src/components/landing/views/ContactView.js": [
+    { value: "sales", reason: "the same mailbox code, printed as the address it resolves to" },
+  ],
+  "src/shared/marketing/enquiry.ts": [
+    { value: "sales", reason: "where the mailbox code is defined and returned" },
   ],
   "src/modules/tasks/taskRouting.ts": [
     { value: "sales", reason: "a STORED Task-settings authority code (types.ts's TaskAssignees)" },
@@ -1074,6 +1088,195 @@ export async function testEveryContextualSectionKeyLiteralExists(t) {
   t.equal(bad.length, 0, `every contextual section-key literal names a real key or a known non-section route\n${bad.join("\n")}`);
 }
 
+// A LIVE WATCH THAT NOTHING WILL EVER FIRE, and both ways of getting one.
+//
+// `useLiveUpdates(slug, watch, onChange)` takes three arguments. NINETEEN boards
+// called it with two — `useLiveUpdates(slug, reload)` — so the handler landed in
+// `watch` and `onChange` was undefined. Every one of them was dead: subscribe()
+// was handed a FUNCTION as a section key, which no event's key can equal. And
+// nothing could report it. These are browser `.js` files, which `checkJs: false`
+// exempts from tsc; a missing argument is legal JavaScript; and a board that
+// never refreshes is indistinguishable from a board with nothing to refresh. It
+// took building a twentieth screen to notice the first nineteen.
+//
+// THE SECOND WAY IS SUBTLER AND HAS THE SAME SYMPTOM: a key that is real and
+// still unhearable. An event carries the key of the section the row was WRITTEN
+// under, so a watch is only alive if some collection lives at that key or
+// beneath it. `crm-sales-pipeline` is a real section, the board that draws it is
+// real, and nothing is ever written there — the deals on it are salesTickets,
+// under `crm-sales-tickets`. Same for `crm-sales-contracts`,
+// `procurement-expediting` and `procurement-receiving`: destinations over
+// somebody else's rows. SECTION_COLLECTIONS is the authority on which is which,
+// so it is what this asks, rather than ALL_SECTION_KEYS — which would call every
+// one of those correct.
+//
+// NO `git grep` HERE, unlike its neighbours. Those check for the SURVIVAL of a
+// retired token, where a file the developer has not staged yet is a file whose
+// old spelling is not in the tree either. This checks the SHAPE of new code, and
+// a brand-new screen holding the broken shape is exactly the case that matters —
+// which is the one `git grep` cannot see (CLAUDE.md: "git add a new file BEFORE
+// you believe a green suite").
+const LIVE_HOOKS = ["useLiveUpdates", "useLiveRows"];
+// The hooks themselves: the only place the watch key is legitimately a variable,
+// because a forwarder is handed one. Its own callers are checked like any other.
+const LIVE_HOOK_FILES = ["useLiveUpdates.js", "useLiveRows.js"];
+
+// Split a call's arguments at top-level commas. Quotes and every kind of bracket
+// are tracked, so an object literal, a nested call or an inline arrow — all three
+// appear at these call sites — count as ONE argument rather than as their own
+// commas. Returns null for an unbalanced call, which cannot happen in a file
+// that parses but is not worth asserting as an absence.
+function callArguments(src, open) {
+  const args = [];
+  let depth = 0;
+  let start = open + 1;
+  let quote = "";
+  for (let i = open; i < src.length; i++) {
+    const c = src[i];
+    if (quote) {
+      if (c === "\\") { i++; continue; }
+      if (c === quote) quote = "";
+      continue;
+    }
+    if (c === '"' || c === "'" || c === "`") { quote = c; continue; }
+    if (c === "(" || c === "[" || c === "{") { depth++; continue; }
+    if (c === ")" || c === "]" || c === "}") {
+      depth -= 1;
+      if (depth === 0) { args.push(src.slice(start, i).trim()); return args; }
+      continue;
+    }
+    if (c === "," && depth === 1) { args.push(src.slice(start, i).trim()); start = i + 1; }
+  }
+  return null;
+}
+
+// Is any collection written at this key, or under it? Under it counts because
+// LiveProvider fans an event out to the watchers of every ancestor of its
+// section — a board watching `finance` hears `finance-cash` — which is what the
+// department roots rely on.
+const somethingIsWrittenAt = (watch) => Object.keys(SECTION_COLLECTIONS)
+  .some((k) => k === watch || k.startsWith(`${watch}-`));
+
+export async function testEveryLiveWatchCanActuallyFire(t) {
+  const { readdirSync, readFileSync, statSync } = await import("node:fs");
+
+  const files = [];
+  (function walk(dir) {
+    for (const entry of readdirSync(dir)) {
+      const path = `${dir}/${entry}`;
+      if (statSync(path).isDirectory()) { walk(path); continue; }
+      if (/\.(js|jsx|ts|tsx)$/.test(entry)) files.push(path);
+    }
+  })("src/components");
+
+  const bad = [];
+  let checked = 0;
+
+  for (const file of files) {
+    const src = readFileSync(file, "utf8");
+    const isHookItself = LIVE_HOOK_FILES.some((f) => file.endsWith(`/${f}`));
+    for (const hook of LIVE_HOOKS) {
+      const re = new RegExp(`(?<![A-Za-z0-9_$])${hook}\\s*\\(`, "g");
+      let m;
+      while ((m = re.exec(src))) {
+        const open = src.indexOf("(", m.index);
+        // The declaration, not a call.
+        if (/function\s*$/.test(src.slice(Math.max(0, m.index - 20), m.index))) continue;
+        // A mention inside a comment or a message string, of which the hook file
+        // has several — the call it is describing is not this one.
+        const lineStart = src.lastIndexOf("\n", m.index) + 1;
+        const before = src.slice(lineStart, m.index);
+        if (before.includes("//") || before.includes("*") || /["'`]/.test(before)) continue;
+
+        const args = callArguments(src, open);
+        const where = `${file}:${src.slice(0, m.index).split("\n").length}`;
+        if (!args) { bad.push(`${where}: ${hook}(...) does not parse`); continue; }
+        checked += 1;
+
+        if (args.length < 3) {
+          bad.push(`${where}: ${hook}(${args.join(", ")}) passes ${args.length} arguments, not 3`
+            + " — the handler is landing in `watch` and will never be called");
+          continue;
+        }
+
+        const watch = args[1];
+        const literal = watch.match(/^"([^"]*)"$/);
+        if (literal) {
+          const key = literal[1];
+          if (key === "people" || somethingIsWrittenAt(key)) continue;
+          bad.push(`${where}: ${hook} watches "${key}", where no collection is written`
+            + " — see SECTION_COLLECTIONS in platform/db/keys.ts for where the rows really live");
+          continue;
+        }
+        // `engine-<typeKey>` — the record engine plants a section per type at
+        // RUNTIME, so its key cannot be in a compile-time map and this is the
+        // one shape that has to be named rather than looked up.
+        if (/^`engine-\$\{/.test(watch)) continue;
+        if (isHookItself && /^[A-Za-z_$][\w$]*$/.test(watch)) continue;
+        bad.push(`${where}: ${hook}'s watch key is \`${watch}\` — a board must name its section as a literal`);
+      }
+    }
+  }
+
+  // The count is asserted so an accidentally-empty sweep cannot read as a pass:
+  // this whole check is an ABSENCE, and a walk that matched nothing looks
+  // identical to a codebase with nothing wrong.
+  t.equal(checked > 40, true, `found ${checked} live-update call sites to check`);
+  t.equal(bad.length, 0, `every live watch names a section something is written under\n${bad.join("\n")}`);
+}
+
+// THE OTHER HALF OF THE SAME BUG, and the half no source-level check can see: a
+// call site can name the perfect key and still hear nothing if the fan-out does
+// not carry the event to it.
+//
+// LiveProvider matched a listener's key against an event's section with `===`,
+// which was correct while the section model was FLAT and stopped being correct
+// the day the fifteen-section restructure moved every collection into a
+// sub-section. `watchKeysFor` is that rule, extracted so it can be asserted
+// here rather than read and believed.
+export async function testAnEventReachesTheWatchersOfItsAncestors(t) {
+  const { watchKeysFor } = await import("../src/platform/realtime/livePatch.ts");
+
+  // The case that was dead for a fortnight: Main watches `crm-sales`, a ticket
+  // is written under `crm-sales-tickets`.
+  t.equal(watchKeysFor("crm-sales-tickets").includes("crm-sales"), true,
+    "a ticket's event reaches a board watching the CRM & Sales root");
+  t.equal(watchKeysFor("finance-cash").includes("finance"), true,
+    "an invoice's event reaches a board watching the Finance root");
+  t.equal(watchKeysFor("projects-list").includes("projects"), true,
+    "a project's event reaches a board watching the Projects root");
+
+  // The section itself always comes first, so a board naming the exact key is
+  // told before anything else is considered.
+  t.equal(watchKeysFor("tendering-register")[0], "tendering-register",
+    "the section's own key is first");
+
+  // THE PREFIX TRAP, asserted from both ends. `engine-` must not reach
+  // `engineering-docs`, and `engineering-docs-rfq` must not reach `engine`.
+  t.equal(watchKeysFor("engine-transmittal").includes("engineering-docs"), false,
+    "the record engine's section does not reach Engineering & Documents");
+  t.equal(watchKeysFor("engineering-docs-rfq").includes("engine"), false,
+    "an RFQ's event does not reach a watcher of `engine`");
+  t.equal(watchKeysFor("engineering-docs-rfq").includes("engineering-docs"), true,
+    "...and does reach its real parent");
+
+  // A SIBLING IS NOT AN ANCESTOR. This is the property that keeps the widening
+  // honest: hearing a parent is not hearing everything under it.
+  t.equal(watchKeysFor("finance-cash").includes("finance-payables"), false,
+    "an invoice's event does not reach a board watching Payables");
+
+  // "people" carries no section and no dash — it must survive unchanged, or
+  // every membership and grant change stops reaching the People screen.
+  t.equal(JSON.stringify(watchKeysFor("people")), JSON.stringify(["people"]),
+    "a people-scoped event reaches exactly the people watchers");
+
+  // An event whose section could not be resolved has an empty key. It must fan
+  // out to NOTHING rather than to a listener that happens to be registered
+  // under "" — the stream route sends `section: ""` when it cannot name one.
+  t.equal(JSON.stringify(watchKeysFor("")), JSON.stringify([]), "an unnamed section reaches nobody");
+  t.equal(JSON.stringify(watchKeysFor(null)), JSON.stringify([]), "...and so does a missing one");
+}
+
 // ---- harness ----------------------------------------------------------------
 // Same non-throwing, accumulate-and-report shape as tests/suite.mjs's own
 // ok(): one bad assertion must not hide the rest, which matters more here than
@@ -1130,6 +1333,8 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       testAdministrationFollowsItsChildren,
       testProjectSegmentsAreExemptFromTheBoard,
       testEveryContextualSectionKeyLiteralExists,
+      testEveryLiveWatchCanActuallyFire,
+      testAnEventReachesTheWatchersOfItsAncestors,
       testCompoundRootsCoversEveryDashedRoot,
       testEveryModelTestIsActuallyRun,
     ];

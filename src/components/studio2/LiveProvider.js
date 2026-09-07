@@ -1,14 +1,16 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { watchKeysFor } from "@/platform/realtime/livePatch";
 
 // ONE LIVE CONNECTION PER TAB.
 //
 // Boards do not open connections; this does, once, and hands out subscriptions.
 // That is not tidiness — it is a hard browser limit. Over HTTP/1.1 a browser
 // allows only SIX connections to a domain, shared across every tab, and an open
-// EventSource occupies one for as long as it lives. useLiveUpdates is called 21
-// times across the studio boards and THREE times on the Main board alone, so a
+// EventSource occupies one for as long as it lives. useLiveUpdates is called 63
+// times across 38 files and FOUR times on the customer page alone (measured
+// 07/09/2026; this said 21, and had said it since the model was flat), so a
 // connection per hook would spend half the budget on one page and starve the
 // app's ordinary requests — including the very refetches these events trigger.
 //
@@ -45,6 +47,23 @@ export function useLive() {
   return useContext(LiveContext);
 }
 
+// Hand one event to everybody listening on exactly this key. Module scope, not a
+// closure inside the provider: it reads only what it is given, so `fire` can
+// keep its empty dependency array honestly rather than closing over a function
+// redefined on every render.
+function tell(listeners, watch, event) {
+  const set = listeners.get(watch);
+  if (!set) return;
+  for (const handler of [...set]) {
+    try {
+      handler(event);
+    } catch (e) {
+      // One board throwing must not stop the others being told.
+      console.error(`[live] listener failed for ${watch}:`, e);
+    }
+  }
+}
+
 export default function LiveProvider({ slug, children }) {
   // "connecting" until the first `ready`; "offline" only once a fatal close has
   // happened, so the UI never cries wolf over an ordinary reconnect.
@@ -60,17 +79,16 @@ export default function LiveProvider({ slug, children }) {
   const timers = useRef({ hide: null, retry: null });
 
   // ---- fan-out ---------------------------------------------------------------
+  // A SECTION'S EVENT ALSO REACHES WHOEVER IS WATCHING ITS PARENT, and the rule
+  // for which keys those are lives in `watchKeysFor` — pure, beside `decide`,
+  // where the Node suite can actually assert it. Read the note there for why the
+  // match used to be `===` and what that cost.
+  //
+  // It widens nothing a caller may not hear. The stream route has already
+  // decided, per event, that this connection may know about that section; this
+  // only decides which of the tab's OWN boards are told.
   const fire = useCallback((watch, event) => {
-    const set = listeners.current.get(watch);
-    if (!set) return;
-    for (const handler of [...set]) {
-      try {
-        handler(event);
-      } catch (e) {
-        // One board throwing must not stop the others being told.
-        console.error(`[live] listener failed for ${watch}:`, e);
-      }
-    }
+    for (const key of watchKeysFor(watch)) tell(listeners.current, key, event);
   }, []);
 
   const subscribe = useCallback((watch, handler) => {

@@ -63,7 +63,13 @@ export default function StudioBoq({ slug, tenderId }) {
   }, [read, apply]);
 
   const reload = useCallback(async () => { apply(await read()); }, [read, apply]);
-  useLiveUpdates(slug, reload);
+  // TWO SECTIONS, because the payload has two sources. The bill's lines and the
+  // tender they price both live under `tendering-register`; `frozen` does not —
+  // a handover is DERIVED from the projects naming this tender, so the grid goes
+  // read-only because of a row written in Projects, and a screen watching only
+  // its own section would keep offering edits the server has started refusing.
+  useLiveUpdates(slug, "tendering-register", reload);
+  useLiveUpdates(slug, "projects-list", reload);
 
   const send = useCallback(async (method, payload) => {
     setError(""); setBusy(true);

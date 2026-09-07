@@ -70,7 +70,12 @@ export default function StudioRequisitions({ slug }) {
   }, [read, apply]);
 
   const reload = useCallback(async () => { apply(await read()); }, [read, apply]);
-  useLiveUpdates(slug, reload);
+  // The requests are this section's own rows. `Ordered` is not: it is DERIVED
+  // from a purchase order naming the request, and an order is written under
+  // Inventory's Project sheets — so a colleague converting a request has to move
+  // this list, and only the second watch can tell it.
+  useLiveUpdates(slug, "procurement-requisitions", reload);
+  useLiveUpdates(slug, "inventory-sheets", reload);
 
   const send = useCallback(async (method, payload, path = "procurement/requisitions") => {
     setError(""); setBusy(true);
