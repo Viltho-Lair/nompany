@@ -387,8 +387,16 @@ const robots = readFileSync("src/app/robots.js", "utf8");
 ok("...so robots.txt no longer disallows a path that does not exist",
   !/preview/.test(robots));
 const rootLayout = readFileSync("src/app/layout.js", "utf8");
+// PREVIEW AS A PATH SEGMENT, not the substring. This read `!/preview/` and was
+// therefore red from the moment it was written: the layout's robots metadata
+// carries Google's "max-image-preview" and "max-video-preview" directives, so
+// the loose test could never pass no matter how thoroughly the branch was
+// deleted — and nothing noticed, because this file did not parse and had never
+// run. The branch it is actually looking for was
+// /^\/(en|ar)\/preview(\/|$)/.test(pathname) inside isMarketing, so the token
+// is always preceded by a "/" or a quote and never by a hyphen.
 ok("...and the root layout has no preview theme branch",
-  !/preview/.test(rootLayout));
+  !/(?<![-\w])preview(?![-\w])/.test(rootLayout));
 const nav = readFileSync("src/components/Nav.js", "utf8");
 ok("...and the nav's prefix matcher went with the family it matched",
   !/BARE_PREFIXES/.test(nav));
