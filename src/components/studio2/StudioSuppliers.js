@@ -253,8 +253,17 @@ export default function StudioSuppliers({ slug }) {
                     hunting through a record for the reason. */}
                 {q.reason && (
                   <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                    {whyLabel(tr, q.reason)}
-                    {q.note ? ` — ${q.note}` : ""}
+                    {/* THE NOTE IS THE REASON FOR A BLOCK AND NOTHING ELSE.
+                        On a blocked row it wins: the badge already says Blocked
+                        and the line below says Suspended, so printing the word a
+                        third time in front of the reason reads as a stutter.
+                        Anywhere else it must NOT win — a note survives the
+                        decision that needed it, so a supplier suspended and then
+                        approved still carries the suspension's words, and letting
+                        those stand in for `lapsed` puts a stale sentence under a
+                        badge that means something different. Seen on the screen:
+                        "Site incident, under review" beneath Paperwork lapsed. */}
+                    {q.state === "blocked" ? (q.note || whyLabel(tr, q.reason)) : whyLabel(tr, q.reason)}
                   </p>
                 )}
                 {v.approvalStatus && v.approvedByAlias && (
