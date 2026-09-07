@@ -24,6 +24,7 @@ import { REG, U, S, IX, ID, SECTION_DEFS, isValidSlug } from "@/platform/db/keys
 import { readArr, writeArr, editArr, setJSON, claim, getIndex, release, delPrefix, sMembers, hIncrBy, hGetAll, hDel } from "@/platform/db/store";
 import { addCollaborator } from "@/platform/auth/collaborators";
 import { listDepartments } from "@/modules/administration/departments";
+import { seedBuiltinTypes } from "@/platform/engine/builtins";
 import { ensureDefaultPlan } from "@/lib/data/catalog";
 import { emitPlatform, PLATFORM } from "@/platform/realtime/events";
 import { notifySuper, NOTIFY } from "@/platform/notify/notifications";
@@ -141,6 +142,19 @@ export async function createStudio(
     // applied — see seedDepartments.
     const masterSection = sections.find((sec) => sec.key === "administration-master");
     if (masterSection) await listDepartments({ studio, section: masterSection });
+
+    // THE BUILT-IN RECORD TYPES, seeded the way the sections above and the
+    // departments register are — and for the same reason: a seeded thing added
+    // after a studio exists never reaches that studio on its own, and a manual
+    // backfill gets forgotten. `administration-access` shipped on 03/09 and was
+    // still missing from two of three live studios two days later with nothing
+    // complaining.
+    //
+    // AFTER the section write, because seeding a type plants that type's own
+    // sub-section under a parent that has to exist already — and it reads the
+    // stored rows rather than the local array, so what it plants lands in the
+    // same place `listSections` will read it back from.
+    await seedBuiltinTypes(id);
 
     // The owner is a Collaborator like everyone else (uniform people table).
     // No role is assigned and none is needed: `role: "owner"` is what

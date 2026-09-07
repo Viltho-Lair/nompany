@@ -68,7 +68,8 @@
       "administration-master": true,
       "administration-settings": true,
       "tasks": true,
-      "tasks-settings": true
+      "tasks-settings": true,
+      "engine-transmittal": false
     },
     "sections": [
       {

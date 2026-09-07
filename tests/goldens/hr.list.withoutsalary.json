@@ -63,7 +63,8 @@
       "administration-master": false,
       "administration-settings": false,
       "tasks": false,
-      "tasks-settings": false
+      "tasks-settings": false,
+      "engine-transmittal": false
     },
     "manage": {
       "main": false,
@@ -124,7 +125,8 @@
       "administration-master": false,
       "administration-settings": false,
       "tasks": false,
-      "tasks-settings": false
+      "tasks-settings": false,
+      "engine-transmittal": false
     },
     "me": {
       "collaboratorId": "<col_ID>"

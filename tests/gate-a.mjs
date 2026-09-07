@@ -7580,6 +7580,250 @@ console.log("== projects: a job does not close over open defects");
 }
 
 // ============================================================================
+console.log("== the record engine: one route serves a type declared as a row");
+// THE ASSERTION THIS BLOCK EXISTS FOR is that a record type declared as DATA
+// behaves like one written in code — it has a section, a reference series, a
+// status chain that refuses an undeclared move, and four rights that default to
+// deny — and that nothing about it needed a deploy.
+//
+// IT ADDS NO PERMISSION KEY, and that is the property most worth pinning here.
+// `engine.<typeKey>.<verb>` is STRUCTURAL: a record type is a row, so its key
+// cannot be in the compile-time catalogue, and the catalogue assertion at the
+// top of this file must still read the same number afterwards. A key appearing
+// there would mean the engine had quietly declared one.
+//
+// PLACED HERE for the reason the blocks above state: this studio is SHARED and
+// several goldens are whole-studio snapshots. Seated before the count that
+// follows, so the new files it records are counted rather than reported as
+// debris — a block seated after it fails by exactly its own new names.
+{
+  const ENG = await import("@/app/api/studios/[slug]/records/[typeKey]/route.ts");
+  const ROLES = await import("@/app/api/studios/[slug]/roles/route.ts");
+  const { typeProblem } = await import("@/platform/engine/types.ts");
+  const { BUILTIN_TYPES } = await import("@/platform/engine/builtins.ts");
+
+  // THE TYPE KEY IS A URL SEGMENT, so it arrives in params the way every other
+  // dynamic segment does. Naming it here is what proves the route reads the
+  // type from the address rather than from the body — a request cannot address
+  // itself to one type and name another.
+  const P = ctx({ slug, typeKey: "transmittal" });
+  const shot = async (name, payload) => {
+    const r = golden(name, payload, EXTRA);
+    if (!r.recorded) ok(`${name} matches its golden`, r.ok, r.detail);
+    return payload;
+  };
+  const path = `/api/studios/${slug}/records/transmittal`;
+  const get = () => capture(ENG.GET, req(path), P);
+  const post = (body) => capture(ENG.POST, req(path, { method: "POST", body }), P);
+  const put = (body) => capture(ENG.PUT, req(path, { method: "PUT", body }), P);
+  const del = (body) => capture(ENG.DELETE, req(path, { method: "DELETE", body }), P);
+
+  const enginePersonWith = async (permissions, alias) => {
+    const u = (await createUser({ email: `g-${alias}-${rand()}@test.invalid`, passwordHash: "x" })).user;
+    const role = await createRole(studio.id, { name: `role-${alias}`, permissions });
+    await addCollaborator(studio.id, { userId: u.id, alias, role: "member", roleIds: [role.id] });
+    return u;
+  };
+
+  await signIn(owner.id);
+
+  // ---- the declaration is valid by the engine's own rule --------------------
+  // ASKED OF THE PURE VALIDATOR the type editor will refuse a tenant's type
+  // with, so a built-in cannot be a shape the product would not accept from a
+  // studio. A column naming no field or a transition naming no status is the
+  // failure this catches, and it is invisible otherwise: both render as an
+  // empty column and an unreachable move rather than as an error.
+  ok("THE BUILT-IN DECLARES ITSELF LEGALLY",
+    typeProblem(BUILTIN_TYPES[0], []) === null, String(typeProblem(BUILTIN_TYPES[0], [])));
+
+  // ---- the section was planted at creation ---------------------------------
+  // NOT LAZILY ON FIRST USE, and the tender register paid for the difference: a
+  // sub-section falls back to its ROOT when absent, so records written before
+  // the section exists land under the parent where nothing reads them — not
+  // deleted, not corrupted, invisible.
+  const rows = await readArr(S.sections(studio.id));
+  const planted = rows.find((s) => s.key === "engine-transmittal");
+  const parent = rows.find((s) => s.key === "engineering-docs");
+  ok("THE TYPE'S SECTION IS PLANTED AT STUDIO CREATION", Boolean(planted),
+    rows.map((s) => s.key).filter((k) => k.startsWith("engine")).join(","));
+  // Under its DECLARED parent rather than at the root: an orphan sub-section
+  // renders in no nav at all and is harder to find than a refusal.
+  ok("...under the parent the type declares",
+    Boolean(parent) && planted?.parentId === parent?.id, String(planted?.parentId));
+
+  // ---- an engine grant survives being stored -------------------------------
+  // THE DEFECT THE PERMISSION ARM EXISTS TO PREVENT, asserted END TO END rather
+  // than in the unit test alone. `cleanPermissions` filters every stored key
+  // through `isPermission`, which was `KNOWN.has(key)` over the compile-time
+  // catalogue — so a role granting an engine key had it dropped with no error
+  // and no log: a right that never arrives. The unit test proves the filter;
+  // this proves the whole path, through the real roles route, which also has to
+  // get PAST `escalates` — and did not, because the owner's own access is
+  // `new Set(ALL_PERMISSIONS)` and an engine key is not in it, so granting one
+  // read as handing out something the owner did not hold.
+  const madeRole = await capture(ROLES.POST, req(`/api/studios/${slug}/roles`, {
+    method: "POST", body: { name: `Transmittal Reader ${rand()}`, permissions: ["engine.transmittal.view"] },
+  }), ctx({ slug }));
+  ok("AN ENGINE KEY IS ACCEPTED BY THE ROLES ROUTE", madeRole.status === 201,
+    JSON.stringify(madeRole.body).slice(0, 160));
+  const readBack = await capture(ROLES.GET, req(`/api/studios/${slug}/roles`), ctx({ slug }));
+  const stored = (readBack.body?.roles || []).find((r) => r.id === madeRole.body?.role?.id);
+  ok("...and is still there when the role is read back",
+    (stored?.permissions || []).includes("engine.transmittal.view"),
+    JSON.stringify(stored?.permissions));
+
+  // AND THE WILDCARDS HOLD IT. `ALL_PERMISSIONS` is compile-time and an engine
+  // key cannot be in it, so `new Set(ALL_PERMISSIONS)` answered false for the
+  // owner — the one identity that exists so a studio cannot lock itself out.
+  ok("THE OWNER HOLDS EVERY ENGINE KEY",
+    effectivePermissions({ studio, collaborator: { role: "owner" }, roles: [] })
+      .has("engine.transmittal.view"));
+  ok("...and the Admin wildcard does too",
+    effectivePermissions({
+      studio, collaborator: { role: "member", roleIds: [ADMIN_ROLE_ID] },
+      roles: [{ id: ADMIN_ROLE_ID, wildcard: true }],
+    }).has("engine.transmittal.delete"));
+
+  // ---- nothing recorded yet -------------------------------------------------
+  const empty = await shot("engine.transmittal.list.empty", await get());
+  ok("the type serves an empty list", empty.body?.records?.length === 0,
+    JSON.stringify(empty.body?.records));
+  // THE DECLARATION TRAVELS WITH THE ROWS, and it is the whole reason a generic
+  // screen can draw a type nobody wrote a screen for: without it there is no
+  // way to know which columns to draw or which moves to offer.
+  ok("THE TYPE DECLARATION TRAVELS WITH THE ROWS",
+    empty.body?.type?.label === "Transmittals"
+    && empty.body?.type?.fields?.length === 4
+    && empty.body?.type?.columns?.length === 3
+    && empty.body?.type?.statuses?.length === 3
+    && empty.body?.type?.transitions?.length === 2,
+    JSON.stringify(empty.body?.type).slice(0, 200));
+  ok("...and it is seeded, not the studio's own",
+    empty.body?.type?.origin === "builtin", String(empty.body?.type?.origin));
+
+  // ---- creating one ---------------------------------------------------------
+  const created = await shot("engine.transmittal.created", await post({
+    values: {
+      title: "Level 3 rebar drawings",
+      recipient: "Main contractor",
+      issuedOn: "2031-08-14",
+      notes: "Issued for construction.",
+    },
+  }));
+  const recordId = created.body?.record?.id;
+  ok("a record is written", Boolean(recordId), JSON.stringify(created.body).slice(0, 160));
+  // THE SERIES IS DERIVED FROM THE TYPE KEY, four letters of it, and it starts
+  // at one the way every other register in this product does.
+  ok("...carrying the type's own reference series",
+    created.body?.record?.reference === "TRA-0001", String(created.body?.record?.reference));
+  // THE FIRST DECLARED STATUS. A record born outside the chain could never
+  // move, because every declared transition names a `from`.
+  ok("...opening at the first declared status",
+    created.body?.record?.status === "Draft", String(created.body?.record?.status));
+  ok("...and the record remembers the type version it was written under",
+    created.body?.record?.typeVersion === 1, String(created.body?.record?.typeVersion));
+
+  const populated = await shot("engine.transmittal.list.populated", await get());
+  ok("the row comes back on the list", populated.body?.records?.length === 1,
+    String(populated.body?.records?.length));
+
+  // ---- editing --------------------------------------------------------------
+  const edited = await shot("engine.transmittal.edited", await put({
+    id: recordId,
+    values: {
+      title: "Level 3 rebar drawings",
+      recipient: "Main contractor — QA office",
+      issuedOn: "2031-08-14",
+      notes: "Issued for construction.",
+    },
+  }));
+  ok("A DECLARED FIELD EDITS",
+    edited.body?.record?.values?.recipient === "Main contractor — QA office",
+    String(edited.body?.record?.values?.recipient));
+  // AN EDIT IS NOT A MOVE. `editRecord` takes the declared FIELDS off the body
+  // and nothing else, so a status sent through the edit path is ignored rather
+  // than applied — the shape that once let a rejected change order approve
+  // itself was an answer routed through a generic write.
+  //
+  // THE FULL VALUES GO WITH IT, deliberately: an edit REPLACES every declared
+  // field from the body, so sending `{}` here would blank the record and the
+  // goldens below would pin a row this assertion had emptied rather than the
+  // one the block created.
+  const smuggled = await put({
+    id: recordId, status: "Acknowledged",
+    values: {
+      title: "Level 3 rebar drawings",
+      recipient: "Main contractor — QA office",
+      issuedOn: "2031-08-14",
+      notes: "Issued for construction.",
+    },
+  });
+  ok("A STATUS CANNOT BE SMUGGLED THROUGH THE EDIT PATH",
+    smuggled.body?.record?.status === "Draft", String(smuggled.body?.record?.status));
+
+  // ---- moving ---------------------------------------------------------------
+  const moved = await shot("engine.transmittal.moved", await put({
+    id: recordId, action: "move", to: "Issued",
+  }));
+  ok("A DECLARED TRANSITION MOVES THE RECORD",
+    moved.body?.record?.status === "Issued", String(moved.body?.record?.status));
+
+  // THE CHAIN IS DATA, so this is the whole of the rule — there is no second
+  // opinion in a service to disagree with the declaration. Backwards is not
+  // declared, and a status the type has never heard of is refused by name
+  // rather than written.
+  const back = await shot("engine.transmittal.move.refused", await put({
+    id: recordId, action: "move", to: "Draft",
+  }));
+  ok("...and an undeclared one is refused", back.body?.error === "not-allowed",
+    JSON.stringify(back.body));
+  const nonsense = await put({ id: recordId, action: "move", to: "Cancelled" });
+  ok("A STATUS THE TYPE DOES NOT DECLARE IS REFUSED SEPARATELY",
+    nonsense.body?.error === "status", JSON.stringify(nonsense.body));
+
+  // ---- default deny ---------------------------------------------------------
+  // HOLDS THE SETTINGS SECTION AND NO ENGINE RIGHT AT ALL, which is the shape
+  // that isolates the engine's own guard: the context builds, the type is found,
+  // and the refusal is `engine.transmittal.view` rather than a section the
+  // reader happens not to hold. What comes back carries no trace of the type —
+  // not a row, not a count, not a column.
+  const stranger = await enginePersonWith(["administration.settings.view"], "noengine");
+  await signIn(stranger.id);
+  const refusal = await shot("engine.transmittal.forbidden", await get());
+  ok("NO ENGINE RIGHT MEANS NO ROWS AND NO COUNT",
+    refusal.status === 403 && refusal.body?.records === undefined
+    && refusal.body?.type === undefined, JSON.stringify(refusal.body));
+  ok("...refused by the type's own key",
+    refusal.body?.key === "engine.transmittal.view", String(refusal.body?.key));
+
+  // ---- delete is its own right ---------------------------------------------
+  // A READER IS NOT A DELETER, and the four verbs are separate keys precisely so
+  // that holding one says nothing about the others.
+  const reader = await enginePersonWith(
+    ["administration.settings.view", "engine.transmittal.view"], "engreader");
+  await signIn(reader.id);
+  const readerSees = await get();
+  ok("A GRANTED ENGINE KEY OPENS EXACTLY ITS OWN TYPE",
+    readerSees.status === 200 && readerSees.body?.records?.length === 1,
+    JSON.stringify(readerSees.body).slice(0, 160));
+  ok("...and offers no write it cannot do",
+    readerSees.body?.canCreate === false && readerSees.body?.canEdit === false
+    && readerSees.body?.canDelete === false);
+  const refusedDelete = await del({ id: recordId });
+  ok("DELETE IS REFUSED WITHOUT THE DELETE KEY",
+    refusedDelete.status === 403 && refusedDelete.body?.key === "engine.transmittal.delete",
+    JSON.stringify(refusedDelete.body));
+
+  await signIn(owner.id);
+  const removed = await del({ id: recordId });
+  ok("...and works for somebody who holds it", removed.body?.ok === true,
+    JSON.stringify(removed.body));
+  const afterwards = await get();
+  ok("...leaving the list empty again", afterwards.body?.records?.length === 0,
+    String(afterwards.body?.records?.length));
+}
+
+// ============================================================================
 console.log("== no golden is left behind");
 // A golden file that no case produces is debris. It is almost always the old
 // name of a case that was renamed, and it is worse than an empty file: it sits
