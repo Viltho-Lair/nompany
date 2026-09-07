@@ -94,18 +94,24 @@ export async function listSections(studioId: string): Promise<Section[]> {
   // nothing complaining. A tenant should not see a different product because of
   // when they signed up.
   //
-  // THE ASSUMPTION THIS INHERITS, stated on plantMissingSections below and worth
-  // repeating here because auto-planting is what makes it load-bearing: a
-  // seeded key missing from a studio can only mean the studio predates the key,
-  // never that somebody removed it. Nothing deletes sections today. If section
-  // deletion ever ships, this resurrects what was just deleted, and both need a
-  // record of which keys have been planted.
+  // THIS READ NO LONGER PLANTS. It used to reconcile against ALL_SECTION_KEYS and
+  // write what was short, and two hazards came with that:
+  //
+  //   1. A SUB-SECTION FALLS BACK TO ITS ROOT when absent, so a section that owns
+  //      a collection had to be planted BEFORE anybody used it. Planted after,
+  //      the rows already written stayed under the parent where nothing reads
+  //      them — not deleted, not corrupted, invisible. Three tenders went that
+  //      way in the sandbox.
+  //   2. It assumed a missing seeded key could only mean the studio predates the
+  //      key, never that somebody removed it. Nothing deletes sections today; the
+  //      day that ships, an auto-planting read resurrects what was just deleted.
+  //
+  // Planting is deliberate now: `scripts/migrate/plant-sections.mjs` walks every
+  // studio, in the right order, when a seeded key is added. THE COST IS THAT A
+  // BACKFILL CAN BE FORGOTTEN — administration-access shipped 03/09 and was still
+  // missing from two of three live studios on 05/09 with nothing complaining. Run
+  // the script when you add a seeded key.
   const rows = await readArr<Section>(S.sections(studioId));
-  if (!isComplete(rows)) {
-    // Already ordered and renumbered by the planter, and handed back from the
-    // same write — no third round trip to read what was just written.
-    return plantMissingSections(studioId, rows);
-  }
   return [...rows].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
 }
 

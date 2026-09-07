@@ -45,9 +45,9 @@ const FIELDS = [
   },
   { key: "minEmployees", label: "Min employees", type: "number", showWhen: NOT_COMPOUND },
   { key: "maxEmployees", label: "Max employees", type: "number", showWhen: NOT_COMPOUND, zeroLabel: "No limit", hint: "0 means no upper limit." },
-  { key: "costPerEmployee", label: "Cost per employee", type: "number", prefix: "SAR ", showWhen: NOT_COMPOUND },
+  { key: "costPerEmployee", label: "Cost per employee", type: "number", showWhen: NOT_COMPOUND },
   {
-    key: "cost", label: "Total cost", type: "computed", prefix: "SAR ",
+    key: "cost", label: "Total cost", type: "computed",
     multiply: ["costPerEmployee", "maxEmployees"],
     whenZero: "costPerEmployee",
     showWhen: NOT_COMPOUND,

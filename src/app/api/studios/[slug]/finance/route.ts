@@ -1,7 +1,7 @@
 import { route } from "@/platform/http/route";
 import {
   financeContext, listInvoices, listExpenses, profitability, billableProjects, summarise,
-  INVOICE_STATUSES, EXPENSE_CATEGORIES, PAYMENT_METHODS, DEFAULT_VAT_RATE,
+  INVOICE_STATUSES, EXPENSE_CATEGORIES, PAYMENT_METHODS,
 } from "@/modules/finance/finance";
 
 export const runtime = "nodejs";
@@ -34,7 +34,6 @@ export const GET = route(
       invoiceStatuses: INVOICE_STATUSES,
       expenseCategories: EXPENSE_CATEGORIES,
       paymentMethods: PAYMENT_METHODS,
-      defaultVatRate: DEFAULT_VAT_RATE,
     },
   };
 });

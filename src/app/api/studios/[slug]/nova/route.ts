@@ -1,7 +1,4 @@
 import { route } from "@/platform/http/route";
-// Interpolated rather than typed into the prompt, so the number Nova states and the
-// number the product applies cannot drift apart.
-import { DEFAULT_VAT_RATE } from "@/modules/finance/finance";
 import { studioHasNova } from "@/lib/plans";
 import { getNovaConfig } from "@/lib/data/novaConfig";
 import { runNova, type NeutralMessage } from "@/platform/nova/client";
@@ -122,7 +119,7 @@ function novaSystem(studioName: string, alias: string, toolCount: number, curren
     "- Four sections are declared but render nothing yet — Manufacturing & Production, Assets & Equipment, Quality & HSE, and Reports & BI. If somebody asks for one, say it is not built yet rather than sending them looking.",
     "- The main flow: a CRM & Sales ticket → an Engineering & Documents RFQ against it → a priced quotation (in CRM & Sales) → approval (routed as a task; the raiser can't approve their own) → an approved quotation opens a Project → the project is invoiced in Finance. A won tender in Tendering & Estimating opens a project the same way.",
     "- Access: default-deny; roles are built on Access and assigned on People; the owner and Admin hold everything; reviewer ≠ approver on anything signed off; nobody grants a right they don't hold.",
-    `- Finance: invoices carry ${DEFAULT_VAT_RATE}% VAT by default (a product default the studio overrides per invoice, NOT a rate for any one country) and 'Paid' is derived from payments; bills (payables) need approval by someone other than who raised them; fixed-asset depreciation is derived; the ledger is double-entry and entries are reversed, never edited.`,
+    "- Finance: invoices carry NO tax rate by default — whoever raises one sets it, because no single rate is right for every country the product is sold in — and 'Paid' is derived from payments; bills (payables) need approval by someone other than who raised them; fixed-asset depreciation is derived; the ledger is double-entry and entries are reversed, never edited.",
     "- Plans: a PACKAGE sets headcount/chat/Nova; a TIER sets which dashboard analytics show.",
     "When asked how to do something, give the short path (which department, which button), and if it's an action you can prepare, offer to do it.",
   ].join("\n");

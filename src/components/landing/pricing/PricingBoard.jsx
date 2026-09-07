@@ -7,7 +7,6 @@ import { AnimatePresence, motion } from "motion/react";
 import { fmtCurrencyAmount } from "@/lib/pricing";
 import { CONTACT } from "@/lib/site";
 import { CURRENCIES_FROM_EXCHANGE_API } from "@/shared/currencies";
-import Riyal from "@/components/Riyal";
 import { EASE_OUT_EXPO, fadeUp, stagger, VIEWPORT } from "@/components/landing/lib/motion";
 import { MagneticButton } from "../ui/MagneticButton";
 import { SectionHeading } from "../ui/SectionHeading";
@@ -114,7 +113,9 @@ export function PricingBoard({ initial = null, locale = "en" }) {
     const quoted = live?.rates ? Object.keys(live.rates) : null;
     const pool = quoted?.length
       ? CURRENCIES_FROM_EXCHANGE_API.filter((c) => quoted.includes(c.code))
-      : CURRENCIES_FROM_EXCHANGE_API.filter((c) => ["SAR", "USD", "AED", "EUR", "GBP"].includes(c.code));
+      // The offline fallback, used only when the snapshot quotes nothing.
+      // Ordered by reach rather than by home market.
+      : CURRENCIES_FROM_EXCHANGE_API.filter((c) => ["USD", "EUR", "GBP", "AED", "SAR"].includes(c.code));
     return pool;
   }, [live]);
   // Selected category index per compound card (0 = the first, the default).
@@ -186,18 +187,11 @@ export function PricingBoard({ initial = null, locale = "en" }) {
   const ctaLabel = (plan) =>
     plan.type === "free" ? tr.startFree : plan.type === "premium" ? tr.contactSales : tr.pvGetStarted;
 
-  const Sym = ({ big = false }) =>
-    currency === "SAR" ? (
-      <Riyal
-        className={
-          big
-            ? "inline-block h-[0.72em] w-[0.65em] align-[-0.02em]"
-            : "inline-block h-[0.85em] w-[0.78em] align-[-0.05em]"
-        }
-      />
-    ) : (
-      <span className={big ? "font-display text-lg font-600" : ""}>{currency}</span>
-    );
+  // EVERY CURRENCY, ONE TREATMENT. SAR used to get a drawn glyph here while the
+  // other 165 got their letters.
+  const Sym = ({ big = false }) => (
+    <span className={big ? "font-display text-lg font-600" : ""}>{currency}</span>
+  );
 
   return (
     <section className="mx-auto max-w-7xl px-6 pb-24 pt-32 lg:pt-40">

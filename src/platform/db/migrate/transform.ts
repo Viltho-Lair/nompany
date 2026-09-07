@@ -38,7 +38,10 @@ export interface Anomaly {
 type Json = Record<string, unknown>;
 
 // Structural columns on every operational table (doc §2.3).
-const STRUCTURAL = new Set(["id", "studioId", "sectionId", "createdAt", "updatedAt", "deletedAt"]);
+// `deletedAt` is gone from this set. Nothing in the product ever wrote it — it
+// was groundwork for soft-delete tombstones that were planned and never built,
+// so it classified a column no row has.
+const STRUCTURAL = new Set(["id", "studioId", "sectionId", "createdAt", "updatedAt"]);
 
 // Heuristic field-name classifiers. The JSON model is loose — there is no schema
 // to consult — so a wrong guess is backstopped by Extra (the value simply stays a

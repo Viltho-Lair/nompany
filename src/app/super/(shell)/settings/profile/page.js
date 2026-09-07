@@ -139,13 +139,13 @@ export default async function ProfileSettingsPage() {
                 </div>
                 <div>
                   <label className="ad-label" htmlFor="p-phone">Phone</label>
-                  <input id="p-phone" className="ad-input" defaultValue="+966 55 000 0000" />
+                  <input id="p-phone" className="ad-input" placeholder="+000 00 000 0000" />
                 </div>
                 <div>
                   <label className="ad-label" htmlFor="p-tz">Time zone</label>
-                  <SelectMenu id="p-tz" className="ad-select" defaultValue="Asia/Riyadh"
+                  <SelectMenu id="p-tz" className="ad-select" defaultValue="UTC"
                     aria-label="Time zone"
-                    options={["Asia/Riyadh", "Asia/Dubai", "Europe/London", "UTC"]}
+                    options={["UTC", "Europe/London", "Asia/Amman", "Asia/Dubai"]}
                   />
                 </div>
                 <div>

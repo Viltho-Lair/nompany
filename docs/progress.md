@@ -174,27 +174,50 @@ connected calendars, the /super calendar, departmental roles.
 
 ## F — WHAT WILL HURT THE CODE
 
-1. **The record engine is not built.** Everything else here is documentation; this is the
-   reason the remaining ~68 subsections are being hand-built at roughly one slice a day.
-   It is the rate limiter on the entire programme.
-2. **`scripts/migrate/departmental-roles.mjs` has never been run**, live or sandbox. Every
-   existing studio holds Manager, Team Lead, Member and Viewer alongside the new
-   departmental roles. Two role models at once.
-3. **Roles do not catch up.** `listRoles` seeds only into an EMPTY list, so a right added
-   to a starter role never reaches an existing studio — and the owner never notices,
-   because `effectivePermissions` short-circuits on `role === "owner"`.
-4. **Seeded roles never reach departments that already exist.** `seedDepartments` seeds
-   roles only for departments in `created`, so Finance, HR and Administration — seeded at
-   studio creation, before role-seeding existed — can never receive theirs by any path.
-5. **Nova tells every tenant "Money is in SAR"**, whatever currency that studio set.
-6. **`tests/access.test.mjs`'s dead-capability audit is blind.** It walks `.js` under
-   `src/lib` and `src/app/api`; every guarded write moved to `src/modules/**.ts` in Wave 3.
-   It reports that no write permission reaches a guard, and its companion assertion passes
-   **vacuously**.
-7. **The architectural greps read `src/` and not `tests/`.** A fixture naming a retired
-   section key is caught by nothing.
-8. **The media `--reclaim` script is missing from the tree** while `media.md` documents its
-   three flags. The 1.41 MB of base64 cannot be reclaimed by running anything.
+**Ten items were listed here on 07/09/2026 and all ten were removed the same day**, from the
+source where they existed and from CLAUDE.md and this file where they did not. Kept as a record
+of what was taken out and what it cost, because a removal nobody can see gets re-proposed.
+
+| # | What it was | What happened |
+|---|---|---|
+| 1 | **Auto-planting on read.** `listSections` reconciled against `ALL_SECTION_KEYS` and wrote what was short. A sub-section falls back to its ROOT when absent, so a collection-owning section planted late left its rows under the parent — invisible. Three tenders went that way in the sandbox. | **REMOVED.** `listSections` returns what is stored. `plant-sections.mjs` is the only planter. |
+| 2 | **The resurrection assumption** in the same read: a missing seeded key could only mean the studio predates it, never that somebody deleted it. | **REMOVED with 1.** Planting is deliberate, so an operator decides. |
+| 3 | **The `sweepOrphans` rewrite (M-10)** — a planned change to a live-deleting cron. | **DROPPED.** Never existed. `sweepOrphans` itself is untouched and still guarded by `SWEEP_SCOPES`/`sweepRefusal`. |
+| 4 | **Media `--reclaim`** — the script was gone while `media.md` documented its three flags, inviting somebody to rebuild a live-deletion tool from prose. | **DROPPED.** |
+| 5 | **`schemaVersion` on stored documents.** | **DROPPED.** Never existed. Would have forced a mass golden re-record. |
+| 6 | **Soft-delete tombstones.** | **DROPPED.** `deletedAt` left `migrate/transform.ts`; nothing had ever written it. |
+| 7 | **The record engine (P4b).** | **Removed from CLAUDE.md and this file as a live commitment.** Its spec and plan survive under `docs/superpowers/`; roughly 50 subsections still ride it, so this is a scheduling fact rather than a hazard. |
+| 8 | **`DEFAULT_VAT_RATE = 15`** — the Saudi rate, DUPLICATED in `finance.ts` and `technical/quotations.ts`, the second commented "KSA standard rate". Applied to every studio's invoices and quotations on a platform sold regionally then globally. | **REMOVED, both copies.** No default rate. Whoever raises a document sets one. |
+| 9 | **`BASE = "SAR"`** in `api/pricing` — one country's money as the origin every rate converted from. | **REMOVED.** The base is `catalogSettings.baseCurrency`, data rather than a constant, default `USD`. |
+| 10 | **`checkJs` repo-wide.** | **DROPPED** as a commitment. Both configs still have it off; 272 browser files convert with Wave 4. |
+
+**Also removed in the same pass, found while doing it:**
+
+- **The riyal glyph.** `Money.js`, `Currency.js` and `PricingView` drew SAR as a hand-drawn
+  mark while the other 165 currencies showed their letters. `components/Riyal.js` is deleted.
+  One currency given a courtesy no other gets reads as a statement about where a product is
+  from. **Supporting SAR was never the problem; singling it out was.**
+- **`+966 55 000 0000`** and an `Asia/Riyadh` timezone default in the /super console.
+- **SAR first** in the pricing page's pre-fetch placeholder and its offline currency list.
+- **Nova's prompt**, which told every tenant its money was SAR and described the
+  pre-restructure twelve departments.
+
+**WHAT REMAINS OPEN, and it is the real one:**
+
+- **The record engine is not built**, and roughly 50 of the 72 outstanding subsections are
+  meant to ride it. Everything above is hygiene; this is the rate limiter.
+- **`scripts/migrate/departmental-roles.mjs` has never been run**, so every existing studio
+  holds Manager, Team Lead, Member and Viewer beside the new departmental roles.
+- **Roles do not catch up.** `listRoles` seeds only into an EMPTY list.
+- **Seeded roles never reach departments that already exist**, so Finance, HR and
+  Administration can never receive theirs.
+- **A forgotten `plant-sections.mjs` run** is now the accepted cost of removing item 1. Run it
+  whenever a seeded section key is added.
+- **`tests/access.test.mjs`'s dead-capability audit is blind** and its companion assertion
+  passes vacuously.
+- **PRICES MAY NEED RE-CHECKING.** The pricing base defaults to `USD` now. If the package
+  figures in /super were typed as riyal, they read as dollars until somebody sets
+  `baseCurrency` back or re-enters them. One field, in catalog settings.
 
 ## G — DRIFT: what was said, and what then happened
 

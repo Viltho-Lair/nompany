@@ -15,7 +15,7 @@ import { crossRate, currency, fmtRate, quotedCodes, searchCurrencies } from "@/s
 
 const STORE_KEY = "super:fx:selection";
 const DEFAULT_BASE = "USD";
-const DEFAULT_TARGETS = ["EUR", "SAR", "GBP", "JPY"];
+const DEFAULT_TARGETS = ["EUR", "GBP", "JPY", "AED"];
 const TILE_COLORS = ["var(--ad-chart-1)", "var(--ad-chart-2)", "var(--ad-chart-4)", "var(--ad-chart-5)"];
 
 // The API stamps its payload in seconds; both stamps are UTC by definition.
