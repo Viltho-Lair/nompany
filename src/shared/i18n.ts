@@ -22,6 +22,7 @@ const dictionaries = {
   en: {
     nav: {
       home: "Home",
+      menu: "Menu",
       platform: "Platform",
       pricing: "Pricing",
       security: "Security",
@@ -240,6 +241,7 @@ const dictionaries = {
   ar: {
     nav: {
       home: "الرئيسية",
+      menu: "القائمة",
       platform: "المنصة",
       pricing: "الاسعار",
       security: "الامان",

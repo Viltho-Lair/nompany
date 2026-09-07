@@ -25,6 +25,19 @@ export function TopNav({ view, onNavigate, locale = "en" }) {
   // The site dictionary owns the page names, so the nav and the site footer
   // cannot call the same page two different things.
   const nav = getDict(locale).nav;
+  // ONE LIST, TWO LAYOUTS. The collapsed menu and the desktop bar both render
+  // this, so a page added here appears in both or in neither — the failure mode
+  // being avoided is a phone menu that quietly offers less than the desktop.
+  //
+  // Plain anchors, not next/link, on purpose: this nav sits inside a
+  // client-rendered shell and a hard navigation is what leaves it for the
+  // server-rendered route.
+  const PAGE_LINKS = [
+    { href: `/${locale}/platform`, label: nav.platform },
+    { href: `/${locale}/pricing`, label: nav.pricing },
+    { href: `/${locale}/security`, label: nav.security },
+    { href: `/${locale}/about`, label: nav.about },
+  ];
   // THE LANDING PAGE HAS NO `Nav`. The site header opts out of this route
   // because the page renders its own, so the language control has to be here
   // or nowhere — and it was nowhere: /en could not reach /ar at all.
@@ -44,6 +57,11 @@ export function TopNav({ view, onNavigate, locale = "en" }) {
     // signed in and then swapping it for their avatar.
     const [account, setAccount] = useState(undefined);
     const [menuOpen, setMenuOpen] = useState(false);
+    // THE WHOLE NAV COLLAPSES ON A PHONE. Six controls — two page links, two
+    // view pills, a theme switch and a language picker — plus a logo and a
+    // sign-in button do not fit across 390 pixels: they overflowed the pill and
+    // pushed the language control off the right edge of the screen entirely.
+    const [navOpen, setNavOpen] = useState(false);
     // Any click outside the menu closes it, and so does Escape.
     useEffect(() => {
         if (!menuOpen) return;
@@ -53,6 +71,14 @@ export function TopNav({ view, onNavigate, locale = "en" }) {
         window.addEventListener("keydown", onKey);
         return () => { window.removeEventListener("click", close); window.removeEventListener("keydown", onKey); };
     }, [menuOpen]);
+    useEffect(() => {
+        if (!navOpen) return;
+        const close = () => setNavOpen(false);
+        const onKey = (e) => e.key === "Escape" && setNavOpen(false);
+        window.addEventListener("click", close);
+        window.addEventListener("keydown", onKey);
+        return () => { window.removeEventListener("click", close); window.removeEventListener("keydown", onKey); };
+    }, [navOpen]);
     useEffect(() => {
         let alive = true;
         fetch("/api/identity/me", { cache: "no-store" })
@@ -71,12 +97,22 @@ export function TopNav({ view, onNavigate, locale = "en" }) {
         const next = v > 24;
         setCondensed((prev) => (prev === next ? prev : next));
     });
-    // THE NAV DOES NOT START INVISIBLE. `initial` is written into the
-    // server-rendered style attribute, so an opacity of 0 here shipped the
-    // site's entire navigation as `style="opacity:0"` — and navigation is
-    // exactly what a crawler follows to find the other pages. It drops in from
-    // above instead, which is the same entrance without the hiding.
-    return (<motion.header initial={{ y: -70 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.8, delay: 0.15, ease: EASE_OUT_EXPO }} className="fixed inset-x-0 top-0 z-50 flex justify-center px-4 pt-4">
+    // THE NAV RENDERS WHERE IT BELONGS, and this took two goes to get right.
+    //
+    // It began as `initial={{ y: -70, opacity: 0 }}`, which shipped the site's
+    // entire navigation as `style="opacity:0"`. Dropping the opacity left
+    // `y: -70` — and that is not better, it is worse in a quieter way: the nav
+    // was then rendered seventy pixels ABOVE the viewport, so anything not
+    // running the animation had no navigation at all rather than invisible
+    // navigation. Measured in a browser with the animation frame frozen, the
+    // header sat at top: -70 with nothing on screen.
+    //
+    // `initial={false}` renders the settled state and animates nothing. A nav
+    // sliding down is a flourish; being able to reach the other pages is not,
+    // and the first is not worth risking the second. It is also the only state
+    // that matches the rule the rest of this surface follows — what the server
+    // renders is what the page is.
+    return (<motion.header initial={false} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.8, delay: 0.15, ease: EASE_OUT_EXPO }} className="fixed inset-x-0 top-0 z-50 flex justify-center px-4 pt-4">
       <motion.nav animate={{
             backgroundColor: condensed
                 ? "color-mix(in oklab, var(--color-ink-soft) 82%, transparent)"
@@ -98,11 +134,49 @@ export function TopNav({ view, onNavigate, locale = "en" }) {
             They are plain anchors rather than next/link on purpose: this nav
             sits on the landing page, and a hard navigation is what leaves the
             client-rendered shell for the server-rendered route. */}
-        <div className="ml-auto flex items-center gap-1 rounded-full bg-ink/40 p-1">
-          {[
-            { href: `/${locale}/platform`, label: nav.platform },
-            { href: `/${locale}/pricing`, label: nav.pricing },
-          ].map((l) => (
+        {/* THE COLLAPSED MENU, next to the logo. Below `md` this is the whole
+            navigation; above it, the bar below is. Both render from PAGE_LINKS
+            and the same view list, so the two layouts cannot drift into
+            offering different destinations. */}
+        <div className="relative shrink-0 md:hidden" onClick={(e) => e.stopPropagation()}>
+          <button
+            type="button"
+            onClick={() => setNavOpen((o) => !o)}
+            aria-haspopup="menu"
+            aria-expanded={navOpen}
+            aria-label={nav.menu}
+            className="grid h-9 w-9 place-items-center rounded-full border border-line text-fg-muted transition-colors hover:text-fg"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+            </svg>
+          </button>
+          {navOpen && (
+            <div role="menu" className="surface absolute start-0 z-50 mt-3 w-56 overflow-hidden rounded-2xl py-2">
+              {PAGE_LINKS.map((l) => (
+                <a key={l.href} role="menuitem" href={l.href}
+                   className="block px-4 py-2.5 text-sm text-fg-muted transition-colors hover:bg-line/40 hover:text-fg">
+                  {l.label}
+                </a>
+              ))}
+              {onNavigate ? viewsFor(tr).map((v) => (
+                <button key={v.id} role="menuitem" type="button"
+                  onClick={() => { setNavOpen(false); onNavigate(v.id); }}
+                  aria-current={v.id === view ? "page" : undefined}
+                  className={`block w-full px-4 py-2.5 text-start text-sm transition-colors hover:bg-line/40 ${v.id === view ? "text-fg" : "text-fg-muted hover:text-fg"}`}>
+                  {v.label}
+                </button>
+              )) : null}
+              <div className="mt-1 flex items-center justify-between gap-2 border-t border-line px-4 pt-3 text-fg-muted">
+                <ThemeToggle labels={{ theme: tr.theme, light: tr.themeLight, dark: tr.themeDark, system: tr.themeSystem }} />
+                <LangMenu current={locale} options={langOptions} label={tr.language} align="end" />
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="ml-auto hidden items-center gap-1 rounded-full bg-ink/40 p-1 md:flex">
+          {PAGE_LINKS.map((l) => (
             <a
               key={l.href}
               href={l.href}
@@ -122,13 +196,13 @@ export function TopNav({ view, onNavigate, locale = "en" }) {
 
         {/* Light / dark / system. Writes the same `theme` cookie the account
             hub and studio read, so the choice follows the visitor across every
-            surface. Inherits `currentColor`, so it needs no landing-specific
-            styling of its own. */}
-        <div className="shrink-0 text-fg-muted">
+            surface. Both of these move into the collapsed menu below `md` —
+            the language control was the one being pushed off the screen. */}
+        <div className="hidden shrink-0 text-fg-muted md:block">
           <ThemeToggle labels={{ theme: tr.theme, light: tr.themeLight, dark: tr.themeDark, system: tr.themeSystem }} />
         </div>
 
-        <div className="shrink-0 text-fg-muted">
+        <div className="hidden shrink-0 text-fg-muted md:block">
           <LangMenu current={locale} options={langOptions} label={tr.language} align="end" />
         </div>
 
