@@ -9,6 +9,7 @@ import { AmbientBackground } from "@/components/landing/AmbientBackground";
 import { HeroV1Assembly } from "@/components/landing/hero/variants/HeroV1Assembly";
 import { HeroV2Scroll } from "@/components/landing/hero/variants/HeroV2Scroll";
 import { HeroV3Continuity } from "@/components/landing/hero/variants/HeroV3Continuity";
+import { DepartmentMarquee } from "@/components/landing/hero/DepartmentMarquee";
 
 /* ==================================================================
    THE HERO PREVIEW SHELL — three variants, one URL each, judged side
@@ -80,6 +81,14 @@ export default function HeroPreview({
           {variant === "v1" && <HeroV1Assembly locale={locale} />}
           {variant === "v2" && <HeroV2Scroll locale={locale} />}
           {variant === "v3" && <HeroV3Continuity locale={locale} />}
+
+          {/* Beneath whichever wins. The featured-companies trust band belongs
+              here too and is NOT built: it needs the consent toggle, the /super
+              curation flag and the public endpoint (sequencing step 5), and the
+              spec requires it to degrade to nothing rather than to placeholder
+              logos. A logo wall of companies that are not customers says less
+              than no logo wall. */}
+          <DepartmentMarquee locale={locale} />
         </PointerProvider>
       </LandingLocaleProvider>
     </div>

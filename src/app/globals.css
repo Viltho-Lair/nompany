@@ -677,6 +677,27 @@ html.studio-chrome ::-webkit-scrollbar-corner {
   }
 }
 
+/* THE DEPARTMENT MARQUEE. Two copies of the list translate by exactly -50%,
+   which lands the second copy where the first began — that is what makes the
+   loop seamless rather than snapping. Transform only, so it runs on the
+   compositor and repaints nothing.
+
+   RTL IS NOT A SEPARATE ANIMATION. The track's own direction reverses with the
+   document, so the same negative translation carries names the other way. */
+@keyframes marquee-scroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+.marquee-track {
+  animation: marquee-scroll 38s linear infinite;
+}
+[dir="rtl"] .marquee-track {
+  animation-direction: reverse;
+}
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track { animation: none; }
+}
+
 /* Nova's speech bubble arriving (src/components/studio2/NovaBubble.jsx).
    IT RISES, IT DOES NOT SLIDE IN FROM A SIDE. A horizontal entrance would need
    a second keyframe for Arabic — the bubble sits on the other side there — and
