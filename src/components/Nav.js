@@ -16,6 +16,13 @@ import { CONTACT } from "@/lib/site";
 // Footer.js — keep the two in step.
 export const BARE_ROUTES = ["", "/login", "/signup", "/forgot", "/account", "/questionnaire"];
 
+// PREFIXES, because a route family cannot be listed exhaustively. BARE_ROUTES is
+// matched exactly, which is right for a fixed set of pages; the hero preview is
+// one route with a variant segment (/preview/hero/v1, /v2, /v3) and listing each
+// one would go stale the moment a fourth variant is tried. Shared with Footer.js
+// exactly as BARE_ROUTES is — keep the two in step.
+export const BARE_PREFIXES = ["/preview"];
+
 // Minimal editorial header (inspired by the reference site): a slim bar with the
 // wordmark, theme + language controls and a Menu button that opens a full-screen
 // overlay carrying the navigation. No hovering/glowing logo.
@@ -101,7 +108,9 @@ export default function Nav({ locale, dict }) {
   //   /         — the landing page, which has its own TopNav
   //   /login, /signup — full-screen auth, in the landing design
   //   /account  — the full-screen account hub
-  if (BARE_ROUTES.some((r) => pathname === `/${locale}${r}`)) return null;
+  const bare = BARE_ROUTES.some((r) => pathname === `/${locale}${r}`)
+    || BARE_PREFIXES.some((r) => pathname.startsWith(`/${locale}${r}`));
+  if (bare) return null;
 
   return (
     <>

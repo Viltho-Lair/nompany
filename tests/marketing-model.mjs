@@ -220,5 +220,59 @@ for (const locale of ["en", "ar"]) {
 ok("the Arabic description carries no diacritics",
   !DIACRITICS.test(CO.companyCopy("ar").description));
 
+console.log("\n== the hero variants, at the source");
+
+const { readFileSync, readdirSync, existsSync } = await import("node:fs");
+
+const VARIANT_DIR = "src/components/landing/hero/variants";
+ok("the variants have a home", existsSync(VARIANT_DIR));
+
+const variantFiles = existsSync(VARIANT_DIR)
+  ? readdirSync(VARIANT_DIR).filter((f) => /\.(tsx|jsx?)$/.test(f))
+  : [];
+ok("...and at least one variant is in it", variantFiles.length > 0);
+
+for (const file of variantFiles) {
+  const src = readFileSync(`${VARIANT_DIR}/${file}`, "utf8");
+
+  // NOTHING IN A HERO STARTS INVISIBLE.
+  //
+  // `motion/react` writes a component's `initial` into the SERVER-RENDERED
+  // style attribute, so `initial={{ opacity: 0 }}` is literally
+  // `style="opacity:0"` in the HTML a crawler that does not run JavaScript
+  // reads — and Google renders JS while ChatGPT, Claude and Perplexity's
+  // crawlers do not. The spec's rule is that the settled state is what the
+  // server renders; this is that rule as a grep. A decorative element that
+  // wants an entrance animates transform or scale, which is visible at rest.
+  ok(`${file} parks nothing at opacity 0`,
+    !/initial=\{\{[^}]*opacity:\s*0/.test(src), file);
+
+  // THE H1 IS A SINGLE TEXT NODE. AnimatedHeadline splits a headline into
+  // per-character aria-hidden spans; a tag-stripping extractor reads the live
+  // page's H1 as `T h e O p e r a t i n g S y s t e m`.
+  ok(`${file} does not split its headline`, !/AnimatedHeadline/.test(src), file);
+
+  // EVERY CLAIM ON THE PAGE IS REGISTERED. A variant reaches its figures
+  // through claimText or through the copy module that does; a number typed
+  // straight into JSX is how 99.99% uptime got onto the live page.
+  const digitsInJsx = src.match(/>\s*[0-9][0-9,.]*\+?\s*</g) || [];
+  ok(`${file} states no unregistered figure`, digitsInJsx.length === 0,
+    digitsInJsx.join(" "));
+}
+
+// THE PREVIEW IS NOT A PUBLIC PAGE. It ships to production because that is
+// where it gets looked at, and a preview surface in the index is the thin-URL
+// problem this rebuild exists to fix.
+const routeFile = "src/app/[locale]/preview/hero/[variant]/page.js";
+ok("the preview route exists", existsSync(routeFile));
+if (existsSync(routeFile)) {
+  const route = readFileSync(routeFile, "utf8");
+  ok("...and is noindex", /index:\s*false/.test(route) && /follow:\s*false/.test(route));
+}
+const sitemap = readFileSync("src/app/sitemap.js", "utf8");
+ok("...and is absent from the sitemap", !/preview/.test(sitemap));
+const robots = readFileSync("src/app/robots.js", "utf8");
+ok("...and disallowed in robots.txt", /\/\*\/preview/.test(robots));
+
 console.log(fails ? `\n${fails} FAILED\n` : "\nmarketing model: all passed\n");
 process.exit(fails ? 1 : 0);
