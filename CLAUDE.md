@@ -212,16 +212,34 @@ pull request, and four things `npm test` does not: `npm run lint:budget`,
   `NOMPANY_RECORD_GOLDENS` is never set in CI.
 - **Hop counts are part of the contract.** A route regressing from 2 database round
   trips to 8 fails the build.
-- **The bundle budget pins the regression, not the size.** Two gates, and the
-  first is the one that matters: the **largest chunk is 158 KB gz against a 250 KB
-  ceiling**, because that is what every route pays. Total client JS is **1673 KB gz
-  against 1680 KB** (measured 06/09/2026, raised from 1674 with the expediting
-  screen at ONE kilobyte of headroom, having deliberately declined to raise it at
-  two — a ceiling with two kilobytes under it still discriminates, one with a
-  single kilobyte trips on everything, which is how this number drifted before),
-  which catches sprawl rather than
-  splitting. `scripts/bundle-budget.mjs` holds both numbers and explains why a
-  whole-directory total would penalise code-splitting.
+- **The bundle budget pins the regression, not the size.** Three gates now, and the
+  first is the one that matters: **per-route FIRST LOAD, against a recorded baseline
+  plus an 8 KB margin** (`scripts/bundle-baselines.json`, rewritten with
+  `node scripts/bundle-budget.mjs --record`; an unlisted route is held to 300 KB, so a
+  new route is gated from its first build). Then the largest chunk (158 KB gz against
+  250) and total client JS (**1681 against 1684**, measured 07/09/2026), which catch
+  one enormous file and sprawl respectively. `scripts/bundle-budget.mjs` holds the
+  numbers and explains why a whole-directory total would penalise code-splitting.
+
+  **THIS BULLET SAID THE LARGEST CHUNK IS "WHAT EVERY ROUTE PAYS", AND IT IS NOT —
+  it is six times under.** Next 16 publishes the real figure
+  (`.next/diagnostics/route-bundle-stats.json`, the First Load JS its build table
+  prints); on the same build the gate read 158 KB and green while
+  **`/studio/[[...segments]]` — every tenant page — was 951 KB gz across 40 chunks**.
+  The proxy was honest when nothing better existed and became a wrong number with a
+  reassuring history the day something did.
+
+  **AND THE STUDIO'S `nextDynamic()` SPLIT DEFERS NOTHING.** Every client module on
+  that route carries the identical 32-chunk list in the client reference manifest, so
+  referencing one screen loads all of them: TipTap/ProseMirror (158 KB, behind two
+  dynamic boundaries), date-fns with the MUI pickers (98 KB) and the Gantt shell are
+  all first load. `page.js` is a **Server Component**, where `next/dynamic` defers the
+  SERVER render and creates no client lazy boundary; Turbopack then groups the route's
+  client references into one chunk group. The 307 → 197 → 158 KB wins were real changes
+  to the file layout and changed nothing about what is downloaded. Moving work to
+  another chunk does not lower the route number; a real client-side lazy boundary does,
+  which is the whole reason the gate is per-route now. **951 KB is recorded as a
+  measurement, not an approval.**
 
   **MEASURE THE BRANCH YOU ARE ON, BOTH ENDS, before attributing a delta to
   anything.** This bullet used to carry a per-commit changelog of every kilobyte,

@@ -27,18 +27,78 @@
 // So the FAILING condition is the largest single chunk, which is the closest
 // proxy available here for "what every page pays". The total is still reported,
 // and still has a ceiling, but a generous one: it catches sprawl, not splitting.
+//
+// AND THAT PROXY IS NOW WRONG, WHICH IS WHY THIS FILE GREW A THIRD GATE.
+//
+// "The closest proxy AVAILABLE HERE" was true when it was written: nothing in
+// the build told us what a single route actually downloads, so the biggest file
+// on disk stood in for it. Next 16 publishes the real figure —
+// `.next/diagnostics/route-bundle-stats.json`, the same First Load JS its build
+// table prints — and once a better measurement exists, a proxy that disagrees
+// with it is not a proxy, it is a wrong number with a reassuring history.
+//
+// They disagree by a factor of six. Measured 07/09/2026 on the same build:
+//
+//   largest chunk .................. 158 KB gz  ("within budget", ceiling 250)
+//   /studio/[[...segments]] ........ 951 KB gz  first load, 40 chunks
+//
+// Every tenant page is that one route — the proxy rewrites /<slug>/… onto it —
+// so the number this file has been reporting as the one that matters was six
+// times under the number a tenant waits for, and reported it as green.
+//
+// WHY THE GAP IS THERE, because it is not a rounding error. The studio's
+// twenty-odd department screens are `nextDynamic()`, and the file comment on
+// that page says each is "fetched when the switch actually reaches it". The
+// client reference manifest disagrees: every client module on the route carries
+// the IDENTICAL 32-chunk list, so referencing any one screen loads all of them.
+// TipTap/ProseMirror (158 KB, reached only through two dynamic boundaries),
+// date-fns with the MUI pickers (98 KB) and the Gantt shell are all in the
+// route's first load. `page.js` is a Server Component, where `next/dynamic`
+// defers the SERVER render and creates no client lazy boundary; Turbopack then
+// groups the route's client references into one chunk group. The split changed
+// the file layout — 307 KB to 197 to 158, all of it real — and changed nothing
+// about what is downloaded.
+//
+// So the largest-chunk gate below is KEPT and RELABELLED. It still catches one
+// enormous file, which is worth catching. It is not what every page pays, and
+// this file will not say that again.
+//
+// WHAT THE ROUTE GATE REWARDS, and it is the point of adding it: Next's
+// firstLoadChunkPaths is the union of each segment's entry chunks plus the
+// shared root. A chunk fetched later by a real client-side lazy boundary is NOT
+// in it. So the day the studio's screens are genuinely deferred, this number
+// falls on its own — the gate measures the fix rather than needing to be told
+// about it.
+//
+// PER ROUTE, AGAINST A RECORDED BASELINE, not one ceiling for all of them. A
+// single ceiling would be set by the studio at 951 and hand every other route
+// five hundred kilobytes of silent slack, which is the failure this file has
+// already had twice: headroom left behind after a win is where the next
+// regression hides. Baselines live in scripts/bundle-baselines.json and are
+// rewritten with `node scripts/bundle-budget.mjs --record`; a route not listed
+// is held to DEFAULT_ROUTE_GZIP_KB, so a new route is gated from its first
+// build without anybody remembering to add it.
+//
+// THE BASELINES ARE A MEASUREMENT, NOT AN APPROVAL. 951 KB is recorded because
+// that is what the build does today, and recording it is the only way the next
+// commit can be told it made things worse. It is not a number anybody signed
+// off. The reason for a raise goes in the commit message that re-records it —
+// which is also why these numbers are in a data file rather than in constants
+// with prose beside them: this file's own history is three separate cases of a
+// stated number drifting from the measured one, and prose cannot drift from a
+// number that is not written next to it.
 
-import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { gzipSync } from "node:zlib";
 
-// THE ONE THAT MATTERS. Every route pays the shared chunk, so this is the number
-// that tracks what a user actually waits for.
+// ONE ENORMOUS FILE IS STILL WORTH CATCHING — but this is NOT "what every route
+// pays", which is what it claimed to be until 07/09/2026. See the header.
 //
 // 197 KB, down from 307 — the studio's twenty-odd department screens used to be
-// static imports on one catch-all page, so a tenant who only ever opened Sales
-// downloaded Projects, Inventory, Operations, HR, Finance, Tasks and both
-// viewers with it. They are `nextDynamic()` now and each has its own chunk.
+// static imports on one catch-all page. They are `nextDynamic()` now and each
+// has its own chunk. That halved the biggest FILE and, as the header records,
+// moved nothing across the wire, because all of those chunks load together.
 //
 // The ceiling is 250 rather than 400: the number to hold is the one just above
 // where we actually are, or the next regression hides in the headroom. Lower it
@@ -228,6 +288,38 @@ const MAX_CHUNK_GZIP_KB = 250;
 // it. Three kilobytes of headroom, for the reason the note above gives.
 const MAX_TOTAL_GZIP_KB = 1688;
 
+// THE MARGIN, and why it is the same for a 178 KB route and a 951 KB one.
+//
+// Eight kilobytes is the margin this file has settled on by trial: it declined
+// a raise at two, took one at one, and wrote down that a ceiling with a single
+// kilobyte under it trips on everything while a ceiling with a few still
+// discriminates. A route legitimately gains a couple of kilobytes when a screen
+// grows a panel; it does not gain eight without somebody having added
+// something. Proportional margins were considered and refused — eight per cent
+// of the studio is seventy-six kilobytes, which is a whole TipTap, and the
+// biggest route is exactly the one that should be allowed the least drift.
+const ROUTE_MARGIN_KB = 8;
+
+// A route nobody has recorded is held to this. Every route in the build today
+// is baselined, so this only ever gates a NEW one — which is the point: a route
+// added next month is measured from its first build rather than from whenever
+// somebody remembers to record it. 300 sits just above the heaviest
+// unexceptional route measured (the questionnaire, 292), so a new page built
+// out of the same shared floor passes and a new page that drags a library in
+// does not.
+const DEFAULT_ROUTE_GZIP_KB = 300;
+
+// Report — do not fail — when a route has fallen this far under its baseline.
+// A win nobody re-records becomes slack, and slack is where the next regression
+// hides; this is the reminder to ratchet, and it is deliberately not automatic,
+// because a number that rewrites itself is a number nobody reads in a diff.
+const ROUTE_RATCHET_KB = 15;
+
+const BASELINES_FILE = "scripts/bundle-baselines.json";
+const ROUTE_STATS_FILE = ".next/diagnostics/route-bundle-stats.json";
+
+const RECORD = process.argv.includes("--record");
+
 const DIR = ".next/static";
 if (!existsSync(DIR)) {
   console.error(`No ${DIR} — run \`next build\` first.`);
@@ -244,9 +336,18 @@ function walk(dir) {
   return out;
 }
 
+const gzipCache = new Map();
+function gzipBytes(path) {
+  const hit = gzipCache.get(path);
+  if (hit !== undefined) return hit;
+  const size = gzipSync(readFileSync(path), { level: 6 }).length;
+  gzipCache.set(path, size);
+  return size;
+}
+
 const files = walk(DIR).map((path) => {
   const raw = readFileSync(path);
-  return { path, raw: raw.length, gzip: gzipSync(raw, { level: 6 }).length };
+  return { path, raw: raw.length, gzip: gzipBytes(path) };
 }).sort((a, b) => b.gzip - a.gzip);
 
 // A GATE THAT MEASURED NOTHING MUST NOT REPORT "within budget". `.next/static`
@@ -266,19 +367,103 @@ if (files.length === 0) {
   process.exit(1);
 }
 
+// SAME RULE, ONE LAYER OUT: no stats file means no route gate, and a run that
+// silently skips its primary gate is the "0 chunks, exit 0" failure wearing a
+// different hat. Next writes this file under Turbopack only (build/index.js
+// gates it on the bundler), so `next build --webpack` produces a tree this
+// script must refuse rather than half-check.
+if (!existsSync(ROUTE_STATS_FILE)) {
+  console.error(`No ${ROUTE_STATS_FILE} — the per-route first-load gate cannot run.`);
+  console.error("Next writes it under Turbopack only. Build with `next build` (the default);");
+  console.error("`--webpack` does not produce it, and this gate is not optional.");
+  process.exit(1);
+}
+
+const stats = JSON.parse(readFileSync(ROUTE_STATS_FILE, "utf8"));
+const missing = [];
+const routes = stats.map((row) => {
+  const chunks = [...new Set(row.firstLoadChunkPaths)];
+  let bytes = 0;
+  for (const path of chunks) {
+    // A chunk the stats name and the disk does not have would make a route look
+    // LIGHTER, which is the one direction a size gate must never be wrong in.
+    // Collected and refused below rather than skipped.
+    if (!existsSync(path)) { missing.push(path); continue; }
+    bytes += gzipBytes(path);
+  }
+  return { route: row.route, kb: bytes / 1024, chunks: chunks.length };
+}).sort((a, b) => b.kb - a.kb);
+
+if (missing.length) {
+  console.error(`${ROUTE_STATS_FILE} names ${missing.length} chunk(s) that are not on disk:`);
+  for (const path of missing.slice(0, 5)) console.error(`  ${path}`);
+  console.error("The stats and the build disagree — rebuild rather than trusting either.");
+  process.exit(1);
+}
+
+if (RECORD) {
+  const recorded = {};
+  for (const r of [...routes].sort((a, b) => a.route.localeCompare(b.route))) {
+    recorded[r.route] = Math.round(r.kb);
+  }
+  writeFileSync(BASELINES_FILE, `${JSON.stringify(recorded, null, 2)}\n`);
+  console.log(`recorded ${routes.length} route baselines to ${BASELINES_FILE}`);
+  console.log("Say WHY in the commit message — that is where the reason for a raise lives now.");
+  process.exit(0);
+}
+
+if (!existsSync(BASELINES_FILE)) {
+  console.error(`No ${BASELINES_FILE} — run \`node scripts/bundle-budget.mjs --record\` and commit it.`);
+  process.exit(1);
+}
+const baselines = JSON.parse(readFileSync(BASELINES_FILE, "utf8"));
+
 const totalKb = files.reduce((sum, f) => sum + f.gzip, 0) / 1024;
 const biggest = files[0];
 const biggestKb = (biggest?.gzip || 0) / 1024;
 
+const overBudget = [];
+const ratchet = [];
+for (const r of routes) {
+  const baseline = baselines[r.route];
+  const ceiling = baseline === undefined ? DEFAULT_ROUTE_GZIP_KB : baseline + ROUTE_MARGIN_KB;
+  if (r.kb > ceiling) overBudget.push({ ...r, ceiling, baseline });
+  else if (baseline !== undefined && r.kb < baseline - ROUTE_RATCHET_KB) ratchet.push({ ...r, baseline });
+}
+const stale = Object.keys(baselines).filter((route) => !routes.some((r) => r.route === route));
+
+console.log(`first load: ${routes.length} routes, heaviest first`);
+for (const r of routes.slice(0, 8)) {
+  const baseline = baselines[r.route];
+  const against = baseline === undefined ? `no baseline, default ${DEFAULT_ROUTE_GZIP_KB}` : `baseline ${baseline}`;
+  console.log(`  ${r.kb.toFixed(0).padStart(5)} KB gz / ${String(r.chunks).padStart(2)} chunks  (${against})  ${r.route}`);
+}
 console.log(`client JS: ${totalKb.toFixed(0)} KB gzip across ${files.length} chunks`);
 console.log(`largest:   ${biggestKb.toFixed(0)} KB gzip  (ceiling ${MAX_CHUNK_GZIP_KB} KB) ${biggest?.path}`);
+// Kept alongside the route table rather than replaced by it: when a route trips,
+// this is the fastest way to see WHICH file arrived, and a new vendor chunk is
+// recognisable here by its raw-to-gzip ratio long before anybody unpacks it.
 for (const f of files.slice(0, 5)) {
   console.log(`  ${(f.gzip / 1024).toFixed(0).padStart(5)} KB gz / ${(f.raw / 1024).toFixed(0).padStart(6)} KB raw  ${f.path}`);
 }
 
+if (ratchet.length) {
+  console.log("\nUnder baseline — re-record to keep the ratchet tight:");
+  for (const r of ratchet) console.log(`  ${r.route}: ${r.kb.toFixed(0)} KB against a recorded ${r.baseline}`);
+}
+if (stale.length) {
+  console.log(`\n${stale.length} baseline(s) for routes this build does not have: ${stale.slice(0, 5).join(", ")}`);
+}
+
 const failures = [];
+for (const r of overBudget) {
+  const how = r.baseline === undefined
+    ? `no baseline; a new route is held to ${DEFAULT_ROUTE_GZIP_KB} KB`
+    : `recorded ${r.baseline} KB + ${ROUTE_MARGIN_KB} KB margin`;
+  failures.push(`${r.route}: ${r.kb.toFixed(0)} KB first load > ${r.ceiling} KB (${how})`);
+}
 if (biggestKb > MAX_CHUNK_GZIP_KB) {
-  failures.push(`largest chunk ${biggestKb.toFixed(0)} KB > ${MAX_CHUNK_GZIP_KB} KB — every route pays this`);
+  failures.push(`largest chunk ${biggestKb.toFixed(0)} KB > ${MAX_CHUNK_GZIP_KB} KB — one file, not one page`);
 }
 if (totalKb > MAX_TOTAL_GZIP_KB) {
   failures.push(`total ${totalKb.toFixed(0)} KB > ${MAX_TOTAL_GZIP_KB} KB — check whether this is one page or sprawl`);
@@ -286,9 +471,10 @@ if (totalKb > MAX_TOTAL_GZIP_KB) {
 
 if (failures.length) {
   console.error(`\nBUNDLE BUDGET EXCEEDED:\n  ${failures.join("\n  ")}`);
-  console.error("\nBefore raising a ceiling: is this one chunk every page loads, or a");
-  console.error("route-specific split that no other page pays for? They are not the same");
-  console.error("problem, and only the first is a regression.");
+  console.error("\nA route over its baseline is the one to act on: that is what somebody");
+  console.error("opening that page waits for. Deferring work behind a real client-side lazy");
+  console.error("boundary takes it OUT of this number; moving it to another chunk does not.");
+  console.error("If the growth is deliberate, re-record with --record and say why in the commit.");
   process.exit(1);
 }
 console.log("\nwithin budget");
