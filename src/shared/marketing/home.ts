@@ -26,6 +26,7 @@ type HomeStrings = {
   whatEyebrow: string;
   whatTitle: string;
   whatBody: string;
+  customersTitle: string;
   departmentsTitle: string;
   departmentsLead: string;
   departmentsCta: string;
@@ -41,6 +42,7 @@ const en: HomeStrings = {
   whatTitle: "One system, not nine that talk to each other",
   whatBody:
     "Most companies run a different tool for each department and spend their week reconciling them. nompany is one system with one data model underneath it: a quotation becomes a contract, the contract opens a project, the project raises requisitions and bills, and the same record carries through all of it. Nothing is re-typed, because there is nothing to re-type it into.",
+  customersTitle: "Companies running on nompany",
   departmentsTitle: "Eleven departments, built and running",
   departmentsLead:
     "Not a roadmap. Every one of these opens onto a screen you can use today, and this list is read from the software itself rather than written here — so it cannot promise a department that does not exist.",
@@ -62,6 +64,7 @@ const ar: HomeStrings = {
   whatTitle: "نظام واحد، لا تسعة أنظمة تتحدث إلى بعضها",
   whatBody:
     "أغلب الشركات تشغل أداة مختلفة لكل قسم، ثم تقضي أسبوعها في المطابقة بينها. نومباني نظام واحد بنموذج بيانات واحد تحته: عرض السعر يصبح عقدا، والعقد يفتح مشروعا، والمشروع يصدر طلبات شراء وفواتير، والسجل نفسه يمر بذلك كله. لا شيء يعاد إدخاله، لأنه لا يوجد مكان آخر يعاد إدخاله فيه.",
+  customersTitle: "شركات تعمل على نومباني",
   departmentsTitle: "أحد عشر قسما، مبنية وتعمل",
   departmentsLead:
     "ليست خطة مستقبلية. كل قسم منها يفتح على شاشة تستطيع استخدامها اليوم، وهذه القائمة تقرأ من البرنامج نفسه لا تكتب هنا — فلا يمكنها أن تعد بقسم غير موجود.",

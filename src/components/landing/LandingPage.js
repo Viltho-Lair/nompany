@@ -42,7 +42,7 @@ import { OverviewView } from "@/components/landing/views/OverviewView";
    this change and belongs in a commit that says so.)
 ================================================================== */
 
-export default function LandingPage({ locale = "en" }) {
+export default function LandingPage({ locale = "en", customers = null }) {
   return (
     // DIRECTION FOLLOWS THE LOCALE. This was pinned to `ltr`, which overrode the
     // `dir` the locale layout sets above it — so /ar drew the whole marketing
@@ -58,7 +58,7 @@ export default function LandingPage({ locale = "en" }) {
         {/* NO TOP PADDING, unlike `MarketingShell`: the nav is fixed over the
             hero here by design, where every other public page starts below it.
             That one difference is why this page does not reuse that shell. */}
-        <OverviewView />
+        <OverviewView customers={customers} />
 
         <SiteFooter locale={locale} />
       </PointerProvider>

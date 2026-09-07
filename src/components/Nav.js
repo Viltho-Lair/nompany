@@ -11,18 +11,19 @@ import AccountMenu from "@/components/AccountMenu";
 import Skeleton from "@/components/Skeleton";
 import { track, pageLabelFromPath } from "@/lib/track";
 import { CONTACT } from "@/lib/site";
+import { bringsOwnChrome } from "@/shared/marketing/routes";
 
-// Locale-relative routes that render their own full-screen chrome. Shared with
-// Footer.js — keep the two in step.
-export const BARE_ROUTES = [
-  "", "/login", "/signup", "/forgot", "/account", "/questionnaire",
-  // THE PUBLIC MARKETING PAGES BRING THEIR OWN CHROME. They used to inherit
-  // this editorial header and the account footer, so following a link from the
-  // home page landed on what looked like a different website — different
-  // palette, different nav, different footer. One shell renders all of them
-  // now (components/landing/chrome/MarketingShell) and these stand down.
-  "/platform", "/pricing", "/security", "/about",
-];
+// Locale-relative routes that render their own full-screen chrome, so this
+// header and Footer.js stand down on them.
+//
+// THE MARKETING HALF IS NOT LISTED HERE. It used to be — and the root layout
+// kept a third copy of the same fact for the theme — so a page added to one
+// list and not the others rendered with two navs or with light tokens on a
+// dark shell, silently, in a passing build. `shared/marketing/routes` owns
+// that question now and the suite holds it against the pages themselves.
+// What is left below is the account surface's own, which no other file asks
+// about.
+export const BARE_ROUTES = ["", "/login", "/signup", "/forgot", "/account", "/questionnaire"];
 
 // Minimal editorial header (inspired by the reference site): a slim bar with the
 // wordmark, theme + language controls and a Menu button that opens a full-screen
@@ -109,7 +110,9 @@ export default function Nav({ locale, dict }) {
   //   /         — the landing page, which has its own TopNav
   //   /login, /signup — full-screen auth, in the landing design
   //   /account  — the full-screen account hub
-  if (BARE_ROUTES.some((r) => pathname === `/${locale}${r}`)) return null;
+  const rel = pathname.replace(new RegExp(`^/${locale}(?=/|$)`), "").replace(/\/$/, "");
+  const bare = BARE_ROUTES.includes(rel) || bringsOwnChrome(rel);
+  if (bare) return null;
 
   return (
     <>

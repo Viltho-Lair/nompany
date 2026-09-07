@@ -5,6 +5,7 @@ import MuiProvider from "@/components/MuiProvider";
 import { getSiteSettings } from "@/lib/data/site";
 import { organizationLd, websiteLd, SITE_URL } from "@/lib/seo";
 import { dirFor, isLocale, defaultLocale } from "@/shared/i18n";
+import { isMarketingPath } from "@/shared/marketing/routes";
 
 // nompany is a fixed product brand (not tenant-configurable), so the tab-title
 // suffix ("%s · nompany"), applicationName, authors/creator/publisher and the
@@ -99,9 +100,12 @@ export default async function RootLayout({ children }) {
   //
   // A saved `theme` cookie still wins over all of this: what is decided here is
   // only the default for somebody who has never chosen.
-  const isMarketing =
-    pathname === "/" ||
-    /^\/(en|ar)(\/(login|signup|forgot|platform|pricing|security|about))?\/?$/.test(pathname);
+  // THIS WAS A HAND-TYPED REGEX AND IT WAS ALREADY WRONG. `/contact` had
+  // shipped as a route without reaching it, so a page built on the dark shell
+  // was served the light theme's tokens — precisely the failure the paragraph
+  // above describes, in the file that describes it. `/careers` was one commit
+  // from the same. One list, asserted against the pages that render the shell.
+  const isMarketing = isMarketingPath(pathname);
   const theme = themeChoice || (isMarketing ? "dark" : "light");
   // `light` ships too, not just `dark`: MUI scopes its light variables to
   // `.light`, so without it MUI components render unstyled until its provider

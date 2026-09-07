@@ -27,6 +27,7 @@ register(new URL("./loader.mjs", import.meta.url), { data: { root } });
 const D = await import("@/shared/marketing/departments");
 const { SECTION_DEFS } = await import("@/platform/db/keys");
 const { NO_SCREEN_YET } = await import("@/platform/access/resolve");
+const { SHELL_PATHS, SHELL_PREFIXES, isMarketingPath } = await import("@/shared/marketing/routes");
 
 let fails = 0;
 const ok = (label, cond, extra = "") => {
@@ -397,9 +398,80 @@ const rootLayout = readFileSync("src/app/layout.js", "utf8");
 // is always preceded by a "/" or a quote and never by a hyphen.
 ok("...and the root layout has no preview theme branch",
   !/(?<![-\w])preview(?![-\w])/.test(rootLayout));
+// ==================================================================
+// THE ONE LIST, HELD AGAINST THE PAGES THEMSELVES.
+//
+// Three files decided independently whether a path was a marketing path — the
+// root layout for the theme, Nav and Footer for whether to stand down — and
+// two of them were already wrong about `/contact`: it rendered the dark shell
+// while the layout handed it the light theme's tokens, which is unreadable in
+// patches rather than obviously broken. Nothing failed. The authority is which
+// page renders `MarketingShell`, so that is what this reads.
+console.log("\n== the marketing route list matches the pages that render the shell");
+// A WALK RATHER THAN A GLOB, because the directory is literally named
+// `[locale]` and every glob implementation reads that as a character class —
+// it would quietly match nothing and this whole section would pass empty.
+const LOCALE_DIR = "src/app/[locale]";
+function pagesUnder(dir, rel = "") {
+  const out = [];
+  for (const e of readdirSync(dir, { withFileTypes: true })) {
+    if (e.isDirectory()) out.push(...pagesUnder(`${dir}/${e.name}`, `${rel}/${e.name}`));
+    else if (e.name === "page.js" || e.name === "page.jsx") out.push({ file: `${dir}/${e.name}`, rel });
+  }
+  return out;
+}
+const allPages = pagesUnder(LOCALE_DIR);
+ok("the locale tree was actually walked", allPages.length > 3, `${allPages.length} pages`);
+const shellPages = allPages
+  .filter((p) => readFileSync(p.file, "utf8").includes("MarketingShell"))
+  .map((p) => p.rel);
+
+const covered = (rel) =>
+  SHELL_PATHS.includes(rel) || SHELL_PREFIXES.some((p) => rel === p || rel.startsWith(`${p}/`));
+
+for (const rel of shellPages) {
+  ok(`${rel} renders the shell and is listed`, covered(rel));
+}
+// AND THE OTHER DIRECTION, which is the half that catches a deleted page: an
+// entry with nothing behind it keeps a route dark-by-default forever after the
+// page that justified it has gone.
+for (const rel of SHELL_PATHS) {
+  ok(`...and ${rel} has a page behind it`, shellPages.includes(rel));
+}
+for (const pre of SHELL_PREFIXES) {
+  ok(`...and ${pre} has at least one page behind it`,
+    shellPages.some((r) => r === pre || r.startsWith(`${pre}/`)));
+}
+// THE THEME DEFAULT FOLLOWS THE CHROME. Every shell page must resolve as a
+// marketing path in BOTH locales, or it is served the account theme's tokens.
+for (const rel of SHELL_PATHS) {
+  ok(`...and /en${rel} takes the marketing theme`, isMarketingPath(`/en${rel}`));
+  ok(`...and /ar${rel} takes the marketing theme`, isMarketingPath(`/ar${rel}`));
+}
+ok("...and a job posting does too, not only the careers index",
+  isMarketingPath("/en/careers/some-job-id") && isMarketingPath("/ar/careers/some-job-id"));
+ok("...and the home page does, at / and at /en and /ar",
+  isMarketingPath("/") && isMarketingPath("/en") && isMarketingPath("/ar"));
+// A TRAILING SLASH IS THE SAME PAGE. The regex this replaced allowed one, and
+// dropping that would have flipped the theme on a link somebody pasted.
+ok("...and a trailing slash does not change the answer", isMarketingPath("/en/about/"));
+// AND THE ACCOUNT SURFACE IS STILL THE ACCOUNT SURFACE. Terms and privacy are
+// in the sitemap beside the marketing pages and are NOT on the shell, so
+// listing them would break them in the mirror-image way.
+ok("...and terms and privacy stay on the account theme",
+  !isMarketingPath("/en/terms") && !isMarketingPath("/en/privacy"));
+ok("...and a studio path is never marketing", !isMarketingPath("/en/account"));
+
 const nav = readFileSync("src/components/Nav.js", "utf8");
-ok("...and the nav's prefix matcher went with the family it matched",
-  !/BARE_PREFIXES/.test(nav));
+// THIS ASSERTED THE MECHANISM WAS GONE AND MEANT THE ROUTE. `BARE_PREFIXES`
+// was introduced for `/preview/hero/<variant>` and deleted with it, so
+// forbidding the identifier read as a faithful guard — until careers moved
+// onto the marketing shell and needed the same thing for `/careers/<jobId>`,
+// a genuine route family that cannot be listed exhaustively. The guard would
+// have refused the correct fix. It names the route now, which is what it was
+// ever about; the mechanism is free to serve whoever needs it.
+ok("...and no preview path survives in the nav's bare-chrome lists",
+  !/(?<![-\w])preview(?![-\w])/.test(nav));
 
 // AND THE CEILING RATCHETED ITSELF. bundle-budget.mjs reads 1792 while the
 // preview route holds a baseline entry and 1716 once it does not, so deleting
