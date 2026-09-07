@@ -11,12 +11,15 @@
 // catch-up rather than being wiped by it.
 // `editArr` is the store's, `S` and `ID` are the key builders' — the same two
 // imports `platform/db/sections.ts` uses, and for the same reason.
+//
+// `engineSectionKey` IS NOT DECLARED HERE, and that is deliberate: it lives in
+// `platform/access/catalogue` because `sectionViewable` needs the same answer
+// to render the planted section in the nav, and `platform/access` may not
+// import this file. One definition of the namespace, imported by both halves.
 import { S, ID } from "@/platform/db/keys";
+import { engineSectionKey } from "@/platform/access";
 import { editArr } from "@/platform/db/store";
 import type { Section } from "@/platform/db/sections";
-
-/** Namespaced so an engine section can never collide with a declared one. */
-export const engineSectionKey = (typeKey: string): string => `engine-${typeKey}`;
 
 export async function plantTypeSection(
   studioId: string,

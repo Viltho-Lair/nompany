@@ -69,7 +69,7 @@
       "administration-settings": true,
       "tasks": true,
       "tasks-settings": true,
-      "engine-transmittal": false
+      "engine-transmittal": true
     },
     "sections": [
       {
@@ -345,6 +345,11 @@
       {
         "key": "tasks-settings",
         "name": "Task settings",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "engine-transmittal",
+        "name": "Transmittals",
         "parentId": "<sec_ID>"
       }
     ],

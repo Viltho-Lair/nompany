@@ -565,6 +565,30 @@ export const ENGINE_KEY_RE = /^engine\.[a-z0-9-]+\.(view|create|edit|delete)$/;
 export const isEnginePermission = (key: unknown): boolean =>
   ENGINE_KEY_RE.test(String(key ?? ""));
 
+// THE SECTION A TYPE PLANTS, AND THE WAY BACK FROM IT — and both live HERE,
+// beside the permission namespace they are the other half of.
+//
+// Two unrelated places need the same answer and neither may import the other:
+// `platform/engine/sections.ts` WRITES the row, and `sectionViewable` /
+// `sectionManageable` in `./resolve` have to RECOGNISE it, because
+// `SECTION_AREAS` is compile-time and a record type is a row — so an engine
+// section is invisible to the nav unless something teaches it the namespace.
+// `platform/access` cannot import the engine (the engine reaches the database
+// and a client component imports this folder), so the definition sits on the
+// side both can reach. One definition, not two that agree until they do not.
+//
+// `engine-` MIRRORS `engine.` ABOVE, and the containment argument is the same:
+// no declared section key begins `engine-`. `engineering-docs` is adjacent and
+// distinct because the prefix carries the hyphen, which is exactly why the
+// inverse below is a regex rather than a `startsWith("engine")`.
+export const engineSectionKey = (typeKey: string): string => `engine-${typeKey}`;
+
+const ENGINE_SECTION_RE = /^engine-([a-z0-9-]+)$/;
+
+/** The type key an engine section names, or "" for a section that is not one. */
+export const engineTypeKeyOf = (sectionKey: unknown): string =>
+  ENGINE_SECTION_RE.exec(String(sectionKey ?? ""))?.[1] || "";
+
 // A TYPE GUARD, not a boolean. This is the border: everything on the far side
 // of it — a role's stored permissions, an override, a request body — is a
 // string from Redis, and this is the single place a string becomes a

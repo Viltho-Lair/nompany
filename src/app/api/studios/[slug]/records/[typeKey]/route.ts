@@ -1,36 +1,23 @@
 import { route, refused } from "@/platform/http/route";
-import { moduleContext } from "@/modules/context";
+import { engineContext } from "@/platform/engine/context";
 import {
   listRecords, createRecord, editRecord, moveRecord, removeRecord,
 } from "@/platform/engine/records";
-import type { ModuleContext } from "@/modules/context";
-import type { Section } from "@/platform/db/sections";
+import type { EngineContext } from "@/platform/engine/context";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/**
- * WHAT THE ENGINE'S SERVICE NEEDS, and it is Administration's context because
- * that is where the two engine collections live: `recordTypes` and
- * `engineRecords` sit under `administration-settings` (keys.ts), so one scope
- * serves a type declaration and every instance of it.
- *
- * The section here is STORAGE, not the screen. A type's own sub-section is
- * planted under whatever parent it declares — `engineering-docs` for the
- * built-in — and the right that opens it is `engine.<typeKey>.view`, asked in
- * the service. This context resolves where the rows are; it decides nothing
- * about who may read them.
- */
-type EngineContext = ModuleContext & { settingsSection: Section };
-
 // ONE ROUTE FOR EVERY DECLARED TYPE. The type comes from the URL segment and
 // never from the body, which is what makes `engine.<typeKey>.<verb>` mean
 // something: a request cannot name a type it is not addressed to.
-const engineContext = moduleContext<EngineContext>({
-  root: "administration",
-  sub: { settings: "administration-settings" },
-});
-
+//
+// THE ENGINE'S OWN CONTEXT, NOT ADMINISTRATION'S, and the reason is written on
+// `platform/engine/context.ts`: `moduleContext`'s section guard refused anybody
+// holding only `engine.<typeKey>.view`, which is every reader this route
+// exists for. It resolves where the rows live and guards nothing else — the
+// per-type gate is in `records.ts`, and a second gate here would be free to
+// disagree with it.
 const spec = { auth: "studio", context: engineContext, body: true, name: "records" };
 
 // THE SEGMENT NEXT ALREADY RESOLVED, not the URL parsed a second time. `params`

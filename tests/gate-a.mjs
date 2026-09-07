@@ -7651,6 +7651,41 @@ console.log("== the record engine: one route serves a type declared as a row");
   ok("...under the parent the type declares",
     Boolean(parent) && planted?.parentId === parent?.id, String(planted?.parentId));
 
+  // ---- and the planted section RENDERS ---------------------------------------
+  // A SECTION NOBODY CAN SEE IS A SECTION THAT WAS NOT PLANTED, as far as the
+  // product is concerned. `sectionViewable` answers from `SECTION_AREAS`, which
+  // is compile-time and cannot hold a runtime type's key, so with no areas and
+  // no children `engine-transmittal` fell through to `sectionKey === "main"` —
+  // false for everybody, the owner included. The design claimed the sidebar
+  // needed no special case; that was true of `listSections` and false here, and
+  // the goldens recorded `"engine-transmittal": false` on every nav map in the
+  // suite while the criterion "not a row, not a count, not a nav entry" passed
+  // vacuously because there was no entry for anyone.
+  const { sectionViewable, sectionManageable } = await import("@/platform/access");
+  const allKeys = rows.map((s) => s.key);
+  const ownerAccess = effectivePermissions({ studio, collaborator: { role: "owner" }, roles: [] });
+  const viewOnly = effectivePermissions({
+    studio, collaborator: { role: "member", roleIds: ["r"] },
+    roles: [{ id: "r", permissions: ["engine.transmittal.view"] }],
+  });
+  const noEngine = effectivePermissions({ studio, collaborator: { role: "member", roleIds: [] }, roles: [] });
+  ok("THE PLANTED SECTION IS VISIBLE TO THE OWNER",
+    sectionViewable(ownerAccess, "engine-transmittal", allKeys));
+  ok("...and to a holder of the type's view right alone",
+    sectionViewable(viewOnly, "engine-transmittal", allKeys));
+  // VIEW IS NOT MANAGE. `manage` decides whether the screen offers buttons, so
+  // answering true here for a reader would offer a create the service refuses.
+  ok("...whose section is NOT manageable on view alone",
+    sectionManageable(viewOnly, "engine-transmittal", allKeys) === false);
+  ok("...and absent for somebody holding no engine right",
+    sectionViewable(noEngine, "engine-transmittal", allKeys) === false);
+  // THE NAMESPACE DOES NOT SWALLOW ITS NEIGHBOUR. `engineering-docs` begins
+  // with the same six letters and is a real section with real areas; the
+  // inverse is a regex on `engine-` rather than a `startsWith` for exactly that.
+  ok("...and the engine namespace does not capture engineering-docs",
+    sectionViewable(noEngine, "engineering-docs", allKeys) === false
+    && sectionViewable(ownerAccess, "engineering-docs", allKeys) === true);
+
   // ---- an engine grant survives being stored -------------------------------
   // THE DEFECT THE PERMISSION ARM EXISTS TO PREVENT, asserted END TO END rather
   // than in the unit test alone. `cleanPermissions` filters every stored key
@@ -7777,17 +7812,37 @@ console.log("== the record engine: one route serves a type declared as a row");
   }));
   ok("...and an undeclared one is refused", back.body?.error === "not-allowed",
     JSON.stringify(back.body));
+  // TWO REFUSALS, TWO STATUSES, and the names carry the difference. A status the
+  // type does not declare at all is `wrong-state` — 409 in the status table,
+  // "the request was fine, the world moved on" — because the declaration is a
+  // ROW and the likeliest way to ask for one is a screen holding a version of
+  // the type the studio has since edited. It is deliberately NOT spelled
+  // `status`: eight modules already use that name for "you sent a value we do
+  // not recognise", which is correctly 400 there, and reusing it here would be a
+  // collision rather than a shared meaning. `not-allowed` stays 400: no refresh
+  // makes Issued → Draft legal.
   const nonsense = await put({ id: recordId, action: "move", to: "Cancelled" });
   ok("A STATUS THE TYPE DOES NOT DECLARE IS REFUSED SEPARATELY",
-    nonsense.body?.error === "status", JSON.stringify(nonsense.body));
+    nonsense.body?.error === "wrong-state", JSON.stringify(nonsense.body));
+  ok("...as a conflict rather than a bad request", nonsense.status === 409,
+    String(nonsense.status));
+  ok("...where an undeclared MOVE stays a bad request", back.status === 400,
+    String(back.status));
 
   // ---- default deny ---------------------------------------------------------
-  // HOLDS THE SETTINGS SECTION AND NO ENGINE RIGHT AT ALL, which is the shape
-  // that isolates the engine's own guard: the context builds, the type is found,
-  // and the refusal is `engine.transmittal.view` rather than a section the
-  // reader happens not to hold. What comes back carries no trace of the type —
-  // not a row, not a count, not a column.
-  const stranger = await enginePersonWith(["administration.settings.view"], "noengine");
+  // A MEMBER HOLDING NOTHING AT ALL, which is the shape that isolates the
+  // engine's own guard: the context builds on membership alone, the type is
+  // found, and the refusal is `engine.transmittal.view` rather than a section
+  // the reader happens not to hold. What comes back carries no trace of the
+  // type — not a row, not a count, not a column.
+  //
+  // IT USED TO CARRY `administration.settings.view`, and that grant was a
+  // WORKAROUND rather than a fixture: the route's old Administration context
+  // refused a caller holding no Administration right before the engine was
+  // asked anything, so the refusal recorded here would have been the section
+  // guard's. The engine has its own context now (platform/engine/context.ts)
+  // and the grant is gone, which is what makes this golden the engine's answer.
+  const stranger = await enginePersonWith([], "noengine");
   await signIn(stranger.id);
   const refusal = await shot("engine.transmittal.forbidden", await get());
   ok("NO ENGINE RIGHT MEANS NO ROWS AND NO COUNT",
@@ -7796,14 +7851,24 @@ console.log("== the record engine: one route serves a type declared as a row");
   ok("...refused by the type's own key",
     refusal.body?.key === "engine.transmittal.view", String(refusal.body?.key));
 
-  // ---- delete is its own right ---------------------------------------------
-  // A READER IS NOT A DELETER, and the four verbs are separate keys precisely so
-  // that holding one says nothing about the others.
-  const reader = await enginePersonWith(
-    ["administration.settings.view", "engine.transmittal.view"], "engreader");
+  // ---- an engine right opens something ON ITS OWN --------------------------
+  // INVARIANT 16, AND IT IS THE POINT OF THIS PAIR. `engine.transmittal.view`
+  // AND NOTHING ELSE — no Administration right, no section grant of any kind.
+  // The route used Administration's module context, whose view guard refuses
+  // anybody holding neither an Administration right nor one on a sub-section it
+  // declares; an engine key can never be either, because `SECTION_AREAS` is
+  // compile-time and a record type is a row. So this exact person was refused
+  // `forbidden` before the engine's guard was ever asked: a right that existed,
+  // was grantable, was stored, and opened nothing. The same defect
+  // `modules/context.ts` records for `crmSales.quotations`, through another
+  // door. Granting a second right here would hide it again.
+  //
+  // A READER IS NOT A DELETER either, and the four verbs are separate keys
+  // precisely so that holding one says nothing about the others.
+  const reader = await enginePersonWith(["engine.transmittal.view"], "engreader");
   await signIn(reader.id);
   const readerSees = await get();
-  ok("A GRANTED ENGINE KEY OPENS EXACTLY ITS OWN TYPE",
+  ok("AN ENGINE RIGHT OPENS ITS TYPE WITH NO OTHER GRANT AT ALL",
     readerSees.status === 200 && readerSees.body?.records?.length === 1,
     JSON.stringify(readerSees.body).slice(0, 160));
   ok("...and offers no write it cannot do",

@@ -73,10 +73,16 @@ ok("a transition naming an unknown status is refused",
 console.log("\n== transitions ==\n");
 
 ok("a declared move is allowed", M.transitionProblem(decl({}), "Draft", "Issued") === null);
+// TWO REFUSALS, TWO STATUSES, and the names are the whole of the difference:
+// `not-allowed` is 400 by default (no refresh makes Issued → Draft legal) while
+// `wrong-state` is 409 in the status table (the declaration is a row, so a
+// status it no longer holds is most likely a stale screen). `status` is NOT
+// used here — eight modules already spell "you sent a value we do not
+// recognise" that way, and it is 400 there.
 ok("an undeclared move is refused",
   M.transitionProblem(decl({}), "Issued", "Draft") === "not-allowed");
-ok("a move to an unknown status is refused",
-  M.transitionProblem(decl({}), "Draft", "Gone") === "status");
+ok("a move to a status the type does not declare is refused as wrong-state",
+  M.transitionProblem(decl({}), "Draft", "Gone") === "wrong-state");
 
 console.log("\n== coercion, which is how a version change stays harmless ==\n");
 
@@ -102,7 +108,11 @@ ok("an unfilled boolean is false", empty.done === false);
 
 console.log("\n== the section a type plants ==\n");
 
-const S = await import("@/platform/engine/sections");
+// IT LIVES IN THE CATALOGUE, not in `platform/engine/sections`, and the move is
+// the point: `sectionViewable` has to recognise an engine section to render it
+// in the nav, and `platform/access` may not import the engine. One definition,
+// on the side both halves can reach.
+const S = await import("@/platform/access");
 // A SUB-SECTION FALLS BACK TO ITS ROOT WHEN ABSENT, so a record written before
 // its section is planted lands under the parent where nothing reads it. The
 // tender register paid for that once. The key is derived, never typed.
@@ -110,6 +120,16 @@ ok("a type's section key is derived from its own key",
   S.engineSectionKey("transmittal") === "engine-transmittal",
   S.engineSectionKey("transmittal"));
 ok("...and is stable", S.engineSectionKey("transmittal") === S.engineSectionKey("transmittal"));
+
+// AND THE WAY BACK, which is what the nav asks. `engineering-docs` is the trap:
+// six shared letters, a real section with real areas, and a `startsWith`
+// instead of the hyphen would have handed it to the engine — where the answer
+// would be `engine.ering-docs.view`, a right nobody holds, and the section
+// would vanish from every sidebar in the product.
+ok("...and the inverse returns the type key", S.engineTypeKeyOf("engine-transmittal") === "transmittal");
+ok("...and empty for a declared section", S.engineTypeKeyOf("engineering-docs") === "");
+ok("...and empty for the bare prefix", S.engineTypeKeyOf("engine-") === "");
+ok("...and empty for nothing at all", S.engineTypeKeyOf(undefined) === "");
 
 console.log(`\n${fails ? `${fails} FAILURES` : "all passed"}\n`);
 process.exit(fails ? 1 : 0);

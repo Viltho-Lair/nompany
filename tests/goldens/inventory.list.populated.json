@@ -68,7 +68,7 @@
       "administration-settings": true,
       "tasks": true,
       "tasks-settings": true,
-      "engine-transmittal": false
+      "engine-transmittal": true
     },
     "currency": "",
     "manage": {
@@ -131,7 +131,7 @@
       "administration-settings": true,
       "tasks": true,
       "tasks-settings": true,
-      "engine-transmittal": false
+      "engine-transmittal": true
     },
     "vendors": [
       {

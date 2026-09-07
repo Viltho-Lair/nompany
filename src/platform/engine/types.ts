@@ -101,10 +101,27 @@ export function typeProblem(
 /**
  * WHETHER A MOVE IS DECLARED. Unlike a hand-built register the chain is data,
  * so this is the whole of the rule — there is no second opinion in a service.
+ *
+ * TWO REFUSALS, AND THEY ARE WORTH DIFFERENT STATUSES.
+ *
+ * `wrong-state` (409) is a status the type does not declare AT ALL. It is not
+ * `status`, which eight modules already use to mean "you sent a status value we
+ * do not recognise" and which is correctly 400 there — reusing the name here
+ * would be a collision, not a shared meaning. The difference is that in those
+ * modules the status list is CODE and a bad value is the caller's mistake,
+ * while here the list is a ROW: the likeliest way to ask for an undeclared
+ * status is a screen holding a declaration the studio has since edited. That is
+ * "the request was fine, the world has moved on" — refresh and retry — which is
+ * exactly what `wrong-state` means in `platform/http/httpStatus.ts`, where it
+ * already stands for the signable transition table refusing a move.
+ *
+ * `not-allowed` STAYS 400. A move the chain does not declare — Issued back to
+ * Draft, when no transition says so — is not a record that moved on: no refresh
+ * makes it legal, and the caller has to ask for something else.
  */
 export function transitionProblem(decl: TypeDecl, from: unknown, to: unknown): string | null {
   const statuses = new Set(list<string>(decl?.statuses).map(text));
-  if (!statuses.has(text(to))) return "status";
+  if (!statuses.has(text(to))) return "wrong-state";
   const allowed = list<TransitionDecl>(decl?.transitions)
     .some((t) => text(t.from) === text(from) && text(t.to) === text(to));
   return allowed ? null : "not-allowed";

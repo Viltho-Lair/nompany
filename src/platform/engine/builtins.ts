@@ -9,7 +9,8 @@
 // come in phase 3 and are not this.
 import { repo } from "@/platform/db/repo";
 import { getSectionByKey } from "@/platform/db/sections";
-import { plantTypeSection, engineSectionKey } from "./sections";
+import { engineSectionKey } from "@/platform/access";
+import { plantTypeSection } from "./sections";
 import type { RecordType } from "./schema";
 
 export const BUILTIN_TYPES = [

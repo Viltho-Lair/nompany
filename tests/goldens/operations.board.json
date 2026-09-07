@@ -65,7 +65,7 @@
       "administration-settings": true,
       "tasks": true,
       "tasks-settings": true,
-      "engine-transmittal": false
+      "engine-transmittal": true
     },
     "manage": {
       "main": false,
@@ -127,7 +127,7 @@
       "administration-settings": true,
       "tasks": true,
       "tasks-settings": true,
-      "engine-transmittal": false
+      "engine-transmittal": true
     },
     "me": {
       "collaboratorId": "<col_ID>"
