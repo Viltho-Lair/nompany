@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import EditorialHeader from "@/components/public/EditorialHeader";
+import { MarketingShell } from "@/components/landing/chrome/MarketingShell";
 import ApplyForm from "@/components/ApplyForm";
 import JsonLd from "@/components/JsonLd";
 import RichText from "@/components/RichText";
@@ -56,12 +56,23 @@ export default async function JobApplicationPage({ params }) {
   return (
     <>
       <JsonLd data={structured} />
-      <EditorialHeader eyebrow={dict.careers.title} title={title} />
-      <section className="container-page grid gap-12 py-14 sm:py-16 lg:grid-cols-[1fr_1.15fr]">
+      {/* THE SAME SHELL AS EVERY OTHER PUBLIC PAGE. This is where a candidate
+          arrives from a job board — often before they have seen anything else
+          of the company — so it was the worst page to leave wearing a
+          different site's chrome. */}
+      <MarketingShell locale={locale}>
+      <div className="mx-auto max-w-6xl px-6 py-4">
+        <header className="max-w-3xl">
+          <p className="text-xs tracking-[0.16em] text-fg-dim uppercase">{dict.careers.title}</p>
+          <h1 className="mt-4 font-display text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
+            {title}
+          </h1>
+        </header>
+      <section className="grid gap-12 py-12 sm:py-14 lg:grid-cols-[1fr_1.15fr]">
         <div>
           <Link
             href={`/${locale}/careers`}
-            className="mb-6 inline-flex items-center gap-1.5 text-sm font-600 text-brand-700 hover:underline dark:text-brand-500"
+            className="mb-6 inline-flex items-center gap-1.5 text-sm text-fg-muted transition-colors hover:text-fg"
           >
             <svg viewBox="0 0 24 24" className="h-4 w-4 rtl:-scale-x-100" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M15 6l-6 6 6 6" />
@@ -69,29 +80,33 @@ export default async function JobApplicationPage({ params }) {
             {dict.apply.backToRoles}
           </Link>
           <div className="flex flex-wrap gap-2">
-            <span className="rounded-full bg-brand-950/5 px-3 py-1 text-xs font-500 text-brand-700 dark:bg-white/10 dark:text-white">
+            <span className="surface rounded-full px-3 py-1 text-xs text-fg-muted">
               {field(job, "dept", locale)}
             </span>
-            <span className="rounded-full bg-brand-950/5 px-3 py-1 text-xs font-500 text-brand-700 dark:bg-white/10 dark:text-white">
+            <span className="surface rounded-full px-3 py-1 text-xs text-fg-muted">
               {field(job, "location", locale)}
             </span>
-            <span className="rounded-full bg-brand-950/5 px-3 py-1 text-xs font-500 text-brand-700 dark:bg-white/10 dark:text-white">
+            <span className="surface rounded-full px-3 py-1 text-xs text-fg-muted">
               {field(job, "type", locale)}
             </span>
           </div>
           <div className="mt-6">
-            <span className="eyebrow">{dict.apply.overview}</span>
+            <span className="font-display text-xs font-600 tracking-[0.22em] text-fg-dim uppercase">
+              {dict.apply.overview}
+            </span>
             <RichText value={field(job, "desc", locale)} className="mt-3 text-base" />
           </div>
         </div>
 
-        <div className="rounded-3xl border border-steel-400/20 bg-white p-6 dark:border-white/10 dark:bg-[#263965] sm:p-8">
-          <p className="mb-5 text-sm font-600 text-brand-700 dark:text-brand-500">
+        <div className="surface rounded-3xl p-6 sm:p-8">
+          <p className="mb-5 text-sm font-medium text-fg">
             {dict.apply.applyFor} {title}
           </p>
           <ApplyForm job={{ id: job.id, title }} dict={dict} backHref={`/${locale}/careers`} />
         </div>
       </section>
+      </div>
+      </MarketingShell>
     </>
   );
 }
