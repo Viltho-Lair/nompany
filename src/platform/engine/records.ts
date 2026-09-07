@@ -21,7 +21,18 @@ const Records = repo<EngineRecord>("engineRecords");
 const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
 const now = () => new Date().toISOString();
 
-/** The four letters a type's references carry: TRA-0001 for `transmittal`. */
+/**
+ * The four letters a type's references carry: TRA-0001 for `transmittal`.
+ *
+ * TWO KEYS SHARING THREE LEADING LETTERS COLLIDE — `transmittal` and
+ * `transfer` both mint `TRA-` — and this is tolerated for phase 1 because
+ * only one built-in type exists, so the collision cannot happen yet. Once it
+ * does, the two types' numbers interleave in one counter rather than either
+ * reissuing a number already given out (invariant 10 still holds), so the
+ * failure mode is a confusing shared prefix, not a repeated reference. A
+ * second type sharing a prefix with an existing one is the trigger to give
+ * the type row its own stored prefix instead of deriving one from the key.
+ */
 const prefixOf = (typeKey: string) => typeKey.slice(0, 3).toUpperCase();
 
 /**
@@ -53,7 +64,14 @@ async function typeFor(ctx: EngineCallerContext, typeKey: string) {
 
 export async function listRecordTypes(ctx: EngineCallerContext) {
   const scope = { studio: ctx.studio, section: ctx.settingsSection };
-  return { types: await Types.find(scope) };
+  const types = await Types.find(scope);
+  // FILTERED, NOT REFUSED. The catalogue is studio configuration — labels,
+  // fields, transitions, section keys — so a caller sees only the types they
+  // hold `engine.<key>.view` for. Someone with no engine right at all is not
+  // an error case: an empty catalogue is the truthful answer for a reader
+  // entitled to nothing, the same way a list route hands back no rows rather
+  // than a refusal to someone who may see none of them.
+  return { types: types.filter((t) => !requirePermission(ctx.access, `engine.${t.key}.view`)) };
 }
 
 export async function listRecords(ctx: EngineCallerContext, typeKey: string) {
