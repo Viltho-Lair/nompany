@@ -1,7 +1,6 @@
 "use client";
 import { motion, useMotionValueEvent, useScroll } from "motion/react";
-import { useLandingLocale } from "@/components/landing/locale";
-import { landingDict } from "@/shared/landing";
+import { chromeCopy } from "@/shared/marketing/chrome";
 import { useEffect, useState } from "react";
 import { EASE_OUT_EXPO } from "@/components/landing/lib/motion";
 import { initialsOf } from "@/lib/initials";
@@ -26,7 +25,7 @@ import { getDict } from "@/shared/i18n";
    optional. Everything here is an anchor, which is what a nav is for:
    openable in a new tab, linkable, and followable by a crawler. */
 export function TopNav({ locale = "en" }) {
-  const tr = landingDict(useLandingLocale());
+  const tr = chromeCopy(locale);
   // The site dictionary owns the page names, so the nav and the site footer
   // cannot call the same page two different things.
   const nav = getDict(locale).nav;

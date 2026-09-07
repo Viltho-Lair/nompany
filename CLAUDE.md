@@ -145,7 +145,7 @@ when the code looks cleaner afterwards.
 ## Where the code lives
 
 The `src/lib` split is done, and every folder below is TypeScript. What is left in
-JavaScript is the **272 browser files** under `src/components` and `src/app`, which
+JavaScript is the **236 browser files** under `src/components` and `src/app`, which
 convert with the UI work in Wave 4 — that is the whole of what `checkJs: false` and
 the `allowJs` escape hatch are still holding open.
 
@@ -708,8 +708,8 @@ shipped — the same paragraph's own "Media has left Redis" above contradicted i
 
 **Wave 3 (TypeScript) is done server-side** — every `.ts`/`.tsx` under `noImplicitAny`, every
 department in `src/modules/<name>/` with a Zod schema each, and every route file converted
-(**153 today, all `route.ts`, none left in JavaScript**). What remains is `checkJs` over the
-**272** browser `.js` files and the `app/` restructure, deferred into Wave 4. (Both counts
+(**165 today, all `route.ts`, none left in JavaScript**). What remains is `checkJs` over the
+**236** browser `.js` files and the `app/` restructure, deferred into Wave 4. (Both counts
 are measured — `find src/app/api -name 'route.*'` and `find src/components src/app -name
 '*.js' -o -name '*.jsx'`. They said 99 and 212 for long enough to be quoted as facts;
 `tsconfig.strict.json`'s own comment still says 212, which is the same drift one layer down.) **Wave 4 (UI/UX)** is not started — a proposal in

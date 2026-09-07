@@ -1,14 +1,14 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useLandingLocale } from "@/components/landing/locale";
-import { landingDict } from "@/shared/landing";
+import { chromeCopy } from "@/shared/marketing/chrome";
 import { homeCopy } from "@/shared/marketing/home";
 import { motion } from "motion/react";
 import { EASE_OUT_EXPO, fadeUp, stagger, VIEWPORT } from "@/components/landing/lib/motion";
 import { MagneticButton } from "../ui/MagneticButton";
 export function CtaBand() {
   const locale = useLandingLocale();
-  const tr = landingDict(locale);
+  const tr = chromeCopy(locale);
   // THE COPY MOVED, THE SESSION LOGIC DID NOT. What this band decides — start,
   // create a studio, or go straight back into the one you already own — is
   // genuinely useful and stays. What it SAID was invented: "Replace nine
