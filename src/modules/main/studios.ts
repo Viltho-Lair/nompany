@@ -280,7 +280,28 @@ export const collaborationStudioIds = (userId: string) => sMembers(IX.collab(use
  * information — belongs to the screens that edit it, and restating all of it
  * here would be a second definition free to drift.
  */
-export type StudioRow = { id: string; name?: string; slug?: string } & Record<string, unknown>;
+// THE FIELDS THIS TYPE ACTUALLY NAMES, plus an index signature for the rest.
+//
+// The showcase pair is declared rather than left to the index signature, and
+// that is the point of adding them: a field the record STORES but the type does
+// not DECLARE is the defect this codebase has now found twice — `closedAt` and
+// `lostReason` were declared and written by nothing, `unitCost` was written and
+// declared by nothing, and each was invisible until somebody went looking. A
+// consent record is the wrong one to leave undeclared.
+//
+// `showcaseConsent` is the STUDIO'S and is written only from its own settings;
+// `featured`/`featuredOrder` are OURS and only from /super. One type, two
+// writers — see shared/marketing/showcase for why neither alone publishes.
+export type StudioRow = {
+  id: string;
+  name?: string;
+  slug?: string;
+  logo?: string;
+  sector?: string;
+  showcaseConsent?: { at: string; by: string } | null;
+  featured?: boolean;
+  featuredOrder?: number;
+} & Record<string, unknown>;
 
 export async function listUserCollaborations(userId: string): Promise<StudioRow[]> {
   const ids = await sMembers(IX.collab(userId));

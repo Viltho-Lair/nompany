@@ -84,7 +84,7 @@ export async function POST(request: Request) {
 
   const enquiry = normaliseEnquiry(body);
   const mailbox = mailboxFor(enquiry.teamSize);
-  const to = mailbox === "sales" ? CONTACT.sales : CONTACT.support;
+  const to = mailbox === "newBusiness" ? CONTACT.sales : CONTACT.support;
 
   const lines: [string, string][] = [
     ["From", `${enquiry.name} <${enquiry.email}>`],

@@ -387,8 +387,13 @@ const robots = readFileSync("src/app/robots.js", "utf8");
 ok("...so robots.txt no longer disallows a path that does not exist",
   !/preview/.test(robots));
 const rootLayout = readFileSync("src/app/layout.js", "utf8");
+// THE PATH, not the word. This grepped for "preview" anywhere in the file and
+// matched `max-image-preview` — a robots directive with nothing to do with the
+// deleted route — so it failed against a correct layout. An assertion that is
+// wrong is worse than none, because the fix somebody reaches for is to change
+// the code it is accusing.
 ok("...and the root layout has no preview theme branch",
-  !/preview/.test(rootLayout));
+  !/\/preview/.test(rootLayout));
 const nav = readFileSync("src/components/Nav.js", "utf8");
 ok("...and the nav's prefix matcher went with the family it matched",
   !/BARE_PREFIXES/.test(nav));
@@ -401,8 +406,7 @@ const baselines = JSON.parse(readFileSync("scripts/bundle-baselines.json", "utf8
 ok("...and the preview route's bundle baseline went too",
   !("/[locale]/preview/hero/[variant]" in baselines));
 
-console.log("
-== the platform page describes exactly the live departments");
+console.log("\n== the platform page describes exactly the live departments");
 
 const P = await import("@/shared/marketing/platform");
 
@@ -442,8 +446,7 @@ ok("the Arabic platform copy carries no diacritics",
 // authored in this repository, so there is no copy module left to keep clean.
 // A price is a save, not a deploy.
 
-console.log("
-== the footers claim nothing that is not true");
+console.log("\n== the footers claim nothing that is not true");
 
 const landingFooter = readFileSync("src/components/landing/chrome/SiteFooter.jsx", "utf8");
 const footerCode = stripComments(landingFooter);
@@ -467,6 +470,136 @@ ok("...and claims no system status", !/allSystemsOk/.test(footerCode));
 const labelsWithoutHref = (footerCode.match(/\{ label: tr\.[A-Za-z]+ \}/g) || []);
 ok("...and every footer entry has a destination",
   labelsWithoutHref.length === 0, labelsWithoutHref.join(" "));
+
+console.log("\n== a company is named publicly only when both parties agree");
+
+const SH = await import("@/shared/marketing/showcase");
+
+const consented = { name: "Alpha", logo: "a.png", sector: "Contracting", showcaseConsent: { at: "2026-09-01T00:00:00Z", by: "col_1" } };
+const featured = { name: "Beta", logo: "b.png", featured: true };
+const both = { ...consented, name: "Gamma", featured: true, featuredOrder: 1 };
+
+// NEITHER FLAG PUBLISHES ANYTHING ON ITS OWN, and these two assertions are the
+// whole feature. A studio that consented is ELIGIBLE, not published — otherwise
+// agreeing puts you on the home page. A studio we featured but that never
+// agreed is the worse half: that is publishing somebody's name on our own word.
+ok("consent alone does not publish", !SH.isPubliclyFeatured(consented));
+ok("featuring alone does not publish", !SH.isPubliclyFeatured(featured));
+ok("...both together do", SH.isPubliclyFeatured(both));
+
+// WITHDRAWAL IS IMMEDIATE BY CONSTRUCTION. Nothing is copied to a published
+// list, so clearing the consent removes the company on the next read. The
+// failure this guards is the quiet one: a studio that changed its mind and is
+// still on the site because withdrawing meant emailing somebody.
+ok("clearing consent removes it", !SH.isPubliclyFeatured({ ...both, showcaseConsent: null }));
+ok("...and so does unfeaturing", !SH.isPubliclyFeatured({ ...both, featured: false }));
+
+// CONSENT IS A TIMESTAMP, NOT A BOOLEAN. A record saying only `true` cannot
+// answer "since when", which is the first question anybody asks about
+// permission to use a company's name.
+ok("an empty timestamp is not consent", !SH.hasConsented({ showcaseConsent: { at: "", by: "col_1" } }));
+ok("...a real one is", SH.hasConsented(consented));
+
+// THE PUBLIC SHAPE IS AN ALLOW-LIST. A studio record carries the slug, the
+// member count, the plan, the currency and every setting the tenant ever saved.
+// A function that REMOVED the private fields would leak whichever one somebody
+// adds next; this one names what goes out, so a new field is private until
+// somebody writes it into that line.
+const row = SH.toPublicCompany({ ...both, slug: "gamma", currency: "SAR", packageId: "pkg_1", memberCount: 42 });
+ok("the public row has exactly four fields",
+  JSON.stringify(Object.keys(row).sort()) === JSON.stringify(["logo", "name", "order", "sector"]),
+  Object.keys(row).join(","));
+// NO SLUG, and it is the one that looks harmless — a customer list keyed by
+// address is a roster of tenants to try.
+for (const leaked of ["slug", "currency", "packageId", "memberCount", "id"]) {
+  ok(`...and no ${leaked}`, !(leaked in row));
+}
+
+// ORDERED BY OURS, THEN BY NAME. Two studios sharing an order number is not
+// worth refusing — somebody will type 1 twice — but an unstable tie-break
+// reshuffles the page between requests for no reason.
+const feed = SH.publicCompanies([
+  { name: "Zed", featured: true, featuredOrder: 1, showcaseConsent: { at: "x", by: "c" } },
+  { name: "Ana", featured: true, featuredOrder: 1, showcaseConsent: { at: "x", by: "c" } },
+  { name: "Mid", featured: true, featuredOrder: 0, showcaseConsent: { at: "x", by: "c" } },
+  { name: "Nope", featured: true },
+]);
+ok("the feed is ordered, then alphabetical",
+  feed.map((c) => c.name).join(",") === "Mid,Ana,Zed", feed.map((c) => c.name).join(","));
+ok("...and excludes the one that never agreed", !feed.some((c) => c.name === "Nope"));
+
+// DEGRADES TO NOTHING. If nobody has consented the feed is empty, and the page
+// renders nothing rather than a placeholder — a logo wall of companies that are
+// not customers says less than no logo wall.
+ok("no consent means an empty feed", SH.publicCompanies([featured, { name: "X" }]).length === 0);
+
+console.log("\n== no Arabic copy carries a diacritic");
+
+// ONE CHECK OVER EVERY MODULE, and the gap it closes is why. Three modules were
+// checked by hand — platform, pricing, company — and three were not, so ten
+// shadda marks sat in the home, security and platform copy until somebody
+// happened to look. A per-module assertion is a list somebody has to remember
+// to extend; this one covers whatever exists.
+//
+// SHADDA COUNTS. It is not a vowel mark, and Arabic prose often keeps it — but
+// nobody types it into a search box either, which is the whole reason this rule
+// exists. Allowing one class of diacritic and banning another would make the
+// rule a matter of taste.
+const COPY_MODULES = {
+  hero: (m) => m.heroCopy,
+  home: (m) => m.homeCopy,
+  platform: (m) => m.platformCopy,
+  security: (m) => m.securityCopy,
+  about: (m) => m.aboutCopy,
+  contact: (m) => m.contactCopy,
+  company: (m) => m.companyCopy,
+};
+for (const [name, pick] of Object.entries(COPY_MODULES)) {
+  const mod = await import(`@/shared/marketing/${name}`);
+  const fn = pick(mod);
+  ok(`${name} exposes its copy`, typeof fn === "function");
+  if (typeof fn !== "function") continue;
+  const ar = JSON.stringify(fn("ar"));
+  ok(`${name} Arabic carries no diacritic`, !DIACRITICS.test(ar),
+    (ar.match(DIACRITICS) || []).join(""));
+  ok(`${name} spells the brand one way`, !/Nompany/.test(ar) && !/Nompany/.test(JSON.stringify(fn("en"))));
+}
+
+console.log("\n== an enquiry reaches the right mailbox");
+
+const EQ = await import("@/shared/marketing/enquiry");
+
+// TEN PEOPLE OR MORE IS A CONVERSATION ABOUT AN INVOICE; below that is somebody
+// on a free tier. The split is the only reason the form asks for a team size.
+ok("1-9 goes to support", EQ.mailboxFor("1-9") === "support");
+for (const size of ["10-49", "50-249", "250+"]) {
+  ok(`${size} goes to new business`, EQ.mailboxFor(size) === "newBusiness", EQ.mailboxFor(size));
+}
+// AN UNANSWERED DROPDOWN MISFILES, IT DOES NOT LOSE. Both addresses reach a
+// person, so falling back is safe; guessing new business would put a support
+// question in front of the wrong reader.
+for (const missing of ["", null, undefined, "nonsense"]) {
+  ok(`an unstated size falls back to support`, EQ.mailboxFor(missing) === "support");
+}
+
+// THE ROLE IS NOT SPELLED LIKE THE RETIRED SECTION KEY. An architectural
+// assertion in tests/restructure.mjs greps the source for string literals
+// starting with it; this names the value so a rename back is caught here, in
+// the module that owns it, rather than three hundred lines into a suite that
+// says only that some file matched a pattern.
+ok("the role is not named after the department", EQ.mailboxFor("250+") !== "sales");
+
+// VALIDATION IS SHARED WITH THE SERVER, and these are the fields a form can
+// actually get wrong.
+const bad = EQ.validateEnquiry({ name: "a", email: "nope", company: "", message: "short" });
+ok("a short name, a bad address, no company and a short message all fail",
+  ["name", "email", "company", "message"].every((k) => bad[k]), JSON.stringify(bad));
+ok("a complete enquiry passes",
+  Object.keys(EQ.validateEnquiry({ name: "Ada L", email: "a@b.co", company: "Co", message: "Twelve chars plus." })).length === 0);
+// AN UNBOUNDED BODY IS AN OPEN RELAY.
+const long = EQ.normaliseEnquiry({ name: "x".repeat(999), email: "a@b.co", company: "c", message: "y".repeat(99999) });
+ok("fields are cut to their limits",
+  long.name.length === EQ.LIMITS.name && long.message.length === EQ.LIMITS.message);
 
 console.log(fails ? `\n${fails} FAILED\n` : "\nmarketing model: all passed\n");
 process.exit(fails ? 1 : 0);

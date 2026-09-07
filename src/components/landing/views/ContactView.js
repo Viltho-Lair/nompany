@@ -177,9 +177,9 @@ export function ContactView() {
                         {ct.failedBody}{" "}
                         <a
                           className="text-iris-bright underline-offset-4 hover:underline"
-                          href={`mailto:${mailboxFor(fields.teamSize) === "sales" ? CONTACT.sales : CONTACT.support}`}
+                          href={`mailto:${mailboxFor(fields.teamSize) === "newBusiness" ? CONTACT.sales : CONTACT.support}`}
                         >
-                          {mailboxFor(fields.teamSize) === "sales" ? CONTACT.sales : CONTACT.support}
+                          {mailboxFor(fields.teamSize) === "newBusiness" ? CONTACT.sales : CONTACT.support}
                         </a>
                         .
                       </p>

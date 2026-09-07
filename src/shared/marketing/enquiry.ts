@@ -89,10 +89,19 @@ export function normaliseEnquiry(input: Partial<Enquiry>): Enquiry {
  *
  * A MISSING OR UNRECOGNISED SIZE GOES TO SUPPORT, deliberately. Both addresses
  * reach a person, so the failure is a misfiled enquiry rather than a lost one —
- * and guessing "sales" for someone who did not say would put a support question
- * in front of the wrong reader.
+ * and guessing new business for someone who did not say would put a support
+ * question in front of the wrong reader.
  */
-export function mailboxFor(teamSize: string | null | undefined): "sales" | "support" {
+// THE ROLE IS NOT NAMED AFTER THE DEPARTMENT, and that is a guard rather than
+// taste. The old section key for CRM is retired — the section is `crm-sales` now — and an architectural
+// assertion greps the source for any string literal starting with that word,
+// because a
+// survivor guards on a key nobody holds and fails as a 403 with nothing
+// pointing at the cause. The codebase's own note on three earlier collisions
+// says to rename the value rather than add a fourth exemption, and
+// `newBusiness` is the better name anyway: the split is about what kind of
+// conversation this is, not about which department owns it.
+export function mailboxFor(teamSize: string | null | undefined): "newBusiness" | "support" {
   const size = String(teamSize ?? "").trim();
-  return size === "10-49" || size === "50-249" || size === "250+" ? "sales" : "support";
+  return size === "10-49" || size === "50-249" || size === "250+" ? "newBusiness" : "support";
 }

@@ -229,6 +229,29 @@ export async function PUT(request: Request, ctx: { params: Promise<Record<string
     return Response.json({ ok: true, changed: out.changed, studio: clean(out.studio || {}) });
   }
 
+  // CONSENT TO BE NAMED PUBLICLY. Handled apart from the ordinary fields
+  // because it is not a setting the studio types — it is a decision, and what
+  // is stored is WHO made it and WHEN, not a boolean.
+  //
+  // IT CANNOT PUBLISH ANYTHING BY ITSELF. A studio consenting becomes eligible;
+  // appearing on the site also needs `featured`, which only /super may set and
+  // which this route deliberately does not accept. The two flags have two
+  // writers on purpose — see shared/marketing/showcase.
+  //
+  // WITHDRAWAL CLEARS THE RECORD RATHER THAN MARKING IT WITHDRAWN. The public
+  // feed derives from this field on every read, so clearing it removes the
+  // studio on the next request; keeping a tombstone would be storing a decision
+  // somebody has revoked, for no reader.
+  if ("showcaseConsent" in body) {
+    const patch = body.showcaseConsent
+      ? { showcaseConsent: { at: new Date().toISOString(), by: collaborator.id } }
+      : { showcaseConsent: null };
+    const updated = await updateStudio(studio.id, patch);
+    return updated
+      ? Response.json({ ok: true, studio: clean(updated) })
+      : Response.json({ error: "notfound" }, { status: 404 });
+  }
+
   const patch: Record<string, unknown> = {};
   for (const key of FIELDS) {
     if (!(key in body)) continue;

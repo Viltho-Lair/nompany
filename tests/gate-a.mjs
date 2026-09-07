@@ -514,6 +514,18 @@ console.log("== the architecture, asserted rather than remembered");
   // new public surface gets argued for, rather than appearing by omission.
   const PUBLIC = {
     "api/pricing/route.ts": "the marketing price list",
+    // A CONTACT FORM THAT REQUIRED A LOGIN WOULD BE A CONTACT FORM FOR PEOPLE
+    // WHO ALREADY HAVE ACCOUNTS. It is the one endpoint an unauthenticated
+    // caller can make put mail in somebody's inbox, so it is guarded by the two
+    // things that fit an anonymous caller instead: its own per-IP throttle
+    // (RL.contactIp, deliberately not the credential counters) and an
+    // origin check. It stores nothing and reads nothing.
+    "api/contact/route.ts": "the contact form; rate-limited and origin-checked instead",
+    // A CUSTOMER LIST IS MEANT TO BE READ BY STRANGERS — that is what
+    // publishing one is for. It returns a four-field allow-list per company and
+    // only for studios that BOTH consented in their own settings and were
+    // featured in /super; it reads the studio registry, never a tenant's rows.
+    "api/showcase/route.ts": "the public featured-companies list; consent-gated, four fields, no slug",
     "api/track/route.ts": "anonymous traffic beacon; rate-limited and origin-checked instead",
     "api/auth/oauth/[provider]/start/route.ts": "starts sign-in; there is no session yet",
     "api/auth/callback/[provider]/route.ts": "completes sign-in; the provider is the credential",
