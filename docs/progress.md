@@ -25,6 +25,7 @@ detail has been going; this file is the map.
 | **Done** | Waves 0–3, Gate A, the engagement storage model Phase 0–1b, **P0** (fifteen-section restructure), **P1 + the cutover** (production runs Postgres; Redis is gone), **P2's approval engine** (bills, then bids), and **P4a's first three sections** |
 | **In progress** | **P4a is COMPLETE** — all five sections, 07/09/2026. The only thread left from it is the closure slice's Gate A block, which could not be recorded because the machine's ADC credentials expired. **Next is P4b**, the abstraction extracted from the screens P4a built |
 | **Blocked on nothing** | CI green on every push; goldens **316**, catalogue **174** keys, lint **142/0**, bundle **1687 KB gz against 1688**. The largest chunk is **165 KB against 250**, up from 158 with the Procurement dashboard — consolidation rather than sprawl (the chunk count fell 92 → 91 as `components/dashboard` was hoisted into the shared chunk), but it is the number every route pays and the one to watch. Measured 07/09/2026 at the commit that states them, not quoted from the line above |
+| **The size of what is left** | **≈32 of the spec's ≈65.5 weeks.** P3's statutory half (ledger periods, statements, tax, auto-posting), P4b, P5, P6 and P7. See **The spec, subsection by subsection** below — the four empty sections are the visible part and the smaller one |
 | **Next gate** | Gate B is 2 of 3 and sales sits at its 3-hop structural floor. Gate C (Wave 3) is done server-side; what is left is `checkJs` over the browser `.js` files and the `app/` restructure |
 
 ---
@@ -105,6 +106,116 @@ completeness check instead, it failed by exactly its own nine names. The
 direct-projects block documents the rule; it is not obvious from anywhere else.
 
 ---
+
+## The spec, subsection by subsection
+
+**THIS TABLE EXISTS BECAUSE THIS FILE DID NOT HAVE ONE, and its absence hid the size of
+what is left.** Everything above tracks PHASES and, inside P4a, SLICES. Neither answers
+"which subsections are built" — so from this file alone the roughly fifty pending ones
+were invisible, and the four visibly-empty sections read as the whole gap. They are not.
+
+**The authority is `docs/superpowers/specs/2026-08-30-erp-multi-industry-program-design.md`,
+phases P2 to P7.** It is the ONLY document that enumerates the target subsections.
+`docs/erp-guide.md` describes the PRE-RESTRUCTURE product — its own heading says "the
+twelve departments" — and must not be read as the target.
+
+**EVERY ROW BELOW WAS CHECKED AGAINST THE CODE on 07/09/2026, not copied from prose.**
+That is the discipline this file keeps failing: four separate figures in it were stale on
+the day they were read, and each had been carried forward rather than measured. When you
+change this table, grep for the thing; do not trust the row above.
+
+**Counts as at 07/09/2026:** 41 subsections declared in `SECTION_DEFS`; the spec expects
+roughly 50 more. Four sections render nothing and hold no permission area — Manufacturing
+& Production, Assets & Equipment, Quality & HSE, Reports & BI.
+
+### P2 — Engine ✅ essentially complete
+
+| Item | State |
+|---|---|
+| `industries` + `flow_templates` as stored, editable data | ✅ `platform/db/flows.ts` |
+| `deals` with the nine context facts and the contribution rule | ✅ |
+| `deal_aliases` as lookup helpers only | ✅ |
+| `deal_members` — explicit membership | ✅ `platform/engagement/membership.ts` |
+| No status column; derived from `statusChain` | ✅ |
+| The unassigned pen, park and promotion | ✅ |
+| Template-driven deal screen, invitations, withheld-vs-empty | ✅ `modules/main/engagements.ts` |
+| Tenant flow editor (clone, reorder, checkpoints) | ✅ `settings/flows` |
+| The six new stage types | ✅ all of `contract` `timesheet` `change_order` `inspection` `payment` `job` |
+| Timesheets with normal and overtime hours | ✅ |
+| Approval-workflow engine | ✅ three document types: bills, bids, requisitions |
+
+### P3 — Money 🟡 **the operational half is built; the statutory half is not**
+
+**THIS IS THE LARGEST HIDDEN GAP IN THE PROGRAMME** and nothing above said so. The spec's
+own acceptance test — *"the deal card's profit figure reconciles to the ledger"* — cannot
+pass today, because there is no ledger to reconcile to beyond a trial balance.
+
+| Item | State |
+|---|---|
+| `payment` as a first-class allocatable record | ✅ |
+| Retention and progress billing (IPC) | ✅ client side and subcontract side |
+| Budgets and commitment control | 🟡 at PROJECT level (`projects/costing`); not in the ledger |
+| Multi-currency | 🟡 daily FX table and rate-at-approval stored; no revaluation |
+| Dimensions on every journal line (deal, cost code, branch, department) | ⬜ |
+| Periods and close, year-end rollover | ⬜ |
+| Statements from the ledger — P&L, balance sheet, cash flow | ⬜ only `trialBalance` exists |
+| Credit notes as corrections | ⬜ |
+| Configurable tax engine, ZATCA adapter, withholding | ⬜ |
+| Bank reconciliation, cash-flow forecast, PDCs, LGs | ⬜ |
+| Auto-posting from every module | ⬜ |
+
+### P4a — the hand-built sections ✅ complete 07/09/2026
+
+All five, slice by slice, in the table further up this file.
+
+### P4b — the record engine ⬜ not started
+
+A record type declared as data; the engine supplies list, card, create and edit, workflow,
+attachments, comments, audit, live updates and permission filtering. **Roughly 50 of the
+remaining subsections ride it**, which is why it precedes P5.
+
+Bespoke screens the spec says it must never be stretched to cover: BOQ grid, Gantt, cost
+sheet, dispatch board, shop-floor terminal, MRP and capacity planner, mobile field view,
+payroll run, financial statements, report builder. **Two of those are already built by
+hand** — the BOQ grid and the Gantt — which is the line holding where the spec drew it.
+
+### P5 — engine-driven sections ⬜ barely begun
+
+| Section | Built | Missing |
+|---|---|---|
+| **Engineering & Documents** | document register, approval workflows, live view | transmittals, RFI and submittal registers with ball-in-court, EBOM and specs, technical library |
+| **Inventory completion** | stock, items, serials, sheets, dashboard | locations and bins, batch lifecycle, stocktaking and adjustment approval, valuation method |
+| **Assets & Equipment** | — | everything: allocation to deals, internal hire rates, utilization, maintenance, calibration |
+| **Quality & HSE** | `inspections` exist, filed under Projects | ITPs, NCR/CAPA, audits, HSE incidents with LTIFR, permits to work, toolbox talks, certifications, dashboard |
+| **Logistics & Fleet** | shipments and AWB | POD, trips and routing, fleet register and compliance, customs and freight files with landed cost, dashboard |
+
+### P6 — other centres of gravity ⬜ barely begun
+
+| Section | Built | Missing |
+|---|---|---|
+| **Human Resources** | employees, leave, org chart, roles | attendance, employee requests, recruitment and onboarding, performance, training and skills, manpower planning, **and payroll entirely** — salary runs, allowances, deductions, payslips, bank/WPS files, payroll posting |
+| **Field Operations & Service** | schedule, tracking | service orders and job cards, dispatch board, AMC contracts, preventive-maintenance plans, mobile field view with e-signature, installed base, dashboard |
+| **Manufacturing & Production** | — | everything: BOM and routing, work orders, MRP and capacity planning, shop-floor terminal, production QC, dashboard |
+
+### P7 — cross-cutting and readiness ⬜ barely begun
+
+| Item | State |
+|---|---|
+| **Reports & BI** — executive dashboard, report builder, KPI targets, alert rules | ⬜ section renders nothing |
+| **Administration master data** | 🟡 Locations and Departments built; currencies, UoM, numbering series, cost codes, categories, industry taxonomy pending |
+| Integrations and API, notification templates, print formats | ⬜ |
+| **Templates B–G activation** — one real deal per template, end to end | ⬜ only Template A is exercised |
+| Readiness — performance pass, onboarding, spreadsheet import, docs | ⬜ |
+
+### What that adds up to
+
+The spec sizes the programme at **≈65.5 weeks**. Done: P0 (2) + P1 (5) + P2 (8.5) + P4a
+(14) ≈ **29.5**. Remaining: P3's statutory half, P4b (4), P5 (8), P6 (11), P7 (6) — call
+it **≈32 weeks**, or a little under half the programme still ahead.
+
+**The four empty sections are the visible part and the smaller part.** P3's ledger work and
+P6's payroll are each larger than any section built so far, and neither appears anywhere
+else in this file.
 
 ## Engagement storage model — the current build
 
