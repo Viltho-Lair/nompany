@@ -525,7 +525,11 @@ type PermsOf<A> = A extends Area
 
 export type PermissionKey =
   | `${DashboardModule}.dashboard.view`
-  | PermsOf<(typeof OWN_AREAS)[number]>;
+  | PermsOf<(typeof OWN_AREAS)[number]>
+  // The engine's arm. Deliberately `string` in the middle: the type key is a
+  // stored row's key and cannot be known at compile time. Static keys above
+  // stay exact, so a typo in one is still a red squiggle.
+  | `engine.${string}.${Verb}`;
 
 // The same set as a value: "crmSales.tickets.view", "hr.employees.salary".
 //
@@ -540,13 +544,34 @@ export const ALL_PERMISSIONS = AREAS.flatMap((a) => [
 
 const KNOWN: ReadonlySet<string> = new Set(ALL_PERMISSIONS);
 
+// ENGINE KEYS ARE STRUCTURAL, NOT DECLARED — and this is the one place the
+// catalogue stops being a closed set.
+//
+// A record type is a ROW (P4b is runtime), so its permission cannot be in
+// ALL_PERMISSIONS: the catalogue is compile-time and the type is not. Without
+// this, `cleanPermissions` drops every engine grant SILENTLY — no error, no
+// log, a right that never arrives — because its filter is `KNOWN.has(key)`.
+//
+// THE NAMESPACE IS THE CONTAINMENT. Of the 47 declared area keys, none begins
+// `engine.`; `engineeringDocs.*` is adjacent and distinct because the prefix
+// carries the dot. A future area keyed `engine` would break that and must never
+// be declared.
+//
+// ONE SEGMENT ONLY, and one of the four verbs: `engine.<typeKey>.<verb>`. A
+// nested key would let `engine.a.b.view` past, and the route resolves a type
+// from ONE segment of the URL.
+export const ENGINE_KEY_RE = /^engine\.[a-z0-9-]+\.(view|create|edit|delete)$/;
+
+export const isEnginePermission = (key: unknown): boolean =>
+  ENGINE_KEY_RE.test(String(key ?? ""));
+
 // A TYPE GUARD, not a boolean. This is the border: everything on the far side
 // of it — a role's stored permissions, an override, a request body — is a
 // string from Redis, and this is the single place a string becomes a
 // PermissionKey. Typing it `key is PermissionKey` is what lets cleanPermissions
 // below return the union without a cast of its own.
 export const isPermission = (key: unknown): key is PermissionKey =>
-  KNOWN.has(String(key ?? ""));
+  KNOWN.has(String(key ?? "")) || isEnginePermission(key);
 
 export const areaOf = (key: string | null | undefined): Area | null =>
   AREAS.find((a) => String(key || "").startsWith(`${a.key}.`)) || null;
