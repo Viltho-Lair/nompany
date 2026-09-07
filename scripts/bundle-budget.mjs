@@ -341,7 +341,37 @@ const MAX_CHUNK_GZIP_KB = 250;
 // rendering "$67,250.00 · Overdue" from a hardcoded array, and a registration
 // form for a console with no registration — and if the case had rested on the
 // bundle it would have rested on 17 KB and deserved to lose.
-const MAX_TOTAL_GZIP_KB = 1716;
+//
+// 1716 -> 1792 on 07/09/2026, measured 1783, for the hero-variant PREVIEW
+// ROUTE (`/[locale]/preview/hero/[variant]`) landed across several commits on
+// the marketing-site-rebuild branch. THIS ONE IS SCAFFOLDING, not a screen:
+// it exists to carry three hero variants side by side so somebody can pick
+// one, and two of the three are discarded the moment that happens. Nothing
+// ran this script commit by commit while the route was being built, so the
+// cost was never seen until all of it had already landed at once.
+//
+// THE NUMBER TO RATCHET BACK TO WHEN THE WINNER IS CHOSEN IS 1716. That is an
+// obligation on whoever deletes the losing variants, not a suggestion: the
+// commit that adopts one hero and removes the route, the shell and the other
+// two variants must also lower this constant back down. A ceiling raised for
+// scaffolding and left where the scaffolding put it is exactly how this gate
+// goes quietly slack — the raise stops meaning "temporary" and starts meaning
+// "the new normal" the moment nobody is looking at it again.
+//
+// SPLITTING THE PREVIEW ROUTE WAS NOT THE FIX, and it is worth saying why
+// because it is the obvious next suggestion. The per-route first-load gate is
+// already green for this route (263 KB against a 300 KB default), so a lazy
+// boundary would lower a number that is not failing. What IS failing is the
+// TOTAL, and a split makes the total worse, not better — this file's own
+// history two entries up records exactly that shape: a real client-side split
+// took the total from 1692 to 1772 because two lazily-loaded groups reaching
+// one library by different paths each pay for their own copy of it. Splitting
+// three hero variants that are about to have two of them deleted anyway would
+// have bought duplicate chunk glue for code with no future.
+//
+// MEASURED, at this commit, by this script — not quoted from memory. Set at
+// measured + 8, the same margin every other entry here uses.
+const MAX_TOTAL_GZIP_KB = 1792;
 
 // THE MARGIN, and why it is the same for a 178 KB route and a 951 KB one.
 //
