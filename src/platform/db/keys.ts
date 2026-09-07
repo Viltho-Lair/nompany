@@ -815,6 +815,17 @@ export const SECTION_COLLECTIONS = {
   // be derived from the section list, which made every studio's org chart the
   // product's fifteen nav entries; see shared/departments/starters.ts.
   "administration-master": ["locations", "departments"],
+  // THE ENGINE'S TWO COLLECTIONS, and no more. A record type is a ROW, so a
+  // collection per type would need a deploy per type — the thing runtime was
+  // chosen to avoid. Instances are discriminated by `typeKey` inside
+  // `engineRecords`. Invariant 1 is untouched: two builders, not one per type.
+  //
+  // UNDER `administration-settings` because a record TYPE is studio
+  // configuration, not any one department's data — the same place the flow
+  // templates and the studio's own settings live. The RECORDS sit here too so
+  // one scope serves both; their own nav section is planted separately, per
+  // `platform/engine/sections.ts`.
+  "administration-settings": ["recordTypes", "engineRecords"],
   // tasks
   tasks: ["tasks"],
 };

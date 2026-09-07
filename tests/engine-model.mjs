@@ -100,5 +100,16 @@ ok("an unfilled number field is null, not nought",
   empty.count === null, JSON.stringify(empty.count));
 ok("an unfilled boolean is false", empty.done === false);
 
+console.log("\n== the section a type plants ==\n");
+
+const S = await import("@/platform/engine/sections");
+// A SUB-SECTION FALLS BACK TO ITS ROOT WHEN ABSENT, so a record written before
+// its section is planted lands under the parent where nothing reads it. The
+// tender register paid for that once. The key is derived, never typed.
+ok("a type's section key is derived from its own key",
+  S.engineSectionKey("transmittal") === "engine-transmittal",
+  S.engineSectionKey("transmittal"));
+ok("...and is stable", S.engineSectionKey("transmittal") === S.engineSectionKey("transmittal"));
+
 console.log(`\n${fails ? `${fails} FAILURES` : "all passed"}\n`);
 process.exit(fails ? 1 : 0);
