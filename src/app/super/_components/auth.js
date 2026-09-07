@@ -1,21 +1,29 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 import Icon from "./Icon";
-import { toneBg, toneInk } from "./ui";
-import { BASE } from "./nav";
 
-// The two authentication layouts from the reference console.
+// THE SUPER-ADMIN SIGN-IN'S CHROME, and nothing else any more.
 //
-//   v1 — a single centred card floating on the page background, with slow
-//        pulsing primary-tinted blobs behind it.
-//   v2 — a 40/60 split: a gradient brand panel carrying the value props, and
-//        the same card on the right. This is the layout /super itself uses for
-//        the super-admin sign-in.
+// This file was the reference console's whole authentication kit: two layouts
+// (v1 centred card, v2 brand split) and nine assembled screens — login,
+// register, forgot, reset, verify, two-factor, lock, account-disabled,
+// password-changed — each rendered at /super/v1/* and /super/v2/*, eighteen
+// routes of inert markup with `onSubmit` prevented so no credential ever left
+// the page.
 //
-// Nothing here posts anywhere: /super is a design surface, so every form is
-// inert (`onSubmit` is prevented) and no credential ever leaves the page.
+// They are gone, and the one that mattered is the register pair: THERE IS NO
+// REGISTRATION FOR THE CONSOLE. A super admin is an existing user marked as
+// one — `superAuth` has no create path and never had — so a register form on
+// this surface described a door that does not exist. Inert markup is still a
+// claim, and a URL is still a URL: it invited a reviewer to ask which door it
+// opened, and the honest answer was "none, but you have to read the source to
+// know that".
+//
+// What remains is what SignIn.js actually renders: the brand split, the two
+// form parts, and the logo. The v1 layout went with the pages that used it —
+// SignIn has always passed v2 — so `AuthShell` no longer takes a variant, and
+// the pulsing-blob background that only v1 drew is gone with it.
 
 export function Logo({ invert = false }) {
   return (
@@ -51,89 +59,62 @@ const FEATURES = [
   },
 ];
 
-function Blobs() {
+// The brand split: a gradient panel carrying the value props, and the sign-in
+// card beside it. One layout now, so there is no variant to choose.
+export function AuthShell({ title, sub, children, footer, width = 440 }) {
   return (
-    <div className="pointer-events-none absolute inset-0" aria-hidden="true">
-      <span className="absolute start-[10%] top-[15%] h-[300px] w-[300px] animate-pulse rounded-full bg-[var(--ad-primary)] opacity-[0.05]" />
-      <span className="absolute end-[15%] top-[30%] h-[150px] w-[150px] animate-pulse rounded-full bg-[var(--ad-primary)] opacity-[0.1] [animation-delay:1s]" />
-      <span className="absolute bottom-[20%] start-[20%] h-[200px] w-[200px] animate-pulse rounded-full bg-[var(--ad-primary)] opacity-[0.08] [animation-delay:2s]" />
-      <span className="absolute bottom-[10%] end-[10%] h-[250px] w-[250px] animate-pulse rounded-full bg-[var(--ad-primary)] opacity-[0.05] [animation-delay:0.5s]" />
-    </div>
-  );
-}
-
-export function AuthShell({ variant = "v1", title, sub, children, footer, width = 440 }) {
-  const card = (
-    <div className="relative z-10 w-full px-4" style={{ maxWidth: width }}>
+    <div className="flex min-h-screen w-full flex-col lg:flex-row">
       <div
-        className="rounded-lg border p-8 shadow-lg"
-        style={{ borderColor: "var(--ad-border)", backgroundColor: "var(--ad-card)" }}
+        className="relative flex h-[60px] w-full shrink-0 items-center justify-center overflow-hidden lg:h-auto lg:w-[40%] lg:items-start lg:justify-start lg:px-12 lg:py-16"
+        style={{
+          backgroundImage:
+            "linear-gradient(135deg, var(--ad-primary), color-mix(in srgb, var(--ad-primary) 85%, var(--ad-foreground)) 55%, color-mix(in srgb, var(--ad-primary) 65%, var(--ad-foreground)))",
+        }}
       >
-        {variant === "v1" ? (
-          <div className="mb-6 flex justify-center">
-            <Logo />
-          </div>
-        ) : null}
-        <h4 className="mb-1 text-center text-xl font-500">{title}</h4>
-        {sub ? <p className="mb-6 text-center text-sm text-[var(--ad-muted-foreground)]">{sub}</p> : null}
-        {children}
-      </div>
-      {footer ? <div className="mt-6">{footer}</div> : null}
-    </div>
-  );
-
-  if (variant === "v2") {
-    return (
-      <div className="flex min-h-screen w-full flex-col lg:flex-row">
-        <div
-          className="relative flex h-[60px] w-full shrink-0 items-center justify-center overflow-hidden lg:h-auto lg:w-[40%] lg:items-start lg:justify-start lg:px-12 lg:py-16"
-          style={{
-            backgroundImage:
-              "linear-gradient(135deg, var(--ad-primary), color-mix(in srgb, var(--ad-primary) 85%, var(--ad-foreground)) 55%, color-mix(in srgb, var(--ad-primary) 65%, var(--ad-foreground)))",
-          }}
-        >
-          <div className="pointer-events-none absolute inset-0" aria-hidden="true">
-            <span className="absolute start-[-10%] top-[-10%] h-[300px] w-[300px] rounded-full bg-white/5" />
-            <span className="absolute bottom-[-5%] end-[-5%] h-[250px] w-[250px] rounded-full bg-white/5" />
-          </div>
-          <div className="relative z-10 flex lg:block">
-            <Logo invert />
-          </div>
-          <div className="relative z-10 mt-12 hidden lg:block">
-            <h2 className="text-3xl font-700 text-white">Your all-in-one platform console</h2>
-            <p className="mt-3 text-base text-white/70">
-              Manage every studio, subscription and setting with clarity, speed and confidence.
-            </p>
-            <ul className="mt-10 space-y-6">
-              {FEATURES.map((f) => (
-                <li key={f.title} className="flex items-start gap-4">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/10 text-white">
-                    <Icon name={f.icon} className="h-5 w-5" />
-                  </span>
-                  <div>
-                    <p className="font-600 text-white">{f.title}</p>
-                    <p className="mt-0.5 text-sm text-white/70">{f.body}</p>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
+        <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+          <span className="absolute start-[-10%] top-[-10%] h-[300px] w-[300px] rounded-full bg-white/5" />
+          <span className="absolute bottom-[-5%] end-[-5%] h-[250px] w-[250px] rounded-full bg-white/5" />
         </div>
-        <div className="relative flex flex-1 items-center justify-center overflow-hidden px-4 py-12 lg:px-12">
-          <div className="pointer-events-none absolute inset-0" aria-hidden="true">
-            <span className="absolute end-[10%] top-[10%] h-[200px] w-[200px] animate-pulse rounded-full bg-[var(--ad-primary)] opacity-[0.05]" />
-            <span className="absolute bottom-[15%] start-[5%] h-[150px] w-[150px] animate-pulse rounded-full bg-[var(--ad-primary)] opacity-[0.05] [animation-delay:1s]" />
-          </div>
-          {card}
+        <div className="relative z-10 flex lg:block">
+          <Logo invert />
+        </div>
+        <div className="relative z-10 mt-12 hidden lg:block">
+          <h2 className="text-3xl font-700 text-white">Your all-in-one platform console</h2>
+          <p className="mt-3 text-base text-white/70">
+            Manage every studio, subscription and setting with clarity, speed and confidence.
+          </p>
+          <ul className="mt-10 space-y-6">
+            {FEATURES.map((f) => (
+              <li key={f.title} className="flex items-start gap-4">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/10 text-white">
+                  <Icon name={f.icon} className="h-5 w-5" />
+                </span>
+                <div>
+                  <p className="font-600 text-white">{f.title}</p>
+                  <p className="mt-0.5 text-sm text-white/70">{f.body}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
-    );
-  }
-
-  return (
-    <div className="relative flex min-h-screen w-full items-center justify-center overflow-hidden">
-      <Blobs />
-      {card}
+      <div className="relative flex flex-1 items-center justify-center overflow-hidden px-4 py-12 lg:px-12">
+        <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+          <span className="absolute end-[10%] top-[10%] h-[200px] w-[200px] animate-pulse rounded-full bg-[var(--ad-primary)] opacity-[0.05]" />
+          <span className="absolute bottom-[15%] start-[5%] h-[150px] w-[150px] animate-pulse rounded-full bg-[var(--ad-primary)] opacity-[0.05] [animation-delay:1s]" />
+        </div>
+        <div className="relative z-10 w-full px-4" style={{ maxWidth: width }}>
+          <div
+            className="rounded-lg border p-8 shadow-lg"
+            style={{ borderColor: "var(--ad-border)", backgroundColor: "var(--ad-card)" }}
+          >
+            <h4 className="mb-1 text-center text-xl font-500">{title}</h4>
+            {sub ? <p className="mb-6 text-center text-sm text-[var(--ad-muted-foreground)]">{sub}</p> : null}
+            {children}
+          </div>
+          {footer ? <div className="mt-6">{footer}</div> : null}
+        </div>
+      </div>
     </div>
   );
 }
@@ -181,247 +162,3 @@ export function PasswordInput({ defaultValue = "", placeholder = "••••�
   );
 }
 
-export function SocialRow() {
-  const socials = [
-    { name: "Google", d: "M21.35 11.1H12v3.2h5.35c-.23 1.5-1.75 4.4-5.35 4.4a6.2 6.2 0 110-12.4c1.77 0 2.96.75 3.64 1.4l2.48-2.4C16.6 3.7 14.5 2.8 12 2.8a9.2 9.2 0 100 18.4c5.3 0 8.8-3.7 8.8-8.9 0-.6-.06-1-.15-1.2z" },
-    { name: "Twitter", d: "M22 5.9c-.7.3-1.5.5-2.4.6.9-.5 1.5-1.3 1.8-2.3-.8.5-1.7.8-2.6 1a4.1 4.1 0 00-7 3.7A11.6 11.6 0 013.4 4.6a4.1 4.1 0 001.3 5.5c-.7 0-1.3-.2-1.9-.5a4.1 4.1 0 003.3 4c-.6.2-1.2.2-1.8.1a4.1 4.1 0 003.8 2.9A8.3 8.3 0 012 18.4a11.6 11.6 0 006.3 1.8c7.5 0 11.6-6.2 11.6-11.6v-.5c.8-.6 1.5-1.3 2.1-2.2z" },
-    { name: "GitHub", d: "M12 2a10 10 0 00-3.2 19.5c.5.1.7-.2.7-.5v-1.8c-2.8.6-3.4-1.3-3.4-1.3-.4-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.6-1.4-2.2-.3-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 015 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.4 4.7-4.6 5 .4.3.7 1 .7 2v2.9c0 .3.2.6.7.5A10 10 0 0012 2z" },
-  ];
-  return (
-    <div className="mt-6">
-      <div className="relative flex items-center gap-3">
-        <div className="h-px flex-1" style={{ backgroundColor: "var(--ad-border)" }} />
-        <span className="shrink-0 px-2 text-xs text-[var(--ad-muted-foreground)]">Or continue with</span>
-        <div className="h-px flex-1" style={{ backgroundColor: "var(--ad-border)" }} />
-      </div>
-      <div className="mt-4 grid grid-cols-3 gap-3">
-        {socials.map((s) => (
-          <button key={s.name} type="button" className="ad-btn ad-btn-outline" aria-label={`Continue with ${s.name}`}>
-            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
-              <path d={s.d} />
-            </svg>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-export function AuthFooterLinks({ prompt, linkLabel, href }) {
-  return (
-    <div className="mt-6 flex items-center justify-between">
-      <p className="text-sm font-500">{prompt}</p>
-      <Link href={href} className="text-sm font-500 text-[var(--ad-primary)] hover:underline">
-        {linkLabel}
-      </Link>
-    </div>
-  );
-}
-
-/* ---- assembled screens --------------------------------------------------- */
-
-export function LoginScreen({ variant = "v1", email = "" }) {
-  return (
-    <AuthShell variant={variant} title="Login" sub="Welcome back! Please enter your credentials.">
-      <form onSubmit={(e) => e.preventDefault()}>
-        <div className="flex flex-col gap-5">
-          <Field label="Email">
-            <input type="email" className="ad-input" defaultValue={email} placeholder="you@example.com" />
-          </Field>
-          <Field
-            label="Password"
-            action={
-              <Link href={`${BASE}/${variant}/forgot-password`} className="text-sm font-500 text-[var(--ad-primary)] hover:underline">
-                Forgot Password?
-              </Link>
-            }
-          >
-            <PasswordInput />
-          </Field>
-          <div className="flex items-center gap-2">
-            <input id={`remember-${variant}`} type="checkbox" className="ad-check" defaultChecked />
-            <label htmlFor={`remember-${variant}`} className="cursor-pointer text-sm">
-              Remember me
-            </label>
-          </div>
-          <button type="submit" className="ad-btn ad-btn-primary">
-            Sign In
-          </button>
-        </div>
-      </form>
-      <SocialRow />
-      <AuthFooterLinks prompt="Don't have an account?" linkLabel="Create Account" href={`${BASE}/${variant}/register`} />
-    </AuthShell>
-  );
-}
-
-export function RegisterScreen({ variant = "v1" }) {
-  return (
-    <AuthShell variant={variant} title="Create Account" sub="Start managing the platform in minutes.">
-      <form onSubmit={(e) => e.preventDefault()}>
-        <div className="flex flex-col gap-5">
-          <div className="grid gap-5 sm:grid-cols-2">
-            <Field label="First name">
-              <input className="ad-input" placeholder="First name" />
-            </Field>
-            <Field label="Last name">
-              <input className="ad-input" placeholder="Last name" />
-            </Field>
-          </div>
-          <Field label="Email">
-            <input type="email" className="ad-input" placeholder="you@example.com" />
-          </Field>
-          <Field label="Password">
-            <PasswordInput />
-          </Field>
-          <Field label="Confirm password">
-            <PasswordInput />
-          </Field>
-          <div className="flex items-start gap-2">
-            <input id={`terms-${variant}`} type="checkbox" className="ad-check mt-0.5" />
-            <label htmlFor={`terms-${variant}`} className="cursor-pointer text-sm">
-              I agree to the <span className="text-[var(--ad-primary)]">Terms</span> and{" "}
-              <span className="text-[var(--ad-primary)]">Privacy Policy</span>
-            </label>
-          </div>
-          <button type="submit" className="ad-btn ad-btn-primary">
-            Create Account
-          </button>
-        </div>
-      </form>
-      <SocialRow />
-      <AuthFooterLinks prompt="Already have an account?" linkLabel="Sign In" href={`${BASE}/${variant}/login`} />
-    </AuthShell>
-  );
-}
-
-export function ForgotScreen({ variant = "v1" }) {
-  return (
-    <AuthShell variant={variant} title="Forgot Password" sub="Enter your email and we'll send a reset link.">
-      <form onSubmit={(e) => e.preventDefault()}>
-        <div className="flex flex-col gap-5">
-          <Field label="Email">
-            <input type="email" className="ad-input" placeholder="you@example.com" />
-          </Field>
-          <button type="submit" className="ad-btn ad-btn-primary">
-            Send Reset Link
-          </button>
-        </div>
-      </form>
-      <AuthFooterLinks prompt="Remembered it?" linkLabel="Back to Sign In" href={`${BASE}/${variant}/login`} />
-    </AuthShell>
-  );
-}
-
-export function ResetScreen({ variant = "v1" }) {
-  return (
-    <AuthShell variant={variant} title="Reset Password" sub="Choose a new password for your account.">
-      <form onSubmit={(e) => e.preventDefault()}>
-        <div className="flex flex-col gap-5">
-          <Field label="New password">
-            <PasswordInput />
-          </Field>
-          <Field label="Confirm new password">
-            <PasswordInput />
-          </Field>
-          <ul className="space-y-1 text-xs text-[var(--ad-muted-foreground)]">
-            {["At least 12 characters", "One uppercase letter", "One number or symbol"].map((r) => (
-              <li key={r} className="flex items-center gap-2">
-                <Icon name="check" className="h-3.5 w-3.5 text-[var(--ad-success)]" />
-                {r}
-              </li>
-            ))}
-          </ul>
-          <button type="submit" className="ad-btn ad-btn-primary">
-            Update Password
-          </button>
-        </div>
-      </form>
-      <AuthFooterLinks prompt="Changed your mind?" linkLabel="Back to Sign In" href={`${BASE}/${variant}/login`} />
-    </AuthShell>
-  );
-}
-
-export function OtpScreen({ variant = "v1", title, sub, cta, length = 6 }) {
-  return (
-    <AuthShell variant={variant} title={title} sub={sub}>
-      <form onSubmit={(e) => e.preventDefault()}>
-        <div className="flex flex-col gap-5">
-          <div className="flex justify-center gap-2.5">
-            {Array.from({ length }, (_, i) => (
-              <input
-                key={i}
-                inputMode="numeric"
-                maxLength={1}
-                aria-label={`Digit ${i + 1}`}
-                className="ad-input h-12 w-11 text-center text-lg font-600"
-              />
-            ))}
-          </div>
-          <button type="submit" className="ad-btn ad-btn-primary">
-            {cta}
-          </button>
-          <p className="text-center text-sm text-[var(--ad-muted-foreground)]">
-            Didn't receive a code? <span className="font-500 text-[var(--ad-primary)]">Resend</span>
-          </p>
-        </div>
-      </form>
-    </AuthShell>
-  );
-}
-
-export function LockScreen({ variant = "v1", user }) {
-  return (
-    <AuthShell variant={variant} title="Screen Locked" sub="Enter your password to continue.">
-      <div className="mb-6 flex flex-col items-center">
-        <span
-          className="flex h-16 w-16 items-center justify-center rounded-full text-lg font-700 text-white"
-          style={{ background: "linear-gradient(135deg, color-mix(in srgb, var(--ad-primary) 80%, var(--ad-primary-foreground)), var(--ad-primary))" }}
-        >
-          {user.initials}
-        </span>
-        <p className="mt-3 text-sm font-600">{user.name}</p>
-        <p className="text-xs text-[var(--ad-muted-foreground)]">{user.email}</p>
-      </div>
-      <form onSubmit={(e) => e.preventDefault()}>
-        <div className="flex flex-col gap-5">
-          <Field label="Password">
-            <PasswordInput />
-          </Field>
-          <button type="submit" className="ad-btn ad-btn-primary">
-            Unlock
-          </button>
-        </div>
-      </form>
-      <AuthFooterLinks prompt="Not you?" linkLabel="Sign in as someone else" href={`${BASE}/${variant}/login`} />
-    </AuthShell>
-  );
-}
-
-export function NoticeScreen({ variant = "v1", icon, tone = "primary", title, sub, cta, ctaHref, secondary }) {
-  const tones = {
-    primary: { bg: toneBg("primary", 0.12), fg: toneInk("primary") },
-    success: { bg: toneBg("success"), fg: toneInk("success") },
-    warning: { bg: toneBg("warning"), fg: toneInk("warning") },
-    danger: { bg: toneBg("danger"), fg: toneInk("danger") },
-  };
-  const t = tones[tone];
-  return (
-    <AuthShell variant={variant} title={title} sub={sub}>
-      <div className="flex flex-col items-center">
-        <span
-          className="mb-6 flex h-16 w-16 items-center justify-center rounded-full"
-          style={{ backgroundColor: t.bg, color: t.fg }}
-        >
-          <Icon name={icon} className="h-7 w-7" />
-        </span>
-        {cta ? (
-          <Link href={ctaHref} className="ad-btn ad-btn-primary w-full">
-            {cta}
-          </Link>
-        ) : null}
-        {secondary ? <div className="mt-4 text-center text-sm text-[var(--ad-muted-foreground)]">{secondary}</div> : null}
-      </div>
-    </AuthShell>
-  );
-}

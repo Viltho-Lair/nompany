@@ -272,6 +272,25 @@ pull request, and four things `npm test` does not: `npm run lint:budget`,
   the rule — **importing `@mui/x-date-pickers` anywhere else puts the 57 KB back, and
   nothing in the build will complain.**
 
+  **`/super` IS FIFTEEN ROUTES, NOT FIFTY-FIVE.** Forty were the reference admin
+  template's demos — seven fake dashboards, eighteen inert auth screens, nine
+  maintenance pages, `landing`, `docs`, `ecommerce/orders`, `application/invoices`,
+  `application/task-board` — rendering hardcoded arrays. Deleted 07/09/2026, code and
+  route. **There is no registration for the console:** a super admin is an existing
+  user marked as one, `superAuth` has no create path, and `/super/v1/register` served
+  a form for a door that does not exist. The build went 68 routes to 28 and the total
+  moved **17 KB** — they shared the console shell with the real screens, so the size
+  case was never the case.
+
+  **A PAGE WITH NO `fetch` IS NOT A PAGE WITH NO DATA**, and this cost the deletion two
+  wrong answers before it was right. Grepping `fetch(` in page files called
+  `application/calendar` a demo — it is a Google Calendar OAuth screen that reads the
+  store directly as a Server Component. Following the import tree but resolving only
+  `@/` specifiers then called `settings/security` a demo, because its real content sits
+  behind `./MfaCard`. Classify by the WHOLE import tree, relative imports included, or
+  four real screens get deleted with the forty. `docs/w4-dashboards-and-motion.md` had
+  the same misclassification for a fortnight.
+
   **MEASURE THE BRANCH YOU ARE ON, BOTH ENDS, before attributing a delta to
   anything.** This bullet used to carry a per-commit changelog of every kilobyte,
   and it was wrong more than once in ways that cost real work: it said 1593/1600

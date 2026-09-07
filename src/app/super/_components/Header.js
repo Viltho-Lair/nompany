@@ -465,9 +465,6 @@ export default function Header({ admin, onToggleCollapse, onOpenMobile, onOpenCu
               <Link href={`${BASE}/settings/profile`} className={menuItem}>
                 <Icon name="settings" className="h-4 w-4" /> Account settings
               </Link>
-              <Link href={`${BASE}/docs`} className={menuItem}>
-                <Icon name="helpCircle" className="h-4 w-4" /> Support
-              </Link>
             </div>
             <div className="border-t py-1" style={{ borderColor: "var(--ad-border)" }}>
               <button type="button" onClick={signOut} className={menuItem} style={{ color: "var(--ad-destructive)" }}>

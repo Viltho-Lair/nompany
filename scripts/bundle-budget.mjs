@@ -329,7 +329,19 @@ const MAX_CHUNK_GZIP_KB = 250;
 // unratcheted is slack, and slack is where this file says the next regression
 // hides; leaving 1780 in place would have handed the next slice 55 kilobytes
 // nobody decided to give it.
-const MAX_TOTAL_GZIP_KB = 1733;
+//
+// 1733 -> 1716 on 07/09/2026, measured 1708, when /super's forty template
+// routes were deleted. THE INTERESTING NUMBER IS NOT THIS ONE: the build went
+// from 68 routes to 28, and the total moved seventeen kilobytes. Forty routes
+// were worth 17 KB because they shared the console's shell with the real
+// screens; only what was unique to them could leave.
+//
+// Recorded because the reverse of this measurement is the trap. Deleting them
+// was right for reasons that have nothing to do with size — a console screen
+// rendering "$67,250.00 · Overdue" from a hardcoded array, and a registration
+// form for a console with no registration — and if the case had rested on the
+// bundle it would have rested on 17 KB and deserved to lose.
+const MAX_TOTAL_GZIP_KB = 1716;
 
 // THE MARGIN, and why it is the same for a 178 KB route and a 951 KB one.
 //

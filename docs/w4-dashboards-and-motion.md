@@ -52,23 +52,38 @@ lift `landing/lib`, `landing/ui`, `landing/svg`, `landing/text` and the two
 providers into a shared `src/components/motion/` that the landing, the studio and
 `/super` all import.
 
-**Roughly fifteen of `/super`'s twenty-two pages are template mock data.**
-`dashboard/finance` invents bank accounts, invoices and a ledger. `dashboard/crm`,
-`ecommerce`, `hr`, `marketing`, `project`, `saas`, `application/calendar`,
-`application/invoices`, `ecommerce/orders` and `docs` are the same. Five are real:
-`application/studios`, `application/users`, `application/notifications`,
-`application/packages`, `application/tiers`, plus `dashboard/analytics`.
+**DONE 07/09/2026, and larger than this section had counted: forty of `/super`'s
+fifty-five routes were template mock data, and all forty are deleted** — code and
+route both. Seven demo dashboards (`crm`, `ecommerce`, `finance`, `hr`,
+`marketing`, `project`, `saas`), eighteen inert authentication screens
+(`v1/*` and `v2/*`), nine maintenance/error pages, `landing`, `docs`,
+`ecommerce/orders`, `application/invoices`, `application/task-board`, and a stray
+`dashboard` stub. Fifteen routes remain and every one reads real data.
 
-This is the *same task* as the standing "remove all placeholder data" item, and it
-is the larger half of it. The shells are well made; the data is invented.
+The 22/08 decision recorded below ("five of the eight go") was never executed, and
+the count it rested on was wrong in both directions — twenty-two pages against a
+real fifty-five, and it named `application/calendar` as mock.
 
-**Decided 22/08/2026: five of the eight go.** `crm`, `ecommerce`, `marketing`,
-`saas` and `project` are deleted outright — nompany does not run a storefront or a
-marketing funnel, and a dashboard about a business we are not in is not a shell
-worth keeping. Three remain and get real data: **revenue** (studios, packages,
-tiers, MRR), **adoption** (sign-ups, active studios, module usage, traffic) and
-**support** (chat load, response time, open issues). `hr` and `finance` fold into
-revenue and adoption rather than surviving as their own pages.
+**`application/calendar` WAS ALWAYS REAL** — a Google Calendar OAuth connection
+reading `getConnection` and `providerConfigured`. It reads as static to any search
+for `fetch(` because it is a Server Component that reaches the store directly, and
+that is the trap worth keeping: *a page with no `fetch` is not a page with no data.*
+Classifying by whole import tree instead moved `calendar`, `notifications`,
+`settings/profile` and `settings/security` from "demo" to "real" — four screens one
+grep away from being deleted.
+
+Deleting them bought **17 KB gzipped**, which is not why it was worth doing. Forty
+routes shared the console shell with the real screens, so only what was unique to
+them could leave. The reasons that hold: a console screen rendering
+"$67,250.00 · Overdue" from a hardcoded array teaches its reader that the numbers
+here might be invented, and `/super/v1/register` served a registration form for a
+console that **has no registration** — a super admin is an existing user marked as
+one, and `superAuth` has no create path.
+
+The three dashboards this section wanted — **revenue** (studios, packages, tiers,
+MRR), **adoption** (sign-ups, active studios, module usage, traffic) and **support**
+(chat load, response time, open issues) — are still unbuilt. They are now additions
+to `dashboard/analytics` rather than survivors of a cull.
 
 **The studio ships every department to every route.**
 `src/app/studio/[[...segments]]/page.js` is one catch-all that imports all twenty

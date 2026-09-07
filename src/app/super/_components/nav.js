@@ -1,12 +1,28 @@
 // The /super sidebar map. Groups render as captioned blocks; an item with
 // `children` renders as a collapsible tree.
 //
-// The console started as a 1:1 mirror of a reference admin template, so most of
-// what follows was demonstration rather than product. The two groups at the
-// bottom are the triage of that: "to be worked" is template screens that will
-// become real. The "to be removed" group and every screen under it are GONE —
-// template pages that were never going to be part of the product, deleted
-// rather than left to be navigated into by accident.
+// THE TEMPLATE IS GONE. The console started as a 1:1 mirror of a reference
+// admin template, and for a long time most of this file was demonstration
+// rather than product: a "to be worked" group holding seven fake dashboards,
+// eighteen inert authentication screens, nine maintenance pages, a marketing
+// landing page, a documentation index, and demo Invoices / Orders / Task Board
+// screens built from hardcoded arrays. Forty routes, none of which read a byte
+// of real data.
+//
+// They were not harmless. A console that renders "$67,250.00 · Overdue" from a
+// literal teaches the person reading it that the numbers here might be real,
+// and /super/v1/register offered a registration form for a console that HAS NO
+// REGISTRATION — a super admin is an existing user marked as one. Every one of
+// them is deleted now, code and route both.
+//
+// What is left is what exists. If a screen is in this file, it reads real data.
+//
+// The four screens that were stranded in "to be worked" while being perfectly
+// real — Calendar, Notifications, and the two Settings screens — moved into the
+// groups they belong to rather than going down with the demos. Calendar in
+// particular is a Google Calendar OAuth connection; it looked static to a
+// search for `fetch(` only because it is a Server Component that reads the
+// store directly, which is a lesson about the search rather than the screen.
 
 export const BASE = "/super";
 
@@ -14,29 +30,28 @@ export const NAV = [
   {
     caption: "Navigation",
     items: [
-      // Analytics IS the dashboard — the one screen here drawing real data
-      // (active users, exchange rates, satisfaction). It is no longer one leaf
-      // in a tree of template demos; it is the Dashboard. The seven demo
-      // dashboards that shared this tree moved to "To be worked" below, where
-      // the rest of the not-yet-real template screens live.
+      // Analytics IS the dashboard — the one screen drawing real data (active
+      // users, exchange rates, satisfaction). The seven demo dashboards that
+      // used to share this tree are deleted, so there is no tree left to share.
       { label: "Dashboard", icon: "dashboard", href: `${BASE}/dashboard/analytics` },
     ],
   },
   {
     caption: "Application",
     items: [
-      // Live chat with studios. Promoted out of "To be worked" when it stopped
-      // being a template demo and started carrying real rooms.
+      // Live chat with studios.
       { label: "Chat", icon: "chat", href: `${BASE}/application/chat` },
       { label: "Users", icon: "users", href: `${BASE}/application/users` },
       { label: "Studios", icon: "briefcase", href: `${BASE}/application/studios` },
       { label: "Packages", icon: "package", href: `${BASE}/application/packages` },
       { label: "Tiers", icon: "layers", href: `${BASE}/application/tiers` },
       { label: "Nova", icon: "star", href: `${BASE}/application/nova` },
-      // Read-only view of the Redis → SQL Server cutover plan (the design of
-      // record is docs/database-migration-mssql.md). It administers nothing yet:
-      // the migration is a Wave 2+ item gated behind Gate A, so this surfaces the
-      // staged plan in the console rather than running any of it.
+      // A studio's Google Calendar connection — the OAuth grant, and the board
+      // of what it returns.
+      { label: "Calendar", icon: "calendar", href: `${BASE}/application/calendar` },
+      { label: "Notifications", icon: "bell", href: `${BASE}/application/notifications` },
+      // Read-only view of the store cutover. The cutover itself is DONE —
+      // Postgres, live 02/09/2026 — so this administers nothing and reports.
       { label: "Database migration", icon: "database", href: `${BASE}/application/migration` },
     ],
   },
@@ -49,71 +64,11 @@ export const NAV = [
     ],
   },
   {
-    caption: "To be worked",
+    caption: "Settings",
     items: [
-      // The template dashboards. Real screens will replace them per department;
-      // until then they are demos, grouped here rather than sitting beside the
-      // one dashboard (Analytics) that carries live data.
-      {
-        label: "Dashboards",
-        icon: "dashboard",
-        children: [
-          { label: "CRM", href: `${BASE}/dashboard/crm` },
-          { label: "eCommerce", href: `${BASE}/dashboard/ecommerce` },
-          { label: "Finance", href: `${BASE}/dashboard/finance` },
-          { label: "Project", href: `${BASE}/dashboard/project` },
-          { label: "SaaS", href: `${BASE}/dashboard/saas` },
-          { label: "HR", href: `${BASE}/dashboard/hr` },
-          { label: "Marketing", href: `${BASE}/dashboard/marketing` },
-        ],
-      },
-      { label: "Calendar", icon: "calendar", href: `${BASE}/application/calendar` },
-      { label: "Task Board", icon: "kanban", href: `${BASE}/application/task-board` },
-      { label: "Notifications", icon: "bell", href: `${BASE}/application/notifications` },
-      { label: "Invoices", icon: "invoice", href: `${BASE}/application/invoices` },
-      { label: "Orders", icon: "box", href: `${BASE}/ecommerce/orders` },
-      { label: "Landing Page", icon: "globe", href: `${BASE}/landing` },
-      {
-        label: "Maintenance",
-        icon: "tool",
-        children: [
-          { label: "Error 404", href: `${BASE}/error-404` },
-          { label: "Error 500", href: `${BASE}/error-500` },
-          { label: "Error 403", href: `${BASE}/error-403` },
-          { label: "Maintenance", href: `${BASE}/maintenance` },
-          { label: "Coming Soon", href: `${BASE}/coming-soon` },
-          { label: "Under Construction", href: `${BASE}/under-construction` },
-          { label: "Offline", href: `${BASE}/offline` },
-          { label: "Session Expired", href: `${BASE}/session-expired` },
-          { label: "Rate Limited", href: `${BASE}/rate-limited` },
-        ],
-      },
-      {
-        label: "Authentication",
-        icon: "lock",
-        children: [
-          { label: "Login V1", href: `${BASE}/v1/login` },
-          { label: "Login V2", href: `${BASE}/v2/login` },
-          { label: "Register V1", href: `${BASE}/v1/register` },
-          { label: "Register V2", href: `${BASE}/v2/register` },
-          { label: "Forgot Password V1", href: `${BASE}/v1/forgot-password` },
-          { label: "Forgot Password V2", href: `${BASE}/v2/forgot-password` },
-          { label: "Reset Password V1", href: `${BASE}/v1/reset-password` },
-          { label: "Reset Password V2", href: `${BASE}/v2/reset-password` },
-          { label: "Verify Email V1", href: `${BASE}/v1/verify-email` },
-          { label: "Verify Email V2", href: `${BASE}/v2/verify-email` },
-          { label: "Two Factor V1", href: `${BASE}/v1/two-factor` },
-          { label: "Two Factor V2", href: `${BASE}/v2/two-factor` },
-          { label: "Lock Screen V1", href: `${BASE}/v1/lock-screen` },
-          { label: "Lock Screen V2", href: `${BASE}/v2/lock-screen` },
-          { label: "Account Disabled V1", href: `${BASE}/v1/account-disabled` },
-          { label: "Account Disabled V2", href: `${BASE}/v2/account-disabled` },
-          { label: "Password Changed V1", href: `${BASE}/v1/password-changed` },
-          { label: "Password Changed V2", href: `${BASE}/v2/password-changed` },
-        ],
-      },
-      { label: "Documentation", icon: "book", href: `${BASE}/docs` },
-      { label: "Settings", icon: "settings", href: `${BASE}/settings/profile` },
+      { label: "Profile", icon: "settings", href: `${BASE}/settings/profile` },
+      // The console's own MFA and session list — real, and the reason this
+      // group exists rather than these two sitting among the demos.
       { label: "Security", icon: "shield", href: `${BASE}/settings/security` },
     ],
   },

@@ -85,7 +85,7 @@ export default function SignIn() {
   }
 
   return (
-    <AuthShell variant="v2" title="Sign in" sub="Super Admin console — authorised access only.">
+    <AuthShell title="Sign in" sub="Super Admin console — authorised access only.">
       <form onSubmit={onSubmit} noValidate>
         <div className="flex flex-col gap-5">
           {error ? (
