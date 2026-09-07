@@ -6,14 +6,23 @@
 
 export const COMPANY_DEFAULTS = {
   // Localization
-  currency: "SAR",          // shown after the amount, e.g. "1,500.00 SAR"
+  // NO CURRENCY BY DEFAULT. This was "SAR", so every studio that never opened
+  // settings showed its money in riyal — one country's currency as the default
+  // for a product sold regionally and then globally. Empty means "not set", and
+  // the screens already handle that: fmtMoney renders the bare number rather
+  // than guessing, and approving a bill refuses until a studio names one.
+  currency: "",
   currencyLocale: "en-US",  // number grouping / decimal style
   currencyDecimals: 2,
   dateLocale: "en-GB",      // dd/mm/yyyy
-  timezone: "Asia/Riyadh",  // stored for consumers that need it (email, work hours)
+  timezone: "UTC",          // stored for consumers that need it (email, work hours)
   firstDayOfWeek: 0,        // Sunday
   // Finance
-  vatRate: 0.15,
+  // NO TAX RATE BY DEFAULT either, and for the same reason as the currency
+  // above: 0.15 is one country's standard rate, and there is no number that is
+  // right for every country this is sold in. `currentVatRate()` reads it and
+  // nothing else does; a studio that wants tax sets one.
+  vatRate: 0,
   taxNumber: "",            // VAT / CR registration number (shown on documents)
   // Branding
   logo: "",                 // subscriber's own logo (media URL); "" → nompany mark
