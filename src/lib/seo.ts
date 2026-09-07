@@ -36,9 +36,9 @@ export const PAGES: Record<string, Record<string, PageCopy> | undefined> = {
         "nompany is a modular ERP that runs a company's entire operation from one platform — Sales, Projects, Inventory, HR, Finance and live statistics. Free for teams of one to nine; paid plans from ten people up.",
     },
     ar: {
-      title: "ادر عمليات شركتك بالكامل من منصة واحدة",
+      title: "أدر عمليات شركتك بالكامل من منصة واحدة",
       description:
-        "nompany نظام تخطيط موارد مرن يدير عمليات الشركة بالكامل من منصة واحدة — المبيعات والمشاريع والمخزون والموارد البشرية والمالية والإحصائيات المباشرة. مجاني للفرق من واحد الى تسعة، وخطط مدفوعة من عشرة افراد فاكثر.",
+        "nompany نظام تخطيط موارد مرن يدير عمليات الشركة بالكامل من منصة واحدة — المبيعات والمشاريع والمخزون والموارد البشرية والمالية والإحصائيات المباشرة. مجاني للفرق من واحد إلى تسعة، وخطط مدفوعة من عشرة أفراد فأكثر.",
     },
   },
   "/platform": {
@@ -60,9 +60,9 @@ export const PAGES: Record<string, Record<string, PageCopy> | undefined> = {
         "One price per employee per month, VAT included, in SAR. Free for teams of one to nine; paid plans from ten people up. Every plan carries the whole product.",
     },
     ar: {
-      title: "الاسعار — مجاني للفرق من واحد الى تسعة",
+      title: "الأسعار — مجاني للفرق من واحد إلى تسعة",
       description:
-        "سعر واحد لكل موظف شهريا، شامل ضريبة القيمة المضافة، بالريال السعودي. مجاني للفرق من واحد الى تسعة، وخطط مدفوعة من عشرة افراد فاكثر. كل خطة تحمل المنتج كاملا.",
+        "سعر واحد لكل موظف شهريا، شامل ضريبة القيمة المضافة، بالريال السعودي. مجاني للفرق من واحد إلى تسعة، وخطط مدفوعة من عشرة أفراد فأكثر. كل خطة تحمل المنتج كاملا.",
     },
   },
   "/security": {
@@ -72,9 +72,9 @@ export const PAGES: Record<string, Record<string, PageCopy> | undefined> = {
         "Row-level security forced at the database, membership-only authorisation, bcrypt at cost 12 with rehash on login, console MFA, session digests, an audit record for every change, and no third-party JavaScript. Plus a plain list of the certifications we do not hold.",
     },
     ar: {
-      title: "الامان — ما يحمي بياناتك، وما لا ندعيه",
+      title: "الأمان — ما يحمي بياناتك، وما لا ندعيه",
       description:
-        "امن على مستوى الصف مفروض في قاعدة البيانات، وصلاحية بالعضوية وحدها، وتشفير كلمات المرور بمعامل 12، وتحقق متعدد العوامل للوحة التحكم، وسجل لكل تغيير، وبلا اي جافاسكربت من طرف ثالث. مع قائمة صريحة بما لا نملكه من شهادات.",
+        "أمن على مستوى الصف مفروض في قاعدة البيانات، وصلاحية بالعضوية وحدها، وتشفير كلمات المرور بمعامل 12، وتحقق متعدد العوامل للوحة التحكم، وسجل لكل تغيير، وبلا أي جافاسكربت من طرف ثالث. مع قائمة صريحة بما لا نملكه من شهادات.",
     },
   },
   "/about": {
@@ -98,7 +98,7 @@ export const PAGES: Record<string, Record<string, PageCopy> | undefined> = {
     ar: {
       title: "الوظائف",
       description:
-        "انضم إلى nompany وساهم في بناء المنصة التي تُدير الشركات أعمالها عليها. اطّلع على الوظائف الشاغرة.",
+        "انضم إلى nompany وساهم في بناء المنصة التي تدير الشركات أعمالها عليها. اطلع على الوظائف الشاغرة.",
     },
   },
   "/terms": {
@@ -122,7 +122,7 @@ export const PAGES: Record<string, Record<string, PageCopy> | undefined> = {
     ar: {
       title: "سياسة الخصوصية",
       description:
-        "كيف تتعامل nompany مع البيانات الشخصية — ما الذي يُجمع ولماذا، ومع من يُشارَك، وكيف يُحمى، ومدة الاحتفاظ به، والإفصاح الخاص بالبيانات المُتحصَّل عليها عبر واجهات Google.",
+        "كيف تتعامل nompany مع البيانات الشخصية — ما الذي يجمع ولماذا، ومع من يشارك، وكيف يحمى، ومدة الاحتفاظ به، والإفصاح الخاص بالبيانات المتحصل عليها عبر واجهات Google.",
     },
   },
 };
