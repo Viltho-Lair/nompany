@@ -18,9 +18,19 @@ import { EASE_OUT_EXPO } from "@/components/landing/lib/motion";
 ================================================================== */
 export function ViewTransition({ viewKey, direction, children, }) {
     const reduceMotion = useReducedMotion();
+    // THE ENTER STATE DOES NOT FADE, and this one mattered more than any other
+    // on the site: `motion.main` wraps the ENTIRE page, and `initial` is written
+    // into the server-rendered style attribute — so the whole home page, h1
+    // included, shipped inside `style="opacity:0"`. A tag-stripping extractor
+    // still read the words, which is why it survived every check that counted
+    // headings or grepped for text; anything that RENDERS without running
+    // JavaScript saw an empty page.
+    //
+    // The slide, the scale and the blur all stay, so a view change still reads
+    // as a view change. What is dropped is the only part that could make the
+    // page not be there.
     const variants = {
         enter: {
-            opacity: 0,
             x: reduceMotion ? 0 : 64 * direction,
             scale: reduceMotion ? 1 : 0.98,
             filter: reduceMotion ? "blur(0px)" : "blur(6px)",
@@ -33,7 +43,7 @@ export function ViewTransition({ viewKey, direction, children, }) {
             transition: { duration: reduceMotion ? 0.2 : 0.6, ease: EASE_OUT_EXPO },
         },
         exit: {
-            opacity: 0,
+            opacity: 0, // an EXIT is safe: the element is leaving, and the server never renders this state
             // Shrink first, then leave — reads as "stepping back" out of the view.
             x: reduceMotion ? 0 : -64 * direction,
             scale: reduceMotion ? 1 : 0.965,

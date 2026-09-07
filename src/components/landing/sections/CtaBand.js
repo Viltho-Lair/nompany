@@ -78,7 +78,7 @@ export function CtaBand() {
 }
 /** Small shared divider used between long sections. */
 export function GradientRule() {
-    return (<motion.div initial={{ scaleX: 0, opacity: 0 }} whileInView={{ scaleX: 1, opacity: 1 }} viewport={{ once: true }} transition={{ duration: 1, ease: EASE_OUT_EXPO }} className="mx-auto h-px max-w-7xl origin-center" style={{
+    return (<motion.div initial={{ scaleX: 0 }} whileInView={{ scaleX: 1 }} viewport={{ once: true }} transition={{ duration: 1, ease: EASE_OUT_EXPO }} className="mx-auto h-px max-w-7xl origin-center" style={{
             background: "linear-gradient(90deg, transparent, var(--color-line), transparent)",
         }}/>);
 }
