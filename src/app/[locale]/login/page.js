@@ -10,7 +10,12 @@ export const dynamic = "force-dynamic";
 export async function generateMetadata({ params }) {
   const { locale } = await params;
   const dict = getDict(locale);
-  return { title: dict.auth.loginTitle, description: dict.auth.loginSubtitle };
+  // NOINDEX. These were indexable, and login and signup were two of the twelve
+  // URLs the sitemap advertised — a third of it — for thin auth screens with
+  // nothing to rank for. Dropping them from the sitemap only stops them being
+  // suggested; this is what stops them being indexed. `follow` stays true so
+  // the links out of them are still crawled.
+  return { title: dict.auth.loginTitle, description: dict.auth.loginSubtitle, robots: { index: false, follow: true } };
 }
 
 export default async function LoginPage({ params }) {

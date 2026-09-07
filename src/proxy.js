@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { locales, defaultLocale } from "@/shared/i18n";
 import { SUPER_COOKIE } from "@/platform/auth/authConstants";
+import { SLUG_RE } from "@/platform/db/keys";
 
 // SLUG-DRIVEN ROUTING.
 //
@@ -155,10 +156,64 @@ export function proxy(request) {
   }
 
   // Root itself → default locale (the landing page).
+  //
+  // 308, NOT 307. A 307 says "temporary", so the apex keeps its own identity in
+  // an index and the locale root has to earn ranking separately; a 308 says the
+  // move is permanent and consolidates them. This has been the first hop every
+  // visitor and every crawler takes since the site existed, and it was spending
+  // that hop saying the wrong thing.
   if (pathname === "/") {
     const url = request.nextUrl.clone();
     url.pathname = `/${defaultLocale}`;
-    return NextResponse.redirect(url);
+    return NextResponse.redirect(url, 308);
+  }
+
+  // RETIRED URLS GO SOMEWHERE, PERMANENTLY.
+  //
+  // These were real pages before the site was rebuilt. Without a map they fall
+  // into the studio-slug branch below and answer 307 to a login screen — so any
+  // link that ever pointed at them, from anywhere, lands a visitor on a form
+  // and tells a crawler the page moved somewhere temporary. Whatever equity
+  // they hold is recoverable for the cost of this table, and only for as long
+  // as the links still exist.
+  const RETIRED = {
+    "/features": "/platform",
+    "/pricing": "/pricing",
+    "/contact": "",
+    "/services": "",
+    "/projects": "",
+    "/vendors": "",
+    "/clients": "",
+    "/gallery": "",
+  };
+  if (Object.prototype.hasOwnProperty.call(RETIRED, `/${seg1}`)) {
+    const url = request.nextUrl.clone();
+    url.pathname = `/${defaultLocale}${RETIRED[`/${seg1}`]}`;
+    return NextResponse.redirect(url, 308);
+  }
+  // The company profile family, /c/<slug>, went with them.
+  if (seg1 === "c") {
+    const url = request.nextUrl.clone();
+    url.pathname = `/${defaultLocale}`;
+    return NextResponse.redirect(url, 308);
+  }
+
+  // A WRONG URL SHOULD ANSWER LIKE A WRONG URL.
+  //
+  // Everything that reaches here is treated as a studio slug, so `/Foo`,
+  // `/ab`, `/what_is_this` and `/index.php` were all rewritten onto the studio
+  // route, which asks for a session and answers 307 to a login screen. There
+  // was no 404 anywhere in that space — every typo, every stale link and every
+  // scanner probing for `/wp-admin` got a soft redirect, which tells a crawler
+  // the address exists and is merely elsewhere.
+  //
+  // THE SHAPE IS CHECKED HERE, THE EXISTENCE IS NOT. The edge cannot reach the
+  // database, so it can only reject what could never be a slug: this is
+  // `SLUG_RE` and nothing more. A well-formed slug that names no studio is the
+  // studio shell's 404 to give, and it gives it now — it looks the slug up
+  // before asking who you are.
+  if (seg1 && !PLATFORM.has(seg1) && !SLUG_RE.test(seg1)) {
+    return new NextResponse(null, { status: 404 });
   }
 
   // A studio address: /<slug>/… → internal studio route, URL unchanged.

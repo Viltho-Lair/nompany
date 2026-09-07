@@ -4,6 +4,8 @@ import { redirect, notFound } from "next/navigation";
 import { currentUser, needsQuestionnaire } from "@/platform/auth/identity";
 import { studioContext, canAdminister, visibleSections, recordStudioVisit } from "@/lib/studios";
 import { getProfile } from "@/platform/auth/users";
+import { getIndex } from "@/platform/db/store";
+import { IX } from "@/platform/db/keys";
 import { loadCatalogues, planOf, hasLiveChat } from "@/lib/plans";
 import { chatDisplayName } from "@/lib/chatConstants";
 import { studioLocale, preferredLocale, UI_LANG_COOKIE } from "@/shared/i18n";
@@ -73,6 +75,20 @@ export const studioRequest = cache(async () => {
   // reuses this value rather than reading the jar again.
   const uiLang = (await cookies()).get(UI_LANG_COOKIE)?.value;
   if (!slug) notFound();
+
+  // DOES THIS STUDIO EXIST AT ALL? Asked BEFORE anything about the reader.
+  //
+  // The auth redirect used to come first, so every well-formed address that
+  // named no studio — a typo, a stale link, a guess — answered 307 to a login
+  // screen. There was no 404 anywhere in the slug space, which tells a crawler
+  // the address exists and is merely elsewhere, and tells a person to sign in
+  // to reach something that was never there.
+  //
+  // NOT A LEAK, and invariant 2 is explicit about why: a slug is a PUBLIC
+  // address. `requestJoinByCode` exists precisely so somebody can type one they
+  // were told, so existence was never the secret. The CONTENTS are — and a
+  // one-key index read tells this branch nothing but whether the name is taken.
+  if (!(await getIndex(IX.slug(slug)))) notFound();
 
   const user = await currentUser();
   // BOTH DESTINATIONS ARE LOCALE-ADDRESSED and both were pinned to /en, so an
