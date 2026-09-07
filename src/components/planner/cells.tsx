@@ -3,8 +3,23 @@
 import * as React from 'react';
 import { useStudioLocale } from "@/components/studio2/locale";
 import { plannerDict, plannerWord } from "@/shared/studio/planner";
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
+import nextDynamic from 'next/dynamic';
+
+// THE PICKER COMES FROM fields/MuiDate, THROUGH `import()`, and both halves of
+// that matter. Importing @mui/x-date-pickers here directly is what gave the
+// build two copies of date-fns — this chunk's and the one StudioDate loads for
+// every form in the studio — because two lazily-loaded groups reaching the same
+// library by different paths get a copy each. Reaching it through the SAME
+// dynamic import is what makes it one chunk both groups share.
+//
+// StudioPlanner warms this on mount, so the first click on a date cell does not
+// wait on a request: a picker that has to be fetched before it opens is a
+// picker that feels broken, which is the same reason SelectMenu was refused a
+// lazy panel.
+const GridDate = nextDynamic(
+  () => import('@/components/fields/MuiDate').then((m) => m.GridDate),
+  { ssr: false },
+);
 import { ChevronDown } from 'lucide-react';
 import type { ComputedTask, Priority, Resource, TaskStatus } from '@/components/planner/lib/types';
 import {
@@ -215,7 +230,7 @@ export function DateCell({
     },
   };
 
-  return withTime ? <DateTimePicker {...shared} /> : <DatePicker {...shared} />;
+  return <GridDate withTime={withTime} {...shared} />;
 }
 
 export function StatusCell({

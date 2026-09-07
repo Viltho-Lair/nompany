@@ -250,14 +250,27 @@ pull request, and four things `npm test` does not: `npm run lint:budget`,
   does the work, not being out of the SSR graph. The other twenty-odd screens are
   untouched, because their weight has not been measured yet.
 
-  **A SPLIT IS NOT FREE and the total says so: 1692 → 1772 (ceiling 1780).** About 57
-  of those 86 kilobytes are **date-fns arriving twice**, once in the planner's async
-  group and once in `MuiDate`'s, where before there was one copy in the entry that
-  every route paid for. Taken deliberately — 283 KB off every tenant page against 57
-  duplicated between two on-demand groups. Winning it back means routing the planner's
-  pickers through the lazy module `fields/StudioDate` already uses; **`MuiDate.jsx`
-  says it is "the only place MUI's date code is imported" and has not been true since
-  the planner landed** (`StudioPlanner.jsx:5-6`, `planner/cells.tsx:6-7`).
+  **A SPLIT IS NOT FREE: the total went 1692 → 1772.** About 57 of those 86 kilobytes
+  were **date-fns arriving twice**, once in the planner's async group and once in
+  `MuiDate`'s, where before there was one copy in the entry that every route paid for —
+  two lazily-loaded groups reaching one library by different paths get a copy each.
+
+  **THAT DUPLICATE WAS THEN PAID OFF: 1772 → 1725, and the ceiling came DOWN, 1780 →
+  1733** — the first time this budget has ratcheted down rather than up. The planner's
+  grid reaches the picker through the same `import()` `fields/StudioDate` uses
+  (`GridDate`, exported from `fields/MuiDate`), so the two 57 KB copies and the
+  planner's own 41 KB picker chunk are **one 64 KB chunk both groups share**. Counted,
+  not assumed: `startOfWeek` is in exactly one chunk. The studio's first load did not
+  move (679) — nothing left or entered the page, a copy stopped being made — and
+  `/super` lost a kilobyte and a chunk each, the same duplicate it was carrying where
+  nobody was looking.
+
+  **`LocalizationProvider` LIVES WITH THE PICKER NOW,** not around the planner shell:
+  the provider was why `StudioPlanner` imported the adapter, and the adapter is what
+  dragged date-fns in. `MuiDate.jsx` claimed to be "the only place MUI's date code is
+  imported" and had not been true since the planner landed; it is true again, and it is
+  the rule — **importing `@mui/x-date-pickers` anywhere else puts the 57 KB back, and
+  nothing in the build will complain.**
 
   **MEASURE THE BRANCH YOU ARE ON, BOTH ENDS, before attributing a delta to
   anything.** This bullet used to carry a per-commit changelog of every kilobyte,

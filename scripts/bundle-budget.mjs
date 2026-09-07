@@ -312,7 +312,24 @@ const MAX_CHUNK_GZIP_KB = 250;
 // planner's pickers through the same lazy module `fields/StudioDate` uses; it
 // is a separate change with its own measurement, and it is the next thing to do
 // here rather than a reason to have kept the 283.
-const MAX_TOTAL_GZIP_KB = 1780;
+//
+// 1780 -> 1733 on 07/09/2026, measured 1725, and it is THE CEILING COMING DOWN
+// rather than up — which this file has recorded exactly nought times before, so
+// it is worth saying why. The duplicate above was paid off: the planner's grid
+// reaches the picker through the same `import()` fields/StudioDate uses, so the
+// two 57 KB copies of date-fns and the planner's own 41 KB picker chunk are one
+// 64 KB chunk shared by both. Counted: `startOfWeek` is in ONE chunk now.
+//
+// The studio's first load did not move (679), which is the gate that matters
+// and the right outcome — nothing left or entered the page, a copy stopped
+// being made. /super lost a kilobyte and a chunk each, which is the same
+// duplicate it was carrying without anybody looking for it there.
+//
+// Set at measured + 8, the same margin the route gate uses. A win left
+// unratcheted is slack, and slack is where this file says the next regression
+// hides; leaving 1780 in place would have handed the next slice 55 kilobytes
+// nobody decided to give it.
+const MAX_TOTAL_GZIP_KB = 1733;
 
 // THE MARGIN, and why it is the same for a 178 KB route and a 951 KB one.
 //

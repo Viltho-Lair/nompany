@@ -2,9 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
-import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
-import { enGB } from "date-fns/locale/en-GB";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { plannerDict } from "@/shared/studio/planner";
 import "@/components/planner/planner.css";
@@ -85,9 +82,14 @@ export function peopleToResources(people, tr) {
 // created from a project carries only { meta, tasks } — fills the rest in from
 // the store's own scheduling defaults), then subscribe to store changes and PUT
 // the document back, debounced. A viewer who cannot edit gets a read-only
-// planner: it never PUTs. The MUI date pickers inside the planner need a
-// LocalizationProvider (the ported Providers.tsx dropped everything but this) —
-// the SAME en-GB / date-fns adapter the rest of nompany uses.
+// planner: it never PUTs.
+//
+// THE LocalizationProvider IS GONE FROM HERE and lives with the picker instead
+// (fields/MuiDate's `GridDate`), which is what lets the planner and the
+// studio's forms share one date chunk rather than carry a copy each — the
+// provider was the reason this file imported the adapter at all, and the
+// adapter is what dragged date-fns in. Same en-GB adapter as the rest of
+// nompany, now in one place instead of two.
 
 const DEBOUNCE_MS = 600;
 
@@ -116,6 +118,17 @@ export default function StudioPlanner({ planApiBase, slug, backHref, backLabel }
   // fire-and-forget PUT reverted such edits on reload with no word to anyone.
   const [saveFailed, setSaveFailed] = useState(false);
   const hydratedRef = useRef(false);
+
+  // WARM THE DATE CHUNK. planner/cells reaches the picker through `import()`
+  // so it shares one chunk with the studio's forms instead of duplicating
+  // date-fns; the cost of that is a request the first time somebody clicks a
+  // date cell. Firing it here, once, on mount means the module is already
+  // resolved by then — a picker that has to be fetched before it opens is a
+  // picker that feels broken. Fire-and-forget on purpose: if it fails, the
+  // cell's own dynamic import asks again and the only cost is the wait.
+  useEffect(() => {
+    import("@/components/fields/MuiDate").catch(() => {});
+  }, []);
 
   // Hydrate from Redis on mount / when the plan changes.
   useEffect(() => {
@@ -248,9 +261,7 @@ export default function StudioPlanner({ planApiBase, slug, backHref, backLabel }
               </p>
             </div>
           ) : (
-            <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={enGB}>
-              <PlannerShell readOnly={!state.canEdit} studioSlug={slug} />
-            </LocalizationProvider>
+            <PlannerShell readOnly={!state.canEdit} studioSlug={slug} />
           )}
         </div>
       </div>

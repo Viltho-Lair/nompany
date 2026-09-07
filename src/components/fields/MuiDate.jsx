@@ -1,9 +1,21 @@
 "use client";
 
-// The MUI date picker, and the only place MUI's date code is imported — so it
-// lands in a lazily-loaded chunk (see StudioDate) rather than the studio's
-// shared bundle. dd/MM/yyyy via the en-GB locale, which is the studio's default
-// and the format the rest of the app already shows through fmtDate.
+// The MUI date picker, and THE only place MUI's date code is imported — which
+// this comment claimed while it was false. The planner imported the pickers and
+// the adapter itself (StudioPlanner, planner/cells) from the day it landed, and
+// the cost was invisible until the studio's chunks were measured per route:
+// date-fns was in TWO 57 KB chunks, one per lazily-loaded group, because each
+// group reached MUI's date code by its own path and Turbopack had no shared
+// parent to hoist it into.
+//
+// So both consumers now `import()` THIS module, and there is one copy: the
+// studio's forms through `StudioDate`, and the planner's grid through
+// `GridDate` below. Anything else that needs a date goes through one of those
+// two — importing @mui/x-date-pickers anywhere else puts the 57 KB back, and
+// nothing in the build will complain, which is exactly how it happened before.
+//
+// dd/MM/yyyy via the en-GB locale, which is the studio's default and the format
+// the rest of the app already shows through fmtDate.
 //
 // Talks ISO (yyyy-mm-dd) to the form — what every record stores — and converts
 // to and from a Date at this boundary only. Rendered BORDERLESS so it sits
@@ -12,6 +24,7 @@
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
 import { enGB } from "date-fns/locale/en-GB";
 
 // Local calendar date, never UTC — a due date keyed "2026-08-22" must read as
@@ -59,6 +72,26 @@ export default function MuiDate({ value, onChange, disabled, minDate, maxDate })
           popper: { placement: "bottom-start" },
         }}
       />
+    </LocalizationProvider>
+  );
+}
+
+// THE PLANNER'S CELL PICKER, here rather than in planner/cells so that the
+// planner and the studio's forms share ONE chunk instead of a copy each.
+//
+// It carries its own LocalizationProvider, the same way the field above does.
+// StudioPlanner used to wrap the whole shell in one; a provider per picker is
+// what makes this module self-contained, and self-contained is what lets both
+// callers reach it through `import()` without dragging a provider along.
+//
+// The cell renders as text until it is clicked (planner/cells decides that), so
+// this mounts already open — `open` and `autoFocus` are the caller's, and the
+// two shapes differ only in whether the plan runs on working hours or days.
+export function GridDate({ withTime, ...props }) {
+  const Picker = withTime ? DateTimePicker : DatePicker;
+  return (
+    <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={enGB}>
+      <Picker {...props} />
     </LocalizationProvider>
   );
 }
