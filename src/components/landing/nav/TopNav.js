@@ -11,16 +11,21 @@ import LangMenu from "@/components/LangMenu";
 import { locales, LANGUAGE_NAMES, LANGUAGE_SHORT } from "@/shared/locale";
 import { LogoMark, Wordmark } from "../Logo";
 import { MagneticButton } from "../ui/MagneticButton";
-import { viewsFor } from "../views/views";
 import { getDict } from "@/shared/i18n";
-/* Navigation for the simulated router (TECHNIQUE 9).
-   The active-tab pill is a shared `layoutId`, so switching tabs makes it
-   glide between items instead of blinking on and off. */
-// `view`/`onNavigate` ARE OPTIONAL. This nav began life on a single page with
-// in-page views; it is now also the nav of five real routes, where there is no
-// view to switch and nothing to call. Absent, the view pills simply are not
-// rendered — the real page links carry the navigation.
-export function TopNav({ view, onNavigate, locale = "en" }) {
+/* THE NAV OF A REAL SITE, and no longer of a simulated router.
+   ------------------------------------------------------------------
+   It began life on a single page with in-page views, switching them with
+   an `onNavigate` callback and a shared-`layoutId` pill. `view` and
+   `onNavigate` were then made OPTIONAL, for the five real routes that had
+   no view to switch — a guard that had to be remembered at every call
+   site, and was not: the logo went on calling `onNavigate("overview")`
+   and threw on all five.
+
+   Contact was the last in-page view and is `/<locale>/contact` now, so
+   there is nothing left to switch and the props are gone rather than
+   optional. Everything here is an anchor, which is what a nav is for:
+   openable in a new tab, linkable, and followable by a crawler. */
+export function TopNav({ locale = "en" }) {
   const tr = landingDict(useLandingLocale());
   // The site dictionary owns the page names, so the nav and the site footer
   // cannot call the same page two different things.
@@ -37,6 +42,7 @@ export function TopNav({ view, onNavigate, locale = "en" }) {
     { href: `/${locale}/pricing`, label: nav.pricing },
     { href: `/${locale}/security`, label: nav.security },
     { href: `/${locale}/about`, label: nav.about },
+    { href: `/${locale}/contact`, label: nav.contact },
   ];
   // THE LANDING PAGE HAS NO `Nav`. The site header opts out of this route
   // because the page renders its own, so the language control has to be here
@@ -122,12 +128,12 @@ export function TopNav({ view, onNavigate, locale = "en" }) {
             paddingBottom: condensed ? 8 : 12,
         }} transition={{ duration: 0.4, ease: EASE_OUT_EXPO }} className="flex w-full max-w-6xl items-center gap-1.5 rounded-full border px-2.5 backdrop-blur-xl sm:gap-4 sm:px-5">
         {/* THE LOGO IS A LINK, AND WAS A BUTTON THAT THREW. It called
-            onNavigate("overview") with no guard, on a nav whose own comment two
-            screens up says view/onNavigate ARE OPTIONAL because it is "now also
-            the nav of five real routes" — so clicking the wordmark on /platform,
-            /pricing, /security or /about threw "onNavigate is not a function".
-            The view pills were given the `onNavigate ?` guard below and the logo
-            was missed.
+            onNavigate("overview") with no guard, so clicking the wordmark on
+            /platform, /pricing, /security or /about threw "onNavigate is not a
+            function". The view pills next to it had been given a guard; the
+            logo was missed — which is the argument the header comment makes for
+            deleting the props rather than guarding them, and the pills are gone
+            with them now.
             A guard was the wrong fix anyway: home has an address, so the mark
             that means "home" should be openable in a new tab and readable by a
             crawler — the same argument PAGE_LINKS above already makes, and a
@@ -171,14 +177,6 @@ export function TopNav({ view, onNavigate, locale = "en" }) {
                   {l.label}
                 </a>
               ))}
-              {onNavigate ? viewsFor(tr).map((v) => (
-                <button key={v.id} role="menuitem" type="button"
-                  onClick={() => { setNavOpen(false); onNavigate(v.id); }}
-                  aria-current={v.id === view ? "page" : undefined}
-                  className={`block w-full px-4 py-2.5 text-start text-sm transition-colors hover:bg-line/40 ${v.id === view ? "text-fg" : "text-fg-muted hover:text-fg"}`}>
-                  {v.label}
-                </button>
-              )) : null}
               <div className="mt-1 flex items-center justify-between gap-2 border-t border-line px-4 pt-3 text-fg-muted">
                 <ThemeToggle labels={{ theme: tr.theme, light: tr.themeLight, dark: tr.themeDark, system: tr.themeSystem }} />
                 <LangMenu current={locale} options={langOptions} label={tr.language} align="end" />
@@ -197,13 +195,6 @@ export function TopNav({ view, onNavigate, locale = "en" }) {
               {l.label}
             </a>
           ))}
-          {onNavigate ? viewsFor(tr).map((v) => {
-            const isActive = v.id === view;
-            return (<button key={v.id} onClick={() => onNavigate(v.id)} aria-current={isActive ? "page" : undefined} className={`relative rounded-full px-2 py-1.5 text-xs font-medium transition-colors duration-300 sm:px-3.5 sm:text-sm ${isActive ? "text-white" : "text-fg-muted hover:text-fg"}`}>
-                {isActive && (<motion.span layoutId="nav-pill" className="absolute inset-0 rounded-full bg-gradient-to-r from-iris to-violet" transition={{ type: "spring", stiffness: 380, damping: 32 }}/>)}
-                <span className="relative z-10">{v.label}</span>
-              </button>);
-        }) : null}
         </div>
 
         {/* Light / dark / system. Writes the same `theme` cookie the account
