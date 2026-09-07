@@ -18,7 +18,7 @@
         }
       ],
       "status": "Ordered",
-      "expectedAt": "2020-03-01",
+      "expectedAt": "<today-40>",
       "notes": "",
       "createdByCollaboratorId": "<col_ID>",
       "createdAt": "<timestamp>",

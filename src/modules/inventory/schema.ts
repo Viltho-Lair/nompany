@@ -23,6 +23,32 @@ export const VendorSchema = z.object({
   // produced the shape below.)
   itemTypes: z.array(z.object({ type: z.string().max(80), weeks: z.union([z.number(), z.literal("")]) })),
   createdAt: z.string(),
+
+  // ---- qualification, added by Procurement's supplier register -------------
+  // DECLARED HERE, ON THE RECORD, rather than in a second supplier shape of
+  // Procurement's own. A vendor and a supplier are the same row — the one a
+  // purchase order names — and two schemas over it would be two answers to what
+  // a supplier is. The rules that read these live in
+  // modules/procurement/supplierModel; only the DECISION is stored.
+  /** Unassessed / Approved / Suspended / Rejected. Absent reads as Unassessed. */
+  approvalStatus: z.string().max(20).optional(),
+  /** Why they were suspended or rejected. Required for either — see `assessmentProblem`. */
+  approvalReason: z.string().max(1000).optional(),
+  approvedAt: z.string().optional(),
+  approvedByCollaboratorId: z.string().max(60).optional(),
+  /**
+   * Trade licence, insurance, ISO certificates. ON the record and not a
+   * collection: a handful per supplier that stop arriving, the way an order
+   * carries its chases. A blank `expiresAt` does not expire, deliberately —
+   * see `documentState`.
+   */
+  documents: z.array(z.object({
+    kind: z.string().max(80),
+    reference: z.string().max(120),
+    issuedAt: z.string(),
+    expiresAt: z.string(),
+    mediaId: z.string().max(120),
+  })).optional(),
 });
 
 /**

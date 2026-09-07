@@ -295,7 +295,18 @@ const OWN_AREAS = [
     extra: [
       { key: "certify", label: "Certify a payment" },
     ] },
-  { key: "procurement.suppliers", group: "Procurement & Subcontracting", label: "Suppliers", verbs: ["view", "create", "edit", "delete"] },
+  // QUALIFY IS AN EXTRA, on the same argument `certify` is. Editing a supplier
+  // corrects their phone number; APPROVING one says the company may commit
+  // money to them, and a lapsed insurance certificate is the studio's exposure
+  // rather than the supplier's. Rating is NOT a second right — recording what a
+  // site thought of a delivery is an opinion, and gating it behind a governance
+  // permission would mean the only people who could write one are the people
+  // who never see the goods.
+  { key: "procurement.suppliers", group: "Procurement & Subcontracting", label: "Suppliers",
+    verbs: ["view", "create", "edit", "delete"],
+    extra: [
+      { key: "qualify", label: "Approve a supplier for use" },
+    ] },
   { key: "inventory.items", group: "Inventory & Warehouse", label: "Registered items", verbs: ["view", "create", "edit", "delete"] },
   // NO LONGER VIEW ONLY. It was, while a sheet was just the screen over purchase
   // orders — every write on it moved stock, so those were inventory.stock

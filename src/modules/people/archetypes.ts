@@ -217,7 +217,15 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
     // that has ALREADY been authorised, which is the buying itself. A buyer who
     // may ask three suppliers for a price and may not pick one has been given
     // half a job.
-    extras: ["procurement.rfq.award"],
+    // QUALIFYING IS THE BUYER'S TOO, and it is NOT the separation problem
+    // `certify` was. Certifying a subcontract valuation creates a debt, which
+    // is why it went to whoever runs the job rather than whoever placed the
+    // order. Approving a supplier creates nothing: it says who the company is
+    // ALLOWED to buy from, which is the procurement function's own remit, and
+    // it authorises no spend on its own — a qualified supplier still needs a
+    // requisition somebody else approved, which is precisely the right this
+    // archetype deliberately does not hold.
+    extras: ["procurement.rfq.award", "procurement.suppliers.qualify"],
   },
   {
     id: "money",

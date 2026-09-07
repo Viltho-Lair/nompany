@@ -1,0 +1,2120 @@
+{
+  "status": 200,
+  "body": {
+    "ok": true,
+    "suppliers": [
+      {
+        "id": "<inv_ID>",
+        "name": "Atlas Rigging",
+        "contactName": "Yara Saleh",
+        "email": "",
+        "phone": "",
+        "notes": "",
+        "itemTypes": [
+          {
+            "type": "Trussing",
+            "weeks": 5
+          }
+        ],
+        "createdAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>",
+        "approvedByAlias": "",
+        "position": {
+          "vendorId": "<inv_ID>",
+          "qualification": {
+            "note": "",
+            "documents": [],
+            "expired": [],
+            "expiring": [],
+            "nextExpiryAt": "",
+            "nextExpiryDays": null,
+            "state": "unassessed",
+            "usable": true,
+            "reason": "never-assessed"
+          },
+          "onTime": {
+            "judged": 0,
+            "onTime": 0,
+            "percent": null,
+            "averageDaysLate": null,
+            "worstDaysLate": null,
+            "rePromised": 0,
+            "outstanding": 0
+          },
+          "scores": {
+            "count": 0,
+            "average": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latest": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latestPeriodEnd": "",
+            "overall": null
+          }
+        },
+        "scorecards": []
+      },
+      {
+        "id": "<inv_ID>",
+        "name": "Falcon Steel",
+        "contactName": "",
+        "email": "",
+        "phone": "",
+        "notes": "",
+        "itemTypes": [],
+        "createdAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>",
+        "approvalStatus": "Approved",
+        "approvalReason": "",
+        "approvedAt": "<timestamp>",
+        "approvedByCollaboratorId": "<col_ID>",
+        "documents": [
+          {
+            "kind": "Trade licence",
+            "reference": "TL-9",
+            "issuedAt": "2030-01-01",
+            "expiresAt": "",
+            "mediaId": ""
+          }
+        ],
+        "approvedByAlias": "Owner",
+        "position": {
+          "vendorId": "<inv_ID>",
+          "qualification": {
+            "note": "",
+            "documents": [
+              {
+                "kind": "Trade licence",
+                "reference": "TL-9",
+                "issuedAt": "2030-01-01",
+                "expiresAt": "",
+                "mediaId": "",
+                "daysLeft": null,
+                "state": "undated"
+              }
+            ],
+            "expired": [],
+            "expiring": [],
+            "nextExpiryAt": "",
+            "nextExpiryDays": null,
+            "state": "qualified",
+            "usable": true,
+            "reason": ""
+          },
+          "onTime": {
+            "judged": 0,
+            "onTime": 0,
+            "percent": null,
+            "averageDaysLate": null,
+            "worstDaysLate": null,
+            "rePromised": 0,
+            "outstanding": 0
+          },
+          "scores": {
+            "count": 2,
+            "average": {
+              "workmanship": 3.5,
+              "hse": 3,
+              "responsiveness": 4
+            },
+            "latest": {
+              "workmanship": 5,
+              "hse": 4,
+              "responsiveness": 5
+            },
+            "latestPeriodEnd": "2031-06-30",
+            "overall": 3.5
+          }
+        },
+        "scorecards": [
+          {
+            "id": "<sup_ID>",
+            "vendorId": "<inv_ID>",
+            "periodEnd": "2031-06-30",
+            "workmanship": 5,
+            "hse": 4,
+            "responsiveness": 5,
+            "note": "",
+            "projectId": "",
+            "byCollaboratorId": "<col_ID>",
+            "createdAt": "<timestamp>",
+            "studioId": "<std_ID>",
+            "sectionId": "<sub_ID>",
+            "byAlias": "Owner"
+          },
+          {
+            "id": "<sup_ID>",
+            "vendorId": "<inv_ID>",
+            "periodEnd": "2031-01-31",
+            "workmanship": 2,
+            "hse": 2,
+            "responsiveness": 3,
+            "note": "",
+            "projectId": "",
+            "byCollaboratorId": "<col_ID>",
+            "createdAt": "<timestamp>",
+            "studioId": "<std_ID>",
+            "sectionId": "<sub_ID>",
+            "byAlias": "supclerk"
+          }
+        ]
+      },
+      {
+        "id": "<inv_ID>",
+        "name": "Gulf AV Supply",
+        "contactName": "",
+        "email": "",
+        "phone": "",
+        "notes": "",
+        "itemTypes": [],
+        "createdAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>",
+        "approvedByAlias": "",
+        "position": {
+          "vendorId": "<inv_ID>",
+          "qualification": {
+            "note": "",
+            "documents": [],
+            "expired": [],
+            "expiring": [],
+            "nextExpiryAt": "",
+            "nextExpiryDays": null,
+            "state": "unassessed",
+            "usable": true,
+            "reason": "never-assessed"
+          },
+          "onTime": {
+            "judged": 0,
+            "onTime": 0,
+            "percent": null,
+            "averageDaysLate": null,
+            "worstDaysLate": null,
+            "rePromised": 0,
+            "outstanding": 0
+          },
+          "scores": {
+            "count": 0,
+            "average": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latest": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latestPeriodEnd": "",
+            "overall": null
+          }
+        },
+        "scorecards": []
+      },
+      {
+        "id": "<inv_ID>",
+        "name": "Late Supplies",
+        "contactName": "",
+        "email": "",
+        "phone": "",
+        "notes": "",
+        "itemTypes": [],
+        "createdAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>",
+        "approvedByAlias": "",
+        "position": {
+          "vendorId": "<inv_ID>",
+          "qualification": {
+            "note": "",
+            "documents": [],
+            "expired": [],
+            "expiring": [],
+            "nextExpiryAt": "",
+            "nextExpiryDays": null,
+            "state": "unassessed",
+            "usable": true,
+            "reason": "never-assessed"
+          },
+          "onTime": {
+            "judged": 1,
+            "onTime": 0,
+            "percent": 0,
+            "averageDaysLate": 40,
+            "worstDaysLate": 40,
+            "rePromised": 1,
+            "outstanding": 0
+          },
+          "scores": {
+            "count": 0,
+            "average": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latest": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latestPeriodEnd": "",
+            "overall": null
+          }
+        },
+        "scorecards": []
+      },
+      {
+        "id": "<inv_ID>",
+        "name": "Levant Cabling",
+        "contactName": "Rami Haddad",
+        "email": "rami@levant.invalid",
+        "phone": "+962 6 555 0101",
+        "notes": "",
+        "itemTypes": [
+          {
+            "type": "Cabling",
+            "weeks": 2
+          },
+          {
+            "type": "Connectors",
+            "weeks": ""
+          }
+        ],
+        "createdAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>",
+        "approvedByAlias": "",
+        "position": {
+          "vendorId": "<inv_ID>",
+          "qualification": {
+            "note": "",
+            "documents": [],
+            "expired": [],
+            "expiring": [],
+            "nextExpiryAt": "",
+            "nextExpiryDays": null,
+            "state": "unassessed",
+            "usable": true,
+            "reason": "never-assessed"
+          },
+          "onTime": {
+            "judged": 0,
+            "onTime": 0,
+            "percent": null,
+            "averageDaysLate": null,
+            "worstDaysLate": null,
+            "rePromised": 0,
+            "outstanding": 0
+          },
+          "scores": {
+            "count": 0,
+            "average": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latest": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latestPeriodEnd": "",
+            "overall": null
+          }
+        },
+        "scorecards": []
+      },
+      {
+        "id": "<inv_ID>",
+        "name": "Many Vendor 0",
+        "contactName": "",
+        "email": "",
+        "phone": "",
+        "notes": "",
+        "itemTypes": [],
+        "createdAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>",
+        "approvedByAlias": "",
+        "position": {
+          "vendorId": "<inv_ID>",
+          "qualification": {
+            "note": "",
+            "documents": [],
+            "expired": [],
+            "expiring": [],
+            "nextExpiryAt": "",
+            "nextExpiryDays": null,
+            "state": "unassessed",
+            "usable": true,
+            "reason": "never-assessed"
+          },
+          "onTime": {
+            "judged": 0,
+            "onTime": 0,
+            "percent": null,
+            "averageDaysLate": null,
+            "worstDaysLate": null,
+            "rePromised": 0,
+            "outstanding": 0
+          },
+          "scores": {
+            "count": 0,
+            "average": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latest": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latestPeriodEnd": "",
+            "overall": null
+          }
+        },
+        "scorecards": []
+      },
+      {
+        "id": "<inv_ID>",
+        "name": "Many Vendor 1",
+        "contactName": "",
+        "email": "",
+        "phone": "",
+        "notes": "",
+        "itemTypes": [],
+        "createdAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>",
+        "approvedByAlias": "",
+        "position": {
+          "vendorId": "<inv_ID>",
+          "qualification": {
+            "note": "",
+            "documents": [],
+            "expired": [],
+            "expiring": [],
+            "nextExpiryAt": "",
+            "nextExpiryDays": null,
+            "state": "unassessed",
+            "usable": true,
+            "reason": "never-assessed"
+          },
+          "onTime": {
+            "judged": 0,
+            "onTime": 0,
+            "percent": null,
+            "averageDaysLate": null,
+            "worstDaysLate": null,
+            "rePromised": 0,
+            "outstanding": 0
+          },
+          "scores": {
+            "count": 0,
+            "average": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latest": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latestPeriodEnd": "",
+            "overall": null
+          }
+        },
+        "scorecards": []
+      },
+      {
+        "id": "<inv_ID>",
+        "name": "Many Vendor 10",
+        "contactName": "",
+        "email": "",
+        "phone": "",
+        "notes": "",
+        "itemTypes": [],
+        "createdAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>",
+        "approvedByAlias": "",
+        "position": {
+          "vendorId": "<inv_ID>",
+          "qualification": {
+            "note": "",
+            "documents": [],
+            "expired": [],
+            "expiring": [],
+            "nextExpiryAt": "",
+            "nextExpiryDays": null,
+            "state": "unassessed",
+            "usable": true,
+            "reason": "never-assessed"
+          },
+          "onTime": {
+            "judged": 0,
+            "onTime": 0,
+            "percent": null,
+            "averageDaysLate": null,
+            "worstDaysLate": null,
+            "rePromised": 0,
+            "outstanding": 0
+          },
+          "scores": {
+            "count": 0,
+            "average": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latest": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latestPeriodEnd": "",
+            "overall": null
+          }
+        },
+        "scorecards": []
+      },
+      {
+        "id": "<inv_ID>",
+        "name": "Many Vendor 11",
+        "contactName": "",
+        "email": "",
+        "phone": "",
+        "notes": "",
+        "itemTypes": [],
+        "createdAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>",
+        "approvedByAlias": "",
+        "position": {
+          "vendorId": "<inv_ID>",
+          "qualification": {
+            "note": "",
+            "documents": [],
+            "expired": [],
+            "expiring": [],
+            "nextExpiryAt": "",
+            "nextExpiryDays": null,
+            "state": "unassessed",
+            "usable": true,
+            "reason": "never-assessed"
+          },
+          "onTime": {
+            "judged": 0,
+            "onTime": 0,
+            "percent": null,
+            "averageDaysLate": null,
+            "worstDaysLate": null,
+            "rePromised": 0,
+            "outstanding": 0
+          },
+          "scores": {
+            "count": 0,
+            "average": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latest": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latestPeriodEnd": "",
+            "overall": null
+          }
+        },
+        "scorecards": []
+      },
+      {
+        "id": "<inv_ID>",
+        "name": "Many Vendor 12",
+        "contactName": "",
+        "email": "",
+        "phone": "",
+        "notes": "",
+        "itemTypes": [],
+        "createdAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>",
+        "approvedByAlias": "",
+        "position": {
+          "vendorId": "<inv_ID>",
+          "qualification": {
+            "note": "",
+            "documents": [],
+            "expired": [],
+            "expiring": [],
+            "nextExpiryAt": "",
+            "nextExpiryDays": null,
+            "state": "unassessed",
+            "usable": true,
+            "reason": "never-assessed"
+          },
+          "onTime": {
+            "judged": 0,
+            "onTime": 0,
+            "percent": null,
+            "averageDaysLate": null,
+            "worstDaysLate": null,
+            "rePromised": 0,
+            "outstanding": 0
+          },
+          "scores": {
+            "count": 0,
+            "average": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latest": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latestPeriodEnd": "",
+            "overall": null
+          }
+        },
+        "scorecards": []
+      },
+      {
+        "id": "<inv_ID>",
+        "name": "Many Vendor 13",
+        "contactName": "",
+        "email": "",
+        "phone": "",
+        "notes": "",
+        "itemTypes": [],
+        "createdAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>",
+        "approvedByAlias": "",
+        "position": {
+          "vendorId": "<inv_ID>",
+          "qualification": {
+            "note": "",
+            "documents": [],
+            "expired": [],
+            "expiring": [],
+            "nextExpiryAt": "",
+            "nextExpiryDays": null,
+            "state": "unassessed",
+            "usable": true,
+            "reason": "never-assessed"
+          },
+          "onTime": {
+            "judged": 0,
+            "onTime": 0,
+            "percent": null,
+            "averageDaysLate": null,
+            "worstDaysLate": null,
+            "rePromised": 0,
+            "outstanding": 0
+          },
+          "scores": {
+            "count": 0,
+            "average": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latest": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latestPeriodEnd": "",
+            "overall": null
+          }
+        },
+        "scorecards": []
+      },
+      {
+        "id": "<inv_ID>",
+        "name": "Many Vendor 14",
+        "contactName": "",
+        "email": "",
+        "phone": "",
+        "notes": "",
+        "itemTypes": [],
+        "createdAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>",
+        "approvedByAlias": "",
+        "position": {
+          "vendorId": "<inv_ID>",
+          "qualification": {
+            "note": "",
+            "documents": [],
+            "expired": [],
+            "expiring": [],
+            "nextExpiryAt": "",
+            "nextExpiryDays": null,
+            "state": "unassessed",
+            "usable": true,
+            "reason": "never-assessed"
+          },
+          "onTime": {
+            "judged": 0,
+            "onTime": 0,
+            "percent": null,
+            "averageDaysLate": null,
+            "worstDaysLate": null,
+            "rePromised": 0,
+            "outstanding": 0
+          },
+          "scores": {
+            "count": 0,
+            "average": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latest": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latestPeriodEnd": "",
+            "overall": null
+          }
+        },
+        "scorecards": []
+      },
+      {
+        "id": "<inv_ID>",
+        "name": "Many Vendor 15",
+        "contactName": "",
+        "email": "",
+        "phone": "",
+        "notes": "",
+        "itemTypes": [],
+        "createdAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>",
+        "approvedByAlias": "",
+        "position": {
+          "vendorId": "<inv_ID>",
+          "qualification": {
+            "note": "",
+            "documents": [],
+            "expired": [],
+            "expiring": [],
+            "nextExpiryAt": "",
+            "nextExpiryDays": null,
+            "state": "unassessed",
+            "usable": true,
+            "reason": "never-assessed"
+          },
+          "onTime": {
+            "judged": 0,
+            "onTime": 0,
+            "percent": null,
+            "averageDaysLate": null,
+            "worstDaysLate": null,
+            "rePromised": 0,
+            "outstanding": 0
+          },
+          "scores": {
+            "count": 0,
+            "average": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latest": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latestPeriodEnd": "",
+            "overall": null
+          }
+        },
+        "scorecards": []
+      },
+      {
+        "id": "<inv_ID>",
+        "name": "Many Vendor 16",
+        "contactName": "",
+        "email": "",
+        "phone": "",
+        "notes": "",
+        "itemTypes": [],
+        "createdAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>",
+        "approvedByAlias": "",
+        "position": {
+          "vendorId": "<inv_ID>",
+          "qualification": {
+            "note": "",
+            "documents": [],
+            "expired": [],
+            "expiring": [],
+            "nextExpiryAt": "",
+            "nextExpiryDays": null,
+            "state": "unassessed",
+            "usable": true,
+            "reason": "never-assessed"
+          },
+          "onTime": {
+            "judged": 0,
+            "onTime": 0,
+            "percent": null,
+            "averageDaysLate": null,
+            "worstDaysLate": null,
+            "rePromised": 0,
+            "outstanding": 0
+          },
+          "scores": {
+            "count": 0,
+            "average": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latest": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latestPeriodEnd": "",
+            "overall": null
+          }
+        },
+        "scorecards": []
+      },
+      {
+        "id": "<inv_ID>",
+        "name": "Many Vendor 17",
+        "contactName": "",
+        "email": "",
+        "phone": "",
+        "notes": "",
+        "itemTypes": [],
+        "createdAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>",
+        "approvedByAlias": "",
+        "position": {
+          "vendorId": "<inv_ID>",
+          "qualification": {
+            "note": "",
+            "documents": [],
+            "expired": [],
+            "expiring": [],
+            "nextExpiryAt": "",
+            "nextExpiryDays": null,
+            "state": "unassessed",
+            "usable": true,
+            "reason": "never-assessed"
+          },
+          "onTime": {
+            "judged": 0,
+            "onTime": 0,
+            "percent": null,
+            "averageDaysLate": null,
+            "worstDaysLate": null,
+            "rePromised": 0,
+            "outstanding": 0
+          },
+          "scores": {
+            "count": 0,
+            "average": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latest": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latestPeriodEnd": "",
+            "overall": null
+          }
+        },
+        "scorecards": []
+      },
+      {
+        "id": "<inv_ID>",
+        "name": "Many Vendor 18",
+        "contactName": "",
+        "email": "",
+        "phone": "",
+        "notes": "",
+        "itemTypes": [],
+        "createdAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>",
+        "approvedByAlias": "",
+        "position": {
+          "vendorId": "<inv_ID>",
+          "qualification": {
+            "note": "",
+            "documents": [],
+            "expired": [],
+            "expiring": [],
+            "nextExpiryAt": "",
+            "nextExpiryDays": null,
+            "state": "unassessed",
+            "usable": true,
+            "reason": "never-assessed"
+          },
+          "onTime": {
+            "judged": 0,
+            "onTime": 0,
+            "percent": null,
+            "averageDaysLate": null,
+            "worstDaysLate": null,
+            "rePromised": 0,
+            "outstanding": 0
+          },
+          "scores": {
+            "count": 0,
+            "average": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latest": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latestPeriodEnd": "",
+            "overall": null
+          }
+        },
+        "scorecards": []
+      },
+      {
+        "id": "<inv_ID>",
+        "name": "Many Vendor 19",
+        "contactName": "",
+        "email": "",
+        "phone": "",
+        "notes": "",
+        "itemTypes": [],
+        "createdAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>",
+        "approvedByAlias": "",
+        "position": {
+          "vendorId": "<inv_ID>",
+          "qualification": {
+            "note": "",
+            "documents": [],
+            "expired": [],
+            "expiring": [],
+            "nextExpiryAt": "",
+            "nextExpiryDays": null,
+            "state": "unassessed",
+            "usable": true,
+            "reason": "never-assessed"
+          },
+          "onTime": {
+            "judged": 0,
+            "onTime": 0,
+            "percent": null,
+            "averageDaysLate": null,
+            "worstDaysLate": null,
+            "rePromised": 0,
+            "outstanding": 0
+          },
+          "scores": {
+            "count": 0,
+            "average": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latest": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latestPeriodEnd": "",
+            "overall": null
+          }
+        },
+        "scorecards": []
+      },
+      {
+        "id": "<inv_ID>",
+        "name": "Many Vendor 2",
+        "contactName": "",
+        "email": "",
+        "phone": "",
+        "notes": "",
+        "itemTypes": [],
+        "createdAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>",
+        "approvedByAlias": "",
+        "position": {
+          "vendorId": "<inv_ID>",
+          "qualification": {
+            "note": "",
+            "documents": [],
+            "expired": [],
+            "expiring": [],
+            "nextExpiryAt": "",
+            "nextExpiryDays": null,
+            "state": "unassessed",
+            "usable": true,
+            "reason": "never-assessed"
+          },
+          "onTime": {
+            "judged": 0,
+            "onTime": 0,
+            "percent": null,
+            "averageDaysLate": null,
+            "worstDaysLate": null,
+            "rePromised": 0,
+            "outstanding": 0
+          },
+          "scores": {
+            "count": 0,
+            "average": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latest": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latestPeriodEnd": "",
+            "overall": null
+          }
+        },
+        "scorecards": []
+      },
+      {
+        "id": "<inv_ID>",
+        "name": "Many Vendor 20",
+        "contactName": "",
+        "email": "",
+        "phone": "",
+        "notes": "",
+        "itemTypes": [],
+        "createdAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>",
+        "approvedByAlias": "",
+        "position": {
+          "vendorId": "<inv_ID>",
+          "qualification": {
+            "note": "",
+            "documents": [],
+            "expired": [],
+            "expiring": [],
+            "nextExpiryAt": "",
+            "nextExpiryDays": null,
+            "state": "unassessed",
+            "usable": true,
+            "reason": "never-assessed"
+          },
+          "onTime": {
+            "judged": 0,
+            "onTime": 0,
+            "percent": null,
+            "averageDaysLate": null,
+            "worstDaysLate": null,
+            "rePromised": 0,
+            "outstanding": 0
+          },
+          "scores": {
+            "count": 0,
+            "average": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latest": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latestPeriodEnd": "",
+            "overall": null
+          }
+        },
+        "scorecards": []
+      },
+      {
+        "id": "<inv_ID>",
+        "name": "Many Vendor 21",
+        "contactName": "",
+        "email": "",
+        "phone": "",
+        "notes": "",
+        "itemTypes": [],
+        "createdAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>",
+        "approvedByAlias": "",
+        "position": {
+          "vendorId": "<inv_ID>",
+          "qualification": {
+            "note": "",
+            "documents": [],
+            "expired": [],
+            "expiring": [],
+            "nextExpiryAt": "",
+            "nextExpiryDays": null,
+            "state": "unassessed",
+            "usable": true,
+            "reason": "never-assessed"
+          },
+          "onTime": {
+            "judged": 0,
+            "onTime": 0,
+            "percent": null,
+            "averageDaysLate": null,
+            "worstDaysLate": null,
+            "rePromised": 0,
+            "outstanding": 0
+          },
+          "scores": {
+            "count": 0,
+            "average": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latest": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latestPeriodEnd": "",
+            "overall": null
+          }
+        },
+        "scorecards": []
+      },
+      {
+        "id": "<inv_ID>",
+        "name": "Many Vendor 22",
+        "contactName": "",
+        "email": "",
+        "phone": "",
+        "notes": "",
+        "itemTypes": [],
+        "createdAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>",
+        "approvedByAlias": "",
+        "position": {
+          "vendorId": "<inv_ID>",
+          "qualification": {
+            "note": "",
+            "documents": [],
+            "expired": [],
+            "expiring": [],
+            "nextExpiryAt": "",
+            "nextExpiryDays": null,
+            "state": "unassessed",
+            "usable": true,
+            "reason": "never-assessed"
+          },
+          "onTime": {
+            "judged": 0,
+            "onTime": 0,
+            "percent": null,
+            "averageDaysLate": null,
+            "worstDaysLate": null,
+            "rePromised": 0,
+            "outstanding": 0
+          },
+          "scores": {
+            "count": 0,
+            "average": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latest": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latestPeriodEnd": "",
+            "overall": null
+          }
+        },
+        "scorecards": []
+      },
+      {
+        "id": "<inv_ID>",
+        "name": "Many Vendor 23",
+        "contactName": "",
+        "email": "",
+        "phone": "",
+        "notes": "",
+        "itemTypes": [],
+        "createdAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>",
+        "approvedByAlias": "",
+        "position": {
+          "vendorId": "<inv_ID>",
+          "qualification": {
+            "note": "",
+            "documents": [],
+            "expired": [],
+            "expiring": [],
+            "nextExpiryAt": "",
+            "nextExpiryDays": null,
+            "state": "unassessed",
+            "usable": true,
+            "reason": "never-assessed"
+          },
+          "onTime": {
+            "judged": 0,
+            "onTime": 0,
+            "percent": null,
+            "averageDaysLate": null,
+            "worstDaysLate": null,
+            "rePromised": 0,
+            "outstanding": 0
+          },
+          "scores": {
+            "count": 0,
+            "average": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latest": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latestPeriodEnd": "",
+            "overall": null
+          }
+        },
+        "scorecards": []
+      },
+      {
+        "id": "<inv_ID>",
+        "name": "Many Vendor 3",
+        "contactName": "",
+        "email": "",
+        "phone": "",
+        "notes": "",
+        "itemTypes": [],
+        "createdAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>",
+        "approvedByAlias": "",
+        "position": {
+          "vendorId": "<inv_ID>",
+          "qualification": {
+            "note": "",
+            "documents": [],
+            "expired": [],
+            "expiring": [],
+            "nextExpiryAt": "",
+            "nextExpiryDays": null,
+            "state": "unassessed",
+            "usable": true,
+            "reason": "never-assessed"
+          },
+          "onTime": {
+            "judged": 0,
+            "onTime": 0,
+            "percent": null,
+            "averageDaysLate": null,
+            "worstDaysLate": null,
+            "rePromised": 0,
+            "outstanding": 0
+          },
+          "scores": {
+            "count": 0,
+            "average": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latest": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latestPeriodEnd": "",
+            "overall": null
+          }
+        },
+        "scorecards": []
+      },
+      {
+        "id": "<inv_ID>",
+        "name": "Many Vendor 4",
+        "contactName": "",
+        "email": "",
+        "phone": "",
+        "notes": "",
+        "itemTypes": [],
+        "createdAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>",
+        "approvedByAlias": "",
+        "position": {
+          "vendorId": "<inv_ID>",
+          "qualification": {
+            "note": "",
+            "documents": [],
+            "expired": [],
+            "expiring": [],
+            "nextExpiryAt": "",
+            "nextExpiryDays": null,
+            "state": "unassessed",
+            "usable": true,
+            "reason": "never-assessed"
+          },
+          "onTime": {
+            "judged": 0,
+            "onTime": 0,
+            "percent": null,
+            "averageDaysLate": null,
+            "worstDaysLate": null,
+            "rePromised": 0,
+            "outstanding": 0
+          },
+          "scores": {
+            "count": 0,
+            "average": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latest": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latestPeriodEnd": "",
+            "overall": null
+          }
+        },
+        "scorecards": []
+      },
+      {
+        "id": "<inv_ID>",
+        "name": "Many Vendor 5",
+        "contactName": "",
+        "email": "",
+        "phone": "",
+        "notes": "",
+        "itemTypes": [],
+        "createdAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>",
+        "approvedByAlias": "",
+        "position": {
+          "vendorId": "<inv_ID>",
+          "qualification": {
+            "note": "",
+            "documents": [],
+            "expired": [],
+            "expiring": [],
+            "nextExpiryAt": "",
+            "nextExpiryDays": null,
+            "state": "unassessed",
+            "usable": true,
+            "reason": "never-assessed"
+          },
+          "onTime": {
+            "judged": 0,
+            "onTime": 0,
+            "percent": null,
+            "averageDaysLate": null,
+            "worstDaysLate": null,
+            "rePromised": 0,
+            "outstanding": 0
+          },
+          "scores": {
+            "count": 0,
+            "average": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latest": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latestPeriodEnd": "",
+            "overall": null
+          }
+        },
+        "scorecards": []
+      },
+      {
+        "id": "<inv_ID>",
+        "name": "Many Vendor 6",
+        "contactName": "",
+        "email": "",
+        "phone": "",
+        "notes": "",
+        "itemTypes": [],
+        "createdAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>",
+        "approvedByAlias": "",
+        "position": {
+          "vendorId": "<inv_ID>",
+          "qualification": {
+            "note": "",
+            "documents": [],
+            "expired": [],
+            "expiring": [],
+            "nextExpiryAt": "",
+            "nextExpiryDays": null,
+            "state": "unassessed",
+            "usable": true,
+            "reason": "never-assessed"
+          },
+          "onTime": {
+            "judged": 0,
+            "onTime": 0,
+            "percent": null,
+            "averageDaysLate": null,
+            "worstDaysLate": null,
+            "rePromised": 0,
+            "outstanding": 0
+          },
+          "scores": {
+            "count": 0,
+            "average": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latest": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latestPeriodEnd": "",
+            "overall": null
+          }
+        },
+        "scorecards": []
+      },
+      {
+        "id": "<inv_ID>",
+        "name": "Many Vendor 7",
+        "contactName": "",
+        "email": "",
+        "phone": "",
+        "notes": "",
+        "itemTypes": [],
+        "createdAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>",
+        "approvedByAlias": "",
+        "position": {
+          "vendorId": "<inv_ID>",
+          "qualification": {
+            "note": "",
+            "documents": [],
+            "expired": [],
+            "expiring": [],
+            "nextExpiryAt": "",
+            "nextExpiryDays": null,
+            "state": "unassessed",
+            "usable": true,
+            "reason": "never-assessed"
+          },
+          "onTime": {
+            "judged": 0,
+            "onTime": 0,
+            "percent": null,
+            "averageDaysLate": null,
+            "worstDaysLate": null,
+            "rePromised": 0,
+            "outstanding": 0
+          },
+          "scores": {
+            "count": 0,
+            "average": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latest": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latestPeriodEnd": "",
+            "overall": null
+          }
+        },
+        "scorecards": []
+      },
+      {
+        "id": "<inv_ID>",
+        "name": "Many Vendor 8",
+        "contactName": "",
+        "email": "",
+        "phone": "",
+        "notes": "",
+        "itemTypes": [],
+        "createdAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>",
+        "approvedByAlias": "",
+        "position": {
+          "vendorId": "<inv_ID>",
+          "qualification": {
+            "note": "",
+            "documents": [],
+            "expired": [],
+            "expiring": [],
+            "nextExpiryAt": "",
+            "nextExpiryDays": null,
+            "state": "unassessed",
+            "usable": true,
+            "reason": "never-assessed"
+          },
+          "onTime": {
+            "judged": 0,
+            "onTime": 0,
+            "percent": null,
+            "averageDaysLate": null,
+            "worstDaysLate": null,
+            "rePromised": 0,
+            "outstanding": 0
+          },
+          "scores": {
+            "count": 0,
+            "average": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latest": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latestPeriodEnd": "",
+            "overall": null
+          }
+        },
+        "scorecards": []
+      },
+      {
+        "id": "<inv_ID>",
+        "name": "Many Vendor 9",
+        "contactName": "",
+        "email": "",
+        "phone": "",
+        "notes": "",
+        "itemTypes": [],
+        "createdAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>",
+        "approvedByAlias": "",
+        "position": {
+          "vendorId": "<inv_ID>",
+          "qualification": {
+            "note": "",
+            "documents": [],
+            "expired": [],
+            "expiring": [],
+            "nextExpiryAt": "",
+            "nextExpiryDays": null,
+            "state": "unassessed",
+            "usable": true,
+            "reason": "never-assessed"
+          },
+          "onTime": {
+            "judged": 0,
+            "onTime": 0,
+            "percent": null,
+            "averageDaysLate": null,
+            "worstDaysLate": null,
+            "rePromised": 0,
+            "outstanding": 0
+          },
+          "scores": {
+            "count": 0,
+            "average": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latest": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latestPeriodEnd": "",
+            "overall": null
+          }
+        },
+        "scorecards": []
+      },
+      {
+        "id": "<inv_ID>",
+        "name": "Nile Acoustics",
+        "contactName": "",
+        "email": "",
+        "phone": "",
+        "notes": "",
+        "itemTypes": [],
+        "createdAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>",
+        "approvedByAlias": "",
+        "position": {
+          "vendorId": "<inv_ID>",
+          "qualification": {
+            "note": "",
+            "documents": [],
+            "expired": [],
+            "expiring": [],
+            "nextExpiryAt": "",
+            "nextExpiryDays": null,
+            "state": "unassessed",
+            "usable": true,
+            "reason": "never-assessed"
+          },
+          "onTime": {
+            "judged": 0,
+            "onTime": 0,
+            "percent": null,
+            "averageDaysLate": null,
+            "worstDaysLate": null,
+            "rePromised": 0,
+            "outstanding": 0
+          },
+          "scores": {
+            "count": 0,
+            "average": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latest": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latestPeriodEnd": "",
+            "overall": null
+          }
+        },
+        "scorecards": []
+      },
+      {
+        "id": "<inv_ID>",
+        "name": "Pipe Co",
+        "contactName": "",
+        "email": "",
+        "phone": "",
+        "notes": "",
+        "itemTypes": [],
+        "createdAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>",
+        "approvedByAlias": "",
+        "position": {
+          "vendorId": "<inv_ID>",
+          "qualification": {
+            "note": "",
+            "documents": [],
+            "expired": [],
+            "expiring": [],
+            "nextExpiryAt": "",
+            "nextExpiryDays": null,
+            "state": "unassessed",
+            "usable": true,
+            "reason": "never-assessed"
+          },
+          "onTime": {
+            "judged": 0,
+            "onTime": 0,
+            "percent": null,
+            "averageDaysLate": null,
+            "worstDaysLate": null,
+            "rePromised": 0,
+            "outstanding": 1
+          },
+          "scores": {
+            "count": 0,
+            "average": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latest": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latestPeriodEnd": "",
+            "overall": null
+          }
+        },
+        "scorecards": []
+      },
+      {
+        "id": "<inv_ID>",
+        "name": "Scaffold Hire",
+        "contactName": "",
+        "email": "",
+        "phone": "",
+        "notes": "",
+        "itemTypes": [],
+        "createdAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>",
+        "approvedByAlias": "",
+        "position": {
+          "vendorId": "<inv_ID>",
+          "qualification": {
+            "note": "",
+            "documents": [],
+            "expired": [],
+            "expiring": [],
+            "nextExpiryAt": "",
+            "nextExpiryDays": null,
+            "state": "unassessed",
+            "usable": true,
+            "reason": "never-assessed"
+          },
+          "onTime": {
+            "judged": 0,
+            "onTime": 0,
+            "percent": null,
+            "averageDaysLate": null,
+            "worstDaysLate": null,
+            "rePromised": 0,
+            "outstanding": 0
+          },
+          "scores": {
+            "count": 0,
+            "average": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latest": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latestPeriodEnd": "",
+            "overall": null
+          }
+        },
+        "scorecards": []
+      },
+      {
+        "id": "<inv_ID>",
+        "name": "Six Vendor 0",
+        "contactName": "",
+        "email": "",
+        "phone": "",
+        "notes": "",
+        "itemTypes": [],
+        "createdAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>",
+        "approvedByAlias": "",
+        "position": {
+          "vendorId": "<inv_ID>",
+          "qualification": {
+            "note": "",
+            "documents": [],
+            "expired": [],
+            "expiring": [],
+            "nextExpiryAt": "",
+            "nextExpiryDays": null,
+            "state": "unassessed",
+            "usable": true,
+            "reason": "never-assessed"
+          },
+          "onTime": {
+            "judged": 0,
+            "onTime": 0,
+            "percent": null,
+            "averageDaysLate": null,
+            "worstDaysLate": null,
+            "rePromised": 0,
+            "outstanding": 0
+          },
+          "scores": {
+            "count": 0,
+            "average": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latest": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latestPeriodEnd": "",
+            "overall": null
+          }
+        },
+        "scorecards": []
+      },
+      {
+        "id": "<inv_ID>",
+        "name": "Six Vendor 1",
+        "contactName": "",
+        "email": "",
+        "phone": "",
+        "notes": "",
+        "itemTypes": [],
+        "createdAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>",
+        "approvedByAlias": "",
+        "position": {
+          "vendorId": "<inv_ID>",
+          "qualification": {
+            "note": "",
+            "documents": [],
+            "expired": [],
+            "expiring": [],
+            "nextExpiryAt": "",
+            "nextExpiryDays": null,
+            "state": "unassessed",
+            "usable": true,
+            "reason": "never-assessed"
+          },
+          "onTime": {
+            "judged": 0,
+            "onTime": 0,
+            "percent": null,
+            "averageDaysLate": null,
+            "worstDaysLate": null,
+            "rePromised": 0,
+            "outstanding": 0
+          },
+          "scores": {
+            "count": 0,
+            "average": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latest": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latestPeriodEnd": "",
+            "overall": null
+          }
+        },
+        "scorecards": []
+      },
+      {
+        "id": "<inv_ID>",
+        "name": "Six Vendor 2",
+        "contactName": "",
+        "email": "",
+        "phone": "",
+        "notes": "",
+        "itemTypes": [],
+        "createdAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>",
+        "approvedByAlias": "",
+        "position": {
+          "vendorId": "<inv_ID>",
+          "qualification": {
+            "note": "",
+            "documents": [],
+            "expired": [],
+            "expiring": [],
+            "nextExpiryAt": "",
+            "nextExpiryDays": null,
+            "state": "unassessed",
+            "usable": true,
+            "reason": "never-assessed"
+          },
+          "onTime": {
+            "judged": 0,
+            "onTime": 0,
+            "percent": null,
+            "averageDaysLate": null,
+            "worstDaysLate": null,
+            "rePromised": 0,
+            "outstanding": 0
+          },
+          "scores": {
+            "count": 0,
+            "average": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latest": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latestPeriodEnd": "",
+            "overall": null
+          }
+        },
+        "scorecards": []
+      },
+      {
+        "id": "<inv_ID>",
+        "name": "Six Vendor 3",
+        "contactName": "",
+        "email": "",
+        "phone": "",
+        "notes": "",
+        "itemTypes": [],
+        "createdAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>",
+        "approvedByAlias": "",
+        "position": {
+          "vendorId": "<inv_ID>",
+          "qualification": {
+            "note": "",
+            "documents": [],
+            "expired": [],
+            "expiring": [],
+            "nextExpiryAt": "",
+            "nextExpiryDays": null,
+            "state": "unassessed",
+            "usable": true,
+            "reason": "never-assessed"
+          },
+          "onTime": {
+            "judged": 0,
+            "onTime": 0,
+            "percent": null,
+            "averageDaysLate": null,
+            "worstDaysLate": null,
+            "rePromised": 0,
+            "outstanding": 0
+          },
+          "scores": {
+            "count": 0,
+            "average": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latest": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latestPeriodEnd": "",
+            "overall": null
+          }
+        },
+        "scorecards": []
+      },
+      {
+        "id": "<inv_ID>",
+        "name": "Six Vendor 4",
+        "contactName": "",
+        "email": "",
+        "phone": "",
+        "notes": "",
+        "itemTypes": [],
+        "createdAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>",
+        "approvedByAlias": "",
+        "position": {
+          "vendorId": "<inv_ID>",
+          "qualification": {
+            "note": "",
+            "documents": [],
+            "expired": [],
+            "expiring": [],
+            "nextExpiryAt": "",
+            "nextExpiryDays": null,
+            "state": "unassessed",
+            "usable": true,
+            "reason": "never-assessed"
+          },
+          "onTime": {
+            "judged": 0,
+            "onTime": 0,
+            "percent": null,
+            "averageDaysLate": null,
+            "worstDaysLate": null,
+            "rePromised": 0,
+            "outstanding": 0
+          },
+          "scores": {
+            "count": 0,
+            "average": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latest": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latestPeriodEnd": "",
+            "overall": null
+          }
+        },
+        "scorecards": []
+      },
+      {
+        "id": "<inv_ID>",
+        "name": "Six Vendor 5",
+        "contactName": "",
+        "email": "",
+        "phone": "",
+        "notes": "",
+        "itemTypes": [],
+        "createdAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>",
+        "approvedByAlias": "",
+        "position": {
+          "vendorId": "<inv_ID>",
+          "qualification": {
+            "note": "",
+            "documents": [],
+            "expired": [],
+            "expiring": [],
+            "nextExpiryAt": "",
+            "nextExpiryDays": null,
+            "state": "unassessed",
+            "usable": true,
+            "reason": "never-assessed"
+          },
+          "onTime": {
+            "judged": 0,
+            "onTime": 0,
+            "percent": null,
+            "averageDaysLate": null,
+            "worstDaysLate": null,
+            "rePromised": 0,
+            "outstanding": 0
+          },
+          "scores": {
+            "count": 0,
+            "average": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latest": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latestPeriodEnd": "",
+            "overall": null
+          }
+        },
+        "scorecards": []
+      },
+      {
+        "id": "<inv_ID>",
+        "name": "Twice Over",
+        "contactName": "",
+        "email": "",
+        "phone": "",
+        "notes": "",
+        "itemTypes": [],
+        "createdAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>",
+        "approvedByAlias": "",
+        "position": {
+          "vendorId": "<inv_ID>",
+          "qualification": {
+            "note": "",
+            "documents": [],
+            "expired": [],
+            "expiring": [],
+            "nextExpiryAt": "",
+            "nextExpiryDays": null,
+            "state": "unassessed",
+            "usable": true,
+            "reason": "never-assessed"
+          },
+          "onTime": {
+            "judged": 0,
+            "onTime": 0,
+            "percent": null,
+            "averageDaysLate": null,
+            "worstDaysLate": null,
+            "rePromised": 0,
+            "outstanding": 0
+          },
+          "scores": {
+            "count": 0,
+            "average": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latest": {
+              "workmanship": null,
+              "hse": null,
+              "responsiveness": null
+            },
+            "latestPeriodEnd": "",
+            "overall": null
+          }
+        },
+        "scorecards": []
+      }
+    ],
+    "asOf": "<timestamp>",
+    "statuses": [
+      "Unassessed",
+      "Approved",
+      "Suspended",
+      "Rejected"
+    ],
+    "axes": [
+      "workmanship",
+      "hse",
+      "responsiveness"
+    ],
+    "canCreate": true,
+    "canEdit": true,
+    "canDelete": true,
+    "canQualify": true
+  }
+}

@@ -997,6 +997,7 @@
           "procurement.requisitions.approveHigh",
           "procurement.rfq.award",
           "procurement.subcontracts.certify",
+          "procurement.suppliers.qualify",
           "hr.employees.salary",
           "hr.vacations.approve",
           "finance.ledger.post",
@@ -1235,6 +1236,7 @@
           "procurement.requisitions.approveHigh",
           "procurement.rfq.award",
           "procurement.subcontracts.certify",
+          "procurement.suppliers.qualify",
           "hr.employees.salary",
           "hr.vacations.approve",
           "finance.ledger.post",
@@ -1417,6 +1419,7 @@
           "procurement.requisitions.approveHigh",
           "procurement.rfq.award",
           "procurement.subcontracts.certify",
+          "procurement.suppliers.qualify",
           "hr.employees.salary",
           "hr.vacations.approve",
           "finance.ledger.post",
@@ -1599,6 +1602,7 @@
           "procurement.requisitions.approveHigh",
           "procurement.rfq.award",
           "procurement.subcontracts.certify",
+          "procurement.suppliers.qualify",
           "hr.employees.salary",
           "hr.vacations.approve",
           "finance.ledger.post",
@@ -1781,6 +1785,7 @@
           "procurement.requisitions.approveHigh",
           "procurement.rfq.award",
           "procurement.subcontracts.certify",
+          "procurement.suppliers.qualify",
           "hr.employees.salary",
           "hr.vacations.approve",
           "finance.ledger.post",
@@ -1963,6 +1968,7 @@
           "procurement.requisitions.approveHigh",
           "procurement.rfq.award",
           "procurement.subcontracts.certify",
+          "procurement.suppliers.qualify",
           "hr.employees.salary",
           "hr.vacations.approve",
           "finance.ledger.post",
@@ -2145,6 +2151,7 @@
           "procurement.requisitions.approveHigh",
           "procurement.rfq.award",
           "procurement.subcontracts.certify",
+          "procurement.suppliers.qualify",
           "hr.employees.salary",
           "hr.vacations.approve",
           "finance.ledger.post",
@@ -2327,6 +2334,7 @@
           "procurement.requisitions.approveHigh",
           "procurement.rfq.award",
           "procurement.subcontracts.certify",
+          "procurement.suppliers.qualify",
           "hr.employees.salary",
           "hr.vacations.approve",
           "finance.ledger.post",
@@ -2701,6 +2709,12 @@
           "create",
           "edit",
           "delete"
+        ],
+        "extra": [
+          {
+            "key": "qualify",
+            "label": "Approve a supplier for use"
+          }
         ]
       },
       {

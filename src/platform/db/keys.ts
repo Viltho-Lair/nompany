@@ -734,7 +734,12 @@ export const SECTION_COLLECTIONS = {
   // make writing one period a write to the record every other period is also
   // valued against.
   "procurement-subcontracts": ["subcontracts", "paymentCertificates"],
-  "procurement-suppliers": ["inventoryVendors"],
+  // THE SCORECARDS ARE THEIR OWN COLLECTION AND THE DOCUMENTS ARE NOT.
+  // Licences and insurance certificates are a handful per supplier and stop
+  // arriving, so they sit on the record the way an order carries its chases.
+  // A scorecard lands every period forever, which is precisely the "array that
+  // grows without bound" the migration design refuses to nest.
+  "procurement-suppliers": ["inventoryVendors", "supplierScorecards"],
   // inventory — Project Sheets owns the sheets and their orders sub-sheet,
   // matching the Old System, where Sheets lives under Inventory (not Projects).
   inventory: ["deliveries"],

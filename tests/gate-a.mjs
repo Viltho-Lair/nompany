@@ -112,6 +112,20 @@ const EXTRA = {
   // and will again every time the calendar comes back around, so both goldens
   // failed on a date rather than on a change. Pushed further out than the
   // asker's own 30/34 block so the two leave records stay visibly distinct.
+  // BACKWARDS, FOR THE EXPEDITING FIXTURE, and the reason is worth stating
+  // because the block below got it exactly half right. It chose an absolute
+  // past date (2020-03-01) DELIBERATELY, to stay clear of these placeholders —
+  // and that keeps the date STRING stable while doing nothing at all for the
+  // number derived from it. `lateDays` is today minus that date, so it grew by
+  // one every midnight and the two expediting goldens went red the day after
+  // whichever day they were recorded. It is the same date drift as the vacation
+  // fixtures, arriving through a computed field instead of a literal one.
+  //
+  // Clock-relative both ends now: -40 for the original promise and -9 for the
+  // re-promise, so `lateDays` is a fixed 40 then 9, and `slippedDays` a fixed
+  // 31 — the slip the whole slice exists to keep measurable.
+  [utcDay(-40)]: "<today-40>",
+  [utcDay(-9)]: "<today-9>",
   [utcDay(40)]: "<today+40>",
   [utcDay(41)]: "<today+41>",
 };
@@ -329,7 +343,11 @@ console.log("== the permission matrix: one key grants exactly itself");
   // as an EXTRA. Writing a valuation is administration; AGREEING it creates a
   // debt, which is the separation procurement.requisitions.approve draws and
   // the reason neither is a rung on the view/edit ladder.
-  ok("the catalogue is the size we last agreed", ALL_PERMISSIONS.length === 171, String(ALL_PERMISSIONS.length));
+  // 172 with procurement.suppliers.qualify, an EXTRA on an area that already
+  // had its four verbs. Editing a supplier corrects their phone number;
+  // APPROVING one says the company may commit money to them. Rating adds no
+  // key at all -- see the note on the area.
+  ok("the catalogue is the size we last agreed", ALL_PERMISSIONS.length === 172, String(ALL_PERMISSIONS.length));
 
   const leaks = [];
   const missing = [];
@@ -6225,7 +6243,12 @@ console.log("== procurement: the request that stands before a purchase order");
   const vendorMade = await capture(
     (await import("@/app/api/studios/[slug]/inventory/vendors/route.ts")).POST,
     req(`/api/studios/${slug}/inventory/vendors`, {
-      method: "POST", body: { name: `Scaffold Hire ${rand()}` },
+      // FIXED, NOT `rand()`. A vendor NAME reaches the response body, where the
+      // golden normaliser cannot help — it rewrites ids, not words inside a
+      // field. Nothing pinned this until the supplier register shipped a
+      // whole-studio snapshot, at which point a random name here failed a
+      // golden in another block. A distinct fixed name isolates just as well.
+      method: "POST", body: { name: "Scaffold Hire" },
     }), P);
   const vendorId = vendorMade.body?.vendor?.id || "";
   ok("a vendor to order from", Boolean(vendorId), JSON.stringify(vendorMade.body).slice(0, 140));
@@ -6549,23 +6572,24 @@ console.log("== procurement: what is late, and who has been chased");
   // inventory block: that block runs earlier and this one must not depend on
   // what it happened to leave behind.
   const vendor = await capture(VENDORS.POST, req(`/api/studios/${slug}/inventory/vendors`, {
-    method: "POST", body: { name: `Late Supplies ${rand()}` },
+    method: "POST", body: { name: "Late Supplies" },
   }), P);
   const vendorId = vendor.body?.vendor?.id || "";
   const item = await capture(ITEMS.POST, req(`/api/studios/${slug}/inventory/items`, {
-    method: "POST", body: { name: `Scaffold board ${rand()}`, unit: "pcs", unitCost: 20 },
+    method: "POST", body: { name: "Scaffold board", unit: "pcs", unitCost: 20 },
   }), P);
   const itemId = item.body?.item?.id || "";
   ok("a vendor and an item to order", Boolean(vendorId) && Boolean(itemId));
 
-  // A DATE WELL IN THE PAST so it is unambiguously late whatever day this runs.
-  // Not clock-relative: the golden normaliser scrubs `<today+N>` placeholders
-  // and a fixture that drifted into one would fail on the calendar rather than
-  // on a change — the recurring Gate-A date drift.
+  // CLOCK-RELATIVE, forty days back. An absolute past date sat here and its
+  // comment argued that clock-relative dates were the drift risk — but the
+  // golden does not hold the date, it holds `lateDays`, which is today MINUS
+  // the date and therefore grew by one every midnight. Both expediting goldens
+  // failed the day after they were recorded, every time. See the placeholders.
   const placed = await capture(ORDERS.POST, req(`/api/studios/${slug}/inventory/orders`, {
     method: "POST",
     body: {
-      vendorId, expectedAt: "2020-03-01",
+      vendorId, expectedAt: utcDay(-40),
       lines: [{ itemId, qty: 10, unitPrice: 20 }],
     },
   }), P);
@@ -6609,21 +6633,21 @@ console.log("== procurement: what is late, and who has been chased");
   // A CHASE WITH NO NEW DATE LEAVES THE PROMISE WHERE IT WAS rather than
   // blanking it: "we rang and they did not commit" must not un-date the order.
   ok("...and one with no new date leaves the promise alone",
-    chased?.dueAt === "2020-03-01" && chased?.slippedDays === null,
+    chased?.dueAt === utcDay(-40) && chased?.slippedDays === null,
     JSON.stringify({ due: chased?.dueAt, slipped: chased?.slippedDays }));
 
   // THE ASSERTION THIS SLICE EXISTS FOR. A re-promise moves `promisedAt` and
   // NEVER `expectedAt`, so the slip stays measurable — which is the entire
   // input to supplier rating, this section's fifth bullet.
   await chase({
-    orderId, note: "They have re-promised.", promisedAt: "2020-04-01",
+    orderId, note: "They have re-promised.", promisedAt: utcDay(-9),
   });
   const reprom = await shot("procurement.expediting.repromised", await readExp());
   const moved = (reprom.body?.view?.orders || []).find((o) => o.id === orderId);
   ok("THE ORIGINAL PROMISE SURVIVES THE SECOND ONE",
-    moved?.expectedAt === "2020-03-01", String(moved?.expectedAt));
+    moved?.expectedAt === utcDay(-40), String(moved?.expectedAt));
   ok("...the current promise is what it is due against",
-    moved?.dueAt === "2020-04-01", String(moved?.dueAt));
+    moved?.dueAt === utcDay(-9), String(moved?.dueAt));
   ok("...AND THE SLIP IS VISIBLE", moved?.slippedDays === 31, String(moved?.slippedDays));
   ok("...with both chases recorded", moved?.chases === 2, String(moved?.chases));
 
@@ -6816,6 +6840,193 @@ console.log("== procurement: a package valued period by period");
   const outsider = await subPersonWith(["crmSales.tickets.view"], "nosub");
   await signIn(outsider.id);
   await shot("procurement.subcontract.forbidden", await readSubs());
+  await signIn(owner.id);
+}
+
+// ============================================================================
+console.log("== procurement: who the studio may buy from, and how they performed");
+// QUALIFICATION IS DERIVED AT `asOf` AND NEVER STORED, because a trade licence
+// expires on its own and no business event fires when it does. A stored flag
+// would need a nightly job to stay honest, and the day that job failed the
+// studio would go on buying from a supplier whose insurance lapsed in March.
+//
+// THE ASSERTION THIS BLOCK EXISTS FOR is the rollout one: every supplier in
+// every existing register is unassessed, so unassessed MUST still be usable.
+// A version that refused would stop three live studios buying anything on the
+// morning it shipped, and would pass every other test in this file.
+//
+// PLACED HERE for the reason the blocks above state: this studio is SHARED and
+// several goldens are whole-studio snapshots.
+{
+  const SUP = await import("@/app/api/studios/[slug]/procurement/suppliers/route.ts");
+  const V = await import("@/app/api/studios/[slug]/inventory/vendors/route.ts");
+  const O = await import("@/app/api/studios/[slug]/inventory/orders/route.ts");
+  const I = await import("@/app/api/studios/[slug]/inventory/items/route.ts");
+
+  const P = ctx({ slug });
+  const shot = async (name, payload) => {
+    const r = golden(name, payload, EXTRA);
+    if (!r.recorded) ok(`${name} matches its golden`, r.ok, r.detail);
+    return payload;
+  };
+  const supPersonWith = async (permissions, alias) => {
+    const u = (await createUser({ email: `g-${alias}-${rand()}@test.invalid`, passwordHash: "x" })).user;
+    const role = await createRole(studio.id, { name: `role-${alias}`, permissions });
+    await addCollaborator(studio.id, { userId: u.id, alias, role: "member", roleIds: [role.id] });
+    return u;
+  };
+
+  const readSuppliers = () => capture(
+    SUP.GET, req(`/api/studios/${slug}/procurement/suppliers`), P);
+  const put = (body) => capture(
+    SUP.PUT, req(`/api/studios/${slug}/procurement/suppliers`, { method: "PUT", body }), P);
+  const post = (body) => capture(
+    SUP.POST, req(`/api/studios/${slug}/procurement/suppliers`, { method: "POST", body }), P);
+  const positionOf = async (id) => {
+    const all = await readSuppliers();
+    return (all.body?.suppliers || []).find((x) => x.id === id)?.position || {};
+  };
+
+  await signIn(owner.id);
+
+  // ITS OWN VENDOR AND ITEM. Every block in this file scopes its fixtures, so
+  // the inventory block's are not in scope here.
+  // A FIXED NAME, NOT `rand()`. The name lands in the response body, where the
+  // golden normaliser cannot see it — it rewrites ids, not words inside a
+  // field — so a random one records fine and can never match on the second run.
+  // The same shape as the two-letter id prefix that escaped the normaliser in
+  // the requisitions slice. Uniqueness is not at risk: the vendors route
+  // refuses duplicate names and no other block in this file uses this one.
+  const made = await capture(V.POST, req(`/api/studios/${slug}/inventory/vendors`, {
+    method: "POST", body: { name: "Falcon Steel" },
+  }), P);
+  const vendorId = made.body?.vendor?.id;
+  const item = await capture(I.POST, req(`/api/studios/${slug}/inventory/items`, {
+    method: "POST", body: { name: "RHS section", sku: "RHS-SUP-01", vendorId, unitCost: 400 },
+  }), P);
+  const itemId = item.body?.item?.id;
+  ok("the supplier fixtures exist", Boolean(vendorId && itemId));
+
+  const order = () => capture(O.POST, req(`/api/studios/${slug}/inventory/orders`, {
+    method: "POST", body: { vendorId, lines: [{ itemId, qty: 1, unitPrice: 400 }] },
+  }), P);
+
+  // ---- the rollout assertion ----------------------------------------------
+  const before = await positionOf(vendorId);
+  ok("A SUPPLIER NOBODY HAS ASSESSED IS UNASSESSED",
+    before.qualification?.state === "unassessed", String(before.qualification?.state));
+  ok("...AND AN ORDER MAY STILL BE PLACED ON THEM", before.qualification?.usable === true);
+  const allowed = await order();
+  ok("...proven by placing one", allowed.status === 201, String(allowed.status));
+
+  // NULL RATHER THAN NOUGHT. The order above has not been received, so nothing
+  // is judgeable — and "nothing has landed yet" must not read as "every order
+  // was late", which is what a 0% would say.
+  ok("on-time is NULL with nothing delivered, not nought",
+    before.onTime?.percent === null, String(before.onTime?.percent));
+
+  // ---- assessing is its own right -----------------------------------------
+  // Somebody who may write a supplier's details may not say the company is
+  // allowed to commit money to them.
+  const clerk = await supPersonWith(
+    ["procurement.suppliers.view", "procurement.suppliers.edit"], "supclerk");
+  await signIn(clerk.id);
+  await shot("procurement.supplier.assessforbidden", await put({
+    action: "assess", id: vendorId, status: "Approved", reason: "",
+  }));
+  // ...BUT MAY STILL SCORE ONE. Rating is not a governance act: the person who
+  // can say a delivery was poor is whoever received it, and putting that behind
+  // `qualify` would mean the only people able to write a scorecard are the ones
+  // who never see the goods.
+  const clerkScore = await post({
+    vendorId, periodEnd: "2031-01-31", workmanship: 2, hse: 2, responsiveness: 3,
+  });
+  ok("...but may still write a scorecard", clerkScore.status === 201, String(clerkScore.status));
+  await signIn(owner.id);
+
+  // ---- a decision that blocks must say why --------------------------------
+  await shot("procurement.supplier.noreason", await put({
+    action: "assess", id: vendorId, status: "Suspended", reason: "   ",
+  }));
+  await shot("procurement.supplier.badstatus", await put({
+    action: "assess", id: vendorId, status: "Probation", reason: "x",
+  }));
+
+  const suspended = await shot("procurement.supplier.suspended", await put({
+    action: "assess", id: vendorId, status: "Suspended", reason: "Site incident, under review",
+  }));
+  ok("a suspension is stamped with who decided",
+    Boolean(suspended.body?.supplier?.approvedByCollaboratorId));
+
+  const blockedPos = await positionOf(vendorId);
+  ok("a suspended supplier is blocked",
+    blockedPos.qualification?.state === "blocked", String(blockedPos.qualification?.state));
+  // WHAT MAKES QUALIFICATION MORE THAN A BADGE. A status nothing can act on is
+  // invariant 16 at the record level.
+  await shot("procurement.supplier.orderblocked", await order());
+
+  // ---- an approval does not outlive the document it rested on --------------
+  await put({ action: "assess", id: vendorId, status: "Approved", reason: "" });
+  await shot("procurement.supplier.expirybeforeissue", await put({
+    action: "documents", id: vendorId,
+    documents: [{ kind: "Insurance", issuedAt: "2031-05-01", expiresAt: "2031-04-01" }],
+  }));
+
+  await put({
+    action: "documents", id: vendorId,
+    documents: [{ kind: "Insurance", reference: "INS-1", issuedAt: "2020-01-01", expiresAt: "2021-01-01" }],
+  });
+  const lapsedPos = await positionOf(vendorId);
+  ok("AN APPROVAL DOES NOT OUTLIVE A LAPSED DOCUMENT",
+    lapsedPos.qualification?.state === "lapsed", String(lapsedPos.qualification?.state));
+  await shot("procurement.supplier.orderlapsed", await order());
+
+  // A DOCUMENT WITH NO EXPIRY DOES NOT EXPIRE. Treating a blank as lapsed would
+  // disqualify every supplier in the register on the day this shipped, which is
+  // not a safety feature but a screen nobody can act on.
+  await put({
+    action: "documents", id: vendorId,
+    documents: [{ kind: "Trade licence", reference: "TL-9", issuedAt: "2030-01-01", expiresAt: "" }],
+  });
+  const undatedPos = await positionOf(vendorId);
+  ok("A BLANK EXPIRY DOES NOT EXPIRE",
+    undatedPos.qualification?.state === "qualified", String(undatedPos.qualification?.state));
+  ok("...and is shown as undated rather than valid",
+    undatedPos.qualification?.documents?.[0]?.state === "undated",
+    String(undatedPos.qualification?.documents?.[0]?.state));
+  const again = await order();
+  ok("...so ordering works again", again.status === 201, String(again.status));
+
+  // ---- scorecards ----------------------------------------------------------
+  // A scorecard that scores nothing is a note, and there is a field for that.
+  await shot("procurement.supplier.noscores", await post({
+    vendorId, periodEnd: "2031-06-30", note: "fine",
+  }));
+  await shot("procurement.supplier.badscore", await post({
+    vendorId, periodEnd: "2031-06-30", workmanship: 9,
+  }));
+  await post({ vendorId, periodEnd: "2031-06-30", workmanship: 5, hse: 4, responsiveness: 5 });
+
+  const scored = await positionOf(vendorId);
+  // THE AVERAGE AND THE LATEST ARE BOTH REPORTED. An average over three years
+  // cannot tell a studio that a supplier fixed itself in June.
+  ok("scores average across the periods",
+    scored.scores?.average?.workmanship === 3.5, String(scored.scores?.average?.workmanship));
+  ok("...while the LATEST is reported beside it",
+    scored.scores?.latest?.workmanship === 5, String(scored.scores?.latest?.workmanship));
+
+  const listed = await shot("procurement.supplier.register", await readSuppliers());
+  // DELIBERATELY ABSENT. Blending a fact about deliveries with an opinion about
+  // the work gives a figure whose meaning depends on which half moved -- the
+  // same objection this codebase records against costing.forecast and
+  // earned.eac under one label.
+  const anySupplier = (listed.body?.suppliers || [])[0]?.position || {};
+  ok("AND NO BLENDED SCORE IS RETURNED",
+    !("rating" in anySupplier) && !("score" in anySupplier));
+
+  const outsider = await supPersonWith(["crmSales.tickets.view"], "nosup");
+  await signIn(outsider.id);
+  await shot("procurement.supplier.forbidden", await readSuppliers());
   await signIn(owner.id);
 }
 

@@ -18,6 +18,9 @@
 // they append movements, and the balance follows.
 
 import { requirePermission } from "@/platform/access";
+// PROCUREMENT DECIDES WHO MAY BE BOUGHT FROM, and this is the one place
+// Inventory asks. Pure, no store, so the check below adds no round trip.
+import { supplierQualification } from "@/modules/procurement/supplierModel";
 import { isKnownCurrency } from "@/shared/currencies";
 import { repo } from "@/platform/db/repo";
 import { getSectionByKey } from "@/platform/db/sections";
@@ -1066,7 +1069,23 @@ export async function createOrder(ctx: InventoryContext, body: Record<string, un
   const { studio, itemsSection, sheetsSection, vendorsSection } = ctx;
   const vendorId = str(body?.vendorId, 60);
   const vendors = await Vendors.find({ studio, section: vendorsSection });
-  if (!vendors.some((v) => v.id === vendorId)) return { error: "vendor" };
+  const vendor = vendors.find((v) => v.id === vendorId);
+  if (!vendor) return { error: "vendor" };
+
+  // WHAT MAKES QUALIFICATION MORE THAN A BADGE. A supplier status nothing can
+  // act on is invariant 16 at the record level, so the register gates the one
+  // act that commits money: placing the order. It costs NO round trip — the
+  // vendor row was already fetched on the line above to check the id exists,
+  // and the qualification is a pure function of that row plus today.
+  //
+  // ONLY `blocked` AND `lapsed` STOP ANYTHING. A supplier nobody has assessed
+  // is usable, which is what lets this ship into studios whose entire register
+  // is unassessed without stopping their purchasing on the morning it lands.
+  // AN ITEM IS NOT GATED, only an order: pointing a catalogue entry at a
+  // supplier commits nothing, and refusing that would make the register
+  // unusable for exactly the housekeeping that fixes it.
+  const qualification = supplierQualification(vendor, new Date().toISOString().slice(0, 10));
+  if (!qualification.usable) return { error: `supplier-${qualification.reason}` };
 
   const projectId = str(body?.projectId, 60);
   if (projectId && !(await projectExists(ctx, projectId))) return { error: "project" };

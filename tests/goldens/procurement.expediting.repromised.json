@@ -10,10 +10,10 @@
           "vendorId": "<inv_ID>",
           "projectId": "",
           "status": "Ordered",
-          "expectedAt": "2020-03-01",
-          "dueAt": "2020-04-01",
+          "expectedAt": "<today-40>",
+          "dueAt": "<today-9>",
           "slippedDays": 31,
-          "lateDays": 2349,
+          "lateDays": 9,
           "chases": 2,
           "lastChasedAt": "<today>",
           "partly": false,
@@ -55,7 +55,7 @@
           "at": "<today>",
           "byCollaboratorId": "<col_ID>",
           "note": "They have re-promised.",
-          "promisedAt": "2020-04-01"
+          "promisedAt": "<today-9>"
         }
       ],
       "<mat_ID>": []

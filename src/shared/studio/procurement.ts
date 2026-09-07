@@ -9,6 +9,74 @@ type Strings = {
   requisitions: string;
   rfqs: string;
   expediting: string;
+  suppliers: string;
+  suppliersSub: string;
+  loadingSuppliers: string;
+  noSuppliers: string;
+  noSuppliersBody: string;
+  qualification: string;
+  qualified: string;
+  unassessed: string;
+  expiringSoon: string;
+  lapsed: string;
+  blockedLabel: string;
+  usableYes: string;
+  usableNo: string;
+  whyNeverAssessed: string;
+  whyDocumentExpired: string;
+  whyDocumentExpiring: string;
+  whySuspended: string;
+  whyRejected: string;
+  assess: string;
+  assessTitle: (who: string) => string;
+  decision: string;
+  decisionReason: string;
+  reasonRequired: string;
+  assessedBy: (who: string, when: string) => string;
+  statusUnassessed: string;
+  statusApproved: string;
+  statusSuspended: string;
+  statusRejected: string;
+  documentsLabel: string;
+  documentsHint: string;
+  noDocuments: string;
+  addDocument: string;
+  docKind: string;
+  docReference: string;
+  docIssued: string;
+  docExpires: string;
+  docNeverExpires: string;
+  docExpiredOn: (when: string) => string;
+  docDaysLeft: (n: number) => string;
+  onTimeLabel: string;
+  onTimeHint: string;
+  noOrdersJudged: string;
+  nOfMOnTime: (on: number, of: number) => string;
+  avgDaysLate: string;
+  worstLate: string;
+  rePromisedCount: (n: number) => string;
+  outstandingOrders: (n: number) => string;
+  ratingLabel: string;
+  ratingHint: string;
+  noScorecards: string;
+  addScorecard: string;
+  scorecardFor: (who: string) => string;
+  periodScored: string;
+  axisWorkmanship: string;
+  axisHse: string;
+  axisResponsiveness: string;
+  averageLabel: string;
+  latestLabel: string;
+  overallLabel: string;
+  notScored: string;
+  scoreNote: string;
+  refuseStatus: string;
+  refuseReason: string;
+  refuseKind: string;
+  refuseExpiryBeforeIssue: string;
+  refusePeriod: string;
+  refuseNoScores: string;
+  refuseRange: string;
   subcontracts: string;
   subcontractsSub: string;
   loadingSubcontracts: string;
@@ -175,6 +243,9 @@ type Strings = {
   refuseNotAnswerable: string;
   save: string;
   cancel: string;
+  removeLabel: string;
+  addSupplier: string;
+  importSuppliers: string;
   edit: string;
   remove: string;
   actions: string;
@@ -202,6 +273,74 @@ const en: Strings = {
   requisitions: "Requisitions",
   rfqs: "Supplier quotes",
   expediting: "Expediting",
+  suppliers: "Suppliers",
+  suppliersSub: "Who the studio may buy from, and how they have actually performed.",
+  loadingSuppliers: "Loading suppliers…",
+  noSuppliers: "No suppliers yet",
+  noSuppliersBody: "A supplier register holds who you buy from, the paperwork that says you may, and what the orders show about whether they turn up when they said.",
+  qualification: "Qualification",
+  qualified: "Qualified",
+  unassessed: "Not assessed",
+  expiringSoon: "Expiring soon",
+  lapsed: "Paperwork lapsed",
+  blockedLabel: "Blocked",
+  usableYes: "Orders may be placed",
+  usableNo: "Orders are refused",
+  whyNeverAssessed: "Nobody has assessed this supplier. Orders are still allowed — qualification only stops an order once somebody has actually used it.",
+  whyDocumentExpired: "A document has expired, so the approval it was based on no longer holds.",
+  whyDocumentExpiring: "A document expires soon. Orders are still allowed — this is a reminder, not a stop.",
+  whySuspended: "Suspended.",
+  whyRejected: "Rejected.",
+  assess: "Assess",
+  assessTitle: (who) => `Assess ${who}`,
+  decision: "Decision",
+  decisionReason: "Why",
+  reasonRequired: "A suspension or a rejection has to say why — the person who decided will not always be here to ask.",
+  assessedBy: (who, when) => `${who} on ${when}`,
+  statusUnassessed: "Not assessed",
+  statusApproved: "Approved",
+  statusSuspended: "Suspended",
+  statusRejected: "Rejected",
+  documentsLabel: "Documents",
+  documentsHint: "Trade licence, insurance, certificates. A document with no expiry date never lapses — leave it blank where there is nothing to renew.",
+  noDocuments: "No documents recorded.",
+  addDocument: "Add document",
+  docKind: "What it is",
+  docReference: "Reference",
+  docIssued: "Issued",
+  docExpires: "Expires",
+  docNeverExpires: "No expiry",
+  docExpiredOn: (when) => `Expired ${when}`,
+  docDaysLeft: (n) => (n === 1 ? "1 day left" : `${n} days left`),
+  onTimeLabel: "On time",
+  onTimeHint: "Measured against the date first promised when the order was placed, never a revised one — otherwise moving the date would be the way to look reliable.",
+  noOrdersJudged: "No delivered orders to judge yet.",
+  nOfMOnTime: (on, of) => `${on} of ${of} on time`,
+  avgDaysLate: "Average days late",
+  worstLate: "Worst",
+  rePromisedCount: (n) => (n === 1 ? "1 order re-promised" : `${n} orders re-promised`),
+  outstandingOrders: (n) => (n === 1 ? "1 still open" : `${n} still open`),
+  ratingLabel: "Rating",
+  ratingHint: "What people scored, kept apart from what the orders show. One blended number would hide which half moved.",
+  noScorecards: "Nobody has scored this supplier.",
+  addScorecard: "Add scorecard",
+  scorecardFor: (who) => `Score ${who}`,
+  periodScored: "Period ending",
+  axisWorkmanship: "Workmanship",
+  axisHse: "Health & safety",
+  axisResponsiveness: "Responsiveness",
+  averageLabel: "Average",
+  latestLabel: "Latest",
+  overallLabel: "Overall",
+  notScored: "Not scored",
+  scoreNote: "Note",
+  refuseStatus: "That is not a decision this register holds.",
+  refuseReason: "A suspension or a rejection has to say why.",
+  refuseKind: "A document needs to say what it is.",
+  refuseExpiryBeforeIssue: "That document expires before it was issued.",
+  refusePeriod: "A scorecard needs the period it covers.",
+  refuseNoScores: "A scorecard that scores nothing is a note — there is a field for that.",
+  refuseRange: "Scores run from 1 to 5, in whole numbers.",
   subcontracts: "Subcontracts",
   subcontractsSub: "What a trade package is worth, what has been valued, and what is held back.",
   loadingSubcontracts: "Loading subcontracts…",
@@ -368,6 +507,9 @@ const en: Strings = {
   refuseNotAnswerable: "Approving and rejecting go through the approval, not through an edit.",
   save: "Save",
   cancel: "Cancel",
+  removeLabel: "Remove",
+  addSupplier: "Add supplier",
+  importSuppliers: "Import suppliers",
   edit: "Edit",
   remove: "Delete",
   actions: "Actions",
@@ -377,6 +519,74 @@ const ar: Strings = {
   requisitions: "طلبات الشراء",
   rfqs: "عروض الموردين",
   expediting: "متابعة التوريد",
+  suppliers: "المورّدون",
+  suppliersSub: "ممّن يجوز الشراء، وكيف كان أداؤهم فعلاً.",
+  loadingSuppliers: "جارٍ تحميل المورّدين…",
+  noSuppliers: "لا يوجد مورّدون بعد",
+  noSuppliersBody: "سجلّ المورّدين يضمّ ممّن تشتري، والأوراق التي تجيز ذلك، وما تقوله الأوامر عن التزامهم بما وعدوا به.",
+  qualification: "التأهيل",
+  qualified: "مؤهّل",
+  unassessed: "لم يُقيّم",
+  expiringSoon: "قريب الانتهاء",
+  lapsed: "انتهت أوراقه",
+  blockedLabel: "موقوف",
+  usableYes: "يجوز إصدار أمر شراء",
+  usableNo: "يُرفض إصدار أمر شراء",
+  whyNeverAssessed: "لم يُقيّم أحد هذا المورّد. والأوامر ما زالت جائزة — فالتأهيل لا يمنع أمراً إلاّ بعد أن يستعمله أحد فعلاً.",
+  whyDocumentExpired: "انتهت صلاحية مستند، فلم يعد الاعتماد القائم عليه سارياً.",
+  whyDocumentExpiring: "تقترب صلاحية مستند من الانتهاء. والأوامر ما زالت جائزة — هذا تذكير لا منع.",
+  whySuspended: "موقوف.",
+  whyRejected: "مرفوض.",
+  assess: "تقييم",
+  assessTitle: (who) => `تقييم ${who}`,
+  decision: "القرار",
+  decisionReason: "السبب",
+  reasonRequired: "الإيقاف أو الرفض لا بدّ أن يذكر سببه — فمن اتّخذ القرار لن يكون دائماً هنا ليُسأل.",
+  assessedBy: (who, when) => `${who} في ${when}`,
+  statusUnassessed: "لم يُقيّم",
+  statusApproved: "معتمد",
+  statusSuspended: "موقوف",
+  statusRejected: "مرفوض",
+  documentsLabel: "المستندات",
+  documentsHint: "السجلّ التجاري، والتأمين، والشهادات. والمستند بلا تاريخ انتهاء لا تنتهي صلاحيته — اتركه فارغاً حيث لا شيء يُجدّد.",
+  noDocuments: "لا مستندات مسجّلة.",
+  addDocument: "إضافة مستند",
+  docKind: "ما هو",
+  docReference: "الرقم",
+  docIssued: "صدر في",
+  docExpires: "ينتهي في",
+  docNeverExpires: "لا ينتهي",
+  docExpiredOn: (when) => `انتهى في ${when}`,
+  docDaysLeft: (n) => (n === 1 ? "يوم واحد متبقٍّ" : `${n} يوماً متبقٍ`),
+  onTimeLabel: "الالتزام بالموعد",
+  onTimeHint: "يُقاس على الموعد الموعود عند إصدار الأمر، لا على موعد مُعدّل — وإلاّ صار تأجيل الموعد هو طريق الظهور بمظهر الملتزم.",
+  noOrdersJudged: "لا توجد أوامر مُستلمة يُحكم عليها بعد.",
+  nOfMOnTime: (on, of) => `${on} من ${of} في الموعد`,
+  avgDaysLate: "متوسط أيام التأخير",
+  worstLate: "الأسوأ",
+  rePromisedCount: (n) => (n === 1 ? "أمر واحد أُعيد الوعد به" : `${n} أوامر أُعيد الوعد بها`),
+  outstandingOrders: (n) => (n === 1 ? "واحد ما زال مفتوحاً" : `${n} ما زالت مفتوحة`),
+  ratingLabel: "التقييم",
+  ratingHint: "ما منحه الناس من درجات، منفصلاً عمّا تقوله الأوامر. ورقم واحد يجمعهما يخفي أيّ النصفين تحرّك.",
+  noScorecards: "لم يمنحه أحد درجة بعد.",
+  addScorecard: "إضافة تقييم",
+  scorecardFor: (who) => `تقييم ${who}`,
+  periodScored: "نهاية الفترة",
+  axisWorkmanship: "الجودة",
+  axisHse: "الصحّة والسلامة",
+  axisResponsiveness: "سرعة الاستجابة",
+  averageLabel: "المتوسّط",
+  latestLabel: "الأحدث",
+  overallLabel: "الإجمالي",
+  notScored: "لم يُقيّم",
+  scoreNote: "ملاحظة",
+  refuseStatus: "ليس هذا قراراً يحمله السجلّ.",
+  refuseReason: "الإيقاف أو الرفض لا بدّ أن يذكر سببه.",
+  refuseKind: "المستند يحتاج إلى ذكر ما هو.",
+  refuseExpiryBeforeIssue: "تاريخ انتهاء المستند قبل تاريخ إصداره.",
+  refusePeriod: "التقييم يحتاج إلى الفترة التي يغطّيها.",
+  refuseNoScores: "تقييم بلا درجات هو ملاحظة — ولها حقلها.",
+  refuseRange: "الدرجات من 1 إلى 5، بأعداد صحيحة.",
   subcontracts: "عقود الباطن",
   subcontractsSub: "قيمة الحزمة، وما جرى تقييمه، وما يُحتجز منه.",
   loadingSubcontracts: "جارٍ تحميل عقود الباطن…",
@@ -543,6 +753,9 @@ const ar: Strings = {
   refuseNotAnswerable: "الاعتماد والرفض يمرّان بالاعتماد لا بالتعديل.",
   save: "حفظ",
   cancel: "إلغاء",
+  removeLabel: "حذف",
+  addSupplier: "إضافة مورّد",
+  importSuppliers: "استيراد مورّدين",
   edit: "تعديل",
   remove: "حذف",
   actions: "إجراءات",

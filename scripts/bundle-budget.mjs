@@ -207,7 +207,21 @@ const MAX_CHUNK_GZIP_KB = 250;
 // Leaving it at 1674 and letting the next slice fail was considered and refused:
 // it converts a deliberate decision into somebody else's emergency, and the
 // emergency version is the one that gets nudged without a measurement.
-const MAX_TOTAL_GZIP_KB = 1680;
+// 1680 -> 1684 on 07/09/2026, with the supplier register. MEASURED AT BOTH
+// ENDS on this branch, which is the discipline this number keeps losing: 1678
+// at the subcontracts commit, 1681 after this slice. +3 KB, and it is a
+// `nextDynamic` screen -- only somebody opening Suppliers pays it. THE LARGEST
+// CHUNK DID NOT MOVE (158 KB against 250), which is the gate that matters,
+// because that is what every route pays.
+//
+// Some of the +3 is a MOVE rather than growth: the vendor register left
+// StudioInventory for VendorRegister.js, so the inventory chunk lost what the
+// supplier chunk gained, and only the duplicated module boundary is new.
+//
+// Set at 1684 rather than 1682 deliberately. Three kilobytes of headroom still
+// discriminates; one trips on everything and is how this ceiling drifted
+// before, which is why the raise before this one was DECLINED at two.
+const MAX_TOTAL_GZIP_KB = 1684;
 
 const DIR = ".next/static";
 if (!existsSync(DIR)) {
