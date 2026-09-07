@@ -10,8 +10,16 @@ import { currencyForCountry } from "@/lib/countryCurrency";
 // server so the figures are in the HTML rather than arriving from a fetch
 // nothing but a browser will make. Building it twice would be two price lists.
 //
-// PRICES ARE AUTHORED IN SAR, so that is the base every rate converts from.
-const BASE = "SAR";
+// THE BASE IS THE CURRENCY THE PRICE LIST IS AUTHORED IN, and it is DATA rather
+// than a constant here: `catalogSettings.baseCurrency`. It was `const BASE =
+// "SAR"`, which made one country's money the origin every rate converted from,
+// in a product built in Jordan and sold regionally and then globally.
+//
+// Changing the setting does NOT re-price anything — it declares what the figures
+// already typed into /super MEAN. Whatever it says is what the server renders
+// first and what the JSON-LD quotes, so the page and its own markup cannot
+// disagree about the price; that property is the reason the pricing rebuild
+// renders the base rather than a geo-guess, and it holds for any base.
 
 export type PricingPayload = Awaited<ReturnType<typeof buildPricing>>;
 
@@ -53,18 +61,18 @@ export async function buildPricing(countryHeader?: string | null) {
       yearly: yearlyPrice(Number(p.cost) || 0, settings.yearlyDiscountPct),
     }));
 
-  // Today's rate from SAR out to every currency the snapshot quotes. A table,
+  // Today's rate from the authored base out to every currency the snapshot quotes. A table,
   // so switching currency is arithmetic in the browser rather than a round trip.
   const rates: Record<string, number> = {};
   if (snap.rates) {
     for (const code of Object.keys(snap.rates)) {
-      const r = crossRate(snap.rates, BASE, code);
+      const r = crossRate(snap.rates, settings.baseCurrency, code);
       if (r != null) rates[code] = r;
     }
   }
 
   return {
-    base: BASE,
+    base: settings.baseCurrency,
     cards,
     yearlyDiscountPct: settings.yearlyDiscountPct,
     rates,
