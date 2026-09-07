@@ -83,6 +83,10 @@ ok("...and the Arabic is not the English",
 console.log("\n== every claim the hero makes, against its source");
 
 const C = await import("@/shared/marketing/claims");
+// HOISTED FROM THE HERO SECTION BELOW: the composed-claim check further down
+// needs heroCopy to prove a claim actually reaches a page, not only that the
+// register agrees with itself.
+const H = await import("@/shared/marketing/hero");
 
 // EACH CLAIM IS CHECKED AGAINST THE THING THAT BACKS IT, not against a copy of
 // the number. A register that stored "11" and asserted 11 === 11 would pass
@@ -151,9 +155,35 @@ for (const [id, claim] of Object.entries(C.CLAIMS)) {
     || (stated?.how === "rendered" && typeof stated.by === "string" && stated.by.length > 0);
   ok(`...and it names how it is stated`, validShape, id);
 
-  if (stated?.how === "composed") {
-    ok(`...and claimText returns it for en`, C.claimText(id, "en") === claim.en, id);
-    ok(`...and claimText returns it for ar`, C.claimText(id, "ar") === claim.ar, id);
+  // A COMPOSED CLAIM MUST ACTUALLY REACH A PAGE THROUGH claimText, not just
+  // agree with itself. `claimText` is literally
+  // `locale === "ar" ? claim.ar : claim.en`, so comparing it back against
+  // `claim.en`/`claim.ar` compares the register to itself and can never fail
+  // — it caught nothing, including the day "Free for teams of one to nine"
+  // sat on the hero twice, once composed and once typed straight into the
+  // copy as a literal. What actually proves composition is that the COPY
+  // MODULE'S OWN FIELD equals claimText's output: if somebody later types the
+  // sentence directly into hero.ts instead of calling claimText, this fails
+  // and the string-equality check above would not have.
+  //
+  // COUPLING, NAMED RATHER THAN HIDDEN: this ties two specific claim ids to
+  // two specific hero fields — "free-under-ten" to `badge`, "paid-from-ten"
+  // to `footnote` — because those are the only two claims currently marked
+  // `composed` (see CLAIMS in shared/marketing/claims.ts) and those are the
+  // two hero fields that compose them. A third composed claim needs its own
+  // line added here; this list is meant to grow, not an oversight to be
+  // generalised away.
+  if (id === "free-under-ten") {
+    ok(`...and hero.badge composes it for en`,
+      H.heroCopy("en").badge === C.claimText(id, "en"), id);
+    ok(`...and hero.badge composes it for ar`,
+      H.heroCopy("ar").badge === C.claimText(id, "ar"), id);
+  }
+  if (id === "paid-from-ten") {
+    ok(`...and hero.footnote composes it for en`,
+      H.heroCopy("en").footnote === C.claimText(id, "en"), id);
+    ok(`...and hero.footnote composes it for ar`,
+      H.heroCopy("ar").footnote === C.claimText(id, "ar"), id);
   }
 }
 
@@ -174,7 +204,7 @@ for (const [id, claim] of Object.entries(C.CLAIMS)) {
 
 console.log("\n== the hero's copy");
 
-const H = await import("@/shared/marketing/hero");
+// H is imported above, alongside C, so the composed-claim check can use it.
 
 // REQUIRED vs MERELY PRESENT, and the distinction is real rather than
 // bookkeeping. `rotatingSuffix` is legitimately EMPTY in both languages today —
@@ -228,11 +258,29 @@ ok("an unknown locale falls back to English",
 // is not based anywhere yet, and ZATCA is out of scope (spec §12.1), so this
 // has to hold on every string heroCopy returns, in both languages.
 const LOCATION_PATTERN = /Riyadh|السعودية|Saudi|ZATCA|KSA/i;
+
+// COLLECT EVERY STRING VALUE AT ANY DEPTH, not only the top level. A copy
+// module's shape is not flat and gets less flat as more pages are added —
+// heroCopy already nests three variant labels under `variantLabels` — so a
+// guard that walks only `Object.entries(copy)` and skips non-string values
+// quietly stops covering a field the day somebody nests one. Before this,
+// `variantLabels.v1`/`v2`/`v3` were never checked against LOCATION_PATTERN at
+// all: `typeof v !== "string"` skipped the object holding them and nothing
+// ever looked inside it.
+const collectStrings = (obj, prefix = "") => {
+  const out = [];
+  for (const [k, v] of Object.entries(obj)) {
+    const path = prefix ? `${prefix}.${k}` : k;
+    if (typeof v === "string") out.push([path, v]);
+    else if (v && typeof v === "object") out.push(...collectStrings(v, path));
+  }
+  return out;
+};
+
 for (const locale of ["en", "ar"]) {
   const c = H.heroCopy(locale);
-  for (const [f, v] of Object.entries(c)) {
-    if (typeof v !== "string") continue;
-    ok(`${locale}.${f} claims no location`, !LOCATION_PATTERN.test(v), v);
+  for (const [path, v] of collectStrings(c)) {
+    ok(`${locale}.${path} claims no location`, !LOCATION_PATTERN.test(v), v);
   }
 }
 
@@ -244,15 +292,21 @@ ok("the Latin brand is lowercase", CO.BRAND === "nompany");
 ok("the Arabic brand is settled", CO.BRAND_AR === "نومباني");
 
 for (const locale of ["en", "ar"]) {
-  const d = CO.companyCopy(locale).description;
+  const c = CO.companyCopy(locale);
+  const d = c.description;
   ok(`${locale} has a description`, typeof d === "string" && d.trim().length > 0);
   ok(`${locale} spells the brand one way`, !/Nompany/.test(d));
   // THE COMPANY IS NOT SAUDI AND ZATCA IS NOT IN SCOPE (spec §12.1). A public
   // sentence implying either is the same class of defect as a fabricated
-  // uptime figure, and it is the one the owner named explicitly. Same pattern
-  // the hero section above holds hero.ts to — company.ts never renders, but
-  // it is still a registered surface and gets the identical guard.
-  ok(`${locale} claims no location`, !LOCATION_PATTERN.test(d));
+  // uptime figure, and it is the one the owner named explicitly. Same
+  // recursive walk as the hero guard above, over every field companyCopy
+  // returns rather than `description` alone — company.ts is flat today, but
+  // one guard being stricter than the other is exactly the gap that let the
+  // hero's own nested fields go unchecked, and this module has no reason to
+  // repeat that.
+  for (const [path, v] of collectStrings(c)) {
+    ok(`${locale}.${path} claims no location`, !LOCATION_PATTERN.test(v), v);
+  }
 }
 ok("the Arabic description carries no diacritics",
   !DIACRITICS.test(CO.companyCopy("ar").description));
