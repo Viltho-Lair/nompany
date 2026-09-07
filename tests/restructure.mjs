@@ -404,6 +404,19 @@ export async function testNoRetiredSectionKeySurvivesInSource(t) {
   // the exclusion this assertion could never pass, on the very file that fixes
   // the problem it exists to catch.
   //
+  // THE PUBLIC MARKETING SURFACE IS EXCLUDED TOO, and the reason is structural
+  // rather than convenient. A retired key matters because `getSectionByKey`
+  // returns null for it and every call site reads that as "no section" — an
+  // empty screen with no error. Looking a section up needs a STUDIO, and the
+  // marketing site has none: no tenant, no section rows, no lookup to go wrong.
+  // A literal there cannot cause the defect this guard exists to catch.
+  //
+  // It became necessary because one retired key, `sales`, is an ordinary English
+  // word. The contact form routes an enquiry to the sales@ or support@ mailbox
+  // and `mailboxFor` returns exactly that pair — correct English that happens to
+  // spell a key the restructure retired. The COMPOUND keys (`sales-tickets`,
+  // `sales-clients`) are unambiguous and stay checked everywhere, here included.
+  //
   // execFileSync, not execSync + a shell string: execSync's default shell on
   // Windows is cmd.exe, which does not treat single quotes as quoting at all —
   // the quoted pattern and the `:!…` exclusion pathspec both arrived at git
@@ -417,7 +430,9 @@ export async function testNoRetiredSectionKeySurvivesInSource(t) {
     try {
       files = execFileSync(
         "git",
-        ["grep", "-l", "--", `"${key}"`, "src", ":!src/platform/db/restructure.ts"],
+        ["grep", "-l", "--", `"${key}"`, "src",
+          ":!src/platform/db/restructure.ts",
+          ":!src/shared/marketing", ":!src/components/landing", ":!src/app/api/contact"],
         { encoding: "utf8" },
       ).trim().split("\n").filter(Boolean);
     } catch (e) {

@@ -546,6 +546,7 @@ console.log("== the architecture, asserted rather than remembered");
     "api/super/logout/route.ts": "clears a cookie",
     "api/fonts/route.ts": "the document editor's font catalogue; no tenant data",
     "api/media/[id]/route.ts": "public blobs are public by definition; private ones check membership",
+    "api/contact/route.ts": "the marketing contact form; a stranger with a question has no account, and it is rate-limited and origin-checked instead",
   };
 
   const routes = sources.filter((f) => /app\/api\/.*route\.(js|ts)$/.test(f.path));
