@@ -16,6 +16,21 @@ import { defaultLocale, type Locale } from "@/shared/locale";
 // nothing.
 
 type ContactStrings = {
+  // THE FORM'S OWN LABELS, moved here off the shared marketing dictionary.
+  // ContactView needed eleven strings from a 31.5 KB module carrying both
+  // locales of the whole marketing site, and importing it pulled all of it into
+  // this route's chunk group. A page's copy lives in the page's own module —
+  // that is the convention, and here it is also what the route costs.
+  fullName: string;
+  workEmail: string;
+  company: string;
+  whatRunningToday: string;
+  errName: string;
+  errEmail: string;
+  errCompany: string;
+  errMessage: string;
+  sales: string;
+  support: string;
   eyebrow: string;
   title: string;
   lead: string;
@@ -34,6 +49,16 @@ type ContactStrings = {
 };
 
 const en: ContactStrings = {
+  fullName: "Full name",
+  workEmail: "Work email",
+  company: "Company",
+  whatRunningToday: "What are you running today?",
+  errName: "Tell us who to ask for.",
+  errEmail: "Enter a valid work email.",
+  errCompany: "Company name required.",
+  errMessage: "A sentence or two about your stack helps us prepare.",
+  sales: "Sales",
+  support: "Support",
   eyebrow: "Contact",
   title: "Ask us something",
   // WHAT THIS REPLACES: "Book a demo with a solutions engineer" over "45
@@ -56,6 +81,16 @@ const en: ContactStrings = {
 
 // HAND-WRITTEN, NO DIACRITICS.
 const ar: ContactStrings = {
+  fullName: "الاسم الكامل",
+  workEmail: "بريد العمل",
+  company: "الشركة",
+  whatRunningToday: "ما الذي تشغله اليوم؟",
+  errName: "أخبرنا بمن نسأل عنه.",
+  errEmail: "أدخل بريد عمل صالحا.",
+  errCompany: "اسم الشركة مطلوب.",
+  errMessage: "جملة أو اثنتان عن أنظمتك الحالية تساعداننا على الاستعداد.",
+  sales: "المبيعات",
+  support: "الدعم",
   eyebrow: "تواصل معنا",
   title: "اسألنا",
   lead: "لا يوجد عرض توضيحي تحجزه — الخطة المجانية هي المنتج كاملا، وأسرع طريقة لرؤيته أن تفتحه. وإن أردت السؤال أولا، هذه الرسالة تصل إلى شخص.",

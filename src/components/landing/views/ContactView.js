@@ -4,17 +4,20 @@ import { validateEnquiry, mailboxFor, TEAM_SIZES } from "@/shared/marketing/enqu
 import { contactCopy } from "@/shared/marketing/contact";
 import { CONTACT } from "@/lib/site";
 import { useLandingLocale } from "@/components/landing/locale";
-import { landingDict } from "@/shared/landing";
 import { AnimatePresence, motion, useAnimate } from "motion/react";
 import { EASE_OUT_EXPO, fadeUp, SPRING_SNAPPY, stagger } from "@/components/landing/lib/motion";
-import { AiAssistant } from "../mascot/AiAssistant";
 import { FloatingField } from "../ui/FloatingField";
 import { MagneticButton } from "../ui/MagneticButton";
 import { SectionHeading } from "../ui/SectionHeading";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 export function ContactView() {
   const locale = useLandingLocale();
-  const tr = landingDict(locale);
+  // ONE MODULE, NOT TWO. This read eleven labels out of `landingDict` — the
+  // whole marketing site's copy, both locales, 31.5 KB — and importing it put
+  // all of that in this route's chunk group for the sake of "Full name" and
+  // "Work email". The labels live in the page's own module now, which is both
+  // the convention and, here, the difference between the route fitting inside
+  // the bundle ceiling and not.
   const ct = contactCopy(locale);
     const [fields, setFields] = useState({
         name: "",
@@ -55,10 +58,10 @@ export function ContactView() {
     // the two cannot disagree about what a valid enquiry is — and the browser's
     // answer stays a courtesy rather than a control.
     const MESSAGES = {
-        name: tr.errName,
-        email: tr.errEmail,
-        company: tr.errCompany,
-        message: tr.errMessage,
+        name: ct.errName,
+        email: ct.errEmail,
+        company: ct.errCompany,
+        message: ct.errMessage,
     };
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -130,17 +133,17 @@ export function ContactView() {
                 </motion.div>) : (<motion.form key="form" ref={scope} onSubmit={handleSubmit} noValidate variants={stagger(0.06)} initial="hidden" animate="show" className="space-y-4">
                   <div className="grid gap-4 sm:grid-cols-2">
                     <motion.div variants={fadeUp}>
-                      <FloatingField label={tr.fullName} value={fields.name} onChange={set("name")} status={statusFor("name")} error={errors.name} autoComplete="name"/>
+                      <FloatingField label={ct.fullName} value={fields.name} onChange={set("name")} status={statusFor("name")} error={errors.name} autoComplete="name"/>
                     </motion.div>
                     <motion.div variants={fadeUp}>
-                      <FloatingField label={tr.workEmail} type="email" value={fields.email} onChange={set("email")} status={statusFor("email")} error={errors.email} autoComplete="email"/>
+                      <FloatingField label={ct.workEmail} type="email" value={fields.email} onChange={set("email")} status={statusFor("email")} error={errors.email} autoComplete="email"/>
                     </motion.div>
                   </div>
                   <motion.div variants={fadeUp}>
-                    <FloatingField label={tr.company} value={fields.company} onChange={set("company")} status={statusFor("company")} error={errors.company} autoComplete="organization"/>
+                    <FloatingField label={ct.company} value={fields.company} onChange={set("company")} status={statusFor("company")} error={errors.company} autoComplete="organization"/>
                   </motion.div>
                   <motion.div variants={fadeUp}>
-                    <FloatingField label={tr.whatRunningToday} value={fields.message} onChange={set("message")} status={statusFor("message")} error={errors.message} multiline/>
+                    <FloatingField label={ct.whatRunningToday} value={fields.message} onChange={set("message")} status={statusFor("message")} error={errors.message} multiline/>
                   </motion.div>
                   {/* THE ONE FIELD THAT CHANGES WHERE THIS GOES. Ten people or
                       more reaches sales; below that reaches support. Optional,
@@ -201,12 +204,16 @@ export function ContactView() {
 
         {/* ---------------- Aside ---------------- */}
         <motion.aside variants={stagger(0.1, 0.15)} initial="hidden" animate="show" className="space-y-6">
-          <motion.div variants={fadeUp} className="surface rounded-3xl p-6">
-            <AiAssistant size={230}/>
-            <p className="mt-2 text-center text-sm text-fg-muted">
-              {tr.novaSitsIn}
-            </p>
-          </motion.div>
+          {/* THE MASCOT AND ITS CAPTION ARE GONE. The caption read "Nova will
+              sit in on the call and map your entities live" — there is no call
+              to sit in on and nothing maps entities live, so it was an invented
+              claim of the same kind as the promises removed from the success
+              state above it.
+
+              The drawing went with it for a duller reason: it is nine
+              kilobytes of animated SVG that also imports the whole marketing
+              dictionary, on a page that is a form. This route was withdrawn
+              once for costing 23 KB it could not justify. */}
 
           {/* TWO ADDRESSES THAT WORK, AND NO OFFICES.
               This grid held four cards and three of them were wrong. Two
@@ -226,8 +233,8 @@ export function ContactView() {
               to finish. */}
           <motion.div variants={fadeUp} className="grid gap-4 sm:grid-cols-2">
             {[
-            { label: tr.sales, value: CONTACT.sales },
-            { label: tr.support, value: CONTACT.support },
+            { label: ct.sales, value: CONTACT.sales },
+            { label: ct.support, value: CONTACT.support },
         ].map((item) => (<div key={item.label} className="rounded-2xl border border-line bg-ink-soft/50 p-5">
                 <p className="text-[11px] tracking-[0.16em] text-fg-dim uppercase">
                   {item.label}
