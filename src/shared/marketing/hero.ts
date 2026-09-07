@@ -63,7 +63,15 @@ const ar: HeroStrings = {
   ctaSecondary: "شاهد كيف يعمل",
   footnote: claimText("paid-from-ten", "ar"),
   marqueeLabel: "الأقسام، اليوم",
-  rotatingPrefix: "نظام واحد لـ",
+  // NOT "نظام واحد لـ". The tatweel form (لـ) cites the proclitic لـ IN
+  // ISOLATION, the way English writes "pre-" — correct in a dictionary entry,
+  // wrong on a page, because HeroV3Continuity renders the prefix in its own
+  // <span> with a gap before the department name, so the لام never joins what
+  // follows and displays as a detached, broken fragment. يشمل ("includes") is
+  // chosen over لإدارة deliberately: لإدارة reads redundantly against "المبيعات
+  // وإدارة العملاء" and awkwardly against "الإدارة والإعدادات", while يشمل is
+  // grammatical and natural against all eleven department names.
+  rotatingPrefix: "نظام واحد يشمل",
   rotatingSuffix: "",
   previewLabel: "معاينة الواجهة — ليست صفحة عامة",
   variantLabels: {
