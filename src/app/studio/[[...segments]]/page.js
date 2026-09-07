@@ -211,6 +211,13 @@ const StudioEngagements = nextDynamic(
   () => import("@/components/studio2/StudioEngagements"),
   { loading: () => <ScreenSkeleton /> },
 );
+// ONE COMPONENT FOR EVERY DECLARED RECORD TYPE, however many a studio declares.
+// It is imported once here and pointed at a type key, not imported once per
+// type — there is nothing to import per type, because a type is a row.
+const StudioRecords = nextDynamic(
+  () => import("@/components/studio2/StudioRecords"),
+  { loading: () => <ScreenSkeleton /> },
+);
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Studio", robots: { index: false, follow: false } };
@@ -645,6 +652,24 @@ async function renderStudio(params) {
         : projectBilling ? <StudioProjectBilling slug={studio.slug} projectId={projectId} />
         : projectReports ? <StudioSiteReports slug={studio.slug} projectId={projectId} />
         : projectClosure ? <StudioProjectClosure slug={studio.slug} projectId={projectId} />
+        // EVERY ENGINE TYPE, BY PREFIX RATHER THAN BY KEY. A type declared this
+        // morning renders this morning — naming them one by one here would put
+        // the deploy back that a runtime engine was chosen to remove.
+        //
+        // AHEAD OF EVERY `screenKey ===` CASE, and that is load-bearing rather
+        // than tidy. A type plants its section as a CHILD of whatever root it
+        // declares, so `screenKey` collapses `engine-transmittal` onto
+        // `engineering-docs` and the case below would hand it to StudioTechnical
+        // — the exact silent fall-through the quotations and suppliers notes
+        // either side of this one were written for, and the way
+        // `engine.<typeKey>.view` would become a right that opens somebody
+        // else's screen (invariant 16).
+        //
+        // NO BUILT-IN SECTION KEY CAN COLLIDE: `engine-` is the namespace
+        // `engineSectionKey` mints and nothing else uses it. `engineering-docs`
+        // is the near miss and does not start with it.
+        : active?.key?.startsWith("engine-")
+          ? <StudioRecords slug={studio.slug} typeKey={active.key.slice("engine-".length)} />
         // CRM & SALES'S QUOTATIONS ARE STILL RENDERED BY TECHNICAL, by key
         // rather than by screenKey, same pattern and same reason as Procurement's
         // Suppliers and Logistics's Shipments below. Quotations moved to CRM &
