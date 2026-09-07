@@ -87,8 +87,14 @@ export default async function RootLayout({ children }) {
   // on the visitor's OS), so that one case still falls to the script below.
   const themeChoice = (await cookies()).get("theme")?.value || "";
   const pathname = h.get("x-pathname") || "";
+  // `/<locale>/preview/...` renders the marketing surface's own chrome
+  // (`.landing-page` in HeroPreview.tsx) — a hero variant judged in the light
+  // palette is being judged in the wrong one, since the real landing page it
+  // is a preview OF gets dark from this same line.
   const isMarketing =
-    pathname === "/" || /^\/(en|ar)(\/(login|signup|forgot))?\/?$/.test(pathname);
+    pathname === "/" ||
+    /^\/(en|ar)(\/(login|signup|forgot))?\/?$/.test(pathname) ||
+    /^\/(en|ar)\/preview(\/|$)/.test(pathname);
   const theme = themeChoice || (isMarketing ? "dark" : "light");
   // `light` ships too, not just `dark`: MUI scopes its light variables to
   // `.light`, so without it MUI components render unstyled until its provider
