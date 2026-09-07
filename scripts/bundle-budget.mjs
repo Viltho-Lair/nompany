@@ -376,6 +376,33 @@ const MAX_CHUNK_GZIP_KB = 250;
 // adopt-a-winner commit has to remove this route's baseline entry anyway —
 // see MAX_TOTAL_GZIP_KB near `const baselines`.
 
+// 1716 -> 1833 on 07/09/2026, measured 1825 by CI on this commit, and the
+// ceiling that failed was NOT wrong — it was simply older than the site.
+//
+// The ratchet above fired correctly when the preview route went, taking this
+// back to 1716. But four real marketing pages had landed in the meantime
+// (/[locale]/pricing, /about, /platform, /security), and 1716 was measured on a
+// build that had none of them. So the gate went red on a tree where EVERY
+// per-route number is at or under its baseline: the studio at 681 against 680,
+// the questionnaire and /[locale] each a kilobyte UNDER. Nothing regressed; the
+// site grew by four pages nobody re-measured the total for.
+//
+// 117 KB FOR FOUR PAGES IS THE SHARED-SHELL SHAPE, not sprawl — the same shape
+// two entries up, where forty /super routes were worth 17 KB between them. Each
+// of these renders inside MarketingShell, which /[locale] already paid for, so
+// only what is unique to each one is new: they measure 262-273 KB apiece
+// against a /[locale] of 285, and the total moved by less than half of one of
+// them.
+//
+// THOSE FOUR ARE STILL UNBASELINED, and that is a debt this entry is recording
+// rather than paying. They fall to DEFAULT_ROUTE_GZIP_KB, so each may drift to
+// 300 KB — up to 38 unnoticed — before anything complains, which breaks the
+// claim below that "every route in the build today is baselined". Paying it
+// needs `--record`, which needs a build, and this commit was written where one
+// could not run: the numbers here are CI's, from the run that failed. The next
+// commit that builds should run `node scripts/bundle-budget.mjs --record` and
+// lower this to measured + 8 in the same change.
+
 // THE MARGIN, and why it is the same for a 178 KB route and a 951 KB one.
 //
 // Eight kilobytes is the margin this file has settled on by trial: it declined
@@ -506,18 +533,18 @@ if (!existsSync(BASELINES_FILE)) {
 }
 const baselines = JSON.parse(readFileSync(BASELINES_FILE, "utf8"));
 
-// BOUND TO THE THING THAT GOES AWAY, not to a comment promising a return to
-// 1716. A comment is only read when the gate FAILS, so once the preview route
-// is deleted the ceiling would sit at 1792 with 76 KB of slack forever unless
-// somebody remembered to lower it — the exact decay CLAUDE.md already records
-// ("it said 1593/1600 when the script's constant was 1700"). Reading the
-// baselines this way means the ratchet fires itself: the adopt-a-winner
-// commit must delete the route, the shell and the losing variants, which
-// necessarily drops this row from scripts/bundle-baselines.json, which is
-// what this checks.
-const PREVIEW_ROUTE = "/[locale]/preview/hero/[variant]";
-// 1792 while the temporary hero-preview route exists, 1716 once it is deleted.
-const MAX_TOTAL_GZIP_KB = baselines[PREVIEW_ROUTE] ? 1792 : 1716;
+// THE RATCHET FIRED, AND THE CONDITIONAL IS GONE WITH IT.
+//
+// It read `baselines[PREVIEW_ROUTE] ? 1792 : 1716`, bound to the hero-preview
+// route's baseline row so that deleting the route lowered the ceiling without
+// anybody having to remember to. It worked exactly as designed: the
+// adopt-a-winner commit removed the route, the shell, the losing variants and
+// that row, and this dropped to 1716 by itself. What is left is a branch whose
+// 1792 arm can never be taken again — tests/marketing-model.mjs asserts the row
+// stays absent — so it is a plain constant now rather than dead machinery
+// somebody has to reason about. The mechanism is worth reusing; the instance is
+// spent.
+const MAX_TOTAL_GZIP_KB = 1833;
 
 const totalKb = files.reduce((sum, f) => sum + f.gzip, 0) / 1024;
 const biggest = files[0];
@@ -533,8 +560,21 @@ for (const r of routes) {
 }
 const stale = Object.keys(baselines).filter((route) => !routes.some((r) => r.route === route));
 
+// EVERY ROUTE, NOT THE HEAVIEST EIGHT.
+//
+// The table was truncated, and the truncation had a cost that only surfaced
+// when somebody tried to pay a debt with it: recording a baseline for a NEW
+// route needs that route's measured size, and a route below the eighth line
+// never printed one. Four marketing pages went unbaselined for exactly that
+// reason — three of them were visible in the log and `/[locale]/security` was
+// not, so the set could not be recorded from a CI run at all.
+//
+// Thirty-two lines is not a log problem, and the numbers are the artefact:
+// this is the only place the gating measurement is ever written down where a
+// person can read it, because `--record` needs a build and the machine that
+// most often needs the answer is one that cannot run one.
 console.log(`first load: ${routes.length} routes, heaviest first`);
-for (const r of routes.slice(0, 8)) {
+for (const r of routes) {
   const baseline = baselines[r.route];
   const against = baseline === undefined ? `no baseline, default ${DEFAULT_ROUTE_GZIP_KB}` : `baseline ${baseline}`;
   console.log(`  ${r.kb.toFixed(0).padStart(5)} KB gz / ${String(r.chunks).padStart(2)} chunks  (${against})  ${r.route}`);
@@ -554,6 +594,19 @@ if (ratchet.length) {
 }
 if (stale.length) {
   console.log(`\n${stale.length} baseline(s) for routes this build does not have: ${stale.slice(0, 5).join(", ")}`);
+}
+// REPORTED, NOT FAILED. DEFAULT_ROUTE_GZIP_KB above says an unrecorded route
+// is deliberately allowed — gated from its first build rather than ungated —
+// so this must not be an error. It may not be silent either: that same
+// comment claims "every route in the build today is baselined", and the claim
+// went false for four marketing pages with nothing anywhere saying so, each
+// free to drift to the 300 KB default unnoticed. Naming them is what turns
+// the claim into something a reader can check rather than trust.
+const unbaselined = routes.filter((r) => baselines[r.route] === undefined);
+if (unbaselined.length) {
+  console.log(`\n${unbaselined.length} route(s) with no recorded baseline, held to ${DEFAULT_ROUTE_GZIP_KB} KB:`);
+  for (const r of unbaselined) console.log(`  ${r.route}: ${r.kb.toFixed(0)} KB`);
+  console.log("  Run `node scripts/bundle-budget.mjs --record` to hold each to its own size.");
 }
 
 const failures = [];

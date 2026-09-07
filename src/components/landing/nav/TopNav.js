@@ -121,10 +121,22 @@ export function TopNav({ view, onNavigate, locale = "en" }) {
             paddingTop: condensed ? 8 : 12,
             paddingBottom: condensed ? 8 : 12,
         }} transition={{ duration: 0.4, ease: EASE_OUT_EXPO }} className="flex w-full max-w-6xl items-center gap-1.5 rounded-full border px-2.5 backdrop-blur-xl sm:gap-4 sm:px-5">
-        <button onClick={() => onNavigate("overview")} className="flex shrink-0 items-center gap-2.5 pr-1 sm:pr-2" aria-label={tr.nompanyHome}>
+        {/* THE LOGO IS A LINK, AND WAS A BUTTON THAT THREW. It called
+            onNavigate("overview") with no guard, on a nav whose own comment two
+            screens up says view/onNavigate ARE OPTIONAL because it is "now also
+            the nav of five real routes" — so clicking the wordmark on /platform,
+            /pricing, /security or /about threw "onNavigate is not a function".
+            The view pills were given the `onNavigate ?` guard below and the logo
+            was missed.
+            A guard was the wrong fix anyway: home has an address, so the mark
+            that means "home" should be openable in a new tab and readable by a
+            crawler — the same argument PAGE_LINKS above already makes, and a
+            plain anchor for the same reason it gives (a hard navigation is what
+            leaves the client-rendered shell for the server-rendered route). */}
+        <a href={`/${locale}`} className="flex shrink-0 items-center gap-2.5 pr-1 sm:pr-2" aria-label={tr.nompanyHome}>
           <LogoMark size={26} priority/>
           <Wordmark className="hidden sm:block"/>
-        </button>
+        </a>
 
         {/* REAL PAGES FIRST, then whatever is still an in-page view.
             Platform and Pricing have addresses now, so they are links: a

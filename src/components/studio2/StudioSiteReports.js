@@ -84,7 +84,10 @@ export default function StudioSiteReports({ slug, projectId = "" }) {
   }, [read, apply]);
 
   const reload = useCallback(async () => { apply(await read()); }, [read, apply]);
-  useLiveUpdates(slug, reload);
+  // Site reports and the timesheets they are read beside are both written under
+  // `projects-list` — the project list owns the labour booked against a deal, so
+  // one watch covers the whole payload.
+  useLiveUpdates(slug, "projects-list", reload);
 
   const send = useCallback(async (method, payload) => {
     setError(""); setBusy(true);

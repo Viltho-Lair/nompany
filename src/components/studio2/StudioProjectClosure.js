@@ -89,7 +89,10 @@ export default function StudioProjectClosure({ slug, projectId }) {
   }, [read, apply]);
 
   const reload = useCallback(async () => { apply(await read()); }, [read, apply]);
-  useLiveUpdates(slug, reload);
+  // The project and the inspections closing it are both written under
+  // `projects-list` — inspections sit there rather than in Quality & HSE, whose
+  // section renders nothing and gates on no right (see SECTION_COLLECTIONS).
+  useLiveUpdates(slug, "projects-list", reload);
 
   const send = useCallback(async (payload) => {
     setError(""); setBusy(true);

@@ -66,7 +66,10 @@ export default function StudioRfq({ slug }) {
   }, [read, apply]);
 
   const reload = useCallback(async () => { apply(await read()); }, [read, apply]);
-  useLiveUpdates(slug, reload);
+  // The request and the answers are separate collections and share one section
+  // (`supplierRfqs`, `supplierQuotes` under `procurement-rfq`) — which is what
+  // makes one watch enough for a screen that shows both.
+  useLiveUpdates(slug, "procurement-rfq", reload);
 
   const send = useCallback(async (method, payload) => {
     setError(""); setBusy(true);

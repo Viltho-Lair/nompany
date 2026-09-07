@@ -215,6 +215,14 @@ export async function editRecord(
   );
   if (problem) return { error: problem };
 
+  // READ ONCE, OUTSIDE THE PATCH. A patch FUNCTION may run more than once — once
+  // per contended round, and once per store under NOMPANY_DB=parity — so a fresh
+  // `new Date()` inside it produces a different answer on each invocation. Under
+  // parity that is a hard failure: `updateRow` compared the two representations
+  // and found them two milliseconds apart, which is what "parity: updateRow
+  // disagreed" was. Same rule and same reason as `chase.ts`, which states it.
+  const at = now();
+
   return {
     record: await Records.update(scope, id, (row) => ({
       ...row,
@@ -232,7 +240,7 @@ export async function editRecord(
       // RE-STAMPED ON WRITE. The row now conforms to the type as it is, which
       // is what the version means: what it was written under.
       typeVersion: type.version,
-      updatedAt: now(),
+      updatedAt: at,
     })),
   };
 }
@@ -258,9 +266,12 @@ export async function moveRecord(
   const problem = transitionProblem(type, existing.status, to);
   if (problem) return { error: problem };
 
+  // Read once, outside the patch — see the note in editRecord above.
+  const at = now();
+
   return {
     record: await Records.update(scope, id, (row) => ({
-      ...row, status: str(to, 60), updatedAt: now(),
+      ...row, status: str(to, 60), updatedAt: at,
     })),
   };
 }

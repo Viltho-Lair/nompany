@@ -54,7 +54,11 @@ export default function StudioExpediting({ slug }) {
   }, [read, apply]);
 
   const reload = useCallback(async () => { apply(await read()); }, [read, apply]);
-  useLiveUpdates(slug, reload);
+  // THIS SCREEN OWNS NO RECORD — it reads purchase orders and writes chases onto
+  // them, and an order lives under Inventory's Project sheets. So the section the
+  // screen is IN (`procurement-expediting`) is a key no event it cares about ever
+  // carries, and watching it would be watching nothing.
+  useLiveUpdates(slug, "inventory-sheets", reload);
 
   const send = useCallback(async (payload) => {
     setError(""); setBusy(true);

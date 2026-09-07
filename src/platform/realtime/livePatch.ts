@@ -48,3 +48,41 @@ export function decide(
 
   return { action: "patch", field };
 }
+
+/**
+ * WHICH WATCH KEYS ONE EVENT'S SECTION SHOULD REACH — the section itself,
+ * then every ancestor of it, outermost last.
+ *
+ * Here for the same reason `decide` is: it is a rule about the product's event
+ * vocabulary rather than about React, and putting it beside LiveProvider would
+ * make it untestable because the Node suite cannot parse that file's JSX.
+ *
+ * THE RULE EXISTS BECAUSE THE SECTION MODEL STOPPED BEING FLAT. An event carries
+ * the key of the section the row was WRITTEN under, which since the
+ * fifteen-section restructure is almost always a SUB-section — a ticket under
+ * `crm-sales-tickets`, an invoice under `finance-cash`. LiveProvider matched with
+ * `===`, from when a department key was the only kind of key there was, so every
+ * board watching a department root stopped hearing about its own records the day
+ * the restructure landed, and nothing could report it: the subscription is
+ * registered, the connection is open, the events arrive, and they land under a
+ * key nobody is listening on.
+ *
+ * IT IS THE DASH, NOT `startsWith`. `engine-` must not swallow `engineering-docs`
+ * — that is the prefix trap CLAUDE.md names, and it is why the separator is part
+ * of the comparison rather than an afterthought. Same rule `sectionViewable`
+ * already uses for "a section's children".
+ *
+ * Ancestors that are not real section keys (`crm`, `field`) are returned too and
+ * cost nothing: nobody watches them, so each is one Map miss. Filtering them
+ * would mean handing the browser the section catalogue to answer a question a
+ * failed lookup already answers.
+ */
+export function watchKeysFor(section: string | null | undefined): string[] {
+  const key = String(section || "");
+  if (!key) return [];
+  const keys = [key];
+  for (let cut = key.lastIndexOf("-"); cut > 0; cut = key.lastIndexOf("-", cut - 1)) {
+    keys.push(key.slice(0, cut));
+  }
+  return keys;
+}

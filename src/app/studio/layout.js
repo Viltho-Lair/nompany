@@ -24,9 +24,9 @@ import { studioShell } from "./_shell";
 //
 // AND IT IS WHY THE LIVE CONNECTION IS SAFE HERE. StudioFrame opens the
 // studio's one EventSource (invariant 14: browsers cap six per domain and
-// useLiveUpdates has 21 call sites). Mounted in a layout it survives a
-// navigation instead of being closed and reopened on every section click,
-// which is the behaviour that invariant was always describing.
+// useLiveUpdates has 63 call sites, measured 07/09/2026). Mounted in a layout
+// it survives a navigation instead of being closed and reopened on every
+// section click, which is the behaviour that invariant was always describing.
 export default async function StudioLayout({ children }) {
   return withRequest("studio-layout", () => renderShell(children));
 }

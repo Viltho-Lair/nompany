@@ -514,19 +514,24 @@ console.log("== the architecture, asserted rather than remembered");
   // new public surface gets argued for, rather than appearing by omission.
   const PUBLIC = {
     "api/pricing/route.ts": "the marketing price list",
-    // A CONTACT FORM THAT REQUIRED A LOGIN WOULD BE A CONTACT FORM FOR PEOPLE
-    // WHO ALREADY HAVE ACCOUNTS. It is the one endpoint an unauthenticated
-    // caller can make put mail in somebody's inbox, so it is guarded by the two
-    // things that fit an anonymous caller instead: its own per-IP throttle
-    // (RL.contactIp, deliberately not the credential counters) and an
-    // origin check. It stores nothing and reads nothing.
-    "api/contact/route.ts": "the contact form; rate-limited and origin-checked instead",
     // A CUSTOMER LIST IS MEANT TO BE READ BY STRANGERS — that is what
     // publishing one is for. It returns a four-field allow-list per company and
     // only for studios that BOTH consented in their own settings and were
     // featured in /super; it reads the studio registry, never a tenant's rows.
     "api/showcase/route.ts": "the public featured-companies list; consent-gated, four fields, no slug",
     "api/track/route.ts": "anonymous traffic beacon; rate-limited and origin-checked instead",
+    // A VISITOR HAS NO SESSION — that is the whole point of a contact form, and
+    // requiring one would mean only existing customers could ask a question. It
+    // takes the same two controls `api/track` above takes instead: origin-checked
+    // (isCrossSite) and rate-limited per IP, five in ten minutes. It also stores
+    // nothing — the enquiry goes out as an email to a mailbox a person reads, so
+    // there is no record for an unauthenticated caller to reach.
+    //
+    // THIS LINE IS LATE. The route shipped in b0317165 without it, so this
+    // assertion has been red on main ever since — invisibly, because Lint failed
+    // first and CI never reached Gate A. Adding to this list is how a public
+    // surface gets argued for; the argument is above.
+    "api/contact/route.ts": "the marketing contact form; a visitor has no session, so origin + rate limit instead",
     "api/auth/oauth/[provider]/start/route.ts": "starts sign-in; there is no session yet",
     "api/auth/callback/[provider]/route.ts": "completes sign-in; the provider is the credential",
     "api/identity/login/route.ts": "the sign-in door",

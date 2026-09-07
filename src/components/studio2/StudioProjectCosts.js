@@ -60,7 +60,15 @@ export default function StudioProjectCosts({ slug, projectId }) {
   }, [read, apply]);
 
   const reload = useCallback(async () => { apply(await read()); }, [read, apply]);
-  useLiveUpdates(slug, reload);
+  // THREE SECTIONS, ONE REPORT, and that is the shape of a cost report rather
+  // than an accident: the BUDGET is the project's own (`projectCosts`, under the
+  // project list), the ACTUAL is Payables' bills, and the COMMITTED is the
+  // purchase orders under Inventory's Project sheets. A screen watching only its
+  // own section would show a budget that never moves against spend that does —
+  // which is the one thing a cost report exists to prevent.
+  useLiveUpdates(slug, "projects-list", reload);
+  useLiveUpdates(slug, "finance-payables", reload);
+  useLiveUpdates(slug, "inventory-sheets", reload);
 
   const send = useCallback(async (method, payload) => {
     setError(""); setBusy(true);

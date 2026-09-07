@@ -108,7 +108,12 @@ export default function StudioTenders({ slug, initial, initialError = "" }) {
   }, [initial, read, apply]);
 
   const reload = useCallback(async () => { apply(await read()); }, [read, apply]);
-  useLiveUpdates(slug, reload);
+  // THE REGISTER'S OWN SECTION, not the department root. `tenders` is written
+  // under `tendering-register` (SECTION_COLLECTIONS in platform/db/keys.ts) and
+  // nothing at all is written under `tendering`, so the root is a key no event
+  // ever carries. The issuer name is resolved off a client record, but a client
+  // renamed in Sales is not worth refetching the register for.
+  useLiveUpdates(slug, "tendering-register", reload);
 
   // A SERVER PAYLOAD IS A MOMENT, AND THE ROUTER CACHES IT.
   //

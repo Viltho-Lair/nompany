@@ -107,7 +107,18 @@ export default function StudioCustomer({ slug, clientId }) {
   // The live path has no such race: it only ever fires for the record already
   // on screen, and a teardown replaces the subscription with it.
   const reload = useCallback(async () => { apply(await read()); }, [read, apply]);
-  useLiveUpdates(slug, reload);
+  // ONE WATCH PER BLOCK, because the page is a JOIN and each block's rows are
+  // written under a different section: the client record itself, its deals, its
+  // quotations and contracts (which share one section), and its projects. Every
+  // total on the page is derived from those four, so any of them moving makes
+  // the figures above them wrong.
+  //
+  // The catalogue is read too, but only to NAME an item an agreed rate points at
+  // — a rename in Inventory is not worth refetching a customer for.
+  useLiveUpdates(slug, "crm-sales-clients", reload);
+  useLiveUpdates(slug, "crm-sales-tickets", reload);
+  useLiveUpdates(slug, "crm-sales-quotations", reload);
+  useLiveUpdates(slug, "projects-list", reload);
 
   // THROUGH THE CLIENT'S OWN DOOR. A rate is a field on the client, like a
   // contact or a site, so it is written by the route that already writes those

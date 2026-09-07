@@ -56,7 +56,12 @@ export default function StudioMasterData({ slug }) {
   }, [load, loadDepartments]);
 
   useEffect(() => { loadAll(); }, [loadAll]);
-  useLiveUpdates(slug, loadAll);
+  // Both tabs are Master data's own rows — `locations` and `departments` under
+  // `administration-master` — even though the locations half is READ through
+  // Operations' payload, for the reason the comment above `load` gives. Where a
+  // screen fetches from is not where its records live, and this hook wants the
+  // second.
+  useLiveUpdates(slug, "administration-master", loadAll);
 
   const send = useCallback(async (kind, method, payload) => {
     setError(""); setBusy(true);

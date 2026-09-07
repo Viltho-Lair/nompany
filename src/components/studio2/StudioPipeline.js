@@ -67,7 +67,11 @@ export default function StudioPipeline({ slug }) {
   }, [slug]);
 
   useEffect(() => { load(); }, [load]);
-  useLiveUpdates(slug, load);
+  // THE BOARD OWNS NO COLLECTION — a deal on it is a `salesTicket`, and those
+  // live under Tickets. So the key to watch is where the rows are WRITTEN, not
+  // the section this screen is in: `crm-sales-pipeline` would never fire, and
+  // neither would the department root, which nothing writes under at all.
+  useLiveUpdates(slug, "crm-sales-tickets", load);
 
   // THE MOVE GOES TO THE TICKETS ROUTE, because moving a deal IS editing the
   // ticket. There is no pipeline write endpoint, deliberately — see the route.

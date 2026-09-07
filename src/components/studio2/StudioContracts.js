@@ -76,7 +76,11 @@ export default function StudioContracts({ slug }) {
   }, [slug]);
 
   useEffect(() => { load(); }, [load]);
-  useLiveUpdates(slug, load);
+  // CONTRACTS AND VARIATIONS LIVE WITH THE QUOTATIONS. A contract is what a won
+  // quotation becomes, so `contracts` and `changeOrders` are both written under
+  // `crm-sales-quotations`; the register this screen IS owns only the
+  // destination, no collection — so its own key would never fire.
+  useLiveUpdates(slug, "crm-sales-quotations", load);
 
   const send = useCallback(async (path, method, payload) => {
     setError(""); setBusy(true);

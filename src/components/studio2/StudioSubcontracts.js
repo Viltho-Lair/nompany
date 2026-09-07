@@ -65,7 +65,10 @@ export default function StudioSubcontracts({ slug }) {
   }, [read, apply]);
 
   const reload = useCallback(async () => { apply(await read()); }, [read, apply]);
-  useLiveUpdates(slug, reload);
+  // The package and its valuations are separate collections under one section
+  // (`subcontracts`, `paymentCertificates` under `procurement-subcontracts`), so
+  // one watch covers both halves of the screen.
+  useLiveUpdates(slug, "procurement-subcontracts", reload);
 
   const send = useCallback(async (method, payload) => {
     setError(""); setBusy(true);

@@ -5,6 +5,7 @@ import { useLandingLocale } from "@/components/landing/locale";
 import { landingDict } from "@/shared/landing";
 import { AnimatePresence, motion } from "motion/react";
 import { fmtCurrencyAmount } from "@/lib/pricing";
+import { CONTACT } from "@/lib/site";
 import { CURRENCIES_FROM_EXCHANGE_API } from "@/shared/currencies";
 import Riyal from "@/components/Riyal";
 import { EASE_OUT_EXPO, fadeUp, stagger, VIEWPORT } from "@/components/landing/lib/motion";
@@ -402,10 +403,32 @@ export function PricingBoard({ initial = null, locale = "en" }) {
 
                 <div className="mt-6">
                   {plan.cta === "contact" ? (
+                    /* A REAL DESTINATION, because this button had none. It
+                       called `onNavigate("contact")` — a prop this component
+                       does not take and never has, left behind when the board
+                       stopped being an in-page view (`views/PricingView`) and
+                       became a route: inside the landing page's tab tree that
+                       function was in scope, and on `/[locale]/pricing` there is
+                       nothing to swap and nothing to call. So the premium plan's
+                       only call to action THREW when it was clicked. ESLint knew
+                       (`no-undef`), and lint:budget was failing on it.
+
+                       IT IS THE SALES MAILBOX, not the contact form, and that is
+                       a deliberate stop rather than the end state. The form is
+                       still an in-page view with no address of its own — see
+                       views/views.js, which says contact becomes a route in the
+                       change that gives it a backend, and it now has one — so
+                       there is no URL to send anybody to yet. Until there is,
+                       this does what the Security page's contact section already
+                       does with the same CONTACT constants, and it goes to
+                       `sales` because `mailboxFor` sends any team of ten or more
+                       there and every plan carrying this CTA is larger than
+                       that. A mailto that works beats a form you cannot link
+                       to. */
                     <MagneticButton
                       variant="ghost"
                       strength={10}
-                      onClick={() => onNavigate("contact")}
+                      href={`mailto:${CONTACT.sales}`}
                       className="w-full justify-center px-5 py-3"
                     >
                       {ctaLabel(plan)}

@@ -65,7 +65,14 @@ export default function ProcurementDashboard({ slug }) {
   }, [read, apply]);
 
   const reload = useCallback(async () => { apply(await read()); }, [read, apply]);
-  useLiveUpdates(slug, reload);
+  // THE SECTIONS THIS SUMMARY IS ACTUALLY BUILT FROM. `procurement` reaches its
+  // own four registers — requisitions, supplier quotes, subcontracts, suppliers —
+  // through the parent fan-out in LiveProvider. The other two are FOREIGN and
+  // have to be named: purchase orders and goods receipts are counted from
+  // Inventory's Project sheets, and the three-way match reads Payables' bills.
+  useLiveUpdates(slug, "procurement", reload);
+  useLiveUpdates(slug, "inventory-sheets", reload);
+  useLiveUpdates(slug, "finance-payables", reload);
 
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <ScreenSkeleton loadingLabel={tr.loadingDashboard} />;
