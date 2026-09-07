@@ -387,8 +387,19 @@ const robots = readFileSync("src/app/robots.js", "utf8");
 ok("...so robots.txt no longer disallows a path that does not exist",
   !/preview/.test(robots));
 const rootLayout = readFileSync("src/app/layout.js", "utf8");
+// THE WORD IS NOT THE BRANCH, and this assertion could not tell them apart.
+// What it hunts is the PATH test the preview route needed —
+// `/^\/(en|ar)\/preview(\/|$)/.test(pathname)`, which forced the marketing
+// palette on a route the studio's light default would otherwise have painted.
+// It searched for the bare word instead, and the same file carries Google's
+// `max-image-preview` and `max-video-preview` robots directives, which are
+// permanent, unrelated, and not going anywhere. So this went red the moment
+// the layout grew a robots block and stayed red with nothing to fix — an
+// assertion that fails for a reason its own message cannot describe teaches
+// the next reader to distrust the file. A preview PATH is what a branch on
+// one has to contain, in any spelling of the test.
 ok("...and the root layout has no preview theme branch",
-  !/preview/.test(rootLayout));
+  !/\/preview/.test(rootLayout));
 const nav = readFileSync("src/components/Nav.js", "utf8");
 ok("...and the nav's prefix matcher went with the family it matched",
   !/BARE_PREFIXES/.test(nav));

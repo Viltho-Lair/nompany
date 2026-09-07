@@ -194,6 +194,27 @@ const KNOWN_COLLISIONS = {
   "src/modules/tasks/taskRouting.ts": [
     { value: "sales", reason: "a STORED Task-settings authority code (types.ts's TaskAssignees)" },
   ],
+  // THE CONTACT FORM'S "sales" IS A MAILBOX, not a section — `mailboxFor`
+  // returns the NAME of an address (CONTACT.sales, sales@nompany.com), and
+  // nothing resolves it against SECTION_KEY_MAP or AREAS. It is exempted
+  // rather than renamed, unlike the StatusPill record kinds above: those were
+  // an invented discriminator free to be called anything, and this one is what
+  // the mailbox is actually called. Renaming it would mean renaming a live
+  // email alias to satisfy a grep.
+  //
+  // enquiry.ts is listed for three lines, one of which is PROSE — the comment
+  // explaining why an unrecognised team size falls back to support quotes the
+  // word. This check does not strip comments, deliberately: a retired key can
+  // sit in a commented-out guard as easily as a live one.
+  "src/shared/marketing/enquiry.ts": [
+    { value: "sales", reason: "mailboxFor's return value — the name of the sales@ mailbox, and its own prose" },
+  ],
+  "src/app/api/contact/route.ts": [
+    { value: "sales", reason: "same mailbox name, choosing which address the enquiry is sent to" },
+  ],
+  "src/components/landing/views/ContactView.js": [
+    { value: "sales", reason: "same mailbox name, naming the address shown when a send fails" },
+  ],
   "src/lib/dashboardWidgets.ts": [
     { value: "technical.rfq-funnel", reason: "a FROZEN per-tier dashboard-widget key (renaming one is a data migration)" },
   ],
