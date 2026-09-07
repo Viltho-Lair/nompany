@@ -22,6 +22,8 @@ const dictionaries = {
   en: {
     nav: {
       home: "Home",
+      platform: "Platform",
+      pricing: "Pricing",
       careers: "Careers",
       terms: "Terms",
       privacy: "Privacy",
@@ -236,6 +238,8 @@ const dictionaries = {
   ar: {
     nav: {
       home: "الرئيسية",
+      platform: "المنصة",
+      pricing: "الاسعار",
       careers: "الوظائف",
       terms: "الشروط والأحكام",
       privacy: "سياسة الخصوصية",

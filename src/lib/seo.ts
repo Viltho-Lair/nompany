@@ -33,12 +33,36 @@ export const PAGES: Record<string, Record<string, PageCopy> | undefined> = {
     en: {
       title: "Run your company's whole operation from one platform",
       description:
-        "nompany is a modular ERP that runs a company's entire operation from one platform — Sales, Projects, Inventory, HR, Finance and live statistics. Start free and pay only for the modules you use.",
+        "nompany is a modular ERP that runs a company's entire operation from one platform — Sales, Projects, Inventory, HR, Finance and live statistics. Free for teams of one to nine; paid plans from ten people up.",
     },
     ar: {
-      title: "أدِر عمليات شركتك بالكامل من منصة واحدة",
+      title: "ادر عمليات شركتك بالكامل من منصة واحدة",
       description:
-        "nompany نظام تخطيط موارد مرن يدير عمليات الشركة بالكامل من منصة واحدة — المبيعات والمشاريع والمخزون والموارد البشرية والمالية والإحصائيات المباشرة. ابدأ مجانًا وادفع فقط مقابل ما تستخدمه.",
+        "nompany نظام تخطيط موارد مرن يدير عمليات الشركة بالكامل من منصة واحدة — المبيعات والمشاريع والمخزون والموارد البشرية والمالية والإحصائيات المباشرة. مجاني للفرق من واحد الى تسعة، وخطط مدفوعة من عشرة افراد فاكثر.",
+    },
+  },
+  "/platform": {
+    en: {
+      title: "The platform — eleven departments on one data model",
+      description:
+        "Sales, tendering, projects, engineering, procurement, inventory, field operations, logistics, people and finance, sharing one data model. Arabic and English, with every record permissioned to the row.",
+    },
+    ar: {
+      title: "المنصة — أحد عشر قسما على نموذج بيانات واحد",
+      description:
+        "المبيعات والمناقصات والمشاريع والهندسة والمشتريات والمخزون والعمليات الميدانية والخدمات اللوجستية والموارد البشرية والمالية على نموذج بيانات واحد. بالعربية والإنجليزية، وكل سجل محكوم بالصلاحيات حتى مستوى الصف.",
+    },
+  },
+  "/pricing": {
+    en: {
+      title: "Pricing — free for teams of one to nine",
+      description:
+        "One price per employee per month, VAT included, in SAR. Free for teams of one to nine; paid plans from ten people up. Every plan carries the whole product.",
+    },
+    ar: {
+      title: "الاسعار — مجاني للفرق من واحد الى تسعة",
+      description:
+        "سعر واحد لكل موظف شهريا، شامل ضريبة القيمة المضافة، بالريال السعودي. مجاني للفرق من واحد الى تسعة، وخطط مدفوعة من عشرة افراد فاكثر. كل خطة تحمل المنتج كاملا.",
     },
   },
   "/careers": {

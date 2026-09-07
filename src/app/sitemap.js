@@ -1,11 +1,12 @@
 import { locales } from "@/shared/i18n";
 import { urlFor, alternatesFor } from "@/lib/seo";
 
-// Public routes (relative to a locale). "" is the landing page, which carries
-// features, pricing and contact as in-page views rather than routes of their
-// own — so there is nothing else to list for them. Admin and API are excluded
-// on purpose.
-const PATHS = ["", "/careers", "/terms", "/privacy", "/signup", "/login"];
+// Public routes (relative to a locale). Pricing and the platform are REAL
+// ROUTES now rather than in-page views: a view cannot be ranked, cited, or
+// linked to from a directory listing, and the price list was invisible to every
+// engine because it arrived from a client fetch. Admin and API are excluded on
+// purpose.
+const PATHS = ["", "/platform", "/pricing", "/careers", "/terms", "/privacy", "/signup", "/login"];
 
 export default async function sitemap() {
   const now = new Date();

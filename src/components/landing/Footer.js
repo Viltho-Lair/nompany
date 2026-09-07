@@ -5,36 +5,33 @@ import { LogoMark, Wordmark } from "./Logo";
 import { viewsFor } from "./views/views";
 import { useLandingLocale } from "@/components/landing/locale";
 import { landingDict } from "@/shared/landing";
-/* `href` marks the entries that resolve to a real route in this app. The rest
-   are still design placeholders. Careers and Terms are load-bearing: this
-   footer is now their only inbound link. */
+/* EVERY LINK HERE RESOLVES. It did not: twelve of fifteen were `<span>`s
+   styled to look like links — Finance, HR, Inventory, Manufacturing,
+   Analytics, About, Customers, Security, Status, Documentation, API
+   Reference, Implementation. A visitor clicked and nothing happened,
+   which reads as a broken site rather than an unfinished one, and one of
+   them offered Manufacturing, a section that renders nothing at all.
+
+   A dead link is REMOVED, never left pointing at a "coming soon". These
+   come back one at a time as each page ships, and the columns collapse
+   to whatever genuinely exists meanwhile. */
 const columnsFor = (locale, tr) => [
     {
         title: tr.colPlatform,
         links: [
-            { label: tr.lnkFinance },
-            { label: tr.lnkHr },
-            { label: tr.lnkInventory },
-            { label: tr.lnkManufacturing },
-            { label: tr.lnkAnalytics },
+            { label: tr.viewOverview, href: `/${locale}/platform` },
+            { label: tr.viewPricing, href: `/${locale}/pricing` },
         ],
     },
     {
         title: tr.colCompany,
         links: [
-            { label: tr.lnkAbout },
-            { label: tr.lnkCustomers },
             { label: tr.lnkCareers, href: `/${locale}/careers` },
-            { label: tr.lnkSecurity },
-            { label: tr.lnkStatus },
         ],
     },
     {
         title: tr.colResources,
         links: [
-            { label: tr.lnkDocumentation },
-            { label: tr.lnkApiReference },
-            { label: tr.lnkImplementation },
             { label: tr.lnkTerms, href: `/${locale}/terms` },
             { label: tr.lnkPrivacy, href: `/${locale}/privacy` },
         ],
@@ -84,11 +81,17 @@ export function Footer({ onNavigate, locale = "en" }) {
       </motion.div>
 
       <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 border-t border-line px-6 py-6 text-xs text-fg-dim">
-        <p>© {new Date().getFullYear()} Nompany BV. {tr.rightsReserved}</p>
-        <p className="flex items-center gap-2">
-          <span className="h-1.5 w-1.5 rounded-full bg-mint"/>
-          {tr.allSystemsOk}
-        </p>
+        {/* "Nompany BV" NAMED A DUTCH LEGAL ENTITY, on every page, for a
+            company that is not incorporated anywhere yet and will be based in
+            Jordan — and it spelled the brand with a capital, which is the one
+            thing the brand string is never allowed to do.
+
+            AND THE STATUS LINE WENT WITH IT. A green dot reading "all systems
+            operational" is an uptime claim, and nothing measures uptime: there
+            is no monitor, no status page, and the cron budget cannot compute a
+            credible figure. The claim is dropped rather than estimated, which
+            is the same decision that deleted /status from the footer. */}
+        <p>© {new Date().getFullYear()} nompany. {tr.rightsReserved}</p>
       </div>
     </footer>);
 }

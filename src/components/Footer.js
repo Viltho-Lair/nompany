@@ -16,10 +16,13 @@ export default function Footer({ locale, dict }) {
   const isBare = BARE_ROUTES.some((r) => pathname === `/${locale}${r}`);
   const year = new Date().getFullYear();
 
-  // Features, pricing, about, team and contact are in-page views on the
-  // landing page now, so they collapse into "Home".
+  // Pricing and the platform have their own addresses now. The rest of the
+  // marketing site is still in-page views on the landing page and collapses
+  // into "Home" until each one becomes a route of its own.
   const nav = [
     { href: `/${locale}`, label: dict.nav.home },
+    { href: `/${locale}/platform`, label: dict.nav.platform },
+    { href: `/${locale}/pricing`, label: dict.nav.pricing },
     { href: `/${locale}/careers`, label: dict.nav.careers },
     { href: `/${locale}/terms`, label: dict.nav.terms },
     { href: `/${locale}/privacy`, label: dict.nav.privacy },

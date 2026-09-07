@@ -401,5 +401,90 @@ const baselines = JSON.parse(readFileSync("scripts/bundle-baselines.json", "utf8
 ok("...and the preview route's bundle baseline went too",
   !("/[locale]/preview/hero/[variant]" in baselines));
 
+console.log("
+== the platform page describes exactly the live departments");
+
+const P = await import("@/shared/marketing/platform");
+
+for (const locale of ["en", "ar"]) {
+  const copy = P.platformCopy(locale);
+  const described = Object.keys(copy.blurbs);
+
+  // EVERY LIVE DEPARTMENT IS DESCRIBED. A section that ships a screen and is
+  // not described here renders on the platform page as a bare name with an
+  // empty paragraph — visible to a visitor, invisible to everyone else.
+  for (const key of D.LIVE_DEPARTMENT_KEYS) {
+    ok(`${locale} describes ${key}`,
+      typeof copy.blurbs[key] === "string" && copy.blurbs[key].trim().length > 0);
+  }
+
+  // AND NOTHING ELSE IS. This is the half that matters: a blurb for a section
+  // in NO_SCREEN_YET would advertise a screen that renders nothing, which is
+  // the same false claim as a fabricated uptime figure and much easier to
+  // write by accident — the four dead sections have real names and sound like
+  // features.
+  const extra = described.filter((k) => !D.LIVE_DEPARTMENT_KEYS.includes(k));
+  ok(`${locale} describes no section that renders nothing`,
+    extra.length === 0, extra.join(", "));
+
+  ok(`${locale} platform copy is written`,
+    copy.title.trim().length > 0 && copy.lead.trim().length > 0
+    && copy.foundation.length > 0);
+  ok(`${locale} platform copy spells the brand one way`,
+    !/Nompany/.test(JSON.stringify(copy)));
+}
+ok("the Arabic platform copy carries no diacritics",
+  !DIACRITICS.test(JSON.stringify(P.platformCopy("ar"))));
+
+console.log("
+== the pricing page writes no price of its own");
+
+const PR = await import("@/shared/marketing/pricing");
+
+for (const locale of ["en", "ar"]) {
+  const copy = PR.pricingCopy(locale);
+  ok(`${locale} pricing copy is written`,
+    copy.title.trim().length > 0 && copy.lead.trim().length > 0);
+  ok(`${locale} pricing copy spells the brand one way`,
+    !/Nompany/.test(JSON.stringify(copy)));
+
+  // NO FIGURE IS TYPED INTO THE COPY. Every number on that page — the bands,
+  // the rates, the free tier's ceiling — is read from `PLANS` at render. A
+  // price written into a copy module is free to disagree with the one actually
+  // charged, and the reader has no way to tell which is which. The percentages
+  // are the exception the page reads from VAT_RATE and YEARLY_DISCOUNT, so
+  // even those are not written here.
+  const digits = JSON.stringify(copy).match(/\d+/g) || [];
+  ok(`${locale} pricing copy states no figure`, digits.length === 0, digits.join(" "));
+}
+ok("the Arabic pricing copy carries no diacritics",
+  !DIACRITICS.test(JSON.stringify(PR.pricingCopy("ar"))));
+
+console.log("
+== the footers claim nothing that is not true");
+
+const landingFooter = readFileSync("src/components/landing/Footer.js", "utf8");
+const footerCode = stripComments(landingFooter);
+
+// A DUTCH LEGAL ENTITY, ON EVERY PAGE, for a company that is not incorporated
+// anywhere yet and will be based in Jordan — and spelling the brand with a
+// capital while doing it.
+ok("the landing footer names no legal entity that does not exist",
+  !/\bBV\b/.test(footerCode));
+ok("...and spells the brand one way", !/Nompany/.test(footerCode));
+
+// AN UPTIME CLAIM WITH NOTHING BEHIND IT. Nothing measures uptime: no monitor,
+// no status page, and the cron budget cannot compute a credible figure. The
+// claim is dropped rather than estimated.
+ok("...and claims no system status", !/allSystemsOk/.test(footerCode));
+
+// EVERY REMAINING FOOTER LINK RESOLVES. Twelve of fifteen were spans styled to
+// look like links, including one offering Manufacturing — a section that
+// renders nothing. A dead link is removed, never left pointing at a "coming
+// soon", so a label with no href is the defect this catches.
+const labelsWithoutHref = (footerCode.match(/\{ label: tr\.[A-Za-z]+ \}/g) || []);
+ok("...and every footer entry has a destination",
+  labelsWithoutHref.length === 0, labelsWithoutHref.join(" "));
+
 console.log(fails ? `\n${fails} FAILED\n` : "\nmarketing model: all passed\n");
 process.exit(fails ? 1 : 0);
