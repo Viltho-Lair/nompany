@@ -1,0 +1,75 @@
+// THE CLAIMS REGISTER — every number and capability stated on a public page,
+// and the module and export that backs it.
+//
+// WHY IT EXISTS. The marketing site shipped 3.2M transactions/day, 180+
+// connectors, 99.99% uptime, 120+ countries and SSO/SCIM for a product that had
+// none of them, and nothing in the pipeline could notice. This is SEO-PLAN
+// §5.4's proposed eighteenth invariant: a public claim must have a source in the
+// product, and a claim whose source is removed fails the build.
+//
+// IT IMPORTS NOTHING, DELIBERATELY. The obvious shape is a `verify()` predicate
+// per claim — but a predicate has to import PLANS, SECTION_DEFS and the 159-key
+// permission catalogue, and this module is imported by CLIENT components, so
+// every source it touched would land in the marketing bundle. So a claim carries
+// its source as an ADDRESS, and tests/marketing-model.mjs imports each named
+// module and asserts both that the export survives and that the specific number
+// still holds. Same build-failing property, no bundle cost.
+//
+// A CLAIM IS REGISTERED WHERE IT IS STATED, not where it is true. The register
+// grows one page at a time; only what the hero says is here.
+
+export type ClaimSource = {
+  /** The module specifier, exactly as the test will import it. */
+  module: string;
+  /** The export within it that the claim rests on. */
+  export: string;
+};
+
+export type Claim = {
+  /** How the claim reads on the page, in the reader's language. */
+  en: string;
+  ar: string;
+  source: ClaimSource;
+};
+
+export const CLAIMS = {
+  // FREE FOR TEAMS UP TO NINE. The free plan's own band, not a marketing round
+  // number: PLANS[0] is `free`, minUsers 1, maxUsers 9.
+  "free-under-ten": {
+    en: "Free for teams of one to nine",
+    ar: "مجاني للفرق من واحد إلى تسعة",
+    source: { module: "@/lib/pricing", export: "PLANS" },
+  },
+  // ELEVEN, and it moves on its own. The four in NO_SCREEN_YET are excluded by
+  // shared/marketing/departments, so this number follows the software the day a
+  // screen ships rather than the day somebody remembers to edit it.
+  "eleven-departments": {
+    en: "Eleven departments on one data model",
+    ar: "أحد عشر قسما على نموذج بيانات واحد",
+    source: { module: "@/shared/marketing/departments", export: "LIVE_DEPARTMENT_KEYS" },
+  },
+  // ARABIC AND ENGLISH WITH TRUE RTL. Not a translation layer over an English
+  // product: `dir` is resolved per locale and MUI is mirrored through a second
+  // Emotion cache. The claim rests on the locale table itself.
+  "bilingual-rtl": {
+    en: "Arabic and English, with true right-to-left throughout",
+    ar: "العربية والإنجليزية، مع دعم كامل للكتابة من اليمين إلى اليسار",
+    source: { module: "@/shared/i18n", export: "locales" },
+  },
+  // EVERY RECORD PERMISSIONED TO THE ROW. What backs it is invariant 4 — no role
+  // means nothing, and there is no fallback path — asserted against the resolver
+  // rather than against a sentence about it.
+  "permissioned-to-the-row": {
+    en: "Every record permissioned to the row",
+    ar: "كل سجل محكوم بالصلاحيات حتى مستوى الصف",
+    source: { module: "@/platform/access/resolve", export: "effectivePermissions" },
+  },
+} as const satisfies Record<string, Claim>;
+
+export type ClaimId = keyof typeof CLAIMS;
+
+/** A registered claim, in the reader's language. */
+export function claimText(id: ClaimId, locale: string): string {
+  const claim = CLAIMS[id];
+  return locale === "ar" ? claim.ar : claim.en;
+}
