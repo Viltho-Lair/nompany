@@ -23,8 +23,16 @@ export function LogoMark({ size = 32, animated = false, priority = false, }) {
       {mark}
     </motion.span>);
 }
+// ONE BRAND STRING: `nompany`, lowercase, everywhere.
+//
+// THE WORDMARK ITSELF SPELLED IT WITH A CAPITAL, which made this the most
+// visible instance of the defect on the whole site: it renders in the header
+// and the footer of every marketing page, so the brand appeared capitalised
+// twice on each one while the metadata, the schema and the copy all wrote it
+// lowercase. A brand spelled two ways on one page is one an engine has to
+// guess about, and the guess is not ours to influence afterwards.
 export function Wordmark({ className = "" }) {
     return (<span className={`font-display text-[1.05rem] font-semibold tracking-tight ${className}`}>
-      Nompany
+      nompany
     </span>);
 }

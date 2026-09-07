@@ -355,7 +355,7 @@ const en: Strings = {
   navSystem: "System",
   navTheme: "Theme",
   navYourAccount: "Your account",
-  nompanyHome: "Nompany home",
+  nompanyHome: "nompany home",
   nothingMatches: "Nothing matches that.",
   novaAlwaysOn: "Nova · always on",
   novaName: "Nova",

@@ -5,6 +5,7 @@ import { LogoMark, Wordmark } from "./Logo";
 import { viewsFor } from "./views/views";
 import { useLandingLocale } from "@/components/landing/locale";
 import { landingDict } from "@/shared/landing";
+import { getDict } from "@/shared/i18n";
 /* EVERY LINK HERE RESOLVES. It did not: twelve of fifteen were `<span>`s
    styled to look like links — Finance, HR, Inventory, Manufacturing,
    Analytics, About, Customers, Security, Status, Documentation, API
@@ -15,12 +16,15 @@ import { landingDict } from "@/shared/landing";
    A dead link is REMOVED, never left pointing at a "coming soon". These
    come back one at a time as each page ships, and the columns collapse
    to whatever genuinely exists meanwhile. */
-const columnsFor = (locale, tr) => [
+const columnsFor = (locale, tr, nav) => [
     {
         title: tr.colPlatform,
         links: [
-            { label: tr.viewOverview, href: `/${locale}/platform` },
-            { label: tr.viewPricing, href: `/${locale}/pricing` },
+            // NAMED FROM THE SITE DICTIONARY, not from this page's own copy, so
+            // the nav, this footer and the pages themselves cannot call one page
+            // three different things.
+            { label: nav.platform, href: `/${locale}/platform` },
+            { label: nav.pricing, href: `/${locale}/pricing` },
         ],
     },
     {
@@ -39,7 +43,7 @@ const columnsFor = (locale, tr) => [
 ];
 export function Footer({ onNavigate, locale = "en" }) {
     const tr = landingDict(useLandingLocale());
-    const COLUMNS = columnsFor(locale, tr);
+    const COLUMNS = columnsFor(locale, tr, getDict(locale).nav);
     return (<footer className="relative border-t border-line">
       <motion.div variants={stagger(0.07)} initial="hidden" whileInView="show" viewport={VIEWPORT} className="mx-auto grid max-w-7xl gap-10 px-6 py-14 sm:grid-cols-2 lg:grid-cols-[1.4fr_repeat(3,1fr)]">
         <motion.div variants={fadeUp}>

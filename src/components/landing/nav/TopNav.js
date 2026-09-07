@@ -12,11 +12,15 @@ import { locales, LANGUAGE_NAMES, LANGUAGE_SHORT } from "@/shared/locale";
 import { LogoMark, Wordmark } from "../Logo";
 import { MagneticButton } from "../ui/MagneticButton";
 import { viewsFor } from "../views/views";
+import { getDict } from "@/shared/i18n";
 /* Navigation for the simulated router (TECHNIQUE 9).
    The active-tab pill is a shared `layoutId`, so switching tabs makes it
    glide between items instead of blinking on and off. */
 export function TopNav({ view, onNavigate, locale = "en" }) {
   const tr = landingDict(useLandingLocale());
+  // The site dictionary owns the page names, so the nav and the site footer
+  // cannot call the same page two different things.
+  const nav = getDict(locale).nav;
   // THE LANDING PAGE HAS NO `Nav`. The site header opts out of this route
   // because the page renders its own, so the language control has to be here
   // or nowhere — and it was nowhere: /en could not reach /ar at all.
@@ -77,8 +81,27 @@ export function TopNav({ view, onNavigate, locale = "en" }) {
           <Wordmark className="hidden sm:block"/>
         </button>
 
-        {/* Tabs */}
+        {/* REAL PAGES FIRST, then whatever is still an in-page view.
+            Platform and Pricing have addresses now, so they are links: a
+            <button> that swaps a client view cannot be opened in a new tab,
+            cannot be linked to from anywhere, and is invisible to a crawler —
+            which is why the price list reached no engine while it lived here.
+            They are plain anchors rather than next/link on purpose: this nav
+            sits on the landing page, and a hard navigation is what leaves the
+            client-rendered shell for the server-rendered route. */}
         <div className="ml-auto flex items-center gap-1 rounded-full bg-ink/40 p-1">
+          {[
+            { href: `/${locale}/platform`, label: nav.platform },
+            { href: `/${locale}/pricing`, label: nav.pricing },
+          ].map((l) => (
+            <a
+              key={l.href}
+              href={l.href}
+              className="relative rounded-full px-2 py-1.5 text-xs font-medium text-fg-muted transition-colors duration-300 hover:text-fg sm:px-3.5 sm:text-sm"
+            >
+              {l.label}
+            </a>
+          ))}
           {viewsFor(tr).map((v) => {
             const isActive = v.id === view;
             return (<button key={v.id} onClick={() => onNavigate(v.id)} aria-current={isActive ? "page" : undefined} className={`relative rounded-full px-2 py-1.5 text-xs font-medium transition-colors duration-300 sm:px-3.5 sm:text-sm ${isActive ? "text-white" : "text-fg-muted hover:text-fg"}`}>

@@ -3,10 +3,12 @@
 // The launcher wears a badge for unread notifications; this is the sentence
 // beside it. Every one of these is derived from the studio's OWN rows at read
 // time — there is no stored feed, nothing is precomputed, and nothing here
-// invents a figure. The landing page has four hand-written lines about resin
-// suppliers and SKU-4471 (components/landing/sections/SmartInsights.js); this
-// is the product's real one, and the difference has to stay visible in the
-// code: if a row did not say it, Nova does not say it.
+// invents a figure. The landing page used to carry four hand-written lines
+// about resin suppliers and SKU-4471, in a section called SmartInsights, and
+// this comment pointed at them as the contrast: invented copy there, real rows
+// here. That section is DELETED — it was one of three on the home page making
+// claims the product could not support — so the contrast is gone and only the
+// rule remains: if a row did not say it, Nova does not say it.
 //
 // THE ONE RULE THAT MATTERS, inherited from main.ts and not re-litigated here:
 // A SECTION THE VIEWER CANNOT SEE IS NEVER READ. `readIfVisible` answers `null`

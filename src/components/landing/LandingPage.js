@@ -1,62 +1,43 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { dirFor } from "@/shared/locale";
 import { LandingLocaleProvider } from "@/components/landing/locale";
-import { AnimatePresence } from "motion/react";
 import { AmbientBackground } from "@/components/landing/AmbientBackground";
 import { Footer } from "@/components/landing/Footer";
-import { Preloader } from "@/components/landing/Preloader";
 import { TopNav } from "@/components/landing/nav/TopNav";
 import { PointerProvider } from "@/components/landing/providers/PointerProvider";
 import { ContactView } from "@/components/landing/views/ContactView";
 import { OverviewView } from "@/components/landing/views/OverviewView";
-import { PricingView } from "@/components/landing/views/PricingView";
 import { ViewTransition } from "@/components/landing/views/ViewTransition";
 import { VIEW_ORDER } from "@/components/landing/views/views";
 
 /* ==================================================================
-   The public landing page — the whole marketing site, which is a
-   single page with three in-page views rather than three routes.
+   The public landing page.
 
-   It owns the three pieces of state the choreography depends on:
-     phase      'loading' → 'live'   (preloader)
-     view       overview|pricing|…   (view transitions)
+   THE PRELOADER IS GONE, and that is the point of this file's shrinking.
+   It was a full-screen overlay shipped INSIDE the HTML and dismissed only
+   by JavaScript, so the first thing in the document was a curtain and the
+   page behind it was unreachable to anything that does not run scripts.
+   Google renders JavaScript; ChatGPT, Claude and Perplexity's crawlers do
+   not — they were served a loading screen and nothing else. The settled
+   state is the server-rendered first frame now, which is the same rule the
+   hero follows and the reason nothing on it starts at opacity 0.
 
-   The page is English-only and permanently dark, so it forces `ltr`
-   and carries its own palette via `.landing-page` rather than
-   inheriting the app's light/dark theming. `Nav`/`Footer` skip this
-   route entirely — the page brings its own chrome.
+   The `phase` state went with it: there is no loading phase to be in, and
+   the body-overflow lock that froze the page behind the curtain has
+   nothing left to freeze.
+
+   PRICING LEFT TOO — it is `/[locale]/pricing`, a real server-rendered
+   route, because a view has no address and the price list was invisible to
+   every engine. What remains here is the home page and the contact view,
+   and contact becomes a route when it has a backend that actually sends.
 ================================================================== */
 
 export default function LandingPage({ locale = "en" }) {
-  const [phase, setPhase] = useState("loading");
   const [view, setView] = useState("overview");
   // +1 = moving right through the tab order, -1 = moving back.
   const [direction, setDirection] = useState(1);
-  const timers = useRef([]);
-
-  // Freeze the page behind the preloader so nothing scrolls under it.
-  useEffect(() => {
-    document.body.style.overflow = phase === "loading" ? "hidden" : "";
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [phase]);
-
-  const handleLoaded = useCallback(() => {
-    setPhase("live");
-    // THE SKELETON HAND-OFF WENT WITH THE SKELETON. A 900ms timer used to flip
-    // a readiness flag so the hero could cross-fade a shimmering placeholder
-    // into the real panel — a wait manufactured in order to be filled. The hero
-    // it served is replaced by one whose settled state is what the server
-    // renders, so there is nothing to hand off to and nothing to wait for.
-  }, []);
-
-  useEffect(() => {
-    const pending = timers.current;
-    return () => pending.forEach(window.clearTimeout);
-  }, []);
 
   // A ref mirrors `view` so navigate() can compare without a state updater
   // (state updaters must stay pure — no setDirection inside setView).
@@ -81,19 +62,10 @@ export default function LandingPage({ locale = "en" }) {
             changes don't restart the drift loops. */}
         <AmbientBackground />
 
-        <AnimatePresence>
-          {phase === "loading" && <Preloader onComplete={handleLoaded} />}
-        </AnimatePresence>
-
         <TopNav view={view} onNavigate={navigate} locale={locale} />
 
         <ViewTransition viewKey={view} direction={direction}>
-          {view === "overview" && (
-            <OverviewView onNavigate={navigate} />
-          )}
-          {view === "pricing" && (
-            <PricingView onNavigate={navigate} locale={locale} />
-          )}
+          {view === "overview" && <OverviewView />}
           {view === "contact" && <ContactView />}
         </ViewTransition>
 

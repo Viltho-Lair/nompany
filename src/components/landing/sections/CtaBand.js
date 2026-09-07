@@ -2,11 +2,21 @@
 import { useEffect, useState } from "react";
 import { useLandingLocale } from "@/components/landing/locale";
 import { landingDict } from "@/shared/landing";
+import { homeCopy } from "@/shared/marketing/home";
 import { motion } from "motion/react";
 import { EASE_OUT_EXPO, fadeUp, stagger, VIEWPORT } from "@/components/landing/lib/motion";
 import { MagneticButton } from "../ui/MagneticButton";
-export function CtaBand({ onNavigate }) {
-  const tr = landingDict(useLandingLocale());
+export function CtaBand() {
+  const locale = useLandingLocale();
+  const tr = landingDict(locale);
+  // THE COPY MOVED, THE SESSION LOGIC DID NOT. What this band decides — start,
+  // create a studio, or go straight back into the one you already own — is
+  // genuinely useful and stays. What it SAID was invented: "Replace nine
+  // systems with one operating layer", "most teams are live in under six
+  // weeks", and a footnote promising an "average implementation: 38 days" with
+  // a "dedicated migration engineer", for a product that has never been
+  // implemented for anyone. There is no average of nought deployments.
+  const home = homeCopy(locale);
     // The primary action follows where the visitor actually is: a stranger is
     // asked to start, someone signed in without a studio is asked to create one,
     // and someone who already has one is simply let back into it.
@@ -49,22 +59,19 @@ export function CtaBand({ onNavigate }) {
 
         <div className="relative">
           <motion.h2 variants={fadeUp} className="mx-auto max-w-2xl font-display text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
-            {tr.ctaTitle}
+            {home.closingTitle}
           </motion.h2>
           <motion.p variants={fadeUp} className="mx-auto mt-4 max-w-xl text-fg-muted">
-            {tr.ctaLead}
+            {home.closingLead}
           </motion.p>
           <motion.div variants={fadeUp} className="mt-9 flex flex-wrap items-center justify-center gap-3">
             <MagneticButton onClick={() => { window.location.assign(cta.href); }}>
               {cta.label}
             </MagneticButton>
-            <MagneticButton variant="ghost" strength={8} onClick={() => onNavigate("pricing")}>
+            <MagneticButton variant="ghost" strength={8} href={`/${locale}/pricing`}>
               {tr.seePricing}
             </MagneticButton>
           </motion.div>
-          <motion.p variants={fadeUp} className="mt-6 text-xs text-fg-dim">
-            {tr.ctaFootnote}
-          </motion.p>
         </div>
       </motion.div>
     </section>);
