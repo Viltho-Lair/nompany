@@ -1466,6 +1466,33 @@ share-link questions are **closed** (kept deliberately; deleted, respectively).
 
 ---
 
+## DO NOT CREATE A BRANCH PER SESSION
+
+**Stated by the owner, 07/09/2026, twice and in capitals: STOP CREATING BRANCHES —
+you are making conflicts.** Work in the branch and checkout you were given. Do not mint
+a `claude/<something>` branch because a task has begun, and do not create a worktree
+with a new branch in it for a piece of work that did not ask for one.
+
+**Why, measured on the day the rule was written.** Several sessions work this repo at
+once. Each one branching and then landing independently is what produced, inside one
+afternoon: `main` moving three times underneath a single session, two rebases onto it,
+another session's merge commit arriving mid-task, two CI runs cancelled by a third
+session's push, and the same bundle ceiling re-derived by three sessions in turn because
+each was reading a number the previous one had just changed. None of that was a mistake
+by any one session; it is what the branch-per-session shape produces on its own.
+
+**A conflict is the cheap half of the cost.** The expensive half is what happened to the
+bundle budget: two sessions edited the same constant from two branches, each measuring a
+tree the other had already moved, and the number written down was stale before it landed.
+A merge resolves text. It does not resolve two sessions having measured different trees.
+
+**So:** one branch, shared. If you genuinely need isolation, ask first and say what for —
+it is a decision about how the whole repo is being worked that afternoon, not a private
+convenience. Hold finished work as a commit and let the owner decide when it lands —
+"Verification — you do it, not CI" above is the other half of this: pushing to `main` was
+the verification loop, and the branches are what made each push land on a tree somebody
+else had already moved.
+
 ## House style
 
 Commit subjects are declarative sentences describing the state after the change
