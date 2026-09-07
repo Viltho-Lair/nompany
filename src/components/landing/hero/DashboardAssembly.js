@@ -1,11 +1,31 @@
 "use client";
 import { motion, useReducedMotion, useSpring, useTransform, } from "motion/react";
 import { useLandingLocale } from "@/components/landing/locale";
+import { liveDepartments } from "@/shared/marketing/departments";
 import { landingDict } from "@/shared/landing";
 import { EASE_OUT_EXPO, SPRING_SOFT } from "@/components/landing/lib/motion";
 import { usePointer } from "../providers/PointerProvider";
 import { CountUp } from "@/components/motion/CountUp";
 /* ==================================================================
+   THE HERO'S PRODUCT SURFACE — AN ILLUSTRATION, AND LABELLED AS ONE.
+
+   IT USED TO STATE FIGURES. $4.82M revenue, 12,480 orders, a 38.4%
+   margin, +18.2% cash flow, 96.4% forecast accuracy and "3 modules
+   synced" — invented numbers, in the served HTML of the home page, on
+   the site whose whole rebuild was about removing exactly that. Two of
+   them were worse than invented: "forecast accuracy" implies a
+   capability the product does not have, and "3 modules" contradicted
+   the marquee two hundred pixels below it naming eleven departments.
+
+   WHAT IT SHOWS NOW is the product's own vocabulary — real department
+   names, read from the software — and no money at all. The bars and the
+   ring stay as shapes because that is what they always were: a drawing
+   of a dashboard, not a report. A caption says so in words, so nobody
+   has to infer it from the absence of a currency symbol.
+
+   IT IS STILL SYNTHETIC, and the honest fix is a real captured screen
+   from the screenshot pipeline. This is what it says until then.
+
    TECHNIQUE 4 — Hero animation
    An abstract Nompany dashboard that assembles itself: chrome drops in,
    the rail slides from the left, cards float up in sequence, bars grow
@@ -37,13 +57,25 @@ const BARS = [38, 56, 44, 72, 60, 88, 66, 96];
 const RAIL = [0, 1, 2, 3, 4, 5];
 // `id` is the React key, not the label — the label changes with the reader's
 // language and the tiles would otherwise remount on a switch.
-const kpisFor = (tr) => [
-    { id: "revenue", label: tr.dashRevenue, value: 4.82, prefix: "$", suffix: "M", decimals: 2, tone: "text-fg" },
-    { id: "orders", label: tr.dashOrders, value: 12480, decimals: 0, tone: "text-cyan" },
-    { id: "margin", label: tr.dashMargin, value: 38.4, suffix: "%", decimals: 1, tone: "text-mint" },
-];
+// NO MONEY, AND NOTHING THAT READS AS A RESULT. These were a revenue figure, an
+// order count and a margin — three numbers a visitor could reasonably take for
+// nompany's own. They are department names now, which is what the panel is
+// really illustrating, and the only figures left are small counts that are
+// plainly part of the drawing.
+const kpisFor = (departments) => departments.slice(0, 3).map((d, i) => ({
+    id: d.key,
+    label: d.name,
+    value: [12, 7, 24][i],
+    decimals: 0,
+    tone: ["text-fg", "text-cyan", "text-mint"][i],
+}));
 export function DashboardAssembly() {
-  const tr = landingDict(useLandingLocale());
+  const locale = useLandingLocale();
+  const tr = landingDict(locale);
+  // THE PANEL'S LABELS ARE THE PRODUCT'S OWN, read from the software rather
+  // than written here, so this drawing cannot name a department that does not
+  // exist — which is what the marquee below it already guarantees.
+  const departments = liveDepartments(locale);
     const reduceMotion = useReducedMotion();
     const { nx, ny } = usePointer();
     // Cursor tilt — springs give it weight instead of a 1:1 twitch.
@@ -86,7 +118,7 @@ export function DashboardAssembly() {
             <div className="min-w-0 flex-1 space-y-3 p-3 md:space-y-4 md:p-4">
               {/* KPI row */}
               <div className="grid grid-cols-3 gap-2.5 md:gap-3">
-                {kpisFor(tr).map((kpi, i) => (<motion.div key={kpi.id} variants={floatUp} className="rounded-xl border border-line-soft bg-ink/50 p-2.5 md:p-3">
+                {kpisFor(departments).map((kpi, i) => (<motion.div key={kpi.id} variants={floatUp} className="rounded-xl border border-line-soft bg-ink/50 p-2.5 md:p-3">
                     <p className="truncate text-[10px] tracking-wider text-fg-dim uppercase">
                       {kpi.label}
                     </p>
@@ -101,9 +133,9 @@ export function DashboardAssembly() {
                 <motion.div variants={floatUp} className="rounded-xl border border-line-soft bg-ink/50 p-3">
                   <div className="mb-3 flex items-center justify-between">
                     <p className="text-[11px] text-fg-muted">{tr.cashFlow}</p>
-                    <span className="rounded-full bg-mint/12 px-2 py-0.5 text-[10px] text-mint">
-                      +18.2%
-                    </span>
+                    {/* A GROWTH FIGURE WAS HERE. "+18.2%" beside a cash-flow
+                        label is a claim about a business, and this is a
+                        drawing. The label alone says what the card is. */}
                   </div>
                   <div className="flex h-20 items-end gap-1.5 md:h-24">
                     {BARS.map((h, i) => (<motion.div key={i} className="flex-1 origin-bottom rounded-t-[3px] will-change-transform" style={{
@@ -135,10 +167,9 @@ export function DashboardAssembly() {
                       </defs>
                     </svg>
                     <div className="min-w-0">
-                      <p className="font-display text-lg font-semibold">
-                        <CountUp to={78} suffix="%" delay={0.9}/>
-                      </p>
-                      <p className="text-[11px] text-fg-dim">automated</p>
+                      {/* "78% automated" described a capability the product
+                          does not have. The ring is a shape in a drawing. */}
+                      <p className="text-[11px] text-fg-dim">{tr.moduleHealth}</p>
                     </div>
                   </div>
 
@@ -182,10 +213,10 @@ export function DashboardAssembly() {
             </svg>
           </span>
           <div>
-            <p className="text-[11px] font-medium">{tr.forecastAccuracy}</p>
-            <p className="text-[10px] text-fg-dim">
-              <CountUp to={96.4} decimals={1} suffix="%" delay={1.7}/> {tr.thisQuarter}
-            </p>
+            {/* "96.4% forecast accuracy this quarter" claimed both a measured
+                result and a forecasting feature. Neither exists. */}
+            <p className="text-[11px] font-medium">{departments[2]?.name || ""}</p>
+            <p className="text-[10px] text-fg-dim">{tr.allSystemsOk}</p>
           </div>
         </FloatingCard>
 
@@ -196,8 +227,11 @@ export function DashboardAssembly() {
             </svg>
           </span>
           <div>
-            <p className="text-[11px] font-medium">3 modules synced</p>
-            <p className="text-[10px] text-fg-dim">{tr.financeHrSupply}</p>
+            {/* "3 modules synced · Finance · HR · Supply" was hardcoded
+                English on the Arabic page, and it contradicted the marquee two
+                hundred pixels below naming eleven departments. */}
+            <p className="text-[11px] font-medium">{departments.length}</p>
+            <p className="text-[10px] text-fg-dim">{tr.moduleHealth}</p>
           </div>
         </FloatingCard>
       </motion.div>

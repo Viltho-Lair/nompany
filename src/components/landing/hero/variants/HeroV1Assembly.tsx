@@ -78,15 +78,28 @@ export function HeroV1Assembly({ locale }: { locale: string }) {
           shortened, because a settle-in is exactly the kind of movement the
           setting is asking not to see. DashboardAssembly reads the same
           preference itself for its own tilt and float loops. */}
-      <motion.div
-        className="relative z-0 lg:pl-6"
-        initial={reduceMotion ? false : { scale: 0.97 }}
-        animate={{ scale: 1 }}
-        transition={reduceMotion ? { duration: 0 } : SPRING_SOFT}
-        aria-hidden="true"
-      >
-        <DashboardAssembly />
-      </motion.div>
+      <div className="relative z-0 lg:pl-6">
+        <motion.div
+          initial={reduceMotion ? false : { scale: 0.97 }}
+          animate={{ scale: 1 }}
+          transition={reduceMotion ? { duration: 0 } : SPRING_SOFT}
+          aria-hidden="true"
+        >
+          <DashboardAssembly />
+        </motion.div>
+        {/* SAID IN WORDS, not left to be inferred from the absence of a
+            currency symbol. The panel is a drawing of the product; it carried a
+            revenue figure, an order count, a margin and a forecast accuracy,
+            and a visitor had no way to know those were not nompany's own
+            numbers.
+
+            OUTSIDE the aria-hidden wrapper, deliberately. The panel is
+            decoration a screen reader can skip; the disclaimer about it is not,
+            and a caption only sighted readers get is the wrong half to hide. */}
+        <p className="mt-4 text-center text-[11px] text-fg-dim lg:text-start">
+          {tr.illustrationNote}
+        </p>
+      </div>
     </section>
   );
 }
