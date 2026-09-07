@@ -104,6 +104,10 @@ const DASHBOARD_MODULES = [
   ["crmSales", "CRM & Sales"], ["engineeringDocs", "Engineering & Documents"],
   ["projects", "Projects"], ["inventory", "Inventory & Warehouse"],
   ["hr", "Human Resources"],
+  // PROCUREMENT JOINS THE LIST BECAUSE IT HAS A DASHBOARD NOW, which is what
+  // this list means. A `tendering.dashboard` was refused here once for being
+  // added as a group label with nothing enforcing it.
+  ["procurement", "Procurement & Subcontracting"],
   ["finance", "Finance & Accounting"], ["fieldService", "Field Operations & Service"],
 ] as const;
 type DashboardModule = (typeof DASHBOARD_MODULES)[number][0];

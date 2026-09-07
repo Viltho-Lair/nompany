@@ -1,0 +1,64 @@
+{
+  "status": 200,
+  "body": {
+    "ok": true,
+    "asOf": "<timestamp>",
+    "may": {
+      "requisitions": true,
+      "rfq": true,
+      "expediting": true,
+      "receiving": true,
+      "suppliers": true,
+      "subcontracts": true,
+      "bills": true
+    },
+    "requisitions": {
+      "awaiting": 0,
+      "awaitingValue": 0,
+      "awaitingValueComplete": true,
+      "approved": 1
+    },
+    "rfq": {
+      "open": 0,
+      "draft": 0
+    },
+    "expediting": {
+      "late": 0,
+      "dueSoon": 0,
+      "unchased": 0,
+      "undated": 1
+    },
+    "receiving": {
+      "awaitingDelivery": 1,
+      "partDelivered": 0,
+      "overReceived": 0,
+      "rejected": 1,
+      "overBilled": 2
+    },
+    "suppliers": {
+      "total": 40,
+      "blocked": 0,
+      "lapsed": 0,
+      "expiring": 0,
+      "unassessed": 39
+    },
+    "subcontracts": {
+      "live": 1,
+      "certifiedToDate": 50000,
+      "retentionHeld": 2500
+    },
+    "onTimeBySupplier": [
+      {
+        "vendorId": "<inv_ID>",
+        "name": "Late Supplies",
+        "judged": 1,
+        "onTime": 0,
+        "percent": 0,
+        "averageDaysLate": 40,
+        "worstDaysLate": 40,
+        "rePromised": 1,
+        "outstanding": 0
+      }
+    ]
+  }
+}

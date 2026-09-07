@@ -351,7 +351,10 @@ console.log("== the permission matrix: one key grants exactly itself");
   // crmSales.pipeline. Booking goods in moves stock and answers to
   // inventory.stock.edit at the one door that does; a create verb here would
   // be a right nothing exercises.
-  ok("the catalogue is the size we last agreed", ALL_PERMISSIONS.length === 173, String(ALL_PERMISSIONS.length));
+  // 174 with procurement.dashboard.view, minted by joining DASHBOARD_MODULES
+  // — which is the list of modules that HAVE a dashboard, not a list of group
+  // labels. A tendering.dashboard was refused here once for being the second.
+  ok("the catalogue is the size we last agreed", ALL_PERMISSIONS.length === 174, String(ALL_PERMISSIONS.length));
 
   const leaks = [];
   const missing = [];
@@ -7207,6 +7210,99 @@ console.log("== procurement: ordered, received, billed");
   const outsider = await recvPersonWith(["crmSales.tickets.view"], "norecv");
   await signIn(outsider.id);
   await shot("procurement.receiving.forbidden", await readRecv());
+  await signIn(owner.id);
+}
+
+// ============================================================================
+console.log("== procurement: the dashboard grants nothing");
+// THE ASSERTION THIS BLOCK EXISTS FOR is that a dashboard cannot become a way
+// to see what the registers refuse. Every block is gated by the right over its
+// own records, and a block the reader may not see is NEVER READ — so a figure
+// derived from records somebody cannot open can never reach them by this door.
+//
+// The same shape customer 360 is pinned in, and pinned the same way: two
+// readers, one studio, and the difference recorded.
+//
+// PLACED HERE for the reason the blocks above state: this studio is SHARED and
+// several goldens are whole-studio snapshots.
+{
+  const DASH = await import("@/app/api/studios/[slug]/procurement/dashboard/route.ts");
+
+  const P = ctx({ slug });
+  const shot = async (name, payload) => {
+    const r = golden(name, payload, EXTRA);
+    if (!r.recorded) ok(`${name} matches its golden`, r.ok, r.detail);
+    return payload;
+  };
+  const dashPersonWith = async (permissions, alias) => {
+    const u = (await createUser({ email: `g-${alias}-${rand()}@test.invalid`, passwordHash: "x" })).user;
+    const role = await createRole(studio.id, { name: `role-${alias}`, permissions });
+    await addCollaborator(studio.id, { userId: u.id, alias, role: "member", roleIds: [role.id] });
+    return u;
+  };
+  const readDash = () => capture(
+    DASH.GET, req(`/api/studios/${slug}/procurement/dashboard`), P);
+
+  // ---- the owner sees every block -----------------------------------------
+  await signIn(owner.id);
+  const full = await shot("procurement.dashboard.owner", await readDash());
+  for (const block of ["requisitions", "rfq", "expediting", "receiving", "suppliers", "subcontracts"]) {
+    ok(`the owner sees the ${block} block`, full.body?.[block] !== null, block);
+  }
+  // The receiving slice above left an order billed for more than turned up.
+  ok("...and the over-billed count is a number for a payables reader",
+    typeof full.body?.receiving?.overBilled === "number",
+    String(full.body?.receiving?.overBilled));
+
+  // ---- one register, one group of tiles ------------------------------------
+  // A reader holding the dashboard and ONE register must get that register and
+  // nothing else — not an empty grid of six, and not somebody else's numbers.
+  const narrow = await dashPersonWith(
+    ["procurement.dashboard.view", "procurement.suppliers.view"], "dashnarrow");
+  await signIn(narrow.id);
+  const one = await shot("procurement.dashboard.oneregister", await readDash());
+  ok("A BLOCK THE READER MAY NOT OPEN IS NULL",
+    one.body?.suppliers !== null
+    && one.body?.requisitions === null
+    && one.body?.expediting === null
+    && one.body?.subcontracts === null,
+    JSON.stringify(one.body?.may));
+  // AND THE RANKING NEEDS BOTH RIGHTS. It is a supplier's NAME against delivery
+  // performance, so holding only the supplier register must not disclose it.
+  ok("...and the on-time ranking needs suppliers AND expediting",
+    one.body?.onTimeBySupplier === null, JSON.stringify(one.body?.onTimeBySupplier));
+
+  // ---- the invoice leg, again -----------------------------------------------
+  // Receiving without payables: the block is drawn, and the one figure derived
+  // from an invoice is WITHHELD rather than zeroed. Nought would assert a clean
+  // sheet this reader has not been shown.
+  const noBills = await dashPersonWith(
+    ["procurement.dashboard.view", "procurement.receiving.view"], "dashnobills");
+  await signIn(noBills.id);
+  const withheld = await shot("procurement.dashboard.nobills", await readDash());
+  ok("the receiving block is drawn", withheld.body?.receiving !== null);
+  ok("...but OVER-BILLED IS NULL, NOT NOUGHT",
+    withheld.body?.receiving?.overBilled === null,
+    String(withheld.body?.receiving?.overBilled));
+  ok("...while what they may see is unchanged",
+    withheld.body?.receiving?.awaitingDelivery === full.body?.receiving?.awaitingDelivery,
+    String(withheld.body?.receiving?.awaitingDelivery));
+
+  // ---- and the dashboard right alone shows nothing ---------------------------
+  // NOT AN ERROR. Holding the dashboard and no register is a real state, and it
+  // is an empty page rather than a refusal — the screen says so in words.
+  const empty = await dashPersonWith(["procurement.dashboard.view"], "dashempty");
+  await signIn(empty.id);
+  const nothing = await shot("procurement.dashboard.nothing", await readDash());
+  ok("the dashboard right alone opens an empty page, not a refusal",
+    nothing.status === 200, String(nothing.status));
+  ok("...with every block null",
+    ["requisitions", "rfq", "expediting", "receiving", "suppliers", "subcontracts"]
+      .every((b) => nothing.body?.[b] === null));
+
+  const outsider = await dashPersonWith(["crmSales.tickets.view"], "nodash");
+  await signIn(outsider.id);
+  await shot("procurement.dashboard.forbidden", await readDash());
   await signIn(owner.id);
 }
 

@@ -85,6 +85,10 @@ const StudioReceiving = nextDynamic(
   () => import("@/components/studio2/StudioReceiving"),
   { loading: () => <ScreenSkeleton /> },
 );
+const ProcurementDashboard = nextDynamic(
+  () => import("@/components/studio2/ProcurementDashboard"),
+  { loading: () => <ScreenSkeleton /> },
+);
 const StudioExpediting = nextDynamic(
   () => import("@/components/studio2/StudioExpediting"),
   { loading: () => <ScreenSkeleton /> },
@@ -676,10 +680,16 @@ async function renderStudio(params) {
         // without this they fell through to the empty generic SectionDashboard:
         // a heading with no data and no error. `active?.key`, NOT screenKey —
         // screenKey collapses a child to the ROOT its parentId points at
-        // ("procurement", "logistics"), and those two roots have no dashboard
-        // of their own the way Inventory does, so their OWN root screen still
-        // wants the generic SectionDashboard (a heading and its subsection
-        // cards), not the whole Inventory dashboard wearing their name.
+        // ("procurement", "logistics"), and LOGISTICS still has no dashboard of
+        // its own the way Inventory does, so its OWN root screen wants the
+        // generic SectionDashboard (a heading and its subsection cards) rather
+        // than the whole Inventory dashboard wearing its name.
+        //
+        // PROCUREMENT HAS ONE NOW, which is why it is named below rather than
+        // falling through. This comment said both roots had none, and would
+        // have gone on saying it.
+        : active?.key === "procurement"
+          ? <ProcurementDashboard slug={studio.slug} />
         : active?.key === "procurement-requisitions"
           ? <StudioRequisitions slug={studio.slug} />
         : active?.key === "procurement-rfq"

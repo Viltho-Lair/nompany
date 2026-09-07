@@ -9,6 +9,30 @@ type Strings = {
   requisitions: string;
   rfqs: string;
   expediting: string;
+  dashboard: string;
+  dashboardSub: string;
+  loadingDashboard: string;
+  nothingGrantedHere: string;
+  nothingGrantedHereBody: string;
+  tileAwaitingApproval: string;
+  tileApprovedToOrder: string;
+  tileOpenRfqs: string;
+  tileLateOrders: string;
+  tileUnchased: string;
+  tileAwaitingDelivery: string;
+  tileOverBilled: string;
+  tileBlockedSuppliers: string;
+  tileLapsedSuppliers: string;
+  tileExpiringDocs: string;
+  tileLiveSubcontracts: string;
+  tileRetentionHeld: string;
+  atLeast: string;
+  atLeastHint: string;
+  onTimeRanking: string;
+  onTimeRankingHint: string;
+  noOnTimeYet: string;
+  judgedOrders: (n: number) => string;
+  blockHidden: string;
   receiving: string;
   receivingSub: string;
   loadingReceiving: string;
@@ -312,6 +336,30 @@ const en: Strings = {
   requisitions: "Requisitions",
   rfqs: "Supplier quotes",
   expediting: "Expediting",
+  dashboard: "Procurement",
+  dashboardSub: "What is waiting, what is late, and what does not add up.",
+  loadingDashboard: "Loading…",
+  nothingGrantedHere: "Nothing to show",
+  nothingGrantedHereBody: "This dashboard reports on the registers you can open, and you hold none of them yet.",
+  tileAwaitingApproval: "Awaiting approval",
+  tileApprovedToOrder: "Ready to order",
+  tileOpenRfqs: "Quotes requested",
+  tileLateOrders: "Orders late",
+  tileUnchased: "Never chased",
+  tileAwaitingDelivery: "Awaiting delivery",
+  tileOverBilled: "Over-billed",
+  tileBlockedSuppliers: "Blocked suppliers",
+  tileLapsedSuppliers: "Paperwork lapsed",
+  tileExpiringDocs: "Expiring soon",
+  tileLiveSubcontracts: "Live subcontracts",
+  tileRetentionHeld: "Retention held",
+  atLeast: "at least",
+  atLeastHint: "Some of these requests have lines nobody has estimated, so the true figure is higher than this.",
+  onTimeRanking: "On-time delivery by supplier",
+  onTimeRankingHint: "Measured against the date first promised when each order was placed, never a revised one — worst first.",
+  noOnTimeYet: "No delivered orders to judge yet.",
+  judgedOrders: (n) => (n === 1 ? "1 order" : `${n} orders`),
+  blockHidden: "Not shown",
   receiving: "Receiving",
   receivingSub: "What was ordered, what turned up, and what the supplier is charging for it.",
   loadingReceiving: "Loading receiving…",
@@ -597,6 +645,30 @@ const ar: Strings = {
   requisitions: "طلبات الشراء",
   rfqs: "عروض الموردين",
   expediting: "متابعة التوريد",
+  dashboard: "المشتريات",
+  dashboardSub: "ما ينتظر، وما تأخّر، وما لا يستقيم.",
+  loadingDashboard: "جارٍ التحميل…",
+  nothingGrantedHere: "لا شيء لعرضه",
+  nothingGrantedHereBody: "تقرّر هذه اللوحة عن السجلّات التي يمكنك فتحها، ولا تملك منها شيئاً بعد.",
+  tileAwaitingApproval: "بانتظار الاعتماد",
+  tileApprovedToOrder: "جاهز للشراء",
+  tileOpenRfqs: "عروض مطلوبة",
+  tileLateOrders: "أوامر متأخّرة",
+  tileUnchased: "بلا متابعة",
+  tileAwaitingDelivery: "بانتظار التوريد",
+  tileOverBilled: "فواتير زائدة",
+  tileBlockedSuppliers: "مورّدون موقوفون",
+  tileLapsedSuppliers: "انتهت أوراقهم",
+  tileExpiringDocs: "قريبة الانتهاء",
+  tileLiveSubcontracts: "عقود باطن سارية",
+  tileRetentionHeld: "المحتجز",
+  atLeast: "على الأقلّ",
+  atLeastHint: "بعض هذه الطلبات فيها بنود لم يقدّرها أحد، فالرقم الحقيقي أعلى من هذا.",
+  onTimeRanking: "الالتزام بالمواعيد حسب المورّد",
+  onTimeRankingHint: "يُقاس على الموعد الموعود عند إصدار كلّ أمر، لا على موعد مُعدّل — الأسوأ أوّلاً.",
+  noOnTimeYet: "لا توجد أوامر مُستلمة يُحكم عليها بعد.",
+  judgedOrders: (n) => (n === 1 ? "أمر واحد" : `${n} أوامر`),
+  blockHidden: "غير معروض",
   receiving: "الاستلام",
   receivingSub: "ما طُلب، وما وصل، وما يطالب به المورّد.",
   loadingReceiving: "جارٍ تحميل الاستلام…",

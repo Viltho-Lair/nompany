@@ -112,6 +112,11 @@ export const SECTION_AREAS: Readonly<Record<string, readonly string[]>> = {
   "procurement-rfq": ["procurement.rfq"],
   "procurement-expediting": ["procurement.expediting"],
   "procurement-subcontracts": ["procurement.subcontracts"],
+  // THE ROOT ITSELF, which had no entry at all until it grew a dashboard —
+  // so somebody holding `procurement.dashboard.view` and nothing else was
+  // refused the section their one right is for. `crm-sales` has carried the
+  // same line since its dashboard shipped.
+  procurement: ["procurement.dashboard"],
   "procurement-receiving": ["procurement.receiving"],
   "procurement-suppliers": ["procurement.suppliers"],
   "inventory-items": ["inventory.items"],

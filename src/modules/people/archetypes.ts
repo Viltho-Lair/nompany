@@ -218,6 +218,11 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
       ["procurement.rfq", "edit"], ["procurement.expediting", "edit"],
       ["procurement.subcontracts", "edit"],
       ["finance.payables", "edit"], ["inventory.items", "view"],
+      // THE SECTION OVERVIEW GOES TO WHOEVER RUNS THE SECTION, the way
+      // `inventory.dashboard` sits with the store keeper. NOT given to
+      // custodian as well: a store keeper's job is the receiving screen
+      // itself, and five of the six blocks would be null for them anyway.
+      ["procurement.dashboard", "view"],
       // THE OTHER HALF OF THE SAME SCREEN. A buyer holds `finance.payables`, so
       // they see the invoice leg the store keeper cannot — and they are who acts
       // on an over-billed order, because arguing with the supplier is the

@@ -1,0 +1,29 @@
+{
+  "status": 200,
+  "body": {
+    "ok": true,
+    "asOf": "<timestamp>",
+    "may": {
+      "requisitions": false,
+      "rfq": false,
+      "expediting": false,
+      "receiving": false,
+      "suppliers": true,
+      "subcontracts": false,
+      "bills": false
+    },
+    "requisitions": null,
+    "rfq": null,
+    "expediting": null,
+    "receiving": null,
+    "suppliers": {
+      "total": 40,
+      "blocked": 0,
+      "lapsed": 0,
+      "expiring": 0,
+      "unassessed": 39
+    },
+    "subcontracts": null,
+    "onTimeBySupplier": null
+  }
+}

@@ -32,6 +32,7 @@ export const WIDGET_SECTIONS: { key: string; label: string }[] = [
   { key: "crm-sales", label: "Sales" },
   { key: "engineering-docs", label: "Technical" },
   { key: "projects", label: "Projects" },
+  { key: "procurement", label: "Procurement" },
   { key: "inventory", label: "Inventory" },
   { key: "hr", label: "HR" },
   { key: "finance", label: "Finance" },
@@ -81,6 +82,15 @@ export const DASHBOARD_WIDGETS: WidgetDef[] = [
   { key: "inventory.stock-value-by-vendor", label: "Stock value by vendor", section: "inventory", rung: "moderate" },
   { key: "inventory.outstanding-on-order", label: "Outstanding on order", section: "inventory", rung: "moderate" },
   { key: "inventory.recent-movements", label: "Recent stock movements", section: "inventory", rung: "moderate" },
+  // Procurement. The free floor — what is late, what is blocked, what does not
+  // add up — is NOT here: the registry governs the paid widgets, and a studio
+  // that cannot see an over-billed order because it did not buy analytics is a
+  // studio being sold its own exceptions back.
+  // ONE KEY, BECAUSE ONE WIDGET IS BUILT. Registering the other three a
+  // Procurement dashboard will eventually want would put checkboxes in the
+  // tier editor that a studio could switch on to be shown nothing — the same
+  // defect as a permission nothing exercises, one layer up.
+  { key: "procurement.on-time-by-supplier", label: "On-time delivery by supplier", section: "procurement", rung: "simple" },
   // HR
   { key: "hr.headcount-by-dept", label: "Headcount by department", section: "hr", rung: "simple" },
   { key: "hr.leave-by-type", label: "Leave by type", section: "hr", rung: "simple" },

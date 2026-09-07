@@ -1,0 +1,23 @@
+{
+  "status": 200,
+  "body": {
+    "ok": true,
+    "asOf": "<timestamp>",
+    "may": {
+      "requisitions": false,
+      "rfq": false,
+      "expediting": false,
+      "receiving": false,
+      "suppliers": false,
+      "subcontracts": false,
+      "bills": false
+    },
+    "requisitions": null,
+    "rfq": null,
+    "expediting": null,
+    "receiving": null,
+    "suppliers": null,
+    "subcontracts": null,
+    "onTimeBySupplier": null
+  }
+}

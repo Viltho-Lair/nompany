@@ -846,6 +846,7 @@
           "projects.dashboard.view",
           "inventory.dashboard.view",
           "hr.dashboard.view",
+          "procurement.dashboard.view",
           "finance.dashboard.view",
           "fieldService.dashboard.view",
           "crmSales.tickets.view",
@@ -1086,6 +1087,7 @@
           "projects.dashboard.view",
           "inventory.dashboard.view",
           "hr.dashboard.view",
+          "procurement.dashboard.view",
           "finance.dashboard.view",
           "fieldService.dashboard.view",
           "crmSales.tickets.view",
@@ -1270,6 +1272,7 @@
           "projects.dashboard.view",
           "inventory.dashboard.view",
           "hr.dashboard.view",
+          "procurement.dashboard.view",
           "finance.dashboard.view",
           "fieldService.dashboard.view",
           "crmSales.tickets.view",
@@ -1454,6 +1457,7 @@
           "projects.dashboard.view",
           "inventory.dashboard.view",
           "hr.dashboard.view",
+          "procurement.dashboard.view",
           "finance.dashboard.view",
           "fieldService.dashboard.view",
           "crmSales.tickets.view",
@@ -1638,6 +1642,7 @@
           "projects.dashboard.view",
           "inventory.dashboard.view",
           "hr.dashboard.view",
+          "procurement.dashboard.view",
           "finance.dashboard.view",
           "fieldService.dashboard.view",
           "crmSales.tickets.view",
@@ -1822,6 +1827,7 @@
           "projects.dashboard.view",
           "inventory.dashboard.view",
           "hr.dashboard.view",
+          "procurement.dashboard.view",
           "finance.dashboard.view",
           "fieldService.dashboard.view",
           "crmSales.tickets.view",
@@ -2006,6 +2012,7 @@
           "projects.dashboard.view",
           "inventory.dashboard.view",
           "hr.dashboard.view",
+          "procurement.dashboard.view",
           "finance.dashboard.view",
           "fieldService.dashboard.view",
           "crmSales.tickets.view",
@@ -2190,6 +2197,7 @@
           "projects.dashboard.view",
           "inventory.dashboard.view",
           "hr.dashboard.view",
+          "procurement.dashboard.view",
           "finance.dashboard.view",
           "fieldService.dashboard.view",
           "crmSales.tickets.view",
@@ -2400,6 +2408,14 @@
       {
         "key": "hr.dashboard",
         "group": "Human Resources",
+        "label": "Dashboard",
+        "verbs": [
+          "view"
+        ]
+      },
+      {
+        "key": "procurement.dashboard",
+        "group": "Procurement & Subcontracting",
         "label": "Dashboard",
         "verbs": [
           "view"
