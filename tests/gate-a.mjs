@@ -852,6 +852,47 @@ console.log("== the architecture, asserted rather than remembered");
     const stalePortalExempt = PORTAL_LTR_OK.filter((x) => !sources.some((f) => f.path === x));
     ok("...and no portal exemption outlives its file",
       stalePortalExempt.length === 0, stalePortalExempt.join(", "));
+    // ---- ARABIC CARRIES NO DIACRITICS, ANYWHERE -------------------------
+    //
+    // SEO-PLAN §1.8 forbids harakat because a search query does not carry them,
+    // so a vocalised word is a word nobody's query matches. That rule was
+    // asserted on FOUR marketing modules and nothing else, and the other 38
+    // files drifted for exactly as long as nobody looked: the platform page's
+    // clean copy rendered under a CTA reading ابدأ مجانًا from landing.ts, and
+    // the security page's heading disagreed with its own <title>. 2068 marks
+    // came off 35 files to make this line true (measured against cf4e0a7d); it exists so the
+    // next file to gain one fails instead of drifting.
+    //
+    // THE RANGE IS THE MARKS AND NOTHING ELSE. U+064B-U+0652 plus U+0670.
+    // Hamza carriers (أ إ آ ؤ ئ) are LETTERS at U+0621-U+0626 and are NOT in
+    // it — stripping those is a spelling change, and `لان` is a different word
+    // from `لأن` rather than a plainer way of writing it.
+    const HARAKAT = new RegExp("[" + String.fromCharCode(0x064B) + "-"
+      + String.fromCharCode(0x0652) + String.fromCharCode(0x0670) + "]");
+
+    // THE ONE EXEMPTION, AND IT IS LOGIC RATHER THAN COPY. vendorCsv.ts accepts
+    // both "المورد" and "المورّد" as header names for the same field, because
+    // the file being imported is written by a person or by an AI they asked and
+    // may be headed either way. That mark is a MATCHER, not decoration —
+    // removing it would silently narrow what the importer accepts.
+    const HARAKAT_OK = "src/modules/inventory/vendorCsv.ts";
+
+    const vocalised = sources
+      .filter((f) => f.path !== HARAKAT_OK)
+      .filter((f) => HARAKAT.test(f.text))
+      .map((f) => f.path);
+    ok("no Arabic in the tree carries diacritics", vocalised.length === 0,
+      vocalised.join(", "));
+
+    // THE EXEMPTION IS ALSO THE POSITIVE CONTROL, which is why it is asserted
+    // rather than merely listed. If this fails, either somebody stripped the
+    // importer's alias — a real regression the line above cannot see, because
+    // absence of a mark is what it wants everywhere else — or the range above
+    // lost a character and is matching nothing, in which case the assertion
+    // above is passing on every file for the wrong reason.
+    const control = sources.find((f) => f.path === HARAKAT_OK);
+    ok("...and the one deliberate diacritic is still there to prove the scan works",
+      Boolean(control) && HARAKAT.test(control.text));
   }
 
   // ---- 6. dates render through the one formatter -------------------------

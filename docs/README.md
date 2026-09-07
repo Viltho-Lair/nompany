@@ -1,5 +1,17 @@
 # nompany ERP — Architecture Review
 
+> **A DATED SNAPSHOT, NOT CURRENT TRUTH.** This audit was taken on 2026-08-20 and
+> parts of it describe a product that no longer exists. Three of its own header
+> figures are now wrong, and they are the kind that mislead rather than merely age:
+> it says **12 departments** (the restructure replaced them with fifteen SECTIONS),
+> **97 API routes** (153 today), and it measures latency against **the live Redis
+> instance** (Redis is gone — uninstalled, no file imports a client, no environment
+> carries a `REDIS_URL`).
+>
+> Read it for the reasoning, which mostly still holds, and never for a number.
+> **`docs/progress.md` is the live status of the programme**, and `CLAUDE.md` is
+> what must be true in every session; both outrank this file.
+
 **Surveyed 2026-08-20 · commit `166300f` · 61,890 LOC · 97 API routes · 12 departments**
 
 A full-system audit and forward plan. Every claim is verified against the source; every latency figure is measured against the live Redis instance with read-only commands; bundle figures come from a clean production build.

@@ -48,8 +48,8 @@
 // remembered on 01/09/2026: the issuer and audience off a live
 // `VERCEL_OIDC_TOKEN`, the project number from
 // `gcloud projects describe nompany-application`, and the pool, provider and
-// service-account names from the setup runbook that creates them
-// (docs/superpowers/plans/2026-09-01-pg-gateway-cloud-setup.md). They are
+// service-account names from the cloud setup that creates them — read back off
+// the project itself now that the plan describing it is gone. They are
 // defaults and not constants — every one is overridable above — but a default
 // that is wrong is worse than no default, so they are stated once, here, with
 // where they came from.
