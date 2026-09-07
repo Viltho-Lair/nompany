@@ -23,7 +23,7 @@ import { defaultLocale, type Locale } from "../locale";
 const ar: Record<string, string> = {
   Admin: "مدير النظام",
   "Everything, including capabilities added in future releases.":
-    "كل شيء، بما في ذلك القدرات التي تُضاف في الإصدارات المقبلة.",
+    "كل شيء، بما في ذلك القدرات التي تضاف في الإصدارات المقبلة.",
 };
 
 const words: Record<Locale, Record<string, string>> = { en: {}, ar };

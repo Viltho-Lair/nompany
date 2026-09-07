@@ -199,7 +199,7 @@ const daysAr = (d: number) => {
   if (a === 1) return "يوم واحد";
   if (a === 2) return "يومين";
   if (a <= 10) return `${a} أيام`;
-  return `${a} يومًا`;
+  return `${a} يوما`;
 };
 const moreAr = (v: unknown) => (n(v) > 0 ? ` (و${n(v)} غيرها)` : "");
 
@@ -223,21 +223,21 @@ function textAr(kind: string, v: InsightVars, money: MoneyFmt): string | null {
   const tail = moreAr(v.more);
   switch (kind) {
     case "task.overdue":
-      return `«${s(v.title)}» تأخّرت ${daysAr(n(v.days))} ولا تزال عليك.${tail}`;
+      return `«${s(v.title)}» تأخرت ${daysAr(n(v.days))} ولا تزال عليك.${tail}`;
     case "task.approval":
       return `«${s(v.title)}» بانتظار قرارك.${tail}`;
     case "task.awaiting":
       return `«${s(v.title)}» مسندة إليك ولا تزال مفتوحة.${tail}`;
     case "quotation.noItems":
-      return `${s(v.number)} لا يزال مسودة بلا بنود مسعّرة.${tail}`;
+      return `${s(v.number)} لا يزال مسودة بلا بنود مسعرة.${tail}`;
     case "quotation.stale":
-      return `${s(v.number)} عند العميل منذ ${daysAr(n(v.days))} بلا ردّ.${tail}`;
+      return `${s(v.number)} عند العميل منذ ${daysAr(n(v.days))} بلا رد.${tail}`;
     case "rfq.unquoted":
       return `${s(v.reference)} ينتظر عرض سعر منذ ${daysAr(n(v.days))}.${tail}`;
     case "ticket.noRfq":
       return s(v.client)
-        ? `${s(v.reference)} الخاصة بـ${s(v.client)} مفتوحة ولم يُرفع لها طلب عرض سعر.${tail}`
-        : `${s(v.reference)} مفتوحة ولم يُرفع لها طلب عرض سعر.${tail}`;
+        ? `${s(v.reference)} الخاصة بـ${s(v.client)} مفتوحة ولم يرفع لها طلب عرض سعر.${tail}`
+        : `${s(v.reference)} مفتوحة ولم يرفع لها طلب عرض سعر.${tail}`;
     case "ticket.deadline": {
       const d = n(v.days);
       if (d < 0) return `${s(v.reference)} تجاوزت موعدها بـ${daysAr(-d)}.${tail}`;
@@ -245,19 +245,19 @@ function textAr(kind: string, v: InsightVars, money: MoneyFmt): string | null {
       return `${s(v.reference)} تستحق خلال ${daysAr(d)}.${tail}`;
     }
     case "project.overdue":
-      return `${s(v.number)} تجاوز تاريخ انتهائه بـ${daysAr(n(v.days))} ولا يزال قائمًا.${tail}`;
+      return `${s(v.number)} تجاوز تاريخ انتهائه بـ${daysAr(n(v.days))} ولا يزال قائما.${tail}`;
     case "project.uninvoiced":
-      return `${s(v.number)} مكتمل ولم تُصدَر له فاتورة قط.${tail}`;
+      return `${s(v.number)} مكتمل ولم تصدر له فاتورة قط.${tail}`;
     case "stock.out":
-      return `${s(v.name)} نفد من المخزون — لا يوجد منه شيء مقابل حدّ إعادة الطلب.${tail}`;
+      return `${s(v.name)} نفد من المخزون — لا يوجد منه شيء مقابل حد إعادة الطلب.${tail}`;
     case "stock.low":
-      return `${s(v.name)} انخفض إلى ${n(v.qty)} مقابل حدّ إعادة طلب ${n(v.level)}.${tail}`;
+      return `${s(v.name)} انخفض إلى ${n(v.qty)} مقابل حد إعادة طلب ${n(v.level)}.${tail}`;
     case "invoice.overdue":
       return n(v.more) > 0
         ? `${s(v.reference)} متأخرة ${daysAr(n(v.days))} — ${money(v.amount)} من أصل ${money(v.total)} مستحقة على ${n(v.more) + 1} فواتير.`
         : `${s(v.reference)} متأخرة ${daysAr(n(v.days))} — ${money(v.amount)} مستحقة.`;
     case "invoice.draft":
-      return `${s(v.reference)} مسودة منذ ${daysAr(n(v.days))} — لم يُطالَب بالمبلغ بعد.${tail}`;
+      return `${s(v.reference)} مسودة منذ ${daysAr(n(v.days))} — لم يطالب بالمبلغ بعد.${tail}`;
     case "bill.overdue":
       return s(v.vendor)
         ? `${s(v.reference)} لـ${s(v.vendor)} متأخرة ${daysAr(n(v.days))} — ${money(v.amount)} للسداد.${tail}`
@@ -281,7 +281,7 @@ function textAr(kind: string, v: InsightVars, money: MoneyFmt): string | null {
         : `طلب إجازة بانتظار القرار.${tail}`;
     case "notifications.unread": {
       const c = n(v.n);
-      const word = c === 1 ? "إشعار واحد" : c === 2 ? "إشعاران" : c <= 10 ? `${c} إشعارات` : `${c} إشعارًا`;
+      const word = c === 1 ? "إشعار واحد" : c === 2 ? "إشعاران" : c <= 10 ? `${c} إشعارات` : `${c} إشعارا`;
       return `لديك ${word} غير مقروء.`;
     }
     default:

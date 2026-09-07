@@ -51,7 +51,7 @@ const ar: SectionMap = {
 
   // NEW ROOT, no children yet (see keys.ts) — declared for ordering alone.
   tendering: "المناقصات والتسعير",
-  "tendering-register": "سجلّ المناقصات",
+  "tendering-register": "سجل المناقصات",
   "tendering-rates": "مكتبة الأسعار",
 
   projects: "المشاريع",
@@ -59,7 +59,7 @@ const ar: SectionMap = {
   "projects-sla": "اتفاقيات مستوى الخدمة",
   "projects-overtimes": "الأعمال الإضافية",
   // The planner moved here from Operations; the word travels with it.
-  "projects-planner": "المخطِّط",
+  "projects-planner": "المخطط",
   "projects-settings": "الإعدادات",
 
   // TECHNICAL BECAME ENGINEERING & DOCUMENTS AND GAINED THE CONTROLLED
@@ -85,7 +85,7 @@ const ar: SectionMap = {
 
   inventory: "المخزون والمستودعات",
   "inventory-stock": "إدارة المخزون",
-  "inventory-items": "الأصناف المسجّلة",
+  "inventory-items": "الأصناف المسجلة",
   "inventory-sheets": "كشوف المشاريع",
 
   // NEW ROOT, no children yet.
@@ -95,12 +95,12 @@ const ar: SectionMap = {
   // (to Quality & HSE) and locations (to Administration) moved out.
   "field-service": "العمليات الميدانية والخدمة",
   "field-service-schedule": "الجدول",
-  "field-service-tracking": "التتبّع",
+  "field-service-tracking": "التتبع",
   "field-service-settings": "الإعدادات",
 
   // NEW ROOT. Carries the AWB tracking screen from Inventory.
   logistics: "اللوجستيات والأسطول",
-  "logistics-shipments": "تتبّع بوليصة الشحن",
+  "logistics-shipments": "تتبع بوليصة الشحن",
 
   // NEW ROOT, no children yet.
   assets: "الأصول والمعدات",
