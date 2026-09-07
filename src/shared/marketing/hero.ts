@@ -42,7 +42,7 @@ const en: HeroStrings = {
 
 // HAND-WRITTEN, NEVER MACHINE-TRANSLATED (SEO-PLAN §2.9). Arabic-speaking buyers
 // detect translated copy immediately and it is this site's strongest asset in
-// this market. NO DIACRITICS: the live Arabic title is `أدِر`, and nobody types
+// this market. NO DIACRITICS: the live Arabic title is `أدر`, and nobody types
 // a kasra into a search box (SEO-PLAN §1.8).
 const ar: HeroStrings = {
   badge: claimText("free-under-ten", "ar"),
