@@ -7,7 +7,6 @@ import { AnimatePresence, motion } from "motion/react";
 import { fmtCurrencyAmount } from "@/lib/pricing";
 import { CONTACT } from "@/lib/site";
 import { CURRENCIES_FROM_EXCHANGE_API } from "@/shared/currencies";
-import Riyal from "@/components/Riyal";
 import { EASE_OUT_EXPO, fadeUp, stagger, VIEWPORT } from "@/components/landing/lib/motion";
 import { MagneticButton } from "../ui/MagneticButton";
 import { SectionHeading } from "../ui/SectionHeading";
@@ -192,18 +191,13 @@ export function PricingBoard({ initial = null, locale = "en" }) {
   const ctaLabel = (plan) =>
     plan.type === "free" ? tr.startFree : plan.type === "premium" ? tr.contactSales : tr.pvGetStarted;
 
-  const Sym = ({ big = false }) =>
-    currency === "SAR" ? (
-      <Riyal
-        className={
-          big
-            ? "inline-block h-[0.72em] w-[0.65em] align-[-0.02em]"
-            : "inline-block h-[0.85em] w-[0.78em] align-[-0.05em]"
-        }
-      />
-    ) : (
-      <span className={big ? "font-display text-lg font-600" : ""}>{currency}</span>
-    );
+  // EVERY CURRENCY, ONE TREATMENT. SAR used to be drawn here as a glyph while the
+  // other 165 showed their letters — one country's money given a courtesy no
+  // other gets, on the public pricing page of a product sold regionally and then
+  // globally. `components/Riyal` is deleted rather than left unused.
+  const Sym = ({ big = false }) => (
+    <span className={big ? "font-display text-lg font-600" : ""}>{currency}</span>
+  );
 
   return (
     <section className="mx-auto max-w-7xl px-6 pb-24 pt-32 lg:pt-40">
