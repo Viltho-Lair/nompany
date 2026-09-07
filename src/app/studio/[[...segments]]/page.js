@@ -42,11 +42,18 @@ import { log } from "@/platform/http/observability";
 // StudioFrame and LiveProvider are the LAYOUT's now and are not imported here
 // at all — see layout.js. Every request renders both, so splitting them would
 // buy a round trip and save nothing.
+// AND `dynamic()` HERE IS NOT ENOUGH, which took a measurement to see. In a
+// Server Component it defers the SERVER render and nothing else: every client
+// module on this route carries the same chunk list, so the browser fetches all
+// of them whichever screen is named. The four heaviest — the document editor
+// and the planner, together TipTap and MUI's date pickers — declare their split
+// inside a client module instead, where `import()` survives to runtime.
+// components/studio2/HeavyScreens holds the measurement and the reasoning; the
+// screens below are unchanged because their weight has not been measured yet,
+// and moving code on a hunch is how the last split came to look like it worked.
+import { DocumentList, DocumentView, StudioPlanner, StudioPlannerList } from "@/components/studio2/HeavyScreens";
+
 const StudioDocs = nextDynamic(() => import("@/components/studio2/StudioDocs"));
-const DocumentList = nextDynamic(() =>
-  import("@/components/quality/documents/document-list").then((m) => m.DocumentList));
-const DocumentView = nextDynamic(() =>
-  import("@/components/quality/documents/document-view").then((m) => m.DocumentView));
 const StudioSalesLive = nextDynamic(() => import("@/components/studio2/StudioSalesLive"));
 const StudioTechnicalLive = nextDynamic(() => import("@/components/studio2/StudioTechnicalLive"));
 const StudioPeople = nextDynamic(
@@ -160,14 +167,6 @@ const StudioProjectBoard = nextDynamic(
 // The project planner — a full-screen app (the list) and one plan's schedule.
 // Reached through Operations (the whole app) and through a project (its own
 // plans), so both the studio route branches below hand it the plan's API base.
-const StudioPlanner = nextDynamic(
-  () => import("@/components/studio2/StudioPlanner"),
-  { loading: () => <ScreenSkeleton /> },
-);
-const StudioPlannerList = nextDynamic(
-  () => import("@/components/studio2/StudioPlannerList"),
-  { loading: () => <ScreenSkeleton /> },
-);
 const StudioSheetViewer = nextDynamic(
   () => import("@/components/studio2/StudioSheetViewer"),
   { loading: () => <ScreenSkeleton /> },

@@ -294,7 +294,25 @@ const MAX_CHUNK_GZIP_KB = 250;
 // chunk count went 92 -> 91 and now back to 92 — so it was transient, and the
 // note there should be read as one measurement rather than a trend. The
 // ceiling that matters has not actually moved all run.
-const MAX_TOTAL_GZIP_KB = 1694;
+//
+// 1694 -> 1780 on 07/09/2026, measured 1772, and THIS IS THE CASE THE WHOLE
+// COMMENT AT THE TOP OF THIS CONSTANT WAS WRITTEN FOR. It is the largest single
+// rise this file has recorded, and it is a win rather than a regression: the
+// studio's first load went 962 -> 679 KB in the same commit, because the
+// document editor and the planner now declare their split inside a client
+// module where `import()` survives to runtime (components/studio2/HeavyScreens).
+// A split adds chunk boundaries and duplicates shared glue, so the total grows
+// while the page gets lighter. A commit that moved these two the same way would
+// be doing something else — this one moved them opposite ways, hard.
+//
+// +86 ON THE TOTAL AGAINST -283 ON THE ROUTE, and the biggest single piece of
+// the 86 is measured rather than guessed: date-fns is now in TWO 57 KB async
+// chunks, the planner's group and MuiDate's, where before it was one copy in
+// the entry that every route paid for. Winning it back means routing the
+// planner's pickers through the same lazy module `fields/StudioDate` uses; it
+// is a separate change with its own measurement, and it is the next thing to do
+// here rather than a reason to have kept the 283.
+const MAX_TOTAL_GZIP_KB = 1780;
 
 // THE MARGIN, and why it is the same for a 178 KB route and a 951 KB one.
 //

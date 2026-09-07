@@ -238,8 +238,26 @@ pull request, and four things `npm test` does not: `npm run lint:budget`,
   client references into one chunk group. The 307 → 197 → 158 KB wins were real changes
   to the file layout and changed nothing about what is downloaded. Moving work to
   another chunk does not lower the route number; a real client-side lazy boundary does,
-  which is the whole reason the gate is per-route now. **951 KB is recorded as a
-  measurement, not an approval.**
+  which is the whole reason the gate is per-route now.
+
+  **AND THAT IS THE FIX, MEASURED: the studio's first load is 679 KB, down from 962.**
+  `src/components/studio2/HeavyScreens.jsx` is a **client** module, so its `import()`
+  survives to runtime; `page.js` imports the four heaviest screens from it — the
+  document editor (TipTap/ProseMirror, 158 KB) and the planner (which pulls
+  `@mui/x-date-pickers` and date-fns, 98 KB) — and every one of those chunks is async
+  now. **`ssr: false` was tried and reverted:** both variants build to byte-identical
+  numbers, so the screens keep server-rendering. Being in the client module is what
+  does the work, not being out of the SSR graph. The other twenty-odd screens are
+  untouched, because their weight has not been measured yet.
+
+  **A SPLIT IS NOT FREE and the total says so: 1692 → 1772 (ceiling 1780).** About 57
+  of those 86 kilobytes are **date-fns arriving twice**, once in the planner's async
+  group and once in `MuiDate`'s, where before there was one copy in the entry that
+  every route paid for. Taken deliberately — 283 KB off every tenant page against 57
+  duplicated between two on-demand groups. Winning it back means routing the planner's
+  pickers through the lazy module `fields/StudioDate` already uses; **`MuiDate.jsx`
+  says it is "the only place MUI's date code is imported" and has not been true since
+  the planner landed** (`StudioPlanner.jsx:5-6`, `planner/cells.tsx:6-7`).
 
   **MEASURE THE BRANCH YOU ARE ON, BOTH ENDS, before attributing a delta to
   anything.** This bullet used to carry a per-commit changelog of every kilobyte,
