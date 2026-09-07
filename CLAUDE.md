@@ -733,9 +733,8 @@ the layer: a `createdAt`-scored engagement index, the grantable `engagements.vie
 that filters every stage by the permission its stage-registry entry declares, two GET routes, four new
 goldens, and a screen reached from a nav entry above People. It is deliberately NOT a section — giving
 Main a child would gate the parent and hide Main from every member without the right. See
-`docs/progress.md` and the
-`docs/superpowers/plans/2026-08-2{6,7}-engagement-*.md` plans. The read/write paths are NOT
-wired to any route yet — the engagement layer is written alongside, reconciled by the backfill.
+`docs/progress.md` and the engagement spec in `docs/superpowers/specs/`. The read/write
+paths are NOT wired to any route yet — the engagement layer is written alongside, reconciled by the backfill.
 
 **P2's approval engine is built, for bills.** A studio sets the amount above which a bill
 needs a second signature (Finance & Accounting settings), and `approveBill` walks the chain
