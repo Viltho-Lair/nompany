@@ -8,6 +8,39 @@ import { commonEn, commonAr, type CommonStrings } from "./common";
 // nothing may enumerate them.
 
 type Strings = CommonStrings & {
+  closure: string;
+  closureSub: string;
+  loadingClosure: string;
+  punchListHeading: string;
+  punchOpen: string;
+  punchClosed: string;
+  punchClear: string;
+  oldestOpenSnag: (n: number) => string;
+  practicalCompletion: string;
+  practicalCompletionHint: string;
+  handoverDate: string;
+  handoverHint: string;
+  supportPeriod: string;
+  supportPeriodHint: string;
+  finalAccount: string;
+  warrantyHeading: string;
+  warrantyEnds: string;
+  warrantyUnknown: string;
+  warrantyNone: string;
+  warrantyRunning: (n: number) => string;
+  warrantyExpiring: (n: number) => string;
+  warrantyExpired: (n: number) => string;
+  closeProject: string;
+  projectClosed: string;
+  closedByOn: (who: string, when: string) => string;
+  cannotCloseYet: string;
+  blockerNoCompletion: string;
+  blockerOpenSnags: string;
+  refuseClosed: string;
+  refuseHandoverBefore: string;
+  refuseWarrantyNegative: string;
+  refuseWarrantyFraction: string;
+  refuseWarrantyRange: string;
   siteReports: string;
   siteReportsSub: string;
   loadingReports: string;
@@ -409,6 +442,39 @@ type Strings = CommonStrings & {
 
 const en: Strings = {
   ...commonEn,
+  closure: "Closing out",
+  closureSub: "The punch list, practical completion, and how long this job is still supported.",
+  loadingClosure: "Loading…",
+  punchListHeading: "Punch list",
+  punchOpen: "Open",
+  punchClosed: "Cleared",
+  punchClear: "Nothing outstanding.",
+  oldestOpenSnag: (n) => (n === 1 ? "Oldest open 1 day" : `Oldest open ${n} days`),
+  practicalCompletion: "Practical completion",
+  practicalCompletionHint: "The day the works became usable. A job cannot be closed without it.",
+  handoverDate: "Handed over",
+  handoverHint: "The support period is counted from this day.",
+  supportPeriod: "Support period (days)",
+  supportPeriodHint: "How long this job is supported after handover. Set per project; the studio default applies until you change it.",
+  finalAccount: "Final account agreed",
+  warrantyHeading: "Support",
+  warrantyEnds: "Ends",
+  warrantyUnknown: "Not handed over yet, so the support period has not started.",
+  warrantyNone: "This job carries no support period.",
+  warrantyRunning: (n) => `${n} days left`,
+  warrantyExpiring: (n) => (n === 0 ? "Ends today" : n === 1 ? "Ends tomorrow" : `Ends in ${n} days`),
+  warrantyExpired: (n) => `Ended ${Math.abs(n)} days ago`,
+  closeProject: "Close the project",
+  projectClosed: "Closed",
+  closedByOn: (who, when) => `Closed by ${who} on ${when}`,
+  cannotCloseYet: "Not ready to close:",
+  blockerNoCompletion: "practical completion has not been recorded",
+  blockerOpenSnags: "the punch list still has open items",
+  refuseClosed: "That project is closed. Closing is a statement about the whole job, and it is not un-said quietly.",
+  refuseHandoverBefore: "Handover cannot be earlier than practical completion.",
+  refuseWarrantyNegative: "A support period cannot be negative.",
+  refuseWarrantyFraction: "A support period is a whole number of days.",
+  refuseWarrantyRange: "That support period is longer than ten years — check the number.",
   siteReports: "Site reports",
   siteReportsSub: "What happened on site each day — and where the diary is missing days.",
   loadingReports: "Loading site reports…",
@@ -808,6 +874,39 @@ const en: Strings = {
 
 const ar: Strings = {
   ...commonAr,
+  closure: "الإغلاق",
+  closureSub: "قائمة الملاحظات، والإنجاز الفعلي، ومدّة الدعم المتبقية.",
+  loadingClosure: "جارٍ التحميل…",
+  punchListHeading: "قائمة الملاحظات",
+  punchOpen: "مفتوح",
+  punchClosed: "مُعالَج",
+  punchClear: "لا شيء عالق.",
+  oldestOpenSnag: (n) => (n === 1 ? "أقدم مفتوح منذ يوم" : `أقدم مفتوح منذ ${n} يوماً`),
+  practicalCompletion: "الإنجاز الفعلي",
+  practicalCompletionHint: "يوم صارت فيه الأعمال قابلة للاستعمال. لا يُغلق المشروع بدونه.",
+  handoverDate: "تاريخ التسليم",
+  handoverHint: "تُحسب مدّة الدعم من هذا اليوم.",
+  supportPeriod: "مدّة الدعم (أيام)",
+  supportPeriodHint: "مدّة دعم هذا المشروع بعد التسليم. تُضبط لكلّ مشروع، ويسري افتراض الاستوديو حتّى تغيّره.",
+  finalAccount: "اعتُمد الحساب الختامي",
+  warrantyHeading: "الدعم",
+  warrantyEnds: "ينتهي",
+  warrantyUnknown: "لم يُسلّم بعد، فلم تبدأ مدّة الدعم.",
+  warrantyNone: "لا مدّة دعم لهذا المشروع.",
+  warrantyRunning: (n) => `متبقٍّ ${n} يوماً`,
+  warrantyExpiring: (n) => (n === 0 ? "ينتهي اليوم" : n === 1 ? "ينتهي غداً" : `ينتهي بعد ${n} يوماً`),
+  warrantyExpired: (n) => `انتهى منذ ${Math.abs(n)} يوماً`,
+  closeProject: "إغلاق المشروع",
+  projectClosed: "مُغلَق",
+  closedByOn: (who, when) => `أغلقه ${who} في ${when}`,
+  cannotCloseYet: "غير جاهز للإغلاق:",
+  blockerNoCompletion: "لم يُسجّل الإنجاز الفعلي",
+  blockerOpenSnags: "ما زالت في القائمة بنود مفتوحة",
+  refuseClosed: "هذا المشروع مُغلَق. والإغلاق حكم على العمل كلّه، لا يُراجع بصمت.",
+  refuseHandoverBefore: "لا يكون التسليم قبل الإنجاز الفعلي.",
+  refuseWarrantyNegative: "لا تكون مدّة الدعم سالبة.",
+  refuseWarrantyFraction: "مدّة الدعم عدد صحيح من الأيام.",
+  refuseWarrantyRange: "مدّة الدعم تتجاوز عشر سنوات — راجع الرقم.",
   siteReports: "التقارير اليومية",
   siteReportsSub: "ما جرى في الموقع كلّ يوم — وأين تنقص الأيام من السجلّ.",
   loadingReports: "جارٍ تحميل التقارير…",

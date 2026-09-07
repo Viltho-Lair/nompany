@@ -93,6 +93,10 @@ const StudioSiteReports = nextDynamic(
   () => import("@/components/studio2/StudioSiteReports"),
   { loading: () => <ScreenSkeleton /> },
 );
+const StudioProjectClosure = nextDynamic(
+  () => import("@/components/studio2/StudioProjectClosure"),
+  { loading: () => <ScreenSkeleton /> },
+);
 const StudioExpediting = nextDynamic(
   () => import("@/components/studio2/StudioExpediting"),
   { loading: () => <ScreenSkeleton /> },
@@ -381,6 +385,7 @@ async function renderStudio(params) {
     // that until it was added, and only opening the screen showed it.
     segments[2] !== "quotation" && segments[2] !== "plans" && segments[2] !== "costs" &&
     segments[2] !== "billing" && segments[2] !== "reports" &&
+    segments[2] !== "closure" &&
     sections.some((s) => s.key === "projects-list")
   ) {
     return <StudioProjectBoard slug={studio.slug} projectId={segments[1]} />;
@@ -487,6 +492,10 @@ async function renderStudio(params) {
   // holding only that right can still reach the row this hangs off, which is
   // the whole reason it is a separate area.
   const projectReports = projectId && segments[2] === "reports";
+  // AND A FIFTH CLOSES IT OUT: /<slug>/projects-list/<id>/closure is the punch
+  // list, practical completion and the support clock. It adds no permission
+  // key — closure IS a project's content, so it answers to `projects.list`.
+  const projectClosure = projectId && segments[2] === "closure";
 
   // PROJECT SHEETS ARE INVENTORY'S, and the sub-section IS the workspace:
   // /<slug>/inventory-sheets opens it empty, and /<slug>/inventory-sheets/<id>
@@ -636,6 +645,7 @@ async function renderStudio(params) {
         : projectCosts ? <StudioProjectCosts slug={studio.slug} projectId={projectId} />
         : projectBilling ? <StudioProjectBilling slug={studio.slug} projectId={projectId} />
         : projectReports ? <StudioSiteReports slug={studio.slug} projectId={projectId} />
+        : projectClosure ? <StudioProjectClosure slug={studio.slug} projectId={projectId} />
         // CRM & SALES'S QUOTATIONS ARE STILL RENDERED BY TECHNICAL, by key
         // rather than by screenKey, same pattern and same reason as Procurement's
         // Suppliers and Logistics's Shipments below. Quotations moved to CRM &

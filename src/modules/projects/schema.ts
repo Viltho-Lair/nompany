@@ -55,8 +55,36 @@ export const ProjectSchema = z.looseObject({
   startDate: z.string().optional(),
   endDate: z.string().optional(),
   createdAt: z.string().optional(),
-  /** How long the studio supports it after handover. Set on the project, not the SLA. */
+  /**
+   * How long the studio supports it after handover. Set on the project, not
+   * the SLA.
+   *
+   * IT IS THE WARRANTY CLOCK NOW. It was stored, editable and read by nothing
+   * — a number in a form that computed no answer — until `closurePosition`
+   * started running it from `handoverAt` below. No `warrantyMonths` was minted
+   * beside it: `retentionReleaseDate` already calls itself the
+   * defects-liability end, and a third name for one idea is two too many.
+   */
   supportPeriodDays: z.number().optional(),
+
+  // ---- closure, added by the punch list and warranty tracker --------------
+  // ALL OPTIONAL, because every project already in the database predates them
+  // — the same reason `tenderId` is. Absent reads as a job that has not got
+  // there yet, which is true of most of them.
+  //
+  // AND CLOSURE IS NOT A STAGE. `PROJECT_STAGES` is a DEFAULT a studio may
+  // replace, so a rule hung on the word "Completed" would stop applying to any
+  // studio that renamed its columns. These dates mean the same thing whatever a
+  // studio calls its stages.
+  /** The day the works became usable. Gates closing; nothing recorded it before. */
+  practicalCompletionAt: z.string().optional(),
+  /** The day it was handed over. THE SUPPORT CLOCK RUNS FROM HERE. */
+  handoverAt: z.string().optional(),
+  /** When the final account was agreed. Recorded, and gates nothing. */
+  finalAccountAt: z.string().optional(),
+  /** Set once, by `closeProject`, and never unset — see `closureProblem`. */
+  closedAt: z.string().optional(),
+  closedByCollaboratorId: z.string().max(60).optional(),
   /**
    * RETENTION — the percentage a client withholds from each claim, and the date
    * the last of it becomes payable (the defects-liability end).
