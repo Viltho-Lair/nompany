@@ -34,6 +34,12 @@ const ok = (label, cond, extra = "") => {
   console.log(`${cond ? "  ok  " : " FAIL "} ${label}${extra ? "  " + extra : ""}`);
 };
 
+// NO DIACRITICS ANYWHERE IN THE ARABIC (SEO-PLAN §1.8). The live Arabic title
+// is `أدِر`, which nobody types into a search box. Hoisted here, with the
+// other shared constants, rather than declared partway down where the claims
+// section first needed it — the hero and company sections need it too.
+const DIACRITICS = /[ً-ْٰ]/;
+
 console.log("\n== the departments a visitor is told exist");
 
 ok("eleven of them", D.LIVE_DEPARTMENT_KEYS.length === 11,
@@ -59,17 +65,20 @@ ok("every one is a real top-level section",
 
 console.log("\n== and they are named in both languages");
 
-const en = D.liveDepartments("en");
-const ar = D.liveDepartments("ar");
+// NAMED depsEn/depsAr, not en/ar — the hero and company sections further down
+// declare their own locale locals, and a bare `en`/`ar` here would read as
+// theirs to anyone skimming the file.
+const depsEn = D.liveDepartments("en");
+const depsAr = D.liveDepartments("ar");
 ok("both locales return the same eleven, in the same order",
-  en.map((d) => d.key).join(",") === ar.map((d) => d.key).join(",") && en.length === 11);
-ok("every English name is non-empty", en.every((d) => d.name.trim().length > 0));
-ok("every Arabic name is non-empty", ar.every((d) => d.name.trim().length > 0));
+  depsEn.map((d) => d.key).join(",") === depsAr.map((d) => d.key).join(",") && depsEn.length === 11);
+ok("every English name is non-empty", depsEn.every((d) => d.name.trim().length > 0));
+ok("every Arabic name is non-empty", depsAr.every((d) => d.name.trim().length > 0));
 // AND THEY ARE ACTUALLY TRANSLATED. `sectionName` falls back to the stored
 // English name for a key it has no entry for, so an Arabic list identical to the
 // English one is the fallback firing eleven times rather than a translation.
 ok("...and the Arabic is not the English",
-  ar.filter((d, i) => d.name === en[i].name).length === 0);
+  depsAr.filter((d, i) => d.name === depsEn[i].name).length === 0);
 
 console.log("\n== every claim the hero makes, against its source");
 
@@ -131,6 +140,21 @@ for (const [id, claim] of Object.entries(C.CLAIMS)) {
 
   ok(`...and it is written in both languages`,
     claim.en.trim().length > 0 && claim.ar.trim().length > 0, id);
+
+  // HOW IT REACHES A PAGE. Three valid shapes, and only "composed" can be
+  // checked by string matching — the whole point of the distinction (see
+  // shared/marketing/claims.ts) is that a woven or rendered claim cannot be,
+  // so nothing beyond the shape is asserted for those two.
+  const stated = claim.stated;
+  const validShape = stated?.how === "composed"
+    || (stated?.how === "woven" && typeof stated.in === "string" && stated.in.length > 0)
+    || (stated?.how === "rendered" && typeof stated.by === "string" && stated.by.length > 0);
+  ok(`...and it names how it is stated`, validShape, id);
+
+  if (stated?.how === "composed") {
+    ok(`...and claimText returns it for en`, C.claimText(id, "en") === claim.en, id);
+    ok(`...and claimText returns it for ar`, C.claimText(id, "ar") === claim.ar, id);
+  }
 }
 
 // BOTH DIRECTIONS, or a claim added with no check passes by having no check.
@@ -138,9 +162,6 @@ for (const id of Object.keys(CHECKS)) {
   ok(`${id} is in the register`, id in C.CLAIMS);
 }
 
-// NO DIACRITICS IN THE ARABIC (SEO-PLAN §1.8). The live Arabic title is `أدِر`,
-// which nobody types into a search box.
-const DIACRITICS = /[ً-ْٰ]/;
 for (const [id, claim] of Object.entries(C.CLAIMS)) {
   ok(`${id} carries no Arabic diacritics`, !DIACRITICS.test(claim.ar), claim.ar);
 }
@@ -187,8 +208,8 @@ ok("the English H1 is a single line", !H.heroCopy("en").h1.includes("\n"));
 ok("the Arabic H1 is a single line", !H.heroCopy("ar").h1.includes("\n"));
 
 // NO DIACRITICS ANYWHERE IN THE ARABIC.
-// (Named arHero, not ar — the departments section above already declared a
-// top-level `ar` for D.liveDepartments("ar"), and this file is one module.)
+// (Named arHero, not ar — the departments section above declares its own
+// depsEn/depsAr rather than a bare en/ar, precisely to leave this name free.)
 const arHero = H.heroCopy("ar");
 for (const [f, v] of Object.entries(arHero)) {
   if (typeof v !== "string") continue;
@@ -200,6 +221,20 @@ for (const [f, v] of Object.entries(arHero)) {
 // arrived is not a failure anybody would file.
 ok("an unknown locale falls back to English",
   H.heroCopy("fr").h1 === H.heroCopy("en").h1);
+
+// THE LOCATION GUARD, OVER COPY THAT ACTUALLY RENDERS. The company-description
+// version of this check below runs against company.ts, which nothing on the
+// site imports — hero.ts is what a visitor reads. The company is not Saudi,
+// is not based anywhere yet, and ZATCA is out of scope (spec §12.1), so this
+// has to hold on every string heroCopy returns, in both languages.
+const LOCATION_PATTERN = /Riyadh|السعودية|Saudi|ZATCA|KSA/i;
+for (const locale of ["en", "ar"]) {
+  const c = H.heroCopy(locale);
+  for (const [f, v] of Object.entries(c)) {
+    if (typeof v !== "string") continue;
+    ok(`${locale}.${f} claims no location`, !LOCATION_PATTERN.test(v), v);
+  }
+}
 
 console.log("\n== the entity, described once");
 
@@ -214,8 +249,10 @@ for (const locale of ["en", "ar"]) {
   ok(`${locale} spells the brand one way`, !/Nompany/.test(d));
   // THE COMPANY IS NOT SAUDI AND ZATCA IS NOT IN SCOPE (spec §12.1). A public
   // sentence implying either is the same class of defect as a fabricated
-  // uptime figure, and it is the one the owner named explicitly.
-  ok(`${locale} claims no location`, !/Riyadh|السعودية|Saudi|ZATCA|KSA/i.test(d));
+  // uptime figure, and it is the one the owner named explicitly. Same pattern
+  // the hero section above holds hero.ts to — company.ts never renders, but
+  // it is still a registered surface and gets the identical guard.
+  ok(`${locale} claims no location`, !LOCATION_PATTERN.test(d));
 }
 ok("the Arabic description carries no diacritics",
   !DIACRITICS.test(CO.companyCopy("ar").description));

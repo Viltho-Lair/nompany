@@ -15,8 +15,12 @@
 // module and asserts both that the export survives and that the specific number
 // still holds. Same build-failing property, no bundle cost.
 //
-// A CLAIM IS REGISTERED WHERE IT IS STATED, not where it is true. The register
-// grows one page at a time; only what the hero says is here.
+// THE REGISTER HOLDS EVERY CLAIM THE SITE MAKES, not only the ones composed
+// through `claimText`. A claim can reach a page three ways — composed as a
+// standalone atom, woven into a sentence's prose, or expressed by what the
+// page renders rather than by a sentence — and `stated` records which. All
+// three are registered here because all three need a source that fails the
+// build when it goes away; only the FORM differs.
 
 export type ClaimSource = {
   /** The module specifier, exactly as the test will import it. */
@@ -30,6 +34,17 @@ export type Claim = {
   en: string;
   ar: string;
   source: ClaimSource;
+  /** How this claim reaches a page. */
+  stated:
+    /** Composed via claimText, so the page and the register cannot drift. */
+    | { how: "composed" }
+    /** Woven into a sentence as prose, because English and Arabic attach the
+        same clause with different connectors and a template that fights the
+        grammar of one language is worse than the prose. Names the copy field
+        it is woven into. */
+    | { how: "woven"; in: string }
+    /** Expressed by what the page renders rather than by a sentence. */
+    | { how: "rendered"; by: string };
 };
 
 export const CLAIMS = {
@@ -39,6 +54,7 @@ export const CLAIMS = {
     en: "Free for teams of one to nine",
     ar: "مجاني للفرق من واحد إلى تسعة",
     source: { module: "@/lib/pricing", export: "PLANS" },
+    stated: { how: "composed" },
   },
   // ELEVEN, and it moves on its own. The four in NO_SCREEN_YET are excluded by
   // shared/marketing/departments, so this number follows the software the day a
@@ -47,6 +63,7 @@ export const CLAIMS = {
     en: "Eleven departments on one data model",
     ar: "أحد عشر قسما على نموذج بيانات واحد",
     source: { module: "@/shared/marketing/departments", export: "LIVE_DEPARTMENT_KEYS" },
+    stated: { how: "rendered", by: "DepartmentMarquee" },
   },
   // ARABIC AND ENGLISH WITH TRUE RTL. Not a translation layer over an English
   // product: `dir` is resolved per locale and MUI is mirrored through a second
@@ -55,6 +72,7 @@ export const CLAIMS = {
     en: "Arabic and English, with true right-to-left throughout",
     ar: "العربية والإنجليزية، مع دعم كامل للكتابة من اليمين إلى اليسار",
     source: { module: "@/shared/i18n", export: "locales" },
+    stated: { how: "woven", in: "hero.lead" },
   },
   // EVERY RECORD PERMISSIONED TO THE ROW. What backs it is invariant 4 — no role
   // means nothing, and there is no fallback path — asserted against the resolver
@@ -63,6 +81,7 @@ export const CLAIMS = {
     en: "Every record permissioned to the row",
     ar: "كل سجل محكوم بالصلاحيات حتى مستوى الصف",
     source: { module: "@/platform/access/resolve", export: "effectivePermissions" },
+    stated: { how: "woven", in: "hero.lead" },
   },
   // PAID PLANS FROM TEN PEOPLE UP. The `small` plan's own minUsers, read from the
   // same table the free band comes from — so the free side and the paid side of
@@ -71,6 +90,7 @@ export const CLAIMS = {
     en: "Paid plans from ten people up",
     ar: "الخطط المدفوعة من عشرة أفراد فأكثر",
     source: { module: "@/lib/pricing", export: "PLANS" },
+    stated: { how: "composed" },
   },
 } as const satisfies Record<string, Claim>;
 
@@ -79,7 +99,9 @@ export const CLAIMS = {
 // standalone atom — a badge, a footnote. Prose is used where it is woven into a
 // sentence, because English and Arabic attach the same clause with different
 // connectors, and a template that fights the grammar of one language to satisfy
-// a mechanism is worse than the prose it replaced.
+// a mechanism is worse than the prose it replaced. `stated` on each claim
+// records which of the three forms — composed, woven, rendered — it actually
+// takes on the page.
 
 export type ClaimId = keyof typeof CLAIMS;
 
