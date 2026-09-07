@@ -105,6 +105,11 @@ const CHECKS = {
     const nothing = effectivePermissions({ collaborator: { roleIds: [] }, roles: [] });
     return nothing instanceof Set && nothing.size === 0;
   },
+  "paid-from-ten": async () => {
+    const { PLANS } = await import("@/lib/pricing");
+    const first = PLANS.filter((p) => !p.free).sort((a, b) => a.minUsers - b.minUsers)[0];
+    return Boolean(first) && first.minUsers === 10;
+  },
 };
 
 for (const [id, claim] of Object.entries(C.CLAIMS)) {

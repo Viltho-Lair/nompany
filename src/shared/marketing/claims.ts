@@ -64,7 +64,22 @@ export const CLAIMS = {
     ar: "كل سجل محكوم بالصلاحيات حتى مستوى الصف",
     source: { module: "@/platform/access/resolve", export: "effectivePermissions" },
   },
+  // PAID PLANS FROM TEN PEOPLE UP. The `small` plan's own minUsers, read from the
+  // same table the free band comes from — so the free side and the paid side of
+  // the pricing story are two readings of one row and cannot drift apart.
+  "paid-from-ten": {
+    en: "Paid plans from ten people up",
+    ar: "الخطط المدفوعة من عشرة أفراد فأكثر",
+    source: { module: "@/lib/pricing", export: "PLANS" },
+  },
 } as const satisfies Record<string, Claim>;
+
+// THE REGISTER VERIFIES THAT A CLAIM IS TRUE; IT DOES NOT REQUIRE EVERY SENTENCE
+// TO BE ASSEMBLED FROM IT. Composition is used where a claim appears as a
+// standalone atom — a badge, a footnote. Prose is used where it is woven into a
+// sentence, because English and Arabic attach the same clause with different
+// connectors, and a template that fights the grammar of one language to satisfy
+// a mechanism is worse than the prose it replaced.
 
 export type ClaimId = keyof typeof CLAIMS;
 
