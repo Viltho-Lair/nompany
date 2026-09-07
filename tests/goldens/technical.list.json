@@ -228,7 +228,6 @@
         "Approved",
         "Rejected"
       ],
-      "defaultVatRate": 15,
       "urgencies": [
         "Low",
         "Normal",
