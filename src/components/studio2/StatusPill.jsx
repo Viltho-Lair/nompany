@@ -64,6 +64,10 @@ export const TONE_CLASS = {
 export const STATUS_TONES = {
   // StudioFinance — INV_TONE
   invoice:   { Draft: "neutral", Sent: "info", Paid: "success", Cancelled: "danger" },
+  // A SALES ORDER. Draft is amber rather than neutral — an unconfirmed order
+  // is unfinished work, the way a draft quotation is, not a resting state the
+  // way a draft invoice is.
+  salesOrder: { Draft: "warn", Confirmed: "brand", Fulfilled: "success", Cancelled: "danger" },
   // StudioFinance — BILL_TONE. Approved is brand (authorised), Disputed amber (a
   // warning, not the rose of Cancelled).
   bill:      { Draft: "neutral", Received: "neutral", Approved: "progress", Paid: "success", Cancelled: "danger", Disputed: "warning" },

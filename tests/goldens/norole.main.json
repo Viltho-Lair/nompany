@@ -17,6 +17,7 @@
       "crm-sales-clients": false,
       "crm-sales-quotations": false,
       "crm-sales-contracts": false,
+      "crm-sales-orders": false,
       "crm-sales-live": false,
       "crm-sales-settings": false,
       "tendering": false,

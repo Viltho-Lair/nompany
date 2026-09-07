@@ -28,6 +28,9 @@ const ar: StatusMap = {
     approved: "معتمدة", rejected: "مرفوضة",
   },
   invoice: { Draft: "مسودة", Sent: "مرسلة", Paid: "مدفوعة", Cancelled: "ملغاة" },
+  salesOrder: {
+    Draft: "مسودة", Confirmed: "مؤكد", Fulfilled: "منفذ", Cancelled: "ملغى",
+  },
   bill: {
     Draft: "مسودة", Received: "مستلمة", Approved: "معتمدة",
     Paid: "مدفوعة", Cancelled: "ملغاة", Disputed: "معترض عليها",

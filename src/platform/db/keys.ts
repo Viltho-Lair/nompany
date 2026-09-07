@@ -521,6 +521,9 @@ export const SECTION_DEFS = [
     // says who may. It deliberately owns no collection, exactly as Live view
     // does, so deleting it takes no records with it.
     { key: "crm-sales-contracts", name: "Contracts" },
+    // THE ORDER REGISTER. Same shape as Contracts above and for the same
+    // reason — a destination and a right, with the rows under quotations.
+    { key: "crm-sales-orders", name: "Sales orders" },
     { key: "crm-sales-live", name: "Live view" },
     { key: "crm-sales-settings", name: "Settings" },
   ] },
@@ -689,7 +692,12 @@ export const SECTION_COLLECTIONS = {
   // right for the same reason and no longer does: the register gave contracts
   // `crmSales.contracts.*`, so the entry names that and carries a `screenKey`
   // pointing at the register, while THIS line still says where the rows live.
-  "crm-sales-quotations": ["quotations", "generatedDocuments", "contracts", "changeOrders"],
+  // SALES ORDERS SIT HERE TOO, and for the reason contracts do: an order is
+  // read beside the offer it came from, and giving it a collection section
+  // of its own would mean a section to plant on every existing studio
+  // before a single order could be written. `crm-sales-orders` below is a
+  // DESTINATION and owns nothing.
+  "crm-sales-quotations": ["quotations", "generatedDocuments", "contracts", "changeOrders", "salesOrders"],
   // tendering. The register OWNS its records — unlike crm-sales-contracts,
   // which is a destination over somebody else's rows — so deleting the section
   // takes the tenders with it (invariant 11, children first).

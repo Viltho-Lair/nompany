@@ -42,8 +42,8 @@ ok("...and is still a real permission", M.isPermission("engineeringDocs.register
 
 // THE CATALOGUE DOES NOT GROW. Engine keys are structural, not declared, so the
 // 177-key assertion in Gate A must not move.
-ok("the declared catalogue is unchanged at 177",
-  M.ALL_PERMISSIONS.length === 177, String(M.ALL_PERMISSIONS.length));
+ok("the declared catalogue is unchanged at 181",
+  M.ALL_PERMISSIONS.length === 181, String(M.ALL_PERMISSIONS.length));
 ok("...and contains no engine key",
   !M.ALL_PERMISSIONS.some((k) => k.startsWith("engine.")));
 

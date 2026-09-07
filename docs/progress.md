@@ -310,9 +310,20 @@ Tasks holds the board and its settings.
 
 #### §1 CRM & Sales {M} `crm-sales` ✅ 10 / 10
 Tickets ✅ · Customers ✅ · Quotations ✅ · Live view ✅ · Settings ✅ · Leads &
-opportunities pipeline ✅ · Customer 360 ✅ · Sales orders & contracts register ✅ ·
+opportunities pipeline ✅ · Customer 360 ✅ · Sales orders ✅ · Contracts register ✅ ·
 Pricing & catalogue, customer rates ✅ · Dashboard ✅
-**The only section complete against its target.**
+
+**THIS ROW READ 10 / 10 WHILE HALF OF ONE BULLET DID NOT EXIST.** "Sales orders &
+contracts register" was one tick covering two records, and only the contracts half was
+built: there was no sales-order collection anywhere in `src`, and a contract carries a
+value with no lines. The order function looked absorbed — quotation lines, contract
+value, project milestones — and for an order raised from an accepted quotation it
+genuinely was. **A call-off against a framework contract was not**: no new quotation,
+no movement in the contract's value, and nowhere to put it but a new project.
+
+The record shipped 08/09/2026 (`crmSales.orders`, catalogue 177 → 181, eight goldens,
+`docs/functionality/sales-orders.md`). The two bullets are separated above so one tick
+can never again stand for two records.
 
 #### §2 Tendering & Estimating {M} `tendering` ✅ 5 / 5
 Tender register ✅ · BOQ grid with rate library ✅ · Bid documents & clarifications ✅ ·

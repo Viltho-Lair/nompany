@@ -86,6 +86,7 @@ export const COLLECTION_TABLE: Readonly<Record<string, string>> = {
   // and `changeOrders` reached SECTION_COLLECTIONS before this map and made the
   // import throw, which is the guard doing exactly its job.
   contracts: "Contract",
+  salesOrders: "SalesOrder",
   changeOrders: "ChangeOrder",
   // Tendering's register. The guard caught this one too, exactly as it caught
   // contracts and changeOrders: the collection reached SECTION_COLLECTIONS and

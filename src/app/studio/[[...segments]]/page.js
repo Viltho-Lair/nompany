@@ -76,6 +76,10 @@ const StudioContracts = nextDynamic(
   () => import("@/components/studio2/StudioContracts"),
   { loading: () => <ScreenSkeleton /> },
 );
+const StudioOrders = nextDynamic(
+  () => import("@/components/studio2/StudioOrders"),
+  { loading: () => <ScreenSkeleton /> },
+);
 const StudioPipeline = nextDynamic(
   () => import("@/components/studio2/StudioPipeline"),
   { loading: () => <ScreenSkeleton /> },
@@ -697,6 +701,7 @@ async function renderStudio(params) {
         : screenKey === "tendering" ? <StudioTenders slug={studio.slug} initial={tendersInitial} initialError={tendersError} />
         : active?.key === "crm-sales-pipeline" ? <StudioPipeline slug={studio.slug} />
         : active?.key === "crm-sales-contracts" ? <StudioContracts slug={studio.slug} />
+        : active?.key === "crm-sales-orders" ? <StudioOrders slug={studio.slug} />
         : active?.key === "crm-sales-quotations" ? (
           <StudioTechnical slug={studio.slug} view={active?.key}
             sectionNames={Object.fromEntries(sections.map((x) => [x.key, x.name]))} />

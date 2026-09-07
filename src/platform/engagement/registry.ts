@@ -90,6 +90,14 @@ export const STAGE_REGISTRY: Record<string, StageEntry> = {
   // none of the three exists as a studio-wide fact the way a vendor or an item
   // does, and each names the project it was raised for. They die with it.
   order:     { type: "order", objectClass: "commitment",     cardinality: "many", sectionKey: "inventory-sheets",     permission: "inventory.sheets.view",       unassignable: false, collection: "materialOrders", label: "Material order", onDelete: "cascade" },
+  // THE CUSTOMER'S ORDER, WHICH IS NOT `order` ABOVE. That one is the
+  // PURCHASE order — what the studio buys — and the two are opposite ends
+  // of the same word. A sales order is a commitment the same way: it is
+  // what has been promised, before anything has been done about it.
+  //
+  // MANY PER DEAL, deliberately. A framework contract is one agreement and
+  // many call-offs; capping it at one would model the exception.
+  sales_order: { type: "sales_order", objectClass: "commitment", cardinality: "many", sectionKey: "crm-sales-orders", permission: "crmSales.orders.view", unassignable: false, collection: "salesOrders", label: "Sales order", onDelete: "cascade" },
   delivery:  { type: "delivery", objectClass: "evidence",  cardinality: "many", sectionKey: "inventory",            permission: "inventory.stock.view",        unassignable: false, collection: "deliveries",     label: "Delivery",       onDelete: "cascade" },
   shipment:  { type: "shipment", objectClass: "execution",  cardinality: "many", sectionKey: "logistics-shipments",  permission: "logistics.shipments.view",    unassignable: false, collection: "awbShipments",   label: "Shipment",       onDelete: "cascade" },
   // WORKED ON THIS DEAL'S PROJECT, and recorded against it — an overtime claim

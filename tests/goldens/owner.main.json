@@ -17,6 +17,7 @@
       "crm-sales-clients": true,
       "crm-sales-quotations": true,
       "crm-sales-contracts": true,
+      "crm-sales-orders": true,
       "crm-sales-live": true,
       "crm-sales-settings": true,
       "tendering": true,
@@ -105,6 +106,11 @@
       {
         "key": "crm-sales-contracts",
         "name": "Contracts",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "crm-sales-orders",
+        "name": "Sales orders",
         "parentId": "<sec_ID>"
       },
       {

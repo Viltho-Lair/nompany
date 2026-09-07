@@ -125,6 +125,11 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
     grants: [
       ["crmSales.tickets", "full"], ["crmSales.clients", "full"], ["crmSales.quotations", "edit"],
       ["crmSales.pipeline", "view"], ["crmSales.dashboard", "view"], ["crmSales.live", "view"],
+      // THE ORDER IS THE SELLER'S. Full rather than edit, because deleting
+      // a draft nobody has been told about is part of placing one — and the
+      // service refuses the delete the moment it stops being a draft, so the
+      // verb opens a door the record itself keeps shut.
+      ["crmSales.orders", "full"],
       ["engineeringDocs.rfq", "edit"],
     ],
     // Turning an enquiry into a quotation is the selling motion, and locking a
@@ -151,6 +156,11 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
       ["projects.list", "full"], ["projects.planner", "edit"], ["projects.sla", "edit"],
       ["projects.overtimes", "edit"], ["tasks.board", "full"], ["inventory.sheets", "edit"],
       ["crmSales.contracts", "edit"], ["projects.dashboard", "view"],
+      // WHAT WAS ORDERED, READ-ONLY. The person delivering the work needs to
+      // see what was asked for; changing it is the seller's act, and a
+      // delivery team quietly editing the order they are measured against is
+      // the one thing this must not allow.
+      ["crmSales.orders", "view"],
       ["engagements", "view"], ["engineeringDocs.live", "view"],
       // Sight of the packages on their own job, so a certificate is signed
       // against something the signer can read rather than a number in a

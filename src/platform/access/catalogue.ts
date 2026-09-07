@@ -227,6 +227,13 @@ const OWN_AREAS = [
   // legitimate; using both on one record does not.
   { key: "crmSales.contracts", group: "CRM & Sales", label: "Contracts", verbs: ["view", "create", "edit"],
     extra: [{ key: "approve", label: "Answer a change order" }] },
+  // AN ORDER HAS A DELETE VERB AND A CONTRACT DOES NOT, which is the whole
+  // difference between them. A contract is a value baseline other records
+  // claim against, so it is never removed; a DRAFT order is a mistake
+  // somebody may take back before a customer has been told anything. Once
+  // confirmed it is cancelled rather than deleted — `orderDeletable` is
+  // where that line is drawn, and the verb only opens the door to it.
+  { key: "crmSales.orders", group: "CRM & Sales", label: "Sales orders", verbs: ["view", "create", "edit", "delete"] },
   { key: "engineeringDocs.live", group: "Engineering & Documents", label: "Live view", verbs: ["view"] },
   { key: "engineeringDocs.settings", group: "Engineering & Documents", label: "Settings", verbs: ["view", "edit"] },
 

@@ -53,6 +53,7 @@ Three rules that keep this folder worth reading:
 | [record-engine.md](record-engine.md) | A record type declared as a row: the `engine.*` permission namespace, one collection for every instance, the section planted with the type, and why an existing studio needs a script to get one |
 | [requisitions.md](requisitions.md) | The request that stands before an order: the approval chain, why Approved is not a move, and why a free-text request cannot become an order |
 | [roles.md](roles.md) | What a role is and who may grant it: the archetypes, the library copied on add, and why nobody grants what they do not hold |
+| [sales-orders.md](sales-orders.md) | What a customer actually ordered: why a call-off against a framework contract had nowhere to go, the four statuses, and why a draft is deleted while a confirmed order is cancelled |
 | [sales-dashboard.md](sales-dashboard.md) | The CRM & Sales dashboard: what each widget answers, the one vocabulary it reads, and what it still cannot show |
 | [sections.md](sections.md) | The fifteen sections and their children: why records carry `sectionId` and never the key, and what a sub-section falls back to |
 | [site-reports.md](site-reports.md) | What one day on one site actually was: weather, labour, plant, and what cannot be edited afterwards |

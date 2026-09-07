@@ -356,7 +356,7 @@ console.log("== the permission matrix: one key grants exactly itself");
   // labels. A tendering.dashboard was refused here once for being the second.
   // 177 with projects.reports view/create/edit. NO DELETE: a diary somebody
   // can remove a day from is worth nothing in the argument it exists for.
-  ok("the catalogue is the size we last agreed", ALL_PERMISSIONS.length === 177, String(ALL_PERMISSIONS.length));
+  ok("the catalogue is the size we last agreed", ALL_PERMISSIONS.length === 181, String(ALL_PERMISSIONS.length));
 
   const leaks = [];
   const missing = [];
@@ -1596,6 +1596,80 @@ console.log("== sales: the module's whole surface, with data in it");
   const varied = (withVariations.body?.contracts || []).find((x) => x.id === contractId);
   ok("the contract keeps the value it was signed at", varied?.value === 200000,
     String(varied?.value));
+
+  // ---- sales orders: the record the product ran without --------------------
+  //
+  // WHAT IT IS FOR, and it is not "a quotation that was accepted". A quotation
+  // holds lines and a contract holds a value, so that case looked covered by
+  // the two of them. A CALL-OFF AGAINST A FRAMEWORK CONTRACT is not: there is
+  // no new quotation, the contract's value does not move, and the only place to
+  // put one was a new project. That is the case this fixture is.
+  const ORDERS = await import("@/app/api/studios/[slug]/sales/orders/route.ts");
+
+  const order = await shot("sales.order.created", await capture(
+    ORDERS.POST, req(`/api/studios/${slug}/sales/orders`, { method: "POST", body: {
+      title: "Call-off 4 — level 3 containment", dealId: varyDealId, contractId,
+      clientId, orderedOn: "2031-03-02", requiredBy: "2031-04-15", vatRate: 15,
+      lines: [
+        { description: "Cable tray, 300mm", qty: 40, unitPrice: 22.5 },
+        { description: "Installation", qty: 40, unitPrice: 12 },
+      ],
+    } }), P));
+  const orderId = order.body?.order?.id;
+  ok("a call-off order was placed", Boolean(orderId), JSON.stringify(order.body).slice(0, 140));
+  // BORN IN DRAFT WHATEVER THE BODY SAID, and numbered at create rather than
+  // later: a customer quotes the number back from the moment they place it.
+  ok("it opens in Draft", order.body?.order?.status === "Draft", order.body?.order?.status);
+  ok("...with a reference already spent", /^SO-\d{4}$/.test(order.body?.order?.number || ""),
+    order.body?.order?.number);
+  // THE TOTAL IS THE QUOTATION'S ARITHMETIC, not a second implementation:
+  // (40 x 22.5) + (40 x 12) = 1380, +15% VAT = 1587.
+  ok("the totals are computed the way a quotation's are",
+    order.body?.order?.total === 1587, String(order.body?.order?.total));
+
+  // AN ORDER WITH NO LINES CANNOT BE CONFIRMED. A confirmed order is a promise
+  // to supply something, and nought lines is a promise to supply nothing that
+  // would read as a real order worth 0.00.
+  const empty = await capture(ORDERS.POST, req(`/api/studios/${slug}/sales/orders`, {
+    method: "POST", body: { title: "Nothing at all", dealId: varyDealId, lines: [] },
+  }), P);
+  const emptyId = empty.body?.order?.id;
+  await shot("sales.order.empty.refused", await capture(
+    ORDERS.PUT, req(`/api/studios/${slug}/sales/orders`, { method: "PUT", body: {
+      id: emptyId, action: "move", to: "Confirmed",
+    } }), P));
+
+  // A DRAFT IS THE ONLY THING THAT MAY BE DELETED, so the empty one goes.
+  await shot("sales.order.deleted", await capture(
+    ORDERS.DELETE, req(`/api/studios/${slug}/sales/orders`, {
+      method: "DELETE", body: { id: emptyId },
+    }), P));
+
+  const confirmed = await shot("sales.order.confirmed", await capture(
+    ORDERS.PUT, req(`/api/studios/${slug}/sales/orders`, { method: "PUT", body: {
+      id: orderId, action: "move", to: "Confirmed",
+    } }), P));
+  ok("the order was confirmed", confirmed.body?.order?.status === "Confirmed",
+    confirmed.body?.order?.status);
+
+  // AND NOW THREE THINGS ARE REFUSED, each by name, each because the record has
+  // been told to a customer: it cannot go back to Draft, its lines cannot
+  // change, and it cannot be deleted. The honest exit is Cancelled.
+  await shot("sales.order.reopen.refused", await capture(
+    ORDERS.PUT, req(`/api/studios/${slug}/sales/orders`, { method: "PUT", body: {
+      id: orderId, action: "move", to: "Draft",
+    } }), P));
+  await shot("sales.order.lines.locked", await capture(
+    ORDERS.PUT, req(`/api/studios/${slug}/sales/orders`, { method: "PUT", body: {
+      id: orderId, lines: [{ description: "Quietly cheaper", qty: 1, unitPrice: 1 }],
+    } }), P));
+  await shot("sales.order.delete.refused", await capture(
+    ORDERS.DELETE, req(`/api/studios/${slug}/sales/orders`, {
+      method: "DELETE", body: { id: orderId },
+    }), P));
+
+  await shot("sales.orders.list", await capture(
+    ORDERS.GET, req(`/api/studios/${slug}/sales/orders`), P));
 
   await shot("sales.customer.missing", await capture(
     CUSTOMER.GET, req(`/api/studios/${slug}/sales/customer?id=sal_doesnotexist000`), P));
