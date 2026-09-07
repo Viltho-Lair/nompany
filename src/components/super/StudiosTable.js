@@ -158,6 +158,12 @@ export default function StudiosTable({ rows, packages, tiers }) {
 function StudioDialog({ studio, packages, tiers, onClose, onSaved }) {
   const [packageId, setPackageId] = useState(studio.packageId);
   const [tierId, setTierId] = useState(studio.tierId);
+  // OUR HALF OF THE FEATURED-COMPANIES DECISION. Consent is the studio's and is
+  // given in its own settings; this is only whether we have chosen to show a
+  // studio that already agreed. Both are required, and neither can be set from
+  // the other's screen — see shared/marketing/showcase.
+  const [featured, setFeatured] = useState(Boolean(studio.featured));
+  const [featuredOrder, setFeaturedOrder] = useState(String(studio.featuredOrder ?? 0));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -173,7 +179,7 @@ function StudioDialog({ studio, packages, tiers, onClose, onSaved }) {
     setBusy(true); setError("");
     const res = await fetch(`/api/super/studios/${studio.id}`, {
       method: "PUT", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ packageId, tierId }),
+      body: JSON.stringify({ packageId, tierId, featured, featuredOrder: Number(featuredOrder) || 0 }),
     });
     setBusy(false);
     if (!res.ok) { setError("That didn't save."); return; }
@@ -182,6 +188,7 @@ function StudioDialog({ studio, packages, tiers, onClose, onSaved }) {
     onSaved({
       id: studio.id,
       packageId, tierId,
+      featured, featuredOrder: Number(featuredOrder) || 0,
       packageName: pkg?.name || "—",
       packageColor: pkg?.color || "grey",
       maxMembers: Number(pkg?.maxEmployees || 0),
@@ -244,6 +251,48 @@ function StudioDialog({ studio, packages, tiers, onClose, onSaved }) {
               <SelectMenu id="tier" className="ad-select" value={tierId} onChange={setTierId} aria-label="Tier"
                 options={[{ value: "", label: "— none —" }, ...tiers.map((t) => ({ value: t.id, label: t.name }))]}
               />
+            </div>
+          </div>
+
+          {/* FEATURING IS NOT PUBLISHING. A studio appears on nompany.com only
+              when it has ALSO agreed, in its own settings — so this switch makes
+              a studio eligible and nothing more. The line below says which half
+              is missing, because the alternative is somebody flipping this,
+              checking the site, and finding nothing with no way to know why. */}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <span className="ad-label">Featured on the website</span>
+              <label className="mt-1 flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 accent-[var(--ad-primary)]"
+                  checked={featured}
+                  onChange={(e) => setFeatured(e.target.checked)}
+                />
+                <span>Eligible to appear</span>
+              </label>
+              <p className="mt-1 text-xs text-[var(--ad-muted-foreground)]">
+                {studio.hasConsented
+                  ? featured
+                    ? "Consented and featured — this studio is on the site."
+                    : "This studio has agreed; switch this on to show it."
+                  : "This studio has NOT agreed to be named. Featuring it changes nothing until it does — consent is theirs to give, in their own settings."}
+              </p>
+            </div>
+            <div>
+              <label className="ad-label" htmlFor="featuredOrder">Order</label>
+              <input
+                id="featuredOrder"
+                type="number"
+                className="ad-input"
+                value={featuredOrder}
+                onChange={(e) => setFeaturedOrder(e.target.value)}
+                aria-label="Featured order"
+              />
+              <p className="mt-1 text-xs text-[var(--ad-muted-foreground)]">
+                Lowest first. Ties break alphabetically, so a repeated number
+                does not reshuffle the page between visits.
+              </p>
             </div>
           </div>
 

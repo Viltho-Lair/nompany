@@ -239,6 +239,48 @@ export default function StudioSettings({ slug, locale = "en" }) {
           </span>
           {canManage && <Icon name="chevronRight" className="ms-auto h-5 w-5 shrink-0 text-slate-300 rtl:-scale-x-100 dark:text-slate-600" />}
         </button>
+
+        {/* BEING NAMED ON nompany.com IS THIS STUDIO'S DECISION TO MAKE.
+            A switch here and nothing else: we cannot give this on a customer's
+            behalf, and nothing we do elsewhere implies it. Turning it off takes
+            the company off the public site on the next read — the feed derives
+            from this record rather than from a published copy, so there is no
+            list to be forgotten on.
+
+            IT DOES NOT PUBLISH ANYTHING BY ITSELF, and the row says so rather
+            than letting somebody switch it on, look at the site and find
+            nothing. Appearing also needs us to feature them, which is decided
+            in the console; a studio agreeing makes it possible, not done. */}
+        <div className={ROW}>
+          <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center">
+            <Icon name="globe" className="h-[18px] w-[18px] text-slate-400 dark:text-slate-500" />
+          </span>
+          <span className="flex min-w-0 flex-1 flex-col justify-center">
+            <span className={ROW_LABEL}>{tr.showcase}</span>
+            <span className="mt-0.5 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+              {tr.showcaseLead}
+            </span>
+            {studio.showcaseConsent?.at && (
+              <span className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+                {tr.showcaseSince(fmtDate(studio.showcaseConsent.at))} · {tr.showcasePending}
+              </span>
+            )}
+          </span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={Boolean(studio.showcaseConsent?.at)}
+            aria-label={tr.showcase}
+            disabled={!canManage}
+            onClick={() => save({ showcaseConsent: !studio.showcaseConsent?.at })}
+            className={`relative ms-auto h-6 w-11 shrink-0 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 ${studio.showcaseConsent?.at ? "bg-brand-600" : "bg-slate-200 dark:bg-white/15"} ${canManage ? "" : "opacity-50"}`}
+          >
+            {/* START AND END, NOT LEFT AND RIGHT — the same reason the working
+                hours switch gives: pinned to `left-`, a toggle reads inverted
+                in an Arabic studio, which is the worst way for one to be wrong. */}
+            <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${studio.showcaseConsent?.at ? "end-0.5" : "start-0.5"}`} />
+          </button>
+        </div>
       </div>
 
       <FavouriteCurrencies

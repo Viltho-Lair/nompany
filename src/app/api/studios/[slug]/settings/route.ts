@@ -114,6 +114,15 @@ const clean = (studio: Record<string, unknown>) => ({
     ? new Date(Date.parse(String(studio.deletionRequestedAt)) + GRACE_MS).toISOString()
     : "",
   workingHours: studio.workingHours || null,
+  // WHETHER THIS STUDIO HAS AGREED TO BE NAMED PUBLICLY, and when. The screen
+  // needs the timestamp, not a boolean: a switch that says only "on" cannot
+  // tell somebody when they agreed, which is the first thing they will ask.
+  //
+  // `featured` is DELIBERATELY NOT HERE. Consent is the studio's half; whether
+  // we have chosen to show them is ours, decided in /super, and putting it in
+  // this payload would invite a screen to render "you are live on the site"
+  // from a flag the studio does not control.
+  showcaseConsent: studio.showcaseConsent || null,
   legalInfo: Array.isArray(studio.legalInfo) ? studio.legalInfo : [],
   favoriteCurrencies: Array.isArray(studio.favoriteCurrencies) ? studio.favoriteCurrencies : [],
   serviceActions: Array.isArray(studio.serviceActions) ? studio.serviceActions : [],

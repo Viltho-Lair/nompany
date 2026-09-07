@@ -17,6 +17,14 @@ type Strings = {
   title: string;
   intro: (name: string) => string;
   adminOnly: string;
+  // BEING NAMED PUBLICLY IS THE STUDIO'S DECISION, so the words belong to the
+  // studio's own settings rather than to the marketing site that would show it.
+  showcase: string;
+  showcaseLead: string;
+  showcaseOn: string;
+  showcaseOff: string;
+  showcaseSince: (date: string) => string;
+  showcasePending: string;
   saveFailed: string;
 
   logo: string;
@@ -189,6 +197,14 @@ const en: Strings = {
   title: "Studio settings",
   intro: (name) => `How ${name} appears to everyone working in it.`,
   adminOnly: " Only an admin can change these.",
+  showcase: "Appear on nompany's website",
+  showcaseLead: "We may name your company and show your logo on nompany.com as a customer. Nothing else is shared — no numbers, no people, no link into this studio. Turn it off whenever you like and you come off the site on the next page load.",
+  showcaseOn: "Yes, you may name us",
+  showcaseOff: "No",
+  showcaseSince: (date) => `Agreed ${date}`,
+  // AGREEING IS NOT APPEARING, and saying so avoids the obvious complaint:
+  // somebody turns this on, looks at the site, and sees nothing.
+  showcasePending: "Agreed — we will be in touch before anything is published.",
   saveFailed: "That didn't save.",
 
   logo: "Studio logo",
@@ -379,6 +395,12 @@ const ar: Strings = {
   title: "إعدادات الاستوديو",
   intro: (name) => `كيف يظهر ${name} لكل من يعمل فيه.`,
   adminOnly: " لا يمكن تغييرها إلا لمسؤول.",
+  showcase: "الظهور على موقع نومباني",
+  showcaseLead: "قد نذكر اسم شركتكم ونعرض شعاركم على nompany.com كعميل. ولا يشارك شيء غير ذلك — لا أرقام ولا أشخاص ولا رابط إلى مساحة العمل هذه. أوقفوه متى شئتم وتختفون من الموقع عند أول تحميل للصفحة.",
+  showcaseOn: "نعم، يمكنكم ذكرنا",
+  showcaseOff: "لا",
+  showcaseSince: (date) => `تمت الموافقة ${date}`,
+  showcasePending: "تمت الموافقة — سنتواصل معكم قبل نشر أي شيء.",
   saveFailed: "لم يحفظ ذلك.",
 
   logo: "شعار الاستوديو",

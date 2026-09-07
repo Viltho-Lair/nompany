@@ -21,11 +21,17 @@ import { CtaBand, GradientRule } from "../sections/CtaBand";
    real name, and the statistics row needs the nightly job before it has a real
    figure. Both must degrade to nothing rather than to placeholders — a logo
    wall of companies that are not customers says less than no logo wall. */
-export function OverviewView() {
+export function OverviewView({ customers = null }) {
   const locale = useLandingLocale();
   return (<>
       <HeroV1Assembly locale={locale}/>
       <DepartmentMarquee locale={locale}/>
+      {/* THE COMPANIES THAT AGREED, between the marquee and the explanation.
+          Handed in already rendered, on the server; `null` when nobody has both
+          consented and been featured, so the section is absent rather than
+          empty. A logo wall of companies that are not customers says less than
+          no logo wall — the site carried four invented names until August. */}
+      {customers}
       <WhatItIs locale={locale}/>
       <GradientRule />
       <DepartmentsGlance locale={locale}/>

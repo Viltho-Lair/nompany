@@ -6,6 +6,9 @@ import { listCollaborators } from "@/platform/auth/collaborators";
 import { getUserById, getProfile } from "@/platform/auth/users";
 import { loadCatalogues, planOf } from "@/lib/plans";
 import StudiosTable from "@/components/super/StudiosTable";
+// The pair that decides a public listing, asked through the shared predicate so
+// the console and the public feed cannot disagree about what consent is.
+import { hasConsented } from "@/shared/marketing/showcase";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Studios" };
@@ -54,6 +57,14 @@ export default async function StudiosPage() {
         ownerPhone: profile?.phone || "",
         createdAt: s.createdAt || "",
         created: fmtDate(s.createdAt),
+        // THE FEATURED-COMPANIES PAIR. `featured` is ours to set here;
+        // `hasConsented` is read-only in this console and belongs to the studio,
+        // which gives or withdraws it in its own settings. The dialog shows both
+        // so somebody flipping the switch can see WHY a studio is or is not on
+        // the site, rather than checking the site to find out.
+        featured: Boolean(s.featured),
+        featuredOrder: Number(s.featuredOrder) || 0,
+        hasConsented: hasConsented(s),
         ...plan,
       };
     })
