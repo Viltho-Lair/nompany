@@ -89,6 +89,10 @@ const ProcurementDashboard = nextDynamic(
   () => import("@/components/studio2/ProcurementDashboard"),
   { loading: () => <ScreenSkeleton /> },
 );
+const StudioSiteReports = nextDynamic(
+  () => import("@/components/studio2/StudioSiteReports"),
+  { loading: () => <ScreenSkeleton /> },
+);
 const StudioExpediting = nextDynamic(
   () => import("@/components/studio2/StudioExpediting"),
   { loading: () => <ScreenSkeleton /> },
@@ -376,7 +380,7 @@ async function renderStudio(params) {
     // instead, which reads as a route that does not exist. `costs` did exactly
     // that until it was added, and only opening the screen showed it.
     segments[2] !== "quotation" && segments[2] !== "plans" && segments[2] !== "costs" &&
-    segments[2] !== "billing" &&
+    segments[2] !== "billing" && segments[2] !== "reports" &&
     sections.some((s) => s.key === "projects-list")
   ) {
     return <StudioProjectBoard slug={studio.slug} projectId={segments[1]} />;
@@ -477,6 +481,12 @@ async function renderStudio(params) {
   // maps to `projects.billing` as well — so somebody holding only the billing
   // right can still reach the row this hangs off.
   const projectBilling = projectId && segments[2] === "billing";
+  // AND A FOURTH OPENS ITS DIARY: /<slug>/projects-list/<id>/reports is what
+  // happened on site each day. It resolves through the same projects-list
+  // section, which maps to `projects.reports` as well — so a site engineer
+  // holding only that right can still reach the row this hangs off, which is
+  // the whole reason it is a separate area.
+  const projectReports = projectId && segments[2] === "reports";
 
   // PROJECT SHEETS ARE INVENTORY'S, and the sub-section IS the workspace:
   // /<slug>/inventory-sheets opens it empty, and /<slug>/inventory-sheets/<id>
@@ -625,6 +635,7 @@ async function renderStudio(params) {
         : projectQuotation ? <StudioSheetViewer slug={studio.slug} projectId={projectId} perspective="projects" />
         : projectCosts ? <StudioProjectCosts slug={studio.slug} projectId={projectId} />
         : projectBilling ? <StudioProjectBilling slug={studio.slug} projectId={projectId} />
+        : projectReports ? <StudioSiteReports slug={studio.slug} projectId={projectId} />
         // CRM & SALES'S QUOTATIONS ARE STILL RENDERED BY TECHNICAL, by key
         // rather than by screenKey, same pattern and same reason as Procurement's
         // Suppliers and Logistics's Shipments below. Quotations moved to CRM &

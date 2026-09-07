@@ -354,7 +354,9 @@ console.log("== the permission matrix: one key grants exactly itself");
   // 174 with procurement.dashboard.view, minted by joining DASHBOARD_MODULES
   // — which is the list of modules that HAVE a dashboard, not a list of group
   // labels. A tendering.dashboard was refused here once for being the second.
-  ok("the catalogue is the size we last agreed", ALL_PERMISSIONS.length === 174, String(ALL_PERMISSIONS.length));
+  // 177 with projects.reports view/create/edit. NO DELETE: a diary somebody
+  // can remove a day from is worth nothing in the argument it exists for.
+  ok("the catalogue is the size we last agreed", ALL_PERMISSIONS.length === 177, String(ALL_PERMISSIONS.length));
 
   const leaks = [];
   const missing = [];
@@ -7303,6 +7305,153 @@ console.log("== procurement: the dashboard grants nothing");
   const outsider = await dashPersonWith(["crmSales.tickets.view"], "nodash");
   await signIn(outsider.id);
   await shot("procurement.dashboard.forbidden", await readDash());
+  await signIn(owner.id);
+}
+
+// ============================================================================
+console.log("== projects: the diary, and where it is missing");
+// A DAILY SITE REPORT EARNS ITS KEEP IN ONE ARGUMENT — an extension of time —
+// and it earns it by being contemporaneous, complete, and honest about where
+// it is not. So the assertions below are about exactly those three: one report
+// per day, a submitted one does not edit, and the gaps are COMPUTED rather
+// than left for somebody to notice when it is too late to fill them.
+//
+// AND IT MUST NOT QUIETLY BECOME A SECOND TIMESHEET. Observed headcount and
+// booked hours are different facts about the same day; where they disagree the
+// disagreement is the finding and neither is corrected by the other.
+//
+// PLACED HERE for the reason the blocks above state: this studio is SHARED and
+// several goldens are whole-studio snapshots.
+{
+  const DSR = await import("@/app/api/studios/[slug]/projects/reports/route.ts");
+
+  const P = ctx({ slug });
+  const shot = async (name, payload) => {
+    const r = golden(name, payload, EXTRA);
+    if (!r.recorded) ok(`${name} matches its golden`, r.ok, r.detail);
+    return payload;
+  };
+  const dsrPersonWith = async (permissions, alias) => {
+    const u = (await createUser({ email: `g-${alias}-${rand()}@test.invalid`, passwordHash: "x" })).user;
+    const role = await createRole(studio.id, { name: `role-${alias}`, permissions });
+    await addCollaborator(studio.id, { userId: u.id, alias, role: "member", roleIds: [role.id] });
+    return u;
+  };
+
+  const post = (body) => capture(
+    DSR.POST, req(`/api/studios/${slug}/projects/reports`, { method: "POST", body }), P);
+  const put = (body) => capture(
+    DSR.PUT, req(`/api/studios/${slug}/projects/reports`, { method: "PUT", body }), P);
+  const readFor = (id) => capture(
+    DSR.GET, req(`/api/studios/${slug}/projects/reports?projectId=${id}`), P);
+
+  await signIn(owner.id);
+
+  // ITS OWN PROJECT, so the diary below is this block's run of days and not
+  // whatever another block happened to leave behind.
+  const PROJ = await import("@/app/api/studios/[slug]/projects/route.ts");
+  const made = await capture(PROJ.POST, req(`/api/studios/${slug}/projects`, {
+    method: "POST", body: { title: "Diary Tower", clientName: "Diary Client", direct: true },
+  }), P);
+  const projectId = made.body?.project?.id;
+  ok("a project to keep a diary on", Boolean(projectId), JSON.stringify(made.body).slice(0, 160));
+
+  // ---- one report per day --------------------------------------------------
+  const first = await shot("projects.report.created", await post({
+    projectId, reportDate: "2031-06-01", weather: "Heavy rain from 14:00",
+    workStopped: true,
+    labour: [{ trade: "Joiners", headcount: 8 }, { trade: "Labourers", headcount: 4 }],
+    plant: [{ description: "Excavator", count: 2, idle: 1 }],
+    delays: [{ description: "Rain stopped the pour", hoursLost: 3, cause: "weather" }],
+    progress: "Formwork to level 2 continued.",
+  }));
+  const firstId = first.body?.report?.id;
+  ok("a report is written", Boolean(firstId));
+  ok("...carrying a reference", /^DSR-\d+$/.test(String(first.body?.report?.reference || "")),
+    String(first.body?.report?.reference));
+  ok("...as a draft", first.body?.report?.status === "Draft");
+
+  // A DAY WITH TWO REPORTS HAS TWO ANSWERS, and the diary stops being a diary.
+  await shot("projects.report.duplicateday", await post({
+    projectId, reportDate: "2031-06-01", progress: "A second go at the same day.",
+  }));
+
+  await shot("projects.report.nodate", await post({ projectId, progress: "No date." }));
+  await shot("projects.report.idleexceeds", await post({
+    projectId, reportDate: "2031-06-02",
+    plant: [{ description: "Crane", count: 1, idle: 4 }],
+  }));
+  await shot("projects.report.negativehours", await post({
+    projectId, reportDate: "2031-06-02",
+    delays: [{ description: "Rain", hoursLost: -2, cause: "weather" }],
+  }));
+
+  // ---- the totals ----------------------------------------------------------
+  const listed = await readFor(projectId);
+  const row = (listed.body?.reports || []).find((r) => r.id === firstId) || {};
+  ok("headcount sums across trades", row.totals?.headcount === 12, String(row.totals?.headcount));
+  // THE FIGURE AN EXTENSION OF TIME TURNS ON, kept apart from every other cause.
+  ok("...and weather hours are kept apart",
+    row.totals?.weatherHoursLost === 3, String(row.totals?.weatherHoursLost));
+  // NULL, NOT NOUGHT: no timesheet covers the day, which is not nobody working.
+  ok("NO TIMESHEET FOR THE DAY IS NULL, NOT NOUGHT",
+    row.labourCheck?.onTimesheets === null, String(row.labourCheck?.onTimesheets));
+  ok("...so there is no difference to report", row.labourCheck?.difference === null);
+
+  // ---- the gap -------------------------------------------------------------
+  await post({ projectId, reportDate: "2031-06-02", progress: "Second day." });
+  // three days missing, then:
+  await post({ projectId, reportDate: "2031-06-06", progress: "Back on site." });
+  const withGap = await shot("projects.report.diary", await readFor(projectId));
+  // A DIARY WITH HOLES IN IT is worth less than one that admits them, and the
+  // only useful time to say so is while the days can still be reconstructed.
+  ok("A RUN OF MISSING DAYS IS REPORTED",
+    withGap.body?.diary?.gaps?.length === 1, JSON.stringify(withGap.body?.diary?.gaps));
+  ok("...with its length", withGap.body?.diary?.gaps?.[0]?.days === 3,
+    String(withGap.body?.diary?.gaps?.[0]?.days));
+  ok("...and hours lost roll up", withGap.body?.diary?.totalHoursLost === 3,
+    String(withGap.body?.diary?.totalHoursLost));
+  // THE DIARY IS SCOPED, and unscoped it is not returned at all: a gap across
+  // every project at once is just the days nobody built anything.
+  const unscoped = await capture(DSR.GET, req(`/api/studios/${slug}/projects/reports`), P);
+  ok("the diary is null without a project", unscoped.body?.diary === null);
+
+  // ---- submitting closes the record ----------------------------------------
+  const submitted = await shot("projects.report.submitted", await put({
+    id: firstId, action: "submit",
+  }));
+  ok("submitting stamps who and when",
+    submitted.body?.report?.status === "Submitted"
+    && Boolean(submitted.body?.report?.submittedByCollaboratorId));
+  // ITS WHOLE EVIDENTIAL VALUE: a record revisable once the argument has
+  // started is not a contemporaneous record.
+  await shot("projects.report.editsubmitted", await put({
+    id: firstId, progress: "Actually it was fine.",
+  }));
+  await shot("projects.report.submittedtwice", await put({ id: firstId, action: "submit" }));
+
+  // ---- the right stands on its own -----------------------------------------
+  // THE AXIS IS THE OPPOSITE OF `projects.costs`. That was split out because a
+  // site engineer has no business reading what the job may cost; this is the
+  // half a site engineer DOES need, and holding it must not require the project
+  // register — nobody should have to be granted the whole of Projects to write
+  // down what happened today.
+  const engineer = await dsrPersonWith(
+    ["projects.reports.view", "projects.reports.create"], "siteeng");
+  await signIn(engineer.id);
+  const theirs = await shot("projects.report.engineer", await readFor(projectId));
+  ok("A SITE ENGINEER READS THE DIARY WITHOUT projects.list",
+    theirs.status === 200, String(theirs.status));
+  ok("...and may write one", theirs.body?.canCreate === true);
+  // ...and may NOT submit, which is `projects.reports.edit`.
+  await shot("projects.report.engineersubmit", await put({
+    id: withGap.body?.reports?.[0]?.id, action: "submit",
+  }));
+  await signIn(owner.id);
+
+  const outsider = await dsrPersonWith(["crmSales.tickets.view"], "nodsr");
+  await signIn(outsider.id);
+  await shot("projects.report.forbidden", await readFor(projectId));
   await signIn(owner.id);
 }
 

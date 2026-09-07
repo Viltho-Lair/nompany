@@ -156,6 +156,10 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
       // against something the signer can read rather than a number in a
       // dialogue. Not `edit`: administering the subcontract is the buyer's.
       ["procurement.subcontracts", "view"],
+      // The diary on their own jobs, read rather than written: the report is
+      // the supervisor's statement of the day and a manager rewriting it would
+      // be a manager rewriting somebody else's evidence.
+      ["projects.reports", "view"],
     ],
     // A variation IS the contract's content, and the project manager whose job
     // it changes is who answers it — which is the act crmSales.contracts.approve
@@ -179,6 +183,16 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
       // A lead assigns work, so a lead needs the list of people to assign it to.
       // Deliberately not hr.employees, which is the employment record.
       ["administration.members", "view"], ["fieldService.dashboard", "view"],
+      // THE DAILY DIARY IS THIS ARCHETYPE'S DOCUMENT. A foreman writes down
+      // what happened on site and closes the day — `edit` covers both because
+      // submitting a site report is closing your OWN statement of the day, not
+      // approving somebody else's. Nothing here is a signable, so invariant 7
+      // has nothing to say about it.
+      //
+      // AND IT SITS BESIDE `projects.list` AT VIEW ONLY, which is the whole
+      // reason `projects.reports` is a separate area: a foreman writing a diary
+      // entry should not need the project register to do it.
+      ["projects.reports", "edit"],
     ],
   },
   {

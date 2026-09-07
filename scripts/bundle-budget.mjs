@@ -286,7 +286,15 @@ const MAX_CHUNK_GZIP_KB = 250;
 // `nextDynamic` screen only its own route loads, and the LARGEST CHUNK DID NOT
 // MOVE (158 KB against 250) — the gate that matters, because every route pays
 // it. Three kilobytes of headroom, for the reason the note above gives.
-const MAX_TOTAL_GZIP_KB = 1688;
+// 1688 -> 1694 on 07/09/2026, with the site-report diary. Both ends measured:
+// 1687 at the dashboard commit, 1691 after this slice.
+//
+// AND THE LARGEST CHUNK WENT BACK TO 158 KB, from the 165 the commit before
+// this one recorded. That rise was bundler GROUPING rather than weight — the
+// chunk count went 92 -> 91 and now back to 92 — so it was transient, and the
+// note there should be read as one measurement rather than a trend. The
+// ceiling that matters has not actually moved all run.
+const MAX_TOTAL_GZIP_KB = 1694;
 
 // THE MARGIN, and why it is the same for a 178 KB route and a 951 KB one.
 //

@@ -248,6 +248,17 @@ const OWN_AREAS = [
   // would hand each of them the other's screen.
   { key: "projects.billing", group: "Projects", label: "Billing schedule",
     verbs: ["view", "create", "edit", "delete"] },
+  // ITS OWN AREA, and the axis is the OPPOSITE of `projects.costs`. That one
+  // was split out because a site engineer opening the job has no business
+  // reading what it is allowed to cost. This is the half a site engineer DOES
+  // need and very likely the only Projects right they should hold: writing down
+  // what happened on site today. Nobody should have to grant the project
+  // register to get a diary entry.
+  //
+  // NO DELETE. A daily report is a contemporaneous record, and a diary somebody
+  // can remove a day from is worth nothing in the argument it exists for.
+  { key: "projects.reports", group: "Projects", label: "Site reports",
+    verbs: ["view", "create", "edit"] },
   { key: "projects.sla", group: "Projects", label: "SLA", verbs: ["view", "create", "edit", "delete"] },
   { key: "projects.overtimes", group: "Projects", label: "Overtimes", verbs: ["view", "create", "edit", "delete"] },
   { key: "projects.settings", group: "Projects", label: "Settings", verbs: ["view", "edit"] },

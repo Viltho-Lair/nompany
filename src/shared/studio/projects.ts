@@ -8,6 +8,66 @@ import { commonEn, commonAr, type CommonStrings } from "./common";
 // nothing may enumerate them.
 
 type Strings = CommonStrings & {
+  siteReports: string;
+  siteReportsSub: string;
+  loadingReports: string;
+  noReports: string;
+  noReportsBody: string;
+  newReport: string;
+  reportFor: (date: string) => string;
+  reportDate: string;
+  reportDateHint: string;
+  weatherLabel: string;
+  workStoppedLabel: string;
+  labourLabel: string;
+  tradeLabel: string;
+  headcountLabel: string;
+  plantLabel: string;
+  plantDescription: string;
+  plantCount: string;
+  plantIdle: string;
+  delaysLabel: string;
+  delayWhat: string;
+  delayHours: string;
+  delayCause: string;
+  progressLabel: string;
+  visitorsLabel: string;
+  photosLabel: string;
+  addPhoto: string;
+  photoUploading: string;
+  photoFailed: string;
+  removeLabel: string;
+  addLine: string;
+  submitReport: string;
+  submittedBadge: string;
+  submittedByOn: (who: string, when: string) => string;
+  onSiteCount: (n: number) => string;
+  hoursLostCount: (n: number) => string;
+  observedVsBooked: string;
+  observedLabel: string;
+  bookedLabel: string;
+  noTimesheetYet: string;
+  labourAgrees: string;
+  labourDiffers: (n: number) => string;
+  diaryHeading: string;
+  diaryGaps: (n: number) => string;
+  diaryGapRange: (from: string, to: string, days: number) => string;
+  diaryComplete: string;
+  daysSinceLast: (n: number) => string;
+  totalHoursLost: string;
+  weatherHoursLost: string;
+  daysStopped: string;
+  causeWeather: string;
+  causeAccess: string;
+  causeInformation: string;
+  causeMaterials: string;
+  causeLabour: string;
+  causeOther: string;
+  refuseDuplicateDay: string;
+  refuseSubmittedEdit: string;
+  refuseNegativeHours: string;
+  refuseIdleExceeds: string;
+  refuseNoDate: string;
   acrossProjects: (n: number) => string;
   accessProjectsStudio: string;
   acrossEverySlaContract: string;
@@ -349,6 +409,68 @@ type Strings = CommonStrings & {
 
 const en: Strings = {
   ...commonEn,
+  siteReports: "Site reports",
+  siteReportsSub: "What happened on site each day — and where the diary is missing days.",
+  loadingReports: "Loading site reports…",
+  noReports: "No site reports yet",
+  noReportsBody: "A daily report is the site’s own record of a day: who was there, what plant, the weather, what got done and what stopped. It is the evidence an extension of time is argued from, so it is worth writing on the day.",
+  newReport: "New report",
+  reportFor: (date) => `Report for ${date}`,
+  reportDate: "Day reported on",
+  reportDateHint: "The day this is about, not the day you are writing it. A report typed on Monday for Friday belongs on Friday.",
+  weatherLabel: "Weather",
+  workStoppedLabel: "Work stopped",
+  labourLabel: "Labour on site",
+  tradeLabel: "Trade",
+  headcountLabel: "On site",
+  plantLabel: "Plant",
+  plantDescription: "Plant",
+  plantCount: "On site",
+  plantIdle: "Idle",
+  delaysLabel: "Delays and disruption",
+  delayWhat: "What happened",
+  delayHours: "Hours lost",
+  delayCause: "Cause",
+  progressLabel: "Progress",
+  visitorsLabel: "Visitors",
+  photosLabel: "Photographs",
+  addPhoto: "Add photograph",
+  photoUploading: "Uploading…",
+  photoFailed: "That photograph could not be stored.",
+  removeLabel: "Remove",
+  addLine: "Add",
+  submitReport: "Submit",
+  submittedBadge: "Submitted",
+  submittedByOn: (who, when) => `Submitted by ${who} on ${when}`,
+  onSiteCount: (n) => (n === 1 ? "1 on site" : `${n} on site`),
+  hoursLostCount: (n) => (n === 1 ? "1 hour lost" : `${n} hours lost`),
+  observedVsBooked: "Observed against timesheets",
+  observedLabel: "Observed",
+  bookedLabel: "On timesheets",
+  noTimesheetYet: "No timesheet covers this day yet.",
+  labourAgrees: "Agrees with the timesheets.",
+  labourDiffers: (n) => (n > 0
+    ? `${n} more on site than booked to this project.`
+    : `${Math.abs(n)} more booked than were observed on site.`),
+  diaryHeading: "The diary",
+  diaryGaps: (n) => (n === 1 ? "1 gap in the diary" : `${n} gaps in the diary`),
+  diaryGapRange: (from, to, days) => `${days} day${days === 1 ? "" : "s"} missing between ${from} and ${to}`,
+  diaryComplete: "No missing days.",
+  daysSinceLast: (n) => (n === 0 ? "Reported today" : n === 1 ? "1 day since the last report" : `${n} days since the last report`),
+  totalHoursLost: "Hours lost",
+  weatherHoursLost: "To weather",
+  daysStopped: "Days work stopped",
+  causeWeather: "Weather",
+  causeAccess: "Access",
+  causeInformation: "Information",
+  causeMaterials: "Materials",
+  causeLabour: "Labour",
+  causeOther: "Other",
+  refuseDuplicateDay: "There is already a report for that day. Edit it rather than writing a second one — a day with two reports has two answers.",
+  refuseSubmittedEdit: "That report has been submitted. It is a record of the day as it was written, so it no longer edits.",
+  refuseNegativeHours: "Hours lost cannot be negative.",
+  refuseIdleExceeds: "More plant is marked idle than is on site.",
+  refuseNoDate: "A report needs the day it is about.",
   acrossProjects: (n) => `across ${n} ${n === 1 ? "project" : "projects"}`,
   accessProjectsStudio: "You don't have access to Projects in this studio.",
   acrossEverySlaContract: "Across every SLA contract",
@@ -686,6 +808,68 @@ const en: Strings = {
 
 const ar: Strings = {
   ...commonAr,
+  siteReports: "التقارير اليومية",
+  siteReportsSub: "ما جرى في الموقع كلّ يوم — وأين تنقص الأيام من السجلّ.",
+  loadingReports: "جارٍ تحميل التقارير…",
+  noReports: "لا توجد تقارير يومية بعد",
+  noReportsBody: "التقرير اليومي هو سجلّ الموقع ليومه: من حضر، وأيّ معدّات، والطقس، وما أُنجز وما توقّف. وهو الدليل الذي تُطلب به المدّة الإضافية، فيُكتب في يومه.",
+  newReport: "تقرير جديد",
+  reportFor: (date) => `تقرير ${date}`,
+  reportDate: "اليوم المشمول",
+  reportDateHint: "اليوم الذي يتحدّث عنه التقرير، لا يوم كتابته.",
+  weatherLabel: "الطقس",
+  workStoppedLabel: "توقّف العمل",
+  labourLabel: "العمالة في الموقع",
+  tradeLabel: "المهنة",
+  headcountLabel: "العدد",
+  plantLabel: "المعدّات",
+  plantDescription: "المعدّة",
+  plantCount: "العدد",
+  plantIdle: "متوقّفة",
+  delaysLabel: "التأخير والتعطّل",
+  delayWhat: "ما حدث",
+  delayHours: "الساعات الضائعة",
+  delayCause: "السبب",
+  progressLabel: "الإنجاز",
+  visitorsLabel: "الزوّار",
+  photosLabel: "الصور",
+  addPhoto: "إضافة صورة",
+  photoUploading: "جارٍ الرفع…",
+  photoFailed: "تعذّر حفظ الصورة.",
+  removeLabel: "حذف",
+  addLine: "إضافة",
+  submitReport: "اعتماد",
+  submittedBadge: "مُعتمد",
+  submittedByOn: (who, when) => `اعتمده ${who} في ${when}`,
+  onSiteCount: (n) => (n === 1 ? "واحد في الموقع" : `${n} في الموقع`),
+  hoursLostCount: (n) => (n === 1 ? "ساعة ضائعة" : `${n} ساعات ضائعة`),
+  observedVsBooked: "المرصود مقابل الكشوف",
+  observedLabel: "المرصود",
+  bookedLabel: "في الكشوف",
+  noTimesheetYet: "لا يغطّي هذا اليوم كشف بعد.",
+  labourAgrees: "مطابق للكشوف.",
+  labourDiffers: (n) => (n > 0
+    ? `${n} في الموقع أكثر ممّا قُيّد على المشروع.`
+    : `${Math.abs(n)} مقيّدون أكثر ممّا رُصد في الموقع.`),
+  diaryHeading: "السجلّ",
+  diaryGaps: (n) => (n === 1 ? "فجوة واحدة في السجلّ" : `${n} فجوات في السجلّ`),
+  diaryGapRange: (from, to, days) => `${days} يوماً ناقصاً بين ${from} و${to}`,
+  diaryComplete: "لا أيام ناقصة.",
+  daysSinceLast: (n) => (n === 0 ? "جرى التقرير اليوم" : n === 1 ? "يوم منذ آخر تقرير" : `${n} يوماً منذ آخر تقرير`),
+  totalHoursLost: "الساعات الضائعة",
+  weatherHoursLost: "بسبب الطقس",
+  daysStopped: "أيام توقّف العمل",
+  causeWeather: "الطقس",
+  causeAccess: "الوصول",
+  causeInformation: "المعلومات",
+  causeMaterials: "المواد",
+  causeLabour: "العمالة",
+  causeOther: "أخرى",
+  refuseDuplicateDay: "يوجد تقرير لهذا اليوم بالفعل. عدّله بدل كتابة ثانٍ — فاليوم بتقريرين له جوابان.",
+  refuseSubmittedEdit: "اعتُمد هذا التقرير. وهو سجلّ اليوم كما كُتب، فلم يعد يُعدّل.",
+  refuseNegativeHours: "لا تكون الساعات الضائعة سالبة.",
+  refuseIdleExceeds: "المعدّات المتوقّفة أكثر ممّا في الموقع.",
+  refuseNoDate: "التقرير يحتاج إلى اليوم الذي يخصّه.",
   acrossProjects: (n) => `عبر ${n === 1 ? "مشروع واحد" : n === 2 ? "مشروعين" : n <= 10 ? `${n} مشاريع` : `${n} مشروعًا`}`,
   accessProjectsStudio: "لا تملك صلاحية الوصول إلى المشاريع في هذا الاستوديو.",
   acrossEverySlaContract: "عبر كل عقد مستوى خدمة",
