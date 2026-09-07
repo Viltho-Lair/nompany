@@ -45,7 +45,7 @@ given the two shapes it lacks (waterfall, stacked-bar-with-target).
 | 6 | Scrollytelling | `sections/HowItWorks.js` — pinned graphic, scroll-driven state |
 | 7 | Self-drawing SVG | `svg/DrawIcon.js`, `svg/MorphShape.js` |
 | 8 | Illustrative assistant | `mascot/AiAssistant.js` — "Nova" |
-| 9 | Route transitions | **Gone.** It animated between the landing page's in-page views; pricing and contact are real routes now, so there is nothing left to transition between and the component was deleted with them. |
+| 9 | Route transitions | `views/ViewTransition.js` |
 
 `motion` (v12) is already a dependency. **Phase 3 is a promotion, not a build** —
 lift `landing/lib`, `landing/ui`, `landing/svg`, `landing/text` and the two

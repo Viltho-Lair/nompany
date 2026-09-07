@@ -98,13 +98,7 @@ export function ContactView() {
       <div className="grid gap-14 lg:grid-cols-[1.05fr_1fr] lg:gap-20">
         {/* ---------------- Form ---------------- */}
         <div>
-          {/* `as="h1"` BECAUSE THIS IS A PAGE NOW. While contact was a view
-              inside the landing page the h1 belonged to the hero, and a second
-              one here would have been a second document heading. It is
-              `/{locale}/contact` now, and it had no h1 at all the moment it
-              became a route — the same omission the pricing board shipped with
-              when it left the views. */}
-          <SectionHeading as="h1" eyebrow={ct.eyebrow} title={ct.title} description={ct.lead}/>
+          <SectionHeading eyebrow={ct.eyebrow} title={ct.title} description={ct.lead}/>
 
           <div className="mt-10">
             <AnimatePresence mode="wait" initial={false}>
