@@ -581,7 +581,7 @@ git commit -m "A record type declares itself, and a removed field is not deleted
 - Test: extends `tests/engine-model.mjs`
 
 **Interfaces:**
-- Consumes: `editArr` and `S` from `@/platform/db/keys`, `ID` from the id minter, `Section` from `@/platform/db/sections`
+- Consumes: `S` and `ID` from `@/platform/db/keys`, `editArr` from `@/platform/db/store`, `Section` from `@/platform/db/sections`
 - Produces: `engineSectionKey(typeKey: string): string`, `plantTypeSection(studioId: string, decl: { key: string; label: string; parentSectionKey: string }): Promise<Section>`
 
 - [ ] **Step 1: Write the failing test**
@@ -649,7 +649,10 @@ In `src/platform/db/migrate/mapping.ts`, beside `siteReports`:
 // `plantMissingSections` only ever ADDS to the stored array and sorts keys it
 // does not recognise to the end, so a section planted here survives the
 // catch-up rather than being wiped by it.
-import { editArr, S, ID } from "@/platform/db/keys";
+// `editArr` is the store's, `S` and `ID` are the key builders' — the same two
+// imports `platform/db/sections.ts` uses, and for the same reason.
+import { S, ID } from "@/platform/db/keys";
+import { editArr } from "@/platform/db/store";
 import type { Section } from "@/platform/db/sections";
 
 /** Namespaced so an engine section can never collide with a declared one. */
@@ -1240,6 +1243,11 @@ In `src/shared/studio/rest.ts`, add to the type block, the `en` block and the `a
   recordsEmptyBody: string;
   recordNew: string;
   recordMove: (to: string) => string;
+  // CHECKED 07/09/2026: `rest.ts` carries neither. Added here with the rest
+  // rather than importing a second dictionary into one screen — every P4a
+  // screen carries its own copies of these two.
+  cancel: string;
+  save: string;
   refuseNotAllowed: string;
   refuseStatusUnknown: string;
 ```
@@ -1254,6 +1262,8 @@ English:
   recordMove: (to) => `Move to ${to}`,
   refuseNotAllowed: "That move is not one this record type allows.",
   refuseStatusUnknown: "That is not a status this record type has.",
+  cancel: "Cancel",
+  save: "Save",
 ```
 
 Arabic:
@@ -1266,6 +1276,8 @@ Arabic:
   recordMove: (to) => `النقل إلى ${to}`,
   refuseNotAllowed: "هذه النقلة لا يسمح بها هذا النوع من السجلات.",
   refuseStatusUnknown: "ليست هذه حالة يحملها هذا النوع من السجلات.",
+  cancel: "إلغاء",
+  save: "حفظ",
 ```
 
 - [ ] **Step 2: Implement the screen**
@@ -1298,8 +1310,22 @@ function refusal(tr, token) {
   }
 }
 
-/** A declared field becomes a control. The kinds are the engine's closed set. */
+/**
+ * A DECLARED FIELD BECOMES A CONTROL, and every one of the nine kinds is
+ * handled — a closed set with a hole in it is not a closed set.
+ *
+ * `collaborator` and `reference` fall through to a text input in phase 1 and are
+ * named as such in the functionality file: the pickers they want are real work
+ * and this screen does not fake them.
+ */
 function controlFor(field, value, onChange) {
+  if (field.kind === "boolean") {
+    return (
+      <Field key={field.key} as="select" label={field.label} value={value ? "yes" : ""}
+        onChange={(v) => onChange(v === "yes")}
+        options={[{ value: "", label: "No" }, { value: "yes", label: "Yes" }]} />
+    );
+  }
   if (field.kind === "longtext") {
     return <Field key={field.key} as="textarea" label={field.label} value={value} onChange={onChange} />;
   }
