@@ -6,7 +6,7 @@ import { urlFor, alternatesFor } from "@/lib/seo";
 // linked to from a directory listing, and the price list was invisible to every
 // engine because it arrived from a client fetch. Admin and API are excluded on
 // purpose.
-const PATHS = ["", "/platform", "/pricing", "/careers", "/terms", "/privacy", "/signup", "/login"];
+const PATHS = ["", "/platform", "/pricing", "/security", "/about", "/careers", "/terms", "/privacy", "/signup", "/login"];
 
 export default async function sitemap() {
   const now = new Date();

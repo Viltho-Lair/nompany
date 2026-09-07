@@ -30,6 +30,8 @@ const columnsFor = (locale, tr, nav) => [
     {
         title: tr.colCompany,
         links: [
+            { label: nav.about, href: `/${locale}/about` },
+            { label: nav.security, href: `/${locale}/security` },
             { label: tr.lnkCareers, href: `/${locale}/careers` },
         ],
     },

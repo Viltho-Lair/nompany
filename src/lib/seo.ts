@@ -65,6 +65,30 @@ export const PAGES: Record<string, Record<string, PageCopy> | undefined> = {
         "سعر واحد لكل موظف شهريا، شامل ضريبة القيمة المضافة، بالريال السعودي. مجاني للفرق من واحد الى تسعة، وخطط مدفوعة من عشرة افراد فاكثر. كل خطة تحمل المنتج كاملا.",
     },
   },
+  "/security": {
+    en: {
+      title: "Security — what protects your data, and what we do not claim",
+      description:
+        "Row-level security forced at the database, membership-only authorisation, bcrypt at cost 12 with rehash on login, console MFA, session digests, an audit record for every change, and no third-party JavaScript. Plus a plain list of the certifications we do not hold.",
+    },
+    ar: {
+      title: "الامان — ما يحمي بياناتك، وما لا ندعيه",
+      description:
+        "امن على مستوى الصف مفروض في قاعدة البيانات، وصلاحية بالعضوية وحدها، وتشفير كلمات المرور بمعامل 12، وتحقق متعدد العوامل للوحة التحكم، وسجل لكل تغيير، وبلا اي جافاسكربت من طرف ثالث. مع قائمة صريحة بما لا نملكه من شهادات.",
+    },
+  },
+  "/about": {
+    en: {
+      title: "About nompany",
+      description:
+        "A small company building one ERP for small and medium companies across the region — sales, tendering, projects, procurement, inventory, people and finance on one data model, in Arabic and English.",
+    },
+    ar: {
+      title: "عن نومباني",
+      description:
+        "شركة صغيرة تبني نظام تخطيط موارد للشركات الصغيرة والمتوسطة في المنطقة — المبيعات والمناقصات والمشاريع والمشتريات والمخزون والموارد البشرية والمالية على نموذج بيانات واحد، بالعربية والإنجليزية.",
+    },
+  },
   "/careers": {
     en: {
       title: "Careers",
