@@ -146,5 +146,74 @@ for (const [id, claim] of Object.entries(C.CLAIMS)) {
     !/Nompany/.test(claim.en) && !/Nompany/.test(claim.ar), id);
 }
 
+console.log("\n== the hero's copy");
+
+const H = await import("@/shared/marketing/hero");
+
+// REQUIRED vs MERELY PRESENT, and the distinction is real rather than
+// bookkeeping. `rotatingSuffix` is legitimately EMPTY in both languages today —
+// V3's line reads "One system for <department>" with nothing after it — and an
+// empty string is the correct value, not a missing one. Asserting it non-empty
+// would force a word onto the page to satisfy a test. Both lists are checked
+// for type; only the first for content.
+const REQUIRED = ["badge", "h1", "lead", "ctaPrimary", "ctaSecondary", "footnote",
+  "marqueeLabel", "rotatingPrefix", "previewLabel"];
+const MAY_BE_EMPTY = ["rotatingSuffix"];
+
+for (const locale of ["en", "ar"]) {
+  const c = H.heroCopy(locale);
+  for (const f of REQUIRED) {
+    ok(`${locale}.${f} is written`, typeof c[f] === "string" && c[f].trim().length > 0);
+  }
+  for (const f of MAY_BE_EMPTY) {
+    ok(`${locale}.${f} is a string`, typeof c[f] === "string");
+  }
+  ok(`${locale} names all three variants`,
+    ["v1", "v2", "v3"].every((v) => c.variantLabels[v]?.trim().length > 0));
+  ok(`${locale} spells the brand one way`,
+    ![...REQUIRED, ...MAY_BE_EMPTY].some((f) => /Nompany/.test(c[f])));
+}
+
+// THE H1 IS ONE STRING, not two lines to be split and animated per character.
+// A tag-stripping extractor reads today's headline as `T h e O p e r a t i n g
+// S y s t e m` (SEO-PLAN §1.4), and the fix is upstream of the component: if
+// the copy module cannot express two lines, no component can split them.
+ok("the English H1 is a single line", !H.heroCopy("en").h1.includes("\n"));
+ok("the Arabic H1 is a single line", !H.heroCopy("ar").h1.includes("\n"));
+
+// NO DIACRITICS ANYWHERE IN THE ARABIC.
+// (Named arHero, not ar — the departments section above already declared a
+// top-level `ar` for D.liveDepartments("ar"), and this file is one module.)
+const arHero = H.heroCopy("ar");
+for (const [f, v] of Object.entries(arHero)) {
+  if (typeof v !== "string") continue;
+  ok(`ar.${f} carries no diacritics`, !DIACRITICS.test(v), v);
+}
+
+// AN UNKNOWN LOCALE FALLS BACK RATHER THAN RETURNING UNDEFINED. Every dictionary
+// in this repo does; a screen rendering "undefined" because a third locale
+// arrived is not a failure anybody would file.
+ok("an unknown locale falls back to English",
+  H.heroCopy("fr").h1 === H.heroCopy("en").h1);
+
+console.log("\n== the entity, described once");
+
+const CO = await import("@/shared/marketing/company");
+
+ok("the Latin brand is lowercase", CO.BRAND === "nompany");
+ok("the Arabic brand is settled", CO.BRAND_AR === "نومباني");
+
+for (const locale of ["en", "ar"]) {
+  const d = CO.companyCopy(locale).description;
+  ok(`${locale} has a description`, typeof d === "string" && d.trim().length > 0);
+  ok(`${locale} spells the brand one way`, !/Nompany/.test(d));
+  // THE COMPANY IS NOT SAUDI AND ZATCA IS NOT IN SCOPE (spec §12.1). A public
+  // sentence implying either is the same class of defect as a fabricated
+  // uptime figure, and it is the one the owner named explicitly.
+  ok(`${locale} claims no location`, !/Riyadh|السعودية|Saudi|ZATCA|KSA/i.test(d));
+}
+ok("the Arabic description carries no diacritics",
+  !DIACRITICS.test(CO.companyCopy("ar").description));
+
 console.log(fails ? `\n${fails} FAILED\n` : "\nmarketing model: all passed\n");
 process.exit(fails ? 1 : 0);
