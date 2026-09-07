@@ -155,7 +155,7 @@ export function TopNav({ locale = "en" }) {
             navigation; above it, the bar below is. Both render from PAGE_LINKS
             and the same view list, so the two layouts cannot drift into
             offering different destinations. */}
-        <div className="relative shrink-0 md:hidden" onClick={(e) => e.stopPropagation()}>
+        <div className="relative shrink-0 lg:hidden" onClick={(e) => e.stopPropagation()}>
           <button
             type="button"
             onClick={() => setNavOpen((o) => !o)}
@@ -176,15 +176,49 @@ export function TopNav({ locale = "en" }) {
                   {l.label}
                 </a>
               ))}
-              <div className="mt-1 flex items-center justify-between gap-2 border-t border-line px-4 pt-3 text-fg-muted">
+              {/* THE PRIMARY CALL TO ACTION FOLLOWS THE MENU DOWN. "Start free"
+                  is the only one this site has, and it lives in the bar above
+                  `lg` — so below that it needs somewhere to be, or the narrower
+                  the screen the harder the site is to act on. Shown to signed-out
+                  visitors only, the same rule the bar's copy of it follows. */}
+              {account === undefined || account ? null : (
+                <a role="menuitem" href={`/${locale}/signup`}
+                   className="mt-1 block border-t border-line px-4 pb-1 pt-3 text-sm font-medium text-fg transition-colors hover:bg-line/40">
+                  {tr.startFree}
+                </a>
+              )}
+              {/* THE LANGUAGES ARE ROWS, NOT A SECOND DROPDOWN.
+                  `LangMenu` opens a popup, and a popup inside this popup was
+                  clipped by the panel's own rounded corners — which is what
+                  "the language dropdown does not drop well" looks like. It is
+                  also the wrong shape for a phone: two destinations do not need
+                  a menu to choose between, and a nested one costs a second tap
+                  and a second thing to dismiss.
+
+                  Plain links, so each is a real destination that swaps the
+                  locale segment — the same hrefs the desktop picker uses. */}
+              <div className="mt-1 border-t border-line pt-2">
+                <p className="px-4 pb-1 text-[11px] tracking-wider text-fg-dim uppercase">{tr.language}</p>
+                {langOptions.map((o) => (
+                  <a
+                    key={o.code}
+                    role="menuitem"
+                    href={o.href}
+                    aria-current={o.code === locale ? "true" : undefined}
+                    className={`block px-4 py-2.5 text-sm transition-colors hover:bg-line/40 ${o.code === locale ? "text-fg" : "text-fg-muted hover:text-fg"}`}
+                  >
+                    {o.label}
+                  </a>
+                ))}
+              </div>
+              <div className="mt-1 flex items-center border-t border-line px-4 pt-3 text-fg-muted">
                 <ThemeToggle labels={{ theme: tr.theme, light: tr.themeLight, dark: tr.themeDark, system: tr.themeSystem }} />
-                <LangMenu current={locale} options={langOptions} label={tr.language} align="end" />
               </div>
             </div>
           )}
         </div>
 
-        <div className="ml-auto hidden items-center gap-1 rounded-full bg-ink/40 p-1 md:flex">
+        <div className="ml-auto hidden items-center gap-1 rounded-full bg-ink/40 p-1 lg:flex">
           {PAGE_LINKS.map((l) => (
             <a
               key={l.href}
@@ -200,11 +234,11 @@ export function TopNav({ locale = "en" }) {
             hub and studio read, so the choice follows the visitor across every
             surface. Both of these move into the collapsed menu below `md` —
             the language control was the one being pushed off the screen. */}
-        <div className="hidden shrink-0 text-fg-muted md:block">
+        <div className="hidden shrink-0 text-fg-muted lg:block">
           <ThemeToggle labels={{ theme: tr.theme, light: tr.themeLight, dark: tr.themeDark, system: tr.themeSystem }} />
         </div>
 
-        <div className="hidden shrink-0 text-fg-muted md:block">
+        <div className="hidden shrink-0 text-fg-muted lg:block">
           <LangMenu current={locale} options={langOptions} label={tr.language} align="end" />
         </div>
 
@@ -255,7 +289,7 @@ export function TopNav({ locale = "en" }) {
         {/* "Start free" follows the same rule as "Log in": both are for people
             who are not signed in, so both give way to the avatar. Skeleton
             while auth is unknown, so the bar does not jump when it resolves. */}
-        <div className="hidden md:block">
+        <div className="hidden shrink-0 lg:block">
           {account === undefined ? (
               <Skeleton className="h-9 w-[104px]" rounded="rounded-full" bg="bg-line"/>
           ) : account ? null : (
