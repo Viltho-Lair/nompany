@@ -81,10 +81,19 @@ export function isMarketingPath(pathname: string): boolean {
  *
  * IT LIVES HERE RATHER THAN IN THE PROXY because the proxy is not its only
  * reader: every key below must ALSO be an unavailable studio slug, and it was
- * not. `/projects`, `/services`, `/vendors`, `/clients` and `/gallery` were all
- * takeable — a studio that registered one would have been permanently
- * redirected away from its own address by this very table, with nothing in the
- * product able to explain why.
+ * not. `/projects`, `/services`, `/vendors` and `/clients` were all takeable —
+ * a studio that registered one would have been permanently redirected away from
+ * its own address by this very table, with nothing in the product able to
+ * explain why.
+ *
+ * `/gallery` WAS HERE AND IS NOT ANY MORE. It was a real page in the pre-pivot
+ * site, deleted with the others in the 2026-08-11 restructure, so it belonged
+ * here by the same argument as the rest. What it did not survive is the price:
+ * an entry costs a permanently unavailable slug, and `gallery` is a word a
+ * studio might reasonably want, while a gallery page is the least likely of the
+ * six to have anything linking to it from outside. Every remaining key is a
+ * bet that inbound links exist; that one was not worth the slug. `/gallery`
+ * now resolves as an ordinary studio address.
  */
 export const RETIRED_PATHS: Record<string, string> = {
   "/features": "/platform",
@@ -94,7 +103,6 @@ export const RETIRED_PATHS: Record<string, string> = {
   "/projects": "",
   "/vendors": "",
   "/clients": "",
-  "/gallery": "",
 };
 
 /**

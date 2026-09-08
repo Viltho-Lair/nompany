@@ -480,8 +480,18 @@ const { reservedPublicSegments, RETIRED_PATHS } = await import("@/shared/marketi
 for (const seg of reservedPublicSegments()) {
   ok(`"${seg}" cannot be registered as a studio slug`, RESERVED_SLUGS.has(seg));
 }
-ok("...and the proxy redirects at least the five that were takeable",
-  ["/projects", "/services", "/vendors", "/clients", "/gallery"].every((p) => p in RETIRED_PATHS));
+ok("...and the proxy still redirects the four that were takeable",
+  ["/projects", "/services", "/vendors", "/clients"].every((p) => p in RETIRED_PATHS));
+
+// AND `gallery` IS FREE AGAIN, asserted from both ends rather than left to the
+// absence of a line. A retired entry costs a permanently unavailable slug, and
+// this one was reserving a word a studio might want in order to keep links to
+// the page least likely to have any. Dropping it means BOTH halves have to go:
+// an entry left in the redirect map with the slug freed is the original bug
+// exactly, and a slug left reserved with no redirect behind it is a word taken
+// out of circulation for nothing.
+ok("gallery is not redirected any more", !("/gallery" in RETIRED_PATHS));
+ok("...and a studio may register it", !RESERVED_SLUGS.has("gallery"));
 
 
 // ==================================================================

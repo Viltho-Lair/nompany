@@ -870,8 +870,10 @@ export const SECTION_COLLECTIONS = {
 // EVERY SEGMENT THE PUBLIC SITE OWNS OR INTENDS TO OWN IS IN HERE, and this
 // list had drifted badly. `platform`, `security`, `privacy` and `customers`
 // were all takeable — but the dangerous ones were `projects`, `services`,
-// `vendors`, `clients` and `gallery`, every one of which the proxy 308s to a
-// marketing page. A studio registering one would have been permanently
+// `vendors` and `clients`, every one of which the proxy 308s to a marketing
+// page. (`gallery` was a fifth until the redirect was dropped: reserving a
+// word a studio might want, to keep links to a page nothing was likely to link
+// to, was the wrong side of that trade.) A studio registering one would have been permanently
 // redirected away from its own address by a table it could not see, and
 // nothing in the product could have explained why.
 //
@@ -889,7 +891,7 @@ export const RESERVED_SLUGS = new Set([
   // the public site: built, retired, and reserved for later
   "about", "careers", "contact", "customers", "platform", "pricing", "privacy",
   "security", "terms",
-  "clients", "features", "gallery", "projects", "services", "vendors",
+  "clients", "features", "projects", "services", "vendors",
   "blog", "changelog", "docs", "help", "legal", "status", "support",
 ]);
 export const SLUG_RE = /^[a-z0-9][a-z0-9-]{2,63}$/;
