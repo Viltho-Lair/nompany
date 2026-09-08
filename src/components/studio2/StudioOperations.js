@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
+import nextDynamic from "next/dynamic";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { operationsDict } from "@/shared/studio/operations";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
@@ -10,8 +11,16 @@ import { linkToProject, linkIf } from "@/modules/main/studioLinks";
 import { microLabel, Dialog, fmtDate, fmtWeekday } from "@/components/studio2/ui";
 import OperationsDashboard from "@/components/studio2/OperationsDashboard";
 import LocationsPanel from "@/components/studio2/LocationsPanel";
-import DispatchPanel from "@/components/studio2/DispatchPanel";
-import FieldViewPanel from "@/components/studio2/FieldViewPanel";
+// BEHIND A REAL LAZY BOUNDARY. These are SECONDARY TABS — nobody lands on
+// them — and a static import from this client module would put them in the
+// studio route's first load, which is what every tenant page waits for.
+// `import()` from inside a client module is a runtime import the bundler
+// cannot flatten; see HeavyScreens.jsx for why the same call in a Server
+// Component defers nothing at all.
+const DispatchPanel = nextDynamic(() => import("@/components/studio2/DispatchPanel"),
+  { loading: () => <ScreenSkeleton /> });
+const FieldViewPanel = nextDynamic(() => import("@/components/studio2/FieldViewPanel"),
+  { loading: () => <ScreenSkeleton /> });
 import { dispatchDict } from "@/shared/studio/dispatch";
 import { fieldDict } from "@/shared/studio/field";
 import { useAnalyticsLevel } from "@/components/studio2/analyticsLevel";

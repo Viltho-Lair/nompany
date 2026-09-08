@@ -24,11 +24,20 @@
 import { useCallback, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { operationsDict } from "@/shared/studio/operations";
+import nextDynamic from "next/dynamic";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import LocationsPanel from "@/components/studio2/LocationsPanel";
 import DepartmentsPanel from "@/components/studio2/DepartmentsPanel";
-import NumberingPanel from "@/components/studio2/NumberingPanel";
-import UnitsPanel from "@/components/studio2/UnitsPanel";
+// BEHIND A REAL LAZY BOUNDARY. These are SECONDARY TABS — nobody lands on
+// them — and a static import from this client module would put them in the
+// studio route's first load, which is what every tenant page waits for.
+// `import()` from inside a client module is a runtime import the bundler
+// cannot flatten; see HeavyScreens.jsx for why the same call in a Server
+// Component defers nothing at all.
+const NumberingPanel = nextDynamic(() => import("@/components/studio2/NumberingPanel"),
+  { loading: () => <ScreenSkeleton /> });
+const UnitsPanel = nextDynamic(() => import("@/components/studio2/UnitsPanel"),
+  { loading: () => <ScreenSkeleton /> });
 import { numberingDict } from "@/shared/studio/numbering";
 import { unitsDict } from "@/shared/studio/units";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";

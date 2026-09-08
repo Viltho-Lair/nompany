@@ -23,8 +23,16 @@ import { parseAwb, formatAwb } from "@/modules/inventory/awb";
 import { statusLabel, isException, AWB_STATUS_BY_CODE } from "@/modules/inventory/awbStatus";
 import { StatusPill } from "@/components/studio2/StatusPill";
 import { useReload } from "@/components/studio2/useReload";
-import BinsPanel from "@/components/studio2/BinsPanel";
-import BatchesPanel from "@/components/studio2/BatchesPanel";
+// BEHIND A REAL LAZY BOUNDARY. These are SECONDARY TABS — nobody lands on
+// them — and a static import from this client module would put them in the
+// studio route's first load, which is what every tenant page waits for.
+// `import()` from inside a client module is a runtime import the bundler
+// cannot flatten; see HeavyScreens.jsx for why the same call in a Server
+// Component defers nothing at all.
+const BinsPanel = nextDynamic(() => import("@/components/studio2/BinsPanel"),
+  { loading: () => <ScreenSkeleton /> });
+const BatchesPanel = nextDynamic(() => import("@/components/studio2/BatchesPanel"),
+  { loading: () => <ScreenSkeleton /> });
 import { binsDict } from "@/shared/studio/bins";
 import { batchesDict } from "@/shared/studio/batches";
 

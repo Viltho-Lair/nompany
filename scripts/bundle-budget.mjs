@@ -605,7 +605,20 @@ const baselines = JSON.parse(readFileSync(BASELINES_FILE, "utf8"));
 // when it went red, and a ceiling that close gets raised by whoever trips it
 // instead of by whoever grew it. Twice deliberately beats once deliberately and
 // once in an emergency.
-const MAX_TOTAL_GZIP_KB = 1862;
+//
+// 1862 -> 1885 on 09/09/2026, for five new secondary tabs (bins, batches, the
+// unit registry, the dispatch board, the mobile field view) — and the number is
+// what it is BECAUSE they were deferred, not in spite of it. Measured both ways
+// on the same tree: statically imported they cost the studio route 687 -> 697
+// KB of FIRST LOAD, which is what every tenant page waits for, and the total
+// 1865. Behind `nextDynamic` from their own client modules the route is 692 and
+// the total 1869 — five kilobytes off the number that matters, four onto the
+// one that does not, and six more chunks nobody fetches unless they open the
+// tab. That is the trade this file's own header argues for at the top, taken
+// again, and it is why the per-route gate is the one to act on.
+//
+// The margin is 16 KB rather than 3, deliberately, per the note above.
+const MAX_TOTAL_GZIP_KB = 1885;
 
 const totalKb = files.reduce((sum, f) => sum + f.gzip, 0) / 1024;
 const biggest = files[0];
