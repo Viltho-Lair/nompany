@@ -85,8 +85,15 @@ and Gate A in one chain. The ones worth knowing by name:
 - `tests/restructure.mjs` — architectural assertions, via `git grep` over
   **tracked** files, so `git add` a new file before believing a green run
 - `tests/integration.test.mjs` — behaviour across modules
-- `tests/gate-a.test.mjs` — **the parity contract**: 257 golden responses, the
-  159-key permission matrix, database hop counts
+- `tests/gate-a.test.mjs` — **the parity contract**: 365 golden responses, the
+  181-key permission matrix, database hop counts
+
+  Both numbers are MEASURED (`ls tests/goldens | wc -l`, and
+  `ALL_PERMISSIONS.length` in `platform/access/catalogue`), re-measured
+  08/09/2026, and they had said 257 and 159. A pass condition quoted from memory
+  is a pass condition nobody can check — and these decay silently, because
+  nothing fails when prose disagrees with a test. Re-measure at the commit you
+  are writing, not the one you were reading.
 
 Gate A exists so the refactor waves can claim exact functional parity and have it
 checked rather than asserted. Re-recording goldens (`NOMPANY_RECORD_GOLDENS=1`)
@@ -116,8 +123,30 @@ npm run test:gateway
 
 ## Verification
 
-CI (`.github/workflows/ci.yml`) runs all of this on every push to `main` and
-every pull request:
+**You verify; CI is GitHub's.** Run the cheap checks yourself — they need no
+database and take seconds — and ask before anything slow, stateful or
+outward-facing (`npm test`, `next build`, `test:parity`, a migration, a script):
+
+```bash
+npx eslint .
+```
+
+```bash
+npx tsc --noEmit
+```
+
+```bash
+node tests/<the-model-test-for-what-you-changed>.mjs
+```
+
+**DO NOT push to `main`, and do not open a pull request, as a way of finding out
+whether something works.** `.github/workflows/ci.yml` is `on: push: [main]` AND
+`on: pull_request` with no branch filter, so both are standing CI triggers — and
+this section used to say CI "runs all of this on every push", which read as an
+instruction to use it as the verification loop. `CLAUDE.md` has said the
+opposite since 07/09/2026 and the two documents disagreed until now.
+
+What CI runs, when it runs, is still the definitive list of what must hold:
 
 ```bash
 npx tsc --noEmit
@@ -138,6 +167,11 @@ npx next build
 ```bash
 node scripts/bundle-budget.mjs
 ```
+
+CI has one thing a laptop cannot: an ephemeral `postgres:18` reached as a
+NON-SUPERUSER, so its row-level-security results hold for a reason the shared
+local instance cannot reproduce. That is an argument for asking the owner to run
+it before something merges, not for pushing to find out.
 
 ## Docs
 

@@ -103,8 +103,8 @@ when the code looks cleaner afterwards.
     streams, which on a busy studio is dozens of connections asking the same
     question.
 14. **One `EventSource` per tab**, not per hook — browsers cap 6 per domain and
-    `useLiveUpdates` has 63 call sites across 38 files (measured 07/09/2026; this
-    said 43, and 21 before that).
+    `useLiveUpdates` has 66 call sites across 40 files (measured 08/09/2026; this
+    said 63/38, 43 before that, and 21 before that).
 
     **AND A WATCH KEY NAMES THE SECTION THE ROWS ARE *WRITTEN* UNDER**, never the
     section the screen sits in. Nineteen boards passed the handler where `watch`
@@ -145,7 +145,7 @@ when the code looks cleaner afterwards.
 ## Where the code lives
 
 The `src/lib` split is done, and every folder below is TypeScript. What is left in
-JavaScript is the **236 browser files** under `src/components` and `src/app`, which
+JavaScript is the **235 browser files** under `src/components` and `src/app`, which
 convert with the UI work in Wave 4 — that is the whole of what `checkJs: false` and
 the `allowJs` escape hatch are still holding open.
 
@@ -310,7 +310,8 @@ The requirements below have not weakened; what changed is who checks them and wh
   plus an 8 KB margin** (`scripts/bundle-baselines.json`, rewritten with
   `node scripts/bundle-budget.mjs --record`; an unlisted route is held to 300 KB, so a
   new route is gated from its first build). Then the largest chunk (250 KB gz) and
-  total client JS (**1825 against 1833**, CI's measurement on 07/09/2026), which
+  total client JS (**1832 against 1833**, measured locally 08/09/2026 — ONE
+  kilobyte of headroom, so the next change of any size trips it), which
   catch one enormous file and sprawl respectively. `scripts/bundle-budget.mjs` holds
   the numbers and explains why a whole-directory total would penalise code-splitting.
 
@@ -666,9 +667,10 @@ that writes to live data is its own change with its own authorisation.
 **Waves 0–1 are complete; Gate A is green.** Wave 0 shipped (orphan-sweep guard,
 credential rate limiting, console session expiry, traffic-ingest bounds, media tenancy,
 security headers, bcrypt 12 with rehash-on-login, M-1 dead capabilities). Gate A shipped:
-343 golden responses over every surface, the 177-key permission matrix, hop counting, six
+365 golden responses over every surface, the 181-key permission matrix, hop counting, six
 architectural assertions, **per-route permission enforcement in every module**, **ESLint**
-(flat config + shrink-only warning budget, 142 today), **observability** (request ids, per-request hop
+(flat config + shrink-only warning budget: the CEILING is 142 and the actual count is 138,
+so the budget has 4 warnings of slack it could give back), **observability** (request ids, per-request hop
 counts), and CI enforcing all of it.
 
 Both of those numbers keep moving — 139 goldens and 102 keys before the
@@ -683,12 +685,15 @@ noticing, because nothing fails when prose disagrees with a test.
 **AND THE CORRECTION WAS ITSELF OFF BY ONE, which is the sharper lesson.** It landed as 256,
 measured accurately at `682eda7` and written down on top of `a2044ff` — one commit later, and
 that commit added `procurement.requisitions.list.json`. So a number was measured, was true when
-measured, and was stale by the time it was committed. `ls tests/goldens | wc -l` says 343,
-measured 07/09/2026.
+measured, and was stale by the time it was committed. `ls tests/goldens | wc -l` says 365
+and `ALL_PERMISSIONS.length` says 181, both measured 08/09/2026 — so the pair above had
+drifted AGAIN, by 22 goldens and 4 keys, in a single day. This paragraph has now been
+wrong four times about the same two numbers. Treat every figure in this file as a
+measurement with a date, not as a fact.
 Re-measure at the commit you are writing, not at the one you were reading.
 
 **Wave 2 (seams + performance) is mostly done; Gate B is 2 of 3.** Zero direct `readCol` in
-service code ✅, goldens unchanged by the seam work ✅ (343 today), hops ≤2 for the studio route and 3 for sales
+service code ✅, goldens unchanged by the seam work ✅ (365 today), hops ≤2 for the studio route and 3 for sales
 (the structural floor). Done: Seam A (route wrapper, every route), Seam B (repository
 interface + the `readCol` migration across every module), Seam C (one context factory,
 killed hop 7), request-scoped cache + batched prefetch (8→2 hops), targeted live updates,
@@ -708,7 +713,7 @@ shipped — the same paragraph's own "Media has left Redis" above contradicted i
 
 **Wave 3 (TypeScript) is done server-side** — every `.ts`/`.tsx` under `noImplicitAny`, every
 department in `src/modules/<name>/` with a Zod schema each, and every route file converted
-(**165 today, all `route.ts`, none left in JavaScript**). What remains is `checkJs` over the
+(**170 today, all `route.ts`, none left in JavaScript**). What remains is `checkJs` over the
 **236** browser `.js` files and the `app/` restructure, deferred into Wave 4. (Both counts
 are measured — `find src/app/api -name 'route.*'` and `find src/components src/app -name
 '*.js' -o -name '*.jsx'`. They said 99 and 212 for long enough to be quoted as facts;
@@ -1380,7 +1385,7 @@ roles that already decide it.
 
 **A studio no longer starts with five generic roles.** `STARTER_ROLES` is Admin alone. The
 five existed for a good reason that has not gone away — an empty permission grid is where
-over-granting begins, and faced with 177 unchecked boxes people tick everything. What changed
+over-granting begins, and faced with ~180 unchecked boxes people tick everything. What changed
 is who answers it: a seeded department brings up to ten roles from its own trade, so a new
 studio meets Site Engineer under Site Execution rather than "Member".
 
@@ -1389,7 +1394,7 @@ studio meets Site Engineer under Site Execution rather than "Member".
 kilobytes for a list a picker needs twenty rows of, and Gate A asserts no client component
 imports it, because a client import would fail nothing and quietly spend a sixth of the
 budget. Each entry names one of eleven access shapes. Eleven rather than 2,900 because the
-catalogue has changed at least twelve times (102 — 177 keys) and each change would have
+catalogue has changed at least twelve times (102 — 181 keys) and each change would have
 staled 2,900 hand-written lists SILENTLY, surfacing only as somebody holding the wrong access.
 **A library role's permissions are COPIED on add** — the BOQ rate rule, for the BOQ rate's
 reason. **`principal` is not a wildcard**: the model allows exactly one and it is Admin, so
@@ -1428,7 +1433,10 @@ the body), one generic screen, one built-in type (`transmittal`, under Engineeri
 Documents), seven goldens, and the sub-section planted in the SAME write as the type row
 — the tender register paid for the other order.
 
-**IT ADDS NO PERMISSION KEY AND NEVER WILL — the catalogue still reads 177.**
+**IT ADDS NO PERMISSION KEY AND NEVER WILL — the engine mints none.** (The catalogue
+reads 181 now; it said 177 when this was written, and the keys added since came from
+ordinary areas, not from the engine. The claim is about the ENGINE, not about the number,
+and quoting a number here is what made it read as stale.)
 `engine.<typeKey>.<verb>` is structural, minted from a row, so it cannot be in
 `ALL_PERMISSIONS`; `isEnginePermission` is the one place the catalogue stops being a
 closed set, and `cleanPermissions` used to drop such a grant SILENTLY. The wildcards had
@@ -1462,6 +1470,35 @@ section their own Manager could not open.
 indigo/Sora vs the ERP's light-first blue/Saira); and whether to denormalise the slug index
 to take the sales route from 3 hops to 2. The earlier `login()` suspended-check and
 share-link questions are **closed** (kept deliberately; deleted, respectively).
+
+**THE PUBLIC MARKETING SITE IS REBUILT AND LIVES IN THIS REPO** (spec:
+`docs/superpowers/specs/2026-09-07-marketing-site-rebuild-design.md`). Ten pages per
+locale at `/[locale]/…` — home, platform, pricing, customers, security, about, contact,
+careers, terms, privacy — all on ONE chrome (`components/landing/chrome/MarketingShell`),
+with a real contact backend, a consent-gated featured-companies chain, and nightly
+platform figures. Five rules, each of which cost something to learn:
+
+- **`shared/marketing/routes.ts` is the ONLY list of which paths are public.** Three
+  files used to decide independently — the root layout for the light/dark default, `Nav`
+  and `Footer` for whether to stand down — and `/contact` reached none of them, so it
+  served the dark shell under the light theme's tokens. The suite holds the list against
+  the pages that import `MarketingShell`, in both directions.
+- **Every public claim names its source** (`shared/marketing/claims.ts`). The site
+  carried 180+ connectors, 99.99% uptime and 3.2M transactions a day, none of which
+  anything computed. Figures are rounded DOWN and are absent below a threshold, so a
+  small number is never printed.
+- **Copy is one module per surface under `shared/marketing/`, no barrel**, both locales
+  as keys of one typed object — so a missing Arabic string is a compile error.
+- **A retired URL costs a studio slug.** `RETIRED_PATHS` 308s before the proxy looks for
+  a tenant, so every key in it must also be in `RESERVED_SLUGS` — five were not.
+- **The sitemap's `lastmod` is a content hash** (`scripts/sitemap-lastmod.mjs`), not the
+  clock and not a hand-kept date. Run it in the commit that changes a page; the suite
+  fails when it is stale.
+
+**Not built:** real product screenshots (the pipeline is `scripts/screenshots.mjs`, and
+Playwright is deliberately not a dependency), and the per-company sentence on
+`/customers` (no field for it). The company description in `shared/marketing/company.ts`
+is still marked a DRAFT awaiting the owner's revision.
 
 ---
 
