@@ -506,15 +506,52 @@ timesheets ⬜ · Production QC ⬜ · Dashboard ⬜**
 The section RENDERS NOW — it left `NO_SCREEN_YET` on 08/09/2026 with four engine
 registers under it (work orders, bills of materials, work stations, production batches).
 
-#### §8 Field Operations & Service 🟡 8 / 10
+#### §8 Field Operations & Service ✅ 10 / 10
 Schedule ✅ · Tracking ✅ · Settings ✅ · Service orders & job cards ✅ · Maintenance
 contracts (AMC) ✅ · Preventive-maintenance plans 🟡 (the plan is a schedule; **nothing
-generates the visits**) · Installed base ✅ · **Dispatch board ⬜ · Mobile field view with
-e-signature ⬜ · Dashboard ⬜**
+generates the visits**) · Installed base ✅ · Dispatch board ✅ (09/09/2026) · Mobile field
+view with e-signature ✅ (09/09/2026) · Dashboard ✅
 
-Four engine registers, 08/09/2026. The three left are the bespoke ones: a dispatch board
-and a mobile field view are both on the spec's own "never stretch the engine to cover
-this" list. See §10 for the caveat that applies to every engine register.
+Four engine registers, 08/09/2026. **The three the spec's own "never stretch the engine to
+cover this" list reserved are done** — and one of them was never missing:
+`OperationsDashboard` has rendered on this section since before the restructure, and this
+line carried it as ⬜ anyway. Same defect as Inventory's, found the same way.
+
+**THE BOARD AND THE FIELD VIEW ARE THE SAME JOBS FROM OPPOSITE ENDS.** A dispatcher looks
+at everybody on one day; a technician looks at themselves across the days that are still
+open. Neither mints a permission key, neither owns a collection, and neither writes
+anything the jobs route did not already write — the board is read-only, because staffing a
+job is editing the job and a second write path would be two ways to staff one.
+
+**THE BOARD ANSWERS WHAT A CALENDAR STRUCTURALLY CANNOT.** A job with nobody on it looks
+identical to a job with a full crew on a schedule; `assignedToCollaboratorIds` is an array
+and nothing had ever asked whether one person is on two jobs at once; and `strandedJobs` is
+the case no day view can show — scheduled last Tuesday, still on nobody, invisible because
+the day it sits on is one nobody opens any more. Clashes are SHOWN and never refused: a
+dispatcher deliberately overlaps a handover.
+
+**A SIGNATURE IS NOT A STATUS**, which is the whole design of the field view. A technician
+finishes with the householder out and the job is genuinely complete and genuinely unsigned;
+folding the two together would either block completion on somebody being present or claim a
+signature that does not exist. `awaitingSignature` is the state nothing in this product
+could name before — work that has been done and cannot be proved. The mark is a canvas and
+three pointer handlers rather than a library, stored through the PRIVATE media route.
+
+**AND OPENING THAT DOOR FOUND THE JOB LIFECYCLE HAD NEVER WORKED.**
+`PATCH /operations/jobs` passed the whole request body where `setJobStatus` takes a status
+STRING, so `isStatus` was asked of an object, answered false, and every transition returned
+`{ error: "status" }`. No job could leave `scheduled`: `completedAt` was never stamped and
+Template D's signoff billing trigger could never fire.
+
+**IT IS THE CHANGE ORDER'S BUG A SECOND TIME** — there the body went where
+`answerChangeOrder` expects a BOOLEAN, and an object being truthy meant a rejection
+APPROVED the variation. Same shape, opposite symptom, and neither reachable by the
+compiler, because a route handler's `body` is not statically typed. So
+`tests/restructure.mjs` refuses the shape by name now, **and it found a THIRD on its first
+run**: `answerTimesheet(ctx, id, body)` takes a boolean, so rejecting a timesheet approved
+it. Three fixed, one guard, and the guard is the durable half.
+
+See §10 for the caveat that applies to every engine register.
 
 #### §9 Logistics & Fleet 🟡 6 / 6
 Shipments (AWB) ✅ · Deliveries with POD 🟡 (register built; `receivedBy` is a typed name
@@ -875,10 +912,10 @@ gated section.
 
 | | Built | Target | |
 |---|---|---|---|
-| Every subsection built | 9 sections | CRM & Sales, Tendering, Projects, Engineering, Procurement, Inventory, Logistics, Assets, Quality & HSE | |
-| Partial | 6 sections | Manufacturing 3/6, Field Service 8/10, HR 5/10, Finance 12/18, Reports 1/5, Administration 6/10 | |
+| Every subsection built | 10 sections | CRM & Sales, Tendering, Projects, Engineering, Procurement, Inventory, Field Service, Logistics, Assets, Quality & HSE | |
+| Partial | 5 sections | Manufacturing 3/6, HR 5/10, Finance 12/18, Reports 1/5, Administration 6/10 | |
 | Renders nothing | 0 sections | `NO_SCREEN_YET` is empty | |
-| **Subsections** | **107 built** | **131 in the target list** | **82%** |
+| **Subsections** | **109 built** | **131 in the target list** | **83%** |
 
 **THE ROW ABOVE SAID 58 / 130 / 45% AND THE THREE ROWS ABOVE IT WERE A SNAPSHOT OF A
 DIFFERENT FORTNIGHT** — four sections rendering nothing, Logistics and HR at one
@@ -886,7 +923,7 @@ subsection each, Assets and Quality not counted as built at all. Every figure he
 sum of the fifteen §-headings above it, re-added at this commit rather than carried
 forward; when one of those moves, this moves in the same edit or it is wrong again.
 
-**The gap is no longer the empty sections — there are none.** All 24 outstanding
+**The gap is no longer the empty sections — there are none.** All 22 outstanding
 subsections sit inside sections that already render and read as finished, which is the
 harder half to see: Finance is missing six, HR five, Reports four.
 
