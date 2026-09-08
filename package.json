@@ -32,7 +32,8 @@
     "test:gateway:parity": "node tests/pg-transport-parity.mjs",
     "lint:budget": "node scripts/lint-budget.mjs",
     "icons": "node scripts/generate-icons.mjs",
-    "sitemap:lastmod": "node scripts/sitemap-lastmod.mjs --write"
+    "sitemap:lastmod": "node scripts/sitemap-lastmod.mjs --write",
+    "screenshots": "node scripts/screenshots.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.120.0",
