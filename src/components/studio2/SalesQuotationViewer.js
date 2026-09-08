@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { LinesSkeleton } from "@/components/studio2/RecordSkeleton";
 import { technicalDict } from "@/shared/studio/technical";
@@ -9,6 +9,7 @@ import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { Icon } from "@/components/studio2/icons";
 import { panel, h2, sub, btnGhost, money, fmtDate } from "@/components/studio2/ui";
 import { netUnitPrice } from "@/modules/technical/quotations";
+import { useReload } from "@/components/studio2/useReload";
 
 // THE QUOTATION, AS SALES READS IT.
 //
@@ -56,7 +57,7 @@ export default function SalesQuotationViewer({ slug, ticketId, quotationId }) {
     setData(await res.json());
   }, [slug, quotationId]);
 
-  useEffect(() => { load(); }, [load]);
+  useReload(load);
   // Technical is still working on it while Sales is reading it, so a revision or
   // a status change lands here without a refresh. Watches "crm-sales", not
   // "engineering-docs" — the quotation moved WITH the section (restructure.ts's

@@ -676,7 +676,8 @@ that writes to live data is its own change with its own authorisation.
 on the owner's instruction.** Wave 0 shipped (orphan-sweep guard, credential rate limiting,
 console session expiry, traffic-ingest bounds, media tenancy, security headers, bcrypt 12
 with rehash-on-login, M-1 dead capabilities), and its **ESLint** budget (flat config,
-shrink-only: the CEILING is 142 and the actual count is 138) and **observability** (request
+shrink-only: the CEILING is 108 and the actual count is 108, ratcheted down from 142
+on 09/09/2026 by extracting `components/studio2/useReload`) and **observability** (request
 ids, per-request hop counts) are untouched.
 
 **WHAT WENT, AND WHAT IT COST — written down because the next session will otherwise

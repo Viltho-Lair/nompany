@@ -24,6 +24,7 @@ import ClientBlock, { EMPTY_CLIENT_BLOCK, clientBlockPayload } from "@/component
 import TechnicalDashboard from "@/components/studio2/TechnicalDashboard";
 import { useAnalyticsLevel } from "@/components/studio2/analyticsLevel";
 import { StatusPill } from "@/components/studio2/StatusPill";
+import { useReload } from "@/components/studio2/useReload";
 
 // Technical: RFQs raised by Sales, and the quotations they become.
 // Two different grants are in play — raising an RFQ needs Sales:manage, working
@@ -104,7 +105,7 @@ export default function StudioTechnical({ slug, view = "engineering-docs", secti
     if (!res.ok) { setError(tr.accessTechnicalStudio); return; }
     setData(await res.json());
   }, [slug]);
-  useEffect(() => { load(); }, [load]);
+  useReload(load);
 
   // A CATALOGUE PRICED FOR THE CUSTOMER THIS QUOTATION IS FOR.
   //

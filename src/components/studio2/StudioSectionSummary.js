@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { summaryDict } from "@/shared/studio/summary";
+import { useReload } from "@/components/studio2/useReload";
 
 // A SECTION'S REGISTERS, ON THE SECTION'S OWN PAGE.
 //
@@ -31,7 +32,7 @@ export default function StudioSectionSummary({ slug, sectionKey, locale = "en" }
     setState("ready");
   }, [slug, sectionKey]);
 
-  useEffect(() => { load(); }, [load]);
+  useReload(load);
 
   if (state === "loading") {
     return <div className="mt-5 h-24 rounded-xl skel" aria-busy="true" />;

@@ -9,6 +9,7 @@ import { Icon } from "@/components/studio2/icons";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { money } from "@/components/studio2/ui";
 import { fmtTime } from "@/lib/format";
+import { useReload } from "@/components/studio2/useReload";
 
 // How often the table pulls a fresh copy while someone is watching it. This
 // screen is the one people leave up on a wall, so unlike the rest of the studio
@@ -34,7 +35,7 @@ export default function StudioTechnicalLive({ studio }) {
     setLastFetched(new Date());
     setError("");
   }, [studio.slug]);
-  useEffect(() => { load(); }, [load]);
+  useReload(load);
   // Column choice lives in Engineering & Documents' own settings, so that
   // section is watched — but the rows themselves are quotations, which moved
   // to CRM & Sales (restructure.ts's SECTION_KEY_MAP: technical-quotations ->

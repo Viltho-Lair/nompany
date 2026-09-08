@@ -16,6 +16,7 @@ import { Field } from "@/components/fields/Field";
 import SelectMenu from "@/components/fields/SelectMenu";
 import { actionsForField, OTHER_FIELD } from "@/shared/fieldsOfWork";
 import StudioFlowEditor from "@/components/studio2/StudioFlowEditor";
+import { useReload } from "@/components/studio2/useReload";
 
 // THE SCREEN'S WORDS, HANDED DOWN RATHER THAN THREADED.
 //
@@ -99,7 +100,7 @@ export default function StudioSettings({ slug, locale = "en" }) {
     setLoading(false);
   }, [slug]);
 
-  useEffect(() => { load(); }, [load]);
+  useReload(load);
 
   // One writer for every row, so a saved value is re-read from the server
   // rather than assumed — the API cleans what it stores.
@@ -651,7 +652,7 @@ function ServiceActions({ slug }) {
     setLoading(false);
   }, [slug]);
 
-  useEffect(() => { load(); }, [load]);
+  useReload(load);
 
   // One writer for both kinds of edit, so a saved pool is always re-read from
   // the server rather than assumed — `nextPool` decides retire-vs-drop, this

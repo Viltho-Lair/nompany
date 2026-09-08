@@ -28,7 +28,7 @@
 // PUT and POST), submit (draft → submitted), answer (approve or reject). Only
 // the last carries invariant 7, and only it is a PATCH.
 "use client";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { salesDict } from "@/shared/studio/sales";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
@@ -40,6 +40,7 @@ import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { panel, h2, sub, btn, btnGhost, btnRow, Empty, Dialog, fmtDate, fmtDateTime, money } from "@/components/studio2/ui";
 import { Field } from "@/components/fields/Field";
 import { StatusPill } from "@/components/studio2/StatusPill";
+import { useReload } from "@/components/studio2/useReload";
 
 export default function StudioContracts({ slug }) {
   const tr = salesDict(useStudioLocale());
@@ -75,7 +76,7 @@ export default function StudioContracts({ slug }) {
     });
   }, [slug]);
 
-  useEffect(() => { load(); }, [load]);
+  useReload(load);
   // CONTRACTS AND VARIATIONS LIVE WITH THE QUOTATIONS. A contract is what a won
   // quotation becomes, so `contracts` and `changeOrders` are both written under
   // `crm-sales-quotations`; the register this screen IS owns only the

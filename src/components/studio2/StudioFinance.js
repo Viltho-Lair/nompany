@@ -19,6 +19,7 @@ import {
   btnRow, btnRowPrimary, btnRowDanger,
 } from "@/components/studio2/ui";
 import { StatusPill } from "@/components/studio2/StatusPill";
+import { useReload } from "@/components/studio2/useReload";
 
 const panel = "rounded-geex border border-slate-200/70 bg-[var(--geex-surface)] p-6 dark:border-white/10";
 const label = "mb-1 block text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400";
@@ -78,7 +79,7 @@ function FinanceCash({ slug, view = "finance" }) {
     if (!res.ok) { setError(tr.accessFinanceStudio); return; }
     setData(await res.json());
   }, [slug]);
-  useEffect(() => { load(); }, [load]);
+  useReload(load);
   // Invoices and expenses land from elsewhere — reflect them live.
   useLiveUpdates(slug, "finance", load);
 
@@ -641,7 +642,7 @@ function useFinanceResource(slug, kind) {
     if (!res.ok) { setError(tr.noAccessThis); return; }
     setData(await res.json()); setError("");
   }, [slug, kind, tr]);
-  useEffect(() => { load(); }, [load]);
+  useReload(load);
   // Bills and assets can land from elsewhere (a PO answered, a disposal) — reflect
   // them live, on the same one EventSource the tab already holds (invariant 14).
   useLiveUpdates(slug, "finance", load);

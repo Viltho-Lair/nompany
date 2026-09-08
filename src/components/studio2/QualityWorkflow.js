@@ -8,6 +8,7 @@ import { Field } from "@/components/fields/Field";
 import StudioDate from "@/components/fields/StudioDate";
 import { REV_LABELS } from "@/modules/quality/qualityDocuments";
 import { StatusPill } from "@/components/studio2/StatusPill";
+import { useReload } from "@/components/studio2/useReload";
 
 // THE CONTROL PANEL — where a revision moves along the ladder.
 //
@@ -64,7 +65,7 @@ export default function QualityWorkflow({ slug, documentId, document, onChanged 
     if (!res.ok) return;
     setData(await res.json());
   }, [slug, documentId]);
-  useEffect(() => { load(); }, [load]);
+  useReload(load);
 
   useEffect(() => {
     setSigners({

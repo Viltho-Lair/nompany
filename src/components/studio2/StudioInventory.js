@@ -22,6 +22,7 @@ import { linkToProject, linkIf } from "@/modules/main/studioLinks";
 import { parseAwb, formatAwb } from "@/modules/inventory/awb";
 import { statusLabel, isException, AWB_STATUS_BY_CODE } from "@/modules/inventory/awbStatus";
 import { StatusPill } from "@/components/studio2/StatusPill";
+import { useReload } from "@/components/studio2/useReload";
 
 // INVENTORY — what the studio buys, holds, and issues to its projects.
 // On-hand is summed from the movement ledger, so every number here can be traced
@@ -60,7 +61,7 @@ export default function StudioInventory({ slug, view = "inventory" }) {
     if (!res.ok) { setError(tr.accessInventoryStudio); return; }
     setData(await res.json());
   }, [slug]);
-  useEffect(() => { load(); }, [load]);
+  useReload(load);
   // Stock, deliveries and orders change from the floor — stay current.
   useLiveUpdates(slug, "inventory", load);
 

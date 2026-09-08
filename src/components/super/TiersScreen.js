@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import CatalogEditor from "@/components/super/CatalogEditor";
+import { useReload } from "@/components/studio2/useReload";
 
 // Tiers and the ERP services they are made of, on one screen.
 //
@@ -15,7 +16,7 @@ export default function TiersScreen() {
     const res = await fetch("/api/super/catalog/services", { cache: "no-store" });
     if (res.ok) setServices((await res.json()).items || []);
   }, []);
-  useEffect(() => { load(); }, [load]);
+  useReload(load);
 
   const SERVICE_FIELDS = [
     { key: "name", label: "Service", type: "text", placeholder: "Inventory" },

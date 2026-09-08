@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { peopleDict } from "@/shared/studio/people";
@@ -8,6 +8,7 @@ import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { ADMIN_ROLE_ID } from "@/platform/access";
 import { Field } from "@/components/fields/Field";
 import { fmtDate } from "@/lib/format";
+import { useReload } from "@/components/studio2/useReload";
 
 const panel = "rounded-geex border border-slate-200/70 bg-[var(--geex-surface)] p-6 dark:border-white/10";
 const h2 = "font-display text-lg font-800 text-slate-900 dark:text-white";
@@ -46,7 +47,7 @@ export default function StudioPeople({ slug, canAdminister, myCollaboratorId }) 
     setLoading(false);
   }, [slug, canAdminister]);
 
-  useEffect(() => { load(); }, [load]);
+  useReload(load);
   // A join request or a membership change — show it as it happens.
   useLiveUpdates(slug, "people", load);
 

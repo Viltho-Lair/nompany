@@ -15,7 +15,7 @@
 // working screen is a visibility decision each time — or have no records yet,
 // and a tab promising an empty registry reads as a finished feature.
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { operationsDict } from "@/shared/studio/operations";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
@@ -25,6 +25,7 @@ import NumberingPanel from "@/components/studio2/NumberingPanel";
 import { numberingDict } from "@/shared/studio/numbering";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { h2, sub } from "@/components/studio2/ui";
+import { useReload } from "@/components/studio2/useReload";
 
 export default function StudioMasterData({ slug }) {
   const locale = useStudioLocale();
@@ -90,7 +91,7 @@ export default function StudioMasterData({ slug }) {
     await Promise.all([load(), loadDepartments(), loadNumbering()]);
   }, [load, loadDepartments]);
 
-  useEffect(() => { loadAll(); }, [loadAll]);
+  useReload(loadAll);
   // Both tabs are Master data's own rows — `locations` and `departments` under
   // `administration-master` — even though the locations half is READ through
   // Operations' payload, for the reason the comment above `load` gives. Where a

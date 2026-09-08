@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { safetyDict } from "@/shared/studio/safety";
+import { useReload } from "@/components/studio2/useReload";
 
 // SAFETY PERFORMANCE, on the Quality & HSE page.
 //
@@ -26,7 +27,7 @@ export default function StudioSafety({ slug, locale = "en" }) {
     setState("ready");
   }, [slug]);
 
-  useEffect(() => { load(); }, [load]);
+  useReload(load);
 
   // A READER WITHOUT THE INCIDENT REGISTER SEES NO PANEL AT ALL, rather than an
   // empty one saying they may not look. The route refuses them; a box announcing

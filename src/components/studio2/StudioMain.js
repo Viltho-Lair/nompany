@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { Icon } from "@/components/studio2/icons";
@@ -9,6 +9,7 @@ import MainDashboard from "@/components/studio2/MainDashboard";
 import { mainDict } from "@/shared/studio/main";
 import { sectionName } from "@/shared/studio/sections";
 import { useStudioLocale as useLocale } from "@/components/studio2/locale";
+import { useReload } from "@/components/studio2/useReload";
 
 // MAIN — the studio's front door: what is happening across the whole place, for
 // the person looking at it.
@@ -33,7 +34,7 @@ export default function StudioMain({ slug }) {
     if (!res.ok) { setError(tr.loadFailed); return; }
     setData(await res.json());
   }, [slug, tr]);
-  useEffect(() => { load(); }, [load]);
+  useReload(load);
   // The front door reflects every desk, so it watches the busiest of them.
   useLiveUpdates(slug, "crm-sales", load);
   useLiveUpdates(slug, "tasks", load);

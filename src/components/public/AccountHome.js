@@ -18,6 +18,7 @@ import { NOVA_PROVIDERS, providerMeta } from "@/lib/nova/providers";
 import { fmtDate, fmtDateTime } from "@/lib/format";
 import CopyableCode from "@/components/CopyableCode";
 import SelectMenu from "@/components/fields/SelectMenu";
+import { useReload } from "@/components/studio2/useReload";
 
 // The account hub, laid out like the Google Account console:
 //   • brand mark top-left, ABOVE the fixed sidebar
@@ -106,7 +107,7 @@ export default function AccountHome({ locale, chrome }) {
     setLoading(false);
   }, [locale]);
 
-  useEffect(() => { load(); }, [load]);
+  useReload(load);
 
   // The calendar connect flow is a browser redirect, not a fetch (a consent
   // screen cannot happen inside one) — it lands back here carrying `view` (so

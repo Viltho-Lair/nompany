@@ -6,6 +6,7 @@ import { toneOf, normalizeColor, PRESETS, DEFAULT_HEX } from "@/lib/planColors";
 import { widgetsBySection, widgetsForRung } from "@/lib/dashboardWidgets";
 import { ANALYTICS_LEVELS } from "@/lib/analytics";
 import SelectMenu from "@/components/fields/SelectMenu";
+import { useReload } from "@/components/studio2/useReload";
 
 // Packages and Tiers are the same screen with different fields, so they are one
 // component driven by a field list rather than two that drift apart. A row is
@@ -32,7 +33,7 @@ export default function CatalogEditor({ kind, title, fields, services = null, on
     if (!res.ok) { setError("Couldn't load."); setItems([]); return; }
     setItems((await res.json()).items || []);
   }, [kind]);
-  useEffect(() => { load(); }, [load]);
+  useReload(load);
 
   const [settingsOpen, setSettingsOpen] = useState(false);
 

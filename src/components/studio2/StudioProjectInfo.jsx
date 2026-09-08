@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { projectsDict } from "@/shared/studio/projects";
 import Link from "next/link";
@@ -8,6 +8,7 @@ import { Icon } from "@/components/studio2/icons";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { panel, h2, sub, fmtDate } from "@/components/studio2/ui";
 import { StatusPill } from "@/components/studio2/StatusPill";
+import { useReload } from "@/components/studio2/useReload";
 
 // ONE PROJECT'S INFORMATION, in one place. This used to live inline in
 // StudioProjectProfile.js; it was lifted out so the full-screen project board
@@ -36,7 +37,7 @@ export function useProjectData(slug) {
     setData(await res.json());
   }, [slug, tr]);
 
-  useEffect(() => { load(); }, [load]);
+  useReload(load);
   useLiveUpdates(slug, "projects", load);
   useLiveUpdates(slug, "tasks", load);
 

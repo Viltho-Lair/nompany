@@ -16,6 +16,7 @@ import HrDashboard from "@/components/studio2/HrDashboard";
 import { useAnalyticsLevel } from "@/components/studio2/analyticsLevel";
 import { StatusPill } from "@/components/studio2/StatusPill";
 import { PanelBar, usePanelParam } from "@/components/studio2/PanelBar";
+import { useReload } from "@/components/studio2/useReload";
 
 const btnDanger = "rounded-full border border-rose-200 px-4 py-2 font-display text-sm font-600 text-rose-600 transition-colors hover:bg-rose-50 disabled:opacity-60 dark:border-rose-500/30 dark:text-rose-300 dark:hover:bg-rose-500/10";
 const td = "py-3 pe-3 align-middle";
@@ -61,7 +62,7 @@ export default function StudioHr({ slug, view = "hr" }) {
     if (!res.ok) { setError(tr.accessHumanResourcesStudio); return; }
     setData(await res.json());
   }, [slug]);
-  useEffect(() => { load(); }, [load]);
+  useReload(load);
   // HR records change from more than one desk — stay current.
   useLiveUpdates(slug, "hr", load);
 

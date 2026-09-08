@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import nextDynamic from "next/dynamic";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
@@ -27,6 +27,7 @@ import { useAnalyticsLevel } from "@/components/studio2/analyticsLevel";
 import { StatusPill } from "@/components/studio2/StatusPill";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { salesDict, liveColumnLabel } from "@/shared/studio/sales";
+import { useReload } from "@/components/studio2/useReload";
 
 // Sales: clients and the tickets raised against them. Read access shows
 // everything; the Manage grant is what reveals the create/edit controls — and
@@ -114,7 +115,7 @@ export default function StudioSales({ slug, view = "crm-sales" }) {
     if (!res.ok) { setError(tr.noAccessTo(tr.salesDepartment)); return; }
     setData(await res.json());
   }, [slug, tr]);
-  useEffect(() => { load(); }, [load]);
+  useReload(load);
 
   // A colleague raised or moved a ticket - reflect it without a refresh.
   //

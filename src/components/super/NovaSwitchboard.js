@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { Card, CardHead, CardBody, Badge } from "@/app/super/_components/ui";
 import { capabilitiesByDepartment, capabilityEnabled } from "@/lib/nova/capabilities";
+import { useReload } from "@/components/studio2/useReload";
 
 // The switchboard reads the STRUCTURE from the shared registry (client-safe) and
 // only the stored on/off overrides from the server, so the console and Nova's
@@ -20,7 +21,7 @@ export default function NovaSwitchboard() {
     if (!res.ok) { setError("Couldn't load the switchboard."); setConfig({ enabled: {} }); return; }
     setConfig((await res.json()).config || { enabled: {} });
   }, []);
-  useEffect(() => { load(); }, [load]);
+  useReload(load);
 
   async function toggle(cap, on) {
     if (!config || busy) return;

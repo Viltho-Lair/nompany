@@ -14,6 +14,7 @@ import SelectMenu from "@/components/fields/SelectMenu";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
 import { SHEET_COLUMNS, SHEET_OWNERS, rowStatus } from "@/modules/inventory/sheetColumns";
+import { useReload } from "@/components/studio2/useReload";
 
 // THE QUOTATION VIEWER, WITHOUT PRICES — in two perspectives.
 //
@@ -88,7 +89,7 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
     setData(await res.json());
   }, [slug]);
 
-  useEffect(() => { load(); }, [load]);
+  useReload(load);
   useLiveUpdates(slug, "projects", load);
   // The other department writing its column is the whole point of a shared row,
   // so this screen picks that up without a reload.

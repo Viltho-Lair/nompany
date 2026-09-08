@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { RecordSkeleton } from "@/components/studio2/RecordSkeleton";
 import { miscDict } from "@/shared/studio/misc";
@@ -14,6 +14,7 @@ import { Money } from "@/components/Currency";
 import { canRequestRfqStatus } from "@/modules/sales/tickets";
 import { CHAIN_LOST_REASON } from "@/modules/sales/pipeline";
 import { rfqInfo } from "@/modules/sales/salesAnalytics";
+import { useReload } from "@/components/studio2/useReload";
 
 // ONE TICKET, on its own page — the layout in the brief: the ticket's own
 // information on the left with the client and the timeline down the right, and
@@ -71,7 +72,7 @@ export default function StudioTicketProfile({ slug, ticketId }) {
     setData(await res.json());
   }, [slug]);
 
-  useEffect(() => { load(); }, [load]);
+  useReload(load);
   useLiveUpdates(slug, "crm-sales", load);
   useLiveUpdates(slug, "engineering-docs", load);
   // An approver signing off is what turns "Send for Approval" into "Quotation

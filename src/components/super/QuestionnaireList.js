@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
+import { useReload } from "@/components/studio2/useReload";
 
 // The questionnaires home: everything authored in the console, newest first.
 //
@@ -91,7 +92,7 @@ export default function QuestionnaireList() {
     if (!res.ok) { setError("Couldn't load questionnaires."); setRows([]); return; }
     setRows((await res.json()).questionnaires || []);
   }, []);
-  useEffect(() => { load(); }, [load]);
+  useReload(load);
 
   useEffect(() => {
     if (!menuFor) return;

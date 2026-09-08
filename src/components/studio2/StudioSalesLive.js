@@ -10,6 +10,7 @@ import { Icon } from "@/components/studio2/icons";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { rfqInfo } from "@/modules/sales/salesAnalytics";
 import { fmtTime } from "@/lib/format";
+import { useReload } from "@/components/studio2/useReload";
 
 // How often the table pulls a fresh copy while someone is watching it. This
 // screen is the one people leave up on a wall, so unlike the rest of the studio
@@ -39,7 +40,7 @@ export default function StudioSalesLive({ studio }) {
     setLastFetched(new Date());
     setError("");
   }, [studio.slug]);
-  useEffect(() => { load(); }, [load]);
+  useReload(load);
   useLiveUpdates(studio.slug, "crm-sales", load);
   useLiveUpdates(studio.slug, "engineering-docs", load);
 

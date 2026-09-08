@@ -19,6 +19,7 @@ import { Dialog, stripeOn, stripeOff } from "@/components/studio2/ui";
 // by is the one this screen uses for labels and icons, rather than a second,
 // hand-kept copy that could drift from it.
 import { STAGE_REGISTRY } from "@/platform/engagement/registry";
+import { useReload } from "@/components/studio2/useReload";
 
 // The read layer's own minimum: below this a fetch that finished instantly
 // would still flash the skeleton on and off, which reads as a glitch rather
@@ -113,7 +114,7 @@ export default function StudioEngagements({ slug, canLock = false, canDelete = f
     setList(await res.json());
   }, [slug]);
 
-  useEffect(() => { loadList(); }, [loadList]);
+  useReload(loadList);
   // No "engagements" live channel of its own — the spine dual-writes on the
   // SAME create paths CRM & Sales, Engineering & Documents and Projects
   // already publish on (a ticket or a quotation from the first, an RFQ from

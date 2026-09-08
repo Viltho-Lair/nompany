@@ -34,6 +34,7 @@ import {
   fmtDate as slaDate,
 } from "@/modules/projects/sla";
 import { hoursBetween } from "@/modules/projects/projectSchedule";
+import { useReload } from "@/components/studio2/useReload";
 
 // Projects: delivery work opened from an approved quotation, the support
 // contracts that follow it, and the overtime logged against it. Progress is the
@@ -116,7 +117,7 @@ export default function StudioProjects({ slug, view = "projects" }) {
     if (!res.ok) { setError(tr.accessProjectsStudio); return; }
     setData(await res.json());
   }, [slug]);
-  useEffect(() => { load(); }, [load]);
+  useReload(load);
   // Project rows move from several desks at once — stay current.
   useLiveUpdates(slug, "projects", load);
   // A quotation being approved is what makes a new project openable — and a

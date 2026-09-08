@@ -9,6 +9,7 @@ import { panel, h2, sub, input, label, btn, btnGhost, Empty } from "@/components
 import SelectMenu from "@/components/fields/SelectMenu";
 import { Field } from "@/components/fields/Field";
 import { LEVEL_VERBS, SCOPES, levelsFor, levelOf, keysForLevel } from "@/platform/access";
+import { useReload } from "@/components/studio2/useReload";
 
 // THE ACCESS EDITOR.
 //
@@ -53,7 +54,7 @@ export default function StudioRoles({ slug }) {
     if (!res.ok) { setError(tr.couldnLoadRoles); return; }
     setData(await res.json());
   }, [slug]);
-  useEffect(() => { load(); }, [load]);
+  useReload(load);
   useEffect(() => {
     fetch(`/api/studios/${slug}/collaborators`, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))

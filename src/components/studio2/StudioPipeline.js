@@ -21,7 +21,7 @@
 // consequences — a close asks why — so it reads better as a deliberate choice
 // than as a gesture.
 "use client";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { salesDict } from "@/shared/studio/sales";
 import { statusLabel } from "@/shared/studio/statuses";
@@ -31,6 +31,7 @@ import { panel, h2, sub, btn, btnGhost, microLabel, Empty, Dialog, StatTile, mon
 import { Field } from "@/components/fields/Field";
 import { StatusPill } from "@/components/studio2/StatusPill";
 import { BOARD_COLUMNS, CLOSED_STAGES, stageDef, stageProblem } from "@/modules/sales/pipeline";
+import { useReload } from "@/components/studio2/useReload";
 
 // A deal that has sat in one stage this long is the thing the board exists to
 // surface. Named rather than inlined because it is a judgement about sales, not
@@ -66,7 +67,7 @@ export default function StudioPipeline({ slug }) {
     setData(body);
   }, [slug]);
 
-  useEffect(() => { load(); }, [load]);
+  useReload(load);
   // THE BOARD OWNS NO COLLECTION — a deal on it is a `salesTicket`, and those
   // live under Tickets. So the key to watch is where the rows are WRITTEN, not
   // the section this screen is in: `crm-sales-pipeline` would never fire, and

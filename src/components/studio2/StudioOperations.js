@@ -19,6 +19,7 @@ import {
 } from "@/modules/operations/operationsCalendar";
 import { loadGoogleMaps, defaultMapOptions, NOT_CONFIGURED } from "@/lib/googleMaps";
 import { StatusPill } from "@/components/studio2/StatusPill";
+import { useReload } from "@/components/studio2/useReload";
 
 const panel = "rounded-geex border border-slate-200/70 bg-[var(--geex-surface)] p-6 dark:border-white/10";
 const h2 = "font-display text-lg font-800 text-slate-900 dark:text-white";
@@ -94,7 +95,7 @@ export default function StudioOperations({ slug, view = "field-service" }) {
     if (!res.ok) { setError(tr.accessOperationsStudio); return; }
     setData(await res.json());
   }, [slug, endpoint]);
-  useEffect(() => { load(); }, [load]);
+  useReload(load);
   // Shifts and permits change from more than one desk — stay current.
   useLiveUpdates(slug, "field-service", load);
 

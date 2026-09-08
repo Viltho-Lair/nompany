@@ -13,6 +13,7 @@ import StudioDate from "@/components/fields/StudioDate";
 import { StatusPill } from "@/components/studio2/StatusPill";
 import { btnRow, btnRowPrimary } from "@/components/studio2/ui";
 import SelectMenu from "@/components/fields/SelectMenu";
+import { useReload } from "@/components/studio2/useReload";
 
 const panel = "rounded-geex border border-slate-200/70 bg-[var(--geex-surface)] p-6 dark:border-white/10";
 const h2 = "font-display text-lg font-800 text-slate-900 dark:text-white";
@@ -51,7 +52,7 @@ export default function StudioTasks({ slug, view = "tasks" }) {
     if (!res.ok) { setError(tr.accessTasksStudio); return; }
     setData(await res.json());
   }, [slug]);
-  useEffect(() => { load(); }, [load]);
+  useReload(load);
   // Someone else moved a task on this board — pick it up without a refresh.
   useLiveUpdates(slug, "tasks", load);
 
