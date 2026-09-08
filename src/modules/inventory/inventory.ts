@@ -23,6 +23,7 @@ import {
 } from "./adjustmentApproval";
 import type { ResolvedPlan } from "@/platform/approval/resolve";
 import { seriesSetting } from "@/modules/administration/numbering";
+import { unitsFor } from "@/modules/administration/units";
 // PROCUREMENT DECIDES WHO MAY BE BOUGHT FROM, and this is the one place
 // Inventory asks. Pure, no store, so the check below adds no round trip.
 import { supplierQualification } from "@/modules/procurement/supplierModel";
@@ -115,7 +116,9 @@ const Vendors = repo<Vendor>(VENDORS);
 
 export const ORDER_STATUSES = ["Draft", "Ordered", "Partly received", "Received", "Cancelled"];
 export const DELIVERY_STATUSES = ["Draft", "Issued", "Cancelled"];
-export const UNITS = ["pcs", "box", "m", "m²", "kg", "L", "set", "roll"];
+// WHAT A STUDIO COUNTS IN is `modules/administration/units` now, because it
+// was eight strings here and a merchant selling cement in bags got "pcs".
+// The defaults still ship with the product; a studio adds to them.
 export const MOVEMENT_KINDS = ["in", "out", "adjust"];
 
 const str = (v: unknown, max = 300) => String(v ?? "").trim().slice(0, max);
@@ -453,6 +456,7 @@ export async function createItem(ctx: InventoryContext, body: Record<string, unk
   const customsCharges = charge(body?.customsCharges);
   if (foreign && (shippingCharges === "" || customsCharges === "")) return { error: "charges" };
 
+  const units = unitsFor(studio.units);
   const rows = await Items.find({ studio, section: itemsSection });
   const sku = str(body?.sku, 40).toUpperCase() || nextSku(rows);
   if (rows.some((i) => i.sku.toUpperCase() === sku)) return { error: "duplicate-sku" };
@@ -462,7 +466,9 @@ export async function createItem(ctx: InventoryContext, body: Record<string, unk
     // The vendor's own part number, which is what a purchase order quotes and
     // what somebody searches for when the name is ambiguous.
     modelNumber: str(body?.modelNumber, 80),
-    unit: UNITS.includes(String(body?.unit)) ? String(body?.unit) : UNITS[0],
+    // COERCED RATHER THAN REFUSED, as it always was — but to a list the
+    // studio can extend rather than to a fixed eight.
+    unit: units.includes(String(body?.unit)) ? String(body?.unit) : units[0],
     vendorId,
     // Picked from the vendor's own list of what it supplies; the estimate comes
     // with it rather than being typed again per item.
@@ -519,7 +525,7 @@ export async function editItem(ctx: InventoryContext, id: string, body: Record<s
     }
     patch.vendorId = vendorId;
   }
-  if (body?.unit !== undefined && UNITS.includes(String(body.unit))) patch.unit = String(body.unit);
+  if (body?.unit !== undefined && unitsFor(studio.units).includes(String(body.unit))) patch.unit = String(body.unit);
   if (body?.modelNumber !== undefined) patch.modelNumber = str(body.modelNumber, 80);
   if (body?.itemType !== undefined) patch.itemType = str(body.itemType, 80);
   if (body?.deliveryWeeks !== undefined) patch.deliveryWeeks = weeks(body.deliveryWeeks);

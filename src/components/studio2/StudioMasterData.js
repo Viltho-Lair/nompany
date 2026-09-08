@@ -11,6 +11,12 @@
 // home at all — nineteen call sites minted a reference from a hard-coded
 // literal and a studio whose invoices have always been "SI" got "INV".
 //
+// THE FOURTH IS UNITS, and it is the same defect one register along: `UNITS`
+// was eight strings in Inventory and `createItem` silently replaced anything
+// else with the first of them, so a merchant selling cement in bags got "pcs".
+// Both tabs read and write the STUDIO record, which is why one fetch serves
+// them — see loadSettings.
+//
 // STILL NOT A HUB. The rest either live in Studio settings already — moving a
 // working screen is a visibility decision each time — or have no records yet,
 // and a tab promising an empty registry reads as a finished feature.
@@ -22,7 +28,9 @@ import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import LocationsPanel from "@/components/studio2/LocationsPanel";
 import DepartmentsPanel from "@/components/studio2/DepartmentsPanel";
 import NumberingPanel from "@/components/studio2/NumberingPanel";
+import UnitsPanel from "@/components/studio2/UnitsPanel";
 import { numberingDict } from "@/shared/studio/numbering";
+import { unitsDict } from "@/shared/studio/units";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { h2, sub } from "@/components/studio2/ui";
 import { useReload } from "@/components/studio2/useReload";
@@ -39,6 +47,7 @@ export default function StudioMasterData({ slug }) {
   // refused by the settings route rather than by the master-data endpoint the
   // other two tabs use — the same split Locations already has a note about.
   const [numbering, setNumbering] = useState(null);
+  const [units, setUnits] = useState(null);
   // The departments register is its own read, on its own route, because it is
   // its own collection — the Operations payload assembles locations and knows
   // nothing about the org chart.
@@ -57,28 +66,37 @@ export default function StudioMasterData({ slug }) {
     setData(out);
   }, [slug]);
 
-  const loadNumbering = useCallback(async () => {
+  // ONE FETCH FOR BOTH STUDIO-RECORD TABS. Numbering and units are fields of
+  // the same record behind the same right, so two calls would be two answers
+  // to one question and one more round trip on every open of this screen.
+  const loadSettings = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/settings`, { cache: "no-store" });
-    if (!res.ok) return;                       // the tab simply does not render
+    if (!res.ok) return;                       // the tabs simply do not render
     const body = await res.json();
-    // ON `studio`, not at the top level: `numbering` is a field of the studio
-    // record, so it rides in `clean(studio)` beside `currency` and the approval
-    // chains rather than being lifted out beside `canManage`.
-    setNumbering({ rows: body.studio?.numbering || [], canManage: Boolean(body.canManage) });
+    // ON `studio`, not at the top level: both are fields of the studio record,
+    // so they ride in `clean(studio)` beside `currency` and the approval chains
+    // rather than being lifted out beside `canManage`.
+    const canManage = Boolean(body.canManage);
+    setNumbering({ rows: body.studio?.numbering || [], canManage });
+    setUnits({ rows: body.studio?.units || [], canManage });
   }, [slug]);
 
-  const saveNumbering = useCallback(async (patch) => {
+  // ONE SAVER FOR BOTH, for the reason one loader serves both: the patch names
+  // its own field, and a second copy of this would be free to handle the
+  // server's refusal differently from the first.
+  const saveSettings = useCallback(async (patch) => {
     const res = await fetch(`/api/studios/${slug}/settings`, {
       method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch),
     });
     const body = await res.json().catch(() => ({}));
     // THE SERVER'S REASON, VERBATIM. `numberingProblems` names which series and
-    // what is wrong with it; replacing that with "couldn't save" here would
-    // throw away the only thing that tells somebody what to change.
+    // what is wrong with it, and `unitProblems` names which unit; replacing
+    // either with "couldn't save" here would throw away the only thing that
+    // tells somebody what to change.
     if (!res.ok) return { error: body.error || "failed", detail: body.detail };
-    await loadNumbering();
+    await loadSettings();
     return {};
-  }, [slug, loadNumbering]);
+  }, [slug, loadSettings]);
 
   const loadDepartments = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/administration/departments`, { cache: "no-store" });
@@ -88,8 +106,8 @@ export default function StudioMasterData({ slug }) {
   }, [slug]);
 
   const loadAll = useCallback(async () => {
-    await Promise.all([load(), loadDepartments(), loadNumbering()]);
-  }, [load, loadDepartments]);
+    await Promise.all([load(), loadDepartments(), loadSettings()]);
+  }, [load, loadDepartments, loadSettings]);
 
   useReload(loadAll);
   // Both tabs are Master data's own rows — `locations` and `departments` under
@@ -154,7 +172,7 @@ export default function StudioMasterData({ slug }) {
           second register. Both tabs answer to administration.master, so there
           is no per-tab gate — what differs is the CRUD ladder inside each. */}
       <div role="tablist" aria-label={tr.masterData} className="flex gap-2 border-b border-slate-200 dark:border-white/10">
-        {[["locations", tr.locationsTab], ["departments", tr.departments], ["numbering", numberingDict(locale).tab]].map(([key, label]) => (
+        {[["locations", tr.locationsTab], ["departments", tr.departments], ["numbering", numberingDict(locale).tab], ["units", unitsDict(locale).tab]].map(([key, label]) => (
           <button
             key={key}
             role="tab"
@@ -222,7 +240,21 @@ export default function StudioMasterData({ slug }) {
               rows={numbering.rows}
               canManage={numbering.canManage}
               locale={locale}
-              onSave={saveNumbering}
+              onSave={saveSettings}
+            />
+          )}
+        </>
+      ) : tab === "units" ? (
+        <>
+          <div>
+            <h2 className={h2}>{unitsDict(locale).tab}</h2>
+          </div>
+          {units && (
+            <UnitsPanel
+              rows={units.rows}
+              canManage={units.canManage}
+              locale={locale}
+              onSave={saveSettings}
             />
           )}
         </>

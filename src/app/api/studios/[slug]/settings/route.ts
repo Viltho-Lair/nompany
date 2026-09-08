@@ -12,6 +12,7 @@ import { ALL_PERMISSIONS } from "@/platform/access/catalogue";
 import { chainProblems, type ApprovalChain } from "@/platform/approval/chains";
 import { approvalChainOverrides, approvalChainsFor } from "@/platform/approval/store";
 import { numberingProblems, cleanNumbering, numberingView } from "@/modules/administration/numbering";
+import { unitProblems, cleanUnits, unitsView } from "@/modules/administration/units";
 import { isValuationMethod } from "@/modules/inventory/valuation";
 
 export const runtime = "nodejs";
@@ -50,6 +51,11 @@ const FIELDS = [
   // reason: a numbering policy is the company's, not a department's, and one
   // right over it beats fourteen modules each owning their own prefix.
   "numbering",
+  // WHAT THIS STUDIO COUNTS IN. Beside numbering because it is the same kind
+  // of thing — reference data every section reads and no section owns. It
+  // holds the studio's ADDITIONS only; the shipped units are never stored,
+  // so nothing an existing item is measured in can be written away.
+  "units",
   // HOW STOCK IS VALUED — FIFO or weighted average. An accounting policy, so it
   // sits with the other company-wide ones rather than in Inventory's settings:
   // the number it produces lands on a balance sheet, and whoever signs that is
@@ -154,6 +160,9 @@ const clean = (studio: Record<string, unknown>) => ({
   // studio's own choice rather than presenting shipped defaults as though
   // somebody had set them.
   numbering: numberingView((studio as { numbering?: unknown }).numbering),
+  // EVERY UNIT IN FORCE, saying which are shipped defaults — a screen that
+  // cannot tell those from the studio's own choices offers to remove both.
+  units: unitsView((studio as { units?: unknown }).units),
 });
 
 // Rates from the studio's own currency out to each favourite. Anything the
@@ -335,6 +344,16 @@ export async function PUT(request: Request, ctx: { params: Promise<Record<string
       const problems = numberingProblems(body[key]);
       if (problems.length) return Response.json({ error: "refused", detail: problems.join("; ") }, { status: 400 });
       patch[key] = cleanNumbering(body[key]);
+      continue;
+    }
+    // REFUSED ON WRITE with the reasons named, the way numbering is: a comma in
+    // a unit breaks a CSV export of the item list, and two spellings of one unit
+    // divide every grouping in half. The studio hears about its own edit while
+    // it is still their edit.
+    if (key === "units") {
+      const problems = unitProblems(body[key]);
+      if (problems.length) return Response.json({ error: "refused", detail: problems.join("; ") }, { status: 400 });
+      patch[key] = cleanUnits(body[key]);
       continue;
     }
     patch[key] = key === "workingHours" ? cleanHours(body[key])

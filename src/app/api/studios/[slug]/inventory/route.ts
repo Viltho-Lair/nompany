@@ -1,8 +1,9 @@
 import { route } from "@/platform/http/route";
 import {
   inventoryContext, listVendors, listItems, listMovements, listOrders, listDeliveries,
-  openProjects, stockValue, listProjectSheets, ORDER_STATUSES, DELIVERY_STATUSES, UNITS,
+  openProjects, stockValue, listProjectSheets, ORDER_STATUSES, DELIVERY_STATUSES,
 } from "@/modules/inventory/inventory";
+import { unitsFor } from "@/modules/administration/units";
 import { listShipments, listAirlines } from "@/modules/inventory/awbTracking";
 import { AWB_STATUS } from "@/modules/inventory/awbStatus";
 
@@ -51,7 +52,11 @@ export const GET = route(
       inTransit: shipments.filter((s) => !s.delivered).length,
     },
     vocabulary: {
-      orderStatuses: ORDER_STATUSES, deliveryStatuses: DELIVERY_STATUSES, units: UNITS,
+      // THE STUDIO'S OWN UNITS, not a fixed eight — the form offers exactly
+      // what `createItem` will accept, which is the whole point of resolving
+      // them in one pure place.
+      orderStatuses: ORDER_STATUSES, deliveryStatuses: DELIVERY_STATUSES,
+      units: unitsFor(g.studio.units),
       awbStatuses: AWB_STATUS,
       // The studio's own service actions, so the item form can offer a scope
       // checkbox per action rather than the two that used to be hardcoded.
