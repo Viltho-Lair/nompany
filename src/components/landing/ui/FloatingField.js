@@ -1,12 +1,23 @@
 "use client";
 import { useId, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
+import { SelectMenu } from "@/components/fields/SelectMenu";
 import { EASE_OUT_EXPO, SPRING_SNAPPY } from "@/components/landing/lib/motion";
-// `options` turns this into a SELECT, and it exists so a dropdown is not a
-// second control style sitting beside the text fields. Every input on this form
-// goes through this component precisely so they line up and share one focus
-// treatment; a bare <select>, or the row of pills that used to be here, is a
-// control the eye has to learn separately on a form with four other fields.
+// `options` turns this into a dropdown, and it exists so one is not a second
+// control style sitting beside the text fields. Every input on this form goes
+// through this component precisely so they line up and share one focus
+// treatment; a bare control, or the row of pills that used to be here, is
+// something the eye has to learn separately on a form with four other fields.
+//
+// IT DRAWS `SelectMenu`, NEVER A NATIVE `<select>`, and this shipped wrong once.
+// A native one renders its popup with the PLATFORM's colours while `<option>`
+// inherits the theme's text colour — near-white ink painted onto the white popup
+// the browser still believes it should draw, so the list is a blank rectangle in
+// dark mode. Nothing catches it: not a compiler, not a render test, not the
+// page in a light theme. `testNoNativeSelectSurvivesInSource` greps for it
+// because grep is the only thing that can, and it blocks `npm test` for the
+// whole repository when it fires — which it did, for every session, until this
+// was changed back.
 export function FloatingField({ label, type = "text", value, onChange, status = "idle", error, required, multiline, autoComplete, trailing = null, options = null, }) {
     const id = useId();
     const [focused, setFocused] = useState(false);
@@ -33,22 +44,21 @@ export function FloatingField({ label, type = "text", value, onChange, status = 
                 ? "border-iris/70"
                 : "border-line hover:border-line/80"}`}>
         {options ? (
-          <select {...shared} className={`${shared.className} appearance-none cursor-pointer`}>
-            {options.map((o) => (
-              <option key={o.value} value={o.value} className="bg-ink text-fg">
-                {o.label}
-              </option>
-            ))}
-          </select>
+          // `onChange` takes the VALUE here, not an event — SelectMenu calls it
+          // with the chosen row's value, where the native control handed back a
+          // change event. The shared handler's `e.target.value` unwrapping is
+          // therefore deliberately bypassed rather than reused.
+          <SelectMenu
+            id={id}
+            value={value}
+            onChange={onChange}
+            options={options}
+            required={required}
+            invalid={status === "error"}
+            aria-describedby={error ? `${id}-error` : undefined}
+            className={`${shared.className} flex items-center text-start`}
+          />
         ) : multiline ? (<textarea rows={4} {...shared}/>) : (<input type={type} {...shared}/>)}
-
-        {/* The chevron a native select loses to `appearance-none`. Pointer
-            events off so the click still reaches the select underneath. */}
-        {options && (
-          <svg aria-hidden className="pointer-events-none absolute top-1/2 end-4 h-4 w-4 -translate-y-1/2 text-fg-dim" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M6 9l6 6 6-6" />
-          </svg>
-        )}
 
         {/* Floating label */}
         <motion.label htmlFor={id} className="pointer-events-none absolute start-4 origin-left text-fg-muted rtl:origin-right" animate={{
