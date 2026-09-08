@@ -840,6 +840,68 @@ export const BUILTIN_TYPES = [
     ],
     version: 1,
   },
+  {
+    // IN REVIEW GOES BACK TO DRAFT, because a design returned with comments is
+    // the normal case and not an exception. RELEASED does not: past that point
+    // it is superseded by a new revision, the controlled-document rule the
+    // register beside this one already follows.
+    //
+    // PARTS ARE ONE LONG TEXT FIELD AND THAT IS THE TRUTH. A real EBOM is a
+    // line table against Registered Items that explodes into demand; the
+    // engine has no line-table field kind, so this records what an engineer
+    // typed and nothing consumes it. Said here rather than implied away by a
+    // field that looks structured and is not — the same note Manufacturing's
+    // BOM carries, for the same reason.
+    key: "ebom",
+    label: "Engineering BOM and specs",
+    parentSectionKey: "engineering-docs",
+    fields: [
+      { key: "product", label: "Product or assembly", kind: "text", required: true },
+      { key: "revision", label: "Revision", kind: "text" },
+      { key: "discipline", label: "Discipline", kind: "select", options: ["Mechanical", "Electrical", "Civil", "Structural", "Instrumentation", "Software", "Other"] },
+      { key: "parts", label: "Parts and quantities", kind: "longtext", required: true },
+      { key: "specification", label: "Specification", kind: "longtext" },
+      { key: "approvedBy", label: "Approved by", kind: "text" },
+    ],
+    columns: ["product", "revision", "discipline"],
+    statuses: ["Draft", "In review", "Released", "Superseded"],
+    transitions: [
+      { from: "Draft", to: "In review" },
+      { from: "In review", to: "Released" },
+      { from: "In review", to: "Draft" },
+      { from: "Released", to: "Superseded" },
+    ],
+    version: 1,
+  },
+  {
+    // TWO STATUSES, AND THAT IS THE WHOLE LADDER. A library entry is a
+    // reference the company keeps, not a document it is producing — there is
+    // no draft and no approval, because nobody approves a copy of BS 8110.
+    // What there IS is withdrawal: a standard gets superseded, and an
+    // engineer working from the old edition is the failure this records.
+    //
+    // IT HOLDS NO FILE. Attachments are Phase 3's and the controlled document
+    // register beside this one is where a file with revisions belongs; this
+    // is the CATALOGUE of what the company owns and where, which is the half
+    // nothing recorded at all.
+    key: "techlib",
+    label: "Technical library",
+    parentSectionKey: "engineering-docs",
+    fields: [
+      { key: "title", label: "Title", kind: "text", required: true },
+      { key: "kind", label: "Kind", kind: "select", options: ["Standard", "Datasheet", "Catalogue", "Manual", "Calculation", "Reference drawing"] },
+      { key: "issuer", label: "Issued by", kind: "text" },
+      { key: "edition", label: "Edition or year", kind: "text" },
+      { key: "reference", label: "Reference number", kind: "text" },
+      { key: "notes", label: "Notes", kind: "longtext" },
+    ],
+    columns: ["title", "kind", "edition"],
+    statuses: ["Current", "Withdrawn"],
+    transitions: [
+      { from: "Current", to: "Withdrawn" },
+    ],
+    version: 1,
+  },
 ] as const;
 
 const Types = repo<RecordType>("recordTypes");

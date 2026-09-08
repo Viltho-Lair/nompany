@@ -345,10 +345,10 @@ report also render now**, where before they uploaded, stored, and appeared only 
 names inside the edit dialog — invisible to every reader of the report afterwards,
 which is its only audience.
 
-#### §4 Engineering & Documents {M} `engineering-docs` 🟡 7 / 9
+#### §4 Engineering & Documents {M} `engineering-docs` ✅ 9 / 9
 Document register ✅ · RFQ ✅ · Live view ✅ · Settings ✅ · Transmittals ✅ · RFI
-register with ball-in-court ✅ · Submittal register ✅ · **EBOM & specs ⬜ · Technical
-library ⬜**
+register with ball-in-court ✅ · Submittal register ✅ · EBOM & specs ✅ · Technical
+library ✅
 
 **ALL THREE ARE ENGINE TYPES, NOT HAND-BUILT SCREENS**, which is what P4b was for.
 Transmittals shipped with the engine itself (08/09/2026) and RFIs and submittals are
@@ -358,10 +358,21 @@ around the first type: an RFI carries a select whose value is refused unless the
 offers it, and a submittal's ladder branches three ways out of one status and loops back
 on itself.
 
-**Nobody but the owner and Admin can open them yet.** No starter role and no archetype
-holds an `engine.*` key, and no screen can grant one — `StudioRoles` draws its grid from
-`AREAS`, which by construction holds no engine key. That is phase 3's type management,
-and it applies to all three.
+**THAT IS NO LONGER TRUE, 08/09/2026.** This said *"nobody but the owner and Admin can
+open them yet — no archetype holds an `engine.*` key and no screen can grant one"*. Both
+halves are fixed: the roles screen offers a studio's own record types (`grantableTypeAreas`)
+and eight of the eleven archetypes name the SECTIONS whose registers they own, so a seeded
+departmental role arrives holding them. See §10's note for the detail.
+
+**EBOM and the technical library landed 08/09/2026**, both engine types. `ebom` is its own
+key rather than a reuse of Manufacturing's `bom`: an engineering BOM and a manufacturing
+one are different documents at different stages — what the design says against what the
+shop builds — and collapsing them would lose exactly the discrepancy an engineering change
+is raised about. **Parts are one long text field and that is stated rather than implied
+away**: the engine has no line-table field kind, so nothing explodes an EBOM into demand.
+The library holds a CATALOGUE and no files — two statuses, Current and Withdrawn, because
+nobody approves a copy of BS 8110 but a superseded standard an engineer is still working
+from is exactly the failure worth recording.
 
 #### §5 Procurement & Subcontracting 🟡 8 / 8 (all built; five carry named gaps)
 Suppliers ✅ · Purchase requisitions ✅ · Supplier RFQ & quote comparison 🟡 (an award
