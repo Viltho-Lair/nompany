@@ -101,6 +101,9 @@ export default function StudioSuppliers({ slug }) {
   const [busy, setBusy] = useState(false);
   const [assessing, setAssessing] = useState(null);
   const [documenting, setDocumenting] = useState(null);
+  // WHICH ROW IS UPLOADING, and null rather than -1 or false: "no row is
+  // uploading" and "row 0 is uploading" are different facts, and 0 is falsy.
+  const [uploadingDoc, setUploadingDoc] = useState(null);
   const [scoring, setScoring] = useState(null);
   const [editing, setEditing] = useState(null);
   const [importing, setImporting] = useState(false);
@@ -439,6 +442,52 @@ export default function StudioSuppliers({ slug }) {
                   <Field label={tr.docReference} value={d.reference} onChange={set("reference")} />
                   <Field type="date" label={tr.docIssued} value={d.issuedAt} onChange={set("issuedAt")} />
                   <Field type="date" label={tr.docExpires} value={d.expiresAt} onChange={set("expiresAt")} />
+                  {/* THE FILE ITSELF, WHICH `mediaId` HAS BEEN WAITING FOR. The
+                      field was stored from the day this register shipped and
+                      nothing ever wrote to it: a supplier's insurance
+                      certificate was a reference and two dates, and the
+                      certificate was somewhere else entirely. The route that
+                      does this already existed and the tender pack already used
+                      it — this screen simply never called it.
+
+                      PRIVATE, so the bytes are streamed by the media route after
+                      a membership check rather than the Blob address being
+                      handed out. A supplier's insurance is not public. */}
+                  <div className="sm:col-span-4">
+                    {d.mediaId ? (
+                      <div className="flex items-center gap-3 text-xs">
+                        <a href={d.mediaId} target="_blank" rel="noreferrer"
+                          className="truncate text-[var(--geex-brand)] underline">{tr.docFileAttached}</a>
+                        <button type="button" className={btnGhost}
+                          onClick={() => set("mediaId")("")}>{tr.docFileRemove}</button>
+                      </div>
+                    ) : (
+                      <label className={`${btnGhost} inline-block cursor-pointer`}>
+                        {uploadingDoc === i ? tr.docFileUploading : tr.docFileAdd}
+                        <input type="file" className="hidden" disabled={uploadingDoc !== null}
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            setUploadingDoc(i);
+                            setError("");
+                            const body = new FormData();
+                            body.append("file", file);
+                            body.append("slug", slug);
+                            const up = await fetch("/api/media?kind=private", { method: "POST", body });
+                            setUploadingDoc(null);
+                            // 413 IS ITS OWN SENTENCE. "Upload failed" for a file
+                            // that was simply too big sends somebody to look for a
+                            // problem that is not there.
+                            if (!up.ok) {
+                              setError(up.status === 413 ? tr.docFileTooLarge : tr.docFileFailed);
+                              return;
+                            }
+                            const stored = await up.json().catch(() => ({}));
+                            if (stored?.url) set("mediaId")(stored.url);
+                          }} />
+                      </label>
+                    )}
+                  </div>
                 </div>
               );
             })}

@@ -108,6 +108,12 @@ type Strings = {
   docReference: string;
   docIssued: string;
   docExpires: string;
+  docFileAdd: string;
+  docFileAttached: string;
+  docFileRemove: string;
+  docFileUploading: string;
+  docFileTooLarge: string;
+  docFileFailed: string;
   docNeverExpires: string;
   docExpiredOn: (when: string) => string;
   docDaysLeft: (n: number) => string;
@@ -435,6 +441,12 @@ const en: Strings = {
   docReference: "Reference",
   docIssued: "Issued",
   docExpires: "Expires",
+  docFileAdd: "Attach the file",
+  docFileAttached: "Open the file",
+  docFileRemove: "Remove",
+  docFileUploading: "Uploading…",
+  docFileTooLarge: "That file is too large to attach.",
+  docFileFailed: "The file could not be attached.",
   docNeverExpires: "No expiry",
   docExpiredOn: (when) => `Expired ${when}`,
   docDaysLeft: (n) => (n === 1 ? "1 day left" : `${n} days left`),
@@ -744,6 +756,12 @@ const ar: Strings = {
   docReference: "الرقم",
   docIssued: "صدر في",
   docExpires: "ينتهي في",
+  docFileAdd: "أرفق الملف",
+  docFileAttached: "افتح الملف",
+  docFileRemove: "إزالة",
+  docFileUploading: "جار الرفع…",
+  docFileTooLarge: "هذا الملف أكبر من أن يرفق.",
+  docFileFailed: "تعذر إرفاق الملف.",
   docNeverExpires: "لا ينتهي",
   docExpiredOn: (when) => `انتهى في ${when}`,
   docDaysLeft: (n) => (n === 1 ? "يوم واحد متبق" : `${n} يوما متبق`),

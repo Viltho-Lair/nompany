@@ -153,9 +153,12 @@ Stated in words, because a silent gap reads as a finished feature.
   *un-lapses* them — which is correct as a replace-the-list edit and is worth knowing.
 - **Nothing warns before a document expires.** `expiring` is computed and shown on the screen,
   and no notification is produced — somebody has to open the register to find out.
-- **`mediaId` is stored and nothing uploads to it.** The document is a reference and a pair of
-  dates; the file itself cannot yet be attached, though the private-media route that would do
-  it already exists and is used by the tender pack.
+- ~~**`mediaId` is stored and nothing uploads to it.**~~ **Fixed 08/09/2026.** The file
+  attaches now, through the same `/api/media?kind=private` route the tender pack uses, so the
+  bytes are streamed after a membership check rather than the Blob address being handed out —
+  a supplier's insurance certificate is not public. What remains: **one file per document**,
+  replaced rather than versioned, and removing it clears the reference without deleting the
+  blob.
 - **The 30-day window is not configurable.** It is a parameter rather than a constant, so the
   screen could widen it, and no setting exposes that.
 - **Only purchase orders are gated.** A subcontract can still be raised with a blocked supplier,

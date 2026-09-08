@@ -363,12 +363,23 @@ holds an `engine.*` key, and no screen can grant one — `StudioRoles` draws its
 `AREAS`, which by construction holds no engine key. That is phase 3's type management,
 and it applies to all three.
 
-#### §5 Procurement & Subcontracting 🟡 7 / 8
+#### §5 Procurement & Subcontracting 🟡 8 / 8 (all built; five carry named gaps)
 Suppliers ✅ · Purchase requisitions ✅ · Supplier RFQ & quote comparison 🟡 (an award
 creates no purchase order) · Purchase orders with expediting 🟡 (a chase sends nothing) ·
 Subcontracts, certificates, retention 🟡 (`Paid` is a status nothing sets; no bill is
 raised) · GRN with 3-way match 🟡 (exact, no tolerance; order level not line level) ·
-Dashboard 🟡 (one widget of four) · **Supplier qualification & rating ⬜**
+Dashboard 🟡 (one widget of four) · Supplier qualification & rating ✅
+
+**THAT LAST ONE WAS MARKED ⬜ AND WAS LARGELY BUILT** — the mirror of §1's sales orders,
+which was marked ✅ and half missing. `suppliers.ts` has carried the `qualify` verb,
+the assessment, the document register with expiry states and the scorecards, with a
+screen for all of it. Its one real gap was the file: `mediaId` was stored from the day
+the register shipped and **nothing ever wrote to it**, so a supplier's insurance
+certificate was a reference and two dates with the certificate somewhere else. Fixed
+08/09/2026 through the private-media route the tender pack already used.
+
+**A status file can be wrong in both directions, and this section had one of each.**
+Grep for the thing before trusting a tick or a blank.
 
 #### §6 Inventory & Warehouse ⬜ 3 / 8
 Stock ✅ · Items ✅ · Project sheets ✅ · **Locations & bins ⬜ · Batch & serial lifecycle
