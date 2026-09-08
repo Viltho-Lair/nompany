@@ -4498,7 +4498,10 @@ console.log("== public traffic ingest cannot grow without bound");
   const mine = await TRACK(beacon({ origin: "http://nompany.test" }, { type: "page_view", page: "home", vid: `v-${rand()}` }));
   ok("a same-origin beacon is accepted", (await mine.json()).ok === true);
   const today = new Date().toISOString().slice(0, 10);
-  ok("...and lands in the day's tally", Number((await hGetAll(STAT.day(today)))["pv:__total"]) >= 1);
+  // "www" said explicitly: the beacon above carries no `site`, and the point of
+  // this assertion is that an unmarked beacon is the WEBSITE's — which is what
+  // keeps every day of history under this key meaning what it always meant.
+  ok("...and lands in the day's tally", Number((await hGetAll(STAT.siteDay("www", today)))["pv:__total"]) >= 1);
 }
 
 // ============================================================================

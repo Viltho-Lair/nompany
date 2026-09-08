@@ -3,6 +3,7 @@
   "body": {
     "asOf": "<timestamp>",
     "range": "30d",
+    "source": "all",
     "days": 30,
     "points": [
       {
@@ -205,6 +206,8 @@
         "level": -1
       }
     ],
+    "cities": [],
+    "citiesCover": 0,
     "grid": [
       {
         "day": "<day-29>",

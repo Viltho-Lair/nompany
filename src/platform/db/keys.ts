@@ -294,7 +294,12 @@ export type StatSite = "www" | "erp";
 const statDay = (isoDate: string) => `${P}stat:day:${isoDate}`;
 
 export const STAT = {
-  day: statDay,
+  // `day` USED TO BE EXPORTED HERE and is not any more: once every reader took a
+  // site, nothing in src called it, and Gate A's "every key builder is read by
+  // something" caught it in the same run that recorded the new goldens. A
+  // builder nothing reads is invariant 16 one layer down — a key that can be
+  // built and never is. `statDay` survives as the private spelling of the
+  // website's historic key, which is what `siteDay` returns for "www".
   siteDay: (site: StatSite, isoDate: string) =>
     (site === "erp" ? `${P}stat:day:erp:${isoDate}` : statDay(isoDate)),
   // CITIES GET THEIR OWN KEY rather than more fields in the day hash. That hash
