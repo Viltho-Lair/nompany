@@ -9,6 +9,21 @@
 // the date: when the hash moves, the date becomes today; when it does not, the
 // date is left exactly where it was, however many times this runs.
 //
+// RUN THIS IN THE COMMIT THAT CHANGES THE PAGE, AND IN A TREE THAT HOLDS ONLY
+// THAT CHANGE. `--write` stamps TODAY on any path whose hash moved, which is
+// right when you are the one moving it and wrong in a shared checkout: a run
+// made while somebody else's uncommitted edits are in the tree records a hash
+// for content that never lands, so the next person sees the path go stale again
+// and the date has been inflated to a day nothing happened. That is exactly how
+// /terms and /privacy came to claim 08/09 when their sources last changed on
+// 04/09 — and how the hand-kept map before this claimed 12/08, nearly a month
+// stale, in the other direction.
+//
+// WHEN RECONCILING RATHER THAN AUTHORING, take the date from history instead:
+//   git log -1 --format=%ad --date=short -- <the files in SITEMAP_SOURCES>
+// and set it by hand. Stale-but-old stays the safe direction; a date that is
+// too FRESH is the one a crawler can disprove.
+//
 // THE DATE ONLY EVER MOVES FORWARD WHEN THE CONTENT DID, which is what makes it
 // a signal rather than noise. A `lastmod` a crawler catches being wrong is
 // discounted, and for an ordinary page it is the only general freshness signal
