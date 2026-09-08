@@ -1309,6 +1309,57 @@ export async function testAnEventReachesTheWatchersOfItsAncestors(t) {
   t.equal(JSON.stringify(watchKeysFor(null)), JSON.stringify([]), "...and so does a missing one");
 }
 
+// EVERY PATH THE CONSOLE BUILDS FROM `BASE` MUST BE A ROUTE THAT EXISTS.
+//
+// /super/dashboard was the template's dashboard index. It was deleted with the
+// other seven demo dashboards (ae32da5), and the two doors INTO the console
+// went on naming it: (full)/page.js redirects there when a session already
+// exists, and SignIn.js sends you there after a successful post. So signing in
+// landed on a 404, while every nav href, the sidebar logo and all twelve "Home"
+// breadcrumbs pointed correctly at /dashboard/analytics — the one path nobody
+// types. Nothing could report it: a `redirect()` to a dead path is legal
+// JavaScript, the console's .js files are exempt from tsc (`checkJs: false`),
+// and the deletion commit verified the NAV hrefs, which were never the broken
+// half.
+//
+// It checks the literals rather than the nav table for exactly that reason —
+// the table was right and the redirects were wrong. `${BASE}/...` is how this
+// console names its own pages, so every one of them is a claim that a route is
+// there. Route groups are stripped, because `(shell)` and `(full)` are chrome
+// and not address.
+export async function testEveryConsoleDestinationResolvesToARoute(t) {
+  const { readdirSync, readFileSync, statSync } = await import("node:fs");
+  const root = "src/app/super";
+
+  const walk = (dir) => readdirSync(dir).flatMap((name) => {
+    const full = `${dir}/${name}`;
+    return statSync(full).isDirectory() ? walk(full) : [full];
+  });
+  const files = walk(root);
+
+  // A page file's route is its path with the group segments removed.
+  const routes = new Set(
+    files
+      .filter((f) => /\/page\.(js|jsx|ts|tsx)$/.test(f))
+      .map((f) => f.replace(/^src\/app/, "").replace(/\/page\.\w+$/, "").replace(/\/\([^/]+\)/g, "")),
+  );
+
+  const wanted = new Set();
+  for (const f of files) {
+    for (const [, path] of readFileSync(f, "utf8").matchAll(/\$\{BASE\}([^`"']*)/g)) {
+      wanted.add(`/super${path}`);
+    }
+  }
+
+  t.equal(wanted.size > 0, true, "the console builds at least one path from BASE");
+  for (const path of [...wanted].sort()) {
+    t.equal(routes.has(path), true, `${path} resolves to a page`);
+  }
+
+  // The bug itself, named: this is where sign-in lands, and it must not 404.
+  t.equal(routes.has("/super/dashboard"), true, "the console has a landing point");
+}
+
 // ---- harness ----------------------------------------------------------------
 // Same non-throwing, accumulate-and-report shape as tests/suite.mjs's own
 // ok(): one bad assertion must not hide the rest, which matters more here than
@@ -1368,6 +1419,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       testEveryLiveWatchCanActuallyFire,
       testAnEventReachesTheWatchersOfItsAncestors,
       testCompoundRootsCoversEveryDashedRoot,
+      testEveryConsoleDestinationResolvesToARoute,
       testEveryModelTestIsActuallyRun,
     ];
     let totalFails = 0;
