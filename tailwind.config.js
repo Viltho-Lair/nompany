@@ -148,7 +148,11 @@ module.exports = {
         geex: "20px",
       },
       fontFamily: {
-        display: ["var(--font-display)", "Saira", "system-ui", "sans-serif"],
+        // "Saira" WAS A DEAD NAME HERE once the families were self-hosted:
+        // next/font generates a hashed family, so a literal fallback matches
+        // nothing and just lengthens every resolved chain. The variable is the
+        // only name that resolves.
+        display: ["var(--font-display)", "var(--f-saira)", "system-ui", "sans-serif"],
         body: ["var(--font-body)", "system-ui", "sans-serif"],
       },
       fontWeight: {

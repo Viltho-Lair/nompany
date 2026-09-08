@@ -1,4 +1,5 @@
 import "./globals.css";
+import { FONT_VARS } from "./fonts";
 import { cookies, headers } from "next/headers";
 import JsonLd from "@/components/JsonLd";
 import MuiProvider from "@/components/MuiProvider";
@@ -111,7 +112,9 @@ export default async function RootLayout({ children }) {
   // `.light`, so without it MUI components render unstyled until its provider
   // hydrates. "system" is the one case the server cannot decide, so it emits
   // neither and the script below settles it before paint.
-  const htmlClass = [isStudio && "studio-chrome", theme === "dark" && "dark", theme === "light" && "light"]
+  // THE FONT VARIABLES RIDE ON <html>, so every rule in globals.css can resolve
+  // them — including the studio shell's, which sits far below this element.
+  const htmlClass = [FONT_VARS, isStudio && "studio-chrome", theme === "dark" && "dark", theme === "light" && "light"]
     .filter(Boolean)
     .join(" ");
 

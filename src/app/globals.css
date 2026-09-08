@@ -1,4 +1,8 @@
-@import url("https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Saira:wght@400;500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Tajawal:wght@400;500;700;800&family=Sora:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap");
+/* The Google Fonts @import that stood here is gone: the seven families are
+   self-hosted through next/font now. See src/app/fonts.ts for why an @import
+   is the worst place to request a font from, and for what the variables below
+   resolve to. `Racked Brush` stays a local @font-face — it is not on Google
+   Fonts and is served from /public. */
 
 /* Self-hosted signature/brush font — used for the leadership message name. */
 @font-face {
@@ -32,14 +36,14 @@
 }
 
 :root {
-  --font-display: "Saira", system-ui, sans-serif;
-  --font-body: "IBM Plex Sans", system-ui, sans-serif;
+  --font-display: var(--f-saira), system-ui, sans-serif;
+  --font-body: var(--f-plex), system-ui, sans-serif;
   --font-signature: "Racked Brush", cursive;
 }
 
 [dir="rtl"] {
-  --font-display: "Tajawal", "IBM Plex Sans Arabic", system-ui, sans-serif;
-  --font-body: "IBM Plex Sans Arabic", "Tajawal", system-ui, sans-serif;
+  --font-display: var(--f-tajawal), var(--f-plex-ar), system-ui, sans-serif;
+  --font-body: var(--f-plex-ar), var(--f-tajawal), system-ui, sans-serif;
 }
 
 /* ------------------------------------------------------------------
@@ -113,8 +117,8 @@
 
 /* Scoped so the rest of the app keeps Saira/IBM Plex and its own surfaces. */
 .landing-page {
-  --font-display: "Sora", "Saira", system-ui, sans-serif;
-  font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--f-sora), var(--f-saira), system-ui, sans-serif;
+  font-family: var(--f-inter), ui-sans-serif, system-ui, sans-serif;
   background-color: var(--color-ink);
   color: var(--color-fg);
 
@@ -144,8 +148,8 @@
    sit on the element or on an ancestor. */
 .landing-page[dir="rtl"],
 [dir="rtl"] .landing-page {
-  --font-display: "Tajawal", "IBM Plex Sans Arabic", system-ui, sans-serif;
-  font-family: "IBM Plex Sans Arabic", "Tajawal", ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--f-tajawal), var(--f-plex-ar), system-ui, sans-serif;
+  font-family: var(--f-plex-ar), var(--f-tajawal), ui-sans-serif, system-ui, sans-serif;
 }
 
 .landing-page ::selection {
@@ -475,7 +479,7 @@ html.studio-chrome.dark {
 html.studio-chrome,
 html.studio-chrome body,
 html.studio-chrome .font-display {
-  font-family: "Cabin", system-ui, sans-serif;
+  font-family: var(--f-cabin), system-ui, sans-serif;
 }
 /* Arabic (RTL) Studio uses the display family per design spec.
 
@@ -496,7 +500,7 @@ html.studio-chrome[dir="rtl"] body,
 html.studio-chrome[dir="rtl"] .font-display,
 html.studio-chrome [dir="rtl"],
 html.studio-chrome [dir="rtl"] .font-display {
-  font-family: var(--font-display), Saira, system-ui, sans-serif;
+  font-family: var(--font-display), var(--f-saira), system-ui, sans-serif;
 }
 
 /* Studio type scale — the ONLY three font sizes allowed in the Studio
@@ -766,7 +770,7 @@ html.studio-chrome ::-webkit-scrollbar-corner {
     width: var(--doc-width, 210mm);
     max-width: 100%;
     padding: var(--doc-top, 28mm) var(--doc-right, 18mm) var(--doc-bottom, 22mm) var(--doc-left, 18mm);
-    font-family: "IBM Plex Sans", "IBM Plex Sans Arabic", ui-sans-serif, system-ui, sans-serif;
+    font-family: var(--f-plex), var(--f-plex-ar), ui-sans-serif, system-ui, sans-serif;
   }
 
   /* THE RUNNING BANDS. A table header group and footer group are the only
