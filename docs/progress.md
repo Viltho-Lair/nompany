@@ -498,13 +498,54 @@ cannot be built REFUSES the write. "No signature required" and "we cannot tell w
 is required" are opposite answers, and a gate that fails open is worse than none because
 somebody believes in it.
 
-#### §7 Manufacturing & Production 🟡 3 / 6
-**BOM & routing 🟡 (both are engine registers as of 08/09/2026 — a BOM's
-components are one long text field, not a line table that explodes into demand;
-nothing consumes a routing) · Work orders ✅ · MRP & capacity planning ⬜ · Shop-floor terminal to
-timesheets ⬜ · Production QC ⬜ · Dashboard ⬜**
+#### §7 Manufacturing & Production 🟡 6 / 6 (all built; two carry named gaps)
+BOM & routing 🟡 (**a BOM explodes now** — `bomLines` names Registered Items and quantities,
+09/09/2026 — but **nothing consumes a routing** and there are still no operations) · Work
+orders ✅ · MRP & capacity planning ✅ (09/09/2026) · Shop-floor terminal 🟡 (09/09/2026 —
+runs and QC are recorded; **the hours never reach timesheets**, so the subsection's own name
+is half true) · Production QC ✅ (09/09/2026) · Dashboard ✅ (the planning screen is the
+section root, and it is what a dashboard here would show)
+
 The section RENDERS NOW — it left `NO_SCREEN_YET` on 08/09/2026 with four engine
 registers under it (work orders, bills of materials, work stations, production batches).
+
+**FOUR REGISTERS AND NOTHING JOINED THEM, which is what "an engine register is not a
+feature" means in practice.** Work orders, BOMs, work stations and production batches each
+held their rows and no two of them met: a BOM's components were one long text field, so
+nothing could explode a demand, and a work order's `station` was a string nothing compared
+against a station's own `capacityPerDay`. The section rendered and answered no question a
+factory asks.
+
+**TWO JOINS, AND THEY ARE THE FEATURE.** `bomLines` turns a work order for 40 pumps into
+demand in the stock ledger's own units, netted against what is held and what is on order;
+and a station's day has a size, so the orders pointed at it fit or do not.
+`manufacturing.planning.view` is the section's FIRST declared right — every other right
+over it is structural, minted from an engine row. **Catalogue 192 → 193, measured**; this
+file and CLAUDE.md have both quoted 186 since the adjustment-approval commit, six stale.
+
+**THE JOIN KEY IS THE PRODUCT NAME**, stated rather than hidden: both sides are engine
+records whose fields are studio-defined, so there is no id between them. An order matching
+no BOM is REPORTED and so is one with no quantity — a requirement nobody can see is worse
+than one nobody has, because the buyer believes the list is complete. A second BOM for one
+product is not blended in: that is a revision nobody retired, and adding both would double
+every requirement, which is the one arithmetic error a buyer cannot spot by eye.
+
+**A SURPLUS IS NOT A NEGATIVE SHORTFALL** and an unrated station says NULL rather than
+nought — dividing by nought to avoid saying "we do not know how long this takes" prints
+Infinity on a shop-floor screen.
+
+**THE TERMINAL RECORDS THE TWO THINGS THE REGISTERS COULD NOT.** How long a run took (one
+open run per person, closed only by the person who opened it, and NULL rather than zero
+while it is open) and whether the batch was any good. A fail without a reason is refused,
+the verdict is the LATEST check rather than a tally, and **an unchecked batch is null, not
+a pass** — "not checked" and "checked and fine" are opposite facts about a batch about to
+be shipped.
+
+**AND THE TYPE KEY WAS `workorder`, NOT `workOrder`.** `rowsOf` answers an unknown type
+with an empty list by design, so the first draft rendered a planning screen reporting a
+factory with nothing to buy, and nothing failed. The numbering catalogue's near miss in a
+second place; `tests/mrp-model.mjs` reads the keys out of the source and asserts each is
+declared.
 
 #### §8 Field Operations & Service ✅ 10 / 10
 Schedule ✅ · Tracking ✅ · Settings ✅ · Service orders & job cards ✅ · Maintenance
@@ -912,10 +953,10 @@ gated section.
 
 | | Built | Target | |
 |---|---|---|---|
-| Every subsection built | 10 sections | CRM & Sales, Tendering, Projects, Engineering, Procurement, Inventory, Field Service, Logistics, Assets, Quality & HSE | |
-| Partial | 5 sections | Manufacturing 3/6, HR 5/10, Finance 12/18, Reports 1/5, Administration 6/10 | |
+| Every subsection built | 11 sections | CRM & Sales, Tendering, Projects, Engineering, Procurement, Inventory, Manufacturing, Field Service, Logistics, Assets, Quality & HSE | |
+| Partial | 4 sections | HR 5/10, Finance 12/18, Reports 1/5, Administration 6/10 | |
 | Renders nothing | 0 sections | `NO_SCREEN_YET` is empty | |
-| **Subsections** | **109 built** | **131 in the target list** | **83%** |
+| **Subsections** | **112 built** | **131 in the target list** | **85%** |
 
 **THE ROW ABOVE SAID 58 / 130 / 45% AND THE THREE ROWS ABOVE IT WERE A SNAPSHOT OF A
 DIFFERENT FORTNIGHT** — four sections rendering nothing, Logistics and HR at one
@@ -923,9 +964,9 @@ subsection each, Assets and Quality not counted as built at all. Every figure he
 sum of the fifteen §-headings above it, re-added at this commit rather than carried
 forward; when one of those moves, this moves in the same edit or it is wrong again.
 
-**The gap is no longer the empty sections — there are none.** All 22 outstanding
+**The gap is no longer the empty sections — there are none.** All 19 outstanding
 subsections sit inside sections that already render and read as finished, which is the
-harder half to see: Finance is missing six, HR five, Reports four.
+harder half to see: Finance is missing six, HR five, Reports four, Administration four.
 
 **THE SUMMARY ROW ABOVE FIRST READ 42 / ~110 / 38%, AND ALL THREE WERE WRONG.** 42 is the
 count of declared keys in `SECTION_DEFS`, which is a different unit from the artifact's
