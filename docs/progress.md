@@ -390,7 +390,7 @@ that a count happened and what it found; the adjustment is Inventory's own write
 not wired to this) · **Locations & bins ⬜ · Batch & serial lifecycle ⬜ · Adjustment
 approval ⬜ · Valuation method ⬜ · Dashboard ⬜**
 
-#### §7 Manufacturing & Production 🟡 2 / 6
+#### §7 Manufacturing & Production 🟡 3 / 6
 **BOM & routing 🟡 (both are engine registers as of 08/09/2026 — a BOM's
 components are one long text field, not a line table that explodes into demand;
 nothing consumes a routing) · Work orders ✅ · MRP & capacity planning ⬜ · Shop-floor terminal to
@@ -398,7 +398,7 @@ timesheets ⬜ · Production QC ⬜ · Dashboard ⬜**
 The section RENDERS NOW — it left `NO_SCREEN_YET` on 08/09/2026 with four engine
 registers under it (work orders, bills of materials, work stations, production batches).
 
-#### §8 Field Operations & Service 🟡 7 / 10
+#### §8 Field Operations & Service 🟡 8 / 10
 Schedule ✅ · Tracking ✅ · Settings ✅ · Service orders & job cards ✅ · Maintenance
 contracts (AMC) ✅ · Preventive-maintenance plans 🟡 (the plan is a schedule; **nothing
 generates the visits**) · Installed base ✅ · **Dispatch board ⬜ · Mobile field view with
@@ -408,7 +408,7 @@ Four engine registers, 08/09/2026. The three left are the bespoke ones: a dispat
 and a mobile field view are both on the spec's own "never stretch the engine to cover
 this" list. See §10 for the caveat that applies to every engine register.
 
-#### §9 Logistics & Fleet 🟡 4 / 6
+#### §9 Logistics & Fleet 🟡 5 / 6
 Shipments (AWB) ✅ · Deliveries with POD 🟡 (register built; `receivedBy` is a typed name
 and **not a signature** — that needs the mobile field view) · Trips & routing 🟡 (trips
 recorded; **no routing**) · Fleet register & compliance 🟡 (the two expiry dates are
@@ -417,7 +417,7 @@ reads In service) · **Customs & freight, landed cost ⬜ · Dashboard ⬜**
 
 It was the thinnest built section in the product; three engine registers, 08/09/2026.
 
-#### §10 Assets & Equipment 🟡 2 / 4
+#### §10 Assets & Equipment 🟡 3 / 4
 Allocation to deals with internal hire rates 🟡 (the register holds `hireRate`; **nothing
 allocates or charges**) · **Utilisation & cost charged to deals ⬜** · Equipment
 maintenance ✅ · Calibration ✅
@@ -461,7 +461,27 @@ the department is created (the BOQ rate rule), so a studio seeded BEFORE this la
 the roles it has; `scripts/migrate/departmental-roles.mjs` is the only mover and it has
 still never been run.
 
-#### §11 Quality & HSE 🟡 6 / 8
+**EVERY ENGINE SECTION HAS A DASHBOARD, 08/09/2026 — one panel, not five.** Five of the
+seven sections carrying a "Dashboard ⬜" hold nothing but engine registers (Manufacturing,
+Assets, Quality & HSE, Field Operations, Logistics), so the generic section page now shows
+each register's status breakdown and what is past its date. `platform/engine/summary.ts`
+is pure and `tests/engine-summary.mjs` asserts the arithmetic; the route mints **no
+permission key** and could not sensibly hold one — every figure is derived from rows the
+reader can already open, so the totals move with the reader exactly as customer 360's do.
+
+**TWO RULES IN IT WERE GUESSES AND BOTH WERE WRONG ON THE FIRST REGISTER THEY MET.**
+"An ending is a status in the last third of the ladder" made `Closed` OPEN on the
+four-status permit register, so every closed permit would have been chased forever; an
+ending is now a status the type declares no move OUT of, which is real structure the
+register cannot work without. And "chase any past date field" reported every issued permit
+overdue on its `validFrom` — the day work was allowed to START. A deadline is matched by
+what a deadline is CALLED now, which degrades safely: a field it does not recognise is not
+chased, a gap somebody notices rather than an alarm they learn to ignore.
+
+**Verified in the sandbox, not just asserted**: three NCRs, two of them past their action
+date, rendering worst-first with the field's own label and the third correctly absent.
+
+#### §11 Quality & HSE 🟡 7 / 8
 ITPs ✅ · Inspection & test records ✅ · NCR / CAPA ✅ · Audits ✅ · HSE incidents 🟡
 (register built; **no LTIFR** — `daysLost` is stored and nothing computes a rate) ·
 Permits to work & toolbox talks ✅ · Certifications ✅ · **Dashboard ⬜**

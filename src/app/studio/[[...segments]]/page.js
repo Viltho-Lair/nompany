@@ -54,6 +54,9 @@ import { log } from "@/platform/http/observability";
 import { DocumentList, DocumentView, StudioPlanner, StudioPlannerList } from "@/components/studio2/HeavyScreens";
 
 const StudioDocs = nextDynamic(() => import("@/components/studio2/StudioDocs"));
+// The generic section dashboard's register panel — reached from five sections,
+// so it rides the same dynamic boundary the rest of them do.
+const StudioSectionSummary = nextDynamic(() => import("@/components/studio2/StudioSectionSummary"));
 const StudioSalesLive = nextDynamic(() => import("@/components/studio2/StudioSalesLive"));
 const StudioTechnicalLive = nextDynamic(() => import("@/components/studio2/StudioTechnicalLive"));
 const StudioPeople = nextDynamic(
@@ -809,6 +812,15 @@ function SectionDashboard({ section, studio, subsections = [], locale = "en" }) 
           ))}
         </div>
       )}
+
+      {/* AND WHAT IS IN THOSE REGISTERS. Five sections reach this dashboard and
+          hold nothing but engine registers — Manufacturing, Assets, Quality &
+          HSE, Field Operations, Logistics — so until now every one of them
+          rendered a heading and a row of links to counts nobody could see
+          without opening each in turn. The panel asks one route for whatever
+          the section holds and renders nothing at all when it holds none, so a
+          section without registers is unchanged. */}
+      <StudioSectionSummary slug={studio.slug} sectionKey={section.key} locale={locale} />
     </div>
   );
 }
