@@ -1,5 +1,7 @@
 import { locales } from "@/shared/i18n";
 import { urlFor, alternatesFor } from "@/lib/seo";
+import { listStudios } from "@/modules/main/studios";
+import { publicCompanies } from "@/shared/marketing/showcase";
 import lastmod from "./sitemap-lastmod.json";
 
 /* THE SITEMAP, AND ITS DATES ARE DERIVED NOW.
@@ -37,8 +39,16 @@ import lastmod from "./sitemap-lastmod.json";
 export const SITEMAP_PATHS = Object.keys(lastmod);
 
 export default async function sitemap() {
+  // AN EMPTY CUSTOMERS PAGE IS NOT ADVERTISED. It lists only studios that both
+  // consented in their own settings and were featured in /super, so until one
+  // does the page is a heading over an explanation — worth serving to somebody
+  // who arrives, and not worth submitting to a crawler as a page about
+  // customers. It appears here on its own the day the first company agrees.
+  const named = publicCompanies(await listStudios()).length > 0;
+  const paths = named ? SITEMAP_PATHS : SITEMAP_PATHS.filter((p) => p !== "/customers");
+
   const entries = [];
-  for (const path of SITEMAP_PATHS) {
+  for (const path of paths) {
     for (const locale of locales) {
       entries.push({
         url: urlFor(locale, path),

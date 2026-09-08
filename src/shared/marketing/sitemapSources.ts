@@ -44,6 +44,11 @@ export const SITEMAP_SOURCES: Record<string, string[]> = {
     "src/shared/marketing/contact.ts",
     "src/shared/marketing/enquiry.ts",
   ],
+  "/customers": [
+    "src/app/[locale]/customers/page.js",
+    "src/shared/marketing/customers.ts",
+    "src/shared/marketing/showcase.ts",
+  ],
   "/careers": ["src/app/[locale]/careers/page.js"],
   "/terms": ["src/app/[locale]/terms/page.js", "src/lib/legalTerms.ts"],
   "/privacy": ["src/app/[locale]/privacy/page.js", "src/lib/legalPrivacy.ts"],

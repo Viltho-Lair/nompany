@@ -105,6 +105,22 @@ export const PAGES: Record<string, Record<string, PageCopy> | undefined> = {
         "شركة صغيرة تبني نظام تخطيط موارد للشركات الصغيرة والمتوسطة في المنطقة — المبيعات والمناقصات والمشاريع والمشتريات والمخزون والموارد البشرية والمالية على نموذج بيانات واحد، بالعربية والإنجليزية.",
     },
   },
+  "/customers": {
+    en: {
+      title: "Companies running on nompany",
+      // NO NUMBER IN THIS DESCRIPTION, deliberately. "Trusted by N companies" is
+      // the first thing that would go here and the first thing that would become
+      // false: the page lists only those who gave permission, which is never the
+      // count of who uses the product.
+      description:
+        "The companies that asked to be named here. Every one turned the setting on itself, and none was added by us.",
+    },
+    ar: {
+      title: "شركات تعمل على نومباني",
+      description:
+        "الشركات التي طلبت أن تذكر هنا. كل واحدة فعلت الإعداد بنفسها، ولم نضف أيا منها من عندنا.",
+    },
+  },
   "/careers": {
     en: {
       title: "Careers",

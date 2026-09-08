@@ -22,7 +22,7 @@
 // wrong.
 
 /** Locale-relative paths whose page renders `MarketingShell`. */
-export const SHELL_PATHS = ["/platform", "/pricing", "/security", "/about", "/contact"] as const;
+export const SHELL_PATHS = ["/platform", "/pricing", "/security", "/about", "/contact", "/customers"] as const;
 
 /**
  * Locale-relative prefixes whose whole family renders `MarketingShell`.
@@ -112,5 +112,5 @@ export const RESERVED_FOR_LATER = ["docs", "changelog", "blog", "help", "support
 export function reservedPublicSegments(): string[] {
   const fromShell = [...SHELL_PATHS, ...SHELL_PREFIXES].map((p) => p.slice(1));
   const fromRetired = Object.keys(RETIRED_PATHS).map((p) => p.slice(1));
-  return [...new Set([...fromShell, ...fromRetired, ...RESERVED_FOR_LATER, "customers"])];
+  return [...new Set([...fromShell, ...fromRetired, ...RESERVED_FOR_LATER])];
 }

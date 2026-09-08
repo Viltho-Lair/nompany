@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { listStudios } from "@/modules/main/studios";
 import { publicCompanies } from "@/shared/marketing/showcase";
 import { homeCopy } from "@/shared/marketing/home";
@@ -49,6 +50,20 @@ export async function FeaturedCompanies({ locale }: { locale: string }) {
           </li>
         ))}
       </ul>
+      {/* THE ONLY LINK TO /customers, AND THAT IS THE DESIGN. The page must not
+          be linked while it is empty, and this band is already the thing that
+          renders null in exactly that case — so the link inherits the rule
+          rather than restating it. A footer entry would need the same fact
+          threaded through a client shell to stay honest, which is why there
+          isn't one. */}
+      <p className="mt-8 text-center">
+        <Link
+          href={`/${locale}/customers`}
+          className="text-sm text-fg-muted underline-offset-4 transition-colors hover:text-fg hover:underline"
+        >
+          {tr.customersAll}
+        </Link>
+      </p>
     </section>
   );
 }
