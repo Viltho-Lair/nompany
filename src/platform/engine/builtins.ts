@@ -602,6 +602,145 @@ export const BUILTIN_TYPES = [
     ],
     version: 1,
   },
+  {
+    // REJECTED AND WITHDRAWN ARE BOTH ENDINGS AND THEY ARE NOT THE SAME.
+    // One is the company's decision and one is the candidate's, and a
+    // register that records only "closed" cannot tell a studio it keeps
+    // losing people at the offer stage. Reachable from every open stage,
+    // because both really do happen at any point.
+    //
+    // HIRED CREATES NO EMPLOYEE. Nothing here writes into HR's employee
+    // register — that is a real handover with a real record behind it, and
+    // it is named in the functionality file rather than implied away.
+    key: "candidate",
+    label: "Recruitment",
+    parentSectionKey: "hr",
+    fields: [
+      { key: "name", label: "Candidate", kind: "text", required: true },
+      { key: "role", label: "Applying for", kind: "text" },
+      { key: "source", label: "Source", kind: "select", options: ["Referral", "Agency", "Job board", "Direct", "Internal"] },
+      { key: "appliedOn", label: "Applied", kind: "date" },
+      { key: "email", label: "Email", kind: "text" },
+      { key: "phone", label: "Phone", kind: "text" },
+      { key: "notes", label: "Notes", kind: "longtext" },
+    ],
+    columns: ["name", "role", "appliedOn"],
+    statuses: ["Applied", "Screening", "Interview", "Offer", "Hired", "Rejected", "Withdrawn"],
+    transitions: [
+      { from: "Applied", to: "Screening" },
+      { from: "Screening", to: "Interview" },
+      { from: "Interview", to: "Offer" },
+      { from: "Offer", to: "Hired" },
+      { from: "Applied", to: "Rejected" },
+      { from: "Screening", to: "Rejected" },
+      { from: "Interview", to: "Rejected" },
+      { from: "Offer", to: "Rejected" },
+      { from: "Applied", to: "Withdrawn" },
+      { from: "Screening", to: "Withdrawn" },
+      { from: "Interview", to: "Withdrawn" },
+      { from: "Offer", to: "Withdrawn" },
+    ],
+    version: 1,
+  },
+  {
+    // MANAGER REVIEW GOES BACK TO SELF-ASSESSMENT, because a review handed
+    // back for the employee to answer is the normal case rather than an
+    // exception. Without the way back it gets shared unfinished.
+    //
+    // `rating` IS NULLABLE AND STAYS THAT WAY. An unrated review and a
+    // review rated "meets expectations" are different facts, and defaulting
+    // the first to the second is how an appraisal cycle reports itself
+    // complete while half of it has not been done.
+    key: "appraisal",
+    label: "Performance reviews",
+    parentSectionKey: "hr",
+    fields: [
+      { key: "employee", label: "Employee", kind: "text", required: true },
+      { key: "period", label: "Period", kind: "text" },
+      { key: "reviewer", label: "Reviewer", kind: "text" },
+      { key: "dueOn", label: "Due", kind: "date" },
+      { key: "rating", label: "Rating", kind: "select", options: ["Below expectations", "Meets expectations", "Exceeds expectations", "Outstanding"] },
+      { key: "strengths", label: "Strengths", kind: "longtext" },
+      { key: "development", label: "Development areas", kind: "longtext" },
+      { key: "goals", label: "Goals for next period", kind: "longtext" },
+    ],
+    columns: ["employee", "period", "dueOn"],
+    statuses: ["Draft", "Self-assessment", "Manager review", "Shared", "Closed"],
+    transitions: [
+      { from: "Draft", to: "Self-assessment" },
+      { from: "Self-assessment", to: "Manager review" },
+      { from: "Manager review", to: "Shared" },
+      { from: "Shared", to: "Closed" },
+      { from: "Manager review", to: "Self-assessment" },
+    ],
+    version: 1,
+  },
+  {
+    // EXPIRED RETURNS TO COMPLETED, the calibration register's move for the
+    // calibration register's reason: a safety ticket is RENEWED, the person
+    // and the course are the same, and a fresh row each time loses the
+    // history that proves they have been qualified throughout.
+    //
+    // NOTHING WARNS BEFORE `expiresOn` LAPSES. The date is stored and no
+    // job reads it, so a lapsed ticket still reads Completed until somebody
+    // moves it. In the functionality file's "Not built yet", not implied
+    // away by a field that looks like a control and is not.
+    key: "course",
+    label: "Training and skills",
+    parentSectionKey: "hr",
+    fields: [
+      { key: "title", label: "Course", kind: "text", required: true },
+      { key: "employee", label: "Employee", kind: "text" },
+      { key: "provider", label: "Provider", kind: "text" },
+      { key: "kind", label: "Kind", kind: "select", options: ["Induction", "Safety", "Technical", "Compliance", "Soft skills"] },
+      { key: "completedOn", label: "Completed", kind: "date" },
+      { key: "expiresOn", label: "Expires", kind: "date" },
+      { key: "certificate", label: "Certificate", kind: "text" },
+    ],
+    columns: ["title", "employee", "expiresOn"],
+    statuses: ["Planned", "Booked", "Completed", "Expired", "Cancelled"],
+    transitions: [
+      { from: "Planned", to: "Booked" },
+      { from: "Booked", to: "Completed" },
+      { from: "Completed", to: "Expired" },
+      { from: "Expired", to: "Completed" },
+      { from: "Planned", to: "Cancelled" },
+      { from: "Booked", to: "Cancelled" },
+    ],
+    version: 1,
+  },
+  {
+    // REVIEW GOES BACK TO COUNTING, because a variance nobody believes is
+    // recounted rather than adjusted — which is the whole control a
+    // stocktake exists to be.
+    //
+    // AND `Adjusted` MOVES NO STOCK. This register records that a count
+    // happened and what it found; the adjustment itself is Inventory's own
+    // write and is NOT wired to this. Saying so here rather than letting a
+    // status called Adjusted imply a movement that never happened.
+    key: "stocktake",
+    label: "Stocktakes",
+    parentSectionKey: "inventory",
+    fields: [
+      { key: "reference", label: "Count", kind: "text", required: true },
+      { key: "location", label: "Location", kind: "text" },
+      { key: "countedOn", label: "Counted", kind: "date" },
+      { key: "countedBy", label: "Counted by", kind: "text" },
+      { key: "findings", label: "Variances found", kind: "longtext" },
+      { key: "notes", label: "Notes", kind: "longtext" },
+    ],
+    columns: ["reference", "location", "countedOn"],
+    statuses: ["Planned", "Counting", "Review", "Adjusted", "Cancelled"],
+    transitions: [
+      { from: "Planned", to: "Counting" },
+      { from: "Counting", to: "Review" },
+      { from: "Review", to: "Adjusted" },
+      { from: "Review", to: "Counting" },
+      { from: "Planned", to: "Cancelled" },
+      { from: "Counting", to: "Cancelled" },
+    ],
+    version: 1,
+  },
 ] as const;
 
 const Types = repo<RecordType>("recordTypes");
