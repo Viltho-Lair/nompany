@@ -582,7 +582,20 @@ const baselines = JSON.parse(readFileSync(BASELINES_FILE, "utf8"));
 // and 2e496ba4 — so the row is left at 679 and stays visible to whoever does
 // cross it. Recording another branch's growth inside an unrelated commit is how
 // a baseline stops being a measurement.
-const MAX_TOTAL_GZIP_KB = 1852;
+//
+// 1852 -> 1857 on 08/09/2026, ON THE MERGE, and this is the correction rather
+// than a second raise. 1852 was measured+8 against 2e496ba4; merging origin/main
+// brought the two commits that had already taken main to 1836, and the merged
+// tree — the one that actually lands — measures 1849 across 97 chunks. Leaving
+// it at 1852 would have landed with THREE kilobytes of headroom.
+//
+// Which is the state main was in this morning, and it went red within hours:
+// run 34204043271 failed on this gate alone, total 1836 against 1833, with every
+// per-route number at its baseline and nothing regressed. A ceiling one small
+// commit above the tree is a ceiling that gets raised in an emergency by whoever
+// trips it, which is how this number drifted before. Measure the tree you are
+// landing, not the one you branched from.
+const MAX_TOTAL_GZIP_KB = 1857;
 
 const totalKb = files.reduce((sum, f) => sum + f.gzip, 0) / 1024;
 const biggest = files[0];
