@@ -392,14 +392,34 @@ certificate was a reference and two dates with the certificate somewhere else. F
 **A status file can be wrong in both directions, and this section had one of each.**
 Grep for the thing before trusting a tick or a blank.
 
-#### §6 Inventory & Warehouse 🟡 4 / 8
+#### §6 Inventory & Warehouse 🟡 5 / 8
 Stock ✅ · Items ✅ · Project sheets ✅ · Stocktaking 🟡 (an engine register as of
 08/09/2026: planned, counted, reviewed, adjusted — and **Review goes back to Counting**,
 because a variance nobody believes is recounted rather than adjusted, which is the whole
 control a stocktake exists to be. But **`Adjusted` MOVES NO STOCK** — the register records
 that a count happened and what it found; the adjustment is Inventory's own write and is
 not wired to this) · **Locations & bins ⬜ · Batch & serial lifecycle ⬜ · Adjustment
-approval ⬜ · Valuation method ⬜ · Dashboard ⬜**
+approval ⬜ · Dashboard ⬜** · Valuation method ✅ (09/09/2026)
+
+**A LEVEL IS NOT A VALUE.** Inventory has always known how many of a thing it holds —
+stock is the sum of its movements, appended and never edited — and never what they cost, so
+a studio could say "eleven pumps" and not what appears on a balance sheet. Two methods,
+FIFO and weighted average, because the answer genuinely differs and neither is wrong: a
+product that silently picked would be putting a number on somebody's accounts they never
+chose. The policy is a STUDIO setting beside `currency` and the numbering — the figure
+lands on a balance sheet, and whoever signs that is not the person who runs the warehouse.
+
+**THE COST IS ON THE ORDER, NOT THE MOVEMENT**, and that join is what makes the choice
+real. A movement records `sourceType: "order"` and its `sourceId`; the purchase order's
+line for that item holds what was paid. Without it every receipt would value at the item's
+single `unitCost` and the two methods would agree on everything — a setting that changed no
+number, which is worse than not offering it. Verified in the sandbox against two real
+receipts at 100 and 200: after issuing five, **FIFO says 1,000 and average says 750**, and
+the route flags `preview: true` when a caller asks for the method the studio has not chosen.
+
+**Uncosted units are counted and reported.** A receipt with no order behind it and no item
+cost values at nothing, so a studio whose history predates cost tracking gets a total that
+is honestly too low rather than a confident wrong one.
 
 #### §7 Manufacturing & Production 🟡 3 / 6
 **BOM & routing 🟡 (both are engine registers as of 08/09/2026 — a BOM's

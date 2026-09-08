@@ -12,6 +12,7 @@ import { ALL_PERMISSIONS } from "@/platform/access/catalogue";
 import { chainProblems, type ApprovalChain } from "@/platform/approval/chains";
 import { approvalChainOverrides, approvalChainsFor } from "@/platform/approval/store";
 import { numberingProblems, cleanNumbering, numberingView } from "@/modules/administration/numbering";
+import { isValuationMethod } from "@/modules/inventory/valuation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -49,6 +50,11 @@ const FIELDS = [
   // reason: a numbering policy is the company's, not a department's, and one
   // right over it beats fourteen modules each owning their own prefix.
   "numbering",
+  // HOW STOCK IS VALUED — FIFO or weighted average. An accounting policy, so it
+  // sits with the other company-wide ones rather than in Inventory's settings:
+  // the number it produces lands on a balance sheet, and whoever signs that is
+  // not the person who runs the warehouse.
+  "valuationMethod",
   // fieldOfWork, fieldOfWorkOther, serviceActions and retiredServiceActions are
   // deliberately NOT here. Writing a service action is not "set this text" — it
   // is "recompute the pool": choosing a field re-seeds it from the matrix, and
@@ -317,6 +323,14 @@ export async function PUT(request: Request, ctx: { params: Promise<Record<string
     // existing reference as nought and the next create reissue a number a
     // client is already holding. Invariant 10, broken by punctuation — so the
     // studio hears about its own edit while it is still their edit.
+    // REFUSED RATHER THAN COERCED, like the language is. An unrecognised method
+    // would silently fall back on every read, so a studio would set a policy,
+    // see it accepted, and keep getting the other one's numbers.
+    if (key === "valuationMethod") {
+      if (!isValuationMethod(body[key])) return Response.json({ error: "method" }, { status: 400 });
+      patch[key] = body[key];
+      continue;
+    }
     if (key === "numbering") {
       const problems = numberingProblems(body[key]);
       if (problems.length) return Response.json({ error: "refused", detail: problems.join("; ") }, { status: 400 });
