@@ -381,9 +381,14 @@ certificate was a reference and two dates with the certificate somewhere else. F
 **A status file can be wrong in both directions, and this section had one of each.**
 Grep for the thing before trusting a tick or a blank.
 
-#### §6 Inventory & Warehouse ⬜ 3 / 8
-Stock ✅ · Items ✅ · Project sheets ✅ · **Locations & bins ⬜ · Batch & serial lifecycle
-⬜ · Stocktaking & adjustment approval ⬜ · Valuation method ⬜ · Dashboard ⬜**
+#### §6 Inventory & Warehouse 🟡 4 / 8
+Stock ✅ · Items ✅ · Project sheets ✅ · Stocktaking 🟡 (an engine register as of
+08/09/2026: planned, counted, reviewed, adjusted — and **Review goes back to Counting**,
+because a variance nobody believes is recounted rather than adjusted, which is the whole
+control a stocktake exists to be. But **`Adjusted` MOVES NO STOCK** — the register records
+that a count happened and what it found; the adjustment is Inventory's own write and is
+not wired to this) · **Locations & bins ⬜ · Batch & serial lifecycle ⬜ · Adjustment
+approval ⬜ · Valuation method ⬜ · Dashboard ⬜**
 
 #### §7 Manufacturing & Production 🟡 2 / 6
 **BOM & routing 🟡 (both are engine registers as of 08/09/2026 — a BOM's
@@ -447,11 +452,21 @@ Permits to work & toolbox talks ✅ · **Certifications ⬜ · Dashboard ⬜**
 **It rendered NOTHING until 08/09/2026** and now has five registers, all engine types —
 declared as rows, no new engine code. See the caveat under §10; it applies here too.
 
-#### §12 Human Resources ⬜ 2 / 10
+#### §12 Human Resources 🟡 5 / 10
 Employees ✅ · Leave & employee requests 🟡 (vacations exist; the wider request model does
-not) · **Attendance ⬜ · Recruitment & onboarding ⬜ · Performance ⬜ · Training & skills
-⬜ · Manpower planning ⬜ · Payroll runs, allowances, deductions ⬜ · Payslips and bank/WPS
+not) · Recruitment ✅ · Performance ✅ · Training & skills ✅ · **Attendance ⬜ ·
+Manpower planning ⬜ · Payroll runs, allowances, deductions ⬜ · Payslips and bank/WPS
 files ⬜ · Payroll posting to the ledger ⬜**
+
+Three engine registers, 08/09/2026 — candidates, appraisals and training records. Each
+carries the ending a real one needs: a candidate is Rejected (the company's decision) or
+Withdrawn (theirs), because a register recording only "closed" cannot tell a studio it
+keeps losing people at the offer stage; an appraisal goes back from Manager review to
+Self-assessment; a training record returns from Expired to Completed, since a safety
+ticket is renewed rather than re-earned. **Hiring a candidate creates no employee** and
+**nothing warns before a ticket lapses** — both named rather than implied away.
+Attendance is deliberately NOT a register: it is a daily high-volume record and wants its
+own model. Payroll is the largest remaining piece and is bespoke.
 The artifact's note here {M} *"a department IS a top-level section"* {M} **is reversed**:
 departments are their own records under Administration as of 06/09/2026.
 
