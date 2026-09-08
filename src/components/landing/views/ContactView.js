@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { validateEnquiry, mailboxFor, TEAM_SIZES } from "@/shared/marketing/enquiry";
+import { validateEnquiry, mailboxFor, TOPICS } from "@/shared/marketing/enquiry";
 import { contactCopy } from "@/shared/marketing/contact";
 import { CONTACT } from "@/lib/site";
 import { useLandingLocale } from "@/components/landing/locale";
@@ -28,7 +28,7 @@ export function ContactView() {
         // sales, below that reaches support — both are addresses a person
         // reads, so an unanswered dropdown misfiles a message rather than
         // losing it.
-        teamSize: "",
+        topic: "support",
     });
     const [errors, setErrors] = useState({});
     const [sent, setSent] = useState(false);
@@ -151,30 +151,26 @@ export function ContactView() {
                   <motion.div variants={fadeUp}>
                     <FloatingField label={ct.whatRunningToday} value={fields.message} onChange={set("message")} status={statusFor("message")} error={errors.message} multiline/>
                   </motion.div>
-                  {/* THE ONE FIELD THAT CHANGES WHERE THIS GOES. Ten people or
-                      more reaches sales; below that reaches support. Optional,
-                      because a dropdown must never be the reason somebody
-                      cannot get in touch — an unanswered one goes to support,
-                      which is a person either way. */}
+                  {/* THE ONE FIELD THAT CHANGES WHERE THIS GOES.
+
+                      IT ASKED FOR A HEADCOUNT AND INFERRED THE REST — four
+                      bands, and ten people or more meant sales. The inference
+                      was reasonable and still a guess: a forty-person company
+                      with a broken import is a support question. It also asked
+                      a stranger for a number before they had decided to talk to
+                      us at all. The sender knows which conversation they are
+                      starting, so it asks.
+
+                      A SELECT, THROUGH THE SAME FIELD AS EVERYTHING ELSE. The
+                      row of pills it replaces was a control the eye had to
+                      learn separately on a form with four other inputs. */}
                   <motion.div variants={fadeUp}>
-                    <p className="mb-2 text-xs text-fg-dim">{ct.teamSizeLabel}</p>
-                    <div className="flex flex-wrap gap-2">
-                      {TEAM_SIZES.map((size, i) => (
-                        <button
-                          key={size}
-                          type="button"
-                          onClick={() => set("teamSize")(fields.teamSize === size ? "" : size)}
-                          aria-pressed={fields.teamSize === size}
-                          className={`rounded-full border px-3.5 py-1.5 text-xs transition-colors ${
-                            fields.teamSize === size
-                              ? "border-transparent bg-gradient-to-r from-iris to-violet text-white"
-                              : "border-line text-fg-muted hover:text-fg"
-                          }`}
-                        >
-                          {ct.teamSizeOptions[i]}
-                        </button>
-                      ))}
-                    </div>
+                    <FloatingField
+                      label={ct.topicLabel}
+                      value={fields.topic}
+                      onChange={set("topic")}
+                      options={TOPICS.map((t) => ({ value: t, label: t === "sales" ? ct.sales : ct.support }))}
+                    />
                   </motion.div>
 
                   {/* A FAILURE THE VISITOR CAN ACT ON. The address is printed,
@@ -186,9 +182,9 @@ export function ContactView() {
                         {ct.failedBody}{" "}
                         <a
                           className="text-iris-bright underline-offset-4 hover:underline"
-                          href={`mailto:${mailboxFor(fields.teamSize) === "newBusiness" ? CONTACT.sales : CONTACT.support}`}
+                          href={`mailto:${mailboxFor(fields.topic) === "newBusiness" ? CONTACT.sales : CONTACT.support}`}
                         >
-                          {mailboxFor(fields.teamSize) === "newBusiness" ? CONTACT.sales : CONTACT.support}
+                          {mailboxFor(fields.topic) === "newBusiness" ? CONTACT.sales : CONTACT.support}
                         </a>
                         .
                       </p>
@@ -237,16 +233,28 @@ export function ContactView() {
               to be looked at to be found: nothing throws, nothing fails to
               build, and a translation key reads as a placeholder somebody meant
               to finish. */}
-          <motion.div variants={fadeUp} className="grid gap-4 sm:grid-cols-2">
+          {/* ONE COLUMN, TITLED. Two cards side by side read as a choice the
+              visitor has to make correctly, which is exactly the decision the
+              dropdown above now makes for them — and getting it wrong cost
+              nothing anyway, because both addresses reach the same person.
+              Stacked and labelled, they are what they actually are: the two
+              desks, listed. The headings come from the same two strings the
+              dropdown's options use, so the form and the addresses cannot end
+              up calling one desk two different things. */}
+          <motion.div variants={fadeUp} className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-ink-soft/50">
             {[
-            { label: ct.sales, value: CONTACT.sales },
-            { label: ct.support, value: CONTACT.support },
-        ].map((item) => (<div key={item.label} className="rounded-2xl border border-line bg-ink-soft/50 p-5">
+              { label: ct.sales, value: CONTACT.sales },
+              { label: ct.support, value: CONTACT.support },
+            ].map((item) => (
+              <div key={item.label} className="p-5">
                 <p className="text-[11px] tracking-[0.16em] text-fg-dim uppercase">
                   {item.label}
                 </p>
-                <a href={`mailto:${item.value}`} className="mt-1.5 block text-sm text-fg transition-colors hover:text-iris-bright">{item.value}</a>
-              </div>))}
+                <a href={`mailto:${item.value}`} className="mt-1.5 block text-sm text-fg transition-colors hover:text-iris-bright">
+                  {item.value}
+                </a>
+              </div>
+            ))}
           </motion.div>
         </motion.aside>
       </div>

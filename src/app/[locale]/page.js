@@ -3,6 +3,7 @@ import { buildPricing } from "@/modules/marketing/pricing";
 import JsonLd from "@/components/JsonLd";
 import LandingPage from "@/components/landing/LandingPage";
 import { FeaturedCompanies } from "@/components/landing/sections/FeaturedCompanies";
+import { PlatformStats } from "@/components/landing/sections/PlatformStats";
 
 // The public landing page. It renders its own header/footer and background, so
 // `Nav` and `Footer` opt out of this route (see the `isLanding` checks there).
@@ -38,7 +39,11 @@ export default async function HomePage({ params }) {
           null when no studio has both consented and been featured, so the home
           page simply does not have that section rather than having an empty
           one. */}
-      <LandingPage locale={locale} customers={<FeaturedCompanies locale={locale} />} />
+      <LandingPage
+        locale={locale}
+        customers={<FeaturedCompanies locale={locale} />}
+        stats={<PlatformStats locale={locale} />}
+      />
     </>
   );
 }

@@ -30,8 +30,15 @@ export async function generateMetadata({ params }) {
 export default async function CareersPage({ params }) {
   const { locale } = await params;
   const dict = getDict(locale);
-  // nompany's own job openings, managed in the Super console (Careers). Public
-  // pages default to the nompany tenant, so this reads nompany's postings.
+  // nompany's own job openings, managed in the Super console (Careers).
+  //
+  // NOT A TENANT'S DATA, AND THIS COMMENT USED TO SAY OTHERWISE. It claimed
+  // "public pages default to the nompany tenant, so this reads nompany's
+  // postings", which is wrong in a way nothing would ever surface: `SITE`
+  // builds `g:site:<name>`, a GLOBAL key with no studio in it. The public
+  // site's careers, messages and settings belong to the platform, sit outside
+  // every cascade, and are owned by no studio — so deleting the studio whose
+  // slug happens to be `nompany` would change nothing on this page.
   const jobs = await getSiteCollection("careers");
 
   const structured = [

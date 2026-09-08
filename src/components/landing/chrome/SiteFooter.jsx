@@ -5,7 +5,6 @@ import { useLandingLocale } from "@/components/landing/locale";
 import { getDict } from "@/shared/i18n";
 import { companyCopy } from "@/shared/marketing/company";
 import { heroCopy } from "@/shared/marketing/hero";
-import { CONTACT } from "@/lib/site";
 import { LogoMark, Wordmark } from "../Logo";
 
 /* ==================================================================
@@ -110,19 +109,20 @@ export function SiteFooter({ locale: localeProp }) {
           ))}
         </div>
 
-        <div className="mt-14 flex flex-col gap-4 border-t border-line/70 pt-7 text-xs text-fg-dim sm:flex-row sm:items-center sm:justify-between">
-          {/* NO LEGAL ENTITY AND NO STATUS DOT. The company is not incorporated
-              anywhere, so there is no entity to name; and nothing measures
-              uptime, so there is no figure to imply with a green light. */}
+        <div className="mt-14 border-t border-line/70 pt-7 text-xs text-fg-dim">
+          {/* NO LEGAL ENTITY, NO STATUS DOT, AND NO EMAIL ADDRESSES. The company
+              is not incorporated anywhere, so there is no entity to name;
+              nothing measures uptime, so there is no figure to imply with a
+              green light; and the two addresses that were printed here are on
+              the contact page, listed under the desk each one reaches.
+
+              THE ADDRESSES LEFT BECAUSE A BARE MAILTO ASKS THE READER TO ROUTE
+              THEIR OWN MESSAGE. Two addresses in a footer with no headings is a
+              decision handed to somebody who has no way to make it correctly,
+              on every page of the site. The contact form asks what the message
+              is about and routes it, which is the same question answered by the
+              side that knows the answer. */}
           <p>© {new Date().getFullYear()} nompany</p>
-          <div className="flex flex-wrap gap-x-6 gap-y-2">
-            <a href={`mailto:${CONTACT.sales}`} className="transition-colors hover:text-fg">
-              {CONTACT.sales}
-            </a>
-            <a href={`mailto:${CONTACT.support}`} className="transition-colors hover:text-fg">
-              {CONTACT.support}
-            </a>
-          </div>
         </div>
       </div>
     </footer>

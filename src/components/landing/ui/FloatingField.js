@@ -2,9 +2,17 @@
 import { useId, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { EASE_OUT_EXPO, SPRING_SNAPPY } from "@/components/landing/lib/motion";
-export function FloatingField({ label, type = "text", value, onChange, status = "idle", error, required, multiline, autoComplete, trailing = null, }) {
+// `options` turns this into a SELECT, and it exists so a dropdown is not a
+// second control style sitting beside the text fields. Every input on this form
+// goes through this component precisely so they line up and share one focus
+// treatment; a bare <select>, or the row of pills that used to be here, is a
+// control the eye has to learn separately on a form with four other fields.
+export function FloatingField({ label, type = "text", value, onChange, status = "idle", error, required, multiline, autoComplete, trailing = null, options = null, }) {
     const id = useId();
     const [focused, setFocused] = useState(false);
+    // A SELECT IS NEVER EMPTY once a value is chosen, and its options must not
+    // be hidden behind the label — so it floats on focus or on any value, the
+    // same rule the text fields follow.
     const floated = focused || value.length > 0;
     const shared = {
         id,
@@ -24,7 +32,23 @@ export function FloatingField({ label, type = "text", value, onChange, status = 
             : focused
                 ? "border-iris/70"
                 : "border-line hover:border-line/80"}`}>
-        {multiline ? (<textarea rows={4} {...shared}/>) : (<input type={type} {...shared}/>)}
+        {options ? (
+          <select {...shared} className={`${shared.className} appearance-none cursor-pointer`}>
+            {options.map((o) => (
+              <option key={o.value} value={o.value} className="bg-ink text-fg">
+                {o.label}
+              </option>
+            ))}
+          </select>
+        ) : multiline ? (<textarea rows={4} {...shared}/>) : (<input type={type} {...shared}/>)}
+
+        {/* The chevron a native select loses to `appearance-none`. Pointer
+            events off so the click still reaches the select underneath. */}
+        {options && (
+          <svg aria-hidden className="pointer-events-none absolute top-1/2 end-4 h-4 w-4 -translate-y-1/2 text-fg-dim" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M6 9l6 6 6-6" />
+          </svg>
+        )}
 
         {/* Floating label */}
         <motion.label htmlFor={id} className="pointer-events-none absolute start-4 origin-left text-fg-muted rtl:origin-right" animate={{

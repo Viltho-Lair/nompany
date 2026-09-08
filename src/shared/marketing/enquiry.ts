@@ -20,16 +20,32 @@ export const LIMITS = {
   message: 4000,
 } as const;
 
-/** Where a team of this size should land. */
-export const TEAM_SIZES = ["1-9", "10-49", "50-249", "250+"] as const;
-export type TeamSize = (typeof TEAM_SIZES)[number];
+/* WHAT THE ENQUIRY IS ABOUT, which is what decides where it lands.
+   ------------------------------------------------------------------
+   THIS ASKED FOR A TEAM SIZE AND INFERRED THE REST. Four bands — 1-9, 10-49,
+   50-249, 250+ — and ten people or more was routed to sales. The inference was
+   reasonable and it was still a guess: a forty-person company with a broken
+   import is a support question, and a six-person one asking about invoicing is
+   a sales question. It also asked a visitor for a number they may not want to
+   give before they have decided to talk to us at all.
+
+   ASKING DIRECTLY IS BOTH SHORTER AND MORE ACCURATE. The sender knows which
+   conversation they are starting; nothing else on the form does.
+
+   TOKENS, NOT LABELS. "sales" and "support" are stored and travel to the
+   server; the words a visitor reads are chosen at DISPLAY time from the
+   locale's own copy — the same rule statuses and stages follow everywhere in
+   this product, and the reason an Arabic enquiry does not arrive carrying an
+   Arabic string the router would have to understand. */
+export const TOPICS = ["sales", "support"] as const;
+export type Topic = (typeof TOPICS)[number];
 
 export type Enquiry = {
   name: string;
   email: string;
   company: string;
   message: string;
-  teamSize: string;
+  topic: string;
 };
 
 export type EnquiryErrors = Partial<Record<keyof Enquiry, string>>;
@@ -58,11 +74,12 @@ export function validateEnquiry(input: Partial<Enquiry> | null | undefined): Enq
   if (v(input?.company).length < 2) e.company = "company";
   if (v(input?.message).length < 12) e.message = "message";
 
-  // AN UNKNOWN SIZE IS NOT AN ERROR. It decides which mailbox the enquiry
+  // AN UNKNOWN TOPIC IS NOT AN ERROR. It decides which mailbox the enquiry
   // reaches and nothing else, so an absent one falls back rather than blocking
-  // a person from getting in touch over a dropdown.
-  if (v(input?.teamSize) && !TEAM_SIZES.includes(v(input?.teamSize) as TeamSize)) {
-    e.teamSize = "teamSize";
+  // a person from getting in touch over a dropdown. The form always sends one;
+  // this is about what happens when something else posts here.
+  if (v(input?.topic) && !TOPICS.includes(v(input?.topic) as Topic)) {
+    e.topic = "topic";
   }
   return e;
 }
@@ -75,33 +92,34 @@ export function normaliseEnquiry(input: Partial<Enquiry>): Enquiry {
     email: cut(input.email, LIMITS.email),
     company: cut(input.company, LIMITS.company),
     message: cut(input.message, LIMITS.message),
-    teamSize: cut(input.teamSize, 12),
+    topic: cut(input.topic, 12),
   };
 }
 
 /**
- * TEN PEOPLE OR MORE IS A SALES CONVERSATION; below that is support.
+ * WHICH MAILBOX, FROM WHAT THE SENDER SAID IT WAS ABOUT.
  *
- * The split is the whole reason the form asks for a team size. It matches where
- * the product's own pricing turns over: one to nine is free and self-served, so
- * an enquiry from that band is somebody using the product or deciding to, and
- * ten upward is somebody who will be invoiced and wants to talk about it first.
+ * This used to infer it from a team size — ten people or more meant sales —
+ * and the inference was the reason the form asked for a headcount at all. A
+ * visitor now says which conversation they are starting, so there is nothing
+ * left to infer.
  *
- * A MISSING OR UNRECOGNISED SIZE GOES TO SUPPORT, deliberately. Both addresses
- * reach a person, so the failure is a misfiled enquiry rather than a lost one —
- * and guessing new business for someone who did not say would put a support
+ * ANYTHING UNRECOGNISED GOES TO SUPPORT, deliberately. Both addresses reach a
+ * person, so the failure is a misfiled enquiry rather than a lost one — and
+ * guessing new business for somebody who did not say would put a support
  * question in front of the wrong reader.
  */
 // THE ROLE IS NOT NAMED AFTER THE DEPARTMENT, and that is a guard rather than
-// taste. The old section key for CRM is retired — the section is `crm-sales` now — and an architectural
-// assertion greps the source for any string literal starting with that word,
-// because a
-// survivor guards on a key nobody holds and fails as a 403 with nothing
-// pointing at the cause. The codebase's own note on three earlier collisions
-// says to rename the value rather than add a fourth exemption, and
-// `newBusiness` is the better name anyway: the split is about what kind of
-// conversation this is, not about which department owns it.
-export function mailboxFor(teamSize: string | null | undefined): "newBusiness" | "support" {
-  const size = String(teamSize ?? "").trim();
-  return size === "10-49" || size === "50-249" || size === "250+" ? "newBusiness" : "support";
+// taste. The old section key for CRM is retired — the section is `crm-sales`
+// now — and an architectural assertion greps the source for any string literal
+// starting with that word, because a survivor guards on a key nobody holds and
+// fails as a 403 with nothing pointing at the cause. The codebase's own note on
+// three earlier collisions says to rename the value rather than add a fourth
+// exemption.
+//
+// SO THE TOPIC TOKEN AND THE MAILBOX NAME ARE DELIBERATELY DIFFERENT WORDS.
+// The topic is what the visitor chose; the mailbox is where it goes. They map
+// one to one today and there is no reason they must forever.
+export function mailboxFor(topic: string | null | undefined): "newBusiness" | "support" {
+  return String(topic ?? "").trim() === "sales" ? "newBusiness" : "support";
 }

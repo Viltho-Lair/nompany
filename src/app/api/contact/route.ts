@@ -80,7 +80,7 @@ export async function POST(request: Request) {
   }
 
   const enquiry = normaliseEnquiry(body);
-  const mailbox = mailboxFor(enquiry.teamSize);
+  const mailbox = mailboxFor(enquiry.topic);
   const to = mailbox === "newBusiness" ? CONTACT.sales : CONTACT.support;
 
   // STORED BEFORE ANYTHING IS SENT. The IP is kept because it is the only thing
@@ -100,17 +100,25 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: "not-stored" }, { status: 502 });
   }
 
+  // THE EMAIL SAYS WHICH DESK IT IS FOR. Both addresses are aliases onto one
+  // mailbox, so a reader opening it cannot otherwise tell whether they are
+  // looking at a sales enquiry or a support question — the To: line is the
+  // same either way. Naming it in the subject and in the body is what makes
+  // the dropdown worth asking for at all.
+  const desk = mailbox === "newBusiness" ? "Sales" : "Support";
   const lines: [string, string][] = [
+    ["About", desk],
     ["From", `${enquiry.name} <${enquiry.email}>`],
     ["Company", enquiry.company],
-    ["Team size", enquiry.teamSize || "not given"],
   ];
 
   const result = await sendEmail({
     to,
     // The subject carries the company so a full inbox is still sortable, and
     // the team size so a sales enquiry is recognisable before it is opened.
-    subject: `Enquiry from ${enquiry.company}${enquiry.teamSize ? ` (${enquiry.teamSize})` : ""}`,
+    // The desk comes FIRST so a full inbox sorts and filters on it, and the
+    // company follows so an enquiry is recognisable before it is opened.
+    subject: `${desk}: ${enquiry.company}`,
     replyTo: enquiry.email,
     text: [
       ...lines.map(([k, v]) => `${k}: ${v}`),

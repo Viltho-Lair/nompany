@@ -29,14 +29,15 @@ type ContactStrings = {
   errEmail: string;
   errCompany: string;
   errMessage: string;
+  /** Doubles as the dropdown's option label AND the heading over the address,
+   *  so the two cannot end up calling the same desk different things. */
   sales: string;
   support: string;
   eyebrow: string;
   title: string;
   lead: string;
-  teamSizeLabel: string;
+  topicLabel: string;
   /** Shown against each `TEAM_SIZES` value, in order. */
-  teamSizeOptions: string[];
   send: string;
   sending: string;
   /** Replaces the invented "a solutions engineer will email you" promise. */
@@ -66,8 +67,7 @@ const en: ContactStrings = {
   // if Nompany isn't the right fit." There is no demo and no solutions
   // engineer, and the brand was capitalised in the middle of it.
   lead: "There is no demo to book — the free tier is the whole product, so the fastest way to see it is to open it. If you would rather ask first, this reaches a person.",
-  teamSizeLabel: "How many people are you?",
-  teamSizeOptions: ["1–9", "10–49", "50–249", "250 or more"],
+  topicLabel: "What is this about?",
   send: "Send",
   sending: "Sending…",
   sentTitle: "That reached us",
@@ -94,8 +94,7 @@ const ar: ContactStrings = {
   eyebrow: "تواصل معنا",
   title: "اسألنا",
   lead: "لا يوجد عرض توضيحي تحجزه — الخطة المجانية هي المنتج كاملا، وأسرع طريقة لرؤيته أن تفتحه. وإن أردت السؤال أولا، هذه الرسالة تصل إلى شخص.",
-  teamSizeLabel: "كم عددكم؟",
-  teamSizeOptions: ["1–9", "10–49", "50–249", "250 أو أكثر"],
+  topicLabel: "ما موضوع رسالتك؟",
   send: "إرسال",
   sending: "جاري الإرسال…",
   sentTitle: "وصلتنا رسالتك",

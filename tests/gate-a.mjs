@@ -1337,7 +1337,11 @@ console.log("== golden responses: the shape of every answer, pinned");
       body: {
         name: "Sample Person", email: "sample@example.com", company: "Sample Company",
         message: "We are ten people and would like to talk about moving over.",
-        teamSize: "10-49",
+        // THE TOPIC, NOT A HEADCOUNT. The form asked how many people you are
+        // and inferred the desk from it; it asks which desk now, because the
+        // sender knows and the inference was a guess. `sales` maps to the
+        // `newBusiness` mailbox, which is why this golden did not move.
+        topic: "sales",
       },
     }), ctx());
   });
@@ -4008,6 +4012,96 @@ console.log("== finance: a number that only goes forward, and money that is deri
     EXPENSES.POST, req(`/api/studios/${slug}/finance/expenses`, { method: "POST", body: {
       description: "Freight forwarding", amount: 1200, category: "Logistics",
     } }), P));
+
+  // ---- the ledger, which had no door at all --------------------------------
+  //
+  // EVERY FUNCTION IN `modules/finance/ledger` WAS UNREACHABLE. postEntry,
+  // reverseEntry, listJournal, trialBalance and the four document-posting
+  // helpers were written, typed and guarded, and NOTHING imported the module:
+  // no route, no caller anywhere in src. A whole double-entry book the product
+  // could not open, while the status file called the ledger built. This block
+  // is the first thing that has ever posted to it.
+  const LEDGER = await import("@/app/api/studios/[slug]/finance/ledger/route.ts");
+  const ledgerPath = `/api/studios/${slug}/finance/ledger`;
+  const ledgerGet = () => capture(LEDGER.GET, req(ledgerPath), P);
+  const post = (body) => capture(LEDGER.POST, req(ledgerPath, { method: "POST", body }), P);
+
+  const opened = await ledgerGet();
+  // THE CHART SEEDS ITSELF on first read, so a studio can post the day it opens
+  // Finance rather than being asked to build a chart of accounts first.
+  const chart = opened.body?.accounts || [];
+  ok("the default chart is there to post against", chart.length > 0, String(chart.length));
+  const acc = (code) => (chart.find((a) => a.code === code) || {}).id;
+
+  // AN UNBALANCED ENTRY IS REFUSED. That is the whole of double entry, and it is
+  // the service's rule rather than the route's — the route could be replaced and
+  // the refusal would still stand.
+  await shot("finance.journal.unbalanced", await post({
+    date: "2031-04-01", memo: "Wrong on purpose",
+    lines: [
+      { accountId: acc("1000"), debit: 100, credit: 0 },
+      { accountId: acc("4000"), debit: 0, credit: 90 },
+    ],
+  }));
+
+  const je = await shot("finance.journal.posted", await post({
+    date: "2031-04-01", memo: "Opening capital",
+    lines: [
+      { accountId: acc("1000"), debit: 5000, credit: 0 },
+      { accountId: acc("3000"), debit: 0, credit: 5000 },
+    ],
+  }));
+  const jeId = je.body?.entry?.id;
+  ok("a balanced entry posts", Boolean(jeId), JSON.stringify(je.body).slice(0, 140));
+  ok("...under its own reference run", /^JE-\d{4}$/.test(je.body?.entry?.reference || ""),
+    je.body?.entry?.reference);
+
+  // TRADING, so the statements have something to say: income and an expense.
+  await post({
+    date: "2031-04-05", memo: "Fee invoiced",
+    lines: [
+      { accountId: acc("1100"), debit: 4000, credit: 0 },
+      { accountId: acc("4000"), debit: 0, credit: 4000 },
+    ],
+  });
+  await post({
+    date: "2031-04-06", memo: "Wages",
+    lines: [
+      { accountId: acc("5000"), debit: 1500, credit: 0 },
+      { accountId: acc("2000"), debit: 0, credit: 1500 },
+    ],
+  });
+
+  const books = await ledgerGet();
+  const tb = books.body?.trialBalance;
+  const pl = books.body?.profitAndLoss;
+  const bs = books.body?.balanceSheet;
+  // THE INVARIANT, SURFACED. A trial balance that does not balance is a broken
+  // book, not a report with a caveat.
+  ok("the trial balance balances", tb?.balanced === true,
+    JSON.stringify({ d: tb?.totalDebit, c: tb?.totalCredit }));
+  // INCOME READS POSITIVE. It is credit-normal, so a raw debit-minus-credit
+  // would show 4,000 of fees as a loss to everybody who is not an accountant.
+  ok("the P&L reads income on its natural side", pl?.totalIncome === 4000,
+    String(pl?.totalIncome));
+  ok("...and profit is income less expense", pl?.profit === 2500, String(pl?.profit));
+  // THE RETAINED RESULT IS WHAT MAKES THE SHEET BALANCE, and it is computed
+  // rather than stored because no account holds it until a year-end closes the
+  // books — and periods and close are not built.
+  ok("THE BALANCE SHEET BALANCES", bs?.balanced === true,
+    JSON.stringify({ a: bs?.totalAssets, l: bs?.totalLiabilities, e: bs?.totalEquity, r: bs?.retainedResult }));
+  ok("...carrying the profit as the retained result", bs?.retainedResult === 2500,
+    String(bs?.retainedResult));
+  await shot("finance.ledger.books", books);
+
+  // A POSTED ENTRY IS NEVER EDITED AND NEVER DELETED — the correction is another
+  // entry that mirrors it, which is why the route has no PUT and no DELETE.
+  await shot("finance.journal.reversed", await capture(
+    LEDGER.PATCH, req(ledgerPath, { method: "PATCH", body: { id: jeId, reason: "Keyed twice" } }), P));
+  // AND NOT TWICE. The original records its reversal, so a second attempt is
+  // refused rather than posting a mirror of a mirror.
+  await shot("finance.journal.reversed.twice", await capture(
+    LEDGER.PATCH, req(ledgerPath, { method: "PATCH", body: { id: jeId, reason: "Again" } }), P));
 
   const board = await capture(FINANCE.GET, req(`/api/studios/${slug}/finance`), P);
   ok("the finance board lists what was raised", (board.body?.invoices?.length ?? 0) >= 4,

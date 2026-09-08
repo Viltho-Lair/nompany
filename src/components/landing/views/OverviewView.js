@@ -21,7 +21,7 @@ import { CtaBand, GradientRule } from "../sections/CtaBand";
    real name, and the statistics row needs the nightly job before it has a real
    figure. Both must degrade to nothing rather than to placeholders — a logo
    wall of companies that are not customers says less than no logo wall. */
-export function OverviewView({ customers = null }) {
+export function OverviewView({ customers = null, stats = null }) {
   const locale = useLandingLocale();
   return (<>
       <HeroV1Assembly locale={locale}/>
@@ -35,6 +35,15 @@ export function OverviewView({ customers = null }) {
       <WhatItIs locale={locale}/>
       <GradientRule />
       <DepartmentsGlance locale={locale}/>
+      {/* WHERE IT STANDS, after the departments and before the price. The
+          design asks the home page for a statistics row and it had none — the
+          figures went onto /platform alone, which is the page somebody reads
+          second. Handed in already rendered, like the customers band above:
+          it is a server component reading the nightly aggregate, and
+          LandingPage is a client component that cannot render one as a child
+          but can render one it was given. Unlike that band it is never null —
+          it has product facts to show until the counts are worth stating. */}
+      {stats}
       <GradientRule />
       <PricingTeaser locale={locale}/>
       <CtaBand />

@@ -763,25 +763,33 @@ console.log("\n== an enquiry reaches the right mailbox");
 
 const EQ = await import("@/shared/marketing/enquiry");
 
-// TEN PEOPLE OR MORE IS A CONVERSATION ABOUT AN INVOICE; below that is somebody
-// on a free tier. The split is the only reason the form asks for a team size.
-ok("1-9 goes to support", EQ.mailboxFor("1-9") === "support");
-for (const size of ["10-49", "50-249", "250+"]) {
-  ok(`${size} goes to new business`, EQ.mailboxFor(size) === "newBusiness", EQ.mailboxFor(size));
-}
+// THE SENDER SAYS WHICH DESK, and nothing else on the form does.
+//
+// THIS USED TO INFER IT FROM A HEADCOUNT — ten people or more meant sales — and
+// the inference was the only reason the form asked for a team size at all. It
+// was reasonable and still a guess: a forty-person company with a broken import
+// is a support question, and a six-person one asking about invoicing is not.
+ok("sales goes to new business", EQ.mailboxFor("sales") === "newBusiness");
+ok("support goes to support", EQ.mailboxFor("support") === "support");
+
 // AN UNANSWERED DROPDOWN MISFILES, IT DOES NOT LOSE. Both addresses reach a
 // person, so falling back is safe; guessing new business would put a support
-// question in front of the wrong reader.
-for (const missing of ["", null, undefined, "nonsense"]) {
-  ok(`an unstated size falls back to support`, EQ.mailboxFor(missing) === "support");
+// question in front of the wrong reader. The old team-size values land here
+// too, which is the honest answer for a stale client posting the old shape.
+for (const missing of ["", null, undefined, "nonsense", "10-49", "250+"]) {
+  ok(`an unstated topic falls back to support`, EQ.mailboxFor(missing) === "support");
 }
 
-// THE ROLE IS NOT SPELLED LIKE THE RETIRED SECTION KEY. An architectural
-// assertion in tests/restructure.mjs greps the source for string literals
-// starting with it; this names the value so a rename back is caught here, in
-// the module that owns it, rather than three hundred lines into a suite that
-// says only that some file matched a pattern.
-ok("the role is not named after the department", EQ.mailboxFor("250+") !== "sales");
+// THE TOKENS ARE WHAT TRAVEL, not the words a visitor reads. An Arabic enquiry
+// must not arrive carrying an Arabic string the router would have to
+// understand — the same rule statuses and stages follow everywhere here.
+ok("the topics are stored as tokens", EQ.TOPICS.every((t) => /^[a-z]+$/.test(t)),
+  EQ.TOPICS.join(", "));
+
+// THE TOPIC AND THE MAILBOX ARE DELIBERATELY DIFFERENT WORDS: the topic is what
+// the visitor chose, the mailbox is where it goes, and they map one to one
+// today with no reason they must forever.
+ok("the role is not named after the department", EQ.mailboxFor("sales") !== "sales");
 
 // VALIDATION IS SHARED WITH THE SERVER, and these are the fields a form can
 // actually get wrong.
