@@ -24,7 +24,11 @@ import { MarketingShell } from "@/components/landing/chrome/MarketingShell";
 
    Schema: SoftwareApplication with `featureList` naming the eleven. */
 
-export const dynamic = "force-dynamic";
+/* NO `force-dynamic`. It was here and it was a no-op: the root layout reads
+   the theme cookie, so every route in this application is dynamically rendered
+   whatever a page asks for. What the directive DID do was opt this page out of
+   the data cache, which is the only caching available to it. See
+   lib/data/publicSettings.ts. */
 
 export async function generateMetadata({ params }) {
   const { locale } = await params;

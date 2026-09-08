@@ -1,5 +1,5 @@
 import { buildMetadata, localBusinessLd } from "@/lib/seo";
-import { getSiteSettings } from "@/lib/data/site";
+import { publicSiteSettings } from "@/lib/data/publicSettings";
 import JsonLd from "@/components/JsonLd";
 import LandingPage from "@/components/landing/LandingPage";
 import { FeaturedCompanies } from "@/components/landing/sections/FeaturedCompanies";
@@ -15,7 +15,7 @@ export async function generateMetadata({ params }) {
 
 export default async function HomePage({ params }) {
   const { locale } = await params;
-  const settings = await getSiteSettings();
+  const settings = await publicSiteSettings();
 
   return (
     <>

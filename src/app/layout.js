@@ -3,7 +3,7 @@ import { FONT_VARS } from "./fonts";
 import { cookies, headers } from "next/headers";
 import JsonLd from "@/components/JsonLd";
 import MuiProvider from "@/components/MuiProvider";
-import { getSiteSettings } from "@/lib/data/site";
+import { publicSiteSettings } from "@/lib/data/publicSettings";
 import { organizationLd, websiteLd, SITE_URL } from "@/lib/seo";
 import { dirFor, isLocale, defaultLocale } from "@/shared/i18n";
 import { isMarketingPath } from "@/shared/marketing/routes";
@@ -118,7 +118,7 @@ export default async function RootLayout({ children }) {
     .filter(Boolean)
     .join(" ");
 
-  const settings = await getSiteSettings();
+  const settings = await publicSiteSettings();
 
   return (
     <html lang={locale} dir={dir} className={htmlClass || undefined} suppressHydrationWarning>
