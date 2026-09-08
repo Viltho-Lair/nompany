@@ -745,7 +745,8 @@ console.log("\n== the handler is carried, never copied");
     // THE TYPED DESCRIPTION IS STORED, read back off the list rather than off
     // the create's own return — the quotation head never sent `notes`, so a
     // regression that dropped the field on the way to Redis would otherwise be
-    // green everywhere (the gate-a body omits it and its golden pins "").
+    // green everywhere (gate-a's body omitted it and its golden pinned "";
+    // both are gone, so nothing pins this shape any more).
     const directReread = (await listProjects(await projectsContext(owner, slug)))
       .find((p) => p.id === direct.project?.id);
     ok("the typed description reaches the stored project",

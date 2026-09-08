@@ -200,13 +200,21 @@ jobs:
         # here is skipped.
         run: node tests/integration.test.mjs
 
-      - name: Gate A — goldens, permission matrix, hop counts
-        # Golden responses are the parity contract: a renamed field, a null that
-        # became "", a dropped key or a changed status code fails HERE rather
-        # than reaching a client. Re-recording is a deliberate act with its own
-        # commit — it must never happen in CI, so NOMPANY_RECORD_GOLDENS is not
-        # set and cannot be.
-        run: node tests/gate-a.test.mjs
+      - name: API — every route once, and CRUD lifecycles
+        # REPLACES GATE A AND ITS 379 GOLDENS. What is kept: every route file
+        # imports (invisible to tsc, a 500 on the first request in production),
+        # nothing answers a signed-out caller, no studio route tells a
+        # non-member anything, and no route falls over for somebody who may open
+        # it. What is gone: the full response bodies, and with them the ability
+        # to notice a field appearing on a list nobody was looking at.
+        #
+        # `full` HERE AND NOWHERE ELSE. The owner pass is ~240s on a laptop
+        # against Cloud SQL through the local proxy and a fraction of that here,
+        # where Postgres is a container on the same network — so the default
+        # scope is the two-second one a developer runs, and CI runs everything.
+        env:
+          API_TEST_SCOPE: full
+        run: node tests/routes.mjs && node tests/crud.mjs
 
       - name: Tests — the Cloud Run pg-gateway, both halves
         # NO DATABASE AND NO GOOGLE IN EITHER OF THESE. The gateway's own suite

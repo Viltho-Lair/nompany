@@ -1,9 +1,0 @@
-{
-  "status": 409,
-  "body": {
-    "error": "on-leave",
-    "from": "<today+40>",
-    "to": "<today+41>",
-    "type": "Annual"
-  }
-}

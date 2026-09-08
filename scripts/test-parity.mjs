@@ -20,7 +20,7 @@
 // half-swept namespace behind it.
 import { spawnSync } from "node:child_process";
 
-const FILES = ["tests/access.test.mjs", "tests/integration.test.mjs", "tests/gate-a.test.mjs"];
+const FILES = ["tests/access.test.mjs", "tests/integration.test.mjs", "tests/routes.mjs", "tests/crud.mjs"];
 
 for (const file of FILES) {
   const { status, signal } = spawnSync(process.execPath, [file], {

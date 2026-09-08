@@ -667,7 +667,7 @@ A gate is a promise the build keeps, not a milestone anybody declares.
 | Gate | Exit criteria | State |
 |---|---|---|
 | **A** | Golden responses recorded · permission matrix exhaustive · hop counts pinned · CI enforcing all three | ✅ **green** |
-| **B** | Zero direct `readCol` in service code · ≤2 hops per module request · goldens unchanged throughout | 🟡 **2 of 3** |
+| **B** | Zero direct `readCol` in service code · ≤2 hops per module request · goldens unchanged throughout | 🟡 **2 of 3, and 2 of 3 criteria now have NO INSTRUMENT** — Gate A was deleted 08/09/2026 and it was what measured the hop ceilings and the goldens. `readCol` is a source grep and still holds. |
 | **C** *(W3)* | Every module `.tsx`, departmental structure, no cross-imports outside declared seams | ⬜ not started |
 
 ### Gate B, in detail
@@ -677,7 +677,7 @@ A gate is a promise the build keeps, not a milestone anybody declares.
 | `readCol` in service code | 0 | ✅ **0** |
 | Hops — `/api/studios/[slug]` | ≤2 | ✅ **2 waves** *(was 8)* |
 | Hops — `…/sales` | ≤2 | **3 waves** *(was 8)* — 3 is the structural floor |
-| Goldens unchanged | 316 | ✅ changed only when a feature deliberately changed a response, each re-recorded with a stated reason |
+| Goldens unchanged | — | ⚫ **N/A** — there are no goldens. All 379 were deleted with Gate A on 08/09/2026, on the owner's instruction; `tests/routes.mjs` and `tests/crud.mjs` replace it and pin no response bodies. |
 
 The studio route meets the ≤2 target. Sales sits at 3, and 3 is the structural
 floor rather than a convenient stopping point: the section list cannot be fetched

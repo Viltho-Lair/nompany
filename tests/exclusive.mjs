@@ -6,7 +6,7 @@
 // one's fixtures mid-flight, and the first then fails somewhere far away with a
 // TypeError on a context that came back as an error object.
 //
-// The file-level split (gate-a vs suite) does nothing here, because the two
+// The file-level split (routes/crud vs suite) does nothing here, because the two
 // colliding runs are the same file. NOMPANY_TEST_SESSION is the real remedy and
 // requires somebody to remember; this is the same protection applied by default.
 //

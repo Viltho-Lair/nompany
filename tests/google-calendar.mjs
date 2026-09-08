@@ -1,6 +1,7 @@
 // EVERY PURE ASSERTION FOR THE /super GOOGLE CALENDAR, with no Google, no store
 // and no network in the room. The integration halves — the four routes and their
-// goldens — live in tests/gate-a.mjs, because they need a console session.
+// goldens — lived in tests/gate-a.mjs, which is gone along with the goldens;
+// the console-session paths they covered have no replacement yet.
 //
 // THIS FILE SHRANK WHEN THE SERVICE ACCOUNT WENT. Its middle section drove the
 // old credential chain (Vercel OIDC → STS → IAM Credentials → an impersonated

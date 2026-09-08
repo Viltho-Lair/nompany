@@ -21,7 +21,8 @@
 // LOADER HOOK, DEFERRED. pg.ts and keys.ts reach each other with an
 // extensionless specifier (`./keys`), which plain Node's ESM resolver cannot
 // follow without tests/loader.mjs registered first. Both callers of this file
-// (suite.mjs via integration.test.mjs, gate-a.test.mjs) register it before
+// (suite.mjs via integration.test.mjs, routes.mjs and crud.mjs via
+// apiFixture.mjs) register it before
 // they import anything real, but a STATIC import here would still be resolved
 // too early relative to that — same reasoning tests/pg-parity.mjs documents —
 // so the target modules are imported dynamically, inside the function, after

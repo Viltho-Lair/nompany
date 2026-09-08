@@ -1,8 +1,0 @@
-{
-  "status": 400,
-  "body": {
-    "error": "over-correct",
-    "itemId": "<inv_ID>",
-    "received": 4
-  }
-}

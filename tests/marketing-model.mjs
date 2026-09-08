@@ -333,7 +333,7 @@ const variantFiles = existsSync(VARIANT_DIR)
   : [];
 ok("...and a hero is in it", variantFiles.length > 0);
 
-// COMMENTS ARE STRIPPED BEFORE MATCHING, same treatment as gate-a.mjs's own
+// COMMENTS ARE STRIPPED BEFORE MATCHING, the treatment gate-a.mjs used for its
 // `stripComments` (see its note by `carriesLibrary`). An assertion that guards
 // a pattern trips over the comment explaining why the pattern is banned — the
 // opacity-0 check below exists BECAUSE `initial={{ opacity: 0 }}` is dangerous,

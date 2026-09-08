@@ -1,8 +1,0 @@
-{
-  "status": 409,
-  "body": {
-    "error": "over-receive",
-    "itemId": "<inv_ID>",
-    "remaining": 6
-  }
-}

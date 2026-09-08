@@ -1,7 +1,0 @@
-{
-  "status": 400,
-  "body": {
-    "error": "already-reversed",
-    "by": "<jou_ID>"
-  }
-}

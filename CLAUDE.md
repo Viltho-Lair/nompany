@@ -208,7 +208,7 @@ without one already in hand).
   prove the result.
 - **`npm run test:parity` (and CI's `NOMPANY_DB=parity` step) write real rows.** Every
   fixture `tests/pg-parity.mjs` creates is either a synthetic tenant id the test deletes
-  in its own `finally` block, or one of the studios the integration suite / Gate A create
+  in its own `finally` block, or one of the studios the integration suite / the API tests create
   for real — those are swept via `sweepPgTenants` using the exact ids `REG.studios`
   names, the same invariant-17 shape as the key sweep, and it must run **before** the
   `delPrefix` that would otherwise erase that id list.
@@ -280,7 +280,7 @@ whether your work is correct.
 What CI runs, when it runs, is still the definitive list of what must hold:
 
 ```bash
-npm test            # model tests, restructure assertions, integration suite, Gate A — real routes, real Postgres
+npm test            # model tests, restructure assertions, integration suite, routes + crud — real routes, real Postgres
 npx tsc --noEmit
 npx tsc --noEmit -p tsconfig.strict.json   # every .ts/.tsx, with noImplicitAny
 npx next build
@@ -300,11 +300,14 @@ The requirements below have not weakened; what changed is who checks them and wh
   files only — so a brand-new screen or module is invisible to them, the suite passes
   locally, and the identical tree fails in CI the moment it is committed. This cost a red
   build on the pipeline board.
-- **Golden responses are the contract.** If a response body changes, the change is
-  wrong until deliberately re-recorded in its own commit with a stated reason.
-  `NOMPANY_RECORD_GOLDENS` is never set in CI.
-- **Hop counts are part of the contract.** A route regressing from 2 database round
-  trips to 8 fails the build.
+- **THERE ARE NO GOLDEN RESPONSES ANY MORE.** They were the contract until 08/09/2026;
+  `tests/routes.mjs` proves every route answers and refuses correctly, and pins no body.
+  A renamed field, a null that became `""`, or a dropped key now reaches a client with
+  nothing in the way.
+- **HOP COUNTS ARE NO LONGER ASSERTED.** They were Gate A's, and they were the
+  instrument for two of Gate B's three criteria. A route regressing from 2 database
+  round trips to 8 now fails nothing. `observability.ts` still COUNTS them per request,
+  so the number is on every log line — what is gone is anything that reads it.
 - **The bundle budget pins the regression, not the size.** Three gates now, and the
   first is the one that matters: **per-route FIRST LOAD, against a recorded baseline
   plus an 8 KB margin** (`scripts/bundle-baselines.json`, rewritten with
@@ -525,13 +528,14 @@ site; roughly a dozen such calls survive and are being converged.
 `--ad-chart-*`, `.ad-num` and `.ad-skel` inside `.admindek`, which is imported by
 `/super/layout.js` alone — a component carrying a console-scoped token into a studio
 screen resolves it to nothing and still builds. `/super` aliases the shared ramp
-rather than restating it. Gate A asserts both halves.
+rather than restating it. `tests/restructure.mjs` asserts both halves — salvaged
+from Gate A when it was deleted.
 
 **`motion/react` may not be imported outside `src/components/landing/`.** It is ~30 KB
 gzipped and that confinement is the only reason the studio's chunk does not carry it.
 Shared motion primitives live in `src/components/motion` and are hand-driven —
 `Reveal`, `CountUp`, and the house curves in `tokens.ts`, which the landing imports
-back. Gate A holds the line.
+back. `tests/restructure.mjs` holds the line, salvaged from Gate A when it was deleted.
 
 **Browser-pane traps**, four of them, all paid for:
 
@@ -664,37 +668,68 @@ base64 on those two records cannot be reclaimed by running anything; the script 
 back first. Recorded as a finding rather than fixed here, because restoring a deletion tool
 that writes to live data is its own change with its own authorisation.
 
-**Waves 0–1 are complete; Gate A is green.** Wave 0 shipped (orphan-sweep guard,
-credential rate limiting, console session expiry, traffic-ingest bounds, media tenancy,
-security headers, bcrypt 12 with rehash-on-login, M-1 dead capabilities). Gate A shipped:
-365 golden responses over every surface, the 181-key permission matrix, hop counting, six
-architectural assertions, **per-route permission enforcement in every module**, **ESLint**
-(flat config + shrink-only warning budget: the CEILING is 142 and the actual count is 138,
-so the budget has 4 warnings of slack it could give back), **observability** (request ids, per-request hop
-counts), and CI enforcing all of it.
+**Waves 0–1 are complete. GATE A IS DELETED — code, tests and goldens, 08/09/2026,
+on the owner's instruction.** Wave 0 shipped (orphan-sweep guard, credential rate limiting,
+console session expiry, traffic-ingest bounds, media tenancy, security headers, bcrypt 12
+with rehash-on-login, M-1 dead capabilities), and its **ESLint** budget (flat config,
+shrink-only: the CEILING is 142 and the actual count is 138) and **observability** (request
+ids, per-request hop counts) are untouched.
 
-Both of those numbers keep moving — 139 goldens and 102 keys before the
-fifteen-section restructure. They are stated here as MEASURED (`ls tests/goldens | wc -l`, and
-the catalogue assertion in `tests/gate-a.mjs`), because a pass condition quoted from memory is
-a pass condition nobody can check. **Re-measured 06/09/2026 and both were stale — this
-said 189 and 143 against a real 257 and 159**, which is the paragraph failing its own rule
-in the same breath as stating it. A number nobody re-measures decays silently, and these two
-had drifted through the tender-pack, requisitions and departments slices without anybody
-noticing, because nothing fails when prose disagrees with a test.
+**WHAT WENT, AND WHAT IT COST — written down because the next session will otherwise
+assume the coverage is still there.** `tests/gate-a.mjs` (9,229 lines), its bootstrap,
+`tests/goldens.mjs` and all **379** golden files are gone. With them went the only thing
+in this repo that could notice UNINTENDED change: a field appearing on a list nobody was
+looking at. The last day it ran, adding four Manufacturing record types moved sixteen
+goldens across HR, Projects, Operations, Inventory and Sales, none of whose routes had
+changed — that class of finding has no replacement and is not coming back cheaply.
 
-**AND THE CORRECTION WAS ITSELF OFF BY ONE, which is the sharper lesson.** It landed as 256,
-measured accurately at `682eda7` and written down on top of `a2044ff` — one commit later, and
-that commit added `procurement.requisitions.list.json`. So a number was measured, was true when
-measured, and was stale by the time it was committed. `ls tests/goldens | wc -l` says 365
-and `ALL_PERMISSIONS.length` says 181, both measured 08/09/2026 — so the pair above had
-drifted AGAIN, by 22 goldens and 4 keys, in a single day. This paragraph has now been
-wrong four times about the same two numbers. Treat every figure in this file as a
-measurement with a date, not as a fact.
-Re-measure at the commit you are writing, not at the one you were reading.
+Also gone with it: the 181-key permission-matrix assertion, the hop-count ceilings, and
+per-route permission enforcement asserted module by module. **Four source-scan assertions
+were SALVAGED into `tests/restructure.mjs`** rather than deleted with the file —
+`motion/react` confinement, the role library never reaching a client, the chart kit's
+tokens, and the shared ramp on `:root`. They scan source, need no database, and run in
+milliseconds; leaving them in the file being deleted would have removed them silently,
+which is the exact failure each exists to prevent.
 
-**Wave 2 (seams + performance) is mostly done; Gate B is 2 of 3.** Zero direct `readCol` in
-service code ✅, goldens unchanged by the seam work ✅ (365 today), hops ≤2 for the studio route and 3 for sales
-(the structural floor). Done: Seam A (route wrapper, every route), Seam B (repository
+**WHAT REPLACED IT: `tests/routes.mjs` and `tests/crud.mjs`.** Routes walks
+`src/app/api/**/route.ts` off the DISK — so a route added this afternoon is covered this
+afternoon — and calls every GET as three callers: signed out (must never answer 200),
+an outsider (a slug never authorises, invariant 2), and the owner (must not fall over).
+CRUD runs a create → read-back → update → read-back → refuse → delete → gone lifecycle per
+resource, from a small hand-written table, and asserts the four verbs refuse a member
+holding no role.
+
+**IT HAS TWO SCOPES AND THE DEFAULT IS THE FAST ONE.** Measured 08/09/2026 on the owner's
+laptop: import 0.9s, signed-out 0.0s, outsider 1.1s — and the owner pass **241s**. That
+last number is latency, not contention: eight document reads per request at ~280ms each
+through the local `cloud-sql-proxy`, and raising the lane count 6→32 and `PGPOOL_MAX`
+3→32 moved it by six per cent. So `API_TEST_SCOPE` defaults to `quick` (~9s, everything
+but the owner pass) and CI runs `full`. **The twelve minutes Gate A cost was never the
+assertions — it was its fixture**, and this fixture is four users and one studio.
+
+**The route sweep found something on its first run**, which is the argument for it existing
+at all: `/api/me/rating` answers a signed-out caller 200. It is deliberate and harmless —
+the browser asks "should I show the rating prompt" and "no" is the safe answer for a
+stranger, while the POST beside it 401s — so it is listed in that file's public set, by
+name and with the reason.
+
+**THE LESSON THE GOLDEN COUNT TAUGHT OUTLIVES THE GOLDENS, so it is kept.** That number
+was wrong in this file four separate times — 189 and 143 against a real 257 and 159; then
+a correction that was accurate at `682eda7` and stale by the time it was committed on top
+of `a2044ff`, one commit later, because that commit added a golden; then 365 and 181 a day
+after that. A number nobody re-measures decays silently, and nothing fails when prose
+disagrees with a test. **Treat every figure in this file as a measurement with a date,
+not as a fact, and re-measure at the commit you are writing rather than the one you were
+reading.** `ALL_PERMISSIONS.length` is 181, measured 08/09/2026; nothing asserts it any
+more, because the assertion that did was in Gate A.
+
+**Wave 2 (seams + performance) is mostly done; Gate B is 2 of 3 AND TWO OF ITS THREE
+CRITERIA NO LONGER HAVE AN INSTRUMENT.** Zero direct `readCol` in service code ✅ — that
+one is a source grep and still holds. The other two were measured BY Gate A: "goldens
+unchanged throughout" is meaningless now there are none, and the hop ceilings (≤2 for the
+studio route, 3 for sales, which is the structural floor) were its query-count assertions.
+Both were green when it was deleted, and neither is checked any more. Recorded rather than
+quietly dropped: a criterion with no instrument is a claim, not a gate. Done: Seam A (route wrapper, every route), Seam B (repository
 interface + the `readCol` migration across every module), Seam C (one context factory,
 killed hop 7), request-scoped cache + batched prefetch (8→2 hops), targeted live updates,
 audit log, security round 2 (session digests at rest, console MFA), notification producers.
@@ -986,7 +1021,7 @@ groups are how the work was sold and a studio budgets by how it expects to buy.
 
 **`projects.costs` is its own area** by the test `tendering.rates` passed: a project's budget is
 not its content the way a bill is a tender's, and a site engineer opening the job has no
-business reading what amounts to the margin. Gate A pins it — somebody who may view and edit
+business reading what amounts to the margin. Gate A pinned it — somebody who may view and edit
 every project is refused the breakdown by name.
 
 **MONEY NOBODY FILED PROPERLY IS STILL THE PROJECT'S MONEY**, and that is what the roll-up turns
@@ -1030,7 +1065,8 @@ is why `percentComplete` is nullable rather than defaulted.
 
 **Nothing divides by nought.** Nothing spent is not infinite efficiency — a project billed for
 nothing is one whose invoices have not arrived — so CPI and EAC are null; before the start date
-PV is nought and SPI over it is null rather than Infinity. One Gate A assertion guards every one.
+PV is nought and SPI over it is null rather than Infinity. One Gate A assertion guarded every
+one, and went with it — `tests/earned-value.mjs` still covers the arithmetic, being pure.
 
 **PLANNED VALUE IS A STRAIGHT LINE and the screen says so.** The real curve is the plan's own,
 and the planner does not STORE task dates — it derives them in the browser from durations and
@@ -1090,7 +1126,7 @@ total as its expected cash was wrong by exactly what its clients were holding.
 because "may run this job" and "may see what it is allowed to cost" are different powers.
 Billing splits the same project the other way — a commercial manager raising applications for
 payment needs none of the supplier costs, and a project manager watching spend needs none of the
-client's payment schedule. Gate A pins it from the side that matters: somebody holding
+client's payment schedule. Gate A pinned it from the side that matters: somebody holding
 `projects.costs.view` is refused the schedule by name.
 
 **THE AMOUNT IS ABSOLUTE, never a percentage of the value.** A stored percentage would silently

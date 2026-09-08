@@ -1404,6 +1404,132 @@ export async function testEveryConsoleDestinationResolvesToARoute(t) {
   t.equal(routes.has("/super/dashboard"), true, "the console has a landing point");
 }
 
+// ---- what Gate A used to hold, and nothing else did -------------------------
+// SALVAGED WHEN GATE A WAS DELETED, and worth saying why rather than moving it
+// quietly. Gate A was removed for its goldens — 379 recorded response bodies
+// that cost twelve minutes and re-recorded sixteen files whenever a section was
+// added. These four assertions were sitting in the same file and have nothing
+// to do with goldens: they scan the SOURCE, need no database, and run in
+// milliseconds. Deleting the file would have deleted them silently, which is
+// the exact failure mode they each exist to prevent.
+//
+// They live here because this is already the file that reads lists out of the
+// source rather than exercising them, and because it runs without Postgres.
+async function sourceFiles() {
+  const { readdirSync, readFileSync, statSync } = await import("node:fs");
+  const walk = (dir) => readdirSync(dir).flatMap((entry) => {
+    const path = `${dir}/${entry}`;
+    return statSync(path).isDirectory() ? walk(path) : [path];
+  });
+  // Forward slashes whatever the platform: every match below is a path
+  // pattern, and a Windows backslash would silently match nothing — which
+  // reads as "all clear" rather than as a broken test.
+  return walk("src")
+    .filter((p) => /\.(js|jsx|ts|tsx)$/.test(p))
+    .map((p) => ({ path: p.split("\\").join("/"), text: readFileSync(p, "utf8") }));
+}
+
+// An assertion that guards an identifier trips over the comment explaining why
+// the identifier is banned. The role-library note below says "roleLibrary"
+// three times and would match itself.
+const stripComments = (text) => text
+  .replace(/\/\*[\s\S]*?\*\//g, "")
+  .replace(/^\s*\/\/.*$/gm, "");
+
+export async function testMotionStaysInsideTheLanding(t) {
+  // THE ONE THAT ACTUALLY COSTS MONEY. `motion/react` is ~30 KB gzipped and is
+  // confined to components/landing/**, which is the only reason the studio's
+  // chunk does not carry it. One `import { CountUp } from
+  // "@/components/landing/ui/CountUp"` in a studio card and every tenant route
+  // pays for the landing's animation library. The shared primitives in
+  // components/motion are hand-driven for exactly this reason.
+  const sources = await sourceFiles();
+  t.equal(sources.length > 300, true, `there are sources to scan (${sources.length})`);
+
+  const leaked = sources
+    .filter((f) => f.text.includes('"motion/react"') || f.text.includes("'motion/react'"))
+    .filter((f) => !f.path.startsWith("src/components/landing/"))
+    .map((f) => f.path);
+  t.equal(leaked.length, 0, `motion/react stays inside the landing: ${leaked.join(", ")}`);
+
+  // ...and the scan can see it at all, or the line above passes on an empty set
+  // for the wrong reason.
+  const uses = sources.filter((f) => f.text.includes('"motion/react"')).length;
+  t.equal(uses > 5, true, `the scan finds real imports of it (${uses})`);
+}
+
+export async function testTheRoleLibraryNeverReachesABrowser(t) {
+  // ~3,000 job titles, a few hundred kilobytes, for a list a picker needs
+  // twenty rows of. A client component importing it would fail NOTHING: the
+  // build succeeds, every test passes, and a sixth of the bundle budget is
+  // quietly spent. That is the shape of regression a ceiling catches only once
+  // it has already been paid for.
+  const clientFiles = (await sourceFiles()).filter((f) =>
+    /^src\/components\//.test(f.path) || /"use client"/.test(f.text));
+  t.equal(clientFiles.length > 50, true, `there are client files to scan (${clientFiles.length})`);
+
+  const carries = clientFiles
+    .filter((f) => /roleLibrary/.test(stripComments(f.text)))
+    .map((f) => f.path);
+  t.equal(carries.length, 0, `the role library never reaches a client component: ${carries.join(", ")}`);
+
+  // And the archetypes with it: read only on the server, when a library role is
+  // added or a department seeded. The screens show a role's PERMISSIONS, never
+  // the shape that suggested them.
+  const archetypes = clientFiles
+    .filter((f) => /modules\/people\/archetypes/.test(stripComments(f.text)))
+    .map((f) => f.path);
+  t.equal(archetypes.length, 0, `...and neither do the archetypes: ${archetypes.join(", ")}`);
+}
+
+export async function testTheSharedChartKitUsesNoConsoleOnlyToken(t) {
+  // `--ad-chart-*`, `--ad-muted*` and `--ad-border` are declared INSIDE
+  // `.admindek`, and super.css is imported by /super/layout.js alone. A chart
+  // carrying one of those into a studio screen renders every series with an
+  // invalid colour — black, or nothing, depending on the property. It builds,
+  // it deploys, and it is wrong.
+  const kit = (await sourceFiles()).filter((f) => f.path.startsWith("src/components/charts/"));
+  t.equal(kit.length > 0, true, `the chart kit is where the scan expects it (${kit.length})`);
+
+  const consoleOnly = kit.flatMap((f) =>
+    [...f.text.matchAll(/var\(--ad-[a-z0-9-]+\)/g)].map((m) => `${f.path.split("/").pop()}:${m[0]}`));
+  t.equal(consoleOnly.length, 0,
+    `the shared chart kit uses no console-only token: ${consoleOnly.join(", ")}`);
+}
+
+export async function testTheSharedTokensAreOnRoot(t) {
+  const { readFileSync } = await import("node:fs");
+  const globals = readFileSync("src/app/globals.css", "utf8");
+  const superCss = readFileSync("src/app/super/super.css", "utf8");
+
+  // EVERY `:root` RULE, NOT THE FIRST. globals.css has four (the brand scale,
+  // the semantic layer, the studio surface, the doc tokens), and matching only
+  // the first found nothing while the ramp sat in the fourth. Matched with a
+  // regex rather than by scanning for a closing brace at the start of a line:
+  // the file is CRLF on disk and read verbatim, so that scan would hunt for the
+  // wrong two characters and quietly find nothing — which reads as "the ramp is
+  // missing".
+  const rootBlock = (globals.match(/:root\s*\{[^}]*}/g) || []).join("");
+  const ramp = [1, 2, 3, 4, 5].filter((n) => rootBlock.includes(`--chart-${n}:`));
+  t.equal(ramp.length, 5, `the five-series ramp is declared on :root (${ramp.length}/5)`);
+
+  // The console ALIASES that ramp rather than restating it — one definition, so
+  // a retuned series cannot mean two different things on two surfaces.
+  t.equal(superCss.includes("--ad-chart-1-rgb: var(--chart-1)"), true,
+    "/super aliases the shared ramp rather than redeclaring it");
+
+  // `.num` and `.skel` were `.ad-num`/`.ad-skel` in super.css, and the kit's own
+  // ChartSkeleton and BarList use them. Left behind, a studio skeleton is an
+  // invisible box of the right size — a card that looks empty rather than
+  // loading.
+  t.equal(globals.includes(".num {") && globals.includes(".skel {"), true,
+    "the number and skeleton utilities are global");
+  t.equal(!superCss.includes(".num {") && !superCss.includes(".skel {"), true,
+    "...and no longer in the console's own sheet");
+  t.equal(globals.includes("@keyframes skel-sweep"), true,
+    "...and the sweep keyframe moved with them");
+}
+
 // ---- harness ----------------------------------------------------------------
 // Same non-throwing, accumulate-and-report shape as tests/suite.mjs's own
 // ok(): one bad assertion must not hide the rest, which matters more here than
@@ -1457,6 +1583,10 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       testEverySectionHasAnArabicName,
       testEmptySectionsDoNotRender,
       testEveryKeyWithNothingToShowIsDeclared,
+      testMotionStaysInsideTheLanding,
+      testTheRoleLibraryNeverReachesABrowser,
+      testTheSharedChartKitUsesNoConsoleOnlyToken,
+      testTheSharedTokensAreOnRoot,
       testAdministrationFollowsItsChildren,
       testProjectSegmentsAreExemptFromTheBoard,
       testEveryContextualSectionKeyLiteralExists,

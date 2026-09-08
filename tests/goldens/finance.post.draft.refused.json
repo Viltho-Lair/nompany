@@ -1,7 +1,0 @@
-{
-  "status": 400,
-  "body": {
-    "error": "not-postable",
-    "status": "Draft"
-  }
-}
