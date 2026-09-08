@@ -212,6 +212,31 @@ function cleanLines(
  */
 export type PostOptions = { system?: boolean };
 
+/**
+ * WHAT A JOURNAL ENTRY CAN BE THE CONSEQUENCE OF. A closed set, because
+ * `alreadyPosted` matches on it — an unrecognised kind is not a cosmetic
+ * problem.
+ *
+ * THIS LIST WAS INLINE IN `postEntry` AND CREDIT NOTES WERE NOT ON IT. The
+ * effect was silent and expensive: `postCreditNote` passed `credit-note`,
+ * `postEntry` did not recognise it, fell back to `"manual"`, and stored an
+ * entry whose source said manual. So `alreadyPosted(entries, "credit-note", id)`
+ * could never match — the SAME credit note would post again on every attempt,
+ * reducing the receivable once more each time, and nothing would refuse it. The
+ * document looked posted, the books were wrong, and the only symptom was a
+ * journal full of "manual" entries nobody had keyed.
+ *
+ * `manual` IS LAST AND IS NOT POSTABLE. It is what a person keying an
+ * adjustment by hand produces, which is the one source with no document behind
+ * it — `POSTABLE` in ./posting derives itself from this list by dropping it, so
+ * a new kind is added HERE, once, and both halves learn about it.
+ */
+export const ENTRY_SOURCE_KINDS = [
+  "invoice", "expense", "bill", "bill-payment", "payment", "credit-note", "manual",
+] as const;
+
+export type EntrySourceKind = (typeof ENTRY_SOURCE_KINDS)[number];
+
 export async function postEntry(
   ctx: FinanceContext,
   body: { date?: unknown; memo?: unknown; lines?: unknown; source?: { kind?: string; id?: string } },
@@ -234,8 +259,7 @@ export async function postEntry(
     return { error: "unbalanced", debit: money(cleaned.debit), credit: money(cleaned.credit) };
   }
 
-  const kind = (["invoice", "bill", "bill-payment", "expense", "payment", "manual"] as const)
-    .find((k) => k === body?.source?.kind) || "manual";
+  const kind = ENTRY_SOURCE_KINDS.find((k) => k === body?.source?.kind) || "manual";
 
   const entries = await Entries.find({ studio, section: ledgerSection });
   const reference = await nextReference(studio.id, { rows: entries as Row[], field: "reference", ...seriesSetting("journal", studio.numbering) });

@@ -575,6 +575,15 @@ two full-value notes, and it is the second ISSUE that has to refuse — checking
 create would let both through and take the receivable negative. A draft credits nothing and
 reserves nothing, so an unfinished note can neither move the books nor block a real one.
 
+**AND THE LIVE HALF FOUND A DOUBLE-POSTING BUG THAT THE PURE HALF COULD NOT.**
+`postEntry` kept its own inline list of source kinds and `credit-note` was not on it: the
+dispatcher accepted the kind, `postEntry` did not recognise it, fell back to `"manual"`,
+and stored an entry whose source said manual. So `alreadyPosted` could never match — **the
+same credit note would post again on every attempt**, reducing the receivable once more
+each time, with nothing refusing it and no symptom but a journal full of manual entries
+nobody had keyed. Two hand-written lists is what allowed it; `POSTABLE` derives itself from
+`ENTRY_SOURCE_KINDS` now, and the suite asserts the two differ by exactly `manual`.
+
 **It posts the exact reverse, proportionally.** Debit Revenue and VAT Payable, credit
 Receivable, split at the INVOICE's own rate rather than today's — the tax being given back
 is the tax that was charged. The net is derived by subtraction so the two always sum to the

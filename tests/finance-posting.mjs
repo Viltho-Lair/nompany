@@ -195,7 +195,9 @@ if (spent.expense?.id) {
 
     const issued = await issueCreditNote(await ctx(), noteId);
     ok("issuing it posts", issued.posting?.posted === true, JSON.stringify(issued.posting));
-    ok("...as one entry", (await entriesFor("credit-note", noteId)).length === 1);
+    const cnEntries = await entriesFor("credit-note", noteId);
+    ok("...as one entry", cnEntries.length === 1,
+      `${cnEntries.length} entries; posting=${JSON.stringify(issued.posting)}`);
 
     // AN ISSUED NOTE IS NOT CANCELLED. It has posted and the client has been
     // told; undoing it is a second document, not a status change.
@@ -213,6 +215,34 @@ if (spent.expense?.id) {
     ok("a second note beyond the remaining amount is refused",
       rest.error === "over-credit", JSON.stringify(rest).slice(0, 140));
   }
+}
+
+// ---- the two lists are one ------------------------------------------------
+// THE BUG THIS FILE CAUGHT, pinned so it cannot come back. `postEntry` kept its
+// own inline list of source kinds and `credit-note` was not on it: the
+// dispatcher accepted the kind, postEntry did not recognise it, fell back to
+// "manual", and stored an entry whose source said manual. `alreadyPosted` could
+// then never match, so the SAME credit note would post again on every attempt —
+// the receivable reduced once more each time, with nothing refusing it, and no
+// symptom but a journal full of manual entries nobody had keyed.
+//
+// IT LIVES HERE RATHER THAN IN THE PURE MODEL because reading either list means
+// importing `ledger.ts`, which reaches the store — and a pure test runs without
+// the module loader those `@/` specifiers need.
+{
+  const { ENTRY_SOURCE_KINDS } = await import("@/modules/finance/ledger");
+  const { POSTABLE } = await import("@/modules/finance/posting");
+
+  const missing = POSTABLE.filter((k) => !ENTRY_SOURCE_KINDS.includes(k));
+  ok("every postable kind is a kind an entry can record", missing.length === 0,
+    missing.join(", "));
+  // `manual` is the one source with no document behind it, so it is the one
+  // thing that cannot be posted from anywhere.
+  ok("...and manual is not postable", !POSTABLE.includes("manual"));
+  ok("...while an entry can still record one", ENTRY_SOURCE_KINDS.includes("manual"));
+  ok("...so the two lists differ by exactly that one",
+    POSTABLE.length === ENTRY_SOURCE_KINDS.length - 1,
+    `${POSTABLE.length} postable, ${ENTRY_SOURCE_KINDS.length} kinds`);
 }
 
 // ---- the assertion the whole file is for -----------------------------------

@@ -12,14 +12,21 @@
 // is "post this thing", and five endpoints would be five places to forget one.
 import {
   postInvoice, postExpense, postBill, postBillPayment, postPayment, postCreditNote,
+  ENTRY_SOURCE_KINDS,
 } from "./ledger";
 import type { FinanceContext } from "./types";
 import type { PostOptions } from "./ledger";
 
 /** What can be posted. A closed set: the dispatcher must never take a name it
  *  has not been taught, or a caller chooses which code path runs. */
-export const POSTABLE = ["invoice", "expense", "bill", "bill-payment", "payment", "credit-note"] as const;
-export type Postable = (typeof POSTABLE)[number];
+// DERIVED FROM THE ENTRY'S OWN SOURCE KINDS, minus `manual` — which is the one
+// source with no document behind it, so it is the one thing that cannot be
+// "posted" from anywhere. Two hand-written lists is what let `credit-note` be
+// dispatchable here and unrecognised by `postEntry`, which stored it as manual
+// and made `alreadyPosted` blind to it: the same note would post again on every
+// attempt. One list, and a new kind is added once.
+export const POSTABLE = ENTRY_SOURCE_KINDS.filter((k) => k !== "manual");
+export type Postable = Exclude<(typeof ENTRY_SOURCE_KINDS)[number], "manual">;
 
 export const isPostable = (v: unknown): v is Postable =>
   (POSTABLE as readonly string[]).includes(String(v ?? ""));
