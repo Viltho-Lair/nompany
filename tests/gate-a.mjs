@@ -4094,6 +4094,55 @@ console.log("== finance: a number that only goes forward, and money that is deri
     String(bs?.retainedResult));
   await shot("finance.ledger.books", books);
 
+  // ---- a document posts itself into the books ------------------------------
+  //
+  // FIVE POSTING FUNCTIONS EXISTED COMPLETE AND UNREACHABLE. postInvoice,
+  // postExpense, postBill, postBillPayment and postPayment each guard their own
+  // permission, refuse a document that is not in a postable state, refuse when
+  // the chart lacks an account they need, and are idempotent — and NOTHING
+  // called any of them, so raising an invoice never touched the books. This is
+  // the first time one has ever run.
+  const ENG_LEDGER = LEDGER;
+  const postDoc = (document) =>
+    capture(ENG_LEDGER.POST, req(ledgerPath, { method: "POST", body: { document } }), P);
+
+  // A DRAFT IS NOT POSTABLE. An invoice nobody has sent is not a receivable —
+  // booking it would recognise revenue on a document the customer has not seen.
+  const draftInvoice = await raise({ clientName: "Acme Holdings", lines: LINES, vatRate: 15 });
+  const draftId = draftInvoice.body?.invoice?.id;
+  await shot("finance.post.draft.refused", await postDoc({ kind: "invoice", id: draftId }));
+
+  // ISSUED, AND NOW IT IS. 25,000 at 15% — receivable 28,750, revenue 25,000,
+  // VAT payable 3,750, which is the arithmetic `invoiceTotals` already did and
+  // this does not repeat.
+  await capture(INVOICES.PUT, req(`/api/studios/${slug}/finance/invoices`, {
+    method: "PUT", body: { id: draftId, status: "Sent" },
+  }), P);
+  const booked = await shot("finance.post.invoice", await postDoc({
+    kind: "invoice", id: draftId,
+  }));
+  ok("an issued invoice posts to the ledger", Boolean(booked.body?.entry?.id),
+    JSON.stringify(booked.body).slice(0, 140));
+  ok("...balanced, like every other entry",
+    (booked.body?.entry?.lines || []).length === 3,
+    String((booked.body?.entry?.lines || []).length));
+
+  // AND NOT TWICE. `alreadyPosted` reads the journal for an entry naming this
+  // document; without it a second call would double the revenue and the books
+  // would still balance, which is the worst kind of wrong.
+  await shot("finance.post.invoice.twice", await postDoc({ kind: "invoice", id: draftId }));
+
+  // THE DISPATCHER TAKES A CLOSED SET. A kind it has not been taught chooses no
+  // code path, rather than falling through to one.
+  await shot("finance.post.unknown.kind", await postDoc({ kind: "guesswork", id: draftId }));
+
+  // A PAYMENT NEEDS TWO IDS — the parent to find it on and its own to know which
+  // one it is. Asking for one is a guess, and a guess here posts money to the
+  // wrong account.
+  await shot("finance.post.payment.needs.both", await postDoc({
+    kind: "payment", id: draftId,
+  }));
+
   // ---- a posting names its deal, and the ledger can be asked about it -------
   //
   // THE PROGRAMME'S ACCEPTANCE TEST is "the deal card's profit figure

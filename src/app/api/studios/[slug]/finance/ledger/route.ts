@@ -4,6 +4,7 @@ import { financeContext } from "@/modules/finance/finance";
 import {
   ledgerAccounts, listJournal, trialBalanceFrom, postEntry, reverseEntry,
 } from "@/modules/finance/ledger";
+import { postDocument } from "@/modules/finance/posting";
 import {
   profitAndLoss, balanceSheet, byDimension, DIMENSIONS,
 } from "@/modules/finance/statements";
@@ -95,9 +96,26 @@ export const GET = route({ ...spec, body: false }, async (f) => {
   };
 });
 
-// A MANUAL ENTRY. The service refuses an unbalanced one — that is the whole
-// point of a double entry and is not a check this layer may skip or repeat.
+// POST: EITHER A DOCUMENT OR A HAND-KEYED ENTRY, and the body says which.
+//
+// A `document` in the body posts an invoice, a bill, an expense or a payment
+// through the function that knows its accounts; anything else is a manual
+// journal. Both end in `postEntry`, so an unbalanced result is refused by the
+// same rule either way — that is the whole point of a double entry and not a
+// check this layer may skip or repeat.
+//
+// THE DOCUMENT PATH IS WHAT MAKES THE LEDGER A BOOK rather than a place to
+// hand-key adjustments. The five posting functions have existed complete since
+// the ledger was written and NOTHING called them, so raising an invoice never
+// touched the books.
 export const POST = route(spec, async (f) => {
+  const document = f.body?.document as { kind?: unknown; id?: unknown; paymentId?: unknown } | undefined;
+  if (document) {
+    const posted = await postDocument(f, document.kind, document.id, document.paymentId);
+    if (refused(posted)) return posted;
+    return { status: 201, body: { ok: true, entry: posted.entry } };
+  }
+
   const result = await postEntry(f, f.body);
   if (refused(result)) return result;
   return { status: 201, body: { ok: true, entry: result.entry } };

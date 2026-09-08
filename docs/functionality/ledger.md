@@ -108,10 +108,25 @@ feature.
 
 Stated in words, because a silent gap reads as a finished feature.
 
-- **Nothing posts automatically.** `postInvoice`, `postBill`, `postExpense` and
-  `postPayment` exist and are still reached by nothing: raising an invoice does not
-  touch the ledger. Every entry is keyed by hand. This is the programme's
-  "auto-posting from every module" and it is the largest remaining piece.
+- **Nothing posts AUTOMATICALLY, though a document can now be posted.** The five
+  posting functions are reachable as of 08/09/2026 — `POST` the ledger route with a
+  `document` and it books an invoice, a bill, an expense or a payment through the
+  function that knows its accounts. What is missing is the "auto": raising an invoice
+  still does not touch the books unless somebody asks.
+
+  **AND THE REASON IT IS NOT AUTOMATIC YET IS A DECISION, NOT AN OVERSIGHT.**
+  `postEntry` requires `finance.ledger.post`. If issuing an invoice posted as a side
+  effect, it would run under the *issuer's* rights — and most people who may raise an
+  invoice hold no ledger right at all, so the posting would fail for them. There are
+  only two honest ways out and both need deciding rather than defaulting into:
+
+  - **Post under the studio's authority**, not the user's — the right to ISSUE the
+    document is the authority, and the ledger entry is a consequence. This is what
+    real books do, and it means a deliberate permission bypass in one named place.
+  - **Require the right**, and skip the posting when it is absent — which leaves the
+    books silently incomplete for exactly the studios least likely to notice.
+
+  Until that is settled, posting is asked for explicitly and the gap is visible.
 - ~~**A journal line carries no dimension but `projectId`.**~~ **Fixed 08/09/2026.** A
   line now carries `dealId`, `costCodeId` and `departmentId` beside it, the P&L can be cut
   by any one of them, and `byDimension` reports what each value earned. **What is still

@@ -1,31 +1,35 @@
 {
-  "status": 200,
+  "status": 201,
   "body": {
     "ok": true,
-    "reversal": {
+    "entry": {
       "id": "<jou_ID>",
-      "reference": "JE-0007",
+      "reference": "JE-0004",
       "date": "<today>",
-      "memo": "Keyed twice",
+      "memo": "Invoice INV-0007 — Acme Holdings",
       "lines": [
         {
           "accountId": "<acc_ID>",
-          "debit": 0,
-          "credit": 5000
+          "debit": 28750,
+          "credit": 0
         },
         {
           "accountId": "<acc_ID>",
-          "debit": 5000,
-          "credit": 0
+          "debit": 0,
+          "credit": 25000
+        },
+        {
+          "accountId": "<acc_ID>",
+          "debit": 0,
+          "credit": 3750
         }
       ],
       "source": {
-        "kind": "reversal",
-        "id": "<jou_ID>"
+        "kind": "invoice",
+        "id": "<inv_ID>"
       },
       "postedByCollaboratorId": "<col_ID>",
       "postedAt": "<timestamp>",
-      "reversalOfEntryId": "<jou_ID>",
       "studioId": "<std_ID>",
       "sectionId": "<sub_ID>"
     }
