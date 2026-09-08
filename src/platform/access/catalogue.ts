@@ -182,6 +182,14 @@ const OWN_AREAS = [
   //
   // VIEW ONLY. There is nothing to create, edit or delete: an export is a read
   // of rows that already exist.
+  // PUTTING PLANT ON A JOB AND SEEING WHAT IT COST. Its own area rather than a
+  // verb on the equipment register, by the test `projects.costs` passed: the
+  // register is a list of what the company owns, and what that plant is
+  // CHARGING each job is commercial information a yard foreman has no business
+  // reading. The two are held by different people in every studio that owns its
+  // own plant.
+  { key: "assets.utilisation", group: "Assets & Equipment", label: "Plant allocation and hire",
+    verbs: ["view", "create", "edit", "delete"] },
   { key: "reports.exports", group: "Reports & BI", label: "Data exports",
     verbs: ["view"] },
   { key: "tendering.tenders", group: "Tendering & Estimating", label: "Tender register",

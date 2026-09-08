@@ -88,6 +88,9 @@ export const SECTION_AREAS: Readonly<Record<string, readonly string[]>> = {
   // Reports & BI has no sub-sections: the exports screen IS the section, and
   // every data set on it asks the right its own section already required.
   reports: ["reports.exports"],
+  // Assets renders through its engine registers; this is the one thing the
+  // ROOT owns, so the section has an area of its own as well as children.
+  assets: ["assets.utilisation"],
   "tendering-rates": ["tendering.rates"],
   "crm-sales-settings": ["crmSales.settings"],
   "engineering-docs-rfq": ["engineeringDocs.rfq"],

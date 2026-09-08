@@ -795,6 +795,11 @@ export const SECTION_COLLECTIONS = {
   // inventory — Project Sheets owns the sheets and their orders sub-sheet,
   // matching the Old System, where Sheets lives under Inventory (not Projects).
   inventory: ["deliveries"],
+  // WHICH MACHINE IS ON WHICH JOB. On the Assets ROOT rather than under one
+  // of its engine registers: an allocation is about an asset and a deal, and
+  // the equipment register is a list of what the studio owns rather than the
+  // owner of what those things are doing.
+  assets: ["assetAllocations"],
   "inventory-stock": ["inventoryStock"],
   "inventory-items": ["inventoryItems"],
   // GOODS RECEIPTS SIT WITH THE ORDERS THEY ANSWER. `receiveOrder` is

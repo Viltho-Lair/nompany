@@ -448,10 +448,31 @@ reads In service) · **Customs & freight, landed cost ⬜ · Dashboard ⬜**
 
 It was the thinnest built section in the product; three engine registers, 08/09/2026.
 
-#### §10 Assets & Equipment 🟡 3 / 4
-Allocation to deals with internal hire rates 🟡 (the register holds `hireRate`; **nothing
-allocates or charges**) · **Utilisation & cost charged to deals ⬜** · Equipment
-maintenance ✅ · Calibration ✅
+#### §10 Assets & Equipment ✅ 4 / 4
+Allocation to deals with internal hire rates ✅ · Utilisation & cost charged to deals ✅ ·
+Equipment maintenance ✅ · Calibration ✅
+
+**THE REGISTER HELD `hireRate` SINCE IT SHIPPED AND NOTHING READ IT** — its own declaration
+said so: *"nothing consumes it yet — charging a deal for utilisation is its own slice."*
+That slice landed 09/09/2026. A contractor that owns its plant and does not charge it to
+jobs reports every job as more profitable than it is and meets the fleet's real cost as a
+lump nobody can attribute.
+
+**Catalogue 182 → 183 (`assets.utilisation`)**, its own area by the test `projects.costs`
+passed: the equipment register is a list of what the company owns, and what that plant is
+CHARGING each job is commercial information a yard foreman has no business reading.
+
+**Two rules decide whether the numbers are real.** Days are INCLUSIVE at both ends — a
+machine out and back the same day was on that job for a day, and an exclusive count makes
+single-day hires free. And a machine cannot be on two jobs at once: the clash check is
+inclusive at both ends and re-run on every EDIT, because extending a hire is how a machine
+ends up double-charged. An open-ended allocation blocks everything after it. The rate is
+COPIED when the machine goes out, so editing the register later cannot re-price a hire
+already reported on a job — the BOQ rate rule.
+
+**Verified in the sandbox**: two machines at 500 and 800/day across two deals — Riyadh 15
+days / 9,000, Jeddah 5 days / 2,500 — with an overlapping booking refused 409 and the day
+after allowed.
 
 **It rendered NOTHING until 08/09/2026** — an equipment register, maintenance and
 calibration, all engine types.
