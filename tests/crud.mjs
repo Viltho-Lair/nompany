@@ -238,6 +238,70 @@ async function engineGrant() {
 
 await engineGrant().catch((e) => ok("the engine-grant case threw", false, e?.message || String(e)));
 
+// ---- THE EXPORT'S SECOND GATE ----------------------------------------------
+// `reports.exports.view` opens the export surface; each data set still asks the
+// right its own section already required. Giving somebody the export screen
+// must not widen what they can see by one row — which is the whole reason the
+// first right is safe to grant at all.
+async function exportGates() {
+  const EXPORT = await import("../src/app/api/studios/[slug]/reports/export/route.ts");
+  const { createUser } = await import("@/platform/auth/users");
+  const { createRole } = await import("@/modules/people/roles");
+  const { addCollaborator } = await import("@/platform/auth/collaborators");
+
+  const person = async (permissions, alias) => {
+    const u = (await createUser({ email: `x-${alias}-${F.rand()}@test.invalid`, passwordHash: "x" })).user;
+    const role = await createRole(F.studio.id, { name: `role-${alias}-${F.rand()}`, permissions });
+    await addCollaborator(F.studio.id, { userId: u.id, alias, role: "member", roleIds: [role.id] });
+    return u;
+  };
+
+  const get = (dataset) => call(
+    EXPORT.GET,
+    req(`/api/studios/${F.slug}/reports/export?dataset=${dataset}`),
+    P(),
+  );
+
+  // ---- the export right ALONE opens nothing --------------------------------
+  const exporter = await person(["reports.exports.view"], "exportonly");
+  await F.signIn(exporter.id);
+  const refused = await get("invoices");
+  ok("the export right alone does not reach a register", refused.status === 403,
+    `got ${refused.status}`);
+  ok("...and names the right that is missing", refused.body?.key === "finance.cash.view",
+    JSON.stringify(refused.body));
+
+  // ---- the section right alone does not open the export --------------------
+  // The other direction, and it is the half that makes the first right mean
+  // something: somebody who may READ invoices still may not DOWNLOAD them.
+  const reader = await person(["finance.cash.view"], "cashonly");
+  await F.signIn(reader.id);
+  const noExport = await get("invoices");
+  ok("a section right alone does not confer exporting", noExport.status === 403,
+    `got ${noExport.status}`);
+  ok("...and names the export right", noExport.body?.key === "reports.exports.view",
+    JSON.stringify(noExport.body));
+
+  // ---- both together ------------------------------------------------------
+  const both = await person(["reports.exports.view", "finance.cash.view"], "bothrights");
+  await F.signIn(both.id);
+  const allowed = await get("invoices");
+  ok("BOTH RIGHTS TOGETHER EXPORT", allowed.status === 200, `got ${allowed.status}`);
+
+  // A dataset nobody declared is not a permission question — the fix is the
+  // URL, not a grant.
+  const bogus = await get("nonsense");
+  ok("an unknown data set is notfound rather than forbidden", bogus.status === 404,
+    `got ${bogus.status}`);
+
+  // AND AN OUTSIDER LEARNS NOTHING, invariant 2, even holding neither right.
+  await F.signIn(F.outsider.id);
+  const stranger = await get("invoices");
+  ok("a non-member is told nothing", stranger.status !== 200, `got ${stranger.status}`);
+}
+
+await exportGates().catch((e) => ok("the export-gate case threw", false, e?.message || String(e)));
+
 F.signOut();
 console.log(`\ncrud: ${RESOURCES.length} resources · ${((Date.now() - started) / 1000).toFixed(1)}s`);
 

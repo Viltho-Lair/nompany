@@ -620,9 +620,34 @@ that exact case.
 **IT STILL HAS NO SCREEN.** The ledger is reachable only through
 `/api/studios/<slug>/finance/ledger`.
 
-#### §14 Reports & BI ⬜ 0 / 5
-**Executive dashboard ⬜ · Report builder ⬜ · Saved, scheduled & exported reports ⬜ ·
-Analytics ⬜ · KPI targets & alert rules ⬜**  {M}  renders nothing.
+#### §14 Reports & BI 🟡 1 / 5
+Exported reports ✅ (08/09/2026) · **Executive dashboard ⬜ · Report builder ⬜ · Saved &
+scheduled reports ⬜ · Analytics ⬜ · KPI targets & alert rules ⬜**
+
+**IT RENDERS NOW, and `NO_SCREEN_YET` IS EMPTY** — Reports & BI was the last entry. It is
+the one section whose content is not records, so the first thing it does is the thing every
+ERP buyer asks for on day one and nobody had: get the data out. Eight data sets, CSV,
+columns DECLARED rather than discovered — an export that spread whatever the row held would
+start carrying a field the day somebody added one.
+
+**TWO GATES, AND BOTH ARE REAL.** Catalogue 181 → 182 (`reports.exports.view`). That right
+opens the surface; each data set still asks the right its own section already required, so
+exporting invoices needs `reports.exports.view` AND `finance.cash.view`. Asserted from both
+directions in `tests/crud.mjs`: the export right alone reaches no register, and a section
+right alone confers no export. Reading your own work and downloading the whole collection
+are different powers, and a studio can now say so.
+
+**A SERVER COMPONENT, deliberately.** An export is a LINK, not a fetch — and the repo's
+lint budget is at 141 of 142, where 89 of those warnings are the fetch-on-mount pattern
+every other panel uses. This screen added none.
+
+**TWO DEFECTS FOUND BY OPENING IT.** `total` is DERIVED and never stored, so the first
+export produced an empty Total column on every line — worse than not offering the column, because
+a spreadsheet of invoices with no amounts reads as a broken export rather than as missing
+data. And the UTF-8 BOM had to be verified by BYTES: `Response.text()` strips a leading BOM
+per spec, so the first check said it was absent when it was there. Excel on Windows reads a
+UTF-8 CSV as the system codepage without one, which matters for a product whose studios are
+largely Arabic.
 
 #### §15 Administration & Settings 🟡 5 / 10
 People ✅ · Access ✅ · Studio settings ✅ · Master data 🟡 (locations and departments

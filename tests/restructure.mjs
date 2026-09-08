@@ -146,7 +146,14 @@ export async function testNoAreaExistsForASectionWithNoScreen(t) {
     SECTION_DEFS.flatMap((d) => (d.children || []).map((c) => c.key)),
   );
   const empty = NO_SCREEN_YET.filter((key) => !children.has(key));
-  t.equal(empty.length > 0, true, "there is still at least one screenless section to check");
+  // AN EMPTY LIST IS THE CORRECT STATE NOW, not a broken test. This asserted
+  // `empty.length > 0` — a guard against the list being silently emptied by a
+  // filter bug — and it went red on 08/09/2026 when Reports & BI, the last
+  // entry, got its exports screen. The guard it was really making is that the
+  // FILTER still works, so it is made against the unfiltered list instead: if
+  // NO_SCREEN_YET gains an entry, at least one of them must survive `children`.
+  t.equal(NO_SCREEN_YET.length === 0 || empty.length > 0, true,
+    "the screenless list is either empty or has something to check");
   for (const key of empty) {
     const found = AREAS.filter((a) => a.key.startsWith(`${key}.`));
     t.equal(found.length, 0, `${key} has no rights yet: ${found.map((a) => a.key).join(",")}`);

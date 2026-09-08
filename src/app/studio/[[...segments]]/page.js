@@ -61,6 +61,9 @@ const StudioSectionSummary = nextDynamic(() => import("@/components/studio2/Stud
 // about registers in general, so it is mounted by key rather than joining the
 // panel every engine section gets.
 const StudioSafety = nextDynamic(() => import("@/components/studio2/StudioSafety"));
+// A SERVER COMPONENT — no client state, and an export is a link rather than a
+// fetch. It is still dynamic so the route does not carry it until reached.
+const StudioReports = nextDynamic(() => import("@/components/studio2/StudioReports"));
 const StudioSalesLive = nextDynamic(() => import("@/components/studio2/StudioSalesLive"));
 const StudioTechnicalLive = nextDynamic(() => import("@/components/studio2/StudioTechnicalLive"));
 const StudioPeople = nextDynamic(
@@ -781,6 +784,8 @@ async function renderStudio(params) {
         : screenKey === "finance" ? <StudioFinance slug={studio.slug} view={active?.key} />
         : screenKey === "tasks" ? <StudioTasks slug={studio.slug} view={active?.key} />
         : screenKey === "field-service" ? <StudioOperations slug={studio.slug} view={active?.key} />
+        : screenKey === "reports"
+          ? <StudioReports slug={studio.slug} access={access} locale={locale} />
         : screenKey === "main" ? <StudioMain slug={studio.slug} />
         : active ? <SectionDashboard section={active} studio={studio} locale={locale}
             subsections={sections.filter((s) => s.parentId === active.id)} />

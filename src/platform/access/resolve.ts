@@ -85,6 +85,9 @@ export const SECTION_AREAS: Readonly<Record<string, readonly string[]>> = {
   // needs the department to appear in the nav to reach them.
   "tendering": ["tendering.tenders", "tendering.rates"],
   "tendering-register": ["tendering.tenders"],
+  // Reports & BI has no sub-sections: the exports screen IS the section, and
+  // every data set on it asks the right its own section already required.
+  reports: ["reports.exports"],
   "tendering-rates": ["tendering.rates"],
   "crm-sales-settings": ["crmSales.settings"],
   "engineering-docs-rfq": ["engineeringDocs.rfq"],
@@ -428,12 +431,15 @@ export const NO_SCREEN_YET = [
   // three. Removing a key from this list is not by itself what makes a section
   // appear — see `childrenOf` below.
   //
-  // REPORTS & BI STAYS, and not for want of a register. It is the one section
-  // whose content is not records at all: a report builder reads what the other
-  // fourteen sections already store, so a register under it would be a list of
-  // saved report definitions and nothing would run them. A row that opens a
-  // screen showing nothing is exactly what this list exists to prevent.
-  "reports",
+  // EMPTY, 08/09/2026. Reports & BI was the last entry and it left when it got a
+  // screen — data exports, which is the one thing a section whose content is not
+  // records can do on day one: read what the other fourteen already store and
+  // let a studio take it out.
+  //
+  // THE LIST STAYS, and so does everything that reads it. It is not a
+  // transitional device: the next section declared before its screen exists
+  // belongs here, and `testEveryKeyWithNothingToShowIsDeclared` is what will
+  // say so. An empty list is the correct state, not a dead one.
 ] as const;
 
 // A RECORD TYPE'S SECTION IS ANSWERED FIRST, AND BY ITS OWN KEY.

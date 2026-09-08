@@ -173,6 +173,17 @@ const OWN_AREAS = [
   // register. What makes them separate RIGHTS is that "may price a bid" and
   // "may commit the company to it" are different powers — which is the same
   // test `tendering.rates` passed and the bill of quantities failed.
+  // TAKING THE DATA OUT IS ITS OWN POWER. Reading a screen and downloading the
+  // whole collection are different acts: one is looking at your own work, the
+  // other is the shape every data-exfiltration story has. A studio that wants
+  // its site engineers to read projects and not to download them can now say
+  // so — and this right ALONE grants nothing, because every data set still asks
+  // the right its own section already required (modules/reports/datasets).
+  //
+  // VIEW ONLY. There is nothing to create, edit or delete: an export is a read
+  // of rows that already exist.
+  { key: "reports.exports", group: "Reports & BI", label: "Data exports",
+    verbs: ["view"] },
   { key: "tendering.tenders", group: "Tendering & Estimating", label: "Tender register",
     verbs: ["view", "create", "edit", "delete"],
     extra: [
