@@ -523,15 +523,31 @@ console.log("== the architecture, asserted rather than remembered");
     // A VISITOR HAS NO SESSION — that is the whole point of a contact form, and
     // requiring one would mean only existing customers could ask a question. It
     // takes the same two controls `api/track` above takes instead: origin-checked
-    // (isCrossSite) and rate-limited per IP, five in ten minutes. It also stores
-    // nothing — the enquiry goes out as an email to a mailbox a person reads, so
-    // there is no record for an unauthenticated caller to reach.
+    // (isCrossSite) and rate-limited per IP, five in ten minutes.
+    //
+    // IT DOES STORE THE ENQUIRY NOW. This comment used to argue the surface was
+    // safe partly because there was "no record for an unauthenticated caller to
+    // reach", and that stopped being true when the form started writing to the
+    // `messages` site collection — mail alone lost every enquiry whenever the
+    // provider was down. Nothing here READS that collection, which is the
+    // property that actually matters: the route is write-only to a store no
+    // public endpoint exposes.
     //
     // THIS LINE IS LATE. The route shipped in b0317165 without it, so this
     // assertion has been red on main ever since — invisibly, because Lint failed
     // first and CI never reached Gate A. Adding to this list is how a public
     // surface gets argued for; the argument is above.
     "api/contact/route.ts": "the marketing contact form; a visitor has no session, so origin + rate limit instead",
+    // THE SAME ARGUMENT, and the same two controls, one job application at a
+    // time: three an hour rather than five in ten minutes, because each of
+    // these carries a file. It had no route at all until now — ApplyForm has
+    // been posting to a 404 since the careers page was built.
+    "api/applications/route.ts": "the job application form; a candidate has no account, so origin + rate limit instead",
+    // AGGREGATE COUNTS ARE PUBLISHED ON PURPOSE — they are printed on the
+    // marketing pages. Nothing per-tenant was ever written into the document it
+    // serves, and every figure is rounded down and omitted entirely below its
+    // threshold, so there is no exact count in the response to reach.
+    "api/stats/route.ts": "the public platform figures; aggregate only, rounded down, nothing per-tenant",
     "api/auth/oauth/[provider]/start/route.ts": "starts sign-in; there is no session yet",
     "api/auth/callback/[provider]/route.ts": "completes sign-in; the provider is the credential",
     "api/identity/login/route.ts": "the sign-in door",
@@ -546,7 +562,10 @@ console.log("== the architecture, asserted rather than remembered");
     "api/super/logout/route.ts": "clears a cookie",
     "api/fonts/route.ts": "the document editor's font catalogue; no tenant data",
     "api/media/[id]/route.ts": "public blobs are public by definition; private ones check membership",
-    "api/contact/route.ts": "the marketing contact form; a stranger with a question has no account, and it is rate-limited and origin-checked instead",
+    // `api/contact/route.ts` WAS LISTED A SECOND TIME HERE and this one won,
+    // because a later key in an object literal overwrites the earlier. Two
+    // entries meant two reasons for one surface, free to disagree — and the one
+    // that lost was the one carrying the argument. One key, one reason.
   };
 
   const routes = sources.filter((f) => /app\/api\/.*route\.(js|ts)$/.test(f.path));
@@ -1201,6 +1220,9 @@ console.log("== golden responses: the shape of every answer, pinned");
   const MAIN = (await import("@/app/api/studios/[slug]/main/route.ts"));
   const SETTINGS = (await import("@/app/api/studios/[slug]/settings/route.ts"));
   const PRICING = (await import("@/app/api/pricing/route.ts"));
+  const SHOWCASE = (await import("@/app/api/showcase/route.ts"));
+  const STATS = (await import("@/app/api/stats/route.ts"));
+  const CONTACT = (await import("@/app/api/contact/route.ts"));
 
   // --- unauthenticated: every studio route must refuse identically -----------
   add("unauth.studio", async () => { __signOut(); return capture(STUDIO.GET, req(`/api/studios/${slug}`), ctx({ slug })); });
@@ -1261,6 +1283,57 @@ console.log("== golden responses: the shape of every answer, pinned");
     fetchedAt: 1750000000,
   });
   add("public.pricing", async () => { __signOut(); return capture(PRICING.GET, req("/api/pricing"), ctx()); });
+
+  // THE THREE PUBLIC MARKETING ROUTES HAD NO CONTRACT AT ALL. Nothing called
+  // them, so their bodies could have changed in any way without a test
+  // noticing — on the surface a stranger sees.
+  //
+  // The showcase list is EMPTY here and that is the golden worth having: it is
+  // what the endpoint answers until a studio both consents in its own settings
+  // and is featured in /super, and the shape of "nobody yet" is what the home
+  // band and the customers page branch on.
+  add("public.showcase", async () => { __signOut(); return capture(SHOWCASE.GET, req("/api/showcase"), ctx()); });
+
+  // Figures BELOW their thresholds are absent rather than present-and-false, so
+  // this pins that a fresh platform publishes thresholds and a null timestamp
+  // and no counts. A regression that started returning `studios: 0` would put
+  // an exact figure in a public response.
+  add("public.stats", async () => { __signOut(); return capture(STATS.GET, req("/api/stats"), ctx()); });
+
+  // A VALID ENQUIRY WITH THE MAILER OFF. `sendEmail` answers `{ok:false,
+  // skipped:true}` when EMAILS_ENABLED is not "true", which is exactly the
+  // production failure the storage change was made for — so this golden pins
+  // the behaviour that change introduced: the row is down, so the sender is NOT
+  // told their message failed, and `notified` records that nobody was told.
+  //
+  // A FRESH IP PER RUN, deliberately. The route allows five in ten minutes per
+  // address and the test namespace is shared across runs, so a fixed one would
+  // make the sixth run of an afternoon record a 429 — a golden that pins the
+  // rate limiter instead of the route.
+  const enquiryIp = `203.0.113.${Math.floor(Math.random() * 250) + 1}`;
+  add("public.contact.stored", async () => {
+    __signOut();
+    return capture(CONTACT.POST, req("/api/contact", {
+      method: "POST",
+      headers: { "x-forwarded-for": enquiryIp },
+      body: {
+        name: "Sample Person", email: "sample@example.com", company: "Sample Company",
+        message: "We are ten people and would like to talk about moving over.",
+        teamSize: "10-49",
+      },
+    }), ctx());
+  });
+
+  // AND THE REFUSAL, because the error shape is a contract too: the browser
+  // shows a message per field, keyed by these exact names.
+  add("public.contact.invalid", async () => {
+    __signOut();
+    return capture(CONTACT.POST, req("/api/contact", {
+      method: "POST",
+      headers: { "x-forwarded-for": enquiryIp },
+      body: { name: "x", email: "not-an-address", company: "", message: "too short" },
+    }), ctx());
+  });
   add("public.available", async () => { await signIn(owner.id); return capture(AVAILABLE.GET, req(`/api/studios/available?slug=${slug}`), ctx()); });
 
   let recorded = 0;
@@ -7866,6 +7939,77 @@ console.log("== the record engine: one route serves a type declared as a row");
   ok("...and the engine namespace does not capture engineering-docs",
     sectionViewable(noEngine, "engineering-docs", allKeys) === false
     && sectionViewable(ownerAccess, "engineering-docs", allKeys) === true);
+
+  // ---- the declaration is general, not shaped around one type --------------
+  //
+  // ONE BUILT-IN TYPE PROVED THE ENGINE RUNS AND PROVED NOTHING ABOUT WHETHER
+  // THE DECLARATION IS GENERAL. A transmittal is a three-status line with four
+  // plain fields — exactly the shape somebody would design a toy for. These two
+  // are the check: an RFI carries a SELECT whose value must be one the type
+  // offers, and a submittal's ladder BRANCHES three ways out of one status and
+  // loops back on itself. Neither needed engine code; both are rows.
+  const subPath = `/api/studios/${slug}/records/submittal`;
+  const subP = ctx({ slug, typeKey: "submittal" });
+  const subPost = (body) => capture(ENG.POST, req(subPath, { method: "POST", body }), subP);
+  const subPut = (body) => capture(ENG.PUT, req(subPath, { method: "PUT", body }), subP);
+
+  const sub = await shot("engine.submittal.created", await subPost({
+    values: {
+      title: "Curtain wall shop drawings", specSection: "08 44 13",
+      kind: "Shop drawing", submittedBy: "Alucraft", submittedOn: "2031-03-02",
+      dueOn: "2031-03-16",
+    },
+  }));
+  const submittalId = sub.body?.record?.id;
+  ok("a submittal was raised", Boolean(submittalId), JSON.stringify(sub.body).slice(0, 140));
+  // THE PREFIX IS THE TYPE KEY'S FIRST THREE LETTERS, so this is SUB- and the
+  // transmittal register's TRA- keeps its own run. Two types, two sequences.
+  ok("...under its own reference prefix", /^SUB-\d{4}$/.test(sub.body?.record?.reference || ""),
+    sub.body?.record?.reference);
+
+  // A SELECT OUTSIDE ITS OPTIONS IS NOT A VALUE. The option list was decorative
+  // until the final review; this is that fix, on a type declared after it.
+  const rfiPath = `/api/studios/${slug}/records/rfi`;
+  const rfiP = ctx({ slug, typeKey: "rfi" });
+  const rfi = await shot("engine.rfi.created", await capture(
+    ENG.POST, req(rfiPath, { method: "POST", body: {
+      values: {
+        subject: "Slab penetration at grid F/7", question: "Confirm the sleeve size.",
+        ballInCourt: "Consultant", discipline: "Structural",
+        raisedOn: "2031-03-02", neededBy: "2031-03-09",
+      },
+    } }), rfiP));
+  ok("an RFI carries the party whose move it is",
+    rfi.body?.record?.values?.ballInCourt === "Consultant",
+    JSON.stringify(rfi.body?.record?.values || {}).slice(0, 120));
+  const smuggledCourt = await capture(ENG.POST, req(rfiPath, { method: "POST", body: {
+    values: { subject: "Bad court", question: "?", ballInCourt: "Nobody at all" },
+  } }), rfiP);
+  ok("A SELECT VALUE THE TYPE DOES NOT OFFER IS NOT STORED",
+    smuggledCourt.body?.record?.values?.ballInCourt === "",
+    JSON.stringify(smuggledCourt.body?.record?.values || {}).slice(0, 120));
+
+  // THE LADDER BRANCHES, which one type never exercised. Three ways out of
+  // `Under review`, and the resubmit loop goes BACK — a resubmission is the same
+  // submittal again, not a fourth record for one spec section.
+  await subPut({ id: submittalId, action: "move", to: "Submitted" });
+  await subPut({ id: submittalId, action: "move", to: "Under review" });
+  await shot("engine.submittal.revise", await subPut({
+    id: submittalId, action: "move", to: "Revise and resubmit",
+  }));
+  const looped = await subPut({ id: submittalId, action: "move", to: "Submitted" });
+  ok("a submittal sent back can be submitted again",
+    looped.body?.record?.status === "Submitted", looped.body?.record?.status);
+  // AND THE OTHER TWO BRANCHES ARE REACHABLE FROM THE SAME STATUS, which is what
+  // makes it a branch rather than a longer line.
+  await subPut({ id: submittalId, action: "move", to: "Under review" });
+  await shot("engine.submittal.approved.as.noted", await subPut({
+    id: submittalId, action: "move", to: "Approved as noted",
+  }));
+  // A TERMINAL RUNG IS TERMINAL: approved-as-noted does not walk on to approved.
+  await shot("engine.submittal.terminal", await subPut({
+    id: submittalId, action: "move", to: "Approved",
+  }));
 
   // ---- an engine grant survives being stored -------------------------------
   // THE DEFECT THE PERMISSION ARM EXISTS TO PREVENT, asserted END TO END rather

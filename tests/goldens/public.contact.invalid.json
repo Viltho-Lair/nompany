@@ -1,0 +1,12 @@
+{
+  "status": 400,
+  "body": {
+    "ok": false,
+    "errors": {
+      "name": "name",
+      "email": "email",
+      "company": "company",
+      "message": "message"
+    }
+  }
+}

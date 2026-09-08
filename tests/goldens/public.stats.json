@@ -1,0 +1,11 @@
+{
+  "status": 200,
+  "body": {
+    "thresholds": {
+      "studios": 25,
+      "people": 250,
+      "records": 25000
+    },
+    "refreshedAt": null
+  }
+}
