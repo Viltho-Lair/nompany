@@ -128,6 +128,10 @@ export const SECTION_AREAS: Readonly<Record<string, readonly string[]>> = {
   "procurement-suppliers": ["procurement.suppliers"],
   "inventory-items": ["inventory.items"],
   "inventory-sheets": ["inventory.sheets"],
+  // The planning view. The section's engine registers carry their own
+  // structural rights and are not listed here — `SECTION_AREAS` is the
+  // DECLARED catalogue's map, and an engine key is minted from a row.
+  manufacturing: ["manufacturing.planning"],
   // MOVED TO LOGISTICS & FLEET — AWB is goods in movement, which is Logistics's
   // home now.
   "logistics-shipments": ["logistics.shipments"],

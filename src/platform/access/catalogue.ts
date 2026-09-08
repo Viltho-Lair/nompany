@@ -380,6 +380,20 @@ const OWN_AREAS = [
   // so it gets one. See modules/inventory/sheetColumns.js for which columns this covers;
   // Projects' columns on the same row answer to projects.list.edit.
   { key: "inventory.sheets", group: "Inventory & Warehouse", label: "Project sheets", verbs: ["view", "edit"] },
+
+  // MANUFACTURING'S FIRST DECLARED RIGHT. The section shipped as four engine
+  // registers and nothing else, so every right over it was structural
+  // (`engine.workOrder.*` and its siblings) and there was no key for a view
+  // that spans them. Planning is exactly that view: it reads work orders,
+  // bills of materials, the stock ledger and the purchase orders at once and
+  // writes nothing, which is why it is VIEW ALONE — raising the requisition
+  // it suggests is Procurement's act and answers to Procurement's right.
+  //
+  // THE BOM'S LINES MINT NOTHING. A line IS the bill of materials' content,
+  // so it answers to `engine.bom.*` — the argument a BOQ line already makes
+  // about a tender, and a second right over one act would be free to
+  // disagree with the first about who works on a BOM.
+  { key: "manufacturing.planning", group: "Manufacturing & Production", label: "Production planning", verbs: ["view"] },
   // MOVED TO LOGISTICS & FLEET — AWB is goods in movement, which is Logistics's
   // home now (restructure.ts's SECTION_KEY_MAP). Relabelled to match
   // logistics-shipments, "Shipments", in keys.ts's SECTION_DEFS.

@@ -148,6 +148,10 @@ const StudioRates = nextDynamic(
   () => import("@/components/studio2/StudioRates"),
   { loading: () => <ScreenSkeleton /> },
 );
+const StudioProduction = nextDynamic(
+  () => import("@/components/studio2/StudioProduction"),
+  { loading: () => <ScreenSkeleton /> },
+);
 const StudioBoq = nextDynamic(
   () => import("@/components/studio2/StudioBoq"),
   // A record page, so the record skeleton: a department skeleton would reserve
@@ -723,6 +727,13 @@ async function renderStudio(params) {
         // right ends up exercising nothing (invariant 16).
         : customerId ? <StudioCustomer slug={studio.slug} clientId={customerId} />
         : boqTenderId ? <StudioBoq slug={studio.slug} tenderId={boqTenderId} />
+        // MANUFACTURING'S ROOT IS THE PLANNING SCREEN. It sits AFTER the
+        // `engine-` prefix case above, which is what keeps its four engine
+        // registers rendering as registers: every one of them plants a
+        // section whose parent is `manufacturing`, so `screenKey` collapses
+        // them onto this key and reaching this line first would hand a work
+        // order register the planning view.
+        : active?.key === "manufacturing" ? <StudioProduction slug={studio.slug} />
         : active?.key === "tendering-rates" ? <StudioRates slug={studio.slug} />
         : screenKey === "tendering" ? <StudioTenders slug={studio.slug} initial={tendersInitial} initialError={tendersError} />
         : active?.key === "crm-sales-pipeline" ? <StudioPipeline slug={studio.slug} />

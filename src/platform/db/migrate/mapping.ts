@@ -134,6 +134,7 @@ export const COLLECTION_TABLE: Readonly<Record<string, string>> = {
   stockAdjustments: "StockAdjustment",
   stockBins: "StockBin",
   stockBatches: "StockBatch",
+  bomLines: "BomLine",
   landedCosts: "LandedCost",
   assetAllocations: "AssetAllocation",
   creditNotes: "CreditNote",

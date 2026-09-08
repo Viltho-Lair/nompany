@@ -800,6 +800,12 @@ export const SECTION_COLLECTIONS = {
   // the equipment register is a list of what the studio owns rather than the
   // owner of what those things are doing.
   assets: ["assetAllocations"],
+  // A BILL OF MATERIALS' LINES, on the Manufacturing ROOT rather than under
+  // the BOM engine register. The register's rows live in `engineRecords`
+  // under `engine-bom`, and a collection under a section only some studios
+  // have planted would strand every line written before it — the tender
+  // register's mistake. The root is always there.
+  manufacturing: ["bomLines"],
   // BINS SIT WITH THE MOVEMENTS THEY SPLIT. A bin balance is the stock
   // ledger grouped by bin, so the two must be written under one section or
   // a live update on one would never reach a screen watching the other.
