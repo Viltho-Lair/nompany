@@ -249,6 +249,32 @@ export const getProfilesByIds = (userIds: string[]) =>
 export type UserActivity = { lastLoginAt?: string; lastSeenAt?: string };
 
 export const getActivity = (userId: string) => getJSON<UserActivity>(U.activity(userId));
+
+// WHO IS AROUND, and nothing else about them.
+//
+// listUsersForConsole above answers the same question, but it costs THREE reads
+// per person — profile, activity and collaborations — because the console's user
+// table shows all three. The Pulse wall shows a count and a masked handle, so it
+// pays for one: the registry row it already has, plus the small activity
+// document that carries the stamp.
+//
+// THE STAMPS THEMSELVES ARE THROTTLED AT THREE MINUTES (SEEN_THROTTLE_MS), which
+// is the ceiling on how fresh this answer can be however often it is asked. A
+// wall polling every two seconds would re-read one document per user to learn a
+// number that cannot have moved. Whatever calls this should poll in tens of
+// seconds and let the ANIMATION carry the liveness instead.
+export async function listPresence() {
+  const rows = await readArr<User>(REG.users);
+  const activity = await Promise.all(rows.map((u) => getActivity(u.id)));
+  return rows.map((u, i) => ({
+    email: u.email,
+    createdAt: u.createdAt || "",
+    // The same fallback listUsersForConsole makes: a user last seen before
+    // activity moved off the registry row (R6) still carries their stamp there.
+    lastSeenAt: activity[i]?.lastSeenAt || u.lastSeenAt || "",
+    lastLoginAt: activity[i]?.lastLoginAt || u.lastLoginAt || "",
+  }));
+}
 export const updateActivity = patchDoc<UserActivity>(U.activity);
 /** The 1:1 verification document: email confirmation and password reset state. */
 export type Verification = {
