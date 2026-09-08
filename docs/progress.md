@@ -481,9 +481,9 @@ chased, a gap somebody notices rather than an alarm they learn to ignore.
 **Verified in the sandbox, not just asserted**: three NCRs, two of them past their action
 date, rendering worst-first with the field's own label and the third correctly absent.
 
-#### §11 Quality & HSE 🟡 7 / 8
+#### §11 Quality & HSE ✅ 8 / 8
 ITPs ✅ · Inspection & test records ✅ · NCR / CAPA ✅ · Audits ✅ · HSE incidents 🟡
-(register built; **no LTIFR** — `daysLost` is stored and nothing computes a rate) ·
+(register built; **LTIFR and TRIFR land 08/09/2026** — see below) ·
 Permits to work & toolbox talks ✅ · Certifications ✅ · **Dashboard ⬜**
 
 Three more engine registers, 08/09/2026. **An ITP is a PLAN and a test report is a
@@ -502,6 +502,31 @@ notices. The vehicle and training registers carry the identical gap, stated in a
 
 **It rendered NOTHING until 08/09/2026** and now has five registers, all engine types —
 declared as rows, no new engine code. See the caveat under §10; it applies here too.
+
+**`daysLost` WAS STORED ON EVERY INCIDENT SINCE THE REGISTER SHIPPED AND NOTHING READ IT.**
+A rate needs a numerator and a denominator; the incident register held one and Projects'
+timesheets held the other, in different sections, and nothing joined them. It is joined
+now: `modules/quality/safety.ts` is pure, `tests/safety-model.mjs` asserts the arithmetic,
+and a panel on the Quality & HSE page shows LTIFR, TRIFR, days lost and the kind
+breakdown. **No permission key** — both halves are gated already (`engine.incident.view`
+and `projects.list.view`), and a third right over records two others govern would be free
+to disagree with both.
+
+**NULL RATHER THAN ZERO, THREE WAYS, and each sends somebody somewhere different.** A
+reader holding no Projects right gets the incident COUNTS and no rate (`no-hours-access`),
+because hours are payroll-adjacent and a rate computed over records they cannot open would
+leak the thing the gate is for. A period nobody booked hours in gets no rate either
+(`no-hours`) — a "0.0 LTIFR" over it is a safety claim the data does not support. A period
+with hours and no incidents is a REAL zero (`no-incidents-yet`), which is the good case and
+the one a studio most wants to be able to state.
+
+**Overtime counts as hours worked.** Excluding it would shrink the denominator and inflate
+every rate — in exactly the periods a site was busiest, which is when the rate matters
+most. And an undated incident is in no window at all, because a rate that changes with
+whichever quarter is on screen is not a rate.
+
+**Verified in the sandbox**: four incidents (two lost-time, one medical, one near miss)
+against 300,000 hours rendering LTIFR 6.7, TRIFR 10.0 and 15 days lost.
 
 #### §12 Human Resources 🟡 5 / 10
 Employees ✅ · Leave & employee requests 🟡 (vacations exist; the wider request model does

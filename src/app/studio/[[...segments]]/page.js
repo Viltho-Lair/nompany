@@ -57,6 +57,10 @@ const StudioDocs = nextDynamic(() => import("@/components/studio2/StudioDocs"));
 // The generic section dashboard's register panel — reached from five sections,
 // so it rides the same dynamic boundary the rest of them do.
 const StudioSectionSummary = nextDynamic(() => import("@/components/studio2/StudioSectionSummary"));
+// Quality & HSE only — LTIFR is a fact about injuries and hours worked, not
+// about registers in general, so it is mounted by key rather than joining the
+// panel every engine section gets.
+const StudioSafety = nextDynamic(() => import("@/components/studio2/StudioSafety"));
 const StudioSalesLive = nextDynamic(() => import("@/components/studio2/StudioSalesLive"));
 const StudioTechnicalLive = nextDynamic(() => import("@/components/studio2/StudioTechnicalLive"));
 const StudioPeople = nextDynamic(
@@ -821,6 +825,7 @@ function SectionDashboard({ section, studio, subsections = [], locale = "en" }) 
           the section holds and renders nothing at all when it holds none, so a
           section without registers is unchanged. */}
       <StudioSectionSummary slug={studio.slug} sectionKey={section.key} locale={locale} />
+      {section.key === "quality-hse" && <StudioSafety slug={studio.slug} locale={locale} />}
     </div>
   );
 }
