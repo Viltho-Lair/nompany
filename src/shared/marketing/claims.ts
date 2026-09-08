@@ -56,12 +56,18 @@ export const CLAIMS = {
     source: { module: "@/lib/pricing", export: "PLANS" },
     stated: { how: "composed" },
   },
-  // ELEVEN, and it moves on its own. The four in NO_SCREEN_YET are excluded by
-  // shared/marketing/departments, so this number follows the software the day a
-  // screen ships rather than the day somebody remembers to edit it.
-  "eleven-departments": {
-    en: "Eleven departments on one data model",
-    ar: "أحد عشر قسما على نموذج بيانات واحد",
+  // THE COUNT MOVES ON ITS OWN; THE KEY MUST NOT SPELL IT. This was
+  // "eleven-departments" and the number went to fourteen the day Manufacturing,
+  // Assets and Quality & HSE left NO_SCREEN_YET — leaving a key that named a
+  // figure its own copy contradicted, and a test asserting 14 under the word
+  // eleven. What is excluded is still NO_SCREEN_YET via
+  // shared/marketing/departments, so the number follows the software the day a
+  // screen ships rather than the day somebody remembers to edit it. The COPY is
+  // hand-written and does not: it is checked against the real count by
+  // tests/marketing-model.mjs, which is what makes a stale word a red test.
+  "live-departments": {
+    en: "Fourteen departments on one data model",
+    ar: "أربعة عشر قسما على نموذج بيانات واحد",
     source: { module: "@/shared/marketing/departments", export: "LIVE_DEPARTMENT_KEYS" },
     stated: { how: "rendered", by: "DepartmentMarquee" },
   },

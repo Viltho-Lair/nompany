@@ -3,7 +3,7 @@ import { currentUser } from "@/platform/auth/identity";
 import { studioContext, canAdminister } from "@/lib/studios";
 import { effectivePermissions, sectionViewable } from "@/platform/access";
 import { listRoles } from "@/modules/people/roles";
-import { listSections } from "@/platform/db/sections";
+import { listSections, parentKeyMap } from "@/platform/db/sections";
 import { readSince, latestId, isCursor, SCOPE, TYPE } from "@/platform/realtime/events";
 import { subscribe, CH } from "@/platform/realtime/bus";
 import { listForCollaborator } from "@/platform/notify/notifications";
@@ -77,8 +77,9 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
     // silences them on the next re-resolve rather than leaving a stale flag on.
     admin = canAdminister(access);
     const keys = sections.map((x) => x.key);
+    const parentOf = parentKeyMap(sections);
     viewable = new Set(
-      sections.filter((s) => sectionViewable(access, s.key, keys)).map((s) => s.id),
+      sections.filter((s) => sectionViewable(access, s.key, keys, parentOf)).map((s) => s.id),
     );
     // SectionID → key, so the client can match an event to the board it renders
     // without having to know the studio's section ids. Re-read with the rest

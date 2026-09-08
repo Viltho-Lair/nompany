@@ -36,6 +36,40 @@ export type Section = {
   createdAt: string;
 };
 
+// THE THREE SECTIONS A STUDIO MAY NOT SWITCH OFF, and they are here rather than
+// in the route that enforces them because a second route SHOWS the choice: the
+// screen has to grey exactly what the write refuses, and two hand-kept lists
+// would be free to disagree the first time one of them changed.
+//
+// Main is the studio's home surface and the one section `sectionViewable` lets
+// everybody through to; without it a member signs in with nowhere to land.
+// Administration and its settings child hold the control itself, so turning
+// either off would hide the only screen that could turn anything back on.
+export const REQUIRED_SECTIONS = ["main", "administration", "administration-settings"] as const;
+
+// CHILD KEY -> PARENT KEY, from the rows themselves.
+//
+// `sectionViewable` finds a section's children by KEY PREFIX, which was the
+// whole truth until a record type began planting `engine-<typeKey>` under an
+// arbitrary parent: `engine-ncr` is a child of `quality-hse` by its stored
+// `parentId` and shares no prefix with it, so the heading over five viewable
+// registers answered false for everybody. Every caller that has the rows in
+// hand passes this map so the answer comes from what is stored rather than
+// from how the keys happen to be spelled.
+//
+// Rows whose parent is not in the list are simply absent from the map, which
+// leaves them prefix-only — the same answer they had before, rather than a
+// throw over a row somebody can still see and fix.
+export function parentKeyMap(sections: readonly Section[]): Record<string, string> {
+  const byId = new Map(sections.map((s) => [s.id, s.key]));
+  const out: Record<string, string> = {};
+  for (const s of sections) {
+    const parent = s.parentId ? byId.get(s.parentId) : undefined;
+    if (parent && parent !== s.key) out[s.key] = parent;
+  }
+  return out;
+}
+
 // ---- section rows ----------------------------------------------------------
 
 /**

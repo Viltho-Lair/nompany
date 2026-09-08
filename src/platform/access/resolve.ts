@@ -410,17 +410,30 @@ const anyKey = (access: PermissionSet, sectionKey: string, suffixes: readonly st
 // left, and it left too when its screen shipped — Locations, with Departments
 // beside it. Nothing under Administration is a placeholder any more.
 export const NO_SCREEN_YET = [
-  "manufacturing", "assets", "reports",
-  // QUALITY & HSE JOINS THE PLACEHOLDERS, and it is the one that reads oddly,
-  // because it is not new — it is what is LEFT of Quality once the controlled
-  // document register moved to Engineering & Documents, where the blueprint
-  // puts it. What remains is a name: no children, no collection of its own
-  // (permits stay on the field-service screen that draws them), and no case in
-  // the studio router. Its dashboard right went with the rest — a summary of
-  // nothing is a right nobody can exercise. ITPs, NCRs, audits, incidents and
-  // the permit register arrive together in the phase that builds them, and this
-  // entry goes when they do.
-  "quality-hse",
+  // ONE LEFT. This list held four — manufacturing, assets, reports and
+  // quality-hse — and three of them left together when the record engine gave
+  // them registers: NCRs, audits, incidents, permits and toolbox talks under
+  // Quality & HSE; the equipment, maintenance and calibration registers under
+  // Assets; work orders, bills of materials, work stations and production
+  // batches under Manufacturing. Each is a `BUILTIN_TYPES` entry declaring that
+  // section as its parent, so the heading is a heading over real screens now
+  // rather than a name with nothing behind it. `quality-hse`'s old entry here
+  // said in as many words that it would go "when ITPs, NCRs, audits, incidents
+  // and the permit register arrive together"; they arrived, so it went.
+  //
+  // THE HEADING ONLY RENDERS BECAUSE `parentKeyMap` IS THREADED THROUGH, and
+  // that is worth knowing before removing the last entry: an engine section is
+  // `engine-<typeKey>`, which shares no prefix with its parent, so
+  // `sectionViewable` asked by key prefix alone still answers false for all
+  // three. Removing a key from this list is not by itself what makes a section
+  // appear — see `childrenOf` below.
+  //
+  // REPORTS & BI STAYS, and not for want of a register. It is the one section
+  // whose content is not records at all: a report builder reads what the other
+  // fourteen sections already store, so a register under it would be a list of
+  // saved report definitions and nothing would run them. A row that opens a
+  // screen showing nothing is exactly what this list exists to prevent.
+  "reports",
 ] as const;
 
 // A RECORD TYPE'S SECTION IS ANSWERED FIRST, AND BY ITS OWN KEY.
@@ -447,6 +460,40 @@ const engineSectionRight = (
   return verbs.some((v) => access.has(`engine.${typeKey}.${v}` as PermissionKey));
 };
 
+// A SECTION'S CHILDREN ARE NOT ALWAYS ITS PREFIX-CHILDREN, and until the record
+// engine landed they were: `crm-sales-tickets` is a child of `crm-sales`
+// because it starts with it, and that held for every section the product
+// declared at compile time.
+//
+// An engine section breaks it. A record type plants `engine-<typeKey>` under
+// whatever `parentSectionKey` it declares, so `engine-ncr` is a child of
+// `quality-hse` by its stored `parentId` and shares not one character of its
+// key. Asked by prefix alone, Quality & HSE has no children, no area of its
+// own, and therefore falls through to `sectionKey === "main"` — false. Five
+// registers underneath it, every one of them viewable, and the heading over
+// them absent from the sidebar for everybody including the owner. That is the
+// exact failure `engineSectionRight` was written for, one level up.
+//
+// So the callers that HOLD the rows pass what the rows say. `parentOf` maps a
+// child key to its parent's key; it is optional because most callers only have
+// keys, and where it is absent the answer is what it always was. Building it is
+// three lines at the four call sites that have the section rows in hand
+// (`visibleSections`, `sectionNav`, `sectionManage` in lib/studios.ts, the
+// stream route and main.ts) — see `childKeysOf` there.
+const childrenOf = (
+  sectionKey: string,
+  allKeys: readonly string[],
+  parentOf?: Readonly<Record<string, string>>,
+): string[] => {
+  const byPrefix = allKeys.filter((k) => k.startsWith(`${sectionKey}-`));
+  if (!parentOf) return byPrefix;
+  const seen = new Set(byPrefix);
+  for (const k of allKeys) {
+    if (k !== sectionKey && parentOf[k] === sectionKey) seen.add(k);
+  }
+  return [...seen];
+};
+
 // A section is worth showing if the person may see anything in it.
 //
 // A section with no areas of its own is a HEADING — "Sales" — and is shown when
@@ -463,13 +510,18 @@ const engineSectionRight = (
 // every ticket screen behind the dashboard right; asking only the children would
 // make the dashboard right unwithholdable, since anybody who may see a child
 // would see the summary of all of them.
-export function sectionViewable(access: PermissionSet, sectionKey: string, allKeys: readonly string[] = []): boolean {
+export function sectionViewable(
+  access: PermissionSet,
+  sectionKey: string,
+  allKeys: readonly string[] = [],
+  parentOf?: Readonly<Record<string, string>>,
+): boolean {
   const engine = engineSectionRight(access, sectionKey, ["view"]);
   if (engine !== null) return engine;
   const own = SECTION_AREAS[sectionKey];
   if (own && anyKey(access, sectionKey, ["view"])) return true;
-  const children = allKeys.filter((k) => k.startsWith(`${sectionKey}-`));
-  if (children.length) return children.some((k) => sectionViewable(access, k, allKeys));
+  const children = childrenOf(sectionKey, allKeys, parentOf);
+  if (children.length) return children.some((k) => sectionViewable(access, k, allKeys, parentOf));
   // A leaf with neither areas nor children answered "no" above except for
   // one case: the studio home (Main) has nothing to protect, so it stays for
   // everyone. Everything else in this shape is one of the NO_SCREEN_YET keys
@@ -480,7 +532,12 @@ export function sectionViewable(access: PermissionSet, sectionKey: string, allKe
 // A section's screens are editable if the person holds ANY write on its areas.
 // Deliberately coarse: this only decides whether buttons are offered. What each
 // button actually does is guarded by its own key at the point of doing it.
-export function sectionManageable(access: PermissionSet, sectionKey: string, allKeys: readonly string[] = []): boolean {
+export function sectionManageable(
+  access: PermissionSet,
+  sectionKey: string,
+  allKeys: readonly string[] = [],
+  parentOf?: Readonly<Record<string, string>>,
+): boolean {
   // THE ENGINE'S THREE WRITE VERBS, asked the same way and for the same reason
   // as the view above. Coarse deliberately, like every other answer here: this
   // decides whether buttons are offered, and `records.ts` asks the exact key
@@ -498,8 +555,8 @@ export function sectionManageable(access: PermissionSet, sectionKey: string, all
   // now HAS an area still has nothing manageable of its own and still has to ask
   // its children — which is why this falls through rather than short-circuiting
   // on `own` the way it used to.
-  const children = allKeys.filter((k) => k.startsWith(`${sectionKey}-`));
-  return children.some((k) => sectionManageable(access, k, allKeys));
+  const children = childrenOf(sectionKey, allKeys, parentOf);
+  return children.some((k) => sectionManageable(access, k, allKeys, parentOf));
 }
 
 // MAY THEY OPEN THE MODULE'S OWN SCREEN — the dashboard, as opposed to anything

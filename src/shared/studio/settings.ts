@@ -69,6 +69,15 @@ type Strings = {
   scheduleDeletion: string;
   keepStudio: string;
 
+  // WHICH SECTIONS THIS STUDIO USES. `enabled` has been on every section row
+  // since sections were rows, and nothing could set it; these are the words for
+  // the control that now can.
+  sectionsHeading: string;
+  sectionsLead: string;
+  sectionsRequired: string;
+  sectionsNotReady: string;
+  sectionsRefused: string;
+
   legalHeading: string;
   legalLead: string;
   legalLabelFor: (i: number) => string;
@@ -257,6 +266,12 @@ const en: Strings = {
   scheduling: "Scheduling…",
   scheduleDeletion: "Schedule deletion",
   keepStudio: "Keep the studio",
+
+  sectionsHeading: "Sections",
+  sectionsLead: "Which parts of the product this studio uses. Turning one off hides it from everyone, whatever rights they hold; nothing is deleted, and turning it back on brings its records with it.",
+  sectionsRequired: "Always on",
+  sectionsNotReady: "Not ready yet",
+  sectionsRefused: "That section couldn't be changed.",
 
   legalHeading: "Legal information",
   legalLead:
@@ -457,6 +472,12 @@ const ar: Strings = {
   scheduling: "جار الجدولة…",
   scheduleDeletion: "جدولة الحذف",
   keepStudio: "الإبقاء على الاستوديو",
+
+  sectionsHeading: "الأقسام",
+  sectionsLead: "أي أجزاء المنتج يستخدمها هذا الاستوديو. إيقاف قسم يخفيه عن الجميع مهما كانت صلاحياتهم؛ ولا يحذف شيء، وإعادته تعيد سجلاته معه.",
+  sectionsRequired: "دائم التشغيل",
+  sectionsNotReady: "غير جاهز بعد",
+  sectionsRefused: "تعذر تغيير ذلك القسم.",
 
   legalHeading: "المعلومات القانونية",
   legalLead:

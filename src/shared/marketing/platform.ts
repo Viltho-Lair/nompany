@@ -34,7 +34,7 @@ type PlatformStrings = {
 
 const en: PlatformStrings = {
   title: "The platform",
-  lead: "Eleven departments on one data model. A quotation becomes a contract, a contract opens a project, a project raises requisitions and bills — and none of it is re-typed, because it is all the same record.",
+  lead: "Fourteen departments on one data model. A quotation becomes a contract, a contract opens a project, a project raises requisitions and bills — and none of it is re-typed, because it is all the same record.",
   departmentsHeading: "The departments",
   departmentsLead: "Every one of these is built and running today. Nothing on this page describes something you cannot open.",
   foundationHeading: "True of all of them",
@@ -76,6 +76,12 @@ const en: PlatformStrings = {
     hr: "People, their departments, and the roles that decide what they may open. Leave that respects the org chart, and timesheets that reach a project's costs.",
     finance:
       "Invoices, bills and the accounts they post to. Bills above a limit you set need a second signature, and the exchange rate that routed one is stored on it, so a rate moving overnight cannot re-route a bill already mid-approval. 166 currencies with daily rates.",
+    manufacturing:
+      "Work orders that can go back to released rather than being completed falsely when a run stalls for a part. Bills of materials whose released revisions are superseded rather than reopened, work stations with their own capacity, and production batches that can sit in quarantine between made and saleable.",
+    assets:
+      "The equipment register — what you own, where it is, and what you charge yourself to put it on a job. Maintenance due against each machine, and calibration certificates whose expiry returns to valid on recalibration rather than starting a new history.",
+    "quality-hse":
+      "NCRs that separate agreeing a corrective action from proving it worked, because the only question an auditor asks is whether the fix held. Audits against the standard they were run to, incidents recorded with days lost left blank rather than zeroed, permits to work that are cancelled and never deleted, and toolbox talks with who attended.",
     administration:
       "Who is in the studio, what each role may reach, the org chart, locations, and the settings the rest of it reads. Roles are departmental — a Site Engineer is offered to a site department, not to a sales one.",
   },
@@ -84,7 +90,7 @@ const en: PlatformStrings = {
 // HAND-WRITTEN. NO DIACRITICS.
 const ar: PlatformStrings = {
   title: "المنصة",
-  lead: "أحد عشر قسما على نموذج بيانات واحد. عرض السعر يصبح عقدا، والعقد يفتح مشروعا، والمشروع يصدر طلبات شراء وفواتير — دون إعادة إدخال شيء، لأن الجميع يعمل على السجل نفسه.",
+  lead: "أربعة عشر قسما على نموذج بيانات واحد. عرض السعر يصبح عقدا، والعقد يفتح مشروعا، والمشروع يصدر طلبات شراء وفواتير — دون إعادة إدخال شيء، لأن الجميع يعمل على السجل نفسه.",
   departmentsHeading: "الأقسام",
   departmentsLead: "كل قسم هنا مبني ويعمل اليوم، وكل ما تقرأه في هذه الصفحة يمكنك فتحه.",
   foundationHeading: "صحيح في كل الأقسام",
@@ -126,6 +132,12 @@ const ar: PlatformStrings = {
     hr: "الأفراد وأقسامهم والأدوار التي تحدد ما يفتحونه. وإجازات تحترم الهيكل التنظيمي، وساعات عمل تصل إلى تكاليف المشروع.",
     finance:
       "الفواتير والمطالبات والحسابات التي تقيد عليها. والمطالبات فوق حد تحدده تحتاج توقيعا ثانيا، وسعر الصرف المعتمد وقت رفع المطالبة يحفظ عليها، فلا يغير تحرك السعر ليلا مسار مطالبة بدأ اعتمادها. 166 عملة بأسعار يومية.",
+    manufacturing:
+      "أوامر تشغيل يمكن إعادتها إلى الإطلاق بدل إغلاقها زورا حين يتوقف التشغيل لنقص قطعة. وقوائم مواد تستبدل إصداراتها ولا تفتح من جديد، ومحطات عمل لكل منها طاقتها، ودفعات إنتاج يمكن حجزها بين الصنع والبيع.",
+    assets:
+      "سجل المعدات — ما تملكه وأين هو وكم تحمل نفسك مقابل إدخاله في عمل. وصيانة مستحقة على كل آلة، وشهادات معايرة تعود صالحة بعد إعادة المعايرة بدل أن تبدأ تاريخا جديدا.",
+    "quality-hse":
+      "تقارير عدم مطابقة تفصل الاتفاق على الإجراء التصحيحي عن إثبات نجاحه، لأن سؤال المدقق الوحيد هو هل صمد الإصلاح. وتدقيقات منسوبة إلى المعيار الذي أجريت عليه، وحوادث تسجل وأيام الغياب فيها فارغة لا صفرا، وتصاريح عمل تلغى ولا تحذف، ولقاءات سلامة بأسماء من حضرها.",
     administration:
       "من في مساحة العمل، وما الذي يصله كل دور، والهيكل التنظيمي والمواقع والإعدادات التي تقرأها بقية الأقسام. والأدوار تتبع الأقسام — مهندس الموقع يعرض على قسم تنفيذ لا على قسم مبيعات.",
   },

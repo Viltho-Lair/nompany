@@ -38,6 +38,7 @@ const { departmentOf } = await import("../src/shared/studio/insights.ts");
 const { AREAS } = await import("../src/platform/access/index.ts");
 const { effectivePermissions, scopeFor, escalates, sectionViewable, SECTION_AREAS, NO_SCREEN_YET } = await import("../src/platform/access/resolve.ts");
 const { sectionName } = await import("../src/shared/studio/sections.ts");
+const { BUILTIN_TYPES } = await import("../src/platform/engine/builtins.ts");
 
 export async function testEveryOldSectionKeyIsAccountedFor(t) {
   // The twelve departments' keys as they stand before the rename. Every one must
@@ -743,18 +744,47 @@ export async function testEverySectionHasAnArabicName(t) {
 // app/api/studios/[slug]/stream/route.ts. These two tests ask it directly.
 
 export async function testEmptySectionsDoNotRender(t) {
-  // tendering, manufacturing, assets and reports are declared in keys.ts's
-  // SECTION_DEFS for ORDERING ONLY — no children, no area of their own, no
-  // screen until a later phase. A person holding an unrelated narrow right
-  // (crmSales.tickets.view — not admin, not wildcard) must not see any of
-  // the four: sectionViewable's "a heading with nothing to protect stays"
-  // fallthrough used to answer `true` for every such heading, Main included,
-  // which would have rendered a nav row that opens nothing. See the fix and
-  // comment on sectionViewable in platform/access/resolve.ts.
+  // A person holding an unrelated narrow right (crmSales.tickets.view — not
+  // admin, not wildcard) must not see a heading with nothing behind it:
+  // sectionViewable's "a heading with nothing to protect stays" fallthrough
+  // used to answer `true` for every such heading, Main included, which would
+  // have rendered a nav row that opens nothing. See the fix and comment on
+  // sectionViewable in platform/access/resolve.ts.
+  //
+  // THE LIST WAS FOUR KEYS AND IS NOW READ FROM NO_SCREEN_YET, which is one.
+  // It said "tendering, manufacturing, assets and reports" and every one of
+  // those but the last has since shipped screens — tendering its register,
+  // and the other two their engine registers. A hand-typed copy of that list
+  // is what left testNoAreaExistsForASectionWithNoScreen red for a whole
+  // slice, asserting that a section which had just shipped must hold no
+  // rights, and this is the same list one file over.
   const access = new Set(["crmSales.tickets.view"]);
-  for (const key of ["tendering", "manufacturing", "assets", "reports"]) {
+  for (const key of NO_SCREEN_YET) {
     t.equal(sectionViewable(access, key, ALL_SECTION_KEYS), false,
       `${key} has nothing to open and does not render`);
+  }
+
+  // THE MIRROR, and it is what makes the three removals real rather than a
+  // list getting shorter. An engine register is planted as `engine-<typeKey>`
+  // under a parent it shares no key prefix with, so a heading over five of
+  // them is invisible to a prefix-only walk — which is exactly the answer
+  // above, taken with no parent map. Given the map the rows actually carry,
+  // the same heading renders for somebody holding the child's right and only
+  // that right.
+  const parents = [...new Set(BUILTIN_TYPES.map((d) => d.parentSectionKey))];
+  t.equal(parents.length > 0, true, "some section is an engine register's parent");
+  for (const parent of parents) {
+    const type = BUILTIN_TYPES.find((d) => d.parentSectionKey === parent);
+    const childKey = `engine-${type.key}`;
+    const narrow = new Set([`engine.${type.key}.view`]);
+    const keys = [...ALL_SECTION_KEYS, childKey];
+    const parentOf = { [childKey]: parent };
+    t.equal(sectionViewable(narrow, parent, keys, parentOf), true,
+      `${parent} renders for somebody holding engine.${type.key}.view`);
+    // Without the map the same person sees the register and not the heading
+    // over it, which is the bug the map exists to fix rather than a rule.
+    t.equal(sectionViewable(narrow, childKey, keys), true,
+      `engine-${type.key} renders on its own right either way`);
   }
   // Main is the one heading in the same shape (no areas, no children) that
   // DOES stay — it is the studio home, reachable by membership alone. Proving
@@ -792,9 +822,23 @@ export async function testEveryKeyWithNothingToShowIsDeclared(t) {
     const children = ALL_SECTION_KEYS.filter((k) => k.startsWith(`${key}-`));
     return children.some((c) => hasOwnArea(c) || hasAreaBearingDescendant(c));
   };
+  // A THIRD WAY TO BE ACCOUNTED FOR, and it is why three keys left
+  // NO_SCREEN_YET. A built-in record type plants `engine-<typeKey>` under the
+  // section it names, and its rights are `engine.<typeKey>.*` — structural,
+  // minted from a row, and therefore absent from SECTION_AREAS by construction
+  // (see WildcardPermissions in platform/access). So Quality & HSE has five
+  // real screens under it, every one of them grantable, and both checks above
+  // answer false: no area of its own, and `engine-ncr` shares no key prefix
+  // with `quality-hse` to be found as a descendant.
+  //
+  // READ FROM BUILTIN_TYPES rather than listed here, for the reason
+  // testNoAreaExistsForASectionWithNoScreen learned the hard way: a hand-kept
+  // copy is a second answer free to disagree with the one the product resolves
+  // against, and it disagrees silently.
+  const engineParents = new Set(BUILTIN_TYPES.map((d) => d.parentSectionKey));
   for (const key of ALL_SECTION_KEYS) {
     const accounted = key === "main" || hasOwnArea(key) || hasAreaBearingDescendant(key)
-      || NO_SCREEN_YET.includes(key);
+      || engineParents.has(key) || NO_SCREEN_YET.includes(key);
     t.equal(accounted, true,
       `${key} either has a permission behind it (directly or via a descendant) or is declared in NO_SCREEN_YET`);
   }

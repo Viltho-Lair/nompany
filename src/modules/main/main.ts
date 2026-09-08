@@ -11,7 +11,7 @@
 // stored dashboard that could drift from what the sections actually say.
 
 import { repo } from "@/platform/db/repo";
-import { listSections } from "@/platform/db/sections";
+import { listSections, parentKeyMap } from "@/platform/db/sections";
 import { studioContext, sectionNav, visibleSections } from "@/lib/studios";
 import { sectionViewable } from "@/platform/access";
 import { listCollaborators } from "@/platform/auth/collaborators";
@@ -82,13 +82,15 @@ export async function mainContext(user: { id?: unknown } | null | undefined, slu
 
   const sections = await listSections(studio.id);
   const byKey = Object.fromEntries(sections.map((s) => [s.key, s]));
+  const sectionKeys = sections.map((x) => x.key);
+  const parentOf = parentKeyMap(sections);
 
 // One helper, used everywhere below: the section that owns a collection, but
   // only if this person may see it. Everything else keys off this.
   const seen = (key: string, fallbackKey?: string | null) => {
     const section = byKey[key] || (fallbackKey ? byKey[fallbackKey] : null);
     if (!section) return null;
-    return sectionViewable(access, section.key, sections.map((x) => x.key)) ? section : null;
+    return sectionViewable(access, section.key, sectionKeys, parentOf) ? section : null;
   };
 
   return {

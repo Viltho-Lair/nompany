@@ -497,6 +497,111 @@ export const BUILTIN_TYPES = [
     ],
     version: 1,
   },
+  {
+    // IN PROGRESS GOES BACK TO RELEASED, the same move a service order has
+    // and for the same reason: work starts, stalls for a part or a machine,
+    // and is neither finished nor abandoned. Without the way back it gets
+    // completed falsely, and the rest of the run is invisible.
+    key: "workorder",
+    label: "Work orders",
+    parentSectionKey: "manufacturing",
+    fields: [
+      { key: "title", label: "Title", kind: "text", required: true },
+      { key: "product", label: "Product", kind: "text" },
+      { key: "quantity", label: "Quantity", kind: "number" },
+      { key: "dueOn", label: "Due", kind: "date" },
+      { key: "station", label: "Work station", kind: "text" },
+      { key: "notes", label: "Notes", kind: "longtext" },
+    ],
+    columns: ["title", "quantity", "dueOn"],
+    statuses: ["Planned", "Released", "In progress", "Completed", "Cancelled"],
+    transitions: [
+      { from: "Planned", to: "Released" },
+      { from: "Released", to: "In progress" },
+      { from: "In progress", to: "Completed" },
+      { from: "Planned", to: "Cancelled" },
+      { from: "Released", to: "Cancelled" },
+      { from: "In progress", to: "Released" },
+    ],
+    version: 1,
+  },
+  {
+    // COMPONENTS ARE ONE LONG TEXT FIELD AND THAT IS THE TRUTH, not a gap
+    // covered over. A real BOM is a line table against Registered Items with
+    // quantities that explode into a work order's material demand; the engine
+    // has no line-table field kind, so this records what a person typed and
+    // nothing consumes it. Said in the functionality file rather than implied
+    // away by a field that looks structured and is not.
+    //
+    // SUPERSEDED IS ONE-WAY. A released BOM that has built something is what
+    // was built against; reopening it would rewrite history that a warranty
+    // claim or a recall is read from. The next revision is the next row.
+    key: "bom",
+    label: "Bills of materials",
+    parentSectionKey: "manufacturing",
+    fields: [
+      { key: "product", label: "Product", kind: "text", required: true },
+      { key: "revision", label: "Revision", kind: "text" },
+      { key: "unit", label: "Unit", kind: "text" },
+      { key: "components", label: "Components", kind: "longtext", required: true },
+      { key: "notes", label: "Notes", kind: "longtext" },
+    ],
+    columns: ["product", "revision", "unit"],
+    statuses: ["Draft", "Released", "Superseded"],
+    transitions: [
+      { from: "Draft", to: "Released" },
+      { from: "Released", to: "Superseded" },
+    ],
+    version: 1,
+  },
+  {
+    key: "station",
+    label: "Work stations",
+    parentSectionKey: "manufacturing",
+    fields: [
+      { key: "name", label: "Name", kind: "text", required: true },
+      { key: "kind", label: "Kind", kind: "select", options: ["Machine", "Cell", "Line", "Bench", "Outsourced"] },
+      { key: "capacityPerDay", label: "Capacity per day", kind: "number" },
+      { key: "location", label: "Location", kind: "text" },
+    ],
+    columns: ["name", "kind", "capacityPerDay"],
+    statuses: ["Available", "Down", "Retired"],
+    transitions: [
+      { from: "Available", to: "Down" },
+      { from: "Down", to: "Available" },
+      { from: "Available", to: "Retired" },
+      { from: "Down", to: "Retired" },
+    ],
+    version: 1,
+  },
+  {
+    // QUARANTINED SITS BETWEEN COMPLETE AND RELEASED because a batch that has
+    // been made is not a batch that may be sold: something is held pending a
+    // test, and it ends in release or in scrap. A register with only the happy
+    // path forces the person holding a suspect batch to lie about its state.
+    key: "batch",
+    label: "Production batches",
+    parentSectionKey: "manufacturing",
+    fields: [
+      { key: "reference", label: "Batch", kind: "text", required: true },
+      { key: "product", label: "Product", kind: "text" },
+      { key: "quantity", label: "Quantity made", kind: "number" },
+      { key: "madeOn", label: "Made", kind: "date" },
+      { key: "expiresOn", label: "Expires", kind: "date" },
+      { key: "notes", label: "Notes", kind: "longtext" },
+    ],
+    columns: ["reference", "product", "madeOn"],
+    statuses: ["Open", "Complete", "Quarantined", "Released", "Scrapped"],
+    transitions: [
+      { from: "Open", to: "Complete" },
+      { from: "Complete", to: "Quarantined" },
+      { from: "Complete", to: "Released" },
+      { from: "Quarantined", to: "Released" },
+      { from: "Quarantined", to: "Scrapped" },
+      { from: "Open", to: "Scrapped" },
+    ],
+    version: 1,
+  },
 ] as const;
 
 const Types = repo<RecordType>("recordTypes");

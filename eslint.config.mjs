@@ -34,6 +34,14 @@ export default [
       // noise, and a headline number that is 97% noise is how a linter stops
       // being run.
       ".claude/**",
+      // AND `.worktrees/**`, which is the same thing under a different name.
+      // The rule above ignored `.claude/worktrees` because that is where they
+      // sat when it was written; a session placing one at `<repo>/.worktrees/`
+      // — which is where they go now, so `node_modules` resolves upward — put
+      // 14,401 errors into `npx eslint .`, every one of them inside another
+      // checkout's `.next` build output. A shrink-only budget cannot survive
+      // that, and the number is unrelated to anything anybody wrote.
+      ".worktrees/**",
       // The Electron task-bar is a separate project with its own runtime and no
       // build step; linting it from here would only report that it is not Next.
       "../nompany-task-bar/**",

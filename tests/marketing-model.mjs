@@ -43,7 +43,7 @@ const DIACRITICS = /[ً-ْٰ]/;
 
 console.log("\n== the departments a visitor is told exist");
 
-ok("eleven of them", D.LIVE_DEPARTMENT_KEYS.length === 11,
+ok("fourteen of them", D.LIVE_DEPARTMENT_KEYS.length === 14,
   String(D.LIVE_DEPARTMENT_KEYS.length));
 
 // THE DEFECT THIS GUARDS, four names at a time. Each of these renders nothing
@@ -71,8 +71,8 @@ console.log("\n== and they are named in both languages");
 // theirs to anyone skimming the file.
 const depsEn = D.liveDepartments("en");
 const depsAr = D.liveDepartments("ar");
-ok("both locales return the same eleven, in the same order",
-  depsEn.map((d) => d.key).join(",") === depsAr.map((d) => d.key).join(",") && depsEn.length === 11);
+ok("both locales return the same fourteen, in the same order",
+  depsEn.map((d) => d.key).join(",") === depsAr.map((d) => d.key).join(",") && depsEn.length === 14);
 ok("every English name is non-empty", depsEn.every((d) => d.name.trim().length > 0));
 ok("every Arabic name is non-empty", depsAr.every((d) => d.name.trim().length > 0));
 // AND THEY ARE ACTUALLY TRANSLATED. `sectionName` falls back to the stored
@@ -98,7 +98,17 @@ const CHECKS = {
     const free = PLANS.find((p) => p.free);
     return Boolean(free) && free.minUsers === 1 && free.maxUsers === 9;
   },
-  "eleven-departments": async () => D.LIVE_DEPARTMENT_KEYS.length === 11,
+  // THE COPY IS CHECKED AGAINST THE COUNT, not merely the count against itself.
+  // The claim is hand-written English and Arabic; the list it describes is
+  // derived. Asserting only the length would have let "Eleven departments" sit
+  // over fourteen of them, which is precisely what happened.
+  "live-departments": async () => {
+    const n = D.LIVE_DEPARTMENT_KEYS.length;
+    const words = { 11: ["Eleven", "أحد عشر"], 14: ["Fourteen", "أربعة عشر"] }[n];
+    if (!words) return false;
+    const claim = C.CLAIMS["live-departments"];
+    return n === 14 && claim.en.startsWith(words[0]) && claim.ar.startsWith(words[1]);
+  },
   "bilingual-rtl": async () => {
     const { locales } = await import("@/shared/i18n");
     const { dirFor } = await import("@/shared/locale");

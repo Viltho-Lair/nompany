@@ -22,7 +22,7 @@ import {
 import {
   addCollaborator, listCollaborators, getCollaboratorByUser, updateCollaborator,
 } from "@/platform/auth/collaborators";
-import { listSections } from "@/platform/db/sections";
+import { listSections, parentKeyMap } from "@/platform/db/sections";
 import {
   createJoinRequest, listPendingForStudio, getJoinRequest, decideJoinRequest,
   APPROVED, DECLINED,
@@ -219,7 +219,11 @@ export function canAdminister(access: PermissionSet) {
 // The sections this person may actually open — what the studio nav renders.
 export function visibleSections(studio: Row | null | undefined, collaborator: unknown, sections: Section[], access: PermissionSet) {
   const keys = (sections || []).map((s: Section) => s.key);
-  return (sections || []).filter((s: Section) => s.enabled !== false && sectionViewable(access, s.key, keys));
+  // The parent map is what lets a heading follow a child that does not share
+  // its key prefix — an engine register planted under Quality & HSE. See
+  // `parentKeyMap` and `childrenOf` for the failure it fixes.
+  const parentOf = parentKeyMap(sections || []);
+  return (sections || []).filter((s: Section) => s.enabled !== false && sectionViewable(access, s.key, keys, parentOf));
 }
 
 // { sales: true, technical: false, … } — used by the modules to decide whether a
@@ -237,7 +241,9 @@ export function sectionNav(studio: Row | null | undefined, collaborator: unknown
 // separate canManageX prop per sub-section was how the parent's answer ended up
 // standing in for all of them.
 export function manageMap(studio: Row | null | undefined, collaborator: unknown, sections: Section[], access: PermissionSet) {
-  return Object.fromEntries((sections || []).map((s) => [s.key, sectionManageable(access, s.key, (sections || []).map((x) => x.key))]));
+  const keys = (sections || []).map((x) => x.key);
+  const parentOf = parentKeyMap(sections || []);
+  return Object.fromEntries((sections || []).map((s) => [s.key, sectionManageable(access, s.key, keys, parentOf)]));
 }
 
 // WHO IN A STUDIO HOLDS A GIVEN RIGHT — the recipients for a notice addressed by

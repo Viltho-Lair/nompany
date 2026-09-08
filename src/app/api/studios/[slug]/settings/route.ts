@@ -1,4 +1,6 @@
 import { requirePermission } from "@/platform/access";
+import { NO_SCREEN_YET } from "@/platform/access";
+import { REQUIRED_SECTIONS } from "@/platform/db/sections";
 import { renameStudio } from "@/modules/main/studios";
 import { isKnownCurrency, crossRate } from "@/shared/currencies";
 import { getExchangeSnapshot } from "@/lib/data/exchangeRates";
@@ -183,6 +185,22 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
     // not. The snapshot is a shared daily read, so this costs no API call.
     fx: await favouriteRates(studio),
     canManage: !requirePermission(context.access, "administration.settings.edit"),
+    // THE STUDIO'S OWN SECTION LIST, so Settings can offer the choice of which
+    // ones this studio uses. Every section is here, not just the visible ones —
+    // a screen for turning a section back ON cannot be built from a list that
+    // omits the ones that are off. `noScreen` says which can never be enabled,
+    // because they render nothing; the screen greys those rather than hiding
+    // them, so a studio can see that Manufacturing exists and is not ready
+    // rather than wondering why the product has a gap where one should be.
+    sections: (context.sections || []).map((x) => ({
+      id: x.id,
+      key: x.key,
+      name: x.name,
+      parentId: x.parentId || null,
+      enabled: x.enabled !== false,
+      noScreen: (NO_SCREEN_YET as readonly string[]).includes(x.key),
+      required: (REQUIRED_SECTIONS as readonly string[]).includes(x.key),
+    })),
     // Asking for deletion is the OWNER's call, not an admin's: it ends the
     // studio for everybody in it.
     isOwner: collaborator.role === "owner",

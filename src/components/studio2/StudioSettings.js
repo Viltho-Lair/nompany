@@ -2,6 +2,7 @@
 
 import { CURRENCIES_FROM_EXCHANGE_API, searchCurrencies, currency as currencyOf, fmtRate } from "@/shared/currencies";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Icon } from "@/components/studio2/icons";
 import { useFocusTrap } from "@/components/studio2/useFocusTrap";
 import Combo from "@/components/studio2/Combo";
@@ -81,6 +82,7 @@ export default function StudioSettings({ slug, locale = "en" }) {
   const [hoursOpen, setHoursOpen] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [sections, setSections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -92,6 +94,7 @@ export default function StudioSettings({ slug, locale = "en" }) {
       setCanManage(Boolean(d.canManage));
       setFx(d.fx || null);
       setIsOwner(Boolean(d.isOwner));
+      setSections(Array.isArray(d.sections) ? d.sections : []);
     }
     setLoading(false);
   }, [slug]);
@@ -289,6 +292,13 @@ export default function StudioSettings({ slug, locale = "en" }) {
         onSave={save}
       />
 
+      <StudioSections
+        slug={slug}
+        rows={sections}
+        canManage={canManage}
+        onSaved={load}
+      />
+
       <LegalInfo
         rows={Array.isArray(studio.legalInfo) ? studio.legalInfo : []}
         canManage={canManage}
@@ -442,6 +452,111 @@ function ConfirmDelete({ name, onClose, onConfirm }) {
 //
 // Edited as a whole and saved once, like the working week: this is one block of
 // information, and saving it row by row would let it sit half-updated.
+// ONE SECTION'S ROW, hoisted out of `StudioSections` rather than declared in
+// its body: a component defined inside a render is a NEW type on every render,
+// so React unmounts and remounts the whole subtree each time — here that is the
+// entire section list on every toggle. It recurses one level for children,
+// which is the only nesting the nav has.
+function SectionRow({ row, depth, tr, kids, canManage, busy, failed, onToggle }) {
+  // A section with no screen can be turned OFF (tidying is allowed) and not back
+  // ON, which is exactly what the route refuses.
+  const locked = row.required || (row.noScreen && !row.enabled);
+  const note = row.required ? tr.sectionsRequired : row.noScreen ? tr.sectionsNotReady : "";
+  return (
+    <>
+      <div className={`flex items-center gap-3 py-1.5 ${depth ? "ps-6" : ""}`}>
+        <span className="min-w-0 flex-1 truncate text-sm text-slate-700 dark:text-slate-200">{row.name}</span>
+        {note && <span className="shrink-0 text-xs text-slate-400 dark:text-slate-500">{note}</span>}
+        {failed === row.id && <span className="shrink-0 text-xs text-rose-600">{tr.sectionsRefused}</span>}
+        <button
+          type="button"
+          role="switch"
+          aria-checked={Boolean(row.enabled)}
+          aria-label={row.name}
+          disabled={!canManage || locked || busy === row.id}
+          onClick={() => onToggle(row)}
+          className={`relative h-6 w-11 shrink-0 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 ${row.enabled ? "bg-brand-600" : "bg-slate-200 dark:bg-white/15"} ${canManage && !locked ? "" : "opacity-50"}`}
+        >
+          <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${row.enabled ? "end-0.5" : "start-0.5"}`} />
+        </button>
+      </div>
+      {(kids.get(row.id) || []).map((kid) => (
+        <SectionRow key={kid.id} row={kid} depth={1} tr={tr} kids={kids}
+          canManage={canManage} busy={busy} failed={failed} onToggle={onToggle} />
+      ))}
+    </>
+  );
+}
+
+// WHICH SECTIONS THIS STUDIO USES. `enabled` has sat on every section row since
+// sections became rows, and `visibleSections` has always filtered on it — a
+// disabled section is hidden whatever rights the reader holds. Nothing could
+// SET it, so a contractor with no factory carried Manufacturing in the sidebar
+// because the product ships fifteen sections and assumed all fifteen applied.
+//
+// It has its own PUT (one section at a time) rather than joining the general
+// settings save, for the reason ServiceActions and the flow editor have theirs:
+// the write refuses three sections by name and every section with no screen,
+// and a refusal has to reach the row it belongs to rather than the page banner.
+//
+// THE THREE FLAGS COME FROM THE SERVER, never from a list kept here. `required`
+// and `noScreen` are exactly what the route refuses; a second copy in the
+// browser would be free to disagree the first time either changed, and the
+// disagreement would show as a switch that looks live and does nothing.
+function StudioSections({ slug, rows, canManage, onSaved }) {
+  const tr = useT();
+  // THE SIDEBAR IS SERVER-RENDERED, so re-reading the settings payload is only
+  // half the update: this screen would show the switch in its new position
+  // while the nav beside it still listed the section that had just been turned
+  // off, until the next full navigation. `router.refresh()` re-runs the layout
+  // that computes `visibleSections`, which is where the answer actually lives.
+  const router = useRouter();
+  const [busy, setBusy] = useState("");
+  const [failed, setFailed] = useState("");
+
+  // One level of nesting, which is all the nav allows. A child whose parent is
+  // not in the list still renders at the top rather than vanishing — the list
+  // is the studio's own rows, and a row nobody can see is a row nobody can fix.
+  const byParent = useMemo(() => {
+    const kids = new Map();
+    for (const r of rows) if (r.parentId) {
+      if (!kids.has(r.parentId)) kids.set(r.parentId, []);
+      kids.get(r.parentId).push(r);
+    }
+    return kids;
+  }, [rows]);
+  const ids = useMemo(() => new Set(rows.map((r) => r.id)), [rows]);
+  const roots = rows.filter((r) => !r.parentId || !ids.has(r.parentId));
+
+  async function toggle(row) {
+    setBusy(row.id);
+    setFailed("");
+    const res = await fetch(`/api/studios/${slug}/settings/sections`, {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: row.id, enabled: !row.enabled }),
+    });
+    setBusy("");
+    if (!res.ok) { setFailed(row.id); return; }
+    await onSaved();
+    router.refresh();
+  }
+
+  if (!rows.length) return null;
+
+  return (
+    <section className="mt-8 rounded-geex border border-slate-200/70 p-5 dark:border-white/10">
+      <h3 className="font-display text-base font-700 text-slate-900 dark:text-white">{tr.sectionsHeading}</h3>
+      <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{tr.sectionsLead}</p>
+      <div className="mt-4 divide-y divide-slate-100 dark:divide-white/5">
+        {roots.map((row) => (
+          <SectionRow key={row.id} row={row} depth={0} tr={tr} kids={byParent}
+            canManage={canManage} busy={busy} failed={failed} onToggle={toggle} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function LegalInfo({ rows, canManage, onSave }) {
   const tr = useT();
   const [draft, setDraft] = useState(() => (rows.length ? rows.map((r) => ({ ...r })) : [{ key: "", value: "" }]));
