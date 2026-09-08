@@ -42,6 +42,7 @@ import { listCollaborators } from "@/platform/auth/collaborators";
 import { departmentsForField, UNIVERSAL_DEPARTMENTS } from "@/shared/departments/starters";
 import { wouldCycle, depthOf, MAX_DEPARTMENT_DEPTH } from "@/shared/departments/tree";
 import { starterRolesFor, permissionsForLibraryRole } from "@/modules/people/roleLibrary";
+import { studioTypesForGrants } from "@/platform/engine/records";
 import { createRoles, listRoles } from "@/modules/people/roles";
 import type { Department, MasterContext } from "./types";
 import type { StudioRef } from "../context";
@@ -202,6 +203,10 @@ async function seedDepartments(
   // directions. It costs one read on a path that is already writing.
   if (created.length) await listRoles(scope.studio.id);
 
+  // Read ONCE for the whole seeding rather than per department — every role
+  // created here expands against the same studio's registers.
+  const engineTypes = await studioTypesForGrants(scope.studio.id);
+
   for (const department of created) {
     const entries = starterRolesFor(field, String(department.code || ""));
     if (!entries.length) continue;
@@ -210,7 +215,7 @@ async function seedDepartments(
       description: "",
       departmentId: department.id,
       source: "library",
-      permissions: permissionsForLibraryRole(e),
+      permissions: permissionsForLibraryRole(e, engineTypes),
       scopes: {},
     })));
   }

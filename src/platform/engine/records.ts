@@ -15,6 +15,7 @@ import { transitionProblem, coerceRecord, mergeRecord, recordProblem } from "./t
 import type { RecordType, EngineRecord } from "./schema";
 import type { PermissionSet } from "@/platform/access";
 import type { StudioRef, CollaboratorRef } from "@/modules/context";
+import { sectionsAsStored } from "@/platform/db/sections";
 import type { Section } from "@/platform/db/sections";
 
 const Types = repo<RecordType>("recordTypes");
@@ -89,6 +90,30 @@ async function typeFor(ctx: EngineCallerContext, typeKey: string) {
     ? ctx.sections.find((x) => x.key === engineSectionKey(String(type.key))) || null
     : null;
   return { scope: section && { studio: ctx.studio, section }, type };
+}
+
+/**
+ * THE STUDIO'S OWN RECORD TYPES, for expanding an archetype's `engineSections`.
+ *
+ * A library role's permissions are a COPY taken at the moment it is added (the
+ * BOQ rate rule), so this is read once per seeding rather than resolved later:
+ * changing an archetype must reprice nothing already created.
+ *
+ * ABSENT SECTION MEANS NO TYPES, NOT AN ERROR. A studio short of
+ * `administration-settings` has no engine storage at all, and a role that
+ * arrives with its ordinary areas and none of its registers is a truthful
+ * degradation — the alternative is refusing to seed a department's roles over
+ * a register nobody has asked for yet.
+ */
+export async function studioTypesForGrants(
+  studioId: string,
+): Promise<{ key: string; parentSectionKey: string }[]> {
+  const sections = await sectionsAsStored(studioId);
+  const settings = sections.find((s) => s.key === "administration-settings");
+  if (!settings) return [];
+  const studio = { id: studioId } as Parameters<typeof Types.find>[0]["studio"];
+  const rows = await Types.find({ studio, section: settings });
+  return rows.map((r) => ({ key: String(r.key), parentSectionKey: String(r.parentSectionKey) }));
 }
 
 /**

@@ -91,7 +91,10 @@ export const findLibraryRole = (name: string, industry: string, department: stri
  * an archetype later must reprice nothing already created, which is the rule a
  * BOQ rate follows and for the same reason.
  */
-export const permissionsForLibraryRole = (entry: LibraryRole): string[] => permissionsFor(entry.archetype);
+export const permissionsForLibraryRole = (
+  entry: LibraryRole,
+  types: ReadonlyArray<{ key: string; parentSectionKey: string }> = [],
+): string[] => permissionsFor(entry.archetype, types);
 
 /**
  * WELL-FORMEDNESS. Takes the known industries and each industry's department

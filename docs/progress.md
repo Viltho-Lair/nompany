@@ -440,9 +440,26 @@ trip, because each half passed on its own while the feature did not work: the sc
 offer the key, `cleanPermissions` must not silently drop it, and the register must then
 open for somebody holding that key and nothing else.
 
-**What is still open:** no ARCHETYPE holds an engine key, so a library role brings none of
-them and a studio grants them by hand. And a register still has no attachments, no
-comments and no audit trail — Phase 3's type management is what closes that.
+**AND THE ARCHETYPES HOLD THEM NOW TOO, 08/09/2026 — the caveat is closed.** Eight of the
+eleven shapes name the SECTIONS whose registers they own, at a level, rather than listing
+register names: twenty-nine registers against eleven shapes would be three hundred
+decisions that go stale the moment a register is added, which is the same reason ~2,900
+hand-written permission lists were rejected for eleven shapes in the first place. A
+register added under Quality & HSE reaches every shape that owns that section with nobody
+remembering to.
+
+**It expands against the studio's OWN types**, not the built-in list, so a studio that
+declares its own register under a section finds the shapes that own it already able to
+open it. `money` picks up none of the twenty-nine, deliberately — nothing in them is a
+controller's to keep — and with no studio in hand `permissionsFor` still returns the
+declared shape alone, because inventing keys for types a studio does not hold would grant
+rights to registers that do not exist.
+
+**What is still open:** a register has no attachments, no comments and no audit trail —
+Phase 3's type management is what closes that. And the seeded roles are a COPY taken when
+the department is created (the BOQ rate rule), so a studio seeded BEFORE this landed keeps
+the roles it has; `scripts/migrate/departmental-roles.mjs` is the only mover and it has
+still never been run.
 
 #### §11 Quality & HSE 🟡 6 / 8
 ITPs ✅ · Inspection & test records ✅ · NCR / CAPA ✅ · Audits ✅ · HSE incidents 🟡

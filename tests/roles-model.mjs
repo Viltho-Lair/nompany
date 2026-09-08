@@ -341,5 +341,64 @@ const renamed = RT.retirePlan({
 ok("a renamed starter role is still retired", renamed.remove.length === 1,
   JSON.stringify(renamed.remove));
 
+console.log("\n== an archetype owns a section's registers, not a list of names");
+
+// TWENTY-NINE REGISTERS THAT NO LIBRARY ROLE COULD OPEN. `permissionsFor` walked
+// `grants` and `extras`, both of which name AREAS — and an engine right is
+// minted from a row, so no archetype held one and a seeded departmental role
+// arrived able to open none of its own section's registers. The roles SCREEN
+// learned to offer them first; this is the other half, so a studio does not tick
+// a hundred and sixteen boxes by hand.
+{
+  const A = await import("@/modules/people/archetypes");
+
+  // The expansion is against the types PASSED IN, so this asks the question
+  // with a studio's list rather than the built-in one — which is also how a
+  // studio's own custom register reaches the shapes that own its section.
+  const types = [
+    { key: "ncr", parentSectionKey: "quality-hse" },
+    { key: "audit", parentSectionKey: "quality-hse" },
+    { key: "workorder", parentSectionKey: "manufacturing" },
+    { key: "houseRule", parentSectionKey: "quality-hse" },   // a studio's own
+  ];
+
+  const checker = A.permissionsFor("checker", types);
+  ok("a QA/QC shape holds its own section's registers at full",
+    ["view", "create", "edit", "delete"].every((v) => checker.includes(`engine.ncr.${v}`)));
+  ok("...including a register the studio declared itself",
+    checker.includes("engine.houseRule.delete"));
+  ok("...and only VIEWS the operational one it inspects",
+    checker.includes("engine.workorder.view") && !checker.includes("engine.workorder.edit"));
+
+  // `edit` IS THE MIDDLE RUNG AND IT HAS TO STOP SHORT OF DELETE, or the ladder
+  // has two rungs and the shapes that use it are lying.
+  const doer = A.permissionsFor("doer", types);
+  ok("whoever does the work may file a record and not delete one",
+    doer.includes("engine.ncr.create") && doer.includes("engine.ncr.edit")
+    && !doer.includes("engine.ncr.delete"));
+
+  // THE MONEY SHAPE OWNS NO REGISTER, which is a decision rather than an
+  // omission: nothing in the twenty-nine is a controller's to keep.
+  ok("a finance shape picks up no register at all",
+    A.permissionsFor("money", types).every((k) => !k.startsWith("engine.")));
+
+  // AND NO STUDIO, NO ENGINE KEYS. The default is the archetype's DECLARED
+  // shape — every pure caller asks for that, and inventing keys for types the
+  // studio does not hold would grant rights to registers that do not exist.
+  ok("with no types in hand an archetype declares no engine right",
+    A.permissionsFor("checker").every((k) => !k.startsWith("engine.")));
+
+  // EVERY SECTION AN ARCHETYPE NAMES MUST BE A REAL ONE, the same rule `level()`
+  // enforces for areas — a typo here would grant nothing, silently, forever.
+  const { ALL_SECTION_KEYS } = await import("@/platform/db/keys");
+  const bad = [];
+  for (const a of A.ARCHETYPES) {
+    for (const [sectionKey] of a.engineSections || []) {
+      if (!ALL_SECTION_KEYS.includes(sectionKey)) bad.push(`${a.id} -> ${sectionKey}`);
+    }
+  }
+  ok("every section an archetype names exists", bad.length === 0, bad.join(", "));
+}
+
 console.log(fails ? `\n${fails} FAILED\n` : "\nall passed\n");
 process.exit(fails ? 1 : 0);

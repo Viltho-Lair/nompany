@@ -41,6 +41,7 @@ import { moduleContext } from "../context";
 import { listCollaborators, getCollaborator, updateCollaborator } from "@/platform/auth/collaborators";
 import { listRoles, createRole, createRoles, updateRole, deleteRole, ADMIN_ROLE_ID } from "@/modules/people/roles";
 import { findLibraryRole, permissionsForLibraryRole, searchLibrary } from "@/modules/people/roleLibrary";
+import { studioTypesForGrants } from "@/platform/engine/records";
 import { listDepartmentsIn } from "@/modules/administration/departments";
 import { subtreeIds } from "@/shared/departments/tree";
 import { getProfilesByIds } from "@/platform/auth/users";
@@ -245,6 +246,10 @@ export async function addLibraryRoles(
     .filter((r) => String(r.departmentId || "") === departmentId)
     .map((r) => (r.name || "").toLowerCase()));
 
+  // The studio's own registers, read once: an archetype's `engineSections`
+  // expands against what this studio actually holds, custom types included.
+  const engineTypes = await studioTypesForGrants(ctx.studio.id);
+
   const wanted: Record<string, unknown>[] = [];
   for (const raw of Array.isArray(names) ? names : []) {
     const name = str(raw, 60);
@@ -262,7 +267,7 @@ export async function addLibraryRoles(
       description: "",
       departmentId,
       source: "library",
-      permissions: permissionsForLibraryRole(entry),
+      permissions: permissionsForLibraryRole(entry, engineTypes),
       scopes: {},
     });
   }

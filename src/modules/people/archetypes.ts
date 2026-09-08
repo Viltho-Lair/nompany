@@ -37,6 +37,23 @@ export type Archetype = {
   grants: ReadonlyArray<readonly [string, Level]>;
   /** A verb outside the view/edit/full ladder, named in full. */
   extras?: readonly string[];
+  /**
+   * SECTIONS WHOSE ENGINE REGISTERS THIS SHAPE OWNS, at a level.
+   *
+   * SECTIONS RATHER THAN REGISTER NAMES, and that is the whole design. There
+   * are twenty-nine built-in registers and eleven archetypes; naming each pair
+   * would be three hundred decisions that go stale the moment a register is
+   * added, which is exactly how ~2,900 hand-written permission lists were
+   * rejected in favour of eleven shapes in the first place. A section is one
+   * decision — "a safety officer owns Quality & HSE" — and a register added
+   * under it flows to that shape with nobody remembering to.
+   *
+   * AND IT COVERS A STUDIO'S OWN TYPES TOO, because the expansion happens
+   * against the types that studio actually HAS rather than against the
+   * built-in list. A studio that declares its own register under Quality & HSE
+   * finds its safety officers already able to open it.
+   */
+  engineSections?: ReadonlyArray<readonly [string, Level]>;
 };
 
 // AN AREA A GRANT NAMES MUST EXIST, so a typo throws at import rather than
@@ -51,6 +68,15 @@ const level = (areaKey: string, lvl: Level): string[] => {
 export const ARCHETYPES: readonly Archetype[] = Object.freeze([
   {
     id: "principal",
+    // EVERY SECTION'S REGISTERS, which is the same sentence as "every area at
+    // full" one line down and has to be said separately because an engine right
+    // is not in AREAS. Without it the person who runs the company could open
+    // none of the twenty-nine registers their own studio holds.
+    engineSections: [
+      ["engineering-docs", "full"], ["quality-hse", "full"], ["assets", "full"],
+      ["field-service", "full"], ["logistics", "full"], ["manufacturing", "full"],
+      ["hr", "full"], ["inventory", "full"],
+    ],
     note: "Chairman, CEO, Managing Director, Owner, Director General. Runs the company.",
     // NOT A WILDCARD, and this is the one place it matters. The role model
     // allows exactly one wildcard and it is Admin, which "has to keep meaning
@@ -89,6 +115,15 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
   },
   {
     id: "department-head",
+    // A HEAD OF DEPARTMENT READS ACROSS AND WRITES IN THE OPERATIONAL ONES.
+    // Full on what an operations director actually runs; view on Quality & HSE
+    // and HR, because seeing the incident and the appraisal is part of running
+    // a department and EDITING either is somebody else's job.
+    engineSections: [
+      ["manufacturing", "full"], ["field-service", "full"], ["logistics", "full"],
+      ["assets", "full"], ["inventory", "edit"],
+      ["quality-hse", "view"], ["hr", "view"], ["engineering-docs", "view"],
+    ],
     note: "Operations Director, Head of Production, Executive Chef, Chief Nursing Officer.",
     grants: [
       ["crmSales.dashboard", "view"], ["projects.dashboard", "view"], ["hr.dashboard", "view"],
@@ -151,6 +186,15 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
   },
   {
     id: "deliverer",
+    // THE PERSON DELIVERING THE WORK owns the registers the work runs through
+    // and reads the ones that constrain it. Quality is `edit` rather than
+    // `full`: a project manager raises an NCR and files a test record, and
+    // DELETING either is exactly what an inspection trail must not permit.
+    engineSections: [
+      ["field-service", "full"], ["manufacturing", "full"],
+      ["engineering-docs", "edit"], ["quality-hse", "edit"], ["assets", "view"],
+      ["logistics", "view"], ["inventory", "view"],
+    ],
     note: "Project Manager, Production Manager, Engagement Manager, Rig Manager.",
     grants: [
       ["projects.list", "full"], ["projects.planner", "edit"], ["projects.sla", "edit"],
@@ -186,6 +230,13 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
   },
   {
     id: "front-line",
+    // A SUPERVISOR RAISES AND UPDATES, and deletes nothing. `edit` everywhere,
+    // which is the rung that grants view/create/edit and stops there — the
+    // whole point of the ladder having three rungs rather than two.
+    engineSections: [
+      ["field-service", "edit"], ["manufacturing", "edit"], ["quality-hse", "edit"],
+      ["logistics", "edit"], ["assets", "view"], ["inventory", "view"],
+    ],
     note: "Foreman, Supervisor, Charge Nurse, Crew Chief, Shift Leader. Assigns work by name.",
     grants: [
       ["tasks.board", "full"], ["fieldService.schedule", "edit"], ["fieldService.tracking", "edit"],
@@ -207,6 +258,14 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
   },
   {
     id: "doer",
+    // WHOEVER DOES THE WORK FILES THE RECORD OF IT. `edit` on the two
+    // registers a technician actually writes in — the job they attended and the
+    // test they ran — and view elsewhere. This is the shape most people in a
+    // studio hold, so it is the one where over-granting costs most.
+    engineSections: [
+      ["field-service", "edit"], ["quality-hse", "edit"],
+      ["manufacturing", "view"], ["assets", "view"], ["engineering-docs", "view"],
+    ],
     note: "Engineer, Technician, Nurse, Consultant, Operator, Chef. Does the work.",
     // DELETES NOTHING — the line the Member starter role drew, kept intact
     // through the model changing underneath it. `edit` stops short of delete on
@@ -218,6 +277,13 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
   },
   {
     id: "custodian",
+    // THE STORE KEEPER'S REGISTERS. Stocktakes are the control this shape
+    // exists to run, and the equipment, maintenance and calibration registers
+    // are the stores' other half — what is owned, what is due, what is still in
+    // calibration.
+    engineSections: [
+      ["inventory", "full"], ["assets", "full"], ["logistics", "edit"],
+    ],
     note: "Store Keeper, Warehouse Manager, Materials Controller, Pharmacy Technician.",
     grants: [
       ["inventory.stock", "full"], ["inventory.items", "full"], ["inventory.sheets", "edit"],
@@ -236,6 +302,12 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
   },
   {
     id: "buyer",
+    // PROCUREMENT WATCHES WHAT ARRIVES rather than filing it. View on the
+    // delivery and fleet registers and on the stores'; nothing here is a buyer's
+    // to write, and a register they cannot open is one they cannot chase.
+    engineSections: [
+      ["logistics", "edit"], ["inventory", "view"], ["assets", "view"],
+    ],
     note: "Procurement Manager, Buyer, Subcontracts Administrator, Expeditor.",
     grants: [
       ["procurement.suppliers", "full"], ["procurement.requisitions", "edit"],
@@ -296,6 +368,15 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
   },
   {
     id: "checker",
+    // THE SHAPE QUALITY & HSE WAS BUILT FOR. Full on its eight registers —
+    // an auditor who cannot close an audit is not an auditor — and view on the
+    // operational ones they inspect, because an inspector reads the work order
+    // and the service job and writes in neither.
+    engineSections: [
+      ["quality-hse", "full"],
+      ["manufacturing", "view"], ["field-service", "view"], ["assets", "view"],
+      ["engineering-docs", "view"], ["inventory", "view"],
+    ],
     note: "QA/QC Inspector, Safety Officer, Auditor, Airworthiness Signatory.",
     // THE ARCHETYPE NO STARTER ROLE EVER COVERED, and the reason it was worth
     // finding: a studio wanting a pure inspector had to assemble one out of
@@ -334,14 +415,47 @@ const byId = new Map(ARCHETYPES.map((a) => [a.id, a]));
  * from stored library data, and a bad row should cost one role its defaults
  * rather than taking down the seed that was reading it.
  */
-export function permissionsFor(id: string): string[] {
+/**
+ * @param types - the studio's record types, so `engineSections` can expand.
+ *   Defaults to none, which is what every pure caller wants: an archetype's
+ *   DECLARED shape, with no studio in hand. Passing the studio's own types is
+ *   what makes a library role arrive able to open its registers.
+ */
+export function permissionsFor(
+  id: string,
+  types: ReadonlyArray<{ key: string; parentSectionKey: string }> = [],
+): string[] {
   const archetype = byId.get(id as ArchetypeId);
   if (!archetype) return [];
   const out = new Set<string>();
   for (const [areaKey, lvl] of archetype.grants) for (const k of level(areaKey, lvl)) out.add(k);
   for (const k of archetype.extras || []) out.add(k);
+
+  // AN ENGINE KEY IS BUILT HERE RATHER THAN THROUGH `keysForLevel`, because
+  // that helper takes an `Area` and an engine right has none — the key is
+  // minted from a row, which is the whole reason `isEnginePermission` exists as
+  // the one hole in a closed catalogue. The verb ladder is the SAME ladder
+  // though, read off LEVEL_VERBS, so "edit" means here what it means anywhere.
+  for (const [sectionKey, lvl] of archetype.engineSections || []) {
+    for (const t of types) {
+      if (t.parentSectionKey !== sectionKey) continue;
+      for (const verb of ENGINE_LEVEL_VERBS[lvl] || []) out.add(`engine.${t.key}.${verb}`);
+    }
+  }
   return [...out];
 }
+
+// The same three rungs the catalogue uses, spelled out because an engine right
+// has no `Area` to filter against: every register has all four verbs.
+const ENGINE_LEVEL_VERBS: Record<Level, readonly string[]> = {
+  // `none` is a real rung of the ladder and means exactly what it says: an
+  // archetype may name a section in order to grant nothing on it, which reads
+  // more honestly in the list than omitting the row.
+  none: [],
+  view: ["view"],
+  edit: ["view", "create", "edit"],
+  full: ["view", "create", "edit", "delete"],
+};
 
 export const isArchetypeId = (v: unknown): v is ArchetypeId => byId.has(v as ArchetypeId);
 
