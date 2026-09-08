@@ -803,7 +803,7 @@ export const SECTION_COLLECTIONS = {
   // BINS SIT WITH THE MOVEMENTS THEY SPLIT. A bin balance is the stock
   // ledger grouped by bin, so the two must be written under one section or
   // a live update on one would never reach a screen watching the other.
-  "inventory-stock": ["inventoryStock", "stockAdjustments", "stockBins"],
+  "inventory-stock": ["inventoryStock", "stockAdjustments", "stockBins", "stockBatches"],
   "inventory-items": ["inventoryItems"],
   // GOODS RECEIPTS SIT WITH THE ORDERS THEY ANSWER. `receiveOrder` is
   // Inventory's and writes them, so they are written where Inventory already

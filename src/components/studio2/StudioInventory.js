@@ -24,7 +24,9 @@ import { statusLabel, isException, AWB_STATUS_BY_CODE } from "@/modules/inventor
 import { StatusPill } from "@/components/studio2/StatusPill";
 import { useReload } from "@/components/studio2/useReload";
 import BinsPanel from "@/components/studio2/BinsPanel";
+import BatchesPanel from "@/components/studio2/BatchesPanel";
 import { binsDict } from "@/shared/studio/bins";
+import { batchesDict } from "@/shared/studio/batches";
 
 // INVENTORY — what the studio buys, holds, and issues to its projects.
 // On-hand is summed from the movement ledger, so every number here can be traced
@@ -532,7 +534,7 @@ function Stock({ slug, items, movements, canManage, busy, send }) {
     <>
       <div className="flex flex-wrap items-center gap-2">
         <div className="inline-flex rounded-full border border-slate-200 p-0.5 dark:border-white/15">
-          {[["onhand", tr.onHandTab], ["movements", tr.movementsTab], ["bins", binsDict(locale).tab]].map(([k, text]) => (
+          {[["onhand", tr.onHandTab], ["movements", tr.movementsTab], ["bins", binsDict(locale).tab], ["batches", batchesDict(locale).tab]].map(([k, text]) => (
             <button key={k} type="button" onClick={() => setTab(k)}
               className={`rounded-full px-4 py-1.5 text-sm font-600 transition-colors ${tab === k ? "bg-brand-700 text-white" : "text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-white/5"}`}>
               {text}
@@ -571,6 +573,10 @@ function Stock({ slug, items, movements, canManage, busy, send }) {
         // interesting on this tab, and folding it into the section payload
         // would make every Inventory screen pay for it.
         <BinsPanel slug={slug} locale={locale} />
+      ) : tab === "batches" ? (
+        // WHICH UNITS, from the other end: a lot number and when it stops
+        // being usable, plus the state of every serial.
+        <BatchesPanel slug={slug} locale={locale} />
       ) : items.length === 0 ? (
         <Empty title={tr.nothingStockYet} body={tr.registerItemsFirstThen} />
       ) : (

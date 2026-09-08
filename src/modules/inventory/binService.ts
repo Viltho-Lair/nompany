@@ -14,11 +14,12 @@
 
 import { requirePermission } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
-import { binProblems, cleanBin, binView, binBalances, negativeBins } from "./bins";
+import { binProblems, cleanBin, binView, binBalances, negativeBins, splitBy } from "./bins";
 import type { Bin, BinMovement } from "./bins";
 import type { InventoryContext } from "./types";
 
 const Bins = repo<Bin>("stockBins");
+const Batches = repo<{ id: string }>("stockBatches");
 const Stock = repo<BinMovement>("inventoryStock");
 const Items = repo<{ id: string; sku?: string; name?: string }>("inventoryItems");
 const Locations = repo<{ id: string; name?: string }>("locations");
@@ -153,54 +154,68 @@ export async function deleteBin(ctx: InventoryContext, id: string) {
  * saying they are carrying five units off it — if the records say there are
  * three, one of the two is wrong and moving five would only bury it.
  */
-export async function moveStock(ctx: InventoryContext, body: Record<string, unknown>) {
+// GENERALISED OVER THE FIELD, so the batch register reassigns stock through
+// this same pair of writes rather than a second one. Two functions writing
+// net-zero movement pairs would be two chances to get the sign wrong, and one
+// of them would be the one nobody exercised.
+export async function moveStock(
+  ctx: InventoryContext,
+  body: Record<string, unknown>,
+  field: "binId" | "batchId" = "binId",
+) {
   const denied = requirePermission(ctx.access, "inventory.stock.create");
   if (denied) return denied;
 
   const itemId = String(body?.itemId ?? "").trim();
-  const fromBinId = String(body?.fromBinId ?? "").trim();
-  const toBinId = String(body?.toBinId ?? "").trim();
+  const fromBinId = String(body?.from ?? body?.fromBinId ?? "").trim();
+  const toBinId = String(body?.to ?? body?.toBinId ?? "").trim();
   const amount = Math.round(Number(body?.qty) * 1000) / 1000;
 
   if (!Number.isFinite(amount) || amount <= 0) return { error: "qty" };
   // BOTH ENDS THE SAME IS A NO-OP THAT WRITES TWO MOVEMENTS, so it is refused
   // by name rather than silently accepted: the balances would be unchanged and
-  // the ledger would carry a pair of entries recording nothing.
+  // the ledger would carry a pair of entries recording nothing. (The code says
+  // "bin" for both registers — it is one refusal, and renaming it per field
+  // would give a caller two errors to handle for one condition.)
   if (fromBinId === toBinId) return { error: "same-bin" };
 
-  const [bins, movements, items] = await Promise.all([
-    Bins.find(scope(ctx)),
+  const [targets, movements, items] = await Promise.all([
+    // The register the two ends are drawn from — bins here, batches when the
+    // batch screen calls it.
+    field === "binId"
+      ? Bins.find(scope(ctx))
+      : (Batches.find(scope(ctx)) as unknown as Promise<{ id: string }[]>),
     Stock.find(scope(ctx)),
     Items.find({ studio: ctx.studio, section: ctx.itemsSection }),
   ]);
   if (!items.some((i) => i.id === itemId)) return { error: "item" };
 
-  const known = new Set(bins.map((b) => b.id));
+  const known = new Set(targets.map((b) => b.id));
   // A DESTINATION MUST EXIST; a SOURCE need not be a bin at all, because "" is
   // the legitimate source that put-away starts from.
   if (toBinId && !known.has(toBinId)) return { error: "bin" };
   if (fromBinId && !known.has(fromBinId)) return { error: "bin" };
   if (!toBinId && !fromBinId) return { error: "bin" };
 
-  const { byBin, unbinned } = binBalances(movements, known);
-  const have = fromBinId ? (byBin[fromBinId]?.[itemId] || 0) : (unbinned[itemId] || 0);
+  const { grouped, ungrouped } = splitBy(movements, field, known);
+  const have = fromBinId ? (grouped[fromBinId]?.[itemId] || 0) : (ungrouped[itemId] || 0);
   if (have < amount) return { error: "insufficient", have, needed: amount };
 
   const at = new Date().toISOString();
   const reason = String(body?.reason ?? "").trim().slice(0, 300)
     || (fromBinId ? "Moved between bins" : "Put away");
-  const write = (qty: number, binId: string, otherEnd: string) => Stock.create(scope(ctx), {
+  const write = (qty: number, end: string, otherEnd: string) => Stock.create(scope(ctx), {
     itemId, kind: "adjust", qty, reason,
     // WHICH MOVE THIS HALF BELONGS TO. Without it the ledger shows two
     // unexplained adjustments of opposite sign and nobody can tell they were
     // one act — which is exactly how a stock ledger stops being an audit trail.
-    sourceType: "bin-move", sourceId: otherEnd,
-    binId, byCollaboratorId: ctx.collaborator.id, at,
+    sourceType: field === "binId" ? "bin-move" : "batch-move", sourceId: otherEnd,
+    [field]: end, byCollaboratorId: ctx.collaborator.id, at,
   } as unknown as BinMovement);
 
   // OUT FIRST. If the second write fails, the studio is short in the ledger and
   // sees it; the other order would create units that never existed.
   const out = await write(-amount, fromBinId, toBinId);
   const into = await write(amount, toBinId, fromBinId);
-  return { moved: { itemId, qty: amount, fromBinId, toBinId }, movements: [out, into] };
+  return { moved: { itemId, qty: amount, from: fromBinId, to: toBinId }, movements: [out, into] };
 }

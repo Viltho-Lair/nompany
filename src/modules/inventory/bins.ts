@@ -22,7 +22,43 @@ export type BinInput = { code?: unknown; name?: unknown; locationId?: unknown };
 export type Bin = { id: string; code: string; name: string; locationId: string };
 
 /** A movement, in the only shape this file needs. */
-export type BinMovement = { itemId: string; kind: string; qty: number; binId?: string };
+export type BinMovement = { itemId: string; kind: string; qty: number; binId?: string; batchId?: string };
+
+/**
+ * HOW MUCH A MOVEMENT MOVES. The one place that reads `kind`, so a fourth kind
+ * is added here rather than in each of the three places that used to ask.
+ */
+export const movementDelta = (m: { kind: string; qty: number }): number =>
+  m.kind === "out" ? -Math.abs(m.qty) : m.kind === "adjust" ? m.qty : Math.abs(m.qty);
+
+/**
+ * SPLIT THE LEDGER BY ONE FIELD — the shape both bins and batches need.
+ *
+ * Generalised rather than written twice: a batch split is the identical
+ * arithmetic keyed on `batchId`, and two copies of "how much is in each X"
+ * would be two answers free to disagree about what a movement means.
+ */
+export function splitBy(
+  movements: BinMovement[],
+  field: "binId" | "batchId",
+  known?: Set<string>,
+): { grouped: Record<string, Record<string, number>>; ungrouped: Record<string, number> } {
+  const grouped: Record<string, Record<string, number>> = {};
+  const ungrouped: Record<string, number> = {};
+
+  for (const m of movements) {
+    const key = str(m[field], 60);
+    // A MOVEMENT POINTING AT A DELETED ROW COUNTS AS UNGROUPED, not as a group
+    // of its own. Deleting a bin or a batch cascades nothing — a total that
+    // fell when somebody tidied a list would be a report that punishes
+    // housekeeping — and the units are still in the building, so they belong in
+    // the figure that says "somewhere, unfiled".
+    const isKnown = !key || (known ? known.has(key) : true);
+    const bucket = isKnown && key ? (grouped[key] ||= {}) : ungrouped;
+    bucket[m.itemId] = round((bucket[m.itemId] || 0) + movementDelta(m));
+  }
+  return { grouped, ungrouped };
+}
 
 // Short, printable, and typed onto a label somebody reads across a warehouse.
 // Letters, digits and the separators a rack address actually uses (A-01-3,
@@ -105,22 +141,8 @@ export function binBalances(movements: BinMovement[], knownBinIds?: Set<string>)
   byBin: Record<string, Record<string, number>>;
   unbinned: Record<string, number>;
 } {
-  const byBin: Record<string, Record<string, number>> = {};
-  const unbinned: Record<string, number> = {};
-
-  for (const m of movements) {
-    const delta = m.kind === "out" ? -Math.abs(m.qty) : m.kind === "adjust" ? m.qty : Math.abs(m.qty);
-    const binId = str(m.binId, 60);
-    // A MOVEMENT POINTING AT A DELETED BIN COUNTS AS UNBINNED, not as a bin of
-    // its own. Deleting a bin cascades nothing — a total that fell when
-    // somebody tidied a list would be a report that punishes housekeeping —
-    // and the units are still in the building, so they belong in the figure
-    // that says "somewhere, unfiled".
-    const known = !binId || (knownBinIds ? knownBinIds.has(binId) : true);
-    const bucket = known && binId ? (byBin[binId] ||= {}) : unbinned;
-    bucket[m.itemId] = round((bucket[m.itemId] || 0) + delta);
-  }
-  return { byBin, unbinned };
+  const { grouped, ungrouped } = splitBy(movements, "binId", knownBinIds);
+  return { byBin: grouped, unbinned: ungrouped };
 }
 
 /**
