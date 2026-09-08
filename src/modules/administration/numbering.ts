@@ -45,6 +45,7 @@ export type Series = {
 // sites is what caught it, and is what to do again when a series is added.
 export const SERIES: readonly Series[] = Object.freeze([
   { key: "invoice", prefix: "INV", group: "Finance & Accounting", label: "Invoices" },
+  { key: "creditNote", prefix: "CN", group: "Finance & Accounting", label: "Credit notes" },
   { key: "bill", prefix: "BILL", group: "Finance & Accounting", label: "Bills" },
   { key: "expense", prefix: "EXP", group: "Finance & Accounting", label: "Expenses" },
   { key: "journal", prefix: "JE", group: "Finance & Accounting", label: "Journal entries" },

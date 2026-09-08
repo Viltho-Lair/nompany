@@ -32,6 +32,7 @@ const ACCOUNTS = "accounts";
 const ENTRIES = "journalEntries";
 
 const Accounts = repo<Account>(ACCOUNTS);
+const CreditNotes = repo("creditNotes");
 const Entries = repo<JournalEntry>(ENTRIES);
 // The cash documents this ledger posts FROM — invoices and expenses live in the
 // finance-cash section, not the ledger's own.
@@ -564,6 +565,65 @@ export async function postBill(ctx: FinanceContext, billId: string, options: Pos
  * credit the bank it left from. The mirror of postPayment. The payment lives
  * inside its bill; its own id is the source, so each posts at most once.
  */
+/**
+ * POST A CREDIT NOTE: the exact reverse of an invoice's entry, for the credited
+ * amount — debit Revenue and VAT Payable, credit Accounts Receivable.
+ *
+ * IT REVERSES PROPORTIONALLY, not "all the VAT then the rest". A note for a
+ * quarter of an invoice takes back a quarter of the revenue and a quarter of
+ * the tax; splitting it any other way would leave a studio's VAT account wrong
+ * by the difference between what it charged and what it gave back, which is the
+ * one number a tax return is made of.
+ *
+ * THE INVOICE'S OWN VAT RATE, not today's. The tax that was charged is what is
+ * being given back — a rate change between the invoice and the note must not
+ * move the amount reversed.
+ */
+export async function postCreditNote(
+  ctx: FinanceContext,
+  noteId: string,
+  options: PostOptions = {},
+) {
+  if (!options.system) {
+    const denied = requirePermission(ctx.access, "finance.ledger.post");
+    if (denied) return denied;
+  }
+
+  const note = (await CreditNotes.find({ studio: ctx.studio, section: ctx.cashSection }))
+    .find((n) => n.id === noteId) as (Row & { amount?: number; invoiceId?: string; reference?: string }) | undefined;
+  if (!note) return { error: "notfound" };
+
+  const invoice = (await Invoices.find({ studio: ctx.studio, section: ctx.cashSection }))
+    .find((i) => i.id === note.invoiceId);
+  if (!invoice) return { error: "notfound" };
+
+  const entries = await Entries.find({ studio: ctx.studio, section: ctx.ledgerSection });
+  if (alreadyPosted(entries, "credit-note", noteId)) return { error: "already-posted" };
+
+  const { byCode, missing } = await codesToIds(ctx, [AR, REVENUE, VAT_PAYABLE]);
+  if (missing.length) return { error: "chart", missing };
+
+  // The gross amount split back into net and tax at the INVOICE's rate, in
+  // whole cents. The net is derived by subtraction so the two always add up to
+  // the gross — deriving both independently is how a rounded pair ends up a
+  // cent short and the entry refuses to balance.
+  const gross = Math.round((Number(note.amount) || 0) * 100) / 100;
+  const rate = Number((invoice as { vatRate?: unknown }).vatRate) || 0;
+  const vat = Math.round(((gross * rate) / (100 + rate)) * 100) / 100;
+  const net = Math.round((gross - vat) * 100) / 100;
+
+  return postEntry(ctx, {
+    date: new Date().toISOString().slice(0, 10),
+    memo: `Credit note ${note.reference || ""} against ${(invoice as { reference?: string }).reference || ""}`.trim(),
+    source: { kind: "credit-note", id: noteId },
+    lines: [
+      { accountId: byCode.get(REVENUE), debit: net },
+      ...(vat ? [{ accountId: byCode.get(VAT_PAYABLE), debit: vat }] : []),
+      { accountId: byCode.get(AR), credit: gross },
+    ],
+  }, options);
+}
+
 export async function postBillPayment(ctx: FinanceContext, billId: string, paymentId: string, options: PostOptions = {}) {
   if (!options.system) {
     const denied = requirePermission(ctx.access, "finance.ledger.post");

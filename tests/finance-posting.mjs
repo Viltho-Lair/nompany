@@ -145,6 +145,76 @@ if (spent.expense?.id) {
   ok("...and is in the journal", (await entriesFor("expense", spent.expense.id)).length === 1);
 }
 
+// ---- a credit note ---------------------------------------------------------
+// AN ISSUED INVOICE IS NOT EDITABLE AND MUST NOT BE: a client holding INV-0007
+// for 1,200 keeps holding one. So the correction is a second document, and this
+// is the half that proves it reaches the books — the pure rules about how much
+// may be credited are tests/credit-note-model.mjs.
+{
+  const { createCreditNote, issueCreditNote, cancelCreditNote } =
+    await import("@/modules/finance/creditNoteService");
+
+  const inv = await createInvoice(await ctx(), {
+    clientName: "Credit Note Client",
+    lines: [{ description: "Overcharged work", qty: 1, unitPrice: 1000 }],
+  });
+  const cnInvoiceId = inv.invoice?.id;
+  ok("fixture: an invoice to credit", Boolean(cnInvoiceId), JSON.stringify(inv).slice(0, 160));
+
+  if (cnInvoiceId) {
+    // A DRAFT INVOICE IS EDITED, NOT CREDITED. Nothing has gone to the client
+    // and nothing has posted.
+    const tooEarly = await createCreditNote(await ctx(), { invoiceId: cnInvoiceId, amount: 100 });
+    ok("a draft invoice cannot be credited", tooEarly.error === "not-issued",
+      JSON.stringify(tooEarly));
+
+    await editInvoice(await ctx(), cnInvoiceId, { status: "Sent" });
+
+    const raised = await createCreditNote(await ctx(), {
+      invoiceId: cnInvoiceId, amount: 250, reason: "Two units returned",
+    });
+    const noteId = raised.creditNote?.id;
+    ok("a credit note is raised against an issued invoice", Boolean(noteId),
+      JSON.stringify(raised).slice(0, 200));
+
+    // IT NUMBERS UNDER ITS OWN SERIES, so a studio can rename it like any other.
+    ok("...with its own reference series",
+      String(raised.creditNote?.reference || "").startsWith("CN-"),
+      raised.creditNote?.reference);
+
+    // A DRAFT POSTS NOTHING — the same rule an invoice follows.
+    ok("a draft credit note posts nothing",
+      (await entriesFor("credit-note", noteId)).length === 0);
+
+    // MORE THAN IS LEFT IS REFUSED, and the refusal carries the headroom so the
+    // screen can say what IS available.
+    const tooMuch = await createCreditNote(await ctx(), { invoiceId: cnInvoiceId, amount: 5000 });
+    ok("more than the invoice is refused", tooMuch.error === "over-credit", JSON.stringify(tooMuch));
+    ok("...and the refusal says how much is left", Number(tooMuch.remaining) > 0,
+      String(tooMuch.remaining));
+
+    const issued = await issueCreditNote(await ctx(), noteId);
+    ok("issuing it posts", issued.posting?.posted === true, JSON.stringify(issued.posting));
+    ok("...as one entry", (await entriesFor("credit-note", noteId)).length === 1);
+
+    // AN ISSUED NOTE IS NOT CANCELLED. It has posted and the client has been
+    // told; undoing it is a second document, not a status change.
+    const undo = await cancelCreditNote(await ctx(), noteId);
+    ok("an issued credit note cannot be cancelled", undo.error === "issued", JSON.stringify(undo));
+
+    // AND IT CANNOT BE ISSUED TWICE, or the receivable goes down twice for one
+    // correction.
+    const again = await issueCreditNote(await ctx(), noteId);
+    ok("...nor issued twice", again.error === "already-issued", JSON.stringify(again));
+
+    // THE HEADROOM MOVED. What is left is the invoice less what is now issued,
+    // so a second note for the rest is fine and one for more is not.
+    const rest = await createCreditNote(await ctx(), { invoiceId: cnInvoiceId, amount: 900 });
+    ok("a second note beyond the remaining amount is refused",
+      rest.error === "over-credit", JSON.stringify(rest).slice(0, 140));
+  }
+}
+
 // ---- the assertion the whole file is for -----------------------------------
 // EVERY ENTRY ABOVE WAS MADE BY THE PRODUCT, not by this test, and the book
 // still balances. Whole cents, not a float compare — `trialBalanceFrom` says so

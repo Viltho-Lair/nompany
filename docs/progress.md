@@ -546,17 +546,42 @@ own model. Payroll is the largest remaining piece and is bespoke.
 The artifact's note here {M} *"a department IS a top-level section"* {M} **is reversed**:
 departments are their own records under Administration as of 06/09/2026.
 
-#### §13 Finance & Accounting 🟡 11 / 18
+#### §13 Finance & Accounting 🟡 12 / 18
 Cash ✅ · Ledger ✅ · Payables ✅ · Fixed assets ✅ · Settings ✅ · Payment as an
 allocatable record ✅ · Retention & progress billing (IPC) ✅ · Budgets & commitment
 control 🟡 (at project level only, not in the ledger) · Multi-currency 🟡 (daily FX and
 rate-at-approval; no revaluation) · P&L and balance sheet 🟡 (both built 08/09/2026; **no
 cash flow** — it needs operating/investing/financing classification nothing records) ·
 Dimensions on every journal line ✅ (deal, project, cost code, department — carried,
-cut by, and reconciling; 08/09/2026) · **Periods & close ⬜ · Credit notes ⬜ · Tax
+cut by, and reconciling; 08/09/2026) · Credit notes ✅ (08/09/2026) · **Periods & close ⬜ · Tax
 engine, ZATCA adapter, WHT ⬜ · Bank reconciliation ⬜ · Cash-flow forecast and PDCs ⬜ ·
 Letters of guarantee & credit ⬜** · Auto-posting from every module ✅ (08/09/2026)
 **The largest single body of unbuilt work in the programme.**
+
+**CREDIT NOTES, 08/09/2026 — because an issued invoice is not editable and must not be.**
+It has gone to a client and posted to the ledger, and a client holding INV-0007 for 1,200
+must keep holding one. Until now a studio's only options were to cancel the whole invoice
+(wrong when nine tenths of it was right) or edit it (wrong always) — `editInvoice` refuses
+a Sent invoice by name, and this is what that refusal has been pointing at.
+
+**No permission key.** A credit note is Cash's content the way a variation is a contract's,
+so it answers to `finance.cash.*`. There is **no PUT and no DELETE**: an issued note has
+posted and gone to a client, and editing one is the exact thing credit notes exist to stop
+anybody doing to an invoice. A draft is cancelled; an issued one is corrected by another
+note.
+
+**The headroom is checked at RAISE and again at ISSUE.** Nothing stops a studio drafting
+two full-value notes, and it is the second ISSUE that has to refuse — checking only at
+create would let both through and take the receivable negative. A draft credits nothing and
+reserves nothing, so an unfinished note can neither move the books nor block a real one.
+
+**It posts the exact reverse, proportionally.** Debit Revenue and VAT Payable, credit
+Receivable, split at the INVOICE's own rate rather than today's — the tax being given back
+is the tax that was charged. The net is derived by subtraction so the two always sum to the
+gross; deriving both independently is how a rounded pair ends up a cent short and the entry
+refuses to balance. `outstanding` is against the NET: 1,200 invoiced, 200 credited, 1,000
+paid is SETTLED, and reporting 200 still due would chase money already given back.
+
 
 **"LEDGER ✅" WAS THE WORST ENTRY THIS FILE HAS CARRIED.** The module was written,
 typed and guarded — and imported by NOTHING: no route, no caller anywhere in `src`.

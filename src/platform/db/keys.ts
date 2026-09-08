@@ -823,7 +823,7 @@ export const SECTION_COLLECTIONS = {
   // a payment is a cash movement and the ledger holds the POSTINGS that describe
   // one — filing it there would put the event and its bookkeeping in the same
   // place and make the ledger the system of record for money it only reports on.
-  "finance-cash": ["invoices", "expenses", "payments"],
+  "finance-cash": ["invoices", "expenses", "payments", "creditNotes"],
   // The chart of accounts and the journal. A journal entry is never edited once
   // posted — only reversed by a mirror entry — so there is no separate
   // "reversals" collection: a reversal is just another journalEntry.

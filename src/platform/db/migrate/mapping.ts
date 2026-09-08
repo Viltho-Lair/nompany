@@ -131,6 +131,7 @@ export const COLLECTION_TABLE: Readonly<Record<string, string>> = {
   vacations: "Vacation",
   certifications: "Certification",
   invoices: "Invoice",
+  creditNotes: "CreditNote",
   expenses: "Expense",
   accounts: "Account",
   journalEntries: "JournalEntry",

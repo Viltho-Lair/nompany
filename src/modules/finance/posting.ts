@@ -11,14 +11,14 @@
 // document they read and which accounts they touch; the decision a caller makes
 // is "post this thing", and five endpoints would be five places to forget one.
 import {
-  postInvoice, postExpense, postBill, postBillPayment, postPayment,
+  postInvoice, postExpense, postBill, postBillPayment, postPayment, postCreditNote,
 } from "./ledger";
 import type { FinanceContext } from "./types";
 import type { PostOptions } from "./ledger";
 
 /** What can be posted. A closed set: the dispatcher must never take a name it
  *  has not been taught, or a caller chooses which code path runs. */
-export const POSTABLE = ["invoice", "expense", "bill", "bill-payment", "payment"] as const;
+export const POSTABLE = ["invoice", "expense", "bill", "bill-payment", "payment", "credit-note"] as const;
 export type Postable = (typeof POSTABLE)[number];
 
 export const isPostable = (v: unknown): v is Postable =>
@@ -51,6 +51,7 @@ export async function postDocument(
 
   switch (kind) {
     case "invoice": return postInvoice(ctx, documentId, options);
+    case "credit-note": return postCreditNote(ctx, documentId, options);
     case "expense": return postExpense(ctx, documentId, options);
     case "bill": return postBill(ctx, documentId, options);
     case "bill-payment": return postBillPayment(ctx, documentId, payment, options);
