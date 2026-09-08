@@ -201,3 +201,25 @@ export function parsePhone(value: string): { code: string; number: string } {
   if (match) return { code: match.code, number: v.slice(match.dial.length).trim() };
   return { code: DEFAULT_COUNTRY, number: v.replace(/^\+/, "").trim() };
 }
+
+// The names, in the list's own order — what every country Combo offers.
+export const COUNTRY_NAMES = COUNTRIES.map((c) => c.name);
+
+// A country is STORED as its English name, because that is what the Combo
+// writes and what a person reading the record expects to see. Everything
+// geographic keys on the ISO code instead — city lists, flags, the continent a
+// studio sits in — so the two alphabets meet here.
+//
+// It lived as a one-line copy in StudioSettings.js and again in ClientBlock.jsx
+// (`codeOf` and `codeOfCountry`, identical), and the Pulse wall wanted a third
+// on the server. Two copies agree until somebody makes one of them tolerant of
+// case or of a trailing space.
+//
+// "" for a name the list does not hold: the Combo accepts free text, so a
+// studio may hold "UAE" or a typo, and inventing a code for it would put that
+// studio on the map in a country nobody chose.
+export function codeOfCountry(name: unknown): string {
+  const wanted = String(name || "").trim().toLowerCase();
+  if (!wanted) return "";
+  return COUNTRIES.find((c) => c.name.toLowerCase() === wanted)?.code || "";
+}

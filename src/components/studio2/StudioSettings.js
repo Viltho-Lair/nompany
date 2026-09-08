@@ -5,7 +5,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { Icon } from "@/components/studio2/icons";
 import { useFocusTrap } from "@/components/studio2/useFocusTrap";
 import Combo from "@/components/studio2/Combo";
-import { COUNTRIES } from "@/shared/countries";
+import { COUNTRY_NAMES, codeOfCountry } from "@/shared/countries";
 import { citiesFor } from "@/lib/cities";
 import { CurrencySymbol } from "@/components/Currency";
 import { locales, LANGUAGE_NAMES } from "@/shared/locale";
@@ -55,8 +55,6 @@ const INPUT = "w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2
 // meant the Arabic week could only ever have been a second list beside it.
 const DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 const DEFAULT_HOURS = Object.fromEntries(DAYS.map((d) => [d, { open: !["fri", "sat"].includes(d), from: "09:00", to: "17:00" }]));
-// citiesFor keys on the ISO code while the stored answer is a country NAME.
-const codeOf = (name) => COUNTRIES.find((c) => c.name === name)?.code || "";
 const hoursSummary = (h, words) => {
   if (!h) return words.hoursNotSet;
   const open = DAYS.filter((d) => h[d]?.open);
@@ -166,7 +164,7 @@ export default function StudioSettings({ slug, locale = "en" }) {
           icon="locations" label={tr.country} value={studio.country} canManage={canManage}
           onSave={(v) => save({ country: v, ...(v !== studio.country ? { city: "" } : {}) })}
           render={(draft, set) => (
-            <Combo value={draft} onChange={set} options={COUNTRIES.map((c) => c.name)} inputClassName={INPUT} />
+            <Combo value={draft} onChange={set} options={COUNTRY_NAMES} inputClassName={INPUT} />
           )}
         />
         <EditRow
@@ -174,7 +172,7 @@ export default function StudioSettings({ slug, locale = "en" }) {
           hint={studio.country ? "" : tr.cityNeedsCountry}
           onSave={(v) => save({ city: v })}
           render={(draft, set) => (
-            <Combo value={draft} onChange={set} options={citiesFor(codeOf(studio.country))} inputClassName={INPUT} />
+            <Combo value={draft} onChange={set} options={citiesFor(codeOfCountry(studio.country))} inputClassName={INPUT} />
           )}
         />
         <EditRow
