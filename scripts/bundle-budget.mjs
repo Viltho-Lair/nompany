@@ -555,7 +555,34 @@ const baselines = JSON.parse(readFileSync(BASELINES_FILE, "utf8"));
 // stays absent — so it is a plain constant now rather than dead machinery
 // somebody has to reason about. The mechanism is worth reusing; the instance is
 // spent.
-const MAX_TOTAL_GZIP_KB = 1833;
+// 1833 -> 1852 on 08/09/2026, with the /super Pulse wall. MEASURED AT BOTH
+// ENDS, on this machine within the same hour, which is the discipline this
+// number keeps losing: 1832 across 96 chunks at 2e496ba4 (built in a detached
+// worktree at the base commit, not quoted from CLAUDE.md, which happened to
+// agree), 1844 across 97 chunks with the wall. +12 KB in ONE new chunk.
+//
+// The chunk is the wall's client island — the canvas world map, the panels and
+// the polling — and twelve kilobytes buys all of it because none of it is a
+// library: the dot grid is FETCHED from /public rather than imported (40 KB
+// that would otherwise be inlined here), and the panels are hand-drawn SVG
+// rather than a chart dependency. The route itself is 190 KB first load, under
+// every other console screen.
+//
+// THE LARGEST CHUNK DID NOT MOVE — 162 KB against 250, before and after — which
+// is the gate that matters, because that is what every route pays.
+//
+// Eight kilobytes of headroom, not one. The comment above this constant argues
+// it at length and it was written after a raise to exactly one kilobyte: a
+// ceiling with one trips on everything, so the next person raises it under the
+// pressure of a red build rather than deliberately.
+//
+// AND WHAT THIS DELIBERATELY DID NOT ABSORB: `--record` also wanted to move
+// /studio/[[...segments]] from 679 to 685. That six kilobytes is not this
+// change — it arrived with other sessions' commits between the 679 measurement
+// and 2e496ba4 — so the row is left at 679 and stays visible to whoever does
+// cross it. Recording another branch's growth inside an unrelated commit is how
+// a baseline stops being a measurement.
+const MAX_TOTAL_GZIP_KB = 1852;
 
 const totalKb = files.reduce((sum, f) => sum + f.gzip, 0) / 1024;
 const biggest = files[0];
