@@ -956,6 +956,62 @@ export async function testCompoundRootsCoversEveryDashedRoot(t) {
 // "*-model.mjs" is what this repo calls a pure model test, and every one of
 // them must appear in the `test` script. A helper imported by another test is
 // not named that way, so nothing legitimate is caught by accident.
+/**
+ * A ROUTE MUST NOT HAND ITS WHOLE BODY TO A FUNCTION THAT WANTS ONE VALUE.
+ *
+ * THIS HAS COST TWICE, in opposite ways, and neither was reachable by the
+ * compiler — a route handler's `body` is not statically typed:
+ *
+ *  - `answerChangeOrder(ctx, id, body)` where the third parameter is a BOOLEAN.
+ *    An object is truthy, so `{ action: "reject" }` APPROVED the variation it
+ *    was rejecting and added its value to the contract. Silent, and wrong.
+ *  - `setJobStatus(ctx, id, body)` where the third parameter is a STRING.
+ *    `isStatus(next)` answered false for every call, so no job in the product
+ *    could leave `scheduled` — `completedAt` was never stamped and Template D's
+ *    signoff billing trigger could never fire. Loud, and dead.
+ *
+ * So: for every call in a route file whose LAST argument is a bare `<x>.body`,
+ * find the callee's declaration under `src/modules` or `src/platform` and
+ * refuse it when that parameter is declared a string, boolean or number.
+ * Passing a body to a parameter that IS a body is the normal case and is left
+ * alone.
+ */
+export async function testNoRouteHandsItsBodyToAScalarParameter(t) {
+  const { readFileSync } = await import("node:fs");
+  const { execSync } = await import("node:child_process");
+
+  const list = (pattern) =>
+    execSync(`git ls-files ${pattern}`, { encoding: "utf8" }).split(/\r?\n/).filter(Boolean);
+
+  const routes = list('"src/app/api/**/route.ts"');
+  // Every module and platform source, so a callee is found wherever it lives.
+  const sources = list('"src/modules/**/*.ts" "src/platform/**/*.ts"')
+    .map((f) => readFileSync(f, "utf8")).join("\n");
+
+  const SCALAR = /^(string|boolean|number)\b/;
+  const CALL = /\b([A-Za-z_$][\w$]*)\s*\(([^()]*?),\s*(\w+)\.body\s*\)/g;
+
+  for (const file of routes) {
+    const text = readFileSync(file, "utf8");
+    for (const m of text.matchAll(CALL)) {
+      const callee = m[1];
+      const decl = sources.match(
+        new RegExp(`export (?:async )?function ${callee}\\(([^)]*)\\)`, "s"));
+      if (!decl) continue;
+      const params = decl[1].split(",").map((p) => p.trim()).filter(Boolean);
+      const last = params[params.length - 1] || "";
+      const type = (last.split(":")[1] || "").trim();
+      // An untyped or unfound parameter says nothing either way, and asserting
+      // on it would print a passing line per call in every route file.
+      if (!type) continue;
+      t.equal(
+        SCALAR.test(type), false,
+        `${file}: ${callee}() is handed a whole request body where its last parameter is \`${type}\` — `
+        + "narrow it at the route (see the PATCH in operations/jobs for the two incidents this guards)");
+    }
+  }
+}
+
 export async function testEveryModelTestIsActuallyRun(t) {
   const { readdirSync, readFileSync } = await import("node:fs");
   const script = JSON.parse(readFileSync("package.json", "utf8")).scripts.test;
@@ -1602,6 +1658,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       testCompoundRootsCoversEveryDashedRoot,
       testEveryConsoleDestinationResolvesToARoute,
       testEveryModelTestIsActuallyRun,
+      testNoRouteHandsItsBodyToAScalarParameter,
     ];
     let totalFails = 0;
     for (const test of tests) {

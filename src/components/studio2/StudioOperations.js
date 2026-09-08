@@ -10,6 +10,10 @@ import { linkToProject, linkIf } from "@/modules/main/studioLinks";
 import { microLabel, Dialog, fmtDate, fmtWeekday } from "@/components/studio2/ui";
 import OperationsDashboard from "@/components/studio2/OperationsDashboard";
 import LocationsPanel from "@/components/studio2/LocationsPanel";
+import DispatchPanel from "@/components/studio2/DispatchPanel";
+import FieldViewPanel from "@/components/studio2/FieldViewPanel";
+import { dispatchDict } from "@/shared/studio/dispatch";
+import { fieldDict } from "@/shared/studio/field";
 import { useAnalyticsLevel } from "@/components/studio2/analyticsLevel";
 import { Field } from "@/components/fields/Field";
 import StudioDate from "@/components/fields/StudioDate";
@@ -43,7 +47,8 @@ const dayName = (iso) => fmtWeekday(iso);
 // `view` is the ACTIVE SUB-SECTION key: the parent renders a dashboard and each
 // sub-section selects its screen. The remaining tabs are tabs of one screen.
 export default function StudioOperations({ slug, view = "field-service" }) {
-  const tr = operationsDict(useStudioLocale());
+  const locale = useStudioLocale();
+  const tr = operationsDict(locale);
   const [data, setData] = useState(null);
   // THE SCHEDULE SCREEN'S THREE PANELS — the rota, Permits and Locations. Permits
   // and Locations moved here off the Operations landing (the landing is now just
@@ -187,6 +192,17 @@ export default function StudioOperations({ slug, view = "field-service" }) {
         {sub === "schedule" ? (
           <Schedule shifts={shifts} people={people} locations={locations} window={window}
             settings={settings} canManage={canManage} busy={busy} send={send} />
+        ) : sub === "dispatch" ? (
+          // THE BOARD FETCHES ITS OWN DATA. It reads JOBS, which this screen's
+          // payload does not carry — the rota and the job list are different
+          // collections under the same section — and it is read-only, so it
+          // needs none of the `send` machinery around it.
+          <DispatchPanel slug={slug} locale={locale} />
+        ) : sub === "field" ? (
+          // THE OTHER END OF THE SAME JOBS: a dispatcher looks at everybody
+          // on one day, a technician at themselves across the days that are
+          // still open. Same collection, opposite question.
+          <FieldViewPanel slug={slug} locale={locale} />
         ) : sub === "permits" ? (
           <Permits rows={permits} locations={locations} people={people} projects={projects} types={vocabulary.permitTypes}
             windowDays={vocabulary.expiryWindowDays} slug={slug} nav={nav} canManage={canManagePlaces} busy={busy} send={send} />
@@ -223,8 +239,10 @@ export default function StudioOperations({ slug, view = "field-service" }) {
 // three now live on the one Schedule screen, so all three flip in place; none is a
 // link any more.
 function OperationsBottomBar({ active, onTab }) {
-  const tr = operationsDict(useStudioLocale());
-  const items = [["schedule", tr.tabSchedule], ["permits", tr.tabPermits], ["locations", tr.tabLocations]];
+  const locale = useStudioLocale();
+  const tr = operationsDict(locale);
+  const items = [["schedule", tr.tabSchedule], ["dispatch", dispatchDict(locale).tab],
+    ["field", fieldDict(locale).tab], ["permits", tr.tabPermits], ["locations", tr.tabLocations]];
   return (
     <div className="pointer-events-none fixed bottom-0 end-0 start-0 z-30 lg:start-72">
       <div className="mx-auto max-w-[1400px] px-5 sm:px-8">

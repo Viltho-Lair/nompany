@@ -41,11 +41,17 @@ export const PATCH = route(spec, async (projects) => {
   const id = String(projects.body.id || "");
   if (!id) return { error: "missing" };
 
+  // THE ANSWER IS NARROWED HERE, and it was not: `answerTimesheet` takes a
+  // BOOLEAN and was handed the whole body. An object is truthy, so
+  // `{ action: "reject" }` APPROVED the timesheet it was rejecting — the exact
+  // defect the change order carried, in the exact same shape, found by the
+  // guard written for that one (`tests/restructure.mjs`). The compiler cannot
+  // see it: a route handler's `body` is not statically typed.
   const action = String(projects.body.action || "");
   const result = action === "submit"
     ? await submitTimesheet(projects, id)
     : action === "approve" || action === "reject"
-      ? await answerTimesheet(projects, id, projects.body)
+      ? await answerTimesheet(projects, id, action === "approve")
       : { error: "action" };
 
   if (refused(result)) return result;

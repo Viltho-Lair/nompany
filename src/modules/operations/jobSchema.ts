@@ -82,6 +82,26 @@ export const JobSchema = z.looseObject({
 
   notes: z.string().max(4000),
 
+  /**
+   * THE CUSTOMER'S SIGNATURES — an ARRAY, appended and never replaced.
+   *
+   * Declared here because it is stored: a field written by the product and
+   * absent from the schema is the `unitCost` defect from the other end, where
+   * every reader invents its own inline shape to reach it. Optional because
+   * every job written before sign-off existed has none, and a required array
+   * would make those rows fail to parse.
+   */
+  signoffs: z.array(z.object({
+    signedByName: z.string().max(160),
+    signedByTitle: z.string().max(120),
+    /** The private media record holding the drawn mark. */
+    mediaId: z.string().max(80),
+    notes: z.string().max(1000),
+    /** Who CAPTURED it — a CollaboratorID, never the customer (invariant 6). */
+    capturedByCollaboratorId: z.string(),
+    at: z.string(),
+  })).optional(),
+
   createdAt: z.string(),
   updatedAt: z.string(),
 });
