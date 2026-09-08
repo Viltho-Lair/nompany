@@ -313,9 +313,13 @@ The requirements below have not weakened; what changed is who checks them and wh
   plus an 8 KB margin** (`scripts/bundle-baselines.json`, rewritten with
   `node scripts/bundle-budget.mjs --record`; an unlisted route is held to 300 KB, so a
   new route is gated from its first build). Then the largest chunk (250 KB gz) and
-  total client JS (**1832 against 1833**, measured locally 08/09/2026 — ONE
-  kilobyte of headroom, so the next change of any size trips it), which
-  catch one enormous file and sprawl respectively. `scripts/bundle-budget.mjs` holds
+  total client JS (**1854 against 1862**, measured locally 08/09/2026 by a build
+  that ran — 8 KB of headroom), which catch one enormous file and sprawl
+  respectively. **This bullet said "1832 against 1833" and was stale by three
+  raises**; the ceiling moved 1833 → 1852 → 1857 → 1862 across two sessions while
+  this line sat still, which is the fifth time these two numbers have decayed
+  here. Read them as a measurement with a date and re-measure at the commit you
+  are writing. `scripts/bundle-budget.mjs` holds
   the numbers and explains why a whole-directory total would penalise code-splitting.
 
   **THIS BULLET SAID "1681 against 1684" AND WAS ALREADY TWO GENERATIONS STALE
@@ -343,12 +347,11 @@ The requirements below have not weakened; what changed is who checks them and wh
   which `/[locale]` had already paid for. A self-lowering ceiling ratchets against
   the tree it was measured on, not the one that exists.
 
-  **THOSE FOUR ARE STILL UNBASELINED, recorded as a debt rather than paid.** They
-  fall to the 300 KB default, so each may drift up to 38 KB before anything
-  complains, which falsifies this bullet's own claim that a new route is gated from
-  its first build. Paying it needs `--record`, which needs a build. The next commit
-  that builds should record the four and lower 1833 to measured + 8 in the same
-  change.
+  **THAT DEBT IS PAID.** The four were unbaselined and falling to the 300 KB
+  default — free to drift 38 KB before anything complained, which falsified this
+  bullet's own claim that a new route is gated from its first build. They are
+  recorded now: `/[locale]/pricing` 273, and `/about`, `/platform` and `/security`
+  253 each.
 
   **THIS BULLET SAID THE LARGEST CHUNK IS "WHAT EVERY ROUTE PAYS", AND IT IS NOT —
   it is six times under.** Next 16 publishes the real figure
@@ -369,7 +372,8 @@ The requirements below have not weakened; what changed is who checks them and wh
   another chunk does not lower the route number; a real client-side lazy boundary does,
   which is the whole reason the gate is per-route now.
 
-  **AND THAT IS THE FIX, MEASURED: the studio's first load is 679 KB, down from 962.**
+  **AND THAT IS THE FIX, MEASURED: the studio's first load went to 679 KB, down
+  from 962** (687 today — the section-register and safety panels, 08/09/2026).
   `src/components/studio2/HeavyScreens.jsx` is a **client** module, so its `import()`
   survives to runtime; `page.js` imports the four heaviest screens from it — the
   document editor (TipTap/ProseMirror, 158 KB) and the planner (which pulls
