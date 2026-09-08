@@ -51,7 +51,21 @@ export function parseCsv(text: string, delimiter = ","): string[][] {
 // "Contact Name", "contact_name" and "CONTACTNAME" are the same header. Folding
 // them is what lets the importer accept a file whose columns were named by
 // somebody who had never seen ours.
-const fold = (h: string) => String(h ?? "").trim().toLowerCase().replace(/[\s_-]+/g, "");
+//
+// ARABIC HARAKAT FOLD AWAY TOO, for exactly the same reason and one more.
+// "\u0627\u0644\u0645\u0648\u0631\u0651\u062F" and "\u0627\u0644\u0645\u0648\u0631\u062F" are the same word — the marks are optional in
+// writing, and a header row translated by a person or by an AI may carry them
+// or not. Folding here rather than listing both spellings in every alias list
+// is what makes that a property of the matcher instead of a literal somebody
+// has to remember: it covers every vocalised variant, including the ones
+// nobody thought to write down, and there is no mark left in a source file
+// for a well-meaning tidy-up to delete.
+//
+// Written as escapes, never as the characters themselves, so the file stays
+// free of the marks it strips.
+const HARAKAT = /[\u064B-\u0652\u0670]/g;
+const fold = (h: string) =>
+  String(h ?? "").trim().toLowerCase().replace(HARAKAT, "").replace(/[\s_-]+/g, "");
 
 export type CsvRow = {
   /** The line in the FILE, counting the header as line 1, so a rejection can

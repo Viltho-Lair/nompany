@@ -17,8 +17,15 @@ import { readCsvTable } from "@/shared/csv";
 // "Supplies" all obviously mean what they mean. The Arabic spellings are here
 // because the prompt an Arabic studio copies is Arabic, and an AI handed Arabic
 // instructions will sometimes translate the header row along with them.
+//
+// NO VOCALISED SPELLING IS LISTED, and that is deliberate rather than an
+// oversight. This used to carry the same word twice, bare and with a shadda,
+// so a header written either way would match — which worked, and made the
+// mark load-bearing in a file full of ordinary copy. `fold` in shared/csv
+// strips harakat now, so every vocalised variant matches, including the ones
+// nobody would have thought to list.
 export const VENDOR_CSV_FIELDS: Record<string, string[]> = {
-  name: ["Name", "Vendor", "Vendor Name", "Supplier", "المورد", "المورّد", "الاسم"],
+  name: ["Name", "Vendor", "Vendor Name", "Supplier", "المورد", "الاسم"],
   contactName: ["Contact Name", "Contact", "Contact Person", "جهة الاتصال", "اسم جهة الاتصال"],
   email: ["Email", "E-mail", "Email Address", "البريد الإلكتروني", "البريد"],
   phone: ["Phone", "Phone Number", "Telephone", "Mobile", "الهاتف", "رقم الهاتف", "الجوال"],

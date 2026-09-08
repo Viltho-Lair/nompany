@@ -889,29 +889,47 @@ console.log("== the architecture, asserted rather than remembered");
     const HARAKAT = new RegExp("[" + String.fromCharCode(0x064B) + "-"
       + String.fromCharCode(0x0652) + String.fromCharCode(0x0670) + "]");
 
-    // THE ONE EXEMPTION, AND IT IS LOGIC RATHER THAN COPY. vendorCsv.ts accepts
-    // both "المورد" and "المورّد" as header names for the same field, because
-    // the file being imported is written by a person or by an AI they asked and
-    // may be headed either way. That mark is a MATCHER, not decoration —
-    // removing it would silently narrow what the importer accepts.
-    const HARAKAT_OK = "src/modules/inventory/vendorCsv.ts";
-
-    const vocalised = sources
-      .filter((f) => f.path !== HARAKAT_OK)
-      .filter((f) => HARAKAT.test(f.text))
-      .map((f) => f.path);
+    // NO EXEMPTION, AND THERE USED TO BE ONE. vendorCsv.ts listed the same word
+    // twice — bare and with a shadda — so a CSV header written either way would
+    // match. That worked, and it made a single mark load-bearing inside a file of
+    // ordinary copy: the one thing in the tree that a well-meaning tidy-up would
+    // delete without noticing, silently narrowing what the importer accepts.
+    //
+    // `fold` in shared/csv strips harakat now, so the matcher does the work and no
+    // source file has to carry a mark to keep it working. That covers every
+    // vocalised variant rather than the one somebody remembered to list, and it
+    // leaves this assertion with nothing to excuse.
+    const vocalised = sources.filter((f) => HARAKAT.test(f.text)).map((f) => f.path);
     ok("no Arabic in the tree carries diacritics", vocalised.length === 0,
       vocalised.join(", "));
 
-    // THE EXEMPTION IS ALSO THE POSITIVE CONTROL, which is why it is asserted
-    // rather than merely listed. If this fails, either somebody stripped the
-    // importer's alias — a real regression the line above cannot see, because
-    // absence of a mark is what it wants everywhere else — or the range above
-    // lost a character and is matching nothing, in which case the assertion
-    // above is passing on every file for the wrong reason.
-    const control = sources.find((f) => f.path === HARAKAT_OK);
-    ok("...and the one deliberate diacritic is still there to prove the scan works",
-      Boolean(control) && HARAKAT.test(control.text));
+    // A SCAN FOR AN ABSENCE PASSES JUST AS HAPPILY WHEN ITS PATTERN MATCHES
+    // NOTHING, which is the failure this file has had before — `!/preview/` sat
+    // broken for weeks looking exactly like a pass. The control used to be the
+    // exemption itself; with the exemption gone it is a string built here, from
+    // character codes so that nothing in the repository has to hold the mark and
+    // no tooling can eat an escape on the way in.
+    const SHADDA = String.fromCharCode(0x0651);
+    const FATHATAN = String.fromCharCode(0x064B);
+    const SUPERSCRIPT_ALEF = String.fromCharCode(0x0670);
+    ok("...and the scan can actually see a diacritic",
+      HARAKAT.test("x" + SHADDA) && HARAKAT.test("x" + FATHATAN)
+      && HARAKAT.test("x" + SUPERSCRIPT_ALEF));
+    // ...and does not fire on unmarked Arabic, or it would report every file.
+    ok("...and does not fire on unmarked Arabic",
+      !HARAKAT.test(String.fromCharCode(0x0627, 0x0644, 0x0645, 0x0648, 0x0631, 0x062F)));
+
+    // AND THE MATCHER IT REPLACED STILL WORKS. The mark came out of the alias
+    // list on the promise that folding covers it; this is that promise, checked.
+    const { readVendorCsv: readVendors } = await import("@/modules/inventory/vendorCsv");
+    const AL_MAWRID = String.fromCharCode(0x0627, 0x0644, 0x0645, 0x0648, 0x0631, 0x062F);
+    const AL_MAWRID_SHADDA = String.fromCharCode(0x0627, 0x0644, 0x0645, 0x0648, 0x0631, 0x0651, 0x062F);
+    for (const [label, header] of [["bare", AL_MAWRID], ["vocalised", AL_MAWRID_SHADDA]]) {
+      const parsed = readVendors(header + String.fromCharCode(10) + "Acme");
+      ok(`a ${label} Arabic header still maps to the vendor name`,
+        parsed.rows.length === 1 && parsed.rows[0].name === "Acme",
+        JSON.stringify(parsed.rows));
+    }
   }
 
   // ---- 6. dates render through the one formatter -------------------------
