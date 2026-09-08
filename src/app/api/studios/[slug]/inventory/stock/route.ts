@@ -19,6 +19,11 @@ export const POST = route(
     // that tell somebody what to do about it.
     const result = await adjustStock(inv, inv.body);
     if (refused(result)) return result;
-    return { status: 201, body: { ok: true, movement: result.movement } };
+    // `movement` OR `adjustment`, never both. Above the studio's limit an
+    // adjustment parks for signature and moves no stock, so the answer carries
+    // `pending: true` and the record rather than a movement that did not happen.
+    // Naming only `movement` here dropped that on the floor: the queue filled up
+    // correctly and the caller was told nothing at all.
+    return { status: 201, body: { ok: true, ...result } };
   },
 );

@@ -800,7 +800,7 @@ export const SECTION_COLLECTIONS = {
   // the equipment register is a list of what the studio owns rather than the
   // owner of what those things are doing.
   assets: ["assetAllocations"],
-  "inventory-stock": ["inventoryStock"],
+  "inventory-stock": ["inventoryStock", "stockAdjustments"],
   "inventory-items": ["inventoryItems"],
   // GOODS RECEIPTS SIT WITH THE ORDERS THEY ANSWER. `receiveOrder` is
   // Inventory's and writes them, so they are written where Inventory already

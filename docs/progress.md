@@ -392,14 +392,14 @@ certificate was a reference and two dates with the certificate somewhere else. F
 **A status file can be wrong in both directions, and this section had one of each.**
 Grep for the thing before trusting a tick or a blank.
 
-#### §6 Inventory & Warehouse 🟡 5 / 8
+#### §6 Inventory & Warehouse 🟡 6 / 8
 Stock ✅ · Items ✅ · Project sheets ✅ · Stocktaking 🟡 (an engine register as of
 08/09/2026: planned, counted, reviewed, adjusted — and **Review goes back to Counting**,
 because a variance nobody believes is recounted rather than adjusted, which is the whole
 control a stocktake exists to be. But **`Adjusted` MOVES NO STOCK** — the register records
 that a count happened and what it found; the adjustment is Inventory's own write and is
-not wired to this) · **Locations & bins ⬜ · Batch & serial lifecycle ⬜ · Adjustment
-approval ⬜ · Dashboard ⬜** · Valuation method ✅ (09/09/2026)
+not wired to this) · **Locations & bins ⬜ · Batch & serial lifecycle ⬜** · Adjustment
+approval ✅ (09/09/2026) · Dashboard ⬜** · Valuation method ✅ (09/09/2026)
 
 **A LEVEL IS NOT A VALUE.** Inventory has always known how many of a thing it holds —
 stock is the sum of its movements, appended and never edited — and never what they cost, so
@@ -420,6 +420,32 @@ the route flags `preview: true` when a caller asks for the method the studio has
 **Uncosted units are counted and reported.** A receipt with no order behind it and no item
 cost values at nothing, so a studio whose history predates cost tracking gets a total that
 is honestly too low rather than a confident wrong one.
+
+**`adjustStock` WAS THE ONE WRITE IN INVENTORY WITH NO DOCUMENT BEHIND IT.** A bill has a
+supplier's invoice and a receipt has a lorry; an adjustment is a person typing a number
+into the ledger every on-hand figure in the section is summed from, asking only
+`inventory.stock.create` — the right somebody needs to count shelves, and therefore held by
+more people than should be able to write off a container. Its own comment said so.
+
+**P2's approval engine's FIFTH document type**, not a fifth engine. Catalogue 184 → 186
+(`inventory.stock.approve`/`approveHigh`, extras on the stock area). Invariant 7 twice: the
+raiser never signs — refused for the OWNER in the suite — and nobody signs two steps of one
+record. The stock moves on the LAST signature and not before.
+
+**ITS FIRST STEP IS NOT ALWAYS-ON, unlike a bill's or a requisition's.** Counting a shelf
+and correcting it by one happens dozens of times a week; a signature for that means either a
+queue nobody clears or a studio switching the control off. 1000 is where a correction stops
+being a correction, and it is the studio's dial.
+
+**AND WIRING IT FOUND A GATE THAT FAILED OPEN.** Routed through `resolveApprovalPlan`, the
+plan came back `ok: false` for any studio with no currency — which is every studio, since
+`createStudio` has never set one — and `needsApproval` read a refusal as "nobody has to
+sign". Every adjustment of every size applied immediately with the control switched off and
+nothing saying so. An adjustment has NO currency (its value is units times the item's own
+cost, already in the studio's money), so the plan is built directly now and a plan that
+cannot be built REFUSES the write. "No signature required" and "we cannot tell whether one
+is required" are opposite answers, and a gate that fails open is worse than none because
+somebody believes in it.
 
 #### §7 Manufacturing & Production 🟡 3 / 6
 **BOM & routing 🟡 (both are engine registers as of 08/09/2026 — a BOM's

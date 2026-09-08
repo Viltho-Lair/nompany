@@ -289,7 +289,17 @@ const OWN_AREAS = [
   { key: "projects.overtimes", group: "Projects", label: "Overtimes", verbs: ["view", "create", "edit", "delete"] },
   { key: "projects.settings", group: "Projects", label: "Settings", verbs: ["view", "edit"] },
 
-  { key: "inventory.stock", group: "Inventory & Warehouse", label: "Stock", verbs: ["view", "create", "edit", "delete"] },
+  // `approve`/`approveHigh` are EXTRAS on the stock area rather than an area of
+  // their own, the shape tendering and requisitions already use: signing an
+  // adjustment is an act ON stock. What makes them separate RIGHTS is that "may
+  // count the shelf" and "may write off what is missing" are different powers,
+  // held by different people in any studio that bothers to control stock at all.
+  { key: "inventory.stock", group: "Inventory & Warehouse", label: "Stock",
+    verbs: ["view", "create", "edit", "delete"],
+    extra: [
+      { key: "approve", label: "Approve a stock adjustment" },
+      { key: "approveHigh", label: "Approve an adjustment above the limit" },
+    ] },
   // MOVED TO PROCUREMENT & SUBCONTRACTING — buying is where Vendors always
   // belonged; Inventory kept the screen only because that is where it was
   // built. Relabelled to match the section it now sits in

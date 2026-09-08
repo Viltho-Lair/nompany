@@ -302,6 +302,94 @@ async function exportGates() {
 
 await exportGates().catch((e) => ok("the export-gate case threw", false, e?.message || String(e)));
 
+// ---- A STOCK ADJUSTMENT BIG ENOUGH TO NEED A SIGNATURE ----------------------
+// `adjustStock` was the one write in Inventory with no document behind it: a
+// person typing a number into the ledger every on-hand figure is summed from,
+// asking only `inventory.stock.create` — the right somebody needs to count
+// shelves, and therefore held by more people than should write off a container.
+//
+// THE THRESHOLD IS THE WHOLE DESIGN. Below it an adjustment applies at once, or
+// a studio doing routine stock control acquires a queue nobody clears and turns
+// the control off.
+async function adjustmentApproval() {
+  const STOCK = await import("../src/app/api/studios/[slug]/inventory/stock/route.ts");
+  const ADJ = await import("../src/app/api/studios/[slug]/inventory/adjustments/route.ts");
+  const ITEMS = await import("../src/app/api/studios/[slug]/inventory/items/route.ts");
+  const { createUser } = await import("@/platform/auth/users");
+  const { createRole } = await import("@/modules/people/roles");
+  const { addCollaborator } = await import("@/platform/auth/collaborators");
+  const { updateStudio } = await import("@/modules/main/studios");
+
+  await updateStudio(F.studio.id, { currency: "USD" });
+  await F.signIn(F.owner.id);
+
+  const made = await call(ITEMS.POST, body("POST", { name: "Cement", sku: `CEM-${F.rand()}`, unit: "bag", unitCost: 50 }), P());
+  const itemId = made.body?.item?.id;
+  if (!ok("fixture: an item with a unit cost", Boolean(itemId), JSON.stringify(made.body).slice(0, 140))) return;
+
+  const adjust = (qty, reason) => call(
+    STOCK.POST, body("POST", { itemId, qty, reason }), P(),
+  );
+
+  // ---- below the limit applies at once -------------------------------------
+  const small = await adjust(5, "Recount");            // 5 x 50 = 250
+  ok("a small adjustment applies immediately",
+    small.status === 201 && !small.body?.pending && Boolean(small.body?.movement),
+    JSON.stringify(small.body).slice(0, 140));
+
+  // ---- above it parks and moves nothing ------------------------------------
+  const big = await adjust(100, "Pallet found");        // 100 x 50 = 5000
+  const adjustmentId = big.body?.adjustment?.id;
+  ok("a large adjustment parks for signature",
+    big.body?.pending === true && big.body?.adjustment?.status === "Pending",
+    JSON.stringify(big.body).slice(0, 160));
+  ok("...valued at units times unit cost", big.body?.adjustment?.value === 5000,
+    String(big.body?.adjustment?.value));
+  // THE STEPS IT ACTUALLY NEEDS: 5,000 clears the first threshold and not the
+  // second, so one signature rather than two.
+  ok("...and needs exactly the steps its amount reaches",
+    (big.body?.adjustment?.approvalPlan?.steps || []).length === 1,
+    JSON.stringify(big.body?.adjustment?.approvalPlan?.steps));
+  ok("...and moved no stock", !big.body?.movement);
+
+  // ---- INVARIANT 7: the raiser never signs, owner included -----------------
+  const self = await call(ADJ.PATCH, body("PATCH", { id: adjustmentId, action: "approve" }), P());
+  ok("the person who raised it cannot sign it", self.body?.error === "same-signer",
+    JSON.stringify(self.body));
+
+  // ---- somebody else, holding the step's right ----------------------------
+  const u = (await createUser({ email: `sc-${F.rand()}@test.invalid`, passwordHash: "x" })).user;
+  const role = await createRole(F.studio.id, {
+    name: `stock-control-${F.rand()}`,
+    permissions: ["inventory.stock.view", "inventory.stock.approve"],
+  });
+  await addCollaborator(F.studio.id, { userId: u.id, alias: "stockcontrol", role: "member", roleIds: [role.id] });
+  await F.signIn(u.id);
+
+  const signed = await call(ADJ.PATCH, body("PATCH", { id: adjustmentId, action: "approve" }), P());
+  ok("SOMEBODY ELSE HOLDING THE RIGHT SIGNS IT", signed.status === 200,
+    JSON.stringify(signed.body).slice(0, 160));
+  ok("...the adjustment is approved", signed.body?.adjustment?.status === "Approved");
+  // THE STOCK MOVES ON THE LAST SIGNATURE AND NOT BEFORE.
+  ok("...and the stock moves only now", Boolean(signed.body?.movement),
+    JSON.stringify(signed.body?.movement || null).slice(0, 120));
+
+  // ---- and not twice -------------------------------------------------------
+  const again = await call(ADJ.PATCH, body("PATCH", { id: adjustmentId, action: "approve" }), P());
+  ok("an approved adjustment cannot be approved again",
+    again.body?.error === "already-decided", JSON.stringify(again.body));
+
+  // ---- somebody without the right cannot sign -----------------------------
+  await F.signIn(F.owner.id);
+  const second = await adjust(200, "Another pallet");
+  await F.signIn(F.memberUser.id);
+  const noRight = await call(ADJ.PATCH, body("PATCH", { id: second.body?.adjustment?.id, action: "approve" }), P());
+  ok("a member holding no stock right cannot sign", noRight.status >= 400,
+    `got ${noRight.status}`);
+}
+
+await adjustmentApproval().catch((e) => ok("the adjustment case threw", false, e?.message || String(e)));
+
 F.signOut();
 console.log(`\ncrud: ${RESOURCES.length} resources · ${((Date.now() - started) / 1000).toFixed(1)}s`);
 

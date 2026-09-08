@@ -73,6 +73,25 @@ export const SEEDED_CHAINS: Record<string, ApprovalChain> = {
   // than the requester says yes, whatever the amount. 10000 is where the second
   // starts and it is the studio's dial, lower than a bill's 50000 because this
   // is where the money is stopped rather than where it is paid.
+  // A STOCK ADJUSTMENT IS THE ONE WRITE THAT NEEDS NO DOCUMENT BEHIND IT.
+  // A bill has a supplier's invoice and a requisition has somebody asking; an
+  // adjustment is a person typing a number into the ledger every on-hand figure
+  // in the section is summed from. `adjustStock`'s own comment says as much —
+  // it was the one write in that file with no guard of its own.
+  //
+  // ITS FIRST STEP IS NOT ALWAYS-ON, unlike a bill's or a requisition's, and
+  // that is the difference worth stating. Counting a shelf and correcting it by
+  // one is routine work that happens dozens of times a week; a signature for
+  // that means either a queue nobody clears or a studio turning the control
+  // off. 1000 is where a correction stops being a correction and starts being a
+  // write-off, and it is the studio's dial like every other threshold here.
+  adjustment: {
+    type: "adjustment",
+    steps: [
+      { permission: "inventory.stock.approve", from: 1000, label: "Stock control" },
+      { permission: "inventory.stock.approveHigh", from: 25000, label: "Above the limit" },
+    ],
+  },
   requisition: {
     type: "requisition",
     steps: [

@@ -18,6 +18,10 @@
 // they append movements, and the balance follows.
 
 import { requirePermission } from "@/platform/access";
+import {
+  adjustmentValue, planForAdjustment, needsApproval, planUnusable, raiseAdjustment, unitCostOf,
+} from "./adjustmentApproval";
+import type { ResolvedPlan } from "@/platform/approval/resolve";
 import { seriesSetting } from "@/modules/administration/numbering";
 // PROCUREMENT DECIDES WHO MAY BE BOUGHT FROM, and this is the one place
 // Inventory asks. Pure, no store, so the check below adds no round trip.
@@ -672,12 +676,57 @@ export async function adjustStock(ctx: InventoryContext, body: Record<string, un
     if (have + amount < 0) return { error: "insufficient", have, needed: Math.abs(amount) };
   }
 
+  // ---- does anybody have to say yes? --------------------------------------
+  // ABOVE THE STUDIO'S LIMIT THIS MOVES NOTHING and parks for signature. Below
+  // it, nothing changes: a shelf corrected by one unit applies immediately, and
+  // a studio doing routine stock control does not acquire a queue.
+  //
+  // THE VALUE IS units x what a unit costs, absolute — writing 500 ON is as
+  // material as writing 500 OFF, and a control that only reviewed write-offs
+  // could be walked round by adjusting up and then down.
+  const unitCost = await unitCostOf(ctx, itemId);
+  const value = adjustmentValue(amount, unitCost);
+  const plan = planForAdjustment(ctx, value);
+  // A PLAN THAT COULD NOT BE BUILT STOPS THE WRITE. "No signature required" and
+  // "we cannot tell whether one is required" are opposite answers, and a control
+  // that failed open would be worse than none because somebody believes in it.
+  if (planUnusable(plan)) return { error: "no-chain" };
+  if (needsApproval(plan)) {
+    const adjustment = await raiseAdjustment(ctx, {
+      itemId, qty: amount, unitCost, value,
+      reason: str(body?.reason, 300) || "Manual adjustment",
+      plan: plan as ResolvedPlan,
+    });
+    // NO `movement` IN THE ANSWER, deliberately: a caller that ignored the
+    // status and read `movement` would find nothing rather than something that
+    // looks like a completed adjustment.
+    return { adjustment, pending: true };
+  }
+
   const movement = await record(ctx, {
     itemId, kind: "adjust", quantity: amount,
     reason: str(body?.reason, 300) || "Manual adjustment",
     sourceType: "adjustment",
   });
   return { movement };
+}
+
+/**
+ * WRITE THE MOVEMENT AN APPROVED ADJUSTMENT ASKED FOR.
+ *
+ * Handed to `approveAdjustment` rather than imported by it, so the approval
+ * module never reaches back into this file — and so the movement is written by
+ * the same `record` every other movement in the section goes through.
+ */
+export async function applyApprovedAdjustment(ctx: InventoryContext, row: Record<string, unknown>) {
+  return record(ctx, {
+    itemId: String(row.itemId ?? ""),
+    kind: "adjust",
+    quantity: Number(row.qty) || 0,
+    reason: String(row.reason || "Approved adjustment"),
+    sourceType: "adjustment",
+    sourceId: String(row.id ?? ""),
+  });
 }
 
 // ---- purchase orders -------------------------------------------------------
