@@ -192,6 +192,11 @@ export const inventoryContext = moduleContext<InventoryContext>({
     // orders exactly as it did before.
     requisitions: ["procurement-requisitions", "procurement"],
     projectsList: ["projects-list", "projects"],
+    // ADMINISTRATION'S LOCATIONS, for the bin register. Foreign and
+    // therefore nullable: a studio that has not opened Master data has
+    // nowhere to put a bin, and the honest answer is that rather than a
+    // second list of places Inventory invented for itself.
+    master: ["administration-master", "administration"],
     quotations: ["crm-sales-quotations", "crm-sales"],
     // The tender register, for a project handed over from a won bid: its sheet
     // composes from the BILL, because it has no quotation. Foreign and

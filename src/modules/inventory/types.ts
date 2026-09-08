@@ -33,6 +33,8 @@ export type InventoryContext = ModuleContext & {
   // register is read here the same way the quotations are.
   tenderRegisterSection: Section | null;
   tasksSection: Section | null;
+  /** Administration's Master data, where the locations a bin sits in live. */
+  masterSection: Section | null;
   canViewStock: boolean;
   canManageStock: boolean;
   canViewVendors: boolean;

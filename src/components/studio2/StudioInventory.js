@@ -23,6 +23,8 @@ import { parseAwb, formatAwb } from "@/modules/inventory/awb";
 import { statusLabel, isException, AWB_STATUS_BY_CODE } from "@/modules/inventory/awbStatus";
 import { StatusPill } from "@/components/studio2/StatusPill";
 import { useReload } from "@/components/studio2/useReload";
+import BinsPanel from "@/components/studio2/BinsPanel";
+import { binsDict } from "@/shared/studio/bins";
 
 // INVENTORY — what the studio buys, holds, and issues to its projects.
 // On-hand is summed from the movement ledger, so every number here can be traced
@@ -114,7 +116,7 @@ export default function StudioInventory({ slug, view = "inventory" }) {
       studioCurrency={studioCurrency} canManage={canManageItems} busy={busy} send={send} />);
   }
   if (view === "inventory-stock") {
-    return wrap(<Stock items={items} movements={movements} canManage={canManageStock} busy={busy} send={send} />);
+    return wrap(<Stock slug={slug} items={items} movements={movements} canManage={canManageStock} busy={busy} send={send} />);
   }
   // NO BRANCH FOR procurement-suppliers. The register moved to the supplier
   // screen with the qualification and performance it now carries; the CRUD
@@ -505,8 +507,9 @@ function ItemForm({ row, vendors, units, serviceActions = [], studioCurrency = "
 }
 
 // ---- stock management ------------------------------------------------------
-function Stock({ items, movements, canManage, busy, send }) {
-  const tr = inventoryDict(useStudioLocale());
+function Stock({ slug, items, movements, canManage, busy, send }) {
+  const locale = useStudioLocale();
+  const tr = inventoryDict(locale);
   const [tab, setTab] = useState("onhand");
   const [query, setQuery] = useState("");
   const [adjusting, setAdjusting] = useState(null);
@@ -529,7 +532,7 @@ function Stock({ items, movements, canManage, busy, send }) {
     <>
       <div className="flex flex-wrap items-center gap-2">
         <div className="inline-flex rounded-full border border-slate-200 p-0.5 dark:border-white/15">
-          {[["onhand", tr.onHandTab], ["movements", tr.movementsTab]].map(([k, text]) => (
+          {[["onhand", tr.onHandTab], ["movements", tr.movementsTab], ["bins", binsDict(locale).tab]].map(([k, text]) => (
             <button key={k} type="button" onClick={() => setTab(k)}
               className={`rounded-full px-4 py-1.5 text-sm font-600 transition-colors ${tab === k ? "bg-brand-700 text-white" : "text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-white/5"}`}>
               {text}
@@ -563,6 +566,11 @@ function Stock({ items, movements, canManage, busy, send }) {
 
       {tab === "movements" ? (
         <Movements rows={movements} />
+      ) : tab === "bins" ? (
+        // THE BIN REGISTER FETCHES ITS OWN DATA. The split is only
+        // interesting on this tab, and folding it into the section payload
+        // would make every Inventory screen pay for it.
+        <BinsPanel slug={slug} locale={locale} />
       ) : items.length === 0 ? (
         <Empty title={tr.nothingStockYet} body={tr.registerItemsFirstThen} />
       ) : (
