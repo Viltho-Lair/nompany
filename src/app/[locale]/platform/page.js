@@ -7,6 +7,7 @@ import { claimText } from "@/shared/marketing/claims";
 import { heroCopy } from "@/shared/marketing/hero";
 import { getDict } from "@/shared/i18n";
 import { MarketingShell } from "@/components/landing/chrome/MarketingShell";
+import { PlatformStats } from "@/components/landing/sections/PlatformStats";
 
 /* THE PLATFORM — the system explained on one page.
    ------------------------------------------------------------------
@@ -108,6 +109,13 @@ export default async function PlatformPage({ params }) {
             ))}
           </div>
         </section>
+
+        {/* WHERE IT STANDS, between the departments and the CTA. The design
+            asks this page for general statistics; what it shows is product
+            facts until the nightly aggregate has figures worth stating, and
+            each slot swaps to a figure on its own as that count clears its
+            threshold. */}
+        <PlatformStats locale={locale} />
 
         <section className="mt-14 rounded-2xl border border-brand-500/25 bg-brand-500/[0.04] p-7 sm:p-9">
           <p className="font-display text-xl font-600">

@@ -5,6 +5,8 @@ import { hGetAll, hSet, hDel } from "@/platform/db/store";
 import { S } from "@/platform/db/keys";
 import { MAIN_AGG_SOURCES, aggField } from "@/platform/db/mainAgg";
 import { withRequest } from "@/platform/http/observability";
+import { writePlatformStats, type PlatformStats } from "@/platform/db/platformStats";
+import { listCollaborators } from "@/platform/auth/collaborators";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -51,6 +53,22 @@ async function reconcile(request: Request) {
   const studios = (await listStudios()) as { id: string }[];
   let rebuilt = 0;
 
+  // THE PUBLIC PAGES' FIGURES RIDE ON THIS PASS. See platform/db/platformStats
+  // for why they are not their own cron: a second job would walk every studio
+  // again each night for data this traversal already holds, and it would be a
+  // sixth entry in vercel.json on a plan where a cron the host will not accept
+  // rejects the whole deployment rather than just the job.
+  //
+  // AGGREGATE ONLY. These three counters never learn a studio's name or id, and
+  // nothing per-tenant is written — a field whose value would move when one
+  // named company acted could be differenced across two nights.
+  const platform: PlatformStats = {
+    studios: studios.length,
+    people: 0,
+    records: 0,
+    refreshedAt: now.toISOString(),
+  };
+
   for (const studio of studios) {
     const sid = studio.id;
     const sections = await listSections(sid);
@@ -67,6 +85,10 @@ async function reconcile(request: Request) {
       const sec = byKey[src.section] || (src.fallback ? byKey[src.fallback] : null);
       if (!sec) continue;
       const rows = (await readCol(sid, sec.id, src.collection)) as { createdAt?: string }[];
+      // Counted BEFORE the horizon filter below: the public figure is how much
+      // work the product holds, not how much of it happened in the last ninety
+      // days. The rollup's window is the dashboard's question, not this one's.
+      platform.records += rows.length;
       for (const row of rows) {
         const day = row.createdAt ? String(row.createdAt).slice(0, 10) : "";
         if (!day || !keepDays.has(day)) continue;
@@ -89,7 +111,22 @@ async function reconcile(request: Request) {
     if (stale.length) await hDel(key, ...stale);
 
     await hSet(key, "meta:refreshedAt", now.toISOString());
+
+    // One more read per studio, on a job that has already read every collection
+    // it owns. The alternative is a second nightly traversal for one integer.
+    platform.people += (await listCollaborators(sid)).length;
     rebuilt += 1;
+  }
+
+  // WRITTEN WHOLE, never patched, matching the rollup above: a missed night
+  // leaves a stale document rather than a number drifting permanently out of
+  // true. A failure here must not fail the rollup — the per-studio hashes are
+  // what the product runs on, and the public page's figures are what it says
+  // about itself.
+  try {
+    await writePlatformStats(platform);
+  } catch {
+    // Deliberately swallowed; the rollup's own result is what this job is for.
   }
 
   return Response.json({ ok: true, studios: rebuilt, at: now.toISOString() });

@@ -523,6 +523,54 @@ const tampered = { ...committedLastmod, "/about": { hash: "0000000000000000", da
 const moved = lm.reconcile(tampered, treeHashes, "2099-01-01");
 ok("...and a changed page takes the new date", moved["/about"].date === "2099-01-01");
 
+
+// ==================================================================
+// THE PUBLIC FIGURES CANNOT BE LARGER THAN THE TRUTH.
+//
+// The site carried 180+ connectors, 99.99% uptime and 3.2M transactions a day,
+// none of which anything computed. The replacement is a nightly aggregate, and
+// its whole safety rests on two properties that are worth asserting rather than
+// trusting: a small number is never printed, and a printed number is rounded
+// DOWN. Either one failing puts a wrong figure on the front page.
+console.log("\n== the platform figures round down and stay hidden while small");
+const PS = await import("@/platform/db/platformStats");
+
+ok("nothing is shown when there are no stats at all", !PS.showsFigure(null, "studios"));
+const belowAll = { studios: PS.THRESHOLDS.studios - 1, people: 0, records: 0, refreshedAt: "x" };
+ok("...nor when a count is one short of its threshold", !PS.showsFigure(belowAll, "studios"));
+const atThreshold = { ...belowAll, studios: PS.THRESHOLDS.studios };
+ok("...and it is shown exactly at the threshold, not one above",
+  PS.showsFigure(atThreshold, "studios"));
+
+// ROUNDED DOWN, NEVER UP. This is the property that lets the product stand
+// behind every figure it prints: the number is never larger than the truth,
+// only older. An off-by-one here is a public overstatement.
+for (const n of [7, 34, 99, 100, 149, 512, 999, 1000, 4321, 9999, 10000, 87654]) {
+  ok("statedFigure(" + n + ") never exceeds " + n, PS.statedFigure(n) <= n);
+}
+ok("...and it is a real zero below the first bucket", PS.statedFigure(7) === 0);
+ok("...and a negative or absent count is zero, never NaN",
+  PS.statedFigure(-5) === 0 && PS.statedFigure(NaN) === 0);
+
+// MONOTONIC: a larger count can never state a smaller figure. Without this a
+// bucket boundary could make the public number go DOWN as the product grew,
+// which is the one direction a reader would notice.
+let lastStated = -1, monotonic = true;
+for (let n = 0; n <= 12000; n += 7) {
+  const v = PS.statedFigure(n);
+  if (v < lastStated) monotonic = false;
+  lastStated = v;
+}
+ok("...and the stated figure never falls as the real one rises", monotonic);
+
+// NOTHING PER-TENANT IS IN THE STORED SHAPE. The document is what a public
+// endpoint serves; a studio name or id reaching it is the leak this design
+// exists to prevent.
+const statKeys = Object.keys(PS.EMPTY_STATS);
+ok("the stored stats hold only aggregate fields",
+  statKeys.every((k) => ["studios", "people", "records", "refreshedAt"].includes(k)),
+  statKeys.join(", "));
+
 const nav = readFileSync("src/components/Nav.js", "utf8");
 // THIS ASSERTED THE MECHANISM WAS GONE AND MEANT THE ROUTE. `BARE_PREFIXES`
 // was introduced for `/preview/hero/<variant>` and deleted with it, so
