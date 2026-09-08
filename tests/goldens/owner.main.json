@@ -70,7 +70,9 @@
       "administration-settings": true,
       "tasks": true,
       "tasks-settings": true,
-      "engine-transmittal": true
+      "engine-transmittal": true,
+      "engine-rfi": true,
+      "engine-submittal": true
     },
     "sections": [
       {
@@ -356,6 +358,16 @@
       {
         "key": "engine-transmittal",
         "name": "Transmittals",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "engine-rfi",
+        "name": "RFIs",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "engine-submittal",
+        "name": "Submittals",
         "parentId": "<sec_ID>"
       }
     ],

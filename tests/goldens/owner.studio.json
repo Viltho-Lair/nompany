@@ -378,6 +378,18 @@
         "key": "engine-transmittal",
         "name": "Transmittals",
         "enabled": true
+      },
+      {
+        "id": "<sub_ID>",
+        "key": "engine-rfi",
+        "name": "RFIs",
+        "enabled": true
+      },
+      {
+        "id": "<sub_ID>",
+        "key": "engine-submittal",
+        "name": "Submittals",
+        "enabled": true
       }
     ]
   }

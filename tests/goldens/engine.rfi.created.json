@@ -1,0 +1,27 @@
+{
+  "status": 201,
+  "body": {
+    "ok": true,
+    "record": {
+      "id": "<eng_ID>",
+      "reference": "RFI-0001",
+      "typeKey": "rfi",
+      "typeVersion": 1,
+      "status": "Open",
+      "values": {
+        "subject": "Slab penetration at grid F/7",
+        "question": "Confirm the sleeve size.",
+        "ballInCourt": "Consultant",
+        "discipline": "Structural",
+        "raisedOn": "2031-03-02",
+        "neededBy": "2031-03-09",
+        "answer": ""
+      },
+      "createdByCollaboratorId": "<col_ID>",
+      "createdAt": "<timestamp>",
+      "updatedAt": "<timestamp>",
+      "studioId": "<std_ID>",
+      "sectionId": "<sub_ID>"
+    }
+  }
+}

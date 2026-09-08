@@ -1,11 +1,19 @@
 // THE TYPES EVERY STUDIO GETS, seeded at creation.
 //
-// PHASE 1 SHIPS ONE, deliberately. The engine's value is proven by a type that
-// is real rather than by a demonstration: transmittals are named in the
-// programme spec's P5 as engine-driven, and Engineering & Documents already
-// exists as a section to plant under.
+// PHASE 1 SHIPPED ONE, deliberately — the engine's value proven by a type that
+// is real rather than by a demonstration. PHASE 2 IS THESE TWO, and they are
+// here to answer a question one type could not: whether the DECLARATION is
+// general, or whether it was quietly shaped around transmittals.
 //
-// `origin: "builtin"` is what stops a studio editing it. Tenant-declared types
+// It was not, and the two below are the evidence rather than the claim. A
+// transmittal is a three-status line with four plain fields. An RFI needs a
+// SELECT — ball-in-court is which party owes the next move, which is a closed
+// list and not free text — and a submittal needs a SIX-status ladder that
+// BRANCHES, where a review can approve, approve with comments, or send the
+// thing back. Neither needed a new field kind, a new verb or a line of engine
+// code: they are rows.
+//
+// `origin: "builtin"` is what stops a studio editing them. Tenant-declared types
 // come in phase 3 and are not this.
 import { repo } from "@/platform/db/repo";
 import { getSectionByKey } from "@/platform/db/sections";
@@ -29,6 +37,89 @@ export const BUILTIN_TYPES = [
     transitions: [
       { from: "Draft", to: "Issued" },
       { from: "Issued", to: "Acknowledged" },
+    ],
+    version: 1,
+  },
+  {
+    // BALL-IN-COURT IS A PARTY, NOT A PERSON, which is why it is a select and
+    // not the `collaborator` kind. The question an RFI register answers is
+    // "whose move is it" — ours, the client's, the consultant's — and that
+    // survives the individual who happens to be handling it this week. It also
+    // renders as a real dropdown, where `collaborator` is an honest text box in
+    // phase 1 with no picker behind it.
+    key: "rfi",
+    label: "RFIs",
+    parentSectionKey: "engineering-docs",
+    fields: [
+      { key: "subject", label: "Subject", kind: "text", required: true },
+      { key: "question", label: "Question", kind: "longtext", required: true },
+      {
+        key: "ballInCourt", label: "Ball in court", kind: "select",
+        options: ["Us", "Client", "Consultant", "Contractor", "Subcontractor"],
+      },
+      {
+        key: "discipline", label: "Discipline", kind: "select",
+        options: ["Architectural", "Structural", "Mechanical", "Electrical", "Civil", "Other"],
+      },
+      { key: "raisedOn", label: "Raised", kind: "date" },
+      { key: "neededBy", label: "Needed by", kind: "date" },
+      { key: "answer", label: "Answer", kind: "longtext" },
+    ],
+    columns: ["subject", "ballInCourt", "neededBy"],
+    // ANSWERED IS NOT CLOSED. An answer arrives and somebody still has to accept
+    // it — closing on the answer would lose the step where the asker agrees the
+    // question was actually addressed.
+    statuses: ["Open", "Answered", "Closed"],
+    transitions: [
+      { from: "Open", to: "Answered" },
+      { from: "Answered", to: "Closed" },
+      // WITHDRAWN WITHOUT AN ANSWER IS REAL: the question stopped mattering, or
+      // it was asked twice. Refusing it would leave the register full of open
+      // RFIs nobody is waiting on.
+      { from: "Open", to: "Closed" },
+      // AND AN ANSWER CAN BE REJECTED, which is the move a register without it
+      // forces people to make by raising a second RFI that loses the thread.
+      { from: "Answered", to: "Open" },
+    ],
+    version: 1,
+  },
+  {
+    key: "submittal",
+    label: "Submittals",
+    parentSectionKey: "engineering-docs",
+    fields: [
+      { key: "title", label: "Title", kind: "text", required: true },
+      { key: "specSection", label: "Specification section", kind: "text" },
+      {
+        key: "kind", label: "Kind", kind: "select",
+        options: ["Product data", "Shop drawing", "Sample", "Method statement", "Calculation"],
+      },
+      { key: "submittedBy", label: "Submitted by", kind: "text" },
+      { key: "submittedOn", label: "Submitted", kind: "date" },
+      { key: "dueOn", label: "Response due", kind: "date" },
+      { key: "comments", label: "Review comments", kind: "longtext" },
+    ],
+    columns: ["title", "kind", "dueOn"],
+    // THE REAL LADDER, AND IT BRANCHES — which is the half of the engine one
+    // type never exercised. A review has three outcomes, not one: approved,
+    // approved with comments to carry into the work, or sent back. Collapsing
+    // "Approved as noted" into "Approved" would lose the comments' standing, and
+    // collapsing "Revise and resubmit" into a rejection would lose that the
+    // thing is coming back.
+    statuses: [
+      "Draft", "Submitted", "Under review",
+      "Approved", "Approved as noted", "Revise and resubmit",
+    ],
+    transitions: [
+      { from: "Draft", to: "Submitted" },
+      { from: "Submitted", to: "Under review" },
+      { from: "Under review", to: "Approved" },
+      { from: "Under review", to: "Approved as noted" },
+      { from: "Under review", to: "Revise and resubmit" },
+      // AND BACK ROUND. A resubmission is the same submittal again, not a new
+      // one: starting a fresh record each time is how a spec section ends up
+      // with four submittals and no way to see it took four goes.
+      { from: "Revise and resubmit", to: "Submitted" },
     ],
     version: 1,
   },

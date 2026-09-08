@@ -65,7 +65,9 @@
       "administration-settings": false,
       "tasks": false,
       "tasks-settings": false,
-      "engine-transmittal": false
+      "engine-transmittal": false,
+      "engine-rfi": false,
+      "engine-submittal": false
     },
     "manage": {
       "main": false,
@@ -128,7 +130,9 @@
       "administration-settings": false,
       "tasks": false,
       "tasks-settings": false,
-      "engine-transmittal": false
+      "engine-transmittal": false,
+      "engine-rfi": false,
+      "engine-submittal": false
     },
     "me": {
       "collaboratorId": "<col_ID>"

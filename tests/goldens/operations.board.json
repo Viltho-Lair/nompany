@@ -66,7 +66,9 @@
       "administration-settings": true,
       "tasks": true,
       "tasks-settings": true,
-      "engine-transmittal": true
+      "engine-transmittal": true,
+      "engine-rfi": true,
+      "engine-submittal": true
     },
     "manage": {
       "main": false,
@@ -129,7 +131,9 @@
       "administration-settings": true,
       "tasks": true,
       "tasks-settings": true,
-      "engine-transmittal": true
+      "engine-transmittal": true,
+      "engine-rfi": true,
+      "engine-submittal": true
     },
     "me": {
       "collaboratorId": "<col_ID>"

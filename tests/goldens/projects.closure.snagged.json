@@ -15,7 +15,7 @@
           "handoverAt": "2031-06-10",
           "supportPeriodDays": 365,
           "warrantyEndsAt": "2032-06-09",
-          "warrantyDaysLeft": 2102,
+          "warrantyDaysLeft": 2101,
           "warrantyState": "running",
           "closedAt": "",
           "isClosed": false,

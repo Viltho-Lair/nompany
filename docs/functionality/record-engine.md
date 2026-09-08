@@ -285,9 +285,19 @@ type editor: `origin: "builtin"` is what stops a studio editing a seeded type, a
 route creates, edits or deletes a `recordTypes` row at all. A type is added by shipping
 code today.
 
-**Only ONE built-in type exists** — `transmittal`, seeded at studio creation under
-Engineering & Documents. Everything the engine claims about "every declared type" is
-demonstrated by one.
+**Three built-in types exist** — `transmittal`, `rfi` and `submittal`, all seeded at
+studio creation under Engineering & Documents. The second and third are phase 2, and they
+are here to answer what one type could not: whether the DECLARATION is general, or whether
+it was quietly shaped around transmittals.
+
+**It was not, and they are the evidence rather than the claim.** A transmittal is a
+three-status line with four plain fields — exactly what a toy would look like. An RFI
+carries a SELECT whose value is refused unless the type offers it; a submittal's ladder
+BRANCHES three ways out of one status and LOOPS BACK on itself, because a resubmission is
+the same submittal again rather than a fourth record for one spec section. **Neither needed
+a new field kind, a new verb, or a line of engine code.** They are rows.
+
+A studio still cannot declare a fourth — that is phase 3.
 
 **`listRecordTypes` is reached by no route.** It is the catalogue reader phase 3's type
 management needs, filtered to the rights the caller holds, written alongside and not wired

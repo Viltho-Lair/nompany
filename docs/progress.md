@@ -345,10 +345,23 @@ report also render now**, where before they uploaded, stored, and appeared only 
 names inside the edit dialog — invisible to every reader of the report afterwards,
 which is its only audience.
 
-#### §4 Engineering & Documents {M} `engineering-docs` ⬜ 4 / 9
-Document register ✅ · RFQ ✅ · Live view ✅ · Settings ✅ · **Transmittals ⬜ · RFI
-register with ball-in-court ⬜ · Submittal register ⬜ · EBOM & specs ⬜ · Technical
+#### §4 Engineering & Documents {M} `engineering-docs` 🟡 7 / 9
+Document register ✅ · RFQ ✅ · Live view ✅ · Settings ✅ · Transmittals ✅ · RFI
+register with ball-in-court ✅ · Submittal register ✅ · **EBOM & specs ⬜ · Technical
 library ⬜**
+
+**ALL THREE ARE ENGINE TYPES, NOT HAND-BUILT SCREENS**, which is what P4b was for.
+Transmittals shipped with the engine itself (08/09/2026) and RFIs and submittals are
+P4b PHASE 2 — declared as rows, with no new field kind, no new verb and not one line of
+engine code. They are also the check that the declaration is GENERAL rather than shaped
+around the first type: an RFI carries a select whose value is refused unless the type
+offers it, and a submittal's ladder branches three ways out of one status and loops back
+on itself.
+
+**Nobody but the owner and Admin can open them yet.** No starter role and no archetype
+holds an `engine.*` key, and no screen can grant one — `StudioRoles` draws its grid from
+`AREAS`, which by construction holds no engine key. That is phase 3's type management,
+and it applies to all three.
 
 #### §5 Procurement & Subcontracting 🟡 7 / 8
 Suppliers ✅ · Purchase requisitions ✅ · Supplier RFQ & quote comparison 🟡 (an award

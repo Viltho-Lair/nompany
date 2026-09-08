@@ -70,7 +70,9 @@
       "administration-settings": false,
       "tasks": false,
       "tasks-settings": false,
-      "engine-transmittal": false
+      "engine-transmittal": false,
+      "engine-rfi": false,
+      "engine-submittal": false
     },
     "sections": [
       {
