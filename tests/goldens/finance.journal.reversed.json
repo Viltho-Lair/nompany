@@ -1,0 +1,33 @@
+{
+  "status": 200,
+  "body": {
+    "ok": true,
+    "reversal": {
+      "id": "<jou_ID>",
+      "reference": "JE-0004",
+      "date": "<today>",
+      "memo": "Keyed twice",
+      "lines": [
+        {
+          "accountId": "<acc_ID>",
+          "debit": 0,
+          "credit": 5000
+        },
+        {
+          "accountId": "<acc_ID>",
+          "debit": 5000,
+          "credit": 0
+        }
+      ],
+      "source": {
+        "kind": "reversal",
+        "id": "<jou_ID>"
+      },
+      "postedByCollaboratorId": "<col_ID>",
+      "postedAt": "<timestamp>",
+      "reversalOfEntryId": "<jou_ID>",
+      "studioId": "<std_ID>",
+      "sectionId": "<sub_ID>"
+    }
+  }
+}

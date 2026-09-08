@@ -419,15 +419,29 @@ files ⬜ · Payroll posting to the ledger ⬜**
 The artifact's note here {M} *"a department IS a top-level section"* {M} **is reversed**:
 departments are their own records under Administration as of 06/09/2026.
 
-#### §13 Finance & Accounting ⬜ 7 / 18
+#### §13 Finance & Accounting ⬜ 8 / 18
 Cash ✅ · Ledger ✅ · Payables ✅ · Fixed assets ✅ · Settings ✅ · Payment as an
 allocatable record ✅ · Retention & progress billing (IPC) ✅ · Budgets & commitment
 control 🟡 (at project level only, not in the ledger) · Multi-currency 🟡 (daily FX and
-rate-at-approval; no revaluation) · **Dimensions on every journal line ⬜ · Periods &
-close ⬜ · P&L, balance sheet, cash flow ⬜ (only `trialBalance`) · Credit notes ⬜ · Tax
+rate-at-approval; no revaluation) · P&L and balance sheet 🟡 (both built 08/09/2026; **no
+cash flow** — it needs operating/investing/financing classification nothing records) ·
+**Dimensions on every journal line ⬜ · Periods & close ⬜ · Credit notes ⬜ · Tax
 engine, ZATCA adapter, WHT ⬜ · Bank reconciliation ⬜ · Cash-flow forecast and PDCs ⬜ ·
 Letters of guarantee & credit ⬜ · Auto-posting from every module ⬜**
 **The largest single body of unbuilt work in the programme.**
+
+**"LEDGER ✅" WAS THE WORST ENTRY THIS FILE HAS CARRIED.** The module was written,
+typed and guarded — and imported by NOTHING: no route, no caller anywhere in `src`.
+A whole double-entry book the product could not open. It has a door as of 08/09/2026
+(`/api/studios/<slug>/finance/ledger`) and Gate A posts to it for the first time.
+`docs/functionality/ledger.md` is the file.
+
+**IT STILL HAS NO SCREEN, AND NOTHING POSTS AUTOMATICALLY.** `postInvoice`,
+`postBill`, `postExpense` and `postPayment` remain reached by nothing, so raising an
+invoice does not touch the ledger and every entry is keyed by hand. That is the
+"auto-posting" bullet above and it is the largest remaining piece. And a journal line
+still carries no dimension but `projectId`, which is why the programme's acceptance
+test — *the deal card's profit reconciles to the ledger* — still cannot be written.
 
 #### §14 Reports & BI ⬜ 0 / 5
 **Executive dashboard ⬜ · Report builder ⬜ · Saved, scheduled & exported reports ⬜ ·

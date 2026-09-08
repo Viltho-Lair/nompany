@@ -1,0 +1,31 @@
+{
+  "status": 201,
+  "body": {
+    "ok": true,
+    "entry": {
+      "id": "<jou_ID>",
+      "reference": "JE-0001",
+      "date": "2031-04-01",
+      "memo": "Opening capital",
+      "lines": [
+        {
+          "accountId": "<acc_ID>",
+          "debit": 5000,
+          "credit": 0
+        },
+        {
+          "accountId": "<acc_ID>",
+          "debit": 0,
+          "credit": 5000
+        }
+      ],
+      "source": {
+        "kind": "manual"
+      },
+      "postedByCollaboratorId": "<col_ID>",
+      "postedAt": "<timestamp>",
+      "studioId": "<std_ID>",
+      "sectionId": "<sub_ID>"
+    }
+  }
+}

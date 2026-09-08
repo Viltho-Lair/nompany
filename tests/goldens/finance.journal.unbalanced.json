@@ -1,0 +1,8 @@
+{
+  "status": 400,
+  "body": {
+    "error": "unbalanced",
+    "debit": 100,
+    "credit": 90
+  }
+}

@@ -84,12 +84,29 @@ const DEBIT_NORMAL: Record<AccountType, boolean> = {
  * ledger cannot function without a chart, so "there is no chart yet" is never a
  * state a caller should have to handle.
  */
+/**
+ * THE ORDER A CHART OF ACCOUNTS IS READ IN — assets, liabilities, equity,
+ * income, expense, which is what the code ranges encode. Written once because
+ * `ledgerAccounts` returns from two places and sorting in only one of them is
+ * the defect this replaces.
+ */
+const byCode = (rows: Account[]): Account[] =>
+  [...rows].sort((x, y) => String(x.code).localeCompare(String(y.code)));
+
 export async function ledgerAccounts(ctx: FinanceContext): Promise<Account[]> {
   const { studio, ledgerSection } = ctx;
   const existing = await Accounts.find({ studio, section: ledgerSection });
   const have = new Set(existing.map((a) => a.code));
   const missing = DEFAULT_CHART.filter((a) => !have.has(a.code));
-  if (!missing.length) return existing;
+  // IN CHART ORDER ON BOTH PATHS, and it was on only one. This early return
+  // handed back whatever order the store produced, so a studio whose chart was
+  // already seeded — which is every studio after its first read — got an
+  // unordered chart, while the run that seeded it got a sorted one. A read
+  // without an ORDER BY is unordered, and two runs of one Gate A fixture
+  // returned the five expense accounts in different positions; on screen it
+  // would have been a chart of accounts that reshuffled itself between visits.
+  // `trialBalance` maps this array directly, so the reports inherited it.
+  if (!missing.length) return byCode(existing);
 
   const seeded: Account[] = [];
   for (const a of missing) {
@@ -100,12 +117,15 @@ export async function ledgerAccounts(ctx: FinanceContext): Promise<Account[]> {
   }
   // Newest-first is how addRow prepends; return them in chart order so the
   // caller and the reports read top-down.
-  return [...existing, ...seeded].sort((x, y) => x.code.localeCompare(y.code));
+  return byCode([...existing, ...seeded]);
 }
 
 export async function listAccounts(ctx: FinanceContext) {
   const denied = requirePermission(ctx.access, "finance.ledger.view");
   if (denied) return denied;
+  // Ordered by `ledgerAccounts` itself, so every reader of the chart — this, the
+  // trial balance and both statements — gets the same sequence. Sorting here
+  // instead would have fixed one caller and left the reports unordered.
   return { accounts: await ledgerAccounts(ctx) };
 }
 
@@ -252,13 +272,22 @@ export async function listJournal(ctx: FinanceContext) {
  * asserting. Sums ALL posted lines, reversals included — a reversed entry and
  * its mirror net to zero, which is the correct effect.
  */
-export async function trialBalance(ctx: FinanceContext) {
-  const denied = requirePermission(ctx.access, "finance.ledger.view");
-  if (denied) return denied;
-
-  const accounts = await ledgerAccounts(ctx);
-  const entries = await Entries.find({ studio: ctx.studio, section: ctx.ledgerSection });
-
+/**
+ * THE ARITHMETIC, OVER ROWS SOMEBODY ELSE HAS ALREADY READ.
+ *
+ * Split out because a caller that has the chart and the entries in hand must not
+ * have to fetch them again to get a trial balance. `ledgerAccounts` SEEDS when a
+ * studio has no chart, and `repo.create` does not invalidate the request cache —
+ * so a second read inside one request returns the list as it was BEFORE the
+ * seed, and seeds it again. Three calls in one request produced three copies of
+ * every account, with the postings split between them and the trial balance
+ * listing Cash three times.
+ *
+ * That is why the ledger route reads the chart once and calls this, rather than
+ * calling `trialBalance` beside two other functions that each read for
+ * themselves. One implementation of the sums, one read of the rows.
+ */
+export function trialBalanceFrom(accounts: Account[], entries: JournalEntry[]) {
   // Net cents per account, so the running arithmetic never touches a float.
   const net = new Map<string, number>();
   for (const e of entries) {
@@ -293,6 +322,15 @@ export async function trialBalance(ctx: FinanceContext) {
     // The invariant, surfaced. Not a float compare — whole cents.
     balanced: totalDebit === totalCredit,
   };
+}
+
+export async function trialBalance(ctx: FinanceContext) {
+  const denied = requirePermission(ctx.access, "finance.ledger.view");
+  if (denied) return denied;
+  return trialBalanceFrom(
+    await ledgerAccounts(ctx),
+    await Entries.find({ studio: ctx.studio, section: ctx.ledgerSection }),
+  );
 }
 
 // ============================================================================

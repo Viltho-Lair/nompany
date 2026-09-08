@@ -39,6 +39,7 @@ Three rules that keep this folder worth reading:
 | [flows.md](flows.md) | Flow templates and industries: what a studio may edit, what is refused and why, and where the editor lives |
 | [handover.md](handover.md) | A won tender becomes a project: the third head of `openProject`, why the bill's total is the value, and why the bill then freezes |
 | [language.md](language.md) | EN/AR and RTL: what decides which language, where the buttons are, what is translated |
+| [ledger.md](ledger.md) | Double-entry bookkeeping and the statements it produces: the module that had no door at all, why income reads positive, and why the retained result is computed |
 | [legal-pages.md](legal-pages.md) | The Terms and the Privacy Policy: one renderer, the Google disclosure shared by both, and what Google's OAuth verification requires |
 | [list-tables.md](list-tables.md) | The department list tables: the shared Data Grid, and the search / filter / column controls above it |
 | [live-updates.md](live-updates.md) | How a board hears that somebody else changed a record: one connection per tab, what a watch key must name, and the two ways to write one that can never fire |
