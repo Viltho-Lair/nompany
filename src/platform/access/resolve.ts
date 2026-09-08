@@ -131,6 +131,9 @@ export const SECTION_AREAS: Readonly<Record<string, readonly string[]>> = {
   // MOVED TO LOGISTICS & FLEET — AWB is goods in movement, which is Logistics's
   // home now.
   "logistics-shipments": ["logistics.shipments"],
+  // The Logistics ROOT owns the landed costs, so it has an area of its own as
+  // well as children — the same shape Assets took.
+  logistics: ["logistics.landedCost"],
   "hr-employees": ["hr.employees", "hr.vacations"],
   "finance-cash": ["finance.cash"],
   // Gated by its own right — WITHOUT this line a leaf section has no areas, so

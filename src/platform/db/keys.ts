@@ -811,6 +811,12 @@ export const SECTION_COLLECTIONS = {
   // AWB tracking owns the shipments it follows and the airline registry that
   // resolves a waybill's 3-digit prefix to a carrier.
   "logistics-shipments": ["awbShipments", "awbAirlines"],
+  // FREIGHT, DUTY AND HANDLING AGAINST A PURCHASE ORDER. On the Logistics
+  // ROOT rather than under Shipments: a landed cost attaches to the ORDER the
+  // goods came on, and an air waybill is one of several ways they might have
+  // travelled. Putting it under the AWB register would strand every charge on
+  // a shipment that arrived by sea.
+  logistics: ["landedCosts"],
   // hr — the reference list belongs to the Employees screen; vacations are
   // studio-wide HR settings.
   //

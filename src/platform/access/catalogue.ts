@@ -373,6 +373,13 @@ const OWN_AREAS = [
   // MOVED TO LOGISTICS & FLEET — AWB is goods in movement, which is Logistics's
   // home now (restructure.ts's SECTION_KEY_MAP). Relabelled to match
   // logistics-shipments, "Shipments", in keys.ts's SECTION_DEFS.
+  // WHAT THE GOODS COST BY THE TIME THEY ARRIVED. Its own area rather than a
+  // verb on Shipments, because the two are different jobs: a forwarder's clerk
+  // books an air waybill, and whoever reconciles the duty invoice against the
+  // order is doing the company's costing. It is also the number that flows into
+  // stock valuation and therefore onto a balance sheet.
+  { key: "logistics.landedCost", group: "Logistics & Fleet", label: "Landed cost",
+    verbs: ["view", "create", "edit", "delete"] },
   { key: "logistics.shipments", group: "Logistics & Fleet", label: "Shipments", verbs: ["view", "create", "edit", "delete"] },
 
   // The sharpest scoping case in the product: everybody needs their own record

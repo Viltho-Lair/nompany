@@ -439,12 +439,37 @@ Four engine registers, 08/09/2026. The three left are the bespoke ones: a dispat
 and a mobile field view are both on the spec's own "never stretch the engine to cover
 this" list. See §10 for the caveat that applies to every engine register.
 
-#### §9 Logistics & Fleet 🟡 5 / 6
+#### §9 Logistics & Fleet 🟡 6 / 6
 Shipments (AWB) ✅ · Deliveries with POD 🟡 (register built; `receivedBy` is a typed name
 and **not a signature** — that needs the mobile field view) · Trips & routing 🟡 (trips
 recorded; **no routing**) · Fleet register & compliance 🟡 (the two expiry dates are
 stored; **nothing warns before one lapses**, so a vehicle with expired insurance still
-reads In service) · **Customs & freight, landed cost ⬜ · Dashboard ⬜**
+reads In service) · Customs & freight, landed cost ✅ (09/09/2026) · Dashboard ✅ (the
+engine register panel, 08/09/2026)
+
+**A PURCHASE ORDER SAYS WHAT THE SUPPLIER CHARGED**, and freight, duty, insurance and
+clearance are paid to other people on other invoices for the same goods. A studio valuing
+stock at the order price alone understates what it holds — for an importing contractor,
+routinely by a fifth — and quoting from that cost quotes below what the material really
+cost to get. Catalogue 183 → 184 (`logistics.landedCost`), its own area because booking an
+air waybill and reconciling a duty invoice against an order are different jobs.
+
+**IT REACHES THE VALUATION, which is what stops it being a calculator.** `landedUnitCosts`
+returns the same `orderId:itemId` key `stockValuation` already builds, so the landed cost
+overlays the supplier price without either side knowing the other's shape. Verified in the
+sandbox end to end: ten units at 100 valued at **1,000, then 1,200 once 150 freight and 50
+duty were recorded** — unit cost 100 → 120.
+
+**THE SHARES SUM TO THE CHARGE EXACTLY.** Three lines splitting 100 gives 33.33 three
+times, which is 99.99, so a studio's landed total would be a penny short of what it paid on
+every shipment forever; the last line takes the remainder. **Two bases, value and quantity**
+— and weight is deliberately NOT offered, because a freight invoice is priced on it and no
+line in this product carries one. Offering it and approximating by value is what every ERP
+that stores two bases and offers three ends up doing.
+
+**Charges with nothing to land on are REPORTED, not swallowed.** A free-of-charge shipment
+still cost freight; with no value to allocate on, the money comes back as `unallocated`
+rather than vanishing or dividing by nought.
 
 It was the thinnest built section in the product; three engine registers, 08/09/2026.
 

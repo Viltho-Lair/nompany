@@ -19,6 +19,7 @@
 
 import { repo } from "@/platform/db/repo";
 import { valueStock, type CostedMovement, type ValuationMethod } from "./valuation";
+import { landedUnitCosts } from "@/modules/logistics/landedCostService";
 import type { InventoryContext } from "./types";
 
 const Movements = repo("inventoryStock");
@@ -53,6 +54,18 @@ export async function stockValuation(ctx: InventoryContext, method: ValuationMet
       costOnOrder.set(`${o.id}:${String(l?.itemId ?? "")}`, num(l?.unitPrice));
     }
   }
+
+  // THE LANDED COST WINS OVER THE SUPPLIER'S PRICE, where a studio has recorded
+  // one. Freight, duty and handling are paid to other people on other invoices
+  // and belong to the same goods; valuing stock at the order price alone
+  // understates what the company holds — for an importing contractor, routinely
+  // by a fifth. `landedUnitCosts` returns the same `orderId:itemId` key this map
+  // uses, so the two overlay without either knowing about the other's shape.
+  const landed = await landedUnitCosts(
+    ctx.studio,
+    ctx.sections.find((x) => x.key === "logistics"),
+    orders as Record<string, unknown>[],
+  );
   const itemCost = new Map(items.map((i) => [String(i.id), num(i.unitCost)]));
 
   const costed: CostedMovement[] = movements.map((m) => {
@@ -70,8 +83,9 @@ export async function stockValuation(ctx: InventoryContext, method: ValuationMet
     // best thing the product holds. When even that is absent the units are
     // valued at nothing and COUNTED as uncosted, so the total is honestly low
     // rather than confidently wrong.
+    const key = `${String(m.sourceId ?? "")}:${itemId}`;
     const fromOrder = String(m.sourceType) === "order"
-      ? costOnOrder.get(`${String(m.sourceId ?? "")}:${itemId}`)
+      ? landed.get(key) ?? costOnOrder.get(key)
       : undefined;
     const unitCost = fromOrder ?? itemCost.get(itemId) ?? 0;
     return { itemId, qty, unitCost, at: String(m.at ?? "") };
