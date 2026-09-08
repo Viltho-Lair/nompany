@@ -313,12 +313,20 @@ The requirements below have not weakened; what changed is who checks them and wh
   plus an 8 KB margin** (`scripts/bundle-baselines.json`, rewritten with
   `node scripts/bundle-budget.mjs --record`; an unlisted route is held to 300 KB, so a
   new route is gated from its first build). Then the largest chunk (250 KB gz) and
-  total client JS (**1854 against 1862**, measured locally 08/09/2026 by a build
-  that ran — 8 KB of headroom), which catch one enormous file and sprawl
+  total client JS (**1869 against 1885**, measured locally 09/09/2026 by a build
+  that ran — 16 KB of headroom), which catch one enormous file and sprawl
   respectively. **This bullet said "1832 against 1833" and was stale by three
-  raises**; the ceiling moved 1833 → 1852 → 1857 → 1862 across two sessions while
-  this line sat still, which is the fifth time these two numbers have decayed
-  here. Read them as a measurement with a date and re-measure at the commit you
+  raises**; the ceiling moved 1833 → 1852 → 1857 → 1862 → 1885 across three
+  sessions while this line sat still, which is the fifth time these two numbers
+  have decayed here.
+
+  **THE LAST RAISE BOUGHT A LOWER PER-ROUTE NUMBER, which is the trade to make
+  every time.** Five secondary tabs — bins, batches, the unit registry, the
+  dispatch board, the mobile field view — cost the studio route 687 → 697 KB of
+  FIRST LOAD when imported statically. Their importers are client modules, so
+  `nextDynamic` there is a real boundary (HeavyScreens.jsx explains why the same
+  call in a Server Component is not): route 692, total 1869. Five kilobytes off
+  the number every tenant page waits for, four onto the one nobody waits for. Read them as a measurement with a date and re-measure at the commit you
   are writing. `scripts/bundle-budget.mjs` holds
   the numbers and explains why a whole-directory total would penalise code-splitting.
 
