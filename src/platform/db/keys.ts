@@ -805,7 +805,7 @@ export const SECTION_COLLECTIONS = {
   // under `engine-bom`, and a collection under a section only some studios
   // have planted would strand every line written before it — the tender
   // register's mistake. The root is always there.
-  manufacturing: ["bomLines"],
+  manufacturing: ["bomLines", "shopfloorRuns", "qcChecks"],
   // BINS SIT WITH THE MOVEMENTS THEY SPLIT. A bin balance is the stock
   // ledger grouped by bin, so the two must be written under one section or
   // a live update on one would never reach a screen watching the other.

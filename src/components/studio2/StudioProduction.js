@@ -2,10 +2,19 @@
 
 import { useCallback, useState } from "react";
 import { Field } from "@/components/fields/Field";
+import nextDynamic from "next/dynamic";
+import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { productionDict } from "@/shared/studio/production";
+import { shopFloorDict } from "@/shared/studio/shopfloor";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { useReload } from "@/components/studio2/useReload";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
+// BEHIND A REAL LAZY BOUNDARY, like every other secondary tab: this is a
+// client module, so `import()` here survives to runtime — see
+// HeavyScreens.jsx for why the same call in a Server Component does not.
+const ShopFloorPanel = nextDynamic(() => import("@/components/studio2/ShopFloorPanel"),
+  { loading: () => <ScreenSkeleton /> });
+
 
 // PRODUCTION PLANNING — the screen that joins four registers that never met.
 //
@@ -22,6 +31,7 @@ export default function StudioProduction({ slug }) {
   const [data, setData] = useState(null);
   const [problem, setProblem] = useState("");
   const [busy, setBusy] = useState(false);
+  const [tab, setTab] = useState("planning");
   const [bomId, setBomId] = useState("");
   const [draft, setDraft] = useState({ itemId: "", qtyPer: "" });
 
@@ -67,6 +77,26 @@ export default function StudioProduction({ slug }) {
         <h2 className="font-display text-lg font-800 text-slate-900 dark:text-white">{tr.title}</h2>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{tr.lead}</p>
       </div>
+
+      {/* TWO AUDIENCES, ONE SECTION. Planning is what a buyer and a production
+          manager read; the terminal is what the operator at the machine taps.
+          They share the section's registers and almost nothing else. */}
+      <div role="tablist" className="flex gap-2 border-b border-slate-200 dark:border-white/10">
+        {[["planning", tr.title], ["shopfloor", shopFloorDict(locale).tab]].map(([k, label]) => (
+          <button
+            key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)}
+            className={`-mb-px border-b-2 px-4 py-2 font-display text-sm font-600 transition-colors ${
+              tab === k
+                ? "border-brand-600 text-slate-900 dark:text-white"
+                : "border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"}`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "shopfloor" ? <ShopFloorPanel slug={slug} locale={locale} /> : (
+      <>
 
       {problem && (
         <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">
@@ -219,6 +249,8 @@ export default function StudioProduction({ slug }) {
           </>
         )}
       </section>
+      </>
+      )}
     </div>
   );
 }
