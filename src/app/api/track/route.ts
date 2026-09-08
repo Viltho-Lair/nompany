@@ -1,6 +1,7 @@
 import { STAT, RL } from "@/platform/db/keys";
 import { hIncrBounded, pfAdd, incrWithTTL } from "@/platform/db/store";
 import { continentOf, CONTINENT_KEYS } from "@/lib/continents";
+import { cityKeyFrom } from "@/lib/geo";
 import { deviceOf, DEVICE_KEYS } from "@/lib/devices";
 import { isCrossSite } from "@/platform/http/origin";
 
@@ -35,10 +36,31 @@ export const dynamic = "force-dynamic";
 //      could grow a field per request forever. hIncrBounded caps the field
 //      count per day and folds the rest into one overflow bucket.
 //
-// Nothing about what is COLLECTED has changed, and it is still deliberately
-// coarse: a country header reduced to a continent and discarded, a user-agent
-// reduced to one of three words and discarded. No IP, no city, nothing tied to
-// the visitor id.
+// WHAT IS COLLECTED CHANGED ON 08/09/2026, deliberately and on the record,
+// because the paragraph that stood here said the opposite.
+//
+// It read: "a country header reduced to a continent and discarded ... No IP, no
+// city, nothing tied to the visitor id." That was a real decision with a real
+// cost: the Pulse wall could draw no city, no country and no point, and no
+// amount of front-end work could change it, because the data had never been
+// kept. The owner asked for a city-level map. This is where that is decided.
+//
+// WHAT IS KEPT NOW: the city NAME and a coordinate rounded to two decimals, both
+// straight off the edge's own headers. WHAT IS STILL NOT KEPT: the IP, which is
+// never read for geography and never stored; anything joining a place to the
+// visitor id, which stays a per-browser random string feeding a HyperLogLog
+// count and nothing else; and any precision finer than 2dp — about a kilometre,
+// and a CITY CENTROID rather than a person, because Vercel resolves an IP to the
+// city's centre and every visitor from one city already reports the same point.
+//
+// The user-agent is still reduced to one of three words and discarded.
+//
+// NO LOOKUP, NO KEY, NO NETWORK CALL. `x-vercel-ip-city` and its lat/lng arrive
+// on every request already. Google's Geolocation API was evaluated for this job
+// and REJECTED: it resolves cell towers and WiFi access points for a device,
+// there is no field for a third-party IP, and its `considerIp` uses the CALLER's
+// address — which here is our own server, so every visitor would report a data
+// centre.
 
 // Generous for a real marketing site, and low enough that abuse is bounded.
 const RATE_MAX = 120;
@@ -47,6 +69,15 @@ const RATE_WINDOW_SEC = 60;
 const slug = (s: unknown, max = 40) => String(s || "").toLowerCase().replace(/[^a-z0-9\-_/]/g, "").slice(0, max);
 const today = () => new Date().toISOString().slice(0, 10);
 const bounded = { max: STAT.MAX_FIELDS_PER_DAY, overflow: STAT.OVERFLOW_FIELD };
+const boundedCities = { max: STAT.MAX_CITIES_PER_DAY, overflow: STAT.OVERFLOW_CITY };
+
+// "www" unless the caller says otherwise, and only ever one of two values.
+//
+// THE SITE IS CHOSEN BY THE CLIENT, which is safe here and would not be
+// elsewhere: it names which of our own two surfaces sent the beacon, and the
+// worst a liar achieves is miscounting our own traffic. There is nothing behind
+// it to reach — no tenant, no record, no permission.
+const siteOf = (value: unknown) => (String(value || "") === "erp" ? "erp" : "www");
 
 // Caller IP, as the edge reports it.
 const ipOf = (request: Request) =>
@@ -69,7 +100,8 @@ export async function POST(request: Request) {
     const type = String(body.type || "");
     const vid = String(body.vid || "").slice(0, 64);
     const day = today();
-    const hkey = STAT.day(day);
+    const site = siteOf(body.site);
+    const hkey = STAT.siteDay(site, day);
     const inc = (field: string) => hIncrBounded(hkey, field, bounded);
 
     if (type === "page_view") {
@@ -86,6 +118,18 @@ export async function POST(request: Request) {
       // is not, and is all the dashboard asks for.
       const device = deviceOf(request.headers.get("user-agent"));
       await inc(`dev:${DEVICE_KEYS[device] || "desktop"}`);
+      // WHERE, TO THE CITY, on its own key. One field per city carrying the
+      // centroid, so the map needs a single read and no city table to keep in
+      // step with whatever the edge calls a place. Nothing is invented: no city
+      // header means no field, and the visit is still counted by continent
+      // above — which is why the continent totals stay the honest denominator.
+      const city = cityKeyFrom(
+        request.headers.get("x-vercel-ip-country"),
+        request.headers.get("x-vercel-ip-city"),
+        request.headers.get("x-vercel-ip-latitude"),
+        request.headers.get("x-vercel-ip-longitude"),
+      );
+      if (city) await hIncrBounded(STAT.cities(site, day), city, boundedCities);
       if (vid) await pfAdd(STAT.visitors(day), vid);
     } else if (type === "section_open") {
       const sec = slug(body.section);

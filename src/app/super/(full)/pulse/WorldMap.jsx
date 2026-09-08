@@ -55,7 +55,23 @@ function readTokens(el) {
   };
 }
 
-export default function WorldMap({ mode, continents, ripples, reducedMotion, rangeLabel }) {
+// A city's own coordinate, projected. `cities` carries the centroid the edge
+// reported, so there is no lookup table here and nothing to keep in step.
+//
+// JITTERED BY A HASH OF THE NAME, deterministically, up to about a third of a
+// degree. Two cities close together at 2dp would otherwise draw one dot on a
+// 1000-unit map and read as half the traffic; and a stable offset means the same
+// city sits in the same place on every render rather than shimmering between
+// polls. It moves a point by roughly a city's own width — it does not pretend to
+// locate anybody, which the 2dp rounding already settled at ingest.
+function cityPoint(city) {
+  const p = project(city.lng, city.lat);
+  let h = 0;
+  for (let i = 0; i < city.city.length; i += 1) h = (h * 31 + city.city.charCodeAt(i)) | 0;
+  return { x: p.x + ((h % 7) - 3) * 0.45, y: p.y + (((h >> 3) % 7) - 3) * 0.45 };
+}
+
+export default function WorldMap({ mode, continents, cities, ripples, reducedMotion, rangeLabel }) {
   const wrapRef = useRef(null);
   const baseRef = useRef(null);
   const fxRef = useRef(null);
@@ -179,7 +195,53 @@ export default function WorldMap({ mode, continents, ripples, reducedMotion, ran
       ctx.fill();
     }
 
-    if (mode === "bubbles") {
+    // ---- city points -------------------------------------------------------
+    // THE CITIES ARE DRAWN IN EVERY MODE THAT HAS THEM, over the continent
+    // layer rather than instead of it. The two are different populations: a
+    // visit whose edge headers carried no city is in the continent total and in
+    // no point, so a map showing only points would quietly under-report. The
+    // continent tint stays the floor; the points are what is known more
+    // precisely.
+    const points = cities || [];
+    const cityPeak = points.reduce((m, c) => Math.max(m, c.visits), 0);
+    if (points.length && (mode === "dots" || mode === "heat" || mode === "bubbles")) {
+      for (const city of points) {
+        const p = cityPoint(city);
+        const [px, py] = at(p.x, p.y);
+        const share = city.visits / (cityPeak || 1);
+        if (mode === "heat") {
+          // A soft glow that ADDS where cities overlap, which is what makes a
+          // cluster read as a cluster rather than as several equal dots.
+          const radius = 6 + 26 * Math.sqrt(share);
+          const g = ctx.createRadialGradient(px, py, 0, px, py, radius);
+          g.addColorStop(0, rgba(t.warm, 0.75));
+          g.addColorStop(1, rgba(t.warm, 0));
+          ctx.globalCompositeOperation = "lighter";
+          ctx.fillStyle = g;
+          ctx.beginPath();
+          ctx.arc(px, py, radius, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.globalCompositeOperation = "source-over";
+        } else {
+          const radius = mode === "bubbles" ? 3 + 20 * Math.sqrt(share) : 1.6 + 3.4 * Math.sqrt(share);
+          ctx.fillStyle = rgba(t.hot, mode === "bubbles" ? 0.28 : 0.95);
+          ctx.beginPath();
+          ctx.arc(px, py, radius, 0, Math.PI * 2);
+          ctx.fill();
+          if (mode === "bubbles") {
+            ctx.strokeStyle = rgba(t.hot, 0.9);
+            ctx.lineWidth = 1.2;
+            ctx.stroke();
+          }
+        }
+      }
+    }
+
+    if (mode === "bubbles" && !points.length) {
+      // CONTINENT BUBBLES ARE THE FALLBACK, not the design. Before the city
+      // counters existed there was nothing finer to draw, and every day of
+      // history from before 08/09/2026 is still like that — so a range reaching
+      // back into it still gets a readable map instead of an empty one.
       for (const [name, c] of Object.entries(centroids)) {
         const row = byName.get(name);
         if (!row || !row.visits) continue;
@@ -224,7 +286,7 @@ export default function WorldMap({ mode, continents, ripples, reducedMotion, ran
       ctx.arc(hx, hy, 4.5, 0, Math.PI * 2);
       ctx.fill();
     }
-  }, [grid, fit, box, mode, byName, centroids, peak, theme]);
+  }, [grid, fit, box, mode, byName, centroids, peak, theme, cities]);
 
   // ---- the effects layer ---------------------------------------------------
   useEffect(() => {
@@ -313,11 +375,28 @@ export default function WorldMap({ mode, continents, ripples, reducedMotion, ran
   }, [fit, box, mode, ripples, centroids, byName, reducedMotion, theme]);
 
   // ---- hover ---------------------------------------------------------------
+  // A CITY WINS OVER A CONTINENT, and inside a tighter radius. The point is the
+  // more precise answer, so it is what a pointer near it should name; the
+  // continent is what you get in the empty space between cities, which is also
+  // where its own total is the only thing that can be said.
   const onMove = (e) => {
     if (!fit) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;
+
+    let city = null;
+    for (const c of cities || []) {
+      const p = cityPoint(c);
+      const px = fit.dx + p.x * fit.s;
+      const py = fit.dy + p.y * fit.s;
+      const d = Math.hypot(px - mx, py - my);
+      if (d < 16 && (!city || d < city.d)) {
+        city = { name: `${c.city}, ${c.country}`, d, x: px, y: py, row: { visits: c.visits } };
+      }
+    }
+    if (city) { setHover(city); return; }
+
     let best = null;
     for (const [name, c] of Object.entries(centroids)) {
       const px = fit.dx + c.x * fit.s;

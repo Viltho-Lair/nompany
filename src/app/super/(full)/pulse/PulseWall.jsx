@@ -43,14 +43,20 @@ const RANGES = [
 ];
 // WHICH SYSTEM EACH PANEL IS ABOUT, said on the panel itself.
 //
-// The wall mixes two sources and they are not the same measurement: the WEBSITE
-// half is anonymous traffic counted by /api/track, and the PRODUCT half is
-// signed-in people and the studios they belong to. Reading "14" on one panel and
-// "3" on another and assuming they are the same population is the mistake this
-// label exists to stop — the reference design carries a www/ERP toggle for the
-// same reason, and a toggle is what this becomes once the website's traffic and
-// the product's are recorded in one shape.
+// The wall mixes measurements that are not the same population: the TRAFFIC
+// panels are anonymous page views counted by /api/track, and the PRODUCT panels
+// are signed-in people and the studios they belong to. Reading 14 on one and 3
+// on another and assuming they are the same people is the mistake this stops.
 const SOURCE = { www: "Website", erp: "Product" };
+
+// AND THE TRAFFIC HALF IS NOW TWO SURFACES, switchable. Both the public site and
+// the studio beacon to /api/track, into stores of their own, so "both" is the
+// pair added rather than a third counter that could disagree with its parts.
+const SOURCES = [
+  { key: "all", label: "www + ERP" },
+  { key: "www", label: "www" },
+  { key: "erp", label: "ERP" },
+];
 
 const AGGREGATE_MS = 60_000;
 const LIVE_MS = 20_000;
@@ -61,6 +67,7 @@ export default function PulseWall({ initial, initialLive }) {
   const [data, setData] = useState(initial);
   const [live, setLive] = useState(initialLive);
   const [range, setRange] = useState(initial?.range || "30d");
+  const [source, setSource] = useState(initial?.source || "all");
   const [mode, setMode] = useState("dots");
   const [clock, setClock] = useState("");
   const [ripples, setRipples] = useState([]);
@@ -113,7 +120,7 @@ export default function PulseWall({ initial, initialLive }) {
   useEffect(() => {
     let alive = true;
     const pull = () => {
-      fetch(`/api/super/pulse?range=${range}`, { cache: "no-store" })
+      fetch(`/api/super/pulse?range=${range}&source=${source}`, { cache: "no-store" })
         .then((r) => (r.ok ? r.json() : null))
         .then((d) => { if (alive && d) setData(d); })
         .catch(() => { /* a wall keeps showing the last good answer */ });
@@ -121,7 +128,7 @@ export default function PulseWall({ initial, initialLive }) {
     pull();
     const id = setInterval(pull, AGGREGATE_MS);
     return () => { alive = false; clearInterval(id); };
-  }, [range]);
+  }, [range, source]);
 
   useEffect(() => {
     let alive = true;
@@ -214,6 +221,7 @@ export default function PulseWall({ initial, initialLive }) {
     [gridRows],
   );
 
+  const cityCount = (data?.cities || []).length;
   const devices = data?.devices || [];
   const deviceColors = ["var(--ad-primary)", "var(--ad-warning)", "var(--ad-success)"];
   const countries = data?.studios?.countries || [];
@@ -250,6 +258,26 @@ export default function PulseWall({ initial, initialLive }) {
         </div>
 
         <div className="ms-auto flex items-center gap-2">
+          {/* THE SOURCE TOGGLE, and it moves only the traffic panels — the map,
+              the continent grid, the devices and the pages. "Right now" and the
+              studio counts have no www/ERP split to make: a person signed into
+              the product is not website traffic. */}
+          <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ borderColor: "var(--ad-border)" }} role="group" aria-label="Traffic source">
+            {SOURCES.map((s) => (
+              <button
+                key={s.key}
+                type="button"
+                onClick={() => setSource(s.key)}
+                aria-pressed={source === s.key}
+                className={chip}
+                style={source === s.key
+                  ? { background: "var(--ad-primary)", color: "var(--ad-primary-foreground)" }
+                  : { color: "var(--ad-muted-foreground)" }}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
           <span className="num text-sm" style={{ color: "var(--ad-muted-foreground)" }}>{clock}</span>
           {/* The product's own three-way control — light / dark / system — on the
               one cookie every other surface reads. `T` cycles it. */}
@@ -298,15 +326,27 @@ export default function PulseWall({ initial, initialLive }) {
             </div>
           </div>
 
-          {/* THE HONEST SENTENCE. A dotted world map is the most confident-
-              looking thing on a wall, and this one knows only which CONTINENT a
-              visit came from — the country header is discarded at ingest. Saying
-              so on the wall costs four lines and stops every viewer who ever
-              stands in front of it from assuming otherwise. */}
+          {/* THE HONEST SENTENCE, and it has to keep matching what is stored.
+              It said "continent and day — no city" until the city counters
+              landed; leaving that would have been a wall disclaiming precision
+              it now has. The two figures below are DIFFERENT POPULATIONS — a
+              visit the edge could not place, and every visit recorded before
+              08/09/2026, is in the continent total and in no point — so the
+              shortfall is stated rather than left to be inferred. */}
           <p className="text-[10px] leading-relaxed" style={{ color: "var(--ad-muted-foreground)" }}>
-            Traffic is recorded by <b>continent and day</b> — no city, country, IP or
-            visitor is stored. Studio counts are country-level because a studio
-            states its own country.
+            {cityCount > 0 ? (
+              <>
+                {/* The explicit space is load-bearing: JSX drops whitespace at a
+                    line boundary, so `</b> cities` on two lines renders as
+                    "14cities". */}
+                <b className="num">{fmt(cityCount)}</b>{" "}
+                cities located from the edge&apos;s own headers — city centroid
+                rounded to ~1 km. No IP, and no visitor is tied to a place.
+              </>
+            ) : (
+              <>Traffic is recorded by <b>continent and day</b>. City points begin
+                from 08/09/2026; earlier days have none.</>
+            )}
           </p>
         </div>
       </Panel>
@@ -355,6 +395,7 @@ export default function PulseWall({ initial, initialLive }) {
           <WorldMap
             mode={mode}
             continents={continents}
+            cities={data?.cities || []}
             ripples={ripples}
             reducedMotion={reduced}
             rangeLabel={rangeLabel}

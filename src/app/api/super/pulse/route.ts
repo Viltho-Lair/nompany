@@ -15,6 +15,6 @@ export const dynamic = "force-dynamic";
 // painting the wall's first frame and this route refreshing it afterwards
 // cannot drift apart about what any figure means.
 export const GET = route({ auth: "super", name: "super/pulse" }, async ({ request }) => {
-  const range = new URL(request.url).searchParams.get("range");
-  return Response.json(await readPulse(range));
+  const params = new URL(request.url).searchParams;
+  return Response.json(await readPulse(params.get("range"), params.get("source")));
 });

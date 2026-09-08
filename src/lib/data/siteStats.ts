@@ -1,19 +1,25 @@
 import { hGetAll, hSetNX } from "@/platform/db/store";
-import { STAT } from "@/platform/db/keys";
+import { STAT, type StatSite } from "@/platform/db/keys";
+import { cityFromKey } from "@/lib/geo";
 import { CONTINENTS, CONTINENT_KEYS } from "@/lib/continents";
 import { DEVICES, DEVICE_KEYS } from "@/lib/devices";
 
-// Reading the public website's traffic counters back out.
+// Reading the traffic counters back out.
 //
-// The WRITE side already existed and is untouched: /api/track increments a
-// per-day hash `stat:day:<YYYY-MM-DD>` with one field per page (`pv:<page>`)
-// plus a `pv:__total`, and SiteTracker is mounted on the MAIN WEBSITE's layout
-// only (src/app/[locale]/layout.js), never inside a studio. So "pages of the
-// main website" is already exactly what is counted, without a route list to
-// keep in step with the router.
+// /api/track increments a per-day hash with one field per page (`pv:<page>`)
+// plus a `pv:__total`, a continent, a device and — since 08/09/2026 — one field
+// per city on a key of its own. This module is the read half: whole days out of
+// those hashes, aggregated the way each dashboard asks for them.
 //
-// This module is the read half: whole days out of those hashes, aggregated the
-// way the dashboard asks for them.
+// IT IS TWO SITES NOW, NOT ONE. This header used to say SiteTracker was mounted
+// "on the MAIN WEBSITE's layout only, never inside a studio", and that was the
+// argument for why "pages of the main website" needed no route list. The studio
+// mounts one too (StudioTracker), so the two surfaces are counted separately and
+// every reader here takes a `site`.
+//
+// "www" IS THE DEFAULT EVERYWHERE, which is what makes this a widening rather
+// than a break: `stat:day:<date>` has only ever held website traffic, so every
+// existing caller keeps reading exactly what it read before.
 
 // SESSIONS are visits to the main page; PAGE VIEWS are every page. Both come
 // off the same hash, so a day is one read rather than two.
@@ -22,7 +28,13 @@ const TOTAL_FIELD = "pv:__total";
 
 // Built through the shared key module, so the read side and the write side
 // cannot drift and the integration suite stays out of the real record.
-const key = (day: string) => STAT.day(day);
+//
+// EVERY READER TAKES A SITE NOW, defaulting to "www". The default is what makes
+// this a widening rather than a break: `stat:day:<date>` has only ever held
+// website traffic, because SiteTracker was mounted on the public layout alone,
+// so every existing caller keeps reading exactly what it read before while the
+// ERP's own counters live beside it.
+const key = (day: string, site: StatSite = "www") => STAT.siteDay(site, day);
 const n = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 
 // YYYY-MM-DD in UTC, the same clock /api/track stamps with. Using the server's
@@ -58,11 +70,11 @@ export function daysOfYear(year: number): string[] {
 // One row per day: { day, sessions, pageViews }. Days with no traffic come back
 // as zeroes rather than being skipped, so a chart's x-axis stays evenly spaced
 // and a quiet Sunday reads as quiet instead of vanishing.
-export async function readDays(days: string[]) {
+export async function readDays(days: string[], site: StatSite = "www") {
   if (!days.length) return [];
   // Concurrent reads share the pool, so a month of days costs one pool
   // checkout each rather than one round trip each in series.
-  const hashes = await Promise.all(days.map((day) => hGetAll(key(day)).catch((): Record<string, string> => ({}))));
+  const hashes = await Promise.all(days.map((day) => hGetAll(key(day, site)).catch((): Record<string, string> => ({}))));
   return days.map((day, i) => {
     const h = hashes[i] || {};
     return { day, sessions: n(h[HOME_FIELD]), pageViews: n(h[TOTAL_FIELD]) };
@@ -70,9 +82,9 @@ export async function readDays(days: string[]) {
 }
 
 // Per-page totals across a span, biggest first — the table's rows.
-export async function readPages(days: string[]) {
+export async function readPages(days: string[], site: StatSite = "www") {
   if (!days.length) return [];
-  const hashes = await Promise.all(days.map((day) => hGetAll(key(day)).catch((): Record<string, string> => ({}))));
+  const hashes = await Promise.all(days.map((day) => hGetAll(key(day, site)).catch((): Record<string, string> => ({}))));
   const totals: Record<string, number> = {};
   for (const h of hashes) {
     for (const [field, value] of Object.entries(h || {})) {
@@ -91,9 +103,9 @@ export async function readPages(days: string[]) {
 // Visits per continent across a span, in the dashboard's column order. Every
 // continent is present even at zero, so the bars do not reshuffle as traffic
 // arrives from somewhere new.
-export async function readContinents(days: string[]) {
+export async function readContinents(days: string[], site: StatSite = "www") {
   const hashes = days.length
-    ? await Promise.all(days.map((day) => hGetAll(key(day)).catch((): Record<string, string> => ({}))))
+    ? await Promise.all(days.map((day) => hGetAll(key(day, site)).catch((): Record<string, string> => ({}))))
     : [];
   const totals: Record<string, number> = Object.fromEntries(CONTINENTS.map((c) => [c, 0]));
   for (const h of hashes) {
@@ -123,9 +135,9 @@ export async function readContinents(days: string[]) {
 // grid that omitted the quiet cells would reshuffle its own rows as traffic
 // arrived from somewhere new, and a row that appears halfway along reads as a
 // data gap rather than as a first visit.
-export async function readContinentDays(days: string[]) {
+export async function readContinentDays(days: string[], site: StatSite = "www") {
   const hashes = days.length
-    ? await Promise.all(days.map((day) => hGetAll(key(day)).catch((): Record<string, string> => ({}))))
+    ? await Promise.all(days.map((day) => hGetAll(key(day, site)).catch((): Record<string, string> => ({}))))
     : [];
   return days.map((day, i) => {
     const h = hashes[i] || {};
@@ -138,9 +150,9 @@ export async function readContinentDays(days: string[]) {
 // Visits per device across a span, as a SHARE of the three. Percentages rather
 // than counts, because the card asks which kind of machine people use, not how
 // many of them there were.
-export async function readDevices(days: string[]) {
+export async function readDevices(days: string[], site: StatSite = "www") {
   const hashes = days.length
-    ? await Promise.all(days.map((day) => hGetAll(key(day)).catch((): Record<string, string> => ({}))))
+    ? await Promise.all(days.map((day) => hGetAll(key(day, site)).catch((): Record<string, string> => ({}))))
     : [];
   const totals: Record<string, number> = Object.fromEntries(DEVICES.map((d) => [d, 0]));
   for (const h of hashes) {
@@ -154,6 +166,40 @@ export async function readDevices(days: string[]) {
     // than a bar of nothing.
     value: sum > 0 ? Math.round((totals[name] / sum) * 1000) / 10 : 0,
   }));
+}
+
+export type CityVisits = { country: string; city: string; lat: number; lng: number; visits: number };
+
+// WHERE THE TRAFFIC CAME FROM, to the city, summed across a span.
+//
+// Its own key rather than more fields in the day hash — see STAT.cities — so a
+// cardinality the world decides can never push the page counters into their
+// overflow bucket.
+//
+// A FIELD THAT DOES NOT PARSE IS SKIPPED, not drawn. cityFromKey refuses a
+// malformed row rather than coercing it, because (0, 0) is a real place in the
+// Atlantic and is the classic way a broken map still looks like a map. The
+// overflow bucket (`__other`) fails that parse by construction, so the tail
+// beyond the cap is counted in the store and never appears as a point — which is
+// the honest outcome: it is a number of visits with no one place to put them.
+export async function readCities(days: string[], site: StatSite = "www") {
+  const hashes = days.length
+    ? await Promise.all(days.map((day) => hGetAll(STAT.cities(site, day)).catch((): Record<string, string> => ({}))))
+    : [];
+  const totals = new Map<string, number>();
+  for (const h of hashes) {
+    for (const [field, value] of Object.entries(h || {})) {
+      totals.set(field, (totals.get(field) || 0) + n(value));
+    }
+  }
+  const out: CityVisits[] = [];
+  for (const [field, visits] of totals) {
+    const point = cityFromKey(field);
+    if (point) out.push({ ...point, visits });
+  }
+  // Busiest first, then by name so two cities of equal size do not swap places
+  // between reads and make the map look like it is moving.
+  return out.sort((a, b) => b.visits - a.visits || a.city.localeCompare(b.city));
 }
 
 // HOW MANY USERS WERE ACTIVE ON A GIVEN DAY.
