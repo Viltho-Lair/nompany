@@ -392,14 +392,65 @@ certificate was a reference and two dates with the certificate somewhere else. F
 **A status file can be wrong in both directions, and this section had one of each.**
 Grep for the thing before trusting a tick or a blank.
 
-#### §6 Inventory & Warehouse 🟡 6 / 8
+#### §6 Inventory & Warehouse ✅ 9 / 9
 Stock ✅ · Items ✅ · Project sheets ✅ · Stocktaking 🟡 (an engine register as of
 08/09/2026: planned, counted, reviewed, adjusted — and **Review goes back to Counting**,
 because a variance nobody believes is recounted rather than adjusted, which is the whole
 control a stocktake exists to be. But **`Adjusted` MOVES NO STOCK** — the register records
 that a count happened and what it found; the adjustment is Inventory's own write and is
-not wired to this) · **Locations & bins ⬜ · Batch & serial lifecycle ⬜** · Adjustment
-approval ✅ (09/09/2026) · Dashboard ⬜** · Valuation method ✅ (09/09/2026)
+not wired to this) · Locations & bins ✅ (09/09/2026) · Batch & serial lifecycle ✅
+(09/09/2026) · Adjustment approval ✅ (09/09/2026) · Dashboard ✅ · Valuation method ✅
+(09/09/2026)
+
+**THE HEADING SAID 6 / 8 OVER A LIST OF NINE, AND ONE OF THE NINE WAS ALREADY BUILT.**
+`InventoryDashboard` has rendered on the section root since before the restructure —
+"a place of its own: its own dashboard rather than a redirect", gated on
+`canViewDashboard` — and this line carried it as ⬜ anyway. Counted against the list it
+sits above, from the code, not from the prose.
+
+**INVENTORY KNEW HOW MANY AND NEVER WHERE OR WHICH.** Two registers landed together
+because they are the same shape: a BIN says where a unit is, a BATCH says which run it
+came from and when it stops being usable, and both are LABELS rather than quantities —
+what is in one is the sum of the movements naming it. `splitBy` is shared, not copied,
+because two answers to "how much is in each X" would be free to disagree about what a
+movement means, and the split summing to the company total is the one property either
+feature can break invisibly. Proven both ways in the sandbox: 4 + 2 + 5 = 11 across bins,
+12 + 8 + 10 = 30 across batches.
+
+**PUTTING STOCK AWAY IS MOVING IT, and there is ONE writer.** A net-zero pair of
+movements — `-qty` where it was, `+qty` where it went, each naming the other end —
+generalised over the field so the batch register reassigns through the identical code.
+Rewriting a movement's bin would be rewriting history in a ledger that is append-only
+precisely so a balance can be re-derived.
+
+**A BIN SITS IN ADMINISTRATION'S LOCATION**, not in a list Inventory invented: a second
+list of places would be free to disagree with the first about where the company works,
+which is what the departments register exists to stop happening to the org chart. Neither
+register mints a permission key — both answer to `inventory.stock`, the right somebody
+already holds to move what sits in the bin or carries the label.
+
+**A NEGATIVE BIN IS REPORTED AND A SHORT MOVE IS REFUSED, and they are not in tension.**
+A negative means stock left the building and the paperwork lagged — the company total is
+right and only the split is behind, so refusing would stop a warehouse whose shelves are
+correct. A move is somebody at a shelf saying they are carrying five units off it; if the
+records say three, one of the two is wrong and moving five would bury it.
+
+**`no-date` AND `empty` ARE STATES, NOT MISSING DATA.** Plenty of stock is batch-tracked
+for traceability and never expires, and an invented expiry is worse than none because
+everything downstream believes it; a batch used up before it went off is nobody's problem,
+and colouring it red buries the ones still on a shelf. FEFO suggests the soonest-expiring
+usable batch and never enforces — a system that refused every other batch is one people
+work around by not recording the batch at all, losing the traceability it exists for.
+
+**SERIALS WERE A JOIN NOBODY HAD MADE.** `item.serials` and a sheet's allocation have both
+existed for as long as Inventory has; nothing put them together, so "is this unit spoken
+for" meant opening every sheet in the studio. Three states and no more — `held`,
+`allocated`, `gone` — because a state nothing writes lies about being supported.
+
+**WHAT IS HONESTLY MISSING is in both files' "Not built yet":** a goods receipt creates no
+batch and names no bin, and issuing consumes neither, so both registers are populated
+deliberately rather than as a side effect of ordinary work. That is the next slice, and it
+is the one that makes the pair routine.
 
 **A LEVEL IS NOT A VALUE.** Inventory has always known how many of a thing it holds —
 stock is the sum of its movements, appended and never edited — and never what they cost, so
@@ -824,10 +875,10 @@ gated section.
 
 | | Built | Target | |
 |---|---|---|---|
-| Every subsection built | 8 sections | CRM & Sales, Tendering, Projects, Engineering, Procurement, Logistics, Assets, Quality & HSE | |
-| Partial | 7 sections | Inventory 6/8, Manufacturing 3/6, Field Service 8/10, HR 5/10, Finance 12/18, Reports 1/5, Administration 6/10 | |
+| Every subsection built | 9 sections | CRM & Sales, Tendering, Projects, Engineering, Procurement, Inventory, Logistics, Assets, Quality & HSE | |
+| Partial | 6 sections | Manufacturing 3/6, Field Service 8/10, HR 5/10, Finance 12/18, Reports 1/5, Administration 6/10 | |
 | Renders nothing | 0 sections | `NO_SCREEN_YET` is empty | |
-| **Subsections** | **104 built** | **130 in the target list** | **80%** |
+| **Subsections** | **107 built** | **131 in the target list** | **82%** |
 
 **THE ROW ABOVE SAID 58 / 130 / 45% AND THE THREE ROWS ABOVE IT WERE A SNAPSHOT OF A
 DIFFERENT FORTNIGHT** — four sections rendering nothing, Logistics and HR at one
@@ -835,7 +886,7 @@ subsection each, Assets and Quality not counted as built at all. Every figure he
 sum of the fifteen §-headings above it, re-added at this commit rather than carried
 forward; when one of those moves, this moves in the same edit or it is wrong again.
 
-**The gap is no longer the empty sections — there are none.** All 26 outstanding
+**The gap is no longer the empty sections — there are none.** All 24 outstanding
 subsections sit inside sections that already render and read as finished, which is the
 harder half to see: Finance is missing six, HR five, Reports four.
 
