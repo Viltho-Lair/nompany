@@ -167,7 +167,7 @@
     "journal": [
       {
         "id": "<jou_ID>",
-        "reference": "JE-0006",
+        "reference": "JE-0007",
         "date": "2031-04-11",
         "memo": "Labour on the fit-out",
         "lines": [
@@ -194,7 +194,7 @@
       },
       {
         "id": "<jou_ID>",
-        "reference": "JE-0005",
+        "reference": "JE-0006",
         "date": "2031-04-10",
         "memo": "Fee on the fit-out",
         "lines": [
@@ -213,6 +213,37 @@
         ],
         "source": {
           "kind": "manual"
+        },
+        "postedByCollaboratorId": "<col_ID>",
+        "postedAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>"
+      },
+      {
+        "id": "<jou_ID>",
+        "reference": "JE-0005",
+        "date": "<today>",
+        "memo": "Invoice INV-0008 — Acme Holdings",
+        "lines": [
+          {
+            "accountId": "<acc_ID>",
+            "debit": 28750,
+            "credit": 0
+          },
+          {
+            "accountId": "<acc_ID>",
+            "debit": 0,
+            "credit": 25000
+          },
+          {
+            "accountId": "<acc_ID>",
+            "debit": 0,
+            "credit": 3750
+          }
+        ],
+        "source": {
+          "kind": "invoice",
+          "id": "<inv_ID>"
         },
         "postedByCollaboratorId": "<col_ID>",
         "postedAt": "<timestamp>",
@@ -351,7 +382,7 @@
           "code": "1100",
           "name": "Accounts Receivable",
           "type": "asset",
-          "debit": 34750,
+          "debit": 63500,
           "credit": 0,
           "normalSide": "debit"
         },
@@ -397,7 +428,7 @@
           "name": "VAT Payable",
           "type": "liability",
           "debit": 0,
-          "credit": 3750,
+          "credit": 7500,
           "normalSide": "credit"
         },
         {
@@ -424,7 +455,7 @@
           "name": "Revenue",
           "type": "income",
           "debit": 0,
-          "credit": 31000,
+          "credit": 56000,
           "normalSide": "credit"
         },
         {
@@ -473,8 +504,8 @@
           "normalSide": "debit"
         }
       ],
-      "totalDebit": 42050,
-      "totalCredit": 42050,
+      "totalDebit": 70800,
+      "totalCredit": 70800,
       "balanced": true
     },
     "profitAndLoss": {
@@ -513,7 +544,7 @@
           "accountId": "<acc_ID>",
           "code": "1100",
           "name": "Accounts Receivable",
-          "amount": 34750
+          "amount": 63500
         }
       ],
       "liability": [
@@ -527,7 +558,7 @@
           "accountId": "<acc_ID>",
           "code": "2100",
           "name": "VAT Payable",
-          "amount": 3750
+          "amount": 7500
         }
       ],
       "equity": [
@@ -538,10 +569,10 @@
           "amount": 5000
         }
       ],
-      "totalAssets": 39750,
-      "totalLiabilities": 6050,
+      "totalAssets": 68500,
+      "totalLiabilities": 9800,
       "totalEquity": 5000,
-      "retainedResult": 28700,
+      "retainedResult": 53700,
       "difference": 0,
       "balanced": true
     },
@@ -554,9 +585,9 @@
       },
       {
         "value": "",
-        "income": 29000,
+        "income": 54000,
         "expense": 1500,
-        "profit": 27500
+        "profit": 52500
       }
     ],
     "canPost": true,

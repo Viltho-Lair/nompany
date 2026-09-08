@@ -123,6 +123,201 @@ export const BUILTIN_TYPES = [
     ],
     version: 1,
   },
+  {
+    // VERIFIED IS NOT CLOSED. Agreeing a corrective action and proving it
+    // worked are two events, and a register that collapses them cannot answer
+    // the only question an auditor asks: did the fix hold. The short path
+    // Investigating -> Closed is the finding that turns out not to be one.
+    key: "ncr",
+    label: "NCRs and CAPAs",
+    parentSectionKey: "quality-hse",
+    fields: [
+      { key: "title", label: "Title", kind: "text", required: true },
+      { key: "description", label: "What was found", kind: "longtext", required: true },
+      { key: "severity", label: "Severity", kind: "select", options: ["Minor", "Major", "Critical"] },
+      { key: "raisedOn", label: "Raised", kind: "date" },
+      { key: "rootCause", label: "Root cause", kind: "longtext" },
+      { key: "correctiveAction", label: "Corrective action", kind: "longtext" },
+      { key: "dueBy", label: "Action due", kind: "date" },
+    ],
+    columns: ["title", "severity", "dueBy"],
+    statuses: ["Open", "Investigating", "Action agreed", "Verified", "Closed"],
+    transitions: [
+      { from: "Open", to: "Investigating" },
+      { from: "Investigating", to: "Action agreed" },
+      { from: "Action agreed", to: "Verified" },
+      { from: "Verified", to: "Closed" },
+      { from: "Investigating", to: "Closed" },
+    ],
+    version: 1,
+  },
+  {
+    key: "audit",
+    label: "Audits",
+    parentSectionKey: "quality-hse",
+    fields: [
+      { key: "title", label: "Title", kind: "text", required: true },
+      { key: "scope", label: "Scope", kind: "longtext" },
+      { key: "auditor", label: "Auditor", kind: "text" },
+      { key: "standard", label: "Standard", kind: "select", options: ["ISO 9001", "ISO 14001", "ISO 45001", "Internal", "Client", "Other"] },
+      { key: "plannedOn", label: "Planned", kind: "date" },
+      { key: "findings", label: "Findings", kind: "longtext" },
+    ],
+    columns: ["title", "standard", "plannedOn"],
+    statuses: ["Planned", "In progress", "Reported", "Closed"],
+    transitions: [
+      { from: "Planned", to: "In progress" },
+      { from: "In progress", to: "Reported" },
+      { from: "Reported", to: "Closed" },
+      { from: "Planned", to: "Closed" },
+    ],
+    version: 1,
+  },
+  {
+    // `daysLost` IS A NUMBER AND THEREFORE NULLABLE, which is what makes an
+    // LTIFR possible later: nought days lost and nobody having said yet are
+    // different facts, and a rate computed over the second as though it were
+    // the first understates exactly what the rate exists to expose.
+    key: "incident",
+    label: "HSE incidents",
+    parentSectionKey: "quality-hse",
+    fields: [
+      { key: "title", label: "Title", kind: "text", required: true },
+      { key: "happenedOn", label: "Date", kind: "date", required: true },
+      { key: "kind", label: "Kind", kind: "select", options: ["Near miss", "First aid", "Medical treatment", "Lost time", "Environmental", "Property damage"] },
+      { key: "daysLost", label: "Days lost", kind: "number" },
+      { key: "description", label: "What happened", kind: "longtext", required: true },
+      { key: "immediateAction", label: "Immediate action", kind: "longtext" },
+    ],
+    columns: ["title", "kind", "happenedOn"],
+    statuses: ["Reported", "Investigating", "Closed"],
+    transitions: [
+      { from: "Reported", to: "Investigating" },
+      { from: "Investigating", to: "Closed" },
+    ],
+    version: 1,
+  },
+  {
+    // A PERMIT IS CANCELLED, NEVER DELETED. It is the record that work was
+    // authorised on a particular day, and the day something goes wrong is the
+    // day somebody asks to see it.
+    key: "permit",
+    label: "Permits to work",
+    parentSectionKey: "quality-hse",
+    fields: [
+      { key: "title", label: "Title", kind: "text", required: true },
+      { key: "kind", label: "Kind", kind: "select", options: ["Hot work", "Confined space", "Working at height", "Excavation", "Electrical", "Lifting"] },
+      { key: "location", label: "Location", kind: "text" },
+      { key: "validFrom", label: "Valid from", kind: "date" },
+      { key: "validTo", label: "Valid to", kind: "date" },
+      { key: "precautions", label: "Precautions", kind: "longtext" },
+    ],
+    columns: ["title", "kind", "validTo"],
+    statuses: ["Requested", "Issued", "Closed", "Cancelled"],
+    transitions: [
+      { from: "Requested", to: "Issued" },
+      { from: "Issued", to: "Closed" },
+      { from: "Requested", to: "Cancelled" },
+      { from: "Issued", to: "Cancelled" },
+    ],
+    version: 1,
+  },
+  {
+    key: "toolbox",
+    label: "Toolbox talks",
+    parentSectionKey: "quality-hse",
+    fields: [
+      { key: "topic", label: "Topic", kind: "text", required: true },
+      { key: "heldOn", label: "Held", kind: "date" },
+      { key: "presenter", label: "Presenter", kind: "text" },
+      { key: "attendees", label: "Attendees", kind: "number" },
+      { key: "notes", label: "Notes", kind: "longtext" },
+    ],
+    columns: ["topic", "heldOn", "attendees"],
+    statuses: ["Planned", "Held"],
+    transitions: [
+      { from: "Planned", to: "Held" },
+    ],
+    version: 1,
+  },
+  {
+    // THE HIRE RATE LIVES ON THE ASSET because it is what the studio charges
+    // ITSELF to put this machine on a job. Nothing consumes it yet — charging
+    // a deal for utilisation is its own slice — and it is stored now so the
+    // register does not have to be rebuilt when that lands.
+    key: "equipment",
+    label: "Equipment register",
+    parentSectionKey: "assets",
+    fields: [
+      { key: "name", label: "Name", kind: "text", required: true },
+      { key: "assetTag", label: "Asset tag", kind: "text" },
+      { key: "category", label: "Category", kind: "select", options: ["Plant", "Vehicle", "Tool", "IT", "Instrument", "Other"] },
+      { key: "serial", label: "Serial", kind: "text" },
+      { key: "acquiredOn", label: "Acquired", kind: "date" },
+      { key: "hireRate", label: "Internal hire rate", kind: "money" },
+      { key: "location", label: "Location", kind: "text" },
+    ],
+    columns: ["name", "assetTag", "category"],
+    statuses: ["In service", "Under repair", "Idle", "Disposed"],
+    transitions: [
+      { from: "In service", to: "Under repair" },
+      { from: "Under repair", to: "In service" },
+      { from: "In service", to: "Idle" },
+      { from: "Idle", to: "In service" },
+      { from: "Idle", to: "Disposed" },
+      { from: "Under repair", to: "Disposed" },
+    ],
+    version: 1,
+  },
+  {
+    key: "maintenance",
+    label: "Maintenance",
+    parentSectionKey: "assets",
+    fields: [
+      { key: "title", label: "Title", kind: "text", required: true },
+      { key: "assetTag", label: "Asset tag", kind: "text" },
+      { key: "kind", label: "Kind", kind: "select", options: ["Preventive", "Corrective", "Inspection"] },
+      { key: "dueOn", label: "Due", kind: "date" },
+      { key: "completedOn", label: "Completed", kind: "date" },
+      { key: "cost", label: "Cost", kind: "money" },
+      { key: "notes", label: "Notes", kind: "longtext" },
+    ],
+    columns: ["title", "kind", "dueOn"],
+    statuses: ["Due", "In progress", "Done", "Skipped"],
+    transitions: [
+      { from: "Due", to: "In progress" },
+      { from: "In progress", to: "Done" },
+      { from: "Due", to: "Skipped" },
+    ],
+    version: 1,
+  },
+  {
+    // EXPIRED RETURNS TO VALID because an instrument is RECALIBRATED rather
+    // than replaced: the certificate number changes and the instrument does
+    // not, so a fresh row each time would lose the history that proves it has
+    // been in calibration all along.
+    key: "calibration",
+    label: "Calibration",
+    parentSectionKey: "assets",
+    fields: [
+      { key: "instrument", label: "Instrument", kind: "text", required: true },
+      { key: "assetTag", label: "Asset tag", kind: "text" },
+      { key: "certificate", label: "Certificate", kind: "text" },
+      { key: "calibratedOn", label: "Calibrated", kind: "date" },
+      { key: "dueOn", label: "Next due", kind: "date" },
+      { key: "issuedBy", label: "Calibrated by", kind: "text" },
+    ],
+    columns: ["instrument", "certificate", "dueOn"],
+    statuses: ["Valid", "Due", "Expired", "Withdrawn"],
+    transitions: [
+      { from: "Valid", to: "Due" },
+      { from: "Due", to: "Valid" },
+      { from: "Due", to: "Expired" },
+      { from: "Expired", to: "Valid" },
+      { from: "Valid", to: "Withdrawn" },
+    ],
+    version: 1,
+  },
 ] as const;
 
 const Types = repo<RecordType>("recordTypes");

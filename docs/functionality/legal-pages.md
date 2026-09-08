@@ -88,6 +88,20 @@ the terms in force actually change** — Annex B disclosed what the product alre
 §17's thirty-day material-change notice was not engaged and the Terms' effective date stayed
 at 07/08/2026 while `updated` moved to 04/09/2026.
 
+## Changing the words on these pages
+
+**Run `npm run sitemap` in the same commit.** The sitemap's `lastmod` for `/terms` and
+`/privacy` is a hash of these pages' sources, not a date somebody keeps — so editing the
+copy makes the committed answer stale, and `restructure.mjs` fails until it is
+regenerated. That check runs BEFORE Gate A and `npm test` stops at the first failing
+file, so a stale date blocks every suite run in the repository, for every session, not
+just the one that edited the page.
+
+**It has gone stale twice in one day**, both times from an edit to the legal copy, and
+each time it cost other people a full suite cycle before anybody traced it back here.
+The command is idempotent and the date only moves when the content hash moves, so
+running it when nothing changed is free.
+
 ## Not built yet
 
 - **No consent record, and no acceptance timestamp.** Nothing stores that a given user saw or

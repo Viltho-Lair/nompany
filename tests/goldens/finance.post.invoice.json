@@ -1,37 +1,6 @@
 {
-  "status": 201,
+  "status": 400,
   "body": {
-    "ok": true,
-    "entry": {
-      "id": "<jou_ID>",
-      "reference": "JE-0004",
-      "date": "<today>",
-      "memo": "Invoice INV-0007 — Acme Holdings",
-      "lines": [
-        {
-          "accountId": "<acc_ID>",
-          "debit": 28750,
-          "credit": 0
-        },
-        {
-          "accountId": "<acc_ID>",
-          "debit": 0,
-          "credit": 25000
-        },
-        {
-          "accountId": "<acc_ID>",
-          "debit": 0,
-          "credit": 3750
-        }
-      ],
-      "source": {
-        "kind": "invoice",
-        "id": "<inv_ID>"
-      },
-      "postedByCollaboratorId": "<col_ID>",
-      "postedAt": "<timestamp>",
-      "studioId": "<std_ID>",
-      "sectionId": "<sub_ID>"
-    }
+    "error": "already-posted"
   }
 }

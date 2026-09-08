@@ -186,12 +186,39 @@ function cleanLines(
  * `source` lets an automated posting (an invoice, a bill) name what it came
  * from; a hand-posted adjustment is `{ kind: "manual" }`.
  */
+/**
+ * WHO IS ALLOWED TO PUT A LINE IN THE BOOKS, and the one case where the answer
+ * is "the studio" rather than "this person".
+ *
+ * `finance.ledger.post` is the right to keep the books BY HAND — to decide that
+ * a number belongs in an account and type it in. Almost nobody holds it, and
+ * that is correct.
+ *
+ * AN AUTOMATIC POSTING IS NOT THAT ACT. When somebody issues an invoice, the
+ * ledger entry is a CONSEQUENCE of a decision they were already authorised to
+ * make: the right to issue the document is the authority, and the accounts the
+ * entry touches were chosen by `postInvoice`, not by them. Asking for
+ * `finance.ledger.post` there would mean the books are complete only for studios
+ * whose invoice clerks also hold ledger rights — which is to say, silently
+ * incomplete for exactly the studios least likely to notice.
+ *
+ * SO `system: true` SKIPS THE PERMISSION AND NOTHING ELSE. Every other check
+ * still runs: the entry must balance, the accounts must exist and be active, the
+ * document must be in a postable state, and it must not already be posted. It is
+ * a deliberate bypass in ONE named place, greppable, and it is never reachable
+ * from a request body — only from the document paths in `./posting`.
+ */
+export type PostOptions = { system?: boolean };
+
 export async function postEntry(
   ctx: FinanceContext,
   body: { date?: unknown; memo?: unknown; lines?: unknown; source?: { kind?: string; id?: string } },
+  options: PostOptions = {},
 ) {
-  const denied = requirePermission(ctx.access, "finance.ledger.post");
-  if (denied) return denied;
+  if (!options.system) {
+    const denied = requirePermission(ctx.access, "finance.ledger.post");
+    if (denied) return denied;
+  }
 
   const { studio, ledgerSection, collaborator } = ctx;
   const accounts = await ledgerAccounts(ctx);
@@ -403,9 +430,11 @@ function alreadyPosted(entries: JournalEntry[], kind: string, id: string) {
  * arithmetic — but postEntry checks it anyway, because "by construction" is
  * exactly the assumption that rots.
  */
-export async function postInvoice(ctx: FinanceContext, invoiceId: string) {
-  const denied = requirePermission(ctx.access, "finance.ledger.post");
-  if (denied) return denied;
+export async function postInvoice(ctx: FinanceContext, invoiceId: string, options: PostOptions = {}) {
+  if (!options.system) {
+    const denied = requirePermission(ctx.access, "finance.ledger.post");
+    if (denied) return denied;
+  }
 
   const invoice = (await Invoices.find({ studio: ctx.studio, section: ctx.cashSection }))
     .find((i) => i.id === invoiceId);
@@ -432,7 +461,7 @@ export async function postInvoice(ctx: FinanceContext, invoiceId: string) {
     memo: `Invoice ${invoice.reference}${invoice.clientName ? ` — ${invoice.clientName}` : ""}`,
     source: { kind: "invoice", id: invoiceId },
     lines,
-  });
+  }, options);
 }
 
 /**
@@ -440,9 +469,11 @@ export async function postInvoice(ctx: FinanceContext, invoiceId: string) {
  * paid from. Two lines, and they balance because an expense is a single amount
  * moving from one place to another.
  */
-export async function postExpense(ctx: FinanceContext, expenseId: string) {
-  const denied = requirePermission(ctx.access, "finance.ledger.post");
-  if (denied) return denied;
+export async function postExpense(ctx: FinanceContext, expenseId: string, options: PostOptions = {}) {
+  if (!options.system) {
+    const denied = requirePermission(ctx.access, "finance.ledger.post");
+    if (denied) return denied;
+  }
 
   const expense = (await Expenses.find({ studio: ctx.studio, section: ctx.cashSection }))
     .find((e) => e.id === expenseId);
@@ -463,7 +494,7 @@ export async function postExpense(ctx: FinanceContext, expenseId: string) {
       { accountId: byCode.get(expenseCode), debit: expense.amount },
       { accountId: byCode.get(BANK), credit: expense.amount },
     ],
-  });
+  }, options);
 }
 
 // AP is the mirror of AR: the accounts an invoice credits, a bill debits.
@@ -478,9 +509,11 @@ const AP = "2000";       // Accounts Payable
  * the expense account the same way an expense does; otherwise it is Cost of
  * Sales, the ordinary home for a vendor bill.
  */
-export async function postBill(ctx: FinanceContext, billId: string) {
-  const denied = requirePermission(ctx.access, "finance.ledger.post");
-  if (denied) return denied;
+export async function postBill(ctx: FinanceContext, billId: string, options: PostOptions = {}) {
+  if (!options.system) {
+    const denied = requirePermission(ctx.access, "finance.ledger.post");
+    if (denied) return denied;
+  }
 
   const bill = (await repo<Row>("bills").find({ studio: ctx.studio, section: ctx.payablesSection }))
     .find((b) => b.id === billId) as (Row & { status?: string; category?: string; billDate?: string; reference?: string; vendorName?: string }) | undefined;
@@ -508,7 +541,7 @@ export async function postBill(ctx: FinanceContext, billId: string) {
     memo: `Bill ${bill.reference}${bill.vendorName ? ` — ${bill.vendorName}` : ""}`,
     source: { kind: "bill", id: billId },
     lines,
-  });
+  }, options);
 }
 
 /**
@@ -516,9 +549,11 @@ export async function postBill(ctx: FinanceContext, billId: string) {
  * credit the bank it left from. The mirror of postPayment. The payment lives
  * inside its bill; its own id is the source, so each posts at most once.
  */
-export async function postBillPayment(ctx: FinanceContext, billId: string, paymentId: string) {
-  const denied = requirePermission(ctx.access, "finance.ledger.post");
-  if (denied) return denied;
+export async function postBillPayment(ctx: FinanceContext, billId: string, paymentId: string, options: PostOptions = {}) {
+  if (!options.system) {
+    const denied = requirePermission(ctx.access, "finance.ledger.post");
+    if (denied) return denied;
+  }
 
   const bill = (await repo<Row>("bills").find({ studio: ctx.studio, section: ctx.payablesSection }))
     .find((b) => b.id === billId) as (Row & { payments?: { id: string; amount: number; date?: string }[]; reference?: string }) | undefined;
@@ -540,7 +575,7 @@ export async function postBillPayment(ctx: FinanceContext, billId: string, payme
       { accountId: byCode.get(AP), debit: payment.amount },
       { accountId: byCode.get(BANK), credit: payment.amount },
     ],
-  });
+  }, options);
 }
 
 /**
@@ -549,9 +584,11 @@ export async function postBillPayment(ctx: FinanceContext, billId: string, payme
  * inside its invoice, so it is addressed by both ids; its own id is the source,
  * so each payment posts at most once even when several land on one invoice.
  */
-export async function postPayment(ctx: FinanceContext, invoiceId: string, paymentId: string) {
-  const denied = requirePermission(ctx.access, "finance.ledger.post");
-  if (denied) return denied;
+export async function postPayment(ctx: FinanceContext, invoiceId: string, paymentId: string, options: PostOptions = {}) {
+  if (!options.system) {
+    const denied = requirePermission(ctx.access, "finance.ledger.post");
+    if (denied) return denied;
+  }
 
   const invoice = (await Invoices.find({ studio: ctx.studio, section: ctx.cashSection }))
     .find((i) => i.id === invoiceId);
@@ -573,5 +610,5 @@ export async function postPayment(ctx: FinanceContext, invoiceId: string, paymen
       { accountId: byCode.get(BANK), debit: payment.amount },
       { accountId: byCode.get(AR), credit: payment.amount },
     ],
-  });
+  }, options);
 }

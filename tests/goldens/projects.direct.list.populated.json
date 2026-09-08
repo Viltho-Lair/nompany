@@ -71,7 +71,15 @@
       "tasks-settings": true,
       "engine-transmittal": true,
       "engine-rfi": true,
-      "engine-submittal": true
+      "engine-submittal": true,
+      "engine-ncr": true,
+      "engine-audit": true,
+      "engine-incident": true,
+      "engine-permit": true,
+      "engine-toolbox": true,
+      "engine-equipment": true,
+      "engine-maintenance": true,
+      "engine-calibration": true
     },
     "manage": {
       "main": false,
@@ -136,7 +144,15 @@
       "tasks-settings": true,
       "engine-transmittal": true,
       "engine-rfi": true,
-      "engine-submittal": true
+      "engine-submittal": true,
+      "engine-ncr": true,
+      "engine-audit": true,
+      "engine-incident": true,
+      "engine-permit": true,
+      "engine-toolbox": true,
+      "engine-equipment": true,
+      "engine-maintenance": true,
+      "engine-calibration": true
     },
     "projects": [
       {
@@ -430,6 +446,10 @@
       },
       {
         "id": "<col_ID>",
+        "alias": "cashclerk"
+      },
+      {
+        "id": "<col_ID>",
         "alias": "hrasker"
       },
       {
@@ -589,6 +609,12 @@
         {
           "id": "<col_ID>",
           "alias": "billapprover",
+          "departmentId": "",
+          "departmentName": ""
+        },
+        {
+          "id": "<col_ID>",
+          "alias": "cashclerk",
           "departmentId": "",
           "departmentName": ""
         },

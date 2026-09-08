@@ -10,6 +10,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
+    "sitemap": "node scripts/sitemap-lastmod.mjs --write",
     "test:access": "node tests/access.test.mjs",
     "test:desktop": "node tests/desktop-transport.test.mjs",
     "test:auth-refusals": "node tests/auth-refusals.mjs",

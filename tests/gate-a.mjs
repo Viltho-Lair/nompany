@@ -4094,6 +4094,55 @@ console.log("== finance: a number that only goes forward, and money that is deri
     String(bs?.retainedResult));
   await shot("finance.ledger.books", books);
 
+  // ---- issuing an invoice posts it, without a ledger right -----------------
+  //
+  // THE AUTHORITY IS THE DOCUMENT'S. `postEntry` requires `finance.ledger.post`,
+  // which is the right to keep the books BY HAND, and almost nobody holds it. An
+  // automatic posting is not that act: the person issuing the invoice was
+  // already authorised to do the thing that makes the entry true, and the
+  // accounts were chosen by `postInvoice` rather than by them. Requiring the
+  // ledger right here would leave the books complete only for studios whose
+  // invoice clerks happen to hold one.
+  // EXACTLY THE RIGHTS AN INVOICE CLERK HOLDS, AND NOT ONE MORE: raise, edit,
+  // read. Creating needs `finance.cash.create` — the first draft of this
+  // fixture left it out and the clerk could not raise the invoice at all,
+  // which read as "auto-posting failed" when nothing had been posted because
+  // nothing had been created. Deliberately WITHOUT `finance.ledger.post`,
+  // which is the whole point of the assertion below.
+  const cashOnly = await personWith(
+    ["finance.cash.view", "finance.cash.create", "finance.cash.edit"], "cashclerk");
+  await signIn(cashOnly.id);
+  const clerkInvoice = await capture(
+    INVOICES.POST, req(`/api/studios/${slug}/finance/invoices`, { method: "POST", body: {
+      clientName: "Acme Holdings", lines: LINES, vatRate: 15,
+    } }), P);
+  const clerkId = clerkInvoice.body?.invoice?.id;
+  const issued = await shot("finance.autopost.issued", await capture(
+    INVOICES.PUT, req(`/api/studios/${slug}/finance/invoices`, {
+      method: "PUT", body: { id: clerkId, status: "Sent" },
+    }), P));
+  ok("A CLERK WITH NO LEDGER RIGHT STILL POSTS THE INVOICE",
+    issued.body?.posting?.posted === true, JSON.stringify(issued.body?.posting));
+
+  // AND THE SAME PERSON MAY NOT KEEP THE BOOKS BY HAND. The bypass is one named
+  // place, not a widening of what they hold.
+  await shot("finance.autopost.manual.refused", await capture(
+    LEDGER.POST, req(ledgerPath, { method: "POST", body: {
+      date: "2031-05-01", memo: "By hand", lines: [
+        { accountId: acc("1000"), debit: 10, credit: 0 },
+        { accountId: acc("3000"), debit: 0, credit: 10 },
+      ],
+    } }), P));
+
+  await signIn(owner.id);
+  // ONLY ON THE TRANSITION. A second save of an already-issued invoice must not
+  // re-post, and must not report a posting it did not do.
+  const resaved = await capture(INVOICES.PUT, req(`/api/studios/${slug}/finance/invoices`, {
+    method: "PUT", body: { id: clerkId, notes: "chased" },
+  }), P);
+  ok("...and re-saving an issued invoice posts nothing",
+    resaved.body?.posting === undefined, JSON.stringify(resaved.body?.posting));
+
   // ---- a document posts itself into the books ------------------------------
   //
   // FIVE POSTING FUNCTIONS EXISTED COMPLETE AND UNREACHABLE. postInvoice,
@@ -4118,19 +4167,27 @@ console.log("== finance: a number that only goes forward, and money that is deri
   await capture(INVOICES.PUT, req(`/api/studios/${slug}/finance/invoices`, {
     method: "PUT", body: { id: draftId, status: "Sent" },
   }), P);
+  // ISSUING IT ALREADY BOOKED IT. Setting the status to Sent above auto-posts,
+  // so by the time this asks, the entry exists — and this assertion changed when
+  // auto-posting landed, which is the interaction worth keeping visible. A
+  // register that was posted by hand a moment ago is now posted by the act of
+  // issuing, and the manual call is a DUPLICATE rather than the first booking.
   const booked = await shot("finance.post.invoice", await postDoc({
     kind: "invoice", id: draftId,
   }));
-  ok("an issued invoice posts to the ledger", Boolean(booked.body?.entry?.id),
-    JSON.stringify(booked.body).slice(0, 140));
-  ok("...balanced, like every other entry",
-    (booked.body?.entry?.lines || []).length === 3,
-    String((booked.body?.entry?.lines || []).length));
+  ok("issuing already booked it, so a manual post is a duplicate",
+    booked.body?.error === "already-posted", JSON.stringify(booked.body).slice(0, 140));
 
-  // AND NOT TWICE. `alreadyPosted` reads the journal for an entry naming this
-  // document; without it a second call would double the revenue and the books
-  // would still balance, which is the worst kind of wrong.
-  await shot("finance.post.invoice.twice", await postDoc({ kind: "invoice", id: draftId }));
+  // AND THE ENTRY IT REFUSES TO DUPLICATE IS A REAL ONE: three lines, from the
+  // automatic posting. `alreadyPosted` is what stands between one invoice and
+  // two bookings of it — without it the revenue doubles AND THE BOOKS STILL
+  // BALANCE, which is the worst kind of wrong because nothing downstream flags
+  // it.
+  const afterIssue = await capture(LEDGER.GET, req(ledgerPath), P);
+  const invoiceEntry = (afterIssue.body?.journal || [])
+    .find((e) => e.source?.kind === "invoice" && e.source?.id === draftId);
+  ok("...and the automatic entry is the balanced one", (invoiceEntry?.lines || []).length === 3,
+    String((invoiceEntry?.lines || []).length));
 
   // THE DISPATCHER TAKES A CLOSED SET. A kind it has not been taught chooses no
   // code path, rather than falling through to one.

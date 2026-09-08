@@ -33,7 +33,14 @@ export const PUT = route(spec, async (fin) => {
     : await editInvoice(fin, fin.body.id, fin.body);
 
   if (refused(result)) return result;
-  return { ok: true, invoice: result.invoice };
+  // THE POSTING TRAVELS WITH THE INVOICE. Issuing one books it, and that can
+  // refuse for reasons the issuer can do nothing about — a chart missing an
+  // account, an entry already there. The document write is not undone by it, so
+  // the only honest thing is to hand back both answers and let the screen say
+  // "issued, but not posted" rather than let the studio find out months later
+  // that its books are an entry short.
+  const posting = (result as { posting?: unknown }).posting;
+  return { ok: true, invoice: result.invoice, ...(posting ? { posting } : {}) };
 });
 
 // An issued invoice is part of the record — cancel it rather than erasing what

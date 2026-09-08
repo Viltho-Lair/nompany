@@ -72,7 +72,15 @@
       "tasks-settings": true,
       "engine-transmittal": true,
       "engine-rfi": true,
-      "engine-submittal": true
+      "engine-submittal": true,
+      "engine-ncr": true,
+      "engine-audit": true,
+      "engine-incident": true,
+      "engine-permit": true,
+      "engine-toolbox": true,
+      "engine-equipment": true,
+      "engine-maintenance": true,
+      "engine-calibration": true
     },
     "sections": [
       {
@@ -368,6 +376,46 @@
       {
         "key": "engine-submittal",
         "name": "Submittals",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "engine-ncr",
+        "name": "NCRs and CAPAs",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "engine-audit",
+        "name": "Audits",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "engine-incident",
+        "name": "HSE incidents",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "engine-permit",
+        "name": "Permits to work",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "engine-toolbox",
+        "name": "Toolbox talks",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "engine-equipment",
+        "name": "Equipment register",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "engine-maintenance",
+        "name": "Maintenance",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "engine-calibration",
+        "name": "Calibration",
         "parentId": "<sec_ID>"
       }
     ],

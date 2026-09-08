@@ -14,6 +14,7 @@ import {
   postInvoice, postExpense, postBill, postBillPayment, postPayment,
 } from "./ledger";
 import type { FinanceContext } from "./types";
+import type { PostOptions } from "./ledger";
 
 /** What can be posted. A closed set: the dispatcher must never take a name it
  *  has not been taught, or a caller chooses which code path runs. */
@@ -37,6 +38,7 @@ export async function postDocument(
   kind: unknown,
   id: unknown,
   paymentId?: unknown,
+  options: PostOptions = {},
 ) {
   if (!isPostable(kind)) return { error: "kind" };
   const documentId = String(id ?? "").trim();
@@ -48,11 +50,43 @@ export async function postDocument(
   }
 
   switch (kind) {
-    case "invoice": return postInvoice(ctx, documentId);
-    case "expense": return postExpense(ctx, documentId);
-    case "bill": return postBill(ctx, documentId);
-    case "bill-payment": return postBillPayment(ctx, documentId, payment);
-    case "payment": return postPayment(ctx, documentId, payment);
+    case "invoice": return postInvoice(ctx, documentId, options);
+    case "expense": return postExpense(ctx, documentId, options);
+    case "bill": return postBill(ctx, documentId, options);
+    case "bill-payment": return postBillPayment(ctx, documentId, payment, options);
+    case "payment": return postPayment(ctx, documentId, payment, options);
     default: return { error: "kind" };
   }
+}
+
+/**
+ * POST A DOCUMENT AS A CONSEQUENCE OF THE ACT THAT CREATED IT.
+ *
+ * THE AUTHORITY IS THE DOCUMENT'S, NOT THE LEDGER'S. Somebody issuing an invoice
+ * has already been authorised to do the thing that makes the entry true; the
+ * accounts it touches were chosen by `postInvoice` and not by them. Requiring
+ * `finance.ledger.post` here would leave the books complete only for studios
+ * whose invoice clerks happen to hold ledger rights.
+ *
+ * IT NEVER FAILS THE DOCUMENT. The invoice was issued; that happened. If the
+ * ledger cannot take it — the chart is missing an account, the entry is already
+ * posted — the refusal is RETURNED for the caller to surface, not thrown away
+ * and not allowed to undo a write that already succeeded. A studio finding out
+ * later that its books are short an entry is bad; a studio unable to invoice
+ * because its chart of accounts is incomplete is worse.
+ *
+ * SO THE CALLER GETS BOTH ANSWERS and decides what to say. Nothing here logs,
+ * because a silent log is how "the books are complete" becomes untrue quietly.
+ */
+export async function autoPost(
+  ctx: FinanceContext,
+  kind: Postable,
+  id: string,
+  paymentId?: string,
+): Promise<{ posted: true; entryId: string } | { posted: false; reason: string }> {
+  const result = await postDocument(ctx, kind, id, paymentId, { system: true });
+  const failed = result as { error?: unknown };
+  if (failed?.error) return { posted: false, reason: String(failed.error) };
+  const ok = result as { entry?: { id?: unknown } };
+  return { posted: true, entryId: String(ok?.entry?.id ?? "") };
 }

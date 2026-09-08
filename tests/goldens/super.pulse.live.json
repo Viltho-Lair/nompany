@@ -2,8 +2,8 @@
   "status": 200,
   "body": {
     "asOf": "<timestamp>",
-    "activeNow": 32,
-    "people": 33,
+    "activeNow": 33,
+    "people": 34,
     "studios": 1,
     "arrivals": [
       {

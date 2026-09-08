@@ -390,6 +390,54 @@
         "key": "engine-submittal",
         "name": "Submittals",
         "enabled": true
+      },
+      {
+        "id": "<sub_ID>",
+        "key": "engine-ncr",
+        "name": "NCRs and CAPAs",
+        "enabled": true
+      },
+      {
+        "id": "<sub_ID>",
+        "key": "engine-audit",
+        "name": "Audits",
+        "enabled": true
+      },
+      {
+        "id": "<sub_ID>",
+        "key": "engine-incident",
+        "name": "HSE incidents",
+        "enabled": true
+      },
+      {
+        "id": "<sub_ID>",
+        "key": "engine-permit",
+        "name": "Permits to work",
+        "enabled": true
+      },
+      {
+        "id": "<sub_ID>",
+        "key": "engine-toolbox",
+        "name": "Toolbox talks",
+        "enabled": true
+      },
+      {
+        "id": "<sub_ID>",
+        "key": "engine-equipment",
+        "name": "Equipment register",
+        "enabled": true
+      },
+      {
+        "id": "<sub_ID>",
+        "key": "engine-maintenance",
+        "name": "Maintenance",
+        "enabled": true
+      },
+      {
+        "id": "<sub_ID>",
+        "key": "engine-calibration",
+        "name": "Calibration",
+        "enabled": true
       }
     ]
   }

@@ -400,16 +400,30 @@ compliance ⬜ · Customs & freight, landed cost ⬜ · Dashboard ⬜**
 **The thinnest built section in the product**, against Delivery & Transportation being a
 sellable service action in 13 of the 25 fields of work.
 
-#### §10 Assets & Equipment ⬜ 0 / 4
-**Allocation to deals with internal hire rates ⬜ · Utilisation & cost charged to deals ⬜
-· Equipment maintenance ⬜ · Calibration ⬜**  {M}  renders nothing.
-**Needed by 20 of the 25 fields of work** {M} the widest gap in the product.
+#### §10 Assets & Equipment 🟡 2 / 4
+Allocation to deals with internal hire rates 🟡 (the register holds `hireRate`; **nothing
+allocates or charges**) · **Utilisation & cost charged to deals ⬜** · Equipment
+maintenance ✅ · Calibration ✅
 
-#### §11 Quality & HSE ⬜ 0 / 8
-**ITPs ⬜ · Inspection & test records ⬜ · NCR / CAPA ⬜ · Audits ⬜ · HSE incidents with
-LTIFR ⬜ · Permits to work & toolbox talks ⬜ · Certifications ⬜ · Dashboard ⬜**
-Renders nothing. **Needed by 17 of the 25 fields** {M} Testing & Inspection is a sellable
-action with nowhere to record the result.
+**It rendered NOTHING until 08/09/2026** — an equipment register, maintenance and
+calibration, all engine types.
+
+**AND THE CAVEAT THAT APPLIES TO EVERY ENGINE REGISTER, here and in §4 and §11: no
+archetype holds an `engine.*` key and no screen can grant one**, because `StudioRoles`
+draws its grid from `AREAS` and an engine key is minted from a row. So all eleven engine
+registers are reachable by the owner and Admin alone. They are real registers with
+fields, a status ladder, permissions and live updates — and no attachments, no comments
+and no audit trail. Counting them as built is fair for this table and would be
+misleading as "a studio can use them". Phase 3's type management is what closes it, and
+it now gates eleven registers rather than one.
+
+#### §11 Quality & HSE 🟡 3 / 8
+ITPs ⬜ · Inspection & test records ⬜ · NCR / CAPA ✅ · Audits ✅ · HSE incidents 🟡
+(register built; **no LTIFR** — `daysLost` is stored and nothing computes a rate) ·
+Permits to work & toolbox talks ✅ · **Certifications ⬜ · Dashboard ⬜**
+
+**It rendered NOTHING until 08/09/2026** and now has five registers, all engine types —
+declared as rows, no new engine code. See the caveat under §10; it applies here too.
 
 #### §12 Human Resources ⬜ 2 / 10
 Employees ✅ · Leave & employee requests 🟡 (vacations exist; the wider request model does
@@ -419,7 +433,7 @@ files ⬜ · Payroll posting to the ledger ⬜**
 The artifact's note here {M} *"a department IS a top-level section"* {M} **is reversed**:
 departments are their own records under Administration as of 06/09/2026.
 
-#### §13 Finance & Accounting ⬜ 9 / 18
+#### §13 Finance & Accounting ⬜ 10 / 18
 Cash ✅ · Ledger ✅ · Payables ✅ · Fixed assets ✅ · Settings ✅ · Payment as an
 allocatable record ✅ · Retention & progress billing (IPC) ✅ · Budgets & commitment
 control 🟡 (at project level only, not in the ledger) · Multi-currency 🟡 (daily FX and

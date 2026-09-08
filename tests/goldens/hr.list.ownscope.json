@@ -67,7 +67,15 @@
       "tasks-settings": false,
       "engine-transmittal": false,
       "engine-rfi": false,
-      "engine-submittal": false
+      "engine-submittal": false,
+      "engine-ncr": false,
+      "engine-audit": false,
+      "engine-incident": false,
+      "engine-permit": false,
+      "engine-toolbox": false,
+      "engine-equipment": false,
+      "engine-maintenance": false,
+      "engine-calibration": false
     },
     "manage": {
       "main": false,
@@ -132,7 +140,15 @@
       "tasks-settings": false,
       "engine-transmittal": false,
       "engine-rfi": false,
-      "engine-submittal": false
+      "engine-submittal": false,
+      "engine-ncr": false,
+      "engine-audit": false,
+      "engine-incident": false,
+      "engine-permit": false,
+      "engine-toolbox": false,
+      "engine-equipment": false,
+      "engine-maintenance": false,
+      "engine-calibration": false
     },
     "me": {
       "collaboratorId": "<col_ID>"

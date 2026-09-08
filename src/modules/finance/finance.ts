@@ -22,6 +22,7 @@ import type { ApprovalChain } from "@/platform/approval/chains";
 import { repo } from "@/platform/db/repo";
 import { getSectionByKey, updateSection } from "@/platform/db/sections";
 import { attachToProjectEngagement, detachFromItsEngagement } from "@/platform/db/engagement";
+import { autoPost } from "./posting";
 import { moduleContext } from "../context";
 
 import { listCollaborators } from "@/platform/auth/collaborators";
@@ -331,7 +332,26 @@ export async function editInvoice(ctx: FinanceContext, id: string, body: Record<
   if (body?.notes !== undefined) patch.notes = str(body.notes, 2000);
 
   const updated = await Invoices.update({ studio, section: cashSection }, id, patch);
-  return updated ? { invoice: { ...updated, ...invoiceTotals(updated) } } : { error: "notfound" };
+  if (!updated) return { error: "notfound" };
+
+  // ISSUING AN INVOICE POSTS IT, and this is the moment the entry becomes true.
+  // Before it the invoice is a draft nobody has seen, and booking it would
+  // recognise revenue on a document the customer has not received; after it the
+  // receivable exists whether or not anybody remembers to keep the books.
+  //
+  // ONLY ON THE TRANSITION, never on every edit. `alreadyPosted` would refuse a
+  // second attempt anyway, but leaning on that would make every save of an
+  // issued invoice read the whole journal to be told no.
+  //
+  // IT CANNOT FAIL THE INVOICE. The document was issued; that happened. If the
+  // chart is missing an account, the refusal travels back BESIDE the invoice for
+  // the screen to surface — a studio unable to invoice because its chart of
+  // accounts is incomplete would be worse off than one told its books are an
+  // entry short.
+  const nowIssued = patch.status === "Sent" && current.status === "Draft";
+  const posting = nowIssued ? await autoPost(ctx, "invoice", id) : null;
+
+  return { invoice: { ...updated, ...invoiceTotals(updated) }, ...(posting ? { posting } : {}) };
 }
 
 // Recording a payment is append-only: the history of what was received, and

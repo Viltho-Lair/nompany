@@ -68,7 +68,15 @@
       "tasks-settings": true,
       "engine-transmittal": true,
       "engine-rfi": true,
-      "engine-submittal": true
+      "engine-submittal": true,
+      "engine-ncr": true,
+      "engine-audit": true,
+      "engine-incident": true,
+      "engine-permit": true,
+      "engine-toolbox": true,
+      "engine-equipment": true,
+      "engine-maintenance": true,
+      "engine-calibration": true
     },
     "manage": {
       "main": false,
@@ -133,7 +141,15 @@
       "tasks-settings": true,
       "engine-transmittal": true,
       "engine-rfi": true,
-      "engine-submittal": true
+      "engine-submittal": true,
+      "engine-ncr": true,
+      "engine-audit": true,
+      "engine-incident": true,
+      "engine-permit": true,
+      "engine-toolbox": true,
+      "engine-equipment": true,
+      "engine-maintenance": true,
+      "engine-calibration": true
     },
     "me": {
       "collaboratorId": "<col_ID>"
@@ -190,6 +206,10 @@
       {
         "id": "<col_ID>",
         "alias": "billapprover"
+      },
+      {
+        "id": "<col_ID>",
+        "alias": "cashclerk"
       },
       {
         "id": "<col_ID>",
