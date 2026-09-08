@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { sendEmail } from "@/platform/notify/email";
-import { incrWithTTL } from "@/platform/db/store";
 import { RL } from "@/platform/db/keys";
 import { CONTACT } from "@/lib/site";
-import { isCrossSite } from "@/platform/http/origin";
+import { addSiteRow, updateSiteRow } from "@/lib/data/site";
+import { refusePublicForm, callerIp } from "@/platform/http/publicForm";
 import {
   validateEnquiry,
   normaliseEnquiry,
@@ -19,10 +19,26 @@ import {
    was discarded while the sender watched a tick appear. A broken form
    gets reported; a form that lies does not.
 
-   IT SENDS AN EMAIL AND STORES NOTHING. There is no collection, no
-   record and no inbox screen to check — the enquiry goes to a mailbox a
-   person already reads, because an enquiry sitting in a table nobody
-   opens is the same failure wearing a database.
+   IT STORES THE ENQUIRY FIRST, THEN SENDS IT. This comment used to
+   argue for mail alone — "an enquiry sitting in a table nobody opens is
+   the same failure wearing a database" — and that argument was for the
+   wrong choice. Mail is still the channel a person actually reads; the
+   row is the copy that survives the provider being down, the API key
+   being rotated, or the kill-switch being off. `messages` already
+   existed as a public-form site collection and nothing had ever written
+   to it.
+
+   THE ORDER IS LOAD-BEARING. Store, then send: a stored enquiry whose
+   mail failed is recoverable, and a sent enquiry whose store failed is
+   already in somebody's inbox. Doing it the other way round makes the
+   failure that loses data the more likely one.
+
+   AND A FAILED SEND IS NO LONGER A FAILED SUBMISSION. Once the row is
+   down, the sender's message is not lost, so answering 502 would tell
+   them it had not arrived when it had. The row carries `notified:
+   false` instead, which is what somebody looking for enquiries nobody
+   was told about would search on. A failed STORE is still a 502,
+   because then there really is nothing.
 
    AND IT ONLY CLAIMS SUCCESS WHEN THE MAIL WENT. `sendEmail` never
    throws and answers `{ ok }`; if it is false — no API key, the
@@ -42,35 +58,16 @@ import {
 const RATE_MAX = 5;
 const RATE_WINDOW_SEC = 10 * 60;
 
-const ipOf = (request: Request) =>
-  (request.headers.get("x-forwarded-for") || "").split(",")[0].trim() ||
-  request.headers.get("x-real-ip") ||
-  "unknown";
-
 const esc = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 export async function POST(request: Request) {
-  // A FORM POST FROM SOMEBODY ELSE'S PAGE IS NOT AN ENQUIRY. The same guard the
-  // traffic endpoint uses, for the same reason: this is a public write, and the
-  // only legitimate caller is a page on this site.
-  if (isCrossSite(request)) {
-    return NextResponse.json({ ok: false, error: "cross-site" }, { status: 403 });
-  }
-
-  const ip = ipOf(request);
-
-  // THE ONLY UNAUTHENTICATED ENDPOINT THAT PUTS MAIL IN SOMEBODY'S INBOX, so
-  // "how often" has to be enforced rather than assumed. Its own counter, not
-  // the credential ones: a contact submission is not a failed login, and
-  // borrowing those would let a person lock themselves out of their account by
-  // filling in this form five times.
-  if ((await incrWithTTL(RL.contactIp(ip), RATE_WINDOW_SEC)) > RATE_MAX) {
-    return NextResponse.json(
-      { ok: false, error: "rate-limited" },
-      { status: 429, headers: { "Retry-After": String(RATE_WINDOW_SEC) } },
-    );
-  }
+  const refused = await refusePublicForm(request, {
+    rateKey: RL.contactIp,
+    max: RATE_MAX,
+    windowSec: RATE_WINDOW_SEC,
+  });
+  if (refused) return refused;
 
   const body = (await request.json().catch(() => ({}))) as Partial<Enquiry>;
 
@@ -85,6 +82,23 @@ export async function POST(request: Request) {
   const enquiry = normaliseEnquiry(body);
   const mailbox = mailboxFor(enquiry.teamSize);
   const to = mailbox === "newBusiness" ? CONTACT.sales : CONTACT.support;
+
+  // STORED BEFORE ANYTHING IS SENT. The IP is kept because it is the only thing
+  // that distinguishes one person submitting twice from two people, which is
+  // what somebody triaging a burst of enquiries needs; nothing else about the
+  // request is recorded.
+  let stored;
+  try {
+    stored = await addSiteRow("messages", {
+      ...enquiry,
+      mailbox,
+      ip: callerIp(request),
+      notified: false,
+      createdAt: new Date().toISOString(),
+    });
+  } catch {
+    return NextResponse.json({ ok: false, error: "not-stored" }, { status: 502 });
+  }
 
   const lines: [string, string][] = [
     ["From", `${enquiry.name} <${enquiry.email}>`],
@@ -113,13 +127,15 @@ export async function POST(request: Request) {
     ].join(""),
   });
 
-  if (!result.ok) {
-    // THE SENDER IS TOLD. `skipped` (no API key, kill-switch off) and a real
-    // provider failure are the same answer to the person waiting: their message
-    // did not arrive. Distinguishing them here would only tempt a caller into
-    // treating one as success.
-    return NextResponse.json({ ok: false, error: "send-failed" }, { status: 502 });
+  // THE ROW IS MARKED ONLY WHEN THE MAIL WENT, and a failure to mark it is not
+  // a failure of the submission — the enquiry is already down either way. This
+  // is why `notified` is written false at insert and flipped here rather than
+  // being written once at the end: a crash between the two leaves a row that
+  // reads "nobody was told", which is the safe direction to be wrong in.
+  if (result.ok) {
+    await updateSiteRow("messages", String(stored.id), (r) => ({ ...r, notified: true }))
+      .catch(() => {});
   }
 
-  return NextResponse.json({ ok: true, mailbox });
+  return NextResponse.json({ ok: true, mailbox, notified: Boolean(result.ok) });
 }

@@ -36,6 +36,34 @@ export async function addSiteRow(name: string, row: Record<string, unknown>) {
   });
 }
 
+// PATCH ONE ROW IN PLACE, under compare-and-set (invariant 8).
+//
+// `addSiteRow` PREPENDS, so calling it a second time with an id that already
+// exists writes a DUPLICATE rather than updating anything — which is what the
+// contact route did on its first draft when it tried to flip `notified` after
+// a successful send, and it would have produced two of every enquiry that
+// actually got through.
+//
+// The patch is a FUNCTION for the reason `updateRow` takes one: "mark this
+// notified" has to stay a mark under contention, not a snapshot of the row as
+// it looked before some other writer touched it. A missing id is not an error —
+// the row may legitimately have been deleted between the write and the mark —
+// so it answers null and the caller carries on.
+export async function updateSiteRow(
+  name: string,
+  id: string,
+  patch: (row: Row) => Row,
+) {
+  if (!COLLECTIONS.has(name)) throw new Error(`Unknown site collection: ${name}`);
+  return editArr(SITE.collection(name), (rows: Row[]) => {
+    const i = rows.findIndex((r) => r.id === id);
+    if (i < 0) return { next: rows, result: null };
+    const next = rows.slice();
+    next[i] = patch(next[i]);
+    return { next, result: next[i] };
+  });
+}
+
 // Brand / contact / marketing copy for the public pages. Returns {} until the
 // owner console writes some — the pages fall back to lib/site.js + i18n.
 export async function getSiteSettings() {

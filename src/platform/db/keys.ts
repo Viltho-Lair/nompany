@@ -315,6 +315,12 @@ export const RL = {
   // their own account by filling in a form five times.
   contactIp: (ip: string) => `${P}rl:contact:i:${String(ip || "unknown")}`,
 
+  // The job application form, per IP. The THIRD such endpoint, and the only one
+  // that accepts a FILE from an unauthenticated caller — so its window is
+  // tighter than the contact form's. Somebody applies for one job, occasionally
+  // two; three in an hour is not a candidate.
+  applyIp: (ip: string) => `${P}rl:apply:i:${String(ip || "unknown")}`,
+
   // FAILED CREDENTIAL ATTEMPTS — password sign-in and password reset.
   //
   // Three counters rather than one, and the SPREAD between them is the design:
