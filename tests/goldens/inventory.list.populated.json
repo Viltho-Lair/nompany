@@ -79,7 +79,14 @@
       "engine-toolbox": true,
       "engine-equipment": true,
       "engine-maintenance": true,
-      "engine-calibration": true
+      "engine-calibration": true,
+      "engine-job": true,
+      "engine-contract": true,
+      "engine-planned": true,
+      "engine-installed": true,
+      "engine-delivery": true,
+      "engine-trip": true,
+      "engine-vehicle": true
     },
     "currency": "",
     "manage": {
@@ -153,7 +160,14 @@
       "engine-toolbox": true,
       "engine-equipment": true,
       "engine-maintenance": true,
-      "engine-calibration": true
+      "engine-calibration": true,
+      "engine-job": true,
+      "engine-contract": true,
+      "engine-planned": true,
+      "engine-installed": true,
+      "engine-delivery": true,
+      "engine-trip": true,
+      "engine-vehicle": true
     },
     "vendors": [
       {

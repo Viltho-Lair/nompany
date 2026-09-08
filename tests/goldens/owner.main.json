@@ -80,7 +80,14 @@
       "engine-toolbox": true,
       "engine-equipment": true,
       "engine-maintenance": true,
-      "engine-calibration": true
+      "engine-calibration": true,
+      "engine-job": true,
+      "engine-contract": true,
+      "engine-planned": true,
+      "engine-installed": true,
+      "engine-delivery": true,
+      "engine-trip": true,
+      "engine-vehicle": true
     },
     "sections": [
       {
@@ -416,6 +423,41 @@
       {
         "key": "engine-calibration",
         "name": "Calibration",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "engine-job",
+        "name": "Service orders",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "engine-contract",
+        "name": "Maintenance contracts",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "engine-planned",
+        "name": "Preventive maintenance plans",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "engine-installed",
+        "name": "Installed base",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "engine-delivery",
+        "name": "Deliveries and POD",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "engine-trip",
+        "name": "Trips and routing",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "engine-vehicle",
+        "name": "Fleet register",
         "parentId": "<sec_ID>"
       }
     ],

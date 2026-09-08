@@ -318,6 +318,185 @@ export const BUILTIN_TYPES = [
     ],
     version: 1,
   },
+  {
+    // ON SITE GOES BACK TO SCHEDULED, which is the move a service register
+    // without field experience leaves out: an engineer attends, cannot finish
+    // for want of a part, and the job is neither completed nor cancelled. With
+    // no way back it gets closed falsely, and the second visit is invisible.
+    key: "job",
+    label: "Service orders",
+    parentSectionKey: "field-service",
+    fields: [
+      { key: "title", label: "Title", kind: "text", required: true },
+      { key: "customer", label: "Customer", kind: "text" },
+      { key: "site", label: "Site", kind: "text" },
+      { key: "priority", label: "Priority", kind: "select", options: ["Low", "Normal", "High", "Emergency"] },
+      { key: "reportedOn", label: "Reported", kind: "date" },
+      { key: "dueBy", label: "Due by", kind: "date" },
+      { key: "fault", label: "Reported fault", kind: "longtext", required: true },
+      { key: "workDone", label: "Work done", kind: "longtext" },
+    ],
+    columns: ["title", "priority", "dueBy"],
+    statuses: ["Logged", "Scheduled", "On site", "Completed", "Cancelled"],
+    transitions: [
+      { from: "Logged", to: "Scheduled" },
+      { from: "Scheduled", to: "On site" },
+      { from: "On site", to: "Completed" },
+      { from: "Logged", to: "Cancelled" },
+      { from: "Scheduled", to: "Cancelled" },
+      { from: "On site", to: "Scheduled" },
+    ],
+    version: 1,
+  },
+  {
+    // EXPIRED RETURNS TO ACTIVE because a maintenance contract is RENEWED, and
+    // the customer, the site and the visit history are the same agreement. A
+    // fresh record each year would scatter one relationship across five rows.
+    key: "contract",
+    label: "Maintenance contracts",
+    parentSectionKey: "field-service",
+    fields: [
+      { key: "title", label: "Title", kind: "text", required: true },
+      { key: "customer", label: "Customer", kind: "text" },
+      { key: "cover", label: "Cover", kind: "select", options: ["Parts and labour", "Labour only", "Inspection only", "Full cover"] },
+      { key: "startsOn", label: "Starts", kind: "date" },
+      { key: "endsOn", label: "Ends", kind: "date" },
+      { key: "visitsPerYear", label: "Visits per year", kind: "number" },
+      { key: "value", label: "Annual value", kind: "money" },
+    ],
+    columns: ["title", "cover", "endsOn"],
+    statuses: ["Draft", "Active", "Expired", "Cancelled"],
+    transitions: [
+      { from: "Draft", to: "Active" },
+      { from: "Active", to: "Expired" },
+      { from: "Expired", to: "Active" },
+      { from: "Active", to: "Cancelled" },
+    ],
+    version: 1,
+  },
+  {
+    // A PLAN IS A SCHEDULE, NOT A JOB. It says what should happen and how
+    // often; each occurrence is a service order. Nothing generates those yet —
+    // named in the functionality file rather than implied by the register.
+    key: "planned",
+    label: "Preventive maintenance plans",
+    parentSectionKey: "field-service",
+    fields: [
+      { key: "title", label: "Title", kind: "text", required: true },
+      { key: "asset", label: "Asset or site", kind: "text" },
+      { key: "frequency", label: "Frequency", kind: "select", options: ["Weekly", "Monthly", "Quarterly", "Half-yearly", "Yearly"] },
+      { key: "nextDue", label: "Next due", kind: "date" },
+      { key: "lastDone", label: "Last done", kind: "date" },
+      { key: "tasks", label: "Tasks", kind: "longtext" },
+    ],
+    columns: ["title", "frequency", "nextDue"],
+    statuses: ["Active", "Paused", "Retired"],
+    transitions: [
+      { from: "Active", to: "Paused" },
+      { from: "Paused", to: "Active" },
+      { from: "Active", to: "Retired" },
+    ],
+    version: 1,
+  },
+  {
+    key: "installed",
+    label: "Installed base",
+    parentSectionKey: "field-service",
+    fields: [
+      { key: "description", label: "Equipment", kind: "text", required: true },
+      { key: "customer", label: "Customer", kind: "text" },
+      { key: "site", label: "Site", kind: "text" },
+      { key: "serial", label: "Serial", kind: "text" },
+      { key: "installedOn", label: "Installed", kind: "date" },
+      { key: "warrantyEndsOn", label: "Warranty ends", kind: "date" },
+    ],
+    columns: ["description", "customer", "warrantyEndsOn"],
+    statuses: ["Installed", "Under warranty", "Out of warranty", "Removed"],
+    transitions: [
+      { from: "Installed", to: "Under warranty" },
+      { from: "Under warranty", to: "Out of warranty" },
+      { from: "Installed", to: "Out of warranty" },
+      { from: "Out of warranty", to: "Removed" },
+      { from: "Under warranty", to: "Removed" },
+    ],
+    version: 1,
+  },
+  {
+    // A FAILED DELIVERY GOES BACK TO PLANNED, because the goods still have to
+    // arrive — nobody was in, and that is a re-attempt rather than an ending.
+    // `receivedBy` is the proof of delivery this section is named for; it is a
+    // typed name and NOT a signature, which needs the mobile field view.
+    key: "delivery",
+    label: "Deliveries and POD",
+    parentSectionKey: "logistics",
+    fields: [
+      { key: "reference", label: "Customer reference", kind: "text" },
+      { key: "customer", label: "Customer", kind: "text" },
+      { key: "address", label: "Delivery address", kind: "longtext" },
+      { key: "promisedOn", label: "Promised", kind: "date" },
+      { key: "deliveredOn", label: "Delivered", kind: "date" },
+      { key: "receivedBy", label: "Received by", kind: "text" },
+      { key: "notes", label: "Notes", kind: "longtext" },
+    ],
+    columns: ["reference", "customer", "promisedOn"],
+    statuses: ["Planned", "Out for delivery", "Delivered", "Failed", "Returned"],
+    transitions: [
+      { from: "Planned", to: "Out for delivery" },
+      { from: "Out for delivery", to: "Delivered" },
+      { from: "Out for delivery", to: "Failed" },
+      { from: "Failed", to: "Planned" },
+      { from: "Delivered", to: "Returned" },
+    ],
+    version: 1,
+  },
+  {
+    key: "trip",
+    label: "Trips and routing",
+    parentSectionKey: "logistics",
+    fields: [
+      { key: "title", label: "Title", kind: "text", required: true },
+      { key: "driver", label: "Driver", kind: "text" },
+      { key: "vehicle", label: "Vehicle", kind: "text" },
+      { key: "departsOn", label: "Departs", kind: "date" },
+      { key: "origin", label: "Origin", kind: "text" },
+      { key: "destination", label: "Destination", kind: "text" },
+      { key: "distanceKm", label: "Distance (km)", kind: "number" },
+    ],
+    columns: ["title", "driver", "departsOn"],
+    statuses: ["Planned", "In progress", "Completed", "Cancelled"],
+    transitions: [
+      { from: "Planned", to: "In progress" },
+      { from: "In progress", to: "Completed" },
+      { from: "Planned", to: "Cancelled" },
+    ],
+    version: 1,
+  },
+  {
+    // THE TWO EXPIRY DATES ARE THE COMPLIANCE HALF of this register, and they
+    // are stored rather than computed: nothing warns before one lapses yet, so
+    // a vehicle with expired insurance still reads In service. That is in the
+    // functionality file's "Not built yet", not implied away here.
+    key: "vehicle",
+    label: "Fleet register",
+    parentSectionKey: "logistics",
+    fields: [
+      { key: "plate", label: "Registration", kind: "text", required: true },
+      { key: "kind", label: "Kind", kind: "select", options: ["Van", "Truck", "Pickup", "Car", "Trailer", "Plant"] },
+      { key: "make", label: "Make and model", kind: "text" },
+      { key: "insuranceEndsOn", label: "Insurance ends", kind: "date" },
+      { key: "inspectionEndsOn", label: "Inspection ends", kind: "date" },
+      { key: "odometerKm", label: "Odometer (km)", kind: "number" },
+    ],
+    columns: ["plate", "kind", "insuranceEndsOn"],
+    statuses: ["In service", "Off road", "Sold"],
+    transitions: [
+      { from: "In service", to: "Off road" },
+      { from: "Off road", to: "In service" },
+      { from: "In service", to: "Sold" },
+      { from: "Off road", to: "Sold" },
+    ],
+    version: 1,
+  },
 ] as const;
 
 const Types = repo<RecordType>("recordTypes");

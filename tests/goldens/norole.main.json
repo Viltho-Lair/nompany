@@ -80,7 +80,14 @@
       "engine-toolbox": false,
       "engine-equipment": false,
       "engine-maintenance": false,
-      "engine-calibration": false
+      "engine-calibration": false,
+      "engine-job": false,
+      "engine-contract": false,
+      "engine-planned": false,
+      "engine-installed": false,
+      "engine-delivery": false,
+      "engine-trip": false,
+      "engine-vehicle": false
     },
     "sections": [
       {

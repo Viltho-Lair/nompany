@@ -389,16 +389,24 @@ Stock ✅ · Items ✅ · Project sheets ✅ · **Locations & bins ⬜ · Batch 
 **BOM & routing ⬜ · Work orders ⬜ · MRP & capacity planning ⬜ · Shop-floor terminal to
 timesheets ⬜ · Production QC ⬜ · Dashboard ⬜**  {M}  renders nothing.
 
-#### §8 Field Operations & Service ⬜ 3 / 10
-Schedule ✅ · Tracking ✅ · Settings ✅ · **Service orders & job cards ⬜ · Dispatch board
-⬜ · Maintenance contracts (AMC) ⬜ · Preventive-maintenance plans ⬜ · Mobile field view
-with e-signature ⬜ · Installed base ⬜ · Dashboard ⬜**
+#### §8 Field Operations & Service 🟡 7 / 10
+Schedule ✅ · Tracking ✅ · Settings ✅ · Service orders & job cards ✅ · Maintenance
+contracts (AMC) ✅ · Preventive-maintenance plans 🟡 (the plan is a schedule; **nothing
+generates the visits**) · Installed base ✅ · **Dispatch board ⬜ · Mobile field view with
+e-signature ⬜ · Dashboard ⬜**
 
-#### §9 Logistics & Fleet ⬜ 1 / 6
-Shipments (AWB) ✅ · **Deliveries with POD ⬜ · Trips & routing ⬜ · Fleet register &
-compliance ⬜ · Customs & freight, landed cost ⬜ · Dashboard ⬜**
-**The thinnest built section in the product**, against Delivery & Transportation being a
-sellable service action in 13 of the 25 fields of work.
+Four engine registers, 08/09/2026. The three left are the bespoke ones: a dispatch board
+and a mobile field view are both on the spec's own "never stretch the engine to cover
+this" list. See §10 for the caveat that applies to every engine register.
+
+#### §9 Logistics & Fleet 🟡 4 / 6
+Shipments (AWB) ✅ · Deliveries with POD 🟡 (register built; `receivedBy` is a typed name
+and **not a signature** — that needs the mobile field view) · Trips & routing 🟡 (trips
+recorded; **no routing**) · Fleet register & compliance 🟡 (the two expiry dates are
+stored; **nothing warns before one lapses**, so a vehicle with expired insurance still
+reads In service) · **Customs & freight, landed cost ⬜ · Dashboard ⬜**
+
+It was the thinnest built section in the product; three engine registers, 08/09/2026.
 
 #### §10 Assets & Equipment 🟡 2 / 4
 Allocation to deals with internal hire rates 🟡 (the register holds `hireRate`; **nothing

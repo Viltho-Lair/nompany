@@ -438,6 +438,48 @@
         "key": "engine-calibration",
         "name": "Calibration",
         "enabled": true
+      },
+      {
+        "id": "<sub_ID>",
+        "key": "engine-job",
+        "name": "Service orders",
+        "enabled": true
+      },
+      {
+        "id": "<sub_ID>",
+        "key": "engine-contract",
+        "name": "Maintenance contracts",
+        "enabled": true
+      },
+      {
+        "id": "<sub_ID>",
+        "key": "engine-planned",
+        "name": "Preventive maintenance plans",
+        "enabled": true
+      },
+      {
+        "id": "<sub_ID>",
+        "key": "engine-installed",
+        "name": "Installed base",
+        "enabled": true
+      },
+      {
+        "id": "<sub_ID>",
+        "key": "engine-delivery",
+        "name": "Deliveries and POD",
+        "enabled": true
+      },
+      {
+        "id": "<sub_ID>",
+        "key": "engine-trip",
+        "name": "Trips and routing",
+        "enabled": true
+      },
+      {
+        "id": "<sub_ID>",
+        "key": "engine-vehicle",
+        "name": "Fleet register",
+        "enabled": true
       }
     ]
   }
