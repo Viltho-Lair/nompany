@@ -66,6 +66,7 @@ type Strings = CommonStrings & {
   progressLabel: string;
   visitorsLabel: string;
   photosLabel: string;
+  photoAlt: (reference: string, n: number) => string;
   addPhoto: string;
   photoUploading: string;
   photoFailed: string;
@@ -500,6 +501,7 @@ const en: Strings = {
   progressLabel: "Progress",
   visitorsLabel: "Visitors",
   photosLabel: "Photographs",
+  photoAlt: (reference, n) => `Photograph ${n} on site report ${reference}`,
   addPhoto: "Add photograph",
   photoUploading: "Uploading…",
   photoFailed: "That photograph could not be stored.",
@@ -932,6 +934,7 @@ const ar: Strings = {
   progressLabel: "الإنجاز",
   visitorsLabel: "الزوار",
   photosLabel: "الصور",
+  photoAlt: (reference, n) => `صورة ${n} في تقرير الموقع ${reference}`,
   addPhoto: "إضافة صورة",
   photoUploading: "جار الرفع…",
   photoFailed: "تعذر حفظ الصورة.",

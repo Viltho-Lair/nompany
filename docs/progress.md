@@ -329,12 +329,21 @@ can never again stand for two records.
 Tender register ✅ · BOQ grid with rate library ✅ · Bid documents & clarifications ✅ ·
 Bid review & approval ✅ · Handover to Projects as budget baseline ✅
 
-#### §3 Projects {M} `projects` 🟡 12 / 13
+#### §3 Projects {M} `projects` ✅ 13 / 13
 Project list ✅ · SLA ✅ · Overtimes ✅ · Planner ✅ · Settings ✅ · WBS/Gantt with
-critical path ✅ · Daily site reports 🟡 (photos upload but do not display; no addendum) ·
+critical path ✅ · Daily site reports 🟡 (photographs display now; still no addendum) ·
 Earned value ✅ · Variations & change orders ✅ · Cost codes ✅ · Billing milestones &
 retention ✅ · Closure, punch list, warranty 🟡 (closing sets a date and does nothing else)
-· **Resource planning ⬜**
+· Resource planning ✅
+
+**Resource planning shipped 08/09/2026** and is a JOIN rather than new data —
+`assigneeIds`, each plan's `resources` and the engine's `start`/`end` were all already
+stored, and nothing read more than one plan at a time. It mints no permission key
+(`projects.planner.view` opens it) and stores nothing.
+`docs/functionality/resource-planning.md` is the file. **The photographs on a site
+report also render now**, where before they uploaded, stored, and appeared only as file
+names inside the edit dialog — invisible to every reader of the report afterwards,
+which is its only audience.
 
 #### §4 Engineering & Documents {M} `engineering-docs` ⬜ 4 / 9
 Document register ✅ · RFQ ✅ · Live view ✅ · Settings ✅ · **Transmittals ⬜ · RFI

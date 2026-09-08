@@ -80,6 +80,10 @@ const StudioOrders = nextDynamic(
   () => import("@/components/studio2/StudioOrders"),
   { loading: () => <ScreenSkeleton /> },
 );
+const StudioResourceLoad = nextDynamic(
+  () => import("@/components/studio2/StudioResourceLoad"),
+  { loading: () => <ScreenSkeleton /> },
+);
 const StudioPipeline = nextDynamic(
   () => import("@/components/studio2/StudioPipeline"),
   { loading: () => <ScreenSkeleton /> },
@@ -435,6 +439,18 @@ async function renderStudio(params) {
           planApiBase={`/api/studios/${studio.slug}/operations/planner/templates/${segments[2]}`}
           backHref={`/${studio.slug}/projects-planner`}
           backLabel={shellDict(locale).backToPlanner}
+        />
+      );
+    }
+    // WHO IS COMMITTED, ACROSS EVERY PLAN — /projects-planner/resources. It sits
+    // BEFORE the planId line below for the same reason `templates` does: after
+    // it, "resources" is read as a plan id and the planner opens a document that
+    // does not exist.
+    if (segments[1] === "resources") {
+      return (
+        <StudioResourceLoad
+          slug={studio.slug}
+          backHref={`/${studio.slug}/projects-planner`}
         />
       );
     }

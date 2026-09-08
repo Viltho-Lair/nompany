@@ -52,6 +52,7 @@ Three rules that keep this folder worth reading:
 | [receiving.md](receiving.md) | Ordered, received, billed: the three quantities and what a mismatch between them means |
 | [record-engine.md](record-engine.md) | A record type declared as a row: the `engine.*` permission namespace, one collection for every instance, the section planted with the type, and why an existing studio needs a script to get one |
 | [requisitions.md](requisitions.md) | The request that stands before an order: the approval chain, why Approved is not a move, and why a free-text request cannot become an order |
+| [resource-planning.md](resource-planning.md) | Who is committed across every plan: why a summary row is not work, what an unknown capacity means, and the clash a day-sized unit can and cannot see |
 | [roles.md](roles.md) | What a role is and who may grant it: the archetypes, the library copied on add, and why nobody grants what they do not hold |
 | [sales-orders.md](sales-orders.md) | What a customer actually ordered: why a call-off against a framework contract had nowhere to go, the four statuses, and why a draft is deleted while a confirmed order is cancelled |
 | [sales-dashboard.md](sales-dashboard.md) | The CRM & Sales dashboard: what each widget answers, the one vocabulary it reads, and what it still cannot show |

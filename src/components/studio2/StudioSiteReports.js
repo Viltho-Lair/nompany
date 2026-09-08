@@ -240,6 +240,37 @@ export default function StudioSiteReports({ slug, projectId = "" }) {
                   </ul>
                 )}
 
+                {/* THE PHOTOGRAPHS, ON THE REPORT. They uploaded and stored from
+                    the day this screen shipped and were rendered NOWHERE but the
+                    edit dialog, as a list of file names — so the evidence a site
+                    engineer went out and gathered was invisible to everybody who
+                    read the report afterwards, which is the only audience it has.
+
+                    THE URL IS THE MEDIA ROUTE'S, NOT THE BLOB'S. Uploads go to
+                    /api/media?kind=private, which never hands out the Blob
+                    address: the route re-checks membership and streams the bytes.
+                    So an <img> here is gated by the same check that gated the
+                    upload, and a copied link is worth nothing to somebody outside
+                    the studio. */}
+                {(r.photos || []).length > 0 && (
+                  <div className="mt-3 border-t border-slate-100 pt-3 dark:border-white/5">
+                    <p className={microLabel}>{tr.photosLabel}</p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {r.photos.map((url, i) => (
+                        <a key={url} href={url} target="_blank" rel="noreferrer"
+                          className="block h-24 w-32 overflow-hidden rounded-lg border border-slate-200 dark:border-white/10">
+                          {/* eslint-disable-next-line @next/next/no-img-element --
+                              next/image cannot optimise a private streaming route:
+                              the optimiser fetches server-side without the reader's
+                              cookie, so every photograph would 404. */}
+                          <img src={url} alt={tr.photoAlt(r.reference, i + 1)}
+                            loading="lazy" className="h-full w-full object-cover" />
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div className="mt-3 border-t border-slate-100 pt-3 dark:border-white/5">
                   <p className={microLabel}>{tr.observedVsBooked}</p>
                   {/* NULL IS NOT NOUGHT: no timesheet covering the day is not
