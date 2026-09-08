@@ -867,11 +867,30 @@ export const SECTION_COLLECTIONS = {
 
 // ---- studio slug rules -----------------------------------------------------
 // The slug IS the studio's address (nompany.com/<slug>) and its tenant handle.
+// EVERY SEGMENT THE PUBLIC SITE OWNS OR INTENDS TO OWN IS IN HERE, and this
+// list had drifted badly. `platform`, `security`, `privacy` and `customers`
+// were all takeable — but the dangerous ones were `projects`, `services`,
+// `vendors`, `clients` and `gallery`, every one of which the proxy 308s to a
+// marketing page. A studio registering one would have been permanently
+// redirected away from its own address by a table it could not see, and
+// nothing in the product could have explained why.
+//
+// IT IS SPELLED OUT RATHER THAN DERIVED, deliberately. `shared/marketing/routes`
+// knows all of these and could compute them, but this module is a LEAF on
+// purpose — no imports at all, because a landing-page component imports a key
+// builder and the cascade discipline rests on nothing here depending on
+// anything else. The suite holds the two in step instead: the same guarantee,
+// bought with an assertion rather than a dependency.
 export const RESERVED_SLUGS = new Set([
   "www", "api", "studio", "super", "account", "login", "signup", "admin", "join",
-  "app", "mail", "onboarding", "subscribe", "pricing", "contact", "about", "team",
-  "careers", "terms", "features", "verify", "reset", "forgot", "en", "ar",
-  "robots", "sitemap", "manifest", "icon", "favicon", "brand", "_next", "c", "q",
+  "app", "mail", "onboarding", "subscribe", "team", "verify", "reset", "forgot",
+  "en", "ar", "robots", "sitemap", "manifest", "icon", "favicon", "brand",
+  "_next", "c", "q",
+  // the public site: built, retired, and reserved for later
+  "about", "careers", "contact", "customers", "platform", "pricing", "privacy",
+  "security", "terms",
+  "clients", "features", "gallery", "projects", "services", "vendors",
+  "blog", "changelog", "docs", "help", "legal", "status", "support",
 ]);
 export const SLUG_RE = /^[a-z0-9][a-z0-9-]{2,63}$/;
 export function isValidSlug(slug: unknown): boolean {

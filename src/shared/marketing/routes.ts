@@ -70,3 +70,47 @@ export function isMarketingPath(pathname: string): boolean {
   if (rel === "") return true; // the home page at /en or /ar
   return bringsOwnChrome(rel) || (LANDING_AUTH_PATHS as readonly string[]).includes(rel);
 }
+
+/**
+ * Retired public URLs, and where each now goes (locale-relative; "" is home).
+ *
+ * These were real pages before the rebuild. Without a map they fall into the
+ * studio-slug branch of the proxy and answer 307 to a login screen, so any
+ * link that ever pointed at them lands a visitor on a form and tells a crawler
+ * the page moved somewhere temporary.
+ *
+ * IT LIVES HERE RATHER THAN IN THE PROXY because the proxy is not its only
+ * reader: every key below must ALSO be an unavailable studio slug, and it was
+ * not. `/projects`, `/services`, `/vendors`, `/clients` and `/gallery` were all
+ * takeable — a studio that registered one would have been permanently
+ * redirected away from its own address by this very table, with nothing in the
+ * product able to explain why.
+ */
+export const RETIRED_PATHS: Record<string, string> = {
+  "/features": "/platform",
+  "/pricing": "/pricing",
+  "/contact": "",
+  "/services": "",
+  "/projects": "",
+  "/vendors": "",
+  "/clients": "",
+  "/gallery": "",
+};
+
+/**
+ * Reserved now so no URL ever has to move later (§3 of the rebuild design).
+ *
+ * A slug is the studio's address AND its tenant handle, so a name taken today
+ * is a page that can never exist tomorrow. These are the pages the design
+ * commits to building — per-department pages under `/platform/<section>`,
+ * documentation, a changelog — plus the ones already built. Reserving costs a
+ * word nobody may register; not reserving costs a URL, permanently.
+ */
+export const RESERVED_FOR_LATER = ["docs", "changelog", "blog", "help", "support", "status", "legal"] as const;
+
+/** Every first path segment the public site owns or intends to own. */
+export function reservedPublicSegments(): string[] {
+  const fromShell = [...SHELL_PATHS, ...SHELL_PREFIXES].map((p) => p.slice(1));
+  const fromRetired = Object.keys(RETIRED_PATHS).map((p) => p.slice(1));
+  return [...new Set([...fromShell, ...fromRetired, ...RESERVED_FOR_LATER, "customers"])];
+}

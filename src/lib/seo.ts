@@ -269,6 +269,11 @@ export function websiteLd(settings?: unknown, locale: string = defaultLocale) {
   };
 }
 
+// UNUSED SINCE THE HOME PAGE STOPPED EMITTING IT, and kept rather than deleted
+// because the day there IS an office this is the markup for it — with the
+// address it deliberately does not carry today. If that day has not come by the
+// time somebody reads this, delete it: a helper nobody calls is a claim waiting
+// to be re-added by accident.
 export function localBusinessLd(settings?: unknown, locale: string = defaultLocale) {
   const name = "nompany";
   return {
@@ -288,6 +293,80 @@ export function localBusinessLd(settings?: unknown, locale: string = defaultLoca
     // does not exist. Nobody buys an ERP from a map result either, which is why
     // this is left thin rather than filled in.
     sameAs: sameAs(),
+  };
+}
+
+type PricingCard = {
+  name?: string;
+  nameAr?: string;
+  type?: string;
+  monthly?: number;
+  minEmployees?: number;
+  maxEmployees?: number;
+  categories?: { monthly?: number }[];
+};
+
+/**
+ * `SoftwareApplication` with an `Offer` per plan — the product's own markup.
+ *
+ * IT LIVES HERE BECAUSE TWO PAGES NEED IT. The pricing page built this inline
+ * and the home page emitted `ProfessionalService` instead: a LocalBusiness type,
+ * for a company with no address and no premises anybody can walk into. Nobody
+ * buys an ERP from a map result, and the design asks home for
+ * Organization + WebSite + SoftwareApplication. Two copies of "what a plan
+ * costs, in markup" would be two answers free to disagree the first time a band
+ * changes.
+ *
+ * A COMPOUND PACKAGE IS PRICED BY BAND, so its Offer carries a range rather
+ * than one number; a free package is a real zero; a premium one is invoiced and
+ * quotes none rather than quoting nought.
+ */
+export function softwareApplicationLd(
+  cards: PricingCard[],
+  base: string,
+  locale: string = defaultLocale,
+) {
+  const ar = locale === "ar";
+  const offers = (cards || []).map((c) => {
+    const bandPrices = (c.categories || []).map((b) => b.monthly).filter((n) => Number(n) > 0);
+    const single = Number(c.monthly) > 0 ? Number(c.monthly) : null;
+    const prices = bandPrices.length ? bandPrices : single != null ? [single] : [];
+    return {
+      "@type": "Offer",
+      name: (ar && c.nameAr) || c.name,
+      priceCurrency: base,
+      ...(c.type === "free"
+        ? { price: 0 }
+        : prices.length
+          ? {
+              priceSpecification: {
+                "@type": "UnitPriceSpecification",
+                priceCurrency: base,
+                minPrice: Math.min(...(prices as number[])),
+                maxPrice: Math.max(...(prices as number[])),
+                valueAddedTaxIncluded: true,
+              },
+            }
+          : {}),
+      ...(c.maxEmployees
+        ? {
+            eligibleQuantity: {
+              "@type": "QuantitativeValue",
+              minValue: c.minEmployees || 1,
+              maxValue: c.maxEmployees,
+            },
+          }
+        : {}),
+    };
+  });
+  if (!offers.length) return null;
+  return {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    name: "nompany",
+    applicationCategory: "BusinessApplication",
+    operatingSystem: "Web",
+    offers,
   };
 }
 

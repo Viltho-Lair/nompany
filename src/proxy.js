@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { locales, defaultLocale } from "@/shared/i18n";
 import { SUPER_COOKIE } from "@/platform/auth/authConstants";
 import { SLUG_RE } from "@/platform/db/keys";
+import { RETIRED_PATHS } from "@/shared/marketing/routes";
 
 // SLUG-DRIVEN ROUTING.
 //
@@ -176,16 +177,9 @@ export function proxy(request) {
   // and tells a crawler the page moved somewhere temporary. Whatever equity
   // they hold is recoverable for the cost of this table, and only for as long
   // as the links still exist.
-  const RETIRED = {
-    "/features": "/platform",
-    "/pricing": "/pricing",
-    "/contact": "",
-    "/services": "",
-    "/projects": "",
-    "/vendors": "",
-    "/clients": "",
-    "/gallery": "",
-  };
+  // The map lives in shared/marketing/routes, because the proxy is not its
+  // only reader: every key in it must also be an unavailable studio slug.
+  const RETIRED = RETIRED_PATHS;
   if (Object.prototype.hasOwnProperty.call(RETIRED, `/${seg1}`)) {
     const url = request.nextUrl.clone();
     url.pathname = `/${defaultLocale}${RETIRED[`/${seg1}`]}`;

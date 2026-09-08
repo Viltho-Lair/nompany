@@ -1,5 +1,5 @@
 import JsonLd from "@/components/JsonLd";
-import { buildMetadata, breadcrumbLd, urlFor } from "@/lib/seo";
+import { buildMetadata, breadcrumbLd, urlFor, softwareApplicationLd } from "@/lib/seo";
 import { buildPricing } from "@/modules/marketing/pricing";
 import { PricingBoard } from "@/components/landing/pricing/PricingBoard";
 import { MarketingShell } from "@/components/landing/chrome/MarketingShell";
@@ -44,61 +44,13 @@ export default async function PricingPage({ params }) {
   const h = await headers();
   const pricing = await buildPricing(h.get("x-vercel-ip-country"));
 
-  const ar = locale === "ar";
-  const offers = (pricing.cards || []).map((c) => {
-    // A compound package is priced by band, so its Offer carries the range
-    // rather than one number; a free package is a real zero; a premium one is
-    // invoiced and quotes none.
-    const bandPrices = (c.categories || []).map((b) => b.monthly).filter((n) => Number(n) > 0);
-    const single = Number(c.monthly) > 0 ? Number(c.monthly) : null;
-    const prices = bandPrices.length ? bandPrices : single != null ? [single] : [];
-    return {
-      "@type": "Offer",
-      name: (ar && c.nameAr) || c.name,
-      priceCurrency: pricing.base,
-      ...(c.type === "free"
-        ? { price: 0 }
-        : prices.length
-          ? {
-              priceSpecification: {
-                "@type": "UnitPriceSpecification",
-                priceCurrency: pricing.base,
-                minPrice: Math.min(...prices),
-                maxPrice: Math.max(...prices),
-                valueAddedTaxIncluded: true,
-              },
-            }
-          : {}),
-      ...(c.maxEmployees
-        ? {
-            eligibleQuantity: {
-              "@type": "QuantitativeValue",
-              minValue: c.minEmployees || 1,
-              maxValue: c.maxEmployees,
-            },
-          }
-        : {}),
-    };
-  });
-
   const structured = [
     breadcrumbLd([
       { name: dict.nav.home, url: urlFor(locale, "") },
       { name: dict.nav.pricing, url: urlFor(locale, "/pricing") },
     ]),
-    ...(offers.length
-      ? [
-          {
-            "@context": "https://schema.org",
-            "@type": "SoftwareApplication",
-            name: "nompany",
-            applicationCategory: "BusinessApplication",
-            operatingSystem: "Web",
-            offers,
-          },
-        ]
-      : []),
-  ];
+    softwareApplicationLd(pricing.cards, pricing.base, locale),
+  ].filter(Boolean);
 
   return (
     <>

@@ -462,6 +462,67 @@ ok("...and terms and privacy stay on the account theme",
   !isMarketingPath("/en/terms") && !isMarketingPath("/en/privacy"));
 ok("...and a studio path is never marketing", !isMarketingPath("/en/account"));
 
+
+// ==================================================================
+// EVERY PUBLIC SEGMENT IS AN UNAVAILABLE STUDIO SLUG.
+//
+// A slug is the studio address AND the tenant handle, so a name taken today
+// is a URL that can never exist tomorrow. Worse than that: the proxy 308s
+// every RETIRED path to a marketing page BEFORE it looks for a studio, so a
+// studio holding one of those slugs is redirected away from its own address
+// by a table it cannot see. Five of them were takeable.
+//
+// keys.ts is a LEAF on purpose and imports nothing, so it cannot derive this
+// list. That is what this assertion is for.
+console.log("\n== every public segment is a reserved studio slug");
+const { RESERVED_SLUGS } = await import("@/platform/db/keys");
+const { reservedPublicSegments, RETIRED_PATHS } = await import("@/shared/marketing/routes");
+for (const seg of reservedPublicSegments()) {
+  ok(`"${seg}" cannot be registered as a studio slug`, RESERVED_SLUGS.has(seg));
+}
+ok("...and the proxy redirects at least the five that were takeable",
+  ["/projects", "/services", "/vendors", "/clients", "/gallery"].every((p) => p in RETIRED_PATHS));
+
+
+// ==================================================================
+// THE SITEMAP'S DATES MATCH THE TREE.
+//
+// `lastmod` was `new Date()` (noise a crawler discounts), then a hand-kept
+// date map (right only while somebody remembers). It is a content hash now,
+// and this is the assertion that makes the hash worth having: a copy change
+// without a date change fails here instead of shipping a wrong signal.
+console.log("\n== the sitemap lastmod matches the page sources");
+const lm = await import("../scripts/sitemap-lastmod.mjs");
+const committedLastmod = lm.readCommitted();
+const treeHashes = lm.hashesForTree();
+const stalePaths = lm.staleEntries(committedLastmod, treeHashes);
+ok("no page content has changed since its date was recorded", stalePaths.length === 0,
+  stalePaths.length ? stalePaths.map((p) => p || "/").join(", ") + " — run: node scripts/sitemap-lastmod.mjs --write" : "");
+
+// EVERY PUBLIC PAGE IS ADVERTISED AND DATED. `SITEMAP_PATHS` derives from the
+// dated file, so asserting the two agree would prove nothing — what can go
+// wrong is a page existing and never reaching either. The shell route list is
+// the authority on which pages exist, so it is what this compares against.
+const { SITEMAP_SOURCES } = await import("@/shared/marketing/sitemapSources");
+for (const p of Object.keys(SITEMAP_SOURCES)) {
+  ok((p || "/") + " carries a recorded date", Boolean(committedLastmod[p]));
+}
+for (const p of SHELL_PATHS) {
+  ok("...and " + p + " is advertised in the sitemap", p in SITEMAP_SOURCES);
+}
+
+// RUNNING IT TWICE MUST NOT MOVE A DATE. If it did, every run would
+// re-advertise every page as changed — the exact defect being fixed.
+const again = lm.reconcile(committedLastmod, treeHashes, "2099-01-01");
+ok("...and reconciling an unchanged tree keeps every date where it was",
+  Object.entries(again).every(([p, v]) => v.date === committedLastmod[p].date));
+
+// ...WHILE A CHANGED PAGE DOES MOVE. The other half: a hash that never
+// triggered would be a date map with extra steps.
+const tampered = { ...committedLastmod, "/about": { hash: "0000000000000000", date: "2020-01-01" } };
+const moved = lm.reconcile(tampered, treeHashes, "2099-01-01");
+ok("...and a changed page takes the new date", moved["/about"].date === "2099-01-01");
+
 const nav = readFileSync("src/components/Nav.js", "utf8");
 // THIS ASSERTED THE MECHANISM WAS GONE AND MEANT THE ROUTE. `BARE_PREFIXES`
 // was introduced for `/preview/hero/<variant>` and deleted with it, so
