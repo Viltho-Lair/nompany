@@ -752,17 +752,20 @@ per spec, so the first check said it was absent when it was there. Excel on Wind
 UTF-8 CSV as the system codepage without one, which matters for a product whose studios are
 largely Arabic.
 
-#### §15 Administration & Settings 🟡 5 / 10
+#### §15 Administration & Settings 🟡 6 / 10
 People ✅ · Access ✅ · Studio settings ✅ · Master data 🟡 (locations and departments
-only) · Numbering series ✅ (08/09/2026) · **Currencies and units of measure ⬜ · Cost codes ⬜ ·
-Categories and industry taxonomy ⬜ · Flow templates ⬜ · Integrations & API ⬜ ·
-Notification templates & print formats ⬜**
+only, plus numbering and units) · Numbering series ✅ (08/09/2026) · Currencies and units of measure ✅ (09/09/2026) ·
+**Cost codes ⬜ · Categories and industry taxonomy ⬜ · Flow templates ⬜ ·
+Integrations & API ⬜ · Notification templates & print formats ⬜**
 **NINETEEN CALL SITES MINTED A REFERENCE AND EVERY PREFIX WAS A STRING LITERAL.** A studio
 whose invoices have always been "SI" got "INV", and there was no screen, no setting and no
 way round it — the numbering series every ERP buyer asks about first. All of them go
 through `nextReference`, which is what made this one change rather than nineteen: sixteen
 series are configurable now, on a third Master data tab, stored on the studio record beside
-`currency` and the approval chains.
+`currency` and the approval chains. (**Seventeen, measured** —
+`grep 'key: "' numbering.ts` — this said sixteen from the day it was written. Quotations
+are not among them: Technical has carried its own per-sequence numbering since before this
+existed, and folding it in is a migration rather than a tab.)
 
 **A RENAME STARTS A NEW SEQUENCE AND RENUMBERS NOTHING**, which is what makes it safe to
 offer at all. `bumpCounter` is keyed on the prefix, so documents already issued keep the
@@ -785,6 +788,34 @@ and the server both refuse on, and the studio hears about its own edit in words 
 edit. Two series may not share a prefix either: the numbers would be correct (one counter,
 nothing reissued) and interleaved so nobody could use them.
 
+**`UNITS` WAS EIGHT STRINGS IN INVENTORY AND `createItem` SILENTLY REPLACED ANYTHING
+ELSE WITH THE FIRST OF THEM.** So a merchant selling cement in bags got "pcs", a stockist
+counting tonnes got "pcs", and neither was told — the item saved and looked right. That is
+worse than a refusal, and it is the same defect the numbering series had one register
+along: a compile-time list standing in for a studio's own reference data.
+`modules/administration/units` is the registry, the shape numbering already uses, and it
+is the fourth Master data tab.
+
+**THE DEFAULTS ARE NEVER REMOVABLE**, which is what makes adding safe. Taking one out
+would orphan every item already measured in it, and an item whose unit is not offered
+cannot be edited without changing something nobody meant to change. A shipped default
+therefore has no remove button — absent rather than disabled, because a control that is
+always refused should not be drawn — and only the studio's ADDITIONS are stored, so a
+later change to a default still reaches every studio.
+
+**REFUSED ON WRITE WITH EVERY REASON NAMED.** No commas or quotes, because the item list
+exports as CSV and a comma inside a unit breaks the row; internal spaces are fine, since
+"sq ft" is a unit; and case-insensitively unique, because "Kg" beside "kg" is a choice
+nobody can make correctly and then divides every grouping in half. Proven in the sandbox
+end to end: "bag" added, saved, offered by the item form, and an item created holding it,
+while `furlong` still coerced to `pcs` and three bad lists refused by name.
+
+**CURRENCIES ARE THE OTHER HALF OF THAT BULLET AND WERE NOT MOVED.** A studio's base
+currency, its favourites and the daily FX table have worked in Studio settings since P2's
+approval engine needed them. Moving a working screen onto this one is a visibility
+decision each time, and there is nothing to add: the bullet is closed where the two halves
+actually live rather than by relocating one of them.
+
 The artifact's footer {M} *"all four of its keys sit in `NO_SCREEN_YET`… hardcoded standalone
 entries"* {M} **is reversed**: the fold landed 03/09/2026 and Administration is an ordinary
 gated section.
@@ -793,14 +824,20 @@ gated section.
 
 | | Built | Target | |
 |---|---|---|---|
-| Complete | 2 sections | CRM & Sales, Tendering | |
-| Partial | 6 sections | Projects, Procurement, Administration, Engineering, Field Service, Finance | |
-| One subsection only | 2 sections | Logistics, HR | |
-| Renders nothing | 4 sections | Manufacturing, Assets, Quality & HSE, Reports | |
-| **Subsections** | **58 built** | **130 in the target list** | **45%** |
+| Every subsection built | 8 sections | CRM & Sales, Tendering, Projects, Engineering, Procurement, Logistics, Assets, Quality & HSE | |
+| Partial | 7 sections | Inventory 6/8, Manufacturing 3/6, Field Service 8/10, HR 5/10, Finance 12/18, Reports 1/5, Administration 6/10 | |
+| Renders nothing | 0 sections | `NO_SCREEN_YET` is empty | |
+| **Subsections** | **104 built** | **130 in the target list** | **80%** |
 
-**The four empty sections are NOT the gap.** They are 23 of the **72** outstanding
-subsections. The other **49** sit inside sections that already render and read as finished.
+**THE ROW ABOVE SAID 58 / 130 / 45% AND THE THREE ROWS ABOVE IT WERE A SNAPSHOT OF A
+DIFFERENT FORTNIGHT** — four sections rendering nothing, Logistics and HR at one
+subsection each, Assets and Quality not counted as built at all. Every figure here is the
+sum of the fifteen §-headings above it, re-added at this commit rather than carried
+forward; when one of those moves, this moves in the same edit or it is wrong again.
+
+**The gap is no longer the empty sections — there are none.** All 26 outstanding
+subsections sit inside sections that already render and read as finished, which is the
+harder half to see: Finance is missing six, HR five, Reports four.
 
 **THE SUMMARY ROW ABOVE FIRST READ 42 / ~110 / 38%, AND ALL THREE WERE WRONG.** 42 is the
 count of declared keys in `SECTION_DEFS`, which is a different unit from the artifact's
@@ -934,7 +971,7 @@ and says which four render nothing.
 | Item | State |
 |---|---|
 | **Reports & BI** — executive dashboard, report builder, KPI targets, alert rules | ⬜ section renders nothing |
-| **Administration master data** | 🟡 Locations and Departments built; currencies, UoM, numbering series, cost codes, categories, industry taxonomy pending |
+| **Administration master data** | 🟡 Locations, Departments, numbering series and units of measure built; currencies live in Studio settings; cost codes, categories, industry taxonomy pending |
 | Integrations and API, notification templates, print formats | ⬜ |
 | **Templates B–G activation** — one real deal per template, end to end | ⬜ only Template A is exercised |
 | Readiness — performance pass, onboarding, spreadsheet import, docs | ⬜ |
