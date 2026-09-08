@@ -1,0 +1,95 @@
+{
+  "status": 200,
+  "body": {
+    "asOf": "<timestamp>",
+    "activeNow": 32,
+    "people": 33,
+    "studios": 1,
+    "arrivals": [
+      {
+        "at": "<timestamp>",
+        "kind": "user",
+        "label": "g-••••••",
+        "country": "",
+        "continent": ""
+      },
+      {
+        "at": "<timestamp>",
+        "kind": "user",
+        "label": "g-••••••",
+        "country": "",
+        "continent": ""
+      },
+      {
+        "at": "<timestamp>",
+        "kind": "user",
+        "label": "g-••••••",
+        "country": "",
+        "continent": ""
+      },
+      {
+        "at": "<timestamp>",
+        "kind": "user",
+        "label": "g-••••••",
+        "country": "",
+        "continent": ""
+      },
+      {
+        "at": "<timestamp>",
+        "kind": "user",
+        "label": "g-••••••",
+        "country": "",
+        "continent": ""
+      },
+      {
+        "at": "<timestamp>",
+        "kind": "user",
+        "label": "g-••••••",
+        "country": "",
+        "continent": ""
+      },
+      {
+        "at": "<timestamp>",
+        "kind": "user",
+        "label": "g-••••••",
+        "country": "",
+        "continent": ""
+      },
+      {
+        "at": "<timestamp>",
+        "kind": "user",
+        "label": "g-••••••",
+        "country": "",
+        "continent": ""
+      },
+      {
+        "at": "<timestamp>",
+        "kind": "user",
+        "label": "g-••••••",
+        "country": "",
+        "continent": ""
+      },
+      {
+        "at": "<timestamp>",
+        "kind": "user",
+        "label": "g-••••••",
+        "country": "",
+        "continent": ""
+      },
+      {
+        "at": "<timestamp>",
+        "kind": "user",
+        "label": "g-••••••",
+        "country": "",
+        "continent": ""
+      },
+      {
+        "at": "<timestamp>",
+        "kind": "user",
+        "label": "g-••••••",
+        "country": "",
+        "continent": ""
+      }
+    ]
+  }
+}
