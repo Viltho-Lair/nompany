@@ -49,6 +49,39 @@ sheet. They all read the same entries; serving them separately would be four rea
 one collection and four chances to show a profit and a trial balance computed a second
 apart.
 
+### Dimensions, and what reconciles to what
+
+**A line can name a deal, a project, a cost code and a department**, all optional. Opening
+capital belongs to no deal; a bank transfer to no cost code. Requiring one would force
+somebody to invent it, and an invented dimension is worse than an absent one because it
+reports as fact.
+
+**They are carried, never validated** — the same decision `milestoneId` on an invoice and
+`costCodeId` on a bill already make. An id is checked by the reader that groups on it,
+which is the only place that can also cope with the thing being DELETED afterwards. A
+write-time check would refuse a foreign id and still be silent about a dimension that
+disappeared later, so it buys nothing and costs a read per posting.
+
+**A cut EXCLUDES the lines that do not name the value.** Asking what a deal earned must
+not quietly fold in the postings belonging to no deal, or every deal card is wrong by a
+share of the studio's overheads — and the smaller the deal, the more wrong it is.
+
+**So the undimensioned residue is reported in its own right**, under an empty key, and
+sorts last because it is not a competitor to the deals. That is what makes the sum
+reconcile: every row of the breakdown, residue included, adds back to the whole ledger's
+profit. Gate A asserts exactly that, which is the programme's acceptance test — *the deal
+card's profit figure reconciles to the ledger* — finally being answerable.
+
+**The balance sheet is never cut**, and that is a decision. A balance sheet is a statement
+about the whole entity: assets equal liabilities plus equity precisely because every
+posting is in it. Filter it to one deal and the identity breaks — the deal's receivable is
+there, the bank account that will collect it is not — so it would report itself unbalanced
+and be right to.
+
+**The dimension name is checked against a closed set of four.** It is a property the
+reader indexes lines by, so accepting whatever arrived in the query string would let a
+caller read an arbitrary field off every posting.
+
 ### The statements
 
 **Income and liabilities read positive.** They are credit-normal, so reporting every
@@ -79,9 +112,12 @@ Stated in words, because a silent gap reads as a finished feature.
   `postPayment` exist and are still reached by nothing: raising an invoice does not
   touch the ledger. Every entry is keyed by hand. This is the programme's
   "auto-posting from every module" and it is the largest remaining piece.
-- **A journal line carries no dimension but `projectId`.** No deal, no cost code, no
-  branch, no department — so the ledger cannot be cut by any of them, and the
-  acceptance test that the deal card reconciles to the ledger still cannot be written.
+- ~~**A journal line carries no dimension but `projectId`.**~~ **Fixed 08/09/2026.** A
+  line now carries `dealId`, `costCodeId` and `departmentId` beside it, the P&L can be cut
+  by any one of them, and `byDimension` reports what each value earned. **What is still
+  missing is the other end**: nothing WRITES a dimension automatically, because nothing
+  posts automatically — so a deal's figures are only as complete as the entries somebody
+  keyed by hand against it.
 - **No periods and no close.** Nothing locks a date range, nothing rolls a year end,
   and the retained result is therefore recomputed from the beginning of time on every
   read rather than carried into equity.

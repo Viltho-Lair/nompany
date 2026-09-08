@@ -155,8 +155,21 @@ function cleanLines(
     debit += d;
     credit += c;
     const line: JournalLine = { accountId, debit: money(d), credit: money(c) };
-    const projectId = str((r as Row)?.projectId, 60);
-    if (projectId) line.projectId = projectId;
+    // THE DIMENSIONS, CARRIED AND NOT VALIDATED — deliberately, and it is the
+    // same decision `milestoneId` on an invoice and `costCodeId` on a bill
+    // already make. An id is checked by the READER that groups on it, which is
+    // the only place that can also cope with the thing being DELETED later. A
+    // write-time check would refuse a foreign id and still be silent about a
+    // dimension that disappeared afterwards, so it would buy nothing and cost a
+    // read per posting.
+    //
+    // Absent rather than empty: a line that names no deal must not carry
+    // `dealId: ""`, or every reader has to know that "" means "none" instead of
+    // the key simply not being there.
+    for (const dim of ["projectId", "dealId", "costCodeId", "departmentId"] as const) {
+      const value = str((r as Row)?.[dim], 60);
+      if (value) line[dim] = value;
+    }
     const memo = str((r as Row)?.memo, 300);
     if (memo) line.memo = memo;
     lines.push(line);

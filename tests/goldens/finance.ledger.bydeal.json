@@ -167,6 +167,60 @@
     "journal": [
       {
         "id": "<jou_ID>",
+        "reference": "JE-0005",
+        "date": "2031-04-11",
+        "memo": "Labour on the fit-out",
+        "lines": [
+          {
+            "accountId": "<acc_ID>",
+            "debit": 800,
+            "credit": 0,
+            "dealId": "eng_ledger_fixture"
+          },
+          {
+            "accountId": "<acc_ID>",
+            "debit": 0,
+            "credit": 800,
+            "dealId": "eng_ledger_fixture"
+          }
+        ],
+        "source": {
+          "kind": "manual"
+        },
+        "postedByCollaboratorId": "<col_ID>",
+        "postedAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>"
+      },
+      {
+        "id": "<jou_ID>",
+        "reference": "JE-0004",
+        "date": "2031-04-10",
+        "memo": "Fee on the fit-out",
+        "lines": [
+          {
+            "accountId": "<acc_ID>",
+            "debit": 2000,
+            "credit": 0,
+            "dealId": "eng_ledger_fixture"
+          },
+          {
+            "accountId": "<acc_ID>",
+            "debit": 0,
+            "credit": 2000,
+            "dealId": "eng_ledger_fixture"
+          }
+        ],
+        "source": {
+          "kind": "manual"
+        },
+        "postedByCollaboratorId": "<col_ID>",
+        "postedAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>"
+      },
+      {
+        "id": "<jou_ID>",
         "reference": "JE-0003",
         "date": "2031-04-06",
         "memo": "Wages",
@@ -266,7 +320,7 @@
           "code": "1100",
           "name": "Accounts Receivable",
           "type": "asset",
-          "debit": 4000,
+          "debit": 6000,
           "credit": 0,
           "normalSide": "debit"
         },
@@ -303,7 +357,7 @@
           "name": "Accounts Payable",
           "type": "liability",
           "debit": 0,
-          "credit": 1500,
+          "credit": 2300,
           "normalSide": "credit"
         },
         {
@@ -339,7 +393,7 @@
           "name": "Revenue",
           "type": "income",
           "debit": 0,
-          "credit": 4000,
+          "credit": 6000,
           "normalSide": "credit"
         },
         {
@@ -347,7 +401,7 @@
           "code": "5000",
           "name": "Cost of Sales",
           "type": "expense",
-          "debit": 1500,
+          "debit": 2300,
           "credit": 0,
           "normalSide": "debit"
         },
@@ -388,8 +442,8 @@
           "normalSide": "debit"
         }
       ],
-      "totalDebit": 10500,
-      "totalCredit": 10500,
+      "totalDebit": 13300,
+      "totalCredit": 13300,
       "balanced": true
     },
     "profitAndLoss": {
@@ -400,7 +454,7 @@
           "accountId": "<acc_ID>",
           "code": "4000",
           "name": "Revenue",
-          "amount": 4000
+          "amount": 2000
         }
       ],
       "expense": [
@@ -408,12 +462,12 @@
           "accountId": "<acc_ID>",
           "code": "5000",
           "name": "Cost of Sales",
-          "amount": 1500
+          "amount": 800
         }
       ],
-      "totalIncome": 4000,
-      "totalExpense": 1500,
-      "profit": 2500
+      "totalIncome": 2000,
+      "totalExpense": 800,
+      "profit": 1200
     },
     "balanceSheet": {
       "asOf": "",
@@ -428,7 +482,7 @@
           "accountId": "<acc_ID>",
           "code": "1100",
           "name": "Accounts Receivable",
-          "amount": 4000
+          "amount": 6000
         }
       ],
       "liability": [
@@ -436,7 +490,7 @@
           "accountId": "<acc_ID>",
           "code": "2000",
           "name": "Accounts Payable",
-          "amount": 1500
+          "amount": 2300
         }
       ],
       "equity": [
@@ -447,14 +501,27 @@
           "amount": 5000
         }
       ],
-      "totalAssets": 9000,
-      "totalLiabilities": 1500,
+      "totalAssets": 11000,
+      "totalLiabilities": 2300,
       "totalEquity": 5000,
-      "retainedResult": 2500,
+      "retainedResult": 3700,
       "difference": 0,
       "balanced": true
     },
-    "breakdown": null,
+    "breakdown": [
+      {
+        "value": "eng_ledger_fixture",
+        "income": 2000,
+        "expense": 800,
+        "profit": 1200
+      },
+      {
+        "value": "",
+        "income": 4000,
+        "expense": 1500,
+        "profit": 2500
+      }
+    ],
     "canPost": true,
     "canReverse": true
   }

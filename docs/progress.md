@@ -419,13 +419,14 @@ files ⬜ · Payroll posting to the ledger ⬜**
 The artifact's note here {M} *"a department IS a top-level section"* {M} **is reversed**:
 departments are their own records under Administration as of 06/09/2026.
 
-#### §13 Finance & Accounting ⬜ 8 / 18
+#### §13 Finance & Accounting ⬜ 9 / 18
 Cash ✅ · Ledger ✅ · Payables ✅ · Fixed assets ✅ · Settings ✅ · Payment as an
 allocatable record ✅ · Retention & progress billing (IPC) ✅ · Budgets & commitment
 control 🟡 (at project level only, not in the ledger) · Multi-currency 🟡 (daily FX and
 rate-at-approval; no revaluation) · P&L and balance sheet 🟡 (both built 08/09/2026; **no
 cash flow** — it needs operating/investing/financing classification nothing records) ·
-**Dimensions on every journal line ⬜ · Periods & close ⬜ · Credit notes ⬜ · Tax
+Dimensions on every journal line ✅ (deal, project, cost code, department — carried,
+cut by, and reconciling; 08/09/2026) · **Periods & close ⬜ · Credit notes ⬜ · Tax
 engine, ZATCA adapter, WHT ⬜ · Bank reconciliation ⬜ · Cash-flow forecast and PDCs ⬜ ·
 Letters of guarantee & credit ⬜ · Auto-posting from every module ⬜**
 **The largest single body of unbuilt work in the programme.**

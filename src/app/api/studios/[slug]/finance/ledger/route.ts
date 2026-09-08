@@ -4,7 +4,10 @@ import { financeContext } from "@/modules/finance/finance";
 import {
   ledgerAccounts, listJournal, trialBalanceFrom, postEntry, reverseEntry,
 } from "@/modules/finance/ledger";
-import { profitAndLoss, balanceSheet } from "@/modules/finance/statements";
+import {
+  profitAndLoss, balanceSheet, byDimension, DIMENSIONS,
+} from "@/modules/finance/statements";
+import type { Dimension } from "@/modules/finance/statements";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,6 +36,16 @@ export const GET = route({ ...spec, body: false }, async (f) => {
   const url = new URL(f.request.url);
   const from = url.searchParams.get("from");
   const to = url.searchParams.get("to");
+
+  // THE CUT, TAKEN FROM THE URL AND CHECKED AGAINST THE CLOSED SET. A dimension
+  // is a property name the reader indexes lines by, so accepting whatever
+  // arrived would let a caller read an arbitrary field off every posting. Four
+  // names, declared beside the model that uses them.
+  const asked = String(url.searchParams.get("dimension") || "");
+  const dimension = (DIMENSIONS as readonly string[]).includes(asked)
+    ? (asked as Dimension)
+    : undefined;
+  const value = url.searchParams.get("value") || undefined;
   // THE BALANCE SHEET'S DATE IS THE PERIOD'S END, not a third parameter. A sheet
   // as at a date the P&L does not reach would be two statements about different
   // worlds shown side by side.
@@ -63,8 +76,20 @@ export const GET = route({ ...spec, body: false }, async (f) => {
     accounts: chart,
     journal: entries,
     trialBalance: trialBalanceFrom(chart, entries),
-    profitAndLoss: profitAndLoss(entries, chart, { from, to }),
+    // THE P&L IS CUT WHEN A DIMENSION WAS ASKED FOR, and is the whole book
+    // otherwise — one function, so the two answers cannot drift apart.
+    profitAndLoss: profitAndLoss(entries, chart, { from, to, dimension, value }),
+    // THE BALANCE SHEET IS NEVER CUT, and that is a decision rather than an
+    // omission. A balance sheet is a statement about the WHOLE entity: assets
+    // equal liabilities plus equity because every posting is in it. Filter it to
+    // one deal and the identity breaks — the deal's receivable is there, the
+    // bank account that will collect it is not — so it would report itself
+    // unbalanced and be right to.
     balanceSheet: balanceSheet(entries, chart, asOf),
+    // WHAT EACH VALUE OF THE ASKED DIMENSION EARNED, so a reader can see the
+    // deals beside each other rather than querying them one at a time. Absent
+    // when no dimension was asked for: a breakdown by nothing is not a shape.
+    breakdown: dimension ? byDimension(entries, chart, dimension, { from, to }) : null,
     canPost: !requirePermission(f.access, "finance.ledger.post"),
     canReverse: !requirePermission(f.access, "finance.ledger.reverse"),
   };

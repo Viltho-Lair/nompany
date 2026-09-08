@@ -4094,6 +4094,68 @@ console.log("== finance: a number that only goes forward, and money that is deri
     String(bs?.retainedResult));
   await shot("finance.ledger.books", books);
 
+  // ---- a posting names its deal, and the ledger can be asked about it -------
+  //
+  // THE PROGRAMME'S ACCEPTANCE TEST is "the deal card's profit figure
+  // reconciles to the ledger", and until a line could name a deal it could not
+  // be WRITTEN, never mind passed. This is it, through the real route.
+  // A LITERAL, AND THAT IS THE POINT. A dimension is carried and never
+  // validated — the reader groups on whatever the line said, which is what
+  // lets a deleted deal still show its history instead of vanishing. So the
+  // fixture needs no engagement to exist.
+  const ledgerDealId = "eng_ledger_fixture";
+
+  await post({
+    date: "2031-04-10", memo: "Fee on the fit-out",
+    lines: [
+      { accountId: acc("1100"), debit: 2000, credit: 0, dealId: ledgerDealId },
+      { accountId: acc("4000"), debit: 0, credit: 2000, dealId: ledgerDealId },
+    ],
+  });
+  await post({
+    date: "2031-04-11", memo: "Labour on the fit-out",
+    lines: [
+      { accountId: acc("5000"), debit: 800, credit: 0, dealId: ledgerDealId },
+      { accountId: acc("2000"), debit: 0, credit: 800, dealId: ledgerDealId },
+    ],
+  });
+
+  const cut = await capture(
+    LEDGER.GET,
+    req(`${ledgerPath}?dimension=dealId&value=${encodeURIComponent(ledgerDealId)}`),
+    P,
+  );
+  await shot("finance.ledger.bydeal", cut);
+  const dealPl = cut.body?.profitAndLoss;
+  ok("the ledger answers for one deal", dealPl?.totalIncome === 2000, String(dealPl?.totalIncome));
+  ok("...its own costs and no others", dealPl?.totalExpense === 800, String(dealPl?.totalExpense));
+  ok("A DEAL'S PROFIT IS ITS OWN LINES", dealPl?.profit === 1200, String(dealPl?.profit));
+
+  // THE POSTINGS THAT NAME NO DEAL ARE NOT FOLDED IN. The capital, the fee and
+  // the wages above belong to no deal; counting them would make every deal card
+  // wrong by a share of the studio's overheads.
+  const whole = await capture(LEDGER.GET, req(ledgerPath), P);
+  ok("...while the whole book is larger", (whole.body?.profitAndLoss?.profit || 0) !== 1200,
+    String(whole.body?.profitAndLoss?.profit));
+
+  // AND IT RECONCILES: every row of the breakdown, the no-deal residue included,
+  // sums back to the whole ledger's profit. That is the reconciliation the deal
+  // card needs and could not previously make.
+  const rows = cut.body?.breakdown || [];
+  const summed = rows.reduce((t, r) => t + r.profit, 0);
+  ok("THE BREAKDOWN RECONCILES TO THE WHOLE LEDGER",
+    summed === whole.body?.profitAndLoss?.profit,
+    `${summed} vs ${whole.body?.profitAndLoss?.profit}`);
+  ok("...with the undimensioned postings in their own row",
+    rows.some((r) => r.value === ""), JSON.stringify(rows).slice(0, 160));
+
+  // A DIMENSION THE MODEL DOES NOT DECLARE IS IGNORED, not indexed. Otherwise a
+  // caller could read an arbitrary property off every posting line.
+  const madeUp = await capture(
+    LEDGER.GET, req(`${ledgerPath}?dimension=memo&value=Wages`), P);
+  ok("an undeclared dimension is refused by being ignored",
+    madeUp.body?.breakdown === null, JSON.stringify(madeUp.body?.breakdown));
+
   // A POSTED ENTRY IS NEVER EDITED AND NEVER DELETED — the correction is another
   // entry that mirrors it, which is why the route has no PUT and no DELETE.
   await shot("finance.journal.reversed", await capture(

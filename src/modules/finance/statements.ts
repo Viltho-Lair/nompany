@@ -19,7 +19,16 @@ export type StatementLine = {
   accountId?: unknown;
   debit?: unknown;
   credit?: unknown;
+  projectId?: unknown;
+  dealId?: unknown;
+  costCodeId?: unknown;
+  departmentId?: unknown;
 };
+
+/** The dimensions a line can be cut by. Named once; the filter and the
+ *  breakdown both read this rather than each keeping a list. */
+export const DIMENSIONS = ["projectId", "dealId", "costCodeId", "departmentId"] as const;
+export type Dimension = (typeof DIMENSIONS)[number];
 
 export type StatementEntry = {
   date?: unknown;
@@ -95,6 +104,7 @@ const DEBIT_NORMAL: Record<string, boolean> = {
 function netByAccount(
   entries: StatementEntry[],
   keep: (date: string) => boolean,
+  keepLine: (line: StatementLine) => boolean = () => true,
 ): Map<string, number> {
   const net = new Map<string, number>();
   for (const e of list<StatementEntry>(entries)) {
@@ -106,6 +116,7 @@ function netByAccount(
     for (const l of list<StatementLine>(e?.lines)) {
       const id = text(l?.accountId);
       if (!id) continue;
+      if (!keepLine(l)) continue;
       net.set(id, (net.get(id) || 0) + cents(l?.debit) - cents(l?.credit));
     }
   }
@@ -149,11 +160,22 @@ function rowsFor(
 export function profitAndLoss(
   entries: StatementEntry[],
   accounts: StatementAccount[],
-  window: { from?: unknown; to?: unknown } = {},
+  window: { from?: unknown; to?: unknown; dimension?: Dimension; value?: unknown } = {},
 ): ProfitAndLoss {
   const from = day(window.from);
   const to = day(window.to);
-  const net = netByAccount(entries, (d) => (!from || d >= from) && (!to || d <= to));
+  // CUT BY ONE DIMENSION, OR NOT AT ALL. A line that does not name the value is
+  // EXCLUDED rather than counted as "everything else" — asking what a deal
+  // earned must not quietly fold in the postings that belong to no deal, or the
+  // figure a deal card shows is the deal plus the studio's overheads.
+  const dim = window.dimension;
+  const want = text(window.value);
+  const keepLine = dim && want
+    ? (l: StatementLine) => text(l?.[dim]) === want
+    : undefined;
+  const net = netByAccount(
+    entries, (d) => (!from || d >= from) && (!to || d <= to), keepLine,
+  );
 
   const income = rowsFor(accounts, net, "income");
   const expense = rowsFor(accounts, net, "expense");
@@ -211,4 +233,66 @@ export function balanceSheet(
     difference: money(difference),
     balanced: difference === 0,
   };
+}
+
+/**
+ * WHAT EACH VALUE OF ONE DIMENSION EARNED, over a period.
+ *
+ * THIS IS THE ACCEPTANCE TEST'S OTHER HALF. "The deal card's profit figure
+ * reconciles to the ledger" needs two things: a line that names its deal, and a
+ * way to ask the ledger what that deal made. This is the second.
+ *
+ * THE UNDIMENSIONED TOTAL IS REPORTED IN ITS OWN RIGHT, under an empty key, and
+ * is never spread across the values. Postings that name no deal are real —
+ * opening capital, a bank charge, last year's accrual — and attributing them
+ * would inflate every deal by a share of the studio's overheads. Somebody
+ * reconciling a deal card needs to see that residue, not have it hidden.
+ */
+export function byDimension(
+  entries: StatementEntry[],
+  accounts: StatementAccount[],
+  dimension: Dimension,
+  window: { from?: unknown; to?: unknown } = {},
+): { value: string; income: number; expense: number; profit: number }[] {
+  const seen = new Set<string>();
+  for (const e of list<StatementEntry>(entries)) {
+    for (const l of list<StatementLine>(e?.lines)) seen.add(text(l?.[dimension]));
+  }
+
+  const out = [...seen].map((value) => {
+    const pl = profitAndLoss(entries, accounts, {
+      ...window,
+      // The empty key is the residue, and it is asked for by NOT cutting on a
+      // value — `profitAndLoss` treats an empty value as no filter, so it is
+      // computed here instead by keeping only the lines that name nothing.
+      dimension,
+      value: value || undefined,
+    });
+    if (value) return { value, income: pl.totalIncome, expense: pl.totalExpense, profit: pl.profit };
+    const residue = residueFor(entries, accounts, dimension, window);
+    return { value: "", ...residue };
+  });
+
+  // Most profitable first; the residue last whatever it is, because it is not a
+  // competitor to the others and reads as one if it sorts among them.
+  return out.sort((a, b) => (a.value === "" ? 1 : b.value === "" ? -1 : b.profit - a.profit));
+}
+
+/** Income and expense on the lines that name NOTHING for this dimension. */
+function residueFor(
+  entries: StatementEntry[],
+  accounts: StatementAccount[],
+  dimension: Dimension,
+  window: { from?: unknown; to?: unknown },
+) {
+  const from = day(window.from);
+  const to = day(window.to);
+  const net = netByAccount(
+    entries,
+    (d) => (!from || d >= from) && (!to || d <= to),
+    (l) => !text(l?.[dimension]),
+  );
+  const income = rowsFor(accounts, net, "income").total;
+  const expense = rowsFor(accounts, net, "expense").total;
+  return { income: money(income), expense: money(expense), profit: money(income - expense) };
 }

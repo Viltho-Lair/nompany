@@ -131,11 +131,35 @@ export const AccountSchema = z.object({
  * neither. `projectId` tags the line so a P&L can be read per project without a
  * second set of books.
  */
+/**
+ * ONE POSTING LINE, AND WHAT IT CAN BE CUT BY.
+ *
+ * THE DIMENSIONS ARE WHY A LEDGER IS WORTH KEEPING. A trial balance says the
+ * books balance; it cannot say what a deal earned, what a cost code consumed, or
+ * which department spent it. Until these existed the programme's own acceptance
+ * test — "the deal card's profit figure reconciles to the ledger" — could not be
+ * WRITTEN, never mind passed: there was nothing on a line to reconcile through.
+ *
+ * ALL OPTIONAL, AND THAT IS NOT LAZINESS. Opening capital belongs to no deal;
+ * a bank transfer belongs to no cost code; an entry correcting last year's
+ * accruals belongs to no department. Requiring a dimension would force somebody
+ * to invent one, and an invented dimension is worse than an absent one because
+ * it reports as fact.
+ *
+ * `projectId` KEEPS ITS NAME. It shipped before the others and rows carry it;
+ * renaming it to fit a tidier set would orphan every line already posted.
+ */
 export const JournalLineSchema = z.object({
   accountId: z.string().max(60),
   debit: z.number().min(0),
   credit: z.number().min(0),
   projectId: z.string().max(60).optional(),
+  /** The engagement, which is what the deal card asks about. */
+  dealId: z.string().max(60).optional(),
+  /** A project's cost code, so spend reconciles to the breakdown it was budgeted in. */
+  costCodeId: z.string().max(60).optional(),
+  /** The studio's own org unit, from Administration's register. */
+  departmentId: z.string().max(60).optional(),
   memo: z.string().max(300).optional(),
 });
 

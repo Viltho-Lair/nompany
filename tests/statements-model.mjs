@@ -154,5 +154,84 @@ const contra = S.profitAndLoss([{ date: "2031-02-01", lines: [
 ok("a contra balance shows as negative rather than vanishing",
   contra.totalExpense === -200, String(contra.totalExpense));
 
+console.log("\n== cut by a dimension ==\n");
+
+// THE ACCEPTANCE TEST THE PROGRAMME ASKS FOR is "the deal card's profit figure
+// reconciles to the ledger", and it needed two things that did not exist: a line
+// that names its deal, and a way to ask the ledger what that deal made.
+//
+// Two deals trade; opening capital belongs to neither.
+const dimEntries = [
+  { date: "2031-01-01", lines: [
+    { accountId: "a_cash", debit: 10000, credit: 0 },
+    { accountId: "a_cap", debit: 0, credit: 10000 },
+  ] },
+  { date: "2031-02-01", lines: [
+    { accountId: "a_recv", debit: 3000, credit: 0, dealId: "eng_a" },
+    { accountId: "a_sales", debit: 0, credit: 3000, dealId: "eng_a" },
+  ] },
+  { date: "2031-02-02", lines: [
+    { accountId: "a_wages", debit: 1000, credit: 0, dealId: "eng_a" },
+    { accountId: "a_pay", debit: 0, credit: 1000, dealId: "eng_a" },
+  ] },
+  { date: "2031-02-03", lines: [
+    { accountId: "a_recv", debit: 500, credit: 0, dealId: "eng_b" },
+    { accountId: "a_sales", debit: 0, credit: 500, dealId: "eng_b" },
+  ] },
+  // A bank charge that belongs to no deal at all — the residue.
+  { date: "2031-02-04", lines: [
+    { accountId: "a_wages", debit: 200, credit: 0 },
+    { accountId: "a_cash", debit: 0, credit: 200 },
+  ] },
+];
+
+const dealA = S.profitAndLoss(dimEntries, accounts, { dimension: "dealId", value: "eng_a" });
+ok("one deal's income is its own", dealA.totalIncome === 3000, String(dealA.totalIncome));
+ok("...and its expense too", dealA.totalExpense === 1000, String(dealA.totalExpense));
+ok("A DEAL'S PROFIT IS ITS OWN LINES AND NOTHING ELSE", dealA.profit === 2000,
+  String(dealA.profit));
+
+// THE POINT OF EXCLUDING RATHER THAN DEFAULTING. The 200 bank charge names no
+// deal; folding it in would make every deal card wrong by a share of the
+// studio's overheads, and the smaller the deal the more wrong it would be.
+ok("...with the undimensioned charge left out", dealA.totalExpense !== 1200);
+
+const dealB = S.profitAndLoss(dimEntries, accounts, { dimension: "dealId", value: "eng_b" });
+ok("the other deal is unaffected by the first", dealB.profit === 500, String(dealB.profit));
+
+// AN UNKNOWN VALUE IS EMPTY, NOT EVERYTHING. Asking about a deal that posted
+// nothing must not return the whole ledger.
+const none = S.profitAndLoss(dimEntries, accounts, { dimension: "dealId", value: "eng_zzz" });
+ok("a dimension value nothing names is an empty statement",
+  none.profit === 0 && none.income.length === 0, String(none.profit));
+
+// AND NO CUT AT ALL IS THE WHOLE LEDGER, so the same function serves both.
+const whole = S.profitAndLoss(dimEntries, accounts, {});
+ok("no dimension is the whole book", whole.totalIncome === 3500, String(whole.totalIncome));
+ok("...including the postings that name no deal", whole.totalExpense === 1200,
+  String(whole.totalExpense));
+
+console.log("\n== the breakdown, and its residue ==\n");
+
+const byDeal = S.byDimension(dimEntries, accounts, "dealId");
+const named = byDeal.filter((r) => r.value);
+ok("every deal that posted appears", named.length === 2, named.map((r) => r.value).join(","));
+ok("...most profitable first", named[0].value === "eng_a", named[0].value);
+
+// THE RESIDUE IS REPORTED IN ITS OWN RIGHT, never spread across the deals.
+const residue = byDeal.find((r) => r.value === "");
+ok("WORK THAT NAMES NO DEAL IS ITS OWN ROW", Boolean(residue), JSON.stringify(byDeal));
+ok("...carrying exactly the undimensioned postings", residue.expense === 200,
+  String(residue.expense));
+ok("...and it sorts last, not among the deals",
+  byDeal[byDeal.length - 1].value === "", byDeal.map((r) => r.value).join(","));
+
+// THE RECONCILIATION ITSELF: every row of the breakdown, residue included, sums
+// back to the whole ledger. If it did not, a deal card and the P&L would be two
+// numbers nobody could line up — which is the state this replaces.
+const summed = byDeal.reduce((t, r) => t + r.profit, 0);
+ok("THE BREAKDOWN RECONCILES TO THE WHOLE LEDGER", summed === whole.profit,
+  `${summed} vs ${whole.profit}`);
+
 console.log(`\n${fails ? `${fails} FAILURES` : "all passed"}\n`);
 process.exit(fails ? 1 : 0);
