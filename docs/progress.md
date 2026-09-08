@@ -444,10 +444,24 @@ open for somebody holding that key and nothing else.
 them and a studio grants them by hand. And a register still has no attachments, no
 comments and no audit trail — Phase 3's type management is what closes that.
 
-#### §11 Quality & HSE 🟡 3 / 8
-ITPs ⬜ · Inspection & test records ⬜ · NCR / CAPA ✅ · Audits ✅ · HSE incidents 🟡
+#### §11 Quality & HSE 🟡 6 / 8
+ITPs ✅ · Inspection & test records ✅ · NCR / CAPA ✅ · Audits ✅ · HSE incidents 🟡
 (register built; **no LTIFR** — `daysLost` is stored and nothing computes a rate) ·
-Permits to work & toolbox talks ✅ · **Certifications ⬜ · Dashboard ⬜**
+Permits to work & toolbox talks ✅ · Certifications ✅ · **Dashboard ⬜**
+
+Three more engine registers, 08/09/2026. **An ITP is a PLAN and a test report is a
+RECORD**, and they are separate registers on purpose: collapsing them leaves a studio
+unable to answer the only question an auditor asks — not what you intended to check, but
+what you checked and what it said. A test report keeps `result` and status apart for the
+same reason: the result is what the test said, the status is how far the paperwork has
+got, and a failed test nobody has signed off is a different thing from a failed test that
+has been witnessed and rejected.
+
+**Two gaps named rather than implied away.** Nothing raises an NCR from a failed test —
+the two registers sit beside each other and are not linked. And `Expiring` on a
+certificate is a status somebody SETS, not one anything computes: nothing reads
+`expiresOn`, so a certificate that lapsed last month still reads Valid until a person
+notices. The vehicle and training registers carry the identical gap, stated in all three.
 
 **It rendered NOTHING until 08/09/2026** and now has five registers, all engine types —
 declared as rows, no new engine code. See the caveat under §10; it applies here too.

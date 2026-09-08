@@ -741,6 +741,105 @@ export const BUILTIN_TYPES = [
     ],
     version: 1,
   },
+  {
+    // A PLAN, NOT A RECORD. An ITP says what will be inspected and at which
+    // hold points; what was actually found is a test report, which is the
+    // register below. Collapsing the two is how a studio ends up unable to
+    // answer the only question an auditor asks: not what you intended to
+    // check, but what you checked and what it said.
+    //
+    // ISSUED GOES BACK TO DRAFT, because an ITP returned with comments is
+    // the normal case. Approved does not: past that point it is superseded
+    // by a new revision, the controlled-document rule.
+    key: "itp",
+    label: "Inspection and test plans",
+    parentSectionKey: "quality-hse",
+    fields: [
+      { key: "title", label: "Title", kind: "text", required: true },
+      { key: "project", label: "Project", kind: "text" },
+      { key: "discipline", label: "Discipline", kind: "select", options: ["Civil", "Structural", "Mechanical", "Electrical", "Instrumentation", "Architectural", "Other"] },
+      { key: "revision", label: "Revision", kind: "text" },
+      { key: "holdPoints", label: "Hold and witness points", kind: "longtext", required: true },
+      { key: "acceptance", label: "Acceptance criteria", kind: "longtext" },
+    ],
+    columns: ["title", "discipline", "revision"],
+    statuses: ["Draft", "Issued", "Approved", "Superseded"],
+    transitions: [
+      { from: "Draft", to: "Issued" },
+      { from: "Issued", to: "Approved" },
+      { from: "Issued", to: "Draft" },
+      { from: "Approved", to: "Superseded" },
+    ],
+    version: 1,
+  },
+  {
+    // `result` AND THE STATUS ARE DIFFERENT FACTS and both are kept. The
+    // result is what the test said; the status is how far the paperwork has
+    // got. A failed test that has been witnessed and rejected is a complete
+    // record; a failed test nobody has signed off is an open problem, and a
+    // register carrying only one of the two cannot tell them apart.
+    //
+    // REJECTED RETURNS TO OPEN, because the work is redone and re-tested
+    // against the same reference. NOTHING RAISES AN NCR FROM A FAILURE —
+    // that link is in the functionality file's "Not built yet", not
+    // implied away by the two registers sitting beside each other.
+    key: "testreport",
+    label: "Inspection and test records",
+    parentSectionKey: "quality-hse",
+    fields: [
+      { key: "reference", label: "Reference", kind: "text", required: true },
+      { key: "itp", label: "Against ITP", kind: "text" },
+      { key: "location", label: "Location or element", kind: "text" },
+      { key: "inspectedOn", label: "Inspected", kind: "date" },
+      { key: "inspector", label: "Inspector", kind: "text" },
+      { key: "result", label: "Result", kind: "select", options: ["Pass", "Fail", "Pass with comment"] },
+      { key: "findings", label: "Findings", kind: "longtext" },
+    ],
+    columns: ["reference", "inspectedOn", "result"],
+    statuses: ["Open", "Witnessed", "Accepted", "Rejected"],
+    transitions: [
+      { from: "Open", to: "Witnessed" },
+      { from: "Witnessed", to: "Accepted" },
+      { from: "Witnessed", to: "Rejected" },
+      { from: "Rejected", to: "Open" },
+    ],
+    version: 1,
+  },
+  {
+    // `Expiring` IS A STATUS SOMEBODY SETS, not one anything computes.
+    // Nothing reads `expiresOn` and no job moves a row, so a certificate
+    // that lapsed last month still reads Valid until a person notices. That
+    // is the same gap the vehicle and training registers carry and it is
+    // stated in all three rather than left to be discovered — a status that
+    // looks like a warning and is not is worse than no status at all.
+    //
+    // EXPIRED RETURNS TO VALID: a certificate is RENEWED, and the holder,
+    // the issuer and the history are the same. A fresh row each cycle loses
+    // the very continuity a certificate is evidence of.
+    key: "certification",
+    label: "Certifications",
+    parentSectionKey: "quality-hse",
+    fields: [
+      { key: "title", label: "Certificate", kind: "text", required: true },
+      { key: "holder", label: "Held by", kind: "text" },
+      { key: "kind", label: "Kind", kind: "select", options: ["Company", "Person", "Equipment", "Product", "Site"] },
+      { key: "issuer", label: "Issued by", kind: "text" },
+      { key: "issuedOn", label: "Issued", kind: "date" },
+      { key: "expiresOn", label: "Expires", kind: "date" },
+      { key: "reference", label: "Certificate number", kind: "text" },
+    ],
+    columns: ["title", "holder", "expiresOn"],
+    statuses: ["Valid", "Expiring", "Expired", "Withdrawn"],
+    transitions: [
+      { from: "Valid", to: "Expiring" },
+      { from: "Expiring", to: "Valid" },
+      { from: "Expiring", to: "Expired" },
+      { from: "Expired", to: "Valid" },
+      { from: "Valid", to: "Withdrawn" },
+      { from: "Expired", to: "Withdrawn" },
+    ],
+    version: 1,
+  },
 ] as const;
 
 const Types = repo<RecordType>("recordTypes");
