@@ -7,6 +7,7 @@
 // THE COMPARISON IS IN ./rfqModel, which is pure, so the screen ranks with the
 // same function the server does — and refuses to recommend the same quotes.
 import { requirePermission } from "@/platform/access";
+import { seriesSetting } from "@/modules/administration/numbering";
 import { repo } from "@/platform/db/repo";
 import { nextReference } from "@/modules/main/references";
 import { makeId } from "@/platform/db/keys";
@@ -166,7 +167,7 @@ export async function createRfq(ctx: ProcurementContext, body: Record<string, un
   return {
     rfq: await Rfqs.create({ studio, section: rfqSection }, {
       // SRQ, not RFQ — see the note on RfqSchema.reference.
-      reference: await nextReference(studio.id, { rows, field: "reference", prefix: "SRQ" }),
+      reference: await nextReference(studio.id, { rows, field: "reference", ...seriesSetting("rfq", studio.numbering) }),
       title,
       requisitionId,
       projectId,

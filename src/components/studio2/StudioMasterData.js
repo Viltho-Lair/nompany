@@ -5,11 +5,15 @@
 // it works in. Both are reference data that several departments read and none
 // of them owns, which is the whole membership rule for this screen.
 //
-// STILL NOT A HUB. The blueprint also puts currencies, units of measure,
-// numbering series, cost codes, the industry taxonomy and the flow templates
-// here. Four of those exist and live in Studio settings — moving a working
-// screen is a visibility decision each time — and two have no records at all
-// yet, and a tab promising an empty registry reads as a finished feature.
+// THE THIRD TAB IS NUMBERING, 08/09/2026. The blueprint puts currencies, units
+// of measure, numbering series, cost codes, the industry taxonomy and the flow
+// templates here; numbering is the first of those to arrive, because it had no
+// home at all — nineteen call sites minted a reference from a hard-coded
+// literal and a studio whose invoices have always been "SI" got "INV".
+//
+// STILL NOT A HUB. The rest either live in Studio settings already — moving a
+// working screen is a visibility decision each time — or have no records yet,
+// and a tab promising an empty registry reads as a finished feature.
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
@@ -17,15 +21,23 @@ import { operationsDict } from "@/shared/studio/operations";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import LocationsPanel from "@/components/studio2/LocationsPanel";
 import DepartmentsPanel from "@/components/studio2/DepartmentsPanel";
+import NumberingPanel from "@/components/studio2/NumberingPanel";
+import { numberingDict } from "@/shared/studio/numbering";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { h2, sub } from "@/components/studio2/ui";
 
 export default function StudioMasterData({ slug }) {
-  const tr = operationsDict(useStudioLocale());
+  const locale = useStudioLocale();
+  const tr = operationsDict(locale);
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState("locations");
+  // NUMBERING IS THE STUDIO'S, NOT MASTER DATA'S ROWS. It is stored on the
+  // studio record beside `currency` and the approval chains, so it is read and
+  // refused by the settings route rather than by the master-data endpoint the
+  // other two tabs use — the same split Locations already has a note about.
+  const [numbering, setNumbering] = useState(null);
   // The departments register is its own read, on its own route, because it is
   // its own collection — the Operations payload assembles locations and knows
   // nothing about the org chart.
@@ -44,6 +56,29 @@ export default function StudioMasterData({ slug }) {
     setData(out);
   }, [slug]);
 
+  const loadNumbering = useCallback(async () => {
+    const res = await fetch(`/api/studios/${slug}/settings`, { cache: "no-store" });
+    if (!res.ok) return;                       // the tab simply does not render
+    const body = await res.json();
+    // ON `studio`, not at the top level: `numbering` is a field of the studio
+    // record, so it rides in `clean(studio)` beside `currency` and the approval
+    // chains rather than being lifted out beside `canManage`.
+    setNumbering({ rows: body.studio?.numbering || [], canManage: Boolean(body.canManage) });
+  }, [slug]);
+
+  const saveNumbering = useCallback(async (patch) => {
+    const res = await fetch(`/api/studios/${slug}/settings`, {
+      method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch),
+    });
+    const body = await res.json().catch(() => ({}));
+    // THE SERVER'S REASON, VERBATIM. `numberingProblems` names which series and
+    // what is wrong with it; replacing that with "couldn't save" here would
+    // throw away the only thing that tells somebody what to change.
+    if (!res.ok) return { error: body.error || "failed", detail: body.detail };
+    await loadNumbering();
+    return {};
+  }, [slug, loadNumbering]);
+
   const loadDepartments = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/administration/departments`, { cache: "no-store" });
     const out = await res.json().catch(() => ({}));
@@ -52,7 +87,7 @@ export default function StudioMasterData({ slug }) {
   }, [slug]);
 
   const loadAll = useCallback(async () => {
-    await Promise.all([load(), loadDepartments()]);
+    await Promise.all([load(), loadDepartments(), loadNumbering()]);
   }, [load, loadDepartments]);
 
   useEffect(() => { loadAll(); }, [loadAll]);
@@ -118,7 +153,7 @@ export default function StudioMasterData({ slug }) {
           second register. Both tabs answer to administration.master, so there
           is no per-tab gate — what differs is the CRUD ladder inside each. */}
       <div role="tablist" aria-label={tr.masterData} className="flex gap-2 border-b border-slate-200 dark:border-white/10">
-        {[["locations", tr.locationsTab], ["departments", tr.departments]].map(([key, label]) => (
+        {[["locations", tr.locationsTab], ["departments", tr.departments], ["numbering", numberingDict(locale).tab]].map(([key, label]) => (
           <button
             key={key}
             role="tab"
@@ -151,7 +186,7 @@ export default function StudioMasterData({ slug }) {
             send={send}
           />
         </>
-      ) : (
+      ) : tab === "departments" ? (
         <>
           <div>
             <h2 className={h2}>{tr.departments}</h2>
@@ -176,7 +211,21 @@ export default function StudioMasterData({ slug }) {
             />
           )}
         </>
-      )}
+      ) : tab === "numbering" ? (
+        <>
+          <div>
+            <h2 className={h2}>{numberingDict(locale).tab}</h2>
+          </div>
+          {numbering && (
+            <NumberingPanel
+              rows={numbering.rows}
+              canManage={numbering.canManage}
+              locale={locale}
+              onSave={saveNumbering}
+            />
+          )}
+        </>
+      ) : null}
     </div>
   );
 }

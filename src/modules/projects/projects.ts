@@ -12,6 +12,7 @@
 // See the two heads above openProject.
 
 import { requirePermission, can } from "@/platform/access";
+import { seriesSetting } from "@/modules/administration/numbering";
 import { repo } from "@/platform/db/repo";
 import { getJSON, editJSON, delKeys } from "@/platform/db/store";
 import { PROJECT } from "@/platform/db/keys";
@@ -750,7 +751,7 @@ export async function issueProjectNumber(
 
   // Derived from the highest already issued, never from how many exist, so a
   // deleted project cannot have its number reused. See modules/main/references.js.
-  const number = await nextReference(studio.id, { rows, field: "number", prefix: "PRJ" });
+  const number = await nextReference(studio.id, { rows, field: "number", ...seriesSetting("project", studio.numbering) });
   const updated = await Projects.update({ studio, section: listSection }, project.id, { number });
   return { issued: number, project: updated };
 }

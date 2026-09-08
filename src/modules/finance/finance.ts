@@ -16,6 +16,7 @@
 // it is recomputed on every read.
 
 import { requirePermission, ALL_PERMISSIONS } from "@/platform/access";
+import { seriesSetting } from "@/modules/administration/numbering";
 import { approvalChainsFor } from "@/platform/approval/store";
 import { SEEDED_CHAINS, chainProblems } from "@/platform/approval/chains";
 import type { ApprovalChain } from "@/platform/approval/chains";
@@ -242,7 +243,7 @@ export async function createInvoice(ctx: FinanceContext, body: Record<string, un
     // Derived from the highest INV already issued, never from how many exist:
     // deleting a draft must not hand its number to the next invoice, and two
     // raised at once must not both be INV-0004. See modules/main/references.js.
-    reference: await nextReference(studio.id, { rows: invoices, field: "reference", prefix: "INV" }),
+    reference: await nextReference(studio.id, { rows: invoices, field: "reference", ...seriesSetting("invoice", studio.numbering) }),
     projectId,
     // THE PAYMENT-SCHEDULE LINE THIS CLAIMS, when it claims one. Stored only
     // where there is a project to claim against — a milestone belongs to a
@@ -460,7 +461,7 @@ export async function createExpense(ctx: FinanceContext, body: Record<string, un
 
   const expenses = await Expenses.find({ studio, section: cashSection });
   const expense = await Expenses.create({ studio, section: cashSection }, {
-    reference: await nextReference(studio.id, { rows: expenses, field: "reference", prefix: "EXP" }),
+    reference: await nextReference(studio.id, { rows: expenses, field: "reference", ...seriesSetting("expense", studio.numbering) }),
     description: str(body?.description, 300),
     category: EXPENSE_CATEGORIES.includes(String(body?.category)) ? String(body?.category) : "Other",
     amount,

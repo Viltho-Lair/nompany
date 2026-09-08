@@ -18,6 +18,7 @@
 // they append movements, and the balance follows.
 
 import { requirePermission } from "@/platform/access";
+import { seriesSetting } from "@/modules/administration/numbering";
 // PROCUREMENT DECIDES WHO MAY BE BOUGHT FROM, and this is the one place
 // Inventory asks. Pure, no store, so the check below adds no round trip.
 import { supplierQualification } from "@/modules/procurement/supplierModel";
@@ -1146,7 +1147,7 @@ export async function createOrder(ctx: InventoryContext, body: Record<string, un
   const order = await Orders.create({ studio, section: sheetsSection }, {
     // A purchase order number goes to a vendor, so it cannot be reused after a
     // draft is deleted — derived, not counted. See modules/main/references.js.
-    reference: await nextReference(studio.id, { rows: orders, field: "reference", prefix: "PO" }),
+    reference: await nextReference(studio.id, { rows: orders, field: "reference", ...seriesSetting("purchaseOrder", studio.numbering) }),
     vendorId, projectId,
     // TAKEN AS GIVEN and not verified against the project's breakdown: an
     // uncoded or wrongly-coded order is money the project has promised either
@@ -1318,7 +1319,7 @@ export async function receiveOrder(ctx: InventoryContext, id: string, body: Reco
   // covering it is over-billing, and a receipt that booked it in would report
   // the paperwork as fine.
   const receipt = await Receipts.create({ studio, section: sheetsSection }, {
-    reference: await nextReference(studio.id, { rows: receipts, field: "reference", prefix: "GRN" }),
+    reference: await nextReference(studio.id, { rows: receipts, field: "reference", ...seriesSetting("goodsReceipt", studio.numbering) }),
     orderId: id,
     supplierRef: str(body?.supplierRef, 120),
     receivedAt,
@@ -1437,7 +1438,7 @@ export async function createDelivery(ctx: InventoryContext, body: Record<string,
 
   const deliveries = await Deliveries.find({ studio, section: deliveriesSection });
   const delivery = await Deliveries.create({ studio, section: deliveriesSection }, {
-    reference: await nextReference(studio.id, { rows: deliveries, field: "reference", prefix: "DN" }),
+    reference: await nextReference(studio.id, { rows: deliveries, field: "reference", ...seriesSetting("deliveryNote", studio.numbering) }),
     projectId, lines,
     status: "Draft",
     notes: str(body?.notes, 2000),

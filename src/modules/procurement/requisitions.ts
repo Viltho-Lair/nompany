@@ -9,6 +9,7 @@
 // THE RULES ARE IN ./model, which is pure, so the screen refuses exactly what
 // the server refuses.
 import { moduleContext } from "../context";
+import { seriesSetting } from "@/modules/administration/numbering";
 import { requirePermission } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
 import { nextReference } from "@/modules/main/references";
@@ -185,7 +186,7 @@ export async function createRequisition(ctx: ProcurementContext, body: Record<st
       // A requisition number is quoted in a conversation with a budget holder,
       // so it is derived from the highest already issued rather than counted:
       // deleting a draft must not hand its number to the next one (invariant 10).
-      reference: await nextReference(studio.id, { rows, field: "reference", prefix: "PR" }),
+      reference: await nextReference(studio.id, { rows, field: "reference", ...seriesSetting("requisition", studio.numbering) }),
       title,
       justification: str(body?.justification, 4000),
       projectId: str(body?.projectId, 60),

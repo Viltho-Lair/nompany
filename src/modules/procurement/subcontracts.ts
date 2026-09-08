@@ -8,6 +8,7 @@
 // THE ARITHMETIC IS IN ./subcontractModel, which reuses `retentionOn` from
 // modules/projects/billing rather than restating what a percentage means.
 import { requirePermission } from "@/platform/access";
+import { seriesSetting } from "@/modules/administration/numbering";
 import { repo } from "@/platform/db/repo";
 import { nextReference } from "@/modules/main/references";
 import { listCollaborators } from "@/platform/auth/collaborators";
@@ -114,7 +115,7 @@ export async function createSubcontract(ctx: ProcurementContext, body: Record<st
   const at = now();
   return {
     subcontract: await Subcontracts.create({ studio, section: subcontractsSection }, {
-      reference: await nextReference(studio.id, { rows, field: "reference", prefix: "SC" }),
+      reference: await nextReference(studio.id, { rows, field: "reference", ...seriesSetting("subcontract", studio.numbering) }),
       title,
       scope: str(body?.scope, 4000),
       vendorId,

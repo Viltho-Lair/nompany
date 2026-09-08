@@ -590,11 +590,39 @@ that exact case.
 **Executive dashboard ⬜ · Report builder ⬜ · Saved, scheduled & exported reports ⬜ ·
 Analytics ⬜ · KPI targets & alert rules ⬜**  {M}  renders nothing.
 
-#### §15 Administration & Settings 🟡 4 / 10
+#### §15 Administration & Settings 🟡 5 / 10
 People ✅ · Access ✅ · Studio settings ✅ · Master data 🟡 (locations and departments
-only) · **Currencies and units of measure ⬜ · Numbering series and cost codes ⬜ ·
+only) · Numbering series ✅ (08/09/2026) · **Currencies and units of measure ⬜ · Cost codes ⬜ ·
 Categories and industry taxonomy ⬜ · Flow templates ⬜ · Integrations & API ⬜ ·
 Notification templates & print formats ⬜**
+**NINETEEN CALL SITES MINTED A REFERENCE AND EVERY PREFIX WAS A STRING LITERAL.** A studio
+whose invoices have always been "SI" got "INV", and there was no screen, no setting and no
+way round it — the numbering series every ERP buyer asks about first. All of them go
+through `nextReference`, which is what made this one change rather than nineteen: sixteen
+series are configurable now, on a third Master data tab, stored on the studio record beside
+`currency` and the approval chains.
+
+**A RENAME STARTS A NEW SEQUENCE AND RENUMBERS NOTHING**, which is what makes it safe to
+offer at all. `bumpCounter` is keyed on the prefix, so documents already issued keep the
+name they were issued under and the new prefix begins at its own first number. Proven in
+the sandbox both ways: INV-0001, INV-0002 → rename → SI-000500, SI-000501 → rename back →
+**INV-0003, INV-0004**, resuming past the old high-water mark rather than reissuing
+INV-0001. Six references, all distinct. Invariant 10.
+
+**THE FIRST DRAFT OF THE CATALOGUE WOULD HAVE RENAMED DOCUMENTS ON DEPLOY.** It guessed
+"RFQ" and "SR" where the product actually mints SRQ and DSR — and a studio that has set
+nothing falls back to whatever the catalogue says, so every existing studio's requests for
+quotation and site reports would have changed prefix silently. No test could catch that;
+reading the nineteen call sites did, and the note in `numbering.ts` says to do it again
+when a series is added.
+
+**A PREFIX IS REFUSED, NOT COERCED.** A hyphen inside one makes `highestIssued` parse every
+existing reference as nought and the next create reissue a number a client already holds —
+invariant 10 broken by a punctuation mark — so the rules live in a pure module the screen
+and the server both refuse on, and the studio hears about its own edit in words about the
+edit. Two series may not share a prefix either: the numbers would be correct (one counter,
+nothing reissued) and interleaved so nobody could use them.
+
 The artifact's footer {M} *"all four of its keys sit in `NO_SCREEN_YET`… hardcoded standalone
 entries"* {M} **is reversed**: the fold landed 03/09/2026 and Administration is an ordinary
 gated section.

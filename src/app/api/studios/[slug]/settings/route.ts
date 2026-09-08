@@ -11,6 +11,7 @@ import { studioLocale, isLocale, defaultLocale } from "@/shared/i18n";
 import { ALL_PERMISSIONS } from "@/platform/access/catalogue";
 import { chainProblems, type ApprovalChain } from "@/platform/approval/chains";
 import { approvalChainOverrides, approvalChainsFor } from "@/platform/approval/store";
+import { numberingProblems, cleanNumbering, numberingView } from "@/modules/administration/numbering";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -44,6 +45,10 @@ const FIELDS = [
   // It sits beside `currency` because approval already depends on that one:
   // an amount cannot be judged against a limit without it.
   "approvalChains",
+  // WHAT THIS STUDIO'S DOCUMENTS ARE CALLED. Beside the chains for the same
+  // reason: a numbering policy is the company's, not a department's, and one
+  // right over it beats fourteen modules each owning their own prefix.
+  "numbering",
   // fieldOfWork, fieldOfWorkOther, serviceActions and retiredServiceActions are
   // deliberately NOT here. Writing a service action is not "set this text" — it
   // is "recompute the pool": choosing a field re-seeds it from the matrix, and
@@ -138,6 +143,11 @@ const clean = (studio: Record<string, unknown>) => ({
   // means "the built-in". `bill` appears here and is edited in Finance settings
   // (see STUDIO_EDITABLE_CHAINS); this route refuses to write it.
   approvalChains: approvalChainsFor(studio),
+  // EVERY SERIES WITH THE SETTING IN FORCE, defaults included, so the editor
+  // can show its rows without knowing the catalogue — and can say which are the
+  // studio's own choice rather than presenting shipped defaults as though
+  // somebody had set them.
+  numbering: numberingView((studio as { numbering?: unknown }).numbering),
 });
 
 // Rates from the studio's own currency out to each favourite. Anything the
@@ -299,6 +309,18 @@ export async function PUT(request: Request, ctx: { params: Promise<Record<string
       }
       if (problems.length) return Response.json({ error: "refused", detail: problems.join("; ") }, { status: 400 });
       patch[key] = incoming.chains;
+      continue;
+    }
+    // NUMBERING IS REFUSED ON WRITE, never on read, exactly as the chains are.
+    // A prefix is what `bumpCounter` is keyed on, so a bad one is not a
+    // cosmetic problem: a hyphen inside it makes `highestIssued` parse every
+    // existing reference as nought and the next create reissue a number a
+    // client is already holding. Invariant 10, broken by punctuation — so the
+    // studio hears about its own edit while it is still their edit.
+    if (key === "numbering") {
+      const problems = numberingProblems(body[key]);
+      if (problems.length) return Response.json({ error: "refused", detail: problems.join("; ") }, { status: 400 });
+      patch[key] = cleanNumbering(body[key]);
       continue;
     }
     patch[key] = key === "workingHours" ? cleanHours(body[key])

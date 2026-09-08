@@ -15,6 +15,7 @@
 // so neither can quietly go stale.
 
 import { requirePermission, sectionManageable } from "@/platform/access";
+import { seriesSetting } from "@/modules/administration/numbering";
 import { repo } from "@/platform/db/repo";
 import { getSectionByKey, updateSection } from "@/platform/db/sections";
 import { moduleContext } from "../context";
@@ -386,7 +387,7 @@ export async function createPermit(ctx: OperationsContext, body: Record<string, 
   const permit = await Permits.create({ studio, section }, {
     // Derived from the highest already issued, so removing a permit cannot hand
     // its reference to the next one. See modules/main/references.js.
-    reference: await nextReference(studio.id, { rows: permits, field: "reference", prefix: "PMT" }),
+    reference: await nextReference(studio.id, { rows: permits, field: "reference", ...seriesSetting("permit", studio.numbering) }),
     title,
     type: PERMIT_TYPES.includes(String(body?.type)) ? String(body?.type) : PERMIT_TYPES[0],
     number: str(body?.number, 80),

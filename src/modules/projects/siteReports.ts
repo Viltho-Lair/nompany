@@ -7,6 +7,7 @@
 //
 // THE ARITHMETIC IS IN ./siteReportModel and nothing is decided here.
 import { requirePermission } from "@/platform/access";
+import { seriesSetting } from "@/modules/administration/numbering";
 import { repo } from "@/platform/db/repo";
 import { nextReference } from "@/modules/main/references";
 import { listCollaborators } from "@/platform/auth/collaborators";
@@ -127,7 +128,7 @@ export async function createSiteReport(ctx: ProjectsContext, body: Record<string
   const at = now();
   return {
     report: await Reports.create({ studio, section: listSection }, {
-      reference: await nextReference(studio.id, { rows: existing, field: "reference", prefix: "DSR" }),
+      reference: await nextReference(studio.id, { rows: existing, field: "reference", ...seriesSetting("siteReport", studio.numbering) }),
       ...draft,
       weather: str(body?.weather, 200),
       workStopped: Boolean(body?.workStopped),

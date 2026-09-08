@@ -21,6 +21,7 @@
 // idempotently, by code, so a second read adds nothing.
 
 import { requirePermission } from "@/platform/access";
+import { seriesSetting } from "@/modules/administration/numbering";
 import { repo } from "@/platform/db/repo";
 import { nextReference } from "@/modules/main/references";
 import { invoiceTotals } from "./finance";
@@ -236,7 +237,7 @@ export async function postEntry(
     .find((k) => k === body?.source?.kind) || "manual";
 
   const entries = await Entries.find({ studio, section: ledgerSection });
-  const reference = await nextReference(studio.id, { rows: entries as Row[], field: "reference", prefix: "JE" });
+  const reference = await nextReference(studio.id, { rows: entries as Row[], field: "reference", ...seriesSetting("journal", studio.numbering) });
 
   const entry = await Entries.create({ studio, section: ledgerSection }, {
     reference,
@@ -268,7 +269,7 @@ export async function reverseEntry(ctx: FinanceContext, id: string, reason?: unk
   if (original.reversedByEntryId) return { error: "already-reversed", by: original.reversedByEntryId };
   if (original.reversalOfEntryId) return { error: "is-a-reversal" };
 
-  const reference = await nextReference(studio.id, { rows: entries as Row[], field: "reference", prefix: "JE" });
+  const reference = await nextReference(studio.id, { rows: entries as Row[], field: "reference", ...seriesSetting("journal", studio.numbering) });
   const mirrored: JournalLine[] = (original.lines || []).map((l) => ({
     accountId: l.accountId,
     debit: l.credit,

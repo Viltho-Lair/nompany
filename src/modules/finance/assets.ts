@@ -8,6 +8,7 @@
 // no studio, no session, no Redis — which is why it can be tested to the cent.
 
 import { requirePermission } from "@/platform/access";
+import { seriesSetting } from "@/modules/administration/numbering";
 import { repo } from "@/platform/db/repo";
 import { nextReference } from "@/modules/main/references";
 import { str, day, cash } from "./finance";
@@ -151,7 +152,7 @@ export async function createAsset(ctx: FinanceContext, body: Record<string, unkn
 
   const assets = await Assets.find({ studio, section: assetsSection });
   const asset = await Assets.create({ studio, section: assetsSection }, {
-    reference: await nextReference(studio.id, { rows: assets, field: "reference", prefix: "FA" }),
+    reference: await nextReference(studio.id, { rows: assets, field: "reference", ...seriesSetting("asset", studio.numbering) }),
     name,
     category: str(body?.category, 120),
     acquiredOn: day(body?.acquiredOn) || new Date().toISOString().slice(0, 10),

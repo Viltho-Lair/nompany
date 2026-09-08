@@ -12,6 +12,7 @@
 // it was a new project — which is a job, not an order. That is the hole this
 // fills, and it is why the record exists rather than being absorbed.
 import { repo } from "@/platform/db/repo";
+import { seriesSetting } from "@/modules/administration/numbering";
 import { requirePermission } from "@/platform/access";
 import { attachRecord, contributeContext, resolveDealId } from "@/platform/db/engagement";
 import { stageOf } from "@/platform/engagement/registry";
@@ -89,7 +90,7 @@ export async function createOrder(ctx: SalesContext, body: Record<string, unknow
     // An order is quoted back by the customer from the moment it is placed —
     // "your order SO-0007" — so a blank reference is a question nobody can
     // answer. It stays spent even if the order is cancelled (invariant 10).
-    number: await nextReference(studio.id, { rows, field: "number", prefix: "SO" }),
+    number: await nextReference(studio.id, { rows, field: "number", ...seriesSetting("order", studio.numbering) }),
     title,
     dealId: resolved,
     quotationId: str(body?.quotationId, 60),

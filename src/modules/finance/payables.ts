@@ -8,6 +8,7 @@
 // to one record — enforced here at the transition, not in the schema.
 
 import { requirePermission } from "@/platform/access";
+import { seriesSetting } from "@/modules/administration/numbering";
 import { autoPost } from "./posting";
 import type { PermissionKey } from "@/platform/access";
 import { resolveApprovalPlan, firstUnsignedStep, planSatisfied } from "@/platform/approval/resolve";
@@ -187,7 +188,7 @@ export async function createBill(ctx: FinanceContext, body: Record<string, unkno
   // authorising payment refuses.
   const plan = await planFor(ctx, { lines, vatRate, payments: [], currency });
   const bill = await Bills.create({ studio, section: payablesSection }, {
-    reference: await nextReference(studio.id, { rows: bills, field: "reference", prefix: "BILL" }),
+    reference: await nextReference(studio.id, { rows: bills, field: "reference", ...seriesSetting("bill", studio.numbering) }),
     vendorId: str(body?.vendorId, 60),
     vendorName,
     orderId: str(body?.orderId, 60),

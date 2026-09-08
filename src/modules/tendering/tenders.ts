@@ -13,6 +13,7 @@
 // noticed, and it is NOT a deal until one is opened from it (that handover is a
 // later slice — see the functionality file).
 import { requirePermission } from "@/platform/access";
+import { seriesSetting } from "@/modules/administration/numbering";
 import { repo } from "@/platform/db/repo";
 import { moduleContext } from "../context";
 import { nextReference } from "@/modules/main/references";
@@ -156,7 +157,7 @@ export async function createTender(ctx: TenderingContext, body: Record<string, u
   // FROM THE COUNTER, not from a count: this record has a delete path, and
   // nextUniqueRef's own note says anything with one must number this way or a
   // deletion hands the next tender a reference somebody already quoted.
-  const ref = await nextReference(studio.id, { rows, field: "ref", prefix: "TND" });
+  const ref = await nextReference(studio.id, { rows, field: "ref", ...seriesSetting("tender", studio.numbering) });
 
   const tender = await Tenders.create({ studio, section: registerSection }, {
     ref,
