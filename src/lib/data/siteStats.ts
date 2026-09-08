@@ -112,6 +112,29 @@ export async function readContinents(days: string[]) {
   }));
 }
 
+// The same continent counters, kept PER DAY rather than summed.
+//
+// readContinents above answers "where is our traffic from"; this answers "when,
+// and from where" — the heat strip's grid. It reads the very same hashes, so on
+// one request the two cost nothing extra between them: the request-scoped cache
+// holds the in-flight promise per key and collapses the concurrent reads.
+//
+// EVERY CONTINENT IS PRESENT ON EVERY DAY, at zero where there was nothing. A
+// grid that omitted the quiet cells would reshuffle its own rows as traffic
+// arrived from somewhere new, and a row that appears halfway along reads as a
+// data gap rather than as a first visit.
+export async function readContinentDays(days: string[]) {
+  const hashes = days.length
+    ? await Promise.all(days.map((day) => hGetAll(key(day)).catch((): Record<string, string> => ({}))))
+    : [];
+  return days.map((day, i) => {
+    const h = hashes[i] || {};
+    const byContinent: Record<string, number> = {};
+    for (const name of CONTINENTS) byContinent[name] = n(h[`geo:${CONTINENT_KEYS[name]}`]);
+    return { day, byContinent };
+  });
+}
+
 // Visits per device across a span, as a SHARE of the three. Percentages rather
 // than counts, because the card asks which kind of machine people use, not how
 // many of them there were.
