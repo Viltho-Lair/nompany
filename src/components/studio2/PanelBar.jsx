@@ -51,9 +51,13 @@ export function usePanelParam(param, defaultKey, keys) {
 // Presentational only. `items` is [{key,label}]. The active item is a
 // non-clickable aria-current span; the rest are buttons. No links, no hrefs — the
 // caller owns what onSelect does, which for a PanelBar is always an in-place flip.
-export function PanelBar({ items, active, onSelect }) {
+// `sidebarInset` is the studio's own left gutter, and it is a PROP rather than a
+// constant because the Pulse wall is full-bleed: it renders outside the console
+// chrome, so a bar reserving 288px for a sidebar that is not there sits visibly
+// off-centre. Default unchanged, so every existing caller is untouched.
+export function PanelBar({ items, active, onSelect, sidebarInset = true }) {
   return (
-    <div className="pointer-events-none fixed bottom-0 end-0 start-0 z-30 lg:start-72">
+    <div className={`pointer-events-none fixed bottom-0 end-0 start-0 z-30 ${sidebarInset ? "lg:start-72" : ""}`}>
       <div className="mx-auto max-w-[1400px] px-5 sm:px-8">
         <div className="pointer-events-auto flex items-center gap-2 rounded-t-geex border border-b-0 border-slate-200 bg-white/95 px-3 py-2 shadow-geex backdrop-blur dark:border-white/10 dark:bg-[#20202c]/95">
           {items.map((i) => {

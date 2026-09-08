@@ -2,7 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import WorldMap from "./WorldMap";
+import { PanelBar } from "@/components/studio2/PanelBar";
+import { readTheme, applyTheme, chooseTheme, THEME_MODES } from "@/lib/theme";
 import { Panel, Ticker, Sparkline, BarRow, Donut, HeatGrid, SignupChart, fmt } from "./parts";
 import { heatLevel } from "@/lib/data/pulse";
 
@@ -20,10 +23,12 @@ import { heatLevel } from "@/lib/data/pulse";
 // on a three-minute throttle). Nothing polls every two seconds, because there is
 // nothing that could differ.
 //
-// NO THEME TOGGLE, DELIBERATELY. The theme is site-wide — one cookie, one class
-// on <html>, one control in the console header — and the wall reacts to it. A
-// second toggle would mean a third copy of readTheme/applyTheme, and the two
-// that exist already disagree with each other about the `light` class.
+// THE THEME CONTROL IS THE PRODUCT'S OWN, not a third copy. Adding one here is
+// what finally forced readTheme/applyTheme out of the two places that held them
+// and into @/lib/theme — and those two DISAGREED, the console's copy toggling
+// `dark` without ever clearing `light`, which lights every MUI control on a dark
+// page. The wall, the console header and the public site now share one authority
+// and one cookie, so a choice made on any of them is the choice everywhere.
 
 const MODES = [
   { key: "dots", label: "Live dots" },
@@ -36,6 +41,17 @@ const RANGES = [
   { key: "30d", label: "30 days" },
   { key: "90d", label: "90 days" },
 ];
+// WHICH SYSTEM EACH PANEL IS ABOUT, said on the panel itself.
+//
+// The wall mixes two sources and they are not the same measurement: the WEBSITE
+// half is anonymous traffic counted by /api/track, and the PRODUCT half is
+// signed-in people and the studios they belong to. Reading "14" on one panel and
+// "3" on another and assuming they are the same population is the mistake this
+// label exists to stop — the reference design carries a www/ERP toggle for the
+// same reason, and a toggle is what this becomes once the website's traffic and
+// the product's are recorded in one shape.
+const SOURCE = { www: "Website", erp: "Product" };
+
 const AGGREGATE_MS = 60_000;
 const LIVE_MS = 20_000;
 
@@ -49,6 +65,9 @@ export default function PulseWall({ initial, initialLive }) {
   const [clock, setClock] = useState("");
   const [ripples, setRipples] = useState([]);
   const [reduced, setReduced] = useState(false);
+  // Seeded on mount rather than at render: the cookie is not readable on the
+  // server, and guessing would flash the wrong control on a wall.
+  const [theme, setTheme] = useState("light");
   const seen = useRef(new Set((initialLive?.arrivals || []).map((a) => `${a.kind}:${a.at}`)));
 
   // ---- preferences ---------------------------------------------------------
@@ -59,6 +78,26 @@ export default function PulseWall({ initial, initialLive }) {
     mq.addEventListener("change", sync);
     return () => mq.removeEventListener("change", sync);
   }, []);
+
+  useEffect(() => {
+    // A FRAME, not the effect body. The cookie is unreadable on the server, so
+    // the control has to settle on the client — but setting state synchronously
+    // inside an effect cascades a render (react-hooks/set-state-in-effect), and
+    // the ESLint budget here is shrink-only.
+    const id = requestAnimationFrame(() => setTheme(readTheme()));
+    return () => cancelAnimationFrame(id);
+  }, []);
+
+  // Follow the OS while the choice is "system", the same as every other control.
+  useEffect(() => {
+    if (theme !== "system") return undefined;
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const onChange = () => applyTheme("system");
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, [theme]);
+
+  const pickTheme = useCallback((next) => { setTheme(next); chooseTheme(next); }, []);
 
   // ---- the clock -----------------------------------------------------------
   // Rendered on the CLIENT only, after mount. A server-rendered clock is wrong
@@ -134,12 +173,17 @@ export default function PulseWall({ initial, initialLive }) {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       const k = e.key.toLowerCase();
       if (k === "f") { e.preventDefault(); present(); return; }
+      if (k === "t") {
+        e.preventDefault();
+        pickTheme(THEME_MODES[(THEME_MODES.indexOf(readTheme()) + 1) % THEME_MODES.length]);
+        return;
+      }
       const n = Number(e.key);
       if (n >= 1 && n <= MODES.length) setMode(MODES[n - 1].key);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [present]);
+  }, [present, pickTheme]);
 
   // ---- derived -------------------------------------------------------------
   // Memoised because it feeds two useMemos below: a fresh [] on every render
@@ -178,7 +222,7 @@ export default function PulseWall({ initial, initialLive }) {
 
   return (
     <div
-      className="grid h-[100dvh] w-full gap-3 p-3"
+      className="grid h-[100dvh] w-full gap-3 p-3 pb-14"
       style={{
         background: "var(--ad-background)",
         color: "var(--ad-foreground)",
@@ -189,14 +233,14 @@ export default function PulseWall({ initial, initialLive }) {
     >
       {/* ---- header ---------------------------------------------------- */}
       <header style={{ gridArea: "top" }} className="flex flex-wrap items-center gap-x-5 gap-y-2">
-        <div className="flex items-baseline gap-2">
-          <Link href="/super/dashboard/analytics" className="text-base font-800 tracking-tight hover:underline">
-            nompany · Pulse
-          </Link>
-          <span className="text-[11px]" style={{ color: "var(--ad-muted-foreground)" }}>
-            the website and the product, live
-          </span>
-        </div>
+        {/* THE MARK, NOT THE WORD. `LogoMark` in components/landing is the usual
+            way to draw it and cannot be used here: it imports motion/react,
+            which Gate A forbids outside src/components/landing precisely so the
+            console never pays its ~30 KB. Same asset, rendered plainly. */}
+        <Link href="/super/dashboard/analytics" className="flex items-center gap-2.5" aria-label="Back to the console">
+          <Image src="/brand/logo-icon.png" alt="nompany" width={30} height={30} priority className="h-[30px] w-[30px] object-contain" />
+          <span className="text-base font-800 tracking-tight">Pulse</span>
+        </Link>
 
         <div className="flex flex-wrap items-center gap-4">
           <Kpi label="Visitors today" value={data?.traffic?.today?.sessions ?? 0} delta={data?.traffic?.delta?.sessions} />
@@ -207,6 +251,25 @@ export default function PulseWall({ initial, initialLive }) {
 
         <div className="ms-auto flex items-center gap-2">
           <span className="num text-sm" style={{ color: "var(--ad-muted-foreground)" }}>{clock}</span>
+          {/* The product's own three-way control — light / dark / system — on the
+              one cookie every other surface reads. `T` cycles it. */}
+          <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ borderColor: "var(--ad-border)" }} role="group" aria-label="Theme">
+            {THEME_MODES.map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => pickTheme(mode)}
+                aria-pressed={theme === mode}
+                title={`${mode[0].toUpperCase()}${mode.slice(1)} theme`}
+                className={chip}
+                style={theme === mode
+                  ? { background: "var(--ad-primary)", color: "var(--ad-primary-foreground)" }
+                  : { color: "var(--ad-muted-foreground)" }}
+              >
+                {mode === "light" ? "☀" : mode === "dark" ? "☾" : "◐"}
+              </button>
+            ))}
+          </div>
           <button type="button" onClick={present} className={`${chip} border`} style={{ borderColor: "var(--ad-border)" }}>
             ⛶ Present
           </button>
@@ -214,7 +277,7 @@ export default function PulseWall({ initial, initialLive }) {
       </header>
 
       {/* ---- legend ------------------------------------------------------ */}
-      <Panel className="[grid-area:legend]" title="Legend" sub={`${MODES.find((m) => m.key === mode)?.label} · ${rangeLabel}`}>
+      <Panel className="[grid-area:legend]" title="Legend" sub={`${SOURCE.www} · ${MODES.find((m) => m.key === mode)?.label}`}>
         <div className="flex h-full flex-col justify-between gap-3">
           <div className="space-y-1.5 text-[11px]">
             <LegendRow swatch="var(--ad-border)" label="Land — no traffic recorded" />
@@ -252,7 +315,7 @@ export default function PulseWall({ initial, initialLive }) {
       <Panel
         className="[grid-area:map]"
         title="Where the traffic is"
-        sub={`${fmt(data?.traffic?.sessions ?? 0)} sessions · ${rangeLabel}`}
+        sub={`${SOURCE.www} · ${fmt(data?.traffic?.sessions ?? 0)} sessions · ${rangeLabel}`}
         bodyClass="relative flex flex-col"
       >
         <div className="pointer-events-none absolute inset-x-0 top-2 z-10 flex justify-center">
@@ -300,7 +363,7 @@ export default function PulseWall({ initial, initialLive }) {
       </Panel>
 
       {/* ---- live -------------------------------------------------------- */}
-      <Panel className="[grid-area:live]" title="Right now" sub={`every ${LIVE_MS / 1000}s`} bodyClass="flex flex-col gap-2">
+      <Panel className="[grid-area:live]" title="Right now" sub={`${SOURCE.erp} · every ${LIVE_MS / 1000}s`} bodyClass="flex flex-col gap-2">
         <div className="flex items-end justify-between">
           <div>
             <Ticker value={live?.activeNow ?? 0} className="text-[40px] font-800 leading-none" />
@@ -349,12 +412,12 @@ export default function PulseWall({ initial, initialLive }) {
       </Panel>
 
       {/* ---- continent x day --------------------------------------------- */}
-      <Panel className="[grid-area:cont]" title="Continent by day" sub={rangeLabel} bodyClass="overflow-auto">
+      <Panel className="[grid-area:cont]" title="Continent by day" sub={`${SOURCE.www} · ${rangeLabel}`} bodyClass="overflow-auto">
         <HeatGrid rows={gridRows} days={gridDays} levelOf={(n) => heatLevel(n, gridPeak)} />
       </Panel>
 
       {/* ---- countries + devices ----------------------------------------- */}
-      <Panel className="[grid-area:right]" title="Studios by country" sub={data?.studios?.unplaced ? `${data.studios.unplaced} unplaced` : ""}>
+      <Panel className="[grid-area:right]" title="Studios by country" sub={`${SOURCE.erp}${data?.studios?.unplaced ? ` · ${data.studios.unplaced} unplaced` : ""}`}>
         <div className="flex h-full flex-col justify-between gap-2">
           <div>
             {countries.length === 0 ? (
@@ -386,10 +449,17 @@ export default function PulseWall({ initial, initialLive }) {
       <Panel
         className="[grid-area:sign]"
         title="Studios signed"
-        sub="90 days · bars are per day, the line is the running total"
+        sub={`${SOURCE.erp} · 90 days · bars are per day, the line is the running total`}
       >
         <SignupChart days={data?.signups || []} height={92} />
       </Panel>
+
+      {/* THE BOTTOM BAR, the same strip the project sheets and Operations use —
+          `sidebarInset` off, because the wall is full-bleed and a bar reserving
+          288px for a sidebar that is not there sits visibly off-centre.
+          One item: this screen has a single panel, and the bar is here so the
+          wall matches the rest of the product rather than to switch anything. */}
+      <PanelBar items={[{ key: "pulse", label: "Pulse" }]} active="pulse" onSelect={() => {}} sidebarInset={false} />
     </div>
   );
 }

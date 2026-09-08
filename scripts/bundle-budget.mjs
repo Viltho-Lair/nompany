@@ -595,7 +595,17 @@ const baselines = JSON.parse(readFileSync(BASELINES_FILE, "utf8"));
 // commit above the tree is a ceiling that gets raised in an emergency by whoever
 // trips it, which is how this number drifted before. Measure the tree you are
 // landing, not the one you branched from.
-const MAX_TOTAL_GZIP_KB = 1857;
+//
+// 1857 -> 1862 on 08/09/2026, with the wall's own chrome: the brand mark, the
+// three-way theme control and the shared bottom bar. Measured 1854 across 97
+// chunks, and /super/pulse 190 -> 196 (its own baseline moved with it).
+//
+// Raised a second time in one session RATHER THAN LEFT AT THREE KILOBYTES, which
+// is the whole argument of the note above: three is the margin main was carrying
+// when it went red, and a ceiling that close gets raised by whoever trips it
+// instead of by whoever grew it. Twice deliberately beats once deliberately and
+// once in an emergency.
+const MAX_TOTAL_GZIP_KB = 1862;
 
 const totalKb = files.reduce((sum, f) => sum + f.gzip, 0) / 1024;
 const biggest = files[0];

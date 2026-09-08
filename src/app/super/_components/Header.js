@@ -10,6 +10,9 @@ import { toneBg, toneInk } from "./ui";
 import { initialsOf } from "@/lib/initials";
 import useSuperNotifications from "@/components/super/useSuperNotifications";
 import { ago } from "@/lib/format";
+// Shared with components/ThemeToggle and the Pulse wall. This file used to hold
+// its own copy, which toggled `dark` without clearing `light` — see @/lib/theme.
+import { readTheme, applyTheme, chooseTheme } from "@/lib/theme";
 
 /* ---- theme ---------------------------------------------------------------
    The site-wide control: the same `theme` cookie the public site and Studio
@@ -23,20 +26,6 @@ const MODES = [
   { id: "dark", label: "Dark", icon: "moon" },
   { id: "system", label: "System", icon: "monitor" },
 ];
-
-function readTheme() {
-  try {
-    const m = document.cookie.match(/(?:^|; )theme=([^;]+)/);
-    return m ? decodeURIComponent(m[1]) : "light";
-  } catch {
-    return "light";
-  }
-}
-
-function applyTheme(mode) {
-  const sys = window.matchMedia("(prefers-color-scheme: dark)").matches;
-  document.documentElement.classList.toggle("dark", mode === "dark" || (mode === "system" && sys));
-}
 
 function useTheme() {
   const [mode, setMode] = useState("light");
@@ -55,11 +44,7 @@ function useTheme() {
 
   const choose = useCallback((next) => {
     setMode(next);
-    try {
-      const secure = location.protocol === "https:" ? "; secure" : "";
-      document.cookie = `theme=${next}; path=/; max-age=31536000; samesite=lax${secure}`;
-    } catch {}
-    applyTheme(next);
+    chooseTheme(next);
   }, []);
 
   return [mode, choose];
