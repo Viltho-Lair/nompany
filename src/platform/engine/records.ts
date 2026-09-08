@@ -6,6 +6,8 @@
 //
 // THE RULES ARE IN ./types, which is pure. Nothing is decided here.
 import { requirePermission, engineSectionKey } from "@/platform/access";
+import type { Area } from "@/platform/access";
+import { sectionName } from "@/shared/studio/sections";
 import { repo } from "@/platform/db/repo";
 import { nextReference } from "@/modules/main/references";
 import { listCollaborators } from "@/platform/auth/collaborators";
@@ -87,6 +89,61 @@ async function typeFor(ctx: EngineCallerContext, typeKey: string) {
     ? ctx.sections.find((x) => x.key === engineSectionKey(String(type.key))) || null
     : null;
   return { scope: section && { studio: ctx.studio, section }, type };
+}
+
+/**
+ * THE STUDIO'S RECORD TYPES, AS GRANTABLE AREAS.
+ *
+ * TWENTY-TWO REGISTERS THAT ONLY THE OWNER COULD OPEN. `StudioRoles` draws its
+ * permission grid from `AREAS`, which is compile-time; an engine key is minted
+ * from a ROW, so it can never be in that list and the screen could not offer
+ * one. No archetype holds an `engine.*` key either. So every register the engine
+ * has ever planted — transmittals, RFIs, submittals, NCRs, audits, incidents,
+ * permits, toolbox talks, equipment, maintenance, calibration, service orders,
+ * maintenance contracts, PM plans, installed base, deliveries, trips, vehicles,
+ * work orders, BOMs, work stations, production batches — was reachable by the
+ * owner and Admin and by nobody else, in six sections. A right nothing can
+ * grant is the same bug as a right nothing can exercise (invariant 16), one
+ * step further out.
+ *
+ * PROJECTED, NOT DECLARED. These are `Area`-shaped at runtime and are NEVER
+ * added to `ALL_PERMISSIONS`: that list is a closed compile-time set and
+ * `isEnginePermission` is the one place it stops being closed. The screen
+ * renders whatever `areas` it is handed, so nothing there needed to learn a
+ * second shape.
+ *
+ * UNFILTERED, UNLIKE `listRecordTypes`. That reader hands back only the types
+ * the CALLER may view, which is right for a catalogue somebody is browsing and
+ * exactly wrong here: the point of this screen is to grant a right nobody holds
+ * yet, so filtering by what the granter already holds would make a type
+ * ungrantable until somebody had already been granted it. What is exposed is a
+ * type's LABEL and its section — studio configuration, no records — read on the
+ * same terms as the role and department names this route already returns, and
+ * `escalates()` still refuses a granter handing out what they do not hold.
+ */
+export async function grantableTypeAreas(
+  ctx: { studio: StudioRef; sections: Section[] },
+  locale: string,
+): Promise<Area[]> {
+  const settingsSection = ctx.sections.find((s) => s.key === "administration-settings");
+  if (!settingsSection) return [];
+
+  const types = await Types.find({ studio: ctx.studio, section: settingsSection });
+  return types.map((t) => {
+    // GROUPED UNDER THE SECTION THE REGISTER LIVES IN, so a studio finds NCRs
+    // beside the rest of Quality & HSE rather than in a bucket called "Engine".
+    // The stored section name is the fallback, and `sectionName` translates the
+    // seeded keys — the same call every other surface makes.
+    const parent = ctx.sections.find((s) => s.key === t.parentSectionKey);
+    return {
+      key: `engine.${t.key}`,
+      group: sectionName(t.parentSectionKey, parent?.name || t.parentSectionKey, locale),
+      // A TYPE'S LABEL IS WHAT THE STUDIO TYPED, so it is NOT translated —
+      // the same rule section names, client names and service actions follow.
+      label: t.label,
+      verbs: ["view", "create", "edit", "delete"],
+    } as Area;
+  });
 }
 
 export async function listRecordTypes(ctx: EngineCallerContext) {

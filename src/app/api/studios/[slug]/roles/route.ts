@@ -7,6 +7,7 @@ import { requirePermission, escalates, AREAS } from "@/platform/access";
 import { listRoles, createRole, updateRole, deleteRole, cleanRole, ADMIN_ROLE_ID } from "@/modules/people/roles";
 import { studioLocale } from "@/shared/locale";
 import { departmentsAsStored } from "@/modules/administration/departments";
+import { grantableTypeAreas } from "@/platform/engine/records";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -43,7 +44,11 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
     // The catalogue travels with them so the editor can render every area and
     // its verbs without a second call, and can never offer a key the server
     // would refuse.
-    areas: AREAS,
+    // THE DECLARED CATALOGUE PLUS THIS STUDIO'S OWN REGISTERS. `AREAS` is
+    // compile-time and an engine right is minted from a row, so without the
+    // second half the screen could not offer a single one of the studio's
+    // record types and they stayed owner-only. See `grantableTypeAreas`.
+    areas: [...AREAS, ...await grantableTypeAreas(g.context, studioLocale(g.context.studio))],
     // THE ORG CHART TRAVELS TOO, because the editor groups roles by it now.
     //
     // Served from here rather than fetched separately: the departments route

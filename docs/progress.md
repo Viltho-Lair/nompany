@@ -420,14 +420,24 @@ maintenance ✅ · Calibration ✅
 **It rendered NOTHING until 08/09/2026** — an equipment register, maintenance and
 calibration, all engine types.
 
-**AND THE CAVEAT THAT APPLIES TO EVERY ENGINE REGISTER, here and in §4 and §11: no
-archetype holds an `engine.*` key and no screen can grant one**, because `StudioRoles`
-draws its grid from `AREAS` and an engine key is minted from a row. So all eleven engine
-registers are reachable by the owner and Admin alone. They are real registers with
-fields, a status ladder, permissions and live updates — and no attachments, no comments
-and no audit trail. Counting them as built is fair for this table and would be
-misleading as "a studio can use them". Phase 3's type management is what closes it, and
-it now gates eleven registers rather than one.
+**THE CAVEAT THAT APPLIED TO EVERY ENGINE REGISTER IS HALF CLOSED, 08/09/2026.** It read:
+*no archetype holds an `engine.*` key and no screen can grant one*, because `StudioRoles`
+draws its grid from `AREAS` and an engine key is minted from a row — so every register was
+reachable by the owner and Admin alone. By then that gated **twenty-two** registers across
+six sections rather than the eleven this paragraph was written about.
+
+**The roles screen offers them now.** `grantableTypeAreas` projects the studio's own
+record types into the `Area` shape at runtime and the roles route returns them beside
+`AREAS`; nothing is added to `ALL_PERMISSIONS`, which stays a closed compile-time set with
+`isEnginePermission` as its one escape hatch. Grouped under the section each register lives
+in, so NCRs appear beside the rest of Quality & HSE. `tests/crud.mjs` pins the whole round
+trip, because each half passed on its own while the feature did not work: the screen must
+offer the key, `cleanPermissions` must not silently drop it, and the register must then
+open for somebody holding that key and nothing else.
+
+**What is still open:** no ARCHETYPE holds an engine key, so a library role brings none of
+them and a studio grants them by hand. And a register still has no attachments, no
+comments and no audit trail — Phase 3's type management is what closes that.
 
 #### §11 Quality & HSE 🟡 3 / 8
 ITPs ⬜ · Inspection & test records ⬜ · NCR / CAPA ✅ · Audits ✅ · HSE incidents 🟡

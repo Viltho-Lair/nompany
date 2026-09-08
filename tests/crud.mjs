@@ -144,6 +144,100 @@ for (const r of RESOURCES) {
   await lifecycle(r).catch((e) => ok(`${r.name}: lifecycle threw`, false, e?.message || String(e)));
 }
 
+// ---- AN ENGINE REGISTER IS GRANTABLE ---------------------------------------
+// TWENTY-TWO REGISTERS THAT ONLY THE OWNER COULD OPEN, until 08/09/2026.
+// `StudioRoles` draws its grid from `AREAS`, which is compile-time; an engine
+// right is minted from a ROW, so the screen could offer none of them and no
+// archetype held one. A right nothing can GRANT is the same bug as a right
+// nothing can exercise (invariant 16), one step further out.
+//
+// THE TEST IS THE WHOLE ROUND TRIP, because each half passed on its own while
+// the feature did not work: the roles route must OFFER the key, a role carrying
+// it must SURVIVE `cleanPermissions` — which drops anything `isPermission` does
+// not recognise, and an engine key is not in the closed catalogue — and the
+// register must then actually open for somebody holding that key and nothing
+// else.
+async function engineGrant() {
+  const ROLES = await import("../src/app/api/studios/[slug]/roles/route.ts");
+  const { createUser } = await import("@/platform/auth/users");
+  const { createRole } = await import("@/modules/people/roles");
+  const { addCollaborator } = await import("@/platform/auth/collaborators");
+  const { engineContext } = await import("@/platform/engine/context");
+  const { listRecords } = await import("@/platform/engine/records");
+
+  await F.signIn(F.owner.id);
+
+  // ---- the screen offers it ------------------------------------------------
+  const listed = await call(ROLES.GET, req(`/api/studios/${F.slug}/roles`), P());
+  const areas = listed.body?.areas || [];
+  // AREAS, NOT KEYS. The catalogue is 181 permission KEYS across 79 areas, and
+  // conflating the two is how this assertion was wrong the first time it ran.
+  ok("the roles screen is handed the declared catalogue", areas.length > 50,
+    String(areas.length));
+
+  const engineAreas = areas.filter((a) => String(a.key).startsWith("engine."));
+  ok("AND THE STUDIO'S OWN REGISTERS BESIDE IT", engineAreas.length > 0,
+    `${areas.length} areas, none of them engine`);
+
+  const transmittal = engineAreas.find((a) => a.key === "engine.transmittal");
+  ok("...including the built-in transmittal register", Boolean(transmittal),
+    engineAreas.map((a) => a.key).join(", ").slice(0, 200));
+  if (!transmittal) return;
+
+  ok("...carrying the four verbs a register has",
+    ["view", "create", "edit", "delete"].every((v) => transmittal.verbs.includes(v)),
+    JSON.stringify(transmittal.verbs));
+  // GROUPED UNDER ITS SECTION, not in a bucket called "Engine" — a studio finds
+  // it beside the rest of Engineering & Documents.
+  ok("...and grouped under the section it lives in",
+    typeof transmittal.group === "string" && transmittal.group.length > 0
+    && transmittal.group !== "Engine", transmittal.group);
+
+  // ---- a role carrying it survives being stored ----------------------------
+  // `cleanPermissions` DROPS ANY KEY `isPermission` DOES NOT RECOGNISE, and an
+  // engine key is not in the closed catalogue — `isEnginePermission` is the one
+  // place that set stops being closed. Silently dropping it here is what would
+  // make the grant look like it worked and change nothing.
+  const role = await createRole(F.studio.id, {
+    name: `doc-controller-${F.rand()}`,
+    permissions: ["engine.transmittal.view"],
+  });
+  ok("a role may CARRY an engine right",
+    (role.permissions || []).includes("engine.transmittal.view"),
+    JSON.stringify(role.permissions));
+
+  // ---- and it opens the register -------------------------------------------
+  // HOLDING THAT KEY AND NOTHING ELSE. No Administration right, no section
+  // grant of any kind — the engine's context guards membership alone precisely
+  // so this person is not refused before the engine's own gate is asked.
+  const u = (await createUser({ email: `crud-eng-${F.rand()}@test.invalid`, passwordHash: "x" })).user;
+  await addCollaborator(F.studio.id, { userId: u.id, alias: "docs", role: "member", roleIds: [role.id] });
+  await F.signIn(u.id);
+
+  const ctx = await engineContext(u, F.slug);
+  ok("the engine context builds for somebody holding only an engine right",
+    !ctx.error, JSON.stringify(ctx.error));
+  if (ctx.error) return;
+
+  const rows = await listRecords(ctx, "transmittal");
+  ok("AND THE REGISTER OPENS FOR THEM", !rows.error && Array.isArray(rows.records),
+    JSON.stringify(rows.error || rows).slice(0, 160));
+
+  // A READER IS NOT A WRITER: the four verbs are separate keys precisely so
+  // holding one says nothing about the others.
+  ok("...offering no write they cannot do", rows.canCreate === false && rows.canDelete === false,
+    JSON.stringify({ create: rows.canCreate, delete: rows.canDelete }));
+
+  // ---- and a member holding nothing still sees none of it ------------------
+  await F.signIn(F.memberUser.id);
+  const strangerCtx = await engineContext(F.memberUser, F.slug);
+  const refused = strangerCtx.error ? { error: strangerCtx.error } : await listRecords(strangerCtx, "transmittal");
+  ok("a member holding no engine right is still refused",
+    Boolean(refused.error), JSON.stringify(refused).slice(0, 140));
+}
+
+await engineGrant().catch((e) => ok("the engine-grant case threw", false, e?.message || String(e)));
+
 F.signOut();
 console.log(`\ncrud: ${RESOURCES.length} resources · ${((Date.now() - started) / 1000).toFixed(1)}s`);
 
