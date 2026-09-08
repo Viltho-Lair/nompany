@@ -419,6 +419,20 @@ async function codesToIds(ctx: FinanceContext, codes: string[]) {
 // Has this document already been posted? The journal is the record, so ask it
 // rather than stamping the document — a flag on the invoice could drift from
 // whether an entry actually exists, and the entry is the thing that matters.
+// A PAYMENT'S SOURCE ID CARRIES ITS PARENT, and this is not cosmetic.
+//
+// Payment ids are `pay1`, `pay2`… numbered WITHIN their invoice or bill, so
+// every invoice in the studio has a `pay1`. `alreadyPosted` matches on kind and
+// id alone, so the SECOND invoice's first payment looked like one already in the
+// book: refused `already-posted`, the money never reaching the ledger, and
+// nothing anywhere saying so. Found by tests/finance-posting.mjs the day these
+// functions got their first callers — it could not fire before, because
+// `postPayment` and `postBillPayment` were reached by nothing at all.
+//
+// NO MIGRATION. For the same reason: nothing has ever posted a payment, so no
+// stored entry carries the bare id this replaces.
+const paymentSource = (parentId: string, paymentId: string) => `${parentId}:${paymentId}`;
+
 function alreadyPosted(entries: JournalEntry[], kind: string, id: string) {
   return entries.some((e) => e.source?.kind === kind && e.source?.id === id);
 }
@@ -562,7 +576,9 @@ export async function postBillPayment(ctx: FinanceContext, billId: string, payme
   if (!payment) return { error: "notfound-payment" };
 
   const entries = await Entries.find({ studio: ctx.studio, section: ctx.ledgerSection });
-  if (alreadyPosted(entries, "bill-payment", paymentId)) return { error: "already-posted" };
+  if (alreadyPosted(entries, "bill-payment", paymentSource(billId, paymentId))) {
+    return { error: "already-posted" };
+  }
 
   const { byCode, missing } = await codesToIds(ctx, [AP, BANK]);
   if (missing.length) return { error: "chart", missing };
@@ -570,7 +586,7 @@ export async function postBillPayment(ctx: FinanceContext, billId: string, payme
   return postEntry(ctx, {
     date: payment.date,
     memo: `Payment on ${bill.reference}`,
-    source: { kind: "bill-payment", id: paymentId },
+    source: { kind: "bill-payment", id: paymentSource(billId, paymentId) },
     lines: [
       { accountId: byCode.get(AP), debit: payment.amount },
       { accountId: byCode.get(BANK), credit: payment.amount },
@@ -597,7 +613,9 @@ export async function postPayment(ctx: FinanceContext, invoiceId: string, paymen
   if (!payment) return { error: "notfound-payment" };
 
   const entries = await Entries.find({ studio: ctx.studio, section: ctx.ledgerSection });
-  if (alreadyPosted(entries, "payment", paymentId)) return { error: "already-posted" };
+  if (alreadyPosted(entries, "payment", paymentSource(invoiceId, paymentId))) {
+    return { error: "already-posted" };
+  }
 
   const { byCode, missing } = await codesToIds(ctx, [BANK, AR]);
   if (missing.length) return { error: "chart", missing };
@@ -605,7 +623,7 @@ export async function postPayment(ctx: FinanceContext, invoiceId: string, paymen
   return postEntry(ctx, {
     date: payment.date,
     memo: `Payment on ${invoice.reference}`,
-    source: { kind: "payment", id: paymentId },
+    source: { kind: "payment", id: paymentSource(invoiceId, paymentId) },
     lines: [
       { accountId: byCode.get(BANK), debit: payment.amount },
       { accountId: byCode.get(AR), credit: payment.amount },

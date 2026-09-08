@@ -8,6 +8,7 @@
 // to one record — enforced here at the transition, not in the schema.
 
 import { requirePermission } from "@/platform/access";
+import { autoPost } from "./posting";
 import type { PermissionKey } from "@/platform/access";
 import { resolveApprovalPlan, firstUnsignedStep, planSatisfied } from "@/platform/approval/resolve";
 import type { ResolvedPlan, PlanRefusal } from "@/platform/approval/resolve";
@@ -215,7 +216,17 @@ export async function createBill(ctx: FinanceContext, body: Record<string, unkno
     createdByCollaboratorId: collaborator.id,
     createdAt: new Date().toISOString(),
   });
-  return { bill: { ...bill, ...billTotals(bill) } };
+  // THE LIABILITY EXISTS THE MOMENT THE BILL IS RECEIVED, not when it is
+  // approved and not when it is paid. Approval authorises PAYMENT; the debt is
+  // owed from the day the supplier's invoice arrives, and a book that waited
+  // for a signature would understate what the company owes for exactly as long
+  // as its paperwork was behind.
+  //
+  // A DRAFT POSTS NOTHING. It is somebody typing, and `postBill` refuses it by
+  // name — asked here rather than let through, so the reason is in the code
+  // that decides rather than discovered from a refusal.
+  const posting = bill.status === "Received" ? await autoPost(ctx, "bill", bill.id) : null;
+  return { bill: { ...bill, ...billTotals(bill) }, ...(posting ? { posting } : {}) };
 }
 
 export async function editBill(ctx: FinanceContext, id: string, body: Record<string, unknown>) {
@@ -265,7 +276,14 @@ export async function editBill(ctx: FinanceContext, id: string, body: Record<str
   patch.approvalPlan = replanned.ok ? replanned : null;
 
   const bill = await Bills.update({ studio, section: payablesSection }, id, patch);
-  return bill ? { bill: { ...bill, ...billTotals(bill) } } : { error: "notfound" };
+  if (!bill) return { error: "notfound" };
+  // THE SAME MOMENT, REACHED THE OTHER WAY. A bill entered as a draft and then
+  // marked Received accrues exactly as one created Received does. Both doors or
+  // neither: a studio that drafts its bills first would otherwise keep books
+  // that silently omit every one of them.
+  const becameReceived = patch.status === "Received" && current.status === "Draft";
+  const posting = becameReceived ? await autoPost(ctx, "bill", id) : null;
+  return { bill: { ...bill, ...billTotals(bill) }, ...(posting ? { posting } : {}) };
 }
 
 /**
@@ -371,7 +389,14 @@ export async function recordBillPayment(ctx: FinanceContext, id: string, body: R
   const bill = await Bills.update({ studio, section: payablesSection }, id, { payments });
   if (!bill) return { error: "notfound" };
   const after = billTotals(bill);
-  return { bill: { ...bill, ...after, status: statusFor(bill, after) } };
+  // PAYING IS ITS OWN ENTRY, and it is not the accrual again. The bill created
+  // the liability; this settles it, moving money out of the bank and the debt
+  // off the balance sheet. `postBillPayment` needs BOTH ids because a bill can
+  // carry several payments and posting the wrong one puts real money in the
+  // wrong period.
+  const paymentId = payments[payments.length - 1].id;
+  const posting = await autoPost(ctx, "bill-payment", id, paymentId);
+  return { bill: { ...bill, ...after, status: statusFor(bill, after) }, posting };
 }
 
 export async function removeBill(ctx: FinanceContext, id: string) {

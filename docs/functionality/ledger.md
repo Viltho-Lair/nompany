@@ -124,16 +124,36 @@ Stated in words, because a silent gap reads as a finished feature.
   invoice because its chart is incomplete is worse off than one told its books are an
   entry short.
 
-  **Only the invoice, so far.** A bill, an expense and a payment still post only when
-  asked. Each needs the same one-line wiring at its own moment — a bill when it is
-  approved, a payment when it is recorded — and each is a decision about WHICH moment
-  makes the entry true, not a repeat of this one.
+  **ALL FIVE NOW, 08/09/2026**, and each moment was its own decision rather than a repeat
+  of the invoice's:
+
+  - a **bill** posts on RECEIPT, not on approval. Approval authorises PAYMENT; the debt
+    is owed from the day the supplier's invoice arrives, and a book that waited for a
+    signature would understate what the company owes for exactly as long as its
+    paperwork was behind. Reached from both doors — created `Received`, or drafted and
+    then marked `Received` — because a studio that drafts its bills first would
+    otherwise keep books that silently omit every one of them. A draft posts nothing.
+  - an **expense** posts on creation. It has no states, so there is no later moment: it
+    is money that has already left, being recorded.
+  - both **payment** kinds post when the payment is recorded, as their own entry rather
+    than a correction of the accrual. Issuing recognised the revenue and the receivable;
+    the payment clears the receivable against the bank.
+
+  **AND WIRING THEM FOUND A BUG THAT COULD NOT FIRE BEFORE.** A payment id is `pay1`,
+  `pay2`… numbered WITHIN its invoice or bill, so every invoice in the studio has a
+  `pay1`. `alreadyPosted` matches on kind and id alone, so the SECOND invoice's first
+  payment looked like one already in the book: refused `already-posted`, the money never
+  reaching the ledger, and nothing anywhere saying so. It was unreachable while
+  `postPayment` and `postBillPayment` had no callers at all — which is the argument for
+  wiring a function rather than leaving it written and admired. The source id carries its
+  parent now (`<invoiceId>:pay1`), and no migration was needed for the same reason the
+  bug existed: nothing had ever posted a payment.
 
 - **A document can also be posted on request.** The five
   posting functions are reachable as of 08/09/2026 — `POST` the ledger route with a
   `document` and it books an invoice, a bill, an expense or a payment through the
-  function that knows its accounts. What is missing is the "auto": raising an invoice
-  still does not touch the books unless somebody asks.
+  function that knows its accounts. That is the manual door; the automatic one above is
+  what a studio actually relies on.
 
   **AND THE REASON IT IS NOT AUTOMATIC YET IS A DECISION, NOT AN OVERSIGHT.**
   `postEntry` requires `finance.ledger.post`. If issuing an invoice posted as a side

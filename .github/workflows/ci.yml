@@ -214,7 +214,7 @@ jobs:
         # scope is the two-second one a developer runs, and CI runs everything.
         env:
           API_TEST_SCOPE: full
-        run: node tests/routes.mjs && node tests/crud.mjs
+        run: node tests/routes.mjs && node tests/crud.mjs && node tests/finance-posting.mjs
 
       - name: Tests — the Cloud Run pg-gateway, both halves
         # NO DATABASE AND NO GOOGLE IN EITHER OF THESE. The gateway's own suite

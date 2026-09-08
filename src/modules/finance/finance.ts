@@ -391,7 +391,14 @@ export async function recordPayment(ctx: FinanceContext, id: string, body: Recor
   // this one used to spread a null and then read `.status` off it.
   if (!updated) return { error: "notfound" };
   const after = invoiceTotals(updated);
-  return { invoice: { ...updated, ...after, status: statusFor(updated, after) } };
+  // MONEY IN IS A SECOND ENTRY, not a correction of the first. Issuing the
+  // invoice recognised the revenue and the receivable; this clears the
+  // receivable against the bank. Both ids, for the reason a bill payment needs
+  // both — the id of the payment just appended, never "the latest" re-read,
+  // because a concurrent writer could have appended another by then.
+  const paymentId = payments[payments.length - 1].id;
+  const posting = await autoPost(ctx, "payment", id, paymentId);
+  return { invoice: { ...updated, ...after, status: statusFor(updated, after) }, posting };
 }
 
 // Only a draft can be deleted. Once issued it is part of the record — cancel it.
@@ -464,7 +471,12 @@ export async function createExpense(ctx: FinanceContext, body: Record<string, un
     createdByCollaboratorId: collaborator.id,
     createdAt: new Date().toISOString(),
   });
-  return { expense };
+  // AN EXPENSE HAS NO STATES, so there is no later moment to post it at. It is
+  // money that has already left — somebody paid for something and is recording
+  // it — which is why `postExpense` has no state guard of its own where the
+  // other four do.
+  const posting = await autoPost(ctx, "expense", expense.id);
+  return { expense, posting };
 }
 
 export async function editExpense(ctx: FinanceContext, id: string, body: Record<string, unknown>) {

@@ -385,9 +385,13 @@ Grep for the thing before trusting a tick or a blank.
 Stock ✅ · Items ✅ · Project sheets ✅ · **Locations & bins ⬜ · Batch & serial lifecycle
 ⬜ · Stocktaking & adjustment approval ⬜ · Valuation method ⬜ · Dashboard ⬜**
 
-#### §7 Manufacturing & Production ⬜ 0 / 6
-**BOM & routing ⬜ · Work orders ⬜ · MRP & capacity planning ⬜ · Shop-floor terminal to
-timesheets ⬜ · Production QC ⬜ · Dashboard ⬜**  {M}  renders nothing.
+#### §7 Manufacturing & Production 🟡 2 / 6
+**BOM & routing 🟡 (both are engine registers as of 08/09/2026 — a BOM's
+components are one long text field, not a line table that explodes into demand;
+nothing consumes a routing) · Work orders ✅ · MRP & capacity planning ⬜ · Shop-floor terminal to
+timesheets ⬜ · Production QC ⬜ · Dashboard ⬜**
+The section RENDERS NOW — it left `NO_SCREEN_YET` on 08/09/2026 with four engine
+registers under it (work orders, bills of materials, work stations, production batches).
 
 #### §8 Field Operations & Service 🟡 7 / 10
 Schedule ✅ · Tracking ✅ · Settings ✅ · Service orders & job cards ✅ · Maintenance
@@ -441,7 +445,7 @@ files ⬜ · Payroll posting to the ledger ⬜**
 The artifact's note here {M} *"a department IS a top-level section"* {M} **is reversed**:
 departments are their own records under Administration as of 06/09/2026.
 
-#### §13 Finance & Accounting ⬜ 10 / 18
+#### §13 Finance & Accounting 🟡 11 / 18
 Cash ✅ · Ledger ✅ · Payables ✅ · Fixed assets ✅ · Settings ✅ · Payment as an
 allocatable record ✅ · Retention & progress billing (IPC) ✅ · Budgets & commitment
 control 🟡 (at project level only, not in the ledger) · Multi-currency 🟡 (daily FX and
@@ -450,7 +454,7 @@ cash flow** — it needs operating/investing/financing classification nothing re
 Dimensions on every journal line ✅ (deal, project, cost code, department — carried,
 cut by, and reconciling; 08/09/2026) · **Periods & close ⬜ · Credit notes ⬜ · Tax
 engine, ZATCA adapter, WHT ⬜ · Bank reconciliation ⬜ · Cash-flow forecast and PDCs ⬜ ·
-Letters of guarantee & credit ⬜ · Auto-posting from every module ⬜**
+Letters of guarantee & credit ⬜** · Auto-posting from every module ✅ (08/09/2026)
 **The largest single body of unbuilt work in the programme.**
 
 **"LEDGER ✅" WAS THE WORST ENTRY THIS FILE HAS CARRIED.** The module was written,
@@ -459,12 +463,27 @@ A whole double-entry book the product could not open. It has a door as of 08/09/
 (`/api/studios/<slug>/finance/ledger`) and Gate A posts to it for the first time.
 `docs/functionality/ledger.md` is the file.
 
-**IT STILL HAS NO SCREEN, AND NOTHING POSTS AUTOMATICALLY.** `postInvoice`,
-`postBill`, `postExpense` and `postPayment` remain reached by nothing, so raising an
-invoice does not touch the ledger and every entry is keyed by hand. That is the
-"auto-posting" bullet above and it is the largest remaining piece. And a journal line
-still carries no dimension but `projectId`, which is why the programme's acceptance
-test — *the deal card's profit reconciles to the ledger* — still cannot be written.
+**AUTO-POSTING IS DONE, 08/09/2026 — all five documents.** `postInvoice`, `postExpense`,
+`postBill`, `postBillPayment` and `postPayment` had been written complete and imported by
+NOTHING since the ledger was built. Each now has a caller at the moment that makes its
+entry true: an invoice on Draft → Sent, a bill on receipt (**not** on approval — approval
+authorises payment; the debt is owed from the day the supplier's invoice arrives), an
+expense on creation (it has no states — the money has already left), and both payment
+kinds when the payment is recorded. `autoPost` never fails the document: the invoice was
+issued, that happened, so a ledger refusal is RETURNED for the caller to surface rather
+than allowed to undo a write that already succeeded.
+
+**AND IT FOUND A BUG THAT COULD NOT FIRE BEFORE.** A payment id is `pay1`, `pay2`…
+numbered WITHIN its invoice, so every invoice has a `pay1`; `alreadyPosted` matched on
+kind and id alone, so **the second invoice's first payment was refused `already-posted`
+and never reached the books** — real money missing, silently. Unreachable while the
+posting functions had no callers at all. The source id carries its parent now
+(`<invoiceId>:pay1`), and no migration was needed for the same reason the bug existed:
+nothing had ever posted a payment. `tests/finance-posting.mjs` pins all of it, including
+that exact case.
+
+**IT STILL HAS NO SCREEN.** The ledger is reachable only through
+`/api/studios/<slug>/finance/ledger`.
 
 #### §14 Reports & BI ⬜ 0 / 5
 **Executive dashboard ⬜ · Report builder ⬜ · Saved, scheduled & exported reports ⬜ ·
