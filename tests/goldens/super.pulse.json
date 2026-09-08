@@ -1,0 +1,1050 @@
+{
+  "status": 200,
+  "body": {
+    "asOf": "<timestamp>",
+    "range": "30d",
+    "source": "all",
+    "days": 30,
+    "points": [
+      {
+        "day": "<day-29>",
+        "sessions": 0,
+        "pageViews": 0
+      },
+      {
+        "day": "<day-28>",
+        "sessions": 0,
+        "pageViews": 0
+      },
+      {
+        "day": "<day-27>",
+        "sessions": 0,
+        "pageViews": 0
+      },
+      {
+        "day": "<day-26>",
+        "sessions": 0,
+        "pageViews": 0
+      },
+      {
+        "day": "<day-25>",
+        "sessions": 0,
+        "pageViews": 0
+      },
+      {
+        "day": "<day-24>",
+        "sessions": 0,
+        "pageViews": 0
+      },
+      {
+        "day": "<day-23>",
+        "sessions": 0,
+        "pageViews": 0
+      },
+      {
+        "day": "<day-22>",
+        "sessions": 0,
+        "pageViews": 0
+      },
+      {
+        "day": "<day-21>",
+        "sessions": 0,
+        "pageViews": 0
+      },
+      {
+        "day": "<day-20>",
+        "sessions": 0,
+        "pageViews": 0
+      },
+      {
+        "day": "<day-19>",
+        "sessions": 0,
+        "pageViews": 0
+      },
+      {
+        "day": "<day-18>",
+        "sessions": 0,
+        "pageViews": 0
+      },
+      {
+        "day": "<day-17>",
+        "sessions": 0,
+        "pageViews": 0
+      },
+      {
+        "day": "<day-16>",
+        "sessions": 0,
+        "pageViews": 0
+      },
+      {
+        "day": "<day-15>",
+        "sessions": 0,
+        "pageViews": 0
+      },
+      {
+        "day": "<day-14>",
+        "sessions": 0,
+        "pageViews": 0
+      },
+      {
+        "day": "<day-13>",
+        "sessions": 0,
+        "pageViews": 0
+      },
+      {
+        "day": "<day-12>",
+        "sessions": 0,
+        "pageViews": 0
+      },
+      {
+        "day": "<day-11>",
+        "sessions": 0,
+        "pageViews": 0
+      },
+      {
+        "day": "<day-10>",
+        "sessions": 0,
+        "pageViews": 0
+      },
+      {
+        "day": "<day-9>",
+        "sessions": 0,
+        "pageViews": 0
+      },
+      {
+        "day": "<day-8>",
+        "sessions": 0,
+        "pageViews": 0
+      },
+      {
+        "day": "<day-7>",
+        "sessions": 0,
+        "pageViews": 0
+      },
+      {
+        "day": "<day-6>",
+        "sessions": 0,
+        "pageViews": 0
+      },
+      {
+        "day": "<day-5>",
+        "sessions": 0,
+        "pageViews": 0
+      },
+      {
+        "day": "<day-4>",
+        "sessions": 0,
+        "pageViews": 0
+      },
+      {
+        "day": "<day-3>",
+        "sessions": 0,
+        "pageViews": 0
+      },
+      {
+        "day": "<day-2>",
+        "sessions": 0,
+        "pageViews": 0
+      },
+      {
+        "day": "<day-1>",
+        "sessions": 0,
+        "pageViews": 0
+      },
+      {
+        "day": "<day-0>",
+        "sessions": 0,
+        "pageViews": 0
+      }
+    ],
+    "traffic": {
+      "sessions": 0,
+      "pageViews": 0,
+      "today": {
+        "sessions": 0,
+        "pageViews": 0
+      },
+      "delta": {
+        "sessions": null,
+        "pageViews": null
+      }
+    },
+    "continents": [
+      {
+        "name": "Europe",
+        "visits": 0,
+        "level": -1
+      },
+      {
+        "name": "Asia",
+        "visits": 0,
+        "level": -1
+      },
+      {
+        "name": "North America",
+        "visits": 0,
+        "level": -1
+      },
+      {
+        "name": "Africa",
+        "visits": 0,
+        "level": -1
+      },
+      {
+        "name": "South America",
+        "visits": 0,
+        "level": -1
+      },
+      {
+        "name": "Oceania",
+        "visits": 0,
+        "level": -1
+      },
+      {
+        "name": "Others",
+        "visits": 0,
+        "level": -1
+      }
+    ],
+    "cities": [],
+    "citiesCover": 0,
+    "grid": [
+      {
+        "day": "<day-29>",
+        "byContinent": {
+          "Europe": 0,
+          "Asia": 0,
+          "North America": 0,
+          "Africa": 0,
+          "South America": 0,
+          "Oceania": 0,
+          "Others": 0
+        }
+      },
+      {
+        "day": "<day-28>",
+        "byContinent": {
+          "Europe": 0,
+          "Asia": 0,
+          "North America": 0,
+          "Africa": 0,
+          "South America": 0,
+          "Oceania": 0,
+          "Others": 0
+        }
+      },
+      {
+        "day": "<day-27>",
+        "byContinent": {
+          "Europe": 0,
+          "Asia": 0,
+          "North America": 0,
+          "Africa": 0,
+          "South America": 0,
+          "Oceania": 0,
+          "Others": 0
+        }
+      },
+      {
+        "day": "<day-26>",
+        "byContinent": {
+          "Europe": 0,
+          "Asia": 0,
+          "North America": 0,
+          "Africa": 0,
+          "South America": 0,
+          "Oceania": 0,
+          "Others": 0
+        }
+      },
+      {
+        "day": "<day-25>",
+        "byContinent": {
+          "Europe": 0,
+          "Asia": 0,
+          "North America": 0,
+          "Africa": 0,
+          "South America": 0,
+          "Oceania": 0,
+          "Others": 0
+        }
+      },
+      {
+        "day": "<day-24>",
+        "byContinent": {
+          "Europe": 0,
+          "Asia": 0,
+          "North America": 0,
+          "Africa": 0,
+          "South America": 0,
+          "Oceania": 0,
+          "Others": 0
+        }
+      },
+      {
+        "day": "<day-23>",
+        "byContinent": {
+          "Europe": 0,
+          "Asia": 0,
+          "North America": 0,
+          "Africa": 0,
+          "South America": 0,
+          "Oceania": 0,
+          "Others": 0
+        }
+      },
+      {
+        "day": "<day-22>",
+        "byContinent": {
+          "Europe": 0,
+          "Asia": 0,
+          "North America": 0,
+          "Africa": 0,
+          "South America": 0,
+          "Oceania": 0,
+          "Others": 0
+        }
+      },
+      {
+        "day": "<day-21>",
+        "byContinent": {
+          "Europe": 0,
+          "Asia": 0,
+          "North America": 0,
+          "Africa": 0,
+          "South America": 0,
+          "Oceania": 0,
+          "Others": 0
+        }
+      },
+      {
+        "day": "<day-20>",
+        "byContinent": {
+          "Europe": 0,
+          "Asia": 0,
+          "North America": 0,
+          "Africa": 0,
+          "South America": 0,
+          "Oceania": 0,
+          "Others": 0
+        }
+      },
+      {
+        "day": "<day-19>",
+        "byContinent": {
+          "Europe": 0,
+          "Asia": 0,
+          "North America": 0,
+          "Africa": 0,
+          "South America": 0,
+          "Oceania": 0,
+          "Others": 0
+        }
+      },
+      {
+        "day": "<day-18>",
+        "byContinent": {
+          "Europe": 0,
+          "Asia": 0,
+          "North America": 0,
+          "Africa": 0,
+          "South America": 0,
+          "Oceania": 0,
+          "Others": 0
+        }
+      },
+      {
+        "day": "<day-17>",
+        "byContinent": {
+          "Europe": 0,
+          "Asia": 0,
+          "North America": 0,
+          "Africa": 0,
+          "South America": 0,
+          "Oceania": 0,
+          "Others": 0
+        }
+      },
+      {
+        "day": "<day-16>",
+        "byContinent": {
+          "Europe": 0,
+          "Asia": 0,
+          "North America": 0,
+          "Africa": 0,
+          "South America": 0,
+          "Oceania": 0,
+          "Others": 0
+        }
+      },
+      {
+        "day": "<day-15>",
+        "byContinent": {
+          "Europe": 0,
+          "Asia": 0,
+          "North America": 0,
+          "Africa": 0,
+          "South America": 0,
+          "Oceania": 0,
+          "Others": 0
+        }
+      },
+      {
+        "day": "<day-14>",
+        "byContinent": {
+          "Europe": 0,
+          "Asia": 0,
+          "North America": 0,
+          "Africa": 0,
+          "South America": 0,
+          "Oceania": 0,
+          "Others": 0
+        }
+      },
+      {
+        "day": "<day-13>",
+        "byContinent": {
+          "Europe": 0,
+          "Asia": 0,
+          "North America": 0,
+          "Africa": 0,
+          "South America": 0,
+          "Oceania": 0,
+          "Others": 0
+        }
+      },
+      {
+        "day": "<day-12>",
+        "byContinent": {
+          "Europe": 0,
+          "Asia": 0,
+          "North America": 0,
+          "Africa": 0,
+          "South America": 0,
+          "Oceania": 0,
+          "Others": 0
+        }
+      },
+      {
+        "day": "<day-11>",
+        "byContinent": {
+          "Europe": 0,
+          "Asia": 0,
+          "North America": 0,
+          "Africa": 0,
+          "South America": 0,
+          "Oceania": 0,
+          "Others": 0
+        }
+      },
+      {
+        "day": "<day-10>",
+        "byContinent": {
+          "Europe": 0,
+          "Asia": 0,
+          "North America": 0,
+          "Africa": 0,
+          "South America": 0,
+          "Oceania": 0,
+          "Others": 0
+        }
+      },
+      {
+        "day": "<day-9>",
+        "byContinent": {
+          "Europe": 0,
+          "Asia": 0,
+          "North America": 0,
+          "Africa": 0,
+          "South America": 0,
+          "Oceania": 0,
+          "Others": 0
+        }
+      },
+      {
+        "day": "<day-8>",
+        "byContinent": {
+          "Europe": 0,
+          "Asia": 0,
+          "North America": 0,
+          "Africa": 0,
+          "South America": 0,
+          "Oceania": 0,
+          "Others": 0
+        }
+      },
+      {
+        "day": "<day-7>",
+        "byContinent": {
+          "Europe": 0,
+          "Asia": 0,
+          "North America": 0,
+          "Africa": 0,
+          "South America": 0,
+          "Oceania": 0,
+          "Others": 0
+        }
+      },
+      {
+        "day": "<day-6>",
+        "byContinent": {
+          "Europe": 0,
+          "Asia": 0,
+          "North America": 0,
+          "Africa": 0,
+          "South America": 0,
+          "Oceania": 0,
+          "Others": 0
+        }
+      },
+      {
+        "day": "<day-5>",
+        "byContinent": {
+          "Europe": 0,
+          "Asia": 0,
+          "North America": 0,
+          "Africa": 0,
+          "South America": 0,
+          "Oceania": 0,
+          "Others": 0
+        }
+      },
+      {
+        "day": "<day-4>",
+        "byContinent": {
+          "Europe": 0,
+          "Asia": 0,
+          "North America": 0,
+          "Africa": 0,
+          "South America": 0,
+          "Oceania": 0,
+          "Others": 0
+        }
+      },
+      {
+        "day": "<day-3>",
+        "byContinent": {
+          "Europe": 0,
+          "Asia": 0,
+          "North America": 0,
+          "Africa": 0,
+          "South America": 0,
+          "Oceania": 0,
+          "Others": 0
+        }
+      },
+      {
+        "day": "<day-2>",
+        "byContinent": {
+          "Europe": 0,
+          "Asia": 0,
+          "North America": 0,
+          "Africa": 0,
+          "South America": 0,
+          "Oceania": 0,
+          "Others": 0
+        }
+      },
+      {
+        "day": "<day-1>",
+        "byContinent": {
+          "Europe": 0,
+          "Asia": 0,
+          "North America": 0,
+          "Africa": 0,
+          "South America": 0,
+          "Oceania": 0,
+          "Others": 0
+        }
+      },
+      {
+        "day": "<day-0>",
+        "byContinent": {
+          "Europe": 0,
+          "Asia": 0,
+          "North America": 0,
+          "Africa": 0,
+          "South America": 0,
+          "Oceania": 0,
+          "Others": 0
+        }
+      }
+    ],
+    "devices": [
+      {
+        "label": "Desktop",
+        "visits": 0,
+        "value": 0
+      },
+      {
+        "label": "Mobile",
+        "visits": 0,
+        "value": 0
+      },
+      {
+        "label": "Tablet",
+        "visits": 0,
+        "value": 0
+      }
+    ],
+    "pages": [],
+    "signups": [
+      {
+        "d": "<day-89>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-88>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-87>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-86>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-85>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-84>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-83>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-82>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-81>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-80>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-79>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-78>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-77>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-76>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-75>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-74>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-73>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-72>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-71>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-70>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-69>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-68>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-67>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-66>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-65>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-64>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-63>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-62>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-61>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-60>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-59>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-58>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-57>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-56>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-55>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-54>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-53>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-52>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-51>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-50>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-49>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-48>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-47>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-46>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-45>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-44>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-43>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-42>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-41>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-40>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-39>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-38>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-37>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-36>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-35>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-34>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-33>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-32>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-31>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-30>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-29>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-28>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-27>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-26>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-25>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-24>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-23>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-22>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-21>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-20>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-19>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-18>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-17>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-16>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-15>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-14>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-13>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-12>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-11>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-10>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-9>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-8>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-7>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-6>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-5>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-4>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-3>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-2>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-1>",
+        "n": 0,
+        "cumulative": 0
+      },
+      {
+        "d": "<day-0>",
+        "n": 1,
+        "cumulative": 1
+      }
+    ],
+    "studios": {
+      "total": 1,
+      "thisWeek": 1,
+      "countries": [],
+      "unplaced": 1
+    }
+  }
+}

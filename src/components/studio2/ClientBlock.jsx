@@ -26,12 +26,8 @@ import { Field, BARE_CONTROL } from "@/components/fields/Field";
 import Combo from "@/components/studio2/Combo";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { commonDict } from "@/shared/studio/common";
-import { COUNTRIES } from "@/shared/countries";
+import { COUNTRY_NAMES, codeOfCountry } from "@/shared/countries";
 import { citiesFor } from "@/lib/cities";
-
-const COUNTRY_NAMES = COUNTRIES.map((c) => c.name);
-// citiesFor keys on the ISO code while the answer people give is a NAME.
-const codeOfCountry = (name) => COUNTRIES.find((c) => c.name === name)?.code || "";
 
 const heading = "mt-5 text-xs font-600 uppercase tracking-wide text-slate-400 dark:text-slate-500";
 

@@ -58,6 +58,34 @@ function resolveFile(base, from = null) {
   return new URL(base, from || ROOT).href;
 }
 
+// NODE_MODULES IS NOT ALWAYS UNDER ROOT, and this file assumed it was.
+//
+// A GIT WORKTREE HAS NO node_modules OF ITS OWN. Node handles that by walking UP
+// the directory tree until it finds one, which is why `<repo>/.worktrees/<name>`
+// can run tsc and eslint against the repo's own install with nothing copied —
+// but the `new URL("node_modules/...", ROOT)` lookup below was absolute against
+// the cwd, so it resolved to a path that does not exist and the whole suite died
+// at the first route importing `next/server`.
+//
+// The symptom named the wrong culprit: ERR_MODULE_NOT_FOUND on next/server reads
+// as a broken Next install rather than as a working directory without a local
+// install. Two sessions concluded from it that worktrees cannot run this suite
+// at all, and one told its user that was the cost of isolating sessions.
+//
+// Walks the same way Node does, and falls back to the old path so the message is
+// unchanged when there genuinely is no install anywhere above.
+function nodeModulesFile(subpath) {
+  let dir = new URL("./", ROOT);
+  for (let i = 0; i < 12; i += 1) {
+    const candidate = new URL(`node_modules/${subpath}`, dir);
+    if (isFile(candidate)) return candidate.href;
+    const parent = new URL("../", dir);
+    if (parent.href === dir.href) break;
+    dir = parent;
+  }
+  return new URL(`node_modules/${subpath}`, ROOT).href;
+}
+
 export function resolve(specifier, context, next) {
   if (specifier === "next/headers") {
     return next(new URL("tests/nextHeaders.mjs", ROOT).href, context);
@@ -67,7 +95,7 @@ export function resolve(specifier, context, next) {
   // Pointed at the file itself — unlike next/headers there is nothing to stand
   // in for, because NextResponse is ordinary code over a web Response.
   if (specifier === "next/server") {
-    return next(new URL("node_modules/next/server.js", ROOT).href, context);
+    return next(nodeModulesFile("next/server.js"), context);
   }
   if (specifier.startsWith("@/")) {
     return next(resolveFile(`src/${specifier.slice(2)}`), context);

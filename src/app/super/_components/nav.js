@@ -34,6 +34,11 @@ export const NAV = [
       // users, exchange rates, satisfaction). The seven demo dashboards that
       // used to share this tree are deleted, so there is no tree left to share.
       { label: "Dashboard", icon: "dashboard", href: `${BASE}/dashboard/analytics` },
+      // The wall. It opens OUTSIDE this chrome (see (full)) because a sidebar
+      // eats 260px of a screen whose whole purpose is to be looked at from
+      // across a room — the same reason Questionnaires leaves its own group
+      // behind.
+      { label: "Pulse wall", icon: "activity", href: `${BASE}/pulse` },
     ],
   },
   {

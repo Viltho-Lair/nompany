@@ -4800,6 +4800,8 @@ console.log("== /super: a second identity, and the wall between them");
   const SUPER_CAL_EVENTS = await import("@/app/api/super/google-calendar/events/route.ts");
   const STUDIO = await import("@/app/api/studios/[slug]/route.ts");
   const SALES = await import("@/app/api/studios/[slug]/sales/route.ts");
+  const SUPER_PULSE = await import("@/app/api/super/pulse/route.ts");
+  const SUPER_PULSE_LIVE = await import("@/app/api/super/pulse/live/route.ts");
 
   const shot = async (name, payload) => {
     const r = golden(name, payload, EXTRA);
@@ -4928,6 +4930,78 @@ console.log("== /super: a second identity, and the wall between them");
       ctx({ userId: asUser.id })));
   }
 
+
+  // ---- the Pulse wall ------------------------------------------------------
+  // TWO ROUTES THAT READ AND NEVER WRITE, which is why this block sits at the
+  // end of the console section and creates nothing: it cannot move another
+  // block's golden the way the projects slice moved six of them.
+  //
+  // THE ROLLING WINDOW IS THE WHOLE DIFFICULTY. /api/super/pulse returns ninety
+  // dated signup rows and forty-two dated grid rows, and every one of those
+  // dates moves at midnight. Pinning them verbatim would produce a suite that
+  // goes red overnight for a reason nobody can act on — the exact date drift
+  // EXTRA's `<today+N>` placeholders exist to stop, at ninety times the scale.
+  //
+  // So the window is neutralised the same way, generated rather than typed:
+  // every date the payload can contain is mapped to `<day-N>` for THIS CALL
+  // only. The body is still pinned WHOLE — the counts, the levels, the
+  // continent names, the device split, the studio totals — and only the
+  // calendar underneath it is made stable. The keys are ten-character dates and
+  // never prefixes of one another, so the blind replace cannot eat its own
+  // placeholders the way a set of shared-prefix literals would.
+  const pulseDays = {};
+  for (let i = 0; i < 90; i += 1) pulseDays[utcDay(-i)] = `<day-${i}>`;
+  const PULSE_EXTRA = { ...EXTRA, ...pulseDays };
+
+  __signOut();
+  await shot("super.pulse.unauth", await capture(
+    SUPER_PULSE.GET, req("/api/super/pulse"), ctx()));
+
+  __signIn(SUPER_COOKIE, session.token);
+  const pulse = await capture(SUPER_PULSE.GET, req("/api/super/pulse?range=30d"), ctx());
+  const pulseShot = golden("super.pulse", pulse, PULSE_EXTRA);
+  if (!pulseShot.recorded) ok("super.pulse matches its golden", pulseShot.ok, pulseShot.detail);
+
+  // THE RANGE COMES FROM THE URL AND IS NOT TRUSTED. An unknown range falls back
+  // to the default rather than reaching the store with it — `days` is the
+  // evidence, because a bad range that reached daysBack would produce NaN days
+  // and an empty read that still looked like a successful response.
+  const pulseJunk = await capture(SUPER_PULSE.GET, req("/api/super/pulse?range=all-of-time"), ctx());
+  ok("an unknown range falls back to the default rather than reaching the store",
+    pulseJunk.body?.range === "30d" && pulseJunk.body?.days === 30,
+    `${pulseJunk.body?.range} / ${pulseJunk.body?.days}`);
+
+  // THE WALL IS CONTINENT-GRADE AND MUST STAY THAT WAY. /api/track maps the
+  // edge's country header to a continent and discards it, so nothing this route
+  // returns may name a city or a coordinate for a VISITOR. A studio's country
+  // is a different thing entirely — the studio typed it — so what is asserted
+  // here is that the TRAFFIC half carries no geography finer than a continent.
+  const continentNames = (pulseJunk.body?.continents || []).map((c) => c.name);
+  ok("traffic geography is continent names and nothing finer",
+    continentNames.length > 0 && continentNames.every((n) => typeof n === "string"),
+    JSON.stringify(continentNames));
+  ok("no visitor coordinate reaches the response",
+    !JSON.stringify(pulseJunk.body?.continents || []).includes("lat"),
+    JSON.stringify(pulseJunk.body?.continents || []).slice(0, 120));
+
+  // ---- who is here ---------------------------------------------------------
+  __signOut();
+  await shot("super.pulse.live.unauth", await capture(
+    SUPER_PULSE_LIVE.GET, req("/api/super/pulse/live"), ctx()));
+
+  __signIn(SUPER_COOKIE, session.token);
+  const live = await capture(SUPER_PULSE_LIVE.GET, req("/api/super/pulse/live"), ctx());
+  const liveShot = golden("super.pulse.live", live, PULSE_EXTRA);
+  if (!liveShot.recorded) ok("super.pulse.live matches its golden", liveShot.ok, liveShot.detail);
+
+  // NO EMAIL REACHES THE WALL, asserted on the wire rather than in the model.
+  // tests/pulse-model.mjs proves maskHandle masks; this proves nothing routed
+  // around it — a feed row added later that passed `email` straight through
+  // would satisfy every model test and fail here.
+  const feedText = JSON.stringify(live.body?.arrivals || []);
+  ok("no arrival carries an email address", !feedText.includes("@"), feedText.slice(0, 160));
+  ok("...and the fixture's own operator address is not in the body",
+    !JSON.stringify(live.body || {}).includes(email), email);
   __signOut();
 }
 

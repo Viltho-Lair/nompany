@@ -3,6 +3,7 @@ import { can } from "@/platform/access";
 import { dirFor } from "@/shared/i18n";
 import { shellDict } from "@/shared/studio/shell";
 import StudioFrame from "@/components/studio2/StudioFrame";
+import StudioTracker from "@/components/StudioTracker";
 import { withRequest } from "@/platform/http/observability";
 import { studioShell } from "./_shell";
 
@@ -83,6 +84,10 @@ async function renderShell(children) {
       // the flag is a convenience for the UI, not the gate.
       novaEnabled={plan.novaEnabled}
     >
+      {/* The ERP's traffic counter. It records a SECTION and never a tenant or a
+          record id — see StudioTracker for why the public site's page rule
+          cannot be reused here. */}
+      <StudioTracker />
       {children}
     </StudioFrame>
   );

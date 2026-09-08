@@ -44,7 +44,24 @@ export default async function sitemap() {
   // does the page is a heading over an explanation — worth serving to somebody
   // who arrives, and not worth submitting to a crawler as a page about
   // customers. It appears here on its own the day the first company agrees.
-  const named = publicCompanies(await listStudios()).length > 0;
+  //
+  // A FAILED READ OMITS THE PAGE; IT DOES NOT FAIL THE SITEMAP. This is the one
+  // database read in this file, and it was added for a single boolean — so
+  // letting it throw would trade the whole sitemap, every page of it, for the
+  // one entry it decides. That is not hypothetical: the build prerenders this
+  // route, so a tree without DATABASE_URL (any worktree) failed the entire
+  // build on `Error: pg: DATABASE_URL is not set`, and in production a
+  // momentarily unreachable gateway would do the same.
+  //
+  // OMITTING IS THE SAFE DIRECTION. Advertising a customers page that turns out
+  // to be empty is the failure this gate exists to prevent, so when the answer
+  // is unknown the gate stays shut.
+  let named = false;
+  try {
+    named = publicCompanies(await listStudios()).length > 0;
+  } catch {
+    named = false;
+  }
   const paths = named ? SITEMAP_PATHS : SITEMAP_PATHS.filter((p) => p !== "/customers");
 
   const entries = [];

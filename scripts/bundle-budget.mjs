@@ -555,7 +555,57 @@ const baselines = JSON.parse(readFileSync(BASELINES_FILE, "utf8"));
 // stays absent — so it is a plain constant now rather than dead machinery
 // somebody has to reason about. The mechanism is worth reusing; the instance is
 // spent.
-const MAX_TOTAL_GZIP_KB = 1833;
+// 1833 -> 1852 on 08/09/2026, with the /super Pulse wall. MEASURED AT BOTH
+// ENDS, on this machine within the same hour, which is the discipline this
+// number keeps losing: 1832 across 96 chunks at 2e496ba4 (built in a detached
+// worktree at the base commit, not quoted from CLAUDE.md, which happened to
+// agree), 1844 across 97 chunks with the wall. +12 KB in ONE new chunk.
+//
+// The chunk is the wall's client island — the canvas world map, the panels and
+// the polling — and twelve kilobytes buys all of it because none of it is a
+// library: the dot grid is FETCHED from /public rather than imported (40 KB
+// that would otherwise be inlined here), and the panels are hand-drawn SVG
+// rather than a chart dependency. The route itself is 190 KB first load, under
+// every other console screen.
+//
+// THE LARGEST CHUNK DID NOT MOVE — 162 KB against 250, before and after — which
+// is the gate that matters, because that is what every route pays.
+//
+// Eight kilobytes of headroom, not one. The comment above this constant argues
+// it at length and it was written after a raise to exactly one kilobyte: a
+// ceiling with one trips on everything, so the next person raises it under the
+// pressure of a red build rather than deliberately.
+//
+// AND WHAT THIS DELIBERATELY DID NOT ABSORB: `--record` also wanted to move
+// /studio/[[...segments]] from 679 to 685. That six kilobytes is not this
+// change — it arrived with other sessions' commits between the 679 measurement
+// and 2e496ba4 — so the row is left at 679 and stays visible to whoever does
+// cross it. Recording another branch's growth inside an unrelated commit is how
+// a baseline stops being a measurement.
+//
+// 1852 -> 1857 on 08/09/2026, ON THE MERGE, and this is the correction rather
+// than a second raise. 1852 was measured+8 against 2e496ba4; merging origin/main
+// brought the two commits that had already taken main to 1836, and the merged
+// tree — the one that actually lands — measures 1849 across 97 chunks. Leaving
+// it at 1852 would have landed with THREE kilobytes of headroom.
+//
+// Which is the state main was in this morning, and it went red within hours:
+// run 34204043271 failed on this gate alone, total 1836 against 1833, with every
+// per-route number at its baseline and nothing regressed. A ceiling one small
+// commit above the tree is a ceiling that gets raised in an emergency by whoever
+// trips it, which is how this number drifted before. Measure the tree you are
+// landing, not the one you branched from.
+//
+// 1857 -> 1862 on 08/09/2026, with the wall's own chrome: the brand mark, the
+// three-way theme control and the shared bottom bar. Measured 1854 across 97
+// chunks, and /super/pulse 190 -> 196 (its own baseline moved with it).
+//
+// Raised a second time in one session RATHER THAN LEFT AT THREE KILOBYTES, which
+// is the whole argument of the note above: three is the margin main was carrying
+// when it went red, and a ceiling that close gets raised by whoever trips it
+// instead of by whoever grew it. Twice deliberately beats once deliberately and
+// once in an emergency.
+const MAX_TOTAL_GZIP_KB = 1862;
 
 const totalKb = files.reduce((sum, f) => sum + f.gzip, 0) / 1024;
 const biggest = files[0];

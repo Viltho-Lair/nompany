@@ -1,6 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+// The three helpers live in @/lib/theme now — this file and the console header
+// each had their own copy and they disagreed about the `light` class.
+import { readTheme, applyTheme, chooseTheme } from "@/lib/theme";
 
 // Hover-expandable theme control: Light / Dark / System. Collapsed it shows only
 // the current mode's icon; on hover (or keyboard focus) it expands to reveal the
@@ -8,42 +11,6 @@ import { useCallback, useEffect, useState } from "react";
 // 1-year) so it persists and is readable server-side; the no-flash script in the
 // root layout reads the same cookie. Default is LIGHT.
 const OPTIONS = ["light", "dark", "system"];
-
-function readTheme() {
-  try {
-    const m = document.cookie.match(/(?:^|; )theme=([^;]+)/);
-    if (m) return decodeURIComponent(m[1]);
-    // No explicit choice yet — fall back to whatever the no-flash script in the
-    // root layout already resolved, so the control never contradicts the page
-    // it is sitting on (that default is per-surface: dark on marketing, light
-    // in the app).
-    return document.documentElement.classList.contains("dark") ? "dark" : "light";
-  } catch {
-    return "light";
-  }
-}
-
-function writeTheme(mode) {
-  try {
-    const secure = location.protocol === "https:" ? "; secure" : "";
-    document.cookie = `theme=${mode}; path=/; max-age=31536000; samesite=lax${secure}`;
-    // MUI's CssVarsProvider is the other writer of the `dark` class, and it
-    // prefers its own persisted mode over the `defaultMode` the server passes.
-    // Writing its key here means the two can never disagree — whichever one
-    // runs first on the next load reaches the same answer.
-    localStorage.setItem("mui-mode", mode);
-  } catch {}
-}
-
-function applyTheme(mode) {
-  const sys = window.matchMedia("(prefers-color-scheme: dark)").matches;
-  const dark = mode === "dark" || (mode === "system" && sys);
-  // Both classes, not just `dark`: MUI scopes its light variables to `.light`
-  // and its dark ones to `.dark`, so leaving a stale `light` behind would light
-  // every MUI component on a dark page.
-  document.documentElement.classList.toggle("dark", dark);
-  document.documentElement.classList.toggle("light", !dark);
-}
 
 export default function ThemeToggle({ labels }) {
   const [mode, setMode] = useState("light");
@@ -63,8 +30,7 @@ export default function ThemeToggle({ labels }) {
 
   const choose = useCallback((next) => {
     setMode(next);
-    writeTheme(next);
-    applyTheme(next);
+    chooseTheme(next);
   }, []);
 
   const icon = {

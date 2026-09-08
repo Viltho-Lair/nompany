@@ -282,14 +282,44 @@ export const SITE = {
 // Namespaced like everything else, so the integration suite cannot write into
 // the real record. In production P is empty and the key is unchanged, so there
 // is no migration.
+// TWO SITES ARE COUNTED NOW, and the website keeps the original key.
+//
+// Every day of history under `stat:day:<date>` IS website traffic — SiteTracker
+// has only ever been mounted on the public layout — so re-keying it would strand
+// the whole record under a name nothing reads, which is the tender register's
+// mistake at a larger scale. The ERP gets a new namespace beside it instead, and
+// "www" resolves to the historic key by construction rather than by a comment
+// somebody has to remember.
+export type StatSite = "www" | "erp";
+const statDay = (isoDate: string) => `${P}stat:day:${isoDate}`;
+
 export const STAT = {
-  day: (isoDate: string) => `${P}stat:day:${isoDate}`,
+  // `day` USED TO BE EXPORTED HERE and is not any more: once every reader took a
+  // site, nothing in src called it, and Gate A's "every key builder is read by
+  // something" caught it in the same run that recorded the new goldens. A
+  // builder nothing reads is invariant 16 one layer down — a key that can be
+  // built and never is. `statDay` survives as the private spelling of the
+  // website's historic key, which is what `siteDay` returns for "www".
+  siteDay: (site: StatSite, isoDate: string) =>
+    (site === "erp" ? `${P}stat:day:erp:${isoDate}` : statDay(isoDate)),
+  // CITIES GET THEIR OWN KEY rather than more fields in the day hash. That hash
+  // is capped at 300 fields with an overflow bucket, and it holds the page,
+  // continent and device counters — a few hundred cities a day would push the
+  // PAGES into overflow, so a cardinality the world decides would silently eat a
+  // cardinality we control.
+  cities: (site: StatSite, isoDate: string) =>
+    (site === "erp" ? `${P}stat:city:erp:${isoDate}` : `${P}stat:city:${isoDate}`),
   visitors: (isoDate: string) => `${P}stat:vis:${isoDate}`,
   // Everything past the per-day field ceiling lands here rather than minting a
   // new field. A page that shows up in this bucket is either a typo or an
   // attempt to grow the hash.
   OVERFLOW_FIELD: "pv:__other",
   MAX_FIELDS_PER_DAY: 300,
+  // Its own cap, on its own key. Generous because a city is a real reading and
+  // the long tail is the interesting part of a traffic map; bounded because the
+  // field name comes from a header and is therefore chosen by the world.
+  OVERFLOW_CITY: "__other",
+  MAX_CITIES_PER_DAY: 500,
 };
 
 // ---- rate limiting (ephemeral counters, owned by nobody) -------------------
