@@ -1,11 +1,8 @@
 import { currentUser } from "@/platform/auth/identity";
 import { studioContext } from "@/lib/studios";
 import { can } from "@/platform/access";
-import { repo } from "@/platform/db/repo";
-import { getSectionByKey } from "@/platform/db/sections";
 import { datasetFor, toRows, toCsv } from "@/modules/reports/datasets";
-import { invoiceTotals } from "@/modules/finance/finance";
-import { billTotals } from "@/modules/finance/payables";
+import { readDataset } from "@/modules/reports/read";
 import type { PermissionKey } from "@/platform/access";
 
 export const runtime = "nodejs";
@@ -22,23 +19,10 @@ export const dynamic = "force-dynamic";
 // at all; the data set then asks the right its own section already required. A
 // caller holding the first and not the second gets nothing — giving somebody
 // the export screen must not widen what they can see by one row.
-// COLUMNS THAT ARE NOT ON THE ROW.
-//
-// `total` IS DERIVED, NEVER STORED — `invoiceTotals` computes it from the lines
-// and the VAT rate on every read, which is what stops a stored total and its
-// own lines parting company. So an export that reads rows straight out of the
-// collection produced a Total column that was EMPTY on every line, which is
-// worse than not offering the column: a spreadsheet of invoices with no amounts
-// looks like the export is broken, and a studio that did not check would think
-// it had the data.
-//
-// THE MAP LIVES HERE RATHER THAN IN THE CATALOGUE so `datasets.ts` stays pure —
-// it has no imports and can be asserted without a database, which is the whole
-// reason the column list is safe to trust. This file already reaches the store.
-const DERIVE: Record<string, (row: Record<string, unknown>) => Record<string, unknown>> = {
-  invoices: (r) => ({ ...r, ...invoiceTotals(r) }),
-  bills: (r) => ({ ...r, ...billTotals(r) }),
-};
+// THE ROWS COME FROM `modules/reports/read`, which is where the second gate,
+// the section fallback and the derived-column map now live — the report builder
+// needs the identical read, and two copies would be two places to forget one of
+// the three. The derived-column note that used to sit here has moved with it.
 
 export async function GET(request: Request, ctx: { params: Promise<Record<string, string>> }) {
   const user = await currentUser();
@@ -59,28 +43,13 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
   const dataset = datasetFor(new URL(request.url).searchParams.get("dataset"));
   if (!dataset) return Response.json({ error: "notfound" }, { status: 404 });
 
-  // THE SECOND GATE. Named in the refusal so somebody told "no" knows which
-  // right to ask for — a bare `forbidden` on a screen listing eight data sets
-  // says nothing about which one.
-  if (!can(context.access, dataset.permission as PermissionKey)) {
-    return Response.json({ error: "forbidden", key: dataset.permission }, { status: 403 });
-  }
-
-  // The sub-section that owns the collection, falling back to the parent so a
-  // studio predating the sub-section model still exports — the `ownerOf` shape
-  // Finance already uses for its cross-section reads.
-  const owner = (await getSectionByKey(context.studio.id, dataset.sectionKey))
-    || (await getSectionByKey(context.studio.id, dataset.parentSectionKey));
-  // NO SECTION IS AN EMPTY FILE, NOT AN ERROR. A studio that has never used
-  // Tendering has no tenders to export, and that is a truthful answer rather
-  // than a failure — the header row still tells them what the columns are.
-  const stored = owner
-    ? await repo(dataset.collection).find({ studio: context.studio, section: owner })
-    : [];
-  const derive = DERIVE[dataset.key];
-  const rows = derive
-    ? (stored as Record<string, unknown>[]).map(derive)
-    : (stored as Record<string, unknown>[]);
+  // THE SECOND GATE, asked inside `readDataset` and named in its refusal so
+  // somebody told "no" knows which right to ask for. A studio with no such
+  // section gets an EMPTY FILE rather than an error — the header row still
+  // tells them what the columns are.
+  const read = await readDataset(context, dataset);
+  if ("error" in read) return Response.json(read, { status: 403 });
+  const { rows } = read;
 
   // THE BOM IS NOT DECORATION. Excel on Windows reads a UTF-8 CSV as the system
   // codepage without one, which turns every Arabic client name into mojibake —

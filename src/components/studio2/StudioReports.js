@@ -1,5 +1,12 @@
+import nextDynamic from "next/dynamic";
 import { exportableFor } from "@/modules/reports/datasets";
 import { reportsDict } from "@/shared/studio/reports";
+
+// THE BUILDER IS A CLIENT MODULE and this page is a SERVER component, so it
+// arrives through `nextDynamic` — which here defers only the server render,
+// not the download (HeavyScreens.jsx). It is imported this way so the export
+// list, which needs no client state at all, keeps rendering on the server.
+const ReportBuilderPanel = nextDynamic(() => import("@/components/studio2/ReportBuilderPanel"));
 
 // REPORTS & BI — the last section that rendered nothing.
 //
@@ -75,10 +82,17 @@ export default function StudioReports({ slug, access, locale = "en" }) {
         </div>
       )}
 
-      {/* WHAT THIS SECTION IS NOT, YET. A report builder, saved and scheduled
-          reports, analytics and KPI alerts are all still unbuilt, and a page
-          that quietly offered only exports would read as a finished section.
-          The same rule every functionality file's "Not built yet" follows. */}
+      {/* THE BUILDER, THE SAVED LIST AND THE TARGETS. Below the exports rather
+          than in a tab, because this page is a Server Component and a tab strip
+          would make the whole of it client state for one toggle. */}
+      <div className="mt-8">
+        <ReportBuilderPanel slug={slug} locale={locale} />
+      </div>
+
+      {/* WHAT THIS SECTION IS STILL NOT. Scheduling and analytics are unbuilt,
+          and a page that quietly offered everything else would read as a
+          finished section. The same rule every functionality file's "Not built
+          yet" follows. */}
       <p className="mt-8 border-t border-slate-200/70 pt-4 text-xs text-slate-400 dark:border-white/10 dark:text-slate-500">
         {tr.notYet}
       </p>

@@ -137,6 +137,8 @@ export const COLLECTION_TABLE: Readonly<Record<string, string>> = {
   bomLines: "BomLine",
   shopfloorRuns: "ShopfloorRun",
   qcChecks: "QcCheck",
+  savedReports: "SavedReport",
+  kpiTargets: "KpiTarget",
   landedCosts: "LandedCost",
   assetAllocations: "AssetAllocation",
   creditNotes: "CreditNote",

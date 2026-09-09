@@ -806,6 +806,10 @@ export const SECTION_COLLECTIONS = {
   // have planted would strand every line written before it — the tender
   // register's mistake. The root is always there.
   manufacturing: ["bomLines", "shopfloorRuns", "qcChecks"],
+  // A SAVED REPORT IS A QUESTION, NOT AN ANSWER — it stores a spec and
+  // nothing it computed, so the rows it can reach are always the reader's
+  // own. A target is a line drawn across one.
+  reports: ["savedReports", "kpiTargets"],
   // BINS SIT WITH THE MOVEMENTS THEY SPLIT. A bin balance is the stock
   // ledger grouped by bin, so the two must be written under one section or
   // a live update on one would never reach a screen watching the other.
