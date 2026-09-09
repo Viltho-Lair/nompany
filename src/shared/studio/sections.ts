@@ -40,7 +40,7 @@ const ar: SectionMap = {
   main: "الرئيسية",
 
   // SALES BECAME CRM & SALES AND GAINED QUOTATIONS (keys.ts SECTION_DEFS).
-  "crm-sales": "المبيعات وإدارة العملاء",
+  "crm-sales": "المبيعات وعلاقات العملاء",
   "crm-sales-pipeline": "مسار الصفقات",
   "crm-sales-tickets": "التذاكر",
   "crm-sales-clients": "العملاء",
@@ -51,7 +51,7 @@ const ar: SectionMap = {
   "crm-sales-settings": "الإعدادات",
 
   // NEW ROOT, no children yet (see keys.ts) — declared for ordering alone.
-  tendering: "المناقصات والتسعير",
+  tendering: "المناقصات وتقدير التكاليف",
   "tendering-register": "سجل المناقصات",
   "tendering-rates": "مكتبة الأسعار",
 
@@ -65,11 +65,15 @@ const ar: SectionMap = {
 
   // TECHNICAL BECAME ENGINEERING & DOCUMENTS AND GAINED THE CONTROLLED
   // REGISTER (formerly Quality's Documents sub-section).
-  "engineering-docs": "الهندسة والوثائق",
-  "engineering-docs-register": "الوثائق",
-  // Kept as the initialism. An Arabic engineer says "RFQ"; the expanded
-  // "طلب عرض سعر" is the right phrase in a sentence and the wrong one on a
-  // sidebar row that has to stay short.
+  "engineering-docs": "الهندسة والمستندات",
+  "engineering-docs-register": "المستندات",
+  // THIS COMMENT USED TO SAY THE OPPOSITE OF THE VALUE BESIDE IT — that the
+  // mark was "kept as the initialism" because an engineer says RFQ, while the
+  // value has always been the expanded phrase. The expansion is right: a Latin
+  // initialism in an Arabic sidebar is the literal-import habit this file is
+  // being corrected away from, and Procurement's own supplier-quote screen sits
+  // three rows below under a different word, so an abbreviation shared by two
+  // screens would have said less, not more.
   "engineering-docs-rfq": "طلبات عروض الأسعار",
   "engineering-docs-live": "العرض المباشر",
   "engineering-docs-settings": "الإعدادات",
@@ -100,7 +104,7 @@ const ar: SectionMap = {
   "field-service-settings": "الإعدادات",
 
   // NEW ROOT. Carries the AWB tracking screen from Inventory.
-  logistics: "اللوجستيات والأسطول",
+  logistics: "الخدمات اللوجستية والأسطول",
   "logistics-shipments": "تتبع بوليصة الشحن",
 
   // NEW ROOT, no children yet.
@@ -108,7 +112,7 @@ const ar: SectionMap = {
 
   // QUALITY WIDENED TO QUALITY & HSE, and keeps permits to work (formerly an
   // Operations tab). No children yet.
-  "quality-hse": "الجودة والسلامة",
+  "quality-hse": "الجودة والسلامة والبيئة",
 
   hr: "الموارد البشرية",
   "hr-employees": "الموظفون",

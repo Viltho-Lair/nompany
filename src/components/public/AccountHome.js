@@ -14,11 +14,9 @@ import LangMenu from "@/components/LangMenu";
 import { locales, LANGUAGE_NAMES, LANGUAGE_SHORT } from "@/shared/locale";
 import ThemeToggle from "@/components/ThemeToggle";
 import { cn } from "@/lib/utils";
-import { NOVA_PROVIDERS, providerMeta } from "@/lib/nova/providers";
 import { fmtDate, fmtDateTime } from "@/lib/format";
-import CopyableCode from "@/components/CopyableCode";
-import SelectMenu from "@/components/fields/SelectMenu";
 import { useReload } from "@/components/studio2/useReload";
+import SelectMenu from "@/components/fields/SelectMenu";
 import { FIELDS_OF_WORK, OTHER_FIELD } from "@/shared/fieldsOfWork";
 
 // The account hub, laid out like the Google Account console:
@@ -746,23 +744,6 @@ function PersonalInfo({ identity, onSaved }) {
   const [saved, setSaved] = useState(false);
   const [phoneError, setPhoneError] = useState("");
 
-  // The Nova / AI key. A credential, so the field never shows what is stored —
-  // only whether one is set — and saving it sends only the key, never the rest
-  // of the form. The server encrypts it; Nova decrypts it to answer as this user.
-  const keySet = Boolean(profile.novaKeySet);
-  const [provider, setProvider] = useState(profile.novaProvider || "anthropic");
-  const [novaKey, setNovaKey] = useState("");
-  const [keyBusy, setKeyBusy] = useState(false);
-  const [keyMsg, setKeyMsg] = useState("");
-  async function saveKey(value) {
-    setKeyBusy(true); setKeyMsg("");
-    const res = await fetch("/api/identity/profile", {
-      method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ novaProvider: provider, novaKey: value }),
-    });
-    setKeyBusy(false);
-    if (res.ok) { setNovaKey(""); setKeyMsg(value ? tr.keySaved : tr.keyRemoved); onSaved(); }
-    else setKeyMsg(tr.didnSave);
-  }
 
   async function save() {
     // The phone is optional, so an empty field saves fine — but a number that
@@ -802,50 +783,14 @@ function PersonalInfo({ identity, onSaved }) {
 
       {saved && <p className={cn(BANNER_GOOD, "mt-4")}>{tr.profileUpdated}</p>}
 
-      {/* Nova / AI key — your own AI subscription, used by the assistant inside
-          your studios. Stored encrypted; shown only as set / not set. */}
-      <div className="mt-4 rounded-2xl border border-slate-200 p-4 dark:border-white/10">
-        <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-sm font-600 text-slate-900 dark:text-white">{tr.novaAiKey}</p>
-            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-              {keySet ? tr.keySetNovaUses : tr.novaNotSet}
-            </p>
-          </div>
-          {keySet && (
-            <button type="button" onClick={() => saveKey("")} disabled={keyBusy}
-              className="shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-500 text-rose-600 hover:bg-rose-50 disabled:opacity-50 dark:text-rose-400 dark:hover:bg-rose-500/10">
-              {tr.remove}
-            </button>
-          )}
-        </div>
-        {/* Which AI you subscribe to, then the key for it. Nova talks to whichever
-            you pick — Claude, ChatGPT or Gemini. */}
-        <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,11rem)_1fr_auto]">
-          <SelectMenu
-            value={provider}
-            onChange={(v) => { setProvider(v); setKeyMsg(""); }}
-            className={cn(INPUT, "text-sm")}
-            options={NOVA_PROVIDERS.map((p) => ({ value: p.id, label: p.label }))}
-          />
-          <input
-            type="password"
-            value={novaKey}
-            onChange={(e) => { setNovaKey(e.target.value); setKeyMsg(""); }}
-            placeholder={keySet ? tr.pasteNewKeyReplace : providerMeta(provider).keyHint}
-            autoComplete="off"
-            className={cn(INPUT, "font-mono text-xs")}
-          />
-          <button type="button" onClick={() => saveKey(novaKey.trim())} disabled={keyBusy || !novaKey.trim()}
-            className="shrink-0 rounded-lg bg-brand-600 px-3 py-2 text-sm font-500 text-white disabled:opacity-50">
-            {keyBusy ? tr.saving : tr.save}
-          </button>
-        </div>
-        {keyMsg && <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{keyMsg}</p>}
-        <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">
-          Get a key at {providerMeta(provider).docs}. It&apos;s stored encrypted and never shown again.
-        </p>
-      </div>
+      {/* THE NOVA / AI KEY FIELD IS GONE, and it was never an end user's to
+          fill. It asked every member of every studio to paste an Anthropic or
+          OpenAI key, with a note on where to buy one — a developer credential
+          in front of people who mostly have none, cannot get one without a
+          card, and had no reason to know the assistant runs on a third-party
+          subscription at all. It also made Nova's availability a property of
+          the READER: whether it worked depended on who was looking, not on what
+          the studio's plan included. One key, set once, in /super. */}
 
       <div className={cn(STACK, "mt-4")}>
         {/* Profile picture: camera icon on the left, the picture itself as a
@@ -1399,39 +1344,23 @@ function Calendars({ locale, outcome }) {
             </div>
           ))}
 
-          {/* WHAT THE BUTTON ABOVE CANNOT TELL YOU ON ITS OWN. `available` is
-              driven by the SIGN-IN credentials — one client id and secret serve
-              both — so Connect appears the moment Google or Microsoft sign-in
-              works, whether or not anybody registered this feature's own
-              callback path. Without it the provider answers
-              redirect_uri_mismatch and the product says nothing at all — the
-              real failure that prompted this block: the operator registered
-              what the address bar showed (nompany.com) while the site actually
-              served on www.nompany.com, and the two are different strings to a
-              provider that compares byte for byte. So the address shown here is
-              `data.redirectUris[p]`, computed server-side from THIS request
-              (route.ts, calendarRedirectUri) rather than guessed at in this
-              file — the same string the server will actually send. */}
-          {connectable.length > 0 && (
-            <div className="flex flex-col gap-2 px-1">
-              <p className="text-xs text-slate-400 dark:text-slate-500">{tr.calendarRedirectHint}</p>
-              {connectable.map((p) => (
-                data.redirectUris?.[p] ? (
-                  <div key={p} className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                    <span className="shrink-0 font-500">{providerLabel(p)}:</span>
-                    <CopyableCode
-                      value={data.redirectUris[p]}
-                      className="min-w-0 flex-1"
-                      codeClassName="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] text-slate-700 dark:border-white/15 dark:bg-[#191921] dark:text-slate-200"
-                      buttonClassName="rounded-full px-2.5 py-1 text-[11px] font-600 text-brand-700 hover:bg-brand-50 dark:text-brand-300 dark:hover:bg-brand-500/10"
-                      copyLabel={tr.copyRedirectUri}
-                      copiedLabel={tr.copied}
-                    />
-                  </div>
-                ) : null
-              ))}
-            </div>
-          )}
+          {/* THE REDIRECT-URI BLOCK IS GONE FROM HERE, and it was never this
+              screen's to show. It printed the exact callback address for each
+              provider with a note that it "must be registered as a redirect URI
+              on the provider's OAuth client — matched byte for byte". That is a
+              real instruction and a correct one, and it is addressed to whoever
+              owns the Google or Microsoft OAuth client: a one-time job, done
+              once for the whole platform, in a console this reader has no
+              account on.
+
+              A tenant connecting their own calendar cannot act on it. What they
+              got was three lines of somebody else's setup documentation, on the
+              screen they went to in order to press one button.
+
+              IT STILL EXISTS WHERE IT BELONGS: /super → Application → Calendar
+              shows the same addresses to the person who can register them, from
+              `consoleCalendarRedirectUri`. Deleting it here removes a duplicate,
+              not the information. */}
         </div>
       )}
 

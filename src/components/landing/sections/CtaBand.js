@@ -49,7 +49,11 @@ export function CtaBand() {
                 ? { label: tr.goStudio, href: `/${session.studio.slug}` }
                 : { label: tr.createStudio, href: "/en/account" };
 
-    return (<section className="relative mx-auto max-w-7xl px-6 pt-8 pb-28">
+    // max-w-6xl, NOT 7xl. It was the third container width on one page (3xl, 6xl,
+    // 7xl) and the widest, so the band hung 64px past the sections above it at
+    // any viewport over 1152px — visible as an edge that does not line up
+    // exactly where the eye has been trained by everything above.
+    return (<section className="relative mx-auto max-w-6xl px-6 pt-8 pb-28">
       <motion.div variants={stagger(0.09)} initial="hidden" whileInView="show" viewport={VIEWPORT} className="surface relative overflow-hidden rounded-3xl px-8 py-16 text-center md:px-16">
         {/* Slowly rotating conic sheen behind the copy */}
         <motion.div aria-hidden className="pointer-events-none absolute -inset-1/2 opacity-25 gpu" style={{

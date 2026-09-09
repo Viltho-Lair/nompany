@@ -11,7 +11,14 @@ import { useElementCenter } from "@/components/landing/lib/useElementCenter";
      1. Idle:   a slow float (y) + breathing (scaleY) loop.
      2. Attend: head/body lean toward the cursor.
      3. Gaze:   pupils track the cursor, clamped inside the sclera.
-   Plus a blink on a repeating delay so it never feels like a decal.
+   IT DOES NOT BLINK. There was an eyelid here — a body-coloured rect
+   scaling down over each eye every 4.2 seconds — and at any size below
+   the hero's it reads as a flicker rather than a blink: two dark discs
+   vanishing and returning in 0.22s, with nothing else on the face
+   moving. The character is already alive from three continuous layers
+   (float, breathe, lean) and the pupils tracking the cursor, which is
+   what stops it reading as a decal. A blink was a fourth thing, and the
+   only one that removes the eyes.
 
    Gaze is computed from the shared pointer MotionValues against the
    element's own centre, so it stays correct as the page scrolls — and
@@ -69,12 +76,25 @@ export function AiAssistant({ size = 280 }) {
             </radialGradient>
           </defs>
 
-          {/* Halo pulse */}
-          <motion.circle cx="120" cy="118" r="96" fill="url(#nova-halo)" 
+          {/* Halo pulse — THE BALL NOW REACHES THE ANTENNA.
+              It was cx=120 cy=118 r=96, and the antenna's tip sits at y=31:
+              eighty-seven units above that centre, which is 91% of the way to
+              the edge of a radial gradient that has faded to nothing by then.
+              The antenna was drawn outside the glow — reading as detached from
+              the ball rather than part of the character.
+
+              The FIX IS THE BALL, NOT THE ANTENNA. Shortening the antenna was
+              the other option and it changes the character to suit its
+              backdrop. Centred on the whole of Nova instead (31 to 212, so 121
+              rather than 118, nudged to 110 to favour the head) and grown to
+              112, the tip lands at 71% of the radius — inside the visible part
+              of the gradient — and the body's base at 102 units still clears
+              it. */}
+          <motion.circle cx="120" cy="110" r="112" fill="url(#nova-halo)" 
     // Explicit `initial` for every keyframed SVG attribute: without
     // it Framer's first render writes attr="undefined" before the
     // animation resolves, which the SVG parser rejects.
-    initial={{ opacity: 0.35, scale: 1 }} animate={still ? undefined : { opacity: [0.35, 0.7, 0.35], scale: [1, 1.06, 1] }} transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut" }} style={{ originX: "120px", originY: "118px" }}/>
+    initial={{ opacity: 0.35, scale: 1 }} animate={still ? undefined : { opacity: [0.35, 0.7, 0.35], scale: [1, 1.06, 1] }} transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut" }} style={{ originX: "120px", originY: "110px" }}/>
 
           {/* ---- Body (leans slightly) ---- */}
           <motion.g style={still ? undefined : { x: bodyX }}>
@@ -113,13 +133,6 @@ export function AiAssistant({ size = 280 }) {
                     <circle cx={eyeX} cy="111" r="7" fill="var(--color-cyan)"/>
                     <circle cx={eyeX - 2.4} cy="108.4" r="2.2" fill="#ffffff" opacity="0.9"/>
                   </motion.g>
-                  {/* Eyelid: scaleY blink on a long repeatDelay */}
-                  <motion.rect x={eyeX - 14} y="96" width="28" height="30" fill="url(#nova-body)" initial={{ scaleY: 0 }} animate={still ? undefined : { scaleY: [0, 1, 0] }} transition={{
-                duration: 0.22,
-                repeat: Infinity,
-                repeatDelay: 4.2,
-                ease: "easeInOut",
-            }} style={{ originY: "96px", originX: `${eyeX}px` }}/>
                 </g>))}
             </g>
 

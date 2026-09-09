@@ -121,7 +121,10 @@ export default function NovaLauncher({ slug, enabled = false, besideChat = false
       });
       if (res.status === 503) {
         const d = await res.json().catch(() => null);
-        setNote(d?.help || tr.novaNotSetUp);
+        // The provider and its docs URL arrive as DATA; the sentence is built
+        // here, in the reader's language. `novaNotSetUp` is the fallback for a
+        // 503 that names no provider.
+        setNote(d?.provider && d?.docs ? tr.novaNeedsKey(d.provider, d.docs) : tr.novaNotSetUp);
         setBusy(false); return;
       }
       if (res.status === 403) { setNote(tr.novaNotInPlan); setBusy(false); return; }

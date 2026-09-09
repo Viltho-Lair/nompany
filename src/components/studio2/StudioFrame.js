@@ -27,6 +27,7 @@ import LiveProvider from "@/components/studio2/LiveProvider";
 import NotificationBell from "@/components/studio2/NotificationBell";
 import ThemeToggle from "@/components/ThemeToggle";
 import { toneOf } from "@/lib/planColors";
+import DailyGreeting from "@/components/studio2/DailyGreeting";
 
 // Studio chrome for the restructured model: the studio's identity, its sections
 // (each a real row with its own SectionID), and who you are INSIDE this studio.
@@ -83,6 +84,17 @@ const SECTION_ICONS = {
   engagements: "link",
   // Sales sub-sections carry their own icons rather than falling back to the
   // neutral dot, so the group reads as three destinations instead of a list.
+  // THE SIX THAT FELL THROUGH TO `dot`, measured rather than eyeballed: the
+  // whole Procurement group and Sales' order register. `SECTION_ICONS[key] ||
+  // "dot"` is a fallback for a key nobody mapped, and five identical dots under
+  // one parent is a list that says nothing about what is in it.
+  "crm-sales-orders": "salesOrders",
+  "procurement-requisitions": "requisitions",
+  "procurement-rfq": "supplierQuotes",
+  "procurement-expediting": "expediting",
+  "procurement-subcontracts": "subcontracts",
+  "procurement-receiving": "receiving",
+
   "tendering-register": "rfp",
   "tendering-rates": "money",
   "crm-sales-pipeline": "kanban",
@@ -187,11 +199,28 @@ const accentOf = (key) => {
   return root ? SECTION_ACCENTS[root] : "text-slate-400 dark:text-slate-500";
 };
 
-// The row's shell — shape and colour, no padding. A plain row adds the padding
-// itself (itemClass); a parent group hands it to the link and the chevron
-// button separately, so each is a full-height hit target of its own.
+// The row's shell — shape and colour, NO PADDING AND NO JUSTIFICATION. A plain
+// row adds the padding itself (itemClass); a parent group hands it to the link
+// and the chevron button separately, so each is a full-height hit target of its
+// own.
+//
+// `justify-between` USED TO BE BAKED IN HERE AND IT BELONGED TO ONE CALLER.
+// Exactly one consumer has two children — the parent-group wrapper, whose link
+// and chevron push apart. Everything else has one child, and a single flex item
+// under `justify-between` is placed at the START, which is invisible on a row
+// whose content is left-aligned anyway and very visible on a SQUARE: both
+// header marks and the Engagements square drew their icon hard against one
+// edge instead of centred.
+//
+// Adding `justify-center` at those call sites did not fix it and could not.
+// Tailwind emits `justify-between` AFTER `justify-center` in its own utility
+// order, so between wins on specificity ties no matter which order the class
+// attribute lists them — the class string reads as if it were overridden while
+// the stylesheet says otherwise. Two utilities for one property on one element
+// is the bug; the fix is to stop shipping the first one to callers that never
+// wanted it.
 const rowClass = (active) =>
-  `flex items-center justify-between gap-3 rounded-lg text-[12px] font-500 transition-colors ${
+  `flex items-center gap-3 rounded-lg text-[12px] font-500 transition-colors ${
     active
       ? "bg-brand-500/10 text-brand-700 dark:bg-brand-500/20 dark:text-brand-400"
       : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white"
@@ -273,6 +302,10 @@ export default function StudioFrame({
   // public header and the account hub.
   const [account, setAccount] = useState(null);
   const [accountOpen, setAccountOpen] = useState(false);
+  // AT MOST ONE HEADER MENU, holding the key rather than a boolean per icon —
+  // the same shape `openKey` uses for the section groups, so opening one closes
+  // the other without either knowing the other exists.
+  const [headerMenu, setHeaderMenu] = useState(null);
   // ONE CORNER, ONE WINDOW. Nova and the support chat are both anchored to the
   // bottom-end corner and are both the same shape, so two open at once would be
   // one stacked on the other. Neither can decide that alone — each only knows
@@ -302,6 +335,20 @@ export default function StudioFrame({
     return () => { window.removeEventListener("click", close); window.removeEventListener("keydown", onKey); };
   }, [accountOpen]);
 
+  // The same two listeners for the header menus. Deliberately a second effect
+  // rather than one that closes both: they open from opposite ends of the
+  // chrome and a shared handler would be a single state nobody could reason
+  // about — and this one is keyed on `headerMenu` so it is not attached at all
+  // while nothing is open, which is what the account menu's does too.
+  useEffect(() => {
+    if (!headerMenu) return;
+    const close = () => setHeaderMenu(null);
+    const onKey = (e) => e.key === "Escape" && setHeaderMenu(null);
+    window.addEventListener("click", close);
+    window.addEventListener("keydown", onKey);
+    return () => { window.removeEventListener("click", close); window.removeEventListener("keydown", onKey); };
+  }, [headerMenu]);
+
   async function signOut() {
     try { await fetch("/api/identity/logout", { method: "POST" }); } catch { /* sign out locally anyway */ }
     // Signing out of an Arabic studio landed on the English login screen. The
@@ -330,9 +377,59 @@ export default function StudioFrame({
   const all = (sections || []).filter((s) => !isSystemSection(s.key));
   const systemSections = (sections || []).filter((s) => isSystemSection(s.key));
   const visibleIds = new Set(all.map((s) => s.id));
-  const tree = all
+  const fullTree = all
     .filter((s) => !s.parentId || !visibleIds.has(s.parentId))
     .map((s) => ({ ...s, children: all.filter((c) => c.parentId === s.id) }));
+
+  // TASKS AND ADMINISTRATION ARE NOT SECTIONS, AND THE LIST BELOW IS SECTIONS.
+  //
+  // This file has said so at the top since the restructure — "plus Main and
+  // Tasks, which are not sections: Main is the home surface and Tasks is a
+  // cross-cutting control" — while rendering both of them in the same column,
+  // in the same shape, as the fifteen. Administration & Settings is the same
+  // kind of thing from the other end: People, Access, Master data and Studio
+  // settings are how the studio is ADMINISTERED, not work anybody does in it.
+  //
+  // They are marks beside the logo now, each opening its own children. What
+  // that buys is not tidiness: the sidebar is the studio's list of DEPARTMENTS,
+  // and two non-departments sitting in it taught every reader that the list is
+  // "everything", which is what made Tasks look like a sixteenth section on the
+  // org chart the departments register had to correct.
+  const HEADER_KEYS = ["tasks", "administration"];
+  const tree = fullTree.filter((n) => !HEADER_KEYS.includes(n.key));
+
+  // `/administration` IS A NAVIGATION NODE AND NOT A DESTINATION, so its own
+  // row is left out — it exists to own four children and renders nothing worth
+  // arriving at. Tasks is the opposite: its parent IS the task list, so it
+  // leads its own menu under a name that says which of the two it is. The
+  // asymmetry is in the data, not a special case: a parent is included only
+  // where the parent is a screen.
+  const PARENT_IS_A_SCREEN = { tasks: true, administration: false };
+
+  const headerMenus = HEADER_KEYS
+    .map((key) => {
+      const node = fullTree.find((n) => n.key === key);
+      if (!node) return null;
+      const items = [
+        // The parent's own screen, where it has one. `taskList` rather than the
+        // section's name: "Tasks > Tasks" says nothing about which is which.
+        ...(PARENT_IS_A_SCREEN[key]
+          ? [{ key: node.key, href: `/${studio.slug}/${node.key}`, label: tr.taskList }]
+          : []),
+        ...node.children.map((c) => ({
+          key: c.key,
+          href: `/${studio.slug}/${c.key}`,
+          label: sectionName(c.key, c.name, locale),
+        })),
+      ];
+      // NO ICON FOR AN EMPTY MENU. A sub-section can be granted without its
+      // parent and the reverse is just as real — somebody holding
+      // `administration` and none of its four children would otherwise get a
+      // button that opens nothing.
+      if (items.length === 0) return null;
+      return { key, label: sectionName(node.key, node.name, locale), items };
+    })
+    .filter(Boolean);
 
   // AT MOST ONE group is expanded, and which one FOLLOWS THE PAGE YOU ARE ON.
   // The previous version remembered every group you had ever opened, so nothing
@@ -349,15 +446,23 @@ export default function StudioFrame({
   const isOpen = (node) => openKey === node.key;
   const toggleGroup = (key) => setOpenKey((k) => (k === key ? null : key));
 
-  // ENGAGEMENTS IS THE ONLY ONE LEFT. People and Access were here beside it —
-  // People shown to everyone, Access gated on canAdminister — because neither
-  // was a section anybody could be granted. Both are sections now and arrive
-  // through the tree below, which is also what gives them the group behaviour,
-  // the active-row highlight and the Arabic labels they never had here.
+  // ENGAGEMENTS IS THE ONLY ONE LEFT, AND IT NO LONGER RENDERS HERE. People and
+  // Access were here beside it — People shown to everyone, Access gated on
+  // canAdminister — because neither was a section anybody could be granted.
+  // Both are sections now and arrive through the tree below, which is also what
+  // gives them the group behaviour, the active-row highlight and the Arabic
+  // labels they never had here.
   //
-  // Engagements stays because it genuinely is not a section: giving Main a
-  // child would gate the parent and hide Main from every member without the
-  // right. engagements.view is a right of its own, held by any role.
+  // Engagements stays a nav entry because it genuinely is not a section: giving
+  // Main a child would gate the parent and hide Main from every member without
+  // the right. engagements.view is a right of its own, held by any role.
+  //
+  // WHAT CHANGED IS WHERE IT SITS: it is a square icon in the footer beside
+  // Documentation now, not a labelled row above the divider. THIS ARRAY STAYS
+  // ANYWAY, because `activeLabel` below reads it — the header on
+  // /<slug>/engagements takes its title from here, and deleting the array to
+  // "clean up" after moving the button would silently retitle that page to the
+  // studio's own name with nothing failing.
   const admin = [
     { href: `/${studio.slug}/engagements`, key: "engagements", label: tr.engagements, show: me.canSeeEngagements },
   ].filter((i) => i.show);
@@ -381,7 +486,11 @@ export default function StudioFrame({
     const active = node.key === activeKey;
     return (
       <div key={node.key}>
-        <div className={`${rowClass(active)} pe-1`}>
+        {/* THE ONE ROW WITH TWO CHILDREN, so it is the one that asks for
+            `justify-between` — the link takes the width and the chevron is
+            pushed to the end. It used to inherit this from `rowClass` and
+            every single-child caller inherited it too. */}
+        <div className={`${rowClass(active)} justify-between pe-1`}>
           <Link
             href={`/${studio.slug}/${node.key}`}
             // Clicking the section you are ALREADY on has no navigation to
@@ -429,7 +538,13 @@ export default function StudioFrame({
 
   const sidebar = (
     <div className="flex h-full flex-col bg-[var(--geex-surface)]">
-      <Link href={`/${studio.slug}`} className="flex items-center gap-2.5 px-6 py-5" onClick={() => setOpen(false)}>
+      {/* THE IDENTITY BLOCK IS A ROW NOW, not a single link. The padding moved
+          off the link and onto this wrapper so the marks sit inside the same
+          box the studio's name does — putting them after a `px-6` link would
+          have indented them past its edge. `relative` is the anchor every menu
+          below positions against. */}
+      <div className="relative flex items-center gap-1 px-6 py-5">
+      <Link href={`/${studio.slug}`} className="flex min-w-0 flex-1 items-center gap-2.5" onClick={() => setOpen(false)}>
         {/* The studio's own logo stands here once it has one; the nompany mark
             is the default every new studio starts with. Shown whole rather than
             cropped to a circle — it is a company's mark, not a face — so it is
@@ -459,45 +574,132 @@ export default function StudioFrame({
         </span>
       </Link>
 
+      {/* TASKS AND ADMINISTRATION, AS MARKS. No visible label — the name is on
+          hover and on `aria-label`, both, for the reason the Engagements square
+          in the footer gives.
+
+          `stopPropagation` on the click is what lets the window-level listener
+          above stay dumb: it closes on ANY click, so the button that opens a
+          menu has to not be one of them, or opening would immediately close. */}
+      {headerMenus.map((menu) => (
+        <div key={menu.key} className="relative shrink-0">
+          <button
+            type="button"
+            title={menu.label}
+            aria-label={menu.label}
+            aria-haspopup="menu"
+            aria-expanded={headerMenu === menu.key}
+            onClick={(e) => { e.stopPropagation(); setHeaderMenu((k) => (k === menu.key ? null : menu.key)); }}
+            className={`${rowClass(menu.items.some((i) => i.key === activeKey))} h-9 w-9 justify-center`}
+          >
+            <Icon name={SECTION_ICONS[menu.key] || "dot"} className={iconClass(menu.key)} />
+          </button>
+
+          {headerMenu === menu.key && (
+            <div role="menu" className="absolute end-0 z-50 mt-2 w-52 overflow-hidden rounded-geex bg-[var(--geex-surface)] py-1 shadow-geex">
+              {menu.items.map((item) => (
+                <Link
+                  key={item.key}
+                  href={item.href}
+                  role="menuitem"
+                  onClick={() => { setHeaderMenu(null); setOpen(false); }}
+                  className={`flex items-center gap-2.5 px-3 py-2 text-sm font-500 ${
+                    item.key === activeKey
+                      ? "bg-brand-500/10 text-brand-700 dark:bg-brand-500/20 dark:text-brand-400"
+                      : "text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-white/5"
+                  }`}
+                >
+                  <Icon name={SECTION_ICONS[item.key] || "dot"} className={iconClass(item.key)} />
+                  <span className="truncate">{item.label}</span>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+      </div>
+
       <nav aria-label={tr.departments} className="flex-1 space-y-0.5 overflow-y-auto px-4 py-6">
         {tree.map((node) => navGroup(node))}
 
-        {admin.length > 0 && (
-          <div className="mt-6 space-y-0.5 border-t border-[var(--geex-border)] pt-4">
-            {admin.map((i) => navLink(i.href, i.key, i.label, "font-600"))}
-          </div>
-        )}
       </nav>
 
-      <div className="space-y-0.5 border-t border-[var(--geex-border)] p-4">
-        {/* Full-screen manual — opens outside the studio chrome. */}
+      {/* TWO DESTINATIONS, ONE ROW. `items-stretch` rather than `items-center`
+          is what makes the square square WITHOUT a hard-coded size: the
+          manual's own padding sets the row's height, `aspect-square` takes its
+          width from that height, and the two stay matched if that padding is
+          ever changed. A `h-9 w-9` here would be a second place the row's
+          height is written down, free to disagree with the first. */}
+      <div className="flex items-stretch gap-2 border-t border-[var(--geex-border)] p-4">
+        {/* Full-screen manual — opens outside the studio chrome.
+            `flex-1 min-w-0` is the ONLY change to it: it yields the width the
+            square needs instead of pushing it out of the row, and `min-w-0`
+            is what lets a long label shrink rather than overflow — a flex item
+            refuses to go below its content width without it, in Arabic first,
+            where the word is longer. */}
         <Link
           href={`/${studio.slug}/documentation`}
           onClick={() => setOpen(false)}
-          className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-[12px] font-500 text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white"
+          className="flex min-w-0 flex-1 items-center gap-3 rounded-lg px-3 py-2.5 text-[12px] font-500 text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white"
         >
           {/* The manual, so it wears the manual's mark. It asked for "services"
               — a wrench in the new set — which is a tool, not a document. It stays
               neutral grey rather than taking an accent: it is not a section, and
               colouring it would put it in the same visual class as the fourteen. */}
           <Icon name="book" className="h-[18px] w-[18px] text-slate-400 dark:text-slate-500" />
-          {tr.documentation}
+          <span className="truncate">{tr.documentation}</span>
         </Link>
-        {/* SETTINGS IS PINNED HERE AGAIN, AND IT IS NOT A REVERSION.
 
-            It was a footer link once because Studio settings was reached by a
+        {/* ENGAGEMENTS, AS A MARK RATHER THAN A ROW. It carries no visible label
+            — the name arrives on hover — so it needs `aria-label` to say the
+            same thing to a screen reader, and `title` to say it to a pointer.
+            Both, not one: `title` is invisible to a keyboard user and
+            `aria-label` never appears on hover, and this is the one control in
+            the sidebar whose purpose cannot be read off its face.
+
+            It keeps `rowClass`, whose ACTIVE ARM IS UNREACHABLE TODAY and is
+            kept deliberately. Engagements is one of the seven full-screen
+            routes (see the note further down), so the shell — and this sidebar
+            with it — is not rendered on `/engagements` at all: there is no
+            state in which this square is both visible and current. That was
+            equally true of the nav row it replaces, which is why moving it
+            loses nothing. `rowClass` stays because it is the same shell every
+            other row uses, it costs one word, and it is already correct on the
+            day Engagements stops being full-screen. Documentation beside it
+            hard-codes the inactive styling instead, for the same unreachable
+            reason — the two are inconsistent, and that is the older half. */}
+        {admin.map((i) => (
+          <Link
+            key={i.key}
+            href={i.href}
+            onClick={() => setOpen(false)}
+            title={i.label}
+            aria-label={i.label}
+            className={`${rowClass(i.key === activeKey)} aspect-square shrink-0 justify-center`}
+          >
+            <Icon name={SECTION_ICONS[i.key] || "dot"} className={iconClass(i.key)} />
+          </Link>
+        ))}
+        {/* AND SETTINGS BESIDE IT, WHICH IS NOT A REVERSION.
+
+            Studio settings was a footer link once, because it was reached by a
             literal key match with nowhere else to put it; then it became a
             child of the Administration section; and now Administration is not a
-            section at all (see `isSystemSection`). What is pinned is the
+            section at all (see `isSystemSection`). What is pinned here is the
             SURFACE rather than one screen — People, Access, Master data and
             Studio settings behind one gear — so the four keep their addresses,
             their rights and their Arabic labels while leaving the department
             list they never belonged in.
 
+            A ROW RATHER THAN A SQUARE, unlike Engagements above. The mark above
+            is one destination and can carry its name on hover; this one opens
+            onto four, so it says so in words.
+
             SHOWN ONLY TO SOMEBODY WHO MAY OPEN AT LEAST ONE. `systemSections`
             is already filtered by the same visibility the tree uses, so a
             member holding none of the four rights sees no gear rather than a
             gear that refuses them — the same courtesy every section row gets.
+
 
             The slot before it held "My account", which moved to the header
             avatar because the account is the PERSON and the sidebar belongs to
@@ -634,6 +836,19 @@ export default function StudioFrame({
               <p className="truncate text-xs text-slate-400 dark:text-slate-500">{studio.name}</p>
             </div>
           </div>
+
+          {/* THE DAILY GREETING, in the empty middle of the header. It takes the
+              space between the page title and the controls, which is the only
+              part of this bar that was carrying nothing.
+
+              `order-last` BELOW `lg`, so a narrow header keeps the title beside
+              the menu button and the band wraps to its own line underneath
+              rather than squeezing both. The header is already `flex-wrap`;
+              this just decides what wraps. It renders null when there is no
+              message or the day has been dismissed, so the row collapses to
+              exactly what it was before. */}
+          <DailyGreeting slug={studio.slug} />
+
           <div className="flex items-center gap-2">
             {/* THE PERSON'S LANGUAGE, beside the theme control because it is the
                 same kind of choice: mine, about how I read this, not about what

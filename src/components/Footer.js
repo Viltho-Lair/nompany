@@ -135,7 +135,13 @@ export default function Footer({ locale, dict }) {
       <div className="border-t border-white/10">
         <div className="container-page flex flex-col items-center justify-between gap-2 py-5 text-xs text-white/50 sm:flex-row">
           <p>© {year} {siteName}. {dict.common.allRightsReserved}</p>
-          <Link href="/studio" className="transition-colors hover:text-white">{dict.common.admin}</Link>
+          {/* THE "Admin" LINK WENT. It pointed at /studio, a surface retired
+              on 2026-08-12 — the proxy answers it with a redirect to the login
+              screen, so on the terms and privacy pages, which wear this chrome,
+              a visitor was offered a link to nothing. There is no admin
+              destination to replace it with: a studio is reached at its own
+              slug and the console lives behind /super, neither of which belongs
+              in a public footer. */}
         </div>
       </div>
     </footer>

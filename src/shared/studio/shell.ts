@@ -40,6 +40,8 @@ type ShellStrings = {
   expand: string;
   collapse: string;
   documentation: string;
+  /** The Tasks parent's own screen, named in its menu beside Task settings. */
+  taskList: string;
   studioSettings: string;
   // THE SETTINGS SURFACE — what Administration became when it stopped being a
   // section (09/09/2026). `settings` is the shell's own entry; `settingsBody`
@@ -111,6 +113,7 @@ const en: ShellStrings = {
   expand: "Expand",
   collapse: "Collapse",
   documentation: "Documentation",
+  taskList: "Task list",
   studioSettings: "Studio settings",
   settings: "Settings",
   settingsBody: "Who is in this studio, what they may do, the reference data everyone reads, and how the studio itself is configured.",
@@ -165,6 +168,7 @@ const ar: ShellStrings = {
   expand: "توسيع",
   collapse: "طي",
   documentation: "دليل الاستخدام",
+  taskList: "قائمة المهام",
   studioSettings: "إعدادات الاستوديو",
   settings: "الإعدادات",
   settingsBody: "من في هذا الاستوديو، وما الذي يُسمح لهم به، والبيانات المرجعية التي يقرأها الجميع، وكيفية إعداد الاستوديو نفسه.",

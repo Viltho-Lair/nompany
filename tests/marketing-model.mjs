@@ -43,19 +43,23 @@ const DIACRITICS = /[ً-ْٰ]/;
 
 console.log("\n== the departments a visitor is told exist");
 
-// FOURTEEN SINCE 09/09/2026, when Administration & Settings stopped being a
-// section: it carries People, Access, Master data and Studio settings — system
-// configuration, not a department any company runs — and telling a visitor the
-// product has an "Administration & Settings" department was counting the
-// software's own control panel as a feature.
+// FOURTEEN SINCE 09/09/2026, and the number has moved twice in two days for two
+// DIFFERENT reasons — which is the argument for deriving it rather than typing
+// it. It went to fifteen when Reports & BI left NO_SCREEN_YET (a screen
+// shipped), and to fourteen when Administration & Settings joined
+// NOT_A_DEPARTMENT (it is how a studio is administered, not work anybody does
+// in it — the same call that took it out of the product's own sidebar).
 //
-// IT WAS FIFTEEN FOR A DAY (Reports & BI leaving NO_SCREEN_YET on 08/09), and
-// fourteen before that for a different reason, which is the point of asserting
-// the NUMBER as well as the rules: the list is DERIVED from SECTION_DEFS minus
-// the exclusions, so it moves on its own, and a count nobody re-measures is how
-// this line came to say fourteen while fifteen rendered.
+// The list is DERIVED both times; the hand-written copy is not, which is what
+// the assertions below exist to catch. On the first move the copy said
+// fourteen while fifteen rendered.
 ok("fourteen of them", D.LIVE_DEPARTMENT_KEYS.length === 14,
   String(D.LIVE_DEPARTMENT_KEYS.length));
+
+// AND ADMINISTRATION IS NOT ONE, asserted by name rather than left to the count
+// — a count alone would go green again the day some other section is added.
+ok("...and Administration & Settings is not among them",
+  !D.LIVE_DEPARTMENT_KEYS.includes("administration"));
 
 // THE DEFECT THIS GUARDS, four names at a time. Each of these renders nothing
 // and is hidden from the product's own sidebar; naming one on a marketing page
@@ -91,12 +95,12 @@ console.log("\n== and they are named in both languages");
 const depsEn = D.liveDepartments("en");
 const depsAr = D.liveDepartments("ar");
 ok("both locales return the same fourteen, in the same order",
-  depsEn.map((d) => d.key).join(",") === depsAr.map((d) => d.key).join(",") && depsEn.length === 14);
+  depsEn.map((d) => d.key).join(",") === depsAr.map((d) => d.key).join(",") && depsEn.length === D.LIVE_DEPARTMENT_KEYS.length);
 ok("every English name is non-empty", depsEn.every((d) => d.name.trim().length > 0));
 ok("every Arabic name is non-empty", depsAr.every((d) => d.name.trim().length > 0));
 // AND THEY ARE ACTUALLY TRANSLATED. `sectionName` falls back to the stored
 // English name for a key it has no entry for, so an Arabic list identical to the
-// English one is the fallback firing eleven times rather than a translation.
+// English one is the fallback firing once per department rather than a translation.
 ok("...and the Arabic is not the English",
   depsAr.filter((d, i) => d.name === depsEn[i].name).length === 0);
 
@@ -460,9 +464,31 @@ function pagesUnder(dir, rel = "") {
 }
 const allPages = pagesUnder(LOCALE_DIR);
 ok("the locale tree was actually walked", allPages.length > 3, `${allPages.length} pages`);
+// A PAGE IS MARKETING BECAUSE OF WHERE IT LIVES, not because of what it
+// imports. This used to grep each page for `MarketingShell`, which was the only
+// signal available while every page brought its own shell; the route group
+// renders it once in `(marketing)/layout.js`, so no page imports it any more
+// and that test would now find nothing at all.
+//
+// THE GROUP SEGMENT IS STRIPPED, because a parenthesised segment groups files
+// without appearing in the URL — `(marketing)/platform/page.js` serves
+// `/platform`. Comparing the raw path against SHELL_PATHS would fail on every
+// entry, and "fixing" that by putting `(marketing)` into the route list would
+// bake a folder name into an address.
+const GROUP = "/(marketing)";
 const shellPages = allPages
-  .filter((p) => readFileSync(p.file, "utf8").includes("MarketingShell"))
-  .map((p) => p.rel);
+  .filter((p) => p.rel.startsWith(GROUP + "/"))
+  .map((p) => p.rel.slice(GROUP.length));
+
+ok("the marketing route group holds the public pages", shellPages.length >= 7,
+  `${shellPages.length} under ${GROUP}`);
+
+// AND THE SHELL IS MOUNTED EXACTLY ONCE, by the group's layout. A page that
+// re-wrapped itself would render two navs and two footers, which is what this
+// refuses — and it is the defect the group exists to prevent recurring.
+ok("...and no page renders MarketingShell itself",
+  allPages.every((p) => !readFileSync(p.file, "utf8").includes("<MarketingShell")),
+  allPages.filter((p) => readFileSync(p.file, "utf8").includes("<MarketingShell")).map((p) => p.rel).join(", "));
 
 const covered = (rel) =>
   SHELL_PATHS.includes(rel) || SHELL_PREFIXES.some((p) => rel === p || rel.startsWith(`${p}/`));

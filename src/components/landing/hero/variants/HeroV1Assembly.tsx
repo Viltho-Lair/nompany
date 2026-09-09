@@ -28,8 +28,19 @@ export function HeroV1Assembly({ locale }: { locale: string }) {
   const tr = heroCopy(locale);
   const reduceMotion = useReducedMotion();
 
+  // max-w-6xl, THE SAME COLUMN AS EVERY SECTION BELOW IT. This was 7xl, so the
+  // headline began 57px to the left of the copy under it at 1265px and further
+  // at anything wider — and the hero is where the eye decides where the page's
+  // left edge IS, so every section after it read as indented rather than the
+  // hero reading as wide. A hero deliberately wider than the body is a real
+  // choice; this was not one, it was the third of four container widths that
+  // had accumulated on one page.
+  //
+  // The comment above this one was briefly a JSX comment sitting beside the
+  // root element, which does not parse — a `return (` takes ONE expression, and
+  // a comment before it is a second. Same mistake this repo has made before.
   return (
-    <section className="relative mx-auto grid max-w-7xl items-center gap-14 px-6 pt-20 pb-16 lg:grid-cols-[1.05fr_1fr] lg:gap-10 lg:pt-28 lg:pb-24">
+    <section className="relative mx-auto grid max-w-6xl items-center gap-14 px-6 pt-20 pb-16 lg:grid-cols-[1.05fr_1fr] lg:gap-10 lg:pt-28 lg:pb-24">
       <div className="relative z-10 max-w-xl">
         <span className="surface inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs text-fg-muted">
           <span className="relative flex h-1.5 w-1.5">

@@ -18,16 +18,16 @@ export async function generateMetadata({ params }) {
   return { title: dict.auth.signupTitle, description: dict.auth.signupSubtitle, robots: { index: false, follow: true } };
 }
 
-// TEMPORARY LOCK — the sign-up route is closed until further notice. Nobody
-// reaches the form: every visit is redirected to sign-in before the page is
-// built. This locks the ROUTE, not the mechanism — the signup service and its
-// API are untouched, so lifting the lock is deleting these two lines. Kept as a
-// greppable early return so there is nothing else to unwind.
-const REGISTRATION_LOCKED = true;
-
+// THE LOCK IS LIFTED. It was a two-line early return that redirected every
+// visit to sign-in, and it made the whole marketing site false: "Start free" is
+// the only primary CTA the public site has, it appears twenty-eight times
+// across the ten pages and two locales, and the contact page says in so many
+// words that "there is no demo to book — the free tier is the whole product, so
+// the fastest way to see it is to open it". None of those twenty-eight links
+// reached a form. The lock was doing exactly what it said; nothing had told the
+// site about it.
 export default async function SignupPage({ params }) {
   const { locale } = await params;
-  if (REGISTRATION_LOCKED) redirect(`/${locale}/login`);
   if (await currentUser()) redirect(`/${locale}/account`);
   const dict = getDict(locale);
   const t = dict.auth;

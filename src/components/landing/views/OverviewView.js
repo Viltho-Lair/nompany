@@ -43,7 +43,12 @@ export function OverviewView({ customers = null, stats = null }) {
           LandingPage is a client component that cannot render one as a child
           but can render one it was given. Unlike that band it is never null —
           it has product facts to show until the counts are worth stating. */}
-      {stats}
+      {/* WRAPPED HERE, because the home page hands this in as a bare slot while
+          /platform renders it inside its own container. The section itself
+          therefore sets no width — see the note in PlatformStats — and each
+          caller supplies the same column, which is what keeps "Where it stands"
+          on the same left edge as everything above it on both pages. */}
+      <div className="mx-auto max-w-6xl px-6">{stats}</div>
       <GradientRule />
       <PricingTeaser locale={locale}/>
       <CtaBand />

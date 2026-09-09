@@ -287,12 +287,18 @@ export function TopNav({ locale = "en" }) {
         )}
 
         {/* "Start free" follows the same rule as "Log in": both are for people
-            who are not signed in, so both give way to the avatar. Skeleton
-            while auth is unknown, so the bar does not jump when it resolves. */}
+            who are not signed in, so both give way to the avatar. */}
         <div className="hidden shrink-0 lg:block">
-          {account === undefined ? (
-              <Skeleton className="h-9 w-[104px]" rounded="rounded-full" bg="bg-line"/>
-          ) : account ? null : (
+          {/* NO SKELETON IN THIS SLOT. It held a 104px pill, so an unresolved
+              header showed a circle AND a pill side by side — and for a signed-in
+              reader the pill then resolved to NOTHING, because "Start free" is
+              only for people who are not signed in. A placeholder that vanishes
+              is worse than no placeholder: it reserves space the page then takes
+              back, which is the reflow a skeleton exists to prevent.
+
+              The avatar slot above still holds its circle, and that is the one
+              that always resolves to something 36px wide. */}
+          {account === undefined ? null : account ? null : (
               <MagneticButton variant="ghost" strength={8} className="px-5 py-2 text-xs" href={`/${locale}/signup`}>
                 {tr.startFree}
               </MagneticButton>

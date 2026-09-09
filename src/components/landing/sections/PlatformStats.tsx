@@ -58,6 +58,14 @@ export async function PlatformStats({ locale }: { locale: string }) {
     showsFigure(stats, "studios") || showsFigure(stats, "people") || showsFigure(stats, "records");
 
   return (
+    /* NO CONTAINER OF ITS OWN, AND THAT IS DELIBERATE. Giving it one was tried
+       and was wrong in the other direction: /platform already wraps it in
+       `mx-auto max-w-6xl px-6`, so a second container nested inside the first
+       and the padding doubled — its heading moved to x=105 while the page's own
+       sat at 81. A component that sets its own width can only be right on
+       pages that do not set theirs.
+       Both callers wrap it now, which is the rule the rest of the sections
+       already follow. */
     <section className="border-t border-line/70 py-14 sm:py-16">
       <h2 className="text-xs tracking-[0.16em] text-fg-dim uppercase">{tr.heading}</h2>
       <ul className="mt-8 grid gap-x-10 gap-y-6 sm:grid-cols-2">

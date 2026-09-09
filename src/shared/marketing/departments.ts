@@ -22,13 +22,23 @@ import { sectionName } from "@/shared/studio/sections";
 // CHILDREN ARE NOT DEPARTMENTS EITHER. A visitor is told the product has CRM &
 // Sales; Pipeline, Tickets and Quotations are what is inside it, and belong to
 // /platform/<section> when those pages are written.
-//   administration  system configuration — People, Access, Master data and
-//                 Studio settings. Not a department, and since 09/09/2026 not a
-//                 section either: `isSystemSection` is the one list that says
-//                 so, and reading it here rather than naming the key is what
-//                 keeps this page and the product's own sidebar agreeing about
-//                 what the software HAS.
-const NOT_A_DEPARTMENT = new Set<string>(["main", "tasks"]);
+// ADMINISTRATION & SETTINGS JOINED THE OTHER TWO. Main is the home surface and
+// Tasks is a cross-cutting control; Administration is how a studio is
+// ADMINISTERED — People, Access, Master data and Studio settings — rather than
+// work anybody does in it. The marketing site was listing it as one of the
+// departments a customer gets, on a marquee whose whole promise is "every one
+// of these is built and running today", and it is the one entry there that
+// nobody buys the product for. The studio's own sidebar stopped treating it as
+// a department in the same week.
+//
+// AND IT IS EXCLUDED BY `isSystemSection` RATHER THAN BY NAME. Two sessions
+// reached this conclusion independently and wrote it two ways — one adding the
+// key to this set, one filtering the shared list. The filter is kept because it
+// is the same list the studio's sidebar reads, so the public page and the
+// product cannot drift about what counts as a department; the key stays in the
+// set below as well, where it is redundant and harmless, so that reading either
+// one alone still gives the right answer.
+const NOT_A_DEPARTMENT = new Set<string>(["main", "tasks", "administration"]);
 
 export const LIVE_DEPARTMENT_KEYS: readonly string[] = SECTION_DEFS
   .map((d) => d.key)

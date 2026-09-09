@@ -130,10 +130,22 @@ export default function Nav({ locale, dict }) {
               <ThemeToggle labels={themeLabels} />
             </div>
             <LangMenu current={locale} options={langOptions} label={dict.common.language} align="end" />
+            {/* THE SKELETON IS THE SHAPE THAT ARRIVES, which it was not. It drew
+                a 48x16 rectangle beside an 80x32 pill and then resolved to
+                AccountMenu's 36x36 avatar circle — so the header visibly
+                collapsed on every load for a signed-in reader, which is the one
+                thing a skeleton exists to prevent. A placeholder that does not
+                match its content is worse than none: it does not hold the
+                space, it reserves the WRONG space and then gives it back.
+
+                Signed OUT it becomes a Log in link and a Sign up pill, which
+                are wider — but that pair is `hidden sm:inline`, appears only at
+                the same breakpoint, and a stranger has no memory of the layout
+                to be jarred by. The signed-in case is the one that reflows for
+                somebody who sees this header every day. */}
             {authLoading ? (
-              <div className="hidden items-center gap-2.5 sm:flex" aria-hidden="true">
-                <Skeleton className="h-4 w-12" rounded="rounded" />
-                <Skeleton className="h-8 w-20" rounded="rounded-full" />
+              <div className="hidden items-center sm:flex" aria-hidden="true">
+                <Skeleton className="h-9 w-9" rounded="rounded-full" />
               </div>
             ) : company ? (
               <div className="hidden sm:block">

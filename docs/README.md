@@ -4,7 +4,7 @@
 > parts of it describe a product that no longer exists. Three of its own header
 > figures are now wrong, and they are the kind that mislead rather than merely age:
 > it says **12 departments** (the restructure replaced them with fifteen SECTIONS),
-> **97 API routes** (153 today), and it measures latency against **the live Redis
+> **97 API routes** (170 today), and it measures latency against **the live Redis
 > instance** (Redis is gone — uninstalled, no file imports a client, no environment
 > carries a `REDIS_URL`).
 >

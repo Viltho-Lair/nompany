@@ -118,13 +118,21 @@ each one claims to describe. The categories are mine; the verdicts are measured.
 
 ## A — DEAD. Describes something that does not exist. Delete.
 
-| File | Lines | Why |
-|---|---|---|
-| `docs/erp-guide.md` | 239 | **DELETED 07/09/2026.** Described the pre-restructure product; its own heading said "the twelve departments". |
-| `DOCUMENTATION.md` | 229 | Describes an in-studio **Documentation section that was removed**: `src/lib/documentation.js`, `DocumentationGuide.js` and the `documentation` permission node are all gone. The file still opens with "This file is the source of truth". |
-| `docs/database-migration-mssql.md` | 396 | "Redis to Microsoft SQL Server". **Neither end is real** — Redis is gone and the target was Postgres. A migration that never happened, to a database never used. |
-| `scripts/migrate/README.md` | 317 | "Redis to SQL Server backfill (CLI)". The same fiction, documenting flags for scripts that now run against Postgres. |
-| `docs/README.md` | 60 | Surveyed 20/08/2026 at "12 departments" with Redis latency figures, and its index points at `erp-guide.md`, now deleted. |
+**THREE OF THESE FIVE WERE NOT DEAD, and the audit that listed them checked the
+prose rather than the dependants.** Acting on it 08/09/2026 found that only two
+describe nothing: the other three document code that still ships, and deleting
+them would have left a live `/super` screen, a live CLI and eleven live
+documents citing files that no longer exist. The rule the house style already
+states — trace every caller before a removal — applies to documents as well as
+to functions, and this table is what happens when it is skipped.
+
+| File | Lines | Why | Acted |
+|---|---|---|---|
+| `docs/erp-guide.md` | 239 | Described the pre-restructure product; its own heading said "the twelve departments". | **DELETED 07/09/2026** |
+| `DOCUMENTATION.md` | 229 | Describes an in-studio **Documentation section that was removed**: `src/lib/documentation.js`, `DocumentationGuide.js` and the `documentation` permission node are all gone. Verified: nothing in `src` references any of them, and nothing but this table linked to the file. | **DELETED 08/09/2026** |
+| `docs/database-migration-mssql.md` | 396 | "Redis to Microsoft SQL Server" — neither end is real. **But it is the design of record for a subsystem that still ships:** `platform/db/migrate/{mapping,emit}.ts` cite it in comments AND in an error message, `components/super/MigrationScreen.js` RENDERS its filename to a super admin, and `emit.ts` writes `-- Authoritative DDL: docs/database-migration-mssql.md §2` into every generated `.sql` — pinned by `tests/goldens/migration.export.dump.json`. | **KEPT.** The document is not the dead thing; see F below. |
+| `scripts/migrate/README.md` | 317 | "Redis to SQL Server backfill (CLI)" — the premise is wrong. But `backfill.mjs` exists, and this is the only documentation of it and of the `/api/super/migration/export` route behind the console's "Export database" button. | **KEPT.** Wrong premise, live subject. |
+| `docs/README.md` | 60 | Surveyed 20/08/2026 at "12 departments" with Redis latency figures. **It already opens with a banner saying so** ("A DATED SNAPSHOT, NOT CURRENT TRUTH… read it for the reasoning, never for a number"), it defers to this file and to `CLAUDE.md` by name, and every one of its twelve index entries resolves — it is the only map of `docs/`. Its "153 today" was re-measured to 170. | **KEPT AND CORRECTED.** |
 
 ## B — STALE. Real subject, wrong facts. Fix or fold in.
 
@@ -169,7 +177,7 @@ connected calendars, the /super calendar, departmental roles.
 | File | State |
 |---|---|
 | `2026-09-07-record-engine-design.md` + `-phase-1.md` (1,732 lines) | **P4b — NOT BUILT.** No `modules/record*` or `platform/record*` exists. **Roughly 50 of the ~68 outstanding subsections are meant to ride this.** The single highest-leverage unbuilt thing in the programme. |
-| `2026-09-07-marketing-site-rebuild-design.md` (360) | Active. The design landed on `main`; the site is not rebuilt. |
+| `2026-09-07-marketing-site-rebuild-design.md` (360) | **BUILT 08/09/2026.** Ten pages per locale on one shared chrome, a real contact backend, the consent-gated featured-companies chain, nightly platform figures, a claims register, and a content-hash sitemap. Not built: real product screenshots (the pipeline exists; Playwright is deliberately not a dependency) and the per-company sentence on `/customers`. |
 | `2026-09-06-server-rendered-first-payload-*` (967) | Phase 1, Tendering. No matching code found by grep. **Unverified — confirm before trusting either way.** |
 
 ## F — WHAT WILL HURT THE CODE
@@ -190,6 +198,39 @@ of what was taken out and what it cost, because a removal nobody can see gets re
 | 8 | **`DEFAULT_VAT_RATE = 15`** — the Saudi rate, DUPLICATED in `finance.ts` and `technical/quotations.ts`, the second commented "KSA standard rate". Applied to every studio's invoices and quotations on a platform sold regionally then globally. | **REMOVED, both copies.** No default rate. Whoever raises a document sets one. |
 | 9 | **`BASE = "SAR"`** in `api/pricing` — one country's money as the origin every rate converted from. | **REMOVED.** The base is `catalogSettings.baseCurrency`, data rather than a constant, default `USD`. |
 | 10 | **`checkJs` repo-wide.** | **DROPPED** as a commitment. Both configs still have it off; 272 browser files convert with Wave 4. |
+
+**AN ELEVENTH, FOUND 08/09/2026 AND NOT YET ACTED ON — and it is the mirror of
+everything above.** The other ten were plans that did not exist in the code. This
+is code that exists for a plan that does not.
+
+**A SQL SERVER MIGRATION SUBSYSTEM IS STILL SHIPPING**, for a migration that never
+happened, to a database this product has never used. Redis is gone and the target
+was Postgres, so neither end of it is real — and it is not a stale document, it is
+five live pieces:
+
+| Piece | What it is |
+|---|---|
+| `src/platform/db/migrate/{mapping,emit,transform}.ts` | The extract/transform/emit core. `mapping.ts` names the mssql design doc in an ERROR MESSAGE. |
+| `src/app/api/super/migration/export/…` | A super-admin route that streams a `.sql` file. |
+| `src/components/super/MigrationScreen.js` | A console screen at `/super → Application → Database migration`, which RENDERS `docs/database-migration-mssql.md` to the operator as its "design of record". |
+| `scripts/migrate/backfill.mjs` | The CLI wrapper, plus `scripts/migrate/README.md` describing it. |
+| `tests/goldens/migration.export.dump.json` | A golden pinning `-- Authoritative DDL: docs/database-migration-mssql.md §2` in the emitted SQL. |
+
+**This is why category A above was wrong about three files.** The audit read the
+documents and judged them dead; the documents are the only description of code
+that is still in the product and still reachable by a super admin. Deleting them
+would have left the screen, the CLI and the generated SQL citing files that do not
+exist — worse than the stale prose, because a citation to nothing cannot even be
+corrected by reading it.
+
+`COLLECTION_TABLE` also earns its keep independently: `next build` refuses when a
+new collection is missing from it, which has caught `contracts`, `tenders` and
+`recordTypes`. **Removing the subsystem must not remove that guard.**
+
+**Not proposed as a deletion here, because it is the owner's call and it is one
+commit's worth of tracing:** a console screen, a route, a CLI, a golden and a
+build-time guard that must survive. Recorded so it is decided rather than
+rediscovered.
 
 **Also removed in the same pass, found while doing it:**
 
@@ -248,7 +289,7 @@ Everything lands here.
 | Date | Proposal | Status |
 |---|---|---|
 | 07/09/2026 | Delete `docs/erp-guide.md` | **DONE** |
-| 07/09/2026 | Delete the five dead documents in category A | **PROPOSED** |
+| 07/09/2026 | Delete the five dead documents in category A | **PARTLY DONE 08/09/2026 — two were dead and are gone; three document live code and were kept. See A.** |
 | 07/09/2026 | Top-up seeded roles for departments that already exist | **PROPOSED** |
 | 07/09/2026 | Studio Settings points at Master data when the industry changes | **PROPOSED** |
 | 07/09/2026 | Fix Nova's hardcoded "Money is in SAR" to use the studio currency | **DONE** |
@@ -269,6 +310,7 @@ Everything lands here.
 | 09/09/2026 | Per-studio print formats beside the notification wording | **DEFERRED — a document still prints through the browser's own stylesheet; named in docs/functionality/notifications.md** |
 | 09/09/2026 | A cross-section executive dashboard, built on the export's dataset catalogue | **DONE** |
 | 09/09/2026 | Sell the board's analysis rather than its figures — Reports joins the widget registry | **DONE** |
+| 09/09/2026 | The studio's daily greeting becomes a BAND OF MESSAGES, and the automated ones are written by the AI key | **DONE** (the first version was one message picked from seven lines I hand-wrote, and the owner's question — "who writes it tomorrow?" — had no good answer: nobody did, and the same seven repeated weekly. An automated message now calls the platform AI key set in Application → Nova, once per server day for the whole platform, cached against the date and falling back to the old rotation when there is no key or the call fails. A written message is typed words. Several share one box and cycle every five seconds with a dot each. Colour is per message: house ramp or one-to-six custom stops on fill and border, hex literals only because the strings reach a `linear-gradient()` in every studio. `docs/functionality/greeting.md` is the file; `tests/greeting-model.mjs` is the coverage. Migration is in `cleanConfig` — the old single message becomes one automated or one written message, so nothing a tenant sees changes until a key is set.) |
 | 07/09/2026 | Clear `+966` and `Asia/Riyadh` defaults from the /super console | **PROPOSED** |
 | 07/09/2026 | Build P4b, the record engine, before more hand-built slices | **PROPOSED — the highest-leverage item on this page** |
 
