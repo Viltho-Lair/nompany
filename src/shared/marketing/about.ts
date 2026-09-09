@@ -37,7 +37,7 @@ const en: AboutStrings = {
     "nompany is an ERP: one place for sales, tendering, projects, engineering documents, procurement, inventory, field operations, logistics, people and finance, with a single data model underneath so a quotation can become a contract, a project and an invoice without being typed out four times. It is built for small and medium companies across the region, in Arabic and English, and it is free until you are ten people.",
   whereHeading: "Where we are",
   whereBody:
-    "Nowhere, yet — and we would rather say so than imply otherwise. The company is not incorporated and has no registered office; it will be based in Jordan. We serve the region rather than a single country, the product ships in Arabic and English with genuine right-to-left throughout, and every price is quoted in SAR with VAT included. When there is an address, it will be on this page.",
+    "Nowhere, yet — and we would rather say so than imply otherwise. The company is not incorporated and has no registered office; it will be based in Jordan. We serve the region rather than a single country, the product ships in Arabic and English with genuine right-to-left throughout, and prices are shown in the currency you choose rather than in one country's. When there is an address, it will be on this page.",
   whyHeading: "Why we are building it",
   whyBody:
     "Most companies of this size run a different tool for each department and spend a day a week reconciling them — and the reconciling is invisible work that never makes anything. The interesting problems are the joins: what a tender costs against what the project spent, what was ordered against what arrived, what was promised against what was invoiced. None of those can be answered by software that only holds one side.",
@@ -54,7 +54,7 @@ const ar: AboutStrings = {
     "نومباني نظام تخطيط موارد: مكان واحد للمبيعات والمناقصات والمشاريع والوثائق الهندسية والمشتريات والمخزون والعمليات الميدانية والخدمات اللوجستية والموارد البشرية والمالية، بنموذج بيانات واحد تحته، فيصبح عرض السعر عقدا ومشروعا وفاتورة دون أن يعاد إدخاله أربع مرات. مبني للشركات الصغيرة والمتوسطة في المنطقة، بالعربية والإنجليزية، ومجاني حتى تصبحوا عشرة.",
   whereHeading: "أين نحن",
   whereBody:
-    "لا عنوان لنا بعد، ونفضل قول ذلك على التلميح بغيره. الشركة غير مسجلة ولا مقر رسمي لها، وستتخذ من الأردن مقرا. نخدم المنطقة لا بلدا واحدا، والمنتج يصدر بالعربية والإنجليزية بدعم حقيقي للكتابة من اليمين إلى اليسار، وكل سعر مذكور بالريال السعودي شامل الضريبة. وحين يوجد عنوان، سيكون على هذه الصفحة.",
+    "لا عنوان لنا بعد، ونفضل قول ذلك على التلميح بغيره. الشركة غير مسجلة ولا مقر رسمي لها، وستتخذ من الأردن مقرا. نخدم المنطقة لا بلدا واحدا، والمنتج يصدر بالعربية والإنجليزية بدعم حقيقي للكتابة من اليمين إلى اليسار، والأسعار تظهر بالعملة التي تختارها لا بعملة بلد بعينه. وحين يوجد عنوان، سيكون على هذه الصفحة.",
   whyHeading: "لماذا نبنيه",
   whyBody:
     "أغلب الشركات بهذا الحجم تشغل أداة مختلفة لكل قسم، وتقضي يوما في الأسبوع في المطابقة بينها — والمطابقة عمل غير مرئي لا ينتج شيئا. والمهم هو ما بين الأقسام: كم كلفت المناقصة مقابل ما أنفقه المشروع، وما طلب مقابل ما وصل، وما وعد به مقابل ما فوتر. ولا يجيب عن أي منها برنامج لا يرى إلا طرفا واحدا.",
