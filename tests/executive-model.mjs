@@ -115,5 +115,35 @@ ok("an empty read produces an empty board", executiveBoard({}, { from: "2026-09-
 ok("A DATASET PRESENT AND EMPTY IS A REAL NOUGHT",
   executiveBoard({ invoices: [] }, { from: "2026-09-01", to: "2026-09-30" })[0].value === 0);
 
+// ---- what the tier sells ----------------------------------------------------
+//
+// THE GATE FAILS OPEN, by design: `useWidgetVisible` answers TRUE for a key the
+// registry does not list, so a widget added to a screen but not registered is
+// never silently hidden. The cost is the mirror failure — REMOVING a key makes
+// the thing it gated free, silently, on every studio. Nothing else notices, so
+// these assertions are what notices.
+const { DASHBOARD_WIDGETS, WIDGET_KEYS, widgetsForRung, widgetsBySection } =
+  await import("@/lib/dashboardWidgets");
+
+ok("THE BOARD'S ANALYSIS IS A REGISTERED WIDGET, or it is free to everybody",
+  WIDGET_KEYS.has("reports.movement") && WIDGET_KEYS.has("reports.window"));
+// THE FIGURES ARE FREE AND THE ANALYSIS IS SOLD. A tile is a sum of records the
+// reader can already open, so the free floor must still show the numbers.
+ok("THE FREE FLOOR BUYS NEITHER",
+  !widgetsForRung("basic").includes("reports.movement")
+  && !widgetsForRung("basic").includes("reports.window"));
+ok("the first paid rung buys the comparison",
+  widgetsForRung("simple").includes("reports.movement"));
+ok("...and the period picker costs one rung more",
+  !widgetsForRung("simple").includes("reports.window")
+  && widgetsForRung("moderate").includes("reports.window"));
+// A SECTION WITH NO WIDGETS IS DROPPED FROM THE EDITOR, so registering the
+// section without its widgets would leave the /super tier editor unable to
+// sell either of them.
+ok("Reports & BI appears in the tier editor",
+  widgetsBySection().some((g) => g.section === "reports"));
+ok("both widgets are filed under it",
+  DASHBOARD_WIDGETS.filter((w) => w.section === "reports").length === 2);
+
 console.log(fails ? `\nexecutive model: ${fails} FAILURES\n` : "\nexecutive model: all passed\n");
 process.exit(fails ? 1 : 0);

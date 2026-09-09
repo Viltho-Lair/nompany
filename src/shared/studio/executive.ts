@@ -26,6 +26,8 @@ type Strings = {
   hiddenHint: string;
   nothing: string;
   days: string;
+  movementLocked: string;
+  movementLockedHint: string;
 };
 
 const en: Strings = {
@@ -47,6 +49,8 @@ const en: Strings = {
   hiddenHint: "They come from records you do not have the right to open.",
   nothing: "No figures to show. Each one comes from a register you can open.",
   days: "days",
+  movementLocked: "—",
+  movementLockedHint: "Comparing a period with the one before it is part of the analytics your plan can include.",
 };
 
 // HAND-WRITTEN. NO DIACRITICS.
@@ -66,6 +70,8 @@ const ar: Strings = {
   hiddenHint: "مصدرها سجلات لا تملكون صلاحية فتحها.",
   nothing: "لا توجد أرقام لعرضها. كل رقم يأتي من سجل تستطيعون فتحه.",
   days: "يوم",
+  movementLocked: "—",
+  movementLockedHint: "مقارنة مدة بما قبلها جزء من التحليلات التي قد تشملها باقتكم.",
 };
 
 const dict = { en, ar };

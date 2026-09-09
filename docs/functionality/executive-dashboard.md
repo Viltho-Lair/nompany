@@ -69,6 +69,29 @@ row, which on a thousand invoices is a headline that disagrees with the ledger.
 **The clock travels with the answer**, so "this month" is one instant rather than
 whenever each figure happened to be computed.
 
+## The figures are free and the analysis is sold
+
+Analytics in this product is tiered: a tier carries a master switch and an
+explicit per-widget selection, and `lib/dashboardWidgets` is the registry every
+dashboard asks through `useWidgetVisible`. Reports & BI is the ninth section to
+join it, not a special case.
+
+**What is free is the figures**, because a tile is a sum of records the reader
+can already open on the screen that owns them — charging for arithmetic somebody
+could do by hand is charging for nothing. **What is sold is the analysis:**
+`reports.movement` (this period against the same length before it, the one
+question no section dashboard in this product can answer) at the first paid
+rung, and `reports.window` (choosing the period) one rung above that.
+
+**On the free floor the numbers stay and the comparison becomes a dash**, with a
+line saying why. A locked teaser per tile would put a padlock under every figure
+on the board, which reads as broken rather than as an offer.
+
+**The gate fails open** — a key the registry does not list answers true — which
+is right for adding a widget and dangerous for removing one: deleting
+`reports.movement` would silently make it free on every studio, and nothing else
+would notice. `tests/executive-model.mjs` is what notices.
+
 ## Not built yet
 
 - **No chart.** Every tile is a number and its movement; there is no series, so
@@ -86,3 +109,7 @@ whenever each figure happened to be computed.
 - **Nothing is cached.** Every open reads eight collections in full.
 - **No targets on the board.** KPI targets exist in the builder below and are
   not drawn against these figures.
+- **The paid path is asserted, not opened.** The free floor was verified in
+  the sandbox, whose tier buys neither widget; the paid rungs are pinned by
+  `tests/executive-model.mjs` and by the same `useWidgetVisible` nine other
+  dashboards already use, rather than by a studio moved onto a paid tier.

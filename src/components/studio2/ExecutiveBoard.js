@@ -6,6 +6,7 @@ import { Field } from "@/components/fields/Field";
 import { fmtDate } from "@/lib/format";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { useReload } from "@/components/studio2/useReload";
+import { useWidgetVisible } from "@/components/studio2/analyticsLevel";
 
 // THE COMPANY ON ONE SCREEN.
 //
@@ -33,6 +34,19 @@ const TONE = {
 
 export default function ExecutiveBoard({ slug, locale = "en" }) {
   const tr = executiveDict(locale);
+  // THE FIGURES ARE FREE AND THE ANALYSIS IS SOLD. A tile is a sum of
+  // records the reader can already open on the screen that owns them, so
+  // charging for the arithmetic would be charging for something they could
+  // do by hand. What a tier sells is the COMPARISON — this period against
+  // the same length before it — and the freedom to choose the period.
+  //
+  // THE GATE IS THE ONE EVERY OTHER DASHBOARD ASKS, not a second mechanism:
+  // `useWidgetVisible` resolves the studio's tier once in the shell, and a
+  // key the registry does not list answers TRUE, so nothing here can be
+  // silently hidden by a typo.
+  const visible = useWidgetVisible();
+  const showMovement = visible("reports.movement");
+  const showWindow = visible("reports.window");
   const [data, setData] = useState(null);
   const [window, setWindow] = useState({ from: "", to: "" });
 
@@ -61,18 +75,24 @@ export default function ExecutiveBoard({ slug, locale = "en" }) {
       <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">{tr.title}</h3>
       <p className="mt-1 max-w-2xl text-sm text-slate-600 dark:text-slate-300">{tr.lead}</p>
 
-      <div className="mt-4 flex flex-wrap items-end gap-3">
-        <Field label={tr.from} type="date" value={window.from}
-          onChange={(v) => setWindow((w) => ({ ...w, from: v }))} className="w-full sm:w-44" />
-        <Field label={tr.to} type="date" value={window.to}
-          onChange={(v) => setWindow((w) => ({ ...w, to: v }))} className="w-full sm:w-44" />
-        <button className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-600 text-white"
-          onClick={load}>{tr.apply}</button>
-        <button className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-600 text-slate-700 dark:border-white/15 dark:text-slate-200"
-          onClick={() => { setWindow({ from: "", to: "" }); }}>{tr.reset}</button>
-      </div>
+      {/* THE PERIOD PICKER IS THE SOLD HALF. Without it the board is this
+          month, which is the question a director asks daily; choosing a window
+          is the analyst's tool. Absent rather than disabled — a control that is
+          always refused is a control that should not be drawn. */}
+      {showWindow && (
+        <div className="mt-4 flex flex-wrap items-end gap-3">
+          <Field label={tr.from} type="date" value={window.from}
+            onChange={(v) => setWindow((w) => ({ ...w, from: v }))} className="w-full sm:w-44" />
+          <Field label={tr.to} type="date" value={window.to}
+            onChange={(v) => setWindow((w) => ({ ...w, to: v }))} className="w-full sm:w-44" />
+          <button className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-600 text-white"
+            onClick={load}>{tr.apply}</button>
+          <button className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-600 text-slate-700 dark:border-white/15 dark:text-slate-200"
+            onClick={() => { setWindow({ from: "", to: "" }); }}>{tr.reset}</button>
+        </div>
+      )}
 
-      {previous?.from && (
+      {showMovement && previous?.from && (
         <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">
           {tr.comparedWith(fmtDate(previous.from, locale), fmtDate(previous.to, locale))}
         </p>
@@ -100,13 +120,20 @@ export default function ExecutiveBoard({ slug, locale = "en" }) {
               {/* NULL IS SAID IN WORDS, not shown as a dash. "No comparison"
                   and "0%" are different statements and a reader has to be able
                   to tell them apart. */}
-              <p className={`mt-1 text-xs ${TONE[t.direction]}`}>
-                {t.change === null
-                  ? tr.noComparison
-                  : t.change === 0
-                    ? tr.flat
-                    : `${t.change > 0 ? "+" : ""}${t.change}%`}
-              </p>
+              {showMovement ? (
+                <p className={`mt-1 text-xs ${TONE[t.direction]}`}>
+                  {t.change === null
+                    ? tr.noComparison
+                    : t.change === 0
+                      ? tr.flat
+                      : `${t.change > 0 ? "+" : ""}${t.change}%`}
+                </p>
+              ) : (
+                // THE FIGURE STAYS AND THE ANALYSIS GOES. A locked teaser here
+                // would put a padlock under every tile on the free tier, which
+                // reads as a broken board rather than as an offer.
+                <p className="mt-1 text-xs text-slate-300 dark:text-slate-600">{tr.movementLocked}</p>
+              )}
             </div>
           ))}
         </div>
@@ -120,8 +147,11 @@ export default function ExecutiveBoard({ slug, locale = "en" }) {
           {tr.hidden(hidden.length, total)} — {tr.hiddenHint}
         </p>
       )}
-      {tiles.some((t) => t.change === null) && (
+      {showMovement && tiles.some((t) => t.change === null) && (
         <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">{tr.noComparisonHint}</p>
+      )}
+      {!showMovement && tiles.length > 0 && (
+        <p className="mt-4 text-xs text-slate-400 dark:text-slate-500">{tr.movementLockedHint}</p>
       )}
     </section>
   );

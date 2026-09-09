@@ -261,6 +261,14 @@ Everything lands here.
 | 09/09/2026 | Give the ledger a screen — it had none, and fell through to Cash | **DONE** |
 | 09/09/2026 | Pay records, payroll runs and posting the wage bill to the ledger | **DONE** |
 | 09/09/2026 | Attendance as a daily sweep rather than an engine register | **DONE** |
+| 09/09/2026 | A studio-wide cost code library, copied into a project rather than referenced | **DONE** |
+| 09/09/2026 | Open the six hard-coded classification lists to the studio, defaults never removable | **DONE** |
+| 09/09/2026 | Notifications become a token plus its facts; the bell chooses the language | **DONE** |
+| 09/09/2026 | API keys as a second proof of an identity, narrowed by the holder's current rights | **DONE** |
+| 09/09/2026 | Webhooks alongside the API keys | **DEFERRED — the inbound half shipped; nothing calls out to a studio's endpoint, and it is named in docs/functionality/api-keys.md rather than left implied** |
+| 09/09/2026 | Per-studio print formats beside the notification wording | **DEFERRED — a document still prints through the browser's own stylesheet; named in docs/functionality/notifications.md** |
+| 09/09/2026 | A cross-section executive dashboard, built on the export's dataset catalogue | **DONE** |
+| 09/09/2026 | Sell the board's analysis rather than its figures — Reports joins the widget registry | **DONE** |
 | 07/09/2026 | Clear `+966` and `Asia/Riyadh` defaults from the /super console | **PROPOSED** |
 | 07/09/2026 | Build P4b, the record engine, before more hand-built slices | **PROPOSED — the highest-leverage item on this page** |
 
@@ -966,11 +974,46 @@ that exact case.
 **IT STILL HAS NO SCREEN.** The ledger is reachable only through
 `/api/studios/<slug>/finance/ledger`.
 
-#### §14 Reports & BI 🟡 3 / 6
+#### §14 Reports & BI ✅ 6 / 6
 Exported reports ✅ (08/09/2026) · Report builder ✅ (09/09/2026) · Saved reports ✅
 (09/09/2026, **scheduling not built** — nothing runs a report on a timetable) · KPI targets
 ✅ (09/09/2026, **alerts not delivered** — a breached target is red on the screen and
-notifies nobody) · **Executive dashboard ⬜ · Analytics ⬜**
+notifies nobody) · Executive dashboard ✅ (09/09/2026) · Analytics ✅ (09/09/2026, **and
+it was largely already built** — see below)
+
+**THE BOARD IS THE ONE QUESTION NO SECTION DASHBOARD IN THIS PRODUCT CAN ANSWER.** Fourteen
+sections have their own dashboard and nothing put them side by side; and every one of them
+reports TODAY, so whether a figure MOVED could not be asked at all. Eight tiles, each
+against the same length of time before it. `docs/functionality/executive-dashboard.md` is
+the file.
+
+**IT IS BUILT ON `modules/reports/datasets`, WHICH ALREADY EXISTED**, so it mints no second
+list of where the numbers live — a tile naming its own collection would be free to disagree
+with the export and the report builder about what "invoices" means. Four datasets joined
+that catalogue because the board needed them (deals, quotations, purchase orders, leave),
+which the export and the builder gain in the same change. No permission key.
+
+**THE PREVIOUS WINDOW IS THE SAME LENGTH, NOT "LAST MONTH".** Comparing thirty days to
+thirty-one reports a 3% fall that is the calendar rather than the company, and comparing a
+part-finished month to a whole one reports a collapse every first of the month. And nothing
+divides by nought: a period following one with no activity has NO percentage — the company
+did not grow infinitely, it started — so `change` is null and the screen says so in words.
+Both periods at nought is a different statement, and is flat.
+
+**ANALYTICS WAS MARKED ⬜ AND WAS MOSTLY BUILT, which is the third stale claim this file has
+carried.** `lib/dashboardWidgets` is a registry of gated widgets across eight dashboards,
+`planOf` resolves a tier's master switch, its explicit per-widget selection and its
+name-derived rung, and `useWidgetVisible` is the gate every dashboard already asks. What
+was genuinely missing is that Reports & BI sat OUTSIDE it. It is the ninth section in the
+registry now: **the figures are free** — a tile is a sum of records the reader can already
+open, and charging for arithmetic somebody could do by hand is charging for nothing — and
+**the analysis is sold**, `reports.movement` at the first paid rung and `reports.window`
+one above it.
+
+**THE GATE FAILS OPEN AND THAT CUTS BOTH WAYS.** A key the registry does not list answers
+true, which is right for a widget added before it is registered and dangerous for one
+removed: deleting `reports.movement` would silently make it free on every studio and
+nothing else would notice. `tests/executive-model.mjs` is what notices.
 
 **THE BUILDER IS BUILT ON THE EXPORT'S CATALOGUE AND MINTS NOTHING.** A report names a data
 set, and a data set already declares its columns and the right its own section requires —
@@ -997,10 +1040,10 @@ of data while calling it met is the same mistake in the more dangerous direction
 who cannot open the register sees `unknown` too. Deleting a report leaves its targets
 `unknown` rather than cascading.
 
-**THE TWO OUTSTANDING ARE NOT COUNTED AWAY.** There is no cross-section executive dashboard
-— the Reports root shows targets and saved reports, which is not the same thing — and
-Analytics remains the tiered, sold surface it was always designed to be
-(`useAnalyticsLevel` exists; nothing behind it does).
+**THE TWO OUTSTANDING WERE NOT COUNTED AWAY, AND BOTH CLOSED ON 09/09/2026.** This
+paragraph said "`useAnalyticsLevel` exists; nothing behind it does", and that was wrong
+when it was written: `lib/dashboardWidgets` gates real widgets on eight dashboards through
+it. What was true is that Reports & BI sat outside the registry. See §14's entry above.
 
 **IT RENDERS NOW, and `NO_SCREEN_YET` IS EMPTY** — Reports & BI was the last entry. It is
 the one section whose content is not records, so the first thing it does is the thing every
@@ -1027,11 +1070,57 @@ per spec, so the first check said it was absent when it was there. Excel on Wind
 UTF-8 CSV as the system codepage without one, which matters for a product whose studios are
 largely Arabic.
 
-#### §15 Administration & Settings 🟡 6 / 10
-People ✅ · Access ✅ · Studio settings ✅ · Master data 🟡 (locations and departments
-only, plus numbering and units) · Numbering series ✅ (08/09/2026) · Currencies and units of measure ✅ (09/09/2026) ·
-**Cost codes ⬜ · Categories and industry taxonomy ⬜ · Flow templates ⬜ ·
-Integrations & API ⬜ · Notification templates & print formats ⬜**
+#### §15 Administration & Settings ✅ 10 / 10
+People ✅ · Access ✅ · Studio settings ✅ · Master data ✅ (eight tabs) · Numbering series ✅
+(08/09/2026) · Currencies and units of measure ✅ (09/09/2026) · Cost codes ✅ (09/09/2026) ·
+Categories and industry taxonomy ✅ (09/09/2026) · Flow templates ✅ (**already built** — see
+below) · Integrations & API ✅ (09/09/2026, **API keys only; no webhooks**) · Notification
+templates & print formats ✅ (09/09/2026, **notification wording only; no print formats**)
+
+**THE COST CODE LIBRARY IS THE STUDIO'S STANDARD BREAKDOWN.** Every project invented its
+own — one job called it "Earthworks", the next "EW" — and nothing was wrong with any single
+project while the studio still could not ask what it spends on earthworks, because that
+compares codes ACROSS projects. A code is COPIED into a budget, never referenced, so
+editing the library re-prices nothing and deleting a row breaks no running job; which is
+why the format is strict, since matching is a string comparison and a trailing space makes
+two codes that look identical and never add up. Its drift report is the point of it, and it
+is deliberately not a refusal. `administration.master.*`, no new key.
+
+**SIX CLOSED LISTS WERE HARD-CODED IN FIVE MODULES.** Thirty-four industries with no room
+for "Freight forwarding"; five leave types with no study leave; four location kinds, so a
+hospital group filing "Ward" got "Site". And every service silently replaced what it did
+not recognise — the record saved, looked right and was wrong. The defaults MOVED into
+`administration/taxonomy` rather than being copied, the units precedent, so there is one
+list per axis. No new key: it rides on `administration.settings`.
+
+**FLOW TEMPLATES WERE MARKED ⬜ AND WERE FULLY BUILT** — store, model, service, route and an
+editor in Studio settings, seven templates with stage counts, billing triggers, usage
+counts, duplicate and revert, and twenty-five industries each mapped to a default. Verified
+by opening it rather than by reading the code. **That is the second stale ⬜ in this file
+and the third stale claim found this session**; the pattern is worth more than the
+correction.
+
+**API KEYS ARE AN AUTHENTICATION PATH, so they live in `platform/auth`.** A key names a
+COLLABORATOR and the request then runs the identical path a browser request runs — same
+context, same membership, same `effectivePermissions`. What it adds is a NARROWING, and
+`effectiveScopes` is the whole security model: scopes are checked against the creator's
+rights at minting, and that check is worthless alone because rights SHRINK, so a key may do
+the INTERSECTION of its scopes with what its owner may do RIGHT NOW.
+
+**AND THE NARROWING HAD TO MOVE, which is the finding worth keeping.** The first version
+narrowed AFTER the module context was built — `{ ...context, access: scoped }` — and it was
+wrong in a way that looked right: `canManage`, `nav`, `manage` and every per-block flag are
+DERIVED inside the builder, so a key holding one HR permission received a payload computed
+as if it were the owner. 91 of 91 nav entries, `canManage: true`. Nothing failed; the
+response was simply the wrong one. It is invariant 3's "no route re-derives it" from the
+other side, and it was found by issuing a key and reading what came back.
+
+**A NOTIFICATION IS A TOKEN PLUS ITS FACTS NOW, and the words are chosen on DISPLAY.** Nine
+call sites handed `notifyCollaborators` an English literal, so an Arabic studio's bell was
+entirely English and no studio could change a word. Fifteen templates in both languages,
+overridable per language. Every row written before this still reads: they hold a literal and
+no params, and `renderNotice` returns exactly that. **Print formats are NOT built** — a
+document prints through the browser's own stylesheet with no per-studio header or terms.
 **NINETEEN CALL SITES MINTED A REFERENCE AND EVERY PREFIX WAS A STRING LITERAL.** A studio
 whose invoices have always been "SI" got "INV", and there was no screen, no setting and no
 way round it — the numbering series every ERP buyer asks about first. All of them go
@@ -1099,10 +1188,10 @@ gated section.
 
 | | Built | Target | |
 |---|---|---|---|
-| Every subsection built | 13 sections | CRM & Sales, Tendering, Projects, Engineering, Procurement, Inventory, Manufacturing, Field Service, Logistics, Assets, Quality & HSE, Human Resources, Finance & Accounting | |
-| Partial | 2 sections | Reports 3/6, Administration 6/10 | |
+| Every subsection built | **15 sections — all of them** | CRM & Sales, Tendering, Projects, Engineering, Procurement, Inventory, Manufacturing, Field Service, Logistics, Assets, Quality & HSE, Human Resources, Finance & Accounting, Reports & BI, Administration & Settings | |
+| Partial | none | | |
 | Renders nothing | 0 sections | `NO_SCREEN_YET` is empty | |
-| **Subsections** | **125 built** | **132 in the target list** | **95%** |
+| **Subsections** | **132 built** | **132 in the target list** | **100%** |
 
 **THE ROW ABOVE SAID 58 / 130 / 45% AND THE THREE ROWS ABOVE IT WERE A SNAPSHOT OF A
 DIFFERENT FORTNIGHT** — four sections rendering nothing, Logistics and HR at one
@@ -1110,9 +1199,18 @@ subsection each, Assets and Quality not counted as built at all. Every figure he
 sum of the fifteen §-headings above it, re-added at this commit rather than carried
 forward; when one of those moves, this moves in the same edit or it is wrong again.
 
-**The gap is no longer the empty sections — there are none.** All 7 outstanding
-subsections sit inside sections that already render and read as finished, which is the
-harder half to see: Administration is missing five and Reports two.
+**THERE IS NO GAP LEFT IN THE SUBSECTION LIST — 132 of 132, 09/09/2026.** That is a count
+of subsections that RENDER and are reachable, not a claim that each is finished: every
+functionality file's "Not built yet" still stands, and several of the last seven shipped
+with a named half missing — no webhooks beside the API keys, no print formats beside the
+notification wording, no scheduling on a saved report, no alert on a breached target. The
+honest summary is that every section now has every subsection the programme named, and the
+depth inside them is what the wave plan is for.
+
+**TWO OF THE LAST SEVEN TURNED OUT TO BE ALREADY BUILT** — flow templates entirely, and
+analytics substantially. Both were marked ⬜ here. A ⬜ is a claim like any other figure in
+this file and decays the same way; the rule at the top of CLAUDE.md — treat every figure as
+a measurement with a date — applies to the checkboxes too.
 
 **THE SUMMARY ROW ABOVE FIRST READ 42 / ~110 / 38%, AND ALL THREE WERE WRONG.** 42 is the
 count of declared keys in `SECTION_DEFS`, which is a different unit from the artifact's

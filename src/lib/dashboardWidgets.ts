@@ -37,6 +37,10 @@ export const WIDGET_SECTIONS: { key: string; label: string }[] = [
   { key: "hr", label: "HR" },
   { key: "finance", label: "Finance" },
   { key: "field-service", label: "Operations" },
+  // REPORTS & BI JOINS THE REGISTRY, and it is the ninth section to do so
+  // rather than a special case: the executive board is analysis over records
+  // a reader can already open, which is exactly what this registry sells.
+  { key: "reports", label: "Reports & BI" },
 ];
 
 // Every gated widget across the eight department dashboards. Keys are frozen —
@@ -114,6 +118,19 @@ export const DASHBOARD_WIDGETS: WidgetDef[] = [
   { key: "operations.shifts-this-week", label: "Shifts this week", section: "field-service", rung: "simple" },
   { key: "operations.validity-timeline", label: "Validity timeline", section: "field-service", rung: "moderate" },
   { key: "operations.permits-by-type", label: "Permits by type", section: "field-service", rung: "moderate" },
+  // Reports & BI
+  //
+  // THE FIGURES ARE FREE AND THE COMPARISON IS SOLD, which is the split the
+  // whole registry is built on: a tile is a sum of records the reader can
+  // already open on the screen that owns them, and the studio is not being
+  // charged for arithmetic it could do by hand. What it is being sold is the
+  // ANALYSIS — this period against the same length of time before it, which
+  // is the one question no section dashboard in this product can answer.
+  //
+  // A KEY IS FROZEN ONCE IT SHIPS: a tier stores these strings, so renaming
+  // one is a migration rather than an edit.
+  { key: "reports.movement", label: "Period-on-period movement", section: "reports", rung: "simple" },
+  { key: "reports.window", label: "Choose the period", section: "reports", rung: "moderate" },
 ];
 
 // The set of every valid key — the write boundary's whitelist and the guard the
