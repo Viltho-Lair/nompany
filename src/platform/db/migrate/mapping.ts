@@ -141,6 +141,7 @@ export const COLLECTION_TABLE: Readonly<Record<string, string>> = {
   kpiTargets: "KpiTarget",
   payRecords: "PayRecord",
   payrollRuns: "PayrollRun",
+  attendance: "Attendance",
   landedCosts: "LandedCost",
   assetAllocations: "AssetAllocation",
   creditNotes: "CreditNote",

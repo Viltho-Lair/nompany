@@ -19,10 +19,13 @@ import { PanelBar, usePanelParam } from "@/components/studio2/PanelBar";
 import nextDynamic from "next/dynamic";
 import { useReload } from "@/components/studio2/useReload";
 import { payrollDict } from "@/shared/studio/payroll";
+import { attendanceDict } from "@/shared/studio/attendance";
 
 // BEHIND A REAL LAZY BOUNDARY, like every other secondary tab: this is a
 // client module, so `import()` here survives to runtime.
 const PayrollPanel = nextDynamic(() => import("@/components/studio2/PayrollPanel"),
+  { loading: () => <ScreenSkeleton /> });
+const AttendancePanel = nextDynamic(() => import("@/components/studio2/AttendancePanel"),
   { loading: () => <ScreenSkeleton /> });
 
 const btnDanger = "rounded-full border border-rose-200 px-4 py-2 font-display text-sm font-600 text-rose-600 transition-colors hover:bg-rose-50 disabled:opacity-60 dark:border-rose-500/30 dark:text-rose-300 dark:hover:bg-rose-500/10";
@@ -60,7 +63,8 @@ export default function StudioHr({ slug, view = "hr" }) {
   const [data, setData] = useState(null);
   // The active panel is remembered in ?tab= so a refresh or a deep link reopens
   // the same one; the switch itself is an in-place flip via the bottom PanelBar.
-  const [tab, setTab] = usePanelParam("tab", "people", ["people", "roles", "certifications", "leave", "payroll"]);
+  const [tab, setTab] = usePanelParam("tab", "people",
+    ["people", "roles", "certifications", "leave", "attendance", "payroll"]);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const level = useAnalyticsLevel();
@@ -139,6 +143,10 @@ export default function StudioHr({ slug, view = "hr" }) {
     // panel fetches its own data behind that right. Somebody who may read
     // People and not payroll sees the tab and an empty answer, which is the
     // truthful shape the export list already uses.
+    // ATTENDANCE IS SCOPED WHERE PAYROLL IS NOT: a supervisor marks their own
+    // team every morning, and a departmental slice of a payroll RUN would be
+    // a partial total nobody could reconcile.
+    { key: "attendance", label: attendanceDict(locale).tab },
     { key: "payroll", label: payrollDict(locale).tab },
   ];
 
@@ -157,6 +165,8 @@ export default function StudioHr({ slug, view = "hr" }) {
       )}
 
       <Overview headcount={headcount} departments={departments} expiring={expiring} windowDays={vocabulary.expiryWindowDays} />
+
+      {tab === "attendance" && <AttendancePanel slug={slug} locale={locale} />}
 
       {tab === "payroll" && <PayrollPanel slug={slug} locale={locale} />}
 

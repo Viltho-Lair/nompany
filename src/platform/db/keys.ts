@@ -841,7 +841,7 @@ export const SECTION_COLLECTIONS = {
   // for good.
   hr: ["vacations"],
   // Pay records and payroll runs sit with the employees they belong to.
-  "hr-employees": ["certifications", "payRecords", "payrollRuns"],
+  "hr-employees": ["certifications", "payRecords", "payrollRuns", "attendance"],
   // finance
   // Cash: what we billed, what we spent, and what actually moved. `payments`
   // lives beside the invoices it settles rather than under the ledger, because

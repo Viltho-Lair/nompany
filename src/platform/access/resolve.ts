@@ -138,7 +138,7 @@ export const SECTION_AREAS: Readonly<Record<string, readonly string[]>> = {
   // The Logistics ROOT owns the landed costs, so it has an area of its own as
   // well as children — the same shape Assets took.
   logistics: ["logistics.landedCost"],
-  "hr-employees": ["hr.employees", "hr.vacations", "hr.payroll"],
+  "hr-employees": ["hr.employees", "hr.vacations", "hr.payroll", "hr.attendance"],
   "finance-cash": ["finance.cash"],
   // Gated by its own right — WITHOUT this line a leaf section has no areas, so
   // sectionViewable returns `!own` and shows it to everyone, flipping the whole

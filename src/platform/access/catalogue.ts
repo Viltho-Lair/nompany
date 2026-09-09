@@ -426,6 +426,18 @@ const OWN_AREAS = [
   { key: "hr.payroll", group: "Human Resources", label: "Payroll", verbs: ["view", "create", "edit"],
     extra: [{ key: "approve", label: "Approve a payroll run" }] },
 
+  // ATTENDANCE IS SCOPED WHERE PAYROLL IS NOT, and the difference is the shape
+  // of the two jobs. A supervisor marks their own team every morning, which is
+  // exactly what `department` scope is for; a payroll run is the studio's, and
+  // a departmental slice of one is a partial total nobody can reconcile.
+  //
+  // NO DELETE. A sheet is corrected by marking the day again — one row per
+  // person per day, updated — and deleting the row would leave the day
+  // `unrecorded`, which means something different and is not what the
+  // supervisor meant.
+  { key: "hr.attendance", group: "Human Resources", label: "Attendance", verbs: ["view", "create", "edit"],
+    scoped: true },
+
   { key: "finance.cash", group: "Finance & Accounting", label: "Cash", verbs: ["view", "create", "edit", "delete"] },
   // THE LEDGER HAS NO ORDINARY CRUD. An entry is posted and, if wrong, reversed;
   // it is never edited or deleted, because it is the record of a decision (the
