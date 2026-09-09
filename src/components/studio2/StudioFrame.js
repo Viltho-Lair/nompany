@@ -197,11 +197,28 @@ const accentOf = (key) => {
   return root ? SECTION_ACCENTS[root] : "text-slate-400 dark:text-slate-500";
 };
 
-// The row's shell — shape and colour, no padding. A plain row adds the padding
-// itself (itemClass); a parent group hands it to the link and the chevron
-// button separately, so each is a full-height hit target of its own.
+// The row's shell — shape and colour, NO PADDING AND NO JUSTIFICATION. A plain
+// row adds the padding itself (itemClass); a parent group hands it to the link
+// and the chevron button separately, so each is a full-height hit target of its
+// own.
+//
+// `justify-between` USED TO BE BAKED IN HERE AND IT BELONGED TO ONE CALLER.
+// Exactly one consumer has two children — the parent-group wrapper, whose link
+// and chevron push apart. Everything else has one child, and a single flex item
+// under `justify-between` is placed at the START, which is invisible on a row
+// whose content is left-aligned anyway and very visible on a SQUARE: both
+// header marks and the Engagements square drew their icon hard against one
+// edge instead of centred.
+//
+// Adding `justify-center` at those call sites did not fix it and could not.
+// Tailwind emits `justify-between` AFTER `justify-center` in its own utility
+// order, so between wins on specificity ties no matter which order the class
+// attribute lists them — the class string reads as if it were overridden while
+// the stylesheet says otherwise. Two utilities for one property on one element
+// is the bug; the fix is to stop shipping the first one to callers that never
+// wanted it.
 const rowClass = (active) =>
-  `flex items-center justify-between gap-3 rounded-lg text-[12px] font-500 transition-colors ${
+  `flex items-center gap-3 rounded-lg text-[12px] font-500 transition-colors ${
     active
       ? "bg-brand-500/10 text-brand-700 dark:bg-brand-500/20 dark:text-brand-400"
       : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white"
@@ -447,7 +464,11 @@ export default function StudioFrame({
     const active = node.key === activeKey;
     return (
       <div key={node.key}>
-        <div className={`${rowClass(active)} pe-1`}>
+        {/* THE ONE ROW WITH TWO CHILDREN, so it is the one that asks for
+            `justify-between` — the link takes the width and the chevron is
+            pushed to the end. It used to inherit this from `rowClass` and
+            every single-child caller inherited it too. */}
+        <div className={`${rowClass(active)} justify-between pe-1`}>
           <Link
             href={`/${studio.slug}/${node.key}`}
             // Clicking the section you are ALREADY on has no navigation to
