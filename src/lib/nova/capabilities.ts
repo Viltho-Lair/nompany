@@ -101,9 +101,18 @@ export const NOVA_CAPABILITY_KEYS: ReadonlySet<string> = new Set(NOVA_CAPABILITI
 
 // The switchboard config, as /super stores it: an explicit on/off per capability.
 // A key that is absent falls back to the capability's built-in `defaultOn`.
-export type NovaConfig = { enabled: Record<string, boolean> };
+export type NovaConfig = {
+  enabled: Record<string, boolean>;
+  /** Which AI provider the platform key is for. */
+  provider: string;
+  /** The model that key will be used with — the provider's default until set. */
+  model: string;
+  /** WHETHER a key is stored, never the key. The plaintext leaves the server
+   *  only through `novaApiKey()`; a config object crosses to the browser. */
+  keySet: boolean;
+};
 
-export const EMPTY_NOVA_CONFIG: NovaConfig = { enabled: {} };
+export const EMPTY_NOVA_CONFIG: NovaConfig = { enabled: {}, provider: "anthropic", model: "", keySet: false };
 
 /** Is this capability switched on, given the stored config? Explicit wins, else the default. */
 export function capabilityEnabled(config: NovaConfig | null | undefined, cap: NovaCapability): boolean {

@@ -14,9 +14,7 @@ import LangMenu from "@/components/LangMenu";
 import { locales, LANGUAGE_NAMES, LANGUAGE_SHORT } from "@/shared/locale";
 import ThemeToggle from "@/components/ThemeToggle";
 import { cn } from "@/lib/utils";
-import { NOVA_PROVIDERS, providerMeta } from "@/lib/nova/providers";
 import { fmtDate, fmtDateTime } from "@/lib/format";
-import SelectMenu from "@/components/fields/SelectMenu";
 import { useReload } from "@/components/studio2/useReload";
 
 // The account hub, laid out like the Google Account console:
@@ -698,23 +696,6 @@ function PersonalInfo({ identity, onSaved }) {
   const [saved, setSaved] = useState(false);
   const [phoneError, setPhoneError] = useState("");
 
-  // The Nova / AI key. A credential, so the field never shows what is stored —
-  // only whether one is set — and saving it sends only the key, never the rest
-  // of the form. The server encrypts it; Nova decrypts it to answer as this user.
-  const keySet = Boolean(profile.novaKeySet);
-  const [provider, setProvider] = useState(profile.novaProvider || "anthropic");
-  const [novaKey, setNovaKey] = useState("");
-  const [keyBusy, setKeyBusy] = useState(false);
-  const [keyMsg, setKeyMsg] = useState("");
-  async function saveKey(value) {
-    setKeyBusy(true); setKeyMsg("");
-    const res = await fetch("/api/identity/profile", {
-      method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ novaProvider: provider, novaKey: value }),
-    });
-    setKeyBusy(false);
-    if (res.ok) { setNovaKey(""); setKeyMsg(value ? tr.keySaved : tr.keyRemoved); onSaved(); }
-    else setKeyMsg(tr.didnSave);
-  }
 
   async function save() {
     // The phone is optional, so an empty field saves fine — but a number that
@@ -754,50 +735,14 @@ function PersonalInfo({ identity, onSaved }) {
 
       {saved && <p className={cn(BANNER_GOOD, "mt-4")}>{tr.profileUpdated}</p>}
 
-      {/* Nova / AI key — your own AI subscription, used by the assistant inside
-          your studios. Stored encrypted; shown only as set / not set. */}
-      <div className="mt-4 rounded-2xl border border-slate-200 p-4 dark:border-white/10">
-        <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-sm font-600 text-slate-900 dark:text-white">{tr.novaAiKey}</p>
-            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-              {keySet ? tr.keySetNovaUses : tr.novaNotSet}
-            </p>
-          </div>
-          {keySet && (
-            <button type="button" onClick={() => saveKey("")} disabled={keyBusy}
-              className="shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-500 text-rose-600 hover:bg-rose-50 disabled:opacity-50 dark:text-rose-400 dark:hover:bg-rose-500/10">
-              {tr.remove}
-            </button>
-          )}
-        </div>
-        {/* Which AI you subscribe to, then the key for it. Nova talks to whichever
-            you pick — Claude, ChatGPT or Gemini. */}
-        <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,11rem)_1fr_auto]">
-          <SelectMenu
-            value={provider}
-            onChange={(v) => { setProvider(v); setKeyMsg(""); }}
-            className={cn(INPUT, "text-sm")}
-            options={NOVA_PROVIDERS.map((p) => ({ value: p.id, label: p.label }))}
-          />
-          <input
-            type="password"
-            value={novaKey}
-            onChange={(e) => { setNovaKey(e.target.value); setKeyMsg(""); }}
-            placeholder={keySet ? tr.pasteNewKeyReplace : providerMeta(provider).keyHint}
-            autoComplete="off"
-            className={cn(INPUT, "font-mono text-xs")}
-          />
-          <button type="button" onClick={() => saveKey(novaKey.trim())} disabled={keyBusy || !novaKey.trim()}
-            className="shrink-0 rounded-lg bg-brand-600 px-3 py-2 text-sm font-500 text-white disabled:opacity-50">
-            {keyBusy ? tr.saving : tr.save}
-          </button>
-        </div>
-        {keyMsg && <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{keyMsg}</p>}
-        <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">
-          Get a key at {providerMeta(provider).docs}. It&apos;s stored encrypted and never shown again.
-        </p>
-      </div>
+      {/* THE NOVA / AI KEY FIELD IS GONE, and it was never an end user's to
+          fill. It asked every member of every studio to paste an Anthropic or
+          OpenAI key, with a note on where to buy one — a developer credential
+          in front of people who mostly have none, cannot get one without a
+          card, and had no reason to know the assistant runs on a third-party
+          subscription at all. It also made Nova's availability a property of
+          the READER: whether it worked depended on who was looking, not on what
+          the studio's plan included. One key, set once, in /super. */}
 
       <div className={cn(STACK, "mt-4")}>
         {/* Profile picture: camera icon on the left, the picture itself as a

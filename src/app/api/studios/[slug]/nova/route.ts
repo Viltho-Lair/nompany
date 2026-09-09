@@ -1,14 +1,10 @@
 import { route } from "@/platform/http/route";
 import { studioHasNova } from "@/lib/plans";
-import { getNovaConfig } from "@/lib/data/novaConfig";
 import { runNova, type NeutralMessage } from "@/platform/nova/client";
 import { buildToolset } from "@/platform/nova/tools";
-import { getProfile } from "@/platform/auth/users";
-import { decryptField } from "@/platform/auth/fieldCrypto";
 import { cleanProvider, providerMeta } from "@/lib/nova/providers";
+import { getNovaConfig, novaApiKey } from "@/lib/data/novaConfig";
 
-// How a person gets a key, shown when they have not set one. Names the provider
-// they chose so the instructions point at the right place.
 // THE SERVER NAMES THE PROVIDER; THE CLIENT WRITES THE SENTENCE.
 //
 // This built an English sentence here and the studio showed it verbatim, so an
@@ -35,13 +31,19 @@ export const POST = route(spec, async (g) => {
   // Availability: the studio's package must include Nova at all.
   if (!(await studioHasNova(studio))) return { status: 403, body: { error: "nova-off" } };
 
-  // THE PROVIDER AND KEY ARE THE USER'S OWN, read from their account settings —
-  // whichever AI they subscribe to (Claude, ChatGPT, Gemini) and their key for
-  // it, encrypted at rest and decrypted here to call as them. No global key: if
-  // they have not set one, say how to get one for THEIR provider.
-  const profile = ((await getProfile(user.id)) || {}) as Record<string, unknown>;
-  const provider = cleanProvider(profile.novaProvider);
-  const apiKey = decryptField(profile.novaKey)
+  // THE PROVIDER AND KEY ARE THE PLATFORM'S, set once in /super → Application →
+  // Nova. They used to be each USER'S, read from their own account settings, so
+  // whether the assistant worked at all depended on whether the person looking
+  // at it happened to hold an Anthropic or OpenAI subscription — a developer
+  // credential asked of every member of every studio. Nova is a property of the
+  // plan now, not of the reader.
+  //
+  // The env var stays as a fallback for a deployment that has not been through
+  // the console yet; it was already here and it is the only path that does not
+  // require somebody to have opened /super.
+  const cfg = await getNovaConfig();
+  const provider = cleanProvider(cfg.provider);
+  const apiKey = (await novaApiKey())
     || (provider === "anthropic" ? String(process.env.ANTHROPIC_API_KEY || "") : "");
   if (!apiKey) return { status: 503, body: { error: "no-key", provider: providerMeta(provider).label, docs: providerMeta(provider).docs } };
 
