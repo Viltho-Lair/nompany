@@ -3,10 +3,13 @@ import { REG } from "@/platform/db/keys";
 import { getNovaConfig, novaApiKey } from "./novaConfig";
 import { runNova } from "@/platform/nova/client";
 import {
+  DAYPARTS,
   cleanConfig,
   dayKey,
+  generationKey,
   resolveBand,
   type DailyBand,
+  type Daypart,
   type Generation,
   type GreetingConfig,
 } from "@/shared/greeting";
@@ -86,13 +89,15 @@ async function readToday(day: string): Promise<TodayDoc> {
    different quotation rather than guess an author is the cheap half of the fix;
    the honest half is that these are still not verified, which is why the console
    shows what was generated and lets a person overwrite it. */
-const SYSTEM = [
+const SYSTEM = (daypart: string) => [
   "You write the welcome line at the top of a business management system, and one quotation to sit beneath it.",
   "",
-  "The greeting: one sentence, under ninety characters, starting with \"Good morning.\" — calm and plain, the way a colleague says it. No exclamation marks, no emoji, no motivational-poster phrasing, no questions.",
+  `It is the ${daypart} where the person reading this is. Open with the greeting that fits that hour and no other: a line saying good morning to somebody working at nine at night is the exact fault this is here to avoid.`,
+  "",
+  "The greeting: one sentence, under ninety characters, calm and plain, the way a colleague says it. No exclamation marks, no emoji, no motivational-poster phrasing, no questions.",
   "It is read by companies in every country and every line of work, so name no industry, country, city, holiday, season or weather.",
   "",
-  "The quotation: short, real, and widely attributed to the person you name. If you are not certain who said it, choose a different quotation rather than guessing the author. No quotation about mornings.",
+  "The quotation: short, real, and widely attributed to the person you name. If you are not certain who said it, choose a different quotation rather than guessing the author.",
   "",
   "Answer with JSON and nothing else: {\"greeting\": \"...\", \"quote\": \"...\", \"author\": \"...\"}",
 ].join("\n");
@@ -120,6 +125,7 @@ async function generateOne(
   apiKey: string,
   model: string,
   day: string,
+  daypart: Daypart,
   seed: number,
 ): Promise<Generation | null> {
   try {
@@ -127,11 +133,11 @@ async function generateOne(
       provider,
       apiKey,
       model,
-      system: SYSTEM,
+      system: SYSTEM(daypart),
       // THE DATE AND THE SEED ARE IN THE PROMPT so a band of two automated
       // messages does not generate the same pair twice on the same day, and so
       // yesterday's answer is not the obvious completion of today's question.
-      messages: [{ role: "user", content: `Today is ${day}. Write pair number ${seed + 1} for today.` }],
+      messages: [{ role: "user", content: `Today is ${day}, ${daypart}. Write pair number ${seed + 1}.` }],
       tools: [],
       execute: async () => null,
     });
@@ -153,13 +159,18 @@ async function generateOne(
  * on the next page load rather than tomorrow. `regenerateToday()` clears the
  * list, which is what the console's button is for after a key is fixed.
  */
-async function ensureGenerations(config: GreetingConfig, day: string): Promise<Record<string, Generation>> {
+async function ensureGenerations(config: GreetingConfig, day: string, daypart: Daypart): Promise<Record<string, Generation>> {
   const doc = await readToday(day);
   const failed = new Set(doc.failed || []);
 
   const wanted = config.messages
     .map((m, i) => ({ m, i }))
-    .filter(({ m }) => m.status === "Sent" && m.source === "ai" && !doc.byId[m.id] && !failed.has(m.id));
+    .filter(({ m }) => {
+      // KEYED BY DAYPART TOO: a message generated for the morning is not written
+      // for the evening, and treating it as done would serve the wrong hour.
+      const k = generationKey(m.id, daypart);
+      return m.status === "Sent" && m.source === "ai" && !doc.byId[k] && !failed.has(k);
+    });
   if (!wanted.length) return doc.byId;
 
   const nova = await getNovaConfig();
@@ -170,9 +181,10 @@ async function ensureGenerations(config: GreetingConfig, day: string): Promise<R
   const fresh: Record<string, Generation> = {};
   const broke: string[] = [];
   for (const { m, i } of wanted) {
-    const gen = await generateOne(nova.provider, apiKey, nova.model, day, i);
-    if (gen) fresh[m.id] = gen;
-    else broke.push(m.id);
+    const k = generationKey(m.id, daypart);
+    const gen = await generateOne(nova.provider, apiKey, nova.model, day, daypart, i);
+    if (gen) fresh[k] = gen;
+    else broke.push(k);
   }
 
   // RE-READ BEFORE WRITING, because two first-readers can arrive at once and
@@ -187,12 +199,20 @@ async function ensureGenerations(config: GreetingConfig, day: string): Promise<R
   return byId;
 }
 
-/** Today's band as a studio reads it — the config, resolved against today's words. */
-export async function getDailyBand(now: Date = new Date()): Promise<DailyBand> {
+/**
+ * Today's band as a studio reads it, for ONE part of the day.
+ *
+ * THE DAYPART COMES FROM THE READER'S BROWSER, not from this server. A platform
+ * with tenants in several timezones has no single "now", and the fault being
+ * fixed is a message generated at the server's morning greeting somebody in
+ * their evening. Generation is per daypart and lazy, so a daypart nobody is
+ * reading in costs nothing at all.
+ */
+export async function getDailyBand(daypart: Daypart = "morning", now: Date = new Date()): Promise<DailyBand> {
   const day = dayKey(now);
   const config = await getGreetingConfig();
-  const generations = await ensureGenerations(config, day);
-  return resolveBand(config, generations, now);
+  const generations = await ensureGenerations(config, day, daypart);
+  return resolveBand(config, generations, daypart, now);
 }
 
 /**
@@ -236,10 +256,18 @@ export async function withdrawMessage(id: string): Promise<GreetingConfig> {
  * (failures are remembered until midnight) and "that is not a line I want under
  * our name" — and waiting until tomorrow is not an answer to either.
  */
-export async function regenerateToday(now: Date = new Date()): Promise<DailyBand> {
+export async function regenerateToday(now: Date = new Date()): Promise<DailyBand[]> {
   const day = dayKey(now);
   await setJSON(REG.greetingToday, { day, byId: {}, failed: [] } satisfies TodayDoc);
   const config = await getGreetingConfig();
-  const generations = await ensureGenerations(config, day);
-  return resolveBand(config, generations, now);
+  // ALL THREE PARTS OF THE DAY, because this is the console asking on purpose
+  // rather than a reader arriving — somebody checking what the key produces
+  // should see what every reader gets, not only the third who share the hour
+  // they happened to press the button in.
+  const out: DailyBand[] = [];
+  for (const daypart of DAYPARTS) {
+    const generations = await ensureGenerations(config, day, daypart);
+    out.push(resolveBand(config, generations, daypart, now));
+  }
+  return out;
 }

@@ -49,6 +49,12 @@ export type BroadcastStatus = (typeof BROADCAST_STATUSES)[number];
 
 export type BandMessage = {
   id: string;
+  /* THE AUTHOR'S OWN LABEL, and no studio ever reads it. The register needs
+     something to list a message BY, and an automated one has no words of its
+     own to list — its text is generated, three times a day, and would make the
+     list rewrite itself. */
+  title: string;
+  createdAt: string;
   source: MessageSource;
   status: BroadcastStatus;
   /** ISO stamp of the last send. Empty while it has never been sent. */
@@ -83,43 +89,54 @@ export type ResolvedMessage = {
   css: BandCss;
 };
 
-export type DailyBand = { day: string; messages: ResolvedMessage[] };
+export type DailyBand = { day: string; daypart: Daypart; messages: ResolvedMessage[] };
 
-/* THE FALLBACK ROTATION, and it is a FALLBACK now rather than a mode.
+/* THERE IS NO BUILT-IN TEXT ANY MORE, and its absence is the feature.
    ------------------------------------------------------------------
-   It was the whole feature: seven hand-written lines picked by the date. It is
-   what an `ai` message shows when there is no key, when the provider is down, or
-   before the day's first generation lands — so the header can never be empty and
-   can never break on somebody else's outage.
+   This file used to carry seven greetings and eight quotations, hand-written,
+   picked by the date. They were the whole product before the key existed and
+   then the FALLBACK after it — which meant a studio with no key set read words
+   somebody had typed into a source file months earlier, and nothing on any
+   screen said so. Asked where the greeting came from, the honest answer was
+   "from an array", three times running.
 
-   Deliberately plain, and deliberately naming no company, country, industry or
-   season: this is a multi-tenant product and a greeting that assumes any of
-   those is wrong for most of the studios reading it. */
-const FALLBACK_GREETINGS = [
-  "Good morning. Here is your studio.",
-  "Good morning. Everything is where you left it.",
-  "Good morning. A clear desk to start from.",
-  "Good morning. The day is yours to plan.",
-  "Good morning. One system, one place to start.",
-  "Good morning. Take the first thing first.",
-  "Good morning. A steady start beats a fast one.",
-];
+   So an automated message with nothing generated for the reader's part of the
+   day SHOWS NOTHING. That is a worse-looking product and a truer one: a band
+   that is empty is a key that is not set, and the console says exactly that.
+   Never re-introduce a default string here — the next person's instinct will be
+   to add "just one" for the empty case, and that is the bug. */
 
-/* ATTRIBUTIONS ARE NOT CERTIFIED. These were written down from memory and at
-   least one is contested — "it is not the strongest that survives" is Megginson
-   paraphrasing Darwin and is routinely credited to Darwin himself. They are the
-   fallback rather than the product's voice; check any of them before quoting one
-   as fact. */
-const FALLBACK_QUOTES = [
-  { quote: "Plans are worthless, but planning is everything.", author: "Dwight D. Eisenhower" },
-  { quote: "It is not the strongest that survives, but the one most responsive to change.", author: "Leon C. Megginson" },
-  { quote: "Quality is not an act, it is a habit.", author: "Aristotle" },
-  { quote: "However beautiful the strategy, you should occasionally look at the results.", author: "Winston Churchill" },
-  { quote: "The best time to plant a tree was twenty years ago. The second best time is now.", author: "Proverb" },
-  { quote: "Simplicity is the ultimate sophistication.", author: "Leonardo da Vinci" },
-  { quote: "What gets measured gets managed.", author: "Peter Drucker" },
-  { quote: "Perfection is achieved when there is nothing left to take away.", author: "Antoine de Saint-Exupéry" },
-];
+/* MORNING IS NOT A FACT ABOUT THE SERVER, and this was wrong from the first
+   version: one message generated per day said "Good morning." to somebody
+   opening their studio at nine in the evening. A daily message and a greeting
+   are different things, and the product was shipping one as the other.
+
+   THREE PARTS, AND THE READER'S OWN CLOCK CHOOSES. The band asks for the daypart
+   its browser is in, so a studio in Amman and one in Casablanca each get the
+   right words at the right hour — and everybody inside one daypart still reads
+   the same thing, which is what keeps it a message from the product. At most
+   three generations per message per day for the whole platform. */
+export const DAYPARTS = ["morning", "afternoon", "evening"] as const;
+export type Daypart = (typeof DAYPARTS)[number];
+
+/** 05:00-11:59 morning, 12:00-17:59 afternoon, the rest evening. */
+export function daypartFor(hour: number): Daypart {
+  const h = Number.isFinite(hour) ? Math.floor(hour) : 0;
+  if (h >= 5 && h < 12) return "morning";
+  if (h >= 12 && h < 18) return "afternoon";
+  return "evening";
+}
+
+/** A daypart off the wire, validated. An unknown one is not a reason to fail. */
+export function cleanDaypart(v: unknown): Daypart {
+  const s = String(v || "").trim().toLowerCase();
+  return (DAYPARTS as readonly string[]).includes(s) ? (s as Daypart) : "morning";
+}
+
+/** What the day's generations are stored and looked up under. */
+export function generationKey(id: string, daypart: Daypart): string {
+  return `${id}:${daypart}`;
+}
 
 /** Days since the epoch — the index every rotation below turns on. */
 export function dayNumber(now: Date = new Date()): number {
@@ -129,20 +146,6 @@ export function dayNumber(now: Date = new Date()): number {
 /** The server's date as `YYYY-MM-DD` — the key a dismissal is remembered under. */
 export function dayKey(now: Date = new Date()): string {
   return now.toISOString().slice(0, 10);
-}
-
-/**
- * The fallback pair for a given index.
- *
- * TWO INDEPENDENT ROTATIONS so the pairing does not repeat weekly: seven
- * greetings against eight quotations return to the same pair only after
- * fifty-six days. The caller offsets by the message's POSITION, so two `ai`
- * messages falling back on the same day do not both show the same line.
- */
-export function rotationFor(index: number): Generation {
-  const n = ((index % 56) + 56) % 56;   // a negative index is still a real day
-  const q = FALLBACK_QUOTES[n % FALLBACK_QUOTES.length];
-  return { greeting: FALLBACK_GREETINGS[n % FALLBACK_GREETINGS.length], quote: q.quote, author: q.author };
 }
 
 /* A COLOUR IS A HEX LITERAL AND NOTHING ELSE, and this is a security boundary
@@ -196,8 +199,11 @@ export function defaultTheme(): BandTheme {
 }
 
 /** A new message: automated, unsent, on the house colours. */
-export function newMessage(id: string): BandMessage {
-  return { id, source: "ai", status: "Draft", sentAt: "", greeting: "", quote: "", author: "", theme: defaultTheme() };
+export function newMessage(id: string, now: Date = new Date()): BandMessage {
+  return {
+    id, title: "", createdAt: now.toISOString(), source: "ai", status: "Draft", sentAt: "",
+    greeting: "", quote: "", author: "", theme: defaultTheme(),
+  };
 }
 
 /** The dismissal key for one send of one message. */
@@ -225,6 +231,8 @@ function cleanMessage(raw: unknown, index: number): BandMessage {
 
   return {
     id,
+    title: str(r.title, 80),
+    createdAt: str(r.createdAt, 40),
     source: r.source === "manual" ? "manual" : "ai",
     status,
     sentAt: status === "Sent" ? str(r.sentAt, 40) : "",
@@ -283,30 +291,37 @@ export function cleanConfig(raw: unknown): GreetingConfig {
 }
 
 /**
- * Today's band: which messages show, in what words, in what colours.
+ * Today's band for one part of the day: which messages show, in what words, in
+ * what colours.
  *
- * `generations` is the day's model output keyed by message id. An `ai` message
- * with none falls back to the rotation OFFSET BY ITS POSITION — so a band of two
- * automated messages reads as two different lines rather than the same one twice.
+ * `generations` is what the model wrote, keyed `<message id>:<daypart>`. An
+ * automated message with nothing there DOES NOT SHOW — there is no built-in text
+ * to fall back to, on purpose. An empty band means no key or a failed call, and
+ * that is a state a person can see and fix rather than one the product papers
+ * over with words nobody chose.
  */
 export function resolveBand(
   config: GreetingConfig,
   generations: Record<string, Generation> | null | undefined,
+  daypart: Daypart = "morning",
   now: Date = new Date(),
 ): DailyBand {
   const day = dayKey(now);
-  const n = dayNumber(now);
   const messages: ResolvedMessage[] = [];
 
-  config.messages.forEach((m, i) => {
+  config.messages.forEach((m) => {
     if (m.status !== "Sent") return;
     let words: Generation = { greeting: m.greeting, quote: m.quote, author: m.author };
     let generated = false;
 
     if (m.source === "ai") {
-      const g = generations?.[m.id];
-      if (g && (g.greeting || g.quote)) { words = g; generated = true; }
-      else words = rotationFor(n + i);
+      const g = generations?.[generationKey(m.id, daypart)];
+      // NOTHING WRITTEN FOR THIS PART OF THE DAY MEANS NOTHING SHOWN. Falling
+      // back to the other dayparts would put "Good morning." on an evening
+      // screen, which is the fault this daypart split exists to fix.
+      if (!g || !(g.greeting || g.quote)) return;
+      words = g;
+      generated = true;
     }
 
     // A MANUAL MESSAGE LEFT BLANK IS NOT A BAND WITH NOTHING IN IT. It is
@@ -326,5 +341,5 @@ export function resolveBand(
     });
   });
 
-  return { day, messages };
+  return { day, daypart, messages };
 }

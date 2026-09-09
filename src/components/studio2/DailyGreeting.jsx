@@ -5,6 +5,7 @@ import { useStudioLocale } from "@/components/studio2/locale";
 import { miscDict } from "@/shared/studio/misc";
 import { Icon } from "@/components/studio2/icons";
 import { useReload } from "@/components/studio2/useReload";
+import { daypartFor } from "@/shared/greeting";
 
 /* THE BROADCAST BAND, across the top of the studio.
    ------------------------------------------------------------------
@@ -36,6 +37,12 @@ import { useReload } from "@/components/studio2/useReload";
    message that is not urgent. A minute is the same cadence the Pulse wall uses
    for its own platform figures.
 
+   AND THE BAND CAN BE EMPTY. There is no built-in text behind an automated
+   message any more — nothing is hardcoded anywhere — so no key, a failed call,
+   or nothing generated yet for THIS part of the day all render nothing at all.
+   That is deliberate: an empty header is a state somebody can see and fix, and
+   words nobody chose are not.
+
    `localStorage` CAN THROW — a private window, blocked site data — so every read
    and write is guarded and a failure means "not dismissed", which shows the
    message. A message nobody can dismiss is a smaller fault than a message nobody
@@ -62,7 +69,12 @@ export default function DailyGreeting({ slug }) {
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch(`/api/studios/${slug}/greeting`, { cache: "no-store" });
+      // THE READER'S OWN CLOCK DECIDES THE WORDS. Computed on every poll rather
+      // than once on mount, so a tab open across noon or six picks up the next
+      // part of the day within the minute — and so a platform whose tenants sit
+      // in different timezones never greets anybody with the wrong hour.
+      const daypart = daypartFor(new Date().getHours());
+      const res = await fetch(`/api/studios/${slug}/greeting?daypart=${daypart}`, { cache: "no-store" });
       if (!res.ok) return;
       const next = (await res.json())?.band?.messages || [];
       setMessages(next);

@@ -20,11 +20,28 @@ renamed with the label. Renaming a stored key strands every studio's configurati
 name nothing reads any more, for no gain a person can see — the feature is called Broadcast
 where anybody reads it and `greeting` where only the code does.
 
+## The console
+
+`/super/pulse`, second item in the bottom bar. A register: the message list on the left, one
+message open on the right, and neither the pane nor the page scrolls — the wall it slides out
+of is exactly one screen tall, so the list scrolls inside its own column.
+
+**A message is listed by a TITLE its author types**, never by its words, and no studio ever
+reads that title. An automated message has no words of its own — they are generated three
+times a day — so a register listing by text would rewrite itself at noon.
+
+**Settings** in the top bar holds the AI key. **Save Drafts** saves without sending.
+**New Message** adds a draft and opens it.
+
+For an automated message the editor shows **what the key wrote for each of the three
+dayparts**, or "Not generated" against the ones that failed — which is the only way to notice
+that one of the three is missing when you can only ever see your own hour.
+
 ## Where it lives
 
 | File | Holds |
 |---|---|
-| `src/shared/greeting.ts` | Pure: the types, the colour arithmetic (`bandCss`), the validation, the fallback rotation, and `resolveBand` |
+| `src/shared/greeting.ts` | Pure: the types, the dayparts, the colour arithmetic (`bandCss`), the validation, `resolveBand` |
 | `src/lib/data/greeting.ts` | The stored half: the config, the day's generations, the model call |
 | `src/app/api/studios/[slug]/greeting/route.ts` | What a studio reads (GET, studio auth) |
 | `src/app/api/super/greeting/route.ts` | The console: GET, PUT to save, POST to regenerate today |
@@ -86,9 +103,11 @@ records nothing, so adding one works on the next page load rather than tomorrow.
 "Regenerate today's" in the console clears the record, which is the way out of both a fixed
 key and a line nobody wants under the company's name.
 
-**The attributions are not verified.** The fallback quotations were written down from memory
-and at least one is contested. The model is told to choose a different quotation rather than
-guess an author, which is the cheap half of the problem and not the whole of it.
+**The attributions are not verified.** The model is told to choose a different quotation rather
+than guess an author, which is the cheap half of the problem and not the whole of it — models
+misattribute confidently, and this prints under nompany's name in somebody else's workplace.
+The console shows what was generated for each daypart so a wrong one can be caught, and a
+written message is the way to say something you have checked.
 
 ## Colour
 
@@ -158,6 +177,11 @@ the surprise.
 
 - **No scheduling.** A message is Draft or Sent. There are no start and end dates, so an
   announcement for one week is sent and withdrawn by hand.
+- **Three dayparts, not a clock.** The split is coarse on purpose; there is no way to say "after
+  14:00" or to define the boundaries per studio.
+- **No key, no automated message.** This is deliberate and it is also the whole failure mode:
+  a platform that has not set a key shows nothing where automated messages would be, and only
+  the console says why.
 - **No instant delivery.** A send reaches open studios within a minute, not immediately. Sub-second
   would need one event written into every studio's stream per send.
 - **No send history.** Re-sending overwrites `sentAt`; there is no record of the previous sends

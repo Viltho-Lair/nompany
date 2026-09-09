@@ -4,6 +4,7 @@ import {
   broadcastMessage, withdrawMessage,
 } from "@/lib/data/greeting";
 import { getNovaConfig } from "@/lib/data/novaConfig";
+import { DAYPARTS } from "@/shared/greeting";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,9 +20,15 @@ export const dynamic = "force-dynamic";
 // tab that fixes it when they do not.
 const spec = { auth: "super", name: "super/greeting" };
 
+/* THE CONSOLE PREVIEWS EVERY PART OF THE DAY, not the one whoever is looking
+   happens to be in. Three bands come back keyed by daypart, so a person can see
+   that the evening message exists and what it says — which is the only way to
+   notice that one of the three failed to generate. */
 async function payload() {
-  const [config, band, nova] = await Promise.all([getGreetingConfig(), getDailyBand(), getNovaConfig()]);
-  return { config, preview: band, ai: { keySet: nova.keySet, provider: nova.provider, model: nova.model } };
+  const [config, nova] = await Promise.all([getGreetingConfig(), getNovaConfig()]);
+  const bands = {} as Record<string, Awaited<ReturnType<typeof getDailyBand>>>;
+  for (const daypart of DAYPARTS) bands[daypart] = await getDailyBand(daypart);
+  return { config, bands, ai: { keySet: nova.keySet, provider: nova.provider, model: nova.model } };
 }
 
 export const GET = route(spec, async () => payload());
