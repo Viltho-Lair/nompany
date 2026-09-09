@@ -32,12 +32,35 @@ where anybody reads it and `greeting` where only the code does.
 | `src/app/super/(full)/pulse/PulseWall.jsx` | The two-pane slide and the bottom bar that drives it |
 | `src/components/super/NovaCredentials.jsx` | The AI key form — shared with the Nova switchboard, not copied |
 | `src/components/studio2/DailyGreeting.jsx` | The band — rotation, dots, dismissal |
-| `src/components/super/GreetingEditor.jsx` | The message list, its colours and the preview |
+| `src/components/super/GreetingEditor.jsx` | The register: a row per message, opening into its editor |
 | `.greeting-band` in `src/app/globals.css` | The two gradient layers and the shadow |
 
 Two keys: `g:greetingConfig` is what a person typed, `g:greetingToday` is what the model
 wrote today. They are separate because one changes when somebody says so and the other turns
 over on its own — writing them together would make every generation race every edit.
+
+## Sending is an act
+
+A message is **Draft** until somebody broadcasts it, and **Sent** afterwards. Sending stamps
+`sentAt`; **saving text does not send**, so editing a live message is not re-announcing it on
+every keystroke. **Send again** re-stamps, **Withdraw** returns it to Draft and stops it being
+served — it unsays nothing, because anybody who has already read it has read it.
+
+This replaced an `active: true|false` checkbox, and the checkbox was the defect. Showing a
+message was a PROPERTY somebody edited rather than an ACT with a moment, so there was nothing
+for a reader's browser to notice and nothing for a dismissal to be keyed against.
+
+## How a studio finds out
+
+**It asks again, every minute, and whenever the tab is looked at.** A band that only read on
+mount would reach nobody already sitting in a studio — the common case, since this is a screen
+people leave open. One small platform document per poll, no tenant data.
+
+**It is not instant, deliberately.** Pushing would mean writing an event into every studio's
+stream on every send: a fan-out across the whole platform for a message that is not urgent.
+`emitPlatform` publishes to the console's channel, not to tenants, so there is no existing
+path that would carry it. A minute is the cadence the Pulse wall already uses for its own
+platform figures.
 
 ## Automated and written messages
 
@@ -90,15 +113,23 @@ picker is `<input type="color">`, which can only produce the accepted shape; the
 on the server, where it counts. Only a super admin can write these, which lowers the odds and
 not the cost.
 
-## Dismissal
+## Dismissal is per message, per send
 
-The browser's, not the database's. Closing the band hides it for the rest of the day under
-`greeting-dismissed:<the server's date>`, so tomorrow's band has a key nobody has written yet
-and appears on its own. Nothing expires and nothing is swept.
+The browser's, not the database's — and keyed on `broadcast-dismissed:<message id>:<sentAt>`.
+Three things follow, and all three were broken before:
 
-It closes the BAND, not a message — "not now" is about the strip, not about whichever sentence
-happened to be showing. Storing it server-side would be a row per member per day in a shared
-table to remember something true for one person on one device until midnight.
+- **Closing one message never hides another**, then or later.
+- **A message sent AFTER a reader closed something else still arrives.**
+- **Sending again reaches the people who closed the first version**, because a fresh stamp is a
+  key nobody has dismissed.
+
+**IT WAS KEYED ON THE DAY AND CLOSED THE WHOLE BAND.** Close it once and nothing sent
+afterwards reached that reader until midnight, which is the opposite of broadcasting. The
+owner found it by sending a second message and seeing nothing.
+
+Storing it server-side would be a row per member per message in a shared table to remember
+something true for one person on one device. Nothing expires and nothing is swept; a stale key
+costs one string in one browser.
 
 `localStorage` can throw — a private window, blocked site data — and a failure means "not
 dismissed", which shows the band. A message nobody can dismiss is a smaller fault than a
@@ -125,8 +156,14 @@ the surprise.
 
 ## Not built yet
 
-- **No scheduling.** A message is showing or it is not. There are no start and end dates, so
-  an announcement for one week is turned on and off by hand.
+- **No scheduling.** A message is Draft or Sent. There are no start and end dates, so an
+  announcement for one week is sent and withdrawn by hand.
+- **No instant delivery.** A send reaches open studios within a minute, not immediately. Sub-second
+  would need one event written into every studio's stream per send.
+- **No send history.** Re-sending overwrites `sentAt`; there is no record of the previous sends
+  or of how many studios were open at the time.
+- **No read receipts.** Nothing records who saw or closed a message — dismissal never leaves the
+  browser.
 - **No targeting.** Every studio reads every active message. There is no way to send one to a
   single studio, a plan, or a language.
 - **One language.** The words are stored as typed and are not translated — an Arabic studio

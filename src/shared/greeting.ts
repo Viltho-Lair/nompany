@@ -32,10 +32,27 @@ export type BandTheme = {
 /** `ai` is written by the model each day; `manual` is typed once and stays. */
 export type MessageSource = "ai" | "manual";
 
+/* THE LADDER, AND IT IS AN RFQ'S RATHER THAN A CHECKBOX.
+   ------------------------------------------------------------------
+   A message was `active: true|false`, which made showing it a PROPERTY somebody
+   edits rather than an ACT somebody performs — and a property has no moment, so
+   there was nothing for a reader's browser to notice. Sending is a transition
+   now: `Draft` is nobody's business but the author's, `Sent` is out there, and
+   `sentAt` stamps WHEN.
+
+   RE-SENDING RE-STAMPS, and that is what makes a correction reach the people who
+   already closed the first version: dismissal is keyed on the stamp, so a new
+   `sentAt` is a message nobody has dismissed yet. Editing does NOT re-stamp, or
+   every save would resurrect a message on every screen in the platform. */
+export const BROADCAST_STATUSES = ["Draft", "Sent"] as const;
+export type BroadcastStatus = (typeof BROADCAST_STATUSES)[number];
+
 export type BandMessage = {
   id: string;
   source: MessageSource;
-  active: boolean;
+  status: BroadcastStatus;
+  /** ISO stamp of the last send. Empty while it has never been sent. */
+  sentAt: string;
   greeting: string;
   quote: string;
   author: string;
@@ -51,6 +68,12 @@ export type BandCss = { background: string; border: string; glow: string };
 
 export type ResolvedMessage = {
   id: string;
+  /* WHAT A DISMISSAL IS REMEMBERED AGAINST — the message AND the send it belongs
+     to, never the day. Keying on the day was the defect: closing the band hid
+     every message for the rest of it, including ones sent afterwards, which is
+     the opposite of broadcasting. */
+  key: string;
+  sentAt: string;
   source: MessageSource;
   greeting: string;
   quote: string;
@@ -172,9 +195,14 @@ export function defaultTheme(): BandTheme {
   return { mode: "default", background: [...BRAND_STOPS], border: [...BRAND_STOPS] };
 }
 
-/** A new message: automated, active, on the house colours. */
+/** A new message: automated, unsent, on the house colours. */
 export function newMessage(id: string): BandMessage {
-  return { id, source: "ai", active: true, greeting: "", quote: "", author: "", theme: defaultTheme() };
+  return { id, source: "ai", status: "Draft", sentAt: "", greeting: "", quote: "", author: "", theme: defaultTheme() };
+}
+
+/** The dismissal key for one send of one message. */
+export function messageKey(m: { id: string; sentAt: string }): string {
+  return `${m.id}:${m.sentAt}`;
 }
 
 function str(v: unknown, max: number): string {
@@ -185,10 +213,21 @@ function cleanMessage(raw: unknown, index: number): BandMessage {
   const r = (raw || {}) as Record<string, unknown>;
   const id = str(r.id, 40).replace(/[^a-zA-Z0-9_-]/g, "") || `m${index + 1}`;
   const theme = (r.theme || {}) as Record<string, unknown>;
+  // MIGRATED FROM `active`: a message that was showing has been sent, one that
+  // was switched off is a draft. No stamp to recover, so it keeps an empty one —
+  // which changes every dismissal key once, and shows every live message one
+  // more time. That is the correct outcome rather than a cost: the old keys
+  // recorded "the reader closed the band today", which is not a fact about any
+  // of these messages.
+  const status: BroadcastStatus = r.status === "Draft" || r.status === "Sent"
+    ? r.status
+    : (r.active === false ? "Draft" : "Sent");
+
   return {
     id,
     source: r.source === "manual" ? "manual" : "ai",
-    active: r.active !== false,
+    status,
+    sentAt: status === "Sent" ? str(r.sentAt, 40) : "",
     greeting: str(r.greeting, 200),
     quote: str(r.quote, 300),
     author: str(r.author, 120),
@@ -220,7 +259,7 @@ export function cleanConfig(raw: unknown): GreetingConfig {
       {
         id: "m1",
         source: legacyCustom ? "manual" : "ai",
-        active: true,
+        status: "Sent",
         greeting: r.greeting,
         quote: r.quote,
         author: r.author,
@@ -260,7 +299,7 @@ export function resolveBand(
   const messages: ResolvedMessage[] = [];
 
   config.messages.forEach((m, i) => {
-    if (!m.active) return;
+    if (m.status !== "Sent") return;
     let words: Generation = { greeting: m.greeting, quote: m.quote, author: m.author };
     let generated = false;
 
@@ -276,6 +315,8 @@ export function resolveBand(
 
     messages.push({
       id: m.id,
+      key: messageKey(m),
+      sentAt: m.sentAt,
       source: m.source,
       greeting: words.greeting,
       quote: words.quote,

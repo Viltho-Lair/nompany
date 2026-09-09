@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { miscDict } from "@/shared/studio/misc";
 import { Icon } from "@/components/studio2/icons";
+import { useReload } from "@/components/studio2/useReload";
 
-/* THE DAILY BAND, across the top of the studio.
+/* THE BROADCAST BAND, across the top of the studio.
    ------------------------------------------------------------------
    ONE BOX, HOWEVER MANY MESSAGES. The header is a single row and the band is one
    item in it, so a second message cannot be a second band without the header
@@ -13,59 +14,83 @@ import { Icon } from "@/components/studio2/icons";
    a dot per message, and the dots are buttons so nobody has to wait for the one
    they want.
 
-   DISMISSAL IS THE BROWSER'S, NOT THE DATABASE'S, and it closes the BAND rather
-   than a message — "not now" is about the strip across the top, not about which
-   sentence happened to be showing when it was clicked. It lasts the rest of the
-   day, and "the rest of the day" is decided by the SERVER's date, which arrives
-   with the messages: the key is `greeting-dismissed:<that day>`, so tomorrow's
-   band has a key nobody has written yet and appears on its own. Nothing expires,
-   nothing is swept, and a stale key from last March costs one string in one
-   browser.
+   DISMISSAL IS PER MESSAGE, AND THIS IS THE CORRECTION THAT MATTERS. It was
+   keyed on the DAY and closed the whole band: close it once and nothing sent
+   afterwards reached that reader until midnight, which is the opposite of
+   broadcasting. The key is `<message id>:<sentAt>` now, so —
 
-   Storing it server-side would be a row per member per day in a shared table —
-   real writes, real cascade, real sweeping — to remember something that is true
-   for one person on one device until midnight.
+     · closing one message never hides another, then or later;
+     · a message sent AFTER a reader closed something else still arrives;
+     · re-sending a message stamps it afresh, and a fresh stamp is a key nobody
+       has dismissed — which is how a correction reaches the people who closed
+       the first version.
 
-   IT RENDERS NOTHING UNTIL IT HAS BOTH ANSWERS, the band and whether this browser
-   has already dismissed today's. Showing it and then removing it a beat later is
-   worse than a beat of nothing: it moves the header twice, and the second move
-   looks like a bug rather than a dismissal.
+   IT KEEPS ASKING. A broadcast is somebody deciding to say something now, so a
+   band that only looked once on mount would reach nobody already sitting in a
+   studio — the common case, since this is a screen people leave open. It
+   re-reads every minute and whenever the tab is looked at again. That is one
+   small platform document and no tenant data; see the route.
+
+   NOT INSTANT, and deliberately so: pushing would mean writing one event into
+   every studio's stream on every send, a fan-out across the whole platform for a
+   message that is not urgent. A minute is the same cadence the Pulse wall uses
+   for its own platform figures.
 
    `localStorage` CAN THROW — a private window, blocked site data — so every read
    and write is guarded and a failure means "not dismissed", which shows the
-   band. A message nobody can dismiss is a smaller fault than a message nobody
+   message. A message nobody can dismiss is a smaller fault than a message nobody
    can see. */
 
-const KEY = (day) => `greeting-dismissed:${day}`;
+const KEY = (k) => `broadcast-dismissed:${k}`;
 const ROTATE_MS = 5000;
+const POLL_MS = 60000;
+
+function storedDismissals(messages) {
+  const out = [];
+  try {
+    for (const m of messages) if (localStorage.getItem(KEY(m.key)) === "1") out.push(m.key);
+  } catch { /* a browser that cannot remember simply shows the message */ }
+  return out;
+}
 
 export default function DailyGreeting({ slug }) {
   const tr = miscDict(useStudioLocale());
-  const [band, setBand] = useState(null);
-  const [dismissed, setDismissed] = useState(null);   // null = not yet known
+  const [messages, setMessages] = useState(null);   // null = not yet known
+  const [dismissed, setDismissed] = useState(() => new Set());
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
-  const dayRef = useRef("");
 
-  useEffect(() => {
-    let live = true;
-    fetch(`/api/studios/${slug}/greeting`, { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        const next = d?.band;
-        if (!live || !next?.messages?.length) return;
-        setBand(next);
-        dayRef.current = next.day;
-        let hidden = false;
-        try { hidden = localStorage.getItem(KEY(next.day)) === "1"; } catch { hidden = false; }
-        setDismissed(hidden);
-      })
-      .catch(() => {});
-    return () => { live = false; };
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/studios/${slug}/greeting`, { cache: "no-store" });
+      if (!res.ok) return;
+      const next = (await res.json())?.band?.messages || [];
+      setMessages(next);
+      // MERGED, NEVER REPLACED: what this session dismissed stays dismissed even
+      // if `localStorage` refused to record it, and a message arriving in a later
+      // poll gets its own stored answer read for the first time here.
+      setDismissed((prev) => new Set([...prev, ...storedDismissals(next)]));
+    } catch { /* a failed poll leaves the band exactly as it was */ }
   }, [slug]);
 
-  const messages = band?.messages || [];
-  const count = messages.length;
+  // THE FIRST READ GOES THROUGH THE SHARED HOOK, which is where this repository
+  // keeps "fetch on mount" — the pattern React's linter flags and its own
+  // documentation permits. Thirty-odd components share that one exemption rather
+  // than each spending a warning against a shrink-only budget.
+  useReload(load);
+
+  useEffect(() => {
+    const t = setInterval(load, POLL_MS);
+    // A TAB LEFT OPEN OVERNIGHT is the case the interval alone handles badly —
+    // browsers throttle timers in background tabs, so coming back to the tab
+    // asks immediately rather than waiting out a stretched interval.
+    const onVisible = () => { if (document.visibilityState === "visible") load(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => { clearInterval(t); document.removeEventListener("visibilitychange", onVisible); };
+  }, [load]);
+
+  const visible = (messages || []).filter((m) => !dismissed.has(m.key));
+  const count = visible.length;
 
   /* THE ROTATION STOPS FOR TWO PEOPLE: anyone hovering or tabbing into the band,
      and anyone whose system asks for reduced motion. The second is not
@@ -83,14 +108,19 @@ export default function DailyGreeting({ slug }) {
     return () => clearTimeout(t);
   }, [count, paused, index]);
 
+  if (!count) return null;
+
+  const at = Math.min(index, count - 1);
+  const msg = visible[at];
+
+  // CLOSES THIS MESSAGE, NOT THE BAND. The next one slides into its place; the
+  // band goes when the last one is closed.
   function close() {
-    setDismissed(true);
-    try { localStorage.setItem(KEY(dayRef.current), "1"); } catch { /* a browser that cannot remember simply asks again tomorrow */ }
+    setDismissed((prev) => new Set([...prev, msg.key]));
+    setIndex((i) => (i >= count - 1 ? 0 : i));
+    try { localStorage.setItem(KEY(msg.key), "1"); } catch { /* remembered for this session only */ }
   }
 
-  if (!count || dismissed !== false) return null;
-
-  const msg = messages[Math.min(index, count - 1)];
   const style = {
     "--band-bg": msg.css.background,
     "--band-border": msg.css.border,
@@ -126,15 +156,15 @@ export default function DailyGreeting({ slug }) {
            It also costs no dictionary entry, which would otherwise have to exist
            in both languages to say something the message already says. */
         <div className="mt-1 flex shrink-0 items-center gap-1.5">
-          {messages.map((m, i) => (
+          {visible.map((m, i) => (
             <button
-              key={m.id}
+              key={m.key}
               type="button"
               onClick={() => setIndex(i)}
               aria-label={m.greeting || m.quote}
-              aria-current={i === index ? "true" : undefined}
+              aria-current={i === at ? "true" : undefined}
               className={`h-1.5 w-1.5 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 ${
-                i === index
+                i === at
                   ? "bg-slate-700 dark:bg-white"
                   : "bg-slate-400/50 hover:bg-slate-500 dark:bg-white/30 dark:hover:bg-white/60"
               }`}

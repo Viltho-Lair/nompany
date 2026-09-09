@@ -159,7 +159,7 @@ async function ensureGenerations(config: GreetingConfig, day: string): Promise<R
 
   const wanted = config.messages
     .map((m, i) => ({ m, i }))
-    .filter(({ m }) => m.active && m.source === "ai" && !doc.byId[m.id] && !failed.has(m.id));
+    .filter(({ m }) => m.status === "Sent" && m.source === "ai" && !doc.byId[m.id] && !failed.has(m.id));
   if (!wanted.length) return doc.byId;
 
   const nova = await getNovaConfig();
@@ -193,6 +193,39 @@ export async function getDailyBand(now: Date = new Date()): Promise<DailyBand> {
   const config = await getGreetingConfig();
   const generations = await ensureGenerations(config, day);
   return resolveBand(config, generations, now);
+}
+
+/**
+ * Send one message, or send it again.
+ *
+ * THE STAMP IS THE WHOLE MECHANISM. A reader's browser remembers dismissals
+ * against `<id>:<sentAt>`, so a fresh stamp is a message nobody has closed —
+ * which is what makes a correction reach the people who dismissed the first
+ * version, and what makes a second message appear to somebody who closed the
+ * first. Editing deliberately does NOT stamp: every save would otherwise
+ * resurrect the message on every screen in the platform.
+ */
+export async function broadcastMessage(id: string): Promise<GreetingConfig> {
+  const config = await getGreetingConfig();
+  const at = new Date().toISOString();
+  return saveGreetingConfig({
+    messages: config.messages.map((m) => (m.id === id ? { ...m, status: "Sent", sentAt: at } : m)),
+  });
+}
+
+/**
+ * Take one message back.
+ *
+ * IT DOES NOT UNSAY ANYTHING — somebody reading their studio right now keeps it
+ * until their next poll, and anybody who already read it has read it. What it
+ * does is stop it being served, which is the only thing a server can promise.
+ * The stamp is cleared so a later send is unambiguously a new one.
+ */
+export async function withdrawMessage(id: string): Promise<GreetingConfig> {
+  const config = await getGreetingConfig();
+  return saveGreetingConfig({
+    messages: config.messages.map((m) => (m.id === id ? { ...m, status: "Draft", sentAt: "" } : m)),
+  });
 }
 
 /**

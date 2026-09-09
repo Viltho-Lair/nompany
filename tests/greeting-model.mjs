@@ -14,9 +14,12 @@
 //                 through the whole box — the exact bug the `.greeting-band`
 //                 comment already paid for once. And anything accepted as a
 //                 "colour" is CSS injected into every studio in the product.
-//   resolveBand   picks today's words. Its failure mode is a band of automated
-//                 messages all falling back to the SAME line, which reads as a
-//                 broken rotation rather than a missing key.
+//   resolveBand   picks today's words. Two failure modes, and the second one
+//                 SHIPPED: a band of automated messages all falling back to the
+//                 same line reads as a broken rotation rather than a missing key;
+//                 and a dismissal key that is not per-send means closing one
+//                 message hides the next one too, which is the opposite of
+//                 broadcasting.
 
 import { register } from "node:module";
 import { pathToFileURL } from "node:url";
@@ -42,6 +45,8 @@ console.log("\n== what is stored becomes a usable list");
 const fromDefault = G.cleanConfig({ mode: "default", greeting: "", quote: "", author: "" });
 ok("the old default mode becomes one automated message",
   fromDefault.messages.length === 1 && fromDefault.messages[0].source === "ai");
+ok("and it is already sent, so a live band does not go dark on deploy",
+  fromDefault.messages[0].status === "Sent");
 
 const fromCustom = G.cleanConfig({ mode: "custom", greeting: "Hello.", quote: "Q", author: "A" });
 ok("the old custom mode becomes one written message, words intact",
@@ -58,6 +63,14 @@ ok("an empty list is not an empty band", G.cleanConfig({ messages: [] }).message
 const dupes = G.cleanConfig({ messages: [{ id: "a" }, { id: "a" }, { id: "a" }] });
 ok("duplicate ids are made unique", new Set(dupes.messages.map((m) => m.id)).size === 3,
   dupes.messages.map((m) => m.id).join(", "));
+
+// THE SECOND MIGRATION: `active` was a checkbox, `status` is a ladder. A message
+// that was showing has been sent; one switched off is a draft. Backwards either
+// way silently changes what every studio reads.
+const fromActive = G.cleanConfig({ messages: [{ id: "on", active: true }, { id: "off", active: false }] });
+ok("active:true becomes Sent", fromActive.messages[0].status === "Sent");
+ok("active:false becomes Draft", fromActive.messages[1].status === "Draft");
+ok("a draft carries no send stamp", fromActive.messages[1].sentAt === "");
 
 const many = G.cleanConfig({ messages: Array.from({ length: 20 }, (_, i) => ({ id: `m${i}` })) });
 ok(`the list is capped at ${G.MAX_MESSAGES}`, many.messages.length === G.MAX_MESSAGES, String(many.messages.length));
@@ -115,17 +128,17 @@ console.log("\n== today's words");
 
 const cfg = G.cleanConfig({
   messages: [
-    { id: "a", source: "ai", active: true },
-    { id: "b", source: "ai", active: true },
-    { id: "c", source: "manual", active: true, greeting: "Typed." },
-    { id: "d", source: "manual", active: false, greeting: "Hidden." },
-    { id: "e", source: "manual", active: true, greeting: "", quote: "" },
+    { id: "a", source: "ai", status: "Sent", sentAt: "2026-09-09T08:00:00.000Z" },
+    { id: "b", source: "ai", status: "Sent", sentAt: "2026-09-09T08:00:00.000Z" },
+    { id: "c", source: "manual", status: "Sent", sentAt: "2026-09-09T09:00:00.000Z", greeting: "Typed." },
+    { id: "d", source: "manual", status: "Draft", greeting: "Hidden." },
+    { id: "e", source: "manual", status: "Sent", sentAt: "2026-09-09T09:00:00.000Z", greeting: "", quote: "" },
   ],
 });
 const day = new Date(Date.UTC(2026, 8, 9));
 const band = G.resolveBand(cfg, null, day);
 
-ok("an inactive message does not show", !band.messages.some((m) => m.id === "d"));
+ok("a draft does not show", !band.messages.some((m) => m.id === "d"));
 ok("a written message left blank does not show", !band.messages.some((m) => m.id === "e"));
 ok("the written one shows its words", band.messages.find((m) => m.id === "c")?.greeting === "Typed.");
 ok("the day travels with the band", band.day === "2026-09-09", band.day);
@@ -148,6 +161,31 @@ ok("the other automated message still falls back",
 const blankGen = G.resolveBand(cfg, { a: { greeting: "", quote: "", author: "" } }, day);
 ok("an empty generation falls back rather than blanking the band",
   blankGen.messages.find((m) => m.id === "a").greeting.length > 0);
+
+console.log("\n== a dismissal belongs to one send of one message");
+
+/* THE DEFECT THIS REPLACES: the key was the DAY and the band was dismissed whole,
+   so closing it hid every message for the rest of the day INCLUDING ones sent
+   afterwards. A reader who closed the morning greeting never saw the afternoon
+   announcement. */
+ok("the key names the message and the send",
+  G.messageKey({ id: "a", sentAt: "2026-09-09T08:00:00.000Z" }) === "a:2026-09-09T08:00:00.000Z");
+ok("two messages sent at the same instant still have different keys",
+  band.messages.find((m) => m.id === "a").key !== band.messages.find((m) => m.id === "b").key);
+ok("no key contains only the day", band.messages.every((m) => m.key !== band.day));
+
+// RE-SENDING IS WHAT REACHES SOMEBODY WHO ALREADY CLOSED IT. A fresh stamp is a
+// key nobody has dismissed; without this a correction is invisible to exactly
+// the people who saw the thing being corrected.
+const before = G.resolveBand(cfg, null, day).messages.find((m) => m.id === "c").key;
+const resent = G.cleanConfig({
+  messages: cfg.messages.map((m) => (m.id === "c" ? { ...m, sentAt: "2026-09-09T15:30:00.000Z" } : m)),
+});
+const after = G.resolveBand(resent, null, day).messages.find((m) => m.id === "c").key;
+ok("re-sending changes the key", before !== after, `${before} -> ${after}`);
+ok("and it is still the same message", before.split(":")[0] === after.split(":")[0]);
+
+console.log("\n== today's words, continued");
 
 // EVERY MESSAGE CARRIES ITS OWN PAINT, or the band would recolour every message
 // to whichever one happened to be first.

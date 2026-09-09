@@ -1,5 +1,8 @@
 import { route } from "@/platform/http/route";
-import { getGreetingConfig, saveGreetingConfig, getDailyBand, regenerateToday } from "@/lib/data/greeting";
+import {
+  getGreetingConfig, saveGreetingConfig, getDailyBand, regenerateToday,
+  broadcastMessage, withdrawMessage,
+} from "@/lib/data/greeting";
 import { getNovaConfig } from "@/lib/data/novaConfig";
 
 export const runtime = "nodejs";
@@ -28,10 +31,19 @@ export const PUT = route({ ...spec, body: true }, async ({ body }) => {
   return { ok: true, ...(await payload()) };
 });
 
-// Regenerate today's automated messages — see `regenerateToday`. A POST rather
-// than a PUT because it changes nothing a person typed: it replaces derived
-// output, and running it twice is running it twice rather than an error.
-export const POST = route(spec, async () => {
-  await regenerateToday();
+/* THE ACTS, SEPARATE FROM THE EDIT — the RFQ shape. PUT saves what somebody
+   typed and changes nothing anybody reads; POST performs one of three
+   transitions, each of which does.
+
+   `broadcast` is the send (and the re-send: the same call, a fresh stamp),
+   `withdraw` stops serving one, `regenerate` replaces today's generated words.
+   None of them touches a draft's text, so a person cannot lose an edit by
+   pressing a button. */
+export const POST = route({ ...spec, body: true }, async ({ body }) => {
+  const b = (body || {}) as { action?: unknown; id?: unknown };
+  const id = String(b.id || "");
+  if (b.action === "broadcast") await broadcastMessage(id);
+  else if (b.action === "withdraw") await withdrawMessage(id);
+  else await regenerateToday();
   return { ok: true, ...(await payload()) };
 });
