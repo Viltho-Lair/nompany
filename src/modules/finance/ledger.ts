@@ -22,6 +22,8 @@
 
 import { requirePermission } from "@/platform/access";
 import { seriesSetting } from "@/modules/administration/numbering";
+import { postingProblem, periodOf } from "./periods";
+import type { Period } from "./periods";
 import { repo } from "@/platform/db/repo";
 import { nextReference } from "@/modules/main/references";
 import { invoiceTotals } from "./finance";
@@ -34,6 +36,9 @@ const ENTRIES = "journalEntries";
 const Accounts = repo<Account>(ACCOUNTS);
 const CreditNotes = repo("creditNotes");
 const Entries = repo<JournalEntry>(ENTRIES);
+// CLOSED MONTHS. Read on every posting — a lock nobody consults is a lock
+// that does not exist.
+const Periods = repo<Period>("accountingPeriods");
 // The cash documents this ledger posts FROM — invoices and expenses live in the
 // finance-cash section, not the ledger's own.
 const Invoices = repo<Invoice>("invoices");
@@ -263,6 +268,19 @@ export async function postEntry(
     return { error: "unbalanced", debit: money(cleaned.debit), credit: money(cleaned.credit) };
   }
 
+  // THE PERIOD LOCK, and it sits HERE rather than in each of the seven posting
+  // functions for the reason the balance check does: this is the one door every
+  // entry passes through, and a check in seven callers is seven chances to add
+  // an eighth without it.
+  //
+  // THE DATE IS RESOLVED FIRST, because an unparseable one becomes today and
+  // the lock must judge the date that will actually be STORED — asking about
+  // the raw value would let `date: "whenever"` past a closed current month.
+  const entryDate = day(body?.date) || new Date().toISOString().slice(0, 10);
+  const closedPeriods = await Periods.find({ studio, section: ledgerSection });
+  const locked = postingProblem(closedPeriods, entryDate);
+  if (locked) return { error: locked, period: periodOf(entryDate) };
+
   const kind = ENTRY_SOURCE_KINDS.find((k) => k === body?.source?.kind) || "manual";
 
   const entries = await Entries.find({ studio, section: ledgerSection });
@@ -270,7 +288,7 @@ export async function postEntry(
 
   const entry = await Entries.create({ studio, section: ledgerSection }, {
     reference,
-    date: day(body?.date) || new Date().toISOString().slice(0, 10),
+    date: entryDate,
     memo: str(body?.memo, 500),
     lines: cleaned.lines,
     source: { kind, ...(body?.source?.id ? { id: str(body.source.id, 60) } : {}) },

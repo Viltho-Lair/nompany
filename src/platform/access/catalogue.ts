@@ -444,8 +444,16 @@ const OWN_AREAS = [
   // same reasoning as a typed task). So `post` and `reverse` are `extra` powers
   // outside the view/create/edit/delete ladder, and they are SEPARATE from each
   // other on purpose — reversing somebody's posting is not a bigger post.
+  // CLOSING A MONTH IS A THIRD EXTRA, and it is not `post`. Posting is the
+  // daily act; closing says a month is finished with and nothing else may land
+  // in it — which is a decision about what the company has REPORTED, and the
+  // person who makes it is usually not the person keying the entries.
   { key: "finance.ledger", group: "Finance & Accounting", label: "Ledger", verbs: ["view"],
-    extra: [{ key: "post", label: "Post journal entries" }, { key: "reverse", label: "Reverse entries" }] },
+    extra: [
+      { key: "post", label: "Post journal entries" },
+      { key: "reverse", label: "Reverse entries" },
+      { key: "close", label: "Close and reopen accounting periods" },
+    ] },
   // Raising a bill and AUTHORISING it are two acts (invariant 7: raiser ≠
   // approver), and paying is a third — so approve and pay are extra powers
   // outside the view/create/edit/delete ladder.

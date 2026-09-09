@@ -21,6 +21,10 @@ import {
 import { StatusPill } from "@/components/studio2/StatusPill";
 import { useReload } from "@/components/studio2/useReload";
 
+// THE LEDGER IS ITS OWN SCREEN and arrives lazily: it is one of four views
+// this module switches between, and only one of them is open at a time.
+const StudioLedger = nextDynamic(() => import("@/components/studio2/StudioLedger"));
+
 const panel = "rounded-geex border border-slate-200/70 bg-[var(--geex-surface)] p-6 dark:border-white/10";
 const label = "mb-1 block text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400";
 const btn = "rounded-full bg-brand-700 px-4 py-2 font-display text-sm font-600 text-white transition-colors hover:bg-brand-950 disabled:opacity-60";
@@ -56,9 +60,19 @@ const StudioDataGrid = nextDynamic(() => import("@/components/studio2/StudioData
 //   finance-cash       → invoices / expenses / profitability tabs (FinanceCash)
 //   finance-payables   → Accounts Payable (bills)          [FINANCE 1b]
 //   finance-assets     → Fixed Assets                      [FINANCE 1b]
+//   finance-ledger     → the trial balance, journal and statements
+//
+// `finance-ledger` HAD NO BRANCH AND FELL THROUGH TO THE CASH SCREEN, which is
+// the defect StudioLedger's own header describes: a studio granted
+// `finance.ledger.view` opened a page of INVOICES, while the trial balance, the
+// journal and both statements were computed by a route nothing called. Same
+// shape as the project `/costs` bug — a section that silently renders the wrong
+// screen is how a right ends up exercising nothing (invariant 16) — and the
+// fall-through was individually valid at both ends, which is why nothing failed.
 export default function StudioFinance({ slug, view = "finance" }) {
   if (view === "finance-payables") return <Payables slug={slug} />;
   if (view === "finance-assets") return <Assets slug={slug} />;
+  if (view === "finance-ledger") return <StudioLedger slug={slug} />;
   return <FinanceCash slug={slug} view={view} />;
 }
 
