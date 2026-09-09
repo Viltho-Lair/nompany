@@ -38,7 +38,25 @@ export async function plantTypeSection(
 
     const row: Section = {
       id: ID.subsection(), studioId, key, name: decl.label, parentId: parent.id,
-      enabled: true, sortOrder: current.length, settings: {},
+      // A REGISTER IS ON EXACTLY WHEN ITS SECTION IS, and this line is a bug fix
+      // rather than a tidy-up.
+      //
+      // It read `enabled: true`, unconditionally, and that was harmless while
+      // every section a studio had was on. It stopped being harmless the day
+      // creation began switching sections off by trade: `seedBuiltinTypes` runs
+      // AFTER the section array is written, so a management consultancy came out
+      // with `manufacturing` off and its four registers — work orders, bills of
+      // materials, work stations, production batches — on.
+      //
+      // AND THAT IS WORSE THAN IT SOUNDS. StudioFrame PROMOTES a visible child
+      // whose parent is hidden to the top level, on purpose, because a
+      // sub-section can be granted without its parent. So the consultancy would
+      // not have seen Manufacturing hidden; it would have seen four
+      // manufacturing registers loose at the top of its nav, with no heading to
+      // explain them. Measured in the sandbox: eighteen such rows across five
+      // switched-off sections.
+      enabled: parent.enabled !== false,
+      sortOrder: current.length, settings: {},
       createdAt: new Date().toISOString(),
     };
     return { next: [...current, row], result: row };

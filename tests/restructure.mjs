@@ -38,7 +38,11 @@ const { REQUIRED_SECTIONS } = await import("../src/platform/db/sections.ts");
 const { ARCHETYPES, permissionsFor } = await import("../src/modules/people/archetypes.ts");
 const { engineSectionKey } = await import("../src/platform/access/catalogue.ts");
 const { INDUSTRIES, industryByField } = await import("../src/platform/engagement/industries.ts");
-const { FIELD_ACTION_MATRIX } = await import("../src/shared/fieldsOfWork.ts");
+const { FIELD_ACTION_MATRIX, SERVICE_ACTIONS, actionsForField } = await import("../src/shared/fieldsOfWork.ts");
+const { ACTION_SECTION, UNIVERSAL_SECTION_KEYS, NEVER_GATED_KEYS, rootSectionsForTrade, sectionEnabledForTrade }
+  = await import("../src/shared/tradeSections.ts");
+const { FLOW_TEMPLATES } = await import("../src/platform/engagement/templates.ts");
+const { STAGE_REGISTRY } = await import("../src/platform/engagement/registry.ts");
 // Dynamic for the same reason as every import in this file — see above.
 const { departmentOf } = await import("../src/shared/studio/insights.ts");
 const { AREAS } = await import("../src/platform/access/index.ts");
@@ -1761,6 +1765,119 @@ export async function testTheTwoIndustryListsAreOneList(t) {
   }
 }
 
+
+// A TRADE ONLY EVER SWITCHES OFF A SECTION IT DOES NOT USE.
+//
+// `rootSectionsForTrade` decides which of the fourteen a new studio starts with,
+// from its actions (Field x Action Matrix) plus its own deal flow's stages. The
+// gate is applied ONCE, at creation, and a studio can switch anything back on —
+// so the cost of being wrong is a section somebody has to go and find, and the
+// cost of being wrong in the other direction is clutter. This holds the floor.
+export async function testNoTradeSwitchesOffASectionItActuallyUses(t) {
+  const rootOf = new Map();
+  for (const d of SECTION_DEFS) {
+    rootOf.set(d.key, d.key);
+    for (const c of d.children || []) rootOf.set(c.key, d.key);
+  }
+  const spineFor = (field) => {
+    const ind = industryByField(field);
+    if (!ind) return [];
+    const out = new Set();
+    for (const id of [ind.primary, ind.secondary].filter(Boolean)) {
+      const tpl = FLOW_TEMPLATES.find((x) => x.id === id);
+      for (const st of tpl?.stages || []) {
+        const e = STAGE_REGISTRY[st];
+        if (e) out.add(rootOf.get(e.sectionKey) || e.sectionKey);
+      }
+    }
+    return [...out];
+  };
+
+  // -- the map names real sections, and covers every action.
+  const roots = new Set(SECTION_DEFS.map((d) => d.key));
+  const strays = Object.entries(ACTION_SECTION).filter(([, v]) => !roots.has(v));
+  t.equal(strays.length, 0,
+    `every ACTION_SECTION target is a real root section — strays: ${strays.map(([k, v]) => `${k}->${v}`).join(", ")}`);
+
+  const uncovered = SERVICE_ACTIONS.filter((a) => !ACTION_SECTION[a]);
+  t.equal(uncovered.length, 0,
+    `every one of the twenty service actions maps to a section — uncovered: ${uncovered.join(", ")}`);
+
+  for (const k of [...UNIVERSAL_SECTION_KEYS, ...NEVER_GATED_KEYS]) {
+    t.equal(roots.has(k), true, `${k} is a real root section key`);
+  }
+
+  // -- THE FLOOR: nothing a trade's own flow needs is ever switched off, and
+  // nothing universal is either. A future edit that drops the spine from
+  // `rootSectionsForTrade` would leave a contractor without Inventory while the
+  // flow it was seeded with writes project sheets there — a section that owns
+  // records the studio is actively creating, hidden from the people creating
+  // them.
+  for (const field of Object.keys(FIELD_ACTION_MATRIX)) {
+    const on = rootSectionsForTrade(actionsForField(field), spineFor(field));
+    for (const k of spineFor(field)) {
+      t.equal(on.has(k), true, `${field}: its own flow needs ${k}, so ${k} stays on`);
+    }
+    for (const k of [...UNIVERSAL_SECTION_KEYS, ...NEVER_GATED_KEYS]) {
+      t.equal(on.has(k), true, `${field}: ${k} is never gated`);
+    }
+  }
+
+  // -- SYSTEM ROWS ARE NEVER GATED. One of them holds the screen that switches
+  // things back on; gating it would be a studio locked out of its own settings.
+  const nothingOn = new Set();
+  for (const key of ALL_SECTION_KEYS.filter((k) => isSystemSection(k))) {
+    t.equal(sectionEnabledForTrade(key, key, nothingOn, isSystemSection), true,
+      `${key} is a settings row and survives an empty gate`);
+  }
+
+  // -- AND IT DISCRIMINATES. A gate that is on for everybody is not a gate: this
+  // was true of the first draft, which read the blueprint sheet naively and left
+  // thirteen of fourteen on for almost every trade.
+  const counts = Object.keys(FIELD_ACTION_MATRIX).map((f) =>
+    rootSectionsForTrade(actionsForField(f), spineFor(f)).size);
+  t.equal(Math.min(...counts) < Math.max(...counts), true,
+    `the gate tells trades apart (${Math.min(...counts)}..${Math.max(...counts)} sections on)`);
+
+  // Two spot checks, because a range says nothing about whether the right ones
+  // are on. A contractor uses the whole product; a consultancy does not buy
+  // materials, make anything, run a fleet or own plant.
+  const contractor = rootSectionsForTrade(
+    actionsForField("Construction & Contracting"), spineFor("Construction & Contracting"));
+  for (const k of ["projects", "inventory", "procurement", "quality-hse", "assets", "logistics"]) {
+    t.equal(contractor.has(k), true, `a contractor starts with ${k}`);
+  }
+  const consultancy = rootSectionsForTrade(
+    actionsForField("Management Consulting"), spineFor("Management Consulting"));
+  for (const k of ["manufacturing", "assets", "logistics"]) {
+    t.equal(consultancy.has(k), false, `a consultancy does not start with ${k}`);
+  }
+  t.equal(consultancy.has("projects"), true, "...but it does start with Projects");
+
+  // AN ENGINE REGISTER IS PLANTED WITH ITS PARENT'S STATE, not switched on.
+  //
+  // `seedBuiltinTypes` runs AFTER the section array is written, so a hardcoded
+  // `enabled: true` here left a consultancy with Manufacturing off and its
+  // four registers on — and StudioFrame promotes a visible child whose parent
+  // is hidden, so they would have appeared loose at the top of the nav.
+  // Eighteen such rows, measured in the sandbox before the fix.
+  //
+  // A SOURCE CHECK, because the behaviour needs a database and this file has
+  // none. It is the shape the other assertions here use for the same reason.
+  const { readFileSync: readSrc } = await import("node:fs");
+  // COMMENTS STRIPPED FIRST, the same way testNoNativeSelectSurvivesInSource
+  // does: the fix's own comment quotes the bug it replaced ("It read
+  // `enabled: true`"), and a grep over raw source would match that and fail on
+  // the explanation rather than on the code.
+  const planter = readSrc("src/platform/engine/sections.ts", "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/(^|[^:])\/\/.*$/gm, "$1");
+  t.equal(/enabled:\s*parent\.enabled\s*!==\s*false/.test(planter), true,
+    "plantTypeSection inherits its parent's enabled state");
+  t.equal(/enabled:\s*true/.test(planter), false,
+    "...and never hardcodes a register on");
+}
+
 // ---- harness ----------------------------------------------------------------
 // Same non-throwing, accumulate-and-report shape as tests/suite.mjs's own
 // ok(): one bad assertion must not hide the rest, which matters more here than
@@ -1821,6 +1938,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       testAdministrationIsNotASectionButItsRowsSurvive,
       testEverySectionWithAScreenIsReachableBySomeSeededRole,
       testTheTwoIndustryListsAreOneList,
+      testNoTradeSwitchesOffASectionItActuallyUses,
       testAdministrationFollowsItsChildren,
       testProjectSegmentsAreExemptFromTheBoard,
       testEveryContextualSectionKeyLiteralExists,

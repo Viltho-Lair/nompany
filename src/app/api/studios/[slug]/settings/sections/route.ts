@@ -60,5 +60,34 @@ export const PUT = route(spec, async (c) => {
 
   const updated = await updateSection(c.studio.id, id, { enabled: c.body.enabled });
   if (!updated) return { error: "notfound" };
-  return { ok: true, section: { id: updated.id, key: updated.key, enabled: updated.enabled } };
+
+  // A ROOT CARRIES ITS CHILDREN, both ways, and this is not a convenience.
+  //
+  // StudioFrame PROMOTES a visible child whose parent is hidden to the top
+  // level — deliberately, because a sub-section can be granted without its
+  // parent. So switching a section OFF while its children stayed on would
+  // not hide it; it would scatter its sub-sections across the top of the nav
+  // with no heading over them.
+  //
+  // And the other direction matters just as much now that creation gates by
+  // trade: a consultancy that later takes on manufacturing switches
+  // Manufacturing back on and would otherwise get an empty section, because
+  // its four engine registers were planted off with it.
+  //
+  // ENGINE REGISTERS ARE CHILDREN TOO. They are matched by `parentId` rather
+  // than by key prefix: `engine-workorder` shares no prefix with
+  // `manufacturing`, which is the same trap `parentKeyMap` exists for.
+  const children = (c.sections || []).filter((s) => s.parentId === updated.id);
+  for (const child of children) {
+    if (child.enabled === c.body.enabled) continue;
+    await updateSection(c.studio.id, child.id, { enabled: c.body.enabled });
+  }
+
+  return {
+    ok: true,
+    section: { id: updated.id, key: updated.key, enabled: updated.enabled },
+    // What else moved, so the screen can redraw the branch rather than
+    // showing children that disagree with the row the person just clicked.
+    children: children.map((s) => ({ id: s.id, key: s.key, enabled: c.body.enabled })),
+  };
 });

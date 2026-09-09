@@ -20,13 +20,17 @@
 //    and share no section IDS, and every collection key is
 //    SEC.col(studioId, sectionId, name).
 
-import { REG, U, S, IX, ID, SECTION_DEFS, isValidSlug } from "@/platform/db/keys";
+import { REG, U, S, IX, ID, SECTION_DEFS, isSystemSection, isValidSlug } from "@/platform/db/keys";
 import { readArr, writeArr, editArr, setJSON, claim, getIndex, release, delPrefix, sMembers, hIncrBy, hGetAll, hDel } from "@/platform/db/store";
 import { addCollaborator } from "@/platform/auth/collaborators";
 import { listDepartments } from "@/modules/administration/departments";
 import { seedBuiltinTypes } from "@/platform/engine/builtins";
 import { ensureDefaultPlan } from "@/lib/data/catalog";
 import { FIELDS_OF_WORK, OTHER_FIELD, actionsForField } from "@/shared/fieldsOfWork";
+import { rootSectionsForTrade, sectionEnabledForTrade } from "@/shared/tradeSections";
+import { industryByField } from "@/platform/engagement/industries";
+import { FLOW_TEMPLATES } from "@/platform/engagement/templates";
+import { STAGE_REGISTRY } from "@/platform/engagement/registry";
 import { emitPlatform, PLATFORM } from "@/platform/realtime/events";
 import { notifySuper, NOTIFY } from "@/platform/notify/notifications";
 import type { Section } from "@/platform/db/sections";
@@ -59,6 +63,46 @@ export function countFreeStudios(
     const pkg = String(s.packageId || "");
     return pkg === "" || pkg === defaultPackageId;
   }).length;
+}
+
+// THE SECTIONS A TRADE'S OWN DEAL FLOW TOUCHES.
+//
+// An industry names a flow template, a template names its stages in order, and
+// every stage in STAGE_REGISTRY names the section that owns its records. So the
+// deal spine is derivable and does not need a second hand-kept list — which
+// matters because a hand-kept one would be wrong the first time a stage moved.
+//
+// THIS IS THE HALF THE ACTION MATRIX CANNOT SUPPLY. No action maps to Inventory
+// for a contractor, and a contractor plainly needs it: Template A carries
+// `sheet`, `order` and `delivery`, all three of which are Inventory's. Read the
+// other way, the actions supply what the flow cannot — Quality & HSE, Assets and
+// Manufacturing are capabilities rather than stages in a deal, so no template
+// mentions them.
+//
+// BOTH TEMPLATES COUNT. `secondary` is not a fallback: it is the OTHER business
+// the same company genuinely runs (industries.ts), so a manufacturer's service
+// arm gets Field Service beside its Make-to-Order sections.
+//
+// ROOTS, not leaf keys, because gating is applied per branch — see
+// `sectionEnabledForTrade`.
+function dealSpineFor(field: string): string[] {
+  const industry = industryByField(field);
+  if (!industry) return [];
+  const out = new Set<string>();
+  for (const id of [industry.primary, industry.secondary].filter(Boolean)) {
+    const template = FLOW_TEMPLATES.find((t) => t.id === id);
+    for (const stage of template?.stages || []) {
+      const entry = STAGE_REGISTRY[stage as keyof typeof STAGE_REGISTRY];
+      if (!entry) continue;
+      // A stage names a SUB-section (`crm-sales-tickets`); the gate works on
+      // roots, so it is resolved here rather than at the call site.
+      const def = SECTION_DEFS.find(
+        (d) => d.key === entry.sectionKey || (d.children || []).some((c) => c.key === entry.sectionKey),
+      );
+      if (def) out.add(def.key);
+    }
+  }
+  return [...out];
 }
 
 export async function createStudio(
@@ -145,17 +189,44 @@ export async function createStudio(
     // Seed the fixed section list. Parents get a SectionID, sub-sections get
     // their own id and point at their parent — one flat array, one id space,
     // so grants and the cascade treat both alike.
+    //
+    // EVERY ROW IS WRITTEN; WHAT THE TRADE DECIDES IS `enabled`.
+    //
+    // Not planting a section would be the destructive way to do this. A
+    // sub-section falls back to its ROOT when absent, so rows written before it
+    // is planted end up under the parent where nothing reads them — three
+    // tenders went that way in the sandbox, not deleted, not corrupted,
+    // invisible. Writing every row and switching some off keeps the storage
+    // shape identical for every studio and makes the choice reversible from a
+    // screen that already exists (Studio settings' section list).
+    //
+    // `enabled` IS ALREADY READ: `visibleSections` filters on it and there is
+    // already a route and a screen to toggle it. Nothing here is new machinery —
+    // the flag was built, honoured and never set to false by anything.
+    const onRoots = rootSectionsForTrade(actionsForField(trade), dealSpineFor(trade));
+    // An unknown or unsaid trade gates nothing: `rootSectionsForTrade` returns
+    // the universals plus an empty spine, so this says "everything" for it
+    // rather than leaving such a studio with five sections.
+    const gate = (key: string, rootKey: string) =>
+      !trade || trade === OTHER_FIELD
+        ? true
+        : sectionEnabledForTrade(key, rootKey, onRoots, isSystemSection);
+
     const sections: Section[] = [];
     SECTION_DEFS.forEach((d) => {
       const parent: Section = {
         id: ID.section(), studioId: id, key: d.key, name: d.name, parentId: null,
-        enabled: true, sortOrder: sections.length, settings: {}, createdAt: now,
+        enabled: gate(d.key, d.key), sortOrder: sections.length, settings: {}, createdAt: now,
       };
       sections.push(parent);
       (d.children || []).forEach((c) => {
         sections.push({
           id: ID.subsection(), studioId: id, key: c.key, name: c.name, parentId: parent.id,
-          enabled: true, sortOrder: sections.length, settings: {}, createdAt: now,
+          // A CHILD FOLLOWS ITS ROOT, and it has to. StudioFrame promotes a
+          // visible child whose parent is hidden to the top level, so leaving
+          // children on under a switched-off root would scatter them across the
+          // nav instead of hiding the section.
+          enabled: gate(c.key, d.key), sortOrder: sections.length, settings: {}, createdAt: now,
         });
       });
     });
