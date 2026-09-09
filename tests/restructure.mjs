@@ -1878,6 +1878,34 @@ export async function testNoTradeSwitchesOffASectionItActuallyUses(t) {
     "...and never hardcodes a register on");
 }
 
+
+// A LINK BETWEEN TWO REGISTERS POINTS AT A REGISTER THAT EXISTS.
+//
+// `reference` has been a declared field kind since the engine shipped and
+// NOTHING EVER READ IT: the server returned the stored string, the register drew
+// it in a text box, so a link was a hand-typed id nobody could follow. It is
+// resolved now — one read per referenced type, gated on the reader's own right
+// over the target — and four built-in registers use it.
+//
+// WHAT THIS CATCHES: a refType naming a type that does not exist. Nothing else
+// would. `typeProblem` only checks the SHAPE of the key (KEY_RE), the resolver
+// treats an unresolvable target as an unreadable one, and the screen degrades to
+// a text box — so a typo would ship as a field that silently never resolves,
+// which is exactly the state this whole engine was in before today.
+export async function testEveryBuiltinLinkPointsAtARealRegister(t) {
+  const keys = new Set(BUILTIN_TYPES.map((x) => x.key));
+  const links = BUILTIN_TYPES.flatMap((x) =>
+    (x.fields || []).filter((f) => f.kind === "reference").map((f) => ({ from: x.key, field: f.key, to: f.refType })));
+
+  t.equal(links.length > 0, true, "the built-in registers declare at least one link");
+  for (const l of links) {
+    t.equal(keys.has(l.to), true, `${l.from}.${l.field} points at the real register ${l.to}`);
+    // A REGISTER THAT NAMES ITSELF is a form that offers the row being edited as
+    // its own parent. Nothing downstream refuses it.
+    t.equal(l.to === l.from, false, `${l.from}.${l.field} does not point at its own register`);
+  }
+}
+
 // ---- harness ----------------------------------------------------------------
 // Same non-throwing, accumulate-and-report shape as tests/suite.mjs's own
 // ok(): one bad assertion must not hide the rest, which matters more here than
@@ -1939,6 +1967,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       testEverySectionWithAScreenIsReachableBySomeSeededRole,
       testTheTwoIndustryListsAreOneList,
       testNoTradeSwitchesOffASectionItActuallyUses,
+      testEveryBuiltinLinkPointsAtARealRegister,
       testAdministrationFollowsItsChildren,
       testProjectSegmentsAreExemptFromTheBoard,
       testEveryContextualSectionKeyLiteralExists,

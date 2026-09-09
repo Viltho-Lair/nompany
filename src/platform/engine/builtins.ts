@@ -139,6 +139,14 @@ export const BUILTIN_TYPES = [
       { key: "rootCause", label: "Root cause", kind: "longtext" },
       { key: "correctiveAction", label: "Corrective action", kind: "longtext" },
       { key: "dueBy", label: "Action due", kind: "date" },
+      // WHAT FAILED, AS A LINK RATHER THAN A SENTENCE.
+      //
+      // The blueprint asks the inspection register to create NCRs on failure;
+      // an NCR that cannot NAME the test record that failed makes that
+      // impossible, and leaves the only trail back a description somebody
+      // typed. Optional, because an NCR is also raised by somebody walking
+      // the site with no test record behind it.
+      { key: "foundBy", label: "Found by test", kind: "reference", refType: "testreport" },
     ],
     columns: ["title", "severity", "dueBy"],
     statuses: ["Open", "Investigating", "Action agreed", "Verified", "Closed"],
@@ -281,8 +289,13 @@ export const BUILTIN_TYPES = [
       { key: "completedOn", label: "Completed", kind: "date" },
       { key: "cost", label: "Cost", kind: "money" },
       { key: "notes", label: "Notes", kind: "longtext" },
+      // WHICH MACHINE. The equipment register has existed beside this one
+      // since both shipped and nothing joined them, so "what is due on the
+      // excavator" could not be asked — the two registers were adjacent
+      // lists rather than one asset's history.
+      { key: "asset", label: "Machine", kind: "reference", refType: "equipment" },
     ],
-    columns: ["title", "kind", "dueOn"],
+    columns: ["title", "kind", "dueOn", "asset"],
     statuses: ["Due", "In progress", "Done", "Skipped"],
     transitions: [
       { from: "Due", to: "In progress" },
@@ -306,8 +319,12 @@ export const BUILTIN_TYPES = [
       { key: "calibratedOn", label: "Calibrated", kind: "date" },
       { key: "dueOn", label: "Next due", kind: "date" },
       { key: "issuedBy", label: "Calibrated by", kind: "text" },
+      // WHICH MACHINE, same join as Maintenance above and for the same
+      // reason: a calibration certificate is about a specific instrument,
+      // and `instrument` was free text nobody could match to the register.
+      { key: "asset", label: "Machine", kind: "reference", refType: "equipment" },
     ],
-    columns: ["instrument", "certificate", "dueOn"],
+    columns: ["instrument", "certificate", "dueOn", "asset"],
     statuses: ["Valid", "Due", "Expired", "Withdrawn"],
     transitions: [
       { from: "Valid", to: "Due" },
@@ -589,6 +606,10 @@ export const BUILTIN_TYPES = [
       { key: "madeOn", label: "Made", kind: "date" },
       { key: "expiresOn", label: "Expires", kind: "date" },
       { key: "notes", label: "Notes", kind: "longtext" },
+      // THE ORDER THIS BATCH WAS MADE AGAINST. Without it a batch in
+      // quarantine cannot be traced back to the run that produced it, which
+      // is the first question anybody asks about a quarantined batch.
+      { key: "workOrder", label: "Work order", kind: "reference", refType: "workorder" },
     ],
     columns: ["reference", "product", "madeOn"],
     statuses: ["Open", "Complete", "Quarantined", "Released", "Scrapped"],

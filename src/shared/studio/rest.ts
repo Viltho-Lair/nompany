@@ -38,6 +38,11 @@ type Strings = CommonStrings & {
   // record type — the engine shipped with a table and a dialog and none of
   // them, which is fine for the eleven rows a new studio has and unusable at
   // the few hundred a real register reaches.
+  // A LINK'S FAR END, WHEN IT CANNOT BE SHOWN. Two different facts, and a blank
+  // would be a third meaning "nothing linked" — which is what the reader would
+  // wrongly conclude from either.
+  refHidden: string;
+  refMissing: string;
   recordSearch: string;
   recordSearchNothing: string;
   recordFilterAll: string;
@@ -67,6 +72,8 @@ const en: Strings = {
   loadingFonts: "Loading fonts…",
   pageFooter: "Page footer",
   pageHeader: "Page header",
+  refHidden: "Linked — not yours to open",
+  refMissing: "Deleted",
   recordSearch: "Search",
   recordSearchNothing: "Nothing matches that.",
   recordFilterAll: "Any status",
@@ -96,6 +103,8 @@ const ar: Strings = {
   loadingFonts: "جار تحميل الخطوط…",
   pageFooter: "تذييل الصفحة",
   pageHeader: "ترويسة الصفحة",
+  refHidden: "مرتبط — ليس من صلاحيتك فتحه",
+  refMissing: "محذوف",
   recordSearch: "بحث",
   recordSearchNothing: "لا شيء يطابق ذلك.",
   recordFilterAll: "أي حالة",

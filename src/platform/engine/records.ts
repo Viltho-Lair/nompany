@@ -13,6 +13,7 @@ import { nextReference } from "@/modules/main/references";
 import { listCollaborators } from "@/platform/auth/collaborators";
 import { transitionProblem, coerceRecord, mergeRecord, recordProblem } from "./types";
 import type { RecordType, EngineRecord } from "./schema";
+import type { Row } from "@/platform/db/store";
 import type { PermissionSet } from "@/platform/access";
 import type { StudioRef, CollaboratorRef } from "@/modules/context";
 import { sectionsAsStored } from "@/platform/db/sections";
@@ -183,6 +184,99 @@ export async function listRecordTypes(ctx: EngineCallerContext) {
   return { types: types.filter((t) => !requirePermission(ctx.access, `engine.${t.key}.view`)) };
 }
 
+/**
+ * WHAT THE `reference` FIELDS ON THESE ROWS ARE POINTING AT.
+ *
+ * A `reference` field has been a declared field kind since the engine shipped —
+ * `refType` names the type it points at, and `typeProblem` refuses a declaration
+ * without one. NOTHING EVER READ IT. The server returned the stored string and
+ * the register drew it in a text box, so a link between two records was a
+ * hand-typed id that nobody could follow and nothing could check. This is the
+ * half that was missing.
+ *
+ * ONE READ PER REFERENCED TYPE, not one per row. A register of two hundred NCRs
+ * each naming an inspection is one read of the inspection register, not two
+ * hundred — the same argument `clientNameById` makes in the engagement list.
+ *
+ * THE READER'S OWN RIGHTS DECIDE WHAT COMES BACK, and this is the part that
+ * matters. Somebody may hold `engine.ncr.view` and not `engine.inspection.view`;
+ * resolving the title anyway would leak the contents of a register they were
+ * refused, through a field on one they were allowed. So a type the reader cannot
+ * open is not read at all — it costs no round trip either — and its targets come
+ * back `{ readable: false }`. The screen shows that a link exists without saying
+ * what is on the other end, which is the truth rather than a blank.
+ *
+ * A DANGLING TARGET IS NOT AN ERROR. The record it named may have been deleted,
+ * and nothing stops that: validating on write would not help, because deletion
+ * happens afterwards. Containment lives in the reader — the same posture
+ * `projectBilling` takes towards a milestone id it does not recognise — so an
+ * id that resolves to nothing comes back `{ found: false }` and the screen says
+ * so instead of rendering a link to a page that is not there.
+ */
+async function resolveReferences(
+  ctx: EngineCallerContext,
+  type: { fields?: unknown },
+  rows: readonly Row[],
+): Promise<Record<string, { reference: string; title: string; found: boolean; readable: boolean }>> {
+  const fields = (Array.isArray(type.fields) ? type.fields : []) as { key?: unknown; kind?: unknown; refType?: unknown }[];
+  const refFields = fields.filter((f) => String(f?.kind) === "reference" && String(f?.refType || ""));
+  if (!refFields.length) return {};
+
+  // Which ids are wanted, grouped by the type they point at. A field whose
+  // every row is blank asks for nothing.
+  const wanted = new Map<string, Set<string>>();
+  for (const f of refFields) {
+    const target = String(f.refType);
+    for (const row of rows) {
+      const id = String((row.values as Record<string, unknown> | undefined)?.[String(f.key)] ?? "").trim();
+      if (!id) continue;
+      if (!wanted.has(target)) wanted.set(target, new Set());
+      wanted.get(target)!.add(id);
+    }
+  }
+  if (!wanted.size) return {};
+
+  const out: Record<string, { reference: string; title: string; found: boolean; readable: boolean }> = {};
+  for (const [targetKey, ids] of wanted) {
+    // ASKED BEFORE READ. A refusal here is not an error — it is the answer.
+    if (requirePermission(ctx.access, `engine.${targetKey}.view`)) {
+      for (const id of ids) out[id] = { reference: "", title: "", found: false, readable: false };
+      continue;
+    }
+    const { scope } = await typeFor(ctx, targetKey);
+    if (!scope) {
+      for (const id of ids) out[id] = { reference: "", title: "", found: false, readable: true };
+      continue;
+    }
+    const targetRows = await Records.find(scope, { where: { typeKey: targetKey } });
+    const byId = new Map(targetRows.map((r) => [String(r.id), r]));
+    for (const id of ids) {
+      const hit = byId.get(id);
+      out[id] = hit
+        ? { reference: String(hit.reference || ""), title: titleOf(hit), found: true, readable: true }
+        : { reference: "", title: "", found: false, readable: true };
+    }
+  }
+  return out;
+}
+
+/**
+ * A ROW IN ONE LINE, for the far end of a link.
+ *
+ * The FIRST text-ish value the row carries, because a record type is a studio's
+ * own declaration and there is no field the engine can insist on being the
+ * title. Falling back to the reference alone would make every link in a register
+ * read "NCR-0007" with nothing to tell them apart.
+ */
+function titleOf(row: Row): string {
+  const values = (row.values || {}) as Record<string, unknown>;
+  for (const v of Object.values(values)) {
+    const text = String(v ?? "").trim();
+    if (text && text.length <= 120) return text;
+  }
+  return "";
+}
+
 export async function listRecords(ctx: EngineCallerContext, typeKey: string) {
   const { scope, type } = await typeFor(ctx, typeKey);
   // NOTFOUND BEFORE FORBIDDEN, deliberately — AND NOT FOR THE REASON THIS ONCE
@@ -213,8 +307,14 @@ export async function listRecords(ctx: EngineCallerContext, typeKey: string) {
       .map((c) => [String(c?.id ?? ""), String(c?.alias ?? "")] as const),
   );
 
+  // AFTER the rows, because it is derived from them, and awaited separately
+  // rather than joined into the Promise.all above: it needs `rows` to know which
+  // ids to ask for at all.
+  const references = await resolveReferences(ctx, type, rows);
+
   return {
     type,
+    references,
     records: [...rows]
       .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")))
       .map((r) => ({

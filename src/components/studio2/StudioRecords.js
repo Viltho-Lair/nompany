@@ -85,14 +85,20 @@ function refusal(tr, token) {
  * form control; a bare input beside one is visibly a different shape, and this
  * screen draws forms it has never seen, so it cannot rely on anybody noticing.
  *
- * `collaborator` and `reference` fall through to a text input in phase 1 and are
- * named as such in the functionality file: the pickers they want are real work
- * and this screen does not fake them.
+ * `collaborator` STILL falls through to a text input and is named as such in the
+ * functionality file: the picker it wants is real work and this screen does not
+ * fake it.
+ *
+ * `reference` NO LONGER DOES. It was declared as a field kind when the engine
+ * shipped, `refType` named the type it points at, `typeProblem` refused a
+ * declaration without one — and nothing ever read any of it, so a link between
+ * two records was a hand-typed id nobody could follow. It is a picker over the
+ * target register now, and the cell renders what it points AT.
  *
  * `Field.onChange` HANDS OVER THE VALUE, not the event — for the input, the
  * textarea and the select alike — so every handler below takes `v`.
  */
-function controlFor(tr, field, value, onChange) {
+function controlFor(tr, field, value, onChange, refOptions) {
   // `key` IS PASSED EXPLICITLY ON EACH ELEMENT, never through this spread.
   // React reads `key` off the JSX call rather than off props, so a spread
   // carrying one is a warning at runtime and nothing at build time.
@@ -139,8 +145,27 @@ function controlFor(tr, field, value, onChange) {
   if (field.kind === "number" || field.kind === "money") {
     return <Field key={field.key} {...common} type="number" value={value ?? ""} onChange={onChange} />;
   }
-  // text, collaborator, reference. The last two are honest text boxes rather
-  // than absent fields — see the note above.
+  if (field.kind === "reference") {
+    // THE TARGET REGISTER, AS A PICKER — and it degrades to a text box rather
+    // than to nothing when the candidates could not be loaded. `refOptions` is
+    // undefined while the fetch is in flight and EMPTY when the reader may not
+    // open the target register at all; in both cases an id typed by hand is
+    // still better than a field that cannot be filled in, and the value already
+    // stored is preserved either way.
+    const options = refOptions?.[field.refType];
+    if (!options) {
+      return <Field key={field.key} {...common} type="text" value={value ?? ""} onChange={onChange} />;
+    }
+    return (
+      <Field key={field.key} {...common} as="select" value={value ?? ""} onChange={onChange}
+        options={[
+          ...(field.required ? [] : [{ value: "", label: "" }]),
+          ...options,
+        ]} />
+    );
+  }
+  // text and collaborator. The second is an honest text box rather than an
+  // absent field — see the note above.
   return <Field key={field.key} {...common} type="text" value={value ?? ""} onChange={onChange} />;
 }
 
@@ -151,11 +176,29 @@ function controlFor(tr, field, value, onChange) {
  * `coerceValue` hands back null for exactly that case, so the dash is the
  * store's own answer rather than this screen's guess.
  */
-function cell(tr, field, value) {
+function cell(tr, field, value, references) {
   if (field.kind === "boolean") return value ? tr.yes : tr.no;
   if (value === null || value === undefined || value === "") return "—";
   if (field.kind === "date") return fmtDate(value);
   if (field.kind === "money") return money(value);
+  if (field.kind === "reference") {
+    // THREE ANSWERS, AND THEY ARE DIFFERENT FACTS.
+    //
+    //   not readable — a link exists and this reader may not open the register
+    //                  at the other end. Saying so beats a blank, which reads
+    //                  as "nothing linked", and beats the title, which would
+    //                  leak a register they were refused.
+    //   not found    — the record it named is gone. Nothing prevents that and
+    //                  nothing should: validating on write cannot stop a later
+    //                  delete. The id is kept on screen so somebody can see
+    //                  WHAT is missing.
+    //   found        — its reference and its first line.
+    const hit = references?.[String(value)];
+    if (!hit) return String(value);
+    if (!hit.readable) return tr.refHidden;
+    if (!hit.found) return `${tr.refMissing} (${String(value)})`;
+    return hit.title ? `${hit.reference} · ${hit.title}` : hit.reference;
+  }
   return String(value);
 }
 
@@ -212,6 +255,17 @@ export default function StudioRecords({ slug, typeKey }) {
   // which is a different problem from this one and wants a paged route, a
   // cursor and a server-side sort. Doing that now would buy nothing and cost
   // the "what you filtered is what you export" property below.
+  // THE CANDIDATES FOR EVERY `reference` FIELD THIS TYPE DECLARES, keyed by the
+  // type they point at. Fetched when the dialog opens rather than with the
+  // register: most people reading a list never open the form, and a register
+  // that pulled two more registers to draw a table nobody is editing would pay
+  // for the picker on every page load.
+  //
+  // `{}` means "asked and got nothing" — the reader may not open that register —
+  // and `undefined` means "not asked yet". `controlFor` tells them apart and
+  // falls back to a text box for both, so a link is never unfillable.
+  const [refOptions, setRefOptions] = useState(undefined);
+
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("");
   const [sort, setSort] = useState({ key: "", dir: "asc" });
@@ -259,6 +313,35 @@ export default function StudioRecords({ slug, typeKey }) {
 
   const reload = useCallback(async () => { apply(await read()); }, [read, apply]);
   useLiveUpdates(slug, `engine-${typeKey}`, reload);
+
+  // ONE FETCH PER TARGET TYPE, when the form opens and not before.
+  //
+  // A refused target contributes an EMPTY list rather than failing the load:
+  // somebody may edit an NCR while holding no right over the inspection
+  // register it names, and the form should still open.
+  const loadRefOptions = useCallback(async (type) => {
+    const targets = [...new Set((type?.fields || [])
+      .filter((f) => f.kind === "reference" && f.refType)
+      .map((f) => f.refType))];
+    if (!targets.length) { setRefOptions({}); return; }
+    const pairs = await Promise.all(targets.map(async (target) => {
+      const res = await fetch(`/api/studios/${slug}/records/${target}`, { cache: "no-store" });
+      if (!res.ok) return [target, null];
+      const body = await res.json().catch(() => null);
+      const rows = body?.records || [];
+      return [target, rows.map((r) => ({
+        value: String(r.id),
+        // The reference plus the row's first line — the same shape the cell
+        // renders, so a picker and the column it fills read alike.
+        label: [r.reference, Object.values(r.values || {}).map((v) => String(v ?? "").trim()).find(Boolean)]
+          .filter(Boolean).join(" · "),
+      }))];
+    }));
+    // A target that answered nothing is dropped, so `controlFor` sees no entry
+    // for it and degrades that one field to a text box while the others stay
+    // pickers.
+    setRefOptions(Object.fromEntries(pairs.filter(([, v]) => v)));
+  }, [slug]);
 
   const send = useCallback(async (method, payload) => {
     setError(""); setBusy(true);
@@ -350,7 +433,7 @@ export default function StudioRecords({ slug, typeKey }) {
         <h2 className={h2}>{type.label}</h2>
         {canCreate && (
           <button type="button" className={btn}
-            onClick={() => setForm({ values: blankValues(type) })}>
+            onClick={() => { loadRefOptions(type); setForm({ values: blankValues(type) }); }}>
             {tr.recordNew}
           </button>
         )}
@@ -423,7 +506,7 @@ export default function StudioRecords({ slug, typeKey }) {
                   <tr key={r.id}>
                     <td className="py-3 pe-4 font-mono text-xs text-slate-500 dark:text-slate-400">{r.reference}</td>
                     {columns.map((f) => (
-                      <td key={f.key} className="py-3 pe-4 text-[var(--geex-ink)]">{cell(tr, f, r.values?.[f.key])}</td>
+                      <td key={f.key} className="py-3 pe-4 text-[var(--geex-ink)]">{cell(tr, f, r.values?.[f.key], data.references)}</td>
                     ))}
                     <td className="py-3 pe-4">
                       {/* THE STATUS WORD IS THE STUDIO'S OWN, so the pill is
@@ -447,7 +530,7 @@ export default function StudioRecords({ slug, typeKey }) {
                           ))}
                           {canEdit && (
                             <button type="button" className={btnRow} disabled={busy}
-                              onClick={() => setForm({ id: r.id, values: { ...blankValues(type), ...(r.values || {}) } })}>
+                              onClick={() => { loadRefOptions(type); setForm({ id: r.id, values: { ...blankValues(type), ...(r.values || {}) } }); }}>
                               {tr.edit}
                             </button>
                           )}
@@ -482,6 +565,7 @@ export default function StudioRecords({ slug, typeKey }) {
             {(type.fields || []).map((f) => controlFor(
               tr, f, form.values[f.key],
               (v) => setForm((prev) => ({ ...prev, values: { ...prev.values, [f.key]: v } })),
+              refOptions,
             ))}
             <div className="flex justify-end gap-2">
               <button type="button" className={btnGhost} onClick={() => setForm(null)}>{tr.cancel}</button>
