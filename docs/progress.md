@@ -760,11 +760,60 @@ whichever quarter is on screen is not a rate.
 **Verified in the sandbox**: four incidents (two lost-time, one medical, one near miss)
 against 300,000 hours rendering LTIFR 6.7, TRIFR 10.0 and 15 days lost.
 
-#### §12 Human Resources 🟡 5 / 10
+#### §12 Human Resources ✅ 10 / 10 (one carries a named gap)
 Employees ✅ · Leave & employee requests 🟡 (vacations exist; the wider request model does
-not) · Recruitment ✅ · Performance ✅ · Training & skills ✅ · **Attendance ⬜ ·
-Manpower planning ⬜ · Payroll runs, allowances, deductions ⬜ · Payslips and bank/WPS
-files ⬜ · Payroll posting to the ledger ⬜**
+not) · Recruitment ✅ · Performance ✅ · Training & skills ✅ · Attendance ✅ (09/09/2026) ·
+Manpower planning ✅ (09/09/2026) · Payroll runs, allowances, deductions ✅ (09/09/2026) ·
+Payslips and bank/WPS files 🟡 (**the bank file is a plain CSV, not a bank's own SIF/WPS
+layout, and a payslip is a table on screen with nothing printable**) · Payroll posting to
+the ledger ✅ (09/09/2026)
+
+**`hr.employees.salary` HAS EXISTED SINCE THE CATALOGUE WAS WRITTEN, LABELLED "See pay and
+salary", AND NOTHING IN THIS PRODUCT STORED A SALARY.** The right reveals identity and
+passport numbers — its own comment says so — so a studio granting somebody "see pay" got
+passport numbers and no pay. Invariant 16 from the inside: a right naming something nothing
+can exercise it against. Catalogue 193 → 200 across payroll and attendance.
+
+**A PAY RECORD IS NOW AND A RUN IS A SNAPSHOT.** The run copies the amounts and freezes
+them, so a rise next month cannot rewrite last month's payslip — the rule the approval
+engine follows by storing the FX rate on the bill it routed. `hr.payroll` is NOT
+`hr.employees.salary`: that one shows one person's record to somebody who may already read
+it, this opens the whole company's wage bill, and it is deliberately unscoped because a
+departmental slice of a run is a partial total nobody can reconcile against the ledger.
+
+**UNPAID LEAVE IS PRO-RATED ON THE BASIC ALONE.** An allowance for a car does not stop
+because somebody took a week unpaid, and doing it on the gross — the common shortcut —
+silently docks the wrong amount. **A net below nought is reported, never clamped**, because
+clamping forgives the difference and leaves the ledger short by exactly what nobody noticed.
+Invariant 7 at the transition: the preparer never approves, whichever rights they hold.
+
+**FINANCE POSTS, HR RECORDS.** `postPayroll` sits beside `postBill`, debiting Salaries for
+the GROSS — posting the net understates the wage bill by exactly the deductions, which makes
+payroll look like it fell in the month somebody took a loan. `2200 Payroll Payable` needs no
+migration: the chart self-seeds missing codes on every read.
+
+**AND THE SEAM WAS WRONG WHERE THE MODEL WAS RIGHT.** `money()` in `ledger.ts` means CENTS →
+money, and the first draft used it as a rounder on totals already in money — dividing the
+wage bill by a hundred into an entry of 35 against 33.02, refused as unbalanced.
+`tests/crud.mjs` caught it on its first run, which is the whole argument for the end-to-end
+case existing beside the pure one.
+
+**ATTENDANCE IS DELIBERATELY NOT AN ENGINE REGISTER**, as this file said before it was
+built: one row per person per day, so forty people write eight hundred rows a month, and the
+engine's shape is wrong for something taken in one sweep. **A day nobody marked is NOT an
+absence** — the sheet was not taken, and treating it as one would dock pay for a
+supervisor's paperwork — and **a day nobody worked cannot carry hours**. Scoped where
+payroll is not, because a supervisor marks their own team every morning.
+
+**MANPOWER IS A DEMAND, NOT AN ASSIGNMENT.** It says a project wants four site engineers and
+deliberately not which four; naming people would make it a roster, and the dispatch board
+already is one for work that exists. Supply is counted from ROLES rather than a second list,
+and short and spare are two fields because one is a hiring decision and the other a
+reassignment.
+
+**WHAT IS HONESTLY LEFT:** payroll takes its unpaid days from the VACATION register, not
+from attendance, so an hourly employee still cannot be paid from recorded hours — the join
+this was all meant to make possible is not made.
 
 Three engine registers, 08/09/2026 — candidates, appraisals and training records. Each
 carries the ending a real one needs: a candidate is Rejected (the company's decision) or
@@ -773,8 +822,9 @@ keeps losing people at the offer stage; an appraisal goes back from Manager revi
 Self-assessment; a training record returns from Expired to Completed, since a safety
 ticket is renewed rather than re-earned. **Hiring a candidate creates no employee** and
 **nothing warns before a ticket lapses** — both named rather than implied away.
-Attendance is deliberately NOT a register: it is a daily high-volume record and wants its
-own model. Payroll is the largest remaining piece and is bespoke.
+(That paragraph closed with "attendance wants its own model" and "payroll is the largest
+remaining piece". Both landed on 09/09/2026. The sentences are replaced rather than deleted,
+because the reasoning in them is why each was built the way it was.)
 The artifact's note here {M} *"a department IS a top-level section"* {M} **is reversed**:
 departments are their own records under Administration as of 06/09/2026.
 
@@ -985,10 +1035,10 @@ gated section.
 
 | | Built | Target | |
 |---|---|---|---|
-| Every subsection built | 11 sections | CRM & Sales, Tendering, Projects, Engineering, Procurement, Inventory, Manufacturing, Field Service, Logistics, Assets, Quality & HSE | |
-| Partial | 4 sections | HR 5/10, Finance 12/18, Reports 3/6, Administration 6/10 | |
+| Every subsection built | 12 sections | CRM & Sales, Tendering, Projects, Engineering, Procurement, Inventory, Manufacturing, Field Service, Logistics, Assets, Quality & HSE, Human Resources | |
+| Partial | 3 sections | Finance 12/18, Reports 3/6, Administration 6/10 | |
 | Renders nothing | 0 sections | `NO_SCREEN_YET` is empty | |
-| **Subsections** | **115 built** | **132 in the target list** | **87%** |
+| **Subsections** | **120 built** | **132 in the target list** | **91%** |
 
 **THE ROW ABOVE SAID 58 / 130 / 45% AND THE THREE ROWS ABOVE IT WERE A SNAPSHOT OF A
 DIFFERENT FORTNIGHT** — four sections rendering nothing, Logistics and HR at one
@@ -996,9 +1046,9 @@ subsection each, Assets and Quality not counted as built at all. Every figure he
 sum of the fifteen §-headings above it, re-added at this commit rather than carried
 forward; when one of those moves, this moves in the same edit or it is wrong again.
 
-**The gap is no longer the empty sections — there are none.** All 17 outstanding
+**The gap is no longer the empty sections — there are none.** All 12 outstanding
 subsections sit inside sections that already render and read as finished, which is the
-harder half to see: Finance is missing six, HR five, Administration four, Reports two.
+harder half to see: Finance is missing six, Administration four, Reports two.
 
 **THE SUMMARY ROW ABOVE FIRST READ 42 / ~110 / 38%, AND ALL THREE WERE WRONG.** 42 is the
 count of declared keys in `SECTION_DEFS`, which is a different unit from the artifact's
