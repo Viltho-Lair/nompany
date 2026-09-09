@@ -10,11 +10,17 @@ Inventory & Warehouse, Manufacturing & Production, Field Operations & Service, L
 Fleet, Assets & Equipment, Quality & HSE, Human Resources, Finance & Accounting, Reports &
 BI, Administration & Settings.
 
-Four of those are declared and **render nothing yet** — Manufacturing, Assets,
-Reports and Quality & HSE. (Tendering was the fifth until its register landed.) They are listed in `NO_SCREEN_YET` (`platform/access/resolve.ts`)
-and are hidden from the sidebar rather than shown empty, and they hold no permission areas:
-a right nothing can exercise is a bug (invariant 16). Adding a screen means removing its
-entry there, and a test refuses any section that has neither a right nor a declaration.
+**ALL FIFTEEN RENDER. `NO_SCREEN_YET` IS EMPTY — measured 09/09/2026** (it is `[] as const`
+in `platform/access/resolve.ts`). This paragraph named four sections that "render nothing
+yet" — Manufacturing, Assets, Reports and Quality & HSE — and every one of them has had a
+screen since 08/09/2026: three got engine registers, Reports got data exports.
+
+**THE LIST STAYS AND SO DOES EVERYTHING THAT READS IT.** It is not a transitional device:
+the next section declared before its screen exists belongs in it, it is hidden from the
+sidebar rather than shown empty, and it holds no permission areas because a right nothing
+can exercise is a bug (invariant 16). `testNoAreaExistsForASectionWithNoScreen` refuses any
+section that has neither a right nor a declaration. An empty list is the correct state, not
+a dead one.
 (**`administration-master` was in that list and is not any more** — Master data has a real
 screen now: Locations, and Departments beside it. Its three siblings left when
 Administration was folded; it left when its screen shipped. This file asserted the opposite
@@ -733,8 +739,10 @@ of `a2044ff`, one commit later, because that commit added a golden; then 365 and
 after that. A number nobody re-measures decays silently, and nothing fails when prose
 disagrees with a test. **Treat every figure in this file as a measurement with a date,
 not as a fact, and re-measure at the commit you are writing rather than the one you were
-reading.** `ALL_PERMISSIONS.length` is 181, measured 08/09/2026; nothing asserts it any
-more, because the assertion that did was in Gate A.
+reading.** `ALL_PERMISSIONS.length` is **201, measured 09/09/2026** — it said 181 the day
+before, and the twenty since came from ordinary areas (Manufacturing planning, HR payroll
+and attendance, the ledger close, and the P4a sections' own). Nothing asserts it any more,
+because the assertion that did was in Gate A, which is exactly why it drifts.
 
 **Wave 2 (seams + performance) is mostly done; Gate B is 2 of 3 AND TWO OF ITS THREE
 CRITERIA NO LONGER HAVE AN INSTRUMENT.** Zero direct `readCol` in service code ✅ — that
@@ -761,8 +769,9 @@ shipped — the same paragraph's own "Media has left Redis" above contradicted i
 
 **Wave 3 (TypeScript) is done server-side** — every `.ts`/`.tsx` under `noImplicitAny`, every
 department in `src/modules/<name>/` with a Zod schema each, and every route file converted
-(**170 today, all `route.ts`, none left in JavaScript**). What remains is `checkJs` over the
-**236** browser `.js` files and the `app/` restructure, deferred into Wave 4. (Both counts
+(**199 today, all `route.ts`, none left in JavaScript** — measured 09/09/2026; this said
+170). What remains is `checkJs` over the
+**265** browser `.js` files and the `app/` restructure, deferred into Wave 4. (Both counts
 are measured — `find src/app/api -name 'route.*'` and `find src/components src/app -name
 '*.js' -o -name '*.jsx'`. They said 99 and 212 for long enough to be quoted as facts;
 `tsconfig.strict.json`'s own comment still says 212, which is the same drift one layer down.) **Wave 4 (UI/UX)** is not started — a proposal in
