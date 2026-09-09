@@ -34,7 +34,7 @@ type PlatformStrings = {
 
 const en: PlatformStrings = {
   title: "The platform",
-  lead: "Fifteen departments on one data model. A quotation becomes a contract, a contract opens a project, a project raises requisitions and bills — and none of it is re-typed, because it is all the same record.",
+  lead: "Fourteen departments on one data model. A quotation becomes a contract, a contract opens a project, a project raises requisitions and bills — and none of it is re-typed, because it is all the same record.",
   departmentsHeading: "The departments",
   departmentsLead: "Every one of these is built and running today. Nothing on this page describes something you cannot open.",
   foundationHeading: "True of all of them",
@@ -84,15 +84,13 @@ const en: PlatformStrings = {
       "NCRs that separate agreeing a corrective action from proving it worked, because the only question an auditor asks is whether the fix held. Audits against the standard they were run to, incidents recorded with days lost left blank rather than zeroed, permits to work that are cancelled and never deleted, and toolbox talks with who attended.",
     reports:
       "The company on one screen — what was invoiced, ordered, quoted and opened this period, each against the same length of time before it. Every figure is drawn from records you can already open, so one you may not see is left out rather than shown as nought. Underneath it, a builder for your own questions and an export of any register you hold the right to read.",
-    administration:
-      "Who is in the studio, what each role may reach, the org chart, locations, and the settings the rest of it reads. Roles are departmental — a Site Engineer is offered to a site department, not to a sales one.",
   },
 };
 
 // HAND-WRITTEN. NO DIACRITICS.
 const ar: PlatformStrings = {
   title: "المنصة",
-  lead: "خمسة عشر قسما على نموذج بيانات واحد. عرض السعر يصبح عقدا، والعقد يفتح مشروعا، والمشروع يصدر طلبات شراء وفواتير — دون إعادة إدخال شيء، لأن الجميع يعمل على السجل نفسه.",
+  lead: "أربعة عشر قسما على نموذج بيانات واحد. عرض السعر يصبح عقدا، والعقد يفتح مشروعا، والمشروع يصدر طلبات شراء وفواتير — دون إعادة إدخال شيء، لأن الجميع يعمل على السجل نفسه.",
   departmentsHeading: "الأقسام",
   departmentsLead: "كل قسم هنا مبني ويعمل اليوم، وكل ما تقرأه في هذه الصفحة يمكنك فتحه.",
   foundationHeading: "صحيح في كل الأقسام",
@@ -142,8 +140,6 @@ const ar: PlatformStrings = {
       "تقارير عدم مطابقة تفصل الاتفاق على الإجراء التصحيحي عن إثبات نجاحه، لأن سؤال المدقق الوحيد هو هل صمد الإصلاح. وتدقيقات منسوبة إلى المعيار الذي أجريت عليه، وحوادث تسجل وأيام الغياب فيها فارغة لا صفرا، وتصاريح عمل تلغى ولا تحذف، ولقاءات سلامة بأسماء من حضرها.",
     reports:
       "الشركة على شاشة واحدة — ما صدر من فواتير وأوامر وعروض ومشاريع في المدة، كل رقم مقارنا بمدة مماثلة قبله. وكل رقم مأخوذ من سجلات تستطيعون فتحها، فما لا ترونه يحذف بدل أن يعرض صفرا. وتحته مصمم أسئلتكم الخاصة، وتصدير أي سجل تملكون صلاحية قراءته.",
-    administration:
-      "من في مساحة العمل، وما الذي يصله كل دور، والهيكل التنظيمي والمواقع والإعدادات التي تقرأها بقية الأقسام. والأدوار تتبع الأقسام — مهندس الموقع يعرض على قسم تنفيذ لا على قسم مبيعات.",
   },
 };
 

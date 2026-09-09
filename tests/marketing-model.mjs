@@ -43,12 +43,23 @@ const DIACRITICS = /[ً-ْٰ]/;
 
 console.log("\n== the departments a visitor is told exist");
 
-// FIFTEEN SINCE 08/09/2026, when Reports & BI left NO_SCREEN_YET — the list is
-// DERIVED from SECTION_DEFS minus that list, so the count moved on its own and
-// the hand-written copy did not. That is exactly the drift the pair below
-// catches; it said fourteen while fifteen rendered.
-ok("fifteen of them", D.LIVE_DEPARTMENT_KEYS.length === 15,
+// FOURTEEN SINCE 09/09/2026, and the number has moved twice in two days for two
+// DIFFERENT reasons — which is the argument for deriving it rather than typing
+// it. It went to fifteen when Reports & BI left NO_SCREEN_YET (a screen
+// shipped), and to fourteen when Administration & Settings joined
+// NOT_A_DEPARTMENT (it is how a studio is administered, not work anybody does
+// in it — the same call that took it out of the product's own sidebar).
+//
+// The list is DERIVED both times; the hand-written copy is not, which is what
+// the assertions below exist to catch. On the first move the copy said
+// fourteen while fifteen rendered.
+ok("fourteen of them", D.LIVE_DEPARTMENT_KEYS.length === 14,
   String(D.LIVE_DEPARTMENT_KEYS.length));
+
+// AND ADMINISTRATION IS NOT ONE, asserted by name rather than left to the count
+// — a count alone would go green again the day some other section is added.
+ok("...and Administration & Settings is not among them",
+  !D.LIVE_DEPARTMENT_KEYS.includes("administration"));
 
 // THE DEFECT THIS GUARDS, four names at a time. Each of these renders nothing
 // and is hidden from the product's own sidebar; naming one on a marketing page
@@ -75,13 +86,13 @@ console.log("\n== and they are named in both languages");
 // theirs to anyone skimming the file.
 const depsEn = D.liveDepartments("en");
 const depsAr = D.liveDepartments("ar");
-ok("both locales return the same fifteen, in the same order",
-  depsEn.map((d) => d.key).join(",") === depsAr.map((d) => d.key).join(",") && depsEn.length === 15);
+ok("both locales return the same fourteen, in the same order",
+  depsEn.map((d) => d.key).join(",") === depsAr.map((d) => d.key).join(",") && depsEn.length === D.LIVE_DEPARTMENT_KEYS.length);
 ok("every English name is non-empty", depsEn.every((d) => d.name.trim().length > 0));
 ok("every Arabic name is non-empty", depsAr.every((d) => d.name.trim().length > 0));
 // AND THEY ARE ACTUALLY TRANSLATED. `sectionName` falls back to the stored
 // English name for a key it has no entry for, so an Arabic list identical to the
-// English one is the fallback firing eleven times rather than a translation.
+// English one is the fallback firing once per department rather than a translation.
 ok("...and the Arabic is not the English",
   depsAr.filter((d, i) => d.name === depsEn[i].name).length === 0);
 

@@ -22,7 +22,15 @@ import { sectionName } from "@/shared/studio/sections";
 // CHILDREN ARE NOT DEPARTMENTS EITHER. A visitor is told the product has CRM &
 // Sales; Pipeline, Tickets and Quotations are what is inside it, and belong to
 // /platform/<section> when those pages are written.
-const NOT_A_DEPARTMENT = new Set<string>(["main", "tasks"]);
+// ADMINISTRATION & SETTINGS JOINED THE OTHER TWO. Main is the home surface and
+// Tasks is a cross-cutting control; Administration is how a studio is
+// ADMINISTERED — People, Access, Master data and Studio settings — rather than
+// work anybody does in it. The marketing site was listing it as one of the
+// departments a customer gets, on a marquee whose whole promise is "every one
+// of these is built and running today", and it is the one entry there that
+// nobody buys the product for. The studio's own sidebar stopped treating it as
+// a department in the same week.
+const NOT_A_DEPARTMENT = new Set<string>(["main", "tasks", "administration"]);
 
 export const LIVE_DEPARTMENT_KEYS: readonly string[] = SECTION_DEFS
   .map((d) => d.key)

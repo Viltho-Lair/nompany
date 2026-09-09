@@ -66,8 +66,8 @@ export const CLAIMS = {
   // hand-written and does not: it is checked against the real count by
   // tests/marketing-model.mjs, which is what makes a stale word a red test.
   "live-departments": {
-    en: "Fifteen departments on one data model",
-    ar: "خمسة عشر قسما على نموذج بيانات واحد",
+    en: "Fourteen departments on one data model",
+    ar: "أربعة عشر قسما على نموذج بيانات واحد",
     source: { module: "@/shared/marketing/departments", export: "LIVE_DEPARTMENT_KEYS" },
     stated: { how: "rendered", by: "DepartmentMarquee" },
   },

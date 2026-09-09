@@ -43,12 +43,12 @@ export const PAGES: Record<string, Record<string, PageCopy> | undefined> = {
   },
   "/platform": {
     en: {
-      title: "The platform — eleven departments on one data model",
+      title: "The platform — fourteen departments on one data model",
       description:
         "Sales, tendering, projects, engineering, procurement, inventory, field operations, logistics, people and finance, sharing one data model. Arabic and English, with every record permissioned to the row.",
     },
     ar: {
-      title: "المنصة — أحد عشر قسما على نموذج بيانات واحد",
+      title: "المنصة — أربعة عشر قسما على نموذج بيانات واحد",
       description:
         "المبيعات والمناقصات والمشاريع والهندسة والمشتريات والمخزون والعمليات الميدانية والخدمات اللوجستية والموارد البشرية والمالية على نموذج بيانات واحد. بالعربية والإنجليزية، وكل سجل محكوم بالصلاحيات حتى مستوى الصف.",
     },
@@ -57,12 +57,12 @@ export const PAGES: Record<string, Record<string, PageCopy> | undefined> = {
     en: {
       title: "Pricing — free for teams of one to nine",
       description:
-        "One price per employee per month, VAT included, in SAR. Free for teams of one to nine; paid plans from ten people up. Every plan carries the whole product.",
+        "One price per employee per month, VAT included. Free for teams of one to nine; paid plans from ten people up. Every plan carries the whole product.",
     },
     ar: {
       title: "الأسعار — مجاني للفرق من واحد إلى تسعة",
       description:
-        "سعر واحد لكل موظف شهريا، شامل ضريبة القيمة المضافة، بالريال السعودي. مجاني للفرق من واحد إلى تسعة، وخطط مدفوعة من عشرة أفراد فأكثر. كل خطة تحمل المنتج كاملا.",
+        "سعر واحد لكل موظف شهريا، شامل ضريبة القيمة المضافة. مجاني للفرق من واحد إلى تسعة، وخطط مدفوعة من عشرة أفراد فأكثر. كل خطة تحمل المنتج كاملا.",
     },
   },
   "/security": {
@@ -159,40 +159,22 @@ export const PAGES: Record<string, Record<string, PageCopy> | undefined> = {
   },
 };
 
-const KEYWORDS: Record<string, string[]> = {
-  en: [
-    "modular ERP",
-    "ERP software",
-    "company management platform",
-    "business applications suite",
-    "business operations software",
-    "corporate management software",
-    "business statistics and analytics",
-    "à la carte ERP modules",
-    "sales CRM",
-    "project management software",
-    "inventory management",
-    "HR software",
-    "finance module",
-    "bilingual ERP Arabic English",
-  ],
-  ar: [
-    "نظام تخطيط موارد مرن",
-    "برنامج تخطيط موارد المؤسسات",
-    "منصة إدارة الشركات",
-    "تطبيقات الأعمال",
-    "برنامج إدارة العمليات",
-    "برنامج إدارة الشركات والمؤسسات",
-    "إحصائيات وتحليلات الأعمال",
-    "وحدات ERP حسب الطلب",
-    "إدارة المبيعات والعملاء",
-    "برنامج إدارة المشاريع",
-    "إدارة المخزون",
-    "برنامج الموارد البشرية",
-    "الوحدة المالية",
-    "نظام ثنائي اللغة عربي إنجليزي",
-  ],
-};
+// THE `keywords` META IS GONE, AND SO IS THE LIST THAT FED IT.
+//
+// SEO-PLAN §9 and CLAUDE.md both say it plainly — "No `keywords` meta tag; it
+// does nothing" — and it was being emitted on all twenty public pages anyway.
+// Google has ignored it since 2009 and says so publicly; the only thing it
+// reliably does is publish your keyword strategy to competitors.
+//
+// AND ITS CONTENTS WERE WORSE THAN USELESS. The list advertised "à la carte ERP
+// modules", which the rebuild's approved judgement call 1 says never appears on
+// the marketing site: the in-app per-department checkout and the public
+// headcount plans are two different pricing models, and naming the wrong one in
+// the <head> of every page is exactly the confusion that call exists to
+// prevent. It also claimed "business statistics and analytics" while the
+// statistics block still shows product facts because no figure has cleared its
+// threshold yet.
+
 
 // Absolute URL for a locale + route path.
 export function urlFor(locale: string, path = "") {
@@ -217,7 +199,6 @@ export function buildMetadata({ locale, path = "" }: { locale: string; path?: st
   return {
     title,
     description,
-    keywords: KEYWORDS[locale] || KEYWORDS.en,
     alternates: {
       canonical,
       languages: alternatesFor(path),
