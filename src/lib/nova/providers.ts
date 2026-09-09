@@ -4,6 +4,26 @@
 // from it; the server-side adapters that actually call each provider live in
 // platform/nova/providers.
 
+/* A DEFAULT MODEL ID GOES STALE, AND ONE DID — measured 09/09/2026.
+   ------------------------------------------------------------------
+   `gemini-2.0-flash` was retired by Google and every call returned
+   "404 … This model is no longer available. Please update your code to use
+   models/gemini-3.6-flash". Nothing in this repository could have caught that:
+   a model id is a string we hand to somebody else's API, and the only thing
+   that knows it is dead is the API.
+
+   The file already argued that a hard-coded model DROPDOWN goes stale (see
+   `defaultModel` below) — and then hard-coded the default, which is the same
+   claim one layer down. It is still the right shape: the model is a FIELD, so a
+   studio can type whatever their key serves without waiting for a deploy. What
+   this costs is that a stale default sends the first-time user straight into a
+   404, so the value below is a measurement with a date, not a fact.
+
+   AND CHANGING IT DOES NOT REPAIR A SAVED ONE. `getNovaConfig` reads
+   `stored.model || defaultModel`, so anybody who has already saved a model keeps
+   it — deliberately, because guessing a replacement is choosing what the
+   platform runs on. The console prints the provider's own error, which names the
+   model to use. */
 export type ProviderMeta = {
   id: string;
   label: string;        // what the account screen shows
@@ -15,7 +35,7 @@ export type ProviderMeta = {
 export const NOVA_PROVIDERS: ProviderMeta[] = [
   { id: "anthropic", label: "Claude (Anthropic)", keyHint: "sk-ant-…", docs: "console.anthropic.com → API Keys", defaultModel: "claude-sonnet-5" },
   { id: "openai", label: "ChatGPT (OpenAI)", keyHint: "sk-…", docs: "platform.openai.com → API keys", defaultModel: "gpt-4o" },
-  { id: "google", label: "Gemini (Google)", keyHint: "AIza…", docs: "aistudio.google.com → Get API key", defaultModel: "gemini-2.0-flash" },
+  { id: "google", label: "Gemini (Google)", keyHint: "AIza…", docs: "aistudio.google.com → Get API key", defaultModel: "gemini-3.6-flash" },
 ];
 
 export const PROVIDER_IDS: ReadonlySet<string> = new Set(NOVA_PROVIDERS.map((p) => p.id));
