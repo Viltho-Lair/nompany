@@ -51,7 +51,6 @@ export const NAV = [
       { label: "Packages", icon: "package", href: `${BASE}/application/packages` },
       { label: "Tiers", icon: "layers", href: `${BASE}/application/tiers` },
       { label: "Nova", icon: "star", href: `${BASE}/application/nova` },
-      { label: "Daily greeting", icon: "chat", href: `${BASE}/application/greeting` },
       // A studio's Google Calendar connection — the OAuth grant, and the board
       // of what it returns.
       { label: "Calendar", icon: "calendar", href: `${BASE}/application/calendar` },

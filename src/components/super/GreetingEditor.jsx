@@ -7,7 +7,7 @@ import { bandCss, defaultTheme, newMessage, BRAND_STOPS, MAX_MESSAGES, MAX_STOPS
 /* THE STUDIO BAND, edited platform-wide.
    ------------------------------------------------------------------
    TWO KINDS OF MESSAGE AND THE SCREEN SAYS WHICH. An AUTOMATED message is
-   written by the model each day against the key set in Application → Nova; a
+   written by the model each day against the platform AI key set above it; a
    WRITTEN one is these words until somebody changes them. The difference is not
    cosmetic — one of them will say something tomorrow that nobody has read yet —
    so an automated row shows what was generated TODAY rather than an empty box
@@ -123,7 +123,7 @@ function MessageCard({ message, resolved, index, canRemove, onChange, onRemove }
 
         <div className="flex flex-wrap gap-4">
           {[
-            { id: "ai", title: "Automated", hint: "The AI writes it fresh each day, using the key in Application → Nova." },
+            { id: "ai", title: "Automated", hint: "The AI writes it fresh each day, on the key set above." },
             { id: "manual", title: "Written by you", hint: "Exactly these words, every day, until you change them." },
           ].map((s) => (
             <label key={s.id} className="flex max-w-xs cursor-pointer items-start gap-2.5">
@@ -278,37 +278,32 @@ export default function GreetingEditor() {
 
   return (
     <>
+      {/* WHAT AN AUTOMATED MESSAGE RUNS ON, said beside the messages themselves.
+          The key's own form is directly above this on the Broadcast pane; this
+          line is about what happens WITHOUT one, which a credential card has no
+          business explaining. No automated message, no card — an empty panel
+          reads as something that failed to load. */}
+      {automated && (
       <Card className="mb-6">
         <CardBody>
-          <p className="text-sm text-[var(--ad-muted-foreground)]">
-            One band across the top of every studio — every screen, not one page. Several
-            messages share it: it shows one at a time and moves on every five seconds, with a
-            dot each. A reader can close the band and it stays closed for that day only.
-            There is no schedule behind any of this — the date decides what is current, so it
-            turns over on its own and there is nothing that can fail to run.
-          </p>
-
-          {/* WHERE THE KEY IS, SAID ON THIS SCREEN. It is set on the Nova tab, and
-              a person looking for it on the Greeting tab and finding nothing
-              concludes there is nowhere to set one. That happened. */}
-          {automated && (
-            <p className="mt-3 text-sm">
+          {(
+            <p className="text-sm">
               {ai?.keySet ? (
                 <>
-                  Automated messages run on the platform AI key — <strong>{ai.provider}</strong>,{" "}
-                  <strong>{ai.model}</strong>. Change it in Application → Nova.
+                  Automated messages are written by <strong>{ai.provider}</strong>,{" "}
+                  <strong>{ai.model}</strong> — once a day, for every studio at once.
                 </>
               ) : (
                 <>
                   <strong>No AI key is set</strong>, so automated messages fall back to a built-in
-                  rotation of seven greetings. Set one in Application → Nova and they start writing
-                  themselves.
+                  rotation of seven greetings. Add one above and they start writing themselves.
                 </>
               )}
             </p>
           )}
         </CardBody>
       </Card>
+      )}
 
       {error && <p className="mb-4 text-sm text-[var(--ad-destructive)]">{error}</p>}
 

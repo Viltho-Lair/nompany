@@ -27,6 +27,7 @@ Three rules that keep this folder worth reading:
 | [bid-documents.md](bid-documents.md) | The tender pack and the clarification log: why a reissued document does not overwrite the one before it, and what tells an estimator something arrived after they priced |
 | [bid-review.md](bid-review.md) | Who signs a bid and above what value: why pricing the work and committing the company to it are different rights, and why a part-priced bill cannot be signed |
 | [billing-milestones.md](billing-milestones.md) | What a project may bill and when: absolute amounts rather than percentages, why there is no Invoiced status, and retention |
+| [broadcast.md](broadcast.md) | The band across the top of every studio: automated messages the AI writes daily against the platform key, written ones you type, why several share one box, and why a colour is a hex literal |
 | [boq.md](boq.md) | The bill of quantities and the rate library: what makes a total the bid, and why a rate is copied rather than referenced |
 | [calendar.md](calendar.md) | Connected calendars: the OAuth flow for both providers, the token lifecycle, the account panel and the console's one calendar |
 | [closure.md](closure.md) | Closing out: the punch list, practical completion, and the support clock |

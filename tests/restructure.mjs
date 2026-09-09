@@ -412,7 +412,13 @@ export async function testNoNativeSelectSurvivesInSource(t) {
       .replace(/\/\*[\s\S]*?\*\//g, "")
       .replace(/(^|[^:])\/\/.*$/gm, "$1");
     stripped.split("\n").forEach((text, i) => {
-      if (/<select[\s>/]/.test(text)) bad.push(`${file}:${i + 1}: ${text.trim()}`);
+      // OR THE END OF THE LINE, and that alternative is not cosmetic: without it
+      // a `<select` whose attributes start on the NEXT line is invisible, which
+      // is the ordinary way a multi-attribute tag is written. The console's
+      // provider picker sat native and unreported behind exactly that hole from
+      // the day this assertion was written until 09/09/2026, when moving the
+      // credential form into its own component surfaced it.
+      if (/<select([\s>/]|$)/.test(text)) bad.push(`${file}:${i + 1}: ${text.trim()}`);
     });
   }
   t.equal(bad.join("\n"), "", `no source file renders a native <select> — use SelectMenu\n${bad.join("\n")}`);

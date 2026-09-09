@@ -1,4 +1,4 @@
-# The daily band
+# Broadcast
 
 One strip across the top of every studio, on every screen. It carries a short greeting and a
 quotation, it changes at midnight server time, and a reader can close it for the rest of the
@@ -9,6 +9,17 @@ It is platform-wide. Every studio reads the same words on the same day — this 
 from the product, not a per-tenant setting — so nothing here touches `collection_rows` and
 the answer is identical for every caller.
 
+**It is edited on the Pulse wall**, not in the console menu: `/super/pulse`, second item in
+the bottom bar, which slides the wall aside. Pulse is what the platform is doing and
+Broadcast is what it is saying, and the wall is the one console screen anybody leaves open.
+It was `/super/application/greeting`, one row down a menu of eleven; that route is gone.
+
+**THE CODE STILL SAYS "GREETING" EVERYWHERE, and that is deliberate.** The storage keys
+(`g:greetingConfig`, `g:greetingToday`), the API paths and the component names were not
+renamed with the label. Renaming a stored key strands every studio's configuration behind a
+name nothing reads any more, for no gain a person can see — the feature is called Broadcast
+where anybody reads it and `greeting` where only the code does.
+
 ## Where it lives
 
 | File | Holds |
@@ -17,8 +28,11 @@ the answer is identical for every caller.
 | `src/lib/data/greeting.ts` | The stored half: the config, the day's generations, the model call |
 | `src/app/api/studios/[slug]/greeting/route.ts` | What a studio reads (GET, studio auth) |
 | `src/app/api/super/greeting/route.ts` | The console: GET, PUT to save, POST to regenerate today |
+| `src/app/super/(full)/pulse/BroadcastPane.jsx` | The pane: the AI key, then the messages |
+| `src/app/super/(full)/pulse/PulseWall.jsx` | The two-pane slide and the bottom bar that drives it |
+| `src/components/super/NovaCredentials.jsx` | The AI key form — shared with the Nova switchboard, not copied |
 | `src/components/studio2/DailyGreeting.jsx` | The band — rotation, dots, dismissal |
-| `src/components/super/GreetingEditor.jsx` | /super → Application → Greeting |
+| `src/components/super/GreetingEditor.jsx` | The message list, its colours and the preview |
 | `.greeting-band` in `src/app/globals.css` | The two gradient layers and the shadow |
 
 Two keys: `g:greetingConfig` is what a person typed, `g:greetingToday` is what the model
@@ -30,9 +44,10 @@ over on its own — writing them together would make every generation race every
 A message is one or the other, and the console says which every time it draws one.
 
 **Automated** is written by the model, once per server day, for the whole platform. It runs on
-the AI key set in **/super → Application → Nova** — the same credential Nova's chat uses, not
-a second one. The first reader of the day pays for the generation and everybody after them
-reads it back.
+the AI key at the top of the Broadcast pane — **the same stored credential Nova's chat uses**,
+and the same form, drawn from one component in both places. Setting it here switches Nova on
+too, which the card says out loud. The first reader of the day pays for the generation and
+everybody after them reads it back.
 
 **Written** is the words in the boxes, every day, until somebody changes them.
 
@@ -121,8 +136,10 @@ the surprise.
   message and no field to hold a second.
 - **No history.** Yesterday's generated words are overwritten, so there is no record of what a
   studio was shown last week.
-- **No separate key.** Automated messages share Nova's credential. Setting a key to make the
-  greeting write itself also makes Nova's chat live, and there is no way to have one without
+- **No separate key.** Automated messages share Nova's credential. Setting a key to make
+  Broadcast write itself also makes Nova's chat live, and there is no way to have one without
   the other.
+- **The slide does not mirror.** `/super` is the internal console and is not localised, so the
+  pane transform is a plain `translateX(-50%)` rather than a logical one.
 - **Order is the list's order**, and there is no way to reorder except by removing and
   re-adding a message.
