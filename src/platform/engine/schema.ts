@@ -31,6 +31,24 @@ export const RecordTypeSchema = z.object({
   statuses: z.array(z.string().max(60)),
   transitions: z.array(z.object({ from: z.string().max(60), to: z.string().max(60) })),
   /**
+   * WHAT THIS REGISTER DOES BY ITSELF — see ./rules.
+   *
+   * OPTIONAL, because every type stored before rules existed has none and a
+   * required field would make each of them fail to parse. `ruleProblem` is the
+   * validation; this is only the shape.
+   */
+  rules: z.array(z.object({
+    when: z.object({ status: z.string().max(60) }),
+    then: z.object({
+      create: z.object({
+        typeKey: z.string().max(60),
+        link: z.string().max(60).optional(),
+        set: z.record(z.string(), z.unknown()).optional(),
+        carry: z.record(z.string(), z.string().max(60)).optional(),
+      }),
+    }),
+  })).optional(),
+  /**
    * `builtin` is seeded and may not be edited by a studio; `studio` is the
    * tenant's own. Phase 1 ships built-ins only.
    */

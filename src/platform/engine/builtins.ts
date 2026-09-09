@@ -824,6 +824,34 @@ export const BUILTIN_TYPES = [
       { from: "Witnessed", to: "Rejected" },
       { from: "Rejected", to: "Open" },
     ],
+    rules: [
+      {
+        // A REJECTED TEST RAISES A NONCONFORMANCE, which is the blueprint's own
+        // words for this register: "pass/fail and auto-created NCRs on failure".
+        // Before this, the person who failed the test was also the person who
+        // had to remember to go and raise the NCR — and the NCR, once raised,
+        // had no way to say which test it came from.
+        when: { status: "Rejected" },
+        then: {
+          create: {
+            typeKey: "ncr",
+            // The link is the point: the NCR names the test that produced it.
+            link: "foundBy",
+            // BOTH REQUIRED FIELDS ARE SET, because a carry alone is not enough
+            // — `findings` may be blank on the row that triggers this, and a
+            // required field left empty would make the create refuse at exactly
+            // the moment nobody is watching. `ruleProblem` refuses a rule that
+            // cannot fill them.
+            set: {
+              title: "Nonconformance from a rejected test",
+              description: "Raised automatically when the test report was rejected.",
+            },
+            // What the inspector actually wrote, where it exists.
+            carry: { findings: "description" },
+          },
+        },
+      },
+    ],
     version: 1,
   },
   {
@@ -963,6 +991,11 @@ export async function seedBuiltinTypes(studioId: string): Promise<void> {
       columns: [...decl.columns],
       statuses: [...decl.statuses],
       transitions: decl.transitions.map((t) => ({ ...t })),
+      // COPIED LIKE EVERY OTHER ARRAY, and absent when the declaration has none
+      // rather than stored as an empty list: a type with `rules: []` and a type
+      // that predates rules should read back the same, or the difference is a
+      // distinction the product has to explain.
+      ...("rules" in decl ? { rules: (decl as { rules: readonly object[] }).rules.map((r) => ({ ...r })) } : {}),
       sectionKey: engineSectionKey(decl.key),
       origin: "builtin",
       createdAt: at,

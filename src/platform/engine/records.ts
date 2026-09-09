@@ -12,6 +12,7 @@ import { repo } from "@/platform/db/repo";
 import { nextReference } from "@/modules/main/references";
 import { listCollaborators } from "@/platform/auth/collaborators";
 import { transitionProblem, coerceRecord, mergeRecord, recordProblem } from "./types";
+import { rulesFiredBy, newRecordValues, alreadyRaised } from "./rules";
 import type { RecordType, EngineRecord } from "./schema";
 import type { Row } from "@/platform/db/store";
 import type { PermissionSet } from "@/platform/access";
@@ -432,6 +433,86 @@ export async function editRecord(
  * shape that let a rejected change order approve itself was an answer routed
  * through a generic write.
  */
+/**
+ * THE CONSEQUENCES OF A MOVE, RUN AFTER IT LANDS.
+ *
+ * ------------------------------------------------------------------------
+ * WHOSE AUTHORITY A RULE RUNS WITH, which is the only hard question here
+ * ------------------------------------------------------------------------
+ * The inspector who rejects a test holds `engine.testreport.edit`. They almost
+ * certainly do NOT hold `engine.ncr.create` — raising a nonconformance is a
+ * quality manager's act. If the rule needed the actor's right it would never
+ * fire for the people who actually trigger it, which is the whole feature.
+ *
+ * So a rule runs with the STUDIO's authority, not the actor's, and the
+ * justification is that the rule is the studio's act: somebody holding
+ * `administration.settings.edit` declared that a rejected test raises an NCR,
+ * and the actor merely supplied the trigger. It is the same shape as the
+ * notification a write sends or the aggregate it bumps — a consequence the
+ * writer did not individually authorise and did not individually choose.
+ *
+ * THE ESCALATION IS CLOSED AT THE OTHER DOOR. Declaring a rule that creates in a
+ * register must require the right to create there — invariant 5's shape, asked
+ * of the person writing the rule rather than of everyone who later trips it.
+ * There is no such door yet: `Types.create` has exactly one caller,
+ * `seedBuiltinTypes`, so every rule in the product today is one this repository
+ * declared. When the type editor lands, `ruleProblem` is where its refusal goes
+ * and this comment is the reason it must.
+ *
+ * A FAILED CONSEQUENCE DOES NOT UNDO THE MOVE. The test really was rejected;
+ * refusing the move because the NCR could not be made would lose the fact that
+ * matters to keep the one derived from it. So this returns what it did and what
+ * it could not do, and the caller reports both.
+ */
+async function runRulesForMove(
+  ctx: EngineCallerContext,
+  type: RecordType,
+  source: Row,
+  from: string,
+  to: string,
+): Promise<{ raised: { typeKey: string; reference: string }[] }> {
+  const fired = rulesFiredBy(type as unknown as { rules?: unknown }, from, to);
+  const raised: { typeKey: string; reference: string }[] = [];
+
+  for (const rule of fired) {
+    const targetKey = String(rule?.then?.create?.typeKey ?? "");
+    const { scope: targetScope, type: targetType } = await typeFor(ctx, targetKey);
+    // A TARGET THE STUDIO DOES NOT HOLD IS NOT AN ERROR HERE. A studio may have
+    // the inspection register and not the NCR register — `seedBuiltinTypes`
+    // seeds what is missing and a studio can be short of either — and a rule
+    // that cannot fire is quieter than a move that refuses.
+    if (!targetType || !targetScope) continue;
+
+    const existing = await Records.find(targetScope, { where: { typeKey: targetKey } });
+    if (alreadyRaised(rule, String(source.id), existing)) continue;
+
+    const values = coerceRecord(targetType, newRecordValues(rule, source));
+    // ASKED BEFORE WRITTEN, the same order `createRecord` uses: `nextReference`
+    // only moves forward (invariant 10), so a create that fails validation after
+    // taking a number burns one.
+    if (recordProblem(targetType, values)) continue;
+
+    const at = now();
+    const made = await Records.create(targetScope, {
+      reference: await nextReference(ctx.studio.id, {
+        rows: existing, field: "reference", prefix: prefixOf(targetKey),
+      }),
+      typeKey: targetKey,
+      typeVersion: targetType.version,
+      status: (targetType.statuses || [])[0] || "",
+      values,
+      // THE PERSON WHO TRIPPED IT, not a system id. They caused it, the record
+      // is about their work, and an audit trail naming "the system" answers
+      // nobody's question about who to ask.
+      createdByCollaboratorId: ctx.collaborator.id,
+      createdAt: at,
+      updatedAt: at,
+    });
+    raised.push({ typeKey: targetKey, reference: String(made.reference || "") });
+  }
+  return { raised };
+}
+
 export async function moveRecord(
   ctx: EngineCallerContext, typeKey: string, id: string, to: string,
 ) {
@@ -451,11 +532,18 @@ export async function moveRecord(
   // Read once, outside the patch — see the note in editRecord above.
   const at = now();
 
-  return {
-    record: await Records.update(scope, id, (row) => ({
-      ...row, status: str(to, 60), updatedAt: at,
-    })),
-  };
+  const record = await Records.update(scope, id, (row) => ({
+    ...row, status: str(to, 60), updatedAt: at,
+  }));
+
+  // AFTER THE MOVE, NEVER INSIDE THE PATCH. `Records.update` takes a FUNCTION
+  // and may run it more than once — once per contended round (invariant 8) —
+  // so a rule fired from inside would raise one NCR per attempt.
+  const { raised } = await runRulesForMove(
+    ctx, type, (record || existing) as Row, String(existing.status || ""), str(to, 60),
+  );
+
+  return { record, raised };
 }
 
 export async function removeRecord(ctx: EngineCallerContext, typeKey: string, id: string) {
