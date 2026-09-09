@@ -1550,6 +1550,87 @@ registers are engine sections planted at runtime and `sectionViewable` finds chi
 key prefix without that map. Contracts, tendering and procurement each shipped a section
 their own Manager could not open; that is what the count is for.
 
+**A STUDIO IS SET UP FOR ITS TRADE NOW, AND THE TRADE IS ASKED FOR AT CREATION.**
+`createStudio` takes `fieldOfWork`, which decides its service actions, its org
+chart and — new — **which of the fourteen sections it starts with**.
+`shared/tradeSections.ts` is the map: each of the twenty service actions resolves
+to ONE primary section, unioned with the five every company needs and with the
+sections the trade's own flow template touches. 8–14 sections on, mean 11.8; a
+contractor still gets all fourteen, a consultancy gets nine.
+
+**READ THE SHEET NAIVELY AND THE ANSWER IS WRONG IN BOTH DIRECTIONS.** The
+blueprint's Section × Action coverage answers "which section CAN handle this
+action", and several actions are covered by two or three — so a section-is-on-if-
+any-action-matches join switched **Sales off for contractors and manufacturers**
+(CRM covers one action there) and gave a bank Manufacturing & Production
+(Testing & Inspection is covered by three). Measured before the correction:
+thirteen of fourteen on for almost every trade, which is the same as no gating.
+The owner corrected two assignments — Training is HR's, Consulting & Advisory is
+Projects'.
+
+**EVERY SECTION ROW IS STILL WRITTEN; ONLY `enabled` CHANGES.** Not planting is
+the destructive version — a sub-section falls back to its ROOT when absent, so
+rows written before it exists become invisible. `enabled` was already stored,
+already read by `visibleSections`, and already had a toggle screen; nothing had
+ever set it to false. **Existing studios are untouched** and there is no
+migration: the gate runs in `createStudio` alone, deliberately, because a section
+vanishing from a live sidebar is a support ticket rather than a gift.
+
+**THE TWO INDUSTRY LISTS WERE JOINED BY NOTHING, and that is the quieter half of
+this.** `INDUSTRIES` (platform/engagement) keys by slug and answers which flow
+template a deal starts on; `FIELD_ACTION_MATRIX` (shared/fieldsOfWork) keys by
+DISPLAY NAME and is what a studio actually stores in `fieldOfWork`. Same
+twenty-five trades, four spelled differently between them — "Energy & Utilities"
+against "Energy & Utilities (Electricity, Gas)" — so a studio's own trade could
+not be resolved to its own flow at all, `industryKeyOf` answered `""`, and every
+deal fell back to Template A without anything failing. `IndustryEntry.field` is
+the join, and `testTheTwoIndustryListsAreOneList` holds it 1:1 in both directions.
+
+**THE RECORD ENGINE DOES TWO THINGS IT COULD NOT DO BEFORE.**
+
+**A record can name another record.** `reference` has been a declared field kind
+with a `refType` since the engine shipped and **nothing ever read it** — the
+server returned the stored string and the register drew it in a text box, so a
+link was a hand-typed id nobody could follow. Resolved server-side now, one read
+per referenced type, and **gated on the reader's own right over the TARGET**: a
+person holding `engine.ncr.view` and not `engine.inspection.view` is told a link
+exists without being told what is on the other end, because resolving the title
+would leak a register they were refused. Three answers and they are three facts —
+found, deleted, not yours to open; a blank would read as "nothing linked" for all
+three. Four registers name what they are about: an NCR names the test that
+failed, maintenance and calibration name the machine, a batch names its work
+order.
+
+**And a register acts by itself.** `platform/engine/rules.ts` — a trigger
+(`when.status`, on ARRIVAL, never on presence) and an action (`then.create`).
+A rejected test raises the nonconformance, carrying the inspector's own findings
+and linked back to the test. **Every one of its fifteen refusals exists because
+the rule would otherwise fail SILENTLY**: a trigger status the type has not got
+never fires, a link that is not a `reference` stores an id nothing resolves, and
+a target whose required fields the rule cannot fill is refused by `recordProblem`
+at the moment the trigger happens. `"Reject"` for `"Rejected"` is the commonest
+of these and looks exactly like a register nobody has tripped yet.
+
+**A RULE RUNS WITH THE STUDIO'S AUTHORITY, NOT THE ACTOR'S**, and the reason is
+that it has to: the inspector who rejects a test holds `engine.testreport.edit`
+and not `engine.ncr.create`, so requiring the actor's right would mean the rule
+never fires for the people who trigger it. The escalation closes at the other
+door — declaring a rule must require the right to create where it creates,
+invariant 5's shape asked of the author — and **there is no such door yet**,
+because `Types.create` has exactly one caller. `ruleProblem` is where that
+refusal goes when the type editor lands.
+
+**A CHANGED DECLARATION NOW REACHES A STUDIO THAT ALREADY HAS THE TYPE.**
+`seedBuiltinTypes` seeds what is MISSING and skips by key, which was the whole
+story while a built-in never changed after shipping. It changed on 09/09/2026, so
+every existing studio would have gone without the new fields and the rule
+silently and for ever. `reconcileBuiltinTypes` compares the `version` that has
+been on `RecordTypeSchema` all along and that nothing read, and rewrites only the
+declaration-owned half — `sectionId` and `sectionKey` stay the studio's. **Adding
+a field is safe; REMOVING A STATUS STRANDS EVERY RECORD SITTING AT IT**, because
+no transition leads out of a status the type no longer declares. That needs a
+migration that moves the records first, never a version bump.
+
 **Open decisions (waiting on a person):** the Wave 4 palette (marketing dark-first
 indigo/Sora vs the ERP's light-first blue/Saira); and whether to denormalise the slug index
 to take the sales route from 3 hops to 2. The earlier `login()` suspended-check and
