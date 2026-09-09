@@ -618,7 +618,28 @@ const baselines = JSON.parse(readFileSync(BASELINES_FILE, "utf8"));
 // again, and it is why the per-route gate is the one to act on.
 //
 // The margin is 16 KB rather than 3, deliberately, per the note above.
-const MAX_TOTAL_GZIP_KB = 1885;
+//
+// 1885 -> 1905 on 09/09/2026, for ten more screens: bins, batches, the unit
+// registry, the dispatch board, the mobile field view, the shop-floor terminal,
+// attendance, manpower planning, payroll and the report builder. The studio
+// route went 692 -> 701 with them.
+//
+// AND THE LAZY BOUNDARY DID NOT SEPARATE THESE ONES, which is measured rather
+// than assumed and is worth knowing before the next session reaches for the
+// same tool. Every one of them is `nextDynamic(() => import(...))` from inside
+// a CLIENT module — the shape that took the studio 697 -> 692 two commits
+// earlier — and this time the chunk count did not move (34 before, 34 after)
+// while the largest shared chunk grew 168 -> 180 KB. Grepping the build for a
+// panel's own copy ("Mark the whole team for a day") finds it in that shared
+// chunk, not in an async one: Turbopack merged them rather than splitting them,
+// presumably because each is small.
+//
+// So `nextDynamic` from a client module is NOT a guarantee, only a request. The
+// rule that survives is the one this file already states — measure the route,
+// then move what the measurement blames — and the measurement here blames
+// nothing that can be moved. Ten screens weigh nine kilobytes on the route and
+// twenty across all chunks, which is what ten screens cost.
+const MAX_TOTAL_GZIP_KB = 1905;
 
 const totalKb = files.reduce((sum, f) => sum + f.gzip, 0) / 1024;
 const biggest = files[0];
