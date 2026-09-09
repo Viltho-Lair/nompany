@@ -852,9 +852,41 @@ that exact case.
 **IT STILL HAS NO SCREEN.** The ledger is reachable only through
 `/api/studios/<slug>/finance/ledger`.
 
-#### §14 Reports & BI 🟡 1 / 5
-Exported reports ✅ (08/09/2026) · **Executive dashboard ⬜ · Report builder ⬜ · Saved &
-scheduled reports ⬜ · Analytics ⬜ · KPI targets & alert rules ⬜**
+#### §14 Reports & BI 🟡 3 / 6
+Exported reports ✅ (08/09/2026) · Report builder ✅ (09/09/2026) · Saved reports ✅
+(09/09/2026, **scheduling not built** — nothing runs a report on a timetable) · KPI targets
+✅ (09/09/2026, **alerts not delivered** — a breached target is red on the screen and
+notifies nobody) · **Executive dashboard ⬜ · Analytics ⬜**
+
+**THE BUILDER IS BUILT ON THE EXPORT'S CATALOGUE AND MINTS NOTHING.** A report names a data
+set, and a data set already declares its columns and the right its own section requires —
+so a report cannot reach a field nobody published or a register the reader could not open,
+and both gates come free. A saved report confers nothing: it is a QUESTION, and the answer
+is computed against the reader's own access every time it runs, which is what makes a
+shared report list safe.
+
+**THE ROW-LOADING PATH IS SHARED WITH THE EXPORT, not copied.** Two copies would be two
+places that resolve a section, ask the second gate, and know `total` is DERIVED — and the
+day one gained a data set the other would export a column of blanks. Not hypothetical: the
+empty Total column `DERIVE` exists to fix was exactly that.
+
+**WHAT IT REFUSES TO SAY IS THE INTERESTING HALF.** A column with nothing numeric
+aggregates to NULL rather than nought; `n` travels with every aggregate, because an average
+over three of ten rows is a real average of a different population; an empty grouping value
+is its own group rather than a dropped row; and a capped list says it was capped.
+
+**A TARGET IS A SAVED REPORT PLUS A LINE**, reusing the builder rather than growing a
+second query language — so there is exactly one definition of each number. **`unknown` is a
+real state and it is NOT a breach**: a report that measured nothing this period is a sales
+target with no closed deals yet, and calling that breached raises an alarm about an absence
+of data while calling it met is the same mistake in the more dangerous direction. A reader
+who cannot open the register sees `unknown` too. Deleting a report leaves its targets
+`unknown` rather than cascading.
+
+**THE TWO OUTSTANDING ARE NOT COUNTED AWAY.** There is no cross-section executive dashboard
+— the Reports root shows targets and saved reports, which is not the same thing — and
+Analytics remains the tiered, sold surface it was always designed to be
+(`useAnalyticsLevel` exists; nothing behind it does).
 
 **IT RENDERS NOW, and `NO_SCREEN_YET` IS EMPTY** — Reports & BI was the last entry. It is
 the one section whose content is not records, so the first thing it does is the thing every
@@ -954,9 +986,9 @@ gated section.
 | | Built | Target | |
 |---|---|---|---|
 | Every subsection built | 11 sections | CRM & Sales, Tendering, Projects, Engineering, Procurement, Inventory, Manufacturing, Field Service, Logistics, Assets, Quality & HSE | |
-| Partial | 4 sections | HR 5/10, Finance 12/18, Reports 1/5, Administration 6/10 | |
+| Partial | 4 sections | HR 5/10, Finance 12/18, Reports 3/6, Administration 6/10 | |
 | Renders nothing | 0 sections | `NO_SCREEN_YET` is empty | |
-| **Subsections** | **112 built** | **131 in the target list** | **85%** |
+| **Subsections** | **115 built** | **132 in the target list** | **87%** |
 
 **THE ROW ABOVE SAID 58 / 130 / 45% AND THE THREE ROWS ABOVE IT WERE A SNAPSHOT OF A
 DIFFERENT FORTNIGHT** — four sections rendering nothing, Logistics and HR at one
@@ -964,9 +996,9 @@ subsection each, Assets and Quality not counted as built at all. Every figure he
 sum of the fifteen §-headings above it, re-added at this commit rather than carried
 forward; when one of those moves, this moves in the same edit or it is wrong again.
 
-**The gap is no longer the empty sections — there are none.** All 19 outstanding
+**The gap is no longer the empty sections — there are none.** All 17 outstanding
 subsections sit inside sections that already render and read as finished, which is the
-harder half to see: Finance is missing six, HR five, Reports four, Administration four.
+harder half to see: Finance is missing six, HR five, Administration four, Reports two.
 
 **THE SUMMARY ROW ABOVE FIRST READ 42 / ~110 / 38%, AND ALL THREE WERE WRONG.** 42 is the
 count of declared keys in `SECTION_DEFS`, which is a different unit from the artifact's
