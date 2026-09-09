@@ -36,6 +36,8 @@ import { currentUser, currentIdentity, requestSessionToken } from "@/platform/au
 import { studioContext } from "@/lib/studios";
 import { getStudioBySlug } from "@/modules/main/studios";
 import { currentSuperAdmin } from "@/platform/auth/superAuth";
+import { bearerFrom, resolveKey, touchKey, withApiKeyScopes } from "@/platform/auth/apiKeys";
+import { listCollaborators } from "@/platform/auth/collaborators";
 import { statusFor } from "./httpStatus";
 import type { ContextError } from "@/modules/context";
 import { isCrossSite, MUTATING } from "./origin";
@@ -301,6 +303,21 @@ export function route<A = RouteArgs>(spec: RouteSpec<A>, handler: (args: A & Rou
       if (hasSession) warming = getStudioBySlug(params.slug).catch(() => null);
     }
 
+    // AN API KEY IS A SECOND PROOF OF THE SAME IDENTITY, never a second door.
+    //
+    // It resolves to a COLLABORATOR (invariant 6) and then runs the identical
+    // path a browser request runs: the same context builder, the same
+    // membership check, the same `effectivePermissions`. Invariants 2, 3 and 4
+    // are untouched — what a key adds is a NARROWING, applied below.
+    //
+    // ONLY FOR `auth: "studio"`. A key belongs to one studio, so it can no more
+    // authenticate a console request or an account-page request than a slug can
+    // authorise one.
+    if (auth === "studio" && params.slug) {
+      const token = bearerFrom(base.request as Request);
+      if (token) return resolveByKey(base, params, token);
+    }
+
     const user = await currentUser();
     if (!user) return { refusal: refuse("unauthorized", 401) };
     if (auth === "user") return { args: { ...base, user }, identity: String(user.id) };
@@ -335,8 +352,105 @@ export function route<A = RouteArgs>(spec: RouteSpec<A>, handler: (args: A & Rou
     return { args: { ...base, user, ...context }, identity: String(user.id) };
   }
 
+  /**
+   * THE API-KEY PATH. Same context, narrower access.
+   *
+   * THE SLUG MUST BE THE KEY'S OWN STUDIO, and this is invariant 2 restated for
+   * a credential: a key is proof of membership OF ONE STUDIO, so pointing it at
+   * another studio's URL must fail the way any non-member fails. Comparing the
+   * key's `studioId` to the studio the SLUG resolves to — rather than trusting
+   * either alone — is what makes a renamed slug harmless and a guessed one
+   * useless.
+   *
+   * THE ANSWER IS 401, NOT 403, and the difference is deliberate: the caller
+   * has presented a credential that does not authenticate them HERE, which is
+   * what 401 means. It also refuses identically whether the key is unknown,
+   * revoked, expired, or for a different studio — four states an attacker must
+   * not be able to tell apart.
+   */
+  async function resolveByKey(
+    base: Record<string, unknown>,
+    params: Record<string, string>,
+    token: string,
+  ): Promise<{ refusal?: Response; args?: RouteArgs; identity?: string }> {
+    const resolved = await resolveKey(token);
+    if (!resolved) return { refusal: refuse("unauthorized", 401) };
+
+    const studio = await getStudioBySlug(params.slug);
+    if (!studio || String(studio.id) !== resolved.studioId) {
+      return { refusal: refuse("unauthorized", 401) };
+    }
+
+    // THE COLLABORATOR HAS TO STILL BE THERE. Somebody removed from the studio
+    // keeps their key string; resolving through the live collaborator list is
+    // what makes the removal take effect — and it is the same list the browser
+    // path consults, so the two cannot disagree about who is a member.
+    const collaborators = await listCollaborators(resolved.studioId);
+    const owner = collaborators.find((c) => String(c.id) === resolved.collaboratorId);
+    if (!owner?.userId) return { refusal: refuse("unauthorized", 401) };
+
+    // THE NARROWING IS ALREADY IN FORCE HERE. `handle` runs this whole request
+    // inside `withApiKeyScopes`, so `studioContext` resolves the caller's
+    // access and intersects it with the key's scopes BEFORE deriving anything
+    // — `canManage`, `nav`, `manage` and every per-block flag included.
+    //
+    // Narrowing here instead was the first version, and it was wrong in a way
+    // that looked right: replacing only `context.access` left every derived
+    // field computed as if the key were its owner, so a key holding one HR
+    // permission received the owner's whole payload. See `lib/studios.ts`.
+    const build = spec.context || studioContext;
+    const context = (await build({ id: owner.userId }, params.slug)) as
+      A & { error?: string };
+    if (context.error) {
+      const name = String(context.error);
+      return { refusal: refuse(name, statusFor(name)) };
+    }
+
+    // BEST-EFFORT AND NOT AWAITED. The request is already authorised; recording
+    // that it happened must never delay it or fail it — the rule `events.emit()`
+    // follows. The write is throttled to once an hour inside `touchKey`.
+    void touchKey(resolved.studioId, resolved.keyId);
+
+    return {
+      args: { ...base, ...context, apiKeyId: resolved.keyId },
+      // AUDITED AS THE KEY, not as the person. "Who did this" is answered by
+      // the credential that did it, which is what makes a leaked key traceable
+      // through the audit log rather than indistinguishable from its owner.
+      identity: `key:${resolved.keyId}`,
+    };
+  }
+
   return async function handle(request: Request, ctx?: { params?: Promise<Record<string, string>> }) {
     return withRequest(spec.name || auth, async () => {
+      // THE KEY'S SCOPES ARE PUT IN FORCE AROUND THE WHOLE REQUEST, before the
+      // context is built and for as long as the handler runs. It has to be the
+      // whole request rather than the resolution alone: a service that resolves
+      // a second context — Master data reading Field Operations', say — would
+      // otherwise get an unnarrowed one halfway through an API call.
+      //
+      // A CHEAP GATE DECIDES WHETHER TO ENTER AT ALL. `bearerFrom` refuses
+      // anything that is not shaped like one of our keys without a lookup, so
+      // an ordinary session request pays a regex and nothing else.
+      const token = auth === "studio" ? bearerFrom(request) : "";
+      const resolvedKey = token ? await resolveKey(token) : null;
+      // A TOKEN THAT DOES NOT RESOLVE IS REFUSED HERE rather than falling
+      // through to the cookie. Somebody presenting a revoked key and holding a
+      // stale session would otherwise be quietly served as themselves — the
+      // revocation would appear not to have worked.
+      if (token && !resolvedKey) return refuse("unauthorized", 401);
+
+      // ONLY ENTERED WHEN THERE IS A KEY. An ordinary session request never
+      // touches the store, so `currentApiKeyScopes` answers null for it and
+      // `studioContext` narrows nothing — which is the distinction between
+      // null and the empty array that the store's own comment describes.
+      return resolvedKey
+        ? withApiKeyScopes(resolvedKey.scopes, () => run(request, ctx))
+        : run(request, ctx);
+    });
+  };
+
+  async function run(request: Request, ctx?: { params?: Promise<Record<string, string>> }) {
+    {
       // CSRF, REFUSED BEFORE ANYTHING IS READ — before the body, before the
       // session lookup, before a single Redis command. A cross-site write must
       // not be able to cost us work, and it must not be distinguishable by
@@ -416,6 +530,6 @@ export function route<A = RouteArgs>(spec: RouteSpec<A>, handler: (args: A & Rou
       }
       if (auditing) await audit(res, spec, request, args, identity);
       return res;
-    });
-  };
+    }
+  }
 }

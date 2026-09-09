@@ -83,6 +83,14 @@ export const ID = {
 export const REG = {
   users: `${P}g:users`,
   studios: `${P}g:studios`,
+  // DIGEST → { studioId, keyId } for every live API key, so a request
+  // carrying one costs ONE lookup rather than a scan of every studio.
+  // It is global because the whole point is to find the studio FROM the
+  // secret; it holds no secret itself — a digest is not reversible — and
+  // no permission. What it does hold is the mapping, so it is written in
+  // the same act as the register and removed in the same act as a
+  // revocation, or a revoked key would still resolve to a studio.
+  apiKeyIndex: `${P}g:api-keys`,
   superAdmins: `${P}g:superAdmins`,
   joinRequests: `${P}g:joinRequests`,
   // Questionnaire DEFINITIONS authored in /super — the forms themselves, not
@@ -400,6 +408,12 @@ export const S = {
   flowTemplates: (studioId: string) => `${P}s:${studioId}:flow-templates`,
   industries:    (studioId: string) => `${P}s:${studioId}:industries`,
   notifications: (studioId: string) => `${P}s:${studioId}:notifications`,
+  // A STUDIO'S API KEYS — the DIGEST of each, never the key. Beside the
+  // flow templates because it is the same kind of thing: studio-wide
+  // configuration that belongs to no section, so it needs no section row.
+  // A collection would have needed one, and `administration-settings` is
+  // declared for ordering and never planted.
+  apiKeys:       (studioId: string) => `${P}s:${studioId}:api-keys`,
   // HOW MANY REFERENCES OF EACH KIND HAVE EVER BEEN ISSUED — a hash, one field
   // per prefix ("INV", "PO", "ACME"). It exists because "the next number" is
   // the one thing in this product that CANNOT be derived from the records:

@@ -6,6 +6,7 @@
 // user-side effect is the derived ix:collab back-pointer, maintained by the
 // collaborators repo.
 
+import { currentApiKeyScopes } from "@/platform/auth/apiKeys";
 import {
   effectivePermissions, requirePermission, scopeFor, sectionViewable, sectionManageable,
   escalates, ADMIN_ROLE_ID, can,
@@ -185,7 +186,24 @@ export async function studioContext(
   //
   // Roles and grants are both read while the legacy bridge stands; the resolver
   // decides which one speaks. When grants are migrated, drop the two reads.
-  const access = effectivePermissions({ studio, collaborator, roles });
+  const resolved = effectivePermissions({ studio, collaborator, roles });
+
+  // AN API KEY NARROWS THE CALLER, HERE, BEFORE ANYTHING IS DERIVED FROM IT.
+  //
+  // Everything a module context exposes — `canManage`, `nav`, `manage`, every
+  // per-block flag a screen reads — is computed from this set. Narrowing after
+  // the fact was the first version of this and it was wrong in a way that
+  // looked right: a key holding one HR permission received a payload computed
+  // as if it were the owner, because only the `access` field had been replaced.
+  //
+  // A PLAIN Set, never the wildcard one. An owner's key is only ever what it
+  // was granted; a credential that inherited "everything" is the one thing a
+  // scoped key exists to prevent. And null is not the empty array — see
+  // `currentApiKeyScopes`.
+  const scopes = currentApiKeyScopes();
+  const access = scopes === null
+    ? resolved
+    : (new Set(scopes.filter((s) => resolved.has(s as never))) as typeof resolved);
 
   // `grants` is still returned because callers destructure it; it is no longer
   // consulted for access and goes when the last of them stops asking.
