@@ -16,6 +16,25 @@ type Strings = CommonStrings & {
   deleteThisDeal: string;
   deletingThisDealDeletes: string;
   flowNamed: (name: string) => string;
+  /**
+   * WHAT THE DEAL NEEDS NEXT, and it is phrased as a statement about the DEAL
+   * rather than an instruction to the reader. Somebody who cannot raise a
+   * quotation is still told the deal wants one — the flow's job is to say what
+   * is outstanding and whose it is, not to send a person at a door that will
+   * refuse them.
+   */
+  nextStep: string;
+  nextStepIn: (section: string) => string;
+  nextStepDo: (stage: string) => string;
+  /** Nothing outstanding is a real answer, not an empty one. */
+  flowComplete: string;
+  /**
+   * A stage the deal stepped over. NEVER worded as a warning: the owner's rule
+   * is that a missing link does not stop the company, and a red banner over a
+   * perfectly good quotation would be the product arguing with how somebody
+   * runs their business.
+   */
+  skipped: (n: number) => string;
   notInThisFlow: string;
   iUnderstandDeleted: (what: string) => string;
   moreDealsFurtherDown: string;
@@ -88,6 +107,11 @@ const en: Strings = {
   deleteThisDeal: "Delete this deal",
   deletingThisDealDeletes: "Deleting this deal deletes",
   flowNamed: (name) => `Flow: ${name}`,
+  nextStep: "Next on this deal",
+  nextStepIn: (section) => `in ${section}`,
+  nextStepDo: (stage) => `Add the ${stage}`,
+  flowComplete: "Everything this flow asks for is on the deal.",
+  skipped: (n) => (n === 1 ? "One earlier stage was skipped" : `${n} earlier stages were skipped`),
   notInThisFlow: "Outside this flow",
   iUnderstandDeleted: (what: string) => `I understand ${what} will be permanently deleted, and that this cannot be undone.`,
   moreDealsFurtherDown: "More deals may be further down the list — this page just did not have any you have access to.",
@@ -169,6 +193,11 @@ const ar: Strings = {
   deleteThisDeal: "احذف هذه الصفقة",
   deletingThisDealDeletes: "حذف هذه الصفقة يحذف",
   flowNamed: (name) => `المسار: ${name}`,
+  nextStep: "التالي في هذه الصفقة",
+  nextStepIn: (section) => `في ${section}`,
+  nextStepDo: (stage) => `أضف ${stage}`,
+  flowComplete: "كل ما يطلبه هذا المسار موجود على الصفقة.",
+  skipped: (n) => (n === 1 ? "تم تخطي مرحلة سابقة واحدة" : `تم تخطي ${n} مراحل سابقة`),
   notInThisFlow: "خارج هذا المسار",
   iUnderstandDeleted: (what: string) => `أفهم أن ${what} ستحذف نهائيا، وأن هذا لا يمكن التراجع عنه.`,
   moreDealsFurtherDown: "قد تكون هناك صفقات أخرى أسفل القائمة — هذه الصفحة لم يكن فيها ما تملك الوصول إليه فحسب.",

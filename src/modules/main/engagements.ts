@@ -18,6 +18,8 @@ import type { EngagementLineage } from "@/platform/db/engagement";
 import { getSectionByKey } from "@/platform/db/sections";
 import { repo } from "@/platform/db/repo";
 import { listFlowTemplates, defaultTemplateForStudio, pickTemplate, industryKeyOf } from "@/platform/db/flows";
+import { flowProgress, nextActionFor } from "@/platform/engagement/progress";
+import type { FlowProgress, FlowStep, StageInfo } from "@/platform/engagement/progress";
 import type { Refusal } from "@/platform/access";
 
 const PAGE = 25;
@@ -251,7 +253,7 @@ export async function listEngagements(
 export async function engagementBlock(
   ctx: EngagementCtx,
   engId: string,
-): Promise<{ engagement: { id: string; ref: string; context: Record<string, unknown>; status: string; statusType: string; templateId: string; templateName: string; locked: boolean; cards: StageCard[] } } | Refusal | { error: "notfound" | "forbidden" }> {
+): Promise<{ engagement: { id: string; ref: string; context: Record<string, unknown>; status: string; statusType: string; templateId: string; templateName: string; locked: boolean; cards: StageCard[]; progress: FlowProgress | null; nextAction: { step: FlowStep; actionable: boolean } | null } } | Refusal | { error: "notfound" | "forbidden" }> {
   const denied = requirePermission(ctx.access, "engagements.view");
   if (denied) return denied;
 
@@ -305,6 +307,32 @@ export async function engagementBlock(
 
   for (const type of ordered) await addCard(type, false);
   for (const type of present) if (!listed.has(type)) await addCard(type, true);
+
+  // ------------------------------------------------------------------------
+  // AND WHERE THE DEAL HAS GOT TO, which is the thing the template's ORDER was
+  // for and which nothing had ever asked it.
+  //
+  // The cards above put the stages in the flow's order, so the screen reads as
+  // the shape of the work. That makes the sequence VISIBLE; it does not make it
+  // mean anything. `flowProgress` is what turns "these are the stages" into
+  // "this one is next" — and the answer is computed from the SAME template the
+  // cards were ordered by, so a screen cannot show one order and a different
+  // next step.
+  //
+  // COMPUTED AGAINST WHAT THE DEAL ACTUALLY CARRIES, not against the visible
+  // cards. A stage this reader may not see is still a stage the deal HAS, and
+  // telling somebody to go and raise an RFQ that already exists — because they
+  // cannot see it — would be worse than telling them nothing.
+  const progress = template
+    ? flowProgress(template.stages, present, STAGE_REGISTRY as Readonly<Record<string, StageInfo>>)
+    : null;
+  // A DEAL ON NO TEMPLATE HAS NO NEXT STEP, and that is not a failure state: it
+  // is a deal whose industry named a template this studio has since deleted, or
+  // one imported before templates existed. The cards still render from the
+  // registry; there is simply no sequence to be at a point in.
+  const nextAction = progress
+    ? nextActionFor(progress, (key) => !requirePermission(ctx.access, key as PermissionKey))
+    : null;
   // Live, not the stored copy — see clientNameById's comment. One lookup for
   // the single engagement this block renders.
   const nameById = await clientNameById(ctx.studio.id);
@@ -347,6 +375,8 @@ export async function engagementBlock(
       // without asking a second time.
       locked: view.locked,
       cards,
+      progress,
+      nextAction,
     },
   };
 }

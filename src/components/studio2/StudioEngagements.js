@@ -5,6 +5,7 @@ import { useStudioLocale } from "@/components/studio2/locale";
 import { engagementsDict } from "@/shared/studio/engagements";
 import { stageLabel } from "@/shared/studio/stages";
 import Link from "next/link";
+import { sectionName } from "@/shared/studio/sections";
 import { Icon } from "@/components/studio2/icons";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { fmtDate } from "@/lib/format";
@@ -813,6 +814,52 @@ function EngagementDetail({ slug, block, loading, error }) {
           and numbering them truthfully would announce that two stages exist
           which this reader may not see — the exact leak §2.8 forbids. Position
           carries the order without either failure. */}
+      {/* WHAT THE DEAL NEEDS NEXT — the one thing the template's order was
+          for and that nothing had ever asked it. The cards below have been in
+          flow order for a while, which makes the sequence VISIBLE; this is what
+          makes it mean something.
+
+          A STATEMENT ABOUT THE DEAL, NOT AN INSTRUCTION TO THE READER. When
+          `actionable` is false the stage is still named and so is the section
+          that owns it — somebody who cannot raise a quotation should learn that
+          the deal wants one and where it happens, rather than be handed a button
+          that refuses them or, worse, be told nothing.
+
+          NEVER A WARNING. The owner's rule is that the flow assists and does not
+          block: a deal that skipped a stage is a deal somebody chose to run that
+          way. So a skip is a grey line of fact, not an amber banner arguing with
+          how a company works. */}
+      {block.nextAction && (
+        <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-geex border border-slate-200/70 bg-white px-4 py-3 dark:border-white/10 dark:bg-[#20202c]">
+          <span className="text-xs font-700 uppercase tracking-wide text-slate-400 dark:text-slate-500">
+            {tr.nextStep}
+          </span>
+          <span className="font-600 text-slate-900 dark:text-white">
+            {stageLabel(block.nextAction.step.type, block.nextAction.step.label, locale)}
+          </span>
+          <span className="text-xs text-slate-400 dark:text-slate-500">
+            {tr.nextStepIn(sectionName(block.nextAction.step.sectionKey, block.nextAction.step.sectionKey, locale))}
+          </span>
+          {block.nextAction.actionable && (
+            <Link
+              href={`/${slug}/${block.nextAction.step.sectionKey}`}
+              className="ms-auto rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-600 text-white"
+            >
+              {tr.nextStepDo(stageLabel(block.nextAction.step.type, block.nextAction.step.label, locale))}
+            </Link>
+          )}
+        </div>
+      )}
+      {block.progress && !block.nextAction && (
+        <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">{tr.flowComplete}</p>
+      )}
+      {block.progress?.behind?.length > 0 && (
+        <p className="mb-4 text-xs text-slate-400 dark:text-slate-500">
+          {tr.skipped(block.progress.behind.length)} — {block.progress.behind
+            .map((b) => stageLabel(b.type, b.label, locale)).join(", ")}
+        </p>
+      )}
+
       <div className="grid gap-4 sm:grid-cols-2">
         {(block.cards || []).map((card) => <StageCard key={card.type} slug={slug} card={card} />)}
       </div>
