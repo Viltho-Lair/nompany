@@ -31,12 +31,25 @@ import { liveDepartments } from "@/shared/marketing/departments";
 export function WhatItIs({ locale }: { locale: string }) {
   const tr = homeCopy(locale);
   return (
-    <section className="mx-auto max-w-3xl px-6 py-20 lg:py-28">
-      <p className="text-xs tracking-[0.16em] text-fg-dim uppercase">{tr.whatEyebrow}</p>
-      <h2 className="mt-4 font-display text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
-        {tr.whatTitle}
-      </h2>
-      <p className="mt-6 text-lg leading-relaxed text-fg-muted">{tr.whatBody}</p>
+    /* THE SECTION IS THE PAGE'S WIDTH; THE PROSE IS NARROWER INSIDE IT.
+       This was `max-w-3xl` on the SECTION, so the whole block — eyebrow,
+       heading and paragraph — started 192px to the right of every other
+       section on the page. Measured at 1265px: this one began at x=273 while
+       the departments heading directly below it began at x=81.
+       The narrow measure was right and the element carrying it was wrong. A
+       comfortable line length is a property of the PARAGRAPH; applying it to
+       the section indents the heading too, and the reader sees a column that
+       starts in a different place for no reason they can name. `max-w-2xl` on
+       the inner block is the same pattern DepartmentsGlance below already
+       uses. */
+    <section className="mx-auto max-w-6xl px-6 py-20 lg:py-28">
+      <div className="max-w-2xl">
+        <p className="text-xs tracking-[0.16em] text-fg-dim uppercase">{tr.whatEyebrow}</p>
+        <h2 className="mt-4 font-display text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
+          {tr.whatTitle}
+        </h2>
+        <p className="mt-6 text-lg leading-relaxed text-fg-muted">{tr.whatBody}</p>
+      </div>
     </section>
   );
 }
