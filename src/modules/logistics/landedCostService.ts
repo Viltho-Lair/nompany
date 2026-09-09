@@ -6,37 +6,41 @@
 
 import { requirePermission } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
-import { studioContext } from "@/lib/studios";
 import { getSectionByKey } from "@/platform/db/sections";
+import { moduleContext } from "@/modules/context";
 import {
   landedCost, chargeProblem, isBasis, DEFAULT_BASIS,
   type Charge, type CostLine, type Basis,
 } from "./landedCost";
 import type { Section } from "@/platform/db/sections";
-import type { PermissionSet, Role } from "@/platform/access";
-import type { ContextError, StudioRef, CollaboratorRef } from "@/modules/context";
+import type { ModuleContext, StudioRef } from "@/modules/context";
 
 const Landed = repo("landedCosts");
 const Orders = repo("materialOrders");
 
-export type LogisticsContext = {
-  error?: undefined;
-  studio: StudioRef;
-  collaborator: CollaboratorRef;
-  access: PermissionSet;
-  roles: Role[];
-  sections: Section[];
+export type LogisticsContext = ModuleContext & {
+  /**
+   * The Logistics root, under the name this file's readers use. It IS
+   * `section` — the factory's own root — and the alias is kept because every
+   * function below already reads `logisticsSection`, the same courtesy Projects
+   * extends with `projectsList`.
+   */
   logisticsSection: Section;
 };
 
-export async function logisticsContext(user: unknown, slug: string): Promise<LogisticsContext | ContextError> {
-  const context = await studioContext(user as { id?: unknown }, slug);
-  if (context.error) return context;
-  const { studio, collaborator, access, roles, sections } = context;
-  const logisticsSection = sections.find((s) => s.key === "logistics");
-  if (!logisticsSection) return { error: "no-section" };
-  return { studio, collaborator, access, roles, sections, logisticsSection };
-}
+/**
+ * FROM THE FACTORY, like every other department's.
+ *
+ * It was hand-rolled, and what it hand-rolled was the factory's own body: read
+ * the studio context, find the root section, refuse `no-section` without it. A
+ * copy of that is a second place for the resolution to drift — which is the
+ * whole reason `moduleContext` exists and why `tests/access.test.mjs` refuses
+ * an exported `*Context` function.
+ */
+export const logisticsContext = moduleContext<LogisticsContext>({
+  root: "logistics",
+  sub: { logistics: "logistics" },
+});
 
 const scope = (ctx: LogisticsContext) => ({ studio: ctx.studio, section: ctx.logisticsSection });
 

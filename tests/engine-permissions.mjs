@@ -40,10 +40,24 @@ ok("an unknown static key is still refused", !M.isPermission("projects.madeup.vi
 ok("engineeringDocs is not an engine key", !M.isEnginePermission("engineeringDocs.register.view"));
 ok("...and is still a real permission", M.isPermission("engineeringDocs.register.view"));
 
-// THE CATALOGUE DOES NOT GROW. Engine keys are structural, not declared, so the
-// 177-key assertion in Gate A must not move.
-ok("the declared catalogue is unchanged at 181",
-  M.ALL_PERMISSIONS.length === 181, String(M.ALL_PERMISSIONS.length));
+// THE CATALOGUE DOES NOT GROW *BY THE ENGINE*. Engine keys are structural
+// rather than declared, and the assertion below this one is what actually says
+// so — it reads the catalogue and finds no `engine.` key in it.
+//
+// THIS USED TO BE A FROZEN COUNT AND THE COUNT WAS THE WRONG INSTRUMENT. It was
+// written as 177, hand-patched to 181, and went red at 201 — every move an
+// ORDINARY area being added (Manufacturing planning, HR payroll and attendance,
+// the ledger close, the P4a sections' own), which is exactly the growth this
+// check was never meant to forbid. A number nobody re-measures decays silently,
+// and this one failed twice for a reason that had nothing to do with the engine.
+//
+// A FLOOR INSTEAD, shrink-only in the lint budget's shape: ordinary growth
+// passes, and areas VANISHING — which is what a broken catalogue import looks
+// like, and how this file's own checks would quietly stop testing anything —
+// still fails. Raise it deliberately, never to make a run green.
+ok("the declared catalogue has not collapsed",
+  M.ALL_PERMISSIONS.length >= 195, String(M.ALL_PERMISSIONS.length));
+// THE REAL GUARD, and the one the heading above is about.
 ok("...and contains no engine key",
   !M.ALL_PERMISSIONS.some((k) => k.startsWith("engine.")));
 

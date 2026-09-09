@@ -73,3 +73,17 @@ export const StudioPlannerList = nextDynamic(
   () => import("@/components/studio2/StudioPlannerList"),
   { loading: () => <ScreenSkeleton /> },
 );
+
+// The executive board, on Reports & BI. It landed with `nextDynamic` called
+// from StudioReports — which is a SERVER COMPONENT, so it deferred the server
+// render and nothing else, exactly as this file's header warns. Measured: the
+// studio route went 701 -> 710 KB and the budget refused it.
+//
+// It is not heavy the way the editor is. What it drags in is its own dictionary
+// and `modules/reports/executive` — the tile registry and the movement
+// arithmetic — onto EVERY tenant page, to serve one screen most people never
+// open. Deferring it from here is what actually removes it.
+export const ExecutiveBoard = nextDynamic(
+  () => import("@/components/studio2/ExecutiveBoard"),
+  { loading: () => <ScreenSkeleton /> },
+);

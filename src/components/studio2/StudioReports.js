@@ -8,9 +8,13 @@ import { reportsDict } from "@/shared/studio/reports";
 // list, which needs no client state at all, keeps rendering on the server.
 const ReportBuilderPanel = nextDynamic(() => import("@/components/studio2/ReportBuilderPanel"));
 // THE HEADLINE, and the only part of this page anybody opens it for daily.
-// A client panel for one reason — the window is state — and the smallest
-// boundary that buys it.
-const ExecutiveBoard = nextDynamic(() => import("@/components/studio2/ExecutiveBoard"));
+// FROM HeavyScreens, NOT FROM `nextDynamic` HERE. This file is a Server
+// Component, where `next/dynamic` defers the SERVER render and creates no
+// client lazy boundary — the board and its arithmetic landed in the first
+// load of every tenant page and the budget refused it, 701 -> 710 KB. The
+// `import()` inside that client module is a runtime import the bundler
+// cannot flatten; see HeavyScreens.jsx for the whole argument.
+import { ExecutiveBoard } from "@/components/studio2/HeavyScreens";
 
 // REPORTS & BI — the last section that rendered nothing.
 //

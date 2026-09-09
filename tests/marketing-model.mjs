@@ -43,7 +43,11 @@ const DIACRITICS = /[ً-ْٰ]/;
 
 console.log("\n== the departments a visitor is told exist");
 
-ok("fourteen of them", D.LIVE_DEPARTMENT_KEYS.length === 14,
+// FIFTEEN SINCE 08/09/2026, when Reports & BI left NO_SCREEN_YET — the list is
+// DERIVED from SECTION_DEFS minus that list, so the count moved on its own and
+// the hand-written copy did not. That is exactly the drift the pair below
+// catches; it said fourteen while fifteen rendered.
+ok("fifteen of them", D.LIVE_DEPARTMENT_KEYS.length === 15,
   String(D.LIVE_DEPARTMENT_KEYS.length));
 
 // THE DEFECT THIS GUARDS, four names at a time. Each of these renders nothing
@@ -71,8 +75,8 @@ console.log("\n== and they are named in both languages");
 // theirs to anyone skimming the file.
 const depsEn = D.liveDepartments("en");
 const depsAr = D.liveDepartments("ar");
-ok("both locales return the same fourteen, in the same order",
-  depsEn.map((d) => d.key).join(",") === depsAr.map((d) => d.key).join(",") && depsEn.length === 14);
+ok("both locales return the same fifteen, in the same order",
+  depsEn.map((d) => d.key).join(",") === depsAr.map((d) => d.key).join(",") && depsEn.length === 15);
 ok("every English name is non-empty", depsEn.every((d) => d.name.trim().length > 0));
 ok("every Arabic name is non-empty", depsAr.every((d) => d.name.trim().length > 0));
 // AND THEY ARE ACTUALLY TRANSLATED. `sectionName` falls back to the stored
@@ -104,10 +108,19 @@ const CHECKS = {
   // over fourteen of them, which is precisely what happened.
   "live-departments": async () => {
     const n = D.LIVE_DEPARTMENT_KEYS.length;
-    const words = { 11: ["Eleven", "أحد عشر"], 14: ["Fourteen", "أربعة عشر"] }[n];
+    const words = {
+      11: ["Eleven", "أحد عشر"],
+      14: ["Fourteen", "أربعة عشر"],
+      15: ["Fifteen", "خمسة عشر"],
+    }[n];
     if (!words) return false;
     const claim = C.CLAIMS["live-departments"];
-    return n === 14 && claim.en.startsWith(words[0]) && claim.ar.startsWith(words[1]);
+    // NO HARD-CODED COUNT HERE. This read `n === 14 &&`, which pinned the
+    // number twice and made the word map above pointless — the map exists so
+    // the CHECK follows the count and only the COPY has to be written. With
+    // the count pinned as well, the department that shipped on 08/09/2026
+    // failed this by existing. An unmapped count still returns false above.
+    return claim.en.startsWith(words[0]) && claim.ar.startsWith(words[1]);
   },
   "bilingual-rtl": async () => {
     const { locales } = await import("@/shared/i18n");

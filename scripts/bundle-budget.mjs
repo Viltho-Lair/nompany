@@ -639,7 +639,25 @@ const baselines = JSON.parse(readFileSync(BASELINES_FILE, "utf8"));
 // then move what the measurement blames — and the measurement here blames
 // nothing that can be moved. Ten screens weigh nine kilobytes on the route and
 // twenty across all chunks, which is what ten screens cost.
-const MAX_TOTAL_GZIP_KB = 1905;
+//
+// 1905 -> 1925 on 09/09/2026, for the last seven subsections: the cost-code
+// library, the classification register, the notification-wording editor, the
+// API-key register and the executive board. The studio route went 701 -> 708.
+//
+// AND THIS RAISE BOUGHT A LOWER ROUTE NUMBER, which is the trade this file
+// argues for and the reason the per-route gate is the one to act on. The board
+// landed with `nextDynamic` called from StudioReports — a SERVER COMPONENT,
+// where it defers the server render and creates NO client boundary, exactly as
+// HeavyScreens.jsx warns. Measured: the route was 710 and the budget refused
+// it. Moving the board into HeavyScreens, whose `import()` survives to runtime,
+// took the route to 708 and left the total where it was. Two kilobytes off the
+// number every tenant page waits for, nothing onto the one nobody waits for.
+//
+// The four Master data panels are `nextDynamic` from a client module and, like
+// the ten screens above, Turbopack merged them rather than splitting them —
+// which is the same finding restated: a client-module `import()` is a REQUEST,
+// not a guarantee. What it is never wrong to do is measure the route first.
+const MAX_TOTAL_GZIP_KB = 1925;
 
 const totalKb = files.reduce((sum, f) => sum + f.gzip, 0) / 1024;
 const biggest = files[0];

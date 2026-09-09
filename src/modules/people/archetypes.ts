@@ -135,6 +135,13 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
       // document you cannot open is a right in name only.
       ["tendering.tenders", "view"], ["procurement.requisitions", "view"],
       ["engineeringDocs.register", "view"], ["engagements", "view"],
+      // WHO WAS IN, AND THE DATA OUT. Attendance is the daily sweep a head of
+      // department signs off; the export is how they take their own
+      // department's figures away. Both arrived with sections that shipped
+      // after this library was written, and until now no job title reached
+      // either — only Admin did, which is the "a section whose own Manager
+      // cannot open it" defect from the other end.
+      ["hr.attendance", "edit"], ["reports.exports", "view"],
     ],
     // Running a department includes answering its leave, which is an extra
     // rather than a rung on the ladder — the same reason STARTER_ROLES spells
@@ -152,6 +159,13 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
       "hr.vacations.approve", "tendering.tenders.approve",
       "procurement.requisitions.approve", "engineeringDocs.register.approve",
       "engagements.lock",
+      // TWO MORE ANSWERS, both away from whoever raises the thing answered,
+      // which is the rule every extra above already follows:
+      //   — stock.approve, because a write-off "needs somebody other than the
+      //     person typing it" and custodian is the one typing it;
+      //   — payroll.approve, because `money` runs the payroll and a second
+      //     signature that the same person can give is not a second signature.
+      "inventory.stock.approve", "hr.payroll.approve",
     ],
   },
   {
@@ -200,6 +214,10 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
       ["projects.list", "full"], ["projects.planner", "edit"], ["projects.sla", "edit"],
       ["projects.overtimes", "edit"], ["tasks.board", "full"], ["inventory.sheets", "edit"],
       ["crmSales.contracts", "edit"], ["projects.dashboard", "view"],
+      // WHAT HAS TO BE MADE AND WHETHER THERE IS CAPACITY. This archetype's own
+      // note names a Production Manager; the planning board is the screen that
+      // job is done on, and until now nobody but Admin could open it.
+      ["manufacturing.planning", "view"],
       // WHAT WAS ORDERED, READ-ONLY. The person delivering the work needs to
       // see what was asked for; changing it is the seller's act, and a
       // delivery team quietly editing the order they are measured against is
@@ -288,6 +306,10 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
     grants: [
       ["inventory.stock", "full"], ["inventory.items", "full"], ["inventory.sheets", "edit"],
       ["logistics.shipments", "edit"], ["inventory.dashboard", "view"],
+      // PLANT IS STOCK THAT DRIVES AWAY. Whoever controls materials is who
+      // books a machine out to a job and back again, and the register that
+      // records it had no job title reaching it at all.
+      ["assets.utilisation", "edit"],
       // THE RECEIVING REGISTER IS THIS ARCHETYPE'S OWN SCREEN: `inventory.stock`
       // at full is what books goods in, and this is where that work is done and
       // read back. VIEW is the whole area — receiving is not a verb here.
@@ -313,6 +335,10 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
       ["procurement.suppliers", "full"], ["procurement.requisitions", "edit"],
       ["procurement.rfq", "edit"], ["procurement.expediting", "edit"],
       ["procurement.subcontracts", "edit"],
+      // FREIGHT, DUTY AND CLEARANCE ARE THE BUYER'S NUMBERS. They are what the
+      // goods actually cost, they are negotiated with the same suppliers, and
+      // the valuation `money` reads is assembled from them.
+      ["logistics.landedCost", "edit"],
       ["finance.payables", "edit"], ["inventory.items", "view"],
       // THE SECTION OVERVIEW GOES TO WHOEVER RUNS THE SECTION, the way
       // `inventory.dashboard` sits with the store keeper. NOT given to
@@ -349,6 +375,12 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
     grants: [
       ["finance.cash", "full"], ["finance.payables", "full"], ["finance.assets", "full"],
       ["finance.ledger", "view"], ["finance.dashboard", "view"], ["projects.costs", "view"],
+      // THE WAGE BILL IS THE CONTROLLER'S, not a separate profession's — there
+      // is no HR archetype in this library and a Chief Accountant is who runs
+      // payroll in the companies it describes. Approving a RUN is deliberately
+      // not here; it sits with department-head, because the person who prepares
+      // it must not be the person who signs it.
+      ["hr.payroll", "edit"],
       // What the client owes and what is being held back. Deliberately the
       // BILLING half rather than more of costs: the two areas were split so a
       // commercial reader needs none of the supplier costs, and this is the
@@ -361,6 +393,10 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
     // own limit is a decision a studio makes about a person, not a default.
     extras: [
       "finance.ledger.post", "finance.payables.approve", "finance.payables.pay",
+      // CLOSING THE PERIOD IS THE CONTROLLER'S OWN ACT rather than an approval
+      // held away from them: it is the moment they say the month is finished,
+      // and nobody else in this library is in a position to say it.
+      "finance.ledger.close",
       // Reversing a posting is the same job as making one, and disposing of an
       // asset is the ledger act that ends it.
       "finance.ledger.reverse", "finance.assets.dispose",

@@ -76,6 +76,25 @@ for (const [type, chain] of Object.entries(C.SEEDED_CHAINS)) {
     C.chainProblems(chain, ALL_PERMISSIONS).join("; "));
 }
 
+// A CHAIN THAT SIGNS NOTHING AT THE BOTTOM IS STILL REFUSED unless it says it
+// meant to. The stock adjustment chain deliberately starts at 1000 — a shelf
+// corrected by one is not a write-off — and until `noApprovalBelowFirstStep`
+// existed the product shipped a seed its own editor would have rejected. The
+// pair below is what stops that flag becoming a blanket excuse: without it the
+// same chain is still a hole.
+const holed = { type: "bill", steps: [{ permission: "finance.payables.approve", from: 500, label: "Finance" }] };
+ok("a chain with nothing at the bottom is refused",
+  C.chainProblems(holed, ALL_PERMISSIONS).some((p) => /no approval at all/.test(p)));
+ok("...and accepted once it says that is the policy",
+  C.chainProblems({ ...holed, noApprovalBelowFirstStep: true }, ALL_PERMISSIONS).length === 0,
+  C.chainProblems({ ...holed, noApprovalBelowFirstStep: true }, ALL_PERMISSIONS).join("; "));
+// THE FLAG EXCUSES ONE THING ONLY. It must not wave through a chain that names
+// a right the product does not have, which is the refusal most worth keeping.
+ok("...but it excuses nothing else",
+  C.chainProblems({ type: "bill", noApprovalBelowFirstStep: true,
+    steps: [{ permission: "finance.madeup.approve", from: 500, label: "X" }] }, ALL_PERMISSIONS)
+    .some((p) => /not a permission this product has/.test(p)));
+
 console.log("\n== where a studio's chains come from");
 
 const seedFirst = S.approvalChainsFor(null);

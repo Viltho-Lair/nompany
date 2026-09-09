@@ -104,11 +104,19 @@ const lonelyAreas = AREAS
 ok(`at most ${PRINCIPAL_ONLY_AREAS} areas are reachable by no archetype but principal`,
   lonelyAreas.length <= PRINCIPAL_ONLY_AREAS, `${lonelyAreas.length}: ${lonelyAreas.join(", ")}`);
 
-// The five are the three approveHigh keys, hr.employees.salary and
+// The six are the four approveHigh keys, hr.employees.salary and
 // crmSales.quotations.unlock. Signing above a studio's own limit, reading pay,
 // and reopening something already committed are decisions a studio makes about
 // a PERSON — the same argument `money` already makes for declining approveHigh.
-const PRINCIPAL_ONLY_EXTRAS = 5;
+//
+// 5 -> 6 on 09/09/2026, and the residue did not change in KIND: there are
+// FOUR approveHigh keys now, `inventory.stock.approveHigh` having arrived
+// with the stock write-off chain, and the sentence above already covers it
+// word for word. Every extra this guard actually exists to catch — an
+// ORDINARY approval nobody but Admin could give — was covered rather than
+// counted: stock.approve and payroll.approve went to department-head,
+// ledger.close to money.
+const PRINCIPAL_ONLY_EXTRAS = 6;
 const lonelyExtras = EXTRA_KEYS.filter((k) => !nonPrincipal.has(k));
 ok(`at most ${PRINCIPAL_ONLY_EXTRAS} extras are held by no archetype but principal`,
   lonelyExtras.length <= PRINCIPAL_ONLY_EXTRAS, `${lonelyExtras.length}: ${lonelyExtras.join(", ")}`);

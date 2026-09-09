@@ -35,7 +35,7 @@ import { addCollaborator, updateCollaborator, getCollaboratorByUser } from "@/pl
 import { listRoles, createRole } from "@/modules/people/roles";
 import { SESSION_COOKIE, login as identityLogin } from "@/platform/auth/identity";
 import { studioContext, canAdminister, studiosForUser } from "@/lib/studios";
-import { explain, ADMIN_ROLE_ID, ALL_PERMISSIONS } from "@/platform/access";
+import { explain, ADMIN_ROLE_ID, ALL_PERMISSIONS, isPermission, NO_SCREEN_YET } from "@/platform/access";
 import { tasksContext, createTask, updateTask, removeTask, decideTask } from "@/modules/tasks/tasks";
 import { listForCollaborator, NOTIFY } from "@/platform/notify/notifications";
 import { TASK_TYPE_AUTHORITIES } from "@/modules/tasks/taskRouting";
@@ -2197,6 +2197,19 @@ console.log("\n== the ledger posts the documents that feed it");
   const chart = (await listAccounts(fin)).accounts;
   const idOf = (code) => chart.find((a) => a.code === code)?.id;
 
+  // EVERY DOCUMENT AUTO-POSTS ON THE ACT THAT MAKES IT REAL (08/09/2026):
+  // issuing an invoice, recording a payment, creating an expense or a bill. So
+  // the explicit post* calls in this block are all answered `already-posted`,
+  // which is the idempotency guard working — one document, one entry, whatever
+  // route reaches it — rather than a regression. What each block asserts now is
+  // that the AUTO-post happened, that a second explicit post is refused, and
+  // what the resulting entry's lines are.
+  //
+  // `autoPost` hands back an entry ID rather than the entry: it is a
+  // fire-and-record path, not a reader. So the lines come out of the journal.
+  const entryById = async (entryId) =>
+    (await listJournal(fin)).entries.find((e) => e.id === entryId);
+
   // A 100 + 15% VAT invoice, issued so it can be posted.
   //
   // THE RATE IS NAMED HERE, not inherited. It used to rely on DEFAULT_VAT_RATE,
@@ -2215,9 +2228,19 @@ console.log("\n== the ledger posts the documents that feed it");
   const draftPost = await postInvoice(fin, inv.invoice.id);
   ok("a draft invoice cannot be posted", draftPost.error === "not-postable", JSON.stringify(draftPost));
 
-  await editInvoice(fin, inv.invoice.id, { status: "Sent" });
-  const posted = await postInvoice(fin, inv.invoice.id);
-  ok("an issued invoice posts", !!posted.entry, JSON.stringify(posted.error ?? posted));
+  // ISSUING IS WHAT POSTS IT NOW. This block used to issue and then call
+  // postInvoice explicitly; auto-posting (08/09/2026) made that second call
+  // refuse `already-posted`, which is the idempotency guard working rather than
+  // a regression — one document, one entry, whatever route reaches it. The
+  // entry to assert on is the one ISSUING created.
+  const issue = await editInvoice(fin, inv.invoice.id, { status: "Sent" });
+  ok("an issued invoice posts", issue.posting?.posted === true,
+    JSON.stringify(issue.posting ?? issue));
+
+  // `autoPost` hands back an id rather than the entry — it is a fire-and-record
+  // path, not a reader — so the lines are read out of the journal.
+  const posted = { entry: await entryById(issue.posting.entryId) };
+  ok("...and the entry is in the journal", !!posted.entry, String(issue.posting?.entryId));
   // Dr AR 115 = Cr Revenue 100 + Cr VAT 15.
   const arLine = posted.entry.lines.find((l) => l.accountId === idOf("1100"));
   const revLine = posted.entry.lines.find((l) => l.accountId === idOf("4000"));
@@ -2234,28 +2257,29 @@ console.log("\n== the ledger posts the documents that feed it");
   const paid = await recordPayment(fin, inv.invoice.id, { amount: 115 });
   ok("a payment is recorded", (paid.invoice?.payments || []).length === 1, JSON.stringify(paid.error ?? paid));
   const payId = paid.invoice.payments[0].id;
-  const payPosted = await postPayment(fin, inv.invoice.id, payId);
-  ok("the payment posts", !!payPosted.entry, JSON.stringify(payPosted.error ?? payPosted));
+  ok("the payment posts", paid.posting?.posted === true, JSON.stringify(paid.posting ?? paid));
+  const payPosted = { entry: await entryById(paid.posting.entryId) };
   ok("...debiting the bank it arrived in",
     payPosted.entry.lines.find((l) => l.accountId === idOf("1010"))?.debit === 115, JSON.stringify(payPosted.entry.lines));
   ok("...and clearing the receivable",
     payPosted.entry.lines.find((l) => l.accountId === idOf("1100"))?.credit === 115, JSON.stringify(payPosted.entry.lines));
-  const payTwice = await postPayment(fin, inv.invoice.id, payId);
+  const payTwice = await postPayment(fin, inv.invoice.id, payId);  // the guard
   ok("a payment cannot be posted twice", payTwice.error === "already-posted", JSON.stringify(payTwice));
 
   // An expense: Dr its category's account, Cr Bank. Rent maps to 5200.
   const exp = await createExpense(fin, { amount: 500, category: "Rent" });
   ok("an expense exists to post", !!exp.expense, JSON.stringify(exp.error));
-  const expPosted = await postExpense(fin, exp.expense.id);
+  ok("an expense posts as it is created", exp.posting?.posted === true, JSON.stringify(exp.posting ?? exp));
+  const expPosted = { entry: await entryById(exp.posting.entryId) };
   ok("the expense posts to its category account",
-    expPosted.entry?.lines.find((l) => l.accountId === idOf("5200"))?.debit === 500, JSON.stringify(expPosted.error ?? expPosted.entry?.lines));
+    expPosted.entry?.lines.find((l) => l.accountId === idOf("5200"))?.debit === 500, JSON.stringify(expPosted.entry?.lines));
   ok("...crediting the bank it left",
     expPosted.entry.lines.find((l) => l.accountId === idOf("1010"))?.credit === 500, JSON.stringify(expPosted.entry.lines));
   // An unmapped category still posts, to Other Expenses (5900) rather than being refused.
   const misc = await createExpense(fin, { amount: 30, category: "Travel" });
-  const miscPosted = await postExpense(fin, misc.expense.id);
+  const miscPosted = { entry: await entryById(misc.posting.entryId) };
   ok("an unmapped category falls to Other Expenses",
-    miscPosted.entry?.lines.find((l) => l.accountId === idOf("5900"))?.debit === 30, JSON.stringify(miscPosted.error ?? miscPosted.entry?.lines));
+    miscPosted.entry?.lines.find((l) => l.accountId === idOf("5900"))?.debit === 30, JSON.stringify(miscPosted.entry?.lines));
 
   // AND THE BOOK STILL BALANCES after every document has posted.
   const tb = await trialBalance(fin);
@@ -2793,10 +2817,17 @@ console.log("\n== Finance 1b: a bill posts as the mirror of an invoice");
   const chart = (await listAccounts(fin)).accounts;
   const idOf = (code) => chart.find((a) => a.code === code)?.id;
 
+  // AUTO-POSTED ON CREATION (08/09/2026), like every other document — a
+  // received bill is postable the moment it exists, so there is no later act to
+  // hang the posting on. The explicit postBill below is therefore the GUARD,
+  // and the lines come out of the journal. See the invoice block for the whole
+  // argument and for `entryById`.
+  const entryById = async (entryId) =>
+    (await listJournal(fin)).entries.find((e) => e.id === entryId);
+
   const bill = await createBill(fin, { vendorName: "Cement Co", lines: [{ description: "Bags", qty: 1, unitPrice: 200 }] });
-  // A received bill is postable (only Draft/Cancelled are not).
-  const posted = await postBill(fin, bill.bill.id);
-  ok("a bill posts", !!posted.entry, JSON.stringify(posted.error ?? posted));
+  ok("a bill posts", bill.posting?.posted === true, JSON.stringify(bill.posting ?? bill));
+  const posted = { entry: await entryById(bill.posting.entryId) };
   // Dr Cost of Sales 200 + Dr VAT 30 = Cr Accounts Payable 230.
   ok("...debiting the expense for the net", posted.entry.lines.find((l) => l.accountId === idOf("5000"))?.debit === 200, JSON.stringify(posted.entry.lines));
   ok("...debiting reclaimable VAT", posted.entry.lines.find((l) => l.accountId === idOf("2100"))?.debit === 30, JSON.stringify(posted.entry.lines));
@@ -2807,10 +2838,13 @@ console.log("\n== Finance 1b: a bill posts as the mirror of an invoice");
   // Pay it and post the payment: Dr AP, Cr Bank.
   const paid = await recordBillPayment(fin, bill.bill.id, { amount: 230 });
   const payId = paid.bill.payments[0].id;
-  const payPosted = await postBillPayment(fin, bill.bill.id, payId);
-  ok("the bill payment posts, clearing payable and crediting bank",
+  ok("the bill payment posts", paid.posting?.posted === true, JSON.stringify(paid.posting ?? paid));
+  const payPosted = { entry: await entryById(paid.posting.entryId) };
+  ok("...clearing payable and crediting bank",
     payPosted.entry?.lines.find((l) => l.accountId === idOf("2000"))?.debit === 230 &&
-    payPosted.entry?.lines.find((l) => l.accountId === idOf("1010"))?.credit === 230, JSON.stringify(payPosted.error ?? payPosted.entry?.lines));
+    payPosted.entry?.lines.find((l) => l.accountId === idOf("1010"))?.credit === 230, JSON.stringify(payPosted.entry?.lines));
+  const payTwice = await postBillPayment(fin, bill.bill.id, payId);
+  ok("a bill payment cannot be posted twice", payTwice.error === "already-posted", JSON.stringify(payTwice));
 
   const tb = await trialBalance(fin);
   ok("the book balances after a bill and its payment", tb.balanced === true, JSON.stringify({ d: tb.totalDebit, c: tb.totalCredit }));
@@ -3119,8 +3153,17 @@ console.log("\n== HR: departments are Master data's, positions are roles");
   // The sixteen-entry bug, asserted from both ends: neither is a department now.
   ok("...and Main is not one of them", !departments.some((d) => (d.sectionKeys || []).includes("main")));
   ok("...nor is Tasks", !departments.some((d) => (d.sectionKeys || []).includes("tasks")));
+  // THE REAL LIST, NOT A COPY OF IT. This held a hand-typed
+  // ["manufacturing", "assets", "reports", "quality-hse", "main", "tasks"] —
+  // the same defect `testNoAreaExistsForASectionWithNoScreen` shipped once and
+  // CLAUDE.md records. All four of those sections render now, so the copy
+  // called live sections dead and this failed by being out of date rather than
+  // by finding anything. Main and Tasks stay named here because they are not
+  // sections at all (CLAUDE.md is explicit), which is a different fact from
+  // "has no screen yet" and does not live in NO_SCREEN_YET.
+  const notADepartment = [...NO_SCREEN_YET, "main", "tasks"];
   ok("a department may not claim a section that renders nothing",
-    !assignableSectionKeys().some((k) => ["manufacturing", "assets", "reports", "quality-hse", "main", "tasks"].includes(k)),
+    !assignableSectionKeys().some((k) => notADepartment.includes(k)),
     assignableSectionKeys().join(", "));
 
   // SEEDING IS ONCE. A second read must not deal a second chart — the register
@@ -3387,11 +3430,17 @@ console.log("\n== a library role arrives with access, copied");
     (added.roles || []).every((r) => (r.permissions || []).length > 0),
     JSON.stringify((added.roles || []).map((r) => (r.permissions || []).length)));
 
-  // Every permission it arrived with is a real catalogue key. An archetype
-  // naming a stale key would grant nothing and look like it had worked.
-  const cataloguedKeys = new Set(ALL_PERMISSIONS);
+  // Every permission it arrived with is a real key. An archetype naming a stale
+  // one would grant nothing and look like it had worked.
+  //
+  // ASKED WITH `isPermission`, NOT AGAINST `ALL_PERMISSIONS`. An engine right is
+  // STRUCTURAL — minted from a record-type row, so it cannot be in the declared
+  // catalogue — and `new Set(ALL_PERMISSIONS).has()` answers false for every one
+  // of them. That is the identical mistake the product made and fixed when
+  // `WildcardPermissions` was written: `has` is the authority, a list is not.
+  // Here it called all 232 of an archetype's engine grants stale.
   const strayGrants = (added.roles || []).flatMap((r) => (r.permissions || []))
-    .filter((k) => !cataloguedKeys.has(k));
+    .filter((k) => !isPermission(k));
   ok("...and every key it carries is real", strayGrants.length === 0, strayGrants.join(", "));
 
   // A MULTI-SELECT RE-SELECTING WHAT IS ALREADY THERE IS QUIET. The studio

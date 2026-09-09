@@ -34,6 +34,26 @@ export type ApprovalChain = {
   type: string;
   /** In the order they must be walked. */
   steps: ApprovalStep[];
+  /**
+   * NOTHING BELOW THE FIRST THRESHOLD NEEDS APPROVING — said out loud.
+   *
+   * `chainProblems` refuses a chain whose lowest step starts above zero,
+   * because that leaves an amount nobody signs for and its own message calls
+   * it "a hole rather than a policy". The distinction is real and the numbers
+   * cannot express it: a hole is an oversight, a policy is a decision. This
+   * flag is how a chain says which.
+   *
+   * IT WAS UNEXPRESSIBLE UNTIL THE STOCK ADJUSTMENT CHAIN NEEDED IT. Counting
+   * a shelf and correcting it by one is routine work that happens dozens of
+   * times a week; requiring a signature for that means either a queue nobody
+   * clears or a studio turning the control off altogether. So the product
+   * shipped a seeded chain its own editor would have refused — the validator
+   * and the seed contradicting each other, with the test caught in between.
+   *
+   * Absent means the guard applies, which is the right default: a studio
+   * hand-editing a chain has no way to say "I meant that" and should be told.
+   */
+  noApprovalBelowFirstStep?: boolean;
 };
 
 // THE BUILT-IN, WHICH A STUDIO OVERRIDES RATHER THAN FORKS. Finance sees every
@@ -87,6 +107,10 @@ export const SEEDED_CHAINS: Record<string, ApprovalChain> = {
   // write-off, and it is the studio's dial like every other threshold here.
   adjustment: {
     type: "adjustment",
+    // THE ONE SEEDED CHAIN THAT DELIBERATELY SIGNS NOTHING AT THE BOTTOM. The
+    // paragraph above argues why; this is the field that lets it say so rather
+    // than being a chain the product ships and its own editor would refuse.
+    noApprovalBelowFirstStep: true,
     steps: [
       { permission: "inventory.stock.approve", from: 1000, label: "Stock control" },
       { permission: "inventory.stock.approveHigh", from: 25000, label: "Above the limit" },
@@ -153,11 +177,12 @@ export function chainProblems(
     }
   }
 
-  if (!steps.some((s) => s.from === 0)) {
+  if (!steps.some((s) => s.from === 0) && !chain?.noApprovalBelowFirstStep) {
     // Without one, an amount below the lowest threshold needs no approval at
     // all — a hole rather than a policy, and one nobody would notice until a
-    // small bill sailed through.
-    out.push("No step has `from: 0`, so an amount below the lowest threshold would need no approval at all.");
+    // small bill sailed through. UNLESS THE CHAIN SAYS IT MEANT IT, which is
+    // what the flag is for; see the type.
+    out.push("No step has `from: 0`, so an amount below the lowest threshold would need no approval at all. If that is the policy rather than an oversight, set `noApprovalBelowFirstStep`.");
   }
 
   return out;

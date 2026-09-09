@@ -6,49 +6,43 @@
 
 import { requirePermission } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
-import { studioContext } from "@/lib/studios";
 import { getSectionByKey } from "@/platform/db/sections";
+import { moduleContext } from "@/modules/context";
 import { allocationProblem, utilisation, type Allocation } from "./utilisation";
 import type { Section } from "@/platform/db/sections";
-import type { PermissionSet, Role } from "@/platform/access";
-import type { ContextError, StudioRef, CollaboratorRef } from "@/modules/context";
+import type { ModuleContext } from "@/modules/context";
 
 const Allocations = repo("assetAllocations");
 const Records = repo("engineRecords");
 
-export type AssetsContext = {
-  error?: undefined;
-  studio: StudioRef;
-  collaborator: CollaboratorRef;
-  access: PermissionSet;
-  roles: Role[];
-  sections: Section[];
+export type AssetsContext = ModuleContext & {
+  /**
+   * The Assets root, under the name this file's readers use. It IS `section` —
+   * the factory's own root — and the alias is kept because every function below
+   * already reads `assetsSection`, the same courtesy Projects extends with
+   * `projectsList`.
+   */
   assetsSection: Section;
-  settingsSection: Section;
 };
 
 /**
- * THE ASSETS CONTEXT, and it resolves TWO sections.
+ * THE ASSETS CONTEXT — from the factory, like every other department's.
  *
- * The allocations are the Assets root's own rows; the equipment they name are
- * ENGINE records, which live under `administration-settings` like every other
- * engine collection. So the hire rate is a cross-collection read within one
- * studio rather than a foreign-section one, and both handles are resolved here
- * so no service re-reads them.
+ * IT WAS HAND-ROLLED AND RESOLVED A SECTION NOTHING READ. The old version
+ * demanded `administration-settings` and refused `no-section` without it,
+ * because its comment believed the equipment records lived there. They do not:
+ * `equipmentRates` below says so itself — "UNDER `engine-equipment`, NOT UNDER
+ * SETTINGS" — and finds that section off `ctx.sections` directly. So the field
+ * was resolved, refused on, and then read by nothing, which meant a studio
+ * could be 404'd out of its own plant register over a section the register
+ * never touches. Both are gone.
+ *
+ * `assetsSection` is the root under the name the readers below already use.
  */
-export async function assetsContext(user: unknown, slug: string): Promise<AssetsContext | ContextError> {
-  const context = await studioContext(user as { id?: unknown }, slug);
-  if (context.error) return context;
-
-  const { studio, collaborator, access, roles, sections } = context;
-  const assetsSection = sections.find((s) => s.key === "assets");
-  const settingsSection = sections.find((s) => s.key === "administration-settings");
-  // `no-section` rather than a permission refusal: the rows cannot be addressed
-  // at all, which is not a question about who is asking.
-  if (!assetsSection || !settingsSection) return { error: "no-section" };
-
-  return { studio, collaborator, access, roles, sections, assetsSection, settingsSection };
-}
+export const assetsContext = moduleContext<AssetsContext>({
+  root: "assets",
+  sub: { assets: "assets" },
+});
 
 const scope = (ctx: AssetsContext) => ({ studio: ctx.studio, section: ctx.assetsSection });
 
