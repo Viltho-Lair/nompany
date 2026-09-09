@@ -134,6 +134,12 @@ export const REG = {
   // outside every cascade, the same lifecycle as novaConfig beside it: one small
   // document the console edits, read by every studio, owned by no tenant.
   greetingConfig: `${P}g:greetingConfig`,
+  // TODAY'S GENERATED WORDS for the greeting's automated messages — the day it
+  // belongs to, and one entry per message id. Separate from greetingConfig
+  // deliberately: the config is what a person typed and changes when they say
+  // so, this is derived output that turns over on its own at midnight, and
+  // writing them together would mean every generation racing every edit.
+  greetingToday: `${P}g:greetingToday`,
   // WHICH GOOGLE CALENDAR THE CONSOLE SHOWS. One small object — the calendar's
   // id, its name and timezone, and who connected it. Platform-level, no
   // cascade, the same lifecycle as novaConfig.

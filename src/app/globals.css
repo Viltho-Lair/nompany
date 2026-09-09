@@ -243,16 +243,25 @@
        which covers the gradient everywhere except the border it is drawn for —
        and it still follows the theme, because that is the variable the page
        behind it uses. */
+    /* THE STOPS COME FROM THE MESSAGE, and the fallbacks ARE the house colours —
+       so a band with no custom properties set renders exactly as it did before
+       messages could be coloured, and the console's preview needs no second
+       stylesheet. `var()`'s fallback may itself contain commas (everything after
+       the first one is the fallback), which is what lets a whole stop list be a
+       default. `shared/greeting.ts` builds the values; a single picked colour
+       arrives doubled, because a one-stop gradient is invalid CSS and would drop
+       the whole layer. */
     background:
-      linear-gradient(
-        90deg,
+      linear-gradient(90deg, var(--band-bg,
         color-mix(in oklab, #48caed 14%, var(--geex-page)),
         color-mix(in oklab, #fe9e04 14%, var(--geex-page)),
         color-mix(in oklab, #ff3333 14%, var(--geex-page))
-      ) padding-box,
-      linear-gradient(90deg, #48caed, #fe9e04, #ff3333) border-box;
-    /* Five pixels underneath, soft rather than dark — a lift, not a drop. */
-    box-shadow: 0 5px 12px -6px color-mix(in oklab, #48caed 45%, transparent),
+      )) padding-box,
+      linear-gradient(90deg, var(--band-border, #48caed, #fe9e04, #ff3333)) border-box;
+    /* Five pixels underneath, soft rather than dark — a lift, not a drop. It
+       takes the message's first border stop, so a recoloured band is not lit
+       from underneath in a colour it no longer contains. */
+    box-shadow: 0 5px 12px -6px color-mix(in oklab, var(--band-glow, #48caed) 45%, transparent),
                 0 5px 10px -8px rgb(0 0 0 / 0.25);
   }
 
