@@ -213,6 +213,55 @@
 }
 
 @layer components {
+  /* THE DAILY GREETING BAND — a gradient border and a gradient tint, from the
+     logo's own three colours (cyan #48caed, amber #fe9e04, red #ff3333, left to
+     right, which is the order they sit in the mark).
+
+     A GRADIENT BORDER NEEDS TWO BACKGROUNDS, because `border-color` takes a
+     colour and not an image, and `border-image` does not follow a border-radius
+     in any browser that matters. So the element paints its tint into the
+     PADDING box and the border colours into the BORDER box, with the border
+     itself transparent — the one technique that gives a rounded, gradient-edged
+     box in a single element. Both layers are declared here rather than as
+     utility strings for the reason SelectMenu's `.menu-*` rules are: a class
+     list is paid for in every chunk that renders it, a stylesheet rule once.
+
+     THE TINT IS FAINT ON PURPOSE (14%). It sits behind a line of text on a page
+     whose own background changes with the theme, and the padding-box layer is
+     semi-transparent so the page shows through — which is what makes one rule
+     correct in light and dark rather than two. */
+  .greeting-band {
+    border: 1px solid transparent;
+    border-radius: 14px;
+    /* THE TINT LAYER IS OPAQUE, AND IT HAS TO BE. Mixed with `transparent` it
+       was 14% alpha — and a see-through padding-box layer lets the border-box
+       gradient underneath show through the WHOLE box, not just the 1px edge, so
+       the band rendered as a full-saturation cyan-to-red slab. The computed
+       style said 0.14 and looked right; the screenshot said otherwise and was
+       correct, because the number describes one layer and the eye sees two.
+       Mixing into `--geex-page` instead gives the same tint as a SOLID colour,
+       which covers the gradient everywhere except the border it is drawn for —
+       and it still follows the theme, because that is the variable the page
+       behind it uses. */
+    background:
+      linear-gradient(
+        90deg,
+        color-mix(in oklab, #48caed 14%, var(--geex-page)),
+        color-mix(in oklab, #fe9e04 14%, var(--geex-page)),
+        color-mix(in oklab, #ff3333 14%, var(--geex-page))
+      ) padding-box,
+      linear-gradient(90deg, #48caed, #fe9e04, #ff3333) border-box;
+    /* Five pixels underneath, soft rather than dark — a lift, not a drop. */
+    box-shadow: 0 5px 12px -6px color-mix(in oklab, #48caed 45%, transparent),
+                0 5px 10px -8px rgb(0 0 0 / 0.25);
+  }
+
+  /* THE GRADIENT DOES NOT FLIP IN ARABIC, and that is deliberate. It is the
+     LOGO's order — the mark reads cyan, amber, red left to right on every
+     surface in the product, including inside an RTL studio — so mirroring it
+     here would make the band disagree with the logo six inches above it.
+     Direction-neutral decoration stays put; only content mirrors. */
+
   /* ---- Landing page helpers -------------------------------------------
      These were `@utility` rules in the standalone site (Tailwind v4). They
      live in `components` so ordinary utilities still override them — e.g.

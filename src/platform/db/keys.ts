@@ -130,6 +130,10 @@ export const REG = {
   // edited in /super → Application → Nova; qualifies every studio's Nova the way
   // catalogSettings qualifies every package. Platform-level, no cascade.
   novaConfig: `${P}g:novaConfig`,
+  // THE DAILY GREETING shown across the top of every studio. Platform-level and
+  // outside every cascade, the same lifecycle as novaConfig beside it: one small
+  // document the console edits, read by every studio, owned by no tenant.
+  greetingConfig: `${P}g:greetingConfig`,
   // WHICH GOOGLE CALENDAR THE CONSOLE SHOWS. One small object — the calendar's
   // id, its name and timezone, and who connected it. Platform-level, no
   // cascade, the same lifecycle as novaConfig.

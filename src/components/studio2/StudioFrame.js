@@ -26,6 +26,7 @@ import LiveProvider from "@/components/studio2/LiveProvider";
 import NotificationBell from "@/components/studio2/NotificationBell";
 import ThemeToggle from "@/components/ThemeToggle";
 import { toneOf } from "@/lib/planColors";
+import DailyGreeting from "@/components/studio2/DailyGreeting";
 
 // Studio chrome for the restructured model: the studio's identity, its sections
 // (each a real row with its own SectionID), and who you are INSIDE this studio.
@@ -782,6 +783,19 @@ export default function StudioFrame({
               <p className="truncate text-xs text-slate-400 dark:text-slate-500">{studio.name}</p>
             </div>
           </div>
+
+          {/* THE DAILY GREETING, in the empty middle of the header. It takes the
+              space between the page title and the controls, which is the only
+              part of this bar that was carrying nothing.
+
+              `order-last` BELOW `lg`, so a narrow header keeps the title beside
+              the menu button and the band wraps to its own line underneath
+              rather than squeezing both. The header is already `flex-wrap`;
+              this just decides what wraps. It renders null when there is no
+              message or the day has been dismissed, so the row collapses to
+              exactly what it was before. */}
+          <DailyGreeting slug={studio.slug} />
+
           <div className="flex items-center gap-2">
             {/* THE PERSON'S LANGUAGE, beside the theme control because it is the
                 same kind of choice: mine, about how I read this, not about what
