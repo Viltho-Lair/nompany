@@ -77,6 +77,7 @@ type Strings = CommonStrings & {
   message: string;
   minimiseChat: string;
   nNotificationsWaiting: (n: number) => string;
+  novaNeedsKey: (provider: string, docs: string) => string;
   nStars: (n: number) => string;
   nTickets: (n: number) => string;
   newRfqOutstandingWait: string;
@@ -253,6 +254,7 @@ const en: Strings = {
   nova: "Nova",
   novaNotInPlan: "Nova isn't part of this studio's plan.",
   novaNotSetUp: "Nova isn't set up yet.",
+  novaNeedsKey: (provider: string, docs: string) => `Nova uses your own ${provider} key. Create one at ${docs}, then paste it into your account settings under “Nova / AI key”.`,
   novaScope: "Ask about your studio's data. Nova only sees what you can.",
   novaThinking: "Nova is thinking…",
   number: "Number",
@@ -408,6 +410,7 @@ const ar: Strings = {
   nova: "نوفا",
   novaNotInPlan: "نوفا ليست ضمن باقة هذا الاستوديو.",
   novaNotSetUp: "لم تهيأ نوفا بعد.",
+  novaNeedsKey: (provider: string, docs: string) => `تستخدم نوفا مفتاح ${provider} الخاص بك. أنشئ واحدا من ${docs}، ثم الصقه في إعدادات حسابك تحت “نوفا / مفتاح الذكاء الاصطناعي”.`,
   novaScope: "اسأل عن بيانات استوديوك. لا ترى نوفا إلا ما يمكنك رؤيته.",
   novaThinking: "نوفا تفكر…",
   number: "الرقم",

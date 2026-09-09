@@ -9,10 +9,14 @@ import { cleanProvider, providerMeta } from "@/lib/nova/providers";
 
 // How a person gets a key, shown when they have not set one. Names the provider
 // they chose so the instructions point at the right place.
-const keyHelp = (providerId: string) => {
-  const m = providerMeta(providerId);
-  return `Nova uses your own ${m.label} key. Create one at ${m.docs}, then paste it into your account settings under “Nova / AI key”.`;
-};
+// THE SERVER NAMES THE PROVIDER; THE CLIENT WRITES THE SENTENCE.
+//
+// This built an English sentence here and the studio showed it verbatim, so an
+// Arabic studio was told "Nova uses your own OpenAI key. Create one at …" in
+// English — the one Nova string in the product that bypassed
+// shared/studio/misc, which is where every other one lives and translates on
+// display. Same rule as statuses and stages: what crosses the wire is a token
+// and its data, never words.
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -39,7 +43,7 @@ export const POST = route(spec, async (g) => {
   const provider = cleanProvider(profile.novaProvider);
   const apiKey = decryptField(profile.novaKey)
     || (provider === "anthropic" ? String(process.env.ANTHROPIC_API_KEY || "") : "");
-  if (!apiKey) return { status: 503, body: { error: "no-key", help: keyHelp(provider) } };
+  if (!apiKey) return { status: 503, body: { error: "no-key", provider: providerMeta(provider).label, docs: providerMeta(provider).docs } };
 
   const message = typeof body?.message === "string" ? body.message.slice(0, 4000) : "";
   const history = sanitiseHistory(body?.messages);

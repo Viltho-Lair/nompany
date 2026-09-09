@@ -16,7 +16,6 @@ import ThemeToggle from "@/components/ThemeToggle";
 import { cn } from "@/lib/utils";
 import { NOVA_PROVIDERS, providerMeta } from "@/lib/nova/providers";
 import { fmtDate, fmtDateTime } from "@/lib/format";
-import CopyableCode from "@/components/CopyableCode";
 import SelectMenu from "@/components/fields/SelectMenu";
 import { useReload } from "@/components/studio2/useReload";
 
@@ -1352,39 +1351,23 @@ function Calendars({ locale, outcome }) {
             </div>
           ))}
 
-          {/* WHAT THE BUTTON ABOVE CANNOT TELL YOU ON ITS OWN. `available` is
-              driven by the SIGN-IN credentials — one client id and secret serve
-              both — so Connect appears the moment Google or Microsoft sign-in
-              works, whether or not anybody registered this feature's own
-              callback path. Without it the provider answers
-              redirect_uri_mismatch and the product says nothing at all — the
-              real failure that prompted this block: the operator registered
-              what the address bar showed (nompany.com) while the site actually
-              served on www.nompany.com, and the two are different strings to a
-              provider that compares byte for byte. So the address shown here is
-              `data.redirectUris[p]`, computed server-side from THIS request
-              (route.ts, calendarRedirectUri) rather than guessed at in this
-              file — the same string the server will actually send. */}
-          {connectable.length > 0 && (
-            <div className="flex flex-col gap-2 px-1">
-              <p className="text-xs text-slate-400 dark:text-slate-500">{tr.calendarRedirectHint}</p>
-              {connectable.map((p) => (
-                data.redirectUris?.[p] ? (
-                  <div key={p} className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                    <span className="shrink-0 font-500">{providerLabel(p)}:</span>
-                    <CopyableCode
-                      value={data.redirectUris[p]}
-                      className="min-w-0 flex-1"
-                      codeClassName="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] text-slate-700 dark:border-white/15 dark:bg-[#191921] dark:text-slate-200"
-                      buttonClassName="rounded-full px-2.5 py-1 text-[11px] font-600 text-brand-700 hover:bg-brand-50 dark:text-brand-300 dark:hover:bg-brand-500/10"
-                      copyLabel={tr.copyRedirectUri}
-                      copiedLabel={tr.copied}
-                    />
-                  </div>
-                ) : null
-              ))}
-            </div>
-          )}
+          {/* THE REDIRECT-URI BLOCK IS GONE FROM HERE, and it was never this
+              screen's to show. It printed the exact callback address for each
+              provider with a note that it "must be registered as a redirect URI
+              on the provider's OAuth client — matched byte for byte". That is a
+              real instruction and a correct one, and it is addressed to whoever
+              owns the Google or Microsoft OAuth client: a one-time job, done
+              once for the whole platform, in a console this reader has no
+              account on.
+
+              A tenant connecting their own calendar cannot act on it. What they
+              got was three lines of somebody else's setup documentation, on the
+              screen they went to in order to press one button.
+
+              IT STILL EXISTS WHERE IT BELONGS: /super → Application → Calendar
+              shows the same addresses to the person who can register them, from
+              `consoleCalendarRedirectUri`. Deleting it here removes a duplicate,
+              not the information. */}
         </div>
       )}
 
