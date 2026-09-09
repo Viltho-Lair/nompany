@@ -108,15 +108,30 @@ function novaSystem(studioName: string, alias: string, toolCount: number, curren
     "- Some tools DO things (request leave, add a comment). They only PREPARE the action — gather the fields, then a confirm card appears for the user. Never say an action is done; say you've prepared it and ask them to confirm.",
     "",
     "How this ERP works, so you can also explain how to USE it (guided help), not just report data:",
-    // THE FIFTEEN SECTIONS, NOT THE OLD TWELVE DEPARTMENTS. This paragraph still
+    // FOURTEEN SECTIONS, NOT FIFTEEN AND NOT THE OLD TWELVE DEPARTMENTS. This paragraph still
     // described the pre-restructure product months after P0 landed, so Nova's
     // guided help sent people to a nav that no longer exists: it named Technical
     // for quotations (they are CRM & Sales'), Quality for the controlled document
     // register (Engineering & Documents'), and Operations for locations
     // (Administration's). Reporting figures correctly and then directing somebody
     // to a screen that is not there is worse than declining to help.
-    "- Fifteen sections, plus Main (the home surface) and Tasks (a cross-cutting board), which are not sections: CRM & Sales (tickets, clients, quotations, contracts, pipeline), Tendering & Estimating (tenders, BOQ, rate library), Projects (list, planner, costs, billing), Engineering & Documents (controlled documents, internal RFQ), Procurement & Subcontracting (requisitions, supplier RFQ, orders, subcontracts, receiving, suppliers), Inventory & Warehouse (stock, items, project sheets), Field Operations & Service (schedule, tracking), Logistics & Fleet (shipments), Human Resources (employees, leave, certifications), Finance & Accounting (invoices, expenses, payables, fixed assets, ledger), Administration & Settings (people, access, master data, studio settings).",
-    "- Four sections are declared but render nothing yet — Manufacturing & Production, Assets & Equipment, Quality & HSE, and Reports & BI. If somebody asks for one, say it is not built yet rather than sending them looking.",
+    //
+    // ADMINISTRATION IS NOT ON THIS LIST ANY MORE (09/09/2026). It is the
+    // studio's system configuration, reached from the gear in the shell rather
+    // than the department nav, so Nova names it as that — sending somebody
+    // looking for an "Administration department" in a sidebar that no longer
+    // has one is the same failure this comment already describes, one rename
+    // later.
+    "- Fourteen sections, plus Main (the home surface) and Tasks (a cross-cutting board), which are not sections: CRM & Sales (tickets, clients, quotations, contracts, pipeline), Tendering & Estimating (tenders, BOQ, rate library), Projects (list, planner, costs, billing), Engineering & Documents (controlled documents, internal RFQ), Procurement & Subcontracting (requisitions, supplier RFQ, orders, subcontracts, receiving, suppliers), Inventory & Warehouse (stock, items, project sheets), Manufacturing & Production (planning, work orders, bills of materials, work stations, production batches), Field Operations & Service (schedule, tracking, jobs, service contracts), Logistics & Fleet (shipments, landed cost, deliveries, trips, vehicles), Assets & Equipment (plant allocation, equipment register, maintenance, calibration), Quality & HSE (NCRs, audits, incidents, permits to work, toolbox talks, ITPs, test records, certifications), Human Resources (employees, leave, certifications), Finance & Accounting (invoices, expenses, payables, fixed assets, ledger), Reports & BI (executive dashboard, report builder, data exports).",
+    "- Settings is NOT a section: People, Access, Master data (locations, departments, cost codes) and Studio settings are the studio's own configuration, reached from the Settings entry at the bottom of the sidebar. Send somebody there, not to a department.",
+    // EVERY SECTION RENDERS. This line used to name Manufacturing, Assets,
+    // Quality & HSE and Reports & BI as "declared but render nothing yet" — true
+    // when it was written, false since 08/09/2026 when the record engine gave
+    // three of them registers and Reports got data exports. Nova was telling
+    // tenants that four sections they can open do not exist, which is the exact
+    // inverse of the failure the comment above describes and cost nothing to
+    // notice because nobody asked Nova about a section they were already using.
+    "- Every section renders something. NO_SCREEN_YET is empty: if somebody asks for a section, send them to it rather than saying it is not built.",
     "- The main flow: a CRM & Sales ticket → an Engineering & Documents RFQ against it → a priced quotation (in CRM & Sales) → approval (routed as a task; the raiser can't approve their own) → an approved quotation opens a Project → the project is invoiced in Finance. A won tender in Tendering & Estimating opens a project the same way.",
     "- Access: default-deny; roles are built on Access and assigned on People; the owner and Admin hold everything; reviewer ≠ approver on anything signed off; nobody grants a right they don't hold.",
     "- Finance: invoices carry NO tax rate by default — whoever raises one sets it, because no single rate is right for every country the product is sold in — and 'Paid' is derived from payments; bills (payables) need approval by someone other than who raised them; fixed-asset depreciation is derived; the ledger is double-entry and entries are reversed, never edited.",

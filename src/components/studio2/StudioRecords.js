@@ -159,10 +159,33 @@ function cell(tr, field, value) {
   return String(value);
 }
 
+// HOW MANY ROWS ARE PUT IN THE DOM AT ONCE. Not a data page — every record is
+// already in the browser (see the note on the controls below) — so this caps
+// rendering, not fetching, and "Show more" costs no round trip. 50 is where a
+// table stops being scannable, not where it stops being fast.
+const PAGE = 50;
+
 /** A blank form for this type: every declared field, and nothing else. */
 const blankValues = (type) => Object.fromEntries(
   (type.fields || []).map((f) => [f.key, f.kind === "boolean" ? false : ""]),
 );
+
+// A COLUMN HEADER THAT SORTS, and says so. The arrow is drawn only on the
+// active column: an arrow on every header tells a reader nothing about which
+// one is in force, which is the state a plain table is already in.
+function SortHead({ label, col, sort, onSort }) {
+  const active = sort.key === col;
+  return (
+    <button type="button" onClick={() => onSort(col)}
+      aria-label={label}
+      className="inline-flex items-center gap-1 font-inherit hover:text-slate-900 dark:hover:text-white">
+      {label}
+      <span aria-hidden="true" className={active ? "text-slate-500 dark:text-slate-300" : "text-transparent"}>
+        {sort.dir === "desc" ? "↓" : "↑"}
+      </span>
+    </button>
+  );
+}
 
 export default function StudioRecords({ slug, typeKey }) {
   const tr = restDict(useStudioLocale());
@@ -173,6 +196,43 @@ export default function StudioRecords({ slug, typeKey }) {
   // both acts, because the form is built from the declaration either way and a
   // second copy of it would be free to offer different fields.
   const [form, setForm] = useState(null);
+
+  // THE REGISTER'S CONTROLS, AND THEY ARE ALL IN THE BROWSER ON PURPOSE.
+  //
+  // The route returns a type's whole record set, so searching, filtering and
+  // sorting here costs no round trip and cannot disagree with what is on
+  // screen. That holds because of what a register IS: `engineRecords` is one
+  // collection discriminated by `typeKey`, a type is a studio's own list of
+  // its transmittals or its NCRs, and those run to hundreds rather than to the
+  // tens of thousands that would force this onto the server. `limit` is the
+  // hedge — the DOM is capped rather than the data, so a studio that does grow
+  // one to a few thousand rows gets a slow search rather than a dead tab.
+  //
+  // WHEN TO MOVE IT: the day a type's own count makes the initial fetch slow,
+  // which is a different problem from this one and wants a paged route, a
+  // cursor and a server-side sort. Doing that now would buy nothing and cost
+  // the "what you filtered is what you export" property below.
+  const [query, setQuery] = useState("");
+  const [status, setStatus] = useState("");
+  const [sort, setSort] = useState({ key: "", dir: "asc" });
+  const [limit, setLimit] = useState(PAGE);
+
+  // A NEW TYPE IS A NEW REGISTER, so its filters do not carry over. Without
+  // this, clicking from NCRs to Audits keeps a status filter naming a status
+  // the new type does not have, and the register renders empty — which reads
+  // as "no audits" rather than as a filter nobody can see.
+  //
+  // ADJUSTED DURING RENDER, NOT IN AN EFFECT. React's own guidance for
+  // "reset state when a prop changes", and it is not a style preference here:
+  // an effect would paint one frame of the new register through the old
+  // register's filter before correcting itself, and `react-hooks/
+  // set-state-in-effect` refuses it — the lint budget is shrink-only, so a
+  // warning is a build-level no.
+  const [lastType, setLastType] = useState(typeKey);
+  if (lastType !== typeKey) {
+    setLastType(typeKey);
+    setQuery(""); setStatus(""); setSort({ key: "", dir: "asc" }); setLimit(PAGE);
+  }
 
   const read = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/records/${typeKey}`, { cache: "no-store" });
@@ -223,8 +283,64 @@ export default function StudioRecords({ slug, typeKey }) {
   const columns = (type.columns || [])
     .map((c) => (type.fields || []).find((f) => f.key === c))
     .filter(Boolean);
-  const movesFrom = (status) => (type.transitions || []).filter((t) => t.from === status);
+  const movesFrom = (from) => (type.transitions || []).filter((t) => t.from === from);
   const acting = canEdit || canDelete;
+
+  // SEARCH READS THE WHOLE RECORD, not just the columns. A studio that put the
+  // supplier's name in a field it did not choose as a column still expects to
+  // find the row by typing it — and hiding a match because of a display choice
+  // is the kind of thing people quietly stop trusting the search for.
+  const needle = query.trim().toLowerCase();
+  const matches = (r) => {
+    if (!needle) return true;
+    if (String(r.reference || "").toLowerCase().includes(needle)) return true;
+    if (String(r.status || "").toLowerCase().includes(needle)) return true;
+    return Object.values(r.values || {}).some((v) => String(v ?? "").toLowerCase().includes(needle));
+  };
+
+  const shown = (records || [])
+    .filter((r) => (status ? r.status === status : true))
+    .filter(matches)
+    .sort((a, b) => {
+      if (!sort.key) return 0;
+      // REFERENCE AND STATUS ARE ON THE ROW; everything else is inside `values`.
+      const pick = (r) => (sort.key === "reference" ? r.reference
+        : sort.key === "status" ? r.status
+        : r.values?.[sort.key]);
+      const x = pick(a); const y = pick(b);
+      // NUMBERS COMPARE AS NUMBERS. A money or number field sorted as text puts
+      // 100 before 20, which is the bug that makes a sort look broken rather
+      // than absent.
+      const bothNum = typeof x === "number" && typeof y === "number";
+      const n = bothNum ? x - y : String(x ?? "").localeCompare(String(y ?? ""), undefined, { numeric: true });
+      return sort.dir === "desc" ? -n : n;
+    });
+  const page = shown.slice(0, limit);
+
+  const toggleSort = (key) => setSort((s) =>
+    (s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" }));
+
+  // WHAT IS EXPORTED IS WHAT IS FILTERED, all of it — `shown`, not `page`. An
+  // export that silently stopped at the visible rows would be wrong in a way
+  // nobody checks: a spreadsheet with 50 of 300 rows looks exactly like a
+  // spreadsheet with 50 rows.
+  const exportCsv = () => {
+    const cols = ["reference", ...columns.map((f) => f.key), "status"];
+    const heads = [tr.reference, ...columns.map((f) => f.label), tr.status];
+    const esc = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const body = shown.map((r) => cols.map((c) =>
+      esc(c === "reference" ? r.reference : c === "status" ? r.status : r.values?.[c])).join(","));
+    // A BOM, because Excel opens a UTF-8 CSV without one as mojibake and half
+    // this product's registers are in Arabic.
+    const blob = new Blob(["\uFEFF" + [heads.map(esc).join(","), ...body].join("\r\n")],
+      { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${typeKey}-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="space-y-6">
@@ -240,8 +356,43 @@ export default function StudioRecords({ slug, typeKey }) {
         )}
       </div>
 
+      {/* THE CONTROLS ONLY APPEAR WHEN THERE IS SOMETHING TO CONTROL. A search
+          box over four rows is noise, and an empty register with a filter bar
+          reads as a register whose filter is hiding everything. */}
+      {records.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            className="w-56 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 dark:border-white/15 dark:bg-[#191921] dark:text-white"
+            value={query} aria-label={tr.recordSearch} placeholder={tr.recordSearch}
+            onChange={(e) => { setQuery(e.target.value); setLimit(PAGE); }}
+          />
+          {(type.statuses || []).length > 0 && (
+            /* THROUGH `Field`, like every other control in the product — and
+               the status words are the STUDIO'S OWN, so they are used as both
+               value and label rather than looked up in a dictionary of the
+               product's built-in ladders. */
+            <Field label={tr.status} as="select" className="w-44"
+              value={status}
+              onChange={(v) => { setStatus(v); setLimit(PAGE); }}
+              options={[{ value: "", label: tr.recordFilterAll },
+                ...(type.statuses || []).map((st) => ({ value: st, label: st }))]} />
+          )}
+          <span className="num text-[12px] text-slate-400 dark:text-slate-500">
+            {tr.recordCount(shown.length, records.length)}
+          </span>
+          <button type="button" className={btnRow} onClick={exportCsv} disabled={!shown.length}>
+            {tr.recordExport}
+          </button>
+        </div>
+      )}
+
       {!records.length ? (
         <Empty title={tr.recordsEmpty} body={tr.recordsEmptyBody} />
+      ) : !shown.length ? (
+        /* A FILTER THAT MATCHES NOTHING IS NOT AN EMPTY REGISTER, and saying
+           "nothing here yet" would send somebody to add a record they already
+           have. */
+        <Empty title={tr.recordSearchNothing} body={tr.recordsEmptyBody} />
       ) : (
         <section className={panel}>
           {/* THE TABLE SCROLLS INSIDE ITS OWN BOX. A studio may declare a type
@@ -251,14 +402,24 @@ export default function StudioRecords({ slug, typeKey }) {
             <table className="w-full text-start text-sm">
               <thead>
                 <tr className="border-b border-slate-200/70 text-start dark:border-white/10">
-                  <th className={`${th} text-start`}>{tr.reference}</th>
-                  {columns.map((f) => <th key={f.key} className={`${th} text-start`}>{f.label}</th>)}
-                  <th className={`${th} text-start`}>{tr.status}</th>
+                  {/* EVERY COLUMN SORTS, and the arrow says which way. A
+                      header that looks inert is a header nobody clicks. */}
+                  <th className={`${th} text-start`}>
+                    <SortHead label={tr.reference} col="reference" sort={sort} onSort={toggleSort} />
+                  </th>
+                  {columns.map((f) => (
+                    <th key={f.key} className={`${th} text-start`}>
+                      <SortHead label={f.label} col={f.key} sort={sort} onSort={toggleSort} />
+                    </th>
+                  ))}
+                  <th className={`${th} text-start`}>
+                    <SortHead label={tr.status} col="status" sort={sort} onSort={toggleSort} />
+                  </th>
                   {acting && <th className={`${th} text-end`}>{/* actions */}</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-white/5">
-                {records.map((r) => (
+                {page.map((r) => (
                   <tr key={r.id}>
                     <td className="py-3 pe-4 font-mono text-xs text-slate-500 dark:text-slate-400">{r.reference}</td>
                     {columns.map((f) => (
@@ -306,6 +467,12 @@ export default function StudioRecords({ slug, typeKey }) {
               </tbody>
             </table>
           </div>
+
+          {shown.length > page.length && (
+            <button type="button" className={`${btnRow} mt-4`} onClick={() => setLimit((n) => n + PAGE)}>
+              {tr.recordMore}
+            </button>
+          )}
         </section>
       )}
 

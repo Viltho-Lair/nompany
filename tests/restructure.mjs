@@ -32,7 +32,11 @@ const {
   SECTION_KEY_MAP, PERMISSION_KEY_MAP, COLLECTION_MOVES,
   mapSectionKey, mapPermissionKey,
 } = await import("../src/platform/db/restructure.ts");
-const { SECTION_DEFS, ALL_SECTION_KEYS, SECTION_COLLECTIONS } = await import("../src/platform/db/keys.ts");
+const { SECTION_DEFS, ALL_SECTION_KEYS, SECTION_COLLECTIONS,
+  SYSTEM_SECTION_KEYS, PRODUCT_SECTION_KEYS, isSystemSection } = await import("../src/platform/db/keys.ts");
+const { REQUIRED_SECTIONS } = await import("../src/platform/db/sections.ts");
+const { ARCHETYPES, permissionsFor } = await import("../src/modules/people/archetypes.ts");
+const { engineSectionKey } = await import("../src/platform/access/catalogue.ts");
 // Dynamic for the same reason as every import in this file — see above.
 const { departmentOf } = await import("../src/shared/studio/insights.ts");
 const { AREAS } = await import("../src/platform/access/index.ts");
@@ -916,7 +920,12 @@ function gitGrepLines(execFileSync, file, patterns) {
 // so giving Main a child would not gate Main itself (catalogue.ts). None of
 // these four are section keys and none of them should ever become one — a
 // literal naming one of them is correct, not a survivor.
-const NON_SECTION_TARGETS = ["people", "access", "documentation", "engagements"];
+// SETTINGS JOINS THEM, 09/09/2026, and it is the newest for the clearest
+// reason: `/‹slug›/settings` is the surface Administration became when it
+// stopped being a section. It is deliberately NOT a section key — that is the
+// whole change — so a literal naming it is correct, and it belongs here beside
+// the other four rather than being made a key to satisfy this assertion.
+const NON_SECTION_TARGETS = ["people", "access", "documentation", "engagements", "settings"];
 const isKnownRouteTarget = (key) => ALL_SECTION_KEYS.includes(key) || NON_SECTION_TARGETS.includes(key);
 
 // COMPOUND_ROOTS IS A SECOND LIST THAT MUST AGREE WITH SECTION_DEFS, and its own
@@ -1593,6 +1602,115 @@ export async function testTheSharedTokensAreOnRoot(t) {
     "...and the sweep keyframe moved with them");
 }
 
+
+// ADMINISTRATION IS NOT A SECTION, AND ITS ROWS MUST SURVIVE THAT.
+//
+// The owner's instruction on 09/09/2026 was to stop treating Administration &
+// Settings as a section. The change is deliberately a PRESENTATION change: the
+// sidebar tree and the marketing site's department list filter it out, and the
+// section ROWS stay exactly where they were, because they are where records are
+// physically filed.
+//
+// THIS TEST EXISTS FOR THE NEXT SESSION, not for this one. Reading "not a
+// section any more" and reaching for `SECTION_DEFS` to delete the entry is the
+// obvious next move and it is the destructive one: `administration-master` owns
+// `locations`, `departments` and `costCodeLibrary`, `administration-settings`
+// owns `recordTypes`, and seven modules resolve one or the other as a foreign
+// section. Removing the def would stop new studios seeding the rows, strand
+// every location and department already written in every live studio, and fail
+// NOTHING — the same shape as the three tenders that went invisible in the
+// sandbox, at the scale of the whole tenant base.
+//
+// So each half is asserted separately: the keys are gone from what the product
+// PRESENTS, and present in what the product STORES.
+export async function testAdministrationIsNotASectionButItsRowsSurvive(t) {
+  // -- the keys are real. A typo here would silently exempt nothing.
+  for (const key of SYSTEM_SECTION_KEYS) {
+    t.equal(ALL_SECTION_KEYS.includes(key), true,
+      `${key} is a real declared key — SYSTEM_SECTION_KEYS must name keys that exist`);
+  }
+
+  // -- the split is total: every key is exactly one of product or system.
+  t.equal(PRODUCT_SECTION_KEYS.length + SYSTEM_SECTION_KEYS.length, ALL_SECTION_KEYS.length,
+    "every declared key is either a product section or system configuration, and none is both");
+  for (const key of PRODUCT_SECTION_KEYS) {
+    t.equal(isSystemSection(key), false, `${key} is a product section`);
+  }
+
+  // -- THE ROWS STILL SEED. `REQUIRED_SECTIONS` is what a studio may not switch
+  // off, and administration is on it because the settings screens are the only
+  // way to switch anything back on. Not being a section did not change that.
+  t.equal(REQUIRED_SECTIONS.includes("administration"), true,
+    "the administration row is still required — it holds the screen that turns things back on");
+  t.equal(REQUIRED_SECTIONS.includes("administration-settings"), true,
+    "...and so is its settings child");
+
+  // -- THE COLLECTIONS DID NOT MOVE. This is the assertion that protects live
+  // data: four collections are filed under two administration keys, and if a
+  // later change re-homes or drops them, every row already written is stranded
+  // under a section nothing reads.
+  const master = SECTION_COLLECTIONS["administration-master"] || [];
+  for (const col of ["locations", "departments", "costCodeLibrary"]) {
+    t.equal(master.includes(col), true,
+      `${col} is still filed under administration-master — moving it strands every row already written`);
+  }
+  t.equal((SECTION_COLLECTIONS["administration-settings"] || []).includes("recordTypes"), true,
+    "recordTypes is still filed under administration-settings");
+
+  // -- THE RIGHTS STILL BITE. Four areas gate the four screens, and a screen
+  // reached off the section nav is still a screen somebody must be granted.
+  // Invariant 16 read the other way: these rights must go on being exercisable.
+  for (const key of ["administration-members", "administration-access", "administration-master", "administration-settings"]) {
+    t.equal((SECTION_AREAS[key] || []).length > 0, true,
+      `${key} still answers to an area — leaving the nav must not leave it ungated`);
+  }
+}
+
+
+// A SECTION WITH A SCREEN MUST BE REACHABLE BY SOME SEEDED ROLE — the mirror of
+// testNoAreaExistsForASectionWithNoScreen, and CLAUDE.md has been asking for it
+// by name.
+//
+// THE DEFECT HAS SHIPPED THREE TIMES, each found by somebody tripping over it:
+// the contracts register, then the tender register, then the whole of
+// Procurement — a section whose own Manager could not open it. Nothing asserted
+// the property, which is exactly why it kept happening: every one of those
+// shipped a correct catalogue entry, a correct SECTION_AREAS line and a screen
+// that worked, and simply nobody who could reach it.
+//
+// A COUNT, NOT AN EXEMPTION LIST, deliberately — CLAUDE.md specifies the shape.
+// An exemption list would need a line for every section somebody decided to
+// leave owner-only, and each of those lines is a place to hide the next
+// oversight. Zero is the only number that needs no explanation.
+//
+// MEASURED AGAINST A REAL STUDIO'S SECTION LIST, which is the part that took a
+// wrong answer to get right. `ALL_SECTION_KEYS` alone reports `quality-hse`
+// unreachable, and it is not: its eight registers are engine sections planted
+// at runtime, absent from the declared list, and `sectionViewable` finds a
+// section's children BY KEY PREFIX unless it is handed the stored parent map
+// (invariant 14's other half). So the keys and the parent map are both built
+// from BUILTIN_TYPES here, the way a seeded studio actually holds them.
+export async function testEverySectionWithAScreenIsReachableBySomeSeededRole(t) {
+  const types = BUILTIN_TYPES.map((x) => ({ key: x.key, parentSectionKey: x.parentSectionKey }));
+  const engineKeys = types.map((x) => engineSectionKey(x.key));
+  const allKeys = [...ALL_SECTION_KEYS, ...engineKeys];
+  const parentOf = Object.fromEntries(types.map((x) => [engineSectionKey(x.key), x.parentSectionKey]));
+
+  // Every role a studio can be seeded with: the eleven archetypes the whole
+  // ~3,000-title library resolves to. Admin is deliberately NOT among them —
+  // it is the one wildcard and would make this assertion vacuous.
+  const seeded = ARCHETYPES.map((a) => ({ id: a.id, access: new Set(permissionsFor(a.id, types)) }));
+
+  const unreachable = allKeys.filter((key) => {
+    if (isSystemSection(key)) return false;      // settings, not a section
+    if (NO_SCREEN_YET.includes(key)) return false; // declared, renders nothing, hidden
+    return !seeded.some((r) => sectionViewable(r.access, key, allKeys, parentOf));
+  });
+
+  t.equal(unreachable.length, 0,
+    `every section with a screen is openable by at least one seeded role — unreachable: ${unreachable.join(", ")}`);
+}
+
 // ---- harness ----------------------------------------------------------------
 // Same non-throwing, accumulate-and-report shape as tests/suite.mjs's own
 // ok(): one bad assertion must not hide the rest, which matters more here than
@@ -1650,6 +1768,8 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       testTheRoleLibraryNeverReachesABrowser,
       testTheSharedChartKitUsesNoConsoleOnlyToken,
       testTheSharedTokensAreOnRoot,
+      testAdministrationIsNotASectionButItsRowsSurvive,
+      testEverySectionWithAScreenIsReachableBySomeSeededRole,
       testAdministrationFollowsItsChildren,
       testProjectSegmentsAreExemptFromTheBoard,
       testEveryContextualSectionKeyLiteralExists,

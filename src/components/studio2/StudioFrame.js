@@ -9,9 +9,10 @@ import Image from "next/image";
 import { useRouter, usePathname } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { dirFor, locales, LANGUAGE_NAMES, LANGUAGE_SHORT } from "@/shared/locale";
-import { studioSegments, requestedKey, resolveActiveKey, isFullScreenPath } from "@/shared/studioRoute";
+import { studioSegments, requestedKey, resolveActiveKey, isFullScreenPath, isSettingsPath, SETTINGS_KEY } from "@/shared/studioRoute";
 import { shellDict } from "@/shared/studio/shell";
 import { sectionName } from "@/shared/studio/sections";
+import { isSystemSection } from "@/platform/db/keys";
 import { StudioLocaleProvider } from "@/components/studio2/locale";
 import LangMenu from "@/components/LangMenu";
 // LOADED ONLY BY THE STUDIOS THAT NEED IT. The RTL cache pulls in
@@ -251,7 +252,15 @@ export default function StudioFrame({
   // statement about the screen rather than about the address.
   const pathname = usePathname();
   const segments = studioSegments(pathname, studio.slug);
-  const activeKey = activeKeyProp ?? resolveActiveKey(requestedKey(segments), sections);
+  // THE SETTINGS SURFACE ANSWERS FIRST, ahead of the section lookup, because it
+  // is no longer IN the section list: `resolveActiveKey` answers only from the
+  // sections a person may open, so `/settings` — and the four screens under it —
+  // would fall through to their first section and light up Main while Studio
+  // settings was on screen. Same class of bug as the nav rows that used to be
+  // reached by a literal key match; answered from the shared derivation this
+  // time, so the page and the shell cannot disagree about it.
+  const activeKey = activeKeyProp
+    ?? (isSettingsPath(segments) ? SETTINGS_KEY : resolveActiveKey(requestedKey(segments), sections));
   // The shell's own words. Imported rather than passed down as a prop: it is a
   // few hundred bytes, it is needed on literally every studio render, and a
   // prop would put it in the RSC payload of every navigation instead. See the
@@ -307,7 +316,19 @@ export default function StudioFrame({
   // A sub-section can be granted WITHOUT its parent — access is per id and does
   // not cascade — so a child whose parent is not visible is promoted to the top
   // level rather than being hidden under a group that was filtered out.
-  const all = sections || [];
+  // ADMINISTRATION IS NOT IN THIS TREE, and that is the point of the change on
+  // 09/09/2026. Its four screens are system configuration — People, Access,
+  // Master data, Studio settings — not a department a studio runs, and sitting
+  // them beside Projects and Finance said otherwise to every tenant.
+  //
+  // FILTERED HERE RATHER THAN OMITTED FROM THE DATA: the rows still exist and
+  // still own `locations`, `departments`, `costCodeLibrary` and `recordTypes`,
+  // so seven modules go on resolving them as foreign sections. What changed is
+  // what the SIDEBAR calls a section. `isSystemSection` is the one list that
+  // decides, shared with the marketing site's department list so the two cannot
+  // drift — the exact failure the fifteen-section restructure kept finding.
+  const all = (sections || []).filter((s) => !isSystemSection(s.key));
+  const systemSections = (sections || []).filter((s) => isSystemSection(s.key));
   const visibleIds = new Set(all.map((s) => s.id));
   const tree = all
     .filter((s) => !s.parentId || !visibleIds.has(s.parentId))
@@ -458,21 +479,48 @@ export default function StudioFrame({
           {/* The manual, so it wears the manual's mark. It asked for "services"
               — a wrench in the new set — which is a tool, not a document. It stays
               neutral grey rather than taking an accent: it is not a section, and
-              colouring it would put it in the same visual class as the fifteen. */}
+              colouring it would put it in the same visual class as the fourteen. */}
           <Icon name="book" className="h-[18px] w-[18px] text-slate-400 dark:text-slate-500" />
           {tr.documentation}
         </Link>
-        {/* STUDIO SETTINGS IS NOT PINNED HERE ANY MORE. It was a footer link
-            because it was reached by a literal key match rather than through
-            the section list — there was nowhere else to put it. It is
-            Administration & Settings' own child now, and it appears under that
-            group only for somebody holding administration.settings.view, which
-            is the change: this link showed to every member regardless.
+        {/* SETTINGS IS PINNED HERE AGAIN, AND IT IS NOT A REVERSION.
+
+            It was a footer link once because Studio settings was reached by a
+            literal key match with nowhere else to put it; then it became a
+            child of the Administration section; and now Administration is not a
+            section at all (see `isSystemSection`). What is pinned is the
+            SURFACE rather than one screen — People, Access, Master data and
+            Studio settings behind one gear — so the four keep their addresses,
+            their rights and their Arabic labels while leaving the department
+            list they never belonged in.
+
+            SHOWN ONLY TO SOMEBODY WHO MAY OPEN AT LEAST ONE. `systemSections`
+            is already filtered by the same visibility the tree uses, so a
+            member holding none of the four rights sees no gear rather than a
+            gear that refuses them — the same courtesy every section row gets.
 
             The slot before it held "My account", which moved to the header
             avatar because the account is the PERSON and the sidebar belongs to
             the studio. Documentation stays: it is a full-screen route, not a
             section. */}
+        {systemSections.length > 0 && (
+          <Link
+            href={`/${studio.slug}/settings`}
+            onClick={() => setOpen(false)}
+            aria-current={activeKey === "settings" ? "page" : undefined}
+            className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-[12px] font-500 ${
+              activeKey === "settings"
+                ? "bg-slate-100 text-slate-900 dark:bg-white/10 dark:text-white"
+                : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white"
+            }`}
+          >
+            {/* Neutral grey, like Documentation and for its reason: this is not
+                a section, and giving it an accent would put it back in the same
+                visual class as the fourteen. */}
+            <Icon name="gears" className="h-[18px] w-[18px] text-slate-400 dark:text-slate-500" />
+            {tr.settings}
+          </Link>
+        )}
       </div>
     </div>
   );

@@ -33,6 +33,17 @@ type Strings = CommonStrings & {
   // a second English and a second Arabic word behind one button, free to drift
   // from the fifty other buttons that say it — the exact duplication ./common
   // exists to prevent.
+  // THE REGISTER'S OWN CONTROLS. Search, a status filter, sorting and an export
+  // are what every comparable product treats as the baseline for a custom
+  // record type — the engine shipped with a table and a dialog and none of
+  // them, which is fine for the eleven rows a new studio has and unusable at
+  // the few hundred a real register reaches.
+  recordSearch: string;
+  recordSearchNothing: string;
+  recordFilterAll: string;
+  recordExport: string;
+  recordCount: (shown: number, total: number) => string;
+  recordMore: string;
   recordDeleteConfirm: (reference: string) => string;
   recordMove: (to: string) => string;
   recordNew: string;
@@ -56,6 +67,12 @@ const en: Strings = {
   loadingFonts: "Loading fonts…",
   pageFooter: "Page footer",
   pageHeader: "Page header",
+  recordSearch: "Search",
+  recordSearchNothing: "Nothing matches that.",
+  recordFilterAll: "Any status",
+  recordExport: "Export CSV",
+  recordCount: (shown, total) => (shown === total ? `${total}` : `${shown} of ${total}`),
+  recordMore: "Show more",
   recordDeleteConfirm: (reference) => `Delete ${reference}? This cannot be undone.`,
   recordMove: (to) => `Move to ${to}`,
   recordNew: "New",
@@ -79,6 +96,12 @@ const ar: Strings = {
   loadingFonts: "جار تحميل الخطوط…",
   pageFooter: "تذييل الصفحة",
   pageHeader: "ترويسة الصفحة",
+  recordSearch: "بحث",
+  recordSearchNothing: "لا شيء يطابق ذلك.",
+  recordFilterAll: "أي حالة",
+  recordExport: "تصدير CSV",
+  recordCount: (shown, total) => (shown === total ? `${total}` : `${shown} من ${total}`),
+  recordMore: "عرض المزيد",
   recordDeleteConfirm: (reference) => `حذف ${reference}؟ لا يمكن التراجع عن ذلك.`,
   recordMove: (to) => `النقل إلى ${to}`,
   recordNew: "جديد",

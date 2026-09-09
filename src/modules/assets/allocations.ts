@@ -75,10 +75,61 @@ async function ratesFor(ctx: AssetsContext): Promise<Map<string, number>> {
   ]));
 }
 
+/**
+ * THE FLEET AS THE SCREEN NEEDS IT — id, name, tag, status and hire rate.
+ *
+ * THE REPORT SPEAKS IN IDS AND A PERSON DOES NOT. `utilisation` groups by
+ * `assetId` because that is the only thing an allocation stores, which is right
+ * for the arithmetic and unreadable on a screen: a register of "rec_01H8…, 42
+ * days" tells a plant manager nothing. Resolved HERE rather than in the browser
+ * because the equipment records are engine rows under `engine-equipment`, and a
+ * second fetch for them would be a second chance for the names on screen to
+ * disagree with the ids underneath them.
+ *
+ * STATUS TRAVELS TOO, so the picker can say a machine is Under repair before
+ * somebody allocates it. It is NOT a refusal — a studio may legitimately book
+ * plant that is being fixed for a job starting next month, and `allocationProblem`
+ * deliberately refuses only double-booking. Shown, not enforced.
+ */
+async function assetOptions(ctx: AssetsContext) {
+  const section = ctx.sections.find((x) => x.key === "engine-equipment");
+  if (!section) return [];
+  const rows = await Records.find(
+    { studio: ctx.studio, section },
+    { where: { typeKey: "equipment" } },
+  );
+  return rows.map((r) => {
+    const v = (r.values as Record<string, unknown> | undefined) || {};
+    return {
+      id: String(r.id),
+      name: str(v.name, 120),
+      assetTag: str(v.assetTag, 60),
+      category: str(v.category, 40),
+      status: str(r.status, 40),
+      hireRate: money(v.hireRate),
+    };
+  }).sort((a, b) => a.name.localeCompare(b.name));
+}
+
 export async function listAllocations(ctx: AssetsContext) {
   const denied = requirePermission(ctx.access, "assets.utilisation.view");
   if (denied) return denied;
-  return { allocations: await Allocations.find(scope(ctx)) };
+  // ONE ROUND TRIP FOR BOTH, the argument the route's own comment makes about
+  // the list and the report: the names and the rows are read together so they
+  // cannot come from two different moments.
+  const [allocations, assets] = await Promise.all([
+    Allocations.find(scope(ctx)),
+    assetOptions(ctx),
+  ]);
+  return {
+    allocations,
+    assets,
+    // WHETHER THE READER MAY WRITE, answered by the server rather than inferred
+    // in the browser from the shape of what came back. `assets.utilisation` is
+    // a full-verb area, so viewing the fleet and booking it out are different
+    // grants and the screen must be able to draw one without the other.
+    canManage: !requirePermission(ctx.access, "assets.utilisation.edit"),
+  };
 }
 
 /**

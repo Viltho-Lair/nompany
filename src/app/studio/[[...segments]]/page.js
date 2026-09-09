@@ -9,7 +9,8 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { can, NO_SCREEN_YET } from "@/platform/access";
 import { withRequest } from "@/platform/http/observability";
-import { requestedKey } from "@/shared/studioRoute";
+import { requestedKey, SETTINGS_KEY } from "@/shared/studioRoute";
+import { isSystemSection } from "@/platform/db/keys";
 import { shellDict } from "@/shared/studio/shell";
 import { sectionName } from "@/shared/studio/sections";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
@@ -146,6 +147,10 @@ const StudioProjectCosts = nextDynamic(
 );
 const StudioRates = nextDynamic(
   () => import("@/components/studio2/StudioRates"),
+  { loading: () => <ScreenSkeleton /> },
+);
+const StudioPlantAllocation = nextDynamic(
+  () => import("@/components/studio2/StudioPlantAllocation"),
   { loading: () => <ScreenSkeleton /> },
 );
 const StudioProduction = nextDynamic(
@@ -564,6 +569,16 @@ async function renderStudio(params) {
   // admin-only branch that used to guard Access goes with them, because
   // `administration.access.view` answers that question and `deniedSection`
   // below is what says no.
+  // THE SETTINGS SURFACE — Administration's four screens, off the section nav.
+  //
+  // `systemSections` is filtered by the SAME visibility every other row uses, so
+  // the hub lists exactly what this person may open and nothing else. A member
+  // holding none of the four gets the hub's own empty state rather than a 403:
+  // the shell does not draw the gear for them at all, so arriving here means a
+  // typed address, and "nothing here is yours" is the honest answer to that.
+  const settingsHub = requested === SETTINGS_KEY;
+  const systemSections = sections.filter((s) => isSystemSection(s.key));
+
   const active = sections.find((s) => s.key === requested) || sections[0] || null;
   // Asked for a real section they haven't been granted → say so rather than
   // silently showing something else.
@@ -660,13 +675,32 @@ async function renderStudio(params) {
   // `usePathname()`, because a layout is never handed the route's segments.
   return (
     <>
-      {/* ADMINISTRATION'S THREE SCREENS, matched by `active?.key` like
+      {/* THE SETTINGS SURFACE ANSWERS FIRST, and it has to. `/‹slug›/settings`
+          is not a section key, so `active` below falls back to `sections[0]` —
+          Main, for almost everybody — and without this branch the gear in the
+          shell would open the home dashboard. Matched on the shared derivation
+          (`isSettingsPath`) rather than a literal string so the page and the
+          shell cannot disagree about where you are, which is the whole reason
+          studioRoute exists.
+
+          THE FOUR SCREENS UNDER IT KEEP THEIR OWN BRANCHES BELOW. This is the
+          hub, not a router: People, Access, Master data and Studio settings are
+          still reached at their own addresses, still gated by their own areas,
+          and a delivered notification linking to `/people` still lands on the
+          screen it always did. */}
+      {settingsHub
+        ? <SettingsSurface studio={studio} locale={locale} sections={systemSections} />
+      /* ADMINISTRATION'S FOUR SCREENS, matched by `active?.key` like
           Procurement's Suppliers and Logistics's Shipments below — and for the
           same reason: `screenKey` collapses a child onto the root its parentId
           names, and `administration` has no dashboard of its own to collapse
           onto. They were literal `requested ===` matches until the fold, which
-          is what let them render while their sections were invisible. */}
-      {active?.key === "administration-members"
+          is what let them render while their sections were invisible.
+
+          THEY ARE NOT SECTIONS ANY MORE (09/09/2026) and these branches are
+          unchanged by that, deliberately: what left is the nav row and the
+          department list, not the address or the right. */
+        : active?.key === "administration-members"
         ? <StudioPeople slug={studio.slug} canAdminister={admin} myCollaboratorId={collaborator.id} />
         : active?.key === "administration-access" ? (
           /* The per-person section grid is gone. It wrote grants, and nothing
@@ -734,6 +768,24 @@ async function renderStudio(params) {
         // them onto this key and reaching this line first would hand a work
         // order register the planning view.
         : active?.key === "manufacturing" ? <StudioProduction slug={studio.slug} />
+        // ASSETS' ROOT IS THE ALLOCATION SCREEN, with the register cards kept
+        // BELOW it rather than replaced by it. Manufacturing's root took the
+        // planning view and lost its subsection cards in the same move; Assets
+        // has three engine registers (equipment, maintenance, calibration) and
+        // the allocation screen reads the first of them, so a person who lands
+        // here with an empty fleet needs the way onward that a bare screen
+        // would have taken away.
+        //
+        // AFTER the `engine-` prefix case above, for the reason Manufacturing's
+        // comment gives: every one of those registers plants a section whose
+        // parent is `assets`, so reaching this line first would hand a
+        // calibration register the allocation screen.
+        : active?.key === "assets" ? (
+          <div className="space-y-6">
+            <StudioPlantAllocation slug={studio.slug} />
+            <StudioSectionSummary slug={studio.slug} sectionKey="assets" locale={locale} />
+          </div>
+        )
         : active?.key === "tendering-rates" ? <StudioRates slug={studio.slug} />
         : screenKey === "tendering" ? <StudioTenders slug={studio.slug} initial={tendersInitial} initialError={tendersError} />
         : active?.key === "crm-sales-pipeline" ? <StudioPipeline slug={studio.slug} />
@@ -842,6 +894,48 @@ function SectionDashboard({ section, studio, subsections = [], locale = "en" }) 
           section without registers is unchanged. */}
       <StudioSectionSummary slug={studio.slug} sectionKey={section.key} locale={locale} />
       {section.key === "quality-hse" && <StudioSafety slug={studio.slug} locale={locale} />}
+    </div>
+  );
+}
+
+
+// THE SETTINGS SURFACE — what Administration became when it stopped being a
+// section, 09/09/2026, on the owner's instruction: "it carries system settings
+// and nothing that adds value" as a department.
+//
+// A HUB RATHER THAN A REDIRECT. Sending `/settings` straight to the first screen
+// somebody may open would give two people different destinations for the same
+// link, and would hide the other three from a person who holds them. Four cards,
+// drawn from the section rows themselves so the studio's own names and the
+// tenant's language come through unchanged — the same `sectionName` every nav
+// row uses, not a second hand-typed list.
+//
+// EMPTY IS A REAL STATE AND IT SAYS SO. The shell does not draw the gear for
+// somebody holding none of the four, so arriving here at all means a typed
+// address or a stale bookmark; a bare heading would read as a broken screen.
+function SettingsSurface({ studio, sections = [], locale = "en" }) {
+  const t = shellDict(locale);
+  // The root row is a container, not a destination — it has no screen of its
+  // own and never did. Listing it would offer a card that opens this same page.
+  const screens = sections.filter((s) => s.key !== "administration");
+  return (
+    <div className="rounded-geex border border-slate-200/70 bg-white p-8 dark:border-white/10 dark:bg-[#20202c]">
+      <h2 className="font-display text-xl font-800 text-slate-900 dark:text-white">{t.settings}</h2>
+      <p className="mt-2 max-w-2xl text-sm text-slate-500 dark:text-slate-400">
+        {screens.length > 0 ? t.settingsBody : t.settingsNothing}
+      </p>
+
+      {screens.length > 0 && (
+        <div className="mt-6 grid gap-3 sm:grid-cols-2">
+          {screens.map((s) => (
+            <Link key={s.id} href={`/${studio.slug}/${s.key}`}
+              className="rounded-xl border border-slate-200 bg-slate-50 p-4 transition-colors hover:border-brand-500 dark:border-white/15 dark:bg-[#191921] dark:hover:border-brand-500/40">
+              <p className="font-display text-sm font-700 text-slate-900 dark:text-white">{sectionName(s.key, s.name, locale)}</p>
+              <p className="mt-0.5 font-mono text-[11px] text-slate-400 dark:text-slate-500">{s.key}</p>
+            </Link>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

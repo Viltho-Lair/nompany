@@ -710,6 +710,48 @@ export const SECTION_DEFS = [
 // Flat list of every seeded key, parents and children alike.
 export const ALL_SECTION_KEYS = SECTION_DEFS.flatMap((d) => [d.key, ...(d.children || []).map((c) => c.key)]);
 
+// ADMINISTRATION IS NOT A SECTION — the owner's instruction, 09/09/2026.
+//
+// It carries People, Access, Master data and Studio settings: the studio's own
+// system configuration. None of it is a step in the flow of the product the way
+// Projects or Finance are, and presenting it as a peer of the fourteen told
+// every tenant that "Administration & Settings" was a department they run.
+//
+// THE ROWS STAY, AND THAT IS NOT A HALF-MEASURE. `administration-master` OWNS
+// `locations`, `departments` and `costCodeLibrary`; `administration-settings`
+// owns `recordTypes`; and seven modules resolve one or the other as a FOREIGN
+// section (hr, inventory, operations, projects, quality, main, and the roles
+// route). A row here is where a record is FILED — not what the nav calls a
+// department. Deleting the rows would strand every location and every
+// department in every live studio: the tender register's mistake, at the scale
+// of the whole tenant base, and invariant 17's reason for existing.
+//
+// SO THIS LIST IS THE SEAM. Seeding, planting, cascade and every foreign-section
+// lookup still see these keys, so nothing is stranded and no migration runs.
+// Everything that PRESENTS a section as part of the product filters them out:
+// the sidebar tree, the marketing site's department list, and the count that
+// used to say fifteen. What replaces the nav rows is a Settings surface reached
+// from the shell — same URLs, same rights, off the department list.
+export const SYSTEM_SECTION_KEYS = [
+  "administration",
+  "administration-members",
+  "administration-access",
+  "administration-master",
+  "administration-settings",
+] as const;
+
+/** Is this key system configuration rather than one of the product's sections? */
+export const isSystemSection = (key: string): boolean =>
+  (SYSTEM_SECTION_KEYS as readonly string[]).includes(key);
+
+// THE PRODUCT'S OWN SECTIONS — fourteen roots, plus Main and Tasks, which are
+// not sections either (Main is the home surface, Tasks a cross-cutting control).
+// Derived rather than hand-listed: a second copy would be free to disagree with
+// SECTION_DEFS the first time one of them changed, which is the failure the
+// fifteen-section restructure kept finding.
+export const PRODUCT_SECTION_DEFS = SECTION_DEFS.filter((d) => !isSystemSection(d.key));
+export const PRODUCT_SECTION_KEYS = ALL_SECTION_KEYS.filter((k) => !isSystemSection(k));
+
 // Which operational collections belong to which section key. Every record in
 // these collections carries { studioId, sectionId } and dies with its section.
 //

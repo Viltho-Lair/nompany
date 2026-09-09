@@ -1555,6 +1555,32 @@ model will later replace.
 
 ---
 
+---
+
+## Decision ledger — 09/09/2026
+
+Rows are never removed. A decision nobody can see is a decision that gets argued again.
+
+| Decision | State | What it means |
+|---|---|---|
+| **Administration & Settings is not a section** | ✅ DONE | The owner's instruction: it carries system settings and adds nothing as a department. Fourteen sections now. Its four screens (People, Access, Master data, Studio settings) moved to a **Settings surface** at `/<slug>/settings`, reached from the sidebar footer. Absent from the nav tree, from `liveDepartments`, from `/platform`'s copy and from Nova's product description. |
+| **…and its section ROWS stay** | ✅ DONE | `administration-master` owns `locations`, `departments`, `costCodeLibrary`; `administration-settings` owns `recordTypes`; seven modules resolve them as foreign sections. Deleting the rows would strand live tenant data and fail nothing. `SYSTEM_SECTION_KEYS`/`isSystemSection` is the seam; `testAdministrationIsNotASectionButItsRowsSurvive` asserts the collections did not move. **No migration ran.** |
+| **Finance › Settings had no screen** | ✅ FIXED | The nav row fell through to the **Cash** screen — a studio granted `finance.settings.view` opened a page of invoices — while `saveFinanceSettings` had no caller anywhere in the product, complete and validated since the module was written. `FinanceSettingsPanel` is the screen: cash categories and withholding rules, both languages. |
+| **`assets.utilisation` had no screen** | ✅ FIXED | Route, module and refusal rules all complete; nothing in the product fetched them, so plant could be allocated only by calling the API by hand and the equipment register's `hireRate` had never been read. `StudioPlantAllocation` is the screen, and it is the Assets root now, with the engine registers kept below it. `listAllocations` gained the fleet's names so the report stops speaking in ids. |
+| **The record engine's register was table-only** | ✅ FIXED | One generic screen renders **31 built-in types** across five sections, and it had no search, filter, sort, paging or export. All five added, client-side over the type's own record set, with the reasoning for when that stops being right written into the file. Export is CSV with a BOM, and exports what is **filtered**, not what is paged. |
+| **"No starter role holds an engine right"** | ❌ WAS STALE | Measured: **zero** of the 91 section keys a seeded studio holds is unreachable by all eleven archetypes. The claim in CLAUDE.md was true when written and had stopped being true. The guard CLAUDE.md kept asking for by name now exists — `testEverySectionWithAScreenIsReachableBySomeSeededRole`, a shrink-only count, measured against a real studio's key list **plus the stored parent map** (without it `quality-hse` reads as unreachable and is not). |
+| **Quality & HSE has no catalogue area** | ⬜ NOT A DEFECT | Flagged as one, then withdrawn on reading the code. Its eight registers carry structural `engine.*` rights and the safety panel's two halves are gated already (`engine.incident.view`, `projects.list.view`); the route says so and gives the reason. A third right over records two others govern would be free to disagree with both. |
+| **`logistics.landedCost` and `inventory/valuation` have no screen** | ⬜ OPEN | Same shape as the two fixed above — complete route and module, no component fetches either. Not built in this pass. |
+| **Field Operations' root is still the un-split Operations screen** | ⬜ OPEN | Locations and permits moved in the data (`COLLECTION_MOVES`); the screen that renders them did not follow. |
+
+**How the API-only routes were found**, because the method is the reusable part: sweep every
+`src/app/api/studios/[slug]/**/route.ts` off disk and ask which component fetches each path.
+A route with no caller fails nothing — `tsc` is happy, the route answers correctly to
+anybody who asks, and the only symptom is a right on the access grid that cannot be
+exercised (invariant 16, from the screen end rather than the catalogue end). Four turned up;
+two are fixed here and two are listed above.
+
+
 ## Open decisions
 
 Things waiting on a person, not on work.

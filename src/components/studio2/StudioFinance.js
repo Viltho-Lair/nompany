@@ -4,6 +4,7 @@ import { Fragment, useCallback, useEffect, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { financeDict } from "@/shared/studio/finance";
+import FinanceSettingsPanel from "@/components/studio2/FinanceSettingsPanel";
 import nextDynamic from "next/dynamic";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import RecordLink from "@/components/studio2/RecordLink";
@@ -71,11 +72,70 @@ const StudioDataGrid = nextDynamic(() => import("@/components/studio2/StudioData
 // shape as the project `/costs` bug — a section that silently renders the wrong
 // screen is how a right ends up exercising nothing (invariant 16) — and the
 // fall-through was individually valid at both ends, which is why nothing failed.
+//   finance-settings   → the cash categories and withholding rules
+//
+// `finance-settings` HAD NO BRANCH EITHER, and it is the same defect one screen
+// further on: the nav row marked "Settings" fell through to the Cash screen, so
+// a studio granted `finance.settings.view` opened a page of INVOICES while
+// `saveFinanceSettings` — complete, validated and guarded since the module was
+// written — had no caller anywhere in the product. Its own route comment says
+// so in as many words. Found by sweeping every studio API route for a component
+// that fetches it; `tsc` cannot see a route nobody calls, and a menu entry that
+// opens the wrong screen looks like a screen rather than like a bug.
 export default function StudioFinance({ slug, view = "finance" }) {
   if (view === "finance-payables") return <Payables slug={slug} />;
   if (view === "finance-assets") return <Assets slug={slug} />;
   if (view === "finance-ledger") return <StudioLedger slug={slug} />;
+  if (view === "finance-settings") return <FinanceSettings slug={slug} />;
   return <FinanceCash slug={slug} view={view} />;
+}
+
+// FINANCE'S OWN SETTINGS. Its own fetch rather than a tab on the Cash screen,
+// for the reason the dispatch above gives about Payables and Assets: somebody
+// who may configure Finance should not pay for the invoice list to do it, and
+// `finance.settings.view` is a right of its own precisely because the two are
+// different powers.
+function FinanceSettings({ slug }) {
+  const locale = useStudioLocale();
+  const tr = financeDict(locale);
+  const [data, setData] = useState(null);
+  const [error, setError] = useState("");
+
+  const load = useCallback(async () => {
+    const res = await fetch(`/api/studios/${slug}/finance/settings`, { cache: "no-store" });
+    if (!res.ok) { setError(tr.accessFinanceStudio); return; }
+    setData(await res.json());
+  }, [slug]); // eslint-disable-line react-hooks/exhaustive-deps
+  useReload(load);
+
+  if (error) return <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>;
+  if (!data) return <ScreenSkeleton />;
+
+  // THE SERVER'S ANSWER IS WHAT IS SHOWN, never a local optimistic copy: the PUT
+  // returns the cleaned rules (rates clamped, thresholds floored, duplicates
+  // dropped), and a studio that typed 5.005 should see what was actually
+  // stored rather than what they typed.
+  const save = async (body) => {
+    const res = await fetch(`/api/studios/${slug}/finance/settings`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const out = await res.json().catch(() => ({ error: "failed" }));
+    if (!res.ok || out.error) return out.error ? out : { error: "failed" };
+    setData((d) => ({ ...d, ...out }));
+    return out;
+  };
+
+  return (
+    <FinanceSettingsPanel
+      categories={data.cashCategories || []}
+      rules={data.withholdingRules || []}
+      canManage={Boolean(data.canManage)}
+      locale={locale}
+      onSave={save}
+    />
+  );
 }
 
 // FINANCE. Every number here is derived — invoice totals from their lines, the

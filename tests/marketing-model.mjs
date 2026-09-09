@@ -25,7 +25,7 @@ const root = pathToFileURL(`${process.cwd()}/`).href;
 register(new URL("./loader.mjs", import.meta.url), { data: { root } });
 
 const D = await import("@/shared/marketing/departments");
-const { SECTION_DEFS } = await import("@/platform/db/keys");
+const { SECTION_DEFS, SYSTEM_SECTION_KEYS } = await import("@/platform/db/keys");
 const { NO_SCREEN_YET } = await import("@/platform/access/resolve");
 const { SHELL_PATHS, SHELL_PREFIXES, isMarketingPath } = await import("@/shared/marketing/routes");
 
@@ -43,11 +43,18 @@ const DIACRITICS = /[ً-ْٰ]/;
 
 console.log("\n== the departments a visitor is told exist");
 
-// FIFTEEN SINCE 08/09/2026, when Reports & BI left NO_SCREEN_YET — the list is
-// DERIVED from SECTION_DEFS minus that list, so the count moved on its own and
-// the hand-written copy did not. That is exactly the drift the pair below
-// catches; it said fourteen while fifteen rendered.
-ok("fifteen of them", D.LIVE_DEPARTMENT_KEYS.length === 15,
+// FOURTEEN SINCE 09/09/2026, when Administration & Settings stopped being a
+// section: it carries People, Access, Master data and Studio settings — system
+// configuration, not a department any company runs — and telling a visitor the
+// product has an "Administration & Settings" department was counting the
+// software's own control panel as a feature.
+//
+// IT WAS FIFTEEN FOR A DAY (Reports & BI leaving NO_SCREEN_YET on 08/09), and
+// fourteen before that for a different reason, which is the point of asserting
+// the NUMBER as well as the rules: the list is DERIVED from SECTION_DEFS minus
+// the exclusions, so it moves on its own, and a count nobody re-measures is how
+// this line came to say fourteen while fifteen rendered.
+ok("fourteen of them", D.LIVE_DEPARTMENT_KEYS.length === 14,
   String(D.LIVE_DEPARTMENT_KEYS.length));
 
 // THE DEFECT THIS GUARDS, four names at a time. Each of these renders nothing
@@ -62,6 +69,14 @@ for (const dead of NO_SCREEN_YET) {
 ok("...nor is main", !D.LIVE_DEPARTMENT_KEYS.includes("main"));
 ok("...nor is tasks", !D.LIVE_DEPARTMENT_KEYS.includes("tasks"));
 
+// AND NOT SYSTEM CONFIGURATION. Read from `SYSTEM_SECTION_KEYS` rather than
+// naming "administration" here, so a second system container added later is
+// excluded from the public list without anybody remembering to come back — the
+// same reason NO_SCREEN_YET is looped above instead of spelled out.
+for (const sys of SYSTEM_SECTION_KEYS) {
+  ok(`...nor is ${sys}`, !D.LIVE_DEPARTMENT_KEYS.includes(sys));
+}
+
 // DERIVED, NOT COPIED. A hand-written list is right on the day it is written;
 // this asserts the list still comes from the software's own.
 const declared = SECTION_DEFS.map((d) => d.key);
@@ -75,8 +90,8 @@ console.log("\n== and they are named in both languages");
 // theirs to anyone skimming the file.
 const depsEn = D.liveDepartments("en");
 const depsAr = D.liveDepartments("ar");
-ok("both locales return the same fifteen, in the same order",
-  depsEn.map((d) => d.key).join(",") === depsAr.map((d) => d.key).join(",") && depsEn.length === 15);
+ok("both locales return the same fourteen, in the same order",
+  depsEn.map((d) => d.key).join(",") === depsAr.map((d) => d.key).join(",") && depsEn.length === 14);
 ok("every English name is non-empty", depsEn.every((d) => d.name.trim().length > 0));
 ok("every Arabic name is non-empty", depsAr.every((d) => d.name.trim().length > 0));
 // AND THEY ARE ACTUALLY TRANSLATED. `sectionName` falls back to the stored

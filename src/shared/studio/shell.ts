@@ -41,6 +41,13 @@ type ShellStrings = {
   collapse: string;
   documentation: string;
   studioSettings: string;
+  // THE SETTINGS SURFACE — what Administration became when it stopped being a
+  // section (09/09/2026). `settings` is the shell's own entry; `settingsBody`
+  // says what is behind it, because a gear with nothing under it is the same
+  // dead end as a section that renders a heading.
+  settings: string;
+  settingsBody: string;
+  settingsNothing: string;
   engagements: string;
   people: string;
   peopleAndRequests: string;
@@ -105,6 +112,9 @@ const en: ShellStrings = {
   collapse: "Collapse",
   documentation: "Documentation",
   studioSettings: "Studio settings",
+  settings: "Settings",
+  settingsBody: "Who is in this studio, what they may do, the reference data everyone reads, and how the studio itself is configured.",
+  settingsNothing: "Nothing here is yours to open. Settings is held by the people who administer this studio.",
   engagements: "Engagements",
   people: "People",
   peopleAndRequests: "People & requests",
@@ -156,6 +166,9 @@ const ar: ShellStrings = {
   collapse: "طي",
   documentation: "دليل الاستخدام",
   studioSettings: "إعدادات الاستوديو",
+  settings: "الإعدادات",
+  settingsBody: "من في هذا الاستوديو، وما الذي يُسمح لهم به، والبيانات المرجعية التي يقرأها الجميع، وكيفية إعداد الاستوديو نفسه.",
+  settingsNothing: "لا شيء هنا متاح لك. الإعدادات بيد من يديرون هذا الاستوديو.",
   // ارتباط, NOT صفقة. The two are different words for different things and the
   // product uses both: an engagement is the SPINE that ties a ticket, an RFQ, a
   // quotation and a project together, while a deal — صفقة — is the commercial

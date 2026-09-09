@@ -8,6 +8,24 @@ import { commonEn, commonAr, type CommonStrings } from "./common";
 // nothing may enumerate them.
 
 type Strings = CommonStrings & {
+  // FINANCE'S OWN SETTINGS — the cash categories an expense is filed under and
+  // the withholding rules a document is taxed by. `saveFinanceSettings` has
+  // existed complete since the module was written and had NO CALLER: the
+  // sub-section rendered the Cash screen, so a studio's categories were
+  // whatever the defaults said and its withholding rules could not be set at
+  // all. These are the words for the screen that changes that.
+  settingsLead: string;
+  cashCategories: string;
+  cashCategoriesLead: string;
+  addCategory: string;
+  withholding: string;
+  withholdingLead: string;
+  noWithholding: string;
+  ruleName: string;
+  ruleRate: string;
+  ruleThreshold: string;
+  ruleThresholdHint: string;
+  addRule: string;
   all: string;
   awaitingPo: string;
   bankTransfer: string;
@@ -267,6 +285,18 @@ type Strings = CommonStrings & {
 };
 
 const en: Strings = {
+  settingsLead: "How Finance files what it spends and what it withholds. Both are this studio's own — nothing here is a default anybody else shares.",
+  cashCategories: "Expense categories",
+  cashCategoriesLead: "What an expense can be filed under. Leaving this empty restores the shipped list rather than offering none.",
+  addCategory: "New category",
+  withholding: "Withholding tax",
+  withholdingLead: "Deducted at source on documents at or above the threshold. An empty list is the normal case and means nothing is withheld — a studio in a jurisdiction with no WHT never sees the column.",
+  noWithholding: "No rules. Nothing is withheld.",
+  ruleName: "Rule",
+  ruleRate: "Rate %",
+  ruleThreshold: "Threshold",
+  ruleThresholdHint: "Nothing is withheld below this amount. Nought means the rule always applies.",
+  addRule: "Add a rule",
   ...commonEn,
   all: "All",
   awaitingPo: "Awaiting PO",
@@ -525,6 +555,18 @@ const en: Strings = {
 };
 
 const ar: Strings = {
+  settingsLead: "كيف يصنف قسم المالية ما ينفقه وما يقتطعه. كلاهما خاص بهذا الاستوديو — لا شيء هنا مشترك مع غيره.",
+  cashCategories: "تصنيفات المصروفات",
+  cashCategoriesLead: "ما يمكن تصنيف المصروف تحته. ترك القائمة فارغة يعيد القائمة الافتراضية بدل ألا يبقى شيء.",
+  addCategory: "تصنيف جديد",
+  withholding: "ضريبة الاقتطاع",
+  withholdingLead: "تقتطع من المنبع على المستندات التي تبلغ الحد أو تتجاوزه. القائمة الفارغة هي الحالة الطبيعية وتعني ألا اقتطاع — والاستوديو في بلد بلا اقتطاع لا يرى العمود أصلا.",
+  noWithholding: "لا قواعد. لا يقتطع شيء.",
+  ruleName: "القاعدة",
+  ruleRate: "النسبة %",
+  ruleThreshold: "الحد",
+  ruleThresholdHint: "لا يقتطع شيء دون هذا المبلغ. الصفر يعني أن القاعدة تنطبق دائما.",
+  addRule: "إضافة قاعدة",
   ...commonAr,
   all: "الكل",
   awaitingPo: "بانتظار أمر الشراء",

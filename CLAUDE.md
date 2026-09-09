@@ -3,14 +3,31 @@
 Multi-tenant ERP. Next.js 16 · React 19 · Postgres · Tailwind v3 + shadcn/ui + MUI v9 · Vercel.
 Three surfaces in one app: the tenant ERP at `nompany.com/<slug>/…` (rewritten by
 `src/proxy.js` → `src/app/studio`), account pages at `/{en,ar}/…`, and nompany's own
-console at `/super`. **Fifteen sections** (the blueprint's), plus Main and Tasks, which are
-not sections — Main is the home surface and Tasks is a cross-cutting control: CRM & Sales,
+console at `/super`. **FOURTEEN sections**, plus Main and Tasks, which are not sections —
+Main is the home surface and Tasks is a cross-cutting control: CRM & Sales,
 Tendering & Estimating, Projects, Engineering & Documents, Procurement & Subcontracting,
 Inventory & Warehouse, Manufacturing & Production, Field Operations & Service, Logistics &
 Fleet, Assets & Equipment, Quality & HSE, Human Resources, Finance & Accounting, Reports &
-BI, Administration & Settings.
+BI.
 
-**ALL FIFTEEN RENDER. `NO_SCREEN_YET` IS EMPTY — measured 09/09/2026** (it is `[] as const`
+**ADMINISTRATION & SETTINGS IS NOT A SECTION — the owner's instruction, 09/09/2026.**
+It carries People, Access, Master data and Studio settings: the studio's own system
+configuration, not a department any company runs. It is reached from a **Settings entry at
+the bottom of the sidebar** (`/<slug>/settings`), it is absent from the nav tree and from
+the marketing site's department list, and the count above is fourteen because of it.
+
+**ITS SECTION ROWS STAY, AND THAT IS NOT A HALF-MEASURE.** `administration-master` OWNS
+`locations`, `departments` and `costCodeLibrary`; `administration-settings` owns
+`recordTypes`; and seven modules resolve one or the other as a FOREIGN section (hr,
+inventory, operations, projects, quality, main, and the roles route). A row is where a
+record is FILED, not what the nav calls a department. **Do not delete the entry from
+`SECTION_DEFS`** — reading "not a section any more" and reaching for that is the obvious
+next move and it is the destructive one: it would stop new studios seeding the rows and
+strand every location and department already written in every live studio, failing
+nothing. `SYSTEM_SECTION_KEYS`/`isSystemSection` (`platform/db/keys.ts`) is the seam, and
+`testAdministrationIsNotASectionButItsRowsSurvive` asserts both halves.
+
+**ALL FOURTEEN RENDER. `NO_SCREEN_YET` IS EMPTY — measured 09/09/2026** (it is `[] as const`
 in `platform/access/resolve.ts`). This paragraph named four sections that "render nothing
 yet" — Manufacturing, Assets, Reports and Quality & HSE — and every one of them has had a
 screen since 08/09/2026: three got engine registers, Reports got data exports.
@@ -1520,9 +1537,18 @@ seed would wait on a door only the seed can open.
 `scripts/migrate/seed-builtin-types.mjs` is the way in — dry-run by default, additive,
 idempotent, calling `seedBuiltinTypes` rather than copying it, and needing
 `plant-sections.mjs` first on a studio short of `engineering-docs`. **It has not been run,
-not against live and not in the sandbox.** And **no starter role holds an engine right**,
-stated here rather than discovered: contracts, tendering and procurement each shipped a
-section their own Manager could not open.
+not against live and not in the sandbox.**
+
+**"NO STARTER ROLE HOLDS AN ENGINE RIGHT" WAS TRUE AND IS NOT — measured 09/09/2026.**
+The archetypes carry `engineSections`, `permissionsFor` expands them against the studio's
+own types, and **zero** of the ninety-one section keys a seeded studio holds is unreachable
+by all eleven archetypes. The guard this file kept asking for by name now exists:
+`testEverySectionWithAScreenIsReachableBySomeSeededRole`, a shrink-only COUNT rather than
+an exemption list, measured against a real studio's key list plus the stored parent map —
+`ALL_SECTION_KEYS` alone wrongly reports `quality-hse` unreachable, because its eight
+registers are engine sections planted at runtime and `sectionViewable` finds children by
+key prefix without that map. Contracts, tendering and procurement each shipped a section
+their own Manager could not open; that is what the count is for.
 
 **Open decisions (waiting on a person):** the Wave 4 palette (marketing dark-first
 indigo/Sora vs the ERP's light-first blue/Saira); and whether to denormalise the slug index

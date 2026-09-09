@@ -1,3 +1,5 @@
+import { isSystemSection } from "@/platform/db/keys";
+
 // WHICH SECTION A STUDIO URL NAMES — the one derivation, for both sides of it.
 //
 // A studio's address is `/<slug>/<key>/…`, and TWO places have to read it. The
@@ -16,6 +18,12 @@
 // PURE, AND THAT IS WHY IT IS IN `shared/`. No Redis, no Postgres, no React —
 // strings and an array of `{ key }`, so the server page, the client shell and a
 // test can all call the identical function.
+//
+// IT IMPORTS ONE THING NOW, and the import is pure too: `keys.ts` has ZERO
+// imports of its own (measured, not assumed), so naming `isSystemSection` here
+// pulls no store, no client and no bundle weight into the shell. The
+// alternative was a second hand-kept copy of which keys are system
+// configuration — which is the one thing this module exists to prevent.
 
 /**
  * The path segments BELOW the studio's own address.
@@ -57,6 +65,28 @@ const RETIRED_ADDRESSES: Record<string, string> = {
 export function requestedKey(segments: readonly string[]): string {
   const asked = segments[0] || "";
   return RETIRED_ADDRESSES[asked] ?? asked;
+}
+
+/**
+ * THE SETTINGS SURFACE — `/‹slug›/settings` and the four screens under it.
+ *
+ * Administration stopped being a section on 09/09/2026, so its keys no longer
+ * appear in the nav tree and `resolveActiveKey` — which answers only from the
+ * sections a person may open — would fall back to their first section and
+ * highlight Main while Studio settings was on screen. That is the precise
+ * failure this module exists to prevent, so the answer lives here beside
+ * `requestedKey` rather than being written twice.
+ *
+ * THE FOUR OLD ADDRESSES STILL RESOLVE, and must: delivered notifications link
+ * to `/people`, `RETIRED_ADDRESSES` already maps it onto its section key, and
+ * that key is now a settings address rather than a nav row. Nothing a tenant
+ * has bookmarked breaks; what changed is where the shell says you are.
+ */
+export const SETTINGS_KEY = "settings";
+
+export function isSettingsPath(segments: readonly string[]): boolean {
+  const key = requestedKey(segments);
+  return key === SETTINGS_KEY || isSystemSection(key);
 }
 
 // SCREEN_KEYS IS GONE, and its absence is the Administration fold in one line.
