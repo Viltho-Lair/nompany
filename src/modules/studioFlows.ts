@@ -323,6 +323,17 @@ function industryFrom(body: Record<string, unknown>): IndustryEntry {
     primary: str(body.primary, 40),
     secondary: str(body.secondary, 40),
     note: str(body.note, 400),
+    // A TRADE A STUDIO ADDED HAS NO MARKET-REFERENCE ROW, and "" says so.
+    //
+    // `field` joins a seeded industry to `FIELD_ACTION_MATRIX`, which is a
+    // fixed platform standard of twenty-five trades — a studio inventing a
+    // twenty-sixth is exactly the case Law 2 exists for, and there is no row
+    // there for it to point at. Empty is the truth rather than a default: it
+    // means the section set cannot be derived from actions for this trade, so
+    // the flow's own stages are the whole answer. Guessing the nearest
+    // standard trade would seed somebody else's sections and service actions
+    // into a studio that deliberately said it does something else.
+    field: str(body.field, 120),
   };
 }
 

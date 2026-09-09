@@ -47,7 +47,8 @@ import type { StudioRow } from "@/modules/main/studios";
 // because a copy of a cap is a copy free to disagree with the one that holds.
 export async function createStudioForUser(
   user: { id?: unknown },
-  { name, slug }: { name?: unknown; slug?: unknown },
+  { name, slug, fieldOfWork, fieldOfWorkOther }:
+  { name?: unknown; slug?: unknown; fieldOfWork?: unknown; fieldOfWorkOther?: unknown },
 ) {
   const cleanName = String(name || "").trim();
   if (!cleanName) return { error: "name" };
@@ -65,8 +66,14 @@ export async function createStudioForUser(
   const profile = await getProfile(String(user.id));
   const ownerAlias = (profile?.shortName || profile?.fullName || "").trim();
 
+  // THE TRADE IS PASSED THROUGH UNVALIDATED, deliberately. `createStudio` is
+  // the one place that knows which trades exist, and re-checking here would
+  // be a second copy of that list free to disagree with the first — the same
+  // reason the studio CAP is not re-stated in this file.
   const created = await createStudio({
     ownerUserId: String(user.id), name: cleanName, slug: wanted, ownerAlias,
+    fieldOfWork: String(fieldOfWork || ""),
+    fieldOfWorkOther: String(fieldOfWorkOther || ""),
   });
   if (created.error) return created;
   return { studio: created.studio, sections: created.sections };

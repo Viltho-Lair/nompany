@@ -23,9 +23,18 @@ export async function POST(request: Request) {
   let body: Record<string, unknown> = {};
   try { body = await request.json(); } catch { body = {}; }
 
-  const result = await createStudioForUser(user, { name: body.name, slug: body.slug });
+  const result = await createStudioForUser(user, {
+    name: body.name, slug: body.slug,
+    // WHAT THE COMPANY DOES, asked at creation rather than in settings later.
+    // Optional: a studio may decline, and gets every section on and nothing
+    // seeded from a trade — the behaviour every studio had before this.
+    fieldOfWork: body.fieldOfWork, fieldOfWorkOther: body.fieldOfWorkOther,
+  });
   if (refused(result)) {
     const status = result.error === "unverified" ? 403
+      // A trade that is not one of the twenty-five is a bad request, not a
+      // conflict: nothing was claimed and nothing is in the way.
+      : result.error === "field-invalid" ? 400
       : result.error === "free-studio-limit" || result.error === "slug-taken" ? 409
       : 400;
     // `limit` rides along on the cap refusal so the dialog can say what the

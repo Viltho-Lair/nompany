@@ -26,6 +26,7 @@ import { addCollaborator } from "@/platform/auth/collaborators";
 import { listDepartments } from "@/modules/administration/departments";
 import { seedBuiltinTypes } from "@/platform/engine/builtins";
 import { ensureDefaultPlan } from "@/lib/data/catalog";
+import { FIELDS_OF_WORK, OTHER_FIELD, actionsForField } from "@/shared/fieldsOfWork";
 import { emitPlatform, PLATFORM } from "@/platform/realtime/events";
 import { notifySuper, NOTIFY } from "@/platform/notify/notifications";
 import type { Section } from "@/platform/db/sections";
@@ -61,13 +62,38 @@ export function countFreeStudios(
 }
 
 export async function createStudio(
-  { ownerUserId, name, slug, ownerAlias = "" }:
-  { ownerUserId?: string; name?: string; slug?: string; ownerAlias?: string },
+  { ownerUserId, name, slug, ownerAlias = "", fieldOfWork = "", fieldOfWorkOther = "" }:
+  {
+    ownerUserId?: string; name?: string; slug?: string; ownerAlias?: string;
+    /** The trade, as a `FIELD_ACTION_MATRIX` key. "" is allowed and means not said yet. */
+    fieldOfWork?: string;
+    /** Free text, and only when the trade is `Other`. */
+    fieldOfWorkOther?: string;
+  },
 ) {
   const cleanName = String(name || "").trim();
   const cleanSlug = String(slug || "").toLowerCase();
   if (!ownerUserId || !cleanName) return { error: "missing" };
   if (!isValidSlug(cleanSlug)) return { error: "slug-invalid" };
+
+  // THE TRADE IS ASKED FOR AT CREATION NOW, and that is the change everything
+  // below depends on. It used to be set later, in Studio settings, which meant
+  // a studio's first hour was spent in a product that knew nothing about what
+  // the company does: every one of the fourteen sections shown, no service
+  // actions, and only the universal back-office departments.
+  //
+  // "" REMAINS LEGAL AND IS NOT A DEFAULT DRESSED AS A CHOICE. A studio may
+  // decline to say, and the honest consequence is the old behaviour — every
+  // section on, nothing seeded from a trade. Picking one for them would seed
+  // somebody else's sections, service actions and org chart into a company that
+  // never said what it does.
+  const trade = String(fieldOfWork || "").trim();
+  if (trade && trade !== OTHER_FIELD && !FIELDS_OF_WORK.includes(trade)) {
+    return { error: "field-invalid" };
+  }
+  // Free text only means something for `Other`; carrying it on a named trade
+  // would leave a description contradicting the trade beside it.
+  const tradeOther = trade === OTHER_FIELD ? String(fieldOfWorkOther || "").trim().slice(0, 80) : "";
 
   // The default package id is needed BEFORE anything is claimed — it is what
   // the cap counts against — and creation needs it a few lines later anyway, so
@@ -104,6 +130,16 @@ export async function createStudio(
       id, ownerUserId, name: cleanName, slug: cleanSlug,
       plan: "free", packageId, tierId,
       status: "active", createdAt: now,
+      // THE TRADE, AND THE POOL IT SEEDS, written together.
+      //
+      // `actionsForField` is the same function Studio settings calls, not a
+      // second copy: a studio that picks its trade at creation and one that
+      // picks it afterwards must end up with the identical pool, or the two
+      // paths are two products. An unknown trade and `Other` both seed
+      // nothing, which is what the matrix says about them.
+      fieldOfWork: trade,
+      fieldOfWorkOther: tradeOther,
+      serviceActions: actionsForField(trade),
     };
 
     // Seed the fixed section list. Parents get a SectionID, sub-sections get
@@ -136,10 +172,16 @@ export async function createStudio(
     // HR first. Two Gate A goldens recorded that as `departments: []` and
     // `departments: [...]` in the same run — a contract encoding fixture order.
     //
-    // A new studio has no field of work yet (nothing sets one at creation), so
-    // what lands here is the universal back office. The trade's own operating
-    // line arrives when the studio says what it does, offered rather than
-    // applied — see seedDepartments.
+    // AND IT IS THE TRADE'S OWN CHART NOW, not just the universal back office.
+    //
+    // This comment used to say "a new studio has no field of work yet (nothing
+    // sets one at creation)", and that stopped being true the moment creation
+    // started asking. `listDepartments` seeds from `studio.fieldOfWork`, and
+    // the row above now carries it, so a contractor meets Site Execution here
+    // rather than meeting it the first time somebody opens Master data.
+    //
+    // A studio that declined to say still gets the universal back office, which
+    // is the old behaviour and the right one for an unknown trade.
     const masterSection = sections.find((sec) => sec.key === "administration-master");
     if (masterSection) await listDepartments({ studio, section: masterSection });
 

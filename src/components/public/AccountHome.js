@@ -19,6 +19,7 @@ import { fmtDate, fmtDateTime } from "@/lib/format";
 import CopyableCode from "@/components/CopyableCode";
 import SelectMenu from "@/components/fields/SelectMenu";
 import { useReload } from "@/components/studio2/useReload";
+import { FIELDS_OF_WORK, OTHER_FIELD } from "@/shared/fieldsOfWork";
 
 // The account hub, laid out like the Google Account console:
 //   • brand mark top-left, ABOVE the fixed sidebar
@@ -568,6 +569,19 @@ function CreateStudio({ onDone, onClose }) {
   const [status, setStatus] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  // WHAT THE COMPANY DOES, asked here rather than in Studio settings later.
+  //
+  // It decides which of the fourteen sections a studio starts with, which
+  // service actions seed, and which org chart it meets — so asking for it
+  // afterwards meant every studio's first hour was spent in a product that
+  // knew nothing about the company using it.
+  //
+  // NOT REQUIRED. "" is a real answer and the button does not wait for one:
+  // somebody who does not see their trade should not be blocked at the door,
+  // and Studio settings still takes it later. What they get meanwhile is every
+  // section on, which is exactly what every studio got before this.
+  const [field, setField] = useState("");
+  const [fieldOther, setFieldOther] = useState("");
   const effectiveSlug = touched ? slugify(slug) : slugify(name);
 
   useEffect(() => {
@@ -583,7 +597,13 @@ function CreateStudio({ onDone, onClose }) {
     setBusy(true); setError("");
     const res = await fetch("/api/studios", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, slug: effectiveSlug }),
+      body: JSON.stringify({
+        name, slug: effectiveSlug,
+        fieldOfWork: field,
+        // Only meaningful for `Other`; the server drops it otherwise rather
+        // than storing a description that contradicts the trade beside it.
+        fieldOfWorkOther: field === OTHER_FIELD ? fieldOther : "",
+      }),
     });
     const data = await res.json().catch(() => ({}));
     setBusy(false);
@@ -595,6 +615,7 @@ function CreateStudio({ onDone, onClose }) {
       : data.error === "slug-reserved" ? tr.codeReservedPickAnother
       : data.error === "slug-invalid" ? tr.use3LettersNumbers
       : data.error === "name" ? tr.giveStudioName
+      : data.error === "field-invalid" ? tr.pickFieldFromList
       : tr.couldnCreateStudio
     );
   }
@@ -620,6 +641,32 @@ function CreateStudio({ onDone, onClose }) {
             </p>
           )}
         </div>
+        <div>
+          <label className={LABEL}>{tr.fieldOfWorkLabel}</label>
+          {/* SelectMenu, never a native <select>: an OS-drawn option list
+              cannot be themed, and in dark mode it renders near-white ink on
+              the white popup the browser still draws. `tests/restructure.mjs`
+              refuses a <select> anywhere in source for that reason. */}
+          <SelectMenu
+            className={INPUT}
+            value={field}
+            onChange={setField}
+            placeholder={tr.fieldOfWorkSkip}
+            options={[
+              { value: "", label: tr.fieldOfWorkSkip },
+              ...FIELDS_OF_WORK.map((f) => ({ value: f, label: f })),
+              { value: OTHER_FIELD, label: OTHER_FIELD },
+            ]}
+          />
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{tr.fieldOfWorkHint}</p>
+        </div>
+        {field === OTHER_FIELD && (
+          <div>
+            <label className={LABEL}>{tr.fieldOfWorkOtherLabel}</label>
+            <input className={INPUT} value={fieldOther} maxLength={80}
+              onChange={(e) => setFieldOther(e.target.value)} />
+          </div>
+        )}
         <div className="mt-1 flex gap-3">
           <button className={BTN} onClick={create} disabled={busy || !name || !status?.available}>{busy ? tr.creating : tr.createStudioBtn}</button>
           <button className={BTN_GHOST} onClick={onClose}>{tr.cancel}</button>

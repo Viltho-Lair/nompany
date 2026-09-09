@@ -50,6 +50,15 @@ type Strings = {
   companyCode: string;
   companyName: string;
   companyName2: string;
+  // WHAT THE COMPANY DOES, asked when the studio is created. It decides which
+  // sections it starts with, which service actions seed and which org chart it
+  // meets — so the words have to say that it matters without making it feel
+  // compulsory, because it is not.
+  fieldOfWorkLabel: string;
+  fieldOfWorkHint: string;
+  fieldOfWorkSkip: string;
+  fieldOfWorkOtherLabel: string;
+  pickFieldFromList: string;
   confirmEmail: string;
   confirmEmailAddressFirst: string;
   confirmDisconnectCalendar: (providerName: string) => string;
@@ -261,6 +270,11 @@ const en: Strings = {
   companyCode: "Company code",
   companyName: "Your company's name",
   companyName2: "Company name",
+  fieldOfWorkLabel: "What does the company do?",
+  fieldOfWorkHint: "Sets up the studio for your trade — which departments you get, what your teams do, and which sections are switched on. You can change all of it later.",
+  fieldOfWorkSkip: "I'll set this up later",
+  fieldOfWorkOtherLabel: "Tell us what you do",
+  pickFieldFromList: "Pick a field of work from the list.",
   confirmEmail: "Confirm email",
   confirmEmailAddressFirst: "Confirm your email address first.",
   confirmDisconnectCalendar: (providerName: string) => `Disconnect ${providerName}? This revokes nompany's access to your calendar.`,
@@ -459,6 +473,11 @@ const ar: Strings = {
   companyCode: "رمز الشركة",
   companyName: "اسم شركتك",
   companyName2: "اسم الشركة",
+  fieldOfWorkLabel: "ما الذي تعمل به الشركة؟",
+  fieldOfWorkHint: "يهيئ الاستوديو لمجال عملك — الأقسام التي تحصل عليها، وما تقوم به فرقك، وأي الأقسام تكون مفعلة. يمكنك تغيير ذلك كله لاحقا.",
+  fieldOfWorkSkip: "سأحدد ذلك لاحقا",
+  fieldOfWorkOtherLabel: "أخبرنا بما تعمل به",
+  pickFieldFromList: "اختر مجال عمل من القائمة.",
   confirmEmail: "تأكيد البريد",
   confirmEmailAddressFirst: "أكد بريدك الإلكتروني أولا.",
   confirmDisconnectCalendar: (providerName: string) => `فصل ${providerName}؟ هذا يلغي وصول nompany إلى تقويمك.`,

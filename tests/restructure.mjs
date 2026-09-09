@@ -37,6 +37,8 @@ const { SECTION_DEFS, ALL_SECTION_KEYS, SECTION_COLLECTIONS,
 const { REQUIRED_SECTIONS } = await import("../src/platform/db/sections.ts");
 const { ARCHETYPES, permissionsFor } = await import("../src/modules/people/archetypes.ts");
 const { engineSectionKey } = await import("../src/platform/access/catalogue.ts");
+const { INDUSTRIES, industryByField } = await import("../src/platform/engagement/industries.ts");
+const { FIELD_ACTION_MATRIX } = await import("../src/shared/fieldsOfWork.ts");
 // Dynamic for the same reason as every import in this file — see above.
 const { departmentOf } = await import("../src/shared/studio/insights.ts");
 const { AREAS } = await import("../src/platform/access/index.ts");
@@ -1711,6 +1713,54 @@ export async function testEverySectionWithAScreenIsReachableBySomeSeededRole(t) 
     `every section with a screen is openable by at least one seeded role — unreachable: ${unreachable.join(", ")}`);
 }
 
+
+// TWO LISTS OF THE SAME TWENTY-FIVE TRADES, HELD AS ONE.
+//
+// `INDUSTRIES` (platform/engagement) keys by slug and answers which flow
+// template a deal starts on. `FIELD_ACTION_MATRIX` (shared/fieldsOfWork) keys by
+// DISPLAY NAME and is what a studio actually stores in `fieldOfWork` — what
+// seeds its service actions and its departments. They describe the same
+// twenty-five trades and were joined by nothing at all, with four spelled
+// differently between them: "Energy & Utilities" against "Energy & Utilities
+// (Electricity, Gas)", "Waste Mgmt" against "Waste Management", and two more.
+//
+// WHAT THAT COST: a studio's own stored trade could not be resolved to its own
+// flow. Nothing failed — `industryKeyOf` simply answered "" and every deal fell
+// back to Template A — so a manufacturer and a consultancy ran the contracting
+// flow and nobody could see why.
+//
+// `IndustryEntry.field` is the join, and this holds it 1:1 IN BOTH DIRECTIONS.
+// One direction is not enough: a name that stops matching would leave an
+// industry pointing at a trade that no longer exists, and a trade added to the
+// matrix with no industry beside it would silently get no flow.
+export async function testTheTwoIndustryListsAreOneList(t) {
+  const fields = Object.keys(FIELD_ACTION_MATRIX);
+
+  t.equal(INDUSTRIES.length, fields.length,
+    `the two industry lists are the same length (${INDUSTRIES.length} vs ${fields.length})`);
+
+  // -> every industry names a real trade
+  const orphans = INDUSTRIES.filter((i) => !fields.includes(i.field)).map((i) => i.key);
+  t.equal(orphans.length, 0,
+    `every industry's \`field\` is a key of FIELD_ACTION_MATRIX — orphans: ${orphans.join(", ")}`);
+
+  // <- every trade has an industry
+  const named = new Set(INDUSTRIES.map((i) => i.field));
+  const unclaimed = fields.filter((f) => !named.has(f));
+  t.equal(unclaimed.length, 0,
+    `every trade in FIELD_ACTION_MATRIX has an industry — unclaimed: ${unclaimed.join(", ")}`);
+
+  // and the join is a function, not a relation: no two industries share a trade.
+  t.equal(named.size, INDUSTRIES.length,
+    "no two industries claim the same trade");
+
+  // THE DOOR WORKS FROM THE SIDE A STUDIO ACTUALLY USES. `fieldOfWork` holds a
+  // display name, so this is the lookup every caller will make.
+  for (const f of fields) {
+    t.equal(Boolean(industryByField(f)), true, `industryByField resolves ${f}`);
+  }
+}
+
 // ---- harness ----------------------------------------------------------------
 // Same non-throwing, accumulate-and-report shape as tests/suite.mjs's own
 // ok(): one bad assertion must not hide the rest, which matters more here than
@@ -1770,6 +1820,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       testTheSharedTokensAreOnRoot,
       testAdministrationIsNotASectionButItsRowsSurvive,
       testEverySectionWithAScreenIsReachableBySomeSeededRole,
+      testTheTwoIndustryListsAreOneList,
       testAdministrationFollowsItsChildren,
       testProjectSegmentsAreExemptFromTheBoard,
       testEveryContextualSectionKeyLiteralExists,
