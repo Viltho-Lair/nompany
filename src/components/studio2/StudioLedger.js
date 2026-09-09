@@ -5,6 +5,7 @@ import nextDynamic from "next/dynamic";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { ledgerDict } from "@/shared/studio/ledger";
+import { reconciliationDict } from "@/shared/studio/reconciliation";
 import { useReload } from "@/components/studio2/useReload";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 
@@ -23,6 +24,8 @@ import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 // journal — serving them separately would be four reads and four chances for
 // the profit and the trial balance to be computed a second apart.
 const PeriodsPanel = nextDynamic(() => import("@/components/studio2/PeriodsPanel"),
+  { loading: () => <ScreenSkeleton /> });
+const ReconciliationPanel = nextDynamic(() => import("@/components/studio2/ReconciliationPanel"),
   { loading: () => <ScreenSkeleton /> });
 
 const money = (n) => new Intl.NumberFormat("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -59,7 +62,7 @@ export default function StudioLedger({ slug }) {
       </div>
 
       <div role="tablist" className="flex flex-wrap gap-2 border-b border-slate-200 dark:border-white/10">
-        {[["trial", tr.trial], ["journal", tr.journal], ["pl", tr.pl], ["bs", tr.bs], ["periods", tr.periods]]
+        {[["trial", tr.trial], ["journal", tr.journal], ["pl", tr.pl], ["bs", tr.bs], ["reconcile", reconciliationDict(locale).tab], ["periods", tr.periods]]
           .map(([k, label]) => (
             <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)}
               className={`-mb-px border-b-2 px-4 py-2 font-display text-sm font-600 transition-colors ${
@@ -159,6 +162,8 @@ export default function StudioLedger({ slug }) {
           total={balanceSheet.totalAssets} totalLabel={tr.assets}
           note={balanceSheet.balanced ? tr.retained(balanceSheet.retainedResult) : tr.outBy(balanceSheet.difference)} />
       )}
+
+      {tab === "reconcile" && <ReconciliationPanel slug={slug} locale={locale} />}
 
       {tab === "periods" && <PeriodsPanel slug={slug} locale={locale} />}
     </div>
