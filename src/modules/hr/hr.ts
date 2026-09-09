@@ -84,7 +84,10 @@ export const hrContext = moduleContext<HrContext>({
   // a studio that somehow has no Master data section — which reads as "no
   // departments" rather than a 500, the same way a studio with no Field
   // Operations has nothing that could point at a location.
-  foreign: { master: "administration-master" },
+  // MANPOWER PLANNING HANGS A HEADCOUNT ON A PROJECT, so the project register
+  // is read here — foreign and nullable, so a studio that has not opened
+  // Projects can still see its roles and simply has no project to plan for.
+  foreign: { master: "administration-master", projectsList: ["projects-list", "projects"] },
   flags: ["employees"],
   extend: ({ access }) => ({
     // Handing somebody a role is an ACCESS act, not an HR one, so it is gated on

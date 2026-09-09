@@ -39,6 +39,8 @@ export type ExpiringDocument = {
 // ---- this department's context ---------------------------------------------
 // Generated from the spec in hr.ts — see the note in modules/tasks/types.ts.
 export type HrContext = ModuleContext & {
+  /** The project register, for manpower planning. Null on a studio with no Projects. */
+  projectsListSection: Section | null;
   employeesSection: Section;
   /**
    * Master data, read for the org chart. FOREIGN, so nullable — a foreign
