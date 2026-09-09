@@ -123,5 +123,18 @@ function build(
   const n = notices.length;
   const first = say(notices[0]);
   const body = n === 1 ? first : `${first} (+${n - 1} more)`;
-  return { type, title: n === 1 ? title.replace(/s$/, "") : `${n} ${title.toLowerCase()}`, body, href, tone: "warning" };
+  return {
+    type,
+    title: n === 1 ? title.replace(/s$/, "") : `${n} ${title.toLowerCase()}`,
+    body,
+    href,
+    tone: "warning",
+    // THE TEMPLATE TITLE IS THE FIXED PLURAL, so an Arabic reader loses
+    // the "3 " prefix and the singular form this English title switches
+    // between. Deliberate: pluralising two languages inside a template is
+    // a grammar engine, and the count is still on screen — the body says
+    // "(+2 more)". `detail` is assembled here because only this job knows
+    // how to name a document of its own kind.
+    params: { detail: body },
+  };
 }

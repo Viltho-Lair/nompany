@@ -6,6 +6,7 @@ import { Icon } from "@/components/studio2/icons";
 import { useLive } from "@/components/studio2/LiveProvider";
 import { ago } from "@/lib/format";
 import { shellDict } from "@/shared/studio/shell";
+import { renderNotice } from "@/modules/administration/notices";
 
 // The studio's bell.
 //
@@ -35,6 +36,10 @@ export default function NotificationBell({ slug, locale = "en" }) {
   const live = useLive();
   const [open, setOpen] = useState(false);
   const [rows, setRows] = useState([]);
+  // THE STUDIO'S OWN WORDING, served with the list. Null until the first
+  // load, which is the same as "no overrides" — `renderNotice` falls back
+  // to the shipped template, so the bell is never blank while it waits.
+  const [templates, setTemplates] = useState(null);
   const [loaded, setLoaded] = useState(false);
   const panel = useRef(null);
 
@@ -49,6 +54,7 @@ export default function NotificationBell({ slug, locale = "en" }) {
       if (!res.ok) return;
       const out = await res.json();
       setRows(Array.isArray(out.notifications) ? out.notifications : []);
+      setTemplates(out.noticeTemplates || null);
       setLoaded(true);
     } catch {
       // Offline or navigating away. The bell keeps whatever it had; the next
@@ -72,6 +78,14 @@ export default function NotificationBell({ slug, locale = "en" }) {
   merged.sort((a, b) => String(b.at).localeCompare(String(a.at)));
 
   const unread = merged.filter((n) => !n.readAt).length;
+
+  // THE WORDS ARE CHOSEN HERE, not by whatever produced the row. Every
+  // notification in this product was an English sentence written at the
+  // producer and stored finished, so an Arabic studio's bell was entirely
+  // English. `renderNotice` is pure and falls back to the stored sentence
+  // for rows written before this and for `system` notices, which have no
+  // fixed sentence to translate.
+  const words = (n) => renderNotice(n, locale, templates);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -179,9 +193,9 @@ export default function NotificationBell({ slug, locale = "en" }) {
                       <Icon name="bell" className="h-4 w-4" />
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-600 text-slate-800 dark:text-slate-100">{n.title}</span>
-                      {n.body && (
-                        <span className="mt-0.5 block text-xs text-slate-500 dark:text-slate-400">{n.body}</span>
+                      <span className="block text-sm font-600 text-slate-800 dark:text-slate-100">{words(n).title}</span>
+                      {words(n).body && (
+                        <span className="mt-0.5 block text-xs text-slate-500 dark:text-slate-400">{words(n).body}</span>
                       )}
                       <span className="mt-1 block text-[11px] text-slate-400 dark:text-slate-500">{ago(n.at)}</span>
                     </span>

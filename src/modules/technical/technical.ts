@@ -402,6 +402,7 @@ export async function requestRfq(ctx: TechnicalContext, body: Record<string, unk
           type: NOTIFY.rfqRaised,
           title: "An RFQ is waiting to be quoted",
           body: String(rfq.reference || ""),
+          params: { reference: String(rfq.reference || "") },
           href: "engineering-docs-rfq",
           tone: "primary",
         },

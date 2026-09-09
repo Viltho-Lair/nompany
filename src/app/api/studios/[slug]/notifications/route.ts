@@ -1,6 +1,7 @@
 import { currentUser } from "@/platform/auth/identity";
 import { studioContext } from "@/lib/studios";
 import { listForCollaborator, markRead } from "@/platform/notify/notifications";
+import { cleanTemplates } from "@/modules/administration/notices";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -39,6 +40,13 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
   return Response.json({
     notifications,
     unread: notifications.filter((n) => !n.readAt).length,
+    // THE STUDIO'S OWN WORDING, so the bell can render each row in the
+    // READER'S language rather than the producer's. The words are chosen on
+    // display and never stored — the rule statuses and the sales funnel
+    // already follow — so this is the studio's overrides and nothing else.
+    // Every shipped template is in the client bundle already.
+    noticeTemplates: cleanTemplates(
+      (context.studio as { noticeTemplates?: unknown }).noticeTemplates),
   });
 }
 

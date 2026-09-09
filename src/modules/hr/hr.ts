@@ -721,6 +721,13 @@ export async function requestVacation(ctx: HrContext, body: Record<string, unkno
           type: NOTIFY.leaveRequested,
           title: "A leave request is waiting",
           body: `${person.alias || "Someone"} requested ${days} day${days === 1 ? "" : "s"} off.`,
+          // PRE-FORMATTED, because only the producer knows "3 days" is
+          // three days rather than the 3rd, and a template cannot format
+          // what it is handed.
+          params: {
+            who: String(person.alias || "Someone"),
+            days: `${days} day${days === 1 ? "" : "s"}`,
+          },
           href: "hr",
           tone: "primary",
         },
@@ -777,6 +784,10 @@ export async function decideVacation(ctx: HrContext, id: string, decision: unkno
           type: NOTIFY.leaveDecided,
           title: `Your leave was ${String(decision).toLowerCase()}`,
           body: `${row.from}${row.to && row.to !== row.from ? ` – ${row.to}` : ""}`,
+          params: {
+            outcome: String(decision).toLowerCase(),
+            dates: `${row.from}${row.to && row.to !== row.from ? ` – ${row.to}` : ""}`,
+          },
           href: "hr",
           tone: decision === "Approved" ? "success" : "warning",
         },

@@ -182,6 +182,7 @@ async function announceAssignment(
       // The title is what the person needs to recognise it; the bell links to
       // the board, where "Mine" already filters to what is waiting on them.
       body: task.title,
+      params: { title: String(task.title || "") },
       href: "tasks",
       tone: "primary",
     },
@@ -461,6 +462,10 @@ export async function decideTask(ctx: TasksContext, id: string, body: Record<str
           type: NOTIFY.approvalDecided,
           title: justGranted ? "Your approval came through" : "An approval was sent back",
           body: current.title || "",
+          params: {
+            outcome: justGranted ? "granted" : "sent back",
+            reference: String(current.title || ""),
+          },
           href: "tasks",
           tone: justGranted ? "success" : "warning",
         },

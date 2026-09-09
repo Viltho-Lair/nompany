@@ -14,6 +14,7 @@ import { approvalChainOverrides, approvalChainsFor } from "@/platform/approval/s
 import { numberingProblems, cleanNumbering, numberingView } from "@/modules/administration/numbering";
 import { unitProblems, cleanUnits, unitsView } from "@/modules/administration/units";
 import { taxonomyProblems, cleanTaxonomies, taxonomyView } from "@/modules/administration/taxonomy";
+import { templateProblems as noticeProblems, cleanTemplates as cleanNotices, templateView as noticeView } from "@/modules/administration/notices";
 import { isValuationMethod } from "@/modules/inventory/valuation";
 
 export const runtime = "nodejs";
@@ -63,6 +64,10 @@ const FIELDS = [
   // that could delete "Annual" would leave every approved leave request
   // naming a type the product no longer admits.
   "taxonomies",
+  // WHAT THIS STUDIO'S NOTIFICATIONS SAY. Overrides only, for the reason
+  // units and taxonomies keep theirs: a studio that stored the shipped
+  // wording would never receive a later correction to it.
+  "noticeTemplates",
   // HOW STOCK IS VALUED — FIFO or weighted average. An accounting policy, so it
   // sits with the other company-wide ones rather than in Inventory's settings:
   // the number it produces lands on a balance sheet, and whoever signs that is
@@ -173,6 +178,9 @@ const clean = (studio: Record<string, unknown>) => ({
   // EVERY LIST IN FORCE, shipped values kept apart from the studio's own —
   // a screen that could not tell them apart would offer to remove both.
   taxonomies: taxonomyView((studio as { taxonomies?: unknown }).taxonomies),
+  // EVERY NOTIFICATION WITH BOTH WORDINGS, the studio's kept apart from the
+  // shipped one so the screen can offer a reset rather than only an edit.
+  noticeTemplates: noticeView((studio as { noticeTemplates?: unknown }).noticeTemplates),
 });
 
 // Rates from the studio's own currency out to each favourite. Anything the
@@ -373,6 +381,16 @@ export async function PUT(request: Request, ctx: { params: Promise<Record<string
       const problems = taxonomyProblems(body[key]);
       if (problems.length) return Response.json({ error: "refused", detail: problems.join("; ") }, { status: 400 });
       patch[key] = cleanTaxonomies(body[key]);
+      continue;
+    }
+    // REFUSED ON WRITE, and the reason worth having is the placeholder check:
+    // "{salary}" in a leave notification renders as nothing, every time, on
+    // every reader's bell, silently. The studio hears about it while it is
+    // still their edit.
+    if (key === "noticeTemplates") {
+      const problems = noticeProblems(body[key]);
+      if (problems.length) return Response.json({ error: "refused", detail: problems.join("; ") }, { status: 400 });
+      patch[key] = cleanNotices(body[key]);
       continue;
     }
     patch[key] = key === "workingHours" ? cleanHours(body[key])

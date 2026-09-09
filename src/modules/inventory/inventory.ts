@@ -1422,6 +1422,7 @@ export async function receiveOrder(ctx: InventoryContext, id: string, body: Reco
           type: NOTIFY.purchaseReceived,
           title: "A purchase order was received in full",
           body: String(order.reference || ""),
+          params: { reference: String(order.reference || "") },
           // NOT "inventory-orders" — that key was never a section. There is
           // no standalone purchase-order screen at all (the comment in
           // StudioInventory.js is explicit: those buttons were removed on

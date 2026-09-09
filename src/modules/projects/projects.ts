@@ -269,6 +269,7 @@ async function announceProjectManager(
       type: NOTIFY.projectAssigned,
       title: "You're managing a new project",
       body: String(project.title || ""),
+      params: { title: String(project.title || "") },
       href: "projects-list",
       tone: "primary",
     },

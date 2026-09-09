@@ -77,9 +77,23 @@ export type Notice = {
   body?: string;
   href?: string;
   tone?: string;
+  /**
+   * THE FACTS, so the bell can choose the words.
+   *
+   * `title` and `body` are still written and are still the English sentence
+   * they always were — they are what a row renders as when it has no template,
+   * which is every `system` notice and every row stored before this existed.
+   * What `params` adds is the ability to render the SAME notice in Arabic, or
+   * in the studio's own wording, from `modules/administration/notices`.
+   *
+   * Values are pre-formatted strings rather than numbers or dates, because the
+   * producer is the only thing that knows "3 days" is three days and not the
+   * 3rd — and because a template cannot format what it is handed.
+   */
+  params?: Record<string, string>;
 };
 
-function build({ type, title, body = "", href = "", tone = "primary" }: Notice) {
+function build({ type, title, body = "", href = "", tone = "primary", params }: Notice) {
   return {
     id: makeId("ntf"),
     type,
@@ -87,6 +101,13 @@ function build({ type, title, body = "", href = "", tone = "primary" }: Notice) 
     body,
     href,
     tone,
+    // ABSENT AND EMPTY MEAN DIFFERENT THINGS, and this line is where the
+    // difference is kept. A producer that sends NO params has not been written
+    // for a template, and `renderNotice` keeps its stored sentence. One that
+    // sends `{}` HAS been — its notice simply carries no facts — so the empty
+    // object must survive, or a reader would get the English literal instead
+    // of the Arabic template. Testing the key count would collapse the two.
+    ...(params === undefined ? {} : { params }),
     at: new Date().toISOString(),
     readAt: "",
   };

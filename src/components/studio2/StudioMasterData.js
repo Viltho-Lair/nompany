@@ -42,10 +42,13 @@ const CostCodesPanel = nextDynamic(() => import("@/components/studio2/CostCodesP
   { loading: () => <ScreenSkeleton /> });
 const TaxonomyPanel = nextDynamic(() => import("@/components/studio2/TaxonomyPanel"),
   { loading: () => <ScreenSkeleton /> });
+const NoticesPanel = nextDynamic(() => import("@/components/studio2/NoticesPanel"),
+  { loading: () => <ScreenSkeleton /> });
 import { numberingDict } from "@/shared/studio/numbering";
 import { unitsDict } from "@/shared/studio/units";
 import { costCodesDict } from "@/shared/studio/costCodes";
 import { taxonomyDict } from "@/shared/studio/taxonomy";
+import { noticesDict } from "@/shared/studio/notices";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { h2, sub } from "@/components/studio2/ui";
 import { useReload } from "@/components/studio2/useReload";
@@ -66,6 +69,7 @@ export default function StudioMasterData({ slug }) {
   // ALSO A FIELD OF THE STUDIO RECORD, so it rides in the same fetch as
   // numbering and units rather than costing a third round trip.
   const [taxonomies, setTaxonomies] = useState(null);
+  const [notices, setNotices] = useState(null);
   // The departments register is its own read, on its own route, because it is
   // its own collection — the Operations payload assembles locations and knows
   // nothing about the org chart.
@@ -104,6 +108,7 @@ export default function StudioMasterData({ slug }) {
     setNumbering({ rows: body.studio?.numbering || [], canManage });
     setUnits({ rows: body.studio?.units || [], canManage });
     setTaxonomies({ rows: body.studio?.taxonomies || [], canManage });
+    setNotices({ rows: body.studio?.noticeTemplates || [], canManage });
   }, [slug]);
 
   // ONE SAVER FOR BOTH, for the reason one loader serves both: the patch names
@@ -227,7 +232,7 @@ export default function StudioMasterData({ slug }) {
           second register. Both tabs answer to administration.master, so there
           is no per-tab gate — what differs is the CRUD ladder inside each. */}
       <div role="tablist" aria-label={tr.masterData} className="flex gap-2 border-b border-slate-200 dark:border-white/10">
-        {[["locations", tr.locationsTab], ["departments", tr.departments], ["numbering", numberingDict(locale).tab], ["units", unitsDict(locale).tab], ["categories", taxonomyDict(locale).tab], ["cost-codes", costCodesDict(locale).tab]].map(([key, label]) => (
+        {[["locations", tr.locationsTab], ["departments", tr.departments], ["numbering", numberingDict(locale).tab], ["units", unitsDict(locale).tab], ["categories", taxonomyDict(locale).tab], ["cost-codes", costCodesDict(locale).tab], ["notices", noticesDict(locale).tab]].map(([key, label]) => (
           <button
             key={key}
             role="tab"
@@ -308,6 +313,20 @@ export default function StudioMasterData({ slug }) {
             <TaxonomyPanel
               rows={taxonomies.rows}
               canManage={taxonomies.canManage}
+              locale={locale}
+              onSave={saveSettings}
+            />
+          )}
+        </>
+      ) : tab === "notices" ? (
+        <>
+          <div>
+            <h2 className={h2}>{noticesDict(locale).tab}</h2>
+          </div>
+          {notices && (
+            <NoticesPanel
+              rows={notices.rows}
+              canManage={notices.canManage}
               locale={locale}
               onSave={saveSettings}
             />

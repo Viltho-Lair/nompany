@@ -66,6 +66,10 @@ export async function createJoinRequest({ studioId, userId }: { studioId?: strin
         type: NOTIFY.joinRequested,
         title: "Someone asked to join",
         body: "A request is waiting in People & requests.",
+        // NO FACTS TO CARRY, and the empty object is deliberate: it marks
+        // the row as template-rendered so an Arabic reader gets the Arabic
+        // sentence rather than falling back to this literal.
+        params: {},
         href: "people",
         tone: "primary",
       },
