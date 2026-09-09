@@ -7,6 +7,10 @@ import { reportsDict } from "@/shared/studio/reports";
 // not the download (HeavyScreens.jsx). It is imported this way so the export
 // list, which needs no client state at all, keeps rendering on the server.
 const ReportBuilderPanel = nextDynamic(() => import("@/components/studio2/ReportBuilderPanel"));
+// THE HEADLINE, and the only part of this page anybody opens it for daily.
+// A client panel for one reason — the window is state — and the smallest
+// boundary that buys it.
+const ExecutiveBoard = nextDynamic(() => import("@/components/studio2/ExecutiveBoard"));
 
 // REPORTS & BI — the last section that rendered nothing.
 //
@@ -40,6 +44,14 @@ export default function StudioReports({ slug, access, locale = "en" }) {
     <div className="rounded-geex border border-slate-200/70 bg-white p-8 dark:border-white/10 dark:bg-[#20202c]">
       <h2 className="font-display text-xl font-800 text-slate-900 dark:text-white">{tr.title}</h2>
       <p className="mt-2 max-w-2xl text-sm text-slate-600 dark:text-slate-300">{tr.lead}</p>
+
+      {/* THE BOARD SITS ABOVE THE EXPORTS, because it is what a director opens
+          this section for and the exports are what an analyst comes back for.
+          It gates itself: every tile is drawn from a register the reader can
+          already open, and one they cannot is left out. */}
+      <div className="mt-6 border-b border-slate-200/70 pb-8 dark:border-white/10">
+        <ExecutiveBoard slug={slug} locale={locale} />
+      </div>
 
       {sets.length === 0 ? (
         // NOT A REFUSAL. This person may open the export surface and holds no

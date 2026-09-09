@@ -113,6 +113,54 @@ export const DATASETS: readonly DataSet[] = Object.freeze([
       col("name", "Name"), col("category", "Category"), col("email", "Email"), col("phone", "Phone"),
     ],
   },
+  // FOUR MORE, ADDED FOR THE EXECUTIVE BOARD AND USEFUL TO ALL THREE READERS.
+  // The board is built on this catalogue rather than a second list of where the
+  // numbers live, so what it needed had to be declared HERE — which means the
+  // export and the report builder gain them in the same change, and cannot
+  // disagree with the board about what "deals" means.
+  //
+  // EVERY ONE NAMES THE RIGHT ITS OWN SECTION ALREADY REQUIRES, and the columns
+  // are chosen rather than spread: `quotations` carries line prices and
+  // `vacations` carries a reason somebody wrote in confidence, and neither is
+  // on this list.
+  {
+    key: "tickets", label: "Deals", group: "CRM & Sales",
+    permission: "crmSales.tickets.view",
+    sectionKey: "crm-sales-tickets", parentSectionKey: "crm-sales", collection: "salesTickets",
+    columns: [
+      col("reference", "Reference"), col("title", "Title"), col("clientName", "Client"),
+      col("status", "Status"), col("createdAt", "Opened"),
+    ],
+  },
+  {
+    key: "quotations", label: "Quotations", group: "CRM & Sales",
+    permission: "crmSales.quotations.view",
+    sectionKey: "crm-sales-quotations", parentSectionKey: "crm-sales", collection: "quotations",
+    columns: [
+      col("reference", "Reference"), col("clientName", "Client"), col("status", "Status"),
+      col("createdAt", "Raised"), col("total", "Total"),
+    ],
+  },
+  {
+    key: "orders", label: "Purchase orders", group: "Inventory & Warehouse",
+    permission: "inventory.stock.view",
+    sectionKey: "inventory-sheets", parentSectionKey: "inventory", collection: "materialOrders",
+    columns: [
+      col("reference", "Reference"), col("vendorName", "Vendor"), col("status", "Status"),
+      col("createdAt", "Placed"), col("total", "Total"),
+    ],
+  },
+  {
+    key: "vacations", label: "Leave", group: "Human Resources",
+    permission: "hr.vacations.view",
+    // HR'S OWN ROOT, not a sub-section: `vacations` is one of the few
+    // collections still owned by a department root rather than a child.
+    sectionKey: "hr", parentSectionKey: "hr", collection: "vacations",
+    columns: [
+      col("collaboratorId", "Person"), col("type", "Type"), col("status", "Status"),
+      col("from", "From"), col("to", "To"), col("days", "Days"),
+    ],
+  },
 ]);
 
 const byKey = new Map(DATASETS.map((d) => [d.key, d]));

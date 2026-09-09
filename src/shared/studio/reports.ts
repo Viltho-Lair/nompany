@@ -22,7 +22,7 @@ const en: Strings = {
   nothing: "Nothing to export yet. You can export a register once you hold the right to read it.",
   // WHAT THIS SECTION IS NOT, YET. A page that quietly offered only exports
   // would read as a finished section.
-  notYet: "Not built yet: scheduling a report to arrive by email, and analytics beyond what you can build here.",
+  notYet: "Not built yet: scheduling a report to arrive by email.",
 };
 
 // HAND-WRITTEN. NO DIACRITICS.
@@ -30,7 +30,7 @@ const ar: Strings = {
   title: "التقارير والتحليلات",
   lead: "أخرجوا بياناتكم. كل ملف يحتوي الأعمدة المذكورة فقط، والسجلات التي تستطيعون فتحها أصلا — وصلاحية التصدير لا توسع ما ترونه.",
   nothing: "لا شيء للتصدير بعد. يمكنكم تصدير أي سجل متى حصلتم على صلاحية قراءته.",
-  notYet: "غير مبني بعد: جدولة تقرير ليصل بالبريد، والتحليلات فيما وراء ما يمكن بناؤه هنا.",
+  notYet: "غير مبني بعد: جدولة تقرير ليصل بالبريد.",
 };
 
 const dict = { en, ar };
