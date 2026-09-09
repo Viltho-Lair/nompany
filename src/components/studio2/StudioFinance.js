@@ -20,10 +20,12 @@ import {
 } from "@/components/studio2/ui";
 import { StatusPill } from "@/components/studio2/StatusPill";
 import { useReload } from "@/components/studio2/useReload";
+import { treasuryDict } from "@/shared/studio/treasury";
 
 // THE LEDGER IS ITS OWN SCREEN and arrives lazily: it is one of four views
 // this module switches between, and only one of them is open at a time.
 const StudioLedger = nextDynamic(() => import("@/components/studio2/StudioLedger"));
+const TreasuryPanel = nextDynamic(() => import("@/components/studio2/TreasuryPanel"));
 
 const panel = "rounded-geex border border-slate-200/70 bg-[var(--geex-surface)] p-6 dark:border-white/10";
 const label = "mb-1 block text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400";
@@ -80,7 +82,8 @@ export default function StudioFinance({ slug, view = "finance" }) {
 // amount paid from the payments recorded against them, project cost from
 // purchase orders plus booked expenses.
 function FinanceCash({ slug, view = "finance" }) {
-  const tr = financeDict(useStudioLocale());
+  const locale = useStudioLocale();
+  const tr = financeDict(locale);
   const [data, setData] = useState(null);
   const [tab, setTab] = useState("invoices");
   useEffect(() => { if (view === "finance-cash") setTab("invoices"); }, [view]);
@@ -123,6 +126,10 @@ function FinanceCash({ slug, view = "finance" }) {
     ["invoices", `Invoices (${invoices.length})`],
     ["expenses", `Expenses (${expenses.length})`],
     ["projects", `Profitability (${profitability.length})`],
+    // CASH THAT HAS NOT MOVED YET — post-dated cheques, the forecast they feed
+    // and the guarantees holding money at the bank. It sits under Cash because
+    // the forecast is assembled from the receivables and payables beside it.
+    ["treasury", treasuryDict(locale).tab],
   ];
 
   if (view === "finance") {
@@ -169,6 +176,7 @@ function FinanceCash({ slug, view = "finance" }) {
           slug={slug} nav={nav} canManage={canManage} busy={busy} send={send} />
       )}
       {tab === "projects" && <Profitability rows={profitability} slug={slug} nav={nav} />}
+      {tab === "treasury" && <TreasuryPanel slug={slug} locale={locale} />}
     </div>
   );
 }

@@ -848,7 +848,10 @@ export const SECTION_COLLECTIONS = {
   // a payment is a cash movement and the ledger holds the POSTINGS that describe
   // one — filing it there would put the event and its bookkeeping in the same
   // place and make the ledger the system of record for money it only reports on.
-  "finance-cash": ["invoices", "expenses", "payments", "creditNotes"],
+  // POST-DATED CHEQUES AND LETTERS OF GUARANTEE sit with Cash: both are money
+  // in flight rather than ledger entries, and the forecast that reads them is
+  // assembled from the receivables beside them.
+  "finance-cash": ["invoices", "expenses", "payments", "creditNotes", "cheques", "guarantees"],
   // The chart of accounts and the journal. A journal entry is never edited once
   // posted — only reversed by a mirror entry — so there is no separate
   // "reversals" collection: a reversal is just another journalEntry.
