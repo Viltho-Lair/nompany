@@ -21,6 +21,34 @@ import { engineSectionKey } from "@/platform/access";
 import { plantTypeSection } from "./sections";
 import type { RecordType } from "./schema";
 
+// ------------------------------------------------------------------------
+// `version` IS WHAT LETS A CHANGED DECLARATION REACH A STUDIO THAT ALREADY HAS
+// THE TYPE.
+//
+// `seedBuiltinTypes` seeds what a studio is MISSING. For years that was the
+// whole story, because a built-in declaration never changed after it shipped.
+// It changed today — four registers gained a `reference` field and the test
+// register gained a rule — and a studio created yesterday would have got none
+// of it: the seeder skips by key, so a stored `testreport` is never looked at
+// again.
+//
+// BUMP THIS WHEN YOU CHANGE A DECLARATION. `reconcileBuiltinTypes` compares the
+// stored version against this one and rewrites the declaration-owned half of the
+// row; a studio whose stored version already matches is not touched.
+//
+// WHAT IS SAFE TO CHANGE THIS WAY, and what is not:
+//
+//   ADDING a field is safe. `coerceRecord` reads every record through the type
+//   as it is NOW, so existing rows simply answer empty for it.
+//
+//   REMOVING a field hides data rather than deleting it — `mergeRecord` carries
+//   a field the type has dropped, and the read filters it out. Recoverable by
+//   putting the field back, but invisible meanwhile.
+//
+//   REMOVING A STATUS STRANDS EVERY RECORD SITTING AT IT. There is no transition
+//   out of a status the type no longer declares, so those rows can never move
+//   again. Do not do it through a version bump; it needs a migration that moves
+//   the records first.
 export const BUILTIN_TYPES = [
   {
     key: "transmittal",
@@ -157,7 +185,7 @@ export const BUILTIN_TYPES = [
       { from: "Verified", to: "Closed" },
       { from: "Investigating", to: "Closed" },
     ],
-    version: 1,
+    version: 2,
   },
   {
     key: "audit",
@@ -302,7 +330,7 @@ export const BUILTIN_TYPES = [
       { from: "In progress", to: "Done" },
       { from: "Due", to: "Skipped" },
     ],
-    version: 1,
+    version: 2,
   },
   {
     // EXPIRED RETURNS TO VALID because an instrument is RECALIBRATED rather
@@ -333,7 +361,7 @@ export const BUILTIN_TYPES = [
       { from: "Expired", to: "Valid" },
       { from: "Valid", to: "Withdrawn" },
     ],
-    version: 1,
+    version: 2,
   },
   {
     // ON SITE GOES BACK TO SCHEDULED, which is the move a service register
@@ -621,7 +649,7 @@ export const BUILTIN_TYPES = [
       { from: "Quarantined", to: "Scrapped" },
       { from: "Open", to: "Scrapped" },
     ],
-    version: 1,
+    version: 2,
   },
   {
     // REJECTED AND WITHDRAWN ARE BOTH ENDINGS AND THEY ARE NOT THE SAME.
@@ -852,7 +880,7 @@ export const BUILTIN_TYPES = [
         },
       },
     ],
-    version: 1,
+    version: 2,
   },
   {
     // `Expiring` IS A STATUS SOMEBODY SETS, not one anything computes.
@@ -1002,4 +1030,67 @@ export async function seedBuiltinTypes(studioId: string): Promise<void> {
       updatedAt: at,
     });
   }
+}
+
+/**
+ * WHAT A STUDIO'S BUILT-IN TYPES ARE MISSING BECAUSE THEIR DECLARATION MOVED.
+ *
+ * `seedBuiltinTypes` above seeds what a studio does not HAVE. This is the other
+ * half: what it has, but stale. The two are separate functions because they are
+ * separate decisions — seeding gives a studio a register it never had, and
+ * reconciling changes one it is already using, which deserves to be asked for
+ * rather than to happen as a side effect of asking for something else.
+ *
+ * ONLY `origin: "builtin"` ROWS. A studio's own type is its own; the whole
+ * meaning of the origin flag is that this repository declares the built-ins and
+ * a tenant may not edit them, which is also why overwriting them loses nothing.
+ *
+ * ONLY THE DECLARATION-OWNED HALF. `id`, `studioId`, `sectionId`, `sectionKey`,
+ * `origin` and `createdAt` are the STUDIO's — a section id rewritten here would
+ * point a register at storage that is not its own, which is the stranding this
+ * codebase keeps paying for.
+ *
+ * RETURNS WHAT IT WOULD DO WHEN `apply` IS FALSE, because the script that calls
+ * it is dry-run by default and a migration whose dry run cannot be trusted is a
+ * migration nobody runs twice.
+ */
+export async function reconcileBuiltinTypes(
+  studioId: string,
+  { apply = false }: { apply?: boolean } = {},
+): Promise<{ key: string; from: number; to: number }[]> {
+  const settings = await getSectionByKey(studioId, "administration-settings");
+  if (!settings) return [];
+  const scope = { studio: { id: studioId }, section: settings };
+  const existing = await Types.find(scope);
+
+  const behind: { key: string; from: number; to: number }[] = [];
+  for (const decl of BUILTIN_TYPES) {
+    const stored = existing.find((t) => t.key === decl.key);
+    if (!stored) continue;                       // seedBuiltinTypes' job, not this one
+    if (String(stored.origin) !== "builtin") continue;
+    const from = Number(stored.version) || 0;
+    if (from >= decl.version) continue;
+    behind.push({ key: decl.key, from, to: decl.version });
+
+    if (!apply) continue;
+    await Types.update(scope, String(stored.id), (row) => ({
+      ...row,
+      // The declaration's half, replaced whole rather than merged: a merge would
+      // keep a field the declaration has deliberately dropped, and then the two
+      // would disagree about what the register is for ever after.
+      label: decl.label,
+      fields: decl.fields.map((f) => ({ ...f })),
+      columns: [...decl.columns],
+      statuses: [...decl.statuses],
+      transitions: decl.transitions.map((t) => ({ ...t })),
+      ...("rules" in decl
+        ? { rules: (decl as { rules: readonly object[] }).rules.map((r) => ({ ...r })) }
+        // A declaration that DROPPED its rules must clear them, or a register
+        // goes on doing something the product no longer says it does.
+        : { rules: [] }),
+      version: decl.version,
+      updatedAt: new Date().toISOString(),
+    }));
+  }
+  return behind;
 }

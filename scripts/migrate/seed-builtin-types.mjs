@@ -103,7 +103,7 @@ const root = pathToFileURL(`${process.cwd()}/`).href;
 register(new URL("../../tests/loader.mjs", import.meta.url), { data: { root } });
 
 const { listStudios } = await import("@/modules/main/studios");
-const { BUILTIN_TYPES, seedBuiltinTypes } = await import("@/platform/engine/builtins");
+const { BUILTIN_TYPES, seedBuiltinTypes, reconcileBuiltinTypes } = await import("@/platform/engine/builtins");
 // `getSectionByKey` READS the stored array and plants nothing (`readArr`),
 // which is what a dry run needs: `listSections` would heal the very studios
 // this is reporting as short and then say nothing was written.
@@ -121,6 +121,7 @@ console.log(
 
 let changedStudios = 0;
 let seededTypes = 0;
+let upgradedTypes = 0;
 let blockedStudios = 0;
 
 for (const studio of studios) {
@@ -143,6 +144,19 @@ for (const studio of studios) {
   const have = new Set(existing.map((t) => String(t.key)));
   const lines = [];
   let blocked = false;
+
+  // WHAT IS STALE, NOT ONLY WHAT IS MISSING.
+  //
+  // The seeder skips a type the studio already has, by key — which was the
+  // whole story while a built-in declaration never changed after it shipped.
+  // It changed on 09/09/2026: four registers gained a `reference` field and
+  // the test register gained a rule, and every studio that already held those
+  // types would have gone on without any of it, silently, for ever.
+  const stale = await reconcileBuiltinTypes(id, { apply: false });
+  for (const u of stale) {
+    lines.push(`    ${u.key}: v${u.from} -> v${u.to} (fields / rules updated in place)`);
+    upgradedTypes += 1;
+  }
 
   for (const decl of BUILTIN_TYPES) {
     if (have.has(decl.key)) continue;
@@ -169,11 +183,17 @@ for (const studio of studios) {
   // ONE CALL, and it is the SAME call `createStudio` makes. It re-reads the
   // studio's types itself and skips what is already there, so what is written
   // here cannot drift from what a new studio is born with.
-  if (APPLY) await seedBuiltinTypes(id);
+  if (APPLY) {
+    await seedBuiltinTypes(id);
+    // AFTER the seed, so a type seeded in this same run is already at the
+    // current version and this finds nothing to do for it.
+    await reconcileBuiltinTypes(id, { apply: true });
+  }
 }
 
 console.log(`\nStudios changed : ${changedStudios}`);
 console.log(`Types seeded    : ${seededTypes}`);
+console.log(`Types upgraded  : ${upgradedTypes}`);
 if (blockedStudios) console.log(`Studios blocked : ${blockedStudios} (missing a section — run plant-sections.mjs)`);
 if (!APPLY) console.log("(dry run — nothing written; re-run with --apply to seed)");
 console.log("");
