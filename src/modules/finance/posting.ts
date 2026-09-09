@@ -12,7 +12,7 @@
 // is "post this thing", and five endpoints would be five places to forget one.
 import {
   postInvoice, postExpense, postBill, postBillPayment, postPayment, postCreditNote,
-  ENTRY_SOURCE_KINDS,
+  postPayroll, ENTRY_SOURCE_KINDS,
 } from "./ledger";
 import type { FinanceContext } from "./types";
 import type { PostOptions } from "./ledger";
@@ -63,6 +63,11 @@ export async function postDocument(
     case "bill": return postBill(ctx, documentId, options);
     case "bill-payment": return postBillPayment(ctx, documentId, payment, options);
     case "payment": return postPayment(ctx, documentId, payment, options);
+    // PAYROLL IS THE SEVENTH, and adding it to `ENTRY_SOURCE_KINDS` is what
+    // made it dispatchable — `POSTABLE` derives from that list, so the kind
+    // arrived here the moment the ledger learned it. That is the one-list
+    // design working: a new kind is added once and both halves find out.
+    case "payroll": return postPayroll(ctx, documentId, options);
     default: return { error: "kind" };
   }
 }

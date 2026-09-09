@@ -840,7 +840,8 @@ export const SECTION_COLLECTIONS = {
   // name for a role, which lives in s:<StudioID>:roles — that one is still gone
   // for good.
   hr: ["vacations"],
-  "hr-employees": ["certifications"],
+  // Pay records and payroll runs sit with the employees they belong to.
+  "hr-employees": ["certifications", "payRecords", "payrollRuns"],
   // finance
   // Cash: what we billed, what we spent, and what actually moved. `payments`
   // lives beside the invoices it settles rather than under the ledger, because

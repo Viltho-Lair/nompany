@@ -16,7 +16,14 @@ import HrDashboard from "@/components/studio2/HrDashboard";
 import { useAnalyticsLevel } from "@/components/studio2/analyticsLevel";
 import { StatusPill } from "@/components/studio2/StatusPill";
 import { PanelBar, usePanelParam } from "@/components/studio2/PanelBar";
+import nextDynamic from "next/dynamic";
 import { useReload } from "@/components/studio2/useReload";
+import { payrollDict } from "@/shared/studio/payroll";
+
+// BEHIND A REAL LAZY BOUNDARY, like every other secondary tab: this is a
+// client module, so `import()` here survives to runtime.
+const PayrollPanel = nextDynamic(() => import("@/components/studio2/PayrollPanel"),
+  { loading: () => <ScreenSkeleton /> });
 
 const btnDanger = "rounded-full border border-rose-200 px-4 py-2 font-display text-sm font-600 text-rose-600 transition-colors hover:bg-rose-50 disabled:opacity-60 dark:border-rose-500/30 dark:text-rose-300 dark:hover:bg-rose-500/10";
 const td = "py-3 pe-3 align-middle";
@@ -48,11 +55,12 @@ const fmt = fmtDate;
 // that job implies were two lists for one idea, and only one of them decided
 // anything.
 export default function StudioHr({ slug, view = "hr" }) {
-  const tr = hrDict(useStudioLocale());
+  const locale = useStudioLocale();
+  const tr = hrDict(locale);
   const [data, setData] = useState(null);
   // The active panel is remembered in ?tab= so a refresh or a deep link reopens
   // the same one; the switch itself is an in-place flip via the bottom PanelBar.
-  const [tab, setTab] = usePanelParam("tab", "people", ["people", "roles", "certifications", "leave"]);
+  const [tab, setTab] = usePanelParam("tab", "people", ["people", "roles", "certifications", "leave", "payroll"]);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const level = useAnalyticsLevel();
@@ -126,6 +134,12 @@ export default function StudioHr({ slug, view = "hr" }) {
     { key: "roles", label: `Roles (${roles.length})` },
     { key: "certifications", label: `Certifications (${certifications.length})` },
     { key: "leave", label: `Leave${pendingLeave ? ` (${pendingLeave})` : ""}` },
+    // PAYROLL IS A TAB OF EMPLOYEES because a pay record belongs to an employee
+    // — but it answers to `hr.payroll`, not to the Employees grant, and the
+    // panel fetches its own data behind that right. Somebody who may read
+    // People and not payroll sees the tab and an empty answer, which is the
+    // truthful shape the export list already uses.
+    { key: "payroll", label: payrollDict(locale).tab },
   ];
 
   // pb-20 keeps the last rows clear of the fixed PanelBar, the way StudioOperations
@@ -143,6 +157,8 @@ export default function StudioHr({ slug, view = "hr" }) {
       )}
 
       <Overview headcount={headcount} departments={departments} expiring={expiring} windowDays={vocabulary.expiryWindowDays} />
+
+      {tab === "payroll" && <PayrollPanel slug={slug} locale={locale} />}
 
       {tab === "people" && (
         <People employees={employees} departments={departments} roles={roles}

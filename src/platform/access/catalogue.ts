@@ -413,6 +413,19 @@ const OWN_AREAS = [
   { key: "hr.vacations", group: "Human Resources", label: "Vacations", verbs: ["view", "create", "edit"],
     scoped: true, extra: [{ key: "approve", label: "Approve requests" }] },
 
+  // PAYROLL IS NOT `hr.employees.salary`, and the difference is the point.
+  // That right reveals ONE person's record to somebody who may already read it;
+  // this one opens the whole company's wage bill, which is a different power
+  // and usually a different person. It is deliberately NOT scoped: a payroll
+  // run is the studio's, and a departmental view of it would be a partial
+  // total nobody could reconcile against the ledger.
+  //
+  // `approve` IS AN EXTRA on the same area because approving is an act ON a
+  // run, and invariant 7 is enforced at the transition rather than here — the
+  // person who prepared it never approves it, whichever rights they hold.
+  { key: "hr.payroll", group: "Human Resources", label: "Payroll", verbs: ["view", "create", "edit"],
+    extra: [{ key: "approve", label: "Approve a payroll run" }] },
+
   { key: "finance.cash", group: "Finance & Accounting", label: "Cash", verbs: ["view", "create", "edit", "delete"] },
   // THE LEDGER HAS NO ORDINARY CRUD. An entry is posted and, if wrong, reversed;
   // it is never edited or deleted, because it is the record of a decision (the

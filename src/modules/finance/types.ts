@@ -43,6 +43,8 @@ export type FinanceContext = ModuleContext & {
   settingsSection: Section;
   projectsListSection: Section | null;
   sheetsSection: Section | null;
+  /** HR's employee section, where a payroll run lives. Null on a studio with no HR. */
+  hrEmployeesSection: Section | null;
   canViewCash: boolean;
   canManageCash: boolean;
   // Payables and assets each carry their own view/manage flag off the same

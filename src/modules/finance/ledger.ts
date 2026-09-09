@@ -62,6 +62,10 @@ export const DEFAULT_CHART: { code: string; name: string; type: AccountType }[] 
   { code: "1510", name: "Accumulated Depreciation", type: "asset" },
   { code: "2000", name: "Accounts Payable", type: "liability" },
   { code: "2100", name: "VAT Payable", type: "liability" },
+  // ADDED WITH PAYROLL, and it needs no migration: `ledgerAccounts` seeds any
+  // code from this chart that a studio is missing on every read, so an
+  // existing studio gains it the next time its ledger is opened.
+  { code: "2200", name: "Payroll Payable", type: "liability" },
   { code: "3000", name: "Owner's Equity", type: "equity" },
   { code: "3900", name: "Retained Earnings", type: "equity" },
   { code: "4000", name: "Revenue", type: "income" },
@@ -232,7 +236,7 @@ export type PostOptions = { system?: boolean };
  * a new kind is added HERE, once, and both halves learn about it.
  */
 export const ENTRY_SOURCE_KINDS = [
-  "invoice", "expense", "bill", "bill-payment", "payment", "credit-note", "manual",
+  "invoice", "expense", "bill", "bill-payment", "payment", "credit-note", "payroll", "manual",
 ] as const;
 
 export type EntrySourceKind = (typeof ENTRY_SOURCE_KINDS)[number];
@@ -430,6 +434,11 @@ const CATEGORY_ACCOUNT: Record<string, string> = {
   Salaries: "5100", Rent: "5200", Utilities: "5300",
 };
 const OTHER_EXPENSE = "5900";
+// PAYROLL SITS ON ITS OWN LIABILITY, not on Accounts Payable. What a company
+// owes its staff and what it owes its suppliers are different lines on a
+// balance sheet, and netting them makes both wrong.
+const PAYROLL_PAYABLE = "2200";
+const SALARIES = "5100";
 const COST_OF_SALES = "5000";  // where an uncategorised vendor bill lands
 
 // Resolve chart CODES to the account ids a posting line needs, seeding the chart
@@ -714,4 +723,84 @@ export async function postPayment(ctx: FinanceContext, invoiceId: string, paymen
       { accountId: byCode.get(AR), credit: payment.amount },
     ],
   }, options);
+}
+
+/**
+ * POST A PAYROLL RUN: debit Salaries for the GROSS, credit Payroll Payable for
+ * the net, and credit it again for the deductions.
+ *
+ * THE GROSS IS THE COST AND THE NET IS NOT. What the company spent on people is
+ * everything it promised them; what it will hand over in cash is that less what
+ * it withheld. Posting the net as the expense understates the wage bill by
+ * exactly the deductions, which is the mistake that makes a payroll cost look
+ * like it fell in a month somebody took a loan.
+ *
+ * DEDUCTIONS GO TO THE SAME LIABILITY as the net rather than to income. This
+ * product does not know what a deduction IS — a loan repayment, a social
+ * security contribution, a fine — and putting it anywhere more specific would be
+ * guessing on the studio's behalf. It is money withheld and not yet passed on,
+ * which is what a payable is, and a studio that wants it split re-posts by hand.
+ *
+ * READ FROM HR'S SECTION, and refused when the studio has none: Finance posts,
+ * HR records, and the ledger is the one place that knows what a balanced entry
+ * looks like.
+ */
+export async function postPayroll(ctx: FinanceContext, runId: string, options: PostOptions = {}) {
+  if (!options.system) {
+    const denied = requirePermission(ctx.access, "finance.ledger.post");
+    if (denied) return denied;
+  }
+  if (!ctx.hrEmployeesSection) return { error: "no-hr" };
+
+  const run = (await repo<Row>("payrollRuns")
+    .find({ studio: ctx.studio, section: ctx.hrEmployeesSection }))
+    .find((r) => r.id === runId) as (Row & {
+      status?: string; period?: string; totals?: { gross?: number; net?: number; deductions?: number };
+    }) | undefined;
+  if (!run) return { error: "notfound" };
+  // A DRAFT RUN IS NOT A COST YET. Its amounts are still being edited, and
+  // posting one would put a figure in the books that the next save changes.
+  if (run.status === "Draft") return { error: "not-postable", status: run.status };
+
+  const entries = await Entries.find({ studio: ctx.studio, section: ctx.ledgerSection });
+  if (alreadyPosted(entries, "payroll", runId)) return { error: "already-posted" };
+
+  // NOT `money()`. IN THIS FILE `money` MEANS CENTS -> MONEY (`Math.round(c) / 100`),
+  // and a run's totals are already money — so calling it here divided the wage
+  // bill by a hundred and produced an entry of 35 against 33.02 that
+  // `postEntry` refused as unbalanced. Caught by tests/crud.mjs on its first
+  // run, which is the argument for the end-to-end case existing at all: the
+  // arithmetic was right in the pure model and wrong at the seam.
+  const round2 = (n: number) => Math.round(n * 100) / 100;
+  const gross = round2(Number(run.totals?.gross) || 0);
+  const net = round2(Number(run.totals?.net) || 0);
+  const withheld = round2(gross - net);
+
+  const { byCode, missing } = await codesToIds(ctx, [SALARIES, PAYROLL_PAYABLE]);
+  if (missing.length) return { error: "chart", missing };
+
+  const lines: { accountId: string | undefined; debit?: number; credit?: number }[] = [
+    { accountId: byCode.get(SALARIES), debit: gross },
+    { accountId: byCode.get(PAYROLL_PAYABLE), credit: net },
+  ];
+  // Only when there is something withheld: a line of nought is noise in a
+  // journal, and `cleanLines` would keep it.
+  if (withheld > 0) lines.push({ accountId: byCode.get(PAYROLL_PAYABLE), credit: withheld });
+
+  return postEntry(ctx, {
+    // THE PERIOD'S LAST DAY, not today. A run for September posted in October is
+    // September's cost, and dating it by the clock would move a month's wage
+    // bill into the month somebody got round to posting it.
+    date: lastDayOf(String(run.period || "")),
+    memo: `Payroll ${run.period}`,
+    source: { kind: "payroll", id: runId },
+    lines,
+  }, options);
+}
+
+/** The last day of a `YYYY-MM` period, or today when it is not one. */
+function lastDayOf(period: string): string {
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(period)) return new Date().toISOString().slice(0, 10);
+  const [y, m] = period.split("-").map(Number);
+  return new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
 }

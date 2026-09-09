@@ -390,6 +390,128 @@ async function adjustmentApproval() {
 
 await adjustmentApproval().catch((e) => ok("the adjustment case threw", false, e?.message || String(e)));
 
+// ---- PAYROLL, END TO END --------------------------------------------------
+// `hr.employees.salary` has existed since the catalogue was written, labelled
+// "See pay and salary", and nothing in this product stored a salary — the right
+// revealed passport numbers. This is the record it was always describing.
+//
+// IT NEEDS TWO PEOPLE, which is why it lives here rather than in the pure model
+// test: invariant 7 is enforced at the transition, so the person who prepared a
+// run can never approve it, and asserting that needs somebody else to exist.
+async function payrollRun() {
+  const PAY = await import("../src/app/api/studios/[slug]/hr/payroll/route.ts");
+  const LEDGER = await import("../src/app/api/studios/[slug]/finance/ledger/route.ts");
+  const { createUser } = await import("@/platform/auth/users");
+  const { createRole } = await import("@/modules/people/roles");
+  const { addCollaborator } = await import("@/platform/auth/collaborators");
+
+  await F.signIn(F.owner.id);
+  // THE OWNER'S COLLABORATORID, not their user id — a pay record is addressed
+  // to the identity inside the studio (invariant 6).
+  const { listCollaborators } = await import("@/platform/auth/collaborators");
+  const mine = (await listCollaborators(F.studio.id))
+    .find((c) => String(c.userId) === String(F.owner.id));
+  const ownerCollaboratorId = String(mine?.id || "");
+  ok("fixture: the owner has a collaborator id", Boolean(ownerCollaboratorId));
+
+  // ---- a pay record --------------------------------------------------------
+  const bad = await call(PAY.POST, body("POST", {
+    action: "pay", collaboratorId: ownerCollaboratorId, basic: -1,
+  }), P());
+  ok("a negative basic is refused by name", /cannot be negative/.test(String(bad.body?.detail)),
+    JSON.stringify(bad.body).slice(0, 140));
+
+  // AMOUNTS ARE POSITIVE AND THE KIND CARRIES THE SIGN: a deduction stored as a
+  // negative allowance is the same thing said twice, and the first report that
+  // sums allowances gets it wrong.
+  const negAllowance = await call(PAY.POST, body("POST", {
+    action: "pay", collaboratorId: ownerCollaboratorId, basic: 3000,
+    components: [{ label: "Tax", amount: -50, kind: "allowance" }],
+  }), P());
+  ok("a negative allowance is refused rather than read as a deduction",
+    /above nought/.test(String(negAllowance.body?.detail)));
+
+  const saved = await call(PAY.POST, body("POST", {
+    action: "pay", collaboratorId: ownerCollaboratorId, basic: 3000,
+    iban: "JO94CBJO0010", bankName: "Housing Bank",
+    components: [
+      { label: "Housing", amount: 500, kind: "allowance" },
+      { label: "Loan", amount: 200, kind: "deduction" },
+    ],
+  }), P());
+  ok("a pay record saves", saved.status === 200, JSON.stringify(saved.body).slice(0, 140));
+
+  // ---- a run ---------------------------------------------------------------
+  // A PERIOD NO OTHER RUN OF THIS SUITE WILL PICK. The studio is created fresh
+  // per run, so any valid month would do; a varied one also proves the period
+  // is read rather than assumed.
+  const period = "2031-07";
+  const prepared = await call(PAY.POST, body("POST", { action: "prepare", period }), P());
+  const runId = prepared.body?.run?.id;
+  ok("a run prepares for a period", Boolean(runId), JSON.stringify(prepared.body).slice(0, 160));
+  ok("...with the gross the pay record implies", prepared.body?.run?.totals?.gross === 3500,
+    String(prepared.body?.run?.totals?.gross));
+  ok("...and the net after deductions", prepared.body?.run?.totals?.net === 3300);
+
+  // ONE RUN PER PERIOD. A second September is two wage bills for one month, and
+  // whichever posted first would be the one the ledger believes.
+  const twice = await call(PAY.POST, body("POST", { action: "prepare", period }), P());
+  ok("a second run for one month is refused", twice.body?.error === "duplicate");
+
+  // ---- INVARIANT 7: the preparer never approves ---------------------------
+  const self = await call(PAY.POST, body("POST", { action: "move", id: runId, status: "Approved" }), P());
+  ok("THE PERSON WHO PREPARED THE RUN CANNOT APPROVE IT",
+    self.body?.error === "same-signer", JSON.stringify(self.body));
+
+  // A DRAFT RUN HAS NO BANK FILE: a payment file is the one artefact that must
+  // never be provisional.
+  const early = await call(PAY.GET, req(`/api/studios/${F.slug}/x?bank=${runId}`), P());
+  ok("a draft run has no bank file", early.body?.error === "not-approved",
+    JSON.stringify(early.body));
+
+  // ---- somebody else, holding the approve right ---------------------------
+  const u = (await createUser({ email: `pay-${F.rand()}@test.invalid`, passwordHash: "x" })).user;
+  const role = await createRole(F.studio.id, {
+    name: `payroll-${F.rand()}`,
+    permissions: ["hr.payroll.view", "hr.payroll.approve", "hr.payroll.edit", "finance.ledger.post", "finance.ledger.view"],
+  });
+  await addCollaborator(F.studio.id, { userId: u.id, alias: "Approver", role: "member", roleIds: [role.id] });
+  await F.signIn(u.id);
+
+  const approved = await call(PAY.POST, body("POST", { action: "move", id: runId, status: "Approved" }), P());
+  ok("SOMEBODY ELSE APPROVES IT", approved.body?.run?.status === "Approved",
+    JSON.stringify(approved.body).slice(0, 160));
+
+  // THE LADDER NEVER RUNS BACKWARDS: a payroll that could be reopened after
+  // approval is a payroll whose payslips are not evidence of anything.
+  const back = await call(PAY.POST, body("POST", { action: "move", id: runId, status: "Draft" }), P());
+  ok("an approved run cannot go back to draft", back.body?.error === "transition");
+
+  // ---- the ledger ---------------------------------------------------------
+  // THE GROSS IS THE COST AND THE NET IS NOT. Posting the net as the expense
+  // understates the wage bill by exactly the deductions.
+  const posted = await call(LEDGER.POST, body("POST", { document: { kind: "payroll", id: runId } }), P());
+  const entry = posted.body?.entry;
+  ok("a payroll run posts to the ledger", Boolean(entry), JSON.stringify(posted.body).slice(0, 200));
+  const debits = (entry?.lines || []).filter((l) => l.debit > 0);
+  const credits = (entry?.lines || []).filter((l) => l.credit > 0);
+  ok("...debiting Salaries for the GROSS", debits.length === 1 && debits[0].debit === 3500,
+    JSON.stringify(debits));
+  ok("...and crediting the net and the withholding separately",
+    credits.length === 2 && credits.some((l) => l.credit === 3300) && credits.some((l) => l.credit === 200),
+    JSON.stringify(credits));
+
+  // IDEMPOTENT BY SOURCE: two entries for one payroll is the overstatement the
+  // whole posting design guards against.
+  const again = await call(LEDGER.POST, body("POST", { document: { kind: "payroll", id: runId } }), P());
+  ok("a run already in the books refuses a second posting",
+    again.body?.error === "already-posted", JSON.stringify(again.body));
+
+  await F.signIn(F.owner.id);
+}
+
+await payrollRun().catch((e) => ok("the payroll case threw", false, e?.message || String(e)));
+
 F.signOut();
 console.log(`\ncrud: ${RESOURCES.length} resources · ${((Date.now() - started) / 1000).toFixed(1)}s`);
 

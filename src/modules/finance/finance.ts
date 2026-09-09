@@ -78,7 +78,16 @@ export const financeContext = moduleContext<FinanceContext>({
   // Projects and Inventory sheets, when the studio has them. Read on the same
   // terms Sales reads Technical: what a project cost is part of the invoice's
   // own story, and a studio without those sections simply has no margin column.
-  foreign: { projectsList: ["projects-list", "projects"], sheets: ["inventory-sheets", "inventory"] },
+  // HR'S EMPLOYEE SECTION, for posting a payroll run. FOREIGN AND NULLABLE,
+  // and posted from Finance rather than from HR on the rule every other
+  // posting follows: `postBill` reads bills, `postInvoice` reads invoices,
+  // and the ledger is the one place that knows what a balanced entry looks
+  // like. HR records what people are paid; Finance says what that did to the
+  // books.
+  foreign: {
+    projectsList: ["projects-list", "projects"], sheets: ["inventory-sheets", "inventory"],
+    hrEmployees: ["hr-employees", "hr"],
+  },
   flags: ["cash", "ledger", "payables", "assets", "settings"],
   extend: ({ settingsSection, studio }) => ({
     cashCategories: readCashCategories(settingsSection as { settings?: Record<string, unknown> }),
