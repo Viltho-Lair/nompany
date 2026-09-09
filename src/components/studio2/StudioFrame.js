@@ -82,6 +82,17 @@ const SECTION_ICONS = {
   engagements: "link",
   // Sales sub-sections carry their own icons rather than falling back to the
   // neutral dot, so the group reads as three destinations instead of a list.
+  // THE SIX THAT FELL THROUGH TO `dot`, measured rather than eyeballed: the
+  // whole Procurement group and Sales' order register. `SECTION_ICONS[key] ||
+  // "dot"` is a fallback for a key nobody mapped, and five identical dots under
+  // one parent is a list that says nothing about what is in it.
+  "crm-sales-orders": "salesOrders",
+  "procurement-requisitions": "requisitions",
+  "procurement-rfq": "supplierQuotes",
+  "procurement-expediting": "expediting",
+  "procurement-subcontracts": "subcontracts",
+  "procurement-receiving": "receiving",
+
   "tendering-register": "rfp",
   "tendering-rates": "money",
   "crm-sales-pipeline": "kanban",

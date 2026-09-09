@@ -25,7 +25,29 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
-const ASSETS = join(ROOT, "node_modules", "@phosphor-icons", "core", "assets");
+
+// THE ASSETS ARE FOUND BY WALKING UP, NOT BY ASSUMING THEY SIT UNDER ROOT.
+//
+// This read `join(ROOT, "node_modules", …)` and therefore could not run in a
+// git WORKTREE at all: a worktree has no `node_modules` of its own — Node
+// resolves the repo's by walking up the directory chain, which is exactly why
+// eslint, tsc and the tests all work there — but a hand-built path does not
+// walk. The generator failed with a missing-assets list naming every icon,
+// which reads as a broken install rather than as the wrong directory.
+//
+// So it walks the same way Node does. `createRequire().resolve` was the other
+// candidate and is worse here: it needs the package to export the subpath it is
+// asked for, and `@phosphor-icons/core` exports no `./assets`, so resolving it
+// would depend on a field the package has no reason to keep.
+function findAssets(from) {
+  for (let dir = from; ; dir = dirname(dir)) {
+    const candidate = join(dir, "node_modules", "@phosphor-icons", "core", "assets");
+    if (existsSync(candidate)) return candidate;
+    if (dirname(dir) === dir) break;
+  }
+  throw new Error("@phosphor-icons/core is not installed anywhere above " + from);
+}
+const ASSETS = findAssets(ROOT);
 
 // name -> phosphor slug. Regular weight; these are controls, not marks.
 const REGULAR = {
@@ -68,6 +90,23 @@ const DUOTONE = {
   monitor: "monitor", overtime: "timer", package: "package", palette: "palette",
   person: "user", phone: "phone", pie: "chart-pie-slice",
   procurement: "shopping-bag-open", projects: "buildings",
+  // THE SIX THAT WERE DRAWING A DOT. Every one is a real section in the sidebar
+  // — the whole Procurement group and Sales' order register — and `dot-outline`
+  // is the fallback for a key nobody mapped, not a design. Five identical dots
+  // stacked under one parent is a list that says nothing about what is in it.
+  //
+  // Each is chosen against its NEIGHBOUR rather than in isolation, because they
+  // are read as a column: `salesOrders` is the closed bag to Procurement's open
+  // one (goods going out against goods coming in); `requisitions` is a document
+  // being raised; `supplierQuotes` is an envelope, which also separates it from
+  // Engineering's RFQ screen (`rfp`, a magnifying glass over a file) — two
+  // screens, both called RFQ, that must not share a mark; `expediting` is an
+  // alarm, because expediting is entirely about lateness; `subcontracts` is a
+  // signature rather than `contract`'s scroll, so the sub-agreement is not the
+  // main one; and `receiving` is a tray, goods landing.
+  salesOrders: "shopping-bag", requisitions: "file-plus",
+  supplierQuotes: "envelope-open", expediting: "alarm",
+  subcontracts: "signature", receiving: "tray",
   readyStock: "warehouse", registeredItems: "barcode", report: "file-doc",
   reports: "presentation-chart",
   rfp: "file-magnifying-glass", rocket: "rocket-launch", sales: "handshake",
