@@ -1,5 +1,11 @@
 // WHICH SOURCE FILES DECIDE WHAT EACH PUBLIC PAGE SAYS.
 //
+// THE PATHS CARRY `(marketing)` AND THE URLS DO NOT. That is the route group:
+// a parenthesised segment groups files without appearing in the address, so
+// `/platform` is served from `(marketing)/platform/page.js`. The keys here are
+// URLs and the values are file paths, and they are deliberately not the same
+// shape — deriving one from the other would bake the group name into a URL.
+//
 // The sitemap's `lastmod` is a hash of these, not the request clock and not a
 // date somebody remembered to edit. Both of those were tried: `new Date()` told
 // Google every page had changed at the instant of every fetch, which is noise
@@ -28,28 +34,28 @@ export const SITEMAP_SOURCES: Record<string, string[]> = {
     "src/shared/marketing/claims.ts",
   ],
   "/platform": [
-    "src/app/[locale]/platform/page.js",
+    "src/app/[locale]/(marketing)/platform/page.js",
     "src/shared/marketing/platform.ts",
     "src/shared/marketing/departments.ts",
   ],
-  "/pricing": ["src/app/[locale]/pricing/page.js"],
-  "/security": ["src/app/[locale]/security/page.js", "src/shared/marketing/security.ts"],
+  "/pricing": ["src/app/[locale]/(marketing)/pricing/page.js"],
+  "/security": ["src/app/[locale]/(marketing)/security/page.js", "src/shared/marketing/security.ts"],
   "/about": [
-    "src/app/[locale]/about/page.js",
+    "src/app/[locale]/(marketing)/about/page.js",
     "src/shared/marketing/about.ts",
     "src/shared/marketing/company.ts",
   ],
   "/contact": [
-    "src/app/[locale]/contact/page.js",
+    "src/app/[locale]/(marketing)/contact/page.js",
     "src/shared/marketing/contact.ts",
     "src/shared/marketing/enquiry.ts",
   ],
   "/customers": [
-    "src/app/[locale]/customers/page.js",
+    "src/app/[locale]/(marketing)/customers/page.js",
     "src/shared/marketing/customers.ts",
     "src/shared/marketing/showcase.ts",
   ],
-  "/careers": ["src/app/[locale]/careers/page.js"],
+  "/careers": ["src/app/[locale]/(marketing)/careers/page.js"],
   "/terms": ["src/app/[locale]/terms/page.js", "src/lib/legalTerms.ts"],
   "/privacy": ["src/app/[locale]/privacy/page.js", "src/lib/legalPrivacy.ts"],
 };

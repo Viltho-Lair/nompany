@@ -456,9 +456,31 @@ function pagesUnder(dir, rel = "") {
 }
 const allPages = pagesUnder(LOCALE_DIR);
 ok("the locale tree was actually walked", allPages.length > 3, `${allPages.length} pages`);
+// A PAGE IS MARKETING BECAUSE OF WHERE IT LIVES, not because of what it
+// imports. This used to grep each page for `MarketingShell`, which was the only
+// signal available while every page brought its own shell; the route group
+// renders it once in `(marketing)/layout.js`, so no page imports it any more
+// and that test would now find nothing at all.
+//
+// THE GROUP SEGMENT IS STRIPPED, because a parenthesised segment groups files
+// without appearing in the URL — `(marketing)/platform/page.js` serves
+// `/platform`. Comparing the raw path against SHELL_PATHS would fail on every
+// entry, and "fixing" that by putting `(marketing)` into the route list would
+// bake a folder name into an address.
+const GROUP = "/(marketing)";
 const shellPages = allPages
-  .filter((p) => readFileSync(p.file, "utf8").includes("MarketingShell"))
-  .map((p) => p.rel);
+  .filter((p) => p.rel.startsWith(GROUP + "/"))
+  .map((p) => p.rel.slice(GROUP.length));
+
+ok("the marketing route group holds the public pages", shellPages.length >= 7,
+  `${shellPages.length} under ${GROUP}`);
+
+// AND THE SHELL IS MOUNTED EXACTLY ONCE, by the group's layout. A page that
+// re-wrapped itself would render two navs and two footers, which is what this
+// refuses — and it is the defect the group exists to prevent recurring.
+ok("...and no page renders MarketingShell itself",
+  allPages.every((p) => !readFileSync(p.file, "utf8").includes("<MarketingShell")),
+  allPages.filter((p) => readFileSync(p.file, "utf8").includes("<MarketingShell")).map((p) => p.rel).join(", "));
 
 const covered = (rel) =>
   SHELL_PATHS.includes(rel) || SHELL_PREFIXES.some((p) => rel === p || rel.startsWith(`${p}/`));

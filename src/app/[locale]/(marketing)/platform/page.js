@@ -6,7 +6,6 @@ import { platformCopy } from "@/shared/marketing/platform";
 import { claimText } from "@/shared/marketing/claims";
 import { heroCopy } from "@/shared/marketing/hero";
 import { getDict } from "@/shared/i18n";
-import { MarketingShell } from "@/components/landing/chrome/MarketingShell";
 import { PlatformStats } from "@/components/landing/sections/PlatformStats";
 
 /* THE PLATFORM — the system explained on one page.
@@ -63,7 +62,6 @@ export default async function PlatformPage({ params }) {
   return (
     <>
       <JsonLd data={structured} />
-      <MarketingShell locale={locale}>
       <div className="mx-auto max-w-6xl px-6 py-4">
         <header className="max-w-3xl">
           <h1 className="font-display text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
@@ -134,7 +132,6 @@ export default async function PlatformPage({ params }) {
           </Link>
         </section>
       </div>
-    </MarketingShell>
     </>
   );
 }

@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { MarketingShell } from "@/components/landing/chrome/MarketingShell";
 import ApplyForm from "@/components/ApplyForm";
 import JsonLd from "@/components/JsonLd";
 import RichText from "@/components/RichText";
@@ -60,7 +59,6 @@ export default async function JobApplicationPage({ params }) {
           arrives from a job board — often before they have seen anything else
           of the company — so it was the worst page to leave wearing a
           different site's chrome. */}
-      <MarketingShell locale={locale}>
       <div className="mx-auto max-w-6xl px-6 py-4">
         <header className="max-w-3xl">
           <p className="text-xs tracking-[0.16em] text-fg-dim uppercase">{dict.careers.title}</p>
@@ -106,7 +104,6 @@ export default async function JobApplicationPage({ params }) {
         </div>
       </section>
       </div>
-      </MarketingShell>
     </>
   );
 }

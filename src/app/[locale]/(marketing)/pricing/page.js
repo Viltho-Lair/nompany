@@ -2,7 +2,6 @@ import JsonLd from "@/components/JsonLd";
 import { buildMetadata, breadcrumbLd, urlFor, softwareApplicationLd } from "@/lib/seo";
 import { buildPricing } from "@/modules/marketing/pricing";
 import { PricingBoard } from "@/components/landing/pricing/PricingBoard";
-import { MarketingShell } from "@/components/landing/chrome/MarketingShell";
 import { getDict } from "@/shared/i18n";
 import { headers } from "next/headers";
 
@@ -60,9 +59,7 @@ export default async function PricingPage({ params }) {
           and the locale context every string inside it reads — without which
           /ar would fall back to English on a page whose whole point is that
           the Arabic site is not a second-class copy. */}
-      <MarketingShell locale={locale}>
         <PricingBoard initial={pricing} locale={locale} />
-      </MarketingShell>
     </>
   );
 }

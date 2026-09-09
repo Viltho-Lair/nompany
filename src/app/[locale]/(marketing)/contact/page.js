@@ -1,7 +1,6 @@
 import JsonLd from "@/components/JsonLd";
 import { buildMetadata, breadcrumbLd, urlFor } from "@/lib/seo";
 import { contactCopy } from "@/shared/marketing/contact";
-import { MarketingShell } from "@/components/landing/chrome/MarketingShell";
 import { ContactView } from "@/components/landing/views/ContactView";
 import { getDict } from "@/shared/i18n";
 
@@ -64,9 +63,7 @@ export default async function ContactPage({ params }) {
           context — `ContactView` reads its language from the provider, not
           from a prop, so without this /ar would render an Arabic route in
           English. */}
-      <MarketingShell locale={locale}>
         <ContactView />
-      </MarketingShell>
     </>
   );
 }

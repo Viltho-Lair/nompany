@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { MarketingShell } from "@/components/landing/chrome/MarketingShell";
 import JsonLd from "@/components/JsonLd";
 import { getDict } from "@/shared/i18n";
 import { buildMetadata, breadcrumbLd, urlFor } from "@/lib/seo";
@@ -56,7 +55,6 @@ export default async function CustomersPage({ params }) {
   return (
     <>
       <JsonLd data={structured} />
-      <MarketingShell locale={locale}>
         <div className="mx-auto max-w-6xl px-6 py-4">
           <header className="max-w-2xl">
             <h1 className="font-display text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
@@ -102,7 +100,6 @@ export default async function CustomersPage({ params }) {
             </Link>
           </section>
         </div>
-      </MarketingShell>
     </>
   );
 }

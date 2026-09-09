@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { MarketingShell } from "@/components/landing/chrome/MarketingShell";
 import { getDict, field } from "@/shared/i18n";
 import { buildMetadata, breadcrumbLd, urlFor } from "@/lib/seo";
 import JsonLd from "@/components/JsonLd";
@@ -51,7 +50,6 @@ export default async function CareersPage({ params }) {
   return (
     <>
       <JsonLd data={structured} />
-      <MarketingShell locale={locale}>
       <div className="mx-auto max-w-6xl px-6 py-4">
         {/* NO EYEBROW. It read the brand name, set directly beneath the
             wordmark in the nav — the same word twice in eighty pixels. */}
@@ -98,7 +96,6 @@ export default async function CareersPage({ params }) {
         )}
       </section>
       </div>
-      </MarketingShell>
     </>
   );
 }
