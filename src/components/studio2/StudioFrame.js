@@ -328,15 +328,23 @@ export default function StudioFrame({
   const isOpen = (node) => openKey === node.key;
   const toggleGroup = (key) => setOpenKey((k) => (k === key ? null : key));
 
-  // ENGAGEMENTS IS THE ONLY ONE LEFT. People and Access were here beside it —
-  // People shown to everyone, Access gated on canAdminister — because neither
-  // was a section anybody could be granted. Both are sections now and arrive
-  // through the tree below, which is also what gives them the group behaviour,
-  // the active-row highlight and the Arabic labels they never had here.
+  // ENGAGEMENTS IS THE ONLY ONE LEFT, AND IT NO LONGER RENDERS HERE. People and
+  // Access were here beside it — People shown to everyone, Access gated on
+  // canAdminister — because neither was a section anybody could be granted.
+  // Both are sections now and arrive through the tree below, which is also what
+  // gives them the group behaviour, the active-row highlight and the Arabic
+  // labels they never had here.
   //
-  // Engagements stays because it genuinely is not a section: giving Main a
-  // child would gate the parent and hide Main from every member without the
-  // right. engagements.view is a right of its own, held by any role.
+  // Engagements stays a nav entry because it genuinely is not a section: giving
+  // Main a child would gate the parent and hide Main from every member without
+  // the right. engagements.view is a right of its own, held by any role.
+  //
+  // WHAT CHANGED IS WHERE IT SITS: it is a square icon in the footer beside
+  // Documentation now, not a labelled row above the divider. THIS ARRAY STAYS
+  // ANYWAY, because `activeLabel` below reads it — the header on
+  // /<slug>/engagements takes its title from here, and deleting the array to
+  // "clean up" after moving the button would silently retitle that page to the
+  // studio's own name with nothing failing.
   const admin = [
     { href: `/${studio.slug}/engagements`, key: "engagements", label: tr.engagements, show: me.canSeeEngagements },
   ].filter((i) => i.show);
@@ -441,27 +449,64 @@ export default function StudioFrame({
       <nav aria-label={tr.departments} className="flex-1 space-y-0.5 overflow-y-auto px-4 py-6">
         {tree.map((node) => navGroup(node))}
 
-        {admin.length > 0 && (
-          <div className="mt-6 space-y-0.5 border-t border-[var(--geex-border)] pt-4">
-            {admin.map((i) => navLink(i.href, i.key, i.label, "font-600"))}
-          </div>
-        )}
       </nav>
 
-      <div className="space-y-0.5 border-t border-[var(--geex-border)] p-4">
-        {/* Full-screen manual — opens outside the studio chrome. */}
+      {/* TWO DESTINATIONS, ONE ROW. `items-stretch` rather than `items-center`
+          is what makes the square square WITHOUT a hard-coded size: the
+          manual's own padding sets the row's height, `aspect-square` takes its
+          width from that height, and the two stay matched if that padding is
+          ever changed. A `h-9 w-9` here would be a second place the row's
+          height is written down, free to disagree with the first. */}
+      <div className="flex items-stretch gap-2 border-t border-[var(--geex-border)] p-4">
+        {/* Full-screen manual — opens outside the studio chrome.
+            `flex-1 min-w-0` is the ONLY change to it: it yields the width the
+            square needs instead of pushing it out of the row, and `min-w-0`
+            is what lets a long label shrink rather than overflow — a flex item
+            refuses to go below its content width without it, in Arabic first,
+            where the word is longer. */}
         <Link
           href={`/${studio.slug}/documentation`}
           onClick={() => setOpen(false)}
-          className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-[12px] font-500 text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white"
+          className="flex min-w-0 flex-1 items-center gap-3 rounded-lg px-3 py-2.5 text-[12px] font-500 text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white"
         >
           {/* The manual, so it wears the manual's mark. It asked for "services"
               — a wrench in the new set — which is a tool, not a document. It stays
               neutral grey rather than taking an accent: it is not a section, and
               colouring it would put it in the same visual class as the fifteen. */}
           <Icon name="book" className="h-[18px] w-[18px] text-slate-400 dark:text-slate-500" />
-          {tr.documentation}
+          <span className="truncate">{tr.documentation}</span>
         </Link>
+
+        {/* ENGAGEMENTS, AS A MARK RATHER THAN A ROW. It carries no visible label
+            — the name arrives on hover — so it needs `aria-label` to say the
+            same thing to a screen reader, and `title` to say it to a pointer.
+            Both, not one: `title` is invisible to a keyboard user and
+            `aria-label` never appears on hover, and this is the one control in
+            the sidebar whose purpose cannot be read off its face.
+
+            It keeps `rowClass`, whose ACTIVE ARM IS UNREACHABLE TODAY and is
+            kept deliberately. Engagements is one of the seven full-screen
+            routes (see the note further down), so the shell — and this sidebar
+            with it — is not rendered on `/engagements` at all: there is no
+            state in which this square is both visible and current. That was
+            equally true of the nav row it replaces, which is why moving it
+            loses nothing. `rowClass` stays because it is the same shell every
+            other row uses, it costs one word, and it is already correct on the
+            day Engagements stops being full-screen. Documentation beside it
+            hard-codes the inactive styling instead, for the same unreachable
+            reason — the two are inconsistent, and that is the older half. */}
+        {admin.map((i) => (
+          <Link
+            key={i.key}
+            href={i.href}
+            onClick={() => setOpen(false)}
+            title={i.label}
+            aria-label={i.label}
+            className={`${rowClass(i.key === activeKey)} aspect-square shrink-0 justify-center`}
+          >
+            <Icon name={SECTION_ICONS[i.key] || "dot"} className={iconClass(i.key)} />
+          </Link>
+        ))}
         {/* STUDIO SETTINGS IS NOT PINNED HERE ANY MORE. It was a footer link
             because it was reached by a literal key match rather than through
             the section list — there was nowhere else to put it. It is
