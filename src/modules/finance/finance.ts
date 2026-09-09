@@ -23,6 +23,7 @@ import { approvalChainsFor } from "@/platform/approval/store";
 import { SEEDED_CHAINS, chainProblems } from "@/platform/approval/chains";
 import type { ApprovalChain } from "@/platform/approval/chains";
 import { repo } from "@/platform/db/repo";
+import { TAXONOMIES, resolveValue, admits } from "@/modules/administration/taxonomy";
 import { getSectionByKey, updateSection } from "@/platform/db/sections";
 import { attachToProjectEngagement, detachFromItsEngagement } from "@/platform/db/engagement";
 import { autoPost } from "./posting";
@@ -49,11 +50,12 @@ const Projects = repo(PROJECTS);
 const Orders = repo(ORDERS);
 
 export const INVOICE_STATUSES = ["Draft", "Sent", "Paid", "Cancelled"];
-export const EXPENSE_CATEGORIES = [
-  "Materials", "Subcontractor", "Transport", "Travel", "Salaries",
-  "Rent", "Utilities", "Software", "Equipment", "Fees", "Other",
-];
-export const PAYMENT_METHODS = ["Bank transfer", "Cash", "Card", "Cheque", "Other"];
+// THE SHIPPED LIST, READ BACK FROM THE REGISTER THAT OWNS IT. It was a
+// literal here and no studio could change it; the list moved to
+// administration/taxonomy the way UNITS moved to administration/units, so
+// there is one copy rather than a second free to disagree.
+export const EXPENSE_CATEGORIES = TAXONOMIES.find((a) => a.key === "expenseCategories")!.defaults;
+export const PAYMENT_METHODS = TAXONOMIES.find((a) => a.key === "paymentMethods")!.defaults;
 // NO DEFAULT TAX RATE. There was one — 15, duplicated here and in
 // modules/technical/quotations.ts, where its comment said "KSA standard rate"
 // outright. It applied to every studio's invoices and quotations on a platform
@@ -448,7 +450,9 @@ export async function recordPayment(ctx: FinanceContext, id: string, body: Recor
     id: `pay${(invoice.payments || []).length + 1}`,
     amount,
     date: day(body?.date) || new Date().toISOString().slice(0, 10),
-    method: PAYMENT_METHODS.includes(String(body?.method)) ? String(body?.method) : PAYMENT_METHODS[0],
+    // WHAT THIS STUDIO ADMITS, in the register's own spelling, so one method
+    // cannot split into two on case alone and be counted twice.
+    method: resolveValue("paymentMethods", studio.taxonomies, body?.method, PAYMENT_METHODS[0]),
     reference: str(body?.reference, 120),
     byCollaboratorId: collaborator.id,
   }];
@@ -530,7 +534,7 @@ export async function createExpense(ctx: FinanceContext, body: Record<string, un
   const expense = await Expenses.create({ studio, section: cashSection }, {
     reference: await nextReference(studio.id, { rows: expenses, field: "reference", ...seriesSetting("expense", studio.numbering) }),
     description: str(body?.description, 300),
-    category: EXPENSE_CATEGORIES.includes(String(body?.category)) ? String(body?.category) : "Other",
+    category: resolveValue("expenseCategories", studio.taxonomies, body?.category, "Other"),
     amount,
     date: day(body?.date) || new Date().toISOString().slice(0, 10),
     projectId,
@@ -556,7 +560,9 @@ export async function editExpense(ctx: FinanceContext, id: string, body: Record<
   const patch: Record<string, unknown> = {};
   if (body?.amount !== undefined) { const v = cash(body.amount); if (!v) return { error: "amount" }; patch.amount = v; }
   if (body?.description !== undefined) patch.description = str(body.description, 300);
-  if (body?.category !== undefined && EXPENSE_CATEGORIES.includes(String(body.category))) patch.category = String(body.category);
+  if (body?.category !== undefined && admits("expenseCategories", studio.taxonomies, body.category)) {
+    patch.category = resolveValue("expenseCategories", studio.taxonomies, body.category);
+  }
   if (body?.date !== undefined) patch.date = day(body.date);
   if (body?.notes !== undefined) patch.notes = str(body.notes, 1000);
   if (body?.paidByCollaboratorId !== undefined) patch.paidByCollaboratorId = str(body.paidByCollaboratorId, 60);

@@ -1,5 +1,6 @@
 import { route, refused } from "@/platform/http/route";
 import { financeContext, PAYMENT_METHODS } from "@/modules/finance/finance";
+import { valuesFor } from "@/modules/administration/taxonomy";
 import {
   listBillsForScreen, createBill, editBill, approveBill, recordBillPayment, removeBill,
   BILL_STATUSES, BILL_TERMS,
@@ -30,7 +31,8 @@ export const GET = route(
       vocabulary: {
         billStatuses: BILL_STATUSES,
         billTerms: BILL_TERMS,
-        paymentMethods: PAYMENT_METHODS,
+        // WHAT THIS STUDIO ADMITS, not what the product ships.
+        paymentMethods: valuesFor("paymentMethods", fin.studio.taxonomies),
       },
     };
   },

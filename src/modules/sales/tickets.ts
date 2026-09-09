@@ -1,5 +1,9 @@
 // Sales ticket shared constants + auth. Kept out of lib/auth.js so client
 // components can import without pulling Node-only code.
+//
+// `administration/taxonomy` is safe to import here for the same reason this
+// file exists: it is pure, with no imports and no store.
+import { TAXONOMIES } from "@/modules/administration/taxonomy";
 
 // Ticket status is AUTOMATED up to approval: "Lead" on creation, "Opportunity"
 // once an RFQ is requested. Only after the quotation approval is complete does
@@ -38,16 +42,12 @@ export const DEFAULT_URGENCY = "Normal";
 // also offers a free-typed "Other" — whatever the user types there is stored
 // directly in `industry` rather than as a separate flag, so this list is only
 // ever a set of suggestions, not a closed enum enforced server-side.
-export const TICKET_INDUSTRIES = [
-  "Residential", "Commercial",
-  "Banking", "Governmental", "Education", "Technology", "Construction",
-  "Healthcare", "Energy", "Consulting", "Engineering", "Manufacturing",
-  "Logistics", "Hospitality", "Finance", "Agriculture", "Transportation",
-  "Automotive", "Aerospace", "Telecommunications", "Media", "Security",
-  "Architecture", "Real-Estate", "Pharmaceuticals", "Chemicals", "Mining",
-  "Retail", "Wholesale", "Legal", "Insurance", "Entertainment", "Defense",
-  "Utilities",
-];
+// THE SHIPPED LIST, READ BACK FROM THE REGISTER THAT OWNS IT. It was a
+// literal here and no studio could change it; the list moved to
+// administration/taxonomy the way UNITS moved to administration/units, so
+// there is one copy rather than a second free to disagree.
+// Thirty-four industries, and a haulier could not add "Freight forwarding".
+export const TICKET_INDUSTRIES = TAXONOMIES.find((a) => a.key === "clientIndustries")!.defaults;
 
 // Columns the Sales Live view can show. The chosen subset is stored on the
 // sales-settings sub-section (settings.liveColumns) and picked in Settings, so

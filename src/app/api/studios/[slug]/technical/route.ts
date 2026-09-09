@@ -1,4 +1,5 @@
 import { refused } from "@/platform/http/route";
+import { valuesFor } from "@/modules/administration/taxonomy";
 import { nextNumberForSequence } from "@/modules/technical/technical";
 import { currentUser } from "@/platform/auth/identity";
 import {
@@ -96,7 +97,8 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
       // already owns this vocabulary for its tickets, and a ticket's industry
       // is carried onto Technical's rows read-only, so the create form has to
       // offer exactly the values a converted quotation could ever show.
-      industries: TICKET_INDUSTRIES,
+      // WHAT THIS STUDIO ADMITS, not what the product ships.
+      industries: valuesFor("clientIndustries", tech.studio.taxonomies),
       // The Sales clients this studio has, for the same form's client picker —
       // an id and a name, nothing else. See technicalClients.
       clients,

@@ -1,4 +1,5 @@
 import { route } from "@/platform/http/route";
+import { valuesFor } from "@/modules/administration/taxonomy";
 import { unclaimed } from "@/modules/finance/withholding";
 import {
   financeContext, listInvoices, listExpenses, profitability, billableProjects, summarise,
@@ -40,8 +41,10 @@ export const GET = route(
     }))),
     vocabulary: {
       invoiceStatuses: INVOICE_STATUSES,
-      expenseCategories: EXPENSE_CATEGORIES,
-      paymentMethods: PAYMENT_METHODS,
+      // WHAT THIS STUDIO ADMITS, not what the product ships — otherwise a
+      // service accepts a value no picker on the screen could offer.
+      expenseCategories: valuesFor("expenseCategories", g.studio.taxonomies),
+      paymentMethods: valuesFor("paymentMethods", g.studio.taxonomies),
       // The studio's own rules, so a form offers exactly what the reader will
       // match against — empty in a jurisdiction with no withholding.
       withholdingRules: g.withholdingRules,

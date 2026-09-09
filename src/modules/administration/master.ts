@@ -38,6 +38,7 @@ import type { Location, Permit, Shift } from "../operations/types";
 // `locationKinds` to the picker, so restating the list here would be a second
 // copy free to disagree with the one the screen actually renders.
 import { LOCATION_KINDS } from "../operations/operations";
+import { resolveValue, admits } from "./taxonomy";
 import type { MasterContext } from "./types";
 
 const LOCATIONS = "locations";
@@ -81,7 +82,10 @@ export async function createLocation(ctx: MasterContext, body: Record<string, un
 
   const location = await Locations.create({ studio, section }, {
     name,
-    kind: LOCATION_KINDS.includes(String(body?.kind)) ? String(body?.kind) : LOCATION_KINDS[0],
+    // WHAT THIS STUDIO ADMITS, in the register's own spelling. It was the
+    // shipped four, so a hospital group filing "Ward" got "Site" — the
+    // record saved, looked right and was wrong.
+    kind: resolveValue("locationKinds", studio.taxonomies, body?.kind, LOCATION_KINDS[0]),
     address: str(body?.address, 300),
     city: str(body?.city, 80),
     mapUrl: str(body?.mapUrl, 500),
@@ -107,7 +111,9 @@ export async function editLocation(ctx: MasterContext, id: string, body: Record<
     if (rows.some((l) => l.id !== id && l.name.toLowerCase() === name.toLowerCase())) return { error: "duplicate" };
     patch.name = name;
   }
-  if (body?.kind !== undefined && LOCATION_KINDS.includes(String(body.kind))) patch.kind = body.kind;
+  if (body?.kind !== undefined && admits("locationKinds", studio.taxonomies, body.kind)) {
+    patch.kind = resolveValue("locationKinds", studio.taxonomies, body.kind);
+  }
   for (const f of ["address", "mapUrl"]) if (body?.[f] !== undefined) patch[f] = str(body[f], 500);
   if (body?.city !== undefined) patch.city = str(body.city, 80);
   if (body?.notes !== undefined) patch.notes = str(body.notes, 1000);

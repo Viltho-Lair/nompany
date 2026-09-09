@@ -43,6 +43,7 @@ import { listRoles, createRole, createRoles, updateRole, deleteRole, ADMIN_ROLE_
 import { findLibraryRole, permissionsForLibraryRole, searchLibrary } from "@/modules/people/roleLibrary";
 import { studioTypesForGrants } from "@/platform/engine/records";
 import { listDepartmentsIn } from "@/modules/administration/departments";
+import { TAXONOMIES, resolveValue } from "@/modules/administration/taxonomy";
 import { subtreeIds } from "@/shared/departments/tree";
 import { getProfilesByIds } from "@/platform/auth/users";
 import { notifyCollaborators, NOTIFY } from "@/platform/notify/notifications";
@@ -61,7 +62,12 @@ const VACATIONS = "vacations";
 const Certifications = repo<Certification>(CERTIFICATIONS);
 const Vacations = repo<Vacation>(VACATIONS);
 
-export const LEAVE_TYPES = ["Annual", "Sick", "Unpaid", "Parental", "Compassionate"];
+// THE SHIPPED LEAVE TYPES, READ BACK FROM THE REGISTER THAT OWNS THEM. They
+// were five strings here and no studio could add study leave; the list moved
+// to administration/taxonomy the way UNITS moved to administration/units, so
+// there is one copy rather than a second free to disagree. Callers that only
+// want what the product ships still import this name.
+export const LEAVE_TYPES = TAXONOMIES.find((a) => a.key === "leaveTypes")!.defaults;
 export const LEAVE_STATUSES = ["Pending", "Approved", "Declined", "Cancelled"];
 export const DEFAULT_LEAVE_TYPE = "Annual";
 
@@ -689,7 +695,10 @@ export async function requestVacation(ctx: HrContext, body: Record<string, unkno
 
   const vacation = await Vacations.create({ studio, section }, {
     collaboratorId: target,
-    type: LEAVE_TYPES.includes(String(body?.type)) ? String(body?.type) : DEFAULT_LEAVE_TYPE,
+    // WHAT THIS STUDIO ADMITS, not what the product ships. `resolveValue`
+    // returns the register's own spelling, so "annual" is filed as "Annual"
+    // and one list cannot split into two on case alone.
+    type: resolveValue("leaveTypes", studio.taxonomies, body?.type, DEFAULT_LEAVE_TYPE),
     from, to, days,
     reason: str(body?.reason, 1000),
     // A manager filing leave directly has already made the decision.

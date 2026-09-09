@@ -13,6 +13,7 @@ import { chainProblems, type ApprovalChain } from "@/platform/approval/chains";
 import { approvalChainOverrides, approvalChainsFor } from "@/platform/approval/store";
 import { numberingProblems, cleanNumbering, numberingView } from "@/modules/administration/numbering";
 import { unitProblems, cleanUnits, unitsView } from "@/modules/administration/units";
+import { taxonomyProblems, cleanTaxonomies, taxonomyView } from "@/modules/administration/taxonomy";
 import { isValuationMethod } from "@/modules/inventory/valuation";
 
 export const runtime = "nodejs";
@@ -56,6 +57,12 @@ const FIELDS = [
   // holds the studio's ADDITIONS only; the shipped units are never stored,
   // so nothing an existing item is measured in can be written away.
   "units",
+  // WHAT THIS STUDIO CLASSIFIES THINGS BY. The same kind of thing as units
+  // one axis along: six lists were hard-coded in five modules and no studio
+  // could change any of them. Additions only, for units' reason — a studio
+  // that could delete "Annual" would leave every approved leave request
+  // naming a type the product no longer admits.
+  "taxonomies",
   // HOW STOCK IS VALUED — FIFO or weighted average. An accounting policy, so it
   // sits with the other company-wide ones rather than in Inventory's settings:
   // the number it produces lands on a balance sheet, and whoever signs that is
@@ -163,6 +170,9 @@ const clean = (studio: Record<string, unknown>) => ({
   // EVERY UNIT IN FORCE, saying which are shipped defaults — a screen that
   // cannot tell those from the studio's own choices offers to remove both.
   units: unitsView((studio as { units?: unknown }).units),
+  // EVERY LIST IN FORCE, shipped values kept apart from the studio's own —
+  // a screen that could not tell them apart would offer to remove both.
+  taxonomies: taxonomyView((studio as { taxonomies?: unknown }).taxonomies),
 });
 
 // Rates from the studio's own currency out to each favourite. Anything the
@@ -354,6 +364,15 @@ export async function PUT(request: Request, ctx: { params: Promise<Record<string
       const problems = unitProblems(body[key]);
       if (problems.length) return Response.json({ error: "refused", detail: problems.join("; ") }, { status: 400 });
       patch[key] = cleanUnits(body[key]);
+      continue;
+    }
+    // REFUSED ON WRITE with the reasons named, for units' reason and one more:
+    // a save carries every axis at once, so each message says WHICH list is
+    // wrong — "that is listed twice" is unactionable without it.
+    if (key === "taxonomies") {
+      const problems = taxonomyProblems(body[key]);
+      if (problems.length) return Response.json({ error: "refused", detail: problems.join("; ") }, { status: 400 });
+      patch[key] = cleanTaxonomies(body[key]);
       continue;
     }
     patch[key] = key === "workingHours" ? cleanHours(body[key])

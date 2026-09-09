@@ -1,4 +1,5 @@
 import { route, refused } from "@/platform/http/route";
+import { valuesFor } from "@/modules/administration/taxonomy";
 import {
   projectsContext, listProjects, approvedQuotations, projectPeople, listProjectClients,
   listSlas, listOvertimes, overtimeDirectory, readProjectsSettings, saveProjectsSettings,
@@ -75,7 +76,8 @@ export const GET = route({ ...spec, body: false }, async (c) => {
       // THE SAME LIST SALES AND TECHNICAL OFFER, not a third copy — an
       // industry typed here has to match one typed there or the two screens
       // describe the same client differently.
-      industries: TICKET_INDUSTRIES,
+      // WHAT THIS STUDIO ADMITS, not what the product ships.
+      industries: valuesFor("clientIndustries", c.studio.taxonomies),
     },
   };
 });

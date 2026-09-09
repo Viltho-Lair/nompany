@@ -1,4 +1,5 @@
 import { route } from "@/platform/http/route";
+import { valuesFor } from "@/modules/administration/taxonomy";
 import {
   hrContext, listDepartments, listHrRoles, listCertifications, listEmployees,
   listVacations, expiringDocuments, headcount,
@@ -41,6 +42,9 @@ export const GET = route(
     departments, roles, certifications, employees, vacations,
     expiring: expiringDocuments(employees),
     headcount: headcount(employees, departments),
-    vocabulary: { leaveTypes: LEAVE_TYPES, leaveStatuses: LEAVE_STATUSES, expiryWindowDays: EXPIRY_WINDOW_DAYS },
+    // WHAT THIS STUDIO ADMITS, not what the product ships. Serving the
+    // shipped list would let the service accept a leave type no picker on
+    // the screen could ever offer.
+    vocabulary: { leaveTypes: valuesFor("leaveTypes", g.studio.taxonomies), leaveStatuses: LEAVE_STATUSES, expiryWindowDays: EXPIRY_WINDOW_DAYS },
   };
 });

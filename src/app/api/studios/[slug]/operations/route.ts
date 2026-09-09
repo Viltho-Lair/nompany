@@ -1,4 +1,5 @@
 import { route, refused } from "@/platform/http/route";
+import { valuesFor } from "@/modules/administration/taxonomy";
 import { requirePermission } from "@/platform/access";
 import {
   operationsContext, listLocations, listPermits, listShifts, operationsProjects,
@@ -48,7 +49,13 @@ export const GET = route(spec, async (g) => {
     // weeks depending on which screen you asked.
     settings: { ...readOperationsSettings(g.settingsSection), workSchedule: scheduleFromStudio(g.studio) },
     summary: summarise(permits, shifts, locations, window),
-    vocabulary: { locationKinds: LOCATION_KINDS, permitTypes: PERMIT_TYPES, expiryWindowDays: EXPIRY_WINDOW_DAYS },
+    // WHAT THIS STUDIO ADMITS, not what the product ships — otherwise a
+    // service accepts a value no picker on the screen could offer.
+    vocabulary: {
+      locationKinds: valuesFor("locationKinds", g.studio.taxonomies),
+      permitTypes: valuesFor("permitTypes", g.studio.taxonomies),
+      expiryWindowDays: EXPIRY_WINDOW_DAYS,
+    },
   };
 });
 

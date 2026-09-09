@@ -17,6 +17,7 @@
 import { requirePermission, sectionManageable } from "@/platform/access";
 import { seriesSetting } from "@/modules/administration/numbering";
 import { repo } from "@/platform/db/repo";
+import { TAXONOMIES, resolveValue, admits } from "@/modules/administration/taxonomy";
 import { getSectionByKey, updateSection } from "@/platform/db/sections";
 import { moduleContext } from "../context";
 
@@ -51,8 +52,12 @@ const Shifts = repo<Shift>(SHIFTS);
 // read the departmental structure is meant to make explicit rather than hide.
 const Vacations = repo<Vacation>(VACATIONS);
 
-export const LOCATION_KINDS = ["Site", "Office", "Warehouse", "Client premises"];
-export const PERMIT_TYPES = ["Work permit", "Hot work", "Height work", "Confined space", "Electrical", "Vehicle access", "Other"];
+// THE SHIPPED LIST, READ BACK FROM THE REGISTER THAT OWNS IT. It was a
+// literal here and no studio could change it; the list moved to
+// administration/taxonomy the way UNITS moved to administration/units, so
+// there is one copy rather than a second free to disagree.
+export const LOCATION_KINDS = TAXONOMIES.find((a) => a.key === "locationKinds")!.defaults;
+export const PERMIT_TYPES = TAXONOMIES.find((a) => a.key === "permitTypes")!.defaults;
 // How far ahead a permit counts as "expiring", so it can be renewed in time.
 export const EXPIRY_WINDOW_DAYS = 30;
 
@@ -389,7 +394,7 @@ export async function createPermit(ctx: OperationsContext, body: Record<string, 
     // its reference to the next one. See modules/main/references.js.
     reference: await nextReference(studio.id, { rows: permits, field: "reference", ...seriesSetting("permit", studio.numbering) }),
     title,
-    type: PERMIT_TYPES.includes(String(body?.type)) ? String(body?.type) : PERMIT_TYPES[0],
+    type: resolveValue("permitTypes", studio.taxonomies, body?.type, PERMIT_TYPES[0]),
     number: str(body?.number, 80),
     issuer: str(body?.issuer, 160),
     locationId, projectId,
@@ -414,7 +419,9 @@ export async function editPermit(ctx: OperationsContext, id: string, body: Recor
 
   const patch: Record<string, unknown> = {};
   if (body?.title !== undefined) { const v = str(body.title, 200); if (!v) return { error: "title" }; patch.title = v; }
-  if (body?.type !== undefined && PERMIT_TYPES.includes(String(body.type))) patch.type = body.type;
+  if (body?.type !== undefined && admits("permitTypes", studio.taxonomies, body.type)) {
+    patch.type = resolveValue("permitTypes", studio.taxonomies, body.type);
+  }
   if (body?.number !== undefined) patch.number = str(body.number, 80);
   if (body?.issuer !== undefined) patch.issuer = str(body.issuer, 160);
   if (body?.notes !== undefined) patch.notes = str(body.notes, 1000);

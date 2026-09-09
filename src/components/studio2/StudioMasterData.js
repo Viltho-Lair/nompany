@@ -40,9 +40,12 @@ const UnitsPanel = nextDynamic(() => import("@/components/studio2/UnitsPanel"),
   { loading: () => <ScreenSkeleton /> });
 const CostCodesPanel = nextDynamic(() => import("@/components/studio2/CostCodesPanel"),
   { loading: () => <ScreenSkeleton /> });
+const TaxonomyPanel = nextDynamic(() => import("@/components/studio2/TaxonomyPanel"),
+  { loading: () => <ScreenSkeleton /> });
 import { numberingDict } from "@/shared/studio/numbering";
 import { unitsDict } from "@/shared/studio/units";
 import { costCodesDict } from "@/shared/studio/costCodes";
+import { taxonomyDict } from "@/shared/studio/taxonomy";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { h2, sub } from "@/components/studio2/ui";
 import { useReload } from "@/components/studio2/useReload";
@@ -60,6 +63,9 @@ export default function StudioMasterData({ slug }) {
   // other two tabs use — the same split Locations already has a note about.
   const [numbering, setNumbering] = useState(null);
   const [units, setUnits] = useState(null);
+  // ALSO A FIELD OF THE STUDIO RECORD, so it rides in the same fetch as
+  // numbering and units rather than costing a third round trip.
+  const [taxonomies, setTaxonomies] = useState(null);
   // The departments register is its own read, on its own route, because it is
   // its own collection — the Operations payload assembles locations and knows
   // nothing about the org chart.
@@ -97,6 +103,7 @@ export default function StudioMasterData({ slug }) {
     const canManage = Boolean(body.canManage);
     setNumbering({ rows: body.studio?.numbering || [], canManage });
     setUnits({ rows: body.studio?.units || [], canManage });
+    setTaxonomies({ rows: body.studio?.taxonomies || [], canManage });
   }, [slug]);
 
   // ONE SAVER FOR BOTH, for the reason one loader serves both: the patch names
@@ -220,7 +227,7 @@ export default function StudioMasterData({ slug }) {
           second register. Both tabs answer to administration.master, so there
           is no per-tab gate — what differs is the CRUD ladder inside each. */}
       <div role="tablist" aria-label={tr.masterData} className="flex gap-2 border-b border-slate-200 dark:border-white/10">
-        {[["locations", tr.locationsTab], ["departments", tr.departments], ["numbering", numberingDict(locale).tab], ["units", unitsDict(locale).tab], ["cost-codes", costCodesDict(locale).tab]].map(([key, label]) => (
+        {[["locations", tr.locationsTab], ["departments", tr.departments], ["numbering", numberingDict(locale).tab], ["units", unitsDict(locale).tab], ["categories", taxonomyDict(locale).tab], ["cost-codes", costCodesDict(locale).tab]].map(([key, label]) => (
           <button
             key={key}
             role="tab"
@@ -287,6 +294,20 @@ export default function StudioMasterData({ slug }) {
             <NumberingPanel
               rows={numbering.rows}
               canManage={numbering.canManage}
+              locale={locale}
+              onSave={saveSettings}
+            />
+          )}
+        </>
+      ) : tab === "categories" ? (
+        <>
+          <div>
+            <h2 className={h2}>{taxonomyDict(locale).tab}</h2>
+          </div>
+          {taxonomies && (
+            <TaxonomyPanel
+              rows={taxonomies.rows}
+              canManage={taxonomies.canManage}
               locale={locale}
               onSave={saveSettings}
             />

@@ -1,4 +1,5 @@
 import { route } from "@/platform/http/route";
+import { valuesFor } from "@/modules/administration/taxonomy";
 import {
   salesContext, listClients, listTickets, assignablePeople, saveSalesSettings,
   TICKET_STATUSES, TICKET_URGENCIES, TICKET_INDUSTRIES, TICKET_LIVE_COLUMNS,
@@ -54,7 +55,10 @@ export const GET = route(spec, async (sales) => {
     salesCities: sales.salesCities,
     salesContactPositions: sales.salesContactPositions,
     vocabulary: {
-      statuses: TICKET_STATUSES, urgencies: TICKET_URGENCIES, industries: TICKET_INDUSTRIES,
+      // WHAT THIS STUDIO ADMITS, not what the product ships — otherwise a
+      // service accepts a value no picker on the screen could offer.
+      statuses: TICKET_STATUSES, urgencies: TICKET_URGENCIES,
+      industries: valuesFor("clientIndustries", sales.studio.taxonomies),
       liveColumnOptions: TICKET_LIVE_COLUMNS,
       // A ticket's services are chosen from the studio's own Service Actions
       // now, so the form reads this list rather than a Sales-owned catalogue —
