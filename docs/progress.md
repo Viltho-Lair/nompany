@@ -256,7 +256,11 @@ Everything lands here.
 | 07/09/2026 | Make the VAT rate a per-studio setting; stop defaulting to 15 | **PROPOSED — highest priority of the country items** |
 | 07/09/2026 | Generate the Fifteen Sections view from `SECTION_DEFS` rather than hand-writing it | **PROPOSED** |
 | 07/09/2026 | Move pricing off a SAR base (company is in Jordan; market regional then global) | **YOUR CALL — which base currency?** |
-| 07/09/2026 | Revisit ZATCA as the first tax adapter | **PROPOSED** |
+| 07/09/2026 | Revisit ZATCA as the first tax adapter | **CHANGED TO: build a jurisdiction-neutral WHT engine instead; no ZATCA adapter** (09/09/2026 — the company is in Jordan and sells across the region as a generalist SME tool, so a Saudi e-invoicing adapter is a COUNTRY INTEGRATION rather than a tax engine. Withholding shipped; ZATCA is not started and is not next.) |
+| 09/09/2026 | Close an accounting period and refuse postings dated in it | **DONE** |
+| 09/09/2026 | Give the ledger a screen — it had none, and fell through to Cash | **DONE** |
+| 09/09/2026 | Pay records, payroll runs and posting the wage bill to the ledger | **DONE** |
+| 09/09/2026 | Attendance as a daily sweep rather than an engine register | **DONE** |
 | 07/09/2026 | Clear `+966` and `Asia/Riyadh` defaults from the /super console | **PROPOSED** |
 | 07/09/2026 | Build P4b, the record engine, before more hand-built slices | **PROPOSED — the highest-leverage item on this page** |
 
@@ -828,17 +832,77 @@ because the reasoning in them is why each was built the way it was.)
 The artifact's note here {M} *"a department IS a top-level section"* {M} **is reversed**:
 departments are their own records under Administration as of 06/09/2026.
 
-#### §13 Finance & Accounting 🟡 12 / 18
+#### §13 Finance & Accounting ✅ 18 / 18
 Cash ✅ · Ledger ✅ · Payables ✅ · Fixed assets ✅ · Settings ✅ · Payment as an
 allocatable record ✅ · Retention & progress billing (IPC) ✅ · Budgets & commitment
 control 🟡 (at project level only, not in the ledger) · Multi-currency 🟡 (daily FX and
 rate-at-approval; no revaluation) · P&L and balance sheet 🟡 (both built 08/09/2026; **no
 cash flow** — it needs operating/investing/financing classification nothing records) ·
 Dimensions on every journal line ✅ (deal, project, cost code, department — carried,
-cut by, and reconciling; 08/09/2026) · Credit notes ✅ (08/09/2026) · **Periods & close ⬜ · Tax
-engine, ZATCA adapter, WHT ⬜ · Bank reconciliation ⬜ · Cash-flow forecast and PDCs ⬜ ·
-Letters of guarantee & credit ⬜** · Auto-posting from every module ✅ (08/09/2026)
-**The largest single body of unbuilt work in the programme.**
+cut by, and reconciling; 08/09/2026) · Credit notes ✅ (08/09/2026) · Periods & close ✅
+(09/09/2026) · Tax engine & WHT ✅ (09/09/2026, **ZATCA deliberately dropped — see below**) ·
+Bank reconciliation ✅ (09/09/2026) · Cash-flow forecast and PDCs ✅ (09/09/2026) · Letters of
+guarantee & credit ✅ (09/09/2026) · Auto-posting from every module ✅ (08/09/2026)
+
+**IT WAS THE LARGEST SINGLE BODY OF UNBUILT WORK IN THE PROGRAMME, and the five closed on
+09/09/2026.** Catalogue 200 → 201 (`finance.ledger.close`); the other four mint nothing.
+
+**THE LEDGER HAD NO SCREEN.** `finance-ledger` had no branch in `StudioFinance`'s view
+switch and fell through to the CASH screen, so a studio granted `finance.ledger.view` opened
+a page of INVOICES while the trial balance, the journal and both statements were computed by
+a route nothing in the product called. Both halves were individually valid — a switch with
+no case, a default returning a real screen — which is why nothing failed, and it is the
+project `/costs` routing bug in a second place: **a section that silently renders the wrong
+screen is how a right ends up exercising nothing** (invariant 16).
+
+**AND `saveFinanceSettings` HAD NO CALLER**, complete since the module was written, so a
+studio's cash categories were whatever the defaults said and could not be changed. The same
+defect the five posting functions carried, found the same way — by needing one of them.
+
+**THE PERIOD LOCK LIVES IN `postEntry`**, the one door every entry passes through, because a
+check in each of the seven posting functions is seven chances to add an eighth without it.
+It refuses the POSTING and not the document: rolling a late invoice into the next open
+period would put September's revenue in November. A close is a LOCK, NOT A CHECKLIST — a
+studio that cannot close until everything is perfect never closes — but it NAMES what is
+dated in the month and unposted, which is what turns a button into a decision. Reopening is
+allowed and RECORDED, because a period that can never be reopened turns one honest mistake
+into a permanent wrong number; a reopening without a REASON is the one thing refused.
+
+**WITHHOLDING SITS BESIDE THE TOTAL, NOT INSIDE IT.** VAT is added and WHT is deducted;
+modelling one as a negative rate of the other produces an invoice for the wrong amount and a
+receivable that never clears. The base is the SUBTOTAL — taxing the tax is wrong by exactly
+the VAT rate, eight-tenths of a per cent on 16/5, small enough never to be noticed — and
+`applies: false` is not `amount: 0`. The CERTIFICATE is the asset, so the reclaim list is
+what to CHASE rather than what was withheld.
+
+**NO ZATCA ADAPTER, AND THAT IS A DECISION.** This product is based in Jordan and sells
+across the region as a generalist SME tool, so a Saudi e-invoicing adapter is a country
+integration rather than a tax engine — building it now would be building for a market this
+is not in. Recorded in the ledger at the end of this file.
+
+**RECONCILIATION IS A PAIRING, NOT A CALCULATION**, and its three states are three different
+problems: matched, on the statement and not in the books (the fix is a POSTING), and in the
+books and not on the statement (the fix is usually TIME — calling it an error sends somebody
+chasing a cheque in the post). NOTHING IS MATCHED AUTOMATICALLY: two payments of 500 in one
+week are indistinguishable by amount, and an automatic pairing would reconcile the wrong two
+and leave two real discrepancies cancelling out. The amounts must match EXACTLY, because a
+tolerance would pair 500 with 499.50 and hide a bank charge of fifty pence.
+
+**A CHEQUE REPLACES ITS INVOICE, IT DOES NOT ADD TO IT** — reading each document's
+outstanding is what stops the forecast counting one receipt twice. Overdue money lands in
+the first bucket rather than being dropped, the closing balance is cumulative because a net
+positive week can still be the week the account goes under, and a null shortfall says only
+that nothing in the horizon takes it under.
+
+**`expired` IS NOT `released` ON A GUARANTEE, AND THE DIFFERENCE IS MONEY.** Expiry does not
+return the margin; somebody has to ask for it back. A register conflating them would tell a
+studio its cash was free while the bank still held it.
+
+**AND `money()` IN `ledger.ts` MEANS CENTS → MONEY.** Payroll's first posting used it as a
+rounder on totals already in money, dividing the wage bill by a hundred into an entry of 35
+against 33.02 — refused as unbalanced, and caught by `tests/crud.mjs` on its first run. The
+pure model was right and the seam was wrong, which is the argument for the end-to-end case
+existing beside the pure one.
 
 **CREDIT NOTES, 08/09/2026 — because an issued invoice is not editable and must not be.**
 It has gone to a client and posted to the ledger, and a client holding INV-0007 for 1,200
@@ -1035,10 +1099,10 @@ gated section.
 
 | | Built | Target | |
 |---|---|---|---|
-| Every subsection built | 12 sections | CRM & Sales, Tendering, Projects, Engineering, Procurement, Inventory, Manufacturing, Field Service, Logistics, Assets, Quality & HSE, Human Resources | |
-| Partial | 3 sections | Finance 12/18, Reports 3/6, Administration 6/10 | |
+| Every subsection built | 13 sections | CRM & Sales, Tendering, Projects, Engineering, Procurement, Inventory, Manufacturing, Field Service, Logistics, Assets, Quality & HSE, Human Resources, Finance & Accounting | |
+| Partial | 2 sections | Reports 3/6, Administration 6/10 | |
 | Renders nothing | 0 sections | `NO_SCREEN_YET` is empty | |
-| **Subsections** | **120 built** | **132 in the target list** | **91%** |
+| **Subsections** | **125 built** | **132 in the target list** | **95%** |
 
 **THE ROW ABOVE SAID 58 / 130 / 45% AND THE THREE ROWS ABOVE IT WERE A SNAPSHOT OF A
 DIFFERENT FORTNIGHT** — four sections rendering nothing, Logistics and HR at one
@@ -1046,9 +1110,9 @@ subsection each, Assets and Quality not counted as built at all. Every figure he
 sum of the fifteen §-headings above it, re-added at this commit rather than carried
 forward; when one of those moves, this moves in the same edit or it is wrong again.
 
-**The gap is no longer the empty sections — there are none.** All 12 outstanding
+**The gap is no longer the empty sections — there are none.** All 7 outstanding
 subsections sit inside sections that already render and read as finished, which is the
-harder half to see: Finance is missing six, Administration four, Reports two.
+harder half to see: Administration is missing five and Reports two.
 
 **THE SUMMARY ROW ABOVE FIRST READ 42 / ~110 / 38%, AND ALL THREE WERE WRONG.** 42 is the
 count of declared keys in `SECTION_DEFS`, which is a different unit from the artifact's
