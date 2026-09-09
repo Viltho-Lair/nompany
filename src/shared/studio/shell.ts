@@ -40,6 +40,8 @@ type ShellStrings = {
   expand: string;
   collapse: string;
   documentation: string;
+  /** The Tasks parent's own screen, named in its menu beside Task settings. */
+  taskList: string;
   studioSettings: string;
   engagements: string;
   people: string;
@@ -104,6 +106,7 @@ const en: ShellStrings = {
   expand: "Expand",
   collapse: "Collapse",
   documentation: "Documentation",
+  taskList: "Task list",
   studioSettings: "Studio settings",
   engagements: "Engagements",
   people: "People",
@@ -155,6 +158,7 @@ const ar: ShellStrings = {
   expand: "توسيع",
   collapse: "طي",
   documentation: "دليل الاستخدام",
+  taskList: "قائمة المهام",
   studioSettings: "إعدادات الاستوديو",
   // ارتباط, NOT صفقة. The two are different words for different things and the
   // product uses both: an engagement is the SPINE that ties a ticket, an RFQ, a

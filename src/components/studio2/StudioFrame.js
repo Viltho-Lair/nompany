@@ -264,6 +264,10 @@ export default function StudioFrame({
   // public header and the account hub.
   const [account, setAccount] = useState(null);
   const [accountOpen, setAccountOpen] = useState(false);
+  // AT MOST ONE HEADER MENU, holding the key rather than a boolean per icon —
+  // the same shape `openKey` uses for the section groups, so opening one closes
+  // the other without either knowing the other exists.
+  const [headerMenu, setHeaderMenu] = useState(null);
   // ONE CORNER, ONE WINDOW. Nova and the support chat are both anchored to the
   // bottom-end corner and are both the same shape, so two open at once would be
   // one stacked on the other. Neither can decide that alone — each only knows
@@ -293,6 +297,20 @@ export default function StudioFrame({
     return () => { window.removeEventListener("click", close); window.removeEventListener("keydown", onKey); };
   }, [accountOpen]);
 
+  // The same two listeners for the header menus. Deliberately a second effect
+  // rather than one that closes both: they open from opposite ends of the
+  // chrome and a shared handler would be a single state nobody could reason
+  // about — and this one is keyed on `headerMenu` so it is not attached at all
+  // while nothing is open, which is what the account menu's does too.
+  useEffect(() => {
+    if (!headerMenu) return;
+    const close = () => setHeaderMenu(null);
+    const onKey = (e) => e.key === "Escape" && setHeaderMenu(null);
+    window.addEventListener("click", close);
+    window.addEventListener("keydown", onKey);
+    return () => { window.removeEventListener("click", close); window.removeEventListener("keydown", onKey); };
+  }, [headerMenu]);
+
   async function signOut() {
     try { await fetch("/api/identity/logout", { method: "POST" }); } catch { /* sign out locally anyway */ }
     // Signing out of an Arabic studio landed on the English login screen. The
@@ -309,9 +327,59 @@ export default function StudioFrame({
   // level rather than being hidden under a group that was filtered out.
   const all = sections || [];
   const visibleIds = new Set(all.map((s) => s.id));
-  const tree = all
+  const fullTree = all
     .filter((s) => !s.parentId || !visibleIds.has(s.parentId))
     .map((s) => ({ ...s, children: all.filter((c) => c.parentId === s.id) }));
+
+  // TASKS AND ADMINISTRATION ARE NOT SECTIONS, AND THE LIST BELOW IS SECTIONS.
+  //
+  // This file has said so at the top since the restructure — "plus Main and
+  // Tasks, which are not sections: Main is the home surface and Tasks is a
+  // cross-cutting control" — while rendering both of them in the same column,
+  // in the same shape, as the fifteen. Administration & Settings is the same
+  // kind of thing from the other end: People, Access, Master data and Studio
+  // settings are how the studio is ADMINISTERED, not work anybody does in it.
+  //
+  // They are marks beside the logo now, each opening its own children. What
+  // that buys is not tidiness: the sidebar is the studio's list of DEPARTMENTS,
+  // and two non-departments sitting in it taught every reader that the list is
+  // "everything", which is what made Tasks look like a sixteenth section on the
+  // org chart the departments register had to correct.
+  const HEADER_KEYS = ["tasks", "administration"];
+  const tree = fullTree.filter((n) => !HEADER_KEYS.includes(n.key));
+
+  // `/administration` IS A NAVIGATION NODE AND NOT A DESTINATION, so its own
+  // row is left out — it exists to own four children and renders nothing worth
+  // arriving at. Tasks is the opposite: its parent IS the task list, so it
+  // leads its own menu under a name that says which of the two it is. The
+  // asymmetry is in the data, not a special case: a parent is included only
+  // where the parent is a screen.
+  const PARENT_IS_A_SCREEN = { tasks: true, administration: false };
+
+  const headerMenus = HEADER_KEYS
+    .map((key) => {
+      const node = fullTree.find((n) => n.key === key);
+      if (!node) return null;
+      const items = [
+        // The parent's own screen, where it has one. `taskList` rather than the
+        // section's name: "Tasks > Tasks" says nothing about which is which.
+        ...(PARENT_IS_A_SCREEN[key]
+          ? [{ key: node.key, href: `/${studio.slug}/${node.key}`, label: tr.taskList }]
+          : []),
+        ...node.children.map((c) => ({
+          key: c.key,
+          href: `/${studio.slug}/${c.key}`,
+          label: sectionName(c.key, c.name, locale),
+        })),
+      ];
+      // NO ICON FOR AN EMPTY MENU. A sub-section can be granted without its
+      // parent and the reverse is just as real — somebody holding
+      // `administration` and none of its four children would otherwise get a
+      // button that opens nothing.
+      if (items.length === 0) return null;
+      return { key, label: sectionName(node.key, node.name, locale), items };
+    })
+    .filter(Boolean);
 
   // AT MOST ONE group is expanded, and which one FOLLOWS THE PAGE YOU ARE ON.
   // The previous version remembered every group you had ever opened, so nothing
@@ -416,7 +484,13 @@ export default function StudioFrame({
 
   const sidebar = (
     <div className="flex h-full flex-col bg-[var(--geex-surface)]">
-      <Link href={`/${studio.slug}`} className="flex items-center gap-2.5 px-6 py-5" onClick={() => setOpen(false)}>
+      {/* THE IDENTITY BLOCK IS A ROW NOW, not a single link. The padding moved
+          off the link and onto this wrapper so the marks sit inside the same
+          box the studio's name does — putting them after a `px-6` link would
+          have indented them past its edge. `relative` is the anchor every menu
+          below positions against. */}
+      <div className="relative flex items-center gap-1 px-6 py-5">
+      <Link href={`/${studio.slug}`} className="flex min-w-0 flex-1 items-center gap-2.5" onClick={() => setOpen(false)}>
         {/* The studio's own logo stands here once it has one; the nompany mark
             is the default every new studio starts with. Shown whole rather than
             cropped to a circle — it is a company's mark, not a face — so it is
@@ -445,6 +519,51 @@ export default function StudioFrame({
           </span>
         </span>
       </Link>
+
+      {/* TASKS AND ADMINISTRATION, AS MARKS. No visible label — the name is on
+          hover and on `aria-label`, both, for the reason the Engagements square
+          in the footer gives.
+
+          `stopPropagation` on the click is what lets the window-level listener
+          above stay dumb: it closes on ANY click, so the button that opens a
+          menu has to not be one of them, or opening would immediately close. */}
+      {headerMenus.map((menu) => (
+        <div key={menu.key} className="relative shrink-0">
+          <button
+            type="button"
+            title={menu.label}
+            aria-label={menu.label}
+            aria-haspopup="menu"
+            aria-expanded={headerMenu === menu.key}
+            onClick={(e) => { e.stopPropagation(); setHeaderMenu((k) => (k === menu.key ? null : menu.key)); }}
+            className={`${rowClass(menu.items.some((i) => i.key === activeKey))} h-9 w-9 justify-center`}
+          >
+            <Icon name={SECTION_ICONS[menu.key] || "dot"} className={iconClass(menu.key)} />
+          </button>
+
+          {headerMenu === menu.key && (
+            <div role="menu" className="absolute end-0 z-50 mt-2 w-52 overflow-hidden rounded-geex bg-[var(--geex-surface)] py-1 shadow-geex">
+              {menu.items.map((item) => (
+                <Link
+                  key={item.key}
+                  href={item.href}
+                  role="menuitem"
+                  onClick={() => { setHeaderMenu(null); setOpen(false); }}
+                  className={`flex items-center gap-2.5 px-3 py-2 text-sm font-500 ${
+                    item.key === activeKey
+                      ? "bg-brand-500/10 text-brand-700 dark:bg-brand-500/20 dark:text-brand-400"
+                      : "text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-white/5"
+                  }`}
+                >
+                  <Icon name={SECTION_ICONS[item.key] || "dot"} className={iconClass(item.key)} />
+                  <span className="truncate">{item.label}</span>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+      </div>
 
       <nav aria-label={tr.departments} className="flex-1 space-y-0.5 overflow-y-auto px-4 py-6">
         {tree.map((node) => navGroup(node))}
