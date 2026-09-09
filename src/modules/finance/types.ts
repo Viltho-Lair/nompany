@@ -1,6 +1,7 @@
 // FINANCE'S TYPES — the records inferred from `schema.ts`, plus the context.
 
 import type { ModuleContext } from "../context";
+import type { WithholdingRule } from "./withholding";
 import type { Section } from "@/platform/db/sections";
 
 export type { Invoice, InvoiceLine, Payment, Expense } from "./schema";
@@ -57,6 +58,8 @@ export type FinanceContext = ModuleContext & {
   canViewSettings: boolean;
   canManageSettings: boolean;
   cashCategories: string[];
+  /** The studio's withholding rules. Empty where the jurisdiction has none. */
+  withholdingRules: WithholdingRule[];
   /** The bill approval chains this studio uses — seeds merged with its overrides. */
   approvalChains: Record<string, ApprovalChain>;
 };

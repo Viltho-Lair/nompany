@@ -1,4 +1,5 @@
 import { route } from "@/platform/http/route";
+import { unclaimed } from "@/modules/finance/withholding";
 import {
   financeContext, listInvoices, listExpenses, profitability, billableProjects, summarise,
   INVOICE_STATUSES, EXPENSE_CATEGORIES, PAYMENT_METHODS,
@@ -30,10 +31,20 @@ export const GET = route(
     invoices, expenses, projects,
     profitability: projectMargins,
     summary: summarise(invoices, expenses),
+    // WHAT THE STUDIO CAN RECLAIM. Tax withheld is only worth anything if the
+    // studio can prove it was paid over, so this lists the documents where tax
+    // was deducted and no certificate has been recorded — a list to CHASE,
+    // which is a different list from what was withheld.
+    unclaimedWithholding: unclaimed(invoices.map((inv) => ({
+      document: inv, withheld: inv.withheld, certificateRef: inv.certificateRef,
+    }))),
     vocabulary: {
       invoiceStatuses: INVOICE_STATUSES,
       expenseCategories: EXPENSE_CATEGORIES,
       paymentMethods: PAYMENT_METHODS,
+      // The studio's own rules, so a form offers exactly what the reader will
+      // match against — empty in a jurisdiction with no withholding.
+      withholdingRules: g.withholdingRules,
     },
   };
 });

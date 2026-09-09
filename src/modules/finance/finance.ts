@@ -17,6 +17,8 @@
 
 import { requirePermission, ALL_PERMISSIONS } from "@/platform/access";
 import { seriesSetting } from "@/modules/administration/numbering";
+import { withholdingProblems, cleanWithholding, withholdingOn, settledWith } from "./withholding";
+import type { WithholdingRule } from "./withholding";
 import { approvalChainsFor } from "@/platform/approval/store";
 import { SEEDED_CHAINS, chainProblems } from "@/platform/approval/chains";
 import type { ApprovalChain } from "@/platform/approval/chains";
@@ -91,6 +93,7 @@ export const financeContext = moduleContext<FinanceContext>({
   flags: ["cash", "ledger", "payables", "assets", "settings"],
   extend: ({ settingsSection, studio }) => ({
     cashCategories: readCashCategories(settingsSection as { settings?: Record<string, unknown> }),
+    withholdingRules: readWithholdingRules(settingsSection as { settings?: Record<string, unknown> }),
     // The studio's own chains layered over what Finance stored before the
     // store moved — see readApprovalChains.
     approvalChains: readApprovalChains(settingsSection as { settings?: Record<string, unknown> }, studio),
@@ -100,6 +103,22 @@ export const financeContext = moduleContext<FinanceContext>({
 // The Old System's "Finance Settings - Cash categories": the list an expense is
 // filed under. Stored on the finance-settings sub-section's own settings object.
 export const DEFAULT_CASH_CATEGORIES = ["Materials", "Transport", "Accommodation", "Fuel", "Tools", "Other"];
+
+/**
+ * THE STUDIO'S WITHHOLDING RULES. An empty list is the normal case and means
+ * nothing is withheld — a studio in a jurisdiction with no WHT never sees the
+ * column, which is why the default is nothing rather than a seeded rate
+ * somebody would have to find and delete.
+ */
+export function readWithholdingRules(
+  settingsSection: { settings?: Record<string, unknown> } | null | undefined,
+): WithholdingRule[] {
+  const raw = settingsSection?.settings?.withholdingRules;
+  return (Array.isArray(raw) ? raw : [])
+    .map((r) => cleanWithholding(r as Record<string, unknown>))
+    .filter((r) => r.label && r.rate > 0)
+    .slice(0, 20);
+}
 
 export function readCashCategories(settingsSection: { settings?: Record<string, unknown> } | null | undefined): string[] {
   const raw = settingsSection?.settings?.cashCategories;
@@ -150,6 +169,18 @@ export async function saveFinanceSettings(ctx: FinanceContext, body: Record<stri
     next.cashCategories = readCashCategories({ settings: { cashCategories: body.cashCategories } });
   }
 
+  // THE WITHHOLDING RULES, refused on write with their reasons named — the
+  // shape the chains and the numbering series already use. A rate of nought
+  // stored silently would put a column of 0.00 on every document and teach
+  // people to ignore it, which is the state this feature exists to end.
+  if (body?.withholdingRules !== undefined) {
+    const incoming = Array.isArray(body.withholdingRules) ? body.withholdingRules : [];
+    const problems: string[] = [];
+    for (const rule of incoming) problems.push(...withholdingProblems(rule as Record<string, unknown>));
+    if (problems.length) return { error: "refused" as const, detail: problems.join("; ") };
+    next.withholdingRules = incoming.map((r) => cleanWithholding(r as Record<string, unknown>));
+  }
+
   if (body?.approvalChains !== undefined) {
     // VALIDATED HERE, NOT ON READ, and BEFORE anything is written. A chain
     // naming a permission that does not exist blocks every bill reaching that
@@ -169,6 +200,7 @@ export async function saveFinanceSettings(ctx: FinanceContext, body: Record<stri
     ? {
       cashCategories: readCashCategories({ settings: next }),
       approvalChains: readApprovalChains({ settings: next }),
+      withholdingRules: readWithholdingRules({ settings: next }),
     }
     : { error: "notfound" };
 }
@@ -202,7 +234,10 @@ function statusFor(
 }
 
 // ---- invoices --------------------------------------------------------------
-export async function listInvoices({ studio, cashSection }: Pick<FinanceContext, "studio" | "cashSection">) {
+export async function listInvoices(
+  { studio, cashSection, withholdingRules = [] }:
+  Pick<FinanceContext, "studio" | "cashSection"> & { withholdingRules?: WithholdingRule[] },
+) {
   const [invoices, projects] = await Promise.all([
     Invoices.find({ studio, section: cashSection }),
     projectRows({ studio }),
@@ -214,9 +249,23 @@ export async function listInvoices({ studio, cashSection }: Pick<FinanceContext,
     .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""))
     .map((inv) => {
       const totals = invoiceTotals(inv);
-      const status = statusFor(inv, totals);
+      // WITHHOLDING SITS BESIDE THE TOTAL, NEVER INSIDE IT. `total` is still
+      // subtotal plus VAT — the invoice is worth what it says — and what
+      // changes is the CASH expected against it. Modelling WHT as a negative
+      // VAT rate would produce an invoice for the wrong amount and a
+      // receivable that never clears.
+      const rule = withholdingRules.find((r) => r.label === String(inv.withholdingLabel || "")) || null;
+      const withheld = withholdingOn(rule, totals);
+      const settlement = settledWith(totals, withheld);
+      const status = statusFor(inv, { ...totals, total: settlement.expected });
       return {
         ...inv, ...totals, status,
+        withheld,
+        expected: settlement.expected,
+        // OUTSTANDING IS AGAINST THE NET, not the gross: a client who withholds
+        // pays less and still owes nothing, and chasing them for the tax would
+        // be chasing money they are legally required not to send.
+        outstanding: settlement.outstanding,
         projectNumber: projectNumber[inv.projectId] || "",
         // Overdue is derived from the due date, so it is never a stale flag.
         overdue: status === "Sent" && !!inv.dueDate && inv.dueDate < today,
@@ -268,6 +317,13 @@ export async function createInvoice(ctx: FinanceContext, body: Record<string, un
     // and is counted in full rather than believed. The containment is in the
     // reader, where it also covers deletion, which no write-time check could.
     milestoneId: projectId ? str(body?.milestoneId, 60) : "",
+    // UNVALIDATED AT THE WRITE, exactly as `milestoneId` and `costCodeId`
+    // are: the READER matches the label against the studio's rules, which
+    // is the only place that can also cope with a rule being deleted later.
+    // A label matching nothing withholds nothing — the same answer as never
+    // having set one.
+    withholdingLabel: str(body?.withholdingLabel, 80),
+    certificateRef: str(body?.certificateRef, 80),
     clientName,
     lines,
     vatRate: body?.vatRate === undefined ? 0 : Math.max(0, Math.min(100, Number(body.vatRate) || 0)),
@@ -337,6 +393,8 @@ export async function editInvoice(ctx: FinanceContext, id: string, body: Record<
   // milestone the studio reckons it against, and refusing that would mean an
   // invoice raised before the schedule existed could never be filed at all.
   if (body?.milestoneId !== undefined) patch.milestoneId = str(body.milestoneId, 60);
+  if (body?.withholdingLabel !== undefined) patch.withholdingLabel = str(body.withholdingLabel, 80);
+  if (body?.certificateRef !== undefined) patch.certificateRef = str(body.certificateRef, 80);
   if (body?.dueDate !== undefined) patch.dueDate = day(body.dueDate);
   if (body?.issueDate !== undefined) patch.issueDate = day(body.issueDate);
   if (body?.notes !== undefined) patch.notes = str(body.notes, 2000);

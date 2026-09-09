@@ -51,6 +51,24 @@ export const InvoiceSchema = z.object({
    * `projectBilling` reports that money as `unattributed` rather than losing it.
    */
   milestoneId: z.string().max(60).optional(),
+
+  /**
+   * WHICH WITHHOLDING RULE THIS DOCUMENT FALLS UNDER, by the rule's LABEL.
+   *
+   * The label rather than an id, because the rules are a list on the studio's
+   * settings and have no ids — and because a rule the studio has since deleted
+   * should read as "no longer withheld" rather than pointing at nothing. The
+   * reader matches it; a label that matches nothing withholds nothing, which is
+   * the same answer as never having set one.
+   */
+  withholdingLabel: z.string().max(80).optional(),
+  /**
+   * THE CERTIFICATE IS THE ASSET, not the deduction. Tax withheld is only worth
+   * anything to the studio if it can prove it was paid over, so this is what
+   * turns a deduction into a reclaimable credit — and its absence is what the
+   * reclaim list is FOR.
+   */
+  certificateRef: z.string().max(80).optional(),
   clientName: z.string().max(160),
   lines: z.array(InvoiceLineSchema),
   vatRate: z.number().min(0).max(100),
