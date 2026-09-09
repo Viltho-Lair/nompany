@@ -894,7 +894,14 @@ export const SECTION_COLLECTIONS = {
   // reference data three departments read belongs to none of them. It used to
   // be derived from the section list, which made every studio's org chart the
   // product's fifteen nav entries; see shared/departments/starters.ts.
-  "administration-master": ["locations", "departments"],
+  // AND THE COST CODE LIBRARY, for the third time the same argument: a
+  // standard breakdown is read by Projects (which copies it into a budget)
+  // and by Finance (which codes a bill against it) and is owned by neither.
+  // It is a COLLECTION rather than a field of the studio record — the way
+  // units and the numbering series went — because the studio record is read
+  // on every request in the product and a library of two hundred codes would
+  // be carried into all of them.
+  "administration-master": ["locations", "departments", "costCodeLibrary"],
   // THE ENGINE'S TWO COLLECTIONS, and no more. A record type is a ROW, so a
   // collection per type would need a deploy per type — the thing runtime was
   // chosen to avoid. Instances are discriminated by `typeKey` inside

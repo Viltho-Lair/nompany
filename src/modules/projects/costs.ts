@@ -20,6 +20,8 @@ import { orderTotal } from "@/modules/inventory/inventory";
 import type { Bill } from "@/modules/finance/schema";
 import type { BoqItem } from "@/modules/tendering/schema";
 import type { Order } from "@/modules/inventory/schema";
+import { offerable } from "@/modules/administration/costCodes";
+import type { LibraryCostCode } from "@/modules/administration/types";
 import type { ProjectCost, Project } from "./schema";
 import type { ProjectsContext } from "./types";
 
@@ -29,6 +31,10 @@ const Bills = repo<Bill>("bills");
 const BoqItems = repo<BoqItem>("boqItems");
 // `materialOrders`, which is what a purchase order is called in the store.
 const Orders = repo<Order>("materialOrders");
+// The studio's standard breakdown, read across the boundary the way the
+// quotations and the bill of quantities are: reading a collection is not
+// owning it, and this one is Master data's.
+const LibraryCodes = repo<LibraryCostCode>("costCodeLibrary");
 
 const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
 const money = (v: unknown) => {
@@ -290,4 +296,77 @@ export async function seedCostsFromBill(ctx: ProjectsContext, projectId: string)
     }));
   }
   return { codes: created };
+}
+
+/**
+ * THE THIRD WAY TO START A BREAKDOWN: the studio's own standard codes.
+ *
+ * There were two, and both are a project's own accident. Typing them by hand
+ * gives every job its own vocabulary — one calls it "Earthworks", the next
+ * "EW" — and seeding from the bill gives it the TENDER's, which is how the
+ * work was sold rather than how the studio buys. Neither can be compared with
+ * anything, which is what a library fixes.
+ *
+ * OFFERED, NOT IMPOSED, and refused once anything exists — the same terms
+ * `seedCostsFromBill` takes, for the same reason: this proposes a starting
+ * point, and running it over a breakdown somebody has since edited would
+ * either duplicate every code or quietly overwrite their numbers.
+ *
+ * BUDGETED AT NOUGHT, deliberately, which is the one way it differs from the
+ * bill. A bill's groups arrive carrying what each was SOLD for, so seeding them
+ * is a budget; the library is a vocabulary and knows nothing about this job. A
+ * guessed budget would be a number nobody chose that reads exactly like one
+ * somebody did.
+ *
+ * A RETIRED CODE IS NOT OFFERED. `offerable` is what the picker shows and what
+ * this writes, so the two cannot disagree about what the standard currently is.
+ */
+export async function seedCostsFromLibrary(ctx: ProjectsContext, projectId: string) {
+  const denied = requirePermission(ctx.access, "projects.costs.create");
+  if (denied) return denied;
+
+  const { studio, listSection, masterSection, collaborator } = ctx;
+  const project = await Projects.byId({ studio, section: listSection }, projectId);
+  if (!project) return { error: "notfound" };
+  // A studio with no Administration section has no library to seed from, which
+  // is a real answer rather than a crash — every foreign section is nullable.
+  if (!masterSection) return { error: "no-library" };
+
+  const existing = await Costs.find({ studio, section: listSection }, { where: { projectId } });
+  if (existing.length) return { error: "already" };
+
+  const library = await LibraryCodes.find({ studio, section: masterSection });
+  const proposed = offerable(library);
+  if (!proposed.length) return { error: "no-library" };
+
+  const at = now();
+  const created: ProjectCost[] = [];
+  for (const [i, row] of proposed.entries()) {
+    created.push(await Costs.create({ studio, section: listSection }, {
+      projectId,
+      code: str(row.code, 24),
+      name: str(row.name, 160),
+      budget: 0,
+      notes: "",
+      sortOrder: i,
+      createdByCollaboratorId: collaborator.id,
+      createdAt: at,
+      updatedAt: at,
+    }));
+  }
+  return { codes: created };
+}
+
+/**
+ * HAS THE STUDIO GOT A LIBRARY WORTH OFFERING?
+ *
+ * READ ONLY WHEN IT COULD MATTER — the caller asks this only while a breakdown
+ * is empty, which is the one moment the button can appear. Reading the library
+ * on every open of the cost screen would be a round trip spent on a question
+ * whose answer is discarded the moment there is a single code.
+ */
+export async function libraryHasCodes(ctx: ProjectsContext): Promise<boolean> {
+  const { studio, masterSection } = ctx;
+  if (!masterSection) return false;
+  return offerable(await LibraryCodes.find({ studio, section: masterSection })).length > 0;
 }

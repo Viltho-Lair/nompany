@@ -38,8 +38,11 @@ const NumberingPanel = nextDynamic(() => import("@/components/studio2/NumberingP
   { loading: () => <ScreenSkeleton /> });
 const UnitsPanel = nextDynamic(() => import("@/components/studio2/UnitsPanel"),
   { loading: () => <ScreenSkeleton /> });
+const CostCodesPanel = nextDynamic(() => import("@/components/studio2/CostCodesPanel"),
+  { loading: () => <ScreenSkeleton /> });
 import { numberingDict } from "@/shared/studio/numbering";
 import { unitsDict } from "@/shared/studio/units";
+import { costCodesDict } from "@/shared/studio/costCodes";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { h2, sub } from "@/components/studio2/ui";
 import { useReload } from "@/components/studio2/useReload";
@@ -61,6 +64,12 @@ export default function StudioMasterData({ slug }) {
   // its own collection — the Operations payload assembles locations and knows
   // nothing about the org chart.
   const [depts, setDepts] = useState(null);
+  // THE COST CODE LIBRARY IS MASTER DATA'S OWN COLLECTION, so it is its own
+  // read on its own route — the departments shape rather than the numbering
+  // one. Its payload carries the drift report, which is why it cannot be
+  // folded into the settings fetch: that answer depends on a right this screen
+  // does not otherwise ask about.
+  const [library, setLibrary] = useState(null);
 
   // IT READS THE OPERATIONS PAYLOAD, and that is worth a sentence because it
   // looks wrong. Locations are Master data's rows, but the endpoint that
@@ -114,9 +123,16 @@ export default function StudioMasterData({ slug }) {
     setDepts(out);
   }, [slug]);
 
+  const loadLibrary = useCallback(async () => {
+    const res = await fetch(`/api/studios/${slug}/administration/cost-codes`, { cache: "no-store" });
+    const out = await res.json().catch(() => ({}));
+    if (!res.ok) return;                       // the tab simply does not render
+    setLibrary(out);
+  }, [slug]);
+
   const loadAll = useCallback(async () => {
-    await Promise.all([load(), loadDepartments(), loadSettings()]);
-  }, [load, loadDepartments, loadSettings]);
+    await Promise.all([load(), loadDepartments(), loadSettings(), loadLibrary()]);
+  }, [load, loadDepartments, loadSettings, loadLibrary]);
 
   useReload(loadAll);
   // Both tabs are Master data's own rows — `locations` and `departments` under
@@ -171,6 +187,29 @@ export default function StudioMasterData({ slug }) {
     return true;
   }, [slug, loadDepartments, tr]);
 
+  // THE LIBRARY'S WRITER. Its own, because it posts to its own route and reads
+  // a refusal the other two do not: deleting a code a project has taken is
+  // refused with the COUNT, so the message can offer retiring it instead.
+  const sendCostCode = useCallback(async (method, payload) => {
+    setError(""); setBusy(true);
+    const res = await fetch(`/api/studios/${slug}/administration/cost-codes`, {
+      method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+    });
+    const out = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (!res.ok) {
+      // THE SERVER'S REASON, VERBATIM, when it gave one. `libraryProblems`
+      // names which rule the code broke; replacing that with "couldn't save"
+      // would throw away the only thing that says what to change.
+      setError(out.error === "in-use"
+        ? costCodesDict(locale).inUse(out.projects || 0)
+        : (out.detail || out.error || "failed"));
+      return false;
+    }
+    await loadLibrary();
+    return true;
+  }, [slug, loadLibrary, locale]);
+
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <ScreenSkeleton loadingLabel={tr.loadingMasterData} />;
 
@@ -181,7 +220,7 @@ export default function StudioMasterData({ slug }) {
           second register. Both tabs answer to administration.master, so there
           is no per-tab gate — what differs is the CRUD ladder inside each. */}
       <div role="tablist" aria-label={tr.masterData} className="flex gap-2 border-b border-slate-200 dark:border-white/10">
-        {[["locations", tr.locationsTab], ["departments", tr.departments], ["numbering", numberingDict(locale).tab], ["units", unitsDict(locale).tab]].map(([key, label]) => (
+        {[["locations", tr.locationsTab], ["departments", tr.departments], ["numbering", numberingDict(locale).tab], ["units", unitsDict(locale).tab], ["cost-codes", costCodesDict(locale).tab]].map(([key, label]) => (
           <button
             key={key}
             role="tab"
@@ -250,6 +289,27 @@ export default function StudioMasterData({ slug }) {
               canManage={numbering.canManage}
               locale={locale}
               onSave={saveSettings}
+            />
+          )}
+        </>
+      ) : tab === "cost-codes" ? (
+        <>
+          <div>
+            <h2 className={h2}>{costCodesDict(locale).tab}</h2>
+          </div>
+          {!library ? <ScreenSkeleton loadingLabel={tr.loadingMasterData} /> : (
+            <CostCodesPanel
+              codes={library.codes || []}
+              groups={library.groups || []}
+              // NULL, NOT EMPTY, when the reader may not open the projects —
+              // the server did not read them, so the block is absent rather
+              // than showing a drift of nothing.
+              drift={library.drift || null}
+              canManage={library.canManage}
+              canCreate={library.canCreate}
+              canDelete={library.canDelete}
+              busy={busy}
+              send={sendCostCode}
             />
           )}
         </>

@@ -12,6 +12,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { projectsDict } from "@/shared/studio/projects";
+// THE LIBRARY'S OWN WORDS. It is Administration's register, and its
+// dictionary travels with it rather than being restated in Projects' —
+// one surface, one module, and no barrel over the two.
+import { costCodesDict } from "@/shared/studio/costCodes";
 import { RecordSkeleton } from "@/components/studio2/RecordSkeleton";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { panel, h2, sub, btn, btnGhost, btnRow, btnRowDanger, microLabel, Empty, Dialog, StatTile, money } from "@/components/studio2/ui";
@@ -28,7 +32,9 @@ function refusal(tr, token) {
 }
 
 export default function StudioProjectCosts({ slug, projectId }) {
-  const tr = projectsDict(useStudioLocale());
+  const locale = useStudioLocale();
+  const tr = projectsDict(locale);
+  const lib = costCodesDict(locale);
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -85,7 +91,7 @@ export default function StudioProjectCosts({ slug, projectId }) {
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <RecordSkeleton loadingLabel={tr.loadingCosts} />;
 
-  const { project, codes, costing, earned, canCreate, canEdit, canDelete, canSeedFromBill } = data;
+  const { project, codes, costing, earned, canCreate, canEdit, canDelete, canSeedFromBill, canSeedFromLibrary } = data;
 
   // AN INDEX IS A RATIO, NOT MONEY, so it is not put through `money()` — two
   // decimals and no thousands separator. A dash where it is null: an index that
@@ -289,6 +295,20 @@ export default function StudioProjectCosts({ slug, projectId }) {
               <button type="button" className={`${btn} mt-3`} disabled={busy}
                 onClick={() => send("POST", { seedFromBill: true, projectId })}>
                 {tr.seedFromBill}
+              </button>
+            </section>
+          )}
+          {/* THE STUDIO'S OWN STANDARD, offered on the same terms and shown
+              BESIDE the bill rather than instead of it. Both can be true on a
+              handed-over project, and the choice is a real one: the bill is
+              how this job was sold, the library is how the studio buys. */}
+          {canSeedFromLibrary && (
+            <section className={panel}>
+              <p className="text-sm font-600 text-slate-900 dark:text-white">{lib.seedFromLibrary}</p>
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{lib.seedFromLibraryHint}</p>
+              <button type="button" className={`${btn} mt-3`} disabled={busy}
+                onClick={() => send("POST", { seedFromLibrary: true, projectId })}>
+                {lib.seedFromLibrary}
               </button>
             </section>
           )}

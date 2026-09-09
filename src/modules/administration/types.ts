@@ -38,6 +38,28 @@ export type Department = {
   createdAt: string;
 } & Row;
 
+// ---- a library cost code -----------------------------------------------------
+//
+// THE STUDIO'S STANDARD BREAKDOWN. Copied into a project's budget rather than
+// referenced by it, so nothing here can re-price a running job — see
+// ./costCodes for the whole argument.
+export type LibraryCostCode = {
+  id: string;
+  studioId: string;
+  sectionId: string;
+  /** The handle projects match on. Unique within the studio, case-insensitively. */
+  code: string;
+  name: string;
+  /** The studio's own top level. Free text; the picker offers what is in use. */
+  group: string;
+  notes: string;
+  /** Retired: out of the picker, still readable on every project that took it. */
+  archived: boolean;
+  sortOrder: number;
+  createdByCollaboratorId: string;
+  createdAt: string;
+} & Row;
+
 // ---- Master data's context ---------------------------------------------------
 //
 // Generated from the spec in master.ts: `foreign` becomes `<name>Section`. A
@@ -47,4 +69,10 @@ export type Department = {
 export type MasterContext = ModuleContext & {
   /** Field Operations, read only to ask whether a shift or permit names a location. */
   fieldServiceSection: Section | null;
+  /**
+   * Projects' list section, read only to ask which cost codes the jobs are
+   * actually using. Nullable for the usual reason — a studio with no Projects
+   * section has no breakdown to have drifted from the library.
+   */
+  projectsListSection: Section | null;
 };

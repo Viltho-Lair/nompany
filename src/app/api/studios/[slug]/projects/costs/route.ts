@@ -3,6 +3,7 @@ import { requirePermission } from "@/platform/access";
 import { projectsContext } from "@/modules/projects/projects";
 import {
   listProjectCosts, addProjectCost, editProjectCost, removeProjectCost, seedCostsFromBill,
+  seedCostsFromLibrary, libraryHasCodes,
 } from "@/modules/projects/costs";
 
 export const runtime = "nodejs";
@@ -36,6 +37,13 @@ export const GET = route({ ...spec, body: false }, async (projects) => {
     // breakdown is empty — seeding is a starting point, not a merge.
     canSeedFromBill: Boolean(result.project.tenderId) && result.codes.length === 0
       && !requirePermission(projects.access, "projects.costs.create"),
+    // THE SECOND SOURCE, and the library is READ only when it could be offered
+    // — a breakdown with a single code in it never asks. Both may be true at
+    // once on a handed-over project, and that is the choice worth having: the
+    // bill is how the work was sold, the library is how the studio buys.
+    canSeedFromLibrary: result.codes.length === 0
+      && !requirePermission(projects.access, "projects.costs.create")
+      && await libraryHasCodes(projects),
   };
 });
 
@@ -45,6 +53,15 @@ export const POST = route(spec, async (projects) => {
   // once anything exists, which is nothing like adding one code.
   if (projects.body.seedFromBill) {
     const seeded = await seedCostsFromBill(projects, String(projects.body.projectId || ""));
+    if (refused(seeded)) return seeded;
+    return { status: 201, body: { ok: true, codes: seeded.codes } };
+  }
+  // THE SECOND SOURCE, and it is a second flag rather than a `source` string
+  // for one reason: the two write different things. The bill carries what each
+  // group was SOLD for and seeds a budget; the library carries a vocabulary and
+  // seeds nought. Collapsing them into one parameter would hide that.
+  if (projects.body.seedFromLibrary) {
+    const seeded = await seedCostsFromLibrary(projects, String(projects.body.projectId || ""));
     if (refused(seeded)) return seeded;
     return { status: 201, body: { ok: true, codes: seeded.codes } };
   }

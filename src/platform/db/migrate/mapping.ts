@@ -157,6 +157,7 @@ export const COLLECTION_TABLE: Readonly<Record<string, string>> = {
   fixedAssets: "FixedAsset",
   locations: "Location",
   departments: "Department",
+  costCodeLibrary: "LibraryCostCode",
   permits: "Permit",
   shifts: "Shift",
   trackingPositions: "TrackingPosition",
