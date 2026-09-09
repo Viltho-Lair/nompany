@@ -17,7 +17,14 @@ export async function run({ apiKey, model, system, messages, tools, execute, max
   const usedTools: string[] = [];
 
   for (let turn = 0; turn < maxTurns; turn++) {
-    const res = await client.chat.completions.create({ model, messages: convo, tools: otools });
+    // AN EMPTY TOOL LIST IS OMITTED, NOT SENT. OpenAI rejects `tools: []` with
+    // "[] is too short", so a caller that wants no tools at all — the broadcast
+    // greeting is the first — got a 400 on every attempt and no other signal.
+    // Gemini's adapter has always guarded this; this one did not, because until
+    // now every caller passed at least one tool.
+    const res = await client.chat.completions.create({
+      model, messages: convo, ...(otools.length ? { tools: otools } : {}),
+    });
     const msg = res.choices[0]?.message;
     const calls = msg?.tool_calls || [];
     if (!msg || !calls.length) return { text: msg?.content || "", usedTools };

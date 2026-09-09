@@ -16,7 +16,11 @@ export async function run({ apiKey, model, system, messages, tools, execute, max
   const usedTools: string[] = [];
 
   for (let turn = 0; turn < maxTurns; turn++) {
-    const res = await client.messages.create({ model, max_tokens: MAX_TOKENS, system, tools: atools, messages: convo });
+    // Omitted rather than sent empty, for the reason written out in the OpenAI
+    // adapter: a caller with no tools is a real case now.
+    const res = await client.messages.create({
+      model, max_tokens: MAX_TOKENS, system, messages: convo, ...(atools.length ? { tools: atools } : {}),
+    });
     const toolUses = res.content.filter((b): b is Anthropic.ToolUseBlock => b.type === "tool_use");
     if (!toolUses.length) {
       const text = res.content.filter((b): b is Anthropic.TextBlock => b.type === "text").map((b) => b.text).join("");

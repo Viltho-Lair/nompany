@@ -1,7 +1,7 @@
 import { route } from "@/platform/http/route";
 import {
   getGreetingConfig, saveGreetingConfig, getDailyBand, regenerateToday,
-  broadcastMessage, withdrawMessage,
+  broadcastMessage, withdrawMessage, generationProblems,
 } from "@/lib/data/greeting";
 import { getNovaConfig } from "@/lib/data/novaConfig";
 import { DAYPARTS } from "@/shared/greeting";
@@ -28,7 +28,10 @@ async function payload() {
   const [config, nova] = await Promise.all([getGreetingConfig(), getNovaConfig()]);
   const bands = {} as Record<string, Awaited<ReturnType<typeof getDailyBand>>>;
   for (const daypart of DAYPARTS) bands[daypart] = await getDailyBand(daypart);
-  return { config, bands, ai: { keySet: nova.keySet, provider: nova.provider, model: nova.model } };
+  // AFTER the bands, so a generation attempted by this very request is included
+  // rather than reported as untried.
+  const problems = await generationProblems();
+  return { config, bands, problems, ai: { keySet: nova.keySet, provider: nova.provider, model: nova.model } };
 }
 
 export const GET = route(spec, async () => payload());

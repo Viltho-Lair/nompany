@@ -97,6 +97,18 @@ never fall back to the same line on the same day. That is what shows when no key
 the provider is down, and before the day's first generation lands — the header cannot be
 empty and cannot break on somebody else's outage.
 
+**A failure keeps its reason.** The provider's own message is stored beside the failed
+`<id>:<daypart>` and shown in the console, because "no key is set, or the call didn't go
+through" names two situations with two different fixes — and "model not found", "invalid
+api key" and "[] is too short" are the only things that say which. The screen distinguishes
+the no-key case from a real failure on its own, since it knows whether a key is stored.
+
+**THE FIRST CALLER WITH NO TOOLS FOUND A BUG IN TWO ADAPTERS.** Nova's chat always passes at
+least one tool, so nobody had sent `tools: []` before the greeting did. OpenAI rejects that
+outright (`[] is too short`), and Gemini's adapter had guarded against the same class of thing
+in its own way since it was written. Both `openai.ts` and `anthropic.ts` now omit the field
+when there is nothing in it.
+
 **Failures are remembered for the day.** A key that was wrong when the day's first reader
 arrived would otherwise cost one model call per page view. An ABSENT key is not a failure and
 records nothing, so adding one works on the next page load rather than tomorrow.

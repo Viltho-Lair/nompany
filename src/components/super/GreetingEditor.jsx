@@ -96,7 +96,7 @@ function Radio({ name, checked, onChange, title, hint }) {
   );
 }
 
-function Detail({ message, generated, busy, onChange, onSend, onWithdraw, onRemove }) {
+function Detail({ message, generated, problems, keySet, busy, onChange, onSend, onWithdraw, onRemove }) {
   const ai = message.source === "ai";
   const custom = message.theme.mode === "custom";
   const sent = message.status === "Sent";
@@ -160,9 +160,32 @@ function Detail({ message, generated, busy, onChange, onSend, onWithdraw, onRemo
                           )}
                         </>
                       ) : (
-                        <p className="mt-1 text-sm text-[var(--ad-destructive)]">
-                          Not generated. No key is set, or the call didn&apos;t go through — nothing shows in a studio.
-                        </p>
+                        /* IT SAYS WHICH, because "no key, or the call failed" is
+                           two situations with two different fixes and the screen
+                           already knows which one it is. When the provider gave a
+                           reason, that reason is shown verbatim: "model not
+                           found" and "invalid api key" are the same red box
+                           otherwise, and only one of them is about the key. */
+                        <div className="mt-1">
+                          <p className="text-sm text-[var(--ad-destructive)]">
+                            {!keySet
+                              ? "No key is set — add one under Settings. Nothing shows in a studio until then."
+                              : problems?.[`${message.id}:${dp}`]
+                                ? "The call didn't go through. Nothing shows in a studio for this part of the day."
+                                : "Not generated yet for this part of the day."}
+                          </p>
+                          {keySet && problems?.[`${message.id}:${dp}`] && (
+                            <>
+                              <p className="mt-1 break-words font-mono text-xs text-[var(--ad-muted-foreground)]">
+                                {problems[`${message.id}:${dp}`]}
+                              </p>
+                              <p className="mt-1 text-xs text-[var(--ad-muted-foreground)]">
+                                A failure is remembered until midnight so a broken key does not cost a call per
+                                page view. Fix it, then press Regenerate today&apos;s.
+                              </p>
+                            </>
+                          )}
+                        </div>
                       )}
                     </div>
                   );
@@ -228,6 +251,7 @@ function Detail({ message, generated, busy, onChange, onSend, onWithdraw, onRemo
 export default function GreetingEditor() {
   const [config, setConfig] = useState(null);
   const [bands, setBands] = useState(null);
+  const [problems, setProblems] = useState(null);
   const [ai, setAi] = useState(null);
   const [selected, setSelected] = useState("");
   const [settings, setSettings] = useState(false);
@@ -235,7 +259,7 @@ export default function GreetingEditor() {
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
 
-  function take(d) { setConfig(d.config); setBands(d.bands); setAi(d.ai); }
+  function take(d) { setConfig(d.config); setBands(d.bands); setProblems(d.problems); setAi(d.ai); }
 
   useEffect(() => {
     fetch("/api/super/greeting", { cache: "no-store" })
@@ -370,6 +394,8 @@ export default function GreetingEditor() {
             <Detail
               message={current}
               generated={generatedFor(current.id)}
+              problems={problems}
+              keySet={!!ai?.keySet}
               busy={!!busy}
               onChange={update}
               onSend={() => act("broadcast", current.id)}

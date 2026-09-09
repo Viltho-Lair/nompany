@@ -43,8 +43,15 @@ import {
 type TodayDoc = {
   day: string;
   byId: Record<string, Generation>;
-  /** Message ids whose generation failed TODAY — see `failed` below. */
+  /** `<id>:<daypart>` keys whose generation failed TODAY — see `failed` below. */
   failed?: string[];
+  /* WHY EACH ONE FAILED, and this was missing where it mattered most. The
+     console could only say "no key is set, or the call didn't go through",
+     which are two very different situations with two different fixes — and the
+     provider's own message ("model not found", "invalid x-api-key", "[] is too
+     short") is the one thing that says which. It was being caught and thrown
+     away. Kept for the day, like the failure itself. */
+  errors?: Record<string, string>;
 };
 
 export async function getGreetingConfig(): Promise<GreetingConfig> {
@@ -71,7 +78,9 @@ async function readToday(day: string): Promise<TodayDoc> {
   // A DOCUMENT FROM ANOTHER DAY IS NOT STALE DATA TO REPAIR, it is yesterday's
   // answer to a question nobody is asking. It is replaced wholesale rather than
   // merged, which is also what stops the failure list outliving the day it names.
-  return doc?.day === day ? { day, byId: doc.byId || {}, failed: doc.failed || [] } : { day, byId: {}, failed: [] };
+  return doc?.day === day
+    ? { day, byId: doc.byId || {}, failed: doc.failed || [], errors: doc.errors || {} }
+    : { day, byId: {}, failed: [], errors: {} };
 }
 
 /* WHAT THE MODEL IS ASKED FOR, and every line of it is a rule that a general
@@ -127,7 +136,7 @@ async function generateOne(
   day: string,
   daypart: Daypart,
   seed: number,
-): Promise<Generation | null> {
+): Promise<{ gen: Generation | null; error: string }> {
   try {
     const { text } = await runNova({
       provider,
@@ -141,12 +150,17 @@ async function generateOne(
       tools: [],
       execute: async () => null,
     });
-    return parseGeneration(text || "");
-  } catch {
-    // A PROVIDER OUTAGE IS NOT THIS PRODUCT'S OUTAGE. The caller records the
-    // failure for the day and every reader gets the fallback rotation; the
-    // studio header cannot break because somebody else's API is down.
-    return null;
+    const gen = parseGeneration(text || "");
+    // AN ANSWER THAT IS NOT JSON IS A FAILURE WITH A CAUSE, and saying so beats
+    // "the call didn't go through": the call went through and the model
+    // answered in prose, which is a prompt or a model-choice problem.
+    return { gen, error: gen ? "" : "The model answered, but not with the JSON asked for." };
+  } catch (e) {
+    // A PROVIDER OUTAGE IS NOT THIS PRODUCT'S OUTAGE — the studio header cannot
+    // break because somebody else's API is down. But the reason is kept: it is
+    // the difference between a wrong key, a wrong model id and a real outage,
+    // and the console has no other way to tell them apart.
+    return { gen: null, error: (e instanceof Error ? e.message : String(e)).slice(0, 300) };
   }
 }
 
@@ -180,11 +194,12 @@ async function ensureGenerations(config: GreetingConfig, day: string, daypart: D
 
   const fresh: Record<string, Generation> = {};
   const broke: string[] = [];
+  const why: Record<string, string> = {};
   for (const { m, i } of wanted) {
     const k = generationKey(m.id, daypart);
-    const gen = await generateOne(nova.provider, apiKey, nova.model, day, daypart, i);
+    const { gen, error } = await generateOne(nova.provider, apiKey, nova.model, day, daypart, i);
     if (gen) fresh[k] = gen;
-    else broke.push(k);
+    else { broke.push(k); why[k] = error || "The call did not go through."; }
   }
 
   // RE-READ BEFORE WRITING, because two first-readers can arrive at once and
@@ -195,7 +210,9 @@ async function ensureGenerations(config: GreetingConfig, day: string, daypart: D
   const current = await readToday(day);
   const byId: Record<string, Generation> = { ...fresh, ...current.byId };
   const nextFailed = [...new Set([...(current.failed || []), ...broke])].filter((id) => !byId[id]);
-  await setJSON(REG.greetingToday, { day, byId, failed: nextFailed } satisfies TodayDoc);
+  const errors: Record<string, string> = { ...(current.errors || {}), ...why };
+  for (const k of Object.keys(errors)) if (byId[k]) delete errors[k];
+  await setJSON(REG.greetingToday, { day, byId, failed: nextFailed, errors } satisfies TodayDoc);
   return byId;
 }
 
@@ -213,6 +230,18 @@ export async function getDailyBand(daypart: Daypart = "morning", now: Date = new
   const config = await getGreetingConfig();
   const generations = await ensureGenerations(config, day, daypart);
   return resolveBand(config, generations, daypart, now);
+}
+
+/**
+ * Why today's generations failed, keyed `<message id>:<daypart>`.
+ *
+ * The console asks for this so it can say WHICH of the two things went wrong
+ * rather than naming both and leaving somebody to guess. Empty is the good
+ * state; a key with no entry simply has not been attempted.
+ */
+export async function generationProblems(now: Date = new Date()): Promise<Record<string, string>> {
+  const doc = await readToday(dayKey(now));
+  return doc.errors || {};
 }
 
 /**
@@ -258,7 +287,7 @@ export async function withdrawMessage(id: string): Promise<GreetingConfig> {
  */
 export async function regenerateToday(now: Date = new Date()): Promise<DailyBand[]> {
   const day = dayKey(now);
-  await setJSON(REG.greetingToday, { day, byId: {}, failed: [] } satisfies TodayDoc);
+  await setJSON(REG.greetingToday, { day, byId: {}, failed: [], errors: {} } satisfies TodayDoc);
   const config = await getGreetingConfig();
   // ALL THREE PARTS OF THE DAY, because this is the console asking on purpose
   // rather than a reader arriving — somebody checking what the key produces
