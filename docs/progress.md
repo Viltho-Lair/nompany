@@ -1615,6 +1615,8 @@ Rows are never removed. A decision nobody can see is a decision that gets argued
 | **The record engine's register was table-only** | ✅ FIXED | One generic screen renders **31 built-in types** across five sections, and it had no search, filter, sort, paging or export. All five added, client-side over the type's own record set, with the reasoning for when that stops being right written into the file. Export is CSV with a BOM, and exports what is **filtered**, not what is paged. |
 | **"No starter role holds an engine right"** | ❌ WAS STALE | Measured: **zero** of the 91 section keys a seeded studio holds is unreachable by all eleven archetypes. The claim in CLAUDE.md was true when written and had stopped being true. The guard CLAUDE.md kept asking for by name now exists — `testEverySectionWithAScreenIsReachableBySomeSeededRole`, a shrink-only count, measured against a real studio's key list **plus the stored parent map** (without it `quality-hse` reads as unreachable and is not). |
 | **Quality & HSE has no catalogue area** | ⬜ NOT A DEFECT | Flagged as one, then withdrawn on reading the code. Its eight registers carry structural `engine.*` rights and the safety panel's two halves are gated already (`engine.incident.view`, `projects.list.view`); the route says so and gives the reason. A third right over records two others govern would be free to disagree with both. |
+| **A payment hold, and it is one seam not two** | ⬜ PLANNED (10/09/2026) | **Both halves of it are already built and neither is wired to a door.** `threeWayMatch` compares the order, the receipts and the bills and REPORTS — `inventory.ts:1342` says so in as many words — while `recordBillPayment` never asks it. `supplierQualification` computes `usable` and a `reason` from documents that carry real expiry, and Inventory already refuses to PLACE an order on it (`inventory.ts:1157`) while Finance will happily PAY a subcontractor whose insurance lapsed in March. Two upstream computations, one downstream door, and the same shape: a department refusing an act because of another department's state. Built as two features it would be two vocabularies for one idea. See **The payment hold** below. |
+| **The competitive artifact drifted from this file** | ✅ CORRECTED (10/09/2026) | *Fourteen Sections Against the Market*, measured at `efef5ecd`, ranked three-way matching #2 and subcontractor prequalification #8 of the things to build next. **Both were already built when it said so** — this file has recorded them ✅ since the Procurement section closed — and cross-record links and automation rules, its #4, shipped in `e250774d` and `82cfe4c0` the same day. Its depth table also says Manufacturing has "no MRP, no routings, no capacity" against an `mrp.ts` carrying `explode`, `netRequirements` and `capacityLoad`. **The artifact was wrong and progress.md was right**, which is the argument for one progress file rather than a second surface that also claims to say where the work is. Corrected in place at its own URL. |
 | **`logistics.landedCost` and `inventory/valuation` have no screen** | ⬜ OPEN | Same shape as the two fixed above — complete route and module, no component fetches either. Not built in this pass. |
 | **Field Operations' root is still the un-split Operations screen** | ⬜ OPEN | Locations and permits moved in the data (`COLLECTION_MOVES`); the screen that renders them did not follow. |
 
@@ -1638,6 +1640,93 @@ anybody who asks, and the only symptom is a right on the access grid that cannot
 exercised (invariant 16, from the screen end rather than the catalogue end). Four turned up;
 two are fixed here and two are listed above.
 
+
+## The payment hold — planned 10/09/2026
+
+**One seam, two callers, and the expensive halves are already written.** Procurement computes
+whether an order's three documents agree; Procurement computes whether a supplier's paperwork
+is in date. Finance pays. Nothing joins them, so both computations are advisory and the one
+act that moves money asks neither.
+
+### What it is
+
+A pure `modules/finance/hold.ts`, imported by the payment door and by the screen, answering one
+question: **may this bill be paid, and if not, in one sentence, why.** It imports the two pure
+models rather than reimplementing either — `inventory.ts` already imports
+`supplierQualification` across a module boundary, so this is the established shape and not a new
+one.
+
+### The refusal reuses Inventory's, verbatim
+
+`createOrder` already reads:
+
+```
+const qualification = supplierQualification(vendor, today);
+if (!qualification.usable) return { error: `supplier-${qualification.reason}` };
+```
+
+The payment door gets the same two lines against the same function, so a studio meets ONE
+vocabulary for a blocked supplier whichever end of the flow it hits. A second reason string for
+the same fact is how two screens end up disagreeing about whether a supplier is usable.
+
+### Four reasons, and each names its own fix
+
+- `supplier-suspended` / `supplier-rejected` — somebody's judgement; the fix is on the supplier.
+- `supplier-lapsed` — an approval cannot outlive the certificate it rested on, which
+  `supplierQualification` already says and already enforces at the ordering end.
+- `match-variance` — billed beyond what was received, past the tolerance.
+- `match-not-received` — billed for goods that never arrived at all (`billed-not-received`).
+
+**A bill with no `orderId` is NOT held**, and this is the load-bearing exclusion. Three-way
+matching needs three documents; rent, utilities and every expense a studio pays without raising
+a purchase order have one. Holding those would stop the studio's ordinary payments on the
+morning this ships, which is the failure the rollout rule below exists to prevent.
+
+### The tolerance is two dials, because one does not work
+
+A percentage alone lets a large order drift by a lot in cash; an absolute alone is wrong across
+order sizes. The variance passes if it is inside EITHER — the greater of the two — so rounding
+on a small order is absorbed by the floor and a big order is still held to a proportion. Both
+live in Finance settings beside the cash categories and the withholding rules, on the screen
+`saveFinanceSettings` finally got, written field-by-field with their reasons named the way the
+withholding rules already are.
+
+### `off` BY DEFAULT, and that is the whole rollout decision
+
+Three modes — `off`, `warn`, `block` — and a new studio starts `off`. Every precedent in this
+codebase says so and each was paid for: `supplierQualification` makes `unassessed` USABLE
+because "refusing to buy from any of them would break every existing studio's purchasing on the
+day this shipped"; the period lock refuses the POSTING and not the document; a blank expiry does
+not expire. A hold defaulting to `block` would stop real payments in live studios over paperwork
+nobody has been asked to file yet. `warn` is what makes it adoptable: the studio sees what WOULD
+have been held before anything is.
+
+### Releasing is its own act, with a reason, and not the payer's
+
+A hold nobody can release is a product that stops working, so there is an override — and it is
+**not held by whoever pays.** `money` carries `finance.payables.pay`; the release goes to
+`department-head`, the archetype that already holds every approval deliberately kept away from
+the person raising the thing approved. That is invariant 7's argument, not a new one.
+
+**A release without a REASON is refused**, which is the period-reopening rule exactly: a hold
+overridden silently is a hold that never happened, and the reason is the only thing that makes
+the override auditable afterwards. It is stored on the payment beside `recordedByCollaboratorId`.
+
+**One new extra: `finance.payables.release`.** It does not move the archetype residue — the
+extras ceiling in `tests/roles-model.mjs` counts keys reachable by NO archetype but principal,
+and this one is reachable by `department-head` the day it is declared.
+
+### It refuses the PAYMENT, not the bill
+
+The period lock's shape. A bill can be received and approved with a hold standing against it;
+what is held is the money. Refusing the document would mean a studio could not record a supplier
+invoice it has genuinely received, which is a worse lie than paying late.
+
+### What it is not
+
+Not a lien-waiver record, not a compliance module, not a certificate store — the supplier
+documents already exist and carry expiry. This wires what is there. Lien waivers and back-charges
+are separate rows if they are ever wanted.
 
 ## Open decisions
 
