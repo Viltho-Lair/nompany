@@ -1682,6 +1682,27 @@ export async function testEveryBuiltinRecordTypeHasItsOwnIcon(t) {
   const art = readFileSync("src/components/studio2/icons.art.js", "utf8");
   const names = new Set([...art.matchAll(/^\s{2}([a-zA-Z0-9_]+):/gm)].map((m) => m[1]));
 
+  /* AND THE FALLBACK IS A MARK, NOT A DOT. The map can only name keys that exist
+     when StudioFrame is compiled; a record type a studio invents this afternoon
+     mints `engine-<typeKey>` with no commit between them and their own sidebar,
+     so SOMETHING must answer for it. `sectionIcon` is that something, and these
+     two assertions are what stop it quietly becoming a dot again — one for the
+     name resolving, one for the shape, because `|| "dot"` reintroduced at any of
+     the five call sites would fail nothing at runtime. */
+  const fallback = /const FALLBACK_SECTION_ICON = "([a-zA-Z0-9]+)"/.exec(frame)?.[1] || "";
+  t.equal(names.has(fallback), true,
+    `the section fallback icon "${fallback}" is not in the set — every studio-made register would draw a dot`);
+  // COMMENTS COME OUT FIRST. The prose above `SECTION_ICONS` explains what the
+  // fallback USED to be, quoting `|| "dot"` — and deleting that reasoning to
+  // satisfy a grep would throw away the only record of why the map exists. Same
+  // treatment, and the same `[^:]` guard against `https://`, that the
+  // native-<select> assertion in this file uses.
+  const frameCode = frame
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/(^|[^:])\/\/.*$/gm, "$1");
+  t.equal(/\|\|\s*"dot"/.test(frameCode), false,
+    'StudioFrame still falls back to "dot" somewhere — route every call site through sectionIcon()');
+
   const byParent = {};
   for (const type of types) {
     const icon = icons[`engine-${type.key}`];

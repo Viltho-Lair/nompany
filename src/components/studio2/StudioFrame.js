@@ -82,12 +82,13 @@ const SECTION_ICONS = {
   people: "team",
   access: "lock",
   engagements: "link",
-  // Sales sub-sections carry their own icons rather than falling back to the
-  // neutral dot, so the group reads as three destinations instead of a list.
-  // THE SIX THAT FELL THROUGH TO `dot`, measured rather than eyeballed: the
-  // whole Procurement group and Sales' order register. `SECTION_ICONS[key] ||
-  // "dot"` is a fallback for a key nobody mapped, and five identical dots under
-  // one parent is a list that says nothing about what is in it.
+  // Sales sub-sections carry their own icons rather than sharing the fallback,
+  // so the group reads as three destinations instead of a list.
+  // THE SIX THAT FELL THROUGH, measured rather than eyeballed: the whole
+  // Procurement group and Sales' order register. Five identical marks under one
+  // parent is a list that says nothing about what is in it — which is the whole
+  // reason each of these is named. (This said `SECTION_ICONS[key] || "dot"`; the
+  // fallback is `sectionIcon` below now, and it is a mark rather than a dot.)
   "crm-sales-orders": "salesOrders",
   "procurement-requisitions": "requisitions",
   "procurement-rfq": "supplierQuotes",
@@ -203,6 +204,30 @@ const SECTION_ICONS = {
   "field-service-settings": "gears",
   "tasks-settings": "gears",
 };
+
+/* A SECTION A STUDIO INVENTED STILL GETS A MARK.
+   ------------------------------------------------------------------
+   `SECTION_ICONS` can only name keys that exist when this file is compiled, and
+   an engine record type is a ROW: its section key is `engine-<typeKey>`, minted
+   the moment somebody adds a type. The thirty-one built-ins are mapped above by
+   name; a type a studio invents this afternoon cannot be, ever — there is no
+   commit between them and their own sidebar.
+
+   So the fallback is a REAL MARK rather than a dot. Every one of these screens
+   is a register of records, which is a list, and a list drawn against a section
+   name reads as that section. A dot reads as nothing, and five of them under one
+   parent read as a list that says nothing about what is in it — which is the
+   argument the map above already makes for the built-ins.
+
+   The honest limit: every studio-made register wears the SAME mark, because
+   nothing on a type row says which one it wants. Giving a type its own icon is a
+   field on the declaration and a backfill for the sections already planted, and
+   it belongs with the type editor rather than here. */
+const FALLBACK_SECTION_ICON = "list";
+
+function sectionIcon(key) {
+  return SECTION_ICONS[key] || FALLBACK_SECTION_ICON;
+}
 
 // A HUE PER SECTION, AND SUB-SECTIONS INHERIT THEIR PARENT'S.
 //
@@ -560,7 +585,7 @@ export default function StudioFrame({
             onClick={() => { setOpen(false); if (active) toggleGroup(node.key); }}
             className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5"
           >
-            <Icon name={SECTION_ICONS[node.key] || "dot"} className={iconClass(node.key)} />
+            <Icon name={sectionIcon(node.key)} className={iconClass(node.key)} />
             <span className="truncate">{sectionName(node.key, node.name, locale)}</span>
           </Link>
           <button
@@ -590,7 +615,7 @@ export default function StudioFrame({
     return (
       <Link key={key} href={href} onClick={() => setOpen(false)} className={`${itemClass(active)} ${extraClass}`}>
         <span className="flex items-center gap-3">
-          <Icon name={SECTION_ICONS[key] || "dot"} className={iconClass(key)} />
+          <Icon name={sectionIcon(key)} className={iconClass(key)} />
           {label}
         </span>
       </Link>
@@ -653,7 +678,7 @@ export default function StudioFrame({
             onClick={(e) => { e.stopPropagation(); setHeaderMenu((k) => (k === menu.key ? null : menu.key)); }}
             className={`${rowClass(menu.items.some((i) => i.key === activeKey))} h-9 w-9 justify-center`}
           >
-            <Icon name={SECTION_ICONS[menu.key] || "dot"} className={iconClass(menu.key)} />
+            <Icon name={sectionIcon(menu.key)} className={iconClass(menu.key)} />
           </button>
 
           {headerMenu === menu.key && (
@@ -670,7 +695,7 @@ export default function StudioFrame({
                       : "text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-white/5"
                   }`}
                 >
-                  <Icon name={SECTION_ICONS[item.key] || "dot"} className={iconClass(item.key)} />
+                  <Icon name={sectionIcon(item.key)} className={iconClass(item.key)} />
                   <span className="truncate">{item.label}</span>
                 </Link>
               ))}
@@ -738,7 +763,7 @@ export default function StudioFrame({
             aria-label={i.label}
             className={`${rowClass(i.key === activeKey)} aspect-square shrink-0 justify-center`}
           >
-            <Icon name={SECTION_ICONS[i.key] || "dot"} className={iconClass(i.key)} />
+            <Icon name={sectionIcon(i.key)} className={iconClass(i.key)} />
           </Link>
         ))}
         {/* AND SETTINGS BESIDE IT, WHICH IS NOT A REVERSION.
