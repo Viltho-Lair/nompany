@@ -77,6 +77,14 @@ type Strings = {
   sectionsRequired: string;
   sectionsNotReady: string;
   sectionsRefused: string;
+  // THE TRADE'S OFFER — what the studio's field of work would switch, applied
+  // only when somebody presses Apply. The names are the studio's own section
+  // names, so they arrive as a list and each locale joins them its own way.
+  sectionsSuggestLead: string;
+  sectionsSuggestOff: (names: string[]) => string;
+  sectionsSuggestOn: (names: string[]) => string;
+  sectionsSuggestApply: string;
+  sectionsSuggestFailed: string;
 
   legalHeading: string;
   legalLead: string;
@@ -272,6 +280,11 @@ const en: Strings = {
   sectionsRequired: "Always on",
   sectionsNotReady: "Not ready yet",
   sectionsRefused: "That section couldn't be changed.",
+  sectionsSuggestLead: "This studio's field of work suggests a different set of sections. Nothing changes until you apply it.",
+  sectionsSuggestOff: (names) => `Turn off: ${names.join(", ")}`,
+  sectionsSuggestOn: (names) => `Turn on: ${names.join(", ")}`,
+  sectionsSuggestApply: "Apply",
+  sectionsSuggestFailed: "Those sections couldn't be changed.",
 
   legalHeading: "Legal information",
   legalLead:
@@ -478,6 +491,11 @@ const ar: Strings = {
   sectionsRequired: "دائم التشغيل",
   sectionsNotReady: "غير جاهز بعد",
   sectionsRefused: "تعذر تغيير ذلك القسم.",
+  sectionsSuggestLead: "مجال عمل هذا الاستوديو يقترح مجموعة مختلفة من الأقسام. لا يتغير شيء حتى يطبق الاقتراح.",
+  sectionsSuggestOff: (names) => `إيقاف: ${names.join("، ")}`,
+  sectionsSuggestOn: (names) => `تشغيل: ${names.join("، ")}`,
+  sectionsSuggestApply: "تطبيق",
+  sectionsSuggestFailed: "تعذر تغيير هذه الأقسام.",
 
   legalHeading: "المعلومات القانونية",
   legalLead:

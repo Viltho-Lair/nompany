@@ -190,9 +190,44 @@ That module is also where the active nav row comes from. A layout is never hande
 segments, so the shell reads `usePathname()` — the same address the page reads from `params` —
 rather than being told by a prop.
 
+## A studio's trade decides which sections it starts with — and, later, suggests
+
+`createStudio` takes the studio's field of work and switches off the root sections that trade
+does not use (`shared/tradeSections`, joined with the trade's own flow templates). Every row is
+still written — only `enabled` differs — because a sub-section falls back to its root when
+absent, and planting one late strands the rows written before it.
+
+**That gate runs once, at creation, deliberately.** A section vanishing from a live sidebar
+overnight is a support ticket, not a courtesy, so changing the trade later in Studio settings
+switches nothing by itself. What it does instead is **offer**: the Sections panel says what the
+trade would turn off or on — for Information Technology & Software, Manufacturing and Logistics —
+and changes nothing until somebody presses **Apply**. Departments makes the same kind of offer
+after a trade change, for the same reason.
+
+- **One answer for both.** `tradeRootsFor` in `modules/main/studios.ts` is what `createStudio`
+  gates with and what the offer reads; `tradeSuggestion` in `shared/tradeSections` compares it
+  with the studio's rows. It is pure, and `tests/restructure.mjs` holds what it must never
+  propose.
+- **It never proposes a change the route would refuse**: nothing required, no system row,
+  nothing with no screen switched on, and nothing the studio added itself.
+- **An unknown trade — none, "Other", or a name the matrix does not know — suggests nothing**,
+  and in particular not "turn everything back on": a studio that switched a section off without
+  naming its trade did it on purpose.
+- **Applying is `POST /settings/sections` with `{ action: "apply-trade", off, on }`**, on
+  `administration.settings.edit`. The server recomputes the offer and applies only the keys that
+  are both shown and still suggested, so a stale screen cannot switch off a section somebody has
+  since decided to keep. A root carries its children exactly as the single toggle does — one
+  helper serves both.
+
 ## Not built yet
 
 Stated in words, because a silent gap reads as a finished feature.
+
+- **The trade's offer cannot be dismissed.** A studio that keeps a section its trade would
+  switch off — a software house with a hardware line — sees the suggestion every time it opens
+  Studio settings. It is one line and changes nothing, but it does not go away.
+- **Nothing points at the offer from where the trade is changed.** It sits in the Sections
+  panel; somebody has to scroll there to see it.
 
 - **Tendering & Estimating, Manufacturing & Production, Assets & Equipment, Reports & BI and
   Quality & HSE have no screens.** They are names and nav ordering.

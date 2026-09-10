@@ -39,7 +39,7 @@ const { ARCHETYPES, permissionsFor } = await import("../src/modules/people/arche
 const { engineSectionKey } = await import("../src/platform/access/catalogue.ts");
 const { INDUSTRIES, industryByField } = await import("../src/platform/engagement/industries.ts");
 const { FIELD_ACTION_MATRIX, SERVICE_ACTIONS, actionsForField } = await import("../src/shared/fieldsOfWork.ts");
-const { ACTION_SECTION, UNIVERSAL_SECTION_KEYS, NEVER_GATED_KEYS, rootSectionsForTrade, sectionEnabledForTrade }
+const { ACTION_SECTION, UNIVERSAL_SECTION_KEYS, NEVER_GATED_KEYS, rootSectionsForTrade, sectionEnabledForTrade, tradeSuggestion }
   = await import("../src/shared/tradeSections.ts");
 const { FLOW_TEMPLATES } = await import("../src/platform/engagement/templates.ts");
 const { STAGE_REGISTRY } = await import("../src/platform/engagement/registry.ts");
@@ -1880,6 +1880,77 @@ export async function testTheTwoIndustryListsAreOneList(t) {
 }
 
 
+// A TRADE'S OWN FLOW, resolved to ROOT sections — the test-side mirror of
+// `dealSpineFor` in modules/main/studios.ts, which is private there. Shared by
+// the two trade tests below rather than written into each.
+const tradeRootOf = new Map();
+for (const d of SECTION_DEFS) {
+  tradeRootOf.set(d.key, d.key);
+  for (const c of d.children || []) tradeRootOf.set(c.key, d.key);
+}
+function tradeSpineFor(field) {
+  const ind = industryByField(field);
+  if (!ind) return [];
+  const out = new Set();
+  for (const id of [ind.primary, ind.secondary].filter(Boolean)) {
+    const tpl = FLOW_TEMPLATES.find((x) => x.id === id);
+    for (const st of tpl?.stages || []) {
+      const e = STAGE_REGISTRY[st];
+      if (e) out.add(tradeRootOf.get(e.sectionKey) || e.sectionKey);
+    }
+  }
+  return [...out];
+}
+
+// THE TRADE'S OFFER TO A STUDIO THAT ALREADY EXISTS.
+//
+// The gate below runs once, at creation. A studio created as "Other" and set
+// to a real trade afterwards got NOTHING — its sidebar kept all fourteen and no
+// screen said the trade would change that, because the matrix had exactly one
+// caller. `tradeSuggestion` is the offer; applying it is a button in Studio
+// settings. What this holds is what it must NEVER propose.
+export async function testTheTradeOffersOnlyWhatItMayChange(t) {
+  const seeded = new Set(SECTION_DEFS.map((d) => d.key));
+  const rules = {
+    isSeeded: (k) => seeded.has(k),
+    isSystem: isSystemSection,
+    required: (k) => k === "main" || k === "administration",
+    noScreen: (k) => k === "reports",
+  };
+  const wanted = new Set(["crm-sales", "projects", "reports", "finance", "hr"]);
+  const offer = tradeSuggestion([
+    { key: "crm-sales", enabled: true },      // wanted and on: nothing to say
+    { key: "manufacturing", enabled: true },  // unwanted and on: offered OFF
+    { key: "logistics", enabled: false },     // unwanted and already off: nothing
+    { key: "projects", enabled: false },      // wanted and off: offered ON
+    { key: "reports", enabled: false },       // wanted, but no screen: never ON
+    { key: "tasks", enabled: true },          // never gated
+    { key: "administration", enabled: true }, // system, and required
+    { key: "my-own-section", enabled: true }, // the studio's own: not the trade's to judge
+  ], wanted, rules);
+  t.equal(offer.off.join(","), "manufacturing", `offered off: ${offer.off.join(",")}`);
+  t.equal(offer.on.join(","), "projects", `offered on: ${offer.on.join(",")}`);
+
+  // NO TRADE, NO OFFER — and emphatically not "turn everything on". A studio
+  // that never named its trade and switched a section off did it on purpose.
+  const none = tradeSuggestion([{ key: "manufacturing", enabled: false }], null, rules);
+  t.equal(none.off.length + none.on.length, 0, "an unknown trade suggests nothing");
+
+  // THE CASE THAT PROMPTED IT, on the real matrix: an IT & Software studio with
+  // everything on is offered exactly Manufacturing and Logistics. Inventory is
+  // NOT offered — no IT action maps there, but its support template (D) writes
+  // project sheets and deliveries, which are Inventory's.
+  const it = "Information Technology & Software";
+  const itOffer = tradeSuggestion(
+    SECTION_DEFS.map((d) => ({ key: d.key, enabled: true })),
+    rootSectionsForTrade(actionsForField(it), tradeSpineFor(it)),
+    { ...rules, required: (k) => ["main", "administration", "administration-settings"].includes(k),
+      noScreen: () => false });
+  t.equal([...itOffer.off].sort().join(","), "logistics,manufacturing",
+    `IT & Software, everything on, is offered off: ${itOffer.off.join(",")}`);
+  t.equal(itOffer.on.length, 0, "...and nothing on");
+}
+
 // A TRADE ONLY EVER SWITCHES OFF A SECTION IT DOES NOT USE.
 //
 // `rootSectionsForTrade` decides which of the fourteen a new studio starts with,
@@ -1888,24 +1959,7 @@ export async function testTheTwoIndustryListsAreOneList(t) {
 // so the cost of being wrong is a section somebody has to go and find, and the
 // cost of being wrong in the other direction is clutter. This holds the floor.
 export async function testNoTradeSwitchesOffASectionItActuallyUses(t) {
-  const rootOf = new Map();
-  for (const d of SECTION_DEFS) {
-    rootOf.set(d.key, d.key);
-    for (const c of d.children || []) rootOf.set(c.key, d.key);
-  }
-  const spineFor = (field) => {
-    const ind = industryByField(field);
-    if (!ind) return [];
-    const out = new Set();
-    for (const id of [ind.primary, ind.secondary].filter(Boolean)) {
-      const tpl = FLOW_TEMPLATES.find((x) => x.id === id);
-      for (const st of tpl?.stages || []) {
-        const e = STAGE_REGISTRY[st];
-        if (e) out.add(rootOf.get(e.sectionKey) || e.sectionKey);
-      }
-    }
-    return [...out];
-  };
+  const spineFor = tradeSpineFor;
 
   // -- the map names real sections, and covers every action.
   const roots = new Set(SECTION_DEFS.map((d) => d.key));
@@ -2082,6 +2136,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       testEverySectionWithAScreenIsReachableBySomeSeededRole,
       testTheTwoIndustryListsAreOneList,
       testNoTradeSwitchesOffASectionItActuallyUses,
+      testTheTradeOffersOnlyWhatItMayChange,
       testEveryBuiltinLinkPointsAtARealRegister,
       testAdministrationFollowsItsChildren,
       testProjectSegmentsAreExemptFromTheBoard,

@@ -134,3 +134,53 @@ export function sectionEnabledForTrade(
   if (isSystem(key)) return true;
   return on.has(rootKey);
 }
+
+/**
+ * WHAT A STUDIO'S TRADE SUGGESTS CHANGING, against the sections it has now.
+ *
+ * THE GATE ABOVE RUNS ONCE, AT CREATION, and that stays true: a section
+ * vanishing from a live sidebar overnight is a support ticket, not a courtesy.
+ * This is the OFFER instead — the shape Departments already uses after a trade
+ * change: say what the trade would switch, apply nothing until somebody presses
+ * Apply. A studio created as "Other" and set to a real trade later got nothing
+ * at all before this existed, because the matrix had exactly one caller.
+ *
+ * ROOTS ONLY. A child follows its root (see `sectionEnabledForTrade`), so the
+ * offer is made per branch and applied per branch.
+ *
+ * `on` NULL MEANS THE TRADE SUGGESTS NOTHING — unknown, unsaid or "Other" — and
+ * the answer is empty, emphatically not "turn everything on": a studio that never
+ * named its trade and switched Manufacturing off did that on purpose, and an
+ * unknown trade is no evidence against it.
+ *
+ * THE RULES ARE INJECTED, like `isSystem` above, so this stays a pure value with
+ * no reach into `platform/`. Each one is a change the route would refuse or a
+ * row that is not the trade's to judge: a required section, a system row, a
+ * section with no screen (never offered ON — it would lead to an empty page), and
+ * a section the studio added itself (`isSeeded` false — the matrix knows nothing
+ * about it, so it cannot say it is unused).
+ */
+export type TradeSuggestion = { off: string[]; on: string[] };
+
+export function tradeSuggestion(
+  roots: readonly { key: string; enabled: boolean }[],
+  on: ReadonlySet<string> | null,
+  rules: {
+    isSeeded: (k: string) => boolean;
+    isSystem: (k: string) => boolean;
+    required: (k: string) => boolean;
+    noScreen: (k: string) => boolean;
+  },
+): TradeSuggestion {
+  const out: TradeSuggestion = { off: [], on: [] };
+  if (!on) return out;
+  for (const row of roots) {
+    const key = row.key;
+    if (!rules.isSeeded(key) || rules.isSystem(key) || rules.required(key)) continue;
+    if ((NEVER_GATED_KEYS as readonly string[]).includes(key)) continue;
+    const wanted = on.has(key);
+    if (wanted && !row.enabled && !rules.noScreen(key)) out.on.push(key);
+    else if (!wanted && row.enabled) out.off.push(key);
+  }
+  return out;
+}

@@ -27,7 +27,9 @@ import { listDepartments } from "@/modules/administration/departments";
 import { seedBuiltinTypes } from "@/platform/engine/builtins";
 import { ensureDefaultPlan } from "@/lib/data/catalog";
 import { FIELDS_OF_WORK, OTHER_FIELD, actionsForField } from "@/shared/fieldsOfWork";
-import { rootSectionsForTrade, sectionEnabledForTrade } from "@/shared/tradeSections";
+import { rootSectionsForTrade, sectionEnabledForTrade, tradeSuggestion, type TradeSuggestion } from "@/shared/tradeSections";
+import { NO_SCREEN_YET } from "@/platform/access";
+import { REQUIRED_SECTIONS } from "@/platform/db/sections";
 import { industryByField } from "@/platform/engagement/industries";
 import { FLOW_TEMPLATES } from "@/platform/engagement/templates";
 import { STAGE_REGISTRY } from "@/platform/engagement/registry";
@@ -103,6 +105,50 @@ function dealSpineFor(field: string): string[] {
     }
   }
   return [...out];
+}
+
+/**
+ * THE ROOT SECTIONS A TRADE SUGGESTS, or NULL when it suggests nothing.
+ *
+ * ONE ANSWER FOR BOTH CALLERS. `createStudio` gates a new studio with it and
+ * Studio settings OFFERS it to an existing one; two copies of this line would be
+ * two opinions about what a trade uses, free to disagree the day one of them
+ * learned about a secondary template and the other did not.
+ *
+ * NULL for no trade, for "Other", and for a name the matrix does not know. The
+ * third is new: such a name used to fall through to the universals alone and
+ * would have started the studio with five sections. A trade the product cannot
+ * read is no evidence of what the company does.
+ */
+export function tradeRootsFor(field: unknown): Set<string> | null {
+  const trade = String(field ?? "").trim();
+  if (!trade || trade === OTHER_FIELD) return null;
+  const actions = actionsForField(trade);
+  if (!actions.length) return null;
+  return rootSectionsForTrade(actions, dealSpineFor(trade));
+}
+
+/**
+ * WHAT THIS STUDIO'S TRADE WOULD SWITCH, against its own section rows — the
+ * offer the Sections panel shows and the apply route re-checks. The rules are
+ * the route's own refusals, so it never proposes a change the route would turn
+ * down.
+ */
+export function tradeSuggestionFor(
+  field: unknown,
+  sections: readonly { key: string; parentId?: string | null; enabled?: boolean }[],
+): TradeSuggestion {
+  const seeded = new Set<string>(SECTION_DEFS.map((d) => d.key));
+  return tradeSuggestion(
+    sections.filter((s) => !s.parentId).map((s) => ({ key: s.key, enabled: s.enabled !== false })),
+    tradeRootsFor(field),
+    {
+      isSeeded: (k) => seeded.has(k),
+      isSystem: isSystemSection,
+      required: (k) => (REQUIRED_SECTIONS as readonly string[]).includes(k),
+      noScreen: (k) => (NO_SCREEN_YET as readonly string[]).includes(k),
+    },
+  );
 }
 
 export async function createStudio(
@@ -203,14 +249,13 @@ export async function createStudio(
     // `enabled` IS ALREADY READ: `visibleSections` filters on it and there is
     // already a route and a screen to toggle it. Nothing here is new machinery —
     // the flag was built, honoured and never set to false by anything.
-    const onRoots = rootSectionsForTrade(actionsForField(trade), dealSpineFor(trade));
-    // An unknown or unsaid trade gates nothing: `rootSectionsForTrade` returns
-    // the universals plus an empty spine, so this says "everything" for it
-    // rather than leaving such a studio with five sections.
+    // An unknown or unsaid trade gates nothing — `tradeRootsFor` answers null
+    // for it — rather than leaving such a studio with five sections. The same
+    // function is what Studio settings OFFERS an existing studio, so a new
+    // studio and an offer cannot disagree about what a trade uses.
+    const onRoots = tradeRootsFor(trade);
     const gate = (key: string, rootKey: string) =>
-      !trade || trade === OTHER_FIELD
-        ? true
-        : sectionEnabledForTrade(key, rootKey, onRoots, isSystemSection);
+      onRoots ? sectionEnabledForTrade(key, rootKey, onRoots, isSystemSection) : true;
 
     const sections: Section[] = [];
     SECTION_DEFS.forEach((d) => {

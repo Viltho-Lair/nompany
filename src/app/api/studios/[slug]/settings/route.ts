@@ -6,7 +6,7 @@ import { isKnownCurrency, crossRate } from "@/shared/currencies";
 import { getExchangeSnapshot } from "@/lib/data/exchangeRates";
 import { currentUser } from "@/platform/auth/identity";
 import { studioContext } from "@/lib/studios";
-import { updateStudio } from "@/modules/main/studios";
+import { updateStudio, tradeSuggestionFor } from "@/modules/main/studios";
 import { studioLocale, isLocale, defaultLocale } from "@/shared/i18n";
 import { ALL_PERMISSIONS } from "@/platform/access/catalogue";
 import { chainProblems, type ApprovalChain } from "@/platform/approval/chains";
@@ -244,6 +244,10 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
       noScreen: (NO_SCREEN_YET as readonly string[]).includes(x.key),
       required: (REQUIRED_SECTIONS as readonly string[]).includes(x.key),
     })),
+    // WHAT THE STUDIO'S TRADE WOULD SWITCH, as keys — the screen already holds
+    // the rows and their names. OFFERED, never applied: the gate runs once, at
+    // creation, and changing the trade later switches nothing by itself.
+    tradeSuggestion: tradeSuggestionFor(studio.fieldOfWork, context.sections || []),
     // Asking for deletion is the OWNER's call, not an admin's: it ends the
     // studio for everybody in it.
     isOwner: collaborator.role === "owner",

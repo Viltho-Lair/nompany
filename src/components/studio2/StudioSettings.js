@@ -84,6 +84,8 @@ export default function StudioSettings({ slug, locale = "en" }) {
   const [isOwner, setIsOwner] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [sections, setSections] = useState([]);
+  // WHAT THE STUDIO'S TRADE WOULD SWITCH, from the same read as `sections`.
+  const [suggestion, setSuggestion] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -96,6 +98,7 @@ export default function StudioSettings({ slug, locale = "en" }) {
       setFx(d.fx || null);
       setIsOwner(Boolean(d.isOwner));
       setSections(Array.isArray(d.sections) ? d.sections : []);
+      setSuggestion(d.tradeSuggestion || null);
     }
     setLoading(false);
   }, [slug]);
@@ -297,6 +300,7 @@ export default function StudioSettings({ slug, locale = "en" }) {
         slug={slug}
         rows={sections}
         canManage={canManage}
+        suggestion={suggestion}
         onSaved={load}
       />
 
@@ -309,7 +313,7 @@ export default function StudioSettings({ slug, locale = "en" }) {
       {/* Its own fetch/save cycle against the dedicated service-actions route —
           the general settings PUT above no longer accepts `serviceActions` at
           all, so this section cannot share the parent's `save`. */}
-      <ServiceActions slug={slug} />
+      <ServiceActions slug={slug} onTradeSaved={load} />
 
       {/* THE DEAL FLOWS (Law 2). Its own fetch/save cycle against the flows
           route, for the same reason ServiceActions has one: the general
@@ -504,7 +508,7 @@ function SectionRow({ row, depth, tr, kids, canManage, busy, failed, onToggle })
 // and `noScreen` are exactly what the route refuses; a second copy in the
 // browser would be free to disagree the first time either changed, and the
 // disagreement would show as a switch that looks live and does nothing.
-function StudioSections({ slug, rows, canManage, onSaved }) {
+function StudioSections({ slug, rows, canManage, suggestion, onSaved }) {
   const tr = useT();
   // THE SIDEBAR IS SERVER-RENDERED, so re-reading the settings payload is only
   // half the update: this screen would show the switch in its new position
@@ -542,12 +546,47 @@ function StudioSections({ slug, rows, canManage, onSaved }) {
     router.refresh();
   }
 
+  // THE TRADE'S OFFER, APPLIED. The screen sends exactly what it showed; the
+  // route recomputes the offer and applies only what is still suggested, so a
+  // stale screen cannot switch off a section somebody has since kept. Names are
+  // the rows' own, the same ones the switches below are labelled with.
+  const nameOf = useMemo(() => new Map(rows.map((r) => [r.key, r.name])), [rows]);
+  async function applyTrade() {
+    setBusy("trade");
+    setFailed("");
+    const res = await fetch(`/api/studios/${slug}/settings/sections`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "apply-trade", off: suggestion.off, on: suggestion.on }),
+    });
+    setBusy("");
+    if (!res.ok) { setFailed("trade"); return; }
+    await onSaved();
+    router.refresh();
+  }
+
   if (!rows.length) return null;
 
   return (
     <section className="mt-8 rounded-geex border border-slate-200/70 p-5 dark:border-white/10">
       <h3 className="font-display text-base font-700 text-slate-900 dark:text-white">{tr.sectionsHeading}</h3>
       <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{tr.sectionsLead}</p>
+      {/* OFFERED, NEVER APPLIED BY ITSELF. The trade gate runs once, at
+          creation; after that a section only moves when somebody here says so. */}
+      {canManage && suggestion && (suggestion.off.length > 0 || suggestion.on.length > 0) && (
+        <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm dark:border-white/10 dark:bg-white/5">
+          <p className="text-slate-600 dark:text-slate-300">{tr.sectionsSuggestLead}</p>
+          {suggestion.off.length > 0 && (
+            <p className="mt-1 font-600 text-slate-900 dark:text-white">{tr.sectionsSuggestOff(suggestion.off.map((k) => nameOf.get(k) || k))}</p>
+          )}
+          {suggestion.on.length > 0 && (
+            <p className="mt-1 font-600 text-slate-900 dark:text-white">{tr.sectionsSuggestOn(suggestion.on.map((k) => nameOf.get(k) || k))}</p>
+          )}
+          <div className="mt-3 flex items-center gap-3">
+            <button type="button" className={BTN} disabled={busy === "trade"} onClick={applyTrade}>{tr.sectionsSuggestApply}</button>
+            {failed === "trade" && <span className="text-xs text-rose-600 dark:text-rose-300">{tr.sectionsSuggestFailed}</span>}
+          </div>
+        </div>
+      )}
       <div className="mt-4 divide-y divide-slate-100 dark:divide-white/5">
         {roots.map((row) => (
           <SectionRow key={row.id} row={row} depth={0} tr={tr} kids={byParent}
@@ -630,7 +669,7 @@ function LegalInfo({ rows, canManage, onSave }) {
 // `.../settings/service-actions` route — the general settings PUT stopped
 // accepting `serviceActions` once that route existed, so sharing the parent
 // `save` here would 400 on every change (see the route's own comment).
-function ServiceActions({ slug }) {
+function ServiceActions({ slug, onTradeSaved }) {
   const tr = useT();
   const [data, setData] = useState(null); // GET body: fieldOfWork, serviceActions, usage, options, canManage…
   const [loading, setLoading] = useState(true);
@@ -667,6 +706,11 @@ function ServiceActions({ slug }) {
     const d = await res.json();
     setData(d);
     setOtherDraft(d.fieldOfWorkOther || "");
+    // THE TRADE MOVED, so the Sections panel's offer is stale: it rides on the
+    // page's own settings read, which this component does not share. Without
+    // this the offer appeared only after a full reload — which is exactly how a
+    // trade change came to read as "the matrix did nothing".
+    if (patch.fieldOfWork !== undefined) onTradeSaved?.();
     return true;
   }
 
