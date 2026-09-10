@@ -67,13 +67,23 @@ deliberate rather than drift: this widget forecasts everything not yet *decided*
 board's "open value" excludes On-Hold because a held deal is not money to count on. Both are
 asserted.
 
+## Across time, money and clients (10/09/2026)
+
+Six widgets draw the same tickets several ways rather than counting them once each: **open value
+by stage**, **top clients by open value** (the tail folded into Other, so the rows add up),
+**open deals by urgency** as one share bar, **deals opened per month** (value as bars, count as
+a line, twelve months), **won and lost by month** (dated by `closedAt`; a close from before that
+field existed is not guessed onto a month) and **when deals arrive** — a weekday × week heat
+grid. All of them bucket through `components/dashboard/series`; the shared rules are in
+`dashboards.md`.
+
 ## Not built yet
 
 Stated in words, because a silent gap reads as a finished feature.
 
-- **No time dimension anywhere.** Every figure is "as of now": no month-on-month, no trend, no
-  comparison against a previous period, and no date-range filter. `stageHistory` and `closedAt`
-  make several of these derivable and none is derived.
+- **The time windows are fixed.** Intake and win/loss are the last twelve months and the heat
+  grid the last eight weeks; there is no date-range filter and no comparison against a previous
+  period. (This said "no time dimension anywhere" until 10/09/2026.)
 - **No conversion rates between stages** and no average time per stage, though the stage history
   now holds what both need.
 - **No target or quota**, so nothing says whether the pipeline is enough.

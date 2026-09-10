@@ -65,6 +65,13 @@ export const DASHBOARD_WIDGETS: WidgetDef[] = [
   // tier stores the keys it includes. These two are new rather than renamed.
   { key: "sales.loss-reasons", label: "Why deals are lost", section: "crm-sales", rung: "moderate" },
   { key: "sales.stalled", label: "Stalled deals", section: "crm-sales", rung: "moderate" },
+  // Added 10/09/2026 with the dashboards' richer half — new keys, none renamed.
+  { key: "sales.value-by-stage", label: "Open value by stage", section: "crm-sales", rung: "simple" },
+  { key: "sales.top-clients", label: "Top clients by open value", section: "crm-sales", rung: "simple" },
+  { key: "sales.urgency-mix", label: "Open deals by urgency", section: "crm-sales", rung: "simple" },
+  { key: "sales.intake-trend", label: "Deals opened per month", section: "crm-sales", rung: "moderate" },
+  { key: "sales.win-loss", label: "Won and lost by month", section: "crm-sales", rung: "moderate" },
+  { key: "sales.activity-heat", label: "When deals arrive", section: "crm-sales", rung: "advanced" },
   // Technical
   { key: "technical.quotation-volume", label: "Quotation volume", section: "crm-sales", rung: "simple" },
   { key: "technical.rfq-funnel", label: "RFQ funnel", section: "engineering-docs", rung: "simple" },
@@ -72,6 +79,11 @@ export const DASHBOARD_WIDGETS: WidgetDef[] = [
   { key: "technical.approved-share", label: "Approved share", section: "engineering-docs", rung: "simple" },
   { key: "technical.handler-leaderboard", label: "Handler leaderboard", section: "engineering-docs", rung: "moderate" },
   { key: "technical.turnaround", label: "Turnaround", section: "engineering-docs", rung: "moderate" },
+  // Added 10/09/2026 with the dashboards' richer half — new keys, none renamed.
+  { key: "technical.status-mix", label: "Quotations by status", section: "engineering-docs", rung: "simple" },
+  { key: "technical.value-trend", label: "Quotation value by month", section: "engineering-docs", rung: "moderate" },
+  { key: "technical.turnaround-scatter", label: "Turnaround per quotation", section: "engineering-docs", rung: "advanced" },
+  { key: "technical.weekday-heat", label: "When quotations are raised", section: "engineering-docs", rung: "advanced" },
   // Projects
   { key: "projects.by-stage", label: "Projects by stage", section: "projects", rung: "simple" },
   { key: "projects.value-by-stage", label: "Value by stage", section: "projects", rung: "simple" },
@@ -79,6 +91,11 @@ export const DASHBOARD_WIDGETS: WidgetDef[] = [
   { key: "projects.workload-by-manager", label: "Workload by manager", section: "projects", rung: "moderate" },
   { key: "projects.support-visits", label: "Support visits", section: "projects", rung: "moderate" },
   { key: "projects.timeline", label: "Project timeline", section: "projects", rung: "moderate" },
+  // Added 10/09/2026 with the dashboards' richer half — new keys, none renamed.
+  { key: "projects.schedule-health", label: "Schedule health", section: "projects", rung: "simple" },
+  { key: "projects.value-by-client", label: "Value by client", section: "projects", rung: "simple" },
+  { key: "projects.overtime-trend", label: "Overtime by month", section: "projects", rung: "moderate" },
+  { key: "projects.value-vs-progress", label: "Value against progress", section: "projects", rung: "moderate" },
   // Inventory
   { key: "inventory.below-reorder", label: "Below reorder level", section: "inventory", rung: "simple" },
   { key: "inventory.orders-by-status", label: "Purchase orders by status", section: "inventory", rung: "simple" },
@@ -86,21 +103,35 @@ export const DASHBOARD_WIDGETS: WidgetDef[] = [
   { key: "inventory.stock-value-by-vendor", label: "Stock value by vendor", section: "inventory", rung: "moderate" },
   { key: "inventory.outstanding-on-order", label: "Outstanding on order", section: "inventory", rung: "moderate" },
   { key: "inventory.recent-movements", label: "Recent stock movements", section: "inventory", rung: "moderate" },
+  // Added 10/09/2026 with the dashboards' richer half — new keys, none renamed.
+  { key: "inventory.stock-health", label: "Stock health", section: "inventory", rung: "simple" },
+  { key: "inventory.top-items", label: "Most valuable stock", section: "inventory", rung: "simple" },
+  { key: "inventory.movement-trend", label: "Stock in and out", section: "inventory", rung: "moderate" },
+  { key: "inventory.order-trend", label: "Purchase orders per month", section: "inventory", rung: "moderate" },
   // Procurement. The free floor — what is late, what is blocked, what does not
   // add up — is NOT here: the registry governs the paid widgets, and a studio
   // that cannot see an over-billed order because it did not buy analytics is a
   // studio being sold its own exceptions back.
-  // ONE KEY, BECAUSE ONE WIDGET IS BUILT. Registering the other three a
+  // ONE KEY WHILE ONE WIDGET WAS BUILT. Registering the other three a
   // Procurement dashboard will eventually want would put checkboxes in the
   // tier editor that a studio could switch on to be shown nothing — the same
   // defect as a permission nothing exercises, one layer up.
   { key: "procurement.on-time-by-supplier", label: "On-time delivery by supplier", section: "procurement", rung: "simple" },
+  // THREE MORE, BECAUSE THREE MORE ARE BUILT (10/09/2026). The rule above
+  // stands: a key is registered when a widget draws it, never ahead of one.
+  { key: "procurement.supplier-health", label: "Supplier standing", section: "procurement", rung: "simple" },
+  { key: "procurement.delivery-status", label: "Orders in flight", section: "procurement", rung: "simple" },
+  { key: "procurement.receiving-exceptions", label: "Receiving exceptions", section: "procurement", rung: "moderate" },
   // HR
   { key: "hr.headcount-by-dept", label: "Headcount by department", section: "hr", rung: "simple" },
   { key: "hr.leave-by-type", label: "Leave by type", section: "hr", rung: "simple" },
   { key: "hr.leave-by-status", label: "Leave by status", section: "hr", rung: "simple" },
   { key: "hr.expiring-documents", label: "Expiring documents", section: "hr", rung: "simple" },
   { key: "hr.upcoming-leave", label: "Upcoming leave", section: "hr", rung: "moderate" },
+  // Added 10/09/2026 with the dashboards' richer half — new keys, none renamed.
+  { key: "hr.expiry-by-week", label: "Documents expiring by week", section: "hr", rung: "simple" },
+  { key: "hr.leave-trend", label: "Leave days by month", section: "hr", rung: "moderate" },
+  { key: "hr.away-forecast", label: "Who is away, next 30 days", section: "hr", rung: "moderate" },
   // Finance
   { key: "finance.ar-aging", label: "Receivables aging", section: "finance", rung: "simple" },
   { key: "finance.top-debtors", label: "Top debtors", section: "finance", rung: "simple" },
@@ -112,12 +143,21 @@ export const DASHBOARD_WIDGETS: WidgetDef[] = [
   { key: "finance.ap-aging", label: "Payables aging", section: "finance", rung: "moderate" },
   { key: "finance.asset-register", label: "Fixed-asset register", section: "finance", rung: "simple" },
   { key: "finance.asset-breakdown", label: "Assets by category", section: "finance", rung: "moderate" },
+  // Added 10/09/2026 with the dashboards' richer half — new keys, none renamed.
+  { key: "finance.invoice-status", label: "Invoices by state", section: "finance", rung: "simple" },
+  { key: "finance.receivable-vs-payable", label: "Owed to us vs owed by us", section: "finance", rung: "moderate" },
+  { key: "finance.expense-trend", label: "Spend by category over time", section: "finance", rung: "moderate" },
   // Operations
   { key: "operations.permits-by-status", label: "Permits by status", section: "field-service", rung: "simple" },
   { key: "operations.shifts-by-location", label: "Shifts by location", section: "field-service", rung: "simple" },
   { key: "operations.shifts-this-week", label: "Shifts this week", section: "field-service", rung: "simple" },
   { key: "operations.validity-timeline", label: "Validity timeline", section: "field-service", rung: "moderate" },
   { key: "operations.permits-by-type", label: "Permits by type", section: "field-service", rung: "moderate" },
+  // Added 10/09/2026 with the dashboards' richer half — new keys, none renamed.
+  { key: "operations.permit-expiry", label: "Permits lapsing by month", section: "field-service", rung: "simple" },
+  { key: "operations.hours-by-location", label: "Hours by location", section: "field-service", rung: "moderate" },
+  { key: "operations.state-by-type", label: "Permit state by type", section: "field-service", rung: "moderate" },
+  { key: "operations.shift-heat", label: "Rota by location and day", section: "field-service", rung: "moderate" },
   // Reports & BI
   //
   // THE FIGURES ARE FREE AND THE COMPARISON IS SOLD, which is the split the

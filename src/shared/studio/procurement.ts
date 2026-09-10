@@ -318,6 +318,29 @@ type Strings = {
   edit: string;
   remove: string;
   actions: string;
+  // The dashboards' richer half (10/09/2026).
+  dashDeliveryStatus: string;
+  dashDeliveryStatusHint: string;
+  dashLate: string;
+  dashDueSoon: string;
+  dashUnchased: string;
+  dashUndated: string;
+  dashReceivingExceptions: string;
+  dashReceivingExceptionsHint: string;
+  dashAwaitingDelivery: string;
+  dashPartDelivered: string;
+  dashOverReceived: string;
+  dashRejected: string;
+  dashOverBilled: string;
+  dashSupplierHealth: string;
+  dashSupplierHealthHint: string;
+  dashQualified: string;
+  dashExpiring: string;
+  dashLapsed: string;
+  dashBlocked: string;
+  dashUnassessed: string;
+  dashSuppliersWord: string;
+  dashNothingInFlight: string;
 };
 
 const EN_STATUS: Record<string, string> = {
@@ -651,6 +674,29 @@ const en: Strings = {
   edit: "Edit",
   remove: "Delete",
   actions: "Actions",
+  // THE DASHBOARDS' RICHER HALF (10/09/2026).
+  dashDeliveryStatus: "Orders in flight",
+  dashDeliveryStatusHint: "Late, due soon, never chased and undated. An order can be more than one.",
+  dashLate: "Late",
+  dashDueSoon: "Due soon",
+  dashUnchased: "Never chased",
+  dashUndated: "No promised date",
+  dashReceivingExceptions: "Receiving exceptions",
+  dashReceivingExceptionsHint: "Where order, receipt and bill do not agree",
+  dashAwaitingDelivery: "Awaiting delivery",
+  dashPartDelivered: "Part delivered",
+  dashOverReceived: "Over-received",
+  dashRejected: "Rejected on receipt",
+  dashOverBilled: "Over-billed",
+  dashSupplierHealth: "Supplier standing",
+  dashSupplierHealthHint: "Who may be bought from today",
+  dashQualified: "Qualified",
+  dashExpiring: "Documents expiring",
+  dashLapsed: "Lapsed",
+  dashBlocked: "Blocked",
+  dashUnassessed: "Not assessed",
+  dashSuppliersWord: "suppliers",
+  dashNothingInFlight: "Nothing to show yet.",
 };
 
 const ar: Strings = {
@@ -966,6 +1012,29 @@ const ar: Strings = {
   edit: "تعديل",
   remove: "حذف",
   actions: "إجراءات",
+  // THE DASHBOARDS' RICHER HALF (10/09/2026).
+  dashDeliveryStatus: "الأوامر قيد التنفيذ",
+  dashDeliveryStatusHint: "المتأخرة والقريبة والتي لم تُتابع وبلا تاريخ. قد يقع الأمر في أكثر من فئة.",
+  dashLate: "متأخرة",
+  dashDueSoon: "قريبة الاستحقاق",
+  dashUnchased: "لم تُتابع",
+  dashUndated: "بلا تاريخ موعود",
+  dashReceivingExceptions: "استثناءات الاستلام",
+  dashReceivingExceptionsHint: "حيث لا يتطابق الأمر والاستلام والفاتورة",
+  dashAwaitingDelivery: "بانتظار التسليم",
+  dashPartDelivered: "مسلّمة جزئياً",
+  dashOverReceived: "مستلمة بزيادة",
+  dashRejected: "مرفوضة عند الاستلام",
+  dashOverBilled: "مفوترة بزيادة",
+  dashSupplierHealth: "وضع الموردين",
+  dashSupplierHealthHint: "من يمكن الشراء منه اليوم",
+  dashQualified: "مؤهل",
+  dashExpiring: "وثائق قريبة الانتهاء",
+  dashLapsed: "منتهية الصلاحية",
+  dashBlocked: "محظور",
+  dashUnassessed: "غير مقيّم",
+  dashSuppliersWord: "مورد",
+  dashNothingInFlight: "لا شيء لعرضه بعد.",
 };
 
 export function procurementDict(locale: string): Strings {

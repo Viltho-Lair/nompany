@@ -132,6 +132,18 @@ type Strings = CommonStrings & {
   whatPersonWhatLets: string;
   wherePeopleSit: string;
   whereRequestsStand: string;
+  // The dashboards' richer half (10/09/2026).
+  dashLeaveTrend: string;
+  dashLeaveTrendHint: string;
+  dashAwayForecast: string;
+  dashAwayForecastHint: string;
+  dashSeriesApproved: string;
+  dashSeriesPending: string;
+  dashExpiryByWeek: string;
+  dashExpiryByWeekHint: (n: number) => string;
+  dashExpired: string;
+  dashOther: string;
+  dashNobodyAway: string;
 };
 
 const en: Strings = {
@@ -260,6 +272,18 @@ const en: Strings = {
   whatPersonWhatLets: "What this person is, and what that lets them do — the same role Access grants against. Somebody can hold more than one.",
   wherePeopleSit: "Where people sit",
   whereRequestsStand: "Where requests stand",
+  // THE DASHBOARDS' RICHER HALF (10/09/2026).
+  dashLeaveTrend: "Leave days by month",
+  dashLeaveTrendHint: "Calendar days on approved and pending leave, by type, six months either side of today",
+  dashAwayForecast: "Who is away, next 30 days",
+  dashAwayForecastHint: "People on leave each day; pending requests dashed",
+  dashSeriesApproved: "Approved",
+  dashSeriesPending: "Pending",
+  dashExpiryByWeek: "Documents expiring by week",
+  dashExpiryByWeekHint: (n) => `By the week they lapse, next ${n} days`,
+  dashExpired: "Expired",
+  dashOther: "Other",
+  dashNobodyAway: "Nobody is booked away in the next 30 days.",
 };
 
 const ar: Strings = {
@@ -388,6 +412,18 @@ const ar: Strings = {
   whatPersonWhatLets: "ما هذا الشخص، وما الذي يتيحه له ذلك — الدور نفسه الذي تمنح عليه الصلاحيات. ويمكن أن يحمل أكثر من دور.",
   wherePeopleSit: "أين يعمل الأشخاص",
   whereRequestsStand: "وضع الطلبات",
+  // THE DASHBOARDS' RICHER HALF (10/09/2026).
+  dashLeaveTrend: "أيام الإجازة شهرياً",
+  dashLeaveTrendHint: "الأيام التقويمية للإجازات المعتمدة والمعلقة حسب النوع، ستة أشهر قبل اليوم وبعده",
+  dashAwayForecast: "الغائبون خلال الثلاثين يوماً القادمة",
+  dashAwayForecastHint: "عدد المجازين يومياً؛ الطلبات المعلقة بخط متقطع",
+  dashSeriesApproved: "معتمدة",
+  dashSeriesPending: "معلقة",
+  dashExpiryByWeek: "الوثائق المنتهية أسبوعياً",
+  dashExpiryByWeekHint: (n) => `حسب أسبوع الانتهاء خلال ${n} يوماً القادمة`,
+  dashExpired: "منتهية",
+  dashOther: "أخرى",
+  dashNobodyAway: "لا يوجد أحد مجاز خلال الثلاثين يوماً القادمة.",
 };
 
 const hr = { en, ar };

@@ -47,6 +47,27 @@ type Strings = CommonStrings & {
   weightedPipeline: string;
   whereEveryTicketSits: string;
   won: string;
+  // The dashboards' richer half (10/09/2026).
+  dashValueByStage: string;
+  dashValueByStageHint: string;
+  dashTopClients: string;
+  dashTopClientsHint: string;
+  dashIntakeTrend: string;
+  dashIntakeTrendHint: string;
+  dashWinLoss: string;
+  dashWinLossHint: string;
+  dashUrgencyMix: string;
+  dashUrgencyMixHint: string;
+  dashActivityHeat: string;
+  dashActivityHeatHint: string;
+  dashSeriesValue: string;
+  dashSeriesDeals: string;
+  dashSeriesWon: string;
+  dashSeriesLost: string;
+  dashNoClient: string;
+  dashOther: string;
+  dashNoHistory: string;
+  dashNoOpenDeals: string;
 };
 
 const en: Strings = {
@@ -84,6 +105,27 @@ const en: Strings = {
   weightedPipeline: "Weighted pipeline",
   whereEveryTicketSits: "Where every ticket sits",
   won: "Won",
+  // THE DASHBOARDS' RICHER HALF (10/09/2026).
+  dashValueByStage: "Open value by stage",
+  dashValueByStageHint: "Pipeline value sitting in each open stage",
+  dashTopClients: "Top clients by open value",
+  dashTopClientsHint: "Where the open pipeline is concentrated",
+  dashIntakeTrend: "Deals opened per month",
+  dashIntakeTrendHint: "Value (bars) and count (line) of deals raised, last 12 months",
+  dashWinLoss: "Won and lost by month",
+  dashWinLossHint: "Closed deals by outcome, last 12 months",
+  dashUrgencyMix: "Open deals by urgency",
+  dashUrgencyMixHint: "Share of the open pipeline at each urgency",
+  dashActivityHeat: "When deals arrive",
+  dashActivityHeatHint: "Deals opened by weekday, last 8 weeks",
+  dashSeriesValue: "Value",
+  dashSeriesDeals: "Deals",
+  dashSeriesWon: "Won",
+  dashSeriesLost: "Lost",
+  dashNoClient: "No client",
+  dashOther: "Other",
+  dashNoHistory: "Not enough history yet.",
+  dashNoOpenDeals: "No open deals.",
 };
 
 const ar: Strings = {
@@ -121,6 +163,27 @@ const ar: Strings = {
   weightedPipeline: "المسار المرجح",
   whereEveryTicketSits: "أين تقف كل تذكرة",
   won: "مكسوبة",
+  // THE DASHBOARDS' RICHER HALF (10/09/2026).
+  dashValueByStage: "القيمة المفتوحة حسب المرحلة",
+  dashValueByStageHint: "قيمة المسار الموجودة في كل مرحلة مفتوحة",
+  dashTopClients: "أكبر العملاء حسب القيمة المفتوحة",
+  dashTopClientsHint: "أين تتركز قيمة المسار المفتوح",
+  dashIntakeTrend: "الصفقات المفتوحة شهرياً",
+  dashIntakeTrendHint: "قيمة (أعمدة) وعدد (خط) الصفقات المنشأة خلال آخر 12 شهراً",
+  dashWinLoss: "الصفقات الرابحة والخاسرة شهرياً",
+  dashWinLossHint: "الصفقات المغلقة حسب النتيجة خلال آخر 12 شهراً",
+  dashUrgencyMix: "الصفقات المفتوحة حسب الأولوية",
+  dashUrgencyMixHint: "حصة كل أولوية من المسار المفتوح",
+  dashActivityHeat: "متى تصل الصفقات",
+  dashActivityHeatHint: "الصفقات المنشأة حسب يوم الأسبوع خلال آخر 8 أسابيع",
+  dashSeriesValue: "القيمة",
+  dashSeriesDeals: "الصفقات",
+  dashSeriesWon: "رابحة",
+  dashSeriesLost: "خاسرة",
+  dashNoClient: "بلا عميل",
+  dashOther: "أخرى",
+  dashNoHistory: "لا يوجد سجل كافٍ بعد.",
+  dashNoOpenDeals: "لا توجد صفقات مفتوحة.",
 };
 
 const salesExtra = { en, ar };

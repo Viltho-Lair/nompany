@@ -225,6 +225,19 @@ type Strings = CommonStrings & {
   viewOnlyAccessTechnical2: string;
   whatBeingQuoted: string;
   whatNeeded: string;
+  // The dashboards' richer half (10/09/2026).
+  dashValueTrend: string;
+  dashValueTrendHint: string;
+  dashSeriesValue: string;
+  dashSeriesQuotations: string;
+  dashStatusMix: string;
+  dashStatusMixHint: string;
+  dashQuotationsWord: string;
+  dashTurnaroundScatter: string;
+  dashTurnaroundScatterHint: string;
+  dashDaysUnit: (n: number) => string;
+  dashWeekdayHeat: string;
+  dashWeekdayHeatHint: string;
 };
 
 const en: Strings = {
@@ -443,6 +456,19 @@ const en: Strings = {
   viewOnlyAccessTechnical2: "You have view-only access to Technical.",
   whatBeingQuoted: "What is being quoted",
   whatNeeded: "What's needed",
+  // THE DASHBOARDS' RICHER HALF (10/09/2026).
+  dashValueTrend: "Quotation value by month",
+  dashValueTrendHint: "Value (bars) and count (line), last 12 months",
+  dashSeriesValue: "Value",
+  dashSeriesQuotations: "Quotations",
+  dashStatusMix: "Quotations by status",
+  dashStatusMixHint: "Where every quotation stands",
+  dashQuotationsWord: "quotations",
+  dashTurnaroundScatter: "Turnaround per quotation",
+  dashTurnaroundScatterHint: "Days from creation to approval, oldest first",
+  dashDaysUnit: (n) => `${n} d`,
+  dashWeekdayHeat: "When quotations are raised",
+  dashWeekdayHeatHint: "By weekday, last 8 weeks",
 };
 
 const ar: Strings = {
@@ -668,6 +694,19 @@ const ar: Strings = {
   viewOnlyAccessTechnical2: "لديك صلاحية عرض فقط على القسم الفني.",
   whatBeingQuoted: "ما يجري تسعيره",
   whatNeeded: "المطلوب",
+  // THE DASHBOARDS' RICHER HALF (10/09/2026).
+  dashValueTrend: "قيمة عروض الأسعار شهرياً",
+  dashValueTrendHint: "القيمة (أعمدة) والعدد (خط) خلال آخر 12 شهراً",
+  dashSeriesValue: "القيمة",
+  dashSeriesQuotations: "العروض",
+  dashStatusMix: "العروض حسب الحالة",
+  dashStatusMixHint: "موقف كل عرض سعر",
+  dashQuotationsWord: "عرض",
+  dashTurnaroundScatter: "مدة الإنجاز لكل عرض",
+  dashTurnaroundScatterHint: "الأيام من الإنشاء حتى الاعتماد، الأقدم أولاً",
+  dashDaysUnit: (n) => `${n} ي`,
+  dashWeekdayHeat: "متى تُنشأ العروض",
+  dashWeekdayHeatHint: "حسب يوم الأسبوع خلال آخر 8 أسابيع",
 };
 
 const technical = { en, ar };

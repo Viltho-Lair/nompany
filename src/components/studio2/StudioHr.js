@@ -12,7 +12,6 @@ import {
 import { Field } from "@/components/fields/Field";
 import StudioDate from "@/components/fields/StudioDate";
 import { initialsOf } from "@/lib/initials";
-import HrDashboard from "@/components/studio2/HrDashboard";
 import { useAnalyticsLevel } from "@/components/studio2/analyticsLevel";
 import { StatusPill } from "@/components/studio2/StatusPill";
 import { PanelBar, usePanelParam } from "@/components/studio2/PanelBar";
@@ -21,6 +20,14 @@ import { useReload } from "@/components/studio2/useReload";
 import { payrollDict } from "@/shared/studio/payroll";
 import { attendanceDict } from "@/shared/studio/attendance";
 import { manpowerDict } from "@/shared/studio/manpower";
+
+// THE DASHBOARD LOADS WHEN IT IS SHOWN, not with this screen. It was a static
+// import, so every tenant page carried every department's dashboard and the
+// whole chart kit in its first load; a client module's `import()` is a real
+// lazy boundary (see HeavyScreens.jsx for why a Server Component's is not).
+const HrDashboard = nextDynamic(() => import("@/components/studio2/HrDashboard"), {
+  loading: () => <ScreenSkeleton />,
+});
 
 // BEHIND A REAL LAZY BOUNDARY, like every other secondary tab: this is a
 // client module, so `import()` here survives to runtime.

@@ -18,8 +18,9 @@ import { useEffect, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { financeDict } from "@/shared/studio/finance";
 import { money, StatTile } from "@/components/studio2/ui";
-import { Widget, StatRow, DashGrid } from "@/components/dashboard";
-import { BarChart, BarList, Donut, Radial, ChartFrame } from "@/components/charts";
+import { Widget, StatRow, DashGrid, DashEmpty, DonutLegend } from "@/components/dashboard";
+import { BarChart, BarList, ComboChart, Donut, Radial, ChartFrame, PALETTE } from "@/components/charts";
+import { monthLabel, stackByMonth } from "@/components/dashboard/series";
 import { CurrencySymbol } from "@/components/Currency";
 import {
   arAging, topDebtors, collectionRate, dso, incomeVsExpense, expenseMix,
@@ -29,8 +30,27 @@ import { useWidgetVisible } from "@/components/studio2/analyticsLevel";
 
 const monthKey = (d) => String(d).slice(0, 7);
 
+// WHERE EVERY INVOICE STANDS — one state each, decided in this order: a draft
+// has gone to nobody, a paid invoice is paid even if it was once overdue, and a
+// cancelled one is nobody's receivable and is left out entirely.
+const INVOICE_STATES = [
+  { key: "paid", word: "dashPaid", color: "rgb(var(--chart-2))" },
+  { key: "partly", word: "dashPartlyPaid", color: "rgb(var(--chart-1))" },
+  { key: "unpaid", word: "dashUnpaid", color: "rgb(var(--chart-4))" },
+  { key: "overdue", word: "dashOverdue", color: "rgb(var(--chart-3))" },
+  { key: "draft", word: "dashDraft", color: "rgb(var(--chart-5))" },
+];
+function invoiceStateOf(i) {
+  if (i.status === "Cancelled") return null;
+  if (i.status === "Draft") return "draft";
+  if ((Number(i.outstanding) || 0) <= 0) return "paid";
+  if (i.overdue) return "overdue";
+  return (Number(i.paid) || 0) > 0 ? "partly" : "unpaid";
+}
+
 export default function FinanceDashboard({ invoices = [], expenses = [], currency = "", slug = "" }) {
-  const tr = financeDict(useStudioLocale());
+  const locale = useStudioLocale();
+  const tr = financeDict(locale);
   // AP + FA land from their own routes. A route that is missing or forbidden
   // degrades to empty widgets rather than breaking the AR dashboard beside them.
   const [payables, setPayables] = useState([]);
@@ -80,6 +100,25 @@ export default function FinanceDashboard({ invoices = [], expenses = [], currenc
   const register = assetRegister(assets);
   const catNbv = register.byCategory.filter((g) => g.bookValue > 0).slice(0, 6);
 
+  // ---- the richer half (10/09/2026) ---------------------------------------
+  const rtl = locale === "ar";
+  const monthNames = months.map((m) => monthLabel(m.month, locale));
+  // AR AND AP IN THE SAME BANDS, side by side — the comparison neither aging
+  // widget can make alone: whether what the studio is owed covers what it owes,
+  // band by band. The two agings share their bucket keys by construction
+  // (modules/finance/analytics), so index i is the same band in both.
+  const bands = aging.buckets.map((b, i) => ({ label: b.label, ar: b.amount, ap: apeing.buckets[i]?.amount || 0 }));
+  const hasBands = bands.some((b) => b.ar > 0 || b.ap > 0);
+  const invoiceStates = INVOICE_STATES.map((st) => ({
+    label: tr[st.word], color: st.color,
+    value: invoices.filter((i) => invoiceStateOf(i) === st.key).length,
+  }));
+  const invoiceCount = invoiceStates.reduce((a, s) => a + s.value, 0);
+  // THE SAME TWELVE MONTHS the income chart draws, so the two line up.
+  const expenseMonths = months.map((m) => m.month);
+  const expenseStack = stackByMonth(expenses, (e) => e.date || e.createdAt, (e) => e.category || tr.dashOther,
+    (e) => Number(e.amount) || 0, expenseMonths, 4, tr.dashOther);
+
   const amt = (n) => <span className="num"><CurrencyGlyph currency={currency} />{money(n)}</span>;
   const visible = useWidgetVisible();
 
@@ -113,13 +152,17 @@ export default function FinanceDashboard({ invoices = [], expenses = [], currenc
         </Widget>
 
         <Widget title={tr.incomeVsExpense} hint={tr.cashOut12Months} span={2} locked={!visible("finance.income-vs-expense")} lockedWhat={tr.incomeVsExpense}>
-          <ChartFrame labels={months.map((m) => m.month.slice(5))} legend={[{ name: tr.income, color: "rgb(var(--chart-2))" }, { name: tr.expense, color: "rgb(var(--chart-3))" }]} height={220}>
-            <BarChart height={220}
-              labels={months.map((m) => m.month)}
-              series={[
+          {/* NET RIDES OVER THE BARS AS A LINE, on its own scale — income and
+              expense are the bars, and what a month actually left behind is
+              the gap between them, which two bars made the reader subtract. */}
+          <ChartFrame labels={monthNames} height={220}
+            legend={[{ name: tr.income, color: "rgb(var(--chart-2))" }, { name: tr.expense, color: "rgb(var(--chart-3))" }, { name: tr.dashNet, color: "rgb(var(--chart-1))" }]}>
+            <ComboChart height={220} rtl={rtl}
+              bars={[
                 { name: tr.income, data: months.map((m) => m.income), color: "rgb(var(--chart-2))" },
                 { name: tr.expense, data: months.map((m) => m.expense), color: "rgb(var(--chart-3))" },
-              ]} />
+              ]}
+              line={{ name: tr.dashNet, data: months.map((m) => m.net), color: "rgb(var(--chart-1))" }} />
           </ChartFrame>
         </Widget>
 
@@ -172,6 +215,33 @@ export default function FinanceDashboard({ invoices = [], expenses = [], currenc
             <p className="num text-4xl font-800 text-slate-900 dark:text-white">{days}</p>
             <p className="mt-1 text-xs text-slate-400">{tr.daysWeightedAmount}</p>
           </div>
+        </Widget>
+
+        {/* ---- the richer half (10/09/2026) ---- */}
+        <Widget title={tr.dashInvoiceStatus} hint={tr.dashInvoiceStatusHint} locked={!visible("finance.invoice-status")} lockedWhat={tr.dashInvoiceStatus}>
+          {invoiceCount ? <DonutLegend data={invoiceStates} word={tr.dashInvoicesWord} /> : <DashEmpty text={tr.dashNoInvoices} />}
+        </Widget>
+
+        <Widget title={tr.dashRvp} hint={tr.dashRvpHint} span={2} locked={!visible("finance.receivable-vs-payable")} lockedWhat={tr.dashRvp}>
+          {hasBands ? (
+            <ChartFrame labels={bands.map((b) => b.label)} height={200}
+              legend={[{ name: tr.dashReceivables, color: "rgb(var(--chart-2))" }, { name: tr.dashPayables, color: "rgb(var(--chart-4))" }]}>
+              <BarChart height={200} rtl={rtl} labels={bands.map((b) => b.label)}
+                series={[
+                  { name: tr.dashReceivables, data: bands.map((b) => b.ar), color: "rgb(var(--chart-2))" },
+                  { name: tr.dashPayables, data: bands.map((b) => b.ap), color: "rgb(var(--chart-4))" },
+                ]} />
+            </ChartFrame>
+          ) : <DashEmpty text={tr.dashNoHistory} />}
+        </Widget>
+
+        <Widget title={tr.dashExpenseTrend} hint={tr.dashExpenseTrendHint} span={3} locked={!visible("finance.expense-trend")} lockedWhat={tr.dashExpenseTrend}>
+          {expenseStack.length ? (
+            <ChartFrame labels={monthNames} height={220} legend={expenseStack.map((s, i) => ({ name: s.name, color: PALETTE[i % PALETTE.length] }))}>
+              <BarChart height={220} stacked rtl={rtl} labels={expenseMonths}
+                series={expenseStack.map((s, i) => ({ ...s, color: PALETTE[i % PALETTE.length] }))} />
+            </ChartFrame>
+          ) : <DashEmpty text={tr.noExpensesYet2} />}
         </Widget>
       </DashGrid>
     </div>

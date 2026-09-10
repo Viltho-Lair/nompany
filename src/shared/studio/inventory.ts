@@ -245,6 +245,25 @@ type Strings = CommonStrings & {
   whichUnitsHeldHand: string;
   whoBuyWhatThey: string;
   wouldTakeHandBelow: string;
+  // The dashboards' richer half (10/09/2026).
+  dashStockHealth: string;
+  dashStockHealthHint: string;
+  dashHealthy: string;
+  dashBelowReorder: string;
+  dashOutOfStock: string;
+  dashNoReorderLevel: string;
+  dashItemsWord: string;
+  dashMovementTrend: string;
+  dashMovementTrendHint: string;
+  dashSeriesIn: string;
+  dashSeriesOut: string;
+  dashTopItems: string;
+  dashTopItemsHint: string;
+  dashOrderTrend: string;
+  dashOrderTrendHint: string;
+  dashSeriesValue: string;
+  dashSeriesOrders: string;
+  dashNoStock: string;
 };
 
 const en: Strings = {
@@ -496,6 +515,25 @@ Here is my vendor list:`,
   whichUnitsHeldHand: "Which units are held. On-hand still comes from the ledger; this records the individual pieces behind it.",
   whoBuyWhatThey: "Who you buy from, and what they supply — the item types here are what an item picks its delivery estimate from.",
   wouldTakeHandBelow: "That would take on-hand below zero.",
+  // THE DASHBOARDS' RICHER HALF (10/09/2026).
+  dashStockHealth: "Stock health",
+  dashStockHealthHint: "Every item by how its shelf stands",
+  dashHealthy: "Healthy",
+  dashBelowReorder: "Below reorder level",
+  dashOutOfStock: "Out of stock",
+  dashNoReorderLevel: "No reorder level set",
+  dashItemsWord: "items",
+  dashMovementTrend: "Stock in and out",
+  dashMovementTrendHint: "Quantities received and issued per week, last 12 weeks",
+  dashSeriesIn: "In",
+  dashSeriesOut: "Out",
+  dashTopItems: "Most valuable stock",
+  dashTopItemsHint: "Items by value on hand",
+  dashOrderTrend: "Purchase orders per month",
+  dashOrderTrendHint: "Committed value (bars) and orders raised (line), last 12 months",
+  dashSeriesValue: "Value",
+  dashSeriesOrders: "Orders",
+  dashNoStock: "No items registered yet.",
 };
 
 const ar: Strings = {
@@ -747,6 +785,25 @@ Name,Contact Name,Email,Phone,Item Types
   whichUnitsHeldHand: "أي الوحدات محفوظة. لا يزال المتوفر يأتي من السجل؛ وهذا يسجل القطع الفردية خلفه.",
   whoBuyWhatThey: "ممن تشتري وما الذي يوردونه — وأنواع الأصناف هنا هي ما يأخذ منه الصنف تقديره الزمني للتسليم.",
   wouldTakeHandBelow: "سيؤدي ذلك إلى نزول المتوفر تحت الصفر.",
+  // THE DASHBOARDS' RICHER HALF (10/09/2026).
+  dashStockHealth: "سلامة المخزون",
+  dashStockHealthHint: "كل صنف حسب حالة رصيده",
+  dashHealthy: "سليم",
+  dashBelowReorder: "دون حد إعادة الطلب",
+  dashOutOfStock: "نفد من المخزون",
+  dashNoReorderLevel: "بلا حد إعادة طلب",
+  dashItemsWord: "صنف",
+  dashMovementTrend: "الوارد والصادر من المخزون",
+  dashMovementTrendHint: "الكميات المستلمة والمصروفة أسبوعياً خلال آخر 12 أسبوعاً",
+  dashSeriesIn: "وارد",
+  dashSeriesOut: "صادر",
+  dashTopItems: "أعلى الأصناف قيمة",
+  dashTopItemsHint: "الأصناف حسب قيمة الرصيد",
+  dashOrderTrend: "أوامر الشراء شهرياً",
+  dashOrderTrendHint: "القيمة الملتزم بها (أعمدة) والأوامر المنشأة (خط) خلال آخر 12 شهراً",
+  dashSeriesValue: "القيمة",
+  dashSeriesOrders: "الأوامر",
+  dashNoStock: "لا توجد أصناف مسجلة بعد.",
 };
 
 const inventory = { en, ar };

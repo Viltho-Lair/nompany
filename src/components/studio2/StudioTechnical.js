@@ -21,10 +21,17 @@ import { Field, BARE_CONTROL } from "@/components/fields/Field";
 import Combo from "@/components/studio2/Combo";
 import StudioDate from "@/components/fields/StudioDate";
 import ClientBlock, { EMPTY_CLIENT_BLOCK, clientBlockPayload } from "@/components/studio2/ClientBlock";
-import TechnicalDashboard from "@/components/studio2/TechnicalDashboard";
 import { useAnalyticsLevel } from "@/components/studio2/analyticsLevel";
 import { StatusPill } from "@/components/studio2/StatusPill";
 import { useReload } from "@/components/studio2/useReload";
+
+// THE DASHBOARD LOADS WHEN IT IS SHOWN, not with this screen. It was a static
+// import, so every tenant page carried every department's dashboard and the
+// whole chart kit in its first load; a client module's `import()` is a real
+// lazy boundary (see HeavyScreens.jsx for why a Server Component's is not).
+const TechnicalDashboard = nextDynamic(() => import("@/components/studio2/TechnicalDashboard"), {
+  loading: () => <ScreenSkeleton />,
+});
 
 // Technical: RFQs raised by Sales, and the quotations they become.
 // Two different grants are in play — raising an RFQ needs Sales:manage, working

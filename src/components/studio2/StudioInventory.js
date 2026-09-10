@@ -12,7 +12,6 @@ import { StudioDataGridSkeleton } from "@/components/studio2/StudioDataGrid.skel
 import { Field } from "@/components/fields/Field";
 import RecordLink from "@/components/studio2/RecordLink";
 import { Icon } from "@/components/studio2/icons";
-import InventoryDashboard from "@/components/studio2/InventoryDashboard";
 import { useAnalyticsLevel } from "@/components/studio2/analyticsLevel";
 import {
   panel, h2, sub, inputRO, microLabel, label, btn, btnGhost, btnRow, th, stripeOn, stripeOff,
@@ -23,6 +22,14 @@ import { parseAwb, formatAwb } from "@/modules/inventory/awb";
 import { statusLabel, isException, AWB_STATUS_BY_CODE } from "@/modules/inventory/awbStatus";
 import { StatusPill } from "@/components/studio2/StatusPill";
 import { useReload } from "@/components/studio2/useReload";
+
+// THE DASHBOARD LOADS WHEN IT IS SHOWN, not with this screen. It was a static
+// import, so every tenant page carried every department's dashboard and the
+// whole chart kit in its first load; a client module's `import()` is a real
+// lazy boundary (see HeavyScreens.jsx for why a Server Component's is not).
+const InventoryDashboard = nextDynamic(() => import("@/components/studio2/InventoryDashboard"), {
+  loading: () => <ScreenSkeleton />,
+});
 // BEHIND A REAL LAZY BOUNDARY. These are SECONDARY TABS — nobody lands on
 // them — and a static import from this client module would put them in the
 // studio route's first load, which is what every tenant page waits for.

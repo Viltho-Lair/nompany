@@ -13,8 +13,12 @@
 import { money, StatTile, URGENCY_DOT, FunnelChart } from "@/components/studio2/ui";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { salesExtraDict } from "@/shared/studio/salesExtra";
-import { Widget, StatRow, DashGrid } from "@/components/dashboard";
-import { BarChart, ChartFrame, Donut, PALETTE } from "@/components/charts";
+import { Widget, StatRow, DashGrid, DashEmpty } from "@/components/dashboard";
+import { BarChart, BarList, ChartFrame, ComboChart, Donut, HeatGrid, PALETTE, ShareBar } from "@/components/charts";
+import {
+  monthsBack, monthLabel, sumByMonth, countByMonth, rankTotals,
+  weeksBack, weekdayHeat, weekdayLabels, shortDay, peak, share,
+} from "@/components/dashboard/series";
 import {
   salesFunnel, probabilityBuckets, atRiskTickets, isClosed,
   lostReasons, isChainLostReason, stalledDeals,
@@ -37,6 +41,16 @@ const STAGE_ORDER = [...BOARD_COLUMNS, ...CLOSED_STAGES];
 // How long a deal may sit in one stage before the board calls it stuck. The
 // same threshold the pipeline board draws in amber, named once.
 const STALL_DAYS = 30;
+
+// URGENCY IN A FIXED ORDER AND COLOUR, so a slice keeps its hue from one render
+// to the next. The tokens are the stored ones — the same four Technical's
+// urgency donut draws.
+const URGENCIES = [
+  { key: "Critical", color: "rgb(var(--chart-3))" },
+  { key: "High", color: "rgb(var(--chart-4))" },
+  { key: "Normal", color: "rgb(var(--chart-1))" },
+  { key: "Low", color: "rgb(var(--chart-5))" },
+];
 
 export default function SalesDashboard({ tickets = [], slug = "", nav = null }) {
   const locale = useStudioLocale();
@@ -76,6 +90,34 @@ export default function SalesDashboard({ tickets = [], slug = "", nav = null }) 
 
   const openTickets = tickets.filter((t) => !isClosed(t));
   const hasForecast = openTickets.some((t) => (Number(t.value) || 0) > 0);
+
+  // ---- the richer half (10/09/2026) ---------------------------------------
+  // THE SAME TICKETS, CROSSED WITH TIME, MONEY AND CLIENTS rather than counted
+  // one way at a time. Every bucket goes through components/dashboard/series
+  // (pure, UTC, tests/dashboard-series.mjs), so "the last twelve months" is the
+  // same twelve months on every dashboard in the studio.
+  const asOf = new Date().toISOString().slice(0, 10);
+  const rtl = locale === "ar";
+  const months = monthsBack(12, asOf);
+  const monthNames = months.map((m) => monthLabel(m, locale));
+  const valueByStage = BOARD_COLUMNS
+    .map((s) => ({ label: stageName(s), value: openTickets.filter((t) => t.status === s).reduce((a, t) => a + (Number(t.value) || 0), 0) }))
+    .filter((r) => r.value > 0);
+  const topClients = rankTotals(openTickets, (t) => t.clientName || tr.dashNoClient, (t) => Number(t.value) || 0, 6, tr.dashOther);
+  const intakeValue = sumByMonth(tickets, (t) => t.createdAt, (t) => Number(t.value) || 0, months);
+  const intakeCount = countByMonth(tickets, (t) => t.createdAt, months);
+  // WON IS ONE STAGE AND LOST IS EVERY OTHER CLOSE, dated by `closedAt` — the
+  // field the pipeline writes on every close. A close from before that field
+  // existed has no date and is not guessed onto a month.
+  const wonByMonth = countByMonth(tickets.filter((t) => t.status === WON_STAGE), (t) => t.closedAt, months);
+  const lostByMonth = countByMonth(tickets.filter((t) => isClosed(t) && t.status !== WON_STAGE), (t) => t.closedAt, months);
+  const urgencyMix = URGENCIES.map((u) => ({
+    label: u.key, color: u.color,
+    value: openTickets.filter((t) => (t.urgency || "Normal") === u.key).length,
+  }));
+  const weeks = weeksBack(8, asOf);
+  const heat = weekdayHeat(tickets, (t) => t.createdAt, weeks);
+  const dayNames = weekdayLabels(locale);
 
   return (
     <div className="space-y-5">
@@ -231,6 +273,59 @@ export default function SalesDashboard({ tickets = [], slug = "", nav = null }) 
               ))}
             </ul>
           )}
+        </Widget>
+
+        {/* ---- the richer half (10/09/2026) ---- */}
+        <Widget title={tr.dashValueByStage} hint={tr.dashValueByStageHint} locked={!visible("sales.value-by-stage")} lockedWhat={tr.dashValueByStage}>
+          {valueByStage.length ? (
+            <BarList items={valueByStage.map((r, i) => ({
+              label: r.label, value: share(r.value, peak(valueByStage)),
+              display: <span className="num">{money(r.value)}</span>, color: PALETTE[i % PALETTE.length],
+            }))} />
+          ) : <DashEmpty text={tr.noOpenPipelineYet} />}
+        </Widget>
+
+        <Widget title={tr.dashIntakeTrend} hint={tr.dashIntakeTrendHint} span={2} locked={!visible("sales.intake-trend")} lockedWhat={tr.dashIntakeTrend}>
+          {intakeCount.some(Boolean) ? (
+            <ChartFrame labels={monthNames} height={220}
+              legend={[{ name: tr.dashSeriesValue, color: "rgb(var(--chart-1))" }, { name: tr.dashSeriesDeals, color: "rgb(var(--chart-3))" }]}>
+              <ComboChart height={220} rtl={rtl}
+                bars={[{ name: tr.dashSeriesValue, data: intakeValue, color: "rgb(var(--chart-1))" }]}
+                line={{ name: tr.dashSeriesDeals, data: intakeCount, color: "rgb(var(--chart-3))" }} />
+            </ChartFrame>
+          ) : <DashEmpty text={tr.dashNoHistory} />}
+        </Widget>
+
+        <Widget title={tr.dashTopClients} hint={tr.dashTopClientsHint} locked={!visible("sales.top-clients")} lockedWhat={tr.dashTopClients}>
+          {topClients.length ? (
+            <BarList items={topClients.map((c) => ({
+              label: c.label, value: share(c.value, peak(topClients)),
+              display: <span className="num">{money(c.value)}</span>,
+            }))} />
+          ) : <DashEmpty text={tr.noOpenPipelineYet} />}
+        </Widget>
+
+        <Widget title={tr.dashWinLoss} hint={tr.dashWinLossHint} span={2} locked={!visible("sales.win-loss")} lockedWhat={tr.dashWinLoss}>
+          {wonByMonth.some(Boolean) || lostByMonth.some(Boolean) ? (
+            <ChartFrame labels={monthNames} height={200}
+              legend={[{ name: tr.dashSeriesWon, color: "rgb(var(--chart-2))" }, { name: tr.dashSeriesLost, color: "rgb(var(--chart-3))" }]}>
+              <BarChart height={200} stacked rtl={rtl} labels={months}
+                series={[
+                  { name: tr.dashSeriesWon, data: wonByMonth, color: "rgb(var(--chart-2))" },
+                  { name: tr.dashSeriesLost, data: lostByMonth, color: "rgb(var(--chart-3))" },
+                ]} />
+            </ChartFrame>
+          ) : <DashEmpty text={tr.dashNoHistory} />}
+        </Widget>
+
+        <Widget title={tr.dashUrgencyMix} hint={tr.dashUrgencyMixHint} locked={!visible("sales.urgency-mix")} lockedWhat={tr.dashUrgencyMix}>
+          {openTickets.length ? <ShareBar data={urgencyMix} className="py-2" /> : <DashEmpty text={tr.dashNoOpenDeals} />}
+        </Widget>
+
+        <Widget title={tr.dashActivityHeat} hint={tr.dashActivityHeatHint} span={2} locked={!visible("sales.activity-heat")} lockedWhat={tr.dashActivityHeat}>
+          {heat.some((row) => row.some(Boolean)) ? (
+            <HeatGrid columns={weeks.map(shortDay)} rows={dayNames.map((name, i) => ({ label: name, values: heat[i] }))} />
+          ) : <DashEmpty text={tr.dashNoHistory} />}
         </Widget>
       </DashGrid>
     </div>

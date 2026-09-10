@@ -22,12 +22,19 @@ import { linkToClient } from "@/modules/main/studioLinks";
 import { COUNTRIES } from "@/shared/countries";
 import { CurrencySymbol } from "@/components/Currency";
 import { rfqInfo, isUnresolved } from "@/modules/sales/salesAnalytics";
-import SalesDashboard from "@/components/studio2/SalesDashboard";
 import { useAnalyticsLevel } from "@/components/studio2/analyticsLevel";
 import { StatusPill } from "@/components/studio2/StatusPill";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { salesDict, liveColumnLabel } from "@/shared/studio/sales";
 import { useReload } from "@/components/studio2/useReload";
+
+// THE DASHBOARD LOADS WHEN IT IS SHOWN, not with this screen. It was a static
+// import, so every tenant page carried every department's dashboard and the
+// whole chart kit in its first load; a client module's `import()` is a real
+// lazy boundary (see HeavyScreens.jsx for why a Server Component's is not).
+const SalesDashboard = nextDynamic(() => import("@/components/studio2/SalesDashboard"), {
+  loading: () => <ScreenSkeleton />,
+});
 
 // Sales: clients and the tickets raised against them. Read access shows
 // everything; the Manage grant is what reveals the create/edit controls — and

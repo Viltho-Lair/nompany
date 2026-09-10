@@ -15,8 +15,12 @@
 import { money, StatTile, microLabel, fmtDate } from "@/components/studio2/ui";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { inventoryDict } from "@/shared/studio/inventory";
-import { Widget, StatRow, DashGrid } from "@/components/dashboard";
-import { BarList, Donut } from "@/components/charts";
+import { Widget, StatRow, DashGrid, DashEmpty, DonutLegend } from "@/components/dashboard";
+import { BarChart, BarList, ChartFrame, ComboChart, Donut } from "@/components/charts";
+import {
+  monthLabel, monthsBack, sumByMonth, countByMonth, weeksBack, sumByWeek,
+  rankTotals, shortDay, peak, share,
+} from "@/components/dashboard/series";
 import { CurrencySymbol } from "@/components/Currency";
 import { Icon } from "@/components/studio2/icons";
 import { useWidgetVisible } from "@/components/studio2/analyticsLevel";
@@ -109,7 +113,8 @@ export default function InventoryDashboard({
   slug, summary, items = [], orders = [], movements = [], nav,
   currency = "",
 }) {
-  const tr = inventoryDict(useStudioLocale());
+  const locale = useStudioLocale();
+  const tr = inventoryDict(locale);
   const d = derive({ items, orders }, tr);
   const visible = useWidgetVisible();
   const href = (key) => (nav?.[key] ? `/${slug}/${key}` : "");
@@ -117,6 +122,40 @@ export default function InventoryDashboard({
 
   const recent = [...movements].slice(0, 7);
   const openPos = (summary?.awaiting ?? 0);
+
+  // ---- the richer half (10/09/2026) ---------------------------------------
+  const rtl = locale === "ar";
+  const asOf = new Date().toISOString().slice(0, 10);
+  // ONE STATE PER ITEM, decided in this order: nothing on the shelf is out of
+  // stock whatever its level says; below the level is low; and an item with no
+  // level set cannot be judged, so it is said to be so rather than called healthy.
+  const health = { healthy: 0, low: 0, out: 0, noLevel: 0 };
+  for (const i of items) {
+    const onHand = Number(i.onHand) || 0;
+    if (onHand <= 0) health.out += 1;
+    else if (i.low) health.low += 1;
+    else if (!(Number(i.reorderLevel) > 0)) health.noLevel += 1;
+    else health.healthy += 1;
+  }
+  const healthSlices = [
+    { label: tr.dashHealthy, value: health.healthy, color: "rgb(var(--chart-2))" },
+    { label: tr.dashBelowReorder, value: health.low, color: "rgb(var(--chart-4))" },
+    { label: tr.dashOutOfStock, value: health.out, color: "rgb(var(--chart-3))" },
+    { label: tr.dashNoReorderLevel, value: health.noLevel, color: "rgb(var(--chart-5))" },
+  ];
+  const topItems = rankTotals(items, (i) => i.name, (i) => (Number(i.onHand) || 0) * (Number(i.unitCost) || 0), 8, null);
+  // IN AND OUT BY WEEK. An adjustment corrects the count rather than moving
+  // goods, so it belongs to neither series.
+  const weeks = weeksBack(12, asOf);
+  const inByWeek = sumByWeek(movements.filter((m) => m.kind === "in"), (m) => m.at, (m) => Math.abs(Number(m.qty) || 0), weeks);
+  const outByWeek = sumByWeek(movements.filter((m) => m.kind === "out"), (m) => m.at, (m) => Math.abs(Number(m.qty) || 0), weeks);
+  // ORDERS PER MONTH. The value counts only what was committed — a Draft is not
+  // a commitment and a Cancelled one was withdrawn, the rule spend-by-vendor
+  // follows — while the line counts every order raised, so the two may part.
+  const months = monthsBack(12, asOf);
+  const committed = orders.filter((o) => o.status === "Ordered" || o.status === "Partly received" || o.status === "Received");
+  const orderValue = sumByMonth(committed, (o) => o.createdAt, (o) => Number(o.total) || 0, months);
+  const orderCount = countByMonth(orders, (o) => o.createdAt, months);
 
   const sections = [
     { key: "inventory-items", label: tr.registeredItems2, desc: tr.descCatalogue, icon: "services" },
@@ -217,6 +256,41 @@ export default function InventoryDashboard({
               ))}
             </ul>
           ) : <p className="py-8 text-center text-sm text-slate-400">{tr.noStockMovementsYet2}</p>}
+        </Widget>
+
+        {/* ---- the richer half (10/09/2026) ---- */}
+        <Widget title={tr.dashStockHealth} hint={tr.dashStockHealthHint} locked={!visible("inventory.stock-health")} lockedWhat={tr.dashStockHealth}>
+          {items.length ? <DonutLegend data={healthSlices} word={tr.dashItemsWord} /> : <DashEmpty text={tr.dashNoStock} />}
+        </Widget>
+
+        <Widget title={tr.dashMovementTrend} hint={tr.dashMovementTrendHint} span={2} locked={!visible("inventory.movement-trend")} lockedWhat={tr.dashMovementTrend}>
+          {inByWeek.some(Boolean) || outByWeek.some(Boolean) ? (
+            <ChartFrame labels={weeks.map((w, i) => (i % 2 === 0 ? shortDay(w) : ""))} height={200}
+              legend={[{ name: tr.dashSeriesIn, color: "rgb(var(--chart-2))" }, { name: tr.dashSeriesOut, color: "rgb(var(--chart-3))" }]}>
+              <BarChart height={200} rtl={rtl} labels={weeks}
+                series={[
+                  { name: tr.dashSeriesIn, data: inByWeek, color: "rgb(var(--chart-2))" },
+                  { name: tr.dashSeriesOut, data: outByWeek, color: "rgb(var(--chart-3))" },
+                ]} />
+            </ChartFrame>
+          ) : <DashEmpty text={tr.noStockMovementsYet2} />}
+        </Widget>
+
+        <Widget title={tr.dashTopItems} hint={tr.dashTopItemsHint} locked={!visible("inventory.top-items")} lockedWhat={tr.dashTopItems}>
+          {topItems.length ? (
+            <BarList items={topItems.map((t) => ({ label: t.label, value: share(t.value, peak(topItems)), display: amt(t.value) }))} />
+          ) : <DashEmpty text={tr.noStockValueYet} />}
+        </Widget>
+
+        <Widget title={tr.dashOrderTrend} hint={tr.dashOrderTrendHint} span={2} locked={!visible("inventory.order-trend")} lockedWhat={tr.dashOrderTrend}>
+          {orderCount.some(Boolean) ? (
+            <ChartFrame labels={months.map((m) => monthLabel(m, locale))} height={220}
+              legend={[{ name: tr.dashSeriesValue, color: "rgb(var(--chart-1))" }, { name: tr.dashSeriesOrders, color: "rgb(var(--chart-3))" }]}>
+              <ComboChart height={220} rtl={rtl}
+                bars={[{ name: tr.dashSeriesValue, data: orderValue, color: "rgb(var(--chart-1))" }]}
+                line={{ name: tr.dashSeriesOrders, data: orderCount, color: "rgb(var(--chart-3))" }} />
+            </ChartFrame>
+          ) : <DashEmpty text={tr.noPurchaseOrdersYet} />}
         </Widget>
       </DashGrid>
 

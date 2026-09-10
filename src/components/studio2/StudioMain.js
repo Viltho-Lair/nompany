@@ -5,11 +5,19 @@ import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { Icon } from "@/components/studio2/icons";
 import { panel, h2, sub, microLabel, money, fmtDate, StatTile } from "@/components/studio2/ui";
-import MainDashboard from "@/components/studio2/MainDashboard";
 import { mainDict } from "@/shared/studio/main";
 import { sectionName } from "@/shared/studio/sections";
 import { useStudioLocale as useLocale } from "@/components/studio2/locale";
 import { useReload } from "@/components/studio2/useReload";
+import nextDynamic from "next/dynamic";
+
+// THE DASHBOARD LOADS WHEN IT IS SHOWN, not with this screen. It was a static
+// import, so every tenant page carried every department's dashboard and the
+// whole chart kit in its first load; a client module's `import()` is a real
+// lazy boundary (see HeavyScreens.jsx for why a Server Component's is not).
+const MainDashboard = nextDynamic(() => import("@/components/studio2/MainDashboard"), {
+  loading: () => <ScreenSkeleton />,
+});
 
 // MAIN — the studio's front door: what is happening across the whole place, for
 // the person looking at it.

@@ -9,8 +9,15 @@ import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import RecordLink from "@/components/studio2/RecordLink";
 import { linkToProject, linkIf } from "@/modules/main/studioLinks";
 import { microLabel, Dialog, fmtDate, fmtWeekday } from "@/components/studio2/ui";
-import OperationsDashboard from "@/components/studio2/OperationsDashboard";
 import LocationsPanel from "@/components/studio2/LocationsPanel";
+
+// THE DASHBOARD LOADS WHEN IT IS SHOWN, not with this screen. It was a static
+// import, so every tenant page carried every department's dashboard and the
+// whole chart kit in its first load; a client module's `import()` is a real
+// lazy boundary (see HeavyScreens.jsx for why a Server Component's is not).
+const OperationsDashboard = nextDynamic(() => import("@/components/studio2/OperationsDashboard"), {
+  loading: () => <ScreenSkeleton />,
+});
 // BEHIND A REAL LAZY BOUNDARY. These are SECONDARY TABS — nobody lands on
 // them — and a static import from this client module would put them in the
 // studio route's first load, which is what every tenant page waits for.

@@ -33,6 +33,7 @@ Three rules that keep this folder worth reading:
 | [closure.md](closure.md) | Closing out: the punch list, practical completion, and the support clock |
 | [cost-codes.md](cost-codes.md) | What a project is allowed to cost and what it has: the breakdown, why money nobody filed properly is still the project's, and why spend counts from Received |
 | [customer-360.md](customer-360.md) | One client's page: the blocks each reader may see, how the totals move with them, and what is deliberately absent |
+| [dashboards.md](dashboards.md) | What every section dashboard shares: the chart kit's shapes, the UTC time arithmetic, why a ranking folds its tail into Other, when a donut is allowed, and which widgets each section gained |
 | [departments.md](departments.md) | A studio's own org chart: why a department is not a section, what `sectionKeys` does and does not grant, and how a scope reaches a subtree |
 | [dropdowns.md](dropdowns.md) | Every option list in the product: one panel the product draws itself, why the browser's could not be themed, and what it still cannot do |
 | [engagements.md](engagements.md) | The deal: one engagement, its stages, its client, lock and delete |

@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { summaryDict } from "@/shared/studio/summary";
+import { BarChart, ChartFrame, PALETTE } from "@/components/charts";
 import { useReload } from "@/components/studio2/useReload";
 
 // A SECTION'S REGISTERS, ON THE SECTION'S OWN PAGE.
@@ -82,10 +83,21 @@ export default function StudioSectionSummary({ slug, sectionKey, locale = "en" }
                 Statuses are the STUDIO'S words (a type's own declaration) and
                 are therefore never translated, the rule section names, client
                 names and service actions all follow. */}
+            {/* THE CARD'S SHAPE BEFORE ITS NUMBERS: one strip split by status, in
+                the type's own order, so where a register's records pile up reads
+                at a glance. The rows below carry the same colours as their key. */}
+            {r.total > 0 && (
+              <div className="mt-3 flex h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-white/5" aria-hidden="true">
+                {r.byStatus.map((b, bi) => (b.count ? (
+                  <span key={b.status} style={{ width: `${(b.count / r.total) * 100}%`, backgroundColor: PALETTE[bi % PALETTE.length] }} />
+                ) : null))}
+              </div>
+            )}
             <ul className="mt-3 space-y-1">
-              {r.byStatus.map((b) => (
+              {r.byStatus.map((b, bi) => (
                 <li key={b.status} className="flex items-baseline justify-between gap-2 text-xs">
                   <span className={`min-w-0 truncate ${b.count ? "text-slate-600 dark:text-slate-300" : "text-slate-400 dark:text-slate-500"}`}>
+                    <span aria-hidden="true" className="me-1.5 inline-block h-2 w-2 rounded-full align-middle" style={{ backgroundColor: PALETTE[bi % PALETTE.length], opacity: b.count ? 1 : 0.35 }} />
                     {b.status}
                   </span>
                   <span className={`num shrink-0 ${b.count ? "text-slate-900 dark:text-white" : "text-slate-300 dark:text-slate-600"}`}>
@@ -97,6 +109,26 @@ export default function StudioSectionSummary({ slug, sectionKey, locale = "en" }
           </div>
         ))}
       </div>
+
+      {/* EVERY REGISTER ON ONE AXIS — open against overdue, so the register
+          falling behind is the tall red bar rather than a number in the fourth of
+          six cards. Only from two registers up: one register's bars would repeat
+          its own card. */}
+      {data.registers.length > 1 && (
+        <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4 dark:border-white/15 dark:bg-[#191921]">
+          <h4 className="font-display text-xs font-700 text-slate-900 dark:text-white">{tr.chartTitle}</h4>
+          <div className="mt-3">
+            <ChartFrame labels={data.registers.map((r) => r.label)} height={160}
+              legend={[{ name: tr.open, color: "rgb(var(--chart-1))" }, { name: tr.overdueWord, color: "rgb(var(--chart-3))" }]}>
+              <BarChart height={160} rtl={locale === "ar"} labels={data.registers.map((r) => r.typeKey)}
+                series={[
+                  { name: tr.open, data: data.registers.map((r) => r.open), color: "rgb(var(--chart-1))" },
+                  { name: tr.overdueWord, data: data.registers.map((r) => r.overdue), color: "rgb(var(--chart-3))" },
+                ]} />
+            </ChartFrame>
+          </div>
+        </div>
+      )}
 
       {/* WHAT IS ACTUALLY LATE, worst first and across every register — the one
           thing a person opens a department page to find out. Absent entirely

@@ -73,10 +73,22 @@ perfect or as worst depending on which way the comparator fell — neither of wh
 **The exception tiles are the free floor and are never gated.** A studio that cannot see its
 own over-billed orders because it did not buy analytics is being sold its own problems back.
 
-**One paid widget, and one registry key.** `procurement.on-time-by-supplier` is registered in
-`dashboardWidgets.ts` and drawn. The three others a Procurement dashboard will eventually want
-are deliberately **not** registered: a key in the tier editor that a studio can switch on to be
-shown nothing is the same defect as a permission nothing exercises, one layer up.
+**Four paid widgets, four registry keys** — each registered because it is drawn, never ahead
+of one: a key in the tier editor that a studio can switch on to be shown nothing is the same
+defect as a permission nothing exercises, one layer up.
+
+- `procurement.on-time-by-supplier` — the ranking.
+- `procurement.supplier-health` (10/09/2026) — suppliers by standing, as a donut, because
+  `supplierQualification` gives each supplier exactly one state; qualified is what is left over.
+- `procurement.delivery-status` (10/09/2026) — late, due soon, never chased and undated, as
+  **bars rather than a donut**: an order can be late and unchased at once, and slices would claim
+  to add up to a whole they do not make.
+- `procurement.receiving-exceptions` (10/09/2026) — the three-way match's exceptions as bars,
+  with **over-billed left off entirely** when no bill was read, the same null-not-nought rule
+  the tile follows.
+
+Each draws only the block it belongs to, so a reader without a register's right sees no widget
+for it — the block was never read.
 
 ## Who may do what
 
@@ -88,9 +100,10 @@ refused there once for being the second. Catalogue 173 → 174.
 
 Stated in words, because a silent gap reads as a finished feature.
 
-- **Three of the four widgets a real Procurement dashboard wants** — spend by supplier,
-  requisitions by status, retention by subcontract — are neither registered nor built. The
-  service returns aggregate counts, not the per-supplier and per-status series they need.
+- **Spend by supplier, requisitions by status and retention by subcontract** are neither
+  registered nor built. The service returns aggregate counts, not the per-supplier and
+  per-status series they need; the three widgets added on 10/09/2026 draw only what the
+  blocks already carry.
 - **No date range.** Every figure is "now"; there is no last-quarter view and no trend, so the
   dashboard cannot say whether any of it is getting better.
 - **Nothing is clickable.** A tile reports a count and does not take you to the rows behind it,

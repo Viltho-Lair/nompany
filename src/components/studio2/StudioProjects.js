@@ -10,7 +10,6 @@ import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import RecordLink from "@/components/studio2/RecordLink";
 import { StudioDataGridSkeleton } from "@/components/studio2/StudioDataGrid.skeleton";
 import { useFocusedRecord } from "@/components/studio2/useFocusedRecord";
-import ProjectsDashboard from "@/components/studio2/ProjectsDashboard";
 import { useAnalyticsLevel } from "@/components/studio2/analyticsLevel";
 import { StatusPill } from "@/components/studio2/StatusPill";
 import SelectMenu from "@/components/fields/SelectMenu";
@@ -35,6 +34,14 @@ import {
 } from "@/modules/projects/sla";
 import { hoursBetween } from "@/modules/projects/projectSchedule";
 import { useReload } from "@/components/studio2/useReload";
+
+// THE DASHBOARD LOADS WHEN IT IS SHOWN, not with this screen. It was a static
+// import, so every tenant page carried every department's dashboard and the
+// whole chart kit in its first load; a client module's `import()` is a real
+// lazy boundary (see HeavyScreens.jsx for why a Server Component's is not).
+const ProjectsDashboard = nextDynamic(() => import("@/components/studio2/ProjectsDashboard"), {
+  loading: () => <ScreenSkeleton />,
+});
 
 // Projects: delivery work opened from an approved quotation, the support
 // contracts that follow it, and the overtime logged against it. Progress is the

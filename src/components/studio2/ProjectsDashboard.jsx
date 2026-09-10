@@ -15,8 +15,9 @@
 import { money, StatTile } from "@/components/studio2/ui";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { projectsDict } from "@/shared/studio/projects";
-import { Widget, StatRow, DashGrid } from "@/components/dashboard";
-import { BarChart, BarList, Donut, Radial, ChartFrame } from "@/components/charts";
+import { Widget, StatRow, DashGrid, DashEmpty } from "@/components/dashboard";
+import { BarChart, BarList, Donut, Radial, ChartFrame, Scatter, ShareBar } from "@/components/charts";
+import { monthLabel, monthsBack, sumByMonth, rankTotals, peak, share } from "@/components/dashboard/series";
 import { allVisits } from "@/modules/projects/sla";
 import { useWidgetVisible } from "@/components/studio2/analyticsLevel";
 
@@ -43,7 +44,8 @@ function monthKey(d) {
 export default function ProjectsDashboard({
   projects = [], slas = [], overtimes = [], people = [], slug = "", nav = {},
 }) {
-  const tr = projectsDict(useStudioLocale());
+  const locale = useStudioLocale();
+  const tr = projectsDict(locale);
   const visible = useWidgetVisible();
   const num = (n) => <span className="num">{n}</span>;
   const amt = (n) => <span className="num">{money(n)}</span>;
@@ -129,6 +131,41 @@ export default function ProjectsDashboard({
   }
 
   const otHours = round2(overtimes.reduce((s, o) => s + (Number(o.hours) || 0), 0));
+
+  // ---- the richer half (10/09/2026) ---------------------------------------
+  const rtl = locale === "ar";
+  const asOfDay = new Date().toISOString().slice(0, 10);
+  const openProjects = projects.filter((p) => stageOf(p) !== "Completed");
+  // VALUE AGAINST PROGRESS, one dot per open project. The top-left corner —
+  // worth a lot and barely started — is where a portfolio's risk sits, and no
+  // list sorted by either number alone can show it.
+  const scatterPoints = openProjects.map((p) => ({
+    x: Math.max(0, Math.min(100, Number(p.progress) || 0)),
+    y: Number(p.value) || 0,
+    color: STAGE_COLOR[stageOf(p)],
+    label: `${p.number || ""} ${p.title || ""}`.trim(),
+  }));
+  const valueMax = Math.max(1, ...scatterPoints.map((p) => p.y));
+  // SCHEDULE HEALTH across OPEN projects — a completed one has no schedule left
+  // to keep. OVERDUE IS THE KPI ROW'S OWN RULE (end before today's midnight), so
+  // the tile above and this slice cannot disagree about the same project.
+  const health = { onTrack: 0, dueSoon: 0, overdue: 0, noDate: 0 };
+  for (const p of openProjects) {
+    const end = p.endDate ? new Date(p.endDate) : null;
+    if (!end || Number.isNaN(end.getTime())) health.noDate += 1;
+    else if (end < today) health.overdue += 1;
+    else if (end.getTime() - today.getTime() <= 30 * 86400000) health.dueSoon += 1;
+    else health.onTrack += 1;
+  }
+  const healthSlices = [
+    { label: tr.dashOnTrack, value: health.onTrack, color: "rgb(var(--chart-2))" },
+    { label: tr.dashDueSoon, value: health.dueSoon, color: "rgb(var(--chart-4))" },
+    { label: tr.dashOverdue, value: health.overdue, color: "rgb(var(--chart-3))" },
+    { label: tr.dashNoEndDate, value: health.noDate, color: "rgb(var(--chart-5))" },
+  ];
+  const otMonths = monthsBack(12, asOfDay);
+  const otByMonth = sumByMonth(overtimes, (o) => o.date || o.createdAt, (o) => Number(o.hours) || 0, otMonths);
+  const byClient = rankTotals(projects, (p) => p.clientName || tr.dashNoClient, (p) => Number(p.value) || 0, 6, tr.dashOther);
 
   if (projects.length === 0) {
     return (
@@ -232,6 +269,34 @@ export default function ProjectsDashboard({
                 ]} />
             </ChartFrame>
           ) : <p className="py-8 text-center text-sm text-slate-400">{tr.noProjectDatesYet}</p>}
+        </Widget>
+
+        {/* ---- the richer half (10/09/2026) ---- */}
+        <Widget title={tr.dashScheduleHealth} hint={tr.dashScheduleHealthHint} locked={!visible("projects.schedule-health")} lockedWhat={tr.dashScheduleHealth}>
+          {openProjects.length ? <ShareBar data={healthSlices} className="py-2" /> : <DashEmpty text={tr.noOpenProjects} />}
+        </Widget>
+
+        <Widget title={tr.dashValueVsProgress} hint={tr.dashValueVsProgressHint} span={2} locked={!visible("projects.value-vs-progress")} lockedWhat={tr.dashValueVsProgress}>
+          {scatterPoints.length ? (
+            <Scatter points={scatterPoints} xMax={100} yMax={valueMax} height={220}
+              xTicks={["0%", "50%", "100%"]}
+              yTicks={[money(0), money(valueMax / 2), money(valueMax)]} />
+          ) : <DashEmpty text={tr.noOpenProjects} />}
+        </Widget>
+
+        <Widget title={tr.dashValueByClient} hint={tr.dashValueByClientHint} locked={!visible("projects.value-by-client")} lockedWhat={tr.dashValueByClient}>
+          {byClient.length ? (
+            <BarList items={byClient.map((c) => ({ label: c.label, value: share(c.value, peak(byClient)), display: amt(c.value) }))} />
+          ) : <DashEmpty text={tr.noProjectValuesYet} />}
+        </Widget>
+
+        <Widget title={tr.dashOvertimeTrend} hint={tr.dashOvertimeTrendHint} span={2} locked={!visible("projects.overtime-trend")} lockedWhat={tr.dashOvertimeTrend}>
+          {otByMonth.some(Boolean) ? (
+            <ChartFrame labels={otMonths.map((m) => monthLabel(m, locale))} height={200}>
+              <BarChart height={200} rtl={rtl} labels={otMonths}
+                series={[{ name: tr.dashSeriesHours, data: otByMonth, color: "rgb(var(--chart-4))" }]} />
+            </ChartFrame>
+          ) : <DashEmpty text={tr.dashNoHistory} />}
         </Widget>
       </DashGrid>
     </div>

@@ -22,8 +22,12 @@ import { hrDict } from "@/shared/studio/hr";
 // top StatRow is the free floor everyone gets.
 
 import { StatTile, fmtDate } from "@/components/studio2/ui";
-import { Widget, StatRow, DashGrid } from "@/components/dashboard";
-import { BarList, Donut } from "@/components/charts";
+import { Widget, StatRow, DashGrid, DashEmpty } from "@/components/dashboard";
+import { AreaChart, BarChart, BarList, ChartFrame, Donut, PALETTE } from "@/components/charts";
+import {
+  monthLabel, monthsAround, spreadDaysByMonth, rankTotals, daysAhead,
+  activeOnDays, weeksAhead, sumByWeek, shortDay,
+} from "@/components/dashboard/series";
 import { useWidgetVisible } from "@/components/studio2/analyticsLevel";
 
 // The leave palette maps a status to a slice colour once, so the donut and any
@@ -57,7 +61,8 @@ export default function HrDashboard({
   vacations = [],
   windowDays = 60,
 }) {
-  const tr = hrDict(useStudioLocale());
+  const locale = useStudioLocale();
+  const tr = hrDict(locale);
   const today = new Date().toISOString().slice(0, 10);
   const to = nav?.["hr-employees"] ? `/${slug}/hr-employees` : "";
   const visible = useWidgetVisible();
@@ -97,6 +102,35 @@ export default function HrDashboard({
     .sort((a, b) => (a.from || "").localeCompare(b.from || ""))
     .slice(0, 8);
 
+
+  // ---- the richer half (10/09/2026) ---------------------------------------
+  const rtl = locale === "ar";
+  // LEAVE DAYS BY MONTH, six months either side of today, SPREAD ACROSS THE
+  // CALENDAR DAYS each request actually covers — a fortnight from the 25th is
+  // mostly next month's absence. Approved and pending both count (a pending week
+  // is a week somebody has asked to be away); declined and cancelled do not.
+  const booked = vacations.filter((v) => v.status === "Approved" || v.status === "Pending");
+  const leaveMonths = monthsAround(5, 6, today);
+  const leaveTypes = rankTotals(booked, (v) => v.type || tr.dashOther, () => 1, 3, null).map((r) => r.label);
+  const typeOf = (v) => (leaveTypes.includes(v.type) ? v.type : tr.dashOther);
+  const leaveSeries = [...new Set(booked.map(typeOf))]
+    .map((type, i) => ({
+      name: type,
+      data: spreadDaysByMonth(booked.filter((v) => typeOf(v) === type), (v) => v.from, (v) => v.to, leaveMonths),
+      color: PALETTE[i % PALETTE.length],
+    }))
+    .filter((s) => s.data.some(Boolean));
+  // WHO IS AWAY EACH DAY, the next thirty — approved as the area, pending as a
+  // dashed line over it, because a pending request is a warning and not yet an
+  // absence.
+  const nextDays = daysAhead(30, today);
+  const awayApproved = activeOnDays(vacations.filter((v) => v.status === "Approved"), (v) => v.from, (v) => v.to, nextDays);
+  const awayPending = activeOnDays(vacations.filter((v) => v.status === "Pending"), (v) => v.from, (v) => v.to, nextDays);
+  // DOCUMENTS BY THE WEEK THEY LAPSE, with everything already lapsed gathered
+  // into the first column rather than spread over weeks nobody can act in.
+  const expiryWeeks = weeksAhead(Math.max(1, Math.ceil(windowDays / 7)), today);
+  const lapsedDocs = expiring.filter((e) => e.daysLeft < 0).length;
+  const expiryByWeek = sumByWeek(expiring.filter((e) => e.daysLeft >= 0), (e) => e.date, () => 1, expiryWeeks);
   return (
     <div className="space-y-5">
       {/* Basic — the summary everyone gets, before any detail. */}
@@ -187,6 +221,37 @@ export default function HrDashboard({
               ))}
             </ul>
           )}
+        </Widget>
+
+        {/* ---- the richer half (10/09/2026) ---- */}
+        <Widget title={tr.dashAwayForecast} hint={tr.dashAwayForecastHint} span={2} locked={!visible("hr.away-forecast")} lockedWhat={tr.dashAwayForecast}>
+          {awayApproved.some(Boolean) || awayPending.some(Boolean) ? (
+            <ChartFrame labels={nextDays.map((day, i) => (i % 5 === 0 ? shortDay(day) : ""))} height={180}
+              legend={[{ name: tr.dashSeriesApproved, color: "rgb(var(--chart-2))" }, { name: tr.dashSeriesPending, color: "rgb(var(--chart-4))" }]}>
+              <AreaChart height={180} rtl={rtl} showY={false} dashed={[1]} labels={nextDays}
+                series={[
+                  { name: tr.dashSeriesApproved, data: awayApproved, color: "rgb(var(--chart-2))" },
+                  { name: tr.dashSeriesPending, data: awayPending, color: "rgb(var(--chart-4))" },
+                ]} />
+            </ChartFrame>
+          ) : <DashEmpty text={tr.dashNobodyAway} />}
+        </Widget>
+
+        <Widget title={tr.dashExpiryByWeek} hint={tr.dashExpiryByWeekHint(windowDays)} locked={!visible("hr.expiry-by-week")} lockedWhat={tr.dashExpiryByWeek}>
+          {expiring.length ? (
+            <ChartFrame labels={[tr.dashExpired, ...expiryWeeks.map(shortDay)]} height={180}>
+              <BarChart height={180} rtl={rtl} labels={["lapsed", ...expiryWeeks]}
+                series={[{ name: tr.dashExpiryByWeek, data: [lapsedDocs, ...expiryByWeek], color: "rgb(var(--chart-3))" }]} />
+            </ChartFrame>
+          ) : <DashEmpty text={tr.nothingExpiringAllClear} />}
+        </Widget>
+
+        <Widget title={tr.dashLeaveTrend} hint={tr.dashLeaveTrendHint} span={3} locked={!visible("hr.leave-trend")} lockedWhat={tr.dashLeaveTrend}>
+          {leaveSeries.length ? (
+            <ChartFrame labels={leaveMonths.map((m) => monthLabel(m, locale))} height={220} legend={leaveSeries.map((s) => ({ name: s.name, color: s.color }))}>
+              <BarChart height={220} stacked rtl={rtl} labels={leaveMonths} series={leaveSeries} />
+            </ChartFrame>
+          ) : <DashEmpty text={tr.noLeaveBookedYet} />}
         </Widget>
       </DashGrid>
     </div>

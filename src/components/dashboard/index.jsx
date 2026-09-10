@@ -13,6 +13,7 @@ import { panel, StatTile, WidgetTitle } from "@/components/studio2/ui";
 // The one part of this file that needs the reader's language, and therefore a
 // client — kept out of here so the rest stays server-renderable.
 import LockedBody from "@/components/dashboard/LockedBody";
+import { Donut, PALETTE } from "@/components/charts";
 
 export { StatTile, WidgetTitle };
 
@@ -63,6 +64,45 @@ export function Widget({ title, hint, span = 1, locked = false, lockedWhat, chil
     <div className={`${panel} ${SPAN[span] || ""} ${className}`}>
       {title && <WidgetTitle hint={hint}>{title}</WidgetTitle>}
       {locked ? <LockedBody what={lockedWhat || title} /> : children}
+    </div>
+  );
+}
+
+// THE EMPTY LINE every widget says when its data has nothing in it yet. One
+// component, because nine dashboards each wrote the same paragraph with the
+// same five classes and would have drifted the first time one was restyled.
+export function DashEmpty({ text }) {
+  return <p className="py-8 text-center text-sm text-slate-400">{text}</p>;
+}
+
+// A DONUT WITH ITS OWN KEY — the shape four dashboards drew by hand, each with
+// a slightly different legend. Slices keep the colour of their place in the
+// list whether or not a neighbour is empty, and an empty slice is not drawn or
+// listed. `format` formats both the centre total and each row (money, say).
+export function DonutLegend({ data = [], total, word, format }) {
+  const slices = data
+    .map((d, i) => ({ ...d, color: d.color || PALETTE[i % PALETTE.length] }))
+    .filter((d) => d.value > 0);
+  const sum = total ?? slices.reduce((a, d) => a + d.value, 0);
+  const show = (v) => (format ? format(v) : v);
+  return (
+    <div className="flex flex-wrap items-center justify-center gap-5 py-2">
+      <Donut size={156} data={slices}
+        center={(
+          <div className="text-center">
+            <p className="num text-lg font-800 text-slate-900 dark:text-white">{show(sum)}</p>
+            {word ? <p className="text-[11px] text-slate-400">{word}</p> : null}
+          </div>
+        )} />
+      <ul className="min-w-[9rem] flex-1 space-y-1.5">
+        {slices.map((s) => (
+          <li key={s.label} className="flex items-center gap-2 text-xs">
+            <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: s.color }} />
+            <span className="min-w-0 flex-1 truncate text-slate-600 dark:text-slate-300">{s.label}</span>
+            <span className="num shrink-0 font-600 text-slate-700 dark:text-slate-200">{show(s.value)}</span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

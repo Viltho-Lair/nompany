@@ -20,8 +20,9 @@ import { operationsDict } from "@/shared/studio/operations";
 // top StatRow is the free floor everyone gets.
 
 import { StatTile, fmtDate, fmtWeekday } from "@/components/studio2/ui";
-import { Widget, StatRow, DashGrid } from "@/components/dashboard";
-import { BarChart, BarList, Donut, ChartFrame } from "@/components/charts";
+import { Widget, StatRow, DashGrid, DashEmpty } from "@/components/dashboard";
+import { BarChart, BarList, Donut, ChartFrame, HeatGrid } from "@/components/charts";
+import { monthsAround, countByMonth, monthLabel, rankTotals, peak, share } from "@/components/dashboard/series";
 import { useWidgetVisible } from "@/components/studio2/analyticsLevel";
 
 // A permit state maps to a slice colour once, so the donut, the timeline pills
@@ -59,7 +60,8 @@ export default function OperationsDashboard({
   summary = { shiftsThisWeek: 0 },
   windowDays = 60,
 }) {
-  const tr = operationsDict(useStudioLocale());
+  const locale = useStudioLocale();
+  const tr = operationsDict(locale);
   const visible = useWidgetVisible();
 
   const active = permits.filter((p) => p.state === "Valid").length;
@@ -104,6 +106,32 @@ export default function OperationsDashboard({
     .sort((a, b) => (a.validTo || "").localeCompare(b.validTo || ""))
     .slice(0, 8);
 
+
+  // ---- the richer half (10/09/2026) ---------------------------------------
+  const rtl = locale === "ar";
+  const asOf = new Date().toISOString().slice(0, 10);
+  // THE ROTA AS A GRID — location down the side, this week's days across. The
+  // same shifts the week chart counts, split by where they are, so a site with
+  // nobody on it on Thursday is a pale cell rather than a number to hunt for.
+  const weekIsos = days.map((x) => x.iso);
+  const inWeek = shifts.filter((s) => weekIsos.includes(s.date));
+  const heatRows = rankTotals(inWeek, (s) => s.locationName || tr.noLocation, () => 1, 6, null).map((r) => ({
+    label: r.label,
+    values: weekIsos.map((iso) => inWeek.filter((s) => s.date === iso && (s.locationName || tr.noLocation) === r.label).length),
+  }));
+  // WHAT LAPSES WHEN, this month and the five after — the validity timeline
+  // lists the next eight permits; this shows the shape of the months beyond.
+  const expiryMonths = monthsAround(0, 5, asOf);
+  const expiryByMonth = countByMonth(permits.filter((p) => p.validTo), (p) => p.validTo, expiryMonths);
+  const hoursByLocation = rankTotals(shifts, (s) => s.locationName || tr.noLocation, (s) => Number(s.hours) || 0, 8, tr.dashOther);
+  // STATE WITHIN EACH KIND. The donut says how many permits have lapsed; this
+  // says WHICH KIND of authorisation keeps lapsing.
+  const stateTypes = rankTotals(permits, (p) => p.type || "—", () => 1, 6, null).map((r) => r.label);
+  const stateSeries = PERMIT_STATE_ORDER.map((state) => ({
+    name: state,
+    color: PERMIT_COLOR[state],
+    data: stateTypes.map((type) => permits.filter((p) => (p.type || "—") === type && p.state === state).length),
+  })).filter((s) => s.data.some(Boolean));
   return (
     <div className="space-y-5">
       {/* Basic — the summary everyone gets, before any detail. */}
@@ -180,6 +208,39 @@ export default function OperationsDashboard({
               display: <span className="num">{n}</span>,
             }))} />
           ) : <p className="py-8 text-center text-sm text-slate-400">{tr.noPermitsRecordedYet}</p>}
+        </Widget>
+
+        {/* ---- the richer half (10/09/2026) ---- */}
+        <Widget title={tr.dashShiftHeat} hint={tr.dashShiftHeatHint} span={2} locked={!visible("operations.shift-heat")} lockedWhat={tr.dashShiftHeat}>
+          {heatRows.length ? (
+            <HeatGrid columns={days.map((x) => fmtWeekday(x.iso))} rows={heatRows} />
+          ) : <DashEmpty text={tr.nothingScheduledYet} />}
+        </Widget>
+
+        <Widget title={tr.dashPermitExpiry} hint={tr.dashPermitExpiryHint} locked={!visible("operations.permit-expiry")} lockedWhat={tr.dashPermitExpiry}>
+          {expiryByMonth.some(Boolean) ? (
+            <ChartFrame labels={expiryMonths.map((m) => monthLabel(m, locale))} height={180}>
+              <BarChart height={180} rtl={rtl} labels={expiryMonths}
+                series={[{ name: tr.dashSeriesPermits, data: expiryByMonth, color: "rgb(var(--chart-4))" }]} />
+            </ChartFrame>
+          ) : <DashEmpty text={tr.noPermitsCarryEnd} />}
+        </Widget>
+
+        <Widget title={tr.dashHoursByLocation} hint={tr.dashHoursByLocationHint} locked={!visible("operations.hours-by-location")} lockedWhat={tr.dashHoursByLocation}>
+          {hoursByLocation.length ? (
+            <BarList items={hoursByLocation.map((r) => ({
+              label: r.label, value: share(r.value, peak(hoursByLocation)),
+              display: <span className="num">{tr.dashHoursUnit(r.value)}</span>,
+            }))} />
+          ) : <DashEmpty text={tr.nothingScheduledYet} />}
+        </Widget>
+
+        <Widget title={tr.dashStateByType} hint={tr.dashStateByTypeHint} span={2} locked={!visible("operations.state-by-type")} lockedWhat={tr.dashStateByType}>
+          {stateSeries.length ? (
+            <ChartFrame labels={stateTypes} height={200} legend={stateSeries.map((s) => ({ name: s.name, color: s.color }))}>
+              <BarChart height={200} stacked rtl={rtl} labels={stateTypes} series={stateSeries} />
+            </ChartFrame>
+          ) : <DashEmpty text={tr.noPermitsRecordedYet} />}
         </Widget>
       </DashGrid>
     </div>

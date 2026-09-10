@@ -17,7 +17,7 @@
 // needs interaction, the interactive part goes in a client island beside it and
 // the drawing stays here.
 
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 
 /* ONE SERIES SHAPE FOR THE WHOLE KIT. Area and Bar take the same object, so a
    card can swap between them without reshaping its data — which is most of why
@@ -571,6 +571,242 @@ export function Sparkline({
       ) : null}
       <path d={d} fill="none" stroke={stroke} strokeWidth="2" vectorEffect="non-scaling-stroke" strokeLinecap="round" />
     </svg>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Combo: bars and a line, each on its own scale                               */
+/* -------------------------------------------------------------------------- */
+
+// TWO QUANTITIES THAT DO NOT SHARE A UNIT, on one time axis — value in money
+// and count in deals, income and expense with the month's net riding over
+// them. Two separate charts make the reader line up the months by eye; one
+// axis with two scales does it for them. The LINE HAS ITS OWN SCALE and may go
+// below zero (a month that lost money), so its baseline is computed from its
+// own minimum rather than pinned to the bars' floor.
+//
+// `preserveAspectRatio="none"` so the groups stretch to exactly the width
+// ChartFrame's label grid divides into — group i sits over label i at every
+// width. The cost is that nothing round is drawn here: a circle would become
+// an ellipse, which is why the line has no dots.
+export function ComboChart({
+  bars = [],
+  line,
+  height = 240,
+  stacked = false,
+  rtl = false,
+  className = "",
+}: {
+  bars?: Series[];
+  line?: Series;
+  height?: number;
+  stacked?: boolean;
+  /** Group 0 on the RIGHT. See the note on `AreaChart`. */
+  rtl?: boolean;
+  className?: string;
+}) {
+  const W = 800;
+  const top = 10;
+  const n = Math.max(bars[0]?.data.length ?? 0, line?.data.length ?? 0);
+  if (!n) return null;
+  const plotH = height - top;
+  const groupW = W / n;
+  const totals = Array.from({ length: n }, (_, i) => bars.reduce((a, s) => a + Math.max(0, s.data[i] || 0), 0));
+  const barMax = Math.max(1, stacked ? Math.max(0, ...totals) : Math.max(0, ...bars.flatMap((s) => s.data)));
+  const lineData = line?.data ?? [];
+  const lineMax = Math.max(1, ...lineData);
+  const lineMin = Math.min(0, ...lineData);
+  const gap = groupW * 0.3;
+  const count = stacked ? 1 : Math.max(bars.length, 1);
+  const barW = Math.max(3, (groupW - gap) / count);
+  const slot = (i: number) => (rtl ? n - 1 - i : i);
+  const yBar = (v: number) => (Math.max(0, v) / barMax) * (plotH - 6);
+  const yLine = (v: number) => top + plotH - ((v - lineMin) / (lineMax - lineMin || 1)) * (plotH - 6);
+  const pts: Point[] = lineData.map((v, i) => [slot(i) * groupW + groupW / 2, yLine(v)]);
+
+  return (
+    <svg viewBox={`0 0 ${W} ${height}`} className={`w-full ${className}`} style={{ height }} preserveAspectRatio="none" role="img">
+      {[0.25, 0.5, 0.75, 1].map((f) => (
+        <line key={f} x1={0} x2={W} y1={top + plotH - f * (plotH - 6)} y2={top + plotH - f * (plotH - 6)}
+          stroke="rgb(var(--doc-border))" strokeWidth="1" strokeDasharray="4 4" vectorEffect="non-scaling-stroke" />
+      ))}
+      {Array.from({ length: n }, (_, i) => {
+        let acc = 0;
+        return bars.map((s, si) => {
+          const h = yBar(s.data[i] || 0);
+          const seat = rtl ? count - 1 - si : si;
+          const x = stacked ? slot(i) * groupW + gap / 2 : slot(i) * groupW + gap / 2 + seat * barW;
+          const y = stacked ? top + plotH - acc - h : top + plotH - h;
+          acc += h;
+          return (
+            <rect key={`${i}-${si}`} x={x} y={y} width={stacked ? groupW - gap : barW - 2} height={Math.max(h, h > 0 ? 1 : 0)}
+              rx={2} fill={s.color || PALETTE[si % PALETTE.length]} opacity={0.9} />
+          );
+        });
+      })}
+      {pts.length > 1 ? (
+        <path d={smoothPath(pts)} fill="none" stroke={line?.color || PALETTE[bars.length % PALETTE.length]}
+          strokeWidth="2.5" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+      ) : null}
+    </svg>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Heat grid                                                                   */
+/* -------------------------------------------------------------------------- */
+
+// A GRID OF CELLS WHOSE DEPTH IS THE COUNT — weekday by week, location by day.
+// Drawn in HTML rather than SVG so the labels stay crisp and the grid mirrors
+// itself in Arabic for free. The hue is one ramp colour at an opacity scaled to
+// the busiest cell, so the reading is RELATIVE: the darkest cell is the busiest
+// moment on this grid, not a fixed threshold that a quiet studio never reaches.
+export function HeatGrid({
+  rows = [],
+  columns = [],
+  color = "rgb(var(--chart-1))",
+  className = "",
+}: {
+  rows?: { label: ReactNode; values: number[] }[];
+  columns?: ReactNode[];
+  color?: string;
+  className?: string;
+}) {
+  const max = Math.max(0, ...rows.flatMap((r) => r.values));
+  return (
+    <div className={`overflow-x-auto ${className}`}>
+      <div
+        className="grid min-w-max gap-1"
+        style={{ gridTemplateColumns: `minmax(4.5rem,auto) repeat(${columns.length}, minmax(1.5rem,1fr))` }}
+      >
+        <span />
+        {columns.map((c, i) => (
+          <span key={i} className="truncate text-center text-[10px] text-[rgb(var(--doc-muted-foreground))]">{c}</span>
+        ))}
+        {rows.map((r, ri) => (
+          <Fragment key={ri}>
+            <span className="truncate pe-2 text-[11px] leading-6 text-[rgb(var(--doc-muted-foreground))]">{r.label}</span>
+            {r.values.map((v, ci) => (
+              <span key={ci} title={String(v)} className="relative h-6 overflow-hidden rounded-[5px] bg-[rgb(var(--doc-muted))]">
+                {v > 0 ? (
+                  <span className="absolute inset-0" style={{ backgroundColor: color, opacity: 0.2 + 0.8 * (v / (max || 1)) }} />
+                ) : null}
+              </span>
+            ))}
+          </Fragment>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Share bar                                                                   */
+/* -------------------------------------------------------------------------- */
+
+// ONE BAR, SPLIT BY SHARE, with its key underneath — a part-to-whole read that
+// takes a line instead of a donut's square. ONLY FOR PARTS THAT ARE EXCLUSIVE:
+// every slice is a share of the one total, so categories a row can belong to
+// two of at once (late AND unchased) belong in a BarList instead.
+//
+// A slice's colour is decided BEFORE the empty ones are dropped, so a slice
+// keeps its hue whether or not its neighbour happens to be zero today.
+export function ShareBar({
+  data = [],
+  format,
+  className = "",
+}: {
+  data?: Slice[];
+  format?: (v: number) => ReactNode;
+  className?: string;
+}) {
+  const parts = data
+    .map((d, i) => ({ ...d, color: d.color || PALETTE[i % PALETTE.length] }))
+    .filter((d) => d.value > 0);
+  const total = parts.reduce((a, d) => a + d.value, 0);
+  if (!total) return null;
+  return (
+    <div className={className}>
+      <div className="flex h-3 w-full overflow-hidden rounded-full bg-[rgb(var(--doc-muted))]">
+        {parts.map((d) => (
+          <span key={d.label} title={`${d.label}: ${d.value}`} className="h-full" style={{ width: `${(d.value / total) * 100}%`, backgroundColor: d.color }} />
+        ))}
+      </div>
+      <ul className="mt-3 grid gap-x-4 gap-y-1.5 sm:grid-cols-2">
+        {parts.map((d) => (
+          <li key={d.label} className="flex items-center gap-2 text-xs">
+            <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: d.color }} />
+            <span className="min-w-0 flex-1 truncate text-[rgb(var(--doc-muted-foreground))]">{d.label}</span>
+            <span className="num shrink-0 font-600">{format ? format(d.value) : d.value}</span>
+            <span className="num w-9 shrink-0 text-end text-[rgb(var(--doc-muted-foreground))]">{Math.round((d.value / total) * 100)}%</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Scatter                                                                     */
+/* -------------------------------------------------------------------------- */
+
+export type ScatterPoint = { x: number; y: number; color?: string; label?: string };
+
+// ONE DOT PER RECORD, on two measures at once — value against progress, days
+// against order. HTML dots positioned by percentage rather than SVG circles,
+// because the plot stretches to its card and a stretched circle is an ellipse.
+// `insetInlineStart` mirrors the x axis in Arabic with no arithmetic of its own.
+export function Scatter({
+  points = [],
+  height = 220,
+  xMax,
+  yMax,
+  xTicks = [],
+  yTicks = [],
+  className = "",
+}: {
+  points?: ScatterPoint[];
+  height?: number;
+  xMax?: number;
+  yMax?: number;
+  xTicks?: ReactNode[];
+  yTicks?: ReactNode[];
+  className?: string;
+}) {
+  const xm = xMax ?? Math.max(1, ...points.map((p) => p.x));
+  const ym = yMax ?? Math.max(1, ...points.map((p) => p.y));
+  return (
+    <div className={className}>
+      <div className="flex gap-3">
+        {yTicks.length ? (
+          <div className="flex shrink-0 flex-col justify-between py-1 text-end text-[11px] text-[rgb(var(--doc-muted-foreground))]" style={{ height }}>
+            {[...yTicks].reverse().map((t, i) => <span key={i}>{t}</span>)}
+          </div>
+        ) : null}
+        <div className="relative min-w-0 flex-1 rounded-lg border border-dashed border-[rgb(var(--doc-border))]" style={{ height }}>
+          <div className="absolute inset-2.5">
+            {points.map((p, i) => (
+              <span
+                key={i}
+                title={p.label}
+                className="absolute h-3 w-3 rounded-full ring-2 ring-white/70 dark:ring-black/30"
+                style={{
+                  insetInlineStart: `calc(${Math.min(100, Math.max(0, (p.x / xm) * 100))}% - 6px)`,
+                  bottom: `calc(${Math.min(100, Math.max(0, (p.y / ym) * 100))}% - 6px)`,
+                  backgroundColor: p.color || PALETTE[0],
+                  opacity: 0.85,
+                }}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+      {xTicks.length ? (
+        <div className="mt-2 flex justify-between text-[11px] text-[rgb(var(--doc-muted-foreground))]">
+          {xTicks.map((t, i) => <span key={i}>{t}</span>)}
+        </div>
+      ) : null}
+    </div>
   );
 }
 

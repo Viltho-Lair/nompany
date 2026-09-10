@@ -17,7 +17,8 @@ import { procurementDict } from "@/shared/studio/procurement";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { h2, sub, Empty, StatTile, money } from "@/components/studio2/ui";
-import { StatRow, DashGrid, Widget } from "@/components/dashboard";
+import { StatRow, DashGrid, Widget, DashEmpty, DonutLegend } from "@/components/dashboard";
+import { BarList } from "@/components/charts";
 import { useWidgetVisible } from "@/components/studio2/analyticsLevel";
 
 // NAMED `*Dashboard.jsx` DELIBERATELY, and not only for tidiness: Gate A scans
@@ -146,8 +147,53 @@ export default function ProcurementDashboard({ slug }) {
             )}
           </StatRow>
 
+          {/* THE PAID HALF (10/09/2026) — the blocks the tiles above count, drawn
+              as shapes. EACH WIDGET EXISTS ONLY WHEN ITS BLOCK DOES: a block the
+              reader may not open was never read (see modules/procurement/
+              dashboard), so there is nothing here to draw for them either. */}
+          <DashGrid>
+            {suppliers && (
+              <Widget title={tr.dashSupplierHealth} hint={tr.dashSupplierHealthHint}
+                locked={!widgetVisible("procurement.supplier-health")} lockedWhat={tr.dashSupplierHealth}>
+                {suppliers.total ? (
+                  // ONE STATE PER SUPPLIER (supplierQualification), so these are
+                  // slices of a whole; qualified is what is left over.
+                  <DonutLegend word={tr.dashSuppliersWord} data={[
+                    { label: tr.dashQualified, value: Math.max(0, suppliers.total - suppliers.blocked - suppliers.lapsed - suppliers.expiring - suppliers.unassessed), color: "rgb(var(--chart-2))" },
+                    { label: tr.dashExpiring, value: suppliers.expiring, color: "rgb(var(--chart-4))" },
+                    { label: tr.dashLapsed, value: suppliers.lapsed, color: "rgb(var(--chart-3))" },
+                    { label: tr.dashBlocked, value: suppliers.blocked, color: "rgb(var(--chart-5))" },
+                    { label: tr.dashUnassessed, value: suppliers.unassessed, color: "rgb(var(--chart-1))" },
+                  ]} />
+                ) : <DashEmpty text={tr.dashNothingInFlight} />}
+              </Widget>
+            )}
+            {expediting && (
+              <Widget title={tr.dashDeliveryStatus} hint={tr.dashDeliveryStatusHint}
+                locked={!widgetVisible("procurement.delivery-status")} lockedWhat={tr.dashDeliveryStatus}>
+                <CountBars empty={tr.dashNothingInFlight} rows={[
+                  { label: tr.dashLate, value: expediting.late, color: "rgb(var(--chart-3))" },
+                  { label: tr.dashDueSoon, value: expediting.dueSoon, color: "rgb(var(--chart-4))" },
+                  { label: tr.dashUnchased, value: expediting.unchased, color: "rgb(var(--chart-5))" },
+                  { label: tr.dashUndated, value: expediting.undated, color: "rgb(var(--chart-1))" },
+                ]} />
+              </Widget>
+            )}
+            {receiving && (
+              <Widget title={tr.dashReceivingExceptions} hint={tr.dashReceivingExceptionsHint}
+                locked={!widgetVisible("procurement.receiving-exceptions")} lockedWhat={tr.dashReceivingExceptions}>
+                <CountBars empty={tr.dashNothingInFlight} rows={[
+                  { label: tr.dashAwaitingDelivery, value: receiving.awaitingDelivery, color: "rgb(var(--chart-1))" },
+                  { label: tr.dashPartDelivered, value: receiving.partDelivered, color: "rgb(var(--chart-4))" },
+                  { label: tr.dashOverReceived, value: receiving.overReceived, color: "rgb(var(--chart-5))" },
+                  { label: tr.dashRejected, value: receiving.rejected, color: "rgb(var(--chart-3))" },
+                  // NULL IS WITHHELD, NOT NOUGHT — see the tile above. No bills
+                  // were read, so there is no over-billing finding to draw.
+                  ...(receiving.overBilled === null ? [] : [{ label: tr.dashOverBilled, value: receiving.overBilled, color: "rgb(var(--chart-3))" }]),
+                ]} />
+              </Widget>
+            )}
           {onTimeBySupplier && (
-            <DashGrid>
               <Widget title={tr.onTimeRanking} hint={tr.onTimeRankingHint} span={2}
                 locked={!showRanking} lockedWhat={tr.onTimeRanking}>
                 {!onTimeBySupplier.length ? (
@@ -178,10 +224,23 @@ export default function ProcurementDashboard({ slug }) {
                   </ul>
                 )}
               </Widget>
-            </DashGrid>
-          )}
+          )}          </DashGrid>
         </>
       )}
     </div>
+  );
+}
+
+// A COUNT PER ROW, bars relative to the largest. These rows OVERLAP — an order
+// can be late and never chased at once — so they are bars and never a donut,
+// whose slices would claim to add up to a whole they do not make.
+function CountBars({ rows, empty }) {
+  const max = Math.max(0, ...rows.map((r) => r.value || 0));
+  if (!max) return <DashEmpty text={empty} />;
+  return (
+    <BarList items={rows.map((r) => ({
+      label: r.label, value: Math.round(((r.value || 0) / max) * 100),
+      display: <span className="num">{r.value || 0}</span>, color: r.color,
+    }))} />
   );
 }

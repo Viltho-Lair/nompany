@@ -439,6 +439,23 @@ type Strings = CommonStrings & {
   whatSold: string;
   whereWorkSits: string;
   workloadManager: string;
+  // The dashboards' richer half (10/09/2026).
+  dashValueVsProgress: string;
+  dashValueVsProgressHint: string;
+  dashScheduleHealth: string;
+  dashScheduleHealthHint: string;
+  dashOnTrack: string;
+  dashDueSoon: string;
+  dashOverdue: string;
+  dashNoEndDate: string;
+  dashOvertimeTrend: string;
+  dashOvertimeTrendHint: string;
+  dashSeriesHours: string;
+  dashValueByClient: string;
+  dashValueByClientHint: string;
+  dashNoClient: string;
+  dashOther: string;
+  dashNoHistory: string;
 };
 
 const en: Strings = {
@@ -872,6 +889,23 @@ const en: Strings = {
   whatSold: "What was sold",
   whereWorkSits: "Where the work sits",
   workloadManager: "Workload by manager",
+  // THE DASHBOARDS' RICHER HALF (10/09/2026).
+  dashValueVsProgress: "Value against progress",
+  dashValueVsProgressHint: "Each open project: plan completion across, value up",
+  dashScheduleHealth: "Schedule health",
+  dashScheduleHealthHint: "Open projects against their end dates",
+  dashOnTrack: "On track",
+  dashDueSoon: "Due within 30 days",
+  dashOverdue: "Overdue",
+  dashNoEndDate: "No end date",
+  dashOvertimeTrend: "Overtime by month",
+  dashOvertimeTrendHint: "Hours logged, last 12 months",
+  dashSeriesHours: "Hours",
+  dashValueByClient: "Value by client",
+  dashValueByClientHint: "Project value per client, largest first",
+  dashNoClient: "No client",
+  dashOther: "Other",
+  dashNoHistory: "Not enough history yet.",
 };
 
 const ar: Strings = {
@@ -1310,6 +1344,23 @@ const ar: Strings = {
   whatSold: "ما تم بيعه",
   whereWorkSits: "أين يقف العمل",
   workloadManager: "عبء العمل حسب المدير",
+  // THE DASHBOARDS' RICHER HALF (10/09/2026).
+  dashValueVsProgress: "القيمة مقابل التقدم",
+  dashValueVsProgressHint: "كل مشروع مفتوح: إنجاز الخطة أفقياً والقيمة عمودياً",
+  dashScheduleHealth: "سلامة الجدول الزمني",
+  dashScheduleHealthHint: "المشاريع المفتوحة مقارنة بتواريخ انتهائها",
+  dashOnTrack: "ضمن الموعد",
+  dashDueSoon: "تنتهي خلال 30 يوماً",
+  dashOverdue: "متأخرة",
+  dashNoEndDate: "بلا تاريخ انتهاء",
+  dashOvertimeTrend: "العمل الإضافي شهرياً",
+  dashOvertimeTrendHint: "الساعات المسجلة خلال آخر 12 شهراً",
+  dashSeriesHours: "الساعات",
+  dashValueByClient: "القيمة حسب العميل",
+  dashValueByClientHint: "قيمة المشاريع لكل عميل، الأكبر أولاً",
+  dashNoClient: "بلا عميل",
+  dashOther: "أخرى",
+  dashNoHistory: "لا يوجد سجل كافٍ بعد.",
 };
 
 const projects = { en, ar };

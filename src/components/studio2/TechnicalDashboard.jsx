@@ -16,8 +16,11 @@
 import { money, StatTile } from "@/components/studio2/ui";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { technicalDict } from "@/shared/studio/technical";
-import { Widget, StatRow, DashGrid } from "@/components/dashboard";
-import { AreaChart, BarList, Donut, Radial, Sparkline, ChartFrame } from "@/components/charts";
+import { Widget, StatRow, DashGrid, DonutLegend } from "@/components/dashboard";
+import { AreaChart, BarList, ComboChart, Donut, HeatGrid, Radial, Scatter, Sparkline, ChartFrame } from "@/components/charts";
+import {
+  monthsBack, monthLabel, sumByMonth, countByMonth, weeksBack, weekdayHeat, weekdayLabels, shortDay,
+} from "@/components/dashboard/series";
 import { CurrencySymbol } from "@/components/Currency";
 import {
   quotationStats, rfqFunnel, urgencyBreakdown, handlerLeaderboard,
@@ -49,7 +52,8 @@ export default function TechnicalDashboard({
   handlerName = (v) => v || "—",
   currency = "",
 }) {
-  const tr = technicalDict(useStudioLocale());
+  const locale = useStudioLocale();
+  const tr = technicalDict(locale);
   const visible = useWidgetVisible();
   const stats = quotationStats(quotations);
   const value = quotationValue(quotations);
@@ -71,6 +75,22 @@ export default function TechnicalDashboard({
   const approvedPct = value.all > 0 ? Math.round((value.approved / value.all) * 100) : 0;
 
   const amt = (n) => <span className="num"><CurrencyGlyph currency={currency} />{money(n)}</span>;
+
+  // ---- the richer half (10/09/2026) ---------------------------------------
+  const rtl = locale === "ar";
+  const asOf = new Date().toISOString().slice(0, 10);
+  const months = monthsBack(12, asOf);
+  const valueByMonth = sumByMonth(quotations, (q) => q.createdAt, (q) => Number(q.total) || 0, months);
+  const quotationsByMonth = countByMonth(quotations, (q) => q.createdAt, months);
+  // FROM `quotationStats`, which already counts every declared status — this
+  // draws it rather than counting again.
+  const statusSlices = Object.entries(stats)
+    .filter(([k, v]) => k !== "total" && v > 0)
+    .map(([k, v]) => ({ label: k, value: v }));
+  const weeks = weeksBack(8, asOf);
+  const heat = weekdayHeat(quotations, (q) => q.createdAt, weeks);
+  const dayNames = weekdayLabels(locale);
+  const scatterMax = Math.max(1, ...scatter.map((s) => s.y));
 
   return (
     <div className="space-y-5">
@@ -166,6 +186,37 @@ export default function TechnicalDashboard({
               )}
             </div>
           )}
+        </Widget>
+
+        {/* ---- the richer half (10/09/2026) ---- */}
+        <Widget title={tr.dashStatusMix} hint={tr.dashStatusMixHint} locked={!visible("technical.status-mix")} lockedWhat={tr.dashStatusMix}>
+          {statusSlices.length ? <DonutLegend data={statusSlices} word={tr.dashQuotationsWord} /> : <NoData text={tr.noQuotationsYet} />}
+        </Widget>
+
+        <Widget title={tr.dashValueTrend} hint={tr.dashValueTrendHint} span={2} locked={!visible("technical.value-trend")} lockedWhat={tr.dashValueTrend}>
+          {quotationsByMonth.some(Boolean) ? (
+            <ChartFrame labels={months.map((m) => monthLabel(m, locale))} height={220}
+              legend={[{ name: tr.dashSeriesValue, color: "rgb(var(--chart-1))" }, { name: tr.dashSeriesQuotations, color: "rgb(var(--chart-3))" }]}>
+              <ComboChart height={220} rtl={rtl}
+                bars={[{ name: tr.dashSeriesValue, data: valueByMonth, color: "rgb(var(--chart-1))" }]}
+                line={{ name: tr.dashSeriesQuotations, data: quotationsByMonth, color: "rgb(var(--chart-3))" }} />
+            </ChartFrame>
+          ) : <NoData text={tr.noQuotationsYet3} />}
+        </Widget>
+
+        <Widget title={tr.dashTurnaroundScatter} hint={tr.dashTurnaroundScatterHint} span={2} locked={!visible("technical.turnaround-scatter")} lockedWhat={tr.dashTurnaroundScatter}>
+          {scatter.length ? (
+            <Scatter height={200} xMax={Math.max(1, scatter.length - 1)} yMax={scatterMax}
+              points={scatter.map((s) => ({ x: s.x, y: s.y, label: `${s.label} · ${tr.dashDaysUnit(s.y)}`, color: "rgb(var(--chart-2))" }))}
+              xTicks={[scatter[0]?.label || "", scatter[scatter.length - 1]?.label || ""]}
+              yTicks={[tr.dashDaysUnit(0), tr.dashDaysUnit(Math.round(scatterMax / 2)), tr.dashDaysUnit(scatterMax)]} />
+          ) : <NoData text={tr.noQuotationApprovedYet} />}
+        </Widget>
+
+        <Widget title={tr.dashWeekdayHeat} hint={tr.dashWeekdayHeatHint} locked={!visible("technical.weekday-heat")} lockedWhat={tr.dashWeekdayHeat}>
+          {heat.some((row) => row.some(Boolean)) ? (
+            <HeatGrid columns={weeks.map((w, i) => (i % 2 === 0 ? shortDay(w) : ""))} rows={dayNames.map((name, i) => ({ label: name, values: heat[i] }))} />
+          ) : <NoData text={tr.noQuotationsYet} />}
         </Widget>
       </DashGrid>
     </div>

@@ -21,6 +21,9 @@ type Strings = {
   overdue: (n: number) => string;
   attention: (n: number) => string;
   daysLate: (n: number) => string;
+  chartTitle: string;
+  open: string;
+  overdueWord: string;
 };
 
 const en: Strings = {
@@ -30,6 +33,9 @@ const en: Strings = {
   overdue: (n) => (n === 1 ? "1 overdue" : `${n} overdue`),
   attention: (n) => (n === 1 ? "1 record is past its date" : `${n} records are past their date`),
   daysLate: (n) => (n === 1 ? "1 day late" : `${n} days late`),
+  chartTitle: "Open and overdue by register",
+  open: "Open",
+  overdueWord: "Overdue",
 };
 
 // HAND-WRITTEN. NO DIACRITICS.
@@ -57,6 +63,9 @@ const ar: Strings = {
     if (n <= 10) return `متأخر ${n} أيام`;
     return `متأخر ${n} يوما`;
   },
+  chartTitle: "المفتوح والمتأخر حسب السجل",
+  open: "مفتوحة",
+  overdueWord: "متأخرة",
 };
 
 const dict = { en, ar };

@@ -282,6 +282,25 @@ type Strings = CommonStrings & {
   whatWorthEndLife: string;
   whoOweMost: string;
   whoOwesMost: string;
+  // The dashboards' richer half (10/09/2026).
+  dashNet: string;
+  dashRvp: string;
+  dashRvpHint: string;
+  dashReceivables: string;
+  dashPayables: string;
+  dashInvoiceStatus: string;
+  dashInvoiceStatusHint: string;
+  dashPaid: string;
+  dashPartlyPaid: string;
+  dashUnpaid: string;
+  dashOverdue: string;
+  dashDraft: string;
+  dashInvoicesWord: string;
+  dashExpenseTrend: string;
+  dashExpenseTrendHint: string;
+  dashOther: string;
+  dashNoHistory: string;
+  dashNoInvoices: string;
 };
 
 const en: Strings = {
@@ -552,6 +571,25 @@ const en: Strings = {
   whatWorthEndLife: "What it's worth at end of life",
   whoOweMost: "Who we owe the most",
   whoOwesMost: "Who owes the most",
+  // THE DASHBOARDS' RICHER HALF (10/09/2026).
+  dashNet: "Net",
+  dashRvp: "Owed to us vs owed by us",
+  dashRvpHint: "Receivables and payables in each aging band",
+  dashReceivables: "Receivables",
+  dashPayables: "Payables",
+  dashInvoiceStatus: "Invoices by state",
+  dashInvoiceStatusHint: "Where every invoice stands today",
+  dashPaid: "Paid",
+  dashPartlyPaid: "Partly paid",
+  dashUnpaid: "Unpaid",
+  dashOverdue: "Overdue",
+  dashDraft: "Draft",
+  dashInvoicesWord: "invoices",
+  dashExpenseTrend: "Spend by category over time",
+  dashExpenseTrendHint: "Monthly expenses split by the largest categories, last 12 months",
+  dashOther: "Other",
+  dashNoHistory: "Not enough history yet.",
+  dashNoInvoices: "No invoices yet.",
 };
 
 const ar: Strings = {
@@ -822,6 +860,25 @@ const ar: Strings = {
   whatWorthEndLife: "قيمته في نهاية عمره الإنتاجي",
   whoOweMost: "لمن ندين بالأكثر",
   whoOwesMost: "من يدين لنا بالأكثر",
+  // THE DASHBOARDS' RICHER HALF (10/09/2026).
+  dashNet: "الصافي",
+  dashRvp: "المستحق لنا مقابل المستحق علينا",
+  dashRvpHint: "الذمم المدينة والدائنة في كل شريحة عمرية",
+  dashReceivables: "الذمم المدينة",
+  dashPayables: "الذمم الدائنة",
+  dashInvoiceStatus: "الفواتير حسب الحالة",
+  dashInvoiceStatusHint: "موقف كل فاتورة اليوم",
+  dashPaid: "مدفوعة",
+  dashPartlyPaid: "مدفوعة جزئياً",
+  dashUnpaid: "غير مدفوعة",
+  dashOverdue: "متأخرة",
+  dashDraft: "مسودة",
+  dashInvoicesWord: "فاتورة",
+  dashExpenseTrend: "الإنفاق حسب الفئة عبر الزمن",
+  dashExpenseTrendHint: "المصروفات الشهرية موزعة على أكبر الفئات خلال آخر 12 شهراً",
+  dashOther: "أخرى",
+  dashNoHistory: "لا يوجد سجل كافٍ بعد.",
+  dashNoInvoices: "لا توجد فواتير بعد.",
 };
 
 const finance = { en, ar };

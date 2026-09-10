@@ -155,6 +155,18 @@ type Strings = CommonStrings & {
   who: string;
   whoWorkingWhenWhere: string;
   workingHours: string;
+  // The dashboards' richer half (10/09/2026).
+  dashShiftHeat: string;
+  dashShiftHeatHint: string;
+  dashPermitExpiry: string;
+  dashPermitExpiryHint: string;
+  dashSeriesPermits: string;
+  dashHoursByLocation: string;
+  dashHoursByLocationHint: string;
+  dashHoursUnit: (n: number) => string;
+  dashStateByType: string;
+  dashStateByTypeHint: string;
+  dashOther: string;
 };
 
 const en: Strings = {
@@ -314,6 +326,18 @@ const en: Strings = {
   who: "Who",
   whoWorkingWhenWhere: "Who is working, when, and where.",
   workingHours: "Working hours",
+  // THE DASHBOARDS' RICHER HALF (10/09/2026).
+  dashShiftHeat: "Rota by location and day",
+  dashShiftHeatHint: "Shifts at each place, this week's rota",
+  dashPermitExpiry: "Permits lapsing by month",
+  dashPermitExpiryHint: "End dates falling this month and in the next five",
+  dashSeriesPermits: "Permits",
+  dashHoursByLocation: "Hours by location",
+  dashHoursByLocationHint: "Scheduled shift hours at each place",
+  dashHoursUnit: (n) => `${n} h`,
+  dashStateByType: "Permit state by type",
+  dashStateByTypeHint: "Valid, expiring and expired within each kind",
+  dashOther: "Other",
 };
 
 const ar: Strings = {
@@ -473,6 +497,18 @@ const ar: Strings = {
   who: "من",
   whoWorkingWhenWhere: "من يعمل، ومتى، وأين.",
   workingHours: "ساعات العمل",
+  // THE DASHBOARDS' RICHER HALF (10/09/2026).
+  dashShiftHeat: "المناوبات حسب الموقع واليوم",
+  dashShiftHeatHint: "المناوبات في كل موقع ضمن جدول هذا الأسبوع",
+  dashPermitExpiry: "التصاريح المنتهية شهرياً",
+  dashPermitExpiryHint: "تواريخ الانتهاء في هذا الشهر والأشهر الخمسة التالية",
+  dashSeriesPermits: "التصاريح",
+  dashHoursByLocation: "الساعات حسب الموقع",
+  dashHoursByLocationHint: "ساعات المناوبات المجدولة في كل موقع",
+  dashHoursUnit: (n) => `${n} س`,
+  dashStateByType: "حالة التصاريح حسب النوع",
+  dashStateByTypeHint: "الصالحة والقريبة الانتهاء والمنتهية ضمن كل نوع",
+  dashOther: "أخرى",
 };
 
 const operations = { en, ar };
