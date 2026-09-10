@@ -923,16 +923,12 @@ export default function StudioFrame({
             </div>
           </div>
 
-          {/* THE DAILY GREETING, in the empty middle of the header. It takes the
-              space between the page title and the controls, which is the only
-              part of this bar that was carrying nothing.
-
-              `order-last` BELOW `lg`, so a narrow header keeps the title beside
-              the menu button and the band wraps to its own line underneath
-              rather than squeezing both. The header is already `flex-wrap`;
-              this just decides what wraps. It renders null when there is no
-              message or the day has been dismissed, so the row collapses to
-              exactly what it was before. */}
+          {/* THE BROADCAST BAND FLOATS OVER THE HEADER rather than sitting in the
+              row: absolutely positioned against this sticky header (a sticky
+              element is a containing block), so a message appearing, rotating
+              or closing never moves the title or the controls. It used to be a
+              flex item here with `order-last`, and every message shifted the
+              bar. See DailyGreeting for where it sits at each width. */}
           <DailyGreeting slug={studio.slug} />
 
           <div className="flex items-center gap-2">

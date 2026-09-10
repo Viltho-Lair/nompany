@@ -5,11 +5,18 @@ quotation, it changes at midnight server time, and a reader can close it for the
 day. Several messages share the one strip: it shows one at a time, moves on every five
 seconds, and draws a dot for each.
 
+**It floats; it takes no place in the header row** (10/09/2026, the owner's instruction). It
+was a flex item between the page title and the controls, so a message arriving pushed both
+sideways — and below `lg` wrapped the header onto a second line — and closing it moved them
+back. It is absolutely positioned against the sticky header now: centred in it from `lg` up,
+hanging just below it on a narrow screen, where the middle of the header is the title. It is
+also one line rather than two — the greeting and the quotation share a truncating row.
+
 It is platform-wide. Every studio reads the same words on the same day — this is a message
 from the product, not a per-tenant setting — so nothing here touches `collection_rows` and
 the answer is identical for every caller.
 
-**It is edited at `/super/broadcast`**, the last item in the console's bottom bar. It
+**It is edited at `/super/broadcast`**, from the console's bottom bar. It
 began as `/super/application/greeting`, one row down a menu of eleven; then it became a pane
 that slid in beside the Pulse wall; since 10/09/2026 it is an ordinary route in the console's
 shared layout, beside every other console screen. The slide went when the whole console joined the

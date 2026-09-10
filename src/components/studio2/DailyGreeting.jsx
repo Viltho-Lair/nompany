@@ -9,6 +9,14 @@ import { daypartFor } from "@/shared/greeting";
 
 /* THE BROADCAST BAND, across the top of the studio.
    ------------------------------------------------------------------
+   IT FLOATS; IT DOES NOT TAKE A PLACE IN THE ROW — the owner's instruction,
+   10/09/2026. It was a flex item in the header, so a message arriving pushed
+   the title and the controls sideways (and below `lg` wrapped the header onto
+   a second line), and closing it moved them back. It is absolutely positioned
+   now, against the sticky header: centred IN the header from `lg` up, and
+   hanging just BELOW it on a narrow screen, where the middle of the header is
+   the title. Nothing around it moves when it appears, rotates or closes.
+
    ONE BOX, HOWEVER MANY MESSAGES. The header is a single row and the band is one
    item in it, so a second message cannot be a second band without the header
    growing every time somebody writes one. It cycles instead: five seconds each,
@@ -145,25 +153,27 @@ export default function DailyGreeting({ slug }) {
 
   return (
     <div
-      className="greeting-band order-last flex min-w-0 flex-1 items-start gap-3 px-4 py-2.5 lg:order-none lg:mx-6"
+      className="greeting-band absolute start-1/2 top-full z-30 mt-1 flex w-[calc(100%-2.5rem)] max-w-xl -translate-x-1/2 items-center gap-2.5 px-3 py-1 rtl:translate-x-1/2 lg:top-1/2 lg:mt-0 lg:w-[min(36rem,42%)] lg:-translate-y-1/2"
       style={style}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       onFocusCapture={() => setPaused(true)}
       onBlurCapture={() => setPaused(false)}
     >
-      <div className="min-w-0 flex-1">
-        <p className={`truncate text-sm font-600 ${ink ? "" : "text-slate-900 dark:text-white"}`}>{msg.greeting}</p>
+      {/* ONE LINE, NOT TWO — the owner asked for a lower band. The greeting and
+          the quotation share a single truncating row; the quotation is a <q>,
+          the inline form of the <blockquote> it was, so a screen reader still
+          announces it as a quote rather than as more of the greeting. */}
+      <p className={`min-w-0 flex-1 truncate text-xs ${ink ? "" : "text-slate-700 dark:text-slate-200"}`}>
+        <span className={`font-600 ${ink ? "" : "text-slate-900 dark:text-white"}`}>{msg.greeting}</span>
         {msg.quote && (
-          /* THE QUOTATION IS A <blockquote>, because it is one. It costs nothing
-             and it is the difference between a screen reader announcing a quote
-             and announcing a second sentence of the greeting. */
-          <blockquote className={`mt-0.5 truncate text-xs ${ink ? "opacity-80" : "text-slate-600 dark:text-slate-300"}`}>
-            “{msg.quote}”
+          <>
+            {msg.greeting && <span aria-hidden="true" className="mx-1.5 opacity-50">·</span>}
+            <q className={ink ? "opacity-80" : "text-slate-600 dark:text-slate-300"}>{msg.quote}</q>
             {msg.author && <cite className={`ms-1.5 not-italic ${ink ? "opacity-70" : "text-slate-400 dark:text-slate-500"}`}>— {msg.author}</cite>}
-          </blockquote>
+          </>
         )}
-      </div>
+      </p>
 
       {count > 1 && (
         /* THE DOTS ARE LABELLED WITH THE MESSAGE THEY OPEN rather than with its
@@ -171,7 +181,7 @@ export default function DailyGreeting({ slug }) {
            reader what they are about to move to, and "message 2 of 3" does not.
            It also costs no dictionary entry, which would otherwise have to exist
            in both languages to say something the message already says. */
-        <div className="mt-1 flex shrink-0 items-center gap-1.5">
+        <div className="flex shrink-0 items-center gap-1.5">
           {visible.map((m, i) => (
             <button
               key={m.key}
@@ -194,9 +204,9 @@ export default function DailyGreeting({ slug }) {
         onClick={close}
         aria-label={tr.close}
         title={tr.close}
-        className={`-me-1 mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 ${ink ? "opacity-70 hover:bg-black/10 hover:opacity-100" : "text-slate-500 hover:bg-black/5 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-white"}`}
+        className={`-me-1.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 ${ink ? "opacity-70 hover:bg-black/10 hover:opacity-100" : "text-slate-500 hover:bg-black/5 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-white"}`}
       >
-        <Icon name="close" className="h-4 w-4" />
+        <Icon name="close" className="h-3.5 w-3.5" />
       </button>
     </div>
   );
