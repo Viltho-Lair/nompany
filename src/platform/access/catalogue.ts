@@ -469,6 +469,10 @@ const OWN_AREAS = [
     extra: [
       { key: "approve", label: "Approve bills" },
       { key: "pay", label: "Record payments" },
+      // RELEASING A HELD PAYMENT, kept away from whoever pays: department-head
+      // holds it and `money` does not, because a second signature the payer can
+      // give is not a second signature. See modules/finance/hold.ts.
+      { key: "release", label: "Release a held payment" },
       { key: "approveHigh", label: "Approve bills above the limit" },
     ] },
   { key: "finance.assets", group: "Finance & Accounting", label: "Fixed assets", verbs: ["view", "create", "edit"],

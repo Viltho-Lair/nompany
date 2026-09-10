@@ -138,6 +138,7 @@ function FinanceSettings({ slug }) {
     <FinanceSettingsPanel
       categories={data.cashCategories || []}
       rules={data.withholdingRules || []}
+      hold={data.paymentHold || null}
       canManage={Boolean(data.canManage)}
       locale={locale}
       onSave={save}
@@ -842,7 +843,7 @@ function Payables({ slug }) {
       <div className="flex items-center justify-end">
         {!canManage && <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-600 text-slate-500 dark:bg-white/5 dark:text-slate-400">{tr.viewOnly}</span>}
       </div>
-      <Bills rows={bills} vocab={vocabulary} canManage={canManage} busy={busy} send={send} />
+      <Bills rows={bills} vocab={vocabulary} canManage={canManage} canRelease={Boolean(data.canRelease)} busy={busy} send={send} />
     </div>
   );
 }
@@ -874,11 +875,12 @@ function PayablesSummary({ bills }) {
   );
 }
 
-function Bills({ rows, vocab, canManage, busy, send }) {
+function Bills({ rows, vocab, canManage, canRelease, busy, send }) {
   const tr = financeDict(useStudioLocale());
   const [drafting, setDrafting] = useState(false);
   const [editing, setEditing] = useState(null);
   const [paying, setPaying] = useState(null);
+  const [releasing, setReleasing] = useState(null);
   const [open, setOpen] = useState(null);
   const terms = vocab.billTerms || Object.keys(termLabel(tr));
   const methods = vocab.paymentMethods || [tr.bankTransfer];
@@ -904,8 +906,14 @@ function Bills({ rows, vocab, canManage, busy, send }) {
           }} />
       )}
 
+      {releasing && (
+        <ReleaseHoldForm bill={releasing} busy={busy}
+          onCancel={() => setReleasing(null)}
+          onSave={async (reason) => { if (await send("PUT", { id: releasing.id, release: { reason } })) setReleasing(null); }} />
+      )}
+
       {paying && (
-        <BillPaymentForm bill={paying} methods={methods} busy={busy}
+        <BillPaymentForm bill={paying} hold={paying.hold} methods={methods} busy={busy}
           onCancel={() => setPaying(null)}
           onSave={async (p) => { if (await send("PUT", { id: paying.id, payment: p })) setPaying(null); }} />
       )}
@@ -950,6 +958,7 @@ function Bills({ rows, vocab, canManage, busy, send }) {
                         <td className={`${td} text-end tabular-nums text-slate-600 dark:text-slate-300`}>{money(b.outstanding)}</td>
                         <td className={td}>
                           <StatusPill kind="bill" status={b.status} />
+                          <HoldPill hold={b.hold} tr={tr} />
                           {/* ONLY WHERE IT SAYS SOMETHING. A one-step bill that is
                               signed or unsigned is fully described by its status;
                               "1 of 2 signed" is the state the status cannot carry. */}
@@ -972,7 +981,10 @@ function Bills({ rows, vocab, canManage, busy, send }) {
                                   {(b.approvalRequired || 0) > 1 ? `${tr.approve} · ${b.nextApproval.label}` : tr.approve}
                                 </button>
                               )}
-                              {payable && <button className={btn} onClick={() => setPaying(b)}>{tr.recordPayment}</button>}
+                              {/* A HELD BILL OFFERS RELEASE, NOT PAYMENT: the pay door would refuse it,
+                                  and a button that always fails reads as a broken screen. */}
+                              {payable && !b.hold?.held && <button className={btn} onClick={() => setPaying(b)}>{tr.recordPayment}</button>}
+                              {payable && b.hold?.held && canRelease && <button className={btnGhost} disabled={busy} onClick={() => setReleasing(b)}>{tr.holdRelease}</button>}
                               {editable && <button className={btnGhost} onClick={() => setEditing(b)}>{tr.edit}</button>}
                               {b.status === "Received" && <button className={btnGhost} disabled={busy} onClick={() => send("PUT", { id: b.id, status: "Disputed" })}>{tr.dispute}</button>}
                               {["Received", "Disputed"].includes(b.status) && noHistory && <button className={btnGhost} disabled={busy} onClick={() => send("PUT", { id: b.id, status: "Cancelled" })}>{tr.cancel}</button>}
@@ -1100,13 +1112,62 @@ function BillForm({ bill, terms, defaultVat, busy, onCancel, onSave }) {
   );
 }
 
-function BillPaymentForm({ bill, methods, busy, onCancel, onSave }) {
+// THE PAYMENT HOLD ON A BILL ROW. Drawn only when it says something: nothing for
+// a studio with the hold off, nothing for a bill with no reason against it. The
+// reasons are the server's tokens, worded here — the rule statuses follow.
+function HoldPill({ hold, tr }) {
+  if (!hold || hold.mode === "off" || !hold.reasons?.length) return null;
+  const why = hold.reasons.map((r) => tr.holdReasons[r] || r).join(" · ");
+  const [label, tone] = hold.released
+    ? [tr.holdReleased, "bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-slate-300"]
+    : hold.held
+      ? [tr.holdHeld, "bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-300"]
+      : [tr.holdWarn, "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300"];
+  return (
+    <span title={why} className={`ms-2 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-600 ${tone}`}>
+      {label}: {why}
+    </span>
+  );
+}
+
+// RELEASING A HELD PAYMENT — a reason and nothing else. The server refuses an
+// empty one, and refuses the releaser as the payer; this form only asks.
+function ReleaseHoldForm({ bill, busy, onCancel, onSave }) {
+  const tr = financeDict(useStudioLocale());
+  const [reason, setReason] = useState("");
+  const why = (bill.hold?.reasons || []).map((r) => tr.holdReasons[r] || r).join(" · ");
+  return (
+    <section className={`${panel} border-rose-500/40`}>
+      <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">{tr.holdRelease} — {bill.reference}</h3>
+      <p className="mt-1 text-sm text-rose-600 dark:text-rose-300">{why}</p>
+      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{tr.holdReleaseLead}</p>
+      <div className="mt-4">
+        <Field label={tr.holdReleaseReason} value={reason} onChange={setReason} />
+      </div>
+      <div className="mt-5 flex flex-wrap gap-2">
+        <button className={btn} disabled={busy || !reason.trim()} onClick={() => onSave(reason.trim())}>
+          {busy ? tr.holdReleasing : tr.holdRelease}
+        </button>
+        <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
+      </div>
+    </section>
+  );
+}
+
+function BillPaymentForm({ bill, hold, methods, busy, onCancel, onSave }) {
   const tr = financeDict(useStudioLocale());
   const [form, setForm] = useState({ amount: String(bill.outstanding), date: "", method: methods[0], note: "" });
   return (
     <section className={`${panel} border-brand-500/40`}>
       <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">Record payment — {bill.reference}</h3>
       <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{money(bill.outstanding)} outstanding of {money(bill.total)} to {bill.vendorName}.</p>
+      {/* WARN MODE SAYS SO HERE, where the money is about to move: the row's pill
+          is easy to scroll past, and this is the last place the reason can land. */}
+      {hold && !hold.held && !hold.released && hold.reasons?.length > 0 && (
+        <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
+          {tr.holdPayWarning} {hold.reasons.map((r) => tr.holdReasons[r] || r).join(" · ")}
+        </p>
+      )}
       <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Field label={tr.amount} type="number" value={form.amount} onChange={(v) => setForm((f) => ({ ...f, amount: v }))} />
         <Field label={tr.date} filled={!!form.date}>

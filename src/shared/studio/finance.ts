@@ -226,6 +226,26 @@ type Strings = CommonStrings & {
   record: string;
   recordBill: string;
   recordPayment: string;
+  // THE PAYMENT HOLD — a bill that disagrees with its order, or names a supplier
+  // whose paperwork has lapsed. Reasons are keyed by the server's own tokens.
+  holdHeld: string;
+  holdWarn: string;
+  holdReleased: string;
+  holdReasons: Record<string, string>;
+  holdRelease: string;
+  holdReleaseLead: string;
+  holdReleaseReason: string;
+  holdReleasing: string;
+  holdPayWarning: string;
+  holdSettingsHeading: string;
+  holdSettingsLead: string;
+  holdMode: string;
+  holdModeOff: string;
+  holdModeWarn: string;
+  holdModeBlock: string;
+  holdTolerancePct: string;
+  holdToleranceAmount: string;
+  holdToleranceHint: string;
   recording: string;
   reducingBalance: string;
   ref: string;
@@ -515,6 +535,30 @@ const en: Strings = {
   record: "Record",
   recordBill: "Record bill",
   recordPayment: "Record payment",
+  holdHeld: "Payment held",
+  holdWarn: "Would be held",
+  holdReleased: "Hold released",
+  holdReasons: {
+    "supplier-suspended": "the supplier is suspended",
+    "supplier-rejected": "the supplier was rejected",
+    "supplier-document-expired": "a supplier document has expired",
+    "match-billed-not-received": "billed for goods not received",
+    "match-over-billed": "billed for more than was received",
+  },
+  holdRelease: "Release payment",
+  holdReleaseLead: "Releasing lets this bill be paid despite the hold. Someone other than you records the payment, and your reason is kept with the bill.",
+  holdReleaseReason: "Why it may be paid",
+  holdReleasing: "Releasing…",
+  holdPayWarning: "The payment hold flags this bill:",
+  holdSettingsHeading: "Payment hold",
+  holdSettingsLead: "Stop a supplier bill being paid when it bills for more than was received, or names a supplier whose paperwork has lapsed. A bill with no purchase order is checked against its supplier only.",
+  holdMode: "Hold",
+  holdModeOff: "Off",
+  holdModeWarn: "Warn — show why, allow the payment",
+  holdModeBlock: "Block — refuse until released",
+  holdTolerancePct: "Tolerance (%)",
+  holdToleranceAmount: "Tolerance (amount)",
+  holdToleranceHint: "A difference inside either tolerance — whichever is larger — is not held. The amount is in the bill's own currency.",
   recording: "Recording…",
   reducingBalance: "Reducing balance",
   ref: "Ref",
@@ -804,6 +848,30 @@ const ar: Strings = {
   record: "تسجيل",
   recordBill: "تسجيل فاتورة مورد",
   recordPayment: "تسجيل دفعة",
+  holdHeld: "الدفع موقوف",
+  holdWarn: "سيوقف عند المنع",
+  holdReleased: "رفع الإيقاف",
+  holdReasons: {
+    "supplier-suspended": "المورد موقوف",
+    "supplier-rejected": "المورد مرفوض",
+    "supplier-document-expired": "انتهت صلاحية إحدى وثائق المورد",
+    "match-billed-not-received": "فوترة بضائع لم تستلم",
+    "match-over-billed": "فوترة بأكثر مما استلم",
+  },
+  holdRelease: "رفع إيقاف الدفع",
+  holdReleaseLead: "رفع الإيقاف يسمح بدفع هذه الفاتورة رغم الإيقاف. يسجل الدفعة شخص آخر غيرك، ويحفظ سببك مع الفاتورة.",
+  holdReleaseReason: "سبب السماح بالدفع",
+  holdReleasing: "جار رفع الإيقاف…",
+  holdPayWarning: "إيقاف الدفع ينبه على هذه الفاتورة:",
+  holdSettingsHeading: "إيقاف الدفع",
+  holdSettingsLead: "منع دفع فاتورة مورد تتجاوز ما استلم فعلا، أو تسمي موردا انتهت صلاحية وثائقه. الفاتورة بلا أمر شراء تفحص مقابل المورد فقط.",
+  holdMode: "الإيقاف",
+  holdModeOff: "معطل",
+  holdModeWarn: "تنبيه — اعرض السبب واسمح بالدفع",
+  holdModeBlock: "منع — ارفض حتى يرفع الإيقاف",
+  holdTolerancePct: "هامش التسامح (%)",
+  holdToleranceAmount: "هامش التسامح (مبلغ)",
+  holdToleranceHint: "الفرق ضمن أي من الهامشين — أيهما أكبر — لا يوقف. المبلغ بعملة الفاتورة نفسها.",
   recording: "جار التسجيل…",
   reducingBalance: "قسط متناقص",
   ref: "المرجع",

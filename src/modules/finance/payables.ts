@@ -19,9 +19,18 @@ import { repo } from "@/platform/db/repo";
 import { nextReference } from "@/modules/main/references";
 import { invoiceTotals, cleanLines, str, day, cash } from "./finance";
 import type { Bill, FinanceContext } from "./types";
+import { paymentHold, releaseProblem, payProblem, type PaymentHold } from "./hold";
+import { threeWayMatch } from "@/modules/procurement/receivingModel";
+import { supplierQualification } from "@/modules/procurement/supplierModel";
 
 const BILLS = "bills";
 const Bills = repo<Bill>(BILLS);
+// THE OTHER TWO DEPARTMENTS' RECORDS THE PAYMENT HOLD READS. Orders and goods
+// receipts live under Inventory's sheets section, which Finance already
+// resolves as `sheetsSection`; suppliers under Procurement's register.
+const Orders = repo<Record<string, unknown>>("materialOrders");
+const Receipts = repo<Record<string, unknown>>("goodsReceipts");
+const Vendors = repo<Record<string, unknown>>("inventoryVendors");
 
 export const BILL_STATUSES = ["Draft", "Received", "Approved", "Paid", "Cancelled", "Disputed"];
 export const BILL_TERMS = ["on-receipt", "net-0", "net-15", "net-30", "net-60"];
@@ -147,9 +156,53 @@ export function availableApproval(
  * reason approveBill re-resolves it: a bill raised before chains existed has
  * none, and the screen must not offer a button the service will refuse.
  */
+/**
+ * THE PAYMENT HOLD FOR EACH OF THESE BILLS, read once for all of them.
+ *
+ * COSTS NOTHING WHILE IT IS OFF: the mode is read before anything is fetched,
+ * so a studio that has never switched it on pays for no read at all. Switched
+ * on, it is three reads for the whole list, not three per bill.
+ *
+ * `allBills` is every bill in the studio, because a second invoice for the same
+ * goods is exactly the over-billing the match exists to catch — matching one
+ * bill against its order in isolation would never see the other.
+ */
+async function holdsFor(
+  ctx: FinanceContext, targets: readonly Bill[], allBills?: readonly Bill[],
+): Promise<Map<string, PaymentHold>> {
+  const out = new Map<string, PaymentHold>();
+  const settings = ctx.paymentHold;
+  if (settings.mode === "off") {
+    for (const bill of targets) out.set(bill.id, paymentHold({ bill, qualification: null, match: null, settings }));
+    return out;
+  }
+  const { studio, sheetsSection, vendorsSection } = ctx;
+  const [orders, receipts, vendors, bills] = await Promise.all([
+    sheetsSection ? Orders.find({ studio, section: sheetsSection }) : Promise.resolve([]),
+    sheetsSection ? Receipts.find({ studio, section: sheetsSection }) : Promise.resolve([]),
+    vendorsSection ? Vendors.find({ studio, section: vendorsSection }) : Promise.resolve([]),
+    allBills ? Promise.resolve(allBills) : listBills(ctx),
+  ]);
+  const today = new Date().toISOString().slice(0, 10);
+  const orderById = new Map(orders.map((o) => [String(o.id), o] as const));
+  const vendorById = new Map(vendors.map((v) => [String(v.id), v] as const));
+  for (const bill of targets) {
+    const vendor = bill.vendorId ? vendorById.get(bill.vendorId) : undefined;
+    const order = bill.orderId ? orderById.get(bill.orderId) : undefined;
+    out.set(bill.id, paymentHold({
+      bill,
+      qualification: vendor ? supplierQualification(vendor, today) : null,
+      match: order ? threeWayMatch(order, receipts, bills.filter((b) => b.orderId === bill.orderId)) : null,
+      settings,
+    }));
+  }
+  return out;
+}
+
 export async function listBillsForScreen(ctx: FinanceContext) {
   const bills = await listBills(ctx);
   const fx = await fxFor(ctx, bills);
+  const paymentHolds = await holdsFor(ctx, bills, bills);
   const me = ctx.collaborator.id;
   const holds = (permission: string) => !requirePermission(ctx.access, permission as PermissionKey);
 
@@ -163,6 +216,9 @@ export async function listBillsForScreen(ctx: FinanceContext) {
       approvalSigned: signed,
       approvalRequired: plan.ok ? plan.steps.length : 0,
       nextApproval: availableApproval(bill as Bill, plan, holds, me),
+      // THE PAYMENT HOLD, so the screen says why a bill cannot be paid before
+      // anybody tries — from the same function the pay door refuses with.
+      hold: paymentHolds.get(bill.id) || null,
     };
   });
 }
@@ -373,6 +429,13 @@ export async function recordBillPayment(ctx: FinanceContext, id: string, body: R
   if (current.status === "Draft") return { error: "not-approved" };
   if (current.status === "Cancelled") return { error: "cancelled" };
 
+  // THE PAYMENT HOLD. It refuses the PAYMENT, not the bill — the period lock's
+  // shape: a bill can be received and approved with a hold standing against
+  // it, and what is held is the money. Nothing is read while it is off.
+  const hold = (await holdsFor(ctx, [current])).get(current.id);
+  const holdRefusal = hold ? payProblem(hold, collaborator.id) : null;
+  if (holdRefusal) return { error: holdRefusal, reasons: hold?.reasons || [] };
+
   const amount = cash(body?.amount);
   if (!amount) return { error: "amount" };
   const totals = billTotals(current);
@@ -398,6 +461,37 @@ export async function recordBillPayment(ctx: FinanceContext, id: string, body: R
   const paymentId = payments[payments.length - 1].id;
   const posting = await autoPost(ctx, "bill-payment", id, paymentId);
   return { bill: { ...bill, ...after, status: statusFor(bill, after) }, posting };
+}
+
+/**
+ * RELEASE A HELD PAYMENT — its own act, with a reason, and not the payer's.
+ *
+ * A hold nobody can release is a product that stops working, so there is an
+ * override; it is its own right (`finance.payables.release`, held by
+ * department-head and not by `money`), it needs a reason, and the person who
+ * gives it may not then record the payment (`payProblem`). What is stored is
+ * who, why, when, and WHICH reasons it covered — a reason that appears later
+ * holds the bill again.
+ */
+export async function releaseBillHold(ctx: FinanceContext, id: string, body: Record<string, unknown>) {
+  const denied = requirePermission(ctx.access, "finance.payables.release");
+  if (denied) return denied;
+
+  const { studio, payablesSection, collaborator } = ctx;
+  const current = (await Bills.find({ studio, section: payablesSection })).find((b) => b.id === id);
+  if (!current) return { error: "notfound" };
+
+  const hold = (await holdsFor(ctx, [current])).get(current.id);
+  if (!hold) return { error: "not-held" };
+  const reason = str(body?.reason, 500);
+  const wrong = releaseProblem(hold, reason);
+  if (wrong) return { error: wrong };
+
+  const bill = await Bills.update({ studio, section: payablesSection }, id, {
+    holdRelease: { byCollaboratorId: collaborator.id, reason, at: new Date().toISOString(), reasons: hold.reasons },
+  });
+  if (!bill) return { error: "notfound" };
+  return { bill };
 }
 
 export async function removeBill(ctx: FinanceContext, id: string) {

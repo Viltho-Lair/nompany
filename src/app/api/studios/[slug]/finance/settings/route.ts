@@ -27,6 +27,7 @@ export const GET = route({ ...spec, body: false }, async (c) => {
     ok: true,
     cashCategories: ctx.cashCategories,
     withholdingRules: ctx.withholdingRules,
+    paymentHold: ctx.paymentHold,
     approvalChains: ctx.approvalChains,
     canManage: ctx.canManageSettings,
   };

@@ -1,8 +1,9 @@
 import { route, refused } from "@/platform/http/route";
+import { requirePermission } from "@/platform/access";
 import { financeContext, PAYMENT_METHODS } from "@/modules/finance/finance";
 import { valuesFor } from "@/modules/administration/taxonomy";
 import {
-  listBillsForScreen, createBill, editBill, approveBill, recordBillPayment, removeBill,
+  listBillsForScreen, createBill, editBill, approveBill, recordBillPayment, releaseBillHold, removeBill,
   BILL_STATUSES, BILL_TERMS,
 } from "@/modules/finance/payables";
 
@@ -28,6 +29,9 @@ export const GET = route(
       // Computed in the service from the same plan approveBill enforces, so
       // the screen never has to decide who may approve what.
       bills: await listBillsForScreen(fin),
+      // WHETHER THIS VIEWER MAY RELEASE A HELD PAYMENT — the button's gate, from
+      // the same right the service asks.
+      canRelease: !requirePermission(fin.access, "finance.payables.release"),
       vocabulary: {
         billStatuses: BILL_STATUSES,
         billTerms: BILL_TERMS,
@@ -55,7 +59,11 @@ export const PUT = route(spec, async (fin) => {
     ? await approveBill(fin, fin.body.id)
     : fin.body.payment
       ? await recordBillPayment(fin, fin.body.id, fin.body.payment)
-      : await editBill(fin, fin.body.id, fin.body);
+      // RELEASING A HELD PAYMENT is a fourth act on the same row, its right
+      // asked by the service like the other three.
+      : fin.body.release
+        ? await releaseBillHold(fin, fin.body.id, fin.body.release)
+        : await editBill(fin, fin.body.id, fin.body);
 
   if (refused(result)) return result;
   return { ok: true, bill: result.bill };

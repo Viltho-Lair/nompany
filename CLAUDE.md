@@ -759,7 +759,8 @@ of `a2044ff`, one commit later, because that commit added a golden; then 365 and
 after that. A number nobody re-measures decays silently, and nothing fails when prose
 disagrees with a test. **Treat every figure in this file as a measurement with a date,
 not as a fact, and re-measure at the commit you are writing rather than the one you were
-reading.** `ALL_PERMISSIONS.length` is **201, measured 09/09/2026** — it said 181 the day
+reading.** `ALL_PERMISSIONS.length` is **202, measured 10/09/2026** (201 the day before; the one since
+is the payment hold's `finance.payables.release`) — it said 181 the day
 before, and the twenty since came from ordinary areas (Manufacturing planning, HR payroll
 and attendance, the ledger close, and the P4a sections' own). Nothing asserts it any more,
 because the assertion that did was in Gate A, which is exactly why it drifts.
@@ -1634,8 +1635,7 @@ a field is safe; REMOVING A STATUS STRANDS EVERY RECORD SITTING AT IT**, because
 no transition leads out of a status the type no longer declares. That needs a
 migration that moves the records first, never a version bump.
 
-**Open decisions (waiting on a person):** the Wave 4 palette (marketing dark-first
-indigo/Sora vs the ERP's light-first blue/Saira); and whether to denormalise the slug index
+**Open decisions (waiting on a person):** whether to denormalise the slug index
 to take the sales route from 3 hops to 2. The earlier `login()` suspended-check and
 share-link questions are **closed** (kept deliberately; deleted, respectively).
 

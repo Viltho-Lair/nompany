@@ -10,6 +10,7 @@ export type { Bill, FixedAsset } from "./schema";
 
 import type { Invoice } from "./schema";
 import type { ApprovalChain } from "@/platform/approval/chains";
+import type { HoldSettings } from "./hold";
 
 /** What `invoiceTotals` computes. Derived on every read, never stored. */
 export type InvoiceTotals = {
@@ -46,6 +47,8 @@ export type FinanceContext = ModuleContext & {
   sheetsSection: Section | null;
   /** HR's employee section, where a payroll run lives. Null on a studio with no HR. */
   hrEmployeesSection: Section | null;
+  /** Procurement's supplier register, which the payment hold reads. Null on a studio with no Procurement. */
+  vendorsSection: Section | null;
   canViewCash: boolean;
   canManageCash: boolean;
   // Payables and assets each carry their own view/manage flag off the same
@@ -62,4 +65,6 @@ export type FinanceContext = ModuleContext & {
   withholdingRules: WithholdingRule[];
   /** The bill approval chains this studio uses — seeds merged with its overrides. */
   approvalChains: Record<string, ApprovalChain>;
+  /** Whether a bill that disagrees with its order, or names a lapsed supplier, may be paid. Off by default. */
+  paymentHold: HoldSettings;
 };

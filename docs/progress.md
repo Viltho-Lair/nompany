@@ -195,13 +195,12 @@ Everything lands here.
 
 | Date | Proposal | Status |
 |---|---|---|
-| 07/09/2026 | Top-up seeded roles for departments that already exist | **PROPOSED** |
+| 07/09/2026 | Top-up seeded roles for departments that already exist | **REJECTED (10/09/2026) — not needed.** A studio always has roles: reading the list seeds Admin into an empty one. Re-selecting the trade offers the missing standard departments in Master data, and adding one seeds that department's trade roles (`seedDepartments`); HR's role library adds any library role at any time. |
 | 07/09/2026 | Studio Settings points at Master data when the industry changes | **PROPOSED** |
 | 07/09/2026 | Fix Nova's hardcoded "Money is in SAR" to use the studio currency | **DONE** |
 | 07/09/2026 | Fix Nova's prompt naming the pre-restructure twelve departments | **DONE** |
-| 07/09/2026 | Make the VAT rate a per-studio setting; stop defaulting to 15 | **PROPOSED — highest priority of the country items** |
-| 07/09/2026 | Generate the Fifteen Sections view from `SECTION_DEFS` rather than hand-writing it | **PROPOSED** |
-| 07/09/2026 | Move pricing off a SAR base (company is in Jordan; market regional then global) | **YOUR CALL — which base currency?** |
+| 07/09/2026 | Make the VAT rate a per-studio setting; stop defaulting to 15 | **CHANGED TO (10/09/2026): study before building — VAT should not be one studio-wide rate.** The Saudi 15% default is gone; today the rate is typed per document (an invoice defaults to 0) and nothing carries a tax code. A single studio rate would be wrong for zero-rated exports, exempt goods and cross-border sales — what a regional generalist meets first. The direction to study is TAX CODES (standard, zero-rated, exempt, reverse-charge) set per item and per customer, resolved per line and COPIED onto the document, beside the withholding rules that already exist. |
+| 07/09/2026 | Move pricing off a SAR base (company is in Jordan; market regional then global) | **DONE — resolved.** Nothing is priced in SAR. nompany's own price list is authored in `catalogSettings.baseCurrency` (set in the console, default USD) and shown in each reader's own currency; inside the ERP every document is in the studio's own currency. There is no studio-side price list. |
 | 07/09/2026 | Revisit ZATCA as the first tax adapter | **CHANGED TO: build a jurisdiction-neutral WHT engine instead; no ZATCA adapter** (09/09/2026 — the company is in Jordan and sells across the region as a generalist SME tool, so a Saudi e-invoicing adapter is a COUNTRY INTEGRATION rather than a tax engine. Withholding shipped; ZATCA is not started and is not next.) |
 | 09/09/2026 | Close an accounting period and refuse postings dated in it | **DONE** |
 | 09/09/2026 | Give the ledger a screen — it had none, and fell through to Cash | **DONE** |
@@ -1427,7 +1426,7 @@ Rows follow section H: deleted, deferred and dropped rows are removed, and the h
 | **The record engine's register was table-only** | ✅ FIXED | One generic screen renders **31 built-in types** across five sections, and it had no search, filter, sort, paging or export. All five added, client-side over the type's own record set, with the reasoning for when that stops being right written into the file. Export is CSV with a BOM, and exports what is **filtered**, not what is paged. |
 | **"No starter role holds an engine right"** | ❌ WAS STALE | Measured: **zero** of the 91 section keys a seeded studio holds is unreachable by all eleven archetypes. The claim in CLAUDE.md was true when written and had stopped being true. The guard CLAUDE.md kept asking for by name now exists — `testEverySectionWithAScreenIsReachableBySomeSeededRole`, a shrink-only count, measured against a real studio's key list **plus the stored parent map** (without it `quality-hse` reads as unreachable and is not). |
 | **Quality & HSE has no catalogue area** | ⬜ NOT A DEFECT | Flagged as one, then withdrawn on reading the code. Its eight registers carry structural `engine.*` rights and the safety panel's two halves are gated already (`engine.incident.view`, `projects.list.view`); the route says so and gives the reason. A third right over records two others govern would be free to disagree with both. |
-| **A payment hold, and it is one seam not two** | ⬜ PLANNED (10/09/2026) | **Both halves of it are already built and neither is wired to a door.** `threeWayMatch` compares the order, the receipts and the bills and REPORTS — `inventory.ts:1342` says so in as many words — while `recordBillPayment` never asks it. `supplierQualification` computes `usable` and a `reason` from documents that carry real expiry, and Inventory already refuses to PLACE an order on it (`inventory.ts:1157`) while Finance will happily PAY a subcontractor whose insurance lapsed in March. Two upstream computations, one downstream door, and the same shape: a department refusing an act because of another department's state. Built as two features it would be two vocabularies for one idea. See **The payment hold** below. |
+| **A payment hold, and it is one seam not two** | ✅ BUILT (10/09/2026) | **Both halves of it are already built and neither is wired to a door.** `threeWayMatch` compares the order, the receipts and the bills and REPORTS — `inventory.ts:1342` says so in as many words — while `recordBillPayment` never asks it. `supplierQualification` computes `usable` and a `reason` from documents that carry real expiry, and Inventory already refuses to PLACE an order on it (`inventory.ts:1157`) while Finance will happily PAY a subcontractor whose insurance lapsed in March. Two upstream computations, one downstream door, and the same shape: a department refusing an act because of another department's state. Built as two features it would be two vocabularies for one idea. See **The payment hold** below. **Built 10/09/2026 with one change to the plan:** the supplier check runs on every bill that names a supplier, not only bills with a purchase order — a subcontractor is invoiced on a hand-typed bill, and confining it to order-backed bills would have missed the case it exists for. |
 | **The competitive artifact drifted from this file** | ✅ CORRECTED (10/09/2026) | *Fourteen Sections Against the Market*, measured at `efef5ecd`, ranked three-way matching #2 and subcontractor prequalification #8 of the things to build next. **Both were already built when it said so** — this file has recorded them ✅ since the Procurement section closed — and cross-record links and automation rules, its #4, shipped in `e250774d` and `82cfe4c0` the same day. Its depth table also says Manufacturing has "no MRP, no routings, no capacity" against an `mrp.ts` carrying `explode`, `netRequirements` and `capacityLoad`. **The artifact was wrong and progress.md was right**, which is the argument for one progress file rather than a second surface that also claims to say where the work is. Corrected in place at its own URL. |
 | **`logistics.landedCost` and `inventory/valuation` have no screen** | ⬜ OPEN | Same shape as the two fixed above — complete route and module, no component fetches either. Not built in this pass. |
 | **Field Operations' root is still the un-split Operations screen** | ⬜ OPEN | Locations and permits moved in the data (`COLLECTION_MOVES`); the screen that renders them did not follow. |
@@ -1453,92 +1452,25 @@ exercised (invariant 16, from the screen end rather than the catalogue end). Fou
 two are fixed here and two are listed above.
 
 
-## The payment hold — planned 10/09/2026
+## The payment hold — built 10/09/2026
 
-**One seam, two callers, and the expensive halves are already written.** Procurement computes
-whether an order's three documents agree; Procurement computes whether a supplier's paperwork
-is in date. Finance pays. Nothing joins them, so both computations are advisory and the one
-act that moves money asks neither.
+`docs/functionality/payment-hold.md` is the file. Finance refuses to pay a supplier bill that
+disagrees with its order and receipts, or names a supplier whose paperwork has lapsed — joining
+two Procurement computations (`threeWayMatch`, `supplierQualification`) that already existed and
+that nothing asked at the one act that moves money. `modules/finance/hold.ts` is pure and takes
+their ANSWERS, not the documents, so it reimplements neither; `tests/hold-model.mjs` holds it.
 
-### What it is
+**One change from the plan, found by checking it against the code.** The plan skipped every bill
+with no purchase order. That is right for the MATCH, which needs three documents, and it quietly
+defeated the plan's own headline: certifying a subcontract raises no bill, so a subcontractor is
+paid on a hand-typed bill with no order behind it, and a lapsed insurance certificate would never
+have stopped it. The SUPPLIER check now runs on every bill that names a supplier; only the match
+needs an order.
 
-A pure `modules/finance/hold.ts`, imported by the payment door and by the screen, answering one
-question: **may this bill be paid, and if not, in one sentence, why.** It imports the two pure
-models rather than reimplementing either — `inventory.ts` already imports
-`supplierQualification` across a module boundary, so this is the established shape and not a new
-one.
-
-### The refusal reuses Inventory's, verbatim
-
-`createOrder` already reads:
-
-```
-const qualification = supplierQualification(vendor, today);
-if (!qualification.usable) return { error: `supplier-${qualification.reason}` };
-```
-
-The payment door gets the same two lines against the same function, so a studio meets ONE
-vocabulary for a blocked supplier whichever end of the flow it hits. A second reason string for
-the same fact is how two screens end up disagreeing about whether a supplier is usable.
-
-### Four reasons, and each names its own fix
-
-- `supplier-suspended` / `supplier-rejected` — somebody's judgement; the fix is on the supplier.
-- `supplier-lapsed` — an approval cannot outlive the certificate it rested on, which
-  `supplierQualification` already says and already enforces at the ordering end.
-- `match-variance` — billed beyond what was received, past the tolerance.
-- `match-not-received` — billed for goods that never arrived at all (`billed-not-received`).
-
-**A bill with no `orderId` is NOT held**, and this is the load-bearing exclusion. Three-way
-matching needs three documents; rent, utilities and every expense a studio pays without raising
-a purchase order have one. Holding those would stop the studio's ordinary payments on the
-morning this ships, which is the failure the rollout rule below exists to prevent.
-
-### The tolerance is two dials, because one does not work
-
-A percentage alone lets a large order drift by a lot in cash; an absolute alone is wrong across
-order sizes. The variance passes if it is inside EITHER — the greater of the two — so rounding
-on a small order is absorbed by the floor and a big order is still held to a proportion. Both
-live in Finance settings beside the cash categories and the withholding rules, on the screen
-`saveFinanceSettings` finally got, written field-by-field with their reasons named the way the
-withholding rules already are.
-
-### `off` BY DEFAULT, and that is the whole rollout decision
-
-Three modes — `off`, `warn`, `block` — and a new studio starts `off`. Every precedent in this
-codebase says so and each was paid for: `supplierQualification` makes `unassessed` USABLE
-because "refusing to buy from any of them would break every existing studio's purchasing on the
-day this shipped"; the period lock refuses the POSTING and not the document; a blank expiry does
-not expire. A hold defaulting to `block` would stop real payments in live studios over paperwork
-nobody has been asked to file yet. `warn` is what makes it adoptable: the studio sees what WOULD
-have been held before anything is.
-
-### Releasing is its own act, with a reason, and not the payer's
-
-A hold nobody can release is a product that stops working, so there is an override — and it is
-**not held by whoever pays.** `money` carries `finance.payables.pay`; the release goes to
-`department-head`, the archetype that already holds every approval deliberately kept away from
-the person raising the thing approved. That is invariant 7's argument, not a new one.
-
-**A release without a REASON is refused**, which is the period-reopening rule exactly: a hold
-overridden silently is a hold that never happened, and the reason is the only thing that makes
-the override auditable afterwards. It is stored on the payment beside `recordedByCollaboratorId`.
-
-**One new extra: `finance.payables.release`.** It does not move the archetype residue — the
-extras ceiling in `tests/roles-model.mjs` counts keys reachable by NO archetype but principal,
-and this one is reachable by `department-head` the day it is declared.
-
-### It refuses the PAYMENT, not the bill
-
-The period lock's shape. A bill can be received and approved with a hold standing against it;
-what is held is the money. Refusing the document would mean a studio could not record a supplier
-invoice it has genuinely received, which is a worse lie than paying late.
-
-### What it is not
-
-Not a lien-waiver record, not a compliance module, not a certificate store — the supplier
-documents already exist and carry expiry. This wires what is there. Lien waivers and back-charges
-are separate rows if they are ever wanted.
+Kept from the plan: `off` by default (`warn` is what makes it adoptable), two tolerance dials
+passing on the greater, the refusal on the PAYMENT and not the bill, Inventory's supplier refusal
+strings verbatim, and a release that needs a reason, is its own right (`finance.payables.release`,
+held by department-head and not by `money`) and may not be given by the person who then pays.
 
 ## Open decisions
 
@@ -1546,10 +1478,14 @@ Things waiting on a person, not on work.
 
 | Decision | Why it is open |
 |---|---|
-| The palette for W4 | The marketing site is dark-first indigo/Sora; the ERP is light-first blue/Saira. One of them has to move |
+| — | Nothing is waiting on a person. |
 
 **Recently closed.**
 
+- **The W4 palette — closed 10/09/2026 on the owner's word.** No document recorded the decision:
+  W4's §10 lists eight answers and none is the palette. The code settled it: the marketing site's
+  indigo lives as `iris`, renamed in the Tailwind config to avoid colliding with the studio's `brand`
+  blue, so the two schemes stand side by side on purpose rather than one having to move.
 - **`login()` checks `suspended` before the password** — kept, deliberately. It
   is an enumeration oracle: anybody who can guess an address learns whether it
   belongs to a suspended account. Bought with it is a suspended person being told

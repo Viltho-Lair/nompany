@@ -34,6 +34,7 @@ import { traverseIn } from "@/platform/relations";
 import { nextReference } from "@/modules/main/references";
 import type { Invoice, InvoiceView, Expense, InvoiceLine, Payment, FinanceContext } from "./types";
 import type { Row } from "@/platform/db/store";
+import { readHold, holdProblems, cleanHold } from "./hold";
 
 const INVOICES = "invoices";
 const EXPENSES = "expenses";
@@ -91,11 +92,16 @@ export const financeContext = moduleContext<FinanceContext>({
   foreign: {
     projectsList: ["projects-list", "projects"], sheets: ["inventory-sheets", "inventory"],
     hrEmployees: ["hr-employees", "hr"],
+    // PROCUREMENT'S SUPPLIER REGISTER, for the payment hold's paperwork check.
+    // Foreign and nullable — the same line Projects declares for the same
+    // register, falling back to Inventory for a studio that predates it.
+    vendors: ["procurement-suppliers", "inventory"],
   },
   flags: ["cash", "ledger", "payables", "assets", "settings"],
   extend: ({ settingsSection, studio }) => ({
     cashCategories: readCashCategories(settingsSection as { settings?: Record<string, unknown> }),
     withholdingRules: readWithholdingRules(settingsSection as { settings?: Record<string, unknown> }),
+    paymentHold: readHold(settingsSection as { settings?: Record<string, unknown> }),
     // The studio's own chains layered over what Finance stored before the
     // store moved — see readApprovalChains.
     approvalChains: readApprovalChains(settingsSection as { settings?: Record<string, unknown> }, studio),
@@ -183,6 +189,14 @@ export async function saveFinanceSettings(ctx: FinanceContext, body: Record<stri
     next.withholdingRules = incoming.map((r) => cleanWithholding(r as Record<string, unknown>));
   }
 
+  // THE PAYMENT HOLD, refused on write with its reasons named — the shape the
+  // withholding rules take above. Off by default; see modules/finance/hold.ts.
+  if (body?.paymentHold !== undefined) {
+    const problems = holdProblems(body.paymentHold);
+    if (problems.length) return { error: "refused" as const, detail: problems.join("; ") };
+    next.paymentHold = cleanHold(body.paymentHold);
+  }
+
   if (body?.approvalChains !== undefined) {
     // VALIDATED HERE, NOT ON READ, and BEFORE anything is written. A chain
     // naming a permission that does not exist blocks every bill reaching that
@@ -203,6 +217,7 @@ export async function saveFinanceSettings(ctx: FinanceContext, body: Record<stri
       cashCategories: readCashCategories({ settings: next }),
       approvalChains: readApprovalChains({ settings: next }),
       withholdingRules: readWithholdingRules({ settings: next }),
+      paymentHold: readHold({ settings: next }),
     }
     : { error: "notfound" };
 }

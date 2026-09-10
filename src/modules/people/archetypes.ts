@@ -166,6 +166,9 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
       //   — payroll.approve, because `money` runs the payroll and a second
       //     signature that the same person can give is not a second signature.
       "inventory.stock.approve", "hr.payroll.approve",
+      // ...and releasing a held payment, which `money` makes and must not also
+      // release: the same separation, one act later.
+      "finance.payables.release",
     ],
   },
   {

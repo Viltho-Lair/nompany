@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { financeDict } from "@/shared/studio/finance";
+import { Field } from "@/components/fields/Field";
 
 // FINANCE'S OWN SETTINGS — the cash categories an expense is filed under, and
 // the withholding rules a document is taxed by.
@@ -26,10 +27,12 @@ import { financeDict } from "@/shared/studio/finance";
 // `withholdingProblems` is the authority and returns SENTENCES, so the refusal
 // a studio reads is the server's own words about their own edit rather than a
 // second copy of the rules here, free to disagree with the first.
-export default function FinanceSettingsPanel({ categories = [], rules = [], canManage, locale = "en", onSave }) {
+export default function FinanceSettingsPanel({ categories = [], rules = [], hold = null, canManage, locale = "en", onSave }) {
   const tr = financeDict(locale);
   const [cats, setCats] = useState(() => [...categories]);
   const [rows, setRows] = useState(() => rules.map((r) => ({ ...r })));
+  // THE PAYMENT HOLD, as the server stored it — off until somebody says otherwise.
+  const [holdDraft, setHoldDraft] = useState(() => ({ mode: hold?.mode || "off", tolerancePct: hold?.tolerancePct ?? 0, toleranceAmount: hold?.toleranceAmount ?? 0 }));
   const [adding, setAdding] = useState("");
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState("");
@@ -62,7 +65,7 @@ export default function FinanceSettingsPanel({ categories = [], rules = [], canM
   async function save() {
     setBusy(true);
     setProblem("");
-    const res = await onSave({ cashCategories: cats, withholdingRules: rows });
+    const res = await onSave({ cashCategories: cats, withholdingRules: rows, paymentHold: holdDraft });
     setBusy(false);
     if (res?.error) { setProblem(res.detail || res.error); return; }
     setSaved(true);
@@ -163,6 +166,23 @@ export default function FinanceSettingsPanel({ categories = [], rules = [], canM
             onClick={addRule}>{tr.addRule}</button>
         )}
         <p className="text-[12px] text-slate-400 dark:text-slate-500">{tr.ruleThresholdHint}</p>
+      </section>
+
+      <section className="space-y-3">
+        <div>
+          <h3 className="font-display text-sm font-700 text-slate-900 dark:text-white">{tr.holdSettingsHeading}</h3>
+          <p className="max-w-2xl text-[13px] text-slate-500 dark:text-slate-400">{tr.holdSettingsLead}</p>
+        </div>
+        <div className="grid max-w-2xl gap-3 sm:grid-cols-3">
+          <Field label={tr.holdMode} as="select" required readOnly={!canManage} value={holdDraft.mode}
+            options={[{ value: "off", label: tr.holdModeOff }, { value: "warn", label: tr.holdModeWarn }, { value: "block", label: tr.holdModeBlock }]}
+            onChange={(v) => { setHoldDraft((h) => ({ ...h, mode: v })); touched(); }} />
+          <Field label={tr.holdTolerancePct} type="number" readOnly={!canManage} value={String(holdDraft.tolerancePct)}
+            onChange={(v) => { setHoldDraft((h) => ({ ...h, tolerancePct: v })); touched(); }} />
+          <Field label={tr.holdToleranceAmount} type="number" readOnly={!canManage} value={String(holdDraft.toleranceAmount)}
+            onChange={(v) => { setHoldDraft((h) => ({ ...h, toleranceAmount: v })); touched(); }} />
+        </div>
+        <p className="text-[12px] text-slate-400 dark:text-slate-500">{tr.holdToleranceHint}</p>
       </section>
 
       {canManage && (

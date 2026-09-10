@@ -264,6 +264,19 @@ export const BillSchema = z.object({
   // job. What reads it today is which approvals the bill needs.
   currency: z.string().max(8).optional(),
   status: z.string(),                        // Draft|Received|Approved|Paid|Cancelled|Disputed
+  /**
+   * WHO RELEASED A HELD PAYMENT, WHY, AND WHICH REASONS IT COVERED.
+   *
+   * A release covers the reasons standing when it was given and no others: a
+   * supplier whose certificate lapses AFTER a release is held again, because
+   * nobody signed for that one. See modules/finance/hold.ts.
+   */
+  holdRelease: z.object({
+    byCollaboratorId: z.string(),
+    reason: z.string().max(500),
+    at: z.string(),
+    reasons: z.array(z.string()),
+  }).optional(),
   billDate: z.string(),
   dueDate: z.string(),
   terms: z.string().optional(),              // net-0|net-15|net-30|net-60|on-receipt
