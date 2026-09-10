@@ -1634,6 +1634,75 @@ export async function testTheSharedTokensAreOnRoot(t) {
 // sandbox, at the scale of the whole tenant base.
 //
 // So each half is asserted separately: the keys are gone from what the product
+
+/* EVERY BUILT-IN RECORD TYPE GETS A MARK, NOT A DOT.
+   ------------------------------------------------------------------
+   A record type is a ROW and the section it plants is `engine-<typeKey>`, so
+   those keys do not exist when StudioFrame is compiled — which is how all
+   thirty-one built-in registers came to render `SECTION_ICONS[key] || "dot"`
+   and nothing complained. Quality & HSE showed eight identical dots under one
+   heading; the owner found it by looking at the sidebar.
+
+   NOTHING ELSE CAN CATCH THIS. The fallback is legal, the build is green, and a
+   register with no icon looks exactly like a register whose icon has not
+   loaded. The next built-in type added to `builtins.ts` would repeat it
+   silently, which is why the assertion reads BOTH files rather than keeping a
+   list of its own.
+
+   IT ASSERTS SIBLINGS DIFFER TOO. One dot per row was never the complaint —
+   five IDENTICAL rows under one parent is, because a nav that cannot tell its
+   own children apart is a list of nothing. Across parents a mark is reused
+   deliberately and that is left alone. */
+export async function testEveryBuiltinRecordTypeHasItsOwnIcon(t) {
+  const { readFileSync } = await import("node:fs");
+
+  const builtins = readFileSync("src/platform/engine/builtins.ts", "utf8");
+  // BUILT AS A STRING, NOT A LITERAL. A `/…/` spanning a newline is a syntax
+  // error, and this pattern has to cross one: a type declares its key on one
+  // line and its label on the next.
+  const TYPE_RE = new RegExp(
+    'key:\\s*"([a-z0-9]+)",\\s*\\n\\s*label:\\s*"([^"]+)",'
+    + '[\\s\\S]{0,200}?parentSectionKey:\\s*"([a-z0-9-]+)"',
+    "g",
+  );
+  const types = [...builtins.matchAll(TYPE_RE)].map((m) => ({ key: m[1], parent: m[3] }));
+
+  // A REGEX THAT MATCHED NOTHING WOULD PASS EVERY ASSERTION BELOW, which is the
+  // failure mode of every source-scanning test in this file.
+  t.equal(types.length > 20, true,
+    `the built-in type scan found ${types.length} types — it should find dozens; the pattern has drifted from builtins.ts`);
+
+  const frame = readFileSync("src/components/studio2/StudioFrame.js", "utf8");
+  const body = frame.slice(frame.indexOf("const SECTION_ICONS = {"));
+  const ENTRY_RE = new RegExp('^\\s*"?([a-zA-Z0-9-]+)"?\\s*:\\s*"([a-zA-Z0-9]+)"', "gm");
+  const icons = Object.fromEntries(
+    [...body.slice(0, body.indexOf("\n};")).matchAll(ENTRY_RE)].map((m) => [m[1], m[2]]),
+  );
+
+  const art = readFileSync("src/components/studio2/icons.art.js", "utf8");
+  const names = new Set([...art.matchAll(/^\s{2}([a-zA-Z0-9_]+):/gm)].map((m) => m[1]));
+
+  const byParent = {};
+  for (const type of types) {
+    const icon = icons[`engine-${type.key}`];
+    t.equal(Boolean(icon), true,
+      `engine-${type.key} (${type.parent}) has no entry in SECTION_ICONS — it renders a bare dot in the sidebar`);
+    if (!icon) continue;
+    // A NAME THAT DOES NOT RESOLVE IS A DOT BY ANOTHER ROUTE: Icon falls back to
+    // ART.dot for an unknown name, so a typo here is invisible at runtime.
+    t.equal(names.has(icon), true,
+      `engine-${type.key} asks for the icon "${icon}", which is not in the set — Icon would draw a dot`);
+    (byParent[type.parent] ||= []).push(`${type.key}=${icon}`);
+  }
+
+  for (const [parent, rows] of Object.entries(byParent)) {
+    const used = rows.map((r) => r.split("=")[1]);
+    const dupes = [...new Set(used.filter((v, i) => used.indexOf(v) !== i))];
+    t.equal(dupes.join(", "), "",
+      `two registers under ${parent} share a mark (${dupes.join(", ")}) — siblings must be told apart: ${rows.join("  ")}`);
+  }
+}
+
 // PRESENTS, and present in what the product STORES.
 export async function testAdministrationIsNotASectionButItsRowsSurvive(t) {
   // -- the keys are real. A typo here would silently exempt nothing.
@@ -1970,6 +2039,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       testTheSharedChartKitUsesNoConsoleOnlyToken,
       testTheSharedTokensAreOnRoot,
       testAdministrationIsNotASectionButItsRowsSurvive,
+      testEveryBuiltinRecordTypeHasItsOwnIcon,
       testEverySectionWithAScreenIsReachableBySomeSeededRole,
       testTheTwoIndustryListsAreOneList,
       testNoTradeSwitchesOffASectionItActuallyUses,

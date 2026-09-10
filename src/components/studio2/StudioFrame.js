@@ -126,6 +126,67 @@ const SECTION_ICONS = {
   // for Cash and nothing for the Ledger, the Payables or the Fixed assets, so
   // three of the four rows in the section a studio spends most of its day in
   // were unlabelled. Same for Procurement, Logistics and their children.
+  /* THE ENGINE REGISTERS — thirty-one rows that drew a bare dot each.
+     ------------------------------------------------------------------
+     A record type is a ROW, and the section it plants is `engine-<typeKey>`
+     (platform/access/catalogue). So these keys do not exist when this file is
+     compiled, which is why none of them was here and why every engine register
+     in the product rendered the fallback. Quality & HSE showed eight identical
+     dots; Manufacturing four; Assets, Logistics, HR and Engineering & Documents
+     three or more each.
+
+     WITHIN ONE PARENT NO TWO MARKS REPEAT, which is the whole point — the
+     complaint was not that a dot is ugly, it is that five identical dots under
+     one heading say nothing about what is under it. Across parents a mark is
+     reused freely: `box` is Inventory's and Manufacturing's batches, and no
+     reader ever sees them side by side.
+
+     THIS COVERS THE BUILT-INS AND NOT A TYPE A STUDIO CREATES ITSELF. A runtime
+     type still falls through to the dot, and it always will while the icon is
+     decided here: the durable fix is an `icon` on the type declaration, stored
+     with the row and read by the nav. Written down rather than done, because it
+     is a stored-shape change plus a backfill for every already-planted section,
+     and this is a map. */
+  // Engineering & Documents
+  "engine-transmittal": "send",
+  "engine-rfi": "helpCircle",
+  "engine-submittal": "form",
+  "engine-ebom": "code",
+  "engine-techlib": "folder",
+  // Quality & HSE — the worst of them, eight rows and eight dots.
+  "engine-ncr": "alert",
+  "engine-audit": "checkDouble",
+  "engine-incident": "flag",
+  "engine-permit": "shield",
+  "engine-toolbox": "megaphone",
+  "engine-itp": "list",
+  "engine-testreport": "chart",
+  "engine-certification": "verified",
+  // Assets & Equipment
+  "engine-equipment": "tool",
+  "engine-maintenance": "gears",
+  "engine-calibration": "target",
+  // Field Operations & Service
+  "engine-job": "techService",
+  "engine-contract": "contract",
+  "engine-planned": "calendar",
+  "engine-installed": "locations",
+  // Logistics & Fleet
+  "engine-delivery": "package",
+  "engine-trip": "mapPin",
+  "engine-vehicle": "tracking",
+  // Manufacturing & Production
+  "engine-workorder": "tasks",
+  "engine-bom": "layers",
+  "engine-station": "server",
+  "engine-batch": "box",
+  // Human Resources
+  "engine-candidate": "person",
+  "engine-appraisal": "award",
+  "engine-course": "book",
+  // Inventory & Warehouse
+  "engine-stocktake": "table",
+
   "finance-cash": "cash",
   "finance-ledger": "ledger",
   "finance-payables": "invoice",
