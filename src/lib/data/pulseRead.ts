@@ -18,10 +18,12 @@ import { heatRows, signupSeries, studioCountries, deltaPct, activeNow, arrivalsF
 // modules/tendering/boq exports the bill in `{ tables }` shape rather than
 // letting the sheet compose its own.
 //
-// THE FOUR DAY-READERS COST ONE ROUND TRIP PER DAY BETWEEN THEM, not four. They
-// ask for the same per-day hashes, and the request-scoped cache holds the
-// in-flight PROMISE per key, so concurrent readers of one day collapse into one
-// command. Worth stating, because the code reads like four times the work.
+// THE FOUR DAY-READERS COST ONE QUERY PER SITE BETWEEN THEM, not one per day.
+// Each asks for the whole span in one `= ANY()` read (siteStats.readHashes),
+// and the request-scoped cache holds the in-flight PROMISE per key, so the
+// concurrent readers of one span collapse into one statement and the grid
+// pays only for the days the others did not ask for. It said "one round trip
+// per day" and that was the cost: 123 queries for one load of this wall.
 
 export const RANGES: Record<string, number> = { "7d": 7, "30d": 30, "90d": 90 };
 export const DEFAULT_RANGE = "30d";

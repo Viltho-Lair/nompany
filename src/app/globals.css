@@ -253,9 +253,9 @@
        the whole layer. */
     background:
       linear-gradient(90deg, var(--band-bg,
-        color-mix(in oklab, #48caed 14%, var(--geex-page)),
-        color-mix(in oklab, #fe9e04 14%, var(--geex-page)),
-        color-mix(in oklab, #ff3333 14%, var(--geex-page))
+        color-mix(in oklab, #48caed 14%, var(--geex-page, var(--ad-background, #ffffff))),
+        color-mix(in oklab, #fe9e04 14%, var(--geex-page, var(--ad-background, #ffffff))),
+        color-mix(in oklab, #ff3333 14%, var(--geex-page, var(--ad-background, #ffffff)))
       )) padding-box,
       linear-gradient(90deg, var(--band-border, #48caed, #fe9e04, #ff3333)) border-box;
     /* Five pixels underneath, soft rather than dark — a lift, not a drop. It

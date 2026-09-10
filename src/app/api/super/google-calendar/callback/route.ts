@@ -12,9 +12,9 @@ export const dynamic = "force-dynamic";
 // Where the operator is sent back to. A constant, not a `next` out of `state`:
 // the console has one calendar screen and nothing should be able to steer this
 // redirect at all.
-// The calendar screen moved under the Pulse shell with the rest of the
+// The calendar screen is /super/calendar, in the console's route group like the rest of the
 // console; this is where OAuth hands a person back to.
-const CONSOLE_CALENDAR_PATH = "/super/pulse/calendar";
+const CONSOLE_CALENDAR_PATH = "/super/calendar";
 
 // EVERY EXIT FROM THIS ROUTE ENDS THE FLOW, success or not — a bad state, a
 // cancelled consent screen and a failed exchange are as finished as a connected

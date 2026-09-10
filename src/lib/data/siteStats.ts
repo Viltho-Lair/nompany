@@ -1,4 +1,4 @@
-import { hGetAll, hSetNX } from "@/platform/db/store";
+import { hGetAll, hGetAllMany, hSetNX } from "@/platform/db/store";
 import { STAT, type StatSite } from "@/platform/db/keys";
 import { cityFromKey } from "@/lib/geo";
 import { CONTINENTS, CONTINENT_KEYS } from "@/lib/continents";
@@ -37,6 +37,19 @@ const TOTAL_FIELD = "pv:__total";
 const key = (day: string, site: StatSite = "www") => STAT.siteDay(site, day);
 const n = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 
+// EVERY READER BELOW GOES THROUGH HERE, AND IT IS ONE QUERY FOR THE WHOLE SPAN.
+// It was one `hGetAll` per day, under a comment saying concurrent reads "share
+// the pool" — true, and still a statement per day through the gateway: the
+// Pulse wall cost 123 queries a load and the year chart 367 (5.7s). Absent
+// days read as empty hashes, exactly as before. A failed read is still an
+// empty span rather than a broken page; it just fails as one now, not per day.
+async function readHashes(keys: string[]): Promise<Record<string, string>[]> {
+  if (!keys.length) return [];
+  try { return await hGetAllMany(keys); }
+  catch { return keys.map(() => ({})); }
+}
+const dayHashes = (days: string[], site: StatSite) => readHashes(days.map((day) => key(day, site)));
+
 // YYYY-MM-DD in UTC, the same clock /api/track stamps with. Using the server's
 // local zone here would put a write and its read on different days for half the
 // world.
@@ -72,9 +85,7 @@ export function daysOfYear(year: number): string[] {
 // and a quiet Sunday reads as quiet instead of vanishing.
 export async function readDays(days: string[], site: StatSite = "www") {
   if (!days.length) return [];
-  // Concurrent reads share the pool, so a month of days costs one pool
-  // checkout each rather than one round trip each in series.
-  const hashes = await Promise.all(days.map((day) => hGetAll(key(day, site)).catch((): Record<string, string> => ({}))));
+  const hashes = await dayHashes(days, site);
   return days.map((day, i) => {
     const h = hashes[i] || {};
     return { day, sessions: n(h[HOME_FIELD]), pageViews: n(h[TOTAL_FIELD]) };
@@ -84,7 +95,7 @@ export async function readDays(days: string[], site: StatSite = "www") {
 // Per-page totals across a span, biggest first — the table's rows.
 export async function readPages(days: string[], site: StatSite = "www") {
   if (!days.length) return [];
-  const hashes = await Promise.all(days.map((day) => hGetAll(key(day, site)).catch((): Record<string, string> => ({}))));
+  const hashes = await dayHashes(days, site);
   const totals: Record<string, number> = {};
   for (const h of hashes) {
     for (const [field, value] of Object.entries(h || {})) {
@@ -104,9 +115,7 @@ export async function readPages(days: string[], site: StatSite = "www") {
 // continent is present even at zero, so the bars do not reshuffle as traffic
 // arrives from somewhere new.
 export async function readContinents(days: string[], site: StatSite = "www") {
-  const hashes = days.length
-    ? await Promise.all(days.map((day) => hGetAll(key(day, site)).catch((): Record<string, string> => ({}))))
-    : [];
+  const hashes = await dayHashes(days, site);
   const totals: Record<string, number> = Object.fromEntries(CONTINENTS.map((c) => [c, 0]));
   for (const h of hashes) {
     for (const name of CONTINENTS) {
@@ -136,9 +145,7 @@ export async function readContinents(days: string[], site: StatSite = "www") {
 // arrived from somewhere new, and a row that appears halfway along reads as a
 // data gap rather than as a first visit.
 export async function readContinentDays(days: string[], site: StatSite = "www") {
-  const hashes = days.length
-    ? await Promise.all(days.map((day) => hGetAll(key(day, site)).catch((): Record<string, string> => ({}))))
-    : [];
+  const hashes = await dayHashes(days, site);
   return days.map((day, i) => {
     const h = hashes[i] || {};
     const byContinent: Record<string, number> = {};
@@ -151,9 +158,7 @@ export async function readContinentDays(days: string[], site: StatSite = "www") 
 // than counts, because the card asks which kind of machine people use, not how
 // many of them there were.
 export async function readDevices(days: string[], site: StatSite = "www") {
-  const hashes = days.length
-    ? await Promise.all(days.map((day) => hGetAll(key(day, site)).catch((): Record<string, string> => ({}))))
-    : [];
+  const hashes = await dayHashes(days, site);
   const totals: Record<string, number> = Object.fromEntries(DEVICES.map((d) => [d, 0]));
   for (const h of hashes) {
     for (const name of DEVICES) totals[name] += n((h || {})[`dev:${DEVICE_KEYS[name]}`]);
@@ -183,9 +188,7 @@ export type CityVisits = { country: string; city: string; lat: number; lng: numb
 // beyond the cap is counted in the store and never appears as a point — which is
 // the honest outcome: it is a number of visits with no one place to put them.
 export async function readCities(days: string[], site: StatSite = "www") {
-  const hashes = days.length
-    ? await Promise.all(days.map((day) => hGetAll(STAT.cities(site, day)).catch((): Record<string, string> => ({}))))
-    : [];
+  const hashes = await readHashes(days.map((day) => STAT.cities(site, day)));
   const totals = new Map<string, number>();
   for (const h of hashes) {
     for (const [field, value] of Object.entries(h || {})) {

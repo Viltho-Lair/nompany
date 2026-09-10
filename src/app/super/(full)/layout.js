@@ -1,4 +1,5 @@
-// Full-bleed screens: the sign-in and the questionnaire app. No sidebar, no
+// The SIGN-IN, full-bleed — the one console screen outside `(console)`, which
+// the questionnaire app has since joined. No sidebar, no
 // header — just the tokenised surface.
 //
 // It used to hold the template's eighteen auth variants and nine

@@ -709,7 +709,7 @@ on the owner's instruction.** Wave 0 shipped (orphan-sweep guard, credential rat
 console session expiry, traffic-ingest bounds, media tenancy, security headers, bcrypt 12
 with rehash-on-login, M-1 dead capabilities), and its **ESLint** budget (flat config,
 shrink-only: the CEILING is 104 and the actual count is 104 — 108 → 104 on 10/09/2026, when the
-console's move under the Pulse shell orphaned fourteen imports and they were deleted
+console's move into one shared shell orphaned fourteen imports and they were deleted
 rather than banked as headroom; before that, ratcheted down from 142
 on 09/09/2026 by extracting `components/studio2/useReload`) and **observability** (request
 ids, per-request hop counts) are untouched.

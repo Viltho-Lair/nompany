@@ -41,7 +41,9 @@ function Band({ theme, greeting, quote, author }) {
   return (
     <div
       className="greeting-band px-4 py-2.5"
-      style={{ "--band-bg": css.background, "--band-border": css.border, "--band-glow": css.glow }}
+      // The preview wears the ink the studio will, or a pale custom fill would
+      // show the console theme's white text in dark mode — the owner's screenshot.
+      style={{ "--band-bg": css.background, "--band-border": css.border, "--band-glow": css.glow, color: css.ink || undefined }}
     >
       <p className="truncate text-sm font-600">{greeting || <span className="opacity-50">Nothing to show</span>}</p>
       {quote && (

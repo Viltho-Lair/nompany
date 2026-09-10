@@ -70,7 +70,7 @@ import { execFileSync } from "node:child_process";
 // The remaining 108 are 56 set-state-in-effect that are NOT that shape (they do
 // more than call one loader, so each needs reading), 37 exhaustive-deps, and a
 // tail of four smaller rules.
-// 108 → 104 on 10/09/2026. Moving the console under the Pulse shell deleted
+// 108 → 104 on 10/09/2026. Moving the console into one shared shell deleted
 // its breadcrumbs and a decorative tab strip, which orphaned fourteen imports
 // (`BASE` in eleven pages, `PageHeader`/`toneBg`/`toneInk` in the profile
 // panel); they were deleted, and two more warnings left with Header.js. The

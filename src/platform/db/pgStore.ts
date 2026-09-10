@@ -721,6 +721,14 @@ export async function pfCount(key: string): Promise<number> {
 export async function hGetAll(key: string): Promise<Record<string, string>> {
   return asHash(await getJSON(key));
 }
+// MANY HASHES, ONE STATEMENT — hGetAll over getJSONMany's `= ANY($1)`. The
+// traffic readers asked for a day at a time, so thirty days were thirty round
+// trips and the dashboard's year chart was 367 queries and 5.7 seconds,
+// measured on production 10/09/2026. Same request cache, so a key another
+// reader already has in flight is reused rather than asked for twice.
+export async function hGetAllMany(keys: string[]): Promise<Record<string, string>[]> {
+  return (await getJSONMany(keys)).map(asHash);
+}
 export async function hDel(key: string, ...fields: string[]): Promise<number> {
   if (!fields.length) return 0;
   const names = fields.map(String);

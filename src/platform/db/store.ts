@@ -98,6 +98,7 @@ export {
   bumpCounter,
   hIncrBounded,
   hGetAll,
+  hGetAllMany,
   hDel,
   hSet,
   hSetNX,

@@ -124,6 +124,7 @@ export default function DailyGreeting({ slug }) {
 
   const at = Math.min(index, count - 1);
   const msg = visible[at];
+  const ink = msg.css.ink;
 
   // CLOSES THIS MESSAGE, NOT THE BAND. The next one slides into its place; the
   // band goes when the last one is closed.
@@ -137,6 +138,9 @@ export default function DailyGreeting({ slug }) {
     "--band-bg": msg.css.background,
     "--band-border": msg.css.border,
     "--band-glow": msg.css.glow,
+    // A CUSTOM FILL BRINGS ITS OWN INK — it is the same colour in both themes,
+    // so the theme's text colour is wrong on it half the time. See inkFor.
+    color: ink || undefined,
   };
 
   return (
@@ -149,14 +153,14 @@ export default function DailyGreeting({ slug }) {
       onBlurCapture={() => setPaused(false)}
     >
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-600 text-slate-900 dark:text-white">{msg.greeting}</p>
+        <p className={`truncate text-sm font-600 ${ink ? "" : "text-slate-900 dark:text-white"}`}>{msg.greeting}</p>
         {msg.quote && (
           /* THE QUOTATION IS A <blockquote>, because it is one. It costs nothing
              and it is the difference between a screen reader announcing a quote
              and announcing a second sentence of the greeting. */
-          <blockquote className="mt-0.5 truncate text-xs text-slate-600 dark:text-slate-300">
+          <blockquote className={`mt-0.5 truncate text-xs ${ink ? "opacity-80" : "text-slate-600 dark:text-slate-300"}`}>
             “{msg.quote}”
-            {msg.author && <cite className="ms-1.5 not-italic text-slate-400 dark:text-slate-500">— {msg.author}</cite>}
+            {msg.author && <cite className={`ms-1.5 not-italic ${ink ? "opacity-70" : "text-slate-400 dark:text-slate-500"}`}>— {msg.author}</cite>}
           </blockquote>
         )}
       </div>
@@ -177,8 +181,8 @@ export default function DailyGreeting({ slug }) {
               aria-current={i === at ? "true" : undefined}
               className={`h-1.5 w-1.5 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 ${
                 i === at
-                  ? "bg-slate-700 dark:bg-white"
-                  : "bg-slate-400/50 hover:bg-slate-500 dark:bg-white/30 dark:hover:bg-white/60"
+                  ? (ink ? "bg-current" : "bg-slate-700 dark:bg-white")
+                  : (ink ? "bg-current opacity-40 hover:opacity-70" : "bg-slate-400/50 hover:bg-slate-500 dark:bg-white/30 dark:hover:bg-white/60")
               }`}
             />
           ))}
@@ -190,7 +194,7 @@ export default function DailyGreeting({ slug }) {
         onClick={close}
         aria-label={tr.close}
         title={tr.close}
-        className="-me-1 mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-black/5 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-white"
+        className={`-me-1 mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 ${ink ? "opacity-70 hover:bg-black/10 hover:opacity-100" : "text-slate-500 hover:bg-black/5 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-white"}`}
       >
         <Icon name="close" className="h-4 w-4" />
       </button>

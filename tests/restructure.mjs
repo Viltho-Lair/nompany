@@ -1476,13 +1476,13 @@ export async function testEveryConsoleDestinationResolvesToARoute(t) {
   for (const f of files) {
     // THE CAPTURE STOPS AT A QUERY STRING, because a query never changes which
     // page answers. Settings moved its tabs into `?tab=` so every panel stays a
-    // Server Component, and `${BASE}/pulse/settings?tab=security` is a real
-    // destination — the route is `/super/pulse/settings` and the tab is the
+    // Server Component, and `${BASE}/settings?tab=security` is a real
+    // destination — the route is `/super/settings` and the tab is the
     // page's own business. Without `?` in the class, every tab link reads as a
     // route that does not exist.
     // AND COMMENTS COME OUT FIRST, the treatment the icon and native-<select>
     // guards in this file already give their scans. A path in prose is not a
-    // destination: the Pulse chrome's comment quotes the interpolated shape it
+    // destination: a chrome comment once quoted the interpolated shape it
     // replaced, `${BASE}/pulse/${key}`, precisely to explain why the bar spells
     // its hrefs out — and a guard that failed on that sentence would push the
     // next person to delete the explanation rather than keep it.
@@ -1500,7 +1500,10 @@ export async function testEveryConsoleDestinationResolvesToARoute(t) {
   }
 
   // The bug itself, named: this is where sign-in lands, and it must not 404.
-  t.equal(routes.has("/super/dashboard"), true, "the console has a landing point");
+  // SIGN-IN LANDS ON PULSE since 10/09/2026 — the owner's instruction — and both
+  // doors (`(full)/page.js` and SignIn) name it. /super/dashboard is a real screen
+  // now rather than the alias this used to check for.
+  t.equal(routes.has("/super/pulse"), true, "sign-in lands on a page that exists — /super/pulse");
 }
 
 // ---- what Gate A used to hold, and nothing else did -------------------------

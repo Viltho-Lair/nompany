@@ -146,10 +146,26 @@ ok("the shadow takes the first border stop", three.glow === "#444444", three.glo
 const housed = G.bandCss({ mode: "default", background: ["#111111"], border: ["#222222"] });
 ok("house mode ignores stored custom stops", !housed.background.includes("#111111"), housed.background);
 ok("house mode tints the fill over the page",
-  housed.background.includes("color-mix") && housed.background.includes("var(--geex-page)"));
+  housed.background.includes("color-mix") && housed.background.includes("var(--geex-page,"));
+
+// THE STUDIO TOKEN IS NOT ENOUGH ON ITS OWN. `--geex-page` exists only inside
+// the studio shell; the console draws the same band as a preview, and an
+// unresolvable var() invalidates the whole two-layer background — fill AND
+// border. The owner saw a house-colour band with no colours at all.
+ok("house mode falls back when the studio token is absent",
+  housed.background.includes("var(--ad-background"), housed.background);
+ok("house mode carries no ink of its own — it follows the theme", housed.ink === "");
 ok("house mode's border is the ramp at full strength",
   housed.border === G.BRAND_STOPS.join(", "), housed.border);
 ok("custom fill is not tinted", !three.background.includes("color-mix"), three.background);
+// A CUSTOM FILL CARRIES ITS OWN INK. The owner's screenshot: a pale pink band
+// in dark mode, wearing the dark theme's white text. The ink comes from the
+// fill, not the theme, because the fill does not change with the theme.
+ok("a pale custom fill gets dark ink", G.bandCss({ mode: "custom", background: ["#ffb3b3", "#ff9999"], border: ["#ff5555"] }).ink === "#0f172a");
+ok("a dark custom fill gets light ink", G.bandCss({ mode: "custom", background: ["#0f172a"], border: ["#334155"] }).ink === "#ffffff");
+ok("three-digit hex is read too", G.inkFor(["#fff"]) === "#0f172a" && G.inkFor(["#000"]) === "#ffffff");
+ok("nothing readable gives no ink rather than a guess", G.inkFor([]) === "");
+
 ok("a missing theme still paints", G.bandCss(undefined).border === G.BRAND_STOPS.join(", "));
 
 console.log("\n== what a studio reads");

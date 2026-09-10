@@ -70,7 +70,7 @@ export type GreetingConfig = { messages: BandMessage[] };
 /** One day's generated words for one `ai` message. */
 export type Generation = { greeting: string; quote: string; author: string };
 
-export type BandCss = { background: string; border: string; glow: string };
+export type BandCss = { background: string; border: string; glow: string; ink: string };
 
 export type ResolvedMessage = {
   id: string;
@@ -177,6 +177,42 @@ function stopList(stops: string[]): string {
   return (s.length === 1 ? [s[0], s[0]] : s).join(", ");
 }
 
+/* THE PAGE COLOUR THE HOUSE FILL IS MIXED INTO, WITH A FALLBACK, and the
+   fallback is the bug fix. This read `var(--geex-page)` alone — a STUDIO token,
+   scoped to the studio shell. The console's Broadcast preview draws the same
+   band outside that shell, where `--geex-page` does not exist; an unresolvable
+   `var()` inside `color-mix()` makes the whole `background` declaration invalid,
+   and because both layers live in that one declaration the border gradient went
+   with the fill. The owner saw it as "default does not display colours". The
+   console's own page token is the second choice, and white the last. */
+const PAGE = "var(--geex-page, var(--ad-background, #ffffff))";
+
+/* READABLE INK FOR A BACKGROUND SOMEBODY PICKED. The band's text follows the
+   THEME — near-black in light, near-white in dark — which is right for the house
+   fill, because that fill is mixed into the theme's own page. A custom fill is
+   not: it is the colour that was chosen, in both themes, so a pale pink band in
+   dark mode wore white text on pink. The owner's screenshot. So a custom band
+   carries its own ink, chosen from the fill's relative luminance, and the house
+   band carries none and keeps following the theme.
+
+   0.179 IS THE CROSSOVER where black and white give equal contrast against a
+   colour (WCAG relative luminance) — above it dark ink reads better, below it
+   light ink does. Averaged over the stops, because a gradient is read as a whole. */
+function luminance(hex: string): number {
+  let h = hex.trim().replace("#", "");
+  if (h.length === 3 || h.length === 4) h = h.split("").map((c) => c + c).join("");
+  const rgb = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
+  const lin = rgb.map((c) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)));
+  return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2];
+}
+
+export function inkFor(stops: string[]): string {
+  const ls = stops.filter(isHexColor).map(luminance).filter((n) => Number.isFinite(n));
+  if (!ls.length) return "";
+  const avg = ls.reduce((a, b) => a + b, 0) / ls.length;
+  return avg > 0.179 ? "#0f172a" : "#ffffff";
+}
+
 /**
  * The two custom-property values a message paints with, plus the shadow's tint.
  *
@@ -190,8 +226,8 @@ export function bandCss(theme: BandTheme | null | undefined): BandCss {
   const border = custom ? cleanStops(theme?.border) : [...BRAND_STOPS];
   const background = custom
     ? cleanStops(theme?.background)
-    : BRAND_STOPS.map((c) => `color-mix(in oklab, ${c} ${TINT_PERCENT}%, var(--geex-page))`);
-  return { background: stopList(background), border: stopList(border), glow: border[0] };
+    : BRAND_STOPS.map((c) => `color-mix(in oklab, ${c} ${TINT_PERCENT}%, ${PAGE})`);
+  return { background: stopList(background), border: stopList(border), glow: border[0], ink: custom ? inkFor(background) : "" };
 }
 
 export function defaultTheme(): BandTheme {

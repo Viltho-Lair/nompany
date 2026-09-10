@@ -76,7 +76,8 @@ export default function SignIn() {
       }
       // The console is a server-rendered gate, so the cached signed-out tree has
       // to go before we navigate into it.
-      router.replace(`${BASE}/dashboard`);
+      // Pulse, not the dashboard — the same landing `(full)/page.js` uses.
+      router.replace(`${BASE}/pulse`);
       router.refresh();
     } catch {
       setError(MESSAGES.network);

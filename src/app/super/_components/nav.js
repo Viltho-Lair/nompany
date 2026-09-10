@@ -1,30 +1,63 @@
-// WHERE THE CONSOLE LIVES. One constant, and eighteen files import it.
+// WHERE THE CONSOLE LIVES, AND WHAT IS IN IT.
 //
-// THIS WAS THE SIDEBAR MAP — a tree of groups and items that `Sidebar` rendered
-// down the left of every screen and the command palette searched. The console
-// has no sidebar any more: every screen moved under the Pulse shell, where the
-// bottom bar is the navigation and the header's menu carries the rest.
-// `PulseChrome` owns that list, beside the layout that draws it, so a screen and
-// its bar item are added in one place instead of two.
+// ONE LIST, TWO READERS. The bottom bar and the ⌘K palette both draw from here:
+// the bar in `(console)/ConsoleChrome`, the palette in `ConsoleActions`. It was
+// briefly a local constant inside the chrome, which was fine while the chrome
+// was its only reader; restoring the palette made it two, and two copies of
+// "what screens are there" disagree the first time somebody adds one.
 //
-// So `NAV` and `FLAT` are gone with the four files that read them — Shell,
-// Sidebar, Header, Customizer. Keeping a nav tree nothing renders is how a
-// console ends up with two answers to "what screens are there", and this file
-// has already watched that happen once from the other side.
+// EVERY HREF IS SPELLED OUT, for the test rather than for the eye.
+// `testEveryConsoleDestinationResolvesToARoute` reads each `${BASE}...` literal
+// and asserts a page answers it — the guard that exists because sign-in once
+// landed on a 404 while every link looked right. An interpolated segment cannot
+// be resolved statically, so a typo'd item would ship as a dead link with the
+// guard green. Written out, it fails the suite.
 //
-// THE HISTORY IS WORTH KEEPING, because it is the reason this file was ever
-// large: the console started as a 1:1 mirror of a reference admin template, and
-// most of it was demonstration rather than product — seven fake dashboards,
-// eighteen inert authentication screens, nine maintenance pages, a marketing
-// landing page, a documentation index, and demo Invoices / Orders / Task Board
-// screens built from hardcoded arrays. Forty routes, none reading a byte of real
-// data. They were not harmless: a console that renders "$67,250.00 · Overdue"
-// from a literal teaches the person reading it that the numbers here might be
-// real, and `/super/v1/register` offered a registration form for a console that
-// HAS NO REGISTRATION — a super admin is an existing user marked as one. All
-// deleted, code and route.
+// PULSE IS ONE PAGE HERE, NOT A PREFIX. These addresses sat under
+// `/super/pulse/…` for one deploy, which made the wall a container for the
+// console; the owner corrected it. The screens are `/super/<name>`, in the
+// `(console)` route group, and Pulse is `/super/pulse` beside them.
 //
-// WHAT IS LEFT IS WHAT EXISTS. That rule outlived the file that stated it: every
-// item in `PulseChrome`'s bar and menu is a screen that reads real data.
+// THE HISTORY OF THIS FILE IS WHY IT IS SMALL. It was the sidebar map, and for a
+// long time most of it was demonstration rather than product: the console began
+// as a mirror of a reference admin template — seven fake dashboards, eighteen
+// inert auth screens, nine maintenance pages, demo Invoices / Orders / Task Board
+// screens built from hardcoded arrays — and `/super/v1/register` offered a
+// registration form for a console that HAS NO REGISTRATION. All deleted. What is
+// left is what exists: every item below is a screen that reads real data.
 
 export const BASE = "/super";
+
+/* THE BAR. Pulse first, because it is where sign-in lands. */
+export const CONSOLE_BAR = [
+  { href: `${BASE}/pulse`, label: "Pulse", icon: "activity" },
+  { href: `${BASE}/dashboard`, label: "Dashboard", icon: "dashboard" },
+  { href: `${BASE}/studios`, label: "Studios", icon: "briefcase" },
+  { href: `${BASE}/users`, label: "Users", icon: "users" },
+  { href: `${BASE}/chat`, label: "Chat", icon: "chat" },
+  { href: `${BASE}/packages`, label: "Packages", icon: "package" },
+  { href: `${BASE}/tiers`, label: "Tiers", icon: "layers" },
+  { href: `${BASE}/nova`, label: "Nova", icon: "star" },
+  { href: `${BASE}/calendar`, label: "Calendar", icon: "calendar" },
+  { href: `${BASE}/broadcast`, label: "Broadcast", icon: "live" },
+];
+
+/* THE HEADER'S "MORE" MENU. Not places anybody moves BETWEEN — a questionnaire
+   is authored, the migration is read once, settings are changed and left — and
+   ten pills is already a wide bar. The owner asked for the first two here. */
+export const CONSOLE_MENU = [
+  { href: `${BASE}/questionnaires`, label: "Questionnaires", icon: "form" },
+  { href: `${BASE}/settings`, label: "Settings", icon: "settings" },
+  { href: `${BASE}/migration`, label: "Database migration", icon: "database" },
+];
+
+/* SCREENS THAT OWN THE WHOLE AREA between the header and the bar, so the chrome
+   gives them no padding and no scroll: the wall is a grid sized to the viewport,
+   Broadcast is a register with its own scrolling columns, and the questionnaire
+   app is a full-height builder. The wall is EXACT rather than a prefix — as a
+   prefix it would once have swallowed every screen, when they all sat under it. */
+export const FULL_BLEED = [
+  { href: `${BASE}/pulse`, prefix: false },
+  { href: `${BASE}/broadcast`, prefix: false },
+  { href: `${BASE}/questionnaires`, prefix: true },
+];

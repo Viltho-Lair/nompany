@@ -9,10 +9,10 @@ It is platform-wide. Every studio reads the same words on the same day — this 
 from the product, not a per-tenant setting — so nothing here touches `collection_rows` and
 the answer is identical for every caller.
 
-**It is edited at `/super/pulse/broadcast`**, the last item in the console's bottom bar. It
+**It is edited at `/super/broadcast`**, the last item in the console's bottom bar. It
 began as `/super/application/greeting`, one row down a menu of eleven; then it became a pane
-that slid in beside the Pulse wall; since 10/09/2026 it is an ordinary route under the Pulse
-shell, beside every other console screen. The slide went when the whole console joined the
+that slid in beside the Pulse wall; since 10/09/2026 it is an ordinary route in the console's
+shared layout, beside every other console screen. The slide went when the whole console joined the
 bar: eight of the nine screens moving in read the store as Server Components that cannot
 slide, and one special case among ten screens is not worth a pane mechanism of its own.
 
@@ -24,8 +24,8 @@ where anybody reads it and `greeting` where only the code does.
 
 ## The console
 
-`/super/pulse/broadcast`, from the bottom bar. A register: the message list on the left, one
-message open on the right, and the page itself never scrolls — the Pulse chrome is exactly one
+`/super/broadcast`, from the bottom bar. A register: the message list on the left, one
+message open on the right, and the page itself never scrolls — the console chrome is exactly one
 screen tall with the header and bar fixed, so the list scrolls inside its own column.
 
 **A message is listed by a TITLE its author types**, never by its words, and no studio ever
@@ -47,8 +47,8 @@ that one of the three is missing when you can only ever see your own hour.
 | `src/lib/data/greeting.ts` | The stored half: the config, the day's generations, the model call |
 | `src/app/api/studios/[slug]/greeting/route.ts` | What a studio reads (GET, studio auth) |
 | `src/app/api/super/greeting/route.ts` | The console: GET, PUT to save, POST to regenerate today |
-| `src/app/super/(full)/pulse/broadcast/page.js` | The route — renders the editor inside the Pulse chrome |
-| `src/app/super/(full)/pulse/PulseChrome.jsx` | The header and the bottom bar every console screen shares |
+| `src/app/super/(console)/broadcast/page.js` | The route — renders the editor inside the console chrome |
+| `src/app/super/(console)/ConsoleChrome.jsx` | The header and the bottom bar every console screen shares |
 | `src/components/super/NovaCredentials.jsx` | The AI key form — shared with the Nova switchboard, not copied |
 | `src/components/studio2/DailyGreeting.jsx` | The band — rotation, dots, dismissal |
 | `src/components/super/GreetingEditor.jsx` | The register: a row per message, opening into its editor |
@@ -130,9 +130,22 @@ Each message paints itself through three custom properties — `--band-bg`, `--b
 So a band with nothing set renders exactly as it did before messages could be coloured.
 
 **House colours** are the logo ramp, cyan → amber → red: full strength on the 1px border,
-mixed into `--geex-page` at 14% for the fill. The fill layer must stay OPAQUE — a see-through
+mixed into the page colour at 14% for the fill. The fill layer must stay OPAQUE — a see-through
 padding-box layer lets the border ramp show through the whole box, which is a comment in
 `globals.css` that was paid for once already.
+
+**The page colour is `var(--geex-page, var(--ad-background, #ffffff))`, never `--geex-page`
+alone.** `--geex-page` is the STUDIO's token; the console defines none. A `var()` that cannot
+resolve invalidates the whole `background` declaration — border layer included — so the
+console's preview of a default message showed no colour at all while the studio showed the
+ramp. The same fallback is in `bandCss` and in `.greeting-band`'s own defaults.
+
+**A custom fill brings its own ink.** It is the same colour in both themes, so the theme's
+text colour is wrong on it half the time — a pale pink band in dark mode was drawn with white
+text. `inkFor` averages the fill's stops by WCAG relative luminance and answers near-black
+above 0.179 (the point where black and white contrast equally) and white below it; the band
+and the console's preview both paint with it. The house fill has no ink — it is a tint of
+the page, so the theme's own text colours are already right on it.
 
 **Custom** takes the picked colours literally, one to six stops on each layer, and does not
 tint them: somebody who chose a background chose a background. One colour is a solid — and it

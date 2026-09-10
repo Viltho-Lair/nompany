@@ -120,8 +120,8 @@ export default function QuestionnaireBuilder({ id }) {
   if (!doc) return <div className="flex min-h-full w-full items-center justify-center bg-[var(--ad-muted)] text-sm text-[var(--ad-muted-foreground)]">Loading…</div>;
 
   // FILLS ITS CONTAINER, NOT THE VIEWPORT. This was `h-screen` when the builder
-  // was a full-bleed page with no chrome around it. It lives under the Pulse
-  // shell now, between a header and a bar, so a viewport-tall builder would
+  // was a full-bleed page with no chrome around it. It lives in the console's
+  // shared layout now, between a header and a bar, so a viewport-tall builder would
   // push its own footer off the bottom and scroll the whole chrome with it. The
   // chrome gives this route the full remaining height and no padding (it is in
   // FULL_BLEED), and `h-full` takes exactly that.
