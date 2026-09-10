@@ -77,11 +77,7 @@ type Strings = CommonStrings & {
   winRate: string;
   nDecided: (n: number) => string;
   nDaysHere: (n: number) => string;
-  moveTo: string;
-  moveDeal: string;
   cancel: string;
-  whyLost: string;
-  whyLostHint: string;
   // The dialog ASKS ("why was this deal lost?") and its field is LABELLED
   // ("reason lost"). The ticket profile states the same fact, and states it
   // from misc.ts — that screen reads miscDict, not this one. Two surfaces, two
@@ -90,9 +86,6 @@ type Strings = CommonStrings & {
   // A stage refusal, one sentence each. The route hands back the token and the
   // screen chooses the sentence, so the same refusal reads correctly in both
   // languages rather than arriving pre-written in one of them.
-  refuseAlreadyClosed: string;
-  refuseNoQuotation: string;
-  refuseReasonRequired: string;
   overdue: string;
   // The contracts register. `contracts` is the section's own name and the
   // heading; the rest are the register's words.
@@ -294,15 +287,8 @@ const en: Strings = {
   winRate: "Win rate",
   nDecided: (n) => `${n} decided`,
   nDaysHere: (n) => (n === 1 ? "1 day here" : `${n} days here`),
-  moveTo: "Move to",
-  moveDeal: "Move",
   cancel: "Cancel",
-  whyLost: "Why was this deal lost?",
-  whyLostHint: "Required. It is the only record of why — and the only way the studio can ever answer the question across deals.",
   lostReasonLabel: "Reason lost",
-  refuseAlreadyClosed: "This deal has already closed. A closed deal is history, not a stage it can be moved out of.",
-  refuseNoQuotation: "There is no quotation on this deal yet, and this stage means the client has one.",
-  refuseReasonRequired: "Say why it was lost before closing it.",
   overdue: "Overdue",
   contracts: "Contracts",
   contractsWhatWasAgreed: "What was agreed, and what has moved since.",
@@ -506,15 +492,8 @@ const ar: Strings = {
   winRate: "نسبة الفوز",
   nDecided: (n) => `${n} محسومة`,
   nDaysHere: (n) => (n === 1 ? "يوم واحد هنا" : `${n} يوما هنا`),
-  moveTo: "نقل إلى",
-  moveDeal: "نقل",
   cancel: "إلغاء",
-  whyLost: "لماذا خسرنا هذه الصفقة؟",
-  whyLostHint: "مطلوب. هذا هو السجل الوحيد للسبب — والطريقة الوحيدة لمعرفة الأسباب عبر الصفقات لاحقا.",
   lostReasonLabel: "سبب الخسارة",
-  refuseAlreadyClosed: "هذه الصفقة مغلقة بالفعل. الصفقة المغلقة سجل، وليست مرحلة يمكن نقلها منها.",
-  refuseNoQuotation: "لا يوجد عرض سعر على هذه الصفقة بعد، وهذه المرحلة تعني أن لدى العميل عرضا.",
-  refuseReasonRequired: "اذكر سبب الخسارة قبل الإغلاق.",
   overdue: "متأخرة",
   contracts: "العقود",
   contractsWhatWasAgreed: "ما تم الاتفاق عليه، وما تغير منذ ذلك.",

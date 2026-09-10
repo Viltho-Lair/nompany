@@ -1,5 +1,4 @@
 import { route, refused } from "@/platform/http/route";
-import { requirePermission } from "@/platform/access";
 import { salesContext } from "@/modules/sales/sales";
 import { listPipeline } from "@/modules/sales/pipelineBoard";
 
@@ -20,11 +19,7 @@ const spec = { auth: "studio", context: salesContext, body: false, name: "crm-sa
 export const GET = route(spec, async (sales) => {
   const result = await listPipeline(sales);
   if (refused(result)) return result;
-  // THE RIGHT TO MOVE TRAVELS WITH THE BOARD, so the screen offers a drag only
-  // where the tickets route would accept one. It is asked for here rather than
-  // inferred from `crmSales.pipeline.view`, because seeing the funnel and
-  // changing what is in it are two different permissions and a studio may
-  // reasonably grant the first alone — a forecast is something a finance reader
-  // needs to look at without being able to edit a single deal.
-  return { ok: true, ...result, canMove: !requirePermission(sales.access, "crmSales.tickets.edit") };
+  // NO `canMove` ANY MORE: the board moves nothing (10/09/2026). A deal changes
+  // stage where its ticket is edited, and that route asks for the right itself.
+  return { ok: true, ...result };
 });

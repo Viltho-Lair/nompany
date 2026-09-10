@@ -7,30 +7,19 @@
 // questions a sales review is made of. The columns answer the first, the tiles
 // the second, and the reason a losing close now demands answers the third.
 //
-// THE BOARD REFUSES WITH THE SERVER'S OWN FUNCTION. `stageProblem` comes from
-// modules/sales/pipeline, which has no server import for exactly this reason —
-// the move this screen offers and the move the route accepts are decided by one
-// piece of code, so they cannot drift apart. A second copy here would be free
-// to keep offering a move the server had started refusing, and the person
-// looking at the stale copy is the one who would hit the wall.
-//
-// A SELECT, NOT DRAG AND DROP. The board is bilingual and scrolls horizontally,
-// which is where drag implementations go wrong: a pointer-driven drop target
-// computed in physical pixels mirrors incorrectly under `dir="rtl"`, and it is
-// unusable on a phone and invisible to a keyboard. The move is a decision with
-// consequences — a close asks why — so it reads better as a deliberate choice
-// than as a gesture.
+// IT MOVES NOTHING — the owner's instruction, 10/09/2026: the "Move to" control
+// on every card is gone. The board is for READING the funnel; a deal changes
+// stage where the ticket is edited, which is the same write this board used to
+// send (the tickets route — there was never a pipeline write endpoint) and
+// the same `stageProblem` rules, including the reason a losing close asks for.
 "use client";
 import { useCallback, useMemo, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { salesDict } from "@/shared/studio/sales";
-import { statusLabel } from "@/shared/studio/statuses";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
-import { panel, h2, sub, btn, btnGhost, microLabel, Empty, Dialog, StatTile, money, fmtDate } from "@/components/studio2/ui";
-import { Field } from "@/components/fields/Field";
+import { panel, h2, sub, microLabel, Empty, StatTile, money, fmtDate } from "@/components/studio2/ui";
 import { StatusPill } from "@/components/studio2/StatusPill";
-import { BOARD_COLUMNS, CLOSED_STAGES, stageDef, stageProblem } from "@/modules/sales/pipeline";
 import { useReload } from "@/components/studio2/useReload";
 
 // A deal that has sat in one stage this long is the thing the board exists to
@@ -39,26 +28,11 @@ import { useReload } from "@/components/studio2/useReload";
 // find one number, not three.
 const STALE_DAYS = 30;
 
-// The refusal tokens the tickets route can hand back on a stage move, in the
-// studio's own language. Anything else falls through as its raw token rather
-// than being swallowed — an unrecognised error is still an error.
-function refusal(tr, token) {
-  if (token === "already-closed") return tr.refuseAlreadyClosed;
-  if (token === "no-quotation") return tr.refuseNoQuotation;
-  if (token === "reason-required") return tr.refuseReasonRequired;
-  return token;
-}
-
 export default function StudioPipeline({ slug }) {
   const locale = useStudioLocale();
   const tr = salesDict(locale);
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
-  // The move in progress: the deal, and where it is going. A losing stage holds
-  // it here until a reason is typed; anything else goes straight through.
-  const [move, setMove] = useState(null);
-  const [reason, setReason] = useState("");
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/sales/pipeline`, { cache: "no-store" });
@@ -73,43 +47,6 @@ export default function StudioPipeline({ slug }) {
   // the section this screen is in: `crm-sales-pipeline` would never fire, and
   // neither would the department root, which nothing writes under at all.
   useLiveUpdates(slug, "crm-sales-tickets", load);
-
-  // THE MOVE GOES TO THE TICKETS ROUTE, because moving a deal IS editing the
-  // ticket. There is no pipeline write endpoint, deliberately — see the route.
-  const commit = useCallback(async (deal, to, lostReason) => {
-    setError(""); setBusy(true);
-    const res = await fetch(`/api/studios/${slug}/sales/tickets`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: deal.id, status: to, lostReason: lostReason || "" }),
-    });
-    const out = await res.json().catch(() => ({}));
-    setBusy(false);
-    if (!res.ok) { setError(refusal(tr, out.error || "failed")); return; }
-    setMove(null); setReason("");
-    await load();
-  }, [slug, load, tr]);
-
-  const onPick = useCallback((deal, to) => {
-    if (!to || to === deal.status) return;
-    // A LOSING CLOSE STOPS FOR ITS REASON. Asked here as well as refused by the
-    // server: `reason-required` coming back as an error would be a worse way to
-    // learn that the field exists than simply being asked for it.
-    if (stageDef(to)?.needsReason) { setReason(""); setMove({ deal, to }); return; }
-    commit(deal, to);
-  }, [commit]);
-
-  // Where a given deal may go: everything except the moves the server would
-  // refuse on structure. A placeholder reason is passed so `reason-required`
-  // does NOT filter a stage out — the dialog above collects it, and hiding
-  // "Closed Lost" until a reason existed would hide the only control that asks
-  // for one.
-  const targetsFor = useCallback((deal) => (
-    [...BOARD_COLUMNS, ...CLOSED_STAGES].filter((to) => (
-      to !== deal.status
-      && !stageProblem({ from: deal.status, to, hasQuotation: deal.hasQuotation, lostReason: "-" })
-    ))
-  ), []);
 
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
@@ -205,25 +142,6 @@ export default function StudioPipeline({ slug }) {
                           )}
                         </div>
 
-                        {/* VALUE IS ALWAYS "", because this is an action and not
-                            a bound field. The COLUMN says which stage the deal
-                            is in; a select bound to that would read as "the
-                            stage is Lead" rather than "send it somewhere", and
-                            it would list the deal's own stage as a choice.
-                            Picking fires the move and the control returns to
-                            empty. */}
-                        {data.canMove && (
-                          <div className="mt-3">
-                            <Field
-                              label={tr.moveTo}
-                              as="select"
-                              value=""
-                              disabled={busy}
-                              onChange={(to) => onPick(d, to)}
-                              options={targetsFor(d).map((to) => ({ value: to, label: statusLabel("ticketStage", to, locale) }))}
-                            />
-                          </div>
-                        )}
                       </li>
                     ))}
                   </ul>
@@ -251,33 +169,6 @@ export default function StudioPipeline({ slug }) {
         </section>
       )}
 
-      {move && (
-        <Dialog title={tr.whyLost} description={tr.whyLostHint} onClose={() => setMove(null)} width="max-w-[520px]">
-          <div className="space-y-4">
-            <p className="text-sm text-slate-600 dark:text-slate-300">
-              {move.deal.ref} · {move.deal.title} → <StatusPill kind="ticketStage" status={move.to} />
-            </p>
-            <Field
-              label={tr.lostReasonLabel}
-              value={reason}
-              required
-              onChange={setReason}
-              inputProps={{ maxLength: 400, autoFocus: true }}
-            />
-            <div className="flex justify-end gap-2">
-              <button type="button" className={btnGhost} onClick={() => setMove(null)}>{tr.cancel}</button>
-              <button
-                type="button"
-                className={btn}
-                disabled={busy || !reason.trim()}
-                onClick={() => commit(move.deal, move.to, reason)}
-              >
-                {tr.moveDeal}
-              </button>
-            </div>
-          </div>
-        </Dialog>
-      )}
     </div>
   );
 }

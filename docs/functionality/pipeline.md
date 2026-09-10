@@ -26,8 +26,8 @@ becomes fiction. Its column reports "Not forecast" rather than a number — zero
 claim about those deals rather than a refusal to guess at them.
 
 The vocabulary and every rule about it live in `src/modules/sales/pipeline.ts`, which has
-**no server import at all**. That is deliberate and asserted: the board validates a move with
-the same `stageProblem` the server refuses it with, so the two cannot drift apart.
+**no server import at all**. That is deliberate and asserted: any screen that offers a stage move
+validates it with the same `stageProblem` the server refuses it with, so the two cannot drift apart.
 
 ## What it stores
 
@@ -110,18 +110,21 @@ ticket row reports what happened to it downstream; a funnel does not.
 
 `crmSales.pipeline` carries **view and nothing else**. Moving a deal *is* editing the ticket:
 it goes to `PUT /sales/tickets` and answers to `crmSales.tickets.edit`. A `pipeline.edit`
-would be a second right over the same act, free to disagree with the first. The route hands
-`canMove` to the screen, asked separately, because seeing a forecast and changing what is in
-it are different powers — a finance reader may reasonably have the first alone.
+would be a second right over the same act, free to disagree with the first. Seeing a forecast
+and changing what is in it stay different powers — a finance reader may reasonably have the
+first alone.
 
 **There is no pipeline write endpoint**, deliberately. A second door onto the same record
 would be free to disagree about what a stage move may do, and the first thing to go would be
 the refusal that a closed deal cannot be reopened.
 
-**The move is a select, not drag-and-drop.** The board is bilingual and scrolls horizontally,
-which is where drag implementations go wrong: a drop target computed in physical pixels
-mirrors incorrectly under `dir="rtl"`, and it is unusable on a phone and invisible to a
-keyboard. A move that can demand a reason reads better as a deliberate choice than a gesture.
+**The board moves nothing (10/09/2026, the owner's instruction).** Each card carried a "Move to"
+select; it is gone, with the reason dialog it opened and the `canMove` flag the route sent for
+it. The board is for reading the funnel. A deal changes stage where its ticket is edited —
+the same `PUT /sales/tickets`, the same `stageProblem` rules, and the same demand for a reason
+on a losing close. (It was a select rather than drag-and-drop for a reason that still holds if
+a move ever comes back here: a pointer drop target mirrors wrongly under `dir="rtl"`, and it is
+unusable on a phone and invisible to a keyboard.)
 
 ## Not built yet
 
