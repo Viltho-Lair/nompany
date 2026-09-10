@@ -63,9 +63,10 @@ progress. Every count quoted from prose rather than measured was wrong. **The co
 tidiness; it is that the user cannot tell what is true, and neither can I.**
 
 **Major features get a ROW in the decision ledger** at the end of `progress.md`, never a
-file. When the user rejects one, mark the row `REJECTED` and leave it. Deleted, `DELETED`.
-Changed, `CHANGED TO: <what>`. **Rows are never removed** — a decision nobody can see is a
-decision that gets argued again. Minor changes get no row.
+file. When the user rejects one, mark the row `REJECTED` and leave it. Changed,
+`CHANGED TO: <what>`. **Deleted, deferred and dropped rows are REMOVED, not marked** — the
+owner's instruction, 10/09/2026, reversing the old "rows are never removed"; what was
+taken out is in `git log -p -- docs/progress.md`. Minor changes get no row.
 
 `docs/functionality/` stays as it is: one file per shipped behaviour, each ending in "Not
 built yet". Those describe what the product DOES; `progress.md` is the only thing that says
