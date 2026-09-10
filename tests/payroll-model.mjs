@@ -105,6 +105,12 @@ const run = { status: "Draft", preparedByCollaboratorId: "prep" };
 ok("THE PERSON WHO PREPARED IT CANNOT APPROVE IT",
   approvalProblem(run, "prep") === "same-signer");
 ok("somebody else can", approvalProblem(run, "boss") === null);
+// THE ADMIN IS THE EXCEPTION (the owner's instruction, 10/09/2026): full
+// authority, and a one-person studio could otherwise never pay itself.
+ok("AN ADMIN MAY APPROVE A RUN THEY PREPARED", approvalProblem(run, "prep", { admin: true }) === null);
+ok("...a non-admin still may not", approvalProblem(run, "prep", { admin: false }) === "same-signer");
+ok("...and nobody may approve twice, Admin included",
+  approvalProblem({ status: "Approved", preparedByCollaboratorId: "prep" }, "prep", { admin: true }) === "already-approved");
 ok("an approved run cannot be approved again",
   approvalProblem({ status: "Approved", preparedByCollaboratorId: "prep" }, "boss") === "already-approved");
 

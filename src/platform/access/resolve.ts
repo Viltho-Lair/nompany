@@ -279,6 +279,24 @@ const everything = (): PermissionSet => new WildcardPermissions(ALL_PERMISSIONS)
 // Roles and personal overrides, and nothing else. There is no fallback: a
 // person with no role can do nothing, which is the default-deny the old model
 // claimed and never quite managed.
+/**
+ * IS THIS PERSON THE STUDIO'S ADMINISTRATOR — its owner, or a holder of the one
+ * wildcard role?
+ *
+ * The same two tests `effectivePermissions` short-circuits on, named so a rule
+ * that needs to know WHO rather than WHAT can ask without re-deriving them.
+ * Payroll's approval asks it: an Admin may approve a run they prepared, on the
+ * owner's instruction of 10/09/2026 (see `approvalProblem`).
+ */
+export function isAdministrator(
+  collaborator: { role?: unknown; roleIds?: unknown } | null | undefined,
+  roles: readonly { id?: unknown; wildcard?: unknown }[] = [],
+): boolean {
+  if (collaborator?.role === "owner") return true;
+  const assigned = Array.isArray(collaborator?.roleIds) ? collaborator.roleIds.map(String) : [];
+  return roles.some((r) => assigned.includes(String(r.id)) && Boolean(r.wildcard));
+}
+
 export function effectivePermissions({ collaborator, roles = [] }: Subject): PermissionSet {
   // The owner is not permissioned. They own the studio, and a studio that can
   // lock out its own owner is a support ticket that cannot be answered.

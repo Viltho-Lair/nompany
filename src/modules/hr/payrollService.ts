@@ -20,6 +20,7 @@ import {
 } from "./payroll";
 import type { PayRecord, PayslipLine, RunStatus } from "./payroll";
 import type { HrContext } from "./types";
+import { isAdministrator } from "@/platform/access";
 
 type Run = {
   id: string;
@@ -108,9 +109,13 @@ export async function listPay(ctx: HrContext) {
       .map((r) => ({
         id: r.id, period: r.period, status: r.status, totals: r.totals,
         preparedByAlias: alias[r.preparedByCollaboratorId] || "",
+        // SO THE SCREEN CAN SAY "needs another approver" instead of offering
+        // a button the server would refuse.
+        preparedByMe: r.preparedByCollaboratorId === ctx.collaborator.id,
       })),
     canManage: !requirePermission(ctx.access, "hr.payroll.edit"),
     canApprove: !requirePermission(ctx.access, "hr.payroll.approve"),
+    isAdmin: isAdministrator(ctx.collaborator, ctx.roles),
   };
 }
 
@@ -209,8 +214,9 @@ export async function moveRun(ctx: HrContext, id: string, next: RunStatus) {
   if (next === "Approved") {
     // INVARIANT 7, at the transition: preparing payroll and authorising it are
     // the two halves of the oldest control there is, and holding both rights is
-    // legitimate while using both on one run is not.
-    const blocked = approvalProblem(run, ctx.collaborator.id);
+    // legitimate while using both on one run is not — EXCEPT for the Admin, who
+    // may approve a run they prepared (see `approvalProblem`).
+    const blocked = approvalProblem(run, ctx.collaborator.id, { admin: isAdministrator(ctx.collaborator, ctx.roles) });
     if (blocked) return { error: blocked };
   }
 

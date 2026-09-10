@@ -207,9 +207,14 @@ export function runProblem(status: RunStatus, next: RunStatus): string | null {
 export function approvalProblem(
   run: { status: RunStatus; preparedByCollaboratorId: string },
   collaboratorId: string,
+  opts: { admin?: boolean } = {},
 ): string | null {
   if (run.status !== "Draft") return "already-approved";
-  if (run.preparedByCollaboratorId === collaboratorId) return "same-signer";
+  // THE ADMIN IS THE EXCEPTION — the owner's instruction, 10/09/2026. The
+  // studio's owner or a holder of the Admin role has full authority, and a
+  // studio run by one person could otherwise never pay itself. Everybody else
+  // still needs a second person: preparing and authorising stay two acts.
+  if (run.preparedByCollaboratorId === collaboratorId && !opts.admin) return "same-signer";
   return null;
 }
 

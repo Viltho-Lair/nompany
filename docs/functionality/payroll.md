@@ -22,8 +22,10 @@ manager and the second to whoever runs payroll, and they are rarely the same per
 departmental view of it would be a partial total nobody could reconcile against the ledger.
 
 **`approve` is an extra on the same area**, because approving is an act ON a run — and
-invariant 7 is enforced at the transition rather than in the permission model: the person
-who prepared a run never approves it, whichever rights they hold.
+invariant 7 is enforced at the transition rather than in the permission model: the person who prepared a run does not approve it, whichever rights they hold — **unless
+they are the studio's Admin** (its owner, or a holder of the Admin role), who may approve a
+run they prepared: the owner's instruction, 10/09/2026, because a one-person studio could
+otherwise never pay itself. `isAdministrator` in `platform/access/resolve.ts` is the test.
 
 ### A pay record is now; a run is a snapshot
 
