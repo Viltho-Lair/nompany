@@ -282,11 +282,12 @@ export default function ConsoleActions({ admin }) {
             </span>
           </div>
           <div className="py-1">
+            {/* ONE ENTRY, NAMED FOR WHERE IT GOES — the owner's correction,
+                10/09/2026. It read "Profile" and opened Settings, with a
+                "Security" row beside it that opened a tab of the same page;
+                the tabs are one click away once there. */}
             <Link href={`${BASE}/settings`} className={menuItem}>
-              <Icon name="user" className="h-4 w-4" /> Profile
-            </Link>
-            <Link href={`${BASE}/settings?tab=security`} className={menuItem}>
-              <Icon name="shield" className="h-4 w-4" /> Security
+              <Icon name="settings" className="h-4 w-4" /> Settings
             </Link>
           </div>
           <div className="border-t py-1" style={{ borderColor: "var(--ad-border)" }}>

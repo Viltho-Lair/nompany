@@ -280,8 +280,17 @@ const ACCENT_ROOTS = Object.keys(SECTION_ACCENTS).sort((a, b) => b.length - a.le
 // Section keys are TENANT DATA — a studio can add its own — so an unrecognised
 // key is expected rather than exceptional, and it gets the neutral grey the
 // whole nav used to wear.
-const accentOf = (key) => {
-  const root = ACCENT_ROOTS.find((r) => key === r || key.startsWith(`${r}-`));
+//
+// A REGISTER TAKES ITS PARENT'S HUE, because its key says nothing about where
+// it sits. An engine record type plants `engine-<typeKey>` — `engine-ncr` lives
+// under Quality & HSE and starts with nothing Quality's key starts with — so the
+// prefix match found no root and thirty-one registers (and every one a studio
+// invents) drew their new icons in the neutral grey, beside siblings in the
+// section's colour. The owner saw it. The PARENT is the stored fact about where
+// a section sits, so a key that resolves to no root asks its parent's key.
+const rootOf = (key) => ACCENT_ROOTS.find((r) => key === r || key.startsWith(`${r}-`));
+const accentOf = (key, parentKey) => {
+  const root = rootOf(key) || (parentKey ? rootOf(parentKey) : undefined);
   return root ? SECTION_ACCENTS[root] : "text-slate-400 dark:text-slate-500";
 };
 
@@ -320,7 +329,7 @@ const itemClass = (active) => `${rowClass(active)} px-3 py-2.5`;
 // said "this is Finance". The row already answers the first question twice over
 // — a tinted background and a darker label — so the icon is free to answer the
 // second one, on every row at once, including the fourteen you are not on.
-const iconClass = (key) => `h-[18px] w-[18px] ${accentOf(key)}`;
+const iconClass = (key, parentKey) => `h-[18px] w-[18px] ${accentOf(key, parentKey)}`;
 
 // The plan chips. Every colour the tag needs is handed to CSS as a variable
 // rather than set inline, because which text colour is readable depends on the
@@ -463,6 +472,12 @@ export default function StudioFrame({
   const all = (sections || []).filter((s) => !isSystemSection(s.key));
   const systemSections = (sections || []).filter((s) => isSystemSection(s.key));
   const visibleIds = new Set(all.map((s) => s.id));
+  // WHO EACH SECTION'S PARENT IS, by key, from the whole list rather than the
+  // visible one — a child promoted to the top because its parent is not granted
+  // still belongs to that parent's department, and should wear its colour.
+  const keyById = new Map((sections || []).map((s) => [s.id, s.key]));
+  const parentKeyOf = new Map((sections || []).map((s) => [s.key, keyById.get(s.parentId)]));
+  const tintFor = (key) => iconClass(key, parentKeyOf.get(key));
   const fullTree = all
     .filter((s) => !s.parentId || !visibleIds.has(s.parentId))
     .map((s) => ({ ...s, children: all.filter((c) => c.parentId === s.id) }));
@@ -585,7 +600,7 @@ export default function StudioFrame({
             onClick={() => { setOpen(false); if (active) toggleGroup(node.key); }}
             className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5"
           >
-            <Icon name={sectionIcon(node.key)} className={iconClass(node.key)} />
+            <Icon name={sectionIcon(node.key)} className={tintFor(node.key)} />
             <span className="truncate">{sectionName(node.key, node.name, locale)}</span>
           </Link>
           <button
@@ -615,7 +630,7 @@ export default function StudioFrame({
     return (
       <Link key={key} href={href} onClick={() => setOpen(false)} className={`${itemClass(active)} ${extraClass}`}>
         <span className="flex items-center gap-3">
-          <Icon name={sectionIcon(key)} className={iconClass(key)} />
+          <Icon name={sectionIcon(key)} className={tintFor(key)} />
           {label}
         </span>
       </Link>
@@ -678,7 +693,7 @@ export default function StudioFrame({
             onClick={(e) => { e.stopPropagation(); setHeaderMenu((k) => (k === menu.key ? null : menu.key)); }}
             className={`${rowClass(menu.items.some((i) => i.key === activeKey))} h-9 w-9 justify-center`}
           >
-            <Icon name={sectionIcon(menu.key)} className={iconClass(menu.key)} />
+            <Icon name={sectionIcon(menu.key)} className={tintFor(menu.key)} />
           </button>
 
           {headerMenu === menu.key && (
@@ -695,7 +710,7 @@ export default function StudioFrame({
                       : "text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-white/5"
                   }`}
                 >
-                  <Icon name={sectionIcon(item.key)} className={iconClass(item.key)} />
+                  <Icon name={sectionIcon(item.key)} className={tintFor(item.key)} />
                   <span className="truncate">{item.label}</span>
                 </Link>
               ))}
@@ -763,7 +778,7 @@ export default function StudioFrame({
             aria-label={i.label}
             className={`${rowClass(i.key === activeKey)} aspect-square shrink-0 justify-center`}
           >
-            <Icon name={sectionIcon(i.key)} className={iconClass(i.key)} />
+            <Icon name={sectionIcon(i.key)} className={tintFor(i.key)} />
           </Link>
         ))}
         {/* AND SETTINGS BESIDE IT, WHICH IS NOT A REVERSION.
