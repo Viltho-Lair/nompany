@@ -16,6 +16,7 @@ import { Field } from "@/components/fields/Field";
 import SelectMenu from "@/components/fields/SelectMenu";
 import { actionsForField, OTHER_FIELD } from "@/shared/fieldsOfWork";
 import StudioFlowEditor from "@/components/studio2/StudioFlowEditor";
+import SettingsFold from "@/components/studio2/SettingsFold";
 import { useReload } from "@/components/studio2/useReload";
 
 // THE SCREEN'S WORDS, HANDED DOWN RATHER THAN THREADED.
@@ -328,8 +329,7 @@ export default function StudioSettings({ slug, locale = "en" }) {
           because it is not a setting — it is the end of the thing the settings
           describe. Owner only, and reversible for thirty days. */}
       {isOwner && (
-        <div className="mt-8 rounded-geex border border-rose-200 p-5 dark:border-rose-500/30">
-          <h3 className="font-display text-base font-700 text-rose-700 dark:text-rose-300">{tr.deleteHeading}</h3>
+        <SettingsFold tone="danger" heading={tr.deleteHeading} defaultOpen={Boolean(studio.deletionRequestedAt)}>
           {studio.deletionRequestedAt ? (
             <>
               <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{tr.deleteScheduled}</p>
@@ -354,7 +354,7 @@ export default function StudioSettings({ slug, locale = "en" }) {
               </button>
             </>
           )}
-        </div>
+        </SettingsFold>
       )}
 
       {confirmDelete && (
@@ -567,9 +567,7 @@ function StudioSections({ slug, rows, canManage, suggestion, onSaved }) {
   if (!rows.length) return null;
 
   return (
-    <section className="mt-8 rounded-geex border border-slate-200/70 p-5 dark:border-white/10">
-      <h3 className="font-display text-base font-700 text-slate-900 dark:text-white">{tr.sectionsHeading}</h3>
-      <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{tr.sectionsLead}</p>
+    <SettingsFold heading={tr.sectionsHeading} lead={tr.sectionsLead}>
       {/* OFFERED, NEVER APPLIED BY ITSELF. The trade gate runs once, at
           creation; after that a section only moves when somebody here says so. */}
       {canManage && suggestion && (suggestion.off.length > 0 || suggestion.on.length > 0) && (
@@ -593,7 +591,7 @@ function StudioSections({ slug, rows, canManage, suggestion, onSaved }) {
             canManage={canManage} busy={busy} failed={failed} onToggle={toggle} />
         ))}
       </div>
-    </section>
+    </SettingsFold>
   );
 }
 
@@ -620,9 +618,7 @@ function LegalInfo({ rows, canManage, onSave }) {
   }
 
   return (
-    <section className="mt-8 rounded-geex border border-slate-200/70 p-5 dark:border-white/10">
-      <h3 className="font-display text-base font-700 text-slate-900 dark:text-white">{tr.legalHeading}</h3>
-      <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{tr.legalLead}</p>
+    <SettingsFold heading={tr.legalHeading} lead={tr.legalLead}>
 
       <div className="mt-4 space-y-2">
         {draft.map((row, i) => (
@@ -656,7 +652,7 @@ function LegalInfo({ rows, canManage, onSave }) {
           <button className={BTN_GHOST} onClick={add}>{tr.addAnother}</button>
         </div>
       )}
-    </section>
+    </SettingsFold>
   );
 }
 
@@ -753,30 +749,21 @@ function ServiceActions({ slug, onTradeSaved }) {
   }
 
   if (loading) {
-    // Shaped like the settled section below it — a select-height bar, then a
-    // couple of checkbox rows — so the real content does not shift the page
-    // when it lands (§ progressive loading).
+    // SHAPED LIKE THE SECTION AS IT SETTLES — folded: a heading and one line of
+    // description with nothing under it — so the page does not jump when the
+    // real section lands (§ progressive loading).
     return (
       <section className="mt-8 rounded-geex border border-slate-200/70 p-5 dark:border-white/10" aria-busy="true">
         <div className="skel skel-text w-40" />
-        <div className="skel skel-text mt-3 w-full" />
-        <div className="skel skel-text mt-1 w-2/3" />
-        <div className="skel mt-5 h-[52px] w-full rounded-xl" />
-        <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
-          {Array.from({ length: 6 }).map((_, i) => <div key={i} className="skel skel-text w-full" />)}
-        </div>
+        <div className="skel skel-text mt-3 w-2/3" />
       </section>
     );
   }
   if (!data) return <p className={`${BANNER_BAD} mt-8`}>{tr.actionsLoadFailed}</p>;
 
   return (
-    <section className="mt-8 rounded-geex border border-slate-200/70 p-5 dark:border-white/10">
-      <h3 className="font-display text-base font-700 text-slate-900 dark:text-white">{tr.actionsHeading}</h3>
-      <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-        {tr.actionsLead}
-        {!data.canManage && tr.actionsAdminOnly}
-      </p>
+    <SettingsFold heading={tr.actionsHeading} attention={!!error}
+      lead={<>{tr.actionsLead}{!data.canManage && tr.actionsAdminOnly}</>}>
 
       {error && <p className={`${BANNER_BAD} mt-3`}>{error}</p>}
 
@@ -865,7 +852,7 @@ function ServiceActions({ slug, onTradeSaved }) {
           onConfirm={confirmRetireAction}
         />
       )}
-    </section>
+    </SettingsFold>
   );
 }
 
@@ -989,13 +976,8 @@ function FavouriteCurrencies({ codes, base, fx, canManage, onSave }) {
   }
 
   return (
-    <section className="mt-8 rounded-geex border border-slate-200/70 p-5 dark:border-white/10">
-      <h3 className="font-display text-base font-700 text-slate-900 dark:text-white">{tr.favHeading}</h3>
-      <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-        {tr.favLeadPrefix}{base
-          ? <><CurrencySymbol code={base} /> {base}</>
-          : tr.favStudioCurrency}.
-      </p>
+    <SettingsFold heading={tr.favHeading}
+      lead={<>{tr.favLeadPrefix}{base ? <><CurrencySymbol code={base} /> {base}</> : tr.favStudioCurrency}.</>}>
 
       {/* ONE ROW PER CURRENCY, each showing what one unit of the studio's own
           money buys. Chips side by side said which currencies mattered but not
@@ -1084,7 +1066,7 @@ function FavouriteCurrencies({ codes, base, fx, canManage, onSave }) {
           </div>
         </div>
       )}
-    </section>
+    </SettingsFold>
   );
 }
 

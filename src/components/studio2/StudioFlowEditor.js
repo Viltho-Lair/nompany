@@ -13,6 +13,7 @@ import { STAGE_REGISTRY } from "@/platform/engagement/registry";
 import { BILLING_TRIGGERS, FLOW_TEMPLATES, templateProblems } from "@/platform/engagement/templates";
 import { Dialog, btn, btnGhost, btnRow, btnRowDanger, input, label as labelCls } from "@/components/studio2/ui";
 import SelectMenu from "@/components/fields/SelectMenu";
+import SettingsFold from "@/components/studio2/SettingsFold";
 
 const ALL_STAGES = Object.keys(STAGE_REGISTRY);
 const SEEDS = new Map(FLOW_TEMPLATES.map((t) => [t.id, t]));
@@ -135,11 +136,10 @@ export default function StudioFlowEditor({ slug, tr }) {
 
   if (loading) {
     return (
-      <section className="mt-8 rounded-geex border border-slate-200/70 p-5 dark:border-white/10">
+      // The folded shape, as Service actions does — see SettingsFold.
+      <section className="mt-8 rounded-geex border border-slate-200/70 p-5 dark:border-white/10" aria-busy="true">
         <div className="skel skel-text w-40" />
-        <div className="mt-4 grid gap-2">
-          {Array.from({ length: 4 }).map((_, i) => <div key={i} className="skel skel-text w-full" />)}
-        </div>
+        <div className="skel skel-text mt-3 w-2/3" />
       </section>
     );
   }
@@ -148,12 +148,8 @@ export default function StudioFlowEditor({ slug, tr }) {
   const canManage = data.canManage;
 
   return (
-    <section className="mt-8 rounded-geex border border-slate-200/70 p-5 dark:border-white/10">
-      <h3 className="font-display text-base font-700 text-slate-900 dark:text-white">{tr.flowsHeading}</h3>
-      <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-        {tr.flowsLead}
-        {!canManage && tr.flowsAdminOnly}
-      </p>
+    <SettingsFold heading={tr.flowsHeading} attention={!!error}
+      lead={<>{tr.flowsLead}{!canManage && tr.flowsAdminOnly}</>}>
 
       {error && <p className={`${BANNER_BAD} mt-3`}>{error}</p>}
 
@@ -226,7 +222,7 @@ export default function StudioFlowEditor({ slug, tr }) {
         onSave={(industry) => send({ industry })}
         onDrop={(key) => drop(`industry=${encodeURIComponent(key)}`)}
       />
-    </section>
+    </SettingsFold>
   );
 }
 
