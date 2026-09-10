@@ -5,7 +5,8 @@
 // than in the abstract.
 //
 // `components/ThemeToggle.js` toggled BOTH `dark` and `light` on <html> and
-// wrote `mui-mode`; `app/super/_components/Header.js` toggled `dark` alone and
+// wrote `mui-mode`; `app/super/_components/Header.js` (deleted 10/09/2026 with
+// the console's sidebar — the Pulse chrome replaced both) toggled `dark` alone and
 // wrote neither. MUI scopes its light variables to `.light` and its dark ones to
 // `.dark`, so a stale `light` left behind lights every MUI control on a dark
 // page — and the marketing site adds that class while the console never removed

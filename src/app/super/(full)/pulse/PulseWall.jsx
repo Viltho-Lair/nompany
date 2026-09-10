@@ -4,27 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import WorldMap from "./WorldMap";
-import { PanelBar, usePanelParam } from "@/components/studio2/PanelBar";
-import nextDynamic from "next/dynamic";
-
-/* BROADCAST IS LOADED WHEN IT IS OPENED, not when the wall is.
-   ------------------------------------------------------------------
-   Statically imported it cost this route 197 -> 229 KB of FIRST LOAD, and the
-   gate was right to refuse: a wall is a screen left on a screen, and thirty-two
-   kilobytes of message editor, colour pickers and the shared dropdown is weight
-   every unattended display waits for to show a map.
-
-   `nextDynamic` HERE IS A REAL BOUNDARY because this file is a CLIENT module, so
-   the import() survives to runtime. The same call in a Server Component defers
-   the server render and creates no client lazy boundary at all — HeavyScreens.jsx
-   is the long version of why. */
-const BroadcastPane = nextDynamic(() => import("./BroadcastPane"), {
-  loading: () => (
-    <div className="flex h-full items-center justify-center text-sm" style={{ color: "var(--ad-muted-foreground)" }}>
-      Loading…
-    </div>
-  ),
-});
 import { readTheme, applyTheme, chooseTheme, THEME_MODES } from "@/lib/theme";
 import { Panel, Ticker, Sparkline, BarRow, Donut, HeatGrid, SignupChart, fmt } from "./parts";
 import { heatLevel } from "@/lib/data/pulse";
@@ -49,13 +28,6 @@ import { heatLevel } from "@/lib/data/pulse";
 // `dark` without ever clearing `light`, which lights every MUI control on a dark
 // page. The wall, the console header and the public site now share one authority
 // and one cookie, so a choice made on any of them is the choice everywhere.
-
-// THE TWO PANES OF THIS ROUTE. Pulse is what the platform is DOING; Broadcast is
-// what it is SAYING. They sit together because the wall is the one console screen
-// anybody leaves open, and the message every studio reads was previously a row in
-// a menu of eleven.
-const PANES = ["pulse", "broadcast"];
-const PANE_ITEMS = [{ key: "pulse", label: "Pulse" }, { key: "broadcast", label: "Broadcast" }];
 
 const MODES = [
   { key: "dots", label: "Live dots" },
@@ -104,23 +76,6 @@ export default function PulseWall({ initial, initialLive }) {
   const [theme, setTheme] = useState("light");
   const seen = useRef(new Set((initialLive?.arrivals || []).map((a) => `${a.kind}:${a.at}`)));
 
-  /* THE WALL AND BROADCAST ARE TWO PANES OF ONE ROUTE, and the bottom bar
-     slides between them. `usePanelParam` keeps the open pane in ?panel= so a
-     refresh or a copied link lands where it left off, and the switch itself is
-     an ordinary re-render — never a navigation, which on a wall meant to be
-     left on a screen would drop every poll and repaint from nothing.
-
-     BROADCAST MOUNTS ONLY ONCE IT HAS BEEN OPENED. It fetches its config and
-     the AI key state on mount, and a wall nobody touches has no use for either
-     — so the pane is empty until somebody goes there, and stays mounted
-     afterwards so half-typed words survive a look back at the map. Seeded from
-     the pane itself, so a link straight to ?panel=broadcast opens filled in. */
-  const [pane, setPane] = usePanelParam("panel", "pulse", PANES);
-  const [everOpened, setEverOpened] = useState(pane === "broadcast");
-  const choosePane = useCallback((key) => {
-    if (key === "broadcast") setEverOpened(true);
-    setPane(key);
-  }, [setPane]);
 
   // ---- preferences ---------------------------------------------------------
   useEffect(() => {
@@ -223,11 +178,12 @@ export default function PulseWall({ initial, initialLive }) {
   useEffect(() => {
     const onKey = (e) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
-      // A WALL HAD NO TEXT FIELDS UNTIL BROADCAST ARRIVED, and these are bare
-      // letters: typing "for" into a greeting went fullscreen on the f and
-      // flipped the theme on the t. The shortcuts belong to the wall, so they
-      // stand down for anything editable and for the other pane entirely.
-      if (pane !== "pulse") return;
+      // BARE LETTERS, SO THEY STAND DOWN FOR ANYTHING EDITABLE. This guard
+      // arrived when Broadcast was a pane on this route — typing "for" into a
+      // greeting went fullscreen on the f and flipped the theme on the t. The
+      // pane is its own route now and this wall has no fields of its own, but a
+      // shortcut that fires while somebody is typing is a bug waiting for the
+      // first field anybody adds here.
       const el = e.target;
       if (el && (el.isContentEditable || /^(input|textarea|select)$/i.test(el.tagName || ""))) return;
       const k = e.key.toLowerCase();
@@ -242,7 +198,7 @@ export default function PulseWall({ initial, initialLive }) {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [present, pickTheme, pane]);
+  }, [present, pickTheme]);
 
   // ---- derived -------------------------------------------------------------
   // Memoised because it feeds two useMemos below: a fresh [] on every render
@@ -282,28 +238,7 @@ export default function PulseWall({ initial, initialLive }) {
 
   return (
     <div
-      className="relative h-[100dvh] w-full overflow-hidden"
-      style={{ background: "var(--ad-background)", color: "var(--ad-foreground)" }}
-    >
-      {/* THE SWIPE. Two panes side by side on a track twice the viewport wide,
-          moved by a transform rather than by unmounting one and mounting the
-          other — the wall keeps its polls, its map and its arrival list across
-          the trip, which a route change would throw away.
-
-          `inert` on the pane that is not showing, because an off-screen pane is
-          still in the document: without it Tab walks out of Broadcast into the
-          map's buttons, and a screen reader reads both. React 19 takes it as a
-          boolean prop.
-
-          It does not mirror in Arabic, and nothing here needs it to: /super is
-          the internal console and is not localised. */}
-      <div
-        className="flex h-full w-[200%] transition-transform duration-500 ease-out motion-reduce:transition-none"
-        style={{ transform: pane === "broadcast" ? "translateX(-50%)" : "translateX(0)" }}
-      >
-      <div className="h-full w-1/2 shrink-0 overflow-hidden" inert={pane !== "pulse"}>
-    <div
-      className="grid h-full w-full gap-3 p-3 pb-14"
+      className="grid h-full w-full gap-3 overflow-hidden p-3"
       style={{
         gridTemplateColumns: "minmax(230px,1fr) minmax(0,3.2fr) minmax(260px,1.15fr)",
         gridTemplateRows: "auto 1fr 1fr 0.85fr",
@@ -316,7 +251,7 @@ export default function PulseWall({ initial, initialLive }) {
             way to draw it and cannot be used here: it imports motion/react,
             which Gate A forbids outside src/components/landing precisely so the
             console never pays its ~30 KB. Same asset, rendered plainly. */}
-        <Link href="/super/dashboard/analytics" className="flex items-center gap-2.5" aria-label="Back to the console">
+        <Link href="/super/pulse/dashboard" className="flex items-center gap-2.5" aria-label="Back to the console">
           <Image src="/brand/logo-icon.png" alt="nompany" width={30} height={30} priority className="h-[30px] w-[30px] object-contain" />
           <span className="text-base font-800 tracking-tight">Pulse</span>
         </Link>
@@ -571,18 +506,6 @@ export default function PulseWall({ initial, initialLive }) {
           288px for a sidebar that is not there sits visibly off-centre.
           One item: this screen has a single panel, and the bar is here so the
           wall matches the rest of the product rather than to switch anything. */}
-    </div>
-      </div>
-
-      <div className="h-full w-1/2 shrink-0" inert={pane !== "broadcast"}>
-        {everOpened || pane === "broadcast" ? <BroadcastPane /> : null}
-      </div>
-      </div>
-
-      {/* THE BAR SITS OUTSIDE THE TRACK so it does not slide with the panes —
-          it is the thing doing the sliding. Two items now; it was one, present
-          only so the wall matched the rest of the product. */}
-      <PanelBar items={PANE_ITEMS} active={pane} onSelect={choosePane} sidebarInset={false} />
     </div>
   );
 }

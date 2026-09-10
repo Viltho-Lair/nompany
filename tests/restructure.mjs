@@ -1474,7 +1474,22 @@ export async function testEveryConsoleDestinationResolvesToARoute(t) {
 
   const wanted = new Set();
   for (const f of files) {
-    for (const [, path] of readFileSync(f, "utf8").matchAll(/\$\{BASE\}([^`"']*)/g)) {
+    // THE CAPTURE STOPS AT A QUERY STRING, because a query never changes which
+    // page answers. Settings moved its tabs into `?tab=` so every panel stays a
+    // Server Component, and `${BASE}/pulse/settings?tab=security` is a real
+    // destination — the route is `/super/pulse/settings` and the tab is the
+    // page's own business. Without `?` in the class, every tab link reads as a
+    // route that does not exist.
+    // AND COMMENTS COME OUT FIRST, the treatment the icon and native-<select>
+    // guards in this file already give their scans. A path in prose is not a
+    // destination: the Pulse chrome's comment quotes the interpolated shape it
+    // replaced, `${BASE}/pulse/${key}`, precisely to explain why the bar spells
+    // its hrefs out — and a guard that failed on that sentence would push the
+    // next person to delete the explanation rather than keep it.
+    const code = readFileSync(f, "utf8")
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/(^|[^:])\/\/.*$/gm, "$1");
+    for (const [, path] of code.matchAll(/\$\{BASE\}([^`"'?]*)/g)) {
       wanted.add(`/super${path}`);
     }
   }

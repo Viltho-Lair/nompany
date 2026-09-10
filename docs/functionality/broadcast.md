@@ -9,10 +9,12 @@ It is platform-wide. Every studio reads the same words on the same day — this 
 from the product, not a per-tenant setting — so nothing here touches `collection_rows` and
 the answer is identical for every caller.
 
-**It is edited on the Pulse wall**, not in the console menu: `/super/pulse`, second item in
-the bottom bar, which slides the wall aside. Pulse is what the platform is doing and
-Broadcast is what it is saying, and the wall is the one console screen anybody leaves open.
-It was `/super/application/greeting`, one row down a menu of eleven; that route is gone.
+**It is edited at `/super/pulse/broadcast`**, the last item in the console's bottom bar. It
+began as `/super/application/greeting`, one row down a menu of eleven; then it became a pane
+that slid in beside the Pulse wall; since 10/09/2026 it is an ordinary route under the Pulse
+shell, beside every other console screen. The slide went when the whole console joined the
+bar: eight of the nine screens moving in read the store as Server Components that cannot
+slide, and one special case among ten screens is not worth a pane mechanism of its own.
 
 **THE CODE STILL SAYS "GREETING" EVERYWHERE, and that is deliberate.** The storage keys
 (`g:greetingConfig`, `g:greetingToday`), the API paths and the component names were not
@@ -22,9 +24,9 @@ where anybody reads it and `greeting` where only the code does.
 
 ## The console
 
-`/super/pulse`, second item in the bottom bar. A register: the message list on the left, one
-message open on the right, and neither the pane nor the page scrolls — the wall it slides out
-of is exactly one screen tall, so the list scrolls inside its own column.
+`/super/pulse/broadcast`, from the bottom bar. A register: the message list on the left, one
+message open on the right, and the page itself never scrolls — the Pulse chrome is exactly one
+screen tall with the header and bar fixed, so the list scrolls inside its own column.
 
 **A message is listed by a TITLE its author types**, never by its words, and no studio ever
 reads that title. An automated message has no words of its own — they are generated three
@@ -45,8 +47,8 @@ that one of the three is missing when you can only ever see your own hour.
 | `src/lib/data/greeting.ts` | The stored half: the config, the day's generations, the model call |
 | `src/app/api/studios/[slug]/greeting/route.ts` | What a studio reads (GET, studio auth) |
 | `src/app/api/super/greeting/route.ts` | The console: GET, PUT to save, POST to regenerate today |
-| `src/app/super/(full)/pulse/BroadcastPane.jsx` | The pane: the AI key, then the messages |
-| `src/app/super/(full)/pulse/PulseWall.jsx` | The two-pane slide and the bottom bar that drives it |
+| `src/app/super/(full)/pulse/broadcast/page.js` | The route — renders the editor inside the Pulse chrome |
+| `src/app/super/(full)/pulse/PulseChrome.jsx` | The header and the bottom bar every console screen shares |
 | `src/components/super/NovaCredentials.jsx` | The AI key form — shared with the Nova switchboard, not copied |
 | `src/components/studio2/DailyGreeting.jsx` | The band — rotation, dots, dismissal |
 | `src/components/super/GreetingEditor.jsx` | The register: a row per message, opening into its editor |
@@ -212,7 +214,5 @@ the surprise.
 - **No separate key.** Automated messages share Nova's credential. Setting a key to make
   Broadcast write itself also makes Nova's chat live, and there is no way to have one without
   the other.
-- **The slide does not mirror.** `/super` is the internal console and is not localised, so the
-  pane transform is a plain `translateX(-50%)` rather than a logical one.
 - **Order is the list's order**, and there is no way to reorder except by removing and
   re-adding a message.

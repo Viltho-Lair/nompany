@@ -1,5 +1,3 @@
-import { redirect } from "next/navigation";
-import { currentSuperAdmin } from "@/platform/auth/superAuth";
 import { readPulse, readPulseLive } from "@/lib/data/pulseRead";
 import PulseWall from "./PulseWall";
 
@@ -10,11 +8,12 @@ export const metadata = { title: "Pulse" };
 
 // THE PULSE WALL, full-bleed.
 //
-// IT GATES ITSELF, and that is the one thing to be careful about here. Every
-// other console screen sits under (shell), whose layout calls currentSuperAdmin
-// and redirects — but this is in (full), the group that also holds the SIGN-IN,
-// so its layout deliberately checks nothing. A page added here without this call
-// is a page served to anybody who types the URL.
+// THE GATE IS THE LAYOUT'S NOW. This page called `currentSuperAdmin()` itself,
+// with a warning that a page added beside it without the same call would be
+// served to anybody who typed the URL — which was right while `(full)` was the
+// group holding the SIGN-IN and could not gate anything. Nine screens moved in
+// beside it, so the check lives in `pulse/layout.js`: one door for the group,
+// rather than nine chances to forget one silently.
 //
 // IT PAINTS WITH REAL NUMBERS, not skeletons. A wall spends its life on a screen
 // nobody is touching; two seconds of empty panels on every reload is two seconds
@@ -26,8 +25,6 @@ export const metadata = { title: "Pulse" };
 // composition lives in lib/data/pulseRead so the first paint and every refresh
 // after it are computed by the same code.
 export default async function PulsePage() {
-  if (!(await currentSuperAdmin())) redirect("/super");
-
   const [initial, initialLive] = await Promise.all([readPulse("30d"), readPulseLive()]);
   return <PulseWall initial={initial} initialLive={initialLive} />;
 }

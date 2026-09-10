@@ -126,7 +126,7 @@ export default function QuestionnaireList() {
   }
 
   return (
-    <div className="flex min-h-screen w-full bg-[var(--ad-muted)] text-[var(--ad-foreground)]">
+    <div className="flex min-h-full w-full bg-[var(--ad-muted)] text-[var(--ad-foreground)]">
       <aside className={RAIL}>
         <Link href="/super/dashboard/analytics" className="flex items-center gap-2 text-sm font-600 text-[var(--ad-muted-foreground)] hover:text-[var(--ad-foreground)]">
           <Chevron className="h-4 w-4 rotate-180" /> Console

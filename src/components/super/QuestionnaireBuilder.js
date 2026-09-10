@@ -117,10 +117,16 @@ export default function QuestionnaireBuilder({ id }) {
     setPageIdx((i) => Math.max(0, Math.min(i, (doc?.pages?.length || 2) - 2)));
   }
 
-  if (!doc) return <div className="flex min-h-screen w-full items-center justify-center bg-[var(--ad-muted)] text-sm text-[var(--ad-muted-foreground)]">Loading…</div>;
+  if (!doc) return <div className="flex min-h-full w-full items-center justify-center bg-[var(--ad-muted)] text-sm text-[var(--ad-muted-foreground)]">Loading…</div>;
 
+  // FILLS ITS CONTAINER, NOT THE VIEWPORT. This was `h-screen` when the builder
+  // was a full-bleed page with no chrome around it. It lives under the Pulse
+  // shell now, between a header and a bar, so a viewport-tall builder would
+  // push its own footer off the bottom and scroll the whole chrome with it. The
+  // chrome gives this route the full remaining height and no padding (it is in
+  // FULL_BLEED), and `h-full` takes exactly that.
   return (
-    <div className="flex h-screen w-full flex-col overflow-hidden bg-[var(--ad-muted)] text-[var(--ad-foreground)]">
+    <div className="flex h-full w-full flex-col overflow-hidden bg-[var(--ad-muted)] text-[var(--ad-foreground)]">
       {/* ---- top bar ---- */}
       <header className="flex shrink-0 items-center gap-3 border-b border-[var(--ad-border)] bg-[var(--ad-card)] px-4 py-2.5">
         <Link href="/super/questionnaires" className="text-sm text-[var(--ad-muted-foreground)] hover:text-[var(--ad-foreground)]">Questionnaires</Link>
