@@ -97,8 +97,14 @@ export function ContactView() {
             setSending(false);
         }
     };
-    return (<section className="mx-auto max-w-7xl px-6 pt-32 pb-24 lg:pt-40">
-      <div className="grid gap-14 lg:grid-cols-[1.05fr_1fr] lg:gap-20">
+    return (<section className="mx-auto max-w-2xl px-6 pt-32 pb-24 lg:pt-40">
+      {/* ONE COLUMN. This was `lg:grid-cols-[1.05fr_1fr]`, and the second
+          column held one thing: a card printing sales@ and support@. The owner
+          asked for the card to go, and a two-column grid with one column left
+          is not a layout — it is a form sitting beside 49% of nothing, which is
+          the empty space complained about elsewhere on this site. The grid went
+          with the card rather than after it. */}
+      <div>
         {/* ---------------- Form ---------------- */}
         <div>
           {/* `as="h1"` BECAUSE THIS IS A PAGE NOW. While contact was a view
@@ -205,58 +211,6 @@ export function ContactView() {
         </div>
 
         {/* ---------------- Aside ---------------- */}
-        <motion.aside variants={stagger(0.1, 0.15)} initial="hidden" animate="show" className="space-y-6">
-          {/* THE MASCOT AND ITS CAPTION ARE GONE. The caption read "Nova will
-              sit in on the call and map your entities live" — there is no call
-              to sit in on and nothing maps entities live, so it was an invented
-              claim of the same kind as the promises removed from the success
-              state above it.
-
-              The drawing went with it for a duller reason: it is nine
-              kilobytes of animated SVG that also imports the whole marketing
-              dictionary, on a page that is a form. This route was withdrawn
-              once for costing 23 KB it could not justify. */}
-
-          {/* TWO ADDRESSES THAT WORK, AND NO OFFICES.
-              This grid held four cards and three of them were wrong. Two
-              claimed presences in "EMEA" and the Americas — there is no office
-              anywhere, and the company is not yet incorporated. One printed
-              help@nompany.com, which is not an address anybody reads; the
-              aliases that reach a person are sales@ and support@, and they are
-              read from `CONTACT` here so this card and the route that sends the
-              mail cannot name different mailboxes.
-
-              AND THE OTHER TWO RENDERED THEIR OWN SOURCE. `value` was the
-              literal string "{tr.cityRowEmea}" — quoted, so the braces were
-              characters rather than an interpolation, and the page showed
-              visitors `{tr.cityRowEmea}` where a city should have been. It had
-              to be looked at to be found: nothing throws, nothing fails to
-              build, and a translation key reads as a placeholder somebody meant
-              to finish. */}
-          {/* ONE COLUMN, TITLED. Two cards side by side read as a choice the
-              visitor has to make correctly, which is exactly the decision the
-              dropdown above now makes for them — and getting it wrong cost
-              nothing anyway, because both addresses reach the same person.
-              Stacked and labelled, they are what they actually are: the two
-              desks, listed. The headings come from the same two strings the
-              dropdown's options use, so the form and the addresses cannot end
-              up calling one desk two different things. */}
-          <motion.div variants={fadeUp} className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-ink-soft/50">
-            {[
-              { label: ct.sales, value: CONTACT.sales },
-              { label: ct.support, value: CONTACT.support },
-            ].map((item) => (
-              <div key={item.label} className="p-5">
-                <p className="text-[11px] tracking-[0.16em] text-fg-dim uppercase">
-                  {item.label}
-                </p>
-                <a href={`mailto:${item.value}`} className="mt-1.5 block text-sm text-fg transition-colors hover:text-iris-bright">
-                  {item.value}
-                </a>
-              </div>
-            ))}
-          </motion.div>
-        </motion.aside>
       </div>
     </section>);
 }
