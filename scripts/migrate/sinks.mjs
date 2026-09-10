@@ -1,7 +1,8 @@
 // THE LIVE LOAD SINK — a direct write into SQL Server, for the CLI's --load path.
 //
 // The DEFAULT export (a .sql file) does not come through here: it is rendered by
-// src/platform/db/migrate/emit.ts, the same code the console's export route uses.
+// src/platform/db/migrate/emit.ts. (The console's export route used it too, until
+// that route was deleted on 10/09/2026.)
 // This is only the "actually push it into a running SQL Server" convenience, kept
 // out of that shared core because it lazily imports `mssql` — a driver this repo
 // does not depend on until you run this path.

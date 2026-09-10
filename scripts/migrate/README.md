@@ -10,14 +10,12 @@ Stages 2–5, and this is gated behind Gate A).
 ## The ETL core lives in `src/platform/db/migrate`
 
 The extract / transform / emit logic is **not** in this folder — it is TypeScript
-in [`src/platform/db/migrate/`](../../src/platform/db/migrate), so that **two
-callers share one implementation and cannot drift**:
+in [`src/platform/db/migrate/`](../../src/platform/db/migrate). This **CLI**
+(`backfill.mjs`) is its only caller now.
 
-- this **CLI** (`backfill.mjs`), and
-- the **console export route** `GET /api/super/migration/export[?studio=<id>]`,
-  which powers the "Export database" button in `/super → Application → Database
-  migration`. Same extract, same transform, same `.sql` emitter — super-admin
-  gated, streamed as a file download.
+**The console's "Database migration" screen and its export route
+(`GET /api/super/migration/export`) were deleted on 10/09/2026**, on the owner's
+instruction — they were the second caller this section used to describe.
 
 `backfill.mjs` is a thin wrapper: argument parsing, the `.env` load, the safety
 guard, and the live-load (`mssql`) path. Everything else it imports from the core.

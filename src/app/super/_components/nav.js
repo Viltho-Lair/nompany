@@ -40,15 +40,19 @@ export const CONSOLE_BAR = [
   { href: `${BASE}/nova`, label: "Nova", icon: "star" },
   { href: `${BASE}/calendar`, label: "Calendar", icon: "calendar" },
   { href: `${BASE}/broadcast`, label: "Broadcast", icon: "live" },
+  { href: `${BASE}/questionnaires`, label: "Questionnaires", icon: "form" },
 ];
 
-/* THE HEADER'S "MORE" MENU. Not places anybody moves BETWEEN — a questionnaire
-   is authored, the migration is read once, settings are changed and left — and
-   ten pills is already a wide bar. The owner asked for the first two here. */
-export const CONSOLE_MENU = [
-  { href: `${BASE}/questionnaires`, label: "Questionnaires", icon: "form" },
+/* NO "MORE" MENU ANY MORE — the owner's instruction, 10/09/2026. It held
+   Questionnaires, Settings and the database migration. Questionnaires moved
+   into the bar above, the migration screen was deleted outright, and Settings
+   is the avatar menu's Profile and Security — so the menu was empty and its
+   button went with it.
+
+   SETTINGS STAYS SEARCHABLE. The palette reads this list beside the bar, so
+   a screen that is in neither the bar nor a menu can still be found by name. */
+export const CONSOLE_ACCOUNT = [
   { href: `${BASE}/settings`, label: "Settings", icon: "settings" },
-  { href: `${BASE}/migration`, label: "Database migration", icon: "database" },
 ];
 
 /* SCREENS THAT OWN THE WHOLE AREA between the header and the bar, so the chrome

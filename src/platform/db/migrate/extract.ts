@@ -13,8 +13,8 @@
 // reads them through — because those rows moved to Postgres when
 // NOMPANY_DB=postgres. A direct Redis read of `sec:<id>:c:<name>` would
 // still call cleanly and return zero rows after cutover: it would not error,
-// it would just be wrong, and the live export route
-// (api/super/migration/export) would return 200 with a file that LOOKS
+// it would just be wrong, and the console's export route (deleted
+// 10/09/2026; the CLI is the caller now) would return 200 with a file that LOOKS
 // complete — studio, users and settings all present — while every
 // operational table in it is silently empty. See
 // extractOperationalCollections below. This split is why `readCol` is
@@ -136,8 +136,8 @@ async function extractUsers(acc: Acc): Promise<void> {
 // function existing. Before this, extractStudio's SCAN found `sec:<id>:c:<name>`
 // keys and read them with a bare getJSON; that bypassed the dispatcher, so
 // after cutover (operational rows moved to Postgres, `s:<id>:sec:*:c:*` no
-// longer written) the SCAN found nothing and the live export route
-// (api/super/migration/export) returned 200 with every section-scoped table
+// longer written) the SCAN found nothing and the console's export route
+// (since deleted) returned 200 with every section-scoped table
 // silently empty — no error, so nothing gets investigated. A partial export
 // that looks complete is worse than a failed one.
 //

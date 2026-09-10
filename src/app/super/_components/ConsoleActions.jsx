@@ -5,15 +5,13 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Icon from "./Icon";
 import { Menu, menuItem } from "./Menu";
-import { BASE, CONSOLE_BAR, CONSOLE_MENU } from "./nav";
+import { BASE, CONSOLE_BAR, CONSOLE_ACCOUNT } from "./nav";
 import { CURRENT_USER, ROLE } from "./session";
 import { toneBg, toneInk } from "./ui";
 import { initialsOf } from "@/lib/initials";
 import { ago } from "@/lib/format";
-// Shared with components/ThemeToggle and the Pulse wall — see @/lib/theme.
-import { readTheme, applyTheme, chooseTheme } from "@/lib/theme";
+import ThemeToggle from "@/components/ThemeToggle";
 import useSuperNotifications from "@/components/super/useSuperNotifications";
-import { useReload } from "@/components/studio2/useReload";
 
 /* THE HEADER'S RIGHT SIDE: search, theme, notifications, and the signed-in admin.
    ------------------------------------------------------------------
@@ -27,58 +25,26 @@ import { useReload } from "@/components/studio2/useReload";
    avatar. Everything below is ported from that file rather than rewritten, so
    it behaves exactly as it did.
 
-   TWO CHANGES FROM THE ORIGINAL, both for the shrink-only lint budget rather
-   than for behaviour. The theme was read by `setMode(readTheme())` inside a bare
-   effect and the palette cleared its query the same way — two
-   `set-state-in-effect` warnings, which the original file carried and which
-   left the count when it was deleted. The theme read goes through `useReload`,
-   the repository's one named home for "sync once on mount"; the query is
-   cleared when the palette CLOSES, in the handler, which needs no effect at all.
+   THE THEME CONTROL IS THE PRODUCT'S OWN BUTTON NOW — the owner's instruction,
+   10/09/2026. The old header drew its own Light / Dark / System dropdown; the
+   console uses `components/ThemeToggle`, the same control the public site and
+   the Studio mount, on the same `theme` cookie. One control, one look.
 
-   THE PALETTE SEARCHES `CONSOLE_BAR` AND `CONSOLE_MENU`, the same two lists the
-   bar and the header's menu draw from. It searched the sidebar's `FLAT` before,
-   which went with the sidebar; a palette offering a different set of screens
-   from the bar beside it would be two answers to "what is in this console". */
+   SEARCH IS ITS OWN EXPORT (`ConsoleSearch`), because it sits in the MIDDLE of
+   the header and these controls sit at the right. It owns the palette and the
+   ⌘K key; the query is cleared when the palette CLOSES, in the handler, which
+   needs no effect — a `set-state-in-effect` the shrink-only lint budget would
+   otherwise count.
 
-/* ---- theme ---------------------------------------------------------------
-   The site-wide control: the same `theme` cookie the public site and the Studio
-   use, toggling `html.dark`. Choosing a mode here changes the whole website,
-   not just /super.                                                           */
-
-const MODES = [
-  { id: "light", label: "Light", icon: "sun" },
-  { id: "dark", label: "Dark", icon: "moon" },
-  { id: "system", label: "System", icon: "monitor" },
-];
-
-function useTheme() {
-  // "light" until mount, then the cookie: the server cannot read the cookie
-  // this reads, so seeding state from it would mismatch the server's markup.
-  const [mode, setMode] = useState("light");
-  const read = useCallback(() => setMode(readTheme()), []);
-  useReload(read);
-
-  useEffect(() => {
-    if (mode !== "system") return undefined;
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    const onChange = () => applyTheme("system");
-    mq.addEventListener?.("change", onChange);
-    return () => mq.removeEventListener?.("change", onChange);
-  }, [mode]);
-
-  const choose = useCallback((next) => {
-    setMode(next);
-    chooseTheme(next);
-  }, []);
-
-  return [mode, choose];
-}
+   THE PALETTE SEARCHES `CONSOLE_BAR` AND `CONSOLE_ACCOUNT`, the lists in
+   `_components/nav`, so it can never offer a different set of screens from
+   the bar beside it. */
 
 /* ---- command palette ----------------------------------------------------- */
 
 const PAGES = [
   ...CONSOLE_BAR.map((p) => ({ ...p, group: "Screens" })),
-  ...CONSOLE_MENU.map((p) => ({ ...p, group: "More" })),
+  ...CONSOLE_ACCOUNT.map((p) => ({ ...p, group: "Account" })),
 ];
 
 function CommandPalette({ open, onClose }) {
@@ -180,9 +146,6 @@ const avatarStyle = {
 /* ---- the controls -------------------------------------------------------- */
 
 export default function ConsoleActions({ admin }) {
-  const [mode, setMode] = useTheme();
-  const [paletteOpen, setPaletteOpen] = useState(false);
-  const closePalette = useCallback(() => setPaletteOpen(false), []);
   const router = useRouter();
 
   // Identity comes from the SESSION (`admin`), not from the design constant.
@@ -205,62 +168,16 @@ export default function ConsoleActions({ admin }) {
     router.refresh();
   }, [router]);
 
-  useEffect(() => {
-    const onKey = (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        setPaletteOpen(true);
-      }
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, []);
-
   const { notifications, unread, loaded, status, markAllRead } = useSuperNotifications();
-  const activeMode = MODES.find((m) => m.id === mode) || MODES[0];
 
   return (
     <>
       <div className="flex items-center gap-1">
-        <button
-          type="button"
-          onClick={() => setPaletteOpen(true)}
-          aria-label="Search pages"
-          className="flex h-10 items-center gap-1.5 rounded-full px-2.5 text-[var(--ad-muted-foreground)] transition-colors hover:bg-[var(--ad-accent)] hover:text-[var(--ad-foreground)]"
-        >
-          <Icon name="search" className="h-[18px] w-[18px]" />
-          <kbd
-            className="hidden rounded border px-1.5 py-0.5 text-[10px] font-500 md:inline"
-            style={{ borderColor: "var(--ad-border)", backgroundColor: "var(--ad-background)" }}
-          >
-            ⌘K
-          </kbd>
-        </button>
-
-        {/* Theme */}
-        <Menu
-          label="Toggle theme"
-          width={190}
-          trigger={
-            <span className="ad-icon-btn">
-              <Icon name={activeMode.icon} className="h-[18px] w-[18px]" />
-            </span>
-          }
-        >
-          <div className="px-4 pb-1 pt-3 text-[11px] font-600 uppercase tracking-wider text-[var(--ad-muted-foreground)]">
-            Theme
-          </div>
-          {MODES.map((m) => (
-            <button key={m.id} type="button" className={menuItem} onClick={() => setMode(m.id)} role="menuitem">
-              <Icon name={m.icon} className="h-4 w-4" />
-              <span className="flex-1">{m.label}</span>
-              {mode === m.id ? <Icon name="check" className="h-4 w-4 text-[var(--ad-primary)]" /> : null}
-            </button>
-          ))}
-          <div className="px-4 pb-3 pt-1 text-[11px] leading-snug text-[var(--ad-muted-foreground)]">
-            Applies across the whole site.
-          </div>
-        </Menu>
+        {/* THE PRODUCT'S OWN THEME BUTTON — see the header comment. It draws in
+            `currentColor`, so the wrapper decides its ink. */}
+        <span className="inline-flex text-[var(--ad-muted-foreground)]">
+          <ThemeToggle />
+        </span>
 
         {/* Notifications */}
         <Menu
@@ -380,7 +297,45 @@ export default function ConsoleActions({ admin }) {
         </Menu>
       </div>
 
-      <CommandPalette open={paletteOpen} onClose={closePalette} />
+    </>
+  );
+}
+
+/* ---- search, in the middle of the header ------------------------------- */
+export function ConsoleSearch() {
+  const [open, setOpen] = useState(false);
+  const close = useCallback(() => setOpen(false), []);
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setOpen(true);
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-label="Search pages"
+        className="flex h-9 w-full max-w-md items-center gap-2 rounded-full border px-3.5 text-sm text-[var(--ad-muted-foreground)] transition-colors hover:bg-[var(--ad-accent)] hover:text-[var(--ad-foreground)]"
+        style={{ borderColor: "var(--ad-border)" }}
+      >
+        <Icon name="search" className="h-4 w-4 shrink-0" />
+        <span className="flex-1 truncate text-start">Search pages…</span>
+        <kbd
+          className="hidden rounded border px-1.5 py-0.5 text-[10px] font-500 md:inline"
+          style={{ borderColor: "var(--ad-border)", backgroundColor: "var(--ad-background)" }}
+        >
+          ⌘K
+        </kbd>
+      </button>
+      <CommandPalette open={open} onClose={close} />
     </>
   );
 }

@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import WorldMap from "./WorldMap";
 import { Panel, Ticker, Sparkline, BarRow, Donut, HeatGrid, SignupChart, fmt } from "./parts";
 import { heatLevel } from "@/lib/data/pulse";
@@ -60,6 +59,25 @@ const AGGREGATE_MS = 60_000;
 const LIVE_MS = 20_000;
 
 const chip = "rounded-md px-2 py-1 text-[11px] font-600 transition-colors";
+
+// THE WALL'S MARK: a heartbeat trace in the logo ramp. The gradient id is
+// fixed because the mark is drawn once per page; two on one page would share
+// one definition, which is harmless since they are identical.
+function PulseMark() {
+  return (
+    <svg viewBox="0 0 32 32" width="30" height="30" aria-hidden="true" className="h-[30px] w-[30px]">
+      <defs>
+        <linearGradient id="pulse-mark-ramp" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#48caed" />
+          <stop offset="55%" stopColor="#fe9e04" />
+          <stop offset="100%" stopColor="#ff3333" />
+        </linearGradient>
+      </defs>
+      <rect x="1" y="1" width="30" height="30" rx="9" fill="none" stroke="url(#pulse-mark-ramp)" strokeWidth="2" />
+      <path d="M5 17h5l2.5-6 4 11 3-8 1.5 3H27" fill="none" stroke="url(#pulse-mark-ramp)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
 
 export default function PulseWall({ initial, initialLive }) {
   const [data, setData] = useState(initial);
@@ -210,12 +228,13 @@ export default function PulseWall({ initial, initialLive }) {
     >
       {/* ---- header ---------------------------------------------------- */}
       <header style={{ gridArea: "top" }} className="flex flex-wrap items-center gap-x-5 gap-y-2">
-        {/* THE MARK, NOT THE WORD. `LogoMark` in components/landing is the usual
-            way to draw it and cannot be used here: it imports motion/react,
-            which Gate A forbids outside src/components/landing precisely so the
-            console never pays its ~30 KB. Same asset, rendered plainly. */}
+        {/* A PULSE, NOT THE COMPANY LOGO — the owner's instruction, 10/09/2026.
+            The header above already carries the nompany mark; a second one here
+            said the same thing twice. The trace is drawn in the logo's own ramp
+            (cyan → amber → red, the colours Broadcast's default band uses), so
+            it is still nompany's without being its logo. */}
         <Link href="/super/dashboard" className="flex items-center gap-2.5" aria-label="Back to the console">
-          <Image src="/brand/logo-icon.png" alt="nompany" width={30} height={30} priority className="h-[30px] w-[30px] object-contain" />
+          <PulseMark />
           <span className="text-base font-800 tracking-tight">Pulse</span>
         </Link>
 

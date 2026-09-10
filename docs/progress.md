@@ -126,13 +126,12 @@ connected calendars, the /super calendar, departmental roles.
 **A SQL SERVER MIGRATION SUBSYSTEM IS STILL SHIPPING**, for a migration that never
 happened, to a database this product has never used. Redis is gone and the target
 was Postgres, so neither end of it is real — and it is not a stale document, it is
-five live pieces:
+three live pieces. (It was five: the console's Database migration screen and its
+`/api/super/migration/export` route were DELETED on 10/09/2026, on the owner's instruction.)
 
 | Piece | What it is |
 |---|---|
 | `src/platform/db/migrate/{mapping,emit,transform}.ts` | The extract/transform/emit core. `mapping.ts` names the mssql design doc in an ERROR MESSAGE. |
-| `src/app/api/super/migration/export/…` | A super-admin route that streams a `.sql` file. |
-| `src/components/super/MigrationScreen.js` | A console screen at `/super → Application → Database migration`, which RENDERS `docs/database-migration-mssql.md` to the operator as its "design of record". |
 | `scripts/migrate/backfill.mjs` | The CLI wrapper, plus `scripts/migrate/README.md` describing it. |
 | `tests/goldens/migration.export.dump.json` | A golden pinning `-- Authoritative DDL: docs/database-migration-mssql.md §2` in the emitted SQL. |
 

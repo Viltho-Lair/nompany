@@ -41,17 +41,21 @@ export function ConsoleClock() {
   );
 }
 
+// AN ICON, NOT A WORD — the owner's instruction. The label stays for anybody
+// who cannot see the glyph, and the title says what the key is on Pulse.
 export function PresentButton() {
   return (
     <button
       type="button"
       onClick={present}
+      aria-label="Present — full screen"
       title="Present — full screen (F on Pulse)"
-      className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm transition-colors hover:bg-[var(--ad-accent)]"
+      className="inline-flex h-9 w-9 items-center justify-center rounded-full border text-[var(--ad-muted-foreground)] transition-colors hover:bg-[var(--ad-accent)] hover:text-[var(--ad-foreground)]"
       style={{ borderColor: "var(--ad-border)" }}
     >
-      <span aria-hidden="true">⛶</span>
-      Present
+      <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M4 9V5a1 1 0 0 1 1-1h4M15 4h4a1 1 0 0 1 1 1v4M20 15v4a1 1 0 0 1-1 1h-4M9 20H5a1 1 0 0 1-1-1v-4" />
+      </svg>
     </button>
   );
 }

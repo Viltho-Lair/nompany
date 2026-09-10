@@ -4,9 +4,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import Icon from "../_components/Icon";
-import { Menu, menuItem } from "../_components/Menu";
-import { BASE, CONSOLE_BAR, CONSOLE_MENU, FULL_BLEED } from "../_components/nav";
-import ConsoleActions from "../_components/ConsoleActions";
+import { BASE, CONSOLE_BAR, FULL_BLEED } from "../_components/nav";
+import ConsoleActions, { ConsoleSearch } from "../_components/ConsoleActions";
 import { ConsoleClock, PresentButton } from "../_components/Present";
 
 /* THE CONSOLE'S CHROME — one long header and one bar, identical on every screen.
@@ -53,13 +52,13 @@ export default function ConsoleChrome({ admin, children }) {
       style={{ background: "var(--ad-background)", color: "var(--ad-foreground)" }}
     >
       <header
-        className="flex shrink-0 flex-wrap items-center gap-4 border-b px-5 py-2.5"
+        className="grid shrink-0 grid-cols-[1fr_minmax(0,28rem)_1fr] items-center gap-4 border-b px-5 py-2.5"
         style={{ borderColor: "var(--ad-border)" }}
       >
         {/* THE MARK, THEN THE WORDS. `LogoMark` in components/landing draws it
             everywhere else and cannot be used here: it imports motion/react,
             which is confined to the landing folder. */}
-        <Link href={`${BASE}/pulse`} className="flex items-center gap-3" aria-label="nompany super admin">
+        <Link href={`${BASE}/pulse`} className="flex items-center gap-3 justify-self-start" aria-label="nompany super admin">
           <Image
             src="/brand/logo-icon.png" alt="nompany" width={34} height={34} priority
             className="h-[34px] w-[34px] object-contain"
@@ -72,31 +71,20 @@ export default function ConsoleChrome({ admin, children }) {
           </span>
         </Link>
 
-        <div className="ms-auto flex items-center gap-2">
-          {/* THE CLOCK AND PRESENT CAME UP FROM THE WALL — see _components/Present. */}
+        {/* THREE COLUMNS, SO THE SEARCH IS TRULY CENTRED — the owner's layout,
+            10/09/2026. Equal `1fr` sides put the middle column in the middle of
+            the header whatever the brand and the controls weigh; a flex row
+            with `ms-auto` would centre it only between them. */}
+        <div className="flex justify-center">
+          <ConsoleSearch />
+        </div>
+
+        {/* PRESENT IS THE FURTHEST RIGHT, and an icon alone. The "More" menu
+            that sat here is gone: see CONSOLE_ACCOUNT in _components/nav. */}
+        <div className="flex items-center justify-end gap-2">
           <ConsoleClock />
-          <PresentButton />
-          <Menu
-            label="More"
-            width={240}
-            trigger={
-              <span
-                className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm"
-                style={{ borderColor: "var(--ad-border)" }}
-              >
-                More
-                <span aria-hidden="true" className="text-xs opacity-60">▾</span>
-              </span>
-            }
-          >
-            {CONSOLE_MENU.map((m) => (
-              <Link key={m.href} href={m.href} className={menuItem} role="menuitem">
-                <Icon name={m.icon} className="h-4 w-4 opacity-70" />
-                {m.label}
-              </Link>
-            ))}
-          </Menu>
           <ConsoleActions admin={admin} />
+          <PresentButton />
         </div>
       </header>
 
