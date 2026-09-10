@@ -66,6 +66,10 @@ export async function customerProfile(ctx: SalesContext, id: string) {
     // Changing one is editing the client, and answers to clients.edit; the
     // catalogue below is fetched only for somebody who may actually pick from it.
     editRates: !requirePermission(access, "crmSales.clients.edit"),
+    // A TENDER CAN START HERE. The page offers "Add a tender" to somebody who
+    // may create one, and the register opens its dialog with this customer
+    // chosen — no read, only the right.
+    tenders: !requirePermission(access, "tendering.tenders.create"),
   };
 
   // WHERE IS DATA, NOT A PREDICATE — repo.find's declared vocabulary, so this

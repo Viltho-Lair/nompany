@@ -153,7 +153,14 @@ export default function StudioCustomer({ slug, clientId }) {
         <a href={`/${slug}/crm-sales-clients`} className="text-sm text-brand-700 hover:underline dark:text-brand-300">
           ← {tr.back}
         </a>
-        <h2 className={`${h2} mt-2`}>{client.name}</h2>
+        <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
+          <h2 className={h2}>{client.name}</h2>
+          {may.tenders && (
+            <a href={`/${slug}/tendering-register?client=${encodeURIComponent(client.id)}`} className={btnGhost}>
+              {tr.addTender}
+            </a>
+          )}
+        </div>
         <p className={sub}>
           {[client.code && `${tr.clientCode} ${client.code}`, client.industry].filter(Boolean).join(" · ")}
           {client.createdAt && ` · ${tr.customerSince} ${fmtDate(client.createdAt)}`}

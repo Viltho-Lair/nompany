@@ -48,6 +48,11 @@ export function refusal(tr, token) {
     case "handover-forbidden":
     case "read-only": return tr.refuseHandoverForbidden;
 
+    // ---- the dialog's pickers ----
+    case "client": return tr.refuseClient;
+    case "client-create": return tr.refuseClientCreate;
+    case "assignee": return tr.refuseAssignee;
+
     // A bill frozen because its tender became a project.
     case "handed-over": return tr.refuseHandedOver;
 

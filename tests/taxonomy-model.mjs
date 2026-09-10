@@ -17,9 +17,15 @@ const ok = (what, cond, detail = "") => {
 // instead of copying the real one renames a value on every existing studio at
 // deploy — the trap the numbering catalogue nearly shipped.
 const byKey = Object.fromEntries(TAXONOMIES.map((a) => [a.key, a.defaults]));
-ok("the six axes are the six hard-coded lists",
-  AXIS_KEYS.join("|") === "clientIndustries|expenseCategories|paymentMethods|leaveTypes|locationKinds|permitTypes",
+// THE SEVENTH WAS NEVER HARD-CODED: a tender's source was free text, and this
+// list is what lets a register group by where its tenders came from.
+ok("the six hard-coded lists, then tender sources",
+  AXIS_KEYS.join("|") === "clientIndustries|expenseCategories|paymentMethods|leaveTypes|locationKinds|permitTypes|tenderSources",
   AXIS_KEYS.join("|"));
+ok("A TYPED SOURCE TAKES THE LIST'S SPELLING, so one source does not split on case",
+  resolveValue("tenderSources", undefined, "public portal") === "Public portal");
+ok("...and text that is not on the list is kept by the caller's fallback",
+  resolveValue("tenderSources", undefined, "Chamber bulletin", "Chamber bulletin") === "Chamber bulletin");
 ok("leave types are the five HR shipped",
   byKey.leaveTypes.join("|") === "Annual|Sick|Unpaid|Parental|Compassionate");
 ok("location kinds are the four Operations shipped",

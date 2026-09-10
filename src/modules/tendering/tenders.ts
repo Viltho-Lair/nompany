@@ -13,6 +13,9 @@
 // noticed, and it is NOT a deal until one is opened from it (that handover is a
 // later slice — see the functionality file).
 import { requirePermission } from "@/platform/access";
+import { listCollaborators } from "@/platform/auth/collaborators";
+import { resolveValue, valuesFor } from "@/modules/administration/taxonomy";
+import { resolveClientFor } from "@/modules/sales/salesClients";
 import { seriesSetting } from "@/modules/administration/numbering";
 import { repo } from "@/platform/db/repo";
 import { moduleContext } from "../context";
@@ -31,6 +34,71 @@ const money = (v: unknown) => {
   return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : 0;
 };
 const now = () => new Date().toISOString();
+
+// A NEW CUSTOMER ADDED FROM A TENDER KNOWS NOTHING BUT ITS NAME. The resolver
+// folds a contact and a site into the client and treats blank ones as nothing
+// to fold, so these write nothing — a tender notice rarely names a person.
+const NO_CONTACT = { name: "", email: "", phone: "", position: "" };
+const NO_SITE = { name: "", country: "", city: "", url: "" };
+
+type Parties = { clientId?: string; clientName?: string; assignee?: string };
+
+/**
+ * WHO THE TENDER IS FOR AND WHO IS CHASING IT, checked before anything is written.
+ *
+ * THE CUSTOMER IS PICKED OR ADDED, never typed into an id. The dialog's hint
+ * used to say "link it to a customer" while nothing on it could — the link was
+ * made only at handover. A picked id must name a client that exists; adding one
+ * answers to `crmSales.clients.create`, because that is Sales' record and a
+ * tendering right does not stretch to creating it. It goes through
+ * `resolveClientFor`, the door every deal-starting path uses, which MATCHES BY
+ * NAME FIRST — so "add as new" for a body already on file reuses that client
+ * rather than filing it twice.
+ *
+ * THE OWNER MUST BE SOMEBODY IN THE STUDIO. `assignedToCollaboratorId` has been
+ * on the record since the register shipped and nothing set it; an id naming
+ * nobody would read as "unassigned" on every screen and be a person on none.
+ *
+ * A key the body does not carry is left out of the answer, so an edit that does
+ * not touch the customer or the owner does not clear them.
+ */
+async function resolveParties(ctx: TenderingContext, body: Record<string, unknown>): Promise<{ error: string } | Parties> {
+  const { studio, salesClientsSection, access, collaborator } = ctx;
+  const out: Parties = {};
+
+  const newClient = str(body?.newClient, 160);
+  if (newClient) {
+    if (!salesClientsSection || requirePermission(access, "crmSales.clients.create")) return { error: "client-create" };
+    const client = await resolveClientFor(
+      { studio, section: salesClientsSection },
+      { clientName: newClient, contact: NO_CONTACT, site: NO_SITE, collaboratorId: collaborator?.id || "" },
+    );
+    if (!client) return { error: "client" };
+    out.clientId = client.id;
+    out.clientName = String(client.name || "");
+  } else if (body?.clientId !== undefined) {
+    const id = str(body.clientId, 60);
+    if (id) {
+      const client = salesClientsSection ? await Clients.byId({ studio, section: salesClientsSection }, id) : null;
+      if (!client) return { error: "client" };
+      out.clientName = String(client.name || "");
+    }
+    out.clientId = id;
+  }
+
+  if (body?.assignedToCollaboratorId !== undefined) {
+    const id = str(body.assignedToCollaboratorId, 60);
+    const people = (await listCollaborators(studio.id)) as { id: string }[];
+    if (id && !people.some((c) => c.id === id)) return { error: "assignee" };
+    out.assignee = id;
+  }
+  return out;
+}
+
+// THE STUDIO'S SPELLING WHEN THE SOURCE IS ON ITS LIST, the typed text when it
+// is not. A widening, not a refusal: tenders written while this was free text,
+// and an API caller still sending it, keep saving.
+const sourceOf = (taxonomies: unknown, v: unknown) => resolveValue("tenderSources", taxonomies, v, str(v, 120));
 
 export const tenderingContext = moduleContext<TenderingContext>({
   root: "tendering",
@@ -71,6 +139,11 @@ export async function listTenders(ctx: TenderingContext) {
   const nameById = new Map(clients.map((c) => [c.id, String(c.name || "")] as const));
 
   return {
+    // THE CUSTOMERS THE DIALOG MAY PICK FROM, names only — read here anyway for
+    // the issuer column, so offering them costs no second read.
+    clients: clients
+      .map((c) => ({ id: c.id, name: String(c.name || "") }))
+      .sort((a, b) => a.name.localeCompare(b.name)),
     // WHEN THIS ANSWER WAS TRUE. Every "days left" on the register is measured
     // from one instant, and it is this one — the screen does not read its own
     // clock. Two rows a day apart cannot then read the same because a render
@@ -134,6 +207,14 @@ export async function tendersView(ctx: TenderingContext) {
     canCreate: !requirePermission(ctx.access, "tendering.tenders.create"),
     canEdit: !requirePermission(ctx.access, "tendering.tenders.edit"),
     canDelete: !requirePermission(ctx.access, "tendering.tenders.delete"),
+    // WHAT THE DIALOG OFFERS, so it can only send what the service accepts: the
+    // customers, the studio's own source list, and the people who may own a bid.
+    clients: result.clients,
+    sources: valuesFor("tenderSources", ctx.studio.taxonomies),
+    people: ((await listCollaborators(ctx.studio.id)) as { id: string; alias?: string }[])
+      .map((c) => ({ id: c.id, alias: String(c.alias || "") }))
+      .sort((a, b) => a.alias.localeCompare(b.alias)),
+    canCreateClient: Boolean(ctx.salesClientsSection) && !requirePermission(ctx.access, "crmSales.clients.create"),
   };
 }
 
@@ -153,6 +234,9 @@ export async function createTender(ctx: TenderingContext, body: Record<string, u
   const submissionDeadline = str(body?.submissionDeadline, 10);
   if (!submissionDeadline) return { error: "deadline" };
 
+  const parties = await resolveParties(ctx, body);
+  if ("error" in parties) return parties;
+
   const rows = await Tenders.find({ studio, section: registerSection });
   // FROM THE COUNTER, not from a count: this record has a delete path, and
   // nextUniqueRef's own note says anything with one must number this way or a
@@ -162,9 +246,12 @@ export async function createTender(ctx: TenderingContext, body: Record<string, u
   const tender = await Tenders.create({ studio, section: registerSection }, {
     ref,
     title,
-    issuer: str(body?.issuer, 160),
-    clientId: str(body?.clientId, 60),
-    source: str(body?.source, 120),
+    // THE CUSTOMER'S NAME WHEN NOTHING WAS TYPED — the register shows the
+    // client's current name anyway (see `listTenders`); this is what a tender
+    // reads as if the client is later removed.
+    issuer: str(body?.issuer, 160) || parties.clientName || "",
+    clientId: parties.clientId || "",
+    source: sourceOf(studio.taxonomies, body?.source),
     issueDate: str(body?.issueDate, 10),
     submissionDeadline,
     estimatedValue: money(body?.estimatedValue),
@@ -176,7 +263,7 @@ export async function createTender(ctx: TenderingContext, body: Record<string, u
     notes: str(body?.notes, 4000),
     // Who is chasing it. From the payload rather than the session: a register
     // is usually entered by one person on behalf of whoever will bid it.
-    assignedToCollaboratorId: str(body?.assignedToCollaboratorId, 60),
+    assignedToCollaboratorId: parties.assignee || "",
     createdByCollaboratorId: collaborator?.id || "",
     createdAt: now(),
     updatedAt: now(),
@@ -198,15 +285,11 @@ export async function editTender(ctx: TenderingContext, id: string, body: Record
     patch.submissionDeadline = v;
   }
   if (body?.issuer !== undefined) patch.issuer = str(body.issuer, 160);
-  if (body?.clientId !== undefined) patch.clientId = str(body.clientId, 60);
-  if (body?.source !== undefined) patch.source = str(body.source, 120);
+  if (body?.source !== undefined) patch.source = sourceOf(studio.taxonomies, body.source);
   if (body?.issueDate !== undefined) patch.issueDate = str(body.issueDate, 10);
   if (body?.estimatedValue !== undefined) patch.estimatedValue = money(body.estimatedValue);
   if (body?.currency !== undefined) patch.currency = str(body.currency, 8);
   if (body?.notes !== undefined) patch.notes = str(body.notes, 4000);
-  if (body?.assignedToCollaboratorId !== undefined) {
-    patch.assignedToCollaboratorId = str(body.assignedToCollaboratorId, 60);
-  }
 
   // A STAGE MOVE IS A TRANSITION, decided below once the tender has been read —
   // `tenderProblem` needs to know where it is NOW, and that is not in the
@@ -230,6 +313,14 @@ export async function editTender(ctx: TenderingContext, id: string, body: Record
     const problem = tenderProblem({ from: existing.status, to: move.to, reason: move.reason, approved });
     if (problem) return { error: problem };
   }
+
+  // AFTER THE MOVE IS JUDGED, because adding a customer is a write: a refused
+  // stage move must not leave a new client behind it.
+  const parties = await resolveParties(ctx, body);
+  if ("error" in parties) return parties;
+  if (parties.clientId !== undefined) patch.clientId = parties.clientId;
+  if (parties.clientName && patch.issuer === "") patch.issuer = parties.clientName;
+  if (parties.assignee !== undefined) patch.assignedToCollaboratorId = parties.assignee;
 
   patch.updatedAt = now();
 

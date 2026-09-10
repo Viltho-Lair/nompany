@@ -14,7 +14,8 @@
 // reason: the move this screen offers and the move the route accepts are one
 // decision, so they cannot drift apart.
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { tenderingDict } from "@/shared/studio/tendering";
 import { statusLabel } from "@/shared/studio/statuses";
@@ -34,6 +35,23 @@ import { refusal } from "@/components/studio2/tenderRefusals";
 // eye's attention. Named because it is a judgement about bidding, not a
 // rendering detail.
 const CLOSING_SOON_DAYS = 7;
+
+// "Add as a new customer" in the customer picker. Not an id anything can hold.
+const NEW_CLIENT = "__new";
+
+const BLANK_FORM = {
+  title: "", issuer: "", clientId: "", newClient: "", source: "", assignedToCollaboratorId: "",
+  issueDate: "", submissionDeadline: "", estimatedValue: "", notes: "",
+};
+
+// ARRIVING FROM A CUSTOMER'S PAGE (`?client=<id>`) opens the dialog with that
+// customer already chosen — the way into a tender other than typing all of it.
+// Only for somebody who may create one, and only for a customer the register
+// actually knows.
+function formForClient(payload, clientId) {
+  const client = payload?.canCreate && clientId ? (payload.clients || []).find((c) => c.id === clientId) : null;
+  return client ? { ...BLANK_FORM, clientId: client.id, issuer: client.name } : null;
+}
 
 // The refusal mapper MOVED OUT when the bid review arrived. Two screens now
 // show the same tokens — the register refuses a stage move, the bill refuses a
@@ -76,10 +94,14 @@ function Deadline({ tr, tender, nowMs }) {
 export default function StudioTenders({ slug, initial, initialError = "" }) {
   const locale = useStudioLocale();
   const tr = tenderingDict(locale);
+  const fromClient = useSearchParams().get("client") || "";
   const [data, setData] = useState(initial ?? null);
   const [error, setError] = useState(initialError);
   const [busy, setBusy] = useState(false);
-  const [form, setForm] = useState(null);
+  // With a server payload the customer is known at once; without one, the
+  // first answer opens it (see `apply`), and only the first.
+  const [form, setForm] = useState(() => formForClient(initial, fromClient));
+  const pendingClient = useRef(initial ? "" : fromClient);
   const [move, setMove] = useState(null);
   const [reason, setReason] = useState("");
 
@@ -92,6 +114,11 @@ export default function StudioTenders({ slug, initial, initialError = "" }) {
     if (!ok) { setError(body.error || "failed"); return; }
     setError("");
     setData(body);
+    if (pendingClient.current) {
+      const opened = formForClient(body, pendingClient.current);
+      pendingClient.current = "";
+      if (opened) setForm(opened);
+    }
   }, []);
 
   // THE FIRST FETCH IS THE ONE THIS SAVES. With a server payload in hand there is
@@ -189,14 +216,36 @@ export default function StudioTenders({ slug, initial, initialError = "" }) {
   const contested = decided.filter((t) => t.submittedAt);
   const winRate = contested.length ? Math.round((won.length / contested.length) * 100) : null;
 
-  const openForm = (row) => setForm(row ? { ...row } : {
-    title: "", issuer: "", clientId: "", source: "",
-    issueDate: "", submissionDeadline: "", estimatedValue: "", notes: "",
-  });
+  const openForm = (row) => setForm(row ? { ...BLANK_FORM, ...row, newClient: "" } : { ...BLANK_FORM });
+
+  const clients = data.clients || [];
+  const people = data.people || [];
+  const aliasOf = new Map(people.map((p) => [p.id, p.alias]));
+  const addingClient = form?.clientId === NEW_CLIENT;
+
+  // A SOURCE WRITTEN WHILE THIS WAS FREE TEXT is offered as itself, so opening
+  // an old tender to fix its deadline does not quietly blank where it came from.
+  const sources = data.sources || [];
+  const sourceOptions = [
+    { value: "", label: tr.noSource },
+    ...sources.map((s) => ({ value: s, label: s })),
+    ...(form?.source && !sources.includes(form.source) ? [{ value: form.source, label: form.source }] : []),
+  ];
+
+  const pickClient = (v) => setForm((f) => ({
+    ...f,
+    clientId: v,
+    // The issuer starts as the customer's name, and whatever was typed stands.
+    issuer: f.issuer || (clients.find((c) => c.id === v)?.name ?? ""),
+    newClient: v === NEW_CLIENT ? (f.newClient || f.issuer) : "",
+  }));
 
   const saveForm = async () => {
     const payload = {
-      title: form.title, issuer: form.issuer, clientId: form.clientId, source: form.source,
+      title: form.title, issuer: form.issuer, source: form.source,
+      clientId: addingClient ? "" : form.clientId,
+      newClient: addingClient ? form.newClient : "",
+      assignedToCollaboratorId: form.assignedToCollaboratorId || "",
       issueDate: form.issueDate, submissionDeadline: form.submissionDeadline,
       estimatedValue: Number(form.estimatedValue) || 0, notes: form.notes,
     };
@@ -214,6 +263,11 @@ export default function StudioTenders({ slug, initial, initialError = "" }) {
           <span className="ms-2 font-600 text-slate-900 dark:text-white">{t.title}</span>
           <span className="ms-2"><StatusPill kind="tenderStage" status={t.status} /></span>
           {t.issuer && <span className="ms-2 text-xs text-slate-500 dark:text-slate-400">{t.issuer}</span>}
+          {aliasOf.get(t.assignedToCollaboratorId) && (
+            <span className="ms-2 text-xs text-slate-500 dark:text-slate-400">
+              · {tr.assignedTo}: {aliasOf.get(t.assignedToCollaboratorId)}
+            </span>
+          )}
         </div>
         <div className="text-end">
           {t.estimatedValue > 0 && (
@@ -308,6 +362,17 @@ export default function StudioTenders({ slug, initial, initialError = "" }) {
           <div className="space-y-4">
             <Field label={tr.tenderTitle} required value={form.title || ""}
               onChange={(v) => setForm((f) => ({ ...f, title: v }))} inputProps={{ maxLength: 200 }} />
+            <Field label={tr.customer} as="select" value={form.clientId || ""} onChange={pickClient}
+              hint={tr.customerHint}
+              options={[
+                { value: "", label: tr.noCustomer },
+                ...clients.map((c) => ({ value: c.id, label: c.name })),
+                ...(data.canCreateClient ? [{ value: NEW_CLIENT, label: tr.newCustomer }] : []),
+              ]} />
+            {addingClient && (
+              <Field label={tr.newCustomerName} required value={form.newClient || ""}
+                onChange={(v) => setForm((f) => ({ ...f, newClient: v }))} inputProps={{ maxLength: 160 }} />
+            )}
             <Field label={tr.issuer} value={form.issuer || ""} hint={tr.issuerHint}
               onChange={(v) => setForm((f) => ({ ...f, issuer: v }))} inputProps={{ maxLength: 160 }} />
             <div className="grid gap-4 sm:grid-cols-2">
@@ -317,14 +382,18 @@ export default function StudioTenders({ slug, initial, initialError = "" }) {
                 onChange={(v) => setForm((f) => ({ ...f, issueDate: v }))} />
               <Field label={tr.estimatedValue} type="number" value={form.estimatedValue ?? ""}
                 onChange={(v) => setForm((f) => ({ ...f, estimatedValue: v }))} inputProps={{ min: "0", step: "0.01" }} />
-              <Field label={tr.source} value={form.source || ""}
-                onChange={(v) => setForm((f) => ({ ...f, source: v }))} inputProps={{ maxLength: 120 }} />
+              <Field label={tr.source} as="select" value={form.source || ""} hint={tr.sourceHint}
+                onChange={(v) => setForm((f) => ({ ...f, source: v }))} options={sourceOptions} />
+              <Field label={tr.assignedTo} as="select" value={form.assignedToCollaboratorId || ""} hint={tr.ownerHint}
+                onChange={(v) => setForm((f) => ({ ...f, assignedToCollaboratorId: v }))}
+                options={[{ value: "", label: tr.unassigned }, ...people.map((p) => ({ value: p.id, label: p.alias }))]} />
             </div>
             <Field label={tr.notes} as="textarea" value={form.notes || ""}
               onChange={(v) => setForm((f) => ({ ...f, notes: v }))} inputProps={{ maxLength: 4000 }} />
             <div className="flex justify-end gap-2">
               <button type="button" className={btnGhost} onClick={() => setForm(null)}>{tr.cancel}</button>
-              <button type="button" className={btn} disabled={busy || !form.title?.trim() || !form.submissionDeadline}
+              <button type="button" className={btn}
+                disabled={busy || !form.title?.trim() || !form.submissionDeadline || (addingClient && !form.newClient?.trim())}
                 onClick={saveForm}>{tr.save}</button>
             </div>
           </div>

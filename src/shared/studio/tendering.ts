@@ -28,6 +28,18 @@ type Strings = CommonStrings & {
   estimatedValue: string;
   assignedTo: string;
   unassigned: string;
+  // The customer, the source list and the owner — the dialog's three pickers.
+  customer: string;
+  noCustomer: string;
+  newCustomer: string;
+  newCustomerName: string;
+  customerHint: string;
+  sourceHint: string;
+  noSource: string;
+  ownerHint: string;
+  refuseClient: string;
+  refuseClientCreate: string;
+  refuseAssignee: string;
 
   // The register's own numbers.
   closingSoon: string;
@@ -207,13 +219,24 @@ const en: Strings = {
 
   tenderTitle: "Title",
   issuer: "Issuing body",
-  issuerHint: "As it appears on the notice. Link it to a customer only if you already work for them.",
+  issuerHint: "As it appears on the notice.",
   source: "Source",
   issueDate: "Issued",
   deadline: "Submission deadline",
   estimatedValue: "Estimated value",
   assignedTo: "Owner",
   unassigned: "Unassigned",
+  customer: "Customer",
+  noCustomer: "Not a customer yet",
+  newCustomer: "+ Add as a new customer",
+  newCustomerName: "New customer's name",
+  customerHint: "Pick them if you already work for them, or add the issuing body as a new customer.",
+  sourceHint: "Your studio's list. Add to it in Settings → Master data → Categories.",
+  noSource: "Not recorded",
+  ownerHint: "Who chases this deadline.",
+  refuseClient: "That customer no longer exists. Pick another, or add them as new.",
+  refuseClientCreate: "You cannot add customers. Pick an existing one, or ask somebody who manages customers.",
+  refuseAssignee: "That person is no longer in the studio. Pick somebody else.",
 
   closingSoon: "Closing soon",
   nOpenTenders: (n) => (n === 1 ? "1 open tender" : `${n} open tenders`),
@@ -391,13 +414,24 @@ const ar: Strings = {
 
   tenderTitle: "العنوان",
   issuer: "الجهة الطارحة",
-  issuerHint: "كما وردت في الإعلان. اربطها بعميل فقط إن كنت تعمل معه بالفعل.",
+  issuerHint: "كما وردت في الإعلان.",
   source: "المصدر",
   issueDate: "تاريخ الطرح",
   deadline: "آخر موعد للتقديم",
   estimatedValue: "القيمة التقديرية",
   assignedTo: "المسؤول",
   unassigned: "غير مسند",
+  customer: "العميل",
+  noCustomer: "ليس عميلا بعد",
+  newCustomer: "+ إضافة كعميل جديد",
+  newCustomerName: "اسم العميل الجديد",
+  customerHint: "اختاروه إن كنتم تعملون معه، أو أضيفوا الجهة الطارحة كعميل جديد.",
+  sourceHint: "قائمة مساحة العمل. أضيفوا إليها من الإعدادات ← البيانات الرئيسية ← التصنيفات.",
+  noSource: "غير مسجل",
+  ownerHint: "من يتابع هذا الموعد.",
+  refuseClient: "هذا العميل لم يعد موجودا. اختاروا غيره، أو أضيفوه كعميل جديد.",
+  refuseClientCreate: "لا يمكنكم إضافة عملاء. اختاروا عميلا موجودا، أو اطلبوا ذلك ممن يدير العملاء.",
+  refuseAssignee: "هذا الشخص لم يعد في مساحة العمل. اختاروا غيره.",
 
   closingSoon: "تغلق قريبا",
   nOpenTenders: (n) => (n === 1 ? "مناقصة مفتوحة واحدة" : `${n} مناقصة مفتوحة`),

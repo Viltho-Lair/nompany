@@ -4,7 +4,7 @@ import { defaultLocale, type Locale } from "../locale";
 // each surface keeps its own dictionary and why nothing may enumerate them.
 //
 // THE AXIS KEYS ARE TRANSLATED AND THE VALUES ARE NOT. An axis is the product's
-// — there are exactly six and they never change — so it has a name in both
+// — there are exactly seven and they never change — so it has a name in both
 // languages. A value is either something the product shipped or something the
 // studio TYPED, and neither is translated: the same rule that leaves client
 // names, section names and units alone.
@@ -12,10 +12,10 @@ import { defaultLocale, type Locale } from "../locale";
 type Strings = {
   tab: string;
   lead: string;
-  /** The six axes. Keyed by the stored key so a missing one is a compile error. */
+  /** The seven axes. Keyed by the stored key so a missing one is a compile error. */
   axis: Record<
     "clientIndustries" | "expenseCategories" | "paymentMethods"
-    | "leaveTypes" | "locationKinds" | "permitTypes",
+    | "leaveTypes" | "locationKinds" | "permitTypes" | "tenderSources",
     { name: string; used: string }
   >;
   add: string;
@@ -39,6 +39,7 @@ const en: Strings = {
     leaveTypes: { name: "Leave types", used: "On leave requests" },
     locationKinds: { name: "Location kinds", used: "On the places you work from" },
     permitTypes: { name: "Permit types", used: "On permits to work" },
+    tenderSources: { name: "Tender sources", used: "On the tender register" },
   },
   add: "Add",
   // "Add to Client industries", not "New client industries" — every axis
@@ -63,6 +64,7 @@ const ar: Strings = {
     leaveTypes: { name: "أنواع الإجازات", used: "على طلبات الإجازة" },
     locationKinds: { name: "أنواع المواقع", used: "على أماكن العمل" },
     permitTypes: { name: "أنواع التصاريح", used: "على تصاريح العمل" },
+    tenderSources: { name: "مصادر المناقصات", used: "على سجل المناقصات" },
   },
   add: "إضافة",
   addLabel: (axis) => `إضافة إلى ${axis}`,

@@ -79,6 +79,17 @@ export const TAXONOMIES: readonly Axis[] = Object.freeze([
       "Vehicle access", "Other",
     ]),
   },
+  {
+    // THE SEVENTH, AND THE FIRST THAT WAS NEVER A HARD-CODED LIST. A tender's
+    // source was free text, so "Portal", "portal" and "e-portal" were three
+    // sources and nothing could say where the tenders a studio wins come from —
+    // the question a bid register exists to answer. Read by `createTender` and
+    // `editTender`.
+    key: "tenderSources",
+    defaults: Object.freeze([
+      "Public portal", "Direct invitation", "Existing client", "Referral", "Advertisement", "Other",
+    ]),
+  },
 ]);
 
 export const AXIS_KEYS: readonly string[] = Object.freeze(TAXONOMIES.map((a) => a.key));

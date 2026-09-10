@@ -21,6 +21,7 @@ type Strings = CommonStrings & {
   loadingCustomer: string;
   customerNotFound: string;
   customerSince: string;
+  addTender: string;
   clientCode: string;
   wonValue: string;
   contractValue: string;
@@ -241,6 +242,7 @@ const en: Strings = {
   loadingCustomer: "Loading the customer…",
   customerNotFound: "This customer no longer exists.",
   customerSince: "Customer since",
+  addTender: "Add a tender",
   clientCode: "Code",
   wonValue: "Won",
   contractValue: "Under contract",
@@ -450,6 +452,7 @@ const ar: Strings = {
   loadingCustomer: "جار تحميل العميل…",
   customerNotFound: "هذا العميل لم يعد موجودا.",
   customerSince: "عميل منذ",
+  addTender: "إضافة مناقصة",
   clientCode: "الرمز",
   wonValue: "المربوح",
   contractValue: "قيمة العقود",

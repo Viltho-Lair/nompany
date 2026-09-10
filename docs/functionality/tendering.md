@@ -141,6 +141,23 @@ structurally blind to the RSC stream, so this ceiling is checked per request ins
 `src/shared/rscPayload.ts` for the derivation. A studio with a very large register pays the
 old round trip rather than an unbounded response.
 
+## Who it is for, where it came from, and who is chasing it (10/09/2026)
+
+The dialog used to say *"link it to a customer only if you already work for them"* while nothing
+on it could make that link, took the source as free text, and had no owner field. Now:
+
+- **Customer** — pick one the studio already has, or **add the issuing body as a new customer**.
+  Adding answers to `crmSales.clients.create` (Sales' record, not Tendering's) and goes through
+  `resolveClientFor`, which matches by name first, so a body already on file is reused rather
+  than filed twice. A picked id must name a client that exists.
+- **Source** — the studio's own list, `tenderSources`, the seventh classification list under
+  Master data → Categories. The service stores the list's spelling; text that is not on the list
+  (older tenders, API callers) is kept rather than refused, and an old tender's source is offered
+  as itself when it is edited.
+- **Owner** — anybody in the studio, checked against the studio's people, and shown on each row.
+- **From a customer's page** — **Add a tender** opens the register's dialog with that customer
+  chosen, for anybody holding `tendering.tenders.create`.
+
 ## Not built yet
 
 Stated in words, because a silent gap reads as a finished feature. **All five of Tendering's
@@ -167,7 +184,9 @@ otherwise, and a gap list that has not caught up with what shipped is worse than
   themselves arrived with slice 3.)
 - **No bid bond, no tender fee, no earnest money** — the money a tender requires up front is
   not modelled.
-- **The owner is stored and never shown.** `assignedToCollaboratorId` is written by the API and
-  the screen neither displays nor sets it.
+- **Nothing arrives by itself.** A tender is typed in, or started from a customer's page; nothing
+  imports a public e-procurement notice or an emailed invitation to bid.
+- **A tender's source cannot be removed from the shipped list**, and a studio's own addition,
+  removed later, stays on the tenders that name it — the same rule every classification list keeps.
 - **No dashboard.** The four figures on the register are all there is; nothing trends, and
   nothing groups by issuer or by why bids are lost.
