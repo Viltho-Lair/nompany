@@ -1662,8 +1662,15 @@ platform figures. Five rules, each of which cost something to learn:
 
 **Not built:** real product screenshots (the pipeline is `scripts/screenshots.mjs`, and
 Playwright is deliberately not a dependency), and the per-company sentence on
-`/customers` (no field for it). The company description in `shared/marketing/company.ts`
-is still marked a DRAFT awaiting the owner's revision.
+`/customers` (no field for it).
+
+**THE COMPANY DESCRIPTION IS NO LONGER A DRAFT — revised 10/09/2026 on the owner's
+instruction.** This line said it was "still marked a DRAFT awaiting the owner's revision"
+and that had been true since the site was rebuilt. `shared/marketing/company.ts` holds one
+sentence per locale, reused verbatim by the About page, the site FOOTER, the `Organization`
+schema and OpenGraph — so it is on every marketing page rather than on one. It names no
+count deliberately: "fourteen departments" would have gone stale the first time a section
+was added or folded, which has happened twice in a fortnight.
 
 ---
 

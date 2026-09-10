@@ -288,9 +288,11 @@ for (const [f, v] of Object.entries(arHero)) {
 ok("an unknown locale falls back to English",
   H.heroCopy("fr").h1 === H.heroCopy("en").h1);
 
-// THE LOCATION GUARD, OVER COPY THAT ACTUALLY RENDERS. The company-description
-// version of this check below runs against company.ts, which nothing on the
-// site imports — hero.ts is what a visitor reads. The company is not Saudi,
+// THE LOCATION GUARD, OVER COPY THAT ACTUALLY RENDERS. This said the
+// company-description check below "runs against company.ts, which nothing on the
+// site imports" — that stopped being true: the About page and the site FOOTER
+// both render `companyCopy(locale).description`, so it is on every marketing
+// page in the product. Both guards cover copy a visitor reads. The company is not Saudi,
 // is not based anywhere yet, and ZATCA is out of scope (spec §12.1), so this
 // has to hold on every string heroCopy returns, in both languages.
 const LOCATION_PATTERN = /Riyadh|السعودية|Saudi|ZATCA|KSA/i;
