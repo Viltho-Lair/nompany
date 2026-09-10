@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import WorldMap from "./WorldMap";
 import { Panel, Ticker, Sparkline, BarRow, Donut, HeatGrid, SignupChart, fmt } from "./parts";
 import { heatLevel } from "@/lib/data/pulse";
+import { present } from "../../_components/Present";
 
 // THE PULSE WALL — a screen meant to be left on a screen.
 //
@@ -66,7 +67,6 @@ export default function PulseWall({ initial, initialLive }) {
   const [range, setRange] = useState(initial?.range || "30d");
   const [source, setSource] = useState(initial?.source || "all");
   const [mode, setMode] = useState("dots");
-  const [clock, setClock] = useState("");
   const [ripples, setRipples] = useState([]);
   const [reduced, setReduced] = useState(false);
   const seen = useRef(new Set((initialLive?.arrivals || []).map((a) => `${a.kind}:${a.at}`)));
@@ -79,16 +79,6 @@ export default function PulseWall({ initial, initialLive }) {
     sync();
     mq.addEventListener("change", sync);
     return () => mq.removeEventListener("change", sync);
-  }, []);
-
-  // ---- the clock -----------------------------------------------------------
-  // Rendered on the CLIENT only, after mount. A server-rendered clock is wrong
-  // by the time it arrives and mismatches on hydration.
-  useEffect(() => {
-    const tick = () => setClock(new Date().toLocaleTimeString("en-GB", { hour12: false }));
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
   }, []);
 
   // ---- polling -------------------------------------------------------------
@@ -151,17 +141,8 @@ export default function PulseWall({ initial, initialLive }) {
   }, []);
 
   // ---- present -------------------------------------------------------------
-  const present = useCallback(async () => {
-    try {
-      if (document.fullscreenElement) await document.exitFullscreen();
-      else await document.documentElement.requestFullscreen({ navigationUI: "hide" });
-    } catch { /* refused without a gesture, or unsupported — the wall is unharmed */ }
-    // A wall's whole job is to stay lit. Best-effort: the lock is refused when
-    // the tab is not visible, and dropped whenever it is hidden, which is fine —
-    // nobody is watching a hidden wall.
-    try { await navigator.wakeLock?.request("screen"); } catch {}
-  }, []);
-
+  // The button and the clock live in the console header now
+  // (_components/Present); the wall keeps the `F` key, calling the same function.
   useEffect(() => {
     const onKey = (e) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
@@ -180,11 +161,11 @@ export default function PulseWall({ initial, initialLive }) {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [present]);
+  }, []);
 
   // ---- derived -------------------------------------------------------------
   // Memoised because it feeds two useMemos below: a fresh [] on every render
-  // would recompute the grid and the peak on every tick of the clock.
+  // would recompute the grid and the peak on every render, live polls included.
   const continents = useMemo(() => data?.continents || [], [data]);
   const peak = useMemo(() => continents.reduce((m, c) => Math.max(m, c.visits), 0), [continents]);
   const rangeLabel = RANGES.find((r) => r.key === range)?.label || range;
@@ -266,10 +247,6 @@ export default function PulseWall({ initial, initialLive }) {
               </button>
             ))}
           </div>
-          <span className="num text-sm" style={{ color: "var(--ad-muted-foreground)" }}>{clock}</span>
-          <button type="button" onClick={present} className={`${chip} border`} style={{ borderColor: "var(--ad-border)" }}>
-            ⛶ Present
-          </button>
         </div>
       </header>
 

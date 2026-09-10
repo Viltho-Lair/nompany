@@ -5,7 +5,6 @@ import ProfilePanel from "./ProfilePanel";
 import MfaCard from "./MfaCard";
 import SessionsCard from "./SessionsCard";
 import NotificationsPanel from "./NotificationsPanel";
-import DangerPanel from "./DangerPanel";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Settings" };
@@ -20,8 +19,14 @@ export const metadata = { title: "Settings" };
    Application, three menu rows away from the tab claiming to hold it.
 
    The owner asked for one page with real tabs, and this is it: Security and
-   Notifications are folded in, Danger zone gets the tab it was named in, and
-   the strip navigates.
+   Notifications are folded in, and the strip navigates.
+
+   THE DANGER ZONE IS DELETED — the owner's instruction, 10/09/2026. It got a
+   tab of its own in the first version of this page, and its three buttons —
+   transfer ownership, export everything, delete the account — had never been
+   wired to anything. A control that does nothing is a promise the product
+   does not keep; the API keys card and the notification Preferences panel went
+   on the same rule. A stale `?tab=danger` link lands on Profile, below.
 
    THE TAB IS IN THE URL, not in state, and that is what keeps every panel a
    SERVER component. Profile reads the admin record and the super-admin list;
@@ -39,7 +44,6 @@ const TABS = [
   { key: "profile", label: "Profile" },
   { key: "security", label: "Security" },
   { key: "notifications", label: "Notifications" },
-  { key: "danger", label: "Danger zone" },
 ];
 
 export default async function SettingsPage({ searchParams }) {
@@ -96,7 +100,6 @@ export default async function SettingsPage({ searchParams }) {
       )}
 
       {tab === "notifications" && <NotificationsPanel />}
-      {tab === "danger" && <DangerPanel />}
     </div>
   );
 }

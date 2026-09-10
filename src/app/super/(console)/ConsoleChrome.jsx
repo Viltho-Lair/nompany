@@ -7,6 +7,7 @@ import Icon from "../_components/Icon";
 import { Menu, menuItem } from "../_components/Menu";
 import { BASE, CONSOLE_BAR, CONSOLE_MENU, FULL_BLEED } from "../_components/nav";
 import ConsoleActions from "../_components/ConsoleActions";
+import { ConsoleClock, PresentButton } from "../_components/Present";
 
 /* THE CONSOLE'S CHROME — one long header and one bar, identical on every screen.
    ------------------------------------------------------------------
@@ -72,6 +73,9 @@ export default function ConsoleChrome({ admin, children }) {
         </Link>
 
         <div className="ms-auto flex items-center gap-2">
+          {/* THE CLOCK AND PRESENT CAME UP FROM THE WALL — see _components/Present. */}
+          <ConsoleClock />
+          <PresentButton />
           <Menu
             label="More"
             width={240}
