@@ -51,7 +51,7 @@ const en: HomeStrings = {
   departmentsCta: "See what each one does",
   pricingTitle: "Free until you are ten people",
   pricingLead:
-    "The whole product, every department, for teams of one to nine. Paid plans start at ten, priced per employee per month with VAT included. No card to begin, and no call to sit through.",
+    "The whole product, every department, for teams of one to nine. Paid plans start at ten, priced per employee per month. No card to begin, and no call to sit through.",
   pricingCta: "See pricing",
   closingTitle: "Start with your next quotation",
   closingLead:
@@ -74,7 +74,7 @@ const ar: HomeStrings = {
   departmentsCta: "اطلع على ما يفعله كل قسم",
   pricingTitle: "مجاني حتى تصبحوا عشرة",
   pricingLead:
-    "المنتج كاملا، بكل أقسامه، للفرق من واحد إلى تسعة. والخطط المدفوعة تبدأ من عشرة، بسعر لكل موظف شهريا شامل ضريبة القيمة المضافة. بلا بطاقة للبدء، وبلا مكالمة تجلس فيها.",
+    "المنتج كاملا، بكل أقسامه، للفرق من واحد إلى تسعة. والخطط المدفوعة تبدأ من عشرة، بسعر لكل موظف شهريا. بلا بطاقة للبدء، وبلا مكالمة تجلس فيها.",
   pricingCta: "اطلع على الأسعار",
   closingTitle: "ابدأ بعرض سعرك القادم",
   closingLead:

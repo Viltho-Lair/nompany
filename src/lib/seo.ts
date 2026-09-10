@@ -57,12 +57,12 @@ export const PAGES: Record<string, Record<string, PageCopy> | undefined> = {
     en: {
       title: "Pricing — free for teams of one to nine",
       description:
-        "One price per employee per month, VAT included. Free for teams of one to nine; paid plans from ten people up. Every plan carries the whole product.",
+        "One price per employee per month. Free for teams of one to nine; paid plans from ten people up. Every plan carries the whole product.",
     },
     ar: {
       title: "الأسعار — مجاني للفرق من واحد إلى تسعة",
       description:
-        "سعر واحد لكل موظف شهريا، شامل ضريبة القيمة المضافة. مجاني للفرق من واحد إلى تسعة، وخطط مدفوعة من عشرة أفراد فأكثر. كل خطة تحمل المنتج كاملا.",
+        "سعر واحد لكل موظف شهريا. مجاني للفرق من واحد إلى تسعة، وخطط مدفوعة من عشرة أفراد فأكثر. كل خطة تحمل المنتج كاملا.",
     },
   },
   "/security": {
@@ -341,7 +341,15 @@ export function softwareApplicationLd(
                 priceCurrency: base,
                 minPrice: Math.min(...(prices as number[])),
                 maxPrice: Math.max(...(prices as number[])),
-                valueAddedTaxIncluded: true,
+                // NO `valueAddedTaxIncluded` HERE, and its absence is deliberate.
+                // It asserted `true` to every crawler, machine-readable, for a
+                // company that is not incorporated anywhere and therefore
+                // includes nobody's VAT. Same class of claim as the
+                // `addressLocality: "Riyadh"` this file used to carry: a country's
+                // tax posture stated as fact in the one format built to be
+                // believed without reading. Omitted rather than set false --
+                // false is also a claim, and the honest answer is that there is
+                // no tax position to state yet.
               },
             }
           : {}),
