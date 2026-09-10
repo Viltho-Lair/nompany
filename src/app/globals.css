@@ -1366,3 +1366,16 @@ html.dark { color-scheme: dark; }
      reads as a date/time field. */
   [data-field-empty] input::-webkit-datetime-edit { opacity: 0; }
 }
+
+/* A NUMBER FIELD WITHOUT ITS ARROWS (Field's `spinner={false}`). An amount is
+   typed, not stepped one unit at a time, and the arrows sat where a currency
+   suffix goes. Still type=number, so the browser still refuses letters. */
+.no-spin::-webkit-outer-spin-button,
+.no-spin::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.no-spin {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}

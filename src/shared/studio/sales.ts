@@ -226,8 +226,6 @@ type Strings = CommonStrings & {
   locationHeading: string;
   servicesHeading: string;
   noServicesForTicket: string;
-  withoutInstallation: string;
-  withoutProgramming: string;
   saveTicket: string;
 
   vocabularyTitle: string;
@@ -442,8 +440,6 @@ const en: Strings = {
   servicesHeading: "Type of services *",
   noServicesForTicket:
     "No service actions yet. Add them in Studio Settings → Service Actions before raising a ticket.",
-  withoutInstallation: "Without installation",
-  withoutProgramming: "Without programming",
   saveTicket: "Save ticket",
 
   vocabularyTitle: "Vocabulary",
@@ -674,8 +670,6 @@ const ar: Strings = {
   servicesHeading: "نوع الخدمات *",
   noServicesForTicket:
     "لا توجد إجراءات خدمة بعد. أضفها من إعدادات الاستوديو ← إجراءات الخدمة قبل رفع تذكرة.",
-  withoutInstallation: "بدون تركيب",
-  withoutProgramming: "بدون برمجة",
   saveTicket: "حفظ التذكرة",
 
   vocabularyTitle: "المفردات",

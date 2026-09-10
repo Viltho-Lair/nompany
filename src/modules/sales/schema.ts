@@ -85,20 +85,6 @@ export const ClientSchema = z.object({
   createdAt: z.string(),
 });
 
-/**
- * Per service, what the client opted out of. `serviceIds` on the ticket below
- * no longer names a row in a Sales-owned catalogue — that catalogue is gone,
- * and the ticket now stores the studio's own Service Action NAMES (Studio
- * Settings → Service Actions) directly, the same field Inventory and
- * Projects already read. `ServiceRequirementSchema` is keyed by whichever
- * string is in `serviceIds`, so it needed no shape change when the values
- * moved from an id to a name.
- */
-export const ServiceRequirementSchema = z.object({
-  withoutInstallation: z.boolean(),
-  withoutProgramming: z.boolean(),
-});
-
 /** One stage a deal has been in, and who put it there. */
 export const StageEntrySchema = z.object({
   status: z.string(),
@@ -137,7 +123,6 @@ export const SalesTicketSchema = z.object({
   industry: z.string().max(80),
   deadline: z.string().max(10),
   serviceIds: z.array(z.string()),
-  serviceRequirements: z.record(z.string(), ServiceRequirementSchema),
   /** null is "they did not say", which is different from zero. */
   clientBudget: z.number().nullable(),
   /** Sales' own read on how likely this is to close — a number, not a mood. */
@@ -172,5 +157,4 @@ export const SalesTicketSchema = z.object({
 export type Contact = z.infer<typeof ContactSchema>;
 export type Site = z.infer<typeof SiteSchema>;
 export type Client = z.infer<typeof ClientSchema>;
-export type ServiceRequirement = z.infer<typeof ServiceRequirementSchema>;
 export type SalesTicket = z.infer<typeof SalesTicketSchema>;

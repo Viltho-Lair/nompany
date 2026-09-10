@@ -64,9 +64,6 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
     studio: { name: main.studio.name, slug: main.studio.slug },
     me: { alias: main.collaborator.alias || "", collaboratorId: main.collaborator.id },
     nav: main.nav,
-    // Which sections this person can reach, so the home page can offer a way in
-    // to each rather than guessing.
-    sections: main.visible.map((s) => ({ key: s.key, name: s.name, parentId: s.parentId || null })),
     headlines: figures,
     recent: feed,
     executive: { widgets, locked },

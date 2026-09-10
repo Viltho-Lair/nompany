@@ -991,15 +991,6 @@ export async function createTicket(ctx: SalesContext, body: Record<string, unkno
   // cleanServiceIds. Unknown names are dropped rather than trusted, so a
   // stale client can't attach an action this studio doesn't have.
   const serviceIds = cleanServiceIds(body?.serviceIds, studio);
-  // Per service the client may opt out of Installation and/or Programming.
-  const rawSR = (body?.serviceRequirements && typeof body.serviceRequirements === "object"
-    ? body.serviceRequirements
-    : {}) as Record<string, { withoutInstallation?: unknown; withoutProgramming?: unknown } | undefined>;
-  const serviceRequirements: Record<string, unknown> = {};
-  for (const id of serviceIds) {
-    const e = rawSR[id] || {};
-    serviceRequirements[id] = { withoutInstallation: !!e.withoutInstallation, withoutProgramming: !!e.withoutProgramming };
-  }
 
   if (!title) return { error: "title" };
   if (!clientName && !clientId) return { error: "client" };
@@ -1043,7 +1034,6 @@ export async function createTicket(ctx: SalesContext, body: Record<string, unkno
     industry,
     deadline,
     serviceIds,
-    serviceRequirements,
     clientBudget,
     // Sales' own read on how likely this is to close. Drives the weighted
     // forecast on the dashboard, so it is a number, not a mood.
@@ -1141,13 +1131,6 @@ export async function editTicket(ctx: SalesContext, id: string, body: Record<str
     const serviceIds = cleanServiceIds(body.serviceIds, studio);
     if (serviceIds.length === 0) return { error: "services" };
     patch.serviceIds = serviceIds;
-    const rawSR = (body?.serviceRequirements && typeof body.serviceRequirements === "object"
-      ? body.serviceRequirements
-      : {}) as Record<string, { withoutInstallation?: unknown; withoutProgramming?: unknown } | undefined>;
-    patch.serviceRequirements = Object.fromEntries(serviceIds.map((sid) => {
-      const e = rawSR[sid] || {};
-      return [sid, { withoutInstallation: !!e.withoutInstallation, withoutProgramming: !!e.withoutProgramming }];
-    }));
   }
   if (body?.value !== undefined) patch.value = Number(body.value) > 0 ? Number(body.value) : 0;
   // Ownership is not editable: it means "who raised this", which cannot change

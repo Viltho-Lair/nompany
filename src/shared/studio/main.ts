@@ -12,7 +12,6 @@ type Strings = CommonStrings & {
   nothingShared: string;
   recentActivity: string;
   nothingMoved: string;
-  yourSections: string;
   // The feed's record kinds. Fixed by the code, not typed by a tenant.
   feedTicket: string;
   feedQuotation: string;
@@ -58,7 +57,6 @@ const en: Strings = {
   nothingShared: "Nothing has been shared with you yet. An admin can grant you sections from Access.",
   recentActivity: "Recent activity",
   nothingMoved: "Nothing has moved yet.",
-  yourSections: "Your sections",
   feedTicket: "Ticket",
   feedQuotation: "Quotation",
   feedProject: "Project",
@@ -101,7 +99,6 @@ const ar: Strings = {
   nothingShared: "لم تتم مشاركة أي شيء معك بعد. يمكن لمسؤول منحك الأقسام من شاشة الصلاحيات.",
   recentActivity: "النشاط الأخير",
   nothingMoved: "لم يتحرك شيء بعد.",
-  yourSections: "أقسامك",
   feedTicket: "تذكرة",
   feedQuotation: "عرض سعر",
   feedProject: "مشروع",

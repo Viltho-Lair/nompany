@@ -84,6 +84,8 @@ export function Field({
   disabled = false,
   readOnly = false,   // a stamped, non-editable value shown in the field's box
   prefix,             // e.g. a currency glyph, rendered at the inline-start
+  suffix,             // the same at the inline-END — clear of the floating label
+  spinner = true,     // false hides a number input's up/down arrows
   filled: filledProp, // for wrapped children (Combo/date): does it have a value?
   children,           // a control to wrap (Combo, StudioDate); label floats over it
   min,
@@ -190,7 +192,7 @@ export function Field({
       <input
         id={id}
         type={type}
-        className={`${CONTROL} ${prefix ? "ps-9" : ""}`}
+        className={`${CONTROL} ${prefix ? "ps-9" : ""} ${suffix ? "pe-14" : ""} ${type === "number" && !spinner ? "no-spin" : ""}`}
         value={value ?? ""}
         onChange={(e) => onChange?.(e.target.value)}
         onFocus={() => setFocused(true)}
@@ -227,6 +229,14 @@ export function Field({
         {prefix && (
           <span className="pointer-events-none absolute inset-y-0 start-3 z-10 flex items-center pt-3 text-sm text-slate-400">
             {prefix}
+          </span>
+        )}
+        {/* A SUFFIX SITS AT THE INLINE END, where the label never goes. A prefix
+            shares the start with the resting label and overprints it — the
+            owner's Client budget screenshot, "JOD" under "Client budget". */}
+        {suffix && (
+          <span className="pointer-events-none absolute inset-y-0 end-3 z-10 flex items-center pt-3 text-sm text-slate-400">
+            {suffix}
           </span>
         )}
         <label htmlFor={wrapping ? undefined : id} className={labelClass(floated, focused, error)}>

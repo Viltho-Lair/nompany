@@ -921,9 +921,7 @@ export function TicketForm({ row, clients, vocabulary, cities = [], positions = 
   // because the wire shape did not change; only where the values come from did.
   const serviceActions = Array.isArray(vocabulary?.serviceActions) ? vocabulary.serviceActions : [];
   const [serviceIds, setServiceIds] = useState(row?.serviceIds || []);
-  const [reqs, setReqs] = useState(row?.serviceRequirements || {});
   const toggleService = (id) => setServiceIds((v) => v.includes(id) ? v.filter((x) => x !== id) : [...v, id]);
-  const setReq = (id, field) => setReqs((r) => ({ ...r, [id]: { ...(r[id] || {}), [field]: !(r[id] || {})[field] } }));
   const [busy, setBusy] = useState(false);
   const set = (k) => (e) => setF((s) => ({ ...s, [k]: e.target.value }));
   const ready = f.title.trim() && f.clientName.trim() && f.deadline && f.industry.trim() && serviceIds.length > 0;
@@ -979,10 +977,12 @@ export function TicketForm({ row, clients, vocabulary, cities = [], positions = 
             options={vocabulary.industries || []} inputClassName={BARE_CONTROL} />
         </Field>
 
-        {/* The studio's currency sits IN the field, so the number is read together
-            with what it is in. Value Quoted is derived, hence only a hint here. */}
+        {/* The studio's currency sits IN the field, at the END, so the number is
+            read together with what it is in and never under the label. No
+            arrows: an amount is typed. Value Quoted is derived, hence a hint. */}
         <Field label={tr.clientBudget} type="number" min="0" value={f.clientBudget} onChange={(v) => setF((p) => ({ ...p, clientBudget: v }))}
-          prefix={studioDefaults.currency ? <CurrencySymbol code={studioDefaults.currency} /> : null}
+          suffix={studioDefaults.currency ? <CurrencySymbol code={studioDefaults.currency} /> : null}
+          spinner={false} inputProps={{ inputMode: "decimal" }}
           hint={<>{tr.valueQuotedHintBefore}<span className="font-600">{tr.valueQuotedHintTerm}</span>{tr.valueQuotedHintAfter}</>} />
 
         {/* A ROW OF THEIR OWN, not two loose cells. Left to flow, Status landed
@@ -1025,18 +1025,6 @@ export function TicketForm({ row, clients, vocabulary, cities = [], positions = 
                   <input type="checkbox" className="h-4 w-4 accent-brand-600" checked={on} onChange={() => toggleService(action)} />
                   <span className="font-600 text-slate-900 dark:text-white">{action}</span>
                 </label>
-                {on && (
-                  <div className="mt-2 flex flex-wrap gap-4 ps-7 text-xs text-slate-600 dark:text-slate-300">
-                    <label className="flex items-center gap-2">
-                      <input type="checkbox" className="h-3.5 w-3.5 accent-brand-600" checked={!!(reqs[action] || {}).withoutInstallation} onChange={() => setReq(action, "withoutInstallation")} />
-                      {tr.withoutInstallation}
-                    </label>
-                    <label className="flex items-center gap-2">
-                      <input type="checkbox" className="h-3.5 w-3.5 accent-brand-600" checked={!!(reqs[action] || {}).withoutProgramming} onChange={() => setReq(action, "withoutProgramming")} />
-                      {tr.withoutProgramming}
-                    </label>
-                  </div>
-                )}
               </div>
             );
           })}
@@ -1054,7 +1042,7 @@ export function TicketForm({ row, clients, vocabulary, cities = [], positions = 
             contactPhone: f.contactPhone, contactPosition: f.contactPosition,
             location: { name: f.locationName, country: f.locationCountry, city: f.locationCity, url: f.locationUrl },
             deadline: f.deadline, industry: f.industry,
-            serviceIds, serviceRequirements: reqs,
+            serviceIds,
             clientBudget: f.clientBudget === "" ? null : f.clientBudget,
             description: f.description,
             probability: f.probability,

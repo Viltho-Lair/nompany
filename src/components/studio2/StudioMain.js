@@ -6,7 +6,6 @@ import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { Icon } from "@/components/studio2/icons";
 import { panel, h2, sub, microLabel, money, fmtDate, StatTile } from "@/components/studio2/ui";
 import { mainDict } from "@/shared/studio/main";
-import { sectionName } from "@/shared/studio/sections";
 import { useStudioLocale as useLocale } from "@/components/studio2/locale";
 import { useReload } from "@/components/studio2/useReload";
 import nextDynamic from "next/dynamic";
@@ -51,7 +50,7 @@ export default function StudioMain({ slug }) {
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <ScreenSkeleton loadingLabel={tr.loading} />;
 
-  const { studio, me, headlines, recent, sections, nav, executive } = data;
+  const { studio, me, headlines, recent, nav, executive } = data;
   const href = (key) => (nav?.[key] ? `/${slug}/${key}` : "");
 
   // Only the figures this person is entitled to. `null` means the section was
@@ -69,7 +68,6 @@ export default function StudioMain({ slug }) {
 
   // The top-level sections, as a way in. Sub-sections are reached from their
   // parent, so listing them here would just be the sidebar twice.
-  const entrances = sections.filter((s) => !s.parentId && s.key !== "main");
 
   return (
     <div className="space-y-6">
@@ -97,8 +95,10 @@ export default function StudioMain({ slug }) {
         )}
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <section className={`${panel} lg:col-span-2`}>
+      {/* "YOUR SECTIONS" IS GONE — the owner's instruction, 10/09/2026: a list of
+          links to the departments the sidebar already lists, beside it, said
+          nothing the sidebar did not. The activity feed takes the whole row. */}
+      <section className={panel}>
           <p className={microLabel}>{tr.recentActivity}</p>
           {recent.length === 0 ? (
             <p className="mt-2 text-sm text-slate-400">{tr.nothingMoved}</p>
@@ -122,25 +122,6 @@ export default function StudioMain({ slug }) {
           )}
         </section>
 
-        <section className={panel}>
-          <p className={microLabel}>{tr.yourSections}</p>
-          {entrances.length === 0 ? (
-            <p className="mt-2 text-sm text-slate-400">{tr.noneYet}</p>
-          ) : (
-            <div className="mt-2 space-y-1">
-              {entrances.map((s) => (
-                <a key={s.key} href={`/${slug}/${s.key}`}
-                  className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-500 text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white">
-                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-brand-500/10 text-brand-600 dark:bg-brand-500/15 dark:text-brand-300">
-                    <Icon name="chevronRight" className="h-4 w-4 rtl:-scale-x-100" />
-                  </span>
-                  {sectionName(s.key, s.name, locale)}
-                </a>
-              ))}
-            </div>
-          )}
-        </section>
-      </div>
 
       {executive && <MainDashboard slug={slug} executive={executive} />}
     </div>
