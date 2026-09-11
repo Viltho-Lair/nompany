@@ -18,6 +18,7 @@ import { getExchangeSnapshot } from "@/lib/data/exchangeRates";
 import { repo } from "@/platform/db/repo";
 import { nextReference } from "@/modules/main/references";
 import { invoiceTotals, cleanLines, str, day, cash } from "./finance";
+import { documentVatRate } from "@/shared/vat";
 import type { Bill, FinanceContext } from "./types";
 import { paymentHold, releaseProblem, payProblem, type PaymentHold } from "./hold";
 import { threeWayMatch } from "@/modules/procurement/receivingModel";
@@ -239,7 +240,10 @@ export async function createBill(ctx: FinanceContext, body: Record<string, unkno
 
   const bills = await Bills.find({ studio, section: payablesSection });
   const billDate = day(body?.billDate) || new Date().toISOString().slice(0, 10);
-  const vatRate = body?.vatRate === undefined ? 15 : Math.max(0, Math.min(100, Number(body.vatRate) || 0));
+  // THE STUDIO'S RATE, NOT 15. A bill defaulted to Saudi Arabia's rate here and
+  // in the form long after invoices and quotations stopped, so a studio in Amman
+  // reclaimed input tax it had never paid unless somebody retyped it.
+  const vatRate = documentVatRate(studio, body?.vatRate);
   const currency = str(body?.currency, 8) || str(studio.currency, 8);
   // RESOLVED BEFORE THE ROW EXISTS, from the same three fields billTotals reads,
   // so the stored bill carries its plan without a second write. A bill whose
@@ -319,7 +323,7 @@ export async function editBill(ctx: FinanceContext, id: string, body: Record<str
   const patch: Record<string, unknown> = {};
   if (body?.vendorName !== undefined) { const v = str(body.vendorName, 160); if (!v) return { error: "vendor" }; patch.vendorName = v; }
   if (body?.lines !== undefined) { const l = cleanLines(body.lines); if (!l.length) return { error: "lines" }; patch.lines = l; }
-  if (body?.vatRate !== undefined) patch.vatRate = Math.max(0, Math.min(100, Number(body.vatRate) || 0));
+  if (body?.vatRate !== undefined) patch.vatRate = documentVatRate(studio, body.vatRate, current.vatRate);
   // EDITABLE WHILE THE BILL IS OPEN. A currency typed wrong at entry is exactly
   // the kind of thing corrected before anybody approves it, and the approval
   // engine re-derives its plan from whatever it now says.

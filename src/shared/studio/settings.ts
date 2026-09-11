@@ -38,6 +38,10 @@ type Strings = {
   currency: string;
   currencyUnset: string;
   currencyNone: string;
+  vatRate: string;
+  vatRateUnset: string;
+  vatRateSet: string;
+  vatRateInvalid: string;
   language: string;
   languageHint: string;
   workingHours: string;
@@ -249,6 +253,10 @@ const en: Strings = {
   currency: "Currency",
   currencyUnset: "Not set — amounts show without one.",
   currencyNone: "— not set —",
+  vatRate: "VAT rate",
+  vatRateUnset: "Not registered — no document carries VAT and there is no tax return.",
+  vatRateSet: "New quotations, orders, invoices and bills start at this rate. Each can still be changed — to 0 for a zero-rated sale, for example.",
+  vatRateInvalid: "Enter a percentage between 0 and 100, or leave it empty.",
   language: "Language",
   // WHAT THIS ROW MEANS CHANGED, so its hint had to. It used to read "Everyone
   // in this studio reads it in this language", which stopped being true the day
@@ -469,6 +477,10 @@ const ar: Strings = {
   currency: "العملة",
   currencyUnset: "غير محددة — تظهر المبالغ بدونها.",
   currencyNone: "— غير محددة —",
+  vatRate: "نسبة ضريبة القيمة المضافة",
+  vatRateUnset: "غير مسجلة — لا يحمل اي مستند ضريبة ولا يوجد اقرار ضريبي.",
+  vatRateSet: "تبدأ عروض الاسعار والطلبات والفواتير الجديدة بهذه النسبة، ويمكن تغييرها في كل مستند — الى صفر للبيع الخاضع لنسبة الصفر مثلا.",
+  vatRateInvalid: "ادخل نسبة بين 0 و100، او اتركها فارغة.",
   language: "اللغة",
   languageHint: "لغة الاستوديو الافتراضية. ويمكن لكل شخص اختيار لغته من الشريط العلوي.",
   workingHours: "ساعات العمل",

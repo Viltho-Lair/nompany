@@ -7,6 +7,7 @@ import {
   BILL_STATUSES, BILL_TERMS,
 } from "@/modules/finance/payables";
 import { referencePickers } from "@/modules/procurement/pickers";
+import { studioVatRate } from "@/shared/vat";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -50,6 +51,10 @@ export const GET = route(
         billTerms: BILL_TERMS,
         // WHAT THIS STUDIO ADMITS, not what the product ships.
         paymentMethods: valuesFor("paymentMethods", fin.studio.taxonomies),
+        // What a new bill starts at, and whether it carries VAT at all — the
+        // form defaulted to 15 when this was missing, which it always was.
+        defaultVatRate: studioVatRate(fin.studio) ?? 0,
+        vatEnabled: studioVatRate(fin.studio) !== null,
       },
     };
   },

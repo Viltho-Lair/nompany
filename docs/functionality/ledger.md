@@ -201,8 +201,10 @@ Stated in words, because a silent gap reads as a finished feature.
   account or entry records.
 - **Credit notes post and have no screen.** `postCreditNote` reverses the invoice's
   revenue and VAT proportionally; nothing on screen raises one.
-- **No tax codes and no VAT return.** VAT is one rate per document, all on one account;
-  withholding exists on invoices (`withholding.md`), not on bills.
+- **No tax codes.** VAT is one studio rate that each document may change (`vat.md`), and
+  input and output tax still post to one account (2100) — which is why the Tax return tab
+  reads the documents rather than the journal. Withholding exists on invoices
+  (`withholding.md`), not on bills.
 - **One bank account.** Reconciliation, post-dated cheques, guarantees and the cash
   forecast have their own files (`reconciliation.md`, `treasury.md`) and all read `1010`.
 - **Seeding the chart is not safe under concurrency.** `ledgerAccounts` creates the

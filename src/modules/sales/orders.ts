@@ -18,6 +18,7 @@ import { attachRecord, contributeContext, resolveDealId } from "@/platform/db/en
 import { stageOf } from "@/platform/engagement/registry";
 import { nextReference } from "@/modules/main/references";
 import { computeTotals } from "@/modules/technical/technical";
+import { documentVatRate } from "@/shared/vat";
 import { orderProblem, orderDeletable, orderLinesEditable } from "./orderStatus";
 import type { SalesOrder, OrderLine } from "./orderSchema";
 import type { SalesContext, Client } from "./types";
@@ -138,7 +139,7 @@ export async function createOrder(ctx: SalesContext, body: Record<string, unknow
 
   const resolved = await resolveDealId(studio.id, dealId);
   const lines = cleanLines(body?.lines);
-  const vatRate = num(body?.vatRate);
+  const vatRate = documentVatRate(studio, body?.vatRate);
   const totals = computeTotals(lines, vatRate);
   const rows = await Orders.find({ studio, section: quotationsSection });
   const at = new Date().toISOString();
@@ -208,7 +209,9 @@ export async function updateOrder(
   }
 
   const lines = body?.lines !== undefined ? cleanLines(body.lines) : existing.lines;
-  const vatRate = body?.vatRate !== undefined ? num(body.vatRate) : num(existing.vatRate);
+  const vatRate = body?.vatRate !== undefined
+    ? documentVatRate(studio, body.vatRate, existing.vatRate)
+    : num(existing.vatRate);
   const totals = computeTotals(lines, vatRate);
   const at = new Date().toISOString();
 

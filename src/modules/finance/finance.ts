@@ -18,6 +18,7 @@
 import { requirePermission, ALL_PERMISSIONS } from "@/platform/access";
 import { seriesSetting } from "@/modules/administration/numbering";
 import { addDaysISO } from "@/shared/dates";
+import { documentVatRate } from "@/shared/vat";
 import { withholdingProblems, cleanWithholding, withholdingOn, settledWith } from "./withholding";
 import type { WithholdingRule } from "./withholding";
 import { approvalChainsFor } from "@/platform/approval/store";
@@ -66,9 +67,9 @@ export const PAYMENT_METHODS = TAXONOMIES.find((a) => a.key === "paymentMethods"
 // Egypt 14; there is no number that is right for everyone, and a wrong one on a
 // financial document is worse than an empty field somebody has to fill.
 //
-// Nought is not a guess at a rate — it is the absence of one, and the studio
-// supplies it per document. Where a per-studio setting belongs is Finance
-// settings, and that is a feature rather than a constant.
+// Nought is not a guess at a rate — it is the absence of one. THE STUDIO'S RATE
+// IS NOW A SETTING (Studio settings, 11/09/2026 — shared/vat): a document starts
+// at it and may change it, and a studio that set none carries no tax at all.
 
 export const str = (v: unknown, max = 300) => String(v ?? "").trim().slice(0, max);
 export const day = (v: unknown) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v ?? "").trim()) ? String(v).trim() : "");
@@ -343,7 +344,7 @@ export async function createInvoice(ctx: FinanceContext, body: Record<string, un
     certificateRef: str(body?.certificateRef, 80),
     clientName,
     lines,
-    vatRate: body?.vatRate === undefined ? 0 : Math.max(0, Math.min(100, Number(body.vatRate) || 0)),
+    vatRate: documentVatRate(studio, body?.vatRate),
     status: "Draft",
     issueDate,
     // A TYPED DUE DATE WINS; otherwise the studio's payment term for invoices
@@ -398,7 +399,7 @@ export async function editInvoice(ctx: FinanceContext, id: string, body: Record<
   }
   if (body?.vatRate !== undefined) {
     if (issued) return { error: "issued" };
-    patch.vatRate = Math.max(0, Math.min(100, Number(body.vatRate) || 0));
+    patch.vatRate = documentVatRate(studio, body.vatRate, current.vatRate);
   }
   if (body?.projectId !== undefined) {
     if (issued) return { error: "issued" };

@@ -310,6 +310,7 @@ export default function StudioTechnical({ slug, view = "engineering-docs", secti
               ? priced.items
               : (data.catalogue || [])}
             currency={data.currency || ""}
+            vatOn={!!data.vatEnabled}
             onClose={closeEdit}
             onSave={(p) => send("quotations", "PUT", { ...p, id: editingQuote.id }, true)} />
         )}

@@ -6,6 +6,7 @@ import {
   INVOICE_STATUSES, EXPENSE_CATEGORIES, PAYMENT_METHODS,
 } from "@/modules/finance/finance";
 import { referencePickers } from "@/modules/procurement/pickers";
+import { studioVatRate } from "@/shared/vat";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -54,6 +55,11 @@ export const GET = route(
       // The studio's own rules, so a form offers exactly what the reader will
       // match against — empty in a jurisdiction with no withholding.
       withholdingRules: g.withholdingRules,
+      // THE STUDIO'S VAT RATE, which a new invoice starts at. The form read
+      // `defaultVatRate` from here for months while nothing sent it, so its VAT
+      // field opened on the text "undefined" and saved nought.
+      defaultVatRate: studioVatRate(g.studio) ?? 0,
+      vatEnabled: studioVatRate(g.studio) !== null,
     },
   };
 });

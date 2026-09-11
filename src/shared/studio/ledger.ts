@@ -30,6 +30,25 @@ type Strings = {
   equity: string;
   retained: (n: number) => string;
   outBy: (n: number) => string;
+  tax: string;
+  taxLead: string;
+  from: string;
+  to: string;
+  output: string;
+  credits: string;
+  input: string;
+  taxable: string;
+  vat: string;
+  count: (n: number) => string;
+  payable: string;
+  reclaimable: string;
+  documents: string;
+  noDocuments: string;
+  foreign: string;
+  foreignLead: string;
+  kind: { sale: string; credit: string; purchase: string };
+  reference: string;
+  date: string;
 };
 
 const en: Strings = {
@@ -58,6 +77,25 @@ const en: Strings = {
   equity: "Equity",
   retained: (n) => `Includes ${n} earned and not yet moved into equity.`,
   outBy: (n) => `Out by ${n}.`,
+  tax: "Tax return",
+  taxLead: "VAT charged on sales, less what credit notes gave back, less VAT paid on purchases — read from the documents by their own dates. Drafts, cancelled documents and disputed bills are left out.",
+  from: "From",
+  to: "To",
+  output: "VAT on sales",
+  credits: "Given back on credit notes",
+  input: "VAT on purchases",
+  taxable: "Net value",
+  vat: "VAT",
+  count: (n) => `${n} ${n === 1 ? "document" : "documents"}`,
+  payable: "Payable for the period",
+  reclaimable: "Reclaimable for the period",
+  documents: "Documents in this return",
+  noDocuments: "No taxed document in this period.",
+  foreign: "In another currency — not in the return",
+  foreignLead: "A return is filed in the studio's currency at the tax authority's rate for each date, which nompany does not hold. Convert these yourself.",
+  kind: { sale: "Invoice", credit: "Credit note", purchase: "Bill" },
+  reference: "Reference",
+  date: "Date",
 };
 
 // HAND-WRITTEN. NO DIACRITICS.
@@ -84,6 +122,25 @@ const ar: Strings = {
   equity: "حقوق الملكية",
   retained: (n) => `يشمل ${n} محققة ولم تنقل بعد الى حقوق الملكية.`,
   outBy: (n) => `فارق ${n}.`,
+  tax: "الاقرار الضريبي",
+  taxLead: "ضريبة القيمة المضافة على المبيعات، مطروحا منها ما ردته اشعارات الدائن والضريبة المدفوعة على المشتريات — من المستندات نفسها وبتواريخها. المسودات والمستندات الملغاة وفواتير الموردين المتنازع عليها مستبعدة.",
+  from: "من",
+  to: "الى",
+  output: "الضريبة على المبيعات",
+  credits: "المردود باشعارات الدائن",
+  input: "الضريبة على المشتريات",
+  taxable: "القيمة الصافية",
+  vat: "الضريبة",
+  count: (n) => `${n} مستند`,
+  payable: "المستحق عن الفترة",
+  reclaimable: "القابل للاسترداد عن الفترة",
+  documents: "المستندات في هذا الاقرار",
+  noDocuments: "لا يوجد مستند خاضع للضريبة في هذه الفترة.",
+  foreign: "بعملة اخرى — خارج الاقرار",
+  foreignLead: "يقدم الاقرار بعملة الاستوديو وبسعر الجهة الضريبية لكل تاريخ، وهذا السعر غير متوفر في نومباني. حول هذه المبالغ بنفسك.",
+  kind: { sale: "فاتورة", credit: "اشعار دائن", purchase: "فاتورة مورد" },
+  reference: "المرجع",
+  date: "التاريخ",
 };
 
 const dict = { en, ar };

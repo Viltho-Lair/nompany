@@ -331,7 +331,7 @@ function Invoices({ rows, projects, milestones = [], vocab, slug, nav, canManage
       {canManage && !drafting && !paying && <button className={btn} onClick={() => setDrafting(true)}>{tr.newInvoice}</button>}
 
       {drafting && (
-        <InvoiceForm projects={projects} milestones={milestones} defaultVat={vocab.defaultVatRate} busy={busy}
+        <InvoiceForm projects={projects} milestones={milestones} defaultVat={vocab.defaultVatRate ?? 0} vatOn={!!vocab.vatEnabled} busy={busy}
           onCancel={() => setDrafting(false)}
           onSave={async (v) => { if (await send("invoices", "POST", v)) setDrafting(false); }} />
       )}
@@ -502,7 +502,7 @@ function LineItemsEditor({ lines, setLines }) {
   );
 }
 
-function InvoiceForm({ projects, milestones = [], defaultVat, busy, onCancel, onSave }) {
+function InvoiceForm({ projects, milestones = [], defaultVat, vatOn, busy, onCancel, onSave }) {
   const tr = financeDict(useStudioLocale());
   const [head, setHead] = useState({ projectId: "", milestoneId: "", clientName: "", vatRate: String(defaultVat), issueDate: "", dueDate: "" });
   // THE PROJECT'S OWN MILESTONES. An invoice naming one is what marks that
@@ -534,7 +534,8 @@ function InvoiceForm({ projects, milestones = [], defaultVat, busy, onCancel, on
         )}
         <Field label={tr.client} value={head.clientName} hint={project?.clientName || undefined}
           onChange={(v) => setHead((h) => ({ ...h, clientName: v }))} />
-        <Field label={tr.vat} type="number" value={head.vatRate} onChange={(v) => setHead((h) => ({ ...h, vatRate: v }))} />
+        {/* NO VAT FIELD FOR A STUDIO WITH NO RATE — it carries no tax (shared/vat). */}
+        {vatOn && <Field label={tr.vat} type="number" value={head.vatRate} onChange={(v) => setHead((h) => ({ ...h, vatRate: v }))} />}
         <Field label={tr.dueDate} filled={!!head.dueDate}>
           <StudioDate value={head.dueDate} onChange={(iso) => setHead((h) => ({ ...h, dueDate: iso }))} />
         </Field>
@@ -932,7 +933,7 @@ function Bills({ rows, vocab, canManage, canRelease, busy, send, pickers = {} })
       {canManage && !form && !paying && <button className={btn} onClick={() => setDrafting(true)}>{tr.newBill}</button>}
 
       {form && (
-        <BillForm bill={editing} terms={terms} defaultVat={vocab.defaultVatRate} busy={busy} pickers={pickers}
+        <BillForm bill={editing} terms={terms} defaultVat={vocab.defaultVatRate ?? 0} vatOn={!!vocab.vatEnabled} busy={busy} pickers={pickers}
           onCancel={() => { setDrafting(false); setEditing(null); }}
           onSave={async (v) => {
             const ok = editing
@@ -1086,7 +1087,7 @@ function Bills({ rows, vocab, canManage, canRelease, busy, send, pickers = {} })
   );
 }
 
-function BillForm({ bill, terms, defaultVat, busy, pickers = {}, onCancel, onSave }) {
+function BillForm({ bill, terms, defaultVat, vatOn, busy, pickers = {}, onCancel, onSave }) {
   const tr = financeDict(useStudioLocale());
   const editing = !!bill;
   const [head, setHead] = useState({
@@ -1098,7 +1099,7 @@ function BillForm({ bill, terms, defaultVat, busy, pickers = {}, onCancel, onSav
     projectId: bill?.projectId || "",
     costCodeId: bill?.costCodeId || "",
     vendorName: bill?.vendorName || "",
-    vatRate: String(bill?.vatRate ?? defaultVat ?? 15),
+    vatRate: String(bill?.vatRate ?? defaultVat ?? 0),
     terms: bill?.terms || terms[0] || "on-receipt",
     billDate: bill?.billDate || "",
     dueDate: bill?.dueDate || "",
@@ -1155,7 +1156,8 @@ function BillForm({ bill, terms, defaultVat, busy, pickers = {}, onCancel, onSav
           options={costCodeOptions(pickers, head.projectId)} />
         <Field label={tr.terms} as="select" value={head.terms} onChange={(v) => setHead((h) => ({ ...h, terms: v }))}
           options={terms.map((term) => ({ value: term, label: termLabel(tr)[term] || term }))} />
-        <Field label={tr.vat} type="number" value={head.vatRate} onChange={(v) => setHead((h) => ({ ...h, vatRate: v }))} />
+        {/* NO VAT FIELD FOR A STUDIO WITH NO RATE — it carries no tax (shared/vat). */}
+        {vatOn && <Field label={tr.vat} type="number" value={head.vatRate} onChange={(v) => setHead((h) => ({ ...h, vatRate: v }))} />}
         <Field label={tr.billDate} filled={!!head.billDate}>
           <StudioDate value={head.billDate} onChange={(iso) => setHead((h) => ({ ...h, billDate: iso }))} />
         </Field>

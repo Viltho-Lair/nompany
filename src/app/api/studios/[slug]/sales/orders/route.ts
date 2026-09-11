@@ -4,6 +4,7 @@ import { salesContext } from "@/modules/sales/sales";
 import {
   listOrders, createOrder, updateOrder, moveOrder, removeOrder, orderPickers,
 } from "@/modules/sales/orders";
+import { studioVatRate } from "@/shared/vat";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,6 +34,10 @@ export const GET = route({ ...spec, body: false }, async (sales) => {
     canCreate: !requirePermission(sales.access, "crmSales.orders.create"),
     canEdit: !requirePermission(sales.access, "crmSales.orders.edit"),
     canDelete: !requirePermission(sales.access, "crmSales.orders.delete"),
+    // WHETHER AN ORDER CARRIES TAX AT ALL, and what a new one starts at: the
+    // form hides the field for a studio with no rate (shared/vat).
+    vatEnabled: studioVatRate(sales.studio) !== null,
+    defaultVatRate: studioVatRate(sales.studio) ?? 0,
   };
 });
 

@@ -9,6 +9,7 @@ import {
 import { TICKET_URGENCIES, TICKET_INDUSTRIES } from "@/modules/sales/tickets";
 
 import { can } from "@/platform/access";
+import { studioVatRate } from "@/shared/vat";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -70,6 +71,9 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
     // What this studio prices in. The builder shows it beside every figure, so
     // nobody has to remember which money a number is in.
     currency: tech.studio?.currency || "",
+    // WHETHER A QUOTATION CARRIES VAT AT ALL — the builder draws no VAT row for
+    // a studio with no rate (shared/vat). The rate itself is on each quotation.
+    vatEnabled: studioVatRate(tech.studio) !== null,
     // Where the studio itself is. A site on a new quotation starts here and
     // whoever raises it can change either — defaults, not the answer, exactly
     // as the Sales payload serves them. Read off the studio record this route

@@ -211,6 +211,24 @@ export default function StudioSettings({ slug, locale = "en" }) {
           )}
         />
 
+        {/* THE STUDIO'S VAT RATE. Empty is a real answer — not registered — so
+            the hint says what that means rather than "not set": no document
+            carries tax and Finance shows no return. */}
+        <EditRow
+          icon="cash" label={tr.vatRate} canManage={canManage}
+          value={studio.vatRate ? `${studio.vatRate}%` : ""}
+          editValue={studio.vatRate ? String(studio.vatRate) : ""}
+          hint={tr.vatRateUnset}
+          onSave={(v) => save({ vatRate: v })}
+          render={(draft, set) => (
+            <>
+              <input className={INPUT} value={draft} inputMode="decimal" aria-label={tr.vatRate}
+                onChange={(e) => set(e.target.value)} />
+              <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{tr.vatRateSet}</p>
+            </>
+          )}
+        />
+
         <EditRow
           icon="globe" label={tr.language} canManage={canManage}
           value={LANGUAGE_NAMES[studio.language] || LANGUAGE_NAMES.en}

@@ -32,6 +32,7 @@ import { getExchangeSnapshot } from "@/lib/data/exchangeRates";
 import { landedUnitCost } from "@/shared/currencies";
 import { resolveUnitPrice, ratesByItem } from "@/shared/pricing";
 import { addDaysISO, todayISO } from "@/shared/dates";
+import { documentVatRate } from "@/shared/vat";
 import { attachToTicketEngagement, attachQuotationEngagement, detachRecord, engagementIdFor } from "@/platform/db/engagement";
 import {
   QUOTATION_STATUSES, DEFAULT_QUOTATION_STATUS, LEAD_INTERNAL,
@@ -771,12 +772,13 @@ export async function createQuotation(ctx: TechnicalContext, body: Record<string
   // an atomic counter, not this read). See the gate-a note on the absent case.
   const number = nextNumberForSequence(quotations, sequence);
 
-  // NO LINES AND NO VAT HERE. Converting decides that a quotation exists, who
-  // owns it and what number it carries; what is ON it is the builder's job.
-  // Pricing an empty quotation into being was the RFQ screen doing the builder's
-  // work badly.
+  // NO LINES HERE. Converting decides that a quotation exists, who owns it and
+  // what number it carries; what is ON it is the builder's job. Pricing an empty
+  // quotation into being was the RFQ screen doing the builder's work badly.
+  // THE RATE IS THE STUDIO'S (shared/vat) — nought when it is not registered —
+  // and the builder may change it per quotation.
   const items: QuotationItem[] = [];
-  const vatRate = 0;
+  const vatRate = documentVatRate(studio);
   // handledBy IS NOW OPTIONAL — defaults to whoever is creating it, so nothing
   // downstream (the Handled-by column, the Live view) reads a blank. The
   // screen's "Handled by" is a PERSON PICKER, so what arrives is already a
@@ -858,7 +860,9 @@ export async function convertRfq(ctx: TechnicalContext, body: Record<string, unk
   // quotation into being was the RFQ screen doing the builder's work badly.
   const tables = prior ? cleanQuotationTables(prior.tables) : [];
   const items = prior ? cleanItems(itemsFromTables(tables)) : [];
-  const vatRate = prior ? num(prior.vatRate) : 0;
+  // A revision keeps its predecessor's rate and a first quotation takes the
+  // studio's; both are nought when the studio is not registered for VAT.
+  const vatRate = documentVatRate(studio, undefined, prior?.vatRate);
   const handledByCollaboratorId = str(body?.handledByCollaboratorId, 60);
   // The ticket, for the ONE thing the document authors out of it: its opening
   // description, which Technical then edits. Everything else the ticket owns is
@@ -1009,7 +1013,7 @@ export async function updateQuotation(ctx: TechnicalContext, id: string, body: R
   if (body?.tables !== undefined) {
     const tables = cleanQuotationTables(body.tables);
     const items = cleanItems(itemsFromTables(tables));
-    const vatRate = body?.vatRate !== undefined ? num(body.vatRate) : current.vatRate;
+    const vatRate = body?.vatRate !== undefined ? documentVatRate(studio, body.vatRate, current.vatRate) : current.vatRate;
     Object.assign(patch, { tables, items, vatRate }, computeTotals(items, vatRate));
     // Saving keeps it a Draft. Only Submit finishes it, and that arrives as an
     // explicit status the block above has already set.
@@ -1019,7 +1023,7 @@ export async function updateQuotation(ctx: TechnicalContext, id: string, body: R
   // Any change to pricing recomputes the totals server-side.
   if (body?.tables === undefined && (body?.items !== undefined || body?.vatRate !== undefined)) {
     const items = body?.items !== undefined ? cleanItems(body.items) : current.items;
-    const vatRate = body?.vatRate !== undefined ? num(body.vatRate) : current.vatRate;
+    const vatRate = body?.vatRate !== undefined ? documentVatRate(studio, body.vatRate, current.vatRate) : current.vatRate;
     Object.assign(patch, { items, vatRate }, computeTotals(items, vatRate));
   }
   // Comments are APPENDED, never replaced: the client sends the one line it

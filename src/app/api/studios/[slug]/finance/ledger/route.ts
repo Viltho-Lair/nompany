@@ -9,6 +9,7 @@ import {
   profitAndLoss, balanceSheet, byDimension, DIMENSIONS,
 } from "@/modules/finance/statements";
 import type { Dimension } from "@/modules/finance/statements";
+import { studioVatRate } from "@/shared/vat";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -93,6 +94,9 @@ export const GET = route({ ...spec, body: false }, async (f) => {
     breakdown: dimension ? byDimension(entries, chart, dimension, { from, to }) : null,
     canPost: !requirePermission(f.access, "finance.ledger.post"),
     canReverse: !requirePermission(f.access, "finance.ledger.reverse"),
+    // THE TAX RETURN'S TAB IS DRAWN ONLY FOR A STUDIO WITH A VAT RATE — the
+    // owner's rule: a company that registered no tax has no return to file.
+    taxEnabled: studioVatRate(f.studio) !== null,
   };
 });
 

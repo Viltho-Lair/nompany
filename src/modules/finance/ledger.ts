@@ -27,6 +27,7 @@ import type { Period } from "./periods";
 import { repo } from "@/platform/db/repo";
 import { nextReference } from "@/modules/main/references";
 import { invoiceTotals } from "./finance";
+import { splitGross } from "@/shared/vat";
 import type { Account, JournalEntry, JournalLine, Invoice, Expense, FinanceContext } from "./types";
 import type { Row } from "@/platform/db/store";
 
@@ -702,13 +703,10 @@ export async function postCreditNote(
   if (missing.length) return { error: "chart", missing };
 
   // The gross amount split back into net and tax at the INVOICE's rate, in
-  // whole cents. The net is derived by subtraction so the two always add up to
-  // the gross — deriving both independently is how a rounded pair ends up a
-  // cent short and the entry refuses to balance.
+  // whole cents, net by subtraction so the entry balances — `splitGross`, the
+  // one copy the tax return also uses, so the two give back the same tax.
   const gross = Math.round((Number(note.amount) || 0) * 100) / 100;
-  const rate = Number((invoice as { vatRate?: unknown }).vatRate) || 0;
-  const vat = Math.round(((gross * rate) / (100 + rate)) * 100) / 100;
-  const net = Math.round((gross - vat) * 100) / 100;
+  const { net, vat } = splitGross(gross, (invoice as { vatRate?: unknown }).vatRate);
 
   return postEntry(ctx, {
     date: new Date().toISOString().slice(0, 10),

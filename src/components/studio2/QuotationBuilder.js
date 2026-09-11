@@ -30,7 +30,7 @@ const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 // through typing "1.5".
 const cell = "w-full rounded-geex border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-900 outline-none focus:border-brand-500 dark:border-white/10 dark:bg-white/5 dark:text-white";
 
-export default function QuotationBuilder({ quote, catalogue = [], currency: studioCurrency = "", canManage, onSave, onClose }) {
+export default function QuotationBuilder({ quote, catalogue = [], currency: studioCurrency = "", vatOn = false, canManage, onSave, onClose }) {
   const tr = technicalDict(useStudioLocale());
   // THE QUOTATION'S OWN MONEY FIRST — frozen when it was raised — and the
   // studio's only for a quotation raised before currency was stored on it.
@@ -389,16 +389,19 @@ export default function QuotationBuilder({ quote, catalogue = [], currency: stud
                 {money(totals.subtotal)} <span className="text-slate-400">{currency}</span>
               </dd>
             </div>
-            <div className="flex items-baseline gap-3">
-              <dt className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
-                <label htmlFor="qb-vat">{tr.vat}</label>
-                <input id="qb-vat" className={`${cell} w-16`} value={vatRate} disabled={locked} inputMode="decimal"
-                  onChange={(e) => setVatRate(e.target.value)} />
-              </dt>
-              <dd className="ms-auto font-mono tabular-nums text-slate-700 dark:text-slate-200">
-                {money(totals.vat)} <span className="text-slate-400">{currency}</span>
-              </dd>
-            </div>
+            {/* NO VAT ROW FOR A STUDIO WITH NO RATE — it carries no tax (shared/vat). */}
+            {vatOn && (
+              <div className="flex items-baseline gap-3">
+                <dt className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
+                  <label htmlFor="qb-vat">{tr.vat}</label>
+                  <input id="qb-vat" className={`${cell} w-16`} value={vatRate} disabled={locked} inputMode="decimal"
+                    onChange={(e) => setVatRate(e.target.value)} />
+                </dt>
+                <dd className="ms-auto font-mono tabular-nums text-slate-700 dark:text-slate-200">
+                  {money(totals.vat)} <span className="text-slate-400">{currency}</span>
+                </dd>
+              </div>
+            )}
             <div className="flex items-baseline gap-3 border-t border-slate-200 pt-1 dark:border-white/10">
               <dt className="sr-only">{tr.total}</dt>
               <dd className="ms-auto font-display text-base font-700 tabular-nums text-slate-900 dark:text-white">

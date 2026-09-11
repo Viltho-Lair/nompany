@@ -49,6 +49,9 @@ export default function StudioOrders({ slug }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState(null);
+  // WHETHER ORDERS CARRY TAX, and what a new one starts at — the studio's rate
+  // (shared/vat). A studio with none gets no VAT field at all.
+  const [vat, setVat] = useState({ on: false, rate: 0 });
 
   const read = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/sales/orders`);
@@ -58,6 +61,7 @@ export default function StudioOrders({ slug }) {
   const apply = useCallback((data) => {
     setOrders(data?.ok ? data.orders : []);
     setPickers(data?.pickers || {});
+    setVat({ on: !!data?.vatEnabled, rate: Number(data?.defaultVatRate) || 0 });
     setRights({
       canCreate: !!data?.canCreate, canEdit: !!data?.canEdit, canDelete: !!data?.canDelete,
     });
@@ -131,7 +135,7 @@ export default function StudioOrders({ slug }) {
         </div>
         {rights.canCreate && (
           <button type="button" className={btn}
-            onClick={() => setForm({ lines: [{ ...BLANK_LINE }], vatRate: 0, status: "Draft" })}>
+            onClick={() => setForm({ lines: [{ ...BLANK_LINE }], vatRate: vat.rate, status: "Draft" })}>
             {tr.newOrder}
           </button>
         )}
@@ -230,8 +234,10 @@ export default function StudioOrders({ slug }) {
               onChange={(v) => setForm((p) => ({ ...p, orderedOn: v }))} />
             <Field label={tr.fldRequiredBy} value={form.requiredBy || ""}
               onChange={(v) => setForm((p) => ({ ...p, requiredBy: v }))} />
-            <Field label={tr.fldVatRate} value={String(form.vatRate ?? 0)}
-              onChange={(v) => setForm((p) => ({ ...p, vatRate: Number(v) || 0 }))} />
+            {vat.on && (
+              <Field label={tr.fldVatRate} value={String(form.vatRate ?? 0)}
+                onChange={(v) => setForm((p) => ({ ...p, vatRate: Number(v) || 0 }))} />
+            )}
           </div>
 
           <h3 className="mt-5 font-medium text-[var(--geex-ink)]">{tr.linesTitle}</h3>

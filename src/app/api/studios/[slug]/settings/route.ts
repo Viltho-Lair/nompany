@@ -28,6 +28,7 @@ import { unitProblems, cleanUnits, unitsView } from "@/modules/administration/un
 import { taxonomyProblems, cleanTaxonomies, taxonomyView } from "@/modules/administration/taxonomy";
 import { templateProblems as noticeProblems, cleanTemplates as cleanNotices, templateView as noticeView } from "@/modules/administration/notices";
 import { isValuationMethod } from "@/modules/inventory/valuation";
+import { cleanVatSetting, studioVatRate } from "@/shared/vat";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -85,6 +86,10 @@ const FIELDS = [
   // the number it produces lands on a balance sheet, and whoever signs that is
   // not the person who runs the warehouse.
   "valuationMethod",
+  // THE STUDIO'S VAT RATE — blank means it is not registered and no document
+  // carries tax (shared/vat says why that is the rule). A company-wide policy,
+  // so here rather than in Finance's settings: quotations and orders read it too.
+  "vatRate",
   // fieldOfWork, fieldOfWorkOther, serviceActions and retiredServiceActions are
   // deliberately NOT here. Writing a service action is not "set this text" — it
   // is "recompute the pool": choosing a field re-seeds it from the matrix, and
@@ -151,6 +156,7 @@ const clean = (studio: Record<string, unknown>, legacy: Record<string, unknown> 
   id: studio.id, name: studio.name, slug: studio.slug, logo: studio.logo || "",
   country: studio.country || "", city: studio.city || "", location: studio.location || "",
   currency: studio.currency || "",
+  vatRate: studioVatRate(studio) ?? "",
   language: studioLocale(studio),
   deletionRequestedAt: studio.deletionRequestedAt || "",
   deletionFinalisesAt: studio.deletionRequestedAt
@@ -369,6 +375,14 @@ export async function PUT(request: Request, ctx: { params: Promise<Record<string
     // REFUSED RATHER THAN COERCED, like the language is. An unrecognised method
     // would silently fall back on every read, so a studio would set a policy,
     // see it accepted, and keep getting the other one's numbers.
+    // REFUSED RATHER THAN COERCED, for the same reason: "15%" read as 0 would
+    // switch the studio's tax off while the screen said it had been saved.
+    if (key === "vatRate") {
+      const vat = cleanVatSetting(body[key]);
+      if ("error" in vat) return Response.json({ error: vat.error }, { status: 400 });
+      patch[key] = vat.value;
+      continue;
+    }
     if (key === "valuationMethod") {
       if (!isValuationMethod(body[key])) return Response.json({ error: "method" }, { status: 400 });
       patch[key] = body[key];
