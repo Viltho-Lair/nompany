@@ -310,6 +310,12 @@ export async function editBill(ctx: FinanceContext, id: string, body: Record<str
   if (body?.dueDate !== undefined) patch.dueDate = day(body.dueDate);
   if (body?.terms !== undefined && BILL_TERMS.includes(String(body.terms))) patch.terms = String(body.terms);
   if (body?.projectId !== undefined) patch.projectId = str(body.projectId, 60);
+  // WHO IS OWED AND WHAT ORDER THIS ANSWERS, correctable while the bill is
+  // open. The create accepted both and the edit did not, so a bill filed before
+  // anybody had linked it could never be pointed at its supplier or its order —
+  // and the payment hold, which checks exactly those two, had nothing to check.
+  if (body?.vendorId !== undefined) patch.vendorId = str(body.vendorId, 60);
+  if (body?.orderId !== undefined) patch.orderId = str(body.orderId, 60);
   // RE-CODED WITHOUT RE-APPROVING. Which budget a cost belongs to is a filing
   // decision, not a change to what is owed, so it does not disturb a chain
   // mid-walk the way editing the AMOUNT does.

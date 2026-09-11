@@ -216,6 +216,13 @@ type Strings = CommonStrings & {
   poNumber: string;
   proceeds: string;
   project: string;
+  // What a bill is filed against and what an invoice claims — picked from the
+  // supplier register, the placed orders, and the project's own cost codes and
+  // billing milestones.
+  supplierFromRegister: string;
+  purchaseOrder: string;
+  costCode: string;
+  milestone: string;
   projectNumber: string;
   projectsOpenApprovedQuotation: string;
   qty: string;
@@ -525,6 +532,10 @@ const en: Strings = {
   poNumber: "PO number",
   proceeds: "Proceeds",
   project: "Project",
+  supplierFromRegister: "Supplier (from the register)",
+  purchaseOrder: "Purchase order",
+  costCode: "Cost code",
+  milestone: "Billing milestone",
   projectNumber: "Project number",
   projectsOpenApprovedQuotation: "Projects open from an approved quotation. Once one exists it shows up here as a commercial record.",
   qty: "Qty",
@@ -838,6 +849,10 @@ const ar: Strings = {
   poNumber: "رقم أمر الشراء",
   proceeds: "المتحصلات",
   project: "المشروع",
+  supplierFromRegister: "المورد (من السجل)",
+  purchaseOrder: "أمر الشراء",
+  costCode: "رمز التكلفة",
+  milestone: "بند الدفعة",
   projectNumber: "رقم المشروع",
   projectsOpenApprovedQuotation: "تفتح المشاريع من عرض سعر معتمد. وما إن يوجد مشروع حتى يظهر هنا كسجل تجاري.",
   qty: "الكمية",

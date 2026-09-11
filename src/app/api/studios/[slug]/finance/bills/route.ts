@@ -6,6 +6,7 @@ import {
   listBillsForScreen, createBill, editBill, approveBill, recordBillPayment, releaseBillHold, removeBill,
   BILL_STATUSES, BILL_TERMS,
 } from "@/modules/finance/payables";
+import { referencePickers } from "@/modules/procurement/pickers";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,6 +21,17 @@ export const GET = route(
   { auth: "studio", context: financeContext, name: "finance/bills" },
   async (fin) => {
     if (!fin.canViewPayables) return { error: "forbidden" };
+    const [bills, pickers] = await Promise.all([
+      listBillsForScreen(fin),
+      // WHAT A BILL IS FILED AGAINST: the supplier from the register, the order
+      // it answers, the project and its cost code. The form asked for a typed
+      // name and nothing else, so a bill reached no project's cost, and the
+      // payment hold — which checks the supplier and the order — never fired on
+      // a bill entered on screen.
+      referencePickers(fin.studio, {
+        suppliers: fin.vendorsSection, projects: fin.projectsListSection, orders: fin.sheetsSection,
+      }, { suppliers: true, projects: true, costCodes: true, orders: true }),
+    ]);
     return {
       canManage: fin.canManage,
       manage: fin.manage,
@@ -28,7 +40,8 @@ export const GET = route(
       // under, how far along it is, and the step THIS viewer could sign.
       // Computed in the service from the same plan approveBill enforces, so
       // the screen never has to decide who may approve what.
-      bills: await listBillsForScreen(fin),
+      bills,
+      pickers,
       // WHETHER THIS VIEWER MAY RELEASE A HELD PAYMENT — the button's gate, from
       // the same right the service asks.
       canRelease: !requirePermission(fin.access, "finance.payables.release"),

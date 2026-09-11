@@ -5,6 +5,7 @@ import {
   financeContext, listInvoices, listExpenses, profitability, billableProjects, summarise,
   INVOICE_STATUSES, EXPENSE_CATEGORIES, PAYMENT_METHODS,
 } from "@/modules/finance/finance";
+import { referencePickers } from "@/modules/procurement/pickers";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,8 +16,13 @@ export const dynamic = "force-dynamic";
 export const GET = route(
   { auth: "studio", context: financeContext, name: "finance" },
   async (g) => {
-  const [invoices, expenses, projects] = await Promise.all([
+  const [invoices, expenses, projects, { milestones = [] }] = await Promise.all([
     listInvoices(g), listExpenses(g), billableProjects(g),
+    // THE MILESTONES AN INVOICE CAN CLAIM. `milestoneId` has been on the
+    // invoice since billing schedules shipped and no form set it, so every
+    // project invoice landed in "unattributed" and no milestone ever read as
+    // billed.
+    referencePickers(g.studio, { projects: g.projectsListSection }, { milestones: true }),
   ]);
   const projectMargins = await profitability(g, { invoices, expenses });
 
@@ -29,7 +35,7 @@ export const GET = route(
     // Manage per section key, so each screen can ask about itself rather
     // than being handed the parent section's answer.
     manage: g.manage,
-    invoices, expenses, projects,
+    invoices, expenses, projects, milestones,
     profitability: projectMargins,
     summary: summarise(invoices, expenses),
     // WHAT THE STUDIO CAN RECLAIM. Tax withheld is only worth anything if the

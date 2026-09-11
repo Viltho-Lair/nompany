@@ -11,6 +11,7 @@ import RecordLink from "@/components/studio2/RecordLink";
 import { StudioDataGridSkeleton } from "@/components/studio2/StudioDataGrid.skeleton";
 import { linkToProject, linkIf } from "@/modules/main/studioLinks";
 import { Field } from "@/components/fields/Field";
+import { supplierOptions, projectOptions, costCodeOptions } from "@/components/studio2/pickerOptions";
 import StudioDate from "@/components/fields/StudioDate";
 import { useAnalyticsLevel } from "@/components/studio2/analyticsLevel";
 import { assetRegister } from "@/modules/finance/analytics";
@@ -236,7 +237,7 @@ function FinanceCash({ slug, view = "finance" }) {
       </div>
 
       {tab === "invoices" && (
-        <Invoices rows={invoices} projects={projects} vocab={vocabulary} slug={slug} nav={nav}
+        <Invoices rows={invoices} projects={projects} milestones={data.milestones || []} vocab={vocabulary} slug={slug} nav={nav}
           canManage={canManage} busy={busy} send={send} />
       )}
       {tab === "expenses" && (
@@ -305,7 +306,7 @@ function Summary({ summary }) {
 }
 
 // ---- invoices --------------------------------------------------------------
-function Invoices({ rows, projects, vocab, slug, nav, canManage, busy, send }) {
+function Invoices({ rows, projects, milestones = [], vocab, slug, nav, canManage, busy, send }) {
   const tr = financeDict(useStudioLocale());
   const [drafting, setDrafting] = useState(false);
   const [paying, setPaying] = useState(null);
@@ -316,7 +317,7 @@ function Invoices({ rows, projects, vocab, slug, nav, canManage, busy, send }) {
       {canManage && !drafting && !paying && <button className={btn} onClick={() => setDrafting(true)}>{tr.newInvoice}</button>}
 
       {drafting && (
-        <InvoiceForm projects={projects} defaultVat={vocab.defaultVatRate} busy={busy}
+        <InvoiceForm projects={projects} milestones={milestones} defaultVat={vocab.defaultVatRate} busy={busy}
           onCancel={() => setDrafting(false)}
           onSave={async (v) => { if (await send("invoices", "POST", v)) setDrafting(false); }} />
       )}
@@ -482,9 +483,15 @@ function LineItemsEditor({ lines, setLines }) {
   );
 }
 
-function InvoiceForm({ projects, defaultVat, busy, onCancel, onSave }) {
+function InvoiceForm({ projects, milestones = [], defaultVat, busy, onCancel, onSave }) {
   const tr = financeDict(useStudioLocale());
-  const [head, setHead] = useState({ projectId: "", clientName: "", vatRate: String(defaultVat), issueDate: "", dueDate: "" });
+  const [head, setHead] = useState({ projectId: "", milestoneId: "", clientName: "", vatRate: String(defaultVat), issueDate: "", dueDate: "" });
+  // THE PROJECT'S OWN MILESTONES. An invoice naming one is what marks that
+  // milestone billed on the payment schedule; with no field for it, every
+  // project invoice read as "unattributed" and no milestone ever came off.
+  const milestoneOptions = milestones
+    .filter((m) => head.projectId && m.projectId === head.projectId)
+    .map((m) => ({ value: m.id, label: [m.code, m.name].filter(Boolean).join(" · ") }));
   const [lines, setLines] = useState([{ ...EMPTY_LINE }]);
 
   const filled = filledLines(lines);
@@ -499,8 +506,13 @@ function InvoiceForm({ projects, defaultVat, busy, onCancel, onSave }) {
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Field label={tr.project} as="select" value={head.projectId}
-          onChange={(v) => setHead((h) => ({ ...h, projectId: v }))}
+          onChange={(v) => setHead((h) => ({ ...h, projectId: v, milestoneId: "" }))}
           options={projects.map((p) => ({ value: p.id, label: `${p.number} · ${p.clientName}` }))} />
+        {milestoneOptions.length > 0 && (
+          <Field label={tr.milestone} as="select" value={head.milestoneId}
+            onChange={(v) => setHead((h) => ({ ...h, milestoneId: v }))}
+            options={milestoneOptions} />
+        )}
         <Field label={tr.client} value={head.clientName} hint={project?.clientName || undefined}
           onChange={(v) => setHead((h) => ({ ...h, clientName: v }))} />
         <Field label={tr.vat} type="number" value={head.vatRate} onChange={(v) => setHead((h) => ({ ...h, vatRate: v }))} />
@@ -843,7 +855,8 @@ function Payables({ slug }) {
       <div className="flex items-center justify-end">
         {!canManage && <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-600 text-slate-500 dark:bg-white/5 dark:text-slate-400">{tr.viewOnly}</span>}
       </div>
-      <Bills rows={bills} vocab={vocabulary} canManage={canManage} canRelease={Boolean(data.canRelease)} busy={busy} send={send} />
+      <Bills rows={bills} vocab={vocabulary} canManage={canManage} canRelease={Boolean(data.canRelease)} busy={busy} send={send}
+        pickers={data.pickers || {}} />
     </div>
   );
 }
@@ -875,7 +888,7 @@ function PayablesSummary({ bills }) {
   );
 }
 
-function Bills({ rows, vocab, canManage, canRelease, busy, send }) {
+function Bills({ rows, vocab, canManage, canRelease, busy, send, pickers = {} }) {
   const tr = financeDict(useStudioLocale());
   const [drafting, setDrafting] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -896,7 +909,7 @@ function Bills({ rows, vocab, canManage, canRelease, busy, send }) {
       {canManage && !form && !paying && <button className={btn} onClick={() => setDrafting(true)}>{tr.newBill}</button>}
 
       {form && (
-        <BillForm bill={editing} terms={terms} defaultVat={vocab.defaultVatRate} busy={busy}
+        <BillForm bill={editing} terms={terms} defaultVat={vocab.defaultVatRate} busy={busy} pickers={pickers}
           onCancel={() => { setDrafting(false); setEditing(null); }}
           onSave={async (v) => {
             const ok = editing
@@ -1047,10 +1060,17 @@ function Bills({ rows, vocab, canManage, canRelease, busy, send }) {
   );
 }
 
-function BillForm({ bill, terms, defaultVat, busy, onCancel, onSave }) {
+function BillForm({ bill, terms, defaultVat, busy, pickers = {}, onCancel, onSave }) {
   const tr = financeDict(useStudioLocale());
   const editing = !!bill;
   const [head, setHead] = useState({
+    // WHO IS OWED, WHAT ORDER THIS ANSWERS, AND WHAT IT IS SPENT ON. The form
+    // took a typed name and nothing else, so a bill entered here reached no
+    // project's cost and gave the payment hold no supplier or order to check.
+    vendorId: bill?.vendorId || "",
+    orderId: bill?.orderId || "",
+    projectId: bill?.projectId || "",
+    costCodeId: bill?.costCodeId || "",
     vendorName: bill?.vendorName || "",
     vatRate: String(bill?.vatRate ?? defaultVat ?? 15),
     terms: bill?.terms || terms[0] || "on-receipt",
@@ -1077,7 +1097,36 @@ function BillForm({ bill, terms, defaultVat, busy, onCancel, onSave }) {
       <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">{editing ? `Edit bill — ${bill.reference}` : tr.newBill}</h3>
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {/* PICKING FROM THE REGISTER FILLS THE NAME, which stays editable — a
+            supplier nobody has registered can still be billed by name. */}
+        <Field label={tr.supplierFromRegister} as="select" value={head.vendorId}
+          onChange={(v) => {
+            const s = (pickers.suppliers || []).find((x) => x.id === v);
+            setHead((h) => ({ ...h, vendorId: v, vendorName: s ? s.name : h.vendorName, orderId: "" }));
+          }}
+          options={supplierOptions(pickers)} />
         <Field label={tr.vendor} required value={head.vendorName} onChange={(v) => setHead((h) => ({ ...h, vendorName: v }))} />
+        {/* THE ORDER THIS BILL ANSWERS — the third leg of the match. Choosing
+            one carries its project and cost code across where none is set,
+            the inheritance the cost report already applies. */}
+        <Field label={tr.purchaseOrder} as="select" value={head.orderId}
+          onChange={(v) => {
+            const o = (pickers.orders || []).find((x) => x.id === v);
+            setHead((h) => ({
+              ...h, orderId: v,
+              projectId: h.projectId || o?.projectId || "",
+              costCodeId: h.costCodeId || (h.projectId && h.projectId !== o?.projectId ? "" : o?.costCodeId || ""),
+            }));
+          }}
+          options={(pickers.orders || [])
+            .filter((o) => !head.vendorId || o.vendorId === head.vendorId)
+            .map((o) => ({ value: o.id, label: o.reference }))} />
+        <Field label={tr.project} as="select" value={head.projectId}
+          onChange={(v) => setHead((h) => ({ ...h, projectId: v, costCodeId: "" }))}
+          options={projectOptions(pickers)} />
+        <Field label={tr.costCode} as="select" value={head.costCodeId}
+          onChange={(v) => setHead((h) => ({ ...h, costCodeId: v }))}
+          options={costCodeOptions(pickers, head.projectId)} />
         <Field label={tr.terms} as="select" value={head.terms} onChange={(v) => setHead((h) => ({ ...h, terms: v }))}
           options={terms.map((term) => ({ value: term, label: termLabel(tr)[term] || term }))} />
         <Field label={tr.vat} type="number" value={head.vatRate} onChange={(v) => setHead((h) => ({ ...h, vatRate: v }))} />

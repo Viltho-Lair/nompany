@@ -41,6 +41,12 @@ correct model and is where this goes — the roll-up would prefer a line's code 
 the document's, so it is an addition rather than a change. What per-document buys is that a
 studio can start coding today with one picker instead of one per row.
 
+**That picker is on every form that spends** — the bill (with the purchase order it answers,
+whose project and code it carries across), the requisition (whose code follows it onto its
+order), and the subcontract — offering the chosen project's own codes. Until 11/09/2026 none of
+the three forms had a project or a code field, so for a studio working only through its screens
+actual and committed cost were nought on every project, whatever had been spent.
+
 ## What it does
 
 **A cost is incurred when the supplier invoices, not when Finance signs.** Approval authorises

@@ -62,8 +62,10 @@ the document would mean a studio could not record an invoice it has genuinely re
 ## Not built yet
 
 - **A subcontract certificate still raises no bill.** A subcontractor's bill is typed by hand; it
-  is checked against the supplier only if it names one from the register. A bill carrying only a
-  typed supplier name is not checked.
+  is checked against the supplier only if it names one from the register. The bill form picks the
+  supplier and the purchase order from the register and the placed orders (since 11/09/2026 —
+  before that it took a typed name only, so the hold could not fire on any bill entered on screen),
+  but a bill carrying only a typed supplier name is still not checked.
 - **The amount tolerance does not convert currencies.** It applies in the bill's own currency.
 - **Nobody is told when a bill becomes held or is released.** The row and the dialog say so; no
   notification is sent.
