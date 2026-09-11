@@ -1194,7 +1194,16 @@ export async function createOrder(ctx: InventoryContext, body: Record<string, un
   // way past. A caller that sends lines has edited them deliberately and those
   // win — a buyer who has been quoted a real price should not be made to retype
   // the order to record it.
-  const lines = cleanLines(body?.lines ?? fromRequisition?.lines, items);
+  // A REQUISITION PRICES ITS LINES AS `estUnitCost`; an order line's price is
+  // `unitPrice`. Copied across unrenamed, every converted line was priced 0 —
+  // the order's total, the project's committed cost and the value of every
+  // receipt against it all read nought. The estimate is the best price anybody
+  // has recorded at this point, and a buyer who has been quoted better sends
+  // lines of their own, which win.
+  const requested = Array.isArray(fromRequisition?.lines)
+    ? (fromRequisition.lines as Record<string, unknown>[]).map((l) => ({ ...l, unitPrice: l.unitPrice ?? l.estUnitCost }))
+    : undefined;
+  const lines = cleanLines(body?.lines ?? requested, items);
   // A REQUISITION OF FREE TEXT CANNOT BECOME AN ORDER, and the refusal names
   // why. `cleanLines` drops any line without a KNOWN ITEM, because an order
   // moves stock and stock is Registered Items — so a request for services, or

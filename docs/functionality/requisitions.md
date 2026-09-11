@@ -92,6 +92,12 @@ one approval spent twice.
 **The request's cost code follows** where the order carries none, so coding once follows the
 money all the way to the bill — the same inheritance a bill takes from an order.
 
+**The estimate becomes the order's price.** A requisition line prices itself as `estUnitCost`
+and an order line as `unitPrice`; copied across unrenamed, every converted line was priced 0
+until 11/09/2026, and with it the order's total, the project's committed cost and the value of
+every receipt against it. A buyer who has been quoted a better price sends lines of their own,
+which win.
+
 **A requisition of free text cannot become an order, and the refusal says so.** `cleanLines`
 drops any line without a known Registered Item, because an order moves stock and stock is
 Registered Items. Returning an empty order would read as success and buy nothing.
