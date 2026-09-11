@@ -114,7 +114,13 @@ let tier = "";
 // So §3's eight groups are read too, and applied to EVERY industry, mapped to
 // the back-office codes each chart already has.
 const SPINE_GROUPS = {
-  "Governance and top administration": { codes: ["ADM"], tier: 0 },
+  // FINANCE IS ON THE SHORTLIST FOR ONE TITLE: the Chief Financial Officer.
+  // With ADM alone the name hint had nowhere to go, so the CFO — the spine's
+  // one copy, reaching all twenty-five fields — was filed under Administration,
+  // where the `money` shape holds nothing and the role arrived with no access at
+  // all. ADM stays first, so every governance title the Finance hint does not
+  // match (the board, the CEO, the COO) stays exactly where it was.
+  "Governance and top administration": { codes: ["ADM", "FIN"], tier: 0 },
   "Finance and accounting": { codes: ["FIN"], tier: 1 },
   "Human resources": { codes: ["HR"], tier: 1 },
   "Procurement, supply chain and stores": { codes: ["PRC", "STR", "BUY", "WHS"], tier: 1 },

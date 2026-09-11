@@ -2885,7 +2885,7 @@ export const LIBRARY_DATA: readonly LibraryRole[] = [
   { name: "General Manager", industry: "*", department: "ADM", archetype: "department-head", tier: 0 },
   { name: "Deputy General Manager", industry: "*", department: "ADM", archetype: "department-head", tier: 0 },
   { name: "Chief Operating Officer", industry: "*", department: "ADM", archetype: "department-head", tier: 0 },
-  { name: "Chief Financial Officer", industry: "*", department: "ADM", archetype: "money", tier: 0 },
+  { name: "Chief Financial Officer", industry: "*", department: "FIN", archetype: "money", tier: 0 },
   { name: "Chief Commercial Officer", industry: "*", department: "ADM", archetype: "department-head", tier: 0 },
   { name: "Chief Technology Officer", industry: "*", department: "ADM", archetype: "department-head", tier: 0 },
   { name: "Chief Information Officer", industry: "*", department: "ADM", archetype: "department-head", tier: 0 },

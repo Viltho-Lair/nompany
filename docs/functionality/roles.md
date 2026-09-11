@@ -167,12 +167,19 @@ A section's root is read from `SECTION_DEFS`, never from the key's prefix:
 **`principal` is exempt** — Managing Director, CEO — because it runs the whole
 company; it keeps every area, still without `administration.access`.
 
-**Measured 11/09/2026, across the 2,237 roles the 25 starter charts seed: 26
-arrive with nothing.** All sit in the Administration department, and 24 of them
-are a Chief Financial Officer the generated library files under Administration
-rather than Finance (the `money` shape names nothing in Administration). An
-empty role grants nothing, so this is safe; the fix is a generator hint and a
-regenerate, not an edit here.
+**Measured 11/09/2026, across the 2,237 roles the 25 starter charts seed: 3
+arrive with nothing** — Board Audit Committee Chair (Financial Services), Chief
+Compliance Officer (Administrative & Support Services) and Auditor General
+(Public Administration), each a field-specific oversight title the generator's
+top-administration fallback files under Administration, where neither `money`
+nor `checker` names anything. An empty role grants nothing, so this is safe.
+
+**It was 26 until the CFO was re-filed.** The universal spine's one Chief
+Financial Officer, which reaches all twenty-five fields, sat under
+Administration because the governance group's shortlist was `ADM` alone and the
+Finance hint had nowhere to go; `FIN` is on that shortlist now
+(`scripts/generate/role-library.mjs`). A correction is a hint and a regenerate,
+never an edit to a generated row.
 
 That door may hand out access when the other refuses to, because **HR chooses
 which pre-built job to add, not what it may do.** The shape was decided by the
@@ -259,8 +266,10 @@ run, against live or in the sandbox.**
   roles, which is a decision for a person.
 - **Changing a department's sections re-shapes nothing.** Adding Finance to a
   department later does not give its existing roles Finance.
-- **26 seeded roles arrive empty** (see above) until the library's department
-  mapping is corrected for the CFO and two Administration checkers.
+- **3 seeded roles arrive empty** (see above) until the library files those
+  three oversight titles somewhere their shape holds something.
+- **The CFO re-filing reaches new departments only.** A studio already seeded
+  keeps its CFO role under Administration, with whatever it was copied with.
 - **No role hierarchy.** A role does not report to another role; only
   departments have a parent.
 - **No approval routing by role or by department manager.** The manager is
