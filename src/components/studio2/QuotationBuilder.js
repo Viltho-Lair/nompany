@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { technicalDict } from "@/shared/studio/technical";
+import { documentsDict } from "@/shared/studio/documents";
+import Link from "next/link";
 import { btn, btnGhost, input, money } from "@/components/studio2/ui";
 import { Icon } from "@/components/studio2/icons";
 import Combo from "@/components/studio2/Combo";
@@ -30,8 +32,9 @@ const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 // through typing "1.5".
 const cell = "w-full rounded-geex border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-900 outline-none focus:border-brand-500 dark:border-white/10 dark:bg-white/5 dark:text-white";
 
-export default function QuotationBuilder({ quote, catalogue = [], currency: studioCurrency = "", vatOn = false, canManage, onSave, onClose }) {
+export default function QuotationBuilder({ slug, quote, catalogue = [], currency: studioCurrency = "", vatOn = false, canManage, onSave, onClose }) {
   const tr = technicalDict(useStudioLocale());
+  const dt = documentsDict(useStudioLocale());
   // THE QUOTATION'S OWN MONEY FIRST — frozen when it was raised — and the
   // studio's only for a quotation raised before currency was stored on it.
   const currency = quote.currency || studioCurrency;
@@ -163,6 +166,19 @@ export default function QuotationBuilder({ quote, catalogue = [], currency: stud
         </div>
 
         <div className="ms-auto flex items-center gap-2">
+          {/* PRINT, HERE AS WELL AS ON SALES' VIEWER, because the viewer hangs off
+              a ticket and an internal quotation has none — it was a document
+              nobody could print from any screen. Same page, same published
+              layout, so a quotation prints identically from either side.
+
+              A NEW TAB, not this one: the print page fills the STORED record,
+              and navigating away would throw away whatever is typed here and
+              not yet saved. */}
+          {slug && quote.id && (
+            <Link href={`/${slug}/print/quotation/${quote.id}`} target="_blank" rel="noopener" className={btnGhost}>
+              {dt.print}
+            </Link>
+          )}
           {locked ? (
             <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-700 text-slate-500 dark:bg-white/5 dark:text-slate-300">
               {quote.locked ? tr.lockedViewOnly : tr.viewOnly}

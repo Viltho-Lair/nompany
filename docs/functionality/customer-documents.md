@@ -97,8 +97,11 @@ not accept the key, so there is never a second door.
 
 ## Printing
 
-**Print** is on the quotation viewer (Sales) and on every invoice row (Finance, for every
-reader of the row — a draft prints too, stamped). It opens `/<slug>/print/<kind>/<id>`, a
+**Print** is on the quotation viewer (Sales), in Technical's quotation builder, and on every
+invoice row (Finance, for every reader of the row — a draft prints too, stamped). The
+builder's is the only way to print an **internal quotation** — one with no sales ticket —
+because Sales' viewer hangs off a ticket; it opens in a new tab, since the page prints the
+saved record and leaving the builder would drop unsaved edits. It opens `/<slug>/print/<kind>/<id>`, a
 full-screen page (`shared/studioRoute`, like Engagements) with an **English / Arabic** switch
 that picks which layout fills; it starts at the reader's own language.
 
@@ -142,8 +145,8 @@ Stated in words, because a silent gap reads as a finished feature.
   Admin exception. Stated and accepted when approval was chosen.
 - **A layout's binding can change while a revision is open.** If a chosen layout is re-bound
   to another type mid-revision, the slot still names it until someone stops using it.
-- **Print is on the quotation viewer and invoice rows only** — not on Technical's quotation
-  list, a sales order, a delivery note or a purchase order. Each is a catalogue entry and a
+- **Print is on the quotation viewer, the quotation builder and invoice rows only** — not on
+  Technical's quotation list, a sales order, a delivery note or a purchase order. Each is a catalogue entry and a
   button, not new machinery.
 - **No email.** How a document reaches the client by email is an open row in
   `docs/progress.md`.

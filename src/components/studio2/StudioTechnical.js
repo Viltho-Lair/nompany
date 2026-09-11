@@ -304,6 +304,7 @@ export default function StudioTechnical({ slug, view = "engineering-docs", secti
         )}
         {editingQuote && (
           <QuotationBuilder
+            slug={slug}
             quote={quotations.find((q) => q.id === editingQuote.id) || editingQuote}
             canManage={canManageQuotations}
             catalogue={quoteClientId && priced?.clientId === quoteClientId
