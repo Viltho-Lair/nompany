@@ -14,6 +14,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { projectsDict } from "@/shared/studio/projects";
+import ProjectHubTabs from "@/components/studio2/ProjectHubTabs";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { panel, h2, sub, btn, btnGhost, Empty, Dialog, microLabel, fmtDate } from "@/components/studio2/ui";
@@ -133,6 +134,8 @@ export default function StudioSiteReports({ slug, projectId = "" }) {
 
   return (
     <div className="space-y-6">
+      {/* The hub's bar, when this diary is one project's — see ProjectHubTabs. */}
+      {projectId && <ProjectHubTabs slug={slug} projectId={projectId} active="reports" />}
       {error && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>}
 
       <div className="flex flex-wrap items-center justify-between gap-3">

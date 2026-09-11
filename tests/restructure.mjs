@@ -1100,50 +1100,36 @@ export async function testAdministrationFollowsItsChildren(t) {
 }
 
 /**
- * EVERY THIRD SEGMENT A PROJECT HANDLES MUST BE EXEMPT FROM THE BOARD'S
- * FULL-SCREEN EARLY RETURN.
+ * NO PROJECT SCREEN IS CHOSEN BY EXCLUDING THE OTHERS, AND EVERY HUB TAB
+ * LANDS ON A SCREEN THE PAGE HANDLES.
  *
- * THE BUG THIS GUARDS ALREADY HAPPENED. `/<slug>/projects-list/<id>` returns the
- * board BEFORE the framed screens are chosen, and the return is gated on the
- * third segment not being one of a hand-typed list. The cost breakdown shipped
- * with a branch further down that could never be reached: every request for
- * `/costs` rendered the board instead, which reads as a route that does not
- * exist rather than as a missing exemption. Nothing failed — not the build, not
- * a type, not a golden — because both halves were individually valid. Only
- * opening the screen showed it.
+ * THE BUG THIS GUARDS ALREADY HAPPENED. `/<slug>/projects-list/<id>` used to
+ * return the board as a CATCH-ALL — gated on the third segment not being one
+ * of a hand-typed list — and the cost breakdown shipped with a branch further
+ * down that could never be reached: every request for `/costs` rendered the
+ * board. Nothing failed, because both halves were individually valid.
  *
- * READ FROM THE FILE, both halves, so a fourth segment cannot be added to one
- * list and forgotten in the other. That is the whole point: a hand-kept copy of
- * a list is the thing that goes stale, which is the same lesson
- * NO_SCREEN_YET taught this file two slices ago.
+ * THE HUB (tier 5) REMOVED THE CATCH-ALL rather than growing its list: the
+ * board is a named tab (`segments[2] === "board"`) and the Overview answers
+ * the bare address. So the property worth asserting changed — no negative
+ * match on the third segment may come back, and every tab the hub draws must
+ * name a segment the page actually handles, read from BOTH files so a tab
+ * added to one and forgotten in the other fails here rather than on screen.
  */
-export async function testProjectSegmentsAreExemptFromTheBoard(t) {
+export async function testNoProjectScreenIsACatchAll(t) {
   const { readFileSync } = await import("node:fs");
   const src = readFileSync(new URL("../src/app/studio/[[...segments]]/page.js", import.meta.url), "utf8");
+  const hub = readFileSync(new URL("../src/components/studio2/ProjectHubTabs.jsx", import.meta.url), "utf8");
 
-  // THE PROJECT'S OWN third-segment branches, and only those. A ticket has one
-  // too (`/crm-sales-tickets/<id>/quotations/<id>`) and it has nothing to do
-  // with the board — matching every `segments[2] ===` in the file would demand
-  // an exemption for a segment that never reaches this route.
-  //
-  // Two shapes, both anchored on the project: the `projectId && ...` form the
-  // derived flags use, and the `requested === "projects-list" && ...` form the
-  // full-screen plan return uses.
-  const handled = new Set([
-    ...[...src.matchAll(/projectId\s*&&\s*segments\[2\]\s*===\s*"([a-z-]+)"/g)].map((m) => m[1]),
-    ...[...src.matchAll(/requested === "projects-list"[^;]*?segments\[2\]\s*===\s*"([a-z-]+)"/gs)].map((m) => m[1]),
-  ]);
-  // And the exemptions the board's early return lists: `segments[2] !== "<name>"`.
-  const exempt = new Set(
-    [...src.matchAll(/segments\[2\]\s*!==\s*"([a-z-]+)"/g)].map((m) => m[1]),
-  );
+  t.equal(/segments\[2\]\s*!==/.test(src), false,
+    "no screen in page.js is chosen by excluding third segments — a catch-all is how /costs rendered the board");
 
-  t.equal(handled.size > 0, true, "the page handles at least one third segment");
-  t.equal(exempt.size > 0, true, "the board's early return exempts at least one");
-
-  for (const segment of handled) {
-    t.equal(exempt.has(segment), true,
-      `/<slug>/projects-list/<id>/${segment} is handled, so the board's early return must exempt it — otherwise it silently renders the board`);
+  const handled = new Set([...src.matchAll(/segments\[2\]\s*===\s*"([a-z-]+)"/g)].map((m) => m[1]));
+  const tabs = [...hub.matchAll(/segment:\s*"([a-z-]*)"/g)].map((m) => m[1]);
+  t.equal(tabs.length > 0, true, "the hub draws at least one tab");
+  for (const segment of tabs.filter(Boolean)) {
+    t.equal(handled.has(segment), true,
+      `the hub's "${segment}" tab lands on a screen page.js handles (/projects-list/<id>/${segment}) — a tab to an unhandled segment would open nothing`);
   }
 }
 
@@ -2142,7 +2128,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       testTheTradeOffersOnlyWhatItMayChange,
       testEveryBuiltinLinkPointsAtARealRegister,
       testAdministrationFollowsItsChildren,
-      testProjectSegmentsAreExemptFromTheBoard,
+      testNoProjectScreenIsACatchAll,
       testEveryContextualSectionKeyLiteralExists,
       testEveryLiveWatchCanActuallyFire,
       testAnEventReachesTheWatchersOfItsAncestors,

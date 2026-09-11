@@ -358,6 +358,11 @@ type Strings = CommonStrings & {
   // The board's link to the dialog that edits the project itself — stage,
   // manager, dates, delete.
   projectDetails: string;
+  // ---- the project hub (tier 5) ----
+  projectOverview: string;
+  projectBoardTab: string;
+  projectTabs: string;
+  editDetails: string;
   projectManager: string;
   projectNoLongerExists: string;
   projectNoSheetYet: string;
@@ -809,6 +814,10 @@ const en: Strings = {
   projectAlreadyExistsQuotation: "A project already exists for that quotation.",
   projectBoard: "Project board",
   projectDetails: "Details",
+  projectOverview: "Overview",
+  projectBoardTab: "Board",
+  projectTabs: "Project screens",
+  editDetails: "Edit details",
   projectManager: "Project manager",
   projectNoLongerExists: "That project no longer exists.",
   projectNoSheetYet: "This project has no sheet yet.",
@@ -1258,6 +1267,10 @@ const ar: Strings = {
   projectAlreadyExistsQuotation: "يوجد مشروع بالفعل لعرض السعر ذاك.",
   projectBoard: "لوحة المشروع",
   projectDetails: "التفاصيل",
+  projectOverview: "نظرة عامة",
+  projectBoardTab: "اللوحة",
+  projectTabs: "شاشات المشروع",
+  editDetails: "تعديل التفاصيل",
   projectManager: "مدير المشروع",
   projectNoLongerExists: "لم يعد هذا المشروع موجودا.",
   projectNoSheetYet: "لا يوجد كشف لهذا المشروع بعد.",

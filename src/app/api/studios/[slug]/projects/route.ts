@@ -53,6 +53,11 @@ export const GET = route({ ...spec, body: false }, async (c) => {
     // only to the ones that will answer. Each is its own area — a site engineer
     // may keep the diary without seeing the margin — and closure answers to
     // `projects.list`, which anybody on the board already holds.
+    // AND THE PROJECT'S OWN CONTENT — overview, board, closure — which is
+    // `projects.list`. It was assumed ("anybody on the board already holds it")
+    // and it is not: somebody holding only the costs right reaches this route
+    // through the same section and was shown a Closure link that refused them.
+    canViewList: can(c.access, "projects.list.view"),
     canViewCosts: can(c.access, "projects.costs.view"),
     canViewBilling: can(c.access, "projects.billing.view"),
     canViewReports: can(c.access, "projects.reports.view"),

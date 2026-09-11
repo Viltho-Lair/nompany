@@ -5,7 +5,6 @@ import { useStudioLocale } from "@/components/studio2/locale";
 import { InfoPanelSkeleton } from "@/components/studio2/RecordSkeleton";
 import { projectsDict } from "@/shared/studio/projects";
 import { boardDict } from "@/shared/studio/board";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useBoardStore, boardDoc } from "@/components/kanban/store/board-store";
 import { KanbanBoard } from "@/components/kanban/KanbanBoard";
@@ -16,6 +15,7 @@ import {
   ProjectSection,
   WhatWasSoldSection,
 } from "@/components/studio2/StudioProjectInfo";
+import { ProjectHubBar } from "@/components/studio2/ProjectHubTabs";
 
 // THE KANBAN IS THE PROJECT PROFILE. This full-screen surface renders OUTSIDE
 // StudioFrame (the studio route early-returns it, the same way it does for the
@@ -103,55 +103,22 @@ export default function StudioProjectBoard({ slug, projectId }) {
 
   return (
     <div className="flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-[var(--geex-page)] text-[var(--geex-ink)]">
-      {/* ---- top bar: back + identity + read-only note ---- */}
-      <header className="flex shrink-0 items-center gap-3 border-b border-slate-200/70 bg-[var(--geex-surface)] px-4 py-3 dark:border-white/10">
-        <Link
-          href={`/${slug}/projects-list`}
-          className="inline-flex h-9 items-center gap-1.5 rounded-full border border-slate-200 px-3.5 font-display text-sm font-600 text-[var(--geex-muted)] transition-colors hover:bg-slate-50 dark:border-white/15 dark:hover:bg-white/5"
-        >
-          <span aria-hidden="true" className="rtl:-scale-x-100">←</span> {tr.projects}
-        </Link>
-
-        <div className="min-w-0">
-          <p className="truncate font-display text-base font-800 text-[var(--geex-ink)]">
-            {project?.title || tr.projectBoard}
-          </p>
-          <p className="truncate text-xs text-[var(--geex-muted)]">
-            {project?.number ? <span className="font-mono tabular-nums">{project.number}</span> : tr.noNumberYet}
-            {project?.clientName ? ` · ${project.clientName}` : ""}
-          </p>
-        </div>
-
-        {!board.loading && !board.canEdit && (
-          <span className="ms-auto rounded-full bg-slate-100 px-3 py-1.5 text-xs font-600 text-slate-500 dark:bg-white/5 dark:text-slate-400">
+      {/* ---- the hub's bar: back, identity, every screen this project has ----
+          The board is one tab of the project hub now (tier 5), so its header
+          and its strip of side doors are the hub's shared bar — handed the
+          /projects read this board already made for its sidebar. */}
+      <ProjectHubBar
+        slug={slug}
+        projectId={projectId}
+        active="board"
+        data={data}
+        className="shrink-0"
+        trailing={!board.loading && !board.canEdit ? (
+          <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-600 text-slate-500 dark:bg-white/5 dark:text-slate-400">
             {tr.viewOnly}
           </span>
-        )}
-      </header>
-
-      {/* THE PROJECT'S OWN SCREENS. Costs, the payment schedule, the site
-          diary and closure were routed and built and linked from nowhere — the
-          only way in was typing the address — and the dialog that edits the
-          project itself (stage, manager, dates, delete) opened only from a
-          query string nothing emitted. Each link is drawn for somebody who may
-          open it, from the rights the /projects read now reports. */}
-      {project && (
-        <nav aria-label={project.title || tr.projectBoard}
-          className="flex shrink-0 gap-1 overflow-x-auto border-b border-slate-200/70 bg-[var(--geex-surface)] px-4 py-2 dark:border-white/10">
-          {[
-            { href: `/${slug}/projects-list?project=${encodeURIComponent(projectId)}`, label: tr.projectDetails, show: true },
-            { href: `/${slug}/projects-list/${projectId}/costs`, label: tr.costBreakdown, show: Boolean(data?.canViewCosts) },
-            { href: `/${slug}/projects-list/${projectId}/billing`, label: tr.paymentSchedule, show: Boolean(data?.canViewBilling) },
-            { href: `/${slug}/projects-list/${projectId}/reports`, label: tr.siteReports, show: Boolean(data?.canViewReports) },
-            { href: `/${slug}/projects-list/${projectId}/closure`, label: tr.closure, show: true },
-          ].filter((l) => l.show).map((l) => (
-            <Link key={l.href} href={l.href}
-              className="inline-flex h-8 shrink-0 items-center rounded-full px-3 font-display text-sm font-600 text-[var(--geex-muted)] transition-colors hover:bg-slate-100 hover:text-[var(--geex-ink)] dark:hover:bg-white/5">
-              {l.label}
-            </Link>
-          ))}
-        </nav>
-      )}
+        ) : null}
+      />
 
       {/* ---- body: left rail · board · right sidebar ---- */}
       <div className="flex min-h-0 flex-1">

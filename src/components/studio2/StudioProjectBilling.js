@@ -16,6 +16,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { projectsDict } from "@/shared/studio/projects";
+import ProjectHubTabs from "@/components/studio2/ProjectHubTabs";
 import { RecordSkeleton } from "@/components/studio2/RecordSkeleton";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { panel, h2, sub, btn, btnGhost, btnRow, btnRowDanger, Empty, Dialog, StatTile, money, fmtDate } from "@/components/studio2/ui";
@@ -109,16 +110,9 @@ export default function StudioProjectBilling({ slug, projectId }) {
     <div className="space-y-6">
       {error && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>}
 
-      <div>
-        <a href={`/${slug}/projects-list/${projectId}`} className="text-sm text-brand-700 hover:underline dark:text-brand-300">
-          ← {tr.backToProject}
-        </a>
-        <h2 className={`${h2} mt-2`}>{project?.title}</h2>
-        <p className={sub}>
-          {project?.number ? <span className="font-mono text-xs">{project.number}</span> : null}
-          {project?.clientName ? <>{project?.number ? " · " : ""}{project.clientName}</> : null}
-        </p>
-      </div>
+      {/* THE HUB'S BAR — see StudioProjectCosts. */}
+      <ProjectHubTabs slug={slug} projectId={projectId} active="billing" />
+      <h2 className={h2}>{tr.paymentSchedule}</h2>
 
       <div className="grid gap-4 sm:grid-cols-3">
         <div className={panel}>

@@ -12,6 +12,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { projectsDict } from "@/shared/studio/projects";
+import ProjectHubTabs from "@/components/studio2/ProjectHubTabs";
 // THE LIBRARY'S OWN WORDS. It is Administration's register, and its
 // dictionary travels with it rather than being restated in Projects' —
 // one surface, one module, and no barrel over the two.
@@ -91,7 +92,7 @@ export default function StudioProjectCosts({ slug, projectId }) {
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <RecordSkeleton loadingLabel={tr.loadingCosts} />;
 
-  const { project, codes, costing, earned, canCreate, canEdit, canDelete, canSeedFromBill, canSeedFromLibrary } = data;
+  const { codes, costing, earned, canCreate, canEdit, canDelete, canSeedFromBill, canSeedFromLibrary } = data;
 
   // AN INDEX IS A RATIO, NOT MONEY, so it is not put through `money()` — two
   // decimals and no thousands separator. A dash where it is null: an index that
@@ -116,16 +117,10 @@ export default function StudioProjectCosts({ slug, projectId }) {
     <div className="space-y-6">
       {error && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>}
 
-      <div>
-        <a href={`/${slug}/projects-list/${projectId}`} className="text-sm text-brand-700 hover:underline dark:text-brand-300">
-          ← {tr.backToProject}
-        </a>
-        <h2 className={`${h2} mt-2`}>{project?.title}</h2>
-        <p className={sub}>
-          {project?.number ? <span className="font-mono text-xs">{project.number}</span> : null}
-          {project?.clientName ? <>{project?.number ? " · " : ""}{project.clientName}</> : null}
-        </p>
-      </div>
+      {/* THE HUB'S BAR — the project's name and every screen it has, in place
+          of a back link to a board that was the only way between them. */}
+      <ProjectHubTabs slug={slug} projectId={projectId} active="costs" />
+      <h2 className={h2}>{tr.costBreakdown}</h2>
 
       <div className="grid gap-4 sm:grid-cols-3">
         <div className={panel}>

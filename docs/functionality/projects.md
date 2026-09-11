@@ -20,15 +20,28 @@ has children — a board and a plan. There are **three ways one begins**:
    The client, the title, the industry, a description, a value, dates and the
    support period are typed on the spot.
 
-**A project's own screens are linked from its board.** A strip under the board's header opens
-Details (the dialog that edits the stage, manager, dates and deletes — reached as
-`/projects-list?project=<id>`), the cost breakdown, the payment schedule, the site diary and
-closure; the first four are drawn only for somebody the `/projects` read says may open them
-(`canViewCosts`, `canViewBilling`, `canViewReports`). Every "open project" link in the product
-(`linkToProject`) now goes to `/projects-list?project=<id>`. Until 11/09/2026 those links went
-to the Projects dashboard, which ignores the parameter, and the four sub-screens were linked
-from nowhere — so no project could be edited or closed, and costs, billing, the diary and
-closure were reachable only by typing their address.
+**A project is a hub with tabs** (tier 5, 11/09/2026). `/projects-list/<id>` is its
+**Overview** — the client, the project box and what was sold, the same panels the board's
+sidebar draws — with *Edit details* opening the list's dialog (stage, manager, dates, delete;
+`/projects-list?project=<id>`) for somebody who may manage the list. The **Board** is one tab at
+`/projects-list/<id>/board`, no longer the project page; beside it are **Costs**, **Billing**,
+the **Diary** (`/reports`) and **Closure**. Every one of them draws the same bar
+(`components/studio2/ProjectHubTabs`), and a tab is drawn only for somebody the `/projects`
+read says may open it: Overview, Board and Closure on `canViewList` (`projects.list.view`), the
+others on `canViewCosts`, `canViewBilling`, `canViewReports`. **`canViewList` is new**: the
+board assumed "anybody on it holds the list right", and a costs-only holder — who reaches the
+route through the same section — was shown a Closure link that refused them.
+
+**The board is chosen by naming it, never by excluding the others.** It used to be the
+catch-all for every third segment not on a hand-typed list, which is how `/costs` once rendered
+the board. `testNoProjectScreenIsACatchAll` (tests/restructure.mjs) refuses any negative match
+on the third segment in the page, and checks every tab lands on a segment the page handles.
+
+Every "open project" link in the product (`linkToProject`) goes to `/projects-list?project=<id>`,
+and links to the bare `/projects-list/<id>` (the planner's and the quotation viewer's back
+links, a tender's handover, a row click on the list) land on the Overview now rather than the
+board. Until 11/09/2026 the four sub-screens were linked from nowhere — reachable only by typing
+their address.
 
 `src/modules/projects/projects.ts`'s `openProject` decides which one ran by
 whether the request body carries a `quotationId`, else a `tenderId` — there is

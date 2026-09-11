@@ -123,6 +123,11 @@ const StudioProjectClosure = nextDynamic(
   () => import("@/components/studio2/StudioProjectClosure"),
   { loading: () => <ScreenSkeleton /> },
 );
+// The project hub's first tab — see ProjectHubTabs.
+const StudioProjectOverview = nextDynamic(
+  () => import("@/components/studio2/StudioProjectOverview"),
+  { loading: () => <ScreenSkeleton /> },
+);
 const StudioExpediting = nextDynamic(
   () => import("@/components/studio2/StudioExpediting"),
   { loading: () => <ScreenSkeleton /> },
@@ -413,27 +418,24 @@ async function renderStudio(params) {
     );
   }
 
-  // THE PROJECT PROFILE IS THE KANBAN BOARD, and the board is full-screen.
-  // /<slug>/projects-list/<id> is one project's board; the /quotation sub-route
-  // is left to the in-frame viewer below, so this deliberately does not catch
-  // it — and `isFullScreenPath` makes the same exception, or the shell would
-  // drop its chrome around a screen that wants it.
+  // THE BOARD IS ONE TAB OF THE PROJECT HUB, not the project page (tier 5).
+  // /<slug>/projects-list/<id>/board is the kanban, full-screen; the project's
+  // own page is its Overview (below, framed with the other tabs), and every tab
+  // shares one bar — components/studio2/ProjectHubTabs.
+  //
+  // CHOSEN BY NAMING IT, NEVER BY EXCLUDING THE OTHERS. This used to be the
+  // catch-all for every third segment not on a hand-typed list, so a segment
+  // missing from the list silently rendered the board — `costs` did exactly
+  // that until somebody opened it. A positive match cannot swallow anything;
+  // tests/restructure.mjs refuses any negative match on the third segment in
+  // this file (testNoProjectScreenIsACatchAll).
   //
   // It rides the projects-list grant: the section must be visible to this person
   // (its /board API re-checks server-side, and the write re-checks the edit
   // right). A refusal falls THROUGH to the framed screens below, which already
-  // answer "not granted" — which is why the grant is part of the shell's
-  // full-screen test too, rather than the path alone.
+  // answer "not granted".
   if (
-    requested === "projects-list" && segments[1] &&
-    // EVERY THIRD SEGMENT THIS PROJECT HAS IS AN EXEMPTION, and the list has to
-    // grow with them: the board is a FULL-SCREEN early return, so a segment
-    // missing from here is not "unhandled" — it silently renders the board
-    // instead, which reads as a route that does not exist. `costs` did exactly
-    // that until it was added, and only opening the screen showed it.
-    segments[2] !== "quotation" && segments[2] !== "plans" && segments[2] !== "costs" &&
-    segments[2] !== "billing" && segments[2] !== "reports" &&
-    segments[2] !== "closure" &&
+    requested === "projects-list" && segments[1] && segments[2] === "board" &&
     sections.some((s) => s.key === "projects-list")
   ) {
     return <StudioProjectBoard slug={studio.slug} projectId={segments[1]} />;
@@ -534,6 +536,10 @@ async function renderStudio(params) {
   // /<slug>/projects-list/<id>/quotation is the Projects version — the
   // quotation's rows without prices, with the columns Projects owns.
   const projectQuotation = projectId && segments[2] === "quotation";
+  // THE PROJECT'S OWN PAGE — its Overview, the hub's first tab. The bare
+  // address lands here; /overview is the same screen, named, so a tab can link
+  // to it without special-casing the empty segment.
+  const projectOverview = projectId && (!segments[2] || segments[2] === "overview");
   // AND A THIRD SEGMENT OPENS ITS COST BREAKDOWN:
   // /<slug>/projects-list/<id>/costs is what the job is allowed to cost against
   // what it has. It resolves through the same projects-list section, which now
@@ -731,6 +737,7 @@ async function renderStudio(params) {
         : ticketId ? <StudioTicketProfile slug={studio.slug} ticketId={ticketId} />
         : isSheets ? <StudioSheetViewer slug={studio.slug} sheetId={sheetId} perspective="inventory" />
         : projectQuotation ? <StudioSheetViewer slug={studio.slug} projectId={projectId} perspective="projects" />
+        : projectOverview ? <StudioProjectOverview slug={studio.slug} projectId={projectId} />
         : projectCosts ? <StudioProjectCosts slug={studio.slug} projectId={projectId} />
         : projectBilling ? <StudioProjectBilling slug={studio.slug} projectId={projectId} />
         : projectReports ? <StudioSiteReports slug={studio.slug} projectId={projectId} />
