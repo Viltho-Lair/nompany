@@ -24,8 +24,19 @@
 import { nextOccurrence, PLAN_FREQUENCIES } from "@/modules/operations/planSchedule";
 import { addDaysISO } from "@/shared/dates";
 import { orderOpen } from "./model";
+import { isMeterUnit } from "./meters";
 
 export { PLAN_FREQUENCIES };
+
+/**
+ * WHAT A PLAN RUNS ON. The calendar (every quarter), or a METER (every 250
+ * running hours) — the second because a generator that sat idle all summer has
+ * not worn a quarter's worth, and one run flat out through a shutdown has worn
+ * three. Meter plans fall due on the machine's latest reading rather than a date.
+ */
+export const PLAN_TRIGGERS = ["calendar", "meter"] as const;
+export type PlanTrigger = (typeof PLAN_TRIGGERS)[number];
+const isMeterPlan = (p: { trigger?: unknown }) => String(p.trigger ?? "").trim() === "meter";
 
 export const SCHEDULE_MODES = ["fixed", "floating"] as const;
 export type ScheduleMode = (typeof SCHEDULE_MODES)[number];
@@ -66,22 +77,81 @@ export const checklistFor = (labels: readonly string[]) =>
 type PlanLike = {
   id?: unknown; title?: unknown; status?: unknown; frequency?: unknown; scheduleMode?: unknown;
   nextDue?: unknown; leadDays?: unknown; checklist?: unknown;
+  trigger?: unknown; assetId?: unknown; meterUnit?: unknown; meterEvery?: unknown; nextDueReading?: unknown;
 };
 
 /** Why this plan cannot be saved — or null. */
 export function planProblem(plan: PlanLike): string | null {
   if (!text(plan.title)) return "title";
+  if (Array.isArray(plan.checklist) && plan.checklist.length > MAX_CHECKLIST) return "checklist-long";
+  // A METER PLAN IS ABOUT ONE MACHINE'S METER — without the machine there is no
+  // reading to fall due on, and it would never raise anything, silently.
+  if (isMeterPlan(plan)) {
+    if (!text(plan.assetId)) return "meter-asset";
+    if (!isMeterUnit(plan.meterUnit)) return "meter-unit";
+    const every = Number(plan.meterEvery);
+    if (!Number.isFinite(every) || every <= 0) return "meter-every";
+    const next = Number(plan.nextDueReading);
+    if (plan.nextDueReading === "" || plan.nextDueReading === null || !Number.isFinite(next) || next < 0) return "meter-next";
+    return null;
+  }
   if (!isFrequency(plan.frequency)) return "frequency";
   if (!ISO.test(text(plan.nextDue))) return "next-due";
   const lead = Number(plan.leadDays ?? 0);
   if (!Number.isInteger(lead) || lead < 0 || lead > MAX_LEAD_DAYS) return "lead-days";
-  // Its own token: `checklist` already means "an item is unticked" on a work
-  // order, and one word for two refusals is one sentence on screen for both.
-  if (Array.isArray(plan.checklist) && plan.checklist.length > MAX_CHECKLIST) return "checklist-long";
   return null;
 }
+// (`checklist-long` is its own token: `checklist` already means "an item is
+// unticked" on a work order, and one word for two refusals is one sentence on
+// screen for both.)
 
-type OrderLike = { pmPlanId?: unknown; pmDueOn?: unknown; status?: unknown; completedAt?: unknown };
+type OrderLike = {
+  pmPlanId?: unknown; pmDueOn?: unknown; pmDueReading?: unknown; status?: unknown; completedAt?: unknown;
+};
+
+/**
+ * WHAT TODAY'S RUN DOES FOR A METER PLAN, given the machine's latest reading.
+ *
+ * `dueReading` is the reading the order answers — the plan's `nextDueReading`
+ * — and it is what makes the run idempotent, the way `pmDueOn` is for a
+ * calendar plan. Fixed moves the trigger on by the interval the moment it
+ * raises (the service is every 250 hours of the meter, whenever it is done);
+ * floating moves it from the reading at completion (`nextDueReadingOnClose`).
+ */
+export function meterRaiseDecision(
+  plan: PlanLike,
+  orders: readonly OrderLike[],
+  reading: { value?: unknown } | null,
+): { raise: boolean; dueReading: number; next: number | null } | null {
+  if (text(plan.status) !== "Active" || !isMeterPlan(plan) || !reading) return null;
+  const due = Number(plan.nextDueReading);
+  const every = Number(plan.meterEvery);
+  if (!Number.isFinite(due) || !Number.isFinite(every) || every <= 0) return null;
+  const mine = orders.filter((o) => text(o.pmPlanId) === text(plan.id));
+  if (mine.some((o) => orderOpen(o))) return null;
+  if (Number(reading.value) < due) return null;
+  const following = due + every;
+  const already = mine.some((o) => Number(o.pmDueReading) === due);
+  if (already) return { raise: false, dueReading: due, next: following };
+  return { raise: true, dueReading: due, next: text(plan.scheduleMode) === "floating" ? null : following };
+}
+
+/**
+ * WHERE A FLOATING METER PLAN GOES WHEN ITS WORK IS FINISHED — the reading at
+ * completion plus the interval, or past a cancelled occurrence. Only the order
+ * answering the plan's current trigger moves it; a fixed plan returns null.
+ */
+export function nextDueReadingOnClose(
+  plan: PlanLike, order: OrderLike, status: string, readingAtClose: number | null,
+): number | null {
+  if (!isMeterPlan(plan) || text(plan.scheduleMode) !== "floating") return null;
+  if (text(order.pmPlanId) !== text(plan.id) || Number(order.pmDueReading) !== Number(plan.nextDueReading)) return null;
+  const every = Number(plan.meterEvery);
+  if (!Number.isFinite(every) || every <= 0) return null;
+  if (status === "Completed") return (readingAtClose ?? Number(plan.nextDueReading)) + every;
+  if (status === "Cancelled") return Number(plan.nextDueReading) + every;
+  return null;
+}
 
 /**
  * WHAT TODAY'S RUN DOES FOR THIS PLAN.
@@ -101,7 +171,8 @@ export function raiseDecision(
   orders: readonly OrderLike[],
   today: string,
 ): { raise: boolean; occurrence: string; next: string | null } | null {
-  if (text(plan.status) !== "Active") return null;
+  // A METER PLAN IS NOT ON THE CALENDAR — `meterRaiseDecision` answers it.
+  if (text(plan.status) !== "Active" || isMeterPlan(plan)) return null;
   const occurrence = text(plan.nextDue);
   if (!ISO.test(occurrence) || !isFrequency(plan.frequency)) return null;
   const mine = orders.filter((o) => text(o.pmPlanId) === text(plan.id));
@@ -125,7 +196,7 @@ export function raiseDecision(
  * plan already moved when the order was raised, so it returns null.
  */
 export function nextDueOnClose(plan: PlanLike, order: OrderLike, status: string, closedDay: string): string | null {
-  if (text(plan.scheduleMode) !== "floating") return null;
+  if (text(plan.scheduleMode) !== "floating" || isMeterPlan(plan)) return null;
   if (text(order.pmPlanId) !== text(plan.id) || text(order.pmDueOn) !== text(plan.nextDue)) return null;
   if (status === "Completed") return nextOccurrence(closedDay, plan.frequency) || null;
   if (status === "Cancelled") return nextOccurrence(text(order.pmDueOn), plan.frequency) || null;

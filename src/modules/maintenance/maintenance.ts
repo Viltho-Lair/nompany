@@ -42,10 +42,11 @@ import { balances } from "@/modules/inventory/inventory";
 import type { Item, Movement } from "@/modules/inventory/schema";
 import { valuesFor, resolveValue } from "@/modules/administration/taxonomy";
 import {
-  PLAN_FREQUENCIES, SCHEDULE_MODES, PLAN_MOVES, planProblem, cleanChecklist, nextDueOnClose, planCompliance,
-  type PlanStatus,
+  PLAN_FREQUENCIES, SCHEDULE_MODES, PLAN_MOVES, PLAN_TRIGGERS, planProblem, cleanChecklist, nextDueOnClose,
+  nextDueReadingOnClose, planCompliance, type PlanStatus,
 } from "./schedule";
-import type { LabourEntry, PmPlan, WorkOrder, WorkRequest } from "./schema";
+import { METER_UNITS, latestReading, readingProblem } from "./meters";
+import type { LabourEntry, MeterReading, PmPlan, WorkOrder, WorkRequest } from "./schema";
 import type { Section } from "@/platform/db/sections";
 import type { MaintenanceContext } from "./types";
 
@@ -53,6 +54,7 @@ const Requests = repo<WorkRequest>("workRequests");
 const Orders = repo<WorkOrder>("workOrders");
 const Labour = repo<LabourEntry>("workOrderLabour");
 const Plans = repo<PmPlan>("pmPlans");
+const Readings = repo<MeterReading>("meterReadings");
 // INVENTORY'S, READ ONLY. Every movement is written by Inventory
 // (`moveForWorkOrder`); this reads what a work order used and what is on hand.
 const StockMoves = repo<Movement>("inventoryStock");
@@ -62,7 +64,10 @@ const Locations = repo<Location>("locations");
 
 export const maintenanceContext = moduleContext<MaintenanceContext>({
   root: "maintenance",
-  sub: { requests: "maintenance-requests", orders: "maintenance-orders", plans: "maintenance-plans" },
+  sub: {
+    requests: "maintenance-requests", orders: "maintenance-orders", plans: "maintenance-plans",
+    assets: "maintenance-assets",
+  },
   // Locations are Master data's; this reads them and owns none of them. The
   // stock ledger and the items are Inventory's, read to show what a work order
   // used — every movement is written by Inventory (`moveForWorkOrder`).
@@ -108,6 +113,7 @@ const hours = (v: unknown): number | null => {
 const requestScope = (ctx: MaintenanceContext) => ({ studio: ctx.studio, section: ctx.requestsSection });
 const orderScope = (ctx: MaintenanceContext) => ({ studio: ctx.studio, section: ctx.ordersSection });
 const planScope = (ctx: MaintenanceContext) => ({ studio: ctx.studio, section: ctx.plansSection });
+const readingScope = (ctx: MaintenanceContext) => ({ studio: ctx.studio, section: ctx.assetsSection });
 const may = (ctx: MaintenanceContext, key: PermissionKey) => !requirePermission(ctx.access, key);
 
 // ---- what a record points at ---------------------------------------------------
@@ -484,6 +490,16 @@ async function afterPlanClose(ctx: MaintenanceContext, order: WorkOrder, status:
   if (!order.pmPlanId || (status !== "Completed" && status !== "Cancelled")) return;
   const plan = await Plans.byId(planScope(ctx), order.pmPlanId);
   if (!plan) return;
+  // A FLOATING METER PLAN moves from the reading when the work was done.
+  if (plan.trigger === "meter") {
+    const readings = await Readings.find(readingScope(ctx), { where: { assetId: plan.assetId } });
+    const latest = latestReading(readings, plan.assetId, plan.meterUnit || "");
+    const nextReading = nextDueReadingOnClose(plan, order, status, latest ? Number(latest.value) : null);
+    if (nextReading === null) return;
+    await Plans.update(planScope(ctx), plan.id, (row) =>
+      (row.nextDueReading === plan.nextDueReading ? { nextDueReading: nextReading, updatedAt: at } : {}));
+    return;
+  }
   const next = nextDueOnClose(plan, order, status, at.slice(0, 10));
   if (!next) return;
   await Plans.update(planScope(ctx), plan.id, (row) => (row.nextDue === plan.nextDue ? { nextDue: next, updatedAt: at } : {}));
@@ -550,13 +566,14 @@ export async function listMachines(ctx: MaintenanceContext) {
   if (denied) return denied;
   const asOf = now();
   if (!may(ctx, "engine.equipment.view")) return { machines: [], canSeeMachines: false, asOf };
-  const [machines, orders, partMoves, labour] = await Promise.all([
+  const [machines, orders, partMoves, labour, readings] = await Promise.all([
     equipment(ctx),
     Orders.find(orderScope(ctx)),
     ctx.stockSection
       ? StockMoves.find({ studio: ctx.studio, section: ctx.stockSection }, { where: { sourceType: WORKORDER_SOURCE } })
       : Promise.resolve([] as Movement[]),
     Labour.find(orderScope(ctx)),
+    Readings.find(readingScope(ctx)),
   ]);
   const stats = reliabilityByAsset(orders, asOf);
   // WHAT EACH MACHINE COST TO KEEP RUNNING: parts off the ledger, hours off the
@@ -573,12 +590,77 @@ export async function listMachines(ctx: MaintenanceContext) {
     category: str((r.values as Record<string, unknown> | undefined)?.category, 40),
     ...(stats.get(r.id) || nothing),
     ...(costs.get(r.id) || { partsCost: 0, labourHours: 0 }),
+    // THE LATEST READING ON EACH METER the machine has one for.
+    meters: METER_UNITS.flatMap((unit) => {
+      const last = latestReading(readings, r.id, unit);
+      return last ? [{
+        id: last.id, unit, value: last.value, readAt: last.readAt,
+        createdByCollaboratorId: last.createdByCollaboratorId,
+      }] : [];
+    }),
   })).sort((a, b) =>
     // THE ONES THAT NEED LOOKING AT FIRST: most failures, then least available.
     b.failures - a.failures
     || (a.availability ?? 101) - (b.availability ?? 101)
     || a.name.localeCompare(b.name));
-  return { machines: rows, canSeeMachines: true, asOf, currency: String(ctx.studio.currency || "") };
+  return {
+    machines: rows, canSeeMachines: true, asOf, currency: String(ctx.studio.currency || ""),
+    meterUnits: METER_UNITS,
+    me: ctx.collaborator.id,
+    // RECORDING A READING IS THE TECHNICIAN'S ACT — the right that moves the
+    // work — and taking back somebody else's is the deleting right's.
+    canRecord: may(ctx, "maintenance.orders.edit"),
+    canRemoveAny: may(ctx, "maintenance.orders.delete"),
+  };
+}
+
+// ---- meter readings ------------------------------------------------------------
+
+/**
+ * RECORD HOW FAR A MACHINE HAS RUN. Refused below the last reading unless the
+ * meter was replaced (`reset`), before the last reading, or in the future
+ * (`readingProblem`, pure). The route then asks the plan run whether this
+ * reading brought a meter plan due, so a reading that crosses 250 hours raises
+ * the service now rather than tomorrow morning.
+ */
+export async function recordReading(ctx: MaintenanceContext, body: Record<string, unknown>) {
+  const denied = requirePermission(ctx.access, "maintenance.orders.edit");
+  if (denied) return denied;
+  const assetId = str(body?.assetId, 60);
+  if (!assetId || !(await equipment(ctx)).some((r) => r.id === assetId)) return { error: "asset" };
+  const unit = str(body?.unit, 20);
+  const readAt = body?.readAt ? instant(body.readAt) : now();
+  const reset = body?.reset === true;
+  const existing = await Readings.find(readingScope(ctx), { where: { assetId } });
+  const problem = readingProblem({ unit, value: body?.value, readAt, reset }, latestReading(existing, assetId, unit), now());
+  if (problem) return { error: problem };
+  const reading = await Readings.create(readingScope(ctx), {
+    assetId, unit, value: Number(body?.value), readAt, reset,
+    note: str(body?.note, 300),
+    createdByCollaboratorId: ctx.collaborator.id,
+    createdAt: now(),
+  });
+  return { reading };
+}
+
+/**
+ * TAKE BACK A MISTYPED READING — only the latest on its meter (an earlier one
+ * is history a later one was judged against), and only by whoever recorded it
+ * or somebody who may delete work orders. A reading typed as 12,000 instead of
+ * 1,200 would otherwise refuse every true reading after it for ever.
+ */
+export async function removeReading(ctx: MaintenanceContext, id: string) {
+  const denied = requirePermission(ctx.access, "maintenance.orders.edit");
+  if (denied) return denied;
+  const reading = await Readings.byId(readingScope(ctx), id);
+  if (!reading) return { error: "notfound" };
+  const siblings = await Readings.find(readingScope(ctx), { where: { assetId: reading.assetId } });
+  if (latestReading(siblings, reading.assetId, reading.unit)?.id !== reading.id) return { error: "not-latest" };
+  if (reading.createdByCollaboratorId !== ctx.collaborator.id && !may(ctx, "maintenance.orders.delete")) {
+    return { error: "not-yours" };
+  }
+  await Readings.remove(readingScope(ctx), id);
+  return { ok: true };
 }
 
 // ---- preventive plans ----------------------------------------------------------
@@ -603,6 +685,14 @@ function planFields(body: Record<string, unknown>) {
   if (has("leadDays")) out.leadDays = Number(body.leadDays) || 0;
   if (has("estimatedHours")) out.estimatedHours = hours(body.estimatedHours);
   if (has("checklist")) out.checklist = cleanChecklist(body.checklist);
+  if (has("trigger")) out.trigger = oneOf(PLAN_TRIGGERS, body.trigger, "calendar");
+  if (has("meterUnit")) out.meterUnit = str(body.meterUnit, 20);
+  if (has("meterEvery")) out.meterEvery = Number(body.meterEvery) || 0;
+  // BLANK IS NULL, judged by `planProblem` — not a trigger at nought, which
+  // would raise the service on the machine's very first reading.
+  if (has("nextDueReading")) {
+    out.nextDueReading = body.nextDueReading === "" || body.nextDueReading === null ? null : Number(body.nextDueReading);
+  }
   return out;
 }
 
@@ -617,10 +707,11 @@ export async function listPlans(ctx: MaintenanceContext) {
   const denied = requirePermission(ctx.access, "maintenance.plans.view");
   if (denied) return denied;
   const canSeeOrders = may(ctx, "maintenance.orders.view");
-  const [rows, orders, people] = await Promise.all([
+  const [rows, orders, people, readings] = await Promise.all([
     Plans.find(planScope(ctx)),
     Orders.find(orderScope(ctx)),
     listCollaborators(ctx.studio.id),
+    Readings.find(readingScope(ctx)),
   ]);
   const { pickers, asset, location, aliasOf } = await lookups(ctx, people as Person[]);
   const asOf = now().slice(0, 10);
@@ -647,6 +738,10 @@ export async function listPlans(ctx: MaintenanceContext) {
       lastDoneOn: finished[finished.length - 1] || "",
       raised: mine.length,
       compliance,
+      // WHERE THE METER IS NOW, for a plan that runs on one.
+      currentReading: p.trigger === "meter"
+        ? latestReading(readings, p.assetId, p.meterUnit || "")?.value ?? null
+        : null,
     };
   }).sort((a, b) => {
     const rank = (s: string) => ["Active", "Paused", "Retired"].indexOf(s);
@@ -656,6 +751,7 @@ export async function listPlans(ctx: MaintenanceContext) {
   return {
     plans, asOf, pickers,
     frequencies: PLAN_FREQUENCIES,
+    meterUnits: METER_UNITS,
     compliance: { onTime, total, percent: total ? Math.round((onTime / total) * 100) : null },
     canCreate: may(ctx, "maintenance.plans.create"),
     canEdit: may(ctx, "maintenance.plans.edit"),
@@ -668,7 +764,10 @@ export async function createPlan(ctx: MaintenanceContext, body: Record<string, u
   if (denied) return denied;
   // TYPED AS A RECORD: spread over literal defaults, the coerced fields would
   // lose their index signature and every optional one would read as absent.
-  const fields: Record<string, unknown> = { type: "preventive", priority: "normal", scheduleMode: "fixed", leadDays: 0, ...planFields(body || {}) };
+  const fields: Record<string, unknown> = {
+    type: "preventive", priority: "normal", scheduleMode: "fixed", leadDays: 0, trigger: "calendar",
+    ...planFields(body || {}),
+  };
   const draft = { ...fields, title: str(body?.title, 200) };
   const problem = planProblem(draft) || await linkProblem(ctx, {
     assetId: String(fields.assetId || ""), locationId: String(fields.locationId || ""),
@@ -686,6 +785,11 @@ export async function createPlan(ctx: MaintenanceContext, body: Record<string, u
     assignedToCollaboratorIds: [],
     estimatedHours: null,
     checklist: [],
+    frequency: "",
+    nextDue: "",
+    meterUnit: "",
+    meterEvery: 0,
+    nextDueReading: null,
     ...draft,
     status: "Active",
     createdByCollaboratorId: ctx.collaborator.id,

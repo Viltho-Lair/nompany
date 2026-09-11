@@ -12,7 +12,7 @@ import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { panel, h2, sub, btn, btnGhost, btnRow, btnRowDanger, Empty, Dialog, fmtDate } from "@/components/studio2/ui";
 import { Field } from "@/components/fields/Field";
 import { PRIORITIES } from "@/modules/maintenance/model";
-import { PLAN_MOVES, SCHEDULE_MODES, planProblem } from "@/modules/maintenance/schedule";
+import { PLAN_MOVES, SCHEDULE_MODES, PLAN_TRIGGERS, planProblem } from "@/modules/maintenance/schedule";
 import {
   useMaintenance, Chip, priorityTone, Links, PeoplePicker, pickOptions,
 } from "@/components/studio2/maintenanceParts";
@@ -36,7 +36,7 @@ export default function StudioPmPlans({ slug }) {
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <ScreenSkeleton loadingLabel={tr.loading} />;
 
-  const { plans = [], pickers = {}, frequencies = [], compliance, asOf, canCreate, canEdit, canDelete } = data;
+  const { plans = [], pickers = {}, frequencies = [], meterUnits = [], compliance, asOf, canCreate, canEdit, canDelete } = data;
   const priorities = PRIORITIES.map((p) => ({ value: p, label: tr.priorityName(p) }));
   const types = ["preventive", "inspection"].map((t) => ({ value: t, label: tr.typeName(t) }));
 
@@ -46,17 +46,22 @@ export default function StudioPmPlans({ slug }) {
       assetId: p.assetId, locationId: p.locationId, assignedToCollaboratorIds: p.assignedToCollaboratorIds || [],
       frequency: p.frequency, scheduleMode: p.scheduleMode, nextDue: p.nextDue, leadDays: String(p.leadDays ?? 0),
       estimatedHours: p.estimatedHours ?? "", checklist: (p.checklist || []).join("\n"),
+      trigger: p.trigger || "calendar", meterUnit: p.meterUnit || "hours",
+      meterEvery: p.meterEvery ? String(p.meterEvery) : "", nextDueReading: p.nextDueReading ?? "",
     }
     : {
       title: "", description: "", type: "preventive", priority: "normal", assetId: "", locationId: "",
       assignedToCollaboratorIds: [], frequency: "Monthly", scheduleMode: "fixed", nextDue: asOf, leadDays: "0",
-      estimatedHours: "", checklist: "",
+      estimatedHours: "", checklist: "", trigger: "calendar", meterUnit: "hours", meterEvery: "", nextDueReading: "",
     });
 
   const payload = (f) => ({
     ...f,
     leadDays: Number(f.leadDays) || 0,
     checklist: String(f.checklist || "").split("\n").map((s) => s.trim()).filter(Boolean),
+    meterEvery: Number(f.meterEvery) || 0,
+    // BLANK STAYS BLANK — the server refuses it rather than reading nought.
+    nextDueReading: String(f.nextDueReading ?? "").trim() === "" ? "" : Number(f.nextDueReading),
   });
   // THE SAME RULE THE SERVER REFUSES WITH, so Save is offered only when it would
   // be accepted.
@@ -98,10 +103,15 @@ export default function StudioPmPlans({ slug }) {
                 <Chip tone={priorityTone(p.priority)}>{tr.priorityName(p.priority)}</Chip>
               </p>
               <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-                {tr.typeName(p.type)} · {tr.frequencyName(p.frequency)} · {tr.modeName(p.scheduleMode)}
+                {tr.typeName(p.type)} · {p.trigger === "meter" ? tr.everyMeter(p.meterEvery, p.meterUnit) : tr.frequencyName(p.frequency)} · {tr.modeName(p.scheduleMode)}
               </p>
               <p className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm tabular-nums text-slate-600 dark:text-slate-300">
-                {p.status !== "Retired" && <span>{tr.nextDue}: {fmtDate(p.nextDue)}</span>}
+                {p.status !== "Retired" && p.trigger === "meter" && (
+                  <span>
+                    {tr.nextAt(p.nextDueReading, p.meterUnit)} · {p.currentReading != null ? tr.nowAt(p.currentReading, p.meterUnit) : tr.noReading}
+                  </span>
+                )}
+                {p.status !== "Retired" && p.trigger !== "meter" && <span>{tr.nextDue}: {fmtDate(p.nextDue)}</span>}
                 <span>{p.lastDoneOn ? tr.lastDone(fmtDate(p.lastDoneOn)) : tr.neverDone}</span>
                 <span>{p.compliance?.percent != null ? tr.complianceOf(p.compliance.percent, p.compliance.total) : tr.complianceNone}</span>
               </p>
@@ -151,16 +161,33 @@ export default function StudioPmPlans({ slug }) {
             <Field label={tr.title} required value={form.title}
               onChange={(v) => setForm((f) => ({ ...f, title: v }))} inputProps={{ maxLength: 200 }} />
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label={tr.frequency} as="select" required value={form.frequency}
-                onChange={(v) => setForm((f) => ({ ...f, frequency: v }))}
-                options={frequencies.map((x) => ({ value: x, label: tr.frequencyName(x) }))} />
+              <Field label={tr.trigger} as="select" required value={form.trigger}
+                onChange={(v) => setForm((f) => ({ ...f, trigger: v }))}
+                options={PLAN_TRIGGERS.map((x) => ({ value: x, label: tr.triggerName(x) }))} />
               <Field label={tr.scheduleMode} as="select" required value={form.scheduleMode}
                 onChange={(v) => setForm((f) => ({ ...f, scheduleMode: v }))}
                 options={SCHEDULE_MODES.map((x) => ({ value: x, label: tr.modeName(x) }))} />
-              <Field label={form.id ? tr.nextDue : tr.firstDue} type="date" required value={form.nextDue}
-                onChange={(v) => setForm((f) => ({ ...f, nextDue: v }))} />
-              <Field label={tr.leadDays} type="number" value={form.leadDays} hint={tr.leadDaysHint}
-                onChange={(v) => setForm((f) => ({ ...f, leadDays: v }))} inputProps={{ min: 0, max: 60, step: 1 }} />
+              {form.trigger === "meter" ? (
+                <>
+                  <Field label={tr.meterUnit} as="select" required value={form.meterUnit}
+                    onChange={(v) => setForm((f) => ({ ...f, meterUnit: v }))}
+                    options={meterUnits.map((x) => ({ value: x, label: tr.unitName(x) }))} />
+                  <Field label={tr.meterEvery} type="number" required value={form.meterEvery}
+                    onChange={(v) => setForm((f) => ({ ...f, meterEvery: v }))} inputProps={{ min: 0, step: "any" }} />
+                  <Field label={tr.nextDueReading} type="number" required value={form.nextDueReading}
+                    onChange={(v) => setForm((f) => ({ ...f, nextDueReading: v }))} inputProps={{ min: 0, step: "any" }} />
+                </>
+              ) : (
+                <>
+                  <Field label={tr.frequency} as="select" required value={form.frequency}
+                    onChange={(v) => setForm((f) => ({ ...f, frequency: v }))}
+                    options={frequencies.map((x) => ({ value: x, label: tr.frequencyName(x) }))} />
+                  <Field label={form.id ? tr.nextDue : tr.firstDue} type="date" required value={form.nextDue}
+                    onChange={(v) => setForm((f) => ({ ...f, nextDue: v }))} />
+                  <Field label={tr.leadDays} type="number" value={form.leadDays} hint={tr.leadDaysHint}
+                    onChange={(v) => setForm((f) => ({ ...f, leadDays: v }))} inputProps={{ min: 0, max: 60, step: 1 }} />
+                </>
+              )}
               <Field label={tr.type} as="select" required value={form.type}
                 onChange={(v) => setForm((f) => ({ ...f, type: v }))} options={types} />
               <Field label={tr.priority} as="select" required value={form.priority}

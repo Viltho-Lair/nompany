@@ -111,6 +111,8 @@ export const WorkOrderSchema = z.object({
   upAt: z.string().max(40).optional(),
   /** What failed, why, and what put it right — the studio's failure-code lists. */
   failure: z.object({ problem: z.string(), cause: z.string(), remedy: z.string() }).optional(),
+  /** For a METER plan's order: the reading it answers — idempotency, as `pmDueOn` is for a date. */
+  pmDueReading: z.number().optional(),
   createdByCollaboratorId: z.string(),
   createdAt: z.string(),
   updatedAt: z.string(),
@@ -145,6 +147,16 @@ export const PmPlanSchema = z.object({
   estimatedHours: z.number().nullable(),
   /** Step labels. Each order gets its own ticked copy. */
   checklist: z.array(z.string().max(200)),
+  /**
+   * calendar · meter. A METER plan falls due when the machine's latest reading
+   * on `meterUnit` reaches `nextDueReading`, then every `meterEvery` after; its
+   * frequency and date fields are unused. Absent reads as calendar, so every
+   * plan written before meters existed stays exactly as it was.
+   */
+  trigger: z.string().optional(),
+  meterUnit: z.string().optional(),
+  meterEvery: z.number().optional(),
+  nextDueReading: z.number().nullable().optional(),
   /** Active · Paused · Retired. */
   status: z.string(),
   createdByCollaboratorId: z.string(),
@@ -152,6 +164,27 @@ export const PmPlanSchema = z.object({
   updatedAt: z.string(),
 });
 export type PmPlan = z.infer<typeof PmPlanSchema>;
+
+/**
+ * HOW FAR A MACHINE HAD RUN, AND WHEN. Cumulative, so only ever higher than
+ * the last — unless `reset` says the meter was replaced (./meters). Filed under
+ * Machines, the machine's own record.
+ */
+export const MeterReadingSchema = z.object({
+  id: z.string(),
+  studioId: z.string(),
+  sectionId: z.string(),
+  assetId: z.string(),
+  /** hours · km · cycles. */
+  unit: z.string(),
+  value: z.number(),
+  readAt: z.string(),
+  reset: z.boolean(),
+  note: z.string().max(300),
+  createdByCollaboratorId: z.string(),
+  createdAt: z.string(),
+});
+export type MeterReading = z.infer<typeof MeterReadingSchema>;
 
 /**
  * TIME BOOKED AGAINST A WORK ORDER — its own collection rather than an array on

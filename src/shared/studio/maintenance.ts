@@ -172,6 +172,25 @@ type Strings = {
   partsCost: string;
   noStockItems: string;
   hoursCol: string;
+  trigger: string;
+  triggerName: (token: string) => string;
+  meterUnit: string;
+  unitName: (token: string) => string;
+  unitShort: (token: string) => string;
+  meterEvery: string;
+  nextDueReading: string;
+  everyMeter: (n: number, unit: string) => string;
+  nextAt: (n: number, unit: string) => string;
+  nowAt: (n: number, unit: string) => string;
+  noReading: string;
+  meters: string;
+  recordReading: string;
+  readingTitle: (name: string) => string;
+  readingValue: string;
+  readAt: string;
+  meterReset: string;
+  lastReading: (n: number, unit: string, when: string) => string;
+  removeLast: string;
   refuse: Record<string, string>;
 };
 
@@ -356,6 +375,25 @@ const en: Strings = {
   partsCost: "Parts cost",
   noStockItems: "Inventory has no items to issue.",
   hoursCol: "Hours booked",
+  trigger: "Runs on",
+  triggerName: (t) => ({ calendar: "The calendar", meter: "A meter" }[t] || t),
+  meterUnit: "Meter",
+  unitName: (t) => ({ hours: "Running hours", km: "Kilometres", cycles: "Cycles" }[t] || t),
+  unitShort: (t) => ({ hours: "h", km: "km", cycles: "cycles" }[t] || t),
+  meterEvery: "Every",
+  nextDueReading: "Next due at",
+  everyMeter: (n, u) => `Every ${n} ${({ hours: "h", km: "km", cycles: "cycles" })[u] || u}`,
+  nextAt: (n, u) => `Next at ${n} ${({ hours: "h", km: "km", cycles: "cycles" })[u] || u}`,
+  nowAt: (n, u) => `Now ${n} ${({ hours: "h", km: "km", cycles: "cycles" })[u] || u}`,
+  noReading: "No reading yet",
+  meters: "Meters",
+  recordReading: "Reading",
+  readingTitle: (name) => `Meter reading for ${name}`,
+  readingValue: "Reading",
+  readAt: "Read at",
+  meterReset: "The meter was replaced or reset",
+  lastReading: (n, u, when) => `Last: ${n} ${({ hours: "h", km: "km", cycles: "cycles" })[u] || u} on ${when}`,
+  removeLast: "Remove it",
   refuse: {
     title: "Say what is wrong.",
     asset: "That machine is not in this studio's equipment register.",
@@ -393,6 +431,16 @@ const en: Strings = {
     qty: "Enter a quantity above nought.",
     "has-parts": "Parts have been issued to this work — cancel it instead of deleting it.",
     "no-section": "This studio has no Maintenance work orders for Inventory to issue against.",
+    "reading-unit": "Choose a meter.",
+    "reading-value": "Enter the reading.",
+    "reading-future": "A reading cannot be in the future.",
+    "reading-back": "That is lower than the last reading. If the meter was replaced or reset, tick that box.",
+    "reading-before": "That is earlier than the last reading.",
+    "not-latest": "Only the latest reading on a meter can be removed.",
+    "meter-asset": "A meter plan needs its machine.",
+    "meter-unit": "Choose which meter the plan runs on.",
+    "meter-every": "Every how many? Enter a number above nought.",
+    "meter-next": "Enter the reading it is next due at.",
   },
 };
 
@@ -571,6 +619,25 @@ const ar: Strings = {
   partsCost: "تكلفة القطع",
   noStockItems: "لا توجد أصناف في المخزون للصرف.",
   hoursCol: "الساعات المسجلة",
+  trigger: "تعمل حسب",
+  triggerName: (t) => ({ calendar: "التقويم", meter: "عداد" }[t] || t),
+  meterUnit: "العداد",
+  unitName: (t) => ({ hours: "ساعات التشغيل", km: "الكيلومترات", cycles: "الدورات" }[t] || t),
+  unitShort: (t) => ({ hours: "س", km: "كم", cycles: "دورة" }[t] || t),
+  meterEvery: "كل",
+  nextDueReading: "الاستحقاق التالي عند",
+  everyMeter: (n, u) => `كل ${n} ${({ hours: "س", km: "كم", cycles: "دورة" })[u] || u}`,
+  nextAt: (n, u) => `التالي عند ${n} ${({ hours: "س", km: "كم", cycles: "دورة" })[u] || u}`,
+  nowAt: (n, u) => `الآن ${n} ${({ hours: "س", km: "كم", cycles: "دورة" })[u] || u}`,
+  noReading: "لا توجد قراءة بعد",
+  meters: "العدادات",
+  recordReading: "قراءة",
+  readingTitle: (name) => `قراءة عداد ${name}`,
+  readingValue: "القراءة",
+  readAt: "وقت القراءة",
+  meterReset: "استبدل العداد أو أعيد ضبطه",
+  lastReading: (n, u, when) => `الأخيرة: ${n} ${({ hours: "س", km: "كم", cycles: "دورة" })[u] || u} في ${when}`,
+  removeLast: "حذفها",
   refuse: {
     title: "اذكر ما المشكلة.",
     asset: "هذه الآلة ليست في سجل معدات هذا الحساب.",
@@ -608,6 +675,16 @@ const ar: Strings = {
     qty: "أدخل كمية أكبر من صفر.",
     "has-parts": "صرفت قطع لهذا العمل — ألغه بدل حذفه.",
     "no-section": "لا توجد أوامر عمل صيانة ليصرف المخزون عليها.",
+    "reading-unit": "اختر العداد.",
+    "reading-value": "أدخل القراءة.",
+    "reading-future": "لا تسجل قراءة في المستقبل.",
+    "reading-back": "هذه أقل من القراءة الأخيرة. إن استبدل العداد أو أعيد ضبطه فعلم ذلك.",
+    "reading-before": "هذه أقدم من القراءة الأخيرة.",
+    "not-latest": "لا يحذف إلا آخر قراءة على العداد.",
+    "meter-asset": "خطة العداد تحتاج آلتها.",
+    "meter-unit": "اختر العداد الذي تعمل عليه الخطة.",
+    "meter-every": "كل كم؟ أدخل رقما أكبر من صفر.",
+    "meter-next": "أدخل القراءة التي تستحق عندها الخطة.",
   },
 };
 

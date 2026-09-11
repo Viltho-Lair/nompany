@@ -4,7 +4,7 @@
 import type { ModuleContext } from "../context";
 import type { Section } from "@/platform/db/sections";
 
-export type { WorkRequest, WorkOrder, LabourEntry, PmPlan } from "./schema";
+export type { WorkRequest, WorkOrder, LabourEntry, PmPlan, MeterReading } from "./schema";
 
 // Generated from the spec in ./maintenance: `sub` and `foreign` become
 // `<name>Section`, `flags` become `canView<Name>`/`canManage<Name>`. A
@@ -14,6 +14,8 @@ export type MaintenanceContext = ModuleContext & {
   requestsSection: Section;
   ordersSection: Section;
   plansSection: Section;
+  /** Machines — where meter readings are filed. */
+  assetsSection: Section;
   masterSection: Section | null;
   /** Inventory's ledger and items — READ ONLY here; every movement is Inventory's to write. */
   stockSection: Section | null;

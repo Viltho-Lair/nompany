@@ -216,6 +216,34 @@ nothing yet says what an hour costs, and multiplying by a guessed rate would be 
 chose. **Work with parts on it cannot be deleted** (`has-parts`) — a movement naming an order
 that no longer exists is stock that left for nowhere.
 
+### Meters, and plans that run on them (Phase 4, slice 1)
+
+**Readings** (`meterReadings`, filed under Machines — the machine's own record) say how far a
+machine has run: running hours, kilometres or cycles, the three families preventive maintenance
+runs on everywhere. Recorded on the Machines screen by anybody holding
+`maintenance.orders.edit`, the right that moves the work. A meter is **cumulative**, so a reading
+below the last is refused — unless the reading says the meter was replaced or reset (`reset`),
+which is said, not assumed. Refused too: a reading dated before the last one (a back-dated reading
+would read as the meter going backwards) and one in the future. **Only the latest reading on a
+meter can be taken back**, by whoever recorded it or somebody holding `maintenance.orders.delete` —
+a reading typed as 12,000 instead of 1,200 would otherwise refuse every true reading after it.
+Rules in `meters.ts`, pure.
+
+**A plan runs on the calendar or on a meter** (`trigger`). A meter plan names its machine, its
+meter, an interval (every 250 h) and the reading it is next due at, and falls due when the
+machine's **latest reading reaches it** (`meterRaiseDecision`) — because a generator idle all
+summer has not worn a quarter's worth, and one run flat out through a shutdown has worn three.
+The same rules as the calendar: one open order per plan; idempotent by the reading the order
+answers (`pmDueReading`, as `pmDueOn` is for a date); fixed moves the trigger on by the interval at
+raising, floating moves it from the reading at completion (`nextDueReadingOnClose`), and cancelling
+skips that trigger. A plan written before meters existed has no `trigger` and reads as calendar.
+
+**A reading raises the work straight away.** The readings route asks the plan run after recording,
+so a reading that crosses 250 hours raises the service now rather than at tomorrow's cron (which
+still runs every plan, and raises nothing twice). The run is called from the route, not the
+service, because the run writes orders through the service — the other way round is an import loop.
+The reading stands whatever the run does. PM compliance counts calendar plans only.
+
 ### What a record points at
 
 **The machine is the Assets register's** — an engine `equipment` record, which stays filed
@@ -254,7 +282,10 @@ paths, and nothing else is accepted.
 - **Moving a calibration record's status by date.** A certificate past its due date is warned
   about but stays Valid until somebody marks it; the register has no time-driven rule.
 - **Reminders for a plan that cannot raise** (a paused plan, or one held back by its open order).
-- **Meter-based and condition-based plans.** A plan runs on the calendar only.
+- **Condition-based plans** (a reading OUT OF RANGE — a temperature, a vibration — raising
+  work), gauges as opposed to cumulative meters, and readings from telematics.
+- **Compliance for meter plans.** A meter plan's orders are not scored on time or late.
+- **Readings taken on a work order or its checklist.** A reading is recorded on the machine.
 - **Field Service's own PM plans** (the engine `planned` register, for customer-installed
   units) still raise Operations jobs through their own run; the two share the calendar
   arithmetic and nothing else.

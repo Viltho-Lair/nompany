@@ -698,8 +698,8 @@ export const SECTION_DEFS = [
     { key: "maintenance-requests", name: "Work requests" },
     { key: "maintenance-orders", name: "Work orders" },
     { key: "maintenance-plans", name: "Preventive plans" },
-    // A DESTINATION, NOT AN OWNER: each machine's record, read from the work
-    // orders. It owns no collection and answers to `maintenance.orders`.
+    // EACH MACHINE'S RECORD, read from the work orders — and, since meters,
+    // the owner of its readings. Answers to `maintenance.orders`.
     { key: "maintenance-assets", name: "Machines" },
   ] },
 
@@ -921,6 +921,9 @@ export const SECTION_COLLECTIONS = {
   // THE PLANS THAT RAISE WORK ON A CALENDAR. The orders they raise are filed
   // under Work orders like any other, so a plan's history is read from there.
   "maintenance-plans": ["pmPlans"],
+  // HOW FAR EACH MACHINE HAS RUN — filed with the machine's record, which is
+  // what a meter plan reads to fall due.
+  "maintenance-assets": ["meterReadings"],
   // A BILL OF MATERIALS' LINES, on the Manufacturing ROOT rather than under
   // the BOM engine register. The register's rows live in `engineRecords`
   // under `engine-bom`, and a collection under a section only some studios

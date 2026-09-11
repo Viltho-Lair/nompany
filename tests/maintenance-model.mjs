@@ -21,6 +21,7 @@ const T = await import("@/modules/main/timeNotices");
 const R = await import("@/modules/maintenance/reliability");
 const X = await import("@/modules/administration/taxonomy");
 const P = await import("@/modules/maintenance/parts");
+const MT = await import("@/modules/maintenance/meters");
 
 let fails = 0;
 const ok = (label, cond, extra = "") => {
@@ -369,6 +370,68 @@ console.log("\n== parts");
   ok("...and its hours are its orders' hours", byAsset.get("m1")?.labourHours === 2.5);
   // HOURS OUTSIDE THE WINDOW ARE LAST YEAR'S STORY.
   ok("time before the window is not counted", !byAsset.has("m2") || byAsset.get("m2")?.labourHours === 0);
+}
+
+console.log("\n== meters");
+{
+  const now = "2026-09-11T12:00:00.000Z";
+  const readings = [
+    { assetId: "m1", unit: "hours", value: 1000, readAt: "2026-09-01T08:00:00.000Z", createdAt: "a" },
+    { assetId: "m1", unit: "hours", value: 1180, readAt: "2026-09-10T08:00:00.000Z", createdAt: "b" },
+    { assetId: "m1", unit: "km", value: 5000, readAt: "2026-09-11T08:00:00.000Z", createdAt: "c" },
+  ];
+  ok("the latest reading on a meter is the latest read", MT.latestReading(readings, "m1", "hours")?.value === 1180);
+  ok("another meter on the same machine is its own", MT.latestReading(readings, "m1", "km")?.value === 5000);
+  ok("a machine with no readings has none", MT.latestReading(readings, "m2", "hours") === null);
+  const last = MT.latestReading(readings, "m1", "hours");
+  ok("a higher reading is fine", MT.readingProblem({ unit: "hours", value: 1200, readAt: now }, last, now) === null);
+  // A METER ONLY GOES UP.
+  ok("a lower reading is refused", MT.readingProblem({ unit: "hours", value: 900, readAt: now }, last, now) === "reading-back");
+  ok("...unless the meter was replaced, said out loud", MT.readingProblem({ unit: "hours", value: 3, readAt: now, reset: true }, last, now) === null);
+  ok("a reading in the future is refused", MT.readingProblem({ unit: "hours", value: 1300, readAt: "2026-09-12T00:00:00.000Z" }, last, now) === "reading-future");
+  ok("a blank reading is refused, not read as nought", MT.readingProblem({ unit: "hours", value: "", readAt: now }, null, now) === "reading-value");
+  ok("a meter nothing runs on is refused", MT.readingProblem({ unit: "litres", value: 5, readAt: now }, null, now) === "reading-unit");
+  ok("the three meters", MT.METER_UNITS.join(",") === "hours,km,cycles");
+  ok("a reading dated before the latest is refused",
+    MT.readingProblem({ unit: "hours", value: 1190, readAt: "2026-09-05T00:00:00.000Z" }, last, now) === "reading-before");
+}
+
+console.log("\n== meter plans");
+{
+  const mp = (over = {}) => ({
+    id: "p9", title: "Service generator", status: "Active", trigger: "meter", assetId: "m1",
+    meterUnit: "hours", meterEvery: 250, nextDueReading: 1250, scheduleMode: "fixed", ...over,
+  });
+  ok("a sound meter plan saves", S.planProblem(mp()) === null);
+  // A METER PLAN WITHOUT ITS MACHINE WOULD NEVER RAISE ANYTHING, SILENTLY.
+  ok("a meter plan needs its machine", S.planProblem(mp({ assetId: "" })) === "meter-asset");
+  ok("...a meter", S.planProblem(mp({ meterUnit: "litres" })) === "meter-unit");
+  ok("...an interval above nought", S.planProblem(mp({ meterEvery: 0 })) === "meter-every");
+  ok("...and the reading it is next due at", S.planProblem(mp({ nextDueReading: "" })) === "meter-next");
+  ok("a meter plan needs no calendar", S.planProblem(mp({ frequency: "", nextDue: "" })) === null);
+  ok("below the trigger nothing is raised", S.meterRaiseDecision(mp(), [], { value: 1249 }) === null);
+  {
+    const d = S.meterRaiseDecision(mp(), [], { value: 1260 });
+    ok("at or past the trigger it raises", d?.raise === true && d.dueReading === 1250);
+    // FIXED: every 250 hours of the meter, whenever the work is done.
+    ok("a fixed meter plan moves on by the interval", d?.next === 1500);
+  }
+  ok("a floating meter plan raises and waits", S.meterRaiseDecision(mp({ scheduleMode: "floating" }), [], { value: 1260 })?.next === null);
+  ok("no reading, nothing to judge", S.meterRaiseDecision(mp(), [], null) === null);
+  ok("one open order at a time, as on the calendar",
+    S.meterRaiseDecision(mp({ nextDueReading: 1500 }), [{ pmPlanId: "p9", pmDueReading: 1250, status: "Open" }], { value: 1600 }) === null);
+  {
+    const d = S.meterRaiseDecision(mp(), [{ pmPlanId: "p9", pmDueReading: 1250, status: "Completed" }], { value: 1300 });
+    ok("a trigger already raised is not raised again, and still moves on", d?.raise === false && d.next === 1500);
+  }
+  ok("a meter plan is not on the calendar", S.raiseDecision(mp({ nextDue: "2026-09-01", frequency: "Monthly" }), [], "2026-09-11") === null);
+  const fl = mp({ scheduleMode: "floating" });
+  const answering = { pmPlanId: "p9", pmDueReading: 1250 };
+  // FLOATING: from the reading when the work was done.
+  ok("floating: completed moves to the reading at completion plus the interval", S.nextDueReadingOnClose(fl, answering, "Completed", 1310) === 1560);
+  ok("floating: cancelled skips that trigger", S.nextDueReadingOnClose(fl, answering, "Cancelled", 1310) === 1500);
+  ok("fixed: nothing moves on close", S.nextDueReadingOnClose(mp(), answering, "Completed", 1310) === null);
+  ok("a calendar close leaves a meter plan alone", S.nextDueOnClose(fl, { pmPlanId: "p9", pmDueOn: "" }, "Completed", "2026-09-11") === null);
 }
 
 console.log("\n== vocabulary");
