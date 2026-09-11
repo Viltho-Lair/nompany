@@ -54,6 +54,18 @@ export type Archetype = {
    * finds its safety officers already able to open it.
    */
   engineSections?: ReadonlyArray<readonly [string, Level]>;
+  /**
+   * HOW FAR A SCOPED RIGHT REACHES — `department` rather than the `own` every
+   * unscoped area falls back to (`scopeFor` in platform/access/resolve.ts).
+   *
+   * EVERY LIBRARY ROLE WAS WRITTEN WITH `scopes: {}`, so a department head
+   * holding `hr.vacations.approve` saw only their OWN leave: the approval bell
+   * rang and the list it pointed at was empty. The same for attendance and the
+   * employee cards. A right to answer or mark your team that only reaches
+   * yourself is invariant 16 by another road. Only the HR areas that ARE scoped
+   * are named; an unscoped area ignores this.
+   */
+  scopes?: Readonly<Partial<Record<string, "own" | "department" | "all">>>;
 };
 
 // AN AREA A GRANT NAMES MUST EXIST, so a typo throws at import rather than
@@ -115,6 +127,9 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
   },
   {
     id: "department-head",
+    // THEIR DEPARTMENT AND EVERYTHING UNDER IT (`subtreeIds`), which is what
+    // "head of department" means — see `scopes` on the type.
+    scopes: { "hr.employees": "department", "hr.vacations": "department", "hr.attendance": "department" },
     // A HEAD OF DEPARTMENT READS ACROSS AND WRITES IN THE OPERATIONAL ONES.
     // Full on what an operations director actually runs; view on Quality & HSE
     // and HR, because seeing the incident and the appraisal is part of running
@@ -251,6 +266,10 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
   },
   {
     id: "front-line",
+    // A SUPERVISOR SEES THEIR CREW'S LEAVE AND MARKS THEIR CREW IN — the daily
+    // sweep the attendance area's own comment describes ("a supervisor marks
+    // their own team every morning"). Scoped to the department, never wider.
+    scopes: { "hr.vacations": "department", "hr.attendance": "department" },
     // A SUPERVISOR RAISES AND UPDATES, and deletes nothing. `edit` everywhere,
     // which is the rung that grants view/create/edit and stops there — the
     // whole point of the ladder having three rungs rather than two.
@@ -261,7 +280,7 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
     note: "Foreman, Supervisor, Charge Nurse, Crew Chief, Shift Leader. Assigns work by name.",
     grants: [
       ["tasks.board", "full"], ["fieldService.schedule", "edit"], ["fieldService.tracking", "edit"],
-      ["projects.list", "view"], ["hr.vacations", "view"],
+      ["projects.list", "view"], ["hr.vacations", "view"], ["hr.attendance", "edit"],
       // A lead assigns work, so a lead needs the list of people to assign it to.
       // Deliberately not hr.employees, which is the employment record.
       ["administration.members", "view"], ["fieldService.dashboard", "view"],
@@ -460,6 +479,18 @@ const byId = new Map(ARCHETYPES.map((a) => [a.id, a]));
  *   DECLARED shape, with no studio in hand. Passing the studio's own types is
  *   what makes a library role arrive able to open its registers.
  */
+/**
+ * The scopes a role of this shape arrives with — a COPY, like its permissions,
+ * so editing an archetype later re-scopes nothing already created.
+ */
+export function scopesFor(id: string): Record<string, "own" | "department" | "all"> {
+  const out: Record<string, "own" | "department" | "all"> = {};
+  for (const [area, scope] of Object.entries(byId.get(id as ArchetypeId)?.scopes || {})) {
+    if (scope) out[area] = scope;
+  }
+  return out;
+}
+
 export function permissionsFor(
   id: string,
   types: ReadonlyArray<{ key: string; parentSectionKey: string }> = [],

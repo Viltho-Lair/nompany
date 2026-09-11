@@ -16,7 +16,7 @@
 // holds both mappings as reviewable data and prints a report — see
 // scripts/generate/role-library.mjs.
 
-import { isArchetypeId, permissionsFor, type ArchetypeId } from "./archetypes";
+import { isArchetypeId, permissionsFor, scopesFor, type ArchetypeId } from "./archetypes";
 import { LIBRARY_DATA } from "./roleLibraryData";
 
 export type LibraryRole = {
@@ -95,6 +95,13 @@ export const permissionsForLibraryRole = (
   entry: LibraryRole,
   types: ReadonlyArray<{ key: string; parentSectionKey: string }> = [],
 ): string[] => permissionsFor(entry.archetype, types);
+
+/**
+ * The scopes a library role arrives with — its archetype's, copied for the same
+ * reason its permissions are. Every library role used to be written with
+ * `scopes: {}`, so its scoped HR rights reached only the holder's own records.
+ */
+export const scopesForLibraryRole = (entry: LibraryRole) => scopesFor(entry.archetype);
 
 /**
  * WELL-FORMEDNESS. Takes the known industries and each industry's department

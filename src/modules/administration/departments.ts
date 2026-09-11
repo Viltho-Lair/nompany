@@ -41,7 +41,7 @@ import { NO_SCREEN_YET } from "@/platform/access";
 import { listCollaborators } from "@/platform/auth/collaborators";
 import { departmentsForField, UNIVERSAL_DEPARTMENTS } from "@/shared/departments/starters";
 import { wouldCycle, depthOf, MAX_DEPARTMENT_DEPTH } from "@/shared/departments/tree";
-import { starterRolesFor, permissionsForLibraryRole } from "@/modules/people/roleLibrary";
+import { starterRolesFor, permissionsForLibraryRole, scopesForLibraryRole } from "@/modules/people/roleLibrary";
 import { studioTypesForGrants } from "@/platform/engine/records";
 import { createRoles, listRoles } from "@/modules/people/roles";
 import type { Department, MasterContext } from "./types";
@@ -216,7 +216,7 @@ async function seedDepartments(
       departmentId: department.id,
       source: "library",
       permissions: permissionsForLibraryRole(e, engineTypes),
-      scopes: {},
+      scopes: scopesForLibraryRole(e),
     })));
   }
 

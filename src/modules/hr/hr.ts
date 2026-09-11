@@ -40,7 +40,7 @@ import { moduleContext } from "../context";
 
 import { listCollaborators, getCollaborator, updateCollaborator } from "@/platform/auth/collaborators";
 import { listRoles, createRole, createRoles, updateRole, deleteRole, ADMIN_ROLE_ID } from "@/modules/people/roles";
-import { findLibraryRole, permissionsForLibraryRole, searchLibrary } from "@/modules/people/roleLibrary";
+import { findLibraryRole, permissionsForLibraryRole, scopesForLibraryRole, searchLibrary } from "@/modules/people/roleLibrary";
 import { studioTypesForGrants } from "@/platform/engine/records";
 import { listDepartmentsIn } from "@/modules/administration/departments";
 import { TAXONOMIES, resolveValue } from "@/modules/administration/taxonomy";
@@ -277,7 +277,7 @@ export async function addLibraryRoles(
       departmentId,
       source: "library",
       permissions: permissionsForLibraryRole(entry, engineTypes),
-      scopes: {},
+      scopes: scopesForLibraryRole(entry),
     });
   }
 

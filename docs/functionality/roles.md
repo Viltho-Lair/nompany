@@ -200,6 +200,17 @@ each person should hold, and that guess is somebody's access.
 
 **It has not been run against live.**
 
+**A library role arrives with its archetype's scopes**, copied like its permissions
+(`scopesFor` / `scopesForLibraryRole`). Department head: `department` on hr.employees,
+hr.vacations and hr.attendance; front-line: `department` on hr.vacations and hr.attendance,
+which it now holds at edit so a supervisor can mark their crew in. Until 11/09/2026 every
+library role was written with `scopes: {}`, and an unscoped area falls back to `own` — so a
+department head holding `hr.vacations.approve` was told a request was waiting and shown only
+their own leave. Existing studios keep what they have until
+`scripts/migrate/role-scopes.mjs` runs: dry-run by default, additive, it scopes only roles
+holding `hr.vacations.approve` and never an area a studio already scoped. **It has not been
+run, against live or in the sandbox.**
+
 ## Not built yet
 
 - **Access is not constrained by department**, deliberately. A department's
