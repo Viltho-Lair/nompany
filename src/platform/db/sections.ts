@@ -128,31 +128,39 @@ export async function listSections(studioId: string): Promise<Section[]> {
   // nothing complaining. A tenant should not see a different product because of
   // when they signed up.
   //
-  // THIS READ NO LONGER PLANTS. It used to reconcile against ALL_SECTION_KEYS and
-  // write what was short, and two hazards came with that:
+  // THIS READ PLANTS WHAT IS MISSING — the owner's instruction, 11/09/2026: "IT
+  // IS A SYSTEM, IT MUST TAKE UPDATES." A section shipped to the product reaches
+  // every studio the first time anybody opens it after the deploy. DO NOT TAKE
+  // THIS OUT AGAIN: from 07/09 to 11/09 this read planted nothing and a script
+  // was "the only planter", and Maintenance shipped invisible to every existing
+  // studio — the owner's own included — until somebody remembered to run it.
   //
-  //   1. A SUB-SECTION FALLS BACK TO ITS ROOT when absent, so a section that owns
-  //      a collection had to be planted BEFORE anybody used it. Planted after,
-  //      the rows already written stayed under the parent where nothing reads
-  //      them — not deleted, not corrupted, invisible. Three tenders went that
-  //      way in the sandbox.
-  //   2. It assumed a missing seeded key could only mean the studio predates the
-  //      key, never that somebody removed it. Nothing deletes sections today; the
-  //      day that ships, an auto-planting read resurrects what was just deleted.
+  // The two hazards that removal cited, and why they do not hold:
   //
-  // Planting is deliberate now: `scripts/migrate/plant-sections.mjs` walks every
-  // studio, in the right order, when a seeded key is added. THE COST IS THAT A
-  // BACKFILL CAN BE FORGOTTEN — administration-access shipped 03/09 and was still
-  // missing from two of three live studios on 05/09 with nothing complaining. Run
-  // the script when you add a seeded key.
+  //   1. A SUB-SECTION FALLS BACK TO ITS ROOT when absent, so rows written before
+  //      it exists stay under the parent where nothing reads them (three tenders
+  //      in the sandbox). Planting on the FIRST READ is the earliest moment there
+  //      is — before any request can write through that sub-section. The manual
+  //      script, run days later if at all, is what opened that window.
+  //   2. A missing seeded key is read as "the studio predates it", never "somebody
+  //      removed it". True today: nothing deletes sections. The day deletion ships,
+  //      `plantMissingSections` needs a record of the keys it has planted — its
+  //      own header says so — or this read resurrects what was deleted.
+  //
+  // The check is a set-membership test over the rows already fetched, so an
+  // up-to-date studio — every studio, almost always — pays nothing extra; a short
+  // one pays one guarded write, once. `sectionsAsStored` is the reader that must
+  // not write (the migration script's dry run).
   const rows = await readArr<Section>(S.sections(studioId));
+  if (!isComplete(rows)) return plantMissingSections(studioId, rows);
   return [...rows].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
 }
 
-// SEEDED SECTIONS A STUDIO DOES NOT HAVE YET — the one-off backfill (R2), no
-// longer the read path. Exported for scripts/migrate/plant-sections.mjs, which
-// walks every studio and calls this once after SECTION_DEFS gains a key. It reads
-// its own rows so a caller needs only the studio id.
+// SEEDED SECTIONS A STUDIO DOES NOT HAVE YET — called by `listSections` on every
+// read that finds the studio short (11/09/2026), and by
+// scripts/migrate/plant-sections.mjs to complete every studio without waiting
+// for each to be opened. It reads its own rows when not handed them, so a
+// caller needs only the studio id.
 //
 // The seeded list is the whole truth about which SEEDED sections a studio has,
 // and nothing deletes one (no route reaches cascadeDeleteSection). So a seeded

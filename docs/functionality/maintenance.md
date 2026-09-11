@@ -265,10 +265,11 @@ paths, and nothing else is accepted.
 - **Roles.** Custodian: full on both. Doer (technician): edit on both. Checker: view on
   orders. A department whose `sectionKeys` include `maintenance` gives its roles their home
   level there; the ten maintenance-like starter departments now list it.
-- **New studios** get the section at creation. **Existing studios** need, in this order,
-  `scripts/migrate/plant-sections.mjs` (plants the three keys) and
-  `scripts/migrate/grant-maintenance.mjs` (gives roles holding `engine.maintenance.V` the
-  same verb on both areas). Both are dry-run by default. **Neither has been run.**
+- **Every studio gets the section** — new ones at creation, existing ones the first time they
+  are opened after the deploy (`listSections` plants what is missing, 11/09/2026). The owner and
+  Admins see it at once. **Other roles need `scripts/migrate/grant-maintenance.mjs`** (gives
+  roles holding `engine.maintenance.V` the same verb on the Maintenance areas; dry-run by
+  default), because a role's rights are never widened without somebody choosing to. **Not run.**
 
 ## Not built yet
 

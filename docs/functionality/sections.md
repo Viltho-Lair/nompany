@@ -20,8 +20,12 @@ ever called with `settings`). Because they are code rather than tenant data, sec
 `shared/studio/sections.ts`, whose header records that this was got wrong once and produced an
 Arabic studio wearing an English sidebar.
 
-An existing studio does **not** gain a new section by itself. `plantMissingSections` is the
-backfill, run from `scripts/migrate/plant-sections.mjs`; it is idempotent, forward-only, never
+**An existing studio gains a new section by itself** — the owner's instruction, 11/09/2026:
+"it is a system, it must take updates." `listSections`, the read every request passes through,
+plants any seeded section the studio is short of the first time it is opened after a deploy
+(from 07/09 to 11/09 it did not, and Maintenance shipped invisible to every existing studio).
+`plantMissingSections` does the planting, and `scripts/migrate/plant-sections.mjs` can still walk
+every studio without waiting for each to be opened; it is idempotent, forward-only, never
 deletes, and re-derives `sortOrder` from `SECTION_DEFS` so a planted section lands where it
 belongs in the nav rather than at the end.
 
@@ -252,7 +256,7 @@ Equipment. The root holds no area; it is visible when a child is. "Maintenance &
 now switches it on for a trade, and `SECTION_NEEDS` (`shared/tradeSections`) brings Assets
 along, because a work order names a machine in the Assets register — without it,
 contractors and IT firms, which reached Assets only through that action, would have lost it.
-Existing studios get the rows from `plant-sections.mjs`, which has not been run.
+Existing studios get the rows the first time they are opened after the deploy.
 `maintenance.md` is the file.
 
 ## Not built yet

@@ -932,8 +932,9 @@ cannot see happening and cannot undo.
 **All four `scripts/migrate/*.mjs` were unrunnable** until the same day: each refused on a
 missing `REDIS_URL`, deleted at the Postgres cutover, while reading through the store
 abstraction and naming no backend otherwise. That mattered most for `plant-sections.mjs`, which
-is the only way a seeded section key added after a studio exists reaches that studio now that
-`listSections` no longer reconciles on read — and the fold adds exactly such a key.
+was then the only way a seeded section key added after a studio existed reached that studio.
+(It is not any more: `listSections` plants on read again since 11/09/2026, on the owner's
+instruction — see "A NEW SECTION REACHES EVERY STUDIO BY ITSELF" below.)
 
 **P4a is under way, in CRM & Sales.** Two slices are on `main`.
 
@@ -1269,24 +1270,29 @@ real screens". **A tender cannot be won or lost unless it was submitted**, a sub
 cannot become a No Bid (the honest exit is Withdrawn), and delete is refused once the bid has
 gone in. The list carries `asOf` and the screen never reads its own clock.
 
-**THE SECTION LIST NEVER PLANTS ON READ. Planting is deliberate.** A studio is seeded
-complete at creation; `listSections` returns what is stored and reconciles nothing. Two hazards
-came out with the auto-planting, and both were live:
+**A NEW SECTION REACHES EVERY STUDIO BY ITSELF — the owner's instruction, 11/09/2026: "IT IS
+A SYSTEM, IT MUST TAKE UPDATES."** `listSections`, the read every request passes through,
+compares a studio's stored rows with `SECTION_DEFS` and plants what is missing
+(`plantMissingSections`, inside `editArr`, once), so the first request after a deploy completes
+the studio. **DO NOT PUT THE OLD RULE BACK.** From 07/09 to 11/09 this file said "the section
+list never plants on read" and made a script the only planter — and Maintenance shipped
+invisible to every existing studio, the owner's own included, until somebody ran it. The two
+hazards that rule cited, and why they do not hold:
 
-- **A sub-section falls back to its ROOT when absent**, so a section that owns a collection had
-  to be planted BEFORE anybody used it. Planted afterwards, rows already written stayed under
-  the parent where nothing reads them — not deleted, not corrupted, invisible. Three tenders
-  went that way in the sandbox, and four sections still have no screen, each of which will add
-  collection-owning children.
-- **It assumed a missing seeded key could only mean the studio predates it**, never that
-  somebody removed it. Nothing deletes sections today; the day that ships, a healing read
-  resurrects what was just deleted.
+- **A sub-section falls back to its ROOT when absent**, so rows written before it exists stay
+  under the parent where nothing reads them (three tenders in the sandbox). Planting on the
+  FIRST READ is the earliest moment there is — before any request can write through that
+  sub-section. The manual script, run days later if at all, was what opened that window.
+- **A missing seeded key is read as "the studio predates it"**, never "somebody removed it".
+  True today: nothing deletes sections. The day section deletion ships, `plantMissingSections`
+  needs a record of the keys it has planted, or a read resurrects what was deleted.
 
-**`scripts/migrate/plant-sections.mjs` is the only planter now.** Run it when you add a seeded
-key. **THE COST IS THAT A BACKFILL CAN BE FORGOTTEN** — `administration-access` shipped 03/09
-and was still missing from two of three live studios on 05/09 with nothing complaining. That
-trade was made deliberately: a forgotten backfill is visible the moment somebody opens the
-screen, and stranded rows are visible to nobody, ever.
+`scripts/migrate/plant-sections.mjs` remains, to complete every studio without waiting for each
+to be opened; it reads through `sectionsAsStored`, so its dry run still writes nothing. Planted
+rows are `enabled: true` — trade gating runs at creation only, and the Sections panel's trade
+suggestion offers switching an unwanted one off. **Any NEW product surface is held to the same
+standard: it must reach existing studios without a script.** Where something cannot (widening
+roles, below), say so before building it.
 
 **ROLES DO NOT CATCH UP, and that is the half this does not solve.** `STARTER_ROLES` seeds only
 when a studio has ZERO roles (`listRoles`: `if (rows.length) return rows`), so a right added to
@@ -1295,15 +1301,14 @@ the Manager role never reaches an existing studio. The OWNER never notices —
 unseen. `grant-administration.mjs` is the pattern; there is no equivalent yet for
 `crmSales.pipeline`, `crmSales.contracts` or `tendering.tenders`.
 
-**THE ORDER STILL MATTERS FOR A SECTION THAT OWNS A COLLECTION:** run
-`scripts/migrate/plant-sections.mjs` **before** anybody uses the register on an existing
-studio, not after. A sub-section FALLS BACK TO THE ROOT when absent — which is what makes every
-module context safe — so the register works before its section is planted and writes tenders
-under the `tendering` root. Planting afterwards moves `registerSection` to the child and leaves
-those rows under the parent, where nothing reads them: not deleted, not corrupted, invisible.
-Seen in the sandbox — three tenders created before planting, zero visible after, and their
-references NOT reissued (TND-0004 followed TND-0003), which is invariant 10 preventing the one
-thing that would have made it worse.
+**THE STRANDED-TENDERS INCIDENT, kept because it is why planting must be EARLY:** a
+sub-section FALLS BACK TO THE ROOT when absent — which is what makes every module context safe —
+so the tender register worked before its section was planted and wrote tenders under the
+`tendering` root. Planting afterwards moved `registerSection` to the child and left those rows
+under the parent, where nothing reads them: three tenders created before planting, zero visible
+after, and their references NOT reissued (TND-0004 followed TND-0003), which is invariant 10
+preventing the one thing that would have made it worse. Planting on the first read (above)
+closes that window; a late script is what opened it.
 
 **Slice 2, the BOQ grid and the rate library, is on `main`.** Two collections — `boqItems`
 under the register and `tenderRates` under a new `tendering-rates` sub-section — and ONE new

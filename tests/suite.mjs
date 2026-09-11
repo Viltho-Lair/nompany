@@ -3845,51 +3845,36 @@ console.log("\n== a studio that predates a section still gets it");
     !stored.some((x) => x.key === "engineering-docs"));
   ok("...and really did not write", !(await readArr(key)).some((x) => x.key === "engineering-docs"));
 
-  // AND THE READ EVERY MODULE GOES THROUGH PLANTS NOTHING EITHER. This is the
-  // assertion the change exists for, and it is the REVERSE of what this block
-  // asserted until 07/09/2026.
-  //
-  // listSections used to reconcile against ALL_SECTION_KEYS and write what was
-  // short, so a studio caught up the first time anybody opened it. Two hazards
-  // came with that, and the first was live: A SUB-SECTION FALLS BACK TO ITS ROOT
-  // when absent, so a section owning a collection had to be planted BEFORE
-  // anybody used it — planted afterwards, the rows already written stayed under
-  // the parent where nothing reads them. Not deleted, not corrupted, invisible.
-  // Three tenders went that way in the sandbox. The second: it assumed a missing
-  // seeded key could only mean the studio predates it, never that somebody
-  // deleted it, so the day section deletion ships a read resurrects what was
-  // just removed.
+  // AND THE READ EVERY MODULE GOES THROUGH PLANTS WHAT IS MISSING — the owner's
+  // instruction, 11/09/2026: "IT IS A SYSTEM, IT MUST TAKE UPDATES." This is the
+  // REVERSE of what this block asserted from 07/09 to 11/09, when a read planted
+  // nothing and a script was the only planter — and Maintenance shipped
+  // invisible to every existing studio because nobody ran it. Planting on the
+  // first read is also the EARLIEST moment a sub-section can exist, which is the
+  // answer to the stranded-rows hazard that removal was made for: rows are
+  // stranded when something writes under the root BEFORE the child is planted,
+  // and the script was what left that window open.
   const read = await listSections(studio.id);
-  ok("a plain read plants nothing", !read.some((x) => x.key === "engineering-docs"));
-  ok("...and wrote nothing either", !(await readArr(key)).some((x) => x.key === "engineering-docs"));
-
-  // PLANTING IS DELIBERATE NOW, and this is the only door: the migration CLI
-  // calls exactly this. THE COST is that a backfill can be forgotten —
-  // administration-access shipped 03/09 and was still missing from two of three
-  // live studios on 05/09 with nothing complaining. That trade was made on
-  // purpose: a forgotten backfill shows the moment somebody opens the screen,
-  // and stranded rows show to nobody, ever.
-  const planted = await plantMissingSections(studio.id);
-  ok("the planter plants what the studio is short of", planted.some((x) => x.key === "engineering-docs"));
-  ok("...and its sub-section", planted.some((x) => x.key === "engineering-docs-register"));
-  const parent = planted.find((x) => x.key === "engineering-docs");
-  const child = planted.find((x) => x.key === "engineering-docs-register");
+  ok("a plain read plants what the studio is short of", read.some((x) => x.key === "engineering-docs"));
+  ok("...and its sub-section", read.some((x) => x.key === "engineering-docs-register"));
+  const parent = read.find((x) => x.key === "engineering-docs");
+  const child = read.find((x) => x.key === "engineering-docs-register");
   ok("...pointing at the parent it belongs to", child?.parentId === parent?.id);
   ok("...and placed in the nav where it belongs, not at the end",
-    planted.findIndex((x) => x.key === "engineering-docs") < planted.findIndex((x) => x.key === "tasks"));
+    read.findIndex((x) => x.key === "engineering-docs") < read.findIndex((x) => x.key === "tasks"));
+  ok("...and WROTE it, so every later reader sees it", (await readArr(key)).some((x) => x.key === "engineering-docs"));
 
-  // Planting must be idempotent, or every run mints a new SectionID and the
+  // Planting must be idempotent, or every read mints a new SectionID and the
   // section's own data is orphaned behind it.
-  const again = await plantMissingSections(studio.id);
-  ok("running the backfill again plants nothing new", again.length === planted.length);
+  const again = await listSections(studio.id);
+  ok("reading again plants nothing new", again.length === read.length);
   ok("...and keeps the same SectionID", again.find((x) => x.key === "engineering-docs").id === parent.id);
+  ok("...and the stored rows are identical, so the second read wrote nothing",
+    JSON.stringify(await sectionsAsStored(studio.id)) === JSON.stringify(again));
 
-  const afterRead = await listSections(studio.id);
-  ok("a later read sees the planted section", afterRead.some((x) => x.key === "engineering-docs"));
-  ok("...and keeps its SectionID, so nothing was re-minted",
-    afterRead.find((x) => x.key === "engineering-docs").id === parent.id);
-  ok("...and the stored rows are identical, so the read wrote nothing",
-    JSON.stringify(await sectionsAsStored(studio.id)) === JSON.stringify(afterRead));
+  // The script's planter, on a studio the read already completed, has nothing to do.
+  const planted = await plantMissingSections(studio.id);
+  ok("the backfill script finds nothing left to plant", planted.length === read.length);
 }
 
 // ============================================================================
