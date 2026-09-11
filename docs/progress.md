@@ -288,8 +288,10 @@ can never again stand for two records.
 Tender register ✅ · BOQ grid with rate library ✅ · Bid documents & clarifications ✅ ·
 Bid review & approval ✅ · Handover to Projects as budget baseline ✅
 
-#### §3 Projects {M} `projects` ✅ 13 / 13
-Project list ✅ · SLA ✅ · Overtimes ✅ · Planner ✅ · Settings ✅ · WBS/Gantt with
+#### §3 Projects {M} `projects` ✅ 12 / 12 (SLA left for Maintenance, 11/09/2026)
+Project list ✅ · SLA ➡️ **moved to Maintenance** as service contracts (the owner: an SLA is a
+preventive maintenance contract; the rows stay filed under `projects-sla`) · Overtimes ✅ ·
+Planner ✅ · Settings ✅ · WBS/Gantt with
 critical path ✅ · Daily site reports 🟡 (photographs display now; still no addendum) ·
 Earned value ✅ · Variations & change orders ✅ · Cost codes ✅ · Billing milestones &
 retention ✅ · Closure, punch list, warranty 🟡 (closing sets a date and does nothing else)
@@ -674,6 +676,37 @@ chased, a gap somebody notices rather than an alarm they learn to ignore.
 
 **Verified in the sandbox, not just asserted**: three NCRs, two of them past their action
 date, rendering worst-first with the field's own label and the third correctly absent.
+
+#### Maintenance {M} `maintenance` 🟡 6 / 7 (11–12/09/2026)
+Work requests ✅ · Work orders ✅ · Preventive plans ✅ · Machines & reliability ✅ ·
+Meters & meter-driven plans ✅ · Service contracts (SLA) ✅ · **Dashboard ⬜**
+
+**IT IS NOT ONE OF THE BLUEPRINT'S FIFTEEN** — it is the fifteenth SECTION, decided with the
+owner on 11/09/2026 and absent from the artifact this list is copied from, so it carries no §
+number rather than renumbering the ones that do. Assets & Equipment keeps the equipment
+register; Field Operations keeps the crews.
+
+Built across five slices: requests and orders (ladder, assignees, photographs), the map and
+time booked, preventive plans on the daily run, failure codes, downtime, MTBF/MTTR and
+availability, parts issued from Inventory with their cost, meters and meter-driven plans, and —
+12/09/2026 — service contracts (SLA), whose visits raise work orders and whose call-outs are
+counted against an allowance. `docs/functionality/maintenance.md` is the file.
+
+**WHAT IS NOT BUILT**, beyond the functionality file's own list: the dashboard (the root shows
+its five sub-sections as cards), labour in money and anything posted to Finance, QR tags,
+supplier work orders, permit gating, check-in and offline, condition-based plans, response and
+resolution targets on a contract, billing or renewal reminders from one, and the machine's
+status is not moved by starting work on it.
+
+**TWO THINGS ARE UNVERIFIED AND ONE IS NOT AUTOMATIC.** No screen in this section has been
+OPENED: the sandbox could not start (`cloud-sql-proxy`), so every slice since meters is
+verified by pure tests, types and lint alone, and the store-backed suite has not been run
+either. And `scripts/migrate/grant-maintenance.mjs` **has not been run**, so outside the owner
+and Admins no existing role holds `maintenance.*` — the service contracts screen is the
+exception, because it kept the right its readers already had. That is the one part of this
+section that does not reach every studio by itself, and under the owner's rule of 12/09/2026
+("any update is for the whole ERP, we do not update studios one by one") it wants either
+running for every studio at once or replacing with rights that catch up on read.
 
 #### §11 Quality & HSE ✅ 8 / 8
 ITPs ✅ · Inspection & test records ✅ · NCR / CAPA ✅ · Audits ✅ · HSE incidents 🟡

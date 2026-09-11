@@ -367,11 +367,16 @@ paths, and nothing else is accepted.
   default), because a role's rights are never widened without somebody choosing to. **Not run.**
 - **Service contracts need nothing run**: they answer to `projects.sla`, which every role that
   had the Projects SLA screen already holds.
+- **The fold ran against live, 12/09/2026** — dry run, apply, and a second dry run finding
+  nothing left. Every one of the five studios held the three old registers and every one was
+  EMPTY, so it copied nothing and retired no plan: it switched those three off in each studio
+  and planted Maintenance in the four nobody had opened since it shipped. A studio that gains
+  records in an old register later would need it run again.
 
 ## Not built yet
 
-- **What labour costs.** Hours are booked; no rate turns them into money, and nothing posts
-  to Finance.
+- **What labour costs.** Hours are booked; no rate turns them into money, nothing posts to
+  Finance, and a machine's cost is its parts alone.
 - **Downtime without a work order.** A machine is down only on an order; there is no
   separate downtime log for an outage nobody raised work for.
 - **The acquisition date.** A machine bought in March is judged over the full twelve months.
@@ -384,11 +389,6 @@ paths, and nothing else is accepted.
   work), gauges as opposed to cumulative meters, and readings from telematics.
 - **Compliance for meter plans.** A meter plan's orders are not scored on time or late.
 - **Readings taken on a work order or its checklist.** A reading is recorded on the machine.
-- **The fold has been run against live, 12/09/2026**: dry run, apply, and a second dry run
-  finding nothing left. All five studios held the three registers and every one was EMPTY, so it
-  copied nothing and retired no plan; it switched the fifteen registers off and planted
-  Maintenance in the four studios nobody had opened since it shipped. A studio created before
-  11/09 that gains records in an old register later would need it run again.
 - **Response and resolution targets.** A service contract promises visits and call-outs; it
   says nothing yet about how fast a call-out is answered or put right, and nothing is measured
   against one.
@@ -404,7 +404,6 @@ paths, and nothing else is accepted.
 - **Posting to Finance.** No journal entry is written for parts or time; the cost is visible
   on the order and the machine and nowhere in the ledger. There is no maintenance expense
   account.
-- **What labour costs, and cost per machine in money beyond parts.**
 - **Bins, batches and serials on an issue.** A part leaves "unbinned" like a delivery note's.
 - **QR tags, supplier work orders, permit gating, check-in, offline.**
 - **Moving the machine's status.** Starting work does not set the equipment record to
@@ -413,4 +412,8 @@ paths, and nothing else is accepted.
   sections (the owner's rule, 11/09/2026), so only departments listing Maintenance can raise
   a request by default. Whether everybody should, the way everybody has Tasks, is an open
   question for the owner.
-- **A Maintenance dashboard.** The root shows its two sub-sections as cards.
+- **A Maintenance dashboard.** The root shows its five sub-sections as cards — no backlog,
+  no compliance figure, no cost.
+- **Nobody has opened the new screens.** The service contracts screen, the customer-unit
+  pickers and the call-out dialog have never been rendered: the sandbox could not start
+  (`cloud-sql-proxy`), so they are verified by tests and types alone.
