@@ -115,6 +115,16 @@ The **step's label is tenant-authored and never translated** — a studio names 
 and a name somebody typed is data. The refusals travel as tokens and are translated on
 display, so an Arabic studio does not get an English apology.
 
+### Stock adjustments
+
+The engine's adjustment chain (`modules/inventory/adjustmentApproval.ts`) parks an adjustment
+above the studio's limit and moves nothing until the last step is signed. The Stock tab now
+shows that queue — "Waiting for a signature" — with Approve and Reject drawn only where
+`listAdjustments` says the reader may sign (not the raiser, not an earlier signer, the step's
+right held), and the Adjust dialog says when an adjustment went to the queue instead of moving
+stock. Until 11/09/2026 no screen read `GET /inventory/adjustments`: the dialog closed as if the
+adjustment had worked, and `inventory.stock.approve` was a right nobody could exercise.
+
 ## Not built yet
 
 Stated in words, because a silent gap reads as a finished feature.

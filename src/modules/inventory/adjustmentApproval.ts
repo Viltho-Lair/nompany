@@ -118,11 +118,34 @@ export const needsApproval = (plan: ResolvedPlan | PlanRefusal): boolean =>
  */
 export const planUnusable = (plan: ResolvedPlan | PlanRefusal): boolean => plan.ok !== true;
 
-/** The pending queue. */
+/**
+ * The queue, each row saying whether THIS reader may sign it.
+ *
+ * `canSign` asks exactly what `approveAdjustment` asks — not the raiser, not a
+ * previous signer, a step still outstanding, and its right held — so the screen
+ * draws a button only where pressing it would succeed. Nothing on screen read
+ * this route, so an adjustment over the limit parked here and nobody could see
+ * it, sign it or turn it down.
+ */
 export async function listAdjustments(ctx: InventoryContext) {
   const denied = requirePermission(ctx.access, "inventory.stock.view");
   if (denied) return denied;
-  return { adjustments: await Adjustments.find(scope(ctx)) };
+  const rows = await Adjustments.find(scope(ctx));
+  const me = ctx.collaborator.id;
+  const adjustments = [...rows]
+    .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")))
+    .map((row) => {
+      const signatures = (row.approvals || []) as ApprovalSignature[];
+      const step = row.status === "Pending"
+        ? firstUnsignedStep(row.approvalPlan as ResolvedPlan | PlanRefusal | null, signatures)
+        : null;
+      const canSign = Boolean(step)
+        && row.createdByCollaboratorId !== me
+        && !signatures.some((s) => s.byCollaboratorId === me)
+        && !requirePermission(ctx.access, step!.permission as PermissionKey);
+      return { ...row, canSign };
+    });
+  return { adjustments };
 }
 
 /** Park one for signature. Moves no stock — that is the whole point. */

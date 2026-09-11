@@ -178,6 +178,16 @@ type Strings = CommonStrings & {
   recentStockMovements: string;
   record: string;
   recordAdjustment: string;
+  // THE ADJUSTMENT QUEUE — adjustments above the studio's limit, parked until
+  // somebody other than the person who typed them signs.
+  pendingAdjustments: string;
+  pendingAdjustmentsSub: string;
+  adjustmentSentForApproval: string;
+  approveAdjustment: string;
+  rejectAdjustment: string;
+  rejectReason: string;
+  signaturesOf: (signed: number, required: number) => string;
+  youRaisedThis: string;
   recordMilestone: string;
   recording: string;
   registerItemsFirstThen: string;
@@ -451,6 +461,14 @@ Here is my vendor list:`,
   recentStockMovements: "Recent stock movements",
   record: "Record",
   recordAdjustment: "Record adjustment",
+  pendingAdjustments: "Waiting for a signature",
+  pendingAdjustmentsSub: "Adjustments above the studio's limit. The stock moves when the last step is signed.",
+  adjustmentSentForApproval: "That adjustment is above the studio's limit, so it is waiting for a signature. The stock has not moved yet.",
+  approveAdjustment: "Approve",
+  rejectAdjustment: "Reject",
+  rejectReason: "Why is it turned down?",
+  signaturesOf: (signed, required) => `${signed} of ${required} signed`,
+  youRaisedThis: "You raised this, so somebody else signs it.",
   recordMilestone: "Record a milestone",
   recording: "Recording…",
   registerItemsFirstThen: "Register items first, then receive an order against them — that is what brings stock in.",
@@ -721,6 +739,14 @@ Name,Contact Name,Email,Phone,Item Types
   recentStockMovements: "حركات المخزون الأخيرة",
   record: "تسجيل",
   recordAdjustment: "تسجيل تسوية",
+  pendingAdjustments: "بانتظار التوقيع",
+  pendingAdjustmentsSub: "تسويات تتجاوز حد الاستوديو. يتحرك المخزون عند توقيع آخر خطوة.",
+  adjustmentSentForApproval: "هذه التسوية تتجاوز حد الاستوديو، فهي بانتظار التوقيع. لم يتحرك المخزون بعد.",
+  approveAdjustment: "اعتماد",
+  rejectAdjustment: "رفض",
+  rejectReason: "لماذا رفضت؟",
+  signaturesOf: (signed, required) => `${signed} من ${required} موقعة`,
+  youRaisedThis: "أنت من سجل هذه التسوية، فيوقعها شخص آخر.",
   recordMilestone: "تسجيل محطة",
   recording: "جار التسجيل…",
   registerItemsFirstThen: "سجل الأصناف أولا، ثم استلم أمر شراء عليها — فهذا ما يدخل المخزون.",
