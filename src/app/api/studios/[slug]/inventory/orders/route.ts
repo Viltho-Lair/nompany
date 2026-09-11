@@ -1,11 +1,26 @@
 import { route, refused } from "@/platform/http/route";
-import { inventoryContext, createOrder, editOrder, receiveOrder, removeOrder } from "@/modules/inventory/inventory";
+import { requirePermission } from "@/platform/access";
+import { inventoryContext, listOrders, createOrder, editOrder, receiveOrder, removeOrder } from "@/modules/inventory/inventory";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const spec = { auth: "studio", context: inventoryContext, body: true, name: "inventory/orders" };
 const manageable = (inv: { canManage: boolean }) => (inv.canManage ? null : { error: "read-only" });
+
+// THE PURCHASE ORDER REGISTER'S READ (Procurement → Purchase orders, tier 5).
+// There was no screen listing orders at all — a Draft raised from a requisition
+// was visible nowhere but that requisition's row, and Expediting and Receiving
+// both hide Drafts. Every order, every state, with whether this reader may place
+// or cancel one (`editOrder`'s own right, asked of the set already resolved).
+export const GET = route({ ...spec, body: false }, async (inv) => {
+  const denied = requirePermission(inv.access, "inventory.stock.view");
+  if (denied) return denied;
+  return {
+    orders: await listOrders(inv),
+    canPlace: inv.canManage && !requirePermission(inv.access, "inventory.stock.edit"),
+  };
+});
 
 export const POST = route(spec, async (inv) => {
   const refusal = manageable(inv);

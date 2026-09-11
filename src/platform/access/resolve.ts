@@ -116,6 +116,10 @@ export const SECTION_AREAS: Readonly<Record<string, readonly string[]>> = {
   // MOVED TO PROCUREMENT & SUBCONTRACTING — buying is where Vendors always
   // belonged; Inventory kept the screen only because that is where it was built.
   "procurement-requisitions": ["procurement.requisitions"],
+  // NO AREA OF ITS OWN: placing an order has always been Inventory's act
+  // (`editOrder` guards with inventory.stock.edit), and a second right over the
+  // same orders would be free to disagree with the first about who may place one.
+  "procurement-orders": ["inventory.stock"],
   "procurement-rfq": ["procurement.rfq"],
   "procurement-expediting": ["procurement.expediting"],
   "procurement-subcontracts": ["procurement.subcontracts"],

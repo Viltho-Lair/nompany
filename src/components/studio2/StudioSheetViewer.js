@@ -7,6 +7,7 @@ import { projectsDict } from "@/shared/studio/projects";
 // Status reads Technical's words — "Fulfilled" is a quotation line's
 // condition, not a project's, and it is already written there.
 import { technicalDict } from "@/shared/studio/technical";
+import { procurementDict } from "@/shared/studio/procurement";
 import Link from "next/link";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { panel, input, btn, btnGhost, th } from "@/components/studio2/ui";
@@ -88,6 +89,13 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
     if (!res.ok) { setError(tr.accessProjectsStudio); return; }
     setData(await res.json());
   }, [slug]);
+
+  // "ORDER WHAT'S NEEDED" — see the button beside Save. Its outcome stays on
+  // screen: which requisitions were raised, and how many lines could not be
+  // asked for, because a list that silently omitted them would read as done.
+  const pt = procurementDict(useStudioLocale());
+  const [ordering, setOrdering] = useState(false);
+  const [ordered, setOrdered] = useState(null);
 
   useReload(load);
   useLiveUpdates(slug, "projects", load);
@@ -295,6 +303,23 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
     );
   }
 
+  // "ORDER WHAT'S NEEDED", declared here — below the early returns, where the
+  // sheet is known — rather than beside its state: a handler reading `sheet`
+  // above the memo that makes it is what the React compiler refuses.
+  const orderWhatsNeeded = async () => {
+    setOrdering(true);
+    setOrdered(null);
+    const res = await fetch(`/api/studios/${slug}/procurement/requisitions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fromBulk: sheet.projectId }),
+    });
+    const body = await res.json().catch(() => ({}));
+    setOrdering(false);
+    if (!res.ok) { setError(body.error || String(res.status)); return; }
+    setOrdered({ raised: Array.isArray(body.raised) ? body.raised : [], skipped: Number(body.skipped) || 0 });
+  };
+
   // WHAT THIS PERSPECTIVE OFFERS TO WRITE. Assigning serials is Inventory's;
   // installation and programming are Projects'. Holding the other department's
   // right is not enough on its own — you have to be looking at their screen,
@@ -361,8 +386,28 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
           {dirtyRows > 0 && !busy && (
             <button type="button" className={btnGhost} onClick={() => setDraft({})}>{tr.discard}</button>
           )}
+          {/* "ORDER WHAT'S NEEDED" (tier 5). The Bulk sheet is already a purchase
+              list by supplier; this raises it as one draft requisition per
+              supplier, so the approval chain still stands between the sheet and
+              the money. What is already allocated or requested is not asked
+              for again — see modules/procurement/bulkNeeds. */}
+          {isInventory && sheet.kind === "bulk" && data.canRequisition && (
+            <button type="button" className={btnGhost} disabled={Boolean(busy) || ordering}
+              title={pt.orderWhatsNeededHint} onClick={orderWhatsNeeded}>
+              {ordering ? pt.raising : pt.orderWhatsNeeded}
+            </button>
+          )}
         </div>
       </div>
+
+      {ordered && (
+        <p className="rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-200">
+          {ordered.raised.length
+            ? pt.raisedRequisitions(ordered.raised.map((r) => `${r.reference} (${r.vendorName})`).join(", "))
+            : pt.nothingNeeded}
+          {ordered.skipped > 0 ? ` ${pt.skippedLines(ordered.skipped)}` : ""}
+        </p>
+      )}
 
       {error && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>}
 

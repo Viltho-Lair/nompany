@@ -84,6 +84,7 @@ const ar: SectionMap = {
   // former Vendors screen.
   procurement: "المشتريات والمقاولات من الباطن",
   "procurement-requisitions": "طلبات الشراء",
+  "procurement-orders": "أوامر الشراء",
   "procurement-rfq": "عروض الموردين",
   "procurement-expediting": "متابعة التوريد",
   "procurement-subcontracts": "عقود الباطن",

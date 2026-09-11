@@ -6,6 +6,7 @@ import {
 } from "@/modules/procurement/requisitions";
 import { requisitionReview, answerRequisition, notifyNextSigner } from "@/modules/procurement/approval";
 import { referencePickers } from "@/modules/procurement/pickers";
+import { raiseFromBulk } from "@/modules/procurement/fromBulk";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -56,6 +57,13 @@ export const GET = route({ ...spec, body: false }, async (procurement) => {
 });
 
 export const POST = route(spec, async (procurement) => {
+  // "ORDER WHAT'S NEEDED" FROM A PROJECT'S BULK SHEET — one draft per supplier,
+  // each through createRequisition. See modules/procurement/fromBulk.ts.
+  if (procurement.body.fromBulk) {
+    const raised = await raiseFromBulk(procurement, procurement.body);
+    if (refused(raised)) return raised;
+    return { status: 201, body: raised };
+  }
   const result = await createRequisition(procurement, procurement.body);
   if (refused(result)) return result;
   return { status: 201, body: { ok: true, requisition: result.requisition } };

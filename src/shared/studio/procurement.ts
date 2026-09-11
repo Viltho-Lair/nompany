@@ -283,6 +283,26 @@ type Strings = {
   // A converted request's order is a Draft until somebody places it.
   placeOrder: string;
   orderNotPlaced: string;
+  // ---- ordering from the Bulk sheet, and the order register (tier 5) ----
+  orderWhatsNeeded: string;
+  orderWhatsNeededHint: string;
+  raising: string;
+  raisedRequisitions: (refs: string) => string;
+  nothingNeeded: string;
+  skippedLines: (n: number) => string;
+  purchaseOrders: string;
+  purchaseOrdersSub: string;
+  noOrders: string;
+  allStatuses: string;
+  cancelOrder: string;
+  orderReference: string;
+  orderSupplier: string;
+  orderProject: string;
+  orderStatusLabel: string;
+  orderTotal: string;
+  orderOutstanding: string;
+  orderRaised: string;
+  orderStatus: (status: string) => string;
   noSuppliersToPick: string;
   estimatedValue: string;
   lines: string;
@@ -644,6 +664,25 @@ const en: Strings = {
   costCode: "Cost code",
   placeOrder: "Place order",
   orderNotPlaced: "not placed yet",
+  orderWhatsNeeded: "Order what's needed",
+  orderWhatsNeededHint: "Raises one draft requisition per supplier for what is still short — sold, less what is allocated and already requested.",
+  raising: "Raising…",
+  raisedRequisitions: (refs) => `Raised ${refs}. Submit them for approval in Requisitions.`,
+  nothingNeeded: "Nothing is needed: every line is allocated or already requested.",
+  skippedLines: (n) => `${n} line${n === 1 ? "" : "s"} could not be requested — no registered item, or no supplier on the item.`,
+  purchaseOrders: "Purchase orders",
+  purchaseOrdersSub: "Every order, in every state. A draft is placed from here, which is what tells Expediting and Receiving to expect it.",
+  noOrders: "No purchase orders yet.",
+  allStatuses: "All",
+  cancelOrder: "Cancel",
+  orderReference: "Order",
+  orderSupplier: "Supplier",
+  orderProject: "Project",
+  orderStatusLabel: "Status",
+  orderTotal: "Total",
+  orderOutstanding: "Still to receive",
+  orderRaised: "Raised",
+  orderStatus: (status) => status,
   noSuppliersToPick: "No suppliers in the register yet — add them under Suppliers.",
   estimatedValue: "Estimated",
   lines: "Lines",
@@ -987,6 +1026,25 @@ const ar: Strings = {
   costCode: "رمز التكلفة",
   placeOrder: "إصدار الأمر",
   orderNotPlaced: "لم يصدر بعد",
+  orderWhatsNeeded: "طلب ما يلزم",
+  orderWhatsNeededHint: "ينشئ مسودة طلب شراء لكل مورد بما ينقص — المباع ناقص المخصص وما طلب مسبقا.",
+  raising: "جار الإنشاء…",
+  raisedRequisitions: (refs) => `أنشئ ${refs}. قدمها للاعتماد من طلبات الشراء.`,
+  nothingNeeded: "لا يلزم شيء: كل بند مخصص أو مطلوب مسبقا.",
+  skippedLines: (n) => `${n} من البنود تعذر طلبها — بلا صنف مسجل أو بلا مورد على الصنف.`,
+  purchaseOrders: "أوامر الشراء",
+  purchaseOrdersSub: "كل الأوامر بكل حالاتها. تصدر المسودة من هنا، وهذا ما يخبر المتابعة والاستلام بانتظارها.",
+  noOrders: "لا توجد أوامر شراء بعد.",
+  allStatuses: "الكل",
+  cancelOrder: "إلغاء",
+  orderReference: "الأمر",
+  orderSupplier: "المورد",
+  orderProject: "المشروع",
+  orderStatusLabel: "الحالة",
+  orderTotal: "الإجمالي",
+  orderOutstanding: "المتبقي للاستلام",
+  orderRaised: "أنشئ في",
+  orderStatus: (status) => AR_ORDER_STATUS[status] || status,
   noSuppliersToPick: "لا يوجد موردون في السجل بعد — أضفهم من الموردين.",
   estimatedValue: "التقدير",
   lines: "البنود",
@@ -1053,6 +1111,16 @@ const ar: Strings = {
   dashUnassessed: "غير مقيّم",
   dashSuppliersWord: "مورد",
   dashNothingInFlight: "لا شيء لعرضه بعد.",
+};
+
+// A PURCHASE ORDER'S STATE IN ARABIC, keyed by the stored token — statuses
+// translate on display only, so what the API returns is unchanged.
+const AR_ORDER_STATUS: Record<string, string> = {
+  Draft: "مسودة",
+  Ordered: "صادر",
+  "Partly received": "مستلم جزئيا",
+  Received: "مستلم",
+  Cancelled: "ملغى",
 };
 
 export function procurementDict(locale: string): Strings {

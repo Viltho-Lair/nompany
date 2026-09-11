@@ -58,6 +58,9 @@ export const GET = route({ ...spec, body: false }, async (c) => {
     // and it is not: somebody holding only the costs right reaches this route
     // through the same section and was shown a Closure link that refused them.
     canViewList: can(c.access, "projects.list.view"),
+    // "ORDER WHAT'S NEEDED" on a project's Bulk sheet raises requisitions, so
+    // the sheet screen draws it only for somebody who may raise one (tier 5).
+    canRequisition: can(c.access, "procurement.requisitions.create"),
     canViewCosts: can(c.access, "projects.costs.view"),
     canViewBilling: can(c.access, "projects.billing.view"),
     canViewReports: can(c.access, "projects.reports.view"),

@@ -115,6 +115,36 @@ stopped there.
 drops any line without a known Registered Item, because an order moves stock and stock is
 Registered Items. Returning an empty order would read as success and buy nothing.
 
+## Ordering what a project needs, from its Bulk sheet (tier 5)
+
+**"Order what's needed"** on a project's Bulk sheet (Inventory → Project sheets → Bulk) raises
+**one draft requisition per supplier** for what is still short — the owner's rule, *material
+comes from what was quoted*, given the purchasing front door it lacked. Requisitions rather than
+orders was the owner's choice: the approval chain still stands between the sheet and the money.
+
+- **Short = sold − allocated − already asked for** (`modules/procurement/bulkNeeds.ts`, pure).
+  *Allocated* is the serials on the row; *asked for* is every live requisition for the project
+  (Draft, Submitted, Approved, Ordered) plus every live order with **no** requisition behind it
+  — an order converted from a requisition is that requisition's quantity, already counted. So
+  **a second press asks for nothing**: nothing links an order back to a sheet row, and this is
+  what stops a double buy.
+- **What cannot be asked for is reported, not dropped** — a line with no Registered Item, or
+  whose item names no supplier. Every line of a project handed over from a tender is one of
+  these today, because a bill line names no item.
+- Each requisition goes through `createRequisition` (numbering, guard, shape unchanged), costed
+  at the item's `unitCost`, titled with the project and the supplier, and the screen says which
+  were raised. The button is drawn for `procurement.requisitions.create` (`canRequisition` on
+  the /projects read).
+
+**The Purchase orders register** (Procurement → Purchase orders) lists every order in every
+state, filtered by status, and **places or cancels** a draft or placed one through Inventory's
+own `editOrder`. There was no screen listing orders at all — a Draft was visible only on its
+requisition's row, and Expediting and Receiving hide Drafts. The section **owns no collection**
+(orders stay in `materialOrders` under Inventory's sheets) and answers to `inventory.stock`,
+which is the right `editOrder` has always asked; `GET inventory/orders` is its read. An existing
+studio shows the row once `scripts/migrate/plant-sections.mjs` plants it; nothing is stranded
+before then, because nothing is written under it.
+
 ## THE ROLLOUT CONSEQUENCE
 
 Approving a requisition needs the studio's own currency, and `createStudio` has never set one —

@@ -119,5 +119,50 @@ ok("...and an approved one never does",
 // is a row from before the field, not a row in limbo.
 ok("no status reads as a draft", M.requisitionEditable({}) === true);
 
+console.log("\n== ordering what a Bulk sheet still needs (tier 5)");
+
+// THE DEFECT THIS GUARDS IS BUYING TWICE. Nothing links an order back to a
+// sheet row, so "needed" is what was sold less what is allocated less what is
+// already ASKED FOR — a second press must find the first press's requisitions.
+const B = await import("@/modules/procurement/bulkNeeds");
+const groups = [
+  { id: "v1", title: "Acme", rows: [
+    { itemId: "cam", description: "Camera", unit: "pc", qty: 10, serials: ["s1", "s2"] },
+    { itemId: "nvr", description: "Recorder", unit: "pc", qty: 1, serials: ["n1"] },
+  ] },
+  { id: "unassigned", title: "No vendor yet", rows: [
+    { itemId: "cable", description: "Cable", qty: 100 },
+    { description: "Labour", qty: 3 },
+  ] },
+];
+
+const first = B.bulkNeeds(groups, new Map());
+ok("what is short is sold less what is allocated", first.needs[0]?.lines[0]?.qty === 8, JSON.stringify(first.needs));
+ok("a fully allocated line asks for nothing", first.needs[0]?.lines.length === 1);
+ok("one requisition per supplier", first.needs.length === 1 && first.needs[0].vendorId === "v1");
+// COUNTED, NOT DROPPED: a line with no supplier or no Registered Item cannot
+// become an order, and a list that silently omitted it would read as done.
+ok("a line with no supplier or no registered item is reported, not dropped", first.skipped === 2, String(first.skipped));
+
+// THE SECOND PRESS. The first raised a Draft for 8 cameras; nothing more is short.
+const asked = B.askedFor("p1", [
+  { projectId: "p1", status: "Draft", lines: [{ itemId: "cam", qty: 8 }] },
+  { projectId: "p1", status: "Rejected", lines: [{ itemId: "cam", qty: 99 }] },
+  { projectId: "p2", status: "Approved", lines: [{ itemId: "cam", qty: 99 }] },
+], []);
+ok("a live requisition counts as asked for", asked.get("cam") === 8, String(asked.get("cam")));
+ok("a second press asks for nothing", B.bulkNeeds(groups, asked).needs.length === 0);
+
+// AN ORDER COUNTS ONCE. One converted from a requisition IS that requisition's
+// quantity; a direct order stands on its own; a cancelled one asked for nothing.
+const withOrders = B.askedFor("p1",
+  [{ projectId: "p1", status: "Ordered", lines: [{ itemId: "cam", qty: 5 }] }],
+  [
+    { projectId: "p1", status: "Ordered", requisitionId: "r1", lines: [{ itemId: "cam", qty: 5 }] },
+    { projectId: "p1", status: "Ordered", lines: [{ itemId: "cam", qty: 2 }] },
+    { projectId: "p1", status: "Cancelled", lines: [{ itemId: "cam", qty: 50 }] },
+  ]);
+ok("a converted order is not counted on top of its requisition", withOrders.get("cam") === 7, String(withOrders.get("cam")));
+
 console.log(`\n${fails ? `${fails} FAILURES` : "all passed"}\n`);
 process.exit(fails ? 1 : 0);

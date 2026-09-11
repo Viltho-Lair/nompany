@@ -643,6 +643,13 @@ export const SECTION_DEFS = [
   // that already exists — it was Inventory's Vendors screen.
   { key: "procurement", name: "Procurement & Subcontracting", children: [
     { key: "procurement-requisitions", name: "Requisitions" },
+    // THE PURCHASE ORDER REGISTER (tier 5). A DESTINATION, like Contracts: it
+    // owns no collection — orders stay in `materialOrders` under Inventory's
+    // sheets, where they were written — so an existing studio that has not yet
+    // had it planted loses nothing, it just does not show the row until
+    // `scripts/migrate/plant-sections.mjs` adds it. It answers to Inventory's
+    // stock right (SECTION_AREAS), because placing an order is Inventory's act.
+    { key: "procurement-orders", name: "Purchase orders" },
     { key: "procurement-rfq", name: "Supplier quotes" },
     { key: "procurement-expediting", name: "Expediting" },
     { key: "procurement-subcontracts", name: "Subcontracts" },
