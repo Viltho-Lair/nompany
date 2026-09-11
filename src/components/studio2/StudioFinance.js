@@ -968,7 +968,10 @@ function Bills({ rows, vocab, canManage, canRelease, busy, send, pickers = {} })
                   // availableApproval asks all four, so the button is drawn only
                   // where pressing it would succeed.
                   const approvable = !!b.nextApproval;
-                  const payable = !["Draft", "Cancelled", "Paid"].includes(b.status) && b.outstanding > 0;
+                  // ONLY AN APPROVED BILL IS PAID — the server refuses anything
+                  // else (`recordBillPayment`), so the button is not offered on a
+                  // bill still waiting for its signature.
+                  const payable = b.status === "Approved" && b.outstanding > 0;
                   return (
                     <Fragment key={b.id}>
                       <tr className="border-b border-slate-100 last:border-0 dark:border-white/5">

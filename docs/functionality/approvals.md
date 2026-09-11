@@ -55,8 +55,19 @@ optional, because every bill raised before this feature has neither.
 
 **`status` is not extended.** `BILL_STATUSES` gained no value. `Approved` is written only
 when the last required step is signed, so a part-signed bill reads `Received` and everything
-deriving from status — the aging flag, the edit lock, the refusal to pay an unapproved bill —
-keeps working unchanged.
+deriving from status — the aging flag, the edit lock — keeps working unchanged.
+
+**A bill is paid only once it is Approved** (the owner's decision, 11/09/2026).
+`recordBillPayment` used to refuse only a Draft, so the claim above — "the refusal to pay an
+unapproved bill" — was not true: a Received bill nobody had signed could be paid, and the
+chain authorised nothing. It refuses `not-approved` now, and the screen offers Record payment
+on an Approved bill only.
+
+**The Admin may sign a bill they raised**, and a later step after an earlier one — the same
+exception payroll carries (invariant 7 in CLAUDE.md). Without it the payment gate would leave
+a one-person studio unable to pay a supplier at all. `approveBill` and `availableApproval`
+ask `isAdministrator` identically, so the button appears exactly where the signature is
+accepted. Everybody else still needs a second person on both counts.
 
 ## What it does
 

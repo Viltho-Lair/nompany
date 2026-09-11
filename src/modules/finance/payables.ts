@@ -7,7 +7,7 @@
 // authorising it are two acts, and invariant 7 says one person must not do both
 // to one record — enforced here at the transition, not in the schema.
 
-import { requirePermission } from "@/platform/access";
+import { requirePermission, isAdministrator } from "@/platform/access";
 import { seriesSetting } from "@/modules/administration/numbering";
 import { autoPost, autoReverse, autoRepost } from "./posting";
 import type { PermissionKey } from "@/platform/access";
@@ -134,10 +134,13 @@ export function availableApproval(
   plan: ResolvedPlan | PlanRefusal | null,
   holds: (permission: string) => boolean,
   actorCollaboratorId: string,
+  // THE ADMIN EXCEPTION, asked the same way `approveBill` asks it, so the screen
+  // offers the button exactly where the server would take the signature.
+  admin = false,
 ): ApprovalStep | null {
   if (!plan || plan.ok !== true) return null;
-  if (bill.createdByCollaboratorId === actorCollaboratorId) return null;
-  if ((bill.approvals || []).some((s) => s.byCollaboratorId === actorCollaboratorId)) return null;
+  if (!admin && bill.createdByCollaboratorId === actorCollaboratorId) return null;
+  if (!admin && (bill.approvals || []).some((s) => s.byCollaboratorId === actorCollaboratorId)) return null;
   const step = firstUnsignedStep(plan, bill.approvals || []);
   return step && holds(step.permission) ? step : null;
 }
@@ -216,7 +219,7 @@ export async function listBillsForScreen(ctx: FinanceContext) {
       approvalBlocked: plan.ok ? null : plan.reason,
       approvalSigned: signed,
       approvalRequired: plan.ok ? plan.steps.length : 0,
-      nextApproval: availableApproval(bill as Bill, plan, holds, me),
+      nextApproval: availableApproval(bill as Bill, plan, holds, me, isAdministrator(ctx.collaborator, ctx.roles)),
       // THE PAYMENT HOLD, so the screen says why a bill cannot be paid before
       // anybody tries — from the same function the pay door refuses with.
       hold: paymentHolds.get(bill.id) || null,
@@ -406,7 +409,14 @@ export async function approveBill(ctx: FinanceContext, id: string) {
   if (!current) return { error: "notfound" };
   if (current.status === "Approved" || current.status === "Paid") return { error: "already", status: current.status };
   if (current.status === "Cancelled") return { error: "cancelled" };
-  if (current.createdByCollaboratorId === collaborator.id) return { error: "same-signer" };
+  // THE ADMIN IS THE EXCEPTION — the owner's instruction, 11/09/2026, the same
+  // one payroll carries. Payment now waits on approval, and the raiser never
+  // signs their own bill; a studio run by one person would otherwise be unable
+  // to pay a supplier at all. The owner or a holder of the Admin role may sign
+  // a bill they raised, and a later step after an earlier one. Everybody else
+  // still needs a second person on both counts.
+  const admin = isAdministrator(ctx.collaborator, ctx.roles);
+  if (!admin && current.createdByCollaboratorId === collaborator.id) return { error: "same-signer" };
 
   // RE-RESOLVED RATHER THAN READ OFF THE ROW. A bill raised before chains
   // existed carries no plan, and one whose amount changed outside editBill
@@ -419,7 +429,7 @@ export async function approveBill(ctx: FinanceContext, id: string) {
   if (!plan.ok) return { error: plan.reason, detail: plan.detail };
 
   const signatures = current.approvals || [];
-  if (signatures.some((s) => s.byCollaboratorId === collaborator.id)) return { error: "same-signer" };
+  if (!admin && signatures.some((s) => s.byCollaboratorId === collaborator.id)) return { error: "same-signer" };
 
   const step = firstUnsignedStep(plan, signatures);
   if (!step) return { error: "already", status: current.status };
@@ -468,8 +478,12 @@ export async function recordBillPayment(ctx: FinanceContext, id: string, body: R
   const { studio, payablesSection, collaborator } = ctx;
   const current = (await Bills.find({ studio, section: payablesSection })).find((b) => b.id === id);
   if (!current) return { error: "notfound" };
-  if (current.status === "Draft") return { error: "not-approved" };
   if (current.status === "Cancelled") return { error: "cancelled" };
+  // PAYMENT WAITS ON APPROVAL — the owner's decision, 11/09/2026. This refused
+  // only a Draft, so a Received bill nobody had signed could be paid by anybody
+  // holding the pay right, and the approval chain authorised nothing. Only an
+  // Approved bill is paid now (a part-paid one stays Approved until settled).
+  if (current.status !== "Approved") return { error: "not-approved" };
 
   // THE PAYMENT HOLD. It refuses the PAYMENT, not the bill — the period lock's
   // shape: a bill can be received and approved with a hold standing against
