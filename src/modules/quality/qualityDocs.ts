@@ -26,6 +26,7 @@ import { repo } from "@/platform/db/repo";
 import { bumpCounter } from "@/platform/db/store";
 import { SEC } from "@/platform/db/keys";
 import { formatCode, highestSeq, MAX_TITLE, documentState, pendingRevision, isOpen } from "./qualityDocuments";
+import { unknownPlaceholders } from "./qualityFields";
 import type { QualityContext, QualityDocument, QualityRevision } from "./types";
 
 // A NEW COLLECTION, not the old one reused. The old rows carry `sections` and
@@ -250,6 +251,9 @@ export async function saveContent(ctx: QualityContext, id: string, body: Record<
   try {
     const parsed = JSON.parse(content);
     if (!parsed || parsed.type !== "doc") return { error: "content" };
+    // A PLACEHOLDER NOTHING CAN RESOLVE is refused here, where the author is
+    // still looking, rather than printed as a gap on a client's copy.
+    if (unknownPlaceholders(parsed).length) return { error: "field" };
   } catch {
     return { error: "content" };
   }
@@ -270,6 +274,15 @@ export async function savePageSetup(ctx: QualityContext, id: string, body: Recor
 
   const patch = cleanSetup(body);
   if (!Object.keys(patch).length) return { error: "empty" };
+  // THE BANDS TAKE PLACEHOLDERS TOO — a letterhead is where the company's name
+  // and legal rows belong — so they answer to the same allowlist as the body.
+  for (const band of ["headerContent", "footerContent"]) {
+    const raw = patch[band];
+    if (typeof raw !== "string" || !raw) continue;
+    try {
+      if (unknownPlaceholders(JSON.parse(raw)).length) return { error: "field" };
+    } catch { /* not JSON: the legacy plain-text band, which holds no placeholder */ }
+  }
 
   const row = await Docs.update(ctx, id, {
     ...patch, updatedAt: new Date().toISOString(),

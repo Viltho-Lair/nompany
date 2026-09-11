@@ -16,7 +16,7 @@
 // Client-safe. The picker and the validator need the same declarations the
 // resolver works from, or the editor offers something the server then drops.
 
-import { NODES, pathBetween } from "@/platform/relations";
+import { NODES, pathBetween, MANY } from "@/platform/relations";
 // SHARED, NOT RE-DERIVED — a bare `sectionKey.split("-")[0]` was correct only
 // while every root was a single bare word. Four roots are hyphenated compounds
 // now ("crm-sales", "engineering-docs", "field-service", "quality-hse"), and a
@@ -42,6 +42,9 @@ const NAMING: Record<string, { primary: string; secondary: string } | undefined>
   salesTicket: { primary: "ref", secondary: "title" },
   quotation: { primary: "number", secondary: "title" },
   project: { primary: "number", secondary: "title" },
+  // A CUSTOMER DOCUMENT'S SECOND TYPE (tier 4). A template bound to `invoice`
+  // is an invoice layout; the print page supplies which invoice at render.
+  invoice: { primary: "reference", secondary: "clientName" },
 };
 export const BINDABLE = Object.keys(NAMING);
 
@@ -211,6 +214,12 @@ export function reachOf(
   holds?: (permission: string) => boolean,
 ) {
   if (!subjectType || !target || !NODES[target]) return null;
+  // AND SO IS THE ORIGIN. Every journey starts at the record the document is
+  // bound to, and the render refuses a subject its reader may not open
+  // (`subjectRecord`) — so a menu that offered a quotation's tables through an
+  // invoice to somebody who cannot read invoices was offering fields that
+  // could only ever print as gaps. Found by tests/customer-documents.mjs.
+  if (holds && NODES[subjectType] && !holds(NODES[subjectType].permission)) return null;
   // THE DESTINATION ITSELF IS A HOP, even when there is no journey. Checking
   // only the path let a zero-hop reach through ungated: a document bound to a
   // sales ticket offered Sales' own fields to somebody holding nothing in
@@ -219,6 +228,12 @@ export function reachOf(
   if (subjectType === target) return { hops: 0, path: [] };
   const path = pathBetween(subjectType, target);
   if (!path) return null;
+  // A FIELD IS ONE VALUE, so no journey may cross a MANY edge. A quotation
+  // reaches its project, and a project has many invoices: "the invoice's
+  // number" on a quotation layout names no invoice in particular, and the
+  // render would print a gap. SEQUENCE is fine — it is ordered and `[0]` is a
+  // rule the registry declares. Found by tests/customer-documents.mjs.
+  if (path.some((e) => e.cardinality === MANY)) return null;
   if (holds && !path.every((e) => holds(NODES[e.to].permission))) return null;
   return { hops: path.length, path };
 }
@@ -260,6 +275,14 @@ STATIC_FIELDS.push(
     // Stamped when Technical submits it — empty until then, which prints as the
     // field's own name rather than as a date nobody set.
     ["quotation.completedAt", "Date completed", "completedAt"],
+    // FROZEN AT ISSUE (tier 4): how long the client may accept it, and the
+    // money it is in. Both are the quotation's own, not the studio's today.
+    ["quotation.validUntil", "Valid until", "validUntil"],
+    ["quotation.currency", "Currency", "currency"],
+    // WHO IT IS FOR. `clientName` is only the legacy stored fallback — the
+    // resolver reads the Client record the quotation names, or its ticket's
+    // client, because a converted quotation carries no clientId of its own.
+    ["quotation.client", "Client", "clientName"],
   ].map(([key, label, path]) => ({
     key, label, path, kind: "scalar",
     group: "Sales", department: "crm-sales", subject: "quotation",
@@ -284,6 +307,23 @@ STATIC_FIELDS.push({
   via: "collaborator", kind: "scalar",
   group: "Projects", department: "projects", subject: "project",
 });
+// AN INVOICE, as the client receives it. Every one is read off the invoice
+// itself — the client's name is SNAPSHOTTED onto it at raise, deliberately, so
+// a printed invoice does not change its addressee when the project is edited.
+STATIC_FIELDS.push(
+  ...[
+    ["invoice.reference", "Invoice number", "reference"],
+    ["invoice.client", "Client", "clientName"],
+    ["invoice.issueDate", "Issue date", "issueDate"],
+    ["invoice.dueDate", "Due date", "dueDate"],
+    ["invoice.status", "Status", "status"],
+    ["invoice.notes", "Notes", "notes"],
+    ["invoice.currency", "Currency", "currency"],
+  ].map(([key, label, path]) => ({
+    key, label, path, kind: "scalar",
+    group: "Finance", department: "finance", subject: "invoice",
+  })),
+);
 
 for (const f of STATIC_FIELDS) STATIC_KEY_SET.add(f.key);
 
@@ -338,7 +378,64 @@ export const BLOCK_SOURCES = [
       { key: "value", label: "", align: "end" },
     ],
   },
+  {
+    key: "invoice.lines",
+    label: "Invoice lines",
+    group: "Finance",
+    department: "finance",
+    subject: "invoice",
+    permission: "finance.cash.view",
+    // ONE GROUP, because an invoice's lines are one list — the shape is kept
+    // the same as the quotation's so the print page draws both with one table.
+    grouped: true,
+    columns: [
+      { key: "description", label: "Description" },
+      { key: "qty", label: "Qty", align: "end" },
+      { key: "unitPrice", label: "Unit price", align: "end" },
+      { key: "amount", label: "Amount", align: "end" },
+    ],
+  },
+  {
+    key: "invoice.totals",
+    label: "Invoice totals",
+    group: "Finance",
+    department: "finance",
+    subject: "invoice",
+    permission: "finance.cash.view",
+    // FROM `invoiceTotals`, Finance's own arithmetic — the same function the
+    // ledger and the aging report read, so the paper and the books agree.
+    totals: true,
+    columns: [
+      { key: "label", label: "" },
+      { key: "value", label: "", align: "end" },
+    ],
+  },
 ];
+
+// ---- placeholders in a stored body -------------------------------------------
+//
+// A PLACEHOLDER IS A NODE, never `{{text}}`. The editor inserts `mergeField`
+// (inline) and `mergeBlock` (a table) carrying a catalogue key, so a typo cannot
+// make a field — and this is the allowlist the header above always promised:
+// a body naming a key the catalogue does not know is refused on save rather
+// than stored and printed as a hole later.
+export const FIELD_NODE = "mergeField";
+export const BLOCK_NODE = "mergeBlock";
+
+/** Every placeholder key in a ProseMirror JSON tree that nothing can resolve. */
+export function unknownPlaceholders(doc: unknown): string[] {
+  const bad: string[] = [];
+  const walk = (node: unknown) => {
+    if (!node || typeof node !== "object") return;
+    const n = node as { type?: unknown; attrs?: { key?: unknown }; content?: unknown };
+    const key = String(n.attrs?.key ?? "");
+    if (n.type === FIELD_NODE && !isFieldKey(key)) bad.push(key);
+    if (n.type === BLOCK_NODE && !isBlockSource(key)) bad.push(key);
+    if (Array.isArray(n.content)) n.content.forEach(walk);
+  };
+  walk(doc);
+  return bad;
+}
 
 const BLOCK_KEYS = new Set(BLOCK_SOURCES.map((b) => b.key));
 export const isBlockSource = (key: unknown) => BLOCK_KEYS.has(String(key || ""));

@@ -161,6 +161,17 @@ type Strings = CommonStrings & {
   pickSize: string;
   print: string;
   printDocument: string;
+  // ---- placeholders and layouts (tier 4) ----
+  insertField: string;
+  /** A catalogue group heading ("Company", "Finance"…) in this language. */
+  fieldGroup: (group: string) => string;
+  /** A catalogue field's label in this language; a studio's own legal label stays as typed. */
+  fieldLabel: (key: string, fallback: string) => string;
+  layoutFor: string;
+  layoutNone: string;
+  layoutQuotation: string;
+  layoutInvoice: string;
+  layoutLocked: string;
   quote: string;
   redo: string;
   reviewed: string;
@@ -383,6 +394,15 @@ const en: Strings = {
   pickSize: "Pick a size",
   print: "Print",
   printDocument: "Print document",
+  insertField: "Insert field",
+  // The catalogue is written in English, so English reads it as it stands.
+  fieldGroup: (group) => group,
+  fieldLabel: (_key, fallback) => fallback,
+  layoutFor: "Layout for",
+  layoutNone: "Not a layout",
+  layoutQuotation: "Quotations",
+  layoutInvoice: "Invoices",
+  layoutLocked: "Issued documents keep their type — start a new revision to change it.",
   quote: "Quote",
   redo: "Redo",
   reviewed: "Reviewed",
@@ -605,6 +625,16 @@ const ar: Strings = {
   pickSize: "اختر حجما",
   print: "طباعة",
   printDocument: "طباعة الوثيقة",
+  insertField: "إدراج حقل",
+  fieldGroup: (group) => AR_FIELD_GROUPS[group] || group,
+  // A key the map does not name is a studio's own legal row — typed by the
+  // tenant, therefore data, and shown exactly as they typed it.
+  fieldLabel: (key, fallback) => AR_FIELD_LABELS[key] || fallback,
+  layoutFor: "قالب لـ",
+  layoutNone: "ليس قالبا",
+  layoutQuotation: "عروض الأسعار",
+  layoutInvoice: "الفواتير",
+  layoutLocked: "الوثائق الصادرة تحتفظ بنوعها — ابدأ مراجعة جديدة لتغييره.",
   quote: "اقتباس",
   redo: "إعادة",
   reviewed: "روجعت",
@@ -673,6 +703,75 @@ const ar: Strings = {
 };
 
 const quality = { en, ar };
+
+// THE FIELD CATALOGUE IN ARABIC, keyed by the catalogue's own key so a label
+// reworded in English cannot orphan its translation. HAND-WRITTEN. NO DIACRITICS.
+const AR_FIELD_GROUPS: Record<string, string> = {
+  Company: "الشركة",
+  Document: "الوثيقة",
+  Miscellaneous: "متفرقات",
+  Sales: "المبيعات",
+  Projects: "المشاريع",
+  Finance: "المالية",
+  "Legal information": "المعلومات القانونية",
+};
+
+const AR_FIELD_LABELS: Record<string, string> = {
+  "company.name": "اسم الشركة",
+  "company.address": "العنوان",
+  "company.country": "الدولة",
+  "company.city": "المدينة",
+  "document.code": "رمز الوثيقة",
+  "document.title": "العنوان",
+  "document.revision": "المراجعة",
+  "document.department": "القسم",
+  "document.owner": "المالك",
+  "document.effectiveDate": "تاريخ السريان",
+  "document.nextReviewDate": "المراجعة التالية",
+  "misc.today": "تاريخ اليوم",
+  "sales.ticket.ref": "مرجع التذكرة",
+  "sales.ticket.title": "عنوان التذكرة",
+  "sales.ticket.client": "العميل",
+  "sales.ticket.contactName": "اسم جهة الاتصال",
+  "sales.ticket.contactPosition": "منصب جهة الاتصال",
+  "sales.ticket.contactEmail": "بريد جهة الاتصال",
+  "sales.ticket.contactPhone": "هاتف جهة الاتصال",
+  "sales.ticket.industry": "القطاع",
+  "sales.ticket.deadline": "الموعد النهائي",
+  "sales.ticket.status": "الحالة",
+  "sales.ticket.siteName": "اسم الموقع",
+  "sales.ticket.siteCity": "مدينة الموقع",
+  "sales.ticket.siteCountry": "دولة الموقع",
+  "sales.ticket.owner": "مسؤول التذكرة",
+  "quotation.number": "رقم عرض السعر",
+  "quotation.revision": "مراجعة عرض السعر",
+  "quotation.title": "عنوان عرض السعر",
+  "quotation.description": "الوصف",
+  "quotation.status": "الحالة",
+  "quotation.completedAt": "تاريخ الإنجاز",
+  "quotation.validUntil": "صالح حتى",
+  "quotation.currency": "العملة",
+  "quotation.client": "العميل",
+  "quotation.lines": "جداول عرض السعر",
+  "quotation.totals": "إجماليات عرض السعر",
+  "project.number": "رقم المشروع",
+  "project.title": "عنوان المشروع",
+  "project.stage": "مرحلة المشروع",
+  "project.client": "العميل",
+  "project.location": "الموقع",
+  "project.startDate": "تاريخ البدء",
+  "project.receivedDate": "تاريخ الاستلام",
+  "project.manager": "مدير المشروع",
+  "invoice.reference": "رقم الفاتورة",
+  "invoice.client": "العميل",
+  "invoice.issueDate": "تاريخ الإصدار",
+  "invoice.dueDate": "تاريخ الاستحقاق",
+  "invoice.status": "الحالة",
+  "invoice.notes": "ملاحظات",
+  "invoice.currency": "العملة",
+  "invoice.lines": "بنود الفاتورة",
+  "invoice.totals": "إجماليات الفاتورة",
+};
 
 export function qualityDict(locale: string): Strings {
   return quality[locale as Locale] || quality[defaultLocale];

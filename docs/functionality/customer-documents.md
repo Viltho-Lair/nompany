@@ -37,12 +37,52 @@ studio's, which is exactly what they showed before. The builder shows the quotat
 The date arithmetic is `shared/dates.ts` (`addDaysISO`), pure and UTC, so a screen and the
 server compute the same day.
 
+## Placeholders in the builder
+
+**A document says what it is a layout FOR** — the *Layout for* choice in the document's
+header: Quotations, Invoices, or Not a layout. That binding (`subjectType`, which existed and
+had no screen) decides which record every placeholder resolves against, so it is refused on
+an issued document with no revision open, exactly as the body is.
+
+**Insert field** (the editor's toolbar) lists what the server says this author may place on
+this document, grouped: Company, Legal information (the studio's own rows, as typed), the
+document itself, and — once bound — the quotation's or invoice's own fields. A *block* is a
+field that resolves to rows: a quotation's tables and totals, an invoice's lines and totals.
+Blocks go in the body only; the header and footer take inline fields, which is where a
+letterhead's company name and VAT number belong.
+
+**A placeholder is a node, not `{{text}}`.** `mergeField` (inline) and `mergeBlock` carry the
+catalogue key and a label for the author; they are atoms, so a keystroke cannot half-delete one
+and a typo cannot make one. **The save refuses a key nothing can resolve** (`field`), in the
+body and in both bands (`unknownPlaceholders` in `modules/quality/qualityFields.ts` — the
+allowlist the catalogue's own header had promised and nothing had implemented).
+
+**What is offered follows what can print.** Two rules were added to `reachOf` because the new
+test found them broken:
+
+- **The origin is a hop.** A reader who cannot open invoices is offered nothing reached through
+  an invoice — the render already refuses such a subject, so the menu was offering gaps.
+- **No journey crosses a MANY edge.** A quotation reaches its project and a project has many
+  invoices, so "the invoice's number" on a quotation layout names no invoice. An invoice still
+  reaches the quotation it bills, through its project, because each of those hops is one.
+
+**The quotation's client** resolves from the Client record it names, or its ticket's client —
+not through a relations edge, which would be the shorter path and resolve nothing for a
+converted quotation. A document with no frozen currency prints the studio's.
+
+**Every catalogue field has an Arabic label**, keyed by the field's key in
+`shared/studio/quality.ts`; a studio's own legal label is data and is shown as typed.
+`tests/customer-documents.mjs` holds all of the above.
+
+**The header and footer are read-only on an issued document now.** They took keystrokes before
+and never saved them, which reads as the page accepting an edit and forgetting it.
+
 ## Not built yet
 
 Stated in words, because a silent gap reads as a finished feature.
 
-- **No placeholders in the editor.** The catalogue exists and the editor cannot insert from
-  it (slice B). Invoice fields and invoice line/total blocks are not in the catalogue yet.
+- **No live preview of a filled layout.** The author sees `[Client]` chips, not a client's
+  name; resolving against a chosen record is the print page's job (slice D).
 - **No default layout per type.** Nothing records which template a quotation or an invoice
   prints through (slice C).
 - **No print page.** A quotation or invoice cannot yet be printed through a layout; the

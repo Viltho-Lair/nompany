@@ -9,7 +9,22 @@ import { ChevronLeft, Cloud, CloudOff, Loader2, Printer } from "lucide-react";
 import { PageSetupMenu } from "@/components/quality/documents/page-setup-menu";
 import { WorkflowBar } from "@/components/quality/documents/workflow-bar";
 import { Editor } from "@/components/quality/editor/editor";
+import type { FieldGroups } from "@/components/quality/editor/merge-nodes";
+import SelectMenuJs from "@/components/fields/SelectMenu";
 import { Button } from "@/components/ui/button";
+
+// THE HOUSE SELECT, from a .jsx file — so TypeScript infers its props from the
+// defaults and reads `options = []` as a list of nothing. Given a real shape
+// here rather than cast at the call site; this is the first .tsx to use it.
+const SelectMenu = SelectMenuJs as unknown as (props: {
+  value: string;
+  options: { value: string; label: string }[];
+  onChange: (value: string) => void;
+  disabled?: boolean;
+  className?: string;
+  title?: string;
+  "aria-label"?: string;
+}) => React.ReactElement;
 import type { PageSetup } from "@/lib/docs/page-presets";
 
 const SAVE_DELAY_MS = 700;
@@ -42,6 +57,8 @@ export function DocumentWorkspace({
   initialSetup,
   state,
   canEdit,
+  subjectType = "",
+  fields = [],
   onChanged,
 }: {
   slug: string;
@@ -52,9 +69,39 @@ export function DocumentWorkspace({
   initialSetup: PageSetup;
   state: string;
   canEdit: boolean;
+  subjectType?: string;
+  fields?: FieldGroups;
   onChanged: () => void;
 }) {
   const tr = qualityDict(useStudioLocale());
+
+  // WHAT THIS DOCUMENT IS A LAYOUT FOR. Binding it is what makes a quotation's
+  // or an invoice's fields reachable at all — the Insert-field menu is filtered
+  // by it on the server — so changing it reloads the document, and with it the
+  // menu. Only the two customer documents are offered; a document bound to
+  // something else by an older screen keeps its binding visible rather than
+  // reading as "Not a layout".
+  const layoutOptions = [
+    { value: "", label: tr.layoutNone },
+    { value: "quotation", label: tr.layoutQuotation },
+    { value: "invoice", label: tr.layoutInvoice },
+    ...(subjectType && !["quotation", "invoice"].includes(subjectType)
+      ? [{ value: subjectType, label: subjectType }] : []),
+  ];
+  const [layoutError, setLayoutError] = useState(false);
+  const changeLayout = useCallback(async (next: string) => {
+    setLayoutError(false);
+    const response = await fetch(
+      `/api/studios/${slug}/quality/docs?id=${encodeURIComponent(documentId)}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subjectType: next }),
+      },
+    );
+    if (!response.ok) { setLayoutError(true); return; }
+    onChanged();
+  }, [slug, documentId, onChanged]);
   const [draftTitle, setDraftTitle] = useState(title);
   const [setup, setSetup] = useState<PageSetup>(initialSetup);
   const [saveState, setSaveState] = useState<SaveState>("idle");
@@ -201,6 +248,19 @@ export function DocumentWorkspace({
         </div>
 
         <div className="flex items-center gap-3">
+          <label className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span className="hidden sm:inline">{tr.layoutFor}</span>
+            <SelectMenu
+              value={subjectType}
+              options={layoutOptions}
+              disabled={!canEdit}
+              aria-label={tr.layoutFor}
+              title={canEdit ? undefined : tr.layoutLocked}
+              className="h-8 min-w-32 rounded-md border border-input bg-background px-2 text-xs text-foreground"
+              onChange={(v: string) => void changeLayout(v)}
+            />
+          </label>
+          {layoutError && <span className="text-xs text-destructive">{tr.notSaved}</span>}
           <span className={`rounded-full px-2.5 py-1 text-xs font-600 ${STATUS_BADGE[state] || STATUS_BADGE.draft}`}>
             {state}
           </span>
@@ -235,6 +295,7 @@ export function DocumentWorkspace({
         setup={setup}
         onSetupChange={handleSetupChange}
         editable={canEdit}
+        fields={fields}
       />
     </div>
   );

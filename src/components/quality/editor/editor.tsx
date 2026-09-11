@@ -19,6 +19,11 @@ import StarterKit from "@tiptap/starter-kit";
 import { BandCopy, BandEditor } from "@/components/quality/editor/band-editor";
 import { PageBreak } from "@/components/quality/editor/page-break";
 import {
+  MergeBlockNode,
+  MergeFieldNode,
+  type FieldGroups,
+} from "@/components/quality/editor/merge-nodes";
+import {
   Pagination,
   setPageGeometry,
   type PageGeometry,
@@ -65,12 +70,15 @@ export function Editor({
   setup,
   onSetupChange,
   editable = true,
+  fields = [],
 }: {
   /** Tiptap JSON as stored, or `null` for a new document. */
   initialContent: string | null;
   onChange: (content: string) => void;
   setup: PageSetup;
   onSetupChange: (change: Partial<PageSetup>) => void;
+  /** What the Insert-field menu offers — served with the document. */
+  fields?: FieldGroups;
   /**
    * False when the document is issued and no revision is open. The sheets, the
    * pagination and the bands all behave exactly as before — what is refused is
@@ -145,6 +153,10 @@ export function Editor({
       FontSize,
       Color,
       PageBreak,
+      // PLACEHOLDERS — see merge-nodes.ts. A block (a quotation's tables) is a
+      // body-only thing; the bands take the inline field alone.
+      MergeFieldNode,
+      MergeBlockNode,
       // IMAGES, which the port shipped without entirely — no Image extension
       // meant a document could not carry a diagram, a stamp or a signature. The
       // src is a path into the studio's own media store; `allowBase64` is off
@@ -223,6 +235,10 @@ export function Editor({
     return {
       area,
       band,
+      // A FROZEN DOCUMENT'S BANDS ARE FROZEN TOO. They took keystrokes on an
+      // issued document before — the change was simply never saved, which
+      // reads as the page accepting an edit it then forgets.
+      editable,
       // Every page shows the same band, so only the first page it appears on
       // carries the editable instance.
       editablePage: Math.min(Math.max(1, band.startPage), pageCount),
@@ -253,6 +269,7 @@ export function Editor({
         defaultFontFamily={setup.font.family}
         defaultFontSizePt={setup.font.sizePt}
         showPageBreak={surface === "body"}
+        fields={fields}
         onSetDefaultFont={(family, category, sizePt) =>
           onSetupChange({ font: { family, category, sizePt } })
         }
@@ -373,6 +390,7 @@ const NUMBER_POSITION_CLASS: Record<BandAlign, string> = {
 function PageBand({
   area,
   band,
+  editable,
   pageIndex,
   editablePage,
   html,
@@ -384,6 +402,7 @@ function PageBand({
 }: {
   area: "header" | "footer";
   band: BandSetup;
+  editable: boolean;
   pageIndex: number;
   editablePage: number;
   html: string;
@@ -421,6 +440,7 @@ function PageBand({
               fallbackText={band.text}
               placeholder={isHeader ? tr.header : tr.footer}
               ariaLabel={`${label}, page ${pageIndex}`}
+              editable={editable}
               onChange={onContentChange}
               onReady={onReady}
             />

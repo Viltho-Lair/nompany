@@ -8,6 +8,7 @@ import { FileQuestion } from "lucide-react";
 
 import { DocumentSkeleton } from "@/components/quality/documents/document-skeleton";
 import { DocumentWorkspace } from "@/components/quality/documents/document-workspace";
+import type { FieldGroups } from "@/components/quality/editor/merge-nodes";
 import { Button } from "@/components/ui/button";
 import { DEFAULT_FONT_FAMILY, DEFAULT_FONT_SIZE_PT } from "@/lib/docs/fonts";
 import {
@@ -41,7 +42,7 @@ export function DocumentView({
   const [state, setState] = useState<
     | { status: "loading" }
     | { status: "missing" }
-    | { status: "ready"; document: StoredDocument; issued: StoredDocument | null; canEdit: boolean }
+    | { status: "ready"; document: StoredDocument; issued: StoredDocument | null; canEdit: boolean; fields: FieldGroups }
   >({ status: "loading" });
 
   const load = useCallback(async () => {
@@ -57,12 +58,14 @@ export function DocumentView({
       document: StoredDocument;
       issued: StoredDocument | null;
       canEdit: boolean;
+      fields?: FieldGroups;
     };
     setState({
       status: "ready",
       document: payload.document,
       issued: payload.issued ?? null,
       canEdit: payload.canEdit !== false,
+      fields: Array.isArray(payload.fields) ? payload.fields : [],
     });
   }, [studio.slug, documentId]);
 
@@ -96,6 +99,8 @@ export function DocumentView({
       initialSetup={toPageSetup(shown)}
       state={state.document.state ?? "draft"}
       canEdit={state.canEdit}
+      subjectType={state.document.subjectType ?? ""}
+      fields={state.fields}
       onChanged={load}
     />
   );
@@ -139,6 +144,8 @@ export type StoredDocument = {
   title?: string;
   content?: string;
   state?: string;
+  /** What this document is a layout FOR — "quotation", "invoice", or nothing. */
+  subjectType?: string;
   updatedAt?: string;
   pageSize?: string;
   marginPreset?: string;

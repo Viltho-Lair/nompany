@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import type { Editor } from "@tiptap/core";
 import { Table, TableRow } from "@tiptap/extension-table";
 import TextAlign from "@tiptap/extension-text-align";
@@ -17,6 +17,7 @@ import {
   StyledTableCell,
   StyledTableHeader,
 } from "@/components/quality/editor/table-cells";
+import { MergeFieldNode } from "@/components/quality/editor/merge-nodes";
 
 /**
  * Headers and footers are the same kind of surface as the body — rich text,
@@ -43,6 +44,9 @@ export function bandExtensions() {
     TableRow,
     StyledTableHeader,
     StyledTableCell,
+    // A letterhead is where the company's name and legal rows live, so the
+    // band takes inline placeholders. Blocks are body-only: a band is a strip.
+    MergeFieldNode,
   ];
 }
 
@@ -79,6 +83,7 @@ export function BandEditor({
   fallbackText,
   placeholder,
   ariaLabel,
+  editable = true,
   onChange,
   onReady,
 }: {
@@ -86,6 +91,8 @@ export function BandEditor({
   fallbackText: string;
   placeholder: string;
   ariaLabel: string;
+  /** False on an issued document, as the body is. */
+  editable?: boolean;
   onChange: (json: string, html: string) => void;
   /** Hands the instance up so the toolbar can be pointed at it. */
   onReady: (editor: Editor) => void;
@@ -116,7 +123,14 @@ export function BandEditor({
     onUpdate: ({ editor: instance }) => {
       onChange(JSON.stringify(instance.getJSON()), instance.getHTML());
     },
+    editable,
   });
+
+  // Read once at build, so a revision starting has to say so — the same
+  // reason the body editor carries this effect.
+  useEffect(() => {
+    editor?.setEditable(editable);
+  }, [editor, editable]);
 
   return (
     <EditorContent

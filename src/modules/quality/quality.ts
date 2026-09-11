@@ -39,6 +39,9 @@ import {
 import type { QualityContext, QualityDocument } from "./types";
 import type { MergeField } from "./qualityFields";
 import { netUnitPrice, discountPct } from "@/modules/technical/quotations";
+// FINANCE'S ARITHMETIC, imported for the same reason Technical's pricing is: an
+// invoice printed with a total its own ledger disagrees with is worse than none.
+import { invoiceTotals } from "@/modules/finance/finance";
 import type { PermissionKey } from "@/platform/access";
 
 const str = (v: unknown, max = 300) => String(v ?? "").trim().slice(0, max);
@@ -212,6 +215,28 @@ export async function mergeValuesFor(
     values[f.key] = (f as { via?: string }).via === "collaborator" ? alias(raw) : String(raw ?? "");
   }
 
+  // WHO A QUOTATION IS FOR. An internal quotation names a Client record; a
+  // converted one names its ticket, whose client is the one it was raised for.
+  // Read here rather than as a relations edge, because an edge quotation ->
+  // client would be the SHORTER path and would resolve nothing for every
+  // converted quotation, which carries no clientId of its own.
+  const quotation = reached.quotation as { clientId?: unknown; clientName?: unknown } | undefined;
+  if (quotation) {
+    let name = "";
+    if (quotation.clientId) {
+      const clients = await readerFor(ctx)("client");
+      name = String(clients.find((c) => c.id === quotation.clientId)?.name || "");
+    }
+    if (!name) name = String((reached.salesTicket as { clientName?: unknown } | undefined)?.clientName || quotation.clientName || "");
+    if (name) values["quotation.client"] = name;
+  }
+
+  // A DOCUMENT RAISED BEFORE ITS CURRENCY WAS FROZEN reads the studio's, which
+  // is what it showed on the day — the same fallback the screens take.
+  for (const key of ["quotation.currency", "invoice.currency"]) {
+    if (key in values && !values[key]) values[key] = String(ctx.studio.currency || "");
+  }
+
   return values;
 }
 
@@ -272,10 +297,49 @@ export async function resolveBlocks(ctx: QualityContext, document: QualityDocume
       const rate = Number((record as Record<string, unknown>).vatRate) || 0;
       out[source.key] = {
         columns: source.columns,
+        // `token` is what the print page translates by; `label` stays for any
+        // reader that predates it. The rate travels as its own fact so the
+        // Arabic label can place it rather than inherit "VAT (15%)".
         rows: [
-          { label: "Subtotal", value: money((record as Record<string, unknown>).subtotal) },
-          { label: rate ? `VAT (${rate}%)` : "VAT", value: money((record as Record<string, unknown>).vat) },
-          { label: "Total", value: money((record as Record<string, unknown>).total), strong: true },
+          { token: "subtotal", label: "Subtotal", value: money((record as Record<string, unknown>).subtotal) },
+          { token: "vat", rate, label: rate ? `VAT (${rate}%)` : "VAT", value: money((record as Record<string, unknown>).vat) },
+          { token: "total", label: "Total", value: money((record as Record<string, unknown>).total), strong: true },
+        ],
+      };
+    }
+
+    if (source.key === "invoice.lines") {
+      const lines = (record as { lines?: unknown }).lines;
+      let subtotal = 0;
+      const rows = (Array.isArray(lines) ? lines : []).map((l: Record<string, unknown>) => {
+        const qty = Number(l.qty) || 0;
+        const unitPrice = Number(l.unitPrice) || 0;
+        subtotal += qty * unitPrice;
+        return {
+          description: String(l.description || ""),
+          qty: String(l.qty ?? ""),
+          unitPrice: money(unitPrice),
+          amount: money(qty * unitPrice),
+        };
+      });
+      out[source.key] = { columns: source.columns, groups: rows.length ? [{ title: "", rows, subtotal: money(subtotal) }] : [] };
+    }
+
+    if (source.key === "invoice.totals") {
+      const t = invoiceTotals(record as Parameters<typeof invoiceTotals>[0]);
+      const rate = Number((record as Record<string, unknown>).vatRate) || 0;
+      out[source.key] = {
+        columns: source.columns,
+        rows: [
+          { token: "subtotal", label: "Subtotal", value: t.subtotal },
+          { token: "vat", rate, label: rate ? `VAT (${rate}%)` : "VAT", value: t.vat },
+          { token: "total", label: "Total", value: t.total, strong: !t.paid },
+          // WHAT IS STILL OWED, only once something has been paid — a fresh
+          // invoice printing "Paid 0.00" invites a question nobody needs.
+          ...(t.paid ? [
+            { token: "paid", label: "Paid", value: t.paid },
+            { token: "outstanding", label: "Outstanding", value: t.outstanding, strong: true },
+          ] : []),
         ],
       };
     }

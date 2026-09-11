@@ -10,6 +10,7 @@ import {
   AlignLeft,
   AlignRight,
   Bold,
+  Braces,
   Code,
   Code2,
   Heading1,
@@ -32,7 +33,9 @@ import { FontSizePicker } from "@/components/quality/editor/font-size-picker";
 import { ColorPicker } from "@/components/quality/editor/color-picker";
 import { TableMenu } from "@/components/quality/editor/table-menu";
 import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
+import type { FieldGroups } from "@/components/quality/editor/merge-nodes";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { fontStack, loadFonts } from "@/lib/docs/fonts";
 import { useRef, useState } from "react";
@@ -51,6 +54,7 @@ export function EditorToolbar({
   defaultFontFamily,
   defaultFontSizePt,
   showPageBreak = true,
+  fields = [],
   onSetDefaultFont,
 }: {
   editor: Editor | null;
@@ -58,6 +62,7 @@ export function EditorToolbar({
   defaultFontSizePt: number;
   /** Bands cannot be paginated, so the break button is hidden for them. */
   showPageBreak?: boolean;
+  fields?: FieldGroups;
   onSetDefaultFont: (family: string, category: string, sizePt: number) => void;
 }) {
   if (!editor) {
@@ -69,6 +74,7 @@ export function EditorToolbar({
       defaultFontFamily={defaultFontFamily}
       defaultFontSizePt={defaultFontSizePt}
       showPageBreak={showPageBreak}
+      fields={fields}
       onSetDefaultFont={onSetDefaultFont}
     />
   );
@@ -83,12 +89,14 @@ function Toolbar({
   defaultFontFamily,
   defaultFontSizePt,
   showPageBreak,
+  fields,
   onSetDefaultFont,
 }: {
   editor: Editor;
   defaultFontFamily: string;
   defaultFontSizePt: number;
   showPageBreak: boolean;
+  fields: FieldGroups;
   onSetDefaultFont: (family: string, category: string, sizePt: number) => void;
 }) {
   const tr = qualityDict(useStudioLocale());
@@ -263,6 +271,8 @@ function Toolbar({
 
       <TableMenu editor={editor} inTable={state.inTable} />
 
+      <InsertField editor={editor} fields={fields} allowBlocks={showPageBreak} />
+
       {showPageBreak && (
         <>
           <ToolbarButton
@@ -353,6 +363,71 @@ function parseFamily(value: string): string {
 function parseSizePt(value: string): number | null {
   const match = /^([\d.]+)pt$/.exec(value.trim());
   return match ? Number(match[1]) : null;
+}
+
+/**
+ * THE PLACEHOLDER MENU. What it lists was decided on the server — what this
+ * document's subject can reach and what this author may read (`fieldsFor`) — so
+ * the menu never offers a field the save would then refuse. A block (a table of
+ * lines, the totals) is offered only in the body: a band is a strip.
+ *
+ * The label inserted is the one the author reads, in their own language; it is
+ * a writing aid and never printed — the print page replaces the node.
+ */
+function InsertField({
+  editor,
+  fields,
+  allowBlocks,
+}: {
+  editor: Editor;
+  fields: FieldGroups;
+  allowBlocks: boolean;
+}) {
+  const tr = qualityDict(useStudioLocale());
+  const [open, setOpen] = useState(false);
+  const groups = fields
+    .map(([group, list]) => [group, list.filter((f) => allowBlocks || f.kind !== "block")] as const)
+    .filter(([, list]) => list.length > 0);
+  if (!groups.length) return null;
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button type="button" variant="ghost" size="sm" className="h-8 gap-1 px-2 font-normal">
+          <Braces className="size-4" />
+          {tr.insertField}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="max-h-80 w-64 overflow-y-auto p-1">
+        {groups.map(([group, list]) => (
+          <div key={group} className="py-1">
+            <p className="px-2 py-1 text-xs font-600 uppercase tracking-wide text-muted-foreground">
+              {tr.fieldGroup(group)}
+            </p>
+            {list.map((f) => {
+              const label = tr.fieldLabel(f.key, f.label);
+              return (
+                <button
+                  key={f.key}
+                  type="button"
+                  className="block w-full rounded px-2 py-1.5 text-start text-sm hover:bg-muted"
+                  onClick={() => {
+                    editor.chain().focus().insertContent({
+                      type: f.kind === "block" ? "mergeBlock" : "mergeField",
+                      attrs: { key: f.key, label },
+                    }).run();
+                    setOpen(false);
+                  }}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        ))}
+      </PopoverContent>
+    </Popover>
+  );
 }
 
 /**
