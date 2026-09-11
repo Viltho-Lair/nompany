@@ -53,6 +53,37 @@ type Strings = {
   saveEmployment: string;
   employmentSaved: string;
   ruleProblem: (type: string, field: string) => string;
+  presetFill: (country: string) => string;
+  presetNone: (country: string) => string;
+  presetNoCountry: string;
+  presetNote: string;
+  presetFilled: string;
+  ssHeading: string;
+  ssLead: string;
+  ssEmployee: string;
+  ssEmployer: string;
+  ssCeiling: string;
+  ssEveryone: string;
+  eosHeading: string;
+  eosLead: string;
+  eosFirstYears: string;
+  eosFirstMonths: string;
+  eosAfterMonths: string;
+  eosBase: string;
+  eosBaseBasic: string;
+  eosBaseWage: string;
+  eosMinYears: string;
+  eosCap: string;
+  eosResignation: string;
+  eosUnderYears: string;
+  eosPaidPct: string;
+  eosAddStep: string;
+  wpsHeading: string;
+  wpsLead: string;
+  wpsEmployer: string;
+  wpsRouting: string;
+  wpsScrFirst: string;
+  statProblem: (code: string) => string;
   language: string;
   languageHint: string;
   workingHours: string;
@@ -285,6 +316,46 @@ const en: Strings = {
     daysAfter: "give the days a year that apply after that many years",
     carryOver: "carry-over must be a number, or empty for none",
   })[field] || field}.`,
+  presetFill: (country) => `Fill from ${country}'s law`,
+  presetNone: (country) => `nompany has no preset for ${country}. Enter the figures from its law yourself.`,
+  presetNoCountry: "Set the studio's country above to fill these from its law.",
+  presetNote: "Figures for 2026. They fill the form and save nothing — check them, then save.",
+  presetFilled: "Filled from the preset. Check every figure, then save; nothing is used until you do.",
+  ssHeading: "Social security",
+  ssLead: "Charged on the basic plus the allowances marked insurable on each pay record, up to the ceiling. The employee's share is deducted from pay; the employer's is a cost on top. Leave both rates empty if the studio has no scheme.",
+  ssEmployee: "Employee %",
+  ssEmployer: "Employer %",
+  ssCeiling: "Monthly ceiling (empty for none)",
+  ssEveryone: "Covers everybody unless their pay record says otherwise",
+  eosHeading: "End of service",
+  eosLead: "What somebody is owed when they leave, in months of wage for each year of service. Leave both rates empty if the law gives none.",
+  eosFirstYears: "For the first … years",
+  eosFirstMonths: "Months a year then",
+  eosAfterMonths: "Months a year after",
+  eosBase: "On",
+  eosBaseBasic: "The basic only",
+  eosBaseWage: "Basic plus allowances",
+  eosMinYears: "Nothing below … years",
+  eosCap: "At most … months (empty for no cap)",
+  eosResignation: "On resignation",
+  eosUnderYears: "With under … years",
+  eosPaidPct: "% of the award paid",
+  eosAddStep: "Add a resignation step",
+  wpsHeading: "UAE salary file (WPS)",
+  wpsLead: "For a payroll paid through the UAE's Wage Protection System. With these set and the studio's currency AED, an approved run offers a .SIF file.",
+  wpsEmployer: "Employer ID (13 digits)",
+  wpsRouting: "Employer's bank routing code (9 digits)",
+  wpsScrFirst: "Put the control record first (banks differ — check with yours)",
+  statProblem: (code) => ({
+    ssPct: "Social security rates are percentages from 0 to 100.",
+    ssCeiling: "The social security ceiling must be a number.",
+    eosRates: "End of service needs months a year, from 0 to 12, and at least one above 0.",
+    eosYears: "End of service years must be numbers.",
+    eosCap: "The end of service cap must be a number of months.",
+    eosResignation: "Resignation steps need increasing years and a share from 0 to 100%.",
+    wpsEmployer: "The WPS employer ID is 13 digits.",
+    wpsRouting: "The WPS routing code is 9 digits.",
+  })[code] || code,
   language: "Language",
   // WHAT THIS ROW MEANS CHANGED, so its hint had to. It used to read "Everyone
   // in this studio reads it in this language", which stopped being true the day
@@ -526,6 +597,46 @@ const ar: Strings = {
     daysAfter: "ادخل الايام في السنة التي تسري بعد تلك السنوات",
     carryOver: "يجب ان يكون الترحيل رقما، او فارغا لعدم الترحيل",
   })[field] || field}.`,
+  presetFill: (country) => `تعبئة من قانون ${country}`,
+  presetNone: (country) => `لا توجد في نومباني قيم جاهزة لـ ${country}. ادخل الارقام من قانونها بنفسك.`,
+  presetNoCountry: "حدد دولة الاستوديو في الاعلى لتعبئة هذه القيم من قانونها.",
+  presetNote: "ارقام عام 2026. تعبئ النموذج ولا تحفظ شيئا — راجعها ثم احفظ.",
+  presetFilled: "تمت التعبئة من القيم الجاهزة. راجع كل رقم ثم احفظ؛ لا يستخدم شيء قبل الحفظ.",
+  ssHeading: "الضمان الاجتماعي",
+  ssLead: "يحتسب على الراتب الاساسي والعلاوات المعلمة كخاضعة في سجل كل راتب، حتى السقف. حصة الموظف تقتطع من الراتب، وحصة صاحب العمل تكلفة اضافية. اترك النسبتين فارغتين اذا لم يكن لدى الاستوديو نظام.",
+  ssEmployee: "نسبة الموظف %",
+  ssEmployer: "نسبة صاحب العمل %",
+  ssCeiling: "السقف الشهري (فارغ لعدم وجود سقف)",
+  ssEveryone: "يشمل الجميع ما لم يذكر سجل الراتب غير ذلك",
+  eosHeading: "مكافاة نهاية الخدمة",
+  eosLead: "ما يستحقه الشخص عند مغادرته، بالاشهر من الاجر عن كل سنة خدمة. اترك النسبتين فارغتين اذا لم يمنحها القانون.",
+  eosFirstYears: "لاول … سنوات",
+  eosFirstMonths: "اشهر عن كل سنة خلالها",
+  eosAfterMonths: "اشهر عن كل سنة بعدها",
+  eosBase: "على",
+  eosBaseBasic: "الراتب الاساسي فقط",
+  eosBaseWage: "الاساسي مع العلاوات",
+  eosMinYears: "لا شيء قبل … سنوات",
+  eosCap: "بحد اقصى … شهرا (فارغ لعدم وجود حد)",
+  eosResignation: "عند الاستقالة",
+  eosUnderYears: "بخدمة اقل من … سنوات",
+  eosPaidPct: "% المدفوع من المكافاة",
+  eosAddStep: "اضافة شريحة استقالة",
+  wpsHeading: "ملف الرواتب في الامارات (WPS)",
+  wpsLead: "للرواتب المدفوعة عبر نظام حماية الاجور في الامارات. عند تعبئتها وكون عملة الاستوديو درهما، تعرض الدورة المعتمدة ملف ‎.SIF.",
+  wpsEmployer: "رقم المنشاة (13 رقما)",
+  wpsRouting: "رمز توجيه بنك صاحب العمل (9 ارقام)",
+  wpsScrFirst: "وضع سجل التحكم اولا (تختلف البنوك — تحقق مع بنكك)",
+  statProblem: (code) => ({
+    ssPct: "نسب الضمان الاجتماعي من 0 الى 100.",
+    ssCeiling: "يجب ان يكون سقف الضمان الاجتماعي رقما.",
+    eosRates: "تحتاج مكافاة نهاية الخدمة اشهرا في السنة من 0 الى 12، واحدة منها على الاقل اكبر من صفر.",
+    eosYears: "يجب ان تكون سنوات مكافاة نهاية الخدمة ارقاما.",
+    eosCap: "يجب ان يكون حد المكافاة عددا من الاشهر.",
+    eosResignation: "تحتاج شرائح الاستقالة سنوات متزايدة ونسبة من 0 الى 100٪.",
+    wpsEmployer: "رقم المنشاة في WPS من 13 رقما.",
+    wpsRouting: "رمز التوجيه في WPS من 9 ارقام.",
+  })[code] || code,
   language: "اللغة",
   languageHint: "لغة الاستوديو الافتراضية. ويمكن لكل شخص اختيار لغته من الشريط العلوي.",
   workingHours: "ساعات العمل",

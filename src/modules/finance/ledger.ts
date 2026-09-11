@@ -818,7 +818,7 @@ export async function postPayroll(ctx: FinanceContext, runId: string, options: P
   const run = (await repo<Row>("payrollRuns")
     .find({ studio: ctx.studio, section: ctx.hrEmployeesSection }))
     .find((r) => r.id === runId) as (Row & {
-      status?: string; period?: string; totals?: { gross?: number; net?: number; deductions?: number };
+      status?: string; period?: string; totals?: { gross?: number; net?: number; deductions?: number; ssEmployer?: number };
     }) | undefined;
   if (!run) return { error: "notfound" };
   // A DRAFT RUN IS NOT A COST YET. Its amounts are still being edited, and
@@ -838,17 +838,23 @@ export async function postPayroll(ctx: FinanceContext, runId: string, options: P
   const gross = round2(Number(run.totals?.gross) || 0);
   const net = round2(Number(run.totals?.net) || 0);
   const withheld = round2(gross - net);
+  // THE EMPLOYER'S SOCIAL SECURITY IS A COST ON TOP OF GROSS (tier 6): what the
+  // company owes the scheme for its staff, which no payslip shows as pay. It is
+  // debited with the wage bill and owed on the same liability as the withheld
+  // share, since both are paid over to the scheme together.
+  const employer = round2(Number(run.totals?.ssEmployer) || 0);
 
   const { byCode, missing } = await codesToIds(ctx, [SALARIES, PAYROLL_PAYABLE]);
   if (missing.length) return { error: "chart", missing };
 
   const lines: { accountId: string | undefined; debit?: number; credit?: number }[] = [
-    { accountId: byCode.get(SALARIES), debit: gross },
+    { accountId: byCode.get(SALARIES), debit: round2(gross + employer) },
     { accountId: byCode.get(PAYROLL_PAYABLE), credit: net },
   ];
   // Only when there is something withheld: a line of nought is noise in a
   // journal, and `cleanLines` would keep it.
   if (withheld > 0) lines.push({ accountId: byCode.get(PAYROLL_PAYABLE), credit: withheld });
+  if (employer > 0) lines.push({ accountId: byCode.get(PAYROLL_PAYABLE), credit: employer });
 
   return postEntry(ctx, {
     // THE PERIOD'S LAST DAY, not today. A run for September posted in October is

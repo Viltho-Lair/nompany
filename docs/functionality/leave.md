@@ -55,5 +55,6 @@ the leave list), for the current year:
 - **No public holiday calendar**; no half-day requests; no accrual month by month (the year's
   allowance is available on 1 January).
 - **No leave year other than the calendar year**, and no expiry date on carried leave.
-- **No country presets yet** — tier 6 slice C fills the rules from the studio's country.
+- Country presets (Jordan, Saudi Arabia, the UAE) fill the annual-leave rule and the
+  working-day counting from the studio's country — `payroll.md`; other countries enter theirs.
 - Sick leave's statutory pay tiers (full, then partial, then unpaid) are not modelled.

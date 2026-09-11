@@ -68,6 +68,11 @@ function Payslips({ run, tr }) {
           </div>
         ))}
       </div>
+      {/* THE EMPLOYER'S SHARE IS A COST ON TOP OF GROSS — no payslip shows it as
+          pay, and the ledger posts it with the wage bill. */}
+      {t.ssEmployer > 0 && (
+        <p className="text-xs text-slate-500 dark:text-slate-400">{tr.employerCost(money(t.ssEmployer))}</p>
+      )}
       <div className="overflow-x-auto">
         <table className="w-full min-w-[560px] text-sm">
           <thead>
@@ -94,7 +99,10 @@ function Payslips({ run, tr }) {
                 </td>
                 <td className="num py-2.5 pe-3 text-end text-slate-600 dark:text-slate-300">{money(l.basic)}</td>
                 <td className="num py-2.5 pe-3 text-end text-slate-600 dark:text-slate-300">{money(l.allowances)}</td>
-                <td className="num py-2.5 pe-3 text-end text-slate-600 dark:text-slate-300">{money(l.deductions)}</td>
+                <td className="num py-2.5 pe-3 text-end text-slate-600 dark:text-slate-300">
+                  {money(l.deductions)}
+                  {l.ssEmployee > 0 && <span className="block text-[11px] text-slate-400">{tr.ssShort(money(l.ssEmployee))}</span>}
+                </td>
                 {/* A NET BELOW NOUGHT IS REPORTED, NEVER CLAMPED — clamping would
                     forgive the difference and leave the ledger short by exactly
                     the amount nobody noticed. */}
@@ -160,7 +168,7 @@ export default function PayrollPanel({ slug, locale = "en" }) {
 
   if (!data) return <p className="text-sm text-slate-500 dark:text-slate-400">…</p>;
 
-  const { people = [], runs = [], canManage, canApprove, isAdmin } = data;
+  const { people = [], runs = [], canManage, canApprove, isAdmin, ssEnabled, eosEnabled, wpsEnabled, sifReady } = data;
   const withPay = people.filter((p) => p.basic !== null);
   const missing = people.length - withPay.length;
   const latest = runs[0];
@@ -279,6 +287,14 @@ export default function PayrollPanel({ slug, locale = "en" }) {
                                   target="_blank" rel="noreferrer">
                                   {tr.bankFile}
                                 </a>
+                                {/* THE UAE'S WPS FILE, offered only when the studio
+                                    has its WPS identifiers and pays in AED. */}
+                                {sifReady && (
+                                  <a className={btnRow} href={`/api/studios/${slug}/hr/payroll/bank?run=${encodeURIComponent(r.id)}&format=sif`}
+                                    target="_blank" rel="noreferrer">
+                                    {tr.sifFile}
+                                  </a>
+                                )}
                                 <button type="button" className={btnRowPrimary} disabled={busy}
                                   onClick={() => send({ action: "move", id: r.id, status: "Paid" })}>
                                   {tr.markPaid}
@@ -317,6 +333,7 @@ export default function PayrollPanel({ slug, locale = "en" }) {
                     <th className={`${th} text-end`}>{tr.allowances}</th>
                     <th className={`${th} text-end`}>{tr.deductions}</th>
                     <th className={`${th} text-start`}>{tr.account}</th>
+                    {eosEnabled && <th className={`${th} text-end`}>{tr.eosToday}</th>}
                     <th className={th} />
                   </tr>
                 </thead>
@@ -340,6 +357,13 @@ export default function PayrollPanel({ slug, locale = "en" }) {
                         <td className="py-3 pe-3 text-slate-500 dark:text-slate-400">
                           {p.iban ? `${p.bankName ? `${p.bankName} · ` : ""}${maskIban(p.iban)}` : tr.noAccount}
                         </td>
+                        {/* WHAT THEY WOULD BE OWED LEAVING TODAY — a dash, not a
+                            nought, where there is no pay record or joining date. */}
+                        {eosEnabled && (
+                          <td className="num py-3 pe-3 text-end text-slate-600 dark:text-slate-300">
+                            {p.endOfService ? money(p.endOfService.amount) : "—"}
+                          </td>
+                        )}
                         <td className="py-3 text-end">
                           {canManage && (
                             <button type="button" className={btnRow}
@@ -347,6 +371,9 @@ export default function PayrollPanel({ slug, locale = "en" }) {
                                 collaboratorId: p.collaboratorId, alias: p.alias,
                                 basic: p.basic ?? "", iban: p.iban || "", bankName: p.bankName || "",
                                 components: p.components || [],
+                                ssCovered: p.ssCovered === true ? "yes" : p.ssCovered === false ? "no" : "",
+                                ssEmployeePct: p.ssEmployeePct ?? "", ssEmployerPct: p.ssEmployerPct ?? "",
+                                labourCardId: p.labourCardId || "", agentId: p.agentId || "",
                               })}>
                               {tr.edit}
                             </button>
@@ -378,6 +405,33 @@ export default function PayrollPanel({ slug, locale = "en" }) {
                 onChange={(v) => setEditing({ ...editing, iban: v })} />
             </div>
 
+            {/* SOCIAL SECURITY AND WPS, only where the studio has saved a scheme
+                or WPS identifiers — fields for rules nobody set would be a form
+                asking questions nothing reads. */}
+            {(ssEnabled || wpsEnabled) && (
+              <div className="grid gap-4 sm:grid-cols-3">
+                {ssEnabled && (
+                  <>
+                    <Field label={tr.ssCovered} as="select" value={editing.ssCovered}
+                      onChange={(v) => setEditing({ ...editing, ssCovered: v })}
+                      options={[{ value: "", label: tr.ssRule }, { value: "yes", label: tr.ssYes }, { value: "no", label: tr.ssNo }]} />
+                    <Field label={tr.ssEmployeePct} type="number" value={editing.ssEmployeePct}
+                      onChange={(v) => setEditing({ ...editing, ssEmployeePct: v })} />
+                    <Field label={tr.ssEmployerPct} type="number" value={editing.ssEmployerPct}
+                      onChange={(v) => setEditing({ ...editing, ssEmployerPct: v })} />
+                  </>
+                )}
+                {wpsEnabled && (
+                  <>
+                    <Field label={tr.labourCardId} value={editing.labourCardId}
+                      onChange={(v) => setEditing({ ...editing, labourCardId: v })} />
+                    <Field label={tr.agentId} value={editing.agentId}
+                      onChange={(v) => setEditing({ ...editing, agentId: v })} />
+                  </>
+                )}
+              </div>
+            )}
+
             {/* AMOUNTS ARE POSITIVE AND THE KIND CARRIES THE SIGN. A deduction
                 stored as a negative allowance is the same thing said twice, and
                 the first report that sums allowances gets it wrong. */}
@@ -386,11 +440,20 @@ export default function PayrollPanel({ slug, locale = "en" }) {
                 {tr.allowances} · {tr.deductions}
               </p>
               {editing.components.map((c, i) => (
-                <div key={i} className="grid gap-3 sm:grid-cols-[1fr_10rem_8rem_auto] sm:items-end">
+                <div key={i} className="grid gap-3 sm:grid-cols-[1fr_10rem_8rem_auto_auto] sm:items-end">
                   <Field label={tr.name} value={c.label} onChange={(v) => patchComponent(i, { label: v })} />
                   <Field label={tr.kind} as="select" value={c.kind} onChange={(v) => patchComponent(i, { kind: v })}
                     options={[{ value: "allowance", label: tr.allowance }, { value: "deduction", label: tr.deduction }]} />
                   <Field label={tr.amount} type="number" value={c.amount} onChange={(v) => patchComponent(i, { amount: v })} />
+                  {/* WHICH ALLOWANCES SOCIAL SECURITY IS CHARGED ON — housing,
+                      under GOSI. Never a deduction: that is not wage. */}
+                  {ssEnabled && c.kind === "allowance" && (
+                    <label className="flex items-center gap-1.5 pb-2 text-xs text-slate-600 dark:text-slate-300">
+                      <input type="checkbox" className="h-4 w-4 accent-brand-600" checked={Boolean(c.insurable)}
+                        onChange={(e) => patchComponent(i, { insurable: e.target.checked })} />
+                      {tr.insurable}
+                    </label>
+                  )}
                   <button type="button" className="rounded-lg px-2 py-2 text-xs text-slate-400 hover:text-rose-500"
                     onClick={() => setEditing({ ...editing, components: editing.components.filter((_, k) => k !== i) })}>
                     {tr.remove}
@@ -407,9 +470,14 @@ export default function PayrollPanel({ slug, locale = "en" }) {
               <button type="button" className={btnGhost} onClick={closeEditor}>{tr.cancel}</button>
               <button type="button" className={btn} disabled={busy || editing.basic === ""}
                 onClick={async () => {
+                  const rate = (v) => (String(v ?? "").trim() === "" ? null : Number(v));
                   const done = await send({
                     action: "pay", ...editing, basic: Number(editing.basic),
                     components: editing.components.map((c) => ({ ...c, amount: Number(c.amount) })),
+                    // "" FOLLOWS THE SCHEME; only a choice is stored as a choice.
+                    ssCovered: editing.ssCovered === "yes" ? true : editing.ssCovered === "no" ? false : null,
+                    ssEmployeePct: rate(editing.ssEmployeePct),
+                    ssEmployerPct: rate(editing.ssEmployerPct),
                   });
                   if (done) setEditing(null);
                 }}>

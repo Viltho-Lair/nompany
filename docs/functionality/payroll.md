@@ -109,6 +109,38 @@ is September's cost.
 
 **Idempotent by source**, like every other posting.
 
+## Statutory pay (tier 6, 11/09/2026)
+
+The owner's choice: **country presets the studio confirms.** Studio settings → Employment
+rules has a *Fill from {country}'s law* button for Jordan, Saudi Arabia and the UAE
+(`modules/hr/statutory.ts`, every figure there with its source, researched for 2026). It
+fills the form and saves nothing; **nothing touches pay until the studio saves**, because the
+law moves every year and a figure applied from code goes stale in a customer's payroll with
+nobody deciding it should. Studios elsewhere enter their own figures.
+
+- **Social security**: employee %, employer %, a monthly ceiling, and whether the scheme
+  covers everybody by default (Jordan and Saudi yes, the UAE's Emiratis-only scheme no).
+  Charged on the basic plus the allowances a pay record marks **insurable** (housing, under
+  GOSI), on the contractual wage before unpaid-leave docking, up to the ceiling. A pay record
+  may say covered or not covered, and may carry its own rates — a Saudi first insured after
+  July 2024 (10.75% / 12.75% from July 2026) or a non-Saudi (0% / 2%). The employee's share
+  is a deduction on the payslip; **the employer's is a cost on top of gross**, frozen on the
+  run with the lines and **posted with the wage bill**: Salaries is debited gross plus the
+  employer's share and 2200 credited the same (`postPayroll`).
+- **End of service**: months of wage per year for the first N years, then per year after,
+  on the basic or on basic plus allowances, a minimum service, a cap, and resignation steps
+  (under N years, X% of the award). Service is counted by the calendar, so three years to the
+  day is exactly three. The Pay records list shows **what each person would be owed leaving
+  today**, by termination. Jordan's preset has none: the Labour Law gives it only to
+  employees the SSC does not cover.
+- **The UAE's WPS file**: with a 13-digit employer ID and a 9-digit bank routing code saved
+  and the studio's currency AED, an approved run offers a `.SIF` beside the CSV
+  (`?format=sif`). One EDR per employee — labour-card ID (14 digits), their bank's routing
+  code (9 digits), account, the period, the net as fixed income, unpaid-leave days — and one
+  SCR, last by default and first if the studio's bank wants it first (the published guides
+  disagree). Anybody missing an ID or an account is left out rather than failing the whole
+  file. Named `<employer ID><YYMMDD><HHMMSS>.SIF` in UAE time.
+
 ## What building it found
 
 **`money()` in `ledger.ts` means CENTS → MONEY** (`Math.round(c) / 100`), and the first
@@ -121,12 +153,16 @@ was right and the seam was wrong, which is exactly why the end-to-end case in
 
 - **No attendance.** Unpaid leave comes from the vacation register; hours worked do not
   exist, so an hourly employee cannot be paid.
-- **No tax engine.** Income tax and social security are typed as ordinary deductions; the
-  product computes neither and knows no rates.
-- **No end of service, no overtime, no bonuses.** Anything one-off has to be typed onto the
-  pay record and taken off again.
-- **The bank file is a plain CSV**, not a bank's own WPS/SIF layout. The columns are Name,
-  IBAN, Bank and Amount, which no bank accepts unmodified.
+- **No income tax.** Social security is computed (above); income tax is still typed as an
+  ordinary deduction.
+- **End of service is shown, not provisioned or paid.** Nothing posts the accruing
+  liability monthly, nothing records a leaving date or reason, and no final settlement run
+  exists. No overtime, no bonuses.
+- **Social security is one scheme per studio** plus per-person rates; the UAE's Abu Dhabi
+  fund, Saudi SANED splits and Jordan's age-based exemptions are not modelled separately,
+  and nothing files the monthly contribution return.
+- **The CSV bank file stays plain** (Name, IBAN, Bank, Amount) outside the UAE; Saudi
+  Arabia's Mudad and bank-specific formats are not built.
 - **A payslip is a table on screen.** There is no printable or emailable slip, and nobody is
   notified when a run is approved.
 - **One currency.** Everybody is paid in the studio's own; there is no per-employee

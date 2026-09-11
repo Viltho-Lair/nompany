@@ -351,6 +351,7 @@ export default function StudioSettings({ slug, locale = "en" }) {
         key={JSON.stringify(studio.employmentRules || {})}
         rules={studio.employmentRules || {}}
         leaveTypes={studio.leaveTypes || []}
+        country={studio.country || ""}
         canManage={canManage}
         onSave={save}
         tr={tr}

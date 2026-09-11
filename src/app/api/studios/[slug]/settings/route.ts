@@ -27,6 +27,7 @@ import { numberingProblems, cleanNumbering, numberingView } from "@/modules/admi
 import { unitProblems, cleanUnits, unitsView } from "@/modules/administration/units";
 import { taxonomyProblems, cleanTaxonomies, taxonomyView, valuesFor } from "@/modules/administration/taxonomy";
 import { cleanEmploymentRules, employmentRulesOf } from "@/modules/hr/leaveBalance";
+import { cleanStatutory, statutoryRulesOf } from "@/modules/hr/statutory";
 import { templateProblems as noticeProblems, cleanTemplates as cleanNotices, templateView as noticeView } from "@/modules/administration/notices";
 import { isValuationMethod } from "@/modules/inventory/valuation";
 import { cleanVatSetting, studioVatRate } from "@/shared/vat";
@@ -162,7 +163,7 @@ const clean = (studio: Record<string, unknown>, legacy: Record<string, unknown> 
   country: studio.country || "", city: studio.city || "", location: studio.location || "",
   currency: studio.currency || "",
   vatRate: studioVatRate(studio) ?? "",
-  employmentRules: employmentRulesOf(studio),
+  employmentRules: { ...employmentRulesOf(studio), ...statutoryRulesOf(studio) },
   // The leave types a rule may name — the studio's own list, additions included.
   leaveTypes: valuesFor("leaveTypes", studio.taxonomies),
   language: studioLocale(studio),
@@ -388,14 +389,19 @@ export async function PUT(request: Request, ctx: { params: Promise<Record<string
     // REFUSED WITH THE TYPE AND FIELD NAMED, for the reason numbering gives: a
     // rule for a leave type the studio does not admit, or "after 5 years" with
     // no new figure, silently does nothing on every balance that reads it.
+    // ONE OBJECT, TWO HALVES: leave (leaveBalance) and statutory pay (statutory),
+    // each checked by its own module and stored together.
     if (key === "employmentRules") {
-      const out = cleanEmploymentRules(body[key], valuesFor("leaveTypes", studio.taxonomies));
-      if ("problems" in out) {
-        return Response.json({
-          error: "refused", detail: out.problems.map((p) => `${p.type}: ${p.field}`).join("; "),
-        }, { status: 400 });
+      const leave = cleanEmploymentRules(body[key], valuesFor("leaveTypes", studio.taxonomies));
+      const statutory = cleanStatutory(body[key]);
+      const problems = [
+        ...("problems" in leave ? leave.problems.map((p) => `${p.type}: ${p.field}`) : []),
+        ...("problems" in statutory ? statutory.problems : []),
+      ];
+      if ("problems" in leave || "problems" in statutory) {
+        return Response.json({ error: "refused", detail: problems.join("; ") }, { status: 400 });
       }
-      patch[key] = out.rules;
+      patch[key] = { ...leave.rules, ...statutory.rules };
       continue;
     }
     if (key === "vatRate") {

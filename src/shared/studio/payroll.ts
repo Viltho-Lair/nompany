@@ -68,6 +68,20 @@ type Strings = {
   stateCol: string;
   peopleCol: string;
   problem: (code: string) => string;
+  // Statutory pay (tier 6).
+  ssShort: (amount: string) => string;
+  employerCost: (amount: string) => string;
+  ssCovered: string;
+  ssRule: string;
+  ssYes: string;
+  ssNo: string;
+  ssEmployeePct: string;
+  ssEmployerPct: string;
+  labourCardId: string;
+  agentId: string;
+  insurable: string;
+  eosToday: string;
+  sifFile: string;
 };
 
 const EN_STATUS: Record<string, string> = { Draft: "Draft", Approved: "Approved", Paid: "Paid" };
@@ -138,6 +152,19 @@ const en: Strings = {
             : code === "transition" ? "A run cannot go back."
               : code === "not-approved" ? "Approve the run first."
                 : code || ""),
+  ssShort: (amount) => `incl. ${amount} social security`,
+  employerCost: (amount) => `Employer's social security on top of gross: ${amount}`,
+  ssCovered: "Social security",
+  ssRule: "As the studio's scheme",
+  ssYes: "Covered",
+  ssNo: "Not covered",
+  ssEmployeePct: "Employee % (empty: the scheme's)",
+  ssEmployerPct: "Employer % (empty: the scheme's)",
+  labourCardId: "Labour card ID (14 digits)",
+  agentId: "Bank routing code (9 digits)",
+  insurable: "Insurable",
+  eosToday: "End of service today",
+  sifFile: "WPS file (.SIF)",
 };
 
 // HAND-WRITTEN. NO DIACRITICS.
@@ -209,6 +236,19 @@ const ar: Strings = {
             : code === "transition" ? "الدورة لا تعود الى الوراء."
               : code === "not-approved" ? "اعتمدوا الدورة أولا."
                 : code || ""),
+  ssShort: (amount) => `منها ${amount} ضمان اجتماعي`,
+  employerCost: (amount) => `حصة صاحب العمل من الضمان الاجتماعي فوق الاجمالي: ${amount}`,
+  ssCovered: "الضمان الاجتماعي",
+  ssRule: "حسب نظام الاستوديو",
+  ssYes: "مشمول",
+  ssNo: "غير مشمول",
+  ssEmployeePct: "نسبة الموظف % (فارغ: نسبة النظام)",
+  ssEmployerPct: "نسبة صاحب العمل % (فارغ: نسبة النظام)",
+  labourCardId: "رقم بطاقة العمل (14 رقما)",
+  agentId: "رمز توجيه البنك (9 ارقام)",
+  insurable: "خاضعة",
+  eosToday: "نهاية الخدمة اليوم",
+  sifFile: "ملف WPS (‎.SIF)",
 };
 
 const dict = { en, ar };

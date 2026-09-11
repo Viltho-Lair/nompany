@@ -22,6 +22,7 @@ import type { PayRecord, PayslipLine, RunStatus } from "./payroll";
 import type { HrContext } from "./types";
 import { isAdministrator } from "@/platform/access";
 import { notifyHolders, signatureNotice } from "@/modules/people/holders";
+import { statutoryRulesOf, endOfService, sifFile } from "./statutory";
 
 type Run = {
   id: string;
@@ -89,6 +90,8 @@ export async function listPay(ctx: HrContext) {
     listCollaborators(ctx.studio.id),
   ]);
   const alias = Object.fromEntries(people.map((c) => [String(c.id), String(c.alias || "Unnamed")]));
+  const rules = statutoryRulesOf(ctx.studio);
+  const today = new Date().toISOString().slice(0, 10);
 
   return {
     // EVERYBODY IN THE STUDIO, with or without a pay record. Somebody who has
@@ -96,6 +99,8 @@ export async function listPay(ctx: HrContext) {
     // list of only the paid would hide them.
     people: people.map((c) => {
       const pay = records.find((r) => r.collaboratorId === String(c.id));
+      const dateOfJoin = String((c as { dateOfJoin?: unknown }).dateOfJoin || "");
+      const allowances = (pay?.components || []).filter((x) => x.kind === "allowance").reduce((t, x) => t + x.amount, 0);
       return {
         collaboratorId: String(c.id),
         alias: alias[String(c.id)],
@@ -103,8 +108,29 @@ export async function listPay(ctx: HrContext) {
         components: pay?.components ?? [],
         iban: pay?.iban ?? "",
         bankName: pay?.bankName ?? "",
+        ssCovered: pay?.ssCovered ?? null,
+        ssEmployeePct: pay?.ssEmployeePct ?? null,
+        ssEmployerPct: pay?.ssEmployerPct ?? null,
+        labourCardId: pay?.labourCardId ?? "",
+        agentId: pay?.agentId ?? "",
+        dateOfJoin,
+        // WHAT THEY WOULD BE OWED IF THEIR EMPLOYMENT ENDED TODAY, by termination —
+        // the studio's liability, which it had no way to see. Null without a
+        // rule, a pay record or a joining date, rather than a nought that reads
+        // as "owed nothing".
+        endOfService: rules.endOfService && pay && dateOfJoin
+          ? endOfService(rules.endOfService, {
+            dateOfJoin, asOf: today, basic: pay.basic, wage: pay.basic + allowances, reason: "termination",
+          })
+          : null,
       };
     }),
+    // WHICH STATUTORY PARTS THIS STUDIO HAS SAVED, so the screen offers only
+    // those fields and files.
+    ssEnabled: Boolean(rules.socialSecurity),
+    eosEnabled: Boolean(rules.endOfService),
+    wpsEnabled: Boolean(rules.wps),
+    sifReady: Boolean(rules.wps) && String((ctx.studio as { currency?: unknown }).currency || "").toUpperCase() === "AED",
     runs: [...runs]
       .sort((a, b) => String(b.period).localeCompare(String(a.period)))
       .map((r) => ({
@@ -166,10 +192,14 @@ export async function prepareRun(ctx: HrContext, body: Record<string, unknown>) 
   ]);
   const alias = Object.fromEntries(people.map((c) => [String(c.id), String(c.alias || "Unnamed")]));
 
+  // THE STUDIO'S SCHEME AS SAVED TODAY, applied and then frozen with the lines —
+  // a rate change next year must not rewrite this month's deduction.
+  const ss = statutoryRulesOf(ctx.studio).socialSecurity;
   const lines = records.map((pay) => payslipFor(pay, {
     alias: alias[pay.collaboratorId] || "Unnamed",
     period,
     unpaidDays: unpaidDaysIn(vacations, pay.collaboratorId, period),
+    ss,
   }));
   if (!lines.length) return { error: "nobody" };
 
@@ -251,4 +281,31 @@ export async function bankFile(ctx: HrContext, id: string) {
   const account = new Map(records.map((r) => [r.collaboratorId, { iban: r.iban || "", bank: r.bankName || "" }]));
 
   return { period: run.period, ...bankRows(run.lines, (cid) => account.get(cid) || null) };
+}
+
+/**
+ * THE UAE'S WPS FILE for an approved run (statutory.sifFile). The same gates as
+ * the CSV — `hr.payroll.view`, never a draft, accounts read live — plus the
+ * studio's WPS identifiers and a currency of AED.
+ */
+export async function sifFileFor(ctx: HrContext, id: string) {
+  const denied = requirePermission(ctx.access, "hr.payroll.view");
+  if (denied) return denied;
+
+  const run = (await Runs.find(scope(ctx))).find((r) => r.id === id);
+  if (!run) return { error: "notfound" };
+  if (run.status === "Draft") return { error: "not-approved", status: run.status };
+
+  const records = await Pay.find(scope(ctx));
+  const account = new Map(records.map((r) => [r.collaboratorId, {
+    iban: r.iban || "", agentId: r.agentId || "", labourCardId: r.labourCardId || "",
+  }]));
+  return sifFile({
+    wps: statutoryRulesOf(ctx.studio).wps,
+    currency: String((ctx.studio as { currency?: unknown }).currency || ""),
+    period: run.period,
+    lines: run.lines,
+    accountOf: (cid) => account.get(cid) || null,
+    now: new Date(),
+  });
 }

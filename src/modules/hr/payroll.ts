@@ -17,10 +17,16 @@
 //    the approval engine follows by storing the FX rate on the bill it routed:
 //    a record of what was decided must not move when the inputs do.
 //
-// PURE. No imports, no store, no clock — a period comes in as a string and
-// every amount comes in as a number.
+// PURE. No store, no clock — a period comes in as a string and every amount
+// comes in as a number. The one import is a TYPE, from the pure statutory rules.
 
-export type Component = { label: string; amount: number; kind: "allowance" | "deduction" };
+import type { SocialSecurity } from "./statutory";
+
+export type Component = {
+  label: string; amount: number; kind: "allowance" | "deduction";
+  /** An allowance social security is charged on (housing, under GOSI). */
+  insurable?: boolean;
+};
 
 export type PayRecord = {
   collaboratorId: string;
@@ -35,6 +41,18 @@ export type PayRecord = {
    */
   iban: string;
   bankName: string;
+  /**
+   * SOCIAL SECURITY FOR THIS PERSON: null follows the studio's scheme (which says
+   * whether it covers everybody), true or false decides it — a UAE scheme covers
+   * Emiratis only, and a Saudi one charges a non-Saudi the employer's 2% alone.
+   */
+  ssCovered?: boolean | null;
+  /** This person's own rates, replacing the scheme's (null = the scheme's). */
+  ssEmployeePct?: number | null;
+  ssEmployerPct?: number | null;
+  /** For the UAE's WPS file: the 14-digit labour-card ID and the 9-digit bank routing code. */
+  labourCardId?: string;
+  agentId?: string;
 };
 
 export type PayslipLine = {
@@ -49,6 +67,10 @@ export type PayslipLine = {
   /** Days not worked in the period, from approved unpaid leave. */
   unpaidDays: number;
   unpaidDeduction: number;
+  /** What social security was charged on, the employee's share (in `deductions`), and the employer's. */
+  ssBase?: number;
+  ssEmployee?: number;
+  ssEmployer?: number;
 };
 
 export const RUN_STATUSES = ["Draft", "Approved", "Paid"] as const;
@@ -82,8 +104,16 @@ export function payProblems(input: Record<string, unknown>): string[] {
       problems.push(`"${str(comp?.label, 80)}" must be an allowance or a deduction`);
     }
   }
+  for (const key of ["ssEmployeePct", "ssEmployerPct"]) {
+    const v = input[key];
+    if (v === undefined || v === null || v === "") continue;
+    if (!(Number(v) >= 0 && Number(v) <= 100)) problems.push("a social security rate is a percentage from 0 to 100");
+  }
   return problems;
 }
+
+const pctOrNull = (v: unknown) => (v === undefined || v === null || v === "" || !Number.isFinite(Number(v))
+  ? null : Math.max(0, Math.min(100, Number(v))));
 
 export function cleanPay(input: Record<string, unknown>): PayRecord {
   return {
@@ -94,6 +124,13 @@ export function cleanPay(input: Record<string, unknown>): PayRecord {
     // than one the bank rejects with a message the studio can read.
     iban: str(input.iban, 40).replace(/\s+/g, "").toUpperCase(),
     bankName: str(input.bankName, 120),
+    ssCovered: input.ssCovered === true ? true : input.ssCovered === false ? false : null,
+    ssEmployeePct: pctOrNull(input.ssEmployeePct),
+    ssEmployerPct: pctOrNull(input.ssEmployerPct),
+    // CHECKED WHEN THE FILE IS WRITTEN, not here: somebody outside the UAE has
+    // neither, and the file names whoever is missing one.
+    labourCardId: str(input.labourCardId, 20).replace(/\s+/g, ""),
+    agentId: str(input.agentId, 20).replace(/\s+/g, ""),
     components: (Array.isArray(input.components) ? input.components : [])
       .map((c) => c as Record<string, unknown>)
       .filter((c) => str(c?.label, 80) && num(c?.amount) > 0
@@ -102,8 +139,29 @@ export function cleanPay(input: Record<string, unknown>): PayRecord {
         label: str(c.label, 80),
         amount: money(num(c.amount)),
         kind: c.kind as Component["kind"],
+        // Only an allowance can be insurable; a deduction is not wage.
+        ...(c.kind === "allowance" && c.insurable === true ? { insurable: true } : {}),
       }))
       .slice(0, 20),
+  };
+}
+
+/**
+ * THIS PERSON'S SOCIAL SECURITY FOR A MONTH. Charged on the basic plus the
+ * allowances marked insurable — the CONTRACTUAL wage, before any unpaid-leave
+ * docking — up to the scheme's ceiling.
+ */
+export function socialSecurityOn(pay: PayRecord, ss: SocialSecurity | null | undefined) {
+  const covered = pay.ssCovered ?? ss?.coversEveryone ?? false;
+  if (!ss || !covered) return { base: 0, employee: 0, employer: 0 };
+  const insurable = pay.basic + pay.components
+    .filter((c) => c.kind === "allowance" && c.insurable)
+    .reduce((t, c) => t + c.amount, 0);
+  const base = money(ss.ceiling > 0 ? Math.min(insurable, ss.ceiling) : insurable);
+  return {
+    base,
+    employee: money((base * (pay.ssEmployeePct ?? ss.employeePct)) / 100),
+    employer: money((base * (pay.ssEmployerPct ?? ss.employerPct)) / 100),
   };
 }
 
@@ -129,7 +187,11 @@ export function daysInPeriod(period: string): number | null {
  */
 export function payslipFor(
   pay: PayRecord,
-  { alias, period, unpaidDays = 0 }: { alias: string; period: string; unpaidDays?: number },
+  { alias, period, unpaidDays = 0, ss = null }: {
+    alias: string; period: string; unpaidDays?: number;
+    /** The studio's social security scheme; null charges none. */
+    ss?: SocialSecurity | null;
+  },
 ): PayslipLine {
   const days = daysInPeriod(period);
   const allowances = money(pay.components.filter((c) => c.kind === "allowance")
@@ -142,17 +204,23 @@ export function payslipFor(
   const docked = money(Math.min(Math.max(0, unpaidDays), days || 0) * perDay);
 
   const gross = money(pay.basic - docked + allowances);
+  // THE EMPLOYEE'S SHARE IS WITHHELD, the employer's is a cost on top of gross —
+  // so only the first touches the net.
+  const social = socialSecurityOn(pay, ss);
   return {
     collaboratorId: pay.collaboratorId,
     alias,
     basic: pay.basic,
     allowances,
-    deductions: money(recurring + docked),
+    deductions: money(recurring + docked + social.employee),
     gross,
-    net: money(gross - recurring),
+    net: money(gross - recurring - social.employee),
     components: pay.components,
     unpaidDays: Math.max(0, unpaidDays),
     unpaidDeduction: docked,
+    ssBase: social.base,
+    ssEmployee: social.employee,
+    ssEmployer: social.employer,
   };
 }
 
@@ -163,6 +231,9 @@ export type RunTotals = {
   deductions: number;
   gross: number;
   net: number;
+  /** Social security: the employees' share (inside `deductions`) and the employer's, on top. */
+  ssEmployee: number;
+  ssEmployer: number;
   /** Slips whose net came out below nought — reported, never clamped. */
   negative: PayslipLine[];
 };
@@ -176,6 +247,8 @@ export function runTotals(lines: PayslipLine[]): RunTotals {
     deductions: sum((l) => l.deductions),
     gross: sum((l) => l.gross),
     net: sum((l) => l.net),
+    ssEmployee: sum((l) => l.ssEmployee || 0),
+    ssEmployer: sum((l) => l.ssEmployer || 0),
     negative: lines.filter((l) => l.net < 0),
   };
 }

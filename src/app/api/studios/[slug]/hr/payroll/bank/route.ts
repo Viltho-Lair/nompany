@@ -1,6 +1,6 @@
 import { currentUser } from "@/platform/auth/identity";
 import { hrContext } from "@/modules/hr/hr";
-import { bankFile } from "@/modules/hr/payrollService";
+import { bankFile, sifFileFor } from "@/modules/hr/payrollService";
 import { toCsv } from "@/modules/reports/datasets";
 
 export const runtime = "nodejs";
@@ -28,7 +28,24 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
     return Response.json({ error: context.error }, { status: context.error === "forbidden" ? 403 : 404 });
   }
 
-  const id = new URL(request.url).searchParams.get("run") || "";
+  const url = new URL(request.url);
+  const id = url.searchParams.get("run") || "";
+
+  // THE UAE'S WPS FILE, when asked for — its own layout and its own filename,
+  // the one the bank's portal expects (statutory.sifFile).
+  if (url.searchParams.get("format") === "sif") {
+    const sif = await sifFileFor(context, id);
+    if ("error" in sif) return Response.json(sif, { status: sif.error === "forbidden" ? 403 : 400 });
+    return new Response(sif.text, {
+      status: 200,
+      headers: {
+        "Content-Type": "text/plain; charset=us-ascii",
+        "Content-Disposition": `attachment; filename="${sif.filename}"`,
+        "Cache-Control": "no-store",
+      },
+    });
+  }
+
   const result = await bankFile(context, id);
   if ("error" in result) {
     return Response.json(result, { status: result.error === "forbidden" ? 403 : 400 });
