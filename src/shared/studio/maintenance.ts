@@ -135,6 +135,29 @@ type Strings = {
   fromPlan: (ref: string) => string;
   noPlans: string;
   noPlansBody: string;
+  machineDown: string;
+  machineStopped: string;
+  downSince: string;
+  upAt: string;
+  downNow: (when: string) => string;
+  downFor: (hours: number) => string;
+  failure: string;
+  problem: string;
+  cause: string;
+  remedy: string;
+  machines: string;
+  machinesSub: string;
+  statusCol: string;
+  failures: string;
+  mtbf: string;
+  mttr: string;
+  availability: string;
+  openWorkCol: string;
+  commonest: string;
+  noMachines: string;
+  noMachinesBody: string;
+  cannotSeeMachines: string;
+  duration: (hours: number) => string;
   refuse: Record<string, string>;
 };
 
@@ -282,6 +305,29 @@ const en: Strings = {
   fromPlan: (ref) => `From plan ${ref}`,
   noPlans: "No preventive plans",
   noPlansBody: "Add one for anything that needs doing on a schedule — a monthly service, an annual inspection.",
+  machineDown: "The machine has stopped",
+  machineStopped: "Machine stopped",
+  downSince: "Machine down since",
+  upAt: "Back in service",
+  downNow: (when) => `Down since ${when}`,
+  downFor: (h) => `Was down ${h} h`,
+  failure: "Failure",
+  problem: "Problem",
+  cause: "Cause",
+  remedy: "Remedy",
+  machines: "Machines",
+  machinesSub: "Each machine's record over the last 12 months: how often it failed, how long it took to put right, and how much of the time it was available. A dash means there is nothing yet to count.",
+  statusCol: "Status",
+  failures: "Failures",
+  mtbf: "Between failures",
+  mttr: "To repair",
+  availability: "Available",
+  openWorkCol: "Open work",
+  commonest: "Commonest problem",
+  noMachines: "No machines in the register",
+  noMachinesBody: "Add equipment under Assets & Equipment to see its record here.",
+  cannotSeeMachines: "You cannot open the equipment register, so machines are not listed here.",
+  duration: (h) => (h < 48 ? `${h} h` : `${Math.round((h / 24) * 10) / 10} d`),
   refuse: {
     title: "Say what is wrong.",
     asset: "That machine is not in this studio's equipment register.",
@@ -309,6 +355,10 @@ const en: Strings = {
     "lead-days": "Days early must be a whole number from 0 to 60.",
     retired: "A retired plan is not edited.",
     "has-orders": "This plan has raised work orders — retire it instead of deleting it.",
+    failure: "Say what the problem was before completing corrective work.",
+    downtime: "'Back in service' needs a time the machine went down.",
+    "downtime-order": "Back in service must be after the machine went down.",
+    "downtime-future": "Downtime cannot be in the future.",
   },
 };
 
@@ -450,6 +500,29 @@ const ar: Strings = {
   fromPlan: (ref) => `من الخطة ${ref}`,
   noPlans: "لا توجد خطط وقائية",
   noPlansBody: "أضف خطة لكل ما يحتاج تنفيذا حسب جدول — صيانة شهرية أو فحص سنوي.",
+  machineDown: "توقفت الآلة",
+  machineStopped: "الآلة متوقفة",
+  downSince: "الآلة متوقفة منذ",
+  upAt: "عادت للعمل",
+  downNow: (when) => `متوقفة منذ ${when}`,
+  downFor: (h) => `توقفت ${h} س`,
+  failure: "العطل",
+  problem: "المشكلة",
+  cause: "السبب",
+  remedy: "المعالجة",
+  machines: "الآلات",
+  machinesSub: "سجل كل آلة خلال آخر 12 شهرا: كم مرة تعطلت، وكم استغرق إصلاحها، وكم من الوقت كانت متاحة. الشرطة تعني أنه لا يوجد ما يحسب بعد.",
+  statusCol: "الحالة",
+  failures: "الأعطال",
+  mtbf: "بين الأعطال",
+  mttr: "للإصلاح",
+  availability: "الإتاحة",
+  openWorkCol: "عمل مفتوح",
+  commonest: "المشكلة الأكثر تكرارا",
+  noMachines: "لا توجد آلات في السجل",
+  noMachinesBody: "أضف معدات في قسم الأصول والمعدات ليظهر سجلها هنا.",
+  cannotSeeMachines: "لا تملك صلاحية فتح سجل المعدات، فلا تعرض الآلات هنا.",
+  duration: (h) => (h < 48 ? `${h} س` : `${Math.round((h / 24) * 10) / 10} ي`),
   refuse: {
     title: "اذكر ما المشكلة.",
     asset: "هذه الآلة ليست في سجل معدات هذا الحساب.",
@@ -477,6 +550,10 @@ const ar: Strings = {
     "lead-days": "أيام التقديم عدد صحيح من 0 إلى 60.",
     retired: "الخطة المنتهية لا تعدل.",
     "has-orders": "أنشأت هذه الخطة أوامر عمل — أنهها بدل حذفها.",
+    failure: "اذكر المشكلة قبل إنجاز العمل التصحيحي.",
+    downtime: "وقت العودة للعمل يحتاج وقت توقف الآلة.",
+    "downtime-order": "العودة للعمل تكون بعد التوقف لا قبله.",
+    "downtime-future": "لا يسجل توقف في المستقبل.",
   },
 };
 

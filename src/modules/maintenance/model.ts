@@ -50,8 +50,37 @@ export const ORDER_MOVES: Readonly<Record<OrderStatus, readonly OrderStatus[]>> 
 
 type OrderLike = {
   status?: unknown; resolution?: unknown; startedAt?: unknown; dueOn?: unknown;
-  checklist?: unknown;
+  checklist?: unknown; type?: unknown; failure?: unknown; downSince?: unknown; upAt?: unknown;
 };
+
+const failureProblemOf = (o: OrderLike) => text((o.failure as { problem?: unknown } | undefined)?.problem);
+
+// ---- downtime ------------------------------------------------------------------
+
+/**
+ * WHY THIS DOWNTIME CANNOT BE SAVED — or null. Instants are ISO strings, so
+ * they compare as text. `now` is passed in: downtime in the future is a
+ * forecast, and a forecast in the reliability figures is the same lie as one in
+ * the labour.
+ */
+export function downtimeProblem(d: { downSince?: unknown; upAt?: unknown }, now: string): string | null {
+  const down = text(d.downSince);
+  const up = text(d.upAt);
+  if (!down && !up) return null;
+  if (!down) return "downtime";
+  if (Number.isNaN(Date.parse(down)) || (up && Number.isNaN(Date.parse(up)))) return "downtime";
+  if (down > now || (up && up > now)) return "downtime-future";
+  if (up && up < down) return "downtime-order";
+  return null;
+}
+
+/** Hours the machine was down on this order, or null while it still is (or was never down). */
+export function downtimeHours(o: OrderLike): number | null {
+  const down = Date.parse(text(o.downSince));
+  const up = Date.parse(text(o.upAt));
+  if (!Number.isFinite(down) || !Number.isFinite(up) || up < down) return null;
+  return Math.round(((up - down) / 3_600_000) * 100) / 100;
+}
 
 /** Checklist items still unticked on an order — none when it has no checklist. */
 export const checklistOpen = (o: OrderLike) =>
@@ -75,7 +104,7 @@ const statusOf = (o: OrderLike): OrderStatus => {
 export function orderMoveProblem(
   order: OrderLike | null | undefined,
   next: string,
-  given: { holdReason?: unknown; resolution?: unknown } = {},
+  given: { holdReason?: unknown; resolution?: unknown; failureProblem?: unknown } = {},
 ): string | null {
   if (!order) return "notfound";
   if (!isStatus(next)) return "status";
@@ -84,6 +113,13 @@ export function orderMoveProblem(
   if (!ORDER_MOVES[from].includes(next)) return "transition";
   if (next === "On hold" && !(HOLD_REASONS as readonly string[]).includes(text(given.holdReason))) return "hold-reason";
   if (next === "Completed" && !text(given.resolution) && !text(order.resolution)) return "resolution";
+  // CORRECTIVE WORK NAMES WHAT FAILED. It is the only thing a failure count can
+  // be grouped by, and "the pump failed nine times" is useless without knowing
+  // it was the seal eight of them. Preventive and inspection work have no
+  // failure to name. Cause and remedy stay optional: often nobody knows yet.
+  if (next === "Completed" && text(order.type) === "corrective" && !text(given.failureProblem) && !failureProblemOf(order)) {
+    return "failure";
+  }
   // A PLAN'S CHECKLIST IS THE PLAN. Completing with an item unticked records a
   // service that skipped a step nobody can now name.
   if (next === "Completed" && checklistOpen(order) > 0) return "checklist";
@@ -105,6 +141,11 @@ export function moveStamps(order: OrderLike, next: OrderStatus, at: string): Rec
   if (from === "On hold" && next !== "On hold") out.holdReason = "";
   if (next === "Completed") out.completedAt = at;
   if (from === "Completed" && next === "In progress") out.completedAt = "";
+  // THE MACHINE IS BACK WHEN THE WORK IS DONE, unless somebody said otherwise —
+  // and it is down again when the work is reopened, because a reopened repair
+  // is one that did not hold.
+  if (next === "Completed" && text(order.downSince) && !text(order.upAt)) out.upAt = at;
+  if (from === "Completed" && next === "In progress" && text(order.downSince)) out.upAt = "";
   if (next === "Closed") out.closedAt = at;
   if (next === "Cancelled") out.cancelledAt = at;
   return out;

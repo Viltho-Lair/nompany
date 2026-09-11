@@ -12,10 +12,11 @@ import { defaultLocale, type Locale } from "../locale";
 type Strings = {
   tab: string;
   lead: string;
-  /** The seven axes. Keyed by the stored key so a missing one is a compile error. */
+  /** Every axis. Keyed by the stored key so a missing one is a compile error. */
   axis: Record<
     "clientIndustries" | "expenseCategories" | "paymentMethods"
-    | "leaveTypes" | "locationKinds" | "permitTypes" | "tenderSources",
+    | "leaveTypes" | "locationKinds" | "permitTypes" | "tenderSources"
+    | "failureProblems" | "failureCauses" | "failureRemedies",
     { name: string; used: string }
   >;
   add: string;
@@ -40,6 +41,9 @@ const en: Strings = {
     locationKinds: { name: "Location kinds", used: "On the places you work from" },
     permitTypes: { name: "Permit types", used: "On permits to work" },
     tenderSources: { name: "Tender sources", used: "On the tender register" },
+    failureProblems: { name: "Failure problems", used: "What went wrong, when corrective work is completed" },
+    failureCauses: { name: "Failure causes", used: "Why it went wrong, when corrective work is completed" },
+    failureRemedies: { name: "Failure remedies", used: "What put it right, when corrective work is completed" },
   },
   add: "Add",
   // "Add to Client industries", not "New client industries" — every axis
@@ -65,6 +69,9 @@ const ar: Strings = {
     locationKinds: { name: "أنواع المواقع", used: "على أماكن العمل" },
     permitTypes: { name: "أنواع التصاريح", used: "على تصاريح العمل" },
     tenderSources: { name: "مصادر المناقصات", used: "على سجل المناقصات" },
+    failureProblems: { name: "مشكلات الأعطال", used: "ما الذي تعطل، عند إنجاز العمل التصحيحي" },
+    failureCauses: { name: "أسباب الأعطال", used: "لماذا تعطل، عند إنجاز العمل التصحيحي" },
+    failureRemedies: { name: "معالجات الأعطال", used: "ما الذي أصلحه، عند إنجاز العمل التصحيحي" },
   },
   add: "إضافة",
   addLabel: (axis) => `إضافة إلى ${axis}`,

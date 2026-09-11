@@ -90,6 +90,34 @@ export const TAXONOMIES: readonly Axis[] = Object.freeze([
       "Public portal", "Direct invitation", "Existing client", "Referral", "Advertisement", "Other",
     ]),
   },
+  // FAILURE CODES — what went wrong, why, and what put it right (ISO 14224
+  // separates mode, cause and remedy for exactly this reason: "it leaked" and
+  // "the seal wore" are different questions, and a register that stores one
+  // free-text box cannot count either). Read by Maintenance when corrective
+  // work is completed (`moveOrder`); the reliability screen counts by them.
+  //
+  // GENERIC ON PURPOSE. Every trade has its own failure vocabulary, and a
+  // studio adds it here; what ships is what applies to any machine.
+  {
+    key: "failureProblems",
+    defaults: Object.freeze([
+      "Will not start", "Stopped running", "Leak", "Noise or vibration", "Overheating",
+      "Electrical fault", "Broken or damaged", "Wrong output", "Other",
+    ]),
+  },
+  {
+    key: "failureCauses",
+    defaults: Object.freeze([
+      "Wear", "Lack of maintenance", "Misuse", "Wrong setting", "Contamination",
+      "Power supply", "Installation", "Unknown", "Other",
+    ]),
+  },
+  {
+    key: "failureRemedies",
+    defaults: Object.freeze([
+      "Replaced a part", "Repaired", "Adjusted", "Cleaned", "Lubricated", "Reset", "Temporary fix", "Other",
+    ]),
+  },
 ]);
 
 export const AXIS_KEYS: readonly string[] = Object.freeze(TAXONOMIES.map((a) => a.key));

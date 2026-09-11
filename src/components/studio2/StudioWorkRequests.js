@@ -44,13 +44,13 @@ export default function StudioWorkRequests({ slug }) {
 
   const openForm = (r) => setForm(r
     ? { id: r.id, reference: r.reference, title: r.title, description: r.description, priority: r.priority,
-      assetId: r.assetId, locationId: r.locationId, photos: r.photos || [] }
-    : { title: "", description: "", priority: "normal", assetId: "", locationId: "", photos: [] });
+      assetId: r.assetId, locationId: r.locationId, photos: r.photos || [], machineDown: Boolean(r.machineDown) }
+    : { title: "", description: "", priority: "normal", assetId: "", locationId: "", photos: [], machineDown: false });
 
   const save = async () => {
     const payload = {
       title: form.title, description: form.description, priority: form.priority,
-      assetId: form.assetId, locationId: form.locationId, photos: form.photos,
+      assetId: form.assetId, locationId: form.locationId, photos: form.photos, machineDown: form.machineDown,
     };
     const done = form.id ? await send("PUT", { ...payload, id: form.id }) : await send("POST", payload);
     if (done) setForm(null);
@@ -99,6 +99,9 @@ export default function StudioWorkRequests({ slug }) {
                     <span className="font-600">{r.title}</span>
                     <Chip tone={priorityTone(r.priority)}>{tr.priorityName(r.priority)}</Chip>
                     <Chip tone={STATE_TONE[r.state]}>{tr.state(r.state)}</Chip>
+                    {r.machineDown && (
+                      <Chip tone="bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300">{tr.machineStopped}</Chip>
+                    )}
                   </p>
                   {r.description && <p className="mt-1 max-w-prose whitespace-pre-line text-sm text-slate-600 dark:text-slate-300">{r.description}</p>}
                   <Links asset={r.asset} location={r.location} tr={tr} />
@@ -158,6 +161,13 @@ export default function StudioWorkRequests({ slug }) {
               <Field label={tr.location} as="select" value={form.locationId}
                 onChange={(v) => setForm((f) => ({ ...f, locationId: v }))} options={pickOptions(pickers.locations, tr.noLocation)} />
             </div>
+            {/* THE REPORTER SAYS IT HAS STOPPED. Accepting the report then starts
+                the work order's downtime at the moment of the report. */}
+            <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+              <input type="checkbox" className="h-4 w-4 accent-brand-600" checked={form.machineDown}
+                onChange={(e) => setForm((f) => ({ ...f, machineDown: e.target.checked }))} />
+              {tr.machineDown}
+            </label>
             <PhotoField slug={slug} tr={tr} reference={form.reference || ""} photos={form.photos}
               onChange={(photos) => setForm((f) => ({ ...f, photos }))} />
             <div className="flex justify-end gap-2">

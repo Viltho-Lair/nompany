@@ -33,8 +33,11 @@ import type { EngineRecord } from "@/platform/engine/schema";
 import type { Location } from "../operations/types";
 import {
   PRIORITIES, ORDER_TYPES, HOLD_REASONS, LABOUR_KINDS, orderMoveProblem, moveStamps, orderEditable, orderDeletable,
-  orderOverdue, orderOpen, requestState, requestProblem, labourProblem, labourTotals, quarterHours, type OrderStatus,
+  orderOverdue, orderOpen, requestState, requestProblem, labourProblem, labourTotals, quarterHours, downtimeProblem,
+  type OrderStatus,
 } from "./model";
+import { reliabilityByAsset } from "./reliability";
+import { valuesFor, resolveValue } from "@/modules/administration/taxonomy";
 import {
   PLAN_FREQUENCIES, SCHEDULE_MODES, PLAN_MOVES, planProblem, cleanChecklist, nextDueOnClose, planCompliance,
   type PlanStatus,
@@ -75,6 +78,14 @@ const cleanPhotos = (raw: unknown): string[] =>
   (Array.isArray(raw) ? raw : []).slice(0, 20).map((m) => str(m, 120)).filter((u) => u.startsWith("/api/media/"));
 // A quarter of an hour is the finest anybody estimates in; blank is "nobody
 // has said", which is not nought.
+// AN INSTANT, NORMALISED TO ISO — or "" for none. Anything unreadable becomes a
+// value `downtimeProblem` refuses rather than one silently dropped.
+const instant = (v: unknown): string => {
+  const s = str(v, 40);
+  if (!s) return "";
+  const t = Date.parse(s);
+  return Number.isFinite(t) ? new Date(t).toISOString() : "unreadable";
+};
 const hours = (v: unknown): number | null => {
   if (v === null || v === undefined || String(v).trim() === "") return null;
   const n = Number(v);
@@ -219,6 +230,12 @@ export async function listOrders(ctx: MaintenanceContext) {
     // WHO IS ASKING, so "assigned to me" is a filter on the screen rather than
     // a second route. A CollaboratorID (invariant 6).
     me: ctx.collaborator.id,
+    // THE STUDIO'S FAILURE CODES, from Master data → Categories.
+    failureCodes: {
+      problems: valuesFor("failureProblems", ctx.studio.taxonomies),
+      causes: valuesFor("failureCauses", ctx.studio.taxonomies),
+      remedies: valuesFor("failureRemedies", ctx.studio.taxonomies),
+    },
     canCreate: may(ctx, "maintenance.orders.create"),
     canEdit: may(ctx, "maintenance.orders.edit"),
     canDelete: may(ctx, "maintenance.orders.delete"),
@@ -238,6 +255,8 @@ function orderFields(body: Record<string, unknown>) {
   if (has("dueOn")) out.dueOn = day(body.dueOn);
   if (has("estimatedHours")) out.estimatedHours = hours(body.estimatedHours);
   if (has("photos")) out.photos = cleanPhotos(body.photos);
+  if (has("downSince")) out.downSince = instant(body.downSince);
+  if (has("upAt")) out.upAt = instant(body.upAt);
   return out;
 }
 
@@ -317,7 +336,7 @@ export async function createOrder(ctx: MaintenanceContext, body: Record<string, 
   const title = str(body?.title, 200);
   if (!title) return { error: "title" };
   const fields = orderFields(body || {});
-  const problem = await linkProblem(ctx, {
+  const problem = downtimeProblem(fields, now()) || await linkProblem(ctx, {
     assetId: String(fields.assetId || ""), locationId: String(fields.locationId || ""),
     assignees: (fields.assignedToCollaboratorIds as string[]) || [],
   });
@@ -340,7 +359,12 @@ export async function editOrder(ctx: MaintenanceContext, id: string, body: Recor
     if (!title) return { error: "title" };
     patch.title = title;
   }
-  const problem = await linkProblem(ctx, {
+  // DOWNTIME IS JUDGED WHOLE — an edit to one end is checked against the other.
+  const downtime = downtimeProblem({
+    downSince: patch.downSince !== undefined ? patch.downSince : current.downSince,
+    upAt: patch.upAt !== undefined ? patch.upAt : current.upAt,
+  }, now());
+  const problem = downtime || await linkProblem(ctx, {
     assetId: patch.assetId !== undefined ? String(patch.assetId) : "",
     locationId: patch.locationId !== undefined ? String(patch.locationId) : "",
     assignees: (patch.assignedToCollaboratorIds as string[] | undefined) || [],
@@ -369,18 +393,31 @@ export async function moveOrder(ctx: MaintenanceContext, id: string, body: Recor
   const next = str(body?.status, 20);
   const holdReason = oneOf([...HOLD_REASONS, ""] as const, str(body?.holdReason, 20), "");
   const resolution = str(body?.resolution, 4000);
+  // FAILURE CODES IN THE STUDIO'S OWN SPELLING, from its own lists — a code the
+  // lists do not hold is dropped, and a corrective order then refuses to
+  // complete without one (`failure`), which says what to fix.
+  const lists = ctx.studio.taxonomies;
+  const failure = {
+    problem: resolveValue("failureProblems", lists, body?.failureProblem, ""),
+    cause: resolveValue("failureCauses", lists, body?.failureCause, ""),
+    remedy: resolveValue("failureRemedies", lists, body?.failureRemedy, ""),
+  };
+  const upAtGiven = body?.upAt ? instant(body.upAt) : "";
   const at = now();
   // AN OBJECT, NOT A `let`: TypeScript does not see assignments made inside a
   // callback, and would narrow a plain `let problem = null` to null for ever.
   const seen = { problem: null as string | null };
 
   const order = await Orders.update(orderScope(ctx), id, (row) => {
-    seen.problem = orderMoveProblem(row, next, { holdReason, resolution });
+    seen.problem = orderMoveProblem(row, next, { holdReason, resolution, failureProblem: failure.problem })
+      || (upAtGiven ? downtimeProblem({ downSince: row.downSince, upAt: upAtGiven }, at) : null);
     if (seen.problem) return {};
     const status = next as OrderStatus;
     return {
       status,
       ...moveStamps(row, status, at),
+      ...(status === "Completed" && upAtGiven ? { upAt: upAtGiven } : {}),
+      ...(status === "Completed" && failure.problem ? { failure } : {}),
       ...(status === "On hold" ? { holdReason } : {}),
       ...(status === "Completed" && resolution ? { resolution } : {}),
       history: [
@@ -448,6 +485,42 @@ export async function removeOrder(ctx: MaintenanceContext, id: string) {
   if (booked.length) return { error: "has-labour" };
   await Orders.remove(orderScope(ctx), id);
   return { ok: true };
+}
+
+// ---- machines ------------------------------------------------------------------
+
+/**
+ * EACH MACHINE'S RECORD over the last year — failures, MTBF, MTTR,
+ * availability, open work, its commonest problems (`reliabilityByAsset`, pure).
+ *
+ * NO RIGHT OF ITS OWN: it is the work orders, read per machine, so it answers
+ * to `maintenance.orders.view`. And it lists machines only for a reader who may
+ * open the equipment register — a list of names somebody was refused is the
+ * register by another door.
+ */
+export async function listMachines(ctx: MaintenanceContext) {
+  const denied = requirePermission(ctx.access, "maintenance.orders.view");
+  if (denied) return denied;
+  const asOf = now();
+  if (!may(ctx, "engine.equipment.view")) return { machines: [], canSeeMachines: false, asOf };
+  const [machines, orders] = await Promise.all([equipment(ctx), Orders.find(orderScope(ctx))]);
+  const stats = reliabilityByAsset(orders, asOf);
+  const nothing = {
+    failures: 0, downtimeHours: 0, mttrHours: null, mtbfHours: null, availability: null,
+    openOrders: 0, lastFailureAt: "", topProblems: [],
+  };
+  const rows = machines.map((r) => ({
+    id: r.id,
+    name: assetLabel(r),
+    status: str(r.status, 40),
+    category: str((r.values as Record<string, unknown> | undefined)?.category, 40),
+    ...(stats.get(r.id) || nothing),
+  })).sort((a, b) =>
+    // THE ONES THAT NEED LOOKING AT FIRST: most failures, then least available.
+    b.failures - a.failures
+    || (a.availability ?? 101) - (b.availability ?? 101)
+    || a.name.localeCompare(b.name));
+  return { machines: rows, canSeeMachines: true, asOf };
 }
 
 // ---- preventive plans ----------------------------------------------------------
@@ -740,6 +813,7 @@ function requestFields(body: Record<string, unknown>) {
   if (has("assetId")) out.assetId = str(body.assetId, 60);
   if (has("locationId")) out.locationId = str(body.locationId, 60);
   if (has("photos")) out.photos = cleanPhotos(body.photos);
+  if (has("machineDown")) out.machineDown = body.machineDown === true || body.machineDown === "true";
   return out;
 }
 
@@ -762,6 +836,7 @@ export async function createRequest(ctx: MaintenanceContext, body: Record<string
     assetId: "",
     locationId: "",
     photos: [],
+    machineDown: false,
     ...fields,
     status: "Open",
     createdByCollaboratorId: ctx.collaborator.id,
@@ -843,6 +918,10 @@ export async function acceptRequest(ctx: MaintenanceContext, id: string, body: R
     locationId: req.locationId,
     requestId: req.id,
     photos: req.photos || [],
+    // THE MACHINE WENT DOWN WHEN IT WAS REPORTED — the closest anybody will get
+    // to when it actually stopped, and far closer than when somebody got round
+    // to accepting the report.
+    downSince: req.machineDown ? req.createdAt : "",
     assignedToCollaboratorIds: assignees,
     dueOn: day(body?.dueOn),
   });

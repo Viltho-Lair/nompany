@@ -161,6 +161,34 @@ record between milestones says nothing that day.
   certificate still Valid or already Due. Told to the holders of `engine.calibration.edit`, who
   can record the new certificate.
 
+### Reliability (Phase 3, slice 1)
+
+**Failure codes** are three lists under Master data → Categories — `failureProblems`,
+`failureCauses`, `failureRemedies` — generic ones shipped, a studio's own added beside them (the
+tender-sources pattern, so no new right and no settings sub-section). ISO 14224 keeps what went
+wrong, why, and what put it right apart because they are different questions; a single free-text
+box can count none of them. **Corrective work cannot be completed without a problem** (`failure`);
+cause and remedy stay optional because often nobody knows yet. Codes are stored in the list's own
+spelling, and a code the lists do not hold is dropped.
+
+**Downtime** is two instants on the work order: `downSince` and `upAt` (ISO, entered in the
+reader's local time and stored as UTC, so "down for 12 h" is the same twelve hours everywhere).
+A reporter can say the machine **has stopped**; accepting that report starts the order's downtime
+at the moment of the report. Completing the work stamps `upAt` if nobody gave one, and
+**reopening clears it** — a reopened repair is one that did not hold. Refused: back in service with
+no down time, back before it went down, and either end in the future.
+
+**Machines** (`maintenance-assets`, a destination owning no collection, answering to
+`maintenance.orders`) lists every machine in the equipment register with its last twelve months
+from `reliabilityByAsset` (`reliability.ts`, pure): failures (corrective, not cancelled, dated by
+when it went down), MTBF (operating hours over failures), MTTR (mean of down-to-back, from
+DOWNTIME rather than labour — an hour's work after three days waiting for a part kept the machine
+out three days), availability, open work and the commonest problems. **Each is a dash when it has
+no honest value**: no failure has no MTBF rather than an infinite one, and a machine with nothing
+recorded has no availability rather than 100%. Downtime on two orders that overlap is counted twice
+— rare, and itself worth seeing. Machines are listed only to a reader who may open the equipment
+register.
+
 ### What a record points at
 
 **The machine is the Assets register's** — an engine `equipment` record, which stays filed
@@ -191,8 +219,9 @@ paths, and nothing else is accepted.
 
 - **What labour costs.** Hours are booked; no rate turns them into money, and nothing posts
   to Finance.
-- **Downtime.** Nothing records when a machine went down and came back — so no MTTR, MTBF or
-  availability yet.
+- **Downtime without a work order.** A machine is down only on an order; there is no
+  separate downtime log for an outage nobody raised work for.
+- **The acquisition date.** A machine bought in March is judged over the full twelve months.
 - **Working a work order from the field view.** It is listed there and moved here.
 - **Clustering on the map.** One pin per place, which is legible at a studio's scale.
 - **Moving a calibration record's status by date.** A certificate past its due date is warned

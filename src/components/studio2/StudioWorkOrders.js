@@ -15,15 +15,16 @@ import { useMemo, useState } from "react";
 import nextDynamic from "next/dynamic";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
-import { panel, h2, sub, btn, btnGhost, btnRow, btnRowDanger, Empty, Dialog, fmtDate } from "@/components/studio2/ui";
+import { panel, h2, sub, btn, btnGhost, btnRow, btnRowDanger, Empty, Dialog, fmtDate, fmtDateTime } from "@/components/studio2/ui";
 import { Field } from "@/components/fields/Field";
 import {
   PRIORITIES, ORDER_TYPES, ORDER_MOVES, HOLD_REASONS, LABOUR_KINDS,
-  orderEditable, orderDeletable, orderOpen, openWorkByPlace, labourProblem,
+  orderEditable, orderDeletable, orderOpen, openWorkByPlace, labourProblem, downtimeHours,
 } from "@/modules/maintenance/model";
 import { placeCoordinates } from "@/shared/places";
 import {
   useMaintenance, Chip, priorityTone, Links, PhotoStrip, PhotoField, PeoplePicker, pickOptions,
+  toLocalInput, fromLocalInput,
 } from "@/components/studio2/maintenanceParts";
 
 // BEHIND A REAL LAZY BOUNDARY — `import()` from a client module, so nobody pays
@@ -76,7 +77,8 @@ export default function StudioWorkOrders({ slug }) {
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <ScreenSkeleton loadingLabel={tr.loading} />;
 
-  const { orders = [], pickers = {}, me, asOf, canCreate, canEdit, canDelete } = data;
+  const { orders = [], pickers = {}, me, asOf, failureCodes = {}, canCreate, canEdit, canDelete } = data;
+  const codeOptions = (list = [], none = "") => [{ value: "", label: none }, ...list.map((v) => ({ value: v, label: v }))];
   const open = orders.filter(orderOpen);
   const mine = open.filter((o) => (o.assignedToCollaboratorIds || []).includes(me));
   const shown = filter === "open" ? open
@@ -94,14 +96,18 @@ export default function StudioWorkOrders({ slug }) {
       id: o.id, reference: o.reference, title: o.title, description: o.description, type: o.type, priority: o.priority,
       assetId: o.assetId, locationId: o.locationId, assignedToCollaboratorIds: o.assignedToCollaboratorIds || [],
       dueOn: o.dueOn || "", estimatedHours: o.estimatedHours ?? "", photos: o.photos || [],
+      downSince: toLocalInput(o.downSince), upAt: toLocalInput(o.upAt),
     }
     : {
       title: "", description: "", type: "corrective", priority: "normal", assetId: "", locationId: "",
-      assignedToCollaboratorIds: [], dueOn: "", estimatedHours: "", photos: [],
+      assignedToCollaboratorIds: [], dueOn: "", estimatedHours: "", photos: [], downSince: "", upAt: "",
     });
 
   const save = async () => {
-    const { id, reference: _ref, ...payload } = form;
+    const { id, reference: _ref, downSince, upAt, ...rest } = form;
+    // THE READER'S LOCAL TIME, SENT AS AN INSTANT — so "down for 12 h" is the
+    // same twelve hours for a reader in another timezone.
+    const payload = { ...rest, downSince: fromLocalInput(downSince), upAt: fromLocalInput(upAt) };
     const done = id ? await send("PUT", { ...payload, id }) : await send("POST", payload);
     if (done) setForm(null);
   };
@@ -118,7 +124,11 @@ export default function StudioWorkOrders({ slug }) {
 
   const move = (o, to) => {
     if (to === "On hold") setHolding({ id: o.id, holdReason: "parts" });
-    else if (to === "Completed") setCompleting({ id: o.id, resolution: o.resolution || "" });
+    else if (to === "Completed") setCompleting({
+      id: o.id, resolution: o.resolution || "", corrective: o.type === "corrective",
+      down: Boolean(o.downSince) && !o.upAt, upAt: "",
+      failureProblem: o.failure?.problem || "", failureCause: o.failure?.cause || "", failureRemedy: o.failure?.remedy || "",
+    });
     else send("PATCH", { id: o.id, status: to });
   };
 
@@ -201,6 +211,20 @@ export default function StudioWorkOrders({ slug }) {
                   <span className="text-slate-400">{tr.assignedTo}:</span>{" "}
                   {(o.assignees || []).length ? o.assignees.map((a) => a.alias || a.id).join("، ") : tr.nobody}
                 </p>
+                {/* WHETHER THE MACHINE IS OUT — the one fact on the card that
+                    changes what happens next on the floor. */}
+                {o.downSince && !o.upAt && (
+                  <p className="mt-1 text-sm font-600 text-rose-600 dark:text-rose-300">{tr.downNow(fmtDateTime(o.downSince))}</p>
+                )}
+                {downtimeHours(o) != null && (
+                  <p className="mt-1 text-sm tabular-nums text-slate-600 dark:text-slate-300">{tr.downFor(downtimeHours(o))}</p>
+                )}
+                {o.failure?.problem && (
+                  <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+                    <span className="text-slate-400">{tr.failure}:</span>{" "}
+                    {[o.failure.problem, o.failure.cause, o.failure.remedy].filter(Boolean).join(" · ")}
+                  </p>
+                )}
                 {(o.hoursLogged > 0 || o.estimatedHours != null) && (
                   <p className="mt-1 text-sm tabular-nums text-slate-600 dark:text-slate-300">
                     {tr.hoursLogged(o.hoursLogged || 0, o.estimatedHours)}
@@ -304,6 +328,10 @@ export default function StudioWorkOrders({ slug }) {
                 onChange={(v) => setForm((f) => ({ ...f, dueOn: v }))} />
               <Field label={tr.estimatedHours} type="number" value={form.estimatedHours}
                 onChange={(v) => setForm((f) => ({ ...f, estimatedHours: v }))} inputProps={{ min: 0, step: 0.25 }} />
+              <Field label={tr.downSince} type="datetime-local" value={form.downSince}
+                onChange={(v) => setForm((f) => ({ ...f, downSince: v }))} />
+              <Field label={tr.upAt} type="datetime-local" value={form.upAt}
+                onChange={(v) => setForm((f) => ({ ...f, upAt: v }))} />
             </div>
             <PeoplePicker people={pickers.people} value={form.assignedToCollaboratorIds} label={tr.assignedTo}
               hint={tr.assignedHint} onChange={(ids) => setForm((f) => ({ ...f, assignedToCollaboratorIds: ids }))} />
@@ -313,7 +341,7 @@ export default function StudioWorkOrders({ slug }) {
               onChange={(photos) => setForm((f) => ({ ...f, photos }))} />
             <div className="flex justify-end gap-2">
               <button type="button" className={btnGhost} onClick={() => setForm(null)}>{tr.cancel}</button>
-              <button type="button" className={btn} disabled={busy || !form.title.trim()} onClick={save}>
+              <button type="button" className={btn} disabled={busy || !form.title.trim() || (Boolean(form.upAt) && !form.downSince)} onClick={save}>
                 {busy ? tr.saving : tr.save}
               </button>
             </div>
@@ -374,10 +402,37 @@ export default function StudioWorkOrders({ slug }) {
           <div className="space-y-4">
             <Field label={tr.resolution} as="textarea" required value={completing.resolution} hint={tr.resolutionHint}
               onChange={(v) => setCompleting((c) => ({ ...c, resolution: v }))} inputProps={{ maxLength: 4000 }} />
+            {/* CORRECTIVE WORK NAMES WHAT FAILED — from the studio's own lists
+                (Master data → Categories), because a failure count is only as
+                useful as what it can be grouped by. */}
+            {completing.corrective && (
+              <div className="grid gap-4 sm:grid-cols-3">
+                <Field label={tr.problem} as="select" required value={completing.failureProblem}
+                  onChange={(v) => setCompleting((c) => ({ ...c, failureProblem: v }))}
+                  options={codeOptions(failureCodes.problems)} />
+                <Field label={tr.cause} as="select" value={completing.failureCause}
+                  onChange={(v) => setCompleting((c) => ({ ...c, failureCause: v }))}
+                  options={codeOptions(failureCodes.causes, "—")} />
+                <Field label={tr.remedy} as="select" value={completing.failureRemedy}
+                  onChange={(v) => setCompleting((c) => ({ ...c, failureRemedy: v }))}
+                  options={codeOptions(failureCodes.remedies, "—")} />
+              </div>
+            )}
+            {completing.down && (
+              <Field label={tr.upAt} type="datetime-local" value={completing.upAt}
+                hint={tr.downNow("—").replace("—", "").trim() ? undefined : undefined}
+                onChange={(v) => setCompleting((c) => ({ ...c, upAt: v }))} />
+            )}
             <div className="flex justify-end gap-2">
               <button type="button" className={btnGhost} onClick={() => setCompleting(null)}>{tr.cancel}</button>
-              <button type="button" className={btn} disabled={busy || !completing.resolution.trim()}
-                onClick={async () => { if (await send("PATCH", { ...completing, status: "Completed" })) setCompleting(null); }}>
+              <button type="button" className={btn}
+                disabled={busy || !completing.resolution.trim() || (completing.corrective && !completing.failureProblem)}
+                onClick={async () => {
+                  const { corrective: _c, down: _d, upAt, ...rest } = completing;
+                  // Blank "back in service" is "now" — the server stamps the
+                  // completion moment when none is given.
+                  if (await send("PATCH", { ...rest, upAt: fromLocalInput(upAt), status: "Completed" })) setCompleting(null);
+                }}>
                 {tr.complete}
               </button>
             </div>

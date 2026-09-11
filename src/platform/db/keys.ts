@@ -698,6 +698,9 @@ export const SECTION_DEFS = [
     { key: "maintenance-requests", name: "Work requests" },
     { key: "maintenance-orders", name: "Work orders" },
     { key: "maintenance-plans", name: "Preventive plans" },
+    // A DESTINATION, NOT AN OWNER: each machine's record, read from the work
+    // orders. It owns no collection and answers to `maintenance.orders`.
+    { key: "maintenance-assets", name: "Machines" },
   ] },
 
   // Quality widens to Quality & HSE. It keeps permits to work, which were an

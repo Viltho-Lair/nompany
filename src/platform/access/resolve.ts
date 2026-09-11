@@ -95,6 +95,8 @@ export const SECTION_AREAS: Readonly<Record<string, readonly string[]>> = {
   "maintenance-requests": ["maintenance.requests"],
   "maintenance-orders": ["maintenance.orders"],
   "maintenance-plans": ["maintenance.plans"],
+  // The work orders read per machine — no right of its own.
+  "maintenance-assets": ["maintenance.orders"],
   "tendering-rates": ["tendering.rates"],
   "crm-sales-settings": ["crmSales.settings"],
   "engineering-docs-rfq": ["engineeringDocs.rfq"],

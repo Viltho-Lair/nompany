@@ -20,7 +20,7 @@ const byKey = Object.fromEntries(TAXONOMIES.map((a) => [a.key, a.defaults]));
 // THE SEVENTH WAS NEVER HARD-CODED: a tender's source was free text, and this
 // list is what lets a register group by where its tenders came from.
 ok("the six hard-coded lists, then tender sources",
-  AXIS_KEYS.join("|") === "clientIndustries|expenseCategories|paymentMethods|leaveTypes|locationKinds|permitTypes|tenderSources",
+  AXIS_KEYS.join("|") === "clientIndustries|expenseCategories|paymentMethods|leaveTypes|locationKinds|permitTypes|tenderSources|failureProblems|failureCauses|failureRemedies",
   AXIS_KEYS.join("|"));
 ok("A TYPED SOURCE TAKES THE LIST'S SPELLING, so one source does not split on case",
   resolveValue("tenderSources", undefined, "public portal") === "Public portal");

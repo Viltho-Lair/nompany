@@ -195,6 +195,24 @@ export function PeoplePicker({ people = [], value = [], onChange, label, hint })
   );
 }
 
+/**
+ * AN INSTANT, BETWEEN ISO AND WHAT A `datetime-local` INPUT HOLDS — which is
+ * the reader's own local time with no zone. Stored as ISO (UTC) so every
+ * reader's "down for 12 h" is the same 12 hours.
+ */
+export const toLocalInput = (iso) => {
+  const t = Date.parse(iso || "");
+  if (!Number.isFinite(t)) return "";
+  const d = new Date(t);
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+export const fromLocalInput = (value) => {
+  if (!value) return "";
+  const t = Date.parse(value);
+  return Number.isFinite(t) ? new Date(t).toISOString() : "";
+};
+
 /** A select's options for machines and places, with a blank to name none. */
 export const pickOptions = (rows = [], none) => [
   { value: "", label: none },

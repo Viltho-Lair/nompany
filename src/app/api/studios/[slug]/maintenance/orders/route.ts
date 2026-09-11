@@ -47,6 +47,10 @@ export const PATCH = route(spec, async (m) => {
     status: String(m.body.status || ""),
     holdReason: String(m.body.holdReason || ""),
     resolution: String(m.body.resolution || ""),
+    failureProblem: String(m.body.failureProblem || ""),
+    failureCause: String(m.body.failureCause || ""),
+    failureRemedy: String(m.body.failureRemedy || ""),
+    upAt: String(m.body.upAt || ""),
   });
   if (refused(result)) return result;
   return { ok: true, workOrder: result.order };

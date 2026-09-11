@@ -30,6 +30,12 @@ export const WorkRequestSchema = z.object({
   locationId: z.string().max(60),
   /** `/api/media/<id>` paths — private, served only after a membership check. */
   photos: z.array(z.string().max(120)),
+  /**
+   * THE REPORTER SAYS THE MACHINE HAS STOPPED. Accepting the request then
+   * starts the work order's downtime at the moment of the report, which is the
+   * closest anybody will get to when it actually went down.
+   */
+  machineDown: z.boolean().optional(),
   status: z.string(),
   declineReason: z.string().max(1000).optional(),
   decidedByCollaboratorId: z.string().optional(),
@@ -95,6 +101,16 @@ export const WorkOrderSchema = z.object({
   pmDueOn: z.string().max(10).optional(),
   /** The plan's checklist, copied at raising, one tick per step. */
   checklist: z.array(z.object({ id: z.string(), label: z.string().max(200), done: z.boolean() })).optional(),
+  /**
+   * WHEN THE MACHINE WENT DOWN AND CAME BACK — ISO instants. MTTR and
+   * availability are made of these, not of labour: an hour's work after three
+   * days waiting for a part kept the machine out three days. `upAt` is stamped
+   * at completion if nobody gave one, and cleared if the work is reopened.
+   */
+  downSince: z.string().max(40).optional(),
+  upAt: z.string().max(40).optional(),
+  /** What failed, why, and what put it right — the studio's failure-code lists. */
+  failure: z.object({ problem: z.string(), cause: z.string(), remedy: z.string() }).optional(),
   createdByCollaboratorId: z.string(),
   createdAt: z.string(),
   updatedAt: z.string(),

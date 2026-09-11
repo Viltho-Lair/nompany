@@ -18,6 +18,8 @@ const M = await import("@/modules/maintenance/model");
 // code a mid-file import cost.
 const S = await import("@/modules/maintenance/schedule");
 const T = await import("@/modules/main/timeNotices");
+const R = await import("@/modules/maintenance/reliability");
+const X = await import("@/modules/administration/taxonomy");
 
 let fails = 0;
 const ok = (label, cond, extra = "") => {
@@ -259,6 +261,78 @@ console.log("\n== reminders");
   ok("one due today is warned", c.some((x) => x.name === "Pressure gauge" && x.daysLeft === 0));
   ok("a withdrawn instrument is not", !c.some((x) => x.reference === "CAL-3"));
   ok("between milestones nothing is said", !c.some((x) => x.reference === "CAL-4"));
+}
+
+console.log("\n== failure codes");
+ok("the three lists ship with the product", ["failureProblems", "failureCauses", "failureRemedies"].every((k) => X.AXIS_KEYS.includes(k)));
+ok("...and a studio adds its own to them", X.valuesFor("failureProblems", { failureProblems: ["Belt slipped"] }).includes("Belt slipped"));
+{
+  const corrective = order({ status: "In progress", resolution: "Replaced the seal", type: "corrective" });
+  // CORRECTIVE WORK NAMES WHAT FAILED — the one thing a failure count groups by.
+  ok("corrective work needs a problem to complete", M.orderMoveProblem(corrective, "Completed") === "failure");
+  ok("...given at completion", M.orderMoveProblem(corrective, "Completed", { failureProblem: "Leak" }) === null);
+  ok("...or already on the order", M.orderMoveProblem({ ...corrective, failure: { problem: "Leak" } }, "Completed") === null);
+  ok("preventive work has no failure to name", M.orderMoveProblem({ ...corrective, type: "preventive" }, "Completed") === null);
+}
+
+console.log("\n== downtime");
+{
+  const now = "2026-09-11T12:00:00.000Z";
+  ok("no downtime is nothing to check", M.downtimeProblem({}, now) === null);
+  ok("down and back is fine", M.downtimeProblem({ downSince: "2026-09-10T08:00:00.000Z", upAt: "2026-09-10T20:00:00.000Z" }, now) === null);
+  ok("still down is fine", M.downtimeProblem({ downSince: "2026-09-10T08:00:00.000Z" }, now) === null);
+  ok("back in service with no 'down since' is refused", M.downtimeProblem({ upAt: "2026-09-10T20:00:00.000Z" }, now) === "downtime");
+  ok("back before it went down is refused", M.downtimeProblem({ downSince: "2026-09-10T20:00:00.000Z", upAt: "2026-09-10T08:00:00.000Z" }, now) === "downtime-order");
+  ok("downtime in the future is refused", M.downtimeProblem({ downSince: "2026-09-12T08:00:00.000Z" }, now) === "downtime-future");
+  ok("hours down are measured", M.downtimeHours({ downSince: "2026-09-10T08:00:00.000Z", upAt: "2026-09-10T20:30:00.000Z" }) === 12.5);
+  ok("still down has no length yet", M.downtimeHours({ downSince: "2026-09-10T08:00:00.000Z" }) === null);
+  // THE MACHINE IS BACK WHEN THE WORK IS DONE — unless somebody said so first.
+  const down = order({ status: "In progress", downSince: "2026-09-10T08:00:00.000Z" });
+  ok("completing stamps it back in service", M.moveStamps(down, "Completed", now).upAt === now);
+  ok("...but never over a time somebody gave", M.moveStamps({ ...down, upAt: "2026-09-10T20:00:00.000Z" }, "Completed", now).upAt === undefined);
+  // A REOPENED REPAIR DID NOT HOLD — the machine is down again.
+  ok("reopening puts it back down", M.moveStamps({ ...down, status: "Completed", upAt: now }, "In progress", now).upAt === "");
+  ok("work that never stopped a machine stamps nothing", M.moveStamps(order({ status: "In progress" }), "Completed", now).upAt === undefined);
+}
+
+console.log("\n== reliability");
+{
+  const now = "2026-09-11T00:00:00.000Z";
+  const r = R.reliabilityByAsset([
+    { assetId: "m1", type: "corrective", status: "Closed", createdAt: "2026-06-01T00:00:00.000Z",
+      downSince: "2026-06-01T00:00:00.000Z", upAt: "2026-06-02T00:00:00.000Z", failure: { problem: "Leak" } },  // 24 h
+    { assetId: "m1", type: "corrective", status: "Completed", createdAt: "2026-08-01T00:00:00.000Z",
+      downSince: "2026-08-01T00:00:00.000Z", upAt: "2026-08-01T12:00:00.000Z", failure: { problem: "Leak" } },  // 12 h
+    { assetId: "m1", type: "preventive", status: "Closed", createdAt: "2026-07-01T00:00:00.000Z" },
+    { assetId: "m1", type: "corrective", status: "Cancelled", createdAt: "2026-07-15T00:00:00.000Z" },
+    { assetId: "m2", type: "preventive", status: "Open", createdAt: "2026-09-01T00:00:00.000Z" },
+    { assetId: "", type: "corrective", status: "Open", createdAt: "2026-09-01T00:00:00.000Z" },
+  ], now);
+  const m1 = r.get("m1");
+  ok("two failures — preventive and cancelled work are not failures", m1?.failures === 2);
+  ok("downtime adds up", m1?.downtimeHours === 36);
+  // MTTR FROM DOWNTIME, not labour: how long the machine was out.
+  ok("MTTR is the mean repair", m1?.mttrHours === 18);
+  ok("MTBF is operating hours over failures", m1?.mtbfHours === Math.round(((8760 - 36) / 2) * 10) / 10, String(m1?.mtbfHours));
+  ok("availability is uptime over the window", m1?.availability === Math.round(((8760 - 36) / 8760) * 1000) / 10, String(m1?.availability));
+  ok("the commonest problem is named", m1?.topProblems[0]?.problem === "Leak" && m1?.topProblems[0]?.count === 2);
+  const m2 = r.get("m2");
+  // NULL, NOT ZERO OR INFINITY: no failure has no MTBF.
+  ok("no failures, no MTBF", m2?.failures === 0 && m2?.mtbfHours === null && m2?.mttrHours === null);
+  ok("work recorded and never down is fully available", m2?.availability === 100);
+  ok("open work is counted", m2?.openOrders === 1);
+  ok("work with no machine is nobody's record", !r.has(""));
+  // AN OPEN REPAIR COUNTS UP TO NOW.
+  const still = R.reliabilityByAsset([
+    { assetId: "m3", type: "corrective", status: "In progress", createdAt: "2026-09-10T00:00:00.000Z", downSince: "2026-09-10T00:00:00.000Z" },
+  ], now).get("m3");
+  ok("a machine still down counts to now", still?.downtimeHours === 24 && still?.mttrHours === null);
+  // CLIPPED TO THE WINDOW: downtime before it is last year's story.
+  const old = R.reliabilityByAsset([
+    { assetId: "m4", type: "corrective", status: "Closed", createdAt: "2025-01-01T00:00:00.000Z",
+      downSince: "2025-01-01T00:00:00.000Z", upAt: "2025-01-03T00:00:00.000Z" },
+  ], now).get("m4");
+  ok("work before the window is not this year's failure", old?.failures === 0 && old?.downtimeHours === 0 && old?.availability === null);
 }
 
 console.log("\n== vocabulary");
