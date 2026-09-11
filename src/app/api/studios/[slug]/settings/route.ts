@@ -11,6 +11,18 @@ import { studioLocale, isLocale, defaultLocale } from "@/shared/i18n";
 import { ALL_PERMISSIONS } from "@/platform/access/catalogue";
 import { chainProblems, type ApprovalChain } from "@/platform/approval/chains";
 import { approvalChainOverrides, approvalChainsFor } from "@/platform/approval/store";
+import { getSectionByKey } from "@/platform/db/sections";
+
+// WHAT FINANCE STORED BEFORE THE CHAINS HAD A SCREEN — read, never written. It
+// sits beneath the studio's own layer (`approvalChainsFor`), so the Approvals
+// section must SHOW it (a bill chain stored through Finance's API displayed
+// here as the seed while payables enforced the stored one) and must know it
+// when saving (see `approvalChainOverrides`'s `legacy`).
+async function legacyChains(studioId: string): Promise<Record<string, unknown> | null> {
+  const finance = await getSectionByKey(studioId, "finance-settings");
+  const raw = (finance as { settings?: Record<string, unknown> } | null)?.settings?.approvalChains;
+  return raw && typeof raw === "object" ? (raw as Record<string, unknown>) : null;
+}
 import { numberingProblems, cleanNumbering, numberingView } from "@/modules/administration/numbering";
 import { unitProblems, cleanUnits, unitsView } from "@/modules/administration/units";
 import { taxonomyProblems, cleanTaxonomies, taxonomyView } from "@/modules/administration/taxonomy";
@@ -135,7 +147,7 @@ function cleanLegal(v: unknown) {
   })).filter((row) => row.key);
 }
 
-const clean = (studio: Record<string, unknown>) => ({
+const clean = (studio: Record<string, unknown>, legacy: Record<string, unknown> | null = null) => ({
   id: studio.id, name: studio.name, slug: studio.slug, logo: studio.logo || "",
   country: studio.country || "", city: studio.city || "", location: studio.location || "",
   currency: studio.currency || "",
@@ -162,11 +174,11 @@ const clean = (studio: Record<string, unknown>) => ({
   fieldOfWork: String(studio.fieldOfWork || ""),
   fieldOfWorkOther: String(studio.fieldOfWorkOther || ""),
   retiredServiceActions: Array.isArray(studio.retiredServiceActions) ? studio.retiredServiceActions : [],
-  // WHAT IS IN FORCE, not what is stored — seeds included, so the editor shows
-  // the chain a record would actually walk rather than an empty object that
-  // means "the built-in". `bill` appears here and is edited in Finance settings
-  // (see STUDIO_EDITABLE_CHAINS); this route refuses to write it.
-  approvalChains: approvalChainsFor(studio),
+  // WHAT IS IN FORCE, not what is stored — seeds, Finance's old blob and the
+  // studio's own, layered exactly as approval reads them, so the Approvals
+  // section shows the chain a record would actually walk. All four types are
+  // edited here (STUDIO_EDITABLE_CHAINS); Finance refuses them since tier 5.
+  approvalChains: approvalChainsFor(studio, legacy),
   // EVERY SERIES WITH THE SETTING IN FORCE, defaults included, so the editor
   // can show its rows without knowing the catalogue — and can say which are the
   // studio's own choice rather than presenting shipped defaults as though
@@ -221,7 +233,7 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
 
   const { studio, collaborator } = context;
   return Response.json({
-    studio: clean(studio),
+    studio: clean(studio, await legacyChains(studio.id)),
     // Today's rate for each favourite, against the STUDIO's currency. Only the
     // handful of numbers the page shows go over the wire — /super ships the
     // whole USD table because it lets you re-pick the base, and this page does
@@ -338,7 +350,7 @@ export async function PUT(request: Request, ctx: { params: Promise<Record<string
     // edit and in words about the edit. This is the same door
     // saveFinanceSettings held for bills; it moved here with the store.
     if (key === "approvalChains") {
-      const incoming = approvalChainOverrides(body[key]);
+      const incoming = approvalChainOverrides(body[key], undefined, await legacyChains(studio.id));
       if ("error" in incoming) return Response.json({ error: "refused", detail: incoming.error }, { status: 400 });
       const problems: string[] = [];
       for (const chain of Object.values(incoming.chains)) {
@@ -410,5 +422,5 @@ export async function PUT(request: Request, ctx: { params: Promise<Record<string
 
   const updated = await updateStudio(studio.id, patch);
   if (!updated) return Response.json({ error: "notfound" }, { status: 404 });
-  return Response.json({ ok: true, studio: clean(updated) });
+  return Response.json({ ok: true, studio: clean(updated, await legacyChains(studio.id)) });
 }

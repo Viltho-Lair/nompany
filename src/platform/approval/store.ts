@@ -70,17 +70,18 @@ export function approvalChainsFor(
 }
 
 /**
- * THE TYPES STUDIO SETTINGS MAY EDIT — and `bill` is deliberately not one.
+ * THE TYPES STUDIO SETTINGS MAY EDIT — all four, since 11/09/2026.
  *
- * ONE DOOR PER TYPE, or the two are free to disagree. Reading is layered and
- * therefore deterministic (the studio's own wins), but WRITING from two screens
- * would let a studio configure a bill chain in Finance, configure it again
- * here, and have the first quietly stop taking effect. Finance's settings
- * screen is still the bill chain's editor; the day it moves, `bill` joins this
- * list and `saveFinanceSettings` stops accepting chains — in that one commit,
- * so there is never a moment with two writers.
+ * ONE DOOR PER TYPE, or the two are free to disagree. This said `bill` stayed
+ * out because "Finance's settings screen is still the bill chain's editor" —
+ * and no such screen had ever existed: the only bill-chain writer was
+ * `saveFinanceSettings`'s API, which also accepted every other type and was the
+ * ONLY writer for `adjustment`. Tier 5 gave the chains one screen (Studio
+ * settings → Approvals); `bill` and `adjustment` joined this list and
+ * `saveFinanceSettings` stopped accepting chains in that same commit, which is
+ * what this comment always said the move would take.
  */
-export const STUDIO_EDITABLE_CHAINS: readonly string[] = ["tender", "requisition"];
+export const STUDIO_EDITABLE_CHAINS: readonly string[] = ["bill", "tender", "requisition", "adjustment"];
 
 /**
  * What may be STORED, out of what a settings screen sent — the overrides alone.
@@ -92,10 +93,17 @@ export const STUDIO_EDITABLE_CHAINS: readonly string[] = ["tender", "requisition
  *
  * A type outside `allow` is REFUSED rather than dropped: silently ignoring a
  * chain somebody typed would show them a saved screen governing nothing.
+ *
+ * `legacy` IS FINANCE'S OLD BLOB, and it changes what "identical to the seed"
+ * means. A studio that once stored a bill chain through Finance and now sets it
+ * back to the built-in here must have that choice STORED — dropped, the legacy
+ * layer underneath would keep winning, and the screen would save the seed and
+ * go on enforcing the old chain.
  */
 export function approvalChainOverrides(
   incoming: unknown,
   allow: readonly string[] = STUDIO_EDITABLE_CHAINS,
+  legacy?: Record<string, unknown> | null,
 ): { chains: Record<string, ApprovalChain> } | { error: string } {
   const out: Record<string, ApprovalChain> = {};
   const rows = (incoming && typeof incoming === "object" ? incoming : {}) as Record<string, unknown>;
@@ -105,7 +113,8 @@ export function approvalChainOverrides(
     }
     if (!usable(chain)) continue;
     const seed = SEEDED_CHAINS[type];
-    if (seed && JSON.stringify(seed) === JSON.stringify(chain)) continue;
+    const shadowed = usable(legacy?.[type]);
+    if (seed && !shadowed && JSON.stringify(seed) === JSON.stringify(chain)) continue;
     out[type] = chain;
   }
   return { chains: out };

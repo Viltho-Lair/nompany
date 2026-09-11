@@ -198,18 +198,15 @@ export async function saveFinanceSettings(ctx: FinanceContext, body: Record<stri
     next.paymentHold = cleanHold(body.paymentHold);
   }
 
+  // APPROVAL CHAINS ARE NOT EDITED HERE ANY MORE — Studio settings → Approvals
+  // is their one door (platform/approval/store, STUDIO_EDITABLE_CHAINS). This
+  // route accepted every type, replaced the whole blob on each save and was the
+  // only writer for stock adjustments, with no screen calling it. REFUSED rather
+  // than ignored, before anything is written: a client still sending chains
+  // here must hear that they were not saved, not see a success that governs
+  // nothing. What Finance stored before stays READ (`readApprovalChains`).
   if (body?.approvalChains !== undefined) {
-    // VALIDATED HERE, NOT ON READ, and BEFORE anything is written. A chain
-    // naming a permission that does not exist blocks every bill reaching that
-    // step — silently, forever, on a screen nobody thinks to doubt. Refusing at
-    // the door means the studio hears about it while it is still their edit and
-    // in words about the edit, which is the whole reason chainProblems returns
-    // sentences rather than a boolean.
-    const incoming = (body.approvalChains || {}) as Record<string, ApprovalChain>;
-    const problems: string[] = [];
-    for (const chain of Object.values(incoming)) problems.push(...chainProblems(chain, ALL_PERMISSIONS));
-    if (problems.length) return { error: "refused" as const, detail: problems.join("; ") };
-    next.approvalChains = incoming;
+    return { error: "refused" as const, detail: "Approval chains are edited in Studio settings → Approvals." };
   }
 
   const updated = await updateSection(studio.id, settingsSection.id, { settings: next });

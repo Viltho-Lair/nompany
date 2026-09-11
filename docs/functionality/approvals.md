@@ -35,13 +35,27 @@ ones — a bottleneck, not a control.
 **The chains live on the STUDIO record now**, beside `currency`, read through
 `platform/approval/store` — see `bid-review.md` for why they left Finance. What Finance stored
 before that move is still READ, layered underneath the studio's own, so a studio that
-configured a bill chain keeps it with nobody running a backfill; and Finance's settings screen
-is still the door that EDITS a bill chain, because one door per type is what keeps two writers
-from disagreeing. No new key builder and no new collection.
+configured a bill chain keeps it with nobody running a backfill. No new key builder and no new
+collection.
+
+**All four are edited in one place: Studio settings → Approvals** (11/09/2026), behind
+`administration.settings.edit`. This file used to say Finance's settings screen edited the bill
+chain; **no screen had ever edited any chain** — the only bill-chain writer was
+`saveFinanceSettings`'s API, which accepted every type, replaced the whole stored set on each
+save, and was the only door for stock adjustments. It refuses chains now, with a sentence
+naming where they are edited, and `bill` and `adjustment` joined `STUDIO_EDITABLE_CHAINS` in
+the same commit — one writer per type, as this file always said the move would need.
+
+The section shows **what is in force**, Finance's old layer included (the settings route
+used to show a Finance-stored bill chain as the seed while payables enforced the stored one).
+A step offers its own chain's rights by name — *Approve bills*, *Approve bills above the
+limit* — rather than the whole catalogue, and the screen validates with the server's own
+`chainProblems` before saving. **Setting a chain back to its seed over a Finance-stored one is
+kept**, not dropped, or the old chain underneath would go on winning.
 
 They are **overrides merged over the seed**, the way flow templates are: a studio stores only
 what it changed, so a later correction to the built-in still reaches every studio that never
-touched it. Edited in Finance & Accounting settings, behind `finance.settings.edit`.
+touched it.
 
 **A chain is refused on write**, never on read, and the refusal is a sentence the studio is
 shown. Five things are refused, each invisible at runtime and none of which throws: a step
@@ -153,7 +167,6 @@ Stated in words, because a silent gap reads as a finished feature.
 - **The studio's currency is not mandatory product-wide** — only for approving a bill.
 - **AP reporting is not revalued.** A bill carries a currency now, but the aging report still
   sums raw totals. That is P3's job.
-- **The bill chain has no editor outside Finance's settings screen.** Reading is unified on
-  the studio; editing is not, and moving that screen is a commit of its own — at which point
-  `bill` joins `STUDIO_EDITABLE_CHAINS` and `saveFinanceSettings` stops accepting chains, in
-  that same commit, so there is never a moment with two writers.
+- **Finance's old stored chains are read forever, never cleaned up.** A studio that configured
+  one through Finance's API keeps it beneath its own layer until it saves Approvals; nothing
+  deletes the old blob, deliberately — a migration nobody runs is worse than a layer that reads.

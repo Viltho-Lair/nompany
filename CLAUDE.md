@@ -826,7 +826,8 @@ Main a child would gate the parent and hide Main from every member without the r
 paths are NOT wired to any route yet — the engagement layer is written alongside, reconciled by the backfill.
 
 **P2's approval engine is built, for bills.** A studio sets the amount above which a bill
-needs a second signature (Finance & Accounting settings), and `approveBill` walks the chain
+needs a second signature (Studio settings → Approvals since 11/09/2026, with the other three
+chains; Finance's settings refuse chains), and `approveBill` walks the chain
 instead of asking one right: the permission is chosen at runtime, invariant 7 is enforced
 twice (the raiser never signs, and nobody signs two steps of one record), and `Approved` is
 written only on the last step so `BILL_STATUSES` gained no value. Amounts convert to the

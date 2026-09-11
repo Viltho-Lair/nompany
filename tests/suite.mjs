@@ -2693,47 +2693,23 @@ console.log("\n== bill approval chains: seeded, overridable, validated on write"
   ok("a fresh studio has the seeded bill chain",
     fin.approvalChains?.bill?.steps?.length === 2, JSON.stringify(fin.approvalChains?.bill));
 
-  // AN OVERRIDE STORES ONLY WHAT CHANGED.
-  const saved = await saveFinanceSettings(fin, {
+  // FINANCE NO LONGER WRITES CHAINS (tier 5). Studio settings → Approvals is
+  // the one door for all four types; this route accepted every type, replaced
+  // the whole blob on each save, and no screen ever called it for chains.
+  // REFUSED, not ignored: a client still sending them must hear it.
+  const refusedHere = await saveFinanceSettings(fin, {
     approvalChains: { bill: { type: "bill", steps: [
       { permission: "finance.payables.approve", from: 0, label: "Finance" },
       { permission: "finance.payables.approveHigh", from: 5000, label: "Director" },
     ] } },
   });
-  ok("a studio can move its own threshold",
-    saved.approvalChains?.bill?.steps?.[1]?.from === 5000,
-    JSON.stringify(saved.error ?? saved.approvalChains?.bill));
+  ok("finance settings refuse an approval chain", refusedHere.error === "refused", JSON.stringify(refusedHere));
+  ok("...and say where chains are edited now", /Studio settings/.test(refusedHere.detail || ""), refusedHere.detail);
 
-  // ...AND THE OTHER SETTING ON THE SAME BLOB SURVIVES IT. Both live in the
-  // finance-settings section's `settings`, so a writer that rebuilt the object
-  // instead of extending it would silently drop the categories.
-  ok("...without dropping the cash categories beside it",
-    Array.isArray(saved.cashCategories) && saved.cashCategories.length > 0,
-    JSON.stringify(saved.cashCategories));
-
-  // REFUSED ON WRITE, IN WORDS ABOUT THE EDIT.
-  const bad = await saveFinanceSettings(fin, {
-    approvalChains: { bill: { type: "bill", steps: [
-      { permission: "finance.payables.approveHigh", from: 100, label: "only one" },
-    ] } },
-  });
-  ok("a chain with no always-on step is refused", bad.error === "refused", JSON.stringify(bad));
-  ok("...and the refusal says what to fix", /from: 0/.test(bad.detail || ""), bad.detail);
-
-  const unknown = await saveFinanceSettings(fin, {
-    approvalChains: { bill: { type: "bill", steps: [
-      { permission: "finance.payables.nuke", from: 0, label: "nope" },
-    ] } },
-  });
-  ok("a chain naming a permission that does not exist is refused",
-    unknown.error === "refused" && /nuke/.test(unknown.detail || ""), JSON.stringify(unknown));
-
-  // AND NEITHER REFUSAL WROTE. A validator that refuses and saves anyway is
-  // worse than no validator, and the ordering that produces it (write, then
-  // check) looks identical from the call site.
+  // AND THE REFUSAL WROTE NOTHING — neither the chain nor anything beside it.
   const after = await financeContext(owner, slug);
   ok("a refused chain was not stored",
-    after.approvalChains?.bill?.steps?.[1]?.from === 5000,
+    after.approvalChains?.bill?.steps?.[1]?.from === 50000,
     JSON.stringify(after.approvalChains?.bill));
 }
 
