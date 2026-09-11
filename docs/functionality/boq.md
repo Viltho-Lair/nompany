@@ -90,6 +90,29 @@ shows and no cascade reaps.
 of screens the P4b engine is never to be stretched to cover — it is a spreadsheet somebody
 works down for a day, not a record with a form.
 
+## Importing a bill (tier 6, 11/09/2026)
+
+**Import lines** on the grid takes what a person pastes out of Excel (tab-separated, what the
+clipboard carries) or a CSV file (comma or semicolon), with no spreadsheet library
+(`modules/tendering/boqImport.ts`, pure, shared with the dialog).
+
+- **The columns are guessed from the header** — English or Arabic, folded for case, spacing
+  and harakat — and every one can be re-mapped before importing, or the first row marked as
+  data rather than a header. An *Amount* column is ignored: it is computed.
+- **Headings are rows, not lines.** A row with a description and no quantity, unit or rate
+  ("SUBSTRUCTURE") becomes the group of the lines beneath it, unless a column carries the
+  group; imported as a line it would be an unpriced item and the bill could never be complete.
+- **Numbers are read as people write them**: `1,234.50`, `1.234,50`, `12,5`, Arabic-Indic
+  digits with the Arabic decimal mark, a currency code in front.
+- **A quantity or rate that is not a number is skipped and named by its line**, never read as
+  nought — a silently unpriced line is how a bill is bid below cost. A blank rate is simply
+  unpriced. A line with no description is skipped and named.
+- The dialog shows how many lines, headings and skipped rows the paste holds, and the first
+  lines as they will land, before anything is sent. `POST /tendering/boq` with
+  `action: "import"` (`importBoqLines`, `tendering.tenders.edit`) re-cleans every row through
+  the rules a single line obeys, appends after the bill's last line in the paste's order,
+  takes at most 2,000 lines, and is refused once the tender has been handed over.
+
 ## Not built yet
 
 Stated in words, because a silent gap reads as a finished feature.
@@ -104,8 +127,9 @@ Stated in words, because a silent gap reads as a finished feature.
 - **No cost behind the price.** The bill holds what the studio would charge and not what the
   work would cost, so there is no margin on a line, no margin on the bill, and nothing warns
   about bidding below cost — unlike the pricing slice in CRM & Sales, which does have both.
-- **No import.** Tender documents arrive as spreadsheets and every line is typed in by hand.
-  This is the largest practical gap: the vendor CSV importer in Inventory is the pattern.
+- **No .xlsx upload** — a paste or a CSV (above). Merged cells, multi-sheet workbooks and
+  rates carried as formulas arrive as whatever the paste holds. No import into the rate
+  library, and an import cannot replace a bill, only add to it.
 - **No re-ordering in the grid.** `sortOrder` is stored and settable through the API; the
   screen appends and never moves a line.
 - **No provisional sums, no prime cost sums, no dayworks, no contingency**, and no percentage

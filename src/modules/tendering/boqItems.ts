@@ -13,6 +13,7 @@
 import { requirePermission } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
 import { boqTotals } from "./boq";
+import { MAX_IMPORT_LINES } from "./boqImport";
 import type { BoqItem, Tender } from "./schema";
 import type { TenderingContext } from "./types";
 
@@ -135,6 +136,67 @@ export async function addBoqLine(ctx: TenderingContext, body: Record<string, unk
     updatedAt: now(),
   });
   return { item };
+}
+
+/**
+ * A PASTED OR SAVED BILL, many lines in one write (tier 6). `boqImport` read it
+ * in the browser; THIS DOES NOT TRUST THAT READING. Every row is cleaned again
+ * through the rules `addBoqLine` applies — the same lengths, a description
+ * required, a negative quantity or rate read as nought — so a hand-made request
+ * gets exactly what a single line would.
+ *
+ * APPENDED AFTER THE LAST LINE, IN THE PASTE'S ORDER: a bill is read against
+ * the client's own document, and the paste is that document's order.
+ *
+ * SKIPPED ROWS ARE NAMED BY THEIR LINE IN THE PASTE, so the tally the person is
+ * shown accounts for every row they sent — the vendor importer's rule.
+ */
+export async function importBoqLines(ctx: TenderingContext, body: Record<string, unknown>) {
+  const denied = requirePermission(ctx.access, "tendering.tenders.edit");
+  if (denied) return denied;
+
+  const { studio, registerSection } = ctx;
+  const tenderId = str(body?.tenderId, 60);
+  if (!tenderId) return { error: "missing" };
+  const incoming = Array.isArray(body?.rows) ? body.rows : [];
+  if (!incoming.length) return { error: "nothing" };
+  if (incoming.length > MAX_IMPORT_LINES) return { error: "too-many", max: MAX_IMPORT_LINES };
+
+  const tender = await Tenders.byId({ studio, section: registerSection }, tenderId);
+  if (!tender) return { error: "notfound" };
+  // An import after the handover moves the buyers' sheet exactly as one added
+  // line would — the same freeze, for the same reason.
+  if (await handedOver(ctx, tenderId)) return { error: "handed-over" };
+
+  const existing = await Items.find({ studio, section: registerSection }, { where: { tenderId } });
+  const start = existing.reduce((m, r) => Math.max(m, (Number(r.sortOrder) || 0) + 1), existing.length);
+  const at = now();
+  const skipped: { line: number; reason: string }[] = [];
+  const rows: Record<string, unknown>[] = [];
+  incoming.forEach((raw: unknown, i: number) => {
+    const r = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+    const line = Number(r.line) || i + 1;
+    const description = str(r.description, 1000);
+    if (!description) { skipped.push({ line, reason: "description" }); return; }
+    rows.push({
+      tenderId,
+      group: str(r.group, 120),
+      code: str(r.code, 40),
+      description,
+      unit: str(r.unit, 24),
+      qty: num(r.qty),
+      rate: money(r.rate),
+      // TYPED, NOT TAKEN FROM THE LIBRARY — a pasted rate has no provenance.
+      rateId: "",
+      notes: str(r.notes, 1000),
+      sortOrder: start + rows.length,
+      createdAt: at,
+      updatedAt: at,
+    });
+  });
+
+  const created = rows.length ? await Items.createMany({ studio, section: registerSection }, rows) : [];
+  return { imported: created.length, skipped };
 }
 
 export async function editBoqLine(ctx: TenderingContext, id: string, body: Record<string, unknown>) {

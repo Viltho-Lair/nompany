@@ -64,7 +64,9 @@ export function parseCsv(text: string, delimiter = ","): string[][] {
 // Written as escapes, never as the characters themselves, so the file stays
 // free of the marks it strips.
 const HARAKAT = /[\u064B-\u0652\u0670]/g;
-const fold = (h: string) =>
+// EXPORTED for the BOQ importer, which maps columns the person chooses rather
+// than a fixed set, and must fold a header exactly the way this reader does.
+export const fold = (h: string) =>
   String(h ?? "").trim().toLowerCase().replace(HARAKAT, "").replace(/[\s_-]+/g, "");
 
 export type CsvRow = {

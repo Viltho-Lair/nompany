@@ -27,6 +27,7 @@ import { StatusPill } from "@/components/studio2/StatusPill";
 import { boqGroups, boqTotals, extension, isPriced } from "@/modules/tendering/boq";
 import { refusal } from "@/components/studio2/tenderRefusals";
 import StudioTenderDocs from "@/components/studio2/StudioTenderDocs";
+import BoqImport from "@/components/studio2/BoqImport";
 
 const cell = "w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm text-slate-800 outline-none focus:border-brand-500 dark:border-white/15 dark:bg-white/5 dark:text-slate-100";
 
@@ -38,6 +39,7 @@ export default function StudioBoq({ slug, tenderId }) {
   const [busy, setBusy] = useState(false);
   const [adding, setAdding] = useState(null);
   const [picking, setPicking] = useState(null);
+  const [importing, setImporting] = useState(false);
 
   const read = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/tendering/boq?tenderId=${encodeURIComponent(tenderId)}`, { cache: "no-store" });
@@ -413,10 +415,21 @@ export default function StudioBoq({ slug, tenderId }) {
       )}
 
       {canEdit && (
-        <button type="button" className={btn}
-          onClick={() => setAdding({ group: "", code: "", description: "", unit: "", qty: "", rate: "" })}>
-          {tr.addLine}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" className={btn}
+            onClick={() => setAdding({ group: "", code: "", description: "", unit: "", qty: "", rate: "" })}>
+            {tr.addLine}
+          </button>
+          {/* A CLIENT'S BILL ARRIVES AS A SPREADSHEET — pasted or saved, read
+              here and cleaned again by the server (BoqImport). */}
+          <button type="button" className={btnGhost} onClick={() => setImporting(true)}>{tr.importLines}</button>
+        </div>
+      )}
+
+      {importing && (
+        <Dialog title={tr.importLines} onClose={() => setImporting(false)} width="max-w-[860px]">
+          <BoqImport slug={slug} tenderId={tenderId} onDone={reload} onCancel={() => setImporting(false)} />
+        </Dialog>
       )}
 
       {/* THE PACK AND THE QUESTIONS, BENEATH THE BILL THEY ARE ABOUT.

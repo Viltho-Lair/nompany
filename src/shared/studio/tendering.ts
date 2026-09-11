@@ -205,6 +205,27 @@ type Strings = CommonStrings & {
   refuseNoTender: string;
   billFrozen: string;
   refuseHandedOver: string;
+  // Importing a bill (tier 6).
+  importLines: string;
+  importLead: string;
+  importPasteLabel: string;
+  importAttach: string;
+  importNoFile: string;
+  importHeaderRow: string;
+  importColumns: string;
+  importNotInFile: string;
+  importColumnN: (n: number) => string;
+  importNotes: string;
+  importReady: (n: number) => string;
+  importHeadings: (n: number) => string;
+  importSkipped: (n: number) => string;
+  importSkipReason: (line: number, reason: string) => string;
+  importPreview: string;
+  importDo: (n: number) => string;
+  importDone: (n: number) => string;
+  importTooMany: (n: number) => string;
+  importFailed: string;
+  importClose: string;
 };
 
 const en: Strings = {
@@ -400,6 +421,28 @@ const en: Strings = {
   refuseNoTender: "That tender no longer exists.",
   billFrozen: "This tender has been handed over, so its bill is the project’s baseline and no longer edits. The project’s sheets read these lines.",
   refuseHandedOver: "This tender has been handed over. Its bill is the project’s baseline now and cannot be changed.",
+  importLines: "Import lines",
+  importLead: "Copy the bill’s rows out of Excel and paste them here, or attach a CSV. The columns are read from the header; check them below before importing. A row with a description and no quantity, unit or rate is a heading, and names the lines under it.",
+  importPasteLabel: "Paste from Excel",
+  importAttach: "Attach a CSV",
+  importNoFile: "No file chosen",
+  importHeaderRow: "The first row is a header",
+  importColumns: "Which column holds what",
+  importNotInFile: "— not in the file —",
+  importColumnN: (n) => `Column ${n}`,
+  importNotes: "Notes",
+  importReady: (n) => `${n} ${n === 1 ? "line" : "lines"} ready`,
+  importHeadings: (n) => `${n} ${n === 1 ? "heading" : "headings"}`,
+  importSkipped: (n) => `${n} skipped`,
+  importSkipReason: (line, reason) => `Line ${line}: ${reason === "qty" ? "the quantity is not a number"
+    : reason === "rate" ? "the rate is not a number"
+      : "it has no description"} — skipped.`,
+  importPreview: "The first lines, as they will land",
+  importDo: (n) => `Import ${n} ${n === 1 ? "line" : "lines"}`,
+  importDone: (n) => `${n} ${n === 1 ? "line" : "lines"} added to the bill.`,
+  importTooMany: (n) => `At most ${n} lines at a time`,
+  importFailed: "The import did not go through.",
+  importClose: "Close",
 };
 
 const ar: Strings = {
@@ -588,6 +631,28 @@ const ar: Strings = {
   refuseNoTender: "لم تعد هذه المناقصة موجودة.",
   billFrozen: "سلمت هذه المناقصة، فصار جدولها أساس المشروع ولم يعد يعدل. تقرأ جداول المشروع هذه البنود.",
   refuseHandedOver: "سلمت هذه المناقصة. صار جدولها أساس المشروع ولا يمكن تغييره.",
+  importLines: "استيراد بنود",
+  importLead: "انسخ صفوف الجدول من Excel والصقها هنا، او ارفق ملف CSV. تقرأ الاعمدة من صف العناوين؛ راجعها في الاسفل قبل الاستيراد. الصف الذي فيه وصف بلا كمية او وحدة او سعر عنوان، ويسمي البنود التي تحته.",
+  importPasteLabel: "لصق من Excel",
+  importAttach: "ارفاق ملف CSV",
+  importNoFile: "لم يختر ملف",
+  importHeaderRow: "الصف الاول صف عناوين",
+  importColumns: "اي عمود يحمل ماذا",
+  importNotInFile: "— غير موجود في الملف —",
+  importColumnN: (n) => `العمود ${n}`,
+  importNotes: "ملاحظات",
+  importReady: (n) => `${n} بند جاهز`,
+  importHeadings: (n) => `${n} عنوان`,
+  importSkipped: (n) => `${n} متروك`,
+  importSkipReason: (line, reason) => `السطر ${line}: ${reason === "qty" ? "الكمية ليست رقما"
+    : reason === "rate" ? "السعر ليس رقما"
+      : "لا وصف له"} — ترك.`,
+  importPreview: "اول البنود كما ستضاف",
+  importDo: (n) => `استيراد ${n} بند`,
+  importDone: (n) => `اضيف ${n} بند الى الجدول.`,
+  importTooMany: (n) => `${n} بند كحد اقصى في المرة الواحدة`,
+  importFailed: "لم يتم الاستيراد.",
+  importClose: "اغلاق",
 };
 
 // KEYED BY LOCALE WITH A FALLBACK, like every other surface's dictionary — not

@@ -1,7 +1,7 @@
 import { route, refused } from "@/platform/http/route";
 import { requirePermission } from "@/platform/access";
 import { tenderingContext } from "@/modules/tendering/tenders";
-import { listBoq, addBoqLine, editBoqLine, removeBoqLine } from "@/modules/tendering/boqItems";
+import { listBoq, addBoqLine, editBoqLine, removeBoqLine, importBoqLines } from "@/modules/tendering/boqItems";
 import { listRates } from "@/modules/tendering/rates";
 import { bidReview } from "@/modules/tendering/bid";
 import { handoverState } from "@/modules/tendering/handover";
@@ -50,6 +50,13 @@ export const GET = route({ ...spec, body: false }, async (tendering) => {
 });
 
 export const POST = route(spec, async (tendering) => {
+  // AN IMPORT IS NAMED IN THE BODY, not inferred from an array arriving: one
+  // line and a bill of them are different acts with different refusals.
+  if (tendering.body?.action === "import") {
+    const imported = await importBoqLines(tendering, tendering.body);
+    if (refused(imported)) return imported;
+    return { status: 201, body: { ok: true, ...imported } };
+  }
   const result = await addBoqLine(tendering, tendering.body);
   if (refused(result)) return result;
   return { status: 201, body: { ok: true, item: result.item } };
