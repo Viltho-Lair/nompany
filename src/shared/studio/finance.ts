@@ -168,6 +168,8 @@ type Strings = CommonStrings & {
   mLocked: string;
   mName: string;
   mNotApproved: string;
+  // The document saved and the ledger refused its entry; `why` is the token.
+  notPosted: (why: string) => string;
   mNotIssued: string;
   mReadOnly: string;
   mSameSigner: string;
@@ -484,6 +486,12 @@ const en: Strings = {
   mLocked: "An approved or paid bill can't be edited — dispute or cancel it instead.",
   mName: "Give the asset a name.",
   mNotApproved: "Approve the bill before recording a payment against it.",
+  notPosted: (why) => `Saved — but the books were not updated: ${({
+    "period-closed": "the month is closed",
+    chart: "the chart of accounts is missing an account this needs",
+    "not-postable": "the document is not in a state that posts",
+    unbalanced: "the entry did not balance",
+  } as Record<string, string>)[why] || why}.`,
   mNotIssued: "Send the invoice before recording a payment.",
   mReadOnly: "You have view-only access to Finance.",
   mSameSigner: "A bill can't be approved by the person who raised it — ask a second approver.",
@@ -801,6 +809,12 @@ const ar: Strings = {
   mLocked: "لا يمكن تعديل فاتورة معتمدة أو مدفوعة — اعترض عليها أو ألغها بدلا من ذلك.",
   mName: "أعط الأصل اسما.",
   mNotApproved: "اعتمد الفاتورة قبل تسجيل دفعة عليها.",
+  notPosted: (why) => `تم الحفظ — لكن لم تحدث الدفاتر: ${({
+    "period-closed": "الشهر مغلق",
+    chart: "دليل الحسابات ينقصه حساب يلزم لهذا القيد",
+    "not-postable": "المستند ليس في حالة تسمح بالترحيل",
+    unbalanced: "القيد غير متوازن",
+  } as Record<string, string>)[why] || why}.`,
   mNotIssued: "أرسل الفاتورة قبل تسجيل دفعة.",
   mReadOnly: "لديك صلاحية عرض فقط على المالية.",
   mSameSigner: "لا يمكن لمن رفع الفاتورة أن يعتمدها — اطلب معتمدا ثانيا.",

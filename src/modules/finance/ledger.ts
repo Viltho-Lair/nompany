@@ -309,26 +309,35 @@ export async function reverseEntry(ctx: FinanceContext, id: string, reason?: unk
   const denied = requirePermission(ctx.access, "finance.ledger.reverse");
   if (denied) return denied;
 
-  const { studio, ledgerSection, collaborator } = ctx;
+  const { studio, ledgerSection } = ctx;
   const entries = await Entries.find({ studio, section: ledgerSection });
   const original = entries.find((e) => e.id === id);
   if (!original) return { error: "notfound" };
   if (original.reversedByEntryId) return { error: "already-reversed", by: original.reversedByEntryId };
   if (original.reversalOfEntryId) return { error: "is-a-reversal" };
 
+  return { reversal: await mirrorEntry(ctx, original, entries, str(reason, 500)) };
+}
+
+/**
+ * POST THE MIRROR OF AN ENTRY and stamp the original reversed — the write both
+ * `reverseEntry` (a person, by hand) and `reverseDocument` (a document's own
+ * correction) make. No permission of its own: each caller answers that.
+ *
+ * EVERY DIMENSION IS CARRIED, not only the project. The hand-written mirror
+ * kept `projectId` and `memo` and dropped `dealId`, `costCodeId` and
+ * `departmentId`, so a reversal netted to zero on the trial balance and left
+ * the deal, cost-code and department views off by the whole amount.
+ */
+async function mirrorEntry(ctx: FinanceContext, original: JournalEntry, entries: JournalEntry[], reason: string) {
+  const { studio, ledgerSection, collaborator } = ctx;
   const reference = await nextReference(studio.id, { rows: entries as Row[], field: "reference", ...seriesSetting("journal", studio.numbering) });
-  const mirrored: JournalLine[] = (original.lines || []).map((l) => ({
-    accountId: l.accountId,
-    debit: l.credit,
-    credit: l.debit,
-    ...(l.projectId ? { projectId: l.projectId } : {}),
-    ...(l.memo ? { memo: l.memo } : {}),
-  }));
+  const mirrored: JournalLine[] = (original.lines || []).map((l) => ({ ...l, debit: l.credit, credit: l.debit }));
 
   const reversal = await Entries.create({ studio, section: ledgerSection }, {
     reference,
     date: new Date().toISOString().slice(0, 10),
-    memo: str(reason, 500) || `Reversal of ${original.reference}`,
+    memo: reason || `Reversal of ${original.reference}`,
     lines: mirrored,
     source: { kind: "reversal", id: original.id },
     postedByCollaboratorId: collaborator.id,
@@ -339,8 +348,41 @@ export async function reverseEntry(ctx: FinanceContext, id: string, reason?: unk
   // Stamp the original so it cannot be reversed again. A function patch, so
   // "mark this reversed" stays a flip under contention (invariant 8).
   await Entries.update({ studio, section: ledgerSection }, original.id, () => ({ reversedByEntryId: reversal.id }));
+  entries.push(reversal as JournalEntry);
+  return reversal;
+}
 
-  return { reversal };
+/**
+ * UNDO WHAT A DOCUMENT POSTED, because the document changed.
+ *
+ * THE BOOKS DRIFTED FROM THE DOCUMENTS. Cancelling an issued invoice, editing
+ * or deleting an expense, cancelling or re-pricing a received bill — each
+ * changed the document and left its entry standing, so revenue stayed booked on
+ * a cancelled invoice and an expense corrected from 500 to 50 stayed at 500 in
+ * the ledger, and nothing said so.
+ *
+ * THE STUDIO'S AUTHORITY, like `autoPost`: the person cancelling the invoice was
+ * authorised to cancel it, and reversing its entry is the consequence rather
+ * than a separate act of bookkeeping.
+ *
+ * DATED TODAY AND HELD TO THE PERIOD LOCK. A reversal is a new entry, so it
+ * lands in the month it is made — the original's month stays as it was closed —
+ * and a closed CURRENT month refuses it by name, for the caller to say.
+ */
+export async function reverseDocument(ctx: FinanceContext, kind: EntrySourceKind, id: string, reason: string) {
+  const { studio, ledgerSection } = ctx;
+  const entries = await Entries.find({ studio, section: ledgerSection });
+  const live = entries.filter((e) => e.source?.kind === kind && e.source?.id === id
+    && !e.reversedByEntryId && !e.reversalOfEntryId);
+  if (!live.length) return { reversed: [] as JournalEntry[] };
+
+  const today = new Date().toISOString().slice(0, 10);
+  const locked = postingProblem(await Periods.find({ studio, section: ledgerSection }), today);
+  if (locked) return { error: locked, period: periodOf(today) };
+
+  const reversed: JournalEntry[] = [];
+  for (const e of live) reversed.push(await mirrorEntry(ctx, e, entries, str(reason, 500)) as JournalEntry);
+  return { reversed };
 }
 
 export async function listJournal(ctx: FinanceContext) {
@@ -486,8 +528,13 @@ async function codesToIds(ctx: FinanceContext, codes: string[]) {
 // stored entry carries the bare id this replaces.
 const paymentSource = (parentId: string, paymentId: string) => `${parentId}:${paymentId}`;
 
+// A REVERSED ENTRY IS NOT "POSTED". Cancelling, correcting or deleting a
+// document reverses what it posted (`reverseDocument`), and a corrected
+// document must then be able to post as it now stands — which this refused
+// while it counted the reversed entry, so a correction could undo the books and
+// never redo them.
 function alreadyPosted(entries: JournalEntry[], kind: string, id: string) {
-  return entries.some((e) => e.source?.kind === kind && e.source?.id === id);
+  return entries.some((e) => e.source?.kind === kind && e.source?.id === id && !e.reversedByEntryId);
 }
 
 /**

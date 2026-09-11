@@ -58,7 +58,10 @@ export const GET = route(
 export const POST = route(spec, async (fin) => {
   const result = await createBill(fin, fin.body);
   if (refused(result)) return result;
-  return { status: 201, body: { ok: true, bill: result.bill } };
+  // The posting travels back — see the expenses route for why dropping it hid
+  // a short set of books.
+  const posting = (result as { posting?: unknown }).posting;
+  return { status: 201, body: { ok: true, bill: result.bill, ...(posting ? { posting } : {}) } };
 });
 
 // Editing, approving or paying a bill are three different acts on the same row.
@@ -79,7 +82,8 @@ export const PUT = route(spec, async (fin) => {
         : await editBill(fin, fin.body.id, fin.body);
 
   if (refused(result)) return result;
-  return { ok: true, bill: result.bill };
+  const posting = (result as { posting?: unknown }).posting;
+  return { ok: true, bill: result.bill, ...(posting ? { posting } : {}) };
 });
 
 export const DELETE = route(spec, async (fin) => {
@@ -87,5 +91,6 @@ export const DELETE = route(spec, async (fin) => {
 
   const result = await removeBill(fin, fin.body.id);
   if (refused(result)) return result;
-  return { ok: true };
+  const posting = (result as { posting?: unknown }).posting;
+  return { ok: true, ...(posting ? { posting } : {}) };
 });

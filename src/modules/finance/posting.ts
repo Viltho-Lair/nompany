@@ -12,7 +12,7 @@
 // is "post this thing", and five endpoints would be five places to forget one.
 import {
   postInvoice, postExpense, postBill, postBillPayment, postPayment, postCreditNote,
-  postPayroll, ENTRY_SOURCE_KINDS,
+  postPayroll, reverseDocument, ENTRY_SOURCE_KINDS,
 } from "./ledger";
 import type { FinanceContext } from "./types";
 import type { PostOptions } from "./ledger";
@@ -102,4 +102,29 @@ export async function autoPost(
   if (failed?.error) return { posted: false, reason: String(failed.error) };
   const ok = result as { entry?: { id?: unknown } };
   return { posted: true, entryId: String(ok?.entry?.id ?? "") };
+}
+
+type LedgerAnswer = { posted: true; entryId: string } | { posted: false; reason: string };
+
+/**
+ * UNDO A DOCUMENT'S ENTRY, as the consequence of cancelling or deleting it.
+ * The same two-answer shape as `autoPost`, so every caller surfaces a refusal
+ * the same way — the document change stands either way.
+ */
+export async function autoReverse(ctx: FinanceContext, kind: Postable, id: string, reason: string): Promise<LedgerAnswer> {
+  const result = await reverseDocument(ctx, kind, id, reason);
+  if ("error" in result && result.error) return { posted: false, reason: String(result.error) };
+  const reversed = (result as { reversed?: { id: string }[] }).reversed || [];
+  return { posted: true, entryId: reversed.map((e) => e.id).join(",") };
+}
+
+/**
+ * THE DOCUMENT CHANGED, SO ITS ENTRY IS REPLACED: the old one reversed, the
+ * document posted again as it now stands. A document that never posted (an
+ * earlier refusal) reverses nothing and posts — which repairs it.
+ */
+export async function autoRepost(ctx: FinanceContext, kind: Postable, id: string, reason: string): Promise<LedgerAnswer> {
+  const undone = await autoReverse(ctx, kind, id, reason);
+  if (!undone.posted) return undone;
+  return autoPost(ctx, kind, id);
 }

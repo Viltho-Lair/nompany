@@ -26,7 +26,7 @@ import { repo } from "@/platform/db/repo";
 import { TAXONOMIES, resolveValue, admits } from "@/modules/administration/taxonomy";
 import { getSectionByKey, updateSection } from "@/platform/db/sections";
 import { attachToProjectEngagement, detachFromItsEngagement } from "@/platform/db/engagement";
-import { autoPost } from "./posting";
+import { autoPost, autoReverse, autoRepost } from "./posting";
 import { moduleContext } from "../context";
 
 import { listCollaborators } from "@/platform/auth/collaborators";
@@ -434,7 +434,15 @@ export async function editInvoice(ctx: FinanceContext, id: string, body: Record<
   // accounts is incomplete would be worse off than one told its books are an
   // entry short.
   const nowIssued = patch.status === "Sent" && current.status === "Draft";
-  const posting = nowIssued ? await autoPost(ctx, "invoice", id) : null;
+  // AND CANCELLING AN ISSUED ONE REVERSES IT. The cancel changed the status and
+  // left the revenue and the receivable booked, so a cancelled invoice stayed in
+  // every figure the ledger produces.
+  const cancelledIssued = patch.status === "Cancelled" && current.status !== "Draft" && current.status !== "Cancelled";
+  const posting = nowIssued
+    ? await autoPost(ctx, "invoice", id)
+    : cancelledIssued
+      ? await autoReverse(ctx, "invoice", id, `Invoice ${current.reference || ""} cancelled`.trim())
+      : null;
 
   return { invoice: { ...updated, ...invoiceTotals(updated) }, ...(posting ? { posting } : {}) };
 }
@@ -591,7 +599,13 @@ export async function editExpense(ctx: FinanceContext, id: string, body: Record<
   }
 
   const expense = await Expenses.update({ studio, section: cashSection }, id, patch);
-  return expense ? { expense } : { error: "notfound" };
+  if (!expense) return { error: "notfound" };
+  // WHAT THE LEDGER READS CHANGED, SO THE ENTRY IS REPLACED. Amount, category
+  // (which picks the account) and date (which picks the period) are the three
+  // an expense's entry is made of; a description or a note is not in the books.
+  const moved = patch.amount !== undefined || patch.category !== undefined || patch.date !== undefined;
+  const posting = moved ? await autoRepost(ctx, "expense", id, `Expense ${expense.reference || ""} corrected`.trim()) : null;
+  return { expense, ...(posting ? { posting } : {}) };
 }
 
 export async function removeExpense(ctx: FinanceContext, id: string) {
@@ -600,7 +614,11 @@ export async function removeExpense(ctx: FinanceContext, id: string) {
   if (denied) return denied;
 
   const removed = await Expenses.remove({ studio: ctx.studio, section: ctx.cashSection }, id);
-  return removed ? { ok: true } : { error: "notfound" };
+  if (!removed) return { error: "notfound" };
+  // A DELETED EXPENSE TAKES ITS ENTRY WITH IT — reversed, not erased, so the
+  // journal still shows the money was booked and then taken back.
+  const posting = await autoReverse(ctx, "expense", id, "Expense deleted");
+  return { ok: true, posting };
 }
 
 // ---- profitability ---------------------------------------------------------

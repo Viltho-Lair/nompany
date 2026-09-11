@@ -9,7 +9,7 @@
 
 import { requirePermission } from "@/platform/access";
 import { seriesSetting } from "@/modules/administration/numbering";
-import { autoPost } from "./posting";
+import { autoPost, autoReverse, autoRepost } from "./posting";
 import type { PermissionKey } from "@/platform/access";
 import { resolveApprovalPlan, firstUnsignedStep, planSatisfied } from "@/platform/approval/resolve";
 import type { ResolvedPlan, PlanRefusal } from "@/platform/approval/resolve";
@@ -345,7 +345,22 @@ export async function editBill(ctx: FinanceContext, id: string, body: Record<str
   // neither: a studio that drafts its bills first would otherwise keep books
   // that silently omit every one of them.
   const becameReceived = patch.status === "Received" && current.status === "Draft";
-  const posting = becameReceived ? await autoPost(ctx, "bill", id) : null;
+  // AND THE OTHER DIRECTION. A bill that had posted (anything past Draft and not
+  // Cancelled) and is now cancelled reverses its entry; one whose amount or date
+  // moved replaces it. Both used to change the bill and leave the liability in
+  // the books at the old figure.
+  const wasPosted = current.status !== "Draft" && current.status !== "Cancelled";
+  const nowCancelled = wasPosted && patch.status === "Cancelled";
+  const reshaped = wasPosted && !nowCancelled
+    && (patch.lines !== undefined || patch.vatRate !== undefined || patch.billDate !== undefined);
+  const label = `Bill ${current.reference || ""}`.trim();
+  const posting = becameReceived
+    ? await autoPost(ctx, "bill", id)
+    : nowCancelled
+      ? await autoReverse(ctx, "bill", id, `${label} cancelled`)
+      : reshaped
+        ? await autoRepost(ctx, "bill", id, `${label} corrected`)
+        : null;
   return { bill: { ...bill, ...billTotals(bill) }, ...(posting ? { posting } : {}) };
 }
 
@@ -512,5 +527,10 @@ export async function removeBill(ctx: FinanceContext, id: string) {
     return { error: "has-history" };
   }
   const removed = await Bills.remove({ studio, section: payablesSection }, id);
-  return removed ? { ok: true } : { error: "notfound" };
+  if (!removed) return { error: "notfound" };
+  // A RECEIVED BILL HAD POSTED, and deleting it left the liability booked.
+  const posting = current.status !== "Draft" && current.status !== "Cancelled"
+    ? await autoReverse(ctx, "bill", id, `Bill ${current.reference || ""} deleted`.trim())
+    : null;
+  return { ok: true, ...(posting ? { posting } : {}) };
 }

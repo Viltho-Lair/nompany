@@ -178,6 +178,8 @@ function FinanceCash({ slug, view = "finance" }) {
     setBusy(false);
     if (!res.ok) { setError(message(out, tr)); return false; }
     await load();
+    const warning = postingWarning(out, tr);
+    if (warning) setError(warning);
     return true;
   }, [slug, load]);
 
@@ -252,6 +254,15 @@ function FinanceCash({ slug, view = "finance" }) {
 
 // THE DICTIONARY COMES IN AS AN ARGUMENT. This is module scope — there is no
 // component here to read the locale from — and every caller already has it.
+// THE BOOKS' ANSWER, WHEN IT WAS NO. A document can save and its ledger entry
+// be refused — a closed month, a chart short an account — and the route hands
+// that back as `posting: { posted: false, reason }`. Both sends below threw it
+// away, so the books went an entry short with the screen reporting success.
+function postingWarning(out, tr) {
+  const p = out?.posting;
+  return p && p.posted === false ? tr.notPosted(String(p.reason || "")) : "";
+}
+
 function message(out, tr) {
   if (out.error === "read-only") return tr.mReadOnly;
   if (out.error === "issued") return tr.mIssued;
@@ -757,7 +768,11 @@ function useFinanceResource(slug, kind) {
     const out = await res.json().catch(() => ({}));
     setBusy(false);
     if (!res.ok) { setError(message(out, tr)); return false; }
+    // AFTER THE RELOAD, because `load` clears the error on success and would
+    // wipe the warning the moment it was shown.
     await load();
+    const warning = postingWarning(out, tr);
+    if (warning) setError(warning);
     return true;
   }, [slug, kind, load]);
 

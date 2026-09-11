@@ -104,6 +104,25 @@ and close are not built — so omitting the term would show every trading studio
 balance by exactly its own profit, which reads as a broken ledger rather than a missing
 feature.
 
+### When a posted document changes
+
+**The entry follows the document**, reversed rather than edited (`reverseDocument`, under the
+studio's authority like `autoPost`). Cancelling an issued invoice reverses its entry; editing
+an expense's amount, category or date reverses and re-posts it, and deleting one reverses it;
+cancelling a received bill reverses it, changing its lines, VAT or date re-posts it, and
+deleting it reverses it. `alreadyPosted` no longer counts a reversed entry, which is what lets
+the corrected document post again. A reversal is dated today and held to the period lock, so a
+closed current month refuses it by name. Until 11/09/2026 none of this happened: the document
+changed and its entry stood, so a cancelled invoice stayed in revenue.
+
+**A refusal is said, not swallowed.** The invoices, expenses and bills routes hand back
+`posting: { posted: false, reason }` and the finance screens now show "Saved — but the books
+were not updated" with the reason. Before, the expenses and bills routes dropped it and both
+screens ignored it.
+
+**A reversal carries every dimension** — the mirror used to keep `projectId` alone and drop
+`dealId`, `costCodeId` and `departmentId`, leaving those views off by the whole amount.
+
 ## Not built yet
 
 Stated in words, because a silent gap reads as a finished feature.
@@ -174,17 +193,18 @@ Stated in words, because a silent gap reads as a finished feature.
   missing is the other end**: nothing WRITES a dimension automatically, because nothing
   posts automatically — so a deal's figures are only as complete as the entries somebody
   keyed by hand against it.
-- **No periods and no close.** Nothing locks a date range, nothing rolls a year end,
-  and the retained result is therefore recomputed from the beginning of time on every
+- **No year-end close.** Months can be closed and reopened (`periods.md`); nothing rolls
+  a year end, so the retained result is recomputed from the beginning of time on every
   read rather than carried into equity.
 - **No cash flow statement.** The P&L and balance sheet are here; the third statement
   needs cash movements classified as operating, investing or financing, which no
   account or entry records.
-- **No credit notes**, so a correction to an invoice is a manual journal.
-- **No tax engine.** VAT is a rate on an invoice, not a posting rule; there is no
-  ZATCA adapter and no withholding.
-- **No bank reconciliation**, no cash-flow forecast, no post-dated cheques, no letters
-  of guarantee.
+- **Credit notes post and have no screen.** `postCreditNote` reverses the invoice's
+  revenue and VAT proportionally; nothing on screen raises one.
+- **No tax codes and no VAT return.** VAT is one rate per document, all on one account;
+  withholding exists on invoices (`withholding.md`), not on bills.
+- **One bank account.** Reconciliation, post-dated cheques, guarantees and the cash
+  forecast have their own files (`reconciliation.md`, `treasury.md`) and all read `1010`.
 - **Seeding the chart is not safe under concurrency.** `ledgerAccounts` creates the
   default accounts read-then-create with no compare-and-set, so two first requests to a
   brand-new studio can each find it empty and each seed it — a chart with every account
@@ -192,5 +212,6 @@ Stated in words, because a silent gap reads as a finished feature.
   reads, which is why that `await` sits alone above the `Promise.all`; nothing makes the
   seed itself atomic. It had never been reachable before this route existed, because
   nothing called `ledgerAccounts` at all.
-- **There is no screen.** The route serves the whole ledger and nothing renders it —
-  the door exists, the room is empty.
+- **The screen reads and does not write.** Trial balance, journal, P&L, balance sheet,
+  reconciliation and periods render; there is no manual journal form, no reversal button
+  and no chart-of-accounts editor, so all three are API-only.
