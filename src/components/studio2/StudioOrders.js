@@ -45,6 +45,7 @@ export default function StudioOrders({ slug }) {
   const tr = salesOrdersDict(useStudioLocale());
   const [orders, setOrders] = useState(null);
   const [rights, setRights] = useState({});
+  const [pickers, setPickers] = useState({});
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState(null);
@@ -56,6 +57,7 @@ export default function StudioOrders({ slug }) {
 
   const apply = useCallback((data) => {
     setOrders(data?.ok ? data.orders : []);
+    setPickers(data?.pickers || {});
     setRights({
       canCreate: !!data?.canCreate, canEdit: !!data?.canEdit, canDelete: !!data?.canDelete,
     });
@@ -99,6 +101,26 @@ export default function StudioOrders({ slug }) {
   if (orders === null) return <ScreenSkeleton />;
 
   const editable = !form?.id || orderLinesEditable(form?.status);
+
+  // THE FOUR LINKS, PICKED. Deal, customer, quotation and contract were internal
+  // ids typed into text boxes — the deal one required, and a deal's id is shown
+  // on no screen. They are set when the order is raised and never after
+  // (`updateOrder` writes none of them), so an edit shows them and cannot move
+  // them. Each list narrows to the one before it: a deal's own customer, that
+  // deal's quotations, that customer's contracts.
+  const deal = (pickers.deals || []).find((d) => d.id === form?.dealId);
+  const linkOptions = {
+    deals: (pickers.deals || []).map((d) => ({
+      value: d.id, label: [d.ref, d.title, d.clientName].filter(Boolean).join(" · "),
+    })),
+    clients: (pickers.clients || []).map((c) => ({ value: c.id, label: c.name })),
+    quotations: (pickers.quotations || [])
+      .filter((q) => form?.id || !deal || q.ticketId === deal.ticketId)
+      .map((q) => ({ value: q.id, label: q.revision > 1 ? `${q.number} Rev ${q.revision}` : q.number })),
+    contracts: (pickers.contracts || [])
+      .filter((c) => form?.id || !form?.clientId || c.clientId === form.clientId)
+      .map((c) => ({ value: c.id, label: [c.number, c.title].filter(Boolean).join(" · ") })),
+  };
 
   return (
     <div className={panel}>
@@ -184,14 +206,26 @@ export default function StudioOrders({ slug }) {
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label={tr.fldTitle} value={form.title || ""}
               onChange={(v) => setForm((p) => ({ ...p, title: v }))} />
-            <Field label={tr.fldDeal} value={form.dealId || ""}
-              onChange={(v) => setForm((p) => ({ ...p, dealId: v }))} />
-            <Field label={tr.fldClient} value={form.clientId || ""}
-              onChange={(v) => setForm((p) => ({ ...p, clientId: v }))} />
-            <Field label={tr.fldQuotation} value={form.quotationId || ""}
-              onChange={(v) => setForm((p) => ({ ...p, quotationId: v }))} />
-            <Field label={tr.fldContract} value={form.contractId || ""}
-              onChange={(v) => setForm((p) => ({ ...p, contractId: v }))} />
+            {/* THE DEAL IS CHOSEN ONLY WHEN THE ORDER IS RAISED. It is stored as
+                the deal that exists, not the ticket's derived id, so an edit
+                could not name it back — and it never changes anyway. */}
+            {!form.id && (
+              <Field label={tr.fldDeal} as="select" required value={form.dealId || ""}
+                onChange={(v) => {
+                  const d = (pickers.deals || []).find((x) => x.id === v);
+                  setForm((p) => ({ ...p, dealId: v, clientId: d?.clientId || p.clientId || "", quotationId: "" }));
+                }}
+                options={linkOptions.deals} />
+            )}
+            <Field label={tr.fldClient} as="select" value={form.clientId || ""} disabled={!!form.id}
+              onChange={(v) => setForm((p) => ({ ...p, clientId: v, contractId: "" }))}
+              options={linkOptions.clients} />
+            <Field label={tr.fldQuotation} as="select" value={form.quotationId || ""} disabled={!!form.id}
+              onChange={(v) => setForm((p) => ({ ...p, quotationId: v }))}
+              options={linkOptions.quotations} />
+            <Field label={tr.fldContract} as="select" value={form.contractId || ""} disabled={!!form.id}
+              onChange={(v) => setForm((p) => ({ ...p, contractId: v }))}
+              options={linkOptions.contracts} />
             <Field label={tr.fldOrderedOn} value={form.orderedOn || ""}
               onChange={(v) => setForm((p) => ({ ...p, orderedOn: v }))} />
             <Field label={tr.fldRequiredBy} value={form.requiredBy || ""}

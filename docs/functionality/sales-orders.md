@@ -93,8 +93,12 @@ Stated in words, because a silent gap reads as a finished feature.
   quantity per line, no back-order, no link to a delivery or a shipment.
 - **Nothing copies a quotation's lines in.** `quotationId` is a field somebody types;
   the screen has no "raise from quotation" action, so the lines are entered by hand.
-- **The pickers are text boxes.** `dealId`, `clientId`, `quotationId` and `contractId`
-  are typed rather than chosen from a list.
+- **Nothing is copied from the quotation.** The deal, customer, quotation and contract are
+  picked from lists (since 11/09/2026 — before that all four were internal ids typed into
+  text boxes, and the required deal id was shown on no screen): choosing a deal fills its
+  customer, and the quotation and contract lists narrow to that deal and customer. They are
+  set when the order is raised and shown read-only after. But picking a quotation does not
+  bring its lines across; they are typed again.
 - **No approval chain.** Confirming needs `crmSales.orders.edit` and nothing more — no
   value threshold, no second signature, unlike a bill, a bid or a requisition.
 - **Cancelling asks for no reason**, unlike a lost deal, which must say why.

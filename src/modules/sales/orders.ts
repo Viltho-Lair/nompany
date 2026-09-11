@@ -20,9 +20,67 @@ import { nextReference } from "@/modules/main/references";
 import { computeTotals } from "@/modules/technical/technical";
 import { orderProblem, orderDeletable, orderLinesEditable } from "./orderStatus";
 import type { SalesOrder, OrderLine } from "./orderSchema";
-import type { SalesContext } from "./types";
+import type { SalesContext, Client } from "./types";
+import type { SalesTicket } from "./schema";
+import type { Contract } from "./contractSchema";
+import type { Quotation } from "@/modules/technical/types";
+import { isClosed, isWon } from "./pipeline";
+import { isFinishedQuotation } from "@/modules/technical/quotations";
+import { engagementIdForLineage } from "@/platform/db/engagement";
 
 const Orders = repo<SalesOrder>("salesOrders");
+const Tickets = repo<SalesTicket>("salesTickets");
+const Clients = repo<Client>("salesClients");
+const Quotations = repo<Quotation>("quotations");
+const Contracts = repo<Contract>("contracts");
+
+/**
+ * WHAT THE ORDER FORM PICKS FROM — the deals, the customers, the finished
+ * quotations and the contracts, as labels.
+ *
+ * THE FORM TOOK FOUR INTERNAL IDS IN TEXT BOXES, and the deal one is required:
+ * a deal's id is an engagement id that no screen displays, so nobody could raise
+ * an order without reading the database.
+ *
+ * A DEAL IS OFFERED AS ITS TICKET, keyed by the id the ticket's engagement was
+ * derived from (`engagementIdForLineage`). That is exactly the kind of id
+ * `resolveDealId` exists to accept — it follows the alias to the deal the
+ * dual-write actually minted — so no read per ticket is spent finding it.
+ * Closed deals are left out except the won ones: a call-off lands on work the
+ * studio has won, never on a deal it lost.
+ */
+export async function orderPickers(ctx: SalesContext) {
+  const { studio, ticketsSection, clientsSection, quotationsSection } = ctx;
+  const [tickets, clients, quotations, contracts] = await Promise.all([
+    ticketsSection ? Tickets.find({ studio, section: ticketsSection }) : [],
+    clientsSection ? Clients.find({ studio, section: clientsSection }) : [],
+    quotationsSection ? Quotations.find({ studio, section: quotationsSection }) : [],
+    quotationsSection ? Contracts.find({ studio, section: quotationsSection }) : [],
+  ]);
+  const nameOf = new Map(clients.map((c) => [c.id, c.name] as const));
+  return {
+    deals: tickets
+      .filter((t) => !isClosed(t.status || "") || isWon(t.status || ""))
+      .map((t) => ({
+        id: engagementIdForLineage({ ticketId: t.id }),
+        ticketId: t.id,
+        ref: t.ref || "",
+        title: t.title || "",
+        clientId: t.clientId || "",
+        clientName: nameOf.get(t.clientId) || t.clientName || "",
+      })),
+    clients: clients.map((c) => ({ id: c.id, name: c.name || c.id })).sort((a, b) => a.name.localeCompare(b.name)),
+    quotations: quotations
+      .filter((q) => isFinishedQuotation(q) && q.status !== "Rejected")
+      .map((q) => ({
+        id: q.id, number: q.number || q.id, revision: Number(q.revision) || 1,
+        ticketId: String(q.ticketId || ""), clientId: String(q.clientId || ""),
+      })),
+    contracts: contracts.map((c) => ({
+      id: c.id, number: c.number || "", title: c.title || "", clientId: c.clientId || "",
+    })),
+  };
+}
 
 const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
 const num = (v: unknown) => {

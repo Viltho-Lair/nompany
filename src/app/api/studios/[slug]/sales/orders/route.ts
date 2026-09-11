@@ -2,7 +2,7 @@ import { route, refused } from "@/platform/http/route";
 import { requirePermission } from "@/platform/access";
 import { salesContext } from "@/modules/sales/sales";
 import {
-  listOrders, createOrder, updateOrder, moveOrder, removeOrder,
+  listOrders, createOrder, updateOrder, moveOrder, removeOrder, orderPickers,
 } from "@/modules/sales/orders";
 
 export const runtime = "nodejs";
@@ -19,7 +19,7 @@ const spec = { auth: "studio", context: salesContext, body: true, name: "crm-sal
 // forgotten; the function that does the work cannot be reached around. This
 // layer decides HTTP shape and nothing else.
 export const GET = route({ ...spec, body: false }, async (sales) => {
-  const result = await listOrders(sales);
+  const [result, pickers] = await Promise.all([listOrders(sales), orderPickers(sales)]);
   if (refused(result)) return result;
   // THE RIGHTS TRAVEL WITH THE LIST so the register draws a control only where
   // the route would accept it. `canDelete` opens the door; whether THIS order
@@ -28,6 +28,8 @@ export const GET = route({ ...spec, body: false }, async (sales) => {
   return {
     ok: true,
     orders: result.orders,
+    // What the form picks the deal, customer, quotation and contract from.
+    pickers,
     canCreate: !requirePermission(sales.access, "crmSales.orders.create"),
     canEdit: !requirePermission(sales.access, "crmSales.orders.edit"),
     canDelete: !requirePermission(sales.access, "crmSales.orders.delete"),
