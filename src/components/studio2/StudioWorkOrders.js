@@ -15,7 +15,7 @@ import { useMemo, useState } from "react";
 import nextDynamic from "next/dynamic";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
-import { panel, h2, sub, btn, btnGhost, btnRow, btnRowDanger, Empty, Dialog, fmtDate, fmtDateTime } from "@/components/studio2/ui";
+import { panel, h2, sub, btn, btnGhost, btnRow, btnRowDanger, Empty, Dialog, fmtDate, fmtDateTime, money } from "@/components/studio2/ui";
 import { Field } from "@/components/fields/Field";
 import {
   PRIORITIES, ORDER_TYPES, ORDER_MOVES, HOLD_REASONS, LABOUR_KINDS,
@@ -41,6 +41,43 @@ const STATUS_TONE = {
   Cancelled: "bg-slate-100 text-slate-500 dark:bg-white/5 dark:text-slate-400",
 };
 
+/**
+ * ISSUE OR RETURN ONE PART. A return offers only what this order kept, and
+ * the server refuses more than that anyway (`returnProblem`); an issue offers
+ * what the stores hold, with how many are on hand.
+ */
+function PartsDialog({ tr, busy, issuing, setIssuing, stockItems, order, onSend }) {
+  const returnable = (order?.parts || []).filter((l) => l.net > 0);
+  const options = issuing.direction === "issue"
+    ? stockItems.map((i) => ({ value: i.id, label: `${i.name} — ${tr.onHand(i.onHand, i.unit)}` }))
+    : returnable.map((l) => ({ value: l.itemId, label: `${l.name} — ${tr.kept(l.net, l.unit)}` }));
+  const q = Number(issuing.qty);
+  return (
+    <Dialog title={tr.partsTitle(issuing.reference)} description={tr.partsHint} onClose={() => setIssuing(null)} width="max-w-[560px]">
+      <div className="space-y-4">
+        <Field label={tr.movement} as="select" required value={issuing.direction}
+          onChange={(v) => setIssuing((s) => ({ ...s, direction: v, itemId: "" }))}
+          options={[{ value: "issue", label: tr.issue }, ...(returnable.length ? [{ value: "return", label: tr.giveBack }] : [])]} />
+        {options.length ? (
+          <Field label={tr.item} as="select" value={issuing.itemId}
+            onChange={(v) => setIssuing((s) => ({ ...s, itemId: v }))} options={options} />
+        ) : (
+          <p className="text-sm text-slate-500 dark:text-slate-400">{tr.noStockItems}</p>
+        )}
+        <Field label={tr.quantity} type="number" required value={issuing.qty}
+          onChange={(v) => setIssuing((s) => ({ ...s, qty: v }))} inputProps={{ min: 0, step: "any" }} />
+        <div className="flex justify-end gap-2">
+          <button type="button" className={btnGhost} onClick={() => setIssuing(null)}>{tr.cancel}</button>
+          <button type="button" className={btn} disabled={busy || !issuing.itemId || !(q > 0)}
+            onClick={() => onSend({ workOrderId: issuing.workOrderId, itemId: issuing.itemId, qty: q, direction: issuing.direction })}>
+            {issuing.direction === "issue" ? tr.issue : tr.giveBack}
+          </button>
+        </div>
+      </div>
+    </Dialog>
+  );
+}
+
 const pill = (on) => `rounded-full px-3 py-1 text-sm font-600 transition-colors ${on
   ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900"
   : "text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-white/5"}`;
@@ -52,6 +89,8 @@ export default function StudioWorkOrders({ slug }) {
   // Work requests.
   useLiveUpdates(slug, "maintenance-orders", reload);
   useLiveUpdates(slug, "maintenance-requests", reload);
+  // Parts are Inventory's movements, written under its stock section.
+  useLiveUpdates(slug, "inventory-stock", reload);
   const [filter, setFilter] = useState("open");
   // `layout`, not `view`: `view` is the name screens give a SECTION key, and
   // tests/restructure.mjs holds every string compared against a variable of
@@ -61,6 +100,7 @@ export default function StudioWorkOrders({ slug }) {
   const [holding, setHolding] = useState(null);
   const [completing, setCompleting] = useState(null);
   const [logging, setLogging] = useState(null);
+  const [issuing, setIssuing] = useState(null);
 
   // THE PINS: one per place that has both open work and coordinates. Memoised
   // on the data so a re-render of this screen is not a redraw of the map.
@@ -77,7 +117,11 @@ export default function StudioWorkOrders({ slug }) {
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <ScreenSkeleton loadingLabel={tr.loading} />;
 
-  const { orders = [], pickers = {}, me, asOf, failureCodes = {}, canCreate, canEdit, canDelete } = data;
+  const {
+    orders = [], pickers = {}, me, asOf, failureCodes = {}, canCreate, canEdit, canDelete,
+    canIssue, stockItems = [], currency = "",
+  } = data;
+  const amount = (n) => `${money(n || 0)}${currency ? ` ${currency}` : ""}`;
   const codeOptions = (list = [], none = "") => [{ value: "", label: none }, ...list.map((v) => ({ value: v, label: v }))];
   const open = orders.filter(orderOpen);
   const mine = open.filter((o) => (o.assignedToCollaboratorIds || []).includes(me));
@@ -260,6 +304,25 @@ export default function StudioWorkOrders({ slug }) {
                   </div>
                 )}
 
+                {/* WHAT THE REPAIR USED, off Inventory's ledger: what was kept
+                    after returns, and what it cost at issue. */}
+                {(o.parts || []).length > 0 && (
+                  <div className="mt-3">
+                    <p className="text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                      {tr.parts} · {tr.partsCost} {amount(o.partsCost)}
+                    </p>
+                    <ul className="mt-1 space-y-0.5 text-sm text-slate-600 dark:text-slate-300">
+                      {o.parts.map((l) => (
+                        <li key={l.itemId} className="flex flex-wrap gap-x-3">
+                          <span>{l.name}</span>
+                          <span className="tabular-nums">{tr.kept(l.net, l.unit)}</span>
+                          <span className="tabular-nums text-slate-400">{amount(l.cost)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
                 {(o.labour || []).length > 0 && (
                   <details className="mt-3">
                     <summary className="cursor-pointer text-sm font-600 text-slate-600 dark:text-slate-300">{tr.timeEntries(o.labour.length)}</summary>
@@ -294,6 +357,14 @@ export default function StudioWorkOrders({ slug }) {
                     <button type="button" className={btnRow} disabled={busy}
                       onClick={() => setLogging({ workOrderId: o.id, reference: o.reference, collaboratorId: me, workedOn: asOf, hours: "", kind: "work", note: "" })}>
                       {tr.logTime}
+                    </button>
+                  )}
+                  {/* PARTS ARE THE STORES' ACT: offered to somebody who may issue
+                      stock, and posted to Inventory's own route. */}
+                  {canIssue && orderEditable(o) && (
+                    <button type="button" className={btnRow} disabled={busy}
+                      onClick={() => setIssuing({ workOrderId: o.id, reference: o.reference, direction: "issue", itemId: "", qty: "" })}>
+                      {tr.issueParts}
                     </button>
                   )}
                   {canEdit && orderEditable(o) && (
@@ -378,6 +449,12 @@ export default function StudioWorkOrders({ slug }) {
             </div>
           </div>
         </Dialog>
+      )}
+
+      {issuing && (
+        <PartsDialog tr={tr} busy={busy} issuing={issuing} setIssuing={setIssuing} stockItems={stockItems}
+          order={orders.find((x) => x.id === issuing.workOrderId)}
+          onSend={async (payload) => { if (await send("POST", payload, "inventory/workorder-parts")) setIssuing(null); }} />
       )}
 
       {holding && (

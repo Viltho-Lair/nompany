@@ -35,6 +35,12 @@ export type InventoryContext = ModuleContext & {
   tasksSection: Section | null;
   /** Administration's Master data, where the locations a bin sits in live. */
   masterSection: Section | null;
+  /**
+   * MAINTENANCE'S WORK ORDERS, read (never written) so a part is issued only to
+   * an order that exists and is still open — the requisition's shape: the
+   * owner of the ledger checks the document that justifies the movement.
+   */
+  maintenanceOrdersSection: Section | null;
   canViewStock: boolean;
   canManageStock: boolean;
   canViewVendors: boolean;

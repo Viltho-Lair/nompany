@@ -9,7 +9,7 @@
 "use client";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
-import { panel, h2, sub, Empty, fmtDate } from "@/components/studio2/ui";
+import { panel, h2, sub, Empty, fmtDate, money } from "@/components/studio2/ui";
 import { useMaintenance } from "@/components/studio2/maintenanceParts";
 
 const th = "px-3 py-2 text-start text-xs font-700 uppercase tracking-wide text-slate-500 dark:text-slate-400";
@@ -20,11 +20,13 @@ export default function StudioMachines({ slug }) {
   // Every figure here is derived from the work orders, which are written
   // under Work orders — so that is the section this screen listens to.
   useLiveUpdates(slug, "maintenance-orders", reload);
+  // ...and the parts cost off Inventory's ledger.
+  useLiveUpdates(slug, "inventory-stock", reload);
 
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <ScreenSkeleton loadingLabel={tr.loading} />;
 
-  const { machines = [], canSeeMachines } = data;
+  const { machines = [], canSeeMachines, currency = "" } = data;
   const dash = <span className="text-slate-400">—</span>;
 
   return (
@@ -41,7 +43,7 @@ export default function StudioMachines({ slug }) {
       ) : (
         <section className={`${panel} p-0`}>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] text-sm">
+            <table className="w-full min-w-[940px] text-sm">
               <thead>
                 <tr className="border-b border-slate-100 dark:border-white/5">
                   <th className={th}>{tr.asset}</th>
@@ -51,6 +53,8 @@ export default function StudioMachines({ slug }) {
                   <th className={`${th} text-end`}>{tr.mttr}</th>
                   <th className={`${th} text-end`}>{tr.availability}</th>
                   <th className={`${th} text-end`}>{tr.openWorkCol}</th>
+                  <th className={`${th} text-end`}>{tr.partsCost}</th>
+                  <th className={`${th} text-end`}>{tr.hoursCol}</th>
                   <th className={th}>{tr.commonest}</th>
                 </tr>
               </thead>
@@ -74,6 +78,10 @@ export default function StudioMachines({ slug }) {
                       ) : dash}
                     </td>
                     <td className={`${td} text-end tabular-nums`}>{m.openOrders || dash}</td>
+                    <td className={`${td} text-end tabular-nums`}>
+                      {m.partsCost ? `${money(m.partsCost)}${currency ? ` ${currency}` : ""}` : dash}
+                    </td>
+                    <td className={`${td} text-end tabular-nums`}>{m.labourHours || dash}</td>
                     <td className={`${td} text-slate-600 dark:text-slate-300`}>
                       {m.topProblems?.length
                         ? m.topProblems.map((p) => `${p.problem} (${p.count})`).join("، ")

@@ -189,6 +189,33 @@ recorded has no availability rather than 100%. Downtime on two orders that overl
 — rare, and itself worth seeing. Machines are listed only to a reader who may open the equipment
 register.
 
+### Parts and cost (Phase 3, slice 2)
+
+**Parts are issued from Inventory to a work order, and returned.** The stock ledger has one
+writer (`record`), so this is **Inventory's** function and route — `moveForWorkOrder`,
+`POST /inventory/workorder-parts` — answering to `inventory.stock.edit`, the right that already
+issues a delivery note. The work-order screen posts there, the way the requisition screen posts
+its conversion to Inventory's order route; Inventory reads the work order through a foreign
+section to check it exists and is still editable (a closed order's costs are final).
+
+**The ledger is the record.** A part used is an `out` movement naming the order
+(`sourceType: "workorder"`), a part brought back an `in` movement naming it — nothing is copied
+into a second collection. An issue cannot take an item below nought; a return cannot give back
+more than the order kept (`returnProblem`, pure in `parts.ts`). No approval chain, as with a
+delivery note: parts going to authorised work is consumption, not a write-off.
+
+**The cost travels on the movement.** `MovementSchema` gained an optional `unitCost`, written
+only where a movement is charged to something: an issue snapshots the item's RECORDED unit cost
+that day, and a return is costed at what the order was charged for it, so it takes off exactly
+what the issue put on. Repricing an item later re-prices nothing already used. **It is the price
+list's figure, not FIFO's or average's** — valuation still values the shelf from receipts.
+
+Each work order shows what it kept, item by item, and its **parts cost**. **Machines** gains
+**parts cost and hours booked** over the same twelve months (`costByAsset`). Hours stay hours:
+nothing yet says what an hour costs, and multiplying by a guessed rate would be a figure nobody
+chose. **Work with parts on it cannot be deleted** (`has-parts`) — a movement naming an order
+that no longer exists is stock that left for nowhere.
+
 ### What a record points at
 
 **The machine is the Assets register's** — an engine `equipment` record, which stays filed
@@ -231,7 +258,13 @@ paths, and nothing else is accepted.
 - **Field Service's own PM plans** (the engine `planned` register, for customer-installed
   units) still raise Operations jobs through their own run; the two share the calendar
   arithmetic and nothing else.
-- **Parts.** Stock cannot be issued to a work order.
+- **Reserving parts before the work starts.** A part is issued or it is not; nothing holds
+  stock against a planned order, and a preventive plan names no parts.
+- **Posting to Finance.** No journal entry is written for parts or time; the cost is visible
+  on the order and the machine and nowhere in the ledger. There is no maintenance expense
+  account.
+- **What labour costs, and cost per machine in money beyond parts.**
+- **Bins, batches and serials on an issue.** A part leaves "unbinned" like a delivery note's.
 - **Failure codes, meters, QR tags, supplier work orders, permit gating, check-in, offline.**
 - **Moving the machine's status.** Starting work does not set the equipment record to
   "Under repair".

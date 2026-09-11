@@ -37,6 +37,9 @@ import {
   type OrderStatus,
 } from "./model";
 import { reliabilityByAsset } from "./reliability";
+import { WORKORDER_SOURCE, partsOnOrder, partsCostByOrder, costByAsset } from "./parts";
+import { balances } from "@/modules/inventory/inventory";
+import type { Item, Movement } from "@/modules/inventory/schema";
 import { valuesFor, resolveValue } from "@/modules/administration/taxonomy";
 import {
   PLAN_FREQUENCIES, SCHEDULE_MODES, PLAN_MOVES, planProblem, cleanChecklist, nextDueOnClose, planCompliance,
@@ -50,14 +53,24 @@ const Requests = repo<WorkRequest>("workRequests");
 const Orders = repo<WorkOrder>("workOrders");
 const Labour = repo<LabourEntry>("workOrderLabour");
 const Plans = repo<PmPlan>("pmPlans");
+// INVENTORY'S, READ ONLY. Every movement is written by Inventory
+// (`moveForWorkOrder`); this reads what a work order used and what is on hand.
+const StockMoves = repo<Movement>("inventoryStock");
+const StockItems = repo<Item>("inventoryItems");
 const Records = repo<EngineRecord>("engineRecords");
 const Locations = repo<Location>("locations");
 
 export const maintenanceContext = moduleContext<MaintenanceContext>({
   root: "maintenance",
   sub: { requests: "maintenance-requests", orders: "maintenance-orders", plans: "maintenance-plans" },
-  // Locations are Master data's; this reads them and owns none of them.
-  foreign: { master: ["administration-master", "administration"] },
+  // Locations are Master data's; this reads them and owns none of them. The
+  // stock ledger and the items are Inventory's, read to show what a work order
+  // used — every movement is written by Inventory (`moveForWorkOrder`).
+  foreign: {
+    master: ["administration-master", "administration"],
+    stock: ["inventory-stock", "inventory"],
+    items: ["inventory-items", "inventory"],
+  },
   flags: ["requests", "orders", "plans"],
 });
 
@@ -200,6 +213,25 @@ export async function listOrders(ctx: MaintenanceContext) {
   const refOf = new Map(requests.map((r) => [r.id, r.reference]));
   const labourOf = new Map<string, LabourEntry[]>();
   for (const e of labour) labourOf.set(e.workOrderId, [...(labourOf.get(e.workOrderId) || []), e]);
+
+  // WHAT EACH ORDER USED, off Inventory's ledger — the parts are the order's
+  // content, so they read for anybody who may open the order. The item list
+  // with what is ON HAND is offered only to somebody who may issue stock,
+  // because that is the only thing they would pick from it for.
+  const canIssue = may(ctx, "inventory.stock.edit") && Boolean(ctx.stockSection && ctx.itemsSection);
+  const stockScope = ctx.stockSection ? { studio: ctx.studio, section: ctx.stockSection } : null;
+  const [partMoves, stockItems, ledger] = await Promise.all([
+    stockScope ? StockMoves.find(stockScope, { where: { sourceType: WORKORDER_SOURCE } }) : Promise.resolve([] as Movement[]),
+    ctx.itemsSection ? StockItems.find({ studio: ctx.studio, section: ctx.itemsSection }) : Promise.resolve([] as Item[]),
+    canIssue && stockScope ? StockMoves.find(stockScope) : Promise.resolve([] as Movement[]),
+  ]);
+  const itemOf = new Map(stockItems.map((i) => [i.id, i]));
+  const itemName = (id: string) => {
+    const i = itemOf.get(id);
+    return i ? [i.sku, i.name].filter(Boolean).join(" · ") : "(removed item)";
+  };
+  const costOf = partsCostByOrder(partMoves);
+  const onHand = canIssue ? balances(ledger) : {};
   const asOf = now().slice(0, 10);
   const rank = (p: string) => PRIORITIES.indexOf(p as (typeof PRIORITIES)[number]);
 
@@ -217,6 +249,8 @@ export async function listOrders(ctx: MaintenanceContext) {
       .map((e) => ({ ...e, alias: aliasOf.get(e.collaboratorId) || "" }))
       .sort((a, b) => b.workedOn.localeCompare(a.workedOn) || b.createdAt.localeCompare(a.createdAt)),
     hoursLogged: labourTotals(labourOf.get(o.id) || []).total,
+    parts: partsOnOrder(partMoves, o.id).map((l) => ({ ...l, name: itemName(l.itemId), unit: itemOf.get(l.itemId)?.unit || "" })),
+    partsCost: costOf.get(o.id) || 0,
   })).sort((a, b) => {
     const open = (x: WorkOrder) => (["Open", "In progress", "On hold"].includes(x.status) ? 0 : 1);
     return open(a) - open(b)
@@ -236,6 +270,13 @@ export async function listOrders(ctx: MaintenanceContext) {
       causes: valuesFor("failureCauses", ctx.studio.taxonomies),
       remedies: valuesFor("failureRemedies", ctx.studio.taxonomies),
     },
+    canIssue,
+    stockItems: canIssue
+      ? stockItems
+        .map((i) => ({ id: i.id, name: itemName(i.id), unit: i.unit || "", onHand: onHand[i.id] || 0 }))
+        .sort((a, b) => a.name.localeCompare(b.name))
+      : [],
+    currency: String(ctx.studio.currency || ""),
     canCreate: may(ctx, "maintenance.orders.create"),
     canEdit: may(ctx, "maintenance.orders.edit"),
     canDelete: may(ctx, "maintenance.orders.delete"),
@@ -483,6 +524,12 @@ export async function removeOrder(ctx: MaintenanceContext, id: string) {
   // time somebody is owed for, and deleting the order would orphan it.
   const booked = await Labour.find(orderScope(ctx), { where: { workOrderId: id } });
   if (booked.length) return { error: "has-labour" };
+  // NOR WITH PARTS ON IT: the ledger names this order, and a movement pointing
+  // at an order that no longer exists is stock that left for nowhere.
+  if (ctx.stockSection) {
+    const used = await StockMoves.find({ studio: ctx.studio, section: ctx.stockSection }, { where: { sourceType: WORKORDER_SOURCE, sourceId: id } });
+    if (used.length) return { error: "has-parts" };
+  }
   await Orders.remove(orderScope(ctx), id);
   return { ok: true };
 }
@@ -503,8 +550,18 @@ export async function listMachines(ctx: MaintenanceContext) {
   if (denied) return denied;
   const asOf = now();
   if (!may(ctx, "engine.equipment.view")) return { machines: [], canSeeMachines: false, asOf };
-  const [machines, orders] = await Promise.all([equipment(ctx), Orders.find(orderScope(ctx))]);
+  const [machines, orders, partMoves, labour] = await Promise.all([
+    equipment(ctx),
+    Orders.find(orderScope(ctx)),
+    ctx.stockSection
+      ? StockMoves.find({ studio: ctx.studio, section: ctx.stockSection }, { where: { sourceType: WORKORDER_SOURCE } })
+      : Promise.resolve([] as Movement[]),
+    Labour.find(orderScope(ctx)),
+  ]);
   const stats = reliabilityByAsset(orders, asOf);
+  // WHAT EACH MACHINE COST TO KEEP RUNNING: parts off the ledger, hours off the
+  // time booked. Hours stay hours — nothing yet says what one costs.
+  const costs = costByAsset(orders, partMoves, labour, asOf);
   const nothing = {
     failures: 0, downtimeHours: 0, mttrHours: null, mtbfHours: null, availability: null,
     openOrders: 0, lastFailureAt: "", topProblems: [],
@@ -515,12 +572,13 @@ export async function listMachines(ctx: MaintenanceContext) {
     status: str(r.status, 40),
     category: str((r.values as Record<string, unknown> | undefined)?.category, 40),
     ...(stats.get(r.id) || nothing),
+    ...(costs.get(r.id) || { partsCost: 0, labourHours: 0 }),
   })).sort((a, b) =>
     // THE ONES THAT NEED LOOKING AT FIRST: most failures, then least available.
     b.failures - a.failures
     || (a.availability ?? 101) - (b.availability ?? 101)
     || a.name.localeCompare(b.name));
-  return { machines: rows, canSeeMachines: true, asOf };
+  return { machines: rows, canSeeMachines: true, asOf, currency: String(ctx.studio.currency || "") };
 }
 
 // ---- preventive plans ----------------------------------------------------------

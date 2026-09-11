@@ -158,6 +158,20 @@ type Strings = {
   noMachinesBody: string;
   cannotSeeMachines: string;
   duration: (hours: number) => string;
+  parts: string;
+  issueParts: string;
+  partsTitle: (ref: string) => string;
+  partsHint: string;
+  item: string;
+  quantity: string;
+  onHand: (n: number, unit: string) => string;
+  issue: string;
+  giveBack: string;
+  movement: string;
+  kept: (qty: number, unit: string) => string;
+  partsCost: string;
+  noStockItems: string;
+  hoursCol: string;
   refuse: Record<string, string>;
 };
 
@@ -328,6 +342,20 @@ const en: Strings = {
   noMachinesBody: "Add equipment under Assets & Equipment to see its record here.",
   cannotSeeMachines: "You cannot open the equipment register, so machines are not listed here.",
   duration: (h) => (h < 48 ? `${h} h` : `${Math.round((h / 24) * 10) / 10} d`),
+  parts: "Parts",
+  issueParts: "Parts",
+  partsTitle: (ref) => `Parts for ${ref}`,
+  partsHint: "Issuing takes the part out of stock now, at the item's recorded cost. A return puts it back at what it was issued at.",
+  item: "Item",
+  quantity: "Quantity",
+  onHand: (n, unit) => `${n} ${unit} in stock`,
+  issue: "Issue from stock",
+  giveBack: "Return to stock",
+  movement: "Movement",
+  kept: (q, unit) => `${q} ${unit}`,
+  partsCost: "Parts cost",
+  noStockItems: "Inventory has no items to issue.",
+  hoursCol: "Hours booked",
   refuse: {
     title: "Say what is wrong.",
     asset: "That machine is not in this studio's equipment register.",
@@ -359,6 +387,12 @@ const en: Strings = {
     downtime: "'Back in service' needs a time the machine went down.",
     "downtime-order": "Back in service must be after the machine went down.",
     "downtime-future": "Downtime cannot be in the future.",
+    insufficient: "There is not enough of that in stock.",
+    "over-return": "More cannot be returned than this work order was given.",
+    item: "Choose an item Inventory holds.",
+    qty: "Enter a quantity above nought.",
+    "has-parts": "Parts have been issued to this work — cancel it instead of deleting it.",
+    "no-section": "This studio has no Maintenance work orders for Inventory to issue against.",
   },
 };
 
@@ -523,6 +557,20 @@ const ar: Strings = {
   noMachinesBody: "أضف معدات في قسم الأصول والمعدات ليظهر سجلها هنا.",
   cannotSeeMachines: "لا تملك صلاحية فتح سجل المعدات، فلا تعرض الآلات هنا.",
   duration: (h) => (h < 48 ? `${h} س` : `${Math.round((h / 24) * 10) / 10} ي`),
+  parts: "القطع",
+  issueParts: "القطع",
+  partsTitle: (ref) => `قطع ${ref}`,
+  partsHint: "الصرف يخرج القطعة من المخزون الآن بتكلفة الصنف المسجلة. والإرجاع يعيدها بالتكلفة التي صرفت بها.",
+  item: "الصنف",
+  quantity: "الكمية",
+  onHand: (n, unit) => `${n} ${unit} في المخزون`,
+  issue: "صرف من المخزون",
+  giveBack: "إرجاع إلى المخزون",
+  movement: "الحركة",
+  kept: (q, unit) => `${q} ${unit}`,
+  partsCost: "تكلفة القطع",
+  noStockItems: "لا توجد أصناف في المخزون للصرف.",
+  hoursCol: "الساعات المسجلة",
   refuse: {
     title: "اذكر ما المشكلة.",
     asset: "هذه الآلة ليست في سجل معدات هذا الحساب.",
@@ -554,6 +602,12 @@ const ar: Strings = {
     downtime: "وقت العودة للعمل يحتاج وقت توقف الآلة.",
     "downtime-order": "العودة للعمل تكون بعد التوقف لا قبله.",
     "downtime-future": "لا يسجل توقف في المستقبل.",
+    insufficient: "لا يوجد ما يكفي من هذا الصنف في المخزون.",
+    "over-return": "لا يرجع أكثر مما صرف لهذا الأمر.",
+    item: "اختر صنفا موجودا في المخزون.",
+    qty: "أدخل كمية أكبر من صفر.",
+    "has-parts": "صرفت قطع لهذا العمل — ألغه بدل حذفه.",
+    "no-section": "لا توجد أوامر عمل صيانة ليصرف المخزون عليها.",
   },
 };
 

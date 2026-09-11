@@ -130,6 +130,14 @@ export const MovementSchema = z.object({
   reason: z.string().max(300),
   sourceType: z.string().optional(),
   sourceId: z.string().optional(),
+  /**
+   * WHAT A UNIT COST WHEN IT MOVED — written only where a movement is charged
+   * to something: a part issued to a Maintenance work order, at the item's
+   * recorded cost that day, and a part returned, at what it was issued at. So a
+   * repricing later re-prices nothing already used. Absent everywhere else;
+   * valuation still reads its costs from receipts, not from here.
+   */
+  unitCost: z.number().optional(),
   byCollaboratorId: z.string(),
   at: z.string(),
 });

@@ -15,6 +15,9 @@ export type MaintenanceContext = ModuleContext & {
   ordersSection: Section;
   plansSection: Section;
   masterSection: Section | null;
+  /** Inventory's ledger and items — READ ONLY here; every movement is Inventory's to write. */
+  stockSection: Section | null;
+  itemsSection: Section | null;
   canViewRequests: boolean;
   canManageRequests: boolean;
   canViewOrders: boolean;

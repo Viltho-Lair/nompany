@@ -20,6 +20,7 @@ const S = await import("@/modules/maintenance/schedule");
 const T = await import("@/modules/main/timeNotices");
 const R = await import("@/modules/maintenance/reliability");
 const X = await import("@/modules/administration/taxonomy");
+const P = await import("@/modules/maintenance/parts");
 
 let fails = 0;
 const ok = (label, cond, extra = "") => {
@@ -333,6 +334,41 @@ console.log("\n== reliability");
       downSince: "2025-01-01T00:00:00.000Z", upAt: "2025-01-03T00:00:00.000Z" },
   ], now).get("m4");
   ok("work before the window is not this year's failure", old?.failures === 0 && old?.downtimeHours === 0 && old?.availability === null);
+}
+
+console.log("\n== parts");
+{
+  const moves = [
+    { itemId: "belt", kind: "out", qty: 3, unitCost: 10, sourceType: "workorder", sourceId: "wo1", at: "2026-09-01T00:00:00.000Z" },
+    { itemId: "belt", kind: "out", qty: 1, unitCost: 14, sourceType: "workorder", sourceId: "wo1", at: "2026-09-02T00:00:00.000Z" },
+    { itemId: "belt", kind: "in", qty: 1, unitCost: 11, sourceType: "workorder", sourceId: "wo1", at: "2026-09-03T00:00:00.000Z" },
+    { itemId: "oil", kind: "out", qty: 2, unitCost: 5, sourceType: "workorder", sourceId: "wo2", at: "2026-09-01T00:00:00.000Z" },
+    { itemId: "belt", kind: "out", qty: 5, sourceType: "delivery", sourceId: "dn1", at: "2026-09-01T00:00:00.000Z" },
+  ];
+  const lines = P.partsOnOrder(moves, "wo1");
+  const belt = lines.find((l) => l.itemId === "belt");
+  ok("an order's parts are its own movements only", lines.length === 1);
+  ok("issued, returned and kept", belt?.issued === 4 && belt?.returned === 1 && belt?.net === 3);
+  // A RETURN IS COSTED AT WHAT THE ISSUE WAS, recorded on the movement.
+  ok("the kept parts cost what they were issued at, less the return", belt?.cost === 44 - 11, String(belt?.cost));
+  ok("the unit cost charged is the issues' average", P.averageIssuedCost(moves, "wo1", "belt") === 11);
+  // A WORK ORDER CANNOT GIVE BACK MORE THAN IT WAS GIVEN.
+  ok("returning what was kept is allowed", P.returnProblem(moves, "wo1", "belt", 3) === null);
+  ok("returning more than was kept is refused", P.returnProblem(moves, "wo1", "belt", 4) === "over-return");
+  ok("returning a part never issued is refused", P.returnProblem(moves, "wo1", "oil", 1) === "over-return");
+  const byOrder = P.partsCostByOrder(moves);
+  ok("cost per order", byOrder.get("wo1") === 33 && byOrder.get("wo2") === 10);
+  ok("a delivery note is not a work order's cost", !byOrder.has("dn1"));
+  const byAsset = P.costByAsset(
+    [{ id: "wo1", assetId: "m1" }, { id: "wo2", assetId: "m1" }, { id: "wo3", assetId: "m2" }],
+    moves,
+    [{ workOrderId: "wo1", hours: 2.5, workedOn: "2026-09-02" }, { workOrderId: "wo3", hours: 1, workedOn: "2025-01-01" }],
+    "2026-09-11T00:00:00.000Z",
+  );
+  ok("a machine's parts cost is its orders' parts", byAsset.get("m1")?.partsCost === 43);
+  ok("...and its hours are its orders' hours", byAsset.get("m1")?.labourHours === 2.5);
+  // HOURS OUTSIDE THE WINDOW ARE LAST YEAR'S STORY.
+  ok("time before the window is not counted", !byAsset.has("m2") || byAsset.get("m2")?.labourHours === 0);
 }
 
 console.log("\n== vocabulary");

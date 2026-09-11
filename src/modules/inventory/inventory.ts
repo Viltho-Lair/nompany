@@ -51,6 +51,11 @@ import type { Section } from "@/platform/db/sections";
 import type { Quotation, QuotationTable, QuotationLine } from "@/modules/technical/types";
 import type { Project } from "@/modules/projects/types";
 import { boqAsTables } from "@/modules/tendering/boq";
+// MAINTENANCE'S RULES, pure: whether a work order still takes parts, and what a
+// work order may give back. Read here because Inventory writes the movement.
+import { orderEditable } from "@/modules/maintenance/model";
+import { WORKORDER_SOURCE, returnProblem, averageIssuedCost } from "@/modules/maintenance/parts";
+import type { WorkOrder } from "@/modules/maintenance/schema";
 import type { BoqItem } from "@/modules/tendering/schema";
 import type { Row } from "@/platform/db/store";
 import type { Task } from "@/modules/tasks/types";
@@ -113,6 +118,8 @@ const Sheets = repo<Sheet>(SHEETS);
 const Stock = repo<Movement>(STOCK);
 const Tasks = repo<Task>(TASKS);
 const Vendors = repo<Vendor>(VENDORS);
+// Read-only, and never written from here: Maintenance owns the register.
+const WorkOrders = repo<WorkOrder>("workOrders");
 
 export const ORDER_STATUSES = ["Draft", "Ordered", "Partly received", "Received", "Cancelled"];
 export const DELIVERY_STATUSES = ["Draft", "Issued", "Cancelled"];
@@ -203,6 +210,9 @@ export const inventoryContext = moduleContext<InventoryContext>({
     // therefore nullable — a studio that does not tender simply has none.
     tenderRegister: ["tendering-register", "tendering"],
     tasks: "tasks",
+    // The work orders parts are issued to — read to check one exists and is
+    // still open. Foreign and nullable: a studio with no Maintenance has none.
+    maintenanceOrders: ["maintenance-orders"],
   },
   flags: ["stock", "vendors", "items", "sheets", "awb"],
   // Deliveries have no sub-section of their own and never had: the notes live on
@@ -638,13 +648,15 @@ export async function listMovements(
 // exactly one way for a balance to move.
 async function record(
   ctx: InventoryContext,
-  { itemId, kind, quantity, reason, sourceType = "", sourceId = "" }: {
+  { itemId, kind, quantity, reason, sourceType = "", sourceId = "", unitCost }: {
     itemId: string;
     kind: string;
     quantity: number;
     reason: string;
     sourceType?: string;
     sourceId?: string;
+    /** Only where the movement is charged to something — see MovementSchema. */
+    unitCost?: number;
   },
 ) {
   const { studio, stockSection, collaborator } = ctx;
@@ -654,6 +666,7 @@ async function record(
     qty: quantity,
     reason: str(reason, 300),
     sourceType, sourceId,
+    ...(unitCost !== undefined && Number.isFinite(unitCost) ? { unitCost } : {}),
     byCollaboratorId: collaborator.id,
     at: new Date().toISOString(),
   });
@@ -718,6 +731,72 @@ export async function adjustStock(ctx: InventoryContext, body: Record<string, un
     itemId, kind: "adjust", quantity: amount,
     reason: str(body?.reason, 300) || "Manual adjustment",
     sourceType: "adjustment",
+  });
+  return { movement };
+}
+
+/**
+ * ISSUE A PART TO A MAINTENANCE WORK ORDER, or take one back.
+ *
+ * THE STORES' ACT, SO THE STORES' RIGHT: `inventory.stock.edit`, which already
+ * issues a delivery note. Inventory writes the movement (the ledger has one
+ * writer, `record`) and reads the work order to justify it — the requisition's
+ * shape, where the owner of the ledger checks the document behind the move.
+ *
+ * - The order must exist and still be editable: a closed order's costs are
+ *   final, and a part issued to it afterwards would change a signed-off figure.
+ * - An issue cannot take an item below nought, like every other `out`.
+ * - A return cannot give back more than the order kept (`returnProblem`), and
+ *   is costed at what the order was charged for it, so it takes off exactly
+ *   what the issue put on.
+ * - The issue snapshots the item's RECORDED unit cost onto the movement, so a
+ *   repricing later re-prices nothing already used. That is the price list's
+ *   figure, not FIFO's or average's — valuation still values the shelf.
+ *
+ * NO APPROVAL CHAIN, deliberately, as with a delivery note: parts going to
+ * work the studio authorised is consumption, not a write-off, and the value
+ * travels with the order where anybody can see it.
+ */
+export async function moveForWorkOrder(ctx: InventoryContext, body: Record<string, unknown>) {
+  const denied = requirePermission(ctx.access, "inventory.stock.edit");
+  if (denied) return denied;
+  const { studio, stockSection, itemsSection, maintenanceOrdersSection } = ctx;
+  if (!maintenanceOrdersSection) return { error: "no-section" };
+
+  const workOrderId = str(body?.workOrderId, 60);
+  const itemId = str(body?.itemId, 60);
+  const direction = body?.direction === "return" ? "return" : "issue";
+  const amount = qty(body?.qty);
+  if (!amount || amount < 0) return { error: "qty" };
+
+  const [order, items, movements] = await Promise.all([
+    workOrderId ? WorkOrders.byId({ studio, section: maintenanceOrdersSection }, workOrderId) : Promise.resolve(null),
+    Items.find({ studio, section: itemsSection }),
+    Stock.find({ studio, section: stockSection }),
+  ]);
+  if (!order) return { error: "notfound" };
+  if (!orderEditable(order)) return { error: "closed" };
+  if (!items.some((i) => i.id === itemId)) return { error: "item" };
+
+  if (direction === "issue") {
+    const have = Number(balances(movements)[itemId]) || 0;
+    if (have < amount) return { error: "insufficient", have, needed: amount };
+    const movement = await record(ctx, {
+      itemId, kind: "out", quantity: amount,
+      reason: `Issued to ${order.reference}`,
+      sourceType: WORKORDER_SOURCE, sourceId: order.id,
+      unitCost: await unitCostOf(ctx, itemId),
+    });
+    return { movement };
+  }
+
+  const over = returnProblem(movements, order.id, itemId, amount);
+  if (over) return { error: over };
+  const movement = await record(ctx, {
+    itemId, kind: "in", quantity: amount,
+    reason: `Returned from ${order.reference}`,
+    sourceType: WORKORDER_SOURCE, sourceId: order.id,
+    unitCost: averageIssuedCost(movements, order.id, itemId),
   });
   return { movement };
 }
