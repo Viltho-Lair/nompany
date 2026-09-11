@@ -697,6 +697,7 @@ export const SECTION_DEFS = [
   { key: "maintenance", name: "Maintenance", children: [
     { key: "maintenance-requests", name: "Work requests" },
     { key: "maintenance-orders", name: "Work orders" },
+    { key: "maintenance-plans", name: "Preventive plans" },
   ] },
 
   // Quality widens to Quality & HSE. It keeps permits to work, which were an
@@ -914,6 +915,9 @@ export const SECTION_COLLECTIONS = {
   // Time booked against a work order lives beside the orders, so closing an
   // order and freezing its hours are one section's business.
   "maintenance-orders": ["workOrders", "workOrderLabour"],
+  // THE PLANS THAT RAISE WORK ON A CALENDAR. The orders they raise are filed
+  // under Work orders like any other, so a plan's history is read from there.
+  "maintenance-plans": ["pmPlans"],
   // A BILL OF MATERIALS' LINES, on the Manufacturing ROOT rather than under
   // the BOM engine register. The register's rows live in `engineRecords`
   // under `engine-bom`, and a collection under a section only some studios

@@ -76,6 +76,7 @@ const areas: Record<Locale, Record<string, string>> = {
     "procurement.suppliers": "الموردون",
     "maintenance.requests": "طلبات الصيانة",
     "maintenance.orders": "أوامر العمل",
+    "maintenance.plans": "الخطط الوقائية",
     "inventory.items": "الأصناف المسجلة",
     "inventory.sheets": "أوراق المشاريع",
     "logistics.shipments": "تتبع بوالص الشحن",

@@ -85,11 +85,57 @@ export const WorkOrderSchema = z.object({
   closedAt: z.string().optional(),
   cancelledAt: z.string().optional(),
   history: z.array(OrderStepSchema).optional(),
+  /** The preventive plan that raised this, or "" for work raised by a person. */
+  pmPlanId: z.string().max(60).optional(),
+  /**
+   * THE OCCURRENCE IT ANSWERS — the plan's due date when it was raised. What
+   * PM compliance is measured against, and what makes the daily run
+   * idempotent (a second run finds the order for this date and raises none).
+   */
+  pmDueOn: z.string().max(10).optional(),
+  /** The plan's checklist, copied at raising, one tick per step. */
+  checklist: z.array(z.object({ id: z.string(), label: z.string().max(200), done: z.boolean() })).optional(),
   createdByCollaboratorId: z.string(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
 export type WorkOrder = z.infer<typeof WorkOrderSchema>;
+
+/**
+ * A PREVENTIVE PLAN — work that comes round on a calendar. The daily run
+ * raises a work order from it when `nextDue` arrives (less `leadDays`), one
+ * open order at a time; see ./schedule for fixed against floating.
+ */
+export const PmPlanSchema = z.object({
+  id: z.string(),
+  studioId: z.string(),
+  sectionId: z.string(),
+  /** PM-0001. Only ever moves forward (invariant 10). */
+  reference: z.string(),
+  title: z.string().max(200),
+  description: z.string().max(4000),
+  /** preventive · inspection — a plan never raises corrective work. */
+  type: z.string(),
+  priority: z.string(),
+  assetId: z.string().max(60),
+  locationId: z.string().max(60),
+  assignedToCollaboratorIds: z.array(z.string()),
+  /** One of PLAN_FREQUENCIES — Field Service's list. */
+  frequency: z.string(),
+  /** fixed · floating. */
+  scheduleMode: z.string(),
+  nextDue: z.string().max(10),
+  leadDays: z.number(),
+  estimatedHours: z.number().nullable(),
+  /** Step labels. Each order gets its own ticked copy. */
+  checklist: z.array(z.string().max(200)),
+  /** Active · Paused · Retired. */
+  status: z.string(),
+  createdByCollaboratorId: z.string(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export type PmPlan = z.infer<typeof PmPlanSchema>;
 
 /**
  * TIME BOOKED AGAINST A WORK ORDER — its own collection rather than an array on

@@ -94,6 +94,7 @@ const SECTION_ICONS = {
   "procurement-requisitions": "requisitions",
   "maintenance-requests": "requisitions",
   "maintenance-orders": "tool",
+  "maintenance-plans": "calendar",
   "procurement-rfq": "supplierQuotes",
   "procurement-expediting": "expediting",
   "procurement-subcontracts": "subcontracts",

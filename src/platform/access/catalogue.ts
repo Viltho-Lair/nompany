@@ -199,6 +199,12 @@ const OWN_AREAS = [
     verbs: ["view", "create", "edit", "delete"] },
   { key: "maintenance.orders", group: "Maintenance", label: "Work orders",
     verbs: ["view", "create", "edit", "delete"] },
+  // PLANNING THE CALENDAR IS NOT DOING THE WORK. Whoever decides that the
+  // compressors are serviced monthly is deciding what the whole team will be
+  // sent to do for a year; a technician working the orders a plan raises needs
+  // `maintenance.orders`, not this.
+  { key: "maintenance.plans", group: "Maintenance", label: "Preventive plans",
+    verbs: ["view", "create", "edit", "delete"] },
   { key: "reports.exports", group: "Reports & BI", label: "Data exports",
     verbs: ["view"] },
   { key: "tendering.tenders", group: "Tendering & Estimating", label: "Tender register",

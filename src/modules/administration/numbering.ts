@@ -70,6 +70,7 @@ export const SERIES: readonly Series[] = Object.freeze([
   { key: "permit", prefix: "PMT", group: "Field Operations & Service", label: "Permits" },
   { key: "workRequest", prefix: "WR", group: "Maintenance", label: "Work requests" },
   { key: "workOrder", prefix: "WO", group: "Maintenance", label: "Work orders" },
+  { key: "pmPlan", prefix: "PM", group: "Maintenance", label: "Preventive plans" },
 ]);
 
 /** `dueDays` is 0 — no default due date — unless the series declares `hasDueDays`. */

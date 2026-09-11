@@ -4,7 +4,7 @@
 import type { ModuleContext } from "../context";
 import type { Section } from "@/platform/db/sections";
 
-export type { WorkRequest, WorkOrder, LabourEntry } from "./schema";
+export type { WorkRequest, WorkOrder, LabourEntry, PmPlan } from "./schema";
 
 // Generated from the spec in ./maintenance: `sub` and `foreign` become
 // `<name>Section`, `flags` become `canView<Name>`/`canManage<Name>`. A
@@ -13,9 +13,12 @@ export type { WorkRequest, WorkOrder, LabourEntry } from "./schema";
 export type MaintenanceContext = ModuleContext & {
   requestsSection: Section;
   ordersSection: Section;
+  plansSection: Section;
   masterSection: Section | null;
   canViewRequests: boolean;
   canManageRequests: boolean;
   canViewOrders: boolean;
   canManageOrders: boolean;
+  canViewPlans: boolean;
+  canManagePlans: boolean;
 };

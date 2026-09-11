@@ -101,6 +101,48 @@ jobs, gated on their own `maintenance.orders.view` — holding the rota does not
 Read there, worked here: moving a work order asks why it is on hold and what was done, and those
 questions belong to this screen, so the field view links to it rather than growing a second copy.
 
+### Preventive plans (Phase 2, slice 1)
+
+`maintenance-plans`, collection `pmPlans`, right `maintenance.plans.*` (catalogue 214 → 218),
+references `PM-0001`. Planning the calendar is not doing the work: whoever decides the
+compressors are serviced monthly decides what the team is sent to do for a year, so a
+technician working the orders needs `maintenance.orders`, not this. Custodian holds it in full,
+checker may read it.
+
+A plan is what (title, details, preventive or inspection, priority, checklist), where (machine,
+place), who (assignees), how often (Field Service's `PLAN_FREQUENCIES` — one list, so a plan can
+never carry a frequency nothing turns into a date), when it is next due, and how many days early
+to raise it (0–60). Active ⇄ Paused → Retired; a retired plan is not edited, and only a plan
+that has raised nothing deletes.
+
+**The daily run** (`modules/maintenance/pmRun`, on `cron/daily-notices` beside Field Service's
+own run and in its own `try`) raises a work order from every Active plan whose due date, less
+its lead days, has arrived. Every decision is `raiseDecision`'s, pure in `schedule.ts`:
+
+- **One open work order per plan.** A plan three quarters behind is not three identical orders
+  against one machine; the next occurrence waits and arrives already overdue, which is the honest
+  state and what compliance reports.
+- **Idempotent by the occurrence.** The order carries `pmDueOn`, the due date it answers, so a
+  second run the same day — or a crash between raising and moving the date — raises nothing twice.
+- **Fixed or floating.** A fixed plan's next due date follows the calendar and moves the moment an
+  occurrence is raised (statutory inspections). A floating plan's is the completion day plus the
+  interval and moves when the work is completed (wear items); cancelling its order skips that
+  occurrence. Only the order answering the plan's CURRENT occurrence moves it, under a function
+  patch, so a stale order finishing late never drags a plan back.
+- **The studio acts** (`system`), and assignees are told through the same notice a person sends.
+- The occurrence arithmetic is Field Service's `nextOccurrence`, imported — calendar months
+  clamped to the month's end.
+
+**The checklist is the plan.** Each order raised gets its own copy of the steps with a tick each;
+editing the plan re-words nothing already issued. Steps tick while the work is open, under a
+function patch so two technicians ticking two steps both land, and **completion is refused with a
+step unticked** (`checklist`) — a service that skipped a step nobody can now name.
+
+**PM compliance** per plan and for the studio: finished within a tenth of the interval (at least a
+day) of the date it answered, over everything that fell due. Open work past its window counts as
+late — or a plan could score 100% by never finishing anything — and cancelled work is left out.
+No history is "no history", not 0%.
+
 ### What a record points at
 
 **The machine is the Assets register's** — an engine `equipment` record, which stays filed
@@ -135,8 +177,12 @@ paths, and nothing else is accepted.
   availability yet.
 - **Working a work order from the field view.** It is listed there and moved here.
 - **Clustering on the map.** One pin per place, which is legible at a studio's scale.
-- **Preventive plans.** No schedule raises work orders; Field Service's PM plans cover
-  customer-installed units only.
+- **Reminders.** Nothing tells anybody that a work order is overdue or that a calibration
+  certificate is about to lapse — Phase 2's second slice.
+- **Meter-based and condition-based plans.** A plan runs on the calendar only.
+- **Field Service's own PM plans** (the engine `planned` register, for customer-installed
+  units) still raise Operations jobs through their own run; the two share the calendar
+  arithmetic and nothing else.
 - **Parts.** Stock cannot be issued to a work order.
 - **Failure codes, meters, QR tags, supplier work orders, permit gating, check-in, offline.**
 - **Moving the machine's status.** Starting work does not set the equipment record to

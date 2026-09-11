@@ -373,6 +373,8 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
       // THE PLANT KEEPER RUNS THE WORK ON IT: takes the fault reports and
       // dispatches the repairs on the machines this shape already books out.
       ["maintenance.requests", "full"], ["maintenance.orders", "full"],
+      // ...and keeps the calendar that sends people to them.
+      ["maintenance.plans", "full"],
     ],
   },
   {
@@ -484,7 +486,7 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
     grants: [
       ["engineeringDocs.register", "view"], ["projects.list", "view"],
       ["fieldService.tracking", "view"], ["inventory.sheets", "view"], ["crmSales.contracts", "view"],
-      ["qualityHse.permits", "view"], ["maintenance.orders", "view"],
+      ["qualityHse.permits", "view"], ["maintenance.orders", "view"], ["maintenance.plans", "view"],
     ],
     // Publishing and obsoleting are the controller's housekeeping — moving a
     // document that has ALREADY been approved by somebody else. They are not

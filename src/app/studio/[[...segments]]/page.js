@@ -149,6 +149,10 @@ const StudioWorkOrders = nextDynamic(
   () => import("@/components/studio2/StudioWorkOrders"),
   { loading: () => <ScreenSkeleton /> },
 );
+const StudioPmPlans = nextDynamic(
+  () => import("@/components/studio2/StudioPmPlans"),
+  { loading: () => <ScreenSkeleton /> },
+);
 // The purchase order register (tier 5) — see StudioPurchaseOrders.
 const StudioPurchaseOrders = nextDynamic(
   () => import("@/components/studio2/StudioPurchaseOrders"),
@@ -884,6 +888,8 @@ async function renderStudio(params) {
           ? <StudioWorkRequests slug={studio.slug} />
         : active?.key === "maintenance-orders"
           ? <StudioWorkOrders slug={studio.slug} />
+        : active?.key === "maintenance-plans"
+          ? <StudioPmPlans slug={studio.slug} />
         : active?.key === "procurement-requisitions"
           ? <StudioRequisitions slug={studio.slug} />
         : active?.key === "procurement-orders"

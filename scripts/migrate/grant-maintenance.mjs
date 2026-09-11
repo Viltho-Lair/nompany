@@ -66,7 +66,8 @@ const { listRoles, updateRole } = await import("@/modules/people/roles");
 const { listCollaborators } = await import("@/platform/auth/collaborators");
 
 const FROM = "engine.maintenance";
-const TO = ["maintenance.requests", "maintenance.orders"];
+// Plans too: whoever kept the register is who scheduled what was due.
+const TO = ["maintenance.requests", "maintenance.orders", "maintenance.plans"];
 const VERBS = ["view", "create", "edit", "delete"];
 
 const studios = ONE_STUDIO ? [{ id: ONE_STUDIO }] : await listStudios();

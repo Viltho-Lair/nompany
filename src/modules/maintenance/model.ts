@@ -50,7 +50,12 @@ export const ORDER_MOVES: Readonly<Record<OrderStatus, readonly OrderStatus[]>> 
 
 type OrderLike = {
   status?: unknown; resolution?: unknown; startedAt?: unknown; dueOn?: unknown;
+  checklist?: unknown;
 };
+
+/** Checklist items still unticked on an order — none when it has no checklist. */
+export const checklistOpen = (o: OrderLike) =>
+  (Array.isArray(o.checklist) ? o.checklist : []).filter((i) => !(i as { done?: unknown })?.done).length;
 
 const text = (v: unknown) => String(v ?? "").trim();
 const isStatus = (v: string): v is OrderStatus => (ORDER_STATUSES as readonly string[]).includes(v);
@@ -79,6 +84,9 @@ export function orderMoveProblem(
   if (!ORDER_MOVES[from].includes(next)) return "transition";
   if (next === "On hold" && !(HOLD_REASONS as readonly string[]).includes(text(given.holdReason))) return "hold-reason";
   if (next === "Completed" && !text(given.resolution) && !text(order.resolution)) return "resolution";
+  // A PLAN'S CHECKLIST IS THE PLAN. Completing with an item unticked records a
+  // service that skipped a step nobody can now name.
+  if (next === "Completed" && checklistOpen(order) > 0) return "checklist";
   return null;
 }
 

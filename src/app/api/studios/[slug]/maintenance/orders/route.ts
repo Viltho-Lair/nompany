@@ -7,7 +7,7 @@
 // rejected variation once approved itself.
 import { route, refused } from "@/platform/http/route";
 import {
-  maintenanceContext, listOrders, createOrder, editOrder, moveOrder, removeOrder,
+  maintenanceContext, listOrders, createOrder, editOrder, moveOrder, removeOrder, tickChecklist,
 } from "@/modules/maintenance/maintenance";
 
 export const runtime = "nodejs";
@@ -36,6 +36,13 @@ export const PUT = route(spec, async (m) => {
 
 export const PATCH = route(spec, async (m) => {
   if (!m.body.id) return { error: "missing" };
+  // A CHECKLIST TICK IS NOT A MOVE — a request naming a step ticks it and
+  // touches no status.
+  if (m.body.check !== undefined) {
+    const ticked = await tickChecklist(m, String(m.body.id), { check: String(m.body.check), done: m.body.done === true });
+    if (refused(ticked)) return ticked;
+    return { ok: true, workOrder: ticked.order };
+  }
   const result = await moveOrder(m, String(m.body.id), {
     status: String(m.body.status || ""),
     holdReason: String(m.body.holdReason || ""),

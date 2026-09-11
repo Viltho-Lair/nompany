@@ -94,6 +94,7 @@ export const SECTION_AREAS: Readonly<Record<string, readonly string[]>> = {
   // The root has no area of its own; it is visible when a child is.
   "maintenance-requests": ["maintenance.requests"],
   "maintenance-orders": ["maintenance.orders"],
+  "maintenance-plans": ["maintenance.plans"],
   "tendering-rates": ["tendering.rates"],
   "crm-sales-settings": ["crmSales.settings"],
   "engineering-docs-rfq": ["engineeringDocs.rfq"],

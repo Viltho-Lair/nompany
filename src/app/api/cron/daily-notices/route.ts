@@ -9,6 +9,7 @@ import { listRoles } from "@/modules/people/roles";
 import { resolveHolders } from "@/lib/studios";
 import { notifyCollaborators, NOTIFY } from "@/platform/notify/notifications";
 import { raiseDuePlanJobs } from "@/modules/operations/planJobs";
+import { raiseDuePmOrders } from "@/modules/maintenance/pmRun";
 import {
   overdueInvoiceNotices, overdueBillNotices, expiringDocumentNotices, expiringPermitNotices,
 } from "@/modules/main/timeNotices";
@@ -49,6 +50,7 @@ async function run(request: Request) {
   let sent = 0;
   let scanned = 0;
   let planJobs = 0;
+  let pmOrders = 0;
   for (const s of studios) {
     try {
       sent += await noticesForStudio(String(s.id), todayISO, todayDate);
@@ -72,8 +74,17 @@ async function run(request: Request) {
         studioId: s.id, error: err instanceof Error ? err.message : String(err),
       });
     }
+    // MAINTENANCE'S PREVENTIVE PLANS, on the same clock and in their own try,
+    // for the same reason as the line above.
+    try {
+      pmOrders += await raiseDuePmOrders(String(s.id), todayISO);
+    } catch (err) {
+      log.error("daily-notices: preventive plan orders failed", {
+        studioId: s.id, error: err instanceof Error ? err.message : String(err),
+      });
+    }
   }
-  return Response.json({ ok: true, studios: studios.length, scanned, sent, planJobs });
+  return Response.json({ ok: true, studios: studios.length, scanned, sent, planJobs, pmOrders });
 }
 
 // One studio: read what it has, work out what crosses a line today, and tell the

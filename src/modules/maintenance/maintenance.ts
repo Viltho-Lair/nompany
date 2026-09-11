@@ -33,23 +33,29 @@ import type { EngineRecord } from "@/platform/engine/schema";
 import type { Location } from "../operations/types";
 import {
   PRIORITIES, ORDER_TYPES, HOLD_REASONS, LABOUR_KINDS, orderMoveProblem, moveStamps, orderEditable, orderDeletable,
-  orderOverdue, requestState, requestProblem, labourProblem, labourTotals, quarterHours, type OrderStatus,
+  orderOverdue, orderOpen, requestState, requestProblem, labourProblem, labourTotals, quarterHours, type OrderStatus,
 } from "./model";
-import type { LabourEntry, WorkOrder, WorkRequest } from "./schema";
+import {
+  PLAN_FREQUENCIES, SCHEDULE_MODES, PLAN_MOVES, planProblem, cleanChecklist, nextDueOnClose, planCompliance,
+  type PlanStatus,
+} from "./schedule";
+import type { LabourEntry, PmPlan, WorkOrder, WorkRequest } from "./schema";
+import type { Section } from "@/platform/db/sections";
 import type { MaintenanceContext } from "./types";
 
 const Requests = repo<WorkRequest>("workRequests");
 const Orders = repo<WorkOrder>("workOrders");
 const Labour = repo<LabourEntry>("workOrderLabour");
+const Plans = repo<PmPlan>("pmPlans");
 const Records = repo<EngineRecord>("engineRecords");
 const Locations = repo<Location>("locations");
 
 export const maintenanceContext = moduleContext<MaintenanceContext>({
   root: "maintenance",
-  sub: { requests: "maintenance-requests", orders: "maintenance-orders" },
+  sub: { requests: "maintenance-requests", orders: "maintenance-orders", plans: "maintenance-plans" },
   // Locations are Master data's; this reads them and owns none of them.
   foreign: { master: ["administration-master", "administration"] },
-  flags: ["requests", "orders"],
+  flags: ["requests", "orders", "plans"],
 });
 
 const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
@@ -77,6 +83,7 @@ const hours = (v: unknown): number | null => {
 
 const requestScope = (ctx: MaintenanceContext) => ({ studio: ctx.studio, section: ctx.requestsSection });
 const orderScope = (ctx: MaintenanceContext) => ({ studio: ctx.studio, section: ctx.ordersSection });
+const planScope = (ctx: MaintenanceContext) => ({ studio: ctx.studio, section: ctx.plansSection });
 const may = (ctx: MaintenanceContext, key: PermissionKey) => !requirePermission(ctx.access, key);
 
 // ---- what a record points at ---------------------------------------------------
@@ -166,14 +173,18 @@ export async function listOrders(ctx: MaintenanceContext) {
   const denied = requirePermission(ctx.access, "maintenance.orders.view");
   if (denied) return denied;
   const canSeeRequests = may(ctx, "maintenance.requests.view");
-  const [rows, requests, people, labour] = await Promise.all([
+  const canSeePlans = may(ctx, "maintenance.plans.view");
+  const [rows, requests, people, labour, plans] = await Promise.all([
     Orders.find(orderScope(ctx)),
     // A BLOCK THE READER MAY NOT SEE IS NEVER READ: which request an order
-    // answers is shown only to somebody who may open requests.
+    // answers is shown only to somebody who may open requests, and which plan
+    // raised it only to somebody who may open plans.
     canSeeRequests ? Requests.find(requestScope(ctx)) : Promise.resolve([] as WorkRequest[]),
     listCollaborators(ctx.studio.id),
     Labour.find(orderScope(ctx)),
+    canSeePlans ? Plans.find(planScope(ctx)) : Promise.resolve([] as PmPlan[]),
   ]);
+  const planRefOf = new Map(plans.map((p) => [p.id, p.reference]));
   const { pickers, asset, location, aliasOf } = await lookups(ctx, people as Person[]);
   const refOf = new Map(requests.map((r) => [r.id, r.reference]));
   const labourOf = new Map<string, LabourEntry[]>();
@@ -188,6 +199,7 @@ export async function listOrders(ctx: MaintenanceContext) {
     assignees: (o.assignedToCollaboratorIds || []).map((id) => ({ id, alias: aliasOf.get(id) || "" })),
     createdByAlias: aliasOf.get(o.createdByCollaboratorId) || "",
     requestReference: refOf.get(o.requestId) || "",
+    planReference: planRefOf.get(o.pmPlanId || "") || "",
     overdue: orderOverdue(o, asOf),
     // Newest first, with the name beside the id — resolved live, never stored.
     labour: (labourOf.get(o.id) || [])
@@ -230,15 +242,21 @@ function orderFields(body: Record<string, unknown>) {
 }
 
 /**
- * THE ONE WRITER OF A NEW ORDER, whether raised directly or from a request —
- * two create paths would be two places to forget the reference, the history's
- * first step or the assignment notice.
+ * THE ONE WRITER OF A NEW ORDER, whether raised by a person, from a request, or
+ * by a preventive plan's daily run — three create paths would be three places to
+ * forget the reference, the history's first step or the checklist. It takes a
+ * SCOPE and an actor rather than a context because the daily run has no
+ * signed-in person: the studio acts, as `system`.
  */
-async function insertOrder(ctx: MaintenanceContext, fields: Record<string, unknown>): Promise<WorkOrder> {
-  const rows = await Orders.find(orderScope(ctx));
+export async function writeOrder(
+  scope: { studio: { id: string; numbering?: unknown }; section: Section },
+  fields: Record<string, unknown>,
+  byId: string,
+): Promise<WorkOrder> {
+  const rows = await Orders.find(scope);
   const at = now();
-  const order = await Orders.create(orderScope(ctx), {
-    reference: await nextReference(ctx.studio.id, { rows, field: "reference", ...seriesSetting("workOrder", ctx.studio.numbering) }),
+  return Orders.create(scope, {
+    reference: await nextReference(scope.studio.id, { rows, field: "reference", ...seriesSetting("workOrder", scope.studio.numbering as never) }),
     title: "",
     description: "",
     type: "corrective",
@@ -250,6 +268,9 @@ async function insertOrder(ctx: MaintenanceContext, fields: Record<string, unkno
     dueOn: "",
     estimatedHours: null,
     photos: [],
+    pmPlanId: "",
+    pmDueOn: "",
+    checklist: [],
     ...fields,
     status: "Open",
     holdReason: "",
@@ -258,30 +279,36 @@ async function insertOrder(ctx: MaintenanceContext, fields: Record<string, unkno
     completedAt: "",
     closedAt: "",
     cancelledAt: "",
-    history: [{ status: "Open", at, byCollaboratorId: ctx.collaborator.id }],
-    createdByCollaboratorId: ctx.collaborator.id,
+    history: [{ status: "Open", at, byCollaboratorId: byId }],
+    createdByCollaboratorId: byId,
     createdAt: at,
     updatedAt: at,
   });
-  await announce(ctx, order, []);
+}
+
+/** A person raising an order: write it, then tell whoever it was given to. */
+async function insertOrder(ctx: MaintenanceContext, fields: Record<string, unknown>): Promise<WorkOrder> {
+  const order = await writeOrder(orderScope(ctx), fields, ctx.collaborator.id);
+  await announce(ctx.studio.id, order, [], ctx.collaborator.id);
   return order;
 }
 
 /**
  * TELL WHOEVER WAS JUST GIVEN THE JOB — only the newly added, and never the
- * person who did the assigning: they know.
+ * person who did the assigning (`exceptId`): they know. The daily run passes no
+ * one, because nobody assigned it.
  */
-async function announce(ctx: MaintenanceContext, order: WorkOrder, before: readonly string[]) {
+export async function announce(studioId: string, order: WorkOrder, before: readonly string[], exceptId = "") {
   const added = (order.assignedToCollaboratorIds || []).filter((id) => !before.includes(id));
   if (!added.length) return;
-  await notifyCollaboratorIds(ctx.studio.id, added, {
+  await notifyCollaboratorIds(studioId, added, {
     type: NOTIFY.workOrderAssigned,
     title: "You have been assigned a work order",
     body: `${order.reference} · ${order.title}`,
     params: { reference: order.reference, title: order.title },
     href: "maintenance-orders",
     tone: "primary",
-  }, [ctx.collaborator.id]);
+  }, exceptId ? [exceptId] : []);
 }
 
 export async function createOrder(ctx: MaintenanceContext, body: Record<string, unknown>) {
@@ -323,7 +350,7 @@ export async function editOrder(ctx: MaintenanceContext, id: string, body: Recor
 
   const order = await Orders.update(orderScope(ctx), id, patch);
   if (!order) return { error: "notfound" };
-  await announce(ctx, order, current.assignedToCollaboratorIds || []);
+  await announce(ctx.studio.id, order, current.assignedToCollaboratorIds || [], ctx.collaborator.id);
   return { order };
 }
 
@@ -365,6 +392,45 @@ export async function moveOrder(ctx: MaintenanceContext, id: string, body: Recor
   });
   if (!order) return { error: "notfound" };
   if (seen.problem) return { error: seen.problem };
+  await afterPlanClose(ctx, order, next, at);
+  return { order };
+}
+
+/**
+ * A FLOATING PLAN MOVES WHEN ITS WORK IS FINISHED — completion day plus the
+ * interval, or past a cancelled occurrence (`nextDueOnClose`). Written only if
+ * the plan still points at the occurrence this order answered, under a
+ * function patch, so a plan somebody re-dated in the meantime is left alone.
+ */
+async function afterPlanClose(ctx: MaintenanceContext, order: WorkOrder, status: string, at: string) {
+  if (!order.pmPlanId || (status !== "Completed" && status !== "Cancelled")) return;
+  const plan = await Plans.byId(planScope(ctx), order.pmPlanId);
+  if (!plan) return;
+  const next = nextDueOnClose(plan, order, status, at.slice(0, 10));
+  if (!next) return;
+  await Plans.update(planScope(ctx), plan.id, (row) => (row.nextDue === plan.nextDue ? { nextDue: next, updatedAt: at } : {}));
+}
+
+/**
+ * TICK (OR UNTICK) ONE CHECKLIST STEP. A function patch over the list, so two
+ * technicians ticking two steps at once both land. Only while the work is open:
+ * a completed order's checklist is the record of what was checked.
+ */
+export async function tickChecklist(ctx: MaintenanceContext, id: string, body: Record<string, unknown>) {
+  const denied = requirePermission(ctx.access, "maintenance.orders.edit");
+  if (denied) return denied;
+  const itemId = str(body?.check, 20);
+  const done = body?.done === true || body?.done === "true";
+  const at = now();
+  const seen = { problem: null as string | null };
+  const order = await Orders.update(orderScope(ctx), id, (row) => {
+    const list = row.checklist || [];
+    seen.problem = !orderOpen(row) ? "closed" : list.some((i) => i.id === itemId) ? null : "notfound";
+    if (seen.problem) return {};
+    return { checklist: list.map((i) => (i.id === itemId ? { ...i, done } : i)), updatedAt: at };
+  });
+  if (!order) return { error: "notfound" };
+  if (seen.problem) return { error: seen.problem };
   return { order };
 }
 
@@ -381,6 +447,172 @@ export async function removeOrder(ctx: MaintenanceContext, id: string) {
   const booked = await Labour.find(orderScope(ctx), { where: { workOrderId: id } });
   if (booked.length) return { error: "has-labour" };
   await Orders.remove(orderScope(ctx), id);
+  return { ok: true };
+}
+
+// ---- preventive plans ----------------------------------------------------------
+
+const PLAN_TYPES = ["preventive", "inspection"] as const;
+
+/** The editable fields, coerced. Absent keys stay absent so an edit is a patch. */
+function planFields(body: Record<string, unknown>) {
+  const out: Record<string, unknown> = {};
+  const has = (k: string) => body?.[k] !== undefined;
+  if (has("description")) out.description = str(body.description, 4000);
+  if (has("type")) out.type = oneOf(PLAN_TYPES, body.type, "preventive");
+  if (has("priority")) out.priority = oneOf(PRIORITIES, body.priority, "normal");
+  if (has("assetId")) out.assetId = str(body.assetId, 60);
+  if (has("locationId")) out.locationId = str(body.locationId, 60);
+  if (has("assignedToCollaboratorIds")) out.assignedToCollaboratorIds = ids(body.assignedToCollaboratorIds);
+  // KEPT AS SENT, then judged by `planProblem` — coercing an unknown frequency
+  // to a default would save a plan that runs on a schedule nobody chose.
+  if (has("frequency")) out.frequency = str(body.frequency, 20);
+  if (has("scheduleMode")) out.scheduleMode = oneOf(SCHEDULE_MODES, body.scheduleMode, "fixed");
+  if (has("nextDue")) out.nextDue = day(body.nextDue);
+  if (has("leadDays")) out.leadDays = Number(body.leadDays) || 0;
+  if (has("estimatedHours")) out.estimatedHours = hours(body.estimatedHours);
+  if (has("checklist")) out.checklist = cleanChecklist(body.checklist);
+  return out;
+}
+
+/**
+ * THE PLANS, each with what it has done: the order it has open, when it was
+ * last finished, and its PM compliance. All three are DERIVED from the work
+ * orders that name the plan — read whatever the reader's rights, because they
+ * are the plan's own state; an order's REFERENCE is shown only to somebody who
+ * may open the register.
+ */
+export async function listPlans(ctx: MaintenanceContext) {
+  const denied = requirePermission(ctx.access, "maintenance.plans.view");
+  if (denied) return denied;
+  const canSeeOrders = may(ctx, "maintenance.orders.view");
+  const [rows, orders, people] = await Promise.all([
+    Plans.find(planScope(ctx)),
+    Orders.find(orderScope(ctx)),
+    listCollaborators(ctx.studio.id),
+  ]);
+  const { pickers, asset, location, aliasOf } = await lookups(ctx, people as Person[]);
+  const asOf = now().slice(0, 10);
+  let onTime = 0;
+  let total = 0;
+
+  const plans = rows.map((p) => {
+    const mine = orders.filter((o) => o.pmPlanId === p.id);
+    const open = mine.find((o) => orderOpen(o));
+    const finished = mine
+      .filter((o) => o.status === "Completed" || o.status === "Closed")
+      .map((o) => String(o.completedAt || "").slice(0, 10))
+      .filter(Boolean)
+      .sort();
+    const compliance = planCompliance(mine, p.frequency, asOf);
+    onTime += compliance.onTime;
+    total += compliance.total;
+    return {
+      ...p,
+      asset: asset(p.assetId),
+      location: location(p.locationId),
+      assignees: (p.assignedToCollaboratorIds || []).map((id) => ({ id, alias: aliasOf.get(id) || "" })),
+      openOrder: open ? { reference: canSeeOrders ? open.reference : "", status: open.status } : null,
+      lastDoneOn: finished[finished.length - 1] || "",
+      raised: mine.length,
+      compliance,
+    };
+  }).sort((a, b) => {
+    const rank = (s: string) => ["Active", "Paused", "Retired"].indexOf(s);
+    return rank(a.status) - rank(b.status) || a.nextDue.localeCompare(b.nextDue);
+  });
+
+  return {
+    plans, asOf, pickers,
+    frequencies: PLAN_FREQUENCIES,
+    compliance: { onTime, total, percent: total ? Math.round((onTime / total) * 100) : null },
+    canCreate: may(ctx, "maintenance.plans.create"),
+    canEdit: may(ctx, "maintenance.plans.edit"),
+    canDelete: may(ctx, "maintenance.plans.delete"),
+  };
+}
+
+export async function createPlan(ctx: MaintenanceContext, body: Record<string, unknown>) {
+  const denied = requirePermission(ctx.access, "maintenance.plans.create");
+  if (denied) return denied;
+  // TYPED AS A RECORD: spread over literal defaults, the coerced fields would
+  // lose their index signature and every optional one would read as absent.
+  const fields: Record<string, unknown> = { type: "preventive", priority: "normal", scheduleMode: "fixed", leadDays: 0, ...planFields(body || {}) };
+  const draft = { ...fields, title: str(body?.title, 200) };
+  const problem = planProblem(draft) || await linkProblem(ctx, {
+    assetId: String(fields.assetId || ""), locationId: String(fields.locationId || ""),
+    assignees: (fields.assignedToCollaboratorIds as string[]) || [],
+  });
+  if (problem) return { error: problem };
+
+  const rows = await Plans.find(planScope(ctx));
+  const at = now();
+  const plan = await Plans.create(planScope(ctx), {
+    reference: await nextReference(ctx.studio.id, { rows, field: "reference", ...seriesSetting("pmPlan", ctx.studio.numbering) }),
+    description: "",
+    assetId: "",
+    locationId: "",
+    assignedToCollaboratorIds: [],
+    estimatedHours: null,
+    checklist: [],
+    ...draft,
+    status: "Active",
+    createdByCollaboratorId: ctx.collaborator.id,
+    createdAt: at,
+    updatedAt: at,
+  });
+  return { plan };
+}
+
+export async function editPlan(ctx: MaintenanceContext, id: string, body: Record<string, unknown>) {
+  const denied = requirePermission(ctx.access, "maintenance.plans.edit");
+  if (denied) return denied;
+  const current = await Plans.byId(planScope(ctx), id);
+  if (!current) return { error: "notfound" };
+  if (current.status === "Retired") return { error: "retired" };
+  const patch = planFields(body || {});
+  if (body?.title !== undefined) patch.title = str(body.title, 200);
+  // JUDGED WHOLE: a patch that only changes the frequency is still a plan that
+  // must have a title and a due date afterwards.
+  const problem = planProblem({ ...current, ...patch }) || await linkProblem(ctx, {
+    assetId: patch.assetId !== undefined ? String(patch.assetId) : "",
+    locationId: patch.locationId !== undefined ? String(patch.locationId) : "",
+    assignees: (patch.assignedToCollaboratorIds as string[] | undefined) || [],
+  });
+  if (problem) return { error: problem };
+  patch.updatedAt = now();
+  const plan = await Plans.update(planScope(ctx), id, patch);
+  return plan ? { plan } : { error: "notfound" };
+}
+
+/** Pause, resume, retire — judged against the row being written. */
+export async function movePlan(ctx: MaintenanceContext, id: string, next: string) {
+  const denied = requirePermission(ctx.access, "maintenance.plans.edit");
+  if (denied) return denied;
+  const at = now();
+  const seen = { problem: null as string | null };
+  const plan = await Plans.update(planScope(ctx), id, (row) => {
+    const from = (row.status || "Active") as PlanStatus;
+    seen.problem = (PLAN_MOVES[from] || []).includes(next as PlanStatus) ? null : "transition";
+    return seen.problem ? {} : { status: next, updatedAt: at };
+  });
+  if (!plan) return { error: "notfound" };
+  if (seen.problem) return { error: seen.problem };
+  return { plan };
+}
+
+/**
+ * ONLY A PLAN THAT HAS RAISED NOTHING DELETES. Once it has, its orders name it
+ * and its compliance is history; the honest end is Retired.
+ */
+export async function removePlan(ctx: MaintenanceContext, id: string) {
+  const denied = requirePermission(ctx.access, "maintenance.plans.delete");
+  if (denied) return denied;
+  const current = await Plans.byId(planScope(ctx), id);
+  if (!current) return { error: "notfound" };
+  const raised = await Orders.find(orderScope(ctx), { where: { pmPlanId: id } });
+  if (raised.length) return { error: "has-orders" };
+  await Plans.remove(planScope(ctx), id);
   return { ok: true };
 }
 

@@ -76,6 +76,16 @@ const RESOURCES = [
     patch: (id) => ({ id, title: `Replace belt renamed ${F.rand()}` }),
     check: (row, sent) => row?.title === sent.title,
   },
+  // A plan that has raised nothing deletes — and nothing raises one inside a
+  // test, because only the daily run does.
+  {
+    name: "pmPlans",
+    module: "maintenance/plans",
+    list: (b) => b?.plans || [],
+    make: () => ({ title: `Service compressor ${F.rand()}`, frequency: "Monthly", nextDue: "2030-01-15" }),
+    patch: (id) => ({ id, title: `Service compressor renamed ${F.rand()}` }),
+    check: (row, sent) => row?.title === sent.title,
+  },
 ];
 
 const load = (m) => import(`../src/app/api/studios/[slug]/${m}/route.ts`);

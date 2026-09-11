@@ -14,6 +14,9 @@ const root = pathToFileURL(`${process.cwd()}/`).href;
 register(new URL("./loader.mjs", import.meta.url), { data: { root } });
 
 const M = await import("@/modules/maintenance/model");
+// BOTH IMPORTS AT THE TOP — see requisition-model.mjs for the Windows exit
+// code a mid-file import cost.
+const S = await import("@/modules/maintenance/schedule");
 
 let fails = 0;
 const ok = (label, cond, extra = "") => {
@@ -136,6 +139,91 @@ console.log("\n== open work by place");
   ok("only open work at a place is grouped", byPlace.get("a")?.length === 1 && byPlace.get("b")?.length === 1);
   ok("work with no place is not on the map", !byPlace.has(""));
 }
+
+console.log("\n== the checklist");
+{
+  const ticked = order({ status: "In progress", resolution: "done", checklist: [{ id: "1", label: "Grease", done: true }] });
+  const unticked = order({ status: "In progress", resolution: "done", checklist: [{ id: "1", label: "Grease", done: true }, { id: "2", label: "Belt", done: false }] });
+  ok("a fully ticked checklist completes", M.orderMoveProblem(ticked, "Completed") === null);
+  ok("AN UNTICKED ITEM REFUSES COMPLETION", M.orderMoveProblem(unticked, "Completed") === "checklist");
+  ok("...but not a hold", M.orderMoveProblem(unticked, "On hold", { holdReason: "parts" }) === null);
+  ok("no checklist is nothing open", M.checklistOpen(order()) === 0);
+}
+ok("a plan's checklist is trimmed labels", S.cleanChecklist([" Grease ", "", "Belt"]).join("|") === "Grease|Belt");
+ok("...at most forty", S.cleanChecklist(Array.from({ length: 50 }, (_, i) => `x${i}`)).length === 40);
+ok("each order gets its own unticked copy", S.checklistFor(["A", "B"]).every((i) => i.done === false) && S.checklistFor(["A", "B"])[1].id === "2");
+
+console.log("\n== a plan");
+const plan = (over = {}) => ({
+  id: "p1", title: "Service the compressor", status: "Active", frequency: "Monthly",
+  scheduleMode: "fixed", nextDue: "2026-09-15", leadDays: 0, ...over,
+});
+ok("a sound plan saves", S.planProblem(plan()) === null);
+ok("a plan needs a title", S.planProblem(plan({ title: "" })) === "title");
+// ONE LIST OF FREQUENCIES: a plan saved with one nothing can turn into a date
+// would never raise anything, silently.
+ok("a frequency nothing can schedule is refused", S.planProblem(plan({ frequency: "Fortnightly" })) === "frequency");
+ok("the frequencies are Field Service's", S.PLAN_FREQUENCIES.join(",") === "Weekly,Monthly,Quarterly,Half-yearly,Yearly");
+ok("a plan needs its first due date", S.planProblem(plan({ nextDue: "" })) === "next-due");
+ok("lead days are 0 to 60", S.planProblem(plan({ leadDays: 61 })) === "lead-days" && S.planProblem(plan({ leadDays: 60 })) === null);
+ok("paused resumes, retired is final", S.PLAN_MOVES.Paused.includes("Active") && S.PLAN_MOVES.Retired.length === 0);
+
+console.log("\n== raising");
+ok("not yet due raises nothing", S.raiseDecision(plan(), [], "2026-09-14") === null);
+{
+  const d = S.raiseDecision(plan(), [], "2026-09-15");
+  ok("due today raises the occurrence", d?.raise === true && d.occurrence === "2026-09-15");
+  // FIXED MOVES ON RAISE — the calendar holds whenever the work gets done.
+  ok("a fixed plan moves on the moment it raises", d?.next === "2026-10-15", String(d?.next));
+}
+{
+  const d = S.raiseDecision(plan({ scheduleMode: "floating" }), [], "2026-09-15");
+  // FLOATING MOVES ON COMPLETION — so raising leaves the date alone.
+  ok("a floating plan raises and waits", d?.raise === true && d.next === null);
+}
+ok("lead days raise it early", S.raiseDecision(plan({ leadDays: 3 }), [], "2026-09-12")?.raise === true);
+ok("...but not earlier than that", S.raiseDecision(plan({ leadDays: 3 }), [], "2026-09-11") === null);
+ok("a paused plan raises nothing", S.raiseDecision(plan({ status: "Paused" }), [], "2026-09-20") === null);
+// ONE OPEN ORDER PER PLAN — three quarters behind is not three orders.
+ok("an open order from the plan holds the next one back",
+  S.raiseDecision(plan({ nextDue: "2026-10-15" }), [{ pmPlanId: "p1", pmDueOn: "2026-09-15", status: "In progress" }], "2026-10-20") === null);
+ok("another plan's open order does not",
+  S.raiseDecision(plan(), [{ pmPlanId: "p2", pmDueOn: "2026-09-15", status: "Open" }], "2026-09-15")?.raise === true);
+{
+  // THE CRASH BETWEEN RAISING AND MOVING THE DATE: the order exists, the date
+  // did not move. Raise nothing, move the date.
+  const d = S.raiseDecision(plan(), [{ pmPlanId: "p1", pmDueOn: "2026-09-15", status: "Completed" }], "2026-09-15");
+  ok("an occurrence already raised is not raised again", d?.raise === false);
+  ok("...and the date still moves on", d?.next === "2026-10-15");
+}
+ok("month ends clamp (31 Jan → 28 Feb)", S.raiseDecision(plan({ nextDue: "2027-01-31" }), [], "2027-01-31")?.next === "2027-02-28");
+
+console.log("\n== a floating plan, on close");
+{
+  const fp = plan({ scheduleMode: "floating" });
+  const answering = { pmPlanId: "p1", pmDueOn: "2026-09-15" };
+  ok("completed: the completion day plus the interval", S.nextDueOnClose(fp, answering, "Completed", "2026-09-20") === "2026-10-20");
+  ok("cancelled: that occurrence is skipped", S.nextDueOnClose(fp, answering, "Cancelled", "2026-09-20") === "2026-10-15");
+  ok("a stale order does not drag the plan back", S.nextDueOnClose(fp, { pmPlanId: "p1", pmDueOn: "2026-08-15" }, "Completed", "2026-09-20") === null);
+  ok("a fixed plan is not moved on close", S.nextDueOnClose(plan(), answering, "Completed", "2026-09-20") === null);
+}
+
+console.log("\n== compliance");
+ok("the window is a tenth of the interval", S.complianceWindowDays("Monthly") === 3 && S.complianceWindowDays("Yearly") === 37);
+ok("...and at least a day", S.complianceWindowDays("Weekly") === 1);
+{
+  const c = S.planCompliance([
+    { pmDueOn: "2026-06-15", status: "Closed", completedAt: "2026-06-17T09:00:00Z" },    // inside the window
+    { pmDueOn: "2026-07-15", status: "Completed", completedAt: "2026-07-25T09:00:00Z" }, // late
+    { pmDueOn: "2026-08-15", status: "Cancelled" },                                       // decided not to do
+    { pmDueOn: "2026-09-01", status: "Open" },                                            // open, past its window
+  ], "Monthly", "2026-09-11");
+  ok("on time counts inside the window", c.onTime === 1);
+  // OPEN PAST ITS WINDOW IS LATE — or a plan could score 100% by never finishing.
+  ok("late counts late work and open overdue work", c.late === 2);
+  ok("cancelled work is left out", c.total === 3 && c.percent === 33, JSON.stringify(c));
+}
+ok("no history is not 0%", S.planCompliance([], "Monthly", "2026-09-11").percent === null);
 
 console.log("\n== vocabulary");
 ok("three kinds of time", M.LABOUR_KINDS.join(",") === "work,travel,wait");

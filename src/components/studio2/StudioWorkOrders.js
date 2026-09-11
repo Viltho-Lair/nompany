@@ -191,6 +191,7 @@ export default function StudioWorkOrders({ slug }) {
                 <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                   {tr.typeName(o.type)}
                   {o.requestReference ? ` · ${tr.fromRequest(o.requestReference)}` : ""}
+                  {o.planReference ? ` · ${tr.fromPlan(o.planReference)}` : ""}
                   {o.dueOn ? ` · ${tr.dueOn(fmtDate(o.dueOn))}` : ""}
                   {o.overdue && <span className="ms-2 font-600 text-rose-600 dark:text-rose-300">{tr.overdue}</span>}
                 </p>
@@ -211,6 +212,29 @@ export default function StudioWorkOrders({ slug }) {
                   </p>
                 )}
                 <PhotoStrip photos={o.photos} label={(n) => tr.photoAlt(o.reference, n)} />
+
+                {/* THE PLAN'S STEPS, ONE TICK EACH. Tickable while the work is
+                    open; Complete is refused with a step unticked, and the
+                    screen says so rather than offering a button that fails. */}
+                {(o.checklist || []).length > 0 && (
+                  <div className="mt-3">
+                    <p className="text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                      {tr.checklist} · {tr.checklistProgress(o.checklist.filter((i) => i.done).length, o.checklist.length)}
+                    </p>
+                    <ul className="mt-1 space-y-1">
+                      {o.checklist.map((i) => (
+                        <li key={i.id}>
+                          <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+                            <input type="checkbox" className="h-4 w-4 accent-brand-600" checked={Boolean(i.done)}
+                              disabled={busy || !canEdit || !orderOpen(o)}
+                              onChange={(e) => send("PATCH", { id: o.id, check: i.id, done: e.target.checked })} />
+                            <span className={i.done ? "text-slate-400 line-through" : ""}>{i.label}</span>
+                          </label>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
 
                 {(o.labour || []).length > 0 && (
                   <details className="mt-3">

@@ -17,6 +17,14 @@ const ISO_DAY = /^(\d{4})-(\d{2})-(\d{2})$/;
 const MONTHS: Record<string, number> = { Monthly: 1, Quarterly: 3, "Half-yearly": 6, Yearly: 12 };
 
 /**
+ * THE FREQUENCIES `nextOccurrence` CAN READ — the one list, shared by Field
+ * Service's PM register and Maintenance's preventive plans, so a plan can never
+ * be saved with a frequency nothing turns into a date.
+ */
+export const PLAN_FREQUENCIES = ["Weekly", "Monthly", "Quarterly", "Half-yearly", "Yearly"] as const;
+export type PlanFrequency = (typeof PLAN_FREQUENCIES)[number];
+
+/**
  * THE OCCURRENCE AFTER `iso` for a plan's frequency, or "" when either cannot
  * be read. Months are CALENDAR months clamped to the month's end — a plan due
  * on the 31st of January is next due on the last day of February, not in March,

@@ -107,7 +107,42 @@ type Strings = {
   note: string;
   hoursLogged: (h: number, estimate: number | null) => string;
   timeEntries: (n: number) => string;
+  plans: string;
+  plansSub: string;
+  newPlan: string;
+  editPlan: string;
+  frequency: string;
+  frequencyName: (token: string) => string;
+  scheduleMode: string;
+  modeName: (token: string) => string;
+  modeHint: string;
+  firstDue: string;
+  nextDue: string;
+  leadDays: string;
+  leadDaysHint: string;
+  checklist: string;
+  checklistHint: string;
+  checklistProgress: (done: number, total: number) => string;
+  planStatus: (token: string) => string;
+  pause: string;
+  retire: string;
+  openNow: (ref: string, status: string) => string;
+  lastDone: (day: string) => string;
+  neverDone: string;
+  complianceOf: (percent: number, n: number) => string;
+  complianceNone: string;
+  studioCompliance: (percent: number, n: number) => string;
+  fromPlan: (ref: string) => string;
+  noPlans: string;
+  noPlansBody: string;
   refuse: Record<string, string>;
+};
+
+const EN_FREQ: Record<string, string> = {
+  Weekly: "Every week", Monthly: "Every month", Quarterly: "Every quarter", "Half-yearly": "Every six months", Yearly: "Every year",
+};
+const AR_FREQ: Record<string, string> = {
+  Weekly: "كل أسبوع", Monthly: "كل شهر", Quarterly: "كل ثلاثة أشهر", "Half-yearly": "كل ستة أشهر", Yearly: "كل سنة",
 };
 
 const EN_STATUS: Record<string, string> = {
@@ -219,6 +254,34 @@ const en: Strings = {
   note: "Note",
   hoursLogged: (h, est) => (est != null ? `${h} h booked of ${est} h estimated` : `${h} h booked`),
   timeEntries: (n) => `Time booked (${n})`,
+  plans: "Preventive plans",
+  plansSub: "Work that comes round on a calendar. Each plan raises a work order when it falls due — one open at a time — and the order carries the plan's checklist.",
+  newPlan: "New plan",
+  editPlan: "Edit plan",
+  frequency: "How often",
+  frequencyName: (t) => EN_FREQ[t] || t,
+  scheduleMode: "The next date counts from",
+  modeName: (t) => ({ fixed: "The calendar (fixed)", floating: "When it was last done (floating)" }[t] || t),
+  modeHint: "Fixed keeps to the calendar whenever the work is done — for inspections due on a date. Floating counts from the day it was completed — for wear items.",
+  firstDue: "First due",
+  nextDue: "Next due",
+  leadDays: "Raise it days early",
+  leadDaysHint: "0 raises the work order on the day it is due.",
+  checklist: "Checklist",
+  checklistHint: "One step per line. Every work order gets its own copy to tick, and cannot be completed with a step unticked.",
+  checklistProgress: (d, n) => `${d} of ${n} checked`,
+  planStatus: (t) => ({ Active: "Active", Paused: "Paused", Retired: "Retired" }[t] || t),
+  pause: "Pause",
+  retire: "Retire",
+  openNow: (ref, status) => `Open now: ${ref ? `${ref} · ` : ""}${status}`,
+  lastDone: (d) => `Last done ${d}`,
+  neverDone: "Not done yet",
+  complianceOf: (p, n) => `${p}% on time over ${n}`,
+  complianceNone: "No history yet",
+  studioCompliance: (p, n) => `${p}% of planned work done on time — ${n} fallen due so far`,
+  fromPlan: (ref) => `From plan ${ref}`,
+  noPlans: "No preventive plans",
+  noPlansBody: "Add one for anything that needs doing on a schedule — a monthly service, an annual inspection.",
   refuse: {
     title: "Say what is wrong.",
     asset: "That machine is not in this studio's equipment register.",
@@ -239,6 +302,13 @@ const en: Strings = {
     date: "The date must be today or earlier.",
     "has-labour": "Time has been booked against this work — cancel it instead of deleting it.",
     "not-yours": "Only the person who booked the time, or somebody who may delete work orders, can remove it.",
+    checklist: "Tick every checklist step before completing — or put the work on hold.",
+    "checklist-long": "A checklist holds at most 40 steps.",
+    frequency: "Choose how often.",
+    "next-due": "Give the date it is first due.",
+    "lead-days": "Days early must be a whole number from 0 to 60.",
+    retired: "A retired plan is not edited.",
+    "has-orders": "This plan has raised work orders — retire it instead of deleting it.",
   },
 };
 
@@ -352,6 +422,34 @@ const ar: Strings = {
   note: "ملاحظة",
   hoursLogged: (h, est) => (est != null ? `${h} س مسجلة من ${est} س مقدرة` : `${h} س مسجلة`),
   timeEntries: (n) => `الوقت المسجل (${n})`,
+  plans: "الخطط الوقائية",
+  plansSub: "عمل يتكرر حسب جدول. كل خطة تنشئ أمر عمل عند استحقاقها — أمر مفتوح واحد في كل مرة — ويحمل الأمر قائمة تحقق الخطة.",
+  newPlan: "خطة جديدة",
+  editPlan: "تعديل الخطة",
+  frequency: "التكرار",
+  frequencyName: (t) => AR_FREQ[t] || t,
+  scheduleMode: "الموعد التالي يحسب من",
+  modeName: (t) => ({ fixed: "التقويم (ثابت)", floating: "آخر تنفيذ (متحرك)" }[t] || t),
+  modeHint: "الثابت يلتزم بالتقويم مهما كان وقت التنفيذ — للفحوص المستحقة بتاريخ. والمتحرك يحسب من يوم الإنجاز — لقطع التآكل.",
+  firstDue: "أول استحقاق",
+  nextDue: "الاستحقاق التالي",
+  leadDays: "إنشاؤه قبل الموعد بأيام",
+  leadDaysHint: "صفر ينشئ أمر العمل يوم استحقاقه.",
+  checklist: "قائمة التحقق",
+  checklistHint: "خطوة في كل سطر. كل أمر عمل يأخذ نسخته ليعلمها، ولا ينجز وفيه خطوة غير معلمة.",
+  checklistProgress: (d, n) => `${d} من ${n} مكتمل`,
+  planStatus: (t) => ({ Active: "نشطة", Paused: "موقوفة", Retired: "منتهية" }[t] || t),
+  pause: "إيقاف",
+  retire: "إنهاء",
+  openNow: (ref, status) => `مفتوح الآن: ${ref ? `${ref} · ` : ""}${status}`,
+  lastDone: (d) => `آخر تنفيذ ${d}`,
+  neverDone: "لم ينفذ بعد",
+  complianceOf: (p, n) => `${p}% في الموعد من ${n}`,
+  complianceNone: "لا يوجد سجل بعد",
+  studioCompliance: (p, n) => `${p}% من العمل المخطط أنجز في موعده — ${n} استحق حتى الآن`,
+  fromPlan: (ref) => `من الخطة ${ref}`,
+  noPlans: "لا توجد خطط وقائية",
+  noPlansBody: "أضف خطة لكل ما يحتاج تنفيذا حسب جدول — صيانة شهرية أو فحص سنوي.",
   refuse: {
     title: "اذكر ما المشكلة.",
     asset: "هذه الآلة ليست في سجل معدات هذا الحساب.",
@@ -372,6 +470,13 @@ const ar: Strings = {
     date: "التاريخ اليوم أو قبله.",
     "has-labour": "سجل وقت على هذا العمل — ألغه بدل حذفه.",
     "not-yours": "لا يحذف الوقت إلا من سجله أو من يملك صلاحية حذف أوامر العمل.",
+    checklist: "علم كل خطوات قائمة التحقق قبل الإنجاز — أو علق العمل.",
+    "checklist-long": "قائمة التحقق 40 خطوة على الأكثر.",
+    frequency: "اختر التكرار.",
+    "next-due": "حدد تاريخ أول استحقاق.",
+    "lead-days": "أيام التقديم عدد صحيح من 0 إلى 60.",
+    retired: "الخطة المنتهية لا تعدل.",
+    "has-orders": "أنشأت هذه الخطة أوامر عمل — أنهها بدل حذفها.",
   },
 };
 
