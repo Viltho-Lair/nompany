@@ -5,6 +5,7 @@ import { S, ID } from "@/platform/db/keys";
 import { emit, SCOPE, TYPE } from "@/platform/realtime/events";
 import { cascadeDeleteRole } from "@/platform/db/cascade";
 import { cleanPermissions, keysForLevel, AREAS, SCOPES, ADMIN_ROLE_ID } from "@/platform/access";
+import { CATCH_UP_IDS, catchUpFor } from "./catchUps";
 import type { Role } from "./types";
 import type { Scope, Level } from "@/platform/access";
 
@@ -111,22 +112,61 @@ export const STARTER_ROLES = [
 // Seeded lazily on first read, the same way the default plan is: a studio that
 // existed before roles did gets them the first time anybody looks, with no
 // migration to run and nothing to remember.
+//
+// AND RIGHTS CATCH UP ON THE SAME READ (12/09/2026) — see ./catchUps for what a
+// catch-up may say and the four properties that keep it safe. This is the same
+// move `plantMissingSections` made for sections the day before, for the owner's
+// reason: an update is for the whole ERP, not for whichever studio somebody
+// remembered to run a script against.
 export async function listRoles(studioId: string, locale = defaultLocale) {
   const rows = await readArr<Role>(S.roles(studioId));
-  if (rows.length) return rows;
+  if (rows.length) return catchUpRights(studioId, rows);
   const seeded = STARTER_ROLES.map((r) => ({
     ...r,
     name: starterRoleWord(locale, r.name),
     description: starterRoleWord(locale, r.description),
     studioId,
+    // Born marked, like every role created from now on: a studio seeded today
+    // holds what the product seeds it with, not that plus a list of yesterdays.
+    catchUps: [...CATCH_UP_IDS],
     createdAt: new Date().toISOString(),
   }));
   await editArr(S.roles(studioId), (cur) => ({ next: cur.length ? cur : seeded }));
   return readArr<Role>(S.roles(studioId));
 }
 
+/**
+ * THE CATCH-UP, APPLIED ONCE. Asked of the rows already read, so a studio with
+ * nothing pending — which is every studio after the first read — pays one
+ * `some()` over a handful of rows and writes nothing.
+ *
+ * INSIDE ONE COMPARE-AND-SET (invariant 8), and re-decided against the rows
+ * being written rather than the ones read: two requests arriving together both
+ * see work to do, and the second finds the first has done it and writes the same
+ * answer. The announcement re-resolves every open connection, so somebody
+ * looking at the screen when their role widens sees it without reconnecting.
+ */
+async function catchUpRights(studioId: string, rows: Role[]): Promise<Role[]> {
+  if (!rows.some((r) => catchUpFor(r))) return rows;
+  const next = await editArr<Role, Role[]>(S.roles(studioId), (cur) => {
+    const updated = cur.map((r) => {
+      const caught = catchUpFor(r);
+      return caught ? { ...r, ...caught } : r;
+    });
+    return { next: updated, result: updated };
+  });
+  await announce(studioId);
+  return next || rows;
+}
+
 export async function createRole(studioId: string, body: Record<string, unknown>) {
-  const row = { id: ID.role(), studioId, ...cleanRole(body), createdAt: new Date().toISOString() };
+  // BORN MARKED. Whoever writes a role ticks exactly what they mean; adding to
+  // it on the next read because of an entry dated last week would be ./catchUps
+  // overruling a person.
+  const row = {
+    id: ID.role(), studioId, ...cleanRole(body),
+    catchUps: [...CATCH_UP_IDS], createdAt: new Date().toISOString(),
+  };
   await editArr(S.roles(studioId), (rows) => ({ next: [...rows, row] }));
   await announce(studioId);
   return row;
@@ -149,7 +189,10 @@ export async function createRoles(studioId: string, bodies: readonly Record<stri
   if (!bodies.length) return [];
   const now = new Date().toISOString();
   const batch = bodies.map((body) => ({
-    id: ID.role(), studioId, ...cleanRole(body), createdAt: now,
+    id: ID.role(), studioId, ...cleanRole(body),
+    // Born marked, for the reason `createRole` states: a library role arrives
+    // with its archetype's rights and nothing else.
+    catchUps: [...CATCH_UP_IDS], createdAt: now,
   }));
   await editArr(S.roles(studioId), (rows) => ({ next: [...rows, ...batch] }));
   await announce(studioId);
@@ -163,7 +206,11 @@ export async function updateRole(studioId: string, id: string, body: Record<stri
     next: rows.map((r) => {
       if (r.id !== id) return r;
       if (r.wildcard) return { ...r, description: str(body?.description, 200) || r.description };
-      return { ...r, ...cleanRole({ ...r, ...body }) };
+      // THE MARKS ARE THE ROW'S, NEVER THE BODY'S. `cleanRole` shapes what a
+      // person sent and knows nothing of them, so they are carried across
+      // explicitly — an edit that dropped them would hand back, on the next
+      // read, exactly the rights this edit may have just removed.
+      return { ...r, ...cleanRole({ ...r, ...body }), catchUps: r.catchUps || [] };
     }),
   }));
   await announce(studioId);

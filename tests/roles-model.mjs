@@ -514,5 +514,46 @@ console.log("\n== no library role arrives with nothing");
     empty.length === 0, [...new Set(empty)].slice(0, 5).join(" | "));
 }
 
+// RIGHTS CATCH UP BY THEMSELVES (12/09/2026). THE DEFECTS GUARDED, each of which
+// is a way an automatic grant goes wrong: a role that held nothing being widened;
+// a right an administrator removed coming back on the next read; a role created
+// today being added to tomorrow; the write repeating on every read; and a typo in
+// the table granting a key no area declares.
+console.log("\n== rights catch up by themselves");
+{
+  const C = await import("@/modules/people/catchUps");
+  const { AREAS } = await import("@/platform/access");
+  const role = (over = {}) => ({ id: "r1", permissions: [], catchUps: [], ...over });
+
+  const kept = C.catchUpFor(role({ permissions: ["engine.maintenance.view", "engine.maintenance.edit"] }));
+  ok("whoever kept the old register takes the new section, verb for verb",
+    kept?.permissions.join() === [
+      "engine.maintenance.view", "engine.maintenance.edit",
+      "maintenance.requests.view", "maintenance.orders.view", "maintenance.plans.view",
+      "maintenance.requests.edit", "maintenance.orders.edit", "maintenance.plans.edit",
+    ].join(), JSON.stringify(kept?.permissions));
+  ok("...and is marked as asked", kept?.catchUps.join() === C.CATCH_UP_IDS.join());
+
+  // NOBODY IS WIDENED WHO HELD NOTHING — the rule can only follow a right that
+  // is already there.
+  const stranger = C.catchUpFor(role({ permissions: ["finance.cash.view"] }));
+  ok("a role that held none of it gains nothing", stranger?.permissions.join() === "finance.cash.view");
+  ok("...and is still marked, so the question is asked once", stranger?.catchUps.join() === C.CATCH_UP_IDS.join());
+
+  ok("asked already, nothing to do — so a read costs no write",
+    C.catchUpFor(role({ permissions: ["engine.maintenance.view"], catchUps: [...C.CATCH_UP_IDS] })) === null);
+  // A REMOVAL STICKS: marked, and the right taken off by hand, stays off.
+  ok("a right somebody removed does not come back",
+    C.catchUpFor(role({ permissions: ["engine.maintenance.view"], catchUps: [...C.CATCH_UP_IDS] })) === null);
+  ok("the wildcard is never written to", C.catchUpFor(role({ wildcard: true, permissions: [] })) === null);
+
+  const areas = new Set(AREAS.map((a) => a.key));
+  const bad = C.PERMISSION_CATCH_UPS.flatMap((c) => c.to.filter((a) => !areas.has(a)));
+  ok("every catch-up grants a real area", bad.length === 0, bad.join(" | "));
+  ok("every source is an area or an engine register",
+    C.PERMISSION_CATCH_UPS.every((c) => areas.has(c.from) || /^engine\.[a-z0-9]+$/.test(c.from)));
+  ok("ids are unique", new Set(C.CATCH_UP_IDS).size === C.CATCH_UP_IDS.length);
+}
+
 console.log(fails ? `\n${fails} FAILED\n` : "\nall passed\n");
 process.exit(fails ? 1 : 0);

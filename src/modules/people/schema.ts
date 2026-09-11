@@ -68,6 +68,17 @@ export const RoleSchema = z.object({
   source: z.enum(["library", "custom"]).default("custom"),
   permissions: z.array(z.string()),
   scopes: z.record(z.string(), z.enum(SCOPES)),
+  // WHICH RIGHTS CATCH-UPS THIS ROLE HAS BEEN ASKED ABOUT (./catchUps), by id.
+  //
+  // A role is marked whether or not the catch-up gave it anything, so the
+  // question is asked once rather than on every read — and, more importantly, so
+  // a right somebody DELIBERATELY REMOVED afterwards stays removed. Without the
+  // mark the next read would hand it straight back, which is a permission
+  // change nobody could undo.
+  //
+  // Optional because every role stored before 12/09/2026 predates it; absent
+  // reads as "never asked", which is exactly right for those.
+  catchUps: z.array(z.string()).optional(),
   createdAt: z.string(),
 });
 

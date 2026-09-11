@@ -362,9 +362,12 @@ paths, and nothing else is accepted.
   level there; the ten maintenance-like starter departments now list it.
 - **Every studio gets the section** — new ones at creation, existing ones the first time they
   are opened after the deploy (`listSections` plants what is missing, 11/09/2026). The owner and
-  Admins see it at once. **Other roles need `scripts/migrate/grant-maintenance.mjs`** (gives
-  roles holding `engine.maintenance.V` the same verb on the Maintenance areas; dry-run by
-  default), because a role's rights are never widened without somebody choosing to. **Not run.**
+  Admins see it at once. **Every other role catches up by itself** (12/09/2026): a role holding
+  `engine.maintenance.V` — whoever kept the old register under Assets — gains the same verb on
+  the three Maintenance areas, once, on the first read after the deploy, in every studio
+  (`modules/people/catchUps.ts`; `roles.md` is the file). A role that held none of it gains
+  nothing, and a right an administrator removes afterwards stays removed.
+  `scripts/migrate/grant-maintenance.mjs` is superseded and kept only for reading one studio.
 - **Service contracts need nothing run**: they answer to `projects.sla`, which every role that
   had the Projects SLA screen already holds.
 - **The fold ran against live, 12/09/2026** — dry run, apply, and a second dry run finding

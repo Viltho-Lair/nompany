@@ -1305,12 +1305,25 @@ suggestion offers switching an unwanted one off. **Any NEW product surface is he
 standard: it must reach existing studios without a script.** Where something cannot (widening
 roles, below), say so before building it.
 
-**ROLES DO NOT CATCH UP, and that is the half this does not solve.** `STARTER_ROLES` seeds only
-when a studio has ZERO roles (`listRoles`: `if (rows.length) return rows`), so a right added to
-the Manager role never reaches an existing studio. The OWNER never notices —
-`effectivePermissions` short-circuits on `role === "owner"` — which is exactly why it goes
-unseen. `grant-administration.mjs` is the pattern; there is no equivalent yet for
-`crmSales.pipeline`, `crmSales.contracts` or `tendering.tenders`.
+**RIGHTS CATCH UP BY THEMSELVES TOO — the owner's rule, 12/09/2026: "if ANY update takes place
+it is for the whole ERP, we do not update single studios or one by one studios."** This
+paragraph said the opposite ("ROLES DO NOT CATCH UP"), and the answer each time was a script run
+per studio by hand — `grant-administration.mjs`, `grant-permits.mjs`, `grant-maintenance.mjs` —
+which the owner never chose. `modules/people/catchUps.ts` is the declared, dated table and
+`listRoles` applies it on read, once per role, in every studio.
+
+**A CATCH-UP MAY ONLY SAY ONE THING: a role that ALREADY HOLDS right X gains right Y, verb for
+verb.** It cannot invent access for a role that held none. Four properties keep it safe, each
+written down in that file because each is a way it goes wrong: a role is marked when ASKED
+(so the read is free afterwards AND a right somebody deliberately removes stays removed), a role
+created from now on is born marked (this file never overrules a person), and the wildcard is
+skipped. **Add an entry when a right ships that an existing role should have; never edit one
+that has shipped** — its id is stored on every role already asked, so a new id is how a second
+thought travels.
+
+**What still does not catch up:** a person's INDIVIDUAL overrides (the scripts reported them
+for a human to handle, and that is unchanged), and a new right with no predecessor to key off —
+`tendering.tenders` had none, so nothing can say who should hold it.
 
 **THE STRANDED-TENDERS INCIDENT, kept because it is why planting must be EARLY:** a
 sub-section FALLS BACK TO THE ROOT when absent — which is what makes every module context safe —

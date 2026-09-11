@@ -272,8 +272,46 @@ their own leave. Existing studios keep what they have until
 holding `hr.vacations.approve` and never an area a studio already scoped. **It has not been
 run, against live or in the sandbox.**
 
+## Rights catch up by themselves (12/09/2026)
+
+**The owner's rule:** *"if ANY update takes place it is for the whole ERP, we do not update
+single studios or one by one studios."* `STARTER_ROLES` seeds only into an empty list, so a
+right added to the product reached no role that already existed, and the answer each time was a
+script — `grant-administration.mjs`, `grant-permits.mjs`, `grant-maintenance.mjs` — run per
+studio by hand if anybody remembered. Sections stopped needing that on 11/09/2026; rights
+stopped needing it here.
+
+`modules/people/catchUps.ts` is a dated table, and `listRoles` applies it on read: one
+compare-and-set for a studio with something pending, nothing at all for one without.
+
+**A catch-up may say exactly one thing: a role that ALREADY HOLDS right X gains right Y, verb
+for verb.** It cannot invent access for a role that held none — whoever kept the old register
+keeps the new one, and nobody else is widened. That is the rule the three scripts applied,
+written where the product can run it.
+
+Four properties, each a way it would otherwise go wrong:
+
+- **Once per role.** A role is marked when it is ASKED, whether or not it gained anything, so
+  every later read is free.
+- **A removal sticks.** Marked means asked, so a right an administrator takes off a role is not
+  handed back on the next read. Without it this would be a permission change nobody could undo.
+- **A new role is born marked.** Somebody creating a role ticks what they mean; adding to it
+  tomorrow because of an entry dated yesterday would overrule them. `updateRole` carries the
+  marks off the ROW, never the request body.
+- **The wildcard is skipped.** Admin holds everything by construction.
+
+**One entry today**: `engine.maintenance.V` → `maintenance.requests`, `maintenance.orders` and
+`maintenance.plans` at the same verb (the Assets register became the Maintenance section).
+`tests/roles-model.mjs` asserts the rule, that every area named is real, and that ids are unique.
+**Never edit an entry that has shipped** — its id is stored on every role already asked, so a
+changed entry reaches nobody; a new id is how a second thought travels.
+
 ## Not built yet
 
+- **A person's individual overrides do not catch up.** The catch-up reaches ROLES; somebody
+  granted a right on their own row is still a person's job, which is what the scripts reported.
+- **A right with no predecessor cannot catch up.** `tendering.tenders` was new to the product
+  with nothing to key off, so nothing can say which existing role should hold it.
 - **Access is not constrained by department**, deliberately. A department's
   `sectionKeys` shapes what a pre-built role is copied with and nothing else —
   the grid still offers every key.

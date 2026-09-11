@@ -1,6 +1,15 @@
 // ONE-OFF GRANT BACKFILL (CLI) — the Maintenance rights, for the roles that
 // kept the maintenance register under Assets.
 //
+// SUPERSEDED, 12/09/2026, AND KEPT ONLY FOR READING ONE STUDIO. The product does
+// this by itself now: `modules/people/catchUps.ts` carries the same rule
+// (engine.maintenance.V → the three Maintenance areas at V) and `listRoles`
+// applies it once per role, in every studio, on the first read after the deploy.
+// The owner's rule — "any update is for the whole ERP, we do not update studios
+// one by one" — is why a script is no longer the answer. Running this changes
+// nothing a read has not already done; its dry run is still a way to SEE which
+// roles are affected in one studio.
+//
 // Until 11/09/2026 the only maintenance record was the engine's `maintenance`
 // register under Assets & Equipment, governed by `engine.maintenance.*`. The
 // Maintenance section brings `maintenance.requests.*` and `maintenance.orders.*`,
