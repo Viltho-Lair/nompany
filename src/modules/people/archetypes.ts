@@ -23,7 +23,9 @@
 // STARTER_ROLES uses. A literal list here would be a second copy of the
 // catalogue's verb ladder, free to disagree with it about what "edit" means.
 
-import { AREAS, keysForLevel, type Level } from "@/platform/access";
+import { AREAS, SECTION_AREAS, keysForLevel, type Level } from "@/platform/access";
+import { SECTION_DEFS, isSystemSection } from "@/platform/db/keys";
+import { NEVER_GATED_KEYS } from "@/shared/tradeSections";
 
 export type ArchetypeId =
   | "principal" | "department-head" | "winner-of-work" | "bidder" | "deliverer"
@@ -66,6 +68,19 @@ export type Archetype = {
    * are named; an unscoped area ignores this.
    */
   scopes?: Readonly<Partial<Record<string, "own" | "department" | "all">>>;
+  /**
+   * THE LEVEL THIS SHAPE HOLDS ACROSS ITS OWN DEPARTMENT'S SECTIONS, on top of
+   * whatever `grants` already names there. Without it the shape and the
+   * department simply fail to meet: `doer` names no Tendering right, so an
+   * Estimator filed under Estimation arrived able to open nothing in
+   * Estimation. See `permissionsInDepartment`.
+   */
+  home?: Level;
+  /**
+   * RUNS THE WHOLE COMPANY, so it is never confined to one department's
+   * sections — the owner's decision, 11/09/2026. Only `principal`.
+   */
+  companyWide?: boolean;
 };
 
 // AN AREA A GRANT NAMES MUST EXIST, so a typo throws at import rather than
@@ -80,6 +95,7 @@ const level = (areaKey: string, lvl: Level): string[] => {
 export const ARCHETYPES: readonly Archetype[] = Object.freeze([
   {
     id: "principal",
+    companyWide: true,
     // EVERY SECTION'S REGISTERS, which is the same sentence as "every area at
     // full" one line down and has to be said separately because an engine right
     // is not in AREAS. Without it the person who runs the company could open
@@ -127,6 +143,7 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
   },
   {
     id: "department-head",
+    home: "full",
     // THEIR DEPARTMENT AND EVERYTHING UNDER IT (`subtreeIds`), which is what
     // "head of department" means — see `scopes` on the type.
     scopes: { "hr.employees": "department", "hr.vacations": "department", "hr.attendance": "department" },
@@ -188,6 +205,7 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
   },
   {
     id: "winner-of-work",
+    home: "edit",
     note: "Sales Manager, BD Manager, Key Account Manager, Relationship Manager.",
     grants: [
       ["crmSales.tickets", "full"], ["crmSales.clients", "full"], ["crmSales.quotations", "edit"],
@@ -207,6 +225,7 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
   },
   {
     id: "bidder",
+    home: "edit",
     note: "Estimator, Tendering Engineer, Bid Manager, Quantity Surveyor. Prices the work.",
     // "May price a bid" and "may commit the company to it" are different
     // powers — the split tendering.tenders.approve already makes — so a bidder
@@ -218,6 +237,7 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
   },
   {
     id: "deliverer",
+    home: "edit",
     // THE PERSON DELIVERING THE WORK owns the registers the work runs through
     // and reads the ones that constrain it. Quality is `edit` rather than
     // `full`: a project manager raises an NCR and files a test record, and
@@ -266,6 +286,7 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
   },
   {
     id: "front-line",
+    home: "edit",
     // A SUPERVISOR SEES THEIR CREW'S LEAVE AND MARKS THEIR CREW IN — the daily
     // sweep the attendance area's own comment describes ("a supervisor marks
     // their own team every morning"). Scoped to the department, never wider.
@@ -301,6 +322,7 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
   },
   {
     id: "doer",
+    home: "edit",
     // WHOEVER DOES THE WORK FILES THE RECORD OF IT. `edit` on the two
     // registers a technician actually writes in — the job they attended and the
     // test they ran — and view elsewhere. This is the shape most people in a
@@ -320,6 +342,7 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
   },
   {
     id: "custodian",
+    home: "edit",
     // THE STORE KEEPER'S REGISTERS. Stocktakes are the control this shape
     // exists to run, and the equipment, maintenance and calibration registers
     // are the stores' other half — what is owned, what is due, what is still in
@@ -349,6 +372,7 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
   },
   {
     id: "buyer",
+    home: "edit",
     // PROCUREMENT WATCHES WHAT ARRIVES rather than filing it. View on the
     // delivery and fleet registers and on the stores'; nothing here is a buyer's
     // to write, and a register they cannot open is one they cannot chase.
@@ -396,6 +420,7 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
   },
   {
     id: "money",
+    home: "edit",
     note: "Financial Controller, Chief Accountant, Bursar, Hotel Controller.",
     grants: [
       ["finance.cash", "full"], ["finance.payables", "full"], ["finance.assets", "full"],
@@ -429,6 +454,9 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
   },
   {
     id: "checker",
+    // An inspector READS the work in their own sections; what they write is
+    // named above, on the registers they keep.
+    home: "view",
     // THE SHAPE QUALITY & HSE WAS BUILT FOR. Full on its eight registers —
     // an auditor who cannot close an audit is not an auditor — and view on the
     // operational ones they inspect, because an inspector reads the work order
@@ -532,6 +560,133 @@ const ENGINE_LEVEL_VERBS: Record<Level, readonly string[]> = {
 };
 
 export const isArchetypeId = (v: unknown): v is ArchetypeId => byId.has(v as ArchetypeId);
+
+// ---- confining a shape to a department's sections --------------------------
+//
+// AN ARCHETYPE IS A SHAPE ACROSS THE WHOLE PRODUCT, and a role is a job in ONE
+// department. Copied whole, a "doer" filed under Estimation arrived holding
+// CRM tickets, the project list and the inventory items, and a department head
+// under Finance arrived running Manufacturing's registers — sections that
+// department never said it works in. The owner's rule, 11/09/2026: a role
+// starts with its department's own sections, and anything wider is granted
+// afterwards on the Access screen, deliberately.
+//
+// THIS IS A DEFAULT, NOT A CEILING. It decides what a library role is COPIED
+// with and nothing else: the Access grid still offers every key in every group,
+// and a department's `sectionKeys` still decides nothing about what a role may
+// be GIVEN. That is the line roles.md draws, and this keeps it.
+
+// A child's root, read from SECTION_DEFS rather than from the key's punctuation:
+// `engineering-docs-rfq` and `engineering-docs-live` sit under CRM & Sales.
+const ROOT_OF = new Map<string, string>();
+for (const d of SECTION_DEFS) {
+  ROOT_OF.set(d.key, d.key);
+  for (const c of d.children || []) ROOT_OF.set(c.key, d.key);
+}
+const rootOf = (key: string) => ROOT_OF.get(key) || key;
+
+// Area → the roots whose screens it opens. An area can answer for sections in
+// two departments — `inventory.stock` places purchase orders under Procurement
+// as well as moving stock under Inventory — and either one keeps it.
+const AREA_ROOTS = new Map<string, Set<string>>();
+for (const [sectionKey, areas] of Object.entries(SECTION_AREAS)) {
+  for (const area of areas) {
+    const roots = AREA_ROOTS.get(area) || new Set<string>();
+    roots.add(rootOf(sectionKey));
+    AREA_ROOTS.set(area, roots);
+  }
+}
+
+// Main and Tasks are not sections, so no department lists them and nothing
+// filed under them is another department's work.
+const NOT_A_SECTION = new Set<string>(NEVER_GATED_KEYS);
+
+// A SCOPED AREA IS KEPT WHATEVER THE DEPARTMENT, because it never reaches
+// another department's records: unscoped it falls back to `own`, and the
+// widest scope an archetype gives is `department`. It is also how everybody
+// asks for their own leave (`requestVacation` guards on hr.vacations.create) —
+// stripping it would leave a site engineer unable to book a day off.
+const SCOPED = new Set(AREAS.filter((a) => a.scoped).map((a) => a.key));
+
+/**
+ * The keys that fall inside these sections — or inside none at all.
+ *
+ * `sectionKeys` is a department's own list, roots or children alike. An engine
+ * key follows its register's section, read off `types`; a register this studio
+ * does not hold is dropped rather than guessed at.
+ */
+function confineToSections(
+  keys: readonly string[],
+  sectionKeys: readonly string[],
+  types: ReadonlyArray<{ key: string; parentSectionKey: string }> = [],
+): string[] {
+  const allowed = new Set(sectionKeys.map(rootOf));
+  const typeRoot = new Map(types.map((t) => [t.key, rootOf(t.parentSectionKey)]));
+  return keys.filter((k) => {
+    const area = k.slice(0, k.lastIndexOf("."));
+    if (k.startsWith("engine.")) {
+      const root = typeRoot.get(area.slice("engine.".length));
+      return !!root && allowed.has(root);
+    }
+    if (SCOPED.has(area)) return true;
+    const roots = AREA_ROOTS.get(area);
+    if (!roots) return true;
+    for (const r of roots) if (allowed.has(r) || NOT_A_SECTION.has(r)) return true;
+    return false;
+  });
+}
+
+// THE HOME LEVEL NEVER OPENS A DOOR. Three kinds of area are left to whatever
+// the shape names explicitly (for every shape but principal, that is nothing):
+//   *.settings            a section's configuration, not a job in it — the
+//                         same nine areas tests/roles-model.mjs counts as
+//                         principal-only;
+//   Administration        not a section (the owner, 09/09/2026), and its Master
+//                         data holds the department tree whose `parentId`
+//                         widens a manager's reach — a receptionist given it by
+//                         default is invariant 5 through a side door;
+//   and so Access and People with it, which decide who may do what.
+const homeGrantable = (areaKey: string, roots: ReadonlySet<string>) =>
+  !areaKey.endsWith(".settings") && ![...roots].some(isSystemSection);
+
+/**
+ * WHAT A LIBRARY ROLE ARRIVES WITH in a department working in `sectionKeys`.
+ *
+ * Two halves, and both are confined to the department:
+ *   — the shape's own named rights that fall inside its sections (plus what
+ *     belongs to no section, and the scoped HR areas — `confineToSections`);
+ *   — the shape's `home` level on EVERY area and register of those sections,
+ *     so the shape and the department always meet.
+ * `principal` is exempt and keeps its whole shape (`companyWide`).
+ *
+ * A DEFAULT, NOT A CEILING: the Access screen widens it afterwards.
+ */
+export function permissionsInDepartment(
+  id: string,
+  sectionKeys: readonly string[],
+  types: ReadonlyArray<{ key: string; parentSectionKey: string }> = [],
+): string[] {
+  const archetype = byId.get(id as ArchetypeId);
+  if (!archetype) return [];
+  const shape = permissionsFor(id, types);
+  if (archetype.companyWide) return shape;
+
+  const out = new Set(confineToSections(shape, sectionKeys, types));
+  const home = archetype.home;
+  if (home) {
+    const allowed = new Set(sectionKeys.map(rootOf).filter((r) => !isSystemSection(r)));
+    for (const area of AREAS) {
+      const roots = AREA_ROOTS.get(area.key);
+      if (!roots || !homeGrantable(area.key, roots)) continue;
+      if ([...roots].some((r) => allowed.has(r))) for (const k of keysForLevel(area, home)) out.add(k);
+    }
+    for (const t of types) {
+      if (!allowed.has(rootOf(t.parentSectionKey))) continue;
+      for (const verb of ENGINE_LEVEL_VERBS[home]) out.add(`engine.${t.key}.${verb}`);
+    }
+  }
+  return [...out];
+}
 
 /**
  * WELL-FORMEDNESS, asserted rather than assumed — the same shape as

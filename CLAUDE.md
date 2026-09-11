@@ -1464,10 +1464,10 @@ studio, and it adds NO permission key — the catalogue stays at 159.
 does; a department is how a company is arranged, and a contractor has no "Reports & BI"
 department. Departments are their own collection under Administration — Master data now,
 seeded per field of work, with a parent and a manager. **A department's `sectionKeys` grants
-NOTHING** — it decides where a role is listed and what it is for, never what it may reach.
-That line is held on both screens deliberately: constraining the permission grid by a
-department's sections would be a second mechanism deciding access, free to disagree with the
-roles that already decide it.
+NOTHING** — it decides where a role is listed, what it is for, and what a PRE-BUILT role is
+copied with (below), never what any role may reach. That line is held on both screens
+deliberately: constraining the permission grid by a department's sections would be a second
+mechanism deciding access, free to disagree with the roles that already decide it.
 
 **A studio no longer starts with five generic roles.** `STARTER_ROLES` is Admin alone. The
 five existed for a good reason that has not gone away — an empty permission grid is where
@@ -1486,6 +1486,15 @@ staled 2,900 hand-written lists SILENTLY, surfacing only as somebody holding the
 reason. **`principal` is not a wildcard**: the model allows exactly one and it is Admin, so
 principal is every area at full deliberately WITHOUT `administration.access`. Running the
 company and deciding who may do what are different acts.
+
+**AND A LIBRARY ROLE STARTS INSIDE ITS DEPARTMENT'S OWN SECTIONS** — the owner's rule,
+11/09/2026 (`permissionsInDepartment`, `modules/people/archetypes.ts`). Copied whole, an
+archetype put CRM, Projects and Inventory on an Estimator filed under Estimation. Now: the
+shape's named rights inside the department's sections, plus the shape's HOME level on every
+area there (never a `*.settings` area, never Administration), plus Tasks and the scoped HR
+areas (own leave). **`principal` is exempt.** `permissionsForLibraryRole` REQUIRES
+`sectionKeys` — a defaulted one would be the old bug for whoever forgot it. Roles that already
+exist keep their unconfined shape; nothing narrows them.
 
 **Two bugs worth the space, both invisible to every gate.** `listRoles` seeds the starter role
 only into an EMPTY list, so creating a department's roles first left a studio with a hundred

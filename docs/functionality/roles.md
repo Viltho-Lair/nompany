@@ -32,9 +32,11 @@ all. It has one now.
 | `departmentId` | `""` for studio-wide. Admin is the only seeded one. |
 | `source` | `library` — copied from the catalogue, arrived with access. `custom` — typed, started empty. |
 
-**A role's department decides where it is LISTED and what it is FOR. It does not
-decide what the role may reach**, and it does not decide who may hold it. That
-separation is what lets a department's `sectionKeys` go on granting nothing.
+**A role's department decides where it is LISTED, what it is FOR, and what a
+pre-built role STARTS with. It does not decide what the role may reach**, and it
+does not decide who may hold it: the Access screen can give any role any key.
+That separation is what lets a department's `sectionKeys` go on granting nothing
+to anybody — it shapes a default that is copied once, never a limit.
 
 **One role, one department.** The same name in two departments is two rows, and
 that is the point: a Manager in Finance and a Manager in Site Execution can hold
@@ -138,6 +140,40 @@ rights and nothing else can do is invent a title that grants nothing.
 archetype later — or shipping a corrected one — reprices nothing already
 created. The same rule a BOQ rate follows, and for the same reason.
 
+**And only inside its own department's sections** (`permissionsInDepartment`
+in `modules/people/archetypes.ts`) — the owner's rule, 11/09/2026. An archetype
+is a shape across the whole product, and copied whole it put CRM tickets, the
+project list and the inventory items on an Estimator filed under Estimation.
+Anything wider is granted afterwards on the Access screen. What a library role
+gets is two halves, both confined to the sections its department lists:
+
+- **What its shape names that falls inside those sections**, plus three kinds of
+  right that are nobody's section: what belongs to no section at all (the
+  engagements view), Tasks, and the scoped HR areas — `hr.employees`,
+  `hr.vacations`, `hr.attendance`. A scoped area only ever reaches the holder's
+  own records or their department's, and `hr.vacations.create` is how anybody
+  books their own leave.
+- **Its shape's home level on every area and register in those sections** —
+  `full` for a department head, `view` for a checker, `edit` for the rest. This
+  is what makes the shape and the department meet: `doer` names no Tendering
+  right, so without it an Estimator arrived able to open nothing in Estimation.
+  The home level never grants a `*.settings` area and never grants anything in
+  Administration (Access, People, Master data, Studio settings), which decide
+  who may do what rather than being a job.
+
+A section's root is read from `SECTION_DEFS`, never from the key's prefix:
+`engineering-docs-rfq` sits under CRM & Sales.
+
+**`principal` is exempt** — Managing Director, CEO — because it runs the whole
+company; it keeps every area, still without `administration.access`.
+
+**Measured 11/09/2026, across the 2,237 roles the 25 starter charts seed: 26
+arrive with nothing.** All sit in the Administration department, and 24 of them
+are a Chief Financial Officer the generated library files under Administration
+rather than Finance (the `money` shape names nothing in Administration). An
+empty role grants nothing, so this is safe; the fix is a generator hint and a
+regenerate, not an edit here.
+
 That door may hand out access when the other refuses to, because **HR chooses
 which pre-built job to add, not what it may do.** The shape was decided by the
 catalogue before the studio existed, and an administrator adjusts the row
@@ -214,7 +250,17 @@ run, against live or in the sandbox.**
 ## Not built yet
 
 - **Access is not constrained by department**, deliberately. A department's
-  `sectionKeys` still grants nothing.
+  `sectionKeys` shapes what a pre-built role is copied with and nothing else —
+  the grid still offers every key.
+- **Roles that already exist keep their old, unconfined shape.** The copy rule
+  holds: the department filter reaches only roles created from now on (new
+  departments, and HR → Roles → Add pre-built). No script narrows the roles
+  existing studios already hold, and one would be removing access from live
+  roles, which is a decision for a person.
+- **Changing a department's sections re-shapes nothing.** Adding Finance to a
+  department later does not give its existing roles Finance.
+- **26 seeded roles arrive empty** (see above) until the library's department
+  mapping is corrected for the CFO and two Administration checkers.
 - **No role hierarchy.** A role does not report to another role; only
   departments have a parent.
 - **No approval routing by role or by department manager.** The manager is

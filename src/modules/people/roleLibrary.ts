@@ -16,7 +16,7 @@
 // holds both mappings as reviewable data and prints a report — see
 // scripts/generate/role-library.mjs.
 
-import { isArchetypeId, permissionsFor, scopesFor, type ArchetypeId } from "./archetypes";
+import { isArchetypeId, permissionsInDepartment, scopesFor, type ArchetypeId } from "./archetypes";
 import { LIBRARY_DATA } from "./roleLibraryData";
 
 export type LibraryRole = {
@@ -90,11 +90,20 @@ export const findLibraryRole = (name: string, industry: string, department: stri
  * Named here rather than called inline so the copy rule has one home: editing
  * an archetype later must reprice nothing already created, which is the rule a
  * BOQ rate follows and for the same reason.
+ *
+ * CONFINED TO THE DEPARTMENT'S OWN SECTIONS (`permissionsInDepartment`), which
+ * is why `sectionKeys` is required rather than defaulted: a caller that forgot
+ * it would hand out the whole archetype again, across sections the department
+ * never named — the exact defect this parameter exists to close. A department
+ * with no sections (Legal) gets only what belongs to no section.
  */
 export const permissionsForLibraryRole = (
   entry: LibraryRole,
-  types: ReadonlyArray<{ key: string; parentSectionKey: string }> = [],
-): string[] => permissionsFor(entry.archetype, types);
+  { sectionKeys, types = [] }: {
+    sectionKeys: readonly string[];
+    types?: ReadonlyArray<{ key: string; parentSectionKey: string }>;
+  },
+): string[] => permissionsInDepartment(entry.archetype, sectionKeys, types);
 
 /**
  * The scopes a library role arrives with — its archetype's, copied for the same

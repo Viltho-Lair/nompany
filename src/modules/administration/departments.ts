@@ -215,7 +215,7 @@ async function seedDepartments(
       description: "",
       departmentId: department.id,
       source: "library",
-      permissions: permissionsForLibraryRole(e, engineTypes),
+      permissions: permissionsForLibraryRole(e, { sectionKeys: department.sectionKeys || [], types: engineTypes }),
       scopes: scopesForLibraryRole(e),
     })));
   }

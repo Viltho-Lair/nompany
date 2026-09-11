@@ -271,10 +271,88 @@ ok("...and is capped even with no search term at all",
 // A COPY, NOT A REFERENCE — the BOQ rate rule. Editing an archetype later
 // must reprice nothing already created.
 const entry = L.LIBRARY.find((e) => e.archetype === "doer");
-const copied = L.permissionsForLibraryRole(entry);
+const copied = L.permissionsForLibraryRole(entry, { sectionKeys: ["crm-sales"] });
 copied.push("crmSales.tickets.delete");
 ok("a library role hands out a fresh permission list",
-  !L.permissionsForLibraryRole(entry).includes("crmSales.tickets.delete"));
+  !L.permissionsForLibraryRole(entry, { sectionKeys: ["crm-sales"] }).includes("crmSales.tickets.delete"));
+
+console.log("\n== a library role starts inside its department's own sections");
+
+// THE DEFECT: an archetype was copied WHOLE, so a "doer" filed under Estimation
+// arrived holding CRM tickets, the project list and the inventory items —
+// sections its department never said it works in. The owner's rule
+// (11/09/2026): a role starts with its department's sections, and anything
+// wider is granted on the Access screen afterwards.
+{
+  const doer = { ...entry, archetype: "doer" };
+  const inEstimation = L.permissionsForLibraryRole(doer, { sectionKeys: ["tendering"] });
+  ok("a role reaches no section its department does not work in",
+    !inEstimation.some((k) => k.startsWith("crmSales.") || k.startsWith("projects.") || k.startsWith("inventory.")),
+    inEstimation.join(", "));
+
+  // Tasks is not a section, so nothing on the board is another department's.
+  ok("...and keeps what belongs to no section", inEstimation.includes("tasks.board.view"));
+
+  // SCOPED, SO KEPT: unscoped it reaches only the holder's own records, and it
+  // is the right `requestVacation` asks for. Filtering it out would leave a
+  // site engineer unable to book their own leave.
+  ok("...and can still ask for their own leave", inEstimation.includes("hr.vacations.create"));
+
+  // THE ROOT COMES FROM SECTION_DEFS, NOT THE KEY'S PREFIX. The RFQ queue's
+  // section is `engineering-docs-rfq` and it sits under CRM & Sales; a prefix
+  // match would hand it to Engineering and take it from Sales.
+  const seller = { ...entry, archetype: "winner-of-work" };
+  ok("a child section is matched by its real parent, not its prefix",
+    L.permissionsForLibraryRole(seller, { sectionKeys: ["crm-sales"] }).includes("engineeringDocs.rfq.edit")
+    && !L.permissionsForLibraryRole(seller, { sectionKeys: ["engineering-docs"] }).includes("engineeringDocs.rfq.edit"));
+
+  // An engine right follows its register's section.
+  const types = [
+    { key: "ncr", parentSectionKey: "quality-hse" },
+    { key: "workorder", parentSectionKey: "manufacturing" },
+  ];
+  const inspector = L.permissionsForLibraryRole({ ...entry, archetype: "checker" }, { sectionKeys: ["quality-hse"], types });
+  ok("a register in the department's section is kept, one outside it is not",
+    inspector.includes("engine.ncr.delete") && !inspector.some((k) => k.startsWith("engine.workorder.")),
+    inspector.filter((k) => k.startsWith("engine.")).join(", "));
+
+  // THE SHAPE AND THE DEPARTMENT ALWAYS MEET. `doer` names no Tendering right,
+  // so confining alone left an Estimator under Estimation able to open nothing
+  // there. Its home level is edit: it files bids and deletes none.
+  ok("a role holds its shape's level on its own department's sections",
+    inEstimation.includes("tendering.tenders.edit") && !inEstimation.includes("tendering.tenders.delete"),
+    inEstimation.filter((k) => k.startsWith("tendering.")).join(", "));
+
+  // THE HOME LEVEL NEVER OPENS A DOOR: not a section's settings, and nothing
+  // in Administration — Access and People decide who may do what, and Master
+  // data holds the department tree that widens a manager's reach.
+  const head = { ...entry, archetype: "department-head" };
+  const financeHead = L.permissionsForLibraryRole(head, { sectionKeys: ["finance"] });
+  ok("a head runs their section in full, settings aside",
+    financeHead.includes("finance.payables.delete") && !financeHead.some((k) => k.startsWith("finance.settings.")),
+    financeHead.filter((k) => k.startsWith("finance.")).join(", "));
+  const adminHead = L.permissionsForLibraryRole(head, { sectionKeys: ["administration"] });
+  // People at VIEW survives because the shape NAMES it and the department is
+  // Administration; what the home level must never add is any of the doors.
+  ok("...and an Administration department gains no administrative door by default",
+    !adminHead.some((k) => /^administration\.(access|master|settings)\./.test(k))
+    && !adminHead.includes("administration.members.edit"),
+    adminHead.filter((k) => k.startsWith("administration.")).join(", "));
+
+  // THE ONE EXEMPTION, the owner's decision: principal runs the whole company.
+  const md = L.permissionsForLibraryRole({ ...entry, archetype: "principal" }, { sectionKeys: ["administration"] });
+  ok("a principal role is not confined to its department",
+    md.includes("projects.list.delete") && md.includes("finance.payables.approveHigh"));
+  ok("...and still cannot decide who may do what",
+    !md.some((k) => k.startsWith("administration.access")));
+
+  // A DEPARTMENT WITH NO SECTIONS (Legal) holds nothing sectioned at all.
+  const legal = L.permissionsForLibraryRole({ ...entry, archetype: "department-head" }, { sectionKeys: [] });
+  ok("a department with no sections gets only what belongs to none",
+    legal.every((k) => k.startsWith("tasks.") || k.startsWith("engagements.") || k.startsWith("hr.employees.")
+      || k.startsWith("hr.vacations.") || k.startsWith("hr.attendance.")),
+    legal.join(", "));
+}
 
 // THE PROPERTY THE WHOLE DESIGN TURNS ON: one name, two departments, two
 // different access shapes. If the library cannot express this, departmental

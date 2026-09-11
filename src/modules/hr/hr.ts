@@ -279,7 +279,7 @@ export async function addLibraryRoles(
       description: "",
       departmentId,
       source: "library",
-      permissions: permissionsForLibraryRole(entry, engineTypes),
+      permissions: permissionsForLibraryRole(entry, { sectionKeys: department.sectionKeys || [], types: engineTypes }),
       scopes: scopesForLibraryRole(entry),
     });
   }
