@@ -486,6 +486,13 @@ const OWN_AREAS = [
   { key: "fieldService.schedule", group: "Field Operations & Service", label: "Schedule", verbs: ["view", "create", "edit", "delete"] },
   { key: "fieldService.tracking", group: "Field Operations & Service", label: "Tracking", verbs: ["view", "create", "edit", "delete"] },
   { key: "fieldService.settings", group: "Field Operations & Service", label: "Settings", verbs: ["view", "edit"] },
+  // PERMITS ARE QUALITY & HSE'S (tier 5). They lived on Field Operations' root
+  // and answered to TRACKING's right — the right that governs where people are,
+  // not what work they are authorised to do. One register now, moved by screen
+  // (its rows stay on `field-service`), with its own right. Roles that held
+  // Tracking are granted this by `scripts/migrate/grant-permits.mjs`; until that
+  // has run the permit services also accept Tracking, so nobody loses access.
+  { key: "qualityHse.permits", group: "Quality & HSE", label: "Permits", verbs: ["view", "create", "edit", "delete"] },
   // The project planner is a sub-section of its own, so it carries its own right:
   // view opens the app and its plans, edit creates and changes them. A project's
   // OWN plan is reached through the projects-list grant instead (the "Project

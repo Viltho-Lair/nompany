@@ -24,18 +24,38 @@ export const LocationSchema = z.object({
  * first — see the "9999" default at the call site, which is the studio saying
  * "no expiry" rather than a value going missing.
  */
+// THE SCHEMA HAD DRIFTED FROM WHAT `createPermit` WRITES (tier 5): it declared
+// `kind`, which nothing wrote, and none of title, type, number, issuer or the
+// creator, which every permit carries — so the insight read `p.kind` and named
+// no permit, and the expiry notice read `p.label`, which does not exist. What is
+// written is what is declared now; `kind` stays only as the legacy name.
 export const PermitSchema = z.object({
   id: z.string(),
   studioId: z.string(),
   sectionId: z.string(),
   reference: z.string().max(120).optional(),
+  title: z.string().max(200).optional(),
+  /** The permit type, from the studio's `permitTypes` list. */
+  type: z.string().max(120).optional(),
+  /** @deprecated Never written; read by nothing since tier 5. */
   kind: z.string().optional(),
+  number: z.string().max(80).optional(),
+  issuer: z.string().max(160).optional(),
   locationId: z.string().max(60).optional(),
   projectId: z.string().max(60).optional(),
   holderCollaboratorIds: z.array(z.string()).optional(),
   validFrom: z.string().optional(),
   validTo: z.string().optional(),
-  notes: z.string().max(500).optional(),
+  notes: z.string().max(1000).optional(),
+  /**
+   * WHERE IT STANDS — Requested, Issued, Closed, Cancelled (./permitModel).
+   * Optional: every permit written before the workflow has none and reads as
+   * Issued, which is what an authority permit recorded here always was.
+   */
+  status: z.string().max(20).optional(),
+  statusAt: z.string().optional(),
+  statusByCollaboratorId: z.string().optional(),
+  createdByCollaboratorId: z.string().optional(),
   createdAt: z.string().optional(),
 });
 

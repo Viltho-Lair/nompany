@@ -41,6 +41,15 @@ const now = () => new Date().toISOString();
 const prefixOf = (typeKey: string) => typeKey.slice(0, 3).toUpperCase();
 
 /**
+ * TYPES WHOSE RECORDS ARE CANCELLED, NEVER DELETED. The engine permit declared
+ * that rule in a comment and `removeRecord` hard-deleted anyway (record-engine
+ * .md admitted it). Enforced by key because the type is no longer declared
+ * (tier 5) and a stored row carries no such flag — so it answers here, where
+ * the delete is, and the register draws no Delete button for it.
+ */
+const NEVER_DELETED = new Set(["permit"]);
+
+/**
  * WHAT THIS SERVICE NEEDS FROM A MODULE CONTEXT, AND NO MORE.
  *
  * `ModuleContext`'s index signature does not name `settingsSection` — that
@@ -327,7 +336,7 @@ export async function listRecords(ctx: EngineCallerContext, typeKey: string) {
       })),
     canCreate: !requirePermission(ctx.access, `engine.${typeKey}.create`),
     canEdit: !requirePermission(ctx.access, `engine.${typeKey}.edit`),
-    canDelete: !requirePermission(ctx.access, `engine.${typeKey}.delete`),
+    canDelete: !NEVER_DELETED.has(typeKey) && !requirePermission(ctx.access, `engine.${typeKey}.delete`),
   };
 }
 
@@ -556,6 +565,7 @@ export async function removeRecord(ctx: EngineCallerContext, typeKey: string, id
 
   const existing = await Records.byId(scope, id);
   if (!existing || existing.typeKey !== typeKey) return { error: "notfound" as const };
+  if (NEVER_DELETED.has(typeKey)) return { error: "controlled" as const };
 
   await Records.remove(scope, id);
   return { removed: id };

@@ -194,6 +194,11 @@ export async function setDefaultLayout(ctx: QualityContext, documentId: string, 
  * Goes through the same three doors a person would, so every guard applies.
  */
 export async function createStarterLayout(ctx: QualityContext, body: Record<string, unknown>) {
+  // ITS OWN GUARD, not only createDoc's below: tests/access.test.mjs asserts
+  // every service write names its right where the work is done, and this one
+  // shipped relying on the door it calls (tier 4) — caught by that test.
+  const denied = requirePermission(ctx.access, "engineeringDocs.register.create");
+  if (denied) return denied;
   const { kind, language } = body || {};
   if (!isDocumentKind(kind)) return { error: "kind" };
   if (!isLayoutLanguage(language)) return { error: "language" };

@@ -18,6 +18,7 @@
 
 import { invoiceTotals } from "@/modules/finance/finance";
 import { expiringDocuments } from "@/modules/hr/hr";
+import { permitLive } from "@/modules/operations/permitModel";
 
 // Overdue is chased harder early, then at widening intervals. Expiring is warned
 // about from a month out, tightening as the day nears (0 = expires today).
@@ -113,22 +114,28 @@ export function expiringDocumentNotices(employees: Record<string, unknown>[], to
     }));
 }
 
-type PermitRow = { id?: string; reference?: string; label?: string; type?: string; validTo?: string };
+type PermitRow = { id?: string; reference?: string; title?: string; type?: string; status?: string; validTo?: string };
 
 /**
  * Permits crossing an expiry milestone today. A permit's `validTo` is its last
  * valid day; the notice warns before it lapses so it can be renewed in time.
+ *
+ * ONLY AN ISSUED PERMIT (tier 5): a request nobody has issued, and one closed
+ * or cancelled, lapses without anybody needing to renew it.
  */
 export function expiringPermitNotices(permits: PermitRow[], todayISO: string): ExpiringNotice[] {
   const out: ExpiringNotice[] = [];
   for (const p of permits) {
-    if (!p.validTo) continue;
+    if (!p.validTo || !permitLive(p)) continue;
     const days = daysBetween(todayISO, p.validTo);
     if (days === null || !EXPIRING_MILESTONES.includes(days)) continue;
     out.push({
       recordId: String(p.id || ""),
       reference: String(p.reference || ""),
-      name: String(p.label || p.type || "Permit"),
+      // THE PERMIT'S TITLE. This read `p.label`, which nothing writes, so every
+      // notice named the permit's TYPE — "Hot work expires in 7 days" with a
+      // studio holding four hot-work permits.
+      name: String(p.title || p.type || "Permit"),
       kind: String(p.type || "Permit"),
       date: p.validTo,
       daysLeft: days,

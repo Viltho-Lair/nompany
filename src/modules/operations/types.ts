@@ -48,6 +48,18 @@ export type OperationsContext = ModuleContext & {
   settings: Record<string, unknown>;
 };
 
+/**
+ * THE PERMIT REGISTER'S CONTEXT, in Quality & HSE (tier 5). Its own section
+ * (`quality-hse-permits`) is where the screen lives and what the view guard asks;
+ * the permits themselves stay on the Field Service ROOT, reached as a foreign
+ * section — nullable, because a studio without Field Service holds no permits.
+ */
+export type PermitsContext = ModuleContext & {
+  operationsMainSection: Section | null;
+  projectsListSection: Section | null;
+  masterSection: Section | null;
+};
+
 // The planner resolves on its own sub-section key, so its context is the bare
 // module context plus the new-plan presets kept on that section's `settings`.
 export type PlannerContext = ModuleContext & {

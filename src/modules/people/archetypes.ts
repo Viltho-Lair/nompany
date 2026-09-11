@@ -280,6 +280,9 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
     note: "Foreman, Supervisor, Charge Nurse, Crew Chief, Shift Leader. Assigns work by name.",
     grants: [
       ["tasks.board", "full"], ["fieldService.schedule", "edit"], ["fieldService.tracking", "edit"],
+      // Permits moved to Quality & HSE with a right of their own (tier 5); the
+      // lead who held them through Tracking keeps them here.
+      ["qualityHse.permits", "edit"],
       ["projects.list", "view"], ["hr.vacations", "view"], ["hr.attendance", "edit"],
       // A lead assigns work, so a lead needs the list of people to assign it to.
       // Deliberately not hr.employees, which is the employment record.
@@ -448,6 +451,7 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
     grants: [
       ["engineeringDocs.register", "view"], ["projects.list", "view"],
       ["fieldService.tracking", "view"], ["inventory.sheets", "view"], ["crmSales.contracts", "view"],
+      ["qualityHse.permits", "view"],
     ],
     // Publishing and obsoleting are the controller's housekeeping — moving a
     // document that has ALREADY been approved by somebody else. They are not

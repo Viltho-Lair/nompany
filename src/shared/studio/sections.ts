@@ -85,6 +85,7 @@ const ar: SectionMap = {
   procurement: "المشتريات والمقاولات من الباطن",
   "procurement-requisitions": "طلبات الشراء",
   "procurement-orders": "أوامر الشراء",
+  "quality-hse-permits": "التصاريح",
   "procurement-rfq": "عروض الموردين",
   "procurement-expediting": "متابعة التوريد",
   "procurement-subcontracts": "عقود الباطن",

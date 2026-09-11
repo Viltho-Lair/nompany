@@ -14,12 +14,15 @@
 // Permit validity and shift hours are DERIVED from their dates, never stored,
 // so neither can quietly go stale.
 
-import { requirePermission, sectionManageable } from "@/platform/access";
+import {
+  can, requirePermission, sectionManageable, sectionViewable, type PermissionKey, type PermissionSet,
+} from "@/platform/access";
 import { seriesSetting } from "@/modules/administration/numbering";
 import { repo } from "@/platform/db/repo";
-import { TAXONOMIES, resolveValue, admits } from "@/modules/administration/taxonomy";
-import { getSectionByKey, updateSection } from "@/platform/db/sections";
+import { TAXONOMIES, resolveValue, admits, valuesFor } from "@/modules/administration/taxonomy";
+import { getSectionByKey, updateSection, type Section } from "@/platform/db/sections";
 import { moduleContext } from "../context";
+import { permitDeletable, permitMoveProblem, permitStatusOf } from "./permitModel";
 
 import { listCollaborators } from "@/platform/auth/collaborators";
 import { nextReference } from "@/modules/main/references";
@@ -27,6 +30,7 @@ import { DAYS, DEFAULT_LEGEND, normalizeLegend, normalizeSchedule } from "./oper
 import type { WorkingWeek } from "./operationsCalendar";
 import type {
   Location, Permit, Position, Shift, PermitView, ShiftView, OperationsContext, PlannerContext, ScheduleContext,
+  PermitsContext,
 } from "./types";
 import type { Vacation } from "@/modules/hr/types";
 
@@ -165,9 +169,17 @@ export async function scheduleView(ctx: ScheduleContext) {
   // grant that gates the rota. `ctx.canManage` is the schedule answer; this is the
   // places answer, and the two can differ.
   const canManagePlaces = sectionManageable(ctx.access, "field-service", ctx.sections.map((s) => s.key));
+  // PERMITS MOVED TO QUALITY & HSE (tier 5), by screen. Where this studio has
+  // that register and this reader may open it, the Permits tab here says so and
+  // links there; otherwise — a studio not yet planted, or somebody who holds
+  // permits only through Tracking until grant-permits.mjs runs — it still shows
+  // the register, so nobody loses a way to their permits in between.
+  const keys = ctx.sections.map((s) => s.key);
+  const permitsMoved = keys.includes("quality-hse-permits") && sectionViewable(ctx.access, "quality-hse-permits", keys);
   return {
     canManage: ctx.canManage,
     canManagePlaces,
+    permitsMoved,
     nav: ctx.nav,
     me: { collaboratorId: ctx.collaborator.id },
     shifts, locations, permits, people, projects, window,
@@ -329,6 +341,102 @@ export function permitState(permit: Permit, when = today()) {
   return new Date(`${permit.validTo}T00:00:00`) <= limit ? "Expiring" : "Valid";
 }
 
+// ---- the one permit register (tier 5) ----------------------------------------
+
+/**
+ * WHETHER THIS READER MAY ACT ON PERMITS. Permits have their own right now,
+ * `qualityHse.permits` — they answered to Tracking's, which governs where people
+ * are, not what work they may do. TRANSITIONAL: Tracking's matching verb is
+ * still accepted, because a studio's existing roles hold it and not the new one
+ * until `scripts/migrate/grant-permits.mjs` has run. Remove the fallback once
+ * every studio has been granted. A refusal names the NEW right.
+ */
+export function permitDenied(access: PermissionSet, verb: "view" | "create" | "edit" | "delete") {
+  return trackingStillGrants(access, verb) ? null : requirePermission(access, `qualityHse.permits.${verb}` as PermissionKey);
+}
+
+/**
+ * THE TRANSITIONAL HALF, on its own so each write can name its real right in
+ * its own body — tests/access.test.mjs asserts every service write says
+ * `requirePermission(` where the work is done, and a helper hiding it would be
+ * the hole that check exists to find.
+ */
+function trackingStillGrants(access: PermissionSet, verb: "view" | "create" | "edit" | "delete") {
+  return !can(access, `qualityHse.permits.${verb}` as PermissionKey)
+    && can(access, `fieldService.tracking.${verb}` as PermissionKey);
+}
+
+/** What the permit services need, reached from either screen. `section` is where the rows live. */
+export type PermitCtx = Pick<OperationsContext, "studio" | "access" | "collaborator" | "masterSection"> & { section: Section };
+
+/**
+ * THE REGISTER'S OWN CONTEXT, in Quality & HSE. The view guard asks the
+ * register's section — so its right — while the rows are read from the Field
+ * Service root, foreign and nullable.
+ */
+export const permitsContext = moduleContext<PermitsContext>({
+  root: "quality-hse-permits",
+  foreign: {
+    operationsMain: "field-service",
+    projectsList: ["projects-list", "projects"],
+    master: ["administration-master", "administration"],
+  },
+});
+
+/** The services' scope from the register's context, or why there is none. */
+export function permitScope(ctx: PermitsContext): PermitCtx | { error: string } {
+  if (!ctx.operationsMainSection) return { error: "no-section" };
+  return {
+    studio: ctx.studio, access: ctx.access, collaborator: ctx.collaborator,
+    masterSection: ctx.masterSection, section: ctx.operationsMainSection,
+  };
+}
+
+/** The register's one read — the permits and everything their form picks from. */
+export async function permitsView(ctx: PermitsContext) {
+  const denied = permitDenied(ctx.access, "view");
+  if (denied) return denied;
+  const section = ctx.operationsMainSection;
+  const [permits, locations, people, projects] = await Promise.all([
+    section ? listPermits({ studio: ctx.studio, section, masterSection: ctx.masterSection }) : Promise.resolve([]),
+    listLocations({ studio: ctx.studio, masterSection: ctx.masterSection }),
+    listCollaborators(ctx.studio.id),
+    operationsProjects({ studio: ctx.studio }),
+  ]);
+  return {
+    permits,
+    locations,
+    people: (people as { id?: unknown; alias?: unknown }[]).map((c) => ({ id: String(c.id), alias: String(c.alias || "") })),
+    projects,
+    types: valuesFor("permitTypes", (ctx.studio as { taxonomies?: unknown }).taxonomies),
+    windowDays: EXPIRY_WINDOW_DAYS,
+    nav: ctx.nav,
+    canCreate: !permitDenied(ctx.access, "create"),
+    canEdit: !permitDenied(ctx.access, "edit"),
+    canDelete: !permitDenied(ctx.access, "delete"),
+  };
+}
+
+/**
+ * ISSUE, CLOSE, CANCEL — a permit's workflow (./permitModel), its own verb and
+ * never a field on an edit, the distinction jobs and requisitions draw. Stamps
+ * when and who, captured outside the function patch (invariant 8).
+ */
+export async function movePermit(ctx: PermitCtx, id: string, to: string) {
+  const denied = permitDenied(ctx.access, "edit");
+  if (denied) return denied;
+  const scope = { studio: ctx.studio, section: ctx.section };
+  const current = await Permits.byId(scope, id);
+  if (!current) return { error: "notfound" };
+  const problem = permitMoveProblem(current, to);
+  if (problem) return { error: problem, from: permitStatusOf(current), to };
+  const at = new Date().toISOString();
+  const permit = await Permits.update(scope, id, () => ({
+    status: to, statusAt: at, statusByCollaboratorId: ctx.collaborator.id,
+  }));
+  return permit ? { permit } : { error: "notfound" };
+}
+
 export async function listPermits(
   { studio, section, masterSection }: Pick<OperationsContext, "studio" | "section" | "masterSection">,
 ) {
@@ -360,9 +468,10 @@ export async function listPermits(
     }));
 }
 
-export async function createPermit(ctx: OperationsContext, body: Record<string, unknown>) {
-  // Guarded before anything is read or written — see platform/access/resolve.ts.
-  const denied = requirePermission(ctx.access, "fieldService.tracking.create");
+export async function createPermit(ctx: PermitCtx, body: Record<string, unknown>) {
+  // Guarded before anything is read or written — the permit right, or Tracking's
+  // until grant-permits.mjs has run (see permitDenied).
+  const denied = trackingStillGrants(ctx.access, "create") ? null : requirePermission(ctx.access, "qualityHse.permits.create");
   if (denied) return denied;
 
   const { studio, section, collaborator } = ctx;
@@ -380,7 +489,7 @@ export async function createPermit(ctx: OperationsContext, body: Record<string, 
   }
   const projectId = str(body?.projectId, 60);
   if (projectId) {
-    const projects = await projectRows(ctx);
+    const projects = await projectRows({ studio });
     if (!projects.some((p) => p.id === projectId)) return { error: "project" };
   }
 
@@ -389,6 +498,7 @@ export async function createPermit(ctx: OperationsContext, body: Record<string, 
   if (validFrom && validTo && validTo < validFrom) return { error: "range" };
 
   const permits = await Permits.find({ studio, section });
+  const at = new Date().toISOString();
   const permit = await Permits.create({ studio, section }, {
     // Derived from the highest already issued, so removing a permit cannot hand
     // its reference to the next one. See modules/main/references.js.
@@ -401,21 +511,33 @@ export async function createPermit(ctx: OperationsContext, body: Record<string, 
     validFrom, validTo,
     holderCollaboratorIds: await validHolders(studio.id, body?.holderCollaboratorIds),
     notes: str(body?.notes, 1000),
+    // REQUESTED, OR ALREADY ISSUED (tier 5). A permit to work starts as a
+    // request somebody issues; an authority permit is recorded once it has been
+    // issued, which is what the form's "Already issued" says. Nothing else may
+    // be born — a permit arriving closed would be one nobody ever held.
+    status: body?.status === "Issued" ? "Issued" : "Requested",
+    statusAt: at,
+    statusByCollaboratorId: collaborator.id,
     createdByCollaboratorId: collaborator.id,
-    createdAt: new Date().toISOString(),
+    createdAt: at,
   });
   return { permit };
 }
 
-export async function editPermit(ctx: OperationsContext, id: string, body: Record<string, unknown>) {
-  // Guarded before anything is read or written — see platform/access/resolve.ts.
-  const denied = requirePermission(ctx.access, "fieldService.tracking.edit");
+export async function editPermit(ctx: PermitCtx, id: string, body: Record<string, unknown>) {
+  // Guarded before anything is read or written — the permit right, or Tracking's
+  // until grant-permits.mjs has run (see permitDenied).
+  const denied = trackingStillGrants(ctx.access, "edit") ? null : requirePermission(ctx.access, "qualityHse.permits.edit");
   if (denied) return denied;
 
   const { studio, section } = ctx;
   const rows = await Permits.find({ studio, section });
   const current = rows.find((p) => p.id === id);
   if (!current) return { error: "notfound" };
+  // A CLOSED OR CANCELLED PERMIT IS THE RECORD OF WHAT WAS AUTHORISED, and
+  // editing it afterwards would rewrite that record with no trace.
+  const standing = permitStatusOf(current);
+  if (standing === "Closed" || standing === "Cancelled") return { error: "closed", status: standing };
 
   const patch: Record<string, unknown> = {};
   if (body?.title !== undefined) { const v = str(body.title, 200); if (!v) return { error: "title" }; patch.title = v; }
@@ -450,12 +572,23 @@ export async function editPermit(ctx: OperationsContext, id: string, body: Recor
   return permit ? { permit } : { error: "notfound" };
 }
 
-export async function removePermit(ctx: OperationsContext, id: string) {
-  // Guarded before anything is read or written — see platform/access/resolve.ts.
-  const denied = requirePermission(ctx.access, "fieldService.tracking.delete");
+export async function removePermit(ctx: PermitCtx, id: string) {
+  // Guarded before anything is read or written — the permit right, or Tracking's
+  // until grant-permits.mjs has run (see permitDenied).
+  const denied = trackingStillGrants(ctx.access, "delete") ? null : requirePermission(ctx.access, "qualityHse.permits.delete");
   if (denied) return denied;
 
-  const removed = await Permits.remove({ studio: ctx.studio, section: ctx.section }, id);
+  // CANCELLED, NEVER DELETED (tier 5) — the engine permit's rule, now the one
+  // register's. Only a request nobody ever issued is removed, as a mistake; an
+  // issued permit is cancelled, because the day something goes wrong is the day
+  // somebody asks to see it. Every permit written before the workflow reads as
+  // issued, so this is the change a studio will notice.
+  const scope = { studio: ctx.studio, section: ctx.section };
+  const current = await Permits.byId(scope, id);
+  if (!current) return { error: "notfound" };
+  if (!permitDeletable(current)) return { error: "controlled" };
+
+  const removed = await Permits.remove(scope, id);
   return removed ? { ok: true } : { error: "notfound" };
 }
 

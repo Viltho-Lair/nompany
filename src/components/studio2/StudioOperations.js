@@ -6,10 +6,9 @@ import nextDynamic from "next/dynamic";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { operationsDict } from "@/shared/studio/operations";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
-import RecordLink from "@/components/studio2/RecordLink";
-import { linkToProject, linkIf } from "@/modules/main/studioLinks";
 import { microLabel, Dialog, fmtDate, fmtWeekday } from "@/components/studio2/ui";
 import LocationsPanel from "@/components/studio2/LocationsPanel";
+import PermitsPanel from "@/components/studio2/PermitsPanel";
 
 // THE DASHBOARD LOADS WHEN IT IS SHOWN, not with this screen. It was a static
 // import, so every tenant page carried every department's dashboard and the
@@ -38,7 +37,6 @@ import {
   dayKey, barGeometry, dayRoster,
 } from "@/modules/operations/operationsCalendar";
 import { loadGoogleMaps, defaultMapOptions, NOT_CONFIGURED } from "@/lib/googleMaps";
-import { StatusPill } from "@/components/studio2/StatusPill";
 import { useReload } from "@/components/studio2/useReload";
 
 const panel = "rounded-geex border border-slate-200/70 bg-[var(--geex-surface)] p-6 dark:border-white/10";
@@ -46,10 +44,8 @@ const h2 = "font-display text-lg font-800 text-slate-900 dark:text-white";
 const sub = "mt-1 text-sm text-slate-500 dark:text-slate-400";
 const input =
   "w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm text-slate-900 focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-white/15 dark:bg-[#191921] dark:text-white";
-const label = "mb-1 block text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400";
 const btn = "rounded-full bg-brand-700 px-4 py-2 font-display text-sm font-600 text-white transition-colors hover:bg-brand-950 disabled:opacity-60";
 const btnGhost = "rounded-full border border-slate-200 px-4 py-2 font-display text-sm font-600 text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-60 dark:border-white/15 dark:text-slate-300 dark:hover:bg-white/5";
-const btnDanger = "rounded-full border border-rose-200 px-4 py-2 font-display text-sm font-600 text-rose-600 transition-colors hover:bg-rose-50 disabled:opacity-60 dark:border-rose-500/30 dark:text-rose-300 dark:hover:bg-rose-500/10";
 
 // Permit-state colours now live in the shared StatusPill map (kind "permit").
 
@@ -220,8 +216,19 @@ export default function StudioOperations({ slug, view = "field-service" }) {
           // still open. Same collection, opposite question.
           <FieldViewPanel slug={slug} locale={locale} />
         ) : sub === "permits" ? (
-          <Permits rows={permits} locations={locations} people={people} projects={projects} types={vocabulary.permitTypes}
-            windowDays={vocabulary.expiryWindowDays} slug={slug} nav={nav} canManage={canManagePlaces} busy={busy} send={send} />
+          // PERMITS MOVED TO QUALITY & HSE (tier 5). Where the studio has that
+          // register and this reader may open it, this tab says so and links
+          // there; otherwise it still shows the register — the same panel —
+          // so nobody loses a way to their permits before the grant runs.
+          data.permitsMoved ? (
+            <div className={panel}>
+              <p className="text-sm text-slate-600 dark:text-slate-300">{tr.permitsMoved}</p>
+              <a href={`/${slug}/quality-hse-permits`} className={`${btnGhost} mt-3 inline-flex`}>{tr.openPermits}</a>
+            </div>
+          ) : (
+            <PermitsPanel rows={permits} locations={locations} people={people} projects={projects} types={vocabulary.permitTypes}
+              windowDays={vocabulary.expiryWindowDays} slug={slug} nav={nav} canManage={canManagePlaces} busy={busy} send={send} />
+          )
         ) : (
           // NOT `canManagePlaces`. That asked whether the caller may manage the
           // Field Operations root, which stopped being the right question when
@@ -579,146 +586,8 @@ function ShiftForm({ people, locations, busy, onCancel, onSave }) {
 }
 
 // ---- permits ---------------------------------------------------------------
-function Permits({ rows, locations, people, projects, types, windowDays, slug, nav, canManage, busy, send }) {
-  const tr = operationsDict(useStudioLocale());
-  const [adding, setAdding] = useState(false);
-  const [editing, setEditing] = useState(null);
-  const attention = rows.filter((p) => p.state === "Expiring" || p.state === "Expired");
-
-  return (
-    <>
-      {canManage && <button className={btn} onClick={() => setAdding(true)}>{tr.addPermit}</button>}
-      {(adding || editing) && (
-        <Dialog
-          title={editing ? tr.editPermit : tr.newPermit}
-          description={tr.whatPermittedWhereUntil}
-          onClose={() => { setAdding(false); setEditing(null); }}
-        >
-          <PermitForm permit={editing} locations={locations} people={people} projects={projects} types={types} busy={busy}
-            onCancel={() => { setAdding(false); setEditing(null); }}
-            onSave={async (v) => { if (await send("permits", editing ? "PUT" : "POST", editing ? { ...v, id: editing.id } : v)) { setAdding(false); setEditing(null); } }} />
-        </Dialog>
-      )}
-
-      {attention.length > 0 && (
-        <div className="rounded-geex border border-amber-300/60 bg-amber-50 p-4 dark:border-amber-500/30 dark:bg-amber-500/10">
-          <p className="font-display text-sm font-700 text-amber-800 dark:text-amber-200">
-            Needs renewing — expired, or within {windowDays} days
-          </p>
-          <ul className="mt-2 space-y-1 text-sm text-amber-800 dark:text-amber-200">
-            {attention.map((p) => (
-              <li key={p.id}>
-                {p.reference} · {p.title} — {p.state === "Expired"
-                  ? `expired ${fmt(p.validTo)}`
-                  : `expires ${fmt(p.validTo)} (${p.daysLeft} days)`}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {rows.length === 0 ? <Empty title={tr.noPermitsYet} body={tr.permitsRecordWhatStudio} /> : (
-        <section className={panel}>
-          <ul className="divide-y divide-slate-100 dark:divide-white/5">
-            {rows.map((p) => (
-              <li key={p.id} className="flex flex-wrap items-start justify-between gap-3 py-4 first:pt-0 last:pb-0">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-mono text-xs text-slate-400">{p.reference}</span>
-                    <span className="font-600 text-slate-900 dark:text-white">{p.title}</span>
-                    <StatusPill kind="permit" status={p.state} />
-                    {p.projectNumber && (
-                      <RecordLink href={linkIf(nav?.projects, linkToProject(slug, p.projectId))} title={tr.openProject}>{p.projectNumber}</RecordLink>
-                    )}
-                  </div>
-                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                    {[p.type, p.locationName, p.number && `no. ${p.number}`, p.issuer].filter(Boolean).join(" · ")}
-                  </p>
-                  <p className="text-sm text-slate-500 dark:text-slate-400">
-                    {p.validFrom || p.validTo ? `${fmt(p.validFrom)} – ${fmt(p.validTo)}` : tr.noDatesSet}
-                    {p.holderAliases.length > 0 && ` · ${p.holderAliases.join(", ")}`}
-                  </p>
-                </div>
-                {canManage && (
-                  <div className="flex gap-2">
-                    <button className={btnGhost} onClick={() => setEditing(p)}>{tr.edit}</button>
-                    <button className={btnDanger} disabled={busy} onClick={() => send("permits", "DELETE", { id: p.id })}>{tr.delete}</button>
-                  </div>
-                )}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-    </>
-  );
-}
-
-function PermitForm({ permit, locations, people, projects, types, busy, onCancel, onSave }) {
-  const tr = operationsDict(useStudioLocale());
-  const [form, setForm] = useState({
-    title: permit?.title || "", type: permit?.type || types[0], number: permit?.number || "",
-    issuer: permit?.issuer || "", locationId: permit?.locationId || "", projectId: permit?.projectId || "",
-    validFrom: permit?.validFrom || "", validTo: permit?.validTo || "", notes: permit?.notes || "",
-  });
-  const [holders, setHolders] = useState(permit?.holderCollaboratorIds || []);
-
-  return (
-    <section className={`${panel} border-brand-500/40`}>
-      <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">{permit ? tr.editPermit : tr.newPermit}</h3>
-      <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <Field label={tr.title} required value={form.title}
-          onChange={(v) => setForm((f) => ({ ...f, title: v }))} className="sm:col-span-2" />
-        <Field label={tr.type} as="select" required value={form.type}
-          onChange={(v) => setForm((f) => ({ ...f, type: v }))} options={types} />
-        <Field label={tr.permitNumber} value={form.number}
-          onChange={(v) => setForm((f) => ({ ...f, number: v }))} />
-        <Field label={tr.issued} value={form.issuer}
-          onChange={(v) => setForm((f) => ({ ...f, issuer: v }))} />
-        <Field label={tr.location} as="select" value={form.locationId}
-          onChange={(v) => setForm((f) => ({ ...f, locationId: v }))}
-          options={locations.map((l) => ({ value: l.id, label: l.name }))} />
-        <Field label={tr.project} as="select" value={form.projectId}
-          onChange={(v) => setForm((f) => ({ ...f, projectId: v }))}
-          options={projects.map((p) => ({ value: p.id, label: p.number }))} />
-        <Field label={tr.valid} filled={!!form.validFrom}>
-          <StudioDate value={form.validFrom} onChange={(iso) => setForm((f) => ({ ...f, validFrom: iso }))} />
-        </Field>
-        <Field label={tr.valid2} filled={!!form.validTo}>
-          <StudioDate value={form.validTo} onChange={(iso) => setForm((f) => ({ ...f, validTo: iso }))} />
-        </Field>
-      </div>
-
-      {people.length > 0 && (
-        <div className="mt-5">
-          <label className={label}>{tr.covers}</label>
-          <div className="flex flex-wrap gap-2">
-            {people.map((p) => {
-              const on = holders.includes(p.id);
-              return (
-                <button key={p.id} type="button"
-                  onClick={() => setHolders((h) => (on ? h.filter((x) => x !== p.id) : [...h, p.id]))}
-                  className={`rounded-full px-3 py-1.5 text-xs font-600 transition-colors ${on
-                    ? "bg-brand-600 text-white"
-                    : "border border-slate-200 text-slate-600 hover:bg-slate-50 dark:border-white/15 dark:text-slate-300 dark:hover:bg-white/5"}`}>
-                  {p.alias}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      <div className="mt-5 flex flex-wrap gap-2">
-        <button className={btn} disabled={busy || !form.title.trim()}
-          onClick={() => onSave({ ...form, holderCollaboratorIds: holders })}>
-          {busy ? tr.saving : tr.save}
-        </button>
-        <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
-      </div>
-    </section>
-  );
-}
+// The panel moved to PermitsPanel.js (tier 5), shared with Quality & HSE's
+// Permits screen so one register is drawn one way wherever it is reached.
 
 // ---- locations -------------------------------------------------------------
 

@@ -233,31 +233,14 @@ export const BUILTIN_TYPES = [
     ],
     version: 1,
   },
-  {
-    // A PERMIT IS CANCELLED, NEVER DELETED. It is the record that work was
-    // authorised on a particular day, and the day something goes wrong is the
-    // day somebody asks to see it.
-    key: "permit",
-    label: "Permits to work",
-    parentSectionKey: "quality-hse",
-    fields: [
-      { key: "title", label: "Title", kind: "text", required: true },
-      { key: "kind", label: "Kind", kind: "select", options: ["Hot work", "Confined space", "Working at height", "Excavation", "Electrical", "Lifting"] },
-      { key: "location", label: "Location", kind: "text" },
-      { key: "validFrom", label: "Valid from", kind: "date" },
-      { key: "validTo", label: "Valid to", kind: "date" },
-      { key: "precautions", label: "Precautions", kind: "longtext" },
-    ],
-    columns: ["title", "kind", "validTo"],
-    statuses: ["Requested", "Issued", "Closed", "Cancelled"],
-    transitions: [
-      { from: "Requested", to: "Issued" },
-      { from: "Issued", to: "Closed" },
-      { from: "Requested", to: "Cancelled" },
-      { from: "Issued", to: "Cancelled" },
-    ],
-    version: 1,
-  },
+  // PERMITS TO WORK (`permit`) ARE NO LONGER SEEDED — tier 5, the owner's "one
+  // permit register". Quality & HSE's engine register had the workflow and no
+  // clock; Field Operations' had the clock and no workflow. The one register is
+  // Field Operations', moved by screen to Quality & HSE (`quality-hse-permits`)
+  // and given this type's workflow (modules/operations/permitModel). A NEW
+  // studio does not get the type; an EXISTING studio keeps its stored type and
+  // records, readable — and no longer deletable, which is this type's own rule
+  // ("CANCELLED, NEVER DELETED") that the engine never enforced (records.ts).
   {
     key: "toolbox",
     label: "Toolbox talks",

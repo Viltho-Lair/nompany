@@ -109,18 +109,24 @@ async function noticesForStudio(studioId: string, todayISO: string, todayDate: D
   // word it. Employees ARE the collaborators — their ID/passport expiries sit on
   // the collaborator row — so the HR scan reads no extra key.
   const jobs = [
-    { notices: overdueInvoiceNotices(invoices as never, todayISO), key: "finance.cash.view", type: NOTIFY.invoiceOverdue, title: "Overdue invoices", href: "finance/cash", say: overdueDetail },
-    { notices: overdueBillNotices(bills as never, todayISO), key: "finance.payables.view", type: NOTIFY.billOverdue, title: "Bills overdue", href: "finance/payables", say: overdueDetail },
-    { notices: expiringDocumentNotices(collaborators as never, todayDate), key: "hr.employees.view", type: NOTIFY.documentExpiring, title: "Documents expiring", href: "hr/employees", say: expiryDetail((n) => `${n.name}'s ${n.kind}`) },
-    { notices: expiringPermitNotices(permits as never, todayISO), key: "fieldService.tracking.view", type: NOTIFY.permitExpiring, title: "Permits expiring", href: "field-service-schedule", say: expiryDetail((n) => `${n.name}`) },
+    { notices: overdueInvoiceNotices(invoices as never, todayISO), key: "finance.cash.view", also: "", type: NOTIFY.invoiceOverdue, title: "Overdue invoices", href: "finance/cash", say: overdueDetail },
+    { notices: overdueBillNotices(bills as never, todayISO), key: "finance.payables.view", also: "", type: NOTIFY.billOverdue, title: "Bills overdue", href: "finance/payables", say: overdueDetail },
+    { notices: expiringDocumentNotices(collaborators as never, todayDate), key: "hr.employees.view", also: "", type: NOTIFY.documentExpiring, title: "Documents expiring", href: "hr/employees", say: expiryDetail((n) => `${n.name}'s ${n.kind}`) },
+    // PERMITS ARE QUALITY & HSE'S (tier 5). Heard by the permit right AND by
+    // Tracking's, which held them until `grant-permits.mjs` has run — a notice
+    // that went quiet the day its right moved would be the one nobody misses.
+    // And it links to the register a studio actually has.
+    { notices: expiringPermitNotices(permits as never, todayISO), key: "qualityHse.permits.view", also: "fieldService.tracking.view", type: NOTIFY.permitExpiring, title: "Permits expiring", href: sectionId("quality-hse-permits") ? "quality-hse-permits" : "field-service-schedule", say: expiryDetail((n) => `${n.name}`) },
   ];
 
   let sent = 0;
   for (const job of jobs) {
     if (!job.notices.length) continue;
-    const { recipientIds, userIdOf } = resolveHolders(collaborators, roles as never, job.key as never);
+    const main = resolveHolders(collaborators, roles as never, job.key as never);
+    const extra = job.also ? resolveHolders(collaborators, roles as never, job.also as never) : null;
+    const recipientIds = [...new Set([...main.recipientIds, ...(extra?.recipientIds || [])])];
     if (!recipientIds.length) continue;
-    const rows = await notifyCollaborators(studioId, recipientIds, build(job.title, job.notices, job.type, job.href, job.say), { userIdOf });
+    const rows = await notifyCollaborators(studioId, recipientIds, build(job.title, job.notices, job.type, job.href, job.say), { userIdOf: main.userIdOf });
     sent += rows.length;
   }
   return sent;

@@ -30,6 +30,7 @@ import { listCollaborators } from "@/platform/auth/collaborators";
 import { listForCollaborator } from "@/platform/notify/notifications";
 import { balances } from "@/modules/inventory/inventory";
 import { permitState } from "@/modules/operations/operations";
+import { permitLive } from "@/modules/operations/permitModel";
 import { invoiceTotals } from "@/modules/finance/finance";
 import { expiringDocuments } from "@/modules/hr/hr";
 import { readIfVisible, type MainContext } from "./main";
@@ -343,7 +344,11 @@ export function billInsights(bills: BillRow[], todayISO: string): Insight[] {
 /** Permits lapsed, and permits about to. `permitState` is the Operations rule. */
 export function permitInsights(permits: Permit[], todayISO: string): Insight[] {
   const out: Insight[] = [];
-  const label = (p: Permit) => String(p.reference || p.kind || "");
+  // `kind` WAS NEVER WRITTEN, so this named no permit; the reference and the
+  // title are what a permit carries (tier 5).
+  const label = (p: Permit) => String(p.reference || p.title || p.type || "");
+  // ONLY AN ISSUED PERMIT'S EXPIRY IS NEWS — see permitLive.
+  permits = permits.filter((p) => permitLive(p));
 
   const expired = permits.filter((p) => permitState(p, todayISO) === "Expired");
   if (expired.length) {

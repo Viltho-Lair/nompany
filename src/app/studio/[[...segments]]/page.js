@@ -145,6 +145,11 @@ const StudioPurchaseOrders = nextDynamic(
   () => import("@/components/studio2/StudioPurchaseOrders"),
   { loading: () => <ScreenSkeleton /> },
 );
+// The one permit register, in Quality & HSE (tier 5) — see StudioPermits.
+const StudioPermits = nextDynamic(
+  () => import("@/components/studio2/StudioPermits"),
+  { loading: () => <ScreenSkeleton /> },
+);
 const StudioProjectBilling = nextDynamic(
   () => import("@/components/studio2/StudioProjectBilling"),
   { loading: () => <RecordSkeleton /> },
@@ -880,6 +885,10 @@ async function renderStudio(params) {
           ? <StudioReceiving slug={studio.slug} />
         : active?.key === "procurement-suppliers"
           ? <StudioSuppliers slug={studio.slug} />
+        // BY KEY: its parent is `quality-hse`, whose screen is the section
+        // dashboard, so screenKey would collapse onto it and hide the register.
+        : active?.key === "quality-hse-permits"
+          ? <StudioPermits slug={studio.slug} />
         : active?.key === "logistics-shipments"
           ? <StudioInventory slug={studio.slug} view={active?.key} />
         : screenKey === "inventory" ? <StudioInventory slug={studio.slug} view={active?.key} />

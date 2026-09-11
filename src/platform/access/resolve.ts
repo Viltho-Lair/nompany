@@ -157,6 +157,7 @@ export const SECTION_AREAS: Readonly<Record<string, readonly string[]>> = {
   "field-service-schedule": ["fieldService.schedule"],
   "field-service-tracking": ["fieldService.tracking"],
   "field-service-settings": ["fieldService.settings"],
+  "quality-hse-permits": ["qualityHse.permits"],
 
   // ADMINISTRATION, WIRED AT LAST. These three areas existed in the catalogue
   // throughout the fifteen-section restructure and mapped to nothing, which is

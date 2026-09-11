@@ -47,6 +47,16 @@ type Strings = CommonStrings & {
   unplaced: string;
   worksIn: string;
   addPermit: string;
+  // ---- one permit register (tier 5) ----
+  permitsTitle: string;
+  permitsLead: string;
+  permitsMoved: string;
+  openPermits: string;
+  permitStatus: (status: string) => string;
+  issuePermit: string;
+  closePermit: string;
+  cancelPermit: string;
+  alreadyIssued: string;
   address: string;
   browserCantReport: string;
   calendarLegend: string;
@@ -215,6 +225,15 @@ const en: Strings = {
   unplaced: "Not placed",
   worksIn: "Works in",
   addPermit: "Add permit",
+  permitsTitle: "Permits",
+  permitsLead: "Every permit the studio holds or has asked for — authority permits and permits to work — where each stands, and whether it is in force.",
+  permitsMoved: "Permits are kept in Quality & HSE now.",
+  openPermits: "Open permits",
+  permitStatus: (status) => status,
+  issuePermit: "Issue",
+  closePermit: "Close",
+  cancelPermit: "Cancel permit",
+  alreadyIssued: "Already issued",
   address: "Address",
   browserCantReport: "This browser can't report a location.",
   calendarLegend: "Calendar legend",
@@ -386,6 +405,15 @@ const ar: Strings = {
   unplaced: "غير محدد",
   worksIn: "يعمل في",
   addPermit: "إضافة تصريح",
+  permitsTitle: "التصاريح",
+  permitsLead: "كل تصريح يحمله الاستوديو أو طلبه — تصاريح الجهات وتصاريح العمل — وأين يقف كل منها، وهل هو ساري.",
+  permitsMoved: "التصاريح في الجودة والسلامة الآن.",
+  openPermits: "فتح التصاريح",
+  permitStatus: (status) => AR_PERMIT_STATUS[status] || status,
+  issuePermit: "إصدار",
+  closePermit: "إغلاق",
+  cancelPermit: "إلغاء التصريح",
+  alreadyIssued: "صادر مسبقا",
   address: "العنوان",
   browserCantReport: "لا يستطيع هذا المتصفح الإبلاغ عن موقع.",
   calendarLegend: "مفتاح التقويم",
@@ -512,6 +540,14 @@ const ar: Strings = {
 };
 
 const operations = { en, ar };
+
+// A PERMIT'S STANDING IN ARABIC, keyed by the stored token (tier 5).
+const AR_PERMIT_STATUS: Record<string, string> = {
+  Requested: "مطلوب",
+  Issued: "صادر",
+  Closed: "مغلق",
+  Cancelled: "ملغى",
+};
 
 export function operationsDict(locale: string): Strings {
   return operations[locale as Locale] || operations[defaultLocale];

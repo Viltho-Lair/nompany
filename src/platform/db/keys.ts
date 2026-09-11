@@ -688,7 +688,15 @@ export const SECTION_DEFS = [
 
   // Quality widens to Quality & HSE. It keeps permits to work, which were an
   // Operations tab and are a QHSE register.
-  { key: "quality-hse", name: "Quality & HSE" },
+  // ITS FIRST DECLARED CHILD (tier 5) — its registers are engine sections
+  // planted at runtime. The permit register is a DESTINATION: it owns no
+  // collection, because permits stay on the `field-service` root where every
+  // one of them was written (moving the rows would be a migration the owner
+  // chose not to run). An existing studio shows it once plant-sections.mjs
+  // adds it, and until then the Schedule screen's Permits tab still works.
+  { key: "quality-hse", name: "Quality & HSE", children: [
+    { key: "quality-hse-permits", name: "Permits" },
+  ] },
 
   // Employees is the only HR sub-section. The Old System's Users, Careers and
   // Applications are deliberately not carried over: login accounts are the
