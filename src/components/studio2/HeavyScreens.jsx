@@ -59,6 +59,12 @@ export const DocumentView = nextDynamic(
   () => import("@/components/quality/documents/document-view").then((m) => m.DocumentView),
   { loading: () => <ScreenSkeleton /> },
 );
+// A quotation or invoice printed through its layout — the same editor, so the
+// same weight, and reached only by pressing Print.
+export const DocumentPrint = nextDynamic(
+  () => import("@/components/quality/documents/document-print").then((m) => m.DocumentPrint),
+  { loading: () => <ScreenSkeleton /> },
+);
 
 // The project planner. It imports @mui/x-date-pickers directly (StudioPlanner
 // for the adapter, planner/cells for the two pickers), which is what puts

@@ -35,7 +35,9 @@ const day = (v: unknown) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v ?? "").trim()) 
 // The fields of a document that describe the page it is printed on. Frozen with
 // the text, because a revision issued on A4 with a 20mm margin does not become
 // a different document when somebody later changes the paper.
-const SETUP_SNAPSHOT = [
+// Exported for the print page, which lays a published revision out from exactly
+// these fields — a second list would be free to forget one.
+export const SETUP_SNAPSHOT = [
   "pageSize", "marginPreset", "marginTopMm", "marginRightMm", "marginBottomMm", "marginLeftMm",
   "showHeader", "headerContent", "headerText", "headerAlign", "headerHeightMm", "headerStartPage",
   "showFooter", "footerContent", "footerText", "footerAlign", "footerHeightMm", "footerStartPage",

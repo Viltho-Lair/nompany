@@ -13,6 +13,7 @@
 
 import { route, refused } from "@/platform/http/route";
 import { qualityContext, fieldsFor, bindSubject } from "@/modules/quality/quality";
+import { layoutStateFor, setDefaultLayout, createStarterLayout } from "@/modules/quality/print";
 import {
   listDocs, getDoc, createDoc, renameDoc, saveContent, savePageSetup, removeDoc,
 } from "@/modules/quality/qualityDocs";
@@ -32,11 +33,23 @@ export const GET = route(spec, async ({ request, ...q }) => {
   // WHAT THE INSERT-FIELD MENU OFFERS this reader on this document: what the
   // document's subject can reach AND what they may read — see fieldsFor. Served
   // with the document so the menu and the save-time allowlist cannot disagree.
-  return { ...out, fields: fieldsFor(q, out.document).groups };
+  return {
+    ...out,
+    fields: fieldsFor(q, out.document).groups,
+    // WHAT IT IS AS A CUSTOMER LAYOUT, when it is one — see layoutStateFor.
+    layout: await layoutStateFor(q, out.document),
+  };
 });
 
 export const POST = route(writeSpec, async ({ body, ...q }) => {
   if (!q.canManage) return { error: "read-only" };
+
+  // A STARTER LAYOUT — offered by the print page when a studio has none.
+  if (body?.starter) {
+    const starter = await createStarterLayout(q, body);
+    if (refused(starter)) return starter;
+    return { status: 201, body: starter };
+  }
 
   const out = await createDoc(q, body);
   if (refused(out)) return out;
@@ -68,6 +81,13 @@ export const PATCH = route(writeSpec, async ({ request, body, ...q }) => {
     if (refused(out)) return out;
   }
 
+  // THE ONE CUSTOMERS RECEIVE, or not any more. Its own right and its own
+  // refusals — see setDefaultLayout — and nothing else rides with it.
+  if (typeof body.defaultLayout === "boolean") {
+    const out = await setDefaultLayout(q, id, body.defaultLayout);
+    if (refused(out)) return out;
+  }
+
   if (typeof body.content === "string") {
     const out = await saveContent(q, id, body);
     if (refused(out)) return out;
@@ -79,7 +99,7 @@ export const PATCH = route(writeSpec, async ({ request, body, ...q }) => {
 
   // Whatever is left is page setup. Cleaned field by field in the store, so a
   // key nobody declared is dropped rather than written.
-  const { content, title, subjectType, subjectId, ...setup } = body;
+  const { content, title, subjectType, subjectId, defaultLayout, ...setup } = body;
   if (Object.keys(setup).length) {
     const out = await savePageSetup(q, id, setup);
     // `empty` is not a failure here: a patch carrying only content or only a

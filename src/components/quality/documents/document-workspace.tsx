@@ -10,6 +10,8 @@ import { PageSetupMenu } from "@/components/quality/documents/page-setup-menu";
 import { WorkflowBar } from "@/components/quality/documents/workflow-bar";
 import { Editor } from "@/components/quality/editor/editor";
 import type { FieldGroups } from "@/components/quality/editor/merge-nodes";
+import type { LayoutState } from "@/components/quality/documents/document-view";
+import { documentsDict } from "@/shared/studio/documents";
 import SelectMenuJs from "@/components/fields/SelectMenu";
 import { Button } from "@/components/ui/button";
 
@@ -59,6 +61,7 @@ export function DocumentWorkspace({
   canEdit,
   subjectType = "",
   fields = [],
+  layout = null,
   onChanged,
 }: {
   slug: string;
@@ -71,9 +74,25 @@ export function DocumentWorkspace({
   canEdit: boolean;
   subjectType?: string;
   fields?: FieldGroups;
+  layout?: LayoutState | null;
   onChanged: () => void;
 }) {
   const tr = qualityDict(useStudioLocale());
+  const dt = documentsDict(useStudioLocale());
+
+  // THE ONE CUSTOMERS RECEIVE. Its own write, its own right — see
+  // setDefaultLayout — and a refusal reloads to the truth rather than guessing.
+  const [layoutBusy, setLayoutBusy] = useState(false);
+  const setDefault = useCallback(async (on: boolean) => {
+    setLayoutBusy(true);
+    await fetch(`/api/studios/${slug}/quality/docs?id=${encodeURIComponent(documentId)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ defaultLayout: on }),
+    });
+    setLayoutBusy(false);
+    onChanged();
+  }, [slug, documentId, onChanged]);
 
   // WHAT THIS DOCUMENT IS A LAYOUT FOR. Binding it is what makes a quotation's
   // or an invoice's fields reachable at all — the Insert-field menu is filtered
@@ -281,6 +300,31 @@ export function DocumentWorkspace({
           </Button>
         </div>
       </header>
+
+      {/* A LAYOUT SAYS WHETHER CLIENTS RECEIVE IT — and, when it cannot be
+          chosen yet, why: only a published revision prints. */}
+      {layout && (
+        <div className="doc-chrome flex flex-wrap items-center gap-3 border-b border-border bg-muted/40 px-4 py-2 text-xs">
+          {layout.isDefault ? (
+            <>
+              <span className="font-600 text-emerald-700 dark:text-emerald-300">
+                {dt.isDefault(layout.kind, layout.language)}
+              </span>
+              {layout.canSet && (
+                <Button variant="ghost" size="sm" disabled={layoutBusy} onClick={() => void setDefault(false)}>
+                  {dt.stopDefault}
+                </Button>
+              )}
+            </>
+          ) : !layout.issued ? (
+            <span className="text-muted-foreground">{dt.publishFirst}</span>
+          ) : layout.canSet ? (
+            <Button variant="outline" size="sm" disabled={layoutBusy} onClick={() => void setDefault(true)}>
+              {dt.useAsDefault(layout.kind, layout.language)}
+            </Button>
+          ) : null}
+        </div>
+      )}
 
       <WorkflowBar
         slug={slug}

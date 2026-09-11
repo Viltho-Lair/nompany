@@ -136,6 +136,10 @@ export function isFullScreenPath(
   // refuses it when the right is missing, and that refusal is full-screen too,
   // which is why this does not consult `sections`.
   if (key === "engagements") return true;
+  // A CUSTOMER DOCUMENT PRINTED THROUGH ITS LAYOUT (`/print/<kind>/<id>`). Not
+  // a section either: it rides the RECORD's right, which the print route asks,
+  // and a sheet of paper wants the whole window.
+  if (key === "print") return true;
 
   if (key === "engineering-docs-register") return granted(key);
 

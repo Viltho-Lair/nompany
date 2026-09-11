@@ -1339,6 +1339,23 @@ html.dark { color-scheme: dark; }
 .ProseMirror .merge-field.ProseMirror-selectednode,
 .ProseMirror .merge-block.ProseMirror-selectednode { outline: 2px solid rgb(37 99 235); }
 
+/* The stamp across a customer document that is not final — DRAFT, CANCELLED.
+   Fixed, so a printed copy carries it on every sheet, and never clickable. */
+.print-watermark {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  font-size: 7rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: rgb(225 29 72 / 0.12);
+  transform: rotate(-30deg);
+}
+
 /* ---- planner print: a WBS-and-waterfall sheet --------------------------- */
 /* The project planner prints like a document (window.print over these rules):
    every control is hidden and the two scrolling panes expand to their full

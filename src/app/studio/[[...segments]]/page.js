@@ -52,7 +52,7 @@ import { log } from "@/platform/http/observability";
 // components/studio2/HeavyScreens holds the measurement and the reasoning; the
 // screens below are unchanged because their weight has not been measured yet,
 // and moving code on a hunch is how the last split came to look like it worked.
-import { DocumentList, DocumentView, StudioPlanner, StudioPlannerList } from "@/components/studio2/HeavyScreens";
+import { DocumentList, DocumentView, DocumentPrint, StudioPlanner, StudioPlannerList } from "@/components/studio2/HeavyScreens";
 
 const StudioDocs = nextDynamic(() => import("@/components/studio2/StudioDocs"));
 // The generic section dashboard's register panel — reached from five sections,
@@ -358,6 +358,21 @@ async function renderStudio(params) {
         slug={studio.slug}
         canLock={can(access, "engagements.lock")}
         canDelete={can(access, "engagements.delete")}
+      />
+    );
+  }
+
+  // A CUSTOMER DOCUMENT, PRINTED THROUGH ITS LAYOUT: /print/<kind>/<id>. Not a
+  // section, like Engagements: it rides the RECORD's right, which the print
+  // route asks before it fills anything, so there is nothing to check here but
+  // whether this reader may start a layout when the studio has none.
+  if (requested === "print") {
+    return (
+      <DocumentPrint
+        slug={studio.slug}
+        kind={segments[1] || ""}
+        recordId={segments[2] || ""}
+        canCreateLayout={can(access, "engineeringDocs.register.create")}
       />
     );
   }

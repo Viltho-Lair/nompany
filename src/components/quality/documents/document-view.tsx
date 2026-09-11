@@ -42,7 +42,7 @@ export function DocumentView({
   const [state, setState] = useState<
     | { status: "loading" }
     | { status: "missing" }
-    | { status: "ready"; document: StoredDocument; issued: StoredDocument | null; canEdit: boolean; fields: FieldGroups }
+    | { status: "ready"; document: StoredDocument; issued: StoredDocument | null; canEdit: boolean; fields: FieldGroups; layout: LayoutState | null }
   >({ status: "loading" });
 
   const load = useCallback(async () => {
@@ -59,6 +59,7 @@ export function DocumentView({
       issued: StoredDocument | null;
       canEdit: boolean;
       fields?: FieldGroups;
+      layout?: LayoutState | null;
     };
     setState({
       status: "ready",
@@ -66,6 +67,7 @@ export function DocumentView({
       issued: payload.issued ?? null,
       canEdit: payload.canEdit !== false,
       fields: Array.isArray(payload.fields) ? payload.fields : [],
+      layout: payload.layout ?? null,
     });
   }, [studio.slug, documentId]);
 
@@ -101,6 +103,7 @@ export function DocumentView({
       canEdit={state.canEdit}
       subjectType={state.document.subjectType ?? ""}
       fields={state.fields}
+      layout={state.layout}
       onChanged={load}
     />
   );
@@ -125,6 +128,15 @@ function DocumentNotFound({ slug }: { slug: string }) {
     </div>
   );
 }
+
+/** `layoutStateFor`'s answer: this document as a customer layout. */
+export type LayoutState = {
+  kind: string;
+  language: string;
+  issued: boolean;
+  isDefault: boolean;
+  canSet: boolean;
+};
 
 const ALIGNS: BandAlign[] = ["left", "center", "right"];
 const MARGIN_PRESETS: MarginPresetId[] = ["normal", "narrow", "moderate", "wide", "custom"];
@@ -172,8 +184,12 @@ export type StoredDocument = {
   language?: string;
 };
 
-/** Widens the flat, all-optional stored row into the nested UI shape. */
-function toPageSetup(document: StoredDocument): PageSetup {
+/**
+ * Widens the flat, all-optional stored row into the nested UI shape. Exported
+ * for the print page, which lays a published revision's snapshot out on the
+ * same sheets — a second copy of this would be free to disagree about margins.
+ */
+export function toPageSetup(document: StoredDocument): PageSetup {
   const paper = resolvePagePreset(document.pageSize);
   const marginPreset = oneOf(MARGIN_PRESETS, document.marginPreset, "normal");
   const fallback = marginsForPreset("normal", paper, {

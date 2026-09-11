@@ -77,19 +77,74 @@ converted quotation. A document with no frozen currency prints the studio's.
 **The header and footer are read-only on an issued document now.** They took keystrokes before
 and never saved them, which reads as the page accepting an edit and forgetting it.
 
+## The layout customers receive
+
+**One layout per type per language**, stored on the studio record as
+`documentLayouts.quotation.en = <document id>` (`modules/quality/layouts.ts`), beside
+`numbering`, because what every client receives is the company's decision.
+
+**Only a published layout can be chosen.** A layout document shows a strip under its header:
+*Use as the quotation layout in English* once it has an effective revision, *Publish this
+layout before it can be the one customers receive* until then, and *Customers receive this…*
+once chosen, with *Stop using*. The language of the slot is the **published revision's**,
+because that is what prints.
+
+**Choosing answers to `administration.settings.edit`**, not to the register's rights: the
+person who writes a layout is not necessarily the person who decides what every client
+receives. **The quality docs route is the only writer** (`setDefaultLayout`) — the one place
+that can check the binding, the language and the publication together. Studio settings does
+not accept the key, so there is never a second door.
+
+## Printing
+
+**Print** is on the quotation viewer (Sales) and on every invoice row (Finance, for every
+reader of the row — a draft prints too, stamped). It opens `/<slug>/print/<kind>/<id>`, a
+full-screen page (`shared/studioRoute`, like Engagements) with an **English / Arabic** switch
+that picks which layout fills; it starts at the reader's own language.
+
+`GET /api/studios/<slug>/documents/print?kind=&id=&lang=` (`modules/quality/print.ts`):
+
+1. **The record's right first** — `crmSales.quotations.view` or `finance.cash.view` — before a
+   layout is read. **It does not use the register's context**, whose view guard would refuse a
+   Finance user printing an invoice; it builds the same shape from the studio context, and the
+   resolver still permission-checks every hop.
+2. The chosen layout's **effective revision** — its frozen snapshot, never the working copy.
+3. `mergeValuesFor` and `resolveBlocks` against the record, then `fillTemplate`
+   (`modules/quality/fill.ts`, pure): a field becomes its value and keeps its marks; a block
+   becomes real tables — one per named group under its heading — with column heads and totals
+   in the document's language (`shared/studio/documents.ts`), money to two places with the
+   currency, and figures on the side the line ends (left, in Arabic). A stored date prints
+   dd/mm/yyyy.
+4. **A placeholder nothing could read prints its own name** in brackets and is counted on
+   screen; one that resolved to an empty value prints a dash. Those are two different facts.
+5. **The stamp**: an invoice prints DRAFT until sent and CANCELLED once cancelled; a quotation
+   prints DRAFT until it is Approved or Sent. It is in the document's language and repeats on
+   every printed sheet.
+
+The page lays the filled document on the **same sheets** it was designed on — the editor,
+read-only — so there is no second renderer to disagree with the first. **Print is the export**:
+the browser's Save as PDF produces exactly what is drawn, Arabic shaped by the browser.
+
+**A studio with no layout** is told so, with *Create a starter layout* for somebody who may
+create register documents: a draft bound to the type, in the chosen language, with a
+letterhead carrying the company name and **its legal rows as placeholders**, the record's
+number, date, client and expiry or due date, the lines and totals, and a terms section. It is
+still a draft — edited, published and chosen before anything prints from it.
+`tests/customer-documents.mjs` asserts every starter passes the save-time allowlist.
+
 ## Not built yet
 
 Stated in words, because a silent gap reads as a finished feature.
 
-- **No live preview of a filled layout.** The author sees `[Client]` chips, not a client's
-  name; resolving against a chosen record is the print page's job (slice D).
-- **No default layout per type.** Nothing records which template a quotation or an invoice
-  prints through (slice C).
-- **No print page.** A quotation or invoice cannot yet be printed through a layout; the
-  quotation viewer's print button stays gone (slice D). A layout will reach a customer only
-  once it has an **effective (approved) revision** — and because the builder's approval
-  ladder has no Admin exception, a studio of one cannot issue one. That was stated and
-  accepted.
+- **No live preview of a filled layout while authoring.** The author sees `[Client]` chips;
+  the filled document is the print page.
+- **A studio of one cannot publish a layout**, because the builder's approval ladder has no
+  Admin exception. Stated and accepted when approval was chosen.
+- **A layout's binding can change while a revision is open.** If a chosen layout is re-bound
+  to another type mid-revision, the slot still names it until someone stops using it.
+- **Print is on the quotation viewer and invoice rows only** — not on Technical's quotation
+  list, a sales order, a delivery note or a purchase order. Each is a catalogue entry and a
+  button, not new machinery.
 - **No email.** How a document reaches the client by email is an open row in
   `docs/progress.md`.
 - **The due date is not proposed on screen.** The invoice form still shows a blank due date;

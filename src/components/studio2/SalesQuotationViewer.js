@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { LinesSkeleton } from "@/components/studio2/RecordSkeleton";
 import { technicalDict } from "@/shared/studio/technical";
+import { documentsDict } from "@/shared/studio/documents";
 import Link from "next/link";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { Icon } from "@/components/studio2/icons";
@@ -22,10 +23,11 @@ import { useReload } from "@/components/studio2/useReload";
 //   • nothing here is an input. There is no field to type in, no Save and no
 //     Submit; the builder is Technical's screen and stays theirs.
 //   • it reads /sales/quotations, which has no POST, PUT or DELETE at all.
-//   • it does not export. The finished document goes out from Technical, so a
-//     copy taken from this screen could differ from the one the client holds —
-//     and two versions of a priced document is exactly the failure worth
-//     preventing.
+//   • it PRINTS, and that is not an export of this screen. Print opens the
+//     quotation through the studio's PUBLISHED layout, filled from the stored
+//     record on the server (/print/quotation/<id>) — so the copy printed here
+//     and the one printed anywhere else are the same document, which was the
+//     only reason this screen used to refuse to produce one.
 //
 // FIGURES are shown exactly as they were stored: a quotation is a document
 // somebody was given, so no line here is repriced from today's catalogue.
@@ -42,6 +44,7 @@ const cellHead = "px-3 py-2 text-start text-[11px] font-700 uppercase tracking-w
 
 export default function SalesQuotationViewer({ slug, ticketId, quotationId }) {
   const tr = technicalDict(useStudioLocale());
+  const dt = documentsDict(useStudioLocale());
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
 
@@ -65,11 +68,10 @@ export default function SalesQuotationViewer({ slug, ticketId, quotationId }) {
   // the channel its writes now publish on.
   useLiveUpdates(slug, "crm-sales", load);
 
-  // PRINT IS GONE FOR NOW, deliberately rather than by neglect. It generated a
-  // document from a template, and both the template and the generation were
-  // part of the builder that has been removed. It comes back with call points,
-  // against the new editor — leaving a button that navigates to a document
-  // nobody can produce would have been worse than not drawing one.
+  // PRINT IS BACK, against the new editor, as this note said it would be: the
+  // studio designs the quotation layout in the Document builder, publishes it
+  // and chooses it, and Print fills that layout from this quotation. A studio
+  // with no layout yet is told so on the print page, with a way to start one.
 
   const back = (
     <Link href={`/${slug}/crm-sales-tickets/${ticketId}`} className={btnGhost}>{tr.backTicket}</Link>
@@ -108,6 +110,7 @@ export default function SalesQuotationViewer({ slug, ticketId, quotationId }) {
         <span className="ms-auto inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-700 text-slate-500 dark:bg-white/5 dark:text-slate-300">
           <Icon name="lock" className="h-3.5 w-3.5" /> {tr.viewOnly}
         </span>
+        <Link href={`/${slug}/print/quotation/${quotationId}`} className={btnGhost}>{dt.print}</Link>
       </div>
 
       <section className={panel}>

@@ -4,6 +4,8 @@ import { Fragment, useCallback, useEffect, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { financeDict } from "@/shared/studio/finance";
+import { documentsDict } from "@/shared/studio/documents";
+import Link from "next/link";
 import FinanceSettingsPanel from "@/components/studio2/FinanceSettingsPanel";
 import nextDynamic from "next/dynamic";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
@@ -318,6 +320,7 @@ function Summary({ summary }) {
 
 // ---- invoices --------------------------------------------------------------
 function Invoices({ rows, projects, milestones = [], vocab, slug, nav, canManage, busy, send }) {
+  const dt = documentsDict(useStudioLocale());
   const tr = financeDict(useStudioLocale());
   const [drafting, setDrafting] = useState(false);
   const [paying, setPaying] = useState(null);
@@ -399,16 +402,21 @@ function Invoices({ rows, projects, milestones = [], vocab, slug, nav, canManage
               {
                 field: "actions", headerName: "", minWidth: 280, flex: 1.2, sortable: false,
                 align: "right", headerAlign: "right",
-                renderCell: ({ row }) => (canManage ? (
+                // PRINT IS A READER'S ACT, so it is drawn for everybody who can
+                // see the row; the rest are a manager's. A draft prints with its
+                // DRAFT stamp rather than not at all — somebody checking the
+                // layout before sending is the commonest reason to press it.
+                renderCell: ({ row }) => (
                   <span className="flex items-center justify-end gap-2">
-                    {row.status === "Draft" && <button className={btnRowPrimary} disabled={busy} onClick={() => send("invoices", "PUT", { id: row.id, status: "Sent" })}>{tr.send}</button>}
-                    {row.status === "Sent" && <button className={btnRowPrimary} onClick={() => setPaying(row)}>{tr.recordPayment}</button>}
-                    {row.status !== "Cancelled" && row.status !== "Paid" && row.paid === 0 && (
+                    <Link className={btnRow} href={`/${slug}/print/invoice/${row.id}`}>{dt.print}</Link>
+                    {canManage && row.status === "Draft" && <button className={btnRowPrimary} disabled={busy} onClick={() => send("invoices", "PUT", { id: row.id, status: "Sent" })}>{tr.send}</button>}
+                    {canManage && row.status === "Sent" && <button className={btnRowPrimary} onClick={() => setPaying(row)}>{tr.recordPayment}</button>}
+                    {canManage && row.status !== "Cancelled" && row.status !== "Paid" && row.paid === 0 && (
                       <button className={btnRow} disabled={busy} onClick={() => send("invoices", "PUT", { id: row.id, status: "Cancelled" })}>{tr.cancel}</button>
                     )}
-                    {row.status === "Draft" && <button className={btnRowDanger} disabled={busy} onClick={() => send("invoices", "DELETE", { id: row.id })}>{tr.delete}</button>}
+                    {canManage && row.status === "Draft" && <button className={btnRowDanger} disabled={busy} onClick={() => send("invoices", "DELETE", { id: row.id })}>{tr.delete}</button>}
                   </span>
-                ) : null),
+                ),
               },
             ]}
           />

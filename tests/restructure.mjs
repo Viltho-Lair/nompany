@@ -937,7 +937,10 @@ function gitGrepLines(execFileSync, file, patterns) {
 // stopped being a section. It is deliberately NOT a section key — that is the
 // whole change — so a literal naming it is correct, and it belongs here beside
 // the other four rather than being made a key to satisfy this assertion.
-const NON_SECTION_TARGETS = ["people", "access", "documentation", "engagements", "settings"];
+// "print" is `/<slug>/print/<kind>/<id>` — a customer document printed through
+// its layout (tier 4). Like Engagements it rides a RECORD's right rather than a
+// section's, and isFullScreenPath (shared/studioRoute) names it the same way.
+const NON_SECTION_TARGETS = ["people", "access", "documentation", "engagements", "settings", "print"];
 const isKnownRouteTarget = (key) => ALL_SECTION_KEYS.includes(key) || NON_SECTION_TARGETS.includes(key);
 
 // COMPOUND_ROOTS IS A SECOND LIST THAT MUST AGREE WITH SECTION_DEFS, and its own
