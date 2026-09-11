@@ -75,7 +75,7 @@ const EN_STATUS: Record<string, string> = { Draft: "Draft", Approved: "Approved"
 const en: Strings = {
   tab: "Payroll",
   runs: "Payroll runs",
-  noRuns: "No runs yet. Prepare one for a month below.",
+  noRuns: "Pick a month above and prepare a run.",
   period: "Month",
   prepare: "Prepare run",
   slips: "Payslips",
@@ -146,7 +146,7 @@ const AR_STATUS: Record<string, string> = { Draft: "مسودة", Approved: "مع
 const ar: Strings = {
   tab: "الرواتب",
   runs: "دورات الرواتب",
-  noRuns: "لا توجد دورات بعد. جهزوا واحدة لشهر أدناه.",
+  noRuns: "اختاروا شهرا في الأعلى وجهزوا دورة.",
   period: "الشهر",
   prepare: "تجهيز دورة",
   slips: "قسائم الرواتب",
