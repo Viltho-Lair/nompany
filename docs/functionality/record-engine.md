@@ -276,6 +276,15 @@ question rather than an oversight: a grid drawn from a compile-time catalogue ca
 a right minted from a row, and the fix is the type-management UI, not a special case in
 the grid.
 
+**A list names what a reference points at.** `listRecords` resolves every reference field,
+gated on the reader's right over the target, and the GET route now returns that `references`
+map. It was computed and dropped at the route until 11/09/2026, so every link column — the
+machine on a maintenance job, the test behind an NCR — drew a raw record id.
+
+**A move reports what it raised.** A rule can create a record on a move (a rejected test raises
+its NCR); the PUT returns `raised` and the register says it, by reference, to the person who
+pressed the button. Until 11/09/2026 the route dropped it and nobody was told.
+
 ## Not built yet
 
 Stated in words, because a silent gap reads as a finished feature.

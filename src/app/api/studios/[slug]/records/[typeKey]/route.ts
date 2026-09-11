@@ -37,6 +37,10 @@ export const GET = route<EngineContext>({ ...spec, body: false }, async (engine)
     // no other way to know what columns to draw or what moves to offer.
     type: result.type,
     records: result.records,
+    // WHAT EACH REFERENCE FIELD POINTS AT, resolved and gated by `listRecords`.
+    // It was computed and then dropped here, so every link column — the machine
+    // on a maintenance job, the test behind an NCR — drew a raw record id.
+    references: result.references,
     canCreate: result.canCreate,
     canEdit: result.canEdit,
     canDelete: result.canDelete,
@@ -61,7 +65,10 @@ export const PUT = route<EngineContext>(spec, async (engine) => {
   if (engine.body.action === "move") {
     const moved = await moveRecord(engine, typeKey, id, String(engine.body.to || ""));
     if (refused(moved)) return moved;
-    return { ok: true, record: moved.record };
+    // AND WHAT THE MOVE RAISED. A rule can create a record on a move — a
+    // rejected test raises its NCR — and the person who pressed the button is
+    // the one who needs to hear it; dropping it here meant nobody was told.
+    return { ok: true, record: moved.record, raised: moved.raised };
   }
 
   const result = await editRecord(engine, typeKey, id, engine.body);

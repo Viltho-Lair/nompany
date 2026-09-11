@@ -343,14 +343,19 @@ export default function StudioRecords({ slug, typeKey }) {
     setRefOptions(Object.fromEntries(pairs.filter(([, v]) => v)));
   }, [slug]);
 
+  // WHAT A MOVE RAISED, said once to the person who made it — a rejected test
+  // raises its NCR, and that happening silently is how nobody chases it.
+  const [notice, setNotice] = useState("");
   const send = useCallback(async (method, payload) => {
-    setError(""); setBusy(true);
+    setError(""); setNotice(""); setBusy(true);
     const res = await fetch(`/api/studios/${slug}/records/${typeKey}`, {
       method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
     });
     const out = await res.json().catch(() => ({}));
     setBusy(false);
     if (!res.ok) { setError(refusal(tr, out.error || "failed")); return false; }
+    const raised = (Array.isArray(out.raised) ? out.raised : []).map((r) => r.reference).filter(Boolean);
+    if (raised.length) setNotice(tr.recordRaised(raised.join(", ")));
     await reload();
     return true;
   }, [slug, typeKey, reload, tr]);
@@ -428,6 +433,7 @@ export default function StudioRecords({ slug, typeKey }) {
   return (
     <div className="space-y-6">
       {error && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>}
+      {notice && <p role="status" className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">{notice}</p>}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className={h2}>{type.label}</h2>

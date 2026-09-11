@@ -51,6 +51,9 @@ type Strings = CommonStrings & {
   recordMore: string;
   recordDeleteConfirm: (reference: string) => string;
   recordMove: (to: string) => string;
+  // A move can raise a record of its own (a rejected test raises its NCR); the
+  // person who pressed the button is told which, by reference.
+  recordRaised: (refs: string) => string;
   recordNew: string;
   recordsEmpty: string;
   recordsEmptyBody: string;
@@ -82,6 +85,7 @@ const en: Strings = {
   recordMore: "Show more",
   recordDeleteConfirm: (reference) => `Delete ${reference}? This cannot be undone.`,
   recordMove: (to) => `Move to ${to}`,
+  recordRaised: (refs) => `This move raised ${refs}.`,
   recordNew: "New",
   recordsEmpty: "Nothing here yet",
   recordsEmptyBody: "Records of this kind will appear here once somebody adds one.",
@@ -113,6 +117,7 @@ const ar: Strings = {
   recordMore: "عرض المزيد",
   recordDeleteConfirm: (reference) => `حذف ${reference}؟ لا يمكن التراجع عن ذلك.`,
   recordMove: (to) => `النقل إلى ${to}`,
+  recordRaised: (refs) => `نتج عن هذا النقل ${refs}.`,
   recordNew: "جديد",
   recordsEmpty: "لا شيء هنا بعد",
   recordsEmptyBody: "تظهر السجلات من هذا النوع هنا بعد أن يضيف أحدهم واحدا.",
