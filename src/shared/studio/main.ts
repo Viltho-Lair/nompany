@@ -85,7 +85,9 @@ const en: Strings = {
   liveQuotations: "Live quotations",
   projectsRunning: "Projects running",
   outstanding: "Outstanding",
-  trackedItems: "Tracked items",
+  // The tile counts items at or below their reorder level (headlines.lowStock),
+  // so it says so — "Tracked items" read as the size of the catalogue.
+  trackedItems: "Below reorder level",
   headcount: "People",
 };
 
@@ -127,7 +129,7 @@ const ar: Strings = {
   liveQuotations: "عروض سعر جارية",
   projectsRunning: "مشاريع جارية",
   outstanding: "مستحق",
-  trackedItems: "أصناف متتبعة",
+  trackedItems: "دون حد إعادة الطلب",
   headcount: "الأشخاص",
 };
 

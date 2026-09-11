@@ -22,6 +22,7 @@ import type { Permit } from "@/modules/operations/types";
 // front door cannot quietly disagree with the screen it is summarising.
 import { balances } from "@/modules/inventory/inventory";
 import { permitState } from "@/modules/operations/operations";
+import { invoiceTotals } from "@/modules/finance/finance";
 import type { ModuleContext } from "../context";
 import type { StudioRef, CollaboratorRef } from "../context";
 import type { PermissionSet } from "@/platform/access";
@@ -170,11 +171,14 @@ export async function headlines(ctx: MainContext) {
       : null,
     awaitingMe,
     // Money owed to the studio: everything invoiced and not yet cancelled or
-    // paid. Totals are recomputed rather than trusted from a stored field.
+    // paid. Totals are recomputed rather than trusted from a stored field —
+    // and recomputed BY FINANCE'S OWN `invoiceTotals`. This summed `total` and
+    // `paid` off the row, which are never stored (finance/schema.ts: "derived
+    // by invoiceTotals, never stored"), so the tile read 0 in every studio.
     outstanding: invoices
       ? Math.round(invoices
         .filter((i) => i.status === "Sent")
-        .reduce((sum, i) => sum + Math.max(0, (Number(i.total) || 0) - (Number(i.paid) || 0)), 0) * 100) / 100
+        .reduce((sum, i) => sum + invoiceTotals(i).outstanding, 0) * 100) / 100
       : null,
     // FALLING DUE, not "still valid". This counted every permit that had not
     // yet expired — the healthy ones — and put the total under a heading that
