@@ -79,6 +79,12 @@ export const InvoiceSchema = z.object({
   payments: z.array(PaymentSchema).optional(),
   createdAt: z.string().optional(),
   createdByCollaboratorId: z.string().optional(),
+  /**
+   * THE STUDIO'S CURRENCY WHEN THE INVOICE WAS RAISED, frozen so a printed
+   * invoice never changes money because Studio settings did. Optional: every
+   * invoice raised before this existed has none, and reads the studio's.
+   */
+  currency: z.string().max(3).optional(),
 
   // ---- derived by invoiceTotals, never stored ------------------------------
   subtotal: z.number().optional(),

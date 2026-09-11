@@ -23,6 +23,13 @@ export type Series = {
   /** Which section's screen the documents live on, for grouping the editor. */
   group: string;
   label: string;
+  /**
+   * WHETHER THIS SERIES CARRIES A PAYMENT TERM IN DAYS — "a date of expiry is
+   * issued for each type in days", the owner's words. Only a document the
+   * studio SENDS and expects to be paid on has one: an invoice. A bill's due
+   * date is the supplier's to set, so it has none.
+   */
+  hasDueDays?: boolean;
 };
 
 // THE CATALOGUE, and it is deliberately NOT every reference the product mints.
@@ -44,7 +51,7 @@ export type Series = {
 // that (it has no call sites to compare against); reading the nineteen call
 // sites is what caught it, and is what to do again when a series is added.
 export const SERIES: readonly Series[] = Object.freeze([
-  { key: "invoice", prefix: "INV", group: "Finance & Accounting", label: "Invoices" },
+  { key: "invoice", prefix: "INV", group: "Finance & Accounting", label: "Invoices", hasDueDays: true },
   { key: "creditNote", prefix: "CN", group: "Finance & Accounting", label: "Credit notes" },
   { key: "bill", prefix: "BILL", group: "Finance & Accounting", label: "Bills" },
   { key: "expense", prefix: "EXP", group: "Finance & Accounting", label: "Expenses" },
@@ -63,10 +70,13 @@ export const SERIES: readonly Series[] = Object.freeze([
   { key: "permit", prefix: "PMT", group: "Field Operations & Service", label: "Permits" },
 ]);
 
-export type SeriesSetting = { prefix: string; pad: number; startAt: number };
+/** `dueDays` is 0 — no default due date — unless the series declares `hasDueDays`. */
+export type SeriesSetting = { prefix: string; pad: number; startAt: number; dueDays: number };
 
 export const DEFAULT_PAD = 4;
 export const DEFAULT_START = 1;
+/** A year. A payment term longer than that is not a term. */
+export const MAX_DUE_DAYS = 365;
 
 const byKey = new Map(SERIES.map((s) => [s.key, s]));
 export const isSeriesKey = (v: unknown): boolean => byKey.has(String(v ?? ""));
@@ -130,6 +140,16 @@ export function numberingProblems(settings: unknown): string[] {
         problems.push(`${key}: the first number must be between 1 and 1000000`);
       }
     }
+    if (s.dueDays !== undefined && Number(s.dueDays) !== 0) {
+      const dueDays = Number(s.dueDays);
+      // REFUSED ON A SERIES THAT HAS NO TERM rather than silently dropped: a
+      // studio that typed "30" against its bills meant something, and the
+      // supplier sets a bill's due date, not the studio.
+      if (!byKey.get(key)?.hasDueDays) problems.push(`${key}: this document has no payment term`);
+      else if (!Number.isInteger(dueDays) || dueDays < 0 || dueDays > MAX_DUE_DAYS) {
+        problems.push(`${key}: days to pay must be between 0 and ${MAX_DUE_DAYS}`);
+      }
+    }
   }
   return problems;
 }
@@ -145,10 +165,13 @@ export function cleanNumbering(settings: unknown): Record<string, SeriesSetting>
     if (!PREFIX_RE.test(prefix)) continue;
     const pad = Number(s.pad);
     const startAt = Number(s.startAt);
+    const dueDays = Number(s.dueDays);
     out[key] = {
       prefix,
       pad: Number.isInteger(pad) && pad >= 2 && pad <= 8 ? pad : DEFAULT_PAD,
       startAt: Number.isInteger(startAt) && startAt >= 1 ? startAt : DEFAULT_START,
+      dueDays: byKey.get(key)?.hasDueDays && Number.isInteger(dueDays) && dueDays > 0
+        ? Math.min(dueDays, MAX_DUE_DAYS) : 0,
     };
   }
   return out;
@@ -165,6 +188,7 @@ export function seriesSetting(key: string, stored: unknown): SeriesSetting {
     prefix: declared?.prefix || "REF",
     pad: DEFAULT_PAD,
     startAt: DEFAULT_START,
+    dueDays: 0,
   };
   if (!declared) return fallback;
   const clean = cleanNumbering(stored);

@@ -117,5 +117,22 @@ ok("...and says which are the studio's own choice",
   view.find((v) => v.key === "invoice").custom === true
   && view.find((v) => v.key === "bill").custom === false);
 
+console.log("\n== days to pay");
+
+// THE OWNER'S "a date of expiry is issued for each type in days". Only a
+// series that declares a payment term takes one; a bill's due date is the
+// supplier's, so typing a term against bills is refused rather than dropped.
+ok("an invoice term in range passes", numberingProblems({ invoice: { prefix: "SI", dueDays: 30 } }).length === 0);
+ok("a term on a series with no term is refused", numberingProblems({ bill: { prefix: "BL", dueDays: 30 } }).length === 1);
+ok("a term over a year is refused", numberingProblems({ invoice: { prefix: "SI", dueDays: 400 } }).length === 1);
+ok("a fractional term is refused", numberingProblems({ invoice: { prefix: "SI", dueDays: 7.5 } }).length === 1);
+ok("the invoice term is kept", seriesSetting("invoice", { invoice: { prefix: "SI", dueDays: 30 } }).dueDays === 30);
+ok("an unset series has no term", seriesSetting("invoice", {}).dueDays === 0);
+ok("a term smuggled onto bills is dropped on clean",
+  cleanNumbering({ bill: { prefix: "BL", dueDays: 30 } }).bill.dueDays === 0);
+ok("the editor is told which series take a term",
+  numberingView({}).find((v) => v.key === "invoice").hasDueDays === true
+  && !numberingView({}).find((v) => v.key === "bill").hasDueDays);
+
 console.log(fails ? `\nnumbering model: ${fails} FAILURES\n` : "\nnumbering model: all passed\n");
 process.exit(fails ? 1 : 0);

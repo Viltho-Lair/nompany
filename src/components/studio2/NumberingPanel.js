@@ -42,7 +42,7 @@ export default function NumberingPanel({ rows, canManage, locale = "en", onSave 
     setProblem("");
     setDraft((d) => ({
       ...d,
-      [r.key]: { prefix: r.prefix, pad: r.pad, startAt: r.startAt, ...d[r.key], [field]: v },
+      [r.key]: { prefix: r.prefix, pad: r.pad, startAt: r.startAt, dueDays: r.dueDays, ...d[r.key], [field]: v },
     }));
   };
 
@@ -60,6 +60,9 @@ export default function NumberingPanel({ rows, canManage, locale = "en", onSave 
         prefix: String(edited?.prefix ?? r.prefix),
         pad: Number(edited?.pad ?? r.pad),
         startAt: Number(edited?.startAt ?? r.startAt),
+        // Sent only where the series takes a term — the server refuses one on
+        // a series that has none.
+        ...(r.hasDueDays ? { dueDays: Number(edited?.dueDays ?? r.dueDays) || 0 } : {}),
       };
     }
     const res = await onSave({ numbering });
@@ -113,6 +116,22 @@ export default function NumberingPanel({ rows, canManage, locale = "en", onSave 
                 <span className="w-32 shrink-0 font-mono text-xs text-slate-400 dark:text-slate-500">
                   {`${valueOf(r, "prefix") || "—"}-${String(valueOf(r, "startAt")).padStart(Math.max(2, Math.min(8, Number(valueOf(r, "pad")) || 4)), "0")}`}
                 </span>
+                {/* THE PAYMENT TERM, on the one series that has one. A new
+                    invoice with no due date typed gets its issue date plus
+                    this; 0 leaves the due date blank, as before. */}
+                {r.hasDueDays && (
+                  <span className="flex shrink-0 items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+                    <input
+                      type="number" min="0" max="365"
+                      className="w-16 rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm text-slate-900 dark:border-white/15 dark:bg-[#191921] dark:text-white"
+                      value={valueOf(r, "dueDays") || 0}
+                      disabled={!canManage}
+                      aria-label={tr.dueDaysFor(r.label)}
+                      onChange={(e) => set(r, "dueDays", Number(e.target.value))}
+                    />
+                    {tr.daysToPay}
+                  </span>
+                )}
                 {/* Whether this is the studio's own choice or the shipped
                     default — otherwise fourteen identical rows read as fourteen
                     decisions somebody made. */}

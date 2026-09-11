@@ -14,6 +14,8 @@ type Strings = {
   isDefault: string;
   prefixFor: (label: string) => string;
   padFor: (label: string) => string;
+  dueDaysFor: (label: string) => string;
+  daysToPay: string;
   save: string;
   saving: string;
   saved: string;
@@ -28,6 +30,8 @@ const en: Strings = {
   isDefault: "default",
   prefixFor: (label) => `Prefix for ${label}`,
   padFor: (label) => `Number width for ${label}`,
+  dueDaysFor: (label) => `Days to pay for ${label}`,
+  daysToPay: "days to pay",
   save: "Save numbering",
   saving: "Saving…",
   saved: "Saved",
@@ -40,6 +44,8 @@ const ar: Strings = {
   isDefault: "الافتراضي",
   prefixFor: (label) => `بادئة ${label}`,
   padFor: (label) => `عدد خانات ${label}`,
+  dueDaysFor: (label) => `مدة السداد بالأيام لـ ${label}`,
+  daysToPay: "يوما للسداد",
   save: "حفظ الترقيم",
   saving: "جار الحفظ…",
   saved: "حُفظ",

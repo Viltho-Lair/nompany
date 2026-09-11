@@ -14,7 +14,11 @@ export type {
 // stable once issued (createQuotation's `sequenceId` names it forever, and
 // nextNumberForSequence's counter is keyed off `prefix`, not `id`), so
 // renaming a sequence's label never touches numbers already issued under it.
-export type QuotationSequence = { id: string; label: string; prefix: string; start: number };
+//
+// `validDays` is how long a quotation numbered under this sequence stays open
+// to the client — the owner's instruction was that expiry is set "in the same
+// place a code is set for a quotation", per type. 0 means no expiry is printed.
+export type QuotationSequence = { id: string; label: string; prefix: string; start: number; validDays: number };
 
 // ---- this department's context ---------------------------------------------
 // Generated from the spec in the service file: `sub` and `foreign` become

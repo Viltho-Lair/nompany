@@ -49,6 +49,13 @@ anybody edits, because that is the question somebody asks and does not ask out l
 had already set, so fourteen shipped defaults do not become fourteen explicit settings —
 which would then never pick up a later change to a default.
 
+**The invoice series carries a payment term — *days to pay*** (11/09/2026). A new invoice
+with no due date typed gets its issue date plus that many days; 0 is no term, which is what
+every studio had before. Only a series that declares `hasDueDays` takes one: a bill's due
+date is the supplier's to set, so a term typed against bills is refused with the reason and
+dropped if one is ever read back. `customer-documents.md` is where the payment term and a
+quotation's validity are described together.
+
 ### Units
 
 Eight units ship with the product: `pcs`, `box`, `m`, `m²`, `kg`, `L`, `set`, `roll`. A

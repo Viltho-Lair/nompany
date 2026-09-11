@@ -84,7 +84,7 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
     // and that click. Replaces the single `nextQuotationNumber` field now that
     // a studio can number more than one kind of quotation.
     sequences: tech.sequences.map((seq) => ({
-      id: seq.id, label: seq.label, prefix: seq.prefix,
+      id: seq.id, label: seq.label, prefix: seq.prefix, validDays: seq.validDays,
       nextNumber: nextNumberForSequence(quotations, seq),
     })),
     // Which sequence a Sales-ticket conversion numbers against by default.

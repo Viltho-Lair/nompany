@@ -1069,6 +1069,7 @@ function QuotationNumbering({ sequences, defaultSequenceId, canManage, onSave })
   const seed = () => sequences.map((s) => ({
     id: s.id, label: s.label || "", prefix: s.prefix || "",
     start: String(s.nextNumber ?? 1),
+    validDays: s.validDays ? String(s.validDays) : "",
   }));
   const [rows, setRows] = useState(seed);
   const [defId, setDefId] = useState(defaultSequenceId || "");
@@ -1082,7 +1083,7 @@ function QuotationNumbering({ sequences, defaultSequenceId, canManage, onSave })
   const addRow = () => {
     setSaved(false); setErr("");
     const id = `seq-local-${localSeq.current++}-${Math.random().toString(36).slice(2, 8)}`;
-    setRows((rs) => [...rs, { id, label: "", prefix: "", start: "1" }]);
+    setRows((rs) => [...rs, { id, label: "", prefix: "", start: "1", validDays: "" }]);
   };
   const removeRow = (id) => {
     setSaved(false); setErr("");
@@ -1103,6 +1104,7 @@ function QuotationNumbering({ sequences, defaultSequenceId, canManage, onSave })
       // default below can reference a row created in this very save.
       sequences: rows.map((r) => ({
         id: r.id, label: r.label.trim(), prefix: r.prefix.trim(), start: Number(r.start) || 1,
+        validDays: Number(r.validDays) || 0,
       })),
       // If the chosen default was removed, fall back to the server's own choice.
       defaultSequenceId: rows.some((r) => r.id === defId) ? defId : "",
@@ -1120,13 +1122,17 @@ function QuotationNumbering({ sequences, defaultSequenceId, canManage, onSave })
         {rows.length === 0 && <p className="text-sm text-slate-400">{tr.noSequencesYetAdd}</p>}
         {rows.map((r) => (
           <div key={r.id} className="rounded-geex border border-slate-200/70 p-4 dark:border-white/10">
-            <div className="grid gap-3 sm:grid-cols-[1fr_1fr_120px_auto]">
+            <div className="grid gap-3 sm:grid-cols-[1fr_1fr_110px_140px_auto]">
               <Field label={tr.label} value={r.label} disabled={!canManage}
                 onChange={(v) => setRow(r.id, { label: v })} />
               <Field label={tr.prefix} value={r.prefix} disabled={!canManage}
                 onChange={(v) => setRow(r.id, { prefix: v })} />
               <Field label={tr.start} type="number" min="1" value={r.start} disabled={!canManage}
                 onChange={(v) => setRow(r.id, { start: v })} />
+              {/* HOW LONG THIS KIND OF QUOTATION STAYS OPEN — the owner put
+                  expiry beside the code, per type. Blank is no expiry. */}
+              <Field label={tr.validDays} type="number" min="0" max="365" value={r.validDays} disabled={!canManage}
+                onChange={(v) => setRow(r.id, { validDays: v })} />
               {canManage && (
                 <div className="flex items-center">
                   <button type="button" className={btnGhost} onClick={() => removeRow(r.id)}

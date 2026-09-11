@@ -30,9 +30,15 @@ const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 // through typing "1.5".
 const cell = "w-full rounded-geex border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-900 outline-none focus:border-brand-500 dark:border-white/10 dark:bg-white/5 dark:text-white";
 
-export default function QuotationBuilder({ quote, catalogue = [], currency = "", canManage, onSave, onClose }) {
+export default function QuotationBuilder({ quote, catalogue = [], currency: studioCurrency = "", canManage, onSave, onClose }) {
   const tr = technicalDict(useStudioLocale());
+  // THE QUOTATION'S OWN MONEY FIRST — frozen when it was raised — and the
+  // studio's only for a quotation raised before currency was stored on it.
+  const currency = quote.currency || studioCurrency;
   const locked = Boolean(quote.locked) || !canManage;
+  // How long the client may accept it. Proposed by the sequence at issue,
+  // changed here per quotation, and blank for no expiry.
+  const [validUntil, setValidUntil] = useState(quote.validUntil || "");
   const [tables, setTables] = useState(() => {
     const stored = Array.isArray(quote.tables) ? quote.tables : [];
     return stored.length
@@ -131,7 +137,7 @@ export default function QuotationBuilder({ quote, catalogue = [], currency = "",
     setBusy(true);
     // Submit is the only thing that finishes a quotation. Save deliberately
     // sends no status, which leaves the server to keep it a Draft.
-    const ok = await onSave(status ? { tables, vatRate, status } : { tables, vatRate });
+    const ok = await onSave(status ? { tables, vatRate, validUntil, status } : { tables, vatRate, validUntil });
     setBusy(false);
     if (ok === false) return;
     setSaved(status ? "submitted" : "saved");
@@ -368,6 +374,15 @@ export default function QuotationBuilder({ quote, catalogue = [], currency = "",
         <div className="mx-auto max-w-5xl">
           <p className="mb-1 text-xs text-slate-400">{tr.nLines(lines)}</p>
           <dl className="ms-auto w-full max-w-sm space-y-1 text-sm">
+            <div className="flex items-center gap-3">
+              <dt className="text-slate-500 dark:text-slate-400">
+                <label htmlFor="qb-valid">{tr.validUntil}</label>
+              </dt>
+              <dd className="ms-auto">
+                <input id="qb-valid" type="date" className={`${cell} w-40`} value={validUntil} disabled={locked}
+                  onChange={(e) => setValidUntil(e.target.value)} />
+              </dd>
+            </div>
             <div className="flex items-baseline gap-3">
               <dt className="text-slate-500 dark:text-slate-400">{tr.subtotal}</dt>
               <dd className="ms-auto font-mono tabular-nums text-slate-700 dark:text-slate-200">

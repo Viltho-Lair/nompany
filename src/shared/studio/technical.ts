@@ -191,6 +191,8 @@ type Strings = CommonStrings & {
   sentApprovalButNo: string;
   sequence: string;
   start: string;
+  validDays: string;
+  validUntil: string;
   status: string;
   studioKeepsModuleDashboards: string;
   studioNoTasksBoard: string;
@@ -425,6 +427,8 @@ const en: Strings = {
   sentApprovalButNo: "Sent for approval, but no approver is set up to receive it — appoint approvers in Tasks settings.",
   sequence: "Sequence",
   start: "Start",
+  validDays: "Valid for (days)",
+  validUntil: "Valid until",
   status: "Status",
   studioKeepsModuleDashboards: "This studio keeps its module dashboards behind a right of their own. The screens underneath are unaffected — pick one from the sidebar.",
   studioNoTasksBoard: "This studio has no Tasks board to route approvals to.",
@@ -663,6 +667,8 @@ const ar: Strings = {
   sentApprovalButNo: "أرسل للاعتماد، لكن لا يوجد معتمد مهيأ لاستلامه — عين معتمدين من إعدادات المهام.",
   sequence: "التسلسل",
   start: "البداية",
+  validDays: "مدة الصلاحية (أيام)",
+  validUntil: "صالح حتى",
   status: "الحالة",
   studioKeepsModuleDashboards: "يبقي هذا الاستوديو لوحات معلومات الوحدات خلف صلاحية خاصة بها. الشاشات التي تحتها غير متأثرة — اختر واحدة من الشريط الجانبي.",
   studioNoTasksBoard: "لا توجد لوحة مهام في هذا الاستوديو لتوجيه الاعتمادات إليها.",

@@ -139,6 +139,15 @@ export const QuotationSchema = z.looseObject({
   total: z.number().optional(),
   effectiveDate: z.string().optional(),
   nextReviewDate: z.string().optional(),
+
+  // ---- what the client is holding, frozen at issue --------------------------
+  // `validUntil` is issue date + the sequence's `validDays`, editable per
+  // quotation; blank means no expiry. `currency` is the studio's at the moment
+  // the quotation was raised — a document already sent must not change money
+  // because somebody later changed Studio settings. Both optional: every
+  // quotation raised before they existed has neither.
+  validUntil: z.string().optional(),
+  currency: z.string().optional(),
 });
 
 export type Rfq = z.infer<typeof RfqSchema>;

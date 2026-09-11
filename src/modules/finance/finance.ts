@@ -17,6 +17,7 @@
 
 import { requirePermission, ALL_PERMISSIONS } from "@/platform/access";
 import { seriesSetting } from "@/modules/administration/numbering";
+import { addDaysISO } from "@/shared/dates";
 import { withholdingProblems, cleanWithholding, withholdingOn, settledWith } from "./withholding";
 import type { WithholdingRule } from "./withholding";
 import { approvalChainsFor } from "@/platform/approval/store";
@@ -314,11 +315,13 @@ export async function createInvoice(ctx: FinanceContext, body: Record<string, un
 
   const invoices = await Invoices.find({ studio, section: cashSection });
   const today = new Date().toISOString().slice(0, 10);
+  const series = seriesSetting("invoice", studio.numbering);
+  const issueDate = day(body?.issueDate) || today;
   const invoice = await Invoices.create({ studio, section: cashSection }, {
     // Derived from the highest INV already issued, never from how many exist:
     // deleting a draft must not hand its number to the next invoice, and two
     // raised at once must not both be INV-0004. See modules/main/references.js.
-    reference: await nextReference(studio.id, { rows: invoices, field: "reference", ...seriesSetting("invoice", studio.numbering) }),
+    reference: await nextReference(studio.id, { rows: invoices, field: "reference", ...series }),
     projectId,
     // THE PAYMENT-SCHEDULE LINE THIS CLAIMS, when it claims one. Stored only
     // where there is a project to claim against — a milestone belongs to a
@@ -345,10 +348,15 @@ export async function createInvoice(ctx: FinanceContext, body: Record<string, un
     lines,
     vatRate: body?.vatRate === undefined ? 0 : Math.max(0, Math.min(100, Number(body.vatRate) || 0)),
     status: "Draft",
-    issueDate: day(body?.issueDate) || today,
-    dueDate: day(body?.dueDate),
+    issueDate,
+    // A TYPED DUE DATE WINS; otherwise the studio's payment term for invoices
+    // (Numbering, "days to pay") proposes one. A term of 0 leaves it blank,
+    // which is what every studio got before the term existed.
+    dueDate: day(body?.dueDate) || (series.dueDays ? addDaysISO(issueDate, series.dueDays) : ""),
     notes: str(body?.notes, 2000),
     payments: [],
+    // FROZEN, so the printed invoice never changes money with Studio settings.
+    currency: String(studio.currency || "").slice(0, 3),
     createdByCollaboratorId: collaborator.id,
     createdAt: new Date().toISOString(),
   });

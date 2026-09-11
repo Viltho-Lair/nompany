@@ -31,6 +31,7 @@ import {
 import { getExchangeSnapshot } from "@/lib/data/exchangeRates";
 import { landedUnitCost } from "@/shared/currencies";
 import { resolveUnitPrice, ratesByItem } from "@/shared/pricing";
+import { addDaysISO, todayISO } from "@/shared/dates";
 import { attachToTicketEngagement, attachQuotationEngagement, detachRecord, engagementIdFor } from "@/platform/db/engagement";
 import {
   QUOTATION_STATUSES, DEFAULT_QUOTATION_STATUS, LEAD_INTERNAL,
@@ -492,7 +493,12 @@ function cleanSequence(raw: unknown): QuotationSequence | null {
   // nextNumberForSequence) both stay meaningful after a rename.
   const id = String(s.id ?? "").trim().slice(0, 60) || genSequenceId();
   const label = String(s.label ?? "").trim().slice(0, 120) || prefix;
-  return { id, label, prefix, start };
+  // LENIENT HERE TOO: a missing or nonsense value reads as "no expiry" rather
+  // than refusing, because every sequence saved before this field existed has
+  // none. A year is the ceiling — an offer open longer than that is not one.
+  const days = Number(s.validDays);
+  const validDays = Number.isInteger(days) && days > 0 ? Math.min(days, 365) : 0;
+  return { id, label, prefix, start, validDays };
 }
 
 // settings.sequences, cleaned — or, for a studio saved before this existed, ONE
@@ -514,7 +520,7 @@ export function readSequences(settings: Record<string, unknown> | null | undefin
   // has to know the old shape existed.
   const start = n.mode === "from" && Number.isFinite(Number(n.start)) && Number(n.start) > 0
     ? Math.floor(Number(n.start)) : 1;
-  return [{ id: "default", label: "Default", prefix, start }];
+  return [{ id: "default", label: "Default", prefix, start, validDays: 0 }];
 }
 
 // STRICT cousin of cleanSequence, for the write path: a save with an empty or
@@ -558,6 +564,27 @@ export function resolveDefaultSequence(
 // brief: nothing here had to change to make per-sequence numbering correct.
 export function nextNumberForSequence(quotations: Quotation[], seq: Pick<QuotationSequence, "prefix" | "start">) {
   return nextUniqueRef(quotations, "number", seq.prefix, 4, seq.start);
+}
+
+// WHAT A QUOTATION IS ISSUED WITH besides its number: how long it stays open,
+// and the money it is in. Both are FROZEN onto the record — the sequence
+// proposes the expiry and the quotation keeps it (editable per quotation), and
+// the currency is the studio's today, so neither moves when settings do.
+// A revision is a new document handed to the client, so it gets a fresh
+// validity from the day it is raised rather than inheriting a stale one.
+export function issueTerms(sequence: Pick<QuotationSequence, "validDays"> | null | undefined, studio: object) {
+  const validDays = Number(sequence?.validDays) || 0;
+  return {
+    validUntil: validDays > 0 ? addDaysISO(todayISO(), validDays) : "",
+    currency: String((studio as { currency?: unknown }).currency || "").slice(0, 3),
+  };
+}
+
+// WHICH SEQUENCE ISSUED THIS NUMBER, read off its prefix. A revision keeps the
+// number the client holds, so its sequence is the one that number came from —
+// not whichever is marked default today.
+export function sequenceOfNumber(sequences: QuotationSequence[], number: string) {
+  return sequences.find((s) => String(number || "").startsWith(`${s.prefix}-`)) || null;
 }
 
 // The DEFAULT sequence's next number — what convertRfq uses, because a
@@ -771,6 +798,7 @@ export async function createQuotation(ctx: TechnicalContext, body: Record<string
     clientName: "",
     industry,
     deadline,
+    ...issueTerms(sequence, studio),
     status: DEFAULT_QUOTATION_STATUS,
     tables: [],
     items,
@@ -847,6 +875,13 @@ export async function convertRfq(ctx: TechnicalContext, body: Record<string, unk
     // off the RFQ row, which had copied them off the ticket, so a quotation
     // showed the ticket as it was two steps ago and nothing said so.
     ticketId: rfq.ticketId,
+    // The sequence that issued this number — the default for a first
+    // quotation, and whichever minted the prior one for a revision.
+    ...issueTerms(
+      sequenceOfNumber(ctx.sequences || [], number)
+        || resolveDefaultSequence(ctx.sequences || [], ctx.defaultSequenceId),
+      studio,
+    ),
     status: DEFAULT_QUOTATION_STATUS,
     // THE DOCUMENT, which is this quotation's own and stays stored: what was
     // priced, at what rate, for what total. A quotation the client is holding
@@ -956,6 +991,14 @@ export async function updateQuotation(ctx: TechnicalContext, id: string, body: R
   if (body?.description !== undefined) patch.description = str(body.description, 2000);
   if (body?.handledBy !== undefined) patch.handledBy = str(body.handledBy, 120);
   if (body?.notes !== undefined) patch.notes = str(body.notes, 4000);
+  // THE EXPIRY IS EDITABLE PER QUOTATION — the sequence only proposes it. A
+  // calendar date or nothing: anything else is refused rather than stored and
+  // printed as a date nobody can read.
+  if (body?.validUntil !== undefined) {
+    const v = str(body.validUntil, 10);
+    if (v && !/^\d{4}-\d{2}-\d{2}$/.test(v)) return { error: "validUntil" };
+    patch.validUntil = v;
+  }
   // OPENING the builder is what turns a New quotation into a Draft. The client
   // reports that it opened; the SERVER decides what that means, so a stale tab
   // cannot wind a finished quotation backwards.
