@@ -51,6 +51,11 @@ export const NOTIFY = {
   projectAssigned: "project.assigned",
   purchaseReceived: "purchase.received",
   approvalDecided: "approval.decided",
+  // Something needs THIS person's signature — the next step of a bill, bid,
+  // requisition or stock adjustment, a quotation or client-PO approval task,
+  // or a payroll run. Before it, only the raiser was told when a decision
+  // LANDED; nobody was told one was WAITING.
+  approvalRequested: "approval.requested",
   rfqRaised: "rfq.raised",
   mention: "mention",
   system: "system",

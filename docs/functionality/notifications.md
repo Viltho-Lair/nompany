@@ -74,6 +74,30 @@ reads is their own (`docs/functionality/language.md`), and the server does not
 know it; the route serves the studio's overrides alongside the rows, and every
 shipped template is already in the client bundle because the module is pure.
 
+## Who is told a signature is waiting
+
+**`approval.requested`** ("Waiting for your signature", the document's reference as the one
+fact) goes to whoever can answer the next step, resolved from the right that step names:
+
+- a **bill** when it is received (created Received, or a draft marked Received) and after
+  every signature that is not the last;
+- a **requisition** when it is submitted and after every signature that is not the last;
+- a **bid** after every signature that is not the last;
+- a **stock adjustment** when it is parked for approval and after every non-final signature;
+- the **quotation-approval** and **client-PO** tasks, to the people appointed to their
+  authorities in Task settings;
+- a **payroll run** when it is prepared, to holders of `hr.payroll.approve`.
+
+Never the raiser, who knows, and never anybody who signed an earlier step — invariant 7
+refuses them the next one. Until 11/09/2026 none of these rang anybody: only the raiser was
+told when a decision landed, and a waiting approval was found by somebody happening to open
+the screen.
+
+**One question, one home.** `modules/people/holders.ts` (`collaboratorsHolding`,
+`notifyHolders`, `notifyCollaboratorIds`) answers "who holds this right" through
+`effectivePermissions`; join requests, leave and the RFQ-raised notice used to each list the
+people and filter by hand, and now call it.
+
 ## Not built yet
 
 - **A formatted quantity carries the producer's language.** "3 days" is

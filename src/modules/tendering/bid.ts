@@ -24,6 +24,7 @@ import { getExchangeSnapshot } from "@/lib/data/exchangeRates";
 import { boqTotals, valueFromBoq } from "./boq";
 import type { BoqItem, Tender } from "./schema";
 import type { TenderingContext } from "./types";
+import { notifyHolders, signatureNotice } from "@/modules/people/holders";
 
 const Items = repo<BoqItem>("boqItems");
 const Tenders = repo<Tender>("tenders");
@@ -239,6 +240,14 @@ export async function approveBid(ctx: TenderingContext, id: string) {
   // that has been signed is still Preparing until somebody submits it, and
   // approval is a precondition of that move rather than a stage of its own.
   // Every reader deriving from status keeps reading what it reads today.
+  //
+  // THE NEXT SIGNER IS TOLD, when there is one. Never the pricer and never an
+  // earlier signer, whom invariant 7 refuses the step anyway.
+  const nextStep = updated ? firstUnsignedStep(plan, next) : null;
+  if (nextStep) {
+    await notifyHolders(studio.id, nextStep.permission, signatureNotice(String(tender.ref || ""), "tendering-register"),
+      [String(tender.createdByCollaboratorId || ""), ...next.map((s) => s.byCollaboratorId)]);
+  }
   return updated
     ? { tender: updated, approved: planSatisfied(plan, next), signed: next.length, required: plan.steps.length }
     : { error: "notfound" };

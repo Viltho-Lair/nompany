@@ -29,6 +29,7 @@ import { requestRfq } from "@/modules/technical/technical";
 import { pendingRfq, rfqsForTicket } from "@/modules/technical/rfqs";
 import { isFinishedQuotation } from "@/modules/technical/quotations";
 import { readTaskAssignees, resolveTaskAssignees, TASK_AUTHORITIES, quotationApproved } from "@/modules/tasks/taskRouting";
+import { notifyCollaboratorIds, signatureNotice } from "@/modules/people/holders";
 import type {
   SalesContext, Client, Contact, SalesTicket, Site,
   QuotationRow, PoSummary, ProjectLink, ApprovalSummary, TicketSummary, TicketView,
@@ -816,7 +817,10 @@ export async function sendTicketForApproval(ctx: SalesContext, body: Record<stri
     completedAt: "",
   });
 
-  const { authorities } = resolveTaskAssignees(task, taskAssignees);
+  const { authorities, assigneeIds } = resolveTaskAssignees(task, taskAssignees);
+  // THE APPOINTED APPROVERS ARE TOLD. The task landed on the board and rang
+  // nobody, so a quotation waited until somebody happened to open Tasks.
+  await notifyCollaboratorIds(studio.id, assigneeIds, signatureNotice(name, "tasks"), [collaborator.id]);
   return {
     task,
     // Reported rather than refused: an authority nobody has been appointed to
@@ -924,7 +928,11 @@ export async function submitTicketPo(ctx: SalesContext, body: Record<string, unk
     completedAt: "",
   });
 
-  const { authorities } = resolveTaskAssignees(task, taskAssignees);
+  const { authorities, assigneeIds } = resolveTaskAssignees(task, taskAssignees);
+  // Management and Finance are told a client's PO is waiting — its sign-off is
+  // what issues the project number.
+  await notifyCollaboratorIds(studio.id, assigneeIds,
+    signatureNotice(String(quotation.number || ticket.ref || ""), "tasks"), [collaborator.id]);
   return {
     task,
     // Reported rather than refused, exactly as the approval does it.

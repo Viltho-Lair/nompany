@@ -20,6 +20,7 @@ import { moduleContext } from "../context";
 import { listCollaborators } from "@/platform/auth/collaborators";
 import { listRoles } from "@/modules/people/roles";
 import { notifyCollaborators, NOTIFY } from "@/platform/notify/notifications";
+import { collaboratorsHolding, notifyCollaboratorIds, signatureNotice } from "@/modules/people/holders";
 import { RFQ_STATUSES, pendingRfq, approvedQuotationFor, latestTicketQuotation } from "./rfqs";
 import { DEFAULT_STATUS, RFQ_REJECTED_TICKET_STATUS } from "@/modules/sales/tickets";
 import { stagePatch, CHAIN_LOST_REASON } from "@/modules/sales/pipeline";
@@ -390,9 +391,8 @@ export async function requestRfq(ctx: TechnicalContext, body: Record<string, unk
   // it never wastes the one person who saw it. Never the raiser — raising it is
   // how they already know.
   try {
-    const [people, roles] = await Promise.all([listCollaborators(studio.id), listRoles(studio.id)]);
-    const handlers = people.filter((c) => c.id !== collaborator.id
-      && can(effectivePermissions({ collaborator: c, roles }), "crmSales.quotations.create"));
+    const handlers = (await collaboratorsHolding(studio.id, "crmSales.quotations.create"))
+      .filter((c) => c.id !== collaborator.id);
     if (handlers.length) {
       const userIdOf = new Map(handlers.map((c) => [String(c.id), String(c.userId)]));
       await notifyCollaborators(
@@ -1121,7 +1121,9 @@ export async function sendQuotationForApproval(ctx: TechnicalContext, body: Reco
     completedAt: "",
   });
 
-  const { authorities } = resolveTaskAssignees(task, taskAssignees);
+  const { authorities, assigneeIds } = resolveTaskAssignees(task, taskAssignees);
+  // THE APPOINTED APPROVERS ARE TOLD, as the ticket-side twin now does.
+  await notifyCollaboratorIds(studio.id, assigneeIds, signatureNotice(name, "tasks"), [collaborator.id]);
   return {
     task,
     // Reported rather than refused: an authority nobody has been appointed to

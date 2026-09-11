@@ -22,6 +22,7 @@ import type { Bill, FinanceContext } from "./types";
 import { paymentHold, releaseProblem, payProblem, type PaymentHold } from "./hold";
 import { threeWayMatch } from "@/modules/procurement/receivingModel";
 import { supplierQualification } from "@/modules/procurement/supplierModel";
+import { notifyHolders, signatureNotice } from "@/modules/people/holders";
 
 const BILLS = "bills";
 const Bills = repo<Bill>(BILLS);
@@ -283,7 +284,21 @@ export async function createBill(ctx: FinanceContext, body: Record<string, unkno
   // name — asked here rather than let through, so the reason is in the code
   // that decides rather than discovered from a refusal.
   const posting = bill.status === "Received" ? await autoPost(ctx, "bill", bill.id) : null;
+  // WHOEVER SIGNS THE FIRST STEP IS TOLD IT IS WAITING. A received bill sat in
+  // Payables until somebody happened to open the screen.
+  if (bill.status === "Received") await announceNextStep(ctx, bill as Bill, plan, []);
   return { bill: { ...bill, ...billTotals(bill) }, ...(posting ? { posting } : {}) };
+}
+
+/** Ring whoever holds the next outstanding step of this bill's chain. */
+async function announceNextStep(
+  ctx: FinanceContext, bill: Bill, plan: ResolvedPlan | PlanRefusal,
+  signatures: readonly { byCollaboratorId: string }[],
+) {
+  const step = firstUnsignedStep(plan, signatures as never);
+  if (!step) return;
+  await notifyHolders(ctx.studio.id, step.permission, signatureNotice(String(bill.reference || ""), "finance-payables"),
+    [String(bill.createdByCollaboratorId || ""), ...signatures.map((s) => s.byCollaboratorId)]);
 }
 
 export async function editBill(ctx: FinanceContext, id: string, body: Record<string, unknown>) {
@@ -361,6 +376,9 @@ export async function editBill(ctx: FinanceContext, id: string, body: Record<str
       : reshaped
         ? await autoRepost(ctx, "bill", id, `${label} corrected`)
         : null;
+  // A DRAFT MARKED RECEIVED IS NOW WAITING FOR ITS FIRST SIGNATURE, the same
+  // moment a bill created Received announces itself.
+  if (becameReceived) await announceNextStep(ctx, bill, replanned, bill.approvals || []);
   return { bill: { ...bill, ...billTotals(bill) }, ...(posting ? { posting } : {}) };
 }
 
@@ -437,6 +455,9 @@ export async function approveBill(ctx: FinanceContext, id: string) {
     // reader of those two fields keeps the meaning it had.
     ...(done ? { status: "Approved", approvedByCollaboratorId: collaborator.id, approvedAt } : {}),
   }));
+  // THE NEXT SIGNER, if there is a next step — a two-step chain waited at step
+  // two for somebody to wander past it.
+  if (bill && !done) await announceNextStep(ctx, bill, plan, next);
   return bill ? { bill: { ...bill, ...billTotals(bill) } } : { error: "notfound" };
 }
 

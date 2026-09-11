@@ -24,6 +24,7 @@ import type { ApprovalStep } from "@/platform/approval/chains";
 import { requisitionTotals } from "./model";
 import type { Requisition } from "./schema";
 import type { ProcurementContext } from "./types";
+import { notifyHolders, signatureNotice } from "@/modules/people/holders";
 
 const Requisitions = repo<Requisition>("requisitions");
 
@@ -191,4 +192,20 @@ export async function answerRequisition(
   return updated
     ? { requisition: updated, approved: done, signed: next.length, required: plan.steps.length }
     : { error: "notfound" };
+}
+
+/**
+ * RING WHOEVER HOLDS THE NEXT STEP of a submitted request — on submission, and
+ * after each signature that is not the last. Called from the route once the
+ * write has succeeded, so a refused submit or signature announces nothing.
+ */
+export async function notifyNextSigner(ctx: ProcurementContext, req: Requisition) {
+  if (String(req.status || "") !== "Submitted") return;
+  const plan = await requisitionPlan(ctx, requisitionTotals(req.lines).estimated);
+  const signatures = req.approvals || [];
+  const step = firstUnsignedStep(plan, signatures);
+  if (!step) return;
+  await notifyHolders(ctx.studio.id, step.permission,
+    signatureNotice(String(req.reference || ""), "procurement-requisitions"),
+    [String(req.createdByCollaboratorId || ""), ...signatures.map((s) => s.byCollaboratorId)]);
 }

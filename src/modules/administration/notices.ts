@@ -104,6 +104,12 @@ export const NOTICE_TEMPLATES: readonly NoticeTemplate[] = Object.freeze([
     ar: { title: "اعتماد {outcome}", body: "{reference}" },
   },
   {
+    type: "approval.requested",
+    fields: ["reference"],
+    en: { title: "Waiting for your signature", body: "{reference}" },
+    ar: { title: "بانتظار توقيعكم", body: "{reference}" },
+  },
+  {
     type: "rfq.raised",
     fields: ["reference"],
     en: { title: "An RFQ is waiting to be quoted", body: "{reference}" },

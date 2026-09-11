@@ -14,10 +14,8 @@
 import { REG, ID } from "@/platform/db/keys";
 import { readArr, editArr } from "@/platform/db/store";
 import { emit, emitPlatform, SCOPE, TYPE, PLATFORM } from "@/platform/realtime/events";
-import { listCollaborators } from "@/platform/auth/collaborators";
-import { listRoles } from "./roles";
-import { effectivePermissions, can } from "@/platform/access";
 import { notifyCollaborators, NOTIFY } from "@/platform/notify/notifications";
+import { collaboratorsHolding } from "./holders";
 import type { JoinRequest } from "./types";
 
 export const PENDING = "pending";
@@ -55,9 +53,7 @@ export async function createJoinRequest({ studioId, userId }: { studioId?: strin
     // the People screen answers, so it is asked of the same resolver rather
     // than of a flag on the row — a request announced to somebody who cannot
     // approve it is a notification that wastes the only person who saw it.
-    const [people, roles] = await Promise.all([listCollaborators(studioId), listRoles(studioId)]);
-    const admins = people.filter((c) =>
-      can(effectivePermissions({ collaborator: c, roles }), "administration.members.edit"));
+    const admins = await collaboratorsHolding(studioId, "administration.members.edit");
     const userIdOf = new Map(admins.map((c) => [String(c.id), String(c.userId)]));
     await notifyCollaborators(
       studioId,

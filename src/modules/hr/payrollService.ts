@@ -21,6 +21,7 @@ import {
 import type { PayRecord, PayslipLine, RunStatus } from "./payroll";
 import type { HrContext } from "./types";
 import { isAdministrator } from "@/platform/access";
+import { notifyHolders, signatureNotice } from "@/modules/people/holders";
 
 type Run = {
   id: string;
@@ -172,18 +173,20 @@ export async function prepareRun(ctx: HrContext, body: Record<string, unknown>) 
   }));
   if (!lines.length) return { error: "nobody" };
 
-  return {
-    run: await Runs.create(scope(ctx), {
-      period,
-      status: "Draft",
-      // FROZEN HERE. Everything below is a copy of what the pay records said the
-      // moment the run was prepared.
-      lines,
-      totals: runTotals(lines),
-      preparedByCollaboratorId: ctx.collaborator.id,
-      preparedAt: new Date().toISOString(),
-    }),
-  };
+  const run = await Runs.create(scope(ctx), {
+    period,
+    status: "Draft",
+    // FROZEN HERE. Everything below is a copy of what the pay records said the
+    // moment the run was prepared.
+    lines,
+    totals: runTotals(lines),
+    preparedByCollaboratorId: ctx.collaborator.id,
+    preparedAt: new Date().toISOString(),
+  });
+  // WHOEVER APPROVES PAYROLL IS TOLD A RUN IS READY — not the preparer, who
+  // knows. (An Admin may still approve their own run; see `approvalProblem`.)
+  await notifyHolders(ctx.studio.id, "hr.payroll.approve", signatureNotice(period, "hr"), [ctx.collaborator.id]);
+  return { run };
 }
 
 /** One run in full, with its payslips. */

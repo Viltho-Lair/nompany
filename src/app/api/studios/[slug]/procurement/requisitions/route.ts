@@ -4,7 +4,7 @@ import {
   procurementContext, listRequisitions, createRequisition,
   editRequisition, moveRequisition, removeRequisition,
 } from "@/modules/procurement/requisitions";
-import { requisitionReview, answerRequisition } from "@/modules/procurement/approval";
+import { requisitionReview, answerRequisition, notifyNextSigner } from "@/modules/procurement/approval";
 import { referencePickers } from "@/modules/procurement/pickers";
 
 export const runtime = "nodejs";
@@ -74,6 +74,8 @@ export const PUT = route(spec, async (procurement) => {
     const moved = await moveRequisition(
       procurement, id, action === "submit" ? "Submitted" : "Cancelled");
     if (refused(moved)) return moved;
+    // A SUBMITTED REQUEST IS A QUESTION, so whoever answers the first step hears it.
+    if (action === "submit" && moved.requisition) await notifyNextSigner(procurement, moved.requisition);
     return { ok: true, requisition: moved.requisition };
   }
 
@@ -85,6 +87,8 @@ export const PUT = route(spec, async (procurement) => {
     const answered = await answerRequisition(
       procurement, id, action === "approve", String(procurement.body.reason || ""));
     if (refused(answered)) return answered;
+    // A signature that was not the last hands the request to the next step.
+    if (action === "approve" && answered.requisition) await notifyNextSigner(procurement, answered.requisition);
     return { ok: true, requisition: answered.requisition, approved: answered.approved };
   }
 

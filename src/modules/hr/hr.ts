@@ -47,6 +47,7 @@ import { TAXONOMIES, resolveValue } from "@/modules/administration/taxonomy";
 import { subtreeIds } from "@/shared/departments/tree";
 import { getProfilesByIds } from "@/platform/auth/users";
 import { notifyCollaborators, NOTIFY } from "@/platform/notify/notifications";
+import { collaboratorsHolding } from "@/modules/people/holders";
 import { encryptField, decryptField } from "@/platform/auth/fieldCrypto";
 import type { Certification, Vacation, ExpiringDocument, HrContext } from "./types";
 import type { StudioRef, CollaboratorRef } from "../context";
@@ -661,8 +662,7 @@ export async function listVacations(ctx: HrContext, { meId }: { meId?: string })
 // who cannot act on it wastes the one person who saw it, exactly as with a join
 // request. Returns collaborators, so the caller has their UserIDs for the bell.
 async function leaveApprovers(studioId: string) {
-  const [people, roles] = await Promise.all([listCollaborators(studioId), listRoles(studioId)]);
-  return people.filter((c) => can(effectivePermissions({ collaborator: c, roles }), "hr.vacations.approve"));
+  return collaboratorsHolding(studioId, "hr.vacations.approve");
 }
 
 // Anyone who can open HR may request their OWN leave; only a manager may file

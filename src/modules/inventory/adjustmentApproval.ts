@@ -25,6 +25,21 @@ import type { ResolvedPlan, PlanRefusal, ApprovalSignature } from "@/platform/ap
 import { approvalChainsFor } from "@/platform/approval/store";
 import type { InventoryContext } from "./types";
 import type { PermissionKey } from "@/platform/access";
+import { notifyHolders, signatureNotice } from "@/modules/people/holders";
+
+/** Ring whoever holds this adjustment's next outstanding step. */
+async function announceNextStep(
+  ctx: InventoryContext, row: Record<string, unknown>, signatures: ApprovalSignature[],
+) {
+  const step = firstUnsignedStep(row.approvalPlan as ResolvedPlan | PlanRefusal | null, signatures);
+  if (!step) return;
+  // AN ADJUSTMENT HAS NO REFERENCE of its own, so the notice carries what was
+  // moved and why — the same two facts the queue row leads with.
+  const qty = Number(row.qty) || 0;
+  const label = `${qty > 0 ? "+" : ""}${qty} · ${String(row.reason || "")}`.trim();
+  await notifyHolders(ctx.studio.id, step.permission, signatureNotice(label, "inventory-stock"),
+    [String(row.createdByCollaboratorId || ""), ...signatures.map((s) => s.byCollaboratorId)]);
+}
 
 const Adjustments = repo("stockAdjustments");
 const Items = repo("inventoryItems");
@@ -153,7 +168,7 @@ export async function raiseAdjustment(
   ctx: InventoryContext,
   input: { itemId: string; qty: number; reason: string; unitCost: number; value: number; plan: ResolvedPlan },
 ) {
-  return Adjustments.create(scope(ctx), {
+  const row = await Adjustments.create(scope(ctx), {
     itemId: input.itemId,
     qty: input.qty,
     reason: input.reason,
@@ -167,6 +182,8 @@ export async function raiseAdjustment(
     createdByCollaboratorId: ctx.collaborator.id,
     createdAt: new Date().toISOString(),
   });
+  await announceNextStep(ctx, row, []);
+  return row;
 }
 
 /**
@@ -224,6 +241,7 @@ export async function approveAdjustment(
   // first would make a two-step chain a one-step one that also logs a second
   // name.
   const movement = done ? await applyMovement(updated) : null;
+  if (!done) await announceNextStep(ctx, updated, approvals);
   return { adjustment: updated, ...(movement ? { movement } : {}) };
 }
 
