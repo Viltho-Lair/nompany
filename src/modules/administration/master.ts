@@ -40,6 +40,8 @@ import type { Location, Permit, Shift } from "../operations/types";
 import { LOCATION_KINDS } from "../operations/operations";
 import { resolveValue, admits } from "./taxonomy";
 import type { MasterContext } from "./types";
+import { geoPatch, isShortMapsLink, type GeoPatch } from "@/shared/places";
+import { resolveShortMapsLink } from "./mapLinks";
 
 const LOCATIONS = "locations";
 
@@ -68,6 +70,28 @@ export async function listLocations(
   return [...rows].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 }
 
+/**
+ * WHERE THE PLACE IS, as this write will store it — `geoPatch` (shared with the
+ * dialog, so both refuse the same pair) plus the one step only a server can
+ * take: following a short `maps.app.goo.gl` link to read the pin it points at.
+ *
+ * Followed only when the write leaves the place WITHOUT a pair and names such a
+ * link, which is the same condition `geoPatch` derives a full link under — a
+ * short link is a full link the server has not unfolded yet, not a different
+ * rule. A link that cannot be read saves the location anyway, pinless.
+ */
+async function placeFields(body: Record<string, unknown>): Promise<GeoPatch> {
+  const geo = geoPatch(body);
+  if (geo.error) return geo;
+  const { patch } = geo;
+  const url = str(body?.mapUrl, 500);
+  if ((patch.lat === undefined || patch.lat === null) && body?.mapUrl !== undefined && isShortMapsLink(url)) {
+    const p = await resolveShortMapsLink(url);
+    if (p) Object.assign(patch, { lat: p.lat, lng: p.lng, geoSource: "link", accuracyM: null });
+  }
+  return { patch };
+}
+
 export async function createLocation(ctx: MasterContext, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "administration.master.create");
@@ -76,6 +100,12 @@ export async function createLocation(ctx: MasterContext, body: Record<string, un
   const { studio, section } = ctx;
   const name = str(body?.name, 160);
   if (!name) return { error: "name" };
+  const place = await placeFields(body);
+  if (place.error) return { error: place.error };
+  // A NEW ROW CARRIES NO NULLS. `geoPatch` writes null to CLEAR an existing
+  // pin; on a create there is nothing to clear, and a key holding null would
+  // read as "somebody removed the pin" to anything that ever asks.
+  const placed = Object.fromEntries(Object.entries(place.patch).filter(([, v]) => v !== null)) as Partial<Location>;
 
   const rows = await Locations.find({ studio, section });
   if (rows.some((l) => l.name.toLowerCase() === name.toLowerCase())) return { error: "duplicate" };
@@ -90,6 +120,7 @@ export async function createLocation(ctx: MasterContext, body: Record<string, un
     city: str(body?.city, 80),
     mapUrl: str(body?.mapUrl, 500),
     notes: str(body?.notes, 1000),
+    ...placed,
     // NO createdByCollaboratorId. The original writer did not record one and
     // the golden pins that; a module moving between sections is not a reason
     // for its response body to grow a field.
@@ -117,6 +148,9 @@ export async function editLocation(ctx: MasterContext, id: string, body: Record<
   for (const f of ["address", "mapUrl"]) if (body?.[f] !== undefined) patch[f] = str(body[f], 500);
   if (body?.city !== undefined) patch.city = str(body.city, 80);
   if (body?.notes !== undefined) patch.notes = str(body.notes, 1000);
+  const place = await placeFields(body);
+  if (place.error) return { error: place.error };
+  Object.assign(patch, place.patch);
 
   const location = await Locations.update({ studio, section }, id, patch);
   return location ? { location } : { error: "notfound" };

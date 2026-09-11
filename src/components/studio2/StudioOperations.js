@@ -236,7 +236,7 @@ export default function StudioOperations({ slug, view = "field-service" }) {
           // editing the studio's places. The route answers with Master data's
           // own rights and the panel draws from those, so a button appears only
           // where the write would be accepted.
-          <LocationsPanel rows={locations} kinds={vocabulary.locationKinds}
+          <LocationsPanel slug={slug} rows={locations} kinds={vocabulary.locationKinds}
             canManage={data.canManageLocations} canCreate={data.canCreateLocations}
             canDelete={data.canDeleteLocations} busy={busy} send={send} />
         )}
@@ -618,7 +618,8 @@ const ageText = (iso) => {
 };
 
 function Tracking({ slug, positions, meId, canManageTracking, onClear, onRefresh }) {
-  const tr = operationsDict(useStudioLocale());
+  const locale = useStudioLocale();
+  const tr = operationsDict(locale);
   const [sharing, setSharing] = useState(false);
   const [status, setStatus] = useState({ text: tr.notSharing, tone: "idle" });
   const [fix, setFix] = useState(null);
@@ -644,7 +645,7 @@ function Tracking({ slug, positions, meId, canManageTracking, onClear, onRefresh
   // apart by the loader's own refusal code rather than by the message text.
   useEffect(() => {
     let alive = true;
-    loadGoogleMaps(slug)
+    loadGoogleMaps(slug, { language: locale })
       .then((g) => {
         if (!alive || !mapRef.current) return;
         gRef.current = g;
@@ -656,7 +657,7 @@ function Tracking({ slug, positions, meId, canManageTracking, onClear, onRefresh
         else setMapError(e.message);
       });
     return () => { alive = false; };
-  }, [slug]);
+  }, [slug, locale]);
 
   // Redraw whenever the reported positions change.
   useEffect(() => {

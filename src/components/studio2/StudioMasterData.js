@@ -297,6 +297,7 @@ export default function StudioMasterData({ slug }) {
             <p className={sub}>{tr.locationsPlacesWorkHappens}</p>
           </div>
           <LocationsPanel
+            slug={slug}
             rows={data.locations || []}
             kinds={data.vocabulary?.locationKinds || []}
             canManage={data.canManageLocations}

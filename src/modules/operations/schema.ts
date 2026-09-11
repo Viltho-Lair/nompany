@@ -13,7 +13,21 @@ export const LocationSchema = z.object({
   name: z.string().max(160),
   kind: z.string(),
   address: z.string().max(300).optional(),
-  notes: z.string().max(500).optional(),
+  // `city` and `mapUrl` WERE WRITTEN AND NEVER DECLARED, and `notes` was
+  // declared at half what the service accepts — the schema had drifted from
+  // `createLocation` in the same way PermitSchema had. Declared as written.
+  city: z.string().max(80).optional(),
+  mapUrl: z.string().max(500).optional(),
+  notes: z.string().max(1000).optional(),
+  // WHERE IT IS — see shared/places. Nullable because clearing a pin writes
+  // null rather than deleting the key; `accuracyM` only ever accompanies a
+  // GPS fix, and `geoSource` says which of the four ways the pair arrived.
+  lat: z.number().min(-90).max(90).nullable().optional(),
+  lng: z.number().min(-180).max(180).nullable().optional(),
+  accuracyM: z.number().nullable().optional(),
+  geoSource: z.enum(["gps", "pin", "link", "typed"]).nullable().optional(),
+  /** How to find it once there — a landmark, a gate, a floor. Tenant data, never translated. */
+  directions: z.string().max(500).optional(),
   createdAt: z.string().optional(),
 });
 

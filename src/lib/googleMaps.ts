@@ -8,8 +8,9 @@
 // NEXT_PUBLIC_GOOGLE_MAPS_API_KEY, and that prefix is what makes Next bake a
 // value into the static client bundle — readable by anyone who could fetch a JS
 // file, and not revocable without a rebuild. It now comes from
-// `/api/studios/<slug>/operations/maps-key`, which answers only somebody the
-// operations context has already admitted to the studio.
+// `/api/studios/<slug>/maps-key`, which answers any member of the studio. It
+// sat under Operations while Tracking was the only map, and so refused a key
+// to every other map for anybody without Field Operations — see the route.
 //
 // THAT DOES NOT MAKE IT SECRET. The Maps JS API takes the key as a URL
 // parameter on a script tag, so it is in the network tab of everybody who sees
@@ -39,7 +40,7 @@ let keyPromise: Promise<string> | null = null;
 export function googleMapsKey(slug: string): Promise<string> {
   if (keyPromise) return keyPromise;
   keyPromise = (async () => {
-    const res = await fetch(`/api/studios/${encodeURIComponent(slug)}/operations/maps-key`, { cache: "no-store" });
+    const res = await fetch(`/api/studios/${encodeURIComponent(slug)}/maps-key`, { cache: "no-store" });
     // A REFUSAL IS NOT "UNCONFIGURED". 403 means this person may not see the
     // map, which is a different thing from the studio not having one, and
     // flattening the two would tell somebody a map exists nowhere when it
@@ -88,7 +89,13 @@ type NamedGlobals = Record<string, unknown>;
 // a retry after a failed load cannot be resolved by the previous script tag.
 let callbackSeq = 0;
 
-export function loadGoogleMaps(slug: string) {
+// THE LANGUAGE IS THE FIRST CALLER'S, and that is fine rather than a race. The
+// API loads once per page and draws its labels in the language it was loaded
+// with; a studio page is one language throughout (StudioLocaleProvider), so
+// every map on it would have asked for the same one. Without it Google picks
+// from the browser, and an Arabic studio on an English laptop got English
+// street names beside Arabic chrome.
+export function loadGoogleMaps(slug: string, { language }: { language?: string } = {}) {
   if (typeof window === "undefined") return Promise.reject(new Error("Google Maps can only load in the browser."));
   const w = window as MapsWindow;
   if (w.google && w.google.maps) return Promise.resolve(w.google);
@@ -112,7 +119,8 @@ export function loadGoogleMaps(slug: string) {
       };
 
       const s = document.createElement("script");
-      s.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&v=weekly&loading=async&callback=${cb}`;
+      const lang = language ? `&language=${encodeURIComponent(language)}` : "";
+      s.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&v=weekly&loading=async&callback=${cb}${lang}`;
       s.async = true;
       s.defer = true;
       s.onerror = () => fail(new Error("Failed to load Google Maps."));

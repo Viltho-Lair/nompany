@@ -1,7 +1,9 @@
 # Master data
 
 The studio's own reference records — the lists every section reads and no section owns.
-`/<slug>/administration-master`, four tabs: Locations, Departments, Numbering, Units.
+`/<slug>/administration-master`, eight tabs: Locations, Departments, Numbering, Units,
+Categories, Cost codes, Notices, API keys. (This line said "four tabs" long after the other
+four had landed.)
 
 ## What it is
 
@@ -16,6 +18,56 @@ giving each its own collection would be a collection whose row count is always o
 
 **Both tabs load from one fetch and save through one function.** They are fields of the
 same record behind the same right; two calls would be two answers to one question.
+
+### Locations — a pin, and the way there (11/09/2026)
+
+A location carries a coordinate: `lat`, `lng`, `geoSource` (`gps` · `pin` · `link` ·
+`typed`), `accuracyM` (a GPS fix only — a dropped pin or a typed pair has none, and a
+number there would claim a precision nobody measured) and `directions`, a landmark note
+the tenant types and nothing translates. `shared/places` is the whole of the logic, pure,
+and read by both the dialog and `createLocation`/`editLocation`, so the form refuses
+exactly what the route refuses. The model test is `tests/places-model.mjs`.
+
+**Coordinates first, address second**, because that is how the region navigates: Amman
+has had street names and building numbers since 2007 and people still go by landmark.
+
+**Three ways in.** *Use my location* takes the device's fix, and above 50 m the form says
+so rather than silently keeping another building. *Pick on map* is a click, then a drag.
+Or a pasted pair or link — Google, Apple, Waze or `geo:`. A place link is read for its PIN
+(`!3d…!4d…`), not its camera (`@…`), which is wherever the sharer had scrolled to. A pair
+must be the WHOLE text: the numbers inside "Building 12, 45 Mecca Street" are not a
+coordinate. The Arabic comma separates a pair. (0, 0) is refused as the tell of a default.
+
+**A short `maps.app.goo.gl` link is followed by the server** (`modules/administration/
+mapLinks`), because it carries no coordinate until then. Narrow on purpose — it is a
+request our server makes on a tenant's say-so: two exact hosts over https, redirects never
+followed automatically and only onto Google's own map hosts, a header read and never a
+body, two hops at 2.5 s each. A link that cannot be read saves the location without a pin.
+
+**No migration.** A location saved with only a map link is placed from the link on read
+(`placeCoordinates`), and the next save through the form stores the pair. Emptying the pair
+beside such a link stores the link's pin rather than "none", because the map would draw it
+anyway and the row would disagree with the map.
+
+**Nothing geocodes.** Turning an address into a pin is Google's Geocoding API, whose terms
+forbid keeping the result beyond thirty days or showing it on anybody else's map. A pin read
+from a link the tenant pasted, or captured on their own phone, is theirs outright.
+
+**One way out: Navigate** — Google Maps, Waze, or Apple Maps on Apple hardware, plus copy
+the pair. No API key, and nothing the tenant typed goes into the URL: those links are opened
+on Google's, Waze's and Apple's servers. The map above the list shows every pinned place,
+loads only when there is one, and draws through the app's single Google loader.
+
+**The Maps key moved** from `operations/maps-key` to `/api/studios/<slug>/maps-key`, behind
+membership alone. Under Operations it refused a key to every map but Tracking for anybody
+without Field Operations, and a person who may edit the studio's places need hold no rota
+rights. The key is the platform's and was never secret (it rides on a script tag); the
+referrer restriction in Google Cloud Console is what protects it.
+
+**Location access had been switched off for the whole app.** `next.config.mjs` sent
+`Permissions-Policy: geolocation=()`, which refuses the location API to our own origin too
+— so Tracking's *Share my location* was refused by the browser before anybody was asked.
+It is `geolocation=(self)` now: our pages may ask, embedded frames still may not.
 
 ### Numbering
 
@@ -88,6 +140,18 @@ pure, the server refuses on it, and the panel shows what came back.
 
 ## Not built yet
 
+- **A place inside a place.** There is no `parentId` on a location, so a site, its buildings
+  and its rooms are unrelated rows. Maintenance needs it before an asset can be filed to a
+  room; the departments register's `subtreeIds` is the shape to reuse.
+- **Anything but locations on the map, and clustering.** Assets, open work and customer sites
+  are not drawn. A customer's sites (`ClientSchema.locations`) and a job's or project's
+  `location` are still free text with no coordinate.
+- **Checking in by location.** Nothing compares where a technician is with where the site is.
+  When it comes it is a studio setting, off by default, with recorded consent — Jordan's PDPL
+  (Law No. 24 of 2023) names location as personal data.
+- **The report-only CSP lists two Google hosts.** Maps also loads from other `*.gstatic.com`
+  and `*.googleapis.com` hosts; they need adding before the policy is enforced.
+- **Tracking's own map copy** ("just now", "min ago", "last seen") is still hard-coded English.
 - **Currencies.** The studio has `currency` and `favoriteCurrencies` and both are edited in
   Studio settings; they are not surfaced here, and moving a working screen is a visibility
   decision each time.

@@ -92,6 +92,26 @@ type Strings = CommonStrings & {
   mReadOnly: string;
   mTime: string;
   mapLink: string;
+  // Where a place is — LocationsPanel, PinPicker, PlacesMap, NavigateMenu.
+  coordinates: string;
+  coordinatesHint: string;
+  coordinatesUnreadable: string;
+  coordinatesShortLink: string;
+  shortLinkReadOnSave: string;
+  directions: string;
+  directionsHint: string;
+  useMyLocation: string;
+  locating: string;
+  pickOnMap: string;
+  closeMap: string;
+  pickOnMapHint: string;
+  accuracyAbout: (m: number) => string;
+  accuracyPoor: (m: number) => string;
+  navigate: string;
+  copyCoordinates: string;
+  noPin: string;
+  pinsOnMap: (n: number, total: number) => string;
+  noPinsYet: string;
   name: string;
   needsSecureConnection: string;
   newLocation: string;
@@ -272,6 +292,25 @@ const en: Strings = {
   mReadOnly: "You have view-only access to Operations.",
   mTime: "Give the shift a date, a start and an end.",
   mapLink: "Map link",
+  coordinates: "Coordinates",
+  coordinatesHint: "Latitude, longitude — or paste a map link",
+  coordinatesUnreadable: "There is no location in this. Type a pair like 31.9539, 35.9106, paste a map link, or pick the spot on the map.",
+  coordinatesShortLink: "Paste short links into Map link instead — they are read when you save.",
+  shortLinkReadOnSave: "A short link is read when you save.",
+  directions: "Directions",
+  directionsHint: "How to find it once there — a landmark, a gate, a floor",
+  useMyLocation: "Use my location",
+  locating: "Finding your location…",
+  pickOnMap: "Pick on map",
+  closeMap: "Close map",
+  pickOnMapHint: "Click the map to drop the pin, then drag it to adjust.",
+  accuracyAbout: (m) => `From this device, accurate to about ${m} m`,
+  accuracyPoor: (m) => `Only accurate to about ${m} m — step outside, or pick the spot on the map.`,
+  navigate: "Navigate",
+  copyCoordinates: "Copy coordinates",
+  noPin: "No pin",
+  pinsOnMap: (n, total) => `${n} of ${total} on the map`,
+  noPinsYet: "No location has a pin yet. Edit one and add its coordinates to see it on a map.",
   name: "Name",
   needsSecureConnection: "Location needs a secure connection.",
   newLocation: "New location",
@@ -452,6 +491,25 @@ const ar: Strings = {
   mReadOnly: "لديك صلاحية عرض فقط على العمليات.",
   mTime: "أعط الوردية تاريخا وبداية ونهاية.",
   mapLink: "رابط الخريطة",
+  coordinates: "الإحداثيات",
+  coordinatesHint: "خط العرض، خط الطول — أو الصق رابط خريطة",
+  coordinatesUnreadable: "لا يوجد موقع في هذا النص. اكتب زوجًا مثل 31.9539، 35.9106، أو الصق رابط خريطة، أو حدّد المكان على الخريطة.",
+  coordinatesShortLink: "الصق الروابط المختصرة في حقل رابط الخريطة — تُقرأ عند الحفظ.",
+  shortLinkReadOnSave: "يُقرأ الرابط المختصر عند الحفظ.",
+  directions: "إرشادات الوصول",
+  directionsHint: "كيف تجده عند الوصول — معلَم قريب أو بوابة أو طابق",
+  useMyLocation: "استخدم موقعي",
+  locating: "جارٍ تحديد موقعك…",
+  pickOnMap: "حدّد على الخريطة",
+  closeMap: "إغلاق الخريطة",
+  pickOnMapHint: "انقر على الخريطة لوضع الدبوس، ثم اسحبه لضبط مكانه.",
+  accuracyAbout: (m) => `من هذا الجهاز، بدقة تقارب ${m} م`,
+  accuracyPoor: (m) => `الدقة تقارب ${m} م فقط — اخرج إلى مكان مفتوح، أو حدّد المكان على الخريطة.`,
+  navigate: "الاتجاهات",
+  copyCoordinates: "نسخ الإحداثيات",
+  noPin: "بلا دبوس",
+  pinsOnMap: (n, total) => `${n} من ${total} على الخريطة`,
+  noPinsYet: "لا يوجد موقع عليه دبوس بعد. عدّل أحد المواقع وأضف إحداثياته ليظهر على الخريطة.",
   name: "الاسم",
   needsSecureConnection: "يحتاج تحديد الموقع إلى اتصال آمن.",
   newLocation: "موقع جديد",

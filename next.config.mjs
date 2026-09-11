@@ -68,9 +68,16 @@ const securityHeaders = [
   // Send the origin cross-site, the full path same-site. Studio URLs carry the
   // tenant slug and record ids, and neither belongs in somebody else's logs.
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-  // The product asks for none of these; saying so stops an embedded frame or a
-  // future dependency from asking on its behalf.
-  { key: "Permissions-Policy", value: "geolocation=(), camera=(), microphone=(), payment=(), usb=()" },
+  // The product asks for none of the last four; saying so stops an embedded
+  // frame or a future dependency from asking on its behalf.
+  //
+  // GEOLOCATION IS OURS TO ASK FOR, AND ONLY OURS. It was `geolocation=()`,
+  // which denies the location API to every origin INCLUDING THIS ONE — so
+  // Tracking's "Share my location" was refused by the browser before the user
+  // was ever asked, and "Use my location" on a Master-data location would have
+  // been too. `(self)` lets our own pages ask (the browser still asks the
+  // person every time) and still refuses any embedded third-party frame.
+  { key: "Permissions-Policy", value: "geolocation=(self), camera=(), microphone=(), payment=(), usb=()" },
   { key: "X-DNS-Prefetch-Control", value: "on" },
   // REPORT-ONLY, on purpose. It logs violations to the browser console without
   // blocking anything, so the real source list can be finished from evidence
