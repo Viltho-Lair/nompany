@@ -89,7 +89,10 @@ export default function StudioPlantAllocation({ slug }) {
       // there surfaces as an untranslated token rather than a wrong sentence.
       setError({
         from: tr.refuseFrom, order: tr.refuseOrder, asset: tr.refuseAsset,
-        deal: tr.refuseDeal, overlap: tr.refuseOverlap,
+        // `clash` is the token `allocationProblem` returns for a double booking.
+        // This key read `overlap`, which nothing returns, so the one refusal
+        // that matters most showed the raw word "clash" in both languages.
+        deal: tr.refuseDeal, clash: tr.refuseOverlap,
       }[out.detail || out.error] || out.detail || out.error);
       return;
     }
