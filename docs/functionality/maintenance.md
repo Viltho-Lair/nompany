@@ -65,6 +65,42 @@ would read as a quick fix. Every move is appended to `history`.
 Only open, never-started work deletes; Closed and Cancelled work does not edit.
 **Overdue** is open work past its due date by the server's clock (`asOf`); On hold counts.
 
+### The map, and what is mine (slice 2)
+
+Work orders have two views of one list. **Map** draws open work at every place that carries a
+pin, one pin per place with its orders listed in the popup and directions beside them, through
+the same map and loader Master data's locations use. It loads only when somebody switches to
+it. Open work with no pinned place is counted under the map rather than silently missing from
+it. **Assigned to me** filters to open work naming the reader (`me`, a CollaboratorID, comes
+back with the list, so it is a filter rather than a second route).
+
+The map now redraws when what its pins SHOW changes, not whenever the screen around it renders —
+keyed on a signature of ids, positions, names and lines. Before, typing in a dialog beside the
+Master-data map re-fitted it on every keystroke and threw away wherever the reader had panned.
+
+### Time booked (slice 2)
+
+`workOrderLabour`, its own collection under Work orders (the migration design refuses nested
+arrays that grow without bound). An entry is who, which day, how many hours, and whether it was
+time on the job, travel or waiting — the split planned-maintenance percentage and wrench time are
+made of. Rules in `model.ts`: quarters of an hour, more than nought and at most 24 in one entry;
+**not in the future**, because a forecast among the actuals is how a job reads as costing what
+somebody expected; **blank is not nought**. Booking answers to `maintenance.orders.edit`; by
+default the time is the caller's own, and booking it for somebody else names a member of the
+studio. **Closed work takes no more time** and gives none back — Closed is the reviewer's word
+that the figures are final; Completed still takes it. An entry is removed by whoever booked it or
+by somebody holding `maintenance.orders.delete`. **Work with time booked is not deleted** — travel
+to a site before anybody pressed Start is still time somebody is owed for — and the honest exit is
+Cancelled. Entries come back with the orders; `/maintenance/labour` only writes. **Hours only:**
+what an hour costs is Phase 3's, with parts.
+
+### In the field view (slice 2)
+
+The technician's round (`field-view.md`) lists their open Maintenance work orders beside their
+jobs, gated on their own `maintenance.orders.view` — holding the rota does not open Maintenance.
+Read there, worked here: moving a work order asks why it is on hold and what was done, and those
+questions belong to this screen, so the field view links to it rather than growing a second copy.
+
 ### What a record points at
 
 **The machine is the Assets register's** — an engine `equipment` record, which stays filed
@@ -93,13 +129,12 @@ paths, and nothing else is accepted.
 
 ## Not built yet
 
-- **The map of open work** (`maintenance-map`). Work orders show Navigate per place; there
-  is no map of every open order yet.
-- **The field view.** A technician's "my jobs" list reads Operations jobs only, so an
-  assigned work order is found here, not there.
-- **Labour hours and downtime.** No time is booked against a work order (timesheets need a
-  deal), and nothing records when a machine went down and came back — so no MTTR, MTBF or
+- **What labour costs.** Hours are booked; no rate turns them into money, and nothing posts
+  to Finance.
+- **Downtime.** Nothing records when a machine went down and came back — so no MTTR, MTBF or
   availability yet.
+- **Working a work order from the field view.** It is listed there and moved here.
+- **Clustering on the map.** One pin per place, which is legible at a studio's scale.
 - **Preventive plans.** No schedule raises work orders; Field Service's PM plans cover
   customer-installed units only.
 - **Parts.** Stock cannot be issued to a work order.

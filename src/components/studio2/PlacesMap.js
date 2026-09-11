@@ -30,6 +30,15 @@ function popup(place, dir) {
   const kind = document.createElement("div");
   kind.textContent = place.kind || "";
   kind.style.color = "#64748b";
+  // WHAT IS AT THIS PLACE — one line each, as text nodes like everything else
+  // here. Maintenance hands in its open work orders; Master data hands none.
+  const lines = document.createElement("div");
+  for (const t of place.lines || []) {
+    const d = document.createElement("div");
+    d.textContent = t;
+    d.style.cssText = "margin-top:3px";
+    lines.append(d);
+  }
   const row = document.createElement("div");
   row.style.cssText = "display:flex;gap:12px;margin-top:6px";
   const links = navigationLinks(place.at);
@@ -42,7 +51,7 @@ function popup(place, dir) {
     a.style.cssText = "color:#1d4ed8;font-weight:600;text-decoration:none";
     row.append(a);
   }
-  root.append(name, kind, row);
+  root.append(name, kind, lines, row);
   return root;
 }
 
@@ -57,6 +66,14 @@ export default function PlacesMap({ slug, places }) {
   const [ready, setReady] = useState(false);
   const [configured, setConfigured] = useState(true);
   const [error, setError] = useState("");
+  // REDRAWN WHEN THE PLACES CHANGE, NOT WHEN THE PARENT RENDERS. A caller
+  // builds `places` fresh each render, so keying the redraw on the array
+  // re-fitted the map on every keystroke in a dialog beside it and threw away
+  // wherever the reader had panned to. The signature is what the pins actually
+  // show; the latest array is read through a ref.
+  const latest = useRef(places);
+  useEffect(() => { latest.current = places; });
+  const signature = JSON.stringify(places.map((p) => [p.id, p.at.lat, p.at.lng, p.name, p.kind || "", p.lines || []]));
 
   useEffect(() => {
     let alive = true;
@@ -86,6 +103,7 @@ export default function PlacesMap({ slug, places }) {
     markers.current = [];
     const bounds = new g.maps.LatLngBounds();
     const dir = locale === "ar" ? "rtl" : "ltr";
+    const places = latest.current;
     for (const place of places) {
       const position = { lat: place.at.lat, lng: place.at.lng };
       const marker = new g.maps.Marker({ map, position, title: place.name });
@@ -100,7 +118,7 @@ export default function PlacesMap({ slug, places }) {
     // to the API's maximum, which shows a rooftop and nothing around it.
     if (places.length === 1) { map.setCenter(bounds.getCenter()); map.setZoom(15); }
     else if (places.length > 1) map.fitBounds(bounds, 60);
-  }, [ready, places, locale]);
+  }, [ready, signature, locale]);
 
   if (!configured) return <Empty title={tr.noMapConfigured} body={tr.listBelowStillWorks} />;
   return (

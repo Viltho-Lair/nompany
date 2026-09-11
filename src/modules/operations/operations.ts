@@ -119,6 +119,10 @@ export const scheduleContext = moduleContext<ScheduleContext>({
     hr: "hr", projectsList: ["projects-list", "projects"],
     // Locations moved to Administration's Master data; the rota still names one.
     master: ["administration-master", "administration"],
+    // MAINTENANCE'S WORK ORDERS, read by the field view so a technician's
+    // round is one list whichever department dispatched it. Foreign and
+    // nullable: a studio with no Maintenance section has none.
+    maintenanceOrders: ["maintenance-orders"],
   },
 });
 

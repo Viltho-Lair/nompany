@@ -32,14 +32,15 @@ import { NOTIFY } from "@/platform/notify/notifications";
 import type { EngineRecord } from "@/platform/engine/schema";
 import type { Location } from "../operations/types";
 import {
-  PRIORITIES, ORDER_TYPES, HOLD_REASONS, orderMoveProblem, moveStamps, orderEditable, orderDeletable,
-  orderOverdue, requestState, requestProblem, type OrderStatus,
+  PRIORITIES, ORDER_TYPES, HOLD_REASONS, LABOUR_KINDS, orderMoveProblem, moveStamps, orderEditable, orderDeletable,
+  orderOverdue, requestState, requestProblem, labourProblem, labourTotals, quarterHours, type OrderStatus,
 } from "./model";
-import type { WorkOrder, WorkRequest } from "./schema";
+import type { LabourEntry, WorkOrder, WorkRequest } from "./schema";
 import type { MaintenanceContext } from "./types";
 
 const Requests = repo<WorkRequest>("workRequests");
 const Orders = repo<WorkOrder>("workOrders");
+const Labour = repo<LabourEntry>("workOrderLabour");
 const Records = repo<EngineRecord>("engineRecords");
 const Locations = repo<Location>("locations");
 
@@ -165,15 +166,18 @@ export async function listOrders(ctx: MaintenanceContext) {
   const denied = requirePermission(ctx.access, "maintenance.orders.view");
   if (denied) return denied;
   const canSeeRequests = may(ctx, "maintenance.requests.view");
-  const [rows, requests, people] = await Promise.all([
+  const [rows, requests, people, labour] = await Promise.all([
     Orders.find(orderScope(ctx)),
     // A BLOCK THE READER MAY NOT SEE IS NEVER READ: which request an order
     // answers is shown only to somebody who may open requests.
     canSeeRequests ? Requests.find(requestScope(ctx)) : Promise.resolve([] as WorkRequest[]),
     listCollaborators(ctx.studio.id),
+    Labour.find(orderScope(ctx)),
   ]);
   const { pickers, asset, location, aliasOf } = await lookups(ctx, people as Person[]);
   const refOf = new Map(requests.map((r) => [r.id, r.reference]));
+  const labourOf = new Map<string, LabourEntry[]>();
+  for (const e of labour) labourOf.set(e.workOrderId, [...(labourOf.get(e.workOrderId) || []), e]);
   const asOf = now().slice(0, 10);
   const rank = (p: string) => PRIORITIES.indexOf(p as (typeof PRIORITIES)[number]);
 
@@ -185,6 +189,11 @@ export async function listOrders(ctx: MaintenanceContext) {
     createdByAlias: aliasOf.get(o.createdByCollaboratorId) || "",
     requestReference: refOf.get(o.requestId) || "",
     overdue: orderOverdue(o, asOf),
+    // Newest first, with the name beside the id — resolved live, never stored.
+    labour: (labourOf.get(o.id) || [])
+      .map((e) => ({ ...e, alias: aliasOf.get(e.collaboratorId) || "" }))
+      .sort((a, b) => b.workedOn.localeCompare(a.workedOn) || b.createdAt.localeCompare(a.createdAt)),
+    hoursLogged: labourTotals(labourOf.get(o.id) || []).total,
   })).sort((a, b) => {
     const open = (x: WorkOrder) => (["Open", "In progress", "On hold"].includes(x.status) ? 0 : 1);
     return open(a) - open(b)
@@ -195,6 +204,9 @@ export async function listOrders(ctx: MaintenanceContext) {
 
   return {
     orders, asOf, pickers,
+    // WHO IS ASKING, so "assigned to me" is a filter on the screen rather than
+    // a second route. A CollaboratorID (invariant 6).
+    me: ctx.collaborator.id,
     canCreate: may(ctx, "maintenance.orders.create"),
     canEdit: may(ctx, "maintenance.orders.edit"),
     canDelete: may(ctx, "maintenance.orders.delete"),
@@ -364,7 +376,76 @@ export async function removeOrder(ctx: MaintenanceContext, id: string) {
   // Once started there is time and history against it; the honest ends are
   // Cancelled and Closed.
   if (!orderDeletable(current)) return { error: "started" };
+  // TIME BOOKED BEFORE A START — travel to a site, waiting at a gate — is still
+  // time somebody is owed for, and deleting the order would orphan it.
+  const booked = await Labour.find(orderScope(ctx), { where: { workOrderId: id } });
+  if (booked.length) return { error: "has-labour" };
   await Orders.remove(orderScope(ctx), id);
+  return { ok: true };
+}
+
+// ---- labour ------------------------------------------------------------------
+
+/**
+ * BOOK TIME AGAINST A WORK ORDER.
+ *
+ * `maintenance.orders.edit`, the right that already moves the work — a
+ * technician who may start and complete a job may say how long it took. By
+ * default the time is the caller's own; booking it for somebody else (a
+ * supervisor entering a crew's day) names a member of the studio.
+ *
+ * CLOSED WORK TAKES NO MORE TIME: Closed is the reviewer's word that the costs
+ * are final, and a later entry would change a figure somebody already signed
+ * off. Completed still takes it — the technician's paperwork trails the job.
+ */
+export async function addLabour(ctx: MaintenanceContext, body: Record<string, unknown>) {
+  const denied = requirePermission(ctx.access, "maintenance.orders.edit");
+  if (denied) return denied;
+  const workOrderId = str(body?.workOrderId, 60);
+  const order = workOrderId ? await Orders.byId(orderScope(ctx), workOrderId) : null;
+  if (!order) return { error: "notfound" };
+  if (!orderEditable(order)) return { error: "closed" };
+
+  const today = now().slice(0, 10);
+  const entry = { hours: body?.hours, workedOn: str(body?.workedOn, 10) };
+  const problem = labourProblem(entry, today);
+  if (problem) return { error: problem };
+
+  const collaboratorId = str(body?.collaboratorId, 60) || ctx.collaborator.id;
+  if (collaboratorId !== ctx.collaborator.id) {
+    const link = await linkProblem(ctx, { assetId: "", locationId: "", assignees: [collaboratorId] });
+    if (link) return { error: link };
+  }
+
+  const labour = await Labour.create(orderScope(ctx), {
+    workOrderId,
+    collaboratorId,
+    workedOn: entry.workedOn,
+    hours: quarterHours(entry.hours) as number,
+    kind: oneOf(LABOUR_KINDS, body?.kind, "work"),
+    note: str(body?.note, 500),
+    createdByCollaboratorId: ctx.collaborator.id,
+    createdAt: now(),
+  });
+  return { labour };
+}
+
+/**
+ * TAKE A TIME ENTRY BACK — by whoever booked it, or by somebody who may delete
+ * work orders. Anybody else removing a colleague's hours is the one edit to
+ * time that should need more than the right to move the work.
+ */
+export async function removeLabour(ctx: MaintenanceContext, id: string) {
+  const denied = requirePermission(ctx.access, "maintenance.orders.edit");
+  if (denied) return denied;
+  const entry = await Labour.byId(orderScope(ctx), id);
+  if (!entry) return { error: "notfound" };
+  const order = await Orders.byId(orderScope(ctx), entry.workOrderId);
+  if (order && !orderEditable(order)) return { error: "closed" };
+  if (entry.createdByCollaboratorId !== ctx.collaborator.id && !may(ctx, "maintenance.orders.delete")) {
+    return { error: "not-yours" };
+  }
+  await Labour.remove(orderScope(ctx), id);
   return { ok: true };
 }
 

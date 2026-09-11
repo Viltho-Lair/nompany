@@ -80,6 +80,16 @@ handler's `body` is not statically typed.
 first run: `answerTimesheet(ctx, id, body)` where the parameter is a boolean — rejecting a
 timesheet approved it. All three are fixed.
 
+### Maintenance's work orders sit beside the jobs (11/09/2026)
+
+A technician's round is one list whichever department dispatched the work: the view also returns
+`workOrders` — Maintenance work orders assigned to the caller and still open, soonest due first —
+when the studio has Maintenance and the caller holds `maintenance.orders.view`. Holding the rota
+does not open Maintenance, so the gate is asked separately (`myWorkOrders` in
+`modules/operations/fieldService`). They are **listed here and worked in Maintenance**: moving a
+work order asks why it is on hold and what was done, and those questions belong to that screen.
+`maintenance.md` is the file.
+
 ## Not built yet
 
 - **No photos.** A technician cannot attach a picture of what they found, which is the

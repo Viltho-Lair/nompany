@@ -79,4 +79,6 @@ export type ScheduleContext = ModuleContext & {
   projectsListSection: Section | null;
   /** Administration's Master data, where locations live. */
   masterSection: Section | null;
+  /** Maintenance's work orders, which the field view lists beside jobs. */
+  maintenanceOrdersSection: Section | null;
 };

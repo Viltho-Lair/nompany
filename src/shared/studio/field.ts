@@ -24,6 +24,10 @@ type Strings = {
   counts: (outstanding: number, done: number) => string;
   signFor: (title: string) => string;
   signedBy: (name: string, day: string) => string;
+  workOrders: string;
+  openInMaintenance: string;
+  dueOn: (day: string) => string;
+  overdue: string;
 };
 
 const en: Strings = {
@@ -47,6 +51,11 @@ const en: Strings = {
     `${outstanding} outstanding · ${done} finished`,
   signFor: (title) => `Signature for ${title}`,
   signedBy: (name, day) => `Signed by ${name} on ${day}`,
+  // Maintenance's work orders, listed here and worked there.
+  workOrders: "Work orders assigned to you",
+  openInMaintenance: "Open in Maintenance",
+  dueOn: (day) => `Due ${day}`,
+  overdue: "Overdue",
 };
 
 // HAND-WRITTEN. NO DIACRITICS.
@@ -69,6 +78,10 @@ const ar: Strings = {
   counts: (outstanding, done) => `${outstanding} معلق · ${done} منجز`,
   signFor: (title) => `توقيع على ${title}`,
   signedBy: (name, day) => `وقع بواسطة ${name} بتاريخ ${day}`,
+  workOrders: "أوامر العمل المسندة إليكم",
+  openInMaintenance: "فتح في الصيانة",
+  dueOn: (day) => `الموعد ${day}`,
+  overdue: "متأخر",
 };
 
 const dict = { en, ar };

@@ -3,6 +3,8 @@
 import { useCallback, useRef, useState } from "react";
 import { Field } from "@/components/fields/Field";
 import { fieldDict } from "@/shared/studio/field";
+import { maintenanceDict } from "@/shared/studio/maintenance";
+import { fmtDate } from "@/components/studio2/ui";
 import { useReload } from "@/components/studio2/useReload";
 
 // THE MOBILE FIELD VIEW — one technician's round, on the phone they are holding.
@@ -46,7 +48,8 @@ export default function FieldViewPanel({ slug, locale = "en" }) {
 
   if (!data) return <p className="text-sm text-slate-500 dark:text-slate-400">…</p>;
 
-  const { jobs = [], outstanding, completed, awaitingSignature = [] } = data;
+  const { jobs = [], outstanding, completed, awaitingSignature = [], workOrders = [] } = data;
+  const mt = maintenanceDict(locale);
   const time = (v) => (v ? `${String(v).slice(0, 10)} ${String(v).slice(11, 16)}` : tr.unscheduled);
 
   return (
@@ -85,8 +88,32 @@ export default function FieldViewPanel({ slug, locale = "en" }) {
         </div>
       )}
 
+      {/* MAINTENANCE'S WORK ORDERS, LISTED HERE AND WORKED THERE. Moving one asks
+          why it is on hold and what was done — Maintenance's questions — so each
+          card opens that screen rather than growing a second copy of the ladder. */}
+      {workOrders.length > 0 && (
+        <div className="space-y-2">
+          <h3 className="font-display text-sm font-700 text-slate-700 dark:text-slate-200">{tr.workOrders}</h3>
+          {workOrders.map((o) => (
+            <a key={o.id} href={`/${slug}/maintenance-orders`}
+              className="block rounded-geex border border-slate-200/70 bg-[var(--geex-surface)] p-4 dark:border-white/10">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-mono text-xs text-slate-500 dark:text-slate-400">{o.reference}</span>
+                <span className="font-display text-base font-700 text-slate-900 dark:text-white">{o.title}</span>
+              </div>
+              <div className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
+                {mt.status(o.status)} · {mt.priorityName(o.priority)}
+                {o.dueOn ? ` · ${tr.dueOn(fmtDate(o.dueOn))}` : ""}
+                {o.overdue && <span className="ms-2 font-600 text-rose-600 dark:text-rose-300">{tr.overdue}</span>}
+              </div>
+              <div className="mt-2 text-sm font-600 text-brand-700 dark:text-brand-300">{tr.openInMaintenance}</div>
+            </a>
+          ))}
+        </div>
+      )}
+
       {jobs.length === 0 ? (
-        <p className="text-sm text-slate-500 dark:text-slate-400">{tr.nothingOn}</p>
+        workOrders.length ? null : <p className="text-sm text-slate-500 dark:text-slate-400">{tr.nothingOn}</p>
       ) : (
         <div className="space-y-3">
           {jobs.map((j) => (

@@ -16,8 +16,35 @@ import {
 import type { Signoff } from "./signoff";
 import type { ScheduleContext } from "./types";
 import type { Job } from "./jobSchema";
+import type { WorkOrder } from "@/modules/maintenance/schema";
+import { orderOpen, orderOverdue } from "@/modules/maintenance/model";
 
 const Jobs = repo<Job & { signoffs?: Signoff[] }>("jobs");
+const WorkOrders = repo<WorkOrder>("workOrders");
+
+/**
+ * MY OPEN WORK ORDERS — Maintenance's, listed beside the jobs so a technician's
+ * round is one list whichever department dispatched it.
+ *
+ * READ, NOT WORKED, HERE. Moving a work order needs the questions its ladder
+ * asks (why it is on hold, what was done), and those belong to Maintenance's
+ * own screen; the field view links there rather than growing a second copy.
+ * Gated on the reader's own `maintenance.orders.view` — holding the rota does
+ * not open Maintenance.
+ */
+async function myWorkOrders(ctx: ScheduleContext) {
+  const section = ctx.maintenanceOrdersSection;
+  if (!section || requirePermission(ctx.access, "maintenance.orders.view")) return [];
+  const today = new Date().toISOString().slice(0, 10);
+  const rows = await WorkOrders.find({ studio: ctx.studio, section });
+  return rows
+    .filter((o) => orderOpen(o) && (o.assignedToCollaboratorIds || []).includes(ctx.collaborator.id))
+    .sort((a, b) => (a.dueOn || "9999").localeCompare(b.dueOn || "9999"))
+    .map((o) => ({
+      id: o.id, reference: o.reference, title: o.title, status: o.status,
+      priority: o.priority, dueOn: o.dueOn, overdue: orderOverdue(o, today),
+    }));
+}
 
 const scope = (ctx: ScheduleContext) => ({ studio: ctx.studio, section: ctx.section });
 
@@ -33,7 +60,7 @@ export async function fieldView(ctx: ScheduleContext) {
   const denied = requirePermission(ctx.access, "fieldService.schedule.view");
   if (denied) return denied;
 
-  const all = await Jobs.find(scope(ctx));
+  const [all, workOrders] = await Promise.all([Jobs.find(scope(ctx)), myWorkOrders(ctx)]);
   const mine = all.filter((j) => (j.assignedToCollaboratorIds || []).includes(ctx.collaborator.id));
   const signoffs = Object.fromEntries(mine.map((j) => [j.id, j.signoffs || []]));
   const summary = fieldSummary(mine, signoffs);
@@ -55,6 +82,7 @@ export async function fieldView(ctx: ScheduleContext) {
     awaitingSignature: summary.awaitingSignature.map((j) => ({
       id: j.id, title: j.title, completedAt: j.completedAt,
     })),
+    workOrders,
   };
 }
 

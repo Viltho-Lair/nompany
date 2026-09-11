@@ -122,6 +122,77 @@ export const orderDeletable = (o: OrderLike) => statusOf(o) === "Open" && !text(
 export const orderOverdue = (o: OrderLike, today: string) =>
   orderOpen(o) && Boolean(text(o.dueOn)) && text(o.dueOn) < today;
 
+/**
+ * OPEN WORK, GROUPED BY THE PLACE IT IS AT — what the map draws. Work with no
+ * place is left out rather than grouped under "", which would be a pin for
+ * nowhere; the screen counts it separately so nothing open goes unmentioned.
+ */
+export function openWorkByPlace<T extends { locationId?: unknown; status?: unknown }>(orders: readonly T[]): Map<string, T[]> {
+  const out = new Map<string, T[]>();
+  for (const o of orders) {
+    const place = text(o.locationId);
+    if (!place || !orderOpen(o)) continue;
+    const list = out.get(place) || [];
+    list.push(o);
+    out.set(place, list);
+  }
+  return out;
+}
+
+// ---- labour ------------------------------------------------------------------
+
+/**
+ * WHERE THE TIME WENT. Kept apart because the planned-maintenance and
+ * wrench-time figures are made of exactly this split: time on the job, time
+ * getting there, and time standing waiting for a part or a permit.
+ */
+export const LABOUR_KINDS = ["work", "travel", "wait"] as const;
+export type LabourKind = (typeof LABOUR_KINDS)[number];
+
+/** One entry is at most a day. A longer shift is two entries on two dates. */
+export const MAX_ENTRY_HOURS = 24;
+
+/**
+ * A quarter of an hour is the finest anybody books in. BLANK IS NOT NOUGHT: an
+ * empty field is "nobody said" and returns null, so it can be refused rather
+ * than stored as a zero-hour entry.
+ */
+export function quarterHours(v: unknown): number | null {
+  if (v === null || v === undefined || String(v).trim() === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? Math.round(n * 4) / 4 : null;
+}
+
+/**
+ * WHY THIS TIME ENTRY IS REFUSED — or null. `today` is the server's
+ * `YYYY-MM-DD`: time not yet worked is a forecast, and a forecast among the
+ * actuals is how a job reads as costing what somebody expected.
+ */
+export function labourProblem(entry: { hours?: unknown; workedOn?: unknown }, today: string): string | null {
+  const h = quarterHours(entry.hours);
+  if (h === null || h <= 0 || h > MAX_ENTRY_HOURS) return "hours";
+  const d = text(entry.workedOn);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(d) || d > today) return "date";
+  return null;
+}
+
+/**
+ * THE HOURS ON A WORK ORDER, in total and by kind. An unknown kind is still
+ * time and is counted as work — dropping it would make the total disagree with
+ * the entries listed beneath it.
+ */
+export function labourTotals(entries: readonly { hours?: unknown; kind?: unknown }[]) {
+  const byKind: Record<LabourKind, number> = { work: 0, travel: 0, wait: 0 };
+  let total = 0;
+  for (const e of entries) {
+    const h = quarterHours(e.hours) || 0;
+    const k = (LABOUR_KINDS as readonly string[]).includes(text(e.kind)) ? (text(e.kind) as LabourKind) : "work";
+    byKind[k] += h;
+    total += h;
+  }
+  return { total, byKind };
+}
+
 // ---- requests ----------------------------------------------------------------
 
 export const REQUEST_STATES = ["Open", "Accepted", "Declined"] as const;

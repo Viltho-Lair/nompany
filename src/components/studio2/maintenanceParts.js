@@ -50,9 +50,11 @@ export function useMaintenance(slug, path) {
   // THE SERVER'S REFUSAL, IN WORDS. Every refusal is a token the service named;
   // one this dictionary has no sentence for is shown as the token rather than
   // replaced with "failed", which would throw away the only clue.
-  const send = useCallback(async (method, payload) => {
+  // `to` is another route of the same module — time entries post to
+  // maintenance/labour and are read back with the orders.
+  const send = useCallback(async (method, payload, to = path) => {
     setError(""); setBusy(true);
-    const res = await fetch(`/api/studios/${slug}/${path}`, {
+    const res = await fetch(`/api/studios/${slug}/${to}`, {
       method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
     });
     const out = await res.json().catch(() => ({}));

@@ -91,6 +91,22 @@ type Strings = {
   priorityName: (token: string) => string;
   typeName: (token: string) => string;
   holdName: (token: string) => string;
+  viewList: string;
+  viewMap: string;
+  mapSub: string;
+  filterMine: string;
+  notOnMap: (n: number) => string;
+  noOpenOnMap: string;
+  logTime: string;
+  logTimeTitle: (ref: string) => string;
+  who: string;
+  workedOn: string;
+  hours: string;
+  labourKindLabel: string;
+  labourKind: (token: string) => string;
+  note: string;
+  hoursLogged: (h: number, estimate: number | null) => string;
+  timeEntries: (n: number) => string;
   refuse: Record<string, string>;
 };
 
@@ -187,6 +203,22 @@ const en: Strings = {
   priorityName: (t) => EN_PRIORITY[t] || t,
   typeName: (t) => EN_TYPE[t] || t,
   holdName: (t) => EN_HOLD[t] || t,
+  viewList: "List",
+  viewMap: "Map",
+  mapSub: "Open work at places that have a pin. Each pin opens directions.",
+  filterMine: "Assigned to me",
+  notOnMap: (n) => `${n} open ${n === 1 ? "order has" : "orders have"} no pinned place and ${n === 1 ? "is" : "are"} not on the map.`,
+  noOpenOnMap: "No open work is at a place with a pin. Add coordinates to a location in Master data to see it here.",
+  logTime: "Log time",
+  logTimeTitle: (ref) => `Log time on ${ref}`,
+  who: "Who",
+  workedOn: "Date",
+  hours: "Hours",
+  labourKindLabel: "Time spent",
+  labourKind: (t) => ({ work: "On the job", travel: "Travel", wait: "Waiting" }[t] || t),
+  note: "Note",
+  hoursLogged: (h, est) => (est != null ? `${h} h booked of ${est} h estimated` : `${h} h booked`),
+  timeEntries: (n) => `Time booked (${n})`,
   refuse: {
     title: "Say what is wrong.",
     asset: "That machine is not in this studio's equipment register.",
@@ -203,6 +235,10 @@ const en: Strings = {
     declined: "This request was declined.",
     notfound: "It no longer exists.",
     forbidden: "You do not have the right to do that.",
+    hours: "Hours must be more than nought and at most 24 in one entry.",
+    date: "The date must be today or earlier.",
+    "has-labour": "Time has been booked against this work — cancel it instead of deleting it.",
+    "not-yours": "Only the person who booked the time, or somebody who may delete work orders, can remove it.",
   },
 };
 
@@ -300,6 +336,22 @@ const ar: Strings = {
   priorityName: (t) => AR_PRIORITY[t] || t,
   typeName: (t) => AR_TYPE[t] || t,
   holdName: (t) => AR_HOLD[t] || t,
+  viewList: "قائمة",
+  viewMap: "خريطة",
+  mapSub: "العمل المفتوح في الأماكن التي عليها دبوس. كل دبوس يفتح الاتجاهات.",
+  filterMine: "المسندة إلي",
+  notOnMap: (n) => `${n} من الأوامر المفتوحة بلا مكان عليه دبوس، فلا تظهر على الخريطة.`,
+  noOpenOnMap: "لا يوجد عمل مفتوح في مكان عليه دبوس. أضف إحداثيات لموقع في البيانات الأساسية ليظهر هنا.",
+  logTime: "تسجيل وقت",
+  logTimeTitle: (ref) => `تسجيل وقت على ${ref}`,
+  who: "من",
+  workedOn: "التاريخ",
+  hours: "الساعات",
+  labourKindLabel: "نوع الوقت",
+  labourKind: (t) => ({ work: "في العمل", travel: "تنقل", wait: "انتظار" }[t] || t),
+  note: "ملاحظة",
+  hoursLogged: (h, est) => (est != null ? `${h} س مسجلة من ${est} س مقدرة` : `${h} س مسجلة`),
+  timeEntries: (n) => `الوقت المسجل (${n})`,
   refuse: {
     title: "اذكر ما المشكلة.",
     asset: "هذه الآلة ليست في سجل معدات هذا الحساب.",
@@ -316,6 +368,10 @@ const ar: Strings = {
     declined: "رفض هذا الطلب.",
     notfound: "لم يعد موجودا.",
     forbidden: "لا تملك صلاحية ذلك.",
+    hours: "الساعات أكثر من صفر وحتى 24 في القيد الواحد.",
+    date: "التاريخ اليوم أو قبله.",
+    "has-labour": "سجل وقت على هذا العمل — ألغه بدل حذفه.",
+    "not-yours": "لا يحذف الوقت إلا من سجله أو من يملك صلاحية حذف أوامر العمل.",
   },
 };
 

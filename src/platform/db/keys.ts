@@ -911,7 +911,9 @@ export const SECTION_COLLECTIONS = {
   // declared (not engine-planted), so createStudio seeds them and
   // plant-sections.mjs reaches an existing studio before anybody writes one.
   "maintenance-requests": ["workRequests"],
-  "maintenance-orders": ["workOrders"],
+  // Time booked against a work order lives beside the orders, so closing an
+  // order and freezing its hours are one section's business.
+  "maintenance-orders": ["workOrders", "workOrderLabour"],
   // A BILL OF MATERIALS' LINES, on the Manufacturing ROOT rather than under
   // the BOM engine register. The register's rows live in `engineRecords`
   // under `engine-bom`, and a collection under a section only some studios

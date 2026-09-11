@@ -5,18 +5,31 @@
 // is never offered on closed work and "Cancel" never on work in progress. Two
 // moves ask something first: a hold asks why (the backlog is sorted by it), and
 // completion asks what was done (the machine's next failure starts from it).
+//
+// TWO VIEWS OF ONE LIST. The map draws the same orders the list does — open
+// work at places that carry a pin — through the Phase 0 map, which loads only
+// when somebody switches to it. Work with no pinned place is counted beneath
+// the map rather than silently missing from it.
 "use client";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import nextDynamic from "next/dynamic";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { panel, h2, sub, btn, btnGhost, btnRow, btnRowDanger, Empty, Dialog, fmtDate } from "@/components/studio2/ui";
 import { Field } from "@/components/fields/Field";
 import {
-  PRIORITIES, ORDER_TYPES, ORDER_MOVES, HOLD_REASONS, orderEditable, orderDeletable, orderOpen,
+  PRIORITIES, ORDER_TYPES, ORDER_MOVES, HOLD_REASONS, LABOUR_KINDS,
+  orderEditable, orderDeletable, orderOpen, openWorkByPlace, labourProblem,
 } from "@/modules/maintenance/model";
+import { placeCoordinates } from "@/shared/places";
 import {
   useMaintenance, Chip, priorityTone, Links, PhotoStrip, PhotoField, PeoplePicker, pickOptions,
 } from "@/components/studio2/maintenanceParts";
+
+// BEHIND A REAL LAZY BOUNDARY — `import()` from a client module, so nobody pays
+// for the map until they switch to it.
+const PlacesMap = nextDynamic(() => import("@/components/studio2/PlacesMap"),
+  { ssr: false, loading: () => <div className="skel h-[360px] w-full rounded-geex" /> });
 
 const STATUS_TONE = {
   Open: "bg-sky-100 text-sky-800 dark:bg-sky-500/15 dark:text-sky-300",
@@ -27,26 +40,54 @@ const STATUS_TONE = {
   Cancelled: "bg-slate-100 text-slate-500 dark:bg-white/5 dark:text-slate-400",
 };
 
+const pill = (on) => `rounded-full px-3 py-1 text-sm font-600 transition-colors ${on
+  ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900"
+  : "text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-white/5"}`;
+
 export default function StudioWorkOrders({ slug }) {
   const { tr, data, error, busy, send, reload } = useMaintenance(slug, "maintenance/orders");
-  // The orders are this section's rows; the request each one answers is shown
-  // by reference, and requests are written under Work requests.
+  // The orders and their time entries are this section's rows; the request
+  // each order answers is shown by reference, and requests are written under
+  // Work requests.
   useLiveUpdates(slug, "maintenance-orders", reload);
   useLiveUpdates(slug, "maintenance-requests", reload);
   const [filter, setFilter] = useState("open");
+  // `layout`, not `view`: `view` is the name screens give a SECTION key, and
+  // tests/restructure.mjs holds every string compared against a variable of
+  // that name to a real section key.
+  const [layout, setLayout] = useState("list");
   const [form, setForm] = useState(null);
   const [holding, setHolding] = useState(null);
   const [completing, setCompleting] = useState(null);
+  const [logging, setLogging] = useState(null);
+
+  // THE PINS: one per place that has both open work and coordinates. Memoised
+  // on the data so a re-render of this screen is not a redraw of the map.
+  const places = useMemo(() => {
+    if (!data) return [];
+    const byPlace = openWorkByPlace(data.orders || []);
+    return (data.pickers?.locations || []).flatMap((l) => {
+      const work = byPlace.get(l.id);
+      const at = work ? placeCoordinates(l) : null;
+      return at ? [{ id: l.id, name: l.name, kind: l.kind, at, lines: work.map((o) => `${o.reference} · ${o.title}`) }] : [];
+    });
+  }, [data]);
 
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <ScreenSkeleton loadingLabel={tr.loading} />;
 
-  const { orders = [], pickers = {}, canCreate, canEdit, canDelete } = data;
+  const { orders = [], pickers = {}, me, asOf, canCreate, canEdit, canDelete } = data;
   const open = orders.filter(orderOpen);
-  const shown = filter === "open" ? open : filter === "done" ? orders.filter((o) => !orderOpen(o)) : orders;
+  const mine = open.filter((o) => (o.assignedToCollaboratorIds || []).includes(me));
+  const shown = filter === "open" ? open
+    : filter === "mine" ? mine
+    : filter === "done" ? orders.filter((o) => !orderOpen(o))
+    : orders;
   const overdue = open.filter((o) => o.overdue).length;
+  const onMap = places.reduce((n, p) => n + p.lines.length, 0);
   const priorities = PRIORITIES.map((p) => ({ value: p, label: tr.priorityName(p) }));
   const types = ORDER_TYPES.map((t) => ({ value: t, label: tr.typeName(t) }));
+  const people = (pickers.people || []).map((p) => ({ value: p.id, label: p.alias || p.id }));
 
   const openForm = (o) => setForm(o
     ? {
@@ -81,6 +122,8 @@ export default function StudioWorkOrders({ slug }) {
     else send("PATCH", { id: o.id, status: to });
   };
 
+  const labourBlocked = logging ? labourProblem(logging, asOf) : null;
+
   return (
     <div className="space-y-6">
       {error && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>}
@@ -100,19 +143,35 @@ export default function StudioWorkOrders({ slug }) {
       </div>
 
       {orders.length > 0 && (
-        <div role="tablist" aria-label={tr.orders} className="flex flex-wrap gap-2">
-          {[["open", tr.filterOpen], ["done", tr.filterDone], ["all", tr.filterAll]].map(([key, label]) => (
-            <button key={key} type="button" role="tab" aria-selected={filter === key} onClick={() => setFilter(key)}
-              className={`rounded-full px-3 py-1 text-sm font-600 transition-colors ${filter === key
-                ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900"
-                : "text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-white/5"}`}>
-              {label}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div role="tablist" aria-label={tr.orders} className="flex flex-wrap gap-2">
+            {[["open", tr.filterOpen, open.length], ["mine", tr.filterMine, mine.length], ["done", tr.filterDone], ["all", tr.filterAll]].map(([key, label, n]) => (
+              <button key={key} type="button" role="tab" aria-selected={filter === key} onClick={() => setFilter(key)} className={pill(filter === key)}>
+                {label}{n != null && <span className="ms-1.5 tabular-nums opacity-70">{n}</span>}
+              </button>
+            ))}
+          </div>
+          <div role="tablist" aria-label={tr.viewMap} className="flex gap-1 rounded-full border border-slate-200 p-0.5 dark:border-white/10">
+            {[["list", tr.viewList], ["map", tr.viewMap]].map(([key, label]) => (
+              <button key={key} type="button" role="tab" aria-selected={layout === key} onClick={() => setLayout(key)} className={pill(layout === key)}>
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
-      {!orders.length ? (
+      {layout === "map" && orders.length > 0 ? (
+        <section className={`${panel} p-0`}>
+          <p className="px-6 pt-4 pb-3 text-sm text-slate-500 dark:text-slate-400">{tr.mapSub}</p>
+          {places.length ? <PlacesMap slug={slug} places={places} /> : (
+            <p className="px-6 pb-5 text-sm text-slate-500 dark:text-slate-400">{tr.noOpenOnMap}</p>
+          )}
+          {places.length > 0 && open.length > onMap && (
+            <p className="px-6 py-3 text-xs text-slate-500 dark:text-slate-400">{tr.notOnMap(open.length - onMap)}</p>
+          )}
+        </section>
+      ) : !orders.length ? (
         <Empty title={tr.noOrders} body={tr.noOrdersBody} />
       ) : !shown.length ? (
         <p className="text-sm text-slate-500 dark:text-slate-400">{tr.nothingHere}</p>
@@ -120,35 +179,59 @@ export default function StudioWorkOrders({ slug }) {
         <div className="space-y-3">
           {shown.map((o) => (
             <section key={o.id} className={`${panel} ${o.overdue ? "border-s-4 border-s-rose-400 dark:border-s-rose-500/70" : ""}`}>
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="flex flex-wrap items-center gap-2 text-slate-900 dark:text-white">
-                    <span className="font-mono text-xs text-slate-500 dark:text-slate-400">{o.reference}</span>
-                    <span className="font-600">{o.title}</span>
-                    <Chip tone={priorityTone(o.priority)}>{tr.priorityName(o.priority)}</Chip>
-                    <Chip tone={STATUS_TONE[o.status]}>
-                      {tr.status(o.status)}{o.status === "On hold" && o.holdReason ? ` · ${tr.holdName(o.holdReason)}` : ""}
-                    </Chip>
+              <div className="min-w-0">
+                <p className="flex flex-wrap items-center gap-2 text-slate-900 dark:text-white">
+                  <span className="font-mono text-xs text-slate-500 dark:text-slate-400">{o.reference}</span>
+                  <span className="font-600">{o.title}</span>
+                  <Chip tone={priorityTone(o.priority)}>{tr.priorityName(o.priority)}</Chip>
+                  <Chip tone={STATUS_TONE[o.status]}>
+                    {tr.status(o.status)}{o.status === "On hold" && o.holdReason ? ` · ${tr.holdName(o.holdReason)}` : ""}
+                  </Chip>
+                </p>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                  {tr.typeName(o.type)}
+                  {o.requestReference ? ` · ${tr.fromRequest(o.requestReference)}` : ""}
+                  {o.dueOn ? ` · ${tr.dueOn(fmtDate(o.dueOn))}` : ""}
+                  {o.overdue && <span className="ms-2 font-600 text-rose-600 dark:text-rose-300">{tr.overdue}</span>}
+                </p>
+                {o.description && <p className="mt-2 max-w-prose whitespace-pre-line text-sm text-slate-600 dark:text-slate-300">{o.description}</p>}
+                <Links asset={o.asset} location={o.location} tr={tr} />
+                <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+                  <span className="text-slate-400">{tr.assignedTo}:</span>{" "}
+                  {(o.assignees || []).length ? o.assignees.map((a) => a.alias || a.id).join("، ") : tr.nobody}
+                </p>
+                {(o.hoursLogged > 0 || o.estimatedHours != null) && (
+                  <p className="mt-1 text-sm tabular-nums text-slate-600 dark:text-slate-300">
+                    {tr.hoursLogged(o.hoursLogged || 0, o.estimatedHours)}
                   </p>
-                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                    {tr.typeName(o.type)}
-                    {o.requestReference ? ` · ${tr.fromRequest(o.requestReference)}` : ""}
-                    {o.dueOn ? ` · ${tr.dueOn(fmtDate(o.dueOn))}` : ""}
-                    {o.overdue && <span className="ms-2 font-600 text-rose-600 dark:text-rose-300">{tr.overdue}</span>}
+                )}
+                {o.resolution && (o.status === "Completed" || o.status === "Closed") && (
+                  <p className="mt-2 max-w-prose whitespace-pre-line rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-900 dark:bg-emerald-500/10 dark:text-emerald-200">
+                    <span className="font-600">{tr.resolution}:</span> {o.resolution}
                   </p>
-                  {o.description && <p className="mt-2 max-w-prose whitespace-pre-line text-sm text-slate-600 dark:text-slate-300">{o.description}</p>}
-                  <Links asset={o.asset} location={o.location} tr={tr} />
-                  <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-                    <span className="text-slate-400">{tr.assignedTo}:</span>{" "}
-                    {(o.assignees || []).length ? o.assignees.map((a) => a.alias || a.id).join("، ") : tr.nobody}
-                  </p>
-                  {o.resolution && (o.status === "Completed" || o.status === "Closed") && (
-                    <p className="mt-2 max-w-prose whitespace-pre-line rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-900 dark:bg-emerald-500/10 dark:text-emerald-200">
-                      <span className="font-600">{tr.resolution}:</span> {o.resolution}
-                    </p>
-                  )}
-                  <PhotoStrip photos={o.photos} label={(n) => tr.photoAlt(o.reference, n)} />
-                </div>
+                )}
+                <PhotoStrip photos={o.photos} label={(n) => tr.photoAlt(o.reference, n)} />
+
+                {(o.labour || []).length > 0 && (
+                  <details className="mt-3">
+                    <summary className="cursor-pointer text-sm font-600 text-slate-600 dark:text-slate-300">{tr.timeEntries(o.labour.length)}</summary>
+                    <ul className="mt-2 divide-y divide-slate-100 text-sm dark:divide-white/5">
+                      {o.labour.map((e) => (
+                        <li key={e.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-1.5 text-slate-600 dark:text-slate-300">
+                          <span className="tabular-nums">{fmtDate(e.workedOn)}</span>
+                          <span>{e.alias || e.collaboratorId}</span>
+                          <span className="tabular-nums font-600">{e.hours} h</span>
+                          <span className="text-slate-400">{tr.labourKind(e.kind)}</span>
+                          {e.note && <span className="text-slate-500 dark:text-slate-400">{e.note}</span>}
+                          {canEdit && orderEditable(o) && (e.createdByCollaboratorId === me || canDelete) && (
+                            <button type="button" disabled={busy} onClick={() => send("DELETE", { id: e.id }, "maintenance/labour")}
+                              className="ms-auto text-xs text-rose-600 hover:underline disabled:opacity-60 dark:text-rose-300">{tr.remove}</button>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                )}
               </div>
 
               {(canEdit || canDelete) && (
@@ -159,6 +242,12 @@ export default function StudioWorkOrders({ slug }) {
                       {moveLabel(o.status, to)}
                     </button>
                   ))}
+                  {canEdit && orderEditable(o) && (
+                    <button type="button" className={btnRow} disabled={busy}
+                      onClick={() => setLogging({ workOrderId: o.id, reference: o.reference, collaboratorId: me, workedOn: asOf, hours: "", kind: "work", note: "" })}>
+                      {tr.logTime}
+                    </button>
+                  )}
                   {canEdit && orderEditable(o) && (
                     <button type="button" className={btnGhost} disabled={busy} onClick={() => openForm(o)}>{tr.edit}</button>
                   )}
@@ -202,6 +291,37 @@ export default function StudioWorkOrders({ slug }) {
               <button type="button" className={btnGhost} onClick={() => setForm(null)}>{tr.cancel}</button>
               <button type="button" className={btn} disabled={busy || !form.title.trim()} onClick={save}>
                 {busy ? tr.saving : tr.save}
+              </button>
+            </div>
+          </div>
+        </Dialog>
+      )}
+
+      {logging && (
+        <Dialog title={tr.logTimeTitle(logging.reference)} onClose={() => setLogging(null)} width="max-w-[560px]">
+          <div className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label={tr.who} as="select" required value={logging.collaboratorId}
+                onChange={(v) => setLogging((l) => ({ ...l, collaboratorId: v }))} options={people} />
+              <Field label={tr.workedOn} type="date" required value={logging.workedOn}
+                onChange={(v) => setLogging((l) => ({ ...l, workedOn: v }))} inputProps={{ max: asOf }} />
+              <Field label={tr.hours} type="number" required value={logging.hours}
+                onChange={(v) => setLogging((l) => ({ ...l, hours: v }))} inputProps={{ min: 0.25, max: 24, step: 0.25 }}
+                error={String(logging.hours).trim() && labourBlocked ? tr.refuse[labourBlocked] : ""} />
+              <Field label={tr.labourKindLabel} as="select" required value={logging.kind}
+                onChange={(v) => setLogging((l) => ({ ...l, kind: v }))}
+                options={LABOUR_KINDS.map((k) => ({ value: k, label: tr.labourKind(k) }))} />
+            </div>
+            <Field label={tr.note} value={logging.note}
+              onChange={(v) => setLogging((l) => ({ ...l, note: v }))} inputProps={{ maxLength: 500 }} />
+            <div className="flex justify-end gap-2">
+              <button type="button" className={btnGhost} onClick={() => setLogging(null)}>{tr.cancel}</button>
+              <button type="button" className={btn} disabled={busy || Boolean(labourBlocked)}
+                onClick={async () => {
+                  const { reference: _ref, ...entry } = logging;
+                  if (await send("POST", entry, "maintenance/labour")) setLogging(null);
+                }}>
+                {busy ? tr.saving : tr.logTime}
               </button>
             </div>
           </div>

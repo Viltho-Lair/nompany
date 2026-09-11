@@ -4,7 +4,7 @@
 import type { ModuleContext } from "../context";
 import type { Section } from "@/platform/db/sections";
 
-export type { WorkRequest, WorkOrder } from "./schema";
+export type { WorkRequest, WorkOrder, LabourEntry } from "./schema";
 
 // Generated from the spec in ./maintenance: `sub` and `foreign` become
 // `<name>Section`, `flags` become `canView<Name>`/`canManage<Name>`. A

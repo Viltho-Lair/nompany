@@ -100,7 +100,45 @@ ok("an open request may be accepted", M.requestProblem({ status: "Open" }, false
 ok("a request already turned into work may not be accepted twice", M.requestProblem({ status: "Open" }, true) === "accepted");
 ok("a declined request may not be accepted", M.requestProblem({ status: "Declined" }, false) === "declined");
 
+console.log("\n== labour");
+ok("an ordinary entry passes", M.labourProblem({ hours: 2.5, workedOn: "2026-09-10" }, "2026-09-11") === null);
+ok("today is allowed", M.labourProblem({ hours: 1, workedOn: "2026-09-11" }, "2026-09-11") === null);
+// TIME NOT YET WORKED is a forecast, and a forecast in the actuals is how a
+// job reads as costing what somebody expected rather than what it did.
+ok("a date in the future is refused", M.labourProblem({ hours: 1, workedOn: "2026-09-12" }, "2026-09-11") === "date");
+ok("a missing date is refused", M.labourProblem({ hours: 1 }, "2026-09-11") === "date");
+ok("a malformed date is refused", M.labourProblem({ hours: 1, workedOn: "11/09/2026" }, "2026-09-11") === "date");
+ok("zero hours is refused", M.labourProblem({ hours: 0, workedOn: "2026-09-10" }, "2026-09-11") === "hours");
+ok("negative hours are refused", M.labourProblem({ hours: -1, workedOn: "2026-09-10" }, "2026-09-11") === "hours");
+ok("more than a day in one entry is refused", M.labourProblem({ hours: 24.25, workedOn: "2026-09-10" }, "2026-09-11") === "hours");
+ok("a whole day is allowed", M.labourProblem({ hours: 24, workedOn: "2026-09-10" }, "2026-09-11") === null);
+// BLANK IS NOT NOUGHT — "nobody said" must not become a zero-hour entry.
+ok("blank hours are refused, not read as nought", M.labourProblem({ hours: "", workedOn: "2026-09-10" }, "2026-09-11") === "hours");
+ok("hours round to the quarter", M.quarterHours(1.1) === 1 && M.quarterHours(1.13) === 1.25);
+ok("a sliver rounds to nothing and is refused", M.labourProblem({ hours: 0.1, workedOn: "2026-09-10" }, "2026-09-11") === "hours");
+{
+  const t = M.labourTotals([
+    { hours: 2, kind: "work" }, { hours: 0.5, kind: "travel" }, { hours: 1.25, kind: "work" }, { hours: 1, kind: "nap" },
+  ]);
+  ok("totals add every entry", t.total === 4.75, String(t.total));
+  // AN UNKNOWN KIND IS STILL TIME. Dropping it would make the total disagree
+  // with the entries listed beneath it.
+  ok("...an unknown kind counted as work", t.byKind.work === 4.25 && t.byKind.travel === 0.5 && t.byKind.wait === 0);
+}
+ok("no entries is nought hours", M.labourTotals([]).total === 0);
+
+console.log("\n== open work by place");
+{
+  const byPlace = M.openWorkByPlace([
+    { locationId: "a", status: "Open" }, { locationId: "a", status: "Closed" },
+    { locationId: "b", status: "On hold" }, { locationId: "", status: "Open" },
+  ]);
+  ok("only open work at a place is grouped", byPlace.get("a")?.length === 1 && byPlace.get("b")?.length === 1);
+  ok("work with no place is not on the map", !byPlace.has(""));
+}
+
 console.log("\n== vocabulary");
+ok("three kinds of time", M.LABOUR_KINDS.join(",") === "work,travel,wait");
 ok("three kinds of work", M.ORDER_TYPES.join(",") === "corrective,preventive,inspection");
 ok("four priorities, lowest first", M.PRIORITIES.join(",") === "low,normal,high,urgent");
 ok("every status has somewhere to go or is final",

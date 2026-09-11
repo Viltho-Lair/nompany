@@ -90,3 +90,29 @@ export const WorkOrderSchema = z.object({
   updatedAt: z.string(),
 });
 export type WorkOrder = z.infer<typeof WorkOrderSchema>;
+
+/**
+ * TIME BOOKED AGAINST A WORK ORDER — its own collection rather than an array on
+ * the order, because the migration design refuses nested arrays that grow
+ * without bound, and a long repair collects an entry per person per day.
+ *
+ * HOURS ONLY. What an hour costs is Phase 3's, with parts — a rate needs a
+ * source, and the one timesheets use is copied per entry off a deal.
+ */
+export const LabourEntrySchema = z.object({
+  id: z.string(),
+  studioId: z.string(),
+  sectionId: z.string(),
+  workOrderId: z.string(),
+  /** Who did the work (invariant 6) — not necessarily who booked it. */
+  collaboratorId: z.string(),
+  workedOn: z.string().max(10),
+  /** In quarters of an hour, 0.25 – 24. */
+  hours: z.number(),
+  /** work · travel · wait — see LABOUR_KINDS. */
+  kind: z.string(),
+  note: z.string().max(500),
+  createdByCollaboratorId: z.string(),
+  createdAt: z.string(),
+});
+export type LabourEntry = z.infer<typeof LabourEntrySchema>;
