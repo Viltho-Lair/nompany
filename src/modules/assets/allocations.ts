@@ -7,6 +7,7 @@
 import { requirePermission } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
 import { getSectionByKey } from "@/platform/db/sections";
+import { projectEngagementId } from "@/platform/db/engagement";
 import { moduleContext } from "@/modules/context";
 import { allocationProblem, utilisation, type Allocation } from "./utilisation";
 import type { Section } from "@/platform/db/sections";
@@ -14,6 +15,23 @@ import type { ModuleContext } from "@/modules/context";
 
 const Allocations = repo("assetAllocations");
 const Records = repo("engineRecords");
+const Projects = repo("projects");
+
+/**
+ * THE STUDIO'S PROJECTS, as labels — the job picker for somebody who may book
+ * plant and may not read the deals (`engagements.view`). That reader was handed
+ * a text box wanting a deal's internal id; a project is the job a machine
+ * actually goes to, and `allocateAsset` resolves it to that project's deal.
+ */
+async function projectOptions(ctx: AssetsContext) {
+  const section = ctx.sections.find((x) => x.key === "projects-list")
+    || ctx.sections.find((x) => x.key === "projects");
+  if (!section) return [];
+  const rows = await Projects.find({ studio: ctx.studio, section });
+  return rows
+    .map((p) => ({ id: String(p.id), number: str(p.number, 60), title: str(p.title, 200) }))
+    .sort((a, b) => (a.number || a.title).localeCompare(b.number || b.title));
+}
 
 export type AssetsContext = ModuleContext & {
   /**
@@ -117,13 +135,15 @@ export async function listAllocations(ctx: AssetsContext) {
   // ONE ROUND TRIP FOR BOTH, the argument the route's own comment makes about
   // the list and the report: the names and the rows are read together so they
   // cannot come from two different moments.
-  const [allocations, assets] = await Promise.all([
+  const [allocations, assets, projects] = await Promise.all([
     Allocations.find(scope(ctx)),
     assetOptions(ctx),
+    projectOptions(ctx),
   ]);
   return {
     allocations,
     assets,
+    projects,
     // WHETHER THE READER MAY WRITE, answered by the server rather than inferred
     // in the browser from the shape of what came back. `assets.utilisation` is
     // a full-verb area, so viewing the fleet and booking it out are different
@@ -170,11 +190,17 @@ export async function allocateAsset(ctx: AssetsContext, body: Record<string, unk
 
   const [existing, rates] = await Promise.all([Allocations.find(scope(ctx)), ratesFor(ctx)]);
   const assetId = str(body?.assetId, 60);
+  // A PROJECT STANDS IN FOR ITS DEAL, for a reader offered projects rather than
+  // deals. Resolved through the reverse index openProject recorded, so the hire
+  // lands on the same deal the project's own records join. A project with no
+  // deal behind it resolves to "" and is refused `deal`, as a blank would be.
+  const projectId = str(body?.projectId, 60);
+  const dealId = str(body?.dealId, 60) || (projectId ? await projectEngagementId(ctx.studio.id, projectId) : "");
 
   const proposed = {
     id: "",
     assetId,
-    dealId: str(body?.dealId, 60),
+    dealId,
     from: str(body?.from, 40),
     to: str(body?.to, 40),
   };

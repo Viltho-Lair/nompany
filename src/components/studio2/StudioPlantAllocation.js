@@ -70,7 +70,7 @@ export default function StudioPlantAllocation({ slug }) {
   if (error) return <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>;
   if (!data) return <ScreenSkeleton />;
 
-  const { allocations = [], assets = [], utilisation = null, canManage = false } = data;
+  const { allocations = [], assets = [], projects = [], utilisation = null, canManage = false } = data;
   const nameOf = (id) => assets.find((a) => a.id === id)?.name || id;
   const dealOf = (id) => deals?.find((d) => d.id === id)?.ref || id;
 
@@ -143,7 +143,7 @@ export default function StudioPlantAllocation({ slug }) {
           <h3 className="font-display text-sm font-700 text-slate-900 dark:text-white">{tr.allocations}</h3>
           {canManage && !draft && (
             <button className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-600 text-white"
-              onClick={() => setDraft({ assetId: "", dealId: "", from: "", to: "", dailyRate: "" })}>
+              onClick={() => setDraft({ assetId: "", dealId: "", projectId: "", from: "", to: "", dailyRate: "" })}>
               {tr.allocate}
             </button>
           )}
@@ -171,17 +171,19 @@ export default function StudioPlantAllocation({ slug }) {
                 label: `${a.name}${a.assetTag ? ` \u00b7 ${a.assetTag}` : ""}${a.status ? ` \u00b7 ${a.status}` : ""}`,
               }))} />
 
-            {/* THE JOB PICKER DEGRADES TO A PLAIN FIELD rather than refusing.
+            {/* THE JOB PICKER DEGRADES TO THE PROJECTS rather than refusing.
                 `deals` is null when `engagements.view` was refused — see the
-                fetch above — and an empty dropdown would read as "there are no
-                jobs" to somebody who simply may not see them. */}
+                fetch above. That reader used to get a text box wanting a deal's
+                internal id; a project is the job a machine goes to, and
+                `allocateAsset` resolves it to the project's deal. */}
             {deals ? (
               <Field label={tr.deal} as="select" required value={draft.dealId}
                 onChange={(v) => setDraft({ ...draft, dealId: v })}
                 options={deals.map((d) => ({ value: d.id, label: `${d.ref} \u00b7 ${d.clientName || d.title}` }))} />
             ) : (
-              <Field label={tr.deal} required value={draft.dealId}
-                onChange={(v) => setDraft({ ...draft, dealId: v })} />
+              <Field label={tr.deal} as="select" required value={draft.projectId}
+                onChange={(v) => setDraft({ ...draft, projectId: v })}
+                options={projects.map((p) => ({ value: p.id, label: [p.number, p.title].filter(Boolean).join(" · ") || p.id }))} />
             )}
 
             <Field label={tr.from} type="date" required value={draft.from}
