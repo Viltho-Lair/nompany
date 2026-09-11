@@ -127,6 +127,7 @@ type Strings = {
   // only when somebody presses Apply. The names are the studio's own section
   // names, so they arrive as a list and each locale joins them its own way.
   sectionsSuggestLead: string;
+  sectionsShowSubs: (name: string) => string;
   sectionsSuggestApply: string;
   sectionsSuggestFailed: string;
 
@@ -400,6 +401,7 @@ const en: Strings = {
   sectionsNotReady: "Not ready yet",
   sectionsRefused: "That section couldn't be changed.",
   sectionsSuggestLead: "Your field of work uses the ticked sections. Tick any others you want, untick any you don't, then apply. Nothing changes until you do.",
+  sectionsShowSubs: (name) => `Show or hide the sub-sections of ${name}`,
   sectionsSuggestApply: "Apply",
   sectionsSuggestFailed: "Those sections couldn't be changed.",
 
@@ -683,6 +685,7 @@ const ar: Strings = {
   sectionsNotReady: "غير جاهز بعد",
   sectionsRefused: "تعذر تغيير ذلك القسم.",
   sectionsSuggestLead: "مجال عملك يستخدم الأقسام المحددة. حدّد أي أقسام أخرى تريدها وألغِ تحديد ما لا تريده، ثم طبّق. لا يتغير شيء حتى تطبّق.",
+  sectionsShowSubs: (name) => `إظهار أو إخفاء الأقسام الفرعية لـ ${name}`,
   sectionsSuggestApply: "تطبيق",
   sectionsSuggestFailed: "تعذر تغيير هذه الأقسام.",
 

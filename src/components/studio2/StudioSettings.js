@@ -508,14 +508,37 @@ function ConfirmDelete({ name, onClose, onConfirm }) {
 // so React unmounts and remounts the whole subtree each time — here that is the
 // entire section list on every toggle. It recurses one level for children,
 // which is the only nesting the nav has.
+//
+// A SECTION'S SUB-SECTIONS ARE FOLDED UNDER IT, closed by default. Unfolded,
+// the list ran to fifty-odd switches — CRM & Sales alone carries eleven — and
+// the owner found it too long to read. The root keeps its own switch on its row
+// (switching it still carries every child, see `setBranch`); the chevron only
+// shows or hides the children, the way the fold around this whole panel does.
+// A root with no children keeps a blank of the chevron's width, so every name
+// starts in the same column.
 function SectionRow({ row, depth, tr, kids, canManage, busy, failed, onToggle }) {
   // A section with no screen can be turned OFF (tidying is allowed) and not back
   // ON, which is exactly what the route refuses.
   const locked = row.required || (row.noScreen && !row.enabled);
   const note = row.required ? tr.sectionsRequired : row.noScreen ? tr.sectionsNotReady : "";
+  const children = depth ? [] : (kids.get(row.id) || []);
+  const [open, setOpen] = useState(false);
+  const panelId = `section-kids-${row.id}`;
   return (
     <>
-      <div className={`flex items-center gap-3 py-1.5 ${depth ? "ps-6" : ""}`}>
+      <div className={`flex items-center gap-3 py-1.5 ${depth ? "ps-7" : ""}`}>
+        {!depth && (children.length ? (
+          <button
+            type="button"
+            aria-expanded={open}
+            aria-controls={panelId}
+            aria-label={tr.sectionsShowSubs(row.name)}
+            onClick={() => setOpen((v) => !v)}
+            className="-m-1 shrink-0 rounded p-1 text-slate-400 transition-colors hover:text-slate-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 dark:text-slate-500 dark:hover:text-slate-300"
+          >
+            <Icon name="chevronDown" className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} />
+          </button>
+        ) : <span className="w-4 shrink-0" aria-hidden="true" />)}
         <span className="min-w-0 flex-1 truncate text-sm text-slate-700 dark:text-slate-200">{row.name}</span>
         {note && <span className="shrink-0 text-xs text-slate-400 dark:text-slate-500">{note}</span>}
         {failed === row.id && <span className="shrink-0 text-xs text-rose-600">{tr.sectionsRefused}</span>}
@@ -531,10 +554,14 @@ function SectionRow({ row, depth, tr, kids, canManage, busy, failed, onToggle })
           <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${row.enabled ? "end-0.5" : "start-0.5"}`} />
         </button>
       </div>
-      {(kids.get(row.id) || []).map((kid) => (
-        <SectionRow key={kid.id} row={kid} depth={1} tr={tr} kids={kids}
-          canManage={canManage} busy={busy} failed={failed} onToggle={onToggle} />
-      ))}
+      {children.length > 0 && (
+        <div id={panelId} hidden={!open}>
+          {children.map((kid) => (
+            <SectionRow key={kid.id} row={kid} depth={1} tr={tr} kids={kids}
+              canManage={canManage} busy={busy} failed={failed} onToggle={onToggle} />
+          ))}
+        </div>
+      )}
     </>
   );
 }
