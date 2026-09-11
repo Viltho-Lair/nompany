@@ -113,6 +113,9 @@ const ar: SectionMap = {
 
   // NEW ROOT, no children yet.
   assets: "الأصول والمعدات",
+  "maintenance": "الصيانة",
+  "maintenance-requests": "طلبات الصيانة",
+  "maintenance-orders": "أوامر العمل",
 
   // QUALITY WIDENED TO QUALITY & HSE, and keeps permits to work (formerly an
   // Operations tab). No children yet.

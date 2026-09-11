@@ -140,6 +140,15 @@ const StudioRequisitions = nextDynamic(
   () => import("@/components/studio2/StudioRequisitions"),
   { loading: () => <ScreenSkeleton /> },
 );
+// Maintenance — the fault reports and the work orders they become.
+const StudioWorkRequests = nextDynamic(
+  () => import("@/components/studio2/StudioWorkRequests"),
+  { loading: () => <ScreenSkeleton /> },
+);
+const StudioWorkOrders = nextDynamic(
+  () => import("@/components/studio2/StudioWorkOrders"),
+  { loading: () => <ScreenSkeleton /> },
+);
 // The purchase order register (tier 5) — see StudioPurchaseOrders.
 const StudioPurchaseOrders = nextDynamic(
   () => import("@/components/studio2/StudioPurchaseOrders"),
@@ -871,6 +880,10 @@ async function renderStudio(params) {
         // have gone on saying it.
         : active?.key === "procurement"
           ? <ProcurementDashboard slug={studio.slug} />
+        : active?.key === "maintenance-requests"
+          ? <StudioWorkRequests slug={studio.slug} />
+        : active?.key === "maintenance-orders"
+          ? <StudioWorkOrders slug={studio.slug} />
         : active?.key === "procurement-requisitions"
           ? <StudioRequisitions slug={studio.slug} />
         : active?.key === "procurement-orders"

@@ -190,6 +190,15 @@ const OWN_AREAS = [
   // own plant.
   { key: "assets.utilisation", group: "Assets & Equipment", label: "Plant allocation and hire",
     verbs: ["view", "create", "edit", "delete"] },
+  // MAINTENANCE — one right per record. Reporting a fault and dispatching work
+  // are different powers; TRIAGE (accepting or declining a request) answers to
+  // `maintenance.orders.create`, because accepting a request is raising a work
+  // order. No extra verb: a second right over the same act would be free to
+  // disagree with the first about who dispatches technicians.
+  { key: "maintenance.requests", group: "Maintenance", label: "Work requests",
+    verbs: ["view", "create", "edit", "delete"] },
+  { key: "maintenance.orders", group: "Maintenance", label: "Work orders",
+    verbs: ["view", "create", "edit", "delete"] },
   { key: "reports.exports", group: "Reports & BI", label: "Data exports",
     verbs: ["view"] },
   { key: "tendering.tenders", group: "Tendering & Estimating", label: "Tender register",

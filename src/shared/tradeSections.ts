@@ -56,7 +56,10 @@ export const ACTION_SECTION: Readonly<Record<string, string>> = {
   // expires — belong with the people they are about.
   "Training": "hr",
   "Operation": "assets",
-  "Maintenance & Repair": "assets",
+  // MAINTENANCE & REPAIR IS MAINTENANCE'S (11/09/2026), now there is one. It
+  // was Assets' only because Assets held the maintenance register; Assets still
+  // comes with it — see SECTION_NEEDS.
+  "Maintenance & Repair": "maintenance",
   "Upgrading & Retrofit": "projects",
   "Decommissioning & Disposal": "assets",
 };
@@ -83,6 +86,18 @@ export const UNIVERSAL_SECTION_KEYS = [
 // thing about Main from the storage side.
 export const NEVER_GATED_KEYS = ["main", "tasks"] as const;
 
+// A SECTION THAT CANNOT WORK WITHOUT ANOTHER BRINGS IT ALONG.
+//
+// This is structure, not a second guess at the matrix: a work order names a
+// machine in the EQUIPMENT REGISTER, which is filed under Assets & Equipment.
+// A studio with Maintenance on and Assets off could raise work orders against
+// nothing. It is also what keeps "Maintenance & Repair" moving to Maintenance
+// from quietly switching Assets OFF for every trade that reached Assets only
+// through it — contractors and IT firms among them.
+export const SECTION_NEEDS: Readonly<Record<string, readonly string[]>> = {
+  maintenance: ["assets"],
+};
+
 /**
  * THE ROOT SECTIONS THIS TRADE STARTS WITH.
  *
@@ -108,6 +123,9 @@ export function rootSectionsForTrade(
   for (const action of actions) {
     const section = ACTION_SECTION[action];
     if (section) on.add(section);
+  }
+  for (const [key, needs] of Object.entries(SECTION_NEEDS)) {
+    if (on.has(key)) for (const n of needs) on.add(n);
   }
   return on;
 }

@@ -58,6 +58,24 @@ const RESOURCES = [
     patch: (id) => ({ id, name: `Unit renamed ${F.rand()}` }),
     check: (row, sent) => row?.name === sent.name,
   },
+  // MAINTENANCE. A fresh request and a fresh order are both deletable — an
+  // unanswered report and never-started work — so the whole lifecycle runs.
+  {
+    name: "workRequests",
+    module: "maintenance/requests",
+    list: (b) => b?.requests || [],
+    make: () => ({ title: `Leak ${F.rand()}`, priority: "high" }),
+    patch: (id) => ({ id, title: `Leak renamed ${F.rand()}` }),
+    check: (row, sent) => row?.title === sent.title,
+  },
+  {
+    name: "workOrders",
+    module: "maintenance/orders",
+    list: (b) => b?.orders || [],
+    make: () => ({ title: `Replace belt ${F.rand()}`, type: "corrective" }),
+    patch: (id) => ({ id, title: `Replace belt renamed ${F.rand()}` }),
+    check: (row, sent) => row?.title === sent.title,
+  },
 ];
 
 const load = (m) => import(`../src/app/api/studios/[slug]/${m}/route.ts`);

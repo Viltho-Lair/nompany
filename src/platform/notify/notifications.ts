@@ -64,6 +64,8 @@ export const NOTIFY = {
   billOverdue: "bill.overdue",
   documentExpiring: "document.expiring",
   permitExpiring: "permit.expiring",
+  workRequestRaised: "workrequest.raised",
+  workOrderAssigned: "workorder.assigned",
 };
 
 /** One stored notification, as this module writes it. */

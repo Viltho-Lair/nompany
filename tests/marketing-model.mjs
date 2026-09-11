@@ -52,8 +52,9 @@ console.log("\n== the departments a visitor is told exist");
 //
 // The list is DERIVED both times; the hand-written copy is not, which is what
 // the assertions below exist to catch. On the first move the copy said
-// fourteen while fifteen rendered.
-ok("fourteen of them", D.LIVE_DEPARTMENT_KEYS.length === 14,
+// fourteen while fifteen rendered. Back to fifteen on 11/09/2026, when
+// Maintenance became a department of its own.
+ok("fifteen of them", D.LIVE_DEPARTMENT_KEYS.length === 15,
   String(D.LIVE_DEPARTMENT_KEYS.length));
 
 // AND ADMINISTRATION IS NOT ONE, asserted by name rather than left to the count

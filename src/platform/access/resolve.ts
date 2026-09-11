@@ -91,6 +91,9 @@ export const SECTION_AREAS: Readonly<Record<string, readonly string[]>> = {
   // Assets renders through its engine registers; this is the one thing the
   // ROOT owns, so the section has an area of its own as well as children.
   assets: ["assets.utilisation"],
+  // The root has no area of its own; it is visible when a child is.
+  "maintenance-requests": ["maintenance.requests"],
+  "maintenance-orders": ["maintenance.orders"],
   "tendering-rates": ["tendering.rates"],
   "crm-sales-settings": ["crmSales.settings"],
   "engineering-docs-rfq": ["engineeringDocs.rfq"],

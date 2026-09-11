@@ -3,18 +3,19 @@
 Multi-tenant ERP. Next.js 16 · React 19 · Postgres · Tailwind v3 + shadcn/ui + MUI v9 · Vercel.
 Three surfaces in one app: the tenant ERP at `nompany.com/<slug>/…` (rewritten by
 `src/proxy.js` → `src/app/studio`), account pages at `/{en,ar}/…`, and nompany's own
-console at `/super`. **FOURTEEN sections**, plus Main and Tasks, which are not sections —
+console at `/super`. **FIFTEEN sections**, plus Main and Tasks, which are not sections —
 Main is the home surface and Tasks is a cross-cutting control: CRM & Sales,
 Tendering & Estimating, Projects, Engineering & Documents, Procurement & Subcontracting,
 Inventory & Warehouse, Manufacturing & Production, Field Operations & Service, Logistics &
-Fleet, Assets & Equipment, Quality & HSE, Human Resources, Finance & Accounting, Reports &
-BI.
+Fleet, Assets & Equipment, Maintenance, Quality & HSE, Human Resources, Finance &
+Accounting, Reports & BI. (**Maintenance is the fifteenth, 11/09/2026**, decided with the
+owner — `docs/functionality/maintenance.md`. The equipment register stays under Assets.)
 
 **ADMINISTRATION & SETTINGS IS NOT A SECTION — the owner's instruction, 09/09/2026.**
 It carries People, Access, Master data and Studio settings: the studio's own system
 configuration, not a department any company runs. It is reached from a **Settings entry at
 the bottom of the sidebar** (`/<slug>/settings`), it is absent from the nav tree and from
-the marketing site's department list, and the count above is fourteen because of it.
+the marketing site's department list, and the count above excludes it.
 
 **ITS SECTION ROWS STAY, AND THAT IS NOT A HALF-MEASURE.** `administration-master` OWNS
 `locations`, `departments` and `costCodeLibrary`; `administration-settings` owns
@@ -27,7 +28,7 @@ strand every location and department already written in every live studio, faili
 nothing. `SYSTEM_SECTION_KEYS`/`isSystemSection` (`platform/db/keys.ts`) is the seam, and
 `testAdministrationIsNotASectionButItsRowsSurvive` asserts both halves.
 
-**ALL FOURTEEN RENDER. `NO_SCREEN_YET` IS EMPTY — measured 09/09/2026** (it is `[] as const`
+**ALL FIFTEEN RENDER. `NO_SCREEN_YET` IS EMPTY — measured 09/09/2026, and Maintenance shipped with its screens on 11/09/2026** (it is `[] as const`
 in `platform/access/resolve.ts`). This paragraph named four sections that "render nothing
 yet" — Manufacturing, Assets, Reports and Quality & HSE — and every one of them has had a
 screen since 08/09/2026: three got engine registers, Reports got data exports.
@@ -191,7 +192,7 @@ the `allowJs` escape hatch are still holding open.
 | `src/platform/approval/**` | The approval chain store and walker (bills, bids, requisitions) |
 | `src/platform/engagement/**` | The stage registry and the engagement backfill |
 | `src/platform/nova/**` | Nova |
-| `src/modules/<name>/**` | The departments, one folder each — fourteen today |
+| `src/modules/<name>/**` | The departments, one folder each — fifteen today |
 | `src/lib/**` | What belongs to no department — chat, media, the catalogue, presentation helpers |
 
 Two rules that came out of doing it:

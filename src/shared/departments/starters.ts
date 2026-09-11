@@ -102,7 +102,7 @@ export const DEPARTMENT_STARTERS: Record<string, readonly DepartmentSeed[]> = {
     { name: "Drill & Blast", code: "DNB", parent: "MIN", sectionKeys: ["field-service"] },
     { name: "Processing Plant", code: "PLT", parent: "", sectionKeys: ["manufacturing"] },
     { name: "Geology & Survey", code: "GEO", parent: "", sectionKeys: ["engineering-docs"] },
-    { name: "Mine Engineering & Maintenance", code: "MNT", parent: "", sectionKeys: ["assets", "field-service"] },
+    { name: "Mine Engineering & Maintenance", code: "MNT", parent: "", sectionKeys: ["assets", "maintenance", "field-service"] },
     { name: "HSE & Community", code: "HSE", parent: "", sectionKeys: ["quality-hse"] },
     { name: "Sales & Logistics", code: "SLS", parent: "", sectionKeys: ["crm-sales", "logistics"] },
   ),
@@ -113,7 +113,7 @@ export const DEPARTMENT_STARTERS: Record<string, readonly DepartmentSeed[]> = {
     { name: "Machine Shop", code: "MCH", parent: "PRD", sectionKeys: ["manufacturing"] },
     { name: "Design & Engineering", code: "ENG", parent: "", sectionKeys: ["engineering-docs"] },
     { name: "Production Planning", code: "PPC", parent: "", sectionKeys: ["projects"] },
-    { name: "Maintenance", code: "MNT", parent: "", sectionKeys: ["assets"] },
+    { name: "Maintenance", code: "MNT", parent: "", sectionKeys: ["assets", "maintenance"] },
     { name: "Quality Assurance", code: "QA", parent: "", sectionKeys: ["quality-hse"] },
     { name: "Sales & After-Sales", code: "SLS", parent: "", sectionKeys: ["crm-sales", "field-service"] },
     { name: "Dispatch & Logistics", code: "LOG", parent: "", sectionKeys: ["logistics"] },
@@ -137,7 +137,7 @@ export const DEPARTMENT_STARTERS: Record<string, readonly DepartmentSeed[]> = {
     { name: "Final Assembly", code: "FAL", parent: "PRD", sectionKeys: ["manufacturing"] },
     { name: "Quality & Airworthiness", code: "QA", parent: "", sectionKeys: ["quality-hse"] },
     { name: "Supplier Quality", code: "SQA", parent: "QA", sectionKeys: ["procurement", "quality-hse"] },
-    { name: "Maintenance & Tooling", code: "MNT", parent: "", sectionKeys: ["assets"] },
+    { name: "Maintenance & Tooling", code: "MNT", parent: "", sectionKeys: ["assets", "maintenance"] },
     { name: "Aftermarket & MRO", code: "MRO", parent: "", sectionKeys: ["field-service"] },
   ),
 
@@ -148,7 +148,7 @@ export const DEPARTMENT_STARTERS: Record<string, readonly DepartmentSeed[]> = {
     { name: "Capital Projects", code: "PRJ", parent: "", sectionKeys: ["projects", "tendering"] },
     { name: "Engineering & Design", code: "ENG", parent: "", sectionKeys: ["engineering-docs"] },
     { name: "Metering & Customer Connections", code: "MTR", parent: "", sectionKeys: ["crm-sales", "field-service"] },
-    { name: "Maintenance & Asset Management", code: "MNT", parent: "", sectionKeys: ["assets"] },
+    { name: "Maintenance & Asset Management", code: "MNT", parent: "", sectionKeys: ["assets", "maintenance"] },
     { name: "HSE & Compliance", code: "HSE", parent: "", sectionKeys: ["quality-hse"] },
   ),
 
@@ -171,7 +171,7 @@ export const DEPARTMENT_STARTERS: Record<string, readonly DepartmentSeed[]> = {
     { name: "Capital Projects", code: "PRJ", parent: "", sectionKeys: ["projects", "tendering"] },
     { name: "Engineering & Design", code: "ENG", parent: "", sectionKeys: ["engineering-docs"] },
     { name: "Laboratory & Water Quality", code: "LAB", parent: "", sectionKeys: ["quality-hse"] },
-    { name: "Fleet & Maintenance", code: "FLT", parent: "", sectionKeys: ["logistics", "assets"] },
+    { name: "Fleet & Maintenance", code: "FLT", parent: "", sectionKeys: ["logistics", "assets", "maintenance"] },
   ),
 
   "Construction & Contracting": trading(
@@ -211,7 +211,7 @@ export const DEPARTMENT_STARTERS: Record<string, readonly DepartmentSeed[]> = {
     { name: "Front Office", code: "FO", parent: "", sectionKeys: ["crm-sales"] },
     { name: "Housekeeping", code: "HK", parent: "", sectionKeys: ["field-service"] },
     { name: "Banqueting & Events", code: "EVT", parent: "", sectionKeys: ["projects", "crm-sales"] },
-    { name: "Engineering & Maintenance", code: "MNT", parent: "", sectionKeys: ["assets", "field-service"] },
+    { name: "Engineering & Maintenance", code: "MNT", parent: "", sectionKeys: ["assets", "maintenance", "field-service"] },
     { name: "Food Safety & Hygiene", code: "FS", parent: "", sectionKeys: ["quality-hse"] },
   ),
 
@@ -261,7 +261,7 @@ export const DEPARTMENT_STARTERS: Record<string, readonly DepartmentSeed[]> = {
     { name: "Cost & Commercial", code: "QS", parent: "DEV", sectionKeys: ["tendering", "finance"] },
     { name: "Sales & Leasing", code: "SLS", parent: "", sectionKeys: ["crm-sales"] },
     { name: "Property Management", code: "PM", parent: "", sectionKeys: ["field-service", "assets"] },
-    { name: "Facilities & Maintenance", code: "FM", parent: "PM", sectionKeys: ["field-service"] },
+    { name: "Facilities & Maintenance", code: "FM", parent: "PM", sectionKeys: ["field-service", "maintenance"] },
   ),
 
   "Professional, Scientific & Technical Services": spine(
@@ -283,7 +283,7 @@ export const DEPARTMENT_STARTERS: Record<string, readonly DepartmentSeed[]> = {
 
   "Administrative & Support Services": trading(
     { name: "Contract Operations", code: "OPS", parent: "", sectionKeys: ["projects", "field-service"] },
-    { name: "Hard Services", code: "HRD", parent: "OPS", sectionKeys: ["field-service", "assets"] },
+    { name: "Hard Services", code: "HRD", parent: "OPS", sectionKeys: ["field-service", "assets", "maintenance"] },
     { name: "Soft Services", code: "SFT", parent: "OPS", sectionKeys: ["field-service"] },
     { name: "Security Services", code: "SEC", parent: "", sectionKeys: ["field-service"] },
     { name: "Helpdesk & Scheduling", code: "HD", parent: "", sectionKeys: ["field-service"] },
@@ -306,7 +306,7 @@ export const DEPARTMENT_STARTERS: Record<string, readonly DepartmentSeed[]> = {
     { name: "Corporate Training", code: "TRN", parent: "", sectionKeys: ["projects", "crm-sales"] },
     { name: "Student Services", code: "STU", parent: "", sectionKeys: ["crm-sales"] },
     { name: "Admissions", code: "ADS", parent: "STU", sectionKeys: ["crm-sales"] },
-    { name: "Campus & Facilities", code: "FAC", parent: "", sectionKeys: ["assets", "field-service"] },
+    { name: "Campus & Facilities", code: "FAC", parent: "", sectionKeys: ["assets", "maintenance", "field-service"] },
     { name: "Quality & Accreditation", code: "QA", parent: "", sectionKeys: ["quality-hse"] },
   ),
 
@@ -315,7 +315,7 @@ export const DEPARTMENT_STARTERS: Record<string, readonly DepartmentSeed[]> = {
     { name: "Nursing", code: "NUR", parent: "CLN", sectionKeys: ["field-service"] },
     { name: "Pharmacy", code: "PHM", parent: "", sectionKeys: ["inventory"] },
     { name: "Laboratory & Imaging", code: "LAB", parent: "", sectionKeys: ["quality-hse"] },
-    { name: "Biomedical Engineering", code: "BME", parent: "", sectionKeys: ["assets", "field-service"] },
+    { name: "Biomedical Engineering", code: "BME", parent: "", sectionKeys: ["assets", "maintenance", "field-service"] },
     { name: "Patient Services & Billing", code: "PS", parent: "", sectionKeys: ["crm-sales", "finance"] },
     { name: "Quality & Infection Control", code: "QA", parent: "", sectionKeys: ["quality-hse"] },
   ),

@@ -232,6 +232,16 @@ after a trade change, for the same reason.
   since decided to keep. A root carries its children exactly as the single toggle does — one
   helper serves both.
 
+## Maintenance is the fifteenth (11/09/2026)
+
+`maintenance`, with `maintenance-requests` and `maintenance-orders`, placed after Assets &
+Equipment. The root holds no area; it is visible when a child is. "Maintenance & Repair"
+now switches it on for a trade, and `SECTION_NEEDS` (`shared/tradeSections`) brings Assets
+along, because a work order names a machine in the Assets register — without it,
+contractors and IT firms, which reached Assets only through that action, would have lost it.
+Existing studios get the rows from `plant-sections.mjs`, which has not been run.
+`maintenance.md` is the file.
+
 ## Not built yet
 
 Stated in words, because a silent gap reads as a finished feature.

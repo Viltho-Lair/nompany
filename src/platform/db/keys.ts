@@ -686,6 +686,19 @@ export const SECTION_DEFS = [
 
   { key: "assets", name: "Assets & Equipment" },
 
+  // MAINTENANCE (11/09/2026) — the fifteenth, decided with the owner. Its own
+  // department rather than more of Assets: a maintenance team is an org unit a
+  // company runs, and Assets is the register of what the company owns. The
+  // equipment register STAYS under Assets, where every studio's rows already
+  // are; a work order names a machine there rather than keeping a second list.
+  // (The engine's `maintenance` register under Assets is the lightweight
+  // predecessor, retired into work orders by a migration — never by deleting
+  // its type.)
+  { key: "maintenance", name: "Maintenance", children: [
+    { key: "maintenance-requests", name: "Work requests" },
+    { key: "maintenance-orders", name: "Work orders" },
+  ] },
+
   // Quality widens to Quality & HSE. It keeps permits to work, which were an
   // Operations tab and are a QHSE register.
   // ITS FIRST DECLARED CHILD (tier 5) — its registers are engine sections
@@ -893,6 +906,12 @@ export const SECTION_COLLECTIONS = {
   // the equipment register is a list of what the studio owns rather than the
   // owner of what those things are doing.
   assets: ["assetAllocations"],
+  // A FAULT REPORT AND THE WORK IT BECOMES, each under its own sub-section so
+  // each screen's live watch hears exactly its own rows. Both sub-sections are
+  // declared (not engine-planted), so createStudio seeds them and
+  // plant-sections.mjs reaches an existing studio before anybody writes one.
+  "maintenance-requests": ["workRequests"],
+  "maintenance-orders": ["workOrders"],
   // A BILL OF MATERIALS' LINES, on the Manufacturing ROOT rather than under
   // the BOM engine register. The register's rows live in `engineRecords`
   // under `engine-bom`, and a collection under a section only some studios
