@@ -53,6 +53,8 @@ import type { Certification, Vacation, ExpiringDocument, HrContext } from "./typ
 import type { StudioRef, CollaboratorRef } from "../context";
 import type { Section } from "@/platform/db/sections";
 
+import { employmentRulesOf, openWeekdays, countLeaveDays, leaveBalances, cleanAllowances } from "./leaveBalance";
+
 const CERTIFICATIONS = "certifications";
 const VACATIONS = "vacations";
 
@@ -531,6 +533,9 @@ export async function listEmployees(ctx: HrContext, meId = "") {
     passportExpiry: c.passportExpiry || "",
     idNumber: reveal ? decryptField(c.idNumber) : "",
     passportNumber: reveal ? decryptField(c.passportNumber) : "",
+    // THIS PERSON'S OWN LEAVE ALLOWANCES, replacing the studio's rule for them
+    // (leaveBalance.ts). Not gated: what somebody is entitled to is theirs to see.
+    leaveAllowances: (c as { leaveAllowances?: unknown }).leaveAllowances || {},
   })).sort((a, b) => String(a.alias).localeCompare(String(b.alias)));
 }
 
@@ -584,6 +589,12 @@ export async function saveEmployment(ctx: HrContext, collaboratorId: string, bod
   // the field; leaving the key out entirely leaves the stored value alone.
   if (body?.idNumber !== undefined) patch.idNumber = encryptField(str(body.idNumber, 60));
   if (body?.passportNumber !== undefined) patch.passportNumber = encryptField(str(body.passportNumber, 60));
+
+  // ONLY TYPES THE STUDIO HAS A RULE FOR — an allowance for a type nothing
+  // counts would be stored and read by nothing.
+  if (body?.leaveAllowances !== undefined) {
+    patch.leaveAllowances = cleanAllowances(body.leaveAllowances, Object.keys(employmentRulesOf(studio).leave));
+  }
 
   if (body?.certificationIds !== undefined) {
     const certs = await Certifications.find({ studio, section: employeesSection });
@@ -684,7 +695,11 @@ export async function requestVacation(ctx: HrContext, body: Record<string, unkno
   if (!from) return { error: "from" };
   if (to < from) return { error: "range" };
 
-  const days = countDays(from, to);
+  // COUNTED BY THE STUDIO'S RULE — working days when Employment rules say so,
+  // calendar days otherwise — and stored, so the person is held to the figure
+  // they were shown when they asked.
+  const days = countLeaveDays(from, to, leaveOpenDays(studio));
+  if (days === 0) return { error: "no-working-days" };
 
   // Overlapping leave for the same person is almost always a double entry.
   const rows = await Vacations.find({ studio, section });
@@ -807,11 +822,32 @@ export async function removeVacation(ctx: HrContext, id: string) {
   return removed ? { ok: true } : { error: "notfound" };
 }
 
-// Inclusive day count — a one-day leave is 1 day, not 0.
-function countDays(from: string, to: string): number {
-  const a = new Date(`${from}T00:00:00`);
-  const b = new Date(`${to}T00:00:00`);
-  return Math.max(1, Math.round((b.getTime() - a.getTime()) / 86400000) + 1);
+// The weekdays leave is counted in: the studio's open days when its Employment
+// rules count working days, otherwise null — every calendar day counts.
+function leaveOpenDays(studio: unknown) {
+  return employmentRulesOf(studio).workingDays
+    ? openWeekdays((studio as { workingHours?: unknown }).workingHours)
+    : null;
+}
+
+/**
+ * EVERY VISIBLE PERSON'S BALANCE FOR THIS YEAR, from the same scoped lists the
+ * screen already holds — so a lead sees exactly the balances of the people whose
+ * leave they can see, and nobody else's.
+ */
+export function leaveView(
+  ctx: HrContext,
+  employees: { id: unknown; dateOfJoin?: unknown; leaveAllowances?: unknown }[],
+  vacations: Vacation[],
+  today = new Date(),
+) {
+  const rules = employmentRulesOf(ctx.studio);
+  const open = leaveOpenDays(ctx.studio);
+  const year = today.getUTCFullYear();
+  const balances = Object.fromEntries(employees.map((e) => [String(e.id), leaveBalances({
+    rules, person: { ...e, id: String(e.id) }, vacations: vacations as never, year, open,
+  })]));
+  return { year, rules, openDays: open, balances };
 }
 
 // Headcount per department, derived from the people themselves.

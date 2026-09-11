@@ -35,13 +35,17 @@ export const CertificationSchema = z.object({
  * `type`. Declared rather than reconciled: which spelling wins is a migration,
  * and a migration is a decision this conversion does not get to make. Writing
  * them down is what makes the choice visible to whoever does.
+ *
+ * `kind` IS OPTIONAL (tier 6): it was declared required while `requestVacation`
+ * has only ever written `type`, which is what payroll and the leave balance
+ * read. Every row written since would have failed this schema had it parsed.
  */
 export const VacationSchema = z.object({
   id: z.string(),
   studioId: z.string(),
   sectionId: z.string(),
   collaboratorId: z.string(),
-  kind: z.string(),
+  kind: z.string().optional(),
   type: z.string().optional(),
   from: z.string().optional(),
   to: z.string().optional(),

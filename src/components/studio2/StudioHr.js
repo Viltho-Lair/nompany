@@ -17,6 +17,7 @@ import { useReload } from "@/components/studio2/useReload";
 import { payrollDict } from "@/shared/studio/payroll";
 import { attendanceDict } from "@/shared/studio/attendance";
 import { manpowerDict } from "@/shared/studio/manpower";
+import { countLeaveDays } from "@/modules/hr/leaveBalance";
 
 // THE DASHBOARD LOADS WHEN IT IS SHOWN, not with this screen. It was a static
 // import, so every tenant page carried every department's dashboard and the
@@ -104,6 +105,7 @@ export default function StudioHr({ slug, view = "hr" }) {
         : out.error === "overlap" ? `That overlaps leave already booked ${fmt(out.from)} – ${fmt(out.to)}.`
         : out.error === "already-decided" ? `That request was already ${String(out.status || "").toLowerCase()}.`
         : out.error === "range" ? tr.endDateCanBefore
+        : out.error === "no-working-days" ? tr.noWorkingDays
         : out.error === "forbidden" ? tr.can
         : tr.didnSave
       );
@@ -190,7 +192,7 @@ export default function StudioHr({ slug, view = "hr" }) {
       {tab === "people" && (
         <People employees={employees} departments={departments} roles={roles}
           certifications={certifications} canManage={canManage} canAssignRoles={data.canAssignRoles}
-          slug={slug} busy={busy}
+          slug={slug} busy={busy} leaveRules={data.leave?.rules?.leave || {}}
           onSave={(collaboratorId, patch) => send("employees", "PUT", { collaboratorId, patch })} />
       )}
       {tab === "roles" && (
@@ -201,7 +203,7 @@ export default function StudioHr({ slug, view = "hr" }) {
         <Certifications rows={certifications} employees={employees} canManage={canManage} busy={busy} send={send} />
       )}
       {tab === "leave" && (
-        <Leave rows={vacations} employees={employees} types={vocabulary.leaveTypes}
+        <Leave rows={vacations} employees={employees} types={vocabulary.leaveTypes} leave={data.leave}
           canManage={canManage} meId={me.collaboratorId} busy={busy} send={send} />
       )}
 
@@ -292,7 +294,7 @@ function Overview({ headcount, departments, expiring, windowDays }) {
 }
 
 // ---- people ----------------------------------------------------------------
-function People({ employees, departments, roles, certifications, canManage, canAssignRoles, slug, busy, onSave }) {
+function People({ employees, departments, roles, certifications, canManage, canAssignRoles, slug, busy, leaveRules, onSave }) {
   const tr = hrDict(useStudioLocale());
   const [editing, setEditing] = useState(null);
   const [query, setQuery] = useState("");
@@ -325,7 +327,7 @@ function People({ employees, departments, roles, certifications, canManage, canA
         <Dialog title={editing.alias} description={tr.employmentDetailsApplyInside} onClose={closeEditing} width="max-w-[820px]">
           <EmployeeEditor person={editing} departments={departments} roles={roles}
             certifications={certifications} canAssignRoles={canAssignRoles} slug={slug}
-            busy={busy} onCancel={closeEditing}
+            leaveRules={leaveRules} busy={busy} onCancel={closeEditing}
             onSave={async (patch) => { if (await onSave(editing.id, patch)) setEditing(null); }} />
         </Dialog>
       )}
@@ -420,9 +422,13 @@ function Documents({ person, canManage }) {
   );
 }
 
-function EmployeeEditor({ person, departments, roles, certifications, canAssignRoles, slug, busy, onCancel, onSave }) {
+function EmployeeEditor({ person, departments, roles, certifications, canAssignRoles, slug, leaveRules = {}, busy, onCancel, onSave }) {
   const tr = hrDict(useStudioLocale());
+  const ruledTypes = Object.keys(leaveRules);
   const [form, setForm] = useState({
+    // THIS PERSON'S OWN ALLOWANCES, as text so a blank stays blank ("use the
+    // studio's rule") rather than becoming a nought.
+    leaveAllowances: Object.fromEntries(ruledTypes.map((t) => [t, person.leaveAllowances?.[t] != null ? String(person.leaveAllowances[t]) : ""])),
     departmentId: person.departmentId || "",
     roleIds: person.roleIds || [],
     employeeCode: person.employeeCode || "",
@@ -547,6 +553,19 @@ function EmployeeEditor({ person, departments, roles, certifications, canAssignR
           </div>
         </div>
       </div>
+
+      {ruledTypes.length > 0 && (
+        <div className="mt-6 rounded-xl border border-slate-200/70 p-4 dark:border-white/10">
+          <p className="font-display text-sm font-700 text-slate-900 dark:text-white">{tr.allowanceHeading}</p>
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{tr.allowanceLead}</p>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {ruledTypes.map((t) => (
+              <Field key={t} label={t} value={form.leaveAllowances[t] ?? ""} hint={tr.allowanceDefault(leaveRules[t].days)}
+                onChange={(v) => setForm((f) => ({ ...f, leaveAllowances: { ...f.leaveAllowances, [t]: v } }))} />
+            ))}
+          </div>
+        </div>
+      )}
 
       {certifications.length > 0 && (
         <div className="mt-6">
@@ -915,7 +934,7 @@ function Certifications({ rows, employees, canManage, busy, send }) {
 }
 
 // ---- leave -----------------------------------------------------------------
-function Leave({ rows, employees, types, canManage, meId, busy, send }) {
+function Leave({ rows, employees, types, leave, canManage, meId, busy, send }) {
   const tr = hrDict(useStudioLocale());
   const [asking, setAsking] = useState(false);
   const closeAsk = useCallback(() => setAsking(false), []);
@@ -929,11 +948,13 @@ function Leave({ rows, employees, types, canManage, meId, busy, send }) {
       {asking && (
         <Dialog title={tr.requestLeave} description={canManage ? tr.bookYourselfSomebodyManage : tr.goesWhoeverManagesHr}
           onClose={closeAsk} width="max-w-[620px]">
-          <LeaveForm types={types} employees={employees} canManage={canManage} meId={meId} busy={busy}
+          <LeaveForm types={types} employees={employees} leave={leave} canManage={canManage} meId={meId} busy={busy}
             onCancel={closeAsk}
             onSave={async (form) => { if (await send("vacations", "POST", form)) setAsking(false); }} />
         </Dialog>
       )}
+
+      <LeaveBalances leave={leave} employees={employees} tr={tr} />
 
       {rows.length === 0 ? <Empty title={tr.noLeaveBooked} body={canManage ? tr.requestsPeopleArriveHere : tr.ownLeaveRequestsAppear} /> : (
         <section className={panel}>
@@ -985,14 +1006,52 @@ function Leave({ rows, employees, types, canManage, meId, busy, send }) {
   );
 }
 
-function LeaveForm({ types, employees, canManage, meId, busy, onSave, onCancel }) {
+// WHAT EVERY VISIBLE PERSON HAS LEFT this year, per ruled leave type — the
+// answer the product had no way to give before tier 6 (leaveBalance.ts).
+function LeaveBalances({ leave, employees, tr }) {
+  const ruled = Object.keys(leave?.rules?.leave || {});
+  if (!ruled.length) return <p className="text-sm text-slate-500 dark:text-slate-400">{tr.balancesNone}</p>;
+  const people = employees.filter((e) => (leave.balances?.[e.id] || []).length);
+  if (!people.length) return null;
+  const heads = [tr.person, tr.type, tr.allowance, tr.carried, tr.taken, tr.pendingCol, tr.remaining];
+  return (
+    <section className={panel}>
+      <h3 className="font-display text-base font-700 text-slate-900 dark:text-white">{tr.balancesHeading}</h3>
+      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{tr.balancesLead(leave.year)}</p>
+      <div className="mt-3 overflow-x-auto">
+        <table className="w-full min-w-[640px] border-collapse text-sm">
+          <thead>
+            <tr className="border-b border-slate-200 dark:border-white/10">
+              {heads.map((h, i) => <th key={h} className={`${th} ps-2 ${i > 1 ? "text-end" : "text-start"}`}>{h}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {people.flatMap((e) => leave.balances[e.id].map((b) => (
+              <tr key={`${e.id}-${b.type}`} className="border-b border-slate-100 last:border-b-0 dark:border-white/5">
+                <td className={`${td} ps-2 font-600 text-slate-900 dark:text-white`}>{e.alias}</td>
+                <td className={`${td} ps-2 text-slate-600 dark:text-slate-300`}>{b.type}</td>
+                {[b.allowance, b.carried, b.taken, b.pending].map((n, i) => (
+                  <td key={i} className={`${td} ps-2 text-end tabular-nums text-slate-600 dark:text-slate-300`}>{n}</td>
+                ))}
+                <td className={`${td} ps-2 text-end tabular-nums font-700 ${b.remaining < 0 ? "text-rose-600 dark:text-rose-300" : "text-slate-900 dark:text-white"}`}>{b.remaining}</td>
+              </tr>
+            )))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+function LeaveForm({ types, employees, leave, canManage, meId, busy, onSave, onCancel }) {
   const tr = hrDict(useStudioLocale());
   const [form, setForm] = useState({ collaboratorId: "", type: types[0], from: "", to: "", reason: "" });
-  // Inclusive of both ends, which is how leave is counted.
-  const days = form.from && form.to
-    ? Math.max(0, Math.round((new Date(form.to) - new Date(form.from)) / 86400000) + 1)
-    : form.from ? 1 : 0;
+  // COUNTED THE WAY THE SERVER WILL COUNT IT — the same pure function, with the
+  // studio's open days when its rules count working days.
+  const days = form.from ? countLeaveDays(form.from, form.to || form.from, leave?.openDays || null) : 0;
   const backwards = form.from && form.to && form.to < form.from;
+  // What this request leaves of the allowance, when the type keeps a balance.
+  const balance = (leave?.balances?.[form.collaboratorId || meId] || []).find((b) => b.type === form.type);
 
   return (
     <>
@@ -1013,8 +1072,16 @@ function LeaveForm({ types, employees, canManage, meId, busy, onSave, onCancel }
       <Field label={tr.reason} as="textarea" className="mt-4" value={form.reason} onChange={(v) => setForm((f) => ({ ...f, reason: v }))} />
 
       <p className={`mt-3 text-xs ${backwards ? "text-rose-600 dark:text-rose-400" : "text-slate-500 dark:text-slate-400"}`}>
-        {backwards ? tr.endDateBeforeStart : days > 0 ? tr.thatIsNDays(days) : tr.pickStartDate}
+        {backwards ? tr.endDateBeforeStart
+          : days > 0 ? tr.thatIsNDays(days)
+          : form.from ? tr.noWorkingDays
+          : tr.pickStartDate}
       </p>
+      {balance && days > 0 && !backwards && (
+        <p className={`mt-1 text-xs ${balance.afterPending - days < 0 ? "text-amber-700 dark:text-amber-300" : "text-slate-500 dark:text-slate-400"}`}>
+          {tr.leaveLeft(balance.afterPending - days)}
+        </p>
+      )}
 
       <div className="mt-5 flex gap-3">
         <button className={btn} disabled={busy || !form.from || backwards} onClick={() => onSave(form)}>{busy ? tr.sending : tr.submit}</button>

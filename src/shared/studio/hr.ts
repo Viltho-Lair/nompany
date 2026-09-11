@@ -154,6 +154,20 @@ type Strings = CommonStrings & {
   dashExpired: string;
   dashOther: string;
   dashNobodyAway: string;
+  // Leave balances (tier 6).
+  balancesHeading: string;
+  balancesLead: (year: number) => string;
+  balancesNone: string;
+  allowance: string;
+  carried: string;
+  taken: string;
+  pendingCol: string;
+  remaining: string;
+  leaveLeft: (n: number) => string;
+  allowanceHeading: string;
+  allowanceLead: string;
+  allowanceDefault: (n: number) => string;
+  noWorkingDays: string;
 };
 
 const en: Strings = {
@@ -302,6 +316,21 @@ const en: Strings = {
   dashExpired: "Expired",
   dashOther: "Other",
   dashNobodyAway: "Nobody is booked away in the next 30 days.",
+  balancesHeading: "Leave balances",
+  balancesLead: (year) => `${year}, from the studio's employment rules. Remaining counts approved leave; pending requests are shown beside it.`,
+  balancesNone: "No leave type has an allowance yet. Set them in Studio settings → Employment rules.",
+  allowance: "Allowance",
+  carried: "Carried over",
+  taken: "Taken",
+  pendingCol: "Pending",
+  remaining: "Remaining",
+  leaveLeft: (n) => (n >= 0
+    ? `After this and anything pending, ${n} day${n === 1 ? "" : "s"} of this allowance remain.`
+    : `That is ${-n} day${n === -1 ? "" : "s"} more than the allowance has left.`),
+  allowanceHeading: "Leave allowance",
+  allowanceLead: "Leave a type blank to use the studio's rule. A number here replaces it for this person.",
+  allowanceDefault: (n) => `Studio rule: ${n} days`,
+  noWorkingDays: "Those dates fall only on days the studio does not work.",
 };
 
 const ar: Strings = {
@@ -450,6 +479,21 @@ const ar: Strings = {
   dashExpired: "منتهية",
   dashOther: "أخرى",
   dashNobodyAway: "لا يوجد أحد مجاز خلال الثلاثين يوماً القادمة.",
+  balancesHeading: "ارصدة الاجازات",
+  balancesLead: (year) => `${year}، حسب قواعد التوظيف في الاستوديو. المتبقي يحتسب الاجازات المعتمدة، والطلبات المعلقة تظهر بجانبه.`,
+  balancesNone: "لا يوجد نوع اجازة له رصيد بعد. حددها في اعدادات الاستوديو ← قواعد التوظيف.",
+  allowance: "الرصيد السنوي",
+  carried: "المرحل",
+  taken: "المستخدم",
+  pendingCol: "معلق",
+  remaining: "المتبقي",
+  leaveLeft: (n) => (n >= 0
+    ? `بعد هذا الطلب وما هو معلق، يتبقى ${n} يوم من هذا الرصيد.`
+    : `هذا يزيد ${-n} يوم عما تبقى من الرصيد.`),
+  allowanceHeading: "رصيد الاجازات",
+  allowanceLead: "اترك النوع فارغا لاستخدام قاعدة الاستوديو. الرقم هنا يحل محلها لهذا الشخص.",
+  allowanceDefault: (n) => `قاعدة الاستوديو: ${n} يوم`,
+  noWorkingDays: "هذه التواريخ تقع فقط في ايام لا يعمل فيها الاستوديو.",
 };
 
 const hr = { en, ar };

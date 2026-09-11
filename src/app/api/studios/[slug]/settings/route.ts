@@ -25,7 +25,8 @@ async function legacyChains(studioId: string): Promise<Record<string, unknown> |
 }
 import { numberingProblems, cleanNumbering, numberingView } from "@/modules/administration/numbering";
 import { unitProblems, cleanUnits, unitsView } from "@/modules/administration/units";
-import { taxonomyProblems, cleanTaxonomies, taxonomyView } from "@/modules/administration/taxonomy";
+import { taxonomyProblems, cleanTaxonomies, taxonomyView, valuesFor } from "@/modules/administration/taxonomy";
+import { cleanEmploymentRules, employmentRulesOf } from "@/modules/hr/leaveBalance";
 import { templateProblems as noticeProblems, cleanTemplates as cleanNotices, templateView as noticeView } from "@/modules/administration/notices";
 import { isValuationMethod } from "@/modules/inventory/valuation";
 import { cleanVatSetting, studioVatRate } from "@/shared/vat";
@@ -90,6 +91,10 @@ const FIELDS = [
   // carries tax (shared/vat says why that is the rule). A company-wide policy,
   // so here rather than in Finance's settings: quotations and orders read it too.
   "vatRate",
+  // THE STUDIO'S EMPLOYMENT RULES — leave allowances, carry-over and how leave
+  // days are counted (modules/hr/leaveBalance). A company policy, like the VAT
+  // rate beside it; HR reads it and the country presets fill it.
+  "employmentRules",
   // fieldOfWork, fieldOfWorkOther, serviceActions and retiredServiceActions are
   // deliberately NOT here. Writing a service action is not "set this text" — it
   // is "recompute the pool": choosing a field re-seeds it from the matrix, and
@@ -157,6 +162,9 @@ const clean = (studio: Record<string, unknown>, legacy: Record<string, unknown> 
   country: studio.country || "", city: studio.city || "", location: studio.location || "",
   currency: studio.currency || "",
   vatRate: studioVatRate(studio) ?? "",
+  employmentRules: employmentRulesOf(studio),
+  // The leave types a rule may name — the studio's own list, additions included.
+  leaveTypes: valuesFor("leaveTypes", studio.taxonomies),
   language: studioLocale(studio),
   deletionRequestedAt: studio.deletionRequestedAt || "",
   deletionFinalisesAt: studio.deletionRequestedAt
@@ -377,6 +385,19 @@ export async function PUT(request: Request, ctx: { params: Promise<Record<string
     // see it accepted, and keep getting the other one's numbers.
     // REFUSED RATHER THAN COERCED, for the same reason: "15%" read as 0 would
     // switch the studio's tax off while the screen said it had been saved.
+    // REFUSED WITH THE TYPE AND FIELD NAMED, for the reason numbering gives: a
+    // rule for a leave type the studio does not admit, or "after 5 years" with
+    // no new figure, silently does nothing on every balance that reads it.
+    if (key === "employmentRules") {
+      const out = cleanEmploymentRules(body[key], valuesFor("leaveTypes", studio.taxonomies));
+      if ("problems" in out) {
+        return Response.json({
+          error: "refused", detail: out.problems.map((p) => `${p.type}: ${p.field}`).join("; "),
+        }, { status: 400 });
+      }
+      patch[key] = out.rules;
+      continue;
+    }
     if (key === "vatRate") {
       const vat = cleanVatSetting(body[key]);
       if ("error" in vat) return Response.json({ error: vat.error }, { status: 400 });

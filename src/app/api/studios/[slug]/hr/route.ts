@@ -2,7 +2,7 @@ import { route } from "@/platform/http/route";
 import { valuesFor } from "@/modules/administration/taxonomy";
 import {
   hrContext, listDepartments, listHrRoles, listCertifications, listEmployees,
-  listVacations, expiringDocuments, headcount,
+  listVacations, expiringDocuments, headcount, leaveView,
   LEAVE_TYPES, LEAVE_STATUSES, EXPIRY_WINDOW_DAYS,
 } from "@/modules/hr/hr";
 
@@ -42,6 +42,9 @@ export const GET = route(
     departments, roles, certifications, employees, vacations,
     expiring: expiringDocuments(employees),
     headcount: headcount(employees, departments),
+    // THE STUDIO'S LEAVE RULES AND EACH VISIBLE PERSON'S BALANCE this year,
+    // computed from the two scoped lists above — no extra read.
+    leave: leaveView(g, employees, vacations),
     // WHAT THIS STUDIO ADMITS, not what the product ships. Serving the
     // shipped list would let the service accept a leave type no picker on
     // the screen could ever offer.

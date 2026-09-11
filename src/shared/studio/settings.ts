@@ -42,6 +42,17 @@ type Strings = {
   vatRateUnset: string;
   vatRateSet: string;
   vatRateInvalid: string;
+  employmentHeading: string;
+  employmentLead: string;
+  leaveTypeCol: string;
+  leaveDaysCol: string;
+  leaveAfterCol: string;
+  leaveDaysAfterCol: string;
+  leaveCarryCol: string;
+  leaveWorkingDays: string;
+  saveEmployment: string;
+  employmentSaved: string;
+  ruleProblem: (type: string, field: string) => string;
   language: string;
   languageHint: string;
   workingHours: string;
@@ -257,6 +268,23 @@ const en: Strings = {
   vatRateUnset: "Not registered — no document carries VAT and there is no tax return.",
   vatRateSet: "New quotations, orders, invoices and bills start at this rate. Each can still be changed — to 0 for a zero-rated sale, for example.",
   vatRateInvalid: "Enter a percentage between 0 and 100, or leave it empty.",
+  employmentHeading: "Employment rules",
+  employmentLead: "How much leave each type allows a year, when a longer-service figure starts, how much unused leave carries into the next year, and how leave days are counted. A type left blank keeps no balance.",
+  leaveTypeCol: "Leave type",
+  leaveDaysCol: "Days a year",
+  leaveAfterCol: "After years",
+  leaveDaysAfterCol: "Then days a year",
+  leaveCarryCol: "Carry over, at most",
+  leaveWorkingDays: "Count leave in working days, using the studio's working hours",
+  saveEmployment: "Save employment rules",
+  employmentSaved: "Saved",
+  ruleProblem: (type, field) => `${type}: ${({
+    type: "not one of the studio's leave types",
+    days: "days a year must be a number above 0",
+    afterYears: "give the whole number of years after which the second figure applies",
+    daysAfter: "give the days a year that apply after that many years",
+    carryOver: "carry-over must be a number, or empty for none",
+  })[field] || field}.`,
   language: "Language",
   // WHAT THIS ROW MEANS CHANGED, so its hint had to. It used to read "Everyone
   // in this studio reads it in this language", which stopped being true the day
@@ -481,6 +509,23 @@ const ar: Strings = {
   vatRateUnset: "غير مسجلة — لا يحمل اي مستند ضريبة ولا يوجد اقرار ضريبي.",
   vatRateSet: "تبدأ عروض الاسعار والطلبات والفواتير الجديدة بهذه النسبة، ويمكن تغييرها في كل مستند — الى صفر للبيع الخاضع لنسبة الصفر مثلا.",
   vatRateInvalid: "ادخل نسبة بين 0 و100، او اتركها فارغة.",
+  employmentHeading: "قواعد التوظيف",
+  employmentLead: "كم تسمح كل نوع من الاجازات سنويا، ومتى يبدأ رقم الخدمة الاطول، وكم من الرصيد غير المستخدم ينتقل الى السنة التالية، وكيف تحسب ايام الاجازة. النوع المتروك فارغا لا رصيد له.",
+  leaveTypeCol: "نوع الاجازة",
+  leaveDaysCol: "ايام في السنة",
+  leaveAfterCol: "بعد سنوات",
+  leaveDaysAfterCol: "ثم ايام في السنة",
+  leaveCarryCol: "ينقل بحد اقصى",
+  leaveWorkingDays: "احتساب الاجازة بأيام العمل حسب ساعات عمل الاستوديو",
+  saveEmployment: "حفظ قواعد التوظيف",
+  employmentSaved: "تم الحفظ",
+  ruleProblem: (type, field) => `${type}: ${({
+    type: "ليس من انواع الاجازات في الاستوديو",
+    days: "يجب ان تكون الايام في السنة رقما اكبر من صفر",
+    afterYears: "ادخل عدد السنوات الكاملة التي يبدأ بعدها الرقم الثاني",
+    daysAfter: "ادخل الايام في السنة التي تسري بعد تلك السنوات",
+    carryOver: "يجب ان يكون الترحيل رقما، او فارغا لعدم الترحيل",
+  })[field] || field}.`,
   language: "اللغة",
   languageHint: "لغة الاستوديو الافتراضية. ويمكن لكل شخص اختيار لغته من الشريط العلوي.",
   workingHours: "ساعات العمل",

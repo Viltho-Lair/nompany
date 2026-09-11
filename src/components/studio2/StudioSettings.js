@@ -18,6 +18,7 @@ import { actionsForField, OTHER_FIELD } from "@/shared/fieldsOfWork";
 import StudioFlowEditor from "@/components/studio2/StudioFlowEditor";
 import SettingsFold from "@/components/studio2/SettingsFold";
 import ApprovalChainsPanel from "@/components/studio2/ApprovalChainsPanel";
+import EmploymentRulesPanel from "@/components/studio2/EmploymentRulesPanel";
 import { useReload } from "@/components/studio2/useReload";
 
 // THE SCREEN'S WORDS, HANDED DOWN RATHER THAN THREADED.
@@ -338,6 +339,18 @@ export default function StudioSettings({ slug, locale = "en" }) {
       <ApprovalChainsPanel
         key={JSON.stringify(studio.approvalChains || {})}
         chains={studio.approvalChains || {}}
+        canManage={canManage}
+        onSave={save}
+        tr={tr}
+      />
+
+      {/* THE EMPLOYMENT RULES — leave allowances, carry-over, how leave days are
+          counted. Keyed on what the server stored so a save re-seeds the editor
+          from what was kept, like the chains above. */}
+      <EmploymentRulesPanel
+        key={JSON.stringify(studio.employmentRules || {})}
+        rules={studio.employmentRules || {}}
+        leaveTypes={studio.leaveTypes || []}
         canManage={canManage}
         onSave={save}
         tr={tr}
