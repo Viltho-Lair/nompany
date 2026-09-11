@@ -75,13 +75,16 @@ async function noticesForStudio(studioId: string, todayISO: string, todayDate: D
 
   const cashId = sectionId("finance-cash");
   const payablesId = sectionId("finance-payables");
-  const trackingId = sectionId("field-service-tracking");
+  // PERMITS LIVE UNDER THE FIELD-SERVICE ROOT (SECTION_COLLECTIONS in keys.ts),
+  // not under Tracking. Read from `field-service-tracking`, this found no permit
+  // in any studio, so no expiry notice has ever been sent.
+  const permitsId = sectionId("field-service");
 
   // Read only the sections this studio actually has, all at once.
   const [invoices, bills, permits] = await Promise.all([
     cashId ? Invoices.find({ studio: { id: studioId }, section: { id: cashId } }) : Promise.resolve([]),
     payablesId ? Bills.find({ studio: { id: studioId }, section: { id: payablesId } }) : Promise.resolve([]),
-    trackingId ? Permits.find({ studio: { id: studioId }, section: { id: trackingId } }) : Promise.resolve([]),
+    permitsId ? Permits.find({ studio: { id: studioId }, section: { id: permitsId } }) : Promise.resolve([]),
   ]);
 
   const overdueDetail = (n: { reference?: string; name?: string; daysOverdue?: number }) =>
@@ -96,7 +99,7 @@ async function noticesForStudio(studioId: string, todayISO: string, todayDate: D
     { notices: overdueInvoiceNotices(invoices as never, todayISO), key: "finance.cash.view", type: NOTIFY.invoiceOverdue, title: "Overdue invoices", href: "finance/cash", say: overdueDetail },
     { notices: overdueBillNotices(bills as never, todayISO), key: "finance.payables.view", type: NOTIFY.billOverdue, title: "Bills overdue", href: "finance/payables", say: overdueDetail },
     { notices: expiringDocumentNotices(collaborators as never, todayDate), key: "hr.employees.view", type: NOTIFY.documentExpiring, title: "Documents expiring", href: "hr/employees", say: expiryDetail((n) => `${n.name}'s ${n.kind}`) },
-    { notices: expiringPermitNotices(permits as never, todayISO), key: "fieldService.tracking.view", type: NOTIFY.permitExpiring, title: "Permits expiring", href: "field-service-tracking", say: expiryDetail((n) => `${n.name}`) },
+    { notices: expiringPermitNotices(permits as never, todayISO), key: "fieldService.tracking.view", type: NOTIFY.permitExpiring, title: "Permits expiring", href: "field-service-schedule", say: expiryDetail((n) => `${n.name}`) },
   ];
 
   let sent = 0;
