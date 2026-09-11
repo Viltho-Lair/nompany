@@ -66,6 +66,8 @@ export const NOTIFY = {
   permitExpiring: "permit.expiring",
   workRequestRaised: "workrequest.raised",
   workOrderAssigned: "workorder.assigned",
+  workOrderDue: "workorder.due",
+  calibrationDue: "calibration.due",
 };
 
 /** One stored notification, as this module writes it. */

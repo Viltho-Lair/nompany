@@ -17,6 +17,7 @@ const M = await import("@/modules/maintenance/model");
 // BOTH IMPORTS AT THE TOP — see requisition-model.mjs for the Windows exit
 // code a mid-file import cost.
 const S = await import("@/modules/maintenance/schedule");
+const T = await import("@/modules/main/timeNotices");
 
 let fails = 0;
 const ok = (label, cond, extra = "") => {
@@ -224,6 +225,41 @@ ok("...and at least a day", S.complianceWindowDays("Weekly") === 1);
   ok("cancelled work is left out", c.total === 3 && c.percent === 33, JSON.stringify(c));
 }
 ok("no history is not 0%", S.planCompliance([], "Monthly", "2026-09-11").percent === null);
+
+console.log("\n== reminders");
+{
+  // STATELESS: a record announces itself on the milestone days and says
+  // nothing in between, so nothing is stored to remember it by.
+  const orders = [
+    { id: "a", reference: "WO-1", title: "Belt", status: "Open", dueOn: "2026-09-11", assignedToCollaboratorIds: ["c1"] },
+    { id: "b", reference: "WO-2", title: "Pump", status: "On hold", dueOn: "2026-09-04" },
+    { id: "c", reference: "WO-3", title: "Fan", status: "In progress", dueOn: "2026-09-09" },
+    { id: "d", reference: "WO-4", title: "Valve", status: "Completed", dueOn: "2026-09-10" },
+    { id: "e", reference: "WO-5", title: "Undated", status: "Open" },
+  ];
+  const n = T.dueWorkOrderNotices(orders, "2026-09-11");
+  ok("work falling due today is told", n.some((x) => x.reference === "WO-1" && x.daysOverdue === 0));
+  // ON HOLD IS STILL OWED — the machine is still broken.
+  ok("work on hold a week late is told", n.some((x) => x.reference === "WO-2" && x.daysOverdue === 7));
+  ok("between milestones nothing is said", !n.some((x) => x.reference === "WO-3"));
+  ok("finished work is owed to nobody", !n.some((x) => x.reference === "WO-4"));
+  ok("no due date, no reminder", !n.some((x) => x.reference === "WO-5"));
+  ok("the assignees travel with the notice", n.find((x) => x.reference === "WO-1")?.assignees.join(",") === "c1");
+  ok("work orders are told on the day as well as after it", T.WORK_ORDER_MILESTONES[0] === 0 && T.WORK_ORDER_MILESTONES.includes(90));
+}
+{
+  const records = [
+    { id: "1", reference: "CAL-1", status: "Valid", values: { instrument: "Torque wrench", dueOn: "2026-09-18" } },
+    { id: "2", reference: "CAL-2", status: "Due", values: { instrument: "Pressure gauge", dueOn: "2026-09-11" } },
+    { id: "3", reference: "CAL-3", status: "Withdrawn", values: { instrument: "Old meter", dueOn: "2026-09-18" } },
+    { id: "4", reference: "CAL-4", status: "Valid", values: { instrument: "Multimeter", dueOn: "2026-09-16" } },
+  ];
+  const c = T.dueCalibrationNotices(records, "2026-09-11");
+  ok("a certificate a week from due is warned", c.some((x) => x.name === "Torque wrench" && x.daysLeft === 7));
+  ok("one due today is warned", c.some((x) => x.name === "Pressure gauge" && x.daysLeft === 0));
+  ok("a withdrawn instrument is not", !c.some((x) => x.reference === "CAL-3"));
+  ok("between milestones nothing is said", !c.some((x) => x.reference === "CAL-4"));
+}
 
 console.log("\n== vocabulary");
 ok("three kinds of time", M.LABOUR_KINDS.join(",") === "work,travel,wait");

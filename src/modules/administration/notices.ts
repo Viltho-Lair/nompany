@@ -86,6 +86,18 @@ export const NOTICE_TEMPLATES: readonly NoticeTemplate[] = Object.freeze([
     ar: { title: "أمر عمل موكل إليكم", body: "{reference} · {title}" },
   },
   {
+    type: "workorder.due",
+    fields: ["detail"],
+    en: { title: "Due work orders", body: "{detail}" },
+    ar: { title: "أوامر عمل مستحقة", body: "{detail}" },
+  },
+  {
+    type: "calibration.due",
+    fields: ["detail"],
+    en: { title: "Due calibrations", body: "{detail}" },
+    ar: { title: "معايرات مستحقة", body: "{detail}" },
+  },
+  {
     type: "leave.requested",
     fields: ["who", "days"],
     en: { title: "A leave request is waiting", body: "{who} requested {days} off." },

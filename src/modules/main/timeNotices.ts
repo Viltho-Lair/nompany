@@ -19,11 +19,16 @@
 import { invoiceTotals } from "@/modules/finance/finance";
 import { expiringDocuments } from "@/modules/hr/hr";
 import { permitLive } from "@/modules/operations/permitModel";
+import { orderOpen } from "@/modules/maintenance/model";
 
 // Overdue is chased harder early, then at widening intervals. Expiring is warned
 // about from a month out, tightening as the day nears (0 = expires today).
 export const OVERDUE_MILESTONES = [1, 7, 14, 30, 60, 90];
 export const EXPIRING_MILESTONES = [30, 14, 7, 3, 1, 0];
+// A WORK ORDER IS ALSO TOLD THE DAY IT FALLS DUE (0) — the one milestone an
+// invoice does not get, because a technician can still do the work today and a
+// client cannot be made to have paid yesterday.
+export const WORK_ORDER_MILESTONES = [0, ...OVERDUE_MILESTONES];
 
 // Whole days between two ISO dates, positive when `to` is the later. Date-only
 // values compared at UTC midnight — the same day math the aging reports use, so
@@ -112,6 +117,75 @@ export function expiringDocumentNotices(employees: Record<string, unknown>[], to
       date: d.date,
       daysLeft: d.daysLeft,
     }));
+}
+
+export type WorkOrderNotice = {
+  recordId: string;
+  reference: string;
+  name: string;         // the order's title
+  daysOverdue: number;  // 0 = due today
+  /** CollaboratorIDs — who is told is decided by the cron, not here. */
+  assignees: string[];
+};
+
+type OrderRow = {
+  id?: string; reference?: string; title?: string; status?: string; dueOn?: string;
+  assignedToCollaboratorIds?: string[];
+};
+
+/**
+ * Maintenance work orders reaching a due milestone today: the day they fall
+ * due, then the overdue milestones. ONLY OPEN WORK — Open, In progress, On
+ * hold (`orderOpen`); finished and cancelled work is owed to nobody, and an
+ * order on hold is still a machine that is still broken.
+ */
+export function dueWorkOrderNotices(orders: OrderRow[], todayISO: string): WorkOrderNotice[] {
+  const out: WorkOrderNotice[] = [];
+  for (const o of orders) {
+    if (!o.dueOn || !orderOpen(o)) continue;
+    const days = daysBetween(String(o.dueOn).slice(0, 10), todayISO);
+    if (days === null || !WORK_ORDER_MILESTONES.includes(days)) continue;
+    out.push({
+      recordId: String(o.id || ""),
+      reference: String(o.reference || ""),
+      name: String(o.title || "Work order"),
+      daysOverdue: days,
+      assignees: Array.isArray(o.assignedToCollaboratorIds) ? o.assignedToCollaboratorIds.map(String) : [],
+    });
+  }
+  return out;
+}
+
+type CalibrationRow = { id?: string; reference?: string; status?: string; values?: Record<string, unknown> };
+
+/**
+ * Calibration certificates coming due, from the engine's `calibration`
+ * register: warned from a month out like any other expiry, so an instrument
+ * is recalibrated before a reading taken with it stops being worth anything.
+ *
+ * ONLY A CERTIFICATE STILL IN FORCE — Valid or already marked Due. Expired has
+ * already lapsed (its register says so), and Withdrawn is an instrument nobody
+ * uses any more.
+ */
+export function dueCalibrationNotices(records: CalibrationRow[], todayISO: string): ExpiringNotice[] {
+  const out: ExpiringNotice[] = [];
+  for (const r of records) {
+    if (r.status !== "Valid" && r.status !== "Due") continue;
+    const v = r.values || {};
+    const due = String(v.dueOn ?? "").slice(0, 10);
+    if (!due) continue;
+    const days = daysBetween(todayISO, due);
+    if (days === null || !EXPIRING_MILESTONES.includes(days)) continue;
+    out.push({
+      recordId: String(r.id || ""),
+      reference: String(r.reference || ""),
+      name: String(v.instrument || r.reference || "An instrument"),
+      kind: "Calibration",
+      date: due,
+      daysLeft: days,
+    });
+  }
+  return out;
 }
 
 type PermitRow = { id?: string; reference?: string; title?: string; type?: string; status?: string; validTo?: string };

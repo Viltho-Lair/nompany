@@ -9,9 +9,11 @@ import { listRoles } from "@/modules/people/roles";
 import { resolveHolders } from "@/lib/studios";
 import { notifyCollaborators, NOTIFY } from "@/platform/notify/notifications";
 import { raiseDuePlanJobs } from "@/modules/operations/planJobs";
+import { engineSectionKey } from "@/platform/access";
 import { raiseDuePmOrders } from "@/modules/maintenance/pmRun";
 import {
   overdueInvoiceNotices, overdueBillNotices, expiringDocumentNotices, expiringPermitNotices,
+  dueWorkOrderNotices, dueCalibrationNotices, type WorkOrderNotice,
 } from "@/modules/main/timeNotices";
 
 export const runtime = "nodejs";
@@ -37,6 +39,8 @@ export async function GET(request: Request) {
 const Invoices = repo("invoices");
 const Bills = repo("bills");
 const Permits = repo("permits");
+const WorkOrders = repo("workOrders");
+const EngineRecords = repo("engineRecords");
 
 async function run(request: Request) {
   // Fails closed when CRON_SECRET is unset — invariant 15, see cronAuth.
@@ -103,12 +107,23 @@ async function noticesForStudio(studioId: string, todayISO: string, todayDate: D
   // not under Tracking. Read from `field-service-tracking`, this found no permit
   // in any studio, so no expiry notice has ever been sent.
   const permitsId = sectionId("field-service");
+  // Maintenance's work orders, and the engine's calibration register — which
+  // lives in `engineRecords` under its own planted section, told apart by type.
+  const ordersId = sectionId("maintenance-orders");
+  // BUILT, NOT TYPED: an engine register's section is planted at runtime and is
+  // in no static list, so its key comes from the one function that mints it.
+  const calibrationKey = engineSectionKey("calibration");
+  const calibrationId = sectionId(calibrationKey);
 
   // Read only the sections this studio actually has, all at once.
-  const [invoices, bills, permits] = await Promise.all([
+  const [invoices, bills, permits, workOrders, calibrations] = await Promise.all([
     cashId ? Invoices.find({ studio: { id: studioId }, section: { id: cashId } }) : Promise.resolve([]),
     payablesId ? Bills.find({ studio: { id: studioId }, section: { id: payablesId } }) : Promise.resolve([]),
     permitsId ? Permits.find({ studio: { id: studioId }, section: { id: permitsId } }) : Promise.resolve([]),
+    ordersId ? WorkOrders.find({ studio: { id: studioId }, section: { id: ordersId } }) : Promise.resolve([]),
+    calibrationId
+      ? EngineRecords.find({ studio: { id: studioId }, section: { id: calibrationId } }, { where: { typeKey: "calibration" } })
+      : Promise.resolve([]),
   ]);
 
   const overdueDetail = (n: { reference?: string; name?: string; daysOverdue?: number }) =>
@@ -128,6 +143,10 @@ async function noticesForStudio(studioId: string, todayISO: string, todayDate: D
     // that went quiet the day its right moved would be the one nobody misses.
     // And it links to the register a studio actually has.
     { notices: expiringPermitNotices(permits as never, todayISO), key: "qualityHse.permits.view", also: "fieldService.tracking.view", type: NOTIFY.permitExpiring, title: "Permits expiring", href: sectionId("quality-hse-permits") ? "quality-hse-permits" : "field-service-schedule", say: expiryDetail((n) => `${n.name}`) },
+    // CALIBRATION IS TOLD TO WHOEVER CAN RECORD THE NEW CERTIFICATE — the
+    // register's edit right, not its view: a notice nobody who reads it can act
+    // on is a notice that wastes the person who saw it.
+    { notices: dueCalibrationNotices(calibrations as never, todayISO), key: "engine.calibration.edit", also: "", type: NOTIFY.calibrationDue, title: "Due calibrations", href: calibrationKey, say: (n: { name?: string; daysLeft?: number }) => `${n.name} ${(n.daysLeft ?? 0) <= 0 ? "is due for calibration today" : `is due for calibration in ${n.daysLeft} day${n.daysLeft === 1 ? "" : "s"}`}` },
   ];
 
   let sent = 0;
@@ -138,6 +157,43 @@ async function noticesForStudio(studioId: string, todayISO: string, todayDate: D
     const recipientIds = [...new Set([...main.recipientIds, ...(extra?.recipientIds || [])])];
     if (!recipientIds.length) continue;
     const rows = await notifyCollaborators(studioId, recipientIds, build(job.title, job.notices, job.type, job.href, job.say), { userIdOf: main.userIdOf });
+    sent += rows.length;
+  }
+
+  // WORK ORDERS ARE TOLD TO WHOEVER IS DOING THEM, not to everybody holding a
+  // right — a technician hears about their own round, and a supervisor is not
+  // buzzed about forty orders that each have somebody on them. So each person
+  // gets one entry for THEIR orders, the same count-plus-example shape.
+  //
+  // An assignee is told only while they may still open work orders; an order
+  // with nobody on it (or nobody left who may see it) goes to whoever may edit
+  // work orders, because somebody has to put a name on it.
+  sent += await tellWorkOrders(studioId, dueWorkOrderNotices(workOrders as never, todayISO), collaborators, roles);
+  return sent;
+}
+
+async function tellWorkOrders(
+  studioId: string,
+  due: WorkOrderNotice[],
+  collaborators: Awaited<ReturnType<typeof listCollaborators>>,
+  roles: Awaited<ReturnType<typeof listRoles>>,
+): Promise<number> {
+  if (!due.length) return 0;
+  const viewers = resolveHolders(collaborators, roles as never, "maintenance.orders.view" as never);
+  const editors = resolveHolders(collaborators, roles as never, "maintenance.orders.edit" as never);
+  const canSee = new Set(viewers.recipientIds);
+  const byPerson = new Map<string, WorkOrderNotice[]>();
+  for (const n of due) {
+    const doing = n.assignees.filter((id) => canSee.has(id));
+    for (const id of doing.length ? doing : editors.recipientIds) byPerson.set(id, [...(byPerson.get(id) || []), n]);
+  }
+  const say = (n: { reference?: string; name?: string; daysOverdue?: number }) =>
+    `${n.reference || "A work order"} — ${n.name}, ${n.daysOverdue === 0 ? "due today" : `${n.daysOverdue} day${n.daysOverdue === 1 ? "" : "s"} overdue`}`;
+  let sent = 0;
+  for (const [id, notices] of byPerson) {
+    const rows = await notifyCollaborators(studioId, [id],
+      build("Due work orders", notices, NOTIFY.workOrderDue, "maintenance-orders", say),
+      { userIdOf: viewers.userIdOf });
     sent += rows.length;
   }
   return sent;

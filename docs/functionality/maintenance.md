@@ -143,6 +143,24 @@ day) of the date it answered, over everything that fell due. Open work past its 
 late — or a plan could score 100% by never finishing anything — and cancelled work is left out.
 No history is "no history", not 0%.
 
+### Reminders (Phase 2, slice 2)
+
+On the same daily run as every other time-driven notice (`cron/daily-notices`), from pure
+producers in `modules/main/timeNotices`, and **stateless like the rest of them**: a record
+announces itself only on fixed day-milestones, so nothing is stored to remember it by and a
+record between milestones says nothing that day.
+
+- **Work orders falling due and overdue** (`dueWorkOrderNotices`): the day an open order falls
+  due, then 1, 7, 14, 30, 60 and 90 days late (`WORK_ORDER_MILESTONES`). Open means Open, In
+  progress or On hold — a machine on hold is still broken. **Told to whoever is doing the work**,
+  one entry per person for their own orders (count and the most urgent example), and only while
+  they may still open work orders; an order with nobody on it goes to whoever may edit work
+  orders, because somebody has to put a name on it.
+- **Calibration certificates coming due** (`dueCalibrationNotices`), from the engine's
+  `calibration` register: 30, 14, 7, 3 and 1 days before `dueOn`, and on the day — only a
+  certificate still Valid or already Due. Told to the holders of `engine.calibration.edit`, who
+  can record the new certificate.
+
 ### What a record points at
 
 **The machine is the Assets register's** — an engine `equipment` record, which stays filed
@@ -177,8 +195,9 @@ paths, and nothing else is accepted.
   availability yet.
 - **Working a work order from the field view.** It is listed there and moved here.
 - **Clustering on the map.** One pin per place, which is legible at a studio's scale.
-- **Reminders.** Nothing tells anybody that a work order is overdue or that a calibration
-  certificate is about to lapse — Phase 2's second slice.
+- **Moving a calibration record's status by date.** A certificate past its due date is warned
+  about but stays Valid until somebody marks it; the register has no time-driven rule.
+- **Reminders for a plan that cannot raise** (a paused plan, or one held back by its open order).
 - **Meter-based and condition-based plans.** A plan runs on the calendar only.
 - **Field Service's own PM plans** (the engine `planned` register, for customer-installed
   units) still raise Operations jobs through their own run; the two share the calendar
