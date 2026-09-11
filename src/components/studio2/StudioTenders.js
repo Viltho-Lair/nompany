@@ -260,7 +260,13 @@ export default function StudioTenders({ slug, initial, initialError = "" }) {
       <div className="flex flex-wrap items-baseline justify-between gap-3">
         <div className="min-w-0">
           <span className="font-mono text-xs text-slate-400">{t.ref}</span>
-          <span className="ms-2 font-600 text-slate-900 dark:text-white">{t.title}</span>
+          {/* THE ROW OPENS THE TENDER. Its page — the bill, the pack, the bid
+              review and the handover — was reachable only by typing the URL,
+              which left every tender in the register stuck before Submitted. */}
+          <a href={`/${slug}/tendering-register/${t.id}`}
+            className="ms-2 font-600 text-slate-900 hover:text-brand-700 hover:underline dark:text-white dark:hover:text-brand-300">
+            {t.title}
+          </a>
           <span className="ms-2"><StatusPill kind="tenderStage" status={t.status} /></span>
           {t.issuer && <span className="ms-2 text-xs text-slate-500 dark:text-slate-400">{t.issuer}</span>}
           {aliasOf.get(t.assignedToCollaboratorId) && (

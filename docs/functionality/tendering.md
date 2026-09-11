@@ -2,8 +2,10 @@
 
 **The screen:** `/<slug>/tendering-register`, behind `tendering.tenders.view`.
 **The rules:** `src/modules/tendering/stages.ts`, pure and shared with the screen.
-**First of five.** The BOQ grid, bid documents, bid approval and the handover to Projects are
-not built — see "Not built yet".
+**First of five, and the way into the other four.** The BOQ grid, bid documents, bid approval
+and the handover to Projects each have their own file, and all live on one tender's page,
+`/<slug>/tendering-register/<id>` — opened from the tender's title in the register. Until
+11/09/2026 the title was plain text and that page was reachable only by typing its address.
 
 ## What it is
 

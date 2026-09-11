@@ -124,6 +124,11 @@ tenant-authored and never translated**; the refusals travel as tokens and are tr
 display, through `components/studio2/tenderRefusals` — which moved out of `StudioTenders` when
 a second screen started receiving the same tokens.
 
+**The signature goes to the tenders route** (`PUT /tendering/tenders` with `approve`), the only
+door onto `approveBid`. Until 11/09/2026 the button posted to `/tendering/boq`, which read it
+as a line edit and refused, so no bid could be signed and — submission being gated on the
+signature — none could be submitted. The tender's page is reached from its row in the register.
+
 ### The one thing that will surprise you
 
 **Approving a bid requires the studio to have set its own currency**, and `createStudio` has

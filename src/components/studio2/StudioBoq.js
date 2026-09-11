@@ -71,9 +71,13 @@ export default function StudioBoq({ slug, tenderId }) {
   useLiveUpdates(slug, "tendering-register", reload);
   useLiveUpdates(slug, "projects-list", reload);
 
-  const send = useCallback(async (method, payload) => {
+  // `route` names the endpoint: the bill's lines are `boq`, but a SIGNATURE is
+  // an act on the tender and only the tenders route answers `approve` — sent to
+  // `boq`, the Sign button was read as a line edit and refused, so no bid could
+  // ever be signed and none could be submitted.
+  const send = useCallback(async (method, payload, route = "boq") => {
     setError(""); setBusy(true);
-    const res = await fetch(`/api/studios/${slug}/tendering/boq`, {
+    const res = await fetch(`/api/studios/${slug}/tendering/${route}`, {
       method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
     });
     const out = await res.json().catch(() => ({}));
@@ -203,7 +207,7 @@ export default function StudioBoq({ slug, tenderId }) {
             </div>
             {review.next && (
               <button type="button" className={btn} disabled={busy}
-                onClick={async () => { await send("PUT", { id: tenderId, approve: true }); }}>
+                onClick={async () => { await send("PUT", { id: tenderId, approve: true }, "tenders"); }}>
                 {tr.signStep(review.next.label)}
               </button>
             )}
