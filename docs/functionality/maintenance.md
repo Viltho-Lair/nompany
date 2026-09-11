@@ -384,9 +384,11 @@ paths, and nothing else is accepted.
   work), gauges as opposed to cumulative meters, and readings from telematics.
 - **Compliance for meter plans.** A meter plan's orders are not scored on time or late.
 - **Readings taken on a work order or its checklist.** A reading is recorded on the machine.
-- **Existing studios' Field Service plans still raise dispatch jobs** until the fold runs and
-  retires them. `fold-maintenance-registers.mjs` has **not been run**, not against live and not
-  in the sandbox.
+- **The fold has been run against live, 12/09/2026**: dry run, apply, and a second dry run
+  finding nothing left. All five studios held the three registers and every one was EMPTY, so it
+  copied nothing and retired no plan; it switched the fifteen registers off and planted
+  Maintenance in the four studios nobody had opened since it shipped. A studio created before
+  11/09 that gains records in an old register later would need it run again.
 - **Response and resolution targets.** A service contract promises visits and call-outs; it
   says nothing yet about how fast a call-out is answered or put right, and nothing is measured
   against one.
