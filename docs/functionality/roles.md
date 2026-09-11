@@ -167,9 +167,12 @@ A section's root is read from `SECTION_DEFS`, never from the key's prefix:
 **`principal` is exempt** — Managing Director, CEO — because it runs the whole
 company; it keeps every area, still without `administration.access`.
 
-**Measured 11/09/2026, across the 2,237 roles the 25 starter charts seed: none
-arrives with nothing.** It was 26, every one filed under Administration, where
-neither `money` nor `checker` names anything:
+**No library role arrives with nothing — every row in every chart that holds
+its department (5,206 placements), not only the 2,245 the starter charts seed;
+measured 11/09/2026, and `tests/roles-model.mjs` now holds it.** Twenty-two
+titles did (26 of the seeded roles, because the CFO is one row seeded in
+twenty-three trades), every one filed under Administration, where neither
+`money` nor `checker` names anything:
 
 - **the Chief Financial Officer** — the universal spine's one copy, reaching all
   twenty-five fields — because the governance group's shortlist was `ADM` alone
@@ -178,18 +181,23 @@ neither `money` nor `checker` names anything:
   Committee Chair (Financial Services → Finance), Auditor General (Public
   Administration → Inspection & Enforcement) and the Chief Compliance Officer
   of Administrative & Support Services (→ Contract Operations, since that chart
-  has no quality or compliance department). Exact-title hints at the top of
-  `DEPARTMENT_HINTS`, so nothing else moves.
+  has no quality or compliance department).
+- **eighteen more that only Add pre-built reached**, none seeded — among them
+  Head of Internal Audit (→ Credit & Risk), Night Auditor (→ Finance), a
+  Director of Sales & Marketing in Hospitality (→ Front Office), three bid
+  writers (→ the trade's sales or tenders department), four stock controllers
+  (→ Stores), and the spine's Chief Risk & Compliance Officer (→ Finance: a
+  spine row is stored once and reaches every field only through a code every
+  chart holds, and a quality department would have dropped it from every trade
+  without one).
 
-A correction is a hint and a regenerate
-(`scripts/generate/role-library.mjs`), never an edit to a generated row.
-
-**The whole library is not there yet: 18 rows still arrive empty** if added
-through Add pre-built — 5,206 placements checked, every row in every chart that
-holds its department. None is seeded; all sit under Administration. Among them:
-Head of Internal Audit (Financial Services), Night Auditor and Director of Sales
-& Marketing (Hospitality), the spine's Chief Risk & Compliance Officer, and
-three bid writers.
+All but the CFO — twenty-one — sit in `PLACED` in `scripts/generate/role-library.mjs` — field
+and title to a department code, decided by hand, so exactly those rows move:
+"Document Controller" is in a dozen fields and a name rule would have moved all
+of them. Where a trade has no quality or compliance department, the oversight
+title went to the operations it oversees. The generator throws on a placement
+naming a code the chart lacks, or matching no row. A correction is a `PLACED`
+entry (or a hint) and a regenerate, never an edit to a generated row.
 
 That door may hand out access when the other refuses to, because **HR chooses
 which pre-built job to add, not what it may do.** The shape was decided by the
@@ -276,12 +284,13 @@ run, against live or in the sandbox.**
   roles, which is a decision for a person.
 - **Changing a department's sections re-shapes nothing.** Adding Finance to a
   department later does not give its existing roles Finance.
-- **18 library rows arrive empty when added by hand** (see above) — none of
-  them seeded — until the library files each somewhere its shape holds
-  something.
-- **The four re-filings reach new departments only.** A studio already seeded
-  keeps its CFO (and the other three) under Administration, with whatever each
-  was copied with.
+- **The re-filings reach new roles only.** A studio already seeded keeps its
+  CFO (and any other re-filed role it holds) under Administration, with
+  whatever each was copied with.
+- **Some re-filed titles still carry an odd shape.** The archetype comes from
+  the name, so a Document Controller is `money` (it matched "controller") and
+  arrives with Engineering & Documents at edit rather than a document
+  controller's rights. Filed right, shaped roughly; the admin adjusts it.
 - **No role hierarchy.** A role does not report to another role; only
   departments have a parent.
 - **No approval routing by role or by department manager.** The manager is

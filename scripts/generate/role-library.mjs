@@ -74,21 +74,51 @@ const NAME_ARCHETYPE = [
 // STRONG SIGNALS FIRST, matched against the department's CODE in that
 // industry's own chart. A rule only fires if the industry actually has that
 // department, so "PRC" is skipped for a consultancy that does not buy.
+// ---- placements decided by hand ---------------------------------------------
+// FIELD + TITLE → DEPARTMENT CODE, for the rows the rules below file somewhere
+// their access shape holds nothing. Once a library role is confined to its
+// department's sections (`permissionsInDepartment`), a `money` role under
+// Administration, or a `bidder` there, arrives with no access at all — and
+// Administration is where the tier fallback sends every top-level title the
+// hints do not recognise. Measured 11/09/2026: twenty-one such rows.
+//
+// A TABLE RATHER THAN MORE NAME RULES, because each of these is a judgement
+// about one trade's chart, not a pattern: "Document Controller" exists in a
+// dozen fields and a rule for it would move all of them. Keyed by field, so
+// exactly these rows move and nothing else can. Where a trade has no quality or
+// compliance department, the oversight title goes to the operations it
+// oversees; a controller of stock goes to Stores. `*` is the universal spine,
+// which is stored once and can only reach every field through a code every
+// chart holds — FIN, HR or ADM.
+//
+// CHECKED WHEN THE LIBRARY IS BUILT: a code the field's chart lacks, or a key
+// that matches no row (a title the research renamed), throws — a placement that
+// silently stops applying would put the role back under Administration.
+const PLACED = new Map([
+  ["*|Chief Risk & Compliance Officer", "FIN"],
+  ["Financial Services & Insurance|Board Audit Committee Chair", "FIN"],
+  ["Financial Services & Insurance|Head of Internal Audit", "RSK"],
+  ["Public Administration & Defense|Auditor General", "INS"],
+  ["Public Administration & Defense|Tender & Bid Opening Clerk", "TND"],
+  ["Administrative & Support Services|Chief Compliance Officer", "OPS"],
+  ["Administrative & Support Services|Consumables & Chemicals Controller", "STR"],
+  ["Manufacturing|Scrap & Rework Controller", "STR"],
+  ["Water Supply, Sewerage & Waste Management|Director of Regulation & Compliance", "LAB"],
+  ["Water Supply, Sewerage & Waste Management|Hazardous Waste Driver", "COL"],
+  ["Hospitality & Food Services|Director of Sales & Marketing", "FO"],
+  ["Hospitality & Food Services|Night Auditor", "FIN"],
+  ["Information Technology & Software|Bid / Proposal Writer", "SLS"],
+  ["Professional, Scientific & Technical Services|Document Controller", "ENG"],
+  ["Management Consulting|Head of Risk & Quality", "DEL"],
+  ["Management Consulting|Proposal / Bid Writer", "BD"],
+  ["Education & Training|Examination Centre Administrator", "CUR"],
+  ["Education & Training|Marketing & Enrolment Officer", "ADS"],
+  ["Arts, Entertainment & Events|Storage & Asset Controller", "STR"],
+  ["Personal & Other Services|Chemical & Consumables Controller", "STR"],
+  ["Personal & Other Services|Franchise Standards Auditor", "OPS"],
+]);
+
 const DEPARTMENT_HINTS = [
-  // THREE OVERSIGHT TITLES THE TIER FALLBACK FILED UNDER ADMINISTRATION, where
-  // neither `money` nor `checker` names anything — so each arrived with no
-  // access once a library role was confined to its department's sections.
-  // Exact titles, ahead of the broad rules, so nothing else moves:
-  //   the audit committee answers for the accounts;
-  //   an auditor general inspects, and Public Administration's inspection
-  //     department is where the checker's registers are;
-  //   a chief compliance officer goes to the compliance department where the
-  //     trade has one (Financial Services' CMP, where it already sat), then
-  //     quality, then — in Administrative & Support Services, which has
-  //     neither — the contract operations whose delivery it oversees.
-  [/\baudit committee\b/i, ["FIN"]],
-  [/\bauditor general\b/i, ["INS", "QHS", "QA", "HSE"]],
-  [/\bchief compliance officer\b/i, ["CMP", "QHS", "QA", "HSE", "INS", "OPS"]],
   [/\b(accountant|accounts|finance|financial|treasur|payroll|bursar|billing|invoic|credit|tax|cost control|cost engineer|quantity surveyor)\b/i, ["FIN", "QS", "PCT", "PLN"]],
   [/\b(hr|human resources|recruit|personnel|training|learning|talent|welfare|compensation)\b/i, ["HR", "MOB"]],
   [/\b(procurement|buyer|purchas|sourcing|subcontract|expedit|vendor)\b/i, ["PRC", "BUY"]],
@@ -329,12 +359,24 @@ for (const sr of spine) {
   });
 }
 
+const placedUsed = new Set();
+const everyCode = new Set([...codesFor.values()].flat().map((d) => d.code));
+
 for (const e of entries) {
   const chart = e.industry === "*" ? [] : (codesFor.get(e.industry) || []);
   if (e.industry !== "*" && !chart.length) continue;
-  const { code, how } = e.forced
-    ? { code: e.forced, how: "spine" }
-    : departmentFor(e.name, e.tier, chart);
+  const placedKey = `${e.industry}|${e.name}`;
+  const placed = PLACED.get(placedKey);
+  if (placed) {
+    const known = e.industry === "*" ? everyCode : new Set(chart.map((d) => d.code));
+    if (!known.has(placed)) throw new Error(`PLACED: ${placedKey} names ${placed}, which that chart does not hold`);
+    placedUsed.add(placedKey);
+  }
+  const { code, how } = placed
+    ? { code: placed, how: "placed" }
+    : e.forced
+      ? { code: e.forced, how: "spine" }
+      : departmentFor(e.name, e.tier, chart);
   library.push({
     name: e.name,
     industry: e.industry,
@@ -349,6 +391,11 @@ for (const e of entries) {
   s.byCode.set(code, (s.byCode.get(code) || 0) + 1);
   stats.set(e.industry, s);
 }
+
+// A PLACEMENT THAT MATCHED NOTHING has stopped applying — the research renamed
+// the title or moved it — and its role is back wherever the rules put it.
+const unused = [...PLACED.keys()].filter((k) => !placedUsed.has(k));
+if (unused.length) throw new Error(`PLACED: no row matches ${unused.join("; ")}`);
 
 // ---- report -----------------------------------------------------------------
 if (REPORT) {

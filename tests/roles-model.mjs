@@ -486,5 +486,33 @@ console.log("\n== an archetype owns a section's registers, not a list of names")
   ok("every section an archetype names exists", bad.length === 0, bad.join(", "));
 }
 
+console.log("\n== no library role arrives with nothing");
+
+// TWENTY-TWO TITLES DID, the day a library role was confined to its
+// department's sections — the CFO in every trade among them. Each was filed
+// under a department where its shape names nothing (a `money` role under
+// Administration), which the unconfined copy had hidden by handing out the
+// whole shape anyway. Checked over EVERY row in every chart that holds its
+// department, not just the ten each department is seeded with: HR → Roles →
+// Add pre-built offers the rest. A new row filed badly fails here rather than
+// arriving as a role that can open nothing.
+{
+  const { DEPARTMENT_STARTERS } = await import("@/shared/departments/starters");
+  const empty = [];
+  for (const [field, chart] of Object.entries(DEPARTMENT_STARTERS)) {
+    const byCode = new Map(chart.map((d) => [d.code, d]));
+    for (const e of L.LIBRARY) {
+      if (e.industry !== "*" && e.industry !== field) continue;
+      const d = byCode.get(e.department);
+      if (!d) continue;
+      if (!L.permissionsForLibraryRole(e, { sectionKeys: d.sectionKeys }).length) {
+        empty.push(`${e.industry === "*" ? "*" : field}/${d.code}/${e.name}`);
+      }
+    }
+  }
+  ok("every library role holds something in the department it is filed under",
+    empty.length === 0, [...new Set(empty)].slice(0, 5).join(" | "));
+}
+
 console.log(fails ? `\n${fails} FAILED\n` : "\nall passed\n");
 process.exit(fails ? 1 : 0);
