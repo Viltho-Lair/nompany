@@ -11,14 +11,30 @@ import { useReload } from "@/components/studio2/useReload";
 // the PEOPLE that a calendar cannot: who is unstaffed, who is double-booked,
 // and who has room. See `modules/operations/dispatch` for why each one is here.
 //
-// READ-ONLY. Staffing a job is editing the job, and it answers to the jobs
-// route like every other change to one — a second write path out of a board
-// would be two ways to staff a job, free to disagree about what that means.
+// READ-ONLY FOR STAFFING. Staffing a job is editing the job, and it answers to
+// the jobs route like every other change to one — a second write path out of a
+// board would be two ways to staff a job, free to disagree about what that means.
+//
+// BUT A JOB CAN BE RAISED HERE (tier 5). No screen could create one before: the
+// jobs POST existed and was reachable only by hand, so the dispatch board showed
+// a collection nothing could add to. "New job" posts to that same route.
 export default function DispatchPanel({ slug, locale = "en" }) {
   const tr = dispatchDict(locale);
   const [data, setData] = useState(null);
   const [day, setDay] = useState("");
   const [problem, setProblem] = useState("");
+  const [options, setOptions] = useState(null);
+  const [creating, setCreating] = useState(false);
+
+  // WHETHER TO OFFER THE FORM, and what it picks from — the jobs route answers
+  // both, from the rights this reader holds.
+  const loadOptions = useCallback(async () => {
+    const res = await fetch(`/api/studios/${slug}/operations/jobs`, { cache: "no-store" });
+    if (!res.ok) return;
+    const body = await res.json().catch(() => ({}));
+    setOptions({ canCreate: Boolean(body.canCreate), pickers: body.pickers || {} });
+  }, [slug]);
+  useReload(loadOptions);
 
   const load = useCallback(async () => {
     const qs = day ? `?day=${encodeURIComponent(day)}` : "";
@@ -49,7 +65,16 @@ export default function DispatchPanel({ slug, locale = "en" }) {
         </div>
         <Field label={tr.day} type="date" className="w-full sm:w-44 sm:ms-auto"
           value={day} onChange={(v) => setDay(v)} />
+        {options?.canCreate && !creating && (
+          <button type="button" className={BTN} onClick={() => setCreating(true)}>{tr.newJob}</button>
+        )}
       </div>
+
+      {creating && options && (
+        <NewJobForm slug={slug} tr={tr} pickers={options.pickers} lanes={lanes}
+          onCancel={() => setCreating(false)}
+          onDone={() => { setCreating(false); void load(); }} />
+      )}
 
       {problem && (
         <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">
@@ -132,6 +157,75 @@ export default function DispatchPanel({ slug, locale = "en" }) {
       <p className="text-xs text-slate-400 dark:text-slate-500">
         {tr.booked(totalHours)}{day && day !== today ? ` · ${day}` : ""}
       </p>
+    </div>
+  );
+}
+
+const BTN = "rounded-full bg-brand-700 px-4 py-2 font-display text-sm font-600 text-white transition-colors hover:bg-brand-950 disabled:opacity-60";
+const BTN_GHOST = "rounded-full border border-slate-200 px-4 py-2 font-display text-sm font-600 text-slate-600 transition-colors hover:bg-slate-50 dark:border-white/15 dark:text-slate-300 dark:hover:bg-white/5";
+const KINDS = ["service-job", "scheduled-visit", "work-package", "work-order"];
+
+// THE NEW JOB FORM. A project is optional: a job with none opens its own
+// field-service deal (Template D — "a warranty call is a job with no sale"),
+// and the form says so rather than asking for a deal id nobody can find.
+function NewJobForm({ slug, tr, pickers, lanes, onCancel, onDone }) {
+  const [f, setF] = useState({
+    title: "", kind: "service-job", projectId: "", contractId: "", installedUnitId: "",
+    location: "", scheduledStart: "", scheduledEnd: "", assignee: "",
+  });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const set = (patch) => setF((x) => ({ ...x, ...patch }));
+  const none = (list) => [{ value: "", label: tr.none }, ...list];
+  const projects = (pickers.projects || []).map((p) => ({ value: p.id, label: [p.number, p.title].filter(Boolean).join(" · ") }));
+  const contracts = (pickers.contracts || []).map((c) => ({ value: c.id, label: c.name }));
+  const units = (pickers.units || []).map((u) => ({ value: u.id, label: u.name }));
+
+  async function submit() {
+    setBusy(true);
+    setError("");
+    const { assignee, ...rest } = f;
+    const res = await fetch(`/api/studios/${slug}/operations/jobs`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...rest, assignedToCollaboratorIds: assignee ? [assignee] : [] }),
+    });
+    const body = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (!res.ok) { setError(body.error || String(res.status)); return; }
+    onDone();
+  }
+
+  return (
+    <div className="space-y-3 rounded-geex border border-slate-200/70 bg-[var(--geex-surface)] p-5 dark:border-white/10">
+      <Field label={tr.jobTitle} value={f.title} onChange={(v) => set({ title: v })} />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label={tr.jobKind} as="select" value={f.kind} onChange={(v) => set({ kind: v })}
+          options={KINDS.map((k) => ({ value: k, label: tr.kindName(k) }))} />
+        <Field label={tr.jobAssignee} as="select" value={f.assignee} onChange={(v) => set({ assignee: v })}
+          options={[{ value: "", label: tr.nobody }, ...lanes.map((l) => ({ value: l.collaboratorId, label: l.alias }))]} />
+        <Field label={tr.jobProject} as="select" value={f.projectId} onChange={(v) => set({ projectId: v })}
+          options={none(projects)} />
+        <Field label={tr.jobLocation} value={f.location} onChange={(v) => set({ location: v })} />
+        {contracts.length > 0 && (
+          <Field label={tr.jobContract} as="select" value={f.contractId} onChange={(v) => set({ contractId: v })}
+            options={none(contracts)} />
+        )}
+        {units.length > 0 && (
+          <Field label={tr.jobUnit} as="select" value={f.installedUnitId} onChange={(v) => set({ installedUnitId: v })}
+            options={none(units)} />
+        )}
+        <Field label={tr.jobStart} type="datetime-local" value={f.scheduledStart} onChange={(v) => set({ scheduledStart: v })} />
+        <Field label={tr.jobEnd} type="datetime-local" value={f.scheduledEnd} onChange={(v) => set({ scheduledEnd: v })} />
+      </div>
+      {!f.projectId && <p className="text-xs text-slate-500 dark:text-slate-400">{tr.jobProjectHint}</p>}
+      {error && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>}
+      <div className="flex flex-wrap gap-2">
+        <button type="button" className={BTN} disabled={busy || !f.title.trim()} onClick={submit}>
+          {busy ? tr.creating : tr.createJob}
+        </button>
+        <button type="button" className={BTN_GHOST} onClick={onCancel}>{tr.cancel}</button>
+      </div>
     </div>
   );
 }

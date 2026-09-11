@@ -17,6 +17,24 @@ type Strings = {
   hours: (n: number) => string;
   clashes: (n: number) => string;
   booked: (n: number) => string;
+  // ---- raising a job (tier 5) ----
+  newJob: string;
+  jobTitle: string;
+  jobKind: string;
+  kindName: (kind: string) => string;
+  jobProject: string;
+  jobProjectHint: string;
+  jobContract: string;
+  jobUnit: string;
+  jobLocation: string;
+  jobStart: string;
+  jobEnd: string;
+  jobAssignee: string;
+  nobody: string;
+  none: string;
+  createJob: string;
+  creating: string;
+  cancel: string;
 };
 
 const en: Strings = {
@@ -33,6 +51,30 @@ const en: Strings = {
   hours: (n) => (n === 0 ? "—" : `${n} h`),
   clashes: (n) => (n === 1 ? "1 clash" : `${n} clashes`),
   booked: (n) => `${n} hours booked across the crew`,
+  newJob: "New job",
+  jobTitle: "Title",
+  jobKind: "Kind",
+  kindName: (kind) => EN_KINDS[kind] || kind,
+  jobProject: "Project",
+  jobProjectHint: "A job with no project opens its own field-service deal.",
+  jobContract: "Maintenance contract",
+  jobUnit: "Installed unit",
+  jobLocation: "Location",
+  jobStart: "Starts",
+  jobEnd: "Ends",
+  jobAssignee: "Who is on it",
+  nobody: "Nobody yet",
+  none: "None",
+  createJob: "Create job",
+  creating: "Creating…",
+  cancel: "Cancel",
+};
+
+const EN_KINDS: Record<string, string> = {
+  "service-job": "Service call",
+  "scheduled-visit": "Scheduled visit",
+  "work-package": "Site work package",
+  "work-order": "Work order",
 };
 
 // HAND-WRITTEN. NO DIACRITICS.
@@ -50,6 +92,30 @@ const ar: Strings = {
   hours: (n) => (n === 0 ? "—" : `${n} ساعة`),
   clashes: (n) => (n === 1 ? "تعارض واحد" : n === 2 ? "تعارضان" : n <= 10 ? `${n} تعارضات` : `${n} تعارضا`),
   booked: (n) => `${n} ساعة محجوزة على الفريق`,
+  newJob: "مهمة جديدة",
+  jobTitle: "العنوان",
+  jobKind: "النوع",
+  kindName: (kind) => AR_KINDS[kind] || kind,
+  jobProject: "المشروع",
+  jobProjectHint: "المهمة بلا مشروع تفتح صفقة خدمة ميدانية خاصة بها.",
+  jobContract: "عقد الصيانة",
+  jobUnit: "الوحدة المركبة",
+  jobLocation: "الموقع",
+  jobStart: "تبدأ",
+  jobEnd: "تنتهي",
+  jobAssignee: "المكلف",
+  nobody: "لا أحد بعد",
+  none: "لا شيء",
+  createJob: "إنشاء المهمة",
+  creating: "جار الإنشاء…",
+  cancel: "إلغاء",
+};
+
+const AR_KINDS: Record<string, string> = {
+  "service-job": "زيارة خدمة",
+  "scheduled-visit": "زيارة مجدولة",
+  "work-package": "حزمة أعمال موقع",
+  "work-order": "أمر عمل",
 };
 
 const dict = { en, ar };

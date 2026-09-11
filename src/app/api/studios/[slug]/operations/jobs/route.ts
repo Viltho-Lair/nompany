@@ -1,6 +1,6 @@
 import { route, refused } from "@/platform/http/route";
 import { scheduleContext } from "@/modules/operations/operations";
-import { listJobs, createJob, updateJob, setJobStatus } from "@/modules/operations/jobs";
+import { listJobs, createJob, updateJob, setJobStatus, jobFormOptions } from "@/modules/operations/jobs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,7 +13,9 @@ const spec = { auth: "studio", context: scheduleContext, body: true, name: "fiel
 export const GET = route({ ...spec, body: false }, async (schedule) => {
   const result = await listJobs(schedule);
   if (refused(result)) return result;
-  return { ok: true, jobs: result.jobs };
+  // WHAT THE NEW JOB FORM OFFERS, and whether to draw it (tier 5): no screen
+  // could create a job before, so the POST below was reachable only by hand.
+  return { ok: true, jobs: result.jobs, ...(await jobFormOptions(schedule)) };
 });
 
 export const POST = route(spec, async (schedule) => {

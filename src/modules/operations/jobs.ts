@@ -4,9 +4,14 @@
 // This file creates and reads them, and does the two things a job does to its
 // DEAL: it attaches to one, and it tells it where the work actually happened.
 import { repo } from "@/platform/db/repo";
-import { requirePermission } from "@/platform/access";
-import { attachRecord, contributeContext, resolveDealId } from "@/platform/db/engagement";
+import { requirePermission, engineSectionKey } from "@/platform/access";
+import {
+  attachRecord, contributeContext, resolveDealId, createEngagement, setDealTemplate, projectEngagementId,
+} from "@/platform/db/engagement";
 import { stageOf } from "@/platform/engagement/registry";
+import type { Section } from "@/platform/db/sections";
+import type { EngineRecord } from "@/platform/engine/schema";
+import { referencePickers } from "@/modules/procurement/pickers";
 import type { Job } from "./jobSchema";
 import { JOB_KINDS, JOB_STATUSES } from "./jobSchema";
 
@@ -21,6 +26,7 @@ const isKind = (v: string): v is JobKind => (JOB_KINDS as readonly string[]).inc
 const isStatus = (v: string): v is JobStatus => (JOB_STATUSES as readonly string[]).includes(v);
 
 const Jobs = repo<Job>("jobs");
+const Records = repo<EngineRecord>("engineRecords");
 
 const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
 const ids = (v: unknown, max = 50) =>
@@ -52,8 +58,122 @@ export async function listJobs(ctx: ScheduleContext, { dealId }: { dealId?: stri
   return { jobs: await Jobs.find({ studio, section }, { where, order: "scheduledStart" }) };
 }
 
+/** What any door hands the one insert below — the form, the PM run, the migration. */
+export type NewJob = {
+  title: string;
+  kind: JobKind;
+  status?: JobStatus;
+  dealId?: string;
+  projectId?: string;
+  location?: string;
+  scheduledStart?: string;
+  scheduledEnd?: string;
+  completedAt?: string;
+  assignedToCollaboratorIds?: string[];
+  notes?: string;
+  contractId?: string;
+  installedUnitId?: string;
+  planId?: string;
+  planOccurrence?: string;
+  migratedFromRecordId?: string;
+  createdAt?: string;
+};
+
 /**
- * Dispatch a job against a deal.
+ * A DEAL FOR A JOB WITH NOTHING BEHIND IT — Template D, Field Service, headed by
+ * the job. The blueprint's own case: "a warranty call is a job with no sale, no
+ * quotation and no project behind it". Before tier 5 no screen could create a
+ * job at all, and the API refused one without a deal id nobody could get.
+ */
+export async function openServiceDeal(studioId: string, ref: string): Promise<string> {
+  const eng = await createEngagement(studioId, { ref: ref.slice(0, 200) });
+  await setDealTemplate(studioId, eng.id, "D");
+  return eng.id;
+}
+
+/**
+ * WHICH DEAL A JOB EXECUTES, in order: the one it was given (through the alias
+ * table, Law 3); the one its PROJECT belongs to; else a field-service deal of
+ * its own. A job still never exists on no deal (Law 7) — it is never refused
+ * for want of one any more.
+ */
+async function dealForJob(studioId: string, job: Pick<NewJob, "dealId" | "projectId" | "title">) {
+  if (job.dealId) return resolveDealId(studioId, job.dealId);
+  if (job.projectId) {
+    const viaProject = await projectEngagementId(studioId, job.projectId);
+    if (viaProject) return viaProject;
+  }
+  return openServiceDeal(studioId, job.title);
+}
+
+/**
+ * THE ONE INSERT. No permission of its own — the three doors ask theirs first
+ * (the form asks `fieldService.schedule.create`; the daily PM run and the
+ * migration act with the studio's authority, as an engine rule does) — so a job
+ * raised by a plan and one typed by a dispatcher are the same record, attached
+ * and contributed the same way.
+ */
+export async function insertJob(
+  scope: { studio: { id: string }; section: Section },
+  input: NewJob,
+  actor: { id: string; type: "collaborator" | "system" },
+) {
+  const dealId = await dealForJob(scope.studio.id, input);
+  const at = new Date().toISOString();
+  const job = await Jobs.create(scope as never, {
+    number: "",              // issued later, exactly as a contract's is
+    title: input.title,
+    dealId,
+    projectId: input.projectId || "",
+    kind: input.kind,
+    // BORN `scheduled` from every door but the migration, which carries a
+    // service order's real state across. A job that arrived already complete
+    // would otherwise be work nobody dispatched.
+    status: input.status || ("scheduled" satisfies JobStatus),
+    location: input.location || "",
+    scheduledStart: input.scheduledStart || "",
+    scheduledEnd: input.scheduledEnd || "",
+    completedAt: input.completedAt || "",
+    assignedToCollaboratorIds: input.assignedToCollaboratorIds || [],
+    notes: input.notes || "",
+    ...(input.contractId ? { contractId: input.contractId } : {}),
+    ...(input.installedUnitId ? { installedUnitId: input.installedUnitId } : {}),
+    ...(input.planId ? { planId: input.planId, planOccurrence: input.planOccurrence || "" } : {}),
+    ...(input.migratedFromRecordId ? { migratedFromRecordId: input.migratedFromRecordId } : {}),
+    createdByCollaboratorId: actor.type === "collaborator" ? actor.id : "",
+    createdAt: input.createdAt || at,
+    updatedAt: at,
+  });
+
+  // ATTACH BEFORE CONTRIBUTING, and do not swallow the failure. Attaching is
+  // what can be refused — a template that narrows `job` to one on this deal, an
+  // id that resolves to nothing — and a contribution to a deal this record
+  // turned out not to be able to join would be a fact taught by a membership
+  // that does not exist. Unlike the audit trail, whose failure must not fail a
+  // write that already happened, a job that could not attach is work whose cost
+  // nothing can attract.
+  await attachRecord(scope.studio.id, dealId, "job", job.id, job.createdAt);
+
+  // WHAT A JOB KNOWS: where the crew went. This is §2.3's own example — "a
+  // service job knows the site" — and it is why entry-at-Execution is lossless:
+  // a warranty call opened with no sale behind it still gives the deal a site.
+  //
+  // THE SCHEDULED DATES ARE DELIBERATELY NOT CONTRIBUTED as the deal's
+  // `deadline`. A deal has many jobs and `execution` outranks `commitment`, so
+  // each new job would drag the deal's deadline to its own date and overwrite
+  // the end date the contract actually agreed. `site` does not have that
+  // problem: two jobs are equal rank, so the first one's location stands and
+  // later ones are refused rather than fighting over it.
+  await contributeContext(scope.studio.id, dealId, { site: input.location || "" }, JOB_SOURCE, {
+    actor: actor.id,
+    actorType: actor.type,
+  });
+
+  return job;
+}
+
+/**
+ * Dispatch a job — from the New job form on the dispatch board (tier 5).
  *
  * THE GUARD IS HERE, NOT IN THE ROUTE — routes get added and forgotten, and the
  * function that does the work cannot be reached around.
@@ -67,63 +187,47 @@ export async function createJob(ctx: ScheduleContext, body: Record<string, unkno
   const title = str(body?.title, 200);
   if (!title) return { error: "title" };
 
-  const dealId = str(body?.dealId, 60);
-  if (!dealId) return { error: "deal" };
-
   const kind = str(body?.kind, 30);
   if (!isKind(kind)) return { error: "kind" };
 
-  const location = str(body?.location, 300);
-
-  // Through the alias table, so a caller holding a derived id lands on the deal
-  // that exists rather than on one nothing else can find (Law 3).
-  const resolved = await resolveDealId(studio.id, dealId);
-
-  const job = await Jobs.create({ studio, section }, {
-    number: "",              // issued later, exactly as a contract's is
+  const job = await insertJob({ studio, section }, {
     title,
-    dealId: resolved,
-    projectId: str(body?.projectId, 60),
     kind,
-    // BORN `scheduled`. A job that arrived already complete would be work nobody
-    // dispatched, and the rota would have no record it was ever going to happen.
-    status: "scheduled" satisfies JobStatus,
-    location,
+    dealId: str(body?.dealId, 60),
+    projectId: str(body?.projectId, 60),
+    location: str(body?.location, 300),
     scheduledStart: str(body?.scheduledStart, 40),
     scheduledEnd: str(body?.scheduledEnd, 40),
-    completedAt: "",
     assignedToCollaboratorIds: ids(body?.assignedToCollaboratorIds),
     notes: str(body?.notes, 4000),
-    createdByCollaboratorId: collaborator.id,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  });
-
-  // ATTACH BEFORE CONTRIBUTING, and do not swallow the failure. Attaching is
-  // what can be refused — a template that narrows `job` to one on this deal, an
-  // id that resolves to nothing — and a contribution to a deal this record
-  // turned out not to be able to join would be a fact taught by a membership
-  // that does not exist. Unlike the audit trail, whose failure must not fail a
-  // write that already happened, a job that could not attach is work whose cost
-  // nothing can attract.
-  await attachRecord(studio.id, resolved, "job", job.id, job.createdAt);
-
-  // WHAT A JOB KNOWS: where the crew went. This is §2.3's own example — "a
-  // service job knows the site" — and it is why entry-at-Execution is lossless:
-  // a warranty call opened with no sale behind it still gives the deal a site.
-  //
-  // THE SCHEDULED DATES ARE DELIBERATELY NOT CONTRIBUTED as the deal's
-  // `deadline`. A deal has many jobs and `execution` outranks `commitment`, so
-  // each new job would drag the deal's deadline to its own date and overwrite
-  // the end date the contract actually agreed. `site` does not have that
-  // problem: two jobs are equal rank, so the first one's location stands and
-  // later ones are refused rather than fighting over it.
-  await contributeContext(studio.id, resolved, { site: location }, JOB_SOURCE, {
-    actor: collaborator.id,
-    actorType: "collaborator",
-  });
+    contractId: str(body?.contractId, 60),
+    installedUnitId: str(body?.installedUnitId, 60),
+  }, { id: collaborator.id, type: "collaborator" });
 
   return { job };
+}
+
+/**
+ * WHAT THE NEW JOB FORM OFFERS — projects, maintenance contracts and installed
+ * units, names only, each from a register this reader may open. An engine
+ * register they may not read is an empty list, not a refusal.
+ */
+export async function jobFormOptions(ctx: ScheduleContext) {
+  const canCreate = !requirePermission(ctx.access, "fieldService.schedule.create");
+  if (!canCreate) return { canCreate, pickers: {} };
+  const engineNames = async (typeKey: string, field: string) => {
+    if (requirePermission(ctx.access, `engine.${typeKey}.view`)) return [];
+    const section = ctx.sections.find((s) => s.key === engineSectionKey(typeKey));
+    if (!section) return [];
+    const rows = await Records.find({ studio: ctx.studio, section }, { where: { typeKey } });
+    return rows.map((r) => ({ id: r.id, name: [r.reference, String(r.values?.[field] || "")].filter(Boolean).join(" · ") }));
+  };
+  const [{ projects = [] }, contracts, units] = await Promise.all([
+    referencePickers(ctx.studio, { projects: ctx.projectsListSection }, { projects: true }),
+    engineNames("contract", "title"),
+    engineNames("installed", "description"),
+  ]);
+  return { canCreate, pickers: { projects, contracts, units } };
 }
 
 export async function updateJob(ctx: ScheduleContext, id: string, body: Record<string, unknown>) {
@@ -153,6 +257,10 @@ export async function updateJob(ctx: ScheduleContext, id: string, body: Record<s
   if (body.scheduledStart !== undefined) patch.scheduledStart = str(body.scheduledStart, 40);
   if (body.scheduledEnd !== undefined) patch.scheduledEnd = str(body.scheduledEnd, 40);
   if (body.notes !== undefined) patch.notes = str(body.notes, 4000);
+  // What the visit is about can be corrected; which plan raised it cannot —
+  // that pair is the PM run's idempotency key.
+  if (body.contractId !== undefined) patch.contractId = str(body.contractId, 60);
+  if (body.installedUnitId !== undefined) patch.installedUnitId = str(body.installedUnitId, 60);
   if (body.assignedToCollaboratorIds !== undefined) {
     patch.assignedToCollaboratorIds = ids(body.assignedToCollaboratorIds);
   }

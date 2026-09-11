@@ -285,6 +285,19 @@ machine on a maintenance job, the test behind an NCR — drew a raw record id.
 its NCR); the PUT returns `raised` and the register says it, by reference, to the person who
 pressed the button. Until 11/09/2026 the route dropped it and nobody was told.
 
+## Built-in types retired from new studios (tier 5, 11/09/2026)
+
+**Service orders (`job`) are no longer seeded.** They were a second job system beside the
+dispatch collection; jobs are one system now (`dispatch.md`). The declaration left
+`BUILTIN_TYPES`, so `seedBuiltinTypes` and `reconcileBuiltinTypes` never touch the type again —
+**an existing studio keeps its stored type and every record**, because no code path deletes a
+type. `scripts/migrate/service-orders-to-jobs.mjs` copies the records into `jobs`; deleting them
+afterwards is a separate, twice-confirmed step.
+
+**The PM plan type is v2**: it gained `contract` and `installed` references (added fields only),
+so the jobs the daily run raises from a plan name the contract and the unit. An existing studio
+picks the fields up when `scripts/migrate/seed-builtin-types.mjs` reconciles it.
+
 ## Not built yet
 
 Stated in words, because a silent gap reads as a finished feature.

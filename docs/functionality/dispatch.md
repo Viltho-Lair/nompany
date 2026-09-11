@@ -66,6 +66,41 @@ and the records are UTC. The screen adopts the day that comes back on its first 
 the picker and the board can never be a day apart. `dispatchBoard` takes the day as an
 argument, which is what makes every state assertable without a clock.
 
+## One job system (tier 5, 11/09/2026)
+
+**A job can be raised from the dispatch board.** *New job* opens a form — title, kind, who is on
+it, project, location, start and end, and the maintenance contract and installed unit it is
+about when those registers exist and the reader may open them. No screen could create a job
+before: `POST /operations/jobs` existed and was reachable only by hand.
+
+**A job no longer needs a deal id to be created.** Which deal it executes is decided by the one
+insert every door uses (`insertJob`, `modules/operations/jobs.ts`): the deal it was given
+(through the alias table), else its **project's** deal, else **a field-service deal of its own**
+— Template D, headed by the job, the blueprint's "a warranty call is a job with no sale". A job
+still never exists on no deal (Law 7); it is simply never refused for want of one.
+
+**PM plans raise jobs.** The daily run (`modules/operations/planJobs.ts`, called by
+`cron/daily-notices` for every studio — no new cron schedule) raises a **scheduled visit** for
+every *Active* plan whose *Next due* has arrived, carrying the plan's contract and installed unit
+(the PM plan type gained both references, v2), then moves *Next due* on by the frequency
+(`nextOccurrence`, calendar months clamped to the month's end). **Idempotent by occurrence**: a
+job names its plan and the occurrence date (`planId` + `planOccurrence`), so a second run, or a
+crash between raising and moving the date, raises nothing twice. **One occurrence per plan per
+run**, so a plan three quarters behind catches up a visit a day rather than three at once. A
+plan's first job opens a field-service deal and later ones join it, derived from its earlier
+jobs rather than stored on the plan. The run acts with the studio's authority, as an engine rule
+does.
+
+**Service orders are folded in.** The engine's `job` type ("Service orders") was a second job
+system that dispatch never read. **New studios no longer get it**; an existing studio keeps its
+type and every record, readable and unchanged. `scripts/migrate/service-orders-to-jobs.mjs`
+copies them into `jobs` — dry-run by default, `--apply` to write, `--allow-live` for the live
+store — one job each, its state mapped across and every field a job has no column for
+(customer, priority, fault, work done, the order's reference) kept in its notes, each heading its
+own field-service deal. It is **idempotent** (`migratedFromRecordId`) and **deletes nothing**:
+removing the service orders afterwards is a separate step under invariant 17.
+`tests/field-jobs-model.mjs` holds the date arithmetic and the mapping.
+
 ## Not built yet
 
 - **No drag and drop.** Staffing a job means opening it; the board shows the gap and does

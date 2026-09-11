@@ -363,36 +363,17 @@ export const BUILTIN_TYPES = [
     ],
     version: 2,
   },
-  {
-    // ON SITE GOES BACK TO SCHEDULED, which is the move a service register
-    // without field experience leaves out: an engineer attends, cannot finish
-    // for want of a part, and the job is neither completed nor cancelled. With
-    // no way back it gets closed falsely, and the second visit is invisible.
-    key: "job",
-    label: "Service orders",
-    parentSectionKey: "field-service",
-    fields: [
-      { key: "title", label: "Title", kind: "text", required: true },
-      { key: "customer", label: "Customer", kind: "text" },
-      { key: "site", label: "Site", kind: "text" },
-      { key: "priority", label: "Priority", kind: "select", options: ["Low", "Normal", "High", "Emergency"] },
-      { key: "reportedOn", label: "Reported", kind: "date" },
-      { key: "dueBy", label: "Due by", kind: "date" },
-      { key: "fault", label: "Reported fault", kind: "longtext", required: true },
-      { key: "workDone", label: "Work done", kind: "longtext" },
-    ],
-    columns: ["title", "priority", "dueBy"],
-    statuses: ["Logged", "Scheduled", "On site", "Completed", "Cancelled"],
-    transitions: [
-      { from: "Logged", to: "Scheduled" },
-      { from: "Scheduled", to: "On site" },
-      { from: "On site", to: "Completed" },
-      { from: "Logged", to: "Cancelled" },
-      { from: "Scheduled", to: "Cancelled" },
-      { from: "On site", to: "Scheduled" },
-    ],
-    version: 1,
-  },
+  // SERVICE ORDERS (`job`) ARE NO LONGER SEEDED — tier 5, the owner's "one job
+  // system". They were a second job system in the engine that dispatch never
+  // read, beside the real `jobs` collection a crew is dispatched from. A NEW
+  // studio does not get the type; an EXISTING studio keeps its stored type and
+  // every record under it, readable and unchanged — nothing here deletes a
+  // type, and no code path can (record-engine.md). `scripts/migrate/service-
+  // orders-to-jobs.mjs` copies those records into `jobs` (dry-run by default);
+  // removing the old ones afterwards is a separate, twice-confirmed step
+  // (invariant 17). The declaration is kept out of this list rather than
+  // flagged, because `seedBuiltinTypes` and `reconcileBuiltinTypes` both walk
+  // this list and neither should ever touch the type again.
   {
     // EXPIRED RETURNS TO ACTIVE because a maintenance contract is RENEWED, and
     // the customer, the site and the visit history are the same agreement. A
@@ -421,14 +402,22 @@ export const BUILTIN_TYPES = [
   },
   {
     // A PLAN IS A SCHEDULE, NOT A JOB. It says what should happen and how
-    // often; each occurrence is a service order. Nothing generates those yet —
-    // named in the functionality file rather than implied by the register.
+    // often; each occurrence is a JOB in the dispatch collection, raised by the
+    // daily run on the day it falls due (modules/operations/planJobs, tier 5),
+    // which then moves `nextDue` on by the frequency.
+    //
+    // V2 NAMES WHAT THE PLAN IS FOR — the maintenance contract it fulfils and
+    // the installed unit it services — as references, so the jobs it raises
+    // carry both. Added fields only: safe for a version bump (a removed STATUS
+    // would not be).
     key: "planned",
     label: "Preventive maintenance plans",
     parentSectionKey: "field-service",
     fields: [
       { key: "title", label: "Title", kind: "text", required: true },
       { key: "asset", label: "Asset or site", kind: "text" },
+      { key: "contract", label: "Maintenance contract", kind: "reference", refType: "contract" },
+      { key: "installed", label: "Installed unit", kind: "reference", refType: "installed" },
       { key: "frequency", label: "Frequency", kind: "select", options: ["Weekly", "Monthly", "Quarterly", "Half-yearly", "Yearly"] },
       { key: "nextDue", label: "Next due", kind: "date" },
       { key: "lastDone", label: "Last done", kind: "date" },
@@ -441,7 +430,7 @@ export const BUILTIN_TYPES = [
       { from: "Paused", to: "Active" },
       { from: "Active", to: "Retired" },
     ],
-    version: 1,
+    version: 2,
   },
   {
     key: "installed",

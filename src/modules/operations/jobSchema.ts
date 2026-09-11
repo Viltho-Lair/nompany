@@ -102,6 +102,30 @@ export const JobSchema = z.looseObject({
     at: z.string(),
   })).optional(),
 
+  // ---- ONE JOB SYSTEM (tier 5) -----------------------------------------------
+  // Service orders were a second job system in the record engine, and contracts,
+  // PM plans and the installed base linked to nothing and generated nothing.
+  // A job now NAMES what it is about — optional, because a call-out may be none
+  // of these — and every one is an engine record's id, resolved by the reader.
+
+  /** The maintenance contract (engine `contract`) this visit is under. */
+  contractId: z.string().max(60).optional(),
+  /** The installed unit (engine `installed`) the crew is attending. */
+  installedUnitId: z.string().max(60).optional(),
+  /**
+   * THE PM PLAN THAT RAISED THIS, and which OCCURRENCE — the plan's `nextDue`
+   * on the day the daily run raised it. The pair is what makes the run
+   * idempotent: an occurrence that already has a job is never raised twice.
+   */
+  planId: z.string().max(60).optional(),
+  planOccurrence: z.string().max(10).optional(),
+  /**
+   * THE SERVICE ORDER THIS WAS MIGRATED FROM — `scripts/migrate/service-orders-
+   * to-jobs.mjs` skips any service order a job already names, so the script is
+   * safe to re-run and a second run reports zero.
+   */
+  migratedFromRecordId: z.string().max(60).optional(),
+
   createdAt: z.string(),
   updatedAt: z.string(),
 });

@@ -8,6 +8,7 @@ import { listCollaborators } from "@/platform/auth/collaborators";
 import { listRoles } from "@/modules/people/roles";
 import { resolveHolders } from "@/lib/studios";
 import { notifyCollaborators, NOTIFY } from "@/platform/notify/notifications";
+import { raiseDuePlanJobs } from "@/modules/operations/planJobs";
 import {
   overdueInvoiceNotices, overdueBillNotices, expiringDocumentNotices, expiringPermitNotices,
 } from "@/modules/main/timeNotices";
@@ -47,6 +48,7 @@ async function run(request: Request) {
 
   let sent = 0;
   let scanned = 0;
+  let planJobs = 0;
   for (const s of studios) {
     try {
       sent += await noticesForStudio(String(s.id), todayISO, todayDate);
@@ -59,8 +61,19 @@ async function run(request: Request) {
         studioId: s.id, error: err instanceof Error ? err.message : String(err),
       });
     }
+    // PM PLANS FALL DUE ON THE SAME DAILY CLOCK (tier 5), so they ride this run
+    // rather than a cron of their own — a new schedule is a Vercel limit to
+    // re-learn, and one of those once refused a whole deployment. Its own try:
+    // a plan that cannot be raised must not cost the studio its notices.
+    try {
+      planJobs += await raiseDuePlanJobs(String(s.id), todayISO);
+    } catch (err) {
+      log.error("daily-notices: PM plan jobs failed", {
+        studioId: s.id, error: err instanceof Error ? err.message : String(err),
+      });
+    }
   }
-  return Response.json({ ok: true, studios: studios.length, scanned, sent });
+  return Response.json({ ok: true, studios: studios.length, scanned, sent, planJobs });
 }
 
 // One studio: read what it has, work out what crosses a line today, and tell the
