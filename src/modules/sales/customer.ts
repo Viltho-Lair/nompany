@@ -22,6 +22,7 @@ import { repo } from "@/platform/db/repo";
 import { isClosed, isWon, weightedValue, enteredStageAt, daysSince, stageDef } from "./pipeline";
 import { clientContacts, clientLocations } from "./salesClients";
 import { approvedValueDelta } from "./changeOrders";
+import { quotedTotalFor, ticketValue } from "./sales";
 import type { SalesContext, Client } from "./types";
 import type { SalesTicket } from "./schema";
 import type { Contract } from "./contractSchema";
@@ -123,7 +124,13 @@ export async function customerProfile(ctx: SalesContext, id: string) {
   const nowMs = Date.now();
   const deals = tickets
     .map((t) => {
-      const value = num(t.value);
+      // WORTH THE LATEST QUOTATION unless a figure was set by hand — the same
+      // rule the ticket list uses (`ticketValue`). The stored `value` alone is
+      // written only by an edit, so it read 0 for nearly every deal. The
+      // quotations are only in hand for a reader who may see them, so a
+      // deals-only reader gets the hand-set figure: the totals move with the
+      // reader, as everything on this page does.
+      const value = num(ticketValue(t, quotedTotalFor(t.id, quotations)));
       const probability = Number(t.probability) || 0;
       return {
         id: t.id,

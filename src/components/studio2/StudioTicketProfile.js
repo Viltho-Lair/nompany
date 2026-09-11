@@ -8,7 +8,8 @@ import Link from "next/link";
 import { Icon } from "@/components/studio2/icons";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { panel, h2, sub, btn, btnGhost, money, fmtDate, Dialog } from "@/components/studio2/ui";
-import { TicketForm } from "@/components/studio2/StudioSales";
+import { TicketForm, ticketRefusal } from "@/components/studio2/StudioSales";
+import { salesDict } from "@/shared/studio/sales";
 import { Field } from "@/components/fields/Field";
 import { Money } from "@/components/Currency";
 import { canRequestRfqStatus } from "@/modules/sales/tickets";
@@ -56,7 +57,11 @@ const btnApprove = `${btnAction} bg-emerald-600 text-white hover:bg-emerald-700`
 const btnApproved = `${btnAction} bg-emerald-500/15 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300`;
 
 export default function StudioTicketProfile({ slug, ticketId }) {
-  const tr = miscDict(useStudioLocale());
+  const locale = useStudioLocale();
+  const tr = miscDict(locale);
+  // The ticket form's refusals are Sales' words; the page itself speaks misc.
+  const salesTr = salesDict(locale);
+  const [formError, setFormError] = useState("");
   const [data, setData] = useState(null);
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
@@ -501,13 +506,17 @@ export default function StudioTicketProfile({ slug, ticketId }) {
             cities={data.salesCities || []}
             positions={data.salesContactPositions || []}
             studioDefaults={data.studioDefaults || {}}
-            onCancel={() => setEditing(false)}
+            error={formError}
+            onCancel={() => { setFormError(""); setEditing(false); }}
             onSave={async (payload) => {
+              setFormError("");
               const res = await fetch(`/api/studios/${slug}/sales/tickets`, {
                 method: "PUT", headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ ...payload, id: ticket.id }),
               });
-              if (!res.ok) { setError(tr.didnSave); return; }
+              // The route's own refusal, in words — a stage move refused for
+              // want of a quotation or a reason says which, not "didn't save".
+              if (!res.ok) { setFormError(ticketRefusal(salesTr, await res.json().catch(() => ({})))); return; }
               setEditing(false);
               await load();
             }}

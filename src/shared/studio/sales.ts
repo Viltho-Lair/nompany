@@ -139,6 +139,14 @@ type Strings = CommonStrings & {
   errNoTechnical: string;
   errRfqForbidden: string;
   errTicketGone: string;
+  // The three stage refusals `stageProblem` returns, each said as what to do.
+  errNoQuotation: string;
+  errReasonRequired: string;
+  errAlreadyClosed: string;
+  // Asked on the ticket form when a deal is being closed as lost, cancelled or
+  // dropped — the only place a person can give the reason now the board's
+  // "Move to" dialog is gone.
+  lostReasonHint: string;
 
   colCreated: string;
   colRef: string;
@@ -345,6 +353,10 @@ const en: Strings = {
   errNoTechnical: "This studio has no Technical section to send an RFQ to.",
   errRfqForbidden: "You're not allowed to raise an RFQ.",
   errTicketGone: "That ticket no longer exists — reload the page.",
+  errNoQuotation: "A deal reaches Commit or Closed Won once it has a finished quotation.",
+  errReasonRequired: "Say why this deal ended before closing it.",
+  errAlreadyClosed: "This deal is closed, so its stage can no longer change.",
+  lostReasonHint: "Kept on the deal, so the studio can see why it loses work.",
 
   colCreated: "Created",
   colRef: "Ref",
@@ -554,6 +566,10 @@ const ar: Strings = {
   errNoTechnical: "لا يوجد قسم فني في هذا الاستوديو لإرسال طلب عرض سعر إليه.",
   errRfqForbidden: "لا يسمح لك برفع طلب عرض سعر.",
   errTicketGone: "لم تعد هذه التذكرة موجودة — أعد تحميل الصفحة.",
+  errNoQuotation: "تصل الصفقة إلى الالتزام أو الفوز بعد أن يكون لها عرض سعر مكتمل.",
+  errReasonRequired: "اذكر سبب انتهاء هذه الصفقة قبل إغلاقها.",
+  errAlreadyClosed: "هذه الصفقة مغلقة، فلا يمكن تغيير مرحلتها.",
+  lostReasonHint: "يحفظ مع الصفقة، ليعرف الاستوديو لماذا يخسر الأعمال.",
 
   colCreated: "تاريخ الإنشاء",
   colRef: "المرجع",

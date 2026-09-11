@@ -66,6 +66,12 @@ summed over deals in `Closed Won`. No screen could answer it before. Win rate is
 **decided deals only** — a customer with three live deals and no history gets "—", not "0%",
 which would be a verdict on a relationship that has concluded nothing.
 
+**A deal is worth its latest quotation's total** unless somebody set a figure by hand
+(`ticketValue`, the ticket list's rule). The page read the stored `value` alone, which only an
+edit writes, so won, open and weighted value were 0 for nearly every customer until 11/09/2026.
+The quotations are in hand only for a reader who may see them, so a deals-only reader gets the
+hand-set figure — the totals move with the reader, as everything here does.
+
 **Contracts carry their movement, not just what was signed**: signed value plus approved
 variations equals current value, through `approvedValueDelta` — the same function the
 contracts register uses server-side, so a submitted variation is not money on either screen.

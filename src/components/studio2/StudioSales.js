@@ -27,6 +27,32 @@ import { StatusPill } from "@/components/studio2/StatusPill";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { salesDict, liveColumnLabel } from "@/shared/studio/sales";
 import { useReload } from "@/components/studio2/useReload";
+import { stageDef, stageProblem } from "@/modules/sales/pipeline";
+
+// EVERY REFUSAL THE SALES ROUTES RETURN, said in the reader's language. Exported
+// because the ticket's own page saves through the same form and showed only
+// "didn't save" for all of them — including the three stage refusals, which
+// tell the person exactly what to do.
+export function ticketRefusal(tr, out) {
+  const e = out?.error;
+  return e === "duplicate" ? tr.errDuplicate
+    : e === "in-use" ? tr.errInUse(Number(out.tickets) || 0)
+    : e === "read-only" ? tr.errReadOnly
+    : e === "name" || e === "title" ? tr.errName
+    : e === "client" ? tr.errClient
+    : e === "deadline" ? tr.errDeadline
+    : e === "industry" ? tr.errIndustry
+    : e === "services" ? tr.errServices
+    : e === "budget" ? tr.errBudget
+    : e === "already" ? tr.errAlready
+    : e === "no-technical" ? tr.errNoTechnical
+    : e === "forbidden" || e === "sales-required" ? tr.errRfqForbidden
+    : e === "ticket" || e === "notfound" ? tr.errTicketGone
+    : e === "no-quotation" ? tr.errNoQuotation
+    : e === "reason-required" ? tr.errReasonRequired
+    : e === "already-closed" ? tr.errAlreadyClosed
+    : tr.saveFailed;
+}
 
 // THE DASHBOARD LOADS WHEN IT IS SHOWN, not with this screen. It was a static
 // import, so every tenant page carried every department's dashboard and the
@@ -157,22 +183,7 @@ export default function StudioSales({ slug, view = "crm-sales" }) {
     });
     const out = await res.json().catch(() => ({}));
     if (!res.ok) {
-      setError(
-        out.error === "duplicate" ? tr.errDuplicate
-        : out.error === "in-use" ? tr.errInUse(Number(out.tickets) || 0)
-        : out.error === "read-only" ? tr.errReadOnly
-        : out.error === "name" || out.error === "title" ? tr.errName
-        : out.error === "client" ? tr.errClient
-        : out.error === "deadline" ? tr.errDeadline
-        : out.error === "industry" ? tr.errIndustry
-        : out.error === "services" ? tr.errServices
-        : out.error === "budget" ? tr.errBudget
-        : out.error === "already" ? tr.errAlready
-        : out.error === "no-technical" ? tr.errNoTechnical
-        : out.error === "forbidden" || out.error === "sales-required" ? tr.errRfqForbidden
-        : out.error === "ticket" ? tr.errTicketGone
-        : tr.saveFailed
-      );
+      setError(ticketRefusal(tr, out));
       return false;
     }
     setEditing(null);
@@ -256,6 +267,7 @@ export default function StudioSales({ slug, view = "crm-sales" }) {
             <TicketForm row={editing.row} clients={clients} vocabulary={vocabulary}
               cities={data.salesCities || []} positions={data.salesContactPositions || []}
               studioDefaults={data.studioDefaults || {}}
+              error={error}
               onCancel={closeEditing}
               onSave={(payload) => send("tickets", editing.row ? "PUT" : "POST", editing.row ? { ...payload, id: editing.row.id } : payload)} />
           </Dialog>
@@ -889,7 +901,7 @@ function ClientForm({ row, cities, positions, onSave, onCancel }) {
   );
 }
 
-export function TicketForm({ row, clients, vocabulary, cities = [], positions = [], studioDefaults = {}, onSave, onCancel }) {
+export function TicketForm({ row, clients, vocabulary, cities = [], positions = [], studioDefaults = {}, error = "", onSave, onCancel }) {
   const tr = salesDict(useStudioLocale());
   // Fields mirror the Old System's ticket. Mandatory: title, client, deadline,
   // type of industry. Value Quoted is NOT here on purpose — it is filled from
@@ -923,8 +935,23 @@ export function TicketForm({ row, clients, vocabulary, cities = [], positions = 
   const [serviceIds, setServiceIds] = useState(row?.serviceIds || []);
   const toggleService = (id) => setServiceIds((v) => v.includes(id) ? v.filter((x) => x !== id) : [...v, id]);
   const [busy, setBusy] = useState(false);
+  // WHY THE DEAL ENDED, asked only when this edit closes it as lost, cancelled
+  // or dropped. The route refuses such a close without one, and since the
+  // board's "Move to" dialog went this form is the only place to give it.
+  const [lostReason, setLostReason] = useState("");
+  const closingWithReason = Boolean(row && f.status !== row.status && stageDef(f.status)?.needsReason);
+  // THE STAGES THIS DEAL MAY MOVE TO, decided by the same `stageProblem` the
+  // route refuses with: nothing out of a closed deal, and Commit or Closed Won
+  // only once it has a finished quotation. Offering a stage the server will
+  // refuse is how a save came back as a bare "didn't save".
+  const statusOptions = row
+    ? (vocabulary.statuses || []).filter((s) => s === row.status || !stageProblem({
+      from: row.status, to: s, lostReason: "-", hasQuotation: Boolean(row.hasFinishedQuotation),
+    }))
+    : [];
   const set = (k) => (e) => setF((s) => ({ ...s, [k]: e.target.value }));
-  const ready = f.title.trim() && f.clientName.trim() && f.deadline && f.industry.trim() && serviceIds.length > 0;
+  const ready = f.title.trim() && f.clientName.trim() && f.deadline && f.industry.trim() && serviceIds.length > 0
+    && (!closingWithReason || lostReason.trim());
 
   // The client the typed name resolves to, if any. Its contacts become the
   // suggestions below, and picking one fills in the email and phone — which
@@ -993,8 +1020,12 @@ export function TicketForm({ row, clients, vocabulary, cities = [], positions = 
             its hint hangs under. */}
         {row && (
           <div className="grid gap-4 sm:col-span-2 sm:grid-cols-2">
-            <Field label={tr.status} as="select" required value={f.status} onChange={(v) => setF((p) => ({ ...p, status: v }))} options={vocabulary.statuses || []} />
+            <Field label={tr.status} as="select" required value={f.status} onChange={(v) => setF((p) => ({ ...p, status: v }))} options={statusOptions} />
             <Field label={tr.urgency} as="select" required value={f.urgency} onChange={(v) => setF((p) => ({ ...p, urgency: v }))} options={vocabulary.urgencies || []} />
+            {closingWithReason && (
+              <Field label={tr.lostReasonLabel} as="textarea" required value={lostReason}
+                onChange={setLostReason} hint={tr.lostReasonHint} className="sm:col-span-2" />
+            )}
           </div>
         )}
 
@@ -1033,6 +1064,11 @@ export function TicketForm({ row, clients, vocabulary, cities = [], positions = 
 
       <div className="mt-4"><label className={label}>{tr.description}</label><textarea rows={3} className={input} value={f.description} onChange={set("description")} /></div>
 
+      {/* THE REFUSAL, IN THE DIALOG. Both screens that open this form keep the
+          dialog open on a refusal, so the sentence has to be here, beside the
+          button that caused it, rather than on the page behind. */}
+      {error && <p role="alert" className="mt-4 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>}
+
       <div className="mt-5 flex gap-3">
         <button className={btn} disabled={busy || !ready} onClick={async () => {
           setBusy(true);
@@ -1048,6 +1084,7 @@ export function TicketForm({ row, clients, vocabulary, cities = [], positions = 
             probability: f.probability,
             // Only an edit may move these; on creation they are automated.
             ...(row ? { status: f.status, urgency: f.urgency } : {}),
+            ...(closingWithReason ? { lostReason } : {}),
           });
           setBusy(false);
         }}>{busy ? tr.saving : tr.saveTicket}</button>

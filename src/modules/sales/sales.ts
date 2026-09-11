@@ -20,7 +20,7 @@ import { moduleContext } from "../context";
 
 import { listCollaborators } from "@/platform/auth/collaborators";
 import { TICKET_STATUSES, DEFAULT_STATUS, TICKET_URGENCIES, DEFAULT_URGENCY, TICKET_INDUSTRIES, TICKET_LIVE_COLUMNS, DEFAULT_LIVE_COLUMNS, cleanLiveColumns, normaliseProbability } from "./tickets";
-import { stageProblem, stagePatch } from "./pipeline";
+import { stageProblem, stagePatch, stageDef } from "./pipeline";
 import { cleanRates } from "@/shared/pricing";
 import { normaliseClientName, clientSlug, resolveClientFor, upsertLocation } from "./salesClients";
 import { nextUniqueRef } from "@/modules/main/references";
@@ -403,6 +403,29 @@ export function quotationsForTicket(ticketId: string, quotations: Quotation[]): 
 export const latestQuotationFor = (ticketId: string, quotations: Quotation[]) =>
   quotationsForTicket(ticketId, quotations)[0] || null;
 
+// A QUOTATION THAT COUNTS: it has left the builder and Technical did not turn it
+// down. This is what lets a deal reach Commit or Closed Won (`stageProblem`'s
+// `hasQuotation`), and the ticket page asks the same question to decide whether
+// "Send for Approval" is offered — one test, so the screen and the refusal agree.
+//
+// IT IS ASKED OF THE QUOTATIONS, NEVER OF THE TICKET. `editTicket` and the board
+// used to read `ticket.quotationId`, which the schema said the chain writes and
+// nothing ever did: every Commit and every win was refused as `no-quotation`, so
+// no deal in any studio could be won.
+const isLiveQuotation = (q: Quotation | null) => isFinishedQuotation(q) && q?.status !== "Rejected";
+export const hasLiveQuotation = (ticketId: string, quotations: Quotation[]) =>
+  isLiveQuotation(latestQuotationFor(ticketId, quotations));
+
+// WHAT A DEAL IS WORTH: a figure somebody set on the ticket, or else the latest
+// quotation's total. Every screen that shows a deal's value goes through this —
+// the pipeline board and the customer page read the stored `value` alone, which
+// nothing but an edit ever writes, so both reported 0 for every deal while the
+// ticket list and the dashboard showed the quoted figure.
+export const quotedTotalFor = (ticketId: string, quotations: Quotation[]) =>
+  Number(latestQuotationFor(ticketId, quotations)?.total) || 0;
+export const ticketValue = (ticket: { value?: unknown }, quotedTotal: number) =>
+  (Number(ticket.value) > 0 ? Number(ticket.value) : quotedTotal);
+
 // The project a ticket produced, or null. Reverse edge: the project holds the
 // ticket's id, so this is a scan — and `one`, declared, because the business
 // says one ticket yields one project.
@@ -531,7 +554,7 @@ function ticketSummary(
     quotationApproved: quotationApproved(newest, tasks),
     // There is a finished document to send for approval. A quotation Technical
     // turned down is finished too, and is not one of them.
-    hasFinishedQuotation: isFinishedQuotation(newest) && newest.status !== "Rejected",
+    hasFinishedQuotation: isLiveQuotation(newest),
     approval,
     quotedValue: Number(newest?.total) || 0,
   };
@@ -580,7 +603,7 @@ function composeTicket(
     ...t,
     clientName: nameById[t.clientId] || t.clientName || "",
     ...rest,
-    value: Number(t.value) > 0 ? Number(t.value) : quotedValue,
+    value: ticketValue(t, quotedValue),
   };
 }
 
@@ -1069,7 +1092,7 @@ export async function editTicket(ctx: SalesContext, id: string, body: Record<str
   const denied = requirePermission(ctx.access, "crmSales.tickets.edit");
   if (denied) return denied;
 
-  const { studio, ticketsSection, clientsSection, collaborator } = ctx;
+  const { studio, ticketsSection, clientsSection, quotationsSection, collaborator } = ctx;
   const patch: Record<string, unknown> = {};
 
   // COMMENTS ARE APPEND-ONLY. One line of text arrives, never a list to
@@ -1140,17 +1163,21 @@ export async function editTicket(ctx: SalesContext, id: string, body: Record<str
   // THE REFUSAL IS JUDGED ON WHAT THE PERSON SAW. One read, only when the stage
   // is actually moving — an edit that renames a ticket pays nothing for this.
   if (stageMove) {
-    const existing = (await Tickets.find({ studio, section: ticketsSection })).find((t) => t.id === id);
+    // WHETHER A QUOTATION COUNTS is asked of the quotations, and they are read
+    // only when the target stage needs one — a move to On-Hold or a losing close
+    // pays nothing extra. See `hasLiveQuotation` for why the ticket's own
+    // `quotationId` cannot answer it.
+    const needsQuotation = Boolean(stageDef(stageMove.to)?.needsQuotation);
+    const [existing, quotations] = await Promise.all([
+      Tickets.byId({ studio, section: ticketsSection }, id),
+      needsQuotation && quotationsSection ? Quotations.find({ studio, section: quotationsSection }) : [],
+    ]);
     if (!existing) return { error: "notfound" };
     const problem = stageProblem({
       from: existing.status,
       to: stageMove.to,
       lostReason: stageMove.lostReason,
-      // WHETHER A QUOTATION EXISTS, from the ticket itself. ./tickets has always
-      // said the post-approval statuses are pickable "only after the quotation
-      // approval is complete" and nothing enforced it; `quotationId` is written
-      // by the chain, so asking the ticket costs no read at all.
-      hasQuotation: !!existing.quotationId,
+      hasQuotation: needsQuotation && hasLiveQuotation(id, quotations),
     });
     if (problem) return { error: problem };
   }

@@ -61,7 +61,11 @@ the row:
 - **Commit and Closed Won need a quotation** (`no-quotation`). `tickets.ts` has said in prose
   since the beginning that the post-approval statuses are pickable "only after the quotation
   approval is complete"; nothing enforced it. Only those two — requiring a quotation to
-  *abandon* a deal would strand every dead lead in the pipeline forever.
+  *abandon* a deal would strand every dead lead in the pipeline forever. **"Has a
+  quotation" means the ticket's latest quotation has left the builder and was not turned
+  down** (`hasLiveQuotation` in `modules/sales/sales.ts`), asked of the quotations. It used to
+  be asked of `ticket.quotationId`, which the schema said the chain writes and nothing ever
+  did — so until 11/09/2026 every Commit and every win was refused and no deal could be won.
 - **A losing close must say why** (`reason-required`). Closed Lost, Cancelled by Client and
   Dropped each demand a reason; a win does not, which is the whole asymmetry — the field
   exists to answer "why do we lose".
@@ -103,7 +107,13 @@ already on the ticket and nothing multiplied them), and win rate **over decided 
 counting open deals in the denominator would make a studio's win rate fall every time it
 raised a lead. A studio with nothing decided gets "—", not "0%", which would be a verdict.
 
-**The read is two round trips, not six.** `listTickets` reads six collections because a
+**A deal is worth its latest quotation's total** unless somebody set a figure by hand —
+`ticketValue`, the rule the ticket list and the dashboard already used. The board read the
+stored `value` alone, which only an edit writes, so every column totalled 0 while the
+dashboard showed the quoted figures. The customer page had the same fault and the same fix.
+
+**The read is three round trips, not six** — tickets, clients, and the quotations a deal's
+value and its Commit gate come from. `listTickets` reads six collections because a
 ticket row reports what happened to it downstream; a funnel does not.
 
 ### Who may do what
@@ -122,7 +132,11 @@ the refusal that a closed deal cannot be reopened.
 select; it is gone, with the reason dialog it opened and the `canMove` flag the route sent for
 it. The board is for reading the funnel. A deal changes stage where its ticket is edited —
 the same `PUT /sales/tickets`, the same `stageProblem` rules, and the same demand for a reason
-on a losing close. (It was a select rather than drag-and-drop for a reason that still holds if
+on a losing close. **The ticket form asks for that reason** when a stage change closes the
+deal as lost, cancelled or dropped, and its Status list offers only the moves `stageProblem`
+allows — the reason dialog went with the board's "Move to", and until 11/09/2026 nothing else
+asked, so no person could close a deal as lost at all. A refusal is shown in the form in
+words (`ticketRefusal`), not as "didn't save". (It was a select rather than drag-and-drop for a reason that still holds if
 a move ever comes back here: a pointer drop target mirrors wrongly under `dir="rtl"`, and it is
 unusable on a phone and invisible to a keyboard.)
 

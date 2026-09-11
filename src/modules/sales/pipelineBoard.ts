@@ -7,23 +7,27 @@
 // nothing in a browser may touch it — keeping them apart is what stops one
 // import pulling a database client into a client component.
 //
-// TWO READS, NOT SIX. `listTickets` reads tickets, clients, RFQs, quotations,
+// THREE READS, NOT SIX. `listTickets` reads tickets, clients, RFQs, quotations,
 // tasks and projects, because a ticket ROW has to report what happened to it
-// downstream. A funnel does not: which stage a deal is in, what it is worth and
-// how likely it is are all on the ticket itself, and the client's name is the
-// one thing that is not. Hop counts are part of the contract, so this asks for
-// what it draws and no more.
+// downstream. A funnel needs less: the stage and the likelihood are on the
+// ticket, the client's name is not, and neither is what the deal is WORTH —
+// that is the latest quotation's total unless somebody set a figure by hand.
+// This read used the stored `value` alone, which nothing but an edit writes, so
+// every column totalled 0 while the dashboard showed the quoted figures.
 import { requirePermission } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
 import {
   BOARD_COLUMNS, CLOSED_STAGES, stageDef, isWon,
   weightedValue, enteredStageAt, daysSince,
 } from "./pipeline";
+import { hasLiveQuotation, quotedTotalFor, ticketValue } from "./sales";
 import type { SalesContext, Client } from "./types";
 import type { SalesTicket } from "./schema";
+import type { Quotation } from "@/modules/technical/types";
 
 const Tickets = repo<SalesTicket>("salesTickets");
 const Clients = repo<Client>("salesClients");
+const Quotations = repo<Quotation>("quotations");
 
 export type PipelineDeal = {
   id: string;
@@ -59,16 +63,20 @@ export async function listPipeline(ctx: SalesContext) {
   const denied = requirePermission(ctx.access, "crmSales.pipeline.view");
   if (denied) return denied;
 
-  const { studio, ticketsSection, clientsSection } = ctx;
-  const [tickets, clients] = await Promise.all([
+  const { studio, ticketsSection, clientsSection, quotationsSection } = ctx;
+  const [tickets, clients, quotations] = await Promise.all([
     Tickets.find({ studio, section: ticketsSection }),
     Clients.find({ studio, section: clientsSection }),
+    // A studio with no Technical section has no quotations; its deals are worth
+    // whatever was set by hand, which is the honest answer.
+    quotationsSection ? Quotations.find({ studio, section: quotationsSection }) : [],
   ]);
   const nameById = Object.fromEntries(clients.map((c) => [c.id, c.name]));
   const nowMs = Date.now();
+  const valueOf = (t: SalesTicket) => ticketValue(t, quotedTotalFor(t.id, quotations));
 
   const toDeal = (t: SalesTicket): PipelineDeal => {
-    const value = Number(t.value) > 0 ? Number(t.value) : 0;
+    const value = valueOf(t);
     const probability = Number(t.probability) || 0;
     return {
       id: t.id,
@@ -81,7 +89,7 @@ export async function listPipeline(ctx: SalesContext) {
       weighted: weightedValue(value, probability),
       deadline: t.deadline || "",
       days: daysSince(enteredStageAt(t), nowMs),
-      hasQuotation: !!t.quotationId,
+      hasQuotation: hasLiveQuotation(t.id, quotations),
     };
   };
 
@@ -115,7 +123,7 @@ export async function listPipeline(ctx: SalesContext) {
     return {
       status,
       count: rows.length,
-      value: rows.reduce((s, t) => s + (Number(t.value) > 0 ? Number(t.value) : 0), 0),
+      value: rows.reduce((s, t) => s + valueOf(t), 0),
     };
   });
 
