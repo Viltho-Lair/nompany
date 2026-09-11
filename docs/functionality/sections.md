@@ -32,10 +32,10 @@ cross-cutting control (the `task` type wraps every stage). Neither is a blueprin
 
 | Section | Owns | State |
 |---|---|---|
-| CRM & Sales | tickets, clients, **quotations**, **contracts**, live view, settings | Partial — no pipeline, customer 360 or catalog |
+| CRM & Sales | tickets, clients, **quotations**, **contracts**, live view, settings — and, since tier 5, the **RFQ queue**, **quotations live view** and **quotation settings** | Partial — no pipeline, customer 360 or catalog |
 | Tendering & Estimating | — | **Not built yet** |
 | Projects | project list, SLA, overtimes, **planner**, settings | Working |
-| Engineering & Documents | **document register**, RFQ, live view, settings | Working |
+| Engineering & Documents | **document register** (and the engine registers planted under it) | Working |
 | Procurement & Subcontracting | suppliers | Partial — suppliers only |
 | Inventory & Warehouse | stock, items, project sheets, deliveries | Working |
 | Manufacturing & Production | — | **Not built yet** |
@@ -48,9 +48,22 @@ cross-cutting control (the `task` type wraps every stage). Neither is a blueprin
 | Reports & BI | — | **Not built yet** |
 | Administration & Settings | **People**, **Access**, **Master data**, studio settings | Partial — master data holds locations only |
 
-Quotations moved to CRM & Sales because the offer is a sales act, while the RFQ it is raised
-from stayed with Engineering & Documents. The controlled document register moved the other way:
-it is the technical truth, not the quality evidence.
+Quotations moved to CRM & Sales because the offer is a sales act. **The RFQ queue, its live
+view and the quotation numbering followed on 11/09/2026 (tier 5)**: three of Engineering &
+Documents' four sub-sections were pre-sales tools. They were **re-parented, not renamed** — the
+keys still start `engineering-docs-`, because rows are filed by section id, roles grant by area,
+and stored notification links and live watch keys name these keys, so a rename would break all
+of that and need a migration. The sidebar groups by `parentId`, so a studio shows them under CRM
+& Sales once `scripts/migrate/restructure-sections.mjs` re-parents its rows (dry-run by default;
+a new studio is seeded that way). The router matches the two framed ones by key, so an
+un-migrated studio reaches the same screens. The two whose names collide with Sales' own rows
+read **Quotations live view** and **Quotation settings** — replaced only while the stored name is
+still the old seed, since a name a studio typed is data. The controlled document register moved
+the other way: it is the technical truth, not the quality evidence.
+
+**Not done by this move:** the Engineering & Documents root still opens the technical dashboard
+(RFQ and quotation counts), and somebody holding only the RFQ right still sees the Engineering
+root, because a section's children are found by key prefix as well as by parent.
 
 ## Sections that render nothing
 

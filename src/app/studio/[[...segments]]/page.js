@@ -817,6 +817,16 @@ async function renderStudio(params) {
           <StudioTechnical slug={studio.slug} view={active?.key}
             sectionNames={Object.fromEntries(sections.map((x) => [x.key, x.name]))} />
         )
+        // THE RFQ QUEUE AND THE QUOTATION SETTINGS, BY KEY (tier 5). Both were
+        // re-parented under CRM & Sales with their keys kept, so a re-parented
+        // studio's `screenKey` collapses them onto "crm-sales" and StudioSales
+        // — which has no branch for either — would render the dashboard: the
+        // quotations fall-through again. Matched by key, so a studio the
+        // restructure script has NOT yet re-parented reaches the same screen.
+        : active?.key === "engineering-docs-rfq" || active?.key === "engineering-docs-settings" ? (
+          <StudioTechnical slug={studio.slug} view={active.key}
+            sectionNames={Object.fromEntries(sections.map((x) => [x.key, x.name]))} />
+        )
         : screenKey === "crm-sales" ? <StudioSales slug={studio.slug} view={active?.key} />
         : screenKey === "engineering-docs" ? (
           // THE STUDIO'S OWN NAMES FOR ITS SECTIONS, so a quotation's origin tag

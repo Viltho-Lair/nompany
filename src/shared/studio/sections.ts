@@ -75,8 +75,10 @@ const ar: SectionMap = {
   // three rows below under a different word, so an abbreviation shared by two
   // screens would have said less, not more.
   "engineering-docs-rfq": "طلبات عروض الأسعار",
-  "engineering-docs-live": "العرض المباشر",
-  "engineering-docs-settings": "الإعدادات",
+  // RE-PARENTED UNDER CRM & SALES (tier 5), where Sales already has a Live view
+  // and a Settings of its own — so these two say what they are about.
+  "engineering-docs-live": "العرض المباشر لعروض الأسعار",
+  "engineering-docs-settings": "إعدادات عروض الأسعار",
 
   // NEW ROOT. Starts with the supplier master, carried over from Inventory's
   // former Vendors screen.
@@ -145,8 +147,21 @@ const ar: SectionMap = {
 
 const maps: Partial<Record<Locale, SectionMap>> = { ar };
 
+// SEEDED NAMES THAT CHANGED AFTER STUDIOS HAD STORED THEM. English reads the
+// name stored on the section row, so a studio created before tier 5 holds
+// "Live view" and "Settings" for the two pre-sales rows that moved under CRM &
+// Sales — beside Sales' own "Live view" and "Settings". Replaced ONLY while the
+// stored name is still the old seed: a name the studio typed itself is data and
+// is shown as typed, which is why this is not simply a new English map.
+const RENAMED_SEEDS: Record<string, { was: string; now: string }> = {
+  "engineering-docs-live": { was: "Live view", now: "Quotations live view" },
+  "engineering-docs-settings": { was: "Settings", now: "Quotation settings" },
+};
+
 /** The section's name to SHOW. Falls back to the name stored on the record. */
 export function sectionName(key: unknown, stored: string, locale: string): string {
   const k = key == null ? "" : String(key);
-  return maps[locale as Locale]?.[k] || stored;
+  const renamed = RENAMED_SEEDS[k];
+  const name = renamed && stored === renamed.was ? renamed.now : stored;
+  return maps[locale as Locale]?.[k] || name;
 }

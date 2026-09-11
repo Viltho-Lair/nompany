@@ -572,6 +572,17 @@ export const SECTION_DEFS = [
     { key: "crm-sales-pipeline", name: "Pipeline" },
     { key: "crm-sales-tickets", name: "Tickets" },
     { key: "crm-sales-clients", name: "Customers" },
+    // THREE PRE-SALES TOOLS MOVED HERE FROM ENGINEERING & DOCUMENTS (tier 5):
+    // the RFQ queue, its live view and the quotation numbering. They are how a
+    // quotation gets made, and a quotation is a sales act. RE-PARENTED, NOT
+    // RENAMED — the keys keep their `engineering-docs-` prefix on purpose:
+    // rows are filed by section id, roles grant by area, notification hrefs and
+    // live watch keys name these keys, and a rename would break all of that
+    // and need a migration. The sidebar groups by parentId, so a studio shows
+    // them here once `scripts/migrate/restructure-sections.mjs` re-parents its
+    // rows (a new studio is seeded this way). The two whose names collide with
+    // Sales' own rows are named for what they are.
+    { key: "engineering-docs-rfq", name: "RFQ" },
     { key: "crm-sales-quotations", name: "Quotations" },
     // THE REGISTER, NOT THE ROWS. Contracts and change orders were built as
     // records in P2 with routes and no screen, and they stay in the
@@ -585,7 +596,9 @@ export const SECTION_DEFS = [
     // reason — a destination and a right, with the rows under quotations.
     { key: "crm-sales-orders", name: "Sales orders" },
     { key: "crm-sales-live", name: "Live view" },
+    { key: "engineering-docs-live", name: "Quotations live view" },
     { key: "crm-sales-settings", name: "Settings" },
+    { key: "engineering-docs-settings", name: "Quotation settings" },
   ] },
 
   // THE FIRST OF TENDERING'S FIVE. The root was declared for ordering alone at
@@ -622,9 +635,8 @@ export const SECTION_DEFS = [
     // rather than navigated away from — carried over from when this was
     // Quality's own Documents sub-section.
     { key: "engineering-docs-register", name: "Document register" },
-    { key: "engineering-docs-rfq", name: "RFQ" },
-    { key: "engineering-docs-live", name: "Live view" },
-    { key: "engineering-docs-settings", name: "Settings" },
+    // RFQ, Live view and Settings moved under CRM & Sales (tier 5) — see the
+    // note there. Their keys still start `engineering-docs-`, deliberately.
   ] },
 
   // Procurement starts with the supplier master, which is the one part of it
