@@ -230,6 +230,44 @@ export function Editor({
   const activeEditor =
     surface === "body" ? bodyEditor : bandEditors[surface] ?? bodyEditor;
 
+  /**
+   * A CLICK ON BLANK PAPER PUTS THE CARET IN THE TEXT, the way a word processor
+   * does. The body is an absolutely-placed box that ends at its last line, so
+   * everything under that line — and the margins beside it — is the sheet
+   * drawn behind, which is not editable and swallowed the click. Somebody had
+   * to find the last line and aim for it before they could type.
+   *
+   * Below the text goes to the end; beside it (a margin, the space above the
+   * first line) goes to the nearest position on that row, found by clamping
+   * the point into the text box and asking ProseMirror. Only the bare sheet or
+   * the gap between sheets is handled: the text and the bands take their own
+   * clicks, and a read-only document offers no caret at all.
+   */
+  function placeCaretFromPaper(event: React.MouseEvent<HTMLDivElement>) {
+    if (!bodyEditor || !editable || event.button !== 0) return;
+    const target = event.target as HTMLElement;
+    if (target !== event.currentTarget && !target.hasAttribute("data-sheet")) {
+      return;
+    }
+
+    // Stops the browser starting a selection on the sheet or blurring the
+    // editor before the caret is placed.
+    event.preventDefault();
+    setSurface("body");
+
+    const text = bodyEditor.view.dom.getBoundingClientRect();
+    if (event.clientY >= text.bottom) {
+      bodyEditor.commands.focus("end");
+      return;
+    }
+    const hit = bodyEditor.view.posAtCoords({
+      left: Math.min(Math.max(event.clientX, text.left + 1), text.right - 1),
+      top: Math.min(Math.max(event.clientY, text.top + 1), text.bottom - 1),
+    });
+    if (hit) bodyEditor.chain().focus().setTextSelection(hit.pos).run();
+    else bodyEditor.commands.focus("end");
+  }
+
   function bandProps(area: "header" | "footer") {
     const band = setup[area];
     return {
@@ -283,6 +321,7 @@ export function Editor({
         <div
           className="page-stack relative mx-auto"
           dir={directionOf(setup.language)}
+          onMouseDown={placeCaretFromPaper}
           style={{
             width: `${paper.widthMm}mm`,
             height: `calc(${pageCount} * ${paper.heightMm}mm + ${Math.max(
