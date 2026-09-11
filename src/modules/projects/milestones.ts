@@ -53,6 +53,7 @@ async function claimsFor(ctx: ProjectsContext, projectId: string): Promise<Bille
     { studio: ctx.studio, section: cashSection }, { where: { projectId } });
   return invoices.map((i) => ({
     milestoneId: i.milestoneId || "",
+    claimId: (i as { claimId?: unknown }).claimId || "",
     projectId: i.projectId || "",
     status: i.status,
     total: invoiceTotals(i).total,

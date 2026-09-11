@@ -112,13 +112,42 @@ who has to act on it.
 is not to be trusted — but a person typing 150 has made a mistake worth telling them about
 rather than silently correcting to 100.
 
+## Progress claims (tier 6, 11/09/2026)
+
+**The other way a project is billed**, on the same Billing tab: an interim payment application
+measured line by line against the tender's bill (or the quotation's lines when the project
+opened from one), certified by the client, then invoiced. `progressClaims` in
+`projects-list`; pure model `modules/projects/progressClaims.ts`, service `claims.ts`, route
+`/projects/claims`, all behind `projects.billing`.
+
+- **Cumulative, like a subcontract certificate.** Each claim states the quantity of every line
+  done TO DATE; this period is the difference from the last CERTIFIED claim, never a sum of
+  periods. A quantity cannot go below what was already certified — a downward correction is a
+  credit note. Measuring past the bill quantity is flagged, not refused: remeasurement is real.
+- **The lines are copied when the claim opens** (code, description, unit, bill quantity,
+  rate), so a later change to the source cannot move what was applied for. A new claim starts
+  every line at what is already certified.
+- **Draft → Submitted → Certified.** Only a draft's quantities change; a submitted claim can go
+  back to draft when the client returns it; recording the certificate takes what the client
+  accepted per line (a line left alone is certified as applied for). **A certificate is
+  final.** One claim open at a time — the next cannot know its previous figures until this one
+  is certified. Numbers run IPC-01, IPC-02… per project and are never reused; only a draft can
+  be deleted.
+- **Retention** is shown on each period from the project's percentage.
+- **The invoice is raised through Finance** (`POST /finance/invoices` with `claimId`, which
+  needs `finance.cash.create`) for the gross certified this period — retention is reckoned on
+  what is invoiced, as everywhere on this page. Whether a claim is invoiced is **derived** from
+  the invoices naming it, never stored; `projectBilling` counts them as `claims`, not as
+  `unattributed`.
+
 ## Not built yet
 
 Stated in words, because a silent gap reads as a finished feature.
 
-- **Nothing raises the invoice.** The screen says what is claimable and cannot bill it;
-  somebody goes to Finance, raises the invoice and picks the milestone there. An "invoice
-  this milestone" action is the obvious next step and is not here.
+- **Nothing raises a milestone's invoice.** Progress claims do (above); a schedule line is
+  still invoiced by hand in Finance.
+- **Claims carry no advance recovery, materials on site, variations or dayworks**, and there is
+  no printable application or certificate document.
 - **No starter role holds `projects.billing`**, so on every existing studio the schedule is
   the owner's until somebody grants it — and `STARTER_ROLES` seeds only when a studio has
   zero roles, so a right added to Manager never reaches an existing studio anyway. There is
@@ -135,9 +164,8 @@ Stated in words, because a silent gap reads as a finished feature.
   value and touches neither the project's `value` nor its milestones, so a job whose scope
   grew keeps the schedule it opened with. `variations.md` is the other end of this, and
   `cost-codes.md` records the identical gap on the cost side.
-- **No certificates and no applications.** What a client certifies can differ from what was
-  claimed; only the invoice is recorded, so a claim that was cut on certification looks like
-  a claim that was never made.
+- **A milestone has no certificate.** Progress claims record application and certification
+  (above); a schedule line is still only its invoice.
 - **The project's value is still a single number.** It is copied at handover and does not
   follow the contract afterwards, which is why `unscheduled` can be wrong in a way nobody is
   told about.

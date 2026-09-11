@@ -335,6 +335,9 @@ export async function createInvoice(ctx: FinanceContext, body: Record<string, un
     // and is counted in full rather than believed. The containment is in the
     // reader, where it also covers deletion, which no write-time check could.
     milestoneId: projectId ? str(body?.milestoneId, 60) : "",
+    // THE PROGRESS CLAIM IT BILLS, on the same terms as `milestoneId`: stored
+    // only with a project, validated by nobody here, attributed by Projects.
+    claimId: projectId ? str(body?.claimId, 60) : "",
     // UNVALIDATED AT THE WRITE, exactly as `milestoneId` and `costCodeId`
     // are: the READER matches the label against the studio's rules, which
     // is the only place that can also cope with a rule being deleted later.

@@ -221,8 +221,48 @@ export const ProjectCostSchema = z.object({
   updatedAt: z.string(),
 });
 
+/**
+ * ONE PROGRESS CLAIM — an interim payment application (tier 6). Lines are
+ * COPIED from the tender's bill or the quotation when the claim is opened, the
+ * payroll run's rule: what was applied for must not move when the source does.
+ * Quantities are cumulative; `certifiedQty` is null until the client certifies.
+ * Whether it has been invoiced is DERIVED from the invoices naming `claimId`,
+ * never stored — the milestone's rule. See progressClaims.ts.
+ */
+export const ProgressClaimLineSchema = z.object({
+  key: z.string().max(60),
+  code: z.string().max(40),
+  description: z.string().max(1000),
+  unit: z.string().max(24),
+  qty: z.number(),
+  rate: z.number(),
+  claimedQty: z.number(),
+  certifiedQty: z.number().nullable(),
+});
+
+export const ProgressClaimSchema = z.object({
+  id: z.string(),
+  studioId: z.string(),
+  sectionId: z.string(),
+  projectId: z.string().max(60),
+  /** IPC-01, IPC-02 … per project, never reused. */
+  number: z.string().max(20),
+  periodEnd: z.string(),
+  status: z.string(),
+  /** What the lines were copied from: the tender's bill or the quotation. */
+  basis: z.string(),
+  lines: z.array(ProgressClaimLineSchema),
+  submittedAt: z.string().optional(),
+  certifiedAt: z.string().optional(),
+  certifiedByCollaboratorId: z.string().optional(),
+  createdByCollaboratorId: z.string(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
 export type Project = z.infer<typeof ProjectSchema>;
 export type ProjectCost = z.infer<typeof ProjectCostSchema>;
+export type ProgressClaim = z.infer<typeof ProgressClaimSchema>;
 export type ProjectMilestone = z.infer<typeof ProjectMilestoneSchema>;
 export type Sla = z.infer<typeof SlaSchema>;
 export type EmergencyVisit = z.infer<typeof EmergencyVisitSchema>;

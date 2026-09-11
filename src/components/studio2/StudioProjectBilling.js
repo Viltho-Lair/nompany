@@ -21,6 +21,7 @@ import { RecordSkeleton } from "@/components/studio2/RecordSkeleton";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { panel, h2, sub, btn, btnGhost, btnRow, btnRowDanger, Empty, Dialog, StatTile, money, fmtDate } from "@/components/studio2/ui";
 import { Field } from "@/components/fields/Field";
+import ProgressClaimsPanel from "@/components/studio2/ProgressClaimsPanel";
 
 function refusal(tr, token) {
   switch (token) {
@@ -288,6 +289,12 @@ export default function StudioProjectBilling({ slug, projectId }) {
           </div>
         )}
       </section>
+
+      {/* ---- progress claims (tier 6) ------------------------------------
+          THE OTHER WAY A PROJECT IS BILLED: measured against its bill and
+          certified, rather than a fixed schedule line. Its own panel and its
+          own read, beside the schedule it complements. */}
+      <ProgressClaimsPanel slug={slug} projectId={projectId} />
 
       {form && (
         <Dialog

@@ -69,6 +69,12 @@ export const InvoiceSchema = z.object({
    * reclaim list is FOR.
    */
   certificateRef: z.string().max(80).optional(),
+  /**
+   * THE PROGRESS CLAIM THIS INVOICE BILLS (tier 6), the counterpart of
+   * `milestoneId` and unvalidated for its reason: Projects' reader attributes
+   * only ids that are that project's own claims.
+   */
+  claimId: z.string().max(60).optional(),
   clientName: z.string().max(160),
   lines: z.array(InvoiceLineSchema),
   vatRate: z.number().min(0).max(100),

@@ -31,6 +31,8 @@ export type Milestone = {
 /** Only what an invoice has to expose for this to sum. */
 export type BilledInvoice = {
   milestoneId?: unknown;
+  /** The progress claim it bills (tier 6), when it bills one. */
+  claimId?: unknown;
   projectId?: unknown;
   status?: unknown;
   total?: unknown;
@@ -140,6 +142,11 @@ export type ProjectBilling = {
   claimable: number;
   /** Everything billed on this project, whether or not it names a milestone. */
   invoiced: number;
+  /**
+   * Billed against PROGRESS CLAIMS (tier 6) — filed, just not against a
+   * milestone, so it is neither schedule money nor `unattributed`.
+   */
+  claims: number;
   /** Of that, settled. */
   paid: number;
   /** Invoiced and not yet settled — what the client owes today. */
@@ -232,9 +239,13 @@ export function projectBilling(input: BillingInput): ProjectBilling {
   const invoicedBy = new Map<string, number>();
   const paidBy = new Map<string, number>();
   let unattributed = 0;
+  let claims = 0;
   for (const inv of claimed) {
     const id = text(inv.milestoneId);
     const amount = money(num(inv.total));
+    // AN INVOICE FOR A PROGRESS CLAIM IS FILED — against the claim. Counting it
+    // as unattributed would warn a studio about every certificate it billed.
+    if (text(inv.claimId)) { claims = money(claims + amount); continue; }
     if (!id) { unattributed = money(unattributed + amount); continue; }
     invoicedBy.set(id, money((invoicedBy.get(id) || 0) + amount));
     if (isSettled(inv)) paidBy.set(id, money((paidBy.get(id) || 0) + amount));
@@ -281,7 +292,7 @@ export function projectBilling(input: BillingInput): ProjectBilling {
 
   const scheduled = money(milestones.reduce((n, m) => n + m.amount, 0));
   const invoiced = money(
-    milestones.reduce((n, m) => n + m.invoiced, 0) + unattributed);
+    milestones.reduce((n, m) => n + m.invoiced, 0) + unattributed + claims);
   const paid = money(claimed.filter(isSettled).reduce((n, i) => n + num(i.total), 0));
   const claimable = money(milestones.reduce((n, m) => n + m.claimable, 0));
 
@@ -292,6 +303,7 @@ export function projectBilling(input: BillingInput): ProjectBilling {
     unscheduled: money(value - scheduled),
     claimable,
     invoiced,
+    claims,
     paid,
     outstanding: money(invoiced - paid),
     unattributed,

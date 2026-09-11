@@ -464,6 +464,47 @@ type Strings = CommonStrings & {
   dashNoClient: string;
   dashOther: string;
   dashNoHistory: string;
+  // Progress claims (tier 6).
+  claimsHeading: string;
+  claimsSub: string;
+  claimsBasisBoq: string;
+  claimsBasisQuotation: string;
+  claimsNoBillTitle: string;
+  claimsNoBill: string;
+  claimsNoneTitle: string;
+  claimsNone: string;
+  newClaim: string;
+  claimPeriodEnd: string;
+  claimNumber: string;
+  claimStatusCol: string;
+  claimStatus: (token: string) => string;
+  claimToDate: string;
+  claimThisPeriod: string;
+  claimRetention: string;
+  claimNet: string;
+  claimInvoicedCol: string;
+  claimInvoiced: string;
+  claimNotInvoiced: string;
+  claimOpen: string;
+  claimClose: string;
+  claimDescription: string;
+  claimUnit: string;
+  claimContractQty: string;
+  claimRate: string;
+  claimPrevious: string;
+  claimToDateQty: string;
+  claimCertifiedQty: string;
+  claimValue: string;
+  claimSave: string;
+  claimSubmit: string;
+  claimBackToDraft: string;
+  claimCertify: string;
+  claimCertifyHint: string;
+  claimRaiseInvoice: string;
+  claimRetentionNote: string;
+  claimOverMeasured: string;
+  claimInvoiceLine: (number: string, date: string) => string;
+  claimRefusal: (code: string) => string;
 };
 
 const en: Strings = {
@@ -919,6 +960,54 @@ const en: Strings = {
   dashNoClient: "No client",
   dashOther: "Other",
   dashNoHistory: "Not enough history yet.",
+  claimsHeading: "Progress claims",
+  claimsSub: "Each claim states the quantity of every line done to date; the client certifies what they accept, and the certified amount this period is what is invoiced.",
+  claimsBasisBoq: "Measured against the tender’s bill.",
+  claimsBasisQuotation: "Measured against the quotation’s lines.",
+  claimsNoBillTitle: "Nothing to measure against",
+  claimsNoBill: "This project has no tender bill or quotation to claim against. Bill it through the payment schedule above.",
+  claimsNoneTitle: "No claims yet",
+  claimsNone: "Pick the period end and start the first claim.",
+  newClaim: "New claim",
+  claimPeriodEnd: "Period ending",
+  claimNumber: "Claim",
+  claimStatusCol: "Status",
+  claimStatus: (t) => ({ Draft: "Draft", Submitted: "Submitted to the client", Certified: "Certified" })[t] || t,
+  claimToDate: "To date",
+  claimThisPeriod: "This period",
+  claimRetention: "Retention",
+  claimNet: "Net",
+  claimInvoicedCol: "Invoice",
+  claimInvoiced: "Invoiced",
+  claimNotInvoiced: "Not invoiced yet",
+  claimOpen: "Open",
+  claimClose: "Close",
+  claimDescription: "Description",
+  claimUnit: "Unit",
+  claimContractQty: "Bill qty",
+  claimRate: "Rate",
+  claimPrevious: "Certified before",
+  claimToDateQty: "Done to date",
+  claimCertifiedQty: "Certified to date",
+  claimValue: "Value to date",
+  claimSave: "Save quantities",
+  claimSubmit: "Submit to the client",
+  claimBackToDraft: "Back to draft",
+  claimCertify: "Record the certificate",
+  claimCertifyHint: "Enter what the client’s certificate accepts on each line. A line left as it is is certified as applied for.",
+  claimRaiseInvoice: "Raise the invoice",
+  claimRetentionNote: "For the gross certified this period — retention is reckoned on what is invoiced.",
+  claimOverMeasured: "Some lines are measured beyond the bill quantity.",
+  claimInvoiceLine: (number, date) => `${number} — work certified to ${date}`,
+  claimRefusal: (code) => ({
+    "open-claim": "Finish the open claim before starting another.",
+    "no-bill": "This project has no bill or quotation to claim against.",
+    "below-previous": "A quantity cannot go below what was already certified — correct it with a credit note.",
+    "nothing-claimed": "This claim asks for nothing beyond what was already certified.",
+    transition: "A claim cannot move that way.",
+    "not-draft": "Only a draft claim can be changed or deleted.",
+    qty: "Quantities are numbers from 0 up.",
+  })[code] || code,
 };
 
 const ar: Strings = {
@@ -1379,6 +1468,54 @@ const ar: Strings = {
   dashNoClient: "بلا عميل",
   dashOther: "أخرى",
   dashNoHistory: "لا يوجد سجل كافٍ بعد.",
+  claimsHeading: "المستخلصات",
+  claimsSub: "كل مستخلص يذكر الكمية المنجزة حتى تاريخه لكل بند؛ يعتمد العميل ما يقبله، والمبلغ المعتمد عن الفترة هو ما يفوتر.",
+  claimsBasisBoq: "مقاس على جدول كميات المناقصة.",
+  claimsBasisQuotation: "مقاس على بنود عرض السعر.",
+  claimsNoBillTitle: "لا يوجد ما يقاس عليه",
+  claimsNoBill: "لا يوجد لهذا المشروع جدول كميات او عرض سعر يطالب عليه. فوتره من جدول الدفعات في الاعلى.",
+  claimsNoneTitle: "لا توجد مستخلصات بعد",
+  claimsNone: "اختر نهاية الفترة وابدأ المستخلص الاول.",
+  newClaim: "مستخلص جديد",
+  claimPeriodEnd: "نهاية الفترة",
+  claimNumber: "المستخلص",
+  claimStatusCol: "الحالة",
+  claimStatus: (t) => ({ Draft: "مسودة", Submitted: "مقدم للعميل", Certified: "معتمد" })[t] || t,
+  claimToDate: "حتى تاريخه",
+  claimThisPeriod: "هذه الفترة",
+  claimRetention: "المحتجز",
+  claimNet: "الصافي",
+  claimInvoicedCol: "الفاتورة",
+  claimInvoiced: "مفوتر",
+  claimNotInvoiced: "لم يفوتر بعد",
+  claimOpen: "فتح",
+  claimClose: "اغلاق",
+  claimDescription: "الوصف",
+  claimUnit: "الوحدة",
+  claimContractQty: "كمية الجدول",
+  claimRate: "السعر",
+  claimPrevious: "المعتمد سابقا",
+  claimToDateQty: "المنجز حتى تاريخه",
+  claimCertifiedQty: "المعتمد حتى تاريخه",
+  claimValue: "القيمة حتى تاريخه",
+  claimSave: "حفظ الكميات",
+  claimSubmit: "تقديم للعميل",
+  claimBackToDraft: "اعادة الى مسودة",
+  claimCertify: "تسجيل الاعتماد",
+  claimCertifyHint: "ادخل ما يقبله اعتماد العميل في كل بند. البند الذي يترك كما هو يعتمد كما طولب به.",
+  claimRaiseInvoice: "اصدار الفاتورة",
+  claimRetentionNote: "بالمبلغ الاجمالي المعتمد عن الفترة — المحتجز يحتسب على ما يفوتر.",
+  claimOverMeasured: "بعض البنود مقاسة بأكثر من كمية الجدول.",
+  claimInvoiceLine: (number, date) => `${number} — اعمال معتمدة حتى ${date}`,
+  claimRefusal: (code) => ({
+    "open-claim": "انه المستخلص المفتوح قبل بدء اخر.",
+    "no-bill": "لا يوجد لهذا المشروع جدول كميات او عرض سعر يطالب عليه.",
+    "below-previous": "لا يمكن ان تقل الكمية عما اعتمد سابقا — صححها باشعار دائن.",
+    "nothing-claimed": "هذا المستخلص لا يطلب شيئا فوق ما اعتمد سابقا.",
+    transition: "لا يمكن نقل المستخلص بهذا الاتجاه.",
+    "not-draft": "لا يعدل او يحذف الا المستخلص المسودة.",
+    qty: "الكميات ارقام من صفر فما فوق.",
+  })[code] || code,
 };
 
 const projects = { en, ar };
