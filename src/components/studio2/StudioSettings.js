@@ -539,6 +539,51 @@ function SectionRow({ row, depth, tr, kids, canManage, busy, failed, onToggle })
   );
 }
 
+// THE TRADE'S SET, EDITABLE. Every section the trade may judge, ticked where
+// the trade uses it; the person ticks what else they want, unticks what they
+// don't, and Apply sends exactly that. It used to be two read-only lines naming
+// only what would move — "Turn off: Manufacturing & Production, Logistics &
+// Fleet" — which the owner read as the product showing something other than the
+// trade they had picked.
+//
+// ITS OWN COMPONENT SO THE TICKS ARE ITS OWN STATE, seeded from the trade once
+// per offer. The parent keys it by the offer, so a new one (the trade changed,
+// or an apply landed) remounts it with fresh ticks — rather than an effect
+// copying props into state after every render.
+function TradeChecklist({ choices, nameOf, busy, failed, onApply }) {
+  const tr = useT();
+  const [picked, setPicked] = useState(() => new Set(choices.filter((c) => c.suggested).map((c) => c.key)));
+  const flip = (key) => setPicked((prev) => {
+    const next = new Set(prev);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    return next;
+  });
+  return (
+    <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm dark:border-white/10 dark:bg-white/5">
+      <p className="text-slate-600 dark:text-slate-300">{tr.sectionsSuggestLead}</p>
+      <div className="mt-2 grid gap-x-4 sm:grid-cols-2">
+        {choices.map(({ key }) => (
+          <label key={key}
+            className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-white/5">
+            <input
+              type="checkbox"
+              className="h-4 w-4 shrink-0 accent-brand-600"
+              checked={picked.has(key)}
+              disabled={busy}
+              onChange={() => flip(key)}
+            />
+            <span className="min-w-0 flex-1 truncate">{nameOf.get(key) || key}</span>
+          </label>
+        ))}
+      </div>
+      <div className="mt-3 flex items-center gap-3">
+        <button type="button" className={BTN} disabled={busy} onClick={() => onApply([...picked])}>{tr.sectionsSuggestApply}</button>
+        {failed && <span className="text-xs text-rose-600 dark:text-rose-300">{tr.sectionsSuggestFailed}</span>}
+      </div>
+    </div>
+  );
+}
+
 // WHICH SECTIONS THIS STUDIO USES. `enabled` has sat on every section row since
 // sections became rows, and `visibleSections` has always filtered on it — a
 // disabled section is hidden whatever rights the reader holds. Nothing could
@@ -592,17 +637,17 @@ function StudioSections({ slug, rows, canManage, suggestion, onSaved }) {
     router.refresh();
   }
 
-  // THE TRADE'S OFFER, APPLIED. The screen sends exactly what it showed; the
-  // route recomputes the offer and applies only what is still suggested, so a
-  // stale screen cannot switch off a section somebody has since kept. Names are
-  // the rows' own, the same ones the switches below are labelled with.
+  // THE TRADE'S SET, APPLIED AS TICKED. `on` is the person's ticks, not the
+  // trade's; `shown` is what the list drew, and the route moves nothing it did
+  // not. Names are the rows' own, the same ones the switches below carry.
   const nameOf = useMemo(() => new Map(rows.map((r) => [r.key, r.name])), [rows]);
-  async function applyTrade() {
+  const choices = suggestion?.choices || [];
+  async function applyTrade(picked) {
     setBusy("trade");
     setFailed("");
     const res = await fetch(`/api/studios/${slug}/settings/sections`, {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "apply-trade", off: suggestion.off, on: suggestion.on }),
+      body: JSON.stringify({ action: "apply-trade", on: picked, shown: choices.map((c) => c.key) }),
     });
     setBusy("");
     if (!res.ok) { setFailed("trade"); return; }
@@ -616,20 +661,12 @@ function StudioSections({ slug, rows, canManage, suggestion, onSaved }) {
     <SettingsFold heading={tr.sectionsHeading} lead={tr.sectionsLead}>
       {/* OFFERED, NEVER APPLIED BY ITSELF. The trade gate runs once, at
           creation; after that a section only moves when somebody here says so. */}
-      {canManage && suggestion && (suggestion.off.length > 0 || suggestion.on.length > 0) && (
-        <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm dark:border-white/10 dark:bg-white/5">
-          <p className="text-slate-600 dark:text-slate-300">{tr.sectionsSuggestLead}</p>
-          {suggestion.off.length > 0 && (
-            <p className="mt-1 font-600 text-slate-900 dark:text-white">{tr.sectionsSuggestOff(suggestion.off.map((k) => nameOf.get(k) || k))}</p>
-          )}
-          {suggestion.on.length > 0 && (
-            <p className="mt-1 font-600 text-slate-900 dark:text-white">{tr.sectionsSuggestOn(suggestion.on.map((k) => nameOf.get(k) || k))}</p>
-          )}
-          <div className="mt-3 flex items-center gap-3">
-            <button type="button" className={BTN} disabled={busy === "trade"} onClick={applyTrade}>{tr.sectionsSuggestApply}</button>
-            {failed === "trade" && <span className="text-xs text-rose-600 dark:text-rose-300">{tr.sectionsSuggestFailed}</span>}
-          </div>
-        </div>
+      {canManage && suggestion && (suggestion.off.length > 0 || suggestion.on.length > 0) && choices.length > 0 && (
+        <TradeChecklist
+          key={choices.map((c) => `${c.key}:${c.suggested ? 1 : 0}`).join("|")}
+          choices={choices} nameOf={nameOf}
+          busy={busy === "trade"} failed={failed === "trade"} onApply={applyTrade}
+        />
       )}
       <div className="mt-4 divide-y divide-slate-100 dark:divide-white/5">
         {roots.map((row) => (

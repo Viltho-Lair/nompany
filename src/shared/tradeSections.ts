@@ -178,7 +178,17 @@ export function sectionEnabledForTrade(
  * a section the studio added itself (`isSeeded` false — the matrix knows nothing
  * about it, so it cannot say it is unused).
  */
-export type TradeSuggestion = { off: string[]; on: string[] };
+//
+// `choices` IS THE WHOLE LIST THE PANEL DRAWS, not only the differences. The
+// offer used to be two lines — "Turn off: Manufacturing, Logistics" — and the
+// owner read that as the product showing something other than the trade they
+// picked: it named only what would move and never the set the trade actually
+// uses, and gave no way to keep an extra. So every section the trade may judge
+// is a choice, ticked when the trade uses it; the person adjusts the ticks and
+// applies exactly that. `off` and `on` stay, because they are what decides
+// whether there is anything to offer at all.
+export type TradeChoice = { key: string; suggested: boolean };
+export type TradeSuggestion = { off: string[]; on: string[]; choices: TradeChoice[] };
 
 export function tradeSuggestion(
   roots: readonly { key: string; enabled: boolean }[],
@@ -190,14 +200,18 @@ export function tradeSuggestion(
     noScreen: (k: string) => boolean;
   },
 ): TradeSuggestion {
-  const out: TradeSuggestion = { off: [], on: [] };
+  const out: TradeSuggestion = { off: [], on: [], choices: [] };
   if (!on) return out;
   for (const row of roots) {
     const key = row.key;
     if (!rules.isSeeded(key) || rules.isSystem(key) || rules.required(key)) continue;
     if ((NEVER_GATED_KEYS as readonly string[]).includes(key)) continue;
     const wanted = on.has(key);
-    if (wanted && !row.enabled && !rules.noScreen(key)) out.on.push(key);
+    const noScreen = rules.noScreen(key);
+    // A section with no screen can never be switched ON, so it is only a choice
+    // while it is on — the one thing left to decide about it is switching it off.
+    if (!noScreen || row.enabled) out.choices.push({ key, suggested: wanted });
+    if (wanted && !row.enabled && !noScreen) out.on.push(key);
     else if (!wanted && row.enabled) out.off.push(key);
   }
   return out;

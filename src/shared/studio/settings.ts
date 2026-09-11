@@ -127,8 +127,6 @@ type Strings = {
   // only when somebody presses Apply. The names are the studio's own section
   // names, so they arrive as a list and each locale joins them its own way.
   sectionsSuggestLead: string;
-  sectionsSuggestOff: (names: string[]) => string;
-  sectionsSuggestOn: (names: string[]) => string;
   sectionsSuggestApply: string;
   sectionsSuggestFailed: string;
 
@@ -401,9 +399,7 @@ const en: Strings = {
   sectionsRequired: "Always on",
   sectionsNotReady: "Not ready yet",
   sectionsRefused: "That section couldn't be changed.",
-  sectionsSuggestLead: "This studio's field of work suggests a different set of sections. Nothing changes until you apply it.",
-  sectionsSuggestOff: (names) => `Turn off: ${names.join(", ")}`,
-  sectionsSuggestOn: (names) => `Turn on: ${names.join(", ")}`,
+  sectionsSuggestLead: "Your field of work uses the ticked sections. Tick any others you want, untick any you don't, then apply. Nothing changes until you do.",
   sectionsSuggestApply: "Apply",
   sectionsSuggestFailed: "Those sections couldn't be changed.",
 
@@ -686,9 +682,7 @@ const ar: Strings = {
   sectionsRequired: "دائم التشغيل",
   sectionsNotReady: "غير جاهز بعد",
   sectionsRefused: "تعذر تغيير ذلك القسم.",
-  sectionsSuggestLead: "مجال عمل هذا الاستوديو يقترح مجموعة مختلفة من الأقسام. لا يتغير شيء حتى يطبق الاقتراح.",
-  sectionsSuggestOff: (names) => `إيقاف: ${names.join("، ")}`,
-  sectionsSuggestOn: (names) => `تشغيل: ${names.join("، ")}`,
+  sectionsSuggestLead: "مجال عملك يستخدم الأقسام المحددة. حدّد أي أقسام أخرى تريدها وألغِ تحديد ما لا تريده، ثم طبّق. لا يتغير شيء حتى تطبّق.",
   sectionsSuggestApply: "تطبيق",
   sectionsSuggestFailed: "تعذر تغيير هذه الأقسام.",
 

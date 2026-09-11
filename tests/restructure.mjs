@@ -1920,10 +1920,20 @@ export async function testTheTradeOffersOnlyWhatItMayChange(t) {
   t.equal(offer.off.join(","), "manufacturing", `offered off: ${offer.off.join(",")}`);
   t.equal(offer.on.join(","), "projects", `offered on: ${offer.on.join(",")}`);
 
+  // THE CHECKLIST IS EVERY SECTION THE TRADE MAY JUDGE, not only what moves —
+  // the owner read two "Turn off:" lines as the product ignoring the trade they
+  // picked. Ticked where the trade uses it. Never a required, system, never-
+  // gated or studio-made row, and never a screenless one that is already off
+  // (it could only be switched ON, which is refused).
+  t.equal(offer.choices.map((c) => c.key).join(","), "crm-sales,manufacturing,logistics,projects",
+    `choices: ${offer.choices.map((c) => c.key).join(",")}`);
+  t.equal(offer.choices.filter((c) => c.suggested).map((c) => c.key).join(","), "crm-sales,projects",
+    `ticked by the trade: ${offer.choices.filter((c) => c.suggested).map((c) => c.key).join(",")}`);
+
   // NO TRADE, NO OFFER — and emphatically not "turn everything on". A studio
   // that never named its trade and switched a section off did it on purpose.
   const none = tradeSuggestion([{ key: "manufacturing", enabled: false }], null, rules);
-  t.equal(none.off.length + none.on.length, 0, "an unknown trade suggests nothing");
+  t.equal(none.off.length + none.on.length + none.choices.length, 0, "an unknown trade suggests nothing");
 
   // THE CASE THAT PROMPTED IT, on the real matrix: an IT & Software studio with
   // everything on is offered exactly Manufacturing and Logistics. Inventory is

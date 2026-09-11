@@ -274,7 +274,14 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
     // WHAT THE STUDIO'S TRADE WOULD SWITCH, as keys — the screen already holds
     // the rows and their names. OFFERED, never applied: the gate runs once, at
     // creation, and changing the trade later switches nothing by itself.
-    tradeSuggestion: tradeSuggestionFor(studio.fieldOfWork, context.sections || []),
+    //
+    // NULL ONCE ANSWERED FOR THIS TRADE. `sectionsTrade` is the field of work
+    // the sections were last applied for (the apply route writes it, and
+    // `createStudio` does, because the gate there is that answer). Keeping one
+    // extra section would otherwise bring the offer back on every visit.
+    tradeSuggestion: studio.fieldOfWork && studio.sectionsTrade === studio.fieldOfWork
+      ? null
+      : tradeSuggestionFor(studio.fieldOfWork, context.sections || []),
     // Asking for deletion is the OWNER's call, not an admin's: it ends the
     // studio for everybody in it.
     isOwner: collaborator.role === "owner",

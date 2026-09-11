@@ -212,10 +212,22 @@ absent, and planting one late strands the rows written before it.
 
 **That gate runs once, at creation, deliberately.** A section vanishing from a live sidebar
 overnight is a support ticket, not a courtesy, so changing the trade later in Studio settings
-switches nothing by itself. What it does instead is **offer**: the Sections panel says what the
-trade would turn off or on — for Information Technology & Software, Manufacturing and Logistics —
-and changes nothing until somebody presses **Apply**. Departments makes the same kind of offer
-after a trade change, for the same reason.
+switches nothing by itself. What it does instead is **offer**: when the studio's switches differ
+from what its trade uses, the Sections panel shows a **checklist of every section the trade may
+judge, the trade's own already ticked** — for Information Technology & Software, everything but
+Manufacturing and Logistics. The person ticks any others they want, unticks any they don't, and
+**Apply** sets exactly that; nothing changes until they press it. Departments makes the same
+kind of offer after a trade change, for the same reason.
+
+**It was two read-only lines until 11/09/2026** — "Turn off: Manufacturing & Production,
+Logistics & Fleet" — and the owner read that as the product showing something other than the
+trade they had picked: it named only what would move, never the set the trade uses, and the
+route applied only what the trade suggested, so there was no way to keep an extra.
+
+**Once applied, it is not offered again for that trade.** The studio records the trade its
+sections were last applied for (`sectionsTrade`, written by the apply route and by
+`createStudio`), and the settings read returns no offer while it matches the field of work.
+Changing the trade is a new question and brings the checklist back.
 
 - **One answer for both.** `tradeRootsFor` in `modules/main/studios.ts` is what `createStudio`
   gates with and what the offer reads; `tradeSuggestion` in `shared/tradeSections` compares it
@@ -226,11 +238,12 @@ after a trade change, for the same reason.
 - **An unknown trade — none, "Other", or a name the matrix does not know — suggests nothing**,
   and in particular not "turn everything back on": a studio that switched a section off without
   naming its trade did it on purpose.
-- **Applying is `POST /settings/sections` with `{ action: "apply-trade", off, on }`**, on
-  `administration.settings.edit`. The server recomputes the offer and applies only the keys that
-  are both shown and still suggested, so a stale screen cannot switch off a section somebody has
-  since decided to keep. A root carries its children exactly as the single toggle does — one
-  helper serves both.
+- **Applying is `POST /settings/sections` with `{ action: "apply-trade", on, shown }`**, on
+  `administration.settings.edit`. `on` is every ticked section; every other choice goes off. The
+  server recomputes which sections are choices, so a hand-made body cannot touch a required,
+  system or studio-made one, and moves only those the screen `shown` — one that became a choice
+  after the page loaded is left alone. A root carries its children exactly as the single toggle
+  does — one helper serves both.
 
 ## Maintenance is the fifteenth (11/09/2026)
 
@@ -246,9 +259,9 @@ Existing studios get the rows from `plant-sections.mjs`, which has not been run.
 
 Stated in words, because a silent gap reads as a finished feature.
 
-- **The trade's offer cannot be dismissed.** A studio that keeps a section its trade would
-  switch off — a software house with a hardware line — sees the suggestion every time it opens
-  Studio settings. It is one line and changes nothing, but it does not go away.
+- **An existing studio sees the checklist once even if its sections already suit it.** Nothing
+  recorded `sectionsTrade` before 11/09/2026, so a studio whose switches differ from its trade is
+  offered it until somebody presses Apply — after that, not again for that trade.
 - **Nothing points at the offer from where the trade is changed.** It sits in the Sections
   panel; somebody has to scroll there to see it.
 

@@ -230,6 +230,9 @@ export async function createStudio(
       fieldOfWork: trade,
       fieldOfWorkOther: tradeOther,
       serviceActions: actionsForField(trade),
+      // THE SECTIONS BELOW ARE ALREADY THIS TRADE'S ANSWER, so Studio settings
+      // must not offer it back. Blank when the trade gates nothing.
+      sectionsTrade: tradeRootsFor(trade) ? trade : "",
     };
 
     // Seed the fixed section list. Parents get a SectionID, sub-sections get

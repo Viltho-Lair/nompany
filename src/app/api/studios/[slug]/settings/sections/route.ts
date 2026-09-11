@@ -3,7 +3,7 @@ import { requirePermission } from "@/platform/access";
 import { NO_SCREEN_YET } from "@/platform/access";
 import { moduleContext } from "@/modules/context";
 import { updateSection, REQUIRED_SECTIONS } from "@/platform/db/sections";
-import { tradeSuggestionFor } from "@/modules/main/studios";
+import { tradeSuggestionFor, updateStudio } from "@/modules/main/studios";
 import type { Section } from "@/platform/db/sections";
 
 export const runtime = "nodejs";
@@ -106,19 +106,26 @@ async function setBranch(studioId: string, all: readonly Section[], section: Sec
   return { updated, children };
 }
 
-// APPLYING WHAT THE STUDIO'S TRADE SUGGESTS.
+// APPLYING THE STUDIO'S CHOICE OF SECTIONS FOR ITS TRADE.
 //
 // The trade gate runs once, in `createStudio`, deliberately: a section
 // vanishing from a live sidebar overnight is a support ticket. What an EXISTING
-// studio gets instead is an offer on the Sections panel — what its field of
-// work would switch — and this is its button. Same right as the single toggle.
+// studio gets instead is a checklist on the Sections panel — every section the
+// trade may judge, the trade's own ticked — and this is its button. Same right
+// as the single toggle.
 //
-// THE SCREEN SENDS WHAT IT SHOWED, AND ONLY WHAT IS STILL SUGGESTED IS APPLIED.
-// The offer is recomputed here rather than taken from the request, and the
-// INTERSECTION is applied: a stale screen cannot switch off a section somebody
-// has since decided to keep, and a hand-made request cannot switch off one the
-// trade never suggested. The departments register narrows both its read and its
-// write for the same reason.
+// THE PERSON'S TICKS ARE APPLIED, NOT THE TRADE'S. This used to apply only what
+// the trade itself still suggested, which is exactly what made the panel useless
+// for keeping an extra: tick Manufacturing to keep it and the old intersection
+// switched it off anyway. The owner asked for the trade's set PLUS whatever else
+// they bring, so `on` is the whole ticked list and every other choice goes off.
+//
+// WHAT MAY MOVE IS STILL THE SERVER'S TO SAY. The choices are recomputed here,
+// never read from the request, so a hand-made body cannot touch a required
+// section, a system row or one the studio added itself. And only a choice the
+// screen SHOWED moves (`shown`): one that became choosable after the page
+// loaded is left alone rather than switched off because nobody ticked a box
+// they never saw.
 export const POST = route(spec, async (c) => {
   const denied = requirePermission(c.access, "administration.settings.edit");
   if (denied) return denied;
@@ -127,21 +134,32 @@ export const POST = route(spec, async (c) => {
   const all = c.sections || [];
   // `fieldOfWork` rides on the studio record the context carries; `StudioRef`
   // names only the fields every context needs, so it is read through here.
-  const field = (c.studio as { fieldOfWork?: unknown }).fieldOfWork;
+  const field = String((c.studio as { fieldOfWork?: unknown }).fieldOfWork ?? "").trim();
   const offer = tradeSuggestionFor(field, all);
-  const shown = (v: unknown) => new Set(Array.isArray(v) ? v.map(String) : []);
-  const offShown = shown(c.body.off);
-  const onShown = shown(c.body.on);
-  const off = offer.off.filter((k) => offShown.has(k));
-  const on = offer.on.filter((k) => onShown.has(k));
-  if (!off.length && !on.length) return { error: "nothing-to-apply" };
+  if (!offer.choices.length) return { error: "nothing-to-apply" };
+
+  const list = (v: unknown) => new Set(Array.isArray(v) ? v.map(String) : []);
+  const shown = list(c.body.shown);
+  const picked = list(c.body.on);
 
   const changed: { key: string; enabled: boolean }[] = [];
-  for (const [keys, enabled] of [[off, false], [on, true]] as const) {
-    for (const key of keys) {
-      const root = all.find((s) => !s.parentId && s.key === key);
-      if (root && (await setBranch(c.studio.id, all, root, enabled))) changed.push({ key, enabled });
-    }
+  for (const { key } of offer.choices) {
+    if (!shown.has(key)) continue;
+    const root = all.find((s) => !s.parentId && s.key === key);
+    if (!root) continue;
+    const enabled = picked.has(key);
+    // The PUT's own refusal: a section with no screen is never switched on.
+    if (enabled && (NO_SCREEN_YET as readonly string[]).includes(key)) continue;
+    if ((root.enabled !== false) === enabled) continue;
+    if (await setBranch(c.studio.id, all, root, enabled)) changed.push({ key, enabled });
   }
+
+  // ANSWERED FOR THIS TRADE, so the settings read stops offering it. Without
+  // this the checklist came back on every visit the moment a studio kept one
+  // extra section, because its switches would never again equal the trade's
+  // set — the "cannot be dismissed" gap sections.md listed. Written even when
+  // nothing moved: applying the trade's set unchanged is still an answer. A
+  // different trade later is a different question, and the offer returns.
+  await updateStudio(c.studio.id, { sectionsTrade: field });
   return { ok: true, changed };
 });
