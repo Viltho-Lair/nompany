@@ -167,19 +167,29 @@ A section's root is read from `SECTION_DEFS`, never from the key's prefix:
 **`principal` is exempt** — Managing Director, CEO — because it runs the whole
 company; it keeps every area, still without `administration.access`.
 
-**Measured 11/09/2026, across the 2,237 roles the 25 starter charts seed: 3
-arrive with nothing** — Board Audit Committee Chair (Financial Services), Chief
-Compliance Officer (Administrative & Support Services) and Auditor General
-(Public Administration), each a field-specific oversight title the generator's
-top-administration fallback files under Administration, where neither `money`
-nor `checker` names anything. An empty role grants nothing, so this is safe.
+**Measured 11/09/2026, across the 2,237 roles the 25 starter charts seed: none
+arrives with nothing.** It was 26, every one filed under Administration, where
+neither `money` nor `checker` names anything:
 
-**It was 26 until the CFO was re-filed.** The universal spine's one Chief
-Financial Officer, which reaches all twenty-five fields, sat under
-Administration because the governance group's shortlist was `ADM` alone and the
-Finance hint had nowhere to go; `FIN` is on that shortlist now
-(`scripts/generate/role-library.mjs`). A correction is a hint and a regenerate,
-never an edit to a generated row.
+- **the Chief Financial Officer** — the universal spine's one copy, reaching all
+  twenty-five fields — because the governance group's shortlist was `ADM` alone
+  and the Finance hint had nowhere to go. `FIN` is on that shortlist now.
+- **three oversight titles the tier fallback filed there**: Board Audit
+  Committee Chair (Financial Services → Finance), Auditor General (Public
+  Administration → Inspection & Enforcement) and the Chief Compliance Officer
+  of Administrative & Support Services (→ Contract Operations, since that chart
+  has no quality or compliance department). Exact-title hints at the top of
+  `DEPARTMENT_HINTS`, so nothing else moves.
+
+A correction is a hint and a regenerate
+(`scripts/generate/role-library.mjs`), never an edit to a generated row.
+
+**The whole library is not there yet: 18 rows still arrive empty** if added
+through Add pre-built — 5,206 placements checked, every row in every chart that
+holds its department. None is seeded; all sit under Administration. Among them:
+Head of Internal Audit (Financial Services), Night Auditor and Director of Sales
+& Marketing (Hospitality), the spine's Chief Risk & Compliance Officer, and
+three bid writers.
 
 That door may hand out access when the other refuses to, because **HR chooses
 which pre-built job to add, not what it may do.** The shape was decided by the
@@ -266,10 +276,12 @@ run, against live or in the sandbox.**
   roles, which is a decision for a person.
 - **Changing a department's sections re-shapes nothing.** Adding Finance to a
   department later does not give its existing roles Finance.
-- **3 seeded roles arrive empty** (see above) until the library files those
-  three oversight titles somewhere their shape holds something.
-- **The CFO re-filing reaches new departments only.** A studio already seeded
-  keeps its CFO role under Administration, with whatever it was copied with.
+- **18 library rows arrive empty when added by hand** (see above) — none of
+  them seeded — until the library files each somewhere its shape holds
+  something.
+- **The four re-filings reach new departments only.** A studio already seeded
+  keeps its CFO (and the other three) under Administration, with whatever each
+  was copied with.
 - **No role hierarchy.** A role does not report to another role; only
   departments have a parent.
 - **No approval routing by role or by department manager.** The manager is

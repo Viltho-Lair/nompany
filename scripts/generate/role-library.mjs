@@ -75,6 +75,20 @@ const NAME_ARCHETYPE = [
 // industry's own chart. A rule only fires if the industry actually has that
 // department, so "PRC" is skipped for a consultancy that does not buy.
 const DEPARTMENT_HINTS = [
+  // THREE OVERSIGHT TITLES THE TIER FALLBACK FILED UNDER ADMINISTRATION, where
+  // neither `money` nor `checker` names anything — so each arrived with no
+  // access once a library role was confined to its department's sections.
+  // Exact titles, ahead of the broad rules, so nothing else moves:
+  //   the audit committee answers for the accounts;
+  //   an auditor general inspects, and Public Administration's inspection
+  //     department is where the checker's registers are;
+  //   a chief compliance officer goes to the compliance department where the
+  //     trade has one (Financial Services' CMP, where it already sat), then
+  //     quality, then — in Administrative & Support Services, which has
+  //     neither — the contract operations whose delivery it oversees.
+  [/\baudit committee\b/i, ["FIN"]],
+  [/\bauditor general\b/i, ["INS", "QHS", "QA", "HSE"]],
+  [/\bchief compliance officer\b/i, ["CMP", "QHS", "QA", "HSE", "INS", "OPS"]],
   [/\b(accountant|accounts|finance|financial|treasur|payroll|bursar|billing|invoic|credit|tax|cost control|cost engineer|quantity surveyor)\b/i, ["FIN", "QS", "PCT", "PLN"]],
   [/\b(hr|human resources|recruit|personnel|training|learning|talent|welfare|compensation)\b/i, ["HR", "MOB"]],
   [/\b(procurement|buyer|purchas|sourcing|subcontract|expedit|vendor)\b/i, ["PRC", "BUY"]],
