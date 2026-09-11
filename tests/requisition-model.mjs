@@ -18,6 +18,11 @@ const root = pathToFileURL(`${process.cwd()}/`).href;
 register(new URL("./loader.mjs", import.meta.url), { data: { root } });
 
 const M = await import("@/modules/procurement/model");
+// BOTH IMPORTS AT THE TOP. Imported mid-file, after the first block had run,
+// this exited 127 on Windows with every assertion passing — libuv's
+// `UV_HANDLE_CLOSING` assert, the loader hook's thread torn down under
+// `process.exit`. permit-model.mjs has the same two imports up here and exits 0.
+const B = await import("@/modules/procurement/bulkNeeds");
 
 let fails = 0;
 const ok = (label, cond, extra = "") => {
@@ -124,7 +129,6 @@ console.log("\n== ordering what a Bulk sheet still needs (tier 5)");
 // THE DEFECT THIS GUARDS IS BUYING TWICE. Nothing links an order back to a
 // sheet row, so "needed" is what was sold less what is allocated less what is
 // already ASKED FOR — a second press must find the first press's requisitions.
-const B = await import("@/modules/procurement/bulkNeeds");
 const groups = [
   { id: "v1", title: "Acme", rows: [
     { itemId: "cam", description: "Camera", unit: "pc", qty: 10, serials: ["s1", "s2"] },
@@ -165,4 +169,6 @@ const withOrders = B.askedFor("p1",
 ok("a converted order is not counted on top of its requisition", withOrders.get("cam") === 7, String(withOrders.get("cam")));
 
 console.log(`\n${fails ? `${fails} FAILURES` : "all passed"}\n`);
-process.exit(fails ? 1 : 0);
+// exitCode, not exit(): see the imports above — the natural shutdown waits for
+// the loader's thread instead of tearing it down mid-close.
+process.exitCode = fails ? 1 : 0;
