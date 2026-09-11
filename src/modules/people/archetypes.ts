@@ -24,7 +24,7 @@
 // catalogue's verb ladder, free to disagree with it about what "edit" means.
 
 import { AREAS, SECTION_AREAS, keysForLevel, type Level } from "@/platform/access";
-import { SECTION_DEFS, isSystemSection } from "@/platform/db/keys";
+import { SECTION_DEFS, isSystemSection, isFiledOnlySection } from "@/platform/db/keys";
 import { NEVER_GATED_KEYS } from "@/shared/tradeSections";
 
 export type ArchetypeId =
@@ -597,6 +597,10 @@ const rootOf = (key: string) => ROOT_OF.get(key) || key;
 // as well as moving stock under Inventory — and either one keeps it.
 const AREA_ROOTS = new Map<string, Set<string>>();
 for (const [sectionKey, areas] of Object.entries(SECTION_AREAS)) {
+  // A FILED-ONLY SECTION OPENS NOTHING (keys.ts), so it says nothing about
+  // which department an area belongs to: `projects.sla` is Maintenance's, and
+  // counting `projects-sla` would hand service contracts to every Projects role.
+  if (isFiledOnlySection(sectionKey)) continue;
   for (const area of areas) {
     const roots = AREA_ROOTS.get(area) || new Set<string>();
     roots.add(rootOf(sectionKey));

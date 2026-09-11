@@ -22,6 +22,8 @@ const R = await import("@/modules/maintenance/reliability");
 const X = await import("@/modules/administration/taxonomy");
 const P = await import("@/modules/maintenance/parts");
 const MT = await import("@/modules/maintenance/meters");
+const C = await import("@/modules/maintenance/contracts");
+const L = await import("@/modules/maintenance/legacy");
 
 let fails = 0;
 const ok = (label, cond, extra = "") => {
@@ -432,6 +434,118 @@ console.log("\n== meter plans");
   ok("floating: cancelled skips that trigger", S.nextDueReadingOnClose(fl, answering, "Cancelled", 1310) === 1500);
   ok("fixed: nothing moves on close", S.nextDueReadingOnClose(mp(), answering, "Completed", 1310) === null);
   ok("a calendar close leaves a meter plan alone", S.nextDueOnClose(fl, { pmPlanId: "p9", pmDueOn: "" }, "Completed", "2026-09-11") === null);
+}
+
+// SERVICE CONTRACTS (SLA) — the maintenance a studio sells. THE DEFECTS GUARDED:
+// a visit that was a checkbox nobody was assigned to; the first run after this
+// shipped raising a year of overdue orders for every contract a studio had;
+// a contract its plans already keep raising a second set of visits; a call-out
+// taken past the allowance or outside the term.
+console.log("\n== service contracts");
+{
+  const sla = (over = {}) => ({
+    id: "s1", title: "Chillers", startDate: "2026-01-01", durationDays: 365, visits: 4, emergencyVisits: 2, leadDays: 0, ...over,
+  });
+  const days = C.plannedVisits(sla()).map((v) => v.dueOn).join(",");
+  // THE PROJECTS SCREEN'S ARITHMETIC, KEPT: start + k × (duration ÷ visits),
+  // rounded — so every contract already written keeps the dates it showed.
+  ok("visits spread evenly across the term", days === "2026-04-02,2026-07-03,2026-10-02,2027-01-01", days);
+  ok("the last visit lands on the end", C.plannedVisits(sla()).at(-1).dueOn === C.contractEnd(sla()));
+  ok("no start, no schedule", C.plannedVisits(sla({ startDate: "" })).length === 0);
+
+  ok("before the start it has not started", C.contractState(sla(), "2025-12-31") === "upcoming");
+  ok("inside the term it is active", C.contractState(sla(), "2026-06-01") === "active");
+  ok("after the end it has ended", C.contractState(sla(), "2027-01-02") === "ended");
+  ok("cancelled is the one stored state", C.contractState(sla({ status: "Cancelled" }), "2026-06-01") === "cancelled");
+
+  const v = (orders, today, over) => C.contractVisits(sla(over), orders, today);
+  const o = (visit, status, extra = {}) => ({ id: `o${visit}`, reference: `WO-${visit}`, slaId: "s1", slaVisit: visit, status, ...extra });
+  ok("a completed order makes the visit done", v([o(1, "Completed")], "2026-05-01")[0].state === "done");
+  ok("a closed one too", v([o(1, "Closed")], "2026-05-01")[0].state === "done");
+  ok("an open order is open work", v([o(1, "In progress")], "2026-04-03")[0].state === "open");
+  ok("a cancelled order nobody ticked is cancelled", v([o(1, "Cancelled")], "2026-05-01")[0].state === "cancelled");
+  ok("a hand tick with no order is done", v([], "2026-05-01", { completedVisits: [1] })[0].state === "done");
+  ok("long past with nothing raised is MISSED", v([], "2026-05-01")[0].state === "missed");
+  ok("inside the grace it is still due", v([], "2026-04-05")[0].state === "due");
+  ok("on the day, due", v([], "2026-04-02")[0].state === "due");
+  ok("before its lead days, upcoming", v([], "2026-03-20")[0].state === "upcoming");
+  ok("inside its lead days, due", v([], "2026-03-20", { leadDays: 14 })[0].state === "due");
+  ok("a cancelled contract's unraised visits are cancelled, not due", v([], "2026-04-02", { status: "Cancelled" })[0].state === "cancelled");
+  ok("a call-out is not a planned visit", v([o(1, "Completed", { slaEmergency: true })], "2026-04-02")[0].state === "due");
+  ok("another contract's order is not this one's", v([o(1, "Completed", { slaId: "s2" })], "2026-04-02")[0].state === "due");
+
+  const d = C.contractRaiseDecision(sla(), [], "2026-04-02");
+  ok("the run raises the visit that is due", d?.visit === 1 && d.dueOn === "2026-04-02" && d.of === 4);
+  ok("...and not again once it has an order", C.contractRaiseDecision(sla(), [o(1, "Open")], "2026-04-02") === null);
+  ok("A YEAR BEHIND RAISES NOTHING OLD", C.contractRaiseDecision(sla(), [], "2026-12-20") === null);
+  ok("one visit a run, the earliest", C.contractRaiseDecision(sla({ visits: 365 }), [], "2026-01-05")?.visit === 1);
+  ok("a cancelled contract raises nothing", C.contractRaiseDecision(sla({ status: "Cancelled" }), [], "2026-04-02") === null);
+  ok("A CONTRACT ITS PLANS KEEP RAISES NOTHING ITSELF", C.contractRaiseDecision(sla(), [], "2026-04-02", true) === null);
+
+  const co = (status) => ({ slaId: "s1", slaEmergency: true, status });
+  ok("call-outs used counts orders not cancelled", C.callOutsUsed(sla(), [co("Open"), co("Cancelled"), co("Closed")]) === 2);
+  ok("...and the dated lines from before", C.callOutsUsed(sla({ emergencyVisitsList: [{ id: "e1", date: "2026-02-01", completed: true }] }), [co("Open")]) === 2);
+  ok("a call-out inside the allowance is allowed", C.callOutProblem(sla(), [co("Open")], "2026-06-01") === null);
+  ok("PAST THE ALLOWANCE IT IS REFUSED", C.callOutProblem(sla(), [co("Open"), co("Open")], "2026-06-01") === "emergency-cap");
+  ok("no allowance, no call-outs", C.callOutProblem(sla({ emergencyVisits: 0 }), [], "2026-06-01") === "emergency-cap");
+  ok("outside the term is refused", C.callOutProblem(sla(), [], "2027-02-01") === "outside-term");
+  ok("a cancelled contract takes none", C.callOutProblem(sla({ status: "Cancelled" }), [], "2026-06-01") === "contract-cancelled");
+
+  ok("a whole contract saves", C.contractProblem(sla()) === null);
+  ok("it needs a name", C.contractProblem(sla({ title: " " })) === "contract-title");
+  ok("...and a start", C.contractProblem(sla({ startDate: "" })) === "startDate");
+  ok("a length of nought is refused", C.contractProblem(sla({ durationDays: 0 })) === "duration");
+  ok("half a visit is refused, not rounded", C.contractProblem(sla({ visits: 0.5 })) === "visits");
+  ok("more visits than days is refused", C.contractProblem(sla({ durationDays: 3, visits: 4 })) === "visits");
+  ok("a negative allowance is refused", C.contractProblem(sla({ emergencyVisits: -1 })) === "emergency");
+  ok("lead days past 60 are refused", C.contractProblem(sla({ leadDays: 61 })) === "lead-days");
+  ok("a cover nobody offers is refused", C.contractProblem(sla({ cover: "gold" })) === "cover");
+  ok("a negative value is refused", C.contractProblem(sla({ value: -5 })) === "value");
+  ok("a blank value is 'not stated', not refused", C.contractProblem(sla({ value: "" })) === null);
+
+  const s = C.contractSummary(sla(), [o(1, "Completed")], "2026-05-01");
+  ok("the summary counts what is done and what is next", s.done === 1 && s.planned === 4 && s.next?.index === 2, JSON.stringify(s));
+  const kept = C.contractSummary(sla(), [{ slaId: "s1", status: "Completed" }, { slaId: "s1", status: "Open" }], "2026-05-01", true);
+  ok("kept by plans: its visits are its plans' orders", kept.keptByPlans && kept.planned === 2 && kept.done === 1 && kept.next === null && kept.missed === 0);
+  // PURE, so the screen can import it.
+  ok("the contracts module reaches no store", !/@\/platform/.test((await import("node:fs")).readFileSync("src/modules/maintenance/contracts.ts", "utf8")));
+}
+
+// THE FOLD OF THE THREE OLD REGISTERS — pure mappings, so a dry run and the
+// tests read the same decisions. THE DEFECTS GUARDED: a draft contract starting
+// to raise visits the day it was folded; a plan with a frequency nothing reads
+// raising work on a schedule nobody chose; a Done record arriving as open work.
+console.log("\n== folding the old registers");
+{
+  const meta = (status, reference = "X-1") => ({ status, reference, createdAt: "2026-01-01T09:00:00.000Z" });
+  const c = L.contractFromLegacy(
+    { title: "Lift care", customer: "Acme", cover: "Labour only", startsOn: "2026-01-01", endsOn: "2027-01-01", visitsPerYear: 12, value: 1200 },
+    meta("Active"), ["u1"]);
+  ok("a Field Service contract keeps its term", c.startDate === "2026-01-01" && c.durationDays === 365);
+  ok("...its visits per year become visits over the term", c.visits === 12);
+  ok("...its cover becomes a token", c.cover === "labour");
+  ok("...its annual value becomes the value over the term", c.value === 1200);
+  ok("...and the units its plans service", c.installedIds.join() === "u1");
+  ok("an active one is not cancelled", c.status === "");
+  ok("A DRAFT ARRIVES CANCELLED, so it raises nothing until reinstated", L.contractFromLegacy({ title: "d" }, meta("Draft"), []).status === "Cancelled");
+  ok("no dates, a year from when it was written", L.contractFromLegacy({ title: "d" }, meta("Active"), []).durationDays === 365);
+  ok("a folded contract is one the screen would save", C.contractProblem(c) === null);
+
+  const p = L.planFromLegacy({ title: "Monthly lift check", frequency: "Monthly", nextDue: "2026-10-01", tasks: "Doors\nBrakes\n", installed: "u1", asset: "Tower B" }, meta("Active"), "s9", "2026-09-11");
+  ok("a Field Service plan keeps its frequency and next date", p.frequency === "Monthly" && p.nextDue === "2026-10-01");
+  ok("...its tasks become the checklist", p.checklist.join("|") === "Doors|Brakes");
+  ok("...its unit and its contract", p.installedId === "u1" && p.slaId === "s9");
+  ok("...its free-text site stays readable", p.description === "Tower B");
+  ok("A FREQUENCY NOTHING READS ARRIVES PAUSED", L.planFromLegacy({ title: "x", frequency: "Fortnightly" }, meta("Active"), "", "2026-09-11").status === "Paused");
+  ok("a retired plan stays retired", L.planFromLegacy({ title: "x", frequency: "Monthly" }, meta("Retired"), "", "2026-09-11").status === "Retired");
+
+  const done = L.orderFromLegacy({ title: "Oil change", kind: "Preventive", completedOn: "2026-03-01", notes: "Changed", cost: 80, asset: "m1" }, meta("Done"));
+  ok("A DONE RECORD ARRIVES COMPLETED, with when", done.status === "Completed" && done.stamps.completedAt.startsWith("2026-03-01"));
+  ok("...what was done is its notes", done.stamps.resolution === "Changed");
+  ok("...its kind is the order's type", done.fields.type === "preventive" && done.fields.assetId === "m1");
+  ok("...and its cost is kept", done.fields.legacyCost === 80);
+  ok("a due record arrives open", L.orderFromLegacy({ title: "t" }, meta("Due")).status === "Open");
+  ok("a skipped one arrives cancelled", L.orderFromLegacy({ title: "t" }, meta("Skipped")).status === "Cancelled");
 }
 
 console.log("\n== vocabulary");

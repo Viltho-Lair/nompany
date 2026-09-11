@@ -113,6 +113,28 @@ export const WorkOrderSchema = z.object({
   failure: z.object({ problem: z.string(), cause: z.string(), remedy: z.string() }).optional(),
   /** For a METER plan's order: the reading it answers — idempotency, as `pmDueOn` is for a date. */
   pmDueReading: z.number().optional(),
+  /**
+   * A CUSTOMER'S UNIT rather than the studio's own machine — an engine
+   * `installed` record. The two are different registers because they are
+   * different things: what the studio owns, and what it looks after for a
+   * customer. An order names either, or neither.
+   */
+  installedId: z.string().max(60).optional(),
+  /** The service contract this work answers, or "" — see ./contracts. */
+  slaId: z.string().max(60).optional(),
+  /** Which planned visit it is (1-based) — idempotency for the daily run. */
+  slaVisit: z.number().optional(),
+  /** A call-out under the contract's allowance, rather than a planned visit. */
+  slaEmergency: z.boolean().optional(),
+  /** The engine record this was folded from, so a re-run of the fold skips it. */
+  legacyRecordId: z.string().optional(),
+  /**
+   * WHAT THE OLD ASSETS REGISTER RECORDED THIS COST — its only cost figure. An
+   * order's own cost comes from the stock ledger, which never saw that work, so
+   * without this it would read as free. Written by the fold alone; shown on the
+   * order.
+   */
+  legacyCost: z.number().nullable().optional(),
   createdByCollaboratorId: z.string(),
   createdAt: z.string(),
   updatedAt: z.string(),
@@ -157,6 +179,12 @@ export const PmPlanSchema = z.object({
   meterUnit: z.string().optional(),
   meterEvery: z.number().optional(),
   nextDueReading: z.number().nullable().optional(),
+  /** A customer's unit (engine `installed`) the plan services, or "". */
+  installedId: z.string().max(60).optional(),
+  /** The service contract the plan fulfils, or "". Carried onto every order. */
+  slaId: z.string().max(60).optional(),
+  /** The Field Service plan this was folded from, so a re-run skips it. */
+  legacyRecordId: z.string().optional(),
   /** Active · Paused · Retired. */
   status: z.string(),
   createdByCollaboratorId: z.string(),
@@ -185,6 +213,77 @@ export const MeterReadingSchema = z.object({
   createdAt: z.string(),
 });
 export type MeterReading = z.infer<typeof MeterReadingSchema>;
+
+/**
+ * ONE EMERGENCY CALL-OUT RECORDED BEFORE 11/09/2026, when a call-out was a
+ * dated line on the contract rather than a work order. Still read — each one
+ * counts against the allowance — and no longer written.
+ */
+export const EmergencyVisitSchema = z.object({
+  id: z.string().max(30),
+  date: z.string().max(10),
+  completed: z.boolean(),
+});
+export type EmergencyVisit = z.infer<typeof EmergencyVisitSchema>;
+
+/**
+ * A SERVICE CONTRACT (SLA) — the maintenance a studio sells: a period, a number
+ * of planned visits spread evenly across it, and an allowance of call-outs.
+ *
+ * FILED IN `slas` UNDER `projects-sla`, where every contract was written while
+ * this was Projects' screen; Maintenance reads it as a foreign section
+ * (FILED_ONLY_SECTION_KEYS in keys.ts). LOOSE and mostly optional, because the
+ * rows already stored predate every field added on 11/09/2026.
+ *
+ * THE VISIT DATES ARE NOT STORED — ./contracts derives them from the start,
+ * duration and count, so editing any of the three reschedules every visit. What
+ * a visit CAME TO is read off the work order that names it (`slaId` +
+ * `slaVisit`); `completedVisits` is the older hand tick, still honoured.
+ */
+export const SlaSchema = z.looseObject({
+  id: z.string(),
+  studioId: z.string(),
+  sectionId: z.string(),
+  title: z.string().optional(),
+  /** "Cancelled" is the one stored state; the rest are read off the dates. */
+  status: z.string().optional(),
+  /** The delivered project the contract follows, when there is one. */
+  projectId: z.string().optional(),
+  signingDate: z.string().optional(),
+  startDate: z.string().optional(),
+  durationDays: z.number().optional(),
+  /** How many planned visits the duration is divided into. At least one. */
+  visits: z.number().optional(),
+  /** The ALLOWANCE, not the list — how many call-outs the contract permits. */
+  emergencyVisits: z.number().optional(),
+  notes: z.string().optional(),
+  /** Who the contract is with — typed, as the installed base types it. */
+  customer: z.string().max(200).optional(),
+  /** One of CONTRACT_COVERS, or "". */
+  cover: z.string().optional(),
+  /** What the contract is worth over its term, in the studio's currency. */
+  value: z.number().nullable().optional(),
+  /** Where the visits happen — a Master-data location. */
+  locationId: z.string().max(60).optional(),
+  /** The customer's units it covers — engine `installed` records. */
+  installedIds: z.array(z.string()).optional(),
+  /** Who each visit's work order goes to (invariant 6). */
+  assignedToCollaboratorIds: z.array(z.string()).optional(),
+  /** Days before a visit its work order is raised. */
+  leadDays: z.number().optional(),
+  /** Step labels; every visit's order gets its own ticked copy. */
+  checklist: z.array(z.string().max(200)).optional(),
+  /** Indexes of planned visits ticked done by hand, 1-based. */
+  completedVisits: z.array(z.number()).optional(),
+  emergencyVisitsList: z.array(EmergencyVisitSchema).optional(),
+  /** The Field Service contract this was folded from, so a re-run skips it. */
+  legacyRecordId: z.string().optional(),
+  cancelledAt: z.string().optional(),
+  createdByCollaboratorId: z.string().optional(),
+  createdAt: z.string().optional(),
+  updatedAt: z.string().optional(),
+});
+export type Sla = z.infer<typeof SlaSchema>;
 
 /**
  * TIME BOOKED AGAINST A WORK ORDER — its own collection rather than an array on

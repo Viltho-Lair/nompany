@@ -14,7 +14,7 @@ import { useAnalyticsLevel } from "@/components/studio2/analyticsLevel";
 import { StatusPill } from "@/components/studio2/StatusPill";
 import SelectMenu from "@/components/fields/SelectMenu";
 import {
-  panel, h2, sub, input, inputRO, microLabel, label, btn, btnGhost, th, stripeOn, stripeOff,
+  panel, h2, sub, input, inputRO, microLabel, label, btn, btnGhost, th,
   money, fmtDate, useTablePrefs,
   Dialog, Toolbar, FilterButton, FilterPanel, ColumnPicker, Empty,
 } from "@/components/studio2/ui";
@@ -28,10 +28,7 @@ import Combo from "@/components/studio2/Combo";
 // module specifier a second time.
 import { Field, BARE_CONTROL } from "@/components/fields/Field";
 import StudioDate from "@/components/fields/StudioDate";
-import {
-  slaVisits, emergencyVisits, nextVisit, contractEndDate, supportStatus,
-  fmtDate as slaDate,
-} from "@/modules/projects/sla";
+import { supportStatus, fmtDate as slaDate } from "@/modules/projects/sla";
 import { hoursBetween } from "@/modules/projects/projectSchedule";
 import { useReload } from "@/components/studio2/useReload";
 
@@ -43,8 +40,9 @@ const ProjectsDashboard = nextDynamic(() => import("@/components/studio2/Project
   loading: () => <ScreenSkeleton />,
 });
 
-// Projects: delivery work opened from an approved quotation, the support
-// contracts that follow it, and the overtime logged against it. Progress is the
+// Projects: delivery work opened from an approved quotation and the overtime
+// logged against it. (The support contracts that follow a project are
+// Maintenance's service contracts since 11/09/2026.) Progress is the
 // project plan's overall completion (read back through the plans index), read-
 // only on this screen — the schedule that moves it lives in the planner, opened
 // from the project board. The chrome comes from studio2/ui.
@@ -109,7 +107,7 @@ const StudioDataGrid = nextDynamic(() => import("@/components/studio2/StudioData
 // `view` is the ACTIVE SUB-SECTION key, so each sub-section is its own screen:
 //   projects            -> the dashboard: the board, the counts, the next visits
 //   projects-list       -> the project list and its detail
-//   projects-sla        -> support contracts and their visit schedules
+//   projects-sla        -> a pointer: service contracts are Maintenance's now
 //   projects-overtimes  -> hours logged outside the plan
 //   projects-settings   -> requirement weights, default OT department, stages
 export default function StudioProjects({ slug, view = "projects" }) {
@@ -133,7 +131,7 @@ export default function StudioProjects({ slug, view = "projects" }) {
   // Documents one.
   useLiveUpdates(slug, "crm-sales", load);
 
-  // `kind` is the sub-path: "" for the section itself, "sla", "overtimes".
+  // `kind` is the sub-path: "" for the section itself, or "overtimes".
   const send = useCallback(async (kind, method, payload) => {
     setError("");
     const url = kind ? `/api/studios/${slug}/projects/${kind}` : `/api/studios/${slug}/projects`;
@@ -151,8 +149,6 @@ export default function StudioProjects({ slug, view = "projects" }) {
         // clients section — the form's `ready` gate cannot pre-empt it, because
         // it only knows the typed name, not whether the section exists.
         : out.error === "client" ? tr.noClientsListHere
-        : out.error === "startDate" ? tr.startDateRequiredVisit
-        : out.error === "emergency-cap" ? tr.nEmergencyVisitsAllowed(out.cap)
         : out.error === "project" ? tr.pickProject
         : out.error === "date" ? tr.pickDate
         : out.error === "times" ? tr.endTimeMustAfter
@@ -172,8 +168,8 @@ export default function StudioProjects({ slug, view = "projects" }) {
   // it under another name only to never read it made the same point, and cost a
   // lint warning to say it.
   const {
-    canManageList, canManageSla, canManageOvertimes, canManageSettings,
-    projects, approvedQuotations, people, clients = [], slas, overtimes, directory, settings, vocabulary, nav,
+    canManageList, canManageOvertimes, canManageSettings,
+    projects, approvedQuotations, people, clients = [], overtimes, directory, settings, vocabulary, nav,
   } = data;
   // MANAGE IS ASKED OF THE SCREEN BEING SHOWN — here by the canManageX flag
   // handed to each screen below, one per sub-section, each resolved from that
@@ -183,12 +179,16 @@ export default function StudioProjects({ slug, view = "projects" }) {
   // for all of them, which is the thing that was wrong in the first place.
   const banner = error && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>;
 
+  // SERVICE CONTRACTS ARE MAINTENANCE'S NOW (11/09/2026). This address is not
+  // in the sidebar any more, but a bookmark or an old link still lands here, so
+  // it says where they went rather than rendering a register that moved.
   if (view === "projects-sla") {
     return (
-      <div className="space-y-6">
-        {banner}
-        <Slas slas={slas} projects={projects} canManage={canManageSla}
-          onSave={(method, payload) => send("sla", method, payload)} />
+      <div className="space-y-4">
+        <Empty title={tr.slaMovedTitle} body={tr.slaMovedBody} />
+        <p className="text-center">
+          <a className={`${btn} inline-block`} href={`/${slug}/maintenance-contracts`}>{tr.openServiceContracts}</a>
+        </p>
       </div>
     );
   }
@@ -237,7 +237,7 @@ export default function StudioProjects({ slug, view = "projects" }) {
       {banner}
       {data.canViewDashboard === false
         ? <Empty title={tr.dashboardIsnYoursSee} body={tr.studioKeepsModuleDashboards} />
-        : <ProjectsDashboard projects={projects} slas={slas} overtimes={overtimes} people={people} level={level} slug={slug} nav={nav} />}
+        : <ProjectsDashboard projects={projects} overtimes={overtimes} people={people} level={level} slug={slug} nav={nav} />}
     </div>
   );
 }
@@ -797,290 +797,6 @@ function ProjectDetail({ project: p, people, stages, canManage, slug, nav, onSav
           : <span />}
         <button className={btnGhost} onClick={onClose}>{tr.close}</button>
       </div>
-    </>
-  );
-}
-
-// ---- SLA -------------------------------------------------------------------
-// A support contract and the visits it owes. The planned schedule is DERIVED
-// from the start, duration and count — change any of them and every date moves —
-// so only the ticks and the emergency call-outs are stored.
-function Slas({ slas, projects, canManage, onSave }) {
-  const tr = projectsDict(useStudioLocale());
-  const [form, setForm] = useState(null);   // { row } | { row: null }
-  const [detail, setDetail] = useState(null);
-  const closeForm = useCallback(() => setForm(null), []);
-  const closeDetail = useCallback(() => setDetail(null), []);
-  const projectsById = useMemo(() => Object.fromEntries(projects.map((p) => [p.id, p])), [projects]);
-  const projName = (sla) => projectsById[sla.projectId]?.title || "—";
-
-  // Keep the open visits dialog on the freshly loaded contract after a tick.
-  useEffect(() => {
-    setDetail((cur) => (cur ? slas.find((s) => s.id === cur.id) || null : null));
-  }, [slas]);
-
-  if (slas.length === 0) {
-    return (
-      <>
-        <Toolbar canManage={canManage} label={tr.addSla} onAdd={() => setForm({ row: null })} />
-        {form && (
-          <Dialog title={tr.addSlaContract} description={tr.visitScheduleGeneratedStart} onClose={closeForm}>
-            <SlaForm row={null} projects={projects} onCancel={closeForm}
-              onSave={async (p) => { const ok = await onSave("POST", p); if (ok) setForm(null); }} />
-          </Dialog>
-        )}
-        <Empty title={tr.noSlaContractsYet} body={tr.contractCoversDeliveredProject} />
-      </>
-    );
-  }
-
-  return (
-    <>
-      <Toolbar canManage={canManage} label={tr.addSla} onAdd={() => setForm({ row: null })} />
-
-      {form && (
-        <Dialog title={form.row ? `Edit ${form.row.title}` : tr.addSlaContract}
-          description={tr.visitScheduleGeneratedStart}
-          onClose={closeForm}>
-          <SlaForm row={form.row} projects={projects} onCancel={closeForm}
-            onSave={async (p) => {
-              const ok = await onSave(form.row ? "PUT" : "POST", form.row ? { ...p, id: form.row.id } : p);
-              if (ok) setForm(null);
-            }} />
-        </Dialog>
-      )}
-
-      {detail && (
-        <Dialog title={detail.title || tr.slaContract} description={`${projName(detail)} · signed ${slaDate(detail.signingDate)}`}
-          onClose={closeDetail} width="max-w-[620px]">
-          <SlaVisits sla={detail} canManage={canManage} onSave={(patch) => onSave("PUT", { id: detail.id, ...patch })} onClose={closeDetail} />
-        </Dialog>
-      )}
-
-      <p className="text-sm text-slate-500 dark:text-slate-400">
-        {slas.length} SLA {slas.length === 1 ? "contract" : "contracts"} · ordered by signing date.
-      </p>
-
-      <section className={panel}>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[820px] border-collapse text-sm">
-            <thead>
-              <tr className="border-b border-slate-200 dark:border-white/10">
-                {[tr.contract, tr.project, tr.signed, tr.visits, tr.closestVisit].map((head) => (
-                  <th key={head} className={`${th} ps-2 text-start`}>{head}</th>
-                ))}
-                <th className={`${th} text-end`}>{tr.actions}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {slas.map((sla) => {
-                const next = nextVisit(sla);
-                const done = (sla.completedVisits || []).length;
-                // A contract with visits still owed and none of them upcoming has
-                // fallen behind — every remaining visit is in the past.
-                const behind = !next && done < (sla.visits || 0);
-                return (
-                  <tr key={sla.id}
-                    className={`border-s-4 border-b border-slate-100 last:border-b-0 dark:border-white/5 ${behind ? stripeOn : stripeOff}`}>
-                    <td className="py-3 pe-3 ps-2 font-600 text-slate-900 dark:text-white">{sla.title || "—"}</td>
-                    <td className="py-3 pe-3 ps-2 text-slate-600 dark:text-slate-300">{projName(sla)}</td>
-                    <td className="py-3 pe-3 ps-2 text-slate-500 dark:text-slate-400">{slaDate(sla.signingDate)}</td>
-                    <td className="py-3 pe-3 ps-2 text-slate-600 dark:text-slate-300">
-                      {done}/{sla.visits || 0}
-                      {Number(sla.emergencyVisits) > 0 && (
-                        <span className="ms-1.5 text-xs text-amber-600 dark:text-amber-400">
-                          +{(sla.emergencyVisitsList || []).length}/{sla.emergencyVisits} SOS
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-3 pe-3 ps-2 text-slate-600 dark:text-slate-300">
-                      {next
-                        ? <span>{slaDate(next.date)} <span className="ms-1 text-xs font-600 text-brand-700 dark:text-brand-300">({next.daysRemaining}d)</span></span>
-                        : <span className="text-slate-400">—</span>}
-                    </td>
-                    <td className="py-3 text-end">
-                      <span className="inline-flex gap-2">
-                        <button className={btnGhost} onClick={() => setDetail(sla)}>{tr.visits}</button>
-                        {canManage && <button className={btnGhost} onClick={() => setForm({ row: sla })}>{tr.edit}</button>}
-                        {canManage && <button className={btnGhost} onClick={() => onSave("DELETE", { id: sla.id })}>{tr.delete}</button>}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </section>
-    </>
-  );
-}
-
-function SlaForm({ row, projects, onSave, onCancel }) {
-  const tr = projectsDict(useStudioLocale());
-  const [f, setF] = useState({
-    title: row?.title || "",
-    projectId: row?.projectId || "",
-    signingDate: row?.signingDate || "",
-    startDate: row?.startDate || "",
-    durationDays: row?.durationDays ?? 365,
-    visits: row?.visits ?? 4,
-    emergencyVisits: row?.emergencyVisits ?? 0,
-    notes: row?.notes || "",
-  });
-  const [busy, setBusy] = useState(false);
-  const ready = f.title.trim() && f.startDate;
-  // The same maths the contract will use, previewed before it is saved.
-  const preview = useMemo(() => slaVisits({ ...f, completedVisits: [] }), [f]);
-
-  return (
-    <>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label={tr.contractName} required value={f.title} onChange={(v) => setF((s) => ({ ...s, title: v }))} />
-        <Field label={tr.project} as="select" value={f.projectId} onChange={(v) => setF((s) => ({ ...s, projectId: v }))}
-          options={projects.map((p) => ({ value: p.id, label: `${p.number} — ${p.title}` }))} />
-        <Field label={tr.signed} filled={!!f.signingDate}>
-          <StudioDate value={f.signingDate} onChange={(iso) => setF((s) => ({ ...s, signingDate: iso }))} />
-        </Field>
-        <Field label={tr.starts} required filled={!!f.startDate}>
-          <StudioDate value={f.startDate} onChange={(iso) => setF((s) => ({ ...s, startDate: iso }))} />
-        </Field>
-        <Field label={tr.durationDays} type="number" min="1" value={f.durationDays} onChange={(v) => setF((s) => ({ ...s, durationDays: v }))} />
-        <Field label={tr.plannedVisits} type="number" min="1" value={f.visits} onChange={(v) => setF((s) => ({ ...s, visits: v }))} />
-        <Field label={tr.emergencyAllowance} type="number" min="0" value={f.emergencyVisits} onChange={(v) => setF((s) => ({ ...s, emergencyVisits: v }))} />
-      </div>
-      <Field className="mt-4" label={tr.notes} as="textarea" value={f.notes} onChange={(v) => setF((s) => ({ ...s, notes: v }))} />
-
-      {preview.length > 0 && (
-        <div className="mt-4 rounded-xl border border-slate-200 bg-[var(--geex-inset)] p-3.5 dark:border-white/15">
-          <p className={microLabel}>{tr.schedule}</p>
-          <p className="text-xs text-slate-500 dark:text-slate-400">
-            Visits fall on {preview.slice(0, 3).map((v) => slaDate(v.date)).join(", ")}
-            {preview.length > 3 ? `… through ${slaDate(preview[preview.length - 1].date)}` : ""}. Changing any of the three fields above reschedules all of them.
-          </p>
-        </div>
-      )}
-
-      <div className="mt-5 flex gap-3">
-        <button className={btn} disabled={busy || !ready} onClick={async () => { setBusy(true); await onSave(f); setBusy(false); }}>
-          {busy ? tr.saving : row ? tr.saveContract : tr.addContract}
-        </button>
-        <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
-      </div>
-    </>
-  );
-}
-
-function SlaVisits({ sla, canManage, onSave, onClose }) {
-  const tr = projectsDict(useStudioLocale());
-  const [emergencyDate, setEmergencyDate] = useState("");
-  const [emergencyError, setEmergencyError] = useState("");
-  const planned = slaVisits(sla);
-  const emergency = emergencyVisits(sla);
-  const cap = Number(sla.emergencyVisits) || 0;
-  const end = contractEndDate(sla);
-
-  function toggleVisit(index) {
-    const set = new Set(Array.isArray(sla.completedVisits) ? sla.completedVisits : []);
-    if (set.has(index)) set.delete(index); else set.add(index);
-    onSave({ completedVisits: [...set].sort((a, b) => a - b) });
-  }
-
-  function addEmergency() {
-    setEmergencyError("");
-    if (!emergencyDate) return setEmergencyError(tr.pickDateFirst);
-    if (emergency.length >= cap) return setEmergencyError(tr.nEmergencyVisitsAllowed(cap));
-    if (end && new Date(emergencyDate) > end) return setEmergencyError(`Date must be on or before the contract end (${slaDate(end)}).`);
-    if (sla.startDate && new Date(emergencyDate) < new Date(sla.startDate)) {
-      return setEmergencyError(`Date must be on or after the contract start (${slaDate(sla.startDate)}).`);
-    }
-    onSave({
-      emergencyVisitsList: [
-        ...(sla.emergencyVisitsList || []),
-        { id: `ev_${Date.now().toString(36)}`, date: emergencyDate, completed: false },
-      ],
-    });
-    setEmergencyDate("");
-  }
-
-  const patchEmergency = (list) => onSave({ emergencyVisitsList: list });
-
-  return (
-    <>
-      <p className="text-sm text-slate-500 dark:text-slate-400">
-        Starts {slaDate(sla.startDate)} · {sla.durationDays || 365} days · {sla.visits || 0} planned visits
-        {end ? ` · ends ${slaDate(end)}` : ""}
-      </p>
-
-      <ul className="mt-4 space-y-2">
-        {planned.length === 0 && <li className="text-sm text-slate-400">{tr.setStartDateDuration}</li>}
-        {planned.map((v) => (
-          <li key={v.index} className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-2.5 text-sm ${v.completed ? "border-emerald-500/40 bg-emerald-500/5" : "border-slate-200 dark:border-white/10"}`}>
-            <label className={`flex min-w-0 flex-1 items-center gap-3 ${canManage ? "cursor-pointer" : ""}`}>
-              <input type="checkbox" checked={v.completed} disabled={!canManage} onChange={() => toggleVisit(v.index)}
-                className="h-4 w-4 cursor-pointer accent-emerald-600" />
-              <span className={`min-w-0 ${v.completed ? "text-emerald-700 line-through dark:text-emerald-300" : "text-slate-700 dark:text-slate-200"}`}>
-                Visit {v.index} · {slaDate(v.date)}
-              </span>
-            </label>
-            <span className={`shrink-0 font-600 ${v.completed ? "text-emerald-700 dark:text-emerald-300" : v.daysRemaining < 0 ? "text-slate-400" : "text-brand-700 dark:text-brand-300"}`}>
-              {v.completed ? "completed" : v.daysRemaining < 0 ? "past" : `${v.daysRemaining}d left`}
-            </span>
-          </li>
-        ))}
-      </ul>
-
-      {/* Emergency visits — ad hoc, off schedule, bounded by the allowance and
-          the contract's own end date. */}
-      <div className="mt-6 border-t border-slate-200/70 pt-5 dark:border-white/10">
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <h4 className="font-display text-sm font-700 text-slate-900 dark:text-white">{tr.emergencyVisits}</h4>
-          <span className="text-xs text-slate-400 dark:text-slate-500">{emergency.length}/{cap} used</span>
-        </div>
-        {cap === 0 ? (
-          <p className="text-sm text-slate-400">{tr.contractNoEmergencyVisits}</p>
-        ) : (
-          <>
-            <ul className="space-y-2">
-              {emergency.length === 0 && <li className="text-sm text-slate-400">{tr.noEmergencyVisitsRegistered}</li>}
-              {emergency.map((e) => (
-                <li key={e.id} className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-2.5 text-sm ${e.completed ? "border-emerald-500/40 bg-emerald-500/5" : "border-amber-500/30 bg-amber-500/5"}`}>
-                  <label className={`flex min-w-0 flex-1 items-center gap-3 ${canManage ? "cursor-pointer" : ""}`}>
-                    <input type="checkbox" checked={!!e.completed} disabled={!canManage}
-                      onChange={() => patchEmergency((sla.emergencyVisitsList || []).map((x) => (x.id === e.id ? { ...x, completed: !x.completed } : x)))}
-                      className="h-4 w-4 cursor-pointer accent-emerald-600" />
-                    <span className={`min-w-0 ${e.completed ? "text-emerald-700 line-through dark:text-emerald-300" : "text-slate-700 dark:text-slate-200"}`}>
-                      Emergency · {slaDate(e.date)}
-                    </span>
-                  </label>
-                  <span className={`shrink-0 font-600 ${e.completed ? "text-emerald-700 dark:text-emerald-300" : e.daysRemaining < 0 ? "text-slate-400" : "text-amber-700 dark:text-amber-300"}`}>
-                    {e.completed ? "completed" : e.daysRemaining < 0 ? "past" : `${e.daysRemaining}d left`}
-                  </span>
-                  {canManage && (
-                    <button type="button" className="shrink-0 text-xs font-600 text-rose-600 hover:underline dark:text-rose-400"
-                      onClick={() => patchEmergency((sla.emergencyVisitsList || []).filter((x) => x.id !== e.id))}>{tr.remove}</button>
-                  )}
-                </li>
-              ))}
-            </ul>
-            {canManage && emergency.length < cap && (
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <Field label={tr.date} filled={!!emergencyDate} className="sm:max-w-[200px]">
-                  <StudioDate value={emergencyDate}
-                    minDate={sla.startDate || undefined} maxDate={end ? end.toISOString().slice(0, 10) : undefined}
-                    onChange={(iso) => setEmergencyDate(iso)} />
-                </Field>
-                <button type="button" className="rounded-full bg-amber-600 px-4 py-2 text-sm font-600 text-white transition-colors hover:bg-amber-700" onClick={addEmergency}>
-                  {tr.registerEmergencyVisit}
-                </button>
-              </div>
-            )}
-            {emergencyError && <p className="mt-2 text-xs text-rose-600 dark:text-rose-400">{emergencyError}</p>}
-          </>
-        )}
-      </div>
-
-      <div className="mt-6 flex justify-end"><button className={btnGhost} onClick={onClose}>{tr.close}</button></div>
     </>
   );
 }

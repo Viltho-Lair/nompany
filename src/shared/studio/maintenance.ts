@@ -191,7 +191,70 @@ type Strings = {
   meterReset: string;
   lastReading: (n: number, unit: string, when: string) => string;
   removeLast: string;
+  contracts: string;
+  contractsSub: string;
+  newContract: string;
+  editContract: string;
+  contractTitle: string;
+  customer: string;
+  project: string;
+  noProject: string;
+  cover: string;
+  noCover: string;
+  coverName: (token: string) => string;
+  value: string;
+  signingDate: string;
+  startDate: string;
+  durationDays: string;
+  visitCount: string;
+  allowance: string;
+  endsOn: (date: string) => string;
+  units: string;
+  unitsHint: string;
+  noUnits: string;
+  contractState: (token: string) => string;
+  visitState: (token: string) => string;
+  visitsProgress: (done: number, total: number) => string;
+  missedCount: (n: number) => string;
+  nextVisit: (date: string) => string;
+  noNextVisit: string;
+  callOutsOf: (used: number, allowance: number) => string;
+  visitsTitle: (name: string) => string;
+  visitLine: (i: number, n: number) => string;
+  tickDone: string;
+  callOut: string;
+  callOutTitle: (name: string) => string;
+  callOutHint: string;
+  callOutsHeading: string;
+  noCallOuts: string;
+  legacyCallOut: (date: string) => string;
+  cancelContract: string;
+  reinstate: string;
+  visits: string;
+  noContracts: string;
+  noContractsBody: string;
+  notFiled: string;
+  schedulePreview: (first: string, last: string, n: number) => string;
+  scheduleHint: string;
+  installed: string;
+  noInstalled: string;
+  installedHidden: string;
+  installedDeleted: string;
+  contract: string;
+  noContract: string;
+  contractHidden: string;
+  contractDeleted: string;
+  callOutChip: string;
+  keptByPlans: (refs: string) => string;
+  legacyCost: string;
   refuse: Record<string, string>;
+};
+
+const EN_COVER: Record<string, string> = {
+  "parts-labour": "Parts and labour", labour: "Labour only", inspection: "Inspection only", full: "Full cover",
+};
+const AR_COVER: Record<string, string> = {
+  "parts-labour": "القطع والعمالة", labour: "العمالة فقط", inspection: "الفحص فقط", full: "تغطية كاملة",
 };
 
 const EN_FREQ: Record<string, string> = {
@@ -394,6 +457,64 @@ const en: Strings = {
   meterReset: "The meter was replaced or reset",
   lastReading: (n, u, when) => `Last: ${n} ${({ hours: "h", km: "km", cycles: "cycles" })[u] || u} on ${when}`,
   removeLast: "Remove it",
+  contracts: "Service contracts (SLA)",
+  contractsSub: "The maintenance you sell: a term, planned visits spread across it, and an allowance of call-outs. Each visit becomes a work order by itself when it falls due.",
+  newContract: "New contract",
+  editContract: "Edit contract",
+  contractTitle: "Contract name",
+  customer: "Customer",
+  project: "Project",
+  noProject: "No project",
+  cover: "Cover",
+  noCover: "Not stated",
+  coverName: (t) => EN_COVER[t] || t,
+  value: "Contract value",
+  signingDate: "Signed",
+  startDate: "Starts",
+  durationDays: "Length (days)",
+  visitCount: "Planned visits",
+  allowance: "Call-outs allowed",
+  endsOn: (d) => `Ends ${d}`,
+  units: "Customer's units covered",
+  unitsHint: "Equipment you installed for the customer that the contract covers, from Field Service's installed base.",
+  noUnits: "No units named",
+  contractState: (t) => ({ active: "Active", upcoming: "Not started", ended: "Ended", cancelled: "Cancelled" }[t] || t),
+  visitState: (t) => ({
+    done: "Done", open: "Work order open", due: "Due", upcoming: "Upcoming", missed: "Missed", cancelled: "Cancelled",
+  }[t] || t),
+  visitsProgress: (d, n) => `${d} of ${n} ${n === 1 ? "visit" : "visits"} done`,
+  missedCount: (n) => `${n} missed`,
+  nextVisit: (d) => `Next visit ${d}`,
+  noNextVisit: "No visits left",
+  callOutsOf: (u, a) => `${u} of ${a} call-outs used`,
+  visitsTitle: (name) => `Visits — ${name}`,
+  visitLine: (i, n) => `Visit ${i} of ${n}`,
+  tickDone: "Done outside the system",
+  callOut: "Log a call-out",
+  callOutTitle: (name) => `Call-out under ${name}`,
+  callOutHint: "A corrective work order under this contract, counted against its allowance.",
+  callOutsHeading: "Call-outs",
+  noCallOuts: "No call-outs yet.",
+  legacyCallOut: (d) => `Recorded call-out · ${d}`,
+  cancelContract: "Cancel contract",
+  reinstate: "Reinstate",
+  visits: "Visits",
+  noContracts: "No service contracts",
+  noContractsBody: "Add one for each customer you sell regular maintenance to — planned visits over a term, and an allowance of call-outs.",
+  notFiled: "This studio has nowhere to file a contract.",
+  schedulePreview: (first, last, n) => (n === 1 ? `One visit, on ${first}.` : `${n} visits, the first on ${first} and the last on ${last}.`),
+  scheduleHint: "Changing the start, the length or the number of visits reschedules every visit.",
+  installed: "Customer's unit",
+  noInstalled: "No customer unit",
+  installedHidden: "A unit you cannot open",
+  installedDeleted: "A unit since deleted",
+  contract: "Service contract",
+  noContract: "No contract",
+  contractHidden: "A contract you cannot open",
+  contractDeleted: "A contract since deleted",
+  callOutChip: "Call-out",
+  keptByPlans: (refs) => `Its visits are raised by its preventive ${refs ? `plans: ${refs}` : "plans"}.`,
+  legacyCost: "Cost recorded in the old register",
   refuse: {
     title: "Say what is wrong.",
     asset: "That machine is not in this studio's equipment register.",
@@ -441,6 +562,24 @@ const en: Strings = {
     "meter-unit": "Choose which meter the plan runs on.",
     "meter-every": "Every how many? Enter a number above nought.",
     "meter-next": "Enter the reading it is next due at.",
+    installed: "That unit is not in Field Service's installed base.",
+    contract: "That service contract does not exist.",
+    "not-covered": "This contract does not cover that unit.",
+    "contract-has-orders": "This contract has raised work orders — cancel it instead of deleting it.",
+    "contract-has-plans": "A preventive plan runs under this contract — retire the plan, or cancel the contract.",
+    "visit-has-order": "This visit has a work order — it is done when that order is.",
+    "contract-cancelled": "This contract is cancelled. Reinstate it first.",
+    "outside-term": "Today is outside this contract's term — raise an ordinary work order instead.",
+    "emergency-cap": "This contract's call-out allowance is used up.",
+    "contract-title": "Give the contract a name.",
+    startDate: "Give the date the contract starts.",
+    duration: "The length is a whole number of days, from 1 to 3650.",
+    visits: "Planned visits is a whole number from 1, and no more than the days in the term.",
+    emergency: "Call-outs allowed is a whole number, 0 or more.",
+    cover: "Choose what the contract covers.",
+    value: "The value is a number, 0 or more — or leave it blank.",
+    visit: "That visit is not on this contract.",
+    "no-contract-section": "This studio has nowhere to file a contract.",
   },
 };
 
@@ -638,6 +777,64 @@ const ar: Strings = {
   meterReset: "استبدل العداد أو أعيد ضبطه",
   lastReading: (n, u, when) => `الأخيرة: ${n} ${({ hours: "س", km: "كم", cycles: "دورة" })[u] || u} في ${when}`,
   removeLast: "حذفها",
+  contracts: "عقود الخدمة",
+  contractsSub: "الصيانة التي تبيعها: مدة، وزيارات مخططة موزعة عليها، وعدد مسموح من البلاغات الطارئة. كل زيارة تصبح أمر عمل تلقائيا عند استحقاقها.",
+  newContract: "عقد جديد",
+  editContract: "تعديل العقد",
+  contractTitle: "اسم العقد",
+  customer: "العميل",
+  project: "المشروع",
+  noProject: "بلا مشروع",
+  cover: "التغطية",
+  noCover: "غير محددة",
+  coverName: (t) => AR_COVER[t] || t,
+  value: "قيمة العقد",
+  signingDate: "تاريخ التوقيع",
+  startDate: "يبدأ",
+  durationDays: "المدة (بالأيام)",
+  visitCount: "الزيارات المخططة",
+  allowance: "البلاغات الطارئة المسموحة",
+  endsOn: (d) => `ينتهي ${d}`,
+  units: "وحدات العميل المشمولة",
+  unitsHint: "المعدات التي ركبتها لدى العميل ويغطيها العقد، من قاعدة المعدات المركبة في الخدمة الميدانية.",
+  noUnits: "لم تحدد وحدات",
+  contractState: (t) => ({ active: "ساري", upcoming: "لم يبدأ", ended: "منتهي", cancelled: "ملغى" }[t] || t),
+  visitState: (t) => ({
+    done: "منجزة", open: "أمر العمل مفتوح", due: "مستحقة", upcoming: "قادمة", missed: "فائتة", cancelled: "ملغاة",
+  }[t] || t),
+  visitsProgress: (d, n) => `${d} من ${n} زيارات منجزة`,
+  missedCount: (n) => `${n} فائتة`,
+  nextVisit: (d) => `الزيارة التالية ${d}`,
+  noNextVisit: "لا توجد زيارات متبقية",
+  callOutsOf: (u, a) => `${u} من ${a} بلاغات طارئة مستخدمة`,
+  visitsTitle: (name) => `الزيارات — ${name}`,
+  visitLine: (i, n) => `الزيارة ${i} من ${n}`,
+  tickDone: "نفذت خارج النظام",
+  callOut: "تسجيل بلاغ طارئ",
+  callOutTitle: (name) => `بلاغ طارئ ضمن ${name}`,
+  callOutHint: "أمر عمل تصحيحي ضمن هذا العقد، يحسب من العدد المسموح.",
+  callOutsHeading: "البلاغات الطارئة",
+  noCallOuts: "لا توجد بلاغات طارئة بعد.",
+  legacyCallOut: (d) => `بلاغ مسجل · ${d}`,
+  cancelContract: "إلغاء العقد",
+  reinstate: "إعادة تفعيل",
+  visits: "الزيارات",
+  noContracts: "لا توجد عقود خدمة",
+  noContractsBody: "أضف عقدا لكل عميل تبيعه صيانة دورية — زيارات مخططة خلال مدة، وعدد مسموح من البلاغات الطارئة.",
+  notFiled: "لا يوجد في هذا الحساب مكان لحفظ العقود.",
+  schedulePreview: (first, last, n) => (n === 1 ? `زيارة واحدة في ${first}.` : `${n} زيارات، الأولى في ${first} والأخيرة في ${last}.`),
+  scheduleHint: "تغيير البداية أو المدة أو عدد الزيارات يعيد جدولة كل الزيارات.",
+  installed: "وحدة العميل",
+  noInstalled: "بلا وحدة عميل",
+  installedHidden: "وحدة لا تملك صلاحية فتحها",
+  installedDeleted: "وحدة حذفت",
+  contract: "عقد الخدمة",
+  noContract: "بلا عقد",
+  contractHidden: "عقد لا تملك صلاحية فتحه",
+  contractDeleted: "عقد حذف",
+  callOutChip: "بلاغ طارئ",
+  keptByPlans: (refs) => `زياراته تنشئها خططه الوقائية${refs ? `: ${refs}` : ""}.`,
+  legacyCost: "التكلفة المسجلة في السجل القديم",
   refuse: {
     title: "اذكر ما المشكلة.",
     asset: "هذه الآلة ليست في سجل معدات هذا الحساب.",
@@ -685,6 +882,24 @@ const ar: Strings = {
     "meter-unit": "اختر العداد الذي تعمل عليه الخطة.",
     "meter-every": "كل كم؟ أدخل رقما أكبر من صفر.",
     "meter-next": "أدخل القراءة التي تستحق عندها الخطة.",
+    installed: "هذه الوحدة ليست في قاعدة المعدات المركبة.",
+    contract: "عقد الخدمة هذا غير موجود.",
+    "not-covered": "هذا العقد لا يغطي تلك الوحدة.",
+    "contract-has-orders": "أنشأ هذا العقد أوامر عمل — ألغه بدل حذفه.",
+    "contract-has-plans": "توجد خطة وقائية ضمن هذا العقد — أنه الخطة أو ألغ العقد.",
+    "visit-has-order": "لهذه الزيارة أمر عمل — تنجز حين ينجز.",
+    "contract-cancelled": "هذا العقد ملغى. أعد تفعيله أولا.",
+    "outside-term": "اليوم خارج مدة هذا العقد — أنشئ أمر عمل عاديا بدلا من ذلك.",
+    "emergency-cap": "استنفد العدد المسموح من البلاغات الطارئة في هذا العقد.",
+    "contract-title": "أعط العقد اسما.",
+    startDate: "حدد تاريخ بداية العقد.",
+    duration: "المدة عدد صحيح من الأيام بين 1 و3650.",
+    visits: "عدد الزيارات عدد صحيح من 1 ولا يزيد على أيام المدة.",
+    emergency: "البلاغات المسموحة عدد صحيح، صفر أو أكثر.",
+    cover: "اختر ما يغطيه العقد.",
+    value: "القيمة رقم، صفر أو أكثر — أو اتركها فارغة.",
+    visit: "هذه الزيارة ليست ضمن هذا العقد.",
+    "no-contract-section": "لا يوجد في هذا الحساب مكان لحفظ العقود.",
   },
 };
 

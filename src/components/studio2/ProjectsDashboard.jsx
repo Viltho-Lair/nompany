@@ -3,8 +3,10 @@
 // THE PROJECTS DASHBOARD (UI/UX overhaul §2.4, Projects). Built like the Finance
 // one — presentational, no fetch of its own — but Projects has NO analytics
 // module of its own, so every figure here is DERIVED INLINE from the records the
-// screen already holds: the projects list, the SLA contracts and the overtime
-// entries. Nothing is invented; each widget only summarises what exists.
+// screen already holds: the projects list and the overtime entries. Nothing is
+// invented; each widget only summarises what exists. (The support-visits widget
+// left with the service contracts, which are Maintenance's since 11/09/2026 —
+// a visit's state is read off its work order there, which this screen cannot.)
 //
 // ANALYTICS IS PAID, so each widget is gated by the per-component SELECTION model:
 // `useWidgetVisible()` answers whether this studio's tier includes a given widget
@@ -18,7 +20,6 @@ import { projectsDict } from "@/shared/studio/projects";
 import { Widget, StatRow, DashGrid, DashEmpty } from "@/components/dashboard";
 import { BarChart, BarList, Donut, Radial, ChartFrame, Scatter, ShareBar } from "@/components/charts";
 import { monthLabel, monthsBack, sumByMonth, rankTotals, peak, share } from "@/components/dashboard/series";
-import { allVisits } from "@/modules/projects/sla";
 import { useWidgetVisible } from "@/components/studio2/analyticsLevel";
 
 const STAGES = ["Received", "In Progress", "On Hold", "Completed"];
@@ -42,7 +43,7 @@ function monthKey(d) {
 }
 
 export default function ProjectsDashboard({
-  projects = [], slas = [], overtimes = [], people = [], slug = "", nav = {},
+  projects = [], overtimes = [], people = [], slug = "", nav = {},
 }) {
   const locale = useStudioLocale();
   const tr = projectsDict(locale);
@@ -51,7 +52,7 @@ export default function ProjectsDashboard({
   const amt = (n) => <span className="num">{money(n)}</span>;
 
   // Only the KPI row deep-links: StatTile takes an href, Widget does not, so
-  // the SLA and overtime widgets have nowhere to put one.
+  // the overtime widgets have nowhere to put one.
   const listHref = nav?.["projects-list"] ? `/${slug}/projects-list` : "";
 
   // ---- KPIs (basic) --------------------------------------------------------
@@ -97,22 +98,6 @@ export default function ProjectsDashboard({
     .slice(0, 6);
   const maxManager = Math.max(1, ...managers.map((m) => m.count));
 
-  // ---- SLA visits (moderate) ----------------------------------------------
-  // Every planned + emergency visit across every contract, bucketed by how it
-  // stands today. `daysRemaining` is negative in the past, so overdue is any
-  // uncompleted visit already gone by.
-  let vSoon = 0, vOverdue = 0, vCompleted = 0, vScheduled = 0;
-  for (const sla of slas) {
-    for (const v of allVisits(sla)) {
-      vScheduled += 1;
-      if (v.completed) { vCompleted += 1; continue; }
-      const d = v.daysRemaining;
-      if (d == null) continue;
-      if (d < 0) vOverdue += 1;
-      else if (d <= 30) vSoon += 1;
-    }
-  }
-
   // ---- timeline (moderate) -------------------------------------------------
   // Projects started (start date) and ended (target end) per month, across the
   // range those dates actually span — at most the last twelve months, so a very
@@ -129,8 +114,6 @@ export default function ProjectsDashboard({
     const sm = monthKey(p.startDate); if (sm && sm in startedBy) startedBy[sm] += 1;
     const em = monthKey(p.endDate); if (em && em in endedBy) endedBy[em] += 1;
   }
-
-  const otHours = round2(overtimes.reduce((s, o) => s + (Number(o.hours) || 0), 0));
 
   // ---- the richer half (10/09/2026) ---------------------------------------
   const rtl = locale === "ar";
@@ -230,28 +213,6 @@ export default function ProjectsDashboard({
           {managers.length ? (
             <BarList items={managers.map((m) => ({ label: m.name, value: Math.round((m.count / maxManager) * 100), display: num(m.count) }))} />
           ) : <p className="py-8 text-center text-sm text-slate-400">{tr.noOpenProjects}</p>}
-        </Widget>
-
-        <Widget title={tr.supportVisits} hint={tr.acrossEverySlaContract} locked={!visible("projects.support-visits")} lockedWhat={tr.supportVisits}>
-          {slas.length ? (
-            <div className="grid grid-cols-3 gap-3 py-2 text-center">
-              <div>
-                <p className={`num text-3xl font-800 ${vSoon > 0 ? "text-brand-700 dark:text-brand-300" : "text-slate-900 dark:text-white"}`}>{vSoon}</p>
-                <p className="mt-1 text-[11px] text-slate-400">{tr.due30Days}</p>
-              </div>
-              <div>
-                <p className={`num text-3xl font-800 ${vOverdue > 0 ? "text-rose-600 dark:text-rose-400" : "text-slate-900 dark:text-white"}`}>{vOverdue}</p>
-                <p className="mt-1 text-[11px] text-slate-400">overdue</p>
-              </div>
-              <div>
-                <p className="num text-3xl font-800 text-emerald-600 dark:text-emerald-400">{vCompleted}</p>
-                <p className="mt-1 text-[11px] text-slate-400">completed</p>
-              </div>
-            </div>
-          ) : <p className="py-8 text-center text-sm text-slate-400">{tr.noSlaContractsYet2}</p>}
-          {slas.length > 0 && (
-            <p className="mt-2 text-center text-xs text-slate-400 dark:text-slate-500">{tr.nVisitsScheduled(vScheduled)} · {tr.nOvertimeHoursLogged(otHours)}</p>
-          )}
         </Widget>
 
         <Widget title={tr.projectTimeline} hint={tr.startedEndedMonth} span={2} locked={!visible("projects.timeline")} lockedWhat={tr.projectTimeline}>

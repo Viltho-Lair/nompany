@@ -44,6 +44,7 @@ export default function StudioPmPlans({ slug }) {
     ? {
       id: p.id, title: p.title, description: p.description, type: p.type, priority: p.priority,
       assetId: p.assetId, locationId: p.locationId, assignedToCollaboratorIds: p.assignedToCollaboratorIds || [],
+      installedId: p.installedId || "", slaId: p.slaId || "",
       frequency: p.frequency, scheduleMode: p.scheduleMode, nextDue: p.nextDue, leadDays: String(p.leadDays ?? 0),
       estimatedHours: p.estimatedHours ?? "", checklist: (p.checklist || []).join("\n"),
       trigger: p.trigger || "calendar", meterUnit: p.meterUnit || "hours",
@@ -51,6 +52,7 @@ export default function StudioPmPlans({ slug }) {
     }
     : {
       title: "", description: "", type: "preventive", priority: "normal", assetId: "", locationId: "",
+      installedId: "", slaId: "",
       assignedToCollaboratorIds: [], frequency: "Monthly", scheduleMode: "fixed", nextDue: asOf, leadDays: "0",
       estimatedHours: "", checklist: "", trigger: "calendar", meterUnit: "hours", meterEvery: "", nextDueReading: "",
     });
@@ -118,7 +120,7 @@ export default function StudioPmPlans({ slug }) {
               {p.openOrder && (
                 <p className="mt-1 text-sm text-indigo-700 dark:text-indigo-300">{tr.openNow(p.openOrder.reference, tr.status(p.openOrder.status))}</p>
               )}
-              <Links asset={p.asset} location={p.location} tr={tr} />
+              <Links asset={p.asset} location={p.location} installed={p.installed} contract={p.contract} tr={tr} />
               <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
                 <span className="text-slate-400">{tr.assignedTo}:</span>{" "}
                 {(p.assignees || []).length ? p.assignees.map((a) => a.alias || a.id).join("، ") : tr.nobody}
@@ -196,6 +198,16 @@ export default function StudioPmPlans({ slug }) {
                 onChange={(v) => setForm((f) => ({ ...f, assetId: v }))} options={pickOptions(pickers.assets, tr.noAsset)} />
               <Field label={tr.location} as="select" value={form.locationId}
                 onChange={(v) => setForm((f) => ({ ...f, locationId: v }))} options={pickOptions(pickers.locations, tr.noLocation)} />
+              {/* A PLAN FOR A CUSTOMER'S UNIT, UNDER A CONTRACT — each offered
+                  only to somebody who may open that register. */}
+              {((pickers.installed || []).length > 0 || form.installedId) && (
+                <Field label={tr.installed} as="select" value={form.installedId}
+                  onChange={(v) => setForm((f) => ({ ...f, installedId: v }))} options={pickOptions(pickers.installed, tr.noInstalled)} />
+              )}
+              {((pickers.contracts || []).length > 0 || form.slaId) && (
+                <Field label={tr.contract} as="select" value={form.slaId}
+                  onChange={(v) => setForm((f) => ({ ...f, slaId: v }))} options={pickOptions(pickers.contracts, tr.noContract)} />
+              )}
               <Field label={tr.estimatedHours} type="number" value={form.estimatedHours}
                 onChange={(v) => setForm((f) => ({ ...f, estimatedHours: v }))} inputProps={{ min: 0, step: 0.25 }} />
             </div>

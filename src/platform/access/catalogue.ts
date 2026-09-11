@@ -205,6 +205,13 @@ const OWN_AREAS = [
   // `maintenance.orders`, not this.
   { key: "maintenance.plans", group: "Maintenance", label: "Preventive plans",
     verbs: ["view", "create", "edit", "delete"] },
+  // SERVICE CONTRACTS — the maintenance a studio sells. THE KEY IS STILL
+  // `projects.sla` AND THAT IS DELIBERATE: it is what every existing role holds,
+  // and a renamed key reaches no existing role without a script (CLAUDE.md,
+  // "ROLES DO NOT CATCH UP"). The GROUP is what the Access screen files it
+  // under, and that moved with the screen on 11/09/2026.
+  { key: "projects.sla", group: "Maintenance", label: "Service contracts (SLA)",
+    verbs: ["view", "create", "edit", "delete"] },
   { key: "reports.exports", group: "Reports & BI", label: "Data exports",
     verbs: ["view"] },
   { key: "tendering.tenders", group: "Tendering & Estimating", label: "Tender register",
@@ -300,7 +307,6 @@ const OWN_AREAS = [
   // can remove a day from is worth nothing in the argument it exists for.
   { key: "projects.reports", group: "Projects", label: "Site reports",
     verbs: ["view", "create", "edit"] },
-  { key: "projects.sla", group: "Projects", label: "SLA", verbs: ["view", "create", "edit", "delete"] },
   { key: "projects.overtimes", group: "Projects", label: "Overtimes", verbs: ["view", "create", "edit", "delete"] },
   { key: "projects.settings", group: "Projects", label: "Settings", verbs: ["view", "edit"] },
 

@@ -46,7 +46,10 @@ import {
   nextDueReadingOnClose, planCompliance, type PlanStatus,
 } from "./schedule";
 import { METER_UNITS, latestReading, readingProblem } from "./meters";
-import type { LabourEntry, MeterReading, PmPlan, WorkOrder, WorkRequest } from "./schema";
+import {
+  CONTRACT_COVERS, contractProblem, contractSummary, contractVisits, callOutProblem,
+} from "./contracts";
+import type { LabourEntry, MeterReading, PmPlan, Sla, WorkOrder, WorkRequest } from "./schema";
 import type { Section } from "@/platform/db/sections";
 import type { MaintenanceContext } from "./types";
 
@@ -61,12 +64,16 @@ const StockMoves = repo<Movement>("inventoryStock");
 const StockItems = repo<Item>("inventoryItems");
 const Records = repo<EngineRecord>("engineRecords");
 const Locations = repo<Location>("locations");
+// SERVICE CONTRACTS, filed under `projects-sla` (a filed-only section, keys.ts).
+const Contracts = repo<Sla>("slas");
+// PROJECTS', READ ONLY — the title of the project a contract follows.
+const ProjectRows = repo<{ id: string; title?: string; number?: string }>("projects");
 
 export const maintenanceContext = moduleContext<MaintenanceContext>({
   root: "maintenance",
   sub: {
     requests: "maintenance-requests", orders: "maintenance-orders", plans: "maintenance-plans",
-    assets: "maintenance-assets",
+    assets: "maintenance-assets", contracts: "maintenance-contracts",
   },
   // Locations are Master data's; this reads them and owns none of them. The
   // stock ledger and the items are Inventory's, read to show what a work order
@@ -75,8 +82,15 @@ export const maintenanceContext = moduleContext<MaintenanceContext>({
     master: ["administration-master", "administration"],
     stock: ["inventory-stock", "inventory"],
     items: ["inventory-items", "inventory"],
+    // WHERE THE SERVICE CONTRACTS ARE FILED. Foreign rather than `sub` because
+    // the rows were written while this was Projects' screen and stay where
+    // they are (FILED_ONLY_SECTION_KEYS in keys.ts); the screen is
+    // `maintenance-contracts`, which owns nothing.
+    slas: ["projects-sla", "projects"],
+    // The project a contract follows, by title — read only.
+    projectsList: ["projects-list", "projects"],
   },
-  flags: ["requests", "orders", "plans"],
+  flags: ["requests", "orders", "plans", "contracts"],
 });
 
 const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
@@ -114,15 +128,40 @@ const requestScope = (ctx: MaintenanceContext) => ({ studio: ctx.studio, section
 const orderScope = (ctx: MaintenanceContext) => ({ studio: ctx.studio, section: ctx.ordersSection });
 const planScope = (ctx: MaintenanceContext) => ({ studio: ctx.studio, section: ctx.plansSection });
 const readingScope = (ctx: MaintenanceContext) => ({ studio: ctx.studio, section: ctx.assetsSection });
+// NULL WHEN THE STUDIO HAS NOWHERE TO FILE A CONTRACT — a foreign section, so
+// its absence is an answer rather than a fall-back to somebody else's rows.
+const contractScope = (ctx: MaintenanceContext) => (ctx.slasSection ? { studio: ctx.studio, section: ctx.slasSection } : null);
 const may = (ctx: MaintenanceContext, key: PermissionKey) => !requirePermission(ctx.access, key);
 
 // ---- what a record points at ---------------------------------------------------
 
-/** The studio's machines — with the studio's authority, for validation. */
-async function equipment(ctx: MaintenanceContext): Promise<EngineRecord[]> {
-  const section = ctx.sections.find((s) => s.key === engineSectionKey("equipment"));
+/**
+ * ONE ENGINE REGISTER'S ROWS, with the studio's authority, for validation. An
+ * engine register's section is planted at runtime and named by
+ * `engineSectionKey`; a studio that never had the register has none of its
+ * rows, which is an empty list rather than an error.
+ */
+async function engineRows(ctx: MaintenanceContext, typeKey: string): Promise<EngineRecord[]> {
+  const section = ctx.sections.find((s) => s.key === engineSectionKey(typeKey));
   if (!section) return [];
-  return Records.find({ studio: ctx.studio, section }, { where: { typeKey: "equipment" } });
+  return Records.find({ studio: ctx.studio, section }, { where: { typeKey } });
+}
+
+/** The studio's machines. */
+const equipment = (ctx: MaintenanceContext) => engineRows(ctx, "equipment");
+
+/**
+ * THE CUSTOMERS' UNITS — Field Service's installed base. A work order names
+ * one of these rather than a machine when the equipment is a customer's: what
+ * the studio owns and what it looks after for somebody are two registers
+ * because they are two things.
+ */
+const installedUnits = (ctx: MaintenanceContext) => engineRows(ctx, "installed");
+
+/** The service contracts, with the studio's authority. */
+async function contractRows(ctx: MaintenanceContext): Promise<Sla[]> {
+  const scope = contractScope(ctx);
+  return scope ? Contracts.find(scope) : [];
 }
 
 async function places(ctx: MaintenanceContext): Promise<Location[]> {
@@ -130,8 +169,13 @@ async function places(ctx: MaintenanceContext): Promise<Location[]> {
   return Locations.find({ studio: ctx.studio, section: ctx.masterSection });
 }
 
-const assetLabel = (r: EngineRecord) =>
-  [r.reference, str((r.values as Record<string, unknown> | undefined)?.name, 120)].filter(Boolean).join(" · ");
+const recordLabel = (r: EngineRecord, field: string) =>
+  [r.reference, str((r.values as Record<string, unknown> | undefined)?.[field], 120)].filter(Boolean).join(" · ");
+const assetLabel = (r: EngineRecord) => recordLabel(r, "name");
+/** A customer's unit reads as what it is and whose it is. */
+const unitLabel = (r: EngineRecord) =>
+  [recordLabel(r, "description"), str((r.values as Record<string, unknown> | undefined)?.customer, 120)]
+    .filter(Boolean).join(" — ");
 
 /**
  * EVERY ID A WRITE NAMES MUST BE THIS STUDIO'S. Read with the studio's own
@@ -141,10 +185,18 @@ const assetLabel = (r: EngineRecord) =>
  */
 async function linkProblem(
   ctx: MaintenanceContext,
-  { assetId, locationId, assignees = [] }: { assetId: string; locationId: string; assignees?: string[] },
+  { assetId, locationId, assignees = [], installedIds = [], slaId = "" }: {
+    assetId: string; locationId: string; assignees?: string[]; installedIds?: string[]; slaId?: string;
+  },
 ): Promise<string | null> {
   if (assetId && !(await equipment(ctx)).some((r) => r.id === assetId)) return "asset";
   if (locationId && !(await places(ctx)).some((l) => l.id === locationId)) return "location";
+  const units = installedIds.filter(Boolean);
+  if (units.length) {
+    const known = await installedUnits(ctx);
+    if (!units.every((id) => known.some((u) => u.id === id))) return "installed";
+  }
+  if (slaId && !(await contractRows(ctx)).some((c) => c.id === slaId)) return "contract";
   if (assignees.length) {
     const people = await listCollaborators(ctx.studio.id);
     if (!assignees.every((id) => people.some((c) => c.id === id))) return "assignee";
@@ -163,7 +215,17 @@ type Person = { id: string; alias?: string };
  */
 async function lookups(ctx: MaintenanceContext, people: Person[]) {
   const seeAssets = may(ctx, "engine.equipment.view");
-  const [machines, sites] = await Promise.all([seeAssets ? equipment(ctx) : Promise.resolve([]), places(ctx)]);
+  // A CUSTOMER'S UNIT AND A CONTRACT ARE EACH GATED ON THEIR OWN REGISTER'S
+  // RIGHT, as the machine is: a name somebody was refused is the register by
+  // another door.
+  const seeUnits = may(ctx, "engine.installed.view");
+  const seeContracts = may(ctx, "projects.sla.view");
+  const [machines, sites, unitRows, deals] = await Promise.all([
+    seeAssets ? equipment(ctx) : Promise.resolve([] as EngineRecord[]),
+    places(ctx),
+    seeUnits ? installedUnits(ctx) : Promise.resolve([] as EngineRecord[]),
+    seeContracts ? contractRows(ctx) : Promise.resolve([] as Sla[]),
+  ]);
   const assets = machines
     .map((r) => ({ id: r.id, name: assetLabel(r), status: str(r.status, 40) }))
     .sort((a, b) => a.name.localeCompare(b.name));
@@ -173,23 +235,39 @@ async function lookups(ctx: MaintenanceContext, people: Person[]) {
       lat: l.lat ?? null, lng: l.lng ?? null, mapUrl: l.mapUrl || "", directions: l.directions || "",
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
+  const installed = unitRows
+    .map((r) => ({ id: r.id, name: unitLabel(r), status: str(r.status, 40) }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const contracts = deals
+    .map((c) => ({ id: c.id, name: str(c.title, 200) || "—", status: str(c.status, 20) }))
+    .sort((a, b) => a.name.localeCompare(b.name));
   const assetOf = new Map(assets.map((a) => [a.id, a]));
+  const unitOf = new Map(installed.map((u) => [u.id, u]));
+  const contractOf = new Map(contracts.map((c) => [c.id, c]));
   const placeOf = new Map(locations.map((l) => [l.id, l]));
   const aliasOf = new Map(people.map((c) => [String(c.id), c.alias || ""]));
 
   // THREE ANSWERS, THREE FACTS — the engine reference's rule. A blank would
   // read as "no machine" for all three.
-  const asset = (id: string) => {
+  const threeState = (seen: boolean, of: Map<string, { name: string }>) => (id: string) => {
     if (!id) return null;
-    if (!seeAssets) return { id, state: "hidden" as const, name: "" };
-    const a = assetOf.get(id);
+    if (!seen) return { id, state: "hidden" as const, name: "" };
+    const a = of.get(id);
     return a ? { id, state: "found" as const, name: a.name } : { id, state: "deleted" as const, name: "" };
   };
+  const asset = threeState(seeAssets, assetOf);
+  const unit = threeState(seeUnits, unitOf);
+  const contract = threeState(seeContracts, contractOf);
   const location = (id: string) => (id ? placeOf.get(id) || { id, state: "deleted" as const } : null);
 
   return {
-    pickers: { assets, locations, people: people.map((c) => ({ id: String(c.id), alias: c.alias || "" })) },
-    asset, location, aliasOf,
+    pickers: {
+      assets, locations, installed,
+      // A cancelled contract is not offered: nothing new is raised under it.
+      contracts: contracts.filter((c) => c.status !== "Cancelled"),
+      people: people.map((c) => ({ id: String(c.id), alias: c.alias || "" })),
+    },
+    asset, unit, contract, location, aliasOf,
   };
 }
 
@@ -215,7 +293,7 @@ export async function listOrders(ctx: MaintenanceContext) {
     canSeePlans ? Plans.find(planScope(ctx)) : Promise.resolve([] as PmPlan[]),
   ]);
   const planRefOf = new Map(plans.map((p) => [p.id, p.reference]));
-  const { pickers, asset, location, aliasOf } = await lookups(ctx, people as Person[]);
+  const { pickers, asset, unit, contract, location, aliasOf } = await lookups(ctx, people as Person[]);
   const refOf = new Map(requests.map((r) => [r.id, r.reference]));
   const labourOf = new Map<string, LabourEntry[]>();
   for (const e of labour) labourOf.set(e.workOrderId, [...(labourOf.get(e.workOrderId) || []), e]);
@@ -245,6 +323,8 @@ export async function listOrders(ctx: MaintenanceContext) {
     ...o,
     asset: asset(o.assetId),
     location: location(o.locationId),
+    installed: unit(o.installedId || ""),
+    contract: contract(o.slaId || ""),
     assignees: (o.assignedToCollaboratorIds || []).map((id) => ({ id, alias: aliasOf.get(id) || "" })),
     createdByAlias: aliasOf.get(o.createdByCollaboratorId) || "",
     requestReference: refOf.get(o.requestId) || "",
@@ -298,6 +378,7 @@ function orderFields(body: Record<string, unknown>) {
   if (has("priority")) out.priority = oneOf(PRIORITIES, body.priority, "normal");
   if (has("assetId")) out.assetId = str(body.assetId, 60);
   if (has("locationId")) out.locationId = str(body.locationId, 60);
+  if (has("installedId")) out.installedId = str(body.installedId, 60);
   if (has("assignedToCollaboratorIds")) out.assignedToCollaboratorIds = ids(body.assignedToCollaboratorIds);
   if (has("dueOn")) out.dueOn = day(body.dueOn);
   if (has("estimatedHours")) out.estimatedHours = hours(body.estimatedHours);
@@ -386,6 +467,7 @@ export async function createOrder(ctx: MaintenanceContext, body: Record<string, 
   const problem = downtimeProblem(fields, now()) || await linkProblem(ctx, {
     assetId: String(fields.assetId || ""), locationId: String(fields.locationId || ""),
     assignees: (fields.assignedToCollaboratorIds as string[]) || [],
+    installedIds: [String(fields.installedId || "")],
   });
   if (problem) return { error: problem };
   return { order: await insertOrder(ctx, { ...fields, title }) };
@@ -415,6 +497,7 @@ export async function editOrder(ctx: MaintenanceContext, id: string, body: Recor
     assetId: patch.assetId !== undefined ? String(patch.assetId) : "",
     locationId: patch.locationId !== undefined ? String(patch.locationId) : "",
     assignees: (patch.assignedToCollaboratorIds as string[] | undefined) || [],
+    installedIds: patch.installedId !== undefined ? [String(patch.installedId)] : [],
   });
   if (problem) return { error: problem };
   patch.updatedAt = now();
@@ -677,6 +760,8 @@ function planFields(body: Record<string, unknown>) {
   if (has("assetId")) out.assetId = str(body.assetId, 60);
   if (has("locationId")) out.locationId = str(body.locationId, 60);
   if (has("assignedToCollaboratorIds")) out.assignedToCollaboratorIds = ids(body.assignedToCollaboratorIds);
+  if (has("installedId")) out.installedId = str(body.installedId, 60);
+  if (has("slaId")) out.slaId = str(body.slaId, 60);
   // KEPT AS SENT, then judged by `planProblem` — coercing an unknown frequency
   // to a default would save a plan that runs on a schedule nobody chose.
   if (has("frequency")) out.frequency = str(body.frequency, 20);
@@ -713,7 +798,7 @@ export async function listPlans(ctx: MaintenanceContext) {
     listCollaborators(ctx.studio.id),
     Readings.find(readingScope(ctx)),
   ]);
-  const { pickers, asset, location, aliasOf } = await lookups(ctx, people as Person[]);
+  const { pickers, asset, unit, contract, location, aliasOf } = await lookups(ctx, people as Person[]);
   const asOf = now().slice(0, 10);
   let onTime = 0;
   let total = 0;
@@ -733,6 +818,8 @@ export async function listPlans(ctx: MaintenanceContext) {
       ...p,
       asset: asset(p.assetId),
       location: location(p.locationId),
+      installed: unit(p.installedId || ""),
+      contract: contract(p.slaId || ""),
       assignees: (p.assignedToCollaboratorIds || []).map((id) => ({ id, alias: aliasOf.get(id) || "" })),
       openOrder: open ? { reference: canSeeOrders ? open.reference : "", status: open.status } : null,
       lastDoneOn: finished[finished.length - 1] || "",
@@ -772,6 +859,7 @@ export async function createPlan(ctx: MaintenanceContext, body: Record<string, u
   const problem = planProblem(draft) || await linkProblem(ctx, {
     assetId: String(fields.assetId || ""), locationId: String(fields.locationId || ""),
     assignees: (fields.assignedToCollaboratorIds as string[]) || [],
+    installedIds: [String(fields.installedId || "")], slaId: String(fields.slaId || ""),
   });
   if (problem) return { error: problem };
 
@@ -790,6 +878,8 @@ export async function createPlan(ctx: MaintenanceContext, body: Record<string, u
     meterUnit: "",
     meterEvery: 0,
     nextDueReading: null,
+    installedId: "",
+    slaId: "",
     ...draft,
     status: "Active",
     createdByCollaboratorId: ctx.collaborator.id,
@@ -813,6 +903,8 @@ export async function editPlan(ctx: MaintenanceContext, id: string, body: Record
     assetId: patch.assetId !== undefined ? String(patch.assetId) : "",
     locationId: patch.locationId !== undefined ? String(patch.locationId) : "",
     assignees: (patch.assignedToCollaboratorIds as string[] | undefined) || [],
+    installedIds: patch.installedId !== undefined ? [String(patch.installedId)] : [],
+    slaId: patch.slaId !== undefined ? String(patch.slaId) : "",
   });
   if (problem) return { error: problem };
   patch.updatedAt = now();
@@ -849,6 +941,297 @@ export async function removePlan(ctx: MaintenanceContext, id: string) {
   if (raised.length) return { error: "has-orders" };
   await Plans.remove(planScope(ctx), id);
   return { ok: true };
+}
+
+// ---- service contracts -----------------------------------------------------------
+//
+// THE MAINTENANCE A STUDIO SELLS — the rules are ./contracts, pure. Filed under
+// `projects-sla` and answering to `projects.sla`, the key every existing role
+// already holds (catalogue.ts says why it was not renamed). Its visits are
+// raised as work orders by the daily run (pmRun's `raiseDueContractOrders`),
+// and a call-out is a work order raised here against the allowance.
+
+/** The fields a person may write, coerced. Absent keys stay absent so an edit is a patch. */
+function contractFields(body: Record<string, unknown>) {
+  const out: Record<string, unknown> = {};
+  const has = (k: string) => body?.[k] !== undefined;
+  if (has("title")) out.title = str(body.title, 200);
+  if (has("customer")) out.customer = str(body.customer, 200);
+  if (has("projectId")) out.projectId = str(body.projectId, 60);
+  if (has("cover")) out.cover = str(body.cover, 20);
+  // BLANK IS NULL — "nobody said what it is worth" is not a contract worth nought.
+  if (has("value")) out.value = body.value === "" || body.value === null ? null : Number(body.value);
+  if (has("signingDate")) out.signingDate = day(body.signingDate);
+  if (has("startDate")) out.startDate = day(body.startDate);
+  // KEPT AS SENT, then judged by `contractProblem` — rounding 0.5 visits up to
+  // one would save a contract nobody wrote.
+  if (has("durationDays")) out.durationDays = Number(body.durationDays);
+  if (has("visits")) out.visits = Number(body.visits);
+  if (has("emergencyVisits")) out.emergencyVisits = Number(body.emergencyVisits);
+  if (has("leadDays")) out.leadDays = Number(body.leadDays);
+  if (has("locationId")) out.locationId = str(body.locationId, 60);
+  if (has("installedIds")) out.installedIds = ids(body.installedIds, 50);
+  if (has("assignedToCollaboratorIds")) out.assignedToCollaboratorIds = ids(body.assignedToCollaboratorIds);
+  if (has("checklist")) out.checklist = cleanChecklist(body.checklist);
+  if (has("notes")) out.notes = str(body.notes, 4000);
+  return out;
+}
+
+/** Project titles by id — only for a reader who may open the project list. */
+async function projectTitles(ctx: MaintenanceContext): Promise<Map<string, string>> {
+  if (!ctx.projectsListSection || !may(ctx, "projects.list.view")) return new Map();
+  const rows = await ProjectRows.find({ studio: ctx.studio, section: ctx.projectsListSection });
+  return new Map(rows.map((p) => [p.id, [p.number, p.title].filter(Boolean).join(" — ")]));
+}
+
+/**
+ * THE REGISTER, each contract with what its visits came to — derived from the
+ * work orders that name it, never stored. Which order a visit became is shown
+ * by reference only to somebody who may open the work orders.
+ */
+export async function listContracts(ctx: MaintenanceContext) {
+  const denied = requirePermission(ctx.access, "projects.sla.view");
+  if (denied) return denied;
+  const canSeeOrders = may(ctx, "maintenance.orders.view");
+  const [rows, orders, people, titles, plans] = await Promise.all([
+    contractRows(ctx),
+    // READ WHATEVER THE READER'S RIGHTS: what a visit came to IS the contract's
+    // own state, as a plan's compliance is the plan's.
+    Orders.find(orderScope(ctx)),
+    listCollaborators(ctx.studio.id),
+    projectTitles(ctx),
+    Plans.find(planScope(ctx)),
+  ]);
+  const { pickers, location, unit, aliasOf } = await lookups(ctx, people as Person[]);
+  const asOf = now().slice(0, 10);
+  const orderRef = (o: { id: string; reference: string; status: string }) =>
+    ({ ...o, reference: canSeeOrders ? o.reference : "" });
+  const rank = (s: string) => ["active", "upcoming", "ended", "cancelled"].indexOf(s);
+
+  const canSeePlans = may(ctx, "maintenance.plans.view");
+  const contracts = rows.map((c) => {
+    // THE PLANS THAT KEEP IT — a contract one names raises no visits of its
+    // own (`contractRaiseDecision`); their references only for a plan reader.
+    const keptBy = plans.filter((p) => p.slaId === c.id && p.status !== "Retired");
+    const summary = contractSummary(c, orders, asOf, keptBy.length > 0);
+    return {
+      ...c,
+      summary,
+      plans: canSeePlans ? keptBy.map((p) => p.reference) : [],
+      visits: contractVisits(c, orders, asOf).map((v) => ({ ...v, order: v.order ? orderRef(v.order) : null })),
+      callOuts: orders
+        .filter((o) => o.slaId === c.id && o.slaEmergency === true)
+        .map((o) => ({ ...orderRef({ id: o.id, reference: o.reference, status: o.status }), dueOn: o.dueOn, title: canSeeOrders ? o.title : "" }))
+        .sort((a, b) => (b.dueOn || "").localeCompare(a.dueOn || "")),
+      location: location(c.locationId || ""),
+      units: (c.installedIds || []).map((id) => unit(id)),
+      assignees: (c.assignedToCollaboratorIds || []).map((id) => ({ id, alias: aliasOf.get(id) || "" })),
+      project: c.projectId ? { id: c.projectId, name: titles.get(c.projectId) || "" } : null,
+      // WHAT KEEPS IT FROM BEING DELETED — history, which is cancelled instead.
+      raised: orders.some((o) => o.slaId === c.id) || plans.some((p) => p.slaId === c.id),
+    };
+  }).sort((a, b) =>
+    rank(a.summary.state) - rank(b.summary.state)
+    || (a.summary.next?.dueOn || "9999").localeCompare(b.summary.next?.dueOn || "9999")
+    || String(a.title || "").localeCompare(String(b.title || "")));
+
+  return {
+    contracts, asOf, pickers,
+    projects: [...titles].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name)),
+    covers: CONTRACT_COVERS,
+    currency: String(ctx.studio.currency || ""),
+    // A studio with nowhere to file a contract is told so rather than offered a
+    // form that would refuse.
+    filed: Boolean(contractScope(ctx)),
+    canCreate: may(ctx, "projects.sla.create"),
+    canEdit: may(ctx, "projects.sla.edit"),
+    canDelete: may(ctx, "projects.sla.delete"),
+    // A CALL-OUT IS A WORK ORDER, so raising one is the order's right.
+    canCallOut: may(ctx, "maintenance.orders.create"),
+  };
+}
+
+export async function createContract(ctx: MaintenanceContext, body: Record<string, unknown>) {
+  const denied = requirePermission(ctx.access, "projects.sla.create");
+  if (denied) return denied;
+  const scope = contractScope(ctx);
+  if (!scope) return { error: "no-contract-section" };
+  const fields: Record<string, unknown> = {
+    durationDays: 365, visits: 1, emergencyVisits: 0, leadDays: 0,
+    ...contractFields(body || {}),
+  };
+  const problem = contractProblem(fields) || await linkProblem(ctx, {
+    assetId: "", locationId: String(fields.locationId || ""),
+    assignees: (fields.assignedToCollaboratorIds as string[]) || [],
+    installedIds: (fields.installedIds as string[]) || [],
+  });
+  if (problem) return { error: problem };
+  const at = now();
+  const contract = await Contracts.create(scope, {
+    title: "", customer: "", projectId: "", cover: "", value: null, signingDate: "", startDate: "", notes: "",
+    locationId: "", installedIds: [], assignedToCollaboratorIds: [], checklist: [],
+    ...fields,
+    status: "",
+    completedVisits: [],
+    emergencyVisitsList: [],
+    createdByCollaboratorId: ctx.collaborator.id,
+    createdAt: at,
+    updatedAt: at,
+  });
+  return { contract };
+}
+
+export async function editContract(ctx: MaintenanceContext, id: string, body: Record<string, unknown>) {
+  const denied = requirePermission(ctx.access, "projects.sla.edit");
+  if (denied) return denied;
+  const scope = contractScope(ctx);
+  if (!scope) return { error: "no-contract-section" };
+  const current = await Contracts.byId(scope, id);
+  if (!current) return { error: "notfound" };
+  // A CANCELLED CONTRACT IS A DECISION; reinstate it to change it.
+  if (current.status === "Cancelled") return { error: "contract-cancelled" };
+  const patch = contractFields(body || {});
+  // JUDGED WHOLE: a patch that only moves the start is still a contract that
+  // must have a title and a visit count afterwards.
+  const problem = contractProblem({ ...current, ...patch }) || await linkProblem(ctx, {
+    assetId: "",
+    locationId: patch.locationId !== undefined ? String(patch.locationId) : "",
+    assignees: (patch.assignedToCollaboratorIds as string[] | undefined) || [],
+    installedIds: (patch.installedIds as string[] | undefined) || [],
+  });
+  if (problem) return { error: problem };
+  patch.updatedAt = now();
+  const contract = await Contracts.update(scope, id, patch);
+  return contract ? { contract } : { error: "notfound" };
+}
+
+/**
+ * TICK A VISIT DONE BY HAND — a visit kept outside the system, or the record
+ * from before visits were work orders. Refused for a visit that HAS an order:
+ * the order says what it came to, and a tick beside it would be a second
+ * answer free to disagree with the first. Under a function patch (invariant 8).
+ */
+export async function tickVisit(ctx: MaintenanceContext, id: string, body: Record<string, unknown>) {
+  const denied = requirePermission(ctx.access, "projects.sla.edit");
+  if (denied) return denied;
+  const scope = contractScope(ctx);
+  if (!scope) return { error: "no-contract-section" };
+  const visit = Math.round(Number(body?.visit));
+  const done = body?.done === true || body?.done === "true";
+  const raised = await Orders.find(orderScope(ctx), { where: { slaId: id } });
+  if (raised.some((o) => !o.slaEmergency && Number(o.slaVisit) === visit)) return { error: "visit-has-order" };
+  const at = now();
+  const seen = { problem: null as string | null };
+  const contract = await Contracts.update(scope, id, (row) => {
+    const count = Math.max(1, Math.round(Number(row.visits) || 1));
+    seen.problem = row.status === "Cancelled" ? "contract-cancelled"
+      : visit >= 1 && visit <= count ? null : "visit";
+    if (seen.problem) return {};
+    const set = new Set((row.completedVisits || []).map(Number));
+    if (done) set.add(visit); else set.delete(visit);
+    return { completedVisits: [...set].sort((a, b) => a - b), updatedAt: at };
+  });
+  if (!contract) return { error: "notfound" };
+  if (seen.problem) return { error: seen.problem };
+  return { contract };
+}
+
+/**
+ * CANCEL A CONTRACT, OR TAKE THE CANCELLATION BACK. A cancelled contract raises
+ * nothing more and takes no call-outs; its history stays. Renewing is not a
+ * move — it is new dates on the same contract.
+ */
+export async function moveContract(ctx: MaintenanceContext, id: string, action: "cancel" | "reinstate") {
+  const denied = requirePermission(ctx.access, "projects.sla.edit");
+  if (denied) return denied;
+  const scope = contractScope(ctx);
+  if (!scope) return { error: "no-contract-section" };
+  const at = now();
+  const seen = { problem: null as string | null };
+  const contract = await Contracts.update(scope, id, (row) => {
+    const cancelled = row.status === "Cancelled";
+    seen.problem = (action === "cancel" ? cancelled : !cancelled) ? "already" : null;
+    if (seen.problem) return {};
+    return action === "cancel"
+      ? { status: "Cancelled", cancelledAt: at, updatedAt: at }
+      : { status: "", cancelledAt: "", updatedAt: at };
+  });
+  if (!contract) return { error: "notfound" };
+  if (seen.problem) return { error: seen.problem };
+  return { contract };
+}
+
+/**
+ * ONLY A CONTRACT THAT HAS RAISED NOTHING DELETES. Once a visit or a call-out
+ * is a work order, or a plan names it, it is the reason those exist; the
+ * honest end is Cancelled.
+ */
+export async function removeContract(ctx: MaintenanceContext, id: string) {
+  const denied = requirePermission(ctx.access, "projects.sla.delete");
+  if (denied) return denied;
+  const scope = contractScope(ctx);
+  if (!scope) return { error: "no-contract-section" };
+  const current = await Contracts.byId(scope, id);
+  if (!current) return { error: "notfound" };
+  const [orders, plans] = await Promise.all([
+    Orders.find(orderScope(ctx), { where: { slaId: id } }),
+    Plans.find(planScope(ctx), { where: { slaId: id } }),
+  ]);
+  if (orders.length) return { error: "contract-has-orders" };
+  if (plans.length) return { error: "contract-has-plans" };
+  await Contracts.remove(scope, id);
+  return { ok: true };
+}
+
+/**
+ * A CALL-OUT — the customer rang. A corrective work order naming the contract,
+ * counted against its allowance (`callOutProblem`). It goes to the contract's
+ * people and place unless the caller says otherwise, and to the one unit the
+ * contract covers when it covers one.
+ *
+ * TWO CALLS AT ONCE CAN BOTH TAKE THE LAST CALL-OUT. The allowance is a
+ * commercial term rather than a safety interlock, and refusing a real
+ * breakdown on a race is worse than one call-out too many, which the register
+ * then shows.
+ */
+export async function raiseCallOut(ctx: MaintenanceContext, id: string, body: Record<string, unknown>) {
+  const denied = requirePermission(ctx.access, "maintenance.orders.create")
+    || requirePermission(ctx.access, "projects.sla.view");
+  if (denied) return denied;
+  const scope = contractScope(ctx);
+  if (!scope) return { error: "no-contract-section" };
+  const contract = await Contracts.byId(scope, id);
+  if (!contract) return { error: "notfound" };
+  const raised = await Orders.find(orderScope(ctx), { where: { slaId: id } });
+  const problem = callOutProblem(contract, raised, now().slice(0, 10));
+  if (problem) return { error: problem };
+  const title = str(body?.title, 200);
+  if (!title) return { error: "title" };
+  const units = contract.installedIds || [];
+  const installedId = str(body?.installedId, 60) || (units.length === 1 ? units[0] : "");
+  // A CALL-OUT IS FOR SOMETHING THE CONTRACT COVERS, when it names what it covers.
+  if (installedId && units.length && !units.includes(installedId)) return { error: "not-covered" };
+  const assignees = body?.assignedToCollaboratorIds !== undefined
+    ? ids(body.assignedToCollaboratorIds)
+    : contract.assignedToCollaboratorIds || [];
+  const link = await linkProblem(ctx, {
+    assetId: "", locationId: contract.locationId || "", assignees, installedIds: [installedId],
+  });
+  if (link) return { error: link };
+  const order = await insertOrder(ctx, {
+    title,
+    description: str(body?.description, 4000),
+    type: "corrective",
+    priority: oneOf(PRIORITIES, body?.priority, "high"),
+    locationId: contract.locationId || "",
+    installedId,
+    assignedToCollaboratorIds: assignees,
+    dueOn: day(body?.dueOn) || now().slice(0, 10),
+    photos: cleanPhotos(body?.photos),
+    slaId: id,
+    slaEmergency: true,
+  });
+  return { order };
 }
 
 // ---- labour ------------------------------------------------------------------

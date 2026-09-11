@@ -122,6 +122,12 @@ const CONFLICT = [
   // and `reason-required` are 400 by default and belong there — both say the
   // caller must send something different.
   "already-closed",
+  // SERVICE CONTRACTS (11/09/2026), each the record having moved on: the
+  // contract has raised work (so it is cancelled, not deleted), a visit already
+  // has its order, the contract is cancelled, today is outside its term, or its
+  // call-out allowance is spent.
+  "contract-has-orders", "contract-has-plans", "visit-has-order", "contract-cancelled",
+  "outside-term", "emergency-cap",
 ];
 
 // 429 — SLOW DOWN. Separated from 403 on purpose: a rate limit is temporary and

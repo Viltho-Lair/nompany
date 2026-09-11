@@ -4,7 +4,7 @@
 import type { ModuleContext } from "../context";
 import type { Section } from "@/platform/db/sections";
 
-export type { Project, Sla, Overtime, EmergencyVisit } from "./schema";
+export type { Project, Overtime } from "./schema";
 
 // ---- this department's context ---------------------------------------------
 // Generated from the spec in the service file: `sub` and `foreign` become
@@ -16,7 +16,6 @@ export type ProjectsContext = ModuleContext & {
   /** Master data, read for the org chart an overtime entry's person sits in. */
   masterSection: Section | null;
   listSection: Section;
-  slaSection: Section;
   overtimesSection: Section;
   settingsSection: Section;
   projectsListSection: Section;
@@ -36,8 +35,6 @@ export type ProjectsContext = ModuleContext & {
   tasksSection: Section | null;
   canViewList: boolean;
   canManageList: boolean;
-  canViewSla: boolean;
-  canManageSla: boolean;
   canViewOvertimes: boolean;
   canManageOvertimes: boolean;
   canViewSettings: boolean;

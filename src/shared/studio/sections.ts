@@ -117,6 +117,7 @@ const ar: SectionMap = {
   "maintenance-requests": "طلبات الصيانة",
   "maintenance-orders": "أوامر العمل",
   "maintenance-plans": "الخطط الوقائية",
+  "maintenance-contracts": "عقود الخدمة",
   "maintenance-assets": "الآلات",
 
   // QUALITY WIDENED TO QUALITY & HSE, and keeps permits to work (formerly an

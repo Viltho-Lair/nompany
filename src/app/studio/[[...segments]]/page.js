@@ -157,6 +157,11 @@ const StudioMachines = nextDynamic(
   () => import("@/components/studio2/StudioMachines"),
   { loading: () => <ScreenSkeleton /> },
 );
+// Service contracts (SLA) — the maintenance a studio sells.
+const StudioServiceContracts = nextDynamic(
+  () => import("@/components/studio2/StudioServiceContracts"),
+  { loading: () => <ScreenSkeleton /> },
+);
 // The purchase order register (tier 5) — see StudioPurchaseOrders.
 const StudioPurchaseOrders = nextDynamic(
   () => import("@/components/studio2/StudioPurchaseOrders"),
@@ -896,6 +901,8 @@ async function renderStudio(params) {
           ? <StudioPmPlans slug={studio.slug} />
         : active?.key === "maintenance-assets"
           ? <StudioMachines slug={studio.slug} />
+        : active?.key === "maintenance-contracts"
+          ? <StudioServiceContracts slug={studio.slug} />
         : active?.key === "procurement-requisitions"
           ? <StudioRequisitions slug={studio.slug} />
         : active?.key === "procurement-orders"

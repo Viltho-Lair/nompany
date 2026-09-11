@@ -75,7 +75,9 @@ import { execFileSync } from "node:child_process";
 // (`BASE` in eleven pages, `PageHeader`/`toneBg`/`toneInk` in the profile
 // panel); they were deleted, and two more warnings left with Header.js. The
 // ceiling comes down with them rather than banking four as headroom.
-const MAX_WARNINGS = 104;
+// 104 → 102 on 11/09/2026: the SLA screen left Projects for Maintenance and the
+// two style imports only it used went with it — deleted, not banked.
+const MAX_WARNINGS = 102;
 
 let report;
 try {

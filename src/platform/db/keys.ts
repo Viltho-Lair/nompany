@@ -698,6 +698,13 @@ export const SECTION_DEFS = [
     { key: "maintenance-requests", name: "Work requests" },
     { key: "maintenance-orders", name: "Work orders" },
     { key: "maintenance-plans", name: "Preventive plans" },
+    // SERVICE CONTRACTS (SLA) — the maintenance a studio SELLS: planned visits
+    // over a period and an allowance of call-outs. It was Projects' "SLA" and
+    // Field Service's "Maintenance contracts", two registers of one promise
+    // that knew nothing of each other (the owner, 11/09/2026). A DESTINATION:
+    // it owns no collection, because every contract already written is filed
+    // under `projects-sla` and stays there (FILED_ONLY_SECTION_KEYS below).
+    { key: "maintenance-contracts", name: "Service contracts (SLA)" },
     // EACH MACHINE'S RECORD, read from the work orders — and, since meters,
     // the owner of its readings. Answers to `maintenance.orders`.
     { key: "maintenance-assets", name: "Machines" },
@@ -797,6 +804,27 @@ export const SYSTEM_SECTION_KEYS = [
 /** Is this key system configuration rather than one of the product's sections? */
 export const isSystemSection = (key: string): boolean =>
   (SYSTEM_SECTION_KEYS as readonly string[]).includes(key);
+
+// A SECTION KEPT FOR WHERE ITS ROWS ARE FILED, WHOSE SCREEN LIVES ELSEWHERE.
+//
+// `projects-sla` owns `slas` — every service contract any studio has written is
+// filed under it — and since 11/09/2026 the screen for them is Maintenance →
+// Service contracts, on the owner's instruction that an SLA is a preventive
+// maintenance contract. Moving the rows would be a migration across every
+// tenant; deleting the section would strand them (the tender register's
+// mistake). So the row stays, Maintenance reads it as a FOREIGN section, and the
+// SIDEBAR and the Sections panel leave it out — the `isSystemSection` seam, for
+// a different reason. Its right (`projects.sla`) is unchanged, so every role
+// already holding it reaches the new screen with nobody running a script.
+//
+// DO NOT DELETE `projects-sla` FROM SECTION_DEFS, for the reason
+// `administration-master` is kept: nothing would fail, and every contract would
+// be invisible.
+export const FILED_ONLY_SECTION_KEYS = ["projects-sla"] as const;
+
+/** Kept only because rows are filed under it — shown nowhere as a destination. */
+export const isFiledOnlySection = (key: string): boolean =>
+  (FILED_ONLY_SECTION_KEYS as readonly string[]).includes(key);
 
 // THE PRODUCT'S OWN SECTIONS — fourteen roots, plus Main and Tasks, which are
 // not sections either (Main is the home surface, Tasks a cross-cutting control).

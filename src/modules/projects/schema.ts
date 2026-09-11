@@ -101,43 +101,9 @@ export const ProjectSchema = z.looseObject({
   retentionReleaseDate: z.string().optional(),
 });
 
-/**
- * ONE EMERGENCY CALL-OUT. Stored, unlike the planned schedule — a call-out
- * happened on a date somebody recorded, where a planned visit is arithmetic
- * over the contract's duration and visit count.
- */
-export const EmergencyVisitSchema = z.object({
-  id: z.string().max(30),
-  date: z.string().max(10),
-  completed: z.boolean(),
-});
-
-/** A service-level commitment on a project. */
-export const SlaSchema = z.looseObject({
-  id: z.string(),
-  studioId: z.string(),
-  sectionId: z.string(),
-  projectId: z.string().optional(),
-  title: z.string().optional(),
-  status: z.string().optional(),
-  createdAt: z.string().optional(),
-
-  // ---- the contract, as slaFields writes it -------------------------------
-  signingDate: z.string().optional(),
-  startDate: z.string().optional(),
-  durationDays: z.number().optional(),
-  /** How many planned visits the duration is divided into. At least one. */
-  visits: z.number().optional(),
-  /** The ALLOWANCE, not the list — how many call-outs the contract permits. */
-  emergencyVisits: z.number().optional(),
-  notes: z.string().optional(),
-  createdByCollaboratorId: z.string().optional(),
-
-  // ---- what the ticks and the call-outs write ------------------------------
-  /** Indexes of planned visits marked done, 1-based and bounded by `visits`. */
-  completedVisits: z.array(z.number()).optional(),
-  emergencyVisitsList: z.array(EmergencyVisitSchema).optional(),
-});
+// THE SLA SCHEMA MOVED TO MAINTENANCE (11/09/2026) — `SlaSchema` in
+// modules/maintenance/schema.ts. The rows still live in `slas` under
+// `projects-sla`; what moved is who reads and writes them.
 
 /** Hours worked beyond the plan, per person. */
 export const OvertimeSchema = z.looseObject({
@@ -264,6 +230,4 @@ export type Project = z.infer<typeof ProjectSchema>;
 export type ProjectCost = z.infer<typeof ProjectCostSchema>;
 export type ProgressClaim = z.infer<typeof ProgressClaimSchema>;
 export type ProjectMilestone = z.infer<typeof ProjectMilestoneSchema>;
-export type Sla = z.infer<typeof SlaSchema>;
-export type EmergencyVisit = z.infer<typeof EmergencyVisitSchema>;
 export type Overtime = z.infer<typeof OvertimeSchema>;

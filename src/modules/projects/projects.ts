@@ -39,7 +39,7 @@ import { quotationApproved } from "@/modules/tasks/taskRouting";
 import { isWonTender } from "@/modules/tendering/stages";
 import { boqTotals, valueFromBoq } from "@/modules/tendering/boq";
 import type { Tender, BoqItem } from "@/modules/tendering/schema";
-import type { ProjectsContext, Project, Sla, Overtime } from "./types";
+import type { ProjectsContext, Project, Overtime } from "./types";
 import type { Section } from "@/platform/db/sections";
 import type { Row } from "@/platform/db/store";
 import type { Task } from "@/modules/tasks/types";
@@ -49,7 +49,8 @@ export const DEFAULT_STAGE = "Received";
 
 const PROJECTS = "projects";
 const QUOTATIONS = "quotations";
-const SLAS = "slas";
+// SERVICE CONTRACTS (`slas`) LEFT THIS MODULE on 11/09/2026 — Maintenance reads
+// and writes them now, where they are still filed (`projects-sla`).
 const OVERTIMES = "overtimes";
 // Project Sheets live under INVENTORY in this product, matching the Old System.
 // Projects writes one when a project is opened and never reads it again.
@@ -75,7 +76,6 @@ const Clients = repo<Client>(CLIENTS);
 // Projects writes the project sheet under Inventory's section when a project is
 // opened and never reads it back, so this binds the collection without a type.
 const Sheets = repo(SHEETS);
-const Slas = repo<Sla>(SLAS);
 const Tasks = repo<Task>(TASKS);
 // The overtime picker's department filter is the studio's own org chart, read
 // from Master data through a foreign section — never seeded from here, because
@@ -87,7 +87,7 @@ const nonNeg = (v: unknown, fallback = 0) => { const n = Number(v); return Numbe
 export const projectsContext = moduleContext<ProjectsContext>({
   root: "projects",
   sub: {
-    list: "projects-list", sla: "projects-sla", overtimes: "projects-overtimes",
+    list: "projects-list", overtimes: "projects-overtimes",
     settings: "projects-settings",
     // The same section as `list`, under the name the cross-department readers
     // use for it. Both spellings existed before this and resolved identically.
@@ -129,7 +129,7 @@ export const projectsContext = moduleContext<ProjectsContext>({
     vendors: ["procurement-suppliers", "inventory"],
     tasks: "tasks",
   },
-  flags: ["list", "sla", "overtimes", "settings"],
+  flags: ["list", "overtimes", "settings"],
   extend: ({ settingsSection }) => ({
     settings: (settingsSection as { settings?: Record<string, unknown> })?.settings || {},
   }),
@@ -929,109 +929,6 @@ export async function saveProjectBoard(ctx: ProjectsContext, projectId: string, 
   if (JSON.stringify(board).length > BOARD_MAX_BYTES) return { error: "too-large" };
   await editJSON(PROJECT.board(studio.id, projectId), () => ({ next: board }));
   return { ok: true };
-}
-
-// ---- SLA contracts ----------------------------------------------------------
-// A support contract against a delivered project: signed on a date, running for
-// a duration, with a number of planned visits and an allowance of emergency
-// ones. The SCHEDULE ITSELF IS NOT STORED — modules/projects/sla.js derives the visit dates
-// from the start, duration and count, so changing the contract reschedules
-// everything instead of leaving stale dates behind. Only what cannot be derived
-// is kept: which visits were completed, and the emergency visits actually used.
-export async function listSlas({ studio, slaSection }: Pick<ProjectsContext, "studio" | "slaSection">) {
-  const rows = await Slas.find({ studio, section: slaSection });
-  return [...rows].sort((a, b) => String(b.signingDate || "").localeCompare(String(a.signingDate || "")));
-}
-
-function slaFields(body: Record<string, unknown>) {
-  return {
-    title: str(body?.title, 200),
-    projectId: str(body?.projectId, 60),
-    signingDate: str(body?.signingDate, 10),
-    startDate: str(body?.startDate, 10),
-    durationDays: Math.max(1, Math.round(nonNeg(body?.durationDays, 365)) || 365),
-    visits: Math.max(1, Math.round(nonNeg(body?.visits, 1)) || 1),
-    emergencyVisits: Math.round(nonNeg(body?.emergencyVisits, 0)),
-    notes: str(body?.notes, 4000),
-  };
-}
-
-export async function createSla(ctx: ProjectsContext, body: Record<string, unknown>) {
-  // Guarded before anything is read or written — see platform/access/resolve.ts.
-  const denied = requirePermission(ctx.access, "projects.sla.create");
-  if (denied) return denied;
-
-  const { studio, slaSection, collaborator } = ctx;
-  const fields = slaFields(body);
-  if (!fields.title) return { error: "title" };
-  if (!fields.startDate) return { error: "startDate" };
-
-  const sla = await Slas.create({ studio, section: slaSection }, {
-    ...fields,
-    completedVisits: [],
-    emergencyVisitsList: [],
-    createdByCollaboratorId: collaborator.id,
-    createdAt: new Date().toISOString(),
-  });
-  return { sla };
-}
-
-export async function updateSla(ctx: ProjectsContext, id: string, body: Record<string, unknown>) {
-  // Guarded before anything is read or written — see platform/access/resolve.ts.
-  const denied = requirePermission(ctx.access, "projects.sla.edit");
-  if (denied) return denied;
-
-  const { studio, slaSection } = ctx;
-  const rows = await Slas.find({ studio, section: slaSection });
-  const current = rows.find((s) => s.id === id);
-  if (!current) return { error: "notfound" };
-
-  const patch: Record<string, unknown> = {};
-  if (body?.title !== undefined) { const v = str(body.title, 200); if (!v) return { error: "title" }; patch.title = v; }
-  if (body?.projectId !== undefined) patch.projectId = str(body.projectId, 60);
-  if (body?.signingDate !== undefined) patch.signingDate = str(body.signingDate, 10);
-  if (body?.startDate !== undefined) { const v = str(body.startDate, 10); if (!v) return { error: "startDate" }; patch.startDate = v; }
-  if (body?.durationDays !== undefined) patch.durationDays = Math.max(1, Math.round(nonNeg(body.durationDays, 365)) || 365);
-  if (body?.visits !== undefined) patch.visits = Math.max(1, Math.round(nonNeg(body.visits, 1)) || 1);
-  if (body?.emergencyVisits !== undefined) patch.emergencyVisits = Math.round(nonNeg(body.emergencyVisits, 0));
-  if (body?.notes !== undefined) patch.notes = str(body.notes, 4000);
-
-  // Which planned visits are done. Kept as indexes, de-duplicated and bounded by
-  // the visit count so shrinking the contract cannot leave a tick behind on a
-  // visit that no longer exists.
-  if (body?.completedVisits !== undefined) {
-    const limit = patch.visits ?? current.visits ?? 1;
-    patch.completedVisits = [...new Set((Array.isArray(body.completedVisits) ? body.completedVisits : [])
-      .map((n) => Math.round(Number(n)))
-      .filter((n) => Number.isFinite(n) && n >= 1 && n <= Number(limit)))].sort((a, b) => a - b);
-  }
-
-  // Emergency visits are REAL, dated call-outs, so unlike the planned schedule
-  // they are stored. The allowance caps how many a contract may hold.
-  if (body?.emergencyVisitsList !== undefined) {
-    const cap = patch.emergencyVisits ?? current.emergencyVisits ?? 0;
-    const list = (Array.isArray(body.emergencyVisitsList) ? body.emergencyVisitsList : [])
-      .map((e, i) => ({
-        id: str(e?.id, 30) || `ev${i + 1}`,
-        date: str(e?.date, 10),
-        completed: Boolean(e?.completed),
-      }))
-      .filter((e) => e.date);
-    if (list.length > Number(cap)) return { error: "emergency-cap", cap };
-    patch.emergencyVisitsList = list;
-  }
-
-  const sla = await Slas.update({ studio, section: slaSection }, id, patch);
-  return { sla };
-}
-
-export async function removeSla(ctx: ProjectsContext, id: string) {
-  // Guarded before anything is read or written — see platform/access/resolve.ts.
-  const denied = requirePermission(ctx.access, "projects.sla.delete");
-  if (denied) return denied;
-
-  const removed = await Slas.remove({ studio: ctx.studio, section: ctx.slaSection }, id);
-  return removed ? { ok: true } : { error: "notfound" };
 }
 
 // ---- overtime ---------------------------------------------------------------

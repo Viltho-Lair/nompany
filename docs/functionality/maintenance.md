@@ -1,9 +1,18 @@
 # Maintenance
 
-The fifteenth department, 11/09/2026. `/<slug>/maintenance`, with two screens:
-**Work requests** (`maintenance-requests`) and **Work orders** (`maintenance-orders`).
-Module `src/modules/maintenance/`, rules in `model.ts` (pure, `tests/maintenance-model.mjs`),
-routes `api/studios/<slug>/maintenance/{requests,orders}`.
+The fifteenth department, 11/09/2026. `/<slug>/maintenance`, with five screens:
+**Work requests** (`maintenance-requests`), **Work orders** (`maintenance-orders`),
+**Preventive plans** (`maintenance-plans`), **Service contracts (SLA)**
+(`maintenance-contracts`) and **Machines** (`maintenance-assets`).
+Module `src/modules/maintenance/`, rules in `model.ts`, `schedule.ts`, `contracts.ts` and
+`legacy.ts` (all pure, `tests/maintenance-model.mjs`), routes
+`api/studios/<slug>/maintenance/{requests,orders,plans,contracts,labour,readings,assets}`.
+
+**All maintenance lives here — the owner's word, 11/09/2026: an SLA is a preventive
+maintenance contract.** Before that day maintenance was in four places that knew nothing of
+each other: Projects' SLA screen, Field Service's maintenance contracts and PM plans, Assets'
+maintenance list, and this section. Field Service keeps the crews (Schedule, Tracking) and the
+installed base; Assets keeps what the studio owns (equipment, calibration, plant allocation).
 
 Decided with the owner (the ledger's Maintenance row in `docs/progress.md`): its own
 department rather than more of Assets; work orders a hand-built module rather than engine
@@ -244,6 +253,92 @@ still runs every plan, and raises nothing twice). The run is called from the rou
 service, because the run writes orders through the service — the other way round is an import loop.
 The reading stands whatever the run does. PM compliance counts calendar plans only.
 
+### Service contracts (SLA) (11/09/2026)
+
+**The maintenance a studio sells**: a term, a number of planned visits spread evenly across it,
+and an allowance of call-outs. `maintenance-contracts` is the screen; the contracts are the
+`slas` rows **still filed under `projects-sla`**, where Projects wrote them, read as a foreign
+section. `projects-sla` is a **filed-only section** (`FILED_ONLY_SECTION_KEYS`, keys.ts): its
+rows stay, the sidebar and the Sections panel leave it out, and its old address shows a pointer
+here. Nothing moved and no script ran — **every existing contract is on this screen as it was.**
+
+**The right is still `projects.sla`**, filed under Maintenance on the Access screen. Renaming the
+key would have stranded every role that holds it; kept, every existing holder reaches the new
+screen by themselves.
+
+A contract is a name, a customer (typed), the project it follows (optional; its title only for a
+reader of the project list), what it covers (parts and labour · labour only · inspection only ·
+full cover), its value over the term (blank is "not stated", not nought), signing and start
+dates, a length in days, planned visits, call-outs allowed, days early to raise a visit (0–60),
+a place, the customer's units it covers (Field Service's installed base), who does the visits,
+and a checklist. Rules in `contracts.ts`, pure — the screen refuses exactly what the server does.
+
+**The visit dates are arithmetic**: visit k falls on start + k × (length ÷ visits), rounded to
+the day, so the last lands on the end — the same sum the Projects screen used, so every contract
+kept its dates. Editing the start, length or count reschedules every visit.
+
+**Each visit becomes a work order by itself.** The daily run (`raiseDueContractOrders` in
+`pmRun.ts`, on `cron/daily-notices` in its own `try`) raises a preventive order for a contract's
+next visit when it falls due, less the lead days — one a day per contract, earliest first,
+naming the contract and the visit (`slaId` + `slaVisit`), which is what makes it idempotent. The
+order carries the contract's place, its one unit when it covers one, its people and its
+checklist. **Nothing is written back onto the contract**: what a visit came to is read off its
+order — done (completed or closed), open, cancelled, due, upcoming, or **missed**.
+
+**Missed, not raised, beyond a week back** (`RAISE_GRACE_DAYS`). Without it, the first run after
+this shipped would have raised a year of overdue orders for every contract a studio already had.
+A visit kept outside the system — or before 11/09, when a visit was a checkbox — is **ticked by
+hand**; only a visit with no order can be, because an order already says what it came to.
+
+**A contract a preventive plan runs under raises no visits of its own** — the plan is its
+schedule (a monthly service on one unit and a quarterly one on another cannot be one even
+spread, and raising both would send the customer two sets of visits). Derived from the plans,
+not stored; the screen says which plans keep it. Paused counts; retired does not.
+
+**A call-out** is a corrective work order raised from the contract (default priority high),
+counted against the allowance with any call-outs dated on the contract before 11/09. Refused
+past the allowance (`emergency-cap`), outside the term (`outside-term` — raise an ordinary
+order), or on a cancelled contract. It answers to `maintenance.orders.create`, because it is a
+work order. Two call-outs at the same instant can both take the last one; the register then
+shows it.
+
+**Cancelled is the one stored state**; active, not started and ended are read off the dates, so a
+renewal is new dates on the same contract. A cancelled contract raises nothing and takes no
+call-outs, and is reinstated from the same screen. **Only a contract that has raised nothing
+deletes** — once a visit, a call-out or a plan names it, cancel it instead.
+
+### Customers' units (11/09/2026)
+
+A work order and a preventive plan can name **a customer's unit** — an engine `installed`
+record from Field Service's installed base — as well as, or instead of, the studio's own machine.
+What the studio owns and what it looks after for a customer are two registers because they are
+two things. The name shows only to a reader holding `engine.installed.view`; otherwise the same
+three states as a machine. A plan can also name the contract it fulfils, and every order it
+raises carries both.
+
+### The old registers, folded (11/09/2026)
+
+**New studios no longer get** Assets' `maintenance` register or Field Service's maintenance
+contracts (`contract`) and PM plans (`planned`). An existing studio keeps its three registers and
+every record until `scripts/migrate/fold-maintenance-registers.mjs` runs — dry-run by default,
+`--apply` to write, `--allow-live` for the live store. It copies (`legacy.ts`, pure, tested;
+`fold.ts` writes):
+
+- a Field Service contract → a service contract: term kept, visits per year become visits over
+  the term, the annual value becomes the value over the term, the units its plans serviced become
+  the units it covers. **A draft arrives cancelled**, so nothing is raised until somebody
+  reinstates it.
+- a Field Service plan → a preventive plan with the same frequency and next date, its tasks as
+  the checklist, its unit, and its contract. **A frequency nothing reads arrives paused.** The old
+  plan is then set Retired, so it stops raising dispatch jobs the morning its copy starts raising
+  work orders.
+- an Assets maintenance record → a work order: Due is open, In progress in progress, Done
+  completed (its notes are what was done), Skipped cancelled; its recorded cost is kept as
+  `legacyCost` and shown on the order.
+
+Then the three registers are **switched off** (`enabled: false`) — undone from Studio settings →
+Sections. **Nothing is deleted.** Idempotent: every row written carries `legacyRecordId`.
+
 ### What a record points at
 
 **The machine is the Assets register's** — an engine `equipment` record, which stays filed
@@ -270,6 +365,8 @@ paths, and nothing else is accepted.
   Admins see it at once. **Other roles need `scripts/migrate/grant-maintenance.mjs`** (gives
   roles holding `engine.maintenance.V` the same verb on the Maintenance areas; dry-run by
   default), because a role's rights are never widened without somebody choosing to. **Not run.**
+- **Service contracts need nothing run**: they answer to `projects.sla`, which every role that
+  had the Projects SLA screen already holds.
 
 ## Not built yet
 
@@ -287,9 +384,19 @@ paths, and nothing else is accepted.
   work), gauges as opposed to cumulative meters, and readings from telematics.
 - **Compliance for meter plans.** A meter plan's orders are not scored on time or late.
 - **Readings taken on a work order or its checklist.** A reading is recorded on the machine.
-- **Field Service's own PM plans** (the engine `planned` register, for customer-installed
-  units) still raise Operations jobs through their own run; the two share the calendar
-  arithmetic and nothing else.
+- **Existing studios' Field Service plans still raise dispatch jobs** until the fold runs and
+  retires them. `fold-maintenance-registers.mjs` has **not been run**, not against live and not
+  in the sandbox.
+- **Response and resolution targets.** A service contract promises visits and call-outs; it
+  says nothing yet about how fast a call-out is answered or put right, and nothing is measured
+  against one.
+- **Billing a contract.** Its value is recorded; nothing raises an invoice from it, and a
+  call-out past the allowance is refused rather than charged.
+- **Renewal as an act.** A contract is renewed by moving its dates; nothing reminds anybody that
+  one is ending.
+- **The customer is typed**, not a CRM client, as the installed base types it.
+- **The dispatch board's job form** still offers Field Service's old contract register, which
+  new studios do not have, rather than service contracts.
 - **Reserving parts before the work starts.** A part is issued or it is not; nothing holds
   stock against a planned order, and a preventive plan names no parts.
 - **Posting to Finance.** No journal entry is written for parts or time; the cost is visible
@@ -297,11 +404,9 @@ paths, and nothing else is accepted.
   account.
 - **What labour costs, and cost per machine in money beyond parts.**
 - **Bins, batches and serials on an issue.** A part leaves "unbinned" like a delivery note's.
-- **Failure codes, meters, QR tags, supplier work orders, permit gating, check-in, offline.**
+- **QR tags, supplier work orders, permit gating, check-in, offline.**
 - **Moving the machine's status.** Starting work does not set the equipment record to
   "Under repair".
-- **The engine `maintenance` register** under Assets still exists beside this section. It
-  is retired into work orders by a migration that has not been written.
 - **Reporting a fault from any department.** A role is confined to its department's
   sections (the owner's rule, 11/09/2026), so only departments listing Maintenance can raise
   a request by default. Whether everybody should, the way everybody has Tasks, is an open

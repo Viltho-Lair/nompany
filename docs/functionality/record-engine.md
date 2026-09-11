@@ -298,6 +298,15 @@ afterwards is a separate, twice-confirmed step.
 so the jobs the daily run raises from a plan name the contract and the unit. An existing studio
 picks the fields up when `scripts/migrate/seed-builtin-types.mjs` reconciles it.
 
+**Three more left on 11/09/2026: Assets' `maintenance`, and Field Service's `contract` and
+`planned`.** Maintenance is one section now (`maintenance.md`): its work orders, preventive plans
+and service contracts replace them, and a second, weaker list beside each meant work could be
+recorded where nothing counted it. Same arrangement as `job`: out of `BUILTIN_TYPES`, never
+touched again by the seeder or the reconciler, and an existing studio keeps its types and records
+until `scripts/migrate/fold-maintenance-registers.mjs` copies them into Maintenance and switches
+the registers off. The fold deletes nothing. `installed` (the installed base) stays — work
+orders, plans and contracts name its units.
+
 ## Not built yet
 
 Stated in words, because a silent gap reads as a finished feature.

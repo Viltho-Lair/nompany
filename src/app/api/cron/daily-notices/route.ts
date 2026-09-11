@@ -10,7 +10,7 @@ import { resolveHolders } from "@/lib/studios";
 import { notifyCollaborators, NOTIFY } from "@/platform/notify/notifications";
 import { raiseDuePlanJobs } from "@/modules/operations/planJobs";
 import { engineSectionKey } from "@/platform/access";
-import { raiseDuePmOrders } from "@/modules/maintenance/pmRun";
+import { raiseDuePmOrders, raiseDueContractOrders } from "@/modules/maintenance/pmRun";
 import {
   overdueInvoiceNotices, overdueBillNotices, expiringDocumentNotices, expiringPermitNotices,
   dueWorkOrderNotices, dueCalibrationNotices, type WorkOrderNotice,
@@ -55,6 +55,7 @@ async function run(request: Request) {
   let scanned = 0;
   let planJobs = 0;
   let pmOrders = 0;
+  let contractOrders = 0;
   for (const s of studios) {
     try {
       sent += await noticesForStudio(String(s.id), todayISO, todayDate);
@@ -87,8 +88,16 @@ async function run(request: Request) {
         studioId: s.id, error: err instanceof Error ? err.message : String(err),
       });
     }
+    // SERVICE CONTRACTS' VISITS, in their own try for the same reason again.
+    try {
+      contractOrders += await raiseDueContractOrders(String(s.id), todayISO);
+    } catch (err) {
+      log.error("daily-notices: service contract visits failed", {
+        studioId: s.id, error: err instanceof Error ? err.message : String(err),
+      });
+    }
   }
-  return Response.json({ ok: true, studios: studios.length, scanned, sent, planJobs, pmOrders });
+  return Response.json({ ok: true, studios: studios.length, scanned, sent, planJobs, pmOrders, contractOrders });
 }
 
 // One studio: read what it has, work out what crosses a line today, and tell the

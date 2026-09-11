@@ -12,7 +12,7 @@ import { dirFor, locales, LANGUAGE_NAMES, LANGUAGE_SHORT } from "@/shared/locale
 import { studioSegments, requestedKey, resolveActiveKey, isFullScreenPath, isSettingsPath, SETTINGS_KEY } from "@/shared/studioRoute";
 import { shellDict } from "@/shared/studio/shell";
 import { sectionName } from "@/shared/studio/sections";
-import { isSystemSection } from "@/platform/db/keys";
+import { isSystemSection, isFiledOnlySection } from "@/platform/db/keys";
 import { StudioLocaleProvider } from "@/components/studio2/locale";
 import LangMenu from "@/components/LangMenu";
 // LOADED ONLY BY THE STUDIOS THAT NEED IT. The RTL cache pulls in
@@ -95,6 +95,7 @@ const SECTION_ICONS = {
   "maintenance-requests": "requisitions",
   "maintenance-orders": "tool",
   "maintenance-plans": "calendar",
+  "maintenance-contracts": "contract",
   "maintenance-assets": "gears",
   "procurement-rfq": "supplierQuotes",
   "procurement-expediting": "expediting",
@@ -475,7 +476,10 @@ export default function StudioFrame({
   // what the SIDEBAR calls a section. `isSystemSection` is the one list that
   // decides, shared with the marketing site's department list so the two cannot
   // drift — the exact failure the fifteen-section restructure kept finding.
-  const all = (sections || []).filter((s) => !isSystemSection(s.key));
+  // A FILED-ONLY SECTION (keys.ts) is left out too: its rows are shown under
+  // another section, and a second row opening the same contracts would be the
+  // duplicate the move existed to remove.
+  const all = (sections || []).filter((s) => !isSystemSection(s.key) && !isFiledOnlySection(s.key));
   const systemSections = (sections || []).filter((s) => isSystemSection(s.key));
   const visibleIds = new Set(all.map((s) => s.id));
   // WHO EACH SECTION'S PARENT IS, by key, from the whole list rather than the

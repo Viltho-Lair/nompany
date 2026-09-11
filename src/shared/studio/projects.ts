@@ -104,13 +104,9 @@ type Strings = CommonStrings & {
   refuseNoDate: string;
   acrossProjects: (n: number) => string;
   accessProjectsStudio: string;
-  acrossEverySlaContract: string;
   actions: string;
   activeProjects: string;
-  addContract: string;
   addOvertime: string;
-  addSla: string;
-  addSlaContract: string;
   allDepartments: string;
   allocate: string;
   approvedQuotation: string;
@@ -121,13 +117,8 @@ type Strings = CommonStrings & {
   cancel: string;
   client: string;
   close: string;
-  closestVisit: string;
   completed: string;
   contactPerson: string;
-  contract: string;
-  contractCoversDeliveredProject: string;
-  contractName: string;
-  contractNoEmergencyVisits: string;
   createProject: string;
   createProjectPlan: string;
   createsScheduleProjectCarrying: string;
@@ -146,13 +137,9 @@ type Strings = CommonStrings & {
   didnSave: string;
   direct: string;
   discard: string;
-  due30Days: string;
-  durationDays: string;
   edit: string;
   editOvertime: string;
   email: string;
-  emergencyAllowance: string;
-  emergencyVisits: string;
   end: string;
   endTimeAfterStart: string;
   endTimeMustAfter: string;
@@ -178,11 +165,8 @@ type Strings = CommonStrings & {
   main: string;
   manager: string;
   model: string;
-  nEmergencyVisitsAllowed: (n: number) => string;
   nHours: (n: number) => string;
   nHoursPerPerson: (n: number) => string;
-  nOvertimeHoursLogged: (n: number) => string;
-  nVisitsScheduled: (n: number) => string;
   nameIsnListCreatesClient: string;
   newClientWork: string;
   newProject: string;
@@ -190,7 +174,6 @@ type Strings = CommonStrings & {
   noClientsListHere: string;
   noDataYet: string;
   noDepartmentsDepartmentSection: string;
-  noEmergencyVisitsRegistered: string;
   noHiddenProjectMatches: string;
   noNumberYet: string;
   noOpenProjects: string;
@@ -319,8 +302,6 @@ type Strings = CommonStrings & {
   evTwoForecasts: string;
   evElapsed: (pct: number) => string;
   noServiceActionsYet: string;
-  noSlaContractsYet: string;
-  noSlaContractsYet2: string;
   nobodyDepartment: string;
   noneStock: string;
   notIssuedYet: string;
@@ -346,10 +327,8 @@ type Strings = CommonStrings & {
   peopleListOpensFiltered: string;
   person: string;
   pickDate: string;
-  pickDateFirst: string;
   pickLeastOnePerson: string;
   pickProject: string;
-  plannedVisits: string;
   progress: string;
   project: string;
   project2: string;
@@ -383,14 +362,11 @@ type Strings = CommonStrings & {
   quotationHasnApprovedYet: string;
   quotationNoPricedLines: string;
   received: string;
-  registerEmergencyVisit: string;
   registeredProjectValue: string;
   releaseUnit: string;
-  remove: string;
   requirementWeights: string;
   reservedLine: string;
   save: string;
-  saveContract: string;
   saveSettings: string;
   saved: string;
   saving: string;
@@ -398,28 +374,25 @@ type Strings = CommonStrings & {
   searchTitleNumberClient: string;
   seriesEnded: string;
   seriesStarted: string;
-  setStartDateDuration: string;
   sheet: string;
   sheetSettings: string;
-  signed: string;
   site: string;
   siteCity: string;
-  slaContract: string;
+  slaMovedTitle: string;
+  slaMovedBody: string;
+  openServiceContracts: string;
   someChangesDidnSave: string;
   stage: string;
   stages: string;
   stagesProjectMovesThrough: string;
   start: string;
-  startDateRequiredVisit: string;
   startedEndedMonth: string;
-  starts: string;
   status: string;
   studioKeepsModuleDashboards: string;
   support: string;
   supportEnded: string;
   supportNotSet: string;
   supportPeriodDays: string;
-  supportVisits: string;
   targetEnd: string;
   thatIs: string;
   theyTotal100: string;
@@ -441,8 +414,6 @@ type Strings = CommonStrings & {
   viewOnly: string;
   viewOnlyAccessPart: string;
   viewOnlyAccessProjects: string;
-  visitScheduleGeneratedStart: string;
-  visits: string;
   weightsMustTotal100: string;
   whatSold: string;
   whereWorkSits: string;
@@ -607,13 +578,9 @@ const en: Strings = {
   refuseNoDate: "A report needs the day it is about.",
   acrossProjects: (n) => `across ${n} ${n === 1 ? "project" : "projects"}`,
   accessProjectsStudio: "You don't have access to Projects in this studio.",
-  acrossEverySlaContract: "Across every SLA contract",
   actions: "Actions",
   activeProjects: "Active projects",
-  addContract: "Add contract",
   addOvertime: "Add overtime",
-  addSla: "Add SLA",
-  addSlaContract: "Add SLA contract",
   allDepartments: "All departments",
   allocate: "Allocate…",
   approvedQuotation: "Approved quotation",
@@ -624,13 +591,8 @@ const en: Strings = {
   cancel: "Cancel",
   client: "Client",
   close: "Close",
-  closestVisit: "Closest visit",
   completed: "Completed",
   contactPerson: "Contact person",
-  contract: "Contract",
-  contractCoversDeliveredProject: "A contract covers a delivered project for a period, with a set number of planned visits and an allowance of emergency ones.",
-  contractName: "Contract name",
-  contractNoEmergencyVisits: "This contract has no emergency visits.",
   createProject: "Create project",
   createProjectPlan: "Create project plan",
   createsScheduleProjectCarrying: "Creates a schedule for this project, carrying its details across.",
@@ -651,13 +613,9 @@ const en: Strings = {
   // strip reads as a missing record; "Direct" says the absence is the fact.
   direct: "Direct",
   discard: "Discard",
-  due30Days: "due in 30 days",
-  durationDays: "Duration (days)",
   edit: "Edit",
   editOvertime: "Edit overtime",
   email: "Email",
-  emergencyAllowance: "Emergency allowance",
-  emergencyVisits: "Emergency visits",
   end: "End",
   endTimeAfterStart: "The end time has to be after the start time.",
   endTimeMustAfter: "The end time must be after the start time.",
@@ -683,11 +641,8 @@ const en: Strings = {
   main: "Main",
   manager: "Manager",
   model: "Model",
-  nEmergencyVisitsAllowed: (n: number) => `This contract allows ${n} emergency visit${n === 1 ? "" : "s"}.`,
   nHours: (n: number) => `${n} hour${n === 1 ? "" : "s"}.`,
   nHoursPerPerson: (n: number) => `${n} hour${n === 1 ? "" : "s"} per person.`,
-  nOvertimeHoursLogged: (n: number) => `${n} overtime hours logged`,
-  nVisitsScheduled: (n: number) => `${n} visit${n === 1 ? "" : "s"} scheduled in total`,
   nameIsnListCreatesClient: "That name isn't on the list — a new client will be created.",
   newClientWork: "New client work",
   newProject: "New project",
@@ -695,7 +650,6 @@ const en: Strings = {
   noClientsListHere: "This studio has no clients list, so there is no client to file the project against. Switch the Sales clients section on first.",
   noDataYet: "No data yet",
   noDepartmentsDepartmentSection: "No departments — a department is a section, and this studio has none switched on.",
-  noEmergencyVisitsRegistered: "No emergency visits registered yet.",
   noHiddenProjectMatches: "No hidden project matches that.",
   noNumberYet: "No number yet",
   noOpenProjects: "No open projects.",
@@ -818,8 +772,6 @@ const en: Strings = {
   evTwoForecasts: "Two forecasts, and they answer different questions: “At this rate” projects the budget at the cost performance so far; “Forecast” above is the ledger — what is spent plus what is ordered.",
   evElapsed: (pct) => `${pct}% of the schedule has gone`,
   noServiceActionsYet: "No service actions yet — add them in Studio Settings, then weight them here.",
-  noSlaContractsYet: "No SLA contracts yet",
-  noSlaContractsYet2: "No SLA contracts yet.",
   nobodyDepartment: "Nobody in this department.",
   noneStock: "none in stock",
   notIssuedYet: "Not issued yet",
@@ -845,10 +797,8 @@ const en: Strings = {
   peopleListOpensFiltered: ", so the people list opens filtered to it.",
   person: "Person",
   pickDate: "Pick a date.",
-  pickDateFirst: "Pick a date first.",
   pickLeastOnePerson: "Pick at least one person.",
   pickProject: "Pick a project.",
-  plannedVisits: "Planned visits",
   progress: "Progress",
   project: "Project",
   project2: "← Project",
@@ -879,14 +829,11 @@ const en: Strings = {
   quotationHasnApprovedYet: "That quotation hasn't been approved yet.",
   quotationNoPricedLines: "The quotation behind this sheet has no priced lines yet. Add them in the builder and they appear here.",
   received: "Received",
-  registerEmergencyVisit: "Register emergency visit",
   registeredProjectValue: "Registered project value",
   releaseUnit: "Release this unit",
-  remove: "Remove",
   requirementWeights: "Requirement weights",
   reservedLine: "Reserved to this line",
   save: "Save",
-  saveContract: "Save contract",
   saveSettings: "Save settings",
   saved: "Saved",
   saving: "Saving…",
@@ -894,28 +841,25 @@ const en: Strings = {
   searchTitleNumberClient: "Search title, number, client or location",
   seriesEnded: "Ended",
   seriesStarted: "Started",
-  setStartDateDuration: "Set a start date, duration and visit count to generate visits.",
   sheet: "Sheet",
   sheetSettings: "Sheet settings",
-  signed: "Signed",
   site: "Site",
   siteCity: "Site or city",
-  slaContract: "SLA contract",
+  slaMovedTitle: "Service contracts are in Maintenance",
+  slaMovedBody: "An SLA is a preventive maintenance contract, so it moved to Maintenance, where each planned visit becomes a work order. Every contract is there as it was.",
+  openServiceContracts: "Open service contracts",
   someChangesDidnSave: "Some changes didn't save — nothing after the failed row was sent.",
   stage: "Stage",
   stages: "Stages",
   stagesProjectMovesThrough: "The stages a project moves through. These are fixed for now — the board and the list both read them.",
   start: "Start",
-  startDateRequiredVisit: "A start date is required — the visit schedule is counted from it.",
   startedEndedMonth: "Started and ended by month",
-  starts: "Starts",
   status: "Status",
   studioKeepsModuleDashboards: "This studio keeps its module dashboards behind a right of their own. The screens underneath are unaffected — pick one from the sidebar.",
   support: "Support",
   supportEnded: "Support ended",
   supportNotSet: "Support not set",
   supportPeriodDays: "Support period (days)",
-  supportVisits: "Support visits",
   targetEnd: "Target end",
   thatIs: "That is",
   theyTotal100: "They total 100%.",
@@ -937,8 +881,6 @@ const en: Strings = {
   viewOnly: "View only",
   viewOnlyAccessPart: "You have view-only access to this part of Projects.",
   viewOnlyAccessProjects: "You have view-only access to Projects settings.",
-  visitScheduleGeneratedStart: "The visit schedule is generated from the start date, duration and visit count.",
-  visits: "Visits",
   weightsMustTotal100: "Weights must total 100%.",
   whatSold: "What was sold",
   whereWorkSits: "Where the work sits",
@@ -1110,13 +1052,9 @@ const ar: Strings = {
   refuseNoDate: "التقرير يحتاج إلى اليوم الذي يخصه.",
   acrossProjects: (n) => `عبر ${n === 1 ? "مشروع واحد" : n === 2 ? "مشروعين" : n <= 10 ? `${n} مشاريع` : `${n} مشروعا`}`,
   accessProjectsStudio: "لا تملك صلاحية الوصول إلى المشاريع في هذا الاستوديو.",
-  acrossEverySlaContract: "عبر كل عقد مستوى خدمة",
   actions: "الإجراءات",
   activeProjects: "المشاريع النشطة",
-  addContract: "إضافة عقد",
   addOvertime: "إضافة عمل إضافي",
-  addSla: "إضافة عقد مستوى خدمة",
-  addSlaContract: "إضافة عقد مستوى خدمة",
   allDepartments: "كل الأقسام",
   allocate: "تخصيص…",
   approvedQuotation: "عرض السعر المعتمد",
@@ -1127,13 +1065,8 @@ const ar: Strings = {
   cancel: "إلغاء",
   client: "العميل",
   close: "إغلاق",
-  closestVisit: "أقرب زيارة",
   completed: "مكتمل",
   contactPerson: "جهة الاتصال",
-  contract: "العقد",
-  contractCoversDeliveredProject: "يغطي العقد مشروعا مسلما لفترة محددة، بعدد مقرر من الزيارات المخططة ومخصص من الزيارات الطارئة.",
-  contractName: "اسم العقد",
-  contractNoEmergencyVisits: "لا يتضمن هذا العقد زيارات طارئة.",
   createProject: "إنشاء المشروع",
   createProjectPlan: "إنشاء خطة المشروع",
   createsScheduleProjectCarrying: "ينشئ جدولا لهذا المشروع، ناقلا تفاصيله معه.",
@@ -1152,13 +1085,9 @@ const ar: Strings = {
   didnSave: "لم يحفظ ذلك.",
   direct: "مباشر",
   discard: "تجاهل",
-  due30Days: "مستحق خلال 30 يوما",
-  durationDays: "المدة (بالأيام)",
   edit: "تعديل",
   editOvertime: "تعديل العمل الإضافي",
   email: "البريد الإلكتروني",
-  emergencyAllowance: "مخصص الطوارئ",
-  emergencyVisits: "الزيارات الطارئة",
   end: "النهاية",
   endTimeAfterStart: "يجب أن يكون وقت النهاية بعد وقت البداية.",
   endTimeMustAfter: "يجب أن يكون وقت النهاية بعد وقت البداية.",
@@ -1184,11 +1113,8 @@ const ar: Strings = {
   main: "الرئيسية",
   manager: "المدير",
   model: "الطراز",
-  nEmergencyVisitsAllowed: (n: number) => `يسمح هذا العقد بـ${n === 1 ? "زيارة طارئة واحدة" : n === 2 ? "زيارتين طارئتين" : n <= 10 ? `${n} زيارات طارئة` : `${n} زيارة طارئة`}.`,
   nHours: (n: number) => `${n === 1 ? "ساعة واحدة" : n === 2 ? "ساعتان" : n <= 10 ? `${n} ساعات` : `${n} ساعة`}.`,
   nHoursPerPerson: (n: number) => `${n === 1 ? "ساعة واحدة" : n === 2 ? "ساعتان" : n <= 10 ? `${n} ساعات` : `${n} ساعة`} لكل شخص.`,
-  nOvertimeHoursLogged: (n: number) => `${n} ساعة إضافية مسجلة`,
-  nVisitsScheduled: (n: number) => `إجمالا ${n === 1 ? "زيارة واحدة مجدولة" : n === 2 ? "زيارتان مجدولتان" : n <= 10 ? `${n} زيارات مجدولة` : `${n} زيارة مجدولة`}`,
   nameIsnListCreatesClient: "هذا الاسم ليس في القائمة — سينشأ عميل جديد.",
   newClientWork: "عمل جديد لعميل",
   newProject: "مشروع جديد",
@@ -1196,7 +1122,6 @@ const ar: Strings = {
   noClientsListHere: "لا توجد قائمة عملاء في هذا الاستوديو، فلا يوجد عميل يسجل المشروع عليه. فعل قسم عملاء المبيعات أولا.",
   noDataYet: "لا توجد بيانات بعد",
   noDepartmentsDepartmentSection: "لا توجد أقسام — القسم هو قطاع، ولا يوجد أي قطاع مفعل في هذا الاستوديو.",
-  noEmergencyVisitsRegistered: "لم تسجل زيارات طارئة بعد.",
   noHiddenProjectMatches: "لا يوجد مشروع مخفي يطابق ذلك.",
   noNumberYet: "بلا رقم بعد",
   noOpenProjects: "لا توجد مشاريع مفتوحة.",
@@ -1319,8 +1244,6 @@ const ar: Strings = {
   evTwoForecasts: "توقعان يجيبان سؤالين مختلفين: «على هذا المعدل» يسقط الميزانية على أداء التكلفة حتى الآن؛ و«المتوقع» أعلاه هو الدفتر: ما صرف زائد ما طلب.",
   evElapsed: (pct) => `مضى ${pct}% من المدة`,
   noServiceActionsYet: "لا إجراءات خدمة بعد — أضفها في إعدادات الاستوديو ثم وزع أوزانها هنا.",
-  noSlaContractsYet: "لا توجد عقود مستوى خدمة بعد",
-  noSlaContractsYet2: "لا توجد عقود مستوى خدمة بعد.",
   nobodyDepartment: "لا أحد في هذا القسم.",
   noneStock: "لا شيء في المخزون",
   notIssuedYet: "لم يصدر بعد",
@@ -1346,10 +1269,8 @@ const ar: Strings = {
   peopleListOpensFiltered: "، فتفتح قائمة الأشخاص مصفاة عليه.",
   person: "الشخص",
   pickDate: "اختر تاريخا.",
-  pickDateFirst: "اختر تاريخا أولا.",
   pickLeastOnePerson: "اختر شخصا واحدا على الأقل.",
   pickProject: "اختر مشروعا.",
-  plannedVisits: "الزيارات المخططة",
   progress: "التقدم",
   project: "المشروع",
   project2: "← المشروع",
@@ -1387,14 +1308,11 @@ const ar: Strings = {
   quotationHasnApprovedYet: "لم يعتمد عرض السعر ذاك بعد.",
   quotationNoPricedLines: "عرض السعر خلف هذه الورقة لا يحمل بنودا مسعرة بعد. أضفها في المنشئ لتظهر هنا.",
   received: "مستلم",
-  registerEmergencyVisit: "سجل زيارة طارئة",
   registeredProjectValue: "قيمة المشاريع المسجلة",
   releaseUnit: "تحرير هذه الوحدة",
-  remove: "إزالة",
   requirementWeights: "أوزان المتطلبات",
   reservedLine: "محجوزة لهذا السطر",
   save: "حفظ",
-  saveContract: "حفظ العقد",
   saveSettings: "حفظ الإعدادات",
   saved: "تم الحفظ",
   saving: "جار الحفظ…",
@@ -1402,28 +1320,25 @@ const ar: Strings = {
   searchTitleNumberClient: "ابحث بالعنوان أو الرقم أو العميل أو الموقع",
   seriesEnded: "انتهت",
   seriesStarted: "بدأت",
-  setStartDateDuration: "حدد تاريخ بداية ومدة وعدد زيارات لتوليد الزيارات.",
   sheet: "الكشف",
   sheetSettings: "إعدادات الكشف",
-  signed: "موقع",
   site: "الموقع",
   siteCity: "الموقع أو المدينة",
-  slaContract: "عقد مستوى الخدمة",
+  slaMovedTitle: "عقود الخدمة أصبحت في الصيانة",
+  slaMovedBody: "عقد مستوى الخدمة عقد صيانة وقائية، لذلك نقل إلى الصيانة حيث تصبح كل زيارة مخططة أمر عمل. كل العقود موجودة هناك كما كانت.",
+  openServiceContracts: "فتح عقود الخدمة",
   someChangesDidnSave: "لم تحفظ بعض التغييرات — ولم يرسل أي شيء بعد الصف الذي أخفق.",
   stage: "المرحلة",
   stages: "المراحل",
   stagesProjectMovesThrough: "المراحل التي يمر بها المشروع. وهي ثابتة حاليا — تقرأها اللوحة والقائمة معا.",
   start: "البداية",
-  startDateRequiredVisit: "تاريخ البداية مطلوب — فجدول الزيارات يحسب منه.",
   startedEndedMonth: "البدء والانتهاء حسب الشهر",
-  starts: "يبدأ",
   status: "الحالة",
   studioKeepsModuleDashboards: "يبقي هذا الاستوديو لوحات معلومات الوحدات خلف صلاحية خاصة بها. الشاشات التي تحتها غير متأثرة — اختر واحدة من الشريط الجانبي.",
   support: "الدعم",
   supportEnded: "انتهى الدعم",
   supportNotSet: "الدعم غير محدد",
   supportPeriodDays: "فترة الدعم (بالأيام)",
-  supportVisits: "زيارات الدعم",
   targetEnd: "النهاية المستهدفة",
   thatIs: "أي",
   theyTotal100: "مجموعها 100٪.",
@@ -1445,8 +1360,6 @@ const ar: Strings = {
   viewOnly: "للعرض فقط",
   viewOnlyAccessPart: "لديك صلاحية عرض فقط على هذا الجزء من المشاريع.",
   viewOnlyAccessProjects: "لديك صلاحية عرض فقط على إعدادات المشاريع.",
-  visitScheduleGeneratedStart: "يولد جدول الزيارات من تاريخ البداية والمدة وعدد الزيارات.",
-  visits: "الزيارات",
   weightsMustTotal100: "يجب أن يكون مجموع الأوزان 100٪.",
   whatSold: "ما تم بيعه",
   whereWorkSits: "أين يقف العمل",

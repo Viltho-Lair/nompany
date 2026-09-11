@@ -11,6 +11,16 @@ Fleet, Assets & Equipment, Maintenance, Quality & HSE, Human Resources, Finance 
 Accounting, Reports & BI. (**Maintenance is the fifteenth, 11/09/2026**, decided with the
 owner — `docs/functionality/maintenance.md`. The equipment register stays under Assets.)
 
+**ALL MAINTENANCE IS MAINTENANCE'S — the owner, 11/09/2026: "SLA is preventive maintenance
+contract."** Service contracts (SLA) are `maintenance-contracts`; their rows stay in `slas` under
+`projects-sla`, which is now a **FILED-ONLY section** (`FILED_ONLY_SECTION_KEYS`, keys.ts): kept
+because rows are filed under it, left out of the sidebar, the Sections panel and the role
+library's department map. **Do not delete `projects-sla`** — nothing would fail and every
+contract would vanish — and do not rename `projects.sla`: it is the right every existing role
+holds, filed under Maintenance on the Access screen. Assets' `maintenance` and Field Service's
+`contract`/`planned` registers are no longer seeded; `fold-maintenance-registers.mjs` folds an
+existing studio's.
+
 **ADMINISTRATION & SETTINGS IS NOT A SECTION — the owner's instruction, 09/09/2026.**
 It carries People, Access, Master data and Studio settings: the studio's own system
 configuration, not a department any company runs. It is reached from a **Settings entry at
@@ -715,7 +725,8 @@ that writes to live data is its own change with its own authorisation.
 on the owner's instruction.** Wave 0 shipped (orphan-sweep guard, credential rate limiting,
 console session expiry, traffic-ingest bounds, media tenancy, security headers, bcrypt 12
 with rehash-on-login, M-1 dead capabilities), and its **ESLint** budget (flat config,
-shrink-only: the CEILING is 104 and the actual count is 104 — 108 → 104 on 10/09/2026, when the
+shrink-only: the CEILING is 102 and the actual count is 102 — 104 → 102 on 11/09/2026, when the
+SLA screen left Projects and two imports only it used went with it; 108 → 104 on 10/09/2026, when the
 console's move into one shared shell orphaned fourteen imports and they were deleted
 rather than banked as headroom; before that, ratcheted down from 142
 on 09/09/2026 by extracting `components/studio2/useReload`) and **observability** (request

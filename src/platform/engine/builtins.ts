@@ -288,33 +288,15 @@ export const BUILTIN_TYPES = [
     ],
     version: 1,
   },
-  {
-    key: "maintenance",
-    label: "Maintenance",
-    parentSectionKey: "assets",
-    fields: [
-      { key: "title", label: "Title", kind: "text", required: true },
-      { key: "assetTag", label: "Asset tag", kind: "text" },
-      { key: "kind", label: "Kind", kind: "select", options: ["Preventive", "Corrective", "Inspection"] },
-      { key: "dueOn", label: "Due", kind: "date" },
-      { key: "completedOn", label: "Completed", kind: "date" },
-      { key: "cost", label: "Cost", kind: "money" },
-      { key: "notes", label: "Notes", kind: "longtext" },
-      // WHICH MACHINE. The equipment register has existed beside this one
-      // since both shipped and nothing joined them, so "what is due on the
-      // excavator" could not be asked — the two registers were adjacent
-      // lists rather than one asset's history.
-      { key: "asset", label: "Machine", kind: "reference", refType: "equipment" },
-    ],
-    columns: ["title", "kind", "dueOn", "asset"],
-    statuses: ["Due", "In progress", "Done", "Skipped"],
-    transitions: [
-      { from: "Due", to: "In progress" },
-      { from: "In progress", to: "Done" },
-      { from: "Due", to: "Skipped" },
-    ],
-    version: 2,
-  },
+  // THE ASSETS `maintenance` REGISTER IS NO LONGER SEEDED (11/09/2026) — the
+  // Maintenance section's work orders are the one place maintenance is
+  // recorded, and a second, weaker list beside them meant a repair could be
+  // logged where the machine's reliability figures never saw it. A NEW studio
+  // does not get the type; an EXISTING studio keeps its stored type and every
+  // record, until `scripts/migrate/fold-maintenance-registers.mjs` copies them
+  // into work orders and switches the register off (dry-run by default). Kept
+  // out of this list, like `job` below, because `seedBuiltinTypes` and
+  // `reconcileBuiltinTypes` both walk it and neither should touch the type again.
   {
     // EXPIRED RETURNS TO VALID because an instrument is RECALIBRATED rather
     // than replaced: the certificate number changes and the instrument does
@@ -357,64 +339,16 @@ export const BUILTIN_TYPES = [
   // (invariant 17). The declaration is kept out of this list rather than
   // flagged, because `seedBuiltinTypes` and `reconcileBuiltinTypes` both walk
   // this list and neither should ever touch the type again.
-  {
-    // EXPIRED RETURNS TO ACTIVE because a maintenance contract is RENEWED, and
-    // the customer, the site and the visit history are the same agreement. A
-    // fresh record each year would scatter one relationship across five rows.
-    key: "contract",
-    label: "Maintenance contracts",
-    parentSectionKey: "field-service",
-    fields: [
-      { key: "title", label: "Title", kind: "text", required: true },
-      { key: "customer", label: "Customer", kind: "text" },
-      { key: "cover", label: "Cover", kind: "select", options: ["Parts and labour", "Labour only", "Inspection only", "Full cover"] },
-      { key: "startsOn", label: "Starts", kind: "date" },
-      { key: "endsOn", label: "Ends", kind: "date" },
-      { key: "visitsPerYear", label: "Visits per year", kind: "number" },
-      { key: "value", label: "Annual value", kind: "money" },
-    ],
-    columns: ["title", "cover", "endsOn"],
-    statuses: ["Draft", "Active", "Expired", "Cancelled"],
-    transitions: [
-      { from: "Draft", to: "Active" },
-      { from: "Active", to: "Expired" },
-      { from: "Expired", to: "Active" },
-      { from: "Active", to: "Cancelled" },
-    ],
-    version: 1,
-  },
-  {
-    // A PLAN IS A SCHEDULE, NOT A JOB. It says what should happen and how
-    // often; each occurrence is a JOB in the dispatch collection, raised by the
-    // daily run on the day it falls due (modules/operations/planJobs, tier 5),
-    // which then moves `nextDue` on by the frequency.
-    //
-    // V2 NAMES WHAT THE PLAN IS FOR — the maintenance contract it fulfils and
-    // the installed unit it services — as references, so the jobs it raises
-    // carry both. Added fields only: safe for a version bump (a removed STATUS
-    // would not be).
-    key: "planned",
-    label: "Preventive maintenance plans",
-    parentSectionKey: "field-service",
-    fields: [
-      { key: "title", label: "Title", kind: "text", required: true },
-      { key: "asset", label: "Asset or site", kind: "text" },
-      { key: "contract", label: "Maintenance contract", kind: "reference", refType: "contract" },
-      { key: "installed", label: "Installed unit", kind: "reference", refType: "installed" },
-      { key: "frequency", label: "Frequency", kind: "select", options: ["Weekly", "Monthly", "Quarterly", "Half-yearly", "Yearly"] },
-      { key: "nextDue", label: "Next due", kind: "date" },
-      { key: "lastDone", label: "Last done", kind: "date" },
-      { key: "tasks", label: "Tasks", kind: "longtext" },
-    ],
-    columns: ["title", "frequency", "nextDue"],
-    statuses: ["Active", "Paused", "Retired"],
-    transitions: [
-      { from: "Active", to: "Paused" },
-      { from: "Paused", to: "Active" },
-      { from: "Active", to: "Retired" },
-    ],
-    version: 2,
-  },
+  // FIELD SERVICE'S `contract` AND `planned` REGISTERS ARE NO LONGER SEEDED
+  // (11/09/2026), on the owner's word that an SLA is a preventive maintenance
+  // contract: both are Maintenance's now — the contract is a service contract
+  // (SLA) and the plan a preventive plan naming a customer's unit, and each
+  // raises WORK ORDERS rather than dispatch jobs. Field Service keeps the crews
+  // (Schedule, Tracking) and the installed base below. Same arrangement as the
+  // Assets register above: new studios never get the types, existing studios
+  // keep theirs untouched until `fold-maintenance-registers.mjs` copies them
+  // across, retires the plans (so `planJobs` stops raising from them) and
+  // switches both registers off.
   {
     key: "installed",
     label: "Installed base",

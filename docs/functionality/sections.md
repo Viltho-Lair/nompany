@@ -259,6 +259,17 @@ contractors and IT firms, which reached Assets only through that action, would h
 Existing studios get the rows the first time they are opened after the deploy.
 `maintenance.md` is the file.
 
+Its children are five now: Work requests, Work orders, Preventive plans, **Service contracts
+(SLA)** (`maintenance-contracts`, 11/09/2026) and Machines.
+
+**A filed-only section — `projects-sla`.** Service contracts moved to Maintenance, and the rows
+did not: they stay in `slas` under `projects-sla`, which Maintenance reads as a foreign section.
+`FILED_ONLY_SECTION_KEYS` (keys.ts) names such a section — kept because rows are filed under it,
+shown nowhere as a destination — and the sidebar, the Sections panel and the role library's
+department mapping all leave it out. Its old address shows a pointer to the new screen. **Do not
+delete its row** for the reason `administration-master` is kept: nothing would fail, and every
+contract would be invisible.
+
 ## Not built yet
 
 Stated in words, because a silent gap reads as a finished feature.

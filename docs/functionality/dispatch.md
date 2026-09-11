@@ -91,6 +91,13 @@ plan's first job opens a field-service deal and later ones join it, derived from
 jobs rather than stored on the plan. The run acts with the studio's authority, as an engine rule
 does.
 
+**PM plans and maintenance contracts are Maintenance's since 11/09/2026** (`maintenance.md`): an
+SLA is a preventive maintenance contract, and its visits are work orders there. **New studios
+no longer get** the `planned` and `contract` registers, so this run raises nothing for them. An
+existing studio's plans keep raising jobs here until `fold-maintenance-registers.mjs` copies them
+into Maintenance and sets them Retired — which is what stops this run for them. Field Service
+keeps the crews: Schedule, Tracking, and the installed base.
+
 **Service orders are folded in.** The engine's `job` type ("Service orders") was a second job
 system that dispatch never read. **New studios no longer get it**; an existing studio keeps its
 type and every record, readable and unchanged. `scripts/migrate/service-orders-to-jobs.mjs`

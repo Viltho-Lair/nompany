@@ -97,6 +97,11 @@ export const SECTION_AREAS: Readonly<Record<string, readonly string[]>> = {
   "maintenance-plans": ["maintenance.plans"],
   // The work orders read per machine — no right of its own.
   "maintenance-assets": ["maintenance.orders"],
+  // SERVICE CONTRACTS KEEP THE RIGHT THEY HAD. `projects.sla` is the key every
+  // existing role already holds; renaming it would strand each of those grants
+  // until somebody ran a script, and the owner's rule is that an update reaches
+  // existing studios by itself. The catalogue files it under Maintenance now.
+  "maintenance-contracts": ["projects.sla"],
   "tendering-rates": ["tendering.rates"],
   "crm-sales-settings": ["crmSales.settings"],
   "engineering-docs-rfq": ["engineeringDocs.rfq"],
@@ -112,6 +117,9 @@ export const SECTION_AREAS: Readonly<Record<string, readonly string[]>> = {
   // The cost breakdown hangs off the project list's own section, so somebody
   // holding ONLY the costs right can still reach the screen it lives on.
   "projects-list": ["projects.list", "projects.costs", "projects.billing", "projects.reports"],
+  // FILED-ONLY (keys.ts): the contracts are written here and shown under
+  // Maintenance. The entry stays so the section is still accounted for and
+  // Maintenance's foreign read resolves; the sidebar leaves it out.
   "projects-sla": ["projects.sla"],
   "projects-overtimes": ["projects.overtimes"],
   "projects-settings": ["projects.settings"],

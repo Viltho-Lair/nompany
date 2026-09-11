@@ -20,6 +20,7 @@ import SettingsFold from "@/components/studio2/SettingsFold";
 import ApprovalChainsPanel from "@/components/studio2/ApprovalChainsPanel";
 import EmploymentRulesPanel from "@/components/studio2/EmploymentRulesPanel";
 import { useReload } from "@/components/studio2/useReload";
+import { isFiledOnlySection } from "@/platform/db/keys";
 
 // THE SCREEN'S WORDS, HANDED DOWN RATHER THAN THREADED.
 //
@@ -626,8 +627,12 @@ function TradeChecklist({ choices, nameOf, busy, failed, onApply }) {
 // and `noScreen` are exactly what the route refuses; a second copy in the
 // browser would be free to disagree the first time either changed, and the
 // disagreement would show as a switch that looks live and does nothing.
-function StudioSections({ slug, rows, canManage, suggestion, onSaved }) {
+function StudioSections({ slug, rows: stored, canManage, suggestion, onSaved }) {
   const tr = useT();
+  // A FILED-ONLY SECTION (keys.ts) IS NOT OFFERED: it opens nothing, so its
+  // switch would look live and do nothing — and switching it off would hide the
+  // service contracts filed under it from the screen that shows them.
+  const rows = useMemo(() => stored.filter((r) => !isFiledOnlySection(r.key)), [stored]);
   // THE SIDEBAR IS SERVER-RENDERED, so re-reading the settings payload is only
   // half the update: this screen would show the switch in its new position
   // while the nav beside it still listed the section that had just been turned

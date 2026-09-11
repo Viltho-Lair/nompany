@@ -27,7 +27,8 @@ import { hrContext, listVacations, listEmployees } from "@/modules/hr/hr";
 import { tasksContext, listTasks } from "@/modules/tasks/tasks";
 import { salesContext, listTickets, listClients } from "@/modules/sales/sales";
 import { technicalContext, listRfqs, listQuotations } from "@/modules/technical/technical";
-import { projectsContext, listProjects, listSlas, listOvertimes } from "@/modules/projects/projects";
+import { projectsContext, listProjects, listOvertimes } from "@/modules/projects/projects";
+import { maintenanceContext, listContracts } from "@/modules/maintenance/maintenance";
 import { inventoryContext, listItems, listVendors, listOrders } from "@/modules/inventory/inventory";
 import { listShipments } from "@/modules/inventory/awbTracking";
 import { operationsContext, listPermits, listShifts } from "@/modules/operations/operations";
@@ -206,15 +207,18 @@ const TOOL_IMPLS: Record<string, ToolImpl> = {
       return capped(await listProjects(ctx));
     },
   },
+  // THE KEY STAYS `read.projects.slas` — a studio's Nova settings store it —
+  // while the contracts moved to Maintenance, where the visits are work orders.
   "read.projects.slas": {
-    description: "List SLA support contracts with their visits and duration.",
+    description: "List service contracts (SLAs): term, cover, planned visits and what each came to, and call-outs used.",
     inputSchema: NO_INPUT,
     run: async (user, slug) => {
-      const ctx = await projectsContext(user, slug);
+      const ctx = await maintenanceContext(user, slug);
       if ("error" in ctx) return { error: ctx.error };
-      const denied = requirePermission(ctx.access, "projects.sla.view");
-      if (refusal(denied)) return denied;
-      return capped(await listSlas(ctx));
+      // listContracts guards `projects.sla.view` itself.
+      const result = await listContracts(ctx);
+      if ("error" in result) return result;
+      return capped(result.contracts);
     },
   },
   "read.projects.overtimes": {

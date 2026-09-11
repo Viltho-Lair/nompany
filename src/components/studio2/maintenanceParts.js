@@ -85,22 +85,31 @@ export const priorityTone = (p) => PRIORITY_TONE[p] || PRIORITY_TONE.normal;
  * says which: found, hidden from this reader, or deleted since. A blank would
  * read as "no machine" for all three.
  */
-export function Links({ asset, location, tr }) {
+export function Links({ asset, location, installed, contract, tr }) {
   const at = location && location.name ? placeCoordinates(location) : null;
-  const assetText = !asset ? null
-    : asset.state === "found" ? asset.name
-    : asset.state === "hidden" ? tr.assetHidden
-    : tr.assetDeleted;
+  const assetText = linkText(asset, tr.assetHidden, tr.assetDeleted);
+  // A CUSTOMER'S UNIT AND THE CONTRACT the work answers, in the same three
+  // states — the server says which, and this only chooses the words.
+  const unitText = linkText(installed, tr.installedHidden, tr.installedDeleted);
+  const contractText = linkText(contract, tr.contractHidden, tr.contractDeleted);
   const placeText = !location ? null : location.name || tr.locationDeleted;
-  if (!assetText && !placeText) return null;
+  if (!assetText && !placeText && !unitText && !contractText) return null;
   return (
     <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-600 dark:text-slate-300">
       {assetText && <span><span className="text-slate-400">{tr.asset}:</span> {assetText}</span>}
+      {unitText && <span><span className="text-slate-400">{tr.installed}:</span> {unitText}</span>}
+      {contractText && <span><span className="text-slate-400">{tr.contract}:</span> {contractText}</span>}
       {placeText && <span><span className="text-slate-400">{tr.location}:</span> {placeText}</span>}
       {at && <NavigateMenu at={at} />}
     </div>
   );
 }
+
+/** A link's words: its name when found, and a sentence for hidden and deleted. */
+export const linkText = (link, hidden, deleted) => (!link ? null
+  : link.state === "found" ? link.name
+  : link.state === "hidden" ? hidden
+  : deleted);
 
 /**
  * THE PHOTOGRAPHS, AS THUMBNAILS THAT OPEN THE ORIGINAL. Served by the private

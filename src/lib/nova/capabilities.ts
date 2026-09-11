@@ -51,7 +51,9 @@ export const NOVA_CAPABILITIES: NovaCapability[] = [
 
   // ---- Projects ----
   { key: "read.projects.list", label: "Projects", department: "Projects", kind: "read", permissionKey: "projects.list.view", defaultOn: true, scope: "all" },
-  { key: "read.projects.slas", label: "SLA contracts", department: "Projects", kind: "read", permissionKey: "projects.sla.view", defaultOn: true, scope: "all" },
+  // THE KEY IS STORED BY THE SWITCHBOARD, so it keeps its name; the contracts
+  // are Maintenance's since 11/09/2026 and so is the row.
+  { key: "read.projects.slas", label: "Service contracts (SLA)", department: "Maintenance", kind: "read", permissionKey: "projects.sla.view", defaultOn: true, scope: "all" },
   { key: "read.projects.overtimes", label: "Overtime", department: "Projects", kind: "read", permissionKey: "projects.overtimes.view", defaultOn: true, scope: "all" },
 
   // ---- Tasks ----

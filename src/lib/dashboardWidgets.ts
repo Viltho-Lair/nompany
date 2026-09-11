@@ -89,7 +89,6 @@ export const DASHBOARD_WIDGETS: WidgetDef[] = [
   { key: "projects.value-by-stage", label: "Value by stage", section: "projects", rung: "simple" },
   { key: "projects.plan-progress", label: "Project progress", section: "projects", rung: "simple" },
   { key: "projects.workload-by-manager", label: "Workload by manager", section: "projects", rung: "moderate" },
-  { key: "projects.support-visits", label: "Support visits", section: "projects", rung: "moderate" },
   { key: "projects.timeline", label: "Project timeline", section: "projects", rung: "moderate" },
   // Added 10/09/2026 with the dashboards' richer half — new keys, none renamed.
   { key: "projects.schedule-health", label: "Schedule health", section: "projects", rung: "simple" },

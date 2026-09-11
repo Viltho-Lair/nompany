@@ -2,7 +2,7 @@ import { route, refused } from "@/platform/http/route";
 import { valuesFor } from "@/modules/administration/taxonomy";
 import {
   projectsContext, listProjects, approvedQuotations, projectPeople, listProjectClients,
-  listSlas, listOvertimes, overtimeDirectory, readProjectsSettings, saveProjectsSettings,
+  listOvertimes, overtimeDirectory, readProjectsSettings, saveProjectsSettings,
   openProject, updateProject, removeProject, PROJECT_STAGES,
 } from "@/modules/projects/projects";
 import { listProjectSheets } from "@/modules/inventory/inventory";
@@ -23,12 +23,13 @@ const spec = { auth: "studio", context: projectsContext, body: true, name: "proj
 const writeSpec = { ...spec, body: true };
 const manageable = (c: { canManage: boolean }) => (c.canManage ? null : { error: "read-only" });
 
-// One read for the whole Projects screen — the list, its SLA contracts, the
-// overtime logged against it, and the directory the pickers need.
+// One read for the whole Projects screen — the list, the overtime logged
+// against it, and the directory the pickers need. (Service contracts left for
+// Maintenance on 11/09/2026 — maintenance/contracts reads them now.)
 export const GET = route({ ...spec, body: false }, async (c) => {
-  const [projects, quotations, people, clients, slas, overtimes, directory, sheets] = await Promise.all([
+  const [projects, quotations, people, clients, overtimes, directory, sheets] = await Promise.all([
     listProjects(c), approvedQuotations(c), projectPeople(c), listProjectClients(c),
-    listSlas(c), listOvertimes(c), overtimeDirectory(c),
+    listOvertimes(c), overtimeDirectory(c),
     // THE SHEETS, composed by the module that owns them. Projects reads them —
     // a project's sheets are part of its own story — and never writes them from
     // here; the per-row columns Projects owns are written on Inventory's route,
@@ -46,7 +47,6 @@ export const GET = route({ ...spec, body: false }, async (c) => {
     // Inventory's route, and a control nobody may use should render as text
     // rather than as a disabled dropdown on every line.
     canWriteInventoryColumns: can(c.access, "inventory.sheets.edit"),
-    canManageSla: c.canManageSla,
     canManageOvertimes: c.canManageOvertimes,
     canManageSettings: c.canManageSettings,
     // WHICH OF A PROJECT'S OWN SCREENS THIS READER MAY OPEN, so the board links
@@ -76,7 +76,6 @@ export const GET = route({ ...spec, body: false }, async (c) => {
     // Clients read from Sales, so a project's profile can draw its client box —
     // logo and contacts — the same way the Sales ticket does.
     clients,
-    slas,
     overtimes,
     directory,
     settings: readProjectsSettings(c.settingsSection),

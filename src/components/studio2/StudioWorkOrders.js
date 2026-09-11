@@ -138,12 +138,13 @@ export default function StudioWorkOrders({ slug }) {
   const openForm = (o) => setForm(o
     ? {
       id: o.id, reference: o.reference, title: o.title, description: o.description, type: o.type, priority: o.priority,
-      assetId: o.assetId, locationId: o.locationId, assignedToCollaboratorIds: o.assignedToCollaboratorIds || [],
+      assetId: o.assetId, locationId: o.locationId, installedId: o.installedId || "",
+      assignedToCollaboratorIds: o.assignedToCollaboratorIds || [],
       dueOn: o.dueOn || "", estimatedHours: o.estimatedHours ?? "", photos: o.photos || [],
       downSince: toLocalInput(o.downSince), upAt: toLocalInput(o.upAt),
     }
     : {
-      title: "", description: "", type: "corrective", priority: "normal", assetId: "", locationId: "",
+      title: "", description: "", type: "corrective", priority: "normal", assetId: "", locationId: "", installedId: "",
       assignedToCollaboratorIds: [], dueOn: "", estimatedHours: "", photos: [], downSince: "", upAt: "",
     });
 
@@ -244,13 +245,14 @@ export default function StudioWorkOrders({ slug }) {
                 </p>
                 <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                   {tr.typeName(o.type)}
+                  {o.slaEmergency ? ` · ${tr.callOutChip}` : ""}
                   {o.requestReference ? ` · ${tr.fromRequest(o.requestReference)}` : ""}
                   {o.planReference ? ` · ${tr.fromPlan(o.planReference)}` : ""}
                   {o.dueOn ? ` · ${tr.dueOn(fmtDate(o.dueOn))}` : ""}
                   {o.overdue && <span className="ms-2 font-600 text-rose-600 dark:text-rose-300">{tr.overdue}</span>}
                 </p>
                 {o.description && <p className="mt-2 max-w-prose whitespace-pre-line text-sm text-slate-600 dark:text-slate-300">{o.description}</p>}
-                <Links asset={o.asset} location={o.location} tr={tr} />
+                <Links asset={o.asset} location={o.location} installed={o.installed} contract={o.contract} tr={tr} />
                 <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
                   <span className="text-slate-400">{tr.assignedTo}:</span>{" "}
                   {(o.assignees || []).length ? o.assignees.map((a) => a.alias || a.id).join("، ") : tr.nobody}
@@ -267,6 +269,13 @@ export default function StudioWorkOrders({ slug }) {
                   <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
                     <span className="text-slate-400">{tr.failure}:</span>{" "}
                     {[o.failure.problem, o.failure.cause, o.failure.remedy].filter(Boolean).join(" · ")}
+                  </p>
+                )}
+                {/* THE OLD ASSETS REGISTER'S COST, for work folded from it —
+                    the ledger never saw that work, so parts cost cannot. */}
+                {o.legacyCost != null && (
+                  <p className="mt-1 text-sm tabular-nums text-slate-600 dark:text-slate-300">
+                    <span className="text-slate-400">{tr.legacyCost}:</span> {amount(o.legacyCost)}
                   </p>
                 )}
                 {(o.hoursLogged > 0 || o.estimatedHours != null) && (
@@ -395,6 +404,12 @@ export default function StudioWorkOrders({ slug }) {
                 onChange={(v) => setForm((f) => ({ ...f, assetId: v }))} options={pickOptions(pickers.assets, tr.noAsset)} />
               <Field label={tr.location} as="select" value={form.locationId}
                 onChange={(v) => setForm((f) => ({ ...f, locationId: v }))} options={pickOptions(pickers.locations, tr.noLocation)} />
+              {/* A CUSTOMER'S UNIT, offered only to somebody who may open the
+                  installed base — the same gate the machine picker has. */}
+              {((pickers.installed || []).length > 0 || form.installedId) && (
+                <Field label={tr.installed} as="select" value={form.installedId}
+                  onChange={(v) => setForm((f) => ({ ...f, installedId: v }))} options={pickOptions(pickers.installed, tr.noInstalled)} />
+              )}
               <Field label={tr.due} type="date" value={form.dueOn}
                 onChange={(v) => setForm((f) => ({ ...f, dueOn: v }))} />
               <Field label={tr.estimatedHours} type="number" value={form.estimatedHours}
