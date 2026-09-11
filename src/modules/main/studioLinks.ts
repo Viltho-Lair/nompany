@@ -30,7 +30,12 @@ export const linkToRfq = (slug: string, id: string) => (id ? to(slug, "engineeri
 // (restructure.ts's SECTION_KEY_MAP), even though the RFQ they are raised
 // from stays behind in Engineering & Documents.
 export const linkToQuotation = (slug: string, id: string) => (id ? to(slug, "crm-sales", { quotation: id }) : "");
-export const linkToProject = (slug: string, id: string) => (id ? to(slug, "projects", { project: id }) : "");
+// THE PROJECT LIST, not the Projects root. `?project=` is read by the list,
+// which opens that project's details — stage, manager, dates, delete. The root
+// is the dashboard and ignores the parameter, so every "open project" link in
+// Finance, Tasks, Inventory and Operations used to land on a chart, and no
+// screen could reach the one dialog that edits or closes a project.
+export const linkToProject = (slug: string, id: string) => (id ? to(slug, "projects-list", { project: id }) : "");
 
 // A link is only offered when the person can actually open that section —
 // otherwise it renders as plain text rather than a dead end.

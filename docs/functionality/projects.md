@@ -20,6 +20,16 @@ has children — a board and a plan. There are **three ways one begins**:
    The client, the title, the industry, a description, a value, dates and the
    support period are typed on the spot.
 
+**A project's own screens are linked from its board.** A strip under the board's header opens
+Details (the dialog that edits the stage, manager, dates and deletes — reached as
+`/projects-list?project=<id>`), the cost breakdown, the payment schedule, the site diary and
+closure; the first four are drawn only for somebody the `/projects` read says may open them
+(`canViewCosts`, `canViewBilling`, `canViewReports`). Every "open project" link in the product
+(`linkToProject`) now goes to `/projects-list?project=<id>`. Until 11/09/2026 those links went
+to the Projects dashboard, which ignores the parameter, and the four sub-screens were linked
+from nowhere — so no project could be edited or closed, and costs, billing, the diary and
+closure were reachable only by typing their address.
+
 `src/modules/projects/projects.ts`'s `openProject` decides which one ran by
 whether the request body carries a `quotationId`, else a `tenderId` — there is
 no mode flag a client could set to skip either gate, and a body carrying both

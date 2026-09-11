@@ -49,6 +49,13 @@ export const GET = route({ ...spec, body: false }, async (c) => {
     canManageSla: c.canManageSla,
     canManageOvertimes: c.canManageOvertimes,
     canManageSettings: c.canManageSettings,
+    // WHICH OF A PROJECT'S OWN SCREENS THIS READER MAY OPEN, so the board links
+    // only to the ones that will answer. Each is its own area — a site engineer
+    // may keep the diary without seeing the margin — and closure answers to
+    // `projects.list`, which anybody on the board already holds.
+    canViewCosts: can(c.access, "projects.costs.view"),
+    canViewBilling: can(c.access, "projects.billing.view"),
+    canViewReports: can(c.access, "projects.reports.view"),
     nav: c.nav,
     // Manage per section key, so each screen can ask about itself rather
     // than being handed the parent section's answer.

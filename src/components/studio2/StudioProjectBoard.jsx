@@ -129,6 +129,30 @@ export default function StudioProjectBoard({ slug, projectId }) {
         )}
       </header>
 
+      {/* THE PROJECT'S OWN SCREENS. Costs, the payment schedule, the site
+          diary and closure were routed and built and linked from nowhere — the
+          only way in was typing the address — and the dialog that edits the
+          project itself (stage, manager, dates, delete) opened only from a
+          query string nothing emitted. Each link is drawn for somebody who may
+          open it, from the rights the /projects read now reports. */}
+      {project && (
+        <nav aria-label={project.title || tr.projectBoard}
+          className="flex shrink-0 gap-1 overflow-x-auto border-b border-slate-200/70 bg-[var(--geex-surface)] px-4 py-2 dark:border-white/10">
+          {[
+            { href: `/${slug}/projects-list?project=${encodeURIComponent(projectId)}`, label: tr.projectDetails, show: true },
+            { href: `/${slug}/projects-list/${projectId}/costs`, label: tr.costBreakdown, show: Boolean(data?.canViewCosts) },
+            { href: `/${slug}/projects-list/${projectId}/billing`, label: tr.paymentSchedule, show: Boolean(data?.canViewBilling) },
+            { href: `/${slug}/projects-list/${projectId}/reports`, label: tr.siteReports, show: Boolean(data?.canViewReports) },
+            { href: `/${slug}/projects-list/${projectId}/closure`, label: tr.closure, show: true },
+          ].filter((l) => l.show).map((l) => (
+            <Link key={l.href} href={l.href}
+              className="inline-flex h-8 shrink-0 items-center rounded-full px-3 font-display text-sm font-600 text-[var(--geex-muted)] transition-colors hover:bg-slate-100 hover:text-[var(--geex-ink)] dark:hover:bg-white/5">
+              {l.label}
+            </Link>
+          ))}
+        </nav>
+      )}
+
       {/* ---- body: left rail · board · right sidebar ---- */}
       <div className="flex min-h-0 flex-1">
         {/* THE LEFT RAIL IS GONE. It held one button and a three-line box, and
