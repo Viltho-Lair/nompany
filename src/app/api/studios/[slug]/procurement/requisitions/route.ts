@@ -5,6 +5,7 @@ import {
   editRequisition, moveRequisition, removeRequisition,
 } from "@/modules/procurement/requisitions";
 import { requisitionReview, answerRequisition } from "@/modules/procurement/approval";
+import { referencePickers } from "@/modules/procurement/pickers";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,9 +24,16 @@ export const GET = route({ ...spec, body: false }, async (procurement) => {
   // call per row. It costs no round trip: `requisitionPlan` reads no store and
   // makes no FX call, because a requisition is already in the studio's
   // currency (see modules/procurement/approval.ts).
-  const reviews = await Promise.all(
-    result.requisitions.map((r) => requisitionReview(procurement, r)),
-  );
+  const [reviews, pickers] = await Promise.all([
+    Promise.all(result.requisitions.map((r) => requisitionReview(procurement, r))),
+    // WHAT THE FORM PICKS FROM: the supplier, the project and its cost codes,
+    // and each line's Registered Item — all typed as raw ids until now.
+    referencePickers(procurement.studio, {
+      suppliers: procurement.suppliersSection,
+      projects: procurement.projectsListSection,
+      items: procurement.itemsSection,
+    }, { suppliers: true, projects: true, costCodes: true, items: true }),
+  ]);
 
   return {
     ok: true,
@@ -37,6 +45,8 @@ export const GET = route({ ...spec, body: false }, async (procurement) => {
     canEdit: result.canEdit,
     canDelete: result.canDelete,
     canOrder: result.canOrder,
+    canPlace: result.canPlace,
+    pickers,
     // Holding an approval right does not mean this person may sign THIS
     // request — `review.next` answers that per row, and this only says whether
     // to draw the column at all.

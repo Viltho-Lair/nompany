@@ -76,7 +76,7 @@ export default function StudioExpediting({ slug }) {
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <ScreenSkeleton loadingLabel={tr.loadingExpediting} />;
 
-  const { view, chaseLog = {}, chasers = {}, canChase } = data;
+  const { view, chaseLog = {}, chasers = {}, vendorNames = {}, canChase } = data;
   const orders = view?.orders || [];
 
   return (
@@ -129,7 +129,7 @@ export default function StudioExpediting({ slug }) {
                   <div className="min-w-0">
                     <p className="text-slate-900 dark:text-white">
                       <span className="font-mono text-xs text-slate-500 dark:text-slate-400">{o.reference}</span>
-                      <span className="ms-2">{tr.supplier}: {o.vendorId || "—"}</span>
+                      <span className="ms-2">{tr.supplier}: {vendorNames[o.vendorId] || o.vendorId || "—"}</span>
                       <span className="ms-2 text-xs text-slate-500 dark:text-slate-400">{o.status}</span>
                     </p>
                     <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">

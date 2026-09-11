@@ -40,6 +40,9 @@ On the **buyer** archetype at `edit`, beside suppliers, requisitions and RFQs.
 `Received` has arrived — chasing any of the three is chasing nothing, and the service refuses a
 chase against them by name rather than silently recording a call that cannot have happened.
 
+**Each order names its supplier.** The list sends a `vendorNames` map read from the register;
+until 11/09/2026 every row read "Supplier: " and an internal id.
+
 **Four buckets, and the fourth is the one usually missed.** Late, due soon, on track — and
 **undated**, for an order nobody ever promised a date for. That is a different problem from a
 promise being kept, and folding it into "on track" would hide it in the healthy column.

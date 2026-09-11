@@ -3,6 +3,7 @@ import { procurementContext } from "@/modules/procurement/requisitions";
 import {
   listRfqs, createRfq, editRfq, moveRfq, removeRfq, recordQuote, awardRfq,
 } from "@/modules/procurement/rfq";
+import { referencePickers } from "@/modules/procurement/pickers";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,11 +14,17 @@ const spec = {
 };
 
 export const GET = route({ ...spec, body: false }, async (procurement) => {
-  const result = await listRfqs(procurement);
+  const [result, pickers] = await Promise.all([
+    listRfqs(procurement),
+    // WHO CAN BE ASKED. The suppliers were a comma-separated list of ids typed
+    // by hand, and every quote and award showed an id rather than a name.
+    referencePickers(procurement.studio, { suppliers: procurement.suppliersSection }, { suppliers: true }),
+  ]);
   if (refused(result)) return result;
   return {
     ok: true,
     rfqs: result.rfqs,
+    pickers,
     // THE CLOCK TRAVELS WITH THE ANSWER, so which quotes have lapsed is decided
     // once on the server rather than by whenever the screen happened to render.
     asOf: result.asOf,

@@ -128,6 +128,10 @@ function decorate(
     // been bought is this.
     orderId: order?.id || "",
     orderReference: order?.reference || "",
+    // WHETHER THE ORDER HAS BEEN PLACED. Conversion writes a Draft, and a Draft
+    // is invisible to Receiving and Expediting and refused by booking-in — so
+    // the request's own row is where it gets placed, and it has to know.
+    orderStatus: String(order?.status || ""),
     ordered: Boolean(order),
   };
 }
@@ -168,6 +172,10 @@ export async function listRequisitions(ctx: ProcurementContext) {
     // offered it to somebody the orders route would refuse is a screen that
     // lies about what it can do.
     canOrder: !requirePermission(ctx.access, "inventory.stock.create"),
+    // PLACING IT is editing the order (Draft → Ordered), which Inventory's
+    // `editOrder` guards with `inventory.stock.edit` — asked the same way, for
+    // the same reason as `canOrder` above.
+    canPlace: !requirePermission(ctx.access, "inventory.stock.edit"),
   };
 }
 

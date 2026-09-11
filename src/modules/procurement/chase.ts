@@ -10,6 +10,7 @@ import { requirePermission } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
 import { listCollaborators } from "@/platform/auth/collaborators";
 import { expediteOrders } from "./expediting";
+import { supplierNames } from "./pickers";
 import type { Order } from "@/modules/inventory/schema";
 import type { ProcurementContext } from "./types";
 
@@ -42,9 +43,13 @@ export async function listExpediting(ctx: ProcurementContext, soonDays = 7) {
     };
   }
 
-  const [orders, people] = await Promise.all([
+  const [orders, people, vendorNames] = await Promise.all([
     Orders.find({ studio, section: ordersSection }),
     listCollaborators(studio.id),
+    // WHO EACH ORDER IS WITH, BY NAME. The empty branch above has always
+    // returned a `vendorNames` map and this one never did, so every row read
+    // "Supplier: <internal id>".
+    supplierNames(studio, ctx.suppliersSection),
   ]);
 
   // RESOLVED LIVE off the collaborator list rather than copied onto each chase:
@@ -57,6 +62,7 @@ export async function listExpediting(ctx: ProcurementContext, soonDays = 7) {
 
   return {
     view: expediteOrders(orders, asOf.slice(0, 10), soonDays),
+    vendorNames,
     // The chase log as stored, so the screen can show what was actually said.
     chaseLog: Object.fromEntries(orders.map((o) => [
       o.id,

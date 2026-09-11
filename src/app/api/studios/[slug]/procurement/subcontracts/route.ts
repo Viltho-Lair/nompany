@@ -4,6 +4,7 @@ import {
   listSubcontracts, createSubcontract, editSubcontract, removeSubcontract,
   createCertificate, editCertificate, certifyCertificate,
 } from "@/modules/procurement/subcontracts";
+import { referencePickers } from "@/modules/procurement/pickers";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,11 +15,21 @@ const spec = {
 };
 
 export const GET = route({ ...spec, body: false }, async (procurement) => {
-  const result = await listSubcontracts(procurement);
+  const [result, pickers] = await Promise.all([
+    listSubcontracts(procurement),
+    // The subcontractor, the project and its cost code — the subcontractor was a
+    // raw-id box, and the other two had no field at all, so certified work
+    // could never reach a project's cost.
+    referencePickers(procurement.studio, {
+      suppliers: procurement.suppliersSection,
+      projects: procurement.projectsListSection,
+    }, { suppliers: true, projects: true, costCodes: true }),
+  ]);
   if (refused(result)) return result;
   return {
     ok: true,
     subcontracts: result.subcontracts,
+    pickers,
     // THE CLOCK TRAVELS WITH THE ANSWER, so whether retention is releasable is
     // decided once rather than by whenever the screen rendered.
     asOf: result.asOf,

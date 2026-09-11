@@ -23,6 +23,7 @@ export const GET = route({ ...spec, body: false }, async (procurement) => {
   return {
     ok: true,
     view: result.view,
+    vendorNames: result.vendorNames || {},
     chaseLog: result.chaseLog || {},
     chasers: result.chasers,
     // THE CLOCK TRAVELS WITH THE ANSWER, so what is late is decided once rather

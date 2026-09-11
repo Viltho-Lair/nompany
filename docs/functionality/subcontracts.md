@@ -102,8 +102,11 @@ Stated in words, because a silent gap reads as a finished feature.
 - **No bill is raised.** A certified certificate is money owed and does not appear in Payables,
   so the cost report does not see it. That is the largest remaining gap and the natural next
   step — `projects/costing.ts` counts bills, and a certificate is not one.
-- **No link to the project's cost codes.** `costCodeId` is stored and nothing reads it.
-- **`vendorId` is an id, not a name**, and is not validated against the supplier register.
+- **The cost code is set and not read.** The form picks the project and one of its cost codes
+  (since 11/09/2026; before that neither had a field), but nothing reads `costCodeId` — certified
+  value is not in the project's cost until a certificate raises a bill.
+- **`vendorId` is not validated against the supplier register** at the write. The form picks it
+  from the register and the row names the supplier; a deleted supplier shows as its id.
 - **No variations.** A package whose scope grows is valued past its own value and flagged;
   there is no record of *why* it grew, which is what a subcontract variation would be.
 - **No retention release.** The date is recorded and `releasable` computed; nothing raises the

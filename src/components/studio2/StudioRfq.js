@@ -19,6 +19,7 @@ import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { panel, h2, sub, btn, btnGhost, btnRow, btnRowDanger, Empty, Dialog, money, fmtDate } from "@/components/studio2/ui";
 import { Field } from "@/components/fields/Field";
+import { supplierOptions, supplierName } from "@/components/studio2/pickerOptions";
 
 function refusal(tr, token) {
   switch (token) {
@@ -86,11 +87,16 @@ export default function StudioRfq({ slug }) {
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <ScreenSkeleton loadingLabel={tr.loadingRfqs} />;
 
-  const { rfqs, canCreate, canEdit, canDelete, canAward } = data;
+  const { rfqs, canCreate, canEdit, canDelete, canAward, pickers = {} } = data;
 
   const openForm = (row) => setForm(row
-    ? { ...row, lines: [...(row.lines || []), emptyLine()] }
-    : { title: "", dueBy: "", notes: "", vendorIds: "", lines: [emptyLine()] });
+    ? { ...row, vendorIds: Array.isArray(row.vendorIds) ? row.vendorIds : [], lines: [...(row.lines || []), emptyLine()] }
+    : { title: "", dueBy: "", notes: "", vendorIds: [], lines: [emptyLine()] });
+  const toggleAsked = (id) => setForm((f) => {
+    const asked = new Set(f.vendorIds || []);
+    if (asked.has(id)) asked.delete(id); else asked.add(id);
+    return { ...f, vendorIds: [...asked] };
+  });
 
   const setLine = (i, patch) => setForm((f) => {
     const lines = f.lines.map((l, j) => (j === i ? { ...l, ...patch } : l));
@@ -103,7 +109,7 @@ export default function StudioRfq({ slug }) {
       title: form.title,
       dueBy: form.dueBy || "",
       notes: form.notes || "",
-      vendorIds: String(form.vendorIds || "").split(",").map((v) => v.trim()).filter(Boolean),
+      vendorIds: Array.isArray(form.vendorIds) ? form.vendorIds : [],
       lines: (form.lines || []).map((l) => ({
         id: l.id, description: l.description, unit: l.unit,
         qty: Number(l.qty) || 0, itemId: l.itemId || "",
@@ -152,7 +158,7 @@ export default function StudioRfq({ slug }) {
                     </p>
                     {awarded && (
                       <p className="mt-1 text-xs text-emerald-600 dark:text-emerald-400">
-                        {tr.awardedTo(awarded.vendorId, r.awardedByAlias || r.awardedByCollaboratorId || "—")}
+                        {tr.awardedTo(supplierName(pickers, awarded.vendorId), r.awardedByAlias || r.awardedByCollaboratorId || "—")}
                         {r.awardReason ? ` — ${r.awardReason}` : ""}
                       </p>
                     )}
@@ -169,7 +175,7 @@ export default function StudioRfq({ slug }) {
                     {canEdit && r.status === "Sent" && (
                       <button type="button" className={btn} disabled={busy}
                         onClick={() => setQuoting({
-                          rfqId: r.id, vendorId: "", validUntil: "", leadWeeks: "",
+                          rfqId: r.id, vendorId: "", asked: r.vendorIds || [], validUntil: "", leadWeeks: "",
                           receivedAt: "", notes: "",
                           lines: (r.lines || []).map((l) => ({ rfqLineId: l.id, description: l.description, unitPrice: "", leadWeeks: "" })),
                         })}>
@@ -223,7 +229,7 @@ export default function StudioRfq({ slug }) {
                                 return (
                                   <tr key={q.id} className="border-t border-slate-100 dark:border-slate-800">
                                     <td className="px-4 py-3 text-slate-700 dark:text-slate-200">
-                                      {q.vendorId}
+                                      {supplierName(pickers, q.vendorId)}
                                       {q.id === cmp.cheapestId && (
                                         <span className="ms-2 text-xs text-emerald-600 dark:text-emerald-400">{tr.cheapest}</span>
                                       )}
@@ -286,9 +292,25 @@ export default function StudioRfq({ slug }) {
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label={tr.quotesDueBy} type="date" value={form.dueBy || ""}
                 onChange={(v) => setForm((f) => ({ ...f, dueBy: v }))} />
-              <Field label={tr.suppliersAsked} value={form.vendorIds || ""}
-                onChange={(v) => setForm((f) => ({ ...f, vendorIds: v }))} />
             </div>
+            {/* WHO IS BEING ASKED, ticked from the register. This was one text
+                box taking a comma-separated list of internal ids. */}
+            <fieldset>
+              <legend className="mb-2 text-xs font-700 uppercase tracking-wide text-slate-500 dark:text-slate-400">{tr.suppliersAsked}</legend>
+              {!(pickers.suppliers || []).length ? (
+                <p className="text-sm text-slate-500 dark:text-slate-400">{tr.noSuppliersToPick}</p>
+              ) : (
+                <div className="grid max-h-44 gap-1 overflow-y-auto rounded-xl border border-slate-200 p-3 sm:grid-cols-2 dark:border-white/10">
+                  {pickers.suppliers.map((s) => (
+                    <label key={s.id} className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+                      <input type="checkbox" className="h-4 w-4 accent-brand-600"
+                        checked={(form.vendorIds || []).includes(s.id)} onChange={() => toggleAsked(s.id)} />
+                      {s.name}
+                    </label>
+                  ))}
+                </div>
+              )}
+            </fieldset>
             <div>
               <p className="mb-2 text-xs font-700 uppercase tracking-wide text-slate-500 dark:text-slate-400">{tr.lines}</p>
               <div className="overflow-x-auto">
@@ -336,8 +358,13 @@ export default function StudioRfq({ slug }) {
       {quoting && (
         <Dialog title={tr.recordQuote} onClose={() => setQuoting(null)} width="max-w-[720px]">
           <div className="space-y-4">
-            <Field label={tr.quoteFrom} required value={quoting.vendorId}
-              onChange={(v) => setQuoting((f) => ({ ...f, vendorId: v }))} inputProps={{ maxLength: 60 }} />
+            {/* THE SUPPLIERS THIS REQUEST WENT TO COME FIRST; anybody in the
+                register may still answer, because a quote that arrives unasked
+                is still a price. */}
+            <Field label={tr.quoteFrom} as="select" required value={quoting.vendorId}
+              onChange={(v) => setQuoting((f) => ({ ...f, vendorId: v }))}
+              options={[...supplierOptions(pickers)].sort((a, b) =>
+                Number(quoting.asked.includes(b.value)) - Number(quoting.asked.includes(a.value)))} />
             <div className="grid gap-4 sm:grid-cols-3">
               <Field label={tr.quoteReceivedAt} type="date" value={quoting.receivedAt}
                 onChange={(v) => setQuoting((f) => ({ ...f, receivedAt: v }))} />
@@ -404,7 +431,7 @@ export default function StudioRfq({ slug }) {
       )}
 
       {awarding && (
-        <Dialog title={`${tr.awardTo} ${awarding.vendorId}`} onClose={() => setAwarding(null)} width="max-w-[520px]">
+        <Dialog title={`${tr.awardTo} ${supplierName(pickers, awarding.vendorId)}`} onClose={() => setAwarding(null)} width="max-w-[520px]">
           <div className="space-y-4">
             {/* ASKED FOR ONLY WHERE THE CHOICE NEEDS ONE. Awarding the cheapest
                 comparable quote explains itself; anything else is the decision

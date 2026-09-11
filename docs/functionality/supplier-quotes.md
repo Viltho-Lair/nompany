@@ -136,10 +136,11 @@ Stated in words, because a silent gap reads as a finished feature.
 - **No split award.** `cheapestByLine` is computed and shown, and awarding is whole-quote only,
   so a studio that wants two suppliers for one request cannot record that.
 - **Nothing is sent to anybody.** "Mark as sent" is a status a person sets; no email leaves the
-  product, and `vendorIds` is a list of ids typed by hand rather than picked from Suppliers.
-- **`vendorIds` is not validated** against the supplier register, so a deleted vendor leaves an
-  id that resolves to nothing. The comparison shows the id rather than a name for the same
-  reason.
+  product. The suppliers asked are ticked from the register, and a quote's supplier is picked
+  from it (the ones asked listed first) — until 11/09/2026 both were ids typed by hand.
+- **`vendorIds` is not validated** against the supplier register at the write, so a deleted
+  vendor leaves an id that resolves to nothing. The comparison and the award show the supplier's
+  name where the register still has one and the id where it does not.
 - **No currency.** Quotes are assumed to be in the studio's own, like requisition estimates.
 - **No link back to the requisition's estimate.** The RFQ can be raised *from* a requisition and
   copies its lines, but nothing compares what was estimated against what came back — which is

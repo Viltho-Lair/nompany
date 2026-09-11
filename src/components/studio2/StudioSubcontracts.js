@@ -19,6 +19,7 @@ import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { panel, h2, sub, btn, btnGhost, btnRow, btnRowDanger, Empty, Dialog, StatTile, money, fmtDate } from "@/components/studio2/ui";
 import { Field } from "@/components/fields/Field";
+import { supplierOptions, projectOptions, costCodeOptions, supplierName } from "@/components/studio2/pickerOptions";
 
 function refusal(tr, token) {
   switch (token) {
@@ -85,10 +86,10 @@ export default function StudioSubcontracts({ slug }) {
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <ScreenSkeleton loadingLabel={tr.loadingSubcontracts} />;
 
-  const { subcontracts, canCreate, canEdit, canDelete, canCertify } = data;
+  const { subcontracts, canCreate, canEdit, canDelete, canCertify, pickers = {} } = data;
 
   const openForm = (row) => setForm(row ? { ...row } : {
-    title: "", scope: "", vendorId: "", projectId: "", value: "",
+    title: "", scope: "", vendorId: "", projectId: "", costCodeId: "", value: "",
     retentionPercent: "", retentionReleaseDate: "", startDate: "", endDate: "", notes: "",
   });
 
@@ -123,7 +124,7 @@ export default function StudioSubcontracts({ slug }) {
                       <span className="ms-2 text-xs text-slate-500 dark:text-slate-400">{s.status}</span>
                     </p>
                     <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                      {tr.subcontractor}: {s.vendorId || "—"}
+                      {tr.subcontractor}: {supplierName(pickers, s.vendorId) || "—"}
                       {s.retentionPercent ? ` · ${tr.retentionPct} ${s.retentionPercent}` : ""}
                       {s.endDate ? ` · ${tr.endsOn} ${fmtDate(s.endDate)}` : ""}
                     </p>
@@ -267,10 +268,21 @@ export default function StudioSubcontracts({ slug }) {
             <Field label={tr.packageScope} as="textarea" value={form.scope || ""}
               onChange={(v) => setForm((f) => ({ ...f, scope: v }))} inputProps={{ maxLength: 4000 }} />
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label={tr.subcontractor} required value={form.vendorId || ""}
-                onChange={(v) => setForm((f) => ({ ...f, vendorId: v }))} inputProps={{ maxLength: 60 }} />
+              {/* FROM THE REGISTER — the one whose paperwork the payment hold
+                  checks. This was a raw-id box. */}
+              <Field label={tr.subcontractor} as="select" required value={form.vendorId || ""}
+                onChange={(v) => setForm((f) => ({ ...f, vendorId: v }))}
+                options={supplierOptions(pickers)} />
               <Field label={tr.packageValue} type="number" value={form.value ?? ""}
                 onChange={(v) => setForm((f) => ({ ...f, value: v }))} inputProps={{ step: "0.01" }} />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label={tr.project} as="select" value={form.projectId || ""}
+                onChange={(v) => setForm((f) => ({ ...f, projectId: v, costCodeId: "" }))}
+                options={projectOptions(pickers)} />
+              <Field label={tr.costCode} as="select" value={form.costCodeId || ""}
+                onChange={(v) => setForm((f) => ({ ...f, costCodeId: v }))}
+                options={costCodeOptions(pickers, form.projectId)} />
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label={tr.retentionPct} type="number" value={form.retentionPercent ?? ""}
@@ -294,6 +306,7 @@ export default function StudioSubcontracts({ slug }) {
                   const payload = {
                     title: form.title, scope: form.scope, vendorId: form.vendorId,
                     projectId: form.projectId || "",
+                    costCodeId: form.costCodeId || "",
                     value: Number(form.value) || 0,
                     retentionPercent: Number(form.retentionPercent) || 0,
                     retentionReleaseDate: form.retentionReleaseDate || "",

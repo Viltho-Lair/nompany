@@ -20,6 +20,8 @@ import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { panel, h2, sub, btn, btnGhost, btnRow, btnRowDanger, Empty, Dialog, money, fmtDate } from "@/components/studio2/ui";
 import { Field } from "@/components/fields/Field";
+import SelectMenu from "@/components/fields/SelectMenu";
+import { supplierOptions, projectOptions, costCodeOptions } from "@/components/studio2/pickerOptions";
 
 function refusal(tr, token) {
   switch (token) {
@@ -92,12 +94,12 @@ export default function StudioRequisitions({ slug }) {
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <ScreenSkeleton loadingLabel={tr.loadingRequisitions} />;
 
-  const { requisitions, canCreate, canEdit, canDelete, canOrder } = data;
+  const { requisitions, canCreate, canEdit, canDelete, canOrder, canPlace, pickers = {} } = data;
 
   const openForm = (row) => setForm(row
     ? { ...row, lines: [...(row.lines || []), emptyLine()] }
     : {
-      title: "", justification: "", neededBy: "", projectId: "", vendorId: "",
+      title: "", justification: "", neededBy: "", projectId: "", costCodeId: "", vendorId: "",
       notes: "", lines: [emptyLine()],
     });
 
@@ -107,6 +109,9 @@ export default function StudioRequisitions({ slug }) {
       justification: form.justification,
       neededBy: form.neededBy || "",
       projectId: form.projectId || "",
+      // The code follows the request onto its order and the order's bill, so a
+      // request coded once is spend filed against the right budget line.
+      costCodeId: form.costCodeId || "",
       vendorId: form.vendorId || "",
       notes: form.notes || "",
       lines: (form.lines || []).map((l) => ({
@@ -178,6 +183,7 @@ export default function StudioRequisitions({ slug }) {
                       {tr.raisedBy}: {r.createdByAlias || r.createdByCollaboratorId || "—"}
                       {r.neededBy ? ` · ${tr.neededBy} ${fmtDate(r.neededBy)}` : ""}
                       {r.ordered ? ` · ${tr.orderedAs} ${r.orderReference}` : ""}
+                      {r.ordered && r.orderStatus === "Draft" ? ` (${tr.orderNotPlaced})` : ""}
                     </p>
                   </div>
                   <div className="text-end">
@@ -243,6 +249,17 @@ export default function StudioRequisitions({ slug }) {
                       {tr.createOrder}
                     </button>
                   )}
+                  {/* PLACING THE ORDER. Conversion writes a Draft — somebody
+                      may still correct a price — and a Draft is invisible to
+                      Receiving and Expediting and refused at booking-in. No
+                      screen could move it on, so every converted order stopped
+                      here; this is the move, through Inventory's own edit. */}
+                  {canPlace && r.ordered && r.orderStatus === "Draft" && (
+                    <button type="button" className={btn} disabled={busy}
+                      onClick={() => send("PUT", { id: r.orderId, status: "Ordered" }, "inventory/orders")}>
+                      {tr.placeOrder}
+                    </button>
+                  )}
                   {canDelete && r.status === "Draft" && (
                     <button type="button" className={btnRowDanger} disabled={busy}
                       onClick={() => send("DELETE", { id: r.id })}>{tr.remove}</button>
@@ -272,8 +289,20 @@ export default function StudioRequisitions({ slug }) {
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label={tr.neededBy} type="date" value={form.neededBy || ""}
                 onChange={(v) => setForm((f) => ({ ...f, neededBy: v }))} />
-              <Field label={tr.expectedSupplier} value={form.vendorId || ""}
-                onChange={(v) => setForm((f) => ({ ...f, vendorId: v }))} inputProps={{ maxLength: 60 }} />
+              {/* PICKED FROM THE REGISTER, not typed. This was a 60-character
+                  box that wanted a supplier's internal id, and converting the
+                  request refused anything else. */}
+              <Field label={tr.expectedSupplier} as="select" value={form.vendorId || ""}
+                onChange={(v) => setForm((f) => ({ ...f, vendorId: v }))}
+                options={supplierOptions(pickers)} />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label={tr.project} as="select" value={form.projectId || ""}
+                onChange={(v) => setForm((f) => ({ ...f, projectId: v, costCodeId: "" }))}
+                options={projectOptions(pickers)} />
+              <Field label={tr.costCode} as="select" value={form.costCodeId || ""}
+                onChange={(v) => setForm((f) => ({ ...f, costCodeId: v }))}
+                options={costCodeOptions(pickers, form.projectId)} />
             </div>
 
             <div>
@@ -313,9 +342,24 @@ export default function StudioRequisitions({ slug }) {
                             onChange={(e) => setLine(i, { estUnitCost: e.target.value })} />
                         </td>
                         <td className="px-2 py-2">
-                          <input className="w-32 rounded-lg border border-slate-200 px-2 py-1 text-sm dark:border-white/10 dark:bg-transparent"
-                            value={l.itemId} maxLength={60} aria-label={tr.lineItem}
-                            onChange={(e) => setLine(i, { itemId: e.target.value })} />
+                          {/* THE CATALOGUE, not an id typed from memory. Only a
+                              line naming a Registered Item can become an order
+                              line, so this is what makes a request orderable —
+                              and picking one fills a blank description and unit. */}
+                          <SelectMenu className="w-44 rounded-lg border border-slate-200 px-2 py-1 text-sm dark:border-white/10 dark:bg-transparent"
+                            value={l.itemId} aria-label={tr.lineItem}
+                            onChange={(v) => {
+                              const item = (pickers.items || []).find((x) => x.id === v);
+                              setLine(i, {
+                                itemId: v,
+                                ...(item && !String(l.description || "").trim() ? { description: item.name } : {}),
+                                ...(item && !String(l.unit || "").trim() ? { unit: item.unit } : {}),
+                              });
+                            }}
+                            options={[
+                              { value: "", label: "—" },
+                              ...(pickers.items || []).map((x) => ({ value: x.id, label: x.sku ? `${x.sku} · ${x.name}` : x.name })),
+                            ]} />
                         </td>
                       </tr>
                     ))}

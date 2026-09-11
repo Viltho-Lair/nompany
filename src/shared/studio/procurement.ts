@@ -276,6 +276,14 @@ type Strings = {
   neededBy: string;
   forProject: string;
   expectedSupplier: string;
+  // What a request, a package or a bill is FOR — the project and the part of
+  // its budget — picked from the project's own cost codes.
+  project: string;
+  costCode: string;
+  // A converted request's order is a Draft until somebody places it.
+  placeOrder: string;
+  orderNotPlaced: string;
+  noSuppliersToPick: string;
   estimatedValue: string;
   lines: string;
   lineDescription: string;
@@ -632,6 +640,11 @@ const en: Strings = {
   neededBy: "Needed by",
   forProject: "For project",
   expectedSupplier: "Expected supplier",
+  project: "Project",
+  costCode: "Cost code",
+  placeOrder: "Place order",
+  orderNotPlaced: "not placed yet",
+  noSuppliersToPick: "No suppliers in the register yet — add them under Suppliers.",
   estimatedValue: "Estimated",
   lines: "Lines",
   lineDescription: "Description",
@@ -663,7 +676,7 @@ const en: Strings = {
   refuseAlreadyApproved: "That request is already fully approved.",
   refuseNotApproved: "Only an approved request becomes a purchase order.",
   refuseNoStudioCurrency: "Set your studio's currency in Studio settings before approving — an amount cannot be judged against a limit without one.",
-  refuseNoItems: "None of these lines names a Registered Item, and a purchase order moves stock. Add the items, or raise the order directly in Inventory.",
+  refuseNoItems: "None of these lines names a Registered Item, and a purchase order moves stock. Pick the item on each line you want ordered.",
   refuseAlreadyOrdered: "A purchase order has already been raised against this request.",
   refuseNotAnswerable: "Approving and rejecting go through the approval, not through an edit.",
   save: "Save",
@@ -925,7 +938,7 @@ const ar: Strings = {
   fromRequisition: "من طلب شراء",
   rfqTitle: "ما المطلوب تسعيره",
   quotesDueBy: "موعد استلام العروض",
-  suppliersAsked: "الموردون المسؤولون",
+  suppliersAsked: "الموردون المدعوون",
   sendRfq: "تعليم كمرسل",
   cancelRfq: "سحب الطلب",
   recordQuote: "تسجيل عرض",
@@ -970,6 +983,11 @@ const ar: Strings = {
   neededBy: "مطلوب قبل",
   forProject: "للمشروع",
   expectedSupplier: "المورد المتوقع",
+  project: "المشروع",
+  costCode: "رمز التكلفة",
+  placeOrder: "إصدار الأمر",
+  orderNotPlaced: "لم يصدر بعد",
+  noSuppliersToPick: "لا يوجد موردون في السجل بعد — أضفهم من الموردين.",
   estimatedValue: "التقدير",
   lines: "البنود",
   lineDescription: "الوصف",
@@ -1001,7 +1019,7 @@ const ar: Strings = {
   refuseAlreadyApproved: "هذا الطلب معتمد بالكامل بالفعل.",
   refuseNotApproved: "لا يصير أمر شراء إلا الطلب المعتمد.",
   refuseNoStudioCurrency: "حدد عملة الاستوديو في الإعدادات قبل الاعتماد — لا يقاس مبلغ على حد بغير عملة.",
-  refuseNoItems: "لا يسمي أي من هذه البنود صنفا مسجلا، وأمر الشراء يحرك المخزون. أضف الأصناف، أو أنشئ الأمر مباشرة من المخزون.",
+  refuseNoItems: "لا يسمي أي من هذه البنود صنفا مسجلا، وأمر الشراء يحرك المخزون. اختر الصنف في كل بند تريد طلبه.",
   refuseAlreadyOrdered: "صدر أمر شراء على هذا الطلب بالفعل.",
   refuseNotAnswerable: "الاعتماد والرفض يمران بالاعتماد لا بالتعديل.",
   save: "حفظ",

@@ -98,6 +98,19 @@ until 11/09/2026, and with it the order's total, the project's committed cost an
 every receipt against it. A buyer who has been quoted a better price sends lines of their own,
 which win.
 
+**The form picks, it does not ask for ids.** The expected supplier comes from the register, the
+project and its cost code from that project's own breakdown, and each line's Registered Item
+from the catalogue (picking one fills a blank description and unit). Until 11/09/2026 the
+supplier and the item were 60-character boxes wanting internal ids, and the project and code
+had no field at all — so conversion refused anything typed by name, and a converted order
+committed its money against no budget line.
+
+**The order is placed from the request's own row.** Conversion writes a `Draft` — a price may
+still be corrected — and a Draft is invisible to Receiving and Expediting and refused at
+booking-in. "Place order" moves it to `Ordered` through Inventory's `editOrder`, for somebody
+holding `inventory.stock.edit`; until 11/09/2026 no screen could, so every converted order
+stopped there.
+
 **A requisition of free text cannot become an order, and the refusal says so.** `cleanLines`
 drops any line without a known Registered Item, because an order moves stock and stock is
 Registered Items. Returning an empty order would read as success and buy nothing.
@@ -114,8 +127,8 @@ Stated in words, because a silent gap reads as a finished feature.
 
 - **A services requisition cannot become an order at all.** Only lines naming a Registered Item
   convert, because that is what a purchase order is in this product. Buying a service, or
-  anything nobody has registered, still means raising the order by hand in Inventory. That is
-  the honest boundary of the existing order model, not a limitation of this screen.
+  anything nobody has registered, has no path to an order today — Inventory's own order
+  buttons were removed on purpose. That is the boundary of the existing order model.
 - **Nothing is notified.** A requisition waiting for a signature tells nobody; the register has
   to be looked at. No inbox, no delegation, no reminder.
 - **No supplier RFQ and no quote comparison.** `vendorId` records who the requester *expects* to
