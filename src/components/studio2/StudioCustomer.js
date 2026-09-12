@@ -178,24 +178,18 @@ export default function StudioCustomer({ slug, clientId }) {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {may.deals && (
           <>
-            <div className={panel}><StatTile label={tr.wonValue} value={money(deals.wonValue)} /></div>
-            <div className={panel}>
-              <StatTile label={tr.openValue} value={money(deals.openValue)}
-                sub={`${tr.weighted} ${money(deals.weighted)}`} accent="rgb(var(--chart-2))" />
-            </div>
+            <StatTile label={tr.wonValue} value={money(deals.wonValue)} />
+            <StatTile label={tr.openValue} value={money(deals.openValue)}
+              sub={`${tr.weighted} ${money(deals.weighted)}`} accent="rgb(var(--chart-2))" />
           </>
         )}
         {may.contracts && (
-          <div className={panel}>
-            <StatTile label={tr.contractValue} value={money(contractValue)} accent="rgb(var(--chart-4))" />
-          </div>
+          <StatTile label={tr.contractValue} value={money(contractValue)} accent="rgb(var(--chart-4))" />
         )}
         {may.deals && (
-          <div className={panel}>
-            <StatTile label={tr.winRate}
-              value={deals.winRate == null ? "—" : `${deals.winRate}%`}
-              sub={tr.nDecided(deals.decided.length)} accent="rgb(var(--chart-3))" />
-          </div>
+          <StatTile label={tr.winRate}
+            value={deals.winRate == null ? "—" : `${deals.winRate}%`}
+            sub={tr.nDecided(deals.decided.length)} accent="rgb(var(--chart-3))" />
         )}
       </div>
 

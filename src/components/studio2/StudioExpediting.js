@@ -89,29 +89,21 @@ export default function StudioExpediting({ slug }) {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-4">
-        <div className={panel}>
-          <StatTile label={tr.lateCount} value={<span className="num">{view.late}</span>}
-            tone={view.late > 0 ? "text-rose-600 dark:text-rose-300" : ""} />
-        </div>
-        <div className={panel}>
-          <StatTile label={tr.dueSoonCount} value={<span className="num">{view.dueSoon}</span>}
-            accent="rgb(var(--chart-2))" />
-        </div>
-        <div className={panel}>
-          {/* NOBODY PROMISED ANYTHING is a different problem from a promise
-              being kept, so it gets its own figure rather than hiding in the
-              healthy column. */}
-          <StatTile label={tr.undatedCount} value={<span className="num">{view.undated}</span>}
-            tone={view.undated > 0 ? "text-amber-700 dark:text-amber-300" : ""} />
-        </div>
-        <div className={panel}>
-          {/* THE STUDIO'S OWN FAILURE rather than a supplier's, which is why it
-              is a tile and not a column. */}
-          <StatTile label={tr.unchasedCount} value={<span className="num">{view.unchased}</span>}
-            sub={tr.unchasedHint}
-            tone={view.unchased > 0 ? "text-rose-600 dark:text-rose-300" : "text-emerald-600 dark:text-emerald-400"}
-            accent="rgb(var(--chart-3))" />
-        </div>
+        <StatTile label={tr.lateCount} value={<span className="num">{view.late}</span>}
+          tone={view.late > 0 ? "text-rose-600 dark:text-rose-300" : ""} />
+        <StatTile label={tr.dueSoonCount} value={<span className="num">{view.dueSoon}</span>}
+          accent="rgb(var(--chart-2))" />
+        {/* NOBODY PROMISED ANYTHING is a different problem from a promise
+            being kept, so it gets its own figure rather than hiding in the
+            healthy column. */}
+        <StatTile label={tr.undatedCount} value={<span className="num">{view.undated}</span>}
+          tone={view.undated > 0 ? "text-amber-700 dark:text-amber-300" : ""} />
+        {/* THE STUDIO'S OWN FAILURE rather than a supplier's, which is why it
+            is a tile and not a column. */}
+        <StatTile label={tr.unchasedCount} value={<span className="num">{view.unchased}</span>}
+          sub={tr.unchasedHint}
+          tone={view.unchased > 0 ? "text-rose-600 dark:text-rose-300" : "text-emerald-600 dark:text-emerald-400"}
+          accent="rgb(var(--chart-3))" />
       </div>
 
       {!orders.length ? (

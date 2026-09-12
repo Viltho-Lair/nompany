@@ -157,21 +157,15 @@ export default function StudioBoq({ slug, tenderId }) {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <div className={panel}>
-          {/* THE HEADLINE, AND THE HONEST LABEL UNDER IT. `complete` is what
-              separates "the bill totals this much" from "this is our bid". */}
-          <StatTile label={tr.billTotal} value={<span className="num">{money(totals.total)}</span>}
-            sub={totals.complete ? tr.fullyPriced : tr.nUnpriced(totals.unpriced)}
-            tone={totals.complete ? "text-emerald-600 dark:text-emerald-400" : "text-amber-700 dark:text-amber-300"} />
-        </div>
-        <div className={panel}>
-          <StatTile label={tr.colDescription} value={<span className="num">{totals.lines}</span>}
-            sub={tr.boq} accent="rgb(var(--chart-2))" />
-        </div>
-        <div className={panel}>
-          <StatTile label={tr.estimatedValue} value={<span className="num">{money(tender?.estimatedValue)}</span>}
-            sub={tender?.currency || ""} accent="rgb(var(--chart-3))" />
-        </div>
+        {/* THE HEADLINE, AND THE HONEST LABEL UNDER IT. `complete` is what
+            separates "the bill totals this much" from "this is our bid". */}
+        <StatTile label={tr.billTotal} value={<span className="num">{money(totals.total)}</span>}
+          sub={totals.complete ? tr.fullyPriced : tr.nUnpriced(totals.unpriced)}
+          tone={totals.complete ? "text-emerald-600 dark:text-emerald-400" : "text-amber-700 dark:text-amber-300"} />
+        <StatTile label={tr.colDescription} value={<span className="num">{totals.lines}</span>}
+          sub={tr.boq} accent="rgb(var(--chart-2))" />
+        <StatTile label={tr.estimatedValue} value={<span className="num">{money(tender?.estimatedValue)}</span>}
+          sub={tender?.currency || ""} accent="rgb(var(--chart-3))" />
       </div>
 
       {/* SAID, NOT JUST ENFORCED. A grid that has quietly stopped accepting

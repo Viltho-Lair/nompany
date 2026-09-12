@@ -116,30 +116,24 @@ export default function StudioProjectBilling({ slug, projectId }) {
       <h2 className={h2}>{tr.paymentSchedule}</h2>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <div className={panel}>
-          <StatTile label={tr.totalScheduled} value={<span className="num">{money(billing.scheduled)}</span>}
-            sub={billing.unscheduled >= 0
-              ? `${tr.unscheduled}: ${money(billing.unscheduled)}`
-              : tr.overScheduled}
-            tone={billing.unscheduled < 0 ? "text-amber-700 dark:text-amber-300" : ""} />
-        </div>
-        <div className={panel}>
-          {/* INVOICED INCLUDES THE UNATTRIBUTED, always. A total that counted
-              only claims somebody had filed against a line would understate
-              what the client has been asked for. */}
-          <StatTile label={tr.totalInvoiced} value={<span className="num">{money(billing.invoiced)}</span>}
-            sub={`${tr.outstanding}: ${money(billing.outstanding)}`}
-            tone={billing.outstanding > 0 ? "text-amber-700 dark:text-amber-300" : "text-emerald-600 dark:text-emerald-400"}
-            accent="rgb(var(--chart-2))" />
-        </div>
-        <div className={panel}>
-          {/* THE NUMBER THIS SCREEN EXISTS FOR: work the studio has said is
-              done and has not asked to be paid for. */}
-          <StatTile label={tr.claimable} value={<span className="num">{money(billing.claimable)}</span>}
-            sub={tr.claimableHint}
-            tone={billing.claimable > 0 ? "text-emerald-600 dark:text-emerald-400" : ""}
-            accent="rgb(var(--chart-3))" />
-        </div>
+        <StatTile label={tr.totalScheduled} value={<span className="num">{money(billing.scheduled)}</span>}
+          sub={billing.unscheduled >= 0
+            ? `${tr.unscheduled}: ${money(billing.unscheduled)}`
+            : tr.overScheduled}
+          tone={billing.unscheduled < 0 ? "text-amber-700 dark:text-amber-300" : ""} />
+        {/* INVOICED INCLUDES THE UNATTRIBUTED, always. A total that counted
+            only claims somebody had filed against a line would understate
+            what the client has been asked for. */}
+        <StatTile label={tr.totalInvoiced} value={<span className="num">{money(billing.invoiced)}</span>}
+          sub={`${tr.outstanding}: ${money(billing.outstanding)}`}
+          tone={billing.outstanding > 0 ? "text-amber-700 dark:text-amber-300" : "text-emerald-600 dark:text-emerald-400"}
+          accent="rgb(var(--chart-2))" />
+        {/* THE NUMBER THIS SCREEN EXISTS FOR: work the studio has said is
+            done and has not asked to be paid for. */}
+        <StatTile label={tr.claimable} value={<span className="num">{money(billing.claimable)}</span>}
+          sub={tr.claimableHint}
+          tone={billing.claimable > 0 ? "text-emerald-600 dark:text-emerald-400" : ""}
+          accent="rgb(var(--chart-3))" />
       </div>
 
       {/* ---- retention ----------------------------------------------------
