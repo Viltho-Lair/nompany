@@ -138,6 +138,38 @@ ok("a sliver rounds to nothing and is refused", M.labourProblem({ hours: 0.1, wo
 }
 ok("no entries is nought hours", M.labourTotals([]).total === 0);
 
+// THE MACHINE'S OWN STATUS. THE DEFECTS GUARDED: a machine reading "In service"
+// while somebody has it in pieces; and the subtler one — a machine with TWO
+// repairs open reading "In service" again the moment the first of them finished.
+console.log("\n== the machine's status");
+{
+  const o = (over = {}) => ({ id: "o1", assetId: "m1", type: "corrective", status: "Open", ...over });
+  const other = (over = {}) => ({ id: "o2", assetId: "m1", type: "corrective", ...over });
+  ok("starting a repair puts the machine under repair", M.machineStatusAfterMove(o(), "In progress", []) === "Under repair");
+  ok("finishing it puts it back", M.machineStatusAfterMove(o(), "Completed", []) === "In service");
+  ok("closing it too", M.machineStatusAfterMove(o(), "Closed", []) === "In service");
+  ok("cancelling it too", M.machineStatusAfterMove(o(), "Cancelled", []) === "In service");
+  // A SECOND REPAIR STILL RUNNING KEEPS IT UNDER REPAIR.
+  ok("another repair in progress holds it", M.machineStatusAfterMove(o(), "Completed", [other({ status: "In progress" })]) === null);
+  ok("...and one on hold holds it too — waiting on a part is still a repair",
+    M.machineStatusAfterMove(o(), "Completed", [other({ status: "On hold" })]) === null);
+  // WORK NOBODY HAS STARTED IS NOT A REPAIR IN PROGRESS.
+  ok("another repair merely raised does not hold it",
+    M.machineStatusAfterMove(o(), "Completed", [other({ status: "Open" })]) === "In service");
+  ok("a finished sibling does not hold it",
+    M.machineStatusAfterMove(o(), "Completed", [other({ status: "Completed" })]) === "In service");
+  // ONLY A REPAIR MOVES IT — an inspection is not a repair.
+  ok("preventive work leaves the machine alone", M.machineStatusAfterMove(o({ type: "preventive" }), "In progress", []) === null);
+  ok("inspection work too", M.machineStatusAfterMove(o({ type: "inspection" }), "Completed", []) === null);
+  ok("a preventive sibling does not hold it",
+    M.machineStatusAfterMove(o(), "Completed", [other({ type: "preventive", status: "In progress" })]) === "In service");
+  ok("work naming no machine says nothing about any machine",
+    M.machineStatusAfterMove(o({ assetId: "" }), "In progress", []) === null);
+  ok("a hold says nothing on its own", M.machineStatusAfterMove(o(), "On hold", []) === null);
+  ok("reopening puts it back under repair",
+    M.machineStatusAfterMove(o({ status: "Completed" }), "In progress", []) === "Under repair");
+}
+
 console.log("\n== open work by place");
 {
   const byPlace = M.openWorkByPlace([

@@ -34,8 +34,12 @@ import type { Location } from "../operations/types";
 import {
   PRIORITIES, ORDER_TYPES, HOLD_REASONS, LABOUR_KINDS, orderMoveProblem, moveStamps, orderEditable, orderDeletable,
   orderOverdue, orderOpen, requestState, requestProblem, labourProblem, labourTotals, quarterHours, downtimeProblem,
-  type OrderStatus,
+  machineStatusAfterMove, type OrderStatus,
 } from "./model";
+// THE MACHINE'S OWN REGISTER IS THE ENGINE'S, and this moves a record in it
+// with the STUDIO'S authority rather than the technician's — see the function's
+// own note for why asking for the actor's right would be the wrong question.
+import { moveRecordAsStudio } from "@/platform/engine/records";
 import { reliabilityByAsset } from "./reliability";
 import { WORKORDER_SOURCE, partsOnOrder, partsCostByOrder, costByAsset } from "./parts";
 import { balances } from "@/modules/inventory/inventory";
@@ -569,7 +573,35 @@ export async function moveOrder(ctx: MaintenanceContext, id: string, body: Recor
   if (!order) return { error: "notfound" };
   if (seen.problem) return { error: seen.problem };
   await afterPlanClose(ctx, order, next, at);
+  await afterMachineStatus(ctx, order, next);
   return { order };
+}
+
+/**
+ * THE MACHINE READS "UNDER REPAIR" WHILE SOMEBODY IS REPAIRING IT.
+ *
+ * `machineStatusAfterMove` decides (pure, tested); this only reads what it
+ * needs and writes what it is told. THE SIBLINGS ARE READ ONLY WHEN THE WORK IS
+ * FINISHING, because that is the only branch that asks whether anybody else
+ * still has the machine in pieces — starting a repair needs no such question.
+ *
+ * A REFUSAL IS IGNORED ON PURPOSE. The write goes through the engine with the
+ * studio's authority and is checked against the studio's own stored type, so a
+ * studio that has edited `equipment` and dropped "Under repair" simply does not
+ * get the status moved. A work order must never fail because the machine's
+ * register would not take a status — the work is the thing that matters, and
+ * the status is a convenience on top of it.
+ */
+async function afterMachineStatus(ctx: MaintenanceContext, order: WorkOrder, next: string) {
+  const assetId = str(order.assetId, 60);
+  if (!assetId) return;
+  const finishing = next === "Completed" || next === "Closed" || next === "Cancelled";
+  const siblings = finishing
+    ? (await Orders.find(orderScope(ctx), { where: { assetId } })).filter((o) => o.id !== order.id)
+    : [];
+  const to = machineStatusAfterMove(order, next, siblings);
+  if (!to) return;
+  await moveRecordAsStudio(ctx.studio.id, "equipment", assetId, to);
 }
 
 /**

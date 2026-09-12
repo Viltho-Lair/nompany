@@ -128,6 +128,60 @@ export async function studioTypesForGrants(
 }
 
 /**
+ * MOVE A RECORD'S STATUS WITH THE STUDIO'S AUTHORITY, not the caller's.
+ *
+ * WHY THE ACTOR'S RIGHTS ARE THE WRONG QUESTION HERE, and it is the same
+ * argument `rules.ts` makes for a rule firing: the technician who starts a work
+ * order holds `maintenance.orders.edit` and has no reason to hold
+ * `engine.equipment.edit` over the Assets register. Asking for the actor's right
+ * would mean the machine's status moved for planners and silently did not for
+ * the people who actually start the work — a field that is right sometimes,
+ * which is worse than one that is never written.
+ *
+ * IT STILL ASKS THE DECLARATION. `transitionProblem` is put the studio's OWN
+ * STORED type, never the built-in: a studio that has edited `equipment` and
+ * dropped "Under repair" is REFUSED rather than having a record written to a
+ * status nothing can move it out of (the stranding this engine's own header
+ * warns about). The refusal is a returned token, so the caller can carry on —
+ * a machine whose type no longer declares the status must never block the work
+ * order that tried to move it.
+ *
+ * IT DELIBERATELY FIRES NO RULES. `moveRecord` runs `runRulesForMove`, because
+ * a person moving a record is the thing rules exist to respond to. A status
+ * this function sets is a CONSEQUENCE of work happening elsewhere, and letting
+ * it trigger a second consequence would raise records nobody asked for, one per
+ * repair, with no screen showing why.
+ */
+export async function moveRecordAsStudio(
+  studioId: string, typeKey: string, id: string, to: string,
+): Promise<{ moved: boolean; problem?: string }> {
+  const sections = await sectionsAsStored(studioId);
+  const settings = sections.find((s) => s.key === "administration-settings");
+  if (!settings) return { moved: false, problem: "no-section" };
+  const studio = { id: studioId } as Parameters<typeof Types.find>[0]["studio"];
+  const types = await Types.find({ studio, section: settings });
+  const type = types.find((t) => t.key === typeKey) || null;
+  if (!type) return { moved: false, problem: "notfound" };
+
+  const section = sections.find((x) => x.key === engineSectionKey(String(type.key))) || null;
+  if (!section) return { moved: false, problem: "no-section" };
+  const scope = { studio, section };
+
+  const existing = await Records.byId(scope, id);
+  if (!existing || existing.typeKey !== typeKey) return { moved: false, problem: "notfound" };
+  // ALREADY THERE IS NOT A FAILURE. Two orders open on one machine both ask for
+  // "Under repair", and the second asking is not a problem to report.
+  if (String(existing.status || "") === to) return { moved: false };
+
+  const problem = transitionProblem(type, existing.status, to);
+  if (problem) return { moved: false, problem };
+
+  const at = now();
+  await Records.update(scope, id, (row) => ({ ...row, status: str(to, 60), updatedAt: at }));
+  return { moved: true };
+}
+
+/**
  * THE STUDIO'S RECORD TYPES, AS GRANTABLE AREAS.
  *
  * TWENTY-TWO REGISTERS THAT ONLY THE OWNER COULD OPEN. `StudioRoles` draws its

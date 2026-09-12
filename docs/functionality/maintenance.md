@@ -488,8 +488,10 @@ paths, and nothing else is accepted.
   account.
 - **Bins, batches and serials on an issue.** A part leaves "unbinned" like a delivery note's.
 - **QR tags, supplier work orders, permit gating, check-in, offline.**
-- **Moving the machine's status.** Starting work does not set the equipment record to
-  "Under repair".
+- **Moving the machine's status for anything but a repair.** Corrective work sets the machine
+  to "Under repair" and back (12/09/2026); preventive and inspection work leave the register
+  alone, so a service that does stop a machine is not reflected in its status. Nothing moves it
+  to Idle or Disposed either — those are the register's own to set.
 **DECIDED, 12/09/2026 — REPORTING A FAULT IS FOR SELECTED PEOPLE, NOT EVERYBODY.** The owner,
 asked whether anybody should be able to raise a work request the way anybody can raise a task:
 *"no only selected users."* So it stays a granted right: a role is confined to its department's

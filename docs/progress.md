@@ -789,6 +789,31 @@ guessing late would punish a studio for the one thing this cannot see. A CONDITI
 scored by neither — it answers a breach rather than an occurrence, so "late" there means a
 response target, which does not exist yet.
 
+**A MACHINE READS "UNDER REPAIR" WHILE SOMEBODY IS REPAIRING IT, 12/09/2026.** Starting
+corrective work moves the equipment record; finishing, closing or cancelling it moves the record
+back. No permission key, and nothing to catch up.
+
+**IT RUNS WITH THE STUDIO'S AUTHORITY, NOT THE TECHNICIAN'S**, which is the whole reason it is
+not simply a call to `moveRecord`. That asks for the actor's own `engine.equipment.edit`, and
+the technician who starts a work order holds `maintenance.orders.edit` and has no reason to hold
+anything over the Assets register — so the status would have moved for planners and silently
+not for the people who actually start the work, a field that is right sometimes, which is worse
+than one never written. `moveRecordAsStudio` (platform/engine/records) is the seam, and it is
+the same argument `rules.ts` already makes for a rule firing. **It still asks the declaration**:
+`transitionProblem` against the studio's OWN STORED type, so a studio that has edited
+`equipment` and dropped "Under repair" is refused rather than stranded at a status nothing leads
+out of — and the refusal is ignored by the caller, because a work order must never fail over
+what the machine's register would not accept. It fires no rules: a status set as a consequence
+of work elsewhere must not raise records nobody asked for, one per repair.
+
+**TWO DECISIONS WORTH THE SPACE.** Only CORRECTIVE work moves it — "Under repair" means the
+machine is not usable, and a routine inspection is not a repair, so preventive and inspection
+work leave the register alone. And it goes back only when NOBODY ELSE is still repairing it:
+two corrective orders can be open on one machine, and returning it to service the moment the
+first finished would report a machine as usable while somebody still had it in pieces. A
+sibling merely raised does not hold it; one in progress or on hold does, because a repair
+waiting on a part is still a repair.
+
 **WHAT IS STILL UNVERIFIED:** the store-backed suite, which has not been run. The closed-order
 case — a NEW breach at the same value raising again once the first order is finished — is
 proven in `tests/maintenance-model.mjs` and was not driven through the screens, because

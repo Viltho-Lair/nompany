@@ -49,9 +49,50 @@ export const ORDER_MOVES: Readonly<Record<OrderStatus, readonly OrderStatus[]>> 
 });
 
 type OrderLike = {
+  id?: unknown; assetId?: unknown;
   status?: unknown; resolution?: unknown; startedAt?: unknown; dueOn?: unknown;
   checklist?: unknown; type?: unknown; failure?: unknown; downSince?: unknown; upAt?: unknown;
 };
+
+/**
+ * THE TWO STATUSES ON THE EQUIPMENT REGISTER THIS SECTION MOVES A MACHINE
+ * BETWEEN. Both are declared by the built-in `equipment` type, with transitions
+ * each way; a studio that has edited its own type and dropped one is refused at
+ * the write rather than having a record stranded at a status nothing leads out
+ * of (`moveRecordAsStudio`, platform/engine/records).
+ */
+export const MACHINE_UNDER_REPAIR = "Under repair";
+export const MACHINE_IN_SERVICE = "In service";
+
+/**
+ * WHAT THIS MOVE SAYS ABOUT THE MACHINE — a status to write, or null for
+ * "nothing to say about it".
+ *
+ * ONLY A REPAIR MOVES IT. "Under repair" means the machine is not usable, and a
+ * routine inspection is not a repair — so preventive and inspection work leave
+ * the register alone however long it takes. Work naming no machine says nothing
+ * about any machine.
+ *
+ * AND IT GOES BACK ONLY WHEN NOBODY IS STILL REPAIRING IT. Two corrective
+ * orders can be open on one machine at once, and returning it to service the
+ * moment the FIRST one finished would report a machine as usable while somebody
+ * still had it in pieces. A sibling merely RAISED does not hold it — nobody has
+ * started that one — but one in progress or on hold does, because a repair
+ * waiting on a part is still a repair.
+ */
+export function machineStatusAfterMove(
+  order: OrderLike,
+  next: string,
+  othersOnMachine: readonly OrderLike[],
+): string | null {
+  if (!text(order.assetId)) return null;
+  if (text(order.type) !== "corrective") return null;
+  if (next === "In progress") return MACHINE_UNDER_REPAIR;
+  if (next !== "Completed" && next !== "Closed" && next !== "Cancelled") return null;
+  const stillRepairing = othersOnMachine.some((o) =>
+    text(o.type) === "corrective" && ["In progress", "On hold"].includes(statusOf(o)));
+  return stillRepairing ? null : MACHINE_IN_SERVICE;
+}
 
 const failureProblemOf = (o: OrderLike) => text((o.failure as { problem?: unknown } | undefined)?.problem);
 
