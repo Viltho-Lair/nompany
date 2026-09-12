@@ -72,7 +72,6 @@ type Strings = CommonStrings & {
   loadingGrid: string;
   loadingGrid2: string;
   loadingTicket: string;
-  manualWillLive: string;
   map: string;
   message: string;
   minimiseChat: string;
@@ -236,7 +235,6 @@ const en: Strings = {
   loadingGrid: "Loading",
   loadingGrid2: "Loading",
   loadingTicket: "Loading ticket…",
-  manualWillLive: "The studio manual will live on this page.",
   map: "Map",
   message: "Message",
   minimiseChat: "Minimise chat",
@@ -392,7 +390,6 @@ const ar: Strings = {
   loadingGrid: "جار التحميل",
   loadingGrid2: "جار التحميل",
   loadingTicket: "جار تحميل التذكرة…",
-  manualWillLive: "سيعيش دليل الاستوديو في هذه الصفحة.",
   map: "الخريطة",
   message: "الرسالة",
   minimiseChat: "تصغير المحادثة",
