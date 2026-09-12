@@ -194,7 +194,17 @@ when it went down), MTBF (operating hours over failures), MTTR (mean of down-to-
 DOWNTIME rather than labour — an hour's work after three days waiting for a part kept the machine
 out three days), availability, open work and the commonest problems. **Each is a dash when it has
 no honest value**: no failure has no MTBF rather than an infinite one, and a machine with nothing
-recorded has no availability rather than 100%. Downtime on two orders that overlap is counted twice
+recorded has no availability rather than 100%.
+
+**AND THE WINDOW STARTS NO EARLIER THAN THE MACHINE DID (12/09/2026).** The equipment register
+has carried `acquiredOn` since it shipped and nothing read it, so a machine bought in March was
+scored against the full twelve months — nine of them before it existed — which overstates its
+MTBF and its availability by exactly the time it was not there to fail. `acquiredOf` is how the
+caller supplies the date (the Machines screen and the dashboard both do). **A machine with no
+acquisition date keeps the full window**, because a missing field is not a fact about the
+machine and a shortened one would make the two indistinguishable; a date past today leaves no
+window at all, and every figure derived from it reads as a dash rather than as nought or a
+perfect hundred. Downtime on two orders that overlap is counted twice
 — rare, and itself worth seeing. Machines are listed only to a reader who may open the equipment
 register.
 
@@ -455,7 +465,6 @@ paths, and nothing else is accepted.
   Finance, and a machine's cost is its parts alone.
 - **Downtime without a work order.** A machine is down only on an order; there is no
   separate downtime log for an outage nobody raised work for.
-- **The acquisition date.** A machine bought in March is judged over the full twelve months.
 - **Working a work order from the field view.** It is listed there and moved here.
 - **Clustering on the map.** One pin per place, which is legible at a studio's scale.
 - **Moving a calibration record's status by date.** A certificate past its due date is warned

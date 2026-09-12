@@ -814,6 +814,28 @@ first finished would report a machine as usable while somebody still had it in p
 sibling merely raised does not hold it; one in progress or on hold does, because a repair
 waiting on a part is still a repair.
 
+**A MACHINE IS JUDGED ONLY OVER THE TIME IT HAS EXISTED, 12/09/2026.** `acquiredOn` has been on
+the equipment register since it shipped and nothing read it, so a machine bought in March was
+scored against twelve months — nine of them before it arrived — overstating its MTBF and its
+availability by exactly the time it was not there to fail. The window now starts no earlier than
+the acquisition date. **A machine with no date keeps the full window**: a missing field is not a
+fact about the machine, and shortening on its absence would make "we never recorded this" and
+"it is new" read the same. A date past today leaves no window, and every figure reads as a dash
+rather than nought or a perfect hundred — the null-not-zero rule this section already follows for
+MTBF and availability.
+
+**AND THE ROLLING WINDOW IS ONE FUNCTION NOW** (`modules/maintenance/window.ts`). Two files in
+the module computed it by hand and had already drifted in spelling — `windowDays * 24 * HOUR` in
+`reliabilityByAsset`, `windowDays * 86_400_000` in `costByAsset`. Neither was more correct, which
+is the point: two expressions of one idea are two places for the next change to land in only one.
+**IT IS DELIBERATELY NOT SHARED WITH ASSETS' `daysOf`**, which clips a span in CALENDAR DAYS,
+inclusive at both ends, because a machine out on Monday and back on Monday was on the job for a
+day. That is a different question, and folding them together would turn the inclusive `+1` into a
+flag — a helper harder to read than the copies it replaced. It moves to `shared/` when a third
+caller outside Maintenance wants the instant form, and not before. **The refactor moved no
+figure**: the pre-existing reliability and parts assertions pass unchanged (MTBF 4,362,
+availability 99.6%), which is the only thing an extraction has to prove.
+
 **WHAT IS STILL UNVERIFIED:** the store-backed suite, which has not been run. The closed-order
 case — a NEW breach at the same value raising again once the first order is finished — is
 proven in `tests/maintenance-model.mjs` and was not driven through the screens, because

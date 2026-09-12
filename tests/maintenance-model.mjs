@@ -23,6 +23,7 @@ const X = await import("@/modules/administration/taxonomy");
 const P = await import("@/modules/maintenance/parts");
 const MT = await import("@/modules/maintenance/meters");
 const CD = await import("@/modules/maintenance/condition");
+const W = await import("@/modules/maintenance/window");
 const C = await import("@/modules/maintenance/contracts");
 const L = await import("@/modules/maintenance/legacy");
 
@@ -404,6 +405,69 @@ console.log("\n== reliability");
       downSince: "2025-01-01T00:00:00.000Z", upAt: "2025-01-03T00:00:00.000Z" },
   ], now).get("m4");
   ok("work before the window is not this year's failure", old?.failures === 0 && old?.downtimeHours === 0 && old?.availability === null);
+
+  // A MACHINE IS JUDGED ONLY OVER THE TIME IT HAS EXISTED. THE DEFECT GUARDED:
+  // one bought in March scored against the full twelve months, which overstates
+  // MTBF and availability by exactly the time it was not there to fail.
+  const young = [
+    { assetId: "m5", type: "corrective", status: "Closed", createdAt: "2026-06-01T00:00:00.000Z",
+      downSince: "2026-06-01T00:00:00.000Z", upAt: "2026-06-02T00:00:00.000Z", failure: { problem: "Leak" } },
+  ];
+  const acquired = (d) => () => d;
+  // 2026-03-11 to 2026-09-11 is 184 days — 4,416 hours, not 8,760.
+  const since = R.reliabilityByAsset(young, now, 365, acquired("2026-03-11")).get("m5");
+  ok("a machine is judged from when it was acquired", since?.mtbfHours === 4392, String(since?.mtbfHours));
+  ok("...and its availability is over that shorter window",
+    since?.availability === Math.round(((4416 - 24) / 4416) * 1000) / 10, String(since?.availability));
+
+  const whole = R.reliabilityByAsset(young, now, 365).get("m5");
+  // A MISSING FIELD IS NOT A FACT ABOUT THE MACHINE.
+  ok("no acquisition date keeps the full window", whole?.mtbfHours === 8736, String(whole?.mtbfHours));
+  ok("an acquisition before the window changes nothing",
+    R.reliabilityByAsset(young, now, 365, acquired("2020-01-01")).get("m5")?.mtbfHours === whole?.mtbfHours);
+  // NO TIME TO BE JUDGED OVER IS NULL, not nought and not a perfect hundred.
+  const future = R.reliabilityByAsset(young, now, 365, acquired("2027-01-01")).get("m5");
+  ok("a machine acquired in the future has no figures at all",
+    future?.availability === null && future?.mtbfHours === null && future?.failures === 0);
+  // DOWNTIME FROM BEFORE IT WAS ACQUIRED IS NOT ITS DOWNTIME.
+  const before = R.reliabilityByAsset([
+    { assetId: "m6", type: "corrective", status: "Closed", createdAt: "2025-12-01T00:00:00.000Z",
+      downSince: "2025-12-01T00:00:00.000Z", upAt: "2025-12-03T00:00:00.000Z" },
+  ], now, 365, acquired("2026-03-11")).get("m6");
+  ok("downtime before the machine existed is not counted",
+    before?.downtimeHours === 0 && before?.failures === 0 && before?.mttrHours === null);
+}
+
+// THE ROLLING WINDOW. Extracted because two files in this module computed it by
+// hand and had already drifted in spelling — `windowDays * 24 * HOUR` in one,
+// `windowDays * 86_400_000` in the other.
+console.log("\n== the rolling window");
+{
+  const now = "2026-09-11T00:00:00.000Z";
+  const w = W.windowOf(now, 365);
+  const at = (iso) => Date.parse(iso);
+  ok("a window is the last N days ending at now", W.hoursIn(w) === 8760);
+  ok("an instant inside it is inside it", W.within(w, at("2026-06-01T00:00:00.000Z")));
+  ok("one before it is not", !W.within(w, at("2020-01-01T00:00:00.000Z")));
+  ok("an unreadable instant is in no window", !W.within(w, Number.NaN));
+  // OVERLAP IS NEVER NEGATIVE — a negative would subtract from the total it is
+  // added to, and show as a machine with less downtime than it had.
+  ok("a span wholly inside overlaps by its own length",
+    W.overlapMs(w, at("2026-06-01T00:00:00.000Z"), at("2026-06-02T00:00:00.000Z")) === 86400000);
+  ok("a span wholly outside overlaps by nothing",
+    W.overlapMs(w, at("2020-01-01T00:00:00.000Z"), at("2020-01-02T00:00:00.000Z")) === 0);
+  ok("a span crossing the start is clipped to it",
+    W.overlapMs(w, w.start - 86400000, w.start + 86400000) === 86400000);
+  // NARROWING — the acquisition date's arithmetic, on its own.
+  ok("a blank day leaves the window alone", W.narrow(w, "").start === w.start);
+  ok("an unreadable day leaves it alone", W.narrow(w, "last March").start === w.start);
+  ok("a day before the window leaves it alone", W.narrow(w, "2020-01-01").start === w.start);
+  ok("a day inside it moves the start", W.hoursIn(W.narrow(w, "2026-03-11")) === 4416);
+  ok("a day past the end empties the window rather than inverting it",
+    W.hoursIn(W.narrow(w, "2027-01-01")) === 0);
+  // A BAD CLOCK COUNTS NOTHING rather than counting everything.
+  ok("an unreadable now is a window nothing falls in",
+    !W.within(W.windowOf("not a date", 365), at(now)));
 }
 
 console.log("\n== parts");

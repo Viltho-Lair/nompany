@@ -718,7 +718,13 @@ export async function listMachines(ctx: MaintenanceContext) {
     canSeePoints ? Plans.find(planScope(ctx)) : Promise.resolve([] as PmPlan[]),
     canSeePoints ? Conditions.find(conditionScope(ctx)) : Promise.resolve([] as ConditionReading[]),
   ]);
-  const stats = reliabilityByAsset(orders, asOf);
+  // A MACHINE IS JUDGED ONLY OVER THE TIME IT HAS EXISTED. The register has
+  // carried `acquiredOn` since it shipped and nothing read it, so one bought in
+  // March was scored against the nine months before it arrived.
+  const acquiredOf = new Map(machines.map((r) => [
+    r.id, str((r.values as Record<string, unknown> | undefined)?.acquiredOn, 10),
+  ]));
+  const stats = reliabilityByAsset(orders, asOf, 365, (id) => acquiredOf.get(id) || "");
   // WHAT EACH MACHINE COST TO KEEP RUNNING: parts off the ledger, hours off the
   // time booked. Hours stay hours — nothing yet says what one costs.
   const costs = costByAsset(orders, partMoves, labour, asOf);

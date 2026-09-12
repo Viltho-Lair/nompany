@@ -1,5 +1,13 @@
-// PARTS ON A WORK ORDER, purely — read off the stock ledger. No store, no
-// clock, no imports.
+// PARTS ON A WORK ORDER, purely — read off the stock ledger. No store and no
+// clock: every window is measured against a `now` the caller passes in.
+//
+// THIS SAID "NO IMPORTS" AND NOW IMPORTS ONE SIBLING. `./window` holds the
+// rolling-window arithmetic `costByAsset` used to spell out by hand, and which
+// `reliabilityByAsset` spelled out differently. Pure here has never meant
+// importless — `reliability.ts` has always imported `orderOpen` from `./model`
+// — it means no store, no clock and no I/O, which importing a pure sibling does
+// not cost. Corrected rather than left standing: a header that describes the
+// file it used to be is the kind of claim this codebase keeps finding stale.
 //
 // THE LEDGER IS THE RECORD. A part used on a work order is an `out` movement
 // in Inventory's ledger naming the order (`sourceType: "workorder"`), and a
@@ -13,6 +21,8 @@
 // reason. It is the item's RECORDED cost, not the valuation method's: FIFO and
 // average cost what is left on the shelf, and a studio using either should read
 // this as the price list's figure, not the books'.
+
+import { windowOf, within } from "./window";
 
 export const WORKORDER_SOURCE = "workorder";
 
@@ -110,8 +120,7 @@ export function costByAsset(
   now: string,
   windowDays = 365,
 ): Map<string, { partsCost: number; labourHours: number }> {
-  const end = Date.parse(now);
-  const start = end - windowDays * 86_400_000;
+  const w = windowOf(now, windowDays);
   const assetOf = new Map(orders.map((o) => [text(o.id), text(o.assetId)]));
   const out = new Map<string, { partsCost: number; labourHours: number }>();
   const bucket = (asset: string) => {
@@ -122,8 +131,7 @@ export function costByAsset(
   for (const m of moves) {
     if (text(m.sourceType) !== WORKORDER_SOURCE) continue;
     const asset = assetOf.get(text(m.sourceId));
-    const t = Date.parse(text(m.at));
-    if (!asset || !Number.isFinite(t) || t < start || t > end) continue;
+    if (!asset || !within(w, Date.parse(text(m.at)))) continue;
     const c = Math.abs(num(m.qty)) * num(m.unitCost);
     const kind = text(m.kind);
     const row = bucket(asset);
@@ -131,8 +139,7 @@ export function costByAsset(
   }
   for (const e of labour) {
     const asset = assetOf.get(text(e.workOrderId));
-    const t = Date.parse(`${text(e.workedOn)}T00:00:00Z`);
-    if (!asset || !Number.isFinite(t) || t < start || t > end) continue;
+    if (!asset || !within(w, Date.parse(`${text(e.workedOn)}T00:00:00Z`))) continue;
     const row = bucket(asset);
     row.labourHours = Math.round((row.labourHours + num(e.hours)) * 100) / 100;
   }

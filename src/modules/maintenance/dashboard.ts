@@ -112,7 +112,14 @@ export async function maintenanceDashboard(ctx: MaintenanceContext) {
   const activePlans = plans.filter((p) => p.status === "Active").length;
 
   // ---- reliability and cost, over the last twelve months ---------------------
-  const stats = reliabilityByAsset(orders, at);
+  // JUDGED FROM WHEN EACH MACHINE WAS ACQUIRED, as the Machines screen does.
+  // A reader who may not open the equipment register has no machines here and
+  // so no dates — and no machine block either, so nothing they can see is
+  // computed over a different window from anybody else's.
+  const acquiredOf = new Map(machines.map((r) => [
+    r.id, String((r.values as Record<string, unknown> | undefined)?.acquiredOn ?? "").trim().slice(0, 10),
+  ]));
+  const stats = reliabilityByAsset(orders, at, 365, (id) => acquiredOf.get(id) || "");
   const costs = costByAsset(orders, partMoves, labour, at);
   const nameOf = new Map(machines.map((r) => [
     r.id, [r.reference, String((r.values as Record<string, unknown> | undefined)?.name ?? "").trim()].filter(Boolean).join(" · "),

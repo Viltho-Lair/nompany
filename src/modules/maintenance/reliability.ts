@@ -22,8 +22,17 @@
 // pattern, short enough that a machine rebuilt two years ago is judged on what
 // it has done since. Downtime is clipped to it, and an open repair counts up to
 // `now`.
+//
+// AND IT STARTS NO EARLIER THAN THE MACHINE DID (12/09/2026). A machine bought
+// in March was scored against the full twelve months — nine of them before it
+// existed — which overstates its MTBF and its availability by exactly the time
+// it was not there to fail. The acquisition date is on the equipment register
+// and was read by nothing; `acquiredOf` is how the caller supplies it, and a
+// machine without one keeps the full window, because a missing field is not a
+// fact about the machine.
 
 import { orderOpen } from "./model";
+import { windowOf, within, overlapMs, hoursIn, narrow } from "./window";
 
 type OrderLike = {
   assetId?: unknown; type?: unknown; status?: unknown; createdAt?: unknown;
@@ -52,10 +61,14 @@ export type Reliability = {
  * machine down at once is rare and is itself worth seeing; merging intervals
  * would hide it. Said here so the figure is not mistaken for an exact one.
  */
-export function reliabilityByAsset(orders: readonly OrderLike[], now: string, windowDays = 365): Map<string, Reliability> {
-  const end = Date.parse(now);
-  const start = end - windowDays * 24 * HOUR;
-  const windowHours = windowDays * 24;
+export function reliabilityByAsset(
+  orders: readonly OrderLike[],
+  now: string,
+  windowDays = 365,
+  /** The machine's acquisition day (`YYYY-MM-DD`), or "" when nobody recorded one. */
+  acquiredOf: (assetId: string) => string = () => "",
+): Map<string, Reliability> {
+  const full = windowOf(now, windowDays);
   const byAsset = new Map<string, OrderLike[]>();
   for (const o of orders) {
     const id = text(o.assetId);
@@ -65,6 +78,10 @@ export function reliabilityByAsset(orders: readonly OrderLike[], now: string, wi
 
   const out = new Map<string, Reliability>();
   for (const [id, list] of byAsset) {
+    // THIS MACHINE'S OWN WINDOW — the last year, but never reaching back past
+    // the day it was acquired.
+    const w = narrow(full, acquiredOf(id));
+    const windowHours = hoursIn(w);
     let downtime = 0;
     let recordedInWindow = false;
     const repairs: number[] = [];
@@ -74,16 +91,14 @@ export function reliabilityByAsset(orders: readonly OrderLike[], now: string, wi
       const down = Date.parse(text(o.downSince));
       const up = Date.parse(text(o.upAt));
       const when = Number.isFinite(down) ? down : raised;
-      if (Number.isFinite(when) && when >= start && when <= end) recordedInWindow = true;
+      if (within(w, when)) recordedInWindow = true;
 
       if (Number.isFinite(down)) {
-        const to = Number.isFinite(up) ? up : end;
-        const clipped = Math.min(to, end) - Math.max(down, start);
-        if (clipped > 0) downtime += clipped / HOUR;
-        if (Number.isFinite(up) && up >= down && down >= start) repairs.push((up - down) / HOUR);
+        const to = Number.isFinite(up) ? up : w.end;
+        downtime += overlapMs(w, down, to) / HOUR;
+        if (Number.isFinite(up) && up >= down && down >= w.start) repairs.push((up - down) / HOUR);
       }
-      if (text(o.type) === "corrective" && text(o.status) !== "Cancelled"
-        && Number.isFinite(when) && when >= start && when <= end) {
+      if (text(o.type) === "corrective" && text(o.status) !== "Cancelled" && within(w, when)) {
         failures.push(o);
       }
     }
@@ -103,7 +118,12 @@ export function reliabilityByAsset(orders: readonly OrderLike[], now: string, wi
       downtimeHours: round(downtime),
       mttrHours: repairs.length ? round(repairs.reduce((a, b) => a + b, 0) / repairs.length) : null,
       mtbfHours: failures.length ? round(Math.max(0, windowHours - downtime) / failures.length) : null,
-      availability: recordedInWindow ? round(Math.max(0, (windowHours - downtime) / windowHours) * 100) : null,
+      // A WINDOW OF NO LENGTH DIVIDES BY NOTHING. A machine whose acquisition
+      // date is after today has no time to be judged over, which is a null
+      // rather than a nought or a perfect hundred.
+      availability: recordedInWindow && windowHours > 0
+        ? round(Math.max(0, (windowHours - downtime) / windowHours) * 100)
+        : null,
       openOrders: list.filter((o) => orderOpen(o)).length,
       lastFailureAt: lastFailure,
       topProblems: [...counts.entries()]
