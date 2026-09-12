@@ -229,9 +229,43 @@ ok("...and at least a day", S.complianceWindowDays("Weekly") === 1);
   ok("on time counts inside the window", c.onTime === 1);
   // OPEN PAST ITS WINDOW IS LATE — or a plan could score 100% by never finishing.
   ok("late counts late work and open overdue work", c.late === 2);
-  ok("cancelled work is left out", c.total === 3 && c.percent === 33, JSON.stringify(c));
+  ok("cancelled work is left out (calendar)",c.total === 3 && c.percent === 33, JSON.stringify(c));
 }
 ok("no history is not 0%", S.planCompliance([], "Monthly", "2026-09-11").percent === null);
+
+// METER-PLAN COMPLIANCE. THE DEFECT GUARDED: a meter plan's orders carry
+// `pmDueReading` and no `pmDueOn`, so every one of them fell through the date
+// test and the plan reported "no history" for ever, however many services it
+// had run — which reads exactly like a plan nobody has started.
+console.log("\n== compliance on a meter");
+{
+  const every = 250;
+  const m = { every, current: null };
+  const done = (dueReading, atClose) => ({ pmPlanId: "p1", pmDueReading: dueReading, status: "Completed", meterAtClose: atClose });
+  // THE WINDOW IS A TENTH OF THE INTERVAL, IN THE METER'S OWN UNIT.
+  ok("the window is a tenth of the interval", S.meterComplianceWindow(250) === 25);
+  ok("no interval, no window", S.meterComplianceWindow(0) === 0);
+  ok("finished inside the overshoot is on time", S.planCompliance([done(1000, 1020)], "", "2026-09-12", m).percent === 100);
+  ok("finished past it is late", S.planCompliance([done(1000, 1040)], "", "2026-09-12", m).percent === 0);
+  ok("exactly at the limit is on time", S.planCompliance([done(1000, 1025)], "", "2026-09-12", m).percent === 100);
+  // UNKNOWN IS NOT LATE: an order finished before the reading was stamped.
+  ok("no reading stamped counts as on time", S.planCompliance([done(1000, undefined)], "", "2026-09-12", m).percent === 100);
+  // OPEN WORK PAST THE WINDOW IS LATE, or a plan scores 100% by never finishing.
+  const open = { pmPlanId: "p1", pmDueReading: 1000, status: "Open" };
+  ok("open and the meter has run past the window is late",
+    S.planCompliance([open], "", "2026-09-12", { every, current: 1100 }).percent === 0);
+  ok("open but still inside it is not yet late",
+    S.planCompliance([open], "", "2026-09-12", { every, current: 1010 }).total === 0);
+  ok("open with no reading at all is not judged",
+    S.planCompliance([open], "", "2026-09-12", m).total === 0);
+  // NO HISTORY IS STILL NOT 0%.
+  ok("nothing finished is no history", S.planCompliance([], "", "2026-09-12", m).percent === null);
+  ok("a meter order is not scored on the calendar",
+    S.planCompliance([done(1000, 1040)], "Monthly", "2026-09-12", null).total === 0);
+  // A CONDITION ORDER ANSWERS A BREACH, NOT AN OCCURRENCE — scored by neither.
+  ok("a condition order is left out",
+    S.planCompliance([{ pmPlanId: "p1", conditionReadingId: "r1", status: "Completed" }], "Monthly", "2026-09-12", null).total === 0);
+}
 
 console.log("\n== reminders");
 {

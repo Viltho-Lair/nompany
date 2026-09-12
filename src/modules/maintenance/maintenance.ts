@@ -586,6 +586,19 @@ async function afterPlanClose(ctx: MaintenanceContext, order: WorkOrder, status:
   if (plan.trigger === "meter") {
     const readings = await Readings.find(readingScope(ctx), { where: { assetId: plan.assetId } });
     const latest = latestReading(readings, plan.assetId, plan.meterUnit || "");
+    // WHERE THE METER STOOD WHEN THE WORK WAS DONE — stamped BEFORE the early
+    // return below, which fires for every FIXED plan and so would have left
+    // most meter orders unstamped. It is the only thing a meter plan's
+    // compliance can measure overshoot against; without it every finished order
+    // scores on time and the figure reads 100% for ever. Completion only: a
+    // cancelled order was decided not to be done and is scored by nothing.
+    if (status === "Completed" && latest) {
+      const reading = Number(latest.value);
+      if (Number.isFinite(reading)) {
+        await Orders.update(orderScope(ctx), order.id, (row) =>
+          (row.meterAtClose === undefined ? { meterAtClose: reading, updatedAt: at } : {}));
+      }
+    }
     const nextReading = nextDueReadingOnClose(plan, order, status, latest ? Number(latest.value) : null);
     if (nextReading === null) return;
     await Plans.update(planScope(ctx), plan.id, (row) =>
@@ -921,7 +934,16 @@ export async function listPlans(ctx: MaintenanceContext) {
       .map((o) => String(o.completedAt || "").slice(0, 10))
       .filter(Boolean)
       .sort();
-    const compliance = planCompliance(mine, p.frequency, asOf);
+    // A METER PLAN IS SCORED ON THE METER, not the clock: its orders carry no
+    // `pmDueOn`, so every one fell through the date test and the plan reported
+    // "no history" for ever however many services it had run.
+    const meterNow = p.trigger === "meter"
+      ? latestReading(readings, p.assetId, p.meterUnit || "")?.value ?? null
+      : null;
+    const compliance = planCompliance(
+      mine, p.frequency, asOf,
+      p.trigger === "meter" ? { every: p.meterEvery, current: meterNow } : null,
+    );
     onTime += compliance.onTime;
     total += compliance.total;
     return {
@@ -936,9 +958,7 @@ export async function listPlans(ctx: MaintenanceContext) {
       raised: mine.length,
       compliance,
       // WHERE THE METER IS NOW, for a plan that runs on one.
-      currentReading: p.trigger === "meter"
-        ? latestReading(readings, p.assetId, p.meterUnit || "")?.value ?? null
-        : null,
+      currentReading: meterNow,
       // WHERE THE GAUGE STANDS, for a plan that runs on one. Null when nobody
       // has read it yet — which is not the same answer as "in range".
       condition: p.trigger === "condition"

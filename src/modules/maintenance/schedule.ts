@@ -115,6 +115,7 @@ export function planProblem(plan: PlanLike): string | null {
 
 type OrderLike = {
   pmPlanId?: unknown; pmDueOn?: unknown; pmDueReading?: unknown; status?: unknown; completedAt?: unknown;
+  conditionReadingId?: unknown; meterAtClose?: unknown;
 };
 
 /**
@@ -227,22 +228,86 @@ export const complianceWindowDays = (frequency: unknown) =>
   Math.max(1, Math.round((INTERVAL_DAYS[text(frequency)] || 0) * 0.1));
 
 /**
+ * HOW FAR PAST A METER TRIGGER STILL COUNTS AS ON TIME — a tenth of the
+ * interval, the same proportion `complianceWindowDays` allows a calendar plan,
+ * because the question is identical: a service every 250 hours done 25 hours
+ * late is the same miss as a monthly one done three days late.
+ *
+ * THE WINDOW IS IN THE METER'S OWN UNIT, never in days. A machine that ran flat
+ * out through a shutdown burns a week's allowance in a day, and a machine that
+ * sat idle burns none — which is the whole reason the plan runs on a meter
+ * rather than on the calendar in the first place.
+ */
+export const meterComplianceWindow = (every: unknown) => {
+  const n = Number(every);
+  return Number.isFinite(n) && n > 0 ? n * 0.1 : 0;
+};
+
+/**
  * PM COMPLIANCE for one plan's orders: finished inside the window over
  * everything that fell due. Work still open past its window counts as late —
  * leaving it out would let a plan score 100% by never finishing anything.
  * Cancelled work is left out; it was decided not to be done. `percent` is null
  * when nothing has fallen due yet, because 0% and "no history" are different.
+ *
+ * A METER PLAN IS SCORED ON THE METER, not on the clock (12/09/2026). Its
+ * orders carry `pmDueReading` and no `pmDueOn`, so every one of them fell
+ * straight through the date test and a meter plan scored NOTHING AT ALL — it
+ * reported "no history" for ever, however many services it had run, which reads
+ * exactly like a plan nobody has started. The measure is OVERSHOOT: how far the
+ * meter had gone past the trigger when the work was done, against a window
+ * proportional to the interval.
+ *
+ * IT IS SCORED AGAINST `meterAtClose`, the reading stamped on the order when
+ * the work was finished. Without storing that there would be nothing to
+ * measure overshoot with, and every finished meter order would have scored ON
+ * TIME — a compliance figure permanently reading 100%, which is worse than no
+ * figure at all. An order finished before that was stamped carries none, and
+ * counts as on time rather than late: guessing late would punish a studio for
+ * the one thing this cannot see.
+ *
+ * A CONDITION PLAN IS SCORED ON NEITHER and is deliberately absent: its orders
+ * answer a breach rather than an occurrence, so "late" would mean the time
+ * between a machine going out of range and somebody attending it — a response
+ * target, which this product does not have yet (maintenance.md names it).
  */
-export function planCompliance(orders: readonly OrderLike[], frequency: unknown, today: string) {
+export function planCompliance(
+  orders: readonly OrderLike[],
+  frequency: unknown,
+  today: string,
+  meter: { every?: unknown; current?: number | null } | null = null,
+) {
   const window = complianceWindowDays(frequency);
+  const meterWindow = meter ? meterComplianceWindow(meter.every) : 0;
+  const current = meter && typeof meter.current === "number" ? meter.current : null;
   let onTime = 0;
   let late = 0;
   for (const o of orders) {
+    const status = text(o.status);
+    const finished = status === "Completed" || status === "Closed";
+    const dueReading = Number(o.pmDueReading);
+    // A METER ORDER — judged by the meter, and only when the plan says what its
+    // interval is. Without that there is no window and nothing to judge.
+    if (meter && Number.isFinite(dueReading)) {
+      const limit = dueReading + meterWindow;
+      if (finished) {
+        const at = Number(o.meterAtClose);
+        // UNKNOWN IS NOT LATE — an order finished before the reading was
+        // stamped has nothing to measure overshoot with.
+        if (!Number.isFinite(at) || at <= limit) onTime += 1;
+        else late += 1;
+      } else if (orderOpen(o) && current !== null && current > limit) {
+        // STILL OPEN AND THE METER HAS RUN PAST THE WINDOW — late, the same way
+        // open calendar work past its window is late. Leaving it out would let
+        // a plan score 100% by never finishing anything.
+        late += 1;
+      }
+      continue;
+    }
     const due = text(o.pmDueOn);
     if (!ISO.test(due)) continue;
     const limit = addDaysISO(due, window);
-    const status = text(o.status);
-    if (status === "Completed" || status === "Closed") {
+    if (finished) {
       if (text(o.completedAt).slice(0, 10) <= limit) onTime += 1;
       else late += 1;
     } else if (orderOpen(o) && today > limit) {

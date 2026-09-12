@@ -467,7 +467,9 @@ paths, and nothing else is accepted.
   band, so "getting worse" and "out of range" are the same event.
 - **Trend over time.** Only the LATEST reading is judged; a point drifting steadily towards
   its limit for a month reads exactly like one that has always been fine.
-- **Compliance for meter plans.** A meter plan's orders are not scored on time or late.
+- **Compliance for condition points.** A condition order answers a breach rather than an
+  occurrence, so "late" would mean the time between a machine going out of range and somebody
+  attending it — a response target, which is the entry below rather than this one.
 - **Readings taken on a work order or its checklist.** A reading is recorded on the machine.
 - **Response and resolution targets.** A service contract promises visits and call-outs; it
   says nothing yet about how fast a call-out is answered or put right, and nothing is measured

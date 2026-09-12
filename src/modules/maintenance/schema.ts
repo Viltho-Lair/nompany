@@ -114,6 +114,14 @@ export const WorkOrderSchema = z.object({
   /** For a METER plan's order: the reading it answers — idempotency, as `pmDueOn` is for a date. */
   pmDueReading: z.number().optional(),
   /**
+   * THE METER WHEN THE WORK WAS FINISHED, stamped at completion. It is what a
+   * meter plan's compliance measures overshoot against: without it there is
+   * nothing to compare `pmDueReading` to, and every finished meter order would
+   * score on time — a figure permanently reading 100%. Absent on every order
+   * finished before 12/09/2026, which counts as on time rather than late.
+   */
+  meterAtClose: z.number().optional(),
+  /**
    * FOR A CONDITION PLAN'S ORDER: the `conditionReadings` row that breached.
    * The ID rather than the value, because two breaches can read the same number
    * and keying on the number would silence the second for ever (./condition).

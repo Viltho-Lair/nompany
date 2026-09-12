@@ -761,6 +761,34 @@ order count stayed at one. Both screens were opened: Machines grew a Condition c
 *Drive-end bearing: 96 C*, and the plan reads *Inspection · at most 80 C* with *Above the high
 limit* and no calendar due date. The rows were swept afterwards.
 
+**TWO SMALLER GAPS CLOSED, 12/09/2026.**
+
+**THE DISPATCH BOARD WAS POINTED AT A REGISTER THAT IS NO LONGER SEEDED.** A job's contract
+picker read `engine.contract` — Field Service's old maintenance-contracts register — which
+stopped being seeded on 11/09/2026 when the three old registers were folded into Maintenance.
+So on every studio created since, that picker could only ever come back EMPTY, and an empty
+picker reads as "this studio has no contracts" rather than as one aimed at something that no
+longer exists. It reads `slas` under `projects-sla` now, guarded by `projects.sla.view` rather
+than `engine.contract.view`, labelled and filtered exactly as Maintenance labels it — the
+title, never a cancelled one — because two spellings of one contract across two screens are two
+answers. `fold.ts` is the only reader of the old register left, which is its job.
+
+**A METER PLAN'S COMPLIANCE SCORED NOTHING AT ALL.** `planCompliance` measures against
+`pmDueOn`, and a meter order carries `pmDueReading` and no date — so every one of them fell
+through the date test and the plan reported "no history" for ever, however many services it had
+run, which reads exactly like a plan nobody has started. It is scored on the METER now:
+overshoot past the reading it was due at, against a window of a tenth of the interval in the
+meter's own unit, because a machine run flat out through a shutdown burns a week's allowance in
+a day and an idle one burns none. **That needed a reading stored at completion**
+(`meterAtClose`) — without it there is nothing to measure overshoot with and every finished
+order would have scored on time, a figure permanently reading 100%, which is worse than no
+figure. Stamped where the plan's own close already reads the meter, and deliberately BEFORE the
+early return that fires for every fixed plan, which would otherwise have left most orders
+unstamped. An order finished before today carries none and counts as on time, not late:
+guessing late would punish a studio for the one thing this cannot see. A CONDITION order is
+scored by neither — it answers a breach rather than an occurrence, so "late" there means a
+response target, which does not exist yet.
+
 **WHAT IS STILL UNVERIFIED:** the store-backed suite, which has not been run. The closed-order
 case — a NEW breach at the same value raising again once the first order is finished — is
 proven in `tests/maintenance-model.mjs` and was not driven through the screens, because
