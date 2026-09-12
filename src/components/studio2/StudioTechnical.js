@@ -87,7 +87,7 @@ const latestComment = (row) => {
 //   technical-rfq        -> the RFQ queue and conversion
 //   technical-settings   -> quotation numbering + Live view columns
 // technical-live renders full-screen outside the studio frame.
-export default function StudioTechnical({ slug, view = "engineering-docs", sectionNames = {} }) {
+export default function StudioTechnical({ slug, view = "quotations", sectionNames = {} }) {
   const tr = technicalDict(useStudioLocale());
   const [data, setData] = useState(null);
   const level = useAnalyticsLevel();
@@ -244,7 +244,7 @@ export default function StudioTechnical({ slug, view = "engineering-docs", secti
   // Amber, not rose: the action worked, but there is a follow-up to do.
   const noticeBanner = notice && <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">{notice}</p>;
 
-  if (view === "engineering-docs-settings") {
+  if (view === "quotations-settings") {
     return (
       <div className="space-y-6">
         {banner}
@@ -260,7 +260,7 @@ export default function StudioTechnical({ slug, view = "engineering-docs", secti
     );
   }
 
-  if (view === "engineering-docs-rfq") {
+  if (view === "quotations-rfq") {
     return (
       <div className="space-y-6">
         {banner}
@@ -289,7 +289,7 @@ export default function StudioTechnical({ slug, view = "engineering-docs", secti
     );
   }
 
-  if (view === "crm-sales-quotations") {
+  if (view === "quotations-register") {
     return (
       <div className="space-y-6">
         {banner}
@@ -592,7 +592,7 @@ function RfqInfo({ label: text, value, mono }) {
 function OriginTag({ fromSales, sectionNames = {} }) {
   const tr = technicalDict(useStudioLocale());
   const locale = useStudioLocale();
-  const key = fromSales ? "crm-sales" : "engineering-docs";
+  const key = fromSales ? "crm-sales" : "quotations";
   const stored = sectionNames[key];
   const label = stored ? sectionName(key, stored, locale) : (fromSales ? tr.originSales : tr.originInternal);
   if (fromSales) {

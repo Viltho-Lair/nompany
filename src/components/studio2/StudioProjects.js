@@ -720,8 +720,8 @@ function ProjectDetail({ project: p, people, stages, canManage, slug, nav, onSav
   // the root key is what actually governs whether that URL opens.
   const lineage = [
     p.ticketId && { label: tr.ticket, href: linkIf(nav?.["crm-sales"], linkToTicket(slug, p.ticketId)) },
-    p.rfqId && { label: "RFQ", href: linkIf(nav?.["engineering-docs-rfq"], linkToRfq(slug, p.rfqId)) },
-    p.quotationNumber && { label: p.quotationNumber, href: linkIf(nav?.["crm-sales-quotations"], linkToQuotation(slug, p.quotationId)) },
+    p.rfqId && { label: "RFQ", href: linkIf(nav?.["quotations-rfq"], linkToRfq(slug, p.rfqId)) },
+    p.quotationNumber && { label: p.quotationNumber, href: linkIf(nav?.["quotations-register"], linkToQuotation(slug, p.quotationId)) },
     // A HANDOVER'S LINEAGE IS ONE STEP, not a chain: a won tender has no
     // ticket, RFQ or quotation behind it. `tenderRef` is the stored copy and
     // is what shows when the reader has no Tendering nav entry — the ref is

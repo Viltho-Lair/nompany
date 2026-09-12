@@ -80,7 +80,7 @@ export default function StudioTechnicalLive({ studio }) {
               as the dead Sales-department link in StudioSalesLive.js, found
               by the same context-shaped literal check. */}
           <Link
-            href={`/${studio.slug}/engineering-docs`}
+            href={`/${studio.slug}/quotations`}
             title={tr.backTechnical}
             className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--geex-surface)] text-slate-600 shadow-geex-sm transition-colors hover:text-brand-600 dark:text-slate-300"
           >
@@ -102,9 +102,9 @@ export default function StudioTechnicalLive({ studio }) {
             >
               {paused ? tr.resume : tr.pause}
             </button>
-            {data?.nav?.["engineering-docs-settings"] && (
+            {data?.nav?.["quotations-settings"] && (
               <Link
-                href={`/${studio.slug}/engineering-docs-settings`}
+                href={`/${studio.slug}/quotations-settings`}
                 className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-600 text-slate-600 transition-colors hover:bg-slate-50 dark:border-white/15 dark:text-slate-300 dark:hover:bg-white/5"
               >
                 {tr.changeColumns}

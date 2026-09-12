@@ -81,8 +81,8 @@ export const STAGE_REGISTRY: Record<string, StageEntry> = {
   //   project   the delivery of this deal's approved quotation.
   //   sheet     the project's own cost/material sheet — no project, no sheet.
   ticket:    { type: "ticket", objectClass: "intent",    cardinality: "one",  sectionKey: "crm-sales-tickets",    permission: "crmSales.tickets.view",       unassignable: false, collection: "salesTickets",   label: "Sales ticket",   onDelete: "cascade" },
-  rfq:       { type: "rfq", objectClass: "control",       cardinality: "many", sectionKey: "engineering-docs-rfq", permission: "engineeringDocs.rfq.view",    unassignable: false, collection: "rfqs",           label: "RFQ",            onDelete: "cascade" },
-  quotation: { type: "quotation", objectClass: "commitment", cardinality: "many", sectionKey: "crm-sales-quotations", permission: "crmSales.quotations.view",    unassignable: false, collection: "quotations",     label: "Quotation",      onDelete: "cascade" },
+  rfq:       { type: "rfq", objectClass: "control",       cardinality: "many", sectionKey: "engineering-docs-rfq", screenKey: "quotations-rfq", permission: "engineeringDocs.rfq.view",    unassignable: false, collection: "rfqs",           label: "RFQ",            onDelete: "cascade" },
+  quotation: { type: "quotation", objectClass: "commitment", cardinality: "many", sectionKey: "crm-sales-quotations", screenKey: "quotations-register", permission: "crmSales.quotations.view",    unassignable: false, collection: "quotations",     label: "Quotation",      onDelete: "cascade" },
   project:   { type: "project", objectClass: "execution",   cardinality: "one",  sectionKey: "projects-list",        permission: "projects.list.view",          unassignable: false, collection: "projects",       label: "Project",        onDelete: "cascade" },
   sheet:     { type: "sheet", objectClass: "resource",     cardinality: "many", sectionKey: "inventory-sheets",     permission: "inventory.sheets.view",       unassignable: false, collection: "projectSheets",  label: "Project sheet",  onDelete: "cascade" },
   // RAISED TO FULFIL THIS DEAL'S PROJECT. An order is placed against its sheet,

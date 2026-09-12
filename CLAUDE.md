@@ -3,13 +3,18 @@
 Multi-tenant ERP. Next.js 16 · React 19 · Postgres · Tailwind v3 + shadcn/ui + MUI v9 · Vercel.
 Three surfaces in one app: the tenant ERP at `nompany.com/<slug>/…` (rewritten by
 `src/proxy.js` → `src/app/studio`), account pages at `/{en,ar}/…`, and nompany's own
-console at `/super`. **FIFTEEN sections**, plus Main and Tasks, which are not sections —
-Main is the home surface and Tasks is a cross-cutting control: CRM & Sales,
+console at `/super`. **SIXTEEN sections**, plus Main and Tasks, which are not sections —
+Main is the home surface and Tasks is a cross-cutting control: CRM & Sales, Quotations,
 Tendering & Estimating, Projects, Engineering & Documents, Procurement & Subcontracting,
 Inventory & Warehouse, Manufacturing & Production, Field Operations & Service, Logistics &
 Fleet, Assets & Equipment, Maintenance, Quality & HSE, Human Resources, Finance &
 Accounting, Reports & BI. (**Maintenance is the fifteenth, 11/09/2026**, decided with the
-owner — `docs/functionality/maintenance.md`. The equipment register stays under Assets.)
+owner — `docs/functionality/maintenance.md`. The equipment register stays under Assets.
+**Quotations is the sixteenth, 13/09/2026** — the owner: a quotation is engineering work Sales
+asks for, not a sales act — `docs/functionality/quotations.md`. Its RFQs, quotations, contracts,
+change orders and sales orders stay FILED under the four old rows (`engineering-docs-rfq`,
+`crm-sales-quotations`, `engineering-docs-live`, `engineering-docs-settings`), now filed-only;
+**do not delete them**, and do not rename `crmSales.quotations` or `engineeringDocs.rfq`.)
 
 **ALL MAINTENANCE IS MAINTENANCE'S — the owner, 11/09/2026: "SLA is preventive maintenance
 contract."** Service contracts (SLA) are `maintenance-contracts`; their rows stay in `slas` under

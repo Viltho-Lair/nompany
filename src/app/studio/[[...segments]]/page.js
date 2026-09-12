@@ -378,7 +378,7 @@ async function renderStudio(params) {
   if (requested === "crm-sales-live") {
     return <StudioSalesLive studio={{ name: studio.name, slug: studio.slug }} />;
   }
-  if (requested === "engineering-docs-live") {
+  if (requested === "quotations-live") {
     return <StudioTechnicalLive studio={{ name: studio.name, slug: studio.slug }} />;
   }
 
@@ -853,22 +853,14 @@ async function renderStudio(params) {
         : active?.key === "crm-sales-pipeline" ? <StudioPipeline slug={studio.slug} />
         : active?.key === "crm-sales-contracts" ? <StudioContracts slug={studio.slug} />
         : active?.key === "crm-sales-orders" ? <StudioOrders slug={studio.slug} />
-        : active?.key === "crm-sales-quotations" ? (
-          <StudioTechnical slug={studio.slug} view={active?.key}
-            sectionNames={Object.fromEntries(sections.map((x) => [x.key, x.name]))} />
-        )
-        // THE RFQ QUEUE AND THE QUOTATION SETTINGS, BY KEY (tier 5). Both were
-        // re-parented under CRM & Sales with their keys kept, so a re-parented
-        // studio's `screenKey` collapses them onto "crm-sales" and StudioSales
-        // — which has no branch for either — would render the dashboard: the
-        // quotations fall-through again. Matched by key, so a studio the
-        // restructure script has NOT yet re-parented reaches the same screen.
-        : active?.key === "engineering-docs-rfq" || active?.key === "engineering-docs-settings" ? (
-          <StudioTechnical slug={studio.slug} view={active.key}
-            sectionNames={Object.fromEntries(sections.map((x) => [x.key, x.name]))} />
-        )
         : screenKey === "crm-sales" ? <StudioSales slug={studio.slug} view={active?.key} />
-        : screenKey === "engineering-docs" ? (
+        // THE QUOTATIONS DEPARTMENT (13/09/2026): its dashboard at the root, and
+        // the RFQ intake, the register and the settings beneath it — all still
+        // StudioTechnical, which was always the presales team's screen. Old
+        // addresses reach it through `requestedKey`'s retired addresses.
+        // Engineering & Documents no longer has a branch: its root is a heading
+        // over its registers and falls through to the section summary below.
+        : screenKey === "quotations" ? (
           // THE STUDIO'S OWN NAMES FOR ITS SECTIONS, so a quotation's origin tag
           // can say where it came from in the words this tenant uses rather than
           // the word the code was written with. Key → stored name, from the

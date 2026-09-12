@@ -133,7 +133,7 @@ export const DATASETS: readonly DataSet[] = Object.freeze([
     ],
   },
   {
-    key: "quotations", label: "Quotations", group: "CRM & Sales",
+    key: "quotations", label: "Quotations", group: "Quotations",
     permission: "crmSales.quotations.view",
     sectionKey: "crm-sales-quotations", parentSectionKey: "crm-sales", collection: "quotations",
     columns: [

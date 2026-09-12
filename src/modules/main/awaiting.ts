@@ -92,7 +92,7 @@ export async function awaitingQueue(ctx: MainContext): Promise<QueueItem[]> {
     const quotations = await repo<QuotationRow>("quotations").find({ studio: ctx.studio, section: quotesSection });
     for (const q of quotations) {
       if (q.status === "Draft" || q.status === "Sent") {
-        out.push({ kind: "quotation", section: "crm-sales-quotations", id: String(q.id), label: String(q.number || q.id), at: String(q.createdAt || "") });
+        out.push({ kind: "quotation", section: "quotations-register", id: String(q.id), label: String(q.number || q.id), at: String(q.createdAt || "") });
       }
     }
   }

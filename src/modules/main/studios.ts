@@ -97,9 +97,12 @@ function dealSpineFor(field: string): string[] {
       const entry = STAGE_REGISTRY[stage as keyof typeof STAGE_REGISTRY];
       if (!entry) continue;
       // A stage names a SUB-section (`crm-sales-tickets`); the gate works on
-      // roots, so it is resolved here rather than at the call site.
+      // roots, so it is resolved here rather than at the call site. The SCREEN
+      // wins where a stage has one: an RFQ is filed under a CRM & Sales row and
+      // worked in Quotations, and the trade needs the department it is worked in.
+      const at = entry.screenKey || entry.sectionKey;
       const def = SECTION_DEFS.find(
-        (d) => d.key === entry.sectionKey || (d.children || []).some((c) => c.key === entry.sectionKey),
+        (d) => d.key === at || (d.children || []).some((c) => c.key === at),
       );
       if (def) out.add(def.key);
     }

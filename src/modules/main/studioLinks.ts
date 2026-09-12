@@ -25,11 +25,12 @@ const to = (slug: string, section: string, params: Record<string, unknown>) => {
 // untouched; nothing in the product emits it any more.
 export const linkToClient = (slug: string, id: string) => (id ? `/${slug}/crm-sales-clients/${id}` : "");
 export const linkToTicket = (slug: string, id: string) => (id ? to(slug, "crm-sales", { ticket: id }) : "");
-export const linkToRfq = (slug: string, id: string) => (id ? to(slug, "engineering-docs", { rfq: id }) : "");
-// crm-sales, not engineering-docs — quotations moved WITH the section
-// (restructure.ts's SECTION_KEY_MAP), even though the RFQ they are raised
-// from stays behind in Engineering & Documents.
-export const linkToQuotation = (slug: string, id: string) => (id ? to(slug, "crm-sales", { quotation: id }) : "");
+export const linkToRfq = (slug: string, id: string) => (id ? to(slug, "quotations-rfq", { rfq: id }) : "");
+// THE REGISTER, which is the screen that reads `?quotation=` and rings the row.
+// This pointed at `crm-sales`, whose dashboard ignores the parameter, so every
+// "open quotation" link landed on a chart (found 11/09/2026, fixed with the move
+// to the Quotations department, 13/09/2026).
+export const linkToQuotation = (slug: string, id: string) => (id ? to(slug, "quotations-register", { quotation: id }) : "");
 // THE PROJECT LIST, not the Projects root. `?project=` is read by the list,
 // which opens that project's details — stage, manager, dates, delete. The root
 // is the dashboard and ignores the parameter, so every "open project" link in

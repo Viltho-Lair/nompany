@@ -28,6 +28,7 @@ const groups: Record<Locale, Record<string, string>> = {
   ar: {
     Main: "الرئيسية",
     "CRM & Sales": "المبيعات",
+    Quotations: "عروض الأسعار",
     "Engineering & Documents": "الهندسة والوثائق",
     Projects: "المشاريع",
     "Inventory & Warehouse": "المخزون",
@@ -49,7 +50,7 @@ const areas: Record<Locale, Record<string, string>> = {
   en: {},
   ar: {
     "crmSales.dashboard": "لوحة المبيعات",
-    "engineeringDocs.dashboard": "اللوحة الفنية",
+    "engineeringDocs.dashboard": "لوحة عروض الأسعار",
     "projects.dashboard": "لوحة المشاريع",
     "inventory.dashboard": "لوحة المخزون",
     "hr.dashboard": "لوحة الموارد البشرية",

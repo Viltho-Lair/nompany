@@ -76,8 +76,11 @@ export const ACTION_SECTION: Readonly<Record<string, string>> = {
 // CRM & SALES IS THE FIFTH AND IT IS NOT IN THAT FOOTNOTE. It is here because
 // the sheet's own coverage row would otherwise switch selling off for most of
 // the twenty-five trades, which is the join failing rather than the product.
+//
+// QUOTATIONS IS THE SIXTH (13/09/2026): every company prices what it sells, and
+// the RFQs Sales raises have to land somewhere whatever the trade.
 export const UNIVERSAL_SECTION_KEYS = [
-  "crm-sales", "tendering", "hr", "finance", "reports",
+  "crm-sales", "quotations", "tendering", "hr", "finance", "reports",
 ] as const;
 
 // NOT SECTIONS, AND NEVER OFF. Main is the home surface — without it a member

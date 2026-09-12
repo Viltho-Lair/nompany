@@ -56,9 +56,17 @@ export function studioSegments(pathname: string, slug: string): string[] {
 // reads requestedKey directly (page.js) while the shell reads resolveActiveKey,
 // so an alias placed in the latter would render the screen while the nav
 // highlighted nothing — the exact quiet failure this module exists to prevent.
+//
+// AND THE FOUR QUOTATION ADDRESSES (13/09/2026). The RFQ notification already
+// delivered links to `engineering-docs-rfq`, and bookmarks name the rest; the
+// screens are the Quotations department's now, and their old rows are filed-only.
 const RETIRED_ADDRESSES: Record<string, string> = {
   people: "administration-members",
   access: "administration-access",
+  "engineering-docs-rfq": "quotations-rfq",
+  "crm-sales-quotations": "quotations-register",
+  "engineering-docs-live": "quotations-live",
+  "engineering-docs-settings": "quotations-settings",
 };
 
 /** The section key a set of segments asks for. `""` at the studio root. */
@@ -130,7 +138,7 @@ export function isFullScreenPath(
   const granted = (k: string) => sections.some((s) => s.key === k);
 
   // Available to every member regardless of section grants — membership alone.
-  if (key === "documentation" || key === "crm-sales-live" || key === "engineering-docs-live") return true;
+  if (key === "documentation" || key === "crm-sales-live" || key === "quotations-live") return true;
   // Engagements rides its own permission key rather than a section (it is
   // deliberately not one — giving Main a child would gate Main). The page
   // refuses it when the right is missing, and that refusal is full-screen too,

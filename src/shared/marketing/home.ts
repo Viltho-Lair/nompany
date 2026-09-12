@@ -45,7 +45,7 @@ const en: HomeStrings = {
     "Most companies run a different tool for each department and spend their week reconciling them. nompany is one system with one data model underneath it: a quotation becomes a contract, the contract opens a project, the project raises requisitions and bills, and the same record carries through all of it. Nothing is re-typed, because there is nothing to re-type it into.",
   customersTitle: "Companies running on nompany",
   customersAll: "See them all",
-  departmentsTitle: "Fifteen departments, built and running",
+  departmentsTitle: "Sixteen departments, built and running",
   departmentsLead:
     "Not a roadmap. Every one of these opens onto a screen you can use today, and this list is read from the software itself rather than written here — so it cannot promise a department that does not exist.",
   departmentsCta: "See what each one does",
@@ -68,7 +68,7 @@ const ar: HomeStrings = {
     "أغلب الشركات تشغل أداة مختلفة لكل قسم، ثم تقضي أسبوعها في المطابقة بينها. نومباني نظام واحد يقوم على نموذج بيانات واحد: عرض السعر يصبح عقدا، والعقد يفتح مشروعا، والمشروع يصدر طلبات شراء وفواتير، والسجل نفسه يمر بهذا كله. لا تكرار في الإدخال، لأنه لا يوجد مكان ثان يدخل فيه.",
   customersTitle: "شركات تعمل على نومباني",
   customersAll: "اطلع عليها كلها",
-  departmentsTitle: "خمسة عشر قسما، جاهزة وتعمل",
+  departmentsTitle: "ستة عشر قسما، جاهزة وتعمل",
   departmentsLead:
     "ليست خطة مستقبلية. لكل قسم منها شاشة تستطيع فتحها اليوم. والقائمة نفسها تقرأ من البرنامج لا تكتب هنا، فلا تعد بقسم غير موجود.",
   departmentsCta: "اطلع على ما يفعله كل قسم",

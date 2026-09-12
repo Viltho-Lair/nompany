@@ -36,7 +36,8 @@ cross-cutting control (the `task` type wraps every stage). Neither is a blueprin
 
 | Section | Owns | State |
 |---|---|---|
-| CRM & Sales | tickets, clients, **quotations**, **contracts**, live view, settings — and, since tier 5, the **RFQ queue**, **quotations live view** and **quotation settings** | Partial — no pipeline, customer 360 or catalog |
+| CRM & Sales | tickets, clients, **contracts**, live view, settings — and, filed-only, the rows the Quotations department reads | Partial — no pipeline, customer 360 or catalog |
+| Quotations (13/09/2026) | **RFQs** (the intake desk), **quotations**, live view, settings — see `quotations.md` | Working |
 | Tendering & Estimating | — | **Not built yet** |
 | Projects | project list, SLA, overtimes, **planner**, settings | Working |
 | Engineering & Documents | **document register** (and the engine registers planted under it) | Working |
@@ -52,6 +53,10 @@ cross-cutting control (the `task` type wraps every stage). Neither is a blueprin
 | Reports & BI | — | **Not built yet** |
 | Administration & Settings | **People**, **Access**, **Master data**, studio settings | Partial — master data holds locations only |
 
+**QUOTATIONS IS ITS OWN DEPARTMENT SINCE 13/09/2026** (`docs/functionality/quotations.md`), on the
+owner's word that a quotation is engineering work Sales asks for. What follows is the history it
+replaced, kept because the keys still carry it.
+
 Quotations moved to CRM & Sales because the offer is a sales act. **The RFQ queue, its live
 view and the quotation numbering followed on 11/09/2026 (tier 5)**: three of Engineering &
 Documents' four sub-sections were pre-sales tools. They were **re-parented, not renamed** — the
@@ -65,9 +70,10 @@ read **Quotations live view** and **Quotation settings** — replaced only while
 still the old seed, since a name a studio typed is data. The controlled document register moved
 the other way: it is the technical truth, not the quality evidence.
 
-**Not done by this move:** the Engineering & Documents root still opens the technical dashboard
-(RFQ and quotation counts), and somebody holding only the RFQ right still sees the Engineering
-root, because a section's children are found by key prefix as well as by parent.
+**Both gaps this move left are closed by the Quotations department:** the presales dashboard
+opens at `/quotations` rather than at the Engineering & Documents root, and a filed-only row is
+nobody's child when a heading's visibility is decided, so a quotation right no longer shows the
+Engineering or CRM & Sales heading.
 
 ## Sections that render nothing
 

@@ -44,10 +44,10 @@ export const NOVA_CAPABILITIES: NovaCapability[] = [
   { key: "action.sales.create-ticket", label: "Raise a sales ticket", department: "Sales", kind: "action", permissionKey: "crmSales.tickets.create", defaultOn: false, writes: true },
   { key: "action.sales.create-client", label: "Add a client", department: "Sales", kind: "action", permissionKey: "crmSales.clients.create", defaultOn: false, writes: true },
 
-  // ---- Technical ----
-  { key: "read.technical.rfqs", label: "RFQs", department: "Technical", kind: "read", permissionKey: "engineeringDocs.rfq.view", defaultOn: true, scope: "all" },
-  { key: "read.technical.quotations", label: "Quotations", department: "Technical", kind: "read", permissionKey: "crmSales.quotations.view", defaultOn: true, scope: "all" },
-  { key: "action.technical.request-rfq", label: "Raise an RFQ", department: "Technical", kind: "action", permissionKey: "engineeringDocs.rfq.create", defaultOn: false, writes: true },
+  // ---- Quotations ----
+  { key: "read.technical.rfqs", label: "RFQs", department: "Quotations", kind: "read", permissionKey: "engineeringDocs.rfq.view", defaultOn: true, scope: "all" },
+  { key: "read.technical.quotations", label: "Quotations", department: "Quotations", kind: "read", permissionKey: "crmSales.quotations.view", defaultOn: true, scope: "all" },
+  { key: "action.technical.request-rfq", label: "Raise an RFQ", department: "Quotations", kind: "action", permissionKey: "engineeringDocs.rfq.create", defaultOn: false, writes: true },
 
   // ---- Projects ----
   { key: "read.projects.list", label: "Projects", department: "Projects", kind: "read", permissionKey: "projects.list.view", defaultOn: true, scope: "all" },

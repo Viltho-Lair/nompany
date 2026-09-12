@@ -298,13 +298,16 @@ console.log("\n== a library role starts inside its department's own sections");
   // site engineer unable to book their own leave.
   ok("...and can still ask for their own leave", inEstimation.includes("hr.vacations.create"));
 
-  // THE ROOT COMES FROM SECTION_DEFS, NOT THE KEY'S PREFIX. The RFQ queue's
-  // section is `engineering-docs-rfq` and it sits under CRM & Sales; a prefix
-  // match would hand it to Engineering and take it from Sales.
+  // THE ROOT COMES FROM SECTION_DEFS, NOT THE KEY'S PREFIX. The RFQ right's
+  // screen is `quotations-rfq`, in the Quotations department (13/09/2026); a
+  // prefix match on the right's name would hand it to Engineering, and the
+  // filed-only `engineering-docs-rfq` row under CRM & Sales must hand it to
+  // nobody.
   const seller = { ...entry, archetype: "winner-of-work" };
   ok("a child section is matched by its real parent, not its prefix",
-    L.permissionsForLibraryRole(seller, { sectionKeys: ["crm-sales"] }).includes("engineeringDocs.rfq.edit")
-    && !L.permissionsForLibraryRole(seller, { sectionKeys: ["engineering-docs"] }).includes("engineeringDocs.rfq.edit"));
+    L.permissionsForLibraryRole(seller, { sectionKeys: ["quotations"] }).includes("engineeringDocs.rfq.edit")
+    && !L.permissionsForLibraryRole(seller, { sectionKeys: ["engineering-docs"] }).includes("engineeringDocs.rfq.edit")
+    && !L.permissionsForLibraryRole(seller, { sectionKeys: ["crm-sales"] }).includes("engineeringDocs.rfq.edit"));
 
   // An engine right follows its register's section.
   const types = [

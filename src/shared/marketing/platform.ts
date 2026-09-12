@@ -34,7 +34,7 @@ type PlatformStrings = {
 
 const en: PlatformStrings = {
   title: "The platform",
-  lead: "Fifteen departments on one data model. A quotation becomes a contract, a contract opens a project, a project raises requisitions and bills — and none of it is re-typed, because it is all the same record.",
+  lead: "Sixteen departments on one data model. A quotation becomes a contract, a contract opens a project, a project raises requisitions and bills — and none of it is re-typed, because it is all the same record.",
   departmentsHeading: "The departments",
   departmentsLead: "Every one of these is built and running today. Nothing on this page describes something you cannot open.",
   foundationHeading: "True of all of them",
@@ -58,7 +58,9 @@ const en: PlatformStrings = {
   ],
   blurbs: {
     "crm-sales":
-      "Leads, deals and the board they move across. Customers with their own page — what they have bought, what is open, what was won and lost, and the rates they were promised. Quotations price from those rates rather than from cost, and a won quotation becomes a contract with its variations tracked against it.",
+      "Leads, deals and the board they move across. Customers with their own page — what they have bought, what is open, what was won and lost, and the rates they were promised. A won quotation becomes a contract with its variations tracked against it.",
+    quotations:
+      "The presales team's own desk. RFQs raised from a deal arrive in one intake, are directed to the people who will price them, and go back to the deal as a quotation built by the people who understand the work — priced from the customer's agreed rates rather than from cost, sent for approval, and locked once a client is holding it.",
     tendering:
       "Tenders sorted by deadline rather than by entry date, because most end in a decision not to bid and recording only the winners loses the ability to say what you keep losing. Bills of quantity priced against a reusable rate library, a tender pack whose reissues never overwrite what you priced against, and a signature required before a bid is submitted.",
     projects:
@@ -92,7 +94,7 @@ const en: PlatformStrings = {
 // HAND-WRITTEN. NO DIACRITICS.
 const ar: PlatformStrings = {
   title: "المنصة",
-  lead: "خمسة عشر قسما على نموذج بيانات واحد. عرض السعر يصبح عقدا، والعقد يفتح مشروعا، والمشروع يصدر طلبات شراء وفواتير — دون إعادة إدخال شيء، لأن الجميع يعمل على السجل نفسه.",
+  lead: "ستة عشر قسما على نموذج بيانات واحد. عرض السعر يصبح عقدا، والعقد يفتح مشروعا، والمشروع يصدر طلبات شراء وفواتير — دون إعادة إدخال شيء، لأن الجميع يعمل على السجل نفسه.",
   departmentsHeading: "الأقسام",
   departmentsLead: "كل قسم هنا مبني ويعمل اليوم، وكل ما تقرأه في هذه الصفحة يمكنك فتحه.",
   foundationHeading: "صحيح في كل الأقسام",
@@ -116,7 +118,9 @@ const ar: PlatformStrings = {
   ],
   blurbs: {
     "crm-sales":
-      "العملاء المحتملون والصفقات واللوحة التي تتحرك عليها. ولكل عميل صفحته: ما اشتراه، وما هو مفتوح، وما ربح وما خسر، والأسعار التي وعد بها. وعروض الأسعار تبنى على تلك الأسعار لا على التكلفة، وعرض السعر الفائز يصبح عقدا تتبع تغييراته عليه.",
+      "العملاء المحتملون والصفقات واللوحة التي تتحرك عليها. ولكل عميل صفحته: ما اشتراه، وما هو مفتوح، وما ربح وما خسر، والأسعار التي وعد بها. وعرض السعر الفائز يصبح عقدا تتبع تغييراته عليه.",
+    quotations:
+      "مكتب فريق ما قبل البيع. طلبات عروض الأسعار المرفوعة من الصفقات تصل إلى نقطة استقبال واحدة، وتوجه إلى من سيسعرها، وتعود إلى الصفقة عرض سعر يبنيه من يفهم العمل — مسعرا من أسعار العميل المتفق عليها لا من التكلفة، ومرسلا للاعتماد، ومقفلا حين يكون بيد العميل.",
     tendering:
       "المناقصات مرتبة بالموعد النهائي لا بتاريخ الإدخال، لأن أغلبها ينتهي بقرار عدم التقديم، وتسجيل الفائزة وحدها يخفي عنك ما تخسره باستمرار. جداول كميات تبنى على مكتبة أسعار تستعملها في كل مناقصة، وحزمة مناقصة لا تمحو إصداراتها الجديدة ما بني عليه التسعير، وتوقيع مطلوب قبل تقديم العطاء.",
     projects:

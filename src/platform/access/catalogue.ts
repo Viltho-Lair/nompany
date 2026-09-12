@@ -101,7 +101,9 @@ export const ADMIN_ROLE_ID = "role_admin";
 // is built from it rather than from the mapped result, which `.map` would have
 // widened to `string`.
 const DASHBOARD_MODULES = [
-  ["crmSales", "CRM & Sales"], ["engineeringDocs", "Engineering & Documents"],
+  // `engineeringDocs.dashboard` IS THE QUOTATIONS DASHBOARD (13/09/2026): the
+  // key keeps its name so no role loses it, and the heading says what it opens.
+  ["crmSales", "CRM & Sales"], ["engineeringDocs", "Quotations"],
   ["projects", "Projects"], ["inventory", "Inventory & Warehouse"],
   ["hr", "Human Resources"],
   // PROCUREMENT JOINS THE LIST BECAUSE IT HAS A DASHBOARD NOW, which is what
@@ -240,18 +242,20 @@ const OWN_AREAS = [
     verbs: ["view", "create", "edit", "delete"] },
   { key: "crmSales.settings", group: "CRM & Sales", label: "Settings", verbs: ["view", "edit"] },
 
-  { key: "engineeringDocs.rfq", group: "Engineering & Documents", label: "RFQ", verbs: ["view", "create", "edit"],
+  // THE QUOTATIONS DEPARTMENT'S RIGHTS (13/09/2026) — rfq, quotations, live and
+  // settings keep their `engineeringDocs.` / `crmSales.` names, because every
+  // existing role holds them by those names, and are filed under Quotations.
+  { key: "engineeringDocs.rfq", group: "Quotations", label: "RFQs", verbs: ["view", "create", "edit"],
     extra: [{ key: "convert", label: "Convert to quotation" }] },
   // LOCK AND UNLOCK ARE SEPARATE POWERS, and unlock is the rarer and larger of
   // the two. Locking says "this document is finished"; unlocking reopens one
   // somebody already declared finished — a client is holding it — so it is
   // granted deliberately rather than folded into lock or into edit.
   //
-  // GROUPED UNDER CRM & SALES, not Engineering & Documents alongside the RFQ it
-  // is raised from — the quotation is the offer, which the blueprint puts in
-  // the sales half of the deal (restructure.ts's SECTION_KEY_MAP: the quotation
-  // moves to crm-sales-quotations, RFQ stays behind in engineering-docs-rfq).
-  { key: "crmSales.quotations", group: "CRM & Sales", label: "Quotations", verbs: ["view", "create", "edit", "delete"],
+  // GROUPED UNDER QUOTATIONS beside the RFQ it is raised from (13/09/2026). It
+  // was filed under CRM & Sales on the blueprint's reading that an offer is a
+  // sales act; the owner's is that a quotation is engineering work Sales asks for.
+  { key: "crmSales.quotations", group: "Quotations", label: "Quotations", verbs: ["view", "create", "edit", "delete"],
     extra: [
       { key: "lock", label: "Lock permanently" },
       { key: "unlock", label: "Unlock a locked quotation" },
@@ -280,8 +284,8 @@ const OWN_AREAS = [
   // confirmed it is cancelled rather than deleted — `orderDeletable` is
   // where that line is drawn, and the verb only opens the door to it.
   { key: "crmSales.orders", group: "CRM & Sales", label: "Sales orders", verbs: ["view", "create", "edit", "delete"] },
-  { key: "engineeringDocs.live", group: "Engineering & Documents", label: "Live view", verbs: ["view"] },
-  { key: "engineeringDocs.settings", group: "Engineering & Documents", label: "Settings", verbs: ["view", "edit"] },
+  { key: "engineeringDocs.live", group: "Quotations", label: "Live view", verbs: ["view"] },
+  { key: "engineeringDocs.settings", group: "Quotations", label: "Settings", verbs: ["view", "edit"] },
 
   { key: "projects.list", group: "Projects", label: "Projects", verbs: ["view", "create", "edit", "delete"] },
   // COSTS ARE THEIR OWN AREA, and by the test tendering.rates passed rather

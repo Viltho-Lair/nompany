@@ -572,18 +572,6 @@ export const SECTION_DEFS = [
     { key: "crm-sales-pipeline", name: "Pipeline" },
     { key: "crm-sales-tickets", name: "Tickets" },
     { key: "crm-sales-clients", name: "Customers" },
-    // THREE PRE-SALES TOOLS MOVED HERE FROM ENGINEERING & DOCUMENTS (tier 5):
-    // the RFQ queue, its live view and the quotation numbering. They are how a
-    // quotation gets made, and a quotation is a sales act. RE-PARENTED, NOT
-    // RENAMED — the keys keep their `engineering-docs-` prefix on purpose:
-    // rows are filed by section id, roles grant by area, notification hrefs and
-    // live watch keys name these keys, and a rename would break all of that
-    // and need a migration. The sidebar groups by parentId, so a studio shows
-    // them here once `scripts/migrate/restructure-sections.mjs` re-parents its
-    // rows (a new studio is seeded this way). The two whose names collide with
-    // Sales' own rows are named for what they are.
-    { key: "engineering-docs-rfq", name: "RFQ" },
-    { key: "crm-sales-quotations", name: "Quotations" },
     // THE REGISTER, NOT THE ROWS. Contracts and change orders were built as
     // records in P2 with routes and no screen, and they stay in the
     // `crm-sales-quotations` collection below — a contract is what a won
@@ -596,9 +584,41 @@ export const SECTION_DEFS = [
     // reason — a destination and a right, with the rows under quotations.
     { key: "crm-sales-orders", name: "Sales orders" },
     { key: "crm-sales-live", name: "Live view" },
-    { key: "engineering-docs-live", name: "Quotations live view" },
     { key: "crm-sales-settings", name: "Settings" },
+    // WHERE QUOTATIONS ARE FILED, NOT WHERE THEY ARE SHOWN (13/09/2026). The
+    // four rows below hold every RFQ, quotation, contract, change order and
+    // sales order a studio has written, and the Quotations department's
+    // screens read them from here. Filed-only (FILED_ONLY_SECTION_KEYS): seeded
+    // for every studio, left out of the sidebar. They sit under CRM & Sales
+    // only because that is where tier 5 put them — under Engineering &
+    // Documents the RFQ row would switch that department on for every trade
+    // (`dealSpineFor`). DO NOT DELETE THEM: nothing would fail and every
+    // quotation would vanish.
+    { key: "engineering-docs-rfq", name: "RFQ" },
+    { key: "crm-sales-quotations", name: "Quotations" },
+    { key: "engineering-docs-live", name: "Quotations live view" },
     { key: "engineering-docs-settings", name: "Quotation settings" },
+  ] },
+
+  // QUOTATIONS IS ITS OWN DEPARTMENT — the owner, 13/09/2026: "a quotation is
+  // built on a technical and engineering perspective, not through sales." The
+  // presales team works here: RFQs arrive from Sales at the intake desk, are
+  // directed to quotation work, and the priced offer goes back to the deal.
+  // Sales raises the RFQ and receives the quotation; it does not build it.
+  //
+  // DESTINATIONS, LIKE MAINTENANCE'S SERVICE CONTRACTS. Every key here owns no
+  // collection — the rows stay filed under the four sections above, where they
+  // were written — and every right keeps the name it had (`engineeringDocs.rfq`,
+  // `crmSales.quotations`, ...), filed under Quotations on the Access screen.
+  // So an existing studio gains the department on its next read, with nothing
+  // moved, nothing renamed and no script run.
+  { key: "quotations", name: "Quotations", children: [
+    // THE CONTROL UNIT: every RFQ Sales raises lands here to be accepted,
+    // assigned, turned into a quotation or turned down.
+    { key: "quotations-rfq", name: "RFQs" },
+    { key: "quotations-register", name: "Quotations" },
+    { key: "quotations-live", name: "Live view" },
+    { key: "quotations-settings", name: "Settings" },
   ] },
 
   // THE FIRST OF TENDERING'S FIVE. The root was declared for ordering alone at
@@ -635,8 +655,9 @@ export const SECTION_DEFS = [
     // rather than navigated away from — carried over from when this was
     // Quality's own Documents sub-section.
     { key: "engineering-docs-register", name: "Document register" },
-    // RFQ, Live view and Settings moved under CRM & Sales (tier 5) — see the
-    // note there. Their keys still start `engineering-docs-`, deliberately.
+    // RFQ, Live view and Settings left for the Quotations department
+    // (13/09/2026). Their rows are still filed under the `engineering-docs-`
+    // keys, kept under CRM & Sales as filed-only sections — see the note there.
   ] },
 
   // Procurement starts with the supplier master, which is the one part of it
@@ -820,7 +841,14 @@ export const isSystemSection = (key: string): boolean =>
 // DO NOT DELETE `projects-sla` FROM SECTION_DEFS, for the reason
 // `administration-master` is kept: nothing would fail, and every contract would
 // be invisible.
-export const FILED_ONLY_SECTION_KEYS = ["projects-sla"] as const;
+//
+// THE FOUR QUOTATION ROWS JOINED IT ON 13/09/2026, for the same reason: every
+// RFQ, quotation, contract, change order and sales order is filed under them,
+// and their screens are the Quotations department's (`quotations-*`) now.
+export const FILED_ONLY_SECTION_KEYS = [
+  "projects-sla",
+  "engineering-docs-rfq", "crm-sales-quotations", "engineering-docs-live", "engineering-docs-settings",
+] as const;
 
 /** Kept only because rows are filed under it — shown nowhere as a destination. */
 export const isFiledOnlySection = (key: string): boolean =>

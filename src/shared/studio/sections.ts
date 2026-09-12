@@ -48,6 +48,13 @@ const ar: SectionMap = {
   "crm-sales-contracts": "العقود",
   "crm-sales-orders": "أوامر البيع",
   "crm-sales-live": "العرض المباشر",
+
+  // QUOTATIONS, ITS OWN DEPARTMENT (13/09/2026).
+  quotations: "عروض الأسعار",
+  "quotations-rfq": "طلبات عروض الأسعار",
+  "quotations-register": "عروض الأسعار",
+  "quotations-live": "العرض المباشر",
+  "quotations-settings": "الإعدادات",
   "crm-sales-settings": "الإعدادات",
 
   // NEW ROOT, no children yet (see keys.ts) — declared for ordering alone.

@@ -70,7 +70,9 @@ const num = (v: unknown) => (Number.isFinite(Number(v)) && Number(v) >= 0 ? Numb
 // Resolve both sections at once: Technical (where the data lives) and Sales
 // (where tickets come from), plus this person's rights on each.
 export const technicalContext = moduleContext<TechnicalContext>({
-  root: "engineering-docs",
+  // THE QUOTATIONS DEPARTMENT (13/09/2026). The sub-sections below are where the
+  // rows are FILED, unchanged; the root is where the team now works.
+  root: "quotations",
   sub: {
     quotations: "crm-sales-quotations", rfq: "engineering-docs-rfq", settings: "engineering-docs-settings",
   },
@@ -405,7 +407,7 @@ export async function requestRfq(ctx: TechnicalContext, body: Record<string, unk
           title: "An RFQ is waiting to be quoted",
           body: String(rfq.reference || ""),
           params: { reference: String(rfq.reference || "") },
-          href: "engineering-docs-rfq",
+          href: "quotations-rfq",
           tone: "primary",
         },
         { userIdOf: (id) => userIdOf.get(id) },

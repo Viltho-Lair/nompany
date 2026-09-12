@@ -8,6 +8,7 @@ import type { PermissionKey, Scope } from "./catalogue";
 // exist. restructure.ts itself has zero imports, so this stays pure data with
 // no transitive Redis connection to carry into a client bundle.
 import { mapPermissionKey } from "../db/restructure";
+import { isFiledOnlySection } from "../db/keys";
 
 // THE THREE ROWS THIS MODULE READS, described by what it needs from them rather
 // than by what they are. A collaborator row carries a dozen fields; access cares
@@ -70,7 +71,11 @@ export const SECTION_AREAS: Readonly<Record<string, readonly string[]>> = {
   // the children, so withholding the dashboard hides the summary without making
   // the ticket screen underneath it unreachable.
   "crm-sales": ["crmSales.dashboard"],
-  "engineering-docs": ["engineeringDocs.dashboard"],
+  // THE PRESALES DASHBOARD MOVED WITH THE TEAM (13/09/2026). `engineeringDocs.
+  // dashboard` was always a summary of RFQs and quotations, so it opens the
+  // Quotations department now and every role holding it keeps it. Engineering &
+  // Documents is a heading over its registers, with the generic summary.
+  quotations: ["engineeringDocs.dashboard"],
   projects: ["projects.dashboard"],
   inventory: ["inventory.dashboard"],
   hr: ["hr.dashboard"],
@@ -109,11 +114,15 @@ export const SECTION_AREAS: Readonly<Record<string, readonly string[]>> = {
   "maintenance-contracts": ["projects.sla"],
   "tendering-rates": ["tendering.rates"],
   "crm-sales-settings": ["crmSales.settings"],
+  // THE QUOTATIONS DEPARTMENT'S SCREENS, each on the right its old section
+  // carried — so nobody's access changes with the move (13/09/2026).
+  "quotations-rfq": ["engineeringDocs.rfq"],
+  "quotations-register": ["crmSales.quotations"],
+  "quotations-live": ["engineeringDocs.live"],
+  "quotations-settings": ["engineeringDocs.settings"],
+  // FILED-ONLY (keys.ts), the four rows the department reads: kept here so the
+  // module context's view guard still answers for the sections it serves.
   "engineering-docs-rfq": ["engineeringDocs.rfq"],
-  // QUOTATIONS GAINED BY CRM & SALES — the offer is a sales act (blueprint
-  // §3.1), so the section key moves out from under Engineering & Documents
-  // even though the RFQ it is raised from stays behind (restructure.ts's
-  // SECTION_KEY_MAP).
   "crm-sales-quotations": ["crmSales.quotations"],
   "crm-sales-contracts": ["crmSales.contracts"],
   "crm-sales-orders": ["crmSales.orders"],
@@ -543,11 +552,15 @@ const childrenOf = (
   allKeys: readonly string[],
   parentOf?: Readonly<Record<string, string>>,
 ): string[] => {
-  const byPrefix = allKeys.filter((k) => k.startsWith(`${sectionKey}-`));
+  // A FILED-ONLY SECTION IS NOBODY'S CHILD FOR THIS QUESTION. It is shown
+  // nowhere (keys.ts), so counting it would show a department's heading to
+  // somebody whose only right is over rows that department merely files —
+  // CRM & Sales to a presales engineer holding nothing but quotations.
+  const byPrefix = allKeys.filter((k) => k.startsWith(`${sectionKey}-`) && !isFiledOnlySection(k));
   if (!parentOf) return byPrefix;
   const seen = new Set(byPrefix);
   for (const k of allKeys) {
-    if (k !== sectionKey && parentOf[k] === sectionKey) seen.add(k);
+    if (k !== sectionKey && parentOf[k] === sectionKey && !isFiledOnlySection(k)) seen.add(k);
   }
   return [...seen];
 };

@@ -58,8 +58,8 @@ export default function StudioMain({ slug }) {
   const tiles = [
     { key: "tasks", label: tr.needsYou, value: headlines.awaitingMe, tone: headlines.awaitingMe > 0 ? "text-brand-700 dark:text-brand-300" : "" },
     { key: "crm-sales-tickets", label: tr.openTickets, value: headlines.openTickets },
-    { key: "engineering-docs-rfq", label: tr.openRfqs, value: headlines.openRfqs },
-    { key: "crm-sales-quotations", label: tr.liveQuotations, value: headlines.liveQuotations },
+    { key: "quotations-rfq", label: tr.openRfqs, value: headlines.openRfqs },
+    { key: "quotations-register", label: tr.liveQuotations, value: headlines.liveQuotations },
     { key: "projects-list", label: tr.projectsRunning, value: headlines.liveProjects },
     { key: "finance-cash", label: tr.outstanding, value: headlines.outstanding === null ? null : money(headlines.outstanding) },
     { key: "inventory-stock", label: tr.trackedItems, value: headlines.lowStock },

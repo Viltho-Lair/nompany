@@ -111,7 +111,7 @@ export const DEPARTMENT_STARTERS: Record<string, readonly DepartmentSeed[]> = {
     { name: "Production", code: "PRD", parent: "", sectionKeys: ["manufacturing"] },
     { name: "Assembly", code: "ASM", parent: "PRD", sectionKeys: ["manufacturing"] },
     { name: "Machine Shop", code: "MCH", parent: "PRD", sectionKeys: ["manufacturing"] },
-    { name: "Design & Engineering", code: "ENG", parent: "", sectionKeys: ["engineering-docs"] },
+    { name: "Design & Engineering", code: "ENG", parent: "", sectionKeys: ["engineering-docs", "quotations"] },
     { name: "Production Planning", code: "PPC", parent: "", sectionKeys: ["projects"] },
     { name: "Maintenance", code: "MNT", parent: "", sectionKeys: ["assets", "maintenance"] },
     { name: "Quality Assurance", code: "QA", parent: "", sectionKeys: ["quality-hse"] },
@@ -120,18 +120,18 @@ export const DEPARTMENT_STARTERS: Record<string, readonly DepartmentSeed[]> = {
   ),
 
   "Industrial Automation & Robotics": trading(
-    { name: "Controls Engineering", code: "CTL", parent: "", sectionKeys: ["engineering-docs"] },
+    { name: "Controls Engineering", code: "CTL", parent: "", sectionKeys: ["engineering-docs", "quotations"] },
     { name: "Software & SCADA", code: "SW", parent: "CTL", sectionKeys: ["engineering-docs"] },
     { name: "Panel Shop", code: "PNL", parent: "", sectionKeys: ["manufacturing"] },
     { name: "Project Delivery", code: "PRJ", parent: "", sectionKeys: ["projects"] },
     { name: "Installation & Commissioning", code: "CMS", parent: "PRJ", sectionKeys: ["field-service"] },
     { name: "Service & Support", code: "SVC", parent: "", sectionKeys: ["field-service"] },
-    { name: "Sales & Applications", code: "SLS", parent: "", sectionKeys: ["crm-sales", "tendering"] },
+    { name: "Sales & Applications", code: "SLS", parent: "", sectionKeys: ["crm-sales", "tendering", "quotations"] },
   ),
 
   "Automotive & Aerospace Manufacturing": trading(
     { name: "Programme Management", code: "PGM", parent: "", sectionKeys: ["projects"] },
-    { name: "Engineering & Design", code: "ENG", parent: "", sectionKeys: ["engineering-docs"] },
+    { name: "Engineering & Design", code: "ENG", parent: "", sectionKeys: ["engineering-docs", "quotations"] },
     { name: "Manufacturing Engineering", code: "MFE", parent: "ENG", sectionKeys: ["engineering-docs"] },
     { name: "Production", code: "PRD", parent: "", sectionKeys: ["manufacturing"] },
     { name: "Final Assembly", code: "FAL", parent: "PRD", sectionKeys: ["manufacturing"] },
@@ -146,7 +146,7 @@ export const DEPARTMENT_STARTERS: Record<string, readonly DepartmentSeed[]> = {
     { name: "Transmission & Distribution", code: "TND", parent: "", sectionKeys: ["field-service", "assets"] },
     { name: "Network Operations", code: "NOC", parent: "TND", sectionKeys: ["field-service"] },
     { name: "Capital Projects", code: "PRJ", parent: "", sectionKeys: ["projects", "tendering"] },
-    { name: "Engineering & Design", code: "ENG", parent: "", sectionKeys: ["engineering-docs"] },
+    { name: "Engineering & Design", code: "ENG", parent: "", sectionKeys: ["engineering-docs", "quotations"] },
     { name: "Metering & Customer Connections", code: "MTR", parent: "", sectionKeys: ["crm-sales", "field-service"] },
     { name: "Maintenance & Asset Management", code: "MNT", parent: "", sectionKeys: ["assets", "maintenance"] },
     { name: "HSE & Compliance", code: "HSE", parent: "", sectionKeys: ["quality-hse"] },
@@ -156,8 +156,8 @@ export const DEPARTMENT_STARTERS: Record<string, readonly DepartmentSeed[]> = {
     { name: "Projects & EPC Delivery", code: "PRJ", parent: "", sectionKeys: ["projects"] },
     { name: "Construction", code: "CON", parent: "PRJ", sectionKeys: ["field-service"] },
     { name: "Commissioning & Start-Up", code: "CMS", parent: "PRJ", sectionKeys: ["field-service"] },
-    { name: "Engineering", code: "ENG", parent: "", sectionKeys: ["engineering-docs"] },
-    { name: "Estimation & Proposals", code: "EST", parent: "", sectionKeys: ["tendering"] },
+    { name: "Engineering", code: "ENG", parent: "", sectionKeys: ["engineering-docs", "quotations"] },
+    { name: "Estimation & Proposals", code: "EST", parent: "", sectionKeys: ["tendering", "quotations"] },
     { name: "Operations & Turnarounds", code: "OPS", parent: "", sectionKeys: ["field-service"] },
     { name: "Inspection & Integrity", code: "INS", parent: "", sectionKeys: ["quality-hse"] },
     { name: "HSSE", code: "HSE", parent: "", sectionKeys: ["quality-hse"] },
@@ -169,17 +169,17 @@ export const DEPARTMENT_STARTERS: Record<string, readonly DepartmentSeed[]> = {
     { name: "Networks & Pumping", code: "NET", parent: "", sectionKeys: ["field-service", "assets"] },
     { name: "Collection Services", code: "COL", parent: "", sectionKeys: ["logistics", "field-service"] },
     { name: "Capital Projects", code: "PRJ", parent: "", sectionKeys: ["projects", "tendering"] },
-    { name: "Engineering & Design", code: "ENG", parent: "", sectionKeys: ["engineering-docs"] },
+    { name: "Engineering & Design", code: "ENG", parent: "", sectionKeys: ["engineering-docs", "quotations"] },
     { name: "Laboratory & Water Quality", code: "LAB", parent: "", sectionKeys: ["quality-hse"] },
     { name: "Fleet & Maintenance", code: "FLT", parent: "", sectionKeys: ["logistics", "assets", "maintenance"] },
   ),
 
   "Construction & Contracting": trading(
-    { name: "Estimation & Tendering", code: "EST", parent: "", sectionKeys: ["tendering"] },
+    { name: "Estimation & Tendering", code: "EST", parent: "", sectionKeys: ["tendering", "quotations"] },
     { name: "Site Execution", code: "OPS", parent: "", sectionKeys: ["projects", "field-service"] },
     { name: "Civil Works", code: "CIV", parent: "OPS", sectionKeys: ["projects"] },
     { name: "MEP", code: "MEP", parent: "OPS", sectionKeys: ["projects"] },
-    { name: "Engineering & Design", code: "ENG", parent: "", sectionKeys: ["engineering-docs"] },
+    { name: "Engineering & Design", code: "ENG", parent: "", sectionKeys: ["engineering-docs", "quotations"] },
     { name: "Planning & Cost Control", code: "PLN", parent: "", sectionKeys: ["projects", "finance"] },
     { name: "QA/QC & HSE", code: "QHS", parent: "", sectionKeys: ["quality-hse"] },
     { name: "Plant & Equipment", code: "PLT", parent: "", sectionKeys: ["assets", "logistics"] },
@@ -216,14 +216,14 @@ export const DEPARTMENT_STARTERS: Record<string, readonly DepartmentSeed[]> = {
   ),
 
   "Information Technology & Software": spine(
-    { name: "Engineering", code: "ENG", parent: "", sectionKeys: ["engineering-docs"] },
+    { name: "Engineering", code: "ENG", parent: "", sectionKeys: ["engineering-docs", "quotations"] },
     { name: "Product & Design", code: "PRD", parent: "", sectionKeys: ["engineering-docs"] },
     { name: "Professional Services", code: "PS", parent: "", sectionKeys: ["projects"] },
     { name: "Implementation & Delivery", code: "DEL", parent: "PS", sectionKeys: ["projects"] },
     { name: "Support & Managed Services", code: "SUP", parent: "", sectionKeys: ["field-service"] },
     { name: "Infrastructure & Security", code: "INF", parent: "", sectionKeys: ["assets"] },
     { name: "Quality Engineering", code: "QA", parent: "", sectionKeys: ["quality-hse"] },
-    { name: "Sales & Presales", code: "SLS", parent: "", sectionKeys: ["crm-sales", "tendering"] },
+    { name: "Sales & Presales", code: "SLS", parent: "", sectionKeys: ["crm-sales", "tendering", "quotations"] },
   ),
 
   "Telecommunications": trading(
@@ -232,7 +232,7 @@ export const DEPARTMENT_STARTERS: Record<string, readonly DepartmentSeed[]> = {
     { name: "Network Operations", code: "NOC", parent: "", sectionKeys: ["field-service"] },
     { name: "Field Maintenance", code: "FLD", parent: "NOC", sectionKeys: ["field-service"] },
     { name: "Core & Transmission", code: "CORE", parent: "", sectionKeys: ["assets"] },
-    { name: "Enterprise Solutions", code: "ENT", parent: "", sectionKeys: ["crm-sales", "tendering"] },
+    { name: "Enterprise Solutions", code: "ENT", parent: "", sectionKeys: ["crm-sales", "tendering", "quotations"] },
     { name: "Customer Care", code: "CS", parent: "", sectionKeys: ["crm-sales"] },
   ),
 
@@ -265,11 +265,11 @@ export const DEPARTMENT_STARTERS: Record<string, readonly DepartmentSeed[]> = {
   ),
 
   "Professional, Scientific & Technical Services": spine(
-    { name: "Engineering & Design", code: "ENG", parent: "", sectionKeys: ["engineering-docs"] },
+    { name: "Engineering & Design", code: "ENG", parent: "", sectionKeys: ["engineering-docs", "quotations"] },
     { name: "Project Delivery", code: "PRJ", parent: "", sectionKeys: ["projects"] },
     { name: "Surveying & Site Services", code: "SUR", parent: "", sectionKeys: ["field-service"] },
     { name: "Laboratory & Testing", code: "LAB", parent: "", sectionKeys: ["quality-hse"] },
-    { name: "Bids & Proposals", code: "BID", parent: "", sectionKeys: ["tendering"] },
+    { name: "Bids & Proposals", code: "BID", parent: "", sectionKeys: ["tendering", "quotations"] },
     { name: "Client Development", code: "BD", parent: "", sectionKeys: ["crm-sales"] },
   ),
 

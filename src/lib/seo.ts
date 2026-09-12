@@ -43,12 +43,12 @@ export const PAGES: Record<string, Record<string, PageCopy> | undefined> = {
   },
   "/platform": {
     en: {
-      title: "The platform — fifteen departments on one data model",
+      title: "The platform — sixteen departments on one data model",
       description:
         "Sales, tendering, projects, engineering, procurement, inventory, field operations, logistics, people and finance, sharing one data model. Arabic and English, with every record permissioned to the row.",
     },
     ar: {
-      title: "المنصة — خمسة عشر قسما على نموذج بيانات واحد",
+      title: "المنصة — ستة عشر قسما على نموذج بيانات واحد",
       description:
         "المبيعات والمناقصات والمشاريع والهندسة والمشتريات والمخزون والعمليات الميدانية والخدمات اللوجستية والموارد البشرية والمالية على نموذج بيانات واحد. بالعربية والإنجليزية، وكل سجل محكوم بالصلاحيات حتى مستوى الصف.",
     },

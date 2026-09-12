@@ -55,6 +55,7 @@ const SECTION_ICONS = {
   tendering: "tender",
   projects: "projects",
   "engineering-docs": "engineeringDocs",
+  quotations: "invoice",
   procurement: "procurement",
   inventory: "box",
   manufacturing: "manufacturing",
@@ -116,6 +117,9 @@ const SECTION_ICONS = {
   "engineering-docs-rfq": "form",
   "engineering-docs-live": "live",
   "engineering-docs-register": "book",
+  "quotations-rfq": "form",
+  "quotations-register": "report",
+  "quotations-live": "live",
   // Projects sub-sections. SLA is a promise about TIME, so it wears the clock
   // rather than the toolbox it used to.
   "projects-list": "blueprint",
@@ -205,6 +209,7 @@ const SECTION_ICONS = {
   // difference that is not there.
   "crm-sales-settings": "gears",
   "engineering-docs-settings": "gears",
+  "quotations-settings": "gears",
   "projects-settings": "gears",
   "finance-settings": "gears",
   "field-service-settings": "gears",
@@ -260,6 +265,7 @@ const SECTION_ACCENTS = {
   tendering: "text-purple-600 dark:text-purple-400",
   projects: "text-indigo-600 dark:text-indigo-400",
   "engineering-docs": "text-cyan-600 dark:text-cyan-400",
+  quotations: "text-green-600 dark:text-green-400",
   procurement: "text-orange-600 dark:text-orange-400",
   inventory: "text-amber-600 dark:text-amber-400",
   manufacturing: "text-stone-600 dark:text-stone-400",

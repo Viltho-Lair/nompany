@@ -136,7 +136,7 @@ export function quotationInsights(quotations: QuotationRow[], todayISO: string):
   const out: Insight[] = [];
   const empty = quotations.filter((q) => q.status === "Draft" && !(Array.isArray(q.items) && q.items.length));
   if (empty.length) {
-    out.push(make("quotation.noItems", "warn", "crm-sales-quotations", "crm-sales-quotations",
+    out.push(make("quotation.noItems", "warn", "quotations-register", "quotations-register",
       String(empty[0].id || ""), { number: String(empty[0].number || ""), more: more(empty) }, 30));
   }
 
@@ -146,7 +146,7 @@ export function quotationInsights(quotations: QuotationRow[], todayISO: string):
       x.q.status === "Sent" && x.days !== null && x.days >= QUOTATION_STALE_DAYS)
     .sort((a, b) => b.days - a.days);
   if (stale.length) {
-    out.push(make("quotation.stale", "warn", "crm-sales-quotations", "crm-sales-quotations",
+    out.push(make("quotation.stale", "warn", "quotations-register", "quotations-register",
       String(stale[0].q.id || ""),
       { number: String(stale[0].q.number || ""), days: stale[0].days, more: more(stale) }));
   }
@@ -169,7 +169,7 @@ export function rfqInsights(rfqs: RfqRow[], todayISO: string): Insight[] {
       && x.days !== null && x.days >= RFQ_UNQUOTED_DAYS)
     .sort((a, b) => b.days - a.days);
   if (!open.length) return [];
-  return [make("rfq.unquoted", "warn", "engineering-docs-rfq", "engineering-docs-rfq", String(open[0].r.id || ""),
+  return [make("rfq.unquoted", "warn", "quotations-rfq", "quotations-rfq", String(open[0].r.id || ""),
     { reference: String(open[0].r.reference || ""), days: open[0].days, more: more(open) })];
 }
 

@@ -36,7 +36,7 @@ type StatsStrings = {
 
 const en: StatsStrings = {
   heading: "Where it stands",
-  factDepartments: "Fifteen departments on one data model, every one of them open today.",
+  factDepartments: "Sixteen departments on one data model, every one of them open today.",
   factFree: "Free for teams of up to nine people, with no time limit.",
   factBilingual: "Arabic and English throughout, with real right-to-left — not a translation layer.",
   figureStudios: "{n}+ companies run their work on it.",
@@ -48,7 +48,7 @@ const en: StatsStrings = {
 // HAND-WRITTEN, NO DIACRITICS.
 const ar: StatsStrings = {
   heading: "أين وصلنا",
-  factDepartments: "خمسة عشر قسما على نموذج بيانات واحد، وكلها مفتوحة اليوم.",
+  factDepartments: "ستة عشر قسما على نموذج بيانات واحد، وكلها مفتوحة اليوم.",
   factFree: "مجاني للفرق حتى تسعة أشخاص، بلا حد زمني.",
   factBilingual: "بالعربية والإنجليزية بالكامل، بدعم حقيقي للكتابة من اليمين إلى اليسار — لا طبقة ترجمة.",
   figureStudios: "أكثر من {n} شركة تدير عملها عليه.",
