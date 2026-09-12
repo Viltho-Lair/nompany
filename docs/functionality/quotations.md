@@ -53,8 +53,8 @@ presales dashboard at the Engineering & Documents root.
 
 - **On for every trade** (`UNIVERSAL_SECTION_KEYS`): every company prices what it sells.
 - **Engineering & Documents is document control only** — the register, transmittals, RFIs,
-  submittals, engineering BOM and the technical library — and its root is the generic section
-  summary rather than the presales dashboard.
+  submittals, engineering BOM and the technical library — and its root has a dashboard of its own
+  (`engineering-dashboard.md`, 13/09/2026) rather than the presales one.
 - **Starter departments that price work** (Engineering & Design, Estimation & Proposals,
   Bids & Proposals, Sales & Presales and the like) list `quotations` in their `sectionKeys`, so a
   new studio's pre-built roles there start with the Quotations rights.
@@ -68,7 +68,6 @@ presales dashboard at the Engineering & Documents root.
 - **The RFQ intake has no assignment rules or workload view** — whoever picks an RFQ up handles it.
 - **No engineering review step** is recorded on a quotation before approval; the approval chain
   is the only sign-off.
-- **The Engineering & Documents root has no dashboard of its own**, only the generic summary.
 - **Starter departments in studios that already exist are unchanged**: their `sectionKeys` were
   seeded before Quotations existed, so a library role added there later is confined without it
   until somebody adds Quotations to the department.

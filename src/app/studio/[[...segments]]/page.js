@@ -166,6 +166,11 @@ const StudioServiceContracts = nextDynamic(
   { loading: () => <ScreenSkeleton /> },
 );
 // The section's own summary, which is why `maintenance.dashboard.view` exists.
+// ENGINEERING & DOCUMENTS' OWN DASHBOARD (13/09/2026), on the same terms as
+// Maintenance's below.
+const EngineeringDashboard = nextDynamic(
+  () => import("@/components/studio2/EngineeringDashboard"),
+);
 const MaintenanceDashboard = nextDynamic(
   () => import("@/components/studio2/MaintenanceDashboard"),
   { loading: () => <ScreenSkeleton /> },
@@ -846,6 +851,17 @@ async function renderStudio(params) {
           <div className="space-y-6">
             <StudioPlantAllocation slug={studio.slug} />
             <StudioSectionSummary slug={studio.slug} sectionKey="assets" locale={locale} />
+          </div>
+        )
+        // ENGINEERING & DOCUMENTS' ROOT IS ITS DASHBOARD, with the register cards
+        // kept below it — the Assets shape, for Assets' reason: somebody who
+        // lands on an empty department still needs the way onward. AFTER the
+        // `engine-` prefix case above, because its five registers plant sections
+        // whose parent is `engineering-docs`.
+        : active?.key === "engineering-docs" ? (
+          <div className="space-y-6">
+            <EngineeringDashboard slug={studio.slug} />
+            <StudioSectionSummary slug={studio.slug} sectionKey="engineering-docs" locale={locale} />
           </div>
         )
         : active?.key === "tendering-rates" ? <StudioRates slug={studio.slug} />

@@ -31,6 +31,7 @@ export const WIDGET_SECTIONS: { key: string; label: string }[] = [
   { key: "main", label: "Overview" },
   { key: "crm-sales", label: "Sales" },
   { key: "quotations", label: "Quotations" },
+  { key: "engineering-docs", label: "Engineering & Documents" },
   { key: "projects", label: "Projects" },
   { key: "procurement", label: "Procurement" },
   { key: "inventory", label: "Inventory" },
@@ -163,6 +164,14 @@ export const DASHBOARD_WIDGETS: WidgetDef[] = [
   // rule: a studio that cannot see its own broken machines because it did not
   // buy analytics is being sold its own problems back. A key is registered when
   // a widget draws it, never ahead of one.
+  // ENGINEERING & DOCUMENTS (13/09/2026) — its own dashboard once the presales
+  // one left with Quotations. The four free tiles are not here; these are.
+  { key: "engineering.attention", label: "Late RFIs and submittals, by name", section: "engineering-docs", rung: "simple" },
+  { key: "engineering.document-status", label: "Documents by state", section: "engineering-docs", rung: "simple" },
+  { key: "engineering.rfi-ball-in-court", label: "Where the ball is on open RFIs", section: "engineering-docs", rung: "simple" },
+  { key: "engineering.submittal-outcomes", label: "How submittals came back", section: "engineering-docs", rung: "simple" },
+  { key: "engineering.rfi-intake", label: "RFIs raised per month", section: "engineering-docs", rung: "moderate" },
+  { key: "engineering.review-due", label: "Document reviews coming due", section: "engineering-docs", rung: "moderate" },
   { key: "maintenance.backlog-by-priority", label: "Backlog by priority", section: "maintenance", rung: "simple" },
   { key: "maintenance.pm-compliance", label: "Planned work done on time", section: "maintenance", rung: "simple" },
   { key: "maintenance.contracts", label: "Service contracts", section: "maintenance", rung: "simple" },

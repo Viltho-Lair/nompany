@@ -7,7 +7,11 @@ Since 10/09/2026 each one draws its own records several ways — over time, by s
 by weekday and against a second measure — rather than counting them one way at a time.
 
 The per-department detail lives with each department (`sales-dashboard.md`,
-`procurement-dashboard.md`, `executive-dashboard.md`); this file is what they share.
+`procurement-dashboard.md`, `executive-dashboard.md`, `engineering-dashboard.md`); this file is what they share.
+
+**Engineering & Documents has its own since 13/09/2026** — documents waiting on the reader, late RFIs
+and submittals, where the ball is, and reviews coming due (`engineering-dashboard.md`). The
+"Technical" dashboard below is the Quotations department's now.
 
 ## What it is
 
