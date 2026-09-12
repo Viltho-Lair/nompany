@@ -65,22 +65,22 @@ export default function StudioPipeline({ slug }) {
         <p className={sub}>{tr.pipelineSub}</p>
       </div>
 
+      {/* THE TILES ARE THE BOXES. Each sat inside a white panel of its own, a box
+          in a box, and the panel's padding let the three tiles settle at
+          different heights. Direct grid children stretch to the tallest, so the
+          row lines up whether or not a tile carries a sub-line. */}
       <div className="grid gap-4 sm:grid-cols-3">
-        <div className={panel}><StatTile label={tr.openValue} value={money(data.openValue)} /></div>
-        <div className={panel}>
-          <StatTile label={tr.weighted} value={money(data.weightedValue)} accent="rgb(var(--chart-2))" />
-        </div>
-        <div className={panel}>
-          {/* A studio with nothing decided has no win rate, and the route sends
-              null rather than 0 to say so — "0%" would read as a verdict on a
-              studio that has simply not finished a deal yet. */}
-          <StatTile
-            label={tr.winRate}
-            value={data.winRate == null ? "—" : `${data.winRate}%`}
-            sub={tr.nDecided(decided)}
-            accent="rgb(var(--chart-3))"
-          />
-        </div>
+        <StatTile label={tr.openValue} value={money(data.openValue)} />
+        <StatTile label={tr.weighted} value={money(data.weightedValue)} accent="rgb(var(--chart-2))" />
+        {/* A studio with nothing decided has no win rate, and the route sends
+            null rather than 0 to say so — "0%" would read as a verdict on a
+            studio that has simply not finished a deal yet. */}
+        <StatTile
+          label={tr.winRate}
+          value={data.winRate == null ? "—" : `${data.winRate}%`}
+          sub={tr.nDecided(decided)}
+          accent="rgb(var(--chart-3))"
+        />
       </div>
 
       {!anyOpen ? <Empty title={tr.noDealsYet} body={tr.noDealsYetBody} /> : (
