@@ -22,6 +22,7 @@ const R = await import("@/modules/maintenance/reliability");
 const X = await import("@/modules/administration/taxonomy");
 const P = await import("@/modules/maintenance/parts");
 const MT = await import("@/modules/maintenance/meters");
+const CD = await import("@/modules/maintenance/condition");
 const C = await import("@/modules/maintenance/contracts");
 const L = await import("@/modules/maintenance/legacy");
 
@@ -434,6 +435,82 @@ console.log("\n== meter plans");
   ok("floating: cancelled skips that trigger", S.nextDueReadingOnClose(fl, answering, "Cancelled", 1310) === 1500);
   ok("fixed: nothing moves on close", S.nextDueReadingOnClose(mp(), answering, "Completed", 1310) === null);
   ok("a calendar close leaves a meter plan alone", S.nextDueOnClose(fl, { pmPlanId: "p9", pmDueOn: "" }, "Completed", "2026-09-11") === null);
+}
+
+// CONDITION MONITORING — a gauge out of range raising work. THE DEFECTS GUARDED:
+// a gauge judged by the METER's rules, which would refuse it for falling, for
+// being back-dated off a logbook, and for reading below nought; a point with no
+// limit at all, which could never raise anything and would fail silently; and a
+// breach re-raised every single morning, which is what keying idempotency on the
+// reading's VALUE rather than its id would have produced.
+console.log("\n== condition plans");
+{
+  const cp = (over = {}) => ({
+    id: "c1", title: "Bearing temperature", status: "Active", trigger: "condition", assetId: "m1",
+    conditionLabel: "Drive-end bearing", conditionUnit: "C", limitLow: null, limitHigh: 80, ...over,
+  });
+  ok("a sound condition plan saves", S.planProblem(cp()) === null);
+  ok("a condition plan needs its machine", S.planProblem(cp({ assetId: "" })) === "condition-asset");
+  ok("...what is measured", S.planProblem(cp({ conditionLabel: "" })) === "condition-label");
+  ok("...a unit", S.planProblem(cp({ conditionUnit: "" })) === "condition-unit");
+  // A POINT WITH NO LIMIT WOULD NEVER RAISE ANYTHING, SILENTLY.
+  ok("...and at least one limit", S.planProblem(cp({ limitHigh: null })) === "condition-limits");
+  ok("one limit is enough", S.planProblem(cp({ limitLow: 5, limitHigh: null })) === null);
+  ok("a floor above the ceiling is refused", S.planProblem(cp({ limitLow: 90, limitHigh: 80 })) === "condition-order");
+  ok("a condition plan needs no calendar", S.planProblem(cp({ frequency: "", nextDue: "" })) === null);
+
+  // NULL IS NOT NOUGHT: a freezer's whole band sits below zero.
+  ok("nought is a real limit", CD.conditionLimits(cp({ limitHigh: 0 })).high === 0);
+  ok("blank is no limit", CD.conditionLimits(cp({ limitHigh: "" })).high === null);
+
+  // THE LIMIT IS THE LAST ACCEPTABLE VALUE, not the first unacceptable one.
+  ok("at the limit is still in range", CD.outOfRange(80, null, 80) === null);
+  ok("past it is out", CD.outOfRange(80.1, null, 80) === "high");
+  ok("under a floor is out the other way", CD.outOfRange(4, 5, null) === "low");
+
+  // A GAUGE IS NOT A METER: it falls, it is back-dated, it reads below nought.
+  const at = "2026-09-12T12:00:00.000Z";
+  ok("a falling reading is fine", CD.conditionReadingProblem({ value: 20, readAt: at }, at) === null);
+  ok("below nought is a reading", CD.conditionReadingProblem({ value: -40, readAt: "2026-09-11T00:00:00.000Z" }, at) === null);
+  ok("a blank one is refused, not read as nought", CD.conditionReadingProblem({ value: "", readAt: at }, at) === "condition-value");
+  ok("one in the future is refused", CD.conditionReadingProblem({ value: 20, readAt: "2026-09-13T00:00:00.000Z" }, at) === "condition-future");
+
+  const readings = [
+    { id: "r1", planId: "c1", value: 70, readAt: "2026-09-10T08:00:00.000Z", createdAt: "a" },
+    { id: "r2", planId: "c1", value: 95, readAt: "2026-09-12T08:00:00.000Z", createdAt: "b" },
+  ];
+  ok("the latest reading is the latest read", CD.latestConditionReading(readings, "c1")?.id === "r2");
+  ok("another point's readings are its own", CD.latestConditionReading(readings, "c2") === null);
+
+  ok("in range raises nothing", CD.conditionRaiseDecision(cp(), [], readings[0]) === null);
+  {
+    const d = CD.conditionRaiseDecision(cp(), [], readings[1]);
+    ok("out of range raises", d?.raise === true && d.breach === "high" && d.readingId === "r2");
+  }
+  ok("nothing read, nothing to judge", CD.conditionRaiseDecision(cp(), [], null) === null);
+  ok("a paused point raises nothing", CD.conditionRaiseDecision(cp({ status: "Paused" }), [], readings[1]) === null);
+  ok("one open order at a time, as on every trigger",
+    CD.conditionRaiseDecision(cp(), [{ pmPlanId: "c1", status: "In progress" }], readings[1]) === null);
+  // IDEMPOTENT BY THE READING — the flood this prevents is a closed order whose
+  // reading still breaches being raised again every morning.
+  const answered = [{ pmPlanId: "c1", conditionReadingId: "r2", status: "Closed" }];
+  ok("the reading that raised is not raised again", CD.conditionRaiseDecision(cp(), answered, readings[1])?.raise === false);
+  {
+    // ...AND A NEW BREACH AT THE SAME NUMBER STILL RAISES: it is still out of
+    // range after somebody said they had put it right. Keying on the VALUE
+    // would have silenced this one for ever.
+    const again = { id: "r3", planId: "c1", value: 95, readAt: "2026-09-12T18:00:00.000Z", createdAt: "c" };
+    ok("a new reading at the same value raises again", CD.conditionRaiseDecision(cp(), answered, again)?.raise === true);
+  }
+  ok("a condition plan is not on the calendar",
+    S.raiseDecision(cp({ nextDue: "2026-09-01", frequency: "Monthly" }), [], "2026-09-12") === null);
+  ok("nothing moves on close",
+    S.nextDueOnClose(cp({ scheduleMode: "floating" }), { pmPlanId: "c1", pmDueOn: "" }, "Completed", "2026-09-12") === null);
+
+  // NULL IS "NOBODY HAS MEASURED IT", which is not "it is fine".
+  ok("an unread point has no state", CD.conditionState(cp(), null) === null);
+  ok("a read one carries its breach", CD.conditionState(cp(), readings[1])?.breach === "high");
+  ok("...and says nothing is wrong when nothing is", CD.conditionState(cp(), readings[0])?.breach === null);
 }
 
 // SERVICE CONTRACTS (SLA) — the maintenance a studio sells. THE DEFECTS GUARDED:

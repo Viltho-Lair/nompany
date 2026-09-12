@@ -218,6 +218,7 @@ Everything lands here.
 | 10/09/2026 | The console loses its sidebar: every screen is a route under the Pulse shell, reached from one bottom bar | **DONE** (the owner's instruction. Dashboard, Chat, Users, Studios, Packages, Tiers, Nova, Calendar and Broadcast moved from `(shell)` to `(full)/pulse/*` as items in one bar; a long header carries the brand and a menu for Questionnaires, Settings and the database migration. The owner chose ROUTES over sliding panes when offered both: four of the screens are async Server Components, and making them slide meant rewriting each against list endpoints that do not exist. The auth check moved into `pulse/layout.js` — one door for the group rather than a per-page call nine times over, where forgetting one is silent. Settings is one page with REAL tabs held in `?tab=` (Profile, Security, Notifications, Danger zone), which keeps every panel a Server Component: the strip it replaces was five buttons with no handler and index 0 hard-coded as lit. Billing was a fifth decorative tab and is gone — there is no billing to show. Shell, Sidebar, Header and Customizer are deleted; `Menu` was extracted rather than lost with them. NOT FIXED AND FLAGGED: the Danger zone's three buttons have never been wired to anything, and a tab of their own makes that more visible rather than less. **The Danger zone was then deleted, tab and panel, on the owner's instruction (10/09/2026).**) **CHANGED TO (10/09/2026): Pulse is a page, not a prefix, and the header's controls are back — see the row below.** |
 | 10/09/2026 | The console's screens are /super/<name> in a route group, and the header's controls are restored | **DONE** (the owner's correction, three parts. PULSE IS A PAGE, NOT A CONTAINER: every screen had shipped under `/super/pulse/…`, making the wall a URL prefix; they are `/super/dashboard`, `/super/users` and so on now, in a `(console)` ROUTE GROUP, which gives them the shared layout without a segment in any address. Sign-in lands on `/super/pulse`. THE HEADER WAS NOT DEAD CODE: `Header.js` was deleted as sidebar chrome because nothing imported it once `Shell` was gone, and it held SIGN-OUT — the console had no way to log out for one deploy — plus the admin's avatar and profile menu, the live notifications bell, the theme control and the ⌘K palette. Ported back from 2ca838a5 as `ConsoleActions`, minus the two sidebar toggles and the customiser, which only meant anything beside a sidebar. The chrome is `ConsoleChrome` now rather than `PulseChrome`, and the screen list is back in `_components/nav` because the bar and the palette both read it. `admindek ad-scope` moved into the new layout — `(full)`'s layout supplied it, and without it every screen paints from unset `--ad-*` tokens with nothing failing to build.) |
 | 10/09/2026 | Every section dashboard draws its records several ways — trend, share, rank, heat and scatter — from one chart kit and one UTC time arithmetic | **DONE** (the owner's instruction: "recreate all dashboards … graphs, pie-charts, bar-charts, and more visuals using complex or combined data". Thirty-one new widgets across Sales, Technical, Projects, Procurement, Inventory, HR, Finance and Operations, each a new registry key; Main and the register summary redrawn without new keys. Four chart shapes joined the kit (`ComboChart`, `HeatGrid`, `ShareBar`, `Scatter`) and `components/dashboard/series` holds the bucketing, asserted by `tests/dashboard-series.mjs`. Each dashboard now loads behind a client `next/dynamic` boundary. ROLLOUT: a tier with an explicit widget selection shows the new widgets locked until they are ticked in /super. `docs/functionality/dashboards.md` is the file.) |
+| 12/09/2026 | Condition monitoring: a reading OUT OF RANGE raises work | **DONE** (a third plan trigger beside `calendar` and `meter`. The point holds what is measured, its unit and a band, and the machine's measured state asks for somebody rather than a date doing it. IT MINTS NO PERMISSION KEY — the point answers to `maintenance.plans` and a reading to `maintenance.orders.edit`, exactly as a meter reading does — so it reached every studio with no script and no rights to catch up. A GAUGE IS NOT A METER, which is why the readings are their own collection: `meterReadings` is cumulative and `readingProblem` enforces it (nothing below the last, nothing dated behind the latest, nothing under nought), and all three are right for running hours and wrong for a temperature, which falls, is typed off yesterday's logbook and reads −40 in a cold store. Sharing the collection would have been worse than sharing the rules — half its rows would have been free to fall, and nothing reading it could have relied on the one property that makes a meter worth trusting. IDEMPOTENCY KEYS ON THE READING'S ID, never its value, because two breaches can read the same number and the second would have been silenced for ever; what the id buys is that a closed order's own reading raises nothing while a NEW breach still does, which is the honest answer when a machine is still out of range after being called fixed. The limit is the last acceptable value, either limit may be absent, absent is not nought, and a point with neither is refused rather than left raising nothing silently. `docs/functionality/maintenance.md` is the file; `tests/maintenance-model.mjs` is the coverage.) |
 
 
 ---
@@ -692,11 +693,27 @@ availability, parts issued from Inventory with their cost, meters and meter-driv
 12/09/2026 — service contracts (SLA), whose visits raise work orders and whose call-outs are
 counted against an allowance. `docs/functionality/maintenance.md` is the file.
 
+**CONDITION MONITORING, 12/09/2026 — a reading OUT OF RANGE raises work.** A third plan
+trigger beside `calendar` and `meter`: the point holds what is measured, its unit and a band,
+and the machine's measured state asks for somebody rather than a date doing it. **It mints no
+permission key** — the point answers to `maintenance.plans` and a reading to
+`maintenance.orders.edit`, exactly as a meter reading does — so it reached every studio with
+no script and nothing to catch up.
+
+**A GAUGE IS NOT A METER, which is why the readings are their own collection.** `meterReadings`
+is cumulative and `readingProblem` enforces it: nothing below the last, nothing dated behind
+the latest, nothing under nought. All three are right for running hours and wrong for a
+temperature. Sharing the collection would have been worse than sharing the rules — half its
+rows would have been free to fall, and nothing reading it could have relied on the one
+property that makes a meter worth trusting. **Idempotency keys on the reading's ID, never its
+value**, because two breaches can read the same number and the second would have been silenced
+for ever.
+
 **WHAT IS NOT BUILT**, beyond the functionality file's own list: labour in money and anything
-posted to Finance, QR tags,
-supplier work orders, permit gating, check-in and offline, condition-based plans, response and
-resolution targets on a contract, billing or renewal reminders from one, and the machine's
-status is not moved by starting work on it.
+posted to Finance, QR tags, supplier work orders, permit gating, check-in and offline, response
+and resolution targets on a contract, billing or renewal reminders from one, readings that
+arrive from telematics rather than from a person, and the machine's status is not moved by
+starting work on it.
 
 **THE RIGHTS REACH EVERY STUDIO BY THEMSELVES SINCE 12/09/2026.** A role holding
 `engine.maintenance.V` — whoever kept the old register under Assets — gains the same verb on
@@ -730,7 +747,24 @@ hours down against the year), MTBF 8,706.8, the contract's call-out allowance 0 
 a machine still stopped. Nought in either place would have been a different and false claim.
 The route answered 200; the rows were swept afterwards.
 
-**WHAT IS STILL UNVERIFIED:** the store-backed suite, which has not been run.
+**AND CONDITION MONITORING WAS DRIVEN THROUGH THE REAL ROUTES, 12/09/2026.** A point was set
+up on a compressor (drive-end bearing, ceiling 80 C, no floor) and one with NEITHER limit was
+refused by name (`condition-limits`) rather than saved to raise nothing for ever. A reading of
+70 recorded and raised nothing; **a reading of 12 taken the previous day was accepted** — both
+falling and back-dated, which is exactly what the meter's rules refuse twice over
+(`reading-back`, `reading-before`) and the whole reason the collection is separate; a blank one
+and one dated next year were refused (`condition-value`, `condition-future`). **95 raised
+WO-0001** — the plan's own `inspection` type rather than corrective, its priority, due today,
+carrying the checklist, naming the plan, and keyed to the reading that breached with
+`breach: "high"`. A further breach at 96 while that order was open raised **nothing**, and the
+order count stayed at one. Both screens were opened: Machines grew a Condition column reading
+*Drive-end bearing: 96 C*, and the plan reads *Inspection · at most 80 C* with *Above the high
+limit* and no calendar due date. The rows were swept afterwards.
+
+**WHAT IS STILL UNVERIFIED:** the store-backed suite, which has not been run. The closed-order
+case — a NEW breach at the same value raising again once the first order is finished — is
+proven in `tests/maintenance-model.mjs` and was not driven through the screens, because
+walking the order up the ladder proves the ladder rather than the trigger.
 
 #### §11 Quality & HSE ✅ 8 / 8
 ITPs ✅ · Inspection & test records ✅ · NCR / CAPA ✅ · Audits ✅ · HSE incidents 🟡

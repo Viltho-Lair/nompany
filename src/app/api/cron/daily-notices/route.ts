@@ -10,7 +10,7 @@ import { resolveHolders } from "@/lib/studios";
 import { notifyCollaborators, NOTIFY } from "@/platform/notify/notifications";
 import { raiseDuePlanJobs } from "@/modules/operations/planJobs";
 import { engineSectionKey } from "@/platform/access";
-import { raiseDuePmOrders, raiseDueContractOrders } from "@/modules/maintenance/pmRun";
+import { raiseDuePmOrders, raiseDueContractOrders, raiseDueConditionOrders } from "@/modules/maintenance/pmRun";
 import {
   overdueInvoiceNotices, overdueBillNotices, expiringDocumentNotices, expiringPermitNotices,
   dueWorkOrderNotices, dueCalibrationNotices, type WorkOrderNotice,
@@ -56,6 +56,7 @@ async function run(request: Request) {
   let planJobs = 0;
   let pmOrders = 0;
   let contractOrders = 0;
+  let conditionOrders = 0;
   for (const s of studios) {
     try {
       sent += await noticesForStudio(String(s.id), todayISO, todayDate);
@@ -96,8 +97,19 @@ async function run(request: Request) {
         studioId: s.id, error: err instanceof Error ? err.message : String(err),
       });
     }
+    // CONDITION PLANS, whose reading is normally judged the moment it is
+    // recorded (the conditions route). This is the RECOVERY pass: that route
+    // swallows a failed run deliberately so the reading is never lost, and this
+    // is what picks the breach up afterwards. Its own try, as above.
+    try {
+      conditionOrders += await raiseDueConditionOrders(String(s.id), todayISO);
+    } catch (err) {
+      log.error("daily-notices: condition orders failed", {
+        studioId: s.id, error: err instanceof Error ? err.message : String(err),
+      });
+    }
   }
-  return Response.json({ ok: true, studios: studios.length, scanned, sent, planJobs, pmOrders, contractOrders });
+  return Response.json({ ok: true, studios: studios.length, scanned, sent, planJobs, pmOrders, contractOrders, conditionOrders });
 }
 
 // One studio: read what it has, work out what crosses a line today, and tell the

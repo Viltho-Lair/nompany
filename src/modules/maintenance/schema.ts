@@ -114,6 +114,15 @@ export const WorkOrderSchema = z.object({
   /** For a METER plan's order: the reading it answers — idempotency, as `pmDueOn` is for a date. */
   pmDueReading: z.number().optional(),
   /**
+   * FOR A CONDITION PLAN'S ORDER: the `conditionReadings` row that breached.
+   * The ID rather than the value, because two breaches can read the same number
+   * and keying on the number would silence the second for ever (./condition).
+   */
+  conditionReadingId: z.string().max(60).optional(),
+  /** What that reading said, and which way it was out — kept for the record. */
+  conditionValue: z.number().optional(),
+  conditionBreach: z.string().max(10).optional(),
+  /**
    * A CUSTOMER'S UNIT rather than the studio's own machine — an engine
    * `installed` record. The two are different registers because they are
    * different things: what the studio owns, and what it looks after for a
@@ -170,15 +179,33 @@ export const PmPlanSchema = z.object({
   /** Step labels. Each order gets its own ticked copy. */
   checklist: z.array(z.string().max(200)),
   /**
-   * calendar · meter. A METER plan falls due when the machine's latest reading
-   * on `meterUnit` reaches `nextDueReading`, then every `meterEvery` after; its
-   * frequency and date fields are unused. Absent reads as calendar, so every
-   * plan written before meters existed stays exactly as it was.
+   * calendar · meter · condition. A METER plan falls due when the machine's
+   * latest reading on `meterUnit` reaches `nextDueReading`, then every
+   * `meterEvery` after; its frequency and date fields are unused. Absent reads
+   * as calendar, so every plan written before meters existed stays exactly as
+   * it was.
    */
   trigger: z.string().optional(),
   meterUnit: z.string().optional(),
   meterEvery: z.number().optional(),
   nextDueReading: z.number().nullable().optional(),
+  /**
+   * A CONDITION PLAN IS A MEASURING POINT: what is measured on this machine, in
+   * what unit, and the band it must stay inside. It runs on no schedule at all
+   * — every date and interval field above is unused — and raises work the
+   * moment a reading falls outside (./condition).
+   *
+   * THE UNIT IS TYPED, not chosen from a list: °C, mm/s, bar, ppm, dB. Any
+   * fixed list would be wrong for somebody, and a point's unit is the studio's
+   * own data, like the name of a section.
+   *
+   * EITHER LIMIT MAY BE NULL, and null is not nought — plenty of points have
+   * only a ceiling (a temperature) or only a floor (an oil pressure).
+   */
+  conditionLabel: z.string().max(60).optional(),
+  conditionUnit: z.string().max(12).optional(),
+  limitLow: z.number().nullable().optional(),
+  limitHigh: z.number().nullable().optional(),
   /** A customer's unit (engine `installed`) the plan services, or "". */
   installedId: z.string().max(60).optional(),
   /** The service contract the plan fulfils, or "". Carried onto every order. */
@@ -213,6 +240,35 @@ export const MeterReadingSchema = z.object({
   createdAt: z.string(),
 });
 export type MeterReading = z.infer<typeof MeterReadingSchema>;
+
+/**
+ * WHAT A GAUGE SAID, AND WHEN — a condition reading.
+ *
+ * ITS OWN COLLECTION, NOT `meterReadings`, and that is the point rather than
+ * tidiness: a meter only goes up, and ./meters enforces it. A temperature
+ * falls, is often back-dated off a logbook, and can be below nought. Filing
+ * both in one place would leave nobody able to rely on the rule that makes a
+ * meter worth trusting. Filed under Machines, beside the meters.
+ *
+ * IT NAMES ITS PLAN, because the plan IS the measuring point — what is
+ * measured, in what unit, inside what band. `assetId` is copied from the plan
+ * so the machine's own screen can show its points without joining the plans.
+ */
+export const ConditionReadingSchema = z.object({
+  id: z.string(),
+  studioId: z.string(),
+  sectionId: z.string(),
+  /** The condition plan this is a reading of. */
+  planId: z.string().max(60),
+  /** The machine, copied from the plan at the time of reading. */
+  assetId: z.string().max(60),
+  value: z.number(),
+  readAt: z.string(),
+  note: z.string().max(300),
+  createdByCollaboratorId: z.string(),
+  createdAt: z.string(),
+});
+export type ConditionReading = z.infer<typeof ConditionReadingSchema>;
 
 /**
  * ONE EMERGENCY CALL-OUT RECORDED BEFORE 11/09/2026, when a call-out was a

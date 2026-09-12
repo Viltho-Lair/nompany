@@ -25,16 +25,19 @@ import { nextOccurrence, PLAN_FREQUENCIES } from "@/modules/operations/planSched
 import { addDaysISO } from "@/shared/dates";
 import { orderOpen } from "./model";
 import { isMeterUnit } from "./meters";
+import { isConditionPlan, conditionPlanProblem } from "./condition";
 
 export { PLAN_FREQUENCIES };
 
 /**
- * WHAT A PLAN RUNS ON. The calendar (every quarter), or a METER (every 250
- * running hours) — the second because a generator that sat idle all summer has
- * not worn a quarter's worth, and one run flat out through a shutdown has worn
- * three. Meter plans fall due on the machine's latest reading rather than a date.
+ * WHAT A PLAN RUNS ON. The calendar (every quarter); a METER (every 250 running
+ * hours) — because a generator that sat idle all summer has not worn a
+ * quarter's worth, and one run flat out through a shutdown has worn three; or a
+ * CONDITION (a bearing over 80 °C), which is the one trigger that is not a
+ * schedule at all: it fires on the machine's measured state rather than on
+ * anything anybody planned. See ./condition.
  */
-export const PLAN_TRIGGERS = ["calendar", "meter"] as const;
+export const PLAN_TRIGGERS = ["calendar", "meter", "condition"] as const;
 export type PlanTrigger = (typeof PLAN_TRIGGERS)[number];
 const isMeterPlan = (p: { trigger?: unknown }) => String(p.trigger ?? "").trim() === "meter";
 
@@ -78,6 +81,7 @@ type PlanLike = {
   id?: unknown; title?: unknown; status?: unknown; frequency?: unknown; scheduleMode?: unknown;
   nextDue?: unknown; leadDays?: unknown; checklist?: unknown;
   trigger?: unknown; assetId?: unknown; meterUnit?: unknown; meterEvery?: unknown; nextDueReading?: unknown;
+  conditionLabel?: unknown; conditionUnit?: unknown; limitLow?: unknown; limitHigh?: unknown;
 };
 
 /** Why this plan cannot be saved — or null. */
@@ -95,6 +99,10 @@ export function planProblem(plan: PlanLike): string | null {
     if (plan.nextDueReading === "" || plan.nextDueReading === null || !Number.isFinite(next) || next < 0) return "meter-next";
     return null;
   }
+  // A CONDITION PLAN IS NOT ON ANY SCHEDULE — no frequency, no due date, no
+  // interval. What it needs instead is a point to measure and a limit to
+  // breach, which ./condition owns.
+  if (isConditionPlan(plan)) return conditionPlanProblem(plan);
   if (!isFrequency(plan.frequency)) return "frequency";
   if (!ISO.test(text(plan.nextDue))) return "next-due";
   const lead = Number(plan.leadDays ?? 0);
@@ -171,8 +179,9 @@ export function raiseDecision(
   orders: readonly OrderLike[],
   today: string,
 ): { raise: boolean; occurrence: string; next: string | null } | null {
-  // A METER PLAN IS NOT ON THE CALENDAR — `meterRaiseDecision` answers it.
-  if (text(plan.status) !== "Active" || isMeterPlan(plan)) return null;
+  // NEITHER A METER PLAN NOR A CONDITION ONE IS ON THE CALENDAR —
+  // `meterRaiseDecision` and `conditionRaiseDecision` answer those.
+  if (text(plan.status) !== "Active" || isMeterPlan(plan) || isConditionPlan(plan)) return null;
   const occurrence = text(plan.nextDue);
   if (!ISO.test(occurrence) || !isFrequency(plan.frequency)) return null;
   const mine = orders.filter((o) => text(o.pmPlanId) === text(plan.id));
@@ -196,7 +205,9 @@ export function raiseDecision(
  * plan already moved when the order was raised, so it returns null.
  */
 export function nextDueOnClose(plan: PlanLike, order: OrderLike, status: string, closedDay: string): string | null {
-  if (text(plan.scheduleMode) !== "floating" || isMeterPlan(plan)) return null;
+  // A CONDITION PLAN HAS NO NEXT DUE DATE to move: it waits on the next
+  // reading, not on the calendar.
+  if (text(plan.scheduleMode) !== "floating" || isMeterPlan(plan) || isConditionPlan(plan)) return null;
   if (text(order.pmPlanId) !== text(plan.id) || text(order.pmDueOn) !== text(plan.nextDue)) return null;
   if (status === "Completed") return nextOccurrence(closedDay, plan.frequency) || null;
   if (status === "Cancelled") return nextOccurrence(text(order.pmDueOn), plan.frequency) || null;

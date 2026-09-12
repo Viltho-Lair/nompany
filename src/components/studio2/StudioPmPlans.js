@@ -49,12 +49,15 @@ export default function StudioPmPlans({ slug }) {
       estimatedHours: p.estimatedHours ?? "", checklist: (p.checklist || []).join("\n"),
       trigger: p.trigger || "calendar", meterUnit: p.meterUnit || "hours",
       meterEvery: p.meterEvery ? String(p.meterEvery) : "", nextDueReading: p.nextDueReading ?? "",
+      conditionLabel: p.conditionLabel || "", conditionUnit: p.conditionUnit || "",
+      limitLow: p.limitLow ?? "", limitHigh: p.limitHigh ?? "",
     }
     : {
       title: "", description: "", type: "preventive", priority: "normal", assetId: "", locationId: "",
       installedId: "", slaId: "",
       assignedToCollaboratorIds: [], frequency: "Monthly", scheduleMode: "fixed", nextDue: asOf, leadDays: "0",
       estimatedHours: "", checklist: "", trigger: "calendar", meterUnit: "hours", meterEvery: "", nextDueReading: "",
+      conditionLabel: "", conditionUnit: "", limitLow: "", limitHigh: "",
     });
 
   const payload = (f) => ({
@@ -64,6 +67,10 @@ export default function StudioPmPlans({ slug }) {
     meterEvery: Number(f.meterEvery) || 0,
     // BLANK STAYS BLANK — the server refuses it rather than reading nought.
     nextDueReading: String(f.nextDueReading ?? "").trim() === "" ? "" : Number(f.nextDueReading),
+    // AND ON EITHER LIMIT, where blank means "this side does not matter" while
+    // nought is a real limit — a freezer's ceiling is below zero.
+    limitLow: String(f.limitLow ?? "").trim() === "" ? "" : Number(f.limitLow),
+    limitHigh: String(f.limitHigh ?? "").trim() === "" ? "" : Number(f.limitHigh),
   });
   // THE SAME RULE THE SERVER REFUSES WITH, so Save is offered only when it would
   // be accepted.
@@ -105,7 +112,12 @@ export default function StudioPmPlans({ slug }) {
                 <Chip tone={priorityTone(p.priority)}>{tr.priorityName(p.priority)}</Chip>
               </p>
               <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-                {tr.typeName(p.type)} · {p.trigger === "meter" ? tr.everyMeter(p.meterEvery, p.meterUnit) : tr.frequencyName(p.frequency)} · {tr.modeName(p.scheduleMode)}
+                {/* A CONDITION POINT IS ON NO SCHEDULE, so it shows its BAND
+                    where the others show their interval — and no fixed/floating,
+                    which would be a choice that decides nothing here. */}
+                {p.trigger === "condition"
+                  ? `${tr.typeName(p.type)} · ${tr.bandOf(p.limitLow ?? null, p.limitHigh ?? null, p.conditionUnit || "")}`
+                  : `${tr.typeName(p.type)} · ${p.trigger === "meter" ? tr.everyMeter(p.meterEvery, p.meterUnit) : tr.frequencyName(p.frequency)} · ${tr.modeName(p.scheduleMode)}`}
               </p>
               <p className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm tabular-nums text-slate-600 dark:text-slate-300">
                 {p.status !== "Retired" && p.trigger === "meter" && (
@@ -113,7 +125,15 @@ export default function StudioPmPlans({ slug }) {
                     {tr.nextAt(p.nextDueReading, p.meterUnit)} · {p.currentReading != null ? tr.nowAt(p.currentReading, p.meterUnit) : tr.noReading}
                   </span>
                 )}
-                {p.status !== "Retired" && p.trigger !== "meter" && <span>{tr.nextDue}: {fmtDate(p.nextDue)}</span>}
+                {/* WHERE THE GAUGE STANDS. Nothing read is NOT "in range". */}
+                {p.status !== "Retired" && p.trigger === "condition" && (
+                  <span className={p.condition?.breach ? "font-600 text-rose-600 dark:text-rose-300" : ""}>
+                    {p.conditionLabel}: {p.condition
+                      ? `${tr.pointAt(p.condition.value, p.conditionUnit || "")} · ${p.condition.breach ? tr.breachName(p.condition.breach) : tr.inRange}`
+                      : tr.noPointReading}
+                  </span>
+                )}
+                {p.status !== "Retired" && p.trigger !== "meter" && p.trigger !== "condition" && <span>{tr.nextDue}: {fmtDate(p.nextDue)}</span>}
                 <span>{p.lastDoneOn ? tr.lastDone(fmtDate(p.lastDoneOn)) : tr.neverDone}</span>
                 <span>{p.compliance?.percent != null ? tr.complianceOf(p.compliance.percent, p.compliance.total) : tr.complianceNone}</span>
               </p>
@@ -166,10 +186,29 @@ export default function StudioPmPlans({ slug }) {
               <Field label={tr.trigger} as="select" required value={form.trigger}
                 onChange={(v) => setForm((f) => ({ ...f, trigger: v }))}
                 options={PLAN_TRIGGERS.map((x) => ({ value: x, label: tr.triggerName(x) }))} />
-              <Field label={tr.scheduleMode} as="select" required value={form.scheduleMode}
-                onChange={(v) => setForm((f) => ({ ...f, scheduleMode: v }))}
-                options={SCHEDULE_MODES.map((x) => ({ value: x, label: tr.modeName(x) }))} />
-              {form.trigger === "meter" ? (
+              {/* FIXED OR FLOATING DECIDES NOTHING FOR A CONDITION POINT: it
+                  has no next due date to move either way. */}
+              {form.trigger !== "condition" && (
+                <Field label={tr.scheduleMode} as="select" required value={form.scheduleMode}
+                  onChange={(v) => setForm((f) => ({ ...f, scheduleMode: v }))}
+                  options={SCHEDULE_MODES.map((x) => ({ value: x, label: tr.modeName(x) }))} />
+              )}
+              {form.trigger === "condition" ? (
+                <>
+                  <Field label={tr.conditionLabel} required value={form.conditionLabel}
+                    onChange={(v) => setForm((f) => ({ ...f, conditionLabel: v }))} inputProps={{ maxLength: 60 }} />
+                  {/* TYPED, NOT PICKED: any fixed list of units would be wrong
+                      for somebody, and a point's unit is the studio's own data. */}
+                  <Field label={tr.conditionUnit} required value={form.conditionUnit} hint={tr.conditionUnitHint}
+                    onChange={(v) => setForm((f) => ({ ...f, conditionUnit: v }))} inputProps={{ maxLength: 12 }} />
+                  {/* NO `min`: minus forty is a reading, and a cold store's
+                      whole band sits below nought. */}
+                  <Field label={tr.limitLow} type="number" value={form.limitLow} hint={tr.limitHint}
+                    onChange={(v) => setForm((f) => ({ ...f, limitLow: v }))} inputProps={{ step: "any" }} />
+                  <Field label={tr.limitHigh} type="number" value={form.limitHigh}
+                    onChange={(v) => setForm((f) => ({ ...f, limitHigh: v }))} inputProps={{ step: "any" }} />
+                </>
+              ) : form.trigger === "meter" ? (
                 <>
                   <Field label={tr.meterUnit} as="select" required value={form.meterUnit}
                     onChange={(v) => setForm((f) => ({ ...f, meterUnit: v }))}
@@ -211,7 +250,7 @@ export default function StudioPmPlans({ slug }) {
               <Field label={tr.estimatedHours} type="number" value={form.estimatedHours}
                 onChange={(v) => setForm((f) => ({ ...f, estimatedHours: v }))} inputProps={{ min: 0, step: 0.25 }} />
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400">{tr.modeHint}</p>
+            {form.trigger !== "condition" && <p className="text-xs text-slate-500 dark:text-slate-400">{tr.modeHint}</p>}
             <PeoplePicker people={pickers.people} value={form.assignedToCollaboratorIds} label={tr.assignedTo}
               hint={tr.assignedHint} onChange={(ids) => setForm((f) => ({ ...f, assignedToCollaboratorIds: ids }))} />
             <Field label={tr.checklist} as="textarea" value={form.checklist} hint={tr.checklistHint}

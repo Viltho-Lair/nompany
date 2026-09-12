@@ -47,9 +47,12 @@ import {
 } from "./schedule";
 import { METER_UNITS, latestReading, readingProblem } from "./meters";
 import {
+  MAX_CONDITION_LABEL, MAX_CONDITION_UNIT, conditionReadingProblem, conditionState, latestConditionReading,
+} from "./condition";
+import {
   CONTRACT_COVERS, contractProblem, contractSummary, contractVisits, callOutProblem,
 } from "./contracts";
-import type { LabourEntry, MeterReading, PmPlan, Sla, WorkOrder, WorkRequest } from "./schema";
+import type { ConditionReading, LabourEntry, MeterReading, PmPlan, Sla, WorkOrder, WorkRequest } from "./schema";
 import type { Section } from "@/platform/db/sections";
 import type { MaintenanceContext } from "./types";
 
@@ -58,6 +61,9 @@ const Orders = repo<WorkOrder>("workOrders");
 const Labour = repo<LabourEntry>("workOrderLabour");
 const Plans = repo<PmPlan>("pmPlans");
 const Readings = repo<MeterReading>("meterReadings");
+// WHAT A GAUGE SAID — its own collection beside the meters, because a meter
+// only ever goes up and a gauge does not (./condition).
+const Conditions = repo<ConditionReading>("conditionReadings");
 // INVENTORY'S, READ ONLY. Every movement is written by Inventory
 // (`moveForWorkOrder`); this reads what a work order used and what is on hand.
 const StockMoves = repo<Movement>("inventoryStock");
@@ -128,6 +134,9 @@ const requestScope = (ctx: MaintenanceContext) => ({ studio: ctx.studio, section
 const orderScope = (ctx: MaintenanceContext) => ({ studio: ctx.studio, section: ctx.ordersSection });
 const planScope = (ctx: MaintenanceContext) => ({ studio: ctx.studio, section: ctx.plansSection });
 const readingScope = (ctx: MaintenanceContext) => ({ studio: ctx.studio, section: ctx.assetsSection });
+// CONDITION READINGS ARE FILED WITH THE MACHINE TOO — an alias rather than a
+// second identical expression, so the day Machines moves, both move together.
+const conditionScope = readingScope;
 // NULL WHEN THE STUDIO HAS NOWHERE TO FILE A CONTRACT — a foreign section, so
 // its absence is an answer rather than a fall-back to somebody else's rows.
 const contractScope = (ctx: MaintenanceContext) => (ctx.slasSection ? { studio: ctx.studio, section: ctx.slasSection } : null);
@@ -649,7 +658,11 @@ export async function listMachines(ctx: MaintenanceContext) {
   if (denied) return denied;
   const asOf = now();
   if (!may(ctx, "engine.equipment.view")) return { machines: [], canSeeMachines: false, asOf };
-  const [machines, orders, partMoves, labour, readings] = await Promise.all([
+  // A MACHINE'S CONDITION POINTS ARE ITS PLANS, so they answer to the plans'
+  // own right — and a reader who may not open the plans is not read them here
+  // by another door. Neither read is made for such a reader at all.
+  const canSeePoints = may(ctx, "maintenance.plans.view");
+  const [machines, orders, partMoves, labour, readings, plans, conditions] = await Promise.all([
     equipment(ctx),
     Orders.find(orderScope(ctx)),
     ctx.stockSection
@@ -657,6 +670,8 @@ export async function listMachines(ctx: MaintenanceContext) {
       : Promise.resolve([] as Movement[]),
     Labour.find(orderScope(ctx)),
     Readings.find(readingScope(ctx)),
+    canSeePoints ? Plans.find(planScope(ctx)) : Promise.resolve([] as PmPlan[]),
+    canSeePoints ? Conditions.find(conditionScope(ctx)) : Promise.resolve([] as ConditionReading[]),
   ]);
   const stats = reliabilityByAsset(orders, asOf);
   // WHAT EACH MACHINE COST TO KEEP RUNNING: parts off the ledger, hours off the
@@ -681,6 +696,30 @@ export async function listMachines(ctx: MaintenanceContext) {
         createdByCollaboratorId: last.createdByCollaboratorId,
       }] : [];
     }),
+    // ITS CONDITION POINTS — a plan each, with where the gauge stands now.
+    // A RETIRED POINT IS NOT OFFERED: it is a plan nobody measures any more.
+    points: plans
+      .filter((p) => p.trigger === "condition" && p.assetId === r.id && p.status !== "Retired")
+      .map((p) => {
+        const last = latestConditionReading(conditions, p.id);
+        const state = conditionState(p, last);
+        return {
+          planId: p.id,
+          reference: p.reference,
+          label: p.conditionLabel || "",
+          unit: p.conditionUnit || "",
+          status: p.status,
+          low: p.limitLow ?? null,
+          high: p.limitHigh ?? null,
+          // NULL IS "NOBODY HAS MEASURED IT", which is not "it is fine" — and a
+          // point nobody reads is the one worth noticing.
+          value: state ? state.value : null,
+          readAt: state ? state.readAt : "",
+          breach: state ? state.breach : null,
+          readingId: last ? last.id : "",
+          readingBy: last ? last.createdByCollaboratorId : "",
+        };
+      }),
   })).sort((a, b) =>
     // THE ONES THAT NEED LOOKING AT FIRST: most failures, then least available.
     b.failures - a.failures
@@ -689,6 +728,7 @@ export async function listMachines(ctx: MaintenanceContext) {
   return {
     machines: rows, canSeeMachines: true, asOf, currency: String(ctx.studio.currency || ""),
     meterUnits: METER_UNITS,
+    canSeePoints,
     me: ctx.collaborator.id,
     // RECORDING A READING IS THE TECHNICIAN'S ACT — the right that moves the
     // work — and taking back somebody else's is the deleting right's.
@@ -746,6 +786,67 @@ export async function removeReading(ctx: MaintenanceContext, id: string) {
   return { ok: true };
 }
 
+// ---- condition readings --------------------------------------------------------
+
+/**
+ * RECORD WHAT A GAUGE SAYS. The same right as a meter reading — recording a
+ * measurement is the technician's act, not the planner's.
+ *
+ * REFUSED ONLY FOR BEING UNREADABLE OR IN THE FUTURE (`conditionReadingProblem`,
+ * pure). There is deliberately no rule about the last reading: a temperature
+ * falls, and yesterday's logbook is typed this morning. The route then asks the
+ * condition run whether this reading put the point out of range, so a breach
+ * raises its work order now rather than at tomorrow's cron.
+ */
+export async function recordConditionReading(ctx: MaintenanceContext, body: Record<string, unknown>) {
+  const denied = requirePermission(ctx.access, "maintenance.orders.edit");
+  if (denied) return denied;
+  const planId = str(body?.planId, 60);
+  const plan = planId ? await Plans.byId(planScope(ctx), planId) : null;
+  // THE POINT IS THE PLAN, so a reading with no condition plan behind it has
+  // nothing to be in range OF.
+  if (!plan || plan.trigger !== "condition") return { error: "condition-plan" };
+  if (plan.status === "Retired") return { error: "retired" };
+  const readAt = body?.readAt ? instant(body.readAt) : now();
+  const problem = conditionReadingProblem({ value: body?.value, readAt }, now());
+  if (problem) return { error: problem };
+  const reading = await Conditions.create(conditionScope(ctx), {
+    planId,
+    // COPIED FROM THE PLAN, never taken from the caller: the machine is the
+    // point's, and a reading naming a different one would be a measurement
+    // filed against equipment nobody took it from.
+    assetId: plan.assetId,
+    value: Number(body?.value),
+    readAt,
+    note: str(body?.note, 300),
+    createdByCollaboratorId: ctx.collaborator.id,
+    createdAt: now(),
+  });
+  return { reading };
+}
+
+/**
+ * TAKE BACK A MISTYPED READING — only the point's latest, and only by whoever
+ * recorded it or somebody who may delete work orders. The meter rule, for a
+ * softer reason: an earlier gauge reading is not something later ones were
+ * judged against, but it may already have raised work, and rewriting the
+ * history under an order would leave that order explaining itself with a
+ * reading that no longer exists.
+ */
+export async function removeConditionReading(ctx: MaintenanceContext, id: string) {
+  const denied = requirePermission(ctx.access, "maintenance.orders.edit");
+  if (denied) return denied;
+  const reading = await Conditions.byId(conditionScope(ctx), id);
+  if (!reading) return { error: "notfound" };
+  const siblings = await Conditions.find(conditionScope(ctx), { where: { planId: reading.planId } });
+  if (latestConditionReading(siblings, reading.planId)?.id !== reading.id) return { error: "not-latest" };
+  if (reading.createdByCollaboratorId !== ctx.collaborator.id && !may(ctx, "maintenance.orders.delete")) {
+    return { error: "not-yours" };
+  }
+  await Conditions.remove(conditionScope(ctx), id);
+  return { ok: true };
+}
+
 // ---- preventive plans ----------------------------------------------------------
 
 const PLAN_TYPES = ["preventive", "inspection"] as const;
@@ -778,6 +879,14 @@ function planFields(body: Record<string, unknown>) {
   if (has("nextDueReading")) {
     out.nextDueReading = body.nextDueReading === "" || body.nextDueReading === null ? null : Number(body.nextDueReading);
   }
+  if (has("conditionLabel")) out.conditionLabel = str(body.conditionLabel, MAX_CONDITION_LABEL);
+  if (has("conditionUnit")) out.conditionUnit = str(body.conditionUnit, MAX_CONDITION_UNIT);
+  // BLANK IS NULL ON EITHER LIMIT, judged by `planProblem`. Nought is a real
+  // limit — a freezer's ceiling is below it — so reading "no ceiling" as 0
+  // would put every gauge permanently over the top of its band.
+  for (const key of ["limitLow", "limitHigh"] as const) {
+    if (has(key)) out[key] = body[key] === "" || body[key] === null ? null : Number(body[key]);
+  }
   return out;
 }
 
@@ -792,11 +901,12 @@ export async function listPlans(ctx: MaintenanceContext) {
   const denied = requirePermission(ctx.access, "maintenance.plans.view");
   if (denied) return denied;
   const canSeeOrders = may(ctx, "maintenance.orders.view");
-  const [rows, orders, people, readings] = await Promise.all([
+  const [rows, orders, people, readings, conditions] = await Promise.all([
     Plans.find(planScope(ctx)),
     Orders.find(orderScope(ctx)),
     listCollaborators(ctx.studio.id),
     Readings.find(readingScope(ctx)),
+    Conditions.find(conditionScope(ctx)),
   ]);
   const { pickers, asset, unit, contract, location, aliasOf } = await lookups(ctx, people as Person[]);
   const asOf = now().slice(0, 10);
@@ -828,6 +938,11 @@ export async function listPlans(ctx: MaintenanceContext) {
       // WHERE THE METER IS NOW, for a plan that runs on one.
       currentReading: p.trigger === "meter"
         ? latestReading(readings, p.assetId, p.meterUnit || "")?.value ?? null
+        : null,
+      // WHERE THE GAUGE STANDS, for a plan that runs on one. Null when nobody
+      // has read it yet — which is not the same answer as "in range".
+      condition: p.trigger === "condition"
+        ? conditionState(p, latestConditionReading(conditions, p.id))
         : null,
     };
   }).sort((a, b) => {
@@ -878,6 +993,10 @@ export async function createPlan(ctx: MaintenanceContext, body: Record<string, u
     meterUnit: "",
     meterEvery: 0,
     nextDueReading: null,
+    conditionLabel: "",
+    conditionUnit: "",
+    limitLow: null,
+    limitHigh: null,
     installedId: "",
     slaId: "",
     ...draft,

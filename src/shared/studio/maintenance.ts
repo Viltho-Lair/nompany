@@ -190,6 +190,22 @@ type Strings = {
   readAt: string;
   meterReset: string;
   lastReading: (n: number, unit: string, when: string) => string;
+  conditionLabel: string;
+  conditionUnit: string;
+  conditionUnitHint: string;
+  limitLow: string;
+  limitHigh: string;
+  limitHint: string;
+  conditionPoints: string;
+  recordCondition: string;
+  conditionTitle: (label: string, name: string) => string;
+  conditionValue: string;
+  bandOf: (low: number | null, high: number | null, unit: string) => string;
+  pointAt: (n: number, unit: string) => string;
+  inRange: string;
+  breachName: (b: string) => string;
+  noPointReading: string;
+  lastCondition: (n: number, unit: string, when: string) => string;
   removeLast: string;
   contracts: string;
   contractsSub: string;
@@ -463,7 +479,7 @@ const en: Strings = {
   noStockItems: "Inventory has no items to issue.",
   hoursCol: "Hours booked",
   trigger: "Runs on",
-  triggerName: (t) => ({ calendar: "The calendar", meter: "A meter" }[t] || t),
+  triggerName: (t) => ({ calendar: "The calendar", meter: "A meter", condition: "A measurement" }[t] || t),
   meterUnit: "Meter",
   unitName: (t) => ({ hours: "Running hours", km: "Kilometres", cycles: "Cycles" }[t] || t),
   unitShort: (t) => ({ hours: "h", km: "km", cycles: "cycles" }[t] || t),
@@ -480,6 +496,27 @@ const en: Strings = {
   readAt: "Read at",
   meterReset: "The meter was replaced or reset",
   lastReading: (n, u, when) => `Last: ${n} ${({ hours: "h", km: "km", cycles: "cycles" })[u] || u} on ${when}`,
+  conditionLabel: "What is measured",
+  conditionUnit: "Unit",
+  conditionUnitHint: "°C, bar, mm/s — whatever the gauge reads in.",
+  limitLow: "Low limit",
+  limitHigh: "High limit",
+  limitHint: "Leave one blank where only the other matters.",
+  conditionPoints: "Condition",
+  recordCondition: "Reading",
+  conditionTitle: (label, name) => `${label} — ${name}`,
+  conditionValue: "Reading",
+  bandOf: (low, high, u) => {
+    if (low != null && high != null) return `${low}–${high} ${u}`;
+    if (high != null) return `at most ${high} ${u}`;
+    if (low != null) return `at least ${low} ${u}`;
+    return "";
+  },
+  pointAt: (n, u) => `${n} ${u}`,
+  inRange: "In range",
+  breachName: (b) => ({ low: "Below the low limit", high: "Above the high limit" }[b] || b),
+  noPointReading: "Not read yet",
+  lastCondition: (n, u, when) => `Last: ${n} ${u} on ${when}`,
   removeLast: "Remove it",
   contracts: "Service contracts (SLA)",
   contractsSub: "The maintenance you sell: a term, planned visits spread across it, and an allowance of call-outs. Each visit becomes a work order by itself when it falls due.",
@@ -611,6 +648,14 @@ const en: Strings = {
     "meter-unit": "Choose which meter the plan runs on.",
     "meter-every": "Every how many? Enter a number above nought.",
     "meter-next": "Enter the reading it is next due at.",
+    "condition-asset": "A condition point needs its machine.",
+    "condition-label": "Say what is measured.",
+    "condition-unit": "Enter the unit the gauge reads in.",
+    "condition-limits": "Set a low limit, a high limit, or both — a point with neither can never be out of range.",
+    "condition-order": "The low limit must be below the high one.",
+    "condition-value": "Enter the reading.",
+    "condition-future": "A reading cannot be in the future.",
+    "condition-plan": "That condition point no longer exists.",
     installed: "That unit is not in Field Service's installed base.",
     contract: "That service contract does not exist.",
     "not-covered": "This contract does not cover that unit.",
@@ -808,7 +853,7 @@ const ar: Strings = {
   noStockItems: "لا توجد أصناف في المخزون للصرف.",
   hoursCol: "الساعات المسجلة",
   trigger: "تعمل حسب",
-  triggerName: (t) => ({ calendar: "التقويم", meter: "عداد" }[t] || t),
+  triggerName: (t) => ({ calendar: "التقويم", meter: "عداد", condition: "قياس" }[t] || t),
   meterUnit: "العداد",
   unitName: (t) => ({ hours: "ساعات التشغيل", km: "الكيلومترات", cycles: "الدورات" }[t] || t),
   unitShort: (t) => ({ hours: "س", km: "كم", cycles: "دورة" }[t] || t),
@@ -825,6 +870,27 @@ const ar: Strings = {
   readAt: "وقت القراءة",
   meterReset: "استبدل العداد أو أعيد ضبطه",
   lastReading: (n, u, when) => `الأخيرة: ${n} ${({ hours: "س", km: "كم", cycles: "دورة" })[u] || u} في ${when}`,
+  conditionLabel: "ما الذي يقاس",
+  conditionUnit: "الوحدة",
+  conditionUnitHint: "درجة مئوية، بار، مم/ث — وحدة القياس التي يقرأ بها المقياس.",
+  limitLow: "الحد الأدنى",
+  limitHigh: "الحد الأعلى",
+  limitHint: "اترك احدهما فارغا اذا كان الاخر وحده هو المهم.",
+  conditionPoints: "القياس",
+  recordCondition: "قراءة",
+  conditionTitle: (label, name) => `${label} — ${name}`,
+  conditionValue: "القراءة",
+  bandOf: (low, high, u) => {
+    if (low != null && high != null) return `${low}–${high} ${u}`;
+    if (high != null) return `${high} ${u} على الاكثر`;
+    if (low != null) return `${low} ${u} على الاقل`;
+    return "";
+  },
+  pointAt: (n, u) => `${n} ${u}`,
+  inRange: "ضمن المدى",
+  breachName: (b) => ({ low: "دون الحد الأدنى", high: "فوق الحد الأعلى" }[b] || b),
+  noPointReading: "لم تؤخذ قراءة بعد",
+  lastCondition: (n, u, when) => `الأخيرة: ${n} ${u} في ${when}`,
   removeLast: "حذفها",
   contracts: "عقود الخدمة",
   contractsSub: "الصيانة التي تبيعها: مدة، وزيارات مخططة موزعة عليها، وعدد مسموح من البلاغات الطارئة. كل زيارة تصبح أمر عمل تلقائيا عند استحقاقها.",
@@ -956,6 +1022,14 @@ const ar: Strings = {
     "meter-unit": "اختر العداد الذي تعمل عليه الخطة.",
     "meter-every": "كل كم؟ أدخل رقما أكبر من صفر.",
     "meter-next": "أدخل القراءة التي تستحق عندها الخطة.",
+    "condition-asset": "نقطة القياس تحتاج آلتها.",
+    "condition-label": "حدد ما الذي يقاس.",
+    "condition-unit": "أدخل وحدة القياس.",
+    "condition-limits": "حدد حدا أدنى أو أعلى أو كليهما — نقطة بلا حد لا تخرج عن المدى أبدا.",
+    "condition-order": "الحد الأدنى يجب أن يكون دون الأعلى.",
+    "condition-value": "أدخل القراءة.",
+    "condition-future": "لا تسجل قراءة في المستقبل.",
+    "condition-plan": "نقطة القياس هذه لم تعد موجودة.",
     installed: "هذه الوحدة ليست في قاعدة المعدات المركبة.",
     contract: "عقد الخدمة هذا غير موجود.",
     "not-covered": "هذا العقد لا يغطي تلك الوحدة.",

@@ -339,6 +339,49 @@ every record until `scripts/migrate/fold-maintenance-registers.mjs` runs — dry
 Then the three registers are **switched off** (`enabled: false`) — undone from Studio settings →
 Sections. **Nothing is deleted.** Idempotent: every row written carries `legacyRecordId`.
 
+### Condition monitoring (12/09/2026)
+
+A reading OUT OF RANGE raises work. A bearing over 80 °C, an oil pressure under 5 bar: the
+machine's measured state, rather than a date or a meter, is what asks for somebody.
+
+**A CONDITION POINT IS A PLAN** — `trigger: "condition"`, beside `calendar` and `meter`. It
+holds what is measured, the unit, and a low limit, a high limit, or both. Making it a plan
+rather than a register of its own is what gives it one open order at a time, a checklist,
+assignees and the Active/Paused/Retired ladder for free — and it mints **no permission key**:
+the point answers to `maintenance.plans`, a reading to `maintenance.orders.edit`, exactly as a
+meter reading does. So it reaches every studio with no script and no rights to catch up.
+
+**A GAUGE IS NOT A METER, and that is why the readings are their own collection.** A meter is
+cumulative, and `readingProblem` enforces it: no value below the last, none dated behind the
+latest, none below nought. Every one of those is right for running hours and wrong for a
+temperature — which falls, is typed this morning off yesterday's logbook, and reads −40 in a
+cold store. Sharing the collection would have been worse than sharing the rules: half the rows
+in `meterReadings` would have been free to go down, and nothing reading it could have relied
+on the one property that makes a meter worth trusting.
+
+**THE LIMIT IS THE LAST ACCEPTABLE VALUE.** A ceiling of 80 is breached at 80.1, not at 80:
+somebody setting a limit is naming the worst they will accept. **Either limit may be absent,
+and absent is not nought** — plenty of points have only a ceiling or only a floor, and reading
+"no ceiling" as 0 would put every gauge permanently over the top of its band. A point with
+NEITHER limit is refused, because it could never be out of range and would sit there raising
+nothing, silently.
+
+**IDEMPOTENT BY THE READING'S ID, never its value.** Two breaches can read the same number, so
+keying on the number would silence the second one for ever. What the id buys is the flood
+guard: while the order is open nothing more is raised; once it is closed, the reading that
+raised it still breaches but already has its order, so nothing happens; and a NEW reading
+still out of range raises new work — which is the honest answer, because the machine is still
+out of range after somebody said they had put it right.
+
+**THE ORDER KEEPS THE PLAN'S OWN TYPE** rather than becoming corrective. The studio chose
+preventive or inspection when it set the point up, and corrective work must name what failed
+before it can be completed — which nobody can do for a reading that is merely drifting.
+
+Recorded on the Machines screen, where each machine lists its points; the reading is judged
+the moment it is saved (the conditions route), and the daily cron runs the same pass again as
+the recovery path, because that route swallows a failed run deliberately: a measurement is a
+fact about the machine, and losing it would be the wrong half to drop.
+
 ### The dashboard (12/09/2026)
 
 The section's root was a list of cards; it is a summary now — `maintenance.dashboard.view`,
@@ -418,8 +461,12 @@ paths, and nothing else is accepted.
 - **Moving a calibration record's status by date.** A certificate past its due date is warned
   about but stays Valid until somebody marks it; the register has no time-driven rule.
 - **Reminders for a plan that cannot raise** (a paused plan, or one held back by its open order).
-- **Condition-based plans** (a reading OUT OF RANGE — a temperature, a vibration — raising
-  work), gauges as opposed to cumulative meters, and readings from telematics.
+- **Readings from telematics** — every condition reading is typed by a person, so a machine
+  that could report its own temperature still waits for somebody to write it down.
+- **Warning bands as well as limits.** A point has one band, not a warn band inside an alarm
+  band, so "getting worse" and "out of range" are the same event.
+- **Trend over time.** Only the LATEST reading is judged; a point drifting steadily towards
+  its limit for a month reads exactly like one that has always been fine.
 - **Compliance for meter plans.** A meter plan's orders are not scored on time or late.
 - **Readings taken on a work order or its checklist.** A reading is recorded on the machine.
 - **Response and resolution targets.** A service contract promises visits and call-outs; it

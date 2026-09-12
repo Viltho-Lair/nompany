@@ -21,14 +21,39 @@ import { listSections } from "@/platform/db/sections";
 import { getStudioById } from "@/modules/main/studios";
 import { raiseDecision, meterRaiseDecision, checklistFor } from "./schedule";
 import { latestReading } from "./meters";
+import { conditionRaiseDecision, latestConditionReading } from "./condition";
 import { contractRaiseDecision } from "./contracts";
 import { writeOrder, announce } from "./maintenance";
-import type { MeterReading, PmPlan, Sla, WorkOrder } from "./schema";
+import type { ConditionReading, MeterReading, PmPlan, Sla, WorkOrder } from "./schema";
 
 const Plans = repo<PmPlan>("pmPlans");
 const Orders = repo<WorkOrder>("workOrders");
 const Readings = repo<MeterReading>("meterReadings");
+const Conditions = repo<ConditionReading>("conditionReadings");
 const Contracts = repo<Sla>("slas");
+
+/**
+ * WHAT A PLAN'S ORDER CARRIES, whatever triggered it — a calendar date, a meter
+ * crossing or a gauge out of range. ONE copy: three would be three places to
+ * forget the contract link, and the one that forgot would be the trigger
+ * nobody looks at.
+ */
+const planOrderFields = (plan: PmPlan) => ({
+  title: plan.title,
+  description: plan.description,
+  type: plan.type,
+  priority: plan.priority,
+  assetId: plan.assetId,
+  locationId: plan.locationId,
+  // A PLAN FOR A CUSTOMER'S UNIT, UNDER A CONTRACT — both carried, so the order
+  // says whose equipment and which promise it keeps.
+  installedId: plan.installedId || "",
+  slaId: plan.slaId || "",
+  assignedToCollaboratorIds: plan.assignedToCollaboratorIds || [],
+  estimatedHours: plan.estimatedHours,
+  pmPlanId: plan.id,
+  checklist: checklistFor(plan.checklist || []),
+});
 
 export async function raiseDuePmOrders(studioId: string, todayISO: string): Promise<number> {
   const sections = await listSections(studioId);
@@ -50,23 +75,7 @@ export async function raiseDuePmOrders(studioId: string, todayISO: string): Prom
   const scope = { studio: { id: studioId, numbering: (studio as { numbering?: unknown }).numbering }, section: ordersSection };
 
   const raise = async (plan: PmPlan, extra: Record<string, unknown>) => {
-    const order = await writeOrder(scope, {
-      title: plan.title,
-      description: plan.description,
-      type: plan.type,
-      priority: plan.priority,
-      assetId: plan.assetId,
-      locationId: plan.locationId,
-      // A PLAN FOR A CUSTOMER'S UNIT, UNDER A CONTRACT — both carried, so the
-      // order says whose equipment and which promise it keeps.
-      installedId: plan.installedId || "",
-      slaId: plan.slaId || "",
-      assignedToCollaboratorIds: plan.assignedToCollaboratorIds || [],
-      estimatedHours: plan.estimatedHours,
-      pmPlanId: plan.id,
-      checklist: checklistFor(plan.checklist || []),
-      ...extra,
-    }, "system");
+    const order = await writeOrder(scope, { ...planOrderFields(plan), ...extra }, "system");
     orders.push(order);
     await announce(studioId, order, []);
   };
@@ -99,6 +108,65 @@ export async function raiseDuePmOrders(studioId: string, todayISO: string): Prom
       await Plans.update({ studio: at, section: plansSection }, plan.id, (row) =>
         (row.nextDue === d.occurrence ? { nextDue: next, updatedAt: stamp } : {}));
     }
+  }
+  return raised;
+}
+
+/**
+ * A GAUGE OUT OF RANGE RAISES WORK — condition monitoring's run.
+ *
+ * NORMALLY CALLED THE MOMENT A READING IS RECORDED (the conditions route), so a
+ * bearing that has just gone over 80 °C raises its order now. The daily cron
+ * calls it too, as the RECOVERY pass: that route swallows a failed run
+ * deliberately, because a measurement is a fact about the machine and losing it
+ * would be the wrong half to drop.
+ *
+ * IDEMPOTENT BY THE READING that breached, never by its value — two breaches
+ * can read the same number (`conditionRaiseDecision`, pure and tested). So a
+ * second run the same morning raises nothing, and a point still out of range
+ * after its order was closed raises again only when somebody takes a NEW
+ * reading: the machine is still out of range after being called fixed.
+ *
+ * THE ORDER KEEPS THE PLAN'S OWN TYPE rather than becoming corrective. The
+ * studio chose preventive or inspection when it set the point up, and
+ * corrective work must name what failed at completion (`orderMoveProblem`) —
+ * which nobody can do for a reading that is merely drifting.
+ */
+export async function raiseDueConditionOrders(studioId: string, todayISO: string): Promise<number> {
+  const sections = await listSections(studioId);
+  const plansSection = sections.find((s) => s.key === "maintenance-plans");
+  const ordersSection = sections.find((s) => s.key === "maintenance-orders");
+  const assetsSection = sections.find((s) => s.key === "maintenance-assets");
+  // No Maintenance, or nowhere to file a reading: nothing to raise, and not
+  // something to plant from a cron.
+  if (!plansSection || !ordersSection || !assetsSection) return 0;
+  const studio = await getStudioById(studioId);
+  if (!studio) return 0;
+
+  const at = { id: studioId };
+  const [plans, orders, readings] = await Promise.all([
+    Plans.find({ studio: at, section: plansSection }),
+    Orders.find({ studio: at, section: ordersSection }),
+    Conditions.find({ studio: at, section: assetsSection }),
+  ]);
+  const scope = { studio: { id: studioId, numbering: (studio as { numbering?: unknown }).numbering }, section: ordersSection };
+
+  let raised = 0;
+  for (const plan of plans) {
+    if (plan.trigger !== "condition") continue;
+    const d = conditionRaiseDecision(plan, orders, latestConditionReading(readings, plan.id));
+    if (!d || !d.raise) continue;
+    const order = await writeOrder(scope, {
+      ...planOrderFields(plan),
+      // THE BREACH IS NOW, so the work is due now.
+      dueOn: todayISO,
+      conditionReadingId: d.readingId,
+      conditionValue: d.value,
+      conditionBreach: d.breach,
+    }, "system");
+    orders.push(order);
+    await announce(studioId, order, []);
+    raised += 1;
   }
   return raised;
 }

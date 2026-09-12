@@ -32,14 +32,20 @@ export default function StudioMachines({ slug }) {
   // ...and the readings, filed under Machines itself.
   useLiveUpdates(slug, "maintenance-assets", reload);
   const [reading, setReading] = useState(null);
+  const [point, setPoint] = useState(null);
 
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <ScreenSkeleton loadingLabel={tr.loading} />;
 
-  const { machines = [], canSeeMachines, currency = "", meterUnits = [], me, canRecord, canRemoveAny } = data;
+  const { machines = [], canSeeMachines, currency = "", meterUnits = [], canSeePoints, me, canRecord, canRemoveAny } = data;
   const dash = <span className="text-slate-400">—</span>;
   const machine = reading ? machines.find((m) => m.id === reading.assetId) : null;
   const last = machine ? (machine.meters || []).find((x) => x.unit === reading.unit) : null;
+  // READ BACK OFF THE LIST rather than held in the dialog's own state, so
+  // saving or taking back a reading moves what the dialog says about it.
+  const livePoint = point
+    ? (machines.find((m) => m.id === point.assetId)?.points || []).find((x) => x.planId === point.planId)
+    : null;
 
   return (
     <div className="space-y-6">
@@ -56,12 +62,16 @@ export default function StudioMachines({ slug }) {
       ) : (
         <section className={`${panel} p-0`}>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1080px] text-sm">
+            <table className="w-full min-w-[1200px] text-sm">
               <thead>
                 <tr className="border-b border-slate-100 dark:border-white/5">
                   <th className={th}>{tr.asset}</th>
                   <th className={th}>{tr.statusCol}</th>
                   <th className={th}>{tr.meters}</th>
+                  {/* A POINT IS A PLAN, so the column is there only for
+                      somebody who may open the plans — and the server made
+                      neither read for anybody else. */}
+                  {canSeePoints && <th className={th}>{tr.conditionPoints}</th>}
                   <th className={`${th} text-end`}>{tr.failures}</th>
                   <th className={`${th} text-end`}>{tr.mtbf}</th>
                   <th className={`${th} text-end`}>{tr.mttr}</th>
@@ -91,6 +101,29 @@ export default function StudioMachines({ slug }) {
                         </button>
                       )}
                     </td>
+                    {canSeePoints && (
+                      <td className={td}>
+                        {(m.points || []).length ? m.points.map((pt) => (
+                          <p key={pt.planId} className="tabular-nums">
+                            {/* NOT READ YET IS NOT IN RANGE — a point nobody
+                                measures is the one worth noticing. */}
+                            <span className={pt.breach ? "font-600 text-rose-600 dark:text-rose-300" : "text-slate-600 dark:text-slate-300"}>
+                              {pt.label}: {pt.value != null ? tr.pointAt(pt.value, pt.unit) : tr.noPointReading}
+                            </span>
+                            {canRecord && (
+                              <button type="button" className={`${btnRow} ms-2 text-xs`}
+                                onClick={() => setPoint({
+                                  planId: pt.planId, assetId: m.id, name: m.name, label: pt.label, unit: pt.unit,
+                                  low: pt.low, high: pt.high,
+                                  value: "", readAt: toLocalInput(new Date().toISOString()), note: "",
+                                })}>
+                                {tr.recordCondition}
+                              </button>
+                            )}
+                          </p>
+                        )) : dash}
+                      </td>
+                    )}
                     <td className={`${td} text-end tabular-nums`}>
                       <span className={m.failures ? "font-600 text-slate-900 dark:text-white" : "text-slate-500"}>{m.failures}</span>
                       {m.lastFailureAt && <p className="text-xs text-slate-400">{fmtDate(m.lastFailureAt)}</p>}
@@ -159,6 +192,49 @@ export default function StudioMachines({ slug }) {
                     readAt: fromLocalInput(reading.readAt), reset: reading.reset, note: reading.note,
                   }, "maintenance/readings");
                   if (done) setReading(null);
+                }}>
+                {busy ? tr.saving : tr.save}
+              </button>
+            </div>
+          </div>
+        </Dialog>
+      )}
+
+      {/* A CONDITION READING. The band is shown while it is typed, because a
+          number means nothing without the limits it is judged against — and a
+          reading out of range raises its work order the moment it is saved. */}
+      {point && (
+        <Dialog title={tr.conditionTitle(point.label, point.name)} onClose={() => setPoint(null)} width="max-w-[520px]">
+          <div className="space-y-4">
+            <p className="text-sm text-slate-500 dark:text-slate-400">{tr.bandOf(point.low, point.high, point.unit)}</p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {/* NO `min`, deliberately: minus forty is a reading, and a cold
+                  store's whole band sits below nought. */}
+              <Field label={tr.conditionValue} type="number" required value={point.value}
+                onChange={(v) => setPoint((p) => ({ ...p, value: v }))} inputProps={{ step: "any" }} />
+              <Field label={tr.readAt} type="datetime-local" required value={point.readAt}
+                onChange={(v) => setPoint((p) => ({ ...p, readAt: v }))} />
+            </div>
+            {livePoint?.value != null && (
+              <p className="flex flex-wrap items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+                {tr.lastCondition(livePoint.value, livePoint.unit, fmtDateTime(livePoint.readAt))}
+                {(livePoint.readingBy === me || canRemoveAny) && (
+                  <button type="button" disabled={busy} className="text-xs text-rose-600 hover:underline dark:text-rose-300"
+                    onClick={() => send("DELETE", { id: livePoint.readingId }, "maintenance/conditions")}>{tr.removeLast}</button>
+                )}
+              </p>
+            )}
+            <Field label={tr.note} value={point.note}
+              onChange={(v) => setPoint((p) => ({ ...p, note: v }))} inputProps={{ maxLength: 300 }} />
+            <div className="flex justify-end gap-2">
+              <button type="button" className={btnGhost} onClick={() => setPoint(null)}>{tr.cancel}</button>
+              <button type="button" className={btn} disabled={busy || String(point.value).trim() === ""}
+                onClick={async () => {
+                  const done = await send("POST", {
+                    planId: point.planId, value: Number(point.value),
+                    readAt: fromLocalInput(point.readAt), note: point.note,
+                  }, "maintenance/conditions");
+                  if (done) setPoint(null);
                 }}>
                 {busy ? tr.saving : tr.save}
               </button>

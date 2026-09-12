@@ -950,8 +950,11 @@ export const SECTION_COLLECTIONS = {
   // under Work orders like any other, so a plan's history is read from there.
   "maintenance-plans": ["pmPlans"],
   // HOW FAR EACH MACHINE HAS RUN — filed with the machine's record, which is
-  // what a meter plan reads to fall due.
-  "maintenance-assets": ["meterReadings"],
+  // what a meter plan reads to fall due. CONDITION READINGS sit beside them and
+  // are deliberately NOT the same collection: a meter only ever goes up and
+  // `readingProblem` enforces it, while a gauge falls, is back-dated off a
+  // logbook and reads below nought (modules/maintenance/condition.ts).
+  "maintenance-assets": ["meterReadings", "conditionReadings"],
   // A BILL OF MATERIALS' LINES, on the Manufacturing ROOT rather than under
   // the BOM engine register. The register's rows live in `engineRecords`
   // under `engine-bom`, and a collection under a section only some studios
