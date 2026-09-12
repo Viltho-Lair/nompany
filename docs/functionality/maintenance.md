@@ -417,7 +417,6 @@ paths, and nothing else is accepted.
   question for the owner.
 - **A Maintenance dashboard.** The root shows its five sub-sections as cards — no backlog,
   no compliance figure, no cost.
-- **The customer-unit and contract pickers have not been SEEN.** Each is offered only where
-  its register has rows, and the sandbox has no installed base, so the two dropdowns on a work
-  order and a plan are verified by tests and types alone. Everything else in this section was
-  opened and driven in the sandbox on 12/09/2026 (below).
+- **The store-backed suite has not been run** against this section; everything in it was opened
+  and driven in the sandbox on 12/09/2026, including the customer-unit and contract pickers
+  (each offered only where its register has rows).
