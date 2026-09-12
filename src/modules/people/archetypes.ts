@@ -356,6 +356,11 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
     grants: [
       ["inventory.stock", "full"], ["inventory.items", "full"], ["inventory.sheets", "edit"],
       ["logistics.shipments", "edit"], ["inventory.dashboard", "view"],
+      // THE SECTION OVERVIEW GOES TO WHOEVER RUNS THE SECTION — the argument
+      // `inventory.dashboard` already makes one line up. This shape holds
+      // Maintenance in full (requests, orders, plans), so the summary of that
+      // work is its own screen rather than a right only Admin can reach.
+      ["maintenance.dashboard", "view"],
       // PLANT IS STOCK THAT DRIVES AWAY. Whoever controls materials is who
       // books a machine out to a job and back again, and the register that
       // records it had no job title reaching it at all.

@@ -162,6 +162,11 @@ const StudioServiceContracts = nextDynamic(
   () => import("@/components/studio2/StudioServiceContracts"),
   { loading: () => <ScreenSkeleton /> },
 );
+// The section's own summary, which is why `maintenance.dashboard.view` exists.
+const MaintenanceDashboard = nextDynamic(
+  () => import("@/components/studio2/MaintenanceDashboard"),
+  { loading: () => <ScreenSkeleton /> },
+);
 // The purchase order register (tier 5) — see StudioPurchaseOrders.
 const StudioPurchaseOrders = nextDynamic(
   () => import("@/components/studio2/StudioPurchaseOrders"),
@@ -893,6 +898,10 @@ async function renderStudio(params) {
         // have gone on saying it.
         : active?.key === "procurement"
           ? <ProcurementDashboard slug={studio.slug} />
+        // MAINTENANCE'S ROOT IS A SUMMARY NOW, not the generic card list — the
+        // same move Procurement made, and what its dashboard right gates.
+        : active?.key === "maintenance"
+          ? <MaintenanceDashboard slug={studio.slug} />
         : active?.key === "maintenance-requests"
           ? <StudioWorkRequests slug={studio.slug} />
         : active?.key === "maintenance-orders"

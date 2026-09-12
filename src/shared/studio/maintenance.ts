@@ -247,6 +247,30 @@ type Strings = {
   callOutChip: string;
   keptByPlans: (refs: string) => string;
   legacyCost: string;
+  dashboard: string;
+  dashboardSub: (asOf: string) => string;
+  openWork: string;
+  waitingTriage: string;
+  machinesDown: string;
+  backlogByPriority: string;
+  backlogHint: string;
+  unassignedCount: (n: number) => string;
+  mineCount: (n: number) => string;
+  nothingOpen: string;
+  compliance: string;
+  complianceHint: string;
+  activePlansCount: (n: number) => string;
+  contractsHint: string;
+  activeContracts: string;
+  endingSoon: string;
+  missedVisits: string;
+  worstMachines: string;
+  worstHint: string;
+  failuresAndAvailability: (failures: number, availability: number | null) => string;
+  noFailures: string;
+  costTitle: string;
+  costHint: string;
+  costFootnote: string;
   refuse: Record<string, string>;
 };
 
@@ -515,6 +539,31 @@ const en: Strings = {
   callOutChip: "Call-out",
   keptByPlans: (refs) => `Its visits are raised by its preventive ${refs ? `plans: ${refs}` : "plans"}.`,
   legacyCost: "Cost recorded in the old register",
+  dashboard: "Maintenance",
+  dashboardSub: (asOf) => `Where the work stands on ${asOf}: what is open, what is late, and what it is costing.`,
+  openWork: "Open work",
+  waitingTriage: "Waiting on triage",
+  machinesDown: "Machines stopped",
+  backlogByPriority: "Backlog by priority",
+  backlogHint: "Open work orders — on hold included",
+  unassignedCount: (n) => `${n} with nobody on ${n === 1 ? "it" : "them"}`,
+  mineCount: (n) => `${n} assigned to you`,
+  nothingOpen: "No open work orders.",
+  compliance: "Planned work done on time",
+  complianceHint: "Across every preventive plan",
+  activePlansCount: (n) => `${n} active ${n === 1 ? "plan" : "plans"}`,
+  contractsHint: "What the studio sells, and what it owes",
+  activeContracts: "active",
+  endingSoon: "ending in 60 days",
+  missedVisits: "missed visits",
+  worstMachines: "Machines needing most attention",
+  worstHint: "Failures over the last twelve months, worst first",
+  failuresAndAvailability: (failures, availability) =>
+    `${failures} ${failures === 1 ? "failure" : "failures"}${availability == null ? "" : ` · ${availability}% available`}`,
+  noFailures: "No failures recorded in the last twelve months.",
+  costTitle: "Parts and hours",
+  costHint: "Charged to work orders over the last twelve months",
+  costFootnote: "Hours stay hours: nothing yet says what one costs.",
   refuse: {
     title: "Say what is wrong.",
     asset: "That machine is not in this studio's equipment register.",
@@ -835,6 +884,31 @@ const ar: Strings = {
   callOutChip: "بلاغ طارئ",
   keptByPlans: (refs) => `زياراته تنشئها خططه الوقائية${refs ? `: ${refs}` : ""}.`,
   legacyCost: "التكلفة المسجلة في السجل القديم",
+  dashboard: "الصيانة",
+  dashboardSub: (asOf) => `حال العمل في ${asOf}: ما هو مفتوح، وما تأخر، وكم يكلف.`,
+  openWork: "عمل مفتوح",
+  waitingTriage: "بانتظار الفرز",
+  machinesDown: "آلات متوقفة",
+  backlogByPriority: "العمل المفتوح حسب الأولوية",
+  backlogHint: "أوامر العمل المفتوحة، ومنها المعلقة",
+  unassignedCount: (n) => `${n} بلا مسؤول`,
+  mineCount: (n) => `${n} مسندة إليك`,
+  nothingOpen: "لا توجد أوامر عمل مفتوحة.",
+  compliance: "العمل المخطط المنجز في موعده",
+  complianceHint: "عبر كل الخطط الوقائية",
+  activePlansCount: (n) => `${n} خطة نشطة`,
+  contractsHint: "ما تبيعه من صيانة، وما يترتب عليه",
+  activeContracts: "سارية",
+  endingSoon: "تنتهي خلال 60 يوما",
+  missedVisits: "زيارات فائتة",
+  worstMachines: "الآلات الأكثر حاجة للمتابعة",
+  worstHint: "الأعطال خلال آخر 12 شهرا، الأكثر أولا",
+  failuresAndAvailability: (failures, availability) =>
+    `${failures} عطل${availability == null ? "" : ` · إتاحة ${availability}%`}`,
+  noFailures: "لا أعطال مسجلة خلال آخر 12 شهرا.",
+  costTitle: "القطع والساعات",
+  costHint: "المحملة على أوامر العمل خلال آخر 12 شهرا",
+  costFootnote: "الساعات تبقى ساعات: لا شيء يحدد بعد تكلفة الساعة.",
   refuse: {
     title: "اذكر ما المشكلة.",
     asset: "هذه الآلة ليست في سجل معدات هذا الحساب.",

@@ -91,7 +91,12 @@ export const SECTION_AREAS: Readonly<Record<string, readonly string[]>> = {
   // Assets renders through its engine registers; this is the one thing the
   // ROOT owns, so the section has an area of its own as well as children.
   assets: ["assets.utilisation"],
-  // The root has no area of its own; it is visible when a child is.
+  // THE ROOT HAS A DASHBOARD OF ITS OWN SINCE 12/09/2026, so it has an area as
+  // well as children — the shape `projects` and `procurement` already have.
+  // `sectionViewable` asks this first and still falls through to the children,
+  // so withholding the summary hides the figures without closing the registers
+  // underneath it.
+  maintenance: ["maintenance.dashboard"],
   "maintenance-requests": ["maintenance.requests"],
   "maintenance-orders": ["maintenance.orders"],
   "maintenance-plans": ["maintenance.plans"],

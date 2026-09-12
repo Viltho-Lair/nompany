@@ -109,6 +109,11 @@ const DASHBOARD_MODULES = [
   // added as a group label with nothing enforcing it.
   ["procurement", "Procurement & Subcontracting"],
   ["finance", "Finance & Accounting"], ["fieldService", "Field Operations & Service"],
+  // MAINTENANCE JOINS ON THE SAME TERMS (12/09/2026): its root renders a
+  // summary of its own now — the backlog, what is overdue, PM compliance, cost
+  // and the machines that fail most — rather than falling through to the
+  // generic section dashboard. The right exists because that screen does.
+  ["maintenance", "Maintenance"],
 ] as const;
 type DashboardModule = (typeof DASHBOARD_MODULES)[number][0];
 

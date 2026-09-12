@@ -37,6 +37,7 @@ export const WIDGET_SECTIONS: { key: string; label: string }[] = [
   { key: "hr", label: "HR" },
   { key: "finance", label: "Finance" },
   { key: "field-service", label: "Operations" },
+  { key: "maintenance", label: "Maintenance" },
   // REPORTS & BI JOINS THE REGISTRY, and it is the ninth section to do so
   // rather than a special case: the executive board is analysis over records
   // a reader can already open, which is exactly what this registry sells.
@@ -157,6 +158,16 @@ export const DASHBOARD_WIDGETS: WidgetDef[] = [
   { key: "operations.hours-by-location", label: "Hours by location", section: "field-service", rung: "moderate" },
   { key: "operations.state-by-type", label: "Permit state by type", section: "field-service", rung: "moderate" },
   { key: "operations.shift-heat", label: "Rota by location and day", section: "field-service", rung: "moderate" },
+  // Maintenance (12/09/2026). The free floor — open work, what is overdue, what
+  // is waiting on triage, what is stopped — is NOT here, on the registry's own
+  // rule: a studio that cannot see its own broken machines because it did not
+  // buy analytics is being sold its own problems back. A key is registered when
+  // a widget draws it, never ahead of one.
+  { key: "maintenance.backlog-by-priority", label: "Backlog by priority", section: "maintenance", rung: "simple" },
+  { key: "maintenance.pm-compliance", label: "Planned work done on time", section: "maintenance", rung: "simple" },
+  { key: "maintenance.contracts", label: "Service contracts", section: "maintenance", rung: "simple" },
+  { key: "maintenance.worst-machines", label: "Machines needing most attention", section: "maintenance", rung: "moderate" },
+  { key: "maintenance.cost", label: "Parts and hours", section: "maintenance", rung: "moderate" },
   // Reports & BI
   //
   // THE FIGURES ARE FREE AND THE COMPARISON IS SOLD, which is the split the

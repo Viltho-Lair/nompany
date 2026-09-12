@@ -339,6 +339,36 @@ every record until `scripts/migrate/fold-maintenance-registers.mjs` runs — dry
 Then the three registers are **switched off** (`enabled: false`) — undone from Studio settings →
 Sections. **Nothing is deleted.** Idempotent: every row written carries `legacyRecordId`.
 
+### The dashboard (12/09/2026)
+
+The section's root was a list of cards; it is a summary now — `maintenance.dashboard.view`,
+minted the way every other module dashboard is (`DASHBOARD_MODULES`), and reached by the
+custodian shape as well as Admin, because the section overview belongs to whoever runs the
+section. One route (`maintenance/dashboard`) answers all five registers at once, since five
+client fetches would be five context resolutions for one page.
+
+**IT HAS NO ARITHMETIC OF ITS OWN.** Every figure comes from the pure model that already owns
+it — `orderOpen`/`orderOverdue` for the backlog, `planCompliance` for planned work,
+`reliabilityByAsset` for failures and availability, `costByAsset`/`partsCostByOrder` for what
+was spent, `contractSummary` for the contracts, `requestState` for what is waiting on triage. A
+dashboard that recounted any of them would be a second answer free to disagree with the screen
+it summarises, which is what `salesAnalytics` did until the pipeline registry took its copies
+away.
+
+**A BLOCK THE READER MAY NOT OPEN IS NEVER READ**, so it costs no round trip and no figure
+derived from records somebody cannot open reaches them by this door — customer 360's rule. `may`
+travels with the answer, so an absent block reads as "not yours" rather than "nothing to report".
+
+**The free floor is never gated**: open work, overdue, waiting on triage, and machines stopped
+right now. A studio that cannot see its own broken machines because it did not buy analytics is
+being sold its own problems back. Five widgets carry registry keys and are sold with analytics:
+backlog by priority, PM compliance, service contracts, the machines needing most attention, and
+parts and hours.
+
+**Nothing on it is a new number.** PM compliance is null rather than 0% when nothing has fallen
+due, availability is absent rather than 100% for a machine with no history, and hours stay hours
+because nothing yet says what one costs.
+
 ### What a record points at
 
 **The machine is the Assets register's** — an engine `equipment` record, which stays filed
@@ -411,12 +441,11 @@ paths, and nothing else is accepted.
 - **QR tags, supplier work orders, permit gating, check-in, offline.**
 - **Moving the machine's status.** Starting work does not set the equipment record to
   "Under repair".
-- **Reporting a fault from any department.** A role is confined to its department's
-  sections (the owner's rule, 11/09/2026), so only departments listing Maintenance can raise
-  a request by default. Whether everybody should, the way everybody has Tasks, is an open
-  question for the owner.
-- **A Maintenance dashboard.** The root shows its five sub-sections as cards — no backlog,
-  no compliance figure, no cost.
+**DECIDED, 12/09/2026 — REPORTING A FAULT IS FOR SELECTED PEOPLE, NOT EVERYBODY.** The owner,
+asked whether anybody should be able to raise a work request the way anybody can raise a task:
+*"no only selected users."* So it stays a granted right: a role is confined to its department's
+sections (11/09/2026), and only a role holding `maintenance.requests.create` reports a fault.
+Nothing to build — this closes the question rather than opening work.
 - **The store-backed suite has not been run** against this section; everything in it was opened
   and driven in the sandbox on 12/09/2026, including the customer-unit and contract pickers
   (each offered only where its register has rows).

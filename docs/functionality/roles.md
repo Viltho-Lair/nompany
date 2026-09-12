@@ -310,8 +310,11 @@ changed entry reaches nobody; a new id is how a second thought travels.
 
 - **A person's individual overrides do not catch up.** The catch-up reaches ROLES; somebody
   granted a right on their own row is still a person's job, which is what the scripts reported.
-- **A right with no predecessor cannot catch up.** `tendering.tenders` was new to the product
-  with nothing to key off, so nothing can say which existing role should hold it.
+- **A right with no predecessor cannot catch up, and that is now the rule rather than a gap.**
+  The owner, 12/09/2026: *"it will have specific roles."* A brand-new right — `tendering.tenders`
+  was one, with nothing to key off — is granted to the roles a person names, never inferred and
+  never handed to everybody. A catch-up entry may only follow a right a role already holds; where
+  there is none, the answer is a decision, so it is asked rather than guessed.
 - **Access is not constrained by department**, deliberately. A department's
   `sectionKeys` shapes what a pre-built role is copied with and nothing else —
   the grid still offers every key.
