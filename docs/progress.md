@@ -362,7 +362,10 @@ control a stocktake exists to be. But **`Adjusted` MOVES NO STOCK** — the regi
 that a count happened and what it found; the adjustment is Inventory's own write and is
 not wired to this) · Locations & bins ✅ (09/09/2026) · Batch & serial lifecycle ✅
 (09/09/2026) · Adjustment approval ✅ (09/09/2026) · Dashboard ✅ · Valuation method ✅
-(09/09/2026)
+(09/09/2026; **the METHOD was the setting and the VALUATION had no screen until 12/09/2026**
+— `stockValuation` and its route shipped with the setting and nothing fetched either, so a
+studio could choose a policy and never see what it produced. It is the Stock screen's fifth
+tab now, and it names which method it used beside which one the studio actually uses)
 
 **THE HEADING SAID 6 / 8 OVER A LIST OF NINE, AND ONE OF THE NINE WAS ALREADY BUILT.**
 `InventoryDashboard` has rendered on the section root since before the restructure —
@@ -573,6 +576,14 @@ stock at the order price alone understates what it holds — for an importing co
 routinely by a fifth — and quoting from that cost quotes below what the material really
 cost to get. Catalogue 183 → 184 (`logistics.landedCost`), its own area because booking an
 air waybill and reconciling a duty invoice against an order are different jobs.
+
+**AND IT HAS A SCREEN SINCE 12/09/2026.** The module, the route and the arithmetic shipped
+with the section and **nothing fetched any of it** — a complete feature the studio paid for
+and could not open. `LandedCostPanel` sits on the Logistics root beside the register summary.
+Making it usable meant changing `listLandedCosts`, which returned only orders that already
+had charges: a reconciliation starts with an order nobody has touched, so there was no way to
+name one. It lists every costable order now, each carrying whatever has been recorded against
+it, with the totals from the same pure function the single-order answer uses.
 
 **IT REACHES THE VALUATION, which is what stops it being a calculator.** `landedUnitCosts`
 returns the same `orderId:itemId` key `stockValuation` already builds, so the landed cost
@@ -1597,7 +1608,7 @@ Rows follow section H: deleted, deferred and dropped rows are removed, and the h
 | **Quality & HSE has no catalogue area** | ⬜ NOT A DEFECT | Flagged as one, then withdrawn on reading the code. Its eight registers carry structural `engine.*` rights and the safety panel's two halves are gated already (`engine.incident.view`, `projects.list.view`); the route says so and gives the reason. A third right over records two others govern would be free to disagree with both. |
 | **A payment hold, and it is one seam not two** | ✅ BUILT (10/09/2026) | **Both halves of it are already built and neither is wired to a door.** `threeWayMatch` compares the order, the receipts and the bills and REPORTS — `inventory.ts:1342` says so in as many words — while `recordBillPayment` never asks it. `supplierQualification` computes `usable` and a `reason` from documents that carry real expiry, and Inventory already refuses to PLACE an order on it (`inventory.ts:1157`) while Finance will happily PAY a subcontractor whose insurance lapsed in March. Two upstream computations, one downstream door, and the same shape: a department refusing an act because of another department's state. Built as two features it would be two vocabularies for one idea. See **The payment hold** below. **Built 10/09/2026 with one change to the plan:** the supplier check runs on every bill that names a supplier, not only bills with a purchase order — a subcontractor is invoiced on a hand-typed bill, and confining it to order-backed bills would have missed the case it exists for. |
 | **The competitive artifact drifted from this file** | ✅ CORRECTED (10/09/2026) | *Fourteen Sections Against the Market*, measured at `efef5ecd`, ranked three-way matching #2 and subcontractor prequalification #8 of the things to build next. **Both were already built when it said so** — this file has recorded them ✅ since the Procurement section closed — and cross-record links and automation rules, its #4, shipped in `e250774d` and `82cfe4c0` the same day. Its depth table also says Manufacturing has "no MRP, no routings, no capacity" against an `mrp.ts` carrying `explode`, `netRequirements` and `capacityLoad`. **The artifact was wrong and progress.md was right**, which is the argument for one progress file rather than a second surface that also claims to say where the work is. Corrected in place at its own URL. |
-| **`logistics.landedCost` and `inventory/valuation` have no screen** | ⬜ OPEN | Same shape as the two fixed above — complete route and module, no component fetches either. Not built in this pass. |
+| **`logistics.landedCost` and `inventory/valuation` have no screen** | ✅ FIXED (12/09/2026) | Two finished backends nothing could reach. **Valuation is a fifth tab on Stock** (`ValuationPanel`), beside Bins and Batches and behind the same lazy boundary, fetching its own route so no other Inventory screen pays for a walk of every movement. It shows the total, the items held, the per-item rows named from the server's own join, units valued at nothing said out loud rather than folded into the total — and **the preview warning**, because the route lets a studio see the method it has not chosen and a figure that silently is not the policy is how the wrong one reaches a return. **Landed cost is a panel on the Logistics ROOT** (`LandedCostPanel`), which is where `landedCosts` is filed — a charge attaches to the order the goods came on, and an air waybill is one of several ways they might have travelled. `listLandedCosts` had to change to make it usable at all: it returned only orders that ALREADY had charges, so a reconciliation could never be started, and it now lists every costable order with whatever has been recorded against it. Both totals come from the one pure function the single-order answer uses, so a row and the order opened from it cannot disagree. Verified in the sandbox: an uncosted PO offered, 500 spread by value as **312.50 / 187.50** (`unallocated` 0) and by quantity as 400 / 100, a blank charge refused by name with its row index, valuation 600.00 with FIFO previewing against a studio on average. |
 | **Field Operations' root is still the un-split Operations screen** | ⬜ OPEN | Locations and permits moved in the data (`COLLECTION_MOVES`); the screen that renders them did not follow. |
 
 | **A studio says what it does at creation** | ✅ DONE | The trade was asked for in Studio settings, AFTER the fact, so a studio's first hour was spent in a product that knew nothing about the company. `createStudio` takes it now. Verified: a contractor stores the trade, seeds 12 service actions (exactly its matrix row) and 14 departments — Estimation & Tendering, Site Execution, Civil Works, MEP… — where before it got only the universal back office. Declining stays a real answer and gates nothing. |

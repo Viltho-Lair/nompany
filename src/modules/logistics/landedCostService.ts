@@ -17,6 +17,10 @@ import type { ModuleContext, StudioRef } from "@/modules/context";
 
 const Landed = repo("landedCosts");
 const Orders = repo("materialOrders");
+// THE REGISTERED ITEMS, READ ONLY, to put a name on a line. `landedCost` itself
+// stays id-only and pure — naming is presentation, the same split
+// `stockValuation` makes when it decorates a valuation row.
+const Items = repo("inventoryItems");
 
 export type LogisticsContext = ModuleContext & {
   /**
@@ -63,6 +67,27 @@ async function orderFor(ctx: LogisticsContext, orderId: string) {
   return orders.find((o) => o.id === orderId) || null;
 }
 
+/**
+ * ITEM ID → ITS NAME AND SKU.
+ *
+ * A LINE SHOWED A RAW ID TO A HUMAN — `inv_mtyrj1…` in the column headed Lines,
+ * which is the id of something nobody can look up from there. The items are a
+ * different sub-section again (`inventory-items`), read with the same fallback
+ * to the parent the order read uses, and an absent section is an empty map
+ * rather than an error: a studio without the register still has orders to cost,
+ * and the lines fall back to the id they always showed.
+ */
+async function itemNames(ctx: LogisticsContext): Promise<Map<string, { name: string; sku: string }>> {
+  const owner = (await getSectionByKey(ctx.studio.id, "inventory-items"))
+    || (await getSectionByKey(ctx.studio.id, "inventory"));
+  if (!owner) return new Map();
+  const items = await Items.find({ studio: ctx.studio, section: owner });
+  return new Map(items.map((i) => [
+    String(i.id),
+    { name: String((i as { name?: unknown }).name ?? ""), sku: String((i as { sku?: unknown }).sku ?? "") },
+  ]));
+}
+
 const linesOf = (order: Record<string, unknown> | null): CostLine[] =>
   ((order?.lines || []) as Record<string, unknown>[]).map((l, i) => ({
     id: String(l?.itemId ?? i),
@@ -71,10 +96,61 @@ const linesOf = (order: Record<string, unknown> | null): CostLine[] =>
     unitPrice: Number(l?.unitPrice) || 0,
   }));
 
+/**
+ * THE ORDERS THIS STUDIO COULD COST, costed or not.
+ *
+ * IT USED TO RETURN ONLY THE RECORDS THAT ALREADY HAD CHARGES, which made the
+ * screen impossible to start from: a reconciliation begins with an order nobody
+ * has touched, and there was no way to name one. The list is the ORDERS now,
+ * each carrying whatever has been recorded against it.
+ *
+ * THE ORDERS ARE READ WHERE THEY LIVE — `inventory-sheets`, through the same
+ * cross-section read `orderFor` already makes, with the same fallback to the
+ * parent for a studio predating the sub-section model. Costing an order is not
+ * the same act as opening the orders screen, so this asks the landed-cost right
+ * and not Inventory's: a forwarder's clerk reconciling duty has no business in
+ * the warehouse, and needing both rights would have meant nobody could do the
+ * job without being given the other one.
+ */
 export async function listLandedCosts(ctx: LogisticsContext) {
   const denied = requirePermission(ctx.access, "logistics.landedCost.view");
   if (denied) return denied;
-  return { landedCosts: await Landed.find(scope(ctx)) };
+
+  const owner = (await getSectionByKey(ctx.studio.id, "inventory-sheets"))
+    || (await getSectionByKey(ctx.studio.id, "inventory"));
+  const [records, orders] = await Promise.all([
+    Landed.find(scope(ctx)),
+    owner ? Orders.find({ studio: ctx.studio, section: owner }) : Promise.resolve([] as Record<string, unknown>[]),
+  ]);
+  const byOrder = new Map(records.map((r) => [String(r.orderId), r]));
+
+  const costable = orders.map((o) => {
+    const record = byOrder.get(String(o.id));
+    const basis: Basis = isBasis(record?.basis) ? record.basis as Basis : DEFAULT_BASIS;
+    const charges = ((record?.charges || []) as Charge[]);
+    // THE TOTALS COME FROM THE SAME FUNCTION THE SINGLE-ORDER ANSWER USES, so a
+    // row in the list and the order opened from it can never disagree about
+    // what it came to.
+    const costed = landedCost(linesOf(o as Record<string, unknown>), charges, basis);
+    return {
+      orderId: String(o.id),
+      reference: String(o.reference || ""),
+      vendorId: String(o.vendorId || ""),
+      status: String(o.status || ""),
+      expectedAt: String(o.expectedAt || ""),
+      lines: ((o.lines || []) as unknown[]).length,
+      goods: costed.goods,
+      charges: costed.charges,
+      landed: costed.landed,
+      // NOT "HAS CHARGES" — a record with an empty charge list is a studio that
+      // opened the order and recorded nothing, which is a different state from
+      // never having looked at it.
+      costed: Boolean(record),
+      chargeCount: charges.length,
+    };
+  }).sort((a, b) => Number(b.costed) - Number(a.costed) || a.reference.localeCompare(b.reference));
+
+  return { landedCosts: records, orders: costable, canManage: !requirePermission(ctx.access, "logistics.landedCost.edit") };
 }
 
 /** One order costed: its lines, its charges, and what each unit really cost. */
@@ -82,7 +158,9 @@ export async function landedCostFor(ctx: LogisticsContext, orderId: string) {
   const denied = requirePermission(ctx.access, "logistics.landedCost.view");
   if (denied) return denied;
 
-  const [order, records] = await Promise.all([orderFor(ctx, orderId), Landed.find(scope(ctx))]);
+  const [order, records, names] = await Promise.all([
+    orderFor(ctx, orderId), Landed.find(scope(ctx)), itemNames(ctx),
+  ]);
   if (!order) return { error: "notfound" };
 
   const record = records.find((r) => r.orderId === orderId);
@@ -91,11 +169,20 @@ export async function landedCostFor(ctx: LogisticsContext, orderId: string) {
 
   // `landedCost` returns a `charges` TOTAL, so the charge ROWS are named
   // separately — spreading both would silently let one win.
+  const costed = landedCost(linesOf(order), charges, basis);
   return {
     orderId,
     reference: String(order.reference || ""),
     chargeRows: charges,
-    ...landedCost(linesOf(order), charges, basis),
+    ...costed,
+    // NAMED AFTER THE ARITHMETIC, never inside it. The distribution is computed
+    // from ids alone and the labels are added on the way out, so a rename can
+    // never move a number.
+    lines: costed.lines.map((l) => ({
+      ...l,
+      name: names.get(l.itemId)?.name || "",
+      sku: names.get(l.itemId)?.sku || "",
+    })),
   };
 }
 

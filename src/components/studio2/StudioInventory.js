@@ -40,8 +40,13 @@ const BinsPanel = nextDynamic(() => import("@/components/studio2/BinsPanel"),
   { loading: () => <ScreenSkeleton /> });
 const BatchesPanel = nextDynamic(() => import("@/components/studio2/BatchesPanel"),
   { loading: () => <ScreenSkeleton /> });
+// WHAT THE STOCK IS WORTH — a secondary tab like the two above, and behind the
+// same real lazy boundary for the same reason: nobody lands on it.
+const ValuationPanel = nextDynamic(() => import("@/components/studio2/ValuationPanel"),
+  { loading: () => <ScreenSkeleton /> });
 import { binsDict } from "@/shared/studio/bins";
 import { batchesDict } from "@/shared/studio/batches";
+import { valuationDict } from "@/shared/studio/valuation";
 
 // INVENTORY — what the studio buys, holds, and issues to its projects.
 // On-hand is summed from the movement ledger, so every number here can be traced
@@ -133,7 +138,8 @@ export default function StudioInventory({ slug, view = "inventory" }) {
       studioCurrency={studioCurrency} canManage={canManageItems} busy={busy} send={send} />);
   }
   if (view === "inventory-stock") {
-    return wrap(<Stock slug={slug} items={items} movements={movements} canManage={canManageStock} busy={busy} send={send} reload={load} />);
+    return wrap(<Stock slug={slug} items={items} movements={movements} canManage={canManageStock}
+      busy={busy} send={send} reload={load} currency={studioCurrency} />);
   }
   // NO BRANCH FOR procurement-suppliers. The register moved to the supplier
   // screen with the qualification and performance it now carries; the CRUD
@@ -524,7 +530,7 @@ function ItemForm({ row, vendors, units, serviceActions = [], studioCurrency = "
 }
 
 // ---- stock management ------------------------------------------------------
-function Stock({ slug, items, movements, canManage, busy, send, reload }) {
+function Stock({ slug, items, movements, canManage, busy, send, reload, currency = "" }) {
   const locale = useStudioLocale();
   const tr = inventoryDict(locale);
   const [tab, setTab] = useState("onhand");
@@ -552,7 +558,7 @@ function Stock({ slug, items, movements, canManage, busy, send, reload }) {
     <>
       <div className="flex flex-wrap items-center gap-2">
         <div className="inline-flex rounded-full border border-slate-200 p-0.5 dark:border-white/15">
-          {[["onhand", tr.onHandTab], ["movements", tr.movementsTab], ["bins", binsDict(locale).tab], ["batches", batchesDict(locale).tab]].map(([k, text]) => (
+          {[["onhand", tr.onHandTab], ["movements", tr.movementsTab], ["bins", binsDict(locale).tab], ["batches", batchesDict(locale).tab], ["value", valuationDict(locale).tab]].map(([k, text]) => (
             <button key={k} type="button" onClick={() => setTab(k)}
               className={`rounded-full px-4 py-1.5 text-sm font-600 transition-colors ${tab === k ? "bg-brand-700 text-white" : "text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-white/5"}`}>
               {text}
@@ -606,6 +612,11 @@ function Stock({ slug, items, movements, canManage, busy, send, reload }) {
         // WHICH UNITS, from the other end: a lot number and when it stops
         // being usable, plus the state of every serial.
         <BatchesPanel slug={slug} locale={locale} />
+      ) : tab === "value" ? (
+        // WHAT IT IS ALL WORTH. Its own fetch and its own route — the method is
+        // the studio's accounting policy rather than a view option, so the
+        // answer carries which one it used and whether that is the policy.
+        <ValuationPanel slug={slug} locale={locale} currency={currency} />
       ) : items.length === 0 ? (
         <Empty title={tr.nothingStockYet} body={tr.registerItemsFirstThen} />
       ) : (

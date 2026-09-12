@@ -58,6 +58,9 @@ const StudioDocs = nextDynamic(() => import("@/components/studio2/StudioDocs"));
 // The generic section dashboard's register panel — reached from five sections,
 // so it rides the same dynamic boundary the rest of them do.
 const StudioSectionSummary = nextDynamic(() => import("@/components/studio2/StudioSectionSummary"));
+// Logistics' root only — the landed-cost reconciliation, beside the register
+// summary every engine section gets.
+const StudioLandedCost = nextDynamic(() => import("@/components/studio2/LandedCostPanel"));
 // Quality & HSE only — LTIFR is a fact about injuries and hours worked, not
 // about registers in general, so it is mounted by key rather than joining the
 // panel every engine section gets.
@@ -983,6 +986,19 @@ function SectionDashboard({ section, studio, subsections = [], locale = "en" }) 
           section without registers is unchanged. */}
       <StudioSectionSummary slug={studio.slug} sectionKey={section.key} locale={locale} />
       {section.key === "quality-hse" && <StudioSafety slug={studio.slug} locale={locale} />}
+      {/* LANDED COST SITS ON THE LOGISTICS ROOT, which is where its records are
+          filed — a charge attaches to the ORDER the goods came on, and an air
+          waybill is one of several ways they might have travelled, so putting it
+          under the AWB register would strand every charge on a sea shipment.
+          Its route and module shipped with the section and nothing fetched
+          either until now. */}
+      {/* NO CURRENCY PROP. This dashboard is handed a studio narrowed to its
+          name and slug at every other call site, so reading a `currency` off it
+          here would be a field that happens to be undefined rather than one
+          that is absent on purpose — and an amount suffixed with "undefined" is
+          worse than an unsuffixed one. The figures read bare until the route
+          carries a currency of its own. */}
+      {section.key === "logistics" && <StudioLandedCost slug={studio.slug} locale={locale} />}
     </div>
   );
 }
