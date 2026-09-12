@@ -81,4 +81,11 @@ export type ScheduleContext = ModuleContext & {
   masterSection: Section | null;
   /** Maintenance's work orders, which the field view lists beside jobs. */
   maintenanceOrdersSection: Section | null;
+  /**
+   * WHERE THE SERVICE CONTRACTS ARE FILED — `projects-sla`, a filed-only
+   * section (keys.ts). The job form offers them; the register it used to offer
+   * (engine `contract`) is no longer seeded, so on a new studio that picker
+   * could only ever be empty.
+   */
+  slasSection: Section | null;
 };

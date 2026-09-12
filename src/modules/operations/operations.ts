@@ -123,6 +123,12 @@ export const scheduleContext = moduleContext<ScheduleContext>({
     // round is one list whichever department dispatched it. Foreign and
     // nullable: a studio with no Maintenance section has none.
     maintenanceOrders: ["maintenance-orders"],
+    // THE SERVICE CONTRACTS A VISIT IS UNDER, where every one is filed
+    // (`projects-sla`). The job form offered Field Service's old engine
+    // `contract` register, which stopped being seeded on 11/09/2026 — so a new
+    // studio's picker was empty and read as "no contracts" rather than as a
+    // picker aimed at a register that no longer exists.
+    slas: ["projects-sla", "projects"],
   },
 });
 

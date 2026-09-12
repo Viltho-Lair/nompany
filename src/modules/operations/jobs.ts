@@ -12,6 +12,7 @@ import { stageOf } from "@/platform/engagement/registry";
 import type { Section } from "@/platform/db/sections";
 import type { EngineRecord } from "@/platform/engine/schema";
 import { referencePickers } from "@/modules/procurement/pickers";
+import type { Sla } from "@/modules/maintenance/schema";
 import type { Job } from "./jobSchema";
 import { JOB_KINDS, JOB_STATUSES } from "./jobSchema";
 
@@ -27,6 +28,9 @@ const isStatus = (v: string): v is JobStatus => (JOB_STATUSES as readonly string
 
 const Jobs = repo<Job>("jobs");
 const Records = repo<EngineRecord>("engineRecords");
+// SERVICE CONTRACTS, filed under `projects-sla` — Maintenance's register, read
+// here so a scheduled visit can name the contract it is under.
+const Slas = repo<Sla>("slas");
 
 const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
 const ids = (v: unknown, max = 50) =>
@@ -208,9 +212,21 @@ export async function createJob(ctx: ScheduleContext, body: Record<string, unkno
 }
 
 /**
- * WHAT THE NEW JOB FORM OFFERS — projects, maintenance contracts and installed
- * units, names only, each from a register this reader may open. An engine
- * register they may not read is an empty list, not a refusal.
+ * WHAT THE NEW JOB FORM OFFERS — projects, service contracts and installed
+ * units, names only, each from a register this reader may open. A register they
+ * may not read is an empty list, not a refusal.
+ *
+ * THE CONTRACTS ARE MAINTENANCE'S, NOT AN ENGINE REGISTER'S (12/09/2026). This
+ * read `engine.contract`, Field Service's old maintenance-contracts register,
+ * which stopped being seeded when the three old registers were folded into
+ * Maintenance — so on every studio created since, the picker could only ever
+ * come back empty, and an empty picker reads as "this studio has no contracts"
+ * rather than as one aimed at a register that no longer exists. Every contract
+ * any studio has written is in `slas` under `projects-sla`.
+ *
+ * IT IS LABELLED AND FILTERED EXACTLY AS MAINTENANCE LABELS IT — the title, and
+ * never a cancelled one, because nothing new is raised under a cancelled
+ * contract. Two spellings of one contract across two screens is two answers.
  */
 export async function jobFormOptions(ctx: ScheduleContext) {
   const canCreate = !requirePermission(ctx.access, "fieldService.schedule.create");
@@ -222,9 +238,19 @@ export async function jobFormOptions(ctx: ScheduleContext) {
     const rows = await Records.find({ studio: ctx.studio, section }, { where: { typeKey } });
     return rows.map((r) => ({ id: r.id, name: [r.reference, String(r.values?.[field] || "")].filter(Boolean).join(" · ") }));
   };
+  // The contract register's own right, the one every role that had the Projects
+  // SLA screen already holds. No section, or no right: an empty list.
+  const contractNames = async () => {
+    if (!ctx.slasSection || requirePermission(ctx.access, "projects.sla.view")) return [];
+    const rows = await Slas.find({ studio: ctx.studio, section: ctx.slasSection });
+    return rows
+      .filter((c) => String(c.status ?? "").trim() !== "Cancelled")
+      .map((c) => ({ id: c.id, name: String(c.title ?? "").trim().slice(0, 200) || "—" }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  };
   const [{ projects = [] }, contracts, units] = await Promise.all([
     referencePickers(ctx.studio, { projects: ctx.projectsListSection }, { projects: true }),
-    engineNames("contract", "title"),
+    contractNames(),
     engineNames("installed", "description"),
   ]);
   return { canCreate, pickers: { projects, contracts, units } };

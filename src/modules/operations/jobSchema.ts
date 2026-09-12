@@ -108,7 +108,13 @@ export const JobSchema = z.looseObject({
   // A job now NAMES what it is about — optional, because a call-out may be none
   // of these — and every one is an engine record's id, resolved by the reader.
 
-  /** The maintenance contract (engine `contract`) this visit is under. */
+  /**
+   * The service contract this visit is under — a `slas` row, filed under
+   * `projects-sla` (Maintenance → Service contracts). It named Field Service's
+   * engine `contract` register until 12/09/2026; that register stopped being
+   * seeded when the three old ones were folded, so on a new studio it could
+   * only ever have been blank.
+   */
   contractId: z.string().max(60).optional(),
   /** The installed unit (engine `installed`) the crew is attending. */
   installedUnitId: z.string().max(60).optional(),
