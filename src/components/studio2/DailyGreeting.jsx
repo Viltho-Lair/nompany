@@ -153,27 +153,31 @@ export default function DailyGreeting({ slug }) {
 
   return (
     <div
-      className="greeting-band absolute start-1/2 top-full z-30 mt-1 flex w-[calc(100%-2.5rem)] max-w-xl -translate-x-1/2 items-center gap-2.5 px-3 py-1 rtl:translate-x-1/2 lg:top-1/2 lg:mt-0 lg:w-[min(36rem,42%)] lg:-translate-y-1/2"
+      className="greeting-band absolute start-1/2 top-full z-30 mt-1 flex w-[calc(100%-2.5rem)] max-w-2xl -translate-x-1/2 items-center gap-2.5 px-3.5 py-1.5 rtl:translate-x-1/2 lg:top-1/2 lg:mt-0 lg:w-[min(40rem,46%)] lg:-translate-y-1/2"
       style={style}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       onFocusCapture={() => setPaused(true)}
       onBlurCapture={() => setPaused(false)}
     >
-      {/* ONE LINE, NOT TWO — the owner asked for a lower band. The greeting and
-          the quotation share a single truncating row; the quotation is a <q>,
-          the inline form of the <blockquote> it was, so a screen reader still
-          announces it as a quote rather than as more of the greeting. */}
-      <p className={`min-w-0 flex-1 truncate text-xs ${ink ? "" : "text-slate-700 dark:text-slate-200"}`}>
-        <span className={`font-600 ${ink ? "" : "text-slate-900 dark:text-white"}`}>{msg.greeting}</span>
-        {msg.quote && (
-          <>
-            {msg.greeting && <span aria-hidden="true" className="mx-1.5 opacity-50">·</span>}
-            <q className={ink ? "opacity-80" : "text-slate-600 dark:text-slate-300"}>{msg.quote}</q>
-            {msg.author && <cite className={`ms-1.5 not-italic ${ink ? "opacity-70" : "text-slate-400 dark:text-slate-500"}`}>— {msg.author}</cite>}
-          </>
+      {/* TWO LINES, BACK FROM ONE — the owner, 15/09/2026: sharing one row squeezed
+          the quotation to a few words. The greeting sits on the first line and the
+          quotation with its author on the second, each truncating on its own, so a
+          long quote no longer eats the greeting and the band still floats at a
+          fixed height over the header. The quotation is a <q>, the inline form of
+          the <blockquote> it was, so a screen reader still announces it as a
+          quote rather than as more of the greeting. */}
+      <div className="min-w-0 flex-1 leading-snug">
+        {msg.greeting && (
+          <p className={`truncate text-[13px] font-600 ${ink ? "" : "text-slate-900 dark:text-white"}`}>{msg.greeting}</p>
         )}
-      </p>
+        {msg.quote && (
+          <p className={`truncate text-xs ${ink ? "opacity-80" : "text-slate-600 dark:text-slate-300"}`}>
+            <q>{msg.quote}</q>
+            {msg.author && <cite className={`ms-1.5 not-italic ${ink ? "opacity-70" : "text-slate-400 dark:text-slate-500"}`}>— {msg.author}</cite>}
+          </p>
+        )}
+      </div>
 
       {count > 1 && (
         /* THE DOTS ARE LABELLED WITH THE MESSAGE THEY OPEN rather than with its

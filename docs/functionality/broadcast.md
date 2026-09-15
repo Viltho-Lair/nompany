@@ -10,7 +10,9 @@ was a flex item between the page title and the controls, so a message arriving p
 sideways — and below `lg` wrapped the header onto a second line — and closing it moved them
 back. It is absolutely positioned against the sticky header now: centred in it from `lg` up,
 hanging just below it on a narrow screen, where the middle of the header is the title. It is
-also one line rather than two — the greeting and the quotation share a truncating row.
+two lines: the greeting, then the quotation and its author, each truncating on its own. (It
+was one shared row for five days and the quotation was squeezed to a few words; restored on the
+owner's instruction, 15/09/2026.)
 
 It is platform-wide. Every studio reads the same words on the same day — this is a message
 from the product, not a per-tenant setting — so nothing here touches `collection_rows` and
