@@ -91,7 +91,7 @@ function Deadline({ tr, tender, nowMs }) {
 // reader was refused, or when the payload was over the RSC ceiling — and then
 // this behaves exactly as it did before any of this existed. Every other studio
 // screen is still on that path, so it is the well-trodden one.
-export default function StudioTenders({ slug, initial, initialError = "" }) {
+export default function StudioTenders({ slug, view = "", initial, initialError = "" }) {
   const locale = useStudioLocale();
   const tr = tenderingDict(locale);
   const fromClient = useSearchParams().get("client") || "";
@@ -324,20 +324,22 @@ export default function StudioTenders({ slug, initial, initialError = "" }) {
         {data.canCreate && <button type="button" className={btn} onClick={() => openForm(null)}>{tr.addTender}</button>}
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className={panel}><StatTile label={tr.tenders} value={<span className="num">{live.length}</span>} sub={tr.nOpenTenders(live.length)} /></div>
-        <div className={panel}>
+      {/* THE FIGURES BELONG TO THE SECTION'S FRONT PAGE, NOT TO THE REGISTER — the
+          owner, 15/09/2026. `/tendering` and `/tendering-register` render this same
+          screen, so the four tiles showed twice, once on each; the register page
+          is the list. */}
+      {view !== "tendering-register" && (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <StatTile label={tr.tenders} value={<span className="num">{live.length}</span>} sub={tr.nOpenTenders(live.length)} />
           <StatTile label={tr.closingSoon} value={<span className="num">{closingSoon}</span>}
             tone={closingSoon > 0 ? "text-amber-700 dark:text-amber-300" : ""} accent="rgb(var(--chart-2))" />
-        </div>
-        <div className={panel}><StatTile label={tr.submittedCount} value={<span className="num">{submitted}</span>} accent="rgb(var(--chart-3))" /></div>
-        <div className={panel}>
+          <StatTile label={tr.submittedCount} value={<span className="num">{submitted}</span>} accent="rgb(var(--chart-3))" />
           {/* A studio that has bid nothing has no win rate, and 0% would be a
               verdict on it rather than an absence of one. */}
           <StatTile label={tr.winRate} value={winRate == null ? "—" : `${winRate}%`}
             sub={tr.nDecided(contested.length)} accent="rgb(var(--chart-4))" />
         </div>
-      </div>
+      )}
 
       {tenders.length === 0 ? <Empty title={tr.noTendersYet} body={tr.noTendersBody} /> : (
         <>

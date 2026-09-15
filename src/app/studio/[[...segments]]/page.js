@@ -865,7 +865,7 @@ async function renderStudio(params) {
           </div>
         )
         : active?.key === "tendering-rates" ? <StudioRates slug={studio.slug} />
-        : screenKey === "tendering" ? <StudioTenders slug={studio.slug} initial={tendersInitial} initialError={tendersError} />
+        : screenKey === "tendering" ? <StudioTenders slug={studio.slug} view={active?.key} initial={tendersInitial} initialError={tendersError} />
         : active?.key === "crm-sales-pipeline" ? <StudioPipeline slug={studio.slug} />
         : active?.key === "crm-sales-contracts" ? <StudioContracts slug={studio.slug} />
         : active?.key === "crm-sales-orders" ? <StudioOrders slug={studio.slug} />

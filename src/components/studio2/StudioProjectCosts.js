@@ -123,31 +123,25 @@ export default function StudioProjectCosts({ slug, projectId }) {
       <h2 className={h2}>{tr.costBreakdown}</h2>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <div className={panel}>
-          <StatTile label={tr.totalBudget} value={<span className="num">{money(costing.budget)}</span>}
-            sub={costing.unallocated >= 0
-              ? `${tr.unallocated}: ${money(costing.unallocated)}`
-              : tr.overAllocated}
-            tone={costing.unallocated < 0 ? "text-amber-700 dark:text-amber-300" : ""} />
-        </div>
-        <div className={panel}>
-          {/* SPENT INCLUDES THE UNCODED, always. A total that counted only what
-              somebody had filed properly would say a job was inside its budget
-              for exactly as long as its paperwork was behind. */}
-          <StatTile label={tr.totalActual} value={<span className="num">{money(costing.actual)}</span>}
-            sub={`${tr.costRemaining}: ${money(costing.remaining)}`}
-            tone={costing.remaining < 0 ? "text-rose-600 dark:text-rose-300" : "text-emerald-600 dark:text-emerald-400"}
-            accent="rgb(var(--chart-2))" />
-        </div>
-        <div className={panel}>
-          {/* THE HEADLINE THIS SLICE ADDED. Spend alone said where a project had
-              been; this says where it is going, and the variance beside it is
-              the number somebody can still act on. */}
-          <StatTile label={tr.totalForecast} value={<span className="num">{money(costing.forecast)}</span>}
-            sub={`${tr.costCommitted}: ${money(costing.committed)} · ${tr.costVariance}: ${money(costing.variance)}`}
-            tone={costing.variance < 0 ? "text-rose-600 dark:text-rose-300" : "text-emerald-600 dark:text-emerald-400"}
-            accent="rgb(var(--chart-3))" />
-        </div>
+        <StatTile label={tr.totalBudget} value={<span className="num">{money(costing.budget)}</span>}
+          sub={costing.unallocated >= 0
+            ? `${tr.unallocated}: ${money(costing.unallocated)}`
+            : tr.overAllocated}
+          tone={costing.unallocated < 0 ? "text-amber-700 dark:text-amber-300" : ""} />
+        {/* SPENT INCLUDES THE UNCODED, always. A total that counted only what
+            somebody had filed properly would say a job was inside its budget
+            for exactly as long as its paperwork was behind. */}
+        <StatTile label={tr.totalActual} value={<span className="num">{money(costing.actual)}</span>}
+          sub={`${tr.costRemaining}: ${money(costing.remaining)}`}
+          tone={costing.remaining < 0 ? "text-rose-600 dark:text-rose-300" : "text-emerald-600 dark:text-emerald-400"}
+          accent="rgb(var(--chart-2))" />
+        {/* THE HEADLINE THIS SLICE ADDED. Spend alone said where a project had
+            been; this says where it is going, and the variance beside it is
+            the number somebody can still act on. */}
+        <StatTile label={tr.totalForecast} value={<span className="num">{money(costing.forecast)}</span>}
+          sub={`${tr.costCommitted}: ${money(costing.committed)} · ${tr.costVariance}: ${money(costing.variance)}`}
+          tone={costing.variance < 0 ? "text-rose-600 dark:text-rose-300" : "text-emerald-600 dark:text-emerald-400"}
+          accent="rgb(var(--chart-3))" />
       </div>
 
       {/* THE RULE SAID OUT LOUD, because a forecast that equals the budget on a
