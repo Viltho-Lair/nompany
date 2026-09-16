@@ -39,7 +39,7 @@ const SOURCE_LISTS = {
 // time, not a question at a time.
 
 const btn = "inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-600 transition-colors";
-const dark = `${btn} bg-[var(--ad-foreground)] text-white hover:bg-[rgb(var(--ad-foreground-rgb)/0.75)] disabled:opacity-60`;
+const dark = `${btn} bg-[var(--ad-foreground)] text-[var(--ad-background)] hover:bg-[rgb(var(--ad-foreground-rgb)/0.75)] disabled:opacity-60`;
 const ghost = `${btn} text-[var(--ad-foreground)] hover:bg-[var(--ad-muted)]`;
 // The console's own input style, so the builder's fields match every other form
 // in /super. It used to carry a private, lighter-weight look — transparent, a
@@ -239,7 +239,7 @@ export default function QuestionnaireBuilder({ id }) {
                   i === pageIdx ? "border-[var(--ad-border)] bg-[var(--ad-muted)]" : "border-transparent hover:bg-[var(--ad-muted)]"}`}>
                 <button type="button" onClick={() => { setPageIdx(i); setSelected(""); }} className="block w-full text-start">
                   <span className="flex items-center gap-2">
-                    <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded bg-[var(--ad-foreground)] text-[10px] font-700 text-white">{i + 1}</span>
+                    <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded bg-[var(--ad-foreground)] text-[10px] font-700 text-[var(--ad-background)]">{i + 1}</span>
                     <span className="min-w-0 flex-1 truncate text-sm font-600">{p.title || `Page ${i + 1}`}</span>
                   </span>
                   <span className="ms-7 block text-[11px] text-[var(--ad-muted-foreground)]">
@@ -357,7 +357,7 @@ function QuestionPreview({ q, n }) {
   return (
     <>
       <p className="flex items-start gap-2">
-        <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded bg-[var(--ad-foreground)] text-[10px] font-700 text-white">{n}</span>
+        <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded bg-[var(--ad-foreground)] text-[10px] font-700 text-[var(--ad-background)]">{n}</span>
         <span className="font-display text-lg font-600">
           {q.label || def?.label}
           {q.required && <span className="ms-1 text-[var(--ad-destructive)]">*</span>}
@@ -438,7 +438,7 @@ function renderAnswer(q) {
     case "welcome":
     case "statement":
     case "ending":
-      return <span className="inline-flex rounded-lg bg-[var(--ad-foreground)] px-4 py-2 text-sm font-600 text-white">{q.buttonLabel || "Continue"}</span>;
+      return <span className="inline-flex rounded-lg bg-[var(--ad-foreground)] px-4 py-2 text-sm font-600 text-[var(--ad-background)]">{q.buttonLabel || "Continue"}</span>;
     case "question-group":
       return <div className={`${box} border-dashed`}>Group — elements below belong together</div>;
     case "contact":

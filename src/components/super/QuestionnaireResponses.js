@@ -24,7 +24,7 @@ import Link from "next/link";
 const card = "rounded-xl border border-[var(--ad-border)] bg-[var(--ad-card)]";
 const btn = "inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-600 transition-colors";
 const ghost = `${btn} text-[var(--ad-foreground)] hover:bg-[var(--ad-muted)]`;
-const dark = `${btn} bg-[var(--ad-foreground)] text-white hover:bg-[rgb(var(--ad-foreground-rgb)/0.75)]`;
+const dark = `${btn} bg-[var(--ad-foreground)] text-[var(--ad-background)] hover:bg-[rgb(var(--ad-foreground-rgb)/0.75)]`;
 
 const fmt = (iso) => {
   if (!iso) return "—";

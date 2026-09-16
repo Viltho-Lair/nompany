@@ -13,7 +13,7 @@ import { useReload } from "@/components/studio2/useReload";
 // assistant box. What is left is the thing itself: create, find, open.
 
 const RAIL = "flex w-[220px] shrink-0 flex-col gap-4 border-e border-[var(--ad-border)] bg-[var(--ad-card)] p-4";
-const BTN = "inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--ad-foreground)] px-4 py-2.5 text-sm font-600 text-white transition-colors hover:bg-[rgb(var(--ad-foreground-rgb)/0.75)] disabled:opacity-60";
+const BTN = "inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--ad-foreground)] px-4 py-2.5 text-sm font-600 text-[var(--ad-background)] transition-colors hover:bg-[rgb(var(--ad-foreground-rgb)/0.75)] disabled:opacity-60";
 const GHOST = "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm text-[var(--ad-foreground)] transition-colors hover:bg-[var(--ad-muted)]";
 
 const fmt = (iso) => {
@@ -184,7 +184,7 @@ export default function QuestionnaireList() {
                   <tr key={r.id} className="border-b border-[var(--ad-border)] last:border-0 hover:bg-[rgb(var(--ad-muted-rgb)/0.6)]">
                     <td className="px-5 py-3">
                       <Link href={`/super/questionnaires/${r.id}`} className="flex items-center gap-3 font-600 text-[var(--ad-foreground)] hover:underline">
-                        <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[rgb(var(--ad-foreground-rgb)/0.9)] text-xs font-700 text-white">
+                        <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[rgb(var(--ad-foreground-rgb)/0.9)] text-xs font-700 text-[var(--ad-background)]">
                           {r.name.slice(0, 1).toUpperCase()}
                         </span>
                         {r.name}
@@ -225,7 +225,7 @@ export default function QuestionnaireList() {
             {shown.map((r) => (
               <Link key={r.id} href={`/super/questionnaires/${r.id}`}
                 className="rounded-xl border border-[var(--ad-border)] bg-[var(--ad-card)] p-4 transition-colors hover:border-[var(--ad-muted-foreground)]">
-                <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-[rgb(var(--ad-foreground-rgb)/0.9)] text-sm font-700 text-white">
+                <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-[rgb(var(--ad-foreground-rgb)/0.9)] text-sm font-700 text-[var(--ad-background)]">
                   {r.name.slice(0, 1).toUpperCase()}
                 </span>
                 <p className="mt-3 truncate font-600">{r.name}</p>
