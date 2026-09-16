@@ -195,7 +195,15 @@ export default function QuestionnaireList() {
                     </td>
                     <td className="px-3 py-3 font-mono text-xs text-[var(--ad-muted-foreground)]">{r.route || <span className="text-[var(--ad-muted-foreground)]">unattached</span>}</td>
                     <td className="px-3 py-3 text-end text-[var(--ad-foreground)]">{r.questions}</td>
-                    <td className="px-3 py-3 text-end text-[var(--ad-foreground)]">{r.responses || "-"}</td>
+                    {/* THE COUNT IS A DOOR. It was a number with nothing behind
+                        it — and nothing behind the number either, since no
+                        response was ever recorded. Now that there are answers,
+                        the obvious click is the one that shows them. */}
+                    <td className="px-3 py-3 text-end text-[var(--ad-foreground)]">
+                      {r.responses
+                        ? <Link href={`/super/questionnaires/${r.id}/responses`} className="font-600 hover:underline">{r.responses}</Link>
+                        : "-"}
+                    </td>
                     <td className="px-3 py-3 text-end text-[var(--ad-foreground)]">{r.completed || "-"}</td>
                     <td className="px-3 py-3 text-end text-[var(--ad-muted-foreground)]">{fmt(r.updatedAt)}</td>
                     <td className="px-3 py-3 text-end" onClick={(e) => e.stopPropagation()}>
@@ -246,7 +254,10 @@ function RowMenu({ open, onToggle, href, onDuplicate, onDelete }) {
     const place = () => {
       const r = btnRef.current?.getBoundingClientRect();
       if (!r) return;
-      const W = 160, H = 124;
+      // Four items now (Open, Responses, Duplicate, Delete), so the flip-above
+      // height grows with them — a stale H puts the last row's menu half off
+      // the bottom, which is the exact thing this measurement exists to stop.
+      const W = 160, H = 160;
       setAt({
         // Flip above the button when there is no room below, so the last row's
         // menu is never half off the bottom of the window.
@@ -270,6 +281,7 @@ function RowMenu({ open, onToggle, href, onDuplicate, onDelete }) {
           className="z-[100] overflow-hidden rounded-lg border border-[var(--ad-border)] bg-[var(--ad-card)] py-1 text-start shadow-xl"
           onClick={(e) => e.stopPropagation()}>
           <Link href={href} role="menuitem" className="block px-3 py-2 text-sm hover:bg-[var(--ad-muted)]">Open</Link>
+          <Link href={`${href}/responses`} role="menuitem" className="block px-3 py-2 text-sm hover:bg-[var(--ad-muted)]">Responses</Link>
           <button type="button" role="menuitem" className="block w-full px-3 py-2 text-start text-sm hover:bg-[var(--ad-muted)]"
             onClick={onDuplicate}>Duplicate</button>
           <button type="button" role="menuitem" className="block w-full px-3 py-2 text-start text-sm text-[var(--ad-destructive)] hover:bg-[rgb(var(--ad-destructive-rgb)/0.1)]"

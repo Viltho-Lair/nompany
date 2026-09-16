@@ -4867,14 +4867,34 @@ console.log("== every key the product builds is inside its namespace");
     if (/day|visitors/i.test(name)) return "2026-08-20";
     return "sample_id";
   };
-  const groups = ["REG", "U", "S", "SEC", "IX", "OTP", "CHAT", "FX", "RL", "STAT", "MEDIA", "ENG"];
+  // THE GROUPS ARE DERIVED, NOT TYPED OUT — and that is the second half of this
+  // block's own lesson.
+  //
+  // It kept a hand-written list of namespace names, which reproduced in
+  // miniature the exact failure it exists to catch: a namespace missing from
+  // the line was simply never checked, while the test went on printing "every
+  // key builder is namespaced" over whichever ones somebody had remembered.
+  // Measured on 16/09/2026, SEVEN exported groups had never been covered — ID,
+  // IDEM, PLAN, PLAN_TEMPLATE, PROJECT, SITE and TBL — and the list had been
+  // wrong for long enough that nobody knew. (None of the seven was actually
+  // unprefixed: it was a coverage gap, not a live bug. It would not have stayed
+  // one.) `Q` was about to be the eighth, which is what turned this up.
+  //
+  // A group is a plain object with at least one string or function value. That
+  // admits ID and TBL, whose entries carry no colon and are skipped below, and
+  // excludes SECTION_COLLECTIONS (values are arrays), RESERVED_SLUGS (a Set) and
+  // every exported array. A new namespace is covered the day it is added,
+  // without anybody remembering — which is the whole claim this block makes
+  // about key BUILDERS, now true of the block itself.
+  const isGroup = (v) => v && typeof v === "object" && !Array.isArray(v)
+    && !(v instanceof Set) && !(v instanceof Map)
+    && Object.values(v).some((x) => typeof x === "string" || typeof x === "function");
+  const groups = Object.keys(KEYS).filter((k) => isGroup(KEYS[k]));
   const offenders = [];
   let checked = 0;
 
   for (const g of groups) {
-    const group = KEYS[g];
-    if (!group) { offenders.push(`${g} (missing)`); continue; }
-    for (const [name, value] of Object.entries(group)) {
+    for (const [name, value] of Object.entries(KEYS[g])) {
       let key;
       if (typeof value === "string") key = value;
       else if (typeof value === "function") {
@@ -4893,7 +4913,14 @@ console.log("== every key the product builds is inside its namespace");
     }
   }
 
-  ok("there are key builders to check at all", checked > 20, String(checked));
+  // BOTH FLOORS GUARD THE DERIVATION RATHER THAN THE KEYS. A shape change in
+  // keys.ts that made `isGroup` match nothing would leave this block asserting
+  // "no offenders" over an empty list and passing — green, and checking
+  // nothing, which is the failure the derivation was written to end. Measured
+  // 16/09/2026: 20 groups, 89 builders.
+  ok("the key groups are being found at all", groups.length >= 15,
+    `${groups.length}: ${groups.join(", ")}`);
+  ok("there are key builders to check at all", checked > 60, String(checked));
   ok("every key builder is namespaced", offenders.length === 0, offenders.join(", "));
 }
 

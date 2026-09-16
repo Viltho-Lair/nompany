@@ -2,6 +2,7 @@ import { route } from "@/platform/http/route";
 import {
   getQuestionnaireById, updateQuestionnaireDef, deleteQuestionnaireDef,
 } from "@/lib/data/questionnaires";
+import { deleteResponsesFor } from "@/lib/data/questionnaireResponses";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -29,7 +30,15 @@ export const PUT = route(spec, async ({ params, body }) => {
   return { ok: true, questionnaire: updated };
 });
 
+// CHILDREN FIRST, THEN THE ROW (invariant 11), so a cascade that dies halfway
+// is idempotent on a re-run. The other order would leave q:<id>:responses with
+// nothing naming it: a response key is reachable only FROM a questionnaire id,
+// and the user cascade walks the registry to find which ones exist — so a form
+// deleted before its answers takes the only route to them with it and strands
+// the rows permanently, unreadable and undeletable both.
 export const DELETE = route({ ...spec, body: false }, async ({ params }) => {
+  if (!(await getQuestionnaireById(params.id))) return { error: "notfound" };
+  await deleteResponsesFor(params.id);
   const gone = await deleteQuestionnaireDef(params.id);
   if (!gone) return { error: "notfound" };
   return { ok: true };

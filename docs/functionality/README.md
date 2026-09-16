@@ -52,6 +52,7 @@ Three rules that keep this folder worth reading:
 | [pricing.md](pricing.md) | What a quotation line is priced at: the customer's agreed rate, the studio's sell price, or cost — and how each is shown |
 | [procurement-dashboard.md](procurement-dashboard.md) | What is waiting, what is late, and what does not add up |
 | [projects.md](projects.md) | Where work is delivered: the register, the plan, and the sub-screens that have their own files |
+| [questionnaires.md](questionnaires.md) | Forms authored in the console: the open answer map that replaced a whitelist, the branching the respondent never sees, and where the replies are filed for analysis |
 | [receiving.md](receiving.md) | Ordered, received, billed: the three quantities and what a mismatch between them means |
 | [record-engine.md](record-engine.md) | A record type declared as a row: the `engine.*` permission namespace, one collection for every instance, the section planted with the type, and why an existing studio needs a script to get one |
 | [requisitions.md](requisitions.md) | The request that stands before an order: the approval chain, why Approved is not a move, and why a free-text request cannot become an order |

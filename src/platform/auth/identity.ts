@@ -30,6 +30,7 @@ import {
 import { hashPassword, verifyPassword, generatePassword, needsRehash } from "./passwords";
 import { encryptField } from "./fieldCrypto";
 import { cleanProvider } from "@/lib/nova/providers";
+import { cleanAnswers, INTENTS } from "@/lib/questionnaire";
 import {
   checkCredentialAttempts, recordCredentialFailure, clearCredentialFailures,
 } from "./attempts";
@@ -408,9 +409,22 @@ export async function logout(token: string) {
 // small error: one says "this machine", the other says "every machine, because
 // I think somebody else has one". The token in hand is how we learn whose
 // sessions to drop, so this needs it just as much as the single case does.
+//
+// AND IT FORGETS THE DEVICES TOO. It did not, and that made the act a half
+// measure in exactly the case somebody reaches for it: a trusted device skips
+// the one-time code, so dropping every session while leaving every browser
+// trusted meant whoever this person is afraid of could sign straight back in
+// with the password alone — no code, from the same machine, the moment the page
+// reloaded. Password change and reset have both revoked devices all along
+// (`changePassword`, `resetPassword` below); this was the one door of the three
+// that did not. Ordinary sign-out is untouched: that says "this machine", and
+// forgetting the browser there would ask everybody for a code every morning,
+// which is the feature working backwards.
 export async function logoutEverywhere(token: string) {
   const user = await findUserBySession(token);
-  if (user) await revokeAllSessions(user.id);
+  if (!user) return;
+  await revokeAllSessions(user.id);
+  await revokeAllDevices(user.id);
 }
 
 // The marker the desktop client sends. Not a credential and it grants nothing —
@@ -638,19 +652,53 @@ export async function savePersonalInfo(userId: string, patch: Record<string, unk
 }
 
 // ---- questionnaire (1:1, exclusively this user's) --------------------------
-const INTENTS = ["create", "join"];
+// INTENTS lives in lib/questionnaire now: the builder needs the same list to
+// warn an author that their form can no longer produce one, and two copies of
+// "what a valid intent is" would part company the first time a third is added.
+
+/**
+ * A QUESTIONNAIRE IS ANSWERED TO BE READ BACK, and for as long as this function
+ * kept six named fields and dropped the rest, it was not.
+ *
+ * The form is authored in /super: the pages, the questions and their field names
+ * are data, so they cannot be whitelisted at compile time. Every question an
+ * author added was asked, answered, posted here and thrown away — with the
+ * submit reporting success, which is the worst version of the bug, because the
+ * screen and the store disagreed and only the store was right.
+ *
+ * So there are two halves now. The six named fields stay EXACTLY as they were —
+ * they are the ones product code reads by name, `completedAt` gates the whole
+ * of onboarding, and re-deriving them from the open map at every call site
+ * would be a second source free to disagree with the first. Beside them,
+ * `answers` holds everything the form collected, bounded by `cleanAnswers`
+ * rather than named.
+ *
+ * `raw` is the posted body; `answers` is the typed view of it. The six are read
+ * from the CLEANED map rather than from the body, so a question rebound to
+ * `field` in the builder feeds the studio's trade the same way the original
+ * did — the builder's `key` is what binds a question to a stored field, and
+ * honouring it in one place and not the other is how the two drift.
+ */
 export async function saveQuestionnaire(
   userId: string,
-  answers: Questionnaire = {},
+  raw: Record<string, unknown> = {},
+  { questionnaireId = "" }: { questionnaireId?: string } = {},
 ): Promise<{ error?: string; questionnaire?: Questionnaire }> {
+  const answers = cleanAnswers(raw);
+  const one = (k: string, max: number) => String(answers[k] ?? "").trim().slice(0, max);
+  const list = (k: string, max: number, cap: number) =>
+    (Array.isArray(answers[k]) ? (answers[k] as string[]) : []).map((e) => String(e).slice(0, max)).slice(0, cap);
+
   const clean: Questionnaire = {
-    intent: INTENTS.includes(answers.intent || "") ? answers.intent : "",
-    field: String(answers.field || "").trim().slice(0, 120),
-    country: String(answers.country || "").trim().slice(0, 80),
-    city: String(answers.city || "").trim().slice(0, 80),
-    erps: Array.isArray(answers.erps) ? answers.erps.map((e) => String(e).slice(0, 60)).slice(0, 20) : [],
-    packageKey: String(answers.packageKey || "").trim().slice(0, 40),
+    intent: INTENTS.includes(one("intent", 20)) ? one("intent", 20) : "",
+    field: one("field", 120),
+    country: one("country", 80),
+    city: one("city", 80),
+    erps: list("erps", 60, 20),
+    packageKey: one("packageKey", 40),
     completedAt: new Date().toISOString(),
+    answers,
+    questionnaireId: String(questionnaireId || "").trim().slice(0, 60),
   };
   if (!clean.intent) return { error: "intent" };
   return { questionnaire: await updateQuestionnaire(userId, clean) };

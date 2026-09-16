@@ -11,9 +11,10 @@ import { INDUSTRIES } from "@/lib/industries";
 import { COUNTRIES } from "@/shared/countries";
 import { citiesFor } from "@/lib/cities";
 import {
-  AVERAGE_MINUTES, ERP_NONE, ERP_OTHER, ERP_SYSTEMS,
+  AVERAGE_MINUTES, ERP_NONE, ERP_OTHER, ERP_SYSTEMS, INTENTS,
   fieldOf, isPageComplete, packageLabel,
 } from "@/lib/questionnaire";
+import { prunedAnswers, visiblePages, visibleQuestions } from "@/lib/questionnaireLogic";
 
 // The one-time survey between finishing registration and reaching the account.
 //
@@ -72,35 +73,72 @@ function optionsFor(question, answers) {
 const nameToCode = (name) =>
   COUNTRIES.find((c) => c.name === name)?.code || "";
 
-export default function QuestionnaireFlow({ locale, dict, initialPackage = "", email = "", pages = [] }) {
+// `preview` turns the survey into a rehearsal: the same component, the same
+// questions, the same branching — and no write and no redirect at the end.
+//
+// THE SAME COMPONENT IS THE WHOLE POINT. A second "preview renderer" would be a
+// second reading of every rule the real one applies, free to disagree with it
+// about which question a given answer leads to, which is exactly the thing an
+// author opens a preview to find out.
+export default function QuestionnaireFlow({
+  locale, dict, initialPackage = "", email = "", pages = [], preview = false,
+}) {
   // The survey's own frame, in the reader's language. The QUESTIONS are not
   // here and never will be: they are authored in /super's questionnaire
   // builder, which makes them content rather than copy.
   const tr = dict.questionnaire;
-  const [page, setPage] = useState(0);
-  // The furthest page reached, so a page with nothing mandatory on it counts
-  // once it has actually been shown rather than from the moment the survey
-  // opens. Without this the bar starts part-full, which makes it a liar.
-  const [furthest, setFurthest] = useState(0);
   const [answers, setAnswers] = useState({ intent: "", field: "", country: "", city: "", erps: [], otherErp: "" });
+  // WHERE YOU ARE, BY PAGE ID RATHER THAN BY INDEX.
+  //
+  // Branching makes the page list a function of the answers: answering a
+  // question can reveal a page or collapse one, and an index into a list that
+  // moves underneath you points at a different page than the one you were
+  // reading. The id is stable, so the only thing that can move you is you.
+  const [pageId, setPageId] = useState("");
+  // The pages actually seen, so a page with nothing mandatory on it counts once
+  // it has been shown rather than from the moment the survey opens — without
+  // this the bar starts part-full, which makes it a liar. A SET rather than a
+  // high-water index, for the same reason as above: with branching, "page 3"
+  // is not a fixed page.
+  const [seen, setSeen] = useState([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  // What a preview run produced: the body that WOULD have been posted, plus
+  // whether registration would have accepted it. Null until the end is reached.
+  const [dryRun, setDryRun] = useState(null);
 
-  const current = pages[page];
-  const total = pages.length;
-  const first = page === 0;
-  const last = page === total - 1;
-  const canAdvance = isPageComplete(current, answers);
+  // The pages this person's answers actually lead through. A page every one of
+  // whose questions is hidden is not shown at all — the branch goes past it,
+  // and an empty page with a Next button is the logic leaking onto the screen.
+  const live = useMemo(() => visiblePages(pages, answers), [pages, answers]);
+  const index = Math.max(0, live.findIndex((p) => p.id === pageId));
+  const current = live[index] || live[0] || null;
+  // Only the questions this person's answers lead to. `question.reveals` decides
+  // it, and nothing on screen says so: they see the questions that apply, in
+  // order, as though the form had been written for them.
+  const asked = useMemo(
+    () => (current ? visibleQuestions(current, pages, answers) : []),
+    [current, pages, answers],
+  );
+  const total = live.length;
+  const first = index === 0;
+  const last = index === total - 1;
+  // A REQUIRED QUESTION THAT IS HIDDEN MUST NOT BLOCK THE PAGE. It was not
+  // asked, so there is nothing to withhold — gating on the authored list rather
+  // than the shown one would strand somebody on a page whose blocker they
+  // cannot see, which is branching failing in the worst possible direction.
+  const canAdvance = isPageComplete({ questions: asked }, answers);
 
   // Accepts a patch, or a function of the CURRENT answers returning one. The
   // second form matters for multi-select: building the next list from a value
   // captured at render time loses a pick if two arrive before a re-render.
   const set = (patch) => setAnswers((a) => ({ ...a, ...(typeof patch === "function" ? patch(a) : patch) }));
-  const goNext = () => setPage((p) => {
-    const nextPage = Math.min(total - 1, p + 1);
-    setFurthest((f) => Math.max(f, nextPage));
-    return nextPage;
-  });
+  const goTo = (i) => {
+    const target = live[Math.max(0, Math.min(live.length - 1, i))];
+    if (!target) return;
+    setPageId(target.id);
+    setSeen((s) => (s.includes(target.id) ? s : [...s, target.id]));
+  };
 
   // A questionnaire authored with no pages yet must not take the screen down.
   if (!current) {
@@ -113,17 +151,38 @@ export default function QuestionnaireFlow({ locale, dict, initialPackage = "", e
 
   async function submit() {
     setSaving(true); setError("");
-    // The stored questionnaire has no field for the "Not Listed" free text, so
-    // it is folded into the ERP list as "Not Listed: <what they typed>" — the
-    // same way it has always been saved. Sending it as its own key would look
-    // like it worked and be dropped by the API's whitelist.
+    // The "Not Listed" free text is folded into the ERP list as
+    // "Not Listed: <what they typed>" rather than sent as its own field: it is
+    // not a question, it is the tail of one, and a `otherErp` column beside
+    // `erps` would split one answer across two places in every analysis.
     const erps = answers.erps.includes(ERP_OTHER) && answers.otherErp.trim()
       ? [...answers.erps.filter((e) => e !== ERP_OTHER), `${ERP_OTHER}: ${answers.otherErp.trim()}`]
       : answers.erps;
+    // `otherErp` is the input's own scratch space and is dropped once folded —
+    // it used to be dropped by the API's whitelist instead, and the whitelist
+    // is gone, so what was incidentally correct has to be said out loud.
+    const { otherErp: _typed, ...given } = answers;
+    // ANSWERS TO QUESTIONS THAT ARE NO LONGER ON SCREEN DO NOT GO. Answering a
+    // branch and then changing the answer above it leaves replies behind, and
+    // recording those would put an answer to a question this person was not
+    // asked into the analysis. Done at submit, not on every keystroke, so
+    // stepping back to look at something does not destroy it.
+    const body = prunedAnswers(pages, { ...given, erps, packageKey: initialPackage });
+    // A PREVIEW REACHES THE END AND STOPS THERE. Nothing is posted, nothing is
+    // stored, and the author is shown what would have been — including whether
+    // the path they just walked produced an `intent` the save would accept,
+    // which is the one thing that decides whether a real person could have
+    // finished. `registrationProblems` says a form COULD work; this says this
+    // route through it DID.
+    if (preview) {
+      setSaving(false);
+      setDryRun({ body, accepted: INTENTS.includes(String(body.intent || "")) });
+      return;
+    }
     try {
       const res = await fetch("/api/identity/questionnaire", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...answers, erps, packageKey: initialPackage }),
+        body: JSON.stringify(body),
       });
       if (res.ok) { window.location.assign(`/${locale}/account`); return; }
       setError(tr.saveFailed);
@@ -138,12 +197,19 @@ export default function QuestionnaireFlow({ locale, dict, initialPackage = "", e
   // counts once it has been reached: a page whose questions are all optional is
   // "complete" the instant the survey loads, and crediting that before it has
   // been seen would show progress nobody has made.
-  const done = pages.filter((p, i) => i <= furthest && isPageComplete(p, answers)).length;
+  const done = live.filter((p, i) => (
+    (i === index || seen.includes(p.id)) && isPageComplete({ questions: visibleQuestions(p, pages, answers) }, answers)
+  )).length;
   const pct = total ? Math.round((done / total) * 100) : 0;
 
   return (
     <PointerProvider>
       <div className="landing-page flex h-screen flex-col overflow-hidden">
+        {/* A PREVIEW MUST NEVER BE MISTAKEN FOR THE REAL THING, because it is
+            pixel-identical to it by design — same component, same chrome, same
+            rules. The band is the only difference, and it stays on screen for
+            the whole run rather than appearing at the end. */}
+        {preview && <PreviewBand />}
         {/* ---- top row: logo · title · who you are ---- */}
         <header className="grid shrink-0 grid-cols-2 items-start gap-4 px-5 py-5 sm:px-8 lg:grid-cols-[1fr_auto_1fr]">
           <a href={`/${locale}`} className="flex items-center gap-2.5 justify-self-start">
@@ -204,7 +270,7 @@ export default function QuestionnaireFlow({ locale, dict, initialPackage = "", e
                 scrolls here rather than growing the page. */}
             <div className="card mt-4 min-h-0 flex-1 overflow-y-auto">
               <div className="space-y-5">
-                {current.questions.map((q) => (
+                {asked.map((q) => (
                   <Question key={q.id} question={q} answers={answers} set={set} labels={tr} />
                 ))}
               </div>
@@ -230,13 +296,14 @@ export default function QuestionnaireFlow({ locale, dict, initialPackage = "", e
           </div>
 
           <NovaCorner hint={current.hint} />
+          {dryRun && <DryRunResult result={dryRun} onAgain={() => { setDryRun(null); setAnswers({ intent: "", field: "", country: "", city: "", erps: [], otherErp: "" }); setPageId(""); setSeen([]); }} />}
         </main>
 
         {/* ---- bottom: how long, and where you are ---- */}
         <footer className="shrink-0 px-5 pb-6 sm:px-8">
           <p className="text-center text-xs text-fg-dim">Average completion time: {AVERAGE_MINUTES} mins~</p>
           <div className="mx-auto mt-2 flex w-full max-w-xl items-center gap-2">
-            <Arrow dir="prev" disabled={first} onClick={() => setPage((p) => Math.max(0, p - 1))} labels={tr} />
+            <Arrow dir="prev" disabled={first} onClick={() => goTo(index - 1)} labels={tr} />
             <div className="relative h-2.5 flex-1 overflow-hidden rounded-full bg-line-soft">
               <div className="h-full rounded-full bg-gradient-to-r from-iris to-violet transition-[width] duration-500"
                 style={{ width: `${pct}%` }} />
@@ -244,12 +311,69 @@ export default function QuestionnaireFlow({ locale, dict, initialPackage = "", e
             {/* Forward is earned: the page you are on has to be answered before
                 it opens. Back is always free — checking what you put earlier is
                 not a reason to be trapped. */}
-            <Arrow dir="next" disabled={last || !canAdvance} onClick={goNext} labels={tr} />
+            <Arrow dir="next" disabled={last || !canAdvance} onClick={() => goTo(index + 1)} labels={tr} />
           </div>
-          <p className="mt-1.5 text-center text-[11px] text-fg-dim">Page {page + 1} of {total}</p>
+          <p className="mt-1.5 text-center text-[11px] text-fg-dim">Page {index + 1} of {total}</p>
         </footer>
       </div>
     </PointerProvider>
+  );
+}
+
+// ---- preview only ------------------------------------------------------------
+// Both of these render only under `preview`, and neither is translated: the
+// audience is whoever authored the form in the console, which is an
+// English-only surface, and a preview band appearing in Arabic on a real
+// registration would be a worse bug than an untranslated one here.
+
+function PreviewBand() {
+  return (
+    <div className="shrink-0 bg-amber-500/15 px-4 py-1.5 text-center text-xs font-600 text-amber-700 dark:text-amber-300">
+      Preview — nothing you answer here is saved
+    </div>
+  );
+}
+
+// WHAT THE RUN PROVED, which is not the same as what the form could do.
+// `registrationProblems` answers "is there a path that works"; this answers
+// "did THIS path work" — the author walks the branch they were worried about
+// and is told whether somebody taking it would have been let through or bounced
+// with no way forward.
+function DryRunResult({ result, onAgain }) {
+  const { body, accepted } = result;
+  const rows = Object.entries(body).filter(([, v]) => (Array.isArray(v) ? v.length : String(v ?? "").trim()));
+  return (
+    <div className="absolute inset-0 z-20 flex items-center justify-center bg-[var(--color-ink-page)]/85 p-4 backdrop-blur-sm">
+      <div className="card max-h-full w-full max-w-lg overflow-y-auto">
+        <h2 className="font-display text-lg font-700 text-fg">
+          {accepted ? "This path completes" : "This path would be refused"}
+        </h2>
+        <p className="mt-1 text-sm text-fg-muted">
+          {accepted
+            ? "Somebody answering the way you just did reaches the end and is let through to their account."
+            // The one failure that is invisible on the live form: every question
+            // answered, the button pressed, and a 400 with nothing on screen to
+            // explain it. Naming the field is the whole point of saying it here.
+            : "Every question was answered, but no `intent` of `create` or `join` came out of it — so the save is refused and somebody taking this path is stuck with nothing on screen telling them why."}
+        </p>
+
+        <h3 className="mt-4 text-xs font-700 uppercase tracking-wide text-fg-dim">What would be recorded</h3>
+        {rows.length === 0 ? (
+          <p className="mt-2 text-sm text-fg-muted">Nothing — every answer on this path was empty.</p>
+        ) : (
+          <dl className="mt-2 space-y-1.5">
+            {rows.map(([k, v]) => (
+              <div key={k} className="grid grid-cols-[10rem_1fr] gap-3 text-sm">
+                <dt className="truncate font-mono text-xs text-fg-dim">{k}</dt>
+                <dd className="min-w-0 break-words text-fg">{Array.isArray(v) ? v.join(", ") : String(v)}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
+
+        <button type="button" onClick={onAgain} className="btn-primary mt-5">Run it again</button>
+      </div>
+    </div>
   );
 }
 

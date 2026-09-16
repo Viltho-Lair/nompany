@@ -292,6 +292,22 @@ export type Verification = {
 export const getVerification = (userId: string) => getJSON<Verification>(U.verification(userId));
 export const updateVerification = patchDoc<Verification>(U.verification);
 /** The 1:1 onboarding answers. Every field is optional until they finish it. */
+/**
+ * WHAT ONE PERSON ANSWERED. Six named fields and an open map, and the split is
+ * not untidiness — it is the difference between an answer the PRODUCT reads and
+ * an answer only a human reads.
+ *
+ * The six are load-bearing: `intent` routes the account screen, `field` seeds a
+ * studio's trade, `packageKey` decides what they are billed, and
+ * `needsQuestionnaire` gates every surface behind sign-in on `completedAt`.
+ * Code reaches for them by name, so they are typed by name.
+ *
+ * `answers` is everything the form asked, keyed by `fieldOf(question)` — which
+ * includes those six again, because the questionnaire is authored in /super and
+ * an author may reword, reorder or remove any of it. Before this existed the
+ * save whitelisted the six and dropped the rest, so every question added in the
+ * builder was asked, answered and silently discarded.
+ */
 export type Questionnaire = {
   intent?: string;
   field?: string;
@@ -300,6 +316,10 @@ export type Questionnaire = {
   erps?: string[];
   packageKey?: string;
   completedAt?: string;
+  /** Every answer the form collected, including the six above. */
+  answers?: Record<string, string | string[] | number | boolean>;
+  /** Which authored form this answered, so the reply can be read against it. */
+  questionnaireId?: string;
 };
 
 export const getQuestionnaire = (userId: string) => getJSON<Questionnaire>(U.questionnaire(userId));

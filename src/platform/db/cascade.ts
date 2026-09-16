@@ -53,7 +53,7 @@
 //            the root. Records the deal merely USED are detached and left
 //            standing; see cascadeDeleteEngagement.
 
-import { REG, U, S, SEC, IX, ENG, KEY_PREFIX } from "./keys";
+import { REG, U, S, SEC, IX, ENG, Q, KEY_PREFIX } from "./keys";
 import { readArr, editArr, delKeys, delPrefix, release, getIndex, sRem, sMembers, scanPrefix, claim, zRem } from "./store";
 import { STAGE_REGISTRY } from "@/platform/engagement/registry";
 import { readEngagement, readEngagementView, detachRecord, isEngagementLocked, SLOT_TYPE } from "./engagement";
@@ -341,6 +341,29 @@ export async function cascadeDeleteUser(userId: string): Promise<boolean> {
 
   // 4) their join-requests + remaining indexes
   await editArr(REG.joinRequests, (jrs) => ({ next: jrs.filter((r) => r.userId !== userId) }));
+
+  //    …and their questionnaire ANSWERS, which do NOT live under u:<id>:* and
+  //    so are not reached by the prefix delete above. They are filed under the
+  //    FORM (q:<QuestionnaireID>:responses) precisely so a form outlives the
+  //    people who answered it — right for the form, wrong for the person, hence
+  //    this step. A reply carries an email address, so leaving it would make
+  //    deleting an account a deletion that did not delete.
+  //
+  //    READ STRAIGHT OFF THE REGISTRY, not through lib/data/questionnaires,
+  //    for the reason step 1 gives about owned studios: platform/db sits under
+  //    lib and modules, and a cascade reaching up into either would invert
+  //    that. The registry read is the whole of the derivation anyway — a
+  //    response key is only reachable from a questionnaire id, so the list of
+  //    forms IS the list of places to look, and the walk is over the small set
+  //    (forms) rather than the large one (answers).
+  const forms = await readArr<{ id?: unknown }>(REG.questionnaires);
+  for (const form of forms) {
+    const formId = String(form.id || "");
+    if (!formId) continue;
+    await editArr<{ userId?: unknown }, void>(Q.responses(formId), (rows) => ({
+      next: rows.filter((r) => String(r.userId || "") !== userId),
+    }));
+  }
   if (user) await release(IX.email(user.email));
   await delKeys(IX.collab(userId));
 

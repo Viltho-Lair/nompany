@@ -123,7 +123,11 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
         ["nc_sid", "Keeps you signed in. Holds a session reference, never your password", "The session"],
         ["nc_super", "The same, for the nompany operations console", "The session"],
         ["nc_otp", "Carries a sign-in through the one-time-code step", "Minutes"],
-        ["nc_dev", "Recognises a device you have already verified, so you are not asked for a code every time", "Until the device record expires or you sign out of it"],
+        // "Or you sign out of it" was not true and was the misleading half:
+        // signing out clears the session, deliberately not the device, or every
+        // sign-in would need a fresh code. What DOES end the trust is named
+        // here instead, because each is something the reader can go and do.
+        ["nc_dev", "Recognises a device you asked us to remember, so you are not asked for a code on it. Only set if you tick the box at the code step", "30 days, or until you revoke the device, change your password, or sign out everywhere"],
         ["nc_oauth", "Protects sign-in and calendar-authorisation redirects against cross-site request forgery", "The length of one redirect"],
         ["lang", "Remembers whether you chose English or Arabic", "Until you change it"],
       ] },

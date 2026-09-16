@@ -82,6 +82,12 @@ export const REGISTRATION_ROUTE = "/questionnaire";
 export const REGISTRATION_NAME = "Registration questionnaire";
 export const AVERAGE_MINUTES = 2;
 
+// WHAT `intent` IS ALLOWED TO BE. Lives here rather than in identity.ts because
+// two things now need it and they must not each keep a copy: the save that
+// refuses anything else, and the readiness check that tells an author BEFORE
+// they publish that their form can no longer produce one.
+export const INTENTS = ["create", "join"];
+
 export const QUESTION_PAGES = [
   {
     id: "qpg_reg_goal",
@@ -161,4 +167,121 @@ export function isAllComplete(
   answers: Record<string, unknown> | null | undefined,
 ) {
   return (pages || []).every((p) => isPageComplete(p, answers));
+}
+
+// ---- what an answer may be, once it has crossed the wire -------------------
+
+/** Every shape an answer is allowed to take once stored. */
+export type AnswerValue = string | string[] | number | boolean;
+
+// The bounds. A questionnaire is authored in /super and answered by anyone who
+// registers, so the body arriving here is a stranger's — and the fields on it
+// are whatever the form happens to ask, which is exactly why they cannot be
+// whitelisted by name the way the six built-in ones were.
+const MAX_FIELDS = 200;
+const MAX_KEY = 80;
+const MAX_TEXT = 2000;
+const MAX_LIST = 50;
+const MAX_LIST_ITEM = 200;
+
+// ---- can this form still finish a registration? ----------------------------
+
+/**
+ * AN AUTHOR IS ALLOWED TO BREAK THIS, AND THAT IS THE RIGHT RULE — provided the
+ * breakage is visible before it reaches anybody registering.
+ *
+ * The registration questionnaire is a GATE: `saveQuestionnaire` refuses a body
+ * whose `intent` is not one of INTENTS, and `needsQuestionnaire` holds every
+ * surface behind sign-in until `completedAt` is written. So a form edited into
+ * a shape that cannot produce an `intent` does not fail loudly — it lets people
+ * fill it in, answer every question, press the button, and be refused, with no
+ * way forward and nothing on the screen explaining why.
+ *
+ * Four ways that happens, and every one is decidable from the form alone. This
+ * is deliberately NOT a refusal to save: the author may be mid-edit, or may be
+ * building a form for some other route entirely. It is what the builder and the
+ * preview say out loud, so "there is a clear path with answers" is something
+ * somebody has checked rather than assumed.
+ *
+ * Only meaningful for the form at REGISTRATION_ROUTE. Any other questionnaire
+ * has no such contract and gets no such warning.
+ */
+export function registrationProblems(
+  pages: { questions?: QuestionnaireQuestion[] }[] | null | undefined,
+  { reachable }: { reachable?: (id: string) => boolean } = {},
+): string[] {
+  type Q = QuestionnaireQuestion & {
+    id?: string; type?: string; options?: string[]; optionValues?: string[];
+  };
+  const questions = (pages || []).flatMap((p) => (p?.questions || []) as Q[]);
+  const bound = questions.filter((q) => fieldOf(q) === "intent");
+  const out: string[] = [];
+
+  if (bound.length === 0) {
+    return ["No question on this form is stored as `intent`. Registration cannot finish without one — "
+      + "give a question the key `intent`, with the answers `create` and `join`."];
+  }
+  if (bound.length > 1) {
+    out.push(`${bound.length} questions are stored as \`intent\`. They overwrite each other, and which one wins depends on the order they are answered in.`);
+  }
+
+  for (const q of bound) {
+    const name = q.id || "the intent question";
+    // BEHIND A RULE means somebody can reach the end without being asked it,
+    // and a form that finishes without an intent is a form that is refused.
+    if (reachable && q.id && !reachable(String(q.id))) {
+      out.push(`\`${name}\` can never be shown — nothing reveals it, so nobody can answer it.`);
+    }
+    if (!q.required) {
+      out.push(`\`${name}\` is optional. Somebody can skip it, and the save is then refused with nothing on screen to say why.`);
+    }
+    // The stored values, not the labels: the save compares what lands in the
+    // answer, which is optionValues where a question has them.
+    const values = (Array.isArray(q.optionValues) && q.optionValues.length ? q.optionValues : q.options) || [];
+    const stored = values.map((v) => String(v));
+    const missing = INTENTS.filter((i) => !stored.includes(i));
+    if (stored.length === 0) {
+      out.push(`\`${name}\` has no fixed choices, so what somebody types will almost never be exactly \`create\` or \`join\`.`);
+    } else if (missing.length) {
+      out.push(`\`${name}\` cannot produce ${missing.map((m) => `\`${m}\``).join(" or ")}. Its stored answers are ${stored.map((s) => `\`${s}\``).join(", ")}.`);
+    }
+  }
+  return out;
+}
+
+/**
+ * AN OPEN ANSWER MAP, BOUNDED RATHER THAN WHITELISTED.
+ *
+ * `saveQuestionnaire` used to accept six named fields and drop everything else
+ * on the floor — so every question an author added in the builder was asked,
+ * answered, posted, and silently discarded, with the submit reporting success.
+ * A whitelist cannot work here: the whole point of the builder is that nobody
+ * knows the field names at compile time.
+ *
+ * So the shape is open and the SIZE is closed. Anything that is not a string,
+ * a list of strings, a number or a boolean is dropped, because nothing the
+ * screen can produce is anything else and a nested object is how a body turns
+ * into a storage bill.
+ */
+export function cleanAnswers(input: unknown): Record<string, AnswerValue> {
+  const out: Record<string, AnswerValue> = {};
+  if (!input || typeof input !== "object" || Array.isArray(input)) return out;
+  for (const [rawKey, value] of Object.entries(input as Record<string, unknown>)) {
+    if (Object.keys(out).length >= MAX_FIELDS) break;
+    const key = String(rawKey).trim().slice(0, MAX_KEY);
+    if (!key) continue;
+    if (Array.isArray(value)) {
+      out[key] = value.slice(0, MAX_LIST).map((v) => String(v ?? "").slice(0, MAX_LIST_ITEM));
+    } else if (typeof value === "number") {
+      // NaN and Infinity are not answers; they are what a blank number field
+      // becomes on the way through arithmetic nobody meant to do.
+      if (Number.isFinite(value)) out[key] = value;
+    } else if (typeof value === "boolean") {
+      out[key] = value;
+    } else if (typeof value === "string") {
+      out[key] = value.slice(0, MAX_TEXT);
+    }
+    // Anything else — objects, null, undefined, functions — is not an answer.
+  }
+  return out;
 }

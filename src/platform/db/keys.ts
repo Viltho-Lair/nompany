@@ -68,6 +68,11 @@ export const ID = {
   erpService: () => makeId("svc"),
   qpage: () => makeId("qpg"),
   question: () => makeId("qsn"),
+  // One person's filled-in answers to one authored questionnaire. Distinct from
+  // `questionnaire` above, which mints the FORM — a definition and a reply to it
+  // are different records and confusing the two is how answers end up filed
+  // under the thing that asked for them.
+  response: () => makeId("qrs"),
   chatRoom: () => makeId("cht"),
   // A project plan — the scheduler document opened from a project or the planner
   // app. Server-minted (unlike the board's client-side ids) because a plan is a
@@ -149,6 +154,27 @@ export const REG = {
   // to encrypt, no refresh token to protect and no expiry to track. See
   // docs/superpowers/specs/2026-09-03-super-google-calendar-design.md §3.
   googleCalendar: `${P}g:googleCalendar`,
+};
+
+// ---- per-questionnaire keys (what people answered one authored form) -------
+//
+// ONE KEY PER QUESTIONNAIRE, NOT ONE FOR ALL OF THEM. The registry pattern
+// beside this (g:users, g:studios) puts every row of a kind under a single key,
+// and that is wrong here for a reason that is about writes rather than size:
+// every submission is a compare-and-set on the key it lands in, so one global
+// key would serialise every reply to every form the platform has ever published
+// behind every other. Split per form, two questionnaires never contend at all.
+//
+// It still grows without bound WITHIN one form, which is the honest limit of
+// this shape: a questionnaire answered by a hundred thousand people is one
+// document read whole on every submission. The registration questionnaire is
+// bounded by the number of accounts, which is the same bound g:users already
+// carries. A form that outgrows this wants its own table in collection_rows,
+// and moving it is a migration rather than a tweak — say so before publishing a
+// questionnaire to the open internet.
+export const Q = {
+  prefix: (questionnaireId: string) => `${P}q:${questionnaireId}:`,
+  responses: (questionnaireId: string) => `${P}q:${questionnaireId}:responses`,
 };
 
 // ---- per-user keys (1:1 / 1:N satellites; die with the user) ---------------

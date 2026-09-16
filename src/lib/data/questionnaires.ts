@@ -6,9 +6,21 @@
 // is always read and written whole, so splitting it across per-page keys would
 // buy nothing and cost a cascade to maintain. Deleting one is deleting its row.
 //
-// Answers are NOT here. A person's answers still live at u:<UserID>:questionnaire
-// exactly as before; this registry is the definition side, and the two are
-// deliberately separate — deleting a form must never delete what people said.
+// Answers are NOT here — they are in questionnaireResponses.ts, filed under
+// q:<QuestionnaireID>:responses, plus the answerer's own copy at
+// u:<UserID>:questionnaire which the onboarding gate reads. This registry is
+// the definition side, and the three are deliberately separate: deleting a form
+// must never delete what people said, and deleting a person must not delete the
+// form.
+//
+// NOTHING CROSSES, INCLUDING THE COUNT. A row here carried `responses` and
+// `completed` from the day it was written and no code ever moved either — the
+// console showed "-" for every form forever. The fix was not to start
+// incrementing them: a stored counter beside the rows it counts is a second
+// source of the same fact, and the two part company the first time a write
+// lands and its bump does not. The count is DERIVED from the responses, by
+// whoever is asking. That costs one read per form on one console screen, which
+// is the cheapest thing in this file, and it cannot drift.
 
 import { readArr, editArr } from "@/platform/db/store";
 import { ID, REG } from "@/platform/db/keys";
@@ -36,8 +48,6 @@ export async function createQuestionnaireDef(
     route: str(route, 200),
     status: "draft",
     pages: [],
-    responses: 0,
-    completed: 0,
     createdBy: str(createdBy, 60),
     createdAt: now(),
     updatedAt: now(),
@@ -46,7 +56,9 @@ export async function createQuestionnaireDef(
   return row;
 }
 
-// Only these may be written from a request; id, counters and createdAt are ours.
+// Only these may be written from a request; id and createdAt are ours. There is
+// no counter to protect any more — the response count is derived (see the head
+// of this file), so there is nothing here a request could inflate.
 const WRITABLE = ["name", "route", "status", "pages"];
 
 export async function updateQuestionnaireDef(id: string, patch: Record<string, unknown>) {
@@ -86,8 +98,6 @@ export async function duplicateQuestionnaireDef(id: string, createdBy = "") {
     // A route can only belong to one questionnaire, so a copy starts unattached.
     route: "",
     status: "draft",
-    responses: 0,
-    completed: 0,
     createdBy: str(createdBy, 60),
     createdAt: now(),
     updatedAt: now(),
@@ -122,8 +132,6 @@ export async function ensureQuestionnaireForRoute(
     route: String(route || "").slice(0, 200),
     status: "live",
     pages: structuredClone(pages || []),
-    responses: 0,
-    completed: 0,
     createdBy: "system",
     createdAt: now(),
     updatedAt: now(),

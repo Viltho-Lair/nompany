@@ -1,5 +1,6 @@
 import { route } from "@/platform/http/route";
 import { listQuestionnaires, createQuestionnaireDef, duplicateQuestionnaireDef } from "@/lib/data/questionnaires";
+import { listResponses } from "@/lib/data/questionnaireResponses";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,12 +16,26 @@ const pagesOf = (q: { pages?: unknown }): { questions?: unknown[] }[] =>
 
 export const GET = route(spec, async () => {
   // The list screen wants a summary per row, not every question in every form.
-  const questionnaires = (await listQuestionnaires()).map((q) => ({
-    id: q.id, name: q.name, route: q.route || "", status: q.status || "draft",
-    pages: pagesOf(q).length,
-    questions: pagesOf(q).reduce((n, p) => n + (p.questions || []).length, 0),
-    responses: q.responses || 0, completed: q.completed || 0,
-    createdAt: q.createdAt, updatedAt: q.updatedAt,
+  //
+  // THE RESPONSE COUNT IS COUNTED, not read off the row. It used to be read off
+  // the row, where it was written as 0 at creation and moved by nothing ever —
+  // so this column showed "-" for every questionnaire the platform has ever
+  // published, including ones hundreds of people had answered. One read per
+  // form, on a console screen a handful of people open: the cheapest possible
+  // fix and the only one that cannot go stale.
+  const rows = await listQuestionnaires();
+  const questionnaires = await Promise.all(rows.map(async (q) => {
+    const responses = (await listResponses(String(q.id))).length;
+    return {
+      id: q.id, name: q.name, route: q.route || "", status: q.status || "draft",
+      pages: pagesOf(q).length,
+      questions: pagesOf(q).reduce((n, p) => n + (p.questions || []).length, 0),
+      // Equal today by construction: the flow posts once, at the end, so a
+      // response that exists is one that finished. They stay two fields for the
+      // day a half-answered survey can be stored.
+      responses, completed: responses,
+      createdAt: q.createdAt, updatedAt: q.updatedAt,
+    };
   }));
   return { questionnaires };
 });

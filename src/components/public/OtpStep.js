@@ -17,7 +17,14 @@ const box =
 export default function OtpStep({ email, onVerified, onError, trustPrompt = true, submitLabel }) {
   const tr = accountDict(useAccountLocale());
   const [digits, setDigits] = useState(["", "", "", "", "", ""]);
-  const [trust, setTrust] = useState(true);
+  // UNTICKED. It defaulted to ON, and nobody had chosen that: every person who
+  // ever registered was silently trusted on that browser for thirty days, so
+  // signing out and back in never asked for a code again and the second factor
+  // was, in practice, off for everyone with an account. A pre-ticked box is not
+  // consent to skip a security step — it is the step being skipped by default
+  // and blamed on the person. Ticking it deliberately still works exactly as it
+  // did; what changed is that somebody has to.
+  const [trust, setTrust] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");

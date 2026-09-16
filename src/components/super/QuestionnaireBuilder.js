@@ -7,7 +7,10 @@ import {
 } from "@/lib/questionnaireElements";
 import { INDUSTRIES } from "@/lib/industries";
 import { COUNTRIES } from "@/shared/countries";
-import { ERP_SYSTEMS } from "@/lib/questionnaire";
+import { ERP_SYSTEMS, REGISTRATION_ROUTE, registrationProblems } from "@/lib/questionnaire";
+import {
+  RULE_OPS, RULE_OP_LABELS, allQuestions, conditionalIds, logicProblems, opTakesValue, reachableIds,
+} from "@/lib/questionnaireLogic";
 import SelectMenu from "@/components/fields/SelectMenu";
 
 // What each bound source actually contains, so a question wired to one can SHOW
@@ -77,8 +80,18 @@ export default function QuestionnaireBuilder({ id }) {
       method: "PUT", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: doc.name, route: doc.route, pages: doc.pages }),
     });
-    if (res.ok) { setDirty(false); setStatus("Saved"); }
-    else setStatus("Couldn't save");
+    if (res.ok) { setDirty(false); setStatus("Saved"); return true; }
+    setStatus("Couldn't save");
+    return false;
+  }
+
+  // A NEW TAB, so the builder stays where it was. The author is comparing the
+  // two — "I changed this rule, does the form now do what I meant" — and
+  // navigating away from the editor to answer that is the version of this
+  // feature nobody uses twice.
+  async function openPreview() {
+    if (dirty && !(await save())) return;      // never preview a form that failed to save
+    window.open(`/en/questionnaire/preview/${id}`, "_blank", "noopener");
   }
 
   function addPage() {
@@ -117,6 +130,29 @@ export default function QuestionnaireBuilder({ id }) {
     setPageIdx((i) => Math.max(0, Math.min(i, (doc?.pages?.length || 2) - 2)));
   }
 
+  // THE WHOLE FORM'S LOGIC, not this page's. A rule may point at a question on
+  // any page — that is most of what branching is for — so the target picker and
+  // the problem report both have to see every question there is.
+  const everyQuestion = useMemo(() => allQuestions(doc?.pages), [doc]);
+  const conditional = useMemo(() => conditionalIds(doc?.pages), [doc]);
+  // Recomputed on every edit rather than on save: a rule that can never fire is
+  // worth saying so while the author is still looking at it.
+  const problems = useMemo(() => logicProblems(doc?.pages), [doc]);
+
+  // CAN THIS FORM STILL FINISH A REGISTRATION? Only asked of the form at the
+  // registration route — no other questionnaire has that contract, and warning
+  // about a missing `intent` on a customer survey would be noise.
+  //
+  // It is a WARNING, not a refusal. An author mid-edit is allowed to have a
+  // broken form; what they are not allowed is to find out from a stranger who
+  // is stuck on it. `reachable` is passed so a question that exists but sits
+  // behind a rule nothing can fire counts as absent, which is what it is.
+  const registration = useMemo(() => {
+    if ((doc?.route || "") !== REGISTRATION_ROUTE) return [];
+    const reachable = reachableIds(doc?.pages);
+    return registrationProblems(doc?.pages, { reachable: (qid) => reachable.has(qid) });
+  }, [doc]);
+
   if (!doc) return <div className="flex min-h-full w-full items-center justify-center bg-[var(--ad-muted)] text-sm text-[var(--ad-muted-foreground)]">Loading…</div>;
 
   // FILLS ITS CONTAINER, NOT THE VIEWPORT. This was `h-screen` when the builder
@@ -151,9 +187,42 @@ export default function QuestionnaireBuilder({ id }) {
             />
           </label>
           <span className="text-xs text-[var(--ad-muted-foreground)]">{status || (dirty ? "Unsaved changes" : "")}</span>
+          {/* SAVE FIRST WHEN THERE IS ANYTHING TO SAVE. The preview reads the
+              STORED definition — it is a real route rendering the real
+              component, not the builder's own draft handed across — so opening
+              it with unsaved edits would show the author yesterday's form and
+              let them conclude their new rule does not work. One button that
+              does the right thing, rather than a disabled one and a hint. */}
+          <button type="button" className={ghost} onClick={openPreview}>
+            {dirty ? "Save and preview" : "Preview"}
+          </button>
           <button type="button" className={dark} onClick={save} disabled={!dirty}>Save</button>
         </div>
       </header>
+
+      {/* THIS FORM IS THE DOOR INTO THE PRODUCT, and nothing else in the
+          console says so. Edited into a shape that cannot produce an `intent`,
+          it does not fail here — it fails on a stranger, after they have
+          answered every question, as a refusal with nothing on screen to
+          explain it. A warning rather than a block: a form being built is
+          allowed to be broken, and the author is the one who decides when it
+          is not. Only on the registration route; no other form has this
+          contract. */}
+      {registration.length > 0 && (
+        <div className="shrink-0 border-b border-[rgb(var(--ad-destructive-rgb)/0.3)] bg-[rgb(var(--ad-destructive-rgb)/0.08)] px-4 py-2.5">
+          <p className="text-xs font-700 uppercase tracking-wide text-[var(--ad-destructive)]">
+            Nobody can finish registering with this form
+          </p>
+          <ul className="mt-1 space-y-0.5">
+            {registration.map((p, i) => (
+              <li key={i} className="text-xs leading-snug text-[var(--ad-destructive)]">{p}</li>
+            ))}
+          </ul>
+          <p className="mt-1.5 text-[11px] text-[var(--ad-muted-foreground)]">
+            Preview walks the form the way somebody registering would, and tells you at the end whether the path you took gets through.
+          </p>
+        </div>
+      )}
 
       <div className="flex min-h-0 flex-1">
         {/* ---- left: pages ---- */}
@@ -230,6 +299,19 @@ export default function QuestionnaireBuilder({ id }) {
                     <button key={q.id} type="button" onClick={() => setSelected(q.id)}
                       className={`block w-full rounded-xl border bg-[var(--ad-card)] p-6 text-start transition-colors ${
                         question?.id === q.id ? "border-[var(--ad-foreground)]" : "border-[var(--ad-border)] hover:border-[var(--ad-border)]"}`}>
+                      {/* THE LOGIC IS VISIBLE HERE AND NOWHERE THE RESPONDENT
+                          LOOKS. Two marks: this question decides something, or
+                          this question only appears because something else
+                          did. Without them branching is invisible in both
+                          directions — an author scrolling a form cannot tell a
+                          question that is always asked from one almost nobody
+                          sees, and that is exactly the mistake that makes a
+                          survey quietly collect nothing. */}
+                      <LogicMarks
+                        rules={q.reveals}
+                        conditional={conditional.has(q.id)}
+                        problems={problems.filter((p) => p.questionId === q.id)}
+                      />
                       <QuestionPreview q={q} n={n + 1} />
                     </button>
                   ))}
@@ -244,7 +326,13 @@ export default function QuestionnaireBuilder({ id }) {
           {!question ? (
             <p className="text-sm text-[var(--ad-muted-foreground)]">Select an element to edit it.</p>
           ) : (
-            <Settings q={question} onPatch={patchQuestion} onRemove={() => removeQuestion(question.id)} />
+            <Settings
+              q={question}
+              everyQuestion={everyQuestion}
+              problems={problems.filter((p) => p.questionId === question.id)}
+              onPatch={patchQuestion}
+              onRemove={() => removeQuestion(question.id)}
+            />
           )}
         </aside>
       </div>
@@ -363,7 +451,7 @@ function renderAnswer(q) {
 }
 
 // ---- the right-hand settings panel -------------------------------------------
-function Settings({ q, onPatch, onRemove }) {
+function Settings({ q, everyQuestion = [], problems = [], onPatch, onRemove }) {
   const def = byType(q.type);
   const supports = def?.settings || [];
   return (
@@ -462,8 +550,171 @@ function Settings({ q, onPatch, onRemove }) {
         </label>
       )}
 
+      <LogicEditor q={q} everyQuestion={everyQuestion} problems={problems} onPatch={onPatch} />
+
       <button type="button" onClick={onRemove} className="w-full rounded-lg border border-[rgb(var(--ad-destructive-rgb)/0.3)] px-3 py-2 text-sm font-600 text-[var(--ad-destructive)] hover:bg-[rgb(var(--ad-destructive-rgb)/0.1)]">
         Delete element
+      </button>
+    </div>
+  );
+}
+
+// ---- branching, in the author's hands ----------------------------------------
+//
+// The respondent never sees any of this. They answer, and the next question is
+// simply the right one — which is the whole feature, and the reason all of it
+// surfaces here instead: the only person who should be able to tell a form has
+// branches is the person who put them there.
+//
+// The rule sits on the question that DECIDES, so this panel reads as a sentence
+// about the question on screen: "when the answer <op> <value>, also ask …".
+// `lib/questionnaireLogic` is the authority on what that means; this only
+// writes it down, so the builder and the live form can never disagree.
+
+const CHIP = "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-600";
+
+function LogicMarks({ rules = [], conditional, problems = [] }) {
+  const decides = (rules || []).length;
+  if (!decides && !conditional && !problems.length) return null;
+  return (
+    <div className="mb-2 flex flex-wrap items-center gap-1.5">
+      {conditional && (
+        <span className={`${CHIP} bg-[var(--ad-muted)] text-[var(--ad-muted-foreground)]`}>
+          Only if asked for
+        </span>
+      )}
+      {decides > 0 && (
+        <span className={`${CHIP} bg-[rgb(var(--ad-foreground-rgb)/0.08)] text-[var(--ad-foreground)]`}>
+          {decides === 1 ? "1 rule" : `${decides} rules`}
+        </span>
+      )}
+      {problems.length > 0 && (
+        <span className={`${CHIP} bg-[rgb(var(--ad-destructive-rgb)/0.12)] text-[var(--ad-destructive)]`}>
+          {problems.length === 1 ? "1 problem" : `${problems.length} problems`}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function LogicEditor({ q, everyQuestion = [], problems = [], onPatch }) {
+  const rules = Array.isArray(q.reveals) ? q.reveals : [];
+  // The choices this question can actually be answered with. A question bound
+  // to a built-in source has thousands, so the value is typed rather than
+  // picked there — and `logicProblems` knows not to judge a value it cannot
+  // check against a list it does not hold.
+  const choices = (q.options || []).map((option, i) => ({
+    value: String(Array.isArray(q.optionValues) ? q.optionValues[i] ?? option : option),
+    label: String(option),
+  }));
+  // Everything except this question — a question revealing itself is a rule
+  // that can never fire, so it is not offered rather than reported afterwards.
+  const targets = everyQuestion.filter((other) => other.id !== q.id);
+
+  const write = (next) => onPatch({ reveals: next.length ? next : undefined });
+  const patchRule = (i, patch) => write(rules.map((r, j) => (j === i ? { ...r, ...patch } : r)));
+
+  return (
+    <div className="border-t border-[var(--ad-border)] pt-4">
+      <h3 className="text-xs font-700 uppercase tracking-wide text-[var(--ad-muted-foreground)]">Logic</h3>
+      <p className="mt-1 text-[11px] leading-snug text-[var(--ad-muted-foreground)]">
+        Show another question depending on how this one is answered. Whoever fills the form
+        sees only the questions that apply — never the rule.
+      </p>
+
+      {problems.length > 0 && (
+        <ul className="mt-2 space-y-1 rounded-lg bg-[rgb(var(--ad-destructive-rgb)/0.08)] px-2.5 py-2">
+          {problems.map((p, i) => (
+            <li key={i} className="text-[11px] leading-snug text-[var(--ad-destructive)]">{p.problem}</li>
+          ))}
+        </ul>
+      )}
+
+      <div className="mt-3 space-y-3">
+        {rules.map((rule, i) => (
+          <div key={i} className="rounded-lg border border-[var(--ad-border)] p-2.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-600 uppercase tracking-wide text-[var(--ad-muted-foreground)]">
+                When the answer
+              </span>
+              <button type="button" aria-label="Remove rule"
+                className="px-1 text-[var(--ad-muted-foreground)] hover:text-[var(--ad-destructive)]"
+                onClick={() => write(rules.filter((_, j) => j !== i))}>×</button>
+            </div>
+
+            <SelectMenu
+              value={rule.op || "is"}
+              onChange={(op) => patchRule(i, { op, ...(opTakesValue(op) ? {} : { value: "" }) })}
+              className="ad-select mt-1.5"
+              aria-label="Condition"
+              options={RULE_OPS.map((op) => ({ value: op, label: RULE_OP_LABELS[op] }))}
+            />
+
+            {opTakesValue(rule.op || "is") && (
+              choices.length ? (
+                <SelectMenu
+                  value={rule.value || ""}
+                  onChange={(value) => patchRule(i, { value })}
+                  className="ad-select mt-1.5"
+                  aria-label="Answer to compare against"
+                  options={[{ value: "", label: "Pick an answer" }, ...choices]}
+                />
+              ) : (
+                // A bound list is too long to put in a dropdown, so the value is
+                // typed. It is the STORED value — the country's name, not its
+                // code — because that is what the answer will be compared to.
+                <input
+                  value={rule.value || ""}
+                  onChange={(e) => patchRule(i, { value: e.target.value })}
+                  className={`${field} mt-1.5`}
+                  placeholder="Answer to match"
+                />
+              )
+            )}
+
+            <p className="mt-2.5 text-[11px] font-600 uppercase tracking-wide text-[var(--ad-muted-foreground)]">
+              Also ask
+            </p>
+            <div className="mt-1 space-y-1">
+              {targets.length === 0 && (
+                <p className="text-[11px] text-[var(--ad-muted-foreground)]">
+                  Add another question first — there is nothing for this rule to show.
+                </p>
+              )}
+              {targets.map((other) => {
+                const on = (rule.show || []).includes(other.id);
+                return (
+                  <label key={other.id} className="flex cursor-pointer items-start gap-2 text-xs">
+                    <input
+                      type="checkbox"
+                      checked={on}
+                      onChange={(e) => patchRule(i, {
+                        show: e.target.checked
+                          ? [...(rule.show || []), other.id]
+                          : (rule.show || []).filter((id) => id !== other.id),
+                      })}
+                      className="mt-0.5 h-3.5 w-3.5 shrink-0 cursor-pointer"
+                    />
+                    <span className="min-w-0 text-[var(--ad-foreground)]">
+                      {/* An element with no label yet is named by its type, so a
+                          half-built question is still pickable. Falling back to
+                          the id would be a string nobody recognises. */}
+                      {String(other.label || "").trim() || byType(other.type)?.label || other.id}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <button
+        type="button"
+        onClick={() => write([...rules, { op: "is", value: "", show: [] }])}
+        className="mt-2 w-full rounded-lg border border-dashed border-[var(--ad-border)] px-3 py-2 text-xs font-600 text-[var(--ad-muted-foreground)] hover:border-[var(--ad-foreground)] hover:text-[var(--ad-foreground)]"
+      >
+        Add a rule
       </button>
     </div>
   );
