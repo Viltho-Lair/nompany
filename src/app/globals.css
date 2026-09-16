@@ -1346,6 +1346,15 @@ html.dark { color-scheme: dark; }
   color: rgb(29 78 216);
 }
 .dark .ProseMirror .merge-block { color: rgb(147 197 253); }
+/* The studio logo as printed. Capped in height so a large upload cannot push a
+   header band past the space its margin reserves. */
+.ProseMirror .field-image, .band-surface .field-image {
+  display: inline-block;
+  max-height: 3.5rem;
+  width: auto;
+  margin: 0;
+  vertical-align: middle;
+}
 .ProseMirror .merge-field.ProseMirror-selectednode,
 .ProseMirror .merge-block.ProseMirror-selectednode { outline: 2px solid rgb(37 99 235); }
 

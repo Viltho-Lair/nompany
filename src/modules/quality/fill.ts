@@ -19,7 +19,7 @@
 // different facts — "we could not read this" and "this is blank" — and a gap
 // cannot say which.
 
-import { FIELD_NODE, BLOCK_NODE } from "./qualityFields";
+import { FIELD_NODE, BLOCK_NODE, FIELD_IMAGE_NODE, IMAGE_FIELD_KEYS } from "./qualityFields";
 
 type Json = {
   type?: string;
@@ -167,6 +167,12 @@ export function fillTemplate(
       if (!(key in values)) {
         missing.push(key);
         return textNodes(`[${label}]`, marks);
+      }
+      // A PICTURE, inline so it sits in the paragraph the placeholder was in —
+      // header bands hold paragraphs, not block images. No logo prints nothing:
+      // a dash where a logo belongs reads as a mistake in the letterhead.
+      if (IMAGE_FIELD_KEYS.has(key)) {
+        return values[key] ? [{ type: FIELD_IMAGE_NODE, attrs: { src: values[key] } }] : [];
       }
       return textNodes(formatValue(values[key]) || "—", marks);
     }

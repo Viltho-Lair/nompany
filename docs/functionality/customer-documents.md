@@ -45,8 +45,11 @@ had no screen) decides which record every placeholder resolves against, so it is
 an issued document with no revision open, exactly as the body is.
 
 **Insert field** (the editor's toolbar) lists what the server says this author may place on
-this document, grouped: Company, Legal information (the studio's own rows, as typed), the
-document itself, and — once bound — the quotation's or invoice's own fields. A *block* is a
+this document, grouped: Company — name, address, city, country, **the studio's logo** (offered
+only while one is uploaded, and printed as the picture, capped at 3.5rem high; a logo removed
+later prints nothing where it was), **Legal information** (every legal row as
+"Label: value", joined, offered once the studio has any) and each legal row on its own, as
+typed — the document itself, and — once bound — the quotation's or invoice's own fields. A *block* is a
 field that resolves to rows: a quotation's tables and totals, an invoice's lines and totals.
 Blocks go in the body only; the header and footer take inline fields, which is where a
 letterhead's company name and VAT number belong.

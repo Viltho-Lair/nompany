@@ -123,6 +123,15 @@ const ALWAYS = [
   { key: "company.address", label: "Address", group: "Company", subject: null, kind: "scalar" },
   { key: "company.country", label: "Country", group: "Company", subject: null, kind: "scalar" },
   { key: "company.city", label: "City", group: "Company", subject: null, kind: "scalar" },
+  // THE LOGO PRINTS AS THE PICTURE, not as its address — see IMAGE_FIELD_KEYS.
+  // Offered only while the studio has one (`availableFields`), but always a
+  // valid key: a template keeps its placeholder when the logo is removed, and
+  // prints nothing there until a new one is uploaded.
+  { key: "company.logo", label: "Company logo", group: "Company", subject: null, kind: "scalar" },
+  // EVERY LEGAL ROW AT ONCE, "Label: value" joined — for a letterhead that
+  // wants the lot without the author placing each row, and that picks up a row
+  // the studio adds later. The rows one by one are offered beside it.
+  { key: "company.legal", label: "Legal information", group: "Company", subject: null, kind: "scalar" },
   { key: "document.code", label: "Document code", group: "Document", subject: null, kind: "scalar" },
   { key: "document.title", label: "Title", group: "Document", subject: null, kind: "scalar" },
   { key: "document.revision", label: "Revision", group: "Document", subject: null, kind: "scalar" },
@@ -140,6 +149,12 @@ const ALWAYS = [
 ];
 
 export const STATIC_FIELDS = [...ALWAYS, ...SALES_TICKET];
+
+// Fields whose value is an image address. The fill turns these into a picture
+// rather than text; printing the URL would be a letterhead reading
+// "/api/media/…".
+export const IMAGE_FIELD_KEYS = new Set(["company.logo"]);
+export const FIELD_IMAGE_NODE = "fieldImage";
 // Mutable, because the sources below append to STATIC_FIELDS after this point.
 const STATIC_KEY_SET = new Set(STATIC_FIELDS.map((f) => f.key));
 
@@ -164,7 +179,9 @@ export const legalFieldsFrom = (legalInfo: unknown): MergeField[] =>
     .map((row) => ({
       key: legalKeyFor(row.key),
       label: String(row.key),
-      group: "Legal information",
+      // UNDER COMPANY, beside the name and address: a VAT number is a fact
+      // about the company, and a group of its own sent authors looking for it.
+      group: "Company",
       // A legal field belongs to the STUDIO, not to the record a document is
       // bound to — so it has no subject to reach through and no path to walk.
       subject: null,
@@ -241,13 +258,20 @@ export function reachOf(
 export function availableFields({
   subjectType = null,
   legalInfo = [],
+  hasLogo = false,
   holds = () => true,
 }: {
   subjectType?: string | null;
   legalInfo?: unknown[];
+  hasLogo?: boolean;
   holds?: (permission: string) => boolean;
 }) {
-  return [...STATIC_FIELDS, ...legalFieldsFrom(legalInfo)].filter((f) => {
+  const legal = legalFieldsFrom(legalInfo);
+  return [...STATIC_FIELDS, ...legal].filter((f) => {
+    // Offered only when there is something to print: a logo field on a studio
+    // with no logo, or a legal block on one with no legal rows, is a blank.
+    if (f.key === "company.logo") return hasLogo;
+    if (f.key === "company.legal") return legal.length > 0;
     if (!f.subject) return true;
     if (!subjectType) return false;
     return Boolean(reachOf(subjectType, f.subject, holds));

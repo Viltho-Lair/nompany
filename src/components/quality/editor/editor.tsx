@@ -19,6 +19,7 @@ import StarterKit from "@tiptap/starter-kit";
 import { BandCopy, BandEditor } from "@/components/quality/editor/band-editor";
 import { PageBreak } from "@/components/quality/editor/page-break";
 import {
+  FieldImageNode,
   MergeBlockNode,
   MergeFieldNode,
   type FieldGroups,
@@ -157,6 +158,7 @@ export function Editor({
       // body-only thing; the bands take the inline field alone.
       MergeFieldNode,
       MergeBlockNode,
+      FieldImageNode,
       // IMAGES, which the port shipped without entirely — no Image extension
       // meant a document could not carry a diagram, a stamp or a signature. The
       // src is a path into the studio's own media store; `allowBase64` is off

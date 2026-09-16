@@ -17,7 +17,7 @@ import {
   StyledTableCell,
   StyledTableHeader,
 } from "@/components/quality/editor/table-cells";
-import { MergeFieldNode } from "@/components/quality/editor/merge-nodes";
+import { FieldImageNode, MergeFieldNode } from "@/components/quality/editor/merge-nodes";
 
 /**
  * Headers and footers are the same kind of surface as the body — rich text,
@@ -46,7 +46,9 @@ export function bandExtensions() {
     StyledTableCell,
     // A letterhead is where the company's name and legal rows live, so the
     // band takes inline placeholders. Blocks are body-only: a band is a strip.
+    // The logo placeholder prints as a FieldImageNode, so the band renders it.
     MergeFieldNode,
+    FieldImageNode,
   ];
 }
 

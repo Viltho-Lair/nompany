@@ -180,6 +180,9 @@ export async function mergeValuesFor(
     "company.address": String(ctx.studio.location || ""),
     "company.country": String(ctx.studio.country || ""),
     "company.city": String(ctx.studio.city || ""),
+    // Always present: a studio with no logo is BLANK, not unreadable, and the
+    // fill prints nothing for it rather than a bracketed name.
+    "company.logo": String(ctx.studio.logo || ""),
     "document.code": String(document.code || ""),
     "document.title": String(document.title || ""),
     "document.revision": `Rev ${rev ?? document.revision ?? 0}`,
@@ -197,9 +200,13 @@ export async function mergeValuesFor(
   const legalRows = (Array.isArray(ctx.studio.legalInfo)
     ? ctx.studio.legalInfo
     : []) as { key?: unknown; value?: unknown }[];
+  const legalLines: string[] = [];
   for (const row of legalRows) {
-    if (row?.key) values[legalKeyFor(row.key)] = String(row.value ?? "");
+    if (!row?.key) continue;
+    values[legalKeyFor(row.key)] = String(row.value ?? "");
+    if (String(row.value ?? "").trim()) legalLines.push(`${String(row.key)}: ${String(row.value)}`);
   }
+  values["company.legal"] = legalLines.join(" · ");
 
   // And every department field this document can REACH — its own record's, and
   // anything a declared path leads to. A cover letter held at a quotation
@@ -363,6 +370,7 @@ export function fieldsFor(ctx: QualityContext, document: QualityDocument | null 
   const fields = availableFields({
     subjectType: document?.subjectType || null,
     legalInfo: ctx.studio.legalInfo as unknown[],
+    hasLogo: Boolean(ctx.studio.logo),
     holds,
   }).map((f) => ({ ...f, kind: "field" }));
 

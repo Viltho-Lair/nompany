@@ -59,6 +59,33 @@ export const MergeFieldNode = Node.create({
   },
 });
 
+// WHAT AN IMAGE FIELD BECOMES ON THE PRINT PAGE — the studio's logo, filled in
+// by `fillTemplate`. INLINE, unlike the editor's Image node: the placeholder sat
+// inside a paragraph, often in a header band, and a block image there is not
+// valid content and would be dropped. Never inserted by an author; the menu
+// inserts the `mergeField` it replaces.
+export const FieldImageNode = Node.create({
+  name: "fieldImage",
+  group: "inline",
+  inline: true,
+  atom: true,
+  addAttributes() {
+    return {
+      src: {
+        default: "",
+        parseHTML: (el: HTMLElement) => el.getAttribute("src") || "",
+        renderHTML: (attrs: { src?: string }) => ({ src: attrs.src || "" }),
+      },
+    };
+  },
+  parseHTML() {
+    return [{ tag: "img[data-field-image]" }];
+  },
+  renderHTML({ HTMLAttributes }) {
+    return ["img", mergeAttributes(HTMLAttributes, { "data-field-image": "", class: "field-image", alt: "" })];
+  },
+});
+
 export const MergeBlockNode = Node.create({
   name: "mergeBlock",
   group: "block",
