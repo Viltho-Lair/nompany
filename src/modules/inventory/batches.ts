@@ -184,6 +184,62 @@ export function fefoSuggestion(itemId: string, rows: BatchRow[]): BatchRow | nul
   return rows.find((b) => b.itemId === itemId && b.qty > 0 && b.state !== "expired") || null;
 }
 
+export type BatchPick = { batchId: string; qty: number };
+
+/**
+ * WHERE A SALE'S UNITS COME FROM — the batches, first expired first out, and
+ * whatever is left from stock that carries no batch.
+ *
+ * WHY THIS ENFORCES WHERE `fefoSuggestion` ONLY SUGGESTS. A picker at a rack
+ * can see the shelf and has reasons; a sale at a till cannot see anything, and
+ * nobody is going to choose a lot number for a customer waiting with a basket.
+ * So the till takes stock the way a careful picker would — soonest-to-expire
+ * first — and records which batch each unit left from, which is what makes a
+ * recall answerable afterwards.
+ *
+ * AN EXPIRED BATCH IS NEVER SOLD FROM. Its units are counted in `expired` so
+ * the caller can refuse the sale by name rather than quietly take them; a
+ * batch with no expiry date is sold after every dated one.
+ *
+ * `untracked` is how many units the item holds outside any batch (the ledger
+ * says it has them; nothing says which lot). They are taken last, and a sale
+ * that needs more than all of it together is `short` by the difference — the
+ * caller decides whether that refuses the sale.
+ *
+ * PURE. `rows` is `batchView`'s answer for the studio, `asOf` already applied.
+ */
+export function pickBatches(
+  itemId: string,
+  qty: number,
+  rows: BatchRow[],
+  untracked: number,
+): { picks: BatchPick[]; fromUntracked: number; short: number; expired: number } {
+  let need = Math.max(0, Number(qty) || 0);
+  const mine = rows.filter((b) => b.itemId === itemId && b.qty > 0);
+  const expired = round(mine.filter((b) => b.state === "expired").reduce((n, b) => n + b.qty, 0));
+  const usable = mine
+    .filter((b) => b.state !== "expired")
+    // batchView already sorts soonest-first with undated last; kept explicit so
+    // a caller handing rows in another order still gets FEFO.
+    .sort((a, b) => {
+      if (a.daysLeft === null && b.daysLeft === null) return a.lot.localeCompare(b.lot);
+      if (a.daysLeft === null) return 1;
+      if (b.daysLeft === null) return -1;
+      return a.daysLeft - b.daysLeft;
+    });
+
+  const picks: BatchPick[] = [];
+  for (const b of usable) {
+    if (need <= 0) break;
+    const take = round(Math.min(need, b.qty));
+    picks.push({ batchId: b.id, qty: take });
+    need = round(need - take);
+  }
+  const fromUntracked = round(Math.min(need, Math.max(0, Number(untracked) || 0)));
+  need = round(need - fromUntracked);
+  return { picks, fromUntracked, short: need, expired };
+}
+
 /** Everything a studio should look at today, most urgent first. */
 export function expiryAlerts(rows: BatchRow[]): BatchRow[] {
   return rows.filter((b) => b.state === "expired" || b.state === "expiring");

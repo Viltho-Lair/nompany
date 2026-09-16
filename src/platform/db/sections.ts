@@ -374,6 +374,21 @@ export async function readCol<T extends Row = Row>(s: string, sec: string, n: st
   return same("readCol", a, await P.pgReadCol<T>(s, sec, n)) as T[];
 }
 
+/**
+ * A COLLECTION NARROWED BY TEXT FIELDS (see pgReadColWhere). Under Redis the
+ * narrowing happens here in memory — the same superset — so every backend hands
+ * the repository rows it will filter again.
+ */
+export async function readColWhere<T extends Row = Row>(
+  s: string, sec: string, n: string, match: Record<string, readonly string[]>,
+): Promise<T[]> {
+  if (DB_BACKEND === "postgres") return P.pgReadColWhere<T>(s, sec, n, match);
+  const keep = (r: T) => Object.entries(match).every(([f, vs]) => vs.includes(String((r as Row)[f] ?? " ")));
+  const a = (await R.redisReadCol<T>(s, sec, n)).filter(keep);
+  if (DB_BACKEND !== "parity") return a;
+  return same("readColWhere", a, await P.pgReadColWhere<T>(s, sec, n, match)) as T[];
+}
+
 export async function addRow<T extends Row = Row>(s: string, sec: string, n: string, item: Row): Promise<T> {
   if (DB_BACKEND === "postgres") return P.pgAddRow<T>(s, sec, n, item);
   const a = await R.redisAddRow<T>(s, sec, n, item);

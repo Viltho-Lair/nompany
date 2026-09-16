@@ -93,6 +93,44 @@ export async function pgReadCol<T2 extends Row = Row>(
   });
 }
 
+/**
+ * A COLLECTION, NARROWED IN POSTGRES rather than in JavaScript — the step the
+ * repository seam (./repo) was built to allow. `match` is field → the text
+ * values it may hold; every field must match one of its values.
+ *
+ * A SUPERSET, NEVER A GUESS. `payload->>field` is the field AS TEXT, so this
+ * returns every row the in-memory `matchesWhere` would keep (and, at most, a
+ * row whose number happens to print as the text asked for), and the caller
+ * filters again in memory. What reaches a caller is therefore identical to a
+ * whole-collection read filtered in JavaScript — only fewer rows cross the wire.
+ *
+ * FIELD NAMES ARE BIND PARAMETERS, like the values, so nothing a caller passes is
+ * ever SQL text. NOT CACHED: the request cache is invalidated by exact key on
+ * every write, and a filtered read under its own key would outlive a write made
+ * earlier in the same request.
+ */
+export async function pgReadColWhere<T2 extends Row = Row>(
+  studioId: string, sectionId: string, name: string, match: Record<string, readonly string[]>,
+): Promise<T2[]> {
+  const params: unknown[] = [studioId, sectionId, name];
+  const clauses: string[] = [];
+  for (const [field, values] of Object.entries(match)) {
+    params.push(field, values);
+    // ::text on the key: an untyped parameter after ->> is ambiguous between a
+    // text key and an array index, and Postgres refuses to guess.
+    clauses.push(`(${TBL.cols.payload} ->> $${params.length - 1}::text) = ANY($${params.length}::text[])`);
+  }
+  const { rows } = await withTenant(studioId, (q) =>
+    q<{ payload: T2 }>(
+      `SELECT ${TBL.cols.payload} FROM ${T}
+        WHERE ${TBL.cols.tenant} = $1 AND ${TBL.cols.section} = $2 AND ${TBL.cols.collection} = $3
+          ${clauses.map((c) => `AND ${c}`).join(" ")}
+        ORDER BY ${TBL.cols.seq} DESC`,
+      params,
+    ));
+  return rows.map((r) => r.payload);
+}
+
 // PgWriteOpts.announce, DEFAULT TRUE. Every write below fires two side
 // effects beyond the row itself: `emit` (the realtime stream a browser tab is
 // listening to) and `bumpMainAgg` (the dashboard rollup). Under

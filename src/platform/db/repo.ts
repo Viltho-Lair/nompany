@@ -23,7 +23,7 @@
 // seam has failed at the only job it has. If a query cannot be expressed in this
 // vocabulary, widen the vocabulary — do not pass a callback.
 
-import { readCol, addRow, addRows, updateRow, deleteRow } from "./sections";
+import { readCol, readColWhere, addRow, addRows, updateRow, deleteRow } from "./sections";
 import type { Row } from "./store";
 
 // ---- the vocabulary, as types ----------------------------------------------
@@ -174,16 +174,45 @@ export function orderBy(order: Order): (a: Row | undefined, b: Row | undefined) 
  *
  * @param name  the collection name, as sections.ts knows it
  */
+// ---- what Postgres can narrow for us ---------------------------------------
+// THE PART OF A `where` THAT CAN BECOME SQL TODAY: an exact TEXT value, or a
+// list of them (plain or `{ in: [...] }`). Anything else — numbers, ranges,
+// `contains`, negations — stays in memory. The whole `where` is still applied
+// in memory afterwards, so pushing part of it down changes which rows cross the
+// wire and never which rows a caller gets.
+export function pushableWhere(where: Where | null | undefined): Record<string, string[]> | null {
+  const out: Record<string, string[]> = {};
+  for (const [field, cond] of Object.entries(where || {})) {
+    if (cond === undefined) continue;
+    const list = typeof cond === "string" ? [cond]
+      : Array.isArray(cond) ? cond
+        : cond && typeof cond === "object" && Array.isArray((cond as Condition).in) && Object.keys(cond).length === 1
+          ? (cond as Condition).in as readonly Comparable[]
+          : null;
+    if (list && list.length > 0 && list.length <= 500 && list.every((v) => typeof v === "string")) {
+      out[field] = list as string[];
+    }
+  }
+  return Object.keys(out).length ? out : null;
+}
+
 export function repo<T extends Row = Row>(name: string) {
   const all = async (scope: Scope): Promise<T[]> => {
     const { studioId, sectionId } = scopeOf(scope);
     return readCol(studioId, sectionId, name);
   };
+  // NARROWED IN THE DATABASE when the filter allows it — see pushableWhere.
+  const some = async (scope: Scope, where: Where | undefined): Promise<T[]> => {
+    const match = pushableWhere(where);
+    if (!match) return all(scope);
+    const { studioId, sectionId } = scopeOf(scope);
+    return readColWhere(studioId, sectionId, name, match);
+  };
 
   return {
     /** Every row matching `where`, ordered, optionally truncated. */
     async find(scope: Scope, { where, order, limit }: { where?: Where; order?: Order; limit?: number } = {}): Promise<T[]> {
-      let rows = await all(scope);
+      let rows = await some(scope, where);
       if (where) rows = rows.filter((r) => matchesWhere(r, where));
       if (order) rows = [...rows].sort(orderBy(order));
       return typeof limit === "number" ? rows.slice(0, limit) : rows;

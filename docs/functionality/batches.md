@@ -97,13 +97,24 @@ somebody typing the serials in.
 - **Deleting a batch that still holds something.** An emptied one deletes and cascades
   nothing; its movements count as untracked.
 
+### A sale takes stock by FEFO, and never from an expired batch (16/09/2026)
+
+`pickBatches` (`modules/inventory/batches.ts`, pure) says where a sale's units come from:
+the soonest-to-expire batch first, undated batches after every dated one, then stock that
+carries no batch. **An expired batch is never sold from** — its units come back as `expired`
+so the caller can refuse by name — and whatever nothing covers comes back as `short` rather
+than being invented. Unlike `fefoSuggestion`, this ENFORCES: a till cannot see a shelf and
+nobody picks a lot number for a customer at a counter. The seller writes one movement per
+batch taken, naming it, which is what makes a recall answerable. Movements now declare the
+`binId` and `batchId` they have always been written with.
+
 ## Not built yet
 
 - **Receipts do not create a batch.** A goods receipt records no lot number, so every batch
   is typed and then assigned as a second step. That is the next slice and it is the one
   that makes the feature routine rather than deliberate.
-- **A movement carries one batch, and picking does not consume by FEFO.** Issuing stock
-  names no batch at all, so a batch's quantity only falls when somebody reassigns it.
+- **Only a sale consumes by FEFO.** A delivery note or a work-order issue still names no
+  batch, so those units come off "untracked" rather than a lot.
 - **No expiry notification.** The alerts are on the screen; nothing emails anybody, and
   nothing blocks issuing an expired batch.
 - **No serial history.** A serial's state is derived from today's list and today's sheets,

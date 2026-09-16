@@ -113,6 +113,15 @@ export const ItemSchema = z.object({
    * no document already written. Absent means standard.
    */
   taxCategory: z.enum(TAX_CATEGORIES).optional(),
+  /** What a scanner reads for ONE of the item's own unit (./barcodes). */
+  barcode: z.string().max(64).optional(),
+  /** The named multiples it is also sold in, each with its own code and price. */
+  packs: z.array(z.object({
+    name: z.string().max(40),
+    qty: z.number(),
+    barcode: z.string().max(64).optional(),
+    sellPrice: z.number().optional(),
+  })).optional(),
   /** Free text on the item. Written by editItem, never declared until now. */
   notes: z.string().max(1000).optional(),
   /** A stored data URI. Read by the quotation builder, never declared until now. */
@@ -137,6 +146,13 @@ export const MovementSchema = z.object({
   reason: z.string().max(300),
   sourceType: z.string().optional(),
   sourceId: z.string().optional(),
+  /**
+   * WHICH BIN AND WHICH BATCH THESE UNITS ARE IN — written by a bin assignment
+   * and by a sale that took stock from a batch, and declared here at last so a
+   * reader does not declare its own shape to reach them.
+   */
+  binId: z.string().optional(),
+  batchId: z.string().optional(),
   /**
    * WHAT A UNIT COST WHEN IT MOVED — written only where a movement is charged
    * to something: a part issued to a Maintenance work order, at the item's

@@ -174,6 +174,8 @@ function message(out, tr) {
   if (out.error === "read-only") return tr.mReadOnly;
   if (out.error === "duplicate") return tr.mDuplicate;
   if (out.error === "duplicate-sku") return tr.mDuplicateSku;
+  // Said by name, the way a bin or batch refusal is: which code, and whose.
+  if (out.error === "barcode") return (out.problems || []).join(" · ");
   if (out.error === "prefix") return tr.mPrefix;
   if (out.error === "awb") return out.reason || tr.mAwb;
   if (out.error === "status") return tr.mStatus;
@@ -424,6 +426,8 @@ function ItemForm({ row, vendors, units, serviceActions = [], studioCurrency = "
     reorderLevel: row?.reorderLevel || "", unitCost: row?.unitCost || "", notes: row?.notes || "",
     sellPrice: row?.sellPrice || "",
     taxCategory: row?.taxCategory || "standard",
+    barcode: row?.barcode || "",
+    packs: Array.isArray(row?.packs) ? row.packs.map((p) => ({ ...p, sellPrice: p.sellPrice ?? "" })) : [],
     currency: row?.currency || "", image: row?.image || "",
     shippingCharges: row?.shippingCharges ?? "", customsCharges: row?.customsCharges ?? "",
   });
@@ -493,6 +497,8 @@ function ItemForm({ row, vendors, units, serviceActions = [], studioCurrency = "
         <Field label={tax.category} as="select" required value={f.taxCategory}
           onChange={(v) => setF((s) => ({ ...s, taxCategory: v }))}
           options={taxCategoryOptions(locale)} hint={tax.categoryHint} />
+        <Field label={tr.barcode} value={f.barcode} onChange={(v) => setF((s) => ({ ...s, barcode: v }))}
+          hint={tr.barcodeHint} inputProps={{ autoComplete: "off" }} />
         {/* Only for an item priced in somebody else's money — and then both are
             asked for, because "we didn't say" and "it was nothing" are
             different answers and only one of them is worth storing. */}
@@ -526,6 +532,28 @@ function ItemForm({ row, vendors, units, serviceActions = [], studioCurrency = "
             ))}
           </div>
         )}
+      </div>
+
+      {/* THE MULTIPLES IT IS SOLD IN. A pack is a way of selling the item,
+          never a second stock level — see modules/inventory/barcodes. */}
+      <div className="mt-4">
+        <label className={label}>{tr.packs}</label>
+        <p className="mb-2 text-xs text-slate-400">{tr.packsLead}</p>
+        {f.packs.map((p, i) => {
+          const setPack = (k, v) => setF((s) => ({ ...s, packs: s.packs.map((x, j) => (j === i ? { ...x, [k]: v } : x)) }));
+          return (
+            <div key={i} className="mb-3 grid gap-3 sm:grid-cols-[1.2fr_1fr_1.4fr_1fr_auto] sm:items-end">
+              <Field label={tr.packName} value={p.name || ""} onChange={(v) => setPack("name", v)} />
+              <Field label={tr.packQty(f.unit)} type="number" min="2" value={p.qty ?? ""} onChange={(v) => setPack("qty", v)} />
+              <Field label={tr.packBarcode} value={p.barcode || ""} onChange={(v) => setPack("barcode", v)} inputProps={{ autoComplete: "off" }} />
+              <Field label={tr.packPrice} type="number" min="0" value={p.sellPrice ?? ""} onChange={(v) => setPack("sellPrice", v)} inputProps={{ step: "0.001" }} />
+              <button type="button" className={btnGhost}
+                onClick={() => setF((s) => ({ ...s, packs: s.packs.filter((_, j) => j !== i) }))}>{tr.removePack}</button>
+            </div>
+          );
+        })}
+        <button type="button" className={btnGhost}
+          onClick={() => setF((s) => ({ ...s, packs: [...s.packs, { name: "", qty: "", barcode: "", sellPrice: "" }] }))}>{tr.addPack}</button>
       </div>
 
       <div className="mt-4"><Field label={tr.notes} as="textarea" value={f.notes} onChange={(v) => setF((s) => ({ ...s, notes: v }))} inputProps={{ rows: 2 }} /></div>
