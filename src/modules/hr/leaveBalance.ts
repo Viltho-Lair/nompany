@@ -5,7 +5,7 @@
 // entitlement, no carry-over, and nothing subtracted a day taken from anything,
 // so "how much annual leave do I have left" had no answer anywhere in the
 // product. Every country this is sold in legislates a minimum (Jordan 14 days,
-// 21 after five years; Saudi Arabia 21, 30 after five; the UAE 30), so a
+// 21 after five years; the UAE 30), so a
 // regional HR tool without a balance is not one.
 //
 // THE RULES ARE THE STUDIO'S, stored on the studio record as `employmentRules`

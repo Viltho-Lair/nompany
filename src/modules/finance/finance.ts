@@ -60,10 +60,10 @@ export const INVOICE_STATUSES = ["Draft", "Sent", "Paid", "Cancelled"];
 export const EXPENSE_CATEGORIES = TAXONOMIES.find((a) => a.key === "expenseCategories")!.defaults;
 export const PAYMENT_METHODS = TAXONOMIES.find((a) => a.key === "paymentMethods")!.defaults;
 // NO DEFAULT TAX RATE. There was one — 15, duplicated here and in
-// modules/technical/quotations.ts, where its comment said "KSA standard rate"
-// outright. It applied to every studio's invoices and quotations on a platform
+// modules/technical/quotations.ts, where its comment named the one country it
+// came from. It applied to every studio's invoices and quotations on a platform
 // sold regionally and then globally, so a studio in Amman raised documents at
-// Riyadh's rate unless somebody noticed and retyped it. Jordan is 16, the UAE 5,
+// another country's rate unless somebody noticed and retyped it. Jordan is 16, the UAE 5,
 // Egypt 14; there is no number that is right for everyone, and a wrong one on a
 // financial document is worse than an empty field somebody has to fill.
 //

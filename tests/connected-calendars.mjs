@@ -521,7 +521,7 @@ console.log("\nmicrosoft normaliser — the zone lives in a sibling field, and i
   // timeZone: "UTC" }` — NO offset designator — and JavaScript parses an
   // offset-less date-time as LOCAL time. Copying `dateTime` verbatim (which is
   // what this normaliser used to do) therefore showed a 09:30 UTC meeting as
-  // 09:30 to a viewer in Riyadh instead of 12:30, on every timed Microsoft
+  // 09:30 to a viewer in Nairobi instead of 12:30, on every timed Microsoft
   // event, with nothing on screen saying so.
   //
   // EVERY ASSERTION BELOW COMPARES THE STRING, NOT Date.parse OF IT. A machine
@@ -543,13 +543,13 @@ console.log("\nmicrosoft normaliser — the zone lives in a sibling field, and i
 
   // AN IANA ZONE IS RESOLVED, NOT ASSUMED. Intl computes the real offset for
   // that instant rather than this file shipping a table of them.
-  const riyadh = normaliseMicrosoftEvent({
+  const nairobi = normaliseMicrosoftEvent({
     id: "m-iana", subject: "Site walk", isAllDay: false,
-    start: { dateTime: "2026-09-03T09:30:00.0000000", timeZone: "Asia/Riyadh" },
-    end: { dateTime: "2026-09-03T10:00:00.0000000", timeZone: "Asia/Riyadh" },
+    start: { dateTime: "2026-09-03T09:30:00.0000000", timeZone: "Africa/Nairobi" },
+    end: { dateTime: "2026-09-03T10:00:00.0000000", timeZone: "Africa/Nairobi" },
   });
   ok("an IANA zone is converted with its real offset (+03:00)",
-    riyadh.start === "2026-09-03T06:30:00.000Z", riyadh.start);
+    nairobi.start === "2026-09-03T06:30:00.000Z", nairobi.start);
 
   // DST IS READ AT THE INSTANT, WHICH IS WHY THE OFFSET IS RESOLVED TWICE:
   // London is +01:00 in July and +00:00 in January, and a single-round lookup
@@ -591,8 +591,8 @@ console.log("\nmicrosoft normaliser — the zone lives in a sibling field, and i
   // unconverted time is easier to notice than a confidently wrong one.
   const windowsZone = normaliseMicrosoftEvent({
     id: "m-win", subject: "Kickoff", isAllDay: false,
-    start: { dateTime: "2026-09-03T09:30:00.0000000", timeZone: "Arab Standard Time" },
-    end: { dateTime: "2026-09-03T10:00:00.0000000", timeZone: "Arab Standard Time" },
+    start: { dateTime: "2026-09-03T09:30:00.0000000", timeZone: "E. Africa Standard Time" },
+    end: { dateTime: "2026-09-03T10:00:00.0000000", timeZone: "E. Africa Standard Time" },
   });
   ok("a Windows zone name is left verbatim, never given a guessed offset",
     windowsZone.start === "2026-09-03T09:30:00.0000000", windowsZone.start);
@@ -600,7 +600,7 @@ console.log("\nmicrosoft normaliser — the zone lives in a sibling field, and i
   // A value that already says which instant it is must not be touched twice.
   const alreadyOffset = normaliseMicrosoftEvent({
     id: "m-off", subject: "Already offset", isAllDay: false,
-    start: { dateTime: "2026-09-03T09:30:00+03:00", timeZone: "Arab Standard Time" },
+    start: { dateTime: "2026-09-03T09:30:00+03:00", timeZone: "E. Africa Standard Time" },
     end: { dateTime: "2026-09-03T10:00:00Z", timeZone: "UTC" },
   });
   ok("a date-time that already carries an offset is kept as it is",
@@ -608,12 +608,12 @@ console.log("\nmicrosoft normaliser — the zone lives in a sibling field, and i
   ok("...and so is one that already ends in Z",
     alreadyOffset.end === "2026-09-03T10:00:00Z", alreadyOffset.end);
 
-  // THE BUCKETING HALF OF THE SAME BUG. 01:30 in Riyadh is 22:30 UTC the day
+  // THE BUCKETING HALF OF THE SAME BUG. 01:30 in Nairobi is 22:30 UTC the day
   // BEFORE, so the event paints the 3rd; unconverted it would paint the 4th.
   const nearMidnight = normaliseMicrosoftEvent({
     id: "m-mid", subject: "Late call", isAllDay: false,
-    start: { dateTime: "2026-09-04T01:30:00.0000000", timeZone: "Asia/Riyadh" },
-    end: { dateTime: "2026-09-04T02:00:00.0000000", timeZone: "Asia/Riyadh" },
+    start: { dateTime: "2026-09-04T01:30:00.0000000", timeZone: "Africa/Nairobi" },
+    end: { dateTime: "2026-09-04T02:00:00.0000000", timeZone: "Africa/Nairobi" },
   });
   ok("a timed event just after midnight in its own zone buckets on the UTC day it really falls on",
     JSON.stringify(eventDayKeys(nearMidnight)) === JSON.stringify(["2026-09-03"]),
@@ -624,8 +624,8 @@ console.log("\nmicrosoft normaliser — the zone lives in a sibling field, and i
   // onto the 2nd for anybody east of Greenwich.
   const allDayZoned = normaliseMicrosoftEvent({
     id: "m-allday", subject: "Public holiday", isAllDay: true,
-    start: { dateTime: "2026-09-03T00:00:00.0000000", timeZone: "Asia/Riyadh" },
-    end: { dateTime: "2026-09-04T00:00:00.0000000", timeZone: "Asia/Riyadh" },
+    start: { dateTime: "2026-09-03T00:00:00.0000000", timeZone: "Africa/Nairobi" },
+    end: { dateTime: "2026-09-04T00:00:00.0000000", timeZone: "Africa/Nairobi" },
   });
   ok("an all-day event in a non-UTC zone still paints exactly its own day",
     JSON.stringify(eventDayKeys(allDayZoned)) === JSON.stringify(["2026-09-03"]),

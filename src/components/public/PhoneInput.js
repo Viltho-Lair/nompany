@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useAccountLocale } from "@/components/public/locale";
 import { accountDict } from "@/shared/account";
 import { createPortal } from "react-dom";
-import { COUNTRIES, DEFAULT_COUNTRY, flagEmoji, parsePhone } from "@/shared/countries";
+import { COUNTRIES, countryFromLocale, flagEmoji, parsePhone } from "@/shared/countries";
 
 // Phone-number field with a searchable country-code selector (flag + dial code),
 // matching the reference: a country button on the left opens a search-filtered
@@ -17,6 +17,8 @@ import { COUNTRIES, DEFAULT_COUNTRY, flagEmoji, parsePhone } from "@/shared/coun
 // inside the field as a greyed prefix, so the number reads as one continuous
 // "+31 576 908 413" rather than being split across two controls.
 const POP_H = 300;
+// The browser language does not change under a page, so there is nothing to subscribe to.
+const noSubscription = () => () => {};
 
 export default function PhoneInput({ value, onChange, autoFocus = false, error = "" }) {
   const tr = accountDict(useAccountLocale());
@@ -30,8 +32,15 @@ export default function PhoneInput({ value, onChange, autoFocus = false, error =
   const popRef = useRef(null);
   const searchRef = useRef(null);
 
-  const country = COUNTRIES.find((c) => c.code === code) || COUNTRIES.find((c) => c.code === DEFAULT_COUNTRY);
-  const emit = (dial, num) => onChange(`${dial} ${String(num).trim()}`.trim());
+  // NO COUNTRY IS ASSUMED. An unchosen field shows the visitor's own region
+  // when the browser names one. The server snapshot is "" because the server
+  // has no browser to ask, and React swaps in the real value after hydration,
+  // so the two renders cannot disagree. Nothing is emitted: a starting prefix
+  // is not the person typing a number.
+  const browserLocale = useSyncExternalStore(noSubscription, () => navigator.language, () => "");
+  const country = COUNTRIES.find((c) => c.code === (code || countryFromLocale(browserLocale))) || null;
+  const dial = country ? country.dial : "";
+  const emit = (prefix, num) => onChange(`${prefix} ${String(num).trim()}`.trim());
 
   const place = () => {
     const r = triggerRef.current?.getBoundingClientRect();
@@ -102,20 +111,20 @@ export default function PhoneInput({ value, onChange, autoFocus = false, error =
           onClick={() => setOpen((o) => !o)}
           aria-haspopup="listbox"
           aria-expanded={open}
-          aria-label={`Country code: ${country.name} (${country.dial})`}
+          aria-label={country ? `Country code: ${country.name} (${country.dial})` : "Country code: none chosen"}
           className={`flex shrink-0 items-center gap-1.5 border-e px-3 text-sm transition-colors ${
             error
               ? "border-rose-300 text-rose-900 hover:bg-rose-100/50 dark:border-rose-500/40 dark:text-white"
               : "border-steel-300 text-brand-950 hover:bg-steel-100 dark:border-white/15 dark:text-white dark:hover:bg-white/10"
           }`}
         >
-          <span className="text-lg leading-none">{flagEmoji(country.code)}</span>
+          <span className="text-lg leading-none">{country ? flagEmoji(country.code) : "🌐"}</span>
           <svg viewBox="0 0 24 24" className={`h-4 w-4 opacity-50 transition-transform ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
         </button>
         <div className="flex min-w-0 flex-1 items-center gap-1.5 px-3">
           {/* Static, not editable: the dial code belongs to the country chosen
               on the left, so it cannot be retyped or deleted by accident. */}
-          <span className="shrink-0 text-sm tabular-nums text-steel-400 dark:text-slate-500">{country.dial}</span>
+          <span className="shrink-0 text-sm tabular-nums text-steel-400 dark:text-slate-500">{dial}</span>
           <input
             type="tel"
             inputMode="tel"
@@ -125,9 +134,9 @@ export default function PhoneInput({ value, onChange, autoFocus = false, error =
               // Digits and separators only — the plus belongs to the prefix.
               const next = e.target.value.replace(/[^\d\s-]/g, "");
               setNumber(next);
-              emit(country.dial, next);
+              emit(dial, next);
             }}
-            placeholder="55 000 0000"
+            placeholder="000 000 0000"
             aria-invalid={Boolean(error)}
             className="w-full min-w-0 border-0 bg-transparent py-2.5 text-sm text-brand-950 outline-none placeholder:text-steel-400 dark:text-white"
           />

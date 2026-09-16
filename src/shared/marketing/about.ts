@@ -13,7 +13,7 @@ import { defaultLocale, type Locale } from "@/shared/locale";
 //
 // IT SAYS WHERE THE COMPANY IS BY SAYING THERE IS NOWHERE YET. That is a real
 // answer to a question buyers ask, and the alternative is what the site did
-// before: assert a Riyadh address in the Organization schema, machine-readable,
+// before: assert a city address in the Organization schema, machine-readable,
 // on every page, for a company that has never been there.
 
 type AboutStrings = {

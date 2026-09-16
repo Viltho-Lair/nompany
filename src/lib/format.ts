@@ -4,7 +4,7 @@
 // decimals and date locale. THE DEFAULTS NAME NO COUNTRY — no currency, no tax
 // rate, UTC — because this product is built in Jordan and sold regionally and
 // then globally, and a default is what every studio that never opens settings
-// actually gets. They used to be Saudi. See companySettings.
+// actually gets. They used to be one country's. See companySettings.
 //
 // SAFETY: the active config is a CLIENT-only module variable. On the server it
 // stays null (the shell effect never runs there), so server renders always use

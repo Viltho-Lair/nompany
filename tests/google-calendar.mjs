@@ -140,7 +140,7 @@ console.log("\nthe console connection's public shape");
     expiresAtMs: 1_800_000,
     calendarId: "team@group.calendar.google.com",
     summary: "Team",
-    timeZone: "Asia/Riyadh",
+    timeZone: "Africa/Nairobi",
     connectedAt: 1_700_000,
     connectedBy: "ops@nompany.test",
   };

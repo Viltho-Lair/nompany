@@ -22,7 +22,7 @@ import { LogoMark, Wordmark } from "../Logo";
    systems operational", an uptime claim with no monitor behind it.
 
    The other footer — the editorial one on the account pages — printed
-   an office address in Riyadh for a company that has never had one.
+   an office address for a company that has never had one.
 
    THIS IS ONE FOOTER FOR THE WHOLE PUBLIC SITE, so the two cannot drift
    apart again, and EVERY ENTRY IN IT RESOLVES. A link is added the day

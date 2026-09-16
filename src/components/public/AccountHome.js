@@ -753,8 +753,11 @@ function PersonalInfo({ identity, onSaved }) {
       // Split on the dial code rather than on whitespace: the field keeps the
       // spacing the person typed, so "+31 576 908 413" would otherwise look
       // like a three-digit number.
-      const digits = parsePhone(form.phone).number.replace(/\D/g, "");
-      if (digits.length < 4) { setPhoneError(tr.phoneInvalid); return; }
+      // A number with no country chosen has no dial code, and cannot be dialled
+      // either — the picker assumes no country, so this is refused the same way.
+      const parsed = parsePhone(form.phone);
+      const digits = parsed.number.replace(/\D/g, "");
+      if (!parsed.code || digits.length < 4) { setPhoneError(tr.phoneInvalid); return; }
     }
     setBusy(true);
     const res = await fetch("/api/identity/profile", {

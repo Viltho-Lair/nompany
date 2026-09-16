@@ -55,7 +55,7 @@ const money = (c: number) => Math.round(c) / 100;
 
 export type AccountType = Account["type"];
 
-// THE DEFAULT CHART, KSA small-business shaped and deliberately small — a studio
+// THE DEFAULT CHART, small-business shaped and deliberately small — a studio
 // grows it, but it has to be able to post the day it opens Finance. Order is
 // the conventional one (assets, liabilities, equity, income, expense) because
 // that is the order a trial balance and a balance sheet read in.

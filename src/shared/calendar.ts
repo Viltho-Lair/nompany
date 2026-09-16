@@ -58,7 +58,7 @@ const UTC_ZONE_NAMES = new Set(["utc", "gmt", "z", "etc/utc", "etc/gmt", "coordi
  * field instead: `{ dateTime: "2026-09-03T09:30:00.0000000", timeZone: "UTC" }`.
  * JavaScript parses an offset-less date-time as LOCAL time, so copying
  * `dateTime` through verbatim renders a 09:30 UTC meeting as 09:30 to a viewer
- * in Riyadh instead of 12:30 — wrong by the viewer's whole UTC offset, on EVERY
+ * at UTC+3 instead of 12:30 — wrong by the viewer's whole UTC offset, on EVERY
  * timed Microsoft event, with nothing on screen saying so. It also mis-buckets
  * eventDayKeys near midnight and scrambles the cross-provider sort in the
  * events route, which orders by Date.parse.
@@ -71,9 +71,9 @@ const UTC_ZONE_NAMES = new Set(["utc", "gmt", "z", "etc/utc", "etc/gmt", "coordi
  * THREE CASES, AND THE LAST IS DELIBERATELY NOT A GUESS:
  *  1. The string already carries an offset — returned untouched.
  *  2. `timeZone` names UTC — "Z" appended, exactly.
- *  3. An IANA name ("Asia/Riyadh") is resolved through Intl, which computes the
+ *  3. An IANA name ("Europe/Paris") is resolved through Intl, which computes the
  *     zone's REAL offset at that instant, DST included, rather than assuming
- *     one. A WINDOWS ZONE NAME — "Arab Standard Time", which Graph returns when
+ *     one. A WINDOWS ZONE NAME — "E. Africa Standard Time", which Graph returns when
  *     an event was written in its organiser's own zone — is not something this
  *     file can map without shipping a Windows→IANA table, and Intl rejects it
  *     outright. The value is then left EXACTLY as Graph gave it: still

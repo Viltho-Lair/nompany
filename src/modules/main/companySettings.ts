@@ -1,13 +1,14 @@
-// Per-company (per-tenant) configuration + pure formatters. The ERP was built
-// for a Saudi company, so DEFAULTS are KSA (SAR, 15% VAT, Riyadh, en-GB dates) —
-// a fresh tenant inherits these until it changes them in Company Settings. Stored
+// Per-company (per-tenant) configuration + pure formatters. THE DEFAULTS NAME
+// NO COUNTRY — no currency, no tax rate, UTC, en-GB dates — because the product
+// is sold in many countries and a default is what every studio that never opens
+// Company Settings actually gets. A studio sets its own. Stored
 // on the tenant `settings` object under a `company` block (with a couple of
 // legacy top-level fallbacks like settings.logo). See [[nompany-billing-spec]].
 
 export const COMPANY_DEFAULTS = {
   // Localization
-  // NO CURRENCY BY DEFAULT. This was "SAR", so every studio that never opened
-  // settings showed its money in riyal — one country's currency as the default
+  // NO CURRENCY BY DEFAULT. This was one country's code, so every studio that
+  // never opened settings showed its money in it — one country's currency as the default
   // for a product sold regionally and then globally. Empty means "not set", and
   // the screens already handle that: fmtMoney renders the bare number rather
   // than guessing, and approving a bill refuses until a studio names one.
@@ -46,14 +47,18 @@ export function resolveCompanySettings(settings: Record<string, unknown> | null 
   return merged;
 }
 
-// ---- Pure formatters (take a resolved config; default to KSA) --------------
+// ---- Pure formatters (take a resolved config; default to COMPANY_DEFAULTS) --
 
-// Split a money value into its rendered pieces so callers can show the currency
-// as a glyph (the Saudi Riyal symbol) rather than the "SAR" text. Returns:
-//   { body, currency }  — normal case ("1,500.00", "SAR")
+// Split a money value into its rendered pieces so a caller can render the amount
+// and its currency separately. Returns:
+//   { body, currency }  — normal case ("1,500.00", "<the studio's code>")
 //   { text }            — a pre-rendered string for the empty/invalid case
-// so a React <Money> can render `{body} <Riyal/>` while string callers keep a
+// so a React <Money> can render `{body} {currency}` while string callers keep a
 // plain formatted string via formatMoney below.
+//
+// AN UNSET CURRENCY IS AN EMPTY STRING, NEVER A GUESSED CODE. This fell back to
+// one country's code, which contradicted the default above: a studio that had
+// set no currency was shown one anyway. Blank means the bare number.
 export function formatMoneyParts(v: unknown, cfg = COMPANY_DEFAULTS) {
   if (v == null || v === "") return { text: "—" };
   const n = Number(v);
@@ -63,16 +68,17 @@ export function formatMoneyParts(v: unknown, cfg = COMPANY_DEFAULTS) {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
   });
-  return { body, currency: cfg.currency || "SAR" };
+  return { body, currency: cfg.currency || "" };
 }
 
 export function formatMoney(v: unknown, cfg = COMPANY_DEFAULTS) {
   const p = formatMoneyParts(v, cfg);
-  return p.text != null ? p.text : `${p.body} ${p.currency}`;
+  if (p.text != null) return p.text;
+  return p.currency ? `${p.body} ${p.currency}` : String(p.body);
 }
 
 // A DATE-ONLY STRING IS LOCAL MIDNIGHT, NOT UTC. `new Date("2026-08-22")` parses
-// as UTC midnight, which in Riyadh (+3) is still the 22nd but in any Western
+// as UTC midnight, which in any timezone ahead of UTC is still the 22nd but in any Western
 // timezone is the 21st at 21:00 — so a due date keyed "2026-08-22" renders as
 // the 21st for half the world. Appending the time forces LOCAL midnight, which
 // is what a calendar date means. Callers used to write `${iso}T00:00:00`

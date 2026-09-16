@@ -33,8 +33,8 @@ export default function Footer({ locale, dict }) {
 
   const socials = CONTACT.socials;
   // THERE IS NO ADDRESS TO PRINT. This read `CONTACT.address[locale]` and
-  // rendered "Riyadh, KSA" in the footer of every page; the company is not
-  // incorporated anywhere and is heading for Jordan, so the field is null now
+  // rendered a city and a country in the footer of every page; the company is
+  // not incorporated anywhere and is heading for Jordan, so the field is null now
   // and this guards for it rather than assuming. The block below already
   // renders nothing when the text is empty, which is the correct behaviour and
   // the reason nothing else here had to change.

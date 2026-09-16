@@ -1,7 +1,9 @@
 // Country list for the phone-number field's country-code picker: ISO code,
 // English name and international dial code. The flag is derived from the ISO
 // code at render time (regional-indicator emoji), so no image assets are needed.
-// Sorted alphabetically by name; the picker defaults to Saudi Arabia.
+// Sorted alphabetically by name. The picker assumes no country: it starts on the
+// visitor's own region when the browser names one (`countryFromLocale`), and on
+// no country at all otherwise.
 
 export const COUNTRIES = [
   { code: "AF", name: "Afghanistan", dial: "+93" },
@@ -189,10 +191,25 @@ export function flagEmoji(code: string): string {
   return String.fromCodePoint(...[...cc].map((c) => 0x1f1e6 + c.charCodeAt(0) - 65));
 }
 
-export const DEFAULT_COUNTRY = "SA";
+// NO DEFAULT COUNTRY. This was one country's code, so every phone field in the
+// product opened on that country's dial code for every visitor anywhere. Blank
+// means "not chosen yet", which is the truth about a field nobody has touched.
+export const DEFAULT_COUNTRY = "";
 
-// Split a stored phone ("+966 5512…") into { code, number } using the longest
-// matching dial-code prefix; falls back to Saudi Arabia.
+/**
+ * The region a BCP 47 tag names ("en-GB" → "GB", "ar-JO" → "JO"), when it is a
+ * country this list knows; "" otherwise. A bare language ("ar") names no
+ * country, and guessing one from a language is the mistake the default above
+ * used to make.
+ */
+export function countryFromLocale(locale: string): string {
+  const region = String(locale || "").split(/[-_]/).slice(1).find((p) => /^[A-Za-z]{2}$/.test(p));
+  const cc = region ? region.toUpperCase() : "";
+  return COUNTRIES.some((c) => c.code === cc) ? cc : "";
+}
+
+// Split a stored phone ("+44 7700…") into { code, number } using the longest
+// matching dial-code prefix; no match leaves the country unchosen.
 export function parsePhone(value: string): { code: string; number: string } {
   const v = String(value || "").trim();
   if (!v) return { code: DEFAULT_COUNTRY, number: "" };

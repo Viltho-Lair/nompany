@@ -243,10 +243,10 @@ export function organizationLd(settings?: unknown, locale: string = defaultLocal
     telephone: CONTACT.phone,
     // NO ADDRESS AND NO areaServed, and their absence is the correction.
     //
-    // This asserted `addressLocality: "Riyadh"`, `addressCountry: "SA"` and an
-    // areaServed of Saudi Arabia, on every public page, in the one format built
-    // to be believed without being read. The company is not incorporated
-    // anywhere, is not Saudi, and is heading for Jordan; the market is the whole
+    // This asserted a city in `addressLocality`, a country in `addressCountry`
+    // and that same country as areaServed, on every public page, in the one
+    // format built to be believed without being read. The company is not
+    // incorporated anywhere and is heading for Jordan; the market is the whole
     // region rather than one country. Schema.org has no way to say "not yet",
     // so the fields are omitted — an absent claim is the only honest form of a
     // claim you cannot make, and they come back when there is an address.
@@ -345,7 +345,7 @@ export function softwareApplicationLd(
                 // It asserted `true` to every crawler, machine-readable, for a
                 // company that is not incorporated anywhere and therefore
                 // includes nobody's VAT. Same class of claim as the
-                // `addressLocality: "Riyadh"` this file used to carry: a country's
+                // `addressLocality` city this file used to carry: a country's
                 // tax posture stated as fact in the one format built to be
                 // believed without reading. Omitted rather than set false --
                 // false is also a claim, and the honest answer is that there is
@@ -436,8 +436,8 @@ export function jobPostingLd(job: Record<string, string>, settings: unknown, loc
       "@type": "Place",
       address: {
         "@type": "PostalAddress",
-        // THE POSTING'S OWN LOCATION, and no fallback. This defaulted to
-        // Riyadh, SA for any opening that did not state one — inventing a place
+        // THE POSTING'S OWN LOCATION, and no fallback. This defaulted to one
+        // fixed city for any opening that did not state one — inventing a place
         // of work for a company with no office. A posting with no location says
         // none.
         addressLocality: (locale === "ar" ? job.location_ar : job.location_en) || undefined,

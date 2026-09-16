@@ -353,7 +353,7 @@ too wide if taken as inclusive.
 A third, in `shared/calendar.ts`: **Microsoft Graph returns a date-time with no offset
 designator** and puts the zone in a sibling field — `{ dateTime: "2026-09-03T09:30:00.0000000",
 timeZone: "UTC" }` — while JavaScript parses an offset-less date-time as *local* time. Copied
-through verbatim, a 09:30 UTC meeting rendered as 09:30 in Riyadh instead of 12:30, on every
+through verbatim, a 09:30 UTC meeting rendered as 09:30 at UTC+3 instead of 12:30, on every
 timed Microsoft event, with nothing on screen saying so. A Graph `Prefer: outlook.timezone`
 header does not fix it: that changes which zone Graph answers in, not whether the designator is
 there. So `normaliseMicrosoftEvent` converts: a value that already carries an offset is kept, a
@@ -395,8 +395,8 @@ Stated in words, because a silent gap reads as a finished feature.
   a fresh request to the provider. Access tokens are reused until they are near expiry, which
   is the token lifecycle doing its job; event data is never cached, server-side or across
   requests.
-- **A Windows zone name is not converted.** Graph returns one (`"Arab Standard Time"` rather
-  than `"Asia/Riyadh"`) when an event was written in its organiser's own zone, and mapping it
+- **A Windows zone name is not converted.** Graph returns one (`"E. Africa Standard Time"` rather
+  than `"Africa/Nairobi"`) when an event was written in its organiser's own zone, and mapping it
   needs a Windows→IANA table this codebase does not ship — `Intl` rejects the name outright.
   Such a value is left exactly as Graph sent it, offset-less, so it renders in the viewer's own
   zone: an unconverted time rather than a confidently wrong one. Shipping the table (or asking

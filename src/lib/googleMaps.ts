@@ -19,8 +19,8 @@
 // in Google Cloud Console.
 //
 // UNLIKE THE OLD SYSTEM, there is no hard geographic clamp. That product served
-// one company in one city and pinned every map inside Riyadh; this one is
-// multi-tenant, and a studio in Jeddah or Dubai would find its own people
+// one company in one city and pinned every map inside it; this one is
+// multi-tenant, and a studio in any other city would find its own people
 // unplottable. The map opens on whatever it is given and lets the viewer move.
 
 // Held so concurrent callers share one script tag, and nulled on failure so a

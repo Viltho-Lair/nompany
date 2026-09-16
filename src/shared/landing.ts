@@ -10,7 +10,6 @@ type Strings = {
   allSystemsOk: string;
   approve: string;
   cashFlow: string;
-  cityRowEmea: string;
   company: string;
   contactEyebrow: string;
   contactLead: string;
@@ -93,7 +92,6 @@ const en: Strings = {
   allSystemsOk: "Built and running",
   approve: "Approve",
   cashFlow: "Cash flow",
-  cityRowEmea: "Amsterdam · Riyadh",
   company: "Company",
   contactEyebrow: "Contact",
   contactLead: "45 minutes, your data model on screen, no slide deck. We'll tell you honestly if Nompany isn't the right fit.",
@@ -168,7 +166,6 @@ const ar: Strings = {
   allSystemsOk: "مبني ويعمل",
   approve: "اعتماد",
   cashFlow: "التدفق النقدي",
-  cityRowEmea: "أمستردام · الرياض",
   company: "الشركة",
   contactEyebrow: "تواصل معنا",
   contactLead: "خمس وأربعون دقيقة، ونموذج بياناتك على الشاشة، بلا عرض شرائح. وسنخبرك بصراحة إن لم يكن nompany مناسبا لك.",

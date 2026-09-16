@@ -29,15 +29,15 @@ const ok = (label, cond, extra = "") => {
 
 console.log("\n== a stored city carries its own centroid");
 
-const riyadh = G.cityKeyFrom("SA", "Riyadh", "24.7136", "46.6753");
-ok("a full header set becomes a field", riyadh === "SA|Riyadh|24.71|46.68", riyadh);
+const istanbul = G.cityKeyFrom("TR", "Istanbul", "41.0082", "28.9784");
+ok("a full header set becomes a field", istanbul === "TR|Istanbul|41.01|28.98", istanbul);
 
 // TWO DECIMALS IS THE PRIVACY DECISION, not a formatting preference.
-ok("the coordinate is rounded to two decimals", !/\d\.\d{3}/.test(riyadh), riyadh);
+ok("the coordinate is rounded to two decimals", !/\d\.\d{3}/.test(istanbul), istanbul);
 ok("...and it round-trips to the rounded value",
-  G.cityFromKey(riyadh).lat === 24.71 && G.cityFromKey(riyadh).lng === 46.68);
+  G.cityFromKey(istanbul).lat === 41.01 && G.cityFromKey(istanbul).lng === 28.98);
 ok("the country and city survive",
-  G.cityFromKey(riyadh).country === "SA" && G.cityFromKey(riyadh).city === "Riyadh");
+  G.cityFromKey(istanbul).country === "TR" && G.cityFromKey(istanbul).city === "Istanbul");
 
 // The edge percent-encodes non-ASCII names.
 const amman = G.cityKeyFrom("JO", "%D8%B9%D9%85%D8%A7%D9%86", "31.95", "35.93");
@@ -48,10 +48,10 @@ ok("a malformed escape does not throw", typeof G.cityKeyFrom("JO", "%E0%A4%A", "
 
 console.log("\n== nothing is invented when the edge says nothing");
 
-ok("no city means no field", G.cityKeyFrom("SA", "", "24.7", "46.6") === "");
-ok("no country means no field", G.cityKeyFrom("", "Riyadh", "24.7", "46.6") === "");
-ok("no coordinate means no field", G.cityKeyFrom("SA", "Riyadh", "", "") === "");
-ok("a junk coordinate means no field", G.cityKeyFrom("SA", "Riyadh", "north", "east") === "");
+ok("no city means no field", G.cityKeyFrom("TR", "", "41.0", "28.9") === "");
+ok("no country means no field", G.cityKeyFrom("", "Istanbul", "41.0", "28.9") === "");
+ok("no coordinate means no field", G.cityKeyFrom("TR", "Istanbul", "", "") === "");
+ok("a junk coordinate means no field", G.cityKeyFrom("TR", "Istanbul", "north", "east") === "");
 // A zero coordinate is a REAL place and must survive — refusing it would drop
 // the Gulf of Guinea, and more importantly would be a rule nobody could predict.
 ok("a genuine zero is kept", G.cityKeyFrom("GH", "Accra", "0", "0") === "GH|Accra|0|0");
@@ -64,14 +64,14 @@ ok("a name carrying the separator is cleaned, not dropped",
 console.log("\n== a field that does not parse is skipped, never drawn at (0,0)");
 
 ok("the overflow bucket is not a place", G.cityFromKey("__other") === null);
-ok("a truncated field is not a place", G.cityFromKey("SA|Riyadh") === null);
-ok("a non-country is not a place", G.cityFromKey("SAUDI|Riyadh|24.71|46.68") === null);
-ok("an out-of-range latitude is not a place", G.cityFromKey("SA|Riyadh|91|46.68") === null);
-ok("an out-of-range longitude is not a place", G.cityFromKey("SA|Riyadh|24.71|181") === null);
+ok("a truncated field is not a place", G.cityFromKey("TR|Istanbul") === null);
+ok("a non-country is not a place", G.cityFromKey("TURKEY|Istanbul|41.01|28.98") === null);
+ok("an out-of-range latitude is not a place", G.cityFromKey("TR|Istanbul|91|28.98") === null);
+ok("an out-of-range longitude is not a place", G.cityFromKey("TR|Istanbul|41.01|181") === null);
 ok("junk is not a place", G.cityFromKey("") === null && G.cityFromKey(null) === null);
 // The one that matters: nothing coerces to the Atlantic.
 ok("nothing malformed becomes (0,0)",
-  ["", "__other", "x", "SA|Riyadh|a|b"].every((k) => G.cityFromKey(k) === null));
+  ["", "__other", "x", "TR|Istanbul|a|b"].every((k) => G.cityFromKey(k) === null));
 
 console.log("\n== the ERP counts a section, never a tenant or a record");
 

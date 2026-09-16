@@ -18,8 +18,8 @@ export const DEFAULT_QUOTATION_STATUS = "New";
 // The three the BUILDER owns. Nobody hand-winds a quotation back into these —
 // they are consequences of opening and submitting.
 export const BUILDER_STATUSES = ["New", "Draft", "Completed"];
-// THE SECOND COPY OF A TAX RATE IS GONE, and it named the country it came from:
-// "KSA standard rate". Two constants for one rule are two things free to
+// THE SECOND COPY OF A TAX RATE IS GONE, and it named the one country it came
+// from. Two constants for one rule are two things free to
 // disagree, and this pair also shipped one country's tax law as every tenant's
 // default. A quotation opens with no rate; whoever prices it sets one.
 

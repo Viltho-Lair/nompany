@@ -21,7 +21,7 @@ import { getDict } from "@/shared/i18n";
 
    THE PAGE ANSWERS "WHERE ARE YOU" BY SAYING NOWHERE YET, which is a
    real answer to a question buyers ask. The alternative is what this
-   site did before: assert a Riyadh address in the Organization schema,
+   site did before: assert a city address in the Organization schema,
    on every page, for a company that has never been there. */
 
 /* NO `force-dynamic`. It was here and it was a no-op: the root layout reads

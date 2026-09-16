@@ -19,10 +19,10 @@ export const CONTACT = {
 
   // THERE IS NO ADDRESS, AND STATING ONE WAS A FALSE CLAIM.
   //
-  // This said "Riyadh, KSA" and fed `addressLocality: "Riyadh"`,
-  // `addressCountry: "SA"` into the Organization schema on every public page —
+  // This named a city and a country and fed both into `addressLocality` and
+  // `addressCountry` in the Organization schema on every public page —
   // machine-readable, which is the worst place for it. The company is not
-  // incorporated anywhere yet, is not Saudi, and is heading for Jordan. An
+  // incorporated anywhere yet and is heading for Jordan. An
   // address is asserted again when there is one to assert; until then the
   // honest answer is silence, and the security page says so in words rather
   // than leaving a buyer to infer it from a schema field.

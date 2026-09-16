@@ -1,7 +1,7 @@
 // Currency symbols.
 //
 // EVERY CURRENCY SHOWS AS ITS LETTERS — the three-letter code. There used to be
-// one exception: the Saudi riyal was drawn as a glyph while the other 165 kept
+// one exception: a single currency was drawn as a glyph while the other 165 kept
 // their letters. That is one country's money given a courtesy no other gets, in
 // a product sold regionally and then globally, so the glyph and its component
 // are gone rather than hidden.

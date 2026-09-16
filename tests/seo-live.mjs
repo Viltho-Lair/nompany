@@ -102,7 +102,7 @@ for (const locale of LOCALES) {
     }
 
     // NO LOCATION THE COMPANY DOES NOT HAVE. The Organization schema asserted a
-    // Riyadh address on every page, machine-readable, for a company that has
+    // city address on every page, machine-readable, for a company that has
     // never been there.
     ok(`  claims no address`, !/addressLocality/.test(html));
   }

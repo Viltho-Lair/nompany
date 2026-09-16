@@ -1,7 +1,7 @@
 // Curated major cities per country (ISO code → city list) for the questionnaire
 // Country → City selector. Countries not in the map fall back to a free-typed
 // city; even covered countries offer an "Other" free-type option. Focused on
-// nompany's markets (KSA + GCC + MENA) with major global markets covered.
+// nompany's regional markets (GCC + MENA) with major global markets covered.
 export const CITIES = {
   SA: ["Riyadh", "Jeddah", "Mecca", "Medina", "Dammam", "Khobar", "Dhahran", "Taif", "Tabuk", "Buraidah", "Khamis Mushait", "Abha", "Hail", "Najran", "Jubail", "Yanbu", "Al Ahsa", "Jazan", "Qatif"],
   AE: ["Dubai", "Abu Dhabi", "Sharjah", "Al Ain", "Ajman", "Ras Al Khaimah", "Fujairah", "Umm Al Quwain"],

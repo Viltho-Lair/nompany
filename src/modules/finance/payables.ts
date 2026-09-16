@@ -240,7 +240,7 @@ export async function createBill(ctx: FinanceContext, body: Record<string, unkno
 
   const bills = await Bills.find({ studio, section: payablesSection });
   const billDate = day(body?.billDate) || new Date().toISOString().slice(0, 10);
-  // THE STUDIO'S RATE, NOT 15. A bill defaulted to Saudi Arabia's rate here and
+  // THE STUDIO'S RATE, NOT 15. A bill defaulted to one country's rate here and
   // in the form long after invoices and quotations stopped, so a studio in Amman
   // reclaimed input tax it had never paid unless somebody retyped it.
   const vatRate = documentVatRate(studio, body?.vatRate);

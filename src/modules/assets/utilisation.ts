@@ -10,7 +10,7 @@
 // not charge it to jobs reports every job as more profitable than it is, and
 // discovers the fleet's real cost only as a lump nobody can attribute. The
 // number this produces is the difference between "that excavator" and "that
-// excavator cost the Riyadh job £14,000".
+// excavator cost the harbour job £14,000".
 //
 // PURE. No imports, no store, no clock — the caller hands in the allocations and
 // the rate, so the screen and the server cost the same days identically and

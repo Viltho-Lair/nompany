@@ -87,7 +87,7 @@ function shiftMonth(key, delta) {
 }
 
 // "Today", in the CALENDAR'S OWN TIME ZONE — not the browser's. A calendar
-// connected from Riyadh should mark "today" on the Riyadh date even when the
+// connected from a zone ahead of UTC should mark "today" on that zone's date even when the
 // operator viewing it is somewhere the date has not turned over yet.
 function dateKeyIn(date, timeZone) {
   try {

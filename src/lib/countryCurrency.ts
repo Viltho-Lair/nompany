@@ -41,8 +41,8 @@ const GROUPS = {
 };
 
 // Prices are authored in SAR, so a country the table does not know falls back
-// to USD rather than to the authoring currency: a visitor who is not from Saudi
-// Arabia is far more likely to think in dollars than in riyals.
+// to USD rather than to the authoring currency: a visitor from a country the
+// table does not know is far more likely to think in dollars than in it.
 export const FALLBACK_CURRENCY = "USD";
 
 const BY_COUNTRY = new Map<string, string>();

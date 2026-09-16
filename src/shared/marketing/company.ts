@@ -28,12 +28,11 @@ import { defaultLocale, type Locale } from "@/shared/locale";
 // has now recorded five times over.
 //
 // WHAT IT MAY NOT SAY, and this is not stylistic (spec §12.1): the company is
-// not based anywhere yet, is not Saudi, and will be based in Jordan. The market
-// is the whole region. No city, no country claim, no ZATCA, no regulatory
-// posture. This said `src/lib/seo.ts` "still asserts Riyadh/SA in Organization
-// schema and is corrected in the SEO pass" — it WAS corrected, and the only
-// Riyadh left in the tree is the comment in seo.ts recording what it used to
-// claim. Nothing new may repeat it.
+// not based anywhere yet and will be based in Jordan. The market is the whole
+// region. No city, no country claim, no tax-authority claim, no regulatory
+// posture. This said `src/lib/seo.ts` still asserted a city and country in the
+// Organization schema — it WAS corrected, and nothing in the tree claims one
+// any more. Nothing new may repeat it.
 //
 // THE SAME RULE WAS BROKEN ON THE ABOUT PAGE FOR LONGER, and prose is where it
 // hides: `about.ts` said "every price is quoted in SAR with VAT included" — a
