@@ -137,7 +137,10 @@ export default function QuestionnaireFlow({
     const target = live[Math.max(0, Math.min(live.length - 1, i))];
     if (!target) return;
     setPageId(target.id);
-    setSeen((s) => (s.includes(target.id) ? s : [...s, target.id]));
+    // THE PAGE BEING LEFT IS SEEN TOO. Only the target was recorded, and the
+    // first page is never a target — it is where the survey opens — so leaving
+    // it dropped it from `done` and the bar went BACKWARDS on the first Next.
+    setSeen((s) => [...new Set([...s, current?.id, target.id].filter(Boolean))]);
   };
 
   // A questionnaire authored with no pages yet must not take the screen down.
