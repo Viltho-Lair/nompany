@@ -3,9 +3,16 @@
 // VAT is added and withholding is deducted, and the assertions here are all
 // about keeping those two apart — because modelling one as the other produces
 // an invoice for the wrong amount and a receivable that never clears.
-import {
+// THE ALIAS LOADER, because the module imports `@/shared/money` and plain
+// Node does not know the `@/` alias (tests/loader.mjs resolves it).
+import { register } from "node:module";
+import { pathToFileURL } from "node:url";
+
+register(new URL("./loader.mjs", import.meta.url), { data: { root: pathToFileURL(`${process.cwd()}/`).href } });
+
+const {
   withholdingProblems, cleanWithholding, withholdingOn, settledWith, unclaimed,
-} from "../src/modules/finance/withholding.ts";
+} = await import("../src/modules/finance/withholding.ts");
 
 let fails = 0;
 const ok = (what, cond, detail = "") => {
@@ -92,4 +99,5 @@ ok("one where nothing was withheld is not", !chase.some((d) => d.id === "c"));
 ok("the biggest comes first", chase[0].amount === 500);
 
 console.log(fails ? `\nwithholding model: ${fails} FAILURES\n` : "\nwithholding model: all passed\n");
-process.exit(fails ? 1 : 0);
+// exitCode, not exit(): exiting while the alias loader's thread is live crashes Node on Windows.
+process.exitCode = fails ? 1 : 0;

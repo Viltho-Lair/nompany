@@ -27,6 +27,8 @@ import { PAYMENT_DIRECTIONS } from "./paymentSchema";
 
 import type { FinanceContext } from "./types";
 
+import { roundMoney } from "@/shared/money";
+
 type PaymentDirection = (typeof PAYMENT_DIRECTIONS)[number];
 // A TYPE GUARD RATHER THAN A CAST. `includes` on a readonly tuple does not
 // narrow a `string`, and casting would silence the one check standing between a
@@ -41,12 +43,12 @@ const OPPOSITE: Readonly<Record<PaymentDirection, PaymentDirection>> = Object.fr
 const Payments = repo<PaymentRecord>("payments");
 
 const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
-// MONEY IS ROUNDED TO THE CENT ON THE WAY IN and never negative: the direction
+// MONEY IS ROUNDED TO THE CURRENCY'S MINOR UNIT ON THE WAY IN and never negative: the direction
 // carries the sign (see the schema), so a negative here is a coercion accident
 // that would silently subtract from a total it should have added to.
-const cash = (v: unknown) => {
+const cash = (v: unknown, currency: unknown) => {
   const n = Number(v);
-  return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : 0;
+  return Number.isFinite(n) && n > 0 ? roundMoney(n, currency) : 0;
 };
 
 // `cashSection` is a SUB-section and therefore always present — it falls back to
@@ -72,13 +74,13 @@ export async function listPayments(ctx: FinanceContext, { dealId }: { dealId?: s
  * would have to be excluded here by name, and whichever caller forgot would
  * double-count it.
  */
-export function paymentTotals(payments: readonly PaymentRecord[]) {
+export function paymentTotals(payments: readonly PaymentRecord[], currency?: unknown) {
   let received = 0; let paid = 0;
   for (const p of payments) {
     const amount = Number(p?.amount) || 0;
     if (p?.direction === "in") received += amount; else paid += amount;
   }
-  const round = (n: number) => Math.round(n * 100) / 100;
+  const round = (n: number) => roundMoney(n, currency);
   return { received: round(received), paid: round(paid), net: round(received - paid) };
 }
 
@@ -107,7 +109,7 @@ export async function createPayment(ctx: FinanceContext, body: Record<string, un
   const direction = str(body?.direction, 10);
   if (!isDirection(direction)) return { error: "direction" };
 
-  const amount = cash(body?.amount);
+  const amount = cash(body?.amount, studio.currency);
   if (!amount) return { error: "amount" };
 
   // Through the alias table, so a caller holding a derived id lands on the deal

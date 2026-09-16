@@ -13,7 +13,9 @@
 // moment somebody corrects an earlier month; a cumulative figure is corrected by
 // the next claim. So a quantity can never go below what was already certified.
 //
-// No imports, no store, no clock.
+// One import — `shared/money`, itself pure — and no store, no clock.
+
+import { roundMoney } from "@/shared/money";
 
 export const CLAIM_STATUSES = ["Draft", "Submitted", "Certified"] as const;
 export type ClaimStatus = (typeof CLAIM_STATUSES)[number];
@@ -24,7 +26,9 @@ export type ClaimLine = SourceLine & { claimedQty: number; certifiedQty: number 
 export type ClaimLike = { id?: unknown; number?: unknown; status?: unknown; lines?: unknown };
 
 const num = (v: unknown) => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
-const money = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
+// A valuation is quantity × rate, an amount being CREATED, so it is rounded to
+// the currency's own minor unit — a dinar has three, and the two-place helper
+// this replaced cut a fils off every Jordanian certificate.
 const quantity = (n: number) => Math.round(n * 10000) / 10000;
 const text = (v: unknown) => String(v ?? "");
 
@@ -117,7 +121,9 @@ export type ClaimValuation = {
   overMeasured: string[];
 };
 
-export function claimValuation(claim: ClaimLike, previous: Map<string, number>, retentionPercent: unknown): ClaimValuation {
+export function claimValuation(
+  claim: ClaimLike, previous: Map<string, number>, retentionPercent: unknown, currency?: unknown,
+): ClaimValuation {
   const lines = linesOf(claim);
   let prev = 0;
   let applied = 0;
@@ -132,15 +138,15 @@ export function claimValuation(claim: ClaimLike, previous: Map<string, number>, 
   const done = text(claim.status) === "Certified";
   const thisPeriod = (done ? certified : applied) - prev;
   const pct = Math.min(100, Math.max(0, num(retentionPercent)));
-  const retention = money(thisPeriod * (pct / 100));
+  const retention = roundMoney(thisPeriod * (pct / 100), currency);
   return {
-    previous: money(prev),
-    appliedToDate: money(applied),
-    appliedThisPeriod: money(applied - prev),
-    certifiedToDate: done ? money(certified) : null,
-    certifiedThisPeriod: done ? money(certified - prev) : null,
+    previous: roundMoney(prev, currency),
+    appliedToDate: roundMoney(applied, currency),
+    appliedThisPeriod: roundMoney(applied - prev, currency),
+    certifiedToDate: done ? roundMoney(certified, currency) : null,
+    certifiedThisPeriod: done ? roundMoney(certified - prev, currency) : null,
     retention,
-    net: money(thisPeriod - retention),
+    net: roundMoney(thisPeriod - retention, currency),
     overMeasured,
   };
 }

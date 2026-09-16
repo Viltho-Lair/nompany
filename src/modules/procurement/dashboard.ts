@@ -28,6 +28,7 @@ import type { Subcontract, PaymentCertificate } from "./subcontractSchema";
 import type { ProcurementContext } from "./types";
 import type { Order, Vendor } from "@/modules/inventory/schema";
 import type { Bill } from "@/modules/finance/schema";
+import { roundSum } from "@/shared/money";
 
 const Requisitions = repo<Requisition>("requisitions");
 const Rfqs = repo<Rfq>("supplierRfqs");
@@ -41,7 +42,10 @@ const Bills = repo<Bill>("bills");
 /** A requisition still waiting on somebody. */
 const AWAITING = new Set(["Submitted", "In review"]);
 
-const money = (n: number) => Math.round(n * 100) / 100;
+// EVERY FIGURE HERE IS A SUM of amounts the models already rounded to the
+// studio's currency (a dinar has three decimals), so it is only cleaned of
+// float noise — rounding it to two again would lose a fils.
+const money = (n: number) => roundSum(n);
 
 export async function procurementDashboard(ctx: ProcurementContext) {
   const denied = requirePermission(ctx.access, "procurement.dashboard.view");
@@ -106,7 +110,7 @@ export async function procurementDashboard(ctx: ProcurementContext) {
 
   // ---- requisitions --------------------------------------------------------
   const awaiting = requisitions.filter((r) => AWAITING.has(String(r.status || "")));
-  const awaitingTotals = awaiting.map((r) => requisitionTotals(r.lines));
+  const awaitingTotals = awaiting.map((r) => requisitionTotals(r.lines, studio.currency));
   const requisitionBlock = may.requisitions ? {
     awaiting: awaiting.length,
     awaitingValue: money(awaitingTotals.reduce((s, t) => s + t.estimated, 0)),
@@ -147,7 +151,7 @@ export async function procurementDashboard(ctx: ProcurementContext) {
   const matches = may.receiving
     ? orders
       .filter((o) => !["Draft", "Cancelled"].includes(String(o.status || "")))
-      .map((o) => threeWayMatch(o, receipts, bills))
+      .map((o) => threeWayMatch(o, receipts, bills, studio.currency))
     : [];
   const receivingBlock = may.receiving ? {
     awaitingDelivery: matches.filter((m) => !m.fullyReceived).length,
@@ -198,7 +202,7 @@ export async function procurementDashboard(ctx: ProcurementContext) {
   // ---- subcontracts --------------------------------------------------------
   const positions = may.subcontracts
     ? subcontracts.map((s) => subcontractPosition(
-      s, certificates.filter((c) => c.subcontractId === s.id), today))
+      s, certificates.filter((c) => c.subcontractId === s.id), today, studio.currency))
     : [];
   const subcontractBlock = may.subcontracts ? {
     live: subcontracts.filter((s) => String(s.status || "") === "Live").length,

@@ -93,7 +93,7 @@ const TOOL_IMPLS: Record<string, ToolImpl> = {
       const denied = requirePermission(ctx.access, "finance.cash.view");
       if (refusal(denied)) return denied;
       const [invoices, expenses] = await Promise.all([listInvoices(ctx), listExpenses(ctx)]);
-      return summarise(invoices, expenses);
+      return summarise(invoices, expenses, ctx.studio.currency);
     },
   },
   "read.finance.bills": {

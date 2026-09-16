@@ -17,6 +17,7 @@ import {
   withQuantities, claimValuation, openProblem, moveProblem, editProblem, type SourceLine,
 } from "./progressClaims";
 import type { Invoice } from "@/modules/finance/schema";
+import { roundMoney } from "@/shared/money";
 import type { ProgressClaim, Project } from "./schema";
 import type { ProjectsContext } from "./types";
 
@@ -86,8 +87,8 @@ export async function listClaims(ctx: ProjectsContext, projectId: string) {
         ...c,
         lines: linesOf(c),
         previousQty: Object.fromEntries(previous),
-        valuation: claimValuation(c, previous, retention),
-        invoiced: Math.round(named.filter((i) => isClaimed(i)).reduce((t, i) => t + invoiceTotals(i).subtotal, 0) * 100) / 100,
+        valuation: claimValuation(c, previous, retention, studio.currency),
+        invoiced: roundMoney(named.filter((i) => isClaimed(i)).reduce((t, i) => t + invoiceTotals(i, studio.currency).subtotal, 0), studio.currency),
         invoiceRaised: named.length > 0,
       };
     }),

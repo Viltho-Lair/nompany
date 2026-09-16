@@ -12,6 +12,7 @@ import { seriesSetting } from "@/modules/administration/numbering";
 import { repo } from "@/platform/db/repo";
 import { nextReference } from "@/modules/main/references";
 import { str, day, cash } from "./finance";
+import { roundMoney } from "@/shared/money";
 import type { FixedAsset, FinanceContext } from "./types";
 
 const ASSETS = "fixedAssets";
@@ -19,7 +20,6 @@ const Assets = repo<FixedAsset>(ASSETS);
 
 export const ASSET_METHODS = ["straight-line", "reducing-balance"];
 
-const round = (n: number) => Math.round((Number(n) || 0) * 100) / 100;
 
 // Whole months from `from` to `to`, both ISO dates, never negative. A part
 // month does not count — depreciation is charged per completed month, the same
@@ -58,7 +58,10 @@ export type Depreciation = {
  * Depreciation STOPS at disposal: once `disposedOn` is set, the clock runs only
  * to that date, never past it.
  */
-export function depreciationOf(asset: Pick<FixedAsset, "cost" | "salvageValue" | "usefulLifeMonths" | "method" | "acquiredOn" | "disposedOn">, asOf = new Date().toISOString().slice(0, 10)): Depreciation {
+export function depreciationOf(asset: Pick<FixedAsset, "cost" | "salvageValue" | "usefulLifeMonths" | "method" | "acquiredOn" | "disposedOn">, asOf = new Date().toISOString().slice(0, 10), currency?: unknown): Depreciation {
+  // In the studio's currency — the book is kept in it — so a dinar asset is
+  // written down in fils rather than cents.
+  const round = (n: number) => roundMoney(n, currency);
   const cost = Math.max(0, Number(asset.cost) || 0);
   const salvage = Math.min(cost, Math.max(0, Number(asset.salvageValue) || 0));
   const life = Math.max(0, Math.floor(Number(asset.usefulLifeMonths) || 0));
@@ -115,13 +118,13 @@ export function depreciationOf(asset: Pick<FixedAsset, "cost" | "salvageValue" |
 }
 
 /** An asset as the list hands it over: the stored row plus its derived book value. */
-function withDepreciation(asset: FixedAsset, asOf?: string): FixedAsset & Depreciation & { gainOnDisposal?: number } {
-  const dep = depreciationOf(asset, asOf);
+function withDepreciation(asset: FixedAsset, currency: unknown, asOf?: string): FixedAsset & Depreciation & { gainOnDisposal?: number } {
+  const dep = depreciationOf(asset, asOf, currency);
   const out: FixedAsset & Depreciation & { gainOnDisposal?: number } = { ...asset, ...dep };
   // A disposed asset carries the gain or loss against its book value at disposal:
   // proceeds − what it was still worth. Positive is a gain, negative a loss.
   if (asset.disposedOn) {
-    out.gainOnDisposal = round((Number(asset.disposalProceeds) || 0) - dep.bookValue);
+    out.gainOnDisposal = roundMoney((Number(asset.disposalProceeds) || 0) - dep.bookValue, currency);
   }
   return out;
 }
@@ -133,7 +136,7 @@ export async function listAssets(ctx: FinanceContext) {
   const assets = await Assets.find({ studio, section: assetsSection });
   const rows = [...assets]
     .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""))
-    .map((a) => withDepreciation(a));
+    .map((a) => withDepreciation(a, studio.currency));
   return { assets: rows };
 }
 
@@ -144,7 +147,7 @@ export async function createAsset(ctx: FinanceContext, body: Record<string, unkn
   const { studio, assetsSection, collaborator } = ctx;
   const name = str(body?.name, 160);
   if (!name) return { error: "name" };
-  const cost = cash(body?.cost);
+  const cost = cash(body?.cost, studio.currency);
   if (!cost) return { error: "cost" };
   const usefulLifeMonths = Math.max(0, Math.floor(Number(body?.usefulLifeMonths) || 0));
   if (!usefulLifeMonths) return { error: "life" };
@@ -159,7 +162,7 @@ export async function createAsset(ctx: FinanceContext, body: Record<string, unkn
     cost,
     // Salvage cannot exceed cost — an asset worth nothing new cannot be worth
     // more scrapped.
-    salvageValue: Math.min(cost, cash(body?.salvageValue)),
+    salvageValue: Math.min(cost, cash(body?.salvageValue, studio.currency)),
     usefulLifeMonths,
     method,
     projectId: str(body?.projectId, 60),
@@ -167,7 +170,7 @@ export async function createAsset(ctx: FinanceContext, body: Record<string, unkn
     createdByCollaboratorId: collaborator.id,
     createdAt: new Date().toISOString(),
   });
-  return { asset: withDepreciation(asset) };
+  return { asset: withDepreciation(asset, ctx.studio.currency) };
 }
 
 export async function editAsset(ctx: FinanceContext, id: string, body: Record<string, unknown>) {
@@ -185,8 +188,8 @@ export async function editAsset(ctx: FinanceContext, id: string, body: Record<st
   if (body?.name !== undefined) { const v = str(body.name, 160); if (!v) return { error: "name" }; patch.name = v; }
   if (body?.category !== undefined) patch.category = str(body.category, 120);
   if (body?.acquiredOn !== undefined) patch.acquiredOn = day(body.acquiredOn);
-  if (body?.cost !== undefined) { const c = cash(body.cost); if (!c) return { error: "cost" }; patch.cost = c; }
-  if (body?.salvageValue !== undefined) patch.salvageValue = cash(body.salvageValue);
+  if (body?.cost !== undefined) { const c = cash(body.cost, ctx.studio.currency); if (!c) return { error: "cost" }; patch.cost = c; }
+  if (body?.salvageValue !== undefined) patch.salvageValue = cash(body.salvageValue, ctx.studio.currency);
   if (body?.usefulLifeMonths !== undefined) {
     const l = Math.max(0, Math.floor(Number(body.usefulLifeMonths) || 0));
     if (!l) return { error: "life" };
@@ -202,7 +205,7 @@ export async function editAsset(ctx: FinanceContext, id: string, body: Record<st
   if (nextSalvage > nextCost) patch.salvageValue = nextCost;
 
   const asset = await Assets.update({ studio, section: assetsSection }, id, patch);
-  return asset ? { asset: withDepreciation(asset) } : { error: "notfound" };
+  return asset ? { asset: withDepreciation(asset, ctx.studio.currency) } : { error: "notfound" };
 }
 
 /**
@@ -233,11 +236,11 @@ export async function disposeAsset(ctx: FinanceContext, id: string, body: Record
   const disposedAt = new Date().toISOString();
   const asset = await Assets.update({ studio, section: assetsSection }, id, () => ({
     disposedOn,
-    disposalProceeds: cash(body?.disposalProceeds),
+    disposalProceeds: cash(body?.disposalProceeds, studio.currency),
     disposedByCollaboratorId: collaborator.id,
     disposedAt,
   }));
-  return asset ? { asset: withDepreciation(asset) } : { error: "notfound" };
+  return asset ? { asset: withDepreciation(asset, ctx.studio.currency) } : { error: "notfound" };
 }
 
 export async function removeAsset(ctx: FinanceContext, id: string) {

@@ -30,6 +30,7 @@ import { WORKORDER_SOURCE, partsCostByOrder, costByAsset } from "./parts";
 import { contractSummary } from "./contracts";
 import type { LabourEntry, PmPlan, Sla, WorkOrder, WorkRequest } from "./schema";
 import type { MaintenanceContext } from "./types";
+import { roundSum } from "@/shared/money";
 
 const Requests = repo<WorkRequest>("workRequests");
 const Orders = repo<WorkOrder>("workOrders");
@@ -39,7 +40,6 @@ const Contracts = repo<Sla>("slas");
 const StockMoves = repo<Movement>("inventoryStock");
 const Records = repo<EngineRecord>("engineRecords");
 
-const money = (n: number) => Math.round(n * 100) / 100;
 const day = (iso: string) => iso.slice(0, 10);
 
 /** How many machines the reliability figures should name at once. */
@@ -120,7 +120,7 @@ export async function maintenanceDashboard(ctx: MaintenanceContext) {
     r.id, String((r.values as Record<string, unknown> | undefined)?.acquiredOn ?? "").trim().slice(0, 10),
   ]));
   const stats = reliabilityByAsset(orders, at, 365, (id) => acquiredOf.get(id) || "");
-  const costs = costByAsset(orders, partMoves, labour, at);
+  const costs = costByAsset(orders, partMoves, labour, at, undefined, ctx.studio.currency);
   const nameOf = new Map(machines.map((r) => [
     r.id, [r.reference, String((r.values as Record<string, unknown> | undefined)?.name ?? "").trim()].filter(Boolean).join(" · "),
   ]));
@@ -132,13 +132,15 @@ export async function maintenanceDashboard(ctx: MaintenanceContext) {
       id, name: nameOf.get(id) || "",
       failures: s.failures, availability: s.availability, mtbfHours: s.mtbfHours, mttrHours: s.mttrHours,
       openOrders: s.openOrders,
-      partsCost: money(costs.get(id)?.partsCost || 0),
+      partsCost: roundSum(costs.get(id)?.partsCost || 0),
       labourHours: costs.get(id)?.labourHours || 0,
     }))
     .sort((a, b) => b.failures - a.failures || (a.availability ?? 101) - (b.availability ?? 101))
     .slice(0, WORST_MACHINES);
 
-  const partsCost = money([...partsCostByOrder(partMoves).values()].reduce((s, n) => s + n, 0));
+  // A SUM OF ORDER COSTS each already rounded to the studio's currency (a dinar
+  // has three decimals), so only float noise is taken off — never a fils.
+  const partsCost = roundSum([...partsCostByOrder(partMoves, ctx.studio.currency).values()].reduce((s, n) => s + n, 0));
   const hours = labourTotals(labour);
 
   // ---- what is waiting on somebody -------------------------------------------

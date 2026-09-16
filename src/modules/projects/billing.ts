@@ -16,7 +16,11 @@
 // a studio that reads its invoiced total as its expected cash is wrong by
 // exactly the amount its clients are holding.
 //
-// NO IMPORTS, deliberately, and asserted by a test.
+// ONE IMPORT, deliberately, and asserted by a test: `shared/money`, which is
+// itself pure and imports nothing, so this still pulls no server code into the
+// browser.
+
+import { roundMoney, roundSum } from "@/shared/money";
 
 export type Milestone = {
   id?: unknown;
@@ -62,7 +66,11 @@ const num = (v: unknown): number => {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
 };
-const money = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
+// MONEY FOLLOWS ITS CURRENCY'S DECIMALS — a dinar has three, and the two-place
+// helper this replaced cut a fils off every Jordanian figure. Stored amounts and
+// sums of them are only cleaned of float noise (`roundSum`, which keeps every
+// fils); the one amount this file CREATES — retention, a percentage of what was
+// billed — is rounded to the currency's own minor unit.
 const text = (v: unknown) => String(v ?? "");
 
 export const isClaimed = (inv: BilledInvoice | null | undefined): boolean =>
@@ -200,16 +208,17 @@ export function retentionOn(
   percent: unknown,
   releaseDate: unknown,
   asOf: string,
+  currency?: unknown,
 ): Retention {
   // CLAMPED, because a stored percentage is a number somebody typed. Over 100
   // would report the client withholding more than the whole invoice.
   const pct = Math.min(100, Math.max(0, num(percent)));
-  const held = money(money(invoiced) * (pct / 100));
+  const held = roundMoney(roundSum(invoiced) * (pct / 100), currency);
   const when = text(releaseDate).slice(0, 10);
   return {
     percent: pct,
     held,
-    net: money(money(invoiced) - held),
+    net: roundSum(roundSum(invoiced) - held),
     releasable: !when ? null : asOf && asOf >= when ? held : 0,
     releaseDate: when,
     blocked: when ? null : "no-release-date",
@@ -229,11 +238,11 @@ export function retentionOn(
  * had been asked for it, which is the same error as counting an unplaced order
  * as committed.
  */
-export function projectBilling(input: BillingInput): ProjectBilling {
+export function projectBilling(input: BillingInput, currency?: unknown): ProjectBilling {
   const rows = Array.isArray(input?.milestones) ? input.milestones : [];
   const all = Array.isArray(input?.invoices) ? input.invoices : [];
   const claimed = all.filter(isClaimed);
-  const value = money(num(input?.value));
+  const value = roundSum(num(input?.value));
   const asOf = text(input?.asOf).slice(0, 10);
 
   const invoicedBy = new Map<string, number>();
@@ -242,13 +251,13 @@ export function projectBilling(input: BillingInput): ProjectBilling {
   let claims = 0;
   for (const inv of claimed) {
     const id = text(inv.milestoneId);
-    const amount = money(num(inv.total));
+    const amount = roundSum(num(inv.total));
     // AN INVOICE FOR A PROGRESS CLAIM IS FILED — against the claim. Counting it
     // as unattributed would warn a studio about every certificate it billed.
-    if (text(inv.claimId)) { claims = money(claims + amount); continue; }
-    if (!id) { unattributed = money(unattributed + amount); continue; }
-    invoicedBy.set(id, money((invoicedBy.get(id) || 0) + amount));
-    if (isSettled(inv)) paidBy.set(id, money((paidBy.get(id) || 0) + amount));
+    if (text(inv.claimId)) { claims = roundSum(claims + amount); continue; }
+    if (!id) { unattributed = roundSum(unattributed + amount); continue; }
+    invoicedBy.set(id, roundSum((invoicedBy.get(id) || 0) + amount));
+    if (isSettled(inv)) paidBy.set(id, roundSum((paidBy.get(id) || 0) + amount));
   }
 
   // BILLED AGAINST A MILESTONE THAT NO LONGER EXISTS IS STILL BILLED. Deleting
@@ -257,12 +266,12 @@ export function projectBilling(input: BillingInput): ProjectBilling {
   // making a project look under-billed for having tidied a list.
   const known = new Set(rows.map((m) => text(m.id)));
   for (const [id, amount] of invoicedBy) {
-    if (!known.has(id)) unattributed = money(unattributed + amount);
+    if (!known.has(id)) unattributed = roundSum(unattributed + amount);
   }
 
   const milestones: MilestoneRollUp[] = rows.map((m) => {
     const id = text(m.id);
-    const amount = money(num(m.amount));
+    const amount = roundSum(num(m.amount));
     const invoiced = invoicedBy.get(id) || 0;
     const status = text(m.status) || "Pending";
     const dueDate = text(m.dueDate);
@@ -277,12 +286,12 @@ export function projectBilling(input: BillingInput): ProjectBilling {
       status,
       invoiced,
       paid: paidBy.get(id) || 0,
-      remaining: money(amount - invoiced),
+      remaining: roundSum(amount - invoiced),
       billed,
       // READY AND NOT BILLED IN FULL. A Pending milestone is not claimable
       // however overdue it is: the studio has not said the work is done.
       claimable: status === "Ready" && billed !== "full"
-        ? Math.max(0, money(amount - invoiced))
+        ? Math.max(0, roundSum(amount - invoiced))
         : 0,
       // A milestone with no due date cannot be late. Compared as ISO dates,
       // which sort lexically, so no parsing and no timezone.
@@ -290,28 +299,28 @@ export function projectBilling(input: BillingInput): ProjectBilling {
     };
   });
 
-  const scheduled = money(milestones.reduce((n, m) => n + m.amount, 0));
-  const invoiced = money(
+  const scheduled = roundSum(milestones.reduce((n, m) => n + m.amount, 0));
+  const invoiced = roundSum(
     milestones.reduce((n, m) => n + m.invoiced, 0) + unattributed + claims);
-  const paid = money(claimed.filter(isSettled).reduce((n, i) => n + num(i.total), 0));
-  const claimable = money(milestones.reduce((n, m) => n + m.claimable, 0));
+  const paid = roundSum(claimed.filter(isSettled).reduce((n, i) => n + num(i.total), 0));
+  const claimable = roundSum(milestones.reduce((n, m) => n + m.claimable, 0));
 
   return {
     milestones,
     value,
     scheduled,
-    unscheduled: money(value - scheduled),
+    unscheduled: roundSum(value - scheduled),
     claimable,
     invoiced,
     claims,
     paid,
-    outstanding: money(invoiced - paid),
+    outstanding: roundSum(invoiced - paid),
     unattributed,
     // NULL, NOT ZERO, with nothing scheduled. Nought billed against nought
     // scheduled is not "0% billed" — it is a project nobody has written a
     // payment schedule for, and an empty progress bar says the opposite.
     billedFraction: scheduled > 0 ? invoiced / scheduled : null,
-    retention: retentionOn(invoiced, input?.retentionPercent, input?.retentionReleaseDate, asOf),
+    retention: retentionOn(invoiced, input?.retentionPercent, input?.retentionReleaseDate, asOf, currency),
     clean: unattributed === 0 && claimable === 0,
     // A PARTIAL STATE, NOT AN EMPTY ONE. With no milestones the invoice totals
     // above are still real and still correct; only the schedule half is

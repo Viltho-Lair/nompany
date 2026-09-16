@@ -110,7 +110,8 @@ export default function ExecutiveBoard({ slug, locale = "en" }) {
                 {t.unit === "count"
                   ? t.value
                   : t.value.toLocaleString(locale === "ar" ? "ar" : "en-GB",
-                    { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    // Up to three places: a dinar amount keeps its third decimal.
+                    { minimumFractionDigits: 2, maximumFractionDigits: 3 })}
                 {unitOf(t) && (
                   <span className="ms-1 text-xs font-600 text-slate-400 dark:text-slate-500">
                     {unitOf(t)}

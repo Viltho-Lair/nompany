@@ -20,6 +20,7 @@ import {
 } from "./treasury";
 import type { Cheque, Guarantee, Due, ChequeStatus } from "./treasury";
 import type { FinanceContext, JournalEntry } from "./types";
+import { roundSum } from "@/shared/money";
 
 const Cheques = repo<Cheque>("cheques");
 const Guarantees = repo<Guarantee>("guarantees");
@@ -29,7 +30,8 @@ const Bills = repo<Record<string, unknown>>("bills");
 
 const cashScope = (ctx: FinanceContext) => ({ studio: ctx.studio, section: ctx.cashSection });
 const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
-const money = (n: number) => Math.round(n * 100) / 100;
+// A sum of posted amounts: only float noise to remove (shared/money).
+const money = (n: number) => roundSum(n);
 const BANK = "1010";
 
 /** What the ledger says is in the bank right now. */
@@ -64,7 +66,7 @@ async function dues(ctx: FinanceContext, cheques: Cheque[]): Promise<Due[]> {
   const out: Due[] = [];
   for (const inv of invoices) {
     if (inv.status === "Draft" || inv.status === "Cancelled") continue;
-    const { outstanding } = invoiceTotals(inv as { lines?: unknown; vatRate?: unknown; payments?: unknown });
+    const { outstanding } = invoiceTotals(inv as { lines?: unknown; vatRate?: unknown; payments?: unknown }, ctx.studio.currency);
     if (outstanding <= 0) continue;
     out.push({
       date: str(inv.dueDate, 10) || str(inv.issueDate, 10),
@@ -75,7 +77,7 @@ async function dues(ctx: FinanceContext, cheques: Cheque[]): Promise<Due[]> {
   }
   for (const bill of bills) {
     if (bill.status === "Draft" || bill.status === "Cancelled") continue;
-    const { outstanding } = invoiceTotals(bill as { lines?: unknown; vatRate?: unknown; payments?: unknown });
+    const { outstanding } = invoiceTotals(bill as { lines?: unknown; vatRate?: unknown; payments?: unknown }, ctx.studio.currency);
     if (outstanding <= 0) continue;
     out.push({
       date: str(bill.dueDate, 10) || str(bill.billDate, 10),
@@ -147,10 +149,10 @@ export async function saveCheque(ctx: FinanceContext, body: Record<string, unkno
     const current = rows.find((c) => c.id === id);
     if (!current) return { error: "notfound" };
     const updated = await Cheques.update(cashScope(ctx), id,
-      { ...cleanCheque(body), status: current.status });
+      { ...cleanCheque(body, ctx.studio.currency), status: current.status });
     return updated ? { cheque: updated } : { error: "notfound" };
   }
-  return { cheque: await Cheques.create(cashScope(ctx), cleanCheque(body)) };
+  return { cheque: await Cheques.create(cashScope(ctx), cleanCheque(body, ctx.studio.currency)) };
 }
 
 export async function moveCheque(ctx: FinanceContext, id: string, next: ChequeStatus) {
@@ -177,10 +179,10 @@ export async function saveGuarantee(ctx: FinanceContext, body: Record<string, un
 
   const id = str(body?.id, 60);
   if (id) {
-    const updated = await Guarantees.update(cashScope(ctx), id, cleanGuarantee(body));
+    const updated = await Guarantees.update(cashScope(ctx), id, cleanGuarantee(body, ctx.studio.currency));
     return updated ? { guarantee: updated } : { error: "notfound" };
   }
-  return { guarantee: await Guarantees.create(cashScope(ctx), cleanGuarantee(body)) };
+  return { guarantee: await Guarantees.create(cashScope(ctx), cleanGuarantee(body, ctx.studio.currency)) };
 }
 
 /**

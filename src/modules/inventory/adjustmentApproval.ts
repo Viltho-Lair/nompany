@@ -26,6 +26,7 @@ import { approvalChainsFor } from "@/platform/approval/store";
 import type { InventoryContext } from "./types";
 import type { PermissionKey } from "@/platform/access";
 import { notifyHolders, signatureNotice } from "@/modules/people/holders";
+import { roundMoney } from "@/shared/money";
 
 /** Ring whoever holds this adjustment's next outstanding step. */
 async function announceNextStep(
@@ -48,7 +49,9 @@ export const ADJUSTMENT_STATUSES = ["Pending", "Approved", "Rejected"] as const;
 
 const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
 const num = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : 0);
-const money = (n: number) => Math.round(n * 100) / 100;
+// In the studio's currency — a dinar adjustment is valued in fils, so a
+// threshold at a fils boundary routes the way the studio set it.
+const money = (n: number, currency?: unknown) => roundMoney(n, currency);
 
 const scope = (ctx: InventoryContext) => ({ studio: ctx.studio, section: ctx.stockSection });
 
@@ -64,8 +67,8 @@ const scope = (ctx: InventoryContext) => ({ studio: ctx.studio, section: ctx.sto
  * on both sides and no rate table, which is the same shape a requisition uses
  * and for the same reason.
  */
-export function adjustmentValue(qty: number, unitCost: number): number {
-  return money(Math.abs(num(qty)) * Math.max(0, num(unitCost)));
+export function adjustmentValue(qty: number, unitCost: number, currency?: unknown): number {
+  return money(Math.abs(num(qty)) * Math.max(0, num(unitCost)), currency);
 }
 
 /**

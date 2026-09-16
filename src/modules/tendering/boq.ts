@@ -1,4 +1,5 @@
-// A BILL OF QUANTITIES, as arithmetic. Pure: no store, no server imports.
+// A BILL OF QUANTITIES, as arithmetic. Pure: no store, no server imports — its
+// one import is `shared/money`, which is itself pure and imports nothing.
 //
 // WHAT A BOQ IS. The tender documents name the work, item by item, with a
 // quantity and a unit; the estimator supplies a RATE for each; the extension is
@@ -12,6 +13,8 @@
 // quoting it as one is how a studio wins work it has not costed. So a total
 // always arrives beside the count of what is missing from it.
 
+import { roundMoney, roundSum } from "@/shared/money";
+
 /** One priced line, as the grid holds it. */
 export type BoqLine = {
   /** The trade or section heading a line sits under. Free text, grouped on display. */
@@ -20,7 +23,7 @@ export type BoqLine = {
   rate?: unknown;
   // READ ONLY BY `boqAsTables`, and declared `unknown` like the rest: this file
   // is handed whatever the store holds and narrows at the point of use, which
-  // is what lets it stay import-free and be handed a plain row from anywhere.
+  // is what lets it stay free of server imports and be handed a plain row from anywhere.
   id?: unknown;
   description?: unknown;
   unit?: unknown;
@@ -38,9 +41,14 @@ const num = (v: unknown): number => {
  */
 export const isPriced = (line: BoqLine): boolean => num(line?.rate) > 0;
 
-/** Quantity times rate, rounded to the money the rest of the product uses. */
-export function extension(line: BoqLine): number {
-  return Math.round(num(line?.qty) * num(line?.rate) * 100) / 100;
+/**
+ * Quantity times rate, rounded to the bill's own currency — money follows its
+ * currency's decimals, and a dinar has three, so a fixed two places cut a fils
+ * off every Jordanian line. No currency is the two a currency without an entry
+ * gets, which is what every caller had before.
+ */
+export function extension(line: BoqLine, currency?: unknown): number {
+  return roundMoney(num(line?.qty) * num(line?.rate), currency);
 }
 
 export type BoqTotals = {
@@ -57,14 +65,16 @@ export type BoqTotals = {
   complete: boolean;
 };
 
-export function boqTotals(lines: readonly BoqLine[]): BoqTotals {
+export function boqTotals(lines: readonly BoqLine[], currency?: unknown): BoqTotals {
   const rows = Array.isArray(lines) ? lines : [];
   const priced = rows.filter(isPriced);
   return {
     lines: rows.length,
     priced: priced.length,
     unpriced: rows.length - priced.length,
-    total: Math.round(priced.reduce((s, l) => s + extension(l), 0) * 100) / 100,
+    // A SUM OF EXTENSIONS ALREADY ROUNDED to the currency, so only float noise
+    // is taken off it — rounding it again to two places would cut the fils.
+    total: roundSum(priced.reduce((s, l) => s + extension(l, currency), 0)),
     // An EMPTY bill is not a complete one: a tender with no lines has not been
     // estimated, and reporting it as fully priced would be the same lie in the
     // opposite direction.
@@ -80,7 +90,7 @@ export function boqTotals(lines: readonly BoqLine[]): BoqTotals {
  * matching the document the client sent, which is what an estimator checks it
  * against line by line.
  */
-export function boqGroups(lines: readonly BoqLine[]): Array<{ group: string; lines: BoqLine[]; totals: BoqTotals }> {
+export function boqGroups(lines: readonly BoqLine[], currency?: unknown): Array<{ group: string; lines: BoqLine[]; totals: BoqTotals }> {
   const order: string[] = [];
   const byGroup = new Map<string, BoqLine[]>();
   for (const line of Array.isArray(lines) ? lines : []) {
@@ -91,7 +101,7 @@ export function boqGroups(lines: readonly BoqLine[]): Array<{ group: string; lin
   return order.map((group) => ({
     group,
     lines: byGroup.get(group)!,
-    totals: boqTotals(byGroup.get(group)!),
+    totals: boqTotals(byGroup.get(group)!, currency),
   }));
 }
 

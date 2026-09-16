@@ -18,9 +18,11 @@
 //    a record of what was decided must not move when the inputs do.
 //
 // PURE. No store, no clock — a period comes in as a string and every amount
-// comes in as a number. The one import is a TYPE, from the pure statutory rules.
+// comes in as a number. The imports are a TYPE, from the pure statutory rules,
+// and `shared/money`, which is itself pure and imports nothing.
 
 import type { SocialSecurity } from "./statutory";
+import { roundMoney, roundSum } from "@/shared/money";
 
 export type Component = {
   label: string; amount: number; kind: "allowance" | "deduction";
@@ -77,7 +79,12 @@ export const RUN_STATUSES = ["Draft", "Approved", "Paid"] as const;
 export type RunStatus = (typeof RUN_STATUSES)[number];
 
 const num = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : 0);
-const money = (n: number) => Math.round(n * 100) / 100;
+// MONEY FOLLOWS ITS CURRENCY'S DECIMALS — a dinar has three, so a Jordanian
+// payslip rounded to cents lost a fils on every line. An amount this file
+// CREATES (a day docked, a contribution) is rounded to the studio's currency;
+// a sum of amounts already rounded is only cleaned of float noise (`roundSum`),
+// which can never cut a decimal the currency uses. `currency` is optional on
+// every export: omitted, it is the two decimals these functions always used.
 const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
 
 /** A payroll period, `YYYY-MM`. */
@@ -115,10 +122,13 @@ export function payProblems(input: Record<string, unknown>): string[] {
 const pctOrNull = (v: unknown) => (v === undefined || v === null || v === "" || !Number.isFinite(Number(v))
   ? null : Math.max(0, Math.min(100, Number(v))));
 
-export function cleanPay(input: Record<string, unknown>): PayRecord {
+export function cleanPay(input: Record<string, unknown>, currency?: unknown): PayRecord {
   return {
     collaboratorId: str(input.collaboratorId, 60),
-    basic: money(Math.max(0, num(input.basic))),
+    // A SALARY IS AN AMOUNT PAID, not a unit rate, so it is held to the
+    // currency's own unit: a basic nobody can actually be paid would carry its
+    // fraction onto every slip that copies it.
+    basic: roundMoney(Math.max(0, num(input.basic)), currency),
     // NOT VALIDATED AS AN IBAN. Formats differ by country and this product is
     // regional; a wrong-looking-but-correct account refused at entry is worse
     // than one the bank rejects with a message the studio can read.
@@ -137,7 +147,7 @@ export function cleanPay(input: Record<string, unknown>): PayRecord {
         && (c?.kind === "allowance" || c?.kind === "deduction"))
       .map((c) => ({
         label: str(c.label, 80),
-        amount: money(num(c.amount)),
+        amount: roundMoney(num(c.amount), currency),
         kind: c.kind as Component["kind"],
         // Only an allowance can be insurable; a deduction is not wage.
         ...(c.kind === "allowance" && c.insurable === true ? { insurable: true } : {}),
@@ -151,17 +161,17 @@ export function cleanPay(input: Record<string, unknown>): PayRecord {
  * allowances marked insurable — the CONTRACTUAL wage, before any unpaid-leave
  * docking — up to the scheme's ceiling.
  */
-export function socialSecurityOn(pay: PayRecord, ss: SocialSecurity | null | undefined) {
+export function socialSecurityOn(pay: PayRecord, ss: SocialSecurity | null | undefined, currency?: unknown) {
   const covered = pay.ssCovered ?? ss?.coversEveryone ?? false;
   if (!ss || !covered) return { base: 0, employee: 0, employer: 0 };
   const insurable = pay.basic + pay.components
     .filter((c) => c.kind === "allowance" && c.insurable)
     .reduce((t, c) => t + c.amount, 0);
-  const base = money(ss.ceiling > 0 ? Math.min(insurable, ss.ceiling) : insurable);
+  const base = roundMoney(ss.ceiling > 0 ? Math.min(insurable, ss.ceiling) : insurable, currency);
   return {
     base,
-    employee: money((base * (pay.ssEmployeePct ?? ss.employeePct)) / 100),
-    employer: money((base * (pay.ssEmployerPct ?? ss.employerPct)) / 100),
+    employee: roundMoney((base * (pay.ssEmployeePct ?? ss.employeePct)) / 100, currency),
+    employer: roundMoney((base * (pay.ssEmployerPct ?? ss.employerPct)) / 100, currency),
   };
 }
 
@@ -192,29 +202,31 @@ export function payslipFor(
     /** The studio's social security scheme; null charges none. */
     ss?: SocialSecurity | null;
   },
+  /** The studio's currency: the decimals a docked day and a contribution round to. */
+  currency?: unknown,
 ): PayslipLine {
   const days = daysInPeriod(period);
-  const allowances = money(pay.components.filter((c) => c.kind === "allowance")
+  const allowances = roundSum(pay.components.filter((c) => c.kind === "allowance")
     .reduce((sum, c) => sum + c.amount, 0));
-  const recurring = money(pay.components.filter((c) => c.kind === "deduction")
+  const recurring = roundSum(pay.components.filter((c) => c.kind === "deduction")
     .reduce((sum, c) => sum + c.amount, 0));
 
   // A PERIOD THAT IS NOT A PERIOD DOCKS NOTHING rather than dividing by null.
   const perDay = days ? pay.basic / days : 0;
-  const docked = money(Math.min(Math.max(0, unpaidDays), days || 0) * perDay);
+  const docked = roundMoney(Math.min(Math.max(0, unpaidDays), days || 0) * perDay, currency);
 
-  const gross = money(pay.basic - docked + allowances);
+  const gross = roundSum(pay.basic - docked + allowances);
   // THE EMPLOYEE'S SHARE IS WITHHELD, the employer's is a cost on top of gross —
   // so only the first touches the net.
-  const social = socialSecurityOn(pay, ss);
+  const social = socialSecurityOn(pay, ss, currency);
   return {
     collaboratorId: pay.collaboratorId,
     alias,
     basic: pay.basic,
     allowances,
-    deductions: money(recurring + docked + social.employee),
+    deductions: roundSum(recurring + docked + social.employee),
     gross,
-    net: money(gross - recurring - social.employee),
+    net: roundSum(gross - recurring - social.employee),
     components: pay.components,
     unpaidDays: Math.max(0, unpaidDays),
     unpaidDeduction: docked,
@@ -239,7 +251,9 @@ export type RunTotals = {
 };
 
 export function runTotals(lines: PayslipLine[]): RunTotals {
-  const sum = (pick: (l: PayslipLine) => number) => money(lines.reduce((t, l) => t + pick(l), 0));
+  // Every line was rounded to its currency when the run was prepared, so a
+  // total only needs the float noise taken off — no currency, no decimal lost.
+  const sum = (pick: (l: PayslipLine) => number) => roundSum(lines.reduce((t, l) => t + pick(l), 0));
   return {
     people: lines.length,
     basic: sum((l) => l.basic),

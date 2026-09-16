@@ -3,10 +3,16 @@
 // Money, so every assertion is about a figure that would otherwise be quietly
 // wrong: what gets pro-rated, what carries the sign, and what is reported
 // rather than clamped.
-import {
+import { register } from "node:module";
+import { pathToFileURL } from "node:url";
+
+const root = pathToFileURL(`${process.cwd()}/`).href;
+register(new URL("./loader.mjs", import.meta.url), { data: { root } });
+
+const {
   payProblems, cleanPay, daysInPeriod, payslipFor, runTotals,
   runProblem, approvalProblem, bankRows, RUN_STATUSES, PERIOD_RE,
-} from "../src/modules/hr/payroll.ts";
+} = await import("@/modules/hr/payroll");
 
 let fails = 0;
 const ok = (what, cond, detail = "") => {
@@ -132,4 +138,5 @@ ok("a nought net is left out too",
   bankRows([zeroNet], () => ({ iban: "X", bank: "Y" })).rows.length === 0);
 
 console.log(fails ? `\npayroll model: ${fails} FAILURES\n` : "\npayroll model: all passed\n");
-process.exit(fails ? 1 : 0);
+// exitCode, not exit(): exiting while the alias loader's thread is live crashes Node on Windows.
+process.exitCode = fails ? 1 : 0;

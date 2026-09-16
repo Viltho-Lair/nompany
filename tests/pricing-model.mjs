@@ -132,7 +132,8 @@ console.log("\n== the file that must stay pure");
 // into the browser bundle.
 const src = readFileSync(new URL("../src/shared/pricing.ts", import.meta.url), "utf8");
 const imports = [...src.matchAll(/from\s+"([^"]+)"/g)].map((m) => m[1]);
-ok("shared/pricing imports nothing at all", imports.length === 0, JSON.stringify(imports));
+// shared/money is itself pure and imports nothing, so no server code reaches the browser.
+ok("shared/pricing imports nothing but shared/money", imports.every((i) => i === "./money"), JSON.stringify(imports));
 
 console.log(fails ? `\n${fails} FAILED\n` : "\nall passed\n");
 process.exit(fails ? 1 : 0);

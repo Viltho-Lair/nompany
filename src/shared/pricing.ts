@@ -18,7 +18,10 @@
 //
 // NO SERVER IMPORTS, so the screens resolve a price with the same function the
 // server does. Two copies of "the customer's agreed rate wins" are two copies
-// free to disagree, and the disagreement would be about money.
+// free to disagree, and the disagreement would be about money. The one import
+// is `./money`, which is itself pure and imports nothing.
+
+import { roundSum } from "./money";
 
 /**
  * Where a quoted price came from. Carried beside the number so a screen can say
@@ -29,7 +32,11 @@ export type PriceBasis = "customer" | "sell" | "cost" | "none";
 
 const money = (v: unknown): number => {
   const n = Number(v);
-  return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : 0;
+  // A PRICE AS TYPED, kept to four places rather than cut to cents: a unit
+  // price is a rate, not an amount paid — a dinar has three decimals, and a
+  // line priced in fils was being rounded away. The LINE amount is what gets
+  // rounded to the currency, where quantity times price makes it.
+  return Number.isFinite(n) && n > 0 ? roundSum(n) : 0;
 };
 
 export function resolveUnitPrice(input: {

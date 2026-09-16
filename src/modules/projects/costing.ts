@@ -8,7 +8,11 @@
 // project as the value, and the bill's own groups are exactly the breakdown
 // nobody could record.
 //
-// NO IMPORTS, deliberately, and asserted by a test.
+// ONE IMPORT, deliberately, and asserted by a test: `shared/money`, which is
+// itself pure and imports nothing, so this still pulls no server code into the
+// browser.
+
+import { roundSum } from "@/shared/money";
 
 export type CostCode = {
   id?: unknown;
@@ -64,7 +68,10 @@ const num = (v: unknown): number => {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
 };
-const money = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
+// MONEY FOLLOWS ITS CURRENCY'S DECIMALS — a dinar has three. Nothing here
+// CREATES an amount: every figure is a stored bill, order or budget, or a sum
+// and difference of them, so it is only cleaned of float noise (`roundSum`)
+// rather than cut to two places, which dropped a fils off every Jordanian total.
 const text = (v: unknown) => String(v ?? "");
 
 export const isSpend = (bill: CostedBill | null | undefined): boolean =>
@@ -175,8 +182,8 @@ export function projectCosting(
   for (const bill of spend) {
     const id = codeOf(bill);
     const amount = num(bill.total);
-    if (!id) { uncoded = money(uncoded + amount); continue; }
-    byCode.set(id, money((byCode.get(id) || 0) + amount));
+    if (!id) { uncoded = roundSum(uncoded + amount); continue; }
+    byCode.set(id, roundSum((byCode.get(id) || 0) + amount));
   }
 
   // WHAT IS LEFT OF EACH ORDER, netted against what has been invoiced on it.
@@ -190,16 +197,16 @@ export function projectCosting(
   for (const bill of spend) {
     const oid = text(bill.orderId);
     if (!oid) continue;
-    billedOnOrder.set(oid, money((billedOnOrder.get(oid) || 0) + num(bill.total)));
+    billedOnOrder.set(oid, roundSum((billedOnOrder.get(oid) || 0) + num(bill.total)));
   }
   const committedByCode = new Map<string, number>();
   let uncommitted = 0;
   for (const order of placed) {
-    const open = Math.max(0, money(num(order.total) - (billedOnOrder.get(text(order.id)) || 0)));
+    const open = Math.max(0, roundSum(num(order.total) - (billedOnOrder.get(text(order.id)) || 0)));
     if (!open) continue;
     const id = text(order.costCodeId);
-    if (!id) { uncommitted = money(uncommitted + open); continue; }
-    committedByCode.set(id, money((committedByCode.get(id) || 0) + open));
+    if (!id) { uncommitted = roundSum(uncommitted + open); continue; }
+    committedByCode.set(id, roundSum((committedByCode.get(id) || 0) + open));
   }
 
   const known = new Set(rows.map((c) => text(c.id)));
@@ -209,18 +216,18 @@ export function projectCosting(
   // why. It rejoins `uncoded`, which is the honest place for money whose code
   // cannot be resolved. The same holds for an order.
   for (const [id, amount] of byCode) {
-    if (!known.has(id)) uncoded = money(uncoded + amount);
+    if (!known.has(id)) uncoded = roundSum(uncoded + amount);
   }
   for (const [id, amount] of committedByCode) {
-    if (!known.has(id)) uncommitted = money(uncommitted + amount);
+    if (!known.has(id)) uncommitted = roundSum(uncommitted + amount);
   }
 
   const out: CodeRollUp[] = rows.map((c) => {
     const id = text(c.id);
-    const budget = money(num(c.budget));
+    const budget = roundSum(num(c.budget));
     const actual = byCode.get(id) || 0;
     const committed = committedByCode.get(id) || 0;
-    const forecast = Math.max(budget, money(actual + committed));
+    const forecast = Math.max(budget, roundSum(actual + committed));
     return {
       id,
       code: text(c.code),
@@ -229,8 +236,8 @@ export function projectCosting(
       actual,
       committed,
       forecast,
-      remaining: money(budget - actual),
-      variance: money(budget - forecast),
+      remaining: roundSum(budget - actual),
+      variance: roundSum(budget - forecast),
       // NULL, NOT ZERO, on a code with no budget. Nought spent against nought
       // allowed is not "0% used" — it is a code nobody has budgeted, and a
       // progress bar reading empty would say the opposite of that.
@@ -241,19 +248,19 @@ export function projectCosting(
       // NOT YET OVER, BUT HEADING THERE. Distinct from `over` because they are
       // acted on differently: one is a number to explain, the other is an
       // order somebody could still stop.
-      willOverrun: !(actual > budget) && money(actual + committed) > budget,
+      willOverrun: !(actual > budget) && roundSum(actual + committed) > budget,
     };
   });
 
-  const budget = money(out.reduce((n, c) => n + c.budget, 0));
-  const actual = money(out.reduce((n, c) => n + c.actual, 0) + uncoded);
-  const committed = money(out.reduce((n, c) => n + c.committed, 0) + uncommitted);
+  const budget = roundSum(out.reduce((n, c) => n + c.budget, 0));
+  const actual = roundSum(out.reduce((n, c) => n + c.actual, 0) + uncoded);
+  const committed = roundSum(out.reduce((n, c) => n + c.committed, 0) + uncommitted);
   // THE PROJECT'S FORECAST IS THE SUM OF ITS CODES' — not `max(budget, actual +
   // committed)` over the totals. Taking the maximum at the top would let a code
   // running under its allowance cancel out one running over, and the whole
   // point of a breakdown is that those two do not cancel. The unfiled money has
   // no budget to be under, so it joins at face value.
-  const forecast = money(out.reduce((n, c) => n + c.forecast, 0) + uncoded + uncommitted);
+  const forecast = roundSum(out.reduce((n, c) => n + c.forecast, 0) + uncoded + uncommitted);
 
   return {
     codes: out,
@@ -261,11 +268,11 @@ export function projectCosting(
     actual,
     committed,
     forecast,
-    variance: money(budget - forecast),
-    remaining: money(budget - actual),
+    variance: roundSum(budget - forecast),
+    remaining: roundSum(budget - actual),
     uncoded,
     uncommitted,
-    unallocated: money(num(projectValue) - budget),
+    unallocated: roundSum(num(projectValue) - budget),
     clean: uncoded === 0 && uncommitted === 0 && out.every((c) => !c.over && !c.willOverrun),
   };
 }
@@ -292,6 +299,6 @@ export function codesFromBill(
     // point that sorts correctly and cannot collide with a name.
     code: String(i + 1).padStart(2, "0"),
     name: text(g?.group) || `Section ${i + 1}`,
-    budget: money(num(g?.totals?.total)),
+    budget: roundSum(num(g?.totals?.total)),
   }));
 }

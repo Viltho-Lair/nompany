@@ -33,6 +33,7 @@ import { landedUnitCost } from "@/shared/currencies";
 import { resolveUnitPrice, ratesByItem } from "@/shared/pricing";
 import { addDaysISO, todayISO } from "@/shared/dates";
 import { documentVatRate } from "@/shared/vat";
+import { documentTotals } from "@/shared/documentTotals";
 import { attachToTicketEngagement, attachQuotationEngagement, detachRecord, engagementIdFor } from "@/platform/db/engagement";
 import {
   QUOTATION_STATUSES, DEFAULT_QUOTATION_STATUS, LEAD_INTERNAL,
@@ -156,14 +157,13 @@ export function cleanItems(list: unknown): QuotationItem[] {
     unitPrice: num(i?.unitPrice),
   })).filter((i) => i.description || i.qty || i.unitPrice);
 }
-// Totals are always DERIVED, never trusted from the client.
-export function computeTotals(items: unknown, vatRate: unknown) {
-  const subtotal = cleanItems(items).reduce((sum, i) => sum + i.qty * i.unitPrice, 0);
-  const rate = num(vatRate);
-  const vat = subtotal * (rate / 100);
-  return { subtotal: round(subtotal), vat: round(vat), total: round(subtotal + vat) };
+// Totals are always DERIVED, never trusted from the client — and derived by
+// the ONE calculation invoices use too (shared/documentTotals), in the
+// document's own currency, so a quotation and the invoice raised from it cannot
+// disagree about what the same lines come to.
+export function computeTotals(items: unknown, vatRate: unknown, currency: unknown) {
+  return documentTotals({ lines: cleanItems(items), vatRate, currency });
 }
-const round = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
 // ---- RFQs ------------------------------------------------------------------
 
@@ -807,7 +807,7 @@ export async function createQuotation(ctx: TechnicalContext, body: Record<string
     tables: [],
     items,
     vatRate,
-    ...computeTotals(items, vatRate),
+    ...computeTotals(items, vatRate, studio.currency),
     comments: [],
     locked: false,
     // No ticket behind it, so there is nothing to carry and no label to store:
@@ -895,7 +895,7 @@ export async function convertRfq(ctx: TechnicalContext, body: Record<string, unk
     tables,
     items,
     vatRate,
-    ...computeTotals(items, vatRate),
+    ...computeTotals(items, vatRate, studio.currency),
     description: str(body?.description, 2000) || str(rfq.description, 2000)
       || str(t.ticketDescription, 2000) || str(t.title, 2000),
     handledByCollaboratorId,
@@ -1016,7 +1016,7 @@ export async function updateQuotation(ctx: TechnicalContext, id: string, body: R
     const tables = cleanQuotationTables(body.tables);
     const items = cleanItems(itemsFromTables(tables));
     const vatRate = body?.vatRate !== undefined ? documentVatRate(studio, body.vatRate, current.vatRate) : current.vatRate;
-    Object.assign(patch, { tables, items, vatRate }, computeTotals(items, vatRate));
+    Object.assign(patch, { tables, items, vatRate }, computeTotals(items, vatRate, current.currency || studio.currency));
     // Saving keeps it a Draft. Only Submit finishes it, and that arrives as an
     // explicit status the block above has already set.
     if (!patch.status && current.status === DEFAULT_QUOTATION_STATUS) patch.status = "Draft";
@@ -1026,7 +1026,7 @@ export async function updateQuotation(ctx: TechnicalContext, id: string, body: R
   if (body?.tables === undefined && (body?.items !== undefined || body?.vatRate !== undefined)) {
     const items = body?.items !== undefined ? cleanItems(body.items) : current.items;
     const vatRate = body?.vatRate !== undefined ? documentVatRate(studio, body.vatRate, current.vatRate) : current.vatRate;
-    Object.assign(patch, { items, vatRate }, computeTotals(items, vatRate));
+    Object.assign(patch, { items, vatRate }, computeTotals(items, vatRate, current.currency || studio.currency));
   }
   // Comments are APPENDED, never replaced: the client sends the one line it
   // wants added, so two people commenting at once cannot overwrite each other,

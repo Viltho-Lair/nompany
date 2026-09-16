@@ -44,7 +44,7 @@ async function execute(ctx: ReportsContext, spec: ReportSpec) {
   if (!dataset) return { error: "dataset" as const };
   const read = await readDataset(ctx, dataset);
   if ("error" in read) return read;
-  return { result: runReport(spec, read.rows), dataset };
+  return { result: runReport(spec, read.rows, (ctx.studio as { currency?: unknown }).currency), dataset };
 }
 
 /** The saved list, the catalogue to build against, and every target's state. */

@@ -9,10 +9,12 @@
 //
 // A POLICY OVER TWO ANSWERS, NOT A THIRD COMPUTATION. This takes the RESULTS of
 // those two functions rather than the documents behind them, so it reimplements
-// neither and has no imports at all: the payables service reads the records and
+// neither and imports only the shared rounding rule: the payables service reads the records and
 // asks both, and this decides what their answers mean for a payment. Pure, so
 // `tests/hold-model.mjs` asserts it without a database and the screen shows
 // exactly what the pay door refuses.
+
+import { roundMoney, roundSum } from "@/shared/money";
 
 export const HOLD_MODES = ["off", "warn", "block"] as const;
 export type HoldMode = (typeof HOLD_MODES)[number];
@@ -79,7 +81,9 @@ export type HoldInput = {
   settings: HoldSettings;
 };
 
-const round2 = (n: number) => Math.round(n * 100) / 100;
+// A PERCENTAGE keeps two places. The allowance is an amount compared with a
+// variance in the bill's money, so it keeps the finest place any currency uses.
+const round2 = (n: number) => roundMoney(n, 2);
 const num = (v: unknown) => (v === "" || v === null || v === undefined ? 0 : Number(v));
 const text = (v: unknown) => String(v ?? "").trim();
 
@@ -106,7 +110,7 @@ export function cleanHold(input: unknown): HoldSettings {
   return {
     mode,
     tolerancePct: Number.isFinite(pct) && pct >= 0 && pct <= 100 ? round2(pct) : 0,
-    toleranceAmount: Number.isFinite(amt) && amt >= 0 ? round2(amt) : 0,
+    toleranceAmount: Number.isFinite(amt) && amt >= 0 ? roundSum(amt) : 0,
   };
 }
 
@@ -163,7 +167,7 @@ export function paymentHold(input: HoldInput): PaymentHold {
       // on a small order and a large one is still held to a proportion. Only
       // OVER-billing is held: a supplier charging less than was delivered is
       // somebody else's problem to chase.
-      const allowed = Math.max(settings.toleranceAmount, round2(m.receivedValue * (settings.tolerancePct / 100)));
+      const allowed = Math.max(settings.toleranceAmount, roundSum(m.receivedValue * (settings.tolerancePct / 100)));
       out.variance = m.variance;
       out.allowed = allowed;
       if (m.variance > allowed) out.reasons.push("match-over-billed");

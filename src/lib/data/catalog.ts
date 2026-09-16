@@ -11,6 +11,7 @@ import { ID, REG } from "@/platform/db/keys";
 import { normalizeColor, hexForName, DEFAULT_HEX } from "@/lib/planColors";
 import { ANALYTICS_LEVELS } from "@/lib/analytics";
 import { WIDGET_KEYS } from "@/lib/dashboardWidgets";
+import { roundMoney } from "@/shared/money";
 import type { Row } from "@/platform/db/store";
 
 const now = () => new Date().toISOString();
@@ -99,10 +100,14 @@ const pct = (v: unknown) => {
 
 // What a year costs once the discount is taken off. One function, so /super and
 // the public pricing page can never round it differently.
-export function yearlyPrice(total: unknown, discountPct: unknown) {
+//
+// A DISCOUNTED PRICE IS AN AMOUNT BEING MADE, in the catalogue's authored
+// `baseCurrency`, so it is rounded to that currency's decimals — a dinar has
+// three. Omitted, it is the two decimals it always was.
+export function yearlyPrice(total: unknown, discountPct: unknown, currency?: unknown) {
   const t = Number(total) || 0;
   const d = Math.min(100, Math.max(0, Number(discountPct) || 0));
-  return Math.round((t - t * (d / 100)) * 100) / 100;
+  return roundMoney(t - t * (d / 100), currency);
 }
 
 export /**

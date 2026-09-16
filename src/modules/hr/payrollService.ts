@@ -121,7 +121,7 @@ export async function listPay(ctx: HrContext) {
         endOfService: rules.endOfService && pay && dateOfJoin
           ? endOfService(rules.endOfService, {
             dateOfJoin, asOf: today, basic: pay.basic, wage: pay.basic + allowances, reason: "termination",
-          })
+          }, ctx.studio.currency)
           : null,
       };
     }),
@@ -153,7 +153,7 @@ export async function savePay(ctx: HrContext, body: Record<string, unknown>) {
   const problems = payProblems(body);
   if (problems.length) return { error: "refused", detail: problems.join("; ") };
 
-  const clean = cleanPay(body);
+  const clean = cleanPay(body, ctx.studio.currency);
   const existing = (await Pay.find(scope(ctx))).find((r) => r.collaboratorId === clean.collaboratorId);
   // ONE RECORD PER PERSON, updated rather than appended. Two pay records for one
   // employee is two salaries, and the run would pay whichever it found first.
@@ -200,7 +200,7 @@ export async function prepareRun(ctx: HrContext, body: Record<string, unknown>) 
     period,
     unpaidDays: unpaidDaysIn(vacations, pay.collaboratorId, period),
     ss,
-  }));
+  }, ctx.studio.currency));
   if (!lines.length) return { error: "nobody" };
 
   const run = await Runs.create(scope(ctx), {

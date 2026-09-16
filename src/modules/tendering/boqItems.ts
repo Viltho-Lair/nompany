@@ -16,6 +16,7 @@ import { boqTotals } from "./boq";
 import { MAX_IMPORT_LINES } from "./boqImport";
 import type { BoqItem, Tender } from "./schema";
 import type { TenderingContext } from "./types";
+import { roundSum } from "@/shared/money";
 
 const Items = repo<BoqItem>("boqItems");
 const Tenders = repo<Tender>("tenders");
@@ -60,9 +61,12 @@ const num = (v: unknown) => {
   const n = Number(v);
   return Number.isFinite(n) && n >= 0 ? Math.round(n * 10000) / 10000 : 0;
 };
+// A RATE AS TYPED. Money follows its currency's decimals — a dinar has three —
+// and a unit rate may be finer still, so it is only cleaned of float noise
+// rather than cut to two places. The extension is what gets the currency.
 const money = (v: unknown) => {
   const n = Number(v);
-  return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : 0;
+  return Number.isFinite(n) && n >= 0 ? roundSum(n) : 0;
 };
 const now = () => new Date().toISOString();
 
@@ -93,7 +97,12 @@ export async function listBoq(ctx: TenderingContext, tenderId: string) {
     // TOTALS FROM THE SERVER TOO, not only from the grid. The bid figure is
     // read by things that are not this screen — and `complete` is the half that
     // matters: a total over a part-priced bill is a number, not the bid.
-    totals: boqTotals(lines),
+    // In the TENDER's currency, which is the one its rates were typed in.
+    totals: boqTotals(lines, tender.currency || studio.currency),
+    // THE CURRENCY THOSE TOTALS ARE IN, resolved here, so the grid rounds its
+    // own recomputation exactly as the server did — a tender with no currency
+    // of its own is the studio's, which the screen has no other way to know.
+    currency: String(tender.currency || studio.currency || ""),
   };
 }
 

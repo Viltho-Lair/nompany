@@ -13,7 +13,10 @@
 // share three letters and nothing else, which is why the reference prefix here
 // is SRQ and why this file says so at the top.
 //
-// NO IMPORTS, deliberately, and asserted by a test.
+// ONE IMPORT, deliberately: `shared/money`, which is itself pure and imports
+// nothing, so the screen still pulls no server code. (This said the rule was
+// "asserted by a test"; no test asserts it.)
+import { roundMoney, roundSum } from "@/shared/money";
 
 export type RfqLine = {
   id?: unknown;
@@ -53,7 +56,10 @@ const num = (v: unknown): number => {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
 };
-const money = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
+// MONEY FOLLOWS ITS CURRENCY'S DECIMALS — a dinar has three. A line total is
+// rounded to the currency; the unit price is kept as the supplier typed it (to
+// four places), because a unit price may be finer than the coin.
+const money = (n: number, currency?: unknown) => roundMoney(n, currency);
 const text = (v: unknown) => String(v ?? "");
 const blank = (v: unknown) =>
   v === undefined || v === null || text(v).trim() === "";
@@ -125,6 +131,7 @@ export function compareQuotes(
   rfqLines: unknown,
   quotes: unknown,
   asOf: unknown = "",
+  currency?: unknown,
 ): RfqComparison {
   const lines = (Array.isArray(rfqLines) ? rfqLines : []).filter(rfqLineIsReal) as RfqLine[];
   const rows = (Array.isArray(quotes) ? quotes : []) as SupplierQuote[];
@@ -147,14 +154,15 @@ export function compareQuotes(
       // offered it at zero, and treating the two alike would make an
       // incomplete quote look like a generous one.
       const unpriced = !hit || blank(hit.unitPrice);
-      const unitPrice = unpriced ? null : money(num(hit?.unitPrice));
-      if (unitPrice !== null) {
+      const unitPrice = unpriced ? null : roundSum(num(hit?.unitPrice));
+      const lineTotal = unitPrice === null ? null : money(qty * unitPrice, currency);
+      if (lineTotal !== null) {
         priced += 1;
-        total = money(total + qty * unitPrice);
+        total = roundSum(total + lineTotal);
       }
       const lead = hit && !blank(hit.leadWeeks) ? num(hit.leadWeeks) : null;
       if (lead !== null) maxLead = maxLead === null ? lead : Math.max(maxLead, lead);
-      return { rfqLineId: id, unitPrice, qty, total: unitPrice === null ? null : money(qty * unitPrice), leadWeeks: lead };
+      return { rfqLineId: id, unitPrice, qty, total: lineTotal, leadWeeks: lead };
     });
 
     // THE QUOTE'S OWN LEAD TIME STANDS IN where no line carries one — a

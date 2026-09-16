@@ -10,9 +10,11 @@
 // and duty are routinely a fifth of the order value; pricing a bid off the
 // supplier's invoice alone loses that on every line.
 //
-// PURE. No imports, no store, no clock. The caller hands in the order's lines
+// PURE. No store, no clock, and its one import is shared/money (itself pure). The caller hands in the order's lines
 // and the charges against them, so the screen and the server distribute the
 // same money identically and every rule below is asserted without a database.
+
+import { roundMoney, roundSum } from "@/shared/money";
 
 /** One line of the shipment being costed. */
 export type CostLine = {
@@ -47,7 +49,6 @@ export const DEFAULT_BASIS: Basis = "value";
 export const isBasis = (v: unknown): v is Basis =>
   (BASES as readonly string[]).includes(String(v ?? ""));
 
-const round = (n: number) => Math.round((Number(n) || 0) * 100) / 100;
 const num = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 
 export type LandedLine = {
@@ -93,7 +94,13 @@ export function landedCost(
   lines: readonly CostLine[],
   charges: readonly Charge[],
   basis: Basis = DEFAULT_BASIS,
+  currency?: unknown,
 ): LandedCost {
+  // IN THE STUDIO'S CURRENCY, which the order and its charges are recorded in:
+  // a share is money being created, so it is rounded to that currency's own
+  // unit (a dinar charge splits into fils). A unit cost is a cost per unit and
+  // keeps the finest place any currency uses.
+  const round = (n: number) => roundMoney(n, currency);
   const rows = (lines || []).map((l) => ({
     id: String(l?.id ?? ""),
     itemId: String(l?.itemId ?? ""),
@@ -111,7 +118,7 @@ export function landedCost(
     if (totalCharge > 0 && totalWeight > 0) {
       // THE LAST LINE TAKES WHAT IS LEFT rather than its own rounded share, so
       // the parts always add to the whole. Any other line gets its true share
-      // rounded to the cent.
+      // rounded to the currency's unit.
       share = i === rows.length - 1
         ? round(totalCharge - allocated)
         : round((totalCharge * weightOf(r)) / totalWeight);
@@ -127,7 +134,7 @@ export function landedCost(
       landed,
       // NEVER A DIVISION BY NOUGHT. A line with no units has no unit cost, and
       // "0.00 each" would be a different and wrong claim.
-      unitLanded: r.qty > 0 ? round(landed / r.qty) : null,
+      unitLanded: r.qty > 0 ? roundSum(landed / r.qty) : null,
     };
   });
 

@@ -5,6 +5,7 @@ import { ledgerDict } from "@/shared/studio/ledger";
 import { Field } from "@/components/fields/Field";
 import StudioDate from "@/components/fields/StudioDate";
 import { useReload } from "@/components/studio2/useReload";
+import { moneyText } from "@/shared/money";
 
 // THE TAX RETURN TAB (vat.md) — one period's VAT, read from the documents.
 //
@@ -12,8 +13,9 @@ import { useReload } from "@/components/studio2/useReload";
 // reader moves either end; each move is a fresh read, because the return is a
 // question about a period rather than a list to filter on the screen.
 
-const money = (n) => new Intl.NumberFormat("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-  .format(Number(n) || 0);
+// Through shared/money, which shows a currency's own decimals: this was fixed
+// at two places and hid the third decimal of every dinar amount.
+const money = (n) => moneyText(n);
 
 export default function TaxReturnPanel({ slug, locale }) {
   const tr = ledgerDict(locale);

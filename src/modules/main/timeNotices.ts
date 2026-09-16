@@ -60,14 +60,15 @@ type Owing = {
   payments?: unknown;
 };
 
-function overdueNotices(rows: Owing[], nameOf: (r: Owing) => string, todayISO: string): OverdueNotice[] {
+// `currency` is the studio's, for rows raised before a document froze its own.
+function overdueNotices(rows: Owing[], nameOf: (r: Owing) => string, todayISO: string, currency?: unknown): OverdueNotice[] {
   const out: OverdueNotice[] = [];
   for (const r of rows) {
     // A draft or cancelled document is not yet an obligation; a paid one is
     // settled. Only a live, unpaid claim can be overdue.
     if (r.status === "Draft" || r.status === "Cancelled" || r.status === "Paid") continue;
     if (!r.dueDate) continue;
-    const { outstanding } = invoiceTotals(r);
+    const { outstanding } = invoiceTotals(r, currency);
     if (outstanding <= 0) continue;
     const days = daysBetween(r.dueDate, todayISO);
     if (days === null || !OVERDUE_MILESTONES.includes(days)) continue;
@@ -83,13 +84,13 @@ function overdueNotices(rows: Owing[], nameOf: (r: Owing) => string, todayISO: s
 }
 
 /** Invoices that crossed an overdue milestone today (money owed TO the studio). */
-export function overdueInvoiceNotices(invoices: (Owing & { clientName?: string })[], todayISO: string): OverdueNotice[] {
-  return overdueNotices(invoices, (r) => String((r as { clientName?: string }).clientName || "—"), todayISO);
+export function overdueInvoiceNotices(invoices: (Owing & { clientName?: string })[], todayISO: string, currency?: unknown): OverdueNotice[] {
+  return overdueNotices(invoices, (r) => String((r as { clientName?: string }).clientName || "—"), todayISO, currency);
 }
 
 /** Bills that crossed an overdue milestone today (money the studio OWES). */
-export function overdueBillNotices(bills: (Owing & { vendorName?: string })[], todayISO: string): OverdueNotice[] {
-  return overdueNotices(bills, (r) => String((r as { vendorName?: string }).vendorName || "—"), todayISO);
+export function overdueBillNotices(bills: (Owing & { vendorName?: string })[], todayISO: string, currency?: unknown): OverdueNotice[] {
+  return overdueNotices(bills, (r) => String((r as { vendorName?: string }).vendorName || "—"), todayISO, currency);
 }
 
 export type ExpiringNotice = {

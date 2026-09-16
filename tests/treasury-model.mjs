@@ -2,11 +2,18 @@
 // asserted without a database.
 //
 // Three things, one question: what is going to happen to the bank balance.
-import {
+// THE ALIAS LOADER, because the module imports `@/shared/money` and plain
+// Node does not know the `@/` alias (tests/loader.mjs resolves it).
+import { register } from "node:module";
+import { pathToFileURL } from "node:url";
+
+register(new URL("./loader.mjs", import.meta.url), { data: { root: pathToFileURL(`${process.cwd()}/`).href } });
+
+const {
   chequeProblems, cleanCheque, chequeProblem, forecast, shortfall,
   guaranteeProblems, cleanGuarantee, guaranteeState, lockedUp,
   CHEQUE_STATUSES, PENDING,
-} from "../src/modules/finance/treasury.ts";
+} = await import("../src/modules/finance/treasury.ts");
 
 let fails = 0;
 const ok = (what, cond, detail = "") => {
@@ -116,4 +123,5 @@ ok("AN EXPIRED GUARANTEE IS STILL LOCKED UP", held.margin === 10000, String(held
 ok("...and a released one is not", held.amount === 100000);
 
 console.log(fails ? `\ntreasury model: ${fails} FAILURES\n` : "\ntreasury model: all passed\n");
-process.exit(fails ? 1 : 0);
+// exitCode, not exit(): exiting while the alias loader's thread is live crashes Node on Windows.
+process.exitCode = fails ? 1 : 0;

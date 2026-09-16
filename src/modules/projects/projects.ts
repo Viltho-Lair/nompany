@@ -422,7 +422,7 @@ async function tenderSource(
   // stand — the same precedence `modules/tendering/bid` uses to route the
   // approval, so the number a project opens at is the number that was signed.
   const lines = await BoqItems.find({ studio, section: tenderRegisterSection }, { where: { tenderId } });
-  const fromBoq = valueFromBoq(boqTotals(lines));
+  const fromBoq = valueFromBoq(boqTotals(lines, tender.currency || studio.currency));
 
   // The ISSUER becomes the client, resolved into Sales' model the way every
   // other head resolves one. A tender's issuer is free text and its `clientId`

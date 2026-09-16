@@ -11,13 +11,16 @@ import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { rfqInfo } from "@/modules/sales/salesAnalytics";
 import { fmtTime } from "@/lib/format";
 import { useReload } from "@/components/studio2/useReload";
+import { moneyText } from "@/shared/money";
 
 // How often the table pulls a fresh copy while someone is watching it. This
 // screen is the one people leave up on a wall, so unlike the rest of the studio
 // it does not wait for the event cursor — it re-reads on a short timer.
 const REFRESH_MS = 5000;
 
-const money = (n) => new Intl.NumberFormat("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(n) || 0);
+// Through shared/money, which shows a currency's own decimals: this was fixed
+// at two places and hid the third decimal of every dinar amount.
+const money = (n) => moneyText(n);
 
 // Sales Live view: full-screen, rendered OUTSIDE StudioFrame so the table gets
 // the whole viewport. It is a PROJECTION of the tickets list — same rows, only

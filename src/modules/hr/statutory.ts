@@ -9,7 +9,10 @@
 // so a figure applied straight from code is a figure that goes stale inside a
 // customer's payroll without anybody deciding it should.
 //
-// No imports, no store, no clock: `now` and every amount come in as arguments.
+// No store, no clock: `now` and every amount come in as arguments. The one
+// import is `shared/money`, which is itself pure and imports nothing.
+
+import { roundMoney, roundSum } from "@/shared/money";
 
 export type SocialSecurity = {
   employeePct: number;
@@ -236,7 +239,11 @@ export function serviceYearsBetween(from: string, to: string): number {
   return Math.max(0, (months + days / 30) / 12);
 }
 
-const cents = (x: number) => Math.round(x * 100) / 100;
+// YEARS AND MONTHS OF SERVICE are durations, shown to two places; they are not
+// money and follow no currency. The AWARD is money, and follows the studio's
+// currency's decimals — a Jordanian dinar has three, and an end-of-service
+// figure cut to cents would misstate a fils on every leaver.
+const twoPlaces = (x: number) => Math.round(x * 100) / 100;
 
 /**
  * WHAT SOMEBODY WOULD BE OWED on leaving on `asOf`. The first `firstYears` at
@@ -245,7 +252,7 @@ const cents = (x: number) => Math.round(x * 100) / 100;
  */
 export function endOfService(rule: EndOfService, input: {
   dateOfJoin: string; asOf: string; basic: number; wage: number; reason: "termination" | "resignation";
-}) {
+}, currency?: unknown) {
   const years = serviceYearsBetween(input.dateOfJoin, input.asOf);
   const monthly = rule.base === "basic" ? input.basic : input.wage;
   if (!input.dateOfJoin || years < rule.minYears) return { years, months: 0, factor: 1, amount: 0 };
@@ -254,7 +261,7 @@ export function endOfService(rule: EndOfService, input: {
   if (rule.capMonths > 0) months = Math.min(months, rule.capMonths);
   const step = input.reason === "resignation" ? rule.resignation.find((s) => years < s.underYears) : undefined;
   const factor = step ? step.factor : 1;
-  return { years: cents(years), months: cents(months), factor, amount: cents(months * monthly * factor) };
+  return { years: twoPlaces(years), months: twoPlaces(months), factor, amount: roundMoney(months * monthly * factor, currency) };
 }
 
 // ---- the UAE salary information file ----------------------------------------------
@@ -305,6 +312,10 @@ export function sifFile(input: {
       continue;
     }
     total += line.net;
+    // TWO DECIMALS HERE IS THE FORMAT, not a guess: a SIF is refused above
+    // unless the payroll is in AED, which has two, and the Central Bank's
+    // layout writes amounts to exactly two places. `roundSum` on the total
+    // only clears float noise from nets already rounded to AED.
     edrs.push(["EDR", a.labourCardId, a.agentId, a.iban, start, end, String(last),
       line.net.toFixed(2), "0.00", String(Math.max(0, Math.round(line.unpaidDays || 0)))].join(","));
   }
@@ -317,7 +328,7 @@ export function sifFile(input: {
   const mm = pad(local.getUTCMinutes());
   const ss = pad(local.getUTCSeconds());
   const scr = ["SCR", wps.employerId, wps.routingCode, date, `${hh}${mm}`, `${pad(m)}${y}`,
-    String(edrs.length), cents(total).toFixed(2), "AED", ""].join(",");
+    String(edrs.length), roundSum(total).toFixed(2), "AED", ""].join(",");
 
   const rows = wps.scrFirst ? [scr, ...edrs] : [...edrs, scr];
   return {

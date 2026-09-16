@@ -19,6 +19,8 @@ import { requirePermission, ALL_PERMISSIONS } from "@/platform/access";
 import { seriesSetting } from "@/modules/administration/numbering";
 import { addDaysISO } from "@/shared/dates";
 import { documentVatRate } from "@/shared/vat";
+import { documentTotals } from "@/shared/documentTotals";
+import { roundMoney } from "@/shared/money";
 import { withholdingProblems, cleanWithholding, withholdingOn, settledWith } from "./withholding";
 import type { WithholdingRule } from "./withholding";
 import { approvalChainsFor } from "@/platform/approval/store";
@@ -73,8 +75,13 @@ export const PAYMENT_METHODS = TAXONOMIES.find((a) => a.key === "paymentMethods"
 
 export const str = (v: unknown, max = 300) => String(v ?? "").trim().slice(0, max);
 export const day = (v: unknown) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v ?? "").trim()) ? String(v).trim() : "");
-export const cash = (v: unknown) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : 0; };
-const round = (n: unknown) => Math.round((Number(n) || 0) * 100) / 100;
+// A POSITIVE AMOUNT IN `currency`, rounded to that currency's own decimals — or
+// nought. The currency is REQUIRED: this rounded everything to two places,
+// which cut a dinar's third decimal off every price, payment and expense.
+export const cash = (v: unknown, currency: unknown) => {
+  const n = Number(v);
+  return Number.isFinite(n) && n > 0 ? roundMoney(n, currency) : 0;
+};
 
 // THE COLLECTIONS THIS MODULE QUERIES, named once. Projects and Orders belong
 // to other departments; reading them is a different SCOPE rather than a
@@ -223,20 +230,24 @@ export async function saveFinanceSettings(ctx: FinanceContext, body: Record<stri
 
 // ---- money -----------------------------------------------------------------
 // One place computes an invoice's numbers, so the list, the detail and the
-// totals can never disagree.
+// totals can never disagree — and the sum itself is shared/documentTotals, the
+// one quotations and sales orders use too.
+//
+// IN THE DOCUMENT'S OWN CURRENCY, which is frozen on it when it is raised; an
+// invoice raised before that field existed has none and is the studio's, so
+// the caller hands the studio's currency as the fallback. Required, so no
+// caller can forget and silently round a dinar to two places.
 // Takes the minimal shape it reads — lines, a VAT rate, payments — so both an
 // Invoice and a Bill (which share exactly those) total through the one function.
-export function invoiceTotals(invoice: { lines?: unknown; vatRate?: unknown; payments?: unknown } | null | undefined) {
-  const lines = Array.isArray(invoice?.lines) ? invoice.lines : [];
-  const subtotal = round(lines.reduce(
-    (sum: number, l: Record<string, unknown>) => sum + (Number(l.qty) || 0) * (Number(l.unitPrice) || 0),
-    0,
-  ));
-  const vat = round(subtotal * ((Number(invoice?.vatRate) || 0) / 100));
-  const total = round(subtotal + vat);
-  const paid = round((Array.isArray(invoice?.payments) ? invoice.payments : [])
-    .reduce((s: number, p: Record<string, unknown>) => s + (Number(p.amount) || 0), 0));
-  return { subtotal, vat, total, paid, outstanding: round(Math.max(0, total - paid)) };
+export function invoiceTotals(
+  invoice: { lines?: unknown; vatRate?: unknown; payments?: unknown; currency?: unknown } | null | undefined,
+  fallbackCurrency: unknown,
+) {
+  const currency = String(invoice?.currency || "") || fallbackCurrency;
+  const { subtotal, vat, total } = documentTotals({ lines: invoice?.lines, vatRate: invoice?.vatRate, currency });
+  const paid = roundMoney((Array.isArray(invoice?.payments) ? invoice.payments : [])
+    .reduce((s: number, p: Record<string, unknown>) => s + (Number(p.amount) || 0), 0), currency);
+  return { subtotal, vat, total, paid, outstanding: roundMoney(Math.max(0, total - paid), currency) };
 }
 
 // "Paid" is a consequence of the payments, never an assertion. A cancelled
@@ -264,15 +275,16 @@ export async function listInvoices(
   return [...invoices]
     .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""))
     .map((inv) => {
-      const totals = invoiceTotals(inv);
+      const totals = invoiceTotals(inv, studio.currency);
       // WITHHOLDING SITS BESIDE THE TOTAL, NEVER INSIDE IT. `total` is still
       // subtotal plus VAT — the invoice is worth what it says — and what
       // changes is the CASH expected against it. Modelling WHT as a negative
       // VAT rate would produce an invoice for the wrong amount and a
       // receivable that never clears.
       const rule = withholdingRules.find((r) => r.label === String(inv.withholdingLabel || "")) || null;
-      const withheld = withholdingOn(rule, totals);
-      const settlement = settledWith(totals, withheld);
+      const currency = inv.currency || studio.currency;
+      const withheld = withholdingOn(rule, totals, currency);
+      const settlement = settledWith(totals, withheld, currency);
       const status = statusFor(inv, { ...totals, total: settlement.expected });
       return {
         ...inv, ...totals, status,
@@ -308,7 +320,7 @@ export async function createInvoice(ctx: FinanceContext, body: Record<string, un
   }
   if (!clientName) return { error: "client" };
 
-  const lines = cleanLines(body?.lines);
+  const lines = cleanLines(body?.lines, studio.currency);
   if (!lines.length) return { error: "lines" };
 
   const invoices = await Invoices.find({ studio, section: cashSection });
@@ -368,7 +380,7 @@ export async function createInvoice(ctx: FinanceContext, body: Record<string, un
   // there is no deal to put it in. Best-effort by construction — see
   // attachToProjectEngagement — so billing never fails because an index did.
   await attachToProjectEngagement(studio.id, "invoice", invoice.id, projectId, invoice.createdAt as string);
-  return { invoice: { ...invoice, ...invoiceTotals(invoice) } };
+  return { invoice: { ...invoice, ...invoiceTotals(invoice, studio.currency) } };
 }
 
 export async function editInvoice(ctx: FinanceContext, id: string, body: Record<string, unknown>) {
@@ -396,7 +408,7 @@ export async function editInvoice(ctx: FinanceContext, id: string, body: Record<
   const issued = current.status !== "Draft";
   if (body?.lines !== undefined) {
     if (issued) return { error: "issued" };
-    const lines = cleanLines(body.lines);
+    const lines = cleanLines(body.lines, current.currency || studio.currency);
     if (!lines.length) return { error: "lines" };
     patch.lines = lines;
   }
@@ -453,7 +465,7 @@ export async function editInvoice(ctx: FinanceContext, id: string, body: Record<
       ? await autoReverse(ctx, "invoice", id, `Invoice ${current.reference || ""} cancelled`.trim())
       : null;
 
-  return { invoice: { ...updated, ...invoiceTotals(updated) }, ...(posting ? { posting } : {}) };
+  return { invoice: { ...updated, ...invoiceTotals(updated, studio.currency) }, ...(posting ? { posting } : {}) };
 }
 
 // Recording a payment is append-only: the history of what was received, and
@@ -470,10 +482,10 @@ export async function recordPayment(ctx: FinanceContext, id: string, body: Recor
   if (invoice.status === "Draft") return { error: "not-issued" };
   if (invoice.status === "Cancelled") return { error: "cancelled" };
 
-  const amount = cash(body?.amount);
+  const amount = cash(body?.amount, invoice.currency || studio.currency);
   if (!amount) return { error: "amount" };
 
-  const totals = invoiceTotals(invoice);
+  const totals = invoiceTotals(invoice, studio.currency);
   // Overpayment is refused rather than absorbed — it means something is wrong
   // with the invoice or the payment, and a human should decide which.
   if (amount > totals.outstanding) return { error: "overpayment", outstanding: totals.outstanding };
@@ -494,7 +506,7 @@ export async function recordPayment(ctx: FinanceContext, id: string, body: Recor
   // compare-and-set lands. Every other writer here answers "notfound" for that;
   // this one used to spread a null and then read `.status` off it.
   if (!updated) return { error: "notfound" };
-  const after = invoiceTotals(updated);
+  const after = invoiceTotals(updated, studio.currency);
   // MONEY IN IS A SECOND ENTRY, not a correction of the first. Issuing the
   // invoice recognised the revenue and the receivable; this clears the
   // receivable against the bank. Both ids, for the reason a bill payment needs
@@ -553,7 +565,7 @@ export async function createExpense(ctx: FinanceContext, body: Record<string, un
   if (denied) return denied;
 
   const { studio, cashSection, collaborator } = ctx;
-  const amount = cash(body?.amount);
+  const amount = cash(body?.amount, studio.currency);
   if (!amount) return { error: "amount" };
 
   const projectId = str(body?.projectId, 60);
@@ -590,7 +602,7 @@ export async function editExpense(ctx: FinanceContext, id: string, body: Record<
 
   const { studio, cashSection } = ctx;
   const patch: Record<string, unknown> = {};
-  if (body?.amount !== undefined) { const v = cash(body.amount); if (!v) return { error: "amount" }; patch.amount = v; }
+  if (body?.amount !== undefined) { const v = cash(body.amount, ctx.studio.currency); if (!v) return { error: "amount" }; patch.amount = v; }
   if (body?.description !== undefined) patch.description = str(body.description, 300);
   if (body?.category !== undefined && admits("expenseCategories", studio.taxonomies, body.category)) {
     patch.category = resolveValue("expenseCategories", studio.taxonomies, body.category);
@@ -640,6 +652,7 @@ export async function profitability(
 ) {
   const [projects, orders, people] = await Promise.all([projectRows(ctx), orderRows(ctx), listCollaborators(ctx.studio.id)]);
   const alias = Object.fromEntries(people.map((c) => [c.id, c.alias || "Unnamed"]));
+  const round = (n: unknown) => roundMoney(n, ctx.studio.currency);
 
   return projects.map((p) => {
     // Each of these is an edge, and the RULE each carries — that cancelled
@@ -689,12 +702,12 @@ export async function profitability(
 }
 
 // ---- shared ----------------------------------------------------------------
-export function cleanLines(list: unknown): InvoiceLine[] {
+export function cleanLines(list: unknown, currency: unknown): InvoiceLine[] {
   return (Array.isArray(list) ? list : [])
     .map((l) => ({
       description: str(l?.description, 300),
       qty: Number(l?.qty) > 0 ? Math.round(Number(l.qty) * 1000) / 1000 : 0,
-      unitPrice: cash(l?.unitPrice),
+      unitPrice: cash(l?.unitPrice, currency),
     }))
     .filter((l) => l.description && l.qty > 0)
     .slice(0, 200);
@@ -770,7 +783,8 @@ export async function setCommercials(ctx: FinanceContext, id: string, body: Reco
 }
 
 // Headline numbers for the whole studio.
-export function summarise(invoices: InvoiceView[], expenses: Expense[]) {
+export function summarise(invoices: InvoiceView[], expenses: Expense[], currency: unknown) {
+  const round = (n: number) => roundMoney(n, currency);
   const live = invoices.filter((i) => i.status !== "Cancelled" && i.status !== "Draft");
   return {
     invoiced: round(live.reduce((s, i) => s + i.total, 0)),

@@ -9,6 +9,7 @@ import { repo } from "@/platform/db/repo";
 import { getSectionByKey } from "@/platform/db/sections";
 import { projectEngagementId } from "@/platform/db/engagement";
 import { moduleContext } from "@/modules/context";
+import { roundSum } from "@/shared/money";
 import { allocationProblem, utilisation, type Allocation } from "./utilisation";
 import type { Section } from "@/platform/db/sections";
 import type { ModuleContext } from "@/modules/context";
@@ -65,8 +66,12 @@ export const assetsContext = moduleContext<AssetsContext>({
 const scope = (ctx: AssetsContext) => ({ studio: ctx.studio, section: ctx.assetsSection });
 
 const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
+// A HIRE RATE AS TYPED. A per-day rate is a price, not an amount anybody is
+// paid, so it keeps up to four places rather than being cut to cents — a dinar
+// has three, and the charge it produces is rounded to the currency in
+// `utilisation` where the money is actually made.
 const money = (v: unknown) => {
-  const n = Math.round((Number(v) || 0) * 100) / 100;
+  const n = roundSum(Number(v) || 0);
   return Number.isFinite(n) && n > 0 ? n : 0;
 };
 
@@ -174,6 +179,7 @@ export async function utilisationReport(
     { from: period.from, to },
     (assetId) => rates.get(assetId) || 0,
     to,
+    ctx.studio.currency,
   );
 }
 

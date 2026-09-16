@@ -20,7 +20,9 @@
 // eight-tenths of a per cent on every invoice, small enough never to be
 // noticed and large enough to matter across a year.
 //
-// PURE. No imports, no store, no clock.
+// PURE. No store, no clock. Its one import is shared/money, the rounding rule, which is itself pure.
+
+import { roundMoney, roundSum } from "@/shared/money";
 
 export type WithholdingRule = {
   /** What the studio calls it — "Contractor WHT", "Professional services". */
@@ -32,7 +34,8 @@ export type WithholdingRule = {
 };
 
 const num = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : 0);
-const money = (n: number) => Math.round(n * 100) / 100;
+// A RATE keeps two places; MONEY keeps its currency's (shared/money).
+const money = (n: number, currency?: unknown) => roundMoney(n, currency);
 const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
 
 /** What is wrong with this rule, or an empty array. */
@@ -55,7 +58,9 @@ export function cleanWithholding(input: Record<string, unknown>): WithholdingRul
   return {
     label: str(input.label, 80),
     rate: Math.min(99.99, Math.max(0, money(num(input.rate)))),
-    threshold: Math.max(0, money(num(input.threshold))),
+    // A threshold is a stored amount compared against rounded bases, so it is
+    // cleaned to the finest place any currency uses rather than to one.
+    threshold: Math.max(0, roundSum(num(input.threshold))),
   };
 }
 
@@ -84,22 +89,23 @@ export type Withheld = {
 export function withholdingOn(
   rule: WithholdingRule | null,
   totals: { subtotal: number; total: number },
+  currency?: unknown,
 ): Withheld {
-  const base = money(num(totals.subtotal));
+  const base = money(num(totals.subtotal), currency);
   const none: Withheld = {
     applies: false, label: rule?.label || "", rate: rule?.rate || 0,
-    base, amount: 0, netPayable: money(num(totals.total)),
+    base, amount: 0, netPayable: money(num(totals.total), currency),
   };
   if (!rule || !(rule.rate > 0) || base < rule.threshold) return none;
 
-  const amount = money(base * (rule.rate / 100));
+  const amount = money(base * (rule.rate / 100), currency);
   return {
     applies: true,
     label: rule.label,
     rate: rule.rate,
     base,
     amount,
-    netPayable: money(num(totals.total) - amount),
+    netPayable: money(num(totals.total) - amount, currency),
   };
 }
 
@@ -116,9 +122,10 @@ export function withholdingOn(
 export function settledWith(
   totals: { total: number; paid: number },
   withheld: Withheld,
+  currency?: unknown,
 ): { expected: number; outstanding: number; settled: boolean } {
-  const expected = withheld.applies ? withheld.netPayable : money(num(totals.total));
-  const outstanding = money(Math.max(0, expected - num(totals.paid)));
+  const expected = withheld.applies ? withheld.netPayable : money(num(totals.total), currency);
+  const outstanding = money(Math.max(0, expected - num(totals.paid)), currency);
   return {
     expected,
     outstanding,

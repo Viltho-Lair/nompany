@@ -109,7 +109,9 @@ export async function foldStudio(studioId: string, { apply, today }: { apply: bo
   const slaIdOf = new Map<string, string>(slas.filter((s) => s.legacyRecordId).map((s) => [String(s.legacyRecordId), s.id]));
   for (const r of oldContracts) {
     if (folded.has(r.id)) continue;
-    const fields = contractFromLegacy(valuesOf(r), metaOf(r), unitsOf.get(r.id) || []);
+    // The studio is read on --apply only; a dry run reports titles, not values.
+    const fields = contractFromLegacy(valuesOf(r), metaOf(r), unitsOf.get(r.id) || [],
+      (studio as { currency?: unknown } | null)?.currency);
     report.contracts.push(labelOf(r, fields.title));
     if (!apply || !slaSection) continue;
     const row = await Contracts.create({ studio: at, section: slaSection }, {

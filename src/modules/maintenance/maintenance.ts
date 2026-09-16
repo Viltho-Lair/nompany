@@ -327,7 +327,7 @@ export async function listOrders(ctx: MaintenanceContext) {
     const i = itemOf.get(id);
     return i ? [i.sku, i.name].filter(Boolean).join(" · ") : "(removed item)";
   };
-  const costOf = partsCostByOrder(partMoves);
+  const costOf = partsCostByOrder(partMoves, ctx.studio.currency);
   const onHand = canIssue ? balances(ledger) : {};
   const asOf = now().slice(0, 10);
   const rank = (p: string) => PRIORITIES.indexOf(p as (typeof PRIORITIES)[number]);
@@ -348,7 +348,7 @@ export async function listOrders(ctx: MaintenanceContext) {
       .map((e) => ({ ...e, alias: aliasOf.get(e.collaboratorId) || "" }))
       .sort((a, b) => b.workedOn.localeCompare(a.workedOn) || b.createdAt.localeCompare(a.createdAt)),
     hoursLogged: labourTotals(labourOf.get(o.id) || []).total,
-    parts: partsOnOrder(partMoves, o.id).map((l) => ({ ...l, name: itemName(l.itemId), unit: itemOf.get(l.itemId)?.unit || "" })),
+    parts: partsOnOrder(partMoves, o.id, ctx.studio.currency).map((l) => ({ ...l, name: itemName(l.itemId), unit: itemOf.get(l.itemId)?.unit || "" })),
     partsCost: costOf.get(o.id) || 0,
   })).sort((a, b) => {
     const open = (x: WorkOrder) => (["Open", "In progress", "On hold"].includes(x.status) ? 0 : 1);
@@ -727,7 +727,7 @@ export async function listMachines(ctx: MaintenanceContext) {
   const stats = reliabilityByAsset(orders, asOf, 365, (id) => acquiredOf.get(id) || "");
   // WHAT EACH MACHINE COST TO KEEP RUNNING: parts off the ledger, hours off the
   // time booked. Hours stay hours — nothing yet says what one costs.
-  const costs = costByAsset(orders, partMoves, labour, asOf);
+  const costs = costByAsset(orders, partMoves, labour, asOf, undefined, ctx.studio.currency);
   const nothing = {
     failures: 0, downtimeHours: 0, mttrHours: null, mtbfHours: null, availability: null,
     openOrders: 0, lastFailureAt: "", topProblems: [],

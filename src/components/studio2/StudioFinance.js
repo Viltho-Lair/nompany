@@ -24,6 +24,7 @@ import {
 import { StatusPill } from "@/components/studio2/StatusPill";
 import { useReload } from "@/components/studio2/useReload";
 import { treasuryDict } from "@/shared/studio/treasury";
+import { moneyText } from "@/shared/money";
 
 // THE DASHBOARD LOADS WHEN IT IS SHOWN, not with this screen. It was a static
 // import, so every tenant page carried every department's dashboard and the
@@ -55,7 +56,9 @@ const td = "py-3 pe-3 align-middle";
 // treats a date-only string as local midnight, so the `T00:00:00` guard moved
 // into it — see companySettings.
 const fmt = fmtDate;
-const money = (n) => new Intl.NumberFormat("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(n) || 0);
+// Through shared/money, which shows a currency's own decimals: this was fixed
+// at two places and hid the third decimal of every dinar amount.
+const money = (n) => moneyText(n);
 
 // The dense-table grid, loaded in its own async chunk (never folded into this
 // department's initial bundle) — see StudioDataGrid's header. The skeleton

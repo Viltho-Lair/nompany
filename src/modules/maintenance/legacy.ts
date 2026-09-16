@@ -13,6 +13,7 @@
 import { ORDER_TYPES } from "./model";
 import { PLAN_FREQUENCIES, PLAN_STATUSES, cleanChecklist } from "./schedule";
 import { LEGACY_COVER, MAX_VISITS, MAX_DURATION_DAYS, DEFAULT_DURATION_DAYS } from "./contracts";
+import { roundMoney } from "@/shared/money";
 
 type Values = Record<string, unknown>;
 type Meta = { status: string; reference: string; createdAt: string };
@@ -35,7 +36,7 @@ const number = (v: unknown): number | null => {
  * `units` are the installed units its plans service, the only place the old
  * register recorded what a contract covered.
  */
-export function contractFromLegacy(v: Values, meta: Meta, units: readonly string[]) {
+export function contractFromLegacy(v: Values, meta: Meta, units: readonly string[], currency?: unknown) {
   const start = day(v.startsOn) || day(meta.createdAt);
   const end = day(v.endsOn);
   const length = end && end > start ? Math.min(MAX_DURATION_DAYS, daysBetween(start, end)) : DEFAULT_DURATION_DAYS;
@@ -46,7 +47,9 @@ export function contractFromLegacy(v: Values, meta: Meta, units: readonly string
     title: text(v.title, 200) || meta.reference || "—",
     customer: text(v.customer, 200),
     cover: LEGACY_COVER[text(v.cover)] || "",
-    value: annual === null ? null : Math.round(annual * (length / 365) * 100) / 100,
+    // PRO-RATING MAKES A NEW AMOUNT, so it is rounded to the studio's currency —
+    // a dinar has three decimals, and cents would misstate a Jordanian contract.
+    value: annual === null ? null : roundMoney(annual * (length / 365), currency),
     signingDate: start,
     startDate: start,
     durationDays: length,

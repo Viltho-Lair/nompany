@@ -17,7 +17,9 @@
 //  - LETTERS OF GUARANTEE. Not cash and not a liability — a commitment against
 //    the studio's facility that expires, and expires silently.
 //
-// PURE. No imports, no store, and every date comes in as an argument.
+// PURE. No store, and every date comes in as an argument. Its one import is shared/money, the rounding rule, which is itself pure.
+
+import { roundMoney, roundSum } from "@/shared/money";
 
 export const CHEQUE_DIRECTIONS = ["in", "out"] as const;
 export type ChequeDirection = (typeof CHEQUE_DIRECTIONS)[number];
@@ -61,7 +63,9 @@ export type Guarantee = {
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
 const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
 const num = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : 0);
-const money = (n: number) => Math.round(n * 100) / 100;
+// Sums of stored amounts lose only float noise (roundSum); an amount TYPED IN
+// is rounded to the studio's currency by the caller's `currency`.
+const money = (n: number) => roundSum(n);
 
 // ---------------------------------------------------------------------------
 // POST-DATED CHEQUES
@@ -84,12 +88,12 @@ export function chequeProblems(input: Record<string, unknown>): string[] {
   return problems;
 }
 
-export function cleanCheque(input: Record<string, unknown>): Omit<Cheque, "id"> {
+export function cleanCheque(input: Record<string, unknown>, currency?: unknown): Omit<Cheque, "id"> {
   return {
     direction: str(input.direction, 4) as ChequeDirection,
     party: str(input.party, 160),
     number: str(input.number, 40),
-    amount: money(Math.abs(num(input.amount))),
+    amount: roundMoney(Math.abs(num(input.amount)), currency),
     dueOn: str(input.dueOn, 10),
     status: (CHEQUE_STATUSES as readonly string[]).includes(str(input.status, 12))
       ? (str(input.status, 12) as ChequeStatus)
@@ -220,15 +224,15 @@ export function guaranteeProblems(input: Record<string, unknown>): string[] {
   return problems;
 }
 
-export function cleanGuarantee(input: Record<string, unknown>): Omit<Guarantee, "id"> {
+export function cleanGuarantee(input: Record<string, unknown>, currency?: unknown): Omit<Guarantee, "id"> {
   return {
     reference: str(input.reference, 80),
     beneficiary: str(input.beneficiary, 160),
     kind: str(input.kind, 80),
-    amount: money(Math.max(0, num(input.amount))),
+    amount: roundMoney(Math.max(0, num(input.amount)), currency),
     issuedOn: DAY_RE.test(str(input.issuedOn, 10)) ? str(input.issuedOn, 10) : "",
     expiresOn: str(input.expiresOn, 10),
-    margin: money(Math.max(0, num(input.margin))),
+    margin: roundMoney(Math.max(0, num(input.margin)), currency),
     released: input.released === true,
   };
 }

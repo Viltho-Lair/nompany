@@ -38,7 +38,7 @@ export const GET = route(
     manage: g.manage,
     invoices, expenses, projects, milestones,
     profitability: projectMargins,
-    summary: summarise(invoices, expenses),
+    summary: summarise(invoices, expenses, g.studio.currency),
     // WHAT THE STUDIO CAN RECLAIM. Tax withheld is only worth anything if the
     // studio can prove it was paid over, so this lists the documents where tax
     // was deducted and no certificate has been recorded — a list to CHASE,

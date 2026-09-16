@@ -243,8 +243,10 @@ console.log("\n== the file stays pure");
 
 const { readFileSync } = await import("node:fs");
 const src = readFileSync(new URL("../src/modules/projects/costing.ts", import.meta.url), "utf8");
-ok("modules/projects/costing imports nothing",
-  [...src.matchAll(/from\s+"([^"]+)"/g)].length === 0);
+// shared/money is itself pure and imports nothing, so allowing it still keeps
+// every server module out of the browser.
+ok("modules/projects/costing imports nothing but shared/money",
+  [...src.matchAll(/from\s+"([^"]+)"/g)].every(([, spec]) => spec === "@/shared/money"));
 
 // THERE IS A FORECAST NOW, and it is the reason purchase orders had to carry a
 // code first. A projection that ignored committed cost would read as complete

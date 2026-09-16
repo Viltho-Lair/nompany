@@ -24,6 +24,7 @@ import { offerable } from "@/modules/administration/costCodes";
 import type { LibraryCostCode } from "@/modules/administration/types";
 import type { ProjectCost, Project } from "./schema";
 import type { ProjectsContext } from "./types";
+import { roundSum } from "@/shared/money";
 
 const Costs = repo<ProjectCost>("projectCosts");
 const Projects = repo<Project>("projects");
@@ -37,10 +38,15 @@ const Orders = repo<Order>("materialOrders");
 const LibraryCodes = repo<LibraryCostCode>("costCodeLibrary");
 
 const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
-const money = (v: unknown) => {
+const nonNegative = (v: unknown) => {
   const n = Number(v);
-  return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : 0;
+  return Number.isFinite(n) && n >= 0 ? n : 0;
 };
+// A BUDGET IS TYPED, and money follows its currency's decimals — a dinar has
+// three — so it is only cleaned of float noise here, never cut to two places.
+const money = (v: unknown) => roundSum(nonNegative(v));
+/** A position in the list, not money: two places, as it always was. */
+const order = (v: unknown) => Math.round(nonNegative(v) * 100) / 100;
 const now = () => new Date().toISOString();
 
 /** Case-insensitive, so "EARTH" and "earth" are one code rather than two rows. */
@@ -70,7 +76,7 @@ async function spendFor(
     projectId: b.projectId || "",
     status: b.status,
     orderId: b.orderId || "",
-    total: invoiceTotals(b).total,
+    total: invoiceTotals(b, ctx.studio.currency).total,
   }));
 }
 
@@ -94,7 +100,7 @@ async function commitmentsFor(
     id: o.id,
     costCodeId: o.costCodeId || "",
     status: o.status,
-    total: orderTotal(o.lines),
+    total: orderTotal(o.lines, ctx.studio.currency),
   }));
 }
 
@@ -151,7 +157,7 @@ export async function listProjectCosts(ctx: ProjectsContext, projectId: string) 
       startDate: project.startDate,
       endDate: project.endDate,
       asOf: asOf.slice(0, 10),
-    }),
+    }, ctx.studio.currency),
   };
 }
 
@@ -220,7 +226,7 @@ export async function editProjectCost(
   }
   if (body?.budget !== undefined) patch.budget = money(body.budget);
   if (body?.notes !== undefined) patch.notes = str(body.notes, 1000);
-  if (body?.sortOrder !== undefined) patch.sortOrder = money(body.sortOrder);
+  if (body?.sortOrder !== undefined) patch.sortOrder = order(body.sortOrder);
   patch.updatedAt = now();
 
   const cost = await Costs.update({ studio, section: listSection }, id, patch);
@@ -277,7 +283,7 @@ export async function seedCostsFromBill(ctx: ProjectsContext, projectId: string)
   // lose, and a budget that reads Distribution before Plant is a budget nobody
   // can check against the document it came from. Caught by Gate A.
   const inOrder = [...lines].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
-  const proposed = codesFromBill(boqGroups(inOrder));
+  const proposed = codesFromBill(boqGroups(inOrder, studio.currency));
   if (!proposed.length) return { error: "no-bill" };
 
   const at = now();

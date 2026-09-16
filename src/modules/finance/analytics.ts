@@ -11,8 +11,13 @@
 // correctly and needs no Date to reason about "past due".
 
 import type { InvoiceView, Expense, Bill } from "./types";
+import { roundMoney, roundSum } from "@/shared/money";
 
-const round = (n: number) => Math.round((Number(n) || 0) * 100) / 100;
+// Every figure here is a SUM of amounts already rounded to their currency, so
+// only float noise is removed (shared/money) — rounding to two places cut the
+// third decimal off a dinar studio's ageing. The collection rate is a ratio
+// and keeps two.
+const round = (n: number) => roundSum(n);
 
 // The minimal shape the aging and "owed by" reports read. An invoice VIEW and a
 // bill VIEW both satisfy it — same fields, same meaning — which is the whole
@@ -135,7 +140,7 @@ export function collectionRate(invoices: InvoiceView[], windowDays = 90, asOf = 
     collected += inv.paid;
   }
   if (invoiced <= 0) return 1;
-  return round(collected / invoiced);
+  return roundMoney(collected / invoiced, 2);
 }
 
 /**

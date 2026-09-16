@@ -44,7 +44,7 @@ export const GET = route(
     summary: {
       items: items.length,
       low: items.filter((i) => i.low).length,
-      value: stockValue(items),
+      value: stockValue(items, g.studio.currency),
       awaiting: orders.filter((o) => o.status === "Ordered" || o.status === "Partly received").length,
       // Units actually held, so the dashboard can report the shelf rather than
       // just how many kinds of thing are on it.

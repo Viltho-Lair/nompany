@@ -12,9 +12,12 @@
 // number this produces is the difference between "that excavator" and "that
 // excavator cost the harbour job £14,000".
 //
-// PURE. No imports, no store, no clock — the caller hands in the allocations and
-// the rate, so the screen and the server cost the same days identically and
-// every rule below is asserted without a database.
+// PURE. No store, no clock, and one import — `shared/money`, which is itself
+// pure and imports nothing — the caller hands in the allocations and the rate,
+// so the screen and the server cost the same days identically and every rule
+// below is asserted without a database.
+
+import { roundMoney, roundSum } from "@/shared/money";
 
 /** One machine on one deal, between two dates. */
 export type Allocation = {
@@ -39,7 +42,6 @@ const day = (v: unknown): string => {
 };
 
 const ms = (d: string) => Date.parse(`${d}T00:00:00Z`);
-const round = (n: number) => Math.round((Number(n) || 0) * 100) / 100;
 
 /**
  * DAYS IN AN ALLOCATION, CLIPPED TO A WINDOW, INCLUSIVE OF BOTH ENDS.
@@ -102,10 +104,14 @@ export type UtilisationReport = {
   unratedDays: number;
 };
 
-const addTo = (map: Map<string, AssetCost>, assetId: string, days: number, rate: number) => {
+// A HIRE CHARGE IS MONEY BEING MADE — days times a rate — so it is rounded to
+// the studio's currency, whose decimals it follows (a dinar has three). Every
+// total above it is a sum of charges already rounded, so `roundSum` only takes
+// the float noise off and never cuts a decimal the currency uses.
+const addTo = (map: Map<string, AssetCost>, assetId: string, days: number, rate: number, currency: unknown) => {
   const row = map.get(assetId) || { assetId, days: 0, cost: 0, unratedDays: 0 };
   row.days += days;
-  row.cost = round(row.cost + days * rate);
+  row.cost = roundSum(row.cost + roundMoney(days * rate, currency));
   if (!rate) row.unratedDays += days;
   map.set(assetId, row);
 };
@@ -123,6 +129,8 @@ export function utilisation(
   period: AssetPeriod,
   rateFor: (assetId: string) => number,
   openEndedTo: string,
+  /** The studio's currency; omitted, charges round to two decimals as they always did. */
+  currency?: unknown,
 ): UtilisationReport {
   const byDeal = new Map<string, Map<string, AssetCost>>();
   const fleet = new Map<string, AssetCost>();
@@ -139,8 +147,8 @@ export function utilisation(
 
     const dealId = String(a.dealId || "");
     if (!byDeal.has(dealId)) byDeal.set(dealId, new Map());
-    addTo(byDeal.get(dealId)!, String(a.assetId || ""), days, rate);
-    addTo(fleet, String(a.assetId || ""), days, rate);
+    addTo(byDeal.get(dealId)!, String(a.assetId || ""), days, rate, currency);
+    addTo(fleet, String(a.assetId || ""), days, rate, currency);
   }
 
   const deals: DealUtilisation[] = [...byDeal.entries()].map(([dealId, assets]) => {
@@ -149,7 +157,7 @@ export function utilisation(
       dealId,
       assets: rows,
       days: rows.reduce((n, r) => n + r.days, 0),
-      cost: round(rows.reduce((n, r) => n + r.cost, 0)),
+      cost: roundSum(rows.reduce((n, r) => n + r.cost, 0)),
       unratedDays: rows.reduce((n, r) => n + r.unratedDays, 0),
     };
   }).sort((x, y) => y.cost - x.cost || x.dealId.localeCompare(y.dealId));
@@ -160,7 +168,7 @@ export function utilisation(
     period: { from: day(period.from), to: day(period.to) },
     deals,
     byAsset,
-    cost: round(deals.reduce((n, d) => n + d.cost, 0)),
+    cost: roundSum(deals.reduce((n, d) => n + d.cost, 0)),
     days: deals.reduce((n, d) => n + d.days, 0),
     unratedDays: deals.reduce((n, d) => n + d.unratedDays, 0),
   };

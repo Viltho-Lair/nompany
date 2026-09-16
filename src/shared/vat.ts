@@ -8,9 +8,14 @@
 //
 // SHARED rather than Finance's because quotations (Technical), sales orders
 // (Sales), invoices and bills (Finance) and the screens that price them all have
-// to give the same three answers. No imports, no store, no clock.
+// to give the same three answers. No store, no clock.
 
-const round = (n: number) => Math.round((Number(n) || 0) * 100) / 100;
+import { roundMoney } from "./money";
+
+// A RATE is a percentage and keeps two places whatever the currency; MONEY is
+// rounded to the currency it is in (./money). They were one helper, which is
+// how a dinar amount came to be rounded like a percentage.
+const round = (n: number) => roundMoney(n, 2);
 
 /** The studio's VAT rate, or null when it charges none. Zero is "none". */
 export function studioVatRate(studio: unknown): number | null {
@@ -49,16 +54,16 @@ export function documentVatRate(studio: unknown, requested?: unknown, fallback?:
 }
 
 /**
- * A GROSS AMOUNT SPLIT INTO NET AND TAX at a rate, in whole cents. The net is
+ * A GROSS AMOUNT SPLIT INTO NET AND TAX at a rate, in the currency's minor unit. The net is
  * derived by subtraction so the two always add up to the gross — deriving both
  * independently is how a rounded pair ends up a cent short. One copy: the
  * ledger's credit-note posting and the tax return must give back the same tax.
  */
-export function splitGross(gross: unknown, rate: unknown) {
-  const g = round(Number(gross));
+export function splitGross(gross: unknown, rate: unknown, currency?: unknown) {
+  const g = roundMoney(gross, currency);
   const r = Number(rate) || 0;
-  const vat = round((g * r) / (100 + r));
-  return { net: round(g - vat), vat };
+  const vat = roundMoney((g * r) / (100 + r), currency);
+  return { net: roundMoney(g - vat, currency), vat };
 }
 
 export type TaxRow = {
@@ -117,7 +122,7 @@ export function taxReturn(rows: readonly TaxRow[], opts: { from?: string; to?: s
 
   const sum = (kind: TaxRow["kind"]): Bucket => home
     .filter((r) => r.kind === kind)
-    .reduce((b, r) => ({ net: round(b.net + r.net), vat: round(b.vat + r.vat), count: b.count + 1 }),
+    .reduce((b, r) => ({ net: roundMoney(b.net + r.net, base), vat: roundMoney(b.vat + r.vat, base), count: b.count + 1 }),
       { net: 0, vat: 0, count: 0 });
   const output = sum("sale");
   const credits = sum("credit");
@@ -126,7 +131,7 @@ export function taxReturn(rows: readonly TaxRow[], opts: { from?: string; to?: s
   return {
     from, to, currency: base,
     output, credits, input,
-    payable: round(output.vat - credits.vat - input.vat),
+    payable: roundMoney(output.vat - credits.vat - input.vat, base),
     rows: home.sort(byDate),
     // LISTED, NOT SUMMED: each has to be converted at its own date's rate.
     foreign: foreign.sort(byDate),

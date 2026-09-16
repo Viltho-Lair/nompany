@@ -24,7 +24,9 @@
 // this SUGGESTS and a person confirms — the same posture FEFO takes on the shop
 // floor and for the same reason.
 //
-// PURE. No imports, no store, no clock.
+// PURE. No store, no clock. Its one import is shared/money, the rounding rule, which is itself pure.
+
+import { roundMoney, roundSum } from "@/shared/money";
 
 export type StatementLine = {
   id: string;
@@ -46,7 +48,9 @@ export type BookLine = {
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
 const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
 const num = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : 0);
-const money = (n: number) => Math.round(n * 100) / 100;
+// Stored amounts compared and summed: only float noise to remove. A line TYPED
+// IN is rounded to the studio's currency (`cleanStatementLine`).
+const money = (n: number) => roundSum(n);
 
 /** What is wrong with this statement line, or an empty array. */
 export function statementProblems(input: Record<string, unknown>): string[] {
@@ -60,11 +64,11 @@ export function statementProblems(input: Record<string, unknown>): string[] {
   return problems;
 }
 
-export function cleanStatementLine(input: Record<string, unknown>): Omit<StatementLine, "id"> {
+export function cleanStatementLine(input: Record<string, unknown>, currency?: unknown): Omit<StatementLine, "id"> {
   return {
     date: str(input.date, 10),
     description: str(input.description, 200),
-    amount: money(num(input.amount)),
+    amount: roundMoney(num(input.amount), currency),
   };
 }
 

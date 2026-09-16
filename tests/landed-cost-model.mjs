@@ -5,9 +5,16 @@
 // studio's landed total is a penny short of what it paid on every shipment,
 // forever, and nobody ever finds out why.
 
-import {
+// THE ALIAS LOADER, because the module imports `@/shared/money` and plain
+// Node does not know the `@/` alias (tests/loader.mjs resolves it).
+import { register } from "node:module";
+import { pathToFileURL } from "node:url";
+
+register(new URL("./loader.mjs", import.meta.url), { data: { root: pathToFileURL(`${process.cwd()}/`).href } });
+
+const {
   landedCost, chargeProblem, BASES, isBasis, DEFAULT_BASIS,
-} from "../src/modules/logistics/landedCost.ts";
+} = await import("../src/modules/logistics/landedCost.ts");
 
 let fails = 0;
 const ok = (msg, cond, detail = "") => {
@@ -126,4 +133,5 @@ ok("a negative is not an amount", chargeProblem({ kind: "Freight", amount: -5 })
 ok("a good one passes", chargeProblem({ kind: "Freight", amount: 10 }) === "");
 
 console.log(fails ? `\nlanded cost model: ${fails} FAILURES\n` : "\nlanded cost model: all passed\n");
-process.exit(fails ? 1 : 0);
+// exitCode, not exit(): exiting while the alias loader's thread is live crashes Node on Windows.
+process.exitCode = fails ? 1 : 0;

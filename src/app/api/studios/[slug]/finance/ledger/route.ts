@@ -77,7 +77,7 @@ export const GET = route({ ...spec, body: false }, async (f) => {
     ok: true,
     accounts: chart,
     journal: entries,
-    trialBalance: trialBalanceFrom(chart, entries),
+    trialBalance: trialBalanceFrom(chart, entries, f.studio.currency),
     // THE P&L IS CUT WHEN A DIMENSION WAS ASKED FOR, and is the whole book
     // otherwise — one function, so the two answers cannot drift apart.
     profitAndLoss: profitAndLoss(entries, chart, { from, to, dimension, value }),

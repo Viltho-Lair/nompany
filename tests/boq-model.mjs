@@ -154,8 +154,10 @@ console.log("\n== the file stays pure");
 
 const { readFileSync } = await import("node:fs");
 const src = readFileSync(new URL("../src/modules/tendering/boq.ts", import.meta.url), "utf8");
-ok("modules/tendering/boq imports nothing",
-  [...src.matchAll(/from\s+"([^"]+)"/g)].length === 0);
+// shared/money is itself pure and imports nothing, so allowing it still keeps
+// every server module out of the browser.
+ok("modules/tendering/boq imports nothing but shared/money",
+  [...src.matchAll(/from\s+"([^"]+)"/g)].every(([, spec]) => spec === "@/shared/money"));
 
 console.log(fails ? `\n${fails} FAILED\n` : "\nall passed\n");
 process.exit(fails ? 1 : 0);

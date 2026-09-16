@@ -28,6 +28,7 @@ import { repo } from "@/platform/db/repo";
 import { nextReference } from "@/modules/main/references";
 import { invoiceTotals } from "./finance";
 import { splitGross } from "@/shared/vat";
+import { roundMoney, toMinor, fromMinor } from "@/shared/money";
 import type { Account, JournalEntry, JournalLine, Invoice, Expense, FinanceContext } from "./types";
 import type { Row } from "@/platform/db/store";
 
@@ -47,11 +48,18 @@ const Expenses = repo<Expense>("expenses");
 
 const str = (v: unknown, max = 300) => String(v ?? "").trim().slice(0, max);
 const day = (v: unknown) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v ?? "").trim()) ? String(v).trim() : "");
-// Money to the cent, non-negative. A ledger that carries floating-point crumbs
-// stops balancing after enough postings, so every amount is rounded ON THE WAY
-// IN and the balance check compares whole cents, never floats.
-const cents = (v: unknown) => Math.round((Number(v) || 0) * 100);
-const money = (c: number) => Math.round(c) / 100;
+// Money in WHOLE MINOR UNITS of the studio's currency — cents, fils, baisa. A
+// ledger that carries floating-point crumbs stops balancing after enough
+// postings, so every amount is rounded ON THE WAY IN and the balance check
+// compares integers, never floats.
+//
+// THE UNIT IS THE STUDIO'S, NOT A HUNDRED. This was fixed at cents, so a
+// Jordanian studio's book dropped the third decimal of every dinar posted to
+// it. The book is kept in the studio's own currency, so that currency decides.
+// An entry written at two places is still exact at three, so nothing already
+// posted needs rewriting.
+const cents = (v: unknown, currency: unknown) => toMinor(v, currency);
+const money = (c: number, currency: unknown) => fromMinor(c, currency);
 
 export type AccountType = Account["type"];
 
@@ -148,6 +156,7 @@ export async function listAccounts(ctx: FinanceContext) {
 function cleanLines(
   raw: unknown,
   accountsById: Map<string, Account>,
+  currency: unknown,
 ): { lines: JournalLine[]; debit: number; credit: number } | { error: string } {
   if (!Array.isArray(raw) || raw.length < 2) return { error: "lines" };
   const lines: JournalLine[] = [];
@@ -158,15 +167,15 @@ function cleanLines(
     const account = accountsById.get(accountId);
     if (!account) return { error: "account", accountId } as { error: string };
     if (account.active === false) return { error: "inactive", accountId } as { error: string };
-    const d = cents((r as Row)?.debit);
-    const c = cents((r as Row)?.credit);
+    const d = cents((r as Row)?.debit, currency);
+    const c = cents((r as Row)?.credit, currency);
     // EXACTLY ONE SIDE. A line that is both a debit and a credit, or neither, is
     // not a posting — it is a mistake that would still let the entry "balance"
     // while meaning nothing.
     if ((d > 0) === (c > 0)) return { error: "one-side", accountId } as { error: string };
     debit += d;
     credit += c;
-    const line: JournalLine = { accountId, debit: money(d), credit: money(c) };
+    const line: JournalLine = { accountId, debit: money(d, currency), credit: money(c, currency) };
     // THE DIMENSIONS, CARRIED AND NOT VALIDATED — deliberately, and it is the
     // same decision `milestoneId` on an invoice and `costCodeId` on a bill
     // already make. An id is checked by the READER that groups on it, which is
@@ -261,12 +270,12 @@ export async function postEntry(
   const accounts = await ledgerAccounts(ctx);
   const byId = new Map(accounts.map((a) => [a.id, a]));
 
-  const cleaned = cleanLines(body?.lines, byId);
+  const cleaned = cleanLines(body?.lines, byId, studio.currency);
   if ("error" in cleaned) return cleaned;
   // THE BALANCE RULE, in whole cents so no float ever makes a balanced entry
   // look off by a hundredth.
   if (cleaned.debit !== cleaned.credit) {
-    return { error: "unbalanced", debit: money(cleaned.debit), credit: money(cleaned.credit) };
+    return { error: "unbalanced", debit: money(cleaned.debit, studio.currency), credit: money(cleaned.credit, studio.currency) };
   }
 
   // THE PERIOD LOCK, and it sits HERE rather than in each of the seven posting
@@ -418,12 +427,12 @@ export async function listJournal(ctx: FinanceContext) {
  * calling `trialBalance` beside two other functions that each read for
  * themselves. One implementation of the sums, one read of the rows.
  */
-export function trialBalanceFrom(accounts: Account[], entries: JournalEntry[]) {
+export function trialBalanceFrom(accounts: Account[], entries: JournalEntry[], currency: unknown) {
   // Net cents per account, so the running arithmetic never touches a float.
   const net = new Map<string, number>();
   for (const e of entries) {
     for (const l of e.lines || []) {
-      net.set(l.accountId, (net.get(l.accountId) || 0) + cents(l.debit) - cents(l.credit));
+      net.set(l.accountId, (net.get(l.accountId) || 0) + cents(l.debit, currency) - cents(l.credit, currency));
     }
   }
 
@@ -441,15 +450,15 @@ export function trialBalanceFrom(accounts: Account[], entries: JournalEntry[]) {
     totalCredit += credit;
     return {
       accountId: a.id, code: a.code, name: a.name, type: a.type,
-      debit: money(debit), credit: money(credit),
+      debit: money(debit, currency), credit: money(credit, currency),
       normalSide: DEBIT_NORMAL[a.type] ? "debit" : "credit",
     };
   });
 
   return {
     rows,
-    totalDebit: money(totalDebit),
-    totalCredit: money(totalCredit),
+    totalDebit: money(totalDebit, currency),
+    totalCredit: money(totalCredit, currency),
     // The invariant, surfaced. Not a float compare — whole cents.
     balanced: totalDebit === totalCredit,
   };
@@ -461,6 +470,7 @@ export async function trialBalance(ctx: FinanceContext) {
   return trialBalanceFrom(
     await ledgerAccounts(ctx),
     await Entries.find({ studio: ctx.studio, section: ctx.ledgerSection }),
+    ctx.studio.currency,
   );
 }
 
@@ -559,7 +569,7 @@ export async function postInvoice(ctx: FinanceContext, invoiceId: string, option
   const entries = await Entries.find({ studio: ctx.studio, section: ctx.ledgerSection });
   if (alreadyPosted(entries, "invoice", invoiceId)) return { error: "already-posted" };
 
-  const totals = invoiceTotals(invoice);
+  const totals = invoiceTotals(invoice, ctx.studio.currency);
   const { byCode, missing } = await codesToIds(ctx, [AR, REVENUE, VAT_PAYABLE]);
   if (missing.length) return { error: "chart", missing };
 
@@ -638,7 +648,7 @@ export async function postBill(ctx: FinanceContext, billId: string, options: Pos
   const entries = await Entries.find({ studio: ctx.studio, section: ctx.ledgerSection });
   if (alreadyPosted(entries, "bill", billId)) return { error: "already-posted" };
 
-  const totals = invoiceTotals(bill as { lines?: unknown; vatRate?: unknown; payments?: unknown });
+  const totals = invoiceTotals(bill as { lines?: unknown; vatRate?: unknown; payments?: unknown }, ctx.studio.currency);
   const expenseCode = CATEGORY_ACCOUNT[bill.category || ""] || COST_OF_SALES;
   const { byCode, missing } = await codesToIds(ctx, [expenseCode, VAT_PAYABLE, AP]);
   if (missing.length) return { error: "chart", missing };
@@ -703,10 +713,12 @@ export async function postCreditNote(
   if (missing.length) return { error: "chart", missing };
 
   // The gross amount split back into net and tax at the INVOICE's rate, in
-  // whole cents, net by subtraction so the entry balances — `splitGross`, the
-  // one copy the tax return also uses, so the two give back the same tax.
-  const gross = Math.round((Number(note.amount) || 0) * 100) / 100;
-  const { net, vat } = splitGross(gross, (invoice as { vatRate?: unknown }).vatRate);
+  // the invoice's currency, net by subtraction so the entry balances —
+  // `splitGross`, the one copy the tax return also uses, so the two give back
+  // the same tax.
+  const noteCurrency = (invoice as { currency?: unknown }).currency || ctx.studio.currency;
+  const gross = roundMoney(note.amount, noteCurrency);
+  const { net, vat } = splitGross(gross, (invoice as { vatRate?: unknown }).vatRate, noteCurrency);
 
   return postEntry(ctx, {
     date: new Date().toISOString().slice(0, 10),
@@ -828,13 +840,13 @@ export async function postPayroll(ctx: FinanceContext, runId: string, options: P
   const entries = await Entries.find({ studio: ctx.studio, section: ctx.ledgerSection });
   if (alreadyPosted(entries, "payroll", runId)) return { error: "already-posted" };
 
-  // NOT `money()`. IN THIS FILE `money` MEANS CENTS -> MONEY (`Math.round(c) / 100`),
+  // NOT `money()`. IN THIS FILE `money` MEANS MINOR UNITS -> MONEY,
   // and a run's totals are already money — so calling it here divided the wage
   // bill by a hundred and produced an entry of 35 against 33.02 that
   // `postEntry` refused as unbalanced. Caught by tests/crud.mjs on its first
   // run, which is the argument for the end-to-end case existing at all: the
   // arithmetic was right in the pure model and wrong at the seam.
-  const round2 = (n: number) => Math.round(n * 100) / 100;
+  const round2 = (n: number) => roundMoney(n, ctx.studio.currency);
   const gross = round2(Number(run.totals?.gross) || 0);
   const net = round2(Number(run.totals?.net) || 0);
   const withheld = round2(gross - net);

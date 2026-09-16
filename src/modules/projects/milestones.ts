@@ -17,16 +17,23 @@ import { invoiceTotals } from "@/modules/finance/finance";
 import type { Invoice } from "@/modules/finance/schema";
 import type { ProjectMilestone, Project } from "./schema";
 import type { ProjectsContext } from "./types";
+import { roundMoney } from "@/shared/money";
 
 const Milestones = repo<ProjectMilestone>("projectMilestones");
 const Projects = repo<Project>("projects");
 const Invoices = repo<Invoice>("invoices");
 
 const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
-const money = (v: unknown) => {
+const nonNegative = (v: unknown) => {
   const n = Number(v);
-  return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : 0;
+  return Number.isFinite(n) && n >= 0 ? n : 0;
 };
+// A MILESTONE AMOUNT IS WHAT THE CLIENT WILL BE INVOICED, so it is written to
+// the studio currency's own decimals — a dinar has three, and the two-place
+// rounding this replaced cut a fils off every Jordanian line.
+const money = (v: unknown, currency: unknown) => roundMoney(nonNegative(v), currency);
+/** A position in the list, not money: two places, as it always was. */
+const order = (v: unknown) => Math.round(nonNegative(v) * 100) / 100;
 /** ISO date, or "" — the screens send `<input type="date">`, which is already this. */
 const date = (v: unknown) => str(v, 10);
 const now = () => new Date().toISOString();
@@ -56,7 +63,7 @@ async function claimsFor(ctx: ProjectsContext, projectId: string): Promise<Bille
     claimId: (i as { claimId?: unknown }).claimId || "",
     projectId: i.projectId || "",
     status: i.status,
-    total: invoiceTotals(i).total,
+    total: invoiceTotals(i, ctx.studio.currency).total,
   }));
 }
 
@@ -98,7 +105,7 @@ export async function listProjectBilling(ctx: ProjectsContext, projectId: string
       retentionPercent: project.retentionPercent,
       retentionReleaseDate: project.retentionReleaseDate,
       asOf: asOf.slice(0, 10),
-    }),
+    }, studio.currency),
     asOf,
   };
 }
@@ -130,7 +137,7 @@ export async function addProjectMilestone(ctx: ProjectsContext, body: Record<str
       projectId,
       code,
       name,
-      amount: money(body?.amount),
+      amount: money(body?.amount, studio.currency),
       dueDate: date(body?.dueDate),
       // BORN PENDING, ALWAYS. Marking work done is its own act; a status
       // accepted from the create body would be the side entrance around it.
@@ -178,10 +185,10 @@ export async function editProjectMilestone(
     if (!(MILESTONE_STATUSES as readonly string[]).includes(v)) return { error: "status" };
     patch.status = v;
   }
-  if (body?.amount !== undefined) patch.amount = money(body.amount);
+  if (body?.amount !== undefined) patch.amount = money(body.amount, studio.currency);
   if (body?.dueDate !== undefined) patch.dueDate = date(body.dueDate);
   if (body?.notes !== undefined) patch.notes = str(body.notes, 1000);
-  if (body?.sortOrder !== undefined) patch.sortOrder = money(body.sortOrder);
+  if (body?.sortOrder !== undefined) patch.sortOrder = order(body.sortOrder);
   patch.updatedAt = now();
 
   const milestone = await Milestones.update({ studio, section: listSection }, id, patch);

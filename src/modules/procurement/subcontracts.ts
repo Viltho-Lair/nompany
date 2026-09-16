@@ -86,7 +86,7 @@ export async function listSubcontracts(ctx: ProcurementContext) {
           ...c,
           certifiedByAlias: aliasOf.get(String(c.certifiedByCollaboratorId || "")) || "",
         })),
-        position: subcontractPosition(s, mine, asOf.slice(0, 10)),
+        position: subcontractPosition(s, mine, asOf.slice(0, 10), ctx.studio.currency),
         createdByAlias: aliasOf.get(String(s.createdByCollaboratorId || "")) || "",
       };
     });

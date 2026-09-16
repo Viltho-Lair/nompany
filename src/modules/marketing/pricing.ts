@@ -54,11 +54,11 @@ export async function buildPricing(countryHeader?: string | null) {
         minEmployees: c.minEmployees, maxEmployees: c.maxEmployees,
         perEmployee: c.costPerEmployee,
         monthly: c.cost,
-        yearly: yearlyPrice(c.cost, settings.yearlyDiscountPct),
+        yearly: yearlyPrice(c.cost, settings.yearlyDiscountPct, settings.baseCurrency),
       })),
       perEmployee: Number(p.costPerEmployee) || 0,
       monthly: Number(p.cost) || 0,
-      yearly: yearlyPrice(Number(p.cost) || 0, settings.yearlyDiscountPct),
+      yearly: yearlyPrice(Number(p.cost) || 0, settings.yearlyDiscountPct, settings.baseCurrency),
     }));
 
   // Today's rate from the authored base out to every currency the snapshot quotes. A table,

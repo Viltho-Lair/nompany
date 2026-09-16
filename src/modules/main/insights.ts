@@ -32,6 +32,7 @@ import { balances } from "@/modules/inventory/inventory";
 import { permitState } from "@/modules/operations/operations";
 import { permitLive } from "@/modules/operations/permitModel";
 import { invoiceTotals } from "@/modules/finance/finance";
+import { roundMoney } from "@/shared/money";
 import { expiringDocuments } from "@/modules/hr/hr";
 import { readIfVisible, type MainContext } from "./main";
 import { taskQueueFrom, taskAssigneesOf, type QueueItem } from "./awaiting";
@@ -296,17 +297,18 @@ export function stockInsights(items: ItemRow[], onHand: Record<string, number>):
  * cron use — outstanding is total minus payments, recomputed, never a stored
  * `balance` field that could have drifted.
  */
-export function invoiceInsights(invoices: InvoiceRow[], todayISO: string): Insight[] {
+// `currency` is the studio's, for rows raised before a document froze its own.
+export function invoiceInsights(invoices: InvoiceRow[], todayISO: string, currency?: unknown): Insight[] {
   const out: Insight[] = [];
 
   const overdue = invoices
     .filter((i) => i.status !== "Draft" && i.status !== "Cancelled" && i.status !== "Paid" && i.dueDate)
-    .map((i) => ({ i, days: daysSince(i.dueDate, todayISO), owed: invoiceTotals(i).outstanding }))
+    .map((i) => ({ i, days: daysSince(i.dueDate, todayISO), owed: invoiceTotals(i, currency).outstanding }))
     .filter((x): x is { i: InvoiceRow; days: number; owed: number } =>
       x.days !== null && x.days > 0 && x.owed > 0)
     .sort((a, b) => b.days - a.days);
   if (overdue.length) {
-    const total = Math.round(overdue.reduce((s, x) => s + x.owed, 0) * 100) / 100;
+    const total = roundMoney(overdue.reduce((s, x) => s + x.owed, 0), currency);
     out.push(make("invoice.overdue", "urgent", "finance-cash", "finance-cash", String(overdue[0].i.id || ""),
       { reference: String(overdue[0].i.reference || ""), client: String(overdue[0].i.clientName || ""),
         days: overdue[0].days, amount: overdue[0].owed, total, more: more(overdue) }, 50));
@@ -327,15 +329,15 @@ export function invoiceInsights(invoices: InvoiceRow[], todayISO: string): Insig
 type BillRow = InvoiceRow & { vendorName?: string };
 
 /** Money the studio owes and has not paid. Same totals, other direction. */
-export function billInsights(bills: BillRow[], todayISO: string): Insight[] {
+export function billInsights(bills: BillRow[], todayISO: string, currency?: unknown): Insight[] {
   const overdue = bills
     .filter((b) => b.status !== "Draft" && b.status !== "Cancelled" && b.status !== "Paid" && b.dueDate)
-    .map((b) => ({ b, days: daysSince(b.dueDate, todayISO), owed: invoiceTotals(b).outstanding }))
+    .map((b) => ({ b, days: daysSince(b.dueDate, todayISO), owed: invoiceTotals(b, currency).outstanding }))
     .filter((x): x is { b: BillRow; days: number; owed: number } =>
       x.days !== null && x.days > 0 && x.owed > 0)
     .sort((a, b) => b.days - a.days);
   if (!overdue.length) return [];
-  const total = Math.round(overdue.reduce((s, x) => s + x.owed, 0) * 100) / 100;
+  const total = roundMoney(overdue.reduce((s, x) => s + x.owed, 0), currency);
   return [make("bill.overdue", "urgent", "finance-payables", "finance-payables", String(overdue[0].b.id || ""),
     { reference: String(overdue[0].b.reference || ""), vendor: String(overdue[0].b.vendorName || ""),
       days: overdue[0].days, amount: overdue[0].owed, total, more: more(overdue) }, 30)];
@@ -452,8 +454,8 @@ export async function studioInsights(ctx: MainContext): Promise<Insight[]> {
   if (tickets) out.push(...ticketInsights(tickets, rfqs, todayISO));
   if (projects) out.push(...projectInsights(projects, invoices, todayISO));
   if (items && movements) out.push(...stockInsights(items, balances(movements as unknown as Movement[])));
-  if (invoices) out.push(...invoiceInsights(invoices, todayISO));
-  if (bills) out.push(...billInsights(bills, todayISO));
+  if (invoices) out.push(...invoiceInsights(invoices, todayISO, ctx.studio.currency));
+  if (bills) out.push(...billInsights(bills, todayISO, ctx.studio.currency));
   if (permits) out.push(...permitInsights(permits, todayISO));
   if (people) out.push(...documentInsights(people as unknown as Record<string, unknown>[], now));
   // NO SECOND READ FOR THE NAMES. Leave is gated on `hr.vacations.approve` and

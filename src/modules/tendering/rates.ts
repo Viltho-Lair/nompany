@@ -14,13 +14,17 @@ import { requirePermission } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
 import type { TenderRate } from "./schema";
 import type { TenderingContext } from "./types";
+import { roundSum } from "@/shared/money";
 
 const Rates = repo<TenderRate>("tenderRates");
 
 const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
+// A RATE AS TYPED. Money follows its currency's decimals — a dinar has three —
+// and a unit rate may be finer still, so it is only cleaned of float noise
+// rather than cut to two places.
 const money = (v: unknown) => {
   const n = Number(v);
-  return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : 0;
+  return Number.isFinite(n) && n > 0 ? roundSum(n) : 0;
 };
 const now = () => new Date().toISOString();
 

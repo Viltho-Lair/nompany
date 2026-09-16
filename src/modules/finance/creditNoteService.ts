@@ -12,15 +12,17 @@ import { invoiceTotals } from "./finance";
 import { creditNoteProblem, creditableRemaining, CREDIT_NOTE_STATUSES } from "./creditNotes";
 import { autoPost } from "./posting";
 import type { FinanceContext } from "./types";
+import { roundMoney } from "@/shared/money";
 import type { Row } from "@/platform/db/store";
 
 const Notes = repo("creditNotes");
 const Invoices = repo("invoices");
 
 const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
-const cash = (v: unknown) => {
-  const n = Math.round((Number(v) || 0) * 100) / 100;
-  return Number.isFinite(n) && n > 0 ? n : 0;
+// In the INVOICE's currency: a note gives back money in the currency it was billed in.
+const cash = (v: unknown, currency: unknown) => {
+  const n = roundMoney(v, currency);
+  return n > 0 ? n : 0;
 };
 
 const scope = (ctx: FinanceContext) => ({ studio: ctx.studio, section: ctx.cashSection });
@@ -55,10 +57,10 @@ export async function createCreditNote(ctx: FinanceContext, body: Record<string,
   // kept: `creditNoteProblem` reads `total` and `status`, and the copy below
   // reads the reference and the client name off the stored row.
   const invoice = found
-    ? { ...found, ...invoiceTotals(found) } as Row & { reference?: string; clientName?: string; total?: number; status?: string }
+    ? { ...found, ...invoiceTotals(found, ctx.studio.currency), currency: (found as { currency?: unknown }).currency || ctx.studio.currency } as Row & { reference?: string; clientName?: string; total?: number; status?: string }
     : null;
 
-  const amount = cash(body?.amount);
+  const amount = cash(body?.amount, (found as { currency?: unknown } | undefined)?.currency || ctx.studio.currency);
   const problem = creditNoteProblem(invoice, notes, amount);
   if (problem) {
     // THE HEADROOM TRAVELS WITH THE REFUSAL, so the screen can say what IS
@@ -112,7 +114,7 @@ export async function issueCreditNote(ctx: FinanceContext, id: string) {
   if (note.status !== "Draft") return { error: "already-issued", status: note.status };
 
   const found = invoices.find((i) => i.id === note.invoiceId);
-  const invoice = found ? { ...found, ...invoiceTotals(found) } : null;
+  const invoice = found ? { ...found, ...invoiceTotals(found, ctx.studio.currency), currency: (found as { currency?: unknown }).currency || ctx.studio.currency } : null;
   // EXCLUDING THIS NOTE from what is already credited: it is still a draft, so
   // `creditedSoFar` ignores it anyway — but saying so here is what makes the
   // re-check readable rather than looking like a double count.

@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import { Field } from "@/components/fields/Field";
 import { reconciliationDict } from "@/shared/studio/reconciliation";
 import { useReload } from "@/components/studio2/useReload";
+import { moneyText } from "@/shared/money";
 
 // WHAT THE BANK SAYS, AGAINST WHAT THE BOOKS SAY.
 //
@@ -52,8 +53,8 @@ export default function ReconciliationPanel({ slug, locale = "en" }) {
 
   const suggestionFor = (lineId) => suggestions.find((s) => s.lineId === lineId);
   const entryOf = (id) => book.find((b) => b.entryId === id);
-  const n = (v) => new Intl.NumberFormat("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-    .format(Number(v) || 0);
+  // A currency's own decimals (shared/money) — two places hid a dinar's third.
+  const n = (v) => moneyText(v);
 
   if (!hasBank) {
     return <p className="text-sm text-amber-700 dark:text-amber-300">{tr.noBankAccount}</p>;

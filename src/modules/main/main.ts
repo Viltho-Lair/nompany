@@ -13,6 +13,7 @@
 import { repo } from "@/platform/db/repo";
 import { listSections, parentKeyMap } from "@/platform/db/sections";
 import { studioContext, sectionNav, visibleSections } from "@/lib/studios";
+import { roundMoney } from "@/shared/money";
 import { sectionViewable } from "@/platform/access";
 import { listCollaborators } from "@/platform/auth/collaborators";
 import { enrichTask, readTaskAssignees } from "@/modules/tasks/taskRouting";
@@ -176,9 +177,9 @@ export async function headlines(ctx: MainContext) {
     // `paid` off the row, which are never stored (finance/schema.ts: "derived
     // by invoiceTotals, never stored"), so the tile read 0 in every studio.
     outstanding: invoices
-      ? Math.round(invoices
+      ? roundMoney(invoices
         .filter((i) => i.status === "Sent")
-        .reduce((sum, i) => sum + invoiceTotals(i).outstanding, 0) * 100) / 100
+        .reduce((sum, i) => sum + invoiceTotals(i, ctx.studio.currency).outstanding, 0), ctx.studio.currency)
       : null,
     // FALLING DUE, not "still valid". This counted every permit that had not
     // yet expired — the healthy ones — and put the total under a heading that

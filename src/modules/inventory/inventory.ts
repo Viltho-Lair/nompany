@@ -59,6 +59,7 @@ import type { WorkOrder } from "@/modules/maintenance/schema";
 import type { BoqItem } from "@/modules/tendering/schema";
 import type { Row } from "@/platform/db/store";
 import type { Task } from "@/modules/tasks/types";
+import { roundMoney, roundSum } from "@/shared/money";
 
 const VENDORS = "inventoryVendors";
 const ITEMS = "inventoryItems";
@@ -77,10 +78,13 @@ const foreignTo = (itemCurrency: string, studioCurrency: unknown) =>
 // A charge that was TYPED, kept apart from one that was left blank: 0 is a real
 // answer ("nothing was paid to ship it") and "" is no answer at all, which is
 // what makes the two landed-cost fields mandatory rather than defaulted.
+//
+// KEPT TO THE FINEST PLACE ANY CURRENCY USES (shared/money), not to two: the
+// charge is in the ITEM's currency, which may be a dinar with three.
 const charge = (v: unknown) => {
   if (v === "" || v == null) return "";
   const n = Number(v);
-  return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : "";
+  return Number.isFinite(n) && n >= 0 ? roundSum(n) : "";
 };
 // A picture of the thing, held as the URL /api/media hands back — the same way
 // the studio and client logos are held. The bytes never touch the item row.
@@ -131,7 +135,12 @@ export const MOVEMENT_KINDS = ["in", "out", "adjust"];
 const str = (v: unknown, max = 300) => String(v ?? "").trim().slice(0, max);
 const day = (v: unknown) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v ?? "").trim()) ? String(v).trim() : "");
 const qty = (v: unknown) => { const n = Number(v); return Number.isFinite(n) ? Math.round(n * 1000) / 1000 : 0; };
-const money = (v: unknown) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : 0; };
+// A PRICE OR COST AS TYPED, positive or nought. Kept to the finest place any
+// currency uses rather than to two: an item may be priced in a currency with
+// three decimals (its own, or the studio's), and cutting the third off a typed
+// price changes what was typed. Amounts OWED are rounded to their currency
+// where they are totalled (shared/documentTotals, orderTotal below).
+const money = (v: unknown) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? roundSum(n) : 0; };
 const weeks = (v: unknown) => (v === "" || v == null ? "" : Math.max(0, Math.round(Number(v)) || 0));
 
 // What a vendor supplies, and how long each kind takes to arrive. Picking a type
@@ -709,7 +718,7 @@ export async function adjustStock(ctx: InventoryContext, body: Record<string, un
   // material as writing 500 OFF, and a control that only reviewed write-offs
   // could be walked round by adjusting up and then down.
   const unitCost = await unitCostOf(ctx, itemId);
-  const value = adjustmentValue(amount, unitCost);
+  const value = adjustmentValue(amount, unitCost, ctx.studio.currency);
   const plan = planForAdjustment(ctx, value);
   // A PLAN THAT COULD NOT BE BUILT STOPS THE WRITE. "No signature required" and
   // "we cannot tell whether one is required" are opposite answers, and a control
@@ -1198,16 +1207,17 @@ export async function listOrders({ studio, sheetsSection, vendorsSection, itemsS
       vendorName: vendorName[o.vendorId] || "",
       projectNumber: projectNumber[o.projectId] || "",
       lines: (o.lines || []).map((l) => ({ ...l, itemLabel: itemLabel[String(l.itemId || "")] || "(removed item)" })),
-      total: orderTotal(o.lines),
+      total: orderTotal(o.lines, studio.currency),
       outstanding: (o.lines || []).reduce((n, l) => n + Math.max(0, (l.qty || 0) - Number(l.received || 0)), 0),
     }));
 }
 
 // The order total is computed from its lines on every read — a client can never
-// tell the server what something cost.
-export function orderTotal(lines: unknown) {
-  return Math.round((Array.isArray(lines) ? lines : [])
-    .reduce((sum, l) => sum + (Number(l.qty) || 0) * (Number(l.unitPrice) || 0), 0) * 100) / 100;
+// tell the server what something cost. In the studio's currency, which is the
+// one a purchase order is raised in.
+export function orderTotal(lines: unknown, currency: unknown) {
+  return roundMoney((Array.isArray(lines) ? lines : [])
+    .reduce((sum, l) => sum + (Number(l.qty) || 0) * (Number(l.unitPrice) || 0), 0), currency);
 }
 
 export async function createOrder(ctx: InventoryContext, body: Record<string, unknown>) {
@@ -1702,7 +1712,8 @@ export async function openProjects(ctx: InventoryContext) {
     .map((p) => ({ id: p.id, number: p.number, title: p.title || "" }));
 }
 
-// What Inventory is worth right now, valued at each item's unit cost.
-export function stockValue(items: { onHand?: number; unitCost?: number }[]) {
-  return Math.round(items.reduce((sum, i) => sum + (i.onHand || 0) * (i.unitCost || 0), 0) * 100) / 100;
+// What Inventory is worth right now, valued at each item's unit cost, in the
+// studio's currency.
+export function stockValue(items: { onHand?: number; unitCost?: number }[], currency: unknown) {
+  return roundMoney(items.reduce((sum, i) => sum + (i.onHand || 0) * (i.unitCost || 0), 0), currency);
 }

@@ -9,6 +9,7 @@
 // for.
 
 import { crossRate } from "@/shared/currencies";
+import { roundMoney } from "@/shared/money";
 import type { ApprovalChain, ApprovalStep } from "./chains";
 
 /** One person's signature on one step. */
@@ -58,8 +59,6 @@ export type PlanInput = {
   stale: boolean;
 };
 
-const round = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
-
 export function resolveApprovalPlan(input: PlanInput): ResolvedPlan | PlanRefusal {
   const chain = input.chain;
   if (!chain?.steps?.length) {
@@ -86,7 +85,9 @@ export function resolveApprovalPlan(input: PlanInput): ResolvedPlan | PlanRefusa
     };
   }
 
-  let amountInBase = round(amount);
+  // IN THE STUDIO'S CURRENCY, so rounded to ITS decimals — a dinar has three,
+  // and a converted amount cut to cents could land a fils either side of a limit.
+  let amountInBase = roundMoney(amount, to);
   let rate: number | null = null;
 
   if (from && from !== to) {
@@ -102,7 +103,7 @@ export function resolveApprovalPlan(input: PlanInput): ResolvedPlan | PlanRefusa
       };
     }
     rate = r;
-    amountInBase = round(amount * r);
+    amountInBase = roundMoney(amount * r, to);
   }
 
   // AT OR ABOVE, not above. "Bills over 50000 need the FD" and "bills at 50000

@@ -83,7 +83,7 @@ function availableApproval(
  * how far it has got, and the step this viewer could sign.
  */
 export async function requisitionReview(ctx: ProcurementContext, req: Requisition) {
-  const totals = requisitionTotals(req.lines);
+  const totals = requisitionTotals(req.lines, ctx.studio.currency);
   const plan = await requisitionPlan(ctx, totals.estimated);
   const holds = (permission: string) => !requirePermission(ctx.access, permission as PermissionKey);
   return {
@@ -129,7 +129,7 @@ export async function answerRequisition(
   // INVARIANT 7, FIRST HALF: the person who raised it never answers it.
   if (req.createdByCollaboratorId === collaborator.id) return { error: "same-signer" };
 
-  const totals = requisitionTotals(req.lines);
+  const totals = requisitionTotals(req.lines, ctx.studio.currency);
   const plan = await requisitionPlan(ctx, totals.estimated);
   // Passed through with its reason: "your studio has no currency" is fixed in
   // Studio settings and "this pair is not quoted today" is not.
@@ -201,7 +201,7 @@ export async function answerRequisition(
  */
 export async function notifyNextSigner(ctx: ProcurementContext, req: Requisition) {
   if (String(req.status || "") !== "Submitted") return;
-  const plan = await requisitionPlan(ctx, requisitionTotals(req.lines).estimated);
+  const plan = await requisitionPlan(ctx, requisitionTotals(req.lines, ctx.studio.currency).estimated);
   const signatures = req.approvals || [];
   const step = firstUnsignedStep(plan, signatures);
   if (!step) return;

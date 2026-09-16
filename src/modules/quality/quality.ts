@@ -42,6 +42,7 @@ import { netUnitPrice, discountPct } from "@/modules/technical/quotations";
 // FINANCE'S ARITHMETIC, imported for the same reason Technical's pricing is: an
 // invoice printed with a total its own ledger disagrees with is worse than none.
 import { invoiceTotals } from "@/modules/finance/finance";
+import { roundMoney } from "@/shared/money";
 import type { PermissionKey } from "@/platform/access";
 
 const str = (v: unknown, max = 300) => String(v ?? "").trim().slice(0, max);
@@ -60,7 +61,8 @@ const Docs = repo<QualityDocument>(DOCS);
 // is that nothing has exercised that path since the block was written.
 //
 // THE OTHER TWO ARE IMPORTED, NOT REDEFINED, and that is the difference that
-// matters. `money` is a rounding rule and copying it costs nothing. Net unit
+// matters. `money` is the shared rounding rule, in the printed record's own
+// currency (a dinar document prints its fils). Net unit
 // price and the discount clamp are TECHNICAL'S PRICING, and a controlled
 // document showing a different net price from the quotation it was built out of
 // would be worse than one that throws.
@@ -70,13 +72,13 @@ const Docs = repo<QualityDocument>(DOCS);
 // them shipped — reports this file clean, which is worth knowing about the
 // script as much as about the bug.
 //
-// Two decimal places, the same rule inventory.ts uses on the same kind of
-// value. Not imported from there: a quality document reaching into Inventory
-// for a rounding rule would be a dependency between two departments that have
-// nothing to do with each other.
-const money = (v: unknown) => {
-  const num = Number(v);
-  return Number.isFinite(num) && num > 0 ? Math.round(num * 100) / 100 : 0;
+// A printed amount: positive, rounded to the record's currency. The rule is
+// shared/money's — not Inventory's, which a quality document has no business
+// reaching into — and the currency is the RECORD's, frozen when it was raised,
+// falling back to the studio's for a record that predates the field.
+const moneyIn = (currency: unknown) => (v: unknown) => {
+  const num = roundMoney(v, currency);
+  return num > 0 ? num : 0;
 };
 
 // ---- context ---------------------------------------------------------------
@@ -261,6 +263,7 @@ export async function resolveBlocks(ctx: QualityContext, document: QualityDocume
     const record = reached[source.subject];
     if (!record) continue;
     if (!can(ctx.access, source.permission as PermissionKey)) continue;
+    const money = moneyIn((record as { currency?: unknown }).currency || ctx.studio.currency);
 
     if (source.key === "quotation.lines") {
       // ONE TABLE PER NAMED GROUP. Flattening them into a single list and
@@ -333,7 +336,7 @@ export async function resolveBlocks(ctx: QualityContext, document: QualityDocume
     }
 
     if (source.key === "invoice.totals") {
-      const t = invoiceTotals(record as Parameters<typeof invoiceTotals>[0]);
+      const t = invoiceTotals(record as Parameters<typeof invoiceTotals>[0], ctx.studio.currency);
       const rate = Number((record as Record<string, unknown>).vatRate) || 0;
       out[source.key] = {
         columns: source.columns,

@@ -4,10 +4,17 @@
 // whether a studio can take a receivable negative or chase money it has already
 // given back, which is why they are asserted before any screen draws from them.
 
-import {
+// THE ALIAS LOADER, because the module imports `@/shared/money` and plain
+// Node does not know the `@/` alias (tests/loader.mjs resolves it).
+import { register } from "node:module";
+import { pathToFileURL } from "node:url";
+
+register(new URL("./loader.mjs", import.meta.url), { data: { root: pathToFileURL(`${process.cwd()}/`).href } });
+
+const {
   creditedSoFar, creditableRemaining, creditNoteProblem, netOfCredits,
   CREDIT_NOTE_STATUSES,
-} from "../src/modules/finance/creditNotes.ts";
+} = await import("../src/modules/finance/creditNotes.ts");
 
 let fails = 0;
 const ok = (msg, cond, detail = "") => {
@@ -103,4 +110,5 @@ ok("an overpaid, wholly credited invoice still reports nought outstanding",
   odd.outstanding === 0, String(odd.outstanding));
 
 console.log(fails ? `\ncredit note model: ${fails} FAILURES\n` : "\ncredit note model: all passed\n");
-process.exit(fails ? 1 : 0);
+// exitCode, not exit(): exiting while the alias loader's thread is live crashes Node on Windows.
+process.exitCode = fails ? 1 : 0;

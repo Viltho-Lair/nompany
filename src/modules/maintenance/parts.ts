@@ -8,6 +8,8 @@
 // — it means no store, no clock and no I/O, which importing a pure sibling does
 // not cost. Corrected rather than left standing: a header that describes the
 // file it used to be is the kind of claim this codebase keeps finding stale.
+// It also imports `shared/money`, which is pure and imports nothing, so money
+// here rounds to the studio's currency exactly as every other module's does.
 //
 // THE LEDGER IS THE RECORD. A part used on a work order is an `out` movement
 // in Inventory's ledger naming the order (`sourceType: "workorder"`), and a
@@ -23,6 +25,7 @@
 // this as the price list's figure, not the books'.
 
 import { windowOf, within } from "./window";
+import { roundMoney, roundSum } from "@/shared/money";
 
 export const WORKORDER_SOURCE = "workorder";
 
@@ -37,7 +40,11 @@ const num = (v: unknown) => {
   return Number.isFinite(n) ? n : 0;
 };
 const qty3 = (n: number) => Math.round(n * 1000) / 1000;
-const money = (n: number) => Math.round(n * 100) / 100;
+// MONEY FOLLOWS ITS CURRENCY'S DECIMALS — a dinar has three. A part's cost is
+// money being made (quantity times a unit cost) and is rounded to the studio's
+// currency before it is added; a running total of such costs only needs float
+// noise taken off, which `roundSum` does without cutting a decimal the currency
+// uses. `currency` is optional on every export: omitted, it is two decimals.
 
 const onOrder = (m: Move, workOrderId: string) =>
   text(m.sourceType) === WORKORDER_SOURCE && text(m.sourceId) === workOrderId;
@@ -49,7 +56,7 @@ export type PartLine = { itemId: string; issued: number; returned: number; net: 
  * kept part cost. A return is costed at what the issue was, so bringing a part
  * back takes off exactly what issuing it put on.
  */
-export function partsOnOrder(moves: readonly Move[], workOrderId: string): PartLine[] {
+export function partsOnOrder(moves: readonly Move[], workOrderId: string, currency?: unknown): PartLine[] {
   const byItem = new Map<string, { issued: number; returned: number; costOut: number; costIn: number }>();
   for (const m of moves) {
     if (!onOrder(m, workOrderId)) continue;
@@ -66,7 +73,7 @@ export function partsOnOrder(moves: readonly Move[], workOrderId: string): PartL
     issued: qty3(r.issued),
     returned: qty3(r.returned),
     net: qty3(r.issued - r.returned),
-    cost: money(r.costOut - r.costIn),
+    cost: roundMoney(r.costOut - r.costIn, currency),
   }));
 }
 
@@ -94,7 +101,7 @@ export function returnProblem(moves: readonly Move[], workOrderId: string, itemI
 }
 
 /** Parts cost per work order, for every order the ledger names. */
-export function partsCostByOrder(moves: readonly Move[]): Map<string, number> {
+export function partsCostByOrder(moves: readonly Move[], currency?: unknown): Map<string, number> {
   const out = new Map<string, number>();
   for (const m of moves) {
     if (text(m.sourceType) !== WORKORDER_SOURCE) continue;
@@ -102,7 +109,7 @@ export function partsCostByOrder(moves: readonly Move[]): Map<string, number> {
     const c = Math.abs(num(m.qty)) * num(m.unitCost);
     const kind = text(m.kind);
     const delta = kind === "out" ? c : kind === "in" ? -c : 0;
-    out.set(id, money((out.get(id) || 0) + delta));
+    out.set(id, roundSum((out.get(id) || 0) + roundMoney(delta, currency)));
   }
   return out;
 }
@@ -119,6 +126,7 @@ export function costByAsset(
   labour: readonly { workOrderId?: unknown; hours?: unknown; workedOn?: unknown }[],
   now: string,
   windowDays = 365,
+  currency?: unknown,
 ): Map<string, { partsCost: number; labourHours: number }> {
   const w = windowOf(now, windowDays);
   const assetOf = new Map(orders.map((o) => [text(o.id), text(o.assetId)]));
@@ -135,7 +143,7 @@ export function costByAsset(
     const c = Math.abs(num(m.qty)) * num(m.unitCost);
     const kind = text(m.kind);
     const row = bucket(asset);
-    row.partsCost = money(row.partsCost + (kind === "out" ? c : kind === "in" ? -c : 0));
+    row.partsCost = roundSum(row.partsCost + roundMoney(kind === "out" ? c : kind === "in" ? -c : 0, currency));
   }
   for (const e of labour) {
     const asset = assetOf.get(text(e.workOrderId));

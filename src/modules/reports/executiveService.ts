@@ -65,7 +65,7 @@ export async function executiveDashboard(
     asOf: today,
     window,
     previous: previousWindow(window.from, window.to),
-    tiles: executiveBoard(rowsByDataset, window),
+    tiles: executiveBoard(rowsByDataset, window, undefined, (ctx.studio as { currency?: unknown }).currency),
     // WHAT THE MONEY TILES ARE IN. Blank when the studio has not set one,
     // and the screen then says nothing rather than guessing — the same
     // refusal to invent a currency the approval engine already makes.

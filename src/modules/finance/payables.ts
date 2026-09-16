@@ -54,7 +54,7 @@ export async function listBills({ studio, payablesSection }: Pick<FinanceContext
   return [...bills]
     .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""))
     .map((bill) => {
-      const totals = billTotals(bill);
+      const totals = billTotals(bill, studio.currency);
       const status = statusFor(bill, totals);
       return {
         ...bill, ...totals, status,
@@ -103,7 +103,7 @@ async function fxFor(ctx: FinanceContext, bills: readonly Priceable[]): Promise<
  * something narrows it.
  */
 function planWith(ctx: FinanceContext, bill: Priceable, fx: Fx): ResolvedPlan | PlanRefusal {
-  const { total } = billTotals(bill as Bill);
+  const { total } = billTotals(bill as Bill, ctx.studio.currency);
   const studioCurrency = str(ctx.studio.currency, 8);
   const billCurrency = (str(bill.currency, 8) || studioCurrency).toUpperCase();
   return resolveApprovalPlan({
@@ -197,7 +197,7 @@ async function holdsFor(
     out.set(bill.id, paymentHold({
       bill,
       qualification: vendor ? supplierQualification(vendor, today) : null,
-      match: order ? threeWayMatch(order, receipts, bills.filter((b) => b.orderId === bill.orderId)) : null,
+      match: order ? threeWayMatch(order, receipts, bills.filter((b) => b.orderId === bill.orderId), ctx.studio.currency) : null,
       settings,
     }));
   }
@@ -235,7 +235,7 @@ export async function createBill(ctx: FinanceContext, body: Record<string, unkno
   const { studio, payablesSection, collaborator } = ctx;
   const vendorName = str(body?.vendorName, 160);
   if (!vendorName) return { error: "vendor" };
-  const lines = cleanLines(body?.lines);
+  const lines = cleanLines(body?.lines, str(body?.currency, 8) || str(studio.currency, 8));
   if (!lines.length) return { error: "lines" };
 
   const bills = await Bills.find({ studio, section: payablesSection });
@@ -294,7 +294,7 @@ export async function createBill(ctx: FinanceContext, body: Record<string, unkno
   // WHOEVER SIGNS THE FIRST STEP IS TOLD IT IS WAITING. A received bill sat in
   // Payables until somebody happened to open the screen.
   if (bill.status === "Received") await announceNextStep(ctx, bill as Bill, plan, []);
-  return { bill: { ...bill, ...billTotals(bill) }, ...(posting ? { posting } : {}) };
+  return { bill: { ...bill, ...billTotals(bill, studio.currency) }, ...(posting ? { posting } : {}) };
 }
 
 /** Ring whoever holds the next outstanding step of this bill's chain. */
@@ -322,7 +322,7 @@ export async function editBill(ctx: FinanceContext, id: string, body: Record<str
 
   const patch: Record<string, unknown> = {};
   if (body?.vendorName !== undefined) { const v = str(body.vendorName, 160); if (!v) return { error: "vendor" }; patch.vendorName = v; }
-  if (body?.lines !== undefined) { const l = cleanLines(body.lines); if (!l.length) return { error: "lines" }; patch.lines = l; }
+  if (body?.lines !== undefined) { const l = cleanLines(body.lines, str(body?.currency, 8) || current.currency || studio.currency); if (!l.length) return { error: "lines" }; patch.lines = l; }
   if (body?.vatRate !== undefined) patch.vatRate = documentVatRate(studio, body.vatRate, current.vatRate);
   // EDITABLE WHILE THE BILL IS OPEN. A currency typed wrong at entry is exactly
   // the kind of thing corrected before anybody approves it, and the approval
@@ -386,7 +386,7 @@ export async function editBill(ctx: FinanceContext, id: string, body: Record<str
   // A DRAFT MARKED RECEIVED IS NOW WAITING FOR ITS FIRST SIGNATURE, the same
   // moment a bill created Received announces itself.
   if (becameReceived) await announceNextStep(ctx, bill, replanned, bill.approvals || []);
-  return { bill: { ...bill, ...billTotals(bill) }, ...(posting ? { posting } : {}) };
+  return { bill: { ...bill, ...billTotals(bill, studio.currency) }, ...(posting ? { posting } : {}) };
 }
 
 /**
@@ -472,7 +472,7 @@ export async function approveBill(ctx: FinanceContext, id: string) {
   // THE NEXT SIGNER, if there is a next step — a two-step chain waited at step
   // two for somebody to wander past it.
   if (bill && !done) await announceNextStep(ctx, bill, plan, next);
-  return bill ? { bill: { ...bill, ...billTotals(bill) } } : { error: "notfound" };
+  return bill ? { bill: { ...bill, ...billTotals(bill, ctx.studio.currency) } } : { error: "notfound" };
 }
 
 export async function recordBillPayment(ctx: FinanceContext, id: string, body: Record<string, unknown>) {
@@ -496,9 +496,9 @@ export async function recordBillPayment(ctx: FinanceContext, id: string, body: R
   const holdRefusal = hold ? payProblem(hold, collaborator.id) : null;
   if (holdRefusal) return { error: holdRefusal, reasons: hold?.reasons || [] };
 
-  const amount = cash(body?.amount);
+  const amount = cash(body?.amount, current.currency || studio.currency);
   if (!amount) return { error: "amount" };
-  const totals = billTotals(current);
+  const totals = billTotals(current, studio.currency);
   if (amount > totals.outstanding) return { error: "overpayment", outstanding: totals.outstanding };
 
   const payments = [...(current.payments || []), {
@@ -512,7 +512,7 @@ export async function recordBillPayment(ctx: FinanceContext, id: string, body: R
   }];
   const bill = await Bills.update({ studio, section: payablesSection }, id, { payments });
   if (!bill) return { error: "notfound" };
-  const after = billTotals(bill);
+  const after = billTotals(bill, studio.currency);
   // PAYING IS ITS OWN ENTRY, and it is not the accrual again. The bill created
   // the liability; this settles it, moving money out of the bank and the debt
   // off the balance sheet. `postBillPayment` needs BOTH ids because a bill can

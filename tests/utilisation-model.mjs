@@ -5,9 +5,15 @@
 // and a double-booking refusal (one machine cannot be charged to two jobs at
 // once).
 
-import {
+import { register } from "node:module";
+import { pathToFileURL } from "node:url";
+
+const root = pathToFileURL(`${process.cwd()}/`).href;
+register(new URL("./loader.mjs", import.meta.url), { data: { root } });
+
+const {
   daysOf, utilisation, allocationProblem,
-} from "../src/modules/assets/utilisation.ts";
+} = await import("@/modules/assets/utilisation");
 
 let fails = 0;
 const ok = (msg, cond, detail = "") => {
@@ -132,4 +138,5 @@ ok("no asset is refused", allocationProblem({ id: "n", assetId: "", dealId: "d",
 ok("no deal is refused", allocationProblem({ id: "n", assetId: "a", dealId: "", from: "2026-09-01" }, []) === "deal");
 
 console.log(fails ? `\nutilisation model: ${fails} FAILURES\n` : "\nutilisation model: all passed\n");
-process.exit(fails ? 1 : 0);
+// exitCode, not exit(): exiting while the alias loader's thread is live crashes Node on Windows.
+process.exitCode = fails ? 1 : 0;

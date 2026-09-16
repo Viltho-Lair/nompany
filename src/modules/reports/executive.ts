@@ -18,8 +18,11 @@
 // for, and reading them to throw the answer away would cost a round trip for
 // nothing.
 //
-// PURE. No imports, no store — the screen and the server agree by construction,
-// and every rule here is asserted without a database.
+// PURE. No store, and one import — `shared/money`, itself pure and importless —
+// so the screen and the server agree by construction, and every rule here is
+// asserted without a database.
+
+import { roundMoney } from "@/shared/money";
 
 export type Measure = "count" | "sum";
 
@@ -135,6 +138,8 @@ export function previousWindow(from: string, to: string): { from: string; to: st
 /** One tile's figure over one window. */
 export function measure(
   tile: Tile, rows: readonly Record<string, unknown>[], from: string, to: string,
+  /** The studio's currency, which a MONEY tile is rounded to. */
+  currency?: unknown,
 ): number {
   const excluded = new Set(tile.excludeStatuses || []);
   let total = 0;
@@ -145,8 +150,10 @@ export function measure(
   }
   // ROUNDED ONCE, AT THE END. Rounding each row would drift by up to half a
   // penny per row, which on a thousand invoices is a headline that disagrees
-  // with the ledger.
-  return Math.round(total * 100) / 100;
+  // with the ledger. A MONEY tile rounds to the studio's currency, whose
+  // decimals it follows — a dinar has three, and cents would cut a real fils.
+  // Days and counts keep the two places they always had; they are not money.
+  return tile.unit === "money" ? roundMoney(total, currency) : Math.round(total * 100) / 100;
 }
 
 export type TileResult = {
@@ -204,15 +211,16 @@ export function executiveBoard(
   rowsByDataset: Readonly<Record<string, readonly Record<string, unknown>[]>>,
   window: { from: string; to: string },
   tiles: readonly Tile[] = TILES,
+  currency?: unknown,
 ): TileResult[] {
   const before = previousWindow(window.from, window.to);
   const out: TileResult[] = [];
   for (const tile of tiles) {
     const rows = rowsByDataset[tile.dataset];
     if (!rows) continue;
-    const value = measure(tile, rows, window.from, window.to);
+    const value = measure(tile, rows, window.from, window.to, currency);
     const previous = before.from
-      ? measure(tile, rows, before.from, before.to)
+      ? measure(tile, rows, before.from, before.to, currency)
       : 0;
     out.push({
       key: tile.key,

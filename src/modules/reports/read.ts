@@ -31,9 +31,10 @@ import type { PermissionKey, PermissionSet } from "@/platform/access";
  * has no imports and can be asserted without a database, which is the whole
  * reason its column list is safe to trust. This file already reaches the store.
  */
-const DERIVE: Record<string, (row: Record<string, unknown>) => Record<string, unknown>> = {
-  invoices: (r) => ({ ...r, ...invoiceTotals(r) }),
-  bills: (r) => ({ ...r, ...billTotals(r) }),
+// `currency` is the studio's, for rows raised before a document froze its own.
+const DERIVE: Record<string, (row: Record<string, unknown>, currency: unknown) => Record<string, unknown>> = {
+  invoices: (r, currency) => ({ ...r, ...invoiceTotals(r, currency) }),
+  bills: (r, currency) => ({ ...r, ...billTotals(r, currency) }),
 };
 
 export type DatasetRead =
@@ -41,7 +42,7 @@ export type DatasetRead =
   | { rows: Record<string, unknown>[] };
 
 export async function readDataset(
-  ctx: { studio: { id: string }; access: PermissionSet },
+  ctx: { studio: { id: string; currency?: unknown }; access: PermissionSet },
   dataset: DataSet,
 ): Promise<DatasetRead> {
   // THE SECOND GATE. Named in the refusal so somebody told "no" knows which
@@ -67,7 +68,7 @@ export async function readDataset(
   const derive = DERIVE[dataset.key];
   return {
     rows: derive
-      ? (stored as Record<string, unknown>[]).map(derive)
+      ? (stored as Record<string, unknown>[]).map((row) => derive(row, ctx.studio.currency))
       : (stored as Record<string, unknown>[]),
   };
 }

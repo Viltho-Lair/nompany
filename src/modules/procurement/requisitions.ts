@@ -109,8 +109,9 @@ function decorate(
   req: Requisition,
   order: Order | undefined,
   aliasOf: Map<string, string>,
+  currency: unknown,
 ) {
-  const totals = requisitionTotals(req.lines);
+  const totals = requisitionTotals(req.lines, currency);
   return {
     ...req,
     totals,
@@ -157,7 +158,7 @@ export async function listRequisitions(ctx: ProcurementContext) {
   // by deadline.
   const requisitions = [...rows]
     .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")))
-    .map((r) => decorate(r, orders.get(r.id), aliasOf));
+    .map((r) => decorate(r, orders.get(r.id), aliasOf, studio.currency));
 
   return {
     requisitions,

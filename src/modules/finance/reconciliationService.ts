@@ -17,6 +17,7 @@ import {
 } from "./reconciliation";
 import type { StatementLine, BookLine } from "./reconciliation";
 import type { FinanceContext, JournalEntry } from "./types";
+import { roundSum } from "@/shared/money";
 
 const Statement = repo<StatementLine>("bankStatementLines");
 const Entries = repo<JournalEntry>("journalEntries");
@@ -49,7 +50,7 @@ function bankLines(entries: JournalEntry[], bankAccountId: string): BookLine[] {
       entryId: entry.id,
       date: String(entry.date || ""),
       memo: String(entry.memo || entry.reference || ""),
-      amount: Math.round(amount * 100) / 100,
+      amount: roundSum(amount),
     });
   }
   return out.sort((a, b) => a.date.localeCompare(b.date));
@@ -100,7 +101,7 @@ export async function addStatementLines(ctx: FinanceContext, body: Record<string
   for (const [i, raw] of rows.entries()) {
     const problems = statementProblems(raw as Record<string, unknown>);
     if (problems.length) { refused.push({ index: i, detail: problems.join("; ") }); continue; }
-    saved.push(await Statement.create(scope(ctx), cleanStatementLine(raw as Record<string, unknown>)));
+    saved.push(await Statement.create(scope(ctx), cleanStatementLine(raw as Record<string, unknown>, ctx.studio.currency)));
   }
   // PARTIAL IS REPORTED, NOT ROLLED BACK — a pasted statement with one bad row
   // records the rest and says which, rather than making somebody paste again.

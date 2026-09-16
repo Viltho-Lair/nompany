@@ -2,9 +2,16 @@
 //
 // A pairing, not a calculation — so the assertions are about what it refuses to
 // pair automatically and the two DIFFERENT problems it keeps apart.
-import {
+// THE ALIAS LOADER, because the module imports `@/shared/money` and plain
+// Node does not know the `@/` alias (tests/loader.mjs resolves it).
+import { register } from "node:module";
+import { pathToFileURL } from "node:url";
+
+register(new URL("./loader.mjs", import.meta.url), { data: { root: pathToFileURL(`${process.cwd()}/`).href } });
+
+const {
   statementProblems, cleanStatementLine, suggestMatches, reconcile, matchProblem,
-} from "../src/modules/finance/reconciliation.ts";
+} = await import("../src/modules/finance/reconciliation.ts");
 
 let fails = 0;
 const ok = (what, cond, detail = "") => {
@@ -109,4 +116,5 @@ ok("a missing line is refused", matchProblem(undefined, BOOK[0]) === "line");
 ok("a missing entry is refused", matchProblem(LINES[0], undefined) === "entry");
 
 console.log(fails ? `\nreconciliation model: ${fails} FAILURES\n` : "\nreconciliation model: all passed\n");
-process.exit(fails ? 1 : 0);
+// exitCode, not exit(): exiting while the alias loader's thread is live crashes Node on Windows.
+process.exitCode = fails ? 1 : 0;

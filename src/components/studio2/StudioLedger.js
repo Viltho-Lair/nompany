@@ -8,6 +8,7 @@ import { ledgerDict } from "@/shared/studio/ledger";
 import { reconciliationDict } from "@/shared/studio/reconciliation";
 import { useReload } from "@/components/studio2/useReload";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
+import { moneyText } from "@/shared/money";
 
 // THE LEDGER — and until now this section had no screen at all.
 //
@@ -33,8 +34,9 @@ const ReconciliationPanel = nextDynamic(() => import("@/components/studio2/Recon
 const TaxReturnPanel = nextDynamic(() => import("@/components/studio2/TaxReturnPanel"),
   { loading: () => <ScreenSkeleton /> });
 
-const money = (n) => new Intl.NumberFormat("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-  .format(Number(n) || 0);
+// Through shared/money, which shows a currency's own decimals: this was fixed
+// at two places and hid the third decimal of every dinar amount.
+const money = (n) => moneyText(n);
 
 export default function StudioLedger({ slug }) {
   const locale = useStudioLocale();

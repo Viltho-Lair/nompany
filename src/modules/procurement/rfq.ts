@@ -118,7 +118,7 @@ export async function listRfqs(ctx: ProcurementContext) {
       return {
         ...r,
         quotes: mine,
-        comparison: compareQuotes(r.lines, mine, asOf.slice(0, 10)),
+        comparison: compareQuotes(r.lines, mine, asOf.slice(0, 10), ctx.studio.currency),
         createdByAlias: aliasOf.get(String(r.createdByCollaboratorId || "")) || "",
         awardedByAlias: aliasOf.get(String(r.awardedByCollaboratorId || "")) || "",
       };
@@ -344,7 +344,7 @@ export async function awardRfq(ctx: ProcurementContext, id: string, body: Record
   if (!chosen) return { error: "quote" };
 
   const at = now();
-  const comparison = compareQuotes(rfq.lines, quotes, at.slice(0, 10));
+  const comparison = compareQuotes(rfq.lines, quotes, at.slice(0, 10), ctx.studio.currency);
   const summary = comparison.quotes.find((q) => q.id === quoteId);
 
   // A PART-PRICED QUOTE IS NOT AN OFFER and cannot be awarded. Its total is a

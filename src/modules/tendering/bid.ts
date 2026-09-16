@@ -56,8 +56,11 @@ export type BidValue = {
   lines: number;
 };
 
-export function bidValue(tender: Tender, lines: readonly BoqItem[]): BidValue {
-  const totals = boqTotals(lines);
+export function bidValue(tender: Tender, lines: readonly BoqItem[], studioCurrency?: unknown): BidValue {
+  // Priced in the TENDER's currency, falling back to the studio's as the tender
+  // does everywhere else — money follows its currency's decimals, and a dinar
+  // has three.
+  const totals = boqTotals(lines, String(tender?.currency || "") || studioCurrency);
   const fromBoq = valueFromBoq(totals);
   if (fromBoq === null) {
     // No bill at all. A studio may bid on a typed figure — plenty of tenders
@@ -135,7 +138,7 @@ export function availableBidApproval(
  * read and never a second collection read.
  */
 export async function bidReview(ctx: TenderingContext, tender: Tender, lines: readonly BoqItem[]) {
-  const value = bidValue(tender, lines);
+  const value = bidValue(tender, lines, ctx.studio.currency);
   const plan = await bidPlan(ctx, tender, value);
   const holds = (permission: string) => !requirePermission(ctx.access, permission as PermissionKey);
   return {
@@ -186,7 +189,7 @@ export async function approveBid(ctx: TenderingContext, id: string) {
   if (tender.createdByCollaboratorId === collaborator.id) return { error: "same-signer" };
 
   const lines = await Items.find({ studio, section: registerSection }, { where: { tenderId: id } });
-  const value = bidValue(tender, lines);
+  const value = bidValue(tender, lines, ctx.studio.currency);
 
   // A PART-PRICED BILL CANNOT BE SIGNED OFF, and this is the rule that joins
   // this slice to slice 2. `boqTotals` returns `complete` precisely because the
@@ -263,7 +266,7 @@ export async function approveBid(ctx: TenderingContext, id: string) {
 export async function bidApproved(ctx: TenderingContext, tender: Tender): Promise<boolean> {
   const { studio, registerSection } = ctx;
   const lines = await Items.find({ studio, section: registerSection }, { where: { tenderId: tender.id } });
-  const value = bidValue(tender, lines);
+  const value = bidValue(tender, lines, ctx.studio.currency);
   if (!value.complete) return false;
   return planSatisfied(await bidPlan(ctx, tender, value), tender.approvals || []);
 }

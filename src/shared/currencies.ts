@@ -22,6 +22,8 @@
 // Stored as tuples [code, name, country] purely to keep the table readable; every
 // consumer gets objects out of CURRENCIES_FROM_EXCHANGE_API below.
 
+import { roundSum } from "./money";
+
 const TABLE = [
   ["AED", "UAE Dirham", "United Arab Emirates"],
   ["AFN", "Afghan Afghani", "Afghanistan"],
@@ -303,7 +305,12 @@ export function landedUnitCost(
   rates: Rates | null | undefined,
 ) {
   const n = (v: unknown): number => (Number.isFinite(Number(v)) ? Number(v) : 0);
-  const round = (v: number): number => Math.round((v + Number.EPSILON) * 100) / 100;
+  // A PER-UNIT COST, not an amount anybody pays: it is a price that a quantity
+  // multiplies later, where the amount is rounded to its currency. So it keeps
+  // four places (`roundSum`) rather than being cut to cents — a dinar has three
+  // decimals, and a converted unit cost cut to two misprices every line it
+  // feeds by up to half a cent times the quantity.
+  const round = (v: number): number => roundSum(v);
 
   const from = String(item?.currency || "").trim().toUpperCase();
   const to = String(studioCurrency || "").trim().toUpperCase();

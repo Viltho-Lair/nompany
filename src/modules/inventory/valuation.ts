@@ -13,10 +13,12 @@
 // product that silently picked for them would be putting a number on their
 // accounts that they never chose.
 //
-// PURE. No imports, no store, no clock — the caller resolves what each inbound
+// PURE. No store, no clock, and its one import is shared/money (itself pure) — the caller resolves what each inbound
 // movement cost and hands the movements in, so the screen and the server value
 // the same stock identically and every case below is asserted without a
 // database.
+
+import { roundMoney, roundSum } from "@/shared/money";
 
 export const VALUATION_METHODS = ["fifo", "average"] as const;
 export type ValuationMethod = (typeof VALUATION_METHODS)[number];
@@ -58,7 +60,10 @@ export type ItemValue = {
   uncosted: number;
 };
 
-const round = (n: number) => Math.round((Number(n) || 0) * 100) / 100;
+// QUANTITIES keep two places, as they always have here. VALUES follow the
+// studio's currency — a dinar stock is worth fils, not cents — and a UNIT
+// value is a cost per unit, kept to the finest place any currency uses.
+const round = (n: number) => roundMoney(n, 2);
 const num = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 
 /**
@@ -73,7 +78,9 @@ const num = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 export function valueItem(
   movements: readonly CostedMovement[],
   method: ValuationMethod,
+  currency?: unknown,
 ): ItemValue {
+  const worth = (n: number) => roundMoney(n, currency);
   const itemId = String(movements[0]?.itemId ?? "");
   // STABLE, AND BY TIME. `sort` is stable in every engine this runs on, so two
   // movements sharing an instant keep the order they were appended in — which
@@ -107,8 +114,8 @@ export function valueItem(
       }
     }
     const qty = round(batches.reduce((n, b) => n + b.qty, 0));
-    const value = round(batches.reduce((n, b) => n + b.qty * b.unitCost, 0));
-    return { itemId, qty, value, unitValue: qty > 0 ? round(value / qty) : null, uncosted: round(Math.min(uncosted, qty)) };
+    const value = worth(batches.reduce((n, b) => n + b.qty * b.unitCost, 0));
+    return { itemId, qty, value, unitValue: qty > 0 ? roundSum(value / qty) : null, uncosted: round(Math.min(uncosted, qty)) };
   }
 
   // WEIGHTED AVERAGE, running. The cost per unit changes only when stock comes
@@ -121,7 +128,7 @@ export function valueItem(
       const unitCost = num(m.unitCost);
       if (!unitCost) uncosted += moved;
       qty = round(qty + moved);
-      value = round(value + moved * unitCost);
+      value = worth(value + moved * unitCost);
       continue;
     }
     const out = Math.min(-moved, qty);
@@ -131,9 +138,9 @@ export function valueItem(
     // rather than going negative.
     const unit = qty > 0 ? value / qty : 0;
     qty = round(qty - out);
-    value = round(Math.max(0, value - out * unit));
+    value = worth(Math.max(0, value - out * unit));
   }
-  return { itemId, qty, value, unitValue: qty > 0 ? round(value / qty) : null, uncosted: round(Math.min(uncosted, qty)) };
+  return { itemId, qty, value, unitValue: qty > 0 ? roundSum(value / qty) : null, uncosted: round(Math.min(uncosted, qty)) };
 }
 
 export type StockValuation = {
@@ -148,6 +155,7 @@ export type StockValuation = {
 export function valueStock(
   movements: readonly CostedMovement[],
   method: ValuationMethod,
+  currency?: unknown,
 ): StockValuation {
   const byItem = new Map<string, CostedMovement[]>();
   for (const m of movements || []) {
@@ -157,7 +165,7 @@ export function valueStock(
   }
 
   const items = [...byItem.values()]
-    .map((ms) => valueItem(ms, method))
+    .map((ms) => valueItem(ms, method, currency))
     // AN ITEM WITH NOTHING ON HAND IS NOT A VALUATION LINE. It has moved and it
     // has come back to nought, which is a fact about its history rather than
     // about what the company holds today.
@@ -167,7 +175,7 @@ export function valueStock(
   return {
     method,
     items,
-    total: round(items.reduce((n, i) => n + i.value, 0)),
+    total: roundSum(items.reduce((n, i) => n + i.value, 0)),
     uncosted: round(items.reduce((n, i) => n + i.uncosted, 0)),
   };
 }

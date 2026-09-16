@@ -11,6 +11,7 @@ import type { Timesheet, TimesheetEntry } from "./timesheetSchema";
 import { TIMESHEET_STATUSES } from "./timesheetSchema";
 
 import type { ProjectsContext } from "./types";
+import { roundMoney } from "@/shared/money";
 
 type TimesheetStatus = (typeof TIMESHEET_STATUSES)[number];
 
@@ -70,7 +71,7 @@ function toEntry(raw: unknown): TimesheetEntry | null {
  * studio-wide constant, which would be wrong for whichever employees it was not
  * written for.
  */
-export function timesheetTotals(timesheet: { entries?: unknown } | null | undefined) {
+export function timesheetTotals(timesheet: { entries?: unknown } | null | undefined, currency?: unknown) {
   const entries = (Array.isArray(timesheet?.entries) ? timesheet.entries : []) as TimesheetEntry[];
   let normalHours = 0; let overtimeHours = 0; let normalCost = 0; let overtimeCost = 0;
   for (const e of entries) {
@@ -84,15 +85,16 @@ export function timesheetTotals(timesheet: { entries?: unknown } | null | undefi
   }
   // ROUNDED AT THE END, ONCE. Rounding each line and summing the rounded values
   // drifts by up to half a cent per entry, which on a crew's month is a figure
-  // that disagrees with the same sum taken any other way.
+  // that disagrees with the same sum taken any other way. Hours keep two places;
+  // COST follows its currency's decimals — a dinar has three.
   const round = (n: number) => Math.round(n * 100) / 100;
   return {
     normalHours: round(normalHours),
     overtimeHours: round(overtimeHours),
     totalHours: round(normalHours + overtimeHours),
-    normalCost: round(normalCost),
-    overtimeCost: round(overtimeCost),
-    totalCost: round(normalCost + overtimeCost),
+    normalCost: roundMoney(normalCost, currency),
+    overtimeCost: roundMoney(overtimeCost, currency),
+    totalCost: roundMoney(normalCost + overtimeCost, currency),
   };
 }
 
@@ -106,7 +108,7 @@ export function timesheetTotals(timesheet: { entries?: unknown } | null | undefi
  * deal's timesheets pays no second read — and so this can be asked directly, in
  * a test, without a database.
  */
-export function summariseByEmployee(timesheets: readonly Timesheet[]) {
+export function summariseByEmployee(timesheets: readonly Timesheet[], currency?: unknown) {
   const byPerson = new Map<string, { collaboratorId: string; normalHours: number; overtimeHours: number; cost: number }>();
   for (const sheet of timesheets) {
     for (const e of (Array.isArray(sheet?.entries) ? sheet.entries : []) as TimesheetEntry[]) {
@@ -126,7 +128,8 @@ export function summariseByEmployee(timesheets: readonly Timesheet[]) {
     ...r,
     normalHours: Math.round(r.normalHours * 100) / 100,
     overtimeHours: Math.round(r.overtimeHours * 100) / 100,
-    cost: Math.round(r.cost * 100) / 100,
+    // Money follows its currency's decimals — a dinar has three.
+    cost: roundMoney(r.cost, currency),
   }));
 }
 
@@ -143,7 +146,7 @@ export async function listTimesheets(ctx: ProjectsContext, { dealId }: { dealId?
   const timesheets = await Timesheets.find({ studio, section: listSection }, { where });
   // Totals ride along because every caller wants them and none should re-derive
   // them; they are still computed here rather than stored.
-  return { timesheets: timesheets.map((t) => ({ ...t, ...timesheetTotals(t) })) };
+  return { timesheets: timesheets.map((t) => ({ ...t, ...timesheetTotals(t, ctx.studio.currency) })) };
 }
 
 /**
@@ -209,7 +212,7 @@ export async function createTimesheet(ctx: ProjectsContext, body: Record<string,
   // the client, the site, the contact or the deadline. Contributing its own
   // period as a `deadline` would be inventing a fact rather than reporting one.
 
-  return { timesheet: { ...timesheet, ...timesheetTotals(timesheet) } };
+  return { timesheet: { ...timesheet, ...timesheetTotals(timesheet, ctx.studio.currency) } };
 }
 
 export async function updateTimesheet(ctx: ProjectsContext, id: string, body: Record<string, unknown>) {
@@ -248,7 +251,7 @@ export async function updateTimesheet(ctx: ProjectsContext, id: string, body: Re
   patch.updatedAt = new Date().toISOString();
 
   const timesheet = await Timesheets.update({ studio, section: listSection }, id, patch);
-  return timesheet ? { timesheet: { ...timesheet, ...timesheetTotals(timesheet) } } : { error: "notfound" };
+  return timesheet ? { timesheet: { ...timesheet, ...timesheetTotals(timesheet, ctx.studio.currency) } } : { error: "notfound" };
 }
 
 /** Put the sheet to its approver, and record who put it — half of the check below. */
@@ -272,7 +275,7 @@ export async function submitTimesheet(ctx: ProjectsContext, id: string) {
     submittedAt: at,
     updatedAt: at,
   }));
-  return timesheet ? { timesheet: { ...timesheet, ...timesheetTotals(timesheet) } } : { error: "notfound" };
+  return timesheet ? { timesheet: { ...timesheet, ...timesheetTotals(timesheet, ctx.studio.currency) } } : { error: "notfound" };
 }
 
 /**
@@ -306,5 +309,5 @@ export async function answerTimesheet(ctx: ProjectsContext, id: string, approve:
     approvedAt: at,
     updatedAt: at,
   }));
-  return timesheet ? { timesheet: { ...timesheet, ...timesheetTotals(timesheet) } } : { error: "notfound" };
+  return timesheet ? { timesheet: { ...timesheet, ...timesheetTotals(timesheet, ctx.studio.currency) } } : { error: "notfound" };
 }

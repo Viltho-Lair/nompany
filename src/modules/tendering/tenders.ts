@@ -23,15 +23,19 @@ import { nextReference } from "@/modules/main/references";
 import { DEFAULT_TENDER_STAGE, TENDER_STAGES, tenderProblem, tenderPatch, tenderStage } from "./stages";
 import { bidApproved } from "./bid";
 import type { Tender, TenderingContext } from "./types";
+import { roundSum } from "@/shared/money";
 
 const TENDERS = "tenders";
 const Tenders = repo<Tender>(TENDERS);
 const Clients = repo<{ id: string; name?: string }>("salesClients");
 
 const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
+// THE ESTIMATE AS TYPED. Money follows its currency's decimals — a dinar has
+// three — so a typed figure is only cleaned of float noise, never cut to two
+// places.
 const money = (v: unknown) => {
   const n = Number(v);
-  return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : 0;
+  return Number.isFinite(n) && n > 0 ? roundSum(n) : 0;
 };
 const now = () => new Date().toISOString();
 

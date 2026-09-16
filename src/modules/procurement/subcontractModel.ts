@@ -13,8 +13,11 @@
 // periodically, as a percentage of something nobody can count in a warehouse.
 // That is why it is its own record rather than a status on `materialOrders`.
 //
-// ONE IMPORT, and it is the shared retention arithmetic. Asserted by a test.
+// TWO IMPORTS: the shared retention arithmetic, and `shared/money`, which is
+// itself pure and imports nothing. (This said "asserted by a test"; no test
+// asserts it.)
 import { retentionOn, type Retention } from "@/modules/projects/billing";
+import { roundMoney, roundSum } from "@/shared/money";
 
 export type BackCharge = {
   description?: unknown;
@@ -59,17 +62,20 @@ const num = (v: unknown): number => {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
 };
-const money = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
+// MONEY FOLLOWS ITS CURRENCY'S DECIMALS — a dinar has three. A subcontract
+// carries no currency of its own, so the caller passes the studio's. A
+// difference or sum of amounts already rounded is only cleaned of float noise.
+const money = (n: number, currency?: unknown) => roundMoney(n, currency);
 const text = (v: unknown) => String(v ?? "");
 
 /** A deduction with no reason is not a deduction anybody can answer. */
 export const backChargeIsReal = (b: BackCharge | null | undefined): boolean =>
   Boolean(b) && text(b?.description).trim().length > 0;
 
-export const backChargeTotal = (raw: unknown): number =>
+export const backChargeTotal = (raw: unknown, currency?: unknown): number =>
   (Array.isArray(raw) ? raw : [])
     .filter(backChargeIsReal)
-    .reduce((n, b) => money(n + num((b as BackCharge).amount)), 0);
+    .reduce((n, b) => roundSum(n + money(num((b as BackCharge).amount), currency)), 0);
 
 /** A certificate nobody has agreed is not money owed. */
 const COUNTED = new Set(["Certified", "Paid"]);
@@ -134,8 +140,9 @@ export function subcontractPosition(
   subcontract: SubcontractLike | null | undefined,
   certificates: unknown,
   asOf: unknown = "",
+  currency?: unknown,
 ): SubcontractPosition {
-  const value = money(num(subcontract?.value));
+  const value = money(num(subcontract?.value), currency);
   const today = text(asOf).slice(0, 10);
 
   // IN PERIOD ORDER, because `thisPeriod` is a difference from the one before
@@ -150,13 +157,13 @@ export function subcontractPosition(
   const pct = num(subcontract?.retentionPercent);
   let previousCounted = 0;
   const out: CertificateValuation[] = ordered.map((c) => {
-    const cumulative = money(num(c.cumulativeValue));
+    const cumulative = money(num(c.cumulativeValue), currency);
     // MEASURED AGAINST THE LAST COUNTED ONE, not the last one in the list: a
     // draft sitting between two certified periods must not absorb the value of
     // the period after it.
-    const thisPeriod = money(cumulative - previousCounted);
-    const backCharges = backChargeTotal(c.backCharges);
-    const retentionHeld = money(thisPeriod * (Math.min(100, Math.max(0, pct)) / 100));
+    const thisPeriod = roundSum(cumulative - previousCounted);
+    const backCharges = backChargeTotal(c.backCharges, currency);
+    const retentionHeld = money(thisPeriod * (Math.min(100, Math.max(0, pct)) / 100), currency);
     if (isCounted(c)) previousCounted = cumulative;
     return {
       id: text(c.id),
@@ -167,7 +174,7 @@ export function subcontractPosition(
       thisPeriod,
       retentionHeld,
       backCharges,
-      netPayable: money(thisPeriod - retentionHeld - backCharges),
+      netPayable: roundSum(thisPeriod - retentionHeld - backCharges),
     };
   });
 
@@ -176,23 +183,21 @@ export function subcontractPosition(
   // Summing would double-count the moment somebody corrected an earlier period,
   // which is the whole reason certificates are cumulative.
   const certifiedToDate = counted.length ? counted[counted.length - 1].cumulativeValue : 0;
-  const totalBackCharges = money(counted.reduce((n, c) => n + c.backCharges, 0));
+  const totalBackCharges = roundSum(counted.reduce((n, c) => n + c.backCharges, 0));
+  const retention = retentionOn(
+    certifiedToDate, pct, subcontract?.retentionReleaseDate, today, currency);
 
   return {
     certificates: out,
     value,
     certifiedToDate,
-    remaining: money(value - certifiedToDate),
+    remaining: roundSum(value - certifiedToDate),
     // NULL, NOT ZERO, on a package with no value: nought certified against
     // nought agreed is not "0% complete", it is a subcontract nobody has priced.
     completeFraction: value > 0 ? certifiedToDate / value : null,
-    retention: retentionOn(
-      certifiedToDate, pct, subcontract?.retentionReleaseDate, today),
+    retention,
     totalBackCharges,
-    netCertified: money(
-      certifiedToDate
-      - retentionOn(certifiedToDate, pct, subcontract?.retentionReleaseDate, today).held
-      - totalBackCharges),
+    netCertified: roundSum(certifiedToDate - retention.held - totalBackCharges),
     overValued: value > 0 && certifiedToDate > value,
     blocked: counted.length ? null : "no-certificates",
   };

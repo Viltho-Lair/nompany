@@ -8,6 +8,7 @@ import { fmtDate as fmtDateCanonical, fmtDateTime as fmtDateTimeCanonical, fmtWe
 import { useStudioLocale } from "@/components/studio2/locale";
 import { dirFor } from "@/shared/locale";
 import { chromeDict } from "@/shared/studio/chrome";
+import { moneyText } from "@/shared/money";
 
 // SHARED STUDIO CHROME. The modules each own their own screens, but a dialog, a
 // toolbar, an empty state and a bar chart have to look the same in Sales as in
@@ -75,7 +76,9 @@ export const URGENCY_DOT = {
 };
 
 // ---- formatting ------------------------------------------------------------
-export const money = (n) => new Intl.NumberFormat("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(n) || 0);
+// Through shared/money, which shows a currency's own decimals: this was fixed
+// at two places and hid the third decimal of every dinar amount.
+export const money = (n, currency) => moneyText(n, currency);
 
 // DATES GO THROUGH THE ONE FORMATTER, not a second copy that drifts. These used
 // to be a `slice(0, 10)` (which rendered yyyy-mm-dd, not the dd/mm/yyyy this

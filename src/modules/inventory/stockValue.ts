@@ -91,7 +91,7 @@ export async function stockValuation(ctx: InventoryContext, method: ValuationMet
     return { itemId, qty, unitCost, at: String(m.at ?? "") };
   });
 
-  const valued = valueStock(costed, method);
+  const valued = valueStock(costed, method, ctx.studio.currency);
 
   // THE ITEM'S NAME AND SKU, so the screen does not have to join it back. The
   // valuation itself stays pure and id-only; naming is presentation.

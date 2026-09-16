@@ -75,7 +75,7 @@ export async function listReceiving(ctx: ProcurementContext) {
 
   const rows = receivable
     .map((o) => {
-      const match = threeWayMatch(o, receipts, bills);
+      const match = threeWayMatch(o, receipts, bills, ctx.studio.currency);
       // NAMED HERE RATHER THAN IN THE MODEL, which is pure and knows nothing
       // about a Registered Item. `description` is what the model already
       // carries per line, so filling it costs the screen no second lookup.

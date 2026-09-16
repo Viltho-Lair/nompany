@@ -20,6 +20,7 @@
 // cannot say which.
 
 import { FIELD_NODE, BLOCK_NODE, FIELD_IMAGE_NODE, IMAGE_FIELD_KEYS } from "./qualityFields";
+import { currencyDecimals } from "@/shared/money";
 
 type Json = {
   type?: string;
@@ -46,12 +47,13 @@ export type FillWords = {
 const ISO_DAY = /^(\d{4})-(\d{2})-(\d{2})(T.*)?$/;
 
 /**
- * A value as printed: money to two places, a stored date as dd/mm/yyyy (the
- * product's default, `lib/format`), anything else exactly as it is.
+ * A value as printed: money to its currency's own places (`decimals`, two when
+ * the document names no currency), a stored date as dd/mm/yyyy (the product's
+ * default, `lib/format`), anything else exactly as it is.
  */
-export function formatValue(v: unknown): string {
+export function formatValue(v: unknown, decimals = 2): string {
   if (typeof v === "number") {
-    return Number.isFinite(v) ? v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "";
+    return Number.isFinite(v) ? v.toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals }) : "";
   }
   const s = String(v ?? "").trim();
   const m = ISO_DAY.exec(s);
@@ -73,7 +75,7 @@ const cell = (type: "tableHeader" | "tableCell", t: string, opts: { align?: stri
 });
 
 const money = (v: unknown, currency: string) =>
-  `${formatValue(Number(v) || 0)}${currency ? ` ${currency}` : ""}`;
+  `${formatValue(Number(v) || 0, currencyDecimals(currency))}${currency ? ` ${currency}` : ""}`;
 
 function blockNodes(
   key: string,
@@ -131,7 +133,7 @@ function blockNodes(
           type: "tableRow",
           content: columns.map((c) => {
             const raw = r[c.key];
-            return cell("tableCell", typeof raw === "number" ? formatValue(raw) : String(raw ?? ""), {
+            return cell("tableCell", typeof raw === "number" ? formatValue(raw, currencyDecimals(currency)) : String(raw ?? ""), {
               align: c.align === "end" ? end : undefined,
             });
           }),

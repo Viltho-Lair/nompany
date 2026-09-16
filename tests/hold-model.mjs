@@ -5,10 +5,17 @@
 // is what it must NEVER do: hold a studio that has not switched it on, hold a
 // bill for want of a purchase order it never needed, or let one person both
 // release a payment and make it.
-import {
+// THE ALIAS LOADER, because the module imports `@/shared/money` and plain
+// Node does not know the `@/` alias (tests/loader.mjs resolves it).
+import { register } from "node:module";
+import { pathToFileURL } from "node:url";
+
+register(new URL("./loader.mjs", import.meta.url), { data: { root: pathToFileURL(`${process.cwd()}/`).href } });
+
+const {
   paymentHold, holdProblems, cleanHold, readHold, releaseProblem, payProblem,
   DEFAULT_HOLD, HOLD_MODES,
-} from "../src/modules/finance/hold.ts";
+} = await import("../src/modules/finance/hold.ts");
 
 let fails = 0;
 const ok = (what, cond, detail = "") => {
@@ -121,4 +128,5 @@ ok("cleaning keeps a good setting", JSON.stringify(cleanHold({ mode: "block", to
 ok("...and falls to off on nonsense", cleanHold({ mode: "nope", tolerancePct: -3 }).mode === "off" && cleanHold({ tolerancePct: -3 }).tolerancePct === 0);
 
 console.log(fails ? `\nhold model: ${fails} FAILURES\n` : "\nhold model: all passed\n");
-process.exit(fails ? 1 : 0);
+// exitCode, not exit(): exiting while the alias loader's thread is live crashes Node on Windows.
+process.exitCode = fails ? 1 : 0;

@@ -14,7 +14,11 @@
 // answer to all four questions and the wrong one: "0% complete" and "we do not
 // know how complete" look identical on a progress bar and mean opposite things.
 //
-// NO IMPORTS, deliberately, and asserted by a test.
+// ONE IMPORT, deliberately, and asserted by a test: `shared/money`, which is
+// itself pure and imports nothing, so this still pulls no server code into the
+// browser.
+
+import { roundMoney, roundSum } from "@/shared/money";
 
 export type EarnedValueInput = {
   /** Budget at completion — the sum of the cost breakdown's allowances. */
@@ -73,7 +77,11 @@ const num = (v: unknown): number => {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
 };
-const money = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
+// MONEY FOLLOWS ITS CURRENCY'S DECIMALS — a dinar has three, and the two-place
+// helper this replaced cut a fils off every Jordanian figure. What this file
+// CREATES (EV, PV, EAC: a fraction of the budget) is rounded to the currency;
+// what it only adds or subtracts (BAC, AC, the variances) is cleaned of float
+// noise and nothing else.
 /** Two decimals: an index is read, not reconciled. */
 const index = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
@@ -129,9 +137,9 @@ export function elapsedFraction(
  * three states send somebody to three different places: set a budget on the
  * cost breakdown, draw a plan in the planner, or put dates on the project.
  */
-export function earnedValue(input: EarnedValueInput): EarnedValue {
-  const bac = money(num(input?.bac));
-  const ac = money(num(input?.ac));
+export function earnedValue(input: EarnedValueInput, currency?: unknown): EarnedValue {
+  const bac = roundSum(num(input?.bac));
+  const ac = roundSum(num(input?.ac));
   const elapsed = elapsedFraction(input?.startDate, input?.endDate, input?.asOf);
 
   const empty: EarnedValue = {
@@ -153,15 +161,15 @@ export function earnedValue(input: EarnedValueInput): EarnedValue {
   if (pc === null || pc === undefined) return { ...empty, blocked: "no-plan" };
 
   const done = Math.min(1, Math.max(0, num(pc) / 100));
-  const ev = money(bac * done);
-  const cv = money(ev - ac);
+  const ev = roundMoney(bac * done, currency);
+  const cv = roundSum(ev - ac);
   // NOTHING SPENT IS NOT INFINITE EFFICIENCY. A project that has earned
   // something and been billed for nothing is one whose invoices have not
   // arrived, and an index of Infinity on that screen would be read as a
   // triumph.
   const cpi = ac > 0 ? index(ev / ac) : null;
-  const eac = cpi !== null && cpi > 0 ? money(bac / cpi) : null;
-  const vac = eac !== null ? money(bac - eac) : null;
+  const eac = cpi !== null && cpi > 0 ? roundMoney(bac / cpi, currency) : null;
+  const vac = eac !== null ? roundSum(bac - eac) : null;
 
   if (elapsed === null) {
     // A COST STORY WITH NO SCHEDULE STORY. Everything that does not need dates
@@ -169,10 +177,10 @@ export function earnedValue(input: EarnedValueInput): EarnedValue {
     return { ...empty, ev, cv, cpi, eac, vac, blocked: "no-dates" };
   }
 
-  const pv = money(bac * elapsed);
+  const pv = roundMoney(bac * elapsed, currency);
   return {
     bac, ac, ev, pv,
-    sv: money(ev - pv),
+    sv: roundSum(ev - pv),
     cv,
     // BEFORE THE START DATE NOTHING WAS PLANNED, so a schedule index is
     // undefined rather than infinite — the same rule CPI follows for AC.

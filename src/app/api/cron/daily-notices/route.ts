@@ -49,7 +49,7 @@ async function run(request: Request) {
 
   const todayISO = new Date().toISOString().slice(0, 10);
   const todayDate = new Date(`${todayISO}T00:00:00Z`);
-  const studios = await readArr<{ id: string; slug?: string }>(REG.studios);
+  const studios = await readArr<{ id: string; slug?: string; currency?: string }>(REG.studios);
 
   let sent = 0;
   let scanned = 0;
@@ -59,7 +59,7 @@ async function run(request: Request) {
   let conditionOrders = 0;
   for (const s of studios) {
     try {
-      sent += await noticesForStudio(String(s.id), todayISO, todayDate);
+      sent += await noticesForStudio(String(s.id), todayISO, todayDate, s.currency);
       scanned += 1;
     } catch (err) {
       // A studio that fails to scan costs its own notices for a day, never the
@@ -114,7 +114,9 @@ async function run(request: Request) {
 
 // One studio: read what it has, work out what crosses a line today, and tell the
 // people who hold the matching right. Returns how many notifications it wrote.
-async function noticesForStudio(studioId: string, todayISO: string, todayDate: Date): Promise<number> {
+// `currency` is only the fallback for documents raised before each froze its
+// own, and only decides whether an outstanding amount rounds to nothing.
+async function noticesForStudio(studioId: string, todayISO: string, todayDate: Date, currency?: unknown): Promise<number> {
   const [collaborators, roles, sections] = await Promise.all([
     listCollaborators(studioId),
     listRoles(studioId),
@@ -156,8 +158,8 @@ async function noticesForStudio(studioId: string, todayISO: string, todayDate: D
   // word it. Employees ARE the collaborators — their ID/passport expiries sit on
   // the collaborator row — so the HR scan reads no extra key.
   const jobs = [
-    { notices: overdueInvoiceNotices(invoices as never, todayISO), key: "finance.cash.view", also: "", type: NOTIFY.invoiceOverdue, title: "Overdue invoices", href: "finance/cash", say: overdueDetail },
-    { notices: overdueBillNotices(bills as never, todayISO), key: "finance.payables.view", also: "", type: NOTIFY.billOverdue, title: "Bills overdue", href: "finance/payables", say: overdueDetail },
+    { notices: overdueInvoiceNotices(invoices as never, todayISO, currency), key: "finance.cash.view", also: "", type: NOTIFY.invoiceOverdue, title: "Overdue invoices", href: "finance/cash", say: overdueDetail },
+    { notices: overdueBillNotices(bills as never, todayISO, currency), key: "finance.payables.view", also: "", type: NOTIFY.billOverdue, title: "Bills overdue", href: "finance/payables", say: overdueDetail },
     { notices: expiringDocumentNotices(collaborators as never, todayDate), key: "hr.employees.view", also: "", type: NOTIFY.documentExpiring, title: "Documents expiring", href: "hr/employees", say: expiryDetail((n) => `${n.name}'s ${n.kind}`) },
     // PERMITS ARE QUALITY & HSE'S (tier 5). Heard by the permit right AND by
     // Tracking's, which held them until `grant-permits.mjs` has run — a notice

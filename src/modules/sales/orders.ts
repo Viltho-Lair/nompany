@@ -140,7 +140,8 @@ export async function createOrder(ctx: SalesContext, body: Record<string, unknow
   const resolved = await resolveDealId(studio.id, dealId);
   const lines = cleanLines(body?.lines);
   const vatRate = documentVatRate(studio, body?.vatRate);
-  const totals = computeTotals(lines, vatRate);
+  const currency = str(body?.currency, 8) || studio.currency || "";
+  const totals = computeTotals(lines, vatRate, currency);
   const rows = await Orders.find({ studio, section: quotationsSection });
   const at = new Date().toISOString();
 
@@ -161,7 +162,7 @@ export async function createOrder(ctx: SalesContext, body: Record<string, unknow
     // approve itself.
     status: "Draft" as const,
     lines,
-    currency: str(body?.currency, 8) || studio.currency || "",
+    currency,
     vatRate,
     subtotal: totals.subtotal,
     vat: totals.vat,
@@ -212,7 +213,7 @@ export async function updateOrder(
   const vatRate = body?.vatRate !== undefined
     ? documentVatRate(studio, body.vatRate, existing.vatRate)
     : num(existing.vatRate);
-  const totals = computeTotals(lines, vatRate);
+  const totals = computeTotals(lines, vatRate, existing.currency || studio.currency);
   const at = new Date().toISOString();
 
   const order = await Orders.update(scope, id, (row) => ({

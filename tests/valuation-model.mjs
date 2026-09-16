@@ -4,9 +4,16 @@
 // the two methods DISAGREE — if a test only ever used a single cost, both would
 // pass and neither would be being tested.
 
-import {
+// THE ALIAS LOADER, because the module imports `@/shared/money` and plain
+// Node does not know the `@/` alias (tests/loader.mjs resolves it).
+import { register } from "node:module";
+import { pathToFileURL } from "node:url";
+
+register(new URL("./loader.mjs", import.meta.url), { data: { root: pathToFileURL(`${process.cwd()}/`).href } });
+
+const {
   valueItem, valueStock, VALUATION_METHODS, isValuationMethod, DEFAULT_METHOD,
-} from "../src/modules/inventory/valuation.ts";
+} = await import("../src/modules/inventory/valuation.ts");
 
 let fails = 0;
 const ok = (msg, cond, detail = "") => {
@@ -107,4 +114,5 @@ ok("no movements is an empty valuation, not a throw",
   valueStock([], "fifo").total === 0 && valueStock([], "fifo").items.length === 0);
 
 console.log(fails ? `\nvaluation model: ${fails} FAILURES\n` : "\nvaluation model: all passed\n");
-process.exit(fails ? 1 : 0);
+// exitCode, not exit(): exiting while the alias loader's thread is live crashes Node on Windows.
+process.exitCode = fails ? 1 : 0;

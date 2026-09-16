@@ -11,10 +11,12 @@
 // refuses an edit to a Sent invoice by name; this is what that refusal has been
 // pointing at.
 //
-// PURE. No imports, no store, no clock — the caller hands in the invoice, the
+// PURE. No store, no clock (its one import is shared/money, itself pure) — the caller hands in the invoice, the
 // credit notes already against it, and the amount. So the screen refuses
 // exactly what the server refuses, and every rule below is asserted without a
 // database.
+
+import { roundMoney } from "@/shared/money";
 
 export const CREDIT_NOTE_STATUSES = ["Draft", "Issued", "Cancelled"] as const;
 
@@ -30,9 +32,11 @@ export type InvoiceLike = {
   status?: string;
   /** From `invoiceTotals` — what the invoice is for, gross. */
   total?: unknown;
+  /** The invoice's currency, which decides the decimals a note is counted in. */
+  currency?: unknown;
 };
 
-const round = (n: number) => Math.round((Number(n) || 0) * 100) / 100;
+const round = (n: unknown, currency: unknown) => roundMoney(n, currency);
 
 /**
  * HOW MUCH OF THIS INVOICE IS ALREADY CREDITED.
@@ -42,10 +46,10 @@ const round = (n: number) => Math.round((Number(n) || 0) * 100) / 100;
  * note block a real one. Only what has actually been issued reduces what is
  * left to credit.
  */
-export function creditedSoFar(notes: readonly CreditNoteLike[], invoiceId: string): number {
+export function creditedSoFar(notes: readonly CreditNoteLike[], invoiceId: string, currency?: unknown): number {
   return round((notes || [])
     .filter((n) => n.invoiceId === invoiceId && n.status === "Issued")
-    .reduce((sum, n) => sum + (Number(n.amount) || 0), 0));
+    .reduce((sum, n) => sum + (Number(n.amount) || 0), 0), currency);
 }
 
 /** What may still be credited against this invoice. Never below nought. */
@@ -54,7 +58,7 @@ export function creditableRemaining(
   notes: readonly CreditNoteLike[],
 ): number {
   const total = Number(invoice?.total) || 0;
-  return round(Math.max(0, total - creditedSoFar(notes, String(invoice?.id || ""))));
+  return round(Math.max(0, total - creditedSoFar(notes, String(invoice?.id || ""), invoice?.currency)), invoice?.currency);
 }
 
 /**
@@ -82,7 +86,7 @@ export function creditNoteProblem(
   // charged them.
   if (invoice.status === "Cancelled") return "cancelled";
 
-  const value = round(Number(amount));
+  const value = round(Number(amount), invoice.currency);
   if (!Number.isFinite(value) || value <= 0) return "amount";
 
   // NOT MORE THAN IS LEFT. Two notes for two thirds each would credit more than
@@ -109,10 +113,11 @@ export function netOfCredits(
   invoice: InvoiceLike & { paid?: unknown },
   notes: readonly CreditNoteLike[],
 ) {
-  const total = round(Number(invoice?.total) || 0);
-  const credited = creditedSoFar(notes, String(invoice?.id || ""));
-  const paid = round(Number(invoice?.paid) || 0);
-  const net = round(Math.max(0, total - credited));
+  const currency = invoice?.currency;
+  const total = round(Number(invoice?.total) || 0, currency);
+  const credited = creditedSoFar(notes, String(invoice?.id || ""), currency);
+  const paid = round(Number(invoice?.paid) || 0, currency);
+  const net = round(Math.max(0, total - credited), currency);
   return {
     total,
     credited,
@@ -122,7 +127,7 @@ export function netOfCredits(
     // OUTSTANDING IS AGAINST THE NET, not the original. An invoice for 1,200
     // with a 200 credit and 1,000 paid is SETTLED — reporting 200 still due
     // would send somebody to chase money the studio has already given back.
-    outstanding: round(Math.max(0, net - paid)),
+    outstanding: round(Math.max(0, net - paid), currency),
     fullyCredited: credited > 0 && credited >= total,
   };
 }

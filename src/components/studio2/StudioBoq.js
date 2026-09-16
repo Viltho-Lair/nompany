@@ -105,8 +105,10 @@ export default function StudioBoq({ slug, tenderId }) {
   // recomputes from the lines on screen so an optimistic edit reads correctly
   // before the reload lands, and the two cannot disagree because they are one
   // function.
-  const totals = boqTotals(lines);
-  const groups = boqGroups(lines);
+  // …IN THE SAME CURRENCY the server totalled in, which the route names.
+  const currency = data.currency || tender?.currency || "";
+  const totals = boqTotals(lines, currency);
+  const groups = boqGroups(lines, currency);
 
   const saveCell = (line, patch) => send("PUT", { id: line.id, ...patch });
 
@@ -159,7 +161,7 @@ export default function StudioBoq({ slug, tenderId }) {
       <div className="grid gap-4 sm:grid-cols-3">
         {/* THE HEADLINE, AND THE HONEST LABEL UNDER IT. `complete` is what
             separates "the bill totals this much" from "this is our bid". */}
-        <StatTile label={tr.billTotal} value={<span className="num">{money(totals.total)}</span>}
+        <StatTile label={tr.billTotal} value={<span className="num">{money(totals.total, currency)}</span>}
           sub={totals.complete ? tr.fullyPriced : tr.nUnpriced(totals.unpriced)}
           tone={totals.complete ? "text-emerald-600 dark:text-emerald-400" : "text-amber-700 dark:text-amber-300"} />
         <StatTile label={tr.colDescription} value={<span className="num">{totals.lines}</span>}
@@ -330,7 +332,7 @@ export default function StudioBoq({ slug, tenderId }) {
               <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-slate-200 px-5 py-3 dark:border-white/10">
                 <p className={microLabel}>{g.group || tr.ungrouped}</p>
                 <p className="num text-sm font-700 text-slate-900 dark:text-white">
-                  {money(g.totals.total)}
+                  {money(g.totals.total, currency)}
                   {!g.totals.complete && (
                     <span className="ms-2 text-[11px] font-600 text-amber-700 dark:text-amber-300">
                       {tr.nUnpriced(g.totals.unpriced)}
@@ -389,7 +391,7 @@ export default function StudioBoq({ slug, tenderId }) {
                           {/* An unpriced line shows a dash, not 0.00: nought is
                               a price and this line has none. */}
                           {isPriced(line)
-                            ? <span className="num font-600 text-slate-900 dark:text-white">{money(extension(line))}</span>
+                            ? <span className="num font-600 text-slate-900 dark:text-white">{money(extension(line, currency), currency)}</span>
                             : <span className="text-amber-700 dark:text-amber-300">—</span>}
                         </td>
                         <td className="px-3 py-1.5 text-end">

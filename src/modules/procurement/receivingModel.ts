@@ -14,8 +14,10 @@
 // is stored: the three legs are read and compared on every request, because a
 // stored verdict is a verdict that goes stale the moment a credit note lands.
 //
-// NO IMPORTS, deliberately, and asserted by a test — the screen flags what the
-// server flags, with one implementation between them.
+// ONE IMPORT, deliberately: `shared/money`, which is itself pure and imports
+// nothing (this said "asserted by a test"; no test asserts it) — the screen flags what the server flags,
+// with one implementation between them.
+import { roundMoney, roundSum } from "@/shared/money";
 
 export type ReceiptLine = {
   itemId?: unknown;
@@ -73,8 +75,12 @@ const num = (v: unknown): number => {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
 };
-/** Money, to the cent. Compared, so it must round the same way every time. */
-const money = (n: number) => Math.round(n * 100) / 100;
+/**
+ * Money, to the currency's own minor unit — a dinar has three decimals, not
+ * two. Compared, so it must round the same way every time: every leg of one
+ * match is rounded with the one currency the caller passes.
+ */
+const money = (n: number, currency?: unknown) => roundMoney(n, currency);
 /** Quantities carry three decimals here, matching `receiveOrder`. */
 const q3 = (n: number) => Math.round(n * 1000) / 1000;
 
@@ -97,9 +103,9 @@ const DEAD_BILL = new Set(["Cancelled", "Draft"]);
  * against a tax-exclusive delivery would flag every order in a VAT-charging
  * studio as over-billed by exactly the tax.
  */
-function billValue(bill: MatchableBill): number {
+function billValue(bill: MatchableBill, currency?: unknown): number {
   const lines = (Array.isArray(bill?.lines) ? bill.lines : []) as MatchableBillLine[];
-  return money(lines.reduce((s, l) => s + num(l.qty) * num(l.unitPrice), 0));
+  return money(lines.reduce((s, l) => s + num(l.qty) * num(l.unitPrice), 0), currency);
 }
 
 /**
@@ -201,6 +207,7 @@ export function threeWayMatch(
   order: MatchableOrder,
   receipts: unknown,
   bills: unknown,
+  currency?: unknown,
 ): ThreeWayMatch {
   const orderId = text(order?.id);
   const orderLines = (Array.isArray(order?.lines) ? order.lines : []) as MatchableOrderLine[];
@@ -231,8 +238,8 @@ export function threeWayMatch(
       receivedQty,
       rejectedQty,
       unitPrice,
-      orderedValue: money(orderedQty * unitPrice),
-      receivedValue: money(receivedQty * unitPrice),
+      orderedValue: money(orderedQty * unitPrice, currency),
+      receivedValue: money(receivedQty * unitPrice, currency),
       outstandingQty: q3(Math.max(0, orderedQty - receivedQty)),
       overReceivedQty: q3(Math.max(0, receivedQty - orderedQty)),
     };
@@ -242,10 +249,10 @@ export function threeWayMatch(
     .filter((b) => text((b as MatchableBill)?.orderId) === orderId)
     .filter((b) => !DEAD_BILL.has(text((b as MatchableBill)?.status))) as MatchableBill[];
 
-  const orderedValue = money(lines.reduce((s, l) => s + l.orderedValue, 0));
-  const receivedValue = money(lines.reduce((s, l) => s + l.receivedValue, 0));
+  const orderedValue = roundSum(lines.reduce((s, l) => s + l.orderedValue, 0));
+  const receivedValue = roundSum(lines.reduce((s, l) => s + l.receivedValue, 0));
   const billedValue = live.length
-    ? money(live.reduce((s, b) => s + billValue(b), 0))
+    ? roundSum(live.reduce((s, b) => s + billValue(b, currency), 0))
     : null;
 
   const flags: MatchFlag[] = [];
@@ -277,7 +284,7 @@ export function threeWayMatch(
     receivedValue,
     billedValue,
     billCount: live.length,
-    variance: billedValue === null ? null : money(billedValue - receivedValue),
+    variance: billedValue === null ? null : roundSum(billedValue - receivedValue),
     // MATCHED MEANS ALL THREE AGREE. An order with no bill is not matched — it
     // is unfinished, which is a different thing and reads differently on screen.
     matched: billedValue !== null

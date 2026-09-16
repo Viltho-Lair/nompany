@@ -14,6 +14,7 @@ import {
 } from "./landedCost";
 import type { Section } from "@/platform/db/sections";
 import type { ModuleContext, StudioRef } from "@/modules/context";
+import { roundMoney } from "@/shared/money";
 
 const Landed = repo("landedCosts");
 const Orders = repo("materialOrders");
@@ -49,7 +50,8 @@ export const logisticsContext = moduleContext<LogisticsContext>({
 const scope = (ctx: LogisticsContext) => ({ studio: ctx.studio, section: ctx.logisticsSection });
 
 const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
-const money = (v: unknown) => Math.round((Number(v) || 0) * 100) / 100;
+// A charge AS TYPED, in the studio's currency and to its own unit.
+const money = (v: unknown, currency: unknown) => roundMoney(v, currency);
 
 /**
  * THE ORDER'S LINES, READ DIRECTLY.
@@ -131,7 +133,7 @@ export async function listLandedCosts(ctx: LogisticsContext) {
     // THE TOTALS COME FROM THE SAME FUNCTION THE SINGLE-ORDER ANSWER USES, so a
     // row in the list and the order opened from it can never disagree about
     // what it came to.
-    const costed = landedCost(linesOf(o as Record<string, unknown>), charges, basis);
+    const costed = landedCost(linesOf(o as Record<string, unknown>), charges, basis, ctx.studio.currency);
     return {
       orderId: String(o.id),
       reference: String(o.reference || ""),
@@ -169,7 +171,7 @@ export async function landedCostFor(ctx: LogisticsContext, orderId: string) {
 
   // `landedCost` returns a `charges` TOTAL, so the charge ROWS are named
   // separately — spreading both would silently let one win.
-  const costed = landedCost(linesOf(order), charges, basis);
+  const costed = landedCost(linesOf(order), charges, basis, ctx.studio.currency);
   return {
     orderId,
     reference: String(order.reference || ""),
@@ -210,7 +212,7 @@ export async function saveLandedCost(ctx: LogisticsContext, body: Record<string,
   const charges: Charge[] = [];
   for (const [i, c] of incoming.entries()) {
     const kind = str(c?.kind, 60);
-    const amount = money(c?.amount);
+    const amount = money(c?.amount, ctx.studio.currency);
     const problem = chargeProblem({ kind, amount });
     // THE INDEX TRAVELS WITH THE REFUSAL so a screen showing five charge rows
     // can mark the one that is wrong rather than the whole form.
@@ -233,7 +235,7 @@ export async function saveLandedCost(ctx: LogisticsContext, body: Record<string,
     });
   if (!row) return { error: "notfound" };
 
-  return { landedCost: row, ...landedCost(linesOf(order), charges, basis) };
+  return { landedCost: row, ...landedCost(linesOf(order), charges, basis, ctx.studio.currency) };
 }
 
 export async function removeLandedCost(ctx: LogisticsContext, orderId: string) {
@@ -274,7 +276,7 @@ export async function landedUnitCosts(
     const record = byOrder.get(String(order.id));
     if (!record) continue;
     const basis: Basis = isBasis(record.basis) ? record.basis as Basis : DEFAULT_BASIS;
-    const costed = landedCost(linesOf(order), (record.charges || []) as Charge[], basis);
+    const costed = landedCost(linesOf(order), (record.charges || []) as Charge[], basis, studio.currency);
     for (const l of costed.lines) {
       if (l.unitLanded !== null) out.set(`${String(order.id)}:${l.itemId}`, l.unitLanded);
     }

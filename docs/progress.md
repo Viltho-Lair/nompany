@@ -1709,15 +1709,15 @@ official source.
   rate to the subtotal (`documentVatRate`, `vat.md`). Every country below mixes rates on one
   receipt (a zero-rated line next to a standard one), so **VAT per line is the first
   prerequisite everywhere.**
-- **The arithmetic exists twice.** `computeTotals` (`modules/technical/technical.ts`, used by
-  quotations and sales orders) and `invoiceTotals` (`modules/finance/finance.ts`, used by
-  invoices and bills) do the same sum separately. A country rule added to one and not the
-  other makes a quotation and its invoice disagree. **One shared calculation is the second
-  prerequisite.**
-- **Two decimals are hard-coded** in both of those and in the ledger (`cents` in
-  `ledger.ts`). **The Jordanian dinar, Omani rial, Bahraini dinar and Kuwaiti dinar have
-  three.** A Jordanian studio's documents are rounded to the wrong precision today. This is a
-  live defect, not a future one.
+- ~~**The arithmetic exists twice.**~~ **FIXED 16/09/2026.** `computeTotals` and
+  `invoiceTotals` both call `shared/documentTotals` now, so a quotation and its invoice
+  total the same lines the same way.
+- ~~**Two decimals are hard-coded.**~~ **FIXED 16/09/2026.** Every amount rounds to its
+  currency's own decimals (`shared/money`) — three for the Jordanian, Kuwaiti and Bahraini
+  dinar and the Omani rial — across documents, the ledger (minor units of the studio's
+  currency), the tax return, printing and some sixty private helpers in every department.
+  `docs/functionality/money.md` is the file. Screens still do not know the studio's
+  currency, so they show two or three places by value; that is under "Not built yet" there.
 
 ### The two ways VAT is totalled
 

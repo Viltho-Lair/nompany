@@ -13,9 +13,11 @@
 // a second catalogue here would be free to disagree with the first about what
 // is exportable.
 //
-// PURE. No imports, no store, no clock: `runReport` takes the rows it is given.
+// PURE. No store, no clock: `runReport` takes the rows it is given. Its imports
+// are its sibling catalogue and `shared/money`, which is itself pure.
 
 import { datasetFor } from "./datasets";
+import { currencyDecimals, roundMoney } from "@/shared/money";
 import type { DataSet } from "./datasets";
 
 export const OPERATORS = ["eq", "ne", "contains", "gt", "gte", "lt", "lte", "empty", "notEmpty"] as const;
@@ -42,7 +44,11 @@ export type ReportSpec = {
 
 const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
 const num = (v: unknown) => { const n = Number(v); return Number.isFinite(n) ? n : null; };
-const round = (n: number) => Math.round(n * 100) / 100;
+// AN AGGREGATE OVER ANY NUMERIC COLUMN — money, or a quantity, or hours — so it
+// rounds to the studio currency's decimals but NEVER FEWER THAN TWO: a dinar
+// has three, and cents cut a real fils off its totals, while a yen studio's
+// zero must not round an average of hours to a whole number.
+const round = (n: number, currency?: unknown) => roundMoney(n, Math.max(2, currencyDecimals(currency)));
 
 /** The report as stored, with everything it names checked against the data set. */
 export function cleanSpec(input: Record<string, unknown>): ReportSpec | null {
@@ -134,6 +140,8 @@ export function aggregate(
   rows: readonly Record<string, unknown>[],
   how: Aggregate,
   column: string,
+  /** The studio's currency; decides whether a total keeps a third decimal. */
+  currency?: unknown,
 ): { value: number | null; n: number } {
   if (how === "count") return { value: rows.length, n: rows.length };
   const numbers = rows.map((r) => num(cell(r, column))).filter((n): n is number => n !== null);
@@ -146,7 +154,7 @@ export function aggregate(
     : how === "avg" ? sum / numbers.length
       : how === "min" ? Math.min(...numbers)
         : Math.max(...numbers);
-  return { value: round(value), n: numbers.length };
+  return { value: round(value, currency), n: numbers.length };
 }
 
 export type ReportResult = {
@@ -169,6 +177,7 @@ export type ReportResult = {
 export function runReport(
   spec: ReportSpec,
   rows: readonly Record<string, unknown>[],
+  currency?: unknown,
 ): ReportResult | null {
   const dataset: DataSet | null = datasetFor(spec.dataset);
   if (!dataset) return null;
@@ -191,7 +200,7 @@ export function runReport(
     const groups = [...buckets.entries()].map(([key, group]) => ({
       key,
       label: key === "" ? "(none)" : key,
-      ...aggregate(group, spec.aggregate, spec.aggregateColumn),
+      ...aggregate(group, spec.aggregate, spec.aggregateColumn, currency),
       rows: group.length,
     })).sort((a, b) => (b.value ?? -Infinity) - (a.value ?? -Infinity) || a.key.localeCompare(b.key));
 
