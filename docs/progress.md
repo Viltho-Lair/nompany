@@ -219,6 +219,8 @@ Everything lands here.
 | 10/09/2026 | The console's screens are /super/<name> in a route group, and the header's controls are restored | **DONE** (the owner's correction, three parts. PULSE IS A PAGE, NOT A CONTAINER: every screen had shipped under `/super/pulse/…`, making the wall a URL prefix; they are `/super/dashboard`, `/super/users` and so on now, in a `(console)` ROUTE GROUP, which gives them the shared layout without a segment in any address. Sign-in lands on `/super/pulse`. THE HEADER WAS NOT DEAD CODE: `Header.js` was deleted as sidebar chrome because nothing imported it once `Shell` was gone, and it held SIGN-OUT — the console had no way to log out for one deploy — plus the admin's avatar and profile menu, the live notifications bell, the theme control and the ⌘K palette. Ported back from 2ca838a5 as `ConsoleActions`, minus the two sidebar toggles and the customiser, which only meant anything beside a sidebar. The chrome is `ConsoleChrome` now rather than `PulseChrome`, and the screen list is back in `_components/nav` because the bar and the palette both read it. `admindek ad-scope` moved into the new layout — `(full)`'s layout supplied it, and without it every screen paints from unset `--ad-*` tokens with nothing failing to build.) |
 | 10/09/2026 | Every section dashboard draws its records several ways — trend, share, rank, heat and scatter — from one chart kit and one UTC time arithmetic | **DONE** (the owner's instruction: "recreate all dashboards … graphs, pie-charts, bar-charts, and more visuals using complex or combined data". Thirty-one new widgets across Sales, Technical, Projects, Procurement, Inventory, HR, Finance and Operations, each a new registry key; Main and the register summary redrawn without new keys. Four chart shapes joined the kit (`ComboChart`, `HeatGrid`, `ShareBar`, `Scatter`) and `components/dashboard/series` holds the bucketing, asserted by `tests/dashboard-series.mjs`. Each dashboard now loads behind a client `next/dynamic` boundary. ROLLOUT: a tier with an explicit widget selection shows the new widgets locked until they are ticked in /super. `docs/functionality/dashboards.md` is the file.) |
 | 12/09/2026 | Condition monitoring: a reading OUT OF RANGE raises work | **DONE** (a third plan trigger beside `calendar` and `meter`. The point holds what is measured, its unit and a band, and the machine's measured state asks for somebody rather than a date doing it. IT MINTS NO PERMISSION KEY — the point answers to `maintenance.plans` and a reading to `maintenance.orders.edit`, exactly as a meter reading does — so it reached every studio with no script and no rights to catch up. A GAUGE IS NOT A METER, which is why the readings are their own collection: `meterReadings` is cumulative and `readingProblem` enforces it (nothing below the last, nothing dated behind the latest, nothing under nought), and all three are right for running hours and wrong for a temperature, which falls, is typed off yesterday's logbook and reads −40 in a cold store. Sharing the collection would have been worse than sharing the rules — half its rows would have been free to fall, and nothing reading it could have relied on the one property that makes a meter worth trusting. IDEMPOTENCY KEYS ON THE READING'S ID, never its value, because two breaches can read the same number and the second would have been silenced for ever; what the id buys is that a closed order's own reading raises nothing while a NEW breach still does, which is the honest answer when a machine is still out of range after being called fixed. The limit is the last acceptable value, either limit may be absent, absent is not nought, and a point with neither is refused rather than left raising nothing silently. `docs/functionality/maintenance.md` is the file; `tests/maintenance-model.mjs` is the coverage.) |
+| 16/09/2026 | A full-screen, GENERAL retail point of sale as a subsection under CRM & Sales | **PROPOSED — ON HOLD, nothing built.** The owner's decisions: any kind of shop, designed around no single trade; online-only (a till with no connection stops selling); walk-in customers only, so no customer list — special clients keep document invoices through Documents; the customer gets a printed receipt plus a PDF shared to WhatsApp from the till's own share menu. **The WhatsApp Business API is on hold** (no Meta Business account). The core is the same everywhere: tills, shifts with an opening float and a counted close, scan → basket → pay, stock movements, returns against the original receipt, an end-of-day report, and one ledger entry per shift. Blockers already known: items carry no barcode or pack sizes, a document carries one VAT rate rather than one per line, stock levels are summed from every movement on every read, and a sale cannot name the batch it takes. Trade rules (drug tracking, weighed items, age checks) are add-ons. Country rules are the next row. |
+| 16/09/2026 | Country document rules in TWO layers, built only when a studio's country needs them | **PROPOSED — reference below ("Country document rules").** Layer 1, **tax calculation**, applies to EVERY priced document — quotation, sales order, invoice, credit note, bill and POS receipt — because a quotation's total must be the invoice's total later: VAT rate per line, per-line or per-rate-total VAT, currency decimals, rounding, tax-inclusive prices, language. Layer 2, **fiscal**, applies to tax documents only (invoice, credit note, POS receipt): QR, signing, counters and hash chains, reporting or clearance. No country researched treats a quotation as a tax document, except possibly Portugal (to confirm). Each country's fiscal layer is an adapter chosen from `studio.country`, the way `hr/statutory.ts` holds country presets a studio confirms. Consistent with the 07/09 row: ZATCA is a country integration, and it is built only when a Saudi studio needs it. |
 
 
 ---
@@ -1687,6 +1689,308 @@ Kept from the plan: `off` by default (`warn` is what makes it adoptable), two to
 passing on the greater, the refusal on the PAYMENT and not the bill, Inventory's supplier refusal
 strings verbatim, and a release that needs a reason, is its own right (`finance.payables.release`,
 held by department-head and not by `money`) and may not be given by the person who then pays.
+
+## Country document rules — reference, researched 16/09/2026
+
+**Nothing here is built, and nothing is built until a studio in that country needs it** (the
+owner's rule, 16/09/2026). This section records what each country requires of a consumer
+receipt and how tax is calculated on it, so the work can be sized the day a studio's country
+is known. See the two 16/09/2026 rows in the decision ledger for the POS and for the two
+layers.
+
+**These are measurements with a date.** Mandates move — Spain's slipped a year, Oman's and
+Croatia's are new this year — so re-check a country's entry against its tax authority before
+building its adapter. **UNVERIFIED** marks what the research could not confirm from an
+official source.
+
+### What the code does today, and why it matters to every country
+
+- **One VAT rate per document.** Quotations, sales orders, invoices and bills all apply one
+  rate to the subtotal (`documentVatRate`, `vat.md`). Every country below mixes rates on one
+  receipt (a zero-rated line next to a standard one), so **VAT per line is the first
+  prerequisite everywhere.**
+- **The arithmetic exists twice.** `computeTotals` (`modules/technical/technical.ts`, used by
+  quotations and sales orders) and `invoiceTotals` (`modules/finance/finance.ts`, used by
+  invoices and bills) do the same sum separately. A country rule added to one and not the
+  other makes a quotation and its invoice disagree. **One shared calculation is the second
+  prerequisite.**
+- **Two decimals are hard-coded** in both of those and in the ledger (`cents` in
+  `ledger.ts`). **The Jordanian dinar, Omani rial, Bahraini dinar and Kuwaiti dinar have
+  three.** A Jordanian studio's documents are rounded to the wrong precision today. This is a
+  live defect, not a future one.
+
+### The two ways VAT is totalled
+
+- **On the total, once per rate:** Saudi Arabia (stated outright in ZATCA's XML standard),
+  Poland (statutory), and the safe default across the EU (the CJEU leaves rounding to each
+  state — *Ahold*, C-484/06).
+- **Per line, then summed:** Oman (±0.001 OMR per line tolerated), the UAE (FTA public
+  clarification VATP006), Egypt (±0.5), Jordan, Kenya, Brazil, Mexico (rounding only in the
+  tax summary), Colombia, Peru.
+
+So the shared calculation takes the method as a country setting, never as a constant.
+
+### Gulf
+
+**Saudi Arabia — ZATCA (Fatoora), in force.**
+- *Mandate:* Phase 2 (integration) in waves; Wave 24 covers taxable revenue above SAR 375,000,
+  deadline 30/06/2026.
+- *Consumer document:* simplified tax invoice, at any value to consumers (and B2B under
+  SAR 1,000). Legal fields: date, supplier name, address and VAT number, description, price,
+  and the VAT or a "VAT included" statement. E-invoicing adds number, time, UUID, counter,
+  previous hash, QR and stamp. **Arabic is mandatory** on the readable invoice.
+- *QR:* **built by the seller's software.** TLV bytes, then Base64, 9 tags: seller name, VAT
+  number, date-time, total with VAT, VAT total, invoice hash, ECDSA signature, public key,
+  ZATCA's signature on the stamp certificate.
+- *Security:* each till is its own registered unit with its own certificate (CSID); XAdES
+  stamp; UUID; a counter that never resets; SHA-256 hash chain from each invoice to the one
+  before.
+- *Reporting:* within **24 hours** of issue. No clearance before the customer gets it.
+  Offline issuing is allowed; the 24 hours still run.
+- *VAT:* **per category on the total** — "rounded on document level and not as a summation of
+  rounded Invoice line VAT amounts". Two decimals, half-up.
+- *Rates:* 15% standard; qualifying medicines and medical goods zero-rated.
+- *Returns:* credit note that **must reference the original and give a reason**.
+
+**United Arab Emirates — no consumer e-invoicing.**
+- *Mandate:* B2B/B2G Peppol from 01/01/2027 (revenue ≥ AED 50M) and 01/07/2027 (everyone
+  else). **Consumer sales excluded** until a later decision.
+- *Consumer document:* simplified tax invoice (non-registered buyer, or ≤ AED 10,000): "Tax
+  Invoice", supplier name, address and TRN, date, description, total and VAT. Cabinet Decision
+  100/2025 amended these articles; exact new text UNVERIFIED. No QR, no signing, no reporting.
+- *VAT:* 5%, rounded **per line** to the fils (VATP006). Amounts in AED.
+- *Prices:* **must be shown VAT-inclusive** (AED 5,000 penalty per breach).
+- *Returns:* tax credit note referencing the original.
+- *Note:* pharmacies report each sale to **Tatmeen** (drug tracking) — a trade add-on, not
+  invoicing.
+
+**Oman — Fawtara, from 01/04/2027.**
+- *Mandate:* pilot from 08/2026; revenue > OMR 5M from 01/04/2027; everyone from 01/10/2027.
+  **Consumer sales included.** Peppol PINT OM.
+- *Consumer document:* simplified tax invoice; buyer details not required.
+- *QR:* **mandatory; contents not yet published.** Signing and hash chain not yet published.
+- *Reporting:* within **24 hours**, through the seller's accredited service provider.
+- *VAT:* **per line, summed**; 3 decimals; ±0.001 OMR per line tolerated. Prices
+  VAT-inclusive by law (VAT Law art. 37). 5% standard; 488 basic foods and listed medicines
+  zero-rated.
+- *Returns:* credit note with the original's reference, date and UUID, plus a reason code.
+
+**Bahrain — no mandate.**
+- Simplified VAT invoice when the buyer is not registered or the value is ≤ BHD 500. No QR,
+  signing or reporting.
+- *VAT:* 10%; rounded to the fils (3 decimals); level not stated. Displayed prices are
+  deemed VAT-inclusive.
+- *Returns:* credit note with the original's number.
+
+**Kuwait, Qatar — no VAT.** Qatar approved a draft e-invoicing law in 05/2026; no date.
+
+### Levant and North Africa
+
+**Jordan — JoFotara, in force for all sales since 01/04/2025.**
+- *Consumer document:* cash invoice. Buyer details optional below JOD 10,000 (vendor
+  sources; official text UNVERIFIED).
+- *QR:* **produced by JoFotara and returned when it accepts the invoice** — the seller prints
+  the returned code and never builds one. **So a receipt cannot print until JoFotara
+  answers.**
+- *Security:* UBL 2.1 XML in a JSON body; client id and secret from the portal; UUID and a
+  gap-free counter. Whether a digital signature is required: sources disagree.
+- *Submission:* real-time API. Whether the invoice is valid before the answer (clearance
+  versus reporting): sources disagree; design for clearance.
+- *VAT:* general sales tax 16%, **per line**; **3 decimals**; special tax compounds under it
+  (vendor sources).
+- *Returns:* must reference the original's number and UUID and give a reason.
+- *Caution:* the official ISTD guides could not be read (image PDFs). Read them before
+  building.
+
+**Egypt — ETA e-receipt, in force in phases since 2022.**
+- *Consumer document:* retail receipt v1.2. Buyer id and name required for businesses, and
+  for individuals from EGP 150,000.
+- *QR:* **built by the seller's software**:
+  `{portal}/receipts/search/{UUID}/share/{UTC date-time}#Total:{total},IssuerRIN:{RIN}`.
+- *Security:* each till registered to the issuer, with OAuth credentials. **The UUID is the
+  SHA-256 of the receipt including the previous receipt's UUID**, which chains each till's
+  receipts.
+- *Submission:* real time or within 24 hours; offline storage allowed.
+- *VAT:* **per line, summed**; up to 5 decimals; ±0.5 tolerance. VAT 14% is charged on top of
+  table tax.
+- *Item codes:* **every line needs a GS1 or EGS item code and an ETA unit type.**
+- *Returns:* return receipt referencing the original's UUID, within 540 days.
+
+**Turkey — invoice above a threshold, cash register below it.**
+- *Mandate:* an invoice is required above TRY 12,000 including VAT (2026). Below that, a
+  receipt from a registered fiscal cash register is enough. E-invoicing applies above TRY 3m
+  of turnover from 01/07/2026.
+- *QR:* mandatory on e-documents; JSON with seller and buyer ids, type, date, number, UUID,
+  currency, totals, and **the tax base and VAT for each rate**.
+- *Reporting:* e-archive invoices reported daily, by the end of the next day.
+- *VAT:* 1 / 10 / 20%. Line versus total rounding UNVERIFIED.
+- *Consequence:* consumer receipts below the threshold need **registered cash-register
+  hardware**; VUK 593 (05/2026) is opening a path from those registers to e-invoices.
+
+### East Africa
+
+**Kenya — KRA eTIMS, all businesses.**
+- *Security:* each till is a registered control unit (online, or virtual with batch upload).
+  KRA returns the receipt signature, which goes on the receipt.
+- *QR:* a KRA verification URL built from KRA's response.
+- *VAT:* per line plus per-band totals (bands A–E: exempt, 16%, 0%, non-VAT, 8%).
+- *Item codes:* **items must be registered with a KRA classification code before they can be
+  sold.**
+- *Returns:* credit note referencing the original, with a reason code.
+
+### Europe
+
+Everywhere in the EU, **consumer prices are VAT-inclusive** (Directive 98/6/EC) and invoices
+show the taxable amount and the VAT per rate (VAT Directive art. 226).
+
+**Spain — VERI*FACTU from 01/01/2027 (companies) and 01/07/2027 (everyone else).**
+- *Consumer document:* simplified invoice, up to €3,000 in retail.
+- *QR:* built by the software: an AEAT URL with the seller's NIF, series and number, date and
+  total, plus the words "VERI*FACTU".
+- *Security:* SHA-256 chain between records. No government certification; the software
+  vendor signs a **declaration of compliance**. Cloud systems are allowed.
+- *Reporting:* every record sent immediately (in VERI*FACTU mode). Offline records queue.
+- *Returns:* corrective invoice R5 referencing the original.
+
+**Spain, Basque Country — TicketBAI, in force.**
+- XAdES-signed file per invoice, chained, **before** the invoice is issued. Needs a
+  certificate.
+- The software must be **registered in each of the three provinces**. QR with the TBAI id.
+
+**Germany — KassenSichV.**
+- A receipt for every sale, no minimum.
+- **Every transaction is signed by a BSI-certified security module (TSE).** A cloud TSE is
+  allowed under its manufacturer's environment rules — for a browser POS, a certified
+  cloud-TSE provider is required.
+- Each till is reported to the tax office. QR optional. No per-receipt reporting; export on
+  audit (DSFinV-K).
+- *VAT:* per rate. Line versus total UNVERIFIED.
+
+**Austria — RKSV.**
+- A receipt for every cash payment; digital receipts (a QR on a display) allowed from
+  01/10/2026.
+- **Mandatory QR** carrying the till id, receipt number, date, amounts per rate, an encrypted
+  turnover counter, the certificate serial, and the previous and current signatures.
+- Signed through a trust provider's HSM or online signing service; tills registered in
+  FinanzOnline; monthly and yearly closing receipts.
+
+**France — anti-fraud law (NF525).**
+- The software must be **certified (NF525/LNE) or carry the vendor's own attestation**
+  (allowed again from 21/02/2026); €7,500 fine per system.
+- Records cannot be altered (corrections only as offsetting entries); closures with a
+  perpetual grand total. No QR.
+- Receipts printed only on request since 08/2023.
+- Consumer-sale e-reporting starts 01/09/2026 (large companies) and 01/09/2027 (SMEs).
+
+**Italy — telematic registers.**
+- The fiscal device is **approved hardware (RT)**; a browser POS must drive one until approved
+  software arrives in 2027.
+- Daily totals sent within 12 days. Returns are a separate document referencing the
+  original.
+
+**Portugal — certified software.**
+- **The software must be certified by the tax authority.** Simplified invoice up to €1,000
+  in retail.
+- *QR:* mandatory, built by the software; fields A–S separated by `*`, including the
+  document's ATCUD, the tax base and VAT per rate, the totals, 4 hash characters and the
+  certificate number.
+- *Security:* RSA signature chained between documents; ATCUD from series registered in
+  advance.
+- *Reporting:* invoice data monthly (by about the 5th) or in real time.
+- **Quotations and pro-formas issued from certified software may themselves need the
+  signature and ATCUD — to confirm. This would be the one country where layer 2 reaches a
+  quotation.**
+
+**Poland — online cash registers.**
+- **General retail cannot use a software ("virtual") register**; it needs approved hardware
+  connected to the central repository.
+- *VAT:* by statute, summed gross per rate, VAT computed from those totals.
+- Returns go to a separate log, not a negative receipt.
+
+**Croatia — Fiscalization 2.0, since 01/01/2026.**
+- Every consumer receipt is sent **before issue**, and the tax authority returns a JIR.
+- ZKI security code signed with the taxpayer's certificate. QR with the verification URL,
+  JIR, date-time and amount.
+- Offline: issue with the ZKI and send within 2 working days. No software certification;
+  the vendor is jointly liable.
+
+### Latin America
+
+**Brazil — NFC-e.**
+- **Each receipt is authorised by the state tax authority before it is handed over.** XML
+  signed with an ICP-Brasil certificate (held on the server).
+- QR v3 with the state's consultation URL and access key (plus a signature when offline);
+  per-state endpoints and rules.
+- *Tax:* **per item.** Every line carries NCM and CFOP codes (CEST under tax substitution)
+  and a GTIN or "SEM GTIN". The approximate tax burden must be printed (Lei 12.741).
+  CBS/IBS per item joins in 2026–2027.
+- *Returns:* cancel within 30 minutes; otherwise a return document referencing the original.
+
+**Mexico — CFDI 4.0.**
+- The till hands over a plain ticket. **Sales to the public are stamped in a global invoice**
+  (daily, weekly or monthly, within 24 hours of the period closing), and a named invoice is
+  issued on request.
+- A **SAT-authorised provider (PAC) must stamp** every CFDI. SAT product and unit keys per
+  line on named invoices.
+- *Tax:* per line; **rounded only in the tax summary.**
+
+**Chile — boleta electrónica.**
+- Folio ranges issued by SII in advance; signed XML sent to SII immediately after issue.
+- The stamp is a PDF417 barcode, optional on paper since 01/01/2026. From 01/03/2026, shops
+  without a printer must send a digital copy.
+- Prices VAT-inclusive, whole pesos. The software must be SII-certified, or use SII's free
+  system or a certified provider.
+
+**Colombia — electronic POS ticket.**
+- **Validated by DIAN before it counts as issued.** QR to DIAN's lookup; per line; ±COP 5
+  tolerance on VAT.
+- The buyer may always demand an electronic invoice; force one above 5 UVT (the legal cap is
+  disputed).
+- *Returns:* adjustment notes, also validated.
+
+**Peru — boleta electrónica.**
+- **Reported after the sale**, daily summary or per receipt, within 7 days.
+- *QR:* pipe-separated issuer RUC, type, series, number, IGV, total, date, buyer id and the
+  XML digest.
+- *Tax:* per line. Buyer id required above S/700.
+- *Returns:* credit note referencing the original.
+
+### What each group costs a browser POS
+
+- **An API adapter, no certification:** Saudi Arabia, Jordan, Egypt, Kenya, Croatia, Peru,
+  Oman (from 2027), Spain (plus a declaration).
+- **Tax-authority approval before the receipt is handed over** (the till waits on the
+  network): Jordan (per the sources that call it clearance), Croatia, Brazil, Colombia.
+- **Certified signing hardware or service:** Germany (cloud TSE), Austria (HSM or online
+  signing).
+- **The POS software itself certified:** Portugal, France (or the vendor's attestation),
+  Chile, Basque Country (registration in each province).
+- **Approved fiscal hardware; a browser POS cannot be the register:** Italy (until 2027),
+  Poland (general retail), Turkey (below the invoice threshold).
+- **Nothing beyond a correct receipt:** UAE, Bahrain, Kuwait, Qatar — plus layer 1, which
+  every country needs.
+
+### Sources (the official ones first)
+
+- ZATCA: [E-Invoicing Detailed Guideline](https://zatca.gov.sa/en/E-Invoicing/Introduction/Guidelines/Documents/E-Invoicing_Detailed__Guideline.pdf) · [XML Implementation Standard](https://zatca.gov.sa/ar/E-Invoicing/SystemsDevelopers/Documents/20230519_ZATCA_Electronic_Invoice_XML_Implementation_Standard_%20vF.pdf) · [QR guide](https://zatca.gov.sa/ar/E-Invoicing/SystemsDevelopers/Documents/QRCodeCreation.pdf)
+- Oman: [PINT OM rules](https://docs.peppol.eu/poac/om/pint-om/trn-invoice/rule/PINT-jurisdiction-aligned-rules/) · [VAT Law](https://tms.taxoman.gov.om/portal/documents/20126/1414820/VAT+Law+.pdf/9cbe8926-066b-d48d-2b7f-14f41b4c19a8?t=1733169733344)
+- UAE: [VATupdate, ministerial decisions](https://www.vatupdate.com/2026/07/18/uae-two-ministerial-decisions-set-e-invoicing-scope-and-timeline/) · [Aurifer on VATP006](https://aurifer.tax/vat-public-clarification-on-tax-invoice/)
+- Egypt: [ETA SDK, main calculations](https://sdk.invoicing.eta.gov.eg/main-calculations/) · [retail receipt v1.2](https://sdk.invoicing.eta.gov.eg/documents/retail-receipt-v1-2/) · [QR](https://sdk.invoicing.eta.gov.eg/toolkitapi/05-qrcode/) · [UUID](https://sdk.invoicing.eta.gov.eg/toolkitapi/04-uuid/)
+- Jordan: [VATupdate, phase 2](https://www.vatupdate.com/2025/07/17/jordans-e-invoicing-phase-2-mandatory-compliance-begins-april-1-2025/) · [Fatouraty guide](https://fatouraty.com/en/blog/jordan-jofotara-e-invoicing-guide)
+- Kenya: [VAT (Electronic Tax Invoice) Regulations 2020](https://www.kra.go.ke/images/publications/L.N.-189---VAT-ELECTRONIC-TAX-INVOICE-REGULATIONS-2020.pdf)
+- Turkey: [GİB QR standard](https://ebelge.gib.gov.tr/dosyalar/kilavuzlar/Karekod_Standardi_Kilavuzu_V.1.1.pdf)
+- EU: [CJEU C-484/06 Ahold](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX%3A62006CJ0484)
+- Spain: [AEAT VERI*FACTU FAQ](https://sede.agenciatributaria.gob.es/Sede/iva/sistemas-informaticos-facturacion-verifactu/preguntas-frecuentes/sistemas-verifactu.html) · [TicketBAI specification](https://www.batuz.eus/fitxategiak/batuz/ticketbai/TicketBAI_Especificaciones_v_1_1.pdf)
+- Germany: [KassenSichV § 6](https://www.gesetze-im-internet.de/kassensichv/__6.html) · [BSI FAQ](https://www.bsi.bund.de/DE/Themen/Unternehmen-und-Organisationen/Standards-und-Zertifizierung/Schutz-vor-Manipulation-an-digitalen-Grundaufzeichnungen/Fragen-und-Antworten/fragen-und-antworten_node.html)
+- Austria: [USP, cash registers](https://www.usp.gv.at/steuern-finanzen/steuerliche-rechte-und-pflichten/registrierkassen.html)
+- France: [BOFiP](https://bofip.impots.gouv.fr/bofip/10691-PGP.html/identifiant=BOI-TVA-DECLA-30-10-30-20260325)
+- Portugal: [CIVA art. 40](https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/codigos_tributarios/civa_rep/Pages/iva40.aspx) · [Portaria 195/2020](https://info.portaldasfinancas.gov.pt/pt/atualidades/legislativa/Paginas/Portaria_195_2020.aspx)
+- Poland: [biznes.gov.pl](https://www.biznes.gov.pl/pl/portal/00266)
+- Croatia: [Porezna uprava](https://porezna-uprava.gov.hr/hr/racuni-u-krajnjoj-potrosnji/8034)
+- Brazil: [NF-e portal](https://www.nfe.fazenda.gov.br/portal/exibirArquivo.aspx?conteudo=trSXReoZPuY%3D)
+- Chile: [SII Res. 74/2020](https://www.sii.cl/normativa_legislacion/resoluciones/2020/reso74.pdf)
+- Colombia: [DIAN Res. 165/2023](https://normograma.dian.gov.co/dian/compilacion/docs/resolucion_dian_0165_2023.htm)
+- Peru: [SUNAT, boleta](https://cpe.sunat.gob.pe/tipos_de_comprobantes/boleta)
 
 ## Open decisions
 
