@@ -3,8 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { CONTACT } from "@/lib/site";
-import { BARE_ROUTES } from "@/components/Nav";
-import { bringsOwnChrome } from "@/shared/marketing/routes";
+import { isBareRoute } from "@/components/Nav";
 
 // Editorial footer (adapted from the reference site): a big "Let's connect"
 // band, then a minimal dark strip with an Explore nav list, the office / contact
@@ -15,7 +14,7 @@ export default function Footer({ locale, dict }) {
   // whole viewport and bring their own chrome (Nav.js suppresses itself on the
   // same list).
   const rel = pathname.replace(new RegExp(`^/${locale}(?=/|$)`), "").replace(/\/$/, "");
-  const isBare = BARE_ROUTES.includes(rel) || bringsOwnChrome(rel);
+  const isBare = isBareRoute(rel);
   const year = new Date().getFullYear();
 
   // Pricing and the platform have their own addresses now. The rest of the

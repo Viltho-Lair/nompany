@@ -25,6 +25,29 @@ import { bringsOwnChrome } from "@/shared/marketing/routes";
 // about.
 export const BARE_ROUTES = ["", "/login", "/signup", "/forgot", "/account", "/questionnaire"];
 
+// …AND EVERYTHING UNDER THESE. Matched as a subtree, not exactly, because the
+// questionnaire has a child route — the console's rehearsal of the same survey,
+// one level down — and an exact match put the site header and footer around a
+// screen that is one viewport tall and brings its own frame. The rehearsal
+// exists to look exactly like the real thing, so the chrome was the one
+// difference it must not have.
+//
+// (The word for that route is kept out of this file on purpose:
+// tests/marketing-model.mjs forbids it here, to keep a retired route of the
+// same name from creeping back into these lists.)
+//
+// A separate list rather than prefix-matching BARE_ROUTES: "" is the landing
+// page, and as a prefix it matches every path on the site.
+const BARE_SUBTREES = ["/questionnaire"];
+
+// The one question both this header and Footer.js ask, answered once so the
+// two cannot disagree about which screens are bare.
+export function isBareRoute(rel) {
+  return BARE_ROUTES.includes(rel)
+    || BARE_SUBTREES.some((root) => rel.startsWith(`${root}/`))
+    || bringsOwnChrome(rel);
+}
+
 // Minimal editorial header (inspired by the reference site): a slim bar with the
 // wordmark, theme + language controls and a Menu button that opens a full-screen
 // overlay carrying the navigation. No hovering/glowing logo.
@@ -111,8 +134,7 @@ export default function Nav({ locale, dict }) {
   //   /login, /signup — full-screen auth, in the landing design
   //   /account  — the full-screen account hub
   const rel = pathname.replace(new RegExp(`^/${locale}(?=/|$)`), "").replace(/\/$/, "");
-  const bare = BARE_ROUTES.includes(rel) || bringsOwnChrome(rel);
-  if (bare) return null;
+  if (isBareRoute(rel)) return null;
 
   return (
     <>
