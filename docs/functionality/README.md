@@ -51,6 +51,7 @@ Three rules that keep this folder worth reading:
 | [nova-insights.md](nova-insights.md) | Nova's speech bubble: what it may say, where it reads from, and what it never volunteers |
 | [pg-gateway.md](pg-gateway.md) | Reaching Cloud SQL from Vercel: the Cloud Run service, one call one transaction, and the guards re-run server-side |
 | [pipeline.md](pipeline.md) | The sales funnel: the stages a deal moves through, the moves that are refused, how long it has sat where it is, and why it ended |
+| [pos.md](pos.md) | The point of sale: tills, shifts and receipts, why the server prices the basket, tax taken out of a shelf price, stock by expiry, and the end-of-day report |
 | [pricing.md](pricing.md) | What a quotation line is priced at: the customer's agreed rate, the studio's sell price, or cost — and how each is shown |
 | [procurement-dashboard.md](procurement-dashboard.md) | What is waiting, what is late, and what does not add up |
 | [projects.md](projects.md) | Where work is delivered: the register, the plan, and the sub-screens that have their own files |

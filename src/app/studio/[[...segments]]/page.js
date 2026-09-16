@@ -52,7 +52,7 @@ import { log } from "@/platform/http/observability";
 // components/studio2/HeavyScreens holds the measurement and the reasoning; the
 // screens below are unchanged because their weight has not been measured yet,
 // and moving code on a hunch is how the last split came to look like it worked.
-import { DocumentList, DocumentView, DocumentPrint, StudioPlanner, StudioPlannerList } from "@/components/studio2/HeavyScreens";
+import { DocumentList, DocumentView, DocumentPrint, StudioPlanner, StudioPlannerList, StudioPos } from "@/components/studio2/HeavyScreens";
 
 const StudioDocs = nextDynamic(() => import("@/components/studio2/StudioDocs"));
 // The generic section dashboard's register panel — reached from five sections,
@@ -436,6 +436,14 @@ async function renderStudio(params) {
   // the shell below already answers "you asked for a section you weren't
   // granted" for every other section, and a second refusal screen of its own
   // would be the same sentence in a different voice.
+  // THE TILL, full-screen (shared/studioRoute decides the chrome; this decides
+  // the screen). Only for somebody who may open it — anybody else falls through
+  // to the shell, which says the section is not granted. Every act inside is
+  // asked for again by the service.
+  if (requested === "crm-sales-pos" && sections.some((s) => s.key === "crm-sales-pos") && can(access, "crmSales.pos.view")) {
+    return <StudioPos slug={studio.slug} />;
+  }
+
   if (requested === "engineering-docs-register" && sections.some((s) => s.key === "engineering-docs-register")) {
     const studioProps = { name: studio.name, slug: studio.slug };
     // NO SETUP SCREEN. Document types, prefixes, department codes and the

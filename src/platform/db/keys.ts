@@ -609,6 +609,9 @@ export const SECTION_DEFS = [
     // THE ORDER REGISTER. Same shape as Contracts above and for the same
     // reason — a destination and a right, with the rows under quotations.
     { key: "crm-sales-orders", name: "Sales orders" },
+    // THE POINT OF SALE (16/09/2026). Unlike the two registers above it OWNS its
+    // rows — tills, shifts and receipts — so a receipt is filed where it is sold.
+    { key: "crm-sales-pos", name: "Point of sale" },
     { key: "crm-sales-live", name: "Live view" },
     { key: "crm-sales-settings", name: "Settings" },
     // WHERE QUOTATIONS ARE FILED, NOT WHERE THEY ARE SHOWN (13/09/2026). The
@@ -926,6 +929,8 @@ export const SECTION_COLLECTIONS = {
   // before a single order could be written. `crm-sales-orders` below is a
   // DESTINATION and owns nothing.
   "crm-sales-quotations": ["quotations", "generatedDocuments", "contracts", "changeOrders", "salesOrders"],
+  // The till's own records, filed under the till.
+  "crm-sales-pos": ["posTerminals", "posShifts", "posReceipts"],
   // tendering. The register OWNS its records — unlike crm-sales-contracts,
   // which is a destination over somebody else's rows — so deleting the section
   // takes the tenders with it (invariant 11, children first).

@@ -47,6 +47,7 @@ const ar: SectionMap = {
   "crm-sales-quotations": "عروض الأسعار",
   "crm-sales-contracts": "العقود",
   "crm-sales-orders": "أوامر البيع",
+  "crm-sales-pos": "نقطة البيع",
   "crm-sales-live": "العرض المباشر",
 
   // QUOTATIONS, ITS OWN DEPARTMENT (13/09/2026).

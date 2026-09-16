@@ -284,6 +284,15 @@ const OWN_AREAS = [
   // confirmed it is cancelled rather than deleted — `orderDeletable` is
   // where that line is drawn, and the verb only opens the door to it.
   { key: "crmSales.orders", group: "CRM & Sales", label: "Sales orders", verbs: ["view", "create", "edit", "delete"] },
+  // THE TILL. `create` opens a shift and sells; `edit` manages tills and the
+  // till's settings. A receipt is never deleted — no delete verb — and the
+  // three extras are separate powers because a cashier who sells is not
+  // thereby trusted to change a price or sign off a drawer.
+  { key: "crmSales.pos", group: "CRM & Sales", label: "Point of sale", verbs: ["view", "create", "edit"],
+    extra: [
+      { key: "discount", label: "Change a price at the till" },
+      { key: "closeShift", label: "Close a shift and count the drawer" },
+    ] },
   { key: "engineeringDocs.live", group: "Quotations", label: "Live view", verbs: ["view"] },
   { key: "engineeringDocs.settings", group: "Quotations", label: "Settings", verbs: ["view", "edit"] },
 

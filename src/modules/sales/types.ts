@@ -32,6 +32,16 @@ export type SalesContext = ModuleContext & {
   taskAssignees: TaskAssignees;
 };
 
+// THE TILL'S CONTEXT (modules/sales/pos). Inventory's two sections are foreign
+// and therefore nullable: a studio with no Inventory has nothing to sell.
+export type PosContext = ModuleContext & {
+  posSection: Section;
+  itemsSection: Section | null;
+  stockSection: Section | null;
+  canViewPos: boolean;
+  canManagePos: boolean;
+};
+
 // ---- what a screen actually receives ----------------------------------------
 //
 // NONE OF THIS IS STORED, which is why it is here and not in `schema.ts`. A

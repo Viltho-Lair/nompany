@@ -61,6 +61,8 @@ export const SERIES: readonly Series[] = Object.freeze([
   { key: "siteReport", prefix: "DSR", group: "Projects", label: "Daily site reports" },
   { key: "tender", prefix: "TND", group: "Tendering & Estimating", label: "Tenders" },
   { key: "order", prefix: "SO", group: "CRM & Sales", label: "Sales orders" },
+  { key: "posReceipt", prefix: "RCT", group: "CRM & Sales", label: "POS receipts" },
+  { key: "posShift", prefix: "SHF", group: "CRM & Sales", label: "POS shifts" },
   { key: "requisition", prefix: "PR", group: "Procurement & Subcontracting", label: "Purchase requisitions" },
   { key: "rfq", prefix: "SRQ", group: "Procurement & Subcontracting", label: "Requests for quotation" },
   { key: "subcontract", prefix: "SC", group: "Procurement & Subcontracting", label: "Subcontracts" },

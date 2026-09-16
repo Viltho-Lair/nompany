@@ -89,6 +89,14 @@ export const StudioPlannerList = nextDynamic(
 // and `modules/reports/executive` — the tile registry and the movement
 // arithmetic — onto EVERY tenant page, to serve one screen most people never
 // open. Deferring it from here is what actually removes it.
+// THE TILL, full-screen. Its model, the barcode lookup and the shared totals
+// are all it carries, and none of that should ride every tenant page to serve
+// the counter that opens it.
+export const StudioPos = nextDynamic(
+  () => import("@/components/studio2/StudioPos"),
+  { loading: () => <ScreenSkeleton /> },
+);
+
 export const ExecutiveBoard = nextDynamic(
   () => import("@/components/studio2/ExecutiveBoard"),
   { loading: () => <ScreenSkeleton /> },

@@ -36,7 +36,7 @@ cross-cutting control (the `task` type wraps every stage). Neither is a blueprin
 
 | Section | Owns | State |
 |---|---|---|
-| CRM & Sales | tickets, clients, **contracts**, live view, settings — and, filed-only, the rows the Quotations department reads | Partial — no pipeline, customer 360 or catalog |
+| CRM & Sales | tickets, clients, **contracts**, **point of sale** (full-screen, owns its tills, shifts and receipts — `pos.md`), live view, settings — and, filed-only, the rows the Quotations department reads | Partial — no pipeline, customer 360 or catalog |
 | Quotations (13/09/2026) | **RFQs** (the intake desk), **quotations**, live view, settings — see `quotations.md` | Working |
 | Tendering & Estimating | — | **Not built yet** |
 | Projects | project list, SLA, overtimes, **planner**, settings | Working |

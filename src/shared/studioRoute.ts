@@ -151,6 +151,9 @@ export function isFullScreenPath(
 
   if (key === "engineering-docs-register") return granted(key);
 
+  // THE TILL takes the whole window: a cashier works a basket, not a sidebar.
+  if (key === "crm-sales-pos") return granted(key);
+
   if (key === "projects-planner") return granted(key);
 
   if (key === "projects-list" && segments[1] && granted(key)) {

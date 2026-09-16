@@ -92,6 +92,9 @@ export const COLLECTION_TABLE: Readonly<Record<string, string>> = {
   // contracts and changeOrders: the collection reached SECTION_COLLECTIONS and
   // `next build` refused to collect the export route until it was named here.
   tenders: "Tender",
+  posTerminals: "PosTerminal",
+  posShifts: "PosShift",
+  posReceipts: "PosReceipt",
   boqItems: "BoqItem",
   tenderRates: "TenderRate",
   projectCosts: "ProjectCost",
