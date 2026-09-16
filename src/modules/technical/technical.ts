@@ -44,6 +44,7 @@ import type { TechnicalContext, Rfq, Quotation, QuotationItem, QuotationSequence
 import type { SalesTicket } from "@/modules/sales/types";
 import type { Section } from "@/platform/db/sections";
 import type { Task } from "@/modules/tasks/types";
+import { documentTaxMethod, taxCategoryField } from "@/shared/taxProfile";
 
 export { RFQ_STATUSES, QUOTATION_STATUSES, DEFAULT_QUOTATION_STATUS, LEAD_INTERNAL,
   QUOTATION_LIVE_COLUMNS, DEFAULT_QUOTATION_LIVE_COLUMNS, cleanQuotationLiveColumns };
@@ -155,14 +156,18 @@ export function cleanItems(list: unknown): QuotationItem[] {
     description: str(i?.description, 300),
     qty: num(i?.qty),
     unitPrice: num(i?.unitPrice),
+    ...taxCategoryField(i?.taxCategory),
   })).filter((i) => i.description || i.qty || i.unitPrice);
 }
 // Totals are always DERIVED, never trusted from the client — and derived by
 // the ONE calculation invoices use too (shared/documentTotals), in the
 // document's own currency, so a quotation and the invoice raised from it cannot
 // disagree about what the same lines come to.
-export function computeTotals(items: unknown, vatRate: unknown, currency: unknown) {
-  return documentTotals({ lines: cleanItems(items), vatRate, currency });
+//
+// `method` is the quotation's frozen tax method; absent, it totals as every
+// quotation always did.
+export function computeTotals(items: unknown, vatRate: unknown, currency: unknown, method?: unknown) {
+  return documentTotals({ lines: cleanItems(items), vatRate, currency, method });
 }
 
 // ---- RFQs ------------------------------------------------------------------
@@ -580,6 +585,9 @@ export function issueTerms(sequence: Pick<QuotationSequence, "validDays"> | null
   return {
     validUntil: validDays > 0 ? addDaysISO(todayISO(), validDays) : "",
     currency: String((studio as { currency?: unknown }).currency || "").slice(0, 3),
+    // HOW ITS TAX IS ADDED UP, frozen the same way: the studio's country decides
+    // today, and a later change of country moves no quotation a client holds.
+    taxMethod: documentTaxMethod(studio),
   };
 }
 
@@ -807,7 +815,7 @@ export async function createQuotation(ctx: TechnicalContext, body: Record<string
     tables: [],
     items,
     vatRate,
-    ...computeTotals(items, vatRate, studio.currency),
+    ...computeTotals(items, vatRate, studio.currency, documentTaxMethod(studio)),
     comments: [],
     locked: false,
     // No ticket behind it, so there is nothing to carry and no label to store:
@@ -895,7 +903,7 @@ export async function convertRfq(ctx: TechnicalContext, body: Record<string, unk
     tables,
     items,
     vatRate,
-    ...computeTotals(items, vatRate, studio.currency),
+    ...computeTotals(items, vatRate, studio.currency, documentTaxMethod(studio)),
     description: str(body?.description, 2000) || str(rfq.description, 2000)
       || str(t.ticketDescription, 2000) || str(t.title, 2000),
     handledByCollaboratorId,
@@ -1016,7 +1024,7 @@ export async function updateQuotation(ctx: TechnicalContext, id: string, body: R
     const tables = cleanQuotationTables(body.tables);
     const items = cleanItems(itemsFromTables(tables));
     const vatRate = body?.vatRate !== undefined ? documentVatRate(studio, body.vatRate, current.vatRate) : current.vatRate;
-    Object.assign(patch, { tables, items, vatRate }, computeTotals(items, vatRate, current.currency || studio.currency));
+    Object.assign(patch, { tables, items, vatRate }, computeTotals(items, vatRate, current.currency || studio.currency, current.taxMethod));
     // Saving keeps it a Draft. Only Submit finishes it, and that arrives as an
     // explicit status the block above has already set.
     if (!patch.status && current.status === DEFAULT_QUOTATION_STATUS) patch.status = "Draft";
@@ -1026,7 +1034,7 @@ export async function updateQuotation(ctx: TechnicalContext, id: string, body: R
   if (body?.tables === undefined && (body?.items !== undefined || body?.vatRate !== undefined)) {
     const items = body?.items !== undefined ? cleanItems(body.items) : current.items;
     const vatRate = body?.vatRate !== undefined ? documentVatRate(studio, body.vatRate, current.vatRate) : current.vatRate;
-    Object.assign(patch, { items, vatRate }, computeTotals(items, vatRate, current.currency || studio.currency));
+    Object.assign(patch, { items, vatRate }, computeTotals(items, vatRate, current.currency || studio.currency, current.taxMethod));
   }
   // Comments are APPENDED, never replaced: the client sends the one line it
   // wants added, so two people commenting at once cannot overwrite each other,
@@ -1280,6 +1288,8 @@ export async function catalogueItems(
         // and the two look identical on the line.
         priceBasis: resolved.basis,
         sellPrice: Number((r as { sellPrice?: unknown }).sellPrice) || 0,
+        // COPIED onto the line with the price when the builder picks the item.
+        ...taxCategoryField((r as { taxCategory?: unknown }).taxCategory),
         // The landed cost, kept beside the price rather than replaced by it:
         // the margin on a line is the one number a reviewer wants and it cannot
         // be recovered from the price alone.

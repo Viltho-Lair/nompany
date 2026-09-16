@@ -25,6 +25,9 @@ import { StatusPill } from "@/components/studio2/StatusPill";
 import { useReload } from "@/components/studio2/useReload";
 import { treasuryDict } from "@/shared/studio/treasury";
 import { moneyText } from "@/shared/money";
+import { taxDict, taxCategoryOptions } from "@/shared/studio/tax";
+import { documentTotals } from "@/shared/documentTotals";
+import TaxTag from "@/components/studio2/TaxTag";
 
 // THE DASHBOARD LOADS WHEN IT IS SHOWN, not with this screen. It was a static
 // import, so every tenant page carried every department's dashboard and the
@@ -438,19 +441,12 @@ function Invoices({ rows, projects, milestones = [], vocab, slug, nav, canManage
                 <ul className="space-y-1 text-sm text-slate-600 dark:text-slate-300">
                   {inv.lines.map((l, i) => (
                     <li key={i} className="flex justify-between gap-4">
-                      <span>{l.description} × {l.qty}</span>
+                      <span>{l.description} × {l.qty}<TaxTag category={l.taxCategory} /></span>
                       <span className="num">{money(l.qty * l.unitPrice)}</span>
                     </li>
                   ))}
                 </ul>
-                <div className="mt-3 space-y-0.5 border-t border-slate-200 pt-3 text-sm dark:border-white/10">
-                  <p className="flex justify-between gap-4 text-slate-500 dark:text-slate-400"><span>{tr.subtotal}</span><span className="num">{money(inv.subtotal)}</span></p>
-                  <p className="flex justify-between gap-4 text-slate-500 dark:text-slate-400"><span>VAT {inv.vatRate}%</span><span className="num">{money(inv.vat)}</span></p>
-                  <p className="flex justify-between gap-4 font-700 text-slate-900 dark:text-white"><span>{tr.total}</span><span className="num">{money(inv.total)}</span></p>
-                  {inv.outstanding > 0 && inv.status !== "Draft" && (
-                    <p className="flex justify-between gap-4 text-slate-500 dark:text-slate-400"><span>{tr.outstanding}</span><span className="num">{money(inv.outstanding)}</span></p>
-                  )}
-                </div>
+                <DocumentTotals doc={inv} />
                 {(inv.payments || []).length > 0 && (
                   <div className="mt-3 border-t border-slate-200 pt-3 dark:border-white/10">
                     <p className="text-xs font-700 uppercase tracking-wide text-slate-500 dark:text-slate-400">{tr.payments}</p>
@@ -473,16 +469,46 @@ function Invoices({ rows, projects, milestones = [], vocab, slug, nav, canManage
   );
 }
 
+// A DOCUMENT'S TOTALS, for an invoice and a bill alike — one block, so the two
+// cannot drift. When the lines carry more than one rate, what was taxed at each
+// is listed under the subtotal: a VAT figure that is not the subtotal times the
+// rate needs its working shown.
+function DocumentTotals({ doc }) {
+  const locale = useStudioLocale();
+  const tr = financeDict(locale);
+  const tax = taxDict(locale);
+  const mixed = (doc.breakdown || []).length > 1;
+  const row = "flex justify-between gap-4 text-slate-500 dark:text-slate-400";
+  return (
+    <div className="mt-3 space-y-0.5 border-t border-slate-200 pt-3 text-sm dark:border-white/10">
+      <p className={row}><span>{tr.subtotal}</span><span className="num">{money(doc.subtotal)}</span></p>
+      {mixed && doc.breakdown.map((b) => (
+        <p key={b.category + ":" + b.rate} className={row + " ps-3 text-xs"}>
+          <span>{tax.breakdownRow(b.category, b.rate)}</span><span className="num">{money(b.taxable)}</span>
+        </p>
+      ))}
+      <p className={row}><span>VAT {doc.vatRate}%</span><span className="num">{money(doc.vat)}</span></p>
+      <p className="flex justify-between gap-4 font-700 text-slate-900 dark:text-white"><span>{tr.total}</span><span className="num">{money(doc.total)}</span></p>
+      {doc.outstanding > 0 && doc.status !== "Draft" && (
+        <p className={row}><span>{tr.outstanding}</span><span className="num">{money(doc.outstanding)}</span></p>
+      )}
+    </div>
+  );
+}
+
 // THE ONE LINE-ITEMS EDITOR, shared by the invoice and the bill forms — a bill's
 // lines are an invoice's lines (same shape, same server-side cleaning), so the
 // two must not drift. Owns the row map/add/remove; the caller owns the state and
 // reads `filledLines`/`linesSubtotal` off it for the total.
-const EMPTY_LINE = { description: "", qty: "1", unitPrice: "" };
+const EMPTY_LINE = { description: "", qty: "1", unitPrice: "", taxCategory: "standard" };
 export const filledLines = (lines) => lines.filter((l) => l.description.trim() && Number(l.qty) > 0);
 export const linesSubtotal = (lines) => filledLines(lines).reduce((s, l) => s + Number(l.qty) * (Number(l.unitPrice) || 0), 0);
 
-function LineItemsEditor({ lines, setLines }) {
-  const tr = financeDict(useStudioLocale());
+// `vatOn`: a studio with no VAT rate taxes nothing, so it is asked no category.
+function LineItemsEditor({ lines, setLines, vatOn = false }) {
+  const locale = useStudioLocale();
+  const tr = financeDict(locale);
+  const tax = taxDict(locale);
   const setLine = (i, k, v) => setLines((ls) => ls.map((l, n) => (n === i ? { ...l, [k]: v } : l)));
   return (
     <div className="mt-5 space-y-3">
@@ -497,6 +523,12 @@ function LineItemsEditor({ lines, setLines }) {
           <div className="w-32">
             <Field label={tr.unitPrice} type="number" value={l.unitPrice} onChange={(v) => setLine(i, "unitPrice", v)} />
           </div>
+          {vatOn && (
+            <div className="w-36">
+              <Field label={tax.category} as="select" required value={l.taxCategory || "standard"}
+                onChange={(v) => setLine(i, "taxCategory", v)} options={taxCategoryOptions(locale)} />
+            </div>
+          )}
           {lines.length > 1 && <button className={btnGhost} onClick={() => setLines((ls) => ls.filter((_, n) => n !== i))}>{tr.remove}</button>}
         </div>
       ))}
@@ -519,8 +551,9 @@ function InvoiceForm({ projects, milestones = [], defaultVat, vatOn, busy, onCan
   const filled = filledLines(lines);
   const project = projects.find((p) => p.id === head.projectId);
   const ready = filled.length > 0 && (head.projectId || head.clientName.trim());
-  const subtotal = linesSubtotal(lines);
-  const total = subtotal * (1 + (Number(head.vatRate) || 0) / 100);
+  // THE SAME CALCULATION THE SERVER RUNS, so a zero-rated line shows untaxed
+  // before it is saved rather than after.
+  const { total } = documentTotals({ lines: filled, vatRate: vatOn ? head.vatRate : 0 });
 
   return (
     <section className={`${panel} border-brand-500/40`}>
@@ -544,7 +577,7 @@ function InvoiceForm({ projects, milestones = [], defaultVat, vatOn, busy, onCan
         </Field>
       </div>
 
-      <LineItemsEditor lines={lines} setLines={setLines} />
+      <LineItemsEditor lines={lines} setLines={setLines} vatOn={vatOn} />
 
       <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">
         {tr.total} <span className="font-mono font-700 text-slate-900 dark:text-white">{money(total)}</span>
@@ -1043,19 +1076,12 @@ function Bills({ rows, vocab, canManage, canRelease, busy, send, pickers = {} })
                               <ul className="space-y-1 text-sm text-slate-600 dark:text-slate-300">
                                 {(b.lines || []).map((l, i) => (
                                   <li key={i} className="flex justify-between gap-4">
-                                    <span>{l.description} × {l.qty}</span>
+                                    <span>{l.description} × {l.qty}<TaxTag category={l.taxCategory} /></span>
                                     <span className="num">{money(l.qty * l.unitPrice)}</span>
                                   </li>
                                 ))}
                               </ul>
-                              <div className="mt-3 space-y-0.5 border-t border-slate-200 pt-3 text-sm dark:border-white/10">
-                                <p className="flex justify-between gap-4 text-slate-500 dark:text-slate-400"><span>{tr.subtotal}</span><span className="num">{money(b.subtotal)}</span></p>
-                                <p className="flex justify-between gap-4 text-slate-500 dark:text-slate-400"><span>VAT {b.vatRate}%</span><span className="num">{money(b.vat)}</span></p>
-                                <p className="flex justify-between gap-4 font-700 text-slate-900 dark:text-white"><span>{tr.total}</span><span className="num">{money(b.total)}</span></p>
-                                {b.outstanding > 0 && b.status !== "Draft" && (
-                                  <p className="flex justify-between gap-4 text-slate-500 dark:text-slate-400"><span>{tr.outstanding}</span><span className="num">{money(b.outstanding)}</span></p>
-                                )}
-                              </div>
+                              <DocumentTotals doc={b} />
                               <p className="mt-3 text-xs text-slate-400">
                                 {tr.billedOn} {b.billDate ? fmt(b.billDate) : "—"} · {tr.termsLabel} {termLabel(tr)[b.terms] || b.terms || "—"}
                               </p>
@@ -1110,14 +1136,13 @@ function BillForm({ bill, terms, defaultVat, vatOn, busy, pickers = {}, onCancel
   });
   const [lines, setLines] = useState(
     bill?.lines?.length
-      ? bill.lines.map((l) => ({ description: l.description || "", qty: String(l.qty ?? "1"), unitPrice: String(l.unitPrice ?? "") }))
+      ? bill.lines.map((l) => ({ description: l.description || "", qty: String(l.qty ?? "1"), unitPrice: String(l.unitPrice ?? ""), taxCategory: l.taxCategory || "standard" }))
       : [{ ...EMPTY_LINE }],
   );
 
   const filled = filledLines(lines);
   const ready = head.vendorName.trim() && filled.length > 0;
-  const subtotal = linesSubtotal(lines);
-  const total = subtotal * (1 + (Number(head.vatRate) || 0) / 100);
+  const { total } = documentTotals({ lines: filled, vatRate: vatOn ? head.vatRate : 0 });
   const body = (status) => ({
     ...head, vatRate: Number(head.vatRate) || 0, lines: filled, ...(status ? { status } : {}),
   });
@@ -1172,7 +1197,7 @@ function BillForm({ bill, terms, defaultVat, vatOn, busy, pickers = {}, onCancel
         </div>
       </div>
 
-      <LineItemsEditor lines={lines} setLines={setLines} />
+      <LineItemsEditor lines={lines} setLines={setLines} vatOn={vatOn} />
 
       <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">
         {tr.total} <span className="num font-700 text-slate-900 dark:text-white">{money(total)}</span>

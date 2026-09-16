@@ -1,4 +1,5 @@
 import type { Quotation, QuotationLine, QuotationTable, QuotationItem } from "./types";
+import { taxCategoryField } from "@/shared/taxProfile";
 
 // Quotation + RFQ shared constants. Kept out of modules/technical/technical.js so client
 // components can import them without pulling the Redis-backed section store in
@@ -139,6 +140,9 @@ export function cleanQuotationTables(value: unknown): QuotationTable[] {
               // the way in, so no stored line can carry a discount that would have to be
               // defended against every time it is read.
               discount: discountPct(r?.discount),
+              // COPIED off the registered item with the price, and for the same
+              // reason: a later change to the item moves no quotation.
+              ...taxCategoryField(r?.taxCategory),
             };
           })
           .filter((r) => r.description)),
@@ -160,6 +164,7 @@ export function itemsFromTables(tables: QuotationTable[] | null | undefined): Qu
       // priced list the totals run over, and it should already have the discount
       // taken off so nothing downstream has to know discounts exist.
       unitPrice: netUnitPrice(r),
+      ...taxCategoryField(r.taxCategory),
     })));
 }
 

@@ -22,6 +22,7 @@ import { parseAwb, formatAwb } from "@/modules/inventory/awb";
 import { statusLabel, isException, AWB_STATUS_BY_CODE } from "@/modules/inventory/awbStatus";
 import { StatusPill } from "@/components/studio2/StatusPill";
 import { useReload } from "@/components/studio2/useReload";
+import { taxDict, taxCategoryOptions } from "@/shared/studio/tax";
 
 // THE DASHBOARD LOADS WHEN IT IS SHOWN, not with this screen. It was a static
 // import, so every tenant page carried every department's dashboard and the
@@ -412,7 +413,9 @@ function ItemImage({ value, onChange }) {
 }
 
 function ItemForm({ row, vendors, units, serviceActions = [], studioCurrency = "", busy, onSave, onCancel }) {
-  const tr = inventoryDict(useStudioLocale());
+  const locale = useStudioLocale();
+  const tr = inventoryDict(locale);
+  const tax = taxDict(locale);
   const [f, setF] = useState({
     name: row?.name || "", sku: row?.sku || "", modelNumber: row?.modelNumber || "",
     unit: row?.unit || units[0], vendorId: row?.vendorId || "",
@@ -420,6 +423,7 @@ function ItemForm({ row, vendors, units, serviceActions = [], studioCurrency = "
     scope: Array.isArray(row?.scope) ? row.scope : [],
     reorderLevel: row?.reorderLevel || "", unitCost: row?.unitCost || "", notes: row?.notes || "",
     sellPrice: row?.sellPrice || "",
+    taxCategory: row?.taxCategory || "standard",
     currency: row?.currency || "", image: row?.image || "",
     shippingCharges: row?.shippingCharges ?? "", customsCharges: row?.customsCharges ?? "",
   });
@@ -484,6 +488,11 @@ function ItemForm({ row, vendors, units, serviceActions = [], studioCurrency = "
           onChange={(v) => setF((s) => ({ ...s, sellPrice: v }))} inputProps={{ step: "0.01" }}
           hint={sellHint} />
         <Field label={tr.reorderLevel} type="number" min="0" value={f.reorderLevel} onChange={(v) => setF((s) => ({ ...s, reorderLevel: v }))} />
+        {/* WHAT THE ITEM IS FOR TAX. Copied onto a quotation line with the
+            price, so changing it here moves no quotation already written. */}
+        <Field label={tax.category} as="select" required value={f.taxCategory}
+          onChange={(v) => setF((s) => ({ ...s, taxCategory: v }))}
+          options={taxCategoryOptions(locale)} hint={tax.categoryHint} />
         {/* Only for an item priced in somebody else's money — and then both are
             asked for, because "we didn't say" and "it was nothing" are
             different answers and only one of them is worth storing. */}

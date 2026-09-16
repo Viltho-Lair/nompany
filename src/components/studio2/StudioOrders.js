@@ -25,8 +25,10 @@ import { panel, h2, sub, btn, btnGhost, btnRow, btnRowDanger, Empty, Dialog, th,
 import { Field } from "@/components/fields/Field";
 import { StatusPill } from "@/components/studio2/StatusPill";
 import { movesFrom, orderDeletable, orderLinesEditable } from "@/modules/sales/orderStatus";
+import { taxDict, taxCategoryOptions } from "@/shared/studio/tax";
+import { documentTotals } from "@/shared/documentTotals";
 
-const BLANK_LINE = { description: "", qty: 1, unitPrice: 0 };
+const BLANK_LINE = { description: "", qty: 1, unitPrice: 0, taxCategory: "standard" };
 
 /** A refusal name becomes a sentence here, in whichever language is being read. */
 function refusal(tr, token) {
@@ -42,7 +44,9 @@ function refusal(tr, token) {
 }
 
 export default function StudioOrders({ slug }) {
-  const tr = salesOrdersDict(useStudioLocale());
+  const locale = useStudioLocale();
+  const tr = salesOrdersDict(locale);
+  const tax = taxDict(locale);
   const [orders, setOrders] = useState(null);
   const [rights, setRights] = useState({});
   const [pickers, setPickers] = useState({});
@@ -95,12 +99,11 @@ export default function StudioOrders({ slug }) {
     return true;
   }, [slug, tr, reload]);
 
-  const totals = useMemo(() => {
-    const lines = form?.lines || [];
-    const subtotal = lines.reduce((s, l) => s + Number(l.qty || 0) * Number(l.unitPrice || 0), 0);
-    const vat = subtotal * (Number(form?.vatRate || 0) / 100);
-    return { subtotal, vat, total: subtotal + vat };
-  }, [form]);
+  // THE SAME CALCULATION THE SERVER RUNS, in the order's currency and with its
+  // frozen tax method, so what the form shows is what will be stored.
+  const totals = useMemo(() => documentTotals({
+    lines: form?.lines || [], vatRate: form?.vatRate, currency: form?.currency, method: form?.taxMethod,
+  }), [form]);
 
   if (orders === null) return <ScreenSkeleton />;
 
@@ -245,7 +248,7 @@ export default function StudioOrders({ slug }) {
           {!(form.lines || []).length && <p className={sub}>{tr.noLines}</p>}
 
           {(form.lines || []).map((l, i) => (
-            <div key={i} className="mt-3 grid gap-3 sm:grid-cols-[2fr_1fr_1fr_auto] sm:items-end">
+            <div key={i} className="mt-3 grid gap-3 sm:grid-cols-[2fr_1fr_1fr_1fr_auto] sm:items-end">
               <Field label={tr.fldDescription} value={l.description || ""} disabled={!editable}
                 onChange={(v) => setForm((p) => ({
                   ...p, lines: p.lines.map((x, j) => (j === i ? { ...x, description: v } : x)),
@@ -258,6 +261,14 @@ export default function StudioOrders({ slug }) {
                 onChange={(v) => setForm((p) => ({
                   ...p, lines: p.lines.map((x, j) => (j === i ? { ...x, unitPrice: Number(v) || 0 } : x)),
                 }))} />
+              {/* A studio with no VAT rate taxes nothing, so it is asked no category. */}
+              {Number(form.vatRate) > 0 ? (
+                <Field label={tax.category} as="select" required value={l.taxCategory || "standard"} disabled={!editable}
+                  options={taxCategoryOptions(locale)}
+                  onChange={(v) => setForm((p) => ({
+                    ...p, lines: p.lines.map((x, j) => (j === i ? { ...x, taxCategory: v } : x)),
+                  }))} />
+              ) : <span />}
               {editable && (
                 <button type="button" className={btnRowDanger}
                   onClick={() => setForm((p) => ({ ...p, lines: p.lines.filter((_, j) => j !== i) }))}>

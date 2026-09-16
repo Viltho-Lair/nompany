@@ -24,6 +24,7 @@ import { paymentHold, releaseProblem, payProblem, type PaymentHold } from "./hol
 import { threeWayMatch } from "@/modules/procurement/receivingModel";
 import { supplierQualification } from "@/modules/procurement/supplierModel";
 import { notifyHolders, signatureNotice } from "@/modules/people/holders";
+import { documentTaxMethod } from "@/shared/taxProfile";
 
 const BILLS = "bills";
 const Bills = repo<Bill>(BILLS);
@@ -68,7 +69,7 @@ export async function listBills({ studio, payablesSection }: Pick<FinanceContext
 // What planFor needs off a bill, so it can be asked about one that has not been
 // written yet — a create resolves its plan BEFORE the row exists, which is the
 // only way the stored row carries it without a second write.
-type Priceable = Pick<Bill, "lines" | "vatRate" | "payments" | "currency">;
+type Priceable = Pick<Bill, "lines" | "vatRate" | "payments" | "currency" | "taxMethod">;
 
 /** Today's rates, or the fact that none were needed. */
 type Fx = { rates: Record<string, number> | null; updatedAt: number; stale: boolean };
@@ -250,7 +251,9 @@ export async function createBill(ctx: FinanceContext, body: Record<string, unkno
   // plan cannot be resolved is STILL RAISED and stores null: recording an
   // obligation that already exists must not wait on an exchange rate. Only
   // authorising payment refuses.
-  const plan = await planFor(ctx, { lines, vatRate, payments: [], currency });
+  // FROZEN like the currency: how the studio's country adds a document's tax up.
+  const taxMethod = documentTaxMethod(studio);
+  const plan = await planFor(ctx, { lines, vatRate, payments: [], currency, taxMethod });
   const bill = await Bills.create({ studio, section: payablesSection }, {
     reference: await nextReference(studio.id, { rows: bills, field: "reference", ...seriesSetting("bill", studio.numbering) }),
     vendorId: str(body?.vendorId, 60),
@@ -268,6 +271,7 @@ export async function createBill(ctx: FinanceContext, body: Record<string, unkno
     // payments.ts and changeOrders.ts already use.
     currency,
     vatRate,
+    ...(taxMethod ? { taxMethod } : {}),
     approvals: [],
     approvalPlan: plan.ok ? plan : null,
     // A bill arrives already owed — its default is Received, not Draft — unless

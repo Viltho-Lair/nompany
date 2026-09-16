@@ -40,6 +40,8 @@ export type FillWords = {
   columns: Record<string, string>;
   totals: Record<string, string>;
   vatAt: (rate: number) => string;
+  /** Optional: a caller that prints no breakdown need not supply it. */
+  taxableAt?: (category: string, rate: number) => string;
   /** Right-to-left: an "end" column is on the physical left. */
   rtl: boolean;
 };
@@ -100,7 +102,9 @@ function blockNodes(
       content: (block.rows || []).map((r) => {
         const token = String(r.token || "");
         const rate = Number(r.rate) || 0;
-        const labelText = token === "vat" && rate ? words.vatAt(rate) : (words.totals[token] || String(r.label || ""));
+        const labelText = token === "vat" && rate ? words.vatAt(rate)
+          : token === "taxable" && words.taxableAt ? words.taxableAt(String(r.category || ""), rate)
+            : (words.totals[token] || String(r.label || ""));
         const strong = Boolean(r.strong);
         return {
           type: "tableRow",

@@ -60,6 +60,7 @@ import type { BoqItem } from "@/modules/tendering/schema";
 import type { Row } from "@/platform/db/store";
 import type { Task } from "@/modules/tasks/types";
 import { roundMoney, roundSum } from "@/shared/money";
+import { taxCategoryField } from "@/shared/taxProfile";
 
 const VENDORS = "inventoryVendors";
 const ITEMS = "inventoryItems";
@@ -510,6 +511,8 @@ export async function createItem(ctx: InventoryContext, body: Record<string, unk
     // free — shared/pricing.ts falls back to cost and says so, instead of
     // quoting a nought somebody would have to notice.
     sellPrice: money(body?.sellPrice),
+    // WHAT IT IS FOR TAX — stored only when it is not standard (shared/taxProfile).
+    ...taxCategoryField(body?.taxCategory),
     // What that cost is IN. Blank means the studio's own currency, so an item
     // priced in the studio's money needs nothing said about it.
     currency,
@@ -559,6 +562,9 @@ export async function editItem(ctx: InventoryContext, id: string, body: Record<s
   if (body?.reorderLevel !== undefined) patch.reorderLevel = qty(body.reorderLevel) > 0 ? qty(body.reorderLevel) : 0;
   if (body?.unitCost !== undefined) patch.unitCost = money(body.unitCost);
   if (body?.sellPrice !== undefined) patch.sellPrice = money(body.sellPrice);
+  // Standard is stored as absent, so choosing it CLEARS the field rather than
+  // writing "standard" beside every item that never had one.
+  if (body?.taxCategory !== undefined) patch.taxCategory = taxCategoryField(body.taxCategory).taxCategory;
   // The currency and its two charges are decided together: what the charges
   // must be follows the currency the item ENDS UP with, not the one this
   // request happened to mention. An edit that touches none of the three — a

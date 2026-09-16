@@ -3,6 +3,8 @@
 // The status rules are in ./orderStatus, which is pure and shared with the
 // screen. This file is the record's shape and the reasoning behind each field.
 import { z } from "zod";
+import { TAX_CATEGORIES } from "@/shared/taxProfile";
+import { TOTALS_METHODS } from "@/shared/documentTotals";
 import { ORDER_STATUSES } from "./orderStatus";
 
 /**
@@ -16,6 +18,8 @@ export const OrderLineSchema = z.object({
   description: z.string(),
   qty: z.number(),
   unitPrice: z.number(),
+  /** Absent means standard — see finance/schema. */
+  taxCategory: z.enum(TAX_CATEGORIES).optional(),
 });
 
 export const SalesOrderSchema = z.looseObject({
@@ -64,6 +68,8 @@ export const SalesOrderSchema = z.looseObject({
    */
   currency: z.string().max(8),
   vatRate: z.number(),
+  /** Frozen when the order was raised — see finance/schema. */
+  taxMethod: z.enum(TOTALS_METHODS).optional(),
   subtotal: z.number(),
   vat: z.number(),
   total: z.number(),

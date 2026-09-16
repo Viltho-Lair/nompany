@@ -39,6 +39,7 @@ import { nextReference } from "@/modules/main/references";
 import type { Invoice, InvoiceView, Expense, InvoiceLine, Payment, FinanceContext } from "./types";
 import type { Row } from "@/platform/db/store";
 import { readHold, holdProblems, cleanHold } from "./hold";
+import { documentTaxMethod, taxCategoryField } from "@/shared/taxProfile";
 
 const INVOICES = "invoices";
 const EXPENSES = "expenses";
@@ -240,14 +241,18 @@ export async function saveFinanceSettings(ctx: FinanceContext, body: Record<stri
 // Takes the minimal shape it reads — lines, a VAT rate, payments — so both an
 // Invoice and a Bill (which share exactly those) total through the one function.
 export function invoiceTotals(
-  invoice: { lines?: unknown; vatRate?: unknown; payments?: unknown; currency?: unknown } | null | undefined,
+  invoice: { lines?: unknown; vatRate?: unknown; payments?: unknown; currency?: unknown; taxMethod?: unknown } | null | undefined,
   fallbackCurrency: unknown,
 ) {
   const currency = String(invoice?.currency || "") || fallbackCurrency;
-  const { subtotal, vat, total } = documentTotals({ lines: invoice?.lines, vatRate: invoice?.vatRate, currency });
+  // THE INVOICE'S OWN FROZEN METHOD — absent on everything raised before it
+  // existed, which therefore totals exactly as it did when it was issued.
+  const { subtotal, vat, total, breakdown } = documentTotals({
+    lines: invoice?.lines, vatRate: invoice?.vatRate, currency, method: invoice?.taxMethod,
+  });
   const paid = roundMoney((Array.isArray(invoice?.payments) ? invoice.payments : [])
     .reduce((s: number, p: Record<string, unknown>) => s + (Number(p.amount) || 0), 0), currency);
-  return { subtotal, vat, total, paid, outstanding: roundMoney(Math.max(0, total - paid), currency) };
+  return { subtotal, vat, total, breakdown, paid, outstanding: roundMoney(Math.max(0, total - paid), currency) };
 }
 
 // "Paid" is a consequence of the payments, never an assertion. A cancelled
@@ -360,6 +365,8 @@ export async function createInvoice(ctx: FinanceContext, body: Record<string, un
     clientName,
     lines,
     vatRate: documentVatRate(studio, body?.vatRate),
+    // FROZEN like the currency below: how the studio's country adds tax up.
+    ...(documentTaxMethod(studio) ? { taxMethod: documentTaxMethod(studio) } : {}),
     status: "Draft",
     issueDate,
     // A TYPED DUE DATE WINS; otherwise the studio's payment term for invoices
@@ -708,6 +715,7 @@ export function cleanLines(list: unknown, currency: unknown): InvoiceLine[] {
       description: str(l?.description, 300),
       qty: Number(l?.qty) > 0 ? Math.round(Number(l.qty) * 1000) / 1000 : 0,
       unitPrice: cash(l?.unitPrice, currency),
+      ...taxCategoryField(l?.taxCategory),
     }))
     .filter((l) => l.description && l.qty > 0)
     .slice(0, 200);

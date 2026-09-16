@@ -8,8 +8,10 @@ import Link from "next/link";
 import { btn, btnGhost, input, money } from "@/components/studio2/ui";
 import { Icon } from "@/components/studio2/icons";
 import Combo from "@/components/studio2/Combo";
+import TaxTag from "@/components/studio2/TaxTag";
 import { MAX_TABLES, MAX_TABLE_ROWS, netUnitPrice } from "@/modules/technical/quotations";
 import { fmtRate } from "@/shared/currencies";
+import { documentTotals } from "@/shared/documentTotals";
 
 // The Quotation Builder: the full screen where a quotation is actually built.
 //
@@ -22,7 +24,7 @@ import { fmtRate } from "@/shared/currencies";
 // so two quotations for the same client can be laid out differently.
 
 const uid = () => Math.random().toString(36).slice(2, 9);
-const blankRow = () => ({ id: uid(), itemId: "", description: "", image: "", unit: "", qty: 1, unitPrice: 0, discount: 0 });
+const blankRow = () => ({ id: uid(), itemId: "", description: "", image: "", unit: "", qty: 1, unitPrice: 0, discount: 0, taxCategory: "standard" });
 const blankTable = () => ({ id: uid(), title: "", rows: [blankRow()] });
 
 const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
@@ -118,21 +120,23 @@ export default function QuotationBuilder({ slug, quote, catalogue = [], currency
       // The text is still written, so the field shows what was typed rather
       // than silently snapping back — but the item is NOT attached, so the row
       // stays an unlisted line until it is changed to something else.
-      setRow(i, k, { description: name, itemId: "", unit: "", unitPrice: 0, image: "" });
+      setRow(i, k, { description: name, itemId: "", unit: "", unitPrice: 0, image: "", taxCategory: "standard" });
       return;
     }
     setDuplicate(null);
     setRow(i, k, found
-      ? { description: name, itemId: found.id, unit: found.unit || "", unitPrice: found.unitPrice || 0, image: found.image || "" }
-      : { description: name, itemId: "", unit: "", unitPrice: 0, image: "" });
+      // THE ITEM'S TAX CATEGORY COMES WITH ITS PRICE, copied for the same reason.
+      ? { description: name, itemId: found.id, unit: found.unit || "", unitPrice: found.unitPrice || 0, image: found.image || "", taxCategory: found.taxCategory || "standard" }
+      : { description: name, itemId: "", unit: "", unitPrice: 0, image: "", taxCategory: "standard" });
   };
 
-  const totals = useMemo(() => {
-    const subtotal = tables.reduce((sum, t) =>
-      sum + t.rows.reduce((s, r) => s + num(r.qty) * netUnitPrice(r), 0), 0);
-    const vat = subtotal * (num(vatRate) / 100);
-    return { subtotal, vat, total: subtotal + vat };
-  }, [tables, vatRate]);
+  // THE SAME CALCULATION THE SERVER RUNS — at the net price, per tax category,
+  // in the quotation's currency and with its frozen tax method — so a
+  // zero-rated line shows untaxed before the quotation is saved.
+  const totals = useMemo(() => documentTotals({
+    lines: tables.flatMap((t) => t.rows.map((r) => ({ qty: num(r.qty), unitPrice: netUnitPrice(r), taxCategory: r.taxCategory }))),
+    vatRate, currency, method: quote.taxMethod,
+  }), [tables, vatRate, currency, quote.taxMethod]);
 
   const lines = tables.reduce((n, t) => n + t.rows.filter((r) => r.description.trim()).length, 0);
 
@@ -323,6 +327,7 @@ export default function QuotationBuilder({ slug, quote, catalogue = [], currency
                             {row.itemId || num(row.unitPrice)
                               ? <>{money(num(row.unitPrice))} <span className="text-slate-400">{currency}</span></>
                               : <span className="font-sans text-slate-400">—</span>}
+                            <TaxTag category={row.taxCategory} />
                             <Conversion src={itemById[row.itemId]} />
                             <PriceBasis src={itemById[row.itemId]} tr={tr} />
                           </td>

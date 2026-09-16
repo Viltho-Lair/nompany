@@ -33,6 +33,17 @@ export function cleanTaxCategory(v: unknown): TaxCategory {
   return (TAX_CATEGORIES as readonly string[]).includes(s) ? (s as TaxCategory) : "standard";
 }
 
+/**
+ * THE FIELD AS A LINE STORES IT: nothing for a standard line, the category
+ * otherwise. Spread into a cleaned line, so every line written before
+ * categories existed — and every standard line after — keeps exactly the shape
+ * it had.
+ */
+export function taxCategoryField(v: unknown): { taxCategory?: Exclude<TaxCategory, "standard"> } {
+  const c = cleanTaxCategory(v);
+  return c === "standard" ? {} : { taxCategory: c };
+}
+
 /** The rate a line of `category` carries on a document whose rate is `documentRate`. */
 export function categoryRate(category: unknown, documentRate: unknown): number {
   if (cleanTaxCategory(category) !== "standard") return 0;
@@ -77,9 +88,10 @@ export type TaxProfile = {
 };
 
 /**
- * THE DEFAULT, for a studio whose country is unset or not listed: tax on the
- * document total, which is how every document in this product was totalled
- * before countries were known — so a studio nobody has placed sees no change.
+ * THE DEFAULT, for a studio whose country is unset or not listed: the EU's safe
+ * reading, tax once per rate. Its method is NEVER frozen onto a document —
+ * see `documentTaxMethod` — so a studio nobody has placed keeps exactly the
+ * arithmetic its documents always had.
  */
 export const DEFAULT_TAX_PROFILE: TaxProfile = {
   country: "", taxName: "VAT", method: "document", pricesIncludeTax: false, requiredLanguage: "",
@@ -137,4 +149,15 @@ export function taxProfileFor(country: unknown): TaxProfile {
 /** The studio's profile, from the country it stores in Studio settings. */
 export function studioTaxProfile(studio: unknown): TaxProfile {
   return taxProfileFor((studio as { country?: unknown } | null | undefined)?.country);
+}
+
+/**
+ * THE METHOD A NEW DOCUMENT FREEZES, or undefined. Only a studio placed in a
+ * country this file knows gets that country's method; every other studio's
+ * documents store none and total as they always did (`legacy` in
+ * shared/documentTotals), so setting nothing changes nothing.
+ */
+export function documentTaxMethod(studio: unknown): TaxMethod | undefined {
+  const profile = studioTaxProfile(studio);
+  return profile.country ? profile.method : undefined;
 }

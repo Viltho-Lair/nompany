@@ -81,6 +81,20 @@ const moneyIn = (currency: unknown) => (v: unknown) => {
   return num > 0 ? num : 0;
 };
 
+// WHAT WAS TAXED AT EACH RATE, printed under the subtotal — but only when the
+// document carries more than one. A tax invoice lists the taxable amount per
+// rate (EU VAT Directive art. 226; ZATCA per category), and a VAT figure that
+// is not the subtotal times the rate needs its working on the page. One rate
+// prints nothing extra, so every document that had one prints as it did.
+function breakdownRows(breakdown: unknown, money: (v: unknown) => number) {
+  const list = Array.isArray(breakdown) ? breakdown as { category?: string; rate?: number; taxable?: number }[] : [];
+  if (list.length < 2) return [];
+  return list.map((b) => ({
+    token: "taxable", category: String(b.category || ""), rate: Number(b.rate) || 0,
+    label: String(b.category || ""), value: money(b.taxable),
+  }));
+}
+
 // ---- context ---------------------------------------------------------------
 
 export const qualityContext = moduleContext<QualityContext>({
@@ -312,6 +326,7 @@ export async function resolveBlocks(ctx: QualityContext, document: QualityDocume
         // Arabic label can place it rather than inherit "VAT (15%)".
         rows: [
           { token: "subtotal", label: "Subtotal", value: money((record as Record<string, unknown>).subtotal) },
+          ...breakdownRows((record as { breakdown?: unknown }).breakdown, money),
           { token: "vat", rate, label: rate ? `VAT (${rate}%)` : "VAT", value: money((record as Record<string, unknown>).vat) },
           { token: "total", label: "Total", value: money((record as Record<string, unknown>).total), strong: true },
         ],
@@ -342,6 +357,7 @@ export async function resolveBlocks(ctx: QualityContext, document: QualityDocume
         columns: source.columns,
         rows: [
           { token: "subtotal", label: "Subtotal", value: t.subtotal },
+          ...breakdownRows(t.breakdown, money),
           { token: "vat", rate, label: rate ? `VAT (${rate}%)` : "VAT", value: t.vat },
           { token: "total", label: "Total", value: t.total, strong: !t.paid },
           // WHAT IS STILL OWED, only once something has been paid — a fresh

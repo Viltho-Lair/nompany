@@ -32,6 +32,8 @@ type Strings = {
   columns: Record<"description" | "unit" | "qty" | "unitPrice" | "discount" | "amount", string>;
   totals: Record<"subtotal" | "vat" | "total" | "paid" | "outstanding", string>;
   vatAt: (rate: number) => string;
+  /** One row of a document's tax breakdown: what was taxed at a rate, or zero-rated, or exempt. */
+  taxableAt: (category: string, rate: number) => string;
   watermark: Record<"DRAFT" | "CANCELLED", string>;
   useAsDefault: (kind: string, language: string) => string;
   isDefault: (kind: string, language: string) => string;
@@ -76,6 +78,7 @@ const en: Strings = {
   columns: { description: "Description", unit: "Unit", qty: "Qty", unitPrice: "Unit price", discount: "Discount", amount: "Amount" },
   totals: { subtotal: "Subtotal", vat: "VAT", total: "Total", paid: "Paid", outstanding: "Outstanding" },
   vatAt: (rate) => `VAT (${rate}%)`,
+  taxableAt: (category, rate) => (category === "zero" ? "Zero-rated" : category === "exempt" ? "Exempt" : `Taxable at ${rate}%`),
   watermark: { DRAFT: "DRAFT", CANCELLED: "CANCELLED" },
   useAsDefault: (kind, language) =>
     `Use as the ${EN_KIND[kind as Kind] || kind} layout in ${EN_LANG[language] || language}`,
@@ -123,6 +126,7 @@ const ar: Strings = {
   columns: { description: "الوصف", unit: "الوحدة", qty: "الكمية", unitPrice: "سعر الوحدة", discount: "الخصم", amount: "المبلغ" },
   totals: { subtotal: "المجموع الفرعي", vat: "ضريبة القيمة المضافة", total: "الإجمالي", paid: "المدفوع", outstanding: "المتبقي" },
   vatAt: (rate) => `ضريبة القيمة المضافة (${rate}%)`,
+  taxableAt: (category, rate) => (category === "zero" ? "نسبة صفرية" : category === "exempt" ? "معفى" : `خاضع بنسبة ${rate}%`),
   watermark: { DRAFT: "مسودة", CANCELLED: "ملغاة" },
   useAsDefault: (kind, language) =>
     `استخدامه قالبا لـ${AR_KIND[kind as Kind] || kind} ${AR_LANG[language] || language}`,

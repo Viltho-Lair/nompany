@@ -27,7 +27,9 @@ ok("Oman, the UAE, Egypt and Jordan take it per line",
   ["OM", "AE", "EG", "JO"].every((c) => T.taxProfileFor(c).method === "line"));
 ok("a studio stores a country NAME, and the name resolves", T.studioTaxProfile({ country: "Jordan" }).country === "JO");
 ok("an unset or unknown country gets the default", T.studioTaxProfile({}).country === "" && T.taxProfileFor("Narnia").country === "");
-ok("the default is the arithmetic every document already used", T.DEFAULT_TAX_PROFILE.method === "document");
+ok("an unplaced studio freezes no method, so its documents total as they always did",
+  T.documentTaxMethod({}) === undefined && T.documentTaxMethod({ country: "Narnia" }) === undefined);
+ok("a placed studio freezes its country's method", T.documentTaxMethod({ country: "Oman" }) === "line");
 ok("Saudi Arabia names Arabic as the required language", T.taxProfileFor("SA").requiredLanguage === "ar");
 ok("a US sales tax is added at the till, not shown in the price", T.taxProfileFor("US").pricesIncludeTax === false);
 

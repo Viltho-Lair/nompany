@@ -28,6 +28,7 @@ import type { Quotation } from "@/modules/technical/types";
 import { isClosed, isWon } from "./pipeline";
 import { isFinishedQuotation } from "@/modules/technical/quotations";
 import { engagementIdForLineage } from "@/platform/db/engagement";
+import { documentTaxMethod, taxCategoryField } from "@/shared/taxProfile";
 
 const Orders = repo<SalesOrder>("salesOrders");
 const Tickets = repo<SalesTicket>("salesTickets");
@@ -100,6 +101,7 @@ function cleanLines(raw: unknown): OrderLine[] {
       description: str((l as OrderLine)?.description, 400),
       qty: num((l as OrderLine)?.qty),
       unitPrice: num((l as OrderLine)?.unitPrice),
+      ...taxCategoryField((l as OrderLine)?.taxCategory),
     }))
     .filter((l) => l.description);
 }
@@ -141,7 +143,9 @@ export async function createOrder(ctx: SalesContext, body: Record<string, unknow
   const lines = cleanLines(body?.lines);
   const vatRate = documentVatRate(studio, body?.vatRate);
   const currency = str(body?.currency, 8) || studio.currency || "";
-  const totals = computeTotals(lines, vatRate, currency);
+  // FROZEN on the order when it is raised, like the currency — see shared/taxProfile.
+  const taxMethod = documentTaxMethod(studio);
+  const totals = computeTotals(lines, vatRate, currency, taxMethod);
   const rows = await Orders.find({ studio, section: quotationsSection });
   const at = new Date().toISOString();
 
@@ -164,6 +168,7 @@ export async function createOrder(ctx: SalesContext, body: Record<string, unknow
     lines,
     currency,
     vatRate,
+    ...(taxMethod ? { taxMethod } : {}),
     subtotal: totals.subtotal,
     vat: totals.vat,
     total: totals.total,
@@ -213,7 +218,7 @@ export async function updateOrder(
   const vatRate = body?.vatRate !== undefined
     ? documentVatRate(studio, body.vatRate, existing.vatRate)
     : num(existing.vatRate);
-  const totals = computeTotals(lines, vatRate, existing.currency || studio.currency);
+  const totals = computeTotals(lines, vatRate, existing.currency || studio.currency, existing.taxMethod);
   const at = new Date().toISOString();
 
   const order = await Orders.update(scope, id, (row) => ({

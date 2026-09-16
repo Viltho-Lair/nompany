@@ -6,6 +6,7 @@ import { Field } from "@/components/fields/Field";
 import StudioDate from "@/components/fields/StudioDate";
 import { useReload } from "@/components/studio2/useReload";
 import { moneyText } from "@/shared/money";
+import { taxDict } from "@/shared/studio/tax";
 
 // THE TAX RETURN TAB (vat.md) — one period's VAT, read from the documents.
 //
@@ -19,6 +20,7 @@ const money = (n) => moneyText(n);
 
 export default function TaxReturnPanel({ slug, locale }) {
   const tr = ledgerDict(locale);
+  const tax = taxDict(locale);
   const [asked, setAsked] = useState({ from: "", to: "" });
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
@@ -75,6 +77,14 @@ export default function TaxReturnPanel({ slug, locale }) {
             <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
               {tr.taxable} <span className="num">{money(b.net)}</span> · {tr.count(b.count)}
             </p>
+            {/* WHAT OF THAT CARRIED NO TAX, by why — a return lists them apart. */}
+            {(b.zero > 0 || b.exempt > 0) && (
+              <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                {b.zero > 0 && <>{tax.zero} <span className="num">{money(b.zero)}</span></>}
+                {b.zero > 0 && b.exempt > 0 && " · "}
+                {b.exempt > 0 && <>{tax.exempt} <span className="num">{money(b.exempt)}</span></>}
+              </p>
+            )}
           </div>
         ))}
       </div>

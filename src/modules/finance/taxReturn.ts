@@ -18,6 +18,7 @@ import { requirePermission } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
 import { invoiceTotals } from "./finance";
 import { splitGross, studioVatRate, taxReturn, previousMonth, type TaxRow } from "@/shared/vat";
+import type { TaxBreakdown } from "@/shared/documentTotals";
 import type { FinanceContext } from "./types";
 
 // The fields `invoiceTotals` reads are named, so both an invoice and a bill
@@ -31,6 +32,15 @@ const ISO = /^\d{4}-\d{2}-\d{2}$/;
 const TAXED_INVOICE = new Set(["Sent", "Paid"]);
 const TAXED_BILL = new Set(["Received", "Approved", "Paid"]);
 const text = (v: unknown) => String(v ?? "");
+
+// THE UNTAXED PART OF A DOCUMENT, by why — see TaxRow. Nothing for a document
+// that is all standard, so a row reads exactly as it did before categories.
+function untaxed(breakdown: TaxBreakdown[]): { zeroNet?: number; exemptNet?: number } {
+  const sum = (c: string) => breakdown.filter((b) => b.category === c).reduce((n, b) => n + b.taxable, 0);
+  const zero = sum("zero");
+  const exempt = sum("exempt");
+  return { ...(zero ? { zeroNet: zero } : {}), ...(exempt ? { exemptNet: exempt } : {}) };
+}
 
 export async function taxReturnView(ctx: FinanceContext, query: { from?: unknown; to?: unknown }) {
   const denied = requirePermission(ctx.access, "finance.ledger.view");
@@ -60,7 +70,7 @@ export async function taxReturnView(ctx: FinanceContext, query: { from?: unknown
     const t = invoiceTotals(inv, base);
     rows.push({
       kind: "sale", id: inv.id, reference: text(inv.reference), date: text(inv.issueDate),
-      currency: text(inv.currency), net: t.subtotal, vat: t.vat,
+      currency: text(inv.currency), net: t.subtotal, vat: t.vat, ...untaxed(t.breakdown),
     });
   }
   for (const note of notes) {
@@ -77,7 +87,7 @@ export async function taxReturnView(ctx: FinanceContext, query: { from?: unknown
     const t = invoiceTotals(bill, base);
     rows.push({
       kind: "purchase", id: bill.id, reference: text(bill.reference), date: text(bill.billDate),
-      currency: text(bill.currency), net: t.subtotal, vat: t.vat,
+      currency: text(bill.currency), net: t.subtotal, vat: t.vat, ...untaxed(t.breakdown),
     });
   }
 

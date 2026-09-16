@@ -76,9 +76,17 @@ export type TaxRow = {
   currency: string;
   net: number;
   vat: number;
+  /**
+   * HOW MUCH OF `net` CARRIED NO TAX, by why. A return reports a zero-rated
+   * supply (taxable, at nought) apart from an exempt one (outside the tax), and
+   * neither can be recovered from `net` and `vat` alone once a document mixes
+   * rates. Absent on a row that is all standard.
+   */
+  zeroNet?: number;
+  exemptNet?: number;
 };
 
-type Bucket = { net: number; vat: number; count: number };
+type Bucket = { net: number; vat: number; count: number; zero: number; exempt: number };
 
 /** The calendar month before `today` (yyyy-mm-dd) — the period a return is usually for. */
 export function previousMonth(today: string): { from: string; to: string } {
@@ -122,8 +130,13 @@ export function taxReturn(rows: readonly TaxRow[], opts: { from?: string; to?: s
 
   const sum = (kind: TaxRow["kind"]): Bucket => home
     .filter((r) => r.kind === kind)
-    .reduce((b, r) => ({ net: roundMoney(b.net + r.net, base), vat: roundMoney(b.vat + r.vat, base), count: b.count + 1 }),
-      { net: 0, vat: 0, count: 0 });
+    .reduce((b, r) => ({
+      net: roundMoney(b.net + r.net, base),
+      vat: roundMoney(b.vat + r.vat, base),
+      count: b.count + 1,
+      zero: roundMoney(b.zero + (Number(r.zeroNet) || 0), base),
+      exempt: roundMoney(b.exempt + (Number(r.exemptNet) || 0), base),
+    }), { net: 0, vat: 0, count: 0, zero: 0, exempt: 0 });
   const output = sum("sale");
   const credits = sum("credit");
   const input = sum("purchase");

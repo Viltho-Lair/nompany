@@ -4,6 +4,8 @@
 // anything yet — see modules/tasks/schema.ts.
 
 import { z } from "zod";
+import { TAX_CATEGORIES } from "@/shared/taxProfile";
+import { TOTALS_METHODS } from "@/shared/documentTotals";
 
 /**
  * A REQUEST FOR PRICING, raised against a sales ticket. `reference` is derived
@@ -57,6 +59,8 @@ export const QuotationLineSchema = z.object({
   unitPrice: z.number(),
   /** A PERCENTAGE off the unit price, clamped 0–100 — see netUnitPrice. */
   discount: z.number(),
+  /** Copied off the registered item with its price; absent means standard. */
+  taxCategory: z.enum(TAX_CATEGORIES).optional(),
 });
 
 /**
@@ -79,6 +83,7 @@ export const QuotationItemSchema = z.object({
   description: z.string(),
   qty: z.number(),
   unitPrice: z.number(),
+  taxCategory: z.enum(TAX_CATEGORIES).optional(),
 });
 
 /** One remark on the document, appended and never edited. */
@@ -104,6 +109,13 @@ export const QuotationSchema = z.looseObject({
   tables: z.array(QuotationTableSchema),
   items: z.array(QuotationItemSchema),
   vatRate: z.number(),
+  /**
+   * HOW THIS DOCUMENT ADDS UP ITS TAX, frozen when it was raised from the
+   * studio's country (shared/taxProfile) — so a later change of country, or of
+   * this product's arithmetic, never moves a total somebody was already given.
+   * Absent on everything raised before it existed, which totals as it always did.
+   */
+  taxMethod: z.enum(TOTALS_METHODS).optional(),
   comments: z.array(QuotationCommentSchema),
   locked: z.boolean(),
   lead: z.string(),

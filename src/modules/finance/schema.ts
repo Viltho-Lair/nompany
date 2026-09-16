@@ -4,12 +4,20 @@
 // anything yet — see modules/tasks/schema.ts for why that is the next step.
 
 import { z } from "zod";
+import { TAX_CATEGORIES } from "@/shared/taxProfile";
+import { TOTALS_METHODS } from "@/shared/documentTotals";
 
 /** One billable line. `total` is derived on the way out, never stored. */
 export const InvoiceLineSchema = z.object({
   description: z.string().max(300),
   qty: z.number(),
   unitPrice: z.number(),
+  /**
+   * WHAT THE LINE IS FOR TAX — standard, zero-rated or exempt (shared/taxProfile).
+   * ABSENT MEANS STANDARD, which is what every line written before categories
+   * existed is, so it is stored only when it is something else.
+   */
+  taxCategory: z.enum(TAX_CATEGORIES).optional(),
 });
 
 /**
@@ -78,6 +86,13 @@ export const InvoiceSchema = z.object({
   clientName: z.string().max(160),
   lines: z.array(InvoiceLineSchema),
   vatRate: z.number().min(0).max(100),
+  /**
+   * HOW THIS DOCUMENT ADDS UP ITS TAX, frozen when it was raised from the
+   * studio's country (shared/taxProfile) — so a later change of country, or of
+   * this product's arithmetic, never moves a total somebody was already given.
+   * Absent on everything raised before it existed, which totals as it always did.
+   */
+  taxMethod: z.enum(TOTALS_METHODS).optional(),
   status: z.string(),
   issueDate: z.string(),
   dueDate: z.string(),
@@ -264,6 +279,8 @@ export const BillSchema = z.object({
   costCodeId: z.string().max(60).optional(),
   lines: z.array(InvoiceLineSchema),        // same line shape as an invoice
   vatRate: z.number().min(0).max(100),
+  /** Frozen when the bill was raised, as on an invoice. */
+  taxMethod: z.enum(TOTALS_METHODS).optional(),
   // THE CURRENCY THIS WAS BILLED IN. Until it existed every bill was
   // implicitly in the studio's own money, which made a foreign supplier
   // invoice unrecordable and left the approval engine with nothing to convert.

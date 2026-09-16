@@ -4,6 +4,7 @@
 // anything yet — see modules/tasks/schema.ts.
 
 import { z } from "zod";
+import { TAX_CATEGORIES } from "@/shared/taxProfile";
 
 /** A supplier, and the kinds of thing they supply. */
 export const VendorSchema = z.object({
@@ -106,6 +107,12 @@ export const ItemSchema = z.object({
    * priced at nothing (shared/pricing.ts, `basis: "none"`).
    */
   sellPrice: z.number().optional(),
+  /**
+   * WHAT THE ITEM IS FOR TAX — a medicine may be zero-rated, a service exempt.
+   * COPIED onto a quotation line with the price, so a later change here moves
+   * no document already written. Absent means standard.
+   */
+  taxCategory: z.enum(TAX_CATEGORIES).optional(),
   /** Free text on the item. Written by editItem, never declared until now. */
   notes: z.string().max(1000).optional(),
   /** A stored data URI. Read by the quotation builder, never declared until now. */

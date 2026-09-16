@@ -104,7 +104,7 @@ export async function printDocument(
   if (!(statusKey in values)) return { error: "notfound" };
 
   const tr = documentsDict(language);
-  const words = { columns: tr.columns, totals: tr.totals, vatAt: tr.vatAt, rtl: language === "ar" };
+  const words = { columns: tr.columns, totals: tr.totals, vatAt: tr.vatAt, taxableAt: tr.taxableAt, rtl: language === "ar" };
   const currency = values[`${kind}.currency`] || "";
   const missing = new Set<string>();
   const fill = (raw: unknown) => {
