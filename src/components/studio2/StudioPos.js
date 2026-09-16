@@ -59,9 +59,16 @@ export default function StudioPos({ slug }) {
   const saved = useSyncExternalStore(noSubscription, () => loadPref(pref, ""), () => "");
   const terminalId = picked || saved;
 
+  // ONLY THE NEWEST READ MAY LAND. A live update and the reload after an act
+  // can overlap, and a read that started before the shift was opened must not
+  // finish last and put "no shift" back on the screen — measured in the
+  // sandbox, where exactly that happened.
+  const latest = useRef(0);
   const reload = useCallback(async () => {
+    const mine = ++latest.current;
     const res = await fetch(`/api/studios/${slug}/pos`, { cache: "no-store" });
     const out = await res.json().catch(() => ({}));
+    if (mine !== latest.current) return;
     if (!res.ok || !out?.ok) { setError(tr.refusal(out?.error || "", out)); return; }
     setError("");
     setData(out);

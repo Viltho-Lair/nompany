@@ -1850,7 +1850,11 @@ console.log("\n== raising a revision closes the quotation it revises");
 // unapproved, which is right for a person declaring a document final and wrong
 // for this — superseding is not approving.
 {
-  await updateStudio(studio.id, { serviceActions: ["Revisions"] });
+  // THE STUDIO CHARGES VAT FOR THIS BLOCK. Since 11/09/2026 a studio with no
+  // rate taxes nothing, whatever a document asks for (shared/vat), so the 15%
+  // this block prices at was silently 0 and its tax assertions failed. The
+  // rate is set here and cleared at the end, so no other block inherits it.
+  await updateStudio(studio.id, { serviceActions: ["Revisions"], vatRate: 15 });
   const sales = await salesContext(owner, slug);
   const made = await createTicket(sales, {
     title: "Revise the quotation", clientName: "Beta Works", deadline: "2026-12-01",
@@ -1936,6 +1940,7 @@ console.log("\n== raising a revision closes the quotation it revises");
     JSON.stringify(clamped.quotation?.tables?.[0]?.rows?.[1]?.discount));
   ok("...leaving that line at its full price", clamped.quotation?.subtotal === 80,
     JSON.stringify(clamped.quotation?.subtotal));
+  await updateStudio(studio.id, { vatRate: "" });
 }
 
 // ============================================================================
@@ -2193,6 +2198,11 @@ console.log("\n== the ledger posts the documents that feed it");
 // documents — an invoice, its payment, an expense — into balanced entries with
 // the conventional accounts, ONCE each, and the trial balance survives it.
 {
+  // THE STUDIO CHARGES VAT FOR THIS BLOCK. Since 11/09/2026 a studio with no
+  // rate taxes nothing, whatever a document asks for (shared/vat), so the 15%
+  // this block prices at was silently 0 and its tax assertions failed. The
+  // rate is set here and cleared at the end, so no other block inherits it.
+  await updateStudio(studio.id, { vatRate: 15 });
   const fin = await financeContext(owner, slug);
   const chart = (await listAccounts(fin)).accounts;
   const idOf = (code) => chart.find((a) => a.code === code)?.id;
@@ -2285,6 +2295,7 @@ console.log("\n== the ledger posts the documents that feed it");
   const tb = await trialBalance(fin);
   ok("the book balances after the documents post", tb.balanced === true,
     JSON.stringify({ d: tb.totalDebit, c: tb.totalCredit }));
+  await updateStudio(studio.id, { vatRate: "" });
 }
 
 // ============================================================================
