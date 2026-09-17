@@ -16,19 +16,30 @@ import { repo } from "@/platform/db/repo";
 import { listCollaborators } from "@/platform/auth/collaborators";
 import {
   payProblems, cleanPay, payslipFor, runTotals, runProblem, approvalProblem,
-  bankRows, PERIOD_RE,
+  bankRows, PERIOD_RE, periodRange,
 } from "./payroll";
 import type { PayRecord, PayslipLine, RunStatus } from "./payroll";
 import type { HrContext } from "./types";
 import { isAdministrator } from "@/platform/access";
 import { notifyHolders, signatureNotice } from "@/modules/people/holders";
 import { statutoryRulesOf, endOfService, sifFile } from "./statutory";
+import { employedBetween, statusOf } from "./lifecycle";
+
+/** Somebody with a pay record who is not in this run, and why in words. */
+export type Excluded = { collaboratorId: string; alias: string; reason: string };
 
 type Run = {
   id: string;
   period: string;
   status: RunStatus;
   lines: PayslipLine[];
+  /**
+   * WHO WAS LEFT OUT, frozen with the lines. A run that silently omits somebody
+   * is a run nobody can check: the question "why is this month short one
+   * person" has to be answerable from the run itself, months later, without
+   * replaying the employment records as they stand today.
+   */
+  excluded?: Excluded[];
   totals: ReturnType<typeof runTotals>;
   preparedByCollaboratorId: string;
   preparedAt: string;
@@ -100,6 +111,8 @@ export async function listPay(ctx: HrContext) {
     people: people.map((c) => {
       const pay = records.find((r) => r.collaboratorId === String(c.id));
       const dateOfJoin = String((c as { dateOfJoin?: unknown }).dateOfJoin || "");
+      const status = statusOf(c as never);
+      const exitDate = String((c as { exitDate?: unknown }).exitDate || "");
       const allowances = (pay?.components || []).filter((x) => x.kind === "allowance").reduce((t, x) => t + x.amount, 0);
       return {
         collaboratorId: String(c.id),
@@ -114,13 +127,24 @@ export async function listPay(ctx: HrContext) {
         labourCardId: pay?.labourCardId ?? "",
         agentId: pay?.agentId ?? "",
         dateOfJoin,
+        // THE EMPLOYMENT, so the screen can say why somebody is not in the run
+        // rather than leaving a clerk to wonder. The pay record is the terms;
+        // this is whether they are live.
+        employmentStatus: status,
+        exitDate,
         // WHAT THEY WOULD BE OWED IF THEIR EMPLOYMENT ENDED TODAY, by termination —
         // the studio's liability, which it had no way to see. Null without a
         // rule, a pay record or a joining date, rather than a nought that reads
         // as "owed nothing".
+        //
+        // AND FOR SOMEBODY WHO HAS ALREADY GONE it is computed to their LAST
+        // DAY, not to today: their service stopped, and a liability that went on
+        // growing after they left would overstate the provision every month for
+        // ever.
         endOfService: rules.endOfService && pay && dateOfJoin
           ? endOfService(rules.endOfService, {
-            dateOfJoin, asOf: today, basic: pay.basic, wage: pay.basic + allowances, reason: "termination",
+            dateOfJoin, asOf: status === "Exited" && exitDate ? exitDate : today,
+            basic: pay.basic, wage: pay.basic + allowances, reason: "termination",
           }, ctx.studio.currency)
           : null,
       };
@@ -191,17 +215,46 @@ export async function prepareRun(ctx: HrContext, body: Record<string, unknown>) 
     Vacations.find({ studio: ctx.studio, section: ctx.section }),
   ]);
   const alias = Object.fromEntries(people.map((c) => [String(c.id), String(c.alias || "Unnamed")]));
+  const byId = new Map(people.map((c) => [String(c.id), c]));
 
   // THE STUDIO'S SCHEME AS SAVED TODAY, applied and then frozen with the lines —
   // a rate change next year must not rewrite this month's deduction.
   const ss = statutoryRulesOf(ctx.studio).socialSecurity;
-  const lines = records.map((pay) => payslipFor(pay, {
-    alias: alias[pay.collaboratorId] || "Unnamed",
-    period,
-    unpaidDays: unpaidDaysIn(vacations, pay.collaboratorId, period),
-    ss,
-  }, ctx.studio.currency));
-  if (!lines.length) return { error: "nobody" };
+
+  // WHO IS IN THE RUN IS AN EMPLOYMENT QUESTION, NOT A PAY-RECORD ONE, and until
+  // the lifecycle shipped this loop could not ask it: every pay record became a
+  // payslip, so somebody who left in March was paid in full in April and every
+  // month after, for as long as their record sat there. The record is the
+  // TERMS; whether those terms were live in this period is `employedBetween`.
+  const [first, last] = periodRange(period);
+  const lines: PayslipLine[] = [];
+  const excluded: Excluded[] = [];
+  for (const pay of records) {
+    const who = alias[pay.collaboratorId] || "Unnamed";
+    const person = byId.get(pay.collaboratorId);
+    // A PAY RECORD WHOSE PERSON IS GONE FROM THE STUDIO is not a payslip. It
+    // cannot be, and it is reported rather than paid to a name nobody holds.
+    if (!person) {
+      excluded.push({ collaboratorId: pay.collaboratorId, alias: who, reason: "no-collaborator" });
+      continue;
+    }
+    const window = employedBetween(person as never, first, last);
+    if (!window.days) {
+      excluded.push({ collaboratorId: pay.collaboratorId, alias: who, reason: window.reason });
+      continue;
+    }
+    lines.push(payslipFor(pay, {
+      alias: who,
+      period,
+      unpaidDays: unpaidDaysIn(vacations, pay.collaboratorId, period),
+      ss,
+      employedDays: window.days,
+    }, ctx.studio.currency));
+  }
+  // NOBODY AT ALL IS STILL A REFUSAL, and it now carries who was considered —
+  // "nobody" on a studio of forty reads as a broken run rather than as forty
+  // people none of whom were employed this month.
+  if (!lines.length) return { error: "nobody", excluded };
 
   const run = await Runs.create(scope(ctx), {
     period,
@@ -209,6 +262,7 @@ export async function prepareRun(ctx: HrContext, body: Record<string, unknown>) 
     // FROZEN HERE. Everything below is a copy of what the pay records said the
     // moment the run was prepared.
     lines,
+    excluded,
     totals: runTotals(lines),
     preparedByCollaboratorId: ctx.collaborator.id,
     preparedAt: new Date().toISOString(),

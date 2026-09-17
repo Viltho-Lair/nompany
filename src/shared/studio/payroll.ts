@@ -42,6 +42,9 @@ type Strings = {
   people: (n: number) => string;
   negative: (n: number) => string;
   unpaid: (n: number) => string;
+  partMonth: (n: number) => string;
+  leftOut: string;
+  leftOutWhy: (reason: string) => string;
   slipsFor: (period: string) => string;
   payFor: (alias: string) => string;
   // THE REDESIGN'S WORDS — the summary, the two views, and the note a
@@ -121,6 +124,18 @@ const en: Strings = {
   people: (n) => `${n} ${n === 1 ? "person" : "people"}`,
   negative: (n) => `${n} below nought`,
   unpaid: (n) => `${n} unpaid ${n === 1 ? "day" : "days"}`,
+  // NOT "unpaid": they were not employed. The two look alike on a slip and mean
+  // different things — one is a month they worked part of, the other a month
+  // they were not here for.
+  partMonth: (n) => `${n} ${n === 1 ? "day" : "days"} not employed`,
+  leftOut: "Not in this run",
+  leftOutWhy: (reason) => ({
+    "not-started": "has not started",
+    joined: "joined part way through",
+    left: "had already left",
+    gone: "marked as left, with no leaving date recorded",
+    "no-collaborator": "no longer in the studio",
+  })[reason] || reason,
   slipsFor: (period) => `Payslips for ${period}`,
   payFor: (alias) => `Pay for ${alias}`,
   lead: "Prepare a month from everyone's pay record, have it approved, then download the bank file and mark it paid.",
@@ -204,6 +219,15 @@ const ar: Strings = {
   status: (t) => AR_STATUS[t] || t,
   people: (n) => `${n} ${n === 1 ? "موظف" : n === 2 ? "موظفان" : n <= 10 ? "موظفين" : "موظفا"}`,
   negative: (n) => `${n} تحت الصفر`,
+  partMonth: (n) => `${n} ${n === 1 ? "يوم خارج الخدمة" : n === 2 ? "يومان خارج الخدمة" : n <= 10 ? "أيام خارج الخدمة" : "يوما خارج الخدمة"}`,
+  leftOut: "خارج هذا الكشف",
+  leftOutWhy: (reason) => ({
+    "not-started": "لم يباشر العمل بعد",
+    joined: "التحق خلال الشهر",
+    left: "كان قد ترك العمل",
+    gone: "مسجل أنه ترك العمل بلا تاريخ",
+    "no-collaborator": "لم يعد ضمن المنشأة",
+  })[reason] || reason,
   unpaid: (n) => `${n} ${n === 1 ? "يوم بلا أجر" : n === 2 ? "يومان بلا أجر" : n <= 10 ? "أيام بلا أجر" : "يوما بلا أجر"}`,
   slipsFor: (period) => `قسائم ${period}`,
   payFor: (alias) => `راتب ${alias}`,

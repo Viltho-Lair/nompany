@@ -49,6 +49,23 @@ the leave list), for the current year:
   half recounted.
 - The request form shows what the request would leave, in amber when it overdraws.
 
+## An allowance stops when the employment does
+
+**Both ends of an employment pro-rate the year**, by the months it covered and counting the
+month at each end. The joining year always did; the LEAVING year did not, because until the
+lifecycle shipped there was no leaving date to read — so somebody who left in March accrued a
+full year's allowance, and another every January afterwards, for ever, on somebody who had
+gone. That fed straight into the final settlement's encashment.
+
+**The exit date only**, never the notice period: notice is a plan, and it no more stops an
+accrual than it stops a payslip.
+
+**Leave cannot run past somebody's last day**, and a leaver with no recorded last day cannot
+be booked leave at all — the refusal says which, because "they left" and "they left on the
+15th" send the person asking to two different places. Somebody who has been hired and has not
+started yet CAN book ahead: that is an ordinary thing to do, and it is a narrower test than
+payroll's on purpose.
+
 ## Not built yet
 
 - **A balance does not block a request.** Overdrawing is shown, not refused.

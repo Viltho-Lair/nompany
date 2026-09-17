@@ -10,7 +10,7 @@ const root = pathToFileURL(`${process.cwd()}/`).href;
 register(new URL("./loader.mjs", import.meta.url), { data: { root } });
 
 const {
-  payProblems, cleanPay, daysInPeriod, payslipFor, runTotals,
+  payProblems, cleanPay, daysInPeriod, periodRange, payslipFor, runTotals,
   runProblem, approvalProblem, bankRows, RUN_STATUSES, PERIOD_RE,
 } = await import("@/modules/hr/payroll");
 
@@ -136,6 +136,72 @@ const zeroNet = payslipFor(
 // a rejection in most WPS formats.
 ok("a nought net is left out too",
   bankRows([zeroNet], () => ({ iban: "X", bank: "Y" })).rows.length === 0);
+
+
+// ---- a part month of employment ---------------------------------------------
+// WHO IS IN A RUN IS AN EMPLOYMENT QUESTION. Until the lifecycle shipped every
+// pay record became a payslip, so somebody who left in March was paid in full in
+// April and every month after, for as long as their record sat there.
+const partMonth = payslipFor(
+  { collaboratorId: "c9", basic: 3000, components: [{ label: "Car", amount: 600, kind: "allowance" }] },
+  { alias: "Nadia", period: "2026-03", employedDays: 12 },
+);
+ok("a part month is carried as days not employed", partMonth.notEmployedDays === 19);
+// PRO-RATED ON THE WHOLE SLIP, which is the OPPOSITE decision to unpaid leave
+// and deliberately so: somebody hired on the 20th had no contract for the
+// fortnight before, car allowance included.
+ok("...and takes the allowance down with the basic",
+  partMonth.notEmployedDeduction === 2206.45, String(partMonth.notEmployedDeduction));
+ok("...leaving twelve days of the whole package",
+  partMonth.gross === 1393.55, String(partMonth.gross));
+// THE ARITHMETIC STILL RECONCILES, which is why it is a deduction rather than a
+// smaller `basic`: every slip in every run adds up the same way.
+// ROUNDED, because the DUST IS THE ASSERTION'S and not the slip's: every
+// figure on the line is already at the currency's decimals, and only re-adding
+// them here puts a 2e-13 back — which is exactly what `roundSum` exists to take
+// off inside the module.
+ok("BASIC PLUS ALLOWANCES LESS DEDUCTIONS IS STILL THE NET",
+  Math.abs((partMonth.basic + partMonth.allowances - partMonth.deductions) - partMonth.net) < 0.005,
+  String(partMonth.basic + partMonth.allowances - partMonth.deductions));
+ok("...and the contractual basic is unchanged on the line", partMonth.basic === 3000);
+
+// A FULL PERIOD IS WHAT EVERY CALLER MEANT BEFORE THIS EXISTED, so an unchanged
+// caller gets an unchanged slip.
+const wholeMonth = payslipFor(
+  { collaboratorId: "c9", basic: 3000, components: [{ label: "Car", amount: 600, kind: "allowance" }] },
+  { alias: "Nadia", period: "2026-03" },
+);
+ok("no employed days named means the whole period",
+  wholeMonth.notEmployedDays === 0 && wholeMonth.gross === 3600);
+ok("...the same as naming all of them",
+  payslipFor({ collaboratorId: "c9", basic: 3000, components: [] }, { alias: "N", period: "2026-03", employedDays: 31 }).gross
+  === payslipFor({ collaboratorId: "c9", basic: 3000, components: [] }, { alias: "N", period: "2026-03" }).gross);
+
+// UNPAID DAYS CANNOT OUTRUN THE DAYS SOMEBODY WAS HERE, or the same money comes
+// off twice.
+const bothDocked = payslipFor(
+  { collaboratorId: "c9", basic: 3100, components: [] },
+  { alias: "N", period: "2026-03", employedDays: 10, unpaidDays: 20 },
+);
+ok("UNPAID DAYS ARE CAPPED AT THE DAYS EMPLOYED", bothDocked.unpaidDeduction === 1000, String(bothDocked.unpaidDeduction));
+
+// A PART MONTH SCALES THE INSURABLE BASE; UNPAID LEAVE DOES NOT. Unpaid leave is
+// a whole month of employment with days not worked — the contract stands, and so
+// does the wage it insures. Somebody hired on the 20th has no wage to insure for
+// the fortnight before.
+const scheme = { employeePct: 10, employerPct: 10, ceiling: 0, coversEveryone: true };
+const halfMonth = payslipFor({ collaboratorId: "c9", basic: 3000, components: [] },
+  { alias: "N", period: "2026-04", employedDays: 15, ss: scheme });
+const unpaidHalf = payslipFor({ collaboratorId: "c9", basic: 3000, components: [] },
+  { alias: "N", period: "2026-04", unpaidDays: 15, ss: scheme });
+ok("a part month insures a part wage", halfMonth.ssBase === 1500, String(halfMonth.ssBase));
+ok("a month with unpaid days insures the whole wage", unpaidHalf.ssBase === 3000);
+
+// THE PERIOD'S FIRST AND LAST DAY, which is what `employedBetween` is asked about.
+ok("a period's window is its own first and last day",
+  periodRange("2026-02").join("..") === "2026-02-01..2026-02-28");
+ok("a leap February is twenty-nine days long", periodRange("2024-02")[1] === "2024-02-29");
+ok("something that is not a period is no window at all", periodRange("nope").join("") === "");
 
 console.log(fails ? `\npayroll model: ${fails} FAILURES\n` : "\npayroll model: all passed\n");
 // exitCode, not exit(): exiting while the alias loader's thread is live crashes Node on Windows.

@@ -16,7 +16,7 @@ const {
   statusOf, movesFrom, moveProblem, reasonKind, EXIT_REASONS,
   contractProblems, cleanContract, contractAt, contractsOf,
   addMonths, addDays, daysBetween, probationEndsOn, noticeEndsOn,
-  attentionList, settlement, DAYS_IN_MONTH,
+  attentionList, settlement, DAYS_IN_MONTH, employedBetween, employedOn,
 } = await import("@/modules/hr/lifecycle");
 const {
   employmentPackFor, EMPLOYMENT_PACKS, DEFAULT_EMPLOYMENT_PACK, CONTRACT_TYPES,
@@ -347,3 +347,55 @@ ok("no joining date means no award", settlement({
 
 console.log(fails ? `\nhr lifecycle: ${fails} FAILED` : "\nhr lifecycle: all passed");
 process.exit(fails ? 1 : 0);
+
+// ---- was this employment live, and for how much of a window -------------------
+// THE QUESTION PAYROLL AND LEAVE BOTH ASK. Asked twice it would be answered
+// twice, and the two would part company the first time either was touched —
+// which is how a leaver ends up paid in full by one screen and struck off by
+// another.
+const MARCH = ["2026-03-01", "2026-03-31"];
+
+// NO JOINING DATE MEANS EMPLOYED THROUGHOUT. Every collaborator row written
+// before the lifecycle has none, and excluding them would empty the payroll run
+// of every live studio.
+const undated = employedBetween({}, ...MARCH);
+ok("a row with no dates at all covers the whole window", undated.days === 31 && undated.whole === true);
+ok("...and has nothing to explain", undated.reason === "");
+
+const joined = employedBetween({ dateOfJoin: "2026-03-20" }, ...MARCH);
+ok("somebody hired part way through covers the rest of it", joined.days === 12, `got ${joined.days}`);
+ok("...and says which end was trimmed", joined.reason === "joined" && joined.from === "2026-03-20");
+
+const left = employedBetween({ employmentStatus: "Exited", exitDate: "2026-03-15" }, ...MARCH);
+ok("somebody who left part way through covers up to their last day", left.days === 15);
+ok("...inclusive of it", left.to === "2026-03-15" && left.reason === "left");
+
+ok("somebody who left before the window covers none of it",
+  employedBetween({ employmentStatus: "Exited", exitDate: "2026-01-31" }, ...MARCH).days === 0);
+ok("somebody hired after it covers none of it",
+  employedBetween({ dateOfJoin: "2026-05-01" }, ...MARCH).reason === "not-started");
+
+// ONBOARDING IS NOT EMPLOYMENT, whatever the dates say: the studio has stated
+// they have not begun, and a state beats a date it contradicts.
+ok("somebody still onboarding is not employed",
+  employedBetween({ employmentStatus: "Onboarding", dateOfJoin: "2020-01-01" }, ...MARCH).days === 0);
+
+// EXITED WITH NO DATE COVERS NOTHING, and the reason is its own word: it is a
+// fact about the RECORD, not about the person, and the caller reports it rather
+// than paying somebody a full month because a field was left blank.
+const gone = employedBetween({ employmentStatus: "Exited" }, ...MARCH);
+ok("EXITED WITH NO LEAVING DATE COVERS NOTHING", gone.days === 0 && gone.reason === "gone");
+
+// NOTICE IS A PLAN, NOT A LEAVING DATE. Reading the intention as the fact would
+// give the studio two answers to "when did they leave", and the one that pays
+// people would be the guess.
+ok("SOMEBODY WORKING THEIR NOTICE IS EMPLOYED THROUGHOUT",
+  employedBetween({ employmentStatus: "Notice", noticeEndsOn: "2026-03-10" }, ...MARCH).days === 31);
+
+// Hired and gone inside one month — both ends trimmed at once.
+const brief = employedBetween({ employmentStatus: "Exited", dateOfJoin: "2026-03-05", exitDate: "2026-03-14" }, ...MARCH);
+ok("both ends of a window can be trimmed together", brief.days === 10 && brief.whole === false);
+
+ok("a single day is asked the same way",
+  employedOn({ dateOfJoin: "2026-03-20" }, "2026-03-25") === true
+  && employedOn({ dateOfJoin: "2026-03-20" }, "2026-03-01") === false);

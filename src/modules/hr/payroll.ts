@@ -69,6 +69,14 @@ export type PayslipLine = {
   /** Days not worked in the period, from approved unpaid leave. */
   unpaidDays: number;
   unpaidDeduction: number;
+  /**
+   * DAYS OF THE PERIOD THEY WERE NOT EMPLOYED FOR — hired part way in, or gone
+   * before the end — and what that took off the slip. Optional because every
+   * line stored before the lifecycle shipped has neither, and a run is frozen:
+   * an old payslip must go on reading exactly as it was issued.
+   */
+  notEmployedDays?: number;
+  notEmployedDeduction?: number;
   /** What social security was charged on, the employee's share (in `deductions`), and the employer's. */
   ssBase?: number;
   ssEmployee?: number;
@@ -160,19 +168,47 @@ export function cleanPay(input: Record<string, unknown>, currency?: unknown): Pa
  * THIS PERSON'S SOCIAL SECURITY FOR A MONTH. Charged on the basic plus the
  * allowances marked insurable — the CONTRACTUAL wage, before any unpaid-leave
  * docking — up to the scheme's ceiling.
+ *
+ * A PART MONTH OF EMPLOYMENT SCALES THE BASE; A MONTH WITH UNPAID DAYS DOES
+ * NOT, and the difference is not an inconsistency. Unpaid leave is a full month
+ * of employment with days not worked: the contract stands the whole month and
+ * so does the insurable wage. Somebody hired on the 20th has no contract at all
+ * for the first nineteen days — there is no wage to insure — so the insurable
+ * period is short, not the wage.
+ *
+ * WHAT IS NOT MODELLED: each scheme's own partial-month rule. Some charge a
+ * whole month whenever any part of it is insured. `factor` is the least wrong
+ * default rather than a country's answer, and `docs/functionality/payroll.md`
+ * says so.
  */
-export function socialSecurityOn(pay: PayRecord, ss: SocialSecurity | null | undefined, currency?: unknown) {
+export function socialSecurityOn(
+  pay: PayRecord, ss: SocialSecurity | null | undefined, currency?: unknown, factor = 1,
+) {
   const covered = pay.ssCovered ?? ss?.coversEveryone ?? false;
   if (!ss || !covered) return { base: 0, employee: 0, employer: 0 };
   const insurable = pay.basic + pay.components
     .filter((c) => c.kind === "allowance" && c.insurable)
     .reduce((t, c) => t + c.amount, 0);
-  const base = roundMoney(ss.ceiling > 0 ? Math.min(insurable, ss.ceiling) : insurable, currency);
+  const capped = ss.ceiling > 0 ? Math.min(insurable, ss.ceiling) : insurable;
+  // THE CEILING IS A MONTHLY ONE, so it is applied to the whole wage and the
+  // result scaled — not the other way round, which would let a part month slip
+  // under a ceiling it never actually fell below.
+  const base = roundMoney(capped * (Number.isFinite(factor) ? Math.max(0, Math.min(1, factor)) : 1), currency);
   return {
     base,
     employee: roundMoney((base * (pay.ssEmployeePct ?? ss.employeePct)) / 100, currency),
     employer: roundMoney((base * (pay.ssEmployerPct ?? ss.employerPct)) / 100, currency),
   };
+}
+
+/**
+ * A PERIOD'S FIRST AND LAST DAY, as ISO days — what `employedBetween` is asked
+ * about. `["", ""]` when it is not a period, so a caller that forgot to check
+ * gets a window nothing was employed in rather than a window of everything.
+ */
+export function periodRange(period: string): [string, string] {
+  const days = daysInPeriod(period);
+  return days ? [`${period}-01`, `${period}-${String(days).padStart(2, "0")}`] : ["", ""];
 }
 
 /** The days in a `YYYY-MM` period. Null when it is not a period. */
@@ -190,6 +226,20 @@ export function daysInPeriod(period: string): number | null {
  * studio that wanted it to would be describing a different allowance. Doing it
  * on the gross is the common shortcut and it silently docks the wrong amount.
  *
+ * A PART MONTH OF EMPLOYMENT IS PRO-RATED ON THE WHOLE SLIP, and that is the
+ * opposite decision on purpose. Unpaid leave is a month somebody WAS employed
+ * for with days they did not work, so the car allowance stands; a person hired
+ * on the 20th was not employed at all until the 20th, and paying them a full
+ * month's car allowance for a fortnight before they had a contract is not a
+ * generous reading of the allowance, it is a wrong number.
+ *
+ * AND IT IS CARRIED AS A DEDUCTION rather than by shrinking `basic`, which is
+ * what keeps every slip's arithmetic reconciling: basic + allowances −
+ * deductions = net holds on a part month exactly as it does on a full one, and
+ * `basic` goes on meaning the contractual monthly figure on every line of every
+ * run. The clerk sees the days and the amount, beside the unpaid-leave pair
+ * they already read the same way.
+ *
  * THE NET CAN BE NEGATIVE AND IS NOT FLOORED. Deductions exceeding pay is a
  * real situation — a repaid advance, a month almost entirely unpaid — and
  * clamping it to nought would quietly forgive the difference and leave the
@@ -197,10 +247,17 @@ export function daysInPeriod(period: string): number | null {
  */
 export function payslipFor(
   pay: PayRecord,
-  { alias, period, unpaidDays = 0, ss = null }: {
+  { alias, period, unpaidDays = 0, ss = null, employedDays = null }: {
     alias: string; period: string; unpaidDays?: number;
     /** The studio's social security scheme; null charges none. */
     ss?: SocialSecurity | null;
+    /**
+     * DAYS OF THE PERIOD THIS PERSON WAS EMPLOYED FOR (modules/hr/lifecycle's
+     * `employedBetween`). NULL means the whole period — which is what every
+     * caller meant before the lifecycle existed, so an unchanged caller gets an
+     * unchanged slip.
+     */
+    employedDays?: number | null;
   },
   /** The studio's currency: the decimals a docked day and a contribution round to. */
   currency?: unknown,
@@ -211,25 +268,40 @@ export function payslipFor(
   const recurring = roundSum(pay.components.filter((c) => c.kind === "deduction")
     .reduce((sum, c) => sum + c.amount, 0));
 
+  // EMPLOYED FOR THE WHOLE PERIOD UNLESS TOLD OTHERWISE, and never for more of
+  // it than it has.
+  const served = employedDays === null || days === null
+    ? days
+    : Math.max(0, Math.min(Math.round(employedDays), days));
+  const notEmployedDays = days === null || served === null ? 0 : days - served;
+  const factor = days && served !== null ? served / days : 1;
+
   // A PERIOD THAT IS NOT A PERIOD DOCKS NOTHING rather than dividing by null.
   const perDay = days ? pay.basic / days : 0;
-  const docked = roundMoney(Math.min(Math.max(0, unpaidDays), days || 0) * perDay, currency);
+  // UNPAID DAYS CANNOT OUTRUN THE DAYS SOMEBODY WAS HERE. A month where they
+  // were employed for ten days cannot carry twenty unpaid ones, and docking
+  // both would take the same money twice.
+  const docked = roundMoney(Math.min(Math.max(0, unpaidDays), served || 0) * perDay, currency);
+  const unemployed = roundMoney(notEmployedDays * (days ? (pay.basic + allowances) / days : 0), currency);
 
-  const gross = roundSum(pay.basic - docked + allowances);
+  const gross = roundSum(pay.basic + allowances - docked - unemployed);
   // THE EMPLOYEE'S SHARE IS WITHHELD, the employer's is a cost on top of gross —
   // so only the first touches the net.
-  const social = socialSecurityOn(pay, ss, currency);
+  const social = socialSecurityOn(pay, ss, currency, factor);
   return {
     collaboratorId: pay.collaboratorId,
     alias,
     basic: pay.basic,
     allowances,
-    deductions: roundSum(recurring + docked + social.employee),
+    deductions: roundSum(recurring + docked + unemployed + social.employee),
     gross,
     net: roundSum(gross - recurring - social.employee),
     components: pay.components,
     unpaidDays: Math.max(0, unpaidDays),
     unpaidDeduction: docked,
+    /** Days of the period they were NOT employed, and what that took off. */
+    notEmployedDays,
+    notEmployedDeduction: unemployed,
     ssBase: social.base,
     ssEmployee: social.employee,
     ssEmployer: social.employer,

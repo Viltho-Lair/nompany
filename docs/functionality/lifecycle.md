@@ -173,6 +173,24 @@ Operations Director in every new studio the power to end jobs in their departmen
 the studio is created. `tests/roles-model.mjs` counts it among the extras a studio grants by
 hand.
 
+## What reads it
+
+**Payroll** (`payroll.md`) decides who is in a run from `employedBetween` rather than from the
+pay record, pro-rates a part month across the whole slip, and freezes the list of who was left
+out and why onto the run.
+
+**Leave** (`leave.md`) stops an allowance accruing at the exit date, pro-rating the leaving
+year the way the joining year was always pro-rated, and refuses leave that runs past somebody's
+last day.
+
+**The headcount** counts the employed, which it could not do before: every row counted, so a
+studio's headcount only ever went up. Who has left is returned beside it rather than silently
+dropped — a total that falls with no explanation is the kind of number people stop trusting.
+
+**One function answers for all three.** Asked separately, they would part company the first
+time any of them was touched, which is how a leaver ends up paid in full by one screen and
+struck off by another.
+
 ## The rollout
 
 **Existing studios get the sub-section on their next read** (`plantMissingSections`) and the
@@ -199,9 +217,8 @@ under the sections they were written to (`hr-employees` and the HR root) — see
 - **The settlement reads no loans**, because the product models none; `deductions` is typed.
 - **Encashment is the ANNUAL balance at 1/30 of the monthly wage.** A studio counting leave in
   working days will want a different divisor, and no leave type is flagged encashable.
-- **Payroll does not read the status.** An exited employee is still in a run unless somebody
-  removes their pay record, and `Onboarding` does not hold pay back. That join is the next
-  slice, and it is the reason the status is stored rather than derived.
+- **The settlement is not PAID by anything.** It is computed and snapshotted on the exit; no
+  bill, no payroll run and no journal comes out of it, so somebody raises the payment by hand.
 - **No suspension effect.** `Suspended` records the fact and stops nothing — not pay, not
   leave accrual, not attendance.
 - **Three countries.** Everywhere else gets the fallback pack, and there is no loader, no

@@ -173,17 +173,37 @@ export function serviceYearsAt(dateOfJoin: string, at: string): number {
  * WHAT ONE YEAR ALLOWS. The longer-service figure applies from the first year
  * that STARTS with the service completed — somebody reaching five years in June
  * gets it from the next January, the conservative reading, stated rather than
- * guessed at. The year somebody joins is PRO-RATED by the months left in it,
- * counting the month they joined.
+ * guessed at.
+ *
+ * BOTH ENDS OF AN EMPLOYMENT PRO-RATE THE YEAR, by the months it covered and
+ * counting the month at each end. The joining year always did; the LEAVING year
+ * did not, because until the lifecycle shipped there was no leaving date to read
+ * — so somebody who left in March accrued a full year's allowance, and went on
+ * accruing another every January afterwards. A leave liability that grew for
+ * ever on people who had gone.
+ *
+ * `leftOn` IS THE EXIT DATE and only that: a notice period is a plan, and it no
+ * more stops an accrual than it stops a payslip.
  */
-export function allowanceFor(rule: LeaveRule, dateOfJoin: string, year: number, override: number | null = null): number {
+export function allowanceFor(
+  rule: LeaveRule, dateOfJoin: string, year: number,
+  override: number | null = null, leftOn = "",
+): number {
   const joinYear = dateOfJoin ? Number(dateOfJoin.slice(0, 4)) : 0;
   if (joinYear > year) return 0;
+  const exitYear = leftOn ? Number(leftOn.slice(0, 4)) : 0;
+  // GONE BEFORE THE YEAR OPENED: nothing accrues in it, nor in any year after —
+  // which is the half that was quietly missing.
+  if (exitYear && exitYear < year) return 0;
+
   const longer = rule.afterYears > 0 && rule.daysAfter > 0 && dateOfJoin
     && serviceYearsAt(dateOfJoin, `${year}-01-01`) >= rule.afterYears;
   const base = override ?? (longer ? rule.daysAfter : rule.days);
-  if (joinYear === year) return half((base * (12 - (Number(dateOfJoin.slice(5, 7)) - 1))) / 12);
-  return base;
+
+  const firstMonth = joinYear === year ? Number(dateOfJoin.slice(5, 7)) : 1;
+  const lastMonth = exitYear === year ? Number(leftOn.slice(5, 7)) : 12;
+  const months = lastMonth - firstMonth + 1;
+  return months >= 12 ? base : half(Math.max(0, (base * months) / 12));
 }
 
 /** Leave of one type and status taken by one person inside a calendar year. */
@@ -222,23 +242,29 @@ export type LeaveBalance = {
  */
 export function leaveBalances(input: {
   rules: EmploymentRules;
-  person: { id: string; dateOfJoin?: unknown; leaveAllowances?: unknown };
+  /** `exitDate` stops the accrual — see `allowanceFor`. Absent means still here. */
+  person: { id: string; dateOfJoin?: unknown; leaveAllowances?: unknown; exitDate?: unknown };
   vacations: readonly LeaveRow[];
   year: number;
   open: readonly number[] | null;
 }): LeaveBalance[] {
   const { rules, person, vacations, year, open } = input;
-  const join = /^\d{4}-\d{2}-\d{2}$/.test(String(person.dateOfJoin || "")) ? String(person.dateOfJoin) : "";
+  const iso = (v: unknown) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v || "")) ? String(v) : "");
+  const join = iso(person.dateOfJoin);
+  // THE DAY THEY LEFT, carried into every year the walk touches — including the
+  // ones it works FORWARD through to find what carried over, or a leaver's
+  // carry-forward would keep compounding out of allowances they never earned.
+  const leftOn = iso(person.exitDate);
   const own = cleanAllowances(person.leaveAllowances, Object.keys(rules.leave));
   const joinYear = join ? Number(join.slice(0, 4)) : year;
   return Object.entries(rules.leave).map(([type, rule]) => {
     const override = type in own ? own[type] : null;
     let carried = 0;
     for (let y = Math.max(joinYear, year - 10); y < year; y++) {
-      const left = allowanceFor(rule, join, y, override) + carried - takenIn(vacations, person.id, type, y, "Approved", open);
-      carried = Math.min(rule.carryOver, Math.max(0, left));
+      const over = allowanceFor(rule, join, y, override, leftOn) + carried - takenIn(vacations, person.id, type, y, "Approved", open);
+      carried = Math.min(rule.carryOver, Math.max(0, over));
     }
-    const allowance = allowanceFor(rule, join, year, override);
+    const allowance = allowanceFor(rule, join, year, override, leftOn);
     const taken = takenIn(vacations, person.id, type, year, "Approved", open);
     const pending = takenIn(vacations, person.id, type, year, "Pending", open);
     const remaining = half(allowance + carried - taken);

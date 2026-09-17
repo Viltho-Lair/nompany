@@ -85,7 +85,9 @@ export default function StudioHr({ slug, view = "hr" }) {
     const res = await fetch(`/api/studios/${slug}/hr`, { cache: "no-store" });
     if (!res.ok) { setError(tr.accessHumanResourcesStudio); return; }
     setData(await res.json());
-  }, [slug]);
+    // `tr` IS STABLE — `hrDict` returns one of two module-level objects, so
+    // naming it costs no extra reload and keeps the lint budget shrinking.
+  }, [slug, tr]);
   useReload(load);
   // HR records change from more than one desk — stay current.
   useLiveUpdates(slug, "hr", load);
@@ -113,6 +115,10 @@ export default function StudioHr({ slug, view = "hr" }) {
         : out.error === "already-decided" ? `That request was already ${String(out.status || "").toLowerCase()}.`
         : out.error === "range" ? tr.endDateCanBefore
         : out.error === "no-working-days" ? tr.noWorkingDays
+        // LEAVE FOR SOMEBODY WHO HAS GONE. The refusal carries their last day
+        // where one was recorded, because "they left" and "they left on the
+        // 15th" send the person asking to two different places.
+        : out.error === "not-employed" ? tr.notEmployed(out.exitDate || "")
         : out.error === "forbidden" ? tr.can
         : tr.didnSave
       );
@@ -120,7 +126,7 @@ export default function StudioHr({ slug, view = "hr" }) {
     }
     await load();
     return true;
-  }, [slug, load]);
+  }, [slug, load, tr]);
 
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <ScreenSkeleton loadingLabel={tr.loadingHumanResources} />;

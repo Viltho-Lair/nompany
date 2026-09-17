@@ -55,6 +55,7 @@ import type { StudioRef, CollaboratorRef } from "../context";
 import type { Section } from "@/platform/db/sections";
 
 import { employmentRulesOf, openWeekdays, countLeaveDays, leaveBalances, cleanAllowances } from "./leaveBalance";
+import { statusOf } from "./lifecycle";
 
 const CERTIFICATIONS = "certifications";
 const VACATIONS = "vacations";
@@ -544,6 +545,12 @@ export async function listEmployees(ctx: HrContext, meId = "") {
     roleNames: (Array.isArray(c.roleIds) ? c.roleIds : []).map((id) => roleName[String(id)]).filter(Boolean),
     employeeCode: c.employeeCode || "",
     dateOfJoin: c.dateOfJoin || "",
+    // THE EMPLOYMENT, not just the person (modules/hr/lifecycle). Read here
+    // rather than fetched by each screen that needs it: the roll, the headcount
+    // and every leave balance all turn on whether somebody still works here,
+    // and this is the one read they all already make.
+    employmentStatus: statusOf(c as { employmentStatus?: unknown }),
+    exitDate: c.exitDate || "",
     mobile: c.mobile || "",
     certificationIds: Array.isArray(c.certificationIds) ? c.certificationIds : [],
     // THE IDENTITY DOCUMENT: which kind and when it lapses are HR-wide, because
@@ -740,6 +747,23 @@ export async function requestVacation(ctx: HrContext, body: Record<string, unkno
   if (!from) return { error: "from" };
   if (to < from) return { error: "range" };
 
+  // LEAVE CANNOT RUN PAST THE DAY SOMEBODY LEAVES. Nothing stopped it before the
+  // lifecycle: a leaver could be booked a fortnight's holiday in a month they
+  // were not employed for, and the balance counted it, so the encashment the
+  // final settlement pays out came up short by exactly that fortnight.
+  //
+  // THE TEST IS NARROWER THAN PAYROLL'S ON PURPOSE, and the two ask different
+  // questions rather than duplicating one. Payroll asks whether the employment
+  // was LIVE in a period (`employedBetween`), so somebody still onboarding is
+  // not paid. Booking ahead is the opposite case: a new hire with a wedding in
+  // their second week is asking for something perfectly ordinary, and refusing
+  // it because they have not started yet would be the product being clever.
+  // What is never ordinary is leave for somebody who has gone.
+  const leftOn = day((person as { exitDate?: unknown }).exitDate);
+  if (statusOf(person as { employmentStatus?: unknown }) === "Exited" && (!leftOn || to > leftOn)) {
+    return { error: "not-employed", exitDate: leftOn };
+  }
+
   // COUNTED BY THE STUDIO'S RULE — working days when Employment rules say so,
   // calendar days otherwise — and stored, so the person is held to the figure
   // they were shown when they asked.
@@ -895,17 +919,31 @@ export function leaveView(
   return { year, rules, openDays: open, balances };
 }
 
-// Headcount per department, derived from the people themselves.
+/**
+ * HEADCOUNT PER DEPARTMENT, derived from the people themselves.
+ *
+ * IT COUNTS THE EMPLOYED, which it could not do before the lifecycle: every row
+ * counted, so a studio's headcount only ever went up and somebody who left two
+ * years ago was still on the chart. The plan's own definition is "active
+ * employments, not persons".
+ *
+ * AND WHO HAS LEFT IS RETURNED BESIDE IT rather than silently dropped. A total
+ * that falls with no explanation is the kind of number people stop trusting.
+ */
 export function headcount(
   employees: Record<string, unknown>[],
   departments: { id: string; name?: string }[],
 ) {
   const byId: Record<string, number> = Object.fromEntries(departments.map((d) => [d.id, 0]));
   let unassigned = 0;
+  let total = 0;
+  let left = 0;
   for (const e of employees) {
+    if (statusOf(e as { employmentStatus?: unknown }) === "Exited") { left += 1; continue; }
+    total += 1;
     const dept = String(e.departmentId || "");
     if (dept && byId[dept] !== undefined) byId[dept] += 1;
     else unassigned += 1;
   }
-  return { byDepartment: byId, unassigned, total: employees.length };
+  return { byDepartment: byId, unassigned, total, left };
 }

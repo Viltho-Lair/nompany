@@ -77,7 +77,11 @@ import { execFileSync } from "node:child_process";
 // ceiling comes down with them rather than banking four as headroom.
 // 104 → 102 on 11/09/2026: the SLA screen left Projects for Maintenance and the
 // two style imports only it used went with it — deleted, not banked.
-const MAX_WARNINGS = 102;
+// 102 → 100 on 18/09/2026: wiring payroll and leave to the employment lifecycle
+// added a refusal to StudioHr's `send`, which made its two useCallback
+// dependency warnings worth paying off rather than banking — `hrDict` returns a
+// module-level object, so naming `tr` costs no extra reload.
+const MAX_WARNINGS = 100;
 
 let report;
 try {

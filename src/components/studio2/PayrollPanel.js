@@ -73,6 +73,22 @@ function Payslips({ run, tr }) {
       {t.ssEmployer > 0 && (
         <p className="text-xs text-slate-500 dark:text-slate-400">{tr.employerCost(money(t.ssEmployer))}</p>
       )}
+      {/* WHO IS NOT IN THE RUN, AND WHY — read off the run itself rather than
+          recomputed, because the employment records have moved on since and the
+          question is what THIS run did. A run that silently omits somebody is a
+          run nobody can check. */}
+      {(run.excluded || []).length > 0 && (
+        <section className="rounded-xl border border-slate-200 p-4 dark:border-white/10">
+          <p className="text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">{tr.leftOut}</p>
+          <ul className="mt-2 space-y-1 text-sm text-slate-600 dark:text-slate-300">
+            {run.excluded.map((x) => (
+              <li key={x.collaboratorId}>
+                <span className="font-600">{x.alias}</span> — {tr.leftOutWhy(x.reason)}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       <div className="overflow-x-auto">
         <table className="w-full min-w-[560px] text-sm">
           <thead>
@@ -94,6 +110,15 @@ function Payslips({ run, tr }) {
                   {l.unpaidDays > 0 && (
                     <span className={`ms-2 ${pill} bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300`}>
                       {tr.unpaid(l.unpaidDays)}
+                    </span>
+                  )}
+                  {/* A PART MONTH OF EMPLOYMENT, which is NOT unpaid leave and is
+                      pro-rated on the whole slip rather than on the basic alone:
+                      somebody hired on the 20th had no contract for the fortnight
+                      before, car allowance included. */}
+                  {l.notEmployedDays > 0 && (
+                    <span className={`ms-2 ${pill} bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-slate-300`}>
+                      {tr.partMonth(l.notEmployedDays)}
                     </span>
                   )}
                 </td>
@@ -346,7 +371,19 @@ export default function PayrollPanel({ slug, locale = "en" }) {
                     const taken = sum((p.components || []).filter((c) => c.kind === "deduction"), (c) => c.amount);
                     return (
                       <tr key={p.collaboratorId} className="border-t border-slate-100 dark:border-white/5">
-                        <td className="py-3 pe-3 font-600 text-slate-800 dark:text-slate-100">{p.alias}</td>
+                        <td className="py-3 pe-3 font-600 text-slate-800 dark:text-slate-100">
+                          {p.alias}
+                          {/* SOMEBODY WHO HAS LEFT STILL HAS A PAY RECORD, and
+                              it is kept: a run for a month they WERE employed in
+                              needs their terms, and deleting it would make a
+                              back-run impossible. Saying so here is what stops a
+                              clerk reading the row as a wage still being paid. */}
+                          {p.employmentStatus === "Exited" && (
+                            <span className={`ms-2 ${pill} bg-slate-100 text-slate-500 dark:bg-white/10 dark:text-slate-400`}>
+                              {tr.leftOutWhy("left")}
+                            </span>
+                          )}
+                        </td>
                         <td className="num py-3 pe-3 text-end text-slate-700 dark:text-slate-200">
                           {unset
                             ? <span className={`${pill} bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300`}>{tr.noPaySet}</span>

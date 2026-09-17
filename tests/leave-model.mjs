@@ -72,5 +72,36 @@ ok("after years with no new figure is refused", L.employmentRuleProblems({ leave
 ok("a new figure that never starts is refused", L.employmentRuleProblems({ leave: { Annual: { days: 14, daysAfter: 21 } } }, types)[0]?.field === "afterYears");
 ok("a person's allowances keep only ruled types", JSON.stringify(L.cleanAllowances({ Annual: "30", Sick: "10", Unpaid: "" }, ["Annual", "Sick"])) === JSON.stringify({ Annual: 30, Sick: 10 }));
 
+
+// ---- an allowance stops when the employment does -----------------------------
+// THE JOINING YEAR ALWAYS PRO-RATED; THE LEAVING YEAR DID NOT, because until the
+// lifecycle shipped there was no leaving date to read. So somebody who left in
+// March accrued a full year's allowance — and another every January afterwards,
+// for ever, on somebody who had gone. That fed the settlement's encashment.
+const YEARLY = { days: 30, afterYears: 0, daysAfter: 0, carryOver: 0 };
+ok("a full year still allows the full figure", L.allowanceFor(YEARLY, "2020-01-01", 2026) === 30);
+ok("...and naming no leaving date changes nothing", L.allowanceFor(YEARLY, "2020-01-01", 2026, null, "") === 30);
+ok("LEAVING IN MARCH ALLOWS THREE MONTHS OF IT",
+  L.allowanceFor(YEARLY, "2020-01-01", 2026, null, "2026-03-20") === 7.5,
+  String(L.allowanceFor(YEARLY, "2020-01-01", 2026, null, "2026-03-20")));
+ok("A YEAR AFTER SOMEBODY LEFT ALLOWS NOTHING",
+  L.allowanceFor(YEARLY, "2020-01-01", 2026, null, "2025-06-01") === 0);
+// BOTH ENDS IN ONE YEAR: hired in June, gone in September, is four months.
+ok("both ends pro-rate the same year together",
+  L.allowanceFor(YEARLY, "2026-06-15", 2026, null, "2026-09-30") === 10,
+  String(L.allowanceFor(YEARLY, "2026-06-15", 2026, null, "2026-09-30")));
+// THE JOINING YEAR IS UNCHANGED by any of this — the old arithmetic, restated so
+// a rewrite of the expression cannot quietly move it.
+ok("joining in June still allows seven months", L.allowanceFor(YEARLY, "2026-06-01", 2026) === 17.5,
+  String(L.allowanceFor(YEARLY, "2026-06-01", 2026)));
+
+// A BALANCE READS THE EXIT DATE OFF THE PERSON, so the screen and the final
+// settlement's encashment cannot disagree about what is left.
+const exitRules = { leave: { Annual: YEARLY }, workingDays: false };
+const stillHere = L.leaveBalances({ rules: exitRules, person: { id: "p1", dateOfJoin: "2020-01-01" }, vacations: [], year: 2026, open: null })[0];
+const leaver = L.leaveBalances({ rules: exitRules, person: { id: "p1", dateOfJoin: "2020-01-01", exitDate: "2026-03-20" }, vacations: [], year: 2026, open: null })[0];
+ok("somebody still here has the year's allowance", stillHere.allowance === 30 && stillHere.remaining === 30);
+ok("SOMEBODY WHO LEFT IN MARCH HAS THREE MONTHS OF IT", leaver.allowance === 7.5 && leaver.remaining === 7.5);
+
 console.log(fails ? `\n${fails} failed` : "\nall passed");
 process.exitCode = fails ? 1 : 0;

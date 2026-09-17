@@ -87,6 +87,111 @@ export function statusOf(row: { employmentStatus?: unknown } | null | undefined)
   return (EMPLOYMENT_STATUSES as readonly string[]).includes(s) ? s as EmploymentStatus : DEFAULT_STATUS;
 }
 
+/**
+ * THE THREE FIELDS THAT SAY WHETHER SOMEBODY WAS EMPLOYED, and the only three
+ * any reader needs. Deliberately narrow: payroll and leave hand in a whole
+ * collaborator row, and naming the rest here would be a second definition of a
+ * person free to drift from the one that matters.
+ */
+export type EmploymentRow = {
+  employmentStatus?: unknown;
+  dateOfJoin?: unknown;
+  exitDate?: unknown;
+};
+
+export type EmploymentWindow = {
+  /** Days of the window this employment covered. */
+  days: number;
+  /** Days in the window itself. */
+  of: number;
+  whole: boolean;
+  /**
+   * WHY IT WAS NOT ALL OF THEM, and the words are for a human reading an
+   * exception report rather than for a branch:
+   *   not-started  the studio says they have not begun (Onboarding, or a
+   *                joining date after the window)
+   *   joined       they started inside the window
+   *   left         they left inside it, or before it
+   *   gone         Exited with NO leaving date — they have left and nobody
+   *                recorded when, which is a fact about the RECORD and not
+   *                about the person
+   */
+  reason: "" | "not-started" | "joined" | "left" | "gone";
+  /** The first and last day actually covered; "" when none was. */
+  from: string;
+  to: string;
+};
+
+/**
+ * HOW MUCH OF A WINDOW THIS EMPLOYMENT COVERED.
+ *
+ * THE ONE PLACE THE QUESTION IS ANSWERED. Payroll asks it to decide who is in a
+ * run and what fraction of a month they earned; leave asks it to stop an
+ * allowance accruing after somebody has gone. Asked twice, the two would
+ * disagree the first time anybody touched either — which is exactly how a
+ * leaver ends up paid in full by one screen and struck off by another.
+ *
+ * FOUR RULES, each of which is a decision rather than an implementation:
+ *
+ *   NO JOINING DATE MEANS EMPLOYED THROUGHOUT. Every collaborator row written
+ *   before the lifecycle shipped has none, and excluding those people would
+ *   empty the payroll run of every live studio. What the studio knows is that
+ *   they are here; when they started is simply not recorded.
+ *
+ *   ONBOARDING IS NOT EMPLOYMENT, whatever the dates say. The studio has stated
+ *   they have not begun, and a state beats a date it contradicts.
+ *
+ *   EXITED WITH NO DATE COVERS NOTHING. They have gone; nobody wrote down when.
+ *   Paying somebody a full month because their leaving date was left blank is
+ *   the worse of the two errors, and the caller REPORTS this rather than
+ *   swallowing it.
+ *
+ *   NOTICE IS A PLAN, NOT A LEAVING DATE. Somebody working their notice is
+ *   employed for the whole window: `noticeEndsOn` is what both sides intend,
+ *   and the exit is what happened. Reading the intention as the fact would give
+ *   the studio two answers to "when did they leave", and the one that pays
+ *   people would be the guess.
+ */
+export function employedBetween(row: EmploymentRow, from: string, to: string): EmploymentWindow {
+  const of = Math.max(0, daysBetween(from, to) + 1);
+  const none = (reason: EmploymentWindow["reason"]): EmploymentWindow =>
+    ({ days: 0, of, whole: false, reason, from: "", to: "" });
+
+  if (!day(from) || !day(to) || to < from) return none("not-started");
+
+  const status = statusOf(row);
+  if (status === "Onboarding") return none("not-started");
+
+  const joined = day(row.dateOfJoin);
+  const exited = day(row.exitDate);
+  if (status === "Exited" && !exited) return none("gone");
+
+  if (joined && joined > to) return none("not-started");
+  if (exited && exited < from) return none("left");
+
+  const start = joined && joined > from ? joined : from;
+  const end = exited && exited < to ? exited : to;
+  const days = Math.max(0, daysBetween(start, end) + 1);
+  if (!days) return none(exited && exited < from ? "left" : "not-started");
+
+  return {
+    days,
+    of,
+    whole: days === of,
+    // BOTH ENDS CAN BE TRIMMED in the same window — somebody hired and gone
+    // inside one month — and the reason names the START, because that is what
+    // a reader checks first when a slip is short.
+    reason: days === of ? "" : start > from ? "joined" : "left",
+    from: start,
+    to: end,
+  };
+}
+
+/** Whether this employment covered one day. */
+export function employedOn(row: EmploymentRow, on: string): boolean {
+  return employedBetween(row, on, on).days > 0;
+}
+
 // ---- the moves --------------------------------------------------------------
 
 /**

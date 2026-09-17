@@ -149,15 +149,46 @@ hundred and producing an entry of 35 against 33.02, refused as unbalanced. The p
 was right and the seam was wrong, which is exactly why the end-to-end case in
 `tests/crud.mjs` exists: it caught it on its first run.
 
+### Who is in a run
+
+**Employment decides, not the pay record.** A pay record is the TERMS; whether those terms
+were live in the period is `employedBetween` (`modules/hr/lifecycle.ts`). Until 18/09/2026
+this loop could not ask: every pay record became a payslip, so somebody who left in March was
+paid in full in April and every month after, for as long as their record sat there.
+
+**A part month is pro-rated on the WHOLE slip** — basic and allowances together — which is the
+opposite of the unpaid-leave rule one section up, deliberately. Unpaid leave is a month
+somebody WAS employed for with days they did not work, so the car allowance stands; somebody
+hired on the 20th had no contract for the fortnight before, car allowance included.
+
+**And it is carried as a DEDUCTION** rather than by shrinking `basic`, which is what keeps
+every slip reconciling: basic + allowances − deductions = net holds on a part month exactly as
+it does on a full one, and `basic` goes on meaning the contractual monthly figure on every
+line of every run.
+
+**Unpaid days are capped at the days employed.** A month somebody was here for ten days cannot
+carry twenty unpaid ones, and docking both would take the same money twice.
+
+**Who was left out is frozen on the run**, with a reason in words, and the screen shows it
+under the payslips. A run that silently omits somebody is a run nobody can check: "why is this
+month short one person" has to be answerable from the run itself, months later, without
+replaying employment records as they stand today. `gone` — exited with no leaving date — is
+its own reason, because it is a fact about the record rather than about the person.
+
 ## Not built yet
 
 - **No attendance.** Unpaid leave comes from the vacation register; hours worked do not
   exist, so an hourly employee cannot be paid.
 - **No income tax.** Social security is computed (above); income tax is still typed as an
   ordinary deduction.
-- **End of service is shown, not provisioned or paid.** Nothing posts the accruing
-  liability monthly, nothing records a leaving date or reason, and no final settlement run
-  exists. No overtime, no bonuses.
+- **End of service is shown, not provisioned or paid.** Nothing posts the accruing liability
+  monthly, and no final-settlement RUN exists — the settlement is computed and snapshotted by
+  the exit (`lifecycle.md`), and paying it is still a bill somebody raises by hand. No
+  overtime, no bonuses. (**A leaving date and reason ARE recorded now**, and this bullet said
+  otherwise until 18/09/2026.)
+- **Each scheme's partial-month rule is not modelled.** A part month of employment scales the
+  insurable base by the days served, which is the least wrong default rather than any
+  country's answer — some schemes charge a whole month whenever any part of it is insured.
 - **Social security is one scheme per studio** plus per-person rates; the UAE's Abu Dhabi
   fund, Saudi SANED splits and Jordan's age-based exemptions are not modelled separately,
   and nothing files the monthly contribution return.

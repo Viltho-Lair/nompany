@@ -179,6 +179,7 @@ type Strings = CommonStrings & {
   allowanceLead: string;
   allowanceDefault: (n: number) => string;
   noWorkingDays: string;
+  notEmployed: (exitDate: string) => string;
 };
 
 const en: Strings = {
@@ -352,6 +353,9 @@ const en: Strings = {
   allowanceLead: "Leave a type blank to use the studio's rule. A number here replaces it for this person.",
   allowanceDefault: (n) => `Studio rule: ${n} days`,
   noWorkingDays: "Those dates fall only on days the studio does not work.",
+  notEmployed: (exitDate) => (exitDate
+    ? `Their employment ended on ${exitDate}. Leave cannot run past somebody's last day.`
+    : "They have left the studio, and no last day was recorded. Record the exit date in Lifecycle first."),
 };
 
 const ar: Strings = {
@@ -525,6 +529,9 @@ const ar: Strings = {
   allowanceLead: "اترك النوع فارغا لاستخدام قاعدة الاستوديو. الرقم هنا يحل محلها لهذا الشخص.",
   allowanceDefault: (n) => `قاعدة الاستوديو: ${n} يوم`,
   noWorkingDays: "هذه التواريخ تقع فقط في ايام لا يعمل فيها الاستوديو.",
+  notEmployed: (exitDate) => (exitDate
+    ? `انتهت خدمته في ${exitDate}. لا تمتد الاجازة بعد آخر يوم عمل.`
+    : "ترك العمل ولم يسجل آخر يوم. سجلوا تاريخ انتهاء الخدمة في دورة الخدمة أولا."),
 };
 
 const hr = { en, ar };
