@@ -41,7 +41,7 @@ export const GET = route({ auth: "super", name: "super/google-calendar/events" }
     // EVERY FAILURE ON THIS PATH IS REPORTED, not just the provider's own.
     // listEvents throws CalendarApiError when Google refuses the read
     // (calendarReads.ts), and a plain Error when the token could not be
-    // refreshed at all — the grant revoked at Google, or FIELD_ENCRYPTION_KEY
+    // refreshed at all — the grant revoked at Google, or NOMPANY_DATA_KEY
     // rotated out from under the stored connection — which happens before any
     // Calendar API call is made. Catching only the first shape would let the
     // second fall through to a 500 with an empty body that names nothing. On

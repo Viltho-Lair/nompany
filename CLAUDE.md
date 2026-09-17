@@ -194,6 +194,10 @@ when the code looks cleaner afterwards.
     put `NOMPANY_DATA_KEY` anywhere in Google Cloud** (the database is there — the key
     must not be), and **a new field copying a client's details gets a line in the
     list**. Losing the key loses every client. `docs/functionality/client-encryption.md`.
+    **`NOMPANY_DATA_KEY` IS THE ONLY ENCRYPTION KEY** (the owner, 17/09/2026): stored
+    credentials, login-code and sign-in-state fallbacks and device fingerprints all
+    take a purpose subkey of it (`platform/db/masterKeys.ts`). Never add a second
+    key variable; add a purpose label. `FIELD_ENCRYPTION_KEY` is being retired.
 
 ---
 

@@ -63,7 +63,9 @@ jobs:
       DATABASE_URL: postgresql://ci_app:ci_app_pw@localhost:5432/nompany_ci
       # The suite mints real bcrypt hashes and real AES field encryption; both
       # need a key present or they take their fail-open path and prove nothing.
-      FIELD_ENCRYPTION_KEY: ci-only-not-a-real-key-0000000000
+      # The one key (17/09/2026). CI runs namespaced, which uses the public
+      # sandbox key regardless; this keeps an un-namespaced step from failing open.
+      NOMPANY_DATA_KEY: ci0:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
       # Never a real one. Anything that tries to send mail in CI should fail
       # loudly rather than deliver.
       RESEND_API_KEY: ""

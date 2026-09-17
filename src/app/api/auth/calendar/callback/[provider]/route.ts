@@ -44,7 +44,7 @@ export const GET = route(
       // back is one flag — deliberately, because a redirect URL the person
       // keeps must not carry a provider's reason — and that left the ONLY
       // record of a failed connection being the words "try again" on a screen.
-      // A dropped FIELD_ENCRYPTION_KEY, an unregistered redirect URI and a
+      // A dropped NOMPANY_DATA_KEY, an unregistered redirect URI and a
       // refused exchange all looked identical from the outside AND left nothing
       // behind on the inside. `reason` names the stage; redact()
       // (observability.ts) still applies, and providerReason only ever yields
@@ -70,7 +70,7 @@ export const GET = route(
       // second flow started in another tab overwrote it), or one that matches
       // and still does not verify — expired past the 600s TTL, or signed with a
       // different secret, since stateSecret() falls back through OTP_SECRET and
-      // then FIELD_ENCRYPTION_KEY and a deploy that changes either invalidates
+      // then NOMPANY_DATA_KEY and a deploy that changes either invalidates
       // every state in flight.
       log.error("calendar connect failed", {
         provider: String(provider),
@@ -92,7 +92,7 @@ export const GET = route(
     if (url.searchParams.get("error") || !code) return landOn(request, next, "cancelled");
 
     // THE STORE WRITE IS INSIDE THIS try, NOT AFTER IT. saveConnection
-    // encrypts both tokens, and encryptField THROWS when FIELD_ENCRYPTION_KEY
+    // encrypts both tokens, and encryptField THROWS when NOMPANY_DATA_KEY
     // is missing or malformed — a deployment problem, but one that surfaces
     // here at the worst possible moment: the person has already consented, so
     // the grant is LIVE AT THE PROVIDER with nothing on this side recording

@@ -67,7 +67,7 @@ export function publicConnection(c: CalendarConnection): PublicCalendarConnectio
  * `encryptField`) and it proves the one property that matters most in this
  * file. A record whose refreshToken does not survive decryption reads as NO
  * CONNECTION — decryptField fails soft (returns "" and logs, rather than
- * throwing) so a rotated FIELD_ENCRYPTION_KEY or a corrupted value would
+ * throwing) so a rotated NOMPANY_DATA_KEY or a corrupted value would
  * otherwise hand back a connection object with a blank refresh token: it
  * would look connected right up until the access token expired and there was
  * nothing left to renew it with. A connection that cannot be refreshed is not

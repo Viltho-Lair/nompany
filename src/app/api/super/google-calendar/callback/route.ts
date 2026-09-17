@@ -70,7 +70,7 @@ export const GET = route(
     // THE STORE WRITE IS INSIDE THIS try, NOT AFTER IT — same reasoning, and
     // the same fix, as the account-level callback one door over: saveConnection
     // encrypts both tokens, and encryptField THROWS on a missing or malformed
-    // FIELD_ENCRYPTION_KEY. That would leave a grant LIVE AT GOOGLE with
+    // NOMPANY_DATA_KEY. That would leave a grant LIVE AT GOOGLE with
     // nothing here recording it, and hand the operator a bare 500 from an API
     // route rather than the calendar screen saying the connection failed.
     try {

@@ -118,7 +118,9 @@ console.log("\ngoogle federation");
 // throws without one (deliberately — see its header), so this must be set
 // BEFORE googleCalendar.ts's functions are called, not merely imported. Same
 // value and same reason as tests/connected-calendars.mjs.
-process.env.FIELD_ENCRYPTION_KEY = "test-only-key-never-used-outside-this-process";
+// NOMPANY_DATA_KEY, the one key (17/09/2026). A namespaced run ignores it and
+// uses the public sandbox key instead, which serves this test equally well.
+process.env.NOMPANY_DATA_KEY = `tk1:${Buffer.alloc(32, 7).toString("base64")}`;
 
 const { publicConnection, decryptStored } = await import("../src/lib/data/googleCalendar.ts");
 const { encryptField } = await import("../src/platform/auth/fieldCrypto.ts");
@@ -161,7 +163,7 @@ console.log("\nthe console connection's public shape");
   // something that looks connected right up until the access token expired
   // with nothing left to renew it.
   ok("an unreadable refresh token reads as no connection",
-    decryptStored({ ...full, refreshToken: "enc:v1:not-really-ciphertext", accessToken: "" }) === null);
+    decryptStored({ ...full, refreshToken: "enc:v2:tk1:not-really-ciphertext", accessToken: "" }) === null);
   const good = decryptStored({
     ...full,
     refreshToken: encryptField("1//refresh-secret"),

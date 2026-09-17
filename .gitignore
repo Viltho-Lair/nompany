@@ -33,6 +33,10 @@ seal-export/
 # it deletes them. Never committed; deleted once the run is proven.
 hr-export/
 
+# Documents exported by scripts/migrate/rekey-field-crypto.mjs before it
+# re-encrypts them. Never committed; deleted once the run is proven.
+rekey-export/
+
 # The pg-gateway bundle. esbuild output, rebuilt by `npm run build` on every
 # `npm start` and inside the image build — a committed copy would be a second
 # source of truth for code that already lives in src/.

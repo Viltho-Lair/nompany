@@ -14,6 +14,7 @@
 // so a Redis dump yields no usable credentials, and compare in constant time.
 
 import crypto from "node:crypto";
+import { derivedSecret } from "@/platform/db/masterKeys";
 import { OTP, RL, U, makeId } from "@/platform/db/keys";
 import { getJSON, setJSONEx, consume, incrWithTTL, readArr, editArr, editJSON } from "@/platform/db/store";
 
@@ -26,12 +27,14 @@ const RL_IP_MAX = 20;                              // codes per IP per hour
 export const DEVICE_TTL_MS = 30 * 24 * 60 * 60 * 1000; // trust lasts 30 days
 const MAX_DEVICES = 10;
 
-// HMAC key. Reuses the existing field-encryption secret so no new env var is
-// required; falls back to a constant (hashing still applies, but a Redis dump
-// would be brute-forceable — set FIELD_ENCRYPTION_KEY in production).
-const OTP_SECRET = process.env.OTP_SECRET || process.env.FIELD_ENCRYPTION_KEY || "nompany-otp";
+// HMAC key: OTP_SECRET when set, otherwise a subkey of NOMPANY_DATA_KEY (the
+// one key, 17/09/2026 — this used to fall back to FIELD_ENCRYPTION_KEY). The
+// constant is the last resort: hashing still applies, but a database dump would
+// be brute-forceable. Changing the key only invalidates codes already sent,
+// which live ten minutes.
+const otpSecret = () => process.env.OTP_SECRET || derivedSecret("otp") || "nompany-otp";
 function hashCode(challengeId: string, code: unknown): string {
-  return crypto.createHmac("sha256", OTP_SECRET).update(`${challengeId}:${String(code).trim()}`).digest("hex");
+  return crypto.createHmac("sha256", otpSecret()).update(`${challengeId}:${String(code).trim()}`).digest("hex");
 }
 function sameHash(a: unknown, b: unknown): boolean {
   const x = Buffer.from(String(a || ""), "utf8");

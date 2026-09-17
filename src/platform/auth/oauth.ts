@@ -9,6 +9,7 @@
 // a callback that wasn't started by us is rejected (CSRF protection).
 
 import crypto from "node:crypto";
+import { derivedSecret } from "@/platform/db/masterKeys";
 
 export const OAUTH_STATE_COOKIE = "nc_oauth";
 const STATE_TTL_SEC = 600;
@@ -83,7 +84,9 @@ export function readState(state: unknown) {
   return { next: decodeURIComponent(next || "") };
 }
 function stateSecret() {
-  return process.env.OTP_SECRET || process.env.FIELD_ENCRYPTION_KEY || "nompany-oauth";
+  // OTP_SECRET, else a subkey of the one key (it fell back to
+  // FIELD_ENCRYPTION_KEY until 17/09/2026). A state lives minutes.
+  return process.env.OTP_SECRET || derivedSecret("oauth-state") || "nompany-oauth";
 }
 export function stateCookie(state: string, isHttps: boolean) {
   return `${OAUTH_STATE_COOKIE}=${state}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${STATE_TTL_SEC}${isHttps ? "; Secure" : ""}`;

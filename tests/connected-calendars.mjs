@@ -136,7 +136,9 @@ console.log("\nsafeReturnPath — the open-redirect guard");
 // A real key, scoped to this test process only. fieldCrypto's encryptField
 // throws without one (deliberately — see its header), so this must be set
 // BEFORE calendarConnections.ts's functions are called, not just imported.
-process.env.FIELD_ENCRYPTION_KEY = "test-only-key-never-used-outside-this-process";
+// NOMPANY_DATA_KEY, the one key (17/09/2026). A namespaced run ignores it and
+// uses the public sandbox key instead, which serves this test equally well.
+process.env.NOMPANY_DATA_KEY = `tk1:${Buffer.alloc(32, 7).toString("base64")}`;
 
 const { publicConnection, decryptStored } = await import("../src/platform/auth/calendarConnections.ts");
 const { encryptField } = await import("../src/platform/auth/fieldCrypto.ts");
@@ -171,7 +173,7 @@ console.log("\ndecrypt-and-gate contract (no store)");
   // WHAT WOULD BE WRITTEN IS CIPHERTEXT, NOT PLAINTEXT — the property
   // saveConnection depends on (it stores exactly this shape).
   ok("the stored refresh token is ciphertext, not the plaintext",
-    !stored.refreshToken.includes("REFRESH-SECRET") && stored.refreshToken.startsWith("enc:v1:"),
+    !stored.refreshToken.includes("REFRESH-SECRET") && stored.refreshToken.startsWith("enc:v2:"),
     stored.refreshToken);
 
   const live = decryptStored(stored);
@@ -184,7 +186,7 @@ console.log("\ndecrypt-and-gate contract (no store)");
   // has since rotated — must read as NO CONNECTION rather than as a connection
   // with a blank refresh token, because the latter looks fine right up until
   // the access token expires with nothing left to renew it.
-  const unreadable = { ...stored, refreshToken: "enc:v1:not-a-real-payload" };
+  const unreadable = { ...stored, refreshToken: "enc:v2:tk1:not-a-real-payload" };
   ok("an unreadable refreshToken reads as no connection (null), not a broken one",
     decryptStored(unreadable) === null);
 }

@@ -29,6 +29,7 @@ import {
 } from "./otp";
 import { hashPassword, verifyPassword, generatePassword, needsRehash } from "./passwords";
 import { encryptField } from "./fieldCrypto";
+import { derivedSecret } from "@/platform/db/masterKeys";
 import { cleanProvider } from "@/lib/nova/providers";
 import { cleanAnswers, INTENTS } from "@/lib/questionnaire";
 import {
@@ -114,8 +115,10 @@ export function deviceFingerprint(request: Request | null | undefined) {
 }
 
 // Keyed digest, truncated: enough to compare two sign-ins, useless as a lookup.
-// THE SAME KEY, AND THE SAME FAILURE — the third arm of H-9. This returns an
-// empty string when FIELD_ENCRYPTION_KEY is unset, which makes every device
+// THE SAME KEY, AND THE SAME FAILURE — the third arm of H-9. The key is a
+// subkey of NOMPANY_DATA_KEY (it was FIELD_ENCRYPTION_KEY until 17/09/2026; the
+// digest is only ever DISPLAYED, so an old one simply refreshes at that device's
+// next sign-in). This returns an empty string when there is no key, which makes every device
 // indistinguishable from every other: "is this a device you have used before?"
 // silently answers yes to all of them, and device history stops being a security
 // feature while continuing to render as one.
@@ -126,9 +129,9 @@ export function deviceFingerprint(request: Request | null | undefined) {
 // device would be the wrong trade. So it is loud instead, once, and the caller
 // gets an empty fingerprint it can recognise as absent rather than as a match.
 function hashIp(ip: unknown): string {
-  const key = process.env.FIELD_ENCRYPTION_KEY || "";
+  const key = derivedSecret("ip-hash");
   if (!key) {
-    log.error("[identity] device fingerprints are disabled: FIELD_ENCRYPTION_KEY is not set");
+    log.error("[identity] device fingerprints are disabled: NOMPANY_DATA_KEY is not set");
     return "";
   }
   return crypto.createHmac("sha256", key).update(String(ip)).digest("hex").slice(0, 24);

@@ -17,23 +17,19 @@
 // write a client in the clear and say nothing, which is the exact failure
 // fieldCrypto.ts's H-9 note records paying for once.
 
-import { KEY_PREFIX, S } from "./keys";
+import { S } from "./keys";
+import { masterKeyring, resetMasterKeyring } from "./masterKeys";
 import { getJSON, editJSON } from "./store";
 import {
-  deriveDataKey, newDataKeyMaterial, parseMasterKeyring, unwrapDataKey, wrapDataKey,
+  deriveDataKey, newDataKeyMaterial, unwrapDataKey, wrapDataKey,
   type Keyset, type MasterKey,
 } from "./sealCipher";
 
 type StoredKey = { id: string; master: string; wrapped: string; createdAt: string };
 export type KeyRecord = { current: string; keys: StoredKey[] };
 
-let keyring: MasterKey[] | null = null;
-function masters(): MasterKey[] {
-  // Read once per process: the keyring is configuration, and parsing it on
-  // every row would only find a bad variable later than necessary.
-  keyring ??= parseMasterKeyring(process.env.NOMPANY_DATA_KEY, Boolean(KEY_PREFIX));
-  return keyring;
-}
+// The one keyring (masterKeys.ts), read once per process.
+const masters = masterKeyring;
 
 function currentMaster(): MasterKey {
   const m = masters()[0];
@@ -152,5 +148,5 @@ export const sealingConfigured = () => masters().length > 0;
 /** For tests: forget the cached keysets and the parsed keyring. */
 export function resetSealingCache() {
   cache.clear();
-  keyring = null;
+  resetMasterKeyring();
 }

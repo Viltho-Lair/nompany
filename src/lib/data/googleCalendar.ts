@@ -84,7 +84,7 @@ export function publicConnection(c: ConsoleCalendarConnection): PublicConsoleCal
  * it a stored shape and it answers the question that matters most here. A
  * record whose refreshToken does not survive decryption reads as NO CONNECTION:
  * decryptField fails soft (returns "" and logs rather than throwing), so a
- * rotated FIELD_ENCRYPTION_KEY or a corrupted value would otherwise hand back
+ * rotated NOMPANY_DATA_KEY or a corrupted value would otherwise hand back
  * something that looks connected right up until the access token expired with
  * nothing left to renew it. A connection that cannot be refreshed is not one.
  */

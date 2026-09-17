@@ -58,6 +58,21 @@ The list is `platform/db/sealCipher.ts`, and nowhere else.
   values open); `rewrapStudioKeys` moves a studio's keys onto the current master so a
   retired master can be removed from the variable. Neither has a screen or a script yet.
 
+## One key for everything (17/09/2026)
+
+The owner's decision: `NOMPANY_DATA_KEY` is the only encryption key.
+`FIELD_ENCRYPTION_KEY` is retired. Each use takes its own subkey of the master
+(HKDF, `platform/db/masterKeys.ts`), never the master itself:
+
+- **Stored credentials** (`platform/auth/fieldCrypto.ts`): calendar tokens, the
+  platform Nova key, console MFA secrets. New values are `enc:v2:<master>:…`.
+  Old `enc:v1:` values still read, only until
+  `scripts/migrate/rekey-field-crypto.mjs` has re-encrypted them.
+- **Login codes and Google sign-in state**, when `OTP_SECRET` is empty. Changing
+  the key only voids codes sent in the minutes around the deploy.
+- **The device fingerprint** on the Security page. It is a one-way digest that is
+  only displayed; an old one refreshes at that device's next sign-in.
+
 ## Setting it up
 
 1. Generate the master key on your own machine:
@@ -80,4 +95,8 @@ The list is `platform/db/sealCipher.ts`, and nowhere else.
 - **Server logs** do not redact email, phone or name.
 - A deal's `clientBudget` and a quotation's `title`/`description` are not sealed.
 - No screen or script for rotating a studio key or re-wrapping under a new master.
+- **`FIELD_ENCRYPTION_KEY` is not removed yet.** `fieldCrypto.ts` still reads
+  `enc:v1:` values. Removing that branch and the variable waits on
+  `rekey-field-crypto.mjs` reporting nothing left.
+- `OTP_SECRET` is a separate optional variable and was not folded in.
 - Searching clients inside the database is impossible by design; nothing does today.
