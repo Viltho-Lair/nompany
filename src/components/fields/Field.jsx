@@ -79,6 +79,9 @@ export function Field({
   as,                 // "textarea" | "select" | undefined
   options = [],       // for select: [{value,label}] or string[]
   hint,
+  // TOOLBAR USE: the hint hangs below the box without taking height, so a search
+  // field sits centred beside pills and buttons instead of dropping by a line.
+  hintOverlay = false,
   error,
   required = false,
   disabled = false,
@@ -210,7 +213,7 @@ export function Field({
   }
 
   return (
-    <div className={className}>
+    <div className={`${hintOverlay ? "relative" : ""} ${className}`}>
       <div
         className={`${BOX_BASE} ${BOX_STATE(focused, error, disabled)}`}
         // For wrapped children — and for the select, which is its own button
@@ -258,7 +261,7 @@ export function Field({
       {(hint || error) && (
         <p
           id={error ? `${id}-err` : `${id}-hint`}
-          className={`mt-1 ps-1 text-[11px] ${
+          className={`${hintOverlay ? "absolute start-0 top-full whitespace-nowrap" : ""} mt-1 ps-1 text-[11px] ${
             error ? "text-rose-500 dark:text-rose-300" : "text-[var(--geex-faint)]"
           }`}
         >

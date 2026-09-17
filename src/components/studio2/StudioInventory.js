@@ -224,7 +224,7 @@ function Items({ items, vendors, units, serviceActions, studioCurrency, canManag
     <>
       <Toolbar canManage={canManage} label={tr.addItem} onAdd={() => setForm({ row: null })}>
         {items.length > 0 && (
-          <Field label={tr.search} type="search" hint={tr.nameSkuModelVendor}
+          <Field label={tr.search} type="search" hintOverlay hint={tr.nameSkuModelVendor}
             value={query} onChange={(v) => setQuery(v)} className="sm:max-w-xs" />
         )}
       </Toolbar>
@@ -603,7 +603,7 @@ function Stock({ slug, items, movements, canManage, busy, send, reload, currency
           ))}
         </div>
         {tab === "onhand" && items.length > 0 && (
-          <Field label={tr.search} type="search" hint={tr.itemVendorSerial}
+          <Field label={tr.search} type="search" hintOverlay hint={tr.itemVendorSerial}
             value={query} onChange={(v) => setQuery(v)} className="sm:max-w-xs" />
         )}
         {!canManage && <span className="ms-auto rounded-full bg-slate-100 px-3 py-1.5 text-xs font-600 text-slate-500 dark:bg-white/5 dark:text-slate-400">{tr.viewOnly}</span>}
@@ -1170,7 +1170,7 @@ function Airlines({ rows, busy, onSave, onCancel }) {
   return (
     <>
       <div className="flex flex-wrap items-center gap-2">
-        <Field label={tr.search} type="search" hint={tr.prefixNameIata} value={query} onChange={(v) => setQuery(v)} className="sm:max-w-xs" />
+        <Field label={tr.search} type="search" hintOverlay hint={tr.prefixNameIata} value={query} onChange={(v) => setQuery(v)} className="sm:max-w-xs" />
         <button className={btn} onClick={() => setForm({ prefix: "", name: "", iata: "", trackUrlTemplate: "" })}>{tr.addAirline}</button>
       </div>
 
