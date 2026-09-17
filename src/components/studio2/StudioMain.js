@@ -71,7 +71,10 @@ export default function StudioMain({ slug }) {
 
   return (
     <div className="space-y-6">
-      <section className={panel}>
+      {/* NO PANEL AROUND THE GREETING — the owner's instruction, 17/09/2026. The
+          tiles are cards already; a white box around cards was a frame for a
+          frame. The greeting and the tiles sit on the page itself. */}
+      <section>
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 className={h2}>{me.alias ? tr.welcomeNamed(me.alias) : tr.welcome}</h2>
