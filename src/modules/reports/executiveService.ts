@@ -17,8 +17,11 @@
 import { requirePermission } from "@/platform/access";
 import { datasetFor } from "./datasets";
 import { readDataset } from "./read";
-import { executiveBoard, datasetsNeeded, previousWindow, TILES } from "./executive";
+import { executiveBoard, datasetsNeeded, previousWindow, tilesRunning, groupByDepartment } from "./executive";
+import { switchboard } from "@/lib/dashboardWidgets";
+import { SECTION_DEFS } from "@/platform/db/keys";
 import type { ReportsContext } from "./reportService";
+import type { Section } from "@/platform/db/sections";
 
 const day = (v: unknown): string => {
   const s = String(v ?? "").trim();
@@ -36,7 +39,8 @@ function thisMonth(today: string): { from: string; to: string } {
 }
 
 export async function executiveDashboard(
-  ctx: ReportsContext, query: { from?: unknown; to?: unknown } = {},
+  // EVERY stored section row, switched-off ones included — studioContext's list.
+  ctx: ReportsContext & { sections?: Section[] }, query: { from?: unknown; to?: unknown } = {},
 ) {
   const denied = requirePermission(ctx.access, "reports.exports.view");
   if (denied) return denied;
@@ -48,12 +52,19 @@ export async function executiveDashboard(
   const asked = { from: day(query.from), to: day(query.to) };
   const window = asked.from && asked.to && asked.from <= asked.to ? asked : thisMonth(today);
 
+  // WHAT THE STUDIO RUNS COMES FIRST. A tile whose part is switched off is
+  // dropped here, so its data set is never read and it is not counted among
+  // the figures withheld for want of a right. Asked of every stored row on
+  // each request, so a part switched back on is on the board at the next load.
+  const sections = ctx.sections || [];
+  const running = tilesRunning(switchboard(sections));
+
   // READ ONLY WHAT A TILE NEEDS, and only what the reader may open. Both halves
   // matter: the first stops the board reading eight collections to draw six
   // tiles, the second is the customer-360 rule.
   const rowsByDataset: Record<string, Record<string, unknown>[]> = {};
   const refused: string[] = [];
-  await Promise.all(datasetsNeeded().map(async (key) => {
+  await Promise.all(datasetsNeeded(running).map(async (key) => {
     const dataset = datasetFor(key);
     if (!dataset) return;
     const read = await readDataset(ctx, dataset);
@@ -61,11 +72,20 @@ export async function executiveDashboard(
     rowsByDataset[key] = read.rows;
   }));
 
+  const tiles = executiveBoard(rowsByDataset, window, running, (ctx.studio as { currency?: unknown }).currency);
+  // A DEPARTMENT IS NAMED AS THE STUDIO NAMED IT — a section's name is data
+  // the tenant owns, never translated — and listed in the sidebar's order.
+  const nameOf = new Map(sections.map((s) => [s.key, String(s.name || "")]));
+  const order = SECTION_DEFS.map((d) => d.key);
+
   return {
     asOf: today,
     window,
     previous: previousWindow(window.from, window.to),
-    tiles: executiveBoard(rowsByDataset, window, undefined, (ctx.studio as { currency?: unknown }).currency),
+    tiles,
+    departments: groupByDepartment(tiles, order).map((g) => ({
+      key: g.department, name: nameOf.get(g.department) || g.department, tiles: g.tiles.map((t) => t.key),
+    })),
     // WHAT THE MONEY TILES ARE IN. Blank when the studio has not set one,
     // and the screen then says nothing rather than guessing — the same
     // refusal to invent a currency the approval engine already makes.
@@ -74,6 +94,7 @@ export async function executiveDashboard(
     // board that silently omitted six of eight figures reads as a company doing
     // very little; naming the gap turns it into "ask for these rights".
     hidden: refused.sort(),
-    total: TILES.length,
+    // Out of the figures the studio RUNS — a switched-off part is not a gap.
+    total: running.length,
   };
 }

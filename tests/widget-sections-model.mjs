@@ -74,11 +74,9 @@ ok("no widget names a filed-only storage row", filed.length === 0, JSON.stringif
 const system = declared.filter(([, k]) => K.isSystemSection(k));
 ok("no widget names Settings — it is never off", system.length === 0, JSON.stringify(system));
 
-// EVERY WIDGET SAYS WHAT IT IS DRAWN FROM — slice 2 of the owner's rule.
-// Reports' two are the executive board, which reads across departments by its
-// own path and is recorded as not built (dashboards.md).
+// EVERY WIDGET SAYS WHAT IT IS DRAWN FROM — slices 2 and 3 of the owner's rule.
 const undeclared = W.DASHBOARD_WIDGETS
-  .filter((w) => !w.needs && !w.anyOf && w.section !== "reports")
+  .filter((w) => !w.needs && !w.anyOf)
   .map((w) => w.key);
 ok("every department widget declares its sources", undeclared.length === 0, undeclared.join(", "));
 
@@ -89,17 +87,21 @@ console.log("\n== every dashboard asks the whole gate");
 // no dashboard passes `locked={!visible(...)}` any more; it spreads
 // `gate(key)`, which answers hidden before locked.
 const dashDir = "src/components/studio2";
-const dashboards = readdirSync(dashDir).filter((f) => /Dashboard\.jsx$/.test(f) && f !== "MainDashboard.jsx");
+// The Reports board is a dashboard by another name.
+const dashboards = [
+  ...readdirSync(dashDir).filter((f) => /Dashboard\.jsx$/.test(f) && f !== "MainDashboard.jsx"),
+  "ExecutiveBoard.js",
+];
 const tierOnly = [];
 const gated = new Set();
 for (const f of dashboards) {
   const text = readFileSync(`${dashDir}/${f}`, "utf8");
-  if (/locked=\{!\s*(visible|widgetVisible|show\w*)\b/.test(text)) tierOnly.push(f);
+  if (/locked=\{!\s*(visible|widgetVisible|show\w*)\b/.test(text) || /useWidgetVisible\b/.test(text)) tierOnly.push(f);
   for (const m of text.matchAll(/gate\("([a-z-]+\.[a-z0-9-]+)"\)/g)) gated.add(m[1]);
 }
 ok("no dashboard gates a widget on the tier alone", tierOnly.length === 0, tierOnly.join(", "));
 const ungated = W.DASHBOARD_WIDGETS
-  .filter((w) => w.section !== "main" && w.section !== "reports" && !gated.has(w.key))
+  .filter((w) => w.section !== "main" && !gated.has(w.key))
   .map((w) => w.key);
 ok("every department widget is drawn through the gate", ungated.length === 0, ungated.join(", "));
 // THE SWITCHES ARE READ FROM EVERY ROW, not from the visible ones. The shell's
@@ -144,6 +146,81 @@ for (const file of readdirSync(dir).filter((f) => f.endsWith(".ts"))) {
   }
 }
 ok("every read of a filed-only row names its switch", offenders.length === 0, offenders.join(" | "));
+
+console.log("\n== the Reports board: each figure goes with its own part");
+
+// SLICE 3. The board was one pair of registry keys over eight figures from
+// eight departments, so switching Tendering off left "Tenders entered" on it.
+const X = await import("@/modules/reports/executive");
+const tileSwitches = X.TILES.map((t) => t.switch);
+ok("every tile names the part it counts", X.TILES.every((t) => t.switch && t.department));
+ok("every tile's part is a real switch, never storage",
+  tileSwitches.every((k) => keys.has(k) && !K.isFiledOnlySection(k) && !K.isSystemSection(k)),
+  tileSwitches.filter((k) => !keys.has(k) || K.isFiledOnlySection(k)).join(","));
+ok("every tile sits under the department its part belongs to",
+  X.TILES.every((t) => t.switch === t.department || t.switch.startsWith(`${t.department}-`)),
+  X.TILES.filter((t) => !(t.switch === t.department || t.switch.startsWith(`${t.department}-`))).map((t) => t.key).join(","));
+ok("REPORT_SOURCES is exactly the tiles' parts",
+  new Set(tileSwitches).size === W.REPORT_SOURCES.length && tileSwitches.every((k) => W.REPORT_SOURCES.includes(k)));
+
+const tenderingOff = W.switchboard([
+  { id: "t", key: "tendering", parentId: null, enabled: false },
+  { id: "tr", key: "tendering-register", parentId: "t", enabled: true },
+  { id: "f", key: "finance", parentId: null, enabled: true },
+  { id: "fp", key: "finance-payables", parentId: "f", enabled: false },
+]);
+const running = X.tilesRunning(tenderingOff).map((t) => t.key);
+ok("a switched-off department takes its tile off the board", !running.includes("tendersEntered"));
+ok("a switched-off part takes only its own tile", !running.includes("billed") && running.includes("invoiced"));
+ok("its data set is not even asked for", !X.datasetsNeeded(X.tilesRunning(tenderingOff)).includes("tenders")
+  && !X.datasetsNeeded(X.tilesRunning(tenderingOff)).includes("bills"));
+ok("switched back on, the tile returns", X.tilesRunning(W.switchboard([
+  { id: "t", key: "tendering", parentId: null, enabled: true },
+  { id: "tr", key: "tendering-register", parentId: "t", enabled: true },
+])).some((t) => t.key === "tendersEntered"));
+const groups = X.groupByDepartment(
+  [{ key: "a", department: "hr" }, { key: "b", department: "finance" }, { key: "c", department: "finance" }],
+  ["finance", "hr"],
+);
+ok("the board groups by department in the given order",
+  groups.map((g) => g.department).join(",") === "finance,hr" && groups[0].tiles.map((t) => t.key).join(",") === "b,c");
+ok("a department with nothing left is not drawn", X.groupByDepartment([], ["finance"]).length === 0);
+ok("both board tools go when no tile is left",
+  !W.widgetAvailable(W.DASHBOARD_WIDGETS.find((w) => w.key === "reports.movement"), () => false));
+
+const service = readFileSync("src/modules/reports/executiveService.ts", "utf8");
+ok("the board drops switched-off tiles BEFORE it reads",
+  /tilesRunning\(switchboard\(/.test(service) && /datasetsNeeded\(running\)/.test(service)
+  && /executiveBoard\([^)]*running/.test(service));
+
+console.log("\n== the server does not read what the studio switched off");
+
+// EACH OF THESE READS FEEDS ONLY A PART THAT CAN BE SWITCHED OFF. Written as
+// a source scan because each route reaches Postgres; the pure half — what `on`
+// answers — is asserted above. Removing a guard fails here by name.
+const TRIMMED = [
+  ["src/app/api/studios/[slug]/sales/route.ts", ['on("crm-sales-tickets")', 'on("crm-sales-clients")']],
+  ["src/app/api/studios/[slug]/technical/route.ts", ['on("quotations-rfq")', 'on("quotations-register")']],
+  ["src/app/api/studios/[slug]/projects/route.ts", ['on("projects-overtimes")', 'on("quotations-register")']],
+  ["src/app/api/studios/[slug]/operations/route.ts", ['on("quality-hse-permits")']],
+  ["src/app/api/studios/[slug]/inventory/route.ts", ['on("logistics-shipments")', 'on("inventory-sheets")']],
+  ["src/modules/maintenance/dashboard.ts", ['on("maintenance-orders")', 'on("maintenance-requests")', 'on("maintenance-plans")', 'on("maintenance-contracts")']],
+  ["src/modules/procurement/dashboard.ts", ['on("procurement-requisitions")', 'on("finance-payables")']],
+  ["src/modules/engineering/dashboard.ts", ["switchboard(ctx.sections)"]],
+  ["src/components/studio2/FinanceDashboard.jsx", ['sectionOn("finance-payables")', 'sectionOn("finance-assets")', "[slug, payablesOn, assetsOn]"]],
+];
+for (const [file, needles] of TRIMMED) {
+  const text = readFileSync(file, "utf8");
+  const missing = needles.filter((n) => !text.includes(n));
+  ok(`${file.replace(/^src\//, "")} asks the switch before reading`, missing.length === 0, missing.join(" "));
+}
+// THE SWITCHES COME FROM EVERY ROW. A context built from the visible sections
+// would read a switched-off part as on — the slice-2 bug, one layer down.
+const context = readFileSync("src/modules/context.ts", "utf8");
+ok("every module context carries the switchboard of all its rows", /out\.on = switchboard\(sections\)/.test(context));
+const studios = readFileSync("src/lib/studios.ts", "utf8");
+ok("…and those rows are the stored list, not the visible one",
+  /const \[collaborator, roles, sections\] = await Promise\.all/.test(studios) && !/sections = visibleSections/.test(studios));
 
 console.log(fails === 0 ? "\nwidget sections model: all passed\n" : `\nwidget sections model: ${fails} FAILED\n`);
 process.exit(fails === 0 ? 0 : 1);

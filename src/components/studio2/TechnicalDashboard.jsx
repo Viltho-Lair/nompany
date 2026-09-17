@@ -8,7 +8,7 @@
 // kit and dashboard primitives over the existing aggregates.
 //
 // ANALYTICS IS PAID, so each widget in the grid is gated by the per-component
-// SELECTION model: `useWidgetVisible()` answers whether this studio's tier
+// SELECTION model: `useWidgetGate()` answers whether this studio's tier
 // includes a given widget key, and a widget it does not sees the locked teaser
 // (which names what it would show) instead of the number. The KPI row is the free
 // floor everyone gets; the gated widgets carry their registry keys.

@@ -21,6 +21,7 @@
 // reads its own clock — the same contract the work-order list carries.
 import { requirePermission, engineSectionKey, type PermissionKey } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
+import { switchboard } from "@/lib/dashboardWidgets";
 import type { EngineRecord } from "@/platform/engine/schema";
 import type { Movement } from "@/modules/inventory/schema";
 import { orderOpen, orderOverdue, labourTotals, requestState, PRIORITIES } from "./model";
@@ -50,26 +51,36 @@ export async function maintenanceDashboard(ctx: MaintenanceContext) {
   if (denied) return denied;
 
   const may = (key: PermissionKey) => !requirePermission(ctx.access, key);
-  // ONE PERMISSION QUESTION PER BLOCK, asked before anything is fetched.
+  // TWO QUESTIONS PER BLOCK, asked before anything is fetched: may this reader
+  // see the part, AND does the studio run it (the owner's rule, 17/09/2026 — a
+  // visual goes with its section). A part switched off is not read, so none of
+  // its figures leave the server; switched back on, the next request reads it.
+  const on = switchboard(ctx.sections);
   const blocks = {
-    requests: may("maintenance.requests.view"),
-    orders: may("maintenance.orders.view"),
-    plans: may("maintenance.plans.view"),
-    contracts: may("projects.sla.view"),
+    requests: on("maintenance-requests") && may("maintenance.requests.view"),
+    orders: on("maintenance-orders") && may("maintenance.orders.view"),
+    plans: on("maintenance-plans") && may("maintenance.plans.view"),
+    // Service contracts are kept under `projects-sla` (filed-only) and switched
+    // as Maintenance → Contracts — the switch is named, never the storage.
+    contracts: on("maintenance-contracts") && may("projects.sla.view"),
     // The machines a work order names are the Assets register's, and their
     // NAMES belong to whoever may open that register — the same gate the
     // Machines screen applies.
-    machines: may("engine.equipment.view"),
+    machines: on(engineSectionKey("equipment")) && may("engine.equipment.view"),
   };
+  // PLANNED WORK AND CONTRACTS ARE JUDGED BY THE ORDERS THEY RAISED, so the
+  // orders are still read for them when the Work orders part is off — but only
+  // for that: the backlog, the cost and the machine list below stay empty.
+  const readOrders = may("maintenance.orders.view") && (blocks.orders || blocks.plans || blocks.contracts);
 
   const at = new Date().toISOString();
   const asOf = day(at);
   const orderScope = { studio: ctx.studio, section: ctx.ordersSection };
   const equipmentSection = ctx.sections.find((s) => s.key === engineSectionKey("equipment")) || null;
 
-  const [requests, orders, labour, plans, contracts, partMoves, machines] = await Promise.all([
+  const [requests, allOrders, labour, plans, contracts, partMoves, machines] = await Promise.all([
     blocks.requests ? Requests.find({ studio: ctx.studio, section: ctx.requestsSection }) : Promise.resolve([] as WorkRequest[]),
-    blocks.orders ? Orders.find(orderScope) : Promise.resolve([] as WorkOrder[]),
+    readOrders ? Orders.find(orderScope) : Promise.resolve([] as WorkOrder[]),
     blocks.orders ? Labour.find(orderScope) : Promise.resolve([] as LabourEntry[]),
     blocks.plans ? Plans.find({ studio: ctx.studio, section: ctx.plansSection }) : Promise.resolve([] as PmPlan[]),
     blocks.contracts && ctx.slasSection
@@ -78,10 +89,12 @@ export async function maintenanceDashboard(ctx: MaintenanceContext) {
     blocks.orders && ctx.stockSection
       ? StockMoves.find({ studio: ctx.studio, section: ctx.stockSection }, { where: { sourceType: WORKORDER_SOURCE } })
       : Promise.resolve([] as Movement[]),
-    blocks.machines && equipmentSection
+    blocks.orders && blocks.machines && equipmentSection
       ? Records.find({ studio: ctx.studio, section: equipmentSection }, { where: { typeKey: "equipment" } })
       : Promise.resolve([] as EngineRecord[]),
   ]);
+  // What the backlog, the cost and the machine list are drawn from.
+  const orders = blocks.orders ? allOrders : [];
 
   // ---- the backlog: what is open, and what is late ---------------------------
   // OPEN IS THE THREE UNFINISHED STATES, on hold included: a machine waiting on
@@ -104,7 +117,7 @@ export async function maintenanceDashboard(ctx: MaintenanceContext) {
   let onTime = 0;
   let due = 0;
   for (const p of plans) {
-    const mineOrders = orders.filter((o) => o.pmPlanId === p.id);
+    const mineOrders = allOrders.filter((o) => o.pmPlanId === p.id);
     const c = planCompliance(mineOrders, p.frequency, asOf);
     onTime += c.onTime;
     due += c.total;
@@ -144,14 +157,14 @@ export async function maintenanceDashboard(ctx: MaintenanceContext) {
   const hours = labourTotals(labour);
 
   // ---- what is waiting on somebody -------------------------------------------
-  const answered = new Set(orders.map((o) => o.requestId).filter(Boolean));
+  const answered = new Set(allOrders.map((o) => o.requestId).filter(Boolean));
   const waiting = requests.filter((r) => requestState(r, answered.has(r.id)) === "Open").length;
 
   // ---- the contracts, and what they owe --------------------------------------
   // KEPT BY PLANS IS ASKED HERE TOO, or a contract whose visits its plans raise
   // would read as one that has fallen behind on a schedule it does not keep.
   const keptByPlans = new Set(plans.filter((p) => p.slaId && p.status !== "Retired").map((p) => p.slaId));
-  const contractRows = contracts.map((c) => contractSummary(c, orders, asOf, keptByPlans.has(c.id)));
+  const contractRows = contracts.map((c) => contractSummary(c, allOrders, asOf, keptByPlans.has(c.id)));
   const contractsSummary = {
     active: contractRows.filter((c) => c.state === "active").length,
     ending: contractRows.filter((c) => c.state === "active" && c.end && c.end <= addDays(asOf, 60)).length,

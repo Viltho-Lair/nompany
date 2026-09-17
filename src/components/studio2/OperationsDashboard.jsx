@@ -15,7 +15,7 @@ import { operationsDict } from "@/shared/studio/operations";
 // whether a permit is expiring.
 //
 // ANALYTICS IS PAID, so each widget is gated by the per-component SELECTION model:
-// `useWidgetVisible()` answers whether this studio's tier includes a given widget
+// `useWidgetGate()` answers whether this studio's tier includes a given widget
 // key, and a widget it does not sees the locked teaser instead of the number. The
 // top StatRow is the free floor everyone gets.
 

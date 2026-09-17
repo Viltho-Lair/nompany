@@ -13,8 +13,16 @@ export const dynamic = "force-dynamic";
 const spec = { auth: "studio", context: salesContext, name: "crm-sales" };
 
 export const GET = route(spec, async (sales) => {
+  // A LIST NO SCREEN THAT IS ON CAN SHOW IS NOT READ. Tickets are shown by the
+  // tickets register (a ticket's own page included), the dashboard's ticket
+  // figures and the Live view; clients by their register and by the ticket
+  // form's picker. Empty is exactly what a studio with none would receive.
+  const ticketsOn = sales.on("crm-sales-tickets") || sales.on("crm-sales-live");
+  const clientsOn = sales.on("crm-sales-clients") || ticketsOn;
   const [clients, tickets, people] = await Promise.all([
-    listClients(sales), listTickets(sales), assignablePeople(sales),
+    clientsOn ? listClients(sales) : Promise.resolve([]),
+    ticketsOn ? listTickets(sales) : Promise.resolve([]),
+    assignablePeople(sales),
   ]);
   return {
     // ONE FLAG PER SUB-SECTION. Tickets, Clients and Settings are separate

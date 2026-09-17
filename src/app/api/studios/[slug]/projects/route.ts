@@ -27,9 +27,16 @@ const manageable = (c: { canManage: boolean }) => (c.canManage ? null : { error:
 // against it, and the directory the pickers need. (Service contracts left for
 // Maintenance on 11/09/2026 — maintenance/contracts reads them now.)
 export const GET = route({ ...spec, body: false }, async (c) => {
+  // A LIST NO SCREEN THAT IS ON CAN SHOW IS NOT READ. Overtime belongs to its
+  // own register and the dashboard's overtime chart; the approved quotations
+  // a project can open from exist only while Quotations → Register is on. The
+  // directory stays: Settings picks its default department from it.
   const [projects, quotations, people, clients, overtimes, directory, sheets] = await Promise.all([
-    listProjects(c), approvedQuotations(c), projectPeople(c), listProjectClients(c),
-    listOvertimes(c), overtimeDirectory(c),
+    listProjects(c),
+    c.on("quotations-register") ? approvedQuotations(c) : Promise.resolve([]),
+    projectPeople(c), listProjectClients(c),
+    c.on("projects-overtimes") ? listOvertimes(c) : Promise.resolve([]),
+    overtimeDirectory(c),
     // THE SHEETS, composed by the module that owns them. Projects reads them —
     // a project's sheets are part of its own story — and never writes them from
     // here; the per-row columns Projects owns are written on Inventory's route,

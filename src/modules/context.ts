@@ -25,6 +25,7 @@
 
 import { studioContext, sectionNav, manageMap } from "@/lib/studios";
 import { sectionViewable, sectionManageable, dashboardViewable } from "@/platform/access";
+import { switchboard } from "@/lib/dashboardWidgets";
 import type { PermissionSet, Role } from "@/platform/access";
 import type { Section } from "@/platform/db/sections";
 import type { Row } from "@/platform/db/store";
@@ -77,6 +78,13 @@ export type ModuleContext = {
   section: Section;
   canManage: boolean;
   canViewDashboard: boolean;
+  /**
+   * DOES THE STUDIO RUN THIS SECTION — the owner's switches, asked of EVERY
+   * stored row (a part is off when it or its department is). A read that feeds
+   * only a switched-off part is skipped with it, so nothing a studio turned off
+   * leaves the server; switched back on, the next request reads it again.
+   */
+  on: (key: string) => boolean;
   nav: unknown;
   manage: unknown;
   [named: string]: unknown;
@@ -229,6 +237,7 @@ export function moduleContext<C extends ModuleContext = ModuleContext>(spec: Mod
     // May they open the module's OWN screen — the dashboard summarises
     // everything underneath it and is withheld on a right of its own.
     out.canViewDashboard = dashboardViewable(access, section.key);
+    out.on = switchboard(sections);
     out.nav = sectionNav(studio, collaborator, sections, access);
     // Manage, per section key, so each screen asks about itself rather than
     // being handed its parent's answer.

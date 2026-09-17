@@ -103,6 +103,17 @@ export const MAIN_SOURCES: readonly string[] = [
   "crm-sales-tickets", "quotations-register", "quotations-rfq", "projects-list", "inventory-items", "tasks",
 ];
 
+/**
+ * The parts the Reports board's tiles count — each tile's `switch` in
+ * modules/reports/executive, restated because that module is the board's and
+ * this one must stay importable by any screen. tests/widget-sections-model.mjs
+ * holds the two lists equal.
+ */
+export const REPORT_SOURCES: readonly string[] = [
+  "finance-cash", "finance-payables", "crm-sales-tickets", "quotations-register",
+  "projects-list", "procurement-orders", "tendering-register", "hr",
+];
+
 // Every gated widget across the eight department dashboards. Keys are frozen —
 // a tier stores these strings, so renaming one is a migration, not an edit.
 // "technical.rfq-funnel" below happens to start with the exact substring of
@@ -249,8 +260,12 @@ export const DASHBOARD_WIDGETS: WidgetDef[] = [
   //
   // A KEY IS FROZEN ONCE IT SHIPS: a tier stores these strings, so renaming
   // one is a migration rather than an edit.
-  { key: "reports.movement", label: "Period-on-period movement", section: "reports", rung: "simple" },
-  { key: "reports.window", label: "Choose the period", section: "reports", rung: "moderate" },
+  //
+  // BOTH ARE TOOLS OVER THE TILES, so they last while any tile does: each tile
+  // goes with its own part (modules/reports/executive), and these go when the
+  // board has none left to compare or re-date.
+  { key: "reports.movement", label: "Period-on-period movement", section: "reports", rung: "simple", anyOf: REPORT_SOURCES },
+  { key: "reports.window", label: "Choose the period", section: "reports", rung: "moderate", anyOf: REPORT_SOURCES },
 ];
 
 // The set of every valid key — the write boundary's whitelist and the guard the

@@ -113,7 +113,7 @@ than to a storage row nobody can open. `tests/crud.mjs` proves it against the da
 studio created with Projects, Quotations, Inventory and Finance off.
 
 **The department dashboards followed (slice 2, 17/09/2026).** Ninety of the ninety-two
-registered widgets declare their sources; the two that do not are the Reports board's, below.
+registered widgets declared their sources then; the Reports board's two followed in slice 3.
 Four things carry it:
 
 - **The shell passes down the keys that are switched off** with the plan
@@ -134,6 +134,37 @@ Four things carry it:
 - **Procurement and Engineering build their blocks on the server**, one right per block — and
   now one switch per block too, so a switched-off part is never read there, the way Main's is
   not. `tests/crud.mjs` proves it against the database with a control studio beside it.
+
+**Reports & BI and the server followed (slice 3, 17/09/2026).** All ninety-two registered
+widgets now declare their sources.
+
+- **Each figure on the Reports board belongs to its own part** (`switch` and `department` on
+  each tile in `modules/reports/executive`): Invoiced → Finance → Cash, Supplier bills →
+  Payables, Deals opened → CRM & Sales → Tickets, Quoted → Quotations → Register, Projects
+  opened → Projects → List, Purchase orders → Procurement → Orders, Tenders entered →
+  Tendering → Register, Leave days → Human Resources. The server drops a switched-off tile
+  BEFORE it reads (`tilesRunning`), so its data set is never fetched and it is not counted in
+  "N of M hidden" — a switched-off part is a choice, not a missing right. The board draws its
+  figures under each department's own name, in sidebar order, and leaves out a department with
+  nothing left. The two tier tools (movement, choosing the period) last while any figure does
+  (`REPORT_SOURCES`) and go through `useWidgetGate` like every other dashboard.
+- **Every module context carries `on(key)`**, the switchboard of all its stored rows. The
+  per-screen routes skip a read that only a switched-off part shows: Sales skips tickets (unless
+  Tickets or the Live view is on) and clients (unless Clients or Tickets is on); Quotations skips
+  RFQs, and sends the quotation list only while the Register or the Live view is on (still
+  reading it for numbering while the RFQ desk is on); Projects skips overtime and the approved
+  quotations a project opens from; Field Operations skips permits while Quality & HSE → Permits
+  is off; Inventory skips air waybills, airlines and project sheets. The Maintenance dashboard
+  asks one switch per block, and still reads work orders for planned-work compliance and
+  contracts while the Work orders part is off, without sending the backlog. The Finance
+  dashboard does not fetch Payables or Fixed assets while they are off.
+- **Switching a part back on needs nothing else.** The switchboard is read from the stored rows
+  on every request, and the Sections panel refreshes the shell after a toggle, so the next load
+  reads and draws the part again. The sandbox measured it both ways: with ten parts off, the
+  sales route went from 6 database queries to 0, inventory 11 → 9, projects 10 → 9, field
+  operations 5 → 4 and the maintenance dashboard 7 → 4, the board from 8 figures to 5, and the
+  Finance dashboard stopped asking for bills; switched back on, every number returned on the next
+  request. `tests/widget-sections-model.mjs` holds each guard by name.
 
 **Where a widget is drawn is not what it is drawn from**, and the map follows the data:
 *Quotation volume* on the Sales dashboard needs Quotations; purchase-order charts on Inventory
@@ -156,16 +187,19 @@ is not mistaken for one.
 
 Stated in words, because a silent gap reads as a finished feature.
 
-- **Only Procurement, Engineering and Main trim on the server.** The other department
-  dashboards are drawn from lists their screens already hold, and hide a switched-off part's
-  cards and tiles in the browser — the figures reach the page, for a reader who holds the rights
-  to them, and are not drawn.
+- **Some lists still travel with a part switched off**, because another screen that is on uses
+  them too: purchase orders on the Inventory route (items, stock and receiving reach them),
+  invoices and expenses on the Finance route (the project margins beside the dashboard), and
+  the HR lists. Their cards are hidden in the browser; the rows reach only a reader who holds the
+  rights to them.
+- **The API does not refuse a switched-off part.** A part's own route still answers if called
+  directly; switching decides what is shown and read for the screens, not access.
 - **The leave charts and tiles follow the HR department as a whole.** Leave is kept on the HR
   root, which has no part of its own to switch.
 - **Free headline tiles are not in the registry.** Main's are gated through `seen` by the read
   behind each figure, which works, but a tile cannot be listed or tested as a widget.
-- **Reports & BI's executive board and the engagements view** read across sections through their
-  own paths and do not ask the switchboard.
+- **The engagements view** reads across sections through its own path and does not ask the
+  switchboard. Nor do the Reports exports and the report builder — only the board does.
 
 - **The windows are fixed.** Twelve months, eight or twelve weeks, thirty days — no date-range
   filter on any of the new widgets, and no comparison against a previous period (the Reports

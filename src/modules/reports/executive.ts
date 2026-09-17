@@ -28,6 +28,16 @@ export type Measure = "count" | "sum";
 
 export type Tile = {
   key: string;
+  /**
+   * THE PART IT COUNTS, as the owner switches it (the owner's rule, 17/09/2026:
+   * a visual goes with its section). Named as the SWITCH, never the storage —
+   * quotations are kept under `crm-sales-quotations` and purchase orders under
+   * `inventory-sheets`, and nobody switches either. Switched off, the tile is
+   * absent and its data set is never read.
+   */
+  switch: string;
+  /** The department it is shown under on the board. */
+  department: string;
   label: string;
   /** A `DATASETS` key. The permission and the section come from there. */
   dataset: string;
@@ -63,39 +73,39 @@ export type Tile = {
  */
 export const TILES: readonly Tile[] = Object.freeze([
   {
-    key: "invoiced", label: "Invoiced", dataset: "invoices", measure: "sum",
+    key: "invoiced", switch: "finance-cash", department: "finance", label: "Invoiced", dataset: "invoices", measure: "sum",
     field: "total", dateField: "issueDate",
     excludeStatuses: ["Draft", "Cancelled"], goodWhen: "up", unit: "money",
   },
   {
-    key: "billed", label: "Supplier bills", dataset: "bills", measure: "sum",
+    key: "billed", switch: "finance-payables", department: "finance", label: "Supplier bills", dataset: "bills", measure: "sum",
     field: "total", dateField: "billDate",
     excludeStatuses: ["Draft", "Cancelled"], goodWhen: "down", unit: "money",
   },
   {
-    key: "deals", label: "Deals opened", dataset: "tickets", measure: "count",
+    key: "deals", switch: "crm-sales-tickets", department: "crm-sales", label: "Deals opened", dataset: "tickets", measure: "count",
     dateField: "createdAt", goodWhen: "up", unit: "count",
   },
   {
-    key: "quoted", label: "Quoted", dataset: "quotations", measure: "sum",
+    key: "quoted", switch: "quotations-register", department: "quotations", label: "Quoted", dataset: "quotations", measure: "sum",
     field: "total", dateField: "createdAt",
     excludeStatuses: ["Draft", "Cancelled", "Rejected"], goodWhen: "up", unit: "money",
   },
   {
-    key: "projectsOpened", label: "Projects opened", dataset: "projects", measure: "count",
+    key: "projectsOpened", switch: "projects-list", department: "projects", label: "Projects opened", dataset: "projects", measure: "count",
     dateField: "createdAt", goodWhen: "up", unit: "count",
   },
   {
-    key: "ordersPlaced", label: "Purchase orders", dataset: "orders", measure: "sum",
+    key: "ordersPlaced", switch: "procurement-orders", department: "procurement", label: "Purchase orders", dataset: "orders", measure: "sum",
     field: "total", dateField: "createdAt",
     excludeStatuses: ["Draft", "Cancelled"], goodWhen: "down", unit: "money",
   },
   {
-    key: "tendersEntered", label: "Tenders entered", dataset: "tenders", measure: "count",
+    key: "tendersEntered", switch: "tendering-register", department: "tendering", label: "Tenders entered", dataset: "tenders", measure: "count",
     dateField: "createdAt", goodWhen: "up", unit: "count",
   },
   {
-    key: "leaveTaken", label: "Leave days", dataset: "vacations", measure: "sum",
+    key: "leaveTaken", switch: "hr", department: "hr", label: "Leave days", dataset: "vacations", measure: "sum",
     field: "days", dateField: "from",
     excludeStatuses: ["Declined", "Cancelled"], goodWhen: "down", unit: "days",
   },
@@ -158,6 +168,7 @@ export function measure(
 
 export type TileResult = {
   key: string;
+  department: string;
   label: string;
   dataset: string;
   measure: Measure;
@@ -224,6 +235,7 @@ export function executiveBoard(
       : 0;
     out.push({
       key: tile.key,
+      department: tile.department,
       label: tile.label,
       dataset: tile.dataset,
       measure: tile.measure,
@@ -240,3 +252,34 @@ export function executiveBoard(
 /** Which datasets a board would need, so the caller reads exactly those. */
 export const datasetsNeeded = (tiles: readonly Tile[] = TILES): string[] =>
   [...new Set(tiles.map((t) => t.dataset))];
+
+/**
+ * THE TILES THE STUDIO RUNS. A tile whose part is switched off is dropped
+ * BEFORE anything is read, so its data set is never fetched and the board does
+ * not count it among the figures "hidden for want of a right" — a department
+ * the owner turned off is a choice, not a missing permission.
+ */
+export const tilesRunning = (on: (key: string) => boolean, tiles: readonly Tile[] = TILES): Tile[] =>
+  tiles.filter((t) => on(t.switch));
+
+/**
+ * THE BOARD IN DEPARTMENTS, in the order `order` gives them, each holding its
+ * tiles in declared order. A department with nothing left in it is not drawn —
+ * the board is ordered by what is available, never by fixed slots.
+ */
+export function groupByDepartment<T extends { department: string }>(
+  tiles: readonly T[], order: readonly string[],
+): { department: string; tiles: T[] }[] {
+  const rank = (d: string) => {
+    const i = order.indexOf(d);
+    return i === -1 ? order.length : i;
+  };
+  const groups = new Map<string, T[]>();
+  for (const t of tiles) {
+    if (!groups.has(t.department)) groups.set(t.department, []);
+    groups.get(t.department)!.push(t);
+  }
+  return [...groups.entries()]
+    .sort(([a], [b]) => rank(a) - rank(b))
+    .map(([department, list]) => ({ department, tiles: list }));
+}

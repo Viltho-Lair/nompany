@@ -15,9 +15,16 @@ export const dynamic = "force-dynamic";
 export const GET = route(
   { auth: "studio", context: inventoryContext, name: "inventory" },
   async (g) => {
+  // A LIST NO SCREEN THAT IS ON CAN SHOW IS NOT READ. Air waybills and their
+  // airline registry belong to Logistics → Shipments; project sheets to
+  // Inventory → Project sheets. Purchase orders stay: item, stock and receiving
+  // screens here all reach them.
+  const shipmentsOn = g.on("logistics-shipments");
   const [vendors, items, movements, orders, deliveries, projects, shipments, airlines, sheets] = await Promise.all([
     listVendors(g), listItems(g), listMovements(g), listOrders(g), listDeliveries(g), openProjects(g),
-    listShipments(g), listAirlines(g), listProjectSheets(g),
+    shipmentsOn ? listShipments(g) : Promise.resolve([]),
+    shipmentsOn ? listAirlines(g) : Promise.resolve([]),
+    g.on("inventory-sheets") ? listProjectSheets(g) : Promise.resolve([]),
   ]);
 
   return {

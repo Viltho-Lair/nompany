@@ -19,8 +19,14 @@ const spec = { auth: "studio", context: operationsContext, name: "field-service"
 
 export const GET = route(spec, async (g) => {
   const window = weekWindow();
+  // PERMITS ARE FILED HERE AND WORKED IN QUALITY & HSE → PERMITS, so they are
+  // read only while that part is on; switched off, the dashboard's permit
+  // figures are not drawn and nothing of them is sent. (A studio with no such
+  // row reads them as before — a key with no row is on.)
   const [locations, permits, shifts, projects, people, positions] = await Promise.all([
-    listLocations(g), listPermits(g), listShifts(g), operationsProjects(g), schedulablePeople(g),
+    listLocations(g),
+    g.on("quality-hse-permits") ? listPermits(g) : Promise.resolve([]),
+    listShifts(g), operationsProjects(g), schedulablePeople(g),
     listPositions(g),
   ]);
 

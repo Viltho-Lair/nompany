@@ -9,7 +9,7 @@
 // a visit's state is read off its work order there, which this screen cannot.)
 //
 // ANALYTICS IS PAID, so each widget is gated by the per-component SELECTION model:
-// `useWidgetVisible()` answers whether this studio's tier includes a given widget
+// `useWidgetGate()` answers whether this studio's tier includes a given widget
 // key, and a widget it does not sees the locked teaser instead of the number. The
 // KPI row is the free floor everyone gets; the breakdowns and the timeline carry
 // their registry keys.

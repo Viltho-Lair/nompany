@@ -6,7 +6,7 @@
 // Drop it into StudioSales with one line.
 //
 // ANALYTICS IS PAID, so each widget is gated by the per-component SELECTION model:
-// `useWidgetVisible()` answers whether this studio's tier includes a given widget
+// `useWidgetGate()` answers whether this studio's tier includes a given widget
 // key. The StatRow is the free floor everyone gets; the DashGrid widgets are each
 // gated by their registry key (see lib/dashboardWidgets).
 

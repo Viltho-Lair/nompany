@@ -6,7 +6,7 @@ import { Field } from "@/components/fields/Field";
 import { fmtDate } from "@/lib/format";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { useReload } from "@/components/studio2/useReload";
-import { useWidgetVisible } from "@/components/studio2/analyticsLevel";
+import { useWidgetGate } from "@/components/studio2/analyticsLevel";
 
 // THE COMPANY ON ONE SCREEN.
 //
@@ -41,12 +41,14 @@ export default function ExecutiveBoard({ slug, locale = "en" }) {
   // the same length before it — and the freedom to choose the period.
   //
   // THE GATE IS THE ONE EVERY OTHER DASHBOARD ASKS, not a second mechanism:
-  // `useWidgetVisible` resolves the studio's tier once in the shell, and a
-  // key the registry does not list answers TRUE, so nothing here can be
-  // silently hidden by a typo.
-  const visible = useWidgetVisible();
-  const showMovement = visible("reports.movement");
-  const showWindow = visible("reports.window");
+  // `useWidgetGate` answers the tier AND the studio's switches, and a key the
+  // registry does not list answers open, so nothing here can be silently
+  // hidden by a typo. Hidden (no part left to compare) wins over locked.
+  const gate = useWidgetGate();
+  const movementGate = gate("reports.movement");
+  const windowGate = gate("reports.window");
+  const showMovement = !movementGate.hidden && !movementGate.locked;
+  const showWindow = !windowGate.hidden && !windowGate.locked;
   const [data, setData] = useState(null);
   const [window, setWindow] = useState({ from: "", to: "" });
 
@@ -63,7 +65,14 @@ export default function ExecutiveBoard({ slug, locale = "en" }) {
 
   if (!data) return <ScreenSkeleton loadingLabel={tr.title} />;
 
-  const { tiles = [], hidden = [], total = 0, previous, currency = "" } = data;
+  const { tiles = [], departments = [], hidden = [], total = 0, previous, currency = "" } = data;
+  const byKey = new Map(tiles.map((t) => [t.key, t]));
+  // EACH DEPARTMENT UNDER ITS OWN NAME, holding only the figures it still has.
+  // The server drops a switched-off part before reading it and leaves out a
+  // department with nothing left, so this draws what it is given, in order.
+  const groups = departments
+    .map((d) => ({ ...d, tiles: d.tiles.map((k) => byKey.get(k)).filter(Boolean) }))
+    .filter((d) => d.tiles.length > 0);
 
   // WHAT THE NUMBER IS IN, said beside it. A money tile with no currency is
   // a figure a director cannot act on; a count is a count and needs nothing;
@@ -98,47 +107,50 @@ export default function ExecutiveBoard({ slug, locale = "en" }) {
         </p>
       )}
 
-      {tiles.length === 0 ? (
+      {groups.length === 0 ? (
         <p className="mt-6 text-sm text-slate-500 dark:text-slate-400">{tr.nothing}</p>
-      ) : (
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {tiles.map((t) => (
-            <div key={t.key}
-              className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-white/15 dark:bg-[#191921]">
-              <p className="text-xs font-600 text-slate-500 dark:text-slate-400">{t.label}</p>
-              <p className="num mt-1 text-2xl font-800 text-slate-900 dark:text-white">
-                {t.unit === "count"
-                  ? t.value
-                  : t.value.toLocaleString(locale === "ar" ? "ar" : "en-GB",
-                    // Up to three places: a dinar amount keeps its third decimal.
-                    { minimumFractionDigits: 2, maximumFractionDigits: 3 })}
-                {unitOf(t) && (
-                  <span className="ms-1 text-xs font-600 text-slate-400 dark:text-slate-500">
-                    {unitOf(t)}
-                  </span>
-                )}
-              </p>
-              {/* NULL IS SAID IN WORDS, not shown as a dash. "No comparison"
-                  and "0%" are different statements and a reader has to be able
-                  to tell them apart. */}
-              {showMovement ? (
-                <p className={`mt-1 text-xs ${TONE[t.direction]}`}>
-                  {t.change === null
-                    ? tr.noComparison
-                    : t.change === 0
-                      ? tr.flat
-                      : `${t.change > 0 ? "+" : ""}${t.change}%`}
+      ) : groups.map((g) => (
+        <div key={g.key} className="mt-5">
+          <h4 className="text-xs font-700 uppercase tracking-wide text-slate-500 dark:text-slate-400">{g.name}</h4>
+          <div className="mt-2 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {g.tiles.map((t) => (
+              <div key={t.key}
+                className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-white/15 dark:bg-[#191921]">
+                <p className="text-xs font-600 text-slate-500 dark:text-slate-400">{t.label}</p>
+                <p className="num mt-1 text-2xl font-800 text-slate-900 dark:text-white">
+                  {t.unit === "count"
+                    ? t.value
+                    : t.value.toLocaleString(locale === "ar" ? "ar" : "en-GB",
+                      // Up to three places: a dinar amount keeps its third decimal.
+                      { minimumFractionDigits: 2, maximumFractionDigits: 3 })}
+                  {unitOf(t) && (
+                    <span className="ms-1 text-xs font-600 text-slate-400 dark:text-slate-500">
+                      {unitOf(t)}
+                    </span>
+                  )}
                 </p>
-              ) : (
-                // THE FIGURE STAYS AND THE ANALYSIS GOES. A locked teaser here
-                // would put a padlock under every tile on the free tier, which
-                // reads as a broken board rather than as an offer.
-                <p className="mt-1 text-xs text-slate-300 dark:text-slate-600">{tr.movementLocked}</p>
-              )}
-            </div>
-          ))}
+                {/* NULL IS SAID IN WORDS, not shown as a dash. "No comparison"
+                    and "0%" are different statements and a reader has to be able
+                    to tell them apart. */}
+                {showMovement ? (
+                  <p className={`mt-1 text-xs ${TONE[t.direction]}`}>
+                    {t.change === null
+                      ? tr.noComparison
+                      : t.change === 0
+                        ? tr.flat
+                        : `${t.change > 0 ? "+" : ""}${t.change}%`}
+                  </p>
+                ) : (
+                  // THE FIGURE STAYS AND THE ANALYSIS GOES. A locked teaser here
+                  // would put a padlock under every tile on the free tier, which
+                  // reads as a broken board rather than as an offer.
+                  <p className="mt-1 text-xs text-slate-300 dark:text-slate-600">{tr.movementLocked}</p>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
-      )}
+      ))}
 
       {/* WHAT IS NOT BEING SHOWN, and why. A board that silently omitted six of
           eight figures reads as a company doing very little; naming the gap

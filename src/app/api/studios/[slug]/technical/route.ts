@@ -38,13 +38,23 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
   // route is reached on Technical's grant rather than on Sales'.
   const clientId = new URL(request.url).searchParams.get("clientId") || "";
 
-  const [rfqs, quotations, tickets, people, catalogue, clients] = await Promise.all([
-    listRfqs(tech), listQuotations(tech), openTickets(tech), technicalPeople(tech), catalogueItems(tech, clientId),
+  // A LIST NO SCREEN THAT IS ON CAN SHOW IS NOT SENT. RFQs belong to the RFQ
+  // desk; quotations to the register, the Live view and the dashboard. The
+  // quotations are still READ while the RFQ desk is on, because converting an
+  // RFQ numbers a new quotation from them — but they are not sent unless a
+  // screen that lists them is on.
+  const rfqsOn = tech.on("quotations-rfq");
+  const quotationsShown = tech.on("quotations-register") || tech.on("quotations-live");
+  const [rfqs, allQuotations, tickets, people, catalogue, clients] = await Promise.all([
+    rfqsOn ? listRfqs(tech) : Promise.resolve([]),
+    quotationsShown || rfqsOn ? listQuotations(tech) : Promise.resolve([]),
+    openTickets(tech), technicalPeople(tech), catalogueItems(tech, clientId),
     // The Sales clients, for the internal-quotation picker — folded into this
     // same wave rather than read after, so the screen still costs one round of
     // waiting regardless of how many lists it now shows.
     technicalClients(tech),
   ]);
+  const quotations = quotationsShown ? allQuotations : [];
   return Response.json({
     // One flag per sub-section: RFQ and Quotations are separately granted, so
     // they are separately answered.
@@ -89,7 +99,7 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
     // a studio can number more than one kind of quotation.
     sequences: tech.sequences.map((seq) => ({
       id: seq.id, label: seq.label, prefix: seq.prefix, validDays: seq.validDays,
-      nextNumber: nextNumberForSequence(quotations, seq),
+      nextNumber: nextNumberForSequence(allQuotations, seq),
     })),
     // Which sequence a Sales-ticket conversion numbers against by default.
     defaultSequenceId: tech.defaultSequenceId,

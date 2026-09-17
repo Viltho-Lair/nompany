@@ -9,7 +9,7 @@
 //
 // ANALYTICS IS GATED by the per-component SELECTION model. Every widget declares a
 // STABLE KEY (matching the shared registry in lib/dashboardWidgets) and asks the
-// single `useWidgetVisible()` gate whether to render or show the locked teaser.
+// single `useWidgetGate()` gate whether to render or show the locked teaser.
 // The gate resolves a tier's enabled-widget set once and answers by key, so no
 // widget reasons about rungs — the entitlement rule lives entirely in
 // `enabledWidgets`, never here.
@@ -53,23 +53,31 @@ export default function FinanceDashboard({ invoices = [], expenses = [], currenc
   const tr = financeDict(locale);
   // AP + FA land from their own routes. A route that is missing or forbidden
   // degrades to empty widgets rather than breaking the AR dashboard beside them.
+  //
+  // A PART SWITCHED OFF IS NOT ASKED FOR. Nothing of Payables or Fixed assets is
+  // drawn when the studio has switched it off, so fetching it would only move
+  // figures nobody sees. The two flags are dependencies: switch one back on and
+  // the page refreshes the shell, the flag turns true, and this asks again.
+  const sectionOn = useSectionOn();
+  const payablesOn = sectionOn("finance-payables");
+  const assetsOn = sectionOn("finance-assets");
   const [payables, setPayables] = useState([]);
   const [assets, setAssets] = useState([]);
   useEffect(() => {
     if (!slug) return undefined;
     let alive = true;
-    const get = (kind, field) =>
+    const get = (on, kind, field) => (!on ? Promise.resolve([]) :
       fetch(`/api/studios/${slug}/finance/${kind}`, { cache: "no-store" })
         .then((r) => (r.ok ? r.json() : null))
         .then((j) => (j && Array.isArray(j[field]) ? j[field] : []))
-        .catch(() => []);
-    Promise.all([get("bills", "bills"), get("assets", "assets")]).then(([b, a]) => {
+        .catch(() => []));
+    Promise.all([get(payablesOn, "bills", "bills"), get(assetsOn, "assets", "assets")]).then(([b, a]) => {
       if (!alive) return;
       setPayables(b);
       setAssets(a);
     });
     return () => { alive = false; };
-  }, [slug]);
+  }, [slug, payablesOn, assetsOn]);
 
   const today = new Date().toISOString().slice(0, 10);
   const thisMonth = monthKey(today);
@@ -122,7 +130,6 @@ export default function FinanceDashboard({ invoices = [], expenses = [], currenc
   const amt = (n) => <span className="num"><CurrencyGlyph currency={currency} />{money(n)}</span>;
   // Tier AND the studio's switches: a card whose section is off is not drawn.
   const gate = useWidgetGate();
-  const sectionOn = useSectionOn();
 
   return (
     <div className="space-y-5">
