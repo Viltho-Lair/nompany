@@ -187,6 +187,13 @@ when the code looks cleaner afterwards.
     accident fails before Postgres is asked. When a twice-confirmed deletion does
     proceed: export first, delete by an explicit key list, re-scan to prove it.
     Verification stays read-only by default.
+18. **Client data is sealed at rest — the owner, 17/09/2026.** `sections.ts` encrypts
+    every client field, and a client's details copied onto any record, on the way into
+    Postgres (`platform/db/sealCipher.ts` is the list). So: **never read or write
+    `collection_rows` payloads around `sections.ts`** where client data could be, **never
+    put `NOMPANY_DATA_KEY` anywhere in Google Cloud** (the database is there — the key
+    must not be), and **a new field copying a client's details gets a line in the
+    list**. Losing the key loses every client. `docs/functionality/client-encryption.md`.
 
 ---
 

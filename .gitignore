@@ -25,6 +25,10 @@ src/app/api/dev-login/
 # customer files — never committed, and deleted once the migration is proven.
 media-export/
 
+# Rows exported by scripts/migrate/seal-clients.mjs before it seals them. Client
+# data in the clear — never committed, and deleted once the run is proven.
+seal-export/
+
 # The pg-gateway bundle. esbuild output, rebuilt by `npm run build` on every
 # `npm start` and inside the image build — a committed copy would be a second
 # source of truth for code that already lives in src/.

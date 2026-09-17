@@ -16,6 +16,8 @@ import { readArr, editArr } from "./store";
 import type { Row } from "./store";
 import * as R from "./redisRows";
 import * as P from "./pgRows";
+import { keysetFor, sealingConfigured } from "./sealing";
+import { isSealed, isSealedField, openRow, rowNeedsSealing, sealRow, tokenKeyId } from "./sealCipher";
 
 // ---- what a section is -----------------------------------------------------
 // A SECTION IS A CONTAINER THAT OWNS COLLECTIONS, and every field here exists
@@ -367,7 +369,73 @@ async function second<T>(fn: string, run: () => Promise<T>): Promise<T> {
   }
 }
 
+// ---- sealing ------------------------------------------------------------------
+// EVERY ROW PASSES THROUGH HERE, on either backend, which is why client data is
+// sealed HERE and nowhere else (platform/db/sealing.ts). Readers get plain rows,
+// writers hand in plain rows, and the stores only ever hold the sealed form —
+// so no module, route or screen knows sealing exists, and none can forget it.
+//
+// The id is minted HERE rather than in the primitive, because a sealed value is
+// bound to its row's id and has to be sealed before the primitive sees it.
+
+// ONE OPENING PER CACHED ARRAY. readCol's result is request-cached by identity,
+// and a request reading clients five times should decrypt them once.
+const opened = new WeakMap<object, unknown[]>();
+
+async function keysForTokens(s: string, rows: readonly Row[]) {
+  const ids = new Set<string>();
+  for (const r of rows) for (const v of Object.values(r)) if (isSealed(v)) ids.add(tokenKeyId(v));
+  if (!ids.size) return { keys: null, any: false };
+  let keys = await keysetFor(s);
+  const missing = [...ids].find((id) => !keys?.byId.has(id));
+  if (missing) keys = await keysetFor(s, { need: missing });
+  return { keys, any: true };
+}
+
+async function openAll<T extends Row>(s: string, n: string, rows: T[]): Promise<T[]> {
+  const hit = opened.get(rows);
+  if (hit) return hit as T[];
+  const { keys, any } = await keysForTokens(s, rows);
+  const out = any ? rows.map((r) => openRow(keys, s, n, r)) : rows;
+  if (any) opened.set(rows, out);
+  return out;
+}
+
+async function openOne<T extends Row>(s: string, n: string, row: T | null): Promise<T | null> {
+  if (!row) return row;
+  const { keys, any } = await keysForTokens(s, [row]);
+  return any ? openRow(keys, s, n, row) : row;
+}
+
+// The id first, exactly where the primitive would have put it.
+function withId(n: string, item: Row): Row {
+  const id = (item.id as string) || ID.row(n);
+  const out: Row = { id, ...item };
+  out.id = id;
+  return out;
+}
+
+async function sealAll(s: string, n: string, items: readonly Row[]): Promise<Row[]> {
+  if (!items.some((it) => rowNeedsSealing(n, it))) return [...items];
+  const keys = await keysetFor(s, { create: true });
+  if (!keys) throw new Error("sealing: no data key could be made for this studio");
+  return items.map((it) => (rowNeedsSealing(n, it) ? sealRow(keys, s, n, it.id as string, it) : it));
+}
+
+// NEVER PUSHED DOWN: a sealed field holds a token in Postgres, so an SQL match on
+// it would find nothing. Dropped from the SQL half only — the repository filters
+// the opened rows again in memory, so a caller still gets exactly what it asked.
+function unsealedMatch(n: string, match: Record<string, readonly string[]>) {
+  const out: Record<string, readonly string[]> = {};
+  for (const [f, vs] of Object.entries(match)) if (!isSealedField(n, f)) out[f] = vs;
+  return out;
+}
+
 export async function readCol<T extends Row = Row>(s: string, sec: string, n: string): Promise<T[]> {
+  return openAll(s, n, await rawReadCol<T>(s, sec, n));
+}
+
+async function rawReadCol<T extends Row = Row>(s: string, sec: string, n: string): Promise<T[]> {
   if (DB_BACKEND === "postgres") return P.pgReadCol<T>(s, sec, n);
   const a = await R.redisReadCol<T>(s, sec, n);
   if (DB_BACKEND !== "parity") return a;
@@ -377,22 +445,26 @@ export async function readCol<T extends Row = Row>(s: string, sec: string, n: st
 /**
  * A COLLECTION NARROWED BY TEXT FIELDS (see pgReadColWhere). Under Redis the
  * narrowing happens here in memory — the same superset — so every backend hands
- * the repository rows it will filter again.
+ * the repository rows it will filter again. A sealed field is never narrowed on
+ * (unsealedMatch).
  */
 export async function readColWhere<T extends Row = Row>(
-  s: string, sec: string, n: string, match: Record<string, readonly string[]>,
+  s: string, sec: string, n: string, whole: Record<string, readonly string[]>,
 ): Promise<T[]> {
-  if (DB_BACKEND === "postgres") return P.pgReadColWhere<T>(s, sec, n, match);
+  const match = unsealedMatch(n, whole);
+  if (!Object.keys(match).length) return readCol<T>(s, sec, n);
+  if (DB_BACKEND === "postgres") return openAll(s, n, await P.pgReadColWhere<T>(s, sec, n, match));
   const keep = (r: T) => Object.entries(match).every(([f, vs]) => vs.includes(String((r as Row)[f] ?? " ")));
   const a = (await R.redisReadCol<T>(s, sec, n)).filter(keep);
-  if (DB_BACKEND !== "parity") return a;
-  return same("readColWhere", a, await P.pgReadColWhere<T>(s, sec, n, match)) as T[];
+  if (DB_BACKEND !== "parity") return openAll(s, n, a);
+  return openAll(s, n, same("readColWhere", a, await P.pgReadColWhere<T>(s, sec, n, match)) as T[]);
 }
 
-export async function addRow<T extends Row = Row>(s: string, sec: string, n: string, item: Row): Promise<T> {
-  if (DB_BACKEND === "postgres") return P.pgAddRow<T>(s, sec, n, item);
+export async function addRow<T extends Row = Row>(s: string, sec: string, n: string, plain: Row): Promise<T> {
+  const [item] = await sealAll(s, n, [withId(n, plain)]);
+  if (DB_BACKEND === "postgres") return (await openOne(s, n, await P.pgAddRow<T>(s, sec, n, item))) as T;
   const a = await R.redisAddRow<T>(s, sec, n, item);
-  if (DB_BACKEND !== "parity") return a;
+  if (DB_BACKEND !== "parity") return (await openOne(s, n, a)) as T;
   // The id is minted by whichever ran first (Redis), so the second is handed
   // it explicitly — the comparison is about SHAPE and ORDER, not about two
   // stores independently inventing the same random id.
@@ -403,30 +475,48 @@ export async function addRow<T extends Row = Row>(s: string, sec: string, n: str
   // "two tracked creates count as +2" landed as +4 (both stores announcing)
   // before this flag existed. See PgWriteOpts in pgRows.ts.
   const b = await second("addRow", () => P.pgAddRow<T>(s, sec, n, { ...item, id: a.id }, { announce: false }));
-  return same("addRow", a, b) as T;
+  return (await openOne(s, n, same("addRow", a, b) as T)) as T;
 }
 
-export async function addRows<T extends Row = Row>(s: string, sec: string, n: string, items: readonly Row[]): Promise<T[]> {
-  if (DB_BACKEND === "postgres") return P.pgAddRows<T>(s, sec, n, items);
+export async function addRows<T extends Row = Row>(s: string, sec: string, n: string, plain: readonly Row[]): Promise<T[]> {
+  const items = await sealAll(s, n, plain.map((it) => withId(n, it)));
+  if (DB_BACKEND === "postgres") return openAll(s, n, await P.pgAddRows<T>(s, sec, n, items));
   const a = await R.redisAddRows<T>(s, sec, n, items);
-  if (DB_BACKEND !== "parity") return a;
+  if (DB_BACKEND !== "parity") return openAll(s, n, a);
   // Same reasoning as addRow, per row in the batch — each id came from Redis,
   // seeded into the Postgres call rather than left to mint its own — and the
   // identical announce: false, for the identical reason.
   const seeded = items.map((it, i) => ({ ...it, id: a[i]?.id }));
   const b = await second("addRows", () => P.pgAddRows<T>(s, sec, n, seeded, { announce: false }));
-  return same("addRows", a, b) as T[];
+  return openAll(s, n, same("addRows", a, b) as T[]);
 }
 
 export async function updateRow<T extends Row = Row>(
-  s: string, sec: string, n: string, id: string, patch: Row | ((row: T) => Row),
+  s: string, sec: string, n: string, id: string, plainPatch: Row | ((row: T) => Row),
 ): Promise<T | null> {
-  if (DB_BACKEND === "postgres") return P.pgUpdateRow<T>(s, sec, n, id, patch);
+  // THE PATCH RUNS ON THE PLAIN ROW and hands the store a sealed one. It is a
+  // function either way, because the primitive re-applies it on a contended
+  // attempt to the row as it NOW is, and that row is sealed. The whole row is
+  // returned rather than the change alone, so a row written before sealing
+  // existed is sealed completely the first time anything touches it.
+  //
+  // A deployment with no master key still updates everything that holds no
+  // client data; it refuses only when a sealed field would be written.
+  const keys = sealingConfigured() ? await keysetFor(s, { create: true }) : await keysetFor(s);
+  const patch = (current: T): Row => {
+    const plain = openRow(keys, s, n, current);
+    const changes = typeof plainPatch === "function" ? plainPatch(plain) : plainPatch;
+    const whole: Row = { ...plain, ...changes };
+    if (!rowNeedsSealing(n, whole)) return changes;
+    if (!keys) throw new Error("NOMPANY_DATA_KEY is not set — refusing to store client data unencrypted");
+    return sealRow(keys, s, n, id, whole);
+  };
+  if (DB_BACKEND === "postgres") return openOne(s, n, await P.pgUpdateRow<T>(s, sec, n, id, patch));
   const a = await R.redisUpdateRow<T>(s, sec, n, id, patch);
-  if (DB_BACKEND !== "parity") return a;
+  if (DB_BACKEND !== "parity") return openOne(s, n, a);
   // announce: false — see addRow above.
   const b = await second("updateRow", () => P.pgUpdateRow<T>(s, sec, n, id, patch, { announce: false }));
-  return same("updateRow", a, b) as T | null;
+  return openOne(s, n, same("updateRow", a, b) as T | null);
 }
 
 export async function deleteRow(s: string, sec: string, n: string, id: string): Promise<boolean> {

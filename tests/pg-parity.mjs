@@ -67,8 +67,9 @@ if (!HAS_DATABASE_URL) {
 const { _poolForTests, pgQuery, pgTx, pgSchemaQuery, withTenant } = await import("../src/platform/db/pg.ts");
 const { TBL, S } = await import("../src/platform/db/keys.ts");
 const { pgReadCol, pgAddRow, pgAddRows, pgUpdateRow, pgDeleteRow } = await import("../src/platform/db/pgRows.ts");
-const { DB_BACKEND, readCol, addRow, addRows, updateRow, deleteRow } = await import("../src/platform/db/sections.ts");
-const { readArr, editArr } = await import("../src/platform/db/store.ts");
+const { DB_BACKEND, readCol, readColWhere, addRow, addRows, updateRow, deleteRow } = await import("../src/platform/db/sections.ts");
+const { sealingConfigured } = await import("../src/platform/db/sealing.ts");
+const { readArr, editArr, delKeys } = await import("../src/platform/db/store.ts");
 const { cascadeDeleteSection } = await import("../src/platform/db/cascade.ts");
 
 // One tenant/section/collection bucket for every test below that needs one,
@@ -1028,6 +1029,74 @@ function makeHarness() {
   };
 }
 
+// ---- client data sealed at rest (17/09/2026) ---------------------------------
+//
+// THE OWNER'S REQUIREMENT, asserted against the real table: somebody reading
+// collection_rows directly must see no client detail, while everything that
+// reads through the dispatcher sees the client as it was written. Read raw with
+// withTenant, because a read through the dispatcher is exactly what opens it.
+const SEALED_COL = "salesClients";
+
+async function rawPayload(id) {
+  const { rows } = await withTenant(P1T4_S, (q) => q(
+    `SELECT ${TBL.cols.payload}::text AS raw FROM ${TBL.rows} WHERE ${TBL.cols.tenant} = $1 AND ${TBL.cols.id} = $2`,
+    [P1T4_S, id],
+  ));
+  return rows[0]?.raw || "";
+}
+
+export async function testClientsAreSealedInTheTable(t) {
+  if (!HAS_DATABASE_URL) { t.equal(true, true, "skipped — DATABASE_URL not set, this test needs a live Postgres"); return; }
+  if (!sealingConfigured()) {
+    console.warn("  SKIPPED — NOMPANY_DATA_KEY is not set, so client sealing is NOT verified this run");
+    t.equal(true, true, "skipped — no master key");
+    return;
+  }
+  const made = [];
+  try {
+    const client = await addRow(P1T4_S, P1T4_SEC, SEALED_COL, {
+      name: "Sealed Holdings", contacts: [{ name: "Noor", email: "noor@sealed.test" }], createdAt: "2026-09-17T00:00:00.000Z",
+    });
+    made.push(client.id);
+    t.equal(client.name, "Sealed Holdings", "addRow hands the caller the plain client");
+    const raw = await rawPayload(client.id);
+    t.equal(Boolean(raw) && !/Sealed|Noor|noor@/.test(raw), true, "the table holds no readable client detail");
+    t.equal(raw.includes(client.id) && raw.includes("2026-09-17"), true, "...while its id and dates stay findable");
+
+    const [read] = (await readCol(P1T4_S, P1T4_SEC, SEALED_COL)).filter((r) => r.id === client.id);
+    t.equal(read?.contacts?.[0]?.email, "noor@sealed.test", "readCol hands back the plain client, contacts and all");
+
+    const updated = await updateRow(P1T4_S, P1T4_SEC, SEALED_COL, client.id, (r) => ({ name: `${r.name} Ltd` }));
+    t.equal(updated?.name, "Sealed Holdings Ltd", "a function patch is given the PLAIN row to work from");
+    t.equal(/Sealed/.test(await rawPayload(client.id)), false, "...and what it wrote is sealed too");
+
+    const found = await readColWhere(P1T4_S, P1T4_SEC, SEALED_COL, { name: ["Sealed Holdings Ltd"] });
+    t.equal(found.some((r) => r.id === client.id), true,
+      "a filter on a sealed field still finds the row — it is never sent to SQL, where it could only miss");
+
+    // A CLIENT WRITTEN BEFORE SEALING EXISTED. Only under the postgres backend:
+    // under parity the legacy row would exist in one store and not the other.
+    if (DB_BACKEND === "postgres") {
+      const legacy = await pgAddRow(P1T4_S, P1T4_SEC, SEALED_COL, { name: "Plain Legacy" }, { announce: false });
+      made.push(legacy.id);
+      const before = (await readCol(P1T4_S, P1T4_SEC, SEALED_COL)).find((r) => r.id === legacy.id);
+      t.equal(before?.name, "Plain Legacy", "a plain client from before sealing still reads");
+      await updateRow(P1T4_S, P1T4_SEC, SEALED_COL, legacy.id, { notes: "touched" });
+      t.equal(/Plain Legacy|touched/.test(await rawPayload(legacy.id)), false,
+        "the first write to it seals the WHOLE row, not only the field it changed");
+    }
+
+    // NOTHING SENSITIVE, NOTHING SEALED: a register with no client data in it is
+    // stored exactly as before.
+    const plain = await addRow(P1T4_S, P1T4_SEC, P1T4_COL, { status: "Open" });
+    t.equal((await pgReadCol(P1T4_S, P1T4_SEC, P1T4_COL)).find((r) => r.id === plain.id)?.status, "Open",
+      "a row with no client data is written unsealed");
+    await deleteRow(P1T4_S, P1T4_SEC, P1T4_COL, plain.id);
+  } finally {
+    for (const id of made) await deleteRow(P1T4_S, P1T4_SEC, SEALED_COL, id).catch(() => {});
+  }
+}
+
 // import.meta.url is a file:// URL on every platform, but
 // `file://${process.argv[1]}` is POSIX-only: on Windows argv[1] is a
 // backslashed path (e.g. C:\...), so the naive template never matches and the
@@ -1077,6 +1146,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       testDispatcherParityRoundTrip,
       testDispatcherDisagreementNamesBothValues,
       testCascadeDeleteSectionReapsRowsOutsideTheCatalogue,
+      testClientsAreSealedInTheTable,
     ];
     let totalFails = 0;
     for (const test of tests) {
@@ -1086,6 +1156,10 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       totalFails += t.fails;
     }
     console.log(totalFails ? `\n${totalFails} FAILURES\n` : "\nall passed\n");
+    // THE FIXTURE TENANT'S DATA KEY, by its one explicit key: every dispatched
+    // write above may have minted it (platform/db/sealing.ts), and this runner has
+    // no key namespace to sweep it with.
+    if (HAS_DATABASE_URL) await delKeys(S.dataKey(P1T4_S));
     if (HAS_DATABASE_URL) await _poolForTests().end();
     process.exit(totalFails ? 1 : 0);
   })().catch(async (e) => {

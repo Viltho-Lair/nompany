@@ -458,6 +458,10 @@ export const S = {
   // already holding. A tally only ever moves forward, so it cannot.
   // Under the studio prefix, so it dies with the studio like everything else.
   counters: (studioId: string) => `${P}s:${studioId}:counters`,
+  // THE STUDIO'S DATA KEY, WRAPPED — see platform/db/sealing.ts. Under the
+  // studio prefix ON PURPOSE: a studio cascade deletes it, and with it every
+  // sealed value any backup still holds for that studio becomes unreadable.
+  dataKey: (studioId: string) => `${P}s:${studioId}:datakey`,
   // WHO DID WHAT, AND WHEN. A Redis Stream like the event log, and for the same
   // reasons: ordered, capped, and addressable by cursor.
   //
