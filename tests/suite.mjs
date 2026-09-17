@@ -2576,7 +2576,11 @@ console.log("\n== Finance 1b: accounts payable mirrors the invoice");
   // in the fixture bootstrap so the block above can still prove the refusal on
   // a studio without one \u2014 and BEFORE financeContext, which snapshots the
   // studio it was built from.
-  await updateStudio(studio.id, { currency: "SAR" });
+  //
+  // AND A VAT RATE, for the reason the ledger block gives: since 11/09/2026 a
+  // studio with no rate taxes nothing, so the 15% this block totals at was 0.
+  // Cleared at the end of the block.
+  await updateStudio(studio.id, { currency: "SAR", vatRate: 15 });
   const fin = await financeContext(owner, slug);
 
   const bill = await createBill(fin, {
@@ -2606,15 +2610,15 @@ console.log("\n== Finance 1b: accounts payable mirrors the invoice");
   ok("...and a foreign supplier invoice keeps its own",
     eurBill.bill.currency === "EUR", JSON.stringify(eurBill.bill.currency));
 
-  // INVARIANT 7: the owner raised it, so the owner cannot approve it.
-  const selfApprove = await approveBill(fin, bill.bill.id);
-  ok("the raiser cannot approve their own bill", selfApprove.error === "same-signer", JSON.stringify(selfApprove));
-
-  // A different collaborator (viewer is Admin here) can.
-  const viewerFin = await financeContext(viewer.user, slug);
-  const approved = await approveBill(viewerFin, bill.bill.id);
-  ok("a second person approves it", approved.bill?.status === "Approved", JSON.stringify(approved.error ?? approved));
-  ok("...and records who", !!approved.bill?.approvedByCollaboratorId, JSON.stringify(approved.bill?.approvedByCollaboratorId));
+  // AN ADMIN MAY APPROVE A BILL THEY RAISED — the owner's rule of 11/09/2026:
+  // a one-person studio could otherwise never pay a supplier, since payment
+  // waits on approval. The owner raised this one and signs it. Invariant 7 for
+  // everybody else is asserted in the two-signature block below. This asserted
+  // the opposite until 17/09/2026 and had failed since the rule changed.
+  const approved = await approveBill(fin, bill.bill.id);
+  ok("an Admin may approve a bill they raised", approved.bill?.status === "Approved", JSON.stringify(approved.error ?? approved.bill?.status));
+  ok("...and it records who", approved.bill?.approvedByCollaboratorId === fin.collaborator.id,
+    JSON.stringify(approved.bill?.approvedByCollaboratorId));
 
   // An approved bill is locked to edits — dispute or cancel instead.
   const editLocked = await editBill(fin, bill.bill.id, { vendorName: "Nope" });
@@ -2636,6 +2640,7 @@ console.log("\n== Finance 1b: accounts payable mirrors the invoice");
   const listed = await listBills(fin);
   const row = listed.find((b) => b.id === bill.bill.id);
   ok("the bill lists with derived totals", row?.total === 1150 && row?.paid === 1150, JSON.stringify(row && { total: row.total, paid: row.paid }));
+  await updateStudio(studio.id, { vatRate: "" });
 }
 
 // ============================================================================
@@ -2730,15 +2735,24 @@ console.log("\n== a bill over the studio's limit needs two signatures");
 // the block above. Three people, because invariant 7 needs two and the
 // signed-an-earlier-step rule needs three to prove itself.
 //
-// BOTH APPROVERS ARE ADMINS, and that is load-bearing rather than lazy. Admin
-// is the seeded wildcard role, so approverA HOLDS finance.payables.approveHigh
-// \u2014 which is the only way the same-signer assertion below proves what it
-// claims. Give approverA the junior right alone and the second attempt would
-// refuse for want of a permission, and the test would pass proving nothing.
+// NOBODY HERE IS AN ADMIN, and that is load-bearing. Since 11/09/2026 an Admin
+// may approve a bill they raised and sign a later step after an earlier one,
+// so admins would prove nothing about invariant 7. Both approvers hold BOTH
+// rights on a role of their own — approverA holds approveHigh, so the second
+// attempt below refuses because they already signed and not for want of the
+// right, which is the whole distinction. (These were Admins until 17/09/2026,
+// and the block had failed since the rule changed.)
 {
-  const approverAPerson = await person("ApproverA", "Admin");
-  const approverBPerson = await person("ApproverB", "Admin");
-  const raiser = await financeContext(owner, slug);
+  await fixtureRole("Bill approver", [
+    "finance.payables.view", "finance.payables.approve", "finance.payables.approveHigh",
+  ]);
+  await fixtureRole("Bill raiser", [
+    "finance.payables.view", "finance.payables.create", "finance.payables.approve",
+  ]);
+  const approverAPerson = await person("ApproverA", "Bill approver");
+  const approverBPerson = await person("ApproverB", "Bill approver");
+  const raiserPerson = await person("BillRaiser", "Bill raiser");
+  const raiser = await financeContext(raiserPerson.user, slug);
   const approverA = await financeContext(approverAPerson.user, slug);
   const approverB = await financeContext(approverBPerson.user, slug);
 
@@ -2758,9 +2772,9 @@ console.log("\n== a bill over the studio's limit needs two signatures");
   ok("...though one signature is recorded",
     b1.bill?.approvals?.length === 1, JSON.stringify(b1.bill?.approvals));
 
-  // Invariant 7 about the RECORD, not the pair of rights. approverA is a
-  // wildcard Admin, so this refuses because they already signed \u2014 not for
-  // want of the right, which is the whole distinction.
+  // Invariant 7 about the RECORD, not the pair of rights. approverA holds
+  // approveHigh, so this refuses because they already signed — not for want of
+  // the right, which is the whole distinction.
   const sameAgain = await approveBill(approverA, big.bill.id);
   ok("the same person cannot sign the second step", sameAgain.error === "same-signer", JSON.stringify(sameAgain));
 
@@ -2775,11 +2789,11 @@ console.log("\n== a bill over the studio's limit needs two signatures");
       && b2.bill.approvals[1].permission === "finance.payables.approveHigh",
     JSON.stringify(b2.bill?.approvals?.map((a) => a.permission)));
 
-  // UNCHANGED, and re-asserted because the walk rewrote the function that
-  // used to enforce it.
+  // UNCHANGED FOR EVERYBODY BUT AN ADMIN, and re-asserted because the walk
+  // rewrote the function that used to enforce it. The raiser holds approve.
   const own = await createBill(raiser, { vendorName: "Own Co", lines: [{ description: "x", qty: 1, unitPrice: 100 }] });
   const byRaiser = await approveBill(raiser, own.bill.id);
-  ok("the raiser still cannot approve their own bill", byRaiser.error === "same-signer", JSON.stringify(byRaiser));
+  ok("a raiser who is not an Admin cannot approve their own bill", byRaiser.error === "same-signer", JSON.stringify(byRaiser));
 }
 
 console.log("\n== a bill edited across the limit is re-planned");
@@ -2800,6 +2814,8 @@ console.log("\n== Finance 1b: a bill posts as the mirror of an invoice");
 // AP = expense + reclaimable VAT, credited to Accounts Payable. The double of
 // postInvoice, and the book still balances.
 {
+  // A VAT RATE FOR THIS BLOCK, cleared at its end — see the ledger block.
+  await updateStudio(studio.id, { vatRate: 15 });
   const fin = await financeContext(owner, slug);
   const chart = (await listAccounts(fin)).accounts;
   const idOf = (code) => chart.find((a) => a.code === code)?.id;
@@ -2822,8 +2838,13 @@ console.log("\n== Finance 1b: a bill posts as the mirror of an invoice");
   const twice = await postBill(fin, bill.bill.id);
   ok("a bill cannot be posted twice", twice.error === "already-posted", JSON.stringify(twice));
 
-  // Pay it and post the payment: Dr AP, Cr Bank.
+  // Pay it and post the payment: Dr AP, Cr Bank. PAYMENT WAITS ON APPROVAL
+  // since 11/09/2026, so the owner (an Admin, who may sign what they raised)
+  // approves it first — this block paid an unapproved bill until 17/09/2026.
+  const signed = await approveBill(fin, bill.bill.id);
+  ok("the owner approves the bill before paying it", signed.bill?.status === "Approved", JSON.stringify(signed.error ?? signed.bill?.status));
   const paid = await recordBillPayment(fin, bill.bill.id, { amount: 230 });
+  ok("the bill is paid", !!paid.bill?.payments?.length, JSON.stringify(paid.error ?? paid));
   const payId = paid.bill.payments[0].id;
   ok("the bill payment posts", paid.posting?.posted === true, JSON.stringify(paid.posting ?? paid));
   const payPosted = { entry: await entryById(paid.posting.entryId) };
@@ -2835,6 +2856,7 @@ console.log("\n== Finance 1b: a bill posts as the mirror of an invoice");
 
   const tb = await trialBalance(fin);
   ok("the book balances after a bill and its payment", tb.balanced === true, JSON.stringify({ d: tb.totalDebit, c: tb.totalCredit }));
+  await updateStudio(studio.id, { vatRate: "" });
 }
 
 // ============================================================================

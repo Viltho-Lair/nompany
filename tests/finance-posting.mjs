@@ -27,7 +27,7 @@ const { financeContext } = await import("@/modules/finance/finance");
 const {
   createInvoice, editInvoice, recordPayment, createExpense,
 } = await import("@/modules/finance/finance");
-const { createBill, recordBillPayment } = await import("@/modules/finance/payables");
+const { createBill, approveBill, recordBillPayment } = await import("@/modules/finance/payables");
 const { listJournal, trialBalance } = await import("@/modules/finance/ledger");
 const { updateStudio } = await import("@/modules/main/studios");
 
@@ -116,6 +116,11 @@ if (billId) {
   ok("...and the journal carries one entry for it",
     (await entriesFor("bill", billId)).length === 1);
 
+  // PAYMENT WAITS ON APPROVAL since 11/09/2026; the owner is an Admin and may
+  // sign a bill they raised. This paid an unapproved bill until 17/09/2026.
+  const signed = await approveBill(await ctx(), billId);
+  ok("fixture: the owner approves the bill", signed.bill?.status === "Approved",
+    JSON.stringify(signed.error ?? signed.bill?.status));
   const settled = await recordBillPayment(await ctx(), billId, { amount: 250 });
   ok("paying it reports its own posting", settled.posting?.posted === true,
     JSON.stringify(settled.posting));
