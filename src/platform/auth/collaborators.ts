@@ -36,6 +36,15 @@ import { emit, SCOPE, TYPE } from "@/platform/realtime/events";
 const HR_DEFAULTS = {
   departmentId: "", employeeCode: "", dateOfJoin: "",
   mobile: "", certificationIds: [],
+  // THE LIVE EMPLOYMENT STATE (modules/hr/lifecycle). The history is the event
+  // log; this is the answer payroll, leave and the roll read without replaying
+  // it, which is what keeps the inference out of every reader.
+  //
+  // EMPTY IS NOT A STATE. `statusOf` reads an absent value as Active, because
+  // every collaborator written before this existed is somebody who works here —
+  // reading it as Onboarding would tell payroll to skip the whole company.
+  employmentStatus: "", exitDate: "", exitReason: "",
+  noticeGivenOn: "", noticeEndsOn: "",
   // ONE IDENTITY DOCUMENT: its kind, when it lapses and an optional picture.
   // ID and passport NUMBERS are no longer kept (the owner, 17/09/2026).
   documentType: "", documentExpiry: "", documentImage: "",

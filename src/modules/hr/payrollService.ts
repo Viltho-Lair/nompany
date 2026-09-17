@@ -309,3 +309,23 @@ export async function sifFileFor(ctx: HrContext, id: string) {
     now: new Date(),
   });
 }
+
+/**
+ * ONE PERSON'S PAY RECORD, for a caller that needs the wage to compute
+ * something else — the final settlement is the only one today.
+ *
+ * EITHER PAY RIGHT OPENS IT, and that is deliberate rather than lax. The two
+ * are different powers over different scopes — `hr.employees.salary` reveals one
+ * person's pay to somebody who may already read their record, `hr.payroll.view`
+ * opens the company's wage bill — and both are, unambiguously, permission to see
+ * what this person earns. Requiring the payroll right alone would mean an HR
+ * officer entitled to read somebody's salary could not compute their settlement
+ * from it; requiring the employees right alone would lock out the payroll clerk.
+ */
+export async function payRecordOf(ctx: HrContext, collaboratorId: string): Promise<PayRecord | null> {
+  if (requirePermission(ctx.access, "hr.employees.salary") && requirePermission(ctx.access, "hr.payroll.view")) {
+    return null;
+  }
+  const records = await Pay.find(scope(ctx), { where: { collaboratorId } });
+  return records[0] || null;
+}

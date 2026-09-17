@@ -14,8 +14,6 @@ import { StatusPill } from "@/components/studio2/StatusPill";
 import { PanelBar, usePanelParam } from "@/components/studio2/PanelBar";
 import nextDynamic from "next/dynamic";
 import { useReload } from "@/components/studio2/useReload";
-import { payrollDict } from "@/shared/studio/payroll";
-import { attendanceDict } from "@/shared/studio/attendance";
 import { manpowerDict } from "@/shared/studio/manpower";
 import { countLeaveDays } from "@/modules/hr/leaveBalance";
 import { IDENTITY_DOCUMENT_TYPES, identityDocumentLabel } from "@/shared/identityDocuments";
@@ -35,6 +33,8 @@ const PayrollPanel = nextDynamic(() => import("@/components/studio2/PayrollPanel
 const AttendancePanel = nextDynamic(() => import("@/components/studio2/AttendancePanel"),
   { loading: () => <ScreenSkeleton /> });
 const ManpowerPanel = nextDynamic(() => import("@/components/studio2/ManpowerPanel"),
+  { loading: () => <ScreenSkeleton /> });
+const LifecyclePanel = nextDynamic(() => import("@/components/studio2/LifecyclePanel"),
   { loading: () => <ScreenSkeleton /> });
 
 const btnDanger = "rounded-full border border-rose-200 px-4 py-2 font-display text-sm font-600 text-rose-600 transition-colors hover:bg-rose-50 disabled:opacity-60 dark:border-rose-500/30 dark:text-rose-300 dark:hover:bg-rose-500/10";
@@ -56,10 +56,13 @@ const fmt = fmtDate;
 // bringing them into being. So there is no "add employee" — there is nobody to
 // add who is not already here.
 //
-// `view` is the ACTIVE SUB-SECTION key. HR has exactly one sub-section —
-// Employees — so the parent renders the dashboard and hr-employees renders the
-// tabbed screen (People / Roles / Certifications / Leave), which are tabs of one
-// screen rather than sub-sections of their own.
+// `view` is the ACTIVE SUB-SECTION key, and HR has FIVE of them since
+// 17/09/2026: the parent renders the dashboard, and Employees, Lifecycle, Time &
+// attendance, Leave and Payroll each render their own screen. What is left as
+// TABS of Employees is what answers to the same right this screen does — People,
+// Roles, Certifications and the manpower plan; a tab for a right somebody might
+// not hold is a tab that opens on an empty answer, which is what the other three
+// were.
 //
 // THERE IS NO DEPARTMENTS TAB. A department is a top-level section, so there is
 // nothing to create and nothing to delete — the list is derived from the studio
@@ -73,7 +76,7 @@ export default function StudioHr({ slug, view = "hr" }) {
   // The active panel is remembered in ?tab= so a refresh or a deep link reopens
   // the same one; the switch itself is an in-place flip via the bottom PanelBar.
   const [tab, setTab] = usePanelParam("tab", "people",
-    ["people", "roles", "certifications", "leave", "attendance", "manpower", "payroll"]);
+    ["people", "roles", "certifications", "manpower"]);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const level = useAnalyticsLevel();
@@ -128,7 +131,6 @@ export default function StudioHr({ slug, view = "hr" }) {
   // screen and the parent's answer no longer stands in for all of them.
   const canManage = data.manage?.[view] ?? canManageParent;
 
-  const pendingLeave = vacations.filter((v) => v.status === "Pending").length;
   const banner = error && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>;
 
   if (view === "hr") {
@@ -146,24 +148,43 @@ export default function StudioHr({ slug, view = "hr" }) {
     );
   }
 
+  // THE FOUR SUB-SECTIONS THAT ARE NOT EMPLOYEES, each a screen of its own since
+  // 17/09/2026. They were tabs here, which meant a payroll clerk holding
+  // `hr.payroll` and nothing else opened the EMPLOYEES screen to reach their own
+  // work — and the tab strip below offered them six more they could not use.
+  //
+  // THE ROWS DID NOT MOVE. Attendance, pay and leave are still filed under
+  // `hr-employees` and the HR root; these panels read them through the sections
+  // that own them, which is why each still fetches exactly what it did as a tab.
+  if (view === "hr-lifecycle") return <div className="space-y-6">{banner}<LifecyclePanel slug={slug} locale={locale} /></div>;
+  if (view === "hr-time") return <div className="space-y-6">{banner}<AttendancePanel slug={slug} locale={locale} /></div>;
+  if (view === "hr-payroll") return <div className="space-y-6">{banner}<PayrollPanel slug={slug} locale={locale} /></div>;
+  if (view === "hr-leave") {
+    return (
+      <div className="space-y-6">
+        {banner}
+        <Leave rows={vacations} employees={employees} types={vocabulary.leaveTypes} leave={data.leave}
+          canManage={canManage} meId={me.collaboratorId} busy={busy} send={send} />
+      </div>
+    );
+  }
+
   const panelItems = [
     { key: "people", label: `People (${employees.length})` },
     { key: "roles", label: `Roles (${roles.length})` },
     { key: "certifications", label: `Certifications (${certifications.length})` },
-    { key: "leave", label: `Leave${pendingLeave ? ` (${pendingLeave})` : ""}` },
-    // PAYROLL IS A TAB OF EMPLOYEES because a pay record belongs to an employee
-    // — but it answers to `hr.payroll`, not to the Employees grant, and the
-    // panel fetches its own data behind that right. Somebody who may read
-    // People and not payroll sees the tab and an empty answer, which is the
-    // truthful shape the export list already uses.
-    // ATTENDANCE IS SCOPED WHERE PAYROLL IS NOT: a supervisor marks their own
-    // team every morning, and a departmental slice of a payroll RUN would be
-    // a partial total nobody could reconcile.
-    { key: "attendance", label: attendanceDict(locale).tab },
-    // A PLAN IS A DEMAND, NOT AN ASSIGNMENT, which is why it sits in HR
-    // beside the roles it counts rather than on a project screen.
+    // LEAVE, ATTENDANCE AND PAYROLL ARE NOT TABS ANY MORE. Each answers to its
+    // own right and each is a sub-section of its own since 17/09/2026, so a
+    // payroll clerk holding `hr.payroll` alone opens Payroll rather than opening
+    // Employees and finding six tabs they may not use. Their rows are still
+    // filed where they always were; only the nav entry moved.
+    //
+    // A PLAN IS A DEMAND, NOT AN ASSIGNMENT, which is why it sits in HR beside
+    // the roles it counts rather than on a project screen — and why it STAYED a
+    // tab when the other three left: it answers to `hr.employees`, the same
+    // right as this screen, so a sub-section of its own would hold no right
+    // anybody could be granted separately (invariant 16).
     { key: "manpower", label: manpowerDict(locale).tab },
-    { key: "payroll", label: payrollDict(locale).tab },
   ];
 
   // pb-20 keeps the last rows clear of the fixed PanelBar, the way StudioOperations
@@ -182,16 +203,13 @@ export default function StudioHr({ slug, view = "hr" }) {
 
       {/* THE HEADCOUNT IS THE PEOPLE TAB'S, not every tab's. It sat above all
           seven — attendance, payroll, leave — where it answered nobody's
-          question and pushed each screen's own content down. */}
+          question and pushed each screen's own content down. Three of those
+          seven are their own sub-sections now and never reach this screen. */}
       {tab === "people" && (
         <Overview headcount={headcount} departments={departments} expiring={expiring} windowDays={vocabulary.expiryWindowDays} />
       )}
 
-      {tab === "attendance" && <AttendancePanel slug={slug} locale={locale} />}
-
       {tab === "manpower" && <ManpowerPanel slug={slug} locale={locale} />}
-
-      {tab === "payroll" && <PayrollPanel slug={slug} locale={locale} />}
 
       {tab === "people" && (
         <People employees={employees} departments={departments} roles={roles}
@@ -206,10 +224,6 @@ export default function StudioHr({ slug, view = "hr" }) {
       )}
       {tab === "certifications" && (
         <Certifications rows={certifications} employees={employees} canManage={canManage} busy={busy} send={send} />
-      )}
-      {tab === "leave" && (
-        <Leave rows={vacations} employees={employees} types={vocabulary.leaveTypes} leave={data.leave}
-          canManage={canManage} meId={me.collaboratorId} busy={busy} send={send} />
       )}
 
       <PanelBar items={panelItems} active={tab} onSelect={setTab} />

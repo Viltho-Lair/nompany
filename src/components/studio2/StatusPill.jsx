@@ -116,6 +116,12 @@ export const STATUS_TONES = {
   permit:    { Valid: "success", Expiring: "warning", Expired: "danger", "Not yet valid": "neutral" },
   // StudioHr — leave request (LEAVE_TONE). Cancelled is the dimmer `muted` slate.
   leave:     { Pending: "warning", Approved: "success", Declined: "danger", Cancelled: "muted" },
+  // StudioHr — the EMPLOYMENT state (modules/hr/lifecycle). Onboarding and
+  // Probation are amber because both are unfinished — somebody is waiting on a
+  // start date or a confirmation — Suspended and Notice are rose because both
+  // are a company problem running to a deadline, and Exited is the dim slate
+  // that says "this record is history" rather than the rose that says "act".
+  employment: { Onboarding: "warning", Probation: "warning", Active: "success", Suspended: "danger", Notice: "danger", Exited: "muted" },
   // QualityWorkflow — revision state (STATE_TONE). Approved is brand here (sent
   // for effect), effective is the emerald "live" state, superseded is struck out.
   quality:   { draft: "neutral", rejected: "danger", review: "warning", approval: "warning", approved: "progress", effective: "success", superseded: "superseded" },

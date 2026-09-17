@@ -43,6 +43,20 @@ export type HrContext = ModuleContext & {
   projectsListSection: Section | null;
   employeesSection: Section;
   /**
+   * WHERE THE EMPLOYMENT SPINE IS FILED — contracts and lifecycle events, the
+   * only HR records written under a sub-section of their own.
+   */
+  lifecycleSection: Section;
+  /**
+   * THE THREE SCREENS THAT OWN NO ROWS. Their records stay under
+   * `employeesSection` (attendance, pay) and the HR root (leave), which is why
+   * nothing in those services reads these — they exist so the nav entry and its
+   * grant resolve, and so a screen can ask `manage` about itself.
+   */
+  timeSection: Section;
+  leaveSection: Section;
+  payrollSection: Section;
+  /**
    * Master data, read for the org chart. FOREIGN, so nullable — a foreign
    * section never falls back to the root, and "this studio has no Master data
    * section" is a real answer meaning it has no departments yet.

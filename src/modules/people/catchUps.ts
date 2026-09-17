@@ -90,6 +90,19 @@ export const PERMISSION_CATCH_UPS: readonly PermissionCatchUp[] = [
     to: ["pos.settings"],
     verbs: ["view", "edit"],
   },
+  {
+    id: "hr-lifecycle-2026-09-17",
+    // HR split into five sub-sections (17/09/2026) and the employment spine —
+    // contracts, probation, notice, exit — arrived with them. Whoever already
+    // keeps the employee records is who signs the contract and confirms the
+    // probation, verb for verb; nobody else is widened, and `offboard` is
+    // deliberately NOT handed out, because ending somebody's employment is the
+    // one act this area splits out as its own power.
+    note: "Whoever keeps the employee records keeps their contracts and probations",
+    from: "hr.employees",
+    to: ["hr.lifecycle"],
+    verbs: ["view", "create", "edit"],
+  },
 ];
 
 /** Every id, for stamping a role that is created from now on. */

@@ -60,6 +60,7 @@ const ar: StatusMap = {
   },
   permit: { Valid: "ساري", Expiring: "يوشك على الانتهاء", Expired: "منته", "Not yet valid": "لم يسر بعد" },
   leave: { Pending: "قيد الانتظار", Approved: "معتمد", Declined: "مرفوض", Cancelled: "ملغى" },
+  employment: { Onboarding: "قيد الالتحاق", Probation: "تحت التجربة", Active: "على رأس العمل", Suspended: "موقوف", Notice: "في فترة الاشعار", Exited: "انتهت خدمته" },
   quality: {
     draft: "مسودة", rejected: "مرفوضة", review: "قيد المراجعة", approval: "قيد الاعتماد",
     approved: "معتمدة", effective: "سارية", superseded: "مستبدلة",

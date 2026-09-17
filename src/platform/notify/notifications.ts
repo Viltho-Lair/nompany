@@ -70,6 +70,9 @@ export const NOTIFY = {
   calibrationDue: "calibration.due",
   // An item fell to its reorder level (modules/inventory/stockAlerts).
   stockLow: "stock.low",
+  // Somebody's own employment moved — confirmed, suspended, on notice, exited
+  // (modules/hr/lifecycleService). Addressed to the person it happened TO.
+  employmentChanged: "employment.changed",
 };
 
 /** One stored notification, as this module writes it. */

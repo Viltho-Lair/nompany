@@ -134,6 +134,8 @@ export const COLLECTION_TABLE: Readonly<Record<string, string>> = {
   awbAirlines: "AwbAirline",
   vacations: "Vacation",
   certifications: "Certification",
+  employmentContracts: "EmploymentContract",
+  lifecycleEvents: "LifecycleEvent",
   invoices: "Invoice",
   stockAdjustments: "StockAdjustment",
   stockBins: "StockBin",

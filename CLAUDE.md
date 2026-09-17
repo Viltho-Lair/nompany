@@ -208,7 +208,8 @@ when the code looks cleaner afterwards.
 ## Where the code lives
 
 The `src/lib` split is done, and every folder below is TypeScript. What is left in
-JavaScript is the **235 browser files** under `src/components` and `src/app`, which
+JavaScript is the **306 browser files** under `src/components` and `src/app` (measured
+17/09/2026; this said 235), which
 convert with the UI work in Wave 4 — that is the whole of what `checkJs: false` and
 the `allowJs` escape hatch are still holding open.
 
@@ -799,8 +800,9 @@ of `a2044ff`, one commit later, because that commit added a golden; then 365 and
 after that. A number nobody re-measures decays silently, and nothing fails when prose
 disagrees with a test. **Treat every figure in this file as a measurement with a date,
 not as a fact, and re-measure at the commit you are writing rather than the one you were
-reading.** `ALL_PERMISSIONS.length` is **202, measured 10/09/2026** (201 the day before; the one since
-is the payment hold's `finance.payables.release`) — it said 181 the day
+reading.** `ALL_PERMISSIONS.length` is **235 over 74 areas, measured 17/09/2026** — it said 202 (10/09/2026)
+until this line was re-measured, and the thirty-three since came from ordinary areas (POS,
+stock alerts, the HR lifecycle among them) — it said 181 the day
 before, and the twenty since came from ordinary areas (Manufacturing planning, HR payroll
 and attendance, the ledger close, and the P4a sections' own). Nothing asserts it any more,
 because the assertion that did was in Gate A, which is exactly why it drifts.
@@ -830,9 +832,9 @@ shipped — the same paragraph's own "Media has left Redis" above contradicted i
 
 **Wave 3 (TypeScript) is done server-side** — every `.ts`/`.tsx` under `noImplicitAny`, every
 department in `src/modules/<name>/` with a Zod schema each, and every route file converted
-(**199 today, all `route.ts`, none left in JavaScript** — measured 09/09/2026; this said
-170). What remains is `checkJs` over the
-**265** browser `.js` files and the `app/` restructure, deferred into Wave 4. (Both counts
+(**226 today, all `route.ts`, none left in JavaScript** — measured 17/09/2026; this said
+199, and 170 before that). What remains is `checkJs` over the
+**306** browser `.js` files (re-measured 17/09/2026; this said 265) and the `app/` restructure, deferred into Wave 4. (Both counts
 are measured — `find src/app/api -name 'route.*'` and `find src/components src/app -name
 '*.js' -o -name '*.jsx'`. They said 99 and 212 for long enough to be quoted as facts;
 `tsconfig.strict.json`'s own comment still says 212, which is the same drift one layer down.) **Wave 4 (UI/UX)** is not started — a proposal in
@@ -1725,6 +1727,33 @@ migration that moves the records first, never a version bump.
 **Open decisions (waiting on a person):** whether to denormalise the slug index
 to take the sales route from 3 hops to 2. The earlier `login()` suspended-check and
 share-link questions are **closed** (kept deliberately; deleted, respectively).
+
+**HUMAN RESOURCES IS FIVE SUB-SECTIONS, AND FOUR OF THEM OWN NOTHING** — the owner,
+17/09/2026, against the HR implementation plan. Employees · **Lifecycle & contracts** · Time
+& attendance · Leave · Payroll. Only Lifecycle owns collections
+(`employmentContracts`, `lifecycleEvents`); attendance, pay records and payroll runs stay
+filed under `hr-employees` and leave stays on the `hr` ROOT, where every live studio wrote
+them. **Do not re-file them under the new keys** — a row is where a record is FILED, not
+what the nav calls it, and moving the name would not move the rows, it would hide the whole
+company's payroll. The screens read them through the sections that own them. What the split
+actually bought is in `SECTION_AREAS`: `hr.attendance`, `hr.vacations` and `hr.payroll` all
+hung off `hr-employees`, so a payroll clerk granted `hr.payroll` alone opened the EMPLOYEES
+screen. **No right was renamed.** Manpower stayed a tab of Employees because it answers to
+`hr.employees` — a section of its own would hold no separately grantable right (invariant 16).
+
+**AND THE EMPLOYMENT ITSELF IS A RECORD NOW** (`docs/functionality/lifecycle.md`). Six states
+on the collaborator row (absent reads as **Active** — every existing row predates it, and
+reading empty as Onboarding would tell payroll to skip the company), an append-only event
+log, and contracts that are AMENDED BY SUPERSEDING so `contractAt` can answer what somebody
+was on in May. `endOfService` had been correct and unreachable since 11/09/2026; the exit
+finally calls it. Employment rules — probation, notice, which contracts a country recognises
+— are an **effective-dated pack** (`modules/hr/packs/employment.ts`) read by the date asked
+about rather than by today's clock: `COUNTRY_PRESETS` stays a confirm-by-hand preset because
+nothing uses it until a studio saves, while a probation end is computed from a contract
+months after signing and must not re-date when a law changes. **A settlement is money and
+answers to a pay right** (`hr.employees.salary` or `hr.payroll.view`), not to
+`hr.lifecycle.offboard`: the award is a multiple of the monthly wage, so showing one shows
+the other.
 
 **THE PUBLIC MARKETING SITE IS REBUILT AND LIVES IN THIS REPO** (spec:
 `docs/superpowers/specs/2026-09-07-marketing-site-rebuild-design.md`). Ten pages per

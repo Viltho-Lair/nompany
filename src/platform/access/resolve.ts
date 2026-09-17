@@ -181,7 +181,17 @@ export const SECTION_AREAS: Readonly<Record<string, readonly string[]>> = {
   // The Logistics ROOT owns the landed costs, so it has an area of its own as
   // well as children — the same shape Assets took.
   logistics: ["logistics.landedCost"],
-  "hr-employees": ["hr.employees", "hr.vacations", "hr.payroll", "hr.attendance"],
+  // HR'S FOUR AREAS USED TO ALL HANG HERE, on one sub-section with seven tabs,
+  // which meant a payroll clerk granted `hr.payroll` and nothing else opened
+  // the EMPLOYEES screen to find their own. Each answers for its own
+  // sub-section now (17/09/2026). No key was renamed: the rows are still filed
+  // under `hr-employees` and the root, and this map is about which nav entry a
+  // right opens, not about where anything is stored.
+  "hr-employees": ["hr.employees"],
+  "hr-lifecycle": ["hr.lifecycle"],
+  "hr-time": ["hr.attendance"],
+  "hr-leave": ["hr.vacations"],
+  "hr-payroll": ["hr.payroll"],
   "finance-cash": ["finance.cash"],
   // Gated by its own right — WITHOUT this line a leaf section has no areas, so
   // sectionViewable returns `!own` and shows it to everyone, flipping the whole

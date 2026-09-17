@@ -469,6 +469,32 @@ const OWN_AREAS = [
   { key: "hr.vacations", group: "Human Resources", label: "Vacations", verbs: ["view", "create", "edit"],
     scoped: true, extra: [{ key: "approve", label: "Approve requests" }] },
 
+  // THE EMPLOYMENT, AS AGAINST THE PERSON. `hr.employees` is who somebody is —
+  // their name, their department, their document, their code. This is their
+  // EMPLOYMENT: the contract they are on, the state it is in, and the day it
+  // ends. A studio routinely lets a line manager read the first without letting
+  // them touch the second, which one area could not express.
+  //
+  // SCOPED, because a head of department confirms their own team's probations
+  // and has no business in another department's contracts — the same shape
+  // `hr.employees` and `hr.attendance` take, and it resolves through
+  // `subtreeIds` so a manager with teams beneath them reaches all of them.
+  //
+  // NO DELETE, and not by omission. A contract is AMENDED by superseding it and
+  // a lifecycle event is append-only; deleting either would destroy the history
+  // that makes "what were they on in May" answerable, which is the whole reason
+  // the records are versioned rather than edited.
+  //
+  // `offboard` IS AN EXTRA, and it is the separation this area exists to draw.
+  // Recording a promotion and ending somebody's job are not the same power:
+  // `edit` books the first, and only `offboard` gives notice or exits anybody.
+  // Whether the SETTLEMENT is computed is a third question again, and answers
+  // to `hr.employees.salary` — an end-of-service award is a multiple of a
+  // monthly wage, so showing one is showing the other.
+  { key: "hr.lifecycle", group: "Human Resources", label: "Lifecycle & contracts",
+    verbs: ["view", "create", "edit"], scoped: true,
+    extra: [{ key: "offboard", label: "Give notice and end employment" }] },
+
   // PAYROLL IS NOT `hr.employees.salary`, and the difference is the point.
   // That right reveals ONE person's record to somebody who may already read it;
   // this one opens the whole company's wage bill, which is a different power

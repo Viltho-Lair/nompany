@@ -798,12 +798,40 @@ export const SECTION_DEFS = [
     { key: "quality-hse-permits", name: "Permits" },
   ] },
 
-  // Employees is the only HR sub-section. The Old System's Users, Careers and
-  // Applications are deliberately not carried over: login accounts are the
-  // studio's Collaborator rows (People & requests), and recruitment is out of
-  // scope here.
+  // HR WAS ONE SUB-SECTION WITH SEVEN TABS ON ONE SCREEN, and the screen was
+  // 1,165 lines before Lifecycle was anywhere near it. It is five now — the
+  // owner's instruction, 17/09/2026, against the HR implementation plan, which
+  // asks for a subsection per function with its own pages and permissions.
+  //
+  // FOUR OF THE FIVE OWN NOTHING, AND THAT IS NOT A HALF-MEASURE. A row is
+  // where a record is FILED, not what the nav calls it: every attendance mark,
+  // pay record, payroll run and leave request in every live studio carries the
+  // SectionID it was written under — `hr-employees` for the first three, the
+  // `hr` ROOT for leave. Re-filing them under the new keys would strand every
+  // one of them, which is the stranded-tenders incident at the scale of the
+  // whole company's payroll. So the rows stay where they are (SECTION_COLLECTIONS
+  // below is the authority), the screens read them through the section that
+  // owns them, and what moved is which nav entry the screen hangs off.
+  //
+  // WHICH ALSO SPLIT THE RIGHTS APART WITHOUT RENAMING ONE. `hr.attendance`,
+  // `hr.vacations` and `hr.payroll` all hung off `hr-employees` in
+  // SECTION_AREAS, so somebody granted payroll and nothing else opened the
+  // Employees screen to reach it. Each answers for its own sub-section now and
+  // every key keeps the name every existing role holds.
+  //
+  // The Old System's Users, Careers and Applications are deliberately not
+  // carried over: login accounts are the studio's Collaborator rows (People &
+  // requests), and recruitment is out of scope here.
   { key: "hr", name: "Human Resources", children: [
     { key: "hr-employees", name: "Employees" },
+    // THE EMPLOYMENT ITSELF, as against the person: contracts, the moves an
+    // employment makes, and the settlement that ends it. The only one of the
+    // five that owns collections, because it is the only one whose records are
+    // new.
+    { key: "hr-lifecycle", name: "Lifecycle & contracts" },
+    { key: "hr-time", name: "Time & attendance" },
+    { key: "hr-leave", name: "Leave" },
+    { key: "hr-payroll", name: "Payroll" },
   ] },
 
   { key: "finance", name: "Finance & Accounting", children: [
@@ -1084,7 +1112,17 @@ export const SECTION_COLLECTIONS = {
   // for good.
   hr: ["vacations"],
   // Pay records and payroll runs sit with the employees they belong to.
+  //
+  // AND THEY STAY HERE NOW THAT TIME, LEAVE AND PAYROLL HAVE SUB-SECTIONS OF
+  // THEIR OWN (17/09/2026). Every one of these rows in every live studio was
+  // written under this SectionID; moving the name to `hr-payroll` would not
+  // move the rows, it would hide them. The Payroll screen reads them through
+  // `employeesSection` for exactly that reason.
   "hr-employees": ["certifications", "payRecords", "payrollRuns", "attendance", "manpowerPlans"],
+  // THE EMPLOYMENT SPINE, and the only HR rows written under a key that did not
+  // exist before the sub-sections did — so this is the one place there is
+  // nothing filed elsewhere to be careful of.
+  "hr-lifecycle": ["employmentContracts", "lifecycleEvents"],
   // finance
   // Cash: what we billed, what we spent, and what actually moved. `payments`
   // lives beside the invoices it settles rather than under the ledger, because

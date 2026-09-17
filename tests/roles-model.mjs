@@ -120,7 +120,16 @@ ok(`at most ${PRINCIPAL_ONLY_AREAS} areas are reachable by no archetype but prin
 // 6 -> 7 on 17/09/2026: `inventory.stock.alerts`, the reorder-level alert. The
 // owner's instruction was that the studio's owner holds it and chooses who else
 // does — a decision about a PERSON again, so it is seeded to nobody by design.
-const PRINCIPAL_ONLY_EXTRAS = 7;
+//
+// 7 -> 8 on 17/09/2026: `hr.lifecycle.offboard`, which gives notice and ends an
+// employment. It is the sharpest case the sentence above describes — the most
+// consequential decision a studio makes about a person — and seeding it would
+// hand every Operations Director in every new studio the power to end jobs in
+// their department on the day the studio is created. The owner grants it to
+// whoever runs HR. Note that `home: "full"` cannot reach it either: a level
+// walks an area's VERBS and an extra is not one, which is what makes leaving it
+// out a real decision rather than an omission with the same effect.
+const PRINCIPAL_ONLY_EXTRAS = 8;
 const lonelyExtras = EXTRA_KEYS.filter((k) => !nonPrincipal.has(k));
 ok(`at most ${PRINCIPAL_ONLY_EXTRAS} extras are held by no archetype but principal`,
   lonelyExtras.length <= PRINCIPAL_ONLY_EXTRAS, `${lonelyExtras.length}: ${lonelyExtras.join(", ")}`);
@@ -356,8 +365,13 @@ console.log("\n== a library role starts inside its department's own sections");
   // A DEPARTMENT WITH NO SECTIONS (Legal) holds nothing sectioned at all.
   const legal = L.permissionsForLibraryRole({ ...entry, archetype: "department-head" }, { sectionKeys: [] });
   ok("a department with no sections gets only what belongs to none",
+    // THE SCOPED AREAS SURVIVE A SECTIONLESS DEPARTMENT, which is what `SCOPED`
+    // in archetypes.ts is for: a scope never reaches another department's
+    // records, and Legal has no sections but does have people. `hr.lifecycle`
+    // joined that set when Lifecycle shipped (17/09/2026) — the same class of
+    // area as `hr.employees`, one line below it in the catalogue.
     legal.every((k) => k.startsWith("tasks.") || k.startsWith("engagements.") || k.startsWith("hr.employees.")
-      || k.startsWith("hr.vacations.") || k.startsWith("hr.attendance.")),
+      || k.startsWith("hr.vacations.") || k.startsWith("hr.attendance.") || k.startsWith("hr.lifecycle.")),
     legal.join(", "));
 }
 

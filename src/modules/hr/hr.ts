@@ -89,7 +89,25 @@ export const hrContext = moduleContext<HrContext>({
   root: "hr",
   // Employees owns the reference lists (certifications); vacations stay on the
   // parent as studio-wide HR settings.
-  sub: { employees: "hr-employees" },
+  //
+  // FIVE SUB-SECTIONS, FOUR OF WHICH OWN NOTHING. Time, Leave and Payroll are
+  // where their screens are SHOWN; their rows stay filed under `hr-employees`
+  // and the `hr` root, where every live studio already wrote them — so those
+  // services go on passing `employeesSection` and `section`, and this
+  // declaration is what makes the nav entry and its grant resolve.
+  //
+  // A SUB-SECTION FALLS BACK TO THE ROOT when a studio has not been planted
+  // yet, which is what makes adding these four safe on the read path: a request
+  // arriving before `plantMissingSections` completes the studio resolves to the
+  // HR root rather than 500ing, and nothing is written under the new keys
+  // except Lifecycle's own two collections.
+  sub: {
+    employees: "hr-employees",
+    lifecycle: "hr-lifecycle",
+    time: "hr-time",
+    leave: "hr-leave",
+    payroll: "hr-payroll",
+  },
   // THE ORG CHART IS MASTER DATA'S, and HR reads it. Foreign, so it is null on
   // a studio that somehow has no Master data section — which reads as "no
   // departments" rather than a 500, the same way a studio with no Field
@@ -851,7 +869,7 @@ export async function removeVacation(ctx: HrContext, id: string) {
 
 // The weekdays leave is counted in: the studio's open days when its Employment
 // rules count working days, otherwise null — every calendar day counts.
-function leaveOpenDays(studio: unknown) {
+export function leaveOpenDays(studio: unknown) {
   return employmentRulesOf(studio).workingDays
     ? openWeekdays((studio as { workingHours?: unknown }).workingHours)
     : null;

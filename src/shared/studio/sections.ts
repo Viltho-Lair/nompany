@@ -141,6 +141,10 @@ const ar: SectionMap = {
 
   hr: "الموارد البشرية",
   "hr-employees": "الموظفون",
+  "hr-lifecycle": "الخدمة والعقود",
+  "hr-time": "الدوام والحضور",
+  "hr-leave": "الاجازات",
+  "hr-payroll": "الرواتب",
 
   finance: "المالية والمحاسبة",
   "finance-cash": "النقد",

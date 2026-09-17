@@ -146,7 +146,7 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
     home: "full",
     // THEIR DEPARTMENT AND EVERYTHING UNDER IT (`subtreeIds`), which is what
     // "head of department" means — see `scopes` on the type.
-    scopes: { "hr.employees": "department", "hr.vacations": "department", "hr.attendance": "department" },
+    scopes: { "hr.employees": "department", "hr.vacations": "department", "hr.attendance": "department", "hr.lifecycle": "department" },
     // A HEAD OF DEPARTMENT READS ACROSS AND WRITES IN THE OPERATIONAL ONES.
     // Full on what an operations director actually runs; view on Quality & HSE
     // and HR, because seeing the incident and the appraisal is part of running
@@ -162,6 +162,12 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
       ["engineeringDocs.dashboard", "view"], ["inventory.dashboard", "view"],
       ["projects.list", "full"], ["projects.planner", "edit"], ["projects.sla", "edit"],
       ["tasks.board", "full"], ["hr.employees", "view"], ["hr.vacations", "edit"],
+      // THEIR TEAM'S CONTRACTS AND PROBATIONS, read-only and scoped to their own
+      // department — seeing that somebody's probation ends next week is part of
+      // running a department; signing the contract and ending the job are not,
+      // which is why this stops at view and `offboard` is nobody's here but
+      // principal's.
+      ["hr.lifecycle", "view"],
       ["administration.members", "view"], ["crmSales.tickets", "view"],
       // Seen so the approvals below are exercisable. A right to answer a
       // document you cannot open is a right in name only.
