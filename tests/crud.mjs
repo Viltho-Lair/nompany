@@ -507,34 +507,53 @@ async function payrollRun() {
   const twice = await call(PAY.POST, body("POST", { action: "prepare", period }), P());
   ok("a second run for one month is refused", twice.body?.error === "duplicate");
 
-  // ---- INVARIANT 7: the preparer never approves ---------------------------
-  const self = await call(PAY.POST, body("POST", { action: "move", id: runId, status: "Approved" }), P());
-  ok("THE PERSON WHO PREPARED THE RUN CANNOT APPROVE IT",
-    self.body?.error === "same-signer", JSON.stringify(self.body));
-
   // A DRAFT RUN HAS NO BANK FILE: a payment file is the one artefact that must
-  // never be provisional.
+  // never be provisional. Asked before anybody signs, so the run is still a draft.
   const early = await call(PAY.GET, req(`/api/studios/${F.slug}/x?bank=${runId}`), P());
   ok("a draft run has no bank file", early.body?.error === "not-approved",
     JSON.stringify(early.body));
 
-  // ---- somebody else, holding the approve right ---------------------------
-  const u = (await createUser({ email: `pay-${F.rand()}@test.invalid`, passwordHash: "x" })).user;
-  const role = await createRole(F.studio.id, {
-    name: `payroll-${F.rand()}`,
-    permissions: ["hr.payroll.view", "hr.payroll.approve", "hr.payroll.edit", "finance.ledger.post", "finance.ledger.view"],
-  });
-  await addCollaborator(F.studio.id, { userId: u.id, alias: "Approver", role: "member", roleIds: [role.id] });
-  await F.signIn(u.id);
-
-  const approved = await call(PAY.POST, body("POST", { action: "move", id: runId, status: "Approved" }), P());
-  ok("SOMEBODY ELSE APPROVES IT", approved.body?.run?.status === "Approved",
-    JSON.stringify(approved.body).slice(0, 160));
+  // ---- THE OWNER APPROVES A RUN THEY PREPARED — the owner's rule, 10/09 ----
+  // This asserted the opposite until 17/09/2026 and failed from the day the
+  // rule changed: an Admin may approve a payroll run they prepared, or a
+  // one-person studio could never pay itself (invariant 7 in CLAUDE.md).
+  const self = await call(PAY.POST, body("POST", { action: "move", id: runId, status: "Approved" }), P());
+  ok("THE OWNER MAY APPROVE A RUN THEY PREPARED", self.body?.run?.status === "Approved",
+    JSON.stringify(self.body).slice(0, 160));
 
   // THE LADDER NEVER RUNS BACKWARDS: a payroll that could be reopened after
   // approval is a payroll whose payslips are not evidence of anything.
   const back = await call(PAY.POST, body("POST", { action: "move", id: runId, status: "Draft" }), P());
   ok("an approved run cannot go back to draft", back.body?.error === "transition");
+
+  // ---- INVARIANT 7 STILL HOLDS FOR EVERYBODY WHO IS NOT AN ADMIN -----------
+  const u = (await createUser({ email: `pay-${F.rand()}@test.invalid`, passwordHash: "x" })).user;
+  const role = await createRole(F.studio.id, {
+    name: `payroll-${F.rand()}`,
+    permissions: [
+      "hr.payroll.view", "hr.payroll.create", "hr.payroll.edit", "hr.payroll.approve",
+      "finance.ledger.post", "finance.ledger.view",
+    ],
+  });
+  await addCollaborator(F.studio.id, { userId: u.id, alias: "Approver", role: "member", roleIds: [role.id] });
+  await F.signIn(u.id);
+
+  // A SECOND MONTH, because one run per period is the rule asserted above.
+  const theirs = await call(PAY.POST, body("POST", { action: "prepare", period: "2031-08" }), P());
+  const theirRunId = theirs.body?.run?.id;
+  ok("fixture: a non-admin prepares a run", Boolean(theirRunId), JSON.stringify(theirs.body).slice(0, 160));
+  const ownApprove = await call(PAY.POST, body("POST", { action: "move", id: theirRunId, status: "Approved" }), P());
+  ok("A NON-ADMIN WHO PREPARED THE RUN CANNOT APPROVE IT", ownApprove.body?.error === "same-signer",
+    JSON.stringify(ownApprove.body));
+
+  // ---- somebody else approves it -------------------------------------------
+  await F.signIn(F.owner.id);
+  const approved = await call(PAY.POST, body("POST", { action: "move", id: theirRunId, status: "Approved" }), P());
+  ok("SOMEBODY ELSE APPROVES IT", approved.body?.run?.status === "Approved",
+    JSON.stringify(approved.body).slice(0, 160));
+
+  // The ledger half posts as the payroll holder, who holds finance.ledger.post.
+  await F.signIn(u.id);
 
   // ---- the ledger ---------------------------------------------------------
   // THE GROSS IS THE COST AND THE NET IS NOT. Posting the net as the expense
