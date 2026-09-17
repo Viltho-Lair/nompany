@@ -1619,6 +1619,13 @@ registers are engine sections planted at runtime and `sectionViewable` finds chi
 key prefix without that map. Contracts, tendering and procurement each shipped a section
 their own Manager could not open; that is what the count is for.
 
+**A VISUAL GOES WHEN ITS SECTION GOES — the owner's rule, 17/09/2026.** A widget is drawn only when
+the tier includes it, the reader holds the rights, AND every section it reads is switched on
+(`switchboard` in `lib/dashboardWidgets`). A switched-off department's widget is ABSENT — never a
+locked teaser, never a zero. **Name the switch, not the storage:** a read of a filed-only row must
+say which department it is for (`readIfVisible(…, switchKey)`), and Main's `seen` throws if it
+does not. `docs/functionality/dashboards.md` is the file; slice 2 (department dashboards) is open.
+
 **THE OWNER CHOOSES THE DEPARTMENTS AT CREATION — the owner's instruction,
 17/09/2026 — AND THE TRADE ONLY PRE-FILLS THE ANSWERS.** Creating a studio is a
 three-step screen on the account page (`CreateStudioScreen`): company, then one

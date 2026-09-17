@@ -5,13 +5,17 @@
 import { S } from "./keys";
 import { hIncrBy } from "./store";
 
-export const MAIN_AGG_SOURCES: { section: string; fallback: string | null; collection: string }[] = [
+// `switch` is the section the OWNER turns on and off for these rows, which is
+// not always where they are filed: quotations and RFQs are stored under two
+// filed-only rows and worked in the Quotations department. Absent means the
+// storage row is its own switch.
+export const MAIN_AGG_SOURCES: { section: string; fallback: string | null; collection: string; switch?: string }[] = [
   { section: "crm-sales-tickets", fallback: "crm-sales", collection: "salesTickets" },
   // Quotations moved OUT from under Engineering & Documents to CRM & Sales
   // (restructure.ts's SECTION_KEY_MAP: technical-quotations -> crm-sales-
   // quotations), so its fallback parent moves with it.
-  { section: "crm-sales-quotations", fallback: "crm-sales", collection: "quotations" },
-  { section: "engineering-docs-rfq", fallback: "engineering-docs", collection: "rfqs" },
+  { section: "crm-sales-quotations", fallback: "crm-sales", collection: "quotations", switch: "quotations-register" },
+  { section: "engineering-docs-rfq", fallback: "engineering-docs", collection: "rfqs", switch: "quotations-rfq" },
   { section: "projects-list", fallback: "projects", collection: "projects" },
   { section: "inventory-items", fallback: "inventory", collection: "inventoryItems" },
   { section: "tasks", fallback: null, collection: "tasks" },

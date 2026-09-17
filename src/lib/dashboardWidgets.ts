@@ -20,9 +20,62 @@ import { ANALYTICS_LEVELS, analyticsAllows, type AnalyticsLevel } from "@/lib/an
 export type WidgetDef = {
   key: string;          // stable, unique — the dashboards reference this, not a title
   label: string;        // what the editor's checklist and the locked teaser show
-  section: string;      // the department/section it groups under
+  section: string;      // the dashboard it is DRAWN on — where it groups in the editor
   rung: AnalyticsLevel; // the fallback tier this widget belongs to
+  /**
+   * WHAT IT IS DRAWN FROM, which is not where it is drawn. Section keys the
+   * owner can switch (a department or a part of one) — never a filed-only
+   * storage row, which nobody switches. `needs`: every one must be on.
+   * `anyOf`: the widget combines several, shows whatever of them is on, and
+   * disappears only when none is. Neither: it depends on nothing switchable.
+   */
+  needs?: readonly string[];
+  anyOf?: readonly string[];
 };
+
+// ---- the second gate: what the studio RUNS ----------------------------------
+//
+// THE OWNER'S RULE, 17/09/2026: a widget is bonded to the sections it is drawn
+// from, and when one of them is switched off, the widget goes with it. That is
+// a different question from the tier's — the tier says what the studio BOUGHT,
+// this says what the company DOES — and both must pass, with the reader's own
+// rights as the third. A switched-off department is a choice, not a missing
+// purchase, so its widgets are ABSENT: never a locked teaser, never a zero.
+
+/** The bits of a stored section row the switchboard reads. */
+export type SwitchRow = { id?: string; key: string; parentId?: string | null; enabled?: boolean };
+
+/**
+ * IS THIS SECTION ON — itself AND the department it sits in.
+ *
+ * `enabled` is stored per row, and a part can be on under a department that is
+ * off (the Sections panel switches a branch, but nothing forbids the pair), so
+ * the parent is asked too. A key with no row is ON: it is either not a section
+ * (Main, a pure control) or not planted yet, and neither is the owner saying no.
+ */
+export function switchboard(rows: readonly SwitchRow[] | null | undefined): (key: string) => boolean {
+  const list = rows || [];
+  const byKey = new Map(list.map((r) => [r.key, r]));
+  const byId = new Map(list.filter((r) => r.id).map((r) => [String(r.id), r]));
+  return (key: string) => {
+    const row = byKey.get(key);
+    if (!row) return true;
+    if (row.enabled === false) return false;
+    const parent = row.parentId ? byId.get(String(row.parentId)) : null;
+    return !parent || parent.enabled !== false;
+  };
+}
+
+/** May this widget be drawn at all, given what the studio runs? */
+export function widgetAvailable(
+  def: Pick<WidgetDef, "needs" | "anyOf"> | null | undefined,
+  on: (key: string) => boolean,
+): boolean {
+  if (!def) return true;
+  if (def.needs?.length && !def.needs.every(on)) return false;
+  if (def.anyOf?.length && !def.anyOf.some(on)) return false;
+  return true;
+}
 
 // The sections that have paid widgets, in the order the editor lists them. A
 // section's free KPI/StatRow floor is NOT here — the switch governs the paid
@@ -45,6 +98,11 @@ export const WIDGET_SECTIONS: { key: string; label: string }[] = [
   { key: "reports", label: "Reports & BI" },
 ];
 
+/** The departments Main's activity, trend and ribbon count — see MAIN_AGG_SOURCES. */
+export const MAIN_SOURCES: readonly string[] = [
+  "crm-sales-tickets", "quotations-register", "quotations-rfq", "projects-list", "inventory-items", "tasks",
+];
+
 // Every gated widget across the eight department dashboards. Keys are frozen —
 // a tier stores these strings, so renaming one is a migration, not an edit.
 // "technical.rfq-funnel" below happens to start with the exact substring of
@@ -54,10 +112,13 @@ export const WIDGET_SECTIONS: { key: string; label: string }[] = [
 export const DASHBOARD_WIDGETS: WidgetDef[] = [
   // Main (the executive overview — the free headline tiles & feed are NOT here;
   // the registry governs paid widgets, the floor is always shown)
-  { key: "main.activity", label: "Department activity", section: "main", rung: "simple" },
-  { key: "main.awaiting-you", label: "Awaiting you", section: "main", rung: "simple" },
-  { key: "main.headline-trend", label: "Headline trends", section: "main", rung: "simple" },
-  { key: "main.event-ribbon", label: "Activity ribbon", section: "main", rung: "moderate" },
+  // Their sources are the SWITCHES of MAIN_AGG_SOURCES (platform/db/mainAgg),
+  // restated because that module reaches the store and this one must not;
+  // tests/widget-sections-model.mjs holds the two lists equal.
+  { key: "main.activity", label: "Department activity", section: "main", rung: "simple", anyOf: MAIN_SOURCES },
+  { key: "main.awaiting-you", label: "Awaiting you", section: "main", rung: "simple", anyOf: ["tasks", "quotations-register"] },
+  { key: "main.headline-trend", label: "Headline trends", section: "main", rung: "simple", anyOf: MAIN_SOURCES },
+  { key: "main.event-ribbon", label: "Activity ribbon", section: "main", rung: "moderate", anyOf: MAIN_SOURCES },
   // Sales
   { key: "sales.funnel", label: "Sales funnel", section: "crm-sales", rung: "simple" },
   { key: "sales.probability-forecast", label: "Probability forecast", section: "crm-sales", rung: "simple" },

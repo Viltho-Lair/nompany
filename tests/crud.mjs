@@ -492,6 +492,42 @@ async function studioSetup() {
   ok("the other parts of that department are on", isOn("crm-sales-pos") && isOn("crm-sales-clients"));
   ok("the parts of a department that is off are off with it", !isOn("inventory-stock"));
 
+  // ---- MAIN DRAWS ONLY WHAT THE STUDIO RUNS ----------------------------------
+  // The owner's rule (17/09/2026): a switched-off section takes its visuals
+  // with it. This studio runs CRM & Sales (without its pipeline), Maintenance
+  // and HR — so Main must say nothing about projects, quotations, RFQs or
+  // stock, even to the owner, who holds every right. Before the rule, Main
+  // asked only about rights, and every one of these tiles was drawn.
+  const MAIN = await import("../src/app/api/studios/[slug]/main/route.ts");
+  const slug = made.body?.studio?.slug;
+  const front = await call(MAIN.GET, req(`/api/studios/${slug}/main`), ctx({ slug }));
+  ok("Main answers for the new studio", front.status === 200, JSON.stringify(front.body).slice(0, 120));
+  const h = front.body?.headlines || {};
+  ok("no projects tile — Projects is off", h.liveProjects === null, String(h.liveProjects));
+  ok("no RFQ tile — Quotations is off", h.openRfqs === null, String(h.openRfqs));
+  ok("no quotations tile — Quotations is off", h.liveQuotations === null, String(h.liveQuotations));
+  ok("no stock tile — Inventory is off", h.lowStock === null, String(h.lowStock));
+  ok("no invoice tile — Finance is off", h.outstanding === null, String(h.outstanding));
+  ok("the tickets tile stays — CRM & Sales is on", h.openTickets !== null, String(h.openTickets));
+  ok("the headcount tile stays — HR is on", h.headcount !== null, String(h.headcount));
+  ok("the tasks tile stays — Tasks is never off", h.awaitingMe !== null, String(h.awaitingMe));
+  const feedKinds = new Set((front.body?.recent || []).map((r) => r.kind));
+  ok("the activity feed carries no projects or quotations",
+    !feedKinds.has("project") && !feedKinds.has("quotation"), [...feedKinds].join(","));
+  // Drop the switched-off parts: a combined widget stays while any source is
+  // on (Tasks always is), and whatever it draws comes from switched-on sources.
+  const exec = front.body?.executive || {};
+  ok("no Main widget is hidden while one of its sources is on", (exec.hidden || []).length === 0,
+    JSON.stringify(exec.hidden));
+  const drawnFrom = [
+    ...(exec.widgets?.["main.activity"] || []).map((d) => d.section),
+    ...(exec.widgets?.["main.headline-trend"] || []).map((d) => d.key),
+  ];
+  ok("the combined widgets draw nothing from a switched-off department",
+    drawnFrom.every((k) => !["projects-list", "quotations-register", "quotations-rfq", "inventory-items"].includes(k)),
+    drawnFrom.join(","));
+  ok("…and never name a storage row", drawnFrom.every((k) => !k.startsWith("crm-sales-quotations") && !k.startsWith("engineering-docs-rfq")));
+
   // ---- no choice at all keeps the old behaviour ------------------------------
   // A second studio would hit the free-plan cap, so the old path is proven on
   // the refusal it shares: a caller that sends no `sections` is not asked for

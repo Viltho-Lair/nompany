@@ -399,10 +399,10 @@ export function leaveInsights(vacations: VacationRow[], aliasById: Record<string
  */
 async function readIfAllowed<T extends Row = Row>(
   ctx: MainContext, key: string, fallbackKey: string | null,
-  collection: string, permission: PermissionKey,
+  collection: string, permission: PermissionKey, switchKey: string = key,
 ): Promise<T[] | null> {
   if (!can(ctx.access, permission)) return null;
-  return readIfVisible<T>(ctx, key, fallbackKey, collection);
+  return readIfVisible<T>(ctx, key, fallbackKey, collection, switchKey);
 }
 
 /** Capped here rather than at the route: a bubble says one thing at a time. */
@@ -422,8 +422,8 @@ export async function studioInsights(ctx: MainContext): Promise<Insight[]> {
   const [tasks, quotations, rfqs, tickets, projects, items, movements,
     invoices, bills, permits, vacations, people, notifications] = await Promise.all([
     readIfVisible<TaskRow>(ctx, "tasks", null, "tasks"),
-    readIfVisible<QuotationRow>(ctx, "crm-sales-quotations", "crm-sales", "quotations"),
-    readIfVisible<RfqRow>(ctx, "engineering-docs-rfq", "engineering-docs", "rfqs"),
+    readIfVisible<QuotationRow>(ctx, "crm-sales-quotations", "crm-sales", "quotations", "quotations-register"),
+    readIfVisible<RfqRow>(ctx, "engineering-docs-rfq", "engineering-docs", "rfqs", "quotations-rfq"),
     readIfVisible<TicketRow>(ctx, "crm-sales-tickets", "crm-sales", "salesTickets"),
     readIfVisible<ProjectRow>(ctx, "projects-list", "projects", "projects"),
     readIfVisible<ItemRow>(ctx, "inventory-items", "inventory", "inventoryItems"),

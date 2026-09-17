@@ -128,18 +128,18 @@ export async function readAggregate(
     const combined: Record<string, number> = {};
     const period = trailingTwoMonths(asOf);
     for (const src of MAIN_AGG_SOURCES) {
-      const sec = ctx.seen(src.section, src.fallback); // visibility gate (invariant 2)
+      const sec = ctx.seen(src.section, src.fallback, src.switch); // rights AND the switch (invariant 2)
       if (!sec) continue;
       const counts = bySection[sec.id] || {};
-      activity.push({ section: src.section, series: activitySeriesFromCounts(counts, 30, asOf) });
-      trends.push({ key: src.section, ...trendFromCounts(counts, period) });
+      activity.push({ section: src.switch || src.section, series: activitySeriesFromCounts(counts, 30, asOf) });
+      trends.push({ key: src.switch || src.section, ...trendFromCounts(counts, period) });
       for (const [d, n] of Object.entries(counts)) combined[d] = (combined[d] || 0) + n;
     }
     return { activity, ribbon: activitySeriesFromCounts(combined, 30, asOf), trends };
   }
 
   const lists = await Promise.all(
-    MAIN_AGG_SOURCES.map((s) => readIfVisible(ctx, s.section, s.fallback, s.collection)),
+    MAIN_AGG_SOURCES.map((s) => readIfVisible(ctx, s.section, s.fallback, s.collection, s.switch)),
   );
   const activity: ExecutiveAggregate["activity"] = [];
   const combined: (Row & { createdAt?: string })[] = [];
@@ -148,8 +148,8 @@ export async function readAggregate(
   lists.forEach((rows, i) => {
     if (!rows) return; // not visible — nothing, not a zero
     const src = MAIN_AGG_SOURCES[i];
-    activity.push({ section: src.section, series: activityByDay(rows as Dated[], 30, asOf) });
-    trends.push({ key: src.section, ...periodDelta(rows as Dated[], "createdAt", period) });
+    activity.push({ section: src.switch || src.section, series: activityByDay(rows as Dated[], 30, asOf) });
+    trends.push({ key: src.switch || src.section, ...periodDelta(rows as Dated[], "createdAt", period) });
     combined.push(...(rows as (Row & { createdAt?: string })[]));
   });
   return { activity, ribbon: activityByDay(combined as Dated[], 30, asOf), trends };

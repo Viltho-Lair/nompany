@@ -80,6 +80,38 @@ reader's language, and every new chart takes `rtl` so bar 0 sits under label 0 i
 | Main | department activity on one axis (the busiest five) with a named row per department; headline trends with the movement drawn as a bar |
 | Register sections | a status strip on each register card, and open against overdue across every register on one chart |
 
+## A widget goes when its section goes (17/09/2026)
+
+**The owner's rule: a visual is bonded to the sections it is drawn from, and a switched-off
+section or part takes its visuals with it.** It is not the tier's question — the tier says what
+the studio *bought*, this says what the company *runs* — and a widget is drawn only when three
+gates pass: the tier includes it, every section it reads is on, and the reader holds the rights.
+
+- **`switchboard(sections)`** (`lib/dashboardWidgets.ts`) answers "is this section on": its own
+  `enabled` **and** its department's. A key with no row is on — nobody said no to it.
+- **A widget declares its sources**, separately from the dashboard it is drawn on (`section`):
+  `needs` (all must be on) or `anyOf` (a widget built from several). **A combined widget drops the
+  switched-off parts and stays** while any source is on — the owner's answer — and is gone only
+  when none is. `widgetAvailable` is the one test.
+- **Sources are sections the owner switches, never storage.** Quotations and RFQs are filed under
+  two filed-only rows that follow CRM & Sales and Engineering; the owner switches **Quotations**.
+  So every read of a filed-only row names its switch (`readIfVisible(…, switchKey)`,
+  `seen(key, fallback, switchKey)`), and `seen` **throws** on a filed-only switch rather than
+  guess — one storage row holds quotations, contracts and sales orders, which are worked in two
+  departments. `tests/widget-sections-model.mjs` scans Main's modules for a read that forgets.
+- **A switched-off department's widget is absent**: not computed, not sent, not a locked teaser
+  (the teaser means *not bought yet*; an off section is a choice), not a zero. The route lists it
+  in `executive.hidden` and the grid flows on — widgets are ordered by what is available, not by
+  space.
+
+**Main is done.** Its one read gate, `ctx.seen`, asked the reader's rights and never the switch,
+and an owner holds every right — so a studio with Projects off was shown "Projects running".
+`seen` now asks both, which fixes the headline tiles, the activity feed, the four executive
+widgets, *Awaiting you* and Nova's bubble together. The activity and trend rows are named by the
+switch (`quotations-register`), so their names and links go to the screen the owner knows rather
+than to a storage row nobody can open. `tests/crud.mjs` proves it against the database on a
+studio created with Projects, Quotations, Inventory and Finance off.
+
 ## The rollout consequence
 
 **A tier that was given an explicit widget selection does not include the new keys**, because
@@ -92,6 +124,15 @@ is not mistaken for one.
 ## Not built yet
 
 Stated in words, because a silent gap reads as a finished feature.
+
+- **The department dashboards do not follow switches yet** (slice 2). Only Main's four widgets
+  declare their sources; the other eighty-eight (of ninety-two, measured 17/09/2026) carry no `needs`, so a part switched off inside a
+  department that is on (the pipeline inside CRM & Sales) still has its charts drawn on that
+  department's dashboard.
+- **Free headline tiles are not in the registry.** Main's are gated through `seen` by the read
+  behind each figure, which works, but a tile cannot be listed or tested as a widget.
+- **Reports & BI's executive board and the engagements view** read across sections through their
+  own paths and do not ask the switchboard.
 
 - **The windows are fixed.** Twelve months, eight or twelve weeks, thirty days — no date-range
   filter on any of the new widgets, and no comparison against a previous period (the Reports

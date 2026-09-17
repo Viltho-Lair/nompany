@@ -4,7 +4,7 @@ import { mainContext, headlines, recent } from "@/modules/main/main";
 import { readAggregate } from "@/modules/main/executive";
 import { awaitingQueue } from "@/modules/main/awaiting";
 import { loadCatalogues, planOf } from "@/lib/plans";
-import { enabledWidgets } from "@/lib/dashboardWidgets";
+import { enabledWidgets, switchboard, widgetAvailable, DASHBOARD_WIDGETS } from "@/lib/dashboardWidgets";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -42,13 +42,25 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
   const widgets: Record<string, unknown> = {};
   const locked: string[] = [];
 
+  // THE SECOND GATE — what the studio RUNS, not what it bought. A widget whose
+  // every source is switched off is not computed, not sent, and not offered as
+  // a locked teaser: that teaser means "not bought yet", and a department the
+  // owner switched off is a choice. It is listed in `hidden` so the screen can
+  // leave it out rather than guess. A widget with SOME sources on is drawn from
+  // those alone — `seen` already drops the rest.
+  const on = switchboard(main.sections);
+  const hidden = MAIN_WIDGET_KEYS.filter((key) =>
+    !widgetAvailable(DASHBOARD_WIDGETS.find((w) => w.key === key), on));
+  const shown = MAIN_WIDGET_KEYS.filter((key) => !hidden.includes(key));
+
   // A basic-tier studio (the majority) is entitled to none of the four keys
   // below, so readAggregate/awaitingQueue would be computed only to be thrown
   // away — each reads several collections. Skip the reads entirely when
   // nothing is entitled; the response is identical either way.
-  if (MAIN_WIDGET_KEYS.some((key) => entitled.has(key))) {
+  if (shown.some((key) => entitled.has(key))) {
     const [agg, queue] = await Promise.all([readAggregate(main), awaitingQueue(main)]);
     const gate = (key: string, value: unknown) => {
+      if (hidden.includes(key)) return;
       if (entitled.has(key)) widgets[key] = value;
       else locked.push(key);
     };
@@ -57,7 +69,7 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
     gate("main.event-ribbon", agg.ribbon);
     gate("main.awaiting-you", queue);
   } else {
-    locked.push(...MAIN_WIDGET_KEYS);
+    locked.push(...shown);
   }
 
   return Response.json({
@@ -66,6 +78,6 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
     nav: main.nav,
     headlines: figures,
     recent: feed,
-    executive: { widgets, locked },
+    executive: { widgets, locked, hidden },
   });
 }

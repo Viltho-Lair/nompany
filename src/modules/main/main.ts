@@ -10,6 +10,8 @@
 // Everything is derived on read, like every other module: nothing here is a
 // stored dashboard that could drift from what the sections actually say.
 
+import { switchboard } from "@/lib/dashboardWidgets";
+import { isFiledOnlySection } from "@/platform/db/keys";
 import { repo } from "@/platform/db/repo";
 import { listSections, parentKeyMap } from "@/platform/db/sections";
 import { studioContext, sectionNav, visibleSections } from "@/lib/studios";
@@ -41,7 +43,12 @@ import type { Row } from "@/platform/db/store";
  * per-section question and would otherwise re-derive `sectionViewable` at
  * every call site instead of once, here.
  */
-export type SeenFn = (key: string, fallbackKey?: string | null) => Section | null;
+/**
+ * `switchKey` is the section the owner turns on and off for what is being
+ * read — see `seen` below. It defaults to `key`, and must be given whenever
+ * `key` is a filed-only storage row.
+ */
+export type SeenFn = (key: string, fallbackKey?: string | null, switchKey?: string) => Section | null;
 
 /**
  * WHAT mainContext HANDS BACK. Written out rather than inferred because the
@@ -87,9 +94,28 @@ export async function mainContext(user: { id?: unknown } | null | undefined, slu
   const sectionKeys = sections.map((x) => x.key);
   const parentOf = parentKeyMap(sections);
 
-// One helper, used everywhere below: the section that owns a collection, but
-  // only if this person may see it. Everything else keys off this.
-  const seen = (key: string, fallbackKey?: string | null) => {
+  // One helper, used everywhere below: the section that owns a collection, but
+  // only if this person may see it AND the studio runs it. Everything else keys
+  // off this — the tiles, the feed, the executive widgets, Awaiting you and
+  // Nova's bubble — so a switched-off department drops out of all of them at
+  // once rather than one screen at a time.
+  //
+  // THE SWITCH WAS MISSING until 17/09/2026: this asked the reader's rights
+  // alone, an owner holds every right, and so a studio that had switched
+  // Projects off was still shown "Projects running" on its front door.
+  //
+  // THE SWITCH IS NAMED BY THE CALLER, because storage is not the switch.
+  // Quotations and RFQs are filed under two rows kept only for storage
+  // (FILED_ONLY_SECTION_KEYS), which follow CRM & Sales and Engineering, while
+  // the owner switches the Quotations department. A filed-only row can hold
+  // more than one kind of record, so this cannot guess which screen a read is
+  // for — it refuses to, loudly, rather than answer with the wrong switch.
+  const on = switchboard(sections);
+  const seen = (key: string, fallbackKey?: string | null, switchKey: string = key) => {
+    if (isFiledOnlySection(switchKey)) {
+      throw new Error(`seen(${key}): a filed-only row is not a switch — name the section its records are worked in`);
+    }
+    if (!on(switchKey)) return null;
     const section = byKey[key] || (fallbackKey ? byKey[fallbackKey] : null);
     if (!section) return null;
     return sectionViewable(access, section.key, sectionKeys, parentOf) ? section : null;
@@ -110,8 +136,9 @@ export async function readIfVisible<T extends Row = Row>(
   key: string,
   fallbackKey: string | null,
   collection: string,
+  switchKey: string = key,
 ): Promise<T[] | null> {
-  const section = ctx.seen(key, fallbackKey);
+  const section = ctx.seen(key, fallbackKey, switchKey);
   if (!section) return null;
   // The collection is chosen by the caller, so the repository is built per call
   // rather than hoisted — it binds a name, not a connection.
@@ -127,8 +154,8 @@ export async function headlines(ctx: MainContext) {
 
   const [tickets, quotations, rfqs, projects, items, movements, tasks, invoices, permits, people] = await Promise.all([
     readIfVisible(ctx, "crm-sales-tickets", "crm-sales", "salesTickets"),
-    readIfVisible(ctx, "crm-sales-quotations", "crm-sales", "quotations"),
-    readIfVisible(ctx, "engineering-docs-rfq", "engineering-docs", "rfqs"),
+    readIfVisible(ctx, "crm-sales-quotations", "crm-sales", "quotations", "quotations-register"),
+    readIfVisible(ctx, "engineering-docs-rfq", "engineering-docs", "rfqs", "quotations-rfq"),
     readIfVisible(ctx, "projects-list", "projects", "projects"),
     readIfVisible(ctx, "inventory-items", "inventory", "inventoryItems"),
     // ON-HAND LIVES IN THE LEDGER, not on the item. "Below reorder level" is a
@@ -138,7 +165,8 @@ export async function headlines(ctx: MainContext) {
     readIfVisible(ctx, "inventory-stock", "inventory", "inventoryStock"),
     readIfVisible<Task>(ctx, "tasks", null, "tasks"),
     readIfVisible(ctx, "finance-cash", "finance", "invoices"),
-    readIfVisible<Permit>(ctx, "field-service", null, "permits"),
+    // Stored on the Field Operations root, worked in Quality & HSE → Permits.
+    readIfVisible<Permit>(ctx, "field-service", null, "permits", "quality-hse-permits"),
     ctx.seen("hr-employees", "hr") ? listCollaborators(ctx.studio.id) : null,
   ]);
 
@@ -195,7 +223,7 @@ export async function headlines(ctx: MainContext) {
 export async function recent(ctx: MainContext, limit = 8) {
   const [tickets, quotations, projects, tasks] = await Promise.all([
     readIfVisible(ctx, "crm-sales-tickets", "crm-sales", "salesTickets"),
-    readIfVisible(ctx, "crm-sales-quotations", "crm-sales", "quotations"),
+    readIfVisible(ctx, "crm-sales-quotations", "crm-sales", "quotations", "quotations-register"),
     readIfVisible(ctx, "projects-list", "projects", "projects"),
     readIfVisible(ctx, "tasks", null, "tasks"),
   ]);

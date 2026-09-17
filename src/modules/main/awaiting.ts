@@ -87,7 +87,7 @@ export async function awaitingQueue(ctx: MainContext): Promise<QueueItem[]> {
   // section (restructure.ts's SECTION_KEY_MAP: technical-quotations ->
   // crm-sales-quotations), so an unprovisioned sub-section falls back to its
   // real parent, CRM & Sales, not the RFQ's home.
-  const quotesSection = ctx.seen("crm-sales-quotations", "crm-sales");
+  const quotesSection = ctx.seen("crm-sales-quotations", "crm-sales", "quotations-register");
   if (quotesSection) {
     const quotations = await repo<QuotationRow>("quotations").find({ studio: ctx.studio, section: quotesSection });
     for (const q of quotations) {
