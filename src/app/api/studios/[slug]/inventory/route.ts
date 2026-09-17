@@ -17,16 +17,32 @@ export const dynamic = "force-dynamic";
 export const GET = route(
   { auth: "studio", context: inventoryContext, name: "inventory" },
   async (g) => {
-  // A LIST NO SCREEN THAT IS ON CAN SHOW IS NOT READ. Air waybills and their
-  // airline registry belong to Logistics → Shipments; project sheets to
-  // Inventory → Project sheets. Purchase orders stay: item, stock and receiving
-  // screens here all reach them.
-  const shipmentsOn = g.on("logistics-shipments");
+  // A LIST NO SCREEN THAT IS ON CAN SHOW IS NOT READ — each is read for the
+  // screens of this module that draw it, and only while one of them is on:
+  //   items      the Items register, the Stock screen (on-hand per item) and
+  //              the dashboard's item figures
+  //   vendors    the Items form's supplier picker
+  //   movements  the Stock screen's ledger and the dashboard's movement charts
+  //   orders     the dashboard's purchase-order charts and "awaiting" figure —
+  //              filed here, switched as Procurement → Orders
+  //   projects   the air-waybill screen's project picker
+  //   shipments, airlines   Logistics → Shipments
+  //   sheets     Inventory → Project sheets
+  //   deliveries Procurement → Receiving, where delivery notes belong. NO SCREEN
+  //              READS THEM FROM THIS RESPONSE today; they are kept on the
+  //              shape and gated rather than dropped, which is its own change.
+  const on = g.on;
+  const shipmentsOn = on("logistics-shipments");
   const [vendors, items, movements, orders, deliveries, projects, shipments, airlines, sheets] = await Promise.all([
-    listVendors(g), listItems(g), listMovements(g), listOrders(g), listDeliveries(g), openProjects(g),
+    on("inventory-items") ? listVendors(g) : Promise.resolve([]),
+    on("inventory-items") || on("inventory-stock") ? listItems(g) : Promise.resolve([]),
+    on("inventory-stock") ? listMovements(g) : Promise.resolve([]),
+    on("procurement-orders") ? listOrders(g) : Promise.resolve([]),
+    on("procurement-receiving") ? listDeliveries(g) : Promise.resolve([]),
+    shipmentsOn ? openProjects(g) : Promise.resolve([]),
     shipmentsOn ? listShipments(g) : Promise.resolve([]),
     shipmentsOn ? listAirlines(g) : Promise.resolve([]),
-    g.on("inventory-sheets") ? listProjectSheets(g) : Promise.resolve([]),
+    on("inventory-sheets") ? listProjectSheets(g) : Promise.resolve([]),
   ]);
 
   return {

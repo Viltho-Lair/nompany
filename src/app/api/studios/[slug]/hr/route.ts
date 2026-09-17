@@ -20,9 +20,18 @@ export const GET = route(
   // module's foreign section. They join the other four reads rather than
   // preceding them, so the screen costs the same round trips it did when the
   // list was derived from sections already in hand.
+  //
+  // HUMAN RESOURCES → EMPLOYEES IS WHERE ALL BUT ONE OF THESE ARE SHOWN: its
+  // people, roles, certifications and leave tabs, and the dashboard's headcount
+  // and expiring-document figures. With it switched off only leave is read —
+  // it is kept on the HR root, and the dashboard's leave charts draw from it.
+  const employeesOn = g.on("hr-employees");
+  const none = Promise.resolve([]);
   const [departments, roles, certifications, employees, vacations] = await Promise.all([
-    listDepartments(g), listHrRoles(g), listCertifications(g),
-    listEmployees(g, g.collaborator.id),
+    employeesOn ? listDepartments(g) : none,
+    employeesOn ? listHrRoles(g) : none,
+    employeesOn ? listCertifications(g) : none,
+    employeesOn ? listEmployees(g, g.collaborator.id) : none,
     listVacations(g, { meId: g.collaborator.id }),
   ]);
 

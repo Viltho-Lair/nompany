@@ -203,7 +203,15 @@ const TRIMMED = [
   ["src/app/api/studios/[slug]/technical/route.ts", ['on("quotations-rfq")', 'on("quotations-register")']],
   ["src/app/api/studios/[slug]/projects/route.ts", ['on("projects-overtimes")', 'on("quotations-register")']],
   ["src/app/api/studios/[slug]/operations/route.ts", ['on("quality-hse-permits")']],
-  ["src/app/api/studios/[slug]/inventory/route.ts", ['on("logistics-shipments")', 'on("inventory-sheets")']],
+  ["src/app/api/studios/[slug]/inventory/route.ts", [
+    'on("logistics-shipments")', 'on("inventory-sheets")', 'on("inventory-items")', 'on("inventory-stock")',
+    'on("procurement-orders") ? listOrders', 'on("procurement-receiving") ? listDeliveries',
+  ]],
+  ["src/app/api/studios/[slug]/finance/route.ts", ['on("finance-cash")', "cashOn ? await profitability"]],
+  ["src/app/api/studios/[slug]/hr/route.ts", ['on("hr-employees")', "employeesOn ? listEmployees"]],
+  // The dashboard's way-in cards: a switched-off part is not offered at all.
+  ["src/components/studio2/InventoryDashboard.jsx", ["].filter((s) => sectionOn(s.key))"]],
+  ["src/components/studio2/StudioFinance.js", ['useSectionOn()("finance-cash")', "{cashOn && (", "[slug, cashOn]"]],
   ["src/modules/maintenance/dashboard.ts", ['on("maintenance-orders")', 'on("maintenance-requests")', 'on("maintenance-plans")', 'on("maintenance-contracts")']],
   ["src/modules/procurement/dashboard.ts", ['on("procurement-requisitions")', 'on("finance-payables")']],
   ["src/modules/engineering/dashboard.ts", ["switchboard(ctx.sections)"]],

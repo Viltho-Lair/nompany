@@ -154,7 +154,14 @@ widgets now declare their sources.
   RFQs, and sends the quotation list only while the Register or the Live view is on (still
   reading it for numbering while the RFQ desk is on); Projects skips overtime and the approved
   quotations a project opens from; Field Operations skips permits while Quality & HSE → Permits
-  is off; Inventory skips air waybills, airlines and project sheets. The Maintenance dashboard
+  is off. Inventory reads each list only for its own part — items (Items or Stock), suppliers
+  (Items), movements (Stock), purchase orders (Procurement → Orders), delivery notes (Receiving),
+  air waybills, airlines and their project picker (Logistics → Shipments), project sheets.
+  Finance reads nothing of Cash's — invoices, expenses, the project margins built from them and
+  the invoice form's pickers — while Cash is off, and the landing page drops the margins block.
+  Human Resources reads only leave while Employees is off (leave is on the HR root); departments,
+  roles, certifications and employees are Employees'. The Inventory dashboard's way-in cards
+  leave out a switched-off part rather than dimming it. The Maintenance dashboard
   asks one switch per block, and still reads work orders for planned-work compliance and
   contracts while the Work orders part is off, without sending the backlog. The Finance
   dashboard does not fetch Payables or Fixed assets while they are off.
@@ -164,7 +171,8 @@ widgets now declare their sources.
   sales route went from 6 database queries to 0, inventory 11 → 9, projects 10 → 9, field
   operations 5 → 4 and the maintenance dashboard 7 → 4, the board from 8 figures to 5, and the
   Finance dashboard stopped asking for bills; switched back on, every number returned on the next
-  request. `tests/widget-sections-model.mjs` holds each guard by name.
+  request. The second pass measured the same way: with Cash, Employees and every Inventory part
+  off, finance went 5 → 0, human resources 3 → 2 and inventory 11 → 0, and all three returned. `tests/widget-sections-model.mjs` holds each guard by name.
 
 **Where a widget is drawn is not what it is drawn from**, and the map follows the data:
 *Quotation volume* on the Sales dashboard needs Quotations; purchase-order charts on Inventory
@@ -187,11 +195,8 @@ is not mistaken for one.
 
 Stated in words, because a silent gap reads as a finished feature.
 
-- **Some lists still travel with a part switched off**, because another screen that is on uses
-  them too: purchase orders on the Inventory route (items, stock and receiving reach them),
-  invoices and expenses on the Finance route (the project margins beside the dashboard), and
-  the HR lists. Their cards are hidden in the browser; the rows reach only a reader who holds the
-  rights to them.
+- **Delivery notes are still on the Inventory response** (gated on Procurement → Receiving),
+  though no screen reads them from it; dropping the field is its own change.
 - **The API does not refuse a switched-off part.** A part's own route still answers if called
   directly; switching decides what is shown and read for the screens, not access.
 - **The leave charts and tiles follow the HR department as a whole.** Leave is kept on the HR

@@ -17,15 +17,21 @@ export const dynamic = "force-dynamic";
 export const GET = route(
   { auth: "studio", context: financeContext, name: "finance" },
   async (g) => {
-  const [invoices, expenses, projects, { milestones = [] }] = await Promise.all([
+  // EVERYTHING HERE IS FINANCE → CASH'S. This response draws the Cash screens
+  // and, on the landing page, the receivables half of the dashboard and the
+  // project margins — which are built from the same invoices and expenses. So
+  // with Cash switched off none of it is read, and the landing page keeps only
+  // what Payables and Fixed assets fetch for themselves.
+  const cashOn = g.on("finance-cash");
+  const [invoices, expenses, projects, { milestones = [] }] = cashOn ? await Promise.all([
     listInvoices(g), listExpenses(g), billableProjects(g),
     // THE MILESTONES AN INVOICE CAN CLAIM. `milestoneId` has been on the
     // invoice since billing schedules shipped and no form set it, so every
     // project invoice landed in "unattributed" and no milestone ever read as
     // billed.
     referencePickers(g.studio, { projects: g.projectsListSection }, { milestones: true }),
-  ]);
-  const projectMargins = await profitability(g, { invoices, expenses });
+  ]) : [[], [], [], { milestones: [] }];
+  const projectMargins = cashOn ? await profitability(g, { invoices, expenses }) : [];
 
   return {
     canManage: g.canManage,

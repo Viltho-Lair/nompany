@@ -167,7 +167,9 @@ export default function InventoryDashboard({
     { key: "procurement-suppliers", label: tr.vendors, desc: tr.descVendors, icon: "vendors" },
     { key: "inventory-sheets", label: tr.projectSheets2, desc: tr.descSheets, icon: "report" },
     { key: "logistics-shipments", label: tr.awbTracking, desc: tr.descAwb, icon: "external" },
-  ];
+    // A PART THE STUDIO SWITCHED OFF IS NOT OFFERED — it is not a door the
+    // reader lacks a key for (that card is drawn dimmed below), it is not there.
+  ].filter((s) => sectionOn(s.key));
 
   return (
     <div className="space-y-5">
@@ -316,7 +318,7 @@ export default function InventoryDashboard({
 
       {/* The way into each sub-section — kept from the old dashboard, because the
           parent section is where a studio arrives and it still has to point on. */}
-      <section>
+      {sections.length > 0 && <section>
         <p className={microLabel}>{tr.sections}</p>
         <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {sections.map((s) => {
@@ -342,7 +344,7 @@ export default function InventoryDashboard({
             );
           })}
         </div>
-      </section>
+      </section>}
     </div>
   );
 }

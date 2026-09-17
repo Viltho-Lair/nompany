@@ -15,7 +15,7 @@ import { linkToProject, linkIf } from "@/modules/main/studioLinks";
 import { Field } from "@/components/fields/Field";
 import { supplierOptions, projectOptions, costCodeOptions } from "@/components/studio2/pickerOptions";
 import StudioDate from "@/components/fields/StudioDate";
-import { useAnalyticsLevel } from "@/components/studio2/analyticsLevel";
+import { useAnalyticsLevel, useSectionOn } from "@/components/studio2/analyticsLevel";
 import { assetRegister } from "@/modules/finance/analytics";
 import {
   stripeOn, stripeOff, Dialog, ColumnPicker, prefKey, loadPref, savePref, fmtDate,
@@ -167,12 +167,16 @@ function FinanceCash({ slug, view = "finance" }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const level = useAnalyticsLevel();
+  // Whether the studio runs Finance → Cash. The route reads nothing of Cash's
+  // while it is off; the flag is a dependency of `load` so switching it back on
+  // (the shell refreshes after a toggle) asks for the rows again.
+  const cashOn = useSectionOn()("finance-cash");
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/finance`, { cache: "no-store" });
     if (!res.ok) { setError(tr.accessFinanceStudio); return; }
     setData(await res.json());
-  }, [slug]);
+  }, [slug, cashOn]);
   useReload(load);
   // Invoices and expenses land from elsewhere — reflect them live.
   useLiveUpdates(slug, "finance", load);
@@ -220,8 +224,12 @@ function FinanceCash({ slug, view = "finance" }) {
         {data.canViewDashboard === false ? <Empty title={tr.dashboardIsnYoursSee} body={tr.studioKeepsModuleDashboards} /> : (
           <>
             <FinanceDashboard invoices={invoices} expenses={expenses} level={level} slug={slug} />
-            <FinanceProjects rows={profitability} slug={slug} nav={nav} canManage={canManage} busy={busy}
-              onSave={(payload) => send("projects", "PUT", payload)} />
+            {/* THE MARGINS ARE CASH'S: built from its invoices and expenses,
+                which the route does not read while Cash is switched off. */}
+            {cashOn && (
+              <FinanceProjects rows={profitability} slug={slug} nav={nav} canManage={canManage} busy={busy}
+                onSave={(payload) => send("projects", "PUT", payload)} />
+            )}
           </>
         )}
       </div>
