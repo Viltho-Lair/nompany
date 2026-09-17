@@ -66,8 +66,12 @@ The owner's decision: `NOMPANY_DATA_KEY` is the only encryption key.
 
 - **Stored credentials** (`platform/auth/fieldCrypto.ts`): calendar tokens, the
   platform Nova key, console MFA secrets. New values are `enc:v2:<master>:…`.
-  Old `enc:v1:` values still read, only until
-  `scripts/migrate/rekey-field-crypto.mjs` has re-encrypted them.
+  Old `enc:v1:` values still read, only until they are re-encrypted. **The live
+  conversion runs from the console: Settings → Security → Encryption key**, inside
+  the deployment, because the retired key cannot be read out of Vercel. It shows
+  document names and counts, converts on a second click that names the count,
+  copies every document to `REG.rekeyBackup` first, and writes nothing unless every
+  value opens (`platform/auth/rekey.ts`; the CLI script uses the same module).
 - **Login codes and Google sign-in state**, when `OTP_SECRET` is empty. Changing
   the key only voids codes sent in the minutes around the deploy.
 - **The device fingerprint** on the Security page. It is a one-way digest that is

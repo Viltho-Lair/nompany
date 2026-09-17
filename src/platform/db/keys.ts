@@ -97,6 +97,11 @@ export const REG = {
   // revocation, or a revoked key would still resolve to a studio.
   apiKeyIndex: `${P}g:api-keys`,
   superAdmins: `${P}g:superAdmins`,
+  // THE DOCUMENTS AS THEY STOOD before stored credentials were re-encrypted
+  // under NOMPANY_DATA_KEY (platform/auth/rekey.ts) — the export invariant 17
+  // asks for, kept where the run happens, since production has no disk. Still
+  // encrypted, under the retired key. Deleted once the old key is gone.
+  rekeyBackup: `${P}g:rekey-backup`,
   joinRequests: `${P}g:joinRequests`,
   // Questionnaire DEFINITIONS authored in /super — the forms themselves, not
   // anyone's answers. Platform-level like the studio registry, because a
