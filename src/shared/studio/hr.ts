@@ -8,10 +8,27 @@ import { commonEn, commonAr, type CommonStrings } from "./common";
 // nothing may enumerate them.
 
 type Strings = CommonStrings & {
+  // The identity document (17/09/2026): a kind, an expiry and a picture.
+  documentType: string;
+  documentExpiry: string;
+  documentImage: string;
+  documentLead: string;
+  noDocument: string;
+  documentExpiryRequired: string;
+  documentRefused: string;
+  documentImageType: string;
+  documentImageFailed: string;
+  uploadImage: string;
+  replaceImage: string;
+  removeImage: string;
+  uploadingImage: string;
+  viewImage: string;
+  imageOnFile: string;
+  documentImageForbidden: string;
+  expires: string;
   builtInEverything: string;
   docsExpiringDays: (days: number) => string;
-  idPassportWithin: (days: number) => string;
-  numbersEncrypted: string;
+  documentsWithin: (days: number) => string;
   pickStartDate: string;
   roleHeldBy: (n: number) => string;
   accessHumanResourcesStudio: string;
@@ -55,12 +72,9 @@ type Strings = CommonStrings & {
   endDateBeforeStart: string;
   endDateCanBefore: string;
   expiringDocuments: string;
-  file: string;
   from: string;
   goesWhoeverManagesHr: string;
   headcountDepartment: string;
-  idExpiry: string;
-  idNumber: string;
   identityDocuments: string;
   issuer: string;
   keep: string;
@@ -91,9 +105,6 @@ type Strings = CommonStrings & {
   nothingExpiringAllClear: string;
   open: string;
   ownLeaveRequestsAppear: string;
-  passport: string;
-  passportExpiry: string;
-  passportNumber: string;
   people: string;
   peopleArriveJoiningStudio: string;
   peopleHold: string;
@@ -171,11 +182,27 @@ type Strings = CommonStrings & {
 };
 
 const en: Strings = {
+  documentType: "Identity document",
+  documentExpiry: "Expiry date",
+  documentImage: "Picture of the document",
+  documentLead: "Which document this person holds and when it expires. The expiry is required once a document is chosen, because reminders run on it. The picture is optional and only people who can see sensitive HR details can open it.",
+  noDocument: "None",
+  documentExpiryRequired: "Choose the expiry date for this document.",
+  documentRefused: "That document couldn't be saved. Choose a type from the list and upload the picture again.",
+  documentImageType: "Choose an image file.",
+  documentImageFailed: "The picture didn't upload. Try again.",
+  uploadImage: "Upload picture",
+  replaceImage: "Replace picture",
+  removeImage: "Remove picture",
+  uploadingImage: "Uploading…",
+  viewImage: "view picture",
+  imageOnFile: "picture on file",
+  documentImageForbidden: "Only people who can see sensitive HR details can change the picture.",
+  expires: "expires",
   ...commonEn,
   builtInEverything: "Built in — everything, including future features",
   docsExpiringDays: (days) => `Docs expiring · ${days}d`,
-  idPassportWithin: (days) => `ID and passport within ${days} days, or lapsed`,
-  numbersEncrypted: "Numbers are encrypted before they're stored, and only people who can manage HR can read them back. A stored number stays locked until you unlock it.",
+  documentsWithin: (days) => `Identity documents within ${days} days, or lapsed`,
   pickStartDate: "Pick a start date.",
   roleHeldBy: (n) => `${n} ${n === 1 ? "person holds" : "people hold"} that role, so deleting it would take their access away — that's set on the access screen.`,
   accessHumanResourcesStudio: "You don't have access to Human Resources in this studio.",
@@ -219,12 +246,9 @@ const en: Strings = {
   endDateBeforeStart: "The end date is before the start date.",
   endDateCanBefore: "The end date can't be before the start date.",
   expiringDocuments: "Expiring documents",
-  file: "on file",
   from: "From",
   goesWhoeverManagesHr: "It goes to whoever manages HR for approval.",
   headcountDepartment: "Headcount by department",
-  idExpiry: "ID expiry",
-  idNumber: "ID number",
   identityDocuments: "Identity documents",
   issuer: "Issuer",
   keep: "Keep",
@@ -255,9 +279,6 @@ const en: Strings = {
   nothingExpiringAllClear: "Nothing expiring — all clear.",
   open: "open it",
   ownLeaveRequestsAppear: "Your own leave requests appear here.",
-  passport: "Passport",
-  passportExpiry: "Passport expiry",
-  passportNumber: "Passport number",
   people: "People",
   peopleArriveJoiningStudio: "People arrive by joining the studio and being approved. HR describes who they are once they're in.",
   peopleHold: "people hold",
@@ -334,11 +355,27 @@ const en: Strings = {
 };
 
 const ar: Strings = {
+  documentType: "وثيقة الهوية",
+  documentExpiry: "تاريخ الانتهاء",
+  documentImage: "صورة الوثيقة",
+  documentLead: "الوثيقة التي يحملها هذا الشخص وتاريخ انتهائها. تاريخ الانتهاء مطلوب عند اختيار وثيقة لأن التذكيرات تعتمد عليه. الصورة اختيارية ولا يفتحها إلا من يطلع على بيانات الموارد البشرية الحساسة.",
+  noDocument: "لا شيء",
+  documentExpiryRequired: "اختر تاريخ انتهاء هذه الوثيقة.",
+  documentRefused: "تعذر حفظ الوثيقة. اختر نوعا من القائمة وأعد رفع الصورة.",
+  documentImageType: "اختر ملف صورة.",
+  documentImageFailed: "لم تُرفع الصورة. حاول مرة أخرى.",
+  uploadImage: "رفع صورة",
+  replaceImage: "استبدال الصورة",
+  removeImage: "إزالة الصورة",
+  uploadingImage: "جارٍ الرفع…",
+  viewImage: "عرض الصورة",
+  imageOnFile: "صورة محفوظة",
+  documentImageForbidden: "لا يغير الصورة إلا من يطلع على بيانات الموارد البشرية الحساسة.",
+  expires: "تنتهي",
   ...commonAr,
   builtInEverything: "مدمج — كل شيء، بما في ذلك الميزات المستقبلية",
   docsExpiringDays: (days) => `وثائق توشك على الانتهاء · ${days} يوما`,
-  idPassportWithin: (days) => `الهوية وجواز السفر خلال ${days} يوما، أو منتهيان`,
-  numbersEncrypted: "تشفر الأرقام قبل حفظها، ولا يقرؤها إلا من يملك إدارة الموارد البشرية. ويبقى الرقم المحفوظ مقفلا حتى تفتحه.",
+  documentsWithin: (days) => `وثائق الهوية خلال ${days} يوما، أو المنتهية`,
   pickStartDate: "اختر تاريخ بداية.",
   roleHeldBy: (n) => `${n === 1 ? "شخص واحد يحمل" : n === 2 ? "شخصان يحملان" : n <= 10 ? `${n} أشخاص يحملون` : `${n} شخصا يحمل`} هذا الدور، فحذفه سيسلبهم صلاحياتهم — وذلك يضبط في شاشة الصلاحيات.`,
   accessHumanResourcesStudio: "لا تملك صلاحية الوصول إلى الموارد البشرية في هذا الاستوديو.",
@@ -382,12 +419,9 @@ const ar: Strings = {
   endDateBeforeStart: "تاريخ النهاية قبل تاريخ البداية.",
   endDateCanBefore: "لا يمكن أن يسبق تاريخ النهاية تاريخ البداية.",
   expiringDocuments: "وثائق توشك على الانتهاء",
-  file: "مسجلة",
   from: "من",
   goesWhoeverManagesHr: "يذهب إلى من يدير الموارد البشرية للاعتماد.",
   headcountDepartment: "عدد الموظفين حسب القسم",
-  idExpiry: "انتهاء الهوية",
-  idNumber: "رقم الهوية",
   identityDocuments: "وثائق الهوية",
   issuer: "جهة الإصدار",
   keep: "إبقاء",
@@ -418,9 +452,6 @@ const ar: Strings = {
   nothingExpiringAllClear: "لا شيء يوشك على الانتهاء — كل شيء على ما يرام.",
   open: "افتحها",
   ownLeaveRequestsAppear: "تظهر هنا طلبات إجازتك.",
-  passport: "جواز السفر",
-  passportExpiry: "انتهاء جواز السفر",
-  passportNumber: "رقم جواز السفر",
   people: "الأشخاص",
   peopleArriveJoiningStudio: "يصل الأشخاص بالانضمام إلى الاستوديو والموافقة عليهم. وتصف الموارد البشرية من هم بعد دخولهم.",
   peopleHold: "أشخاص يحملونها",

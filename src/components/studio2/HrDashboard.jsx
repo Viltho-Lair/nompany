@@ -14,6 +14,7 @@
 // import the module. Everything the leave widgets need IS derived inline here,
 import { useStudioLocale } from "@/components/studio2/locale";
 import { hrDict } from "@/shared/studio/hr";
+import { identityDocumentLabel } from "@/shared/identityDocuments";
 // from the vacations the screen already has.
 //
 // ANALYTICS IS PAID, so each widget is gated by the per-component SELECTION model:
@@ -175,7 +176,7 @@ export default function HrDashboard({
           ) : <p className="py-8 text-center text-sm text-slate-400">{tr.noLeaveBookedYet}</p>}
         </Widget>
 
-        <Widget title={tr.expiringDocuments} hint={tr.idPassportWithin(windowDays)} span={2} locked={!visible("hr.expiring-documents")} lockedWhat={tr.expiringDocuments}>
+        <Widget title={tr.expiringDocuments} hint={tr.documentsWithin(windowDays)} span={2} locked={!visible("hr.expiring-documents")} lockedWhat={tr.expiringDocuments}>
           {expiring.length === 0 ? (
             <p className="py-8 text-center text-sm text-slate-400">{tr.nothingExpiringAllClear}</p>
           ) : (
@@ -187,7 +188,7 @@ export default function HrDashboard({
                 {expiring.slice(0, 8).map((e) => (
                   <li key={`${e.collaboratorId}-${e.kind}`} className="flex items-center justify-between gap-3 py-2 text-sm">
                     <span className="min-w-0 truncate text-slate-700 dark:text-slate-200">
-                      {e.alias} <span className="text-slate-400">· {e.kind}</span>
+                      {e.alias} <span className="text-slate-400">· {identityDocumentLabel(e.kind, locale)}</span>
                     </span>
                     <span className="flex shrink-0 items-center gap-3">
                       <span className="num text-xs text-slate-400">{fmtDate(e.date)}</span>

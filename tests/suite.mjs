@@ -2959,10 +2959,10 @@ console.log("\n== time-driven notices fire once per milestone, and reach the rig
   const bill = { id: "b1", reference: "BILL-1", status: "Received", vendorName: "Steel", lines: [{ description: "x", qty: 1, unitPrice: 200 }], vatRate: 0, payments: [], dueDate: "2026-08-22" };
   ok("a bill fires the day it becomes overdue", overdueBillNotices([bill], today).length === 1 && overdueBillNotices([bill], today)[0].name === "Steel", "bill day 1");
 
-  // Documents (ID/passport on the collaborator row) fire on expiry milestones.
+  // The identity document on the collaborator row fires on expiry milestones.
   const emp = (o) => ({ id: "c1", alias: "Sara", ...o });
-  ok("a document fires 7 days before it expires", expiringDocumentNotices([emp({ idExpiry: "2026-08-30" })], new Date(`${today}T00:00:00`)).length === 1, "doc day-7 silent");
-  ok("...and not on an off-milestone day", expiringDocumentNotices([emp({ idExpiry: "2026-08-28" })], new Date(`${today}T00:00:00`)).length === 0, "doc day-5 fired");
+  ok("a document fires 7 days before it expires", expiringDocumentNotices([emp({ documentType: "passport", documentExpiry: "2026-08-30" })], new Date(`${today}T00:00:00`)).length === 1, "doc day-7 silent");
+  ok("...and not on an off-milestone day", expiringDocumentNotices([emp({ documentType: "passport", documentExpiry: "2026-08-28" })], new Date(`${today}T00:00:00`)).length === 0, "doc day-5 fired");
   ok("the expiring milestones are the agreed set", JSON.stringify(EXPIRING_MILESTONES) === JSON.stringify([30, 14, 7, 3, 1, 0]), JSON.stringify(EXPIRING_MILESTONES));
 
   // Permits fire on validTo milestones.

@@ -48,7 +48,8 @@ import { subtreeIds } from "@/shared/departments/tree";
 import { getProfilesByIds } from "@/platform/auth/users";
 import { notifyCollaborators, NOTIFY } from "@/platform/notify/notifications";
 import { collaboratorsHolding } from "@/modules/people/holders";
-import { encryptField, decryptField } from "@/platform/auth/fieldCrypto";
+import { getMedia } from "@/lib/media";
+import { isIdentityDocumentType, MEDIA_PATH } from "@/shared/identityDocuments";
 import type { Certification, Vacation, ExpiringDocument, HrContext } from "./types";
 import type { StudioRef, CollaboratorRef } from "../context";
 import type { Section } from "@/platform/db/sections";
@@ -452,9 +453,10 @@ export async function removeCertification(ctx: HrContext, id: string) {
 }
 
 // ---- the employee record (= the collaborator row) --------------------------
-// `reveal` decrypts the ID/passport numbers, and is only ever passed true for a
-// viewer who can manage HR. The shape is otherwise identical either way, so the
-// screen never has to branch on permission to render a row.
+// `reveal` hands over the picture of somebody's identity document, and is only
+// true for a viewer who may read the sensitive half of the record. The shape is
+// otherwise identical either way, so the screen never has to branch on
+// permission to render a row.
 export async function listEmployees(ctx: HrContext, meId = "") {
   const { studio } = ctx;
   const [people, roles, departments] = await Promise.all([
@@ -465,10 +467,10 @@ export async function listEmployees(ctx: HrContext, meId = "") {
 
   // TWO SEPARATE QUESTIONS, and they used to be one boolean.
   //
-  // WHOSE records you may read is scope. WHETHER identity numbers are legible
-  // is its own permission — someone may legitimately administer a whole
-  // department's records without being entitled to read passport numbers, and
-  // `canManage` could not express that.
+  // WHOSE records you may read is scope. WHETHER the picture of somebody's
+  // identity document is shown is its own permission — someone may legitimately
+  // administer a whole department's records without being entitled to look at
+  // their passports, and `canManage` could not express that.
   const scope = scopeFor(ctx, "hr.employees");
   const reveal = can(ctx.access, "hr.employees.salary");
   const me = people.find((c) => c.id === meId);
@@ -526,13 +528,13 @@ export async function listEmployees(ctx: HrContext, meId = "") {
     dateOfJoin: c.dateOfJoin || "",
     mobile: c.mobile || "",
     certificationIds: Array.isArray(c.certificationIds) ? c.certificationIds : [],
-    // Documents: presence + expiry are HR-wide; the numbers are gated.
-    hasId: !!c.idNumber,
-    hasPassport: !!c.passportNumber,
-    idExpiry: c.idExpiry || "",
-    passportExpiry: c.passportExpiry || "",
-    idNumber: reveal ? decryptField(c.idNumber) : "",
-    passportNumber: reveal ? decryptField(c.passportNumber) : "",
+    // THE IDENTITY DOCUMENT: which kind and when it lapses are HR-wide, because
+    // they are what the reminders act on; the picture is gated. No number is
+    // kept at all any more — the owner's instruction, 17/09/2026.
+    documentType: c.documentType || "",
+    documentExpiry: c.documentExpiry || "",
+    hasDocumentImage: Boolean(c.documentImage),
+    documentImage: reveal ? String(c.documentImage || "") : "",
     // THIS PERSON'S OWN LEAVE ALLOWANCES, replacing the studio's rule for them
     // (leaveBalance.ts). Not gated: what somebody is entitled to is theirs to see.
     leaveAllowances: (c as { leaveAllowances?: unknown }).leaveAllowances || {},
@@ -582,13 +584,37 @@ export async function saveEmployment(ctx: HrContext, collaboratorId: string, bod
   if (body?.employeeCode !== undefined) patch.employeeCode = str(body.employeeCode, 40);
   if (body?.mobile !== undefined) patch.mobile = str(body.mobile, 40);
   if (body?.dateOfJoin !== undefined) patch.dateOfJoin = day(body.dateOfJoin);
-  if (body?.idExpiry !== undefined) patch.idExpiry = day(body.idExpiry);
-  if (body?.passportExpiry !== undefined) patch.passportExpiry = day(body.passportExpiry);
 
-  // Numbers are encrypted before they touch the store. An empty string clears
-  // the field; leaving the key out entirely leaves the stored value alone.
-  if (body?.idNumber !== undefined) patch.idNumber = encryptField(str(body.idNumber, 60));
-  if (body?.passportNumber !== undefined) patch.passportNumber = encryptField(str(body.passportNumber, 60));
+  // THE IDENTITY DOCUMENT, judged as it WILL stand — a save may send the type
+  // alone, or the expiry alone, and the rule is about the pair. A key left out
+  // leaves the stored value alone; an empty type clears all three, because an
+  // expiry or a picture of no kind of document is not a record of anything.
+  const touchesDocument = ["documentType", "documentExpiry", "documentImage"].some((k) => body?.[k] !== undefined);
+  if (touchesDocument) {
+    const type = body?.documentType !== undefined ? str(body.documentType, 40) : String(person.documentType || "");
+    if (type && !isIdentityDocumentType(type)) return { error: "document-type" };
+    const expiry = !type ? "" : body?.documentExpiry !== undefined ? day(body.documentExpiry) : String(person.documentExpiry || "");
+    // REQUIRED WITH A TYPE: the expiry is what the reminders run on, and a
+    // document with none would sit on file and never be chased.
+    if (type && !expiry) return { error: "document-expiry" };
+    const image = !type ? "" : body?.documentImage !== undefined ? str(body.documentImage, 80) : String(person.documentImage || "");
+    // ONLY WHO MAY SEE THE PICTURE MAY CHANGE IT. Audit finding M-9 was exactly
+    // this shape for the numbers — somebody could overwrite an ID they were not
+    // allowed to read — and a picture must not bring it back.
+    if (body?.documentImage !== undefined && image !== String(person.documentImage || "")
+      && !can(ctx.access, "hr.employees.salary")) {
+      return { error: "forbidden-field" };
+    }
+    if (image && body?.documentImage !== undefined) {
+      // THIS STUDIO'S, AND PRIVATE. A public upload is served to anybody with the
+      // link, and one filed under another studio is not this studio's to show.
+      const media = MEDIA_PATH.test(image) ? await getMedia(image.slice("/api/media/".length)) : null;
+      if (!media || media.visibility !== "private" || media.studioId !== studio.id) return { error: "document-image" };
+    }
+    patch.documentType = type;
+    patch.documentExpiry = expiry;
+    patch.documentImage = image;
+  }
 
   // ONLY TYPES THE STUDIO HAS A RULE FOR — an allowance for a type nothing
   // counts would be stored and read by nothing.
@@ -614,15 +640,16 @@ export function expiringDocuments(employees: Record<string, unknown>[], today = 
   limit.setDate(limit.getDate() + EXPIRY_WINDOW_DAYS);
   const out: ExpiringDocument[] = [];
   for (const e of employees) {
-    for (const [kind, date] of [["ID", e.idExpiry], ["Passport", e.passportExpiry]]) {
-      if (!date) continue;
-      const when = new Date(`${date}T00:00:00`);
-      if (Number.isNaN(when.getTime()) || when > limit) continue;
-      out.push({
-        collaboratorId: String(e.id), alias: String(e.alias), kind: String(kind), date: String(date),
-        daysLeft: Math.ceil((when.getTime() - today.getTime()) / 86400000),
-      });
-    }
+    // `kind` is the document-type TOKEN; whoever shows it translates it.
+    const kind = String(e.documentType || "");
+    const date = String(e.documentExpiry || "");
+    if (!kind || !date) continue;
+    const when = new Date(`${date}T00:00:00`);
+    if (Number.isNaN(when.getTime()) || when > limit) continue;
+    out.push({
+      collaboratorId: String(e.id), alias: String(e.alias), kind, date,
+      daysLeft: Math.ceil((when.getTime() - today.getTime()) / 86400000),
+    });
   }
   return out.sort((a, b) => a.daysLeft - b.daysLeft);
 }

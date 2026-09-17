@@ -1,4 +1,5 @@
 import { route } from "@/platform/http/route";
+import { can } from "@/platform/access";
 import { valuesFor } from "@/modules/administration/taxonomy";
 import {
   hrContext, listDepartments, listHrRoles, listCertifications, listEmployees,
@@ -34,6 +35,9 @@ export const GET = route(
     // and not an HR one — the screen hides the control rather than offering it
     // and being refused.
     canAssignRoles: g.canAssignRoles,
+    // Whether this viewer may see, and so change, the picture of somebody's
+    // identity document. The picture is withheld from everybody else.
+    canSeeDocumentImages: can(g.access, "hr.employees.salary"),
     nav: g.nav,
     // Manage per section key, so each screen can ask about itself rather
     // than being handed the parent section's answer.

@@ -233,7 +233,9 @@ Three families of pre-pivot keys (a 10.8 KB `db` string, a `settings` hash, and 
 ### M-8 · Coarse write gate can mislead
 `hrGuard(params, { write: true })` tests `sectionManageable` — "any write on any area of this module". Someone holding `hr.employees.edit` but not `hr.vacations.create` passes the gate and is then correctly refused by `requirePermission` inside the service. The behaviour is safe (defence in depth works), but the client receives `read-only` from the gate in some paths and `forbidden` from the service in others for the same class of refusal.
 
-### M-9 · Write rights and read rights diverge on encrypted PII
+### M-9 · Write rights and read rights diverge on encrypted PII — RESOLVED 17/09/2026
+**Resolved by removal:** ID and passport numbers are no longer kept at all. Their replacement, the picture of an identity document, can only be changed by somebody holding `hr.employees.salary`, the right that reveals it.
+
 `saveEmployment` requires `hr.employees.edit` to write `idNumber`/`passportNumber`, but `hr.employees.salary` to *read* them (`src/modules/hr/hr.js:370`, `:318`). Someone who cannot see an ID number can overwrite it.
 
 ### M-10 · `sweepOrphans` will time out before the data outgrows it

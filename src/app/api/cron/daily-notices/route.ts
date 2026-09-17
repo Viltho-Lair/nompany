@@ -10,6 +10,7 @@ import { resolveHolders } from "@/lib/studios";
 import { notifyCollaborators, NOTIFY } from "@/platform/notify/notifications";
 import { raiseDuePlanJobs } from "@/modules/operations/planJobs";
 import { engineSectionKey } from "@/platform/access";
+import { identityDocumentLabel } from "@/shared/identityDocuments";
 import { raiseDuePmOrders, raiseDueContractOrders, raiseDueConditionOrders } from "@/modules/maintenance/pmRun";
 import {
   overdueInvoiceNotices, overdueBillNotices, expiringDocumentNotices, expiringPermitNotices,
@@ -155,12 +156,12 @@ async function noticesForStudio(studioId: string, todayISO: string, todayDate: D
     `${label(n)} ${(n.daysLeft ?? 0) <= 0 ? "expires today" : `expires in ${n.daysLeft} day${n.daysLeft === 1 ? "" : "s"}`}`;
 
   // Each notice type: the batch (computed once), whose right hears it, and how to
-  // word it. Employees ARE the collaborators — their ID/passport expiries sit on
-  // the collaborator row — so the HR scan reads no extra key.
+  // word it. Employees ARE the collaborators — their identity document's expiry
+  // sits on the collaborator row — so the HR scan reads no extra key.
   const jobs = [
     { notices: overdueInvoiceNotices(invoices as never, todayISO, currency), key: "finance.cash.view", also: "", type: NOTIFY.invoiceOverdue, title: "Overdue invoices", href: "finance/cash", say: overdueDetail },
     { notices: overdueBillNotices(bills as never, todayISO, currency), key: "finance.payables.view", also: "", type: NOTIFY.billOverdue, title: "Bills overdue", href: "finance/payables", say: overdueDetail },
-    { notices: expiringDocumentNotices(collaborators as never, todayDate), key: "hr.employees.view", also: "", type: NOTIFY.documentExpiring, title: "Documents expiring", href: "hr/employees", say: expiryDetail((n) => `${n.name}'s ${n.kind}`) },
+    { notices: expiringDocumentNotices(collaborators as never, todayDate), key: "hr.employees.view", also: "", type: NOTIFY.documentExpiring, title: "Documents expiring", href: "hr/employees", say: expiryDetail((n) => `${n.name}'s ${identityDocumentLabel(n.kind, "en", { inSentence: true })}`) },
     // PERMITS ARE QUALITY & HSE'S (tier 5). Heard by the permit right AND by
     // Tracking's, which held them until `grant-permits.mjs` has run — a notice
     // that went quiet the day its right moved would be the one nobody misses.

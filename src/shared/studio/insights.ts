@@ -1,4 +1,5 @@
 import { defaultLocale, type Locale } from "../locale";
+import { identityDocumentLabel } from "../identityDocuments";
 
 // WHAT NOVA'S BUBBLE SAYS, in the reader's language.
 //
@@ -117,7 +118,6 @@ const LABEL_EN: Record<string, string> = {
   "notifications.unread": "Notifications",
 };
 
-const DOC_EN: Record<string, string> = { ID: "ID", Passport: "passport" };
 
 function textEn(kind: string, v: InsightVars, money: MoneyFmt): string | null {
   const tail = moreEn(v.more);
@@ -169,7 +169,7 @@ function textEn(kind: string, v: InsightVars, money: MoneyFmt): string | null {
         ? `${s(v.reference)} expires today.${tail}`
         : `${s(v.reference)} expires in ${daysEn(n(v.days))}.${tail}`;
     case "hr.docExpiring": {
-      const doc = DOC_EN[s(v.docKind)] || s(v.docKind).toLowerCase();
+      const doc = identityDocumentLabel(s(v.docKind), "en", { inSentence: true });
       const d = n(v.days);
       if (d < 0) return `${s(v.alias)}’s ${doc} expired ${daysEn(-d)} ago.${tail}`;
       if (d === 0) return `${s(v.alias)}’s ${doc} expires today.${tail}`;
@@ -217,7 +217,6 @@ const LABEL_AR: Record<string, string> = {
   "notifications.unread": "الإشعارات",
 };
 
-const DOC_AR: Record<string, string> = { ID: "الهوية", Passport: "جواز السفر" };
 
 function textAr(kind: string, v: InsightVars, money: MoneyFmt): string | null {
   const tail = moreAr(v.more);
@@ -269,7 +268,7 @@ function textAr(kind: string, v: InsightVars, money: MoneyFmt): string | null {
         ? `${s(v.reference)} تنتهي اليوم.${tail}`
         : `${s(v.reference)} تنتهي خلال ${daysAr(n(v.days))}.${tail}`;
     case "hr.docExpiring": {
-      const doc = DOC_AR[s(v.docKind)] || s(v.docKind);
+      const doc = identityDocumentLabel(s(v.docKind), "ar");
       const d = n(v.days);
       if (d < 0) return `${doc} الخاصة بـ${s(v.alias)} انتهت قبل ${daysAr(-d)}.${tail}`;
       if (d === 0) return `${doc} الخاصة بـ${s(v.alias)} تنتهي اليوم.${tail}`;

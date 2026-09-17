@@ -18,6 +18,7 @@ import { payrollDict } from "@/shared/studio/payroll";
 import { attendanceDict } from "@/shared/studio/attendance";
 import { manpowerDict } from "@/shared/studio/manpower";
 import { countLeaveDays } from "@/modules/hr/leaveBalance";
+import { IDENTITY_DOCUMENT_TYPES, identityDocumentLabel } from "@/shared/identityDocuments";
 
 // THE DASHBOARD LOADS WHEN IT IS SHOWN, not with this screen. It was a static
 // import, so every tenant page carried every department's dashboard and the
@@ -102,6 +103,9 @@ export default function StudioHr({ slug, view = "hr" }) {
         : out.error === "role-forbidden" ? roleForbiddenMessage(out, tr)
         : out.error === "escalation" ? tr.canOnlyGiveSomebody
         : out.error === "department" ? tr.sectionIsnPartStudio
+        : out.error === "document-expiry" ? tr.documentExpiryRequired
+        : out.error === "document-type" || out.error === "document-image" ? tr.documentRefused
+        : out.error === "forbidden-field" ? tr.documentImageForbidden
         : out.error === "overlap" ? `That overlaps leave already booked ${fmt(out.from)} – ${fmt(out.to)}.`
         : out.error === "already-decided" ? `That request was already ${String(out.status || "").toLowerCase()}.`
         : out.error === "range" ? tr.endDateCanBefore
@@ -192,6 +196,7 @@ export default function StudioHr({ slug, view = "hr" }) {
       {tab === "people" && (
         <People employees={employees} departments={departments} roles={roles}
           certifications={certifications} canManage={canManage} canAssignRoles={data.canAssignRoles}
+          canSeeDocumentImages={Boolean(data.canSeeDocumentImages)}
           slug={slug} busy={busy} leaveRules={data.leave?.rules?.leave || {}}
           onSave={(collaboratorId, patch) => send("employees", "PUT", { collaboratorId, patch })} />
       )}
@@ -229,7 +234,8 @@ function roleForbiddenMessage(out, tr) {
 
 // ---- overview --------------------------------------------------------------
 function Overview({ headcount, departments, expiring, windowDays }) {
-  const tr = hrDict(useStudioLocale());
+  const locale = useStudioLocale();
+  const tr = hrDict(locale);
   // STAFFED FIRST AND LARGEST FIRST, with a bar each so the shape of the
   // company reads at a glance. A department with nobody in it is still listed —
   // it exists and somebody may be about to join it — but once, together, and
@@ -283,7 +289,7 @@ function Overview({ headcount, departments, expiring, windowDays }) {
           <ul className="mt-2 space-y-1 text-sm text-amber-800 dark:text-amber-200">
             {expiring.map((e) => (
               <li key={`${e.collaboratorId}-${e.kind}`}>
-                <span className="font-600">{e.alias}</span> — {e.kind} · {e.daysLeft < 0 ? tr.expiredAgo(Math.abs(e.daysLeft)) : tr.expiresIn(e.daysLeft)} ({fmt(e.date)})
+                <span className="font-600">{e.alias}</span> — {identityDocumentLabel(e.kind, locale)} · {e.daysLeft < 0 ? tr.expiredAgo(Math.abs(e.daysLeft)) : tr.expiresIn(e.daysLeft)} ({fmt(e.date)})
               </li>
             ))}
           </ul>
@@ -294,7 +300,7 @@ function Overview({ headcount, departments, expiring, windowDays }) {
 }
 
 // ---- people ----------------------------------------------------------------
-function People({ employees, departments, roles, certifications, canManage, canAssignRoles, slug, busy, leaveRules, onSave }) {
+function People({ employees, departments, roles, certifications, canManage, canAssignRoles, canSeeDocumentImages, slug, busy, leaveRules, onSave }) {
   const tr = hrDict(useStudioLocale());
   const [editing, setEditing] = useState(null);
   const [query, setQuery] = useState("");
@@ -319,14 +325,14 @@ function People({ employees, departments, roles, certifications, canManage, canA
         <Field label={tr.searchNameCodeDepartment} type="search" className="w-full sm:max-w-xs"
           value={query} onChange={setQuery} />
         <p className="text-sm text-slate-500 dark:text-slate-400">
-          {filtered.length} of {employees.length}. Identity numbers are encrypted at rest.
+          {filtered.length} of {employees.length}.
         </p>
       </div>
 
       {editing && (
         <Dialog title={editing.alias} description={tr.employmentDetailsApplyInside} onClose={closeEditing} width="max-w-[820px]">
           <EmployeeEditor person={editing} departments={departments} roles={roles}
-            certifications={certifications} canAssignRoles={canAssignRoles} slug={slug}
+            certifications={certifications} canAssignRoles={canAssignRoles} canSeeDocumentImages={canSeeDocumentImages} slug={slug}
             leaveRules={leaveRules} busy={busy} onCancel={closeEditing}
             onSave={async (patch) => { if (await onSave(editing.id, patch)) setEditing(null); }} />
         </Dialog>
@@ -383,7 +389,7 @@ function People({ employees, departments, roles, certifications, canManage, canA
                         ))}
                       </div>
                     )}
-                    <div className="mt-2"><Documents person={e} canManage={canManage} /></div>
+                    <div className="mt-2"><Documents person={e} /></div>
                   </div>
 
                   {canManage && (
@@ -399,31 +405,26 @@ function People({ employees, departments, roles, certifications, canManage, canA
   );
 }
 
-// A view-only viewer sees that a document is on file and when it expires —
-// never the number. That's the whole point of encrypting it at rest.
-function Documents({ person, canManage }) {
-  const tr = hrDict(useStudioLocale());
-  const items = [
-    { kind: "ID", has: person.hasId, number: person.idNumber, expiry: person.idExpiry },
-    { kind: tr.passport, has: person.hasPassport, number: person.passportNumber, expiry: person.passportExpiry },
-  ].filter((d) => d.has || d.expiry);
-
-  if (items.length === 0) return <span className="text-xs text-slate-400">{tr.noDocumentsFile}</span>;
+// Which document somebody holds and when it lapses are shown to everybody who
+// may read the record; the picture only to whoever the server handed it to.
+function Documents({ person }) {
+  const locale = useStudioLocale();
+  const tr = hrDict(locale);
+  if (!person.documentType) return <span className="text-xs text-slate-400">{tr.noDocumentsFile}</span>;
   return (
-    <span className="flex flex-col gap-0.5">
-      {items.map((d) => (
-        <span key={d.kind} className="text-xs text-slate-600 dark:text-slate-300">
-          <span className="font-600">{d.kind}</span>{" "}
-          {canManage && d.number ? <span className="font-mono">{d.number}</span> : d.has ? tr.file : ""}
-          {d.expiry && <span className="text-slate-400"> · exp {fmt(d.expiry)}</span>}
-        </span>
-      ))}
+    <span className="text-xs text-slate-600 dark:text-slate-300">
+      <span className="font-600">{identityDocumentLabel(person.documentType, locale)}</span>
+      {person.documentExpiry && <span className="text-slate-400"> · {tr.expires} {fmt(person.documentExpiry)}</span>}
+      {person.documentImage
+        ? <> · <a href={person.documentImage} target="_blank" rel="noreferrer" className="font-600 text-brand-700 hover:underline dark:text-brand-300">{tr.viewImage}</a></>
+        : person.hasDocumentImage ? <span className="text-slate-400"> · {tr.imageOnFile}</span> : null}
     </span>
   );
 }
 
-function EmployeeEditor({ person, departments, roles, certifications, canAssignRoles, slug, leaveRules = {}, busy, onCancel, onSave }) {
-  const tr = hrDict(useStudioLocale());
+function EmployeeEditor({ person, departments, roles, certifications, canAssignRoles, canSeeDocumentImages, slug, leaveRules = {}, busy, onCancel, onSave }) {
+  const locale = useStudioLocale();
+  const tr = hrDict(locale);
   const ruledTypes = Object.keys(leaveRules);
   const [form, setForm] = useState({
     // THIS PERSON'S OWN ALLOWANCES, as text so a blank stays blank ("use the
@@ -434,16 +435,35 @@ function EmployeeEditor({ person, departments, roles, certifications, canAssignR
     employeeCode: person.employeeCode || "",
     dateOfJoin: person.dateOfJoin || "",
     mobile: person.mobile || "",
-    idNumber: person.idNumber || "",
-    idExpiry: person.idExpiry || "",
-    passportNumber: person.passportNumber || "",
-    passportExpiry: person.passportExpiry || "",
+    documentType: person.documentType || "",
+    documentExpiry: person.documentExpiry || "",
+    documentImage: person.documentImage || "",
     certificationIds: person.certificationIds || [],
   });
-  // A stored identity number is READ-ONLY until it is deliberately unlocked, so
-  // editing somebody's phone number can never fat-finger over their passport.
-  const [editId, setEditId] = useState(false);
-  const [editPassport, setEditPassport] = useState(false);
+  // THE PICTURE IS SENT ONLY WHEN IT WAS CHANGED HERE. Somebody who may edit the
+  // record but not see the picture is handed none, and sending that blank back
+  // would delete a picture they were never shown.
+  const [imageChanged, setImageChanged] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+  const needsExpiry = Boolean(form.documentType) && !form.documentExpiry;
+  async function uploadImage(file) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { setUploadError(tr.documentImageType); return; }
+    setUploading(true); setUploadError("");
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      // PRIVATE and filed under this studio: an identity document is served
+      // only to the studio's members, and only after the media route checks.
+      const res = await fetch(`/api/media?kind=private&slug=${encodeURIComponent(slug)}`, { method: "POST", body });
+      const out = await res.json().catch(() => ({}));
+      if (!res.ok || !out.url) throw new Error("upload");
+      setForm((f) => ({ ...f, documentImage: out.url }));
+      setImageChanged(true);
+    } catch { setUploadError(tr.documentImageFailed); }
+    finally { setUploading(false); }
+  }
   // Somebody may hold more than one, and any one of them is enough to act — so
   // this is a list, exactly as it is on the access screen.
   const toggleRole = (id) => setForm((f) => ({
@@ -521,36 +541,47 @@ function EmployeeEditor({ person, departments, roles, certifications, canAssignR
 
       <div className="mt-6 rounded-xl border border-slate-200/70 p-4 dark:border-white/10">
         <p className="font-display text-sm font-700 text-slate-900 dark:text-white">{tr.identityDocuments}</p>
-        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-          {tr.numbersEncrypted}
-        </p>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <div>
-            <div className="flex items-start gap-2">
-              <Field label={tr.idNumber} className="flex-1" value={form.idNumber} disabled={!editId}
-                onChange={(val) => setForm((f) => ({ ...f, idNumber: val }))} />
-              <button type="button" onClick={() => setEditId((v) => !v)}
-                className="mt-3 rounded-md px-2 py-0.5 text-xs font-600 text-brand-700 hover:bg-brand-500/10 dark:text-brand-300">
-                {editId ? "lock" : "edit"}
-              </button>
-            </div>
-            <Field label={tr.idExpiry} filled={!!form.idExpiry} className="mt-2">
-              <StudioDate value={form.idExpiry} onChange={(iso) => setForm((f) => ({ ...f, idExpiry: iso }))} />
+        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{tr.documentLead}</p>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <Field label={tr.documentType} as="select" value={form.documentType}
+            onChange={(v) => setForm((f) => ({ ...f, documentType: v, ...(v ? {} : { documentExpiry: "", documentImage: "" }) }))}
+            options={[{ value: "", label: tr.noDocument }, ...IDENTITY_DOCUMENT_TYPES.map((t) => ({ value: t, label: identityDocumentLabel(t, locale) }))]} />
+          {form.documentType && (
+            <Field label={`${tr.documentExpiry} *`} filled={!!form.documentExpiry}
+              hint={needsExpiry ? tr.documentExpiryRequired : undefined}>
+              <StudioDate value={form.documentExpiry} onChange={(iso) => setForm((f) => ({ ...f, documentExpiry: iso }))} />
             </Field>
-          </div>
-          <div>
-            <div className="flex items-start gap-2">
-              <Field label={tr.passportNumber} className="flex-1" value={form.passportNumber} disabled={!editPassport}
-                onChange={(val) => setForm((f) => ({ ...f, passportNumber: val }))} />
-              <button type="button" onClick={() => setEditPassport((v) => !v)}
-                className="mt-3 rounded-md px-2 py-0.5 text-xs font-600 text-brand-700 hover:bg-brand-500/10 dark:text-brand-300">
-                {editPassport ? "lock" : "edit"}
-              </button>
+          )}
+          {form.documentType && canSeeDocumentImages && (
+            <div>
+              <p className={label}>{tr.documentImage}</p>
+              <div className="flex flex-wrap items-center gap-2">
+                {form.documentImage
+                  ? <a href={form.documentImage} target="_blank" rel="noreferrer" className="block">
+                      {/* A PRIVATE file: the media route checks the reader's
+                          membership on every read, which next/image's optimiser,
+                          fetching without the reader's cookies, cannot pass. */}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={form.documentImage} alt={tr.documentImage} className="h-16 w-24 rounded-md border border-slate-200 object-cover dark:border-white/10" />
+                    </a>
+                  : person.hasDocumentImage && !imageChanged
+                    ? <span className="text-xs text-slate-500 dark:text-slate-400">{tr.imageOnFile}</span>
+                    : null}
+                <label className={`${btnGhost} cursor-pointer`}>
+                  {uploading ? tr.uploadingImage : form.documentImage || (person.hasDocumentImage && !imageChanged) ? tr.replaceImage : tr.uploadImage}
+                  <input type="file" accept="image/*" className="hidden" disabled={uploading}
+                    onChange={(e) => { uploadImage(e.target.files?.[0]); e.target.value = ""; }} />
+                </label>
+                {(form.documentImage || (person.hasDocumentImage && !imageChanged)) && (
+                  <button type="button" className={btnGhost}
+                    onClick={() => { setForm((f) => ({ ...f, documentImage: "" })); setImageChanged(true); }}>
+                    {tr.removeImage}
+                  </button>
+                )}
+              </div>
+              {uploadError && <p className="mt-1 text-xs text-rose-600 dark:text-rose-400">{uploadError}</p>}
             </div>
-            <Field label={tr.passportExpiry} filled={!!form.passportExpiry} className="mt-2">
-              <StudioDate value={form.passportExpiry} onChange={(iso) => setForm((f) => ({ ...f, passportExpiry: iso }))} />
-            </Field>
-          </div>
+          )}
         </div>
       </div>
 
@@ -595,8 +626,11 @@ function EmployeeEditor({ person, departments, roles, certifications, canAssignR
             assign them. Sending it unchanged would be refused rather than
             ignored, which would make saving a phone number fail for anybody
             holding HR and nothing else. */}
-        <button className={btn} disabled={busy}
-          onClick={() => { const { roleIds, ...rest } = form; onSave(canAssignRoles ? form : rest); }}>
+        <button className={btn} disabled={busy || uploading || needsExpiry}
+          onClick={() => {
+            const { roleIds, documentImage, ...rest } = form;
+            onSave({ ...rest, ...(canAssignRoles ? { roleIds } : {}), ...(imageChanged ? { documentImage } : {}) });
+          }}>
           {busy ? tr.saving : tr.save}
         </button>
         <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>

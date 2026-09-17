@@ -36,8 +36,9 @@ import { emit, SCOPE, TYPE } from "@/platform/realtime/events";
 const HR_DEFAULTS = {
   departmentId: "", employeeCode: "", dateOfJoin: "",
   mobile: "", certificationIds: [],
-  idNumber: "", passportNumber: "", idExpiry: "", passportExpiry: "",
-  idImage: "", passportImage: "",
+  // ONE IDENTITY DOCUMENT: its kind, when it lapses and an optional picture.
+  // ID and passport NUMBERS are no longer kept (the owner, 17/09/2026).
+  documentType: "", documentExpiry: "", documentImage: "",
 };
 
 // UNIQUE(StudioID, UserID) is enforced INSIDE the atomic write, so two approvals
