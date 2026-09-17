@@ -53,7 +53,7 @@ Three collections, all filed under `crm-sales-pos`:
   till.
 - **`posReceipts`** — a sale: number (series `RCT`), till, shift, cashier, time, and **everything
   that decided the money, frozen**: currency, VAT rate, tax method, whether prices included tax,
-  the lines (item, pack, count, price, tax category, units taken and **which batch each came
+  the lines (item, count, price, tax category, units taken and **which batch each came
   from**), the payments, what was paid, the change, and the totals with their per-rate
   breakdown. A receipt is never edited or deleted.
 
@@ -118,8 +118,8 @@ The Sales Manager shape holds all of it; the shift-leader shape sells and closes
 not change prices.
 
 **Selling.**
-- A scan goes through `findByBarcode` (`barcodes.md`): the item's own code is one unit, a pack's
-  code is the pack. Anything that is not a code is searched by name and SKU; a single match is
+- A scan goes through `findByBarcode` (`barcodes.md`): an item's code is one of its unit (packs were
+  removed 17/09/2026 — the item's unit says how it is sold). Anything that is not a code is searched by name and SKU; a single match is
   added.
 - **The server prices the basket from the items**, never from the screen. A typed price is used
   only when the seller holds `discount`; an item with no price is refused unless they do.

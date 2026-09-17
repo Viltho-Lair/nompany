@@ -20,19 +20,21 @@ const ok = (label, cond, extra = "") => {
 };
 const j = (v) => JSON.stringify(v);
 
-const line = (price, count = 1, extra = {}) => ({ itemId: "i", description: "x", packQty: 1, count, price, ...extra });
+const line = (price, count = 1, extra = {}) => ({ itemId: "i", description: "x", count, price, ...extra });
 
 console.log("\n== a basket's lines");
 const cleaned = P.cleanPosLines([
-  { itemId: "a", count: "2", price: "1.5", packQty: 0 },
+  { itemId: "a", count: "2", price: "1.5" },
   { itemId: "", count: 1 },
   { itemId: "b", count: 0 },
   { itemId: "c", count: 1, packName: "Box", packQty: 20, taxCategory: "zero" },
 ]);
 ok("a line needs an item and a count", cleaned.length === 2, j(cleaned));
-ok("a pack of nought is one unit", cleaned[0].packQty === 1);
-ok("the pack and the tax category are kept", cleaned[1].packName === "Box" && cleaned[1].taxCategory === "zero");
-ok("a line of three boxes of twenty takes sixty units", P.unitsOf({ count: 3, packQty: 20 }) === 60);
+// PACKS WERE REMOVED (17/09/2026): a line is a count of the item's own unit,
+// and whatever a stale screen still sends about a pack is dropped.
+ok("a pack sent by an old screen is dropped", !("packName" in cleaned[1]) && !("packQty" in cleaned[1]));
+ok("the tax category is kept", cleaned[1].taxCategory === "zero");
+ok("a line takes its count in units, whatever a pack once said", P.unitsOf({ count: 3, packQty: 20 }) === 3);
 
 console.log("\n== prices that include tax");
 const inc = P.posTotals([line(11.5)], { vatRate: 15, currency: "SAR", pricesIncludeTax: true });

@@ -167,7 +167,7 @@ export async function posView(ctx: PosContext) {
     // what the shop paid, and the till needs only the price.
     items: items.map((i) => ({
       id: i.id, name: i.name, sku: i.sku, unit: i.unit,
-      barcode: i.barcode || "", packs: i.packs || [],
+      barcode: i.barcode || "",
       sellPrice: Number(i.sellPrice) || 0,
       ...(i.taxCategory ? { taxCategory: i.taxCategory } : {}),
     })),
@@ -342,27 +342,19 @@ export async function createSale(ctx: PosContext, body: Record<string, unknown>)
   for (const l of asked) {
     const item = byId.get(l.itemId);
     if (!item) return { error: "item" as const, itemId: l.itemId };
-    const pack = l.packName ? (item.packs || []).find((p) => p.name === l.packName) : undefined;
-    if (l.packName && !pack) return { error: "pack" as const, itemId: l.itemId, pack: l.packName };
-    const unitPrice = Number(item.sellPrice) > 0 ? Number(item.sellPrice) : null;
-    const listed = pack
-      ? (pack.sellPrice && pack.sellPrice > 0 ? pack.sellPrice : unitPrice !== null ? unitPrice * pack.qty : null)
-      : unitPrice;
+    const listed = Number(item.sellPrice) > 0 ? Number(item.sellPrice) : null;
     const price = mayReprice && l.price > 0 ? l.price : listed;
     if (price === null) return { error: "unpriced" as const, itemId: item.id, name: item.name };
     lines.push({
       itemId: item.id,
-      description: pack ? `${item.name} — ${pack.name}` : item.name,
-      ...(pack ? { packName: pack.name } : {}),
-      packQty: pack ? pack.qty : 1,
+      description: item.name,
       count: l.count,
       price,
       ...(item.taxCategory && item.taxCategory !== "standard" ? { taxCategory: item.taxCategory as "zero" | "exempt" } : {}),
     });
   }
 
-  // THE STOCK, per item across every line of it (a box and two singles are one
-  // item's units), taken batch by batch.
+  // THE STOCK, per item across every line of it, taken batch by batch.
   const onHand = balances(movements);
   const rows = batchView(batches, movements, now().slice(0, 10));
   const { untracked } = batchBalances(movements, new Set(batches.map((b) => b.id)));

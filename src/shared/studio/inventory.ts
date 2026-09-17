@@ -248,14 +248,6 @@ type Strings = CommonStrings & {
   // WHAT A SCANNER READS, and the multiples an item is sold in.
   barcode: string;
   barcodeHint: string;
-  packs: string;
-  packsLead: string;
-  packName: string;
-  packQty: (unit: string) => string;
-  packBarcode: string;
-  packPrice: string;
-  addPack: string;
-  removePack: string;
   unknownVendor: string;
   upload: string;
   uploading: string;
@@ -541,14 +533,6 @@ Here is my vendor list:`,
   marginIs: (pct) => (pct < 0 ? `Below cost (${pct}% margin)` : `${pct}% margin`),
   barcode: "Barcode",
   barcodeHint: "What a scanner reads for one unit. It must not belong to another item.",
-  packs: "Packs",
-  packsLead: "The multiples this item is also sold in — a box, a strip, a carton — each with its own barcode and, if it differs, its own price. Stock is still counted in the item's unit.",
-  packName: "Pack",
-  packQty: (unit) => `Units in it${unit ? ` (${unit})` : ""}`,
-  packBarcode: "Pack barcode",
-  packPrice: "Pack price",
-  addPack: "Add a pack",
-  removePack: "Remove",
   unknownVendor: "Unknown vendor",
   upload: "Upload",
   uploading: "Uploading…",
@@ -834,14 +818,6 @@ Name,Contact Name,Email,Phone,Item Types
   marginIs: (pct) => (pct < 0 ? `دون التكلفة (هامش ${pct}%)` : `هامش ${pct}%`),
   barcode: "الباركود",
   barcodeHint: "ما يقرؤه الماسح لوحدة واحدة، ويجب ألا يخص صنفا آخر.",
-  packs: "العبوات",
-  packsLead: "المضاعفات التي يباع بها هذا الصنف أيضا — علبة أو شريط أو كرتونة — لكل منها باركود خاص وسعر خاص إن اختلف. يبقى المخزون محسوبا بوحدة الصنف.",
-  packName: "العبوة",
-  packQty: (unit) => `عدد الوحدات فيها${unit ? ` (${unit})` : ""}`,
-  packBarcode: "باركود العبوة",
-  packPrice: "سعر العبوة",
-  addPack: "إضافة عبوة",
-  removePack: "إزالة",
   unknownVendor: "مورد غير معروف",
   upload: "رفع",
   uploading: "جار الرفع…",

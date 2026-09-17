@@ -1,10 +1,11 @@
 // WHAT A SCAN MEANS, AND WHICH BATCH A SALE TAKES — the two things a till needs
 // from Inventory before it can sell anything.
 //
-// THE DEFECTS THESE GUARD: an item had no barcode and one unit only, so a shop
-// selling by the piece and by the box could not be scanned at all; and a sale
-// took stock from no batch, so an expired lot could be sold and a recall could
-// not say who bought which.
+// THE DEFECTS THESE GUARD: an item had no barcode, so a till could not scan it;
+// two items answering to one code make a till pick whichever it finds first;
+// and a sale took stock from no batch, so an expired lot could be sold and a
+// recall could not say who bought which. (Packs — a box sold under a code of its
+// own — were removed on 17/09/2026: the item's unit says how it is sold.)
 
 import { register } from "node:module";
 import { pathToFileURL } from "node:url";
@@ -21,38 +22,26 @@ const ok = (label, cond, extra = "") => {
 };
 
 const items = [
-  { id: "i1", name: "Paracetamol", barcode: "6281000000011", sellPrice: 0.5,
-    packs: [{ name: "Box", qty: 20, barcode: "6281000000028", sellPrice: 8 }, { name: "Strip", qty: 10, barcode: "6281000000035" }] },
+  { id: "i1", name: "Paracetamol", barcode: "6281000000011", sellPrice: 0.5 },
   { id: "i2", name: "Soap", barcode: "6281000000042" },
 ];
 
 console.log("\n== what a scan means");
 const unit = B.findByBarcode(items, "6281000000011");
-ok("the item's own code is one unit at its price", unit?.itemId === "i1" && unit.qty === 1 && unit.pack === null && unit.price === 0.5);
-const box = B.findByBarcode(items, "6281000000028");
-ok("a pack's code is its units at the pack's own price", box?.qty === 20 && box.price === 8 && box.pack?.name === "Box");
-const strip = B.findByBarcode(items, "6281000000035");
-ok("a pack with no price of its own is its units at the unit price", strip?.qty === 10 && strip.price === 5);
+ok("an item's code is that item at its price", unit?.itemId === "i1" && unit.price === 0.5);
 ok("an unpriced item scans with no price, for the till to ask", B.findByBarcode(items, "6281000000042")?.price === null);
 ok("a code nobody carries is nothing", B.findByBarcode(items, "000") === null && B.findByBarcode(items, "") === null);
 ok("a scan ignores surrounding space and case", B.findByBarcode([{ id: "x", barcode: "ABC-1" }], "  abc-1 ")?.itemId === "x");
+ok("a scan says nothing about packs any more", !("pack" in unit) && !("qty" in unit));
 
 console.log("\n== what is refused");
 const probs = (input, selfId = "") => B.barcodeProblems(input, { items, selfId });
 ok("a code another item carries", probs({ barcode: "6281000000042" }).some((p) => p.includes("Soap")));
-ok("…including a pack code", probs({ packs: [{ name: "Case", qty: 6, barcode: "6281000000028" }] }).some((p) => p.includes("Paracetamol")));
-ok("but an item may keep its own codes on an edit", probs(items[0], "i1").length === 0, JSON.stringify(probs(items[0], "i1")));
-ok("one code twice on one item", probs({ barcode: "777", packs: [{ name: "Box", qty: 2, barcode: "777" }] }).some((p) => p.includes("twice")));
+ok("...case-insensitively", probs({ barcode: "abc" }, "") .length === 0 && B.barcodeProblems({ barcode: "ABC-1" }, { items: [{ id: "x", name: "X", barcode: "abc-1" }] }).length === 1);
+ok("but an item may keep its own code on an edit", probs(items[0], "i1").length === 0, JSON.stringify(probs(items[0], "i1")));
 ok("a code with a space", probs({ barcode: "12 34" }).length > 0);
-ok("a pack with no name", probs({ packs: [{ qty: 5 }] }).some((p) => p.includes("name")));
-ok("a pack of one unit is not a pack", probs({ packs: [{ name: "Single", qty: 1 }] }).some((p) => p.includes("more than one")));
-ok("no codes at all is fine", probs({}).length === 0);
-
-console.log("\n== how packs are stored");
-const cleaned = B.cleanPacks([{ name: " Box ", qty: "12", barcode: " 99 ", sellPrice: "4.1234" }, {}, { name: "Tray", qty: 2, sellPrice: 0 }]);
-ok("trimmed, numbered, priced to four places", cleaned[0].name === "Box" && cleaned[0].qty === 12 && cleaned[0].barcode === "99" && cleaned[0].sellPrice === 4.1234, JSON.stringify(cleaned[0]));
-ok("an empty row is dropped", cleaned.length === 2);
-ok("no price means no field, not a price of nothing", !("sellPrice" in cleaned[1]));
+ok("no code at all is fine", probs({}).length === 0);
+ok("packs are no longer a thing the module knows", !("cleanPacks" in B) && !("codesOf" in B));
 
 console.log("\n== which batch a sale takes");
 const batches = [

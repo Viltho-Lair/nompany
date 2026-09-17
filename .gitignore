@@ -37,6 +37,10 @@ hr-export/
 # re-encrypts them. Never committed; deleted once the run is proven.
 rekey-export/
 
+# Item packs exported by scripts/migrate/remove-packs.mjs before it clears them.
+# Never committed; deleted once the run is proven.
+packs-export/
+
 # The pg-gateway bundle. esbuild output, rebuilt by `npm run build` on every
 # `npm start` and inside the image build — a committed copy would be a second
 # source of truth for code that already lives in src/.

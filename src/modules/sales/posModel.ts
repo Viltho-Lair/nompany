@@ -22,11 +22,7 @@ export const SHIFT_STATUSES = ["Open", "Closed"] as const;
 export type PosLine = {
   itemId: string;
   description: string;
-  /** The pack sold, when a pack was scanned; "" for the item's own unit. */
-  packName?: string;
-  /** How many of the item's units ONE of what was sold holds (1, or the pack's). */
-  packQty: number;
-  /** How many were sold — scans of the unit or of the pack. */
+  /** How many of the item's own unit were sold. */
   count: number;
   /** The price of ONE of what was sold, as the shelf shows it. */
   price: number;
@@ -45,9 +41,8 @@ export type PosTotals = {
 const num = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
 
-/** Units of the item a line takes off the shelf. */
-export const unitsOf = (l: Pick<PosLine, "count" | "packQty">) =>
-  Math.round(num(l.count) * Math.max(1, num(l.packQty)) * 1000) / 1000;
+/** Units of the item a line takes off the shelf — its count, in the item's unit. */
+export const unitsOf = (l: Pick<PosLine, "count">) => Math.round(num(l.count) * 1000) / 1000;
 
 /** A basket line as the server stores it. Anything unreadable is dropped. */
 export function cleanPosLines(list: unknown): PosLine[] {
@@ -58,8 +53,6 @@ export function cleanPosLines(list: unknown): PosLine[] {
       return {
         itemId: str(l.itemId, 60),
         description: str(l.description, 200),
-        ...(str(l.packName, 40) ? { packName: str(l.packName, 40) } : {}),
-        packQty: Math.max(1, Math.round(num(l.packQty) * 1000) / 1000 || 1),
         count: Math.round(num(l.count) * 1000) / 1000,
         price: roundSum(Math.max(0, num(l.price))),
         ...taxCategoryField(l.taxCategory),

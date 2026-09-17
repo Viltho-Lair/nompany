@@ -115,13 +115,6 @@ export const ItemSchema = z.object({
   taxCategory: z.enum(TAX_CATEGORIES).optional(),
   /** What a scanner reads for ONE of the item's own unit (./barcodes). */
   barcode: z.string().max(64).optional(),
-  /** The named multiples it is also sold in, each with its own code and price. */
-  packs: z.array(z.object({
-    name: z.string().max(40),
-    qty: z.number(),
-    barcode: z.string().max(64).optional(),
-    sellPrice: z.number().optional(),
-  })).optional(),
   /** Free text on the item. Written by editItem, never declared until now. */
   notes: z.string().max(1000).optional(),
   /** A stored data URI. Read by the quotation builder, never declared until now. */

@@ -88,7 +88,7 @@ export default function StudioPos({ slug }) {
   const terms = data?.terms;
 
   const lines = useMemo(() => basket.map((b) => ({
-    itemId: b.itemId, description: b.description, packName: b.packName, packQty: b.packQty,
+    itemId: b.itemId, description: b.description,
     count: num(b.count), price: num(b.price), taxCategory: b.taxCategory,
   })), [basket]);
   const totals = useMemo(() => (terms ? posTotals(lines, terms) : null), [lines, terms]);
@@ -111,13 +111,12 @@ export default function StudioPos({ slug }) {
 
   const addHit = (hit, item) => {
     setBasket((rows) => {
-      const key = `${hit.itemId}|${hit.pack?.name || ""}`;
+      const key = hit.itemId;
       const at = rows.findIndex((r) => r.key === key);
       if (at >= 0) return rows.map((r, i) => (i === at ? { ...r, count: num(r.count) + 1 } : r));
       return [...rows, {
         key, itemId: hit.itemId,
-        description: hit.pack ? `${item.name} — ${hit.pack.name}` : item.name,
-        packName: hit.pack?.name || "", packQty: hit.qty, count: 1,
+        description: item.name, count: 1,
         price: hit.price ?? 0, unpriced: hit.price === null,
         taxCategory: item.taxCategory,
       }];
@@ -129,7 +128,7 @@ export default function StudioPos({ slug }) {
   async function completeSale() {
     const out = await call("/receipts", "POST", {
       shiftId: shift.id,
-      lines: basket.map((b) => ({ itemId: b.itemId, packName: b.packName, count: num(b.count), price: num(b.price) })),
+      lines: basket.map((b) => ({ itemId: b.itemId, count: num(b.count), price: num(b.price) })),
       payments: paying,
     });
     if (!out) return;
@@ -328,7 +327,7 @@ function ScanBox({ tr, items, onHit, disabled }) {
   useEffect(() => { ref.current?.focus(); }, []);
 
   const addItem = (item) => {
-    onHit({ itemId: item.id, pack: null, qty: 1, price: item.sellPrice > 0 ? item.sellPrice : null }, item);
+    onHit({ itemId: item.id, price: item.sellPrice > 0 ? item.sellPrice : null }, item);
     setText(""); setMiss("");
     ref.current?.focus();
   };

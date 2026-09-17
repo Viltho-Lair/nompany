@@ -62,7 +62,7 @@ import type { Row } from "@/platform/db/store";
 import type { Task } from "@/modules/tasks/types";
 import { roundMoney, roundSum } from "@/shared/money";
 import { taxCategoryField } from "@/shared/taxProfile";
-import { barcodeProblems, cleanBarcode, cleanPacks, type Barcoded } from "./barcodes";
+import { barcodeProblems, cleanBarcode, type Barcoded } from "./barcodes";
 
 const VENDORS = "inventoryVendors";
 const ITEMS = "inventoryItems";
@@ -489,10 +489,9 @@ export async function createItem(ctx: InventoryContext, body: Record<string, unk
   if (rows.some((i) => i.sku.toUpperCase() === sku)) return { error: "duplicate-sku" };
   // WHAT A SCANNER READS, refused by name when it is malformed or already
   // another item's — see ./barcodes.
-  const codeProblems = barcodeProblems({ barcode: body?.barcode, packs: body?.packs }, { items: rows as Barcoded[] });
+  const codeProblems = barcodeProblems({ barcode: body?.barcode }, { items: rows as Barcoded[] });
   if (codeProblems.length) return { error: "barcode", problems: codeProblems };
   const barcode = cleanBarcode(body?.barcode);
-  const packs = cleanPacks(body?.packs);
 
   const item = await Items.create({ studio, section: itemsSection }, {
     sku, name,
@@ -521,9 +520,8 @@ export async function createItem(ctx: InventoryContext, body: Record<string, unk
     sellPrice: money(body?.sellPrice),
     // WHAT IT IS FOR TAX — stored only when it is not standard (shared/taxProfile).
     ...taxCategoryField(body?.taxCategory),
-    // WHAT A SCANNER READS, and the multiples it is sold in. Absent when none.
+    // WHAT A SCANNER READS. Absent when none.
     ...(barcode ? { barcode } : {}),
-    ...(packs.length ? { packs } : {}),
     // What that cost is IN. Blank means the studio's own currency, so an item
     // priced in the studio's money needs nothing said about it.
     currency,
@@ -576,23 +574,16 @@ export async function editItem(ctx: InventoryContext, id: string, body: Record<s
   // Standard is stored as absent, so choosing it CLEARS the field rather than
   // writing "standard" beside every item that never had one.
   if (body?.taxCategory !== undefined) patch.taxCategory = taxCategoryField(body.taxCategory).taxCategory;
-  // CODES ARE JUDGED TOGETHER, against every other item: a box barcode moved
-  // from one item to another in one edit is still one code on one item.
-  if (body?.barcode !== undefined || body?.packs !== undefined) {
+  // A CODE IS JUDGED AGAINST EVERY OTHER ITEM. Saving an item also drops any
+  // packs it still carries from before they were removed (17/09/2026).
+  if (body?.barcode !== undefined) {
     const rows = await Items.find({ studio, section: itemsSection });
-    const current = rows.find((i) => i.id === id);
-    if (!current) return { error: "notfound" };
-    const next = {
-      barcode: body?.barcode !== undefined ? body.barcode : current.barcode,
-      packs: body?.packs !== undefined ? body.packs : current.packs,
-    };
-    const problems = barcodeProblems(next, { items: rows as Barcoded[], selfId: id });
+    if (!rows.some((i) => i.id === id)) return { error: "notfound" };
+    const problems = barcodeProblems({ barcode: body.barcode }, { items: rows as Barcoded[], selfId: id });
     if (problems.length) return { error: "barcode", problems };
-    const barcode = cleanBarcode(next.barcode);
-    const packs = cleanPacks(next.packs);
-    patch.barcode = barcode || undefined;
-    patch.packs = packs.length ? packs : undefined;
+    patch.barcode = cleanBarcode(body.barcode) || undefined;
   }
+  patch.packs = undefined;
   // The currency and its two charges are decided together: what the charges
   // must be follows the currency the item ENDS UP with, not the one this
   // request happened to mention. An edit that touches none of the three — a
