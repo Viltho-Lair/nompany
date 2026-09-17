@@ -1054,7 +1054,7 @@ export default function StudioFrame({
             </div>
           </div>
         </header>
-        <main id="studio-main" tabIndex={-1} className="mx-auto max-w-[1400px] px-5 pb-8 outline-none sm:px-8"><AnalyticsLevelProvider analytics={analytics}>{children}</AnalyticsLevelProvider></main>
+        <main id="studio-main" tabIndex={-1} className="mx-auto max-w-[1400px] px-5 pb-8 outline-none sm:px-8"><AnalyticsLevelProvider analytics={analytics} sections={sections}>{children}</AnalyticsLevelProvider></main>
         {/* `view` is the section key of the screen behind the shell — the same
             one the sidebar highlights. Nova's bubble ranks what it has to say
             around it, so what she volunteers is about where you are; passing

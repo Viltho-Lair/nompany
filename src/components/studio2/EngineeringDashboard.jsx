@@ -21,7 +21,7 @@ import { h2, sub, StatTile, fmtDate } from "@/components/studio2/ui";
 import { StatRow, DashGrid, Widget, DashEmpty, DonutLegend } from "@/components/dashboard";
 import { BarChart, BarList, ChartFrame } from "@/components/charts";
 import { monthLabel } from "@/components/dashboard/series";
-import { useWidgetVisible } from "@/components/studio2/analyticsLevel";
+import { useWidgetGate } from "@/components/studio2/analyticsLevel";
 import { engineSectionKey } from "@/platform/access";
 
 // NAMED `*Dashboard.jsx` DELIBERATELY: the widget-gate scan reads that filename
@@ -31,7 +31,8 @@ export default function EngineeringDashboard({ slug }) {
   const tr = engineeringDict(locale);
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
-  const widgetVisible = useWidgetVisible();
+  // Tier AND the studio's switches: a card whose section is off is not drawn.
+  const gate = useWidgetGate();
 
   const read = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/engineering/dashboard`, { cache: "no-store" });
@@ -128,7 +129,7 @@ export default function EngineeringDashboard({ slug }) {
       <DashGrid>
         {(may.rfi || may.submittal) && (
           <Widget title={tr.attention} hint={tr.attentionHint} span={2}
-            locked={!widgetVisible("engineering.attention")} lockedWhat={tr.attention}>
+            {...gate("engineering.attention")} lockedWhat={tr.attention}>
             {attention.length ? (
               <ul className="divide-y divide-slate-100 dark:divide-white/5">
                 {attention.map((a) => (
@@ -148,7 +149,7 @@ export default function EngineeringDashboard({ slug }) {
 
         {documents && (
           <Widget title={tr.documentStatus} hint={tr.documentStatusHint}
-            locked={!widgetVisible("engineering.document-status")} lockedWhat={tr.documentStatus}>
+            {...gate("engineering.document-status")} lockedWhat={tr.documentStatus}>
             {documents.total ? (
               <DonutLegend word={tr.documentsWord}
                 data={(documents.byState || []).map((s) => ({ label: tr.state(s.state), value: s.count }))} />
@@ -158,7 +159,7 @@ export default function EngineeringDashboard({ slug }) {
 
         {rfi && (
           <Widget title={tr.ballInCourt} hint={tr.ballInCourtHint}
-            locked={!widgetVisible("engineering.rfi-ball-in-court")} lockedWhat={tr.ballInCourt}>
+            {...gate("engineering.rfi-ball-in-court")} lockedWhat={tr.ballInCourt}>
             {rfi.open ? (
               <BarList items={(rfi.ballInCourt || []).filter((b) => b.count > 0).map((b) => ({
                 label: tr.party(b.who),
@@ -171,7 +172,7 @@ export default function EngineeringDashboard({ slug }) {
 
         {submittal && (
           <Widget title={tr.submittalOutcomes} hint={tr.submittalOutcomesHint}
-            locked={!widgetVisible("engineering.submittal-outcomes")} lockedWhat={tr.submittalOutcomes}>
+            {...gate("engineering.submittal-outcomes")} lockedWhat={tr.submittalOutcomes}>
             {(submittal.outcomes || []).some((o) => o.count > 0) ? (
               <DonutLegend data={submittal.outcomes.map((o, i) => ({
                 label: tr.outcome(o.outcome), value: o.count,
@@ -183,7 +184,7 @@ export default function EngineeringDashboard({ slug }) {
 
         {rfi && (
           <Widget title={tr.rfiIntake} hint={tr.rfiIntakeHint}
-            locked={!widgetVisible("engineering.rfi-intake")} lockedWhat={tr.rfiIntake}>
+            {...gate("engineering.rfi-intake")} lockedWhat={tr.rfiIntake}>
             {(rfi.raised || []).some((n) => n > 0) ? (
               <ChartFrame labels={months.map((m) => monthLabel(m, locale))} height={180}>
                 <BarChart height={180} rtl={locale === "ar"} labels={months}
@@ -195,7 +196,7 @@ export default function EngineeringDashboard({ slug }) {
 
         {documents && (
           <Widget title={tr.reviewDueTitle} hint={tr.reviewDueHint}
-            locked={!widgetVisible("engineering.review-due")} lockedWhat={tr.reviewDueTitle}>
+            {...gate("engineering.review-due")} lockedWhat={tr.reviewDueTitle}>
             {(documents.reviewDueList || []).length ? (
               <ul className="divide-y divide-slate-100 dark:divide-white/5">
                 {documents.reviewDueList.map((d) => (

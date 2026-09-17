@@ -26,7 +26,7 @@ import {
 import { BOARD_COLUMNS, CLOSED_STAGES, WON_STAGE } from "@/modules/sales/pipeline";
 import { statusLabel } from "@/shared/studio/statuses";
 import { daysUntil } from "@/modules/projects/sla";
-import { useWidgetVisible } from "@/components/studio2/analyticsLevel";
+import { useWidgetGate, useSectionOn } from "@/components/studio2/analyticsLevel";
 
 // The stages a ticket can sit in, in the order the mix reads. Everything a
 // ticket can BE is here, so the donut never drops a status onto no slice.
@@ -55,7 +55,9 @@ const URGENCIES = [
 export default function SalesDashboard({ tickets = [], slug = "", nav = null }) {
   const locale = useStudioLocale();
   const tr = salesExtraDict(locale);
-  const visible = useWidgetVisible();
+  // Tier AND the studio's switches: a card whose section is off is not drawn.
+  const gate = useWidgetGate();
+  const sectionOn = useSectionOn();
 
   const funnel = salesFunnel(tickets);
   const buckets = probabilityBuckets(tickets);
@@ -123,20 +125,30 @@ export default function SalesDashboard({ tickets = [], slug = "", nav = null }) 
     <div className="space-y-5">
       {/* Basic — the summary everyone gets, before any detail. */}
       <StatRow>
-        <StatTile label={tr.openTickets} value={<span className="num">{openCount}</span>} href={nav?.["crm-sales-tickets"] ? `/${slug}/crm-sales-tickets` : ""} />
-        <StatTile label={tr.weightedPipeline} value={<span className="num">{money(weightedPipeline)}</span>} tone="text-emerald-600 dark:text-emerald-400" />
-        <StatTile label={tr.won} value={<span className="num">{wonCount}</span>} tone={wonCount > 0 ? "text-emerald-600 dark:text-emerald-400" : ""} />
-        <StatTile label={tr.wonValue} value={<span className="num">{money(wonValue)}</span>} tone={wonValue > 0 ? "text-emerald-600 dark:text-emerald-400" : ""} />
-        <StatTile label={tr.risk} value={<span className="num">{atRisk.length}</span>} tone={atRisk.length > 0 ? "text-rose-600 dark:text-rose-400" : ""} />
+        {sectionOn("crm-sales-tickets") && (
+          <StatTile label={tr.openTickets} value={<span className="num">{openCount}</span>} href={nav?.["crm-sales-tickets"] ? `/${slug}/crm-sales-tickets` : ""} />
+        )}
+        {sectionOn("crm-sales-tickets") && sectionOn("crm-sales-pipeline") && (
+          <StatTile label={tr.weightedPipeline} value={<span className="num">{money(weightedPipeline)}</span>} tone="text-emerald-600 dark:text-emerald-400" />
+        )}
+        {sectionOn("crm-sales-tickets") && (
+          <StatTile label={tr.won} value={<span className="num">{wonCount}</span>} tone={wonCount > 0 ? "text-emerald-600 dark:text-emerald-400" : ""} />
+        )}
+        {sectionOn("crm-sales-tickets") && (
+          <StatTile label={tr.wonValue} value={<span className="num">{money(wonValue)}</span>} tone={wonValue > 0 ? "text-emerald-600 dark:text-emerald-400" : ""} />
+        )}
+        {sectionOn("crm-sales-tickets") && (
+          <StatTile label={tr.risk} value={<span className="num">{atRisk.length}</span>} tone={atRisk.length > 0 ? "text-rose-600 dark:text-rose-400" : ""} />
+        )}
       </StatRow>
 
       <DashGrid>
         {/* Simple */}
-        <Widget title={tr.salesFunnel} hint={tr.distinctTicketsReachedEach} locked={!visible("sales.funnel")} lockedWhat={tr.salesFunnel}>
+        <Widget title={tr.salesFunnel} hint={tr.distinctTicketsReachedEach} {...gate("sales.funnel")} lockedWhat={tr.salesFunnel}>
           <FunnelChart data={funnel.map((r) => ({ label: rungName(r), value: r.value }))} />
         </Widget>
 
-        <Widget title={tr.probabilityForecast} hint={tr.weightedForecast(money(weightedPipeline))} span={2} locked={!visible("sales.probability-forecast")} lockedWhat={tr.probabilityForecast}>
+        <Widget title={tr.probabilityForecast} hint={tr.weightedForecast(money(weightedPipeline))} span={2} {...gate("sales.probability-forecast")} lockedWhat={tr.probabilityForecast}>
           {hasForecast ? (
             <>
               <ChartFrame
@@ -166,7 +178,7 @@ export default function SalesDashboard({ tickets = [], slug = "", nav = null }) 
           ) : <p className="py-8 text-center text-sm text-slate-400">{tr.noOpenPipelineYet}</p>}
         </Widget>
 
-        <Widget title={tr.stageMix} hint={tr.whereEveryTicketSits} locked={!visible("sales.stage-mix")} lockedWhat={tr.stageMix}>
+        <Widget title={tr.stageMix} hint={tr.whereEveryTicketSits} {...gate("sales.stage-mix")} lockedWhat={tr.stageMix}>
           {mixTotal > 0 ? (
             <div className="flex flex-col items-center gap-4 py-2">
               <Donut size={168} data={mix.map((s, i) => ({ label: s.label, value: s.value, color: PALETTE[i % PALETTE.length] }))}
@@ -187,7 +199,7 @@ export default function SalesDashboard({ tickets = [], slug = "", nav = null }) 
         </Widget>
 
         {/* Moderate */}
-        <Widget title={tr.riskTickets} hint={tr.openDueWithin14} span={2} locked={!visible("sales.at-risk")} lockedWhat={tr.riskTickets}>
+        <Widget title={tr.riskTickets} hint={tr.openDueWithin14} span={2} {...gate("sales.at-risk")} lockedWhat={tr.riskTickets}>
           {atRisk.length === 0 ? (
             <p className="py-8 text-center text-sm text-slate-400">{tr.nothingRiskAllClear}</p>
           ) : (
@@ -228,7 +240,7 @@ export default function SalesDashboard({ tickets = [], slug = "", nav = null }) 
             why this groups strings rather than analysing them — "price" and
             "too expensive" are two answers until a studio has a vocabulary to
             pick from, and that is not built. */}
-        <Widget title={tr.whyLost} hint={tr.whyLostHint} locked={!visible("sales.loss-reasons")} lockedWhat={tr.whyLost}>
+        <Widget title={tr.whyLost} hint={tr.whyLostHint} {...gate("sales.loss-reasons")} lockedWhat={tr.whyLost}>
           {lost.length === 0 ? (
             <p className="py-8 text-center text-sm text-slate-400">{tr.noLossesRecorded}</p>
           ) : (
@@ -253,7 +265,7 @@ export default function SalesDashboard({ tickets = [], slug = "", nav = null }) 
             creation date buries the deal stuck for ninety days under the one
             raised this morning. Days-in-stage falls back through updatedAt to
             createdAt, so it reads correctly for deals older than the history. */}
-        <Widget title={tr.stalled} hint={tr.stalledHint(STALL_DAYS)} span={2} locked={!visible("sales.stalled")} lockedWhat={tr.stalled}>
+        <Widget title={tr.stalled} hint={tr.stalledHint(STALL_DAYS)} span={2} {...gate("sales.stalled")} lockedWhat={tr.stalled}>
           {stalled.length === 0 ? (
             <p className="py-8 text-center text-sm text-slate-400">{tr.nothingStalled}</p>
           ) : (
@@ -276,7 +288,7 @@ export default function SalesDashboard({ tickets = [], slug = "", nav = null }) 
         </Widget>
 
         {/* ---- the richer half (10/09/2026) ---- */}
-        <Widget title={tr.dashValueByStage} hint={tr.dashValueByStageHint} locked={!visible("sales.value-by-stage")} lockedWhat={tr.dashValueByStage}>
+        <Widget title={tr.dashValueByStage} hint={tr.dashValueByStageHint} {...gate("sales.value-by-stage")} lockedWhat={tr.dashValueByStage}>
           {valueByStage.length ? (
             <BarList items={valueByStage.map((r, i) => ({
               label: r.label, value: share(r.value, peak(valueByStage)),
@@ -285,7 +297,7 @@ export default function SalesDashboard({ tickets = [], slug = "", nav = null }) 
           ) : <DashEmpty text={tr.noOpenPipelineYet} />}
         </Widget>
 
-        <Widget title={tr.dashIntakeTrend} hint={tr.dashIntakeTrendHint} span={2} locked={!visible("sales.intake-trend")} lockedWhat={tr.dashIntakeTrend}>
+        <Widget title={tr.dashIntakeTrend} hint={tr.dashIntakeTrendHint} span={2} {...gate("sales.intake-trend")} lockedWhat={tr.dashIntakeTrend}>
           {intakeCount.some(Boolean) ? (
             <ChartFrame labels={monthNames} height={220}
               legend={[{ name: tr.dashSeriesValue, color: "rgb(var(--chart-1))" }, { name: tr.dashSeriesDeals, color: "rgb(var(--chart-3))" }]}>
@@ -296,7 +308,7 @@ export default function SalesDashboard({ tickets = [], slug = "", nav = null }) 
           ) : <DashEmpty text={tr.dashNoHistory} />}
         </Widget>
 
-        <Widget title={tr.dashTopClients} hint={tr.dashTopClientsHint} locked={!visible("sales.top-clients")} lockedWhat={tr.dashTopClients}>
+        <Widget title={tr.dashTopClients} hint={tr.dashTopClientsHint} {...gate("sales.top-clients")} lockedWhat={tr.dashTopClients}>
           {topClients.length ? (
             <BarList items={topClients.map((c) => ({
               label: c.label, value: share(c.value, peak(topClients)),
@@ -305,7 +317,7 @@ export default function SalesDashboard({ tickets = [], slug = "", nav = null }) 
           ) : <DashEmpty text={tr.noOpenPipelineYet} />}
         </Widget>
 
-        <Widget title={tr.dashWinLoss} hint={tr.dashWinLossHint} span={2} locked={!visible("sales.win-loss")} lockedWhat={tr.dashWinLoss}>
+        <Widget title={tr.dashWinLoss} hint={tr.dashWinLossHint} span={2} {...gate("sales.win-loss")} lockedWhat={tr.dashWinLoss}>
           {wonByMonth.some(Boolean) || lostByMonth.some(Boolean) ? (
             <ChartFrame labels={monthNames} height={200}
               legend={[{ name: tr.dashSeriesWon, color: "rgb(var(--chart-2))" }, { name: tr.dashSeriesLost, color: "rgb(var(--chart-3))" }]}>
@@ -318,11 +330,11 @@ export default function SalesDashboard({ tickets = [], slug = "", nav = null }) 
           ) : <DashEmpty text={tr.dashNoHistory} />}
         </Widget>
 
-        <Widget title={tr.dashUrgencyMix} hint={tr.dashUrgencyMixHint} locked={!visible("sales.urgency-mix")} lockedWhat={tr.dashUrgencyMix}>
+        <Widget title={tr.dashUrgencyMix} hint={tr.dashUrgencyMixHint} {...gate("sales.urgency-mix")} lockedWhat={tr.dashUrgencyMix}>
           {openTickets.length ? <ShareBar data={urgencyMix} className="py-2" /> : <DashEmpty text={tr.dashNoOpenDeals} />}
         </Widget>
 
-        <Widget title={tr.dashActivityHeat} hint={tr.dashActivityHeatHint} span={2} locked={!visible("sales.activity-heat")} lockedWhat={tr.dashActivityHeat}>
+        <Widget title={tr.dashActivityHeat} hint={tr.dashActivityHeatHint} span={2} {...gate("sales.activity-heat")} lockedWhat={tr.dashActivityHeat}>
           {heat.some((row) => row.some(Boolean)) ? (
             <HeatGrid columns={weeks.map(shortDay)} rows={dayNames.map((name, i) => ({ label: name, values: heat[i] }))} />
           ) : <DashEmpty text={tr.dashNoHistory} />}

@@ -16,20 +16,33 @@
 // provider is present, so a dashboard rendered outside the shell still shows its
 // free widgets rather than throwing.
 import { createContext, useContext, useMemo } from "react";
-import { enabledWidgets, WIDGET_KEYS } from "@/lib/dashboardWidgets";
+import { enabledWidgets, WIDGET_KEYS, DASHBOARD_WIDGETS, switchboard, widgetAvailable } from "@/lib/dashboardWidgets";
 
 const DEFAULT = { analyticsEnabled: true, dashboardWidgets: null, analyticsLevel: "basic" };
 
 const AnalyticsContext = createContext(DEFAULT);
 
-export function AnalyticsLevelProvider({ analytics, level, children }) {
+// WHICH SECTIONS THE STUDIO RUNS — the second gate, beside the tier. The shell
+// already holds every section row with its `enabled` flag (it draws the
+// sidebar from them), so they ride down here with the plan and no dashboard
+// reads anything new. Absent (a dashboard rendered outside the shell) means
+// every section is on, which is what such a dashboard showed before.
+const SectionsContext = createContext(null);
+const byKey = new Map(DASHBOARD_WIDGETS.map((w) => [w.key, w]));
+
+export function AnalyticsLevelProvider({ analytics, level, sections = null, children }) {
   // `analytics` is the shape planOf hands down. `level` is still accepted for
   // any caller that only has the rung — it resolves through the fallback path.
   const value = useMemo(
     () => (analytics ? { ...DEFAULT, ...analytics } : { ...DEFAULT, analyticsLevel: level || "basic" }),
     [analytics, level],
   );
-  return <AnalyticsContext.Provider value={value}>{children}</AnalyticsContext.Provider>;
+  const on = useMemo(() => switchboard(sections), [sections]);
+  return (
+    <AnalyticsContext.Provider value={value}>
+      <SectionsContext.Provider value={on}>{children}</SectionsContext.Provider>
+    </AnalyticsContext.Provider>
+  );
 }
 
 // The rung, for anything still reasoning in rungs (kept during the migration
@@ -52,5 +65,33 @@ export function useWidgetVisible() {
     // silently hidden.
     () => (widgetKey) => (WIDGET_KEYS.has(widgetKey) ? set.has(widgetKey) : true),
     [set],
+  );
+}
+
+// IS THIS SECTION ON — for a figure that is not a registered widget (a free
+// headline tile). Same answer the widget gate below uses.
+export function useSectionOn() {
+  const on = useContext(SectionsContext);
+  return on || (() => true);
+}
+
+// THE WHOLE GATE for a registered widget, as the two props `Widget` takes.
+//
+//   hidden  — a section it is drawn from is switched off. The card is not drawn
+//             at all: a department the owner switched off is a choice, not a
+//             missing purchase, so it gets no teaser and leaves no gap.
+//   locked  — the tier did not buy it. The teaser, as before.
+//
+// Hidden wins over locked, for the same reason: there is nothing to upsell in a
+// department the studio does not run. Spread it: `<Widget {...gate("k")}>`.
+export function useWidgetGate() {
+  const visible = useWidgetVisible();
+  const on = useSectionOn();
+  return useMemo(
+    () => (widgetKey) => {
+      const hidden = !widgetAvailable(byKey.get(widgetKey), on);
+      return { hidden, locked: !hidden && !visible(widgetKey) };
+    },
+    [visible, on],
   );
 }

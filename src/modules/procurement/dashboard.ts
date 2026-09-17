@@ -15,6 +15,7 @@
 // can reach them by this door. The same shape as customer 360, and the reason
 // this screen cannot become a way to see what the registers refuse.
 import { requirePermission } from "@/platform/access";
+import { switchboard } from "@/lib/dashboardWidgets";
 import { repo } from "@/platform/db/repo";
 import { expediteOrders } from "./expediting";
 import { threeWayMatch } from "./receivingModel";
@@ -56,15 +57,19 @@ export async function procurementDashboard(ctx: ProcurementContext) {
     suppliersSection, subcontractsSection, billsSection,
   } = ctx;
 
-  // ONE PERMISSION QUESTION PER BLOCK, asked before anything is fetched.
+  // ONE QUESTION PER BLOCK, asked before anything is fetched — and it is two
+  // questions since 17/09/2026: may this reader see the part, AND does the
+  // studio run it. A part the owner switched off is not read, so its figures
+  // never reach the screen (the owner's rule: a visual goes with its section).
+  const on = switchboard(ctx.sections);
   const may = {
-    requisitions: !requirePermission(ctx.access, "procurement.requisitions.view"),
-    rfq: !requirePermission(ctx.access, "procurement.rfq.view"),
-    expediting: !requirePermission(ctx.access, "procurement.expediting.view"),
-    receiving: !requirePermission(ctx.access, "procurement.receiving.view"),
-    suppliers: !requirePermission(ctx.access, "procurement.suppliers.view"),
-    subcontracts: !requirePermission(ctx.access, "procurement.subcontracts.view"),
-    bills: !requirePermission(ctx.access, "finance.payables.view"),
+    requisitions: on("procurement-requisitions") && !requirePermission(ctx.access, "procurement.requisitions.view"),
+    rfq: on("procurement-rfq") && !requirePermission(ctx.access, "procurement.rfq.view"),
+    expediting: on("procurement-expediting") && !requirePermission(ctx.access, "procurement.expediting.view"),
+    receiving: on("procurement-receiving") && !requirePermission(ctx.access, "procurement.receiving.view"),
+    suppliers: on("procurement-suppliers") && !requirePermission(ctx.access, "procurement.suppliers.view"),
+    subcontracts: on("procurement-subcontracts") && !requirePermission(ctx.access, "procurement.subcontracts.view"),
+    bills: on("finance-payables") && !requirePermission(ctx.access, "finance.payables.view"),
   };
 
   // ORDERS FEED TWO BLOCKS, so they are fetched once for either. Expediting and

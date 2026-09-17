@@ -20,7 +20,7 @@ import { projectsDict } from "@/shared/studio/projects";
 import { Widget, StatRow, DashGrid, DashEmpty } from "@/components/dashboard";
 import { BarChart, BarList, Donut, Radial, ChartFrame, Scatter, ShareBar } from "@/components/charts";
 import { monthLabel, monthsBack, sumByMonth, rankTotals, peak, share } from "@/components/dashboard/series";
-import { useWidgetVisible } from "@/components/studio2/analyticsLevel";
+import { useWidgetGate, useSectionOn } from "@/components/studio2/analyticsLevel";
 
 const STAGES = ["Received", "In Progress", "On Hold", "Completed"];
 // State colour is separate from brand accent: each stage takes a fixed slot on
@@ -47,7 +47,9 @@ export default function ProjectsDashboard({
 }) {
   const locale = useStudioLocale();
   const tr = projectsDict(locale);
-  const visible = useWidgetVisible();
+  // Tier AND the studio's switches: a card whose section is off is not drawn.
+  const gate = useWidgetGate();
+  const sectionOn = useSectionOn();
   const num = (n) => <span className="num">{n}</span>;
   const amt = (n) => <span className="num">{money(n)}</span>;
 
@@ -165,15 +167,23 @@ export default function ProjectsDashboard({
     <div className="space-y-5">
       {/* Basic — the summary everyone gets, before any detail. */}
       <StatRow>
-        <StatTile label={tr.activeProjects} value={num(active)} href={listHref} />
-        <StatTile label={tr.totalValue} value={amt(totalValue)} href={listHref} />
-        <StatTile label={tr.completed} value={num(completed)} tone="text-emerald-600 dark:text-emerald-400" href={listHref} />
-        <StatTile label={tr.overdue} value={num(overdue)} tone={overdue > 0 ? "text-rose-600 dark:text-rose-400" : ""} href={listHref} />
+        {sectionOn("projects-list") && (
+          <StatTile label={tr.activeProjects} value={num(active)} href={listHref} />
+        )}
+        {sectionOn("projects-list") && (
+          <StatTile label={tr.totalValue} value={amt(totalValue)} href={listHref} />
+        )}
+        {sectionOn("projects-list") && (
+          <StatTile label={tr.completed} value={num(completed)} tone="text-emerald-600 dark:text-emerald-400" href={listHref} />
+        )}
+        {sectionOn("projects-list") && (
+          <StatTile label={tr.overdue} value={num(overdue)} tone={overdue > 0 ? "text-rose-600 dark:text-rose-400" : ""} href={listHref} />
+        )}
       </StatRow>
 
       <DashGrid>
         {/* Simple */}
-        <Widget title={tr.projectsStage} hint={tr.whereWorkSits} locked={!visible("projects.by-stage")} lockedWhat={tr.projectsStage}>
+        <Widget title={tr.projectsStage} hint={tr.whereWorkSits} {...gate("projects.by-stage")} lockedWhat={tr.projectsStage}>
           <div className="flex items-center gap-5">
             <Donut size={148} data={donut}
               center={<div className="text-center"><p className="num text-lg font-800 text-slate-900 dark:text-white">{projects.length}</p><p className="text-[11px] text-slate-400">projects</p></div>} />
@@ -189,7 +199,7 @@ export default function ProjectsDashboard({
           </div>
         </Widget>
 
-        <Widget title={tr.valueStage} hint={tr.registeredProjectValue} locked={!visible("projects.value-by-stage")} lockedWhat={tr.valueStage}>
+        <Widget title={tr.valueStage} hint={tr.registeredProjectValue} {...gate("projects.value-by-stage")} lockedWhat={tr.valueStage}>
           {totalValue > 0 ? (
             <BarList items={byStage.filter((s) => s.value > 0).map((s) => ({
               label: s.stage,
@@ -200,7 +210,7 @@ export default function ProjectsDashboard({
           ) : <p className="py-8 text-center text-sm text-slate-400">{tr.noProjectValuesYet}</p>}
         </Widget>
 
-        <Widget title={tr.projectProgress} hint={tr.averagePlanCompletion} locked={!visible("projects.plan-progress")} lockedWhat={tr.projectProgress}>
+        <Widget title={tr.projectProgress} hint={tr.averagePlanCompletion} {...gate("projects.plan-progress")} lockedWhat={tr.projectProgress}>
           <div className="flex justify-center py-2">
             <Radial value={avgProgress} label={`${avgProgress}%`}
               sub={tr.acrossProjects(projects.length)}
@@ -209,13 +219,13 @@ export default function ProjectsDashboard({
         </Widget>
 
         {/* Moderate */}
-        <Widget title={tr.workloadManager} hint={tr.openProjectsPerManager} locked={!visible("projects.workload-by-manager")} lockedWhat={tr.workloadManager}>
+        <Widget title={tr.workloadManager} hint={tr.openProjectsPerManager} {...gate("projects.workload-by-manager")} lockedWhat={tr.workloadManager}>
           {managers.length ? (
             <BarList items={managers.map((m) => ({ label: m.name, value: Math.round((m.count / maxManager) * 100), display: num(m.count) }))} />
           ) : <p className="py-8 text-center text-sm text-slate-400">{tr.noOpenProjects}</p>}
         </Widget>
 
-        <Widget title={tr.projectTimeline} hint={tr.startedEndedMonth} span={2} locked={!visible("projects.timeline")} lockedWhat={tr.projectTimeline}>
+        <Widget title={tr.projectTimeline} hint={tr.startedEndedMonth} span={2} {...gate("projects.timeline")} lockedWhat={tr.projectTimeline}>
           {months.length ? (
             <ChartFrame
               labels={months.map((m) => m.slice(5))}
@@ -233,11 +243,11 @@ export default function ProjectsDashboard({
         </Widget>
 
         {/* ---- the richer half (10/09/2026) ---- */}
-        <Widget title={tr.dashScheduleHealth} hint={tr.dashScheduleHealthHint} locked={!visible("projects.schedule-health")} lockedWhat={tr.dashScheduleHealth}>
+        <Widget title={tr.dashScheduleHealth} hint={tr.dashScheduleHealthHint} {...gate("projects.schedule-health")} lockedWhat={tr.dashScheduleHealth}>
           {openProjects.length ? <ShareBar data={healthSlices} className="py-2" /> : <DashEmpty text={tr.noOpenProjects} />}
         </Widget>
 
-        <Widget title={tr.dashValueVsProgress} hint={tr.dashValueVsProgressHint} span={2} locked={!visible("projects.value-vs-progress")} lockedWhat={tr.dashValueVsProgress}>
+        <Widget title={tr.dashValueVsProgress} hint={tr.dashValueVsProgressHint} span={2} {...gate("projects.value-vs-progress")} lockedWhat={tr.dashValueVsProgress}>
           {scatterPoints.length ? (
             <Scatter points={scatterPoints} xMax={100} yMax={valueMax} height={220}
               xTicks={["0%", "50%", "100%"]}
@@ -245,13 +255,13 @@ export default function ProjectsDashboard({
           ) : <DashEmpty text={tr.noOpenProjects} />}
         </Widget>
 
-        <Widget title={tr.dashValueByClient} hint={tr.dashValueByClientHint} locked={!visible("projects.value-by-client")} lockedWhat={tr.dashValueByClient}>
+        <Widget title={tr.dashValueByClient} hint={tr.dashValueByClientHint} {...gate("projects.value-by-client")} lockedWhat={tr.dashValueByClient}>
           {byClient.length ? (
             <BarList items={byClient.map((c) => ({ label: c.label, value: share(c.value, peak(byClient)), display: amt(c.value) }))} />
           ) : <DashEmpty text={tr.noProjectValuesYet} />}
         </Widget>
 
-        <Widget title={tr.dashOvertimeTrend} hint={tr.dashOvertimeTrendHint} span={2} locked={!visible("projects.overtime-trend")} lockedWhat={tr.dashOvertimeTrend}>
+        <Widget title={tr.dashOvertimeTrend} hint={tr.dashOvertimeTrendHint} span={2} {...gate("projects.overtime-trend")} lockedWhat={tr.dashOvertimeTrend}>
           {otByMonth.some(Boolean) ? (
             <ChartFrame labels={otMonths.map((m) => monthLabel(m, locale))} height={200}>
               <BarChart height={200} rtl={rtl} labels={otMonths}

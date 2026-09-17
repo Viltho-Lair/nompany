@@ -29,7 +29,7 @@ import {
   monthLabel, monthsAround, spreadDaysByMonth, rankTotals, daysAhead,
   activeOnDays, weeksAhead, sumByWeek, shortDay,
 } from "@/components/dashboard/series";
-import { useWidgetVisible } from "@/components/studio2/analyticsLevel";
+import { useWidgetGate, useSectionOn } from "@/components/studio2/analyticsLevel";
 
 // The leave palette maps a status to a slice colour once, so the donut and any
 // future legend cannot disagree about which hue "Pending" is.
@@ -66,7 +66,9 @@ export default function HrDashboard({
   const tr = hrDict(locale);
   const today = new Date().toISOString().slice(0, 10);
   const to = nav?.["hr-employees"] ? `/${slug}/hr-employees` : "";
-  const visible = useWidgetVisible();
+  // Tier AND the studio's switches: a card whose section is off is not drawn.
+  const gate = useWidgetGate();
+  const sectionOn = useSectionOn();
 
   // Currently away: an approved leave whose span brackets today. ISO date
   // strings compare correctly, so no Date object is needed to reason about it.
@@ -136,19 +138,23 @@ export default function HrDashboard({
     <div className="space-y-5">
       {/* Basic — the summary everyone gets, before any detail. */}
       <StatRow>
-        <StatTile label={tr.people} value={headcount.total} href={to} />
+        {sectionOn("hr-employees") && (
+          <StatTile label={tr.people} value={headcount.total} href={to} />
+        )}
         <StatTile label={tr.leaveNow} value={onLeaveNow}
           tone={onLeaveNow > 0 ? "text-brand-700 dark:text-brand-300" : ""} href={to} />
         <StatTile label={tr.leavePending} value={pendingLeave}
           tone={pendingLeave > 0 ? "text-amber-700 dark:text-amber-300" : ""} href={to} />
-        <StatTile label={tr.docsExpiringDays(windowDays)} value={expiring.length}
-          tone={expiring.length > 0 ? (lapsed > 0 ? "text-rose-600 dark:text-rose-400" : "text-amber-700 dark:text-amber-300") : ""}
-          href={to} />
+        {sectionOn("hr-employees") && (
+          <StatTile label={tr.docsExpiringDays(windowDays)} value={expiring.length}
+            tone={expiring.length > 0 ? (lapsed > 0 ? "text-rose-600 dark:text-rose-400" : "text-amber-700 dark:text-amber-300") : ""}
+            href={to} />
+        )}
       </StatRow>
 
       <DashGrid>
         {/* Simple */}
-        <Widget title={tr.headcountDepartment} hint={tr.wherePeopleSit} locked={!visible("hr.headcount-by-dept")} lockedWhat={tr.headcountDepartment}>
+        <Widget title={tr.headcountDepartment} hint={tr.wherePeopleSit} {...gate("hr.headcount-by-dept")} lockedWhat={tr.headcountDepartment}>
           {deptSlices.length ? (
             <div className="flex items-center justify-center py-2">
               <Donut size={168} data={deptSlices}
@@ -157,7 +163,7 @@ export default function HrDashboard({
           ) : <p className="py-8 text-center text-sm text-slate-400">{tr.nobodyPlacedDepartmentYet}</p>}
         </Widget>
 
-        <Widget title={tr.leaveType} hint={tr.requestsKindLeave} locked={!visible("hr.leave-by-type")} lockedWhat={tr.leaveType}>
+        <Widget title={tr.leaveType} hint={tr.requestsKindLeave} {...gate("hr.leave-by-type")} lockedWhat={tr.leaveType}>
           {byType.length ? (
             <BarList items={byType.map(([type, n]) => ({
               label: type,
@@ -167,7 +173,7 @@ export default function HrDashboard({
           ) : <p className="py-8 text-center text-sm text-slate-400">{tr.noLeaveBookedYet}</p>}
         </Widget>
 
-        <Widget title={tr.leaveStatus} hint={tr.whereRequestsStand} locked={!visible("hr.leave-by-status")} lockedWhat={tr.leaveStatus}>
+        <Widget title={tr.leaveStatus} hint={tr.whereRequestsStand} {...gate("hr.leave-by-status")} lockedWhat={tr.leaveStatus}>
           {statusSlices.length ? (
             <div className="flex items-center justify-center py-2">
               <Donut size={168} data={statusSlices}
@@ -176,7 +182,7 @@ export default function HrDashboard({
           ) : <p className="py-8 text-center text-sm text-slate-400">{tr.noLeaveBookedYet}</p>}
         </Widget>
 
-        <Widget title={tr.expiringDocuments} hint={tr.documentsWithin(windowDays)} span={2} locked={!visible("hr.expiring-documents")} lockedWhat={tr.expiringDocuments}>
+        <Widget title={tr.expiringDocuments} hint={tr.documentsWithin(windowDays)} span={2} {...gate("hr.expiring-documents")} lockedWhat={tr.expiringDocuments}>
           {expiring.length === 0 ? (
             <p className="py-8 text-center text-sm text-slate-400">{tr.nothingExpiringAllClear}</p>
           ) : (
@@ -204,7 +210,7 @@ export default function HrDashboard({
         </Widget>
 
         {/* Moderate */}
-        <Widget title={tr.upcomingLeave} hint={tr.approvedNotYetStarted} locked={!visible("hr.upcoming-leave")} lockedWhat={tr.upcomingLeave}>
+        <Widget title={tr.upcomingLeave} hint={tr.approvedNotYetStarted} {...gate("hr.upcoming-leave")} lockedWhat={tr.upcomingLeave}>
           {upcoming.length === 0 ? (
             <p className="py-8 text-center text-sm text-slate-400">{tr.nobodyBookedAway}</p>
           ) : (
@@ -225,7 +231,7 @@ export default function HrDashboard({
         </Widget>
 
         {/* ---- the richer half (10/09/2026) ---- */}
-        <Widget title={tr.dashAwayForecast} hint={tr.dashAwayForecastHint} span={2} locked={!visible("hr.away-forecast")} lockedWhat={tr.dashAwayForecast}>
+        <Widget title={tr.dashAwayForecast} hint={tr.dashAwayForecastHint} span={2} {...gate("hr.away-forecast")} lockedWhat={tr.dashAwayForecast}>
           {awayApproved.some(Boolean) || awayPending.some(Boolean) ? (
             <ChartFrame labels={nextDays.map((day, i) => (i % 5 === 0 ? shortDay(day) : ""))} height={180}
               legend={[{ name: tr.dashSeriesApproved, color: "rgb(var(--chart-2))" }, { name: tr.dashSeriesPending, color: "rgb(var(--chart-4))" }]}>
@@ -238,7 +244,7 @@ export default function HrDashboard({
           ) : <DashEmpty text={tr.dashNobodyAway} />}
         </Widget>
 
-        <Widget title={tr.dashExpiryByWeek} hint={tr.dashExpiryByWeekHint(windowDays)} locked={!visible("hr.expiry-by-week")} lockedWhat={tr.dashExpiryByWeek}>
+        <Widget title={tr.dashExpiryByWeek} hint={tr.dashExpiryByWeekHint(windowDays)} {...gate("hr.expiry-by-week")} lockedWhat={tr.dashExpiryByWeek}>
           {expiring.length ? (
             <ChartFrame labels={[tr.dashExpired, ...expiryWeeks.map(shortDay)]} height={180}>
               <BarChart height={180} rtl={rtl} labels={["lapsed", ...expiryWeeks]}
@@ -247,7 +253,7 @@ export default function HrDashboard({
           ) : <DashEmpty text={tr.nothingExpiringAllClear} />}
         </Widget>
 
-        <Widget title={tr.dashLeaveTrend} hint={tr.dashLeaveTrendHint} span={3} locked={!visible("hr.leave-trend")} lockedWhat={tr.dashLeaveTrend}>
+        <Widget title={tr.dashLeaveTrend} hint={tr.dashLeaveTrendHint} span={3} {...gate("hr.leave-trend")} lockedWhat={tr.dashLeaveTrend}>
           {leaveSeries.length ? (
             <ChartFrame labels={leaveMonths.map((m) => monthLabel(m, locale))} height={220} legend={leaveSeries.map((s) => ({ name: s.name, color: s.color }))}>
               <BarChart height={220} stacked rtl={rtl} labels={leaveMonths} series={leaveSeries} />

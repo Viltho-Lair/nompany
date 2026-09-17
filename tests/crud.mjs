@@ -528,6 +528,37 @@ async function studioSetup() {
     drawnFrom.join(","));
   ok("…and never name a storage row", drawnFrom.every((k) => !k.startsWith("crm-sales-quotations") && !k.startsWith("engineering-docs-rfq")));
 
+  // ---- THE DASHBOARDS THAT BUILD ON THE SERVER READ NOTHING SWITCHED OFF ----
+  // Procurement and Engineering assemble their blocks server-side, one right per
+  // block — and since slice 2, one switch per block too. Both departments are
+  // off in this studio, so neither may read a single part of itself, even for
+  // the owner.
+  const PROC = await import("../src/app/api/studios/[slug]/procurement/dashboard/route.ts");
+  const ENG = await import("../src/app/api/studios/[slug]/engineering/dashboard/route.ts");
+  const PARTS = ["requisitions", "rfq", "expediting", "receiving", "suppliers", "subcontracts"];
+  const procOf = (s) => call(PROC.GET, req(`/api/studios/${s}/procurement/dashboard`), ctx({ slug: s }));
+  const engOf = (s) => call(ENG.GET, req(`/api/studios/${s}/engineering/dashboard`), ctx({ slug: s }));
+
+  // THE CONTROL FIRST, so the "nothing" below cannot be a route that simply
+  // failed: the fixture studio runs every department and gets its blocks.
+  const procAll = await procOf(F.slug);
+  ok("control: with Procurement on, the owner gets its blocks",
+    procAll.status === 200 && PARTS.every((k) => procAll.body?.may?.[k] === true),
+    `${procAll.status} ${JSON.stringify(procAll.body?.may)}`);
+  const engAll = await engOf(F.slug);
+  ok("control: with Engineering on, the owner gets its document register",
+    engAll.status === 200 && engAll.body?.may?.documents === true,
+    `${engAll.status} ${JSON.stringify(engAll.body?.may)}`);
+
+  const proc = await procOf(slug);
+  ok("Procurement is off, so its dashboard reads no block — owner included",
+    proc.status === 200 && PARTS.every((k) => proc.body?.may?.[k] === false && !proc.body?.[k]),
+    `${proc.status} ${JSON.stringify(proc.body?.may)}`);
+  const eng = await engOf(slug);
+  ok("Engineering is off, so its dashboard reads no register — owner included",
+    eng.status === 200 && eng.body?.may && !Object.values(eng.body.may).some(Boolean) && eng.body.documents === null,
+    `${eng.status} ${JSON.stringify(eng.body?.may)}`);
+
   // ---- no choice at all keeps the old behaviour ------------------------------
   // A second studio would hit the free-plan cap, so the old path is proven on
   // the refusal it shares: a caller that sends no `sections` is not asked for

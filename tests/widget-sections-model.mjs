@@ -18,6 +18,7 @@ register(new URL("./loader.mjs", import.meta.url), { data: { root } });
 const W = await import("@/lib/dashboardWidgets");
 const K = await import("@/platform/db/keys");
 const { MAIN_AGG_SOURCES } = await import("@/platform/db/mainAgg");
+const { BUILTIN_TYPES } = await import("@/platform/engine/builtins");
 
 let fails = 0;
 const ok = (label, cond, extra = "") => {
@@ -58,7 +59,12 @@ ok("`anyOf` with none on → gone", !W.widgetAvailable({ anyOf: ["projects-list"
 
 console.log("\n== every declared source is a real switch");
 
-const keys = new Set(K.SECTION_DEFS.flatMap((d) => [d.key, ...(d.children || []).map((c) => c.key)]));
+const keys = new Set([
+  ...K.SECTION_DEFS.flatMap((d) => [d.key, ...(d.children || []).map((c) => c.key)]),
+  // A built-in register's section is planted per studio at run time, so it is
+  // not in SECTION_DEFS — but it is a real row the owner can switch.
+  ...BUILTIN_TYPES.map((t) => `engine-${t.key}`),
+]);
 const declared = K.SECTION_DEFS && W.DASHBOARD_WIDGETS.flatMap((w) => [...(w.needs || []), ...(w.anyOf || [])].map((k) => [w.key, k]));
 const unknown = declared.filter(([, k]) => !keys.has(k));
 ok("no widget names a section that does not exist", unknown.length === 0, JSON.stringify(unknown));
@@ -67,6 +73,37 @@ const filed = declared.filter(([, k]) => K.isFiledOnlySection(k));
 ok("no widget names a filed-only storage row", filed.length === 0, JSON.stringify(filed));
 const system = declared.filter(([, k]) => K.isSystemSection(k));
 ok("no widget names Settings — it is never off", system.length === 0, JSON.stringify(system));
+
+// EVERY WIDGET SAYS WHAT IT IS DRAWN FROM — slice 2 of the owner's rule.
+// Reports' two are the executive board, which reads across departments by its
+// own path and is recorded as not built (dashboards.md).
+const undeclared = W.DASHBOARD_WIDGETS
+  .filter((w) => !w.needs && !w.anyOf && w.section !== "reports")
+  .map((w) => w.key);
+ok("every department widget declares its sources", undeclared.length === 0, undeclared.join(", "));
+
+console.log("\n== every dashboard asks the whole gate");
+
+// A dashboard that asks the TIER alone for a registered widget draws a locked
+// teaser for a department the owner switched off — an upsell for a choice. So
+// no dashboard passes `locked={!visible(...)}` any more; it spreads
+// `gate(key)`, which answers hidden before locked.
+const dashDir = "src/components/studio2";
+const dashboards = readdirSync(dashDir).filter((f) => /Dashboard\.jsx$/.test(f) && f !== "MainDashboard.jsx");
+const tierOnly = [];
+const gated = new Set();
+for (const f of dashboards) {
+  const text = readFileSync(`${dashDir}/${f}`, "utf8");
+  if (/locked=\{!\s*(visible|widgetVisible|show\w*)\b/.test(text)) tierOnly.push(f);
+  for (const m of text.matchAll(/gate\("([a-z-]+\.[a-z0-9-]+)"\)/g)) gated.add(m[1]);
+}
+ok("no dashboard gates a widget on the tier alone", tierOnly.length === 0, tierOnly.join(", "));
+const ungated = W.DASHBOARD_WIDGETS
+  .filter((w) => w.section !== "main" && w.section !== "reports" && !gated.has(w.key))
+  .map((w) => w.key);
+ok("every department widget is drawn through the gate", ungated.length === 0, ungated.join(", "));
+const stray = [...gated].filter((k) => !W.WIDGET_KEYS.has(k));
+ok("no dashboard gates a key the registry does not know", stray.length === 0, stray.join(", "));
 
 console.log("\n== Main's sources agree with what Main counts");
 

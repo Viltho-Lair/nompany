@@ -23,7 +23,7 @@ import { StatTile, fmtDate, fmtWeekday } from "@/components/studio2/ui";
 import { Widget, StatRow, DashGrid, DashEmpty } from "@/components/dashboard";
 import { BarChart, BarList, Donut, ChartFrame, HeatGrid } from "@/components/charts";
 import { monthsAround, countByMonth, monthLabel, rankTotals, peak, share } from "@/components/dashboard/series";
-import { useWidgetVisible } from "@/components/studio2/analyticsLevel";
+import { useWidgetGate, useSectionOn } from "@/components/studio2/analyticsLevel";
 
 // A permit state maps to a slice colour once, so the donut, the timeline pills
 // and any future legend cannot disagree about which hue "Expired" is.
@@ -62,7 +62,9 @@ export default function OperationsDashboard({
 }) {
   const locale = useStudioLocale();
   const tr = operationsDict(locale);
-  const visible = useWidgetVisible();
+  // Tier AND the studio's switches: a card whose section is off is not drawn.
+  const gate = useWidgetGate();
+  const sectionOn = useSectionOn();
 
   const active = permits.filter((p) => p.state === "Valid").length;
   const expiringSoon = permits.filter((p) => p.state === "Expiring").length;
@@ -137,16 +139,22 @@ export default function OperationsDashboard({
       {/* Basic — the summary everyone gets, before any detail. */}
       <StatRow>
         <StatTile label={tr.locations} value={locations.length} />
-        <StatTile label={tr.activePermits} value={active}
-          tone={active > 0 ? "text-emerald-600 dark:text-emerald-400" : ""} />
-        <StatTile label={tr.permitsExpiring} value={attention}
-          tone={attention > 0 ? (expired > 0 ? "text-rose-600 dark:text-rose-400" : "text-amber-700 dark:text-amber-300") : ""} />
-        <StatTile label={tr.shiftsWeek} value={summary.shiftsThisWeek} />
+        {sectionOn("quality-hse-permits") && (
+          <StatTile label={tr.activePermits} value={active}
+            tone={active > 0 ? "text-emerald-600 dark:text-emerald-400" : ""} />
+        )}
+        {sectionOn("quality-hse-permits") && (
+          <StatTile label={tr.permitsExpiring} value={attention}
+            tone={attention > 0 ? (expired > 0 ? "text-rose-600 dark:text-rose-400" : "text-amber-700 dark:text-amber-300") : ""} />
+        )}
+        {sectionOn("field-service") && (
+          <StatTile label={tr.shiftsWeek} value={summary.shiftsThisWeek} />
+        )}
       </StatRow>
 
       <DashGrid>
         {/* Simple */}
-        <Widget title={tr.permitsStatus} hint={tr.validExpiringExpired} locked={!visible("operations.permits-by-status")} lockedWhat={tr.permitsStatus}>
+        <Widget title={tr.permitsStatus} hint={tr.validExpiringExpired} {...gate("operations.permits-by-status")} lockedWhat={tr.permitsStatus}>
           {stateSlices.length ? (
             <div className="flex items-center justify-center py-2">
               <Donut size={168} data={stateSlices}
@@ -155,7 +163,7 @@ export default function OperationsDashboard({
           ) : <p className="py-8 text-center text-sm text-slate-400">{tr.noPermitsRecordedYet}</p>}
         </Widget>
 
-        <Widget title={tr.shiftsLocation} hint={tr.acrossEveryScheduledShift} locked={!visible("operations.shifts-by-location")} lockedWhat={tr.shiftsLocation}>
+        <Widget title={tr.shiftsLocation} hint={tr.acrossEveryScheduledShift} {...gate("operations.shifts-by-location")} lockedWhat={tr.shiftsLocation}>
           {byLocation.length ? (
             <BarList items={byLocation.map(([name, n]) => ({
               label: name,
@@ -165,7 +173,7 @@ export default function OperationsDashboard({
           ) : <p className="py-8 text-center text-sm text-slate-400">{tr.nothingScheduledYet}</p>}
         </Widget>
 
-        <Widget title={tr.shiftsWeek} hint={tr.coverageAcrossRotaWindow} span={2} locked={!visible("operations.shifts-this-week")} lockedWhat={tr.shiftsWeek}>
+        <Widget title={tr.shiftsWeek} hint={tr.coverageAcrossRotaWindow} span={2} {...gate("operations.shifts-this-week")} lockedWhat={tr.shiftsWeek}>
           {anyShiftsThisWeek ? (
             <ChartFrame labels={days.map((d) => fmtWeekday(d.iso))} height={200}>
               <BarChart height={200}
@@ -180,7 +188,7 @@ export default function OperationsDashboard({
         </Widget>
 
         {/* Moderate */}
-        <Widget title={tr.validityTimeline} hint={tr.soonestLapseWindow(windowDays)} locked={!visible("operations.validity-timeline")} lockedWhat={tr.validityTimeline}>
+        <Widget title={tr.validityTimeline} hint={tr.soonestLapseWindow(windowDays)} {...gate("operations.validity-timeline")} lockedWhat={tr.validityTimeline}>
           {timeline.length === 0 ? (
             <p className="py-8 text-center text-sm text-slate-400">{tr.noPermitsCarryEnd}</p>
           ) : (
@@ -200,7 +208,7 @@ export default function OperationsDashboard({
           )}
         </Widget>
 
-        <Widget title={tr.permitsType} hint={tr.whatKindAuthorisation} locked={!visible("operations.permits-by-type")} lockedWhat={tr.permitsType}>
+        <Widget title={tr.permitsType} hint={tr.whatKindAuthorisation} {...gate("operations.permits-by-type")} lockedWhat={tr.permitsType}>
           {byType.length ? (
             <BarList items={byType.map(([type, n]) => ({
               label: type,
@@ -211,13 +219,13 @@ export default function OperationsDashboard({
         </Widget>
 
         {/* ---- the richer half (10/09/2026) ---- */}
-        <Widget title={tr.dashShiftHeat} hint={tr.dashShiftHeatHint} span={2} locked={!visible("operations.shift-heat")} lockedWhat={tr.dashShiftHeat}>
+        <Widget title={tr.dashShiftHeat} hint={tr.dashShiftHeatHint} span={2} {...gate("operations.shift-heat")} lockedWhat={tr.dashShiftHeat}>
           {heatRows.length ? (
             <HeatGrid columns={days.map((x) => fmtWeekday(x.iso))} rows={heatRows} />
           ) : <DashEmpty text={tr.nothingScheduledYet} />}
         </Widget>
 
-        <Widget title={tr.dashPermitExpiry} hint={tr.dashPermitExpiryHint} locked={!visible("operations.permit-expiry")} lockedWhat={tr.dashPermitExpiry}>
+        <Widget title={tr.dashPermitExpiry} hint={tr.dashPermitExpiryHint} {...gate("operations.permit-expiry")} lockedWhat={tr.dashPermitExpiry}>
           {expiryByMonth.some(Boolean) ? (
             <ChartFrame labels={expiryMonths.map((m) => monthLabel(m, locale))} height={180}>
               <BarChart height={180} rtl={rtl} labels={expiryMonths}
@@ -226,7 +234,7 @@ export default function OperationsDashboard({
           ) : <DashEmpty text={tr.noPermitsCarryEnd} />}
         </Widget>
 
-        <Widget title={tr.dashHoursByLocation} hint={tr.dashHoursByLocationHint} locked={!visible("operations.hours-by-location")} lockedWhat={tr.dashHoursByLocation}>
+        <Widget title={tr.dashHoursByLocation} hint={tr.dashHoursByLocationHint} {...gate("operations.hours-by-location")} lockedWhat={tr.dashHoursByLocation}>
           {hoursByLocation.length ? (
             <BarList items={hoursByLocation.map((r) => ({
               label: r.label, value: share(r.value, peak(hoursByLocation)),
@@ -235,7 +243,7 @@ export default function OperationsDashboard({
           ) : <DashEmpty text={tr.nothingScheduledYet} />}
         </Widget>
 
-        <Widget title={tr.dashStateByType} hint={tr.dashStateByTypeHint} span={2} locked={!visible("operations.state-by-type")} lockedWhat={tr.dashStateByType}>
+        <Widget title={tr.dashStateByType} hint={tr.dashStateByTypeHint} span={2} {...gate("operations.state-by-type")} lockedWhat={tr.dashStateByType}>
           {stateSeries.length ? (
             <ChartFrame labels={stateTypes} height={200} legend={stateSeries.map((s) => ({ name: s.name, color: s.color }))}>
               <BarChart height={200} stacked rtl={rtl} labels={stateTypes} series={stateSeries} />

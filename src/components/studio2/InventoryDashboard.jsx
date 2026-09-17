@@ -23,7 +23,7 @@ import {
 } from "@/components/dashboard/series";
 import { CurrencySymbol } from "@/components/Currency";
 import { Icon } from "@/components/studio2/icons";
-import { useWidgetVisible } from "@/components/studio2/analyticsLevel";
+import { useWidgetGate, useSectionOn } from "@/components/studio2/analyticsLevel";
 import { StatusPill } from "@/components/studio2/StatusPill";
 
 // Quantities are counts, not money — three decimals at most, no forced pair.
@@ -116,7 +116,9 @@ export default function InventoryDashboard({
   const locale = useStudioLocale();
   const tr = inventoryDict(locale);
   const d = derive({ items, orders }, tr);
-  const visible = useWidgetVisible();
+  // Tier AND the studio's switches: a card whose section is off is not drawn.
+  const gate = useWidgetGate();
+  const sectionOn = useSectionOn();
   const href = (key) => (nav?.[key] ? `/${slug}/${key}` : "");
   const amt = (n) => <span className="num"><CurrencyGlyph currency={currency} />{money(n)}</span>;
 
@@ -169,16 +171,24 @@ export default function InventoryDashboard({
     <div className="space-y-5">
       {/* Basic — the summary everyone gets, before any detail. */}
       <StatRow>
-        <StatTile label={tr.registeredItems} value={qty(summary?.items ?? items.length)} href={href("inventory-items")} />
-        <StatTile label={tr.stockValue} value={amt(summary?.value ?? 0)} href={href("inventory-stock")} />
-        <StatTile label={tr.belowReorder} value={qty(summary?.low ?? d.below.length)}
-          tone={(summary?.low ?? 0) > 0 ? "text-amber-700 dark:text-amber-300" : ""} href={href("inventory-stock")} />
-        <StatTile label={tr.openPurchaseOrders} value={qty(openPos)} href={href("inventory-sheets")} />
+        {sectionOn("inventory-items") && (
+          <StatTile label={tr.registeredItems} value={qty(summary?.items ?? items.length)} href={href("inventory-items")} />
+        )}
+        {sectionOn("inventory-items") && sectionOn("inventory-stock") && (
+          <StatTile label={tr.stockValue} value={amt(summary?.value ?? 0)} href={href("inventory-stock")} />
+        )}
+        {sectionOn("inventory-items") && sectionOn("inventory-stock") && (
+          <StatTile label={tr.belowReorder} value={qty(summary?.low ?? d.below.length)}
+            tone={(summary?.low ?? 0) > 0 ? "text-amber-700 dark:text-amber-300" : ""} href={href("inventory-stock")} />
+        )}
+        {sectionOn("procurement-orders") && (
+          <StatTile label={tr.openPurchaseOrders} value={qty(openPos)} href={href("inventory-sheets")} />
+        )}
       </StatRow>
 
       <DashGrid>
         {/* Simple */}
-        <Widget title={tr.belowReorderLevel} hint={tr.handAgainstLevelShould} locked={!visible("inventory.below-reorder")} lockedWhat={tr.belowReorderItems}>
+        <Widget title={tr.belowReorderLevel} hint={tr.handAgainstLevelShould} {...gate("inventory.below-reorder")} lockedWhat={tr.belowReorderItems}>
           {d.below.length ? (
             <BarList items={d.below.slice(0, 8).map((b) => ({
               label: b.name,
@@ -189,7 +199,7 @@ export default function InventoryDashboard({
           ) : <p className="py-8 text-center text-sm text-slate-400">{tr.nothingBelowReorderLevel}</p>}
         </Widget>
 
-        <Widget title={tr.purchaseOrdersStatus} hint={tr.whereEveryOrderStands} locked={!visible("inventory.orders-by-status")} lockedWhat={tr.orderStatusBreakdown}>
+        <Widget title={tr.purchaseOrdersStatus} hint={tr.whereEveryOrderStands} {...gate("inventory.orders-by-status")} lockedWhat={tr.orderStatusBreakdown}>
           {d.poTotal ? (
             <div className="flex flex-wrap items-center justify-center gap-5 py-2">
               <Donut size={168} data={d.statusSlices.map((s) => ({ label: s.label, value: s.value, color: s.color }))}
@@ -207,7 +217,7 @@ export default function InventoryDashboard({
           ) : <p className="py-8 text-center text-sm text-slate-400">{tr.noPurchaseOrdersYet}</p>}
         </Widget>
 
-        <Widget title={tr.spendVendor} hint={tr.committedOrderedPartlyReceived} locked={!visible("inventory.spend-by-vendor")} lockedWhat={tr.spendVendor}>
+        <Widget title={tr.spendVendor} hint={tr.committedOrderedPartlyReceived} {...gate("inventory.spend-by-vendor")} lockedWhat={tr.spendVendor}>
           {d.spend.length ? (
             <BarList items={d.spend.slice(0, 8).map((v) => ({
               label: v.name,
@@ -218,7 +228,7 @@ export default function InventoryDashboard({
         </Widget>
 
         {/* Moderate */}
-        <Widget title={tr.stockValueVendor} hint={tr.handQuantityValuedUnit} locked={!visible("inventory.stock-value-by-vendor")} lockedWhat={tr.stockValueVendor}>
+        <Widget title={tr.stockValueVendor} hint={tr.handQuantityValuedUnit} {...gate("inventory.stock-value-by-vendor")} lockedWhat={tr.stockValueVendor}>
           {d.stockVendor.length ? (
             <BarList items={d.stockVendor.slice(0, 8).map((v) => ({
               label: v.name,
@@ -228,7 +238,7 @@ export default function InventoryDashboard({
           ) : <p className="py-8 text-center text-sm text-slate-400">{tr.noStockValueYet}</p>}
         </Widget>
 
-        <Widget title={tr.outstandingOrder} hint={tr.valueStillExpectedArrive} locked={!visible("inventory.outstanding-on-order")} lockedWhat={tr.outstandingOrderValue}>
+        <Widget title={tr.outstandingOrder} hint={tr.valueStillExpectedArrive} {...gate("inventory.outstanding-on-order")} lockedWhat={tr.outstandingOrderValue}>
           {d.outstandingByOrder.length ? (
             <>
               <p className="mb-3 text-sm text-slate-500 dark:text-slate-400">{tr.outstandingAcross(amt(d.outstandingValue), tr.nOrders(d.outstandingByOrder.length))}</p>
@@ -241,7 +251,7 @@ export default function InventoryDashboard({
           ) : <p className="py-8 text-center text-sm text-slate-400">{tr.nothingOutstandingOrder}</p>}
         </Widget>
 
-        <Widget title={tr.recentStockMovements} hint={tr.latestLedger} locked={!visible("inventory.recent-movements")} lockedWhat={tr.recentMovements}>
+        <Widget title={tr.recentStockMovements} hint={tr.latestLedger} {...gate("inventory.recent-movements")} lockedWhat={tr.recentMovements}>
           {recent.length ? (
             <ul className="divide-y divide-slate-100 dark:divide-white/5">
               {recent.map((m) => (
@@ -259,11 +269,11 @@ export default function InventoryDashboard({
         </Widget>
 
         {/* ---- the richer half (10/09/2026) ---- */}
-        <Widget title={tr.dashStockHealth} hint={tr.dashStockHealthHint} locked={!visible("inventory.stock-health")} lockedWhat={tr.dashStockHealth}>
+        <Widget title={tr.dashStockHealth} hint={tr.dashStockHealthHint} {...gate("inventory.stock-health")} lockedWhat={tr.dashStockHealth}>
           {items.length ? <DonutLegend data={healthSlices} word={tr.dashItemsWord} /> : <DashEmpty text={tr.dashNoStock} />}
         </Widget>
 
-        <Widget title={tr.dashMovementTrend} hint={tr.dashMovementTrendHint} span={2} locked={!visible("inventory.movement-trend")} lockedWhat={tr.dashMovementTrend}>
+        <Widget title={tr.dashMovementTrend} hint={tr.dashMovementTrendHint} span={2} {...gate("inventory.movement-trend")} lockedWhat={tr.dashMovementTrend}>
           {inByWeek.some(Boolean) || outByWeek.some(Boolean) ? (
             <ChartFrame labels={weeks.map((w, i) => (i % 2 === 0 ? shortDay(w) : ""))} height={200}
               legend={[{ name: tr.dashSeriesIn, color: "rgb(var(--chart-2))" }, { name: tr.dashSeriesOut, color: "rgb(var(--chart-3))" }]}>
@@ -276,13 +286,13 @@ export default function InventoryDashboard({
           ) : <DashEmpty text={tr.noStockMovementsYet2} />}
         </Widget>
 
-        <Widget title={tr.dashTopItems} hint={tr.dashTopItemsHint} locked={!visible("inventory.top-items")} lockedWhat={tr.dashTopItems}>
+        <Widget title={tr.dashTopItems} hint={tr.dashTopItemsHint} {...gate("inventory.top-items")} lockedWhat={tr.dashTopItems}>
           {topItems.length ? (
             <BarList items={topItems.map((t) => ({ label: t.label, value: share(t.value, peak(topItems)), display: amt(t.value) }))} />
           ) : <DashEmpty text={tr.noStockValueYet} />}
         </Widget>
 
-        <Widget title={tr.dashOrderTrend} hint={tr.dashOrderTrendHint} span={2} locked={!visible("inventory.order-trend")} lockedWhat={tr.dashOrderTrend}>
+        <Widget title={tr.dashOrderTrend} hint={tr.dashOrderTrendHint} span={2} {...gate("inventory.order-trend")} lockedWhat={tr.dashOrderTrend}>
           {orderCount.some(Boolean) ? (
             <ChartFrame labels={months.map((m) => monthLabel(m, locale))} height={220}
               legend={[{ name: tr.dashSeriesValue, color: "rgb(var(--chart-1))" }, { name: tr.dashSeriesOrders, color: "rgb(var(--chart-3))" }]}>

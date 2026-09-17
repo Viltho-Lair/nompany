@@ -1624,7 +1624,8 @@ the tier includes it, the reader holds the rights, AND every section it reads is
 (`switchboard` in `lib/dashboardWidgets`). A switched-off department's widget is ABSENT — never a
 locked teaser, never a zero. **Name the switch, not the storage:** a read of a filed-only row must
 say which department it is for (`readIfVisible(…, switchKey)`), and Main's `seen` throws if it
-does not. `docs/functionality/dashboards.md` is the file; slice 2 (department dashboards) is open.
+does not. Dashboards spread `gate(key)` (`useWidgetGate`) — never `locked={!visible(key)}`, which would sell a switched-off
+department back as a locked teaser. `docs/functionality/dashboards.md` is the file.
 
 **THE OWNER CHOOSES THE DEPARTMENTS AT CREATION — the owner's instruction,
 17/09/2026 — AND THE TRADE ONLY PRE-FILLS THE ANSWERS.** Creating a studio is a

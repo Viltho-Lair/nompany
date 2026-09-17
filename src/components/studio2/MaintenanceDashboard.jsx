@@ -22,7 +22,7 @@ import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { h2, sub, StatTile, money, fmtDate } from "@/components/studio2/ui";
 import { StatRow, DashGrid, Widget, DashEmpty } from "@/components/dashboard";
 import { BarList, Radial } from "@/components/charts";
-import { useWidgetVisible } from "@/components/studio2/analyticsLevel";
+import { useWidgetGate, useSectionOn } from "@/components/studio2/analyticsLevel";
 
 // NAMED `*Dashboard.jsx` DELIBERATELY: the widget-gate scan reads exactly that
 // filename pattern to prove every registry key is drawn by something, so a
@@ -31,10 +31,9 @@ export default function MaintenanceDashboard({ slug }) {
   const tr = maintenanceDict(useStudioLocale());
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
-  // IT RETURNS A PREDICATE, not an answer — calling it with a key gives back a
-  // function, which is truthy, and every paid widget would be free for
-  // everybody, silently.
-  const widgetVisible = useWidgetVisible();
+  // Tier AND the studio's switches: a card whose section is off is not drawn.
+  const gate = useWidgetGate();
+  const sectionOn = useSectionOn();
 
   const read = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/maintenance/dashboard`, { cache: "no-store" });
@@ -88,22 +87,30 @@ export default function MaintenanceDashboard({ slug }) {
           analysis: how much work is open, how much is late, what nobody has
           triaged, and what is stopped right now. */}
       <StatRow>
-        <StatTile label={tr.openWork} value={num(backlog.open ?? 0)}
-          href={may.orders ? `/${slug}/maintenance-orders` : ""} />
-        <StatTile label={tr.overdue} value={num(backlog.overdue ?? 0)}
-          tone={backlog.overdue > 0 ? "text-rose-600 dark:text-rose-400" : ""}
-          href={may.orders ? `/${slug}/maintenance-orders` : ""} />
-        <StatTile label={tr.waitingTriage} value={num(requests.waiting ?? 0)}
-          href={may.requests ? `/${slug}/maintenance-requests` : ""} />
-        <StatTile label={tr.machinesDown} value={num(backlog.down ?? 0)}
-          tone={backlog.down > 0 ? "text-rose-600 dark:text-rose-400" : ""}
-          href={may.orders ? `/${slug}/maintenance-orders` : ""} />
+        {sectionOn("maintenance-orders") && (
+          <StatTile label={tr.openWork} value={num(backlog.open ?? 0)}
+            href={may.orders ? `/${slug}/maintenance-orders` : ""} />
+        )}
+        {sectionOn("maintenance-orders") && (
+          <StatTile label={tr.overdue} value={num(backlog.overdue ?? 0)}
+            tone={backlog.overdue > 0 ? "text-rose-600 dark:text-rose-400" : ""}
+            href={may.orders ? `/${slug}/maintenance-orders` : ""} />
+        )}
+        {sectionOn("maintenance-requests") && (
+          <StatTile label={tr.waitingTriage} value={num(requests.waiting ?? 0)}
+            href={may.requests ? `/${slug}/maintenance-requests` : ""} />
+        )}
+        {sectionOn("maintenance-orders") && (
+          <StatTile label={tr.machinesDown} value={num(backlog.down ?? 0)}
+            tone={backlog.down > 0 ? "text-rose-600 dark:text-rose-400" : ""}
+            href={may.orders ? `/${slug}/maintenance-orders` : ""} />
+        )}
       </StatRow>
 
       <DashGrid>
         {may.orders && (
           <Widget title={tr.backlogByPriority} hint={tr.backlogHint}
-            locked={!widgetVisible("maintenance.backlog-by-priority")} lockedWhat={tr.backlogByPriority}>
+            {...gate("maintenance.backlog-by-priority")} lockedWhat={tr.backlogByPriority}>
             {backlog.open > 0 ? (
               <>
                 <BarList items={(backlog.byPriority || []).filter((p) => p.count > 0).map((p) => ({
@@ -121,7 +128,7 @@ export default function MaintenanceDashboard({ slug }) {
 
         {may.plans && (
           <Widget title={tr.compliance} hint={tr.complianceHint}
-            locked={!widgetVisible("maintenance.pm-compliance")} lockedWhat={tr.compliance}>
+            {...gate("maintenance.pm-compliance")} lockedWhat={tr.compliance}>
             {/* NULL IS NOT NOUGHT: nothing fallen due yet is "no history", which
                 is a different answer from "none of it was on time". */}
             {planned.percent != null ? (
@@ -138,7 +145,7 @@ export default function MaintenanceDashboard({ slug }) {
 
         {may.contracts && (
           <Widget title={tr.contracts} hint={tr.contractsHint}
-            locked={!widgetVisible("maintenance.contracts")} lockedWhat={tr.contracts}>
+            {...gate("maintenance.contracts")} lockedWhat={tr.contracts}>
             {contracts.active > 0 || contracts.allowance > 0 ? (
               <div className="grid grid-cols-3 gap-3 py-2 text-center">
                 <div>
@@ -165,7 +172,7 @@ export default function MaintenanceDashboard({ slug }) {
 
         {may.orders && may.machines && (
           <Widget title={tr.worstMachines} hint={tr.worstHint} span={2}
-            locked={!widgetVisible("maintenance.worst-machines")} lockedWhat={tr.worstMachines}>
+            {...gate("maintenance.worst-machines")} lockedWhat={tr.worstMachines}>
             {worst.length ? (
               <BarList items={worst.map((m) => ({
                 label: m.name,
@@ -182,7 +189,7 @@ export default function MaintenanceDashboard({ slug }) {
 
         {may.orders && (
           <Widget title={tr.costTitle} hint={tr.costHint}
-            locked={!widgetVisible("maintenance.cost")} lockedWhat={tr.costTitle}>
+            {...gate("maintenance.cost")} lockedWhat={tr.costTitle}>
             <div className="grid grid-cols-2 gap-3 py-2 text-center">
               <div>
                 <p className="num text-2xl font-800 text-slate-900 dark:text-white">{amount(cost.partsCost)}</p>

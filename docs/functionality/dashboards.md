@@ -112,6 +112,32 @@ switch (`quotations-register`), so their names and links go to the screen the ow
 than to a storage row nobody can open. `tests/crud.mjs` proves it against the database on a
 studio created with Projects, Quotations, Inventory and Finance off.
 
+**The department dashboards followed (slice 2, 17/09/2026).** Ninety of the ninety-two
+registered widgets declare their sources; the two that do not are the Reports board's, below.
+Four things carry it:
+
+- **The shell passes its section rows down** with the plan (`AnalyticsLevelProvider`, which
+  already carried the tier), so no dashboard reads anything new.
+- **`useWidgetGate()`** answers both gates for a registered widget as the two props `Widget`
+  takes — `<Widget {...gate("sales.funnel")}>`. `hidden` (a source is off) wins over `locked`
+  (the tier did not buy it), and `Widget` renders nothing when hidden. No dashboard may pass
+  `locked={!visible(…)}` for a registered widget any more; the model test refuses it, and
+  refuses a registered department widget that is not drawn through `gate`.
+- **`useSectionOn()`** gates the free headline tiles, which are not in the registry: each tile
+  is wrapped in the check for the part it counts. The tile row skips an empty slot, so nothing
+  leaves a gap.
+- **Procurement and Engineering build their blocks on the server**, one right per block — and
+  now one switch per block too, so a switched-off part is never read there, the way Main's is
+  not. `tests/crud.mjs` proves it against the database with a control studio beside it.
+
+**Where a widget is drawn is not what it is drawn from**, and the map follows the data:
+*Quotation volume* on the Sales dashboard needs Quotations; purchase-order charts on Inventory
+need Procurement → Orders (the orders are filed under Inventory); permit charts on Operations need
+Quality & HSE → Permits; the stage-based sales charts need the Pipeline as well as Tickets;
+*Owed to us vs owed by us* needs both Finance → Cash and Payables; the RFI and submittal charts
+need their record-engine registers (`engine-rfi`, `engine-submittal`), which are real rows
+planted per studio.
+
 ## The rollout consequence
 
 **A tier that was given an explicit widget selection does not include the new keys**, because
@@ -125,10 +151,12 @@ is not mistaken for one.
 
 Stated in words, because a silent gap reads as a finished feature.
 
-- **The department dashboards do not follow switches yet** (slice 2). Only Main's four widgets
-  declare their sources; the other eighty-eight (of ninety-two, measured 17/09/2026) carry no `needs`, so a part switched off inside a
-  department that is on (the pipeline inside CRM & Sales) still has its charts drawn on that
-  department's dashboard.
+- **Only Procurement, Engineering and Main trim on the server.** The other department
+  dashboards are drawn from lists their screens already hold, and hide a switched-off part's
+  cards and tiles in the browser — the figures reach the page, for a reader who holds the rights
+  to them, and are not drawn.
+- **The leave charts and tiles follow the HR department as a whole.** Leave is kept on the HR
+  root, which has no part of its own to switch.
 - **Free headline tiles are not in the registry.** Main's are gated through `seen` by the read
   behind each figure, which works, but a tile cannot be listed or tested as a widget.
 - **Reports & BI's executive board and the engagements view** read across sections through their

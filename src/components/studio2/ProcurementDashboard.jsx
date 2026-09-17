@@ -19,7 +19,7 @@ import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { h2, sub, Empty, StatTile, money } from "@/components/studio2/ui";
 import { StatRow, DashGrid, Widget, DashEmpty, DonutLegend } from "@/components/dashboard";
 import { BarList } from "@/components/charts";
-import { useWidgetVisible } from "@/components/studio2/analyticsLevel";
+import { useWidgetGate, useSectionOn } from "@/components/studio2/analyticsLevel";
 
 // NAMED `*Dashboard.jsx` DELIBERATELY, and not only for tidiness: Gate A scans
 // exactly that filename pattern for the widget-gate calls below, to prove every
@@ -42,8 +42,10 @@ export default function ProcurementDashboard({ slug }) {
   // IT RETURNS A PREDICATE, not an answer. Calling it with the key gives back
   // the function itself, which is truthy, so the gate would never close and the
   // paid widget would be free for everybody — silently.
-  const widgetVisible = useWidgetVisible();
-  const showRanking = widgetVisible("procurement.on-time-by-supplier");
+  // Tier AND the studio's switches: a card whose section is off is not drawn.
+  // (The server already leaves out every block whose part is switched off.)
+  const gate = useWidgetGate();
+  const sectionOn = useSectionOn();
 
   const read = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/procurement/dashboard`, { cache: "no-store" });
@@ -124,9 +126,13 @@ export default function ProcurementDashboard({ slug }) {
                 {/* NULL IS NOT NOUGHT. Without the payables right no bill was
                     read, so this reader has not been shown a finding — the tile
                     says withheld rather than claiming a clean sheet. */}
-                <StatTile label={tr.tileOverBilled}
-                  value={receiving.overBilled === null ? tr.blockHidden : receiving.overBilled}
-                  tone={receiving.overBilled > 0 ? "text-rose-600 dark:text-rose-300" : undefined} />
+                {/* …AND WITH PAYABLES SWITCHED OFF there is no finding to withhold:
+                    the studio does not keep bills here, so the tile goes. */}
+                {sectionOn("finance-payables") && (
+                  <StatTile label={tr.tileOverBilled}
+                    value={receiving.overBilled === null ? tr.blockHidden : receiving.overBilled}
+                    tone={receiving.overBilled > 0 ? "text-rose-600 dark:text-rose-300" : undefined} />
+                )}
               </>
             )}
             {suppliers && (
@@ -154,7 +160,7 @@ export default function ProcurementDashboard({ slug }) {
           <DashGrid>
             {suppliers && (
               <Widget title={tr.dashSupplierHealth} hint={tr.dashSupplierHealthHint}
-                locked={!widgetVisible("procurement.supplier-health")} lockedWhat={tr.dashSupplierHealth}>
+                {...gate("procurement.supplier-health")} lockedWhat={tr.dashSupplierHealth}>
                 {suppliers.total ? (
                   // ONE STATE PER SUPPLIER (supplierQualification), so these are
                   // slices of a whole; qualified is what is left over.
@@ -170,7 +176,7 @@ export default function ProcurementDashboard({ slug }) {
             )}
             {expediting && (
               <Widget title={tr.dashDeliveryStatus} hint={tr.dashDeliveryStatusHint}
-                locked={!widgetVisible("procurement.delivery-status")} lockedWhat={tr.dashDeliveryStatus}>
+                {...gate("procurement.delivery-status")} lockedWhat={tr.dashDeliveryStatus}>
                 <CountBars empty={tr.dashNothingInFlight} rows={[
                   { label: tr.dashLate, value: expediting.late, color: "rgb(var(--chart-3))" },
                   { label: tr.dashDueSoon, value: expediting.dueSoon, color: "rgb(var(--chart-4))" },
@@ -181,7 +187,7 @@ export default function ProcurementDashboard({ slug }) {
             )}
             {receiving && (
               <Widget title={tr.dashReceivingExceptions} hint={tr.dashReceivingExceptionsHint}
-                locked={!widgetVisible("procurement.receiving-exceptions")} lockedWhat={tr.dashReceivingExceptions}>
+                {...gate("procurement.receiving-exceptions")} lockedWhat={tr.dashReceivingExceptions}>
                 <CountBars empty={tr.dashNothingInFlight} rows={[
                   { label: tr.dashAwaitingDelivery, value: receiving.awaitingDelivery, color: "rgb(var(--chart-1))" },
                   { label: tr.dashPartDelivered, value: receiving.partDelivered, color: "rgb(var(--chart-4))" },
@@ -195,7 +201,7 @@ export default function ProcurementDashboard({ slug }) {
             )}
           {onTimeBySupplier && (
               <Widget title={tr.onTimeRanking} hint={tr.onTimeRankingHint} span={2}
-                locked={!showRanking} lockedWhat={tr.onTimeRanking}>
+                {...gate("procurement.on-time-by-supplier")} lockedWhat={tr.onTimeRanking}>
                 {!onTimeBySupplier.length ? (
                   <p className="text-xs text-slate-400">{tr.noOnTimeYet}</p>
                 ) : (

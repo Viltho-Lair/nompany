@@ -59,7 +59,11 @@ const SPAN = { 1: "", 2: "sm:col-span-2", 3: "lg:col-span-3 sm:col-span-2", full
  * the teaser instead of the content — the department decides `locked` from
  * `analyticsAllows(studioLevel, widgetRung)`.
  */
-export function Widget({ title, hint, span = 1, locked = false, lockedWhat, children, className = "" }) {
+export function Widget({ title, hint, span = 1, locked = false, hidden = false, lockedWhat, children, className = "" }) {
+  // HIDDEN is not locked: a section this widget is drawn from is switched off,
+  // so there is nothing to show and nothing to sell — the card is simply not
+  // there, and the grid flows on (useWidgetGate in studio2/analyticsLevel).
+  if (hidden) return null;
   return (
     <div className={`${panel} ${SPAN[span] || ""} ${className}`}>
       {title && <WidgetTitle hint={hint}>{title}</WidgetTitle>}

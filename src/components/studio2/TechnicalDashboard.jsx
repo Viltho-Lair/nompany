@@ -26,7 +26,7 @@ import {
   quotationStats, rfqFunnel, urgencyBreakdown, handlerLeaderboard,
   quotationTimeline, completionScatter, averageTurnaround, quotationValue,
 } from "@/modules/technical/technicalAnalytics";
-import { useWidgetVisible } from "@/components/studio2/analyticsLevel";
+import { useWidgetGate, useSectionOn } from "@/components/studio2/analyticsLevel";
 
 const NoData = ({ text }) => (
   <p className="py-8 text-center text-sm text-slate-400">{text}</p>
@@ -54,7 +54,9 @@ export default function TechnicalDashboard({
 }) {
   const locale = useStudioLocale();
   const tr = technicalDict(locale);
-  const visible = useWidgetVisible();
+  // Tier AND the studio's switches: a card whose section is off is not drawn.
+  const gate = useWidgetGate();
+  const sectionOn = useSectionOn();
   const stats = quotationStats(quotations);
   const value = quotationValue(quotations);
   const turnaround = averageTurnaround(quotations);
@@ -96,18 +98,25 @@ export default function TechnicalDashboard({
     <div className="space-y-5">
       {/* Basic — the summary everyone gets, before any detail. */}
       <StatRow>
-        <StatTile label={tr.openRfqs} value={openRfqs} tone={openRfqs > 0 ? "text-amber-600 dark:text-amber-400" : ""} />
-        <StatTile label={tr.quotationsOut} value={out} />
-        <StatTile
-          label={tr.averageTurnaround}
-          value={turnaround === null ? "—" : <span className="num">{tr.nDays(turnaround)}</span>}
-        />
-        <StatTile label={tr.totalQuotationValue} value={amt(value.all)} />
+        {sectionOn("quotations-rfq") && (
+          <StatTile label={tr.openRfqs} value={openRfqs} tone={openRfqs > 0 ? "text-amber-600 dark:text-amber-400" : ""} />
+        )}
+        {sectionOn("quotations-register") && (
+          <StatTile label={tr.quotationsOut} value={out} />
+        )}
+        {sectionOn("quotations-register") && (
+          <StatTile label={tr.averageTurnaround}
+            value={turnaround === null ? "—" : <span className="num">{tr.nDays(turnaround)}</span>}
+          />
+        )}
+        {sectionOn("quotations-register") && (
+          <StatTile label={tr.totalQuotationValue} value={amt(value.all)} />
+        )}
       </StatRow>
 
       <DashGrid>
         {/* Simple */}
-        <Widget title={tr.quotationVolume} hint={tr.newQuotationsLast30} span={2} locked={!visible("technical.quotation-volume")} lockedWhat={tr.quotationVolume}>
+        <Widget title={tr.quotationVolume} hint={tr.newQuotationsLast30} span={2} {...gate("technical.quotation-volume")} lockedWhat={tr.quotationVolume}>
           {stats.total ? (
             <ChartFrame
               // 30 labels would overprint; show one every fifth day and blank the
@@ -124,7 +133,7 @@ export default function TechnicalDashboard({
           ) : <NoData text={tr.noQuotationsYet3} />}
         </Widget>
 
-        <Widget title={tr.rfqFunnel} hint={tr.rfqsWorkflowStatus} locked={!visible("technical.rfq-funnel")} lockedWhat={tr.rfqFunnel}>
+        <Widget title={tr.rfqFunnel} hint={tr.rfqsWorkflowStatus} {...gate("technical.rfq-funnel")} lockedWhat={tr.rfqFunnel}>
           {rfqs.length ? (
             <BarList items={funnel.map((f) => ({
               label: f.label,
@@ -134,7 +143,7 @@ export default function TechnicalDashboard({
           ) : <NoData text={tr.noRfqsYet} />}
         </Widget>
 
-        <Widget title={tr.urgencyBreakdown} hint={tr.quotationsUrgencyCarriedTicket} locked={!visible("technical.urgency-breakdown")} lockedWhat={tr.urgencyBreakdown}>
+        <Widget title={tr.urgencyBreakdown} hint={tr.quotationsUrgencyCarriedTicket} {...gate("technical.urgency-breakdown")} lockedWhat={tr.urgencyBreakdown}>
           {urgencyTotal ? (
             <div className="flex items-center justify-center py-2">
               <Donut
@@ -151,7 +160,7 @@ export default function TechnicalDashboard({
           ) : <NoData text={tr.noQuotationsYet} />}
         </Widget>
 
-        <Widget title={tr.approvedShare} hint={tr.approvedValuePortionWhole} locked={!visible("technical.approved-share")} lockedWhat={tr.approvedShare}>
+        <Widget title={tr.approvedShare} hint={tr.approvedValuePortionWhole} {...gate("technical.approved-share")} lockedWhat={tr.approvedShare}>
           {value.all > 0 ? (
             <div className="flex flex-col items-center gap-2 py-2">
               <Radial value={approvedPct} label={`${approvedPct}%`} sub={tr.ofPipelineValue} color="rgb(var(--chart-2))" />
@@ -161,7 +170,7 @@ export default function TechnicalDashboard({
         </Widget>
 
         {/* Moderate */}
-        <Widget title={tr.handlerLeaderboard} hint={tr.quotationsHandledRanked} locked={!visible("technical.handler-leaderboard")} lockedWhat={tr.handlerLeaderboard}>
+        <Widget title={tr.handlerLeaderboard} hint={tr.quotationsHandledRanked} {...gate("technical.handler-leaderboard")} lockedWhat={tr.handlerLeaderboard}>
           {leaders.length ? (
             <BarList items={leaders.slice(0, 6).map((l) => ({
               label: l.name,
@@ -172,7 +181,7 @@ export default function TechnicalDashboard({
           ) : <NoData text={tr.noQuotationsYet} />}
         </Widget>
 
-        <Widget title={tr.turnaround} hint={tr.daysCreationApproval} locked={!visible("technical.turnaround")} lockedWhat={tr.turnaround}>
+        <Widget title={tr.turnaround} hint={tr.daysCreationApproval} {...gate("technical.turnaround")} lockedWhat={tr.turnaround}>
           {turnaround === null ? (
             <NoData text={tr.noQuotationApprovedYet} />
           ) : (
@@ -189,11 +198,11 @@ export default function TechnicalDashboard({
         </Widget>
 
         {/* ---- the richer half (10/09/2026) ---- */}
-        <Widget title={tr.dashStatusMix} hint={tr.dashStatusMixHint} locked={!visible("technical.status-mix")} lockedWhat={tr.dashStatusMix}>
+        <Widget title={tr.dashStatusMix} hint={tr.dashStatusMixHint} {...gate("technical.status-mix")} lockedWhat={tr.dashStatusMix}>
           {statusSlices.length ? <DonutLegend data={statusSlices} word={tr.dashQuotationsWord} /> : <NoData text={tr.noQuotationsYet} />}
         </Widget>
 
-        <Widget title={tr.dashValueTrend} hint={tr.dashValueTrendHint} span={2} locked={!visible("technical.value-trend")} lockedWhat={tr.dashValueTrend}>
+        <Widget title={tr.dashValueTrend} hint={tr.dashValueTrendHint} span={2} {...gate("technical.value-trend")} lockedWhat={tr.dashValueTrend}>
           {quotationsByMonth.some(Boolean) ? (
             <ChartFrame labels={months.map((m) => monthLabel(m, locale))} height={220}
               legend={[{ name: tr.dashSeriesValue, color: "rgb(var(--chart-1))" }, { name: tr.dashSeriesQuotations, color: "rgb(var(--chart-3))" }]}>
@@ -204,7 +213,7 @@ export default function TechnicalDashboard({
           ) : <NoData text={tr.noQuotationsYet3} />}
         </Widget>
 
-        <Widget title={tr.dashTurnaroundScatter} hint={tr.dashTurnaroundScatterHint} span={2} locked={!visible("technical.turnaround-scatter")} lockedWhat={tr.dashTurnaroundScatter}>
+        <Widget title={tr.dashTurnaroundScatter} hint={tr.dashTurnaroundScatterHint} span={2} {...gate("technical.turnaround-scatter")} lockedWhat={tr.dashTurnaroundScatter}>
           {scatter.length ? (
             <Scatter height={200} xMax={Math.max(1, scatter.length - 1)} yMax={scatterMax}
               points={scatter.map((s) => ({ x: s.x, y: s.y, label: `${s.label} · ${tr.dashDaysUnit(s.y)}`, color: "rgb(var(--chart-2))" }))}
@@ -213,7 +222,7 @@ export default function TechnicalDashboard({
           ) : <NoData text={tr.noQuotationApprovedYet} />}
         </Widget>
 
-        <Widget title={tr.dashWeekdayHeat} hint={tr.dashWeekdayHeatHint} locked={!visible("technical.weekday-heat")} lockedWhat={tr.dashWeekdayHeat}>
+        <Widget title={tr.dashWeekdayHeat} hint={tr.dashWeekdayHeatHint} {...gate("technical.weekday-heat")} lockedWhat={tr.dashWeekdayHeat}>
           {heat.some((row) => row.some(Boolean)) ? (
             <HeatGrid columns={weeks.map((w, i) => (i % 2 === 0 ? shortDay(w) : ""))} rows={dayNames.map((name, i) => ({ label: name, values: heat[i] }))} />
           ) : <NoData text={tr.noQuotationsYet} />}

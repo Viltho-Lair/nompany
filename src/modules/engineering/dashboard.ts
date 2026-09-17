@@ -18,6 +18,7 @@
 // where it is true, and an absent block reads as "not yours" rather than "none".
 import { requirePermission, engineSectionKey, type PermissionKey } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
+import { switchboard } from "@/lib/dashboardWidgets";
 import type { EngineRecord } from "@/platform/engine/schema";
 import type { QualityDocument, QualityRevision } from "@/modules/quality/types";
 import { moduleContext, type ModuleContext } from "../context";
@@ -68,9 +69,14 @@ export async function engineeringDashboard(ctx: EngineeringContext) {
   const sectionOf = Object.fromEntries(ENGINEERING_TYPES.map((t) => [t, own(t, engineSectionKey(t))])) as
     Record<EngineeringType, Section | null>;
 
+  // A block needs its register to exist, the reader's right, AND the studio to
+  // run it — a register switched off in the Sections panel is not read, so its
+  // tiles and charts leave the dashboard with it (the owner's rule, 17/09/2026).
+  const on = switchboard(ctx.sections);
   const blocks = {
-    documents: Boolean(register) && may("engineeringDocs.register.view"),
-    ...Object.fromEntries(ENGINEERING_TYPES.map((t) => [t, Boolean(sectionOf[t]) && may(`engine.${t}.view`)])),
+    documents: Boolean(register) && on("engineering-docs-register") && may("engineeringDocs.register.view"),
+    ...Object.fromEntries(ENGINEERING_TYPES.map((t) => [t,
+      Boolean(sectionOf[t]) && on(engineSectionKey(t)) && may(`engine.${t}.view`)])),
   } as { documents: boolean } & Record<EngineeringType, boolean>;
 
   const asOf = new Date().toISOString().slice(0, 10);
