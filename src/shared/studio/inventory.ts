@@ -188,6 +188,13 @@ type Strings = CommonStrings & {
   rejectReason: string;
   signaturesOf: (signed: number, required: number) => string;
   youRaisedThis: string;
+  // WHY THERE IS NO BUTTON. The queue used to show a row with nothing to press
+  // and no word on why, so the person who raised a write-off could not tell who
+  // had to sign it.
+  nextStep: (label: string, right: string) => string;
+  youSignedEarlier: string;
+  needsRight: (right: string) => string;
+  rightName: (permission: string) => string;
   recordMilestone: string;
   recording: string;
   registerItemsFirstThen: string;
@@ -480,6 +487,11 @@ Here is my vendor list:`,
   rejectReason: "Why is it turned down?",
   signaturesOf: (signed, required) => `${signed} of ${required} signed`,
   youRaisedThis: "You raised this, so somebody else signs it.",
+  nextStep: (label, right) => `Next signature: ${label} — somebody holding ${right}.`,
+  youSignedEarlier: "You signed an earlier step, so somebody else signs this one.",
+  needsRight: (right) => `You do not hold ${right}.`,
+  rightName: (p) => (p === "inventory.stock.approveHigh" ? "Stock → Approve above the limit"
+    : p === "inventory.stock.approve" ? "Stock → Approve" : p),
   recordMilestone: "Record a milestone",
   recording: "Recording…",
   registerItemsFirstThen: "Register items first, then receive an order against them — that is what brings stock in.",
@@ -768,6 +780,11 @@ Name,Contact Name,Email,Phone,Item Types
   rejectReason: "لماذا رفضت؟",
   signaturesOf: (signed, required) => `${signed} من ${required} موقعة`,
   youRaisedThis: "أنت من سجل هذه التسوية، فيوقعها شخص آخر.",
+  nextStep: (label, right) => `التوقيع التالي: ${label} — من يملك صلاحية ${right}.`,
+  youSignedEarlier: "وقعت خطوة سابقة، فيوقع هذه الخطوة شخص آخر.",
+  needsRight: (right) => `لا تملك صلاحية ${right}.`,
+  rightName: (p) => (p === "inventory.stock.approveHigh" ? "المخزون ← الاعتماد فوق الحد"
+    : p === "inventory.stock.approve" ? "المخزون ← الاعتماد" : p),
   recordMilestone: "تسجيل محطة",
   recording: "جار التسجيل…",
   registerItemsFirstThen: "سجل الأصناف أولا، ثم استلم أمر شراء عليها — فهذا ما يدخل المخزون.",

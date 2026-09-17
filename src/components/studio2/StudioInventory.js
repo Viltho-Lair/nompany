@@ -774,6 +774,15 @@ function PendingAdjustments({ slug, items, onDecided }) {
                 {a.reason && <span className="ms-2 text-slate-500 dark:text-slate-400">— {a.reason}</span>}
                 {required > 0 && <span className="ms-2 text-xs text-slate-400">{tr.signaturesOf(signed, required)}</span>}
               </span>
+              {!a.canSign && a.nextStep && (
+                <span className="basis-full text-xs text-slate-500 dark:text-slate-400">
+                  {tr.nextStep(a.nextStep.label, tr.rightName(a.nextStep.permission))}
+                  {" "}
+                  {a.blockedBy === "raised" ? tr.youRaisedThis
+                    : a.blockedBy === "signed" ? tr.youSignedEarlier
+                      : a.blockedBy === "right" ? tr.needsRight(tr.rightName(a.nextStep.permission)) : ""}
+                </span>
+              )}
               {a.canSign && (
                 <span className="flex gap-2">
                   <button type="button" className={btn} disabled={busy}

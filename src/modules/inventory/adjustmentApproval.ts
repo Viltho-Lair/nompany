@@ -157,11 +157,18 @@ export async function listAdjustments(ctx: InventoryContext) {
       const step = row.status === "Pending"
         ? firstUnsignedStep(row.approvalPlan as ResolvedPlan | PlanRefusal | null, signatures)
         : null;
-      const canSign = Boolean(step)
-        && row.createdByCollaboratorId !== me
-        && !signatures.some((s) => s.byCollaboratorId === me)
-        && !requirePermission(ctx.access, step!.permission as PermissionKey);
-      return { ...row, canSign };
+      // WHY THIS READER CANNOT SIGN, when they cannot — said rather than left
+      // as a row with no button, which is what the queue showed before.
+      const blockedBy = !step ? ""
+        : row.createdByCollaboratorId === me ? "raised"
+          : signatures.some((s) => s.byCollaboratorId === me) ? "signed"
+            : requirePermission(ctx.access, step.permission as PermissionKey) ? "right"
+              : "";
+      const canSign = Boolean(step) && !blockedBy;
+      return {
+        ...row, canSign, blockedBy,
+        nextStep: step ? { label: String(step.label || ""), permission: String(step.permission) } : null,
+      };
     });
   return { adjustments };
 }

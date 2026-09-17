@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
+import Autocomplete from "@mui/material/Autocomplete";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { posDict } from "@/shared/studio/pos";
 import { taxDict } from "@/shared/studio/tax";
@@ -325,59 +326,110 @@ function OpenShift({ tr, canSell, busy, onOpen }) {
   );
 }
 
-// A SCANNER TYPES AND PRESSES ENTER, so the scan box is an input that keeps the
-// focus. A code the studio carries goes straight into the basket; anything else
-// is searched by name and SKU, and a single match is added the same way.
+// ONE FIELD FOR BOTH HANDS. A scanner types a code and presses Enter; a person
+// types part of a name and picks from the list — the same searchable picker the
+// client field uses (MUI Autocomplete, which Combo is built on), with each
+// item's SKU, barcode and price beside its name. A code the studio carries goes
+// straight into the basket on Enter; a typed word with exactly one match does
+// too. The field clears and keeps the focus after every add, so the next scan
+// needs no click.
 function ScanBox({ tr, items, onHit, disabled }) {
-  const [code, setCode] = useState("");
-  const [matches, setMatches] = useState([]);
+  const [text, setText] = useState("");
   const [miss, setMiss] = useState("");
   const ref = useRef(null);
   useEffect(() => { ref.current?.focus(); }, []);
 
   const addItem = (item) => {
     onHit({ itemId: item.id, pack: null, qty: 1, price: item.sellPrice > 0 ? item.sellPrice : null }, item);
-    setMatches([]); setCode(""); setMiss("");
+    setText(""); setMiss("");
     ref.current?.focus();
   };
 
-  function submit() {
-    const text = code.trim();
-    if (!text) return;
-    const hit = findByBarcode(items, text);
+  const matching = (q) => {
+    const v = String(q || "").trim().toLowerCase();
+    if (!v) return items;
+    const rank = (i) => {
+      const name = i.name.toLowerCase();
+      if (String(i.barcode || "").toLowerCase() === v || String(i.sku || "").toLowerCase() === v) return 0;
+      if (name.startsWith(v)) return 1;
+      if (name.split(/[s-]+/).some((w) => w.startsWith(v))) return 2;
+      if (name.includes(v) || String(i.sku || "").toLowerCase().includes(v)) return 3;
+      return 9;
+    };
+    return items.filter((i) => rank(i) < 9).sort((x, y) => rank(x) - rank(y) || x.name.localeCompare(y.name));
+  };
+
+  // Enter on free text: a barcode first (the item's or a pack's), then a
+  // single match by name or SKU.
+  function submit(raw) {
+    const code = String(raw || "").trim();
+    if (!code) return;
+    const hit = findByBarcode(items, code);
     if (hit) {
       onHit(hit, items.find((i) => i.id === hit.itemId));
-      setCode(""); setMatches([]); setMiss("");
+      setText(""); setMiss("");
       return;
     }
-    const q = text.toLowerCase();
-    const found = items.filter((i) => i.name.toLowerCase().includes(q) || String(i.sku || "").toLowerCase().includes(q)).slice(0, 8);
+    const found = matching(code);
     if (found.length === 1) { addItem(found[0]); return; }
-    setMatches(found);
-    setMiss(found.length ? "" : tr.notFound(text));
+    setMiss(found.length ? "" : tr.notFound(code));
   }
 
   return (
     <div className="mb-4">
       <label className="mb-1 block text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400" htmlFor="pos-scan">{tr.scan}</label>
-      <input id="pos-scan" ref={ref} value={code} disabled={disabled} autoComplete="off"
-        onChange={(e) => setCode(e.target.value)}
-        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); submit(); } }}
-        className="w-full rounded-xl border border-slate-300 bg-transparent px-4 py-3 text-lg outline-none focus:border-brand-500 dark:border-white/15" />
+      <Autocomplete
+        freeSolo
+        disabled={disabled}
+        options={items}
+        inputValue={text}
+        value={null}
+        onInputChange={(_, next, reason) => { if (reason !== "reset") setText(next || ""); }}
+        onChange={(_, picked) => {
+          if (picked && typeof picked === "object") addItem(picked);
+          else if (typeof picked === "string") submit(picked);
+        }}
+        getOptionLabel={(o) => (typeof o === "string" ? o : o.name)}
+        filterOptions={(opts, { inputValue }) => matching(inputValue).slice(0, 30)}
+        openOnFocus={false}
+        autoHighlight={false}
+        clearOnBlur={false}
+        blurOnSelect={false}
+        slotProps={{
+          paper: { className: "mt-1 rounded-xl border border-slate-200 bg-[var(--geex-surface)] shadow-geex dark:border-white/15" },
+          listbox: { className: "max-h-[320px] py-1 text-sm" },
+        }}
+        renderOption={(props, o) => {
+          const { key, ...rest } = props;
+          return (
+            <li key={key} {...rest}
+              className="flex cursor-pointer items-center justify-between gap-3 px-3.5 py-2 text-slate-700 aria-selected:bg-brand-500/10 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-white/5">
+              <span className="min-w-0">
+                <span className="font-600">{o.name}</span>
+                <span className="ms-2 text-xs text-slate-400">{[o.sku, o.barcode].filter(Boolean).join(" · ")}</span>
+                <TaxTag category={o.taxCategory} />
+              </span>
+              <span className="num shrink-0">{o.sellPrice > 0 ? money(o.sellPrice) : "—"}</span>
+            </li>
+          );
+        }}
+        renderInput={(params) => {
+          const { ref: anchor, onMouseDown } = params.slotProps?.input || {};
+          const { className: _mui, ...htmlInput } = params.slotProps?.htmlInput || {};
+          return (
+            <div ref={anchor} onMouseDown={onMouseDown}>
+              <input {...htmlInput} id="pos-scan" ref={(el) => {
+                ref.current = el;
+                const r = htmlInput.ref;
+                if (typeof r === "function") r(el); else if (r) r.current = el;
+              }} autoComplete="off" disabled={disabled}
+                className="w-full rounded-xl border border-slate-300 bg-transparent px-4 py-3 text-lg outline-none focus:border-brand-500 dark:border-white/15" />
+            </div>
+          );
+        }}
+      />
       <p className="mt-1 text-xs text-slate-400">{tr.scanHint}</p>
       {miss && <p className="mt-2 text-sm text-amber-700 dark:text-amber-300">{miss}</p>}
-      {matches.length > 0 && (
-        <ul className="mt-2 divide-y divide-slate-100 rounded-xl border border-slate-200 dark:divide-white/5 dark:border-white/10">
-          {matches.map((i) => (
-            <li key={i.id}>
-              <button type="button" className="flex w-full justify-between gap-3 px-3 py-2 text-start text-sm hover:bg-slate-50 dark:hover:bg-white/5" onClick={() => addItem(i)}>
-                <span>{i.name} <span className="text-xs text-slate-400">{i.sku}</span></span>
-                <span className="num">{i.sellPrice > 0 ? money(i.sellPrice) : "—"}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
     </div>
   );
 }
