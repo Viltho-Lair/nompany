@@ -150,9 +150,10 @@ function Counts({ people, tr }) {
   const n = (s) => people.filter((p) => p.status === s).length;
   return (
     <div className="grid gap-4 sm:grid-cols-3">
-      <StatTile label={tr.move("start")} value={n("Onboarding")} />
-      <StatTile label={tr.status} value={n("Probation")} sub={tr.probationDue} />
-      <StatTile label={tr.noticeDue} value={n("Notice")}
+      <StatTile label={tr.countOnboarding} value={n("Onboarding")} />
+      <StatTile label={tr.countProbation} value={n("Probation")}
+        sub={n("Probation") > 0 ? tr.countHint : ""} />
+      <StatTile label={tr.countNotice} value={n("Notice")}
         tone={n("Notice") > 0 ? "text-rose-600 dark:text-rose-400" : ""} />
     </div>
   );
@@ -477,7 +478,10 @@ function SettlementPreview({ slug, tr, collaboratorId, lastWorkingDay, reason, d
             : `${amount(s.encashment)} · ${tr.leaveDays(s.unusedLeaveDays)}`} />
         {s.noticeShortfallDays > 0 && (
           <Row label={`${tr.noticeInLieu} · ${tr.leaveDays(s.noticeShortfallDays)}`}
-            value={`${amount(Math.abs(s.noticeInLieu))} ${s.noticeInLieu < 0 ? tr.owedByThem : tr.owedToThem}`} />
+            /* THE DIRECTION IS THE REASON'S, not the sign of the amount: at a
+               wage of nought the two part company and the sign says the
+               opposite of the truth. */
+            value={`${amount(Math.abs(s.noticeInLieu))} ${s.noticeOwedBy === "employee" ? tr.owedByThem : tr.owedToThem}`} />
         )}
         {s.deductions > 0 && <Row label={tr.deductions} value={`−${amount(s.deductions)}`} />}
         <div className="border-t border-slate-100 pt-2 dark:border-white/10">

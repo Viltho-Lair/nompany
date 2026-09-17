@@ -477,6 +477,15 @@ export type Settlement = {
   noticeShortfallDays: number;
   /** Signed: owed TO a dismissed employee, owed BY one who resigned — see below. */
   noticeInLieu: number;
+  /**
+   * WHICH WAY THE SHORTFALL RUNS, as a fact about the REASON rather than as the
+   * sign of `noticeInLieu`. The two agree whenever there is money in it and part
+   * company at exactly nought — an unpaid volunteer, a wage nobody has entered
+   * yet — where a screen reading the sign says "owed to them" on a resignation.
+   * Found by opening the screen on a studio with no pay records; no test could
+   * have caught it, because the arithmetic was right.
+   */
+  noticeOwedBy: "employer" | "employee";
   deductions: number;
   total: number;
   /**
@@ -515,8 +524,8 @@ export function settlement(input: SettlementInput, currency?: unknown): Settleme
     : roundMoney(Math.max(0, input.unusedLeaveDays) * dailyWage, currency);
 
   const shortfall = Math.max(0, Math.round(input.noticeDaysRequired - input.noticeDaysServed));
-  const direction = reasonKind(input.reason) === "resignation" ? -1 : 1;
-  const noticeInLieu = roundMoney(shortfall * dailyWage * direction, currency);
+  const resigned = reasonKind(input.reason) === "resignation";
+  const noticeInLieu = roundMoney(shortfall * dailyWage * (resigned ? -1 : 1), currency);
 
   const deductions = Math.max(0, Number(input.deductions) || 0);
   // ROUNDED ONCE, AT THE END. Each line is already at the currency's decimals,
@@ -531,6 +540,7 @@ export function settlement(input: SettlementInput, currency?: unknown): Settleme
     unusedLeaveDays: input.unusedLeaveDays,
     noticeShortfallDays: shortfall,
     noticeInLieu,
+    noticeOwedBy: resigned ? "employee" : "employer",
     deductions,
     total,
     complete: encashment !== null,

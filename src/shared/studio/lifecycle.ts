@@ -18,6 +18,10 @@ type Strings = {
   lead: string;
   attention: string;
   nothingDue: string;
+  countOnboarding: string;
+  countProbation: string;
+  countNotice: string;
+  countHint: string;
   probationDue: string;
   contractDue: string;
   noticeDue: string;
@@ -131,6 +135,12 @@ const en: Strings = {
   lead: "The contract somebody is on, the state their employment is in, and what is owed when it ends.",
   attention: "Running out",
   nothingDue: "Nothing needs you today.",
+  // THE THREE STATES THAT ARE ABOUT TO BECOME SOMETHING ELSE, which is what an
+  // HR desk is for. Active needs no tile and Exited is history.
+  countOnboarding: "Not started yet",
+  countProbation: "On probation",
+  countNotice: "Working their notice",
+  countHint: "Waiting on a confirmation or a last day",
   probationDue: "Probation ends",
   contractDue: "Contract ends",
   noticeDue: "Last working day",
@@ -243,6 +253,10 @@ const ar: Strings = {
   lead: "العقد الذي يعمل به الموظف، وحالة خدمته، وما يستحقه عند انتهائها.",
   attention: "على وشك الانتهاء",
   nothingDue: "لا شيء يحتاجكم اليوم.",
+  countOnboarding: "لم يباشروا بعد",
+  countProbation: "تحت التجربة",
+  countNotice: "في فترة الاشعار",
+  countHint: "بانتظار تثبيت أو آخر يوم عمل",
   probationDue: "انتهاء فترة التجربة",
   contractDue: "انتهاء العقد",
   noticeDue: "آخر يوم عمل",

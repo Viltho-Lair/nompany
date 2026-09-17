@@ -130,6 +130,12 @@ serving notice, the shortfall is paid to the employee; when the employee resigns
 early, the same shortfall is owed the other way. A settlement that always added it would pay
 somebody for the notice they failed to give.
 
+**The DIRECTION is a separate field from the amount** (`noticeOwedBy`), because the two part
+company at exactly nought. A screen reading the sign of the amount said "owed to them" on a
+resignation wherever the wage was nought — an unpaid volunteer, or a pay record nobody had
+entered yet. Found by opening the screen on a studio with no pay records; no test could have
+caught it, because the arithmetic was right.
+
 **A day's pay is a thirtieth of the monthly wage** — the divisor all three countries use.
 Using the calendar month's own length would pay a February leaver more per day than a March
 one on the same salary.
