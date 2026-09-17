@@ -281,6 +281,20 @@ const dismissed = settlement({
   unusedLeaveDays: 0, noticeDaysRequired: 60, noticeDaysServed: 0, deductions: 0,
 }, "SAR");
 ok("notice nobody served is owed TO somebody dismissed", dismissed.noticeInLieu === 24000);
+ok("...and the direction is a field of its own", dismissed.noticeOwedBy === "employer" && saudi.noticeOwedBy === "employee");
+
+// THE CASE THAT SHIPPED BROKEN, found by opening the screen rather than by any
+// test here: at a wage of nought the shortfall is 0.00, 0 is not negative, and a
+// screen reading the SIGN said "owed to them" on a resignation. The amount and
+// the direction agree wherever there is money in it and part company at exactly
+// zero — which is an unpaid volunteer, or a pay record nobody has entered yet.
+const noWage = settlement({
+  dateOfJoin: "2023-01-01", lastWorkingDay: "2026-01-01", reason: "Resignation",
+  basic: 0, wage: 0, eosRule: SA_EOS,
+  unusedLeaveDays: 0, noticeDaysRequired: 30, noticeDaysServed: 0, deductions: 0,
+}, "SAR");
+ok("A SHORTFALL OF NOUGHT STILL KNOWS WHICH WAY IT RUNS",
+  noWage.noticeInLieu === 0 && noWage.noticeOwedBy === "employee");
 ok("a dismissal takes the full award", dismissed.endOfService.factor === 1);
 
 // JORDAN HAS NO END-OF-SERVICE AT ALL — the SSC covers it (art. 32). Null says
