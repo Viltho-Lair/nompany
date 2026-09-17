@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getDict } from "@/shared/i18n";
 import { currentUser, needsQuestionnaire } from "@/platform/auth/identity";
 import AccountHome from "@/components/public/AccountHome";
+import { studioSetupScreen } from "@/modules/main/studios";
 
 export const dynamic = "force-dynamic";
 
@@ -35,5 +36,10 @@ export default async function AccountPage({ params }) {
       system: dict.common.themeSystem,
     },
   };
-  return <AccountHome locale={locale} chrome={chrome} />;
+  // THE CREATE SCREEN'S QUESTIONS AND SUGGESTED ANSWERS, resolved here rather
+  // than in the browser: they come from the same catalogue the create route
+  // checks against, and the trade rules behind the suggestions reach the stage
+  // registry, which has no business in the account page's bundle.
+  const setup = studioSetupScreen(locale);
+  return <AccountHome locale={locale} chrome={chrome} setup={setup} />;
 }

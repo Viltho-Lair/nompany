@@ -435,6 +435,20 @@
   to { opacity: 1; transform: none; }
 }
 
+/* A SCREEN THAT SLIDES IN, from the reading side: from the right in English and
+   from the left in Arabic, so it always arrives from where the next thing is.
+   The account page sets dir on its own wrapper, so this keys off the nearest
+   [dir], never html[dir] (see the RTL traps in CLAUDE.md). */
+.slide-in {
+  --slide-from: 1.5rem;
+  animation: slide-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+[dir="rtl"] .slide-in { --slide-from: -1.5rem; }
+@keyframes slide-in {
+  from { opacity: 0; transform: translateX(var(--slide-from)); }
+  to { opacity: 1; transform: none; }
+}
+
 /* NOVA IS ALIVE. A gentle bob on her head and a pulse on the antenna light, so
    the launcher reads as a character waiting to help rather than a static icon.
    CSS only — the studio chunk is fenced from the landing's motion library. */
@@ -454,6 +468,7 @@
   .animate-pulseRing,
   .animate-fadeUp,
   .auth-panel { animation: none !important; }
+  .slide-in { animation: none !important; }
   .nova-bob, .nova-antenna { animation: none !important; }
   .dash-stagger > * { animation: none !important; }
   /* The skeleton keeps its box and its tone and simply stops sweeping — a still

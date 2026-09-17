@@ -80,6 +80,39 @@ type Strings = {
   createStudio: string;
   createStudioBtn: string;
   creating: string;
+  /**
+   * THE CREATE SCREEN'S WORDS. The departments' NAMES are not here — they come
+   * from shared/studio/sections via the server, keyed by section, so the
+   * sidebar and this screen cannot call one department two things.
+   */
+  setup: {
+    steps: [string, string, string];
+    stepOf: (n: number, total: number) => string;
+    back: string;
+    continue: string;
+    companyLead: string;
+    departmentsTitle: string;
+    departmentsLead: string;
+    suggestedFor: (field: string) => string;
+    suggestedNone: string;
+    resetSuggestions: string;
+    yes: string;
+    no: string;
+    partsToggle: (on: number, total: number) => string;
+    partsLead: string;
+    neededBy: (names: string) => string;
+    pickOne: string;
+    reviewTitle: string;
+    reviewLead: string;
+    onHeading: string;
+    offHeading: string;
+    noneOff: string;
+    partsOff: (n: number) => string;
+    alwaysThere: string;
+    editLater: string;
+    sectionsInvalid: string;
+    questions: Record<string, { q: string; d: string }>;
+  };
   currentPassword: string;
   currentPasswordIncorrect: string;
   didnSave: string;
@@ -294,6 +327,51 @@ const en: Strings = {
   createStudio: "Create a studio",
   createStudioBtn: "Create studio",
   creating: "Creating…",
+  setup: {
+    steps: ["Company", "What you do", "Review"],
+    stepOf: (n, total) => `Step ${n} of ${total}`,
+    back: "Back",
+    continue: "Continue",
+    companyLead: "The name and address your team will use to reach this studio.",
+    departmentsTitle: "What does your company do?",
+    departmentsLead: "Each answer switches a department on or off. Say no to anything you don't do — your studio opens with only what you use.",
+    suggestedFor: (field) => `Answers are pre-filled for ${field}. Change anything that doesn't fit your company.`,
+    suggestedNone: "Every department starts switched on. Say no to the ones you don't need.",
+    resetSuggestions: "Reset to the suggested answers",
+    yes: "Yes",
+    no: "No",
+    partsToggle: (on, total) => `Choose parts · ${on} of ${total}`,
+    partsLead: "Keep only the parts of this department you use.",
+    neededBy: (names) => `Needed by ${names}, so it stays on.`,
+    pickOne: "Say yes to at least one department.",
+    reviewTitle: "Your studio will open with",
+    reviewLead: "Check the list before creating the studio.",
+    onHeading: "Switched on",
+    offHeading: "Switched off",
+    noneOff: "Nothing — every department is on.",
+    partsOff: (n) => (n === 1 ? "1 part off" : `${n} parts off`),
+    alwaysThere: "Main, Tasks and Settings — where you manage people, roles and access — are always there.",
+    editLater: "Nothing here is final. Any department can be switched on or off later in Settings → Studio settings → Sections.",
+    sectionsInvalid: "The department list is out of date. Reload the page and try again.",
+    questions: {
+      "crm-sales": { q: "Do you sell to customers?", d: "Clients, deals, the sales pipeline, contracts, sales orders and a point of sale." },
+      quotations: { q: "Do you send customers priced offers before they order?", d: "Requests for quotation, quotations and their revisions." },
+      tendering: { q: "Do you bid for work through tenders?", d: "A tender register, bills of quantities and a rate library." },
+      projects: { q: "Do you deliver work as projects?", d: "Projects, plans and schedules, costs, billing and overtime." },
+      "engineering-docs": { q: "Do you produce drawings or technical documents?", d: "Controlled documents, transmittals, requests for information and submittals." },
+      procurement: { q: "Do you buy from suppliers or hire subcontractors?", d: "Suppliers, purchase requests, purchase orders, subcontracts and receiving." },
+      inventory: { q: "Do you keep stock?", d: "Items, stock levels, warehouses and stock movements." },
+      manufacturing: { q: "Do you make or assemble products?", d: "Bills of materials, production planning and the shop floor." },
+      "field-service": { q: "Do your people work at customers' sites?", d: "Jobs on site, scheduling, dispatch and tracking." },
+      logistics: { q: "Do you deliver or ship goods?", d: "Shipments, deliveries and the vehicles that carry them." },
+      assets: { q: "Do you own equipment or machinery you need to keep track of?", d: "An equipment register, where each machine is and how much it is used." },
+      maintenance: { q: "Do you maintain or repair equipment?", d: "Fault reports, work orders, preventive plans and service contracts." },
+      "quality-hse": { q: "Do you run inspections, quality or safety checks?", d: "Inspections, nonconformances, incidents and work permits." },
+      hr: { q: "Do you manage employees?", d: "Employee records, leave, attendance and payroll." },
+      finance: { q: "Do you keep your accounts in nompany?", d: "Invoices, supplier bills, payments and the accounting ledger." },
+      reports: { q: "Do you want reports and dashboards?", d: "Figures and exports across the departments you use." },
+    },
+  },
   currentPassword: "Current password",
   currentPasswordIncorrect: "The current password is incorrect.",
   didnSave: "That didn't save.",
@@ -495,6 +573,51 @@ const ar: Strings = {
   createStudio: "أنشئ استوديو",
   createStudioBtn: "أنشئ الاستوديو",
   creating: "جار الإنشاء…",
+  setup: {
+    steps: ["الشركة", "ما تقوم به", "المراجعة"],
+    stepOf: (n, total) => `الخطوة ${n} من ${total}`,
+    back: "رجوع",
+    continue: "متابعة",
+    companyLead: "الاسم والعنوان اللذان سيستخدمهما فريقك للوصول إلى هذا الاستوديو.",
+    departmentsTitle: "ما الذي تقوم به شركتك؟",
+    departmentsLead: "كل إجابة تفعّل قسما أو توقفه. أجب بلا عن كل ما لا تقوم به — يفتح الاستوديو بما تستخدمه فقط.",
+    suggestedFor: (field) => `الإجابات معبأة مسبقا لمجال ${field}. غيّر أي إجابة لا تناسب شركتك.`,
+    suggestedNone: "تبدأ جميع الأقسام مفعّلة. أجب بلا عن الأقسام التي لا تحتاجها.",
+    resetSuggestions: "إعادة الإجابات المقترحة",
+    yes: "نعم",
+    no: "لا",
+    partsToggle: (on, total) => `اختر الأجزاء · ${on} من ${total}`,
+    partsLead: "أبق فقط على أجزاء هذا القسم التي تستخدمها.",
+    neededBy: (names) => `يحتاجه ${names}، لذا يبقى مفعّلا.`,
+    pickOne: "أجب بنعم عن قسم واحد على الأقل.",
+    reviewTitle: "سيفتح الاستوديو بما يلي",
+    reviewLead: "راجع القائمة قبل إنشاء الاستوديو.",
+    onHeading: "مفعّل",
+    offHeading: "متوقف",
+    noneOff: "لا شيء — جميع الأقسام مفعّلة.",
+    partsOff: (n) => (n === 1 ? "جزء واحد متوقف" : `${n} أجزاء متوقفة`),
+    alwaysThere: "الرئيسية والمهام والإعدادات — حيث تدير الأشخاص والأدوار والصلاحيات — متاحة دائما.",
+    editLater: "لا شيء هنا نهائي. يمكن تفعيل أي قسم أو إيقافه لاحقا من الإعدادات ← إعدادات الاستوديو ← الأقسام.",
+    sectionsInvalid: "قائمة الأقسام قديمة. أعد تحميل الصفحة وحاول مرة أخرى.",
+    questions: {
+      "crm-sales": { q: "هل تبيع للعملاء؟", d: "العملاء والصفقات ومسار المبيعات والعقود وأوامر البيع ونقطة البيع." },
+      quotations: { q: "هل ترسل للعملاء عروض أسعار قبل أن يطلبوا؟", d: "طلبات عروض الأسعار وعروض الأسعار ومراجعاتها." },
+      tendering: { q: "هل تتقدم للأعمال عبر المناقصات؟", d: "سجل المناقصات وجداول الكميات ومكتبة الأسعار." },
+      projects: { q: "هل تنفذ أعمالك على شكل مشاريع؟", d: "المشاريع والخطط والجداول الزمنية والتكاليف والفوترة والعمل الإضافي." },
+      "engineering-docs": { q: "هل تنتج مخططات أو مستندات فنية؟", d: "المستندات المضبوطة وخطابات الإحالة وطلبات الاستيضاح والتقديمات." },
+      procurement: { q: "هل تشتري من الموردين أو تتعاقد مع مقاولين من الباطن؟", d: "الموردون وطلبات الشراء وأوامر الشراء والعقود من الباطن والاستلام." },
+      inventory: { q: "هل تحتفظ بمخزون؟", d: "الأصناف ومستويات المخزون والمستودعات وحركات المخزون." },
+      manufacturing: { q: "هل تصنع المنتجات أو تجمعها؟", d: "قوائم المواد وتخطيط الإنتاج وأرضية المصنع." },
+      "field-service": { q: "هل يعمل فريقك في مواقع العملاء؟", d: "الأعمال الميدانية والجدولة والإرسال والتتبع." },
+      logistics: { q: "هل توصل البضائع أو تشحنها؟", d: "الشحنات والتوصيلات والمركبات التي تنقلها." },
+      assets: { q: "هل تملك معدات أو آلات تحتاج إلى متابعتها؟", d: "سجل المعدات وموقع كل آلة ومدى استخدامها." },
+      maintenance: { q: "هل تصون المعدات أو تصلحها؟", d: "بلاغات الأعطال وأوامر العمل وخطط الصيانة الوقائية وعقود الخدمة." },
+      "quality-hse": { q: "هل تجري فحوصات الجودة أو السلامة؟", d: "الفحوصات وحالات عدم المطابقة والحوادث وتصاريح العمل." },
+      hr: { q: "هل تدير موظفين؟", d: "سجلات الموظفين والإجازات والحضور والرواتب." },
+      finance: { q: "هل تدير حساباتك في nompany؟", d: "الفواتير وفواتير الموردين والمدفوعات ودفتر الأستاذ." },
+      reports: { q: "هل تريد تقارير ولوحات معلومات؟", d: "الأرقام والتصدير عبر الأقسام التي تستخدمها." },
+    },
+  },
   currentPassword: "كلمة المرور الحالية",
   currentPasswordIncorrect: "كلمة المرور الحالية غير صحيحة.",
   didnSave: "لم يحفظ ذلك.",

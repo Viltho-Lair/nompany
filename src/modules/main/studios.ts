@@ -20,14 +20,20 @@
 //    and share no section IDS, and every collection key is
 //    SEC.col(studioId, sectionId, name).
 
-import { REG, U, S, IX, ID, SECTION_DEFS, isSystemSection, isValidSlug } from "@/platform/db/keys";
+import {
+  REG, U, S, IX, ID, SECTION_DEFS, PRODUCT_SECTION_DEFS, isSystemSection, isFiledOnlySection, isValidSlug,
+} from "@/platform/db/keys";
 import { readArr, writeArr, editArr, setJSON, claim, getIndex, release, delPrefix, sMembers, hIncrBy, hGetAll, hDel } from "@/platform/db/store";
 import { addCollaborator } from "@/platform/auth/collaborators";
 import { listDepartments } from "@/modules/administration/departments";
 import { seedBuiltinTypes } from "@/platform/engine/builtins";
 import { ensureDefaultPlan } from "@/lib/data/catalog";
 import { FIELDS_OF_WORK, OTHER_FIELD, actionsForField } from "@/shared/fieldsOfWork";
-import { rootSectionsForTrade, sectionEnabledForTrade, tradeSuggestion, type TradeSuggestion } from "@/shared/tradeSections";
+import {
+  rootSectionsForTrade, sectionEnabledForTrade, tradeSuggestion, resolveSectionChoice, NEVER_GATED_KEYS, SECTION_NEEDS,
+  type TradeSuggestion, type SetupCatalogue, type SectionChoiceInput,
+} from "@/shared/tradeSections";
+import { sectionName } from "@/shared/studio/sections";
 import { NO_SCREEN_YET } from "@/platform/access";
 import { REQUIRED_SECTIONS } from "@/platform/db/sections";
 import { industryByField } from "@/platform/engagement/industries";
@@ -154,14 +160,82 @@ export function tradeSuggestionFor(
   );
 }
 
+/**
+ * THE DEPARTMENTS A NEW STUDIO CAN BE ASKED ABOUT — one list for the create
+ * screen and the create route, so the screen never offers what the route would
+ * refuse.
+ *
+ * Every product root except Main and Tasks (never off) and any section with no
+ * screen yet. Under each, the sub-sections a company might want without the
+ * rest of the department — the point of sale without the pipeline, say —
+ * leaving out filed-only rows (another department's storage) and system rows
+ * (settings pages, not work).
+ */
+export function studioSetupCatalogue(): SetupCatalogue {
+  const neverGated = NEVER_GATED_KEYS as readonly string[];
+  const noScreen = NO_SCREEN_YET as readonly string[];
+  const defs = PRODUCT_SECTION_DEFS.filter((d) => !neverGated.includes(d.key) && !noScreen.includes(d.key));
+  return {
+    roots: defs.map((d) => d.key),
+    children: Object.fromEntries(defs.map((d) => [
+      d.key,
+      (d.children || [])
+        .map((c) => c.key)
+        .filter((k) => !isFiledOnlySection(k) && !isSystemSection(k) && !k.endsWith("-settings") && !noScreen.includes(k)),
+    ])),
+  };
+}
+
+/**
+ * EVERYTHING THE CREATE SCREEN NEEDS TO ASK, resolved on the server.
+ *
+ * The screen is a client component on the account page, and the trade rules
+ * reach the stage registry and the flow templates — a lot of weight to ship to
+ * a browser to answer twenty-six small questions. So the answers are computed
+ * here, once per request, and handed across as data: the departments with
+ * their names in the reader's language, the parts under each, what each
+ * department brings with it, and what every field of work suggests.
+ *
+ * A field of work that suggests nothing (none chosen, "Other", or one the
+ * matrix does not know) suggests EVERY department, which is what such a studio
+ * got before this screen existed; the owner narrows it from there.
+ */
+export function studioSetupScreen(locale: string) {
+  const catalogue = studioSetupCatalogue();
+  const nameOf = (key: string) => {
+    const def = SECTION_DEFS.find((d) => d.key === key)
+      || SECTION_DEFS.flatMap((d) => d.children || []).find((c) => c.key === key);
+    return sectionName(key, def?.name || key, locale);
+  };
+  const suggest = (field: string) => {
+    const roots = tradeRootsFor(field);
+    return catalogue.roots.filter((k) => !roots || roots.has(k));
+  };
+  return {
+    departments: catalogue.roots.map((key) => ({
+      key,
+      name: nameOf(key),
+      parts: (catalogue.children[key] || []).map((c) => ({ key: c, name: nameOf(c) })),
+      needs: [...(SECTION_NEEDS[key] || [])],
+    })),
+    suggested: Object.fromEntries([...FIELDS_OF_WORK, OTHER_FIELD, ""].map((f) => [f, suggest(f)])),
+  };
+}
+
 export async function createStudio(
-  { ownerUserId, name, slug, ownerAlias = "", fieldOfWork = "", fieldOfWorkOther = "" }:
+  { ownerUserId, name, slug, ownerAlias = "", fieldOfWork = "", fieldOfWorkOther = "", sections }:
   {
     ownerUserId?: string; name?: string; slug?: string; ownerAlias?: string;
     /** The trade, as a `FIELD_ACTION_MATRIX` key. "" is allowed and means not said yet. */
     fieldOfWork?: string;
     /** Free text, and only when the trade is `Other`. */
     fieldOfWorkOther?: string;
+    /**
+     * The departments the owner chose on the create screen. Absent means the
+     * caller asked nothing (an older client, a script), and the trade decides
+     * alone, as it always has.
+     */
+    sections?: SectionChoiceInput;
   },
 ) {
   const cleanName = String(name || "").trim();
@@ -187,6 +261,11 @@ export async function createStudio(
   // Free text only means something for `Other`; carrying it on a named trade
   // would leave a description contradicting the trade beside it.
   const tradeOther = trade === OTHER_FIELD ? String(fieldOfWorkOther || "").trim().slice(0, 80) : "";
+
+  // THE OWNER'S CHOICE, checked before anything is claimed, so a refused
+  // choice costs no slug and writes no row.
+  const choice = sections === undefined ? null : resolveSectionChoice(sections, studioSetupCatalogue());
+  if (choice?.error) return { error: choice.error, detail: choice.detail };
 
   // The default package id is needed BEFORE anything is claimed — it is what
   // the cap counts against — and creation needs it a few lines later anyway, so
@@ -235,7 +314,9 @@ export async function createStudio(
       serviceActions: actionsForField(trade),
       // THE SECTIONS BELOW ARE ALREADY THIS TRADE'S ANSWER, so Studio settings
       // must not offer it back. Blank when the trade gates nothing.
-      sectionsTrade: tradeRootsFor(trade) ? trade : "",
+      // An owner who chose their departments has already answered what the
+      // trade would ask, so the offer is marked as answered for that trade too.
+      sectionsTrade: choice || tradeRootsFor(trade) ? trade : "",
     };
 
     // Seed the fixed section list. Parents get a SectionID, sub-sections get
@@ -259,9 +340,16 @@ export async function createStudio(
     // for it — rather than leaving such a studio with five sections. The same
     // function is what Studio settings OFFERS an existing studio, so a new
     // studio and an offer cannot disagree about what a trade uses.
-    const onRoots = tradeRootsFor(trade);
-    const gate = (key: string, rootKey: string) =>
-      onRoots ? sectionEnabledForTrade(key, rootKey, onRoots, isSystemSection) : true;
+    // THE OWNER'S ANSWER WINS WHERE THERE IS ONE. The trade is only the
+    // pre-filled answer on the screen; what the owner left ticked is what the
+    // studio is. A part switched off inside a department that is on stays off,
+    // and is one switch away in Studio settings.
+    const onRoots = choice ? choice.roots : tradeRootsFor(trade);
+    const offChildren = choice ? choice.offChildren : new Set<string>();
+    const gate = (key: string, rootKey: string) => {
+      if (offChildren.has(key)) return false;
+      return onRoots ? sectionEnabledForTrade(key, rootKey, onRoots, isSystemSection) : true;
+    };
 
     const sections: Section[] = [];
     SECTION_DEFS.forEach((d) => {

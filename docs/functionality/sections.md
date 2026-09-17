@@ -213,12 +213,52 @@ That module is also where the active nav row comes from. A layout is never hande
 segments, so the shell reads `usePathname()` — the same address the page reads from `params` —
 rather than being told by a prop.
 
-## A studio's trade decides which sections it starts with — and, later, suggests
+## The owner chooses the departments at creation (17/09/2026)
 
-`createStudio` takes the studio's field of work and switches off the root sections that trade
-does not use (`shared/tradeSections`, joined with the trade's own flow templates). Every row is
-still written — only `enabled` differs — because a sub-section falls back to its root when
-absent, and planting one late strands the rows written before it.
+**Creating a studio is a three-step screen on the account page, not a dialog** —
+`components/public/CreateStudioScreen.js`, rendered in place of the content column only while it
+is open. *Company* (name, address, field of work) → *What you do* → *Review* → create.
+
+**"What you do" asks one yes/no question per department**, worded as what the company does
+("Do you keep stock?"), never as a kind of business. The answers are **pre-filled from the field
+of work** — the trade rule below is now the suggestion, not the decision — and follow the field
+until the owner edits one; after that a *Reset to the suggested answers* link offers them
+instead of overwriting. A "yes" can be narrowed to **the parts of that department in use** (only
+the point of sale inside CRM & Sales, say). A department that another one needs stays on and says
+why (`SECTION_NEEDS`: Maintenance needs Assets; **Quotations needs CRM & Sales**, where clients
+are kept — added with this screen, and changing no trade's default because CRM & Sales was
+already universal). *Review* lists what will be on and off, and says that Main, Tasks and Settings
+(people, roles, access) are always there and that every answer is one switch in the Sections panel.
+
+**One list for the screen and the route.** `studioSetupCatalogue()` (`modules/main/studios.ts`) is
+every product root except Main, Tasks and anything with no screen, with the parts worth offering
+under each — never a filed-only row (another department's storage) or a settings page.
+`studioSetupScreen(locale)` turns it into the screen's payload on the account page — names in the
+reader's language, each department's needs, and every field of work's suggested answers — so the
+trade rules, which reach the stage registry, never ship to the browser.
+
+**The route checks the answer with `resolveSectionChoice`** (`shared/tradeSections`), before
+anything is claimed. `POST /api/studios` takes `sections: { roots, offChildren }`:
+
+- a department not on the list, a part not offered, or a malformed body → `400 sections-invalid`;
+- no department at all → `400 sections-empty` — an empty sidebar is the shock from the other side;
+- dependencies are added, Main and Tasks are added, and parts unticked under a department that is
+  off are dropped rather than refused.
+
+`createStudio` then writes every row as before and switches on exactly the chosen roots, with a
+chosen root's parts on unless the owner unticked them. `sectionsTrade` is recorded, so the Sections
+panel does not immediately offer the trade's answer back to an owner who already gave their own.
+
+**A caller that sends no `sections` keeps the old behaviour** — the trade decides alone — so a
+script or an older client is not refused.
+
+## A studio's trade suggests which sections it starts with — and, later, suggests again
+
+`createStudio` takes the studio's field of work and, when the owner sent no choice of their own,
+switches off the root sections that trade does not use (`shared/tradeSections`, joined with the
+trade's own flow templates). Since the create screen, this is what pre-fills the owner's answers.
+Every row is still written — only `enabled` differs — because a sub-section falls back to its root
+when absent, and planting one late strands the rows written before it.
 
 **That gate runs once, at creation, deliberately.** A section vanishing from a live sidebar
 overnight is a support ticket, not a courtesy, so changing the trade later in Studio settings
@@ -286,10 +326,18 @@ Stated in words, because a silent gap reads as a finished feature.
 - **Nothing points at the offer from where the trade is changed.** It sits in the Sections
   panel; somebody has to scroll there to see it.
 
-- **Tendering & Estimating, Manufacturing & Production, Assets & Equipment, Reports & BI and
-  Quality & HSE have no screens.** They are names and nav ordering.
-- **Procurement holds only the supplier master.** Requisitions, supplier RFQs and comparison,
-  purchase orders, subcontracts, GRN and three-way matching are not built.
+- **The create screen asks once.** There is no way to run the questions again on an existing
+  studio; after creation, departments are switched in the Sections panel one at a time.
+- **Parts are offered only one level down.** The engine registers planted under Quality & HSE and
+  the other departments are created after the studio exists, so they cannot be chosen on the
+  create screen; they follow their department.
+- **No department is ever suggested OFF for a studio whose field of work is unknown** — none,
+  "Other", or a name the matrix does not know. The screen starts with every department on and
+  the owner narrows it.
+
+(Two bullets that stood here — that five sections have no screens, and that Procurement holds only
+the supplier master — were removed on 17/09/2026: `NO_SCREEN_YET` is empty, and Procurement has
+requisitions, orders, supplier RFQs, expediting, subcontracts, receiving and suppliers.)
 - **Logistics holds only waybill tracking.** Trips, fleet register, customs files and landed cost
   are not built.
 - **Master data is locations and nothing else.** Currencies, units of measure, numbering series,

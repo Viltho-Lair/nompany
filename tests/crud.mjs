@@ -439,6 +439,73 @@ async function adjustmentApproval() {
 
 await adjustmentApproval().catch((e) => ok("the adjustment case threw", false, e?.message || String(e)));
 
+// ---- A STUDIO OPENS WITH THE DEPARTMENTS ITS OWNER CHOSE --------------------
+// The create screen asks, per department, what the company does. This proves
+// the route turns that answer into the studio's rows: chosen departments on,
+// everything else off, a department's needs on with it, a part switched off
+// inside a department left off — and every row still WRITTEN, because a
+// section that is off is hidden, never missing.
+async function studioSetup() {
+  const STUDIOS = await import("../src/app/api/studios/route.ts");
+  const { updateVerification } = await import("@/platform/auth/users");
+  const { listSections } = await import("@/platform/db/sections");
+  const { SECTION_DEFS } = await import("@/platform/db/keys");
+
+  // The route refuses an unverified address; the fixture owner was made directly.
+  await updateVerification(F.owner.id, { emailVerifiedAt: new Date().toISOString() });
+  await F.signIn(F.owner.id);
+
+  const make = (sections, extra = {}) => call(STUDIOS.POST, req("/api/studios", {
+    method: "POST",
+    body: { name: `Setup ${F.rand()}`, slug: `t-setup-${F.rand()}`, fieldOfWork: "Wholesale & Retail Trade", sections, ...extra },
+  }), ctx({}));
+
+  // ---- refusals first: they must claim nothing ----------------------------
+  const empty = await make({ roots: [] });
+  ok("choosing no department is refused", empty.status === 400 && empty.body?.error === "sections-empty",
+    JSON.stringify(empty.body));
+  const unknown = await make({ roots: ["hr", "made-up"] });
+  ok("an unknown department is refused", unknown.status === 400 && unknown.body?.error === "sections-invalid",
+    JSON.stringify(unknown.body));
+
+  // ---- the choice ------------------------------------------------------------
+  const made = await make({ roots: ["crm-sales", "maintenance", "hr"], offChildren: ["crm-sales-pipeline"] });
+  const studioId = made.body?.studio?.id;
+  if (!ok("a studio is created from a department choice", made.status === 201 && Boolean(studioId),
+    JSON.stringify(made.body).slice(0, 160))) return;
+
+  const rows = await listSections(studioId);
+  const byKey = new Map(rows.map((r) => [r.key, r]));
+  const isOn = (k) => byKey.get(k)?.enabled !== false;
+
+  ok("every section row is still written", SECTION_DEFS.every((d) => byKey.has(d.key)),
+    `${rows.length} rows`);
+  ok("a chosen department is on", isOn("crm-sales") && isOn("hr") && isOn("maintenance"));
+  ok("what a chosen department needs is on with it", isOn("assets"),
+    "Maintenance needs Assets");
+  ok("a department the owner said no to is off, whatever the trade suggested",
+    !isOn("inventory") && !isOn("procurement") && !isOn("logistics"),
+    "Wholesale & Retail suggests all three");
+  ok("Main and Tasks are on", isOn("main") && isOn("tasks"));
+  ok("Settings is on — it is not a department", isOn("administration") && isOn("administration-settings"));
+  ok("a part the owner unticked is off", !isOn("crm-sales-pipeline"));
+  ok("the other parts of that department are on", isOn("crm-sales-pos") && isOn("crm-sales-clients"));
+  ok("the parts of a department that is off are off with it", !isOn("inventory-stock"));
+
+  // ---- no choice at all keeps the old behaviour ------------------------------
+  // A second studio would hit the free-plan cap, so the old path is proven on
+  // the refusal it shares: a caller that sends no `sections` is not asked for
+  // one — it fails on the cap, not on a missing department list.
+  const older = await call(STUDIOS.POST, req("/api/studios", {
+    method: "POST", body: { name: `Older ${F.rand()}`, slug: `t-older-${F.rand()}`, fieldOfWork: "Manufacturing" },
+  }), ctx({}));
+  ok("a caller that sends no department list is not refused for it",
+    older.body?.error !== "sections-empty" && older.body?.error !== "sections-invalid",
+    JSON.stringify(older.body).slice(0, 120));
+}
+
+await studioSetup().catch((e) => ok("the studio-setup case threw", false, e?.message || String(e)));
+
 // ---- PAYROLL, END TO END --------------------------------------------------
 // `hr.employees.salary` has existed since the catalogue was written, labelled
 // "See pay and salary", and nothing in this product stored a salary — the right

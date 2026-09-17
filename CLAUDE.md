@@ -1619,6 +1619,17 @@ registers are engine sections planted at runtime and `sectionViewable` finds chi
 key prefix without that map. Contracts, tendering and procurement each shipped a section
 their own Manager could not open; that is what the count is for.
 
+**THE OWNER CHOOSES THE DEPARTMENTS AT CREATION — the owner's instruction,
+17/09/2026 — AND THE TRADE ONLY PRE-FILLS THE ANSWERS.** Creating a studio is a
+three-step screen on the account page (`CreateStudioScreen`): company, then one
+yes/no question per department (a "yes" can be narrowed to some of its parts),
+then a review. `POST /api/studios` takes `sections: { roots, offChildren }`,
+checked by `resolveSectionChoice` against `studioSetupCatalogue()` — the ONE list
+the screen asks from and the route accepts. A caller that sends nothing gets the
+trade's answer alone, exactly as below. `docs/functionality/sections.md` is the
+file. The questions are worded as what a company DOES, never as a kind of
+business — the owner's rule: no named shop types.
+
 **A STUDIO IS SET UP FOR ITS TRADE NOW, AND THE TRADE IS ASKED FOR AT CREATION.**
 `createStudio` takes `fieldOfWork`, which decides its service actions, its org
 chart and — new — **which of the fourteen sections it starts with**.

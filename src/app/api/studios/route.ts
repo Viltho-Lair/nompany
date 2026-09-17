@@ -29,12 +29,18 @@ export async function POST(request: Request) {
     // Optional: a studio may decline, and gets every section on and nothing
     // seeded from a trade — the behaviour every studio had before this.
     fieldOfWork: body.fieldOfWork, fieldOfWorkOther: body.fieldOfWorkOther,
+    // WHICH DEPARTMENTS THE COMPANY RUNS, answered on the create screen:
+    // { roots: [...], offChildren: [...] }. Optional — a caller that sends
+    // nothing gets the trade's answer, the behaviour before the screen asked.
+    sections: body.sections,
   });
   if (refused(result)) {
     const status = result.error === "unverified" ? 403
       // A trade that is not one of the twenty-five is a bad request, not a
       // conflict: nothing was claimed and nothing is in the way.
       : result.error === "field-invalid" ? 400
+      // A department list the screen could not have sent, or none at all.
+      : result.error === "sections-invalid" || result.error === "sections-empty" ? 400
       : result.error === "free-studio-limit" || result.error === "slug-taken" ? 409
       : 400;
     // `limit` rides along on the cap refusal so the dialog can say what the

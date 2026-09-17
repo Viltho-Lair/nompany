@@ -16,8 +16,10 @@ import ThemeToggle from "@/components/ThemeToggle";
 import { cn } from "@/lib/utils";
 import { fmtDate, fmtDateTime } from "@/lib/format";
 import { useReload } from "@/components/studio2/useReload";
-import SelectMenu from "@/components/fields/SelectMenu";
-import { FIELDS_OF_WORK, OTHER_FIELD } from "@/shared/fieldsOfWork";
+import {
+  H2, SUB, INPUT, LABEL, BTN, BTN_GHOST, BANNER_BAD, BANNER_GOOD,
+} from "@/components/public/accountKit";
+import CreateStudioScreen from "@/components/public/CreateStudioScreen";
 
 // The account hub, laid out like the Google Account console:
 //   • brand mark top-left, ABOVE the fixed sidebar
@@ -37,15 +39,6 @@ import { FIELDS_OF_WORK, OTHER_FIELD } from "@/shared/fieldsOfWork";
 const PAGE = "flex h-screen flex-col overflow-hidden bg-geex-bg dark:bg-[#141420]";
 const RAIL_W = "lg:w-[280px]";
 const PANEL = "rounded-geex border border-slate-200/70 bg-white p-6 dark:border-white/10 dark:bg-[#20202c]";
-const H2 = "font-display text-lg font-800 text-slate-900 dark:text-white";
-const SUB = "mt-1 text-sm text-slate-500 dark:text-slate-400";
-const INPUT =
-  "w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-white/15 dark:bg-[#191921] dark:text-white";
-const LABEL = "mb-1 block text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400";
-const BTN = "rounded-full bg-brand-700 px-4 py-2 font-display text-sm font-600 text-white transition-colors hover:bg-brand-950 disabled:opacity-60";
-const BTN_GHOST = "rounded-full border border-slate-200 px-4 py-2 font-display text-sm font-600 text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-60 dark:border-white/15 dark:text-slate-300 dark:hover:bg-white/5";
-const BANNER_BAD = "rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300";
-const BANNER_GOOD = "rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300";
 
 // Google Account's grouped "stack": 20px on the outer corners, 4px inside, 2px
 // between rows, 56px min-height, 12px/16px padding, 12px icon gap.
@@ -76,10 +69,9 @@ const navFor = (tr) => [
 // something before it drives `setView`.
 const VIEW_KEYS = ["overview", "studios", "collabs", "personal", "calendars", "security"];
 
-const slugify = (s) => String(s || "").toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 const initialsOf = (s) => String(s || "?").trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
 
-export default function AccountHome({ locale, chrome }) {
+export default function AccountHome({ locale, chrome, setup }) {
   const tr = accountDict(useAccountLocale());
   const [identity, setIdentity] = useState(null);
   const [studios, setStudios] = useState({ owned: [], collaborations: [] });
@@ -87,6 +79,10 @@ export default function AccountHome({ locale, chrome }) {
   const [view, setView] = useState("overview");
   const [loading, setLoading] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
+  // THE CREATE SCREEN REPLACES THE CONTENT COLUMN while it is open, and is not
+  // rendered at all otherwise — the rail stays, so the owner is still on their
+  // account page and can see where they came from.
+  const [creating, setCreating] = useState(false);
   // Which way the last "connect a calendar" attempt went — "connected",
   // "cancelled" or "error", read off the OAuth callback's redirect (see
   // calendar/callback/[provider]/route.ts's landOn). null until that redirect
@@ -206,8 +202,8 @@ export default function AccountHome({ locale, chrome }) {
                 return (
                   <li key={item.key} className="shrink-0 lg:shrink">
                     <button
-                      type="button" onClick={() => setView(item.key)}
-                      aria-current={on ? "page" : undefined}
+                      type="button" onClick={() => { setCreating(false); setView(item.key); }}
+                      aria-current={on && !creating ? "page" : undefined}
                       className={cn(
                         "flex h-12 w-full items-center gap-3 rounded-full px-4 text-start text-sm font-500 transition-colors",
                         on ? "bg-white text-slate-900 dark:bg-[#20202c] dark:text-white"
@@ -234,12 +230,22 @@ export default function AccountHome({ locale, chrome }) {
             overflow-y-auto keeps the scrollbar away whenever it does fit, which
             is the behaviour the clip was there to get. */}
         <main className="min-w-0 flex-1 overflow-y-auto">
-          {view === "overview" && <Overview identity={identity} owned={owned} collabs={collabs} onGo={setView} onChanged={load} />}
-          {view === "studios" && <StudioList title={tr.myStudios} note={tr.workspacesYouOwn} studios={owned} empty={tr.dontOwnStudio} onChanged={load} />}
-          {view === "collabs" && <StudioGrid title={tr.myCollaborations} note={tr.studiosOthersGave} studios={collabs} empty={tr.notCollaborating} />}
-          {view === "personal" && <PersonalInfo identity={identity} onSaved={load} />}
-          {view === "calendars" && <Calendars locale={locale} outcome={calendarOutcome} />}
-          {view === "security" && <Security devices={devices} onChanged={load} locale={locale} user={identity?.user} />}
+          {creating ? (
+            <CreateStudioScreen
+              setup={setup}
+              onCancel={() => setCreating(false)}
+              onDone={async () => { setCreating(false); setView("overview"); await load(); }}
+            />
+          ) : (
+            <>
+              {view === "overview" && <Overview identity={identity} owned={owned} collabs={collabs} onGo={setView} onChanged={load} onCreate={() => setCreating(true)} />}
+              {view === "studios" && <StudioList title={tr.myStudios} note={tr.workspacesYouOwn} studios={owned} empty={tr.dontOwnStudio} onChanged={load} />}
+              {view === "collabs" && <StudioGrid title={tr.myCollaborations} note={tr.studiosOthersGave} studios={collabs} empty={tr.notCollaborating} />}
+              {view === "personal" && <PersonalInfo identity={identity} onSaved={load} />}
+              {view === "calendars" && <Calendars locale={locale} outcome={calendarOutcome} />}
+              {view === "security" && <Security devices={devices} onChanged={load} locale={locale} user={identity?.user} />}
+            </>
+          )}
 
         </main>
       </div>
@@ -448,9 +454,8 @@ function StudioList({ title, note, studios, empty, onChanged }) {
 }
 
 // ---- overview ----------------------------------------------------------------
-function Overview({ identity, owned, collabs, onGo, onChanged }) {
+function Overview({ identity, owned, collabs, onGo, onChanged, onCreate }) {
   const tr = accountDict(useAccountLocale());
-  const [creating, setCreating] = useState(false);
   const [joining, setJoining] = useState(false);
   const name = identity?.profile?.fullName || identity?.user?.email || "there";
   const verified = Boolean(identity?.emailVerified);
@@ -499,11 +504,10 @@ function Overview({ identity, owned, collabs, onGo, onChanged }) {
           {owned.length > 4 && ` ${tr.showingFourMostOpened}`}
         </p>
         <StudioStrip
-          action={<ActionTile icon="plus" label={tr.createStudio} onClick={() => setCreating(true)} compact />}
+          action={<ActionTile icon="plus" label={tr.createStudio} onClick={onCreate} compact />}
           studios={owned}
           onViewAll={() => onGo("studios")}
         />
-        {creating && <CreateStudio onDone={() => { setCreating(false); onChanged(); }} onClose={() => setCreating(false)} />}
       </section>
 
       <section>
@@ -555,125 +559,12 @@ function Dialog({ title, description, onClose, children, width = "max-w-[512px]"
   );
 }
 
-// ---- create / join -----------------------------------------------------------
-// Both are dialogs rather than panels that unfold under the tile: Overview is
-// sized to fit the window and must never scroll, so growing the page by a form's
-// height is the one thing it cannot absorb.
-function CreateStudio({ onDone, onClose }) {
-  const tr = accountDict(useAccountLocale());
-  const [name, setName] = useState("");
-  const [slug, setSlug] = useState("");
-  const [touched, setTouched] = useState(false);
-  const [status, setStatus] = useState(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  // WHAT THE COMPANY DOES, asked here rather than in Studio settings later.
-  //
-  // It decides which of the fourteen sections a studio starts with, which
-  // service actions seed, and which org chart it meets — so asking for it
-  // afterwards meant every studio's first hour was spent in a product that
-  // knew nothing about the company using it.
-  //
-  // NOT REQUIRED. "" is a real answer and the button does not wait for one:
-  // somebody who does not see their trade should not be blocked at the door,
-  // and Studio settings still takes it later. What they get meanwhile is every
-  // section on, which is exactly what every studio got before this.
-  const [field, setField] = useState("");
-  const [fieldOther, setFieldOther] = useState("");
-  const effectiveSlug = touched ? slugify(slug) : slugify(name);
-
-  useEffect(() => {
-    if (!effectiveSlug) { setStatus(null); return; }
-    const id = setTimeout(async () => {
-      const res = await fetch(`/api/studios/available?slug=${encodeURIComponent(effectiveSlug)}`, { cache: "no-store" });
-      if (res.ok) setStatus(await res.json());
-    }, 350);
-    return () => clearTimeout(id);
-  }, [effectiveSlug]);
-
-  async function create() {
-    setBusy(true); setError("");
-    const res = await fetch("/api/studios", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name, slug: effectiveSlug,
-        fieldOfWork: field,
-        // Only meaningful for `Other`; the server drops it otherwise rather
-        // than storing a description that contradicts the trade beside it.
-        fieldOfWorkOther: field === OTHER_FIELD ? fieldOther : "",
-      }),
-    });
-    const data = await res.json().catch(() => ({}));
-    setBusy(false);
-    if (res.ok) { onDone(); return; }
-    setError(
-      data.error === "unverified" ? tr.confirmEmailAddressFirst
-      : data.error === "free-studio-limit" ? tr.freeStudioLimit(data.limit)
-      : data.error === "slug-taken" ? tr.codeTakenPickAnother
-      : data.error === "slug-reserved" ? tr.codeReservedPickAnother
-      : data.error === "slug-invalid" ? tr.use3LettersNumbers
-      : data.error === "name" ? tr.giveStudioName
-      : data.error === "field-invalid" ? tr.pickFieldFromList
-      : tr.couldnCreateStudio
-    );
-  }
-
-  return (
-    <Dialog title={tr.createStudio} onClose={onClose}
-      description={tr.studioCompanyWorkspaceOwn}>
-      {error && <p className={cn(BANNER_BAD, "mb-4")}>{error}</p>}
-      <div className="grid gap-3">
-        <div><label className={LABEL}>{tr.companyName2}</label><input className={INPUT} value={name} onChange={(e) => setName(e.target.value)} placeholder={tr.companyName} /></div>
-        <div>
-          <label className={LABEL}>{tr.studioAddressCompanyCode}</label>
-          <div className="flex items-center gap-2">
-            <span className="shrink-0 font-mono text-xs text-slate-500 dark:text-slate-400">{tr.nompanyCom}</span>
-            <input className={INPUT} value={touched ? slug : effectiveSlug} onChange={(e) => { setTouched(true); setSlug(e.target.value); }} placeholder="your-company" />
-          </div>
-          {effectiveSlug && status && (
-            <p className={cn("mt-1 text-xs font-600", status.available ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-300")}>
-              {status.available ? `“${status.slug}” is available`
-                : status.reason === "taken" ? `“${status.slug}” is already taken`
-                : status.reason === "reserved" ? `“${status.slug}” is reserved`
-                : tr.use3LettersNumbers2}
-            </p>
-          )}
-        </div>
-        <div>
-          <label className={LABEL}>{tr.fieldOfWorkLabel}</label>
-          {/* SelectMenu, never a native <select>: an OS-drawn option list
-              cannot be themed, and in dark mode it renders near-white ink on
-              the white popup the browser still draws. `tests/restructure.mjs`
-              refuses a <select> anywhere in source for that reason. */}
-          <SelectMenu
-            className={INPUT}
-            value={field}
-            onChange={setField}
-            placeholder={tr.fieldOfWorkSkip}
-            options={[
-              { value: "", label: tr.fieldOfWorkSkip },
-              ...FIELDS_OF_WORK.map((f) => ({ value: f, label: f })),
-              { value: OTHER_FIELD, label: OTHER_FIELD },
-            ]}
-          />
-          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{tr.fieldOfWorkHint}</p>
-        </div>
-        {field === OTHER_FIELD && (
-          <div>
-            <label className={LABEL}>{tr.fieldOfWorkOtherLabel}</label>
-            <input className={INPUT} value={fieldOther} maxLength={80}
-              onChange={(e) => setFieldOther(e.target.value)} />
-          </div>
-        )}
-        <div className="mt-1 flex gap-3">
-          <button className={BTN} onClick={create} disabled={busy || !name || !status?.available}>{busy ? tr.creating : tr.createStudioBtn}</button>
-          <button className={BTN_GHOST} onClick={onClose}>{tr.cancel}</button>
-        </div>
-      </div>
-    </Dialog>
-  );
-}
-
+// ---- join --------------------------------------------------------------------
+// A dialog rather than a panel that unfolds under the tile: Overview is sized to
+// fit the window and must never scroll, so growing the page by a form's height
+// is the one thing it cannot absorb. Creating a studio USED to be a dialog for
+// the same reason; it asks enough now to be its own screen
+// (CreateStudioScreen), which replaces the content column instead of growing it.
 // A join is a REQUEST, so nothing appears in the strip when it succeeds — the
 // confirmation is the only feedback there is. The dialog therefore stays open on
 // success and the user dismisses it, rather than closing over its own message.
