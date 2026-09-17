@@ -116,8 +116,13 @@ studio created with Projects, Quotations, Inventory and Finance off.
 registered widgets declare their sources; the two that do not are the Reports board's, below.
 Four things carry it:
 
-- **The shell passes its section rows down** with the plan (`AnalyticsLevelProvider`, which
-  already carried the tier), so no dashboard reads anything new.
+- **The shell passes down the keys that are switched off** with the plan
+  (`AnalyticsLevelProvider`, which already carried the tier), so no dashboard reads anything
+  new. They are worked out from EVERY section row (`allSections`), never from the visible
+  ones: `visibleSections` has already dropped the disabled rows, so a switchboard built from it
+  finds no row for a switched-off part and calls it on. That first version shipped in the slice's
+  own commit and the sandbox caught it — Pipeline off, its charts still drawn. The model test
+  now reads the layout and refuses it.
 - **`useWidgetGate()`** answers both gates for a registered widget as the two props `Widget`
   takes — `<Widget {...gate("sales.funnel")}>`. `hidden` (a source is off) wins over `locked`
   (the tier did not buy it), and `Widget` renders nothing when hidden. No dashboard may pass

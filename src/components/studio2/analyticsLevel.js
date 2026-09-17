@@ -16,28 +16,32 @@
 // provider is present, so a dashboard rendered outside the shell still shows its
 // free widgets rather than throwing.
 import { createContext, useContext, useMemo } from "react";
-import { enabledWidgets, WIDGET_KEYS, DASHBOARD_WIDGETS, switchboard, widgetAvailable } from "@/lib/dashboardWidgets";
+import { enabledWidgets, WIDGET_KEYS, DASHBOARD_WIDGETS, widgetAvailable } from "@/lib/dashboardWidgets";
 
 const DEFAULT = { analyticsEnabled: true, dashboardWidgets: null, analyticsLevel: "basic" };
 
 const AnalyticsContext = createContext(DEFAULT);
 
-// WHICH SECTIONS THE STUDIO RUNS — the second gate, beside the tier. The shell
-// already holds every section row with its `enabled` flag (it draws the
-// sidebar from them), so they ride down here with the plan and no dashboard
-// reads anything new. Absent (a dashboard rendered outside the shell) means
-// every section is on, which is what such a dashboard showed before.
+// WHICH SECTIONS THE STUDIO RUNS — the second gate, beside the tier. The
+// studio layout resolves the switched-off keys once, from ALL the studio's
+// section rows (the sidebar's own list is already filtered and cannot say
+// what is off — it just leaves it out), and they ride down here with the
+// plan. Absent (a dashboard rendered outside the shell) means every section is
+// on, which is what such a dashboard showed before.
 const SectionsContext = createContext(null);
 const byKey = new Map(DASHBOARD_WIDGETS.map((w) => [w.key, w]));
 
-export function AnalyticsLevelProvider({ analytics, level, sections = null, children }) {
+export function AnalyticsLevelProvider({ analytics, level, switchedOff = null, children }) {
   // `analytics` is the shape planOf hands down. `level` is still accepted for
   // any caller that only has the rung — it resolves through the fallback path.
   const value = useMemo(
     () => (analytics ? { ...DEFAULT, ...analytics } : { ...DEFAULT, analyticsLevel: level || "basic" }),
     [analytics, level],
   );
-  const on = useMemo(() => switchboard(sections), [sections]);
+  const on = useMemo(() => {
+    const off = new Set(switchedOff || []);
+    return (key) => !off.has(key);
+  }, [switchedOff]);
   return (
     <AnalyticsContext.Provider value={value}>
       <SectionsContext.Provider value={on}>{children}</SectionsContext.Provider>

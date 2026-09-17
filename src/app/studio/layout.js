@@ -1,3 +1,4 @@
+import { switchboard } from "@/lib/dashboardWidgets";
 import Link from "next/link";
 import { can } from "@/platform/access";
 import { dirFor } from "@/shared/i18n";
@@ -45,7 +46,14 @@ async function renderShell(children) {
     return <NotAMember slug={shell.slug} locale={shell.locale} />;
   }
 
-  const { studio, collaborator, access, sections, locale, admin, plan, chat } = shell;
+  const { studio, collaborator, access, sections, allSections, locale, admin, plan, chat } = shell;
+  // WHAT THE STUDIO HAS SWITCHED OFF, for the dashboards' second gate. From
+  // ALL sections, never `sections`: that list is already filtered to what the
+  // reader may open AND what is on, so a switched-off part is simply missing
+  // from it — and a missing key reads as "on". Only the keys travel, not the
+  // rows: the browser needs to know what to leave out, nothing more.
+  const isOn = switchboard(allSections || []);
+  const switchedOff = (allSections || []).filter((s) => !isOn(s.key)).map((s) => s.key);
 
   return (
     <StudioFrame
@@ -83,6 +91,7 @@ async function renderShell(children) {
       // assistant launcher only when it does. The endpoint re-checks this, so
       // the flag is a convenience for the UI, not the gate.
       novaEnabled={plan.novaEnabled}
+      switchedOff={switchedOff}
     >
       {/* The ERP's traffic counter. It records a SECTION and never a tenant or a
           record id — see StudioTracker for why the public site's page rule

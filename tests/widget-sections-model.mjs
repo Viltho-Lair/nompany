@@ -102,6 +102,18 @@ const ungated = W.DASHBOARD_WIDGETS
   .filter((w) => w.section !== "main" && w.section !== "reports" && !gated.has(w.key))
   .map((w) => w.key);
 ok("every department widget is drawn through the gate", ungated.length === 0, ungated.join(", "));
+// THE SWITCHES ARE READ FROM EVERY ROW, not from the visible ones. The shell's
+// `sections` is `visibleSections`, which has already dropped the disabled rows —
+// so a switchboard built from it finds no row for a switched-off part and
+// answers "on". That shipped in slice 2 and the sandbox caught it: Pipeline off,
+// its charts still drawn.
+const layout = readFileSync("src/app/studio/layout.js", "utf8");
+ok("the studio layout builds the switched-off list from allSections",
+  /switchboard\(\s*allSections\b/.test(layout) && /switchedOff=\{switchedOff\}/.test(layout));
+const frame = readFileSync("src/components/studio2/StudioFrame.js", "utf8");
+ok("the frame hands the provider that list, not its visible sections",
+  /<AnalyticsLevelProvider[^>]*switchedOff=\{switchedOff\}/.test(frame) && !/<AnalyticsLevelProvider[^>]*sections=/.test(frame));
+
 const stray = [...gated].filter((k) => !W.WIDGET_KEYS.has(k));
 ok("no dashboard gates a key the registry does not know", stray.length === 0, stray.join(", "));
 
