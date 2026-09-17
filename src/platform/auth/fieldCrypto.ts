@@ -10,16 +10,16 @@
 //
 //   enc:v2:<masterId>:<iv>:<tag>:<ciphertext>          (base64 parts)
 //
-// `enc:v1:` values were written under FIELD_ENCRYPTION_KEY, which is being
-// retired. They are still READ here, and only here, so that
-// scripts/migrate/rekey-field-crypto.mjs can re-encrypt them. Once that script
-// has run and proven nothing is left, the v1 branch below and the variable are
-// deleted together — see LEGACY.
+// `enc:v1:` values were written under FIELD_ENCRYPTION_KEY, which is RETIRED:
+// every stored v1 value was re-encrypted on 17/09/2026 (a console action, run
+// inside the deployment, then proven empty by a live scan) and the variable was
+// deleted. A v1 value can no longer be opened, and one turning up is reported
+// as unreadable like any other.
 import crypto from "crypto";
 import { log } from "@/platform/http/observability";
 import { currentMasterKey, masterKeyById, subkey } from "@/platform/db/masterKeys";
 
-const V1 = "enc:v1:";
+const V1 = "enc:v1:";   // recognised as encrypted, never opened
 const V2 = "enc:v2:";
 const PURPOSE = "field-crypto";
 
@@ -34,9 +34,7 @@ const PURPOSE = "field-crypto";
 export function encryptField(plain: unknown): string {
   const value = plain == null ? "" : String(plain);
   if (!value) return "";
-  // Already encrypted under the CURRENT scheme — don't double-wrap. A v1 value
-  // is not passed through: handing one in means "store this", and what is
-  // stored from now on is v2 (reencryptField is the way to convert one).
+  // Already encrypted under the current scheme — don't double-wrap.
   if (value.startsWith(V2)) return value;
   const master = currentMasterKey();
   if (!master) throw new Error("NOMPANY_DATA_KEY is not set — refusing to store a credential in plaintext");
@@ -51,20 +49,12 @@ export function isEncrypted(value: unknown): boolean {
   return typeof value === "string" && (value.startsWith(V1) || value.startsWith(V2));
 }
 
-/** A value still under the retired FIELD_ENCRYPTION_KEY. */
-export const isLegacyEncrypted = (value: unknown) => typeof value === "string" && value.startsWith(V1);
-
 function open(value: string): string {
-  if (value.startsWith(V2)) {
-    const [, , masterId, ivB64, tagB64, dataB64] = value.split(":");
-    const master = masterKeyById(masterId);
-    if (!master) throw new Error(`master key ${masterId} is not in NOMPANY_DATA_KEY`);
-    return gcmOpen(subkey(master, PURPOSE), ivB64, tagB64, dataB64);
-  }
-  const [, , ivB64, tagB64, dataB64] = value.split(":");
-  const key = legacyKey();
-  if (!key) throw new Error("FIELD_ENCRYPTION_KEY is not set, and this value was written under it");
-  return gcmOpen(key, ivB64, tagB64, dataB64);
+  if (!value.startsWith(V2)) throw new Error("written under the retired FIELD_ENCRYPTION_KEY");
+  const [, , masterId, ivB64, tagB64, dataB64] = value.split(":");
+  const master = masterKeyById(masterId);
+  if (!master) throw new Error(`master key ${masterId} is not in NOMPANY_DATA_KEY`);
+  return gcmOpen(subkey(master, PURPOSE), ivB64, tagB64, dataB64);
 }
 
 function gcmOpen(key: Buffer, ivB64: string, tagB64: string, dataB64: string): string {
@@ -90,32 +80,4 @@ export function decryptField(value: unknown): string {
     log.error(`[fieldCrypto] decrypt failed (${(e as Error).message}) — wrong key, or the value was written under another one`);
     return "";
   }
-}
-
-/**
- * A stored value moved onto the current key: v1 and v2-under-a-retired-master
- * come back as v2 under the current master, plaintext and current values come
- * back unchanged. THROWS when the value cannot be opened — the migration must
- * never replace a credential it could not read with a blank.
- */
-export function reencryptField(value: unknown): unknown {
-  if (!isEncrypted(value)) return value;
-  const text = String(value);
-  const current = currentMasterKey();
-  if (text.startsWith(`${V2}${current?.id}:`)) return value;
-  return encryptField(open(text));
-}
-
-// ---- LEGACY: FIELD_ENCRYPTION_KEY --------------------------------------------
-// Read-only, for enc:v1: values that have not been re-encrypted yet. DELETE this
-// function, the v1 branch of `open`, `isLegacyEncrypted` and the variable in
-// Vercel and .env.local once rekey-field-crypto.mjs reports nothing left.
-function legacyKey(): Buffer | null {
-  const raw = process.env.FIELD_ENCRYPTION_KEY;
-  if (!raw) return null;
-  const hex = Buffer.from(raw, "hex");
-  if (hex.length === 32) return hex;
-  const b64 = Buffer.from(raw, "base64");
-  if (b64.length === 32) return b64;
-  return crypto.createHash("sha256").update(String(raw)).digest();
 }

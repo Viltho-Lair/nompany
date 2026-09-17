@@ -4,7 +4,6 @@ import { BASE } from "../../_components/nav";
 import ProfilePanel from "./ProfilePanel";
 import MfaCard from "./MfaCard";
 import SessionsCard from "./SessionsCard";
-import EncryptionKeyCard from "./EncryptionKeyCard";
 import NotificationsPanel from "./NotificationsPanel";
 
 export const dynamic = "force-dynamic";
@@ -97,9 +96,6 @@ export default async function SettingsPage({ searchParams }) {
         <div className="grid gap-6 lg:grid-cols-[7fr_5fr]">
           <MfaCard />
           <SessionsCard />
-          {/* THE ONE KEY (17/09/2026): moves stored credentials off the retired
-              FIELD_ENCRYPTION_KEY, from inside the deployment where that key is. */}
-          <div className="lg:col-span-2"><EncryptionKeyCard /></div>
         </div>
       )}
 

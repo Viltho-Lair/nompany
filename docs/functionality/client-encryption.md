@@ -61,17 +61,18 @@ The list is `platform/db/sealCipher.ts`, and nowhere else.
 ## One key for everything (17/09/2026)
 
 The owner's decision: `NOMPANY_DATA_KEY` is the only encryption key.
-`FIELD_ENCRYPTION_KEY` is retired. Each use takes its own subkey of the master
+`FIELD_ENCRYPTION_KEY` is **gone** — from the code, from `.env.local` and from Vercel. Each use takes its own subkey of the master
 (HKDF, `platform/db/masterKeys.ts`), never the master itself:
 
 - **Stored credentials** (`platform/auth/fieldCrypto.ts`): calendar tokens, the
-  platform Nova key, console MFA secrets. New values are `enc:v2:<master>:…`.
-  Old `enc:v1:` values still read, only until they are re-encrypted. **The live
-  conversion runs from the console: Settings → Security → Encryption key**, inside
-  the deployment, because the retired key cannot be read out of Vercel. It shows
-  document names and counts, converts on a second click that names the count,
-  copies every document to `REG.rekeyBackup` first, and writes nothing unless every
-  value opens (`platform/auth/rekey.ts`; the CLI script uses the same module).
+  platform Nova key, console MFA secrets. Values are `enc:v2:<master>:…`.
+  **Every old `enc:v1:` value was converted on 17/09/2026** — 2 documents (the Nova
+  key and the console's Google connection), by a one-off console action run inside
+  the deployment, because the old key could not be read out of Vercel. A live scan
+  then found none left, and the action, its route, its module and the CLI script
+  were removed. An `enc:v1:` value is now refused like any unreadable one.
+  `REG.rekeyBackup` still holds the pre-conversion copies, encrypted under the
+  deleted key and so unreadable; it can be deleted (two confirmations).
 - **Login codes and Google sign-in state**, when `OTP_SECRET` is empty. Changing
   the key only voids codes sent in the minutes around the deploy.
 - **The device fingerprint** on the Security page. It is a one-way digest that is
@@ -99,8 +100,6 @@ The owner's decision: `NOMPANY_DATA_KEY` is the only encryption key.
 - **Server logs** do not redact email, phone or name.
 - A deal's `clientBudget` and a quotation's `title`/`description` are not sealed.
 - No screen or script for rotating a studio key or re-wrapping under a new master.
-- **`FIELD_ENCRYPTION_KEY` is not removed yet.** `fieldCrypto.ts` still reads
-  `enc:v1:` values. Removing that branch and the variable waits on
-  `rekey-field-crypto.mjs` reporting nothing left.
+- **`REG.rekeyBackup` is not deleted** (see above). Nothing can read it.
 - `OTP_SECRET` is a separate optional variable and was not folded in.
 - Searching clients inside the database is impossible by design; nothing does today.

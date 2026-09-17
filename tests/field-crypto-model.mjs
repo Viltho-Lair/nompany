@@ -4,11 +4,10 @@
 //
 //   New values are written under NOMPANY_DATA_KEY and name the master that
 //   made them, so a rotated master still reads them.
-//   A value written under the retired FIELD_ENCRYPTION_KEY still reads until it
-//   is re-encrypted, and re-encrypting it gives the same plaintext back.
-//   Re-encryption THROWS on a value it cannot open — a migration that blanked
-//   an unreadable credential would destroy it silently.
-//   Neither the old key nor a retired master is needed once a value is moved.
+//   FIELD_ENCRYPTION_KEY is retired (every stored value was moved on
+//   17/09/2026): a value written under it is refused even when the variable is
+//   set, so the old key can never quietly come back into use.
+//   A retired master still reads what it wrote while it stays listed.
 
 import { register } from "node:module";
 import { pathToFileURL } from "node:url";
@@ -24,7 +23,6 @@ const m1 = crypto.randomBytes(32).toString("base64");
 const m2 = crypto.randomBytes(32).toString("base64");
 const OLD = "an-old-field-encryption-passphrase";
 process.env.NOMPANY_DATA_KEY = `m1:${m1}`;
-process.env.FIELD_ENCRYPTION_KEY = OLD;
 
 const F = await import("@/platform/auth/fieldCrypto");
 const K = await import("@/platform/db/masterKeys");
@@ -34,7 +32,6 @@ const ok = (label, cond, extra = "") => {
   if (!cond) fails += 1;
   console.log(`${cond ? "  ok  " : " FAIL "} ${label}${extra ? "  " + extra : ""}`);
 };
-const throws = (fn) => { try { fn(); return false; } catch { return true; } };
 
 // A value exactly as the retired scheme wrote it.
 function legacy(plain) {
@@ -56,33 +53,22 @@ ok("an empty value stays empty", F.encryptField("") === "");
 
 console.log("\n== the retired key");
 
-const old = legacy("ya29.access");
-ok("a value under FIELD_ENCRYPTION_KEY still reads", F.decryptField(old) === "ya29.access");
-ok("...and is recognised as legacy", F.isLegacyEncrypted(old) && !F.isLegacyEncrypted(sealed));
-const moved = F.reencryptField(old);
-ok("re-encrypting it moves it onto the one key", String(moved).startsWith("enc:v2:m1:"));
-ok("...with the same secret inside", F.decryptField(moved) === "ya29.access");
-delete process.env.FIELD_ENCRYPTION_KEY;
-ok("once moved, it reads without the old key", F.decryptField(moved) === "ya29.access");
-ok("...while an unmoved one does not — which is why the script runs first", F.decryptField(legacy("x")) === "");
 process.env.FIELD_ENCRYPTION_KEY = OLD;
-
-ok("a current value is left exactly as it is", F.reencryptField(sealed) === sealed);
-ok("plain text and non-strings pass through", F.reencryptField("plain") === "plain" && F.reencryptField(null) === null);
-ok("a value that will not open makes re-encryption THROW, never blank it",
-  throws(() => F.reencryptField("enc:v1:AAAA:BBBB:CCCC")));
+ok("a value under the retired key is refused, even with the variable set",
+  F.isEncrypted(legacy("ya29.access")) && F.decryptField(legacy("ya29.access")) === "");
+delete process.env.FIELD_ENCRYPTION_KEY;
 
 console.log("\n== rotating the master");
 
 process.env.NOMPANY_DATA_KEY = `m2:${m2},m1:${m1}`;
 K.resetMasterKeyring();
 ok("after rotation, what m1 wrote still reads", F.decryptField(sealed) === "1//refresh-token");
-const rotated = F.reencryptField(sealed);
-ok("...and re-encrypting moves it to m2", String(rotated).startsWith("enc:v2:m2:") && F.decryptField(rotated) === "1//refresh-token");
+const rotated = F.encryptField("1//refresh-token");
+ok("...and a new value is written under m2", rotated.startsWith("enc:v2:m2:") && F.decryptField(rotated) === "1//refresh-token");
 process.env.NOMPANY_DATA_KEY = `m2:${m2}`;
 K.resetMasterKeyring();
-ok("with m1 removed, the moved value still reads", F.decryptField(rotated) === "1//refresh-token");
-ok("...and an unmoved m1 value does not", F.decryptField(sealed) === "");
+ok("with m1 removed, the m2 value still reads", F.decryptField(rotated) === "1//refresh-token");
+ok("...and an m1 value does not", F.decryptField(sealed) === "");
 
 console.log("\n== purposes");
 
