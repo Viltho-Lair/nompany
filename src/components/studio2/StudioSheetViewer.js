@@ -16,6 +16,7 @@ import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
 import { SHEET_COLUMNS, SHEET_OWNERS, rowStatus } from "@/modules/inventory/sheetColumns";
 import { useReload } from "@/components/studio2/useReload";
+import { BottomBar } from "@/components/studio2/PanelBar";
 
 // THE QUOTATION VIEWER, WITHOUT PRICES — in two perspectives.
 //
@@ -789,13 +790,13 @@ function ProjectBar({ projects, hiddenProjects = [], activeProjectId, query, onQ
   // MUI supplies the BEHAVIOUR — the scrolling, the arrows, the keyboard — and
   // the studio's own tokens supply the look, the same division Combo makes.
   return (
-    <div ref={box} className="pointer-events-none fixed bottom-0 end-0 start-0 z-30 lg:start-72">
-      <div className="mx-auto max-w-[1400px] px-5 sm:px-8">
-        <div className="pointer-events-auto flex items-center gap-4 rounded-t-geex border border-b-0 border-slate-200 bg-white/95 px-4 py-2 shadow-geex backdrop-blur dark:border-white/10 dark:bg-[#20202c]/95">
+    <BottomBar ref={box} rowClass="gap-2 px-3 sm:gap-4 sm:px-4">
           {/* A FIFTH OF THE BAR — on a WRAPPER, because the shared input class
               carries w-full and two widths on one element are settled by
-              stylesheet order rather than by which was written last. */}
-          <div className="w-1/5 shrink-0">
+              stylesheet order rather than by which was written last. A fifth of
+              a phone is a few letters wide, so a small screen gets 7rem, and no
+              screen gets less than 9rem once there is room for it. */}
+          <div className="w-28 shrink-0 sm:w-1/5 sm:min-w-[9rem]">
             <input type="search"
               className="w-full rounded-full border border-slate-200 bg-slate-50 px-3.5 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-white/15 dark:bg-[#191921] dark:text-white"
               placeholder={tr.projectQuotationPoSerial}
@@ -906,8 +907,6 @@ function ProjectBar({ projects, hiddenProjects = [], activeProjectId, query, onQ
               </div>
             )}
           </div>
-        </div>
-      </div>
-    </div>
+    </BottomBar>
   );
 }

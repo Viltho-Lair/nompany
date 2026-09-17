@@ -30,6 +30,7 @@ const FieldViewPanel = nextDynamic(() => import("@/components/studio2/FieldViewP
 import { dispatchDict } from "@/shared/studio/dispatch";
 import { fieldDict } from "@/shared/studio/field";
 import { useAnalyticsLevel } from "@/components/studio2/analyticsLevel";
+import { PanelBar } from "@/components/studio2/PanelBar";
 import { Field } from "@/components/fields/Field";
 import StudioDate from "@/components/fields/StudioDate";
 import {
@@ -266,21 +267,9 @@ function OperationsBottomBar({ active, onTab }) {
   const tr = operationsDict(locale);
   const items = [["schedule", tr.tabSchedule], ["dispatch", dispatchDict(locale).tab],
     ["field", fieldDict(locale).tab], ["permits", tr.tabPermits], ["locations", tr.tabLocations]];
-  return (
-    <div className="pointer-events-none fixed bottom-0 end-0 start-0 z-30 lg:start-72">
-      <div className="mx-auto max-w-[1400px] px-5 sm:px-8">
-        <div className="pointer-events-auto flex items-center gap-2 rounded-t-geex border border-b-0 border-slate-200 bg-white/95 px-3 py-2 shadow-geex backdrop-blur dark:border-white/10 dark:bg-[#20202c]/95">
-          {items.map(([key, label]) => {
-            const on = key === active;
-            const cls = `rounded-full px-4 py-1.5 font-display text-sm font-600 transition-colors ${
-              on ? "bg-brand-700 text-white" : "text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-white/5"}`;
-            if (on) return <span key={key} className={cls} aria-current="page">{label}</span>;
-            return <button key={key} type="button" className={cls} onClick={() => onTab(key)}>{label}</button>;
-          })}
-        </div>
-      </div>
-    </div>
-  );
+  // THE SHARED PANEL BAR — this strip was its original, and a copy of it drifted
+  // (the sidebar inset) until both were one component.
+  return <PanelBar items={items.map(([key, label]) => ({ key, label }))} active={active} onSelect={onTab} />;
 }
 
 // THE DICTIONARY COMES IN AS AN ARGUMENT — module scope, see StudioFinance.

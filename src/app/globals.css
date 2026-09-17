@@ -638,6 +638,15 @@ html.studio-chrome::-webkit-scrollbar-corner,
 html.studio-chrome ::-webkit-scrollbar-corner {
   background: transparent;
 }
+/* A BOTTOM BAR THAT SCROLLS SIDEWAYS on a narrow screen (PanelBar) scrolls
+   without a bar of its own: a 12px thumb under a 50px strip of pills is most of
+   its height, and the cut-off pill at the edge already says there is more. */
+html.studio-chrome .bar-scroll {
+  scrollbar-width: none;
+}
+html.studio-chrome .bar-scroll::-webkit-scrollbar {
+  display: none;
+}
 
 /* ---- plan tags (package / tier) -------------------------------------------
    A struck-metal chip in the plan's own colour. Three layers, in order:

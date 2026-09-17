@@ -199,7 +199,7 @@ export default function NovaLauncher({ slug, enabled = false, besideChat = false
           type="button"
           onClick={() => setOpen(!open)}
           aria-label={open ? tr.close : tr.askNova}
-          className={`group fixed bottom-4 z-40 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-cyan-400 shadow-xl ring-1 ring-white/40 transition-transform hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 ${besideChat ? "end-24" : "end-5"}`}
+          className={`group fixed bottom-4 z-40 [html[data-bottom-bar]_&]:bottom-20 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-cyan-400 shadow-xl ring-1 ring-white/40 transition-transform hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 ${besideChat ? "end-24" : "end-5"}`}
         >
           <NovaHead className="h-12 w-12 drop-shadow" idle />
           {attention > 0 && (
@@ -226,7 +226,7 @@ export default function NovaLauncher({ slug, enabled = false, besideChat = false
           ref={panelRef}
           role="dialog"
           aria-labelledby={titleId}
-          className="fixed bottom-[5.5rem] end-5 z-40 flex h-[34rem] max-h-[calc(100dvh-7rem)] w-[26rem] max-w-[calc(100vw-2.5rem)] flex-col overflow-hidden rounded-geex bg-[var(--geex-surface)] shadow-geex print:hidden"
+          className="fixed bottom-[5.5rem] end-5 z-40 flex h-[34rem] max-h-[calc(100dvh-7rem)] [html[data-bottom-bar]_&]:bottom-[9.5rem] [html[data-bottom-bar]_&]:max-h-[calc(100dvh-11rem)] w-[26rem] max-w-[calc(100vw-2.5rem)] flex-col overflow-hidden rounded-geex bg-[var(--geex-surface)] shadow-geex print:hidden"
         >
           <div className="flex min-h-0 flex-1 flex-col">
             <header className="flex items-center gap-2 border-b border-slate-200 px-4 py-3 dark:border-white/10">

@@ -265,7 +265,10 @@ export default function StudioChat({ enabled, slug, studioName, userName, unlimi
     // launcher sits (end-24, clearing this bubble). Same z-40, later in the DOM,
     // so the column won the hit test and Nova could not be clicked while a
     // support chat was open. Nothing looked wrong; the click just went nowhere.
-    <div className="pointer-events-none fixed bottom-5 end-5 z-40 flex flex-col items-end gap-3 print:hidden">
+    //
+    // LIFTED ABOVE A BOTTOM BAR while one is on screen (PanelBar's BottomBar sets
+    // <html data-bottom-bar>), so the bubble never covers the bar's end.
+    <div className="pointer-events-none fixed bottom-5 end-5 z-40 flex flex-col items-end gap-3 print:hidden [html[data-bottom-bar]_&]:bottom-20">
       {open && (
         <div className="pointer-events-auto flex h-[30rem] w-[22rem] max-w-[calc(100vw-2.5rem)] flex-col overflow-hidden rounded-geex bg-[var(--geex-surface)] shadow-geex">
           <div className="flex items-center justify-between gap-2 bg-brand-950 px-4 py-3 text-white dark:bg-brand-500/20">
