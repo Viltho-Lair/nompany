@@ -54,6 +54,8 @@ The list is `platform/db/sealCipher.ts`, and nowhere else.
 - **Old rows:** a plain row still reads, and is sealed **whole** the first time anything
   writes to it. `scripts/migrate/seal-clients.mjs` seals the rest — dry run by default,
   exports first, re-scans to prove it, and needs the owner's two confirmations.
+  **Run against live on 17/09/2026:** 19 rows in three studios sealed, the re-scan
+  found nothing in the clear, and every studio's clients read back through the app.
 - **Rotation:** `rotateStudioKey` gives a studio a new data key (old ones kept, so old
   values open); `rewrapStudioKeys` moves a studio's keys onto the current master so a
   retired master can be removed from the variable. Neither has a screen or a script yet.
@@ -71,8 +73,8 @@ The owner's decision: `NOMPANY_DATA_KEY` is the only encryption key.
   the deployment, because the old key could not be read out of Vercel. A live scan
   then found none left, and the action, its route, its module and the CLI script
   were removed. An `enc:v1:` value is now refused like any unreadable one.
-  `REG.rekeyBackup` still holds the pre-conversion copies, encrypted under the
-  deleted key and so unreadable; it can be deleted (two confirmations).
+  The pre-conversion backup (`g:rekey-backup`), unreadable without the deleted
+  key, was deleted on 17/09/2026 with the owner's two confirmations.
 - **Login codes and Google sign-in state**, when `OTP_SECRET` is empty. Changing
   the key only voids codes sent in the minutes around the deploy.
 - **The device fingerprint** on the Security page. It is a one-way digest that is
@@ -100,6 +102,5 @@ The owner's decision: `NOMPANY_DATA_KEY` is the only encryption key.
 - **Server logs** do not redact email, phone or name.
 - A deal's `clientBudget` and a quotation's `title`/`description` are not sealed.
 - No screen or script for rotating a studio key or re-wrapping under a new master.
-- **`REG.rekeyBackup` is not deleted** (see above). Nothing can read it.
 - `OTP_SECRET` is a separate optional variable and was not folded in.
 - Searching clients inside the database is impossible by design; nothing does today.

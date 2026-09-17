@@ -97,12 +97,6 @@ export const REG = {
   // revocation, or a revoked key would still resolve to a studio.
   apiKeyIndex: `${P}g:api-keys`,
   superAdmins: `${P}g:superAdmins`,
-  // THE DOCUMENTS AS THEY STOOD before stored credentials were re-encrypted
-  // under NOMPANY_DATA_KEY on 17/09/2026 — the export invariant 17 asks for,
-  // written by the (since removed) console action. Encrypted under the retired
-  // FIELD_ENCRYPTION_KEY, which no longer exists, so nothing can read it. The
-  // builder stays until the document is deleted, so it is never orphaned.
-  rekeyBackup: `${P}g:rekey-backup`,
   joinRequests: `${P}g:joinRequests`,
   // Questionnaire DEFINITIONS authored in /super — the forms themselves, not
   // anyone's answers. Platform-level like the studio registry, because a
