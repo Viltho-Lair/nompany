@@ -18,7 +18,7 @@
 // immediately and no record is kept beyond the movement itself. A studio
 // correcting a shelf by one unit should not acquire an approval queue.
 
-import { requirePermission } from "@/platform/access";
+import { requirePermission, isAdministrator } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
 import { firstUnsignedStep, planSatisfied } from "@/platform/approval/resolve";
 import type { ResolvedPlan, PlanRefusal, ApprovalSignature } from "@/platform/approval/resolve";
@@ -150,6 +150,9 @@ export async function listAdjustments(ctx: InventoryContext) {
   if (denied) return denied;
   const rows = await Adjustments.find(scope(ctx));
   const me = ctx.collaborator.id;
+  // The same exception approveAdjustment applies, asked once for the whole
+  // queue — the screen must draw a button exactly where pressing it succeeds.
+  const admin = isAdministrator(ctx.collaborator, ctx.roles);
   const adjustments = [...rows]
     .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")))
     .map((row) => {
@@ -160,8 +163,8 @@ export async function listAdjustments(ctx: InventoryContext) {
       // WHY THIS READER CANNOT SIGN, when they cannot — said rather than left
       // as a row with no button, which is what the queue showed before.
       const blockedBy = !step ? ""
-        : row.createdByCollaboratorId === me ? "raised"
-          : signatures.some((s) => s.byCollaboratorId === me) ? "signed"
+        : !admin && row.createdByCollaboratorId === me ? "raised"
+          : !admin && signatures.some((s) => s.byCollaboratorId === me) ? "signed"
             : requirePermission(ctx.access, step.permission as PermissionKey) ? "right"
               : "";
       const canSign = Boolean(step) && !blockedBy;
@@ -213,15 +216,24 @@ export async function approveAdjustment(
   if (!row) return { error: "notfound" };
   if (row.status !== "Pending") return { error: "already-decided", status: row.status };
 
-  // INVARIANT 7, FIRST HALF: the person who raised it never signs it. Held on
-  // identity alone, so it refuses the owner too.
-  if (row.createdByCollaboratorId === ctx.collaborator.id) return { error: "same-signer" };
+  // INVARIANT 7, FIRST HALF: the person who raised it never signs it.
+  //
+  // THE ADMIN IS THE EXCEPTION — the owner's instruction, 17/09/2026: "I am an
+  // Owner by default, I must have every access." The same exception payroll
+  // (10/09) and bills (11/09) already carry, and for the same reason: this
+  // held on identity alone and refused the owner too, so an adjustment over
+  // the limit raised in a studio run by one person could be neither signed
+  // nor turned down by anybody, and the stock never moved. The owner or a
+  // holder of the Admin role may sign what they raised, and a later step after
+  // an earlier one. Everybody else still needs a second person on both counts.
+  const admin = isAdministrator(ctx.collaborator, ctx.roles);
+  if (!admin && row.createdByCollaboratorId === ctx.collaborator.id) return { error: "same-signer" };
 
   const signatures = (row.approvals || []) as ApprovalSignature[];
   // SECOND HALF: somebody who signed an earlier step may not sign a later one.
   // Invariant 7 is about the RECORD rather than about the pair of rights, and a
   // second step the first signer can clear is not a second step.
-  if (signatures.some((s) => s.byCollaboratorId === ctx.collaborator.id)) return { error: "same-signer" };
+  if (!admin && signatures.some((s) => s.byCollaboratorId === ctx.collaborator.id)) return { error: "same-signer" };
 
   const plan = row.approvalPlan as ResolvedPlan | PlanRefusal | null;
   const step = firstUnsignedStep(plan, signatures);
@@ -261,7 +273,12 @@ export async function rejectAdjustment(ctx: InventoryContext, id: string, reason
   const row = rows.find((r) => r.id === id);
   if (!row) return { error: "notfound" };
   if (row.status !== "Pending") return { error: "already-decided", status: row.status };
-  if (row.createdByCollaboratorId === ctx.collaborator.id) return { error: "same-signer" };
+  // Turning one down answers to the same people who could sign it, Admin
+  // exception included — otherwise the one person who may approve their own
+  // adjustment could not withdraw it.
+  if (!isAdministrator(ctx.collaborator, ctx.roles) && row.createdByCollaboratorId === ctx.collaborator.id) {
+    return { error: "same-signer" };
+  }
 
   const plan = row.approvalPlan as ResolvedPlan | PlanRefusal | null;
   const step = firstUnsignedStep(plan, (row.approvals || []) as ApprovalSignature[]);

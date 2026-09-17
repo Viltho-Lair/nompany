@@ -121,12 +121,14 @@ when the code looks cleaner afterwards.
 7. **Reviewer ≠ approver** on any signable. Enforced at the transition, not in the
    permission model — holding both rights is legitimate, using both on one record is
    not.
-   **Two exceptions, on the owner's instruction: an Admin may approve a payroll run they
-   prepared (10/09/2026) and a bill they raised (11/09/2026)** — the studio's owner or a
-   holder of the Admin role has full authority, and a one-person studio could otherwise never
-   pay itself or a supplier (payment waits on bill approval since 11/09/2026). On a bill the
-   Admin may also sign a later step after an earlier one. Bids, requisitions, stock
-   write-offs and payment-hold releases keep the rule for everyone.
+   **Three exceptions, on the owner's instruction: an Admin may approve a payroll run they
+   prepared (10/09/2026), a bill they raised (11/09/2026), and a stock adjustment they
+   raised (17/09/2026)** — the studio's owner or a holder of the Admin role has full
+   authority ("I am an Owner by default, I must have every access"), and a one-person studio
+   could otherwise never pay itself or a supplier, or move stock past the adjustment limit.
+   On a bill and an adjustment the Admin may also sign a later step after an earlier one, and
+   may turn down an adjustment they raised. Bids, requisitions and payment-hold releases keep
+   the rule for everyone.
 8. **Writes go through `editArr`/`editJSON`** (compare-and-set). No blind whole-
    collection write; there is deliberately no `writeCol`. `updateRow` takes a
    **function** patch so "flip this field" stays a flip under contention.

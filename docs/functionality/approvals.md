@@ -147,7 +147,16 @@ above the studio's limit and moves nothing until the last step is signed. The St
 shows that queue — "Waiting for a signature" — with Approve and Reject drawn only where
 `listAdjustments` says the reader may sign (not the raiser, not an earlier signer, the step's
 right held), and the Adjust dialog says when an adjustment went to the queue instead of moving
-stock. Until 11/09/2026 no screen read `GET /inventory/adjustments`: the dialog closed as if the
+stock.
+
+**The Admin may sign an adjustment they raised, since 17/09/2026** — the owner's
+instruction, *"I am an Owner by default, I must have every access."* Until then the rule held
+on identity alone and refused the owner too, so an adjustment over the limit in a one-person
+studio could be neither signed nor turned down by anybody, and the stock never moved. The
+owner or a holder of the Admin role may now sign it, sign a later step after an earlier one,
+and reject it. `listAdjustments`, `approveAdjustment` and `rejectAdjustment` ask
+`isAdministrator` identically, so the buttons appear exactly where the act is accepted.
+Everybody else still needs a second person. Until 11/09/2026 no screen read `GET /inventory/adjustments`: the dialog closed as if the
 adjustment had worked, and `inventory.stock.approve` was a right nobody could exercise.
 
 ## Not built yet

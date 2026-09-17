@@ -380,32 +380,53 @@ async function adjustmentApproval() {
     JSON.stringify(big.body?.adjustment?.approvalPlan?.steps));
   ok("...and moved no stock", !big.body?.movement);
 
-  // ---- INVARIANT 7: the raiser never signs, owner included -----------------
+  // ---- THE OWNER SIGNS WHAT THEY RAISED — the owner's instruction, 17/09 ----
+  // "I am an Owner by default, I must have every access." This asserted the
+  // opposite until that day: the raiser never signs, owner included — which
+  // left an adjustment raised in a one-person studio with nobody able to sign
+  // or reject it. Payroll (10/09) and bills (11/09) already carried the same
+  // exception.
   const self = await call(ADJ.PATCH, body("PATCH", { id: adjustmentId, action: "approve" }), P());
-  ok("the person who raised it cannot sign it", self.body?.error === "same-signer",
-    JSON.stringify(self.body));
-
-  // ---- somebody else, holding the step's right ----------------------------
-  const u = (await createUser({ email: `sc-${F.rand()}@test.invalid`, passwordHash: "x" })).user;
-  const role = await createRole(F.studio.id, {
-    name: `stock-control-${F.rand()}`,
-    permissions: ["inventory.stock.view", "inventory.stock.approve"],
-  });
-  await addCollaborator(F.studio.id, { userId: u.id, alias: "stockcontrol", role: "member", roleIds: [role.id] });
-  await F.signIn(u.id);
-
-  const signed = await call(ADJ.PATCH, body("PATCH", { id: adjustmentId, action: "approve" }), P());
-  ok("SOMEBODY ELSE HOLDING THE RIGHT SIGNS IT", signed.status === 200,
-    JSON.stringify(signed.body).slice(0, 160));
-  ok("...the adjustment is approved", signed.body?.adjustment?.status === "Approved");
+  ok("THE OWNER MAY SIGN AN ADJUSTMENT THEY RAISED", self.status === 200,
+    JSON.stringify(self.body).slice(0, 160));
+  ok("...the adjustment is approved", self.body?.adjustment?.status === "Approved");
   // THE STOCK MOVES ON THE LAST SIGNATURE AND NOT BEFORE.
-  ok("...and the stock moves only now", Boolean(signed.body?.movement),
-    JSON.stringify(signed.body?.movement || null).slice(0, 120));
+  ok("...and the stock moves only now", Boolean(self.body?.movement),
+    JSON.stringify(self.body?.movement || null).slice(0, 120));
 
   // ---- and not twice -------------------------------------------------------
   const again = await call(ADJ.PATCH, body("PATCH", { id: adjustmentId, action: "approve" }), P());
   ok("an approved adjustment cannot be approved again",
     again.body?.error === "already-decided", JSON.stringify(again.body));
+
+  // ---- INVARIANT 7 STILL HOLDS FOR EVERYBODY WHO IS NOT AN ADMIN -----------
+  // The exception is the Admin's alone. A stock controller who can both raise
+  // and sign still needs a second person on their own adjustment.
+  const u = (await createUser({ email: `sc-${F.rand()}@test.invalid`, passwordHash: "x" })).user;
+  const role = await createRole(F.studio.id, {
+    name: `stock-control-${F.rand()}`,
+    permissions: ["inventory.stock.view", "inventory.stock.create", "inventory.stock.approve"],
+  });
+  await addCollaborator(F.studio.id, { userId: u.id, alias: "stockcontrol", role: "member", roleIds: [role.id] });
+  await F.signIn(u.id);
+
+  const theirs = await adjust(100, "Pallet found again");
+  const theirsId = theirs.body?.adjustment?.id;
+  ok("fixture: a non-admin raises an adjustment over the limit", theirs.body?.pending === true,
+    JSON.stringify(theirs.body).slice(0, 160));
+  const ownSign = await call(ADJ.PATCH, body("PATCH", { id: theirsId, action: "approve" }), P());
+  ok("A NON-ADMIN WHO RAISED IT CANNOT SIGN IT", ownSign.body?.error === "same-signer",
+    JSON.stringify(ownSign.body));
+  const ownReject = await call(ADJ.PATCH, body("PATCH", { id: theirsId, action: "reject", reason: "mine" }), P());
+  ok("...nor turn it down", ownReject.body?.error === "same-signer",
+    JSON.stringify(ownReject.body));
+
+  // ---- somebody else, holding the step's right ----------------------------
+  await F.signIn(F.owner.id);
+  const signed = await call(ADJ.PATCH, body("PATCH", { id: theirsId, action: "approve" }), P());
+  ok("SOMEBODY ELSE HOLDING THE RIGHT SIGNS IT", signed.status === 200,
+    JSON.stringify(signed.body).slice(0, 160));
+  ok("...and the stock moves", Boolean(signed.body?.movement));
 
   // ---- somebody without the right cannot sign -----------------------------
   await F.signIn(F.owner.id);
