@@ -92,6 +92,7 @@ export const WIDGET_SECTIONS: { key: string; label: string }[] = [
   { key: "finance", label: "Finance" },
   { key: "field-service", label: "Operations" },
   { key: "maintenance", label: "Maintenance" },
+  { key: "pos", label: "Point of Sale" },
   // REPORTS & BI JOINS THE REGISTRY, and it is the ninth section to do so
   // rather than a special case: the executive board is analysis over records
   // a reader can already open, which is exactly what this registry sells.
@@ -249,6 +250,10 @@ export const DASHBOARD_WIDGETS: WidgetDef[] = [
   { key: "maintenance.contracts", label: "Service contracts", section: "maintenance", rung: "simple", needs: ["maintenance-contracts"] },
   { key: "maintenance.worst-machines", label: "Machines needing most attention", section: "maintenance", rung: "moderate", needs: ["maintenance-orders"] },
   { key: "maintenance.cost", label: "Parts and hours", section: "maintenance", rung: "moderate", needs: ["maintenance-orders"] },
+  // POINT OF SALE (17/09/2026). The totals and the full list of what sold are
+  // the free floor; what sells most and the daily trend are the analysis.
+  { key: "pos.top-products", label: "Best sellers", section: "pos", rung: "simple", needs: ["pos"] },
+  { key: "pos.takings-by-day", label: "Takings by day", section: "pos", rung: "moderate", needs: ["pos"] },
   // Reports & BI
   //
   // THE FIGURES ARE FREE AND THE COMPARISON IS SOLD, which is the split the

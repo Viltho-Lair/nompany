@@ -24,14 +24,16 @@ export default function NumberingPanel({ rows, canManage, locale = "en", onSave 
   // THE ROWS GROUPED BY SECTION, in the order the catalogue declares them, so a
   // studio finds its invoice numbering under Finance rather than in a list of
   // fourteen alphabetised prefixes.
+  // BY NAME, IN ORDER OF FIRST APPEARANCE. Grouping only neighbours drew a
+  // department twice — two headings, one React key — whenever its series were
+  // not listed side by side.
   const groups = useMemo(() => {
-    const out = [];
+    const out = new Map();
     for (const r of rows) {
-      const last = out[out.length - 1];
-      if (last && last.group === r.group) last.rows.push(r);
-      else out.push({ group: r.group, rows: [r] });
+      if (!out.has(r.group)) out.set(r.group, { group: r.group, rows: [] });
+      out.get(r.group).rows.push(r);
     }
-    return out;
+    return [...out.values()];
   }, [rows]);
 
   const valueOf = (r, field) => (draft[r.key]?.[field] ?? r[field]);

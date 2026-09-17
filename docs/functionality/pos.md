@@ -1,8 +1,37 @@
-# Point of sale — a general retail till (16/09/2026)
+# Point of Sale — a department, and a general retail till (16/09/2026, a department 17/09/2026)
 
-**Where:** `/<slug>/crm-sales-pos`, a full-screen page under CRM & Sales, behind
-`crmSales.pos`. `modules/sales/pos.ts` (service), `modules/sales/posModel.ts` (pure arithmetic),
-`components/studio2/StudioPos.js` (screen), routes under `/api/studios/<slug>/pos`.
+**Where:** its own department, `/<slug>/pos` — the seventeenth, the owner's decision of
+17/09/2026 — with a dashboard and four screens:
+
+| Screen | Key | Right |
+|---|---|---|
+| Dashboard | `pos` | `pos.dashboard.view` |
+| Till (full-screen) | `pos-till` | `crmSales.pos` (kept its name) |
+| Sales | `pos-sales` | `pos.sales.view`; `pos.sales.export` downloads |
+| Shift history | `pos-shifts` | `pos.shifts.view` |
+| Settings | `pos-settings` | `pos.settings.view` / `.edit` |
+
+`modules/sales/pos.ts` (service), `modules/sales/posModel.ts` (the till's arithmetic),
+`modules/sales/posReports.ts` (periods, filters, totals, what sold, the CSV — pure),
+`components/studio2/StudioPos.js` (the till), `PosDashboard.jsx`, `StudioPosSales.js`,
+`StudioPosShifts.js`, `StudioPosSettings.js`, `posParts.js` (the printed slip, the shift report
+and the period picker, shared), routes under `/api/studios/<slug>/pos`.
+
+## Nothing moved, and nobody lost access
+
+- **The records stay where they were filed**, under `crm-sales-pos`, which is a filed-only row
+  now (`FILED_ONLY_SECTION_KEYS`): still seeded, left out of the sidebar and the Sections panel.
+  **Do not delete it** — every receipt would vanish. The till's settings stay on that row too.
+- **The old address `/<slug>/crm-sales-pos` opens the till** (a retired address,
+  `shared/studioRoute.ts`).
+- **Existing roles catch up by themselves** (`modules/people/catchUps.ts`): a role that could open
+  the till gains the dashboard, Sales and Shift history; one that could manage the till
+  (`crmSales.pos.edit`) gains Settings, view and edit. Catch-ups can now name the one source verb
+  that decides (`fromVerb`), which is how "managers only" is said.
+- **On for every trade**, as the till was (`UNIVERSAL_SECTION_KEYS`); the owner switches it off at
+  creation. Starter departments that run a counter — Retail Operations, Front Office, Food &
+  Beverage — list `pos`, so their pre-built roles keep the till.
+- The till's number series (RCT, SHF) are listed under Point of Sale on the Numbering screen.
 
 ## What it is
 
@@ -36,7 +65,48 @@ Every sale also writes **stock movements** in Inventory (`kind: "out"`, `sourceT
 `sourceId` the receipt), one per batch taken plus one for units from no batch, each carrying the
 item's cost that day.
 
-## What it does
+## The department's screens (17/09/2026)
+
+**Who sold it.** A receipt stores the CollaboratorID of the person signed in at the till
+(`cashierCollaboratorId`, from the session — the screen cannot set it); every list shows the name
+that person carries today.
+
+**The period** is Day (the default: today), Week, Month, Quarter, Half-year or Year, stepped back
+with Previous. It is worked out in the READER's own time — "today" is the shop's today — and the
+server is handed two instants, `[from, to)`. Weeks start on Sunday.
+
+**Dashboard.** Takings, number of sales, the average sale, units sold, tax and the drawers open
+now — never gated. **Best sellers** (the ten items with the most units, `pos.top-products`) and
+**takings by day** (`pos.takings-by-day`, any period longer than a day) are plan-gated widgets.
+**Everything sold** lists every item sold in the period, most units first, with value and how
+many receipts it was on — not gated.
+
+**Sales.** Every sale in the period, newest first: receipt, date and time, till, cashier, units,
+how it was paid, total. Filters: search (receipt number or item), till, cashier, payment method;
+totals follow the filter. Opening a sale shows the slip exactly as stored, with the cashier and
+the shift, and reprints it. Opened from a shift ("Sales" on the shift history), the list is that
+shift's, whatever the period. Capped at the newest 2,000 on screen, said so, with the download
+uncapped.
+
+**Downloads** (`pos.sales.export`), CSV with the byte-order mark Excel needs for Arabic, filtered
+exactly as the list is, or only the receipts ticked:
+- **Sales** — one row per receipt: number, local date and time, till, cashier, units, subtotal,
+  tax, total, cash, card, transfer, change.
+- **Items sold (totals)** — one row per item: units, value, receipts; most units first.
+- **Items sold (every line)** — when, receipt, cashier, till, item, units, price, value.
+Times are written in the reader's clock (the screen sends its offset). A cell that looks like a
+formula is prefixed with an apostrophe so a typed item name cannot run in the spreadsheet.
+
+**Shift history.** Every drawer opened in the period, newest first: number, till, opened (when,
+by whom), closed (when, by whom), sales, takings, expected cash and the difference, with over or
+short. A closed shift shows the report stored at close; an open one shows its figures so far and
+says so. Each opens its report (printable) and its sales.
+
+**Settings.** The tills — add, retire, use again (never delete) — whether shelf prices include
+tax, and the receipt footer. Moved here from a dialog on the till; the till's Settings button
+links here.
+
+## What the till does
 
 **Rights.** `view` opens the till; `create` opens a shift and sells; `edit` manages tills and
 settings; the extras **`discount`** (change a price at the till) and **`closeShift`** (count and
@@ -97,6 +167,13 @@ picking.
   checks).
 - **Stock is not locked between the check and the write**: two tills selling the last unit at
   once can both succeed, and the ledger then reads below nought.
-- **A shift report lists no cashier names and no per-item sales.**
+- **A shift report lists no per-item sales** on the printed slip (the Sales screen, filtered to
+  the shift, does). A shift's receipts can have several cashiers; the report names who opened and
+  closed it.
+- **The Sales list and the dashboard read every receipt the studio has** and filter in memory —
+  fine for a shop's volume today, and the first thing to move into SQL when a studio has tens of
+  thousands.
+- **POS sales are not in Reports & BI's datasets**; the department's own downloads cover them.
+- **No comparison with the previous period** on the dashboard.
 - **The item's sell price is read as the shelf price** when prices include tax; a studio that
   also quotes those items net to businesses uses one field for both.

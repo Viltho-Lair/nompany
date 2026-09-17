@@ -67,6 +67,9 @@ const RETIRED_ADDRESSES: Record<string, string> = {
   "crm-sales-quotations": "quotations-register",
   "engineering-docs-live": "quotations-live",
   "engineering-docs-settings": "quotations-settings",
+  // THE TILL (17/09/2026): Point of Sale is a department, and its till is
+  // `pos-till`. Bookmarks and shift links name the old address.
+  "crm-sales-pos": "pos-till",
 };
 
 /** The section key a set of segments asks for. `""` at the studio root. */
@@ -152,7 +155,7 @@ export function isFullScreenPath(
   if (key === "engineering-docs-register") return granted(key);
 
   // THE TILL takes the whole window: a cashier works a basket, not a sidebar.
-  if (key === "crm-sales-pos") return granted(key);
+  if (key === "pos-till") return granted(key);
 
   if (key === "projects-planner") return granted(key);
 

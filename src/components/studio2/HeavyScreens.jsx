@@ -97,6 +97,27 @@ export const StudioPos = nextDynamic(
   { loading: () => <ScreenSkeleton /> },
 );
 
+// THE POINT OF SALE DEPARTMENT'S OTHER SCREENS (17/09/2026) — its dashboard,
+// its sales list, its shift history and its settings. Behind the same lazy
+// boundary as the till, for the till's reason: they serve the counter, not
+// every tenant page.
+export const PosDashboard = nextDynamic(
+  () => import("@/components/studio2/PosDashboard"),
+  { loading: () => <ScreenSkeleton /> },
+);
+export const StudioPosSales = nextDynamic(
+  () => import("@/components/studio2/StudioPosSales"),
+  { loading: () => <ScreenSkeleton /> },
+);
+export const StudioPosShifts = nextDynamic(
+  () => import("@/components/studio2/StudioPosShifts"),
+  { loading: () => <ScreenSkeleton /> },
+);
+export const StudioPosSettings = nextDynamic(
+  () => import("@/components/studio2/StudioPosSettings"),
+  { loading: () => <ScreenSkeleton /> },
+);
+
 export const ExecutiveBoard = nextDynamic(
   () => import("@/components/studio2/ExecutiveBoard"),
   { loading: () => <ScreenSkeleton /> },

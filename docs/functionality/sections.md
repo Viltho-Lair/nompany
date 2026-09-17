@@ -20,6 +20,10 @@ ever called with `settings`). Because they are code rather than tenant data, sec
 `shared/studio/sections.ts`, whose header records that this was got wrong once and produced an
 Arabic studio wearing an English sidebar.
 
+**Point of Sale is the seventeenth department (17/09/2026)** — `pos`, with `pos-till`,
+`pos-sales`, `pos-shifts` and `pos-settings`. Its records stay filed under `crm-sales-pos`,
+now filed-only; `docs/functionality/pos.md` has the rest.
+
 **An existing studio gains a new section by itself** — the owner's instruction, 11/09/2026:
 "it is a system, it must take updates." `listSections`, the read every request passes through,
 plants any seeded section the studio is short of the first time it is opened after a deploy

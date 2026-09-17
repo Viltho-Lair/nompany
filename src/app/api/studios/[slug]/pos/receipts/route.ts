@@ -1,5 +1,5 @@
 import { route, refused } from "@/platform/http/route";
-import { posContext, createSale, listReceipts } from "@/modules/sales/pos";
+import { posContext, createSale, listReceipts, receiptDetail } from "@/modules/sales/pos";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,7 +14,15 @@ const spec = {
 };
 
 export const GET = route({ ...spec, body: false }, async (pos) => {
-  const shiftId = new URL(pos.request.url).searchParams.get("shiftId") || "";
+  const url = new URL(pos.request.url);
+  // ONE SALE, with its names — the receipt page and a reprint.
+  const id = url.searchParams.get("id") || "";
+  if (id) {
+    const one = await receiptDetail(pos, id);
+    if (refused(one)) return one;
+    return { ok: true, ...one };
+  }
+  const shiftId = url.searchParams.get("shiftId") || "";
   if (!shiftId) return { error: "missing" };
   const result = await listReceipts(pos, shiftId);
   if (refused(result)) return result;

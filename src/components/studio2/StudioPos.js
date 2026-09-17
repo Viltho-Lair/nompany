@@ -14,6 +14,7 @@ import TaxTag from "@/components/studio2/TaxTag";
 import { btn, btnGhost, btnRow, btnRowDanger, Dialog, money, fmtDateTime, loadPref, savePref, prefKey } from "@/components/studio2/ui";
 import { findByBarcode } from "@/modules/inventory/barcodes";
 import { posTotals, settle, PAYMENT_METHODS } from "@/modules/sales/posModel";
+import { PRINT_CSS, Receipt, ShiftReport } from "@/components/studio2/posParts";
 
 // THE TILL — a full-screen page (shared/studioRoute), because a cashier works a
 // basket, not a sidebar. `docs/functionality/pos.md` is the file.
@@ -30,15 +31,6 @@ const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 // A saved preference does not change under a page, so there is nothing to subscribe to.
 const noSubscription = () => () => {};
 
-// PRINTING ONLY THE SLIP. Mounted only while a receipt or a report is on screen,
-// so no other page's printing is touched by an 80 mm page size.
-const PRINT_CSS = `@media print {
-  body * { visibility: hidden !important; }
-  .pos-print, .pos-print * { visibility: visible !important; }
-  .pos-print { position: absolute; inset-inline-start: 0; top: 0; width: 72mm; }
-  @page { size: 80mm auto; margin: 4mm; }
-}`;
-
 export default function StudioPos({ slug }) {
   const locale = useStudioLocale();
   const tr = posDict(locale);
@@ -51,7 +43,6 @@ export default function StudioPos({ slug }) {
   const [receipt, setReceipt] = useState(null);
   const [closing, setClosing] = useState(false);
   const [report, setReport] = useState(null);
-  const [managing, setManaging] = useState(false);
 
   // THE TILL THIS DEVICE LAST USED, remembered per browser — a counter's
   // computer is that counter's till. Read after hydration (the server has no
@@ -153,7 +144,8 @@ export default function StudioPos({ slug }) {
 
       {/* THE BAR: which till, which shift, and the way out. */}
       <header className="flex flex-wrap items-center gap-3 border-b border-slate-200/70 px-4 py-3 dark:border-white/10">
-        <Link href={`/${slug}`} className="text-sm font-600 text-slate-500 hover:text-brand-700 dark:text-slate-400">← {tr.back}</Link>
+        {/* BACK TO THE DEPARTMENT the till belongs to (17/09/2026). */}
+        <Link href={`/${slug}/pos`} className="text-sm font-600 text-slate-500 hover:text-brand-700 dark:text-slate-400">← {tr.back}</Link>
         <h1 className="font-display text-lg font-800 text-[var(--geex-ink)]">{tr.title}</h1>
         {active.length > 0 && (
           <div className="w-48">
@@ -167,7 +159,8 @@ export default function StudioPos({ slug }) {
           </span>
         )}
         <div className="ms-auto flex flex-wrap gap-2">
-          {data.can.manage && <button type="button" className={btnGhost} onClick={() => setManaging(true)}>{tr.settings}</button>}
+          {/* THE TILLS ARE MANAGED ON THE SETTINGS SCREEN now, under its own right. */}
+          {data.can.manage && <Link href={`/${slug}/pos-settings`} className={btnGhost}>{tr.settings}</Link>}
           {shift && data.can.closeShift && <button type="button" className={btnGhost} onClick={() => setClosing(true)}>{tr.closeShift}</button>}
         </div>
       </header>
@@ -286,11 +279,6 @@ export default function StudioPos({ slug }) {
         </Dialog>
       )}
 
-      {managing && (
-        <Manage tr={tr} data={data} busy={busy} onCancel={() => setManaging(false)}
-          onSaveTill={async (t) => { const out = await call("/terminals", t.id ? "PUT" : "POST", t); if (out) reload(); }}
-          onSaveSettings={async (s) => { const out = await call("", "PUT", s); if (out) { setManaging(false); reload(); } }} />
-      )}
     </div>
   );
 }
@@ -516,48 +504,6 @@ function Totals({ tr, totals, terms }) {
   );
 }
 
-// THE SLIP, laid out for an 80 mm printer. It prints what the server stored —
-// never the basket — so a reprint reads exactly as the first.
-function Receipt({ tr, receipt, studio, terms, tillName }) {
-  const cur = receipt.currency;
-  const line = "flex justify-between gap-2";
-  return (
-    <div className="pos-print mx-auto max-w-[300px] bg-white p-3 font-mono text-[12px] leading-snug text-black">
-      <div className="text-center">
-        <p className="text-[14px] font-bold">{studio.name}</p>
-        {studio.legal.map((r) => <p key={r.key}>{r.key}: {r.value}</p>)}
-        <p className="mt-1">{tr.receipt} {receipt.number}</p>
-        <p>{fmtDateTime(receipt.at)}</p>
-        {tillName && <p>{tr.till}: {tillName}</p>}
-      </div>
-      <hr className="my-2 border-dashed border-black" />
-      {receipt.lines.map((l, i) => (
-        <div key={i} className="mb-1">
-          <p>{l.description}{l.taxCategory ? ` (${taxDictShort(l.taxCategory)})` : ""}</p>
-          <p className={line}><span>{l.count} × {money(l.price, cur)}</span><span>{money(l.count * l.price, cur)}</span></p>
-        </div>
-      ))}
-      <hr className="my-2 border-dashed border-black" />
-      <p className={line}><span>{tr.subtotal}</span><span>{money(receipt.subtotal, cur)}</span></p>
-      {(receipt.breakdown || []).filter((b) => b.rate > 0).map((b) => (
-        <p key={b.rate} className={line}><span>{tr.tax(terms.taxName, b.rate)}</span><span>{money(b.tax, cur)}</span></p>
-      ))}
-      <p className={`${line} text-[14px] font-bold`}><span>{tr.total}</span><span>{money(receipt.total, cur)} {cur}</span></p>
-      {receipt.pricesIncludeTax && <p>{tr.taxIncluded}</p>}
-      <hr className="my-2 border-dashed border-black" />
-      {receipt.payments.map((p, i) => (
-        <p key={i} className={line}><span>{tr.paidBy(p.method)}{p.reference ? ` ${p.reference}` : ""}</span><span>{money(p.amount, cur)}</span></p>
-      ))}
-      {receipt.change > 0 && <p className={line}><span>{tr.change}</span><span>{money(receipt.change, cur)}</span></p>}
-      <p className="mt-3 text-center">{terms.footer || tr.thankYou}</p>
-    </div>
-  );
-}
-
-// The short tag a zero-rated or exempt line carries on a slip, where a chip
-// cannot be drawn.
-const taxDictShort = (c) => (c === "zero" ? "0%" : c === "exempt" ? "E" : "");
-
 function CloseShift({ tr, busy, currency, onCancel, onClose }) {
   const [counted, setCounted] = useState("");
   const [notes, setNotes] = useState("");
@@ -567,81 +513,6 @@ function CloseShift({ tr, busy, currency, onCancel, onClose }) {
       <div className="mt-3"><Field label={tr.closeNotes} as="textarea" value={notes} onChange={setNotes} inputProps={{ rows: 2 }} /></div>
       <div className="mt-4 flex gap-2">
         <button type="button" className={btn} disabled={busy || counted === ""} onClick={() => onClose(Number(counted), notes)}>{tr.closeShift}</button>
-        <button type="button" className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
-      </div>
-    </Dialog>
-  );
-}
-
-function ShiftReport({ tr, shift, report, studio, currency, tillName }) {
-  const line = "flex justify-between gap-2";
-  const diff = report.difference;
-  return (
-    <div className="pos-print mx-auto max-w-[300px] bg-white p-3 font-mono text-[12px] leading-snug text-black">
-      <div className="text-center">
-        <p className="text-[14px] font-bold">{studio.name}</p>
-        <p>{tr.report} {shift.number}</p>
-        {tillName && <p>{tr.till}: {tillName}</p>}
-        <p>{fmtDateTime(shift.openedAt)} → {fmtDateTime(shift.closedAt)}</p>
-      </div>
-      <hr className="my-2 border-dashed border-black" />
-      <p className={line}><span>{tr.sales(report.sales)}</span><span>{money(report.total, currency)}</span></p>
-      <p className={line}><span>{tr.subtotal}</span><span>{money(report.subtotal, currency)}</span></p>
-      {report.byTax.filter((b) => b.rate > 0).map((b) => (
-        <p key={b.rate} className={line}><span>{b.rate}%</span><span>{money(b.tax, currency)}</span></p>
-      ))}
-      <hr className="my-2 border-dashed border-black" />
-      {report.byMethod.map((m) => (
-        <p key={m.method} className={line}><span>{tr.paidBy(m.method)}</span><span>{money(m.amount, currency)}</span></p>
-      ))}
-      <p className={line}><span>{tr.changeGiven}</span><span>{money(report.change, currency)}</span></p>
-      <hr className="my-2 border-dashed border-black" />
-      <p className={line}><span>{tr.openingFloat}</span><span>{money(report.openingFloat, currency)}</span></p>
-      <p className={line}><span>{tr.cashTaken}</span><span>{money(report.cashTaken, currency)}</span></p>
-      <p className={`${line} font-bold`}><span>{tr.expectedCash}</span><span>{money(report.expectedCash, currency)}</span></p>
-      {report.countedCash !== null && (
-        <>
-          <p className={line}><span>{tr.countedCash}</span><span>{money(report.countedCash, currency)}</span></p>
-          <p className={`${line} font-bold`}><span>{tr.difference}</span><span>{money(diff, currency)}</span></p>
-          <p className="mt-1 text-center">{diff > 0 ? tr.drawerOver : diff < 0 ? tr.drawerShort : tr.drawerExact}</p>
-        </>
-      )}
-    </div>
-  );
-}
-
-function Manage({ tr, data, busy, onCancel, onSaveTill, onSaveSettings }) {
-  const [name, setName] = useState("");
-  const [inclusive, setInclusive] = useState(Boolean(data.terms.pricesIncludeTax));
-  const [footer, setFooter] = useState(data.terms.footer || "");
-  return (
-    <Dialog title={tr.settings} onClose={onCancel} width="max-w-[520px]">
-      <ul className="mb-3 space-y-2">
-        {data.terminals.map((t) => (
-          <li key={t.id} className="flex items-center justify-between gap-3 text-sm">
-            <span className={t.active === false ? "text-slate-400 line-through" : ""}>{t.name}</span>
-            {t.active !== false && (
-              <button type="button" className={btnRowDanger} disabled={busy}
-                onClick={() => onSaveTill({ id: t.id, name: t.name, active: false })}>{tr.retire}</button>
-            )}
-          </li>
-        ))}
-      </ul>
-      <div className="flex items-end gap-2">
-        <div className="flex-1"><Field label={tr.tillName} value={name} onChange={setName} /></div>
-        <button type="button" className={btnGhost} disabled={busy || !name.trim()}
-          onClick={() => { onSaveTill({ name: name.trim() }); setName(""); }}>{tr.addTill}</button>
-      </div>
-      <label className="mt-5 flex items-start gap-3 text-sm">
-        <input type="checkbox" checked={inclusive} onChange={(e) => setInclusive(e.target.checked)} className="mt-1 h-4 w-4 accent-brand-600" />
-        <span>
-          <span className="font-600 text-[var(--geex-ink)]">{tr.pricesIncludeTax}</span>
-          <span className="block text-xs text-slate-500 dark:text-slate-400">{tr.pricesIncludeTaxHint}</span>
-        </span>
-      </label>
-      <div className="mt-4"><Field label={tr.footer} value={footer} onChange={setFooter} hint={tr.footerHint} /></div>
-      <div className="mt-5 flex gap-2">
-        <button type="button" className={btn} disabled={busy} onClick={() => onSaveSettings({ pricesIncludeTax: inclusive, footer })}>{tr.save}</button>
         <button type="button" className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
     </Dialog>

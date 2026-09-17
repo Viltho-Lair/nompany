@@ -56,6 +56,13 @@ const ar: SectionMap = {
   "quotations-register": "عروض الأسعار",
   "quotations-live": "العرض المباشر",
   "quotations-settings": "الإعدادات",
+
+  // POINT OF SALE, ITS OWN DEPARTMENT (17/09/2026).
+  pos: "نقطة البيع",
+  "pos-till": "الصندوق",
+  "pos-sales": "المبيعات",
+  "pos-shifts": "سجل الورديات",
+  "pos-settings": "الإعدادات",
   "crm-sales-settings": "الإعدادات",
 
   // NEW ROOT, no children yet (see keys.ts) — declared for ordering alone.

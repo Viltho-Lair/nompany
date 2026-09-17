@@ -10,12 +10,17 @@
 // ONLINE ONLY. A till with no connection stops selling; nothing here queues a
 // sale for later.
 //
-// WHO SELLS: `crmSales.pos.create` opens a shift and sells, `crmSales.pos.edit`
-// manages tills and the till's settings, `crmSales.pos.discount` changes a
-// price at the till, and `crmSales.pos.closeShift` closes a drawer. Each is
-// asked for here, in the function that does the act, never only at the route.
+// WHO SELLS: `crmSales.pos.create` opens a shift and sells,
+// `crmSales.pos.discount` changes a price at the till, and
+// `crmSales.pos.closeShift` closes a drawer. Since Point of Sale became a
+// department (17/09/2026): `pos.settings.edit` manages the tills and the till's
+// settings, `pos.sales.view` reads every sale (`.export` downloads them),
+// `pos.shifts.view` reads every drawer and `pos.dashboard.view` the summary.
+// Each is asked for here, in the function that does the act, never only at the
+// route.
 
-import { requirePermission, can } from "@/platform/access";
+import { requirePermission, can, type PermissionKey } from "@/platform/access";
+import { listCollaborators } from "@/platform/auth/collaborators";
 import { repo } from "@/platform/db/repo";
 import { updateSection } from "@/platform/db/sections";
 import { moduleContext } from "../context";
@@ -32,6 +37,10 @@ import {
   type PosLine, type PosPayment, type ShiftReport,
 } from "./posModel";
 import type { TaxBreakdown } from "@/shared/documentTotals";
+import {
+  cleanSalesFilter, filterReceipts, itemsSold, localStamp, salesTotals, soldLines, toCsvFile,
+  type SalesFilter,
+} from "./posReports";
 import type { PosContext } from "./types";
 
 export type PosTerminal = { id: string; name: string; active: boolean; createdAt?: string };
@@ -81,7 +90,9 @@ const Stock = repo<Movement>("inventoryStock");
 const Batches = repo<Batch>("stockBatches");
 
 export const posContext = moduleContext<PosContext>({
-  root: "crm-sales",
+  // THE POINT OF SALE DEPARTMENT (17/09/2026). The records stay FILED under
+  // `crm-sales-pos`, unchanged; the root is where the counter is run from.
+  root: "pos",
   sub: { pos: "crm-sales-pos" },
   // INVENTORY'S, and therefore nullable: a studio with no Inventory has nothing
   // to sell, and the screen says so rather than failing.
@@ -162,7 +173,8 @@ export async function posView(ctx: PosContext) {
     hasInventory: Boolean(ctx.itemsSection && ctx.stockSection),
     can: {
       sell: can(ctx.access, "crmSales.pos.create"),
-      manage: can(ctx.access, "crmSales.pos.edit"),
+      // Managing the tills is the Settings screen's now; the till links there.
+      manage: can(ctx.access, "pos.settings.edit"),
       discount: can(ctx.access, "crmSales.pos.discount"),
       closeShift: can(ctx.access, "crmSales.pos.closeShift"),
     },
@@ -173,8 +185,10 @@ export async function posView(ctx: PosContext) {
 
 /** One shift, its sales, and what it has taken so far (or took, once closed). */
 export async function shiftDetail(ctx: PosContext, id: string) {
-  const denied = requirePermission(ctx.access, "crmSales.pos.view");
-  if (denied) return denied;
+  // THE TILL'S OWN DRAWER, or any drawer from the shift history.
+  if (!can(ctx.access, "crmSales.pos.view") && !can(ctx.access, "pos.shifts.view")) {
+    return requirePermission(ctx.access, "pos.shifts.view");
+  }
   const shift = await Shifts.byId(scope(ctx), str(id, 60));
   if (!shift) return { error: "notfound" as const };
   const receipts = await Receipts.find(scope(ctx), { where: { shiftId: shift.id }, order: { field: "at", dir: "desc" } });
@@ -188,7 +202,7 @@ export async function shiftDetail(ctx: PosContext, id: string) {
 
 /** Add a till, or rename or retire one. A till is never deleted: its receipts name it. */
 export async function saveTerminal(ctx: PosContext, body: Record<string, unknown>) {
-  const denied = requirePermission(ctx.access, "crmSales.pos.edit");
+  const denied = requirePermission(ctx.access, "pos.settings.edit");
   if (denied) return denied;
   const name = str(body?.name, 60);
   if (!name) return { error: "name" as const };
@@ -211,7 +225,7 @@ export async function saveTerminal(ctx: PosContext, body: Record<string, unknown
 
 /** Whether shelf prices include tax, and the line printed at the foot of a receipt. */
 export async function savePosSettings(ctx: PosContext, body: Record<string, unknown>) {
-  const denied = requirePermission(ctx.access, "crmSales.pos.edit");
+  const denied = requirePermission(ctx.access, "pos.settings.edit");
   if (denied) return denied;
   const current = settingsOf(ctx);
   const next: PosSettings = { ...current };
@@ -441,4 +455,211 @@ export async function listReceipts(ctx: PosContext, shiftId: string) {
   const denied = requirePermission(ctx.access, "crmSales.pos.view");
   if (denied) return denied;
   return { receipts: await Receipts.find(scope(ctx), { where: { shiftId: str(shiftId, 60) }, order: { field: "at", dir: "desc" } }) };
+}
+
+// ---- the department's screens (17/09/2026) ------------------------------------
+
+type Names = { cashiers: Record<string, string>; tills: Record<string, string>; items: Record<string, string> };
+
+// WHO, WHICH TILL, WHAT ITEM — by the names they carry TODAY. A receipt stores
+// ids (invariant 6: a CollaboratorID, never a name), so the list reads the
+// person's current name, and a person removed since reads as the id's absence.
+async function namesFor(ctx: PosContext): Promise<Names> {
+  const [people, terminals, items] = await Promise.all([
+    listCollaborators(ctx.studio.id),
+    Terminals.find(scope(ctx)),
+    ctx.itemsSection ? Items.find({ studio: ctx.studio, section: ctx.itemsSection }) : Promise.resolve([] as Item[]),
+  ]);
+  return {
+    cashiers: Object.fromEntries((people as { id?: unknown; alias?: unknown }[]).map((c) => [String(c.id), String(c.alias || "")])),
+    tills: Object.fromEntries(terminals.map((t) => [t.id, t.name])),
+    items: Object.fromEntries(items.map((i) => [i.id, i.name])),
+  };
+}
+
+const allReceipts = (ctx: PosContext) => Receipts.find(scope(ctx));
+
+/**
+ * EVERY SALE, filtered — the Sales screen. A row carries what the list shows
+ * and the lines with it, so opening one needs no second read. Totals are for
+ * what the filter kept.
+ */
+export async function salesList(ctx: PosContext, raw: Record<string, unknown> | URLSearchParams) {
+  const denied = requirePermission(ctx.access, "pos.sales.view");
+  if (denied) return denied;
+  const filter = cleanSalesFilter(raw);
+  const [receipts, names, shifts] = await Promise.all([allReceipts(ctx), namesFor(ctx), Shifts.find(scope(ctx))]);
+  const kept = filterReceipts(receipts, filter);
+  const shiftNumber = new Map(shifts.map((sh) => [sh.id, sh.number]));
+  // The people who have EVER rung a sale up, for the cashier filter — not the
+  // whole studio.
+  const cashierIds = [...new Set(receipts.map((r) => r.cashierCollaboratorId))];
+  return {
+    filter,
+    terms: tillTerms(ctx),
+    totals: salesTotals(kept),
+    receipts: kept.slice(0, 2000).map((r) => ({
+      ...r,
+      cashier: names.cashiers[r.cashierCollaboratorId] || "",
+      till: names.tills[r.terminalId] || "",
+      shiftNumber: shiftNumber.get(r.shiftId) || "",
+    })),
+    truncated: kept.length > 2000,
+    tills: Object.entries(names.tills).map(([id, name]) => ({ id, name })),
+    cashiers: cashierIds.map((id) => ({ id, name: names.cashiers[id] || "" })),
+    can: { export: can(ctx.access, "pos.sales.export") },
+  };
+}
+
+/** One sale, as stored, with the names and the studio's heading for a reprint. */
+export async function receiptDetail(ctx: PosContext, id: string) {
+  if (!can(ctx.access, "pos.sales.view") && !can(ctx.access, "crmSales.pos.view")) {
+    return requirePermission(ctx.access, "pos.sales.view");
+  }
+  const receipt = await Receipts.byId(scope(ctx), str(id, 60));
+  if (!receipt) return { error: "notfound" as const };
+  const names = await namesFor(ctx);
+  const shift = await Shifts.byId(scope(ctx), receipt.shiftId);
+  const legal = Array.isArray(ctx.studio.legalInfo) ? ctx.studio.legalInfo as { key?: unknown; value?: unknown }[] : [];
+  return {
+    receipt: {
+      ...receipt,
+      cashier: names.cashiers[receipt.cashierCollaboratorId] || "",
+      till: names.tills[receipt.terminalId] || "",
+      shiftNumber: shift?.number || "",
+    },
+    terms: tillTerms(ctx),
+    studio: {
+      name: String(ctx.studio.name || ""),
+      legal: legal.map((r) => ({ key: String(r.key ?? ""), value: String(r.value ?? "") })).filter((r) => r.key && r.value.trim()),
+    },
+  };
+}
+
+/**
+ * EVERY DRAWER, newest first — the Shift history. A closed shift carries the
+ * report stored at close; an open one, what it has taken so far.
+ */
+export async function shiftsList(ctx: PosContext, raw: Record<string, unknown> | URLSearchParams) {
+  const denied = requirePermission(ctx.access, "pos.shifts.view");
+  if (denied) return denied;
+  const filter = cleanSalesFilter(raw);
+  const [shifts, receipts, names] = await Promise.all([Shifts.find(scope(ctx)), allReceipts(ctx), namesFor(ctx)]);
+  const byShift = new Map<string, PosReceipt[]>();
+  for (const r of receipts) byShift.set(r.shiftId, [...(byShift.get(r.shiftId) || []), r]);
+  const rows = shifts
+    .filter((sh) => (!filter.from || sh.openedAt >= filter.from) && (!filter.to || sh.openedAt < filter.to))
+    .filter((sh) => !filter.terminalIds?.length || filter.terminalIds.includes(sh.terminalId))
+    .sort((a, b) => b.openedAt.localeCompare(a.openedAt))
+    .map((sh) => ({
+      ...sh,
+      till: names.tills[sh.terminalId] || "",
+      openedBy: names.cashiers[sh.openedByCollaboratorId] || "",
+      closedBy: sh.closedByCollaboratorId ? names.cashiers[sh.closedByCollaboratorId] || "" : "",
+      report: sh.status === "Closed" && sh.report
+        ? sh.report
+        : shiftReport(byShift.get(sh.id) || [], { openingFloat: sh.openingFloat, currency: ctx.studio.currency }),
+    }));
+  return {
+    terms: tillTerms(ctx),
+    studioName: String(ctx.studio.name || ""),
+    shifts: rows,
+    tills: Object.entries(names.tills).map(([id, name]) => ({ id, name })),
+    can: { sales: can(ctx.access, "pos.sales.view") },
+  };
+}
+
+/**
+ * THE COUNTER'S SUMMARY for a period: what it took, what sold most, and every
+ * item sold. The period arrives as two instants worked out where the reader is.
+ */
+export async function posDashboard(ctx: PosContext, raw: Record<string, unknown> | URLSearchParams) {
+  const denied = requirePermission(ctx.access, "pos.dashboard.view");
+  if (denied) return denied;
+  const filter = cleanSalesFilter(raw);
+  const [receipts, names, shifts] = await Promise.all([allReceipts(ctx), namesFor(ctx), Shifts.find(scope(ctx), { where: { status: "Open" } })]);
+  const kept = filterReceipts(receipts, { from: filter.from, to: filter.to });
+  // DAY BY DAY across the period, by the instant each sale was rung — the
+  // screen buckets them into the reader's own days.
+  return {
+    terms: tillTerms(ctx),
+    totals: salesTotals(kept),
+    items: itemsSold(kept, names.items),
+    sales: kept.map((r) => ({ at: r.at, total: r.total })),
+    openShifts: shifts.length,
+    may: {
+      sales: can(ctx.access, "pos.sales.view"),
+      shifts: can(ctx.access, "pos.shifts.view"),
+      export: can(ctx.access, "pos.sales.export"),
+    },
+  };
+}
+
+export const EXPORT_KINDS = ["receipts", "items", "lines"] as const;
+export type ExportKind = (typeof EXPORT_KINDS)[number];
+
+/**
+ * A DOWNLOAD — sales for a period, or what they sold:
+ *   receipts  one row per sale
+ *   items     one row per item: units, value, receipts, most units first
+ *   lines     one row per line sold: when, receipt, cashier, till, item, units
+ * Filtered exactly as the list is (period, tills, cashiers, chosen receipts).
+ */
+export async function exportSales(ctx: PosContext, raw: URLSearchParams) {
+  const denied = requirePermission(ctx.access, "pos.sales.export" as PermissionKey);
+  if (denied) return denied;
+  const kind = (EXPORT_KINDS as readonly string[]).includes(String(raw.get("kind"))) ? String(raw.get("kind")) as ExportKind : "receipts";
+  const filter: SalesFilter = cleanSalesFilter(raw);
+  const [receipts, names] = await Promise.all([allReceipts(ctx), namesFor(ctx)]);
+  const kept = filterReceipts(receipts, filter);
+  const currency = String(ctx.studio.currency || "");
+  // THE READER'S CLOCK, sent by the screen, so a time in the file is the time
+  // the shop saw.
+  const offset = Number(raw.get("tz"));
+  const when = (iso: string) => localStamp(iso, Number.isFinite(offset) ? offset : 0);
+
+  if (kind === "items") {
+    return {
+      kind,
+      csv: toCsvFile(
+        ["Item", "Units sold", `Value${currency ? ` (${currency})` : ""}`, "Receipts"],
+        itemsSold(kept, names.items).map((i) => [i.name, i.units, i.value, i.receipts]),
+      ),
+    };
+  }
+  if (kind === "lines") {
+    return {
+      kind,
+      csv: toCsvFile(
+        ["Date and time", "Receipt", "Cashier", "Till", "Item", "Units", "Price", `Value${currency ? ` (${currency})` : ""}`],
+        soldLines(kept, { names: names.items, cashiers: names.cashiers, tills: names.tills })
+          .map((l) => [when(l.at), l.receipt, l.cashier, l.till, l.item, l.units, l.price, l.value]),
+      ),
+    };
+  }
+  return {
+    kind,
+    csv: toCsvFile(
+      ["Receipt", "Date and time", "Till", "Cashier", "Items", "Subtotal", "Tax", `Total${currency ? ` (${currency})` : ""}`, "Cash", "Card", "Transfer", "Change"],
+      kept.map((r) => {
+        const paid = (m: string) => (r.payments || []).filter((x) => x.method === m).reduce((t, x) => t + Number(x.amount || 0), 0);
+        return [
+          r.number, when(r.at), names.tills[r.terminalId] || "", names.cashiers[r.cashierCollaboratorId] || "",
+          r.lines.reduce((t, l) => t + Number(l.units ?? l.count), 0),
+          r.subtotal, r.vat, r.total, paid("cash"), paid("card"), paid("transfer"), r.change,
+        ];
+      }),
+    ),
+  };
+}
+
+/** The tills — retired ones too — and how the counter prices: the Settings screen. */
+export async function settingsView(ctx: PosContext) {
+  const denied = requirePermission(ctx.access, "pos.settings.view");
+  if (denied) return denied;
+  return {
+    terms: tillTerms(ctx),
+    terminals: await Terminals.find(scope(ctx), { order: "name" }),
+    can: { edit: can(ctx.access, "pos.settings.edit") },
+  };
 }

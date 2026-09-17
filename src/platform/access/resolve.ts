@@ -126,7 +126,17 @@ export const SECTION_AREAS: Readonly<Record<string, readonly string[]>> = {
   "crm-sales-quotations": ["crmSales.quotations"],
   "crm-sales-contracts": ["crmSales.contracts"],
   "crm-sales-orders": ["crmSales.orders"],
+  // FILED-ONLY since 17/09/2026: the till's records. Kept so the POS context's
+  // view guard still answers for the section it files under.
   "crm-sales-pos": ["crmSales.pos"],
+  // THE POINT OF SALE DEPARTMENT (17/09/2026). The till keeps the right every
+  // existing role holds; the list, the shift history and the settings are
+  // rights of their own, reached by existing roles through catchUps.ts.
+  pos: ["pos.dashboard"],
+  "pos-till": ["crmSales.pos"],
+  "pos-sales": ["pos.sales"],
+  "pos-shifts": ["pos.shifts"],
+  "pos-settings": ["pos.settings"],
   "engineering-docs-live": ["engineeringDocs.live"],
   "engineering-docs-settings": ["engineeringDocs.settings"],
   // The cost breakdown hangs off the project list's own section, so somebody

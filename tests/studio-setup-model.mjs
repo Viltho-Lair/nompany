@@ -34,8 +34,14 @@ ok("Administration is never asked about — it is Settings, not a department",
   !cat.roots.some((k) => K.isSystemSection(k)));
 ok("every other product department is asked about",
   K.PRODUCT_SECTION_DEFS.filter((d) => !["main", "tasks"].includes(d.key)).every((d) => cat.roots.includes(d.key)));
-ok("the point of sale is an offered part of CRM & Sales",
-  (cat.children["crm-sales"] || []).includes("crm-sales-pos"));
+// POINT OF SALE IS ITS OWN DEPARTMENT since 17/09/2026: asked about as a root,
+// its sales list and shift history offered as its parts, and its old row under
+// CRM & Sales (where the receipts are filed) offered nowhere.
+ok("the point of sale is a department of its own", cat.roots.includes("pos"));
+ok("...whose sales list and shift history are offered parts",
+  ["pos-sales", "pos-shifts"].every((k) => (cat.children.pos || []).includes(k)));
+ok("...and its filed row is no longer offered under CRM & Sales",
+  !(cat.children["crm-sales"] || []).includes("crm-sales-pos"));
 ok("another department's storage is never offered as a part",
   Object.values(cat.children).flat().every((k) => !K.isFiledOnlySection(k)),
   "crm-sales-quotations is filed under CRM & Sales and belongs to Quotations");

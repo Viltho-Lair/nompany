@@ -489,7 +489,7 @@ async function studioSetup() {
   ok("Main and Tasks are on", isOn("main") && isOn("tasks"));
   ok("Settings is on — it is not a department", isOn("administration") && isOn("administration-settings"));
   ok("a part the owner unticked is off", !isOn("crm-sales-pipeline"));
-  ok("the other parts of that department are on", isOn("crm-sales-pos") && isOn("crm-sales-clients"));
+  ok("the other parts of that department are on", isOn("crm-sales-tickets") && isOn("crm-sales-clients"));
   ok("the parts of a department that is off are off with it", !isOn("inventory-stock"));
 
   // ---- MAIN DRAWS ONLY WHAT THE STUDIO RUNS ----------------------------------

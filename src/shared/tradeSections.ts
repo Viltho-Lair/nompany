@@ -79,8 +79,13 @@ export const ACTION_SECTION: Readonly<Record<string, string>> = {
 //
 // QUOTATIONS IS THE SIXTH (13/09/2026): every company prices what it sells, and
 // the RFQs Sales raises have to land somewhere whatever the trade.
+//
+// POINT OF SALE IS THE SEVENTH (17/09/2026), and not because every company runs
+// a counter: the till sat under CRM & Sales until it became a department, so it
+// was on wherever CRM & Sales was — everywhere. Keeping it universal keeps every
+// trade's default exactly as it was; the owner switches it off at creation.
 export const UNIVERSAL_SECTION_KEYS = [
-  "crm-sales", "quotations", "tendering", "hr", "finance", "reports",
+  "crm-sales", "quotations", "pos", "tendering", "hr", "finance", "reports",
 ] as const;
 
 // NOT SECTIONS, AND NEVER OFF. Main is the home surface — without it a member

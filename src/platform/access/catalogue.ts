@@ -116,6 +116,9 @@ const DASHBOARD_MODULES = [
   // and the machines that fail most — rather than falling through to the
   // generic section dashboard. The right exists because that screen does.
   ["maintenance", "Maintenance"],
+  // POINT OF SALE (17/09/2026): its root is a summary of the counter — takings,
+  // what sells most, what is running low.
+  ["pos", "Point of Sale"],
 ] as const;
 type DashboardModule = (typeof DASHBOARD_MODULES)[number][0];
 
@@ -284,15 +287,25 @@ const OWN_AREAS = [
   // confirmed it is cancelled rather than deleted — `orderDeletable` is
   // where that line is drawn, and the verb only opens the door to it.
   { key: "crmSales.orders", group: "CRM & Sales", label: "Sales orders", verbs: ["view", "create", "edit", "delete"] },
-  // THE TILL. `create` opens a shift and sells; `edit` manages tills and the
-  // till's settings. A receipt is never deleted — no delete verb — and the
-  // three extras are separate powers because a cashier who sells is not
-  // thereby trusted to change a price or sign off a drawer.
-  { key: "crmSales.pos", group: "CRM & Sales", label: "Point of sale", verbs: ["view", "create", "edit"],
+  // THE TILL. `create` opens a shift and sells. A receipt is never deleted —
+  // no delete verb — and the extras are separate powers because a cashier who
+  // sells is not thereby trusted to change a price or sign off a drawer.
+  //
+  // FILED UNDER POINT OF SALE (17/09/2026), keeping its name because every
+  // existing role holds it by that name. Managing the tills moved to
+  // `pos.settings`; `edit` here is kept (a role holding it keeps it) and is
+  // what catchUps.ts reads to hand those roles the settings.
+  { key: "crmSales.pos", group: "Point of Sale", label: "Till", verbs: ["view", "create", "edit"],
     extra: [
       { key: "discount", label: "Change a price at the till" },
       { key: "closeShift", label: "Close a shift and count the drawer" },
     ] },
+  // EVERY SALE, and downloading them. Export is its own power: a list on a
+  // screen and a file that leaves the building are different acts.
+  { key: "pos.sales", group: "Point of Sale", label: "Sales", verbs: ["view"],
+    extra: [{ key: "export", label: "Download sales and items sold" }] },
+  { key: "pos.shifts", group: "Point of Sale", label: "Shift history", verbs: ["view"] },
+  { key: "pos.settings", group: "Point of Sale", label: "Settings", verbs: ["view", "edit"] },
   { key: "engineeringDocs.live", group: "Quotations", label: "Live view", verbs: ["view"] },
   { key: "engineeringDocs.settings", group: "Quotations", label: "Settings", verbs: ["view", "edit"] },
 

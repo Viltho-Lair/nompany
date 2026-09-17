@@ -52,7 +52,10 @@ import { log } from "@/platform/http/observability";
 // components/studio2/HeavyScreens holds the measurement and the reasoning; the
 // screens below are unchanged because their weight has not been measured yet,
 // and moving code on a hunch is how the last split came to look like it worked.
-import { DocumentList, DocumentView, DocumentPrint, StudioPlanner, StudioPlannerList, StudioPos } from "@/components/studio2/HeavyScreens";
+import {
+  DocumentList, DocumentView, DocumentPrint, StudioPlanner, StudioPlannerList, StudioPos,
+  PosDashboard, StudioPosSales, StudioPosShifts, StudioPosSettings,
+} from "@/components/studio2/HeavyScreens";
 
 const StudioDocs = nextDynamic(() => import("@/components/studio2/StudioDocs"));
 // The generic section dashboard's register panel — reached from five sections,
@@ -440,7 +443,8 @@ async function renderStudio(params) {
   // the screen). Only for somebody who may open it — anybody else falls through
   // to the shell, which says the section is not granted. Every act inside is
   // asked for again by the service.
-  if (requested === "crm-sales-pos" && sections.some((s) => s.key === "crm-sales-pos") && can(access, "crmSales.pos.view")) {
+  // `crm-sales-pos` still reaches here: requestedKey maps the old address on.
+  if (requested === "pos-till" && sections.some((s) => s.key === "pos-till") && can(access, "crmSales.pos.view")) {
     return <StudioPos slug={studio.slug} />;
   }
 
@@ -921,6 +925,16 @@ async function renderStudio(params) {
         // same move Procurement made, and what its dashboard right gates.
         : active?.key === "maintenance"
           ? <MaintenanceDashboard slug={studio.slug} />
+        // THE POINT OF SALE DEPARTMENT (17/09/2026). The till is full-screen and
+        // returned above; its root is a summary, and three screens sit under it.
+        : active?.key === "pos"
+          ? <PosDashboard slug={studio.slug} />
+        : active?.key === "pos-sales"
+          ? <StudioPosSales slug={studio.slug} />
+        : active?.key === "pos-shifts"
+          ? <StudioPosShifts slug={studio.slug} />
+        : active?.key === "pos-settings"
+          ? <StudioPosSettings slug={studio.slug} />
         : active?.key === "maintenance-requests"
           ? <StudioWorkRequests slug={studio.slug} />
         : active?.key === "maintenance-orders"

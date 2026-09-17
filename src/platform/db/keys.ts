@@ -613,8 +613,10 @@ export const SECTION_DEFS = [
     // THE ORDER REGISTER. Same shape as Contracts above and for the same
     // reason — a destination and a right, with the rows under quotations.
     { key: "crm-sales-orders", name: "Sales orders" },
-    // THE POINT OF SALE (16/09/2026). Unlike the two registers above it OWNS its
-    // rows — tills, shifts and receipts — so a receipt is filed where it is sold.
+    // WHERE THE TILL'S RECORDS ARE FILED (16/09/2026) — tills, shifts and
+    // receipts, and the till's settings on the row itself. Its screens are the
+    // Point of Sale department's since 17/09/2026; this row is FILED-ONLY
+    // (FILED_ONLY_SECTION_KEYS). DO NOT DELETE IT: every receipt would vanish.
     { key: "crm-sales-pos", name: "Point of sale" },
     { key: "crm-sales-live", name: "Live view" },
     { key: "crm-sales-settings", name: "Settings" },
@@ -652,6 +654,26 @@ export const SECTION_DEFS = [
     { key: "quotations-register", name: "Quotations" },
     { key: "quotations-live", name: "Live view" },
     { key: "quotations-settings", name: "Settings" },
+  ] },
+
+  // POINT OF SALE IS ITS OWN DEPARTMENT — the owner, 17/09/2026, the
+  // seventeenth. A shop's counter is run by different people from the sales
+  // team that works deals, so it has its own dashboard, its own screens and its
+  // own rights on the Access screen.
+  //
+  // DESTINATIONS, LIKE QUOTATIONS. Every key here owns no collection: tills,
+  // shifts and receipts stay filed under `crm-sales-pos`, where they were
+  // written, and the till keeps its right's name (`crmSales.pos`). An existing
+  // studio gains the department on its next read, with nothing moved.
+  { key: "pos", name: "Point of Sale", children: [
+    // THE TILL, full-screen.
+    { key: "pos-till", name: "Till" },
+    // EVERY SALE, with its lines, its payments and who rang it up.
+    { key: "pos-sales", name: "Sales" },
+    // EVERY DRAWER that was opened, with its end-of-day report.
+    { key: "pos-shifts", name: "Shift history" },
+    // THE TILLS AND HOW THEY PRICE, moved out of the till's own screen.
+    { key: "pos-settings", name: "Settings" },
   ] },
 
   // THE FIRST OF TENDERING'S FIVE. The root was declared for ordering alone at
@@ -881,6 +903,9 @@ export const isSystemSection = (key: string): boolean =>
 export const FILED_ONLY_SECTION_KEYS = [
   "projects-sla",
   "engineering-docs-rfq", "crm-sales-quotations", "engineering-docs-live", "engineering-docs-settings",
+  // THE TILL'S RECORDS (17/09/2026): its screens are the Point of Sale
+  // department's now (`pos-*`).
+  "crm-sales-pos",
 ] as const;
 
 /** Kept only because rows are filed under it — shown nowhere as a destination. */

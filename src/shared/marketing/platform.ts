@@ -34,7 +34,7 @@ type PlatformStrings = {
 
 const en: PlatformStrings = {
   title: "The platform",
-  lead: "Sixteen departments on one data model. A quotation becomes a contract, a contract opens a project, a project raises requisitions and bills — and none of it is re-typed, because it is all the same record.",
+  lead: "Seventeen departments on one data model. A quotation becomes a contract, a contract opens a project, a project raises requisitions and bills — and none of it is re-typed, because it is all the same record.",
   departmentsHeading: "The departments",
   departmentsLead: "Every one of these is built and running today. Nothing on this page describes something you cannot open.",
   foundationHeading: "True of all of them",
@@ -61,6 +61,8 @@ const en: PlatformStrings = {
       "Leads, deals and the board they move across. Customers with their own page — what they have bought, what is open, what was won and lost, and the rates they were promised. A won quotation becomes a contract with its variations tracked against it.",
     quotations:
       "The presales team's own desk. RFQs raised from a deal arrive in one intake, are directed to the people who will price them, and go back to the deal as a quotation built by the people who understand the work — priced from the customer's agreed rates rather than from cost, sent for approval, and locked once a client is holding it.",
+    pos:
+      "A till for the counter: scan, basket, pay by cash, card or transfer, and print. Stock leaves by expiry, and tax is taken out of shelf prices rather than added to them. Every sale is listed with who rang it up, drawers close with a report that says whether they are short, and what sells most is on the dashboard.",
     tendering:
       "Tenders sorted by deadline rather than by entry date, because most end in a decision not to bid and recording only the winners loses the ability to say what you keep losing. Bills of quantity priced against a reusable rate library, a tender pack whose reissues never overwrite what you priced against, and a signature required before a bid is submitted.",
     projects:
@@ -94,7 +96,7 @@ const en: PlatformStrings = {
 // HAND-WRITTEN. NO DIACRITICS.
 const ar: PlatformStrings = {
   title: "المنصة",
-  lead: "ستة عشر قسما على نموذج بيانات واحد. عرض السعر يصبح عقدا، والعقد يفتح مشروعا، والمشروع يصدر طلبات شراء وفواتير — دون إعادة إدخال شيء، لأن الجميع يعمل على السجل نفسه.",
+  lead: "سبعة عشر قسما على نموذج بيانات واحد. عرض السعر يصبح عقدا، والعقد يفتح مشروعا، والمشروع يصدر طلبات شراء وفواتير — دون إعادة إدخال شيء، لأن الجميع يعمل على السجل نفسه.",
   departmentsHeading: "الأقسام",
   departmentsLead: "كل قسم هنا مبني ويعمل اليوم، وكل ما تقرأه في هذه الصفحة يمكنك فتحه.",
   foundationHeading: "صحيح في كل الأقسام",
@@ -121,6 +123,8 @@ const ar: PlatformStrings = {
       "العملاء المحتملون والصفقات واللوحة التي تتحرك عليها. ولكل عميل صفحته: ما اشتراه، وما هو مفتوح، وما ربح وما خسر، والأسعار التي وعد بها. وعرض السعر الفائز يصبح عقدا تتبع تغييراته عليه.",
     quotations:
       "مكتب فريق ما قبل البيع. طلبات عروض الأسعار المرفوعة من الصفقات تصل إلى نقطة استقبال واحدة، وتوجه إلى من سيسعرها، وتعود إلى الصفقة عرض سعر يبنيه من يفهم العمل — مسعرا من أسعار العميل المتفق عليها لا من التكلفة، ومرسلا للاعتماد، ومقفلا حين يكون بيد العميل.",
+    pos:
+      "صندوق للبيع المباشر: مسح وسلة ودفع نقدا أو ببطاقة أو تحويل ثم طباعة. يخرج المخزون حسب تاريخ الانتهاء، وتستخرج الضريبة من سعر الرف بدل أن تضاف إليه. وكل بيعة مسجلة باسم من أجراها، والأدراج تغلق بتقرير يبين العجز أو الزيادة، والأكثر مبيعا على لوحة القسم.",
     tendering:
       "المناقصات مرتبة بالموعد النهائي لا بتاريخ الإدخال، لأن أغلبها ينتهي بقرار عدم التقديم، وتسجيل الفائزة وحدها يخفي عنك ما تخسره باستمرار. جداول كميات تبنى على مكتبة أسعار تستعملها في كل مناقصة، وحزمة مناقصة لا تمحو إصداراتها الجديدة ما بني عليه التسعير، وتوقيع مطلوب قبل تقديم العطاء.",
     projects:

@@ -1,5 +1,5 @@
 import { route, refused } from "@/platform/http/route";
-import { posContext, openShift, closeShift, shiftDetail } from "@/modules/sales/pos";
+import { posContext, openShift, closeShift, shiftDetail, shiftsList } from "@/modules/sales/pos";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,8 +15,14 @@ const spec = {
 };
 
 export const GET = route({ ...spec, body: false }, async (pos) => {
-  const id = new URL(pos.request.url).searchParams.get("id") || "";
-  if (!id) return { error: "missing" };
+  const url = new URL(pos.request.url);
+  const id = url.searchParams.get("id") || "";
+  // NO ID IS THE SHIFT HISTORY: every drawer, filtered by period and till.
+  if (!id) {
+    const list = await shiftsList(pos, url.searchParams);
+    if (refused(list)) return list;
+    return { ok: true, ...list };
+  }
   const result = await shiftDetail(pos, id);
   if (refused(result)) return result;
   return { ok: true, ...result };

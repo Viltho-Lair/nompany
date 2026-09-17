@@ -216,15 +216,18 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
       // verb opens a door the record itself keeps shut.
       ["crmSales.orders", "full"],
       // THE TILL IS SELLING TOO. A sales manager runs it, may change a price at
-      // it, and signs off a drawer at the end of a shift.
+      // it, and signs off a drawer at the end of a shift — and, since Point of
+      // Sale became a department (17/09/2026), reads its figures, its sales and
+      // its drawers, and manages the tills.
       ["crmSales.pos", "edit"],
+      ["pos.dashboard", "view"], ["pos.sales", "view"], ["pos.shifts", "view"], ["pos.settings", "edit"],
       ["engineeringDocs.rfq", "edit"],
     ],
     // Turning an enquiry into a quotation is the selling motion, and locking a
     // quotation is finishing it. UNLOCK is deliberately not here: it reopens
     // something already committed, and Gate A pins that holding one does not
     // imply the other.
-    extras: ["crmSales.quotations.lock", "engineeringDocs.rfq.convert", "crmSales.pos.discount", "crmSales.pos.closeShift"],
+    extras: ["crmSales.quotations.lock", "engineeringDocs.rfq.convert", "crmSales.pos.discount", "crmSales.pos.closeShift", "pos.sales.export"],
   },
   {
     id: "bidder",
@@ -322,8 +325,9 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
       // entry should not need the project register to do it.
       ["projects.reports", "edit"],
       // A SHIFT LEADER RUNS THE TILL and closes the drawer at the end of the
-      // shift; changing a price stays with the manager.
+      // shift; changing a price and managing the tills stay with the manager.
       ["crmSales.pos", "edit"],
+      ["pos.sales", "view"], ["pos.shifts", "view"],
     ],
     extras: ["crmSales.pos.closeShift"],
   },

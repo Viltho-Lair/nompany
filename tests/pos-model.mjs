@@ -80,6 +80,87 @@ ok("tax by rate", r.byTax.length === 1 && r.byTax[0].taxable === 30 && r.byTax[0
 const open = P.shiftReport(receipts, { openingFloat: 100, currency: "SAR" });
 ok("an open shift has no count and no difference", open.countedCash === null && open.difference === null);
 
+// ---- the department's reports (17/09/2026) ----------------------------------
+//
+// THE DEFECTS THESE GUARD: a period is the READER's (a sale at 23:59 local time
+// is today's, whatever UTC says); a period's end is exclusive, so midnight is
+// never counted twice; a download and the list answer the same filter; and a
+// typed item name cannot run as a formula in the spreadsheet it lands in.
+const R = await import("@/modules/sales/posReports");
+
+console.log("\n== periods, in the reader's own time");
+const at = new Date(2026, 8, 17, 14, 30); // Thu 17 Sep 2026, local
+const local = (iso) => { const d = new Date(iso); return [d.getFullYear(), d.getMonth() + 1, d.getDate(), d.getHours()]; };
+ok("today runs from local midnight to the next", j(local(R.periodRange("day", at).from)) === j([2026, 9, 17, 0])
+  && j(local(R.periodRange("day", at).to)) === j([2026, 9, 18, 0]));
+ok("yesterday is one step back", j(local(R.periodRange("day", at, -1).from)) === j([2026, 9, 16, 0]));
+ok("a week starts on Sunday by default", j(local(R.periodRange("week", at).from)) === j([2026, 9, 13, 0])
+  && j(local(R.periodRange("week", at).to)) === j([2026, 9, 20, 0]));
+ok("...or on the day the studio chooses", j(local(R.periodRange("week", at, 0, 6).from)) === j([2026, 9, 12, 0]));
+ok("a month", j(local(R.periodRange("month", at).from)) === j([2026, 9, 1, 0]) && j(local(R.periodRange("month", at).to)) === j([2026, 10, 1, 0]));
+ok("a quarter", j(local(R.periodRange("quarter", at).from)) === j([2026, 7, 1, 0]) && j(local(R.periodRange("quarter", at).to)) === j([2026, 10, 1, 0]));
+ok("the quarter before crosses nothing oddly", j(local(R.periodRange("quarter", at, -1).from)) === j([2026, 4, 1, 0]));
+ok("a half-year", j(local(R.periodRange("half", at).from)) === j([2026, 7, 1, 0]) && j(local(R.periodRange("half", at).to)) === j([2027, 1, 1, 0]));
+ok("a year", j(local(R.periodRange("year", at).from)) === j([2026, 1, 1, 0]) && j(local(R.periodRange("year", at, -1).to)) === j([2026, 1, 1, 0]));
+ok("the six periods are the owner's six", j(R.PERIODS) === j(["day", "week", "month", "quarter", "half", "year"]));
+
+console.log("\n== filtering");
+const sale = (id, atISO, extra = {}) => ({
+  id, number: `RCT-${id}`, at: atISO, terminalId: "t1", shiftId: "s1", cashierCollaboratorId: "c1",
+  total: 10, subtotal: 8.7, vat: 1.3, lines: [{ itemId: "milk", description: "Milk", count: 2, price: 5, units: 2 }],
+  payments: [{ method: "cash", amount: 10 }], ...extra,
+});
+const day = R.periodRange("day", at);
+const inside = new Date(2026, 8, 17, 23, 59, 59).toISOString();
+const midnight = new Date(2026, 8, 18, 0, 0, 0).toISOString();
+const salesRows = [
+  sale("1", inside),
+  sale("2", midnight),
+  sale("3", new Date(2026, 8, 17, 9).toISOString(), {
+    terminalId: "t2", cashierCollaboratorId: "c2",
+    lines: [{ itemId: "bread", description: "Bread", count: 1, price: 3, units: 1 }, { itemId: "milk", description: "Milk", count: 1, price: 5, units: 1 }],
+    payments: [{ method: "card", amount: 8 }], total: 8,
+  }),
+  sale("4", new Date(2026, 8, 17, 10).toISOString(), { status: "Voided" }),
+];
+const today = R.filterReceipts(salesRows, R.cleanSalesFilter({ from: day.from, to: day.to }));
+ok("23:59:59 is today and midnight is tomorrow", today.some((r) => r.id === "1") && !today.some((r) => r.id === "2"));
+ok("a voided sale is never listed", !today.some((r) => r.id === "4"));
+ok("newest first", today[0].id === "1");
+ok("by cashier", j(R.filterReceipts(salesRows, { ...day, cashierIds: ["c2"] }).map((r) => r.id)) === j(["3"]));
+ok("by till", j(R.filterReceipts(salesRows, { ...day, terminalIds: ["t2"] }).map((r) => r.id)) === j(["3"]));
+ok("by how it was paid", j(R.filterReceipts(salesRows, { ...day, methods: ["card"] }).map((r) => r.id)) === j(["3"]));
+ok("by chosen receipts", j(R.filterReceipts(salesRows, { receiptIds: ["1", "3"] }).map((r) => r.id).sort()) === j(["1", "3"]));
+ok("search finds an item on a receipt", j(R.filterReceipts(salesRows, { ...day, q: "bread" }).map((r) => r.id)) === j(["3"]));
+ok("...and a receipt number", j(R.filterReceipts(salesRows, { q: "rct-2" }).map((r) => r.id)) === j(["2"]));
+const fromQuery = R.cleanSalesFilter(new URLSearchParams("from=nonsense&methods=cash,bitcoin&cashierIds=c1,c2"));
+ok("a filter from a query string drops what it cannot read",
+  fromQuery.from === "" && j(fromQuery.methods) === j(["cash"]) && j(fromQuery.cashierIds) === j(["c1", "c2"]));
+
+console.log("\n== totals and what sold");
+const t = R.salesTotals(today);
+ok("totals are for what the filter kept", t.sales === 2 && t.total === 18 && t.items === 4, j(t));
+ok("...with the average sale", t.average === 9);
+ok("...and takings by method", j(t.byMethod) === j([{ method: "cash", amount: 10 }, { method: "card", amount: 8 }]));
+const sold = R.itemsSold(today, { milk: "Fresh milk" });
+ok("items sold, most units first", sold[0].itemId === "milk" && sold[0].units === 3 && sold[1].itemId === "bread", j(sold));
+ok("...valued at the shelf price", sold[0].value === 15);
+ok("...counting each receipt once", sold[0].receipts === 2);
+ok("...by the name the item has today", sold[0].name === "Fresh milk");
+ok("...and the printed name for an item since deleted", sold[1].name === "Bread");
+const lines = R.soldLines(today, { cashiers: { c1: "Sara" }, tills: { t1: "Front" } });
+ok("every line, with who sold it and where", lines.length === 3 && lines[0].cashier === "Sara" && lines[0].till === "Front");
+
+console.log("\n== the download");
+const csv = R.toCsvFile(["Item", "Units"], [["=HYPERLINK(\"x\")", 2], ["Milk, fresh", -1], ["-5", 1]]);
+ok("a time is written as the reader's clock showed it",
+  R.localStamp("2026-09-17T11:58:48.629Z", -180) === "2026-09-17 14:58" && R.localStamp("2026-09-17T23:30:00Z", -180) === "2026-09-18 02:30");
+ok("...and an unreadable one is blank", R.localStamp("nope") === "");
+ok("it starts with the mark Excel needs for Arabic", csv.charCodeAt(0) === 0xfeff);
+ok("a formula-looking name is made text", csv.includes("'=HYPERLINK"));
+ok("a comma is quoted", csv.includes("\"Milk, fresh\""));
+ok("a negative number stays a number", csv.includes("\r\n-5,1"));
+
 console.log(fails ? `\n${fails} FAILED\n` : "\nall passed\n");
 // exitCode, not exit(): exiting while the alias loader's thread is live crashes Node on Windows.
 process.exitCode = fails ? 1 : 0;

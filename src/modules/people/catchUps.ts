@@ -43,6 +43,13 @@ export type PermissionCatchUp = {
   /** What it gains, at the same verbs. */
   readonly to: readonly string[];
   readonly verbs?: readonly string[];
+  /**
+   * THE ONE VERB OF `from` THAT DECIDES, when it is not verb for verb. Set, a
+   * role holding `from.fromVerb` gains every one of `verbs` on `to` — how
+   * "whoever managed the tills gets the Settings screen, view and edit" is said,
+   * which verb-for-verb cannot: it would hand a cashier the settings' view.
+   */
+  readonly fromVerb?: string;
 };
 
 const DEFAULT_VERBS = ["view", "create", "edit", "delete"] as const;
@@ -63,6 +70,25 @@ export const PERMISSION_CATCH_UPS: readonly PermissionCatchUp[] = [
     note: "The Assets maintenance register became the Maintenance section",
     from: "engine.maintenance",
     to: ["maintenance.requests", "maintenance.orders", "maintenance.plans"],
+  },
+  {
+    id: "pos-department-2026-09-17",
+    // Point of Sale became its own department (17/09/2026). Whoever could open
+    // the till reaches its dashboard, its sales list and its shift history.
+    note: "The till's viewers reach the Point of Sale department's own screens",
+    from: "crmSales.pos",
+    to: ["pos.dashboard", "pos.sales", "pos.shifts"],
+    verbs: ["view"],
+  },
+  {
+    id: "pos-settings-2026-09-17",
+    // The tills and the till's settings moved to their own screen. Whoever
+    // managed them — `crmSales.pos.edit` — keeps doing so there.
+    note: "The till's managers reach its new Settings screen",
+    from: "crmSales.pos",
+    fromVerb: "edit",
+    to: ["pos.settings"],
+    verbs: ["view", "edit"],
   },
 ];
 
@@ -91,7 +117,7 @@ export function catchUpFor(role: RoleLike): { permissions: string[]; catchUps: s
   const gained: string[] = [];
   for (const c of pending) {
     for (const verb of c.verbs || DEFAULT_VERBS) {
-      if (!held.has(`${c.from}.${verb}`)) continue;
+      if (!held.has(`${c.from}.${c.fromVerb || verb}`)) continue;
       for (const area of c.to) {
         const key = `${area}.${verb}`;
         if (!held.has(key) && !gained.includes(key)) gained.push(key);

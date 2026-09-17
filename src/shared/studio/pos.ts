@@ -90,7 +90,7 @@ type Strings = {
 
 const en: Strings = {
   title: "Point of sale",
-  back: "Back to the studio",
+  back: "Back to Point of Sale",
   till: "Till",
   pickTill: "Choose a till",
   noTills: "No till yet",
@@ -187,7 +187,7 @@ const en: Strings = {
 
 const ar: Strings = {
   title: "نقطة البيع",
-  back: "العودة إلى الاستوديو",
+  back: "العودة إلى نقطة البيع",
   till: "الصندوق",
   pickTill: "اختر صندوقا",
   noTills: "لا يوجد صندوق بعد",

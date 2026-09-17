@@ -188,7 +188,7 @@ export const DEPARTMENT_STARTERS: Record<string, readonly DepartmentSeed[]> = {
 
   "Wholesale & Retail Trade": trading(
     { name: "Buying & Merchandising", code: "BUY", parent: "", sectionKeys: ["procurement", "inventory"] },
-    { name: "Retail Operations", code: "RET", parent: "", sectionKeys: ["crm-sales"] },
+    { name: "Retail Operations", code: "RET", parent: "", sectionKeys: ["crm-sales", "pos"] },
     { name: "Wholesale & Key Accounts", code: "WHL", parent: "", sectionKeys: ["crm-sales"] },
     { name: "Distribution & Delivery", code: "DIS", parent: "", sectionKeys: ["logistics"] },
     { name: "Installation & Service", code: "SVC", parent: "", sectionKeys: ["field-service"] },
@@ -206,9 +206,9 @@ export const DEPARTMENT_STARTERS: Record<string, readonly DepartmentSeed[]> = {
   ),
 
   "Hospitality & Food Services": trading(
-    { name: "Food & Beverage", code: "FNB", parent: "", sectionKeys: ["field-service"] },
+    { name: "Food & Beverage", code: "FNB", parent: "", sectionKeys: ["field-service", "pos"] },
     { name: "Kitchen", code: "KIT", parent: "FNB", sectionKeys: ["manufacturing"] },
-    { name: "Front Office", code: "FO", parent: "", sectionKeys: ["crm-sales"] },
+    { name: "Front Office", code: "FO", parent: "", sectionKeys: ["crm-sales", "pos"] },
     { name: "Housekeeping", code: "HK", parent: "", sectionKeys: ["field-service"] },
     { name: "Banqueting & Events", code: "EVT", parent: "", sectionKeys: ["projects", "crm-sales"] },
     { name: "Engineering & Maintenance", code: "MNT", parent: "", sectionKeys: ["assets", "maintenance", "field-service"] },
