@@ -352,7 +352,7 @@ function ScanBox({ tr, items, onHit, disabled }) {
       const name = i.name.toLowerCase();
       if (String(i.barcode || "").toLowerCase() === v || String(i.sku || "").toLowerCase() === v) return 0;
       if (name.startsWith(v)) return 1;
-      if (name.split(/[s-]+/).some((w) => w.startsWith(v))) return 2;
+      if (name.split(/[\s-]+/).some((w) => w.startsWith(v))) return 2;
       if (name.includes(v) || String(i.sku || "").toLowerCase().includes(v)) return 3;
       return 9;
     };
