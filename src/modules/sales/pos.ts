@@ -28,6 +28,7 @@ import { nextReference } from "@/modules/main/references";
 import { seriesSetting } from "@/modules/administration/numbering";
 import { balances } from "@/modules/inventory/inventory";
 import { batchView, batchBalances, pickBatches, type Batch } from "@/modules/inventory/batches";
+import { alertIfLow, reorderList, STOCK_ALERT_RIGHT } from "@/modules/inventory/stockAlerts";
 import type { Item, Movement } from "@/modules/inventory/types";
 import { studioVatRate } from "@/shared/vat";
 import { documentTaxMethod, studioTaxProfile } from "@/shared/taxProfile";
@@ -446,6 +447,9 @@ export async function createSale(ctx: PosContext, body: Record<string, unknown>)
     if (pick.fromUntracked > 0) moves.push({ ...base, qty: pick.fromUntracked });
   }
   if (moves.length) await Stock.createMany(stockScope, moves);
+  // A SALE CAN TAKE AN ITEM TO ITS REORDER LEVEL — whoever holds the alert is
+  // told (modules/inventory/stockAlerts).
+  await alertIfLow(ctx.studio, { itemsSection: ctx.itemsSection, stockSection: ctx.stockSection }, Object.fromEntries(need));
 
   return { receipt };
 }
@@ -577,7 +581,14 @@ export async function posDashboard(ctx: PosContext, raw: Record<string, unknown>
   const denied = requirePermission(ctx.access, "pos.dashboard.view");
   if (denied) return denied;
   const filter = cleanSalesFilter(raw);
-  const [receipts, names, shifts] = await Promise.all([allReceipts(ctx), namesFor(ctx), Shifts.find(scope(ctx), { where: { status: "Open" } })]);
+  // WHAT IS RUNNING LOW, for whoever holds the stock alert — the list the owner
+  // asked to see beside the takings (modules/inventory/stockAlerts).
+  const alerts = can(ctx.access, STOCK_ALERT_RIGHT as PermissionKey) && ctx.itemsSection && ctx.stockSection;
+  const [receipts, names, shifts, items, movements] = await Promise.all([
+    allReceipts(ctx), namesFor(ctx), Shifts.find(scope(ctx), { where: { status: "Open" } }),
+    alerts ? Items.find({ studio: ctx.studio, section: ctx.itemsSection! }) : Promise.resolve([] as Item[]),
+    alerts ? Stock.find({ studio: ctx.studio, section: ctx.stockSection! }) : Promise.resolve([] as Movement[]),
+  ]);
   const kept = filterReceipts(receipts, { from: filter.from, to: filter.to });
   // DAY BY DAY across the period, by the instant each sale was rung — the
   // screen buckets them into the reader's own days.
@@ -587,6 +598,7 @@ export async function posDashboard(ctx: PosContext, raw: Record<string, unknown>
     items: itemsSold(kept, names.items),
     sales: kept.map((r) => ({ at: r.at, total: r.total })),
     openShifts: shifts.length,
+    reorder: alerts ? reorderList(items, balances(movements)) : null,
     may: {
       sales: can(ctx.access, "pos.sales.view"),
       shifts: can(ctx.access, "pos.shifts.view"),

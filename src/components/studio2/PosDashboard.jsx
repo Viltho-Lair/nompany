@@ -21,6 +21,7 @@ import { StatRow, DashGrid, Widget, DashEmpty } from "@/components/dashboard";
 import { BarList, BarChart } from "@/components/charts";
 import { useWidgetGate } from "@/components/studio2/analyticsLevel";
 import { PeriodPicker, usePosPeriod, rangeQuery } from "@/components/studio2/posParts";
+import ReorderList from "@/components/studio2/ReorderList";
 
 // NAMED `*Dashboard.jsx` DELIBERATELY: the widget-gate scan reads exactly that
 // filename pattern to prove every registry key is drawn by something.
@@ -71,7 +72,7 @@ export default function PosDashboard({ slug }) {
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error === "forbidden" ? tr.refused : error}</p>;
   if (!data) return <ScreenSkeleton loadingLabel={tr.loading} />;
 
-  const { totals = {}, items = [], terms = {}, may = {}, openShifts = 0 } = data;
+  const { totals = {}, items = [], terms = {}, may = {}, openShifts = 0, reorder = null } = data;
   const cur = terms.currency || "";
   const amount = (n) => `${money(n || 0, cur)}${cur ? ` ${cur}` : ""}`;
   const top = items.slice(0, 10);
@@ -122,6 +123,10 @@ export default function PosDashboard({ slug }) {
           </Widget>
         )}
       </DashGrid>
+
+      {/* WHAT IS RUNNING LOW, for whoever holds the stock alert (the server sends
+          null to everybody else). */}
+      {reorder && <ReorderList rows={reorder} href={`/${slug}/inventory-stock`} />}
 
       {/* EVERYTHING THAT SOLD — the free list the owner asked for. */}
       <section className="rounded-geex border border-slate-200/70 bg-[var(--geex-surface)] p-5 dark:border-white/10">

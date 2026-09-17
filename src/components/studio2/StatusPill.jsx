@@ -122,6 +122,8 @@ export const STATUS_TONES = {
   // StudioInventory — waybill (AWB) StatusBadge. Tone by delivered/exception
   // flags; the caller synthesises the token.
   awb:       { intransit: "info", delivered: "success", exception: "danger", notmoved: "muted" },
+  // ReorderList — an item against its reorder level (modules/inventory/stockLevels).
+  stock:     { below: "danger", near: "warning" },
 };
 
 // Per-kind fallback for a status the map does not know, reproducing the `|| …`

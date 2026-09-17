@@ -1,4 +1,6 @@
 import { route } from "@/platform/http/route";
+import { can, type PermissionKey } from "@/platform/access";
+import { STOCK_ALERT_RIGHT } from "@/modules/inventory/stockAlerts";
 import {
   inventoryContext, listVendors, listItems, listMovements, listOrders, listDeliveries,
   openProjects, stockValue, listProjectSheets, ORDER_STATUSES, DELIVERY_STATUSES,
@@ -39,6 +41,9 @@ export const GET = route(
     canManageItems: g.canManageItems,
     canManageSheets: g.canManageSheets,
     canManageAwb: g.canManageAwb,
+    // WHETHER THE "STOCK TO REORDER" LIST IS DRAWN for this reader — the stock
+    // alert is a right the owner hands out (modules/inventory/stockAlerts).
+    canSeeStockAlerts: can(g.access, STOCK_ALERT_RIGHT as PermissionKey),
     nav: g.nav,
     // The money the studio counts in. Registered Items needs it to know when a
     // price is quoted in somebody else's currency — which is what brings the

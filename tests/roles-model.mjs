@@ -116,7 +116,11 @@ ok(`at most ${PRINCIPAL_ONLY_AREAS} areas are reachable by no archetype but prin
 // ORDINARY approval nobody but Admin could give — was covered rather than
 // counted: stock.approve and payroll.approve went to department-head,
 // ledger.close to money.
-const PRINCIPAL_ONLY_EXTRAS = 6;
+//
+// 6 -> 7 on 17/09/2026: `inventory.stock.alerts`, the reorder-level alert. The
+// owner's instruction was that the studio's owner holds it and chooses who else
+// does — a decision about a PERSON again, so it is seeded to nobody by design.
+const PRINCIPAL_ONLY_EXTRAS = 7;
 const lonelyExtras = EXTRA_KEYS.filter((k) => !nonPrincipal.has(k));
 ok(`at most ${PRINCIPAL_ONLY_EXTRAS} extras are held by no archetype but principal`,
   lonelyExtras.length <= PRINCIPAL_ONLY_EXTRAS, `${lonelyExtras.length}: ${lonelyExtras.join(", ")}`);

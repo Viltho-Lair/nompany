@@ -25,6 +25,8 @@ import { CurrencySymbol } from "@/components/Currency";
 import { Icon } from "@/components/studio2/icons";
 import { useWidgetGate, useSectionOn } from "@/components/studio2/analyticsLevel";
 import { StatusPill } from "@/components/studio2/StatusPill";
+import ReorderList from "@/components/studio2/ReorderList";
+import { reorderList } from "@/modules/inventory/stockLevels";
 
 // Quantities are counts, not money — three decimals at most, no forced pair.
 const qty = (n) => new Intl.NumberFormat("en", { maximumFractionDigits: 3 }).format(Number(n) || 0);
@@ -111,7 +113,7 @@ function derive({ items, orders }, tr) {
 
 export default function InventoryDashboard({
   slug, summary, items = [], orders = [], movements = [], nav,
-  currency = "",
+  currency = "", stockAlerts = false,
 }) {
   const locale = useStudioLocale();
   const tr = inventoryDict(locale);
@@ -303,6 +305,14 @@ export default function InventoryDashboard({
           ) : <DashEmpty text={tr.noPurchaseOrdersYet} />}
         </Widget>
       </DashGrid>
+
+      {/* STOCK TO REORDER — at or under its level and close to it, for whoever
+          holds the stock alert. Not a paid widget: it is the list the alert is
+          about, and an owner told "this is low" must be able to see what. */}
+      {stockAlerts && sectionOn("inventory-items") && (
+        <ReorderList href={href("inventory-stock")}
+          rows={reorderList(items, Object.fromEntries(items.map((i) => [i.id, i.onHand || 0])))} />
+      )}
 
       {/* The way into each sub-section — kept from the old dashboard, because the
           parent section is where a studio arrives and it still has to point on. */}

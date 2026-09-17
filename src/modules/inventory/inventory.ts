@@ -18,6 +18,7 @@
 // they append movements, and the balance follows.
 
 import { requirePermission } from "@/platform/access";
+import { alertIfLow } from "./stockAlerts";
 import {
   adjustmentValue, planForAdjustment, needsApproval, planUnusable, raiseAdjustment, unitCostOf,
 } from "./adjustmentApproval";
@@ -702,9 +703,10 @@ async function record(
   },
 ) {
   const { studio, stockSection, collaborator } = ctx;
-  return Stock.create({ studio, section: stockSection }, {
+  const stored = MOVEMENT_KINDS.includes(kind) ? kind : "adjust";
+  const movement = await Stock.create({ studio, section: stockSection }, {
     itemId,
-    kind: MOVEMENT_KINDS.includes(kind) ? kind : "adjust",
+    kind: stored,
     qty: quantity,
     reason: str(reason, 300),
     sourceType, sourceId,
@@ -712,6 +714,12 @@ async function record(
     byCollaboratorId: collaborator.id,
     at: new Date().toISOString(),
   });
+  // EVERY MOVEMENT THAT TAKES STOCK AWAY is asked whether it just reached the
+  // reorder level — an issue, a delivery, a correction, a write-off. Here,
+  // because this is the one door they all go through.
+  const taken = stored === "out" ? Math.abs(quantity) : stored === "adjust" && quantity < 0 ? -quantity : 0;
+  if (taken > 0) await alertIfLow(studio, ctx, { [itemId]: taken });
+  return movement;
 }
 
 // A manual correction — stock-take differences, damage, opening balances.

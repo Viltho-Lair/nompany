@@ -161,7 +161,7 @@ export default function StudioInventory({ slug, view = "inventory" }) {
   // own, a right of its own.
   if (data.canViewDashboard === false) return wrap(<Empty title={tr.dashboardIsnYoursSee} body={tr.studioKeepsModuleDashboards} />);
   return wrap(<InventoryDashboard slug={slug} summary={summary} items={items}
-    orders={orders} movements={movements} nav={nav}
+    orders={orders} movements={movements} nav={nav} stockAlerts={Boolean(data.canSeeStockAlerts)}
     level={level} currency={studioCurrency} />);
 }
 

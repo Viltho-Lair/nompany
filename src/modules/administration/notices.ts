@@ -92,6 +92,12 @@ export const NOTICE_TEMPLATES: readonly NoticeTemplate[] = Object.freeze([
     ar: { title: "أوامر عمل مستحقة", body: "{detail}" },
   },
   {
+    type: "stock.low",
+    fields: ["detail"],
+    en: { title: "Stock at reorder level", body: "{detail}" },
+    ar: { title: "مخزون وصل حد إعادة الطلب", body: "{detail}" },
+  },
+  {
     type: "calibration.due",
     fields: ["detail"],
     en: { title: "Due calibrations", body: "{detail}" },

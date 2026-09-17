@@ -68,6 +68,8 @@ export const NOTIFY = {
   workOrderAssigned: "workorder.assigned",
   workOrderDue: "workorder.due",
   calibrationDue: "calibration.due",
+  // An item fell to its reorder level (modules/inventory/stockAlerts).
+  stockLow: "stock.low",
 };
 
 /** One stored notification, as this module writes it. */

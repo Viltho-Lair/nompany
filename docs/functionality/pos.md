@@ -80,6 +80,9 @@ now — never gated. **Best sellers** (the ten items with the most units, `pos.t
 **takings by day** (`pos.takings-by-day`, any period longer than a day) are plan-gated widgets.
 **Everything sold** lists every item sold in the period, most units first, with value and how
 many receipts it was on — not gated.
+**Stock to reorder** — for whoever holds the stock alert (`inventory.stock.alerts`), every item
+at or near its reorder level (`docs/functionality/stock-alerts.md`). A sale that takes an item to
+its level alerts them.
 
 **Sales.** Every sale in the period, newest first: receipt, date and time, till, cashier, units,
 how it was paid, total. Filters: search (receipt number or item), till, cashier, payment method;
