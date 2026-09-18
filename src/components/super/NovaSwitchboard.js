@@ -20,8 +20,9 @@ import NovaCredentials from "@/components/super/NovaCredentials";
 // forty rows with badges saying `read` and `action` in lower case. Now: a
 // summary that answers "how much of Nova is switched on" at a glance, a filter
 // by kind and a search (forty rows is past scanning), department cards with
-// their own count, and the key and the rules beside the list rather than above
-// it — the key is set once, the switches are what somebody comes here to flip.
+// their own count, and the key beside the list rather than above it (the
+// "How it works" card that sat under it was removed on the owner's
+// instruction, 18/09/2026) — the key is set once, the switches are what somebody comes here to flip.
 
 // A mark per department, from the one icon set. A department the registry
 // grows that is not listed here gets the neutral mark rather than breaking.
@@ -178,14 +179,13 @@ export default function NovaSwitchboard() {
         )}
       </div>
 
-      {/* ---- beside the list: the key, then the rules --------------------- */}
+      {/* ---- beside the list: the key --------------------------------------- */}
       <aside className="space-y-6 xl:sticky xl:top-0 xl:self-start">
         {/* THE KEY IS THE SAME ONE BROADCAST RUNS ON, and the form is the same
             component. Setting it here switches on the assistant AND the studio
             band's automated messages, because there is one credential; the card
             says so rather than leaving somebody to find out. */}
         <NovaCredentials note="One key for the platform. Nova's chat and Broadcast's automated messages both run on it." />
-        <Rules />
       </aside>
     </div>
   );
@@ -280,34 +280,5 @@ function Chip({ children }) {
     <span className="rounded-md bg-[var(--ad-muted)] px-1.5 py-0.5 text-[10.5px] font-600 text-[var(--ad-muted-foreground)]">
       {children}
     </span>
-  );
-}
-
-// The prose that used to open the page, as three rules somebody can take in at
-// a glance. Same three facts: switches never grant rights, answers only read,
-// actions confirm before they write.
-function Rules() {
-  const RULES = [
-    { icon: "shield", title: "Rights still apply", body: "Every capability checks the asking person's own permission each time it runs." },
-    { icon: "eye", title: "Answers only read", body: "They look up records and report back. Nothing is changed." },
-    { icon: "zap", title: "Actions confirm first", body: "Nova shows what it is about to write and waits for a yes." },
-  ];
-  return (
-    <Card className="p-5">
-      <p className="font-display text-sm font-700">How it works</p>
-      <ul className="mt-4 space-y-4">
-        {RULES.map((r) => (
-          <li key={r.title} className="flex gap-3">
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--ad-muted)] text-[var(--ad-muted-foreground)]">
-              <Icon name={r.icon} className="h-4 w-4" />
-            </span>
-            <div>
-              <p className="text-sm font-600">{r.title}</p>
-              <p className="mt-0.5 text-xs leading-5 text-[var(--ad-muted-foreground)]">{r.body}</p>
-            </div>
-          </li>
-        ))}
-      </ul>
-    </Card>
   );
 }
