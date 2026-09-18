@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { Icon } from "@/components/studio2/icons";
 import Autocomplete from "@mui/material/Autocomplete";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { posDict } from "@/shared/studio/pos";
@@ -182,8 +183,19 @@ export default function StudioPos({ slug }) {
 
       {/* THE BAR: which till, which shift, and the way out. */}
       <header className="flex flex-wrap items-center gap-3 border-b border-slate-200/70 px-4 py-3 dark:border-white/10">
-        {/* BACK TO THE DEPARTMENT the till belongs to (17/09/2026). */}
-        <Link href={`/${slug}/pos`} className="text-sm font-600 text-slate-500 hover:text-brand-700 dark:text-slate-400">← {tr.back}</Link>
+        {/* BACK TO THE DEPARTMENT the till belongs to (17/09/2026). A round
+            arrow, not a text link: "Back to Point of Sale" beside the title
+            "Point of sale" said the name twice (the owner, 18/09/2026: "better
+            back button"). The words stay as its accessible name and tooltip.
+            Same button the documentation page leads with (StudioDocs). */}
+        <Link
+          href={`/${slug}/pos`}
+          title={tr.back}
+          aria-label={tr.back}
+          className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--geex-surface)] text-slate-600 shadow-geex-sm transition-colors hover:text-brand-600 dark:text-slate-300"
+        >
+          <Icon name="arrowLeft" className="h-[18px] w-[18px] rtl:-scale-x-100" />
+        </Link>
         <h1 className="font-display text-lg font-800 text-[var(--geex-ink)]">{tr.title}</h1>
         {terminal && (
           <span className="rounded-full bg-brand-500/10 px-2.5 py-1 text-xs font-700 text-brand-700 dark:text-brand-300">
