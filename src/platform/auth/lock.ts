@@ -22,7 +22,7 @@ import {
   getUserById, listSessionRows, patchSessionState, ensureSessionState, endSessions, digestOf, sessionId,
   type SessionState,
 } from "./users";
-import { revokeDevice } from "./otp";
+import { revokeDevice, revokeAllDevices } from "./otp";
 import { isLocked } from "./sessionPolicy";
 import { pinProblem, isIdleChoice, PIN_MAX_FAILS } from "@/shared/pin";
 
@@ -40,6 +40,10 @@ export type UserSecurity = {
   pinGuard?: { fails: number; until: number };
   /** Authenticator (TOTP) two-factor sign-in, when switched on. */
   totp?: { secret: string; recoveryCodes: string[]; enabledAt: string } | null;
+  /** Passkeys (WebAuthn) — public keys only; see passkeys.ts. */
+  passkeys?: import("./passkeys").PasskeyRow[];
+  /** The challenge a passkey being added must sign, for five minutes. */
+  passkeyChallenge?: { value: string; expires: number } | null;
 };
 
 export const getSecurity = (userId: string) => getJSON<UserSecurity>(U.security(userId));
@@ -231,4 +235,36 @@ export async function signingPinProblem(
   if (pin === undefined || pin === null || String(pin) === "") return { error: "pin-required" as const };
   const checked = await checkPinForAct(userId, pin);
   return "error" in checked ? checked : null;
+}
+
+// ---- the console's reset (18/09/2026) ------------------------------------------
+//
+// FOR SOMEBODY LOCKED OUT OF THEIR OWN ACCOUNT — a lost phone with no recovery
+// codes left, a forgotten PIN, a lost security key. Only nompany's console can
+// do it (the route is `auth: "super"` and the wrapper writes the audit line),
+// and the person is emailed that it was done, so a reset they did not ask for
+// is something they hear about.
+//
+// Each part is reset on its own: clearing the PIN does not touch the
+// authenticator. Resetting the authenticator also forgets every trusted
+// device, so the next sign-in anywhere passes the emailed code — the factor
+// that is left.
+export const RESETTABLE = ["two-factor", "pin", "passkeys"] as const;
+export type Resettable = (typeof RESETTABLE)[number];
+
+export async function resetSecurity(userId: string, what: Resettable) {
+  if (what === "two-factor") {
+    await patchSecurity(userId, (cur) => ({ ...cur, totp: null }));
+    await revokeAllDevices(userId);
+  } else if (what === "pin") {
+    await patchSecurity(userId, (cur) => ({ ...cur, pinHash: "", pinSetAt: "", idleMinutes: 0, pinGuard: { fails: 0, until: 0 } }));
+    await applyIdleToSessions(userId, 0);
+    // A session locked behind the PIN that no longer exists could never open.
+    for (const row of await listSessionRows(userId)) {
+      const digest = digestOf(row);
+      if (digest) await patchSessionState(digest, (s) => ({ ...s, lockedAt: 0, pinFails: 0 }));
+    }
+  } else {
+    await patchSecurity(userId, (cur) => ({ ...cur, passkeys: [], passkeyChallenge: null }));
+  }
 }

@@ -25,6 +25,7 @@ import CreateStudioScreen from "@/components/public/CreateStudioScreen";
 import SecuritySessions from "@/components/public/SecuritySessions";
 import SecurityLock from "@/components/public/SecurityLock";
 import SecurityTwoFactor from "@/components/public/SecurityTwoFactor";
+import SecurityPasskeys from "@/components/public/SecurityPasskeys";
 import SessionLock from "@/components/security/SessionLock";
 
 // The account hub, laid out like the Google Account console:
@@ -1092,6 +1093,7 @@ function Security({ devices, onChanged, locale, user }) {
         <button className={cn(BTN_GHOST, "mt-4")} onClick={revokeAll} disabled={busy}>{busy ? tr.removing : tr.removeAllDevices}</button>
       )}
 
+      <SecurityPasskeys hasPassword={hasPassword} />
       <SecurityTwoFactor hasPassword={hasPassword} />
       <SecurityLock />
       <SecuritySessions />

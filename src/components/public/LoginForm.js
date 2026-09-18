@@ -11,6 +11,7 @@ import SessionChooser from "@/components/public/SessionChooser";
 import { LockCover } from "@/components/security/SessionLock";
 import TillCashierSwitch from "@/components/security/TillCashierSwitch";
 import TwoFactorStep from "@/components/public/TwoFactorStep";
+import PasskeySignIn from "@/components/public/PasskeySignIn";
 import { securityDict, endedMessage } from "@/shared/security";
 // The landing's floating-label field — label lifts on focus, an iris→cyan
 // hairline draws under the active field, a mint tick confirms a valid one. It
@@ -291,6 +292,11 @@ export default function LoginForm({ locale, dict, providers = [] }) {
   return (
     <div key="credentials" className="auth-panel space-y-5">
       <SocialButtons providers={providers} mode="login" />
+      {/* A passkey is a whole sign-in: no password, no code. */}
+      <PasskeySignIn onDone={(data) => {
+        if (data?.chooseSession) { setSessions(data.sessions || []); setStage("choose"); return; }
+        window.location.assign(`/${locale}/questionnaire`);
+      }} />
       <form onSubmit={onSubmit} className="space-y-4">
         <FloatingField
           label={t.emailLabel || "Work email"}

@@ -223,6 +223,35 @@ If this was not you, change your password and use "Sign out everywhere" on your 
   return { subject, html: layout({ title: subject, bodyHtml, preheader: "Each nompany seat is for one person." }), text };
 }
 
+// A SECURITY RESET BY NOMPANY (18/09/2026). Sent every time the console resets
+// part of somebody's sign-in, so a reset they did not ask for is one they hear
+// about — and know what to do about.
+const RESET_WHAT: Record<string, string> = {
+  "two-factor": "two-factor sign-in (your authenticator app)",
+  pin: "screen-lock PIN",
+  passkeys: "passkeys",
+};
+export function securityResetEmail({ name, what }: { name?: string; what?: string } = {}) {
+  const greetingName = name || "there";
+  const part = RESET_WHAT[String(what)] || "sign-in security";
+  const subject = "Part of your nompany sign-in was reset";
+  const bodyHtml = `
+    <h1 style="margin:0 0 12px;font-size:20px;color:${BRAND.text};">Your ${esc(part)} was reset</h1>
+    <p style="margin:0 0 16px;font-size:14px;line-height:1.6;color:${BRAND.text};">
+      Hi ${esc(greetingName)}, nompany support reset your ${esc(part)}. You can set it up again on your account's Security page.
+    </p>
+    <p style="margin:0;font-size:13px;line-height:1.6;color:${BRAND.muted};">
+      If you did not ask for this, change your password and use "Sign out everywhere" on the Security page, then contact us.
+    </p>`;
+  const text = `Your ${part} was reset
+
+Hi ${greetingName},
+nompany support reset your ${part}. You can set it up again on your account's Security page.
+
+If you did not ask for this, change your password and use "Sign out everywhere" on the Security page, then contact us.`;
+  return { subject, html: layout({ title: subject, bodyHtml, preheader: `Your ${part} was reset by nompany support.` }), text };
+}
+
 // Studio invitation — a manager invited this address to join their studio.
 // Names the person who invited them (and their email) per the studio's request.
 export function studioInviteEmail({ companyName, url, invitedByName, invitedByEmail }: { companyName?: string; url?: string; invitedByName?: string; invitedByEmail?: string } = {}) {

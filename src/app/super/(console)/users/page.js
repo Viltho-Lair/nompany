@@ -66,6 +66,10 @@ async function renderUsers() {
         evictions7d: u.sharing.evictions7d,
         newDevices30d: u.sharing.newDevices30d,
         warned: u.sharing.warnedAt ? lastActiveLabel(Date.parse(u.sharing.warnedAt), now) : "",
+        // What sign-in security they have set up, for the reset menu.
+        twoFactor: u.security.twoFactor,
+        pin: u.security.pin,
+        passkeys: u.security.passkeys,
       };
     })
     .sort(compareUsers);

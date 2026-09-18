@@ -22,6 +22,7 @@ import {
 import type { SessionState } from "./users";
 import { planSignIn, publicSession, isLocked, type PublicSession } from "./sessionPolicy";
 import { twoFactorEnabled, passTwoFactor } from "./twoFactor";
+import { verifySignIn as verifyPasskey } from "./passkeys";
 import { OTP, ID, IX } from "@/platform/db/keys";
 import { getJSON, setJSONEx, getJSONMany, release } from "@/platform/db/store";
 import type { User, Questionnaire } from "./users";
@@ -602,7 +603,8 @@ async function endForSignIn(userId: string, ids: string[], facts: DeviceFacts) {
 /** A paused sign-in, as its screen needs it: which sessions it may end. */
 export async function pendingSignIn(ticketId: string) {
   const t = ticketId ? await getJSON<PendingSignIn>(OTP.pending(ticketId)) : null;
-  if (!t) return { error: "expired" as const };
+  // A passkey ceremony shares the ticket store and is none of this function's business.
+  if (!t || (t.stage !== "totp" && t.stage !== "choose")) return { error: "expired" as const };
   if (t.stage === "totp") return { stage: t.stage, sessions: [] as PublicSession[] };
   const plan = planSignIn(await listSessionRows(t.userId), deviceSlot(t.device?.deviceType), Date.now());
   return {
@@ -637,6 +639,23 @@ export async function chooseSessionToEnd(ticketId: string, endId: unknown, { des
   if (candidates.has(id)) await endForSignIn(t.userId, [id], t.device || {});
   const opened = await openSession({ userId: t.userId, ttl: t.ttl, deviceId: t.deviceId, device: t.device, desktop });
   return { user, ...opened };
+}
+
+/**
+ * SIGN IN WITH A PASSKEY (passkeys.ts). The passkey is both factors, so neither
+ * the emailed code nor the authenticator is asked; the device is recorded like
+ * any sign-in with its trust left as it was — trust is about skipping the code
+ * after a PASSWORD — and the session limit applies as it does everywhere.
+ */
+export async function signInWithPasskey(
+  ticketId: string, request: Request, response: unknown,
+  { deviceId, device, desktop = false }: { deviceId?: string; device?: DeviceFacts; desktop?: boolean } = {},
+) {
+  const who = await verifyPasskey(ticketId, request, response);
+  if (who.error !== undefined || !who.userId) return { error: who.error || ("passkey-invalid" as const) };
+  const recorded = await recordDevice(who.userId, deviceId, device || {}, { trusted: "keep" });
+  const opened = await openSession({ userId: who.userId, ttl: REMEMBER_TTL, deviceId: recorded.id, device, desktop });
+  return { user: who.user, deviceId: recorded.id, ...opened };
 }
 
 /** The digest of the session this request carries, or "" when it carries none. */

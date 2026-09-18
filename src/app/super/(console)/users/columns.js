@@ -22,6 +22,9 @@ export const USERS_COLUMNS = [
   // than one person (18/09/2026) — docs/functionality/sessions-and-devices.md.
   { field: "sessions", headerName: "Sessions", width: 100 },
   { field: "sharing", headerName: "Sharing", width: 150, skeleton: "pill" },
+  // WHAT THEY SIGN IN WITH beyond the password — 2FA, PIN, passkeys — and so
+  // what the row menu can reset (18/09/2026).
+  { field: "security", headerName: "Security", width: 150 },
   { field: "actions", headerName: "", width: 72, skeleton: "pill" },
 ];
 

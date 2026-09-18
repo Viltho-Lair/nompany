@@ -200,7 +200,9 @@ export async function recordDevice(
   userId: string,
   deviceId: string | null | undefined,
   { label = "", deviceType = "", location = "", ipHash = "" }: DeviceFacts = {},
-  { trusted = true }: { trusted?: boolean } = {},
+  // "keep": record the sign-in and leave the device's trust as it was — a
+  // passkey sign-in says nothing about whether this browser may skip a code.
+  { trusted = true }: { trusted?: boolean | "keep" } = {},
 ): Promise<{ id: string; trusted: boolean; trustRefused: boolean }> {
   const id = deviceId && String(deviceId).startsWith("dev") ? deviceId : makeId("dev");
   const facts = {
@@ -221,7 +223,11 @@ export async function recordDevice(
     // otherwise; an account holding more than three from before the cap keeps
     // them until they expire or are removed.
     const trustedElsewhere = live.filter((d) => d.id !== id && d.trusted !== false).length;
-    const mayTrust = Boolean(trusted) && trustedElsewhere < TRUSTED_DEVICE_LIMIT;
+    const wants = trusted === "keep" ? Boolean(existing && existing.trusted !== false) : Boolean(trusted);
+    // A device already trusted keeps its place: the cap stops a NEW one, it never
+    // evicts one an account held before the cap existed.
+    const already = Boolean(existing && existing.trusted !== false);
+    const mayTrust = wants && (already || trustedElsewhere < TRUSTED_DEVICE_LIMIT);
     const row: DeviceRow = {
       ...existing,
       ...facts,
@@ -247,7 +253,7 @@ export async function recordDevice(
   // signals. Counted where the row is first written, because that is the one
   // place that knows the difference between a new browser and a returning one.
   if (isNew) await recordSignal(userId, "newDevices");
-  return { id, trusted: outcome.trusted, trustRefused: Boolean(trusted) && !outcome.trusted };
+  return { id, trusted: outcome.trusted, trustRefused: trusted === true && !outcome.trusted };
 }
 
 // True only for a live, unexpired device belonging to THIS user — a device

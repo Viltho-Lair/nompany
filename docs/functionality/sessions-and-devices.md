@@ -188,14 +188,47 @@ the recovery codes shown, once. Switching it off needs a current code or a recov
 For sharing, this is what makes a new device need the owner's **phone**, not an inbox that can
 be forwarded to a team.
 
+## Passkeys
+
+A person can add passkeys on the Security page and **sign in with one** from the sign-in
+page (`platform/auth/passkeys.ts`, through `@simplewebauthn/server` and `/browser`). **A
+passkey is a whole sign-in**: the device holds a private key that never leaves it and its own
+unlock proves the person, so neither the emailed code nor the authenticator is asked. The
+session limit still applies. Nothing is typed — the passkeys are discoverable, and the user id
+travels inside each one and comes back as its user handle, which is how the server knows
+whose it is.
+
+- **Stored on the person's security document: public keys only** — credential id, public
+  key, signature counter, when added and last used, whether it syncs. Nothing secret.
+- **Every ceremony's challenge is kept five minutes and spent on first use**; a registration's
+  on the person's document, a sign-in's on a ticket (`OTP.pending`) the page sends back.
+- **Adding and removing need the account password** where there is one. Ten at most.
+- **The relying party is the site's domain without "www."**, so a passkey made on
+  www.nompany.com works on nompany.com where studios live; `PASSKEY_RP_ID` overrides it.
+- A passkey sign-in records the device like any sign-in and **leaves its trust as it was**;
+  trust is about skipping the code after a password. (The same change stops the trusted-device
+  cap from ever untrusting a device that was already trusted.)
+- The browser library is loaded only when a passkey is used or made, so the sign-in page does
+  not pay for it up front.
+
+## Resetting a person's sign-in, from the console
+
+`/super` → Users has a **Security** column (2FA, PIN, passkeys) and, in the row menu, **Reset
+two-factor**, **Reset PIN** and **Remove passkeys** — each offered only when the person has it,
+each confirmed first (`/api/super/users/<id>/reset`, `resetSecurity` in `lock.ts`). It is for
+somebody locked out of their own account: a lost phone with no recovery codes, a forgotten PIN,
+a lost security key.
+
+- **Resetting two-factor also forgets every trusted device**, so the next sign-in anywhere
+  passes the emailed code — the factor that is left.
+- **Resetting the PIN** clears it, switches the idle lock off, and opens any session locked
+  behind it (nothing could unlock it any more).
+- **The person is emailed** that nompany support reset that part of their sign-in, and what to do
+  if they did not ask for it (`securityResetEmail`). The route wrapper writes the audit line.
+
 ## Not built yet
 
-- **Passkeys (WebAuthn).** Next after the authenticator app in the owner's order; not built.
-  Verifying WebAuthn attestations and assertions by hand is not something to write without a
-  maintained library, and adding one is its own decision.
-- **Two-factor for the desktop client.** The login answer carries `totpRequired` and the
-  ticket id, and the desktop app has no screen for the code yet.
-- **A support reset for a lost phone with no recovery codes left.** The person cannot sign in
-  on a new device; nothing in `/super` can switch their two-factor off yet.
+- **Two-factor and passkeys in the desktop app** — left aside on the owner's instruction,
+  18/09/2026. Its login answer carries `totpRequired` and the ticket id; it has no screen for them.
 - **The session limit is checked at sign-in only.** Two sign-ins at the same instant can both
   pass and leave one session over the limit until the next sign-in.

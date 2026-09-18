@@ -42,7 +42,7 @@ const roleTone = (role) => (role === SUPER_ROLE ? "danger" : role === MEMBER_ROL
 // definition was rebuilt — and the grid re-measured every column — the moment
 // anyone clicked a role. Only one row is ever in flight, and it is this one, so
 // it belongs here.
-function RoleMenu({ row, onPick, onWarn, onStatus }) {
+function RoleMenu({ row, onPick, onWarn, onStatus, onReset }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -87,7 +87,7 @@ function RoleMenu({ row, onPick, onWarn, onStatus }) {
     const place = () => {
       const r = ref.current?.getBoundingClientRect();
       if (!r) return;
-      const W = 232, H = 340;
+      const W = 232, H = 440;
       setAt({
         // Flip above when the row is near the bottom, so the last user's menu is
         // not half off the window.
@@ -170,6 +170,18 @@ function RoleMenu({ row, onPick, onWarn, onStatus }) {
                 <button type="button" role="menuitem" className={item} onClick={() => run(onWarn)}>
                   <span className="flex-1">Send sharing warning</span>
                 </button>
+                {/* RESET PART OF THEIR SIGN-IN — for somebody locked out. Each is
+                    offered only when they have it, asks first, and emails them. */}
+                {[
+                  ["two-factor", "Reset two-factor", row.twoFactor],
+                  ["pin", "Reset PIN", row.pin],
+                  ["passkeys", "Remove passkeys", row.passkeys > 0],
+                ].filter(([, , has]) => has).map(([what, label]) => (
+                  <button key={what} type="button" role="menuitem" className={item}
+                    onClick={() => { if (window.confirm(`${label} for ${row.name}? They are emailed that it was done.`)) run(() => onReset(what)); }}>
+                    <span className="flex-1">{label}</span>
+                  </button>
+                ))}
                 {row.status === STATUS.suspended ? (
                   <button type="button" role="menuitem" className={item} onClick={() => run(() => onStatus("active"))}>
                     <span className="flex-1">Reactivate</span>
@@ -252,6 +264,21 @@ export default function UsersTable({ rows }) {
     }
   }, [router]);
 
+  const resetPart = useCallback(async (row, what) => {
+    setError(""); setNotice("");
+    try {
+      const res = await fetch(`/api/super/users/${row.id}/reset`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ what }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { setError("Couldn't reset that."); return; }
+      setNotice(data.emailSent ? `Reset done; ${row.email} was emailed.` : `Reset done, but the email to ${row.email} did not go.`);
+      router.refresh();
+    } catch {
+      setError("Couldn't reach the server.");
+    }
+  }, [router]);
+
   const setStatus = useCallback(async (row, status) => {
     setError(""); setNotice("");
     try {
@@ -312,19 +339,24 @@ export default function UsersTable({ rows }) {
           </span>
         ),
       },
+      security: {
+        sortable: false,
+        valueGetter: (_v, row) => [row.twoFactor && "2FA", row.pin && "PIN", row.passkeys > 0 && `${row.passkeys} passkey${row.passkeys === 1 ? "" : "s"}`].filter(Boolean).join(" · "),
+        renderCell: ({ value }) => <span className="truncate text-xs text-[var(--ad-muted-foreground)]">{value || "—"}</span>,
+      },
       actions: {
         sortable: false,
         align: "right",
         renderCell: ({ row }) => (
           <RoleMenu row={row} onPick={(r) => assignRole(row.id, r)}
-            onWarn={() => warn(row)} onStatus={(st) => setStatus(row, st)} />
+            onWarn={() => warn(row)} onStatus={(st) => setStatus(row, st)} onReset={(what) => resetPart(row, what)} />
         ),
       },
     };
     // `skeleton` is stripped: it is metadata for the placeholder, and MUI warns
     // about props it does not recognise on a column definition.
     return USERS_COLUMNS.map(({ skeleton, ...col }) => ({ ...col, ...(render[col.field] || {}) }));
-  }, [assignRole, warn, setStatus]);
+  }, [assignRole, warn, setStatus, resetPart]);
 
   return (
     <Card className="overflow-hidden">

@@ -184,7 +184,7 @@ export async function touchLastSeen(userId: string) {
 export async function listUsersForConsole() {
   const [rows, studios] = await Promise.all([readArr<User>(REG.users), listStudios()]);
   const ids = rows.map((u) => u.id);
-  const [profiles, activities, collabs, sessionLists] = await Promise.all([
+  const [profiles, activities, collabs, sessionLists, securities] = await Promise.all([
     getProfilesByIds(ids),
     // Activity moved off the registry row (R6). Read it here and fall back to
     // whatever the old g:users row still carries, so a user last seen before
@@ -194,6 +194,9 @@ export async function listUsersForConsole() {
     // WHERE EACH PERSON IS SIGNED IN, for the sharing flag and the sessions
     // filter (18/09/2026) — one batched read beside the other three.
     getJSONMany<SessionRow[]>(ids.map((id) => U.sessions(id))),
+    // WHAT EACH PERSON HAS SET UP, for the console's reset menu — booleans only
+    // are read off it below; the sealed secret never leaves this function.
+    getJSONMany<{ pinHash?: string; totp?: { enabledAt?: string } | null; passkeys?: unknown[] }>(ids.map((id) => U.security(id))),
   ]);
   const byId = new Map(studios.map((s) => [String(s.id), s]));
   const now = Date.now();
@@ -234,6 +237,11 @@ export async function listUsersForConsole() {
         sharing: {
           ...sharingSignals(activity, (sessionLists[i] || []).filter((r) => isLive(r, now) && counts(r)).length, now),
           warnedAt: activity?.warnedAt || "",
+        },
+        security: {
+          twoFactor: Boolean(securities[i]?.totp?.enabledAt),
+          pin: Boolean(securities[i]?.pinHash),
+          passkeys: Array.isArray(securities[i]?.passkeys) ? securities[i]!.passkeys!.length : 0,
         },
       };
     });

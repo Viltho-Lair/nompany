@@ -125,6 +125,21 @@ const en = {
   codeLockedStart: "Too many wrong codes. Sign in again.",
   trustDevice: "Trust this device for 30 days",
   verify: "Verify",
+
+  // ---- passkeys ----------------------------------------------------------------
+  passkeySignIn: "Sign in with a passkey",
+  passkeyFailed: "That passkey didn't sign you in. Try again, or use your email and password.",
+  passkeysTitle: "Passkeys",
+  passkeysBlurb: "Sign in with your fingerprint, face or device PIN instead of a password and code. A passkey stays on your phone, computer or security key.",
+  passkeyAdd: "Add a passkey",
+  passkeyName: "Name it (e.g. Work laptop)",
+  passkeyNone: "No passkeys yet",
+  passkeySynced: "Synced",
+  passkeyAdded: (when: string) => `Added ${when}`,
+  passkeyUsed: (when: string) => `last used ${when}`,
+  passkeyRemove: "Remove",
+  passkeyCancelled: "The passkey wasn't created.",
+  passkeyUnsupported: "This browser can't use passkeys.",
 };
 
 const ar: typeof en = {
@@ -234,6 +249,20 @@ const ar: typeof en = {
   codeLockedStart: "رموز خاطئة كثيرة. سجّل الدخول مرة أخرى.",
   trustDevice: "الوثوق بهذا الجهاز لمدة 30 يوما",
   verify: "تحقق",
+
+  passkeySignIn: "تسجيل الدخول بمفتاح المرور",
+  passkeyFailed: "لم يسجّل مفتاح المرور دخولك. حاول مرة أخرى، أو استخدم بريدك وكلمة المرور.",
+  passkeysTitle: "مفاتيح المرور",
+  passkeysBlurb: "سجّل الدخول ببصمتك أو وجهك أو رمز جهازك بدلا من كلمة المرور والرمز. يبقى مفتاح المرور على هاتفك أو حاسوبك أو مفتاح الأمان.",
+  passkeyAdd: "إضافة مفتاح مرور",
+  passkeyName: "سمّه (مثل حاسوب العمل)",
+  passkeyNone: "لا توجد مفاتيح مرور بعد",
+  passkeySynced: "متزامن",
+  passkeyAdded: (when: string) => `أضيف ${when}`,
+  passkeyUsed: (when: string) => `آخر استخدام ${when}`,
+  passkeyRemove: "إزالة",
+  passkeyCancelled: "لم يُنشأ مفتاح المرور.",
+  passkeyUnsupported: "لا يدعم هذا المتصفح مفاتيح المرور.",
 };
 
 const dict = { en, ar } as const;
