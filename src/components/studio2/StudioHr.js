@@ -5,7 +5,7 @@ import { useStudioLocale } from "@/components/studio2/locale";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { hrDict } from "@/shared/studio/hr";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
-import { panel, label, btn, btnGhost, th, stripeOn, stripeOff, Dialog, Toolbar, Empty, fmtDate, StatTile, microLabel } from "@/components/studio2/ui";
+import { panel, label, btn, btnGhost, th, stripeOn, stripeOff, Dialog, Toolbar, Empty, fmtDate, StatTile } from "@/components/studio2/ui";
 import { Field } from "@/components/fields/Field";
 import StudioDate from "@/components/fields/StudioDate";
 import { initialsOf } from "@/lib/initials";
@@ -256,16 +256,9 @@ function roleForbiddenMessage(out, tr) {
 function Overview({ headcount, departments, expiring, windowDays }) {
   const locale = useStudioLocale();
   const tr = hrDict(locale);
-  // STAFFED FIRST AND LARGEST FIRST, with a bar each so the shape of the
-  // company reads at a glance. A department with nobody in it is still listed —
-  // it exists and somebody may be about to join it — but once, together, and
-  // quietly, rather than as eleven equal pills with a nought on each.
-  const rows = departments
-    .map((d) => ({ ...d, n: headcount.byDepartment[d.id] || 0 }))
-    .sort((a, b) => b.n - a.n || String(a.name).localeCompare(String(b.name)));
-  const staffed = rows.filter((r) => r.n > 0);
-  const empty = rows.filter((r) => r.n === 0);
-  const max = Math.max(1, ...staffed.map((r) => r.n));
+  // The per-department breakdown panel was removed on the owner's instruction
+  // (18/09/2026); only the staffed COUNT survives, on the Departments tile.
+  const staffed = departments.filter((d) => (headcount.byDepartment[d.id] || 0) > 0);
 
   return (
     <div className="space-y-4">
@@ -277,31 +270,6 @@ function Overview({ headcount, departments, expiring, windowDays }) {
           tone={headcount.unassigned > 0 ? "text-amber-600 dark:text-amber-400" : ""}
           sub={headcount.unassigned > 0 ? tr.unassignedHint : tr.everyonePlaced} />
       </div>
-
-      {departments.length > 0 && (
-        <section className={panel}>
-          <p className={microLabel}>{tr.headcountByDepartment}</p>
-          {staffed.length > 0 && (
-            <ul className="mt-3 space-y-2.5">
-              {staffed.map((d) => (
-                <li key={d.id} className="grid grid-cols-[minmax(0,14rem)_1fr_2.5rem] items-center gap-3 text-sm">
-                  <span className="truncate text-slate-700 dark:text-slate-200">{d.name}</span>
-                  <span className="h-2 rounded-full bg-slate-100 dark:bg-white/5">
-                    <span className="block h-2 rounded-full bg-brand-600" style={{ width: `${(d.n / max) * 100}%` }} />
-                  </span>
-                  <span className="num text-end font-600 text-slate-900 dark:text-white">{d.n}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-          {empty.length > 0 && (
-            <div className={staffed.length > 0 ? "mt-4 border-t border-slate-100 pt-3 dark:border-white/5" : "mt-3"}>
-              <p className="text-xs font-600 text-slate-500 dark:text-slate-400">{tr.noOneYet(empty.length)}</p>
-              <p className="mt-1 text-sm leading-6 text-slate-400 dark:text-slate-500">{empty.map((d) => d.name).join(" · ")}</p>
-            </div>
-          )}
-        </section>
-      )}
 
       {expiring.length > 0 && (
         <section className="rounded-geex border border-amber-300/60 bg-amber-50 p-5 dark:border-amber-500/30 dark:bg-amber-500/10">

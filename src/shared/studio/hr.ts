@@ -140,8 +140,6 @@ type Strings = CommonStrings & {
   staffedOf: (staffed: number, total: number) => string;
   unassignedHint: string;
   everyonePlaced: string;
-  headcountByDepartment: string;
-  noOneYet: (n: number) => string;
   expiringWithin: (days: number) => string;
   expiredAgo: (n: number) => string;
   expiresIn: (n: number) => string;
@@ -313,8 +311,6 @@ const en: Strings = {
   staffedOf: (s, t) => `${s} of ${t} have people`,
   unassignedHint: "Not placed in a department yet",
   everyonePlaced: "Everyone is in a department",
-  headcountByDepartment: "People by department",
-  noOneYet: (n) => `No one yet in ${n} ${n === 1 ? "department" : "departments"}`,
   expiringWithin: (d) => `Documents expiring within ${d} days`,
   expiredAgo: (n) => `expired ${n} ${n === 1 ? "day" : "days"} ago`,
   expiresIn: (n) => `in ${n} ${n === 1 ? "day" : "days"}`,
@@ -489,8 +485,6 @@ const ar: Strings = {
   staffedOf: (s, t) => `${s} من ${t} فيها موظفون`,
   unassignedHint: "لم يوضعوا في قسم بعد",
   everyonePlaced: "الجميع في أقسام",
-  headcountByDepartment: "الموظفون حسب القسم",
-  noOneYet: (n) => `أقسام بلا موظفين بعد: ${n}`,
   expiringWithin: (d) => `وثائق تنتهي خلال ${d} يوما`,
   expiredAgo: (n) => `انتهت منذ ${n} يوما`,
   expiresIn: (n) => `خلال ${n} يوما`,
