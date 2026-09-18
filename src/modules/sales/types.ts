@@ -42,6 +42,8 @@ export type PosContext = ModuleContext & {
   stockSection: Section | null;
   /** CRM's client register, where a phone number registers a repeat customer. Null when CRM is off. */
   clientsSection: Section | null;
+  /** Finance → Cash, where invoices and credit notes are filed. Null when Finance is off. */
+  cashSection: Section | null;
   canViewPos: boolean;
   canManagePos: boolean;
 };

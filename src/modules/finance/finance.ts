@@ -21,6 +21,7 @@ import { addDaysISO } from "@/shared/dates";
 import { documentVatRate } from "@/shared/vat";
 import { documentTotals } from "@/shared/documentTotals";
 import { roundMoney } from "@/shared/money";
+import { creditedSoFar } from "./creditNotes";
 import { withholdingProblems, cleanWithholding, withholdingOn, settledWith } from "./withholding";
 import type { WithholdingRule } from "./withholding";
 import { approvalChainsFor } from "@/platform/approval/store";
@@ -53,6 +54,9 @@ const ORDERS = "materialOrders";
 const Invoices = repo<Invoice>(INVOICES);
 const Expenses = repo<Expense>(EXPENSES);
 const Projects = repo(PROJECTS);
+// Read beside the invoices so the receivable counts what was credited back.
+const CreditNoteRows = repo<{ id: string; invoiceId: string; status: string; amount: number }>("creditNotes");
+const SaleItems = repo<{ id: string; name: string; sku?: string; sellPrice?: unknown; taxCategory?: string }>("inventoryItems");
 const Orders = repo(ORDERS);
 
 export const INVOICE_STATUSES = ["Draft", "Sent", "Paid", "Cancelled"];
@@ -106,6 +110,9 @@ export const financeContext = moduleContext<FinanceContext>({
     // Foreign and nullable — the same line Projects declares for the same
     // register, falling back to Inventory for a studio that predates it.
     vendors: ["procurement-suppliers", "inventory"],
+    // INVENTORY'S ITEMS, so an invoice line can name what it sells (18/09/2026)
+    // — and a return against it can put that back. Nullable like the rest.
+    items: ["inventory-items", "inventory"],
   },
   flags: ["cash", "ledger", "payables", "assets", "settings"],
   extend: ({ settingsSection, studio }) => ({
@@ -266,13 +273,29 @@ function statusFor(
 }
 
 // ---- invoices --------------------------------------------------------------
+/**
+ * WHAT AN INVOICE LINE CAN NAME — the studio's items with the price they sell
+ * at, never what they cost: the invoice form needs the price, and a clerk
+ * raising invoices has no business reading the margin. Empty with no Inventory.
+ */
+export async function saleItems(ctx: FinanceContext) {
+  if (!ctx.itemsSection) return [];
+  const rows = await SaleItems.find({ studio: ctx.studio, section: ctx.itemsSection });
+  return rows.map((i) => ({
+    id: i.id, name: i.name, sku: i.sku || "",
+    sellPrice: Number(i.sellPrice) || 0,
+    ...(i.taxCategory && i.taxCategory !== "standard" ? { taxCategory: i.taxCategory } : {}),
+  }));
+}
+
 export async function listInvoices(
   { studio, cashSection, withholdingRules = [] }:
   Pick<FinanceContext, "studio" | "cashSection"> & { withholdingRules?: WithholdingRule[] },
 ) {
-  const [invoices, projects] = await Promise.all([
+  const [invoices, projects, notes] = await Promise.all([
     Invoices.find({ studio, section: cashSection }),
     projectRows({ studio }),
+    CreditNoteRows.find({ studio, section: cashSection }),
   ]);
   const projectNumber = Object.fromEntries(projects.map((p) => [p.id, p.number]));
 
@@ -289,11 +312,21 @@ export async function listInvoices(
       const rule = withholdingRules.find((r) => r.label === String(inv.withholdingLabel || "")) || null;
       const currency = inv.currency || studio.currency;
       const withheld = withholdingOn(rule, totals, currency);
-      const settlement = settledWith(totals, withheld, currency);
+      // WHAT WAS CREDITED BACK is not owed. Issued notes only (./creditNotes):
+      // a draft is somebody typing. The invoice still says what was charged;
+      // what is expected against it falls by the credit. Credit notes had no
+      // screen until 18/09/2026, which is why nothing here counted them.
+      const credited = creditedSoFar(notes, inv.id, currency);
+      const settled = settledWith(totals, withheld, currency);
+      const settlement = credited > 0
+        ? { ...settled, expected: roundMoney(Math.max(0, settled.expected - credited), currency),
+            outstanding: roundMoney(Math.max(0, settled.expected - credited - totals.paid), currency) }
+        : settled;
       const status = statusFor(inv, { ...totals, total: settlement.expected });
       return {
         ...inv, ...totals, status,
         withheld,
+        credited,
         expected: settlement.expected,
         // OUTSTANDING IS AGAINST THE NET, not the gross: a client who withholds
         // pays less and still owes nothing, and chasing them for the tax would
@@ -730,6 +763,8 @@ export function cleanLines(list: unknown, currency: unknown): InvoiceLine[] {
       qty: Number(l?.qty) > 0 ? Math.round(Number(l.qty) * 1000) / 1000 : 0,
       unitPrice: cash(l?.unitPrice, currency),
       ...taxCategoryField(l?.taxCategory),
+      // Stored only when a line names an item, like the tax category.
+      ...(str(l?.itemId, 60) ? { itemId: str(l?.itemId, 60) } : {}),
     }))
     .filter((l) => l.description && l.qty > 0)
     .slice(0, 200);

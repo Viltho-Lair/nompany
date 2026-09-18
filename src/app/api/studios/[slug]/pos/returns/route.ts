@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 // a cash refund with no drawer open are the world disagreeing: 409.
 const spec = {
   auth: "studio", context: posContext, body: true, name: "pos-returns",
-  status: { "too-many": 409, "already-decided": 409, "no-shift": 409, inactive: 409, "same-signer": 403 },
+  status: { "too-many": 409, "already-decided": 409, "no-shift": 409, inactive: 409, "same-signer": 403, "over-paid": 409, "over-credit": 409 },
 };
 
 export const GET = route({ ...spec, body: false }, async (pos) => {

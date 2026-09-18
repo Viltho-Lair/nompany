@@ -160,6 +160,20 @@ links here.
 - **Who reaches it**: roles that could open the till see Returns and may ask for one; roles that
   managed the till (`crmSales.pos.edit`) may sign — both by catch-up, with nothing run per studio.
 
+**Against a Documents invoice** (18/09/2026, the owner's second answer). The same box takes an
+invoice's reference — a printed invoice carries it as a barcode too — and only an issued invoice
+(not a draft, not a cancelled one). **An invoice line may name a registered item**: the invoice
+form offers the studio's items (name and selling price, never cost) and picking one fills what
+is blank. On a return, a line naming an item goes back on the shelf; a free-text line — a service,
+a fee — is refunded only and says so. The refund is priced as the invoice was: net lines, the
+invoice's own rate and method, tax on top. **It can be a credit on the client's account** (no
+money, no till); **money goes back only up to what the client paid** (`over-paid` otherwise).
+**Signing it raises a DRAFT credit note** in Finance for the refund
+(`finance/creditNoteService.draftCreditNote`, the same function Finance's own door uses), after
+checking the invoice still has that much to credit — **Finance issues it** (Finance → Cash →
+Credit notes), because issuing posts to the ledger and a Point of Sale manager does not hold the
+books. The return records the note (`creditNoteId`).
+
 `tests/pos-return-model.mjs` covers the arithmetic and the restocking.
 
 ## What the till does
@@ -200,8 +214,9 @@ not change prices.
 - The receipt is written first and the movements after, each naming it — so a sale whose
   movements failed is a receipt with none, findable, rather than stock gone with no receipt.
 
-**The receipt** prints on an 80 mm printer from the browser: the studio's name and its legal rows
-(its VAT number among them), number, time, till, the lines, subtotal, tax by rate, total,
+**The receipt** prints on an 80 mm printer from the browser: the studio's name, the official
+values its country prints on a receipt (`official-values.md` — a Saudi receipt carries the VAT
+number once the studio has a VAT rate), its legal rows less any repeating one of those, number, time, till, the lines, subtotal, tax by rate, total,
 payments, change and the footer. It prints what the server stored, so a reprint reads as the
 first. The print style is mounted only while a receipt is on screen, so no other page's printing
 is affected.
@@ -218,7 +233,12 @@ picking.
 
 ## Not built yet
 
-- **Returns against a Documents invoice** — the next slice (invoice lines naming an item first).
+- **An invoice does not take stock out**: its item lines are what a return puts back, but raising
+  or issuing the invoice moves nothing — a Documents client's goods leave through a sales order
+  or a delivery, which the invoice does not name. So returning against an invoice ADDS stock
+  whatever path it left by.
+- **A cash or card refund against an invoice posts nothing** to the books beyond the credit note;
+  the money out of the drawer is in the shift report only (the till has no ledger entry yet).
 - **Voiding** a sale, and exchanges (a return and a sale as one act).
 - **A printed return slip**, and a notice to the managers who can sign; the Returns screen is live
   and shows what is waiting.

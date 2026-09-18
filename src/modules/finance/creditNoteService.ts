@@ -44,7 +44,24 @@ export async function listCreditNotes(ctx: FinanceContext) {
 export async function createCreditNote(ctx: FinanceContext, body: Record<string, unknown>) {
   const denied = requirePermission(ctx.access, "finance.cash.create");
   if (denied) return denied;
+  return draftCreditNote({ studio: ctx.studio, section: ctx.cashSection, collaboratorId: ctx.collaborator.id }, body);
+}
 
+/**
+ * THE WRITE ITSELF, behind whichever door asked for it — Finance's own, above,
+ * and a signed RETURN against an invoice (modules/sales/posReturns), which
+ * raises the note that reverses what came back. ONE function so the two can
+ * never disagree about headroom, numbering or what a note copies.
+ *
+ * ONLY A DRAFT, from either door. Issuing is what posts to the ledger, and it
+ * stays Finance's act (`finance.cash.edit`): a Point of Sale manager signing a
+ * return does not thereby hold the books.
+ */
+export async function draftCreditNote(
+  target: { studio: FinanceContext["studio"]; section: FinanceContext["cashSection"]; collaboratorId: string },
+  body: Record<string, unknown>,
+) {
+  const ctx = { studio: target.studio, cashSection: target.section } as FinanceContext;
   const invoiceId = str(body?.invoiceId, 60);
   if (!invoiceId) return { error: "invoice" };
 
@@ -86,7 +103,7 @@ export async function createCreditNote(ctx: FinanceContext, body: Record<string,
     reason: str(body?.reason, 500),
     status: "Draft",
     issueDate: "",
-    createdByCollaboratorId: ctx.collaborator.id,
+    createdByCollaboratorId: target.collaboratorId,
     createdAt: new Date().toISOString(),
   });
   return { creditNote: note };

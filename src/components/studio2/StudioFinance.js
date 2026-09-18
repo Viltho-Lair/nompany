@@ -24,6 +24,7 @@ import {
 import { StatusPill } from "@/components/studio2/StatusPill";
 import { useReload } from "@/components/studio2/useReload";
 import { treasuryDict } from "@/shared/studio/treasury";
+import { creditNotesDict } from "@/shared/studio/creditNotes";
 import { moneyText } from "@/shared/money";
 import { taxDict, taxCategoryOptions } from "@/shared/studio/tax";
 import { documentTotals } from "@/shared/documentTotals";
@@ -41,6 +42,8 @@ const FinanceDashboard = nextDynamic(() => import("@/components/studio2/FinanceD
 // this module switches between, and only one of them is open at a time.
 const StudioLedger = nextDynamic(() => import("@/components/studio2/StudioLedger"));
 const TreasuryPanel = nextDynamic(() => import("@/components/studio2/TreasuryPanel"));
+// The credit notes and the door that issues them (18/09/2026) — behind the same boundary.
+const CreditNotesPanel = nextDynamic(() => import("@/components/studio2/CreditNotesPanel"));
 
 const panel = "rounded-geex border border-slate-200/70 bg-[var(--geex-surface)] p-6 dark:border-white/10";
 const label = "mb-1 block text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400";
@@ -213,6 +216,8 @@ function FinanceCash({ slug, view = "finance" }) {
     // and the guarantees holding money at the bank. It sits under Cash because
     // the forecast is assembled from the receivables and payables beside it.
     ["treasury", treasuryDict(locale).tab],
+    // WHAT WAS GIVEN BACK ON AN INVOICE — including the drafts a signed return raises.
+    ["credit-notes", creditNotesDict(locale).tab],
   ];
 
   if (view === "finance") {
@@ -255,7 +260,7 @@ function FinanceCash({ slug, view = "finance" }) {
       </div>
 
       {tab === "invoices" && (
-        <Invoices rows={invoices} projects={projects} milestones={data.milestones || []} vocab={vocabulary} slug={slug} nav={nav}
+        <Invoices rows={invoices} projects={projects} milestones={data.milestones || []} items={data.items || []} vocab={vocabulary} slug={slug} nav={nav}
           canManage={canManage} busy={busy} send={send} />
       )}
       {tab === "expenses" && (
@@ -264,6 +269,7 @@ function FinanceCash({ slug, view = "finance" }) {
       )}
       {tab === "projects" && <Profitability rows={profitability} slug={slug} nav={nav} />}
       {tab === "treasury" && <TreasuryPanel slug={slug} locale={locale} />}
+      {tab === "credit-notes" && <CreditNotesPanel slug={slug} locale={locale} canManage={canManage} />}
     </div>
   );
 }
@@ -340,7 +346,7 @@ function Summary({ summary }) {
 }
 
 // ---- invoices --------------------------------------------------------------
-function Invoices({ rows, projects, milestones = [], vocab, slug, nav, canManage, busy, send }) {
+function Invoices({ rows, projects, milestones = [], items = [], vocab, slug, nav, canManage, busy, send }) {
   const dt = documentsDict(useStudioLocale());
   const tr = financeDict(useStudioLocale());
   const [drafting, setDrafting] = useState(false);
@@ -352,7 +358,7 @@ function Invoices({ rows, projects, milestones = [], vocab, slug, nav, canManage
       {canManage && !drafting && !paying && <button className={btn} onClick={() => setDrafting(true)}>{tr.newInvoice}</button>}
 
       {drafting && (
-        <InvoiceForm projects={projects} milestones={milestones} defaultVat={vocab.defaultVatRate ?? 0} vatOn={!!vocab.vatEnabled} busy={busy}
+        <InvoiceForm projects={projects} milestones={milestones} items={items} defaultVat={vocab.defaultVatRate ?? 0} vatOn={!!vocab.vatEnabled} busy={busy}
           onCancel={() => setDrafting(false)}
           onSave={async (v) => { if (await send("invoices", "POST", v)) setDrafting(false); }} />
       )}
@@ -520,15 +526,36 @@ export const filledLines = (lines) => lines.filter((l) => l.description.trim() &
 export const linesSubtotal = (lines) => filledLines(lines).reduce((s, l) => s + Number(l.qty) * (Number(l.unitPrice) || 0), 0);
 
 // `vatOn`: a studio with no VAT rate taxes nothing, so it is asked no category.
-function LineItemsEditor({ lines, setLines, vatOn = false }) {
+// `items`: an INVOICE's lines may name what they sell (18/09/2026), which is
+// what a return against the invoice puts back on the shelf. A bill passes none.
+function LineItemsEditor({ lines, setLines, vatOn = false, items = [] }) {
   const locale = useStudioLocale();
   const tr = financeDict(locale);
   const tax = taxDict(locale);
   const setLine = (i, k, v) => setLines((ls) => ls.map((l, n) => (n === i ? { ...l, [k]: v } : l)));
+  // PICKING AN ITEM FILLS WHAT IS BLANK — its name, its price, its tax
+  // category — and overwrites nothing somebody typed.
+  const pickItem = (i, id) => setLines((ls) => ls.map((l, n) => {
+    if (n !== i) return l;
+    const item = items.find((x) => x.id === id);
+    if (!item) return { ...l, itemId: "" };
+    return {
+      ...l, itemId: id,
+      description: l.description.trim() ? l.description : item.name,
+      unitPrice: String(l.unitPrice).trim() ? l.unitPrice : String(item.sellPrice || ""),
+      taxCategory: l.taxCategory && l.taxCategory !== "standard" ? l.taxCategory : (item.taxCategory || "standard"),
+    };
+  }));
   return (
     <div className="mt-5 space-y-3">
       {lines.map((l, i) => (
         <div key={i} className="flex flex-wrap items-end gap-3">
+          {items.length > 0 && (
+            <div className="w-56">
+              <Field label={tr.lineItem} as="select" value={l.itemId || ""} onChange={(v) => pickItem(i, v)}
+                options={[{ value: "", label: tr.noItem }, ...items.map((x) => ({ value: x.id, label: x.sku ? `${x.name} · ${x.sku}` : x.name }))]} />
+            </div>
+          )}
           <div className="min-w-[220px] flex-1">
             <Field label={tr.description} value={l.description} onChange={(v) => setLine(i, "description", v)} />
           </div>
@@ -552,7 +579,7 @@ function LineItemsEditor({ lines, setLines, vatOn = false }) {
   );
 }
 
-function InvoiceForm({ projects, milestones = [], defaultVat, vatOn, busy, onCancel, onSave }) {
+function InvoiceForm({ projects, milestones = [], items = [], defaultVat, vatOn, busy, onCancel, onSave }) {
   const tr = financeDict(useStudioLocale());
   const [head, setHead] = useState({ projectId: "", milestoneId: "", clientName: "", vatRate: String(defaultVat), issueDate: "", dueDate: "" });
   // THE PROJECT'S OWN MILESTONES. An invoice naming one is what marks that
@@ -592,7 +619,7 @@ function InvoiceForm({ projects, milestones = [], defaultVat, vatOn, busy, onCan
         </Field>
       </div>
 
-      <LineItemsEditor lines={lines} setLines={setLines} vatOn={vatOn} />
+      <LineItemsEditor lines={lines} setLines={setLines} vatOn={vatOn} items={items} />
 
       <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">
         {tr.total} <span className="font-mono font-700 text-slate-900 dark:text-white">{money(total)}</span>

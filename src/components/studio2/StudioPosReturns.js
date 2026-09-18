@@ -83,7 +83,10 @@ export default function StudioPosReturns({ slug }) {
           <ul className="divide-y divide-slate-100 dark:divide-white/5">
             {pending.map((r) => (
               <PendingRow key={r.id} tr={tr} row={r} busy={busy}
-                onApprove={async () => { if (await call("PATCH", { id: r.id, action: "approve" })) { setNote(""); load(); } }}
+                onApprove={async () => {
+                  const out = await call("PATCH", { id: r.id, action: "approve" });
+                  if (out) { setNote(r.source === "invoice" ? tr.noteRaised(r.number) : ""); load(); }
+                }}
                 onReject={async (reason) => { if (await call("PATCH", { id: r.id, action: "reject", reason })) { setNote(""); load(); } }} />
             ))}
           </ul>
@@ -182,11 +185,12 @@ function TakeReturn({ slug, tr, tills, busy, onAsk }) {
     setMissing("");
     setFound(out);
     setBack({});
-    // THE MONEY GOES BACK THE WAY IT CAME, unless the cashier says otherwise.
+    // THE MONEY GOES BACK THE WAY IT CAME, unless the cashier says otherwise —
+    // and an invoice starts on a credit to the account, which needs no drawer.
     setMethod(out.sale.methods?.[0] || "cash");
     // This counter's till, if it is one the studio still has; else the sale's.
     const mine = loadPref(prefKey("pos", slug, "terminal"), "");
-    setTillId(tills.some((t) => t.id === mine) ? mine : out.sale.terminalId);
+    setTillId(tills.some((t) => t.id === mine) ? mine : out.sale.terminalId || tills[0]?.id || "");
   }
 
   const lines = useMemo(() => {
@@ -202,6 +206,11 @@ function TakeReturn({ slug, tr, tills, busy, onAsk }) {
   }, [found, back]);
   const totals = found && lines.length ? returnTotals(lines, found.sale) : null;
   const left = found ? found.rows.some((r) => r.remaining > 0) : false;
+  const isInvoice = found?.source === "invoice";
+  // WHAT THIS DOCUMENT CAN BE REFUNDED BY: a receipt, the three ways to pay; an
+  // invoice, a credit always and money only once some was paid (the server
+  // says which).
+  const methods = isInvoice ? found.sale.methods : PAYMENT_METHODS;
 
   return (
     <section className={panel}>
@@ -222,7 +231,10 @@ function TakeReturn({ slug, tr, tills, busy, onAsk }) {
       {found && (
         <div className="mt-4 space-y-4">
           <p className="text-sm font-600 text-[var(--geex-ink)]">
-            {tr.sale(found.sale.number, fmtDateTime(found.sale.at))} · <span className="num">{money(found.sale.total, found.sale.currency)} {found.sale.currency}</span>
+            {isInvoice
+              ? tr.invoiceSale(found.sale.number, found.sale.client, `${money(found.sale.paid, found.sale.currency)} ${found.sale.currency}`)
+              : tr.sale(found.sale.number, fmtDateTime(found.sale.at))}
+            {" · "}<span className="num">{money(found.sale.total, found.sale.currency)} {found.sale.currency}</span>
           </p>
           {!left ? <p className="text-sm text-slate-500 dark:text-slate-400">{tr.nothingLeft}</p> : (
             <>
@@ -241,7 +253,10 @@ function TakeReturn({ slug, tr, tills, busy, onAsk }) {
                     const units = Math.min(num(back[row.line]), row.remaining);
                     return (
                       <tr key={row.line} className="border-t border-slate-100 dark:border-white/5">
-                        <td className={td}>{row.description}</td>
+                        <td className={td}>
+                          {row.description}
+                          {isInvoice && !row.itemId && <span className="ms-2 text-xs text-slate-400">{tr.noShelf}</span>}
+                        </td>
                         <td className={`${td} num text-end`}>{row.sold}</td>
                         <td className={`${td} num text-end`}>{row.returned || "—"}</td>
                         <td className={`${td} text-end`}>
@@ -264,18 +279,21 @@ function TakeReturn({ slug, tr, tills, busy, onAsk }) {
 
               <div className="grid gap-3 sm:grid-cols-2">
                 <Field label={tr.reason} value={reason} hint={tr.reasonHint} onChange={setReason} />
-                <Field label={tr.till} as="select" value={tillId} onChange={setTillId}
-                  options={tills.map((t) => ({ value: t.id, label: t.name }))} />
+                {method !== "credit" && (
+                  <Field label={tr.till} as="select" value={tillId} onChange={setTillId}
+                    options={tills.map((t) => ({ value: t.id, label: t.name }))} />
+                )}
               </div>
               <div>
                 <p className="mb-1 text-xs font-700 uppercase tracking-wide text-slate-500 dark:text-slate-400">{tr.method}</p>
                 <div className="flex flex-wrap items-end gap-2">
-                  {PAYMENT_METHODS.map((m) => (
+                  {methods.map((m) => (
                     <button key={m} type="button" onClick={() => setMethod(m)}
                       className={`${btnRow} ${method === m ? "!border-brand-600 !text-brand-700 dark:!text-brand-300" : ""}`}>{tr[m]}</button>
                   ))}
-                  {method !== "cash" && <div className="w-56"><Field label={tr.reference} value={reference} onChange={setReference} /></div>}
+                  {method !== "cash" && method !== "credit" && <div className="w-56"><Field label={tr.reference} value={reference} onChange={setReference} /></div>}
                 </div>
+                {method === "credit" && <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{tr.creditHint}</p>}
               </div>
               <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3 dark:border-white/5">
                 <p className="font-display text-lg font-700 text-[var(--geex-ink)]">
@@ -284,9 +302,9 @@ function TakeReturn({ slug, tr, tills, busy, onAsk }) {
                 <button type="button" className={btn} disabled={busy || !lines.length || !reason.trim()}
                   onClick={async () => {
                     const ok = await onAsk({
-                      receiptId: found.sale.id, lines: lines.map((l) => ({ line: l.line, units: l.units })),
-                      reason, method, ...(reference.trim() && method !== "cash" ? { reference: reference.trim() } : {}),
-                      terminalId: tillId,
+                      source: found.source, receiptId: found.sale.id, lines: lines.map((l) => ({ line: l.line, units: l.units })),
+                      reason, method, ...(reference.trim() && method !== "cash" && method !== "credit" ? { reference: reference.trim() } : {}),
+                      ...(method !== "credit" ? { terminalId: tillId } : {}),
                     });
                     if (ok) { setFound(null); setNumber(""); setReason(""); setReference(""); box.current?.focus(); }
                   }}>

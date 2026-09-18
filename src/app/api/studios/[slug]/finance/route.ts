@@ -2,7 +2,7 @@ import { route } from "@/platform/http/route";
 import { valuesFor } from "@/modules/administration/taxonomy";
 import { unclaimed } from "@/modules/finance/withholding";
 import {
-  financeContext, listInvoices, listExpenses, profitability, billableProjects, summarise,
+  financeContext, listInvoices, listExpenses, profitability, billableProjects, summarise, saleItems,
   INVOICE_STATUSES, EXPENSE_CATEGORIES, PAYMENT_METHODS,
 } from "@/modules/finance/finance";
 import { referencePickers } from "@/modules/procurement/pickers";
@@ -32,6 +32,8 @@ export const GET = route(
     referencePickers(g.studio, { projects: g.projectsListSection }, { milestones: true }),
   ]) : [[], [], [], { milestones: [] }];
   const projectMargins = cashOn ? await profitability(g, { invoices, expenses }) : [];
+  // What an invoice line may name — only when somebody here can raise one.
+  const items = cashOn && g.canManage ? await saleItems(g) : [];
 
   return {
     canManage: g.canManage,
@@ -42,7 +44,7 @@ export const GET = route(
     // Manage per section key, so each screen can ask about itself rather
     // than being handed the parent section's answer.
     manage: g.manage,
-    invoices, expenses, projects, milestones,
+    invoices, expenses, projects, milestones, items,
     profitability: projectMargins,
     summary: summarise(invoices, expenses, g.studio.currency),
     // WHAT THE STUDIO CAN RECLAIM. Tax withheld is only worth anything if the

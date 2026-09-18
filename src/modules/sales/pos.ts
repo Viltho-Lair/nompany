@@ -114,6 +114,10 @@ export const posContext = moduleContext<PosContext>({
     // CRM'S CLIENTS, and therefore nullable too: a studio without them keeps
     // selling and simply cannot register a customer's number.
     clients: ["crm-sales-clients", "crm-sales"],
+    // FINANCE → CASH, where invoices and credit notes are filed: a return can be
+    // against a Documents invoice (18/09/2026). Nullable — no Finance, no
+    // invoice returns.
+    cash: ["finance-cash", "finance"],
   },
   flags: ["pos"],
 });

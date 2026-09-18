@@ -18,6 +18,12 @@ export const InvoiceLineSchema = z.object({
    * existed is, so it is stored only when it is something else.
    */
   taxCategory: z.enum(TAX_CATEGORIES).optional(),
+  /**
+   * THE REGISTERED ITEM THE LINE SELLS, when it sells one (18/09/2026). What a
+   * return against the invoice puts back on the shelf; a free-text line — a
+   * service, a fee — names none and is refunded only.
+   */
+  itemId: z.string().max(60).optional(),
 });
 
 /**

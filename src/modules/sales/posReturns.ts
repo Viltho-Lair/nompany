@@ -15,6 +15,15 @@
 //
 // THE REFUND IS WHAT WAS PAID (./posReturnModel): each line's stored net, pro
 // rata, in the sale's own tax terms. A return is never re-priced.
+//
+// AGAINST A DOCUMENTS INVOICE TOO (18/09/2026, the owner's second answer). Its
+// lines are priced net and taxed on top, in the invoice's own frozen terms; a
+// line that names a registered item goes back on the shelf and a free-text line
+// (a service, a fee) is refunded only. Signing raises a DRAFT credit note in
+// Finance for the refund (finance/creditNoteService.draftCreditNote), which
+// Finance issues — issuing posts to the ledger and stays Finance's act. The
+// refund may be a CREDIT on the client's account, and money goes back only up
+// to what the client actually paid.
 
 import { requirePermission, can, isAdministrator } from "@/platform/access";
 import { listCollaborators } from "@/platform/auth/collaborators";
@@ -23,6 +32,10 @@ import { nextReference } from "@/modules/main/references";
 import { seriesSetting } from "@/modules/administration/numbering";
 import type { Item, Movement } from "@/modules/inventory/types";
 import { PAYMENT_METHODS, type PosPaymentMethod } from "./posModel";
+import { invoiceTotals } from "@/modules/finance/finance";
+import { draftCreditNote } from "@/modules/finance/creditNoteService";
+import { creditableRemaining } from "@/modules/finance/creditNotes";
+import { roundMoney } from "@/shared/money";
 import {
   planReturn, returnable, returnTotals, restockPlan,
   type ReturnLine, type ReturnStatus, type SoldReceipt,
@@ -34,8 +47,9 @@ export type PosReturn = {
   id: string;
   number: string;
   status: ReturnStatus;
-  /** What it is against. Only till receipts today; Documents invoices are the next slice. */
-  source: "receipt";
+  /** What it is against: a till receipt, or a Documents invoice. */
+  source: "receipt" | "invoice";
+  /** The RECEIPT's or the INVOICE's id and number — `source` says which. */
   receiptId: string;
   receiptNumber: string;
   /** The till whose drawer pays a cash refund. */
@@ -46,7 +60,10 @@ export type PosReturn = {
   vat: number;
   total: number;
   breakdown: TaxBreakdown[];
-  method: PosPaymentMethod;
+  /** How the money goes back — or `credit`: onto the client's account (invoices only). */
+  method: RefundMethod;
+  /** The draft credit note a signed invoice return raised in Finance. */
+  creditNoteId?: string;
   reference?: string;
   reason: string;
   requestedByCollaboratorId: string;
@@ -65,7 +82,17 @@ type Receipt = SoldReceipt & {
 type Shift = { id: string; terminalId: string; status: string };
 type Terminal = { id: string; name: string; active?: boolean };
 
+type RefundMethod = PosPaymentMethod | "credit";
+
+type Invoice = {
+  id: string; reference?: string; status?: string; currency?: string; vatRate?: unknown; taxMethod?: string;
+  issueDate?: string; clientName?: string; payments?: unknown;
+  lines?: { description?: string; qty?: number; unitPrice?: number; taxCategory?: "zero" | "exempt"; itemId?: string }[];
+};
+
 const Returns = repo<PosReturn>("posReturns");
+const Invoices = repo<Invoice>("invoices");
+const CreditNotes = repo("creditNotes");
 const Receipts = repo<Receipt>("posReceipts");
 const Shifts = repo<Shift>("posShifts");
 const Terminals = repo<Terminal>("posTerminals");
@@ -76,6 +103,39 @@ const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
 const now = () => new Date().toISOString();
 const returnsScope = (ctx: PosContext) => ({ studio: ctx.studio, section: ctx.returnsSection });
 const tillScope = (ctx: PosContext) => ({ studio: ctx.studio, section: ctx.posSection });
+const cashScope = (ctx: PosContext) => ({ studio: ctx.studio, section: ctx.cashSection! });
+
+/**
+ * AN INVOICE READ AS A RETURN READS A SALE: its lines priced NET, taxed on top,
+ * in its own frozen currency, rate and method. Only an issued invoice — a draft
+ * is edited, and a cancelled one sold nothing.
+ */
+function invoiceAsSale(inv: Invoice, studioCurrency: unknown) {
+  const currency = String(inv.currency || studioCurrency || "");
+  const totals = invoiceTotals(inv, studioCurrency);
+  const sale: SoldReceipt & { number: string; at: string; total: number; paid: number } = {
+    id: inv.id,
+    number: String(inv.reference || ""),
+    at: String(inv.issueDate || ""),
+    currency,
+    vatRate: Number(inv.vatRate) || 0,
+    taxMethod: inv.taxMethod || "legacy",
+    pricesIncludeTax: false,
+    total: totals.total,
+    paid: totals.paid,
+    lines: (inv.lines || []).map((l) => ({
+      itemId: String(l.itemId || ""),
+      description: String(l.description || ""),
+      count: Number(l.qty) || 0,
+      price: Number(l.unitPrice) || 0,
+      net: roundMoney((Number(l.qty) || 0) * (Number(l.unitPrice) || 0), currency),
+      ...(l.taxCategory ? { taxCategory: l.taxCategory } : {}),
+    })),
+  };
+  return sale;
+}
+const returnableInvoice = (inv: Invoice | null | undefined) =>
+  Boolean(inv) && inv!.status !== "Draft" && inv!.status !== "Cancelled";
 
 // ---- reading ----------------------------------------------------------------
 
@@ -120,10 +180,34 @@ export async function findSale(ctx: PosContext, rawNumber: unknown) {
   const typed = str(rawNumber, 60);
   if (!typed) return { error: "missing" as const };
   // A scanner types exactly what was printed; a person may not match its case.
-  const found = (await Receipts.find(tillScope(ctx), { where: { number: [typed, typed.toUpperCase()] } }))[0];
-  if (!found || (found.kind || "sale") !== "sale") return { error: "notfound" as const };
+  const numbers = [typed, typed.toUpperCase()];
+  const found = (await Receipts.find(tillScope(ctx), { where: { number: numbers } }))[0];
+  if (!found || (found.kind || "sale") !== "sale") {
+    // NOT A RECEIPT — AN INVOICE'S REFERENCE? The same box takes both, because
+    // a printed invoice carries its reference as a barcode too.
+    const inv = ctx.cashSection ? (await Invoices.find(cashScope(ctx), { where: { reference: numbers } }))[0] : null;
+    if (!inv || !returnableInvoice(inv)) return { error: "notfound" as const };
+    const sale = invoiceAsSale(inv, ctx.studio.currency);
+    const theirs = await Returns.find(returnsScope(ctx), { where: { receiptId: inv.id } });
+    return {
+      source: "invoice" as const,
+      sale: {
+        id: sale.id, number: sale.number, at: sale.at, total: sale.total, currency: sale.currency,
+        vatRate: sale.vatRate, taxMethod: sale.taxMethod, pricesIncludeTax: false,
+        client: String(inv.clientName || ""),
+        paid: sale.paid,
+        // A CREDIT ON THE ACCOUNT ALWAYS; money back only once some was paid.
+        methods: ["credit", ...(sale.paid > 0 ? PAYMENT_METHODS : [])],
+        terminalId: "",
+        lines: sale.lines.map((l) => ({ description: l.description, count: l.count, price: l.price, net: l.net, restocks: Boolean(l.itemId) })),
+      },
+      rows: returnable(sale, theirs),
+      returns: theirs.map((r) => ({ id: r.id, number: r.number, status: r.status, total: r.total })),
+    };
+  }
   const theirs = await Returns.find(returnsScope(ctx), { where: { receiptId: found.id } });
   return {
+    source: "receipt" as const,
     sale: {
       id: found.id, number: found.number, at: found.at, total: found.total, currency: found.currency,
       // THE SALE'S OWN TAX TERMS, so the screen previews the refund with the
@@ -143,24 +227,44 @@ export async function findSale(ctx: PosContext, rawNumber: unknown) {
 export async function requestReturn(ctx: PosContext, body: Record<string, unknown>) {
   const denied = requirePermission(ctx.access, "pos.returns.create");
   if (denied) return denied;
-  const receipt = await Receipts.byId(tillScope(ctx), str(body?.receiptId, 60));
-  if (!receipt || (receipt.kind || "sale") !== "sale") return { error: "notfound" as const };
+  const source = body?.source === "invoice" ? "invoice" : "receipt";
+  let receipt: (SoldReceipt & { number: string; terminalId: string; paid?: number }) | null = null;
+  if (source === "invoice") {
+    const inv = ctx.cashSection ? await Invoices.byId(cashScope(ctx), str(body?.receiptId, 60)) : null;
+    if (!inv || !returnableInvoice(inv)) return { error: "notfound" as const };
+    receipt = { ...invoiceAsSale(inv, ctx.studio.currency), terminalId: "" };
+  } else {
+    const sale = await Receipts.byId(tillScope(ctx), str(body?.receiptId, 60));
+    if (!sale || (sale.kind || "sale") !== "sale") return { error: "notfound" as const };
+    receipt = sale;
+  }
 
-  const method = str(body?.method, 20) as PosPaymentMethod;
-  if (!(PAYMENT_METHODS as readonly string[]).includes(method)) return { error: "method" as const };
+  const method = str(body?.method, 20) as RefundMethod;
+  const allowed: readonly string[] = source === "invoice" ? ["credit", ...PAYMENT_METHODS] : PAYMENT_METHODS;
+  if (!allowed.includes(method)) return { error: "method" as const };
   // WHY, always. A return with no reason is the one a fraud report cannot read.
   const reason = str(body?.reason, 300);
   if (!reason) return { error: "reason" as const };
-
-  const terminals = await Terminals.find(tillScope(ctx));
-  const terminalId = str(body?.terminalId, 60) || receipt.terminalId;
-  const till = terminals.find((t) => t.id === terminalId);
-  if (!till || till.active === false) return { error: "inactive" as const };
 
   const others = await Returns.find(returnsScope(ctx), { where: { receiptId: receipt.id } });
   const plan = planReturn(receipt, others, body?.lines);
   if ("error" in plan) return plan;
   const totals = returnTotals(plan.lines, receipt);
+  // MONEY BACK ONLY UP TO WHAT WAS PAID: an unpaid invoice is credited, not
+  // refunded — handing back cash nobody paid is not a return. Asked before the
+  // till, because "credit the account instead" is the answer that helps.
+  if (source === "invoice" && method !== "credit" && totals.total > (receipt.paid || 0)) {
+    return { error: "over-paid" as const, paid: receipt.paid || 0 };
+  }
+
+  // A TILL PAYS ONLY WHAT COMES OUT OF A DRAWER OR A CARD MACHINE. A credit on
+  // an invoice's account touches no till; any other refund names one.
+  const terminals = await Terminals.find(tillScope(ctx));
+  const terminalId = method === "credit" ? "" : str(body?.terminalId, 60) || receipt.terminalId;
+  if (method !== "credit") {
+    const till = terminals.find((t) => t.id === terminalId);
+    if (!till || till.active === false) return { error: "inactive" as const };
+  }
 
   const number = await nextReference(ctx.studio.id, {
     rows: [], field: "number", ...seriesSetting("posReturn", ctx.studio.numbering),
@@ -169,7 +273,7 @@ export async function requestReturn(ctx: PosContext, body: Record<string, unknow
   const row = await Returns.create(returnsScope(ctx), {
     number,
     status: "Pending",
-    source: "receipt",
+    source,
     receiptId: receipt.id,
     receiptNumber: receipt.number,
     terminalId,
@@ -206,8 +310,24 @@ export async function approveReturn(ctx: PosContext, id: string) {
   if (row.status !== "Pending") return { error: "already-decided" as const, status: row.status };
   if (!mayDecide(ctx, row)) return { error: "same-signer" as const };
 
-  const receipt = await Receipts.byId(tillScope(ctx), row.receiptId);
+  const isInvoice = row.source === "invoice";
+  const invoice = isInvoice && ctx.cashSection ? await Invoices.byId(cashScope(ctx), row.receiptId) : null;
+  const receipt: SoldReceipt | null = isInvoice
+    ? (invoice && returnableInvoice(invoice) ? invoiceAsSale(invoice, ctx.studio.currency) : null)
+    : await Receipts.byId(tillScope(ctx), row.receiptId);
   if (!receipt) return { error: "notfound" as const };
+
+  // THE CREDIT NOTE MUST FIT BEFORE ANYTHING IS SIGNED: a return that restocked
+  // and then could not be credited would leave the goods back and the client
+  // still owing for them.
+  if (isInvoice && invoice) {
+    const notes = await CreditNotes.find(cashScope(ctx));
+    const room = creditableRemaining(
+      { ...invoice, ...invoiceTotals(invoice, ctx.studio.currency), currency: invoice.currency || ctx.studio.currency } as never,
+      notes as never,
+    );
+    if (row.total > room) return { error: "over-credit" as const, remaining: room };
+  }
   // CHECKED AGAIN AT THE SIGNATURE: another return of the same units may have
   // been signed since this one was asked for.
   const others = (await Returns.find(returnsScope(ctx), { where: { receiptId: receipt.id } })).filter((r) => r.id !== row.id);
@@ -242,6 +362,8 @@ export async function approveReturn(ctx: PosContext, id: string) {
     const cost = new Map(items.map((i) => [i.id, Number((i as { unitCost?: unknown }).unitCost)]));
     const moves: Record<string, unknown>[] = [];
     for (const l of row.lines) {
+      // A free-text invoice line — a service, a fee — has nothing to put back.
+      if (!l.itemId) continue;
       const before = signedBefore.flatMap((r) => r.lines.filter((x) => x.line === l.line)).reduce((s, x) => s + x.units, 0);
       const unitCost = cost.get(l.itemId);
       for (const p of restockPlan(receipt.lines[l.line], before, l.units)) {
@@ -255,6 +377,21 @@ export async function approveReturn(ctx: PosContext, id: string) {
       }
     }
     if (moves.length) await Stock.createMany({ studio: ctx.studio, section: ctx.stockSection }, moves);
+  }
+
+  // THE CREDIT NOTE, AS A DRAFT, for Finance to issue. Its number and headroom
+  // come from the one function Finance's own screen uses.
+  if (isInvoice && ctx.cashSection) {
+    const note = await draftCreditNote(
+      { studio: ctx.studio, section: ctx.cashSection, collaboratorId: ctx.collaborator.id },
+      { invoiceId: row.receiptId, amount: row.total, reason: `Return ${row.number}: ${row.reason}` },
+    );
+    const noteId = (note as { creditNote?: { id?: string } }).creditNote?.id;
+    if (noteId) {
+      const withNote = await Returns.update(returnsScope(ctx), row.id, (cur) => ({ ...cur, creditNoteId: noteId }));
+      return { return: withNote || signed, creditNote: (note as { creditNote: unknown }).creditNote };
+    }
+    return { return: signed, creditNoteProblem: (note as { error?: string }).error || "" };
   }
   return { return: signed };
 }
@@ -286,7 +423,8 @@ export async function refundsByShift(ctx: PosContext, shiftIds: readonly string[
   if (!shiftIds.length) return out;
   const rows = await Returns.find(returnsScope(ctx), { where: { refundShiftId: [...shiftIds] } });
   for (const r of rows) {
-    if (r.status !== "Approved" || !r.refundShiftId) continue;
+    // A credit on an invoice's account left no drawer.
+    if (r.status !== "Approved" || !r.refundShiftId || r.method === "credit") continue;
     const list = out.get(r.refundShiftId) || [];
     list.push({ method: r.method, amount: r.total });
     out.set(r.refundShiftId, list);

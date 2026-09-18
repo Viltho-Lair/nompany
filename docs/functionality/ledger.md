@@ -229,8 +229,12 @@ Stated in words, because a silent gap reads as a finished feature.
 - **No cash flow statement.** The P&L and balance sheet are here; the third statement
   needs cash movements classified as operating, investing or financing, which no
   account or entry records.
-- **Credit notes post and have no screen.** `postCreditNote` reverses the invoice's
-  revenue and VAT proportionally; nothing on screen raises one.
+- **Credit notes are raised only by a return.** Finance → Cash → Credit notes (18/09/2026) lists
+  them and issues or cancels a draft, and issuing posts (`postCreditNote` reverses the invoice's
+  revenue and VAT proportionally); the only thing that RAISES one is a signed return against an
+  invoice (`pos.md`). Finance cannot type one of its own on screen yet. An issued note is now taken
+  off what the invoice still owes on the Cash screen and in its summary (`credited`), which
+  `netOfCredits` described and nothing read.
 - **No tax codes.** VAT is one studio rate that each document may change (`vat.md`). Input
   tax has had its own account (1400) since 18/09/2026, but bills posted before then netted it
   on 2100, so the Tax return tab still reads the documents rather than the journal.

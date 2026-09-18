@@ -228,6 +228,8 @@ type Strings = CommonStrings & {
   projectNumber: string;
   projectsOpenApprovedQuotation: string;
   qty: string;
+  lineItem: string;
+  noItem: string;
   quotation: string;
   recalculatedServerWhenSave: string;
   receivablesAging: string;
@@ -569,6 +571,8 @@ const en: Strings = {
   projectNumber: "Project number",
   projectsOpenApprovedQuotation: "Projects open from an approved quotation. Once one exists it shows up here as a commercial record.",
   qty: "Qty",
+  lineItem: "Item (optional)",
+  noItem: "No item — a service or a fee",
   quotation: "Quotation",
   recalculatedServerWhenSave: "— recalculated on the server when you save.",
   receivablesAging: "Receivables aging",
@@ -924,6 +928,8 @@ const ar: Strings = {
   projectNumber: "رقم المشروع",
   projectsOpenApprovedQuotation: "تفتح المشاريع من عرض سعر معتمد. وما إن يوجد مشروع حتى يظهر هنا كسجل تجاري.",
   qty: "الكمية",
+  lineItem: "الصنف (اختياري)",
+  noItem: "بلا صنف — خدمة أو رسوم",
   quotation: "عرض السعر",
   recalculatedServerWhenSave: "— يعاد احتسابه على الخادم عند الحفظ.",
   receivablesAging: "أعمار الذمم المدينة",

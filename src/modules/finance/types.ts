@@ -49,6 +49,8 @@ export type FinanceContext = ModuleContext & {
   hrEmployeesSection: Section | null;
   /** Procurement's supplier register, which the payment hold reads. Null on a studio with no Procurement. */
   vendorsSection: Section | null;
+  /** Inventory's items, which an invoice line may name. Null on a studio with no Inventory. */
+  itemsSection: Section | null;
   canViewCash: boolean;
   canManageCash: boolean;
   // Payables and assets each carry their own view/manage flag off the same
