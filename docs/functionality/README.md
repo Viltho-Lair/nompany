@@ -50,6 +50,7 @@ Three rules that keep this folder worth reading:
 | [money.md](money.md) | Every amount rounds to its currency's own decimals (three for the dinar and the Omani rial): the three kinds of number, the one total every priced document uses, and the ledger's minor units |
 | [media.md](media.md) | Uploaded files: Blob for the binary, Redis for the record, the membership check on private reads |
 | [nova-insights.md](nova-insights.md) | Nova's speech bubble: what it may say, where it reads from, and what it never volunteers |
+| [official-values.md](official-values.md) | A country's registration, tax and address details: one definition file per country, the Owner-only country choice, validation and checksums, the resolver that prints a value only when selected, filled and applicable, the change history, and how to add a country |
 | [pg-gateway.md](pg-gateway.md) | Reaching Cloud SQL from Vercel: the Cloud Run service, one call one transaction, and the guards re-run server-side |
 | [pipeline.md](pipeline.md) | The sales funnel: the stages a deal moves through, the moves that are refused, how long it has sat where it is, and why it ended |
 | [pos.md](pos.md) | The point of sale: tills, shifts and receipts, why the server prices the basket, tax taken out of a shelf price, stock by expiry, and the end-of-day report |

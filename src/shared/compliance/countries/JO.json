@@ -1,0 +1,64 @@
+{
+  "code": "JO",
+  "name": { "en": "Jordan", "ar": "الأردن" },
+  "version": 1,
+  "checked": "2026-09-18",
+  "fields": [
+    {
+      "key": "legal_name_ar",
+      "department": "company",
+      "label": { "en": "Legal name in Arabic", "ar": "الاسم القانوني بالعربية" },
+      "hint": { "en": "As registered.", "ar": "كما هو مسجل." },
+      "required": "mandatory",
+      "normalize": "trim",
+      "maxLength": 200,
+      "showOn": ["invoice", "quote", "receipt", "contract", "letter"],
+      "source": { "label": "Research, Phase 1", "status": "not-rechecked" }
+    },
+    {
+      "key": "commercial_registration_number",
+      "department": "company",
+      "label": { "en": "Commercial registration number", "ar": "رقم السجل التجاري" },
+      "hint": { "en": "As on the registration certificate.", "ar": "كما في شهادة التسجيل." },
+      "required": "mandatory",
+      "normalize": "trim",
+      "maxLength": 40,
+      "showOn": ["invoice", "quote", "contract", "letter"],
+      "source": { "label": "Companies Control Department", "url": "https://www.ccd.gov.jo", "status": "uncertain" }
+    },
+    {
+      "key": "company_national_number",
+      "department": "company",
+      "label": { "en": "Establishment national number", "ar": "الرقم الوطني للمنشأة" },
+      "hint": { "en": "As on the registration certificate.", "ar": "كما في شهادة التسجيل." },
+      "required": "optional",
+      "normalize": "digits",
+      "maxLength": 20,
+      "showOn": ["contract"],
+      "source": { "label": "Companies Control Department", "url": "https://www.ccd.gov.jo", "status": "uncertain" }
+    },
+    {
+      "key": "tax_number",
+      "department": "finance",
+      "label": { "en": "Tax number (TIN)", "ar": "الرقم الضريبي" },
+      "hint": { "en": "8 to 12 digits, issued by ISTD.", "ar": "من 8 إلى 12 رقما، تصدره دائرة ضريبة الدخل والمبيعات." },
+      "required": "mandatory",
+      "normalize": "digits",
+      "patterns": ["^\\d{8,12}$"],
+      "maxLength": 20,
+      "showOn": ["invoice", "quote", "receipt"],
+      "source": { "label": "Fatouraty — JoFotara guide", "url": "https://fatouraty.com/en/blog/jordan-jofotara-e-invoicing-guide", "checked": "2026-09-18", "status": "uncertain" }
+    },
+    {
+      "key": "ssc_establishment_number",
+      "department": "hr",
+      "label": { "en": "Social Security establishment number", "ar": "رقم المنشأة في الضمان الاجتماعي" },
+      "hint": { "en": "Needed once the Studio employs anybody.", "ar": "مطلوب متى وظفت المنشأة أي شخص." },
+      "required": "conditional",
+      "normalize": "digits",
+      "maxLength": 20,
+      "showOn": [],
+      "source": { "label": "Social Security Corporation", "url": "https://www.ssc.gov.jo", "status": "not-rechecked" }
+    }
+  ]
+}

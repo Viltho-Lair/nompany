@@ -1,0 +1,183 @@
+{
+  "code": "SA",
+  "name": { "en": "Saudi Arabia", "ar": "المملكة العربية السعودية" },
+  "version": 1,
+  "checked": "2026-09-18",
+  "fields": [
+    {
+      "key": "legal_name_ar",
+      "department": "company",
+      "label": { "en": "Legal name in Arabic", "ar": "الاسم القانوني بالعربية" },
+      "hint": { "en": "As registered — Arabic is mandatory on Saudi invoices.", "ar": "كما هو مسجل — العربية إلزامية في الفواتير السعودية." },
+      "required": "mandatory",
+      "normalize": "trim",
+      "maxLength": 200,
+      "showOn": ["invoice", "quote", "receipt", "contract", "letter"],
+      "source": { "label": "ZATCA e-invoicing", "url": "https://zatca.gov.sa/en/E-Invoicing/Pages/default.aspx", "checked": "2026-09-16", "status": "earlier" }
+    },
+    {
+      "key": "commercial_registration_number",
+      "department": "company",
+      "label": { "en": "Commercial registration (Unified National Number)", "ar": "السجل التجاري (الرقم الوطني الموحد)" },
+      "hint": { "en": "10 digits starting with 7. Older CR numbers are still accepted until April 2030.", "ar": "10 أرقام تبدأ بالرقم 7. تقبل أرقام السجل القديمة حتى أبريل 2030." },
+      "required": "mandatory",
+      "normalize": "digits",
+      "patterns": ["^7\\d{9}$", "^[1-5]\\d{9}$"],
+      "maxLength": 20,
+      "showOn": ["invoice", "quote", "contract", "letter"],
+      "source": { "label": "SAMA rulebook — Commercial Register Law", "url": "https://rulebook.sama.gov.sa/en/emphasizing-implementation-provisions-commercial-register-law-and-law-tradenames", "checked": "2026-09-18", "status": "checked" }
+    },
+    {
+      "key": "vat_registration_number",
+      "department": "finance",
+      "label": { "en": "VAT registration number", "ar": "رقم التسجيل في ضريبة القيمة المضافة" },
+      "hint": { "en": "15 digits, starting and ending with 3.", "ar": "15 رقما، يبدأ وينتهي بالرقم 3." },
+      "required": "conditional",
+      "appliesWhen": { "vatRegistered": true },
+      "normalize": "digits",
+      "patterns": ["^3\\d{13}3$"],
+      "maxLength": 20,
+      "showOn": ["invoice", "quote", "receipt"],
+      "source": { "label": "fonoa — Saudi tax guide", "url": "https://www.fonoa.com/resources/country-tax-guides/saudi-arabia", "checked": "2026-09-18", "status": "checked" }
+    },
+    {
+      "key": "zakat_tin",
+      "department": "finance",
+      "label": { "en": "Zakat and tax identification number (TIN)", "ar": "الرقم المميز للزكاة والضريبة" },
+      "hint": { "en": "10 digits, issued by ZATCA.", "ar": "10 أرقام، تصدره هيئة الزكاة والضريبة والجمارك." },
+      "required": "mandatory",
+      "normalize": "digits",
+      "patterns": ["^\\d{10}$"],
+      "maxLength": 20,
+      "showOn": [],
+      "source": { "label": "ZATCA", "url": "https://zatca.gov.sa", "status": "not-rechecked" }
+    },
+    {
+      "key": "national_address_building_number",
+      "department": "company",
+      "label": { "en": "National address — building number", "ar": "العنوان الوطني — رقم المبنى" },
+      "hint": { "en": "4 digits.", "ar": "4 أرقام." },
+      "required": "mandatory",
+      "normalize": "digits",
+      "patterns": ["^\\d{4}$"],
+      "maxLength": 8,
+      "showOn": ["invoice", "contract", "letter"],
+      "source": { "label": "Saudi Post — National Address", "url": "https://splonline.com.sa/en/national-address-1/", "checked": "2026-09-18", "status": "checked" }
+    },
+    {
+      "key": "national_address_street",
+      "department": "company",
+      "label": { "en": "National address — street", "ar": "العنوان الوطني — الشارع" },
+      "hint": { "en": "Street name as on the national address certificate.", "ar": "اسم الشارع كما في شهادة العنوان الوطني." },
+      "required": "mandatory",
+      "normalize": "trim",
+      "maxLength": 120,
+      "showOn": ["invoice", "contract", "letter"],
+      "source": { "label": "Saudi Post — National Address", "url": "https://splonline.com.sa/en/national-address-1/", "checked": "2026-09-18", "status": "checked" }
+    },
+    {
+      "key": "national_address_district",
+      "department": "company",
+      "label": { "en": "National address — district", "ar": "العنوان الوطني — الحي" },
+      "hint": { "en": "District (neighbourhood).", "ar": "الحي." },
+      "required": "mandatory",
+      "normalize": "trim",
+      "maxLength": 120,
+      "showOn": ["invoice", "contract", "letter"],
+      "source": { "label": "Saudi Post — National Address", "url": "https://splonline.com.sa/en/national-address-1/", "checked": "2026-09-18", "status": "checked" }
+    },
+    {
+      "key": "national_address_city",
+      "department": "company",
+      "label": { "en": "National address — city", "ar": "العنوان الوطني — المدينة" },
+      "hint": { "en": "City.", "ar": "المدينة." },
+      "required": "mandatory",
+      "normalize": "trim",
+      "maxLength": 80,
+      "showOn": ["invoice", "contract", "letter"],
+      "source": { "label": "Saudi Post — National Address", "url": "https://splonline.com.sa/en/national-address-1/", "checked": "2026-09-18", "status": "checked" }
+    },
+    {
+      "key": "national_address_postal_code",
+      "department": "company",
+      "label": { "en": "National address — postal code", "ar": "العنوان الوطني — الرمز البريدي" },
+      "hint": { "en": "5 digits.", "ar": "5 أرقام." },
+      "required": "mandatory",
+      "normalize": "digits",
+      "patterns": ["^\\d{5}$"],
+      "maxLength": 8,
+      "showOn": ["invoice", "contract", "letter"],
+      "source": { "label": "Saudi Post — National Address", "url": "https://splonline.com.sa/en/national-address-1/", "checked": "2026-09-18", "status": "checked" }
+    },
+    {
+      "key": "national_address_additional_number",
+      "department": "company",
+      "label": { "en": "National address — additional number", "ar": "العنوان الوطني — الرقم الإضافي" },
+      "hint": { "en": "4 digits.", "ar": "4 أرقام." },
+      "required": "mandatory",
+      "normalize": "digits",
+      "patterns": ["^\\d{4}$"],
+      "maxLength": 8,
+      "showOn": ["invoice", "contract", "letter"],
+      "source": { "label": "Saudi Post — National Address", "url": "https://splonline.com.sa/en/national-address-1/", "checked": "2026-09-18", "status": "checked" }
+    },
+    {
+      "key": "national_short_address",
+      "department": "company",
+      "label": { "en": "National short address", "ar": "العنوان المختصر" },
+      "hint": { "en": "4 letters and 4 digits, e.g. RRRD2929.", "ar": "4 أحرف و4 أرقام، مثل RRRD2929." },
+      "required": "optional",
+      "normalize": "compact",
+      "patterns": ["^[A-Z]{4}\\d{4}$"],
+      "maxLength": 12,
+      "showOn": ["letter"],
+      "source": { "label": "Saudi Post — National Address", "url": "https://splonline.com.sa/en/national-address-1/", "checked": "2026-09-18", "status": "checked" }
+    },
+    {
+      "key": "gosi_establishment_number",
+      "department": "hr",
+      "label": { "en": "GOSI establishment number", "ar": "رقم المنشأة في التأمينات الاجتماعية" },
+      "hint": { "en": "Needed once the Studio employs anybody.", "ar": "مطلوب متى وظفت المنشأة أي شخص." },
+      "required": "conditional",
+      "normalize": "digits",
+      "maxLength": 20,
+      "showOn": [],
+      "source": { "label": "GOSI", "url": "https://www.gosi.gov.sa", "status": "not-rechecked" }
+    },
+    {
+      "key": "mhrsd_establishment_number",
+      "department": "hr",
+      "label": { "en": "Labour office establishment number (MHRSD)", "ar": "رقم المنشأة في وزارة الموارد البشرية" },
+      "hint": { "en": "Used for Qiwa contracts and Mudad salary files.", "ar": "يستخدم في عقود قوى وملفات رواتب مدد." },
+      "required": "conditional",
+      "normalize": "trim",
+      "maxLength": 30,
+      "showOn": [],
+      "source": { "label": "MHRSD", "url": "https://www.hrsd.gov.sa", "status": "not-rechecked" }
+    },
+    {
+      "key": "tga_transport_licence_number",
+      "department": "logistics",
+      "label": { "en": "Transport General Authority licence", "ar": "ترخيص الهيئة العامة للنقل" },
+      "hint": { "en": "Only for a Studio licensed for land transport.", "ar": "للمنشآت المرخصة لنشاط النقل البري فقط." },
+      "required": "conditional",
+      "appliesWhen": { "sectionOn": "logistics" },
+      "normalize": "trim",
+      "maxLength": 40,
+      "showOn": ["contract"],
+      "source": { "label": "Transport General Authority — licence issuance", "url": "https://www.tga.gov.sa/en/ActivitiesServices/TGAServices/Service/4", "checked": "2026-09-18", "status": "checked" }
+    },
+    {
+      "key": "wasl_establishment_id",
+      "department": "logistics",
+      "label": { "en": "WASL establishment ID", "ar": "رقم المنشأة في منصة وصل" },
+      "hint": { "en": "Links the Studio's fleet to the Transport General Authority.", "ar": "يربط أسطول المنشأة بالهيئة العامة للنقل." },
+      "required": "conditional",
+      "appliesWhen": { "sectionOn": "logistics" },
+      "normalize": "trim",
+      "maxLength": 40,
+      "showOn": [],
+      "source": { "label": "Transport General Authority", "url": "https://www.tga.gov.sa/en", "status": "uncertain" }
+    }
+  ]
+}

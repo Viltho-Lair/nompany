@@ -1,0 +1,91 @@
+{
+  "code": "DE",
+  "name": { "en": "Germany", "ar": "ألمانيا" },
+  "version": 1,
+  "checked": "2026-09-18",
+  "fields": [
+    {
+      "key": "legal_form",
+      "department": "company",
+      "label": { "en": "Legal form", "ar": "الشكل القانوني" },
+      "hint": { "en": "e.g. GmbH, AG, UG, e.K.", "ar": "مثل GmbH أو AG أو UG أو e.K." },
+      "required": "mandatory",
+      "normalize": "trim",
+      "maxLength": 40,
+      "showOn": ["invoice", "quote", "contract", "letter"],
+      "source": { "label": "Handelsregister", "url": "https://www.handelsregister.de", "status": "not-rechecked" }
+    },
+    {
+      "key": "register_court",
+      "department": "company",
+      "label": { "en": "Register court (Amtsgericht)", "ar": "محكمة السجل" },
+      "hint": { "en": "The court keeping the commercial register entry.", "ar": "المحكمة التي تحتفظ بقيد السجل التجاري." },
+      "required": "conditional",
+      "normalize": "trim",
+      "maxLength": 80,
+      "showOn": ["invoice", "quote", "contract", "letter"],
+      "source": { "label": "Handelsregister", "url": "https://www.handelsregister.de", "status": "not-rechecked" }
+    },
+    {
+      "key": "register_number",
+      "department": "company",
+      "label": { "en": "Commercial register number", "ar": "رقم السجل التجاري" },
+      "hint": { "en": "HRA or HRB followed by the number, e.g. HRB 12345.", "ar": "HRA أو HRB يليه الرقم، مثل HRB 12345." },
+      "required": "conditional",
+      "normalize": "compact",
+      "patterns": ["^HR[AB]\\d{1,6}[A-Z]?$"],
+      "maxLength": 14,
+      "showOn": ["invoice", "quote", "contract", "letter"],
+      "source": { "label": "Handelsregister", "url": "https://www.handelsregister.de", "status": "not-rechecked" }
+    },
+    {
+      "key": "managing_directors",
+      "department": "company",
+      "label": { "en": "Managing directors", "ar": "المديرون التنفيذيون" },
+      "hint": { "en": "Full names, as on business letters.", "ar": "الأسماء الكاملة كما في الخطابات التجارية." },
+      "required": "conditional",
+      "normalize": "trim",
+      "maxLength": 300,
+      "showOn": ["contract", "letter"],
+      "source": { "label": "Handelsregister", "url": "https://www.handelsregister.de", "status": "not-rechecked" }
+    },
+    {
+      "key": "vat_registration_number",
+      "department": "finance",
+      "label": { "en": "VAT ID (USt-IdNr)", "ar": "رقم التعريف الضريبي للقيمة المضافة" },
+      "hint": { "en": "DE and 9 digits.", "ar": "DE و9 أرقام." },
+      "required": "conditional",
+      "appliesWhen": { "vatRegistered": true },
+      "normalize": "compact",
+      "patterns": ["^DE\\d{9}$"],
+      "checksum": "iso7064-mod11-10",
+      "maxLength": 14,
+      "showOn": ["invoice", "quote", "receipt"],
+      "source": { "label": "Federal Central Tax Office", "url": "https://www.bzst.de", "status": "not-rechecked" }
+    },
+    {
+      "key": "steuernummer",
+      "department": "finance",
+      "label": { "en": "Tax number (Steuernummer)", "ar": "الرقم الضريبي" },
+      "hint": { "en": "10 to 13 digits; its layout depends on the federal state.", "ar": "من 10 إلى 13 رقما؛ يختلف شكله حسب الولاية." },
+      "required": "mandatory",
+      "normalize": "digits",
+      "patterns": ["^\\d{10,13}$"],
+      "maxLength": 20,
+      "showOn": ["invoice"],
+      "source": { "label": "Federal Central Tax Office", "url": "https://www.bzst.de", "status": "not-rechecked" }
+    },
+    {
+      "key": "betriebsnummer",
+      "department": "hr",
+      "label": { "en": "Employer number (Betriebsnummer)", "ar": "رقم المنشأة لدى وكالة العمل" },
+      "hint": { "en": "8 digits, from the Federal Employment Agency.", "ar": "8 أرقام، من الوكالة الاتحادية للعمل." },
+      "required": "conditional",
+      "normalize": "digits",
+      "patterns": ["^\\d{8}$"],
+      "maxLength": 10,
+      "showOn": [],
+      "source": { "label": "Bundesagentur für Arbeit", "url": "https://www.arbeitsagentur.de", "status": "not-rechecked" }
+    }
+  ]
+}

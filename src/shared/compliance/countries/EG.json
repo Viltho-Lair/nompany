@@ -1,0 +1,76 @@
+{
+  "code": "EG",
+  "name": { "en": "Egypt", "ar": "مصر" },
+  "version": 1,
+  "checked": "2026-09-18",
+  "fields": [
+    {
+      "key": "legal_name_ar",
+      "department": "company",
+      "label": { "en": "Legal name in Arabic", "ar": "الاسم القانوني بالعربية" },
+      "hint": { "en": "As registered.", "ar": "كما هو مسجل." },
+      "required": "mandatory",
+      "normalize": "trim",
+      "maxLength": 200,
+      "showOn": ["invoice", "quote", "receipt", "contract", "letter"],
+      "source": { "label": "Research, Phase 1", "status": "not-rechecked" }
+    },
+    {
+      "key": "commercial_registration_number",
+      "department": "company",
+      "label": { "en": "Commercial register number", "ar": "رقم السجل التجاري" },
+      "hint": { "en": "As on the commercial register extract.", "ar": "كما في مستخرج السجل التجاري." },
+      "required": "mandatory",
+      "normalize": "trim",
+      "maxLength": 40,
+      "showOn": ["invoice", "quote", "contract", "letter"],
+      "source": { "label": "GAFI", "url": "https://www.gafi.gov.eg", "status": "uncertain" }
+    },
+    {
+      "key": "tax_registration_number",
+      "department": "finance",
+      "label": { "en": "Tax registration number (RIN)", "ar": "رقم التسجيل الضريبي" },
+      "hint": { "en": "9 digits.", "ar": "9 أرقام." },
+      "required": "mandatory",
+      "normalize": "digits",
+      "patterns": ["^\\d{9}$"],
+      "maxLength": 20,
+      "showOn": ["invoice", "quote", "receipt"],
+      "source": { "label": "Egyptian Tax Authority", "url": "https://www.eta.gov.eg", "status": "not-rechecked" }
+    },
+    {
+      "key": "eta_activity_code",
+      "department": "finance",
+      "label": { "en": "ETA activity code", "ar": "كود النشاط لدى مصلحة الضرائب" },
+      "hint": { "en": "4 digits, as registered for e-invoicing.", "ar": "4 أرقام، كما هو مسجل في الفاتورة الإلكترونية." },
+      "required": "conditional",
+      "normalize": "digits",
+      "patterns": ["^\\d{4}$"],
+      "maxLength": 8,
+      "showOn": [],
+      "source": { "label": "VATupdate — Egypt e-invoicing", "url": "https://www.vatupdate.com/2026/02/23/briefing-document-podcast-e-invoicing-e-reporting-in-egypt/", "checked": "2026-09-18", "status": "uncertain" }
+    },
+    {
+      "key": "social_insurance_employer_number",
+      "department": "hr",
+      "label": { "en": "Social insurance employer number", "ar": "رقم صاحب العمل في التأمينات الاجتماعية" },
+      "hint": { "en": "Needed once the Studio employs anybody.", "ar": "مطلوب متى وظفت المنشأة أي شخص." },
+      "required": "conditional",
+      "normalize": "trim",
+      "maxLength": 30,
+      "showOn": [],
+      "source": { "label": "Mercans — Egypt social insurance 2026", "url": "https://mercans.com/resources/statutory-alerts/egypt-minimum-and-maximum-insurable-wage-limits-increase-for-social-insurance-from-2026/", "checked": "2026-09-18", "status": "checked" }
+    },
+    {
+      "key": "data_protection_licence",
+      "department": "company",
+      "label": { "en": "Data protection licence", "ar": "ترخيص حماية البيانات" },
+      "hint": { "en": "From the Data Protection Centre, where the Studio needs one.", "ar": "من مركز حماية البيانات الشخصية عند الحاجة." },
+      "required": "optional",
+      "normalize": "trim",
+      "maxLength": 40,
+      "showOn": [],
+      "source": { "label": "Baker McKenzie — Egypt data protection", "url": "https://www.bakermckenzie.com/en/insight/publications/2026/01/egypt-important-data-protection-update", "checked": "2026-09-18", "status": "checked" }
+    }
+  ]
+}

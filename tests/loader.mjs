@@ -86,7 +86,19 @@ function nodeModulesFile(subpath) {
   return new URL(`node_modules/${subpath}`, ROOT).href;
 }
 
-export function resolve(specifier, context, next) {
+// 4. JSON. The country compliance definitions are one JSON file per country,
+//    imported plainly (`import SA from "./SA.json"`) because that is what the
+//    bundler takes. Node's ESM loader refuses a JSON module that arrives without
+//    `with { type: "json" }`, so the attribute is stamped on here, for any
+//    resolved .json file, and the source stays as Next wants it.
+export async function resolve(specifier, context, next) {
+  const out = await resolveInner(specifier, context, next);
+  return out?.url?.endsWith(".json")
+    ? { ...out, importAttributes: { ...(out.importAttributes || {}), type: "json" } }
+    : out;
+}
+
+function resolveInner(specifier, context, next) {
   if (specifier === "next/headers") {
     return next(new URL("tests/nextHeaders.mjs", ROOT).href, context);
   }

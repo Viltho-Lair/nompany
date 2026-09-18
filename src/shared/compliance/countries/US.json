@@ -1,0 +1,65 @@
+{
+  "code": "US",
+  "name": { "en": "United States", "ar": "الولايات المتحدة" },
+  "version": 1,
+  "checked": "2026-09-18",
+  "fields": [
+    {
+      "key": "ein",
+      "department": "finance",
+      "label": { "en": "Employer Identification Number (EIN)", "ar": "رقم تعريف صاحب العمل" },
+      "hint": { "en": "9 digits, written XX-XXXXXXX.", "ar": "9 أرقام، بالشكل XX-XXXXXXX." },
+      "required": "mandatory",
+      "normalize": "digits",
+      "patterns": ["^\\d{9}$"],
+      "maxLength": 12,
+      "showOn": [],
+      "source": { "label": "IRS", "url": "https://www.irs.gov", "status": "not-rechecked" }
+    },
+    {
+      "key": "state_of_formation",
+      "department": "company",
+      "label": { "en": "State of formation", "ar": "ولاية التأسيس" },
+      "hint": { "en": "Two-letter state code, e.g. DE, CA.", "ar": "رمز الولاية من حرفين، مثل DE أو CA." },
+      "required": "mandatory",
+      "normalize": "compact",
+      "patterns": ["^[A-Z]{2}$"],
+      "maxLength": 2,
+      "showOn": ["contract"],
+      "source": { "label": "Research, Phase 1", "status": "not-rechecked" }
+    },
+    {
+      "key": "state_entity_number",
+      "department": "company",
+      "label": { "en": "State entity (file) number", "ar": "رقم الكيان في الولاية" },
+      "hint": { "en": "As issued by the state of formation.", "ar": "كما صدر عن ولاية التأسيس." },
+      "required": "mandatory",
+      "normalize": "trim",
+      "maxLength": 30,
+      "showOn": ["contract"],
+      "source": { "label": "Research, Phase 1", "status": "not-rechecked" }
+    },
+    {
+      "key": "registered_agent_name",
+      "department": "company",
+      "label": { "en": "Registered agent", "ar": "الوكيل المسجل" },
+      "hint": { "en": "The agent named with the state of formation.", "ar": "الوكيل المسجل لدى ولاية التأسيس." },
+      "required": "mandatory",
+      "normalize": "trim",
+      "maxLength": 120,
+      "showOn": [],
+      "source": { "label": "Research, Phase 1", "status": "not-rechecked" }
+    },
+    {
+      "key": "registered_agent_address",
+      "department": "company",
+      "label": { "en": "Registered agent address", "ar": "عنوان الوكيل المسجل" },
+      "hint": { "en": "A street address in the state of formation.", "ar": "عنوان في ولاية التأسيس." },
+      "required": "mandatory",
+      "normalize": "trim",
+      "maxLength": 300,
+      "showOn": [],
+      "source": { "label": "Research, Phase 1", "status": "not-rechecked" }
+    }
+  ]
+}

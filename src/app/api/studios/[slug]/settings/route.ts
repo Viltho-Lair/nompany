@@ -31,6 +31,7 @@ import { cleanStatutory, statutoryRulesOf } from "@/modules/hr/statutory";
 import { templateProblems as noticeProblems, cleanTemplates as cleanNotices, templateView as noticeView } from "@/modules/administration/notices";
 import { isValuationMethod } from "@/modules/inventory/valuation";
 import { cleanVatSetting, studioVatRate } from "@/shared/vat";
+import { change, recordOfficialChanges } from "@/modules/administration/officialValues";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -363,6 +364,18 @@ export async function PUT(request: Request, ctx: { params: Promise<Record<string
       : Response.json({ error: "notfound" }, { status: 404 });
   }
 
+  // THE COUNTRY IS THE OWNER'S TO CHOOSE (18/09/2026), not any settings
+  // editor's. It decides which official values exist, which rules every
+  // department applies and what prints on every legal document — a bigger act
+  // than editing a value, and the Owner is who answers for the Studio as a
+  // legal entity. Asked only when the country actually CHANGES, so an editor
+  // saving the city with the country unchanged in the same form is not refused.
+  const countryBefore = String(studio.country ?? "");
+  const countryChanging = "country" in body && String(body.country ?? "").trim() !== countryBefore;
+  if (countryChanging && collaborator.role !== "owner") {
+    return Response.json({ error: "owner-only" }, { status: 403 });
+  }
+
   const patch: Record<string, unknown> = {};
   for (const key of FIELDS) {
     if (!(key in body)) continue;
@@ -484,5 +497,13 @@ export async function PUT(request: Request, ctx: { params: Promise<Record<string
 
   const updated = await updateStudio(studio.id, patch);
   if (!updated) return Response.json({ error: "notfound" }, { status: 404 });
+  // A COUNTRY CHANGE IS RECORDED WITH THE VALUES IT GOVERNS — it changes which
+  // of them print, so "why did our VAT number disappear from invoices" has to
+  // be answerable from the same history as the number itself.
+  if (countryChanging) {
+    await recordOfficialChanges(studio.id, [
+      change(collaborator as { id: string; alias?: unknown }, String(updated.country ?? ""), "country", countryBefore, String(updated.country ?? "")),
+    ]);
+  }
   return Response.json({ ok: true, studio: clean(updated, await legacyChains(studio.id)) });
 }

@@ -570,11 +570,24 @@ export async function listUserCollaborations(userId: string): Promise<StudioRow[
 }
 
 // ---- registry updates (id/ownerUserId immutable; slug via changeStudioSlug) -
-export async function updateStudio(studioId: string, patch: Record<string, unknown>) {
+/**
+ * A PATCH, OR A FUNCTION OF THE ROW AS STORED (invariant 8).
+ *
+ * The object form merges a snapshot the caller read earlier, which is right for
+ * "set the logo" and wrong for "set THIS key inside a map": two people saving
+ * different official values at once would each write the whole map as they saw
+ * it, and the second would silently erase the first. The function form is
+ * handed the row as it stands inside the compare-and-set, so it merges into
+ * what is there rather than into what was.
+ */
+export type StudioPatch = Record<string, unknown> | ((row: StudioRow) => Record<string, unknown>);
+
+export async function updateStudio(studioId: string, patchOrFn: StudioPatch) {
   return editArr<StudioRow, StudioRow | null>(REG.studios, (rows) => {
     let updated: StudioRow | null = null;
     const next = rows.map((s) => {
       if (s.id !== studioId) return s;
+      const patch = typeof patchOrFn === "function" ? patchOrFn(s) : patchOrFn;
       // The three destructured out are the immutable ones — id, owner and slug
       // — and naming them is how they are excluded, which is why none is read.
       // The slug has its own path because it carries a uniqueness claim.

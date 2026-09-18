@@ -1,0 +1,93 @@
+{
+  "code": "GB",
+  "name": { "en": "United Kingdom", "ar": "المملكة المتحدة" },
+  "version": 1,
+  "checked": "2026-09-18",
+  "fields": [
+    {
+      "key": "company_number",
+      "department": "company",
+      "label": { "en": "Company number", "ar": "رقم الشركة" },
+      "hint": { "en": "8 characters from Companies House — 8 digits, or SC, NI or OC followed by 6.", "ar": "8 خانات من سجل الشركات — 8 أرقام، أو SC أو NI أو OC يليها 6 أرقام." },
+      "required": "mandatory",
+      "normalize": "compact",
+      "patterns": ["^\\d{8}$", "^(SC|NI|OC|SO|NC|R0)\\d{6}$"],
+      "maxLength": 10,
+      "showOn": ["invoice", "quote", "contract", "letter"],
+      "source": { "label": "Companies House", "url": "https://www.gov.uk/government/organisations/companies-house", "status": "not-rechecked" }
+    },
+    {
+      "key": "registered_office_address",
+      "department": "company",
+      "label": { "en": "Registered office address", "ar": "عنوان المكتب المسجل" },
+      "hint": { "en": "Must appear on invoices, letters and order forms.", "ar": "يجب أن يظهر في الفواتير والخطابات ونماذج الطلب." },
+      "required": "mandatory",
+      "normalize": "trim",
+      "maxLength": 300,
+      "showOn": ["invoice", "quote", "contract", "letter"],
+      "source": { "label": "Companies House", "url": "https://www.gov.uk/government/organisations/companies-house", "status": "not-rechecked" }
+    },
+    {
+      "key": "vat_registration_number",
+      "department": "finance",
+      "label": { "en": "VAT registration number", "ar": "رقم التسجيل في ضريبة القيمة المضافة" },
+      "hint": { "en": "GB and 9 digits (12 for a branch).", "ar": "GB و9 أرقام (12 للفرع)." },
+      "required": "conditional",
+      "appliesWhen": { "vatRegistered": true },
+      "normalize": "compact",
+      "patterns": ["^(GB)?\\d{9}$", "^(GB)?\\d{12}$"],
+      "checksum": "mod97-9755",
+      "maxLength": 16,
+      "showOn": ["invoice", "quote", "receipt"],
+      "source": { "label": "HMRC", "url": "https://www.gov.uk/government/organisations/hm-revenue-customs", "status": "not-rechecked" }
+    },
+    {
+      "key": "utr",
+      "department": "finance",
+      "label": { "en": "Corporation Tax UTR", "ar": "الرقم المرجعي الفريد لدافع الضرائب" },
+      "hint": { "en": "10 digits.", "ar": "10 أرقام." },
+      "required": "mandatory",
+      "normalize": "digits",
+      "patterns": ["^\\d{10}$"],
+      "maxLength": 14,
+      "showOn": [],
+      "source": { "label": "HMRC", "url": "https://www.gov.uk/government/organisations/hm-revenue-customs", "status": "not-rechecked" }
+    },
+    {
+      "key": "paye_reference",
+      "department": "hr",
+      "label": { "en": "Employer PAYE reference", "ar": "مرجع صاحب العمل في نظام PAYE" },
+      "hint": { "en": "Three digits, a slash, then letters and digits — e.g. 123/AB45678.", "ar": "ثلاثة أرقام ثم شرطة مائلة ثم حروف وأرقام — مثل 123/AB45678." },
+      "required": "conditional",
+      "normalize": "compact",
+      "patterns": ["^\\d{3}/[A-Z0-9]{1,10}$"],
+      "maxLength": 16,
+      "showOn": ["payslip"],
+      "source": { "label": "HMRC", "url": "https://www.gov.uk/government/organisations/hm-revenue-customs", "status": "not-rechecked" }
+    },
+    {
+      "key": "accounts_office_reference",
+      "department": "hr",
+      "label": { "en": "Accounts Office reference", "ar": "المرجع لدى مكتب الحسابات" },
+      "hint": { "en": "13 characters, e.g. 123PA00012345.", "ar": "13 خانة، مثل 123PA00012345." },
+      "required": "conditional",
+      "normalize": "compact",
+      "patterns": ["^\\d{3}P[A-Z]\\d{8}$"],
+      "maxLength": 16,
+      "showOn": [],
+      "source": { "label": "HMRC", "url": "https://www.gov.uk/government/organisations/hm-revenue-customs", "status": "not-rechecked" }
+    },
+    {
+      "key": "ico_registration_number",
+      "department": "company",
+      "label": { "en": "ICO registration number", "ar": "رقم التسجيل لدى مكتب مفوض المعلومات" },
+      "hint": { "en": "From the data protection fee, unless the Studio is exempt.", "ar": "من رسوم حماية البيانات، ما لم تكن المنشأة معفاة." },
+      "required": "optional",
+      "normalize": "compact",
+      "patterns": ["^Z[A-Z]\\d{6}$"],
+      "maxLength": 10,
+      "showOn": [],
+      "source": { "label": "ICO", "url": "https://ico.org.uk", "status": "uncertain" }
+    }
+  ]
+}

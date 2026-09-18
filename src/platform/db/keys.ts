@@ -422,6 +422,12 @@ export const S = {
   sections: (studioId: string) => `${P}s:${studioId}:sections`,
   roles: (studioId: string) => `${P}s:${studioId}:roles`,
   settings: (studioId: string) => `${P}s:${studioId}:settings`,
+  // WHO CHANGED WHICH OFFICIAL VALUE, AND WHEN — the Studio's tax, registration
+  // and address identifiers (shared/compliance), which are printed on legal
+  // documents and must be traceable. A key of its own rather than a list on the
+  // studio record, because the record is read on every request and a history
+  // only ever grows. Under the studio prefix, so it dies with the studio.
+  officialHistory: (studioId: string) => `${P}s:${studioId}:officialHistory`,
   // WHO IN THIS STUDIO LETS COLLEAGUES SEE WHEN THEY ARE BUSY — CollaboratorIDs,
   // per invariant 6. A SEPARATE KEY from the person's calendar connection
   // (u:<id>:cal:<provider>) on purpose: cascade-by-prefix destroys this list with

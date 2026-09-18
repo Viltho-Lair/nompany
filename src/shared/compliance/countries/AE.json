@@ -1,0 +1,90 @@
+{
+  "code": "AE",
+  "name": { "en": "United Arab Emirates", "ar": "الإمارات العربية المتحدة" },
+  "version": 1,
+  "checked": "2026-09-18",
+  "fields": [
+    {
+      "key": "trade_licence_number",
+      "department": "company",
+      "label": { "en": "Trade licence number", "ar": "رقم الرخصة التجارية" },
+      "hint": { "en": "As issued by the emirate or free zone.", "ar": "كما صدر عن الإمارة أو المنطقة الحرة." },
+      "required": "mandatory",
+      "normalize": "trim",
+      "maxLength": 40,
+      "showOn": ["invoice", "quote", "contract", "letter"],
+      "source": { "label": "Research, Phase 1", "status": "not-rechecked" }
+    },
+    {
+      "key": "trade_licence_authority",
+      "department": "company",
+      "label": { "en": "Licensing authority", "ar": "جهة الترخيص" },
+      "hint": { "en": "e.g. Dubai DET, ADGM, a free zone authority.", "ar": "مثل دائرة الاقتصاد والسياحة في دبي أو سلطة منطقة حرة." },
+      "required": "mandatory",
+      "normalize": "trim",
+      "maxLength": 120,
+      "showOn": ["contract", "letter"],
+      "source": { "label": "Research, Phase 1", "status": "not-rechecked" }
+    },
+    {
+      "key": "trade_licence_expiry",
+      "department": "company",
+      "label": { "en": "Trade licence expiry", "ar": "تاريخ انتهاء الرخصة التجارية" },
+      "hint": { "en": "YYYY-MM-DD.", "ar": "السنة-الشهر-اليوم." },
+      "required": "mandatory",
+      "input": "date",
+      "normalize": "trim",
+      "patterns": ["^\\d{4}-\\d{2}-\\d{2}$"],
+      "maxLength": 10,
+      "showOn": [],
+      "source": { "label": "Research, Phase 1", "status": "not-rechecked" }
+    },
+    {
+      "key": "legal_name_ar",
+      "department": "company",
+      "label": { "en": "Legal name in Arabic", "ar": "الاسم القانوني بالعربية" },
+      "hint": { "en": "Optional; UAE invoices are commonly bilingual.", "ar": "اختياري؛ الفواتير في الإمارات غالبا ثنائية اللغة." },
+      "required": "optional",
+      "normalize": "trim",
+      "maxLength": 200,
+      "showOn": ["invoice", "quote", "contract", "letter"],
+      "source": { "label": "Federal Tax Authority", "url": "https://tax.gov.ae", "status": "not-rechecked" }
+    },
+    {
+      "key": "vat_registration_number",
+      "department": "finance",
+      "label": { "en": "Tax registration number (TRN)", "ar": "رقم التسجيل الضريبي" },
+      "hint": { "en": "15 digits.", "ar": "15 رقما." },
+      "required": "conditional",
+      "appliesWhen": { "vatRegistered": true },
+      "normalize": "digits",
+      "patterns": ["^\\d{15}$"],
+      "maxLength": 20,
+      "showOn": ["invoice", "quote", "receipt"],
+      "source": { "label": "Federal Tax Authority", "url": "https://tax.gov.ae", "status": "not-rechecked" }
+    },
+    {
+      "key": "corporate_tax_trn",
+      "department": "finance",
+      "label": { "en": "Corporate tax registration number", "ar": "رقم التسجيل في ضريبة الشركات" },
+      "hint": { "en": "15 digits, from EmaraTax.", "ar": "15 رقما، من منصة إمارات تاكس." },
+      "required": "mandatory",
+      "normalize": "digits",
+      "patterns": ["^\\d{15}$"],
+      "maxLength": 20,
+      "showOn": [],
+      "source": { "label": "PwC — UAE corporate tax", "url": "https://taxsummaries.pwc.com/united-arab-emirates/corporate/taxes-on-corporate-income", "checked": "2026-09-18", "status": "checked" }
+    },
+    {
+      "key": "gpssa_employer_number",
+      "department": "hr",
+      "label": { "en": "GPSSA employer number", "ar": "رقم صاحب العمل في الهيئة العامة للمعاشات" },
+      "hint": { "en": "Only if the Studio employs UAE nationals.", "ar": "فقط إذا وظفت المنشأة مواطنين." },
+      "required": "conditional",
+      "normalize": "trim",
+      "maxLength": 30,
+      "showOn": [],
+      "source": { "label": "GPSSA", "url": "https://gpssa.gov.ae", "status": "not-rechecked" }
+    }
+  ]
+}

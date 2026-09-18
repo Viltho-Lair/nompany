@@ -19,6 +19,8 @@ import StudioFlowEditor from "@/components/studio2/StudioFlowEditor";
 import SettingsFold from "@/components/studio2/SettingsFold";
 import ApprovalChainsPanel from "@/components/studio2/ApprovalChainsPanel";
 import EmploymentRulesPanel from "@/components/studio2/EmploymentRulesPanel";
+import OfficialValuesPanel from "@/components/studio2/OfficialValuesPanel";
+import { officialValuesDict } from "@/shared/studio/officialValues";
 import { useReload } from "@/components/studio2/useReload";
 import { isFiledOnlySection } from "@/platform/db/keys";
 
@@ -171,8 +173,13 @@ export default function StudioSettings({ slug, locale = "en" }) {
         {/* Where the studio is. Country and city are also what a new sales
             ticket starts from, so they are the studio's default location and
             not merely a description of it. */}
+        {/* THE COUNTRY IS THE OWNER'S TO CHOOSE (18/09/2026): it decides which
+            official values exist and what prints on every legal document. The
+            server refuses anybody else; the row says so rather than offering an
+            edit that would be refused. */}
         <EditRow
-          icon="locations" label={tr.country} value={studio.country} canManage={canManage}
+          icon="locations" label={tr.country} value={studio.country} canManage={canManage && isOwner}
+          hint={canManage && !isOwner ? officialValuesDict(locale).ownerChoosesCountry : ""}
           onSave={(v) => save({ country: v, ...(v !== studio.country ? { city: "" } : {}) })}
           render={(draft, set) => (
             <Combo value={draft} onChange={set} options={COUNTRY_NAMES} inputClassName={INPUT} />
@@ -325,6 +332,10 @@ export default function StudioSettings({ slug, locale = "en" }) {
         suggestion={suggestion}
         onSaved={load}
       />
+
+      {/* OFFICIAL VALUES, per the selected country — keyed on the country so a
+          change on the row above remounts it with the new country's fields. */}
+      <OfficialValuesPanel key={studio.country || "none"} slug={slug} locale={locale} country={studio.country || ""} />
 
       <LegalInfo
         rows={Array.isArray(studio.legalInfo) ? studio.legalInfo : []}
