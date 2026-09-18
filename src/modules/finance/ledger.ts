@@ -89,6 +89,9 @@ export const DEFAULT_CHART: { code: string; name: string; type: AccountType }[] 
   { code: "1010", name: "Bank", type: "asset" },
   { code: "1100", name: "Accounts Receivable", type: "asset" },
   { code: "1150", name: "Cheques Receivable", type: "asset" },
+  // WHAT A SISTER COMPANY OWES THIS ONE, and below what this one owes a sister
+  // (18/09/2026): eliminated when a group's books are read as one (./consolidation).
+  { code: "1170", name: "Due from Group Companies", type: "asset" },
   { code: "1200", name: "Inventory", type: "asset" },
   // MONEY HANDED TO STAFF BEFORE THEY SPEND IT (18/09/2026): the studio's
   // until a claim accounts for it or the person hands it back (./claims).
@@ -120,6 +123,7 @@ export const DEFAULT_CHART: { code: string; name: string; type: AccountType }[] 
   // and moves money only when it clears; between the two it is neither the
   // receivable it replaced nor money in the bank.
   { code: "2050", name: "Cheques Payable", type: "liability" },
+  { code: "2070", name: "Due to Group Companies", type: "liability" },
   { code: "2100", name: "VAT Payable", type: "liability" },
   // TAX THE STUDIO WITHHELD FROM A SUPPLIER and owes the authority until it is
   // paid over, 18/09/2026 — the mirror of 1300 on the invoice side.

@@ -52,6 +52,7 @@ Three rules that keep this folder worth reading:
 | [deferral-schedules.md](deferral-schedules.md) | Revenue earned over time (IFRS 15) and prepaid costs, deferred on their day and recognised month by month |
 | [leases.md](leases.md) | IFRS 16 leases: the right of use and the liability recognised at present value, then depreciation, interest and payment month by month |
 | [allocations.md](allocations.md) | A shared cost's unowned part spread across projects, deals, cost codes or departments, by fixed shares or by what each earned |
+| [groups.md](groups.md) | Several studios one person owns grouped, and their books read as one: translated, added by account code, intercompany balances eliminated |
 | [legal-pages.md](legal-pages.md) | The Terms and the Privacy Policy: one renderer, the Google disclosure shared by both, and what Google's OAuth verification requires |
 | [lifecycle.md](lifecycle.md) | Somebody's employment as against the person: the contract they are on, the six states it moves through, the effective-dated country pack behind probation and notice, and what the final settlement adds up to |
 | [list-tables.md](list-tables.md) | The department list tables: the shared Data Grid, and the search / filter / column controls above it |

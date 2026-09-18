@@ -6,6 +6,7 @@ import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { paymentRunDict } from "@/shared/studio/paymentRun";
 import { claimsDict } from "@/shared/studio/claims";
 import { leasesDict } from "@/shared/studio/leases";
+import { groupDict } from "@/shared/studio/group";
 import { financeDict } from "@/shared/studio/finance";
 import { documentsDict } from "@/shared/studio/documents";
 import Link from "next/link";
@@ -222,7 +223,7 @@ function FinanceReports({ slug }) {
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{tr.reportsLead}</p>
       </div>
       <FinanceSetupNotice items={data.setup} slug={slug} canFix={data.canFixSetup} />
-      <TabBar tabs={[["pl", lt.pl], ["bs", lt.bs], ["cf", lt.cashFlow], ["projects", tr.reportsProjects]]} tab={tab} setTab={setTab} />
+      <TabBar tabs={[["pl", lt.pl], ["bs", lt.bs], ["cf", lt.cashFlow], ["group", groupDict(locale).tab], ["projects", tr.reportsProjects]]} tab={tab} setTab={setTab} />
       {tab !== "projects" && (
         <div className="flex flex-wrap gap-2">
           <Field label={lt.from} type="date" className="w-44" value={range.from} onChange={(v) => setRange((r) => ({ ...r, from: v }))} />
@@ -262,6 +263,7 @@ function FinanceReports({ slug }) {
           </p>
         </div>
       )}
+      {tab === "group" && <GroupBooks slug={slug} range={range} />}
       {tab === "projects" && <FinanceCash slug={slug} view="finance-reports" only={["projects"]} embedded />}
     </div>
   );
@@ -278,6 +280,99 @@ function Receivables({ slug }) {
       <TabBar tabs={[["documents", tr.tabInvoices], ["credit", tr.tabCredit], ["dunning", tr.tabDunning]]} tab={tab} setTab={setTab} />
       {tab === "documents" && <FinanceCash slug={slug} view="finance-receivables" />}
       {tab !== "documents" && <CreditPanel slug={slug} locale={locale} tab={tab} />}
+    </div>
+  );
+}
+
+// THE GROUP'S BOOKS (modules/finance/groupService) — several studios one
+// person owns, read as one. The owner forms the group here; anybody who may
+// read every member's reports sees the consolidation, over the same window.
+function GroupBooks({ slug, range }) {
+  const locale = useStudioLocale();
+  const g = groupDict(locale);
+  const lt = ledgerDict(locale);
+  const [data, setData] = useState(null);
+  const [problem, setProblem] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [name, setName] = useState("");
+  const [adding, setAdding] = useState("");
+  const load = useCallback(async () => {
+    const qs = new URLSearchParams(Object.entries(range).filter(([, v]) => /^\d{4}-\d{2}-\d{2}$/.test(v))).toString();
+    const res = await fetch(`/api/studios/${slug}/finance/group${qs ? `?${qs}` : ""}`, { cache: "no-store" });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) { setProblem(g.problem(String(body.error || ""))); return; }
+    setProblem(""); setData(body);
+  }, [slug, range, g]);
+  useReload(load);
+  const act = async (payload) => {
+    setBusy(true); setProblem("");
+    const res = await fetch(`/api/studios/${slug}/finance/group`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+    });
+    const body = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (!res.ok) { setProblem(g.problem(String(body.error || ""))); return; }
+    await load();
+  };
+  if (!data) return problem ? <p className="text-sm text-rose-600 dark:text-rose-300">{problem}</p> : <ScreenSkeleton />;
+  const { group, isOwner, members = [], joinable = [], consolidation: c, consolidationError } = data;
+  return (
+    <div className="space-y-5">
+      <div>
+        <h3 className="font-display text-sm font-700 text-slate-900 dark:text-white">{group ? group.name : g.title}</h3>
+        <p className="mt-1 max-w-3xl text-sm text-slate-500 dark:text-slate-400">{g.lead}</p>
+      </div>
+      {problem && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{problem}</p>}
+      {!group && !isOwner && <p className="text-sm text-slate-400">{g.none}</p>}
+      {!group && isOwner && (
+        <div className="flex flex-wrap items-end gap-2">
+          <p className="w-full text-sm text-slate-500 dark:text-slate-400">{g.noneOwner}</p>
+          <Field label={g.name} className="w-64" value={name} onChange={setName} />
+          <button className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-600 text-white disabled:opacity-50" disabled={busy || !name.trim()}
+            onClick={() => act({ action: "create", name })}>{g.create}</button>
+        </div>
+      )}
+      {group && isOwner && (
+        <div className="space-y-2 rounded-geex border border-slate-200/70 p-4 dark:border-white/10">
+          <p className="text-xs font-600 text-slate-500 dark:text-slate-400">{g.members}</p>
+          <ul className="space-y-1">
+            {members.map((m) => (
+              <li key={m.id} className="flex flex-wrap items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+                <span>{m.name}</span>
+                <button className="ms-auto rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-600 dark:border-white/15 dark:text-slate-300" disabled={busy}
+                  onClick={() => act({ action: "remove", studioId: m.id })}>{g.remove}</button>
+              </li>
+            ))}
+          </ul>
+          {joinable.length > 0 && (
+            <div className="flex flex-wrap items-end gap-2">
+              <Field label={g.addWhich} as="select" className="w-64" value={adding} onChange={setAdding}
+                options={joinable.map((s) => ({ value: s.id, label: s.name }))} />
+              <button className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-600 text-slate-700 disabled:opacity-50 dark:border-white/15 dark:text-slate-200"
+                disabled={busy || !adding} onClick={async () => { await act({ action: "add", studioId: adding }); setAdding(""); }}>{g.add}</button>
+            </div>
+          )}
+        </div>
+      )}
+      {group && consolidationError && <p className="text-sm text-amber-700 dark:text-amber-300">{g.problem(consolidationError)}</p>}
+      {c && (
+        <div className="space-y-4">
+          <h4 className="font-display text-sm font-700 text-slate-900 dark:text-white">{g.consolidated(c.currency)}</h4>
+          <ul className="space-y-0.5 text-xs text-slate-500 dark:text-slate-400">
+            {c.members.map((m) => <li key={m.studioId}>{g.memberLine(m.name, m.currency, m.rate, money(m.profit))}</li>)}
+          </ul>
+          {c.missingRate.length > 0 && <p className="text-sm text-amber-700 dark:text-amber-300">{g.missingRate(c.missingRate.join(", "))}</p>}
+          <Statement tr={lt}
+            groups={[[lt.income, c.profitAndLoss.income, c.profitAndLoss.totalIncome], [lt.expenses, c.profitAndLoss.expense, c.profitAndLoss.totalExpense]]}
+            total={c.profitAndLoss.profit} totalLabel={g.profit} />
+          <Statement tr={lt}
+            groups={[[lt.assets, c.balanceSheet.asset, c.balanceSheet.totalAssets], [lt.liabilities, c.balanceSheet.liability, c.balanceSheet.totalLiabilities],
+              [lt.equity, c.balanceSheet.equity, c.balanceSheet.totalEquity]]}
+            total={c.balanceSheet.totalAssets} totalLabel={lt.assets}
+            note={[lt.retained(c.balanceSheet.retainedResult), g.eliminated(money(c.balanceSheet.eliminated.dueFrom), money(c.balanceSheet.eliminated.dueTo)),
+              c.balanceSheet.intercompanyDifference ? g.intercompanyOff(money(c.balanceSheet.intercompanyDifference)) : c.balanceSheet.balanced ? g.balanced : lt.outBy(c.balanceSheet.difference)].join(" ")} />
+        </div>
+      )}
     </div>
   );
 }

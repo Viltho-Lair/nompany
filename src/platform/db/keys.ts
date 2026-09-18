@@ -103,6 +103,11 @@ export const REG = {
   // revocation, or a revoked key would still resolve to a studio.
   apiKeyIndex: `${P}g:api-keys`,
   superAdmins: `${P}g:superAdmins`,
+  // GROUPS OF STUDIOS one owner keeps books for (18/09/2026, Finance step 6):
+  // { id, name, ownerUserId } per group. Platform-level because a group spans
+  // studios and belongs to none of them; each member studio names its group
+  // on its own row (`groupId`), so leaving a group is an edit to one studio.
+  studioGroups: `${P}g:studioGroups`,
   joinRequests: `${P}g:joinRequests`,
   // Questionnaire DEFINITIONS authored in /super — the forms themselves, not
   // anyone's answers. Platform-level like the studio registry, because a
