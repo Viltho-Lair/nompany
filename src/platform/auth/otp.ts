@@ -18,6 +18,7 @@ import { derivedSecret } from "@/platform/db/masterKeys";
 import { OTP, RL, U, makeId } from "@/platform/db/keys";
 import { getJSON, setJSONEx, consume, incrWithTTL, readArr, editArr, editJSON } from "@/platform/db/store";
 import { recordSignal } from "./users";
+import { bindingHolds, type IntelStatus } from "./deviceIntel";
 
 export const CODE_TTL_SEC = 10 * 60;               // a code is valid 10 minutes
 export const MAX_ATTEMPTS = 5;                     // wrong guesses per challenge
@@ -184,10 +185,14 @@ export type DeviceFacts = {
   deviceType?: string;
   location?: string;
   ipHash?: string;
+  /** Keyed digest of Fingerprint's visitor id, when this request proved one (deviceIntel.ts). */
+  visitorHash?: string;
+  /** What Fingerprint said about this request — never stored, only judged by. */
+  intel?: IntelStatus;
 };
 
 /** A stored device row. `trusted` absent means trusted — see the note above. */
-export type DeviceRow = DeviceFacts & {
+export type DeviceRow = Omit<DeviceFacts, "intel"> & {
   id: string;
   trusted?: boolean;
   createdAt: number;
@@ -198,7 +203,7 @@ export type DeviceRow = DeviceFacts & {
 export async function recordDevice(
   userId: string,
   deviceId: string | null | undefined,
-  { label = "", deviceType = "", location = "", ipHash = "" }: DeviceFacts = {},
+  { label = "", deviceType = "", location = "", ipHash = "", visitorHash = "" }: DeviceFacts = {},
   // "keep": record the sign-in and leave the device's trust as it was — a
   // passkey sign-in says nothing about whether this browser may skip a code.
   { trusted = true }: { trusted?: boolean | "keep" } = {},
@@ -219,9 +224,18 @@ export async function recordDevice(
     // with the session limit on 18/09/2026 and went with it). "keep" leaves the
     // device's trust as it was.
     const mayTrust = trusted === "keep" ? Boolean(existing && existing.trusted !== false) : Boolean(trusted);
+    // THE BINDING IS MADE WHERE TRUST IS GRANTED, and only there: the code
+    // step (or a provider) has just proved this person is at THIS browser, so
+    // the browser Fingerprint saw is the one the cookie now belongs to. A
+    // sign-in on the cookie alone never re-binds — that is the path a copied
+    // cookie takes. Trusting again without a proven visitor (an ad blocker, a
+    // Fingerprint outage) clears the binding rather than keeping an old one
+    // that would ask this browser for a code every time.
+    const binding = trusted === true ? (visitorHash ? String(visitorHash).slice(0, 64) : undefined) : existing?.visitorHash;
     const row: DeviceRow = {
       ...existing,
       ...facts,
+      visitorHash: binding,
       id,
       trusted: mayTrust,
       createdAt: existing?.createdAt || Date.now(),
@@ -261,11 +275,22 @@ export async function isTrustedDevice(
     const live = liveDevices(rows);
     const found = live.find((d) => d.id === deviceId);
     if (!found) return { result: false };
+    // A DEVICE BOUND TO A BROWSER ONLY SKIPS THE CODE IN THAT BROWSER. The
+    // cookie is the device's id and nothing more; copied onto another machine
+    // it used to be enough. Now that machine must also be the browser
+    // Fingerprint saw when trust was granted — and a request that withheld or
+    // forged the event is asked for the code too, because both are the
+    // caller's choice. Fingerprint being off or down is not, and changes
+    // nothing. Unbound rows (trusted before this, or with the agent blocked)
+    // behave as they always did. Nothing is refreshed on a mismatch: this is
+    // not a sign-in on this device.
+    if (!bindingHolds(found.visitorHash, facts)) return { result: false };
     // Seen again: refresh when and where, so the Security list reflects the last
     // sign-in rather than the first. Details only, never the trust flag.
     const fresh = facts
       ? { label: facts.label || found.label, deviceType: facts.deviceType || found.deviceType,
-          location: facts.location || found.location, ipHash: facts.ipHash || found.ipHash }
+          location: facts.location || found.location, ipHash: facts.ipHash || found.ipHash,
+          visitorHash: found.visitorHash }
       : {};
     return {
       next: live.map((d) => (d.id === deviceId ? { ...d, ...fresh, lastSeenAt: Date.now() } : d)),

@@ -425,6 +425,13 @@ export const RL = {
   // counters, so the lockout gets longer each time rather than resetting to
   // fifteen minutes forever.
   attemptStrikes: (ip: string) => `${P}rl:cred:x:${String(ip || "unknown")}`,
+  // The same failures counted per DEVICE (a keyed digest of Fingerprint's
+  // visitor id, platform/auth/deviceIntel.ts). Catches the guesser who rotates
+  // IP addresses — a proxy pool resets every counter above and not this one.
+  attemptVisitor: (visitorHash: string) => `${P}rl:cred:v:${String(visitorHash || "unknown")}`,
+  // New accounts per device per day. The OTP limits count codes SENT; this
+  // counts accounts MADE, which is what a signup farm is after.
+  signupVisitor: (visitorHash: string) => `${P}rl:signup:v:${String(visitorHash || "unknown")}`,
 };
 
 // ---- per-studio keys (die with the studio) ---------------------------------

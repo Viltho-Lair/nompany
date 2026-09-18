@@ -7,6 +7,7 @@ import Link from "next/link";
 import OtpStep from "@/components/public/OtpStep";
 import SocialButtons from "@/components/public/SocialButtons";
 import { useDeviceHints } from "@/components/public/deviceHints";
+import { deviceEventReady } from "@/components/public/deviceIntel";
 import { LockCover } from "@/components/security/SessionLock";
 import TillCashierSwitch from "@/components/security/TillCashierSwitch";
 import TwoFactorStep from "@/components/public/TwoFactorStep";
@@ -138,6 +139,8 @@ export default function LoginForm({ locale, dict, providers = [] }) {
     e.preventDefault();
     setError(null); setNotice(""); setLoading(true);
     try {
+      // The server reads Fingerprint's event off a cookie (deviceIntel.js).
+      await deviceEventReady();
       const res = await fetch("/api/identity/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -159,6 +162,8 @@ export default function LoginForm({ locale, dict, providers = [] }) {
           setError({ kind: "wait", message: tooManyAttemptsIn(tr, data.retryAfter) });
         } else if (data.error === "rate-email" || data.error === "rate-ip") {
           setError({ kind: "wait", message: tr.tooManyAttemptsWait });
+        } else if (data.error === "automated") {
+          setError({ kind: "bad", message: tr.automatedRefused });
         } else if (data.error === "suspended") {
           setError({ kind: "bad", message: tr.accountSuspendedOwner });
         } else if (data.error === "invalid") {

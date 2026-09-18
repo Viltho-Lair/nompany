@@ -5,6 +5,8 @@ import {
   DEVICE_HEADER, isDesktopClient, pendingCookie,
 } from "@/platform/auth/identity";
 
+import { readDeviceIntel, intelFacts } from "@/platform/auth/deviceIntel";
+
 export const runtime = "nodejs";
 
 // Risk-based sign-in. The password is always checked first; a code is only sent
@@ -20,6 +22,10 @@ export async function POST(request: Request) {
     || request.headers.get(DEVICE_HEADER)
     || "";
   const desktop = isDesktopClient(request);
+  // Fingerprint's verdict on this browser (platform/auth/deviceIntel.ts). The
+  // desktop app runs no agent, so it is not asked — a "missing" event there
+  // would ask its bound devices for a code they could never avoid.
+  const intel = desktop ? undefined : await readDeviceIntel(request);
   const result = await login({
     email: String(body.email ?? ""),
     password: String(body.password ?? ""),
@@ -29,13 +35,14 @@ export async function POST(request: Request) {
     // Everything we can learn about this browser from the request itself —
     // label, type and coarse location — so a recognised device's row is kept
     // current instead of frozen at whenever it was first trusted.
-    device: deviceFingerprint(request),
+    device: { ...deviceFingerprint(request), ...(intel ? intelFacts(intel) : {}) },
     desktop,
+    intel,
   });
 
   if (refused(result)) {
     const limited = result.error === "rate-limited" || result.error === "rate-email" || result.error === "rate-ip";
-    const status = result.error === "suspended" ? 403 : limited ? 429 : 401;
+    const status = result.error === "suspended" || result.error === "automated" ? 403 : limited ? 429 : 401;
     const res = Response.json(
       { error: result.error, ...(result.retryAfter ? { retryAfter: result.retryAfter } : {}) },
       { status },

@@ -28,7 +28,9 @@ const CSP = [
   // real change and belongs in its own commit, which is the main thing this
   // Report-Only pass exists to size.
   // 'unsafe-eval' is dev-only (React Refresh); production does not get it.
-  `script-src 'self' 'unsafe-inline'${isProd ? "" : " 'unsafe-eval'"} https://maps.googleapis.com`,
+  // fpnpmcdn.net is Fingerprint's agent, loaded by the sign-in and sign-up
+  // pages only (components/public/deviceIntel.js).
+  `script-src 'self' 'unsafe-inline'${isProd ? "" : " 'unsafe-eval'"} https://maps.googleapis.com https://fpnpmcdn.net`,
   // MUI/emotion injects styles at runtime, so this one cannot be tightened
   // without replacing the styling engine. No Google Fonts host: the marketing
   // site's fonts are self-hosted at build time and the document editor's come
@@ -40,7 +42,12 @@ const CSP = [
   // hosts are map tiles; img.youtube.com is video thumbnails.
   "img-src 'self' data: blob: https://maps.gstatic.com https://maps.googleapis.com https://img.youtube.com",
   // Same-origin API plus the Maps JS API. The SSE stream is same-origin.
-  "connect-src 'self' https://maps.googleapis.com",
+  // Fingerprint: the agent's script host and its EU identification API.
+  "connect-src 'self' https://maps.googleapis.com https://fpnpmcdn.net https://*.fpjs.io",
+  // Fingerprint's agent runs its collection in a worker it builds from a
+  // blob: URL. Without this the worker falls back to script-src, which does
+  // not list blob:, and would be refused the day this policy is enforced.
+  "worker-src 'self' blob:",
   // YouTube embeds are the only third-party frame the product renders.
   "frame-src 'self' https://www.youtube.com",
   // Nothing may frame US — the modern equivalent of X-Frame-Options, kept

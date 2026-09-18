@@ -88,7 +88,9 @@ because of one.
 
 ## Trusted devices
 
-A trusted device skips the emailed code for 30 days. **There is no cap on how many** — a cap of
+A trusted device skips the emailed code for 30 days — **in the browser it was trusted in**,
+when Fingerprint identified that browser (`device-intel.md`): the device cookie copied onto
+another machine asks for the code again. **There is no cap on how many** — a cap of
 three shipped with the session limit and was removed with it (19/09/2026).
 
 **Nothing trusted is dropped to make room**, silently or otherwise. The list used to be capped

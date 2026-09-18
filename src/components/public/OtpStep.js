@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useAccountLocale } from "@/components/public/locale";
 import { accountDict } from "@/shared/account";
+import { deviceEventReady } from "@/components/public/deviceIntel";
 
 // Six-box one-time-code entry. Handles paste, arrow keys, backspace, and
 // autofills from the OS (autocomplete="one-time-code" on the first box).
@@ -76,6 +77,9 @@ export default function OtpStep({ email, onVerified, onError, trustPrompt = true
   async function submit(value) {
     setBusy(true); setError(""); setNotice("");
     try {
+      // Refreshed if the code took long to arrive: this is the request that
+      // binds a trusted device to this browser (platform/auth/otp.ts).
+      await deviceEventReady();
       const res = await fetch("/api/identity/otp/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

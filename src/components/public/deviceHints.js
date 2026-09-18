@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { DEVICE_HINTS_COOKIE, encodeHints } from "@/shared/deviceClass";
+import { identifyDevice } from "./deviceIntel";
 
 // WHAT THE SERVER CANNOT SEE FOR ITSELF: how many touch points this screen has
 // and its short side. Written into a short-lived cookie on every sign-in page,
@@ -21,7 +22,12 @@ export function writeDeviceHints() {
   } catch { /* a cookie the browser refuses only costs the hint */ }
 }
 
-/** Mount on a sign-in surface; renders nothing. */
+/**
+ * Mount on a sign-in surface; renders nothing. Also starts Fingerprint
+ * (./deviceIntel), so its event is usually ready by the time the form is sent —
+ * and ready for a Google or Microsoft button, which navigates away and cannot
+ * wait for anything.
+ */
 export function useDeviceHints() {
-  useEffect(() => { writeDeviceHints(); }, []);
+  useEffect(() => { writeDeviceHints(); identifyDevice(); }, []);
 }

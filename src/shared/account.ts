@@ -10,6 +10,10 @@ type Strings = {
   account: string;
   accountNoLongerExists: string;
   accountSuspended: string;
+  /** Fingerprint judged the browser a bot (platform/auth/deviceIntel.ts). */
+  automatedRefused: string;
+  /** Too many new accounts from one device in a day. */
+  tooManyAccountsDevice: string;
   accountSuspendedOwner: string;
   address: string;
   address364Characters: string;
@@ -249,6 +253,8 @@ const en: Strings = {
   account: "Account",
   accountNoLongerExists: "This account no longer exists.",
   accountSuspended: "This account is suspended.",
+  automatedRefused: "This browser looks automated, so we can't sign it in. Turn off any automation or privacy extension and try again, or use another browser.",
+  tooManyAccountsDevice: "Too many accounts have been created on this device today. Try again tomorrow.",
   accountSuspendedOwner: "This account is suspended. Contact your studio's owner.",
   address: "Address",
   address364Characters: "An address is 3–64 characters: lowercase letters, numbers and hyphens.",
@@ -509,6 +515,8 @@ const ar: Strings = {
   account: "الحساب",
   accountNoLongerExists: "لم يعد هذا الحساب موجودا.",
   accountSuspended: "هذا الحساب موقوف.",
+  automatedRefused: "يبدو هذا المتصفح آليًا، لذا لا يمكننا تسجيل دخوله. أوقف أي أداة أتمتة أو إضافة خصوصية وحاول مرة أخرى، أو استخدم متصفحًا آخر.",
+  tooManyAccountsDevice: "أُنشئ عدد كبير من الحسابات على هذا الجهاز اليوم. حاول مرة أخرى غدًا.",
   accountSuspendedOwner: "هذا الحساب موقوف. تواصل مع مالك استوديوك.",
   address: "العنوان",
   address364Characters: "العنوان من 3 إلى 64 حرفا: حروف إنجليزية صغيرة وأرقام وشرطات.",

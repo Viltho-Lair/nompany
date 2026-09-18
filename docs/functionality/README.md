@@ -59,6 +59,7 @@ Three rules that keep this folder worth reading:
 | [list-tables.md](list-tables.md) | The department list tables: the shared Data Grid, and the search / filter / column controls above it |
 | [live-updates.md](live-updates.md) | How a board hears that somebody else changed a record: one connection per tab, what a watch key must name, and the two ways to write one that can never fire |
 | [money.md](money.md) | Every amount rounds to its currency's own decimals (three for the dinar and the Omani rial): the three kinds of number, the one total every priced document uses, and the ledger's minor units |
+| [device-intel.md](device-intel.md) | Fingerprint on the sign-in and sign-up pages: a trusted device bound to its browser, bots refused, failed passwords and new accounts counted per device, and why a Fingerprint outage changes nothing |
 | [error-tracking.md](error-tracking.md) | Server errors and cron check-ins sent to Sentry: off until `SENTRY_DSN` is set, what is scrubbed before sending, and why nothing runs in the browser |
 | [media.md](media.md) | Uploaded files: Blob for the binary, Redis for the record, the membership check on private reads |
 | [nova-insights.md](nova-insights.md) | Nova's speech bubble: what it may say, where it reads from, and what it never volunteers |

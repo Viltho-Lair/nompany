@@ -5,6 +5,7 @@ import {
   requestIsHttps, publicUser, OTP_COOKIE, DEVICE_COOKIE,
   DEVICE_HEADER, isDesktopClient,
 } from "@/platform/auth/identity";
+import { readDeviceIntel, intelFacts } from "@/platform/auth/deviceIntel";
 
 export const runtime = "nodejs";
 
@@ -32,7 +33,10 @@ export async function POST(request: Request) {
     // The desktop client spells these the other way; accept both rather than
     // making one of the two clients wrong.
     trustThisDevice: Boolean(body.trustThisDevice ?? body.trust_this_device),
-    device: deviceFingerprint(request),
+    // The browser Fingerprint sees HERE is the one a trusted device is bound
+    // to (otp.ts, recordDevice) — this is where the code has just proved who
+    // is at it. The desktop app runs no agent and binds nothing.
+    device: { ...deviceFingerprint(request), ...(desktop ? {} : intelFacts(await readDeviceIntel(request))) },
     // Reuse this client's existing row rather than adding a duplicate — cookie
     // for a browser, header for the desktop app.
     deviceId: jar.get(DEVICE_COOKIE)?.value || request.headers.get(DEVICE_HEADER) || "",

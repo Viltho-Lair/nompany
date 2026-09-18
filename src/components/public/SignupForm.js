@@ -7,6 +7,7 @@ import Link from "next/link";
 import OtpStep from "@/components/public/OtpStep";
 import SocialButtons from "@/components/public/SocialButtons";
 import { useDeviceHints } from "@/components/public/deviceHints";
+import { deviceEventReady } from "@/components/public/deviceIntel";
 import PasswordInput from "@/components/public/PasswordInput";
 import { PASSWORD_RULES, checkPassword, describeFailures } from "@/platform/auth/passwordPolicy";
 
@@ -38,6 +39,7 @@ export default function SignupForm({ locale, dict, providers = [] }) {
     if (form.password !== form.confirm) { setError(tr.twoPasswordsMatch); return; }
     setError(""); setNotice(""); setLoading(true);
     try {
+      await deviceEventReady();
       const res = await fetch("/api/identity/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -50,6 +52,8 @@ export default function SignupForm({ locale, dict, providers = [] }) {
           : data.error === "weak" ? describeFailures(data.failed)
           : data.error === "email" ? tr.emailAddressDoesnLook
           : data.error === "rate-email" || data.error === "rate-ip" ? tr.tooManyAttemptsTry
+          : data.error === "rate-device" ? tr.tooManyAccountsDevice
+          : data.error === "automated" ? tr.automatedRefused
           : tr.couldnCreateAccountTry
         );
         setLoading(false);

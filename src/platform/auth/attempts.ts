@@ -52,6 +52,14 @@ const IP_WINDOW_SEC = 15 * 60;
 const EMAIL_MAX = 50;
 const EMAIL_WINDOW_SEC = 60 * 60;
 
+// PER DEVICE, when Fingerprint has identified one (platform/auth/deviceIntel).
+// Between the pair and the IP limits: one browser guessing across many
+// addresses is an attack the pair limit cannot see, and one behind a proxy
+// pool is one the IP limit cannot. Never escalated, like the email counter —
+// a strike ladder keyed on a device would outlive the attack by a day.
+const VISITOR_MAX = 10;
+const VISITOR_WINDOW_SEC = 15 * 60;
+
 // Strike n → how long the source stays shut out. The last entry repeats.
 const LOCKOUT_LADDER_SEC = [15 * 60, 60 * 60, 6 * 60 * 60, 24 * 60 * 60];
 const STRIKE_MEMORY_SEC = 24 * 60 * 60;
@@ -68,12 +76,15 @@ const lockoutFor = (strikes: number) =>
  *
  */
 export async function checkCredentialAttempts(
-  { ip = "", email = "" }: { ip?: string; email?: string },
+  { ip = "", email = "", visitor = "" }: { ip?: string; email?: string; visitor?: string },
 ): Promise<{ blocked: boolean; retryAfter?: number; scope?: string }> {
   const gates = [
     { scope: "pair", key: RL.attemptPair(ip, email), max: PAIR_MAX },
     { scope: "ip", key: RL.attemptIp(ip), max: IP_MAX },
     { scope: "email", key: RL.attemptEmail(email), max: EMAIL_MAX },
+    // No device identified, no device gate — never one shared "unknown" bucket
+    // that every browser without the agent would fill together.
+    ...(visitor ? [{ scope: "device", key: RL.attemptVisitor(visitor), max: VISITOR_MAX }] : []),
   ];
 
   const counts = await Promise.all(gates.map((g) => tally(g.key)));
@@ -101,11 +112,14 @@ async function tally(key: string) {
  * per-email counter never escalates: it is a backstop, and stretching it would
  * turn the denial-of-service this design avoids straight back on.
  */
-export async function recordCredentialFailure({ ip = "", email = "" }: { ip?: string; email?: string }) {
-  const [pair, byIp /* email counter bumped, never escalated */] = await Promise.all([
+export async function recordCredentialFailure(
+  { ip = "", email = "", visitor = "" }: { ip?: string; email?: string; visitor?: string },
+) {
+  const [pair, byIp /* email and device counters bumped, never escalated */] = await Promise.all([
     incrWithTTL(RL.attemptPair(ip, email), PAIR_WINDOW_SEC),
     incrWithTTL(RL.attemptIp(ip), IP_WINDOW_SEC),
     incrWithTTL(RL.attemptEmail(email), EMAIL_WINDOW_SEC),
+    visitor ? incrWithTTL(RL.attemptVisitor(visitor), VISITOR_WINDOW_SEC) : Promise.resolve(0),
   ]);
 
   const tripped = pair >= PAIR_MAX || byIp >= IP_MAX;
@@ -129,12 +143,14 @@ export async function recordCredentialFailure({ ip = "", email = "" }: { ip?: st
  * left standing — they are the memory of having been locked out, and a single
  * success should not erase a day of that.
  */
-export async function clearCredentialFailures({ ip = "", email = "" }: { ip?: string; email?: string }) {
-  await delKeys(RL.attemptPair(ip, email), RL.attemptIp(ip));
+export async function clearCredentialFailures(
+  { ip = "", email = "", visitor = "" }: { ip?: string; email?: string; visitor?: string },
+) {
+  await delKeys(RL.attemptPair(ip, email), RL.attemptIp(ip), ...(visitor ? [RL.attemptVisitor(visitor)] : []));
 }
 
 export const __limits = {
-  PAIR_MAX, IP_MAX, EMAIL_MAX,
-  PAIR_WINDOW_SEC, IP_WINDOW_SEC, EMAIL_WINDOW_SEC,
+  PAIR_MAX, IP_MAX, EMAIL_MAX, VISITOR_MAX,
+  PAIR_WINDOW_SEC, IP_WINDOW_SEC, EMAIL_WINDOW_SEC, VISITOR_WINDOW_SEC,
   LOCKOUT_LADDER_SEC, lockoutFor,
 };

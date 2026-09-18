@@ -1,6 +1,8 @@
 import { refused } from "@/platform/http/route";
 import { signup, otpCookie, requestIsHttps, clientIp, publicUser } from "@/platform/auth/identity";
 
+import { readDeviceIntel } from "@/platform/auth/deviceIntel";
+
 export const runtime = "nodejs";
 
 // Create a User (and ONLY a User) and send a one-time code. NO session is
@@ -15,10 +17,12 @@ export async function POST(request: Request) {
     password: String(body.password ?? ""),
     fullName: String(body.fullName ?? ""),
     ip: clientIp(request),
+    intel: await readDeviceIntel(request),
   });
   if (refused(result)) {
     const status = result.error === "exists" ? 409
-      : result.error === "rate-email" || result.error === "rate-ip" ? 429
+      : result.error === "rate-email" || result.error === "rate-ip" || result.error === "rate-device" ? 429
+      : result.error === "automated" ? 403
       : 400;
     // `failed` names the specific unmet password rules so the form can say why.
     return Response.json({ error: result.error, failed: result.failed }, { status });

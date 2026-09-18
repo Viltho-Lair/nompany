@@ -27,6 +27,9 @@ import { OTP, ID, IX } from "@/platform/db/keys";
 import { getJSON, setJSONEx, getJSONMany, release } from "@/platform/db/store";
 import type { User, Questionnaire } from "./users";
 import type { DeviceFacts } from "./otp";
+import { isBadBot, visitorKey, type DeviceIntel } from "./deviceIntel";
+import { incrWithTTL } from "@/platform/db/store";
+import { RL } from "@/platform/db/keys";
 import { listOwnedStudios, listUserCollaborations } from "@/modules/main/studios";
 import { listForUser as listJoinRequestsForUser } from "@/modules/people/joinRequests";
 import {
@@ -192,7 +195,16 @@ export function requestIsHttps(request: Request): boolean {
 // Creates the User + its three satellites and opens an OTP challenge. It does
 // NOT mint a session — access begins only after the emailed code is verified,
 // so an unproven address can never hold a logged-in session.
-export async function signup({ email, password, fullName, ip }: { email?: string; password?: string; fullName?: string; ip?: string }) {
+// New accounts one device may open in a day (deviceIntel.ts). Three, not one:
+// a household or a small office shares a machine, and somebody who mistyped
+// their own address signs up twice.
+const SIGNUPS_PER_DEVICE = 3;
+const SIGNUP_DEVICE_WINDOW_SEC = 24 * 60 * 60;
+
+export async function signup(
+  { email, password, fullName, ip, intel }:
+  { email?: string; password?: string; fullName?: string; ip?: string; intel?: DeviceIntel },
+) {
   const mail = norm(email);
   const pass = String(password || "");
   const name = String(fullName || "").trim();
@@ -200,6 +212,15 @@ export async function signup({ email, password, fullName, ip }: { email?: string
   if (!EMAIL_RE.test(mail)) return { error: "email" };
   const strength = checkPassword(pass);
   if (!strength.ok) return { error: "weak", failed: strength.failed };
+  // A SIGNUP FARM IS REFUSED BEFORE AN ACCOUNT EXISTS — a bot outright, and a
+  // device past its day's allowance. Counted before createUser rather than
+  // after, so a run of refusals for an address already taken costs the farm
+  // too. No device identified means no count at all, never a shared bucket.
+  if (isBadBot(intel)) return { error: "automated" };
+  const device = visitorKey(intel);
+  if (device && (await incrWithTTL(RL.signupVisitor(device), SIGNUP_DEVICE_WINDOW_SEC)) > SIGNUPS_PER_DEVICE) {
+    return { error: "rate-device" };
+  }
 
   const created = await createUser({ email: mail, passwordHash: await hashPassword(pass), fullName: name });
   // GUARDED ON THE VALUE, not only on the error. `createUser` claims the email
@@ -373,10 +394,12 @@ export type LoginResult =
       token?: undefined; ttl?: undefined; challengeId?: undefined; emailSent?: undefined };
 
 export async function login(
-  { email, password, remember, deviceId, ip, device, desktop }:
+  { email, password, remember, deviceId, ip, device, desktop, intel }:
   {
     email?: string; password?: string; remember?: boolean;
     deviceId?: string; ip?: string; device?: DeviceFacts; desktop?: boolean;
+    /** Fingerprint's verdict on this browser (deviceIntel.ts); absent for the desktop app. */
+    intel?: DeviceIntel;
   },
 ): Promise<LoginResult> {
   // THE GATE COMES FIRST — before the lookup, before bcrypt, and identically
@@ -384,14 +407,19 @@ export async function login(
   // which addresses exist. The limiters used to sit inside createChallenge,
   // which is only reached AFTER a correct password, so the first factor was
   // unguarded entirely. See platform/auth/attempts.js.
-  const gate = await checkCredentialAttempts({ ip, email });
+  const visitor = visitorKey(intel);
+  const gate = await checkCredentialAttempts({ ip, email, visitor });
   if (gate.blocked) return { error: "rate-limited", retryAfter: gate.retryAfter };
+  // A bad bot never reaches the lookup or bcrypt. Said plainly rather than as
+  // "invalid": a person wrongly judged a bot needs to know what happened, and
+  // a bot learns nothing about any account from it.
+  if (isBadBot(intel)) return { error: "automated" };
 
   const user = await getUserByEmail(email || "");
   if (!user) {
     // Counted like any other failure: an attacker enumerating addresses must
     // burn the same budget as one guessing passwords.
-    await recordCredentialFailure({ ip, email });
+    await recordCredentialFailure({ ip, email, visitor });
     return { error: "invalid" };                          // generic — never reveals existence
   }
   // SUSPENSION IS CHECKED BEFORE THE PASSWORD, and that is a decision rather
@@ -418,12 +446,12 @@ export async function login(
   // so reversing the order is a test failure rather than a silent change.
   if (user.status === "suspended") return { error: "suspended" };
   if (!(await verifyPassword(String(password || ""), user.passwordHash))) {
-    await recordCredentialFailure({ ip, email });
+    await recordCredentialFailure({ ip, email, visitor });
     return { error: "invalid" };
   }
   // Correct credential: wipe the slate for this source and account. Strikes
   // survive — they are the memory of having been locked out.
-  await clearCredentialFailures({ ip, email });
+  await clearCredentialFailures({ ip, email, visitor });
 
   // SILENTLY UPGRADE A HASH THAT PREDATES THE CURRENT COST. This is the only
   // moment we hold the plaintext for an existing account, so it is the only

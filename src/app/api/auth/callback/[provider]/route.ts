@@ -8,6 +8,7 @@ import {
   signInWithProvider, sessionCookie, requestIsHttps,
   deviceFingerprint, deviceCookie, DEVICE_COOKIE, pendingCookie,
 } from "@/platform/auth/identity";
+import { readDeviceIntel, intelFacts } from "@/platform/auth/deviceIntel";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -45,7 +46,9 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
     ...profile,
     provider,
     deviceId: jar.get(DEVICE_COOKIE)?.value || "",
-    device: deviceFingerprint(request),
+    // The provider has proved the address, so a device trusted here is bound
+    // to the browser Fingerprint saw (otp.ts, recordDevice).
+    device: { ...deviceFingerprint(request), ...intelFacts(await readDeviceIntel(request)) },
   });
   if (refused(result)) return Response.redirect(back(request, result.error), 302);
 
