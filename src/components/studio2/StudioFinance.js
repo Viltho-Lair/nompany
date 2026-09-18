@@ -47,6 +47,8 @@ const TreasuryPanel = nextDynamic(() => import("@/components/studio2/TreasuryPan
 // Cash & Bank's and Tax's panels, lazily for the reason the others are.
 const ReconciliationPanel = nextDynamic(() => import("@/components/studio2/ReconciliationPanel"));
 const TaxReturnPanel = nextDynamic(() => import("@/components/studio2/TaxReturnPanel"));
+// Only a studio whose country levies zakat draws anything here.
+const ZakatPanel = nextDynamic(() => import("@/components/studio2/ZakatPanel"));
 // The credit notes and the door that issues them (18/09/2026) — behind the same boundary.
 const CreditNotesPanel = nextDynamic(() => import("@/components/studio2/CreditNotesPanel"));
 
@@ -166,6 +168,7 @@ function FinanceTax({ slug }) {
     <div className="space-y-6">
       <h2 className="font-display text-lg font-800 text-slate-900 dark:text-white">{tr.taxTitle}</h2>
       <TaxReturnPanel slug={slug} locale={locale} />
+      <ZakatPanel slug={slug} locale={locale} />
     </div>
   );
 }

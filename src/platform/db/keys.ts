@@ -1192,7 +1192,7 @@ export const SECTION_COLLECTIONS = {
   "finance-assets": ["fixedAssets"],
   // FILED VAT RETURNS, 18/09/2026 — the one Tax record that is new, so it is
   // filed under Tax itself; there is nothing older stored elsewhere to mind.
-  "finance-tax": ["taxReturns"],
+  "finance-tax": ["taxReturns", "zakatWorksheets"],
   // field-service — was Operations. LOCATIONS HAVE LEFT: Administration's
   // Master data screen exists now, so the condition this comment used to state
   // is met, and a collection is re-homed only into a section that can actually

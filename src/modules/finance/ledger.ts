@@ -107,6 +107,9 @@ export const DEFAULT_CHART: { code: string; name: string; type: AccountType }[] 
   // WHAT A FILED VAT RETURN SAID IS OWED (or due back) until it is paid,
   // 18/09/2026: the settlement moves the period's VAT here out of 2100 and 1400.
   { code: "2160", name: "VAT Due", type: "liability" },
+  // ZAKAT PROVIDED FOR AND NOT YET PAID, 18/09/2026 — only a studio whose
+  // country levies zakat ever posts to it (modules/finance/zakatService).
+  { code: "2170", name: "Zakat Payable", type: "liability" },
   // ADDED WITH PAYROLL, and it needs no migration: `ledgerAccounts` seeds any
   // code from this chart that a studio is missing on every read, so an
   // existing studio gains it the next time its ledger is opened.
@@ -129,6 +132,7 @@ export const DEFAULT_CHART: { code: string; name: string; type: AccountType }[] 
   // negative expense — the contra balance the statements already show.
   { code: "5800", name: "Exchange Differences", type: "expense" },
   { code: "5900", name: "Other Expenses", type: "expense" },
+  { code: "5950", name: "Zakat", type: "expense" },
 ];
 
 // The natural side a type increases on. An asset or expense grows with a debit;
@@ -151,8 +155,25 @@ const DEBIT_NORMAL: Record<AccountType, boolean> = {
  * `ledgerAccounts` returns from two places and sorting in only one of them is
  * the defect this replaces.
  */
+// OLDEST FIRST WITHIN A CODE, so a chart that somehow holds one code twice
+// always resolves it to the same account — every `find` by code takes the
+// first, and postings would otherwise split between two copies depending on
+// which the store happened to return first.
 const byCode = (rows: Account[]): Account[] =>
-  [...rows].sort((x, y) => String(x.code).localeCompare(String(y.code)));
+  [...rows].sort((x, y) => String(x.code).localeCompare(String(y.code))
+    || String(x.createdAt || "").localeCompare(String(y.createdAt || ""))
+    || String(x.id).localeCompare(String(y.id)));
+
+/**
+ * THE ID A DEFAULT ACCOUNT IS SEEDED UNDER — fixed per code, so two requests
+ * seeding the same studio at once cannot both succeed: the table's primary key
+ * (tenant, section, collection, id) refuses the second, where a random id let
+ * both land and left the chart holding the code twice. Found in the sandbox
+ * on 18/09/2026: the Tax screen's parallel reads seeded Zakat (5950) and Zakat
+ * Payable (2170) twice, the provision went to one copy and the report read the
+ * other. Accounts seeded before this keep their random ids.
+ */
+const seedId = (code: string) => `acc_std_${code}`;
 
 export async function ledgerAccounts(ctx: FinanceContext): Promise<Account[]> {
   const { studio, ledgerSection } = ctx;
@@ -171,10 +192,15 @@ export async function ledgerAccounts(ctx: FinanceContext): Promise<Account[]> {
 
   const seeded: Account[] = [];
   for (const a of missing) {
-    seeded.push(await Accounts.create({ studio, section: ledgerSection }, {
-      code: a.code, name: a.name, type: a.type, active: true,
-      createdAt: new Date().toISOString(),
-    }));
+    const row = { id: seedId(a.code), code: a.code, name: a.name, type: a.type, active: true, createdAt: new Date().toISOString() };
+    try {
+      seeded.push(await Accounts.create({ studio, section: ledgerSection }, row));
+    } catch (err) {
+      // ANOTHER REQUEST SEEDED IT FIRST — the primary key said so. Its row is
+      // this row (same id, same code, same name), so it is used as it stands.
+      if (!/duplicate key|unique/i.test(String((err as Error)?.message || err))) throw err;
+      seeded.push({ ...row, studioId: studio.id, sectionId: ledgerSection.id } as Account);
+    }
   }
   // Newest-first is how addRow prepends; return them in chart order so the
   // caller and the reports read top-down.
@@ -589,7 +615,7 @@ export type PostOptions = { system?: boolean };
 export const ENTRY_SOURCE_KINDS = [
   "invoice", "expense", "bill", "bill-payment", "payment", "credit-note", "payroll", "withholding",
   "asset", "depreciation", "asset-disposal", "transfer", "cheque", "bill-withholding",
-  "tax-return", "tax-payment", "manual",
+  "tax-return", "tax-payment", "zakat-provision", "zakat-payment", "manual",
 ] as const;
 
 export type EntrySourceKind = (typeof ENTRY_SOURCE_KINDS)[number];
@@ -856,7 +882,10 @@ const COST_OF_SALES = "5000";  // where an uncategorised vendor bill lands
 // mean the chart was edited to remove a default the postings rely on).
 async function codesToIds(ctx: FinanceContext, codes: string[]) {
   const accounts = await ledgerAccounts(ctx);
-  const byCode = new Map(accounts.map((a) => [a.code, a.id]));
+  // THE FIRST OF A CODE, which `ledgerAccounts` orders oldest-first — a Map
+  // built naively keeps the LAST, and would disagree with every `find`.
+  const byCode = new Map<string, string>();
+  for (const a of accounts) if (!byCode.has(a.code)) byCode.set(a.code, a.id);
   const missing = codes.filter((c) => !byCode.has(c));
   return { byCode, missing };
 }
@@ -1182,6 +1211,67 @@ export async function postTaxPayment(ctx: FinanceContext, returnId: string, opti
     lines: owed
       ? [{ accountId: byCode.get(VAT_DUE), debit: due }, { accountId: bank.id, credit: due }]
       : [{ accountId: bank.id, debit: -due }, { accountId: byCode.get(VAT_DUE), credit: -due }],
+  }, options);
+}
+
+// ---------------------------------------------------------------------------
+// ZAKAT IN THE BOOK
+// ---------------------------------------------------------------------------
+
+const ZAKAT_EXPENSE = "5950";
+const ZAKAT_PAYABLE = "2170";
+const ZakatSheets = repo<Row>("zakatWorksheets");
+
+type ZakatSheetRow = Row & { from?: string; to?: string; status?: string; provisioned?: { zakat?: number }; paidOn?: string; accountId?: string };
+async function zakatSheet(ctx: FinanceContext, id: string) {
+  return (await ZakatSheets.find({ studio: ctx.studio, section: ctx.taxSection })).find((s) => s.id === id) as ZakatSheetRow | undefined;
+}
+
+/** PROVIDE FOR A YEAR'S ZAKAT: Dr Zakat, Cr Zakat Payable, on the year's last day. */
+export async function postZakatProvision(ctx: FinanceContext, sheetId: string, options: PostOptions = {}) {
+  if (!options.system) {
+    const denied = requirePermission(ctx.access, "finance.ledger.post");
+    if (denied) return denied;
+  }
+  const sheet = await zakatSheet(ctx, sheetId);
+  if (!sheet) return { error: "notfound" };
+  if (sheet.status === "draft") return { error: "not-postable", status: sheet.status };
+  const entries = await Entries.find({ studio: ctx.studio, section: ctx.ledgerSection });
+  if (alreadyPosted(entries, "zakat-provision", sheetId)) return { error: "already-posted" };
+  const amount = roundMoney(Number(sheet.provisioned?.zakat) || 0, ctx.studio.currency);
+  if (!(amount > 0)) return { error: "nothing-due" };
+  const { byCode, missing } = await codesToIds(ctx, [ZAKAT_EXPENSE, ZAKAT_PAYABLE]);
+  if (missing.length) return { error: "chart", missing };
+  return postEntry(ctx, {
+    date: sheet.to,
+    memo: `Zakat ${sheet.from} to ${sheet.to}`,
+    source: { kind: "zakat-provision", id: sheetId },
+    lines: [{ accountId: byCode.get(ZAKAT_EXPENSE), debit: amount }, { accountId: byCode.get(ZAKAT_PAYABLE), credit: amount }],
+  }, options);
+}
+
+/** PAY A PROVIDED YEAR: Dr Zakat Payable, Cr the money account. */
+export async function postZakatPayment(ctx: FinanceContext, sheetId: string, options: PostOptions = {}) {
+  if (!options.system) {
+    const denied = requirePermission(ctx.access, "finance.ledger.post");
+    if (denied) return denied;
+  }
+  const sheet = await zakatSheet(ctx, sheetId);
+  if (!sheet) return { error: "notfound" };
+  if (sheet.status !== "paid") return { error: "not-postable", status: sheet.status };
+  const entries = await Entries.find({ studio: ctx.studio, section: ctx.ledgerSection });
+  if (alreadyPosted(entries, "zakat-payment", sheetId)) return { error: "already-posted" };
+  const amount = roundMoney(Number(sheet.provisioned?.zakat) || 0, ctx.studio.currency);
+  if (!(amount > 0)) return { error: "nothing-due" };
+  const { byCode, missing } = await codesToIds(ctx, [ZAKAT_PAYABLE]);
+  if (missing.length) return { error: "chart", missing };
+  const bank = await moneyAccountFor(ctx, sheet.accountId);
+  if ("error" in bank) return bank;
+  return postEntry(ctx, {
+    date: sheet.paidOn,
+    memo: `Zakat paid — ${sheet.from} to ${sheet.to}`,
+    source: { kind: "zakat-payment", id: sheetId },
+    lines: [{ accountId: byCode.get(ZAKAT_PAYABLE), debit: amount }, { accountId: bank.id, credit: amount }],
   }, options);
 }
 

@@ -396,6 +396,36 @@ type Strings = CommonStrings & {
   statusPaid: string;
   payReturn: string;
   fileProblem: (code: string) => string;
+  // ---- zakat (18/09/2026) ----
+  zakatTitle: string;
+  zakatLead: string;
+  zakatFrom: string;
+  zakatTo: string;
+  zakatShare: string;
+  zakatEquity: string;
+  zakatFixed: string;
+  zakatProfit: string;
+  zakatAdjustments: string;
+  zakatAdjLabel: string;
+  zakatAdjKind: string;
+  zakatAdjAmount: string;
+  zakatKind: (k: string) => string;
+  zakatAddAdj: string;
+  zakatAdditions: string;
+  zakatDeductions: string;
+  zakatComputed: string;
+  zakatAdjustedProfit: string;
+  zakatBase: string;
+  zakatRate: (days: number) => string;
+  zakatDue: string;
+  zakatFloored: string;
+  zakatCapped: string;
+  zakatNotDeclaration: string;
+  zakatSave: string;
+  zakatProvision: string;
+  zakatPay: string;
+  zakatStatus: (s: string) => string;
+  zakatProblem: (code: string) => string;
 };
 
 const en: Strings = {
@@ -805,6 +835,41 @@ const en: Strings = {
     "bank-account": "Choose one of the studio's bank or cash accounts.",
     forbidden: "You do not have the right to file returns.",
   } as Record<string, string>)[code] || "That did not work.",
+  zakatTitle: "Zakat",
+  zakatLead: "A worksheet for the fiscal year, from the ledger and your adjustments. The ledger gives equity, net fixed assets and the year's profit; add the lines it cannot classify — qualifying long-term liabilities, deductible investments.",
+  zakatFrom: "Fiscal year from",
+  zakatTo: "To",
+  zakatShare: "Zakatable share (%)",
+  zakatEquity: "Equity at year end, with the year's result",
+  zakatFixed: "Net fixed assets",
+  zakatProfit: "Profit for the year",
+  zakatAdjustments: "Adjustments",
+  zakatAdjLabel: "What it is",
+  zakatAdjKind: "Effect",
+  zakatAdjAmount: "Amount",
+  zakatKind: (k) => ({ add: "Adds to the base", deduct: "Deducted from the base", profit: "Adjusts the profit" } as Record<string, string>)[k] || k,
+  zakatAddAdj: "Add an adjustment",
+  zakatAdditions: "Additions",
+  zakatDeductions: "Deductions",
+  zakatComputed: "Additions less deductions",
+  zakatAdjustedProfit: "Adjusted net profit",
+  zakatBase: "Zakat base",
+  zakatRate: (days) => `Rate for a ${days}-day year`,
+  zakatDue: "Zakat",
+  zakatFloored: "The base is below the adjusted net profit, so the profit is the base.",
+  zakatCapped: "The base is above year-end equity, so it is capped there.",
+  zakatNotDeclaration: "A worksheet, not a filed declaration. Check it with your accountant before provisioning.",
+  zakatSave: "Save worksheet",
+  zakatProvision: "Provision in the books",
+  zakatPay: "Record payment",
+  zakatStatus: (s) => ({ draft: "Draft", provisioned: "Provisioned", paid: "Paid" } as Record<string, string>)[s] || s,
+  zakatProblem: (code) => ({
+    overlap: "Part of this year is already in another worksheet.",
+    provisioned: "This year is already provisioned.",
+    period: "Choose a year whose start is before its end.",
+    "bank-account": "Choose one of the studio's bank or cash accounts.",
+    forbidden: "You do not have the right to do that.",
+  } as Record<string, string>)[code] || "That did not work.",
 };
 
 const ar: Strings = {
@@ -1213,6 +1278,41 @@ const ar: Strings = {
     "already-paid": "هذا الاقرار مسدد بالفعل.",
     "bank-account": "اختر أحد حسابات البنك أو النقد في الاستوديو.",
     forbidden: "ليست لديك صلاحية تقديم الاقرارات.",
+  } as Record<string, string>)[code] || "لم ينجح ذلك.",
+  zakatTitle: "الزكاة",
+  zakatLead: "ورقة عمل للسنة المالية من دفتر الأستاذ وتعديلاتك. يعطي الدفتر حقوق الملكية وصافي الأصول الثابتة وربح السنة؛ أضف ما لا يصنفه — المطلوبات طويلة الأجل المؤهلة والاستثمارات القابلة للحسم.",
+  zakatFrom: "السنة المالية من",
+  zakatTo: "الى",
+  zakatShare: "الحصة الخاضعة للزكاة (%)",
+  zakatEquity: "حقوق الملكية في نهاية السنة مع نتيجتها",
+  zakatFixed: "صافي الأصول الثابتة",
+  zakatProfit: "ربح السنة",
+  zakatAdjustments: "التعديلات",
+  zakatAdjLabel: "البند",
+  zakatAdjKind: "أثره",
+  zakatAdjAmount: "المبلغ",
+  zakatKind: (k) => ({ add: "يضاف الى الوعاء", deduct: "يحسم من الوعاء", profit: "يعدل الربح" } as Record<string, string>)[k] || k,
+  zakatAddAdj: "إضافة تعديل",
+  zakatAdditions: "الاضافات",
+  zakatDeductions: "الحسميات",
+  zakatComputed: "الاضافات ناقص الحسميات",
+  zakatAdjustedProfit: "صافي الربح المعدل",
+  zakatBase: "الوعاء الزكوي",
+  zakatRate: (days) => `النسبة لسنة من ${days} يوما`,
+  zakatDue: "الزكاة",
+  zakatFloored: "الوعاء أقل من صافي الربح المعدل، فالربح هو الوعاء.",
+  zakatCapped: "الوعاء أعلى من حقوق الملكية في نهاية السنة، فيحد بها.",
+  zakatNotDeclaration: "ورقة عمل وليست اقرارا مقدما. راجعها مع محاسبك قبل تكوين المخصص.",
+  zakatSave: "حفظ ورقة العمل",
+  zakatProvision: "تكوين المخصص في الدفاتر",
+  zakatPay: "تسجيل السداد",
+  zakatStatus: (s) => ({ draft: "مسودة", provisioned: "مخصص", paid: "مسدد" } as Record<string, string>)[s] || s,
+  zakatProblem: (code) => ({
+    overlap: "جزء من هذه السنة وارد في ورقة عمل أخرى.",
+    provisioned: "هذه السنة مخصصة بالفعل.",
+    period: "اختر سنة تبدأ قبل نهايتها.",
+    "bank-account": "اختر أحد حسابات البنك أو النقد في الاستوديو.",
+    forbidden: "ليست لديك صلاحية لذلك.",
   } as Record<string, string>)[code] || "لم ينجح ذلك.",
 };
 

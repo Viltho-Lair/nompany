@@ -43,6 +43,7 @@ Three rules that keep this folder worth reading:
 | [handover.md](handover.md) | A won tender becomes a project: the third head of `openProject`, why the bill's total is the value, and why the bill then freezes |
 | [language.md](language.md) | EN/AR and RTL: what decides which language, where the buttons are, what is translated |
 | [ledger.md](ledger.md) | Double-entry bookkeeping and the statements it produces: the module that had no door at all, why income reads positive, and why the retained result is computed |
+| [zakat.md](zakat.md) | A fiscal year's zakat for a studio whose country levies it: the ledger's figures, the accountant's adjustments, the floor and the ceiling, provision and payment |
 | [legal-pages.md](legal-pages.md) | The Terms and the Privacy Policy: one renderer, the Google disclosure shared by both, and what Google's OAuth verification requires |
 | [lifecycle.md](lifecycle.md) | Somebody's employment as against the person: the contract they are on, the six states it moves through, the effective-dated country pack behind probation and notice, and what the final settlement adds up to |
 | [list-tables.md](list-tables.md) | The department list tables: the shared Data Grid, and the search / filter / column controls above it |

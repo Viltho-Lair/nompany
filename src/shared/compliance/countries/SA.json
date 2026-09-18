@@ -102,6 +102,12 @@
           }
         ]
       }
+    },
+    "zakat": {
+      "rateHijri": 2.5,
+      "hijriDays": 354,
+      "checked": "2026-09-18",
+      "source": "ZATCA Implementing Regulations for Zakat Collection 1445H (MR 1007, 29/02/2024): 2.5% for a Hijri year, prorated to the actual days of any other fiscal year; base from year-end balances, not below adjusted net profit, capped at year-end equity"
     }
   },
   "fields": [

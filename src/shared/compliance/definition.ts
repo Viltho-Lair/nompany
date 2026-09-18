@@ -146,10 +146,24 @@ export type PayPreset = {
   } | null;
 };
 
+/**
+ * ZAKAT, where a country levies it (18/09/2026, the Finance plan's step 4):
+ * the rate for a Hijri year and the days that year has, so a fiscal year of any
+ * other length is prorated — 2.5% over 354 days is about 2.577% for a Gregorian
+ * year. The base is computed in modules/finance/zakat; only the figures live here.
+ */
+export type ZakatRules = {
+  rateHijri: number;
+  hijriDays: number;
+  checked: string;
+  source: string;
+};
+
 export type CountryRules = {
   tax?: TaxRules;
   employment?: EmploymentRules[];
   payPreset?: PayPreset;
+  zakat?: ZakatRules;
 };
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -178,6 +192,12 @@ function rulesProblems(rules: unknown): string[] {
       if (!e?.probation || !e?.notice) out.push("rules.employment: probation and notice are required");
       if (!Array.isArray(e?.contractTypes) || !e.contractTypes.length) out.push("rules.employment: contractTypes must be a non-empty list");
     }
+  }
+  if (r.zakat) {
+    if (!(r.zakat.rateHijri > 0 && r.zakat.rateHijri < 100)) out.push("rules.zakat: rateHijri must be a percentage above 0");
+    if (!(r.zakat.hijriDays > 0)) out.push("rules.zakat: hijriDays must be above 0");
+    if (!DATE.test(String(r.zakat.checked || ""))) out.push("rules.zakat: checked must be YYYY-MM-DD");
+    if (!r.zakat.source) out.push("rules.zakat: source is required");
   }
   if (r.payPreset) {
     if (!r.payPreset.asOf || !r.payPreset.source) out.push("rules.payPreset: asOf and source are required");

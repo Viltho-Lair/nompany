@@ -12,7 +12,7 @@
 // is "post this thing", and five endpoints would be five places to forget one.
 import {
   postInvoice, postExpense, postBill, postBillPayment, postPayment, postCreditNote,
-  postPayroll, postWithholding, postAsset, postDepreciation, postAssetDisposal, postCheque, postBillWithholding, billWithheldToClear, postTaxReturn, postTaxPayment, reverseDocument, invoiceWithheldToClear, postedAmount, ENTRY_SOURCE_KINDS,
+  postPayroll, postWithholding, postAsset, postDepreciation, postAssetDisposal, postCheque, postBillWithholding, billWithheldToClear, postTaxReturn, postTaxPayment, postZakatProvision, postZakatPayment, reverseDocument, invoiceWithheldToClear, postedAmount, ENTRY_SOURCE_KINDS,
 } from "./ledger";
 import type { FinanceContext } from "./types";
 import type { PostOptions } from "./ledger";
@@ -78,6 +78,8 @@ export async function postDocument(
     case "bill-withholding": return postBillWithholding(ctx, documentId, options);
     case "tax-return": return postTaxReturn(ctx, documentId, options);
     case "tax-payment": return postTaxPayment(ctx, documentId, options);
+    case "zakat-provision": return postZakatProvision(ctx, documentId, options);
+    case "zakat-payment": return postZakatPayment(ctx, documentId, options);
     default: return { error: "kind" };
   }
 }
