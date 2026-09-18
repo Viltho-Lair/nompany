@@ -246,9 +246,14 @@ export async function createAccount(ctx: FinanceContext, body: Record<string, un
   const wrong = parentProblem(accounts, null, parentId, type);
   if (wrong) return { error: wrong };
 
+  // ONLY AN ASSET HOLDS MONEY. A liability marked as one would offer a loan
+  // account as somewhere a customer's payment could land.
+  if (body?.cash === true && type !== "asset") return { error: "cash-type" };
+
   const account = await Accounts.create({ studio: ctx.studio, section: ctx.ledgerSection }, {
     code, name, type, active: true,
     ...(parentId ? { parentId } : {}),
+    ...(body?.cash === true ? { cash: true } : {}),
     createdAt: new Date().toISOString(),
     createdByCollaboratorId: ctx.collaborator.id,
   });
@@ -296,6 +301,13 @@ export async function editAccount(ctx: FinanceContext, id: string, body: Record<
     type = next;
     patch.type = next;
   }
+  if (body?.cash !== undefined) {
+    if (body.cash === true && type !== "asset") return { error: "cash-type" };
+    // THE DEFAULT PAIR STAYS MONEY: every posting before today moved money
+    // through 1010, and unmarking it would hide the bank from its own screens.
+    if (body.cash !== true && DEFAULT_MONEY_CODES.includes(current.code)) return { error: "used-by-postings" };
+    patch.cash = body.cash === true;
+  }
   if (body?.parentId !== undefined) {
     const parentId = str(body.parentId, 60);
     const wrong = parentProblem(accounts, id, parentId, type);
@@ -316,6 +328,96 @@ export async function editAccount(ctx: FinanceContext, id: string, body: Record<
 
   const account = await Accounts.update({ studio: ctx.studio, section: ctx.ledgerSection }, id, patch);
   return account ? { account } : { error: "notfound" };
+}
+
+// ---------------------------------------------------------------------------
+// MONEY ACCOUNTS — where money actually sits
+// ---------------------------------------------------------------------------
+
+/**
+ * THE TWO DEFAULT MONEY ACCOUNTS. The chart shipped with a Cash and a Bank and
+ * every posting that moved money named 1010; a studio with two banks, a till
+ * and a petty-cash box had one account for all four. Marking an asset `cash`
+ * adds it; these two are money accounts without the mark, so nothing stored
+ * needs rewriting.
+ */
+const DEFAULT_MONEY_CODES = ["1000", "1010"];
+
+export const isMoneyAccount = (a: Pick<Account, "type" | "code" | "active"> & { cash?: boolean }): boolean =>
+  a.active !== false && a.type === "asset" && (a.cash === true || DEFAULT_MONEY_CODES.includes(a.code));
+
+/**
+ * THE STUDIO'S MONEY ACCOUNTS, in chart order, READ WITHOUT SEEDING. The
+ * screens ask for this list beside other reads, and `ledgerAccounts` seeds —
+ * two first reads of a new studio each seeding is the duplicate-chart race.
+ * A studio with no chart yet gets an empty list, and its postings fall to 1010,
+ * which `ledgerAccounts` will seed the moment one is made.
+ */
+export async function storedMoneyAccounts(ctx: FinanceContext): Promise<Account[]> {
+  return byCode(await Accounts.find({ studio: ctx.studio, section: ctx.ledgerSection })).filter(isMoneyAccount);
+}
+
+/** Null when `id` is empty (the default bank) or names a live money account. */
+export async function moneyAccountProblem(ctx: FinanceContext, id: unknown): Promise<string | null> {
+  const wanted = str(id, 60);
+  if (!wanted) return null;
+  return (await storedMoneyAccounts(ctx)).some((a) => a.id === wanted) ? null : "bank-account";
+}
+
+/**
+ * THE ACCOUNT A POSTING MOVES MONEY THROUGH: the one the document names, or
+ * 1010 Bank when it names none — which is every document recorded before
+ * 18/09/2026, so none of them changes meaning. A named account that is no
+ * longer a money account (retired since) refuses by name rather than silently
+ * moving the money to the bank.
+ */
+async function moneyAccountFor(ctx: FinanceContext, requested: unknown): Promise<{ id: string } | { error: string }> {
+  const accounts = await ledgerAccounts(ctx);
+  const wanted = str(requested, 60);
+  if (wanted) {
+    const a = accounts.find((x) => x.id === wanted);
+    return a && isMoneyAccount(a) ? { id: a.id } : { error: "bank-account" };
+  }
+  const bank = accounts.find((a) => a.code === BANK);
+  return bank ? { id: bank.id } : { error: "chart" };
+}
+
+/**
+ * MOVE MONEY BETWEEN TWO OF THE STUDIO'S OWN ACCOUNTS — the bank to the petty
+ * cash box, one bank to another. Dr the account it arrives in, Cr the one it
+ * left. It is not income and not spending, so it is its own act rather than an
+ * expense somebody has to remember to cancel out.
+ *
+ * `finance.cash.edit`, the right that records the money moving in and out, and
+ * posted under the studio's authority like every other document's entry. The
+ * ENTRY IS THE RECORD: there is no transfers collection to drift from it, and
+ * undoing one is reversing it in the ledger.
+ */
+export async function transferFunds(ctx: FinanceContext, body: Record<string, unknown>) {
+  const denied = requirePermission(ctx.access, "finance.cash.edit");
+  if (denied) return denied;
+
+  const from = str(body?.fromAccountId, 60);
+  const to = str(body?.toAccountId, 60);
+  if (!from || !to) return { error: "bank-account" };
+  if (from === to) return { error: "same-account" };
+  const held = await storedMoneyAccounts(ctx);
+  const source = held.find((a) => a.id === from);
+  const target = held.find((a) => a.id === to);
+  if (!source || !target) return { error: "bank-account" };
+  const amount = roundMoney(Number(body?.amount) || 0, ctx.studio.currency);
+  if (!(amount > 0)) return { error: "amount" };
+
+  const memo = str(body?.memo, 300);
+  return postEntry(ctx, {
+    date: body?.date,
+    memo: memo || `Transfer — ${source.name} to ${target.name}`,
+    source: { kind: "transfer", id: `trf_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}` },
+    lines: [
+      { accountId: target.id, debit: amount },
+      { accountId: source.id, credit: amount },
+    ],
+  }, { system: true });
 }
 
 export async function listAccounts(ctx: FinanceContext) {
@@ -430,7 +532,7 @@ export type PostOptions = { system?: boolean };
  */
 export const ENTRY_SOURCE_KINDS = [
   "invoice", "expense", "bill", "bill-payment", "payment", "credit-note", "payroll", "withholding",
-  "asset", "depreciation", "asset-disposal", "manual",
+  "asset", "depreciation", "asset-disposal", "transfer", "manual",
 ] as const;
 
 export type EntrySourceKind = (typeof ENTRY_SOURCE_KINDS)[number];
@@ -788,8 +890,10 @@ export async function postExpense(ctx: FinanceContext, expenseId: string, option
   if (alreadyPosted(entries, "expense", expenseId)) return { error: "already-posted" };
 
   const expenseCode = CATEGORY_ACCOUNT[expense.category] || OTHER_EXPENSE;
-  const { byCode, missing } = await codesToIds(ctx, [expenseCode, BANK]);
+  const { byCode, missing } = await codesToIds(ctx, [expenseCode]);
   if (missing.length) return { error: "chart", missing };
+  const paidFrom = await moneyAccountFor(ctx, (expense as { accountId?: unknown }).accountId);
+  if ("error" in paidFrom) return paidFrom;
 
   return postEntry(ctx, {
     date: expense.date,
@@ -797,7 +901,7 @@ export async function postExpense(ctx: FinanceContext, expenseId: string, option
     source: { kind: "expense", id: expenseId },
     lines: [
       { accountId: byCode.get(expenseCode), debit: expense.amount },
-      { accountId: byCode.get(BANK), credit: expense.amount },
+      { accountId: paidFrom.id, credit: expense.amount },
     ],
   }, options);
 }
@@ -1053,11 +1157,13 @@ export async function postBillPayment(ctx: FinanceContext, billId: string, payme
       inBase(totals, booked.rate, ctx.studio.currency).total, booked.rate, ctx.studio.currency,
     );
     if (!settled) return { error: "no-rate", currency: String(bill.currency || "") };
-    const { byCode, missing } = await codesToIds(ctx, [AP, BANK, FX_DIFFERENCES]);
+    const { byCode, missing } = await codesToIds(ctx, [AP, FX_DIFFERENCES]);
     if (missing.length) return { error: "chart", missing };
+    const paidFrom = await moneyAccountFor(ctx, (payment as { accountId?: unknown }).accountId);
+    if ("error" in paidFrom) return paidFrom;
     const lines: { accountId: string | undefined; debit?: number; credit?: number }[] = [
       { accountId: byCode.get(AP), debit: settled.payable },
-      { accountId: byCode.get(BANK), credit: settled.bank },
+      { accountId: paidFrom.id, credit: settled.bank },
     ];
     if (settled.difference > 0) lines.push({ accountId: byCode.get(FX_DIFFERENCES), debit: settled.difference });
     if (settled.difference < 0) lines.push({ accountId: byCode.get(FX_DIFFERENCES), credit: -settled.difference });
@@ -1069,8 +1175,10 @@ export async function postBillPayment(ctx: FinanceContext, billId: string, payme
     }, options);
   }
 
-  const { byCode, missing } = await codesToIds(ctx, [AP, BANK]);
+  const { byCode, missing } = await codesToIds(ctx, [AP]);
   if (missing.length) return { error: "chart", missing };
+  const paidFrom = await moneyAccountFor(ctx, (payment as { accountId?: unknown }).accountId);
+  if ("error" in paidFrom) return paidFrom;
 
   return postEntry(ctx, {
     date: payment.date,
@@ -1078,7 +1186,7 @@ export async function postBillPayment(ctx: FinanceContext, billId: string, payme
     source: { kind: "bill-payment", id: paymentSource(billId, paymentId) },
     lines: [
       { accountId: byCode.get(AP), debit: payment.amount },
-      { accountId: byCode.get(BANK), credit: payment.amount },
+      { accountId: paidFrom.id, credit: payment.amount },
     ],
   }, options);
 }
@@ -1106,15 +1214,17 @@ export async function postPayment(ctx: FinanceContext, invoiceId: string, paymen
     return { error: "already-posted" };
   }
 
-  const { byCode, missing } = await codesToIds(ctx, [BANK, AR]);
+  const { byCode, missing } = await codesToIds(ctx, [AR]);
   if (missing.length) return { error: "chart", missing };
+  const paidInto = await moneyAccountFor(ctx, (payment as { accountId?: unknown }).accountId);
+  if ("error" in paidInto) return paidInto;
 
   return postEntry(ctx, {
     date: payment.date,
     memo: `Payment on ${invoice.reference}`,
     source: { kind: "payment", id: paymentSource(invoiceId, paymentId) },
     lines: [
-      { accountId: byCode.get(BANK), debit: payment.amount },
+      { accountId: paidInto.id, debit: payment.amount },
       { accountId: byCode.get(AR), credit: payment.amount },
     ],
   }, options);

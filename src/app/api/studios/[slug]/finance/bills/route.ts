@@ -8,6 +8,7 @@ import {
 } from "@/modules/finance/payables";
 import { referencePickers } from "@/modules/procurement/pickers";
 import { studioVatRate } from "@/shared/vat";
+import { storedMoneyAccounts } from "@/modules/finance/ledger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,7 +23,7 @@ export const GET = route(
   { auth: "studio", context: financeContext, name: "finance/bills" },
   async (fin) => {
     if (!fin.canViewPayables) return { error: "forbidden" };
-    const [bills, pickers] = await Promise.all([
+    const [bills, pickers, money] = await Promise.all([
       listBillsForScreen(fin),
       // WHAT A BILL IS FILED AGAINST: the supplier from the register, the order
       // it answers, the project and its cost code. The form asked for a typed
@@ -32,6 +33,8 @@ export const GET = route(
       referencePickers(fin.studio, {
         suppliers: fin.vendorsSection, projects: fin.projectsListSection, orders: fin.sheetsSection,
       }, { suppliers: true, projects: true, costCodes: true, orders: true }),
+      // Which account a bill is paid from, when there is more than one.
+      fin.canManage ? storedMoneyAccounts(fin) : Promise.resolve([]),
     ]);
     return {
       canManage: fin.canManage,
@@ -55,6 +58,7 @@ export const GET = route(
         // form defaulted to 15 when this was missing, which it always was.
         defaultVatRate: studioVatRate(fin.studio) ?? 0,
         vatEnabled: studioVatRate(fin.studio) !== null,
+        moneyAccounts: money.map((a) => ({ id: a.id, code: a.code, name: a.name })),
       },
     };
   },

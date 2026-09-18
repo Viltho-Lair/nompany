@@ -99,7 +99,10 @@ is a typo, and it would overstate the cash a studio thinks is locked up.
 - **No cheque book or ranges.** Numbers are typed, and nothing notices a gap or a duplicate.
 - **Payroll and recurring costs are not in the forecast.** Only invoices, bills and cheques
   are, so the wage bill — usually the largest predictable outflow — is missing.
-- **No opening/closing bank statement balance.** The forecast opens from the LEDGER's bank
-  balance, which is right, and differs from the bank's own until a reconciliation clears.
+- **No opening/closing bank statement balance.** The forecast opens from the LEDGER's
+  balance of every money account together (since 18/09/2026; it read 1010 alone, so money in a
+  second bank or a till was forecast as missing), which is right, and differs from the banks'
+  own until a reconciliation clears. Each account's balance is listed above the forecast, with
+  **Move money** between them.
 - **A guarantee is a record, not a document.** No file, no bank, no facility limit, and
   nothing warns before one expires except the colour on this screen.

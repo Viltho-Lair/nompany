@@ -22,13 +22,16 @@ export default function ReconciliationPanel({ slug, locale = "en" }) {
   const [problem, setProblem] = useState("");
   const [busy, setBusy] = useState(false);
   const [draft, setDraft] = useState({ date: "", description: "", amount: "" });
+  // ONE MONEY ACCOUNT AT A TIME: a statement is one account's. Empty is the
+  // bank (1010), which is what every statement before this was typed against.
+  const [accountId, setAccountId] = useState("");
 
   const load = useCallback(async () => {
-    const res = await fetch(`/api/studios/${slug}/finance/reconciliation`, { cache: "no-store" });
+    const res = await fetch(`/api/studios/${slug}/finance/reconciliation${accountId ? `?account=${encodeURIComponent(accountId)}` : ""}`, { cache: "no-store" });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) { setProblem(body.error || "failed"); return; }
     setData(body);
-  }, [slug, setData, setProblem]);
+  }, [slug, accountId, setData, setProblem]);
 
   useReload(load);
 
@@ -65,6 +68,13 @@ export default function ReconciliationPanel({ slug, locale = "en" }) {
       <div>
         <h3 className="font-display text-sm font-700 text-slate-900 dark:text-white">{tr.title}</h3>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{tr.lead}</p>
+        {(data.accounts || []).length > 1 && (
+          <div className="mt-3 w-72">
+            <Field label={tr.account} as="select" value={data.accountId}
+              onChange={(v) => setAccountId(v)}
+              options={data.accounts.map((a) => ({ value: a.id, label: `${a.code} ${a.name}` }))} />
+          </div>
+        )}
       </div>
 
       {problem && (
@@ -170,7 +180,7 @@ export default function ReconciliationPanel({ slug, locale = "en" }) {
             disabled={busy || !draft.date || !draft.description.trim() || !Number(draft.amount)}
             onClick={async () => {
               const done = await send("POST", {
-                action: "add", lines: [{ ...draft, amount: Number(draft.amount) }],
+                action: "add", accountId: data.accountId, lines: [{ ...draft, amount: Number(draft.amount) }],
               });
               if (done) setDraft({ date: "", description: "", amount: "" });
             }}

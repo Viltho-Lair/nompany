@@ -383,6 +383,9 @@ function AccountsPanel({ slug, accounts, rows, canEdit, tr, onSaved }) {
                 <td className="py-1.5 pe-3 text-slate-800 dark:text-slate-100">
                   {a.parentId && <span className="text-slate-400">↳ </span>}{a.name}
                   {a.active === false && <span className="ms-2 rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500 dark:bg-white/5">{tr.retired}</span>}
+                  {a.type === "asset" && (a.cash || a.code === "1000" || a.code === "1010") && (
+                    <span className="ms-2 rounded-full bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">{tr.moneyTag}</span>
+                  )}
                 </td>
                 <td className="py-1.5 pe-3 text-slate-500 dark:text-slate-400">{tr.typeLabel(a.type)}</td>
                 <td className="num py-1.5 pe-3 text-end text-slate-700 dark:text-slate-200">{net(a) ? money(net(a)) : ""}</td>
@@ -409,6 +412,7 @@ function AccountsPanel({ slug, accounts, rows, canEdit, tr, onSaved }) {
 function AccountForm({ account, accounts, tr, onCancel, onSave }) {
   const [f, setF] = useState({
     code: account?.code || "", name: account?.name || "", type: account?.type || "expense", parentId: account?.parentId || "",
+    cash: !!account?.cash,
   });
   const [busy, setBusy] = useState(false);
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
@@ -424,10 +428,20 @@ function AccountForm({ account, accounts, tr, onCancel, onSave }) {
         <Field label={tr.parent} as="select" value={f.parentId} onChange={(v) => set("parentId", v)}
           options={[{ value: "", label: tr.noParent }, ...parents.map((a) => ({ value: a.id, label: `${a.code} ${a.name}` }))]} />
       </div>
+      {/* ONLY AN ASSET HOLDS MONEY, and the default Cash and Bank always do. */}
+      {f.type === "asset" && account?.code !== "1000" && account?.code !== "1010" && (
+        <label className="mt-3 flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+          <input type="checkbox" checked={f.cash} onChange={(e) => set("cash", e.target.checked)} />
+          {tr.cashFlag}
+        </label>
+      )}
       <div className="mt-3 flex gap-2">
         <button className={btn} disabled={busy || !f.name.trim() || !f.code.trim()} onClick={async () => {
           setBusy(true);
-          await onSave(account ? { name: f.name, type: f.type, parentId: f.parentId } : f);
+          const cash = f.type === "asset" ? f.cash : false;
+          await onSave(account
+            ? { name: f.name, type: f.type, parentId: f.parentId, ...(account.cash !== cash && f.type === "asset" ? { cash } : {}) }
+            : { ...f, cash });
           setBusy(false);
         }}>{tr.save}</button>
         <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>

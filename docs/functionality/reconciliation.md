@@ -71,8 +71,10 @@ rest and says which, rather than making somebody paste again.
 
 - **No import.** Lines are typed or posted as a list through the API; there is no CSV, OFX
   or bank feed, and the sweep is capped at 500 because past that it is an import.
-- **One bank account.** The chart has a single `1010 Bank`, so a studio with three accounts
-  reconciles all three against one figure.
+- ~~**One bank account.**~~ **One money account at a time, 18/09/2026.** The panel picks which
+  of the studio's money accounts (`ledger.md`) it reconciles; a statement line carries the
+  account it was entered against, and a line with none is 1010's — every line entered before.
+  A line is only ever matched against its own account's postings.
 - **Nothing posts the unrecorded.** A bank charge on the statement is listed and cannot be
   turned into a journal entry from this screen — the fix is named and not offered.
 - **No statement balance carried forward.** The "statement says" figure is the sum of the

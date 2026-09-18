@@ -11,7 +11,7 @@
 
 import { requirePermission } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
-import { ledgerAccounts } from "./ledger";
+import { ledgerAccounts, isMoneyAccount } from "./ledger";
 import { invoiceTotals } from "./finance";
 import {
   chequeProblems, cleanCheque, chequeProblem,
@@ -32,20 +32,30 @@ const cashScope = (ctx: FinanceContext) => ({ studio: ctx.studio, section: ctx.c
 const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
 // A sum of posted amounts: only float noise to remove (shared/money).
 const money = (n: number) => roundSum(n);
-const BANK = "1010";
 
-/** What the ledger says is in the bank right now. */
-async function bankBalance(ctx: FinanceContext): Promise<number> {
+/**
+ * WHAT THE LEDGER SAYS IS IN EACH MONEY ACCOUNT RIGHT NOW, and in all of them.
+ *
+ * THE FORECAST OPENS FROM THE TOTAL. It read 1010 alone, so a studio holding
+ * its float in a second bank or a till forecast running out of money it had.
+ */
+async function moneyBalances(ctx: FinanceContext) {
   const [entries, accounts] = await Promise.all([
     Entries.find({ studio: ctx.studio, section: ctx.ledgerSection }),
     ledgerAccounts(ctx),
   ]);
-  const bank = accounts.find((a) => a.code === BANK);
-  if (!bank) return 0;
-  return money(entries.reduce((sum, e) => sum + (e.lines || [])
-    .filter((l) => l.accountId === bank.id)
-    .reduce((s, l) => s + (Number(l.debit) || 0) - (Number(l.credit) || 0), 0), 0));
+  const held = accounts.filter(isMoneyAccount);
+  const byId = new Map(held.map((a) => [a.id, 0]));
+  for (const e of entries) {
+    for (const l of e.lines || []) {
+      if (byId.has(l.accountId)) byId.set(l.accountId, (byId.get(l.accountId) || 0) + (Number(l.debit) || 0) - (Number(l.credit) || 0));
+    }
+  }
+  const rows = held.map((a) => ({ id: a.id, code: a.code, name: a.name, balance: money(byId.get(a.id) || 0) }));
+  return { rows, total: money(rows.reduce((t, r) => t + r.balance, 0)) };
 }
+
+
 
 /**
  * EVERYTHING EXPECTED TO MOVE, as signed dues.
@@ -107,17 +117,21 @@ export async function treasury(ctx: FinanceContext, { from, weeks = 12 }: { from
   const denied = requirePermission(ctx.access, "finance.cash.view");
   if (denied) return denied;
 
-  const [cheques, guarantees, opening] = await Promise.all([
+  const [cheques, guarantees, balances] = await Promise.all([
     Cheques.find(cashScope(ctx)),
     Guarantees.find(cashScope(ctx)),
-    bankBalance(ctx),
+    moneyBalances(ctx),
   ]);
+  const opening = balances.total;
 
   const buckets = forecast(opening, await dues(ctx, cheques), { from, buckets: weeks, days: 7 });
 
   return {
     from,
     opening,
+    // EACH MONEY ACCOUNT'S OWN BALANCE, which the forecast's opening adds up —
+    // and the list a transfer between them is made from.
+    accounts: balances.rows,
     cheques: [...cheques].sort((a, b) => a.dueOn.localeCompare(b.dueOn)),
     guarantees: [...guarantees]
       .map((g) => ({ ...g, state: guaranteeState(g, from) }))

@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
 const spec = { auth: "studio", context: financeContext, body: true, name: "finance/reconciliation" };
 
 export const GET = route({ ...spec, body: false }, async (c) => {
-  const result = await reconciliation(c as FinanceContext);
+  const result = await reconciliation(c as FinanceContext, new URL(c.request.url).searchParams.get("account"));
   return refused(result) ? result : { ok: true, ...result };
 });
 

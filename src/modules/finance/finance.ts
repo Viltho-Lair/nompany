@@ -32,6 +32,7 @@ import { TAXONOMIES, resolveValue, admits } from "@/modules/administration/taxon
 import { getSectionByKey, updateSection } from "@/platform/db/sections";
 import { attachToProjectEngagement, detachFromItsEngagement } from "@/platform/db/engagement";
 import { autoPost, autoReverse, autoRepost, settleWithholding } from "./posting";
+import { moneyAccountProblem } from "./ledger";
 import { moduleContext } from "../context";
 
 import { listCollaborators } from "@/platform/auth/collaborators";
@@ -535,6 +536,12 @@ export async function recordPayment(ctx: FinanceContext, id: string, body: Recor
 
   const amount = cash(body?.amount, invoice.currency || studio.currency);
   if (!amount) return { error: "amount" };
+  // WHICH OF THE STUDIO'S ACCOUNTS IT ARRIVED IN — the bank unless somebody says
+  // the till or a second bank. Checked here, where it can still be refused,
+  // rather than discovered by the posting after the payment is recorded.
+  const accountId = str(body?.accountId, 60);
+  const wrongAccount = await moneyAccountProblem(ctx, accountId);
+  if (wrongAccount) return { error: wrongAccount };
 
   const totals = invoiceTotals(invoice, studio.currency);
   // Overpayment is refused rather than absorbed — it means something is wrong
@@ -549,6 +556,7 @@ export async function recordPayment(ctx: FinanceContext, id: string, body: Recor
     // cannot split into two on case alone and be counted twice.
     method: resolveValue("paymentMethods", studio.taxonomies, body?.method, PAYMENT_METHODS[0]),
     reference: str(body?.reference, 120),
+    ...(accountId ? { accountId } : {}),
     byCollaboratorId: collaborator.id,
   }];
 
@@ -620,6 +628,9 @@ export async function createExpense(ctx: FinanceContext, body: Record<string, un
   if (denied) return denied;
 
   const { studio, cashSection, collaborator } = ctx;
+  const accountId = str(body?.accountId, 60);
+  const wrongAccount = await moneyAccountProblem(ctx, accountId);
+  if (wrongAccount) return { error: wrongAccount };
   const amount = cash(body?.amount, studio.currency);
   if (!amount) return { error: "amount" };
 
@@ -635,6 +646,7 @@ export async function createExpense(ctx: FinanceContext, body: Record<string, un
     description: str(body?.description, 300),
     category: resolveValue("expenseCategories", studio.taxonomies, body?.category, "Other"),
     amount,
+    ...(accountId ? { accountId } : {}),
     date: day(body?.date) || new Date().toISOString().slice(0, 10),
     projectId,
     paidByCollaboratorId: str(body?.paidByCollaboratorId, 60) || collaborator.id,
@@ -665,6 +677,13 @@ export async function editExpense(ctx: FinanceContext, id: string, body: Record<
   if (body?.date !== undefined) patch.date = day(body.date);
   if (body?.notes !== undefined) patch.notes = str(body.notes, 1000);
   if (body?.paidByCollaboratorId !== undefined) patch.paidByCollaboratorId = str(body.paidByCollaboratorId, 60);
+  // THE ACCOUNT IT LEFT FROM is part of what the entry says, so moving it
+  // re-posts the expense like a new amount does.
+  if (body?.accountId !== undefined) {
+    const wrongAccount = await moneyAccountProblem(ctx, body.accountId);
+    if (wrongAccount) return { error: wrongAccount };
+    patch.accountId = str(body.accountId, 60);
+  }
   if (body?.projectId !== undefined) {
     const projectId = str(body.projectId, 60);
     if (projectId) {
@@ -679,7 +698,8 @@ export async function editExpense(ctx: FinanceContext, id: string, body: Record<
   // WHAT THE LEDGER READS CHANGED, SO THE ENTRY IS REPLACED. Amount, category
   // (which picks the account) and date (which picks the period) are the three
   // an expense's entry is made of; a description or a note is not in the books.
-  const moved = patch.amount !== undefined || patch.category !== undefined || patch.date !== undefined;
+  const moved = patch.amount !== undefined || patch.category !== undefined || patch.date !== undefined
+    || patch.accountId !== undefined;
   const posting = moved ? await autoRepost(ctx, "expense", id, `Expense ${expense.reference || ""} corrected`.trim()) : null;
   return { expense, ...(posting ? { posting } : {}) };
 }

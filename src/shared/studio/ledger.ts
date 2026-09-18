@@ -78,6 +78,8 @@ type Strings = {
   isReversal: string;
   chooseAccount: string;
   problem: (code: string) => string;
+  cashFlag: string;
+  moneyTag: string;
 };
 
 const en: Strings = {
@@ -174,7 +176,10 @@ const en: Strings = {
     "already-reversed": "That entry has already been reversed.",
     "is-a-reversal": "A reversal is not reversed again — post a new entry instead.",
     forbidden: "You do not have the right to do that.",
+    "cash-type": "Only an asset account can hold money.",
   } as Record<string, string>)[code] || "That did not work.",
+  cashFlag: "Money moves through it — a bank, a till, a petty-cash box",
+  moneyTag: "Money",
 };
 
 // HAND-WRITTEN. NO DIACRITICS.
@@ -228,7 +233,10 @@ const ar: Strings = {
     "already-reversed": "عكس هذا القيد من قبل.",
     "is-a-reversal": "القيد العكسي لا يعكس مرة أخرى — رحل قيدا جديدا بدلا من ذلك.",
     forbidden: "ليست لديك صلاحية لذلك.",
+    "cash-type": "لا يحمل المال إلا حساب أصل.",
   } as Record<string, string>)[code] || "لم ينجح ذلك.",
+  cashFlag: "يمر عبره المال — بنك أو صندوق أو عهدة نقدية",
+  moneyTag: "نقد",
   title: "دفتر الأستاذ",
   lead: "كل القيود، وما تجمعه. لا شيء هنا مكتوب مرتين — ميزان المراجعة والقائمتان تحسب من القراءة نفسها للسجل.",
   trial: "ميزان المراجعة",

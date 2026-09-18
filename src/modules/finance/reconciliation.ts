@@ -35,6 +35,8 @@ export type StatementLine = {
   /** Signed: positive is money in, negative is money out. */
   amount: number;
   matchedEntryId?: string;
+  /** The money account this statement is for. Absent is 1010 Bank — every line before 18/09/2026. */
+  accountId?: string;
 };
 
 export type BookLine = {

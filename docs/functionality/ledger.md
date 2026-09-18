@@ -243,8 +243,18 @@ Stated in words, because a silent gap reads as a finished feature.
   no job runs it and the period close does not yet list a month's depreciation as missing
   (it lists an asset that is off the books). Existing assets stay off the books until somebody
   says how each was paid for.
-- **One bank account.** Reconciliation, post-dated cheques, guarantees and the cash
-  forecast have their own files (`reconciliation.md`, `treasury.md`) and all read `1010`.
+- ~~**One bank account.**~~ **Several, 18/09/2026.** An asset account marked `cash` (Ledger →
+  Accounts, "money moves through it") is a MONEY ACCOUNT beside 1000 Cash and 1010 Bank, which
+  are money accounts without the mark and cannot lose it (`isMoneyAccount`). An invoice
+  payment, a bill payment and an expense may name the account (`accountId`); none named is
+  1010, which is every one recorded before — so nothing stored changes meaning. A named
+  account that is not (or no longer) a money account is refused at the form (`bank-account`)
+  and at the posting. **Transfers** move money between two of them from Cash → Treasury
+  (`transferFunds`, `finance.cash.edit`, source kind `transfer`): the ENTRY is the record,
+  and undoing one is reversing it. Reconciliation is per account and the forecast opens from
+  their total (`reconciliation.md`, `treasury.md`). **Still not built:** a fixed asset paid
+  from the bank and a disposal's proceeds still use 1010; a transfer carries no fee line; the
+  POS till does not post to a money account of its own.
 - **Seeding the chart is not safe under concurrency.** `ledgerAccounts` creates the
   default accounts read-then-create with no compare-and-set, so two first requests to a
   brand-new studio can each find it empty and each seed it — a chart with every account

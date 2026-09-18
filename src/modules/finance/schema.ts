@@ -39,6 +39,8 @@ export const PaymentSchema = z.object({
   note: z.string().max(500).optional(),
   recordedByCollaboratorId: z.string().optional(),
   recordedAt: z.string().optional(),
+  /** Which money account it went through (`isMoneyAccount`). Absent is 1010 Bank. */
+  accountId: z.string().max(60).optional(),
   /**
    * UNITS OF THE STUDIO'S CURRENCY FOR ONE OF THE DOCUMENT'S, on the day this
    * payment left — frozen on a payment of a FOREIGN bill, and what the bank
@@ -142,6 +144,8 @@ export const ExpenseSchema = z.object({
   createdByCollaboratorId: z.string().optional(),
   /** Who actually paid it — separate from who recorded it, and often not the same. */
   paidByCollaboratorId: z.string().optional(),
+  /** Which money account it left from. Absent is 1010 Bank. */
+  accountId: z.string().max(60).optional(),
 
   // ---- derived on the way out ---------------------------------------------
   projectNumber: z.string().optional(),
@@ -178,6 +182,12 @@ export const AccountSchema = z.object({
   parentId: z.string().max(60).optional(),
   // A retired account keeps its history but takes no new postings.
   active: z.boolean().optional(),
+  /**
+   * MONEY MOVES THROUGH IT — a bank account, a till, a petty-cash box. Only an
+   * asset can be one. 1000 Cash and 1010 Bank are money accounts without the
+   * flag (`isMoneyAccount`, ./ledger), so no studio's chart needs rewriting.
+   */
+  cash: z.boolean().optional(),
   createdAt: z.string().optional(),
   createdByCollaboratorId: z.string().optional(),
 });
@@ -244,7 +254,7 @@ export const JournalEntrySchema = z.object({
     // payments and withheld tax all stored kinds the type said could not exist.
     kind: z.enum([
       "invoice", "bill", "expense", "payment", "bill-payment", "credit-note", "payroll", "withholding",
-      "asset", "depreciation", "asset-disposal", "manual", "reversal",
+      "asset", "depreciation", "asset-disposal", "transfer", "manual", "reversal",
     ]),
     id: z.string().max(60).optional(),
   }),

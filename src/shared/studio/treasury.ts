@@ -43,6 +43,14 @@ type Strings = {
   status: (token: string) => string;
   state: (token: string) => string;
   problem: (code: string) => string;
+  accountsTitle: string;
+  accountsLead: string;
+  total: string;
+  transfer: string;
+  transferFrom: string;
+  transferTo: string;
+  memo: string;
+  date: string;
 };
 
 const EN_CHEQUE: Record<string, string> = {
@@ -94,7 +102,19 @@ const en: Strings = {
   problem: (code) => (
     code === "transition" ? "A cheque cannot go there from where it is."
       : code === "already-released" ? "That guarantee is already released."
-        : code || ""),
+        : code === "same-account" ? "Money cannot move from an account into itself."
+          : code === "bank-account" ? "Choose two of the studio's bank or cash accounts."
+            : code === "amount" ? "Say how much moved."
+              : code === "period-closed" ? "That month is closed. Date the transfer in an open month."
+                : code || ""),
+  accountsTitle: "Money accounts",
+  accountsLead: "What the books say is in each bank, till and petty-cash box. The forecast below starts from their total. Mark more in Ledger → Accounts.",
+  total: "Total",
+  transfer: "Move money",
+  transferFrom: "From",
+  transferTo: "To",
+  memo: "What it is for",
+  date: "Date",
 };
 
 // HAND-WRITTEN. NO DIACRITICS.
@@ -145,7 +165,19 @@ const ar: Strings = {
   problem: (code) => (
     code === "transition" ? "الشيك لا ينتقل الى هناك من حالته الحالية."
       : code === "already-released" ? "هذه الكفالة محررة بالفعل."
-        : code || ""),
+        : code === "same-account" ? "لا ينتقل المال من حساب الى نفسه."
+          : code === "bank-account" ? "اختر حسابين من حسابات البنك أو النقد في الاستوديو."
+            : code === "amount" ? "حدد المبلغ المنقول."
+              : code === "period-closed" ? "هذا الشهر مغلق. أرخ التحويل في شهر مفتوح."
+                : code || ""),
+  accountsTitle: "حسابات النقد",
+  accountsLead: "ما تقوله الدفاتر عن كل بنك وصندوق وعهدة نقدية. التوقعات أدناه تبدأ من مجموعها. حدد حسابات أخرى من الدفتر ← الحسابات.",
+  total: "المجموع",
+  transfer: "تحويل مال",
+  transferFrom: "من",
+  transferTo: "الى",
+  memo: "البيان",
+  date: "التاريخ",
 };
 
 const dict = { en, ar };

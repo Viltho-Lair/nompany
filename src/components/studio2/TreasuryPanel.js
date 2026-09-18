@@ -22,6 +22,7 @@ export default function TreasuryPanel({ slug, locale = "en" }) {
   const [busy, setBusy] = useState(false);
   const [cheque, setCheque] = useState(null);
   const [guarantee, setGuarantee] = useState(null);
+  const [transfer, setTransfer] = useState(null);
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/finance/treasury`, { cache: "no-store" });
@@ -48,7 +49,7 @@ export default function TreasuryPanel({ slug, locale = "en" }) {
 
   const {
     from, opening, cheques = [], guarantees = [], lockedUp = {}, buckets = [],
-    shortfall: gap, canManage,
+    shortfall: gap, canManage, accounts = [],
   } = data;
   const n = (v) => new Intl.NumberFormat("en", { maximumFractionDigits: 0 }).format(Number(v) || 0);
 
@@ -58,6 +59,59 @@ export default function TreasuryPanel({ slug, locale = "en" }) {
         <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">
           {problem}
         </p>
+      )}
+
+      {/* ---- the money accounts ------------------------------------------- */}
+      {/* WHAT IS IN EACH ONE, and moving money between them. A transfer is
+          neither income nor spending, so it is its own act rather than an
+          expense somebody has to remember to cancel out. */}
+      {accounts.length > 0 && (
+        <section>
+          <h3 className="font-display text-sm font-700 text-slate-900 dark:text-white">{tr.accountsTitle}</h3>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{tr.accountsLead}</p>
+          <ul className="mt-2 divide-y divide-slate-100 text-sm dark:divide-white/5">
+            {accounts.map((a) => (
+              <li key={a.id} className="flex justify-between py-1.5">
+                <span className="text-slate-700 dark:text-slate-200"><span className="font-mono text-xs text-slate-400">{a.code}</span> {a.name}</span>
+                <span className={`num ${a.balance < 0 ? "text-rose-600 dark:text-rose-300" : "text-slate-900 dark:text-white"}`}>{n(a.balance)}</span>
+              </li>
+            ))}
+            {accounts.length > 1 && (
+              <li className="flex justify-between py-1.5 font-600">
+                <span className="text-slate-900 dark:text-white">{tr.total}</span>
+                <span className="num text-slate-900 dark:text-white">{n(opening)}</span>
+              </li>
+            )}
+          </ul>
+          {canManage && accounts.length > 1 && !transfer && (
+            <button className="mt-2 rounded-full border border-slate-200 px-4 py-1.5 text-sm font-600 text-slate-700 dark:border-white/10 dark:text-slate-200"
+              onClick={() => setTransfer({ fromAccountId: accounts[0].id, toAccountId: accounts[1].id, amount: "", date: "", memo: "" })}>
+              {tr.transfer}
+            </button>
+          )}
+          {transfer && (
+            <div className="mt-3 grid gap-3 rounded-xl border border-brand-500/40 p-3 sm:grid-cols-2 lg:grid-cols-3">
+              <Field label={tr.transferFrom} as="select" value={transfer.fromAccountId}
+                onChange={(v) => setTransfer((t) => ({ ...t, fromAccountId: v }))}
+                options={accounts.map((a) => ({ value: a.id, label: `${a.code} ${a.name}` }))} />
+              <Field label={tr.transferTo} as="select" value={transfer.toAccountId}
+                onChange={(v) => setTransfer((t) => ({ ...t, toAccountId: v }))}
+                options={accounts.map((a) => ({ value: a.id, label: `${a.code} ${a.name}` }))} />
+              <Field label={tr.amount} type="number" value={transfer.amount} onChange={(v) => setTransfer((t) => ({ ...t, amount: v }))} />
+              <Field label={tr.date} type="date" value={transfer.date} onChange={(v) => setTransfer((t) => ({ ...t, date: v }))} />
+              <Field label={tr.memo} value={transfer.memo} onChange={(v) => setTransfer((t) => ({ ...t, memo: v }))} />
+              <div className="flex gap-2 sm:col-span-2 lg:col-span-3">
+                <button className="rounded-full bg-brand-600 px-4 py-1.5 text-sm font-600 text-white disabled:opacity-50"
+                  disabled={busy || !(Number(transfer.amount) > 0) || transfer.fromAccountId === transfer.toAccountId}
+                  onClick={async () => {
+                    if (await send({ action: "transfer", ...transfer, amount: Number(transfer.amount) })) setTransfer(null);
+                  }}>{tr.transfer}</button>
+                <button className="rounded-full border border-slate-200 px-4 py-1.5 text-sm font-600 text-slate-700 dark:border-white/10 dark:text-slate-200"
+                  onClick={() => setTransfer(null)}>{tr.cancel}</button>
+              </div>
+            </div>
+          )}
+        </section>
       )}
 
       {/* ---- the forecast --------------------------------------------------- */}

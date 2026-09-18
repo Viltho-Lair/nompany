@@ -7,6 +7,7 @@ import {
 } from "@/modules/finance/finance";
 import { referencePickers } from "@/modules/procurement/pickers";
 import { studioVatRate } from "@/shared/vat";
+import { storedMoneyAccounts } from "@/modules/finance/ledger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -34,6 +35,11 @@ export const GET = route(
   const projectMargins = cashOn ? await profitability(g, { invoices, expenses }) : [];
   // What an invoice line may name — only when somebody here can raise one.
   const items = cashOn && g.canManage ? await saleItems(g) : [];
+  // WHERE MONEY CAN ARRIVE OR LEAVE — the bank, a till, a second bank. Only for
+  // somebody who records money; a form offers it only when there is a choice.
+  const moneyAccounts = cashOn && g.canManage
+    ? (await storedMoneyAccounts(g)).map((a) => ({ id: a.id, code: a.code, name: a.name }))
+    : [];
 
   return {
     canManage: g.canManage,
@@ -56,6 +62,7 @@ export const GET = route(
     }))),
     vocabulary: {
       invoiceStatuses: INVOICE_STATUSES,
+      moneyAccounts,
       // WHAT THIS STUDIO ADMITS, not what the product ships — otherwise a
       // service accepts a value no picker on the screen could offer.
       expenseCategories: valuesFor("expenseCategories", g.studio.taxonomies),

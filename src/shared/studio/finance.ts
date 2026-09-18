@@ -350,6 +350,9 @@ type Strings = CommonStrings & {
   mOnTheBooks: string;
   mFunding: string;
   mPeriod: string;
+  // ---- money accounts (18/09/2026) ----
+  throughAccount: string;
+  mBankAccount: string;
 };
 
 const en: Strings = {
@@ -707,6 +710,8 @@ const en: Strings = {
   mOnTheBooks: "This asset has been depreciated in the books. Dispose of it instead of deleting it.",
   mFunding: "Say how the asset was paid for, and which bill if it was bought on one.",
   mPeriod: "Pick a month.",
+  throughAccount: "Account",
+  mBankAccount: "Choose one of the studio's bank or cash accounts.",
 };
 
 const ar: Strings = {
@@ -1064,6 +1069,8 @@ const ar: Strings = {
   mOnTheBooks: "أهلك هذا الأصل في الدفاتر. استبعده بدلا من حذفه.",
   mFunding: "حدد كيف دفع ثمن الأصل، وأي فاتورة إن كان مشترى بواحدة.",
   mPeriod: "اختر شهرا.",
+  throughAccount: "الحساب",
+  mBankAccount: "اختر أحد حسابات البنك أو النقد في الاستوديو.",
 };
 
 const finance = { en, ar };

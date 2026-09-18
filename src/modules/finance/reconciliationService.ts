@@ -11,7 +11,7 @@
 
 import { requirePermission } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
-import { ledgerAccounts } from "./ledger";
+import { ledgerAccounts, isMoneyAccount } from "./ledger";
 import {
   statementProblems, cleanStatementLine, suggestMatches, reconcile, matchProblem,
 } from "./reconciliation";
@@ -35,9 +35,9 @@ const BANK = "1010";
  *
  * AN ENTRY WITH TWO BANK LINES IS SUMMED, not split. A transfer between two of
  * a studio's own accounts would produce one net movement; splitting it would
- * offer a matcher two halves of something the bank shows as one line — and this
- * product has ONE bank account in its chart, so the case is a contrived one
- * that must still not produce nonsense.
+ * offer a matcher two halves of something the bank shows as one line. Each
+ * money account is reconciled on its own, so a transfer between two of them is
+ * one line on each side — out of one, into the other.
  */
 function bankLines(entries: JournalEntry[], bankAccountId: string): BookLine[] {
   const out: BookLine[] = [];
@@ -56,23 +56,40 @@ function bankLines(entries: JournalEntry[], bankAccountId: string): BookLine[] {
   return out.sort((a, b) => a.date.localeCompare(b.date));
 }
 
-async function sides(ctx: FinanceContext) {
-  const [lines, entries, accounts] = await Promise.all([
+/**
+ * ONE MONEY ACCOUNT'S TWO SIDES. The account asked for, or 1010 Bank — and a
+ * statement line naming no account is the bank's, because every line entered
+ * before a studio could have two was typed against the one it had.
+ */
+async function sides(ctx: FinanceContext, requested?: unknown) {
+  const [all, entries, accounts] = await Promise.all([
     Statement.find(scope(ctx)),
     Entries.find(scope(ctx)),
     ledgerAccounts(ctx),
   ]);
   const bank = accounts.find((a) => a.code === BANK);
-  return { lines, book: bank ? bankLines(entries, bank.id) : [], hasBank: Boolean(bank) };
+  const wanted = String(requested ?? "").trim();
+  const account = wanted ? accounts.find((a) => a.id === wanted && isMoneyAccount(a)) : bank;
+  const lines = account ? all.filter((l) => (l.accountId || bank?.id) === account.id) : [];
+  return {
+    lines,
+    book: account ? bankLines(entries, account.id) : [],
+    hasBank: Boolean(account),
+    account,
+    accounts: accounts.filter(isMoneyAccount).map((a) => ({ id: a.id, code: a.code, name: a.name })),
+  };
 }
 
 /** Both sides, where they stand, and what probably pairs with what. */
-export async function reconciliation(ctx: FinanceContext) {
+export async function reconciliation(ctx: FinanceContext, accountId?: unknown) {
   const denied = requirePermission(ctx.access, "finance.ledger.view");
   if (denied) return denied;
 
-  const { lines, book, hasBank } = await sides(ctx);
+  const { lines, book, hasBank, account, accounts } = await sides(ctx, accountId);
+  if (String(accountId ?? "").trim() && !account) return { error: "bank-account" };
   return {
+    accountId: account?.id || "",
+    accounts,
     // A STUDIO WITH NO BANK ACCOUNT IN ITS CHART has nothing to reconcile
     // AGAINST, which is a truthful answer rather than an empty one: the chart
     // self-seeds, so this only happens where somebody removed the account.
@@ -96,12 +113,19 @@ export async function addStatementLines(ctx: FinanceContext, body: Record<string
   if (!rows.length) return { error: "nothing" };
   if (rows.length > 500) return { error: "too-many" };
 
+  // THE STATEMENT IS ONE ACCOUNT'S, named once for the whole paste.
+  const { account } = await sides(ctx, body?.accountId);
+  if (!account) return { error: "bank-account" };
+
   const saved: StatementLine[] = [];
   const refused: { index: number; detail: string }[] = [];
   for (const [i, raw] of rows.entries()) {
     const problems = statementProblems(raw as Record<string, unknown>);
     if (problems.length) { refused.push({ index: i, detail: problems.join("; ") }); continue; }
-    saved.push(await Statement.create(scope(ctx), cleanStatementLine(raw as Record<string, unknown>, ctx.studio.currency)));
+    saved.push(await Statement.create(scope(ctx), {
+      ...cleanStatementLine(raw as Record<string, unknown>, ctx.studio.currency),
+      ...(account.code === BANK ? {} : { accountId: account.id }),
+    }));
   }
   // PARTIAL IS REPORTED, NOT ROLLED BACK — a pasted statement with one bad row
   // records the rest and says which, rather than making somebody paste again.
@@ -119,7 +143,10 @@ export async function matchLine(ctx: FinanceContext, lineId: string, entryId: st
   const denied = requirePermission(ctx.access, "finance.ledger.post");
   if (denied) return denied;
 
-  const { lines, book } = await sides(ctx);
+  // THE LINE DECIDES WHICH ACCOUNT'S BOOK IT PAIRS AGAINST — a bank line is
+  // never matched to a movement on the petty cash.
+  const owner = (await Statement.find(scope(ctx))).find((l) => l.id === lineId);
+  const { lines, book } = await sides(ctx, owner?.accountId);
   const line = lines.find((l) => l.id === lineId);
 
   if (!entryId) {

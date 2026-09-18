@@ -26,6 +26,7 @@ import { supplierQualification } from "@/modules/procurement/supplierModel";
 import { notifyHolders, signatureNotice } from "@/modules/people/holders";
 import { documentTaxMethod } from "@/shared/compliance/rules";
 import { isForeign, cleanRate, rateFor } from "./fx";
+import { moneyAccountProblem } from "./ledger";
 
 const BILLS = "bills";
 const Bills = repo<Bill>(BILLS);
@@ -525,6 +526,10 @@ export async function recordBillPayment(ctx: FinanceContext, id: string, body: R
 
   const amount = cash(body?.amount, current.currency || studio.currency);
   if (!amount) return { error: "amount" };
+  // WHICH ACCOUNT IT LEFT FROM — the bank unless somebody says otherwise.
+  const accountId = str(body?.accountId, 60);
+  const wrongAccount = await moneyAccountProblem(ctx, accountId);
+  if (wrongAccount) return { error: wrongAccount };
   const totals = billTotals(current, studio.currency);
   if (amount > totals.outstanding) return { error: "overpayment", outstanding: totals.outstanding };
 
@@ -540,6 +545,7 @@ export async function recordBillPayment(ctx: FinanceContext, id: string, body: R
     id: `pay${(current.payments || []).length + 1}`,
     amount,
     ...(rate ? { rate } : {}),
+    ...(accountId ? { accountId } : {}),
     date: day(body?.date) || new Date().toISOString().slice(0, 10),
     method: str(body?.method, 40) || "Bank transfer",
     note: str(body?.note, 500),

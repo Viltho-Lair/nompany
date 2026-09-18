@@ -28,6 +28,7 @@ type Strings = {
   matchedN: (n: number) => string;
   matchWith: (memo: string, days: number) => string;
   problem: (code: string) => string;
+  account: string;
 };
 
 const en: Strings = {
@@ -57,7 +58,9 @@ const en: Strings = {
     code === "amount" ? "Those two are different amounts, so they are two events rather than a match."
       : code === "entry-taken" ? "That posting is already matched to another line."
         : code === "already-matched" ? "That line is already matched."
-          : code || ""),
+          : code === "bank-account" ? "That is not one of the studio's bank or cash accounts."
+            : code || ""),
+  account: "Account",
 };
 
 // HAND-WRITTEN. NO DIACRITICS.
@@ -87,6 +90,7 @@ const ar: Strings = {
       : code === "entry-taken" ? "هذا القيد مطابق لسطر آخر بالفعل."
         : code === "already-matched" ? "هذا السطر مطابق بالفعل."
           : code || ""),
+  account: "الحساب",
 };
 
 const dict = { en, ar };

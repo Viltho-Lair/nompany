@@ -5,6 +5,7 @@ import {
 } from "@/modules/finance/treasuryService";
 import type { FinanceContext } from "@/modules/finance/types";
 import type { ChequeStatus } from "@/modules/finance/treasury";
+import { transferFunds } from "@/modules/finance/ledger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -41,6 +42,8 @@ export const POST = route(spec, async (c) => {
       ? await moveCheque(ctx, String(c.body?.id ?? ""), String(c.body?.status ?? "") as ChequeStatus)
       : action === "guarantee" ? await saveGuarantee(ctx, c.body)
         : action === "release" ? await releaseGuarantee(ctx, String(c.body?.id ?? ""))
-          : { error: "action" };
+          // MONEY BETWEEN TWO OF THE STUDIO'S OWN ACCOUNTS. Its entry is its record.
+          : action === "transfer" ? await transferFunds(ctx, c.body)
+            : { error: "action" };
   return refused(result) ? result : { ok: true, ...result };
 });

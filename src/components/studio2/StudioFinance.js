@@ -264,7 +264,7 @@ function FinanceCash({ slug, view = "finance" }) {
           canManage={canManage} busy={busy} send={send} />
       )}
       {tab === "expenses" && (
-        <Expenses rows={expenses} projects={projects} categories={vocabulary.expenseCategories}
+        <Expenses rows={expenses} projects={projects} categories={vocabulary.expenseCategories} accounts={vocabulary.moneyAccounts}
           slug={slug} nav={nav} canManage={canManage} busy={busy} send={send} />
       )}
       {tab === "projects" && <Profitability rows={profitability} slug={slug} nav={nav} />}
@@ -301,6 +301,7 @@ function message(out, tr) {
   if (out.error === "amount") return tr.mAmount;
   // ---- fixed assets --------------------------------------------------------
   if (out.error === "on-the-books") return tr.mOnTheBooks;
+  if (out.error === "bank-account") return tr.mBankAccount;
   if (out.error === "funding") return tr.mFunding;
   if (out.error === "period") return tr.mPeriod;
   // ---- accounts payable ----------------------------------------------------
@@ -364,7 +365,7 @@ function Invoices({ rows, projects, milestones = [], items = [], vocab, slug, na
       )}
 
       {paying && (
-        <PaymentForm invoice={paying} methods={vocab.paymentMethods} busy={busy}
+        <PaymentForm invoice={paying} methods={vocab.paymentMethods} accounts={vocab.moneyAccounts} busy={busy}
           onCancel={() => setPaying(null)}
           onSave={async (p) => { if (await send("invoices", "PUT", { id: paying.id, payment: p })) setPaying(null); }} />
       )}
@@ -637,9 +638,22 @@ function InvoiceForm({ projects, milestones = [], items = [], defaultVat, vatOn,
   );
 }
 
-function PaymentForm({ invoice, methods, busy, onCancel, onSave }) {
+// WHICH OF THE STUDIO'S MONEY ACCOUNTS — drawn only when there is a choice, so
+// a studio with one bank sees the form it always saw. The bank (1010) is the
+// default, as it is for every payment recorded before there was a choice.
+const defaultMoneyAccount = (accounts = []) => (accounts.find((a) => a.code === "1010") || accounts[0])?.id || "";
+function MoneyAccountField({ accounts = [], value, onChange }) {
   const tr = financeDict(useStudioLocale());
-  const [form, setForm] = useState({ amount: String(invoice.outstanding), date: "", method: methods[0], reference: "" });
+  if (accounts.length < 2) return null;
+  return (
+    <Field label={tr.throughAccount} as="select" value={value} onChange={onChange}
+      options={accounts.map((a) => ({ value: a.id, label: `${a.code} ${a.name}` }))} />
+  );
+}
+
+function PaymentForm({ invoice, methods, accounts = [], busy, onCancel, onSave }) {
+  const tr = financeDict(useStudioLocale());
+  const [form, setForm] = useState({ amount: String(invoice.outstanding), date: "", method: methods[0], reference: "", accountId: defaultMoneyAccount(accounts) });
 
   return (
     <section className={`${panel} border-brand-500/40`}>
@@ -652,6 +666,7 @@ function PaymentForm({ invoice, methods, busy, onCancel, onSave }) {
         </Field>
         <Field label={tr.method} as="select" value={form.method} onChange={(v) => setForm((f) => ({ ...f, method: v }))} options={methods} />
         <Field label={tr.reference} value={form.reference} onChange={(v) => setForm((f) => ({ ...f, reference: v }))} />
+        <MoneyAccountField accounts={accounts} value={form.accountId} onChange={(v) => setForm((f) => ({ ...f, accountId: v }))} />
       </div>
       <div className="mt-5 flex flex-wrap gap-2">
         <button className={btn} disabled={busy || !(Number(form.amount) > 0)} onClick={() => onSave({ ...form, amount: Number(form.amount) })}>
@@ -664,7 +679,7 @@ function PaymentForm({ invoice, methods, busy, onCancel, onSave }) {
 }
 
 // ---- expenses --------------------------------------------------------------
-function Expenses({ rows, projects, categories, slug, nav, canManage, busy, send }) {
+function Expenses({ rows, projects, categories, accounts = [], slug, nav, canManage, busy, send }) {
   const tr = financeDict(useStudioLocale());
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -677,6 +692,9 @@ function Expenses({ rows, projects, categories, slug, nav, canManage, busy, send
     { key: "projectId", label: tr.project, value: row?.projectId || "",
       options: [{ value: "", text: "— general —" }, ...projects.map((p) => ({ value: p.id, text: p.number }))] },
     { key: "notes", label: tr.notes, area: true, value: row?.notes || "" },
+    // THE ACCOUNT IT LEFT FROM, only when there is more than one to choose.
+    ...(accounts.length > 1 ? [{ key: "accountId", label: tr.throughAccount, value: row?.accountId || defaultMoneyAccount(accounts),
+      options: accounts.map((a) => ({ value: a.id, text: `${a.code} ${a.name}` })) }] : []),
   ];
 
   return (
@@ -1028,7 +1046,7 @@ function Bills({ rows, vocab, canManage, canRelease, busy, send, pickers = {} })
       )}
 
       {paying && (
-        <BillPaymentForm bill={paying} hold={paying.hold} methods={methods} busy={busy}
+        <BillPaymentForm bill={paying} hold={paying.hold} methods={methods} accounts={vocab.moneyAccounts} busy={busy}
           onCancel={() => setPaying(null)}
           onSave={async (p) => { if (await send("PUT", { id: paying.id, payment: p })) setPaying(null); }} />
       )}
@@ -1301,9 +1319,9 @@ function ReleaseHoldForm({ bill, busy, onCancel, onSave }) {
   );
 }
 
-function BillPaymentForm({ bill, hold, methods, busy, onCancel, onSave }) {
+function BillPaymentForm({ bill, hold, methods, accounts = [], busy, onCancel, onSave }) {
   const tr = financeDict(useStudioLocale());
-  const [form, setForm] = useState({ amount: String(bill.outstanding), date: "", method: methods[0], note: "" });
+  const [form, setForm] = useState({ amount: String(bill.outstanding), date: "", method: methods[0], note: "", accountId: defaultMoneyAccount(accounts) });
   return (
     <section className={`${panel} border-brand-500/40`}>
       <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">Record payment — {bill.reference}</h3>
@@ -1322,6 +1340,7 @@ function BillPaymentForm({ bill, hold, methods, busy, onCancel, onSave }) {
         </Field>
         <Field label={tr.method} as="select" value={form.method} onChange={(v) => setForm((f) => ({ ...f, method: v }))} options={methods} />
         <Field label={tr.note} value={form.note} onChange={(v) => setForm((f) => ({ ...f, note: v }))} />
+        <MoneyAccountField accounts={accounts} value={form.accountId} onChange={(v) => setForm((f) => ({ ...f, accountId: v }))} />
       </div>
       <div className="mt-5 flex flex-wrap gap-2">
         <button className={btn} disabled={busy || !(Number(form.amount) > 0)} onClick={() => onSave({ ...form, amount: Number(form.amount) })}>
