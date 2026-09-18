@@ -90,6 +90,8 @@ beside it for anything a country file does not name.
   any row whose value is the same number (letters and digits compared) as an official value
   printing on the same document. A row placed on its own (`legal.<label>`) is untouched —
   an author who placed it asked for it.
+- **The payslip** (`payroll.md`) prints the official values marked `payslip` in its
+  heading, then the remaining legal rows.
 - **The POS receipt** (`pos.md`) prints the official values marked `receipt`, then the
   remaining legal rows, on the till's slip and on every reprint.
 - `tests/official-values-model.mjs` prints the starter invoice for a Saudi studio and a US
@@ -114,8 +116,11 @@ fields are there.
 
 ## Not built yet
 
-- **Payslips and HR letters do not print them yet** (slice C). Neither has a layout of its
-  own yet.
+- **HR letters do not exist**, so nothing prints the `letter` fields for an employee; a
+  register document bound to nothing prints them as any other document does.
+- **Few countries mark anything for a payslip.** Only the UK's PAYE reference is marked
+  `payslip` in the files researched; a country's payslip requirements were not researched
+  field by field.
 - **Sales orders are not printed at all** — there is no print view for one — so there is
   nothing for the official values to appear on.
 - **An existing layout does not gain them by itself.** A studio's published quotation or

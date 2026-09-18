@@ -233,6 +233,13 @@ ok("...while a US contract carries its state of formation",
   ok("...and the legal row is kept when the official one does not apply",
     print({ ...sa, vatRate: "" }, "en", legal).text.includes("VAT No.: 300 0123 4567 8903"));
 
+  // SLICE C: THE PAYSLIP'S HEADING reads the same resolver for its kind. A UK
+  // employer's PAYE reference is marked for payslips; nothing Saudi is.
+  const gb = { country: "United Kingdom", vatRate: 20, officialValues: { paye_reference: "123/AB45678", company_number: "12345678" } };
+  ok("a UK payslip carries the PAYE reference", officialForDocument(gb, "payslip").map((p) => p.key).join(",") === "paye_reference");
+  ok("...and not the company number, which the file marks for other documents", !officialForDocument(gb, "payslip").some((p) => p.key === "company_number"));
+  ok("a Saudi payslip carries no official value", officialForDocument(sa, "payslip").length === 0);
+
   // THE RECEIPT reads the same resolver for its own kind.
   ok("a Saudi receipt carries the VAT number", officialForDocument(sa, "receipt").some((p) => p.value === "300012345678903"));
   ok("...and a US receipt carries nothing", officialForDocument(us, "receipt").length === 0);

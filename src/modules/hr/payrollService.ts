@@ -24,6 +24,8 @@ import { isAdministrator } from "@/platform/access";
 import { notifyHolders, signatureNotice } from "@/modules/people/holders";
 import { statutoryRulesOf, endOfService, sifFile } from "./statutory";
 import { employedBetween, statusOf } from "./lifecycle";
+import { officialForDocument } from "@/shared/compliance/resolve";
+import { legalRowsBeside } from "@/shared/compliance/printing";
 
 /** Somebody with a pay record who is not in this run, and why in words. */
 export type Excluded = { collaboratorId: string; alias: string; reason: string };
@@ -279,6 +281,57 @@ export async function readRun(ctx: HrContext, id: string) {
   if (denied) return denied;
   const run = (await Runs.find(scope(ctx))).find((r) => r.id === id);
   return run ? { run } : { error: "notfound" };
+}
+
+/**
+ * ONE PERSON'S PAYSLIP, as a document to print — the line the run FROZE, with
+ * the employer's heading around it.
+ *
+ * THE FIGURES ARE THE RUN'S, never recomputed: a payslip is evidence of what
+ * was paid, and a rise next month must not rewrite it (the header of this file).
+ *
+ * THE HEADING IS TODAY'S. The employer's name and its official values
+ * (shared/compliance — whichever fields the country's file marks for a payslip,
+ * printed only when filled and applicable) are read as they stand now, because
+ * they describe the employer rather than the pay, and a corrected PAYE reference
+ * should reach a reprint. The legal rows follow, less any repeating one of
+ * them — the same rule every printed document keeps.
+ *
+ * THE SAME RIGHT AS THE RUN (`hr.payroll.view`). Somebody's own payslip for
+ * somebody without it is self-service, which is not built.
+ */
+export async function payslipDocument(ctx: HrContext, runId: string, collaboratorId: string) {
+  const denied = requirePermission(ctx.access, "hr.payroll.view");
+  if (denied) return denied;
+  const run = (await Runs.find(scope(ctx))).find((r) => r.id === runId);
+  if (!run) return { error: "notfound" };
+  const line = run.lines.find((l) => l.collaboratorId === collaboratorId);
+  if (!line) return { error: "notfound" };
+
+  const studio = ctx.studio as { name?: unknown; location?: unknown; city?: unknown; currency?: unknown; legalInfo?: unknown };
+  const official = officialForDocument(ctx.studio, "payslip", { sectionOn: ctx.on });
+  const [from, to] = periodRange(run.period);
+  return {
+    payslip: {
+      runId: run.id,
+      period: run.period,
+      range: from ? { from, to } : null,
+      status: run.status,
+      approvedAt: run.approvedAt || "",
+      paidAt: run.paidAt || "",
+      // THE STUDIO'S CURRENCY TODAY. A run stores none, because the studio has
+      // one currency and payroll is paid in it.
+      currency: String(studio.currency || ""),
+      employer: {
+        name: String(studio.name || ""),
+        address: [studio.location, studio.city].map((v) => String(v || "").trim()).filter(Boolean).join(", "),
+        official: official.map((p) => ({ key: p.key, label: p.label, value: p.value })),
+        legal: legalRowsBeside(studio.legalInfo as { key?: unknown; value?: unknown }[] | undefined, official)
+          .map((r) => ({ key: String(r.key ?? ""), value: String(r.value ?? "") })),
+      },
+      line,
+    },
+  };
 }
 
 /**

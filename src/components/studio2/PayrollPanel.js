@@ -3,6 +3,7 @@
 import { Fragment, useCallback, useState } from "react";
 import { Field } from "@/components/fields/Field";
 import { payrollDict } from "@/shared/studio/payroll";
+import PayslipSheet from "@/components/studio2/PayslipSheet";
 import { useReload } from "@/components/studio2/useReload";
 import { panel, btn, btnGhost, btnRow, btnRowPrimary, th, money, Dialog, StatTile, Empty } from "@/components/studio2/ui";
 
@@ -55,7 +56,7 @@ function RunPill({ status, tr }) {
 
 // ONE RUN'S PAYSLIPS, opened under the run itself: its four totals first, then
 // the lines, then the totals again as a footer so a column can be checked.
-function Payslips({ run, tr }) {
+function Payslips({ run, tr, onSlip }) {
   const t = run.totals || {};
   const cells = [[tr.basic, t.basic], [tr.allowances, t.allowances], [tr.deductions, t.deductions], [tr.net, t.net]];
   return (
@@ -98,6 +99,7 @@ function Payslips({ run, tr }) {
               <th className={`${th} text-end`}>{tr.allowances}</th>
               <th className={`${th} text-end`}>{tr.deductions}</th>
               <th className={`${th} text-end`}>{tr.net}</th>
+              <th className={`${th} text-end`}><span className="sr-only">{tr.payslip}</span></th>
             </tr>
           </thead>
           <tbody>
@@ -134,6 +136,10 @@ function Payslips({ run, tr }) {
                 <td className={`num py-2.5 text-end font-600 ${l.net < 0 ? "text-rose-600 dark:text-rose-300" : "text-slate-900 dark:text-white"}`}>
                   {money(l.net)}
                 </td>
+                {/* ONE PERSON'S SLIP, to print or hand over. */}
+                <td className="py-2.5 ps-3 text-end">
+                  <button type="button" className={btnRow} onClick={() => onSlip(l.collaboratorId)}>{tr.payslip}</button>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -144,6 +150,7 @@ function Payslips({ run, tr }) {
               <td className="num py-2.5 pe-3 text-end font-600 text-slate-700 dark:text-slate-200">{money(t.allowances)}</td>
               <td className="num py-2.5 pe-3 text-end font-600 text-slate-700 dark:text-slate-200">{money(t.deductions)}</td>
               <td className="num py-2.5 text-end font-700 text-slate-900 dark:text-white">{money(t.net)}</td>
+              <td />
             </tr>
           </tfoot>
         </table>
@@ -161,6 +168,7 @@ export default function PayrollPanel({ slug, locale = "en" }) {
   const [period, setPeriod] = useState("");
   const [open, setOpen] = useState(null);
   const [pane, setPane] = useState("runs");
+  const [slip, setSlip] = useState(null);
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/hr/payroll`, { cache: "no-store" });
@@ -200,6 +208,17 @@ export default function PayrollPanel({ slug, locale = "en" }) {
     const res = await fetch(`/api/studios/${slug}/hr/payroll?run=${encodeURIComponent(id)}`);
     const body = await res.json().catch(() => ({}));
     if (res.ok) setOpen(body.run);
+  };
+
+  // ONE SLIP, read from the server rather than built from the row on screen:
+  // the heading carries the employer's official values, which only the server
+  // resolves (selected, filled, applicable).
+  const openSlip = async (runId, collaboratorId) => {
+    setProblem("");
+    const res = await fetch(`/api/studios/${slug}/hr/payroll?run=${encodeURIComponent(runId)}&slip=${encodeURIComponent(collaboratorId)}`, { cache: "no-store" });
+    const body = await res.json().catch(() => ({}));
+    if (res.ok && body.payslip) setSlip(body.payslip);
+    else setProblem(tr.slipFailed);
   };
 
   if (!data) return <p className="text-sm text-slate-500 dark:text-slate-400">…</p>;
@@ -343,7 +362,7 @@ export default function PayrollPanel({ slug, locale = "en" }) {
                       {open?.id === r.id && (
                         <tr>
                           <td colSpan={8} className="bg-slate-50/70 px-4 py-5 dark:bg-white/[0.02]">
-                            <Payslips run={open} tr={tr} />
+                            <Payslips run={open} tr={tr} onSlip={(who) => openSlip(open.id, who)} />
                           </td>
                         </tr>
                       )}
@@ -435,6 +454,12 @@ export default function PayrollPanel({ slug, locale = "en" }) {
             </div>
           )}
         </section>
+      )}
+
+      {slip && (
+        <Dialog title={`${tr.payslipTitle(slip.period)} · ${slip.line.alias}`} onClose={() => setSlip(null)} width="max-w-[860px]">
+          <PayslipSheet slip={slip} tr={tr} onClose={() => setSlip(null)} />
+        </Dialog>
       )}
 
       {/* ---- one person's pay, in a dialog rather than wedged into the page -- */}

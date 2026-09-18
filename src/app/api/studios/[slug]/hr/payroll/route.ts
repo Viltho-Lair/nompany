@@ -1,7 +1,7 @@
 import { route, refused } from "@/platform/http/route";
 import { hrContext } from "@/modules/hr/hr";
 import {
-  listPay, savePay, prepareRun, readRun, moveRun, bankFile,
+  listPay, savePay, prepareRun, readRun, moveRun, bankFile, payslipDocument,
 } from "@/modules/hr/payrollService";
 import type { HrContext } from "@/modules/hr/types";
 import type { RunStatus } from "@/modules/hr/payroll";
@@ -25,8 +25,11 @@ export const GET = route({ ...spec, body: false }, async (c) => {
   const url = new URL(c.request.url);
   const runId = url.searchParams.get("run");
   const bank = url.searchParams.get("bank");
+  // ONE PERSON'S SLIP IN ONE RUN, to print: `?run=<id>&slip=<collaboratorId>`.
+  const slip = url.searchParams.get("slip");
 
   const result = bank ? await bankFile(ctx, bank)
+    : runId && slip ? await payslipDocument(ctx, runId, slip)
     : runId ? await readRun(ctx, runId)
       : await listPay(ctx);
   return refused(result) ? result : { ok: true, ...result };

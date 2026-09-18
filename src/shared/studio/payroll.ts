@@ -86,6 +86,24 @@ type Strings = {
   insurable: string;
   eosToday: string;
   sifFile: string;
+  // ONE PERSON'S PRINTED PAYSLIP.
+  payslip: string;
+  payslipTitle: (period: string) => string;
+  print: string;
+  employee: string;
+  periodRange: (from: string, to: string) => string;
+  earnings: string;
+  deductionsHead: string;
+  unpaidLeave: (n: number) => string;
+  notEmployed: (n: number) => string;
+  ssEmployee: string;
+  otherDeductions: string;
+  netPay: string;
+  grossPay: string;
+  draftMark: string;
+  approvedOn: (date: string) => string;
+  paidOn: (date: string) => string;
+  slipFailed: string;
 };
 
 const EN_STATUS: Record<string, string> = { Draft: "Draft", Approved: "Approved", Paid: "Paid" };
@@ -185,6 +203,23 @@ const en: Strings = {
   insurable: "Insurable",
   eosToday: "End of service today",
   sifFile: "WPS file (.SIF)",
+  payslip: "Payslip",
+  payslipTitle: (p) => `Payslip — ${p}`,
+  print: "Print",
+  employee: "Employee",
+  periodRange: (from, to) => `Period ${from} to ${to}`,
+  earnings: "Earnings",
+  deductionsHead: "Deductions",
+  unpaidLeave: (n) => `Unpaid leave, ${n} ${n === 1 ? "day" : "days"}`,
+  notEmployed: (n) => `Not yet or no longer employed, ${n} ${n === 1 ? "day" : "days"}`,
+  ssEmployee: "Social security (employee's share)",
+  otherDeductions: "Other deductions",
+  netPay: "Net pay",
+  grossPay: "Total earnings",
+  draftMark: "DRAFT — this run is not approved",
+  approvedOn: (d) => `Approved ${d}`,
+  paidOn: (d) => `Paid ${d}`,
+  slipFailed: "The payslip could not be opened.",
 };
 
 // HAND-WRITTEN. NO DIACRITICS.
@@ -279,6 +314,23 @@ const ar: Strings = {
   insurable: "خاضعة",
   eosToday: "نهاية الخدمة اليوم",
   sifFile: "ملف WPS (‎.SIF)",
+  payslip: "قسيمة الراتب",
+  payslipTitle: (p) => `قسيمة الراتب — ${p}`,
+  print: "طباعة",
+  employee: "الموظف",
+  periodRange: (from, to) => `الفترة من ${from} الى ${to}`,
+  earnings: "الاستحقاقات",
+  deductionsHead: "الاستقطاعات",
+  unpaidLeave: (n) => `اجازة بلا أجر، ${n} ${n === 1 ? "يوم" : n === 2 ? "يومان" : n <= 10 ? "أيام" : "يوما"}`,
+  notEmployed: (n) => `أيام خارج مدة التوظيف، ${n}`,
+  ssEmployee: "الضمان الاجتماعي (حصة الموظف)",
+  otherDeductions: "استقطاعات أخرى",
+  netPay: "صافي الراتب",
+  grossPay: "مجموع الاستحقاقات",
+  draftMark: "مسودة — هذه الدفعة غير معتمدة",
+  approvedOn: (d) => `اعتمدت ${d}`,
+  paidOn: (d) => `دفعت ${d}`,
+  slipFailed: "تعذر فتح قسيمة الراتب.",
 };
 
 const dict = { en, ar };

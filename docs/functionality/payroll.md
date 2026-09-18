@@ -179,6 +179,19 @@ month short one person" has to be answerable from the run itself, months later, 
 replaying employment records as they stand today. `gone` — exited with no leaving date — is
 its own reason, because it is a fact about the record rather than about the person.
 
+## One person's payslip
+
+Each line of an open run has a **Payslip** button. It opens that person's slip as a sheet
+and prints it on A4 (`GET /hr/payroll?run=<id>&slip=<collaboratorId>`,
+`payslipDocument`, the same `hr.payroll.view` as the run). The figures are the run's
+frozen line and are never recomputed. The heading is the employer's as it stands today:
+name, address, the country's official values marked for a payslip (`official-values.md` —
+a UK Studio's PAYE reference; Saudi Arabia's file marks none), then the legal rows less any
+repeating one of them. Earnings (basic and each allowance) less deductions (each recurring
+deduction, unpaid leave, days not employed, the employee's social security) is the net, as
+`payslipFor` builds it, and a net below nought prints as it is. A slip from a Draft run
+says so across the page.
+
 ## Not built yet
 
 - **No attendance.** Unpaid leave comes from the vacation register; hours worked do not
@@ -198,8 +211,10 @@ its own reason, because it is a fact about the record rather than about the pers
   and nothing files the monthly contribution return.
 - **The CSV bank file stays plain** (Name, IBAN, Bank, Amount) outside the UAE; Saudi
   Arabia's Mudad and bank-specific formats are not built.
-- **A payslip is a table on screen.** There is no printable or emailable slip, and nobody is
-  notified when a run is approved.
+- **A payslip prints; it is not sent.** Nobody is emailed their slip or notified when a run is
+  approved, and there is no self-service: only a holder of `hr.payroll.view` can open one,
+  so a person cannot read their own. The slip carries no employee number, job title or
+  national id, because payroll stores none of them on the line.
 - **One currency.** Everybody is paid in the studio's own; there is no per-employee
   currency and no FX.
 - **`Paid` is a state somebody sets by hand.** Nothing reconciles it against a bank
