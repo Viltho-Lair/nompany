@@ -33,6 +33,12 @@ export const PaymentSchema = z.object({
   note: z.string().max(500).optional(),
   recordedByCollaboratorId: z.string().optional(),
   recordedAt: z.string().optional(),
+  /**
+   * UNITS OF THE STUDIO'S CURRENCY FOR ONE OF THE DOCUMENT'S, on the day this
+   * payment left — frozen on a payment of a FOREIGN bill, and what the bank
+   * side of its ledger entry is converted at. Absent everywhere else.
+   */
+  rate: z.number().optional(),
 });
 
 /**
@@ -292,6 +298,16 @@ export const BillSchema = z.object({
   // NOT revalue the aging report, which still sums raw totals; that is P3's
   // job. What reads it today is which approvals the bill needs.
   currency: z.string().max(8).optional(),
+  /**
+   * THE RATE THIS BILL IS BOOKED AT — units of the studio's currency for one of
+   * the bill's — on a FOREIGN bill only. Typed by somebody (`entered`, from the
+   * supplier's invoice or the bank) or frozen from the day's market table the
+   * first time the bill posts (`market`). Cleared when the currency changes,
+   * so a corrected bill is re-booked at a rate for its new currency. See fx.ts.
+   */
+  exchangeRate: z.number().nullable().optional(),
+  exchangeRateSource: z.enum(["entered", "market"]).nullable().optional(),
+  exchangeRateAt: z.string().optional(),
   status: z.string(),                        // Draft|Received|Approved|Paid|Cancelled|Disputed
   /**
    * WHO RELEASED A HELD PAYMENT, WHY, AND WHICH REASONS IT COVERED.

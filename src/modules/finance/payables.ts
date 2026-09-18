@@ -25,6 +25,7 @@ import { threeWayMatch } from "@/modules/procurement/receivingModel";
 import { supplierQualification } from "@/modules/procurement/supplierModel";
 import { notifyHolders, signatureNotice } from "@/modules/people/holders";
 import { documentTaxMethod } from "@/shared/taxProfile";
+import { isForeign, cleanRate, rateFor } from "./fx";
 
 const BILLS = "bills";
 const Bills = repo<Bill>(BILLS);
@@ -270,6 +271,12 @@ export async function createBill(ctx: FinanceContext, body: Record<string, unkno
     // Defaulted to the studio's own, the same expression contracts.ts,
     // payments.ts and changeOrders.ts already use.
     currency,
+    // A RATE SOMEBODY TYPED, off the supplier's invoice or the bank advice. On a
+    // foreign bill only; without one the ledger freezes the day's market rate the
+    // first time the bill posts.
+    ...(isForeign(currency, studio.currency) && cleanRate(body?.exchangeRate)
+      ? { exchangeRate: cleanRate(body?.exchangeRate), exchangeRateSource: "entered" }
+      : {}),
     vatRate,
     ...(taxMethod ? { taxMethod } : {}),
     approvals: [],
@@ -332,6 +339,18 @@ export async function editBill(ctx: FinanceContext, id: string, body: Record<str
   // the kind of thing corrected before anybody approves it, and the approval
   // engine re-derives its plan from whatever it now says.
   if (body?.currency !== undefined) patch.currency = str(body.currency, 8);
+  // THE BOOKING RATE FOLLOWS THE CURRENCY. A rate typed now replaces the one on
+  // the bill; a currency changed without one CLEARS it, because a rate frozen
+  // for euros is not a rate for dollars, and the re-post then books the new
+  // currency at the day's market rate rather than at the old currency's.
+  if (body?.exchangeRate !== undefined) {
+    const rate = cleanRate(body.exchangeRate);
+    patch.exchangeRate = rate;
+    patch.exchangeRateSource = rate ? "entered" : null;
+  } else if (patch.currency !== undefined && patch.currency !== current.currency) {
+    patch.exchangeRate = null;
+    patch.exchangeRateSource = null;
+  }
   if (body?.billDate !== undefined) patch.billDate = day(body.billDate);
   if (body?.dueDate !== undefined) patch.dueDate = day(body.dueDate);
   if (body?.terms !== undefined && BILL_TERMS.includes(String(body.terms))) patch.terms = String(body.terms);
@@ -378,7 +397,11 @@ export async function editBill(ctx: FinanceContext, id: string, body: Record<str
   const wasPosted = current.status !== "Draft" && current.status !== "Cancelled";
   const nowCancelled = wasPosted && patch.status === "Cancelled";
   const reshaped = wasPosted && !nowCancelled
-    && (patch.lines !== undefined || patch.vatRate !== undefined || patch.billDate !== undefined);
+    && (patch.lines !== undefined || patch.vatRate !== undefined || patch.billDate !== undefined
+      // A NEW CURRENCY OR RATE MOVES WHAT THE BILL IS WORTH IN THE BOOK, exactly
+      // as new lines do — and was not re-posted, so a corrected currency left
+      // the liability booked in the old one.
+      || patch.currency !== undefined || patch.exchangeRate !== undefined);
   const label = `Bill ${current.reference || ""}`.trim();
   const posting = becameReceived
     ? await autoPost(ctx, "bill", id)
@@ -505,9 +528,18 @@ export async function recordBillPayment(ctx: FinanceContext, id: string, body: R
   const totals = billTotals(current, studio.currency);
   if (amount > totals.outstanding) return { error: "overpayment", outstanding: totals.outstanding };
 
+  // A FOREIGN BILL'S PAYMENT CARRIES THE DAY'S RATE, typed or from the market
+  // table, because the bank side of its entry is converted at it. Without one
+  // the payment is still recorded — money left — and the posting says why the
+  // book could not follow.
+  const foreign = isForeign(current.currency, studio.currency);
+  const rate = foreign
+    ? cleanRate(body?.exchangeRate) ?? rateFor(null, (await getExchangeSnapshot()).rates, current.currency, studio.currency)
+    : null;
   const payments = [...(current.payments || []), {
     id: `pay${(current.payments || []).length + 1}`,
     amount,
+    ...(rate ? { rate } : {}),
     date: day(body?.date) || new Date().toISOString().slice(0, 10),
     method: str(body?.method, 40) || "Bank transfer",
     note: str(body?.note, 500),

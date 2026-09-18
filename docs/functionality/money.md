@@ -84,5 +84,18 @@ total; the model tests of each module that changed still pass.
 - **A studio changing its currency** re-rounds nothing already written, and the ledger is then
   counted in the new currency's unit. There is no conversion of a book from one currency to
   another.
-- **A bill in a foreign currency** still posts to the ledger at its own amount, unconverted —
-  unchanged by this work; see `approvals.md` for the FX the approval chain uses.
+- ~~**A bill in a foreign currency** still posts to the ledger at its own amount, unconverted.~~
+  **Converted, 18/09/2026** (`modules/finance/fx.ts`, `tests/fx-model.mjs`). A foreign bill is
+  booked at a rate frozen on it — typed (`exchangeRate`, source `entered`) or else the day's
+  market table, written onto the bill the first time it posts (`market`) so a correction re-posts
+  at the same rate. Net and VAT are converted separately and the payable is their sum, so the
+  entry balances by construction. A payment carries its own day's `rate`; the payable leaves at
+  the BOOKING rate, the bank at the payment's, and the gap goes to **Exchange Differences (5800)**.
+  The payment that settles the bill clears whatever is left, so rounded part-payments leave
+  exactly nought. Changing a bill's currency clears its rate and re-posts it. No rate at all
+  refuses the posting by name (`no-rate`) and the bill or payment still stands. **Still not
+  built:** the bill form has no currency or rate field, so a foreign bill is raised only through
+  the API; bills posted before 18/09/2026 stay at their raw amount (a posted entry is never
+  edited — reverse and re-post by hand); the market table is TODAY's, so a bill dated last month
+  and posted today takes today's rate unless one is typed; open payables are not revalued at
+  month end; invoices are still studio-currency only.

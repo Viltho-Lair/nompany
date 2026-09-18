@@ -29,6 +29,8 @@ import { nextReference } from "@/modules/main/references";
 import { invoiceTotals } from "./finance";
 import { splitGross } from "@/shared/vat";
 import { withheldToClear } from "./withholding";
+import { isForeign, rateFor, inBase, settlePayment } from "./fx";
+import { getExchangeSnapshot } from "@/lib/data/exchangeRates";
 import type { WithholdingRule } from "./withholding";
 import { roundMoney, toMinor, fromMinor } from "@/shared/money";
 import type { Account, JournalEntry, JournalLine, Invoice, Expense, FinanceContext } from "./types";
@@ -100,6 +102,10 @@ export const DEFAULT_CHART: { code: string; name: string; type: AccountType }[] 
   { code: "5100", name: "Salaries", type: "expense" },
   { code: "5200", name: "Rent", type: "expense" },
   { code: "5300", name: "Utilities", type: "expense" },
+  // WHAT A FOREIGN-CURRENCY BILL COST MORE OR LESS THAN IT WAS BOOKED AT, by
+  // the day it was paid, 18/09/2026. An expense account, so a gain reads as a
+  // negative expense — the contra balance the statements already show.
+  { code: "5800", name: "Exchange Differences", type: "expense" },
   { code: "5900", name: "Other Expenses", type: "expense" },
 ];
 
@@ -708,6 +714,40 @@ export async function postWithholding(ctx: FinanceContext, invoiceId: string, op
 // AP is the mirror of AR: the accounts an invoice credits, a bill debits.
 const AP = "2000";       // Accounts Payable
 
+const Bills = repo<Row>("bills");
+const FX_DIFFERENCES = "5800";
+
+/**
+ * THE RATE A BILL IS BOOKED AT, and it is decided ONCE.
+ *
+ * A bill in the studio's own currency is at 1 and nothing is read. A foreign
+ * one uses the rate somebody typed on it, or else the day's market table — and
+ * the market rate is WRITTEN ONTO THE BILL the first time it is used, so a later
+ * correction that re-posts the bill books it at the same rate instead of
+ * whatever the table says that day. Only the absent case writes, as a function
+ * patch (invariant 8), so two posts racing cannot freeze two rates.
+ *
+ * No rate at all refuses by name. A bill booked at a guessed rate is a wrong
+ * liability that reads exactly like a right one.
+ */
+async function bookRate(
+  ctx: FinanceContext,
+  bill: Row & { currency?: string; exchangeRate?: unknown },
+): Promise<{ rate: number } | { error: string; currency?: string }> {
+  if (!isForeign(bill.currency, ctx.studio.currency)) return { rate: 1 };
+  const typed = rateFor(bill.exchangeRate, null, bill.currency, ctx.studio.currency);
+  if (typed) return { rate: typed };
+  const snapshot = await getExchangeSnapshot();
+  const rate = rateFor(null, snapshot.rates, bill.currency, ctx.studio.currency);
+  if (!rate) return { error: "no-rate", currency: String(bill.currency || "") };
+  const frozenAt = new Date().toISOString();
+  const stored = await Bills.update({ studio: ctx.studio, section: ctx.payablesSection }, String(bill.id), (row) => (
+    (row as { exchangeRate?: unknown }).exchangeRate ? {} : { exchangeRate: rate, exchangeRateSource: "market", exchangeRateAt: frozenAt }
+  ));
+  const won = rateFor((stored as { exchangeRate?: unknown } | null)?.exchangeRate, null, bill.currency, ctx.studio.currency);
+  return { rate: won || rate };
+}
+
 /**
  * POST A BILL: the AP mirror of postInvoice. Debit the expense (the net we
  * incurred) and the VAT we can reclaim, credit Accounts Payable for the whole
@@ -731,25 +771,30 @@ export async function postBill(ctx: FinanceContext, billId: string, options: Pos
   const entries = await Entries.find({ studio: ctx.studio, section: ctx.ledgerSection });
   if (alreadyPosted(entries, "bill", billId)) return { error: "already-posted" };
 
-  const totals = invoiceTotals(bill as { lines?: unknown; vatRate?: unknown; payments?: unknown }, ctx.studio.currency);
+  const totals = invoiceTotals(bill as { lines?: unknown; vatRate?: unknown; payments?: unknown; currency?: unknown }, ctx.studio.currency);
+  // IN THE BOOK'S CURRENCY. A bill in dollars posted its dollars into a book in
+  // dinars until 18/09/2026; it is converted now, at the rate frozen on the bill.
+  const booked = await bookRate(ctx, bill);
+  if ("error" in booked) return booked;
+  const base = inBase(totals, booked.rate, ctx.studio.currency);
   const expenseCode = CATEGORY_ACCOUNT[bill.category || ""] || COST_OF_SALES;
   const { byCode, missing } = await codesToIds(ctx, [expenseCode, VAT_RECOVERABLE, AP]);
   if (missing.length) return { error: "chart", missing };
 
   const lines: { accountId: string | undefined; debit?: number; credit?: number }[] = [
-    { accountId: byCode.get(expenseCode), debit: totals.subtotal },
-    { accountId: byCode.get(AP), credit: totals.total },
+    { accountId: byCode.get(expenseCode), debit: base.net },
+    { accountId: byCode.get(AP), credit: base.total },
   ];
   // INPUT VAT IS RECLAIMABLE, and it is debited to its OWN account rather than
   // netted on VAT Payable. Netting it there made the balance right and the
   // return unanswerable from the book: "how much did we charge, how much do we
   // reclaim" is the whole of a VAT return, and one account holding both could
   // only say the difference.
-  if (totals.vat > 0) lines.push({ accountId: byCode.get(VAT_RECOVERABLE), debit: totals.vat });
+  if (base.vat > 0) lines.push({ accountId: byCode.get(VAT_RECOVERABLE), debit: base.vat });
 
   return postEntry(ctx, {
     date: bill.billDate,
-    memo: `Bill ${bill.reference}${bill.vendorName ? ` — ${bill.vendorName}` : ""}`,
+    memo: `Bill ${bill.reference}${bill.vendorName ? ` — ${bill.vendorName}` : ""}${booked.rate !== 1 ? ` (${bill.currency} at ${booked.rate})` : ""}`,
     source: { kind: "bill", id: billId },
     lines,
   }, options);
@@ -825,7 +870,7 @@ export async function postBillPayment(ctx: FinanceContext, billId: string, payme
   }
 
   const bill = (await repo<Row>("bills").find({ studio: ctx.studio, section: ctx.payablesSection }))
-    .find((b) => b.id === billId) as (Row & { payments?: { id: string; amount: number; date?: string }[]; reference?: string }) | undefined;
+    .find((b) => b.id === billId) as (Row & { payments?: { id: string; amount: number; date?: string; rate?: unknown }[]; reference?: string; currency?: string; exchangeRate?: unknown }) | undefined;
   if (!bill) return { error: "notfound" };
   const payment = (bill.payments || []).find((p) => p.id === paymentId);
   if (!payment) return { error: "notfound-payment" };
@@ -833,6 +878,35 @@ export async function postBillPayment(ctx: FinanceContext, billId: string, payme
   const entries = await Entries.find({ studio: ctx.studio, section: ctx.ledgerSection });
   if (alreadyPosted(entries, "bill-payment", paymentSource(billId, paymentId))) {
     return { error: "already-posted" };
+  }
+
+  // A FOREIGN BILL IS PAID AT TWO RATES: the payable leaves at the one it was
+  // booked at, the bank pays at the one on the day, and the gap is a realised
+  // exchange difference. Paying it at one rate either left crumbs on the payable
+  // for ever or hid the gain or loss inside it.
+  if (isForeign(bill.currency, ctx.studio.currency)) {
+    const booked = await bookRate(ctx, bill);
+    if ("error" in booked) return booked;
+    const totals = invoiceTotals(bill as { lines?: unknown; vatRate?: unknown; payments?: unknown; currency?: unknown }, ctx.studio.currency);
+    const settled = settlePayment(
+      { total: totals.total, payments: bill.payments || [] }, paymentId,
+      inBase(totals, booked.rate, ctx.studio.currency).total, booked.rate, ctx.studio.currency,
+    );
+    if (!settled) return { error: "no-rate", currency: String(bill.currency || "") };
+    const { byCode, missing } = await codesToIds(ctx, [AP, BANK, FX_DIFFERENCES]);
+    if (missing.length) return { error: "chart", missing };
+    const lines: { accountId: string | undefined; debit?: number; credit?: number }[] = [
+      { accountId: byCode.get(AP), debit: settled.payable },
+      { accountId: byCode.get(BANK), credit: settled.bank },
+    ];
+    if (settled.difference > 0) lines.push({ accountId: byCode.get(FX_DIFFERENCES), debit: settled.difference });
+    if (settled.difference < 0) lines.push({ accountId: byCode.get(FX_DIFFERENCES), credit: -settled.difference });
+    return postEntry(ctx, {
+      date: payment.date,
+      memo: `Payment on ${bill.reference} (${payment.amount} ${bill.currency})`,
+      source: { kind: "bill-payment", id: paymentSource(billId, paymentId) },
+      lines,
+    }, options);
   }
 
   const { byCode, missing } = await codesToIds(ctx, [AP, BANK]);
