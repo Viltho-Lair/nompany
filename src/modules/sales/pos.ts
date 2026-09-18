@@ -51,8 +51,46 @@ import { studioLocale } from "@/shared/locale";
 import { officialForDocument } from "@/shared/compliance/resolve";
 import { legalRowsBeside } from "@/shared/compliance/printing";
 import { phoneLookupKey, phoneLookupKeys } from "@/platform/db/lookupKeys";
+import { tillLimitOf } from "@/lib/plans";
+import { currentSession } from "@/platform/auth/identity";
+import { pairedTerminalIn, newPairing, type TillPairing } from "./tillPairing";
 
-export type PosTerminal = { id: string; name: string; active: boolean; createdAt?: string };
+/**
+ * A TILL. `code` is the till's ID the owner sets up (TILL-01), `pairing` the
+ * device it is paired to — its secret's DIGEST only, never shown to anybody
+ * (`publicTerminal`). Both 18/09/2026.
+ */
+export type PosTerminal = {
+  id: string; name: string; code?: string; active: boolean; createdAt?: string;
+  pairing?: TillPairing | null;
+};
+
+/** A till as a screen may see it: whether and when it is paired, never the secret. */
+export function publicTerminal(t: PosTerminal) {
+  const { pairing, ...rest } = t;
+  return {
+    ...rest,
+    code: t.code || "",
+    paired: pairing ? { at: pairing.pairedAt, by: pairing.pairedByCollaboratorId, label: pairing.label } : null,
+  };
+}
+
+// ---- the paired till (18/09/2026) ---------------------------------------------
+//
+// EVERY ACT OF THE TILL ITSELF asks this first: opening it, a drawer, a sale, a
+// customer's number, its receipts. The answer is the till THIS DEVICE is paired
+// to, never one named by the request — so a request cannot sell on a till the
+// device is not. A cashier's till session is also held to its own till.
+async function requireTill(ctx: PosContext): Promise<PosTerminal | { error: "not-a-till" }> {
+  const terminal = await pairedTerminalIn(ctx.studio, ctx.posSection);
+  if (!terminal) return { error: "not-a-till" };
+  const { state } = await currentSession();
+  if (state?.scope === "till" && (state.studioId !== ctx.studio.id || state.terminalId !== terminal.id)) {
+    return { error: "not-a-till" };
+  }
+  return terminal;
+}
+const isRefusal = (v: unknown): v is { error: string } => Boolean(v && typeof v === "object" && "error" in v);
 export type PosShift = {
   id: string;
   number: string;
@@ -168,10 +206,11 @@ export function tillTerms(ctx: PosContext) {
 export async function posView(ctx: PosContext) {
   const denied = requirePermission(ctx.access, "crmSales.pos.view");
   if (denied) return denied;
+  const till = await requireTill(ctx);
+  if (isRefusal(till)) return { ...till, canPair: can(ctx.access, "pos.settings.edit") };
 
-  const [terminals, shifts, items] = await Promise.all([
-    Terminals.find(scope(ctx), { order: "name" }),
-    Shifts.find(scope(ctx), { where: { status: "Open" } }),
+  const [shifts, items] = await Promise.all([
+    Shifts.find(scope(ctx), { where: { status: "Open", terminalId: till.id } }),
     ctx.itemsSection ? Items.find({ studio: ctx.studio, section: ctx.itemsSection }) : Promise.resolve([]),
   ]);
 
@@ -182,7 +221,9 @@ export async function posView(ctx: PosContext) {
       logo: String(ctx.studio.logo || ""),
       ...receiptHeading(ctx),
     },
-    terminals,
+    // THIS DEVICE'S TILL, and only it: the screen no longer picks one.
+    terminal: publicTerminal(till),
+    terminals: [publicTerminal(till)],
     openShifts: shifts,
     // WHAT CAN BE SOLD, without the cost: a cashier has no business reading
     // what the shop paid, and the till needs only the price.
@@ -236,18 +277,81 @@ export async function saveTerminal(ctx: PosContext, body: Record<string, unknown
   const id = str(body?.id, 60);
   const rows = await Terminals.find(scope(ctx));
   if (rows.some((t) => t.id !== id && t.name.toLowerCase() === name.toLowerCase())) return { error: "duplicate" as const };
+  // THE TILL'S ID (18/09/2026): typed by the owner, or the next TILL-NN. A code
+  // is how a paired device, a receipt and a shift report name the till, so two
+  // tills may not share one.
+  const code = str(body?.code, 20).toUpperCase() || (rows.find((t) => t.id === id)?.code || nextTillCode(rows));
+  if (!/^[A-Z0-9][A-Z0-9-]{0,19}$/.test(code)) return { error: "code" as const };
+  if (rows.some((t) => t.id !== id && (t.code || "").toUpperCase() === code)) return { error: "duplicate-code" as const };
   const active = body?.active === undefined ? true : body.active !== false;
-  if (id) {
-    if (!rows.some((t) => t.id === id)) return { error: "notfound" as const };
+  const existing = rows.find((t) => t.id === id);
+  if (id && !existing) return { error: "notfound" as const };
+  // THE PLAN'S TILLS: a new till, or a retired one brought back, may not take
+  // the studio past what its package allows. Renaming never counts.
+  const becomesActive = active && (!existing || existing.active === false);
+  if (becomesActive) {
+    const limit = await tillLimitOf(ctx.studio);
+    if (limit !== null && rows.filter((t) => t.active !== false && t.id !== id).length >= limit) {
+      return { error: "till-limit" as const, max: limit };
+    }
+  }
+  if (existing) {
     // A TILL WITH AN OPEN SHIFT IS NOT RETIRED under the person using it.
     if (!active) {
       const open = await Shifts.find(scope(ctx), { where: { terminalId: id, status: "Open" } });
       if (open.length) return { error: "shift-open" as const };
     }
-    const terminal = await Terminals.update(scope(ctx), id, () => ({ name, active }));
-    return terminal ? { terminal } : { error: "notfound" as const };
+    // Retiring a till unpairs it: a retired till's device must not keep selling.
+    const terminal = await Terminals.update(scope(ctx), id, () => ({ name, code, active, ...(active ? {} : { pairing: null }) }));
+    return terminal ? { terminal: publicTerminal(terminal) } : { error: "notfound" as const };
   }
-  return { terminal: await Terminals.create(scope(ctx), { name, active: true, createdAt: now() }) };
+  return { terminal: publicTerminal(await Terminals.create(scope(ctx), { name, code, active: true, createdAt: now() })) };
+}
+
+/** TILL-01, TILL-02 … the first free number. */
+function nextTillCode(rows: readonly PosTerminal[]) {
+  const taken = new Set(rows.map((t) => (t.code || "").toUpperCase()));
+  for (let n = 1; ; n++) {
+    const code = `TILL-${String(n).padStart(2, "0")}`;
+    if (!taken.has(code)) return code;
+  }
+}
+
+/**
+ * PAIR THE DEVICE MAKING THIS REQUEST TO A TILL. The manager does it from the
+ * counter's own computer; the route puts the secret in that browser's cookie.
+ * One device per till: a new pairing replaces the old one, whose device stops
+ * being a till the moment this is written. Pairing counts against the plan's
+ * tills like an active till does.
+ */
+export async function pairTerminal(ctx: PosContext, terminalId: string, label: string) {
+  const denied = requirePermission(ctx.access, "pos.settings.edit");
+  if (denied) return denied;
+  const rows = await Terminals.find(scope(ctx));
+  const terminal = rows.find((t) => t.id === terminalId);
+  if (!terminal) return { error: "notfound" as const };
+  if (terminal.active === false) return { error: "inactive" as const };
+  const limit = await tillLimitOf(ctx.studio);
+  if (limit !== null && rows.filter((t) => t.id !== terminalId && t.pairing).length >= limit) {
+    return { error: "till-limit" as const, max: limit };
+  }
+  const { cookieValue, tokenHash } = newPairing(ctx.studio.id, terminalId);
+  const pairing: TillPairing = {
+    tokenHash, pairedAt: now(), pairedByCollaboratorId: ctx.collaborator.id, label: str(label, 120),
+  };
+  const updated = await Terminals.update(scope(ctx), terminalId, (row) => ({
+    ...row, code: row.code || nextTillCode(rows), pairing,
+  }));
+  if (!updated) return { error: "notfound" as const };
+  return { terminal: publicTerminal(updated), cookieValue };
+}
+
+/** Unpair a till from wherever its device is — a lost or replaced counter computer. */
+export async function unpairTerminal(ctx: PosContext, terminalId: string) {
+  const denied = requirePermission(ctx.access, "pos.settings.edit");
+  if (denied) return denied;
+  const updated = await Terminals.update(scope(ctx), terminalId, (row) => ({ ...row, pairing: null }));
+  return updated ? { terminal: publicTerminal(updated) } : { error: "notfound" as const };
 }
 
 /** Whether shelf prices include tax, and the line printed at the foot of a receipt. */
@@ -303,6 +407,8 @@ async function findCustomer(ctx: PosContext, phone: string): Promise<PosClient |
 export async function customerLookup(ctx: PosContext, raw: unknown) {
   const denied = requirePermission(ctx.access, "crmSales.pos.create");
   if (denied) return denied;
+  const till = await requireTill(ctx);
+  if (isRefusal(till)) return till;
   if (!ctx.clientsSection) return { error: "no-clients" as const };
   const phone = normalizePhone(raw, ctx.studio.country);
   if (!phone) return { error: "phone" as const };
@@ -343,10 +449,11 @@ async function customerFor(ctx: PosContext, phone: string): Promise<{ id: string
 export async function openShift(ctx: PosContext, body: Record<string, unknown>) {
   const denied = requirePermission(ctx.access, "crmSales.pos.create");
   if (denied) return denied;
-  const terminalId = str(body?.terminalId, 60);
-  const terminal = await Terminals.byId(scope(ctx), terminalId);
-  if (!terminal) return { error: "terminal" as const };
-  if (terminal.active === false) return { error: "inactive" as const };
+  // THE TILL IS THIS DEVICE'S, whatever the request names.
+  const terminal = await requireTill(ctx);
+  if (isRefusal(terminal)) return terminal;
+  if (body?.terminalId && str(body.terminalId, 60) !== terminal.id) return { error: "not-a-till" as const };
+  const terminalId = terminal.id;
   const open = await Shifts.find(scope(ctx), { where: { terminalId, status: "Open" } });
   if (open.length) return { error: "shift-open" as const, shiftId: open[0].id };
 
@@ -378,6 +485,10 @@ export async function closeShift(ctx: PosContext, id: string, body: Record<strin
   if (denied) return denied;
   const shift = await Shifts.byId(scope(ctx), str(id, 60));
   if (!shift) return { error: "notfound" as const };
+  // A DRAWER IS COUNTED AT ITS TILL.
+  const till = await requireTill(ctx);
+  if (isRefusal(till)) return till;
+  if (shift.terminalId !== till.id) return { error: "not-a-till" as const };
   if (shift.status !== "Open") return { error: "closed" as const };
   const counted = Number(body?.countedCash);
   if (!Number.isFinite(counted) || counted < 0) return { error: "counted" as const };
@@ -425,6 +536,10 @@ export async function createSale(ctx: PosContext, body: Record<string, unknown>)
 
   const shift = await Shifts.byId(scope(ctx), str(body?.shiftId, 60));
   if (!shift) return { error: "shift" as const };
+  // SOLD AT THIS DEVICE'S TILL, into its own drawer.
+  const till = await requireTill(ctx);
+  if (isRefusal(till)) return till;
+  if (shift.terminalId !== till.id) return { error: "not-a-till" as const };
   if (shift.status !== "Open") return { error: "closed" as const };
 
   const asked = cleanPosLines(body?.lines);
@@ -592,7 +707,9 @@ export async function createSale(ctx: PosContext, body: Record<string, unknown>)
 export async function listReceipts(ctx: PosContext, shiftId: string) {
   const denied = requirePermission(ctx.access, "crmSales.pos.view");
   if (denied) return denied;
-  return { receipts: await Receipts.find(scope(ctx), { where: { shiftId: str(shiftId, 60) }, order: { field: "at", dir: "desc" } }) };
+  const till = await requireTill(ctx);
+  if (isRefusal(till)) return till;
+  return { receipts: await Receipts.find(scope(ctx), { where: { shiftId: str(shiftId, 60), terminalId: till.id }, order: { field: "at", dir: "desc" } }) };
 }
 
 // ---- the department's screens (17/09/2026) ------------------------------------
@@ -825,7 +942,11 @@ export async function settingsView(ctx: PosContext) {
   if (denied) return denied;
   return {
     terms: tillTerms(ctx),
-    terminals: await Terminals.find(scope(ctx), { order: "name" }),
+    terminals: (await Terminals.find(scope(ctx), { order: "name" })).map(publicTerminal),
+    // WHICH TILL, IF ANY, THIS DEVICE IS — so the screen can say "this device"
+    // beside it — and how many the plan allows.
+    thisDevice: (await pairedTerminalIn(ctx.studio, ctx.posSection))?.id || "",
+    maxTills: await tillLimitOf(ctx.studio),
     can: { edit: can(ctx.access, "pos.settings.edit") },
   };
 }

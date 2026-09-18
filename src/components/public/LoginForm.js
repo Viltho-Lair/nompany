@@ -9,6 +9,7 @@ import SocialButtons from "@/components/public/SocialButtons";
 import { useDeviceHints } from "@/components/public/deviceHints";
 import SessionChooser from "@/components/public/SessionChooser";
 import { LockCover } from "@/components/security/SessionLock";
+import TillCashierSwitch from "@/components/security/TillCashierSwitch";
 import { securityDict, endedMessage } from "@/shared/security";
 // The landing's floating-label field — label lifts on focus, an iris→cyan
 // hairline draws under the active field, a mint tick confirms a valid one. It
@@ -85,6 +86,16 @@ export default function LoginForm({ locale, dict, providers = [] }) {
   const sec = securityDict(useAccountLocale());
   const [stage, setStage] = useState("credentials"); // credentials | otp | choose | trust-full
   const [sessions, setSessions] = useState([]);
+  // A PAIRED TILL (18/09/2026): this device is a till, so the cashier's name
+  // and PIN come first and the email sign-in is one click away.
+  const [tillMode, setTillMode] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/identity/till", { cache: "no-store" })
+      .then((r) => r.json()).then((d) => { if (alive && d?.till) setTillMode(true); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
   const [error, setError] = useState(null);           // { kind, message } | null
   const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(false);
@@ -237,6 +248,16 @@ export default function LoginForm({ locale, dict, providers = [] }) {
         >
           {tr.useDifferentAccount}
         </button>
+      </div>
+    );
+  }
+
+  if (tillMode) {
+    return (
+      <div key="till" className="auth-panel space-y-5">
+        <TillCashierSwitch locale={locale}
+          onDone={(slug) => window.location.assign(slug ? `/${slug}/pos-till` : `/${locale}/account`)}
+          onCancel={() => setTillMode(false)} cancelLabel={sec.signInWithEmail} />
       </div>
     );
   }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Autocomplete from "@mui/material/Autocomplete";
 import { useStudioLocale } from "@/components/studio2/locale";
@@ -11,7 +11,9 @@ import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { useReload } from "@/components/studio2/useReload";
 import { Field } from "@/components/fields/Field";
 import TaxTag from "@/components/studio2/TaxTag";
-import { btn, btnGhost, btnRow, btnRowDanger, Dialog, money, fmtDateTime, loadPref, savePref, prefKey } from "@/components/studio2/ui";
+import { btn, btnGhost, btnRow, btnRowDanger, Dialog, money, fmtDateTime } from "@/components/studio2/ui";
+import TillCashierSwitch from "@/components/security/TillCashierSwitch";
+import { securityDict } from "@/shared/security";
 import { findByBarcode } from "@/modules/inventory/barcodes";
 import { posTotals, settle, priceBasket, discountPercentOf, cleanDiscount, PAYMENT_METHODS } from "@/modules/sales/posModel";
 import { PRINT_CSS, Receipt, ShiftReport } from "@/components/studio2/posParts";
@@ -28,15 +30,17 @@ import { PRINT_CSS, Receipt, ShiftReport } from "@/components/studio2/posParts";
 
 const card = "rounded-geex border border-slate-200/70 bg-[var(--geex-surface)] dark:border-white/10";
 const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
-// A saved preference does not change under a page, so there is nothing to subscribe to.
-const noSubscription = () => () => {};
 
 export default function StudioPos({ slug }) {
   const locale = useStudioLocale();
   const tr = posDict(locale);
+  const sec = securityDict(locale);
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
-  const [picked, setPicked] = useState("");
+  // THIS DEVICE IS NOT A TILL (18/09/2026): what the server said, and whether
+  // the reader may pair one.
+  const [notTill, setNotTill] = useState(null);
+  const [switching, setSwitching] = useState(false);
   const [basket, setBasket] = useState([]);
   // THE WHOLE BASKET'S DISCOUNT, as typed. Per-line discounts live on the rows.
   const [basketOff, setBasketOff] = useState({ kind: "percent", value: "" });
@@ -49,12 +53,9 @@ export default function StudioPos({ slug }) {
   const [closing, setClosing] = useState(false);
   const [report, setReport] = useState(null);
 
-  // THE TILL THIS DEVICE LAST USED, remembered per browser — a counter's
-  // computer is that counter's till. Read after hydration (the server has no
-  // storage to ask), so the two renders agree.
-  const pref = prefKey("pos", slug, "terminal");
-  const saved = useSyncExternalStore(noSubscription, () => loadPref(pref, ""), () => "");
-  const terminalId = picked || saved;
+  // THE TILL IS THE DEVICE'S (18/09/2026). It used to be a preference in this
+  // browser's storage, so any browser could pick any till; the server now says
+  // which till this device is paired to, and the screen opens on that one only.
 
   // ONLY THE NEWEST READ MAY LAND. A live update and the reload after an act
   // can overlap, and a read that started before the shift was opened must not
@@ -66,7 +67,9 @@ export default function StudioPos({ slug }) {
     const res = await fetch(`/api/studios/${slug}/pos`, { cache: "no-store" });
     const out = await res.json().catch(() => ({}));
     if (mine !== latest.current) return;
+    if (out?.error === "not-a-till") { setNotTill({ canPair: Boolean(out.canPair) }); return; }
     if (!res.ok || !out?.ok) { setError(tr.refusal(out?.error || "", out)); return; }
+    setNotTill(null);
     setError("");
     setData(out);
   }, [slug, tr]);
@@ -87,8 +90,7 @@ export default function StudioPos({ slug }) {
   }, [slug, tr]);
 
   const terminals = data?.terminals || [];
-  const active = terminals.filter((t) => t.active !== false);
-  const terminal = active.find((t) => t.id === terminalId) || (active.length === 1 ? active[0] : null);
+  const terminal = data?.terminal || null;
   const shift = terminal ? (data?.openShifts || []).find((s) => s.terminalId === terminal.id) : null;
   const terms = data?.terms;
 
@@ -121,6 +123,7 @@ export default function StudioPos({ slug }) {
   const settled = totals ? settle(totals.total, paying, terms.currency) : null;
   const paidSoFar = paying.reduce((s, p) => s + p.amount, 0);
 
+  if (notTill) return <NotATill tr={tr} slug={slug} canPair={notTill.canPair} />;
   if (!data) {
     return error
       ? <div className="p-8 text-sm text-rose-600 dark:text-rose-300">{error}</div>
@@ -142,8 +145,6 @@ export default function StudioPos({ slug }) {
       }];
     });
   };
-
-  const choose = (id) => { setPicked(id); savePref(pref, id); };
 
   // WHO THE NUMBER BELONGS TO, asked when the cashier leaves the box — not on
   // every key, which would ask once per digit. The sale registers a new one.
@@ -184,11 +185,10 @@ export default function StudioPos({ slug }) {
         {/* BACK TO THE DEPARTMENT the till belongs to (17/09/2026). */}
         <Link href={`/${slug}/pos`} className="text-sm font-600 text-slate-500 hover:text-brand-700 dark:text-slate-400">← {tr.back}</Link>
         <h1 className="font-display text-lg font-800 text-[var(--geex-ink)]">{tr.title}</h1>
-        {active.length > 0 && (
-          <div className="w-48">
-            <Field label={tr.till} as="select" value={terminal?.id || ""} onChange={choose}
-              options={active.map((t) => ({ value: t.id, label: t.name }))} />
-          </div>
+        {terminal && (
+          <span className="rounded-full bg-brand-500/10 px-2.5 py-1 text-xs font-700 text-brand-700 dark:text-brand-300">
+            {[terminal.code, terminal.name].filter(Boolean).join(" · ")}
+          </span>
         )}
         {shift && (
           <span className="text-xs text-slate-500 dark:text-slate-400">
@@ -197,6 +197,8 @@ export default function StudioPos({ slug }) {
         )}
         <div className="ms-auto flex flex-wrap gap-2">
           {/* THE TILLS ARE MANAGED ON THE SETTINGS SCREEN now, under its own right. */}
+          {/* CASHIERS CHANGE BY PIN on a paired till (18/09/2026). */}
+          <button type="button" className={btnGhost} onClick={() => setSwitching(true)}>{sec.switchCashier}</button>
           {data.can.manage && <Link href={`/${slug}/pos-settings`} className={btnGhost}>{tr.settings}</Link>}
           {shift && data.can.closeShift && <button type="button" className={btnGhost} onClick={() => setClosing(true)}>{tr.closeShift}</button>}
         </div>
@@ -207,13 +209,6 @@ export default function StudioPos({ slug }) {
       <main className="flex-1 p-4">
         {!data.hasInventory ? (
           <p className="text-sm text-slate-500 dark:text-slate-400">{tr.noInventory}</p>
-        ) : active.length === 0 ? (
-          <NoTills tr={tr} canManage={data.can.manage} busy={busy} onAdd={async (name) => {
-            const out = await call("/terminals", "POST", { name });
-            if (out) { choose(out.terminal.id); reload(); }
-          }} />
-        ) : !terminal ? (
-          <p className="text-sm text-slate-500 dark:text-slate-400">{tr.pickTill}</p>
         ) : !shift ? (
           <OpenShift tr={tr} canSell={data.can.sell} busy={busy} onOpen={async (openingFloat) => {
             const out = await call("/shifts", "POST", { terminalId: terminal.id, openingFloat });
@@ -337,22 +332,30 @@ export default function StudioPos({ slug }) {
         </Dialog>
       )}
 
+      {switching && (
+        <Dialog title={sec.switchCashier} onClose={() => setSwitching(false)} width="max-w-[440px]">
+          {/* The next cashier's session replaces this one on the till. */}
+          <TillCashierSwitch locale={locale} onDone={() => window.location.reload()} onCancel={() => setSwitching(false)} />
+        </Dialog>
+      )}
+
     </div>
   );
 }
 
-function NoTills({ tr, canManage, busy, onAdd }) {
-  const [name, setName] = useState("");
+// POS ON A DEVICE NOBODY PAIRED (18/09/2026). No exception for managers: a
+// till opens on its own device, and pairing is done from that device.
+function NotATill({ tr, slug, canPair }) {
   return (
-    <div className={`${card} mx-auto max-w-md p-6`}>
-      <h2 className="font-display text-lg font-800 text-[var(--geex-ink)]">{tr.noTills}</h2>
-      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{tr.noTillsLead}</p>
-      {canManage && (
-        <div className="mt-4 flex items-end gap-2">
-          <div className="flex-1"><Field label={tr.tillName} value={name} onChange={setName} /></div>
-          <button type="button" className={btn} disabled={busy || !name.trim()} onClick={() => onAdd(name.trim())}>{tr.addTill}</button>
+    <div className="flex min-h-screen items-center justify-center p-6">
+      <div className={`${card} max-w-md p-6`}>
+        <h2 className="font-display text-lg font-800 text-[var(--geex-ink)]">{tr.notATill}</h2>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{tr.notATillLead}</p>
+        <div className="mt-4 flex gap-2">
+          {canPair && <Link href={`/${slug}/pos-settings`} className={btn}>{tr.openSettings}</Link>}
+          <Link href={`/${slug}/pos`} className={btnGhost}>{tr.back}</Link>
         </div>
-      )}
+      </div>
     </div>
   );
 }

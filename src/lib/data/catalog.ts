@@ -175,6 +175,11 @@ const KINDS: Record<string, CatalogKind> = {
         // package axis of the two gates — availability. Which capabilities Nova
         // then offers is a platform-wide choice in /super → Application → Nova.
         novaHeadEnabled: Boolean(b.novaHeadEnabled),
+        // HOW MANY TILLS A STUDIO ON THIS PACKAGE MAY PAIR (the owner,
+        // 18/09/2026: one, until the plan says otherwise). Unlike the other caps
+        // an ABSENT value is 1, not "no limit" — a package saved before this
+        // field existed must not quietly sell unlimited tills. 0 is no limit.
+        maxTills: b.maxTills === undefined || b.maxTills === "" ? 1 : num(b.maxTills),
       };
     },
   },

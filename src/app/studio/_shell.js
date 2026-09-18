@@ -1,7 +1,8 @@
 import { cache } from "react";
 import { cookies, headers } from "next/headers";
 import { redirect, notFound } from "next/navigation";
-import { currentUser, needsQuestionnaire, currentSessionLocked } from "@/platform/auth/identity";
+import { currentUser, needsQuestionnaire, currentSessionLocked, currentSession } from "@/platform/auth/identity";
+import { getStudioById } from "@/modules/main/studios";
 import { studioContext, canAdminister, visibleSections, recordStudioVisit } from "@/lib/studios";
 import { getProfile } from "@/platform/auth/users";
 import { getIndex } from "@/platform/db/store";
@@ -122,6 +123,18 @@ export const studioRequest = cache(async () => {
       return { error: "forbidden", slug, locale: preferredLocale(uiLang) };
     }
     notFound();
+  }
+
+  // A TILL'S SESSION STAYS ON ITS TILL (18/09/2026): any other address in any
+  // studio sends it back to the till it was opened on. The API refuses the same
+  // session everything else (platform/http/route.ts); this is the page half.
+  const { state } = await currentSession();
+  if (state?.scope === "till") {
+    const own = state.studioId === String(context.studio.id) ? context.studio : await getStudioById(state.studioId);
+    if (!own) notFound();
+    const here = (await headers()).get("x-pathname") || "";
+    const till = `/${own.slug}/pos-till`;
+    if (!here.startsWith(till)) redirect(till);
   }
 
   // `access` comes from studioContext; dropping it is what silently disarms

@@ -32,6 +32,12 @@ export type UserSecurity = {
   pinSetAt?: string;
   /** 0 or absent: off. Only a person with a PIN may set one. */
   idleMinutes?: number;
+  /**
+   * WRONG PINS OUTSIDE A LOCKED SESSION — at a till, or when signing an
+   * approval — where there is no session of the person's own to end. Five in a
+   * row stop the PIN working there for fifteen minutes.
+   */
+  pinGuard?: { fails: number; until: number };
   /** Authenticator (TOTP) two-factor sign-in, when switched on. */
   totp?: { secret: string; recoveryCodes: string[]; enabledAt: string } | null;
 };
@@ -118,6 +124,31 @@ export async function checkPin(userId: string, pin: unknown): Promise<boolean> {
   const sec = await getSecurity(userId);
   if (!sec?.pinHash || pinProblem(pin) === "format") return false;
   return verifyPassword(String(pin), sec.pinHash);
+}
+
+/**
+ * THE PIN ASKED FOR AN ACT — a cashier taking over a till, a signature on an
+ * approval. Guarded on the person: five wrong in a row and the PIN stops
+ * working for these acts for fifteen minutes, wherever they are typed.
+ */
+const PIN_GUARD_MS = 15 * 60 * 1000;
+export async function checkPinForAct(userId: string, pin: unknown) {
+  const sec = await getSecurity(userId);
+  if (!sec?.pinHash) return { error: "pin-not-set" as const };
+  const now = Date.now();
+  if (sec.pinGuard && sec.pinGuard.until > now) {
+    return { error: "pin-locked" as const, retryAfter: Math.ceil((sec.pinGuard.until - now) / 1000) };
+  }
+  if (await checkPin(userId, pin)) {
+    if (sec.pinGuard?.fails) await patchSecurity(userId, (cur) => ({ ...cur, pinGuard: { fails: 0, until: 0 } }));
+    return { ok: true as const };
+  }
+  const after = await patchSecurity(userId, (cur) => {
+    const fails = (cur.pinGuard && cur.pinGuard.until <= now ? cur.pinGuard.fails : 0) + 1;
+    return { ...cur, pinGuard: { fails: fails >= PIN_MAX_FAILS ? 0 : fails, until: fails >= PIN_MAX_FAILS ? now + PIN_GUARD_MS : 0 } };
+  });
+  if (after.pinGuard && after.pinGuard.until > now) return { error: "pin-locked" as const, retryAfter: PIN_GUARD_MS / 1000 };
+  return { error: "pin-invalid" as const, attemptsLeft: PIN_MAX_FAILS - (after.pinGuard?.fails || 0) };
 }
 
 // ---- the session's lock ----------------------------------------------------

@@ -99,6 +99,18 @@ type Strings = {
   paidBy: (method: string) => string;
   thankYou: string;
 
+  // A TILL IS A DEVICE (18/09/2026)
+  tillCode: string;
+  notATill: string;
+  notATillLead: string;
+  openSettings: string;
+  pairThisDevice: string;
+  unpair: string;
+  pairedTo: (label: string, when: string) => string;
+  notPaired: string;
+  thisDevice: string;
+  tillLimit: (n: number) => string;
+
   refusal: (code: string, extra?: Record<string, unknown>) => string;
 };
 
@@ -192,8 +204,23 @@ const en: Strings = {
   paidBy: (m) => (m === "cash" ? "Cash" : m === "card" ? "Card" : m === "transfer" ? "Transfer" : m),
   thankYou: "Thank you",
 
+  tillCode: "Till ID",
+  notATill: "This device is not a till",
+  notATillLead: "A manager pairs a device to a till once, from that device, in Point of Sale → Settings. The till then opens there and nowhere else.",
+  openSettings: "Open Settings",
+  pairThisDevice: "Pair this device",
+  unpair: "Unpair",
+  pairedTo: (label, when) => `Paired to ${label || "a device"} · ${when}`,
+  notPaired: "Not paired to a device",
+  thisDevice: "This device",
+  tillLimit: (n) => (n === 1 ? "Your plan includes 1 till." : `Your plan includes ${n} tills.`),
+
   refusal: (code, x = {}) => {
     switch (code) {
+      case "not-a-till": return "This device is not paired to a till.";
+      case "till-limit": return `Your plan allows ${x.max ?? 1} till${Number(x.max) === 1 ? "" : "s"}. Retire or unpair one first, or change the plan.`;
+      case "duplicate-code": return "Another till already has that ID.";
+      case "code": return "A till ID is letters, digits and hyphens.";
       case "insufficient": return `Not enough ${String(x.name || "stock")}: ${x.have ?? 0} available, ${x.needed ?? 0} needed${Number(x.expired) > 0 ? ` (${x.expired} more are expired and cannot be sold)` : ""}.`;
       case "underpaid": return "The payments do not cover the total.";
       case "overpaid-card": return "A card or transfer cannot be for more than is due — only cash gives change.";
@@ -308,8 +335,23 @@ const ar: Strings = {
   paidBy: (m) => (m === "cash" ? "نقدا" : m === "card" ? "بطاقة" : m === "transfer" ? "تحويل" : m),
   thankYou: "شكرا لكم",
 
+  tillCode: "رقم الصندوق",
+  notATill: "هذا الجهاز ليس صندوق بيع",
+  notATillLead: "يربط المدير جهازا بصندوق مرة واحدة، من الجهاز نفسه، في نقطة البيع ← الإعدادات. ثم يفتح الصندوق هناك فقط.",
+  openSettings: "فتح الإعدادات",
+  pairThisDevice: "ربط هذا الجهاز",
+  unpair: "فك الربط",
+  pairedTo: (label, when) => `مرتبط بـ${label || "جهاز"} · ${when}`,
+  notPaired: "غير مرتبط بجهاز",
+  thisDevice: "هذا الجهاز",
+  tillLimit: (n) => (n === 1 ? "تشمل خطتك صندوقا واحدا." : `تشمل خطتك ${n} صناديق.`),
+
   refusal: (code, x = {}) => {
     switch (code) {
+      case "not-a-till": return "هذا الجهاز غير مرتبط بصندوق.";
+      case "till-limit": return `تسمح خطتك بـ${x.max ?? 1} من الصناديق. أوقف صندوقا أو فك ربطه أولا، أو غيّر الخطة.`;
+      case "duplicate-code": return "يوجد صندوق آخر بهذا الرقم.";
+      case "code": return "رقم الصندوق حروف وأرقام وشرطات.";
       case "insufficient": return `الكمية غير كافية من ${String(x.name || "الصنف")}: المتاح ${x.have ?? 0} والمطلوب ${x.needed ?? 0}${Number(x.expired) > 0 ? ` (و${x.expired} منتهية الصلاحية لا تباع)` : ""}.`;
       case "underpaid": return "المدفوع لا يغطي الإجمالي.";
       case "overpaid-card": return "لا تكون البطاقة أو التحويل بأكثر من المستحق — النقد وحده يعطي باقيا.";

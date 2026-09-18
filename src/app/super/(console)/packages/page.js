@@ -67,6 +67,9 @@ const FIELDS = [
   // them the assistant. Which capabilities Nova then offers is set once,
   // platform-wide, in /super → Application → Nova.
   { key: "novaHeadEnabled", label: "Nova assistant", type: "switch", hint: "Gives studios on this package the Nova assistant. Capabilities are chosen in Application → Nova." },
+  // TILLS (18/09/2026). Each till is a device paired to it in Point of Sale →
+  // Settings; this is how many a studio on the package may pair.
+  { key: "maxTills", label: "Tills", type: "number", zeroLabel: "No limit", hint: "How many point-of-sale tills a studio may pair. 0 means no limit; a package saved before this field existed allows 1." },
 
   { key: "includes", label: "Includes", type: "lines", placeholder: "Full platform — every department\nUp to 9 employees\nEnglish & Arabic, RTL-ready" },
   { key: "includesAr", label: "Includes (Arabic)", type: "lines" },

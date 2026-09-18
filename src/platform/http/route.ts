@@ -32,7 +32,7 @@
 /** What a handler may hand back when a bare body is not enough. */
 type Shaped = { status: number; body: unknown; headers?: Record<string, unknown> };
 
-import { currentUser, currentIdentity, requestSessionToken, currentSessionLocked } from "@/platform/auth/identity";
+import { currentUser, currentIdentity, requestSessionToken, currentSessionLocked, currentSession } from "@/platform/auth/identity";
 import { studioContext } from "@/lib/studios";
 import { getStudioBySlug } from "@/modules/main/studios";
 import { currentSuperAdmin } from "@/platform/auth/superAuth";
@@ -357,6 +357,18 @@ export function route<A = RouteArgs>(spec: RouteSpec<A>, handler: (args: A & Rou
     if (context.error) {
       const name = String(context.error);
       return { refusal: refuse(name, statusFor(name)) };
+    }
+    // A TILL'S SESSION IS GOOD FOR ITS TILL (18/09/2026). A cashier who took
+    // over a paired till with their PIN reaches that studio's Point of Sale
+    // and what the shell around it needs — the live stream, notifications, the
+    // greeting — and nothing else, whatever rights they hold. Their own
+    // account's routes (auth "user") stay theirs.
+    const { state } = await currentSession();
+    if (state?.scope === "till") {
+      const path = new URL((base.request as Request).url).pathname;
+      const onTill = /^\/api\/studios\/[^/]+\/(pos(\/|$)|stream$|notifications|greeting)/.test(path);
+      const studioId = String((context as { studio?: { id?: unknown } }).studio?.id || "");
+      if (!onTill || studioId !== state.studioId) return { refusal: refuse("till-only", 403) };
     }
     return { args: { ...base, user, ...context }, identity: String(user.id) };
   }

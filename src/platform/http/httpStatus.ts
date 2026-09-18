@@ -52,6 +52,8 @@ const FORBIDDEN = [
   "till-only",
   // POS on a device nobody paired to a till (18/09/2026).
   "not-a-till",
+  // A personal PIN typed wrong at a till or on a signature (18/09/2026).
+  "pin-invalid",
 ];
 
 // 404 — IT IS NOT THERE, or you are not allowed to know that it is. Membership
@@ -132,11 +134,21 @@ const CONFLICT = [
   // call-out allowance is spent.
   "contract-has-orders", "contract-has-plans", "visit-has-order", "contract-cancelled",
   "outside-term", "emergency-cap",
+  // TILLS AND PINS (18/09/2026): the plan's tills are all in use, another till
+  // already has that code, and a PIN asked for by somebody who has none.
+  "till-limit", "duplicate-code", "pin-not-set",
 ];
 
 // 429 — SLOW DOWN. Separated from 403 on purpose: a rate limit is temporary and
 // a permission refusal is not, and a client should treat them differently.
-const RATE_LIMITED = ["rate-limited", "rate-email", "rate-ip", "cooldown", "rate"];
+const RATE_LIMITED = ["rate-limited", "rate-email", "rate-ip", "cooldown", "rate",
+  // Five wrong PINs at a till or on a signature: fifteen minutes (18/09/2026).
+  "pin-locked"];
+
+// 428 — ASK FOR THE PIN AND SEND IT AGAIN (18/09/2026). Signing an approval
+// needs the signer's PIN; a request without one is not wrong, it is early, and
+// the screen's answer is to ask for the PIN and repeat the same request.
+const PIN_REQUIRED = ["pin-required"];
 
 // 423 — THE SESSION IS LOCKED (18/09/2026). Not 401: the person is signed in,
 // and a client that read 401 would send them to the sign-in page and lose
@@ -161,6 +173,7 @@ const build = (): Readonly<Record<string, number>> => {
   put(CONFLICT, 409);
   put(TOO_LARGE, 413);
   put(SESSION_LOCKED, 423);
+  put(PIN_REQUIRED, 428);
   put(RATE_LIMITED, 429);
   put(SERVER_FAULT, 500);
   return Object.freeze(table);

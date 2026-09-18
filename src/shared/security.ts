@@ -85,6 +85,16 @@ const en = {
   idleMinutes: (m: number) => m < 60 ? `${m} minutes` : m === 60 ? "1 hour" : `${m / 60} hours`,
   idleNeedsPin: "Set a PIN first.",
   somethingWrong: "Something went wrong. Try again.",
+
+  // ---- the till's cashier switch ---------------------------------------------
+  tillSignInTitle: (till: string) => `${till} — who is selling?`,
+  whoIsSelling: "Cashier",
+  takeOver: "Take over the till",
+  switchCashier: "Switch cashier",
+  signInWithEmail: "Sign in with email instead",
+  pinLockedFor: "Too many wrong PINs. Try again in 15 minutes.",
+  pinNotSetTill: "You have no PIN yet. Set one on your account's Security page, then come back.",
+  noCashiers: "Nobody here may sell at this till yet.",
 };
 
 const ar: typeof en = {
@@ -157,6 +167,15 @@ const ar: typeof en = {
   idleMinutes: (m: number) => m < 60 ? `${m} دقيقة` : m === 60 ? "ساعة واحدة" : `${m / 60} ساعات`,
   idleNeedsPin: "عيّن رمزا شخصيا أولا.",
   somethingWrong: "حدث خطأ. حاول مرة أخرى.",
+
+  tillSignInTitle: (till: string) => `${till} — من يبيع؟`,
+  whoIsSelling: "الكاشير",
+  takeOver: "استلام الصندوق",
+  switchCashier: "تبديل الكاشير",
+  signInWithEmail: "تسجيل الدخول بالبريد الإلكتروني بدلا من ذلك",
+  pinLockedFor: "رموز خاطئة كثيرة. حاول مرة أخرى بعد 15 دقيقة.",
+  pinNotSetTill: "ليس لديك رمز شخصي بعد. عيّنه في صفحة الأمان في حسابك ثم عد.",
+  noCashiers: "لا يوجد أحد هنا يملك صلاحية البيع على هذا الصندوق بعد.",
 };
 
 const dict = { en, ar } as const;

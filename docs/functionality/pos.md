@@ -62,8 +62,10 @@ does not offer the field.
 
 Three collections, all filed under `crm-sales-pos`:
 
-- **`posTerminals`** — a till: a name and whether it is active. **Never deleted**: its receipts
-  name it. A till is retired instead, and not while it has a shift open.
+- **`posTerminals`** — a till: a name, its **till ID** (`code`, TILL-01 unless the owner types
+  one; unique), whether it is active, and **the device it is paired to** (18/09/2026). **Never
+  deleted**: its receipts name it. A till is retired instead, and not while it has a shift open;
+  retiring it unpairs it.
 - **`posShifts`** — a drawer's session on a till: number (series `SHF`), the opening float, who
   opened and closed it and when, the counted cash, and **the end-of-day report as it stood at
   close**, stored once so it cannot move under the person who signed it off. One open shift per
@@ -122,9 +124,44 @@ by whom), closed (when, by whom), sales, takings, expected cash and the differen
 short. A closed shift shows the report stored at close; an open one shows its figures so far and
 says so. Each opens its report (printable) and its sales.
 
-**Settings.** The tills — add, retire, use again (never delete) — whether shelf prices include
-tax, and the receipt footer. Moved here from a dialog on the till; the till's Settings button
-links here.
+**Settings.** The tills — add (with a till ID), retire, use again (never delete), **pair this
+device, unpair** — whether shelf prices include tax, and the receipt footer. Moved here from a
+dialog on the till; the till's Settings button links here.
+
+## A till is a device (18/09/2026)
+
+A till used to be a name, and which one a computer used was a preference in that browser's
+storage: any browser could pick any till, two computers could sell on one till at once,
+clearing the browser lost it, and anybody holding the right could open the till from home.
+
+**A manager pairs a device to a till once, from that device**, in Settings ("Pair this
+device", `pos.settings.edit`). The server puts a secret in that browser's HttpOnly cookie
+(`nc_till`) and keeps only its digest on the till (`modules/sales/tillPairing.ts`). **One device
+per till**: pairing another replaces the first, and **Unpair** works from any device — for a
+lost or replaced counter computer. The list shows which device each till is paired to, when,
+and marks "This device".
+
+**The till opens only on its paired device — no exception for managers** (the owner,
+18/09/2026). Every act of the till asks which till THIS DEVICE is, never the request: opening
+it, a drawer, a sale, a customer's number and its receipts all refuse `not-a-till` (403)
+elsewhere, and a shift or sale on another till's drawer is refused the same way. On an
+unpaired device the screen says so and, for a manager, links to Settings. The till no longer
+offers a picker; it shows its own ID and name.
+
+**The plan sets how many tills a studio may have** — `maxTills` on the package, edited in
+`/super` → Packages. **A package saved before the field existed allows 1**; 0 is no limit. A new
+or reactivated till, and a pairing, past the limit refuse `till-limit` (409) with the number.
+
+**Cashiers change by PIN.** On a paired till, **Switch cashier** (and the sign-in page, when the
+device is a till) lists the people who may sell there (`crmSales.pos.create`) by name; the
+cashier picks theirs and types their personal PIN (`/api/identity/till`). They get a **till
+session**: eight hours, good for this till and nothing else — the route wrapper refuses it
+anywhere but this studio's Point of Sale and what the shell needs (the live stream,
+notifications, the greeting), and the studio shell sends every other address back to the till —
+and **counted against nobody's device limit**, because a paired till is the company's device.
+Whoever was on the till before is signed out of it. Five wrong PINs stop that person's PIN
+working at tills and on signatures for fifteen minutes (`checkPinForAct`). A cashier with no PIN
+is told to set one on their account's Security page.
 
 ## Returns (18/09/2026)
 
@@ -225,7 +262,7 @@ is affected.
 takings by method, change given, the opening float, **expected cash (float + cash taken − change)**,
 the counted cash, the difference, and the discounts given. **A short or over drawer is reported, never corrected.**
 
-**The screen** remembers which till this device uses, keeps the scan box focused, recomputes the
+**The screen** opens on this device's paired till, keeps the scan box focused, recomputes the
 basket with the server's own function, and refreshes when anybody else sells on the studio's tills.
 
 `tests/pos-model.mjs` covers the arithmetic; `tests/barcode-model.mjs` the scan and the batch

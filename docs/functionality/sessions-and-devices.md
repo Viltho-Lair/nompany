@@ -155,7 +155,14 @@ in again there needs the password and the emailed code.
 A session minted before 18/09/2026 has no state document; it gets one the first time it is
 locked or given a timeout.
 
+## Tills
+
+A till is paired to one device, opens only there, and cashiers take it over with their PIN —
+`docs/functionality/pos.md` has the whole of it. For sessions: **a till's session is scoped**
+(`scope: "till"` on the session and its state) to one studio's Point of Sale, refused
+elsewhere by the route wrapper (`till-only`, 403) and redirected back by the studio shell, has
+no idle timeout, and is not counted in the session limit.
+
 ## Not built yet
-- Tills paired to a device, and cashiers switching by PIN.
 - The PIN asked again before signing an approval.
 - Two-factor sign-in with an authenticator app, and passkeys.

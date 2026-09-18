@@ -46,6 +46,9 @@ export function planOf(studio: Row | null | undefined, packages: Row[], tiers: R
     // Nova, the in-app assistant — availability rides on the package (the /super
     // Nova switchboard decides which capabilities, platform-wide).
     novaEnabled: Boolean(pkg?.novaHeadEnabled),
+    // Tills a studio may pair (18/09/2026). Absent is ONE — see catalog.ts —
+    // and 0 is no limit, the convention every other cap here uses.
+    maxTills: pkg?.maxTills === undefined || pkg?.maxTills === null ? 1 : Number(pkg.maxTills) || 0,
     tierId: tier?.id || "",
     tierName: tier?.name || DEFAULT_TIER,
     tierColor: tier?.color || "",
@@ -101,6 +104,13 @@ export async function studioHasLiveChat(studio: Row | null | undefined) {
 export async function studioHasNova(studio: Row | null | undefined) {
   const { packages, tiers } = await loadCatalogues();
   return Boolean(planOf(studio, packages, tiers).novaEnabled);
+}
+
+// HOW MANY TILLS THIS STUDIO MAY PAIR. Null when the package sets no ceiling.
+export async function tillLimitOf(studio: Row | null | undefined) {
+  const { packages, tiers } = await loadCatalogues();
+  const { maxTills } = planOf(studio, packages, tiers);
+  return maxTills > 0 ? maxTills : null;
 }
 
 // THE LIMIT THAT BITES. Returns null when the package sets no ceiling.
