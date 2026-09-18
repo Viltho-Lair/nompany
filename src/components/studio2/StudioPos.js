@@ -394,6 +394,28 @@ function OpenShift({ tr, canSell, busy, onOpen }) {
 // straight into the basket on Enter; a typed word with exactly one match does
 // too. The field clears and keeps the focus after every add, so the next scan
 // needs no click.
+//
+// AND AN EXACT CODE OR NAME GOES IN WITHOUT ENTER (the owner, 18/09/2026). When
+// what is typed is exactly one item's barcode, SKU or full name, it is added by
+// itself once typing PAUSES — not on the keystroke that first matches, because
+// a code can be the start of a longer one (`123` and `1234`), and a scanner
+// typing `1234` would otherwise ring up `123` on its third character. A
+// scanner types far faster than the pause, so it still arrives whole. Only a
+// UNIQUE exact match auto-adds: two items sharing a name still show the list.
+const AUTO_ADD_PAUSE_MS = 350;
+
+// The one item whose barcode, SKU or full name IS the text — exact and
+// case-insensitive — or null, including when more than one item answers to it.
+function exactItem(items, q) {
+  const v = String(q || "").trim().toLowerCase();
+  if (!v) return null;
+  const hits = items.filter((i) =>
+    String(i.barcode || "").toLowerCase() === v
+    || String(i.sku || "").toLowerCase() === v
+    || String(i.name || "").trim().toLowerCase() === v);
+  return hits.length === 1 ? hits[0] : null;
+}
+
 function ScanBox({ tr, items, onHit, disabled }) {
   const [text, setText] = useState("");
   const [miss, setMiss] = useState("");
@@ -419,6 +441,23 @@ function ScanBox({ tr, items, onHit, disabled }) {
     };
     return items.filter((i) => rank(i) < 9).sort((x, y) => rank(x) - rank(y) || x.name.localeCompare(y.name));
   };
+
+  // Re-armed on every keystroke; Enter and a pick both clear `text`, which
+  // cancels it, so nothing is ever added twice.
+  useEffect(() => {
+    const code = text.trim();
+    if (disabled || !code) return undefined;
+    const t = setTimeout(() => {
+      const item = exactItem(items, code);
+      if (!item) return;
+      // A scanned barcode is priced through the same lookup Enter uses.
+      const hit = findByBarcode(items, code);
+      onHit(hit || { itemId: item.id, price: item.sellPrice > 0 ? item.sellPrice : null }, item);
+      setText(""); setMiss("");
+      ref.current?.focus();
+    }, AUTO_ADD_PAUSE_MS);
+    return () => clearTimeout(t);
+  }, [text, disabled, items, onHit]);
 
   // Enter on free text: a barcode first (the item's or a pack's), then a
   // single match by name or SKU.

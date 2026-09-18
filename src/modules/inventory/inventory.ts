@@ -621,9 +621,39 @@ export async function editItem(ctx: InventoryContext, id: string, body: Record<s
 // An item with movement history is never deleted — that would erase the record
 // of stock that really moved. Items with a clean history can go.
 export async function removeItem(ctx: InventoryContext, id: string) {
+  const out = await removeItems(ctx, [id]);
+  if ("error" in out) return out;
+  // One item asked for keeps the answer it always had: the refusal names what
+  // still holds it, and an id that is not there is a 404 rather than a quiet 0.
+  const kept = out.kept[0];
+  if (kept) return { error: "in-use", movements: kept.movements, orders: kept.orders, deliveries: kept.deliveries };
+  return out.removed ? { ok: true } : { error: "notfound" };
+}
+
+/** At most this many ids per request — a page of the catalogue is 10 to 100. */
+export const REMOVE_ITEMS_MAX = 500;
+
+/**
+ * DELETE MANY ITEMS AT ONCE — the owner, 18/09/2026: "lot delete option".
+ *
+ * THE SAME RULE AS ONE, APPLIED PER ITEM: an item that has moved, is on an
+ * order or is on a delivery note keeps its history and is KEPT, and the answer
+ * says which and why. The rest go. It is not all-or-nothing on purpose — a
+ * selection of forty with one item on an order should not refuse the other
+ * thirty-nine, and it should not delete the one either.
+ *
+ * The three histories are read ONCE for the whole selection, and the free ones
+ * are removed in ONE write (`removeMany`) — N single deletes would be N reads
+ * of every movement and order in the studio.
+ */
+export async function removeItems(ctx: InventoryContext, ids: readonly unknown[]) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "inventory.items.delete");
   if (denied) return denied;
+
+  const wanted = [...new Set((ids || []).map((v) => String(v ?? "")).filter(Boolean))];
+  if (!wanted.length) return { error: "missing" as const };
+  if (wanted.length > REMOVE_ITEMS_MAX) return { error: "selection-too-large" as const, max: REMOVE_ITEMS_MAX };
 
   const { studio, itemsSection, sheetsSection, deliveriesSection, stockSection } = ctx;
   const [movements, orders, deliveries] = await Promise.all([
@@ -631,13 +661,19 @@ export async function removeItem(ctx: InventoryContext, id: string) {
     Orders.find({ studio, section: sheetsSection }),
     Deliveries.find({ studio, section: deliveriesSection as Section }),
   ]);
-  const moved = movements.filter((m) => m.itemId === id).length;
-  const onOrder = orders.filter((o) => (o.lines || []).some((l) => l.itemId === id)).length;
-  const onDn = deliveries.filter((d) => (d.lines || []).some((l) => l.itemId === id)).length;
-  if (moved || onOrder || onDn) return { error: "in-use", movements: moved, orders: onOrder, deliveries: onDn };
 
-  const removed = await Items.remove({ studio, section: itemsSection }, id);
-  return removed ? { ok: true } : { error: "notfound" };
+  const kept: { id: string; movements: number; orders: number; deliveries: number }[] = [];
+  const free: string[] = [];
+  for (const id of wanted) {
+    const moved = movements.filter((m) => m.itemId === id).length;
+    const onOrder = orders.filter((o) => (o.lines || []).some((l) => l.itemId === id)).length;
+    const onDn = deliveries.filter((d) => (d.lines || []).some((l) => l.itemId === id)).length;
+    if (moved || onOrder || onDn) kept.push({ id, movements: moved, orders: onOrder, deliveries: onDn });
+    else free.push(id);
+  }
+
+  const removed = free.length ? await Items.removeMany({ studio, section: itemsSection }, free) : 0;
+  return { ok: true as const, removed, kept };
 }
 
 // ---- importing items from a file (./itemImport) ------------------------------

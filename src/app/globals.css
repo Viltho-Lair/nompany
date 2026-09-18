@@ -554,6 +554,20 @@ html.studio-chrome.dark {
   --geex-faint: var(--p-slate-500);
 }
 
+/* THE DATA GRID SITS ON THE STUDIO'S SURFACE, not on MUI's paper. MUI declares
+   its `--DataGrid-t-*` backgrounds as `background.paper` — the navy #1e293b on
+   dark — in an UNLAYERED stylesheet, which beats anything in `@layer mui` where a
+   grid's `sx` lands. So every studio table sat as a navy box inside a charcoal
+   card (the owner's screenshot, 18/09/2026). Answered here, unlayered and more
+   specific; on light the surface is white, which is what paper already was.
+   /super has the same rule on its own card (super.css). */
+html.studio-chrome .MuiDataGrid-root {
+  --DataGrid-t-color-background-base: var(--geex-surface);
+  --DataGrid-t-color-background-overlay: var(--geex-surface);
+  --DataGrid-t-header-background-base: var(--geex-surface);
+  --DataGrid-t-cell-background-pinned: var(--geex-surface);
+}
+
 /* Studio typeface (see DESIGN.md): Cabin for all Latin/English Studio text,
    including display headings (the .font-display utility is overridden here so
    nothing in the Studio escapes Cabin). The public site keeps Saira/IBM Plex. */

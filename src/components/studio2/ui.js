@@ -19,8 +19,13 @@ import { moneyText } from "@/shared/money";
 export const panel = "rounded-geex border border-slate-200/70 bg-[var(--geex-surface)] p-6 dark:border-white/10";
 export const h2 = "font-display text-lg font-800 text-[var(--geex-ink)]";
 export const sub = "mt-1 text-sm text-slate-500 dark:text-slate-400";
+// FOCUS LIFTS TO THE SURFACE, not to white. `focus:bg-white` had no dark
+// counterpart, so in dark mode every focused field — and every SelectMenu
+// trigger built on this class, the item importer's column pickers among them —
+// went white behind white ink and read as empty (the owner, 18/09/2026). The
+// surface token is white on light, so the light theme is unchanged.
 export const input =
-  "w-full rounded-xl border border-slate-200 bg-[var(--geex-inset)] px-3.5 py-2.5 text-sm text-[var(--geex-ink)] focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-white/15";
+  "w-full rounded-xl border border-slate-200 bg-[var(--geex-inset)] px-3.5 py-2.5 text-sm text-[var(--geex-ink)] focus:border-brand-500 focus:bg-[var(--geex-surface,#fff)] focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-white/15";
 export const inputRO =
   "w-full rounded-xl border border-slate-200 bg-slate-100 px-3.5 py-2.5 text-sm text-slate-500 dark:border-white/10 dark:bg-[#14141c] dark:text-slate-400";
 export const microLabel = "mb-1 block text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400";

@@ -14,7 +14,7 @@ import RecordLink from "@/components/studio2/RecordLink";
 import { Icon } from "@/components/studio2/icons";
 import { useAnalyticsLevel } from "@/components/studio2/analyticsLevel";
 import {
-  panel, h2, sub, inputRO, microLabel, label, btn, btnGhost, btnRow, th, stripeOn, stripeOff,
+  panel, h2, sub, inputRO, microLabel, label, btn, btnGhost, btnRow, btnRowDanger, th, stripeOn, stripeOff,
   money, fmtDate, fmtDateTime, Dialog, Toolbar, Empty,
 } from "@/components/studio2/ui";
 import { linkToProject, linkIf } from "@/modules/main/studioLinks";
@@ -181,6 +181,7 @@ function message(out, tr) {
   // Said by name, the way a bin or batch refusal is: which code, and whose.
   if (out.error === "barcode") return (out.problems || []).join(" · ");
   if (out.error === "prefix") return tr.mPrefix;
+  if (out.error === "selection-too-large") return tr.mSelectionTooLarge(out.max);
   if (out.error === "awb") return out.reason || tr.mAwb;
   if (out.error === "status") return tr.mStatus;
   if (out.error === "in-use") {
@@ -226,6 +227,35 @@ function Items({ slug, items, vendors, units, serviceActions, studioCurrency, ca
     return items.filter((i) => `${i.name} ${i.sku} ${i.modelNumber || ""} ${i.vendorName || ""}`.toLowerCase().includes(q));
   }, [items, query]);
 
+  // DELETING MANY AT ONCE (the owner, 18/09/2026: "lot delete option").
+  // The grid's own checkboxes pick the rows; the server decides what may go —
+  // an item with stock movements, orders or deliveries is KEPT and named in the
+  // answer, the rest are removed in one write (removeItems). The grid's model
+  // is MUI's: "include" lists the ticked ids, "exclude" is the header box
+  // ticking every row in `rows` bar the ones listed — so both are resolved
+  // against the rows actually on offer, never taken on trust.
+  const [selection, setSelection] = useState({ type: "include", ids: new Set() });
+  const [confirmingMany, setConfirmingMany] = useState(false);
+  const [notice, setNotice] = useState("");
+  const selectedIds = useMemo(() => {
+    const ids = selection?.ids || new Set();
+    if (selection?.type === "exclude") return filtered.map((r) => r.id).filter((id) => !ids.has(id));
+    const known = new Set(items.map((i) => i.id));
+    return [...ids].filter((id) => known.has(id));
+  }, [selection, filtered, items]);
+  const clearSelection = useCallback(() => setSelection({ type: "include", ids: new Set() }), []);
+
+  async function deleteSelected() {
+    const out = await send("items", "DELETE", { ids: selectedIds });
+    setConfirmingMany(false);
+    if (!out) return;
+    clearSelection();
+    const nameOf = (id) => items.find((i) => i.id === id)?.name || id;
+    const kept = (out.kept || []).map((k) => nameOf(k.id));
+    const shown = kept.slice(0, 5).join(", ") + (kept.length > 5 ? "…" : "");
+    setNotice([tr.nDeleted(out.removed || 0), kept.length ? tr.nKept(kept.length, shown) : ""].filter(Boolean).join(" "));
+  }
+
   return (
     <>
       <Toolbar canManage={canManage} label={tr.addItem} onAdd={() => setForm({ row: null })}
@@ -258,7 +288,33 @@ function Items({ slug, items, vendors, units, serviceActions, studioCurrency, ca
         <Empty title={tr.nothingRegisteredYet} body={tr.registerThingsBuyQuantities} />
       ) : (
         <>
-          <p className="text-sm text-slate-500 dark:text-slate-400">{tr.nItemsOf(filtered.length, items.length)}</p>
+          {canManage && selectedIds.length > 0 ? (
+            // The count sits where the item count was, so ticking a box
+            // changes one line rather than pushing the grid down.
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              <span className="font-600 text-[var(--geex-ink)]">{tr.nSelected(selectedIds.length)}</span>
+              <button type="button" className={btnRow} onClick={clearSelection}>{tr.clearSelection}</button>
+              <button type="button" className={btnRowDanger} disabled={busy} onClick={() => { setNotice(""); setConfirmingMany(true); }}>
+                {tr.deleteSelected}
+              </button>
+            </div>
+          ) : (
+            <p className="text-sm text-slate-500 dark:text-slate-400">{tr.nItemsOf(filtered.length, items.length)}</p>
+          )}
+          {notice && <p role="status" className="text-sm text-slate-600 dark:text-slate-300">{notice}</p>}
+
+          {confirmingMany && (
+            <Dialog title={tr.deleteSelected} description={tr.confirmDeleteMany(selectedIds.length)}
+              onClose={() => { if (!busy) setConfirmingMany(false); }}>
+              <div className="flex justify-end gap-2">
+                <button type="button" className={btnGhost} disabled={busy} onClick={() => setConfirmingMany(false)}>{tr.cancel}</button>
+                <button type="button" className={btnRowDanger} disabled={busy} onClick={deleteSelected}>
+                  {tr.deleteSelected}
+                </button>
+              </div>
+            </Dialog>
+          )}
+
           <section className={panel}>
             {/* A Data Grid now — sortable, paged — reproducing the catalogue table
                 column for column: SKU + name + model, vendor, type (with the lead
@@ -269,6 +325,10 @@ function Items({ slug, items, vendors, units, serviceActions, studioCurrency, ca
             <StudioDataGrid
               rows={filtered}
               getRowId={(r) => r.id}
+              checkboxSelection={canManage}
+              disableRowSelectionOnClick
+              rowSelectionModel={selection}
+              onRowSelectionModelChange={setSelection}
               ariaLabel={tr.registeredItems}
               emptyLabel={tr.noItemsMatchSearch}
               emptyIcon="package"

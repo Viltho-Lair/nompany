@@ -86,7 +86,7 @@ export function TextCell({
       }}
       className={cn(
         'w-full truncate rounded border border-transparent bg-transparent px-1.5 py-1 text-[13px] outline-none',
-        'hover:border-slate-200 focus:border-primary focus:bg-white',
+        'hover:border-slate-200 focus:border-primary focus:bg-[var(--geex-surface,#fff)]',
         bold && 'font-semibold',
         strike && 'text-slate-400 line-through',
         className,
@@ -150,7 +150,7 @@ export function NumberCell({
         onKeyDown={(e) => {
           if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
         }}
-        className="w-full rounded border border-transparent bg-transparent px-1.5 py-1 text-[13px] tabular-nums outline-none hover:border-slate-200 focus:border-primary focus:bg-white [appearance:textfield] [&::-webkit-inner-spin-button]:m-0 [&::-webkit-outer-spin-button]:m-0"
+        className="w-full rounded border border-transparent bg-transparent px-1.5 py-1 text-[13px] tabular-nums outline-none hover:border-slate-200 focus:border-primary focus:bg-[var(--geex-surface,#fff)] [appearance:textfield] [&::-webkit-inner-spin-button]:m-0 [&::-webkit-outer-spin-button]:m-0"
       />
       {suffix && (
         <span className="-ms-1 pe-1 text-[11px] text-slate-400">{suffix}</span>
@@ -428,7 +428,7 @@ export function ProgressCell({
           step={5}
           value={value}
           onChange={(e) => onCommit(Number(e.target.value))}
-          className="w-9 shrink-0 rounded border border-transparent bg-transparent py-0.5 text-end text-[12px] tabular-nums outline-none hover:border-slate-200 focus:border-primary focus:bg-white [appearance:textfield] [&::-webkit-inner-spin-button]:m-0"
+          className="w-9 shrink-0 rounded border border-transparent bg-transparent py-0.5 text-end text-[12px] tabular-nums outline-none hover:border-slate-200 focus:border-primary focus:bg-[var(--geex-surface,#fff)] [appearance:textfield] [&::-webkit-inner-spin-button]:m-0"
         />
       )}
     </div>

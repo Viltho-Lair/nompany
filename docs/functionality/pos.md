@@ -225,6 +225,12 @@ not change prices.
 - A scan goes through `findByBarcode` (`barcodes.md`): an item's code is one of its unit (packs were
   removed 17/09/2026 — the item's unit says how it is sold). Anything that is not a code is searched by name and SKU; a single match is
   added.
+- **An exact code or name adds itself, without Enter** (the owner, 2026-09-18). When the text in
+  the scan field is exactly ONE item's barcode, SKU or full name (case-insensitive), the item is
+  added once typing pauses for 350 ms (`AUTO_ADD_PAUSE_MS`, `StudioPos.js`) — not on the keystroke
+  that first matches, because a code can begin a longer one (`123` / `1234`, "Test material 10" /
+  "…100"). A scanner types far faster than the pause. Two items answering to the same text add
+  nothing; the list stays open.
 - **The server prices the basket from the items**, never from the screen. A typed price is used
   only when the seller holds `discount`; an item with no price is refused unless they do.
 - **Discounts** (the owner, 18/09/2026): a % or an amount on any line, and one more on the whole

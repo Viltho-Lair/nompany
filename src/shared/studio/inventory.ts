@@ -70,6 +70,13 @@ type Strings = CommonStrings & {
   customsCharges: string;
   dashboardIsnYoursSee: string;
   delete: string;
+  nSelected: (n: number) => string;
+  deleteSelected: string;
+  clearSelection: string;
+  confirmDeleteMany: (n: number) => string;
+  nDeleted: (n: number) => string;
+  nKept: (n: number, names: string) => string;
+  mSelectionTooLarge: (max: number) => string;
   descAwb: string;
   descCatalogue: string;
   descHeld: string;
@@ -351,6 +358,13 @@ const en: Strings = {
   customsCharges: "Customs charges",
   dashboardIsnYoursSee: "The dashboard isn't yours to see",
   delete: "Delete",
+  nSelected: (n) => `${n} selected`,
+  deleteSelected: "Delete selected",
+  clearSelection: "Clear",
+  confirmDeleteMany: (n) => `Delete ${n} item${n === 1 ? "" : "s"}? This cannot be undone. Items that have stock movements, orders or deliveries are kept.`,
+  nDeleted: (n) => `${n} item${n === 1 ? "" : "s"} deleted.`,
+  nKept: (n, names) => `${n} kept because their history can't be erased: ${names}.`,
+  mSelectionTooLarge: (max) => `Select ${max} items or fewer at a time.`,
   descAwb: "Air freight, by waybill",
   descCatalogue: "The catalogue, by vendor",
   descHeld: "What is held, and the ledger behind it",
@@ -637,6 +651,13 @@ const ar: Strings = {
   customsCharges: "الرسوم الجمركية",
   dashboardIsnYoursSee: "لوحة المعلومات ليست من صلاحياتك",
   delete: "حذف",
+  nSelected: (n) => `المحدد: ${n}`,
+  deleteSelected: "حذف المحدد",
+  clearSelection: "إلغاء التحديد",
+  confirmDeleteMany: (n) => `حذف ${n} من الأصناف؟ لا يمكن التراجع عن ذلك. الأصناف التي لها حركات مخزون أو طلبات أو تسليمات ستبقى.`,
+  nDeleted: (n) => `تم حذف ${n} من الأصناف.`,
+  nKept: (n, names) => `بقي ${n} لأن سجلها لا يمكن محوه: ${names}.`,
+  mSelectionTooLarge: (max) => `حدد ${max} صنفا أو أقل في كل مرة.`,
   descAwb: "الشحن الجوي، حسب البوليصة",
   descCatalogue: "الكتالوج، حسب المورد",
   descHeld: "ما هو محفوظ، والسجل الذي خلفه",

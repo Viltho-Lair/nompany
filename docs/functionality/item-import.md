@@ -140,6 +140,17 @@ something else still names them or the person may not delete suppliers; the answ
 how many stayed. **Items the import updated are not restored**: nothing recorded what they
 held before, and the confirmation says so.
 
+## Deleting many items at once (2026-09-18)
+
+Not an import feature, but it is how an import's mistakes are most often cleared, so it is written
+down here. The Items register has a checkbox per row (for whoever may manage items); ticking rows
+shows "N selected · Clear · Delete selected", and a confirmation follows. `DELETE
+/inventory/items` with `{ ids: [...] }` (at most 500, `REMOVE_ITEMS_MAX`) runs `removeItems`: the
+same rule as deleting one — **an item with stock movements, orders or deliveries is KEPT** — applied
+per item, so the free ones are removed in one write and the answer lists the kept ones with what
+holds each. `{ id }` alone keeps its old answers (`in-use`, `notfound`). Asks
+`inventory.items.delete`; no new permission key.
+
 ## Rights
 
 Importing asks `inventory.items.create`. With Update on, also `inventory.items.edit`. Adding

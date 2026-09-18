@@ -1,5 +1,5 @@
 import { route, refused } from "@/platform/http/route";
-import { inventoryContext, createItem, editItem, removeItem } from "@/modules/inventory/inventory";
+import { inventoryContext, createItem, editItem, removeItem, removeItems } from "@/modules/inventory/inventory";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -31,9 +31,17 @@ export const PUT = route(spec, async (inv) => {
 // orders and deliveries still holding it, and those lists now travel back on
 // their own: this route forwarded all three by hand.
 
+//
+// `ids` (an array) deletes many at once: the free ones go and the answer lists
+// the ones kept, with what holds each. `id` alone keeps its old answer.
 export const DELETE = route(spec, async (inv) => {
   const refusal = manageable(inv);
   if (refusal) return refusal;
+  if (Array.isArray(inv.body.ids)) {
+    const many = await removeItems(inv, inv.body.ids);
+    if (refused(many)) return many;
+    return { ok: true, removed: many.removed, kept: many.kept };
+  }
   if (!inv.body.id) return { error: "missing" };
 
   const result = await removeItem(inv, inv.body.id);
