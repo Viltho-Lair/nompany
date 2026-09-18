@@ -97,8 +97,16 @@
   --color-gold-rgb: 251 191 36;
 }
 
-/* Aliases for color-mix()/gradient use in inline styles. */
-:root {
+/* Aliases for color-mix()/gradient use in inline styles.
+
+   DECLARED ON `.dark` AS WELL AS :root. A custom property that reads another
+   is resolved where it is DECLARED, so on :root alone these froze to the light
+   triples: an element that is dark by its own class inside a light page (the
+   /super sign-in, which is always dark) got dark channels and light aliases —
+   dark inputs on a white card on a white page (the owner, 18/09/2026). On
+   html.dark it is the same element, so nothing else changes. */
+:root,
+.dark {
   --color-ink: rgb(var(--color-ink-rgb));
   --color-ink-soft: rgb(var(--color-ink-soft-rgb));
   --color-ink-card: rgb(var(--color-ink-card-rgb));
