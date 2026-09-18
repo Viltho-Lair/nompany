@@ -460,7 +460,7 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
       // THE SPLIT'S NEW AREAS (18/09/2026), so a controller created from now on
       // holds what one who existed before gained by catching up.
       ["finance.receivables", "full"], ["finance.expenses", "full"], ["finance.claims", "full"],
-      ["finance.tax", "view"], ["finance.reports", "view"],
+      ["finance.tax", "view"], ["finance.reports", "view"], ["finance.budgets", "full"],
       ["finance.ledger", "view"], ["finance.dashboard", "view"], ["projects.costs", "view"],
       // THE WAGE BILL IS THE CONTROLLER'S, not a separate profession's — there
       // is no HR archetype in this library and a Chief Accountant is who runs

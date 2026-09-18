@@ -67,6 +67,10 @@ export type FinanceContext = ModuleContext & {
   receivablesSection: Section;
   taxSection: Section;
   reportsSection: Section;
+  /** Budgets OWN their rows (keys.ts) — the first Finance sub-section born that way. */
+  budgetsSection: Section;
+  canViewBudgets: boolean;
+  canManageBudgets: boolean;
   canViewReceivables: boolean;
   canManageReceivables: boolean;
   canViewTax: boolean;

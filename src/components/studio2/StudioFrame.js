@@ -211,6 +211,7 @@ const SECTION_ICONS = {
   "finance-receivables": "invoice",
   "finance-tax": "ledger",
   "finance-reports": "chart",
+  "finance-budgets": "chart",
   "finance-assets": "assets",
   "field-service-schedule": "calendar",
   "field-service-tracking": "tracking",

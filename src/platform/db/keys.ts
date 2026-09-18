@@ -888,6 +888,9 @@ export const SECTION_DEFS = [
     { key: "finance-assets", name: "Fixed assets" },
     { key: "finance-tax", name: "Tax" },
     { key: "finance-reports", name: "Reports" },
+    // BUDGETS, 18/09/2026 (the plan's step 5): the first Finance sub-section
+    // born owning its rows, so nothing is filed anywhere else.
+    { key: "finance-budgets", name: "Budgets" },
     { key: "finance-settings", name: "Settings" },
   ] },
 
@@ -1194,6 +1197,7 @@ export const SECTION_COLLECTIONS = {
   // filed under Tax itself; there is nothing older stored elsewhere to mind.
   "finance-tax": ["taxReturns", "zakatWorksheets"],
   "finance-receivables": ["customerCredit", "dunningNotices"],
+  "finance-budgets": ["budgets"],
   // field-service — was Operations. LOCATIONS HAVE LEFT: Administration's
   // Master data screen exists now, so the condition this comment used to state
   // is met, and a collection is re-homed only into a section that can actually

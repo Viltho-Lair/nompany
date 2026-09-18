@@ -155,6 +155,7 @@ const ar: SectionMap = {
   "finance-assets": "الأصول",
   "finance-tax": "الضرائب",
   "finance-reports": "التقارير",
+  "finance-budgets": "الموازنات",
   "finance-settings": "الإعدادات",
 
   // NEW ROOT, no children yet.

@@ -49,6 +49,7 @@ const TreasuryPanel = nextDynamic(() => import("@/components/studio2/TreasuryPan
 const CreditPanel = nextDynamic(() => import("@/components/studio2/CreditPanel"));
 const PaymentRunPanel = nextDynamic(() => import("@/components/studio2/PaymentRunPanel"));
 const ClaimsPanel = nextDynamic(() => import("@/components/studio2/ClaimsPanel"));
+const BudgetsPanel = nextDynamic(() => import("@/components/studio2/BudgetsPanel"));
 // Cash & Bank's and Tax's panels, lazily for the reason the others are.
 const ReconciliationPanel = nextDynamic(() => import("@/components/studio2/ReconciliationPanel"));
 const TaxReturnPanel = nextDynamic(() => import("@/components/studio2/TaxReturnPanel"));
@@ -122,8 +123,10 @@ const StudioDataGrid = nextDynamic(() => import("@/components/studio2/StudioData
 //   finance-payables    → bills and expenses (PayablesAndExpenses)
 //   finance-cash        → money accounts, forecast, cheques, reconciliation
 //   finance-tax         → the VAT return and the withheld tax to claim
-//   finance-reports     → P&L, balance sheet, project margins
+//   finance-reports     → P&L, balance sheet, cash flow, project margins
+//   finance-budgets     → budgets and their variance (BudgetsPanel)
 export default function StudioFinance({ slug, view = "finance" }) {
+  const locale = useStudioLocale();
   if (view === "finance-payables") return <PayablesAndExpenses slug={slug} />;
   if (view === "finance-assets") return <Assets slug={slug} />;
   if (view === "finance-ledger") return <StudioLedger slug={slug} />;
@@ -131,6 +134,7 @@ export default function StudioFinance({ slug, view = "finance" }) {
   if (view === "finance-cash") return <CashAndBank slug={slug} />;
   if (view === "finance-tax") return <FinanceTax slug={slug} />;
   if (view === "finance-reports") return <FinanceReports slug={slug} />;
+  if (view === "finance-budgets") return <BudgetsPanel slug={slug} locale={locale} />;
   if (view === "finance-receivables") return <Receivables slug={slug} />;
   return <FinanceCash slug={slug} view={view} />;
 }

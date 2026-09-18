@@ -163,6 +163,24 @@ export const PERMISSION_CATCH_UPS: readonly PermissionCatchUp[] = [
     verbs: ["view", "create"],
   },
   {
+    id: "finance-budgets-view-2026-09-18",
+    // Budgets arrived (18/09/2026). Whoever reads the statements reads the
+    // budget measured against them.
+    note: "Whoever reads the reports reads the budgets",
+    from: "finance.reports",
+    to: ["finance.budgets"],
+    verbs: ["view"],
+  },
+  {
+    id: "finance-budgets-set-2026-09-18",
+    // Setting the budget is the controller's: whoever closes the books.
+    note: "Whoever closes the books sets the budgets",
+    from: "finance.ledger",
+    fromVerb: "close",
+    to: ["finance.budgets"],
+    verbs: ["create", "edit", "delete"],
+  },
+  {
     id: "finance-claims-approve-2026-09-18",
     // Whoever approves supplier bills approves staff claims.
     note: "Whoever approves bills approves expense claims",

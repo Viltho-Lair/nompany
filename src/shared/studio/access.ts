@@ -94,6 +94,7 @@ const areas: Record<Locale, Record<string, string>> = {
     "finance.receivables": "الذمم المدينة",
     "finance.expenses": "المصروفات",
     "finance.claims": "مطالبات المصروفات",
+    "finance.budgets": "الموازنات",
     "finance.tax": "الضرائب",
     "finance.reports": "التقارير",
     "finance.ledger": "دفتر الأستاذ العام",

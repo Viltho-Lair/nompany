@@ -204,6 +204,7 @@ export const SECTION_AREAS: Readonly<Record<string, readonly string[]>> = {
   "finance-receivables": ["finance.receivables"],
   "finance-tax": ["finance.tax"],
   "finance-reports": ["finance.reports"],
+  "finance-budgets": ["finance.budgets"],
   // Gated by its own right — WITHOUT this line a leaf section has no areas, so
   // sectionViewable returns `!own` and shows it to everyone, flipping the whole
   // Finance parent visible for a no-role user. The goldens caught exactly that.

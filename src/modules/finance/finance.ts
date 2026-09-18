@@ -102,6 +102,7 @@ export const financeContext = moduleContext<FinanceContext>({
   sub: {
     cash: "finance-cash", ledger: "finance-ledger", payables: "finance-payables", assets: "finance-assets", settings: "finance-settings",
     receivables: "finance-receivables", tax: "finance-tax", reports: "finance-reports",
+    budgets: "finance-budgets",
   },
   // Projects and Inventory sheets, when the studio has them. Read on the same
   // terms Sales reads Technical: what a project cost is part of the invoice's
@@ -123,7 +124,7 @@ export const financeContext = moduleContext<FinanceContext>({
     // — and a return against it can put that back. Nullable like the rest.
     items: ["inventory-items", "inventory"],
   },
-  flags: ["cash", "ledger", "payables", "assets", "settings", "receivables", "tax", "reports"],
+  flags: ["cash", "ledger", "payables", "assets", "settings", "receivables", "tax", "reports", "budgets"],
   extend: ({ settingsSection, studio }) => ({
     cashCategories: readCashCategories(settingsSection as { settings?: Record<string, unknown> }),
     withholdingRules: readWithholdingRules(settingsSection as { settings?: Record<string, unknown> }),
@@ -857,7 +858,7 @@ async function ownerOf(studioId: string, childKey: string, parentKey: string) {
   return (await getSectionByKey(studioId, childKey)) || (await getSectionByKey(studioId, parentKey));
 }
 
-async function projectRows({ studio }: Pick<FinanceContext, "studio">) {
+export async function projectRows({ studio }: Pick<FinanceContext, "studio">) {
   const owner = await ownerOf(studio.id, "projects-list", "projects");
   if (!owner) return [];
   return Projects.find({ studio, section: owner });

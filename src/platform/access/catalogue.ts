@@ -552,6 +552,10 @@ const OWN_AREAS = [
   { key: "finance.tax", group: "Finance & Accounting", label: "Tax", verbs: ["view"],
     extra: [{ key: "file", label: "File and settle tax returns" }] },
   { key: "finance.reports", group: "Finance & Accounting", label: "Reports", verbs: ["view"] },
+  // WHAT THE YEAR WAS MEANT TO EARN AND COST, per account, optionally cut by a
+  // project, deal, cost code or department. View reads the variance; the rest
+  // is the budget itself.
+  { key: "finance.budgets", group: "Finance & Accounting", label: "Budgets", verbs: ["view", "create", "edit", "delete"] },
   // THE LEDGER HAS NO ORDINARY CRUD. An entry is posted and, if wrong, reversed;
   // it is never edited or deleted, because it is the record of a decision (the
   // same reasoning as a typed task). So `post` and `reverse` are `extra` powers
