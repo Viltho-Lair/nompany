@@ -362,6 +362,12 @@ type Strings = CommonStrings & {
   setupAsk: string;
   // ---- the split's screens (18/09/2026) ----
   tabBills: string;
+  tabInvoices: string;
+  tabCredit: string;
+  tabDunning: string;
+  dunningLevels: string;
+  dunningLevelsLead: string;
+  creditRefused: (e: { error: string; limit?: number; owed?: number; after?: number }) => string;
   tabExpenses: string;
   tabReconcile: string;
   taxTitle: string;
@@ -804,6 +810,14 @@ const en: Strings = {
   setupFix: "Set these in Studio settings",
   setupAsk: "Ask whoever manages Studio settings to set these.",
   tabBills: "Bills",
+  tabInvoices: "Invoices",
+  tabCredit: "Credit",
+  tabDunning: "Reminders",
+  dunningLevels: "Payment reminders",
+  dunningLevelsLead: "Days after the due date at which a reminder is due — first, second, final. Receivables → Reminders proposes the next one for each late invoice.",
+  creditRefused: (e) => (e.error === "credit-hold"
+    ? "This customer is on credit hold. Issue it anyway? Your name is recorded on the invoice."
+    : `This takes the customer to ${e.after} against a limit of ${e.limit} (already owing ${e.owed}). Issue it anyway? Your name is recorded on the invoice.`),
   tabExpenses: "Expenses",
   tabReconcile: "Reconcile",
   taxTitle: "Tax",
@@ -1255,6 +1269,14 @@ const ar: Strings = {
   setupFix: "حددها في إعدادات الاستوديو",
   setupAsk: "اطلب ممن يدير إعدادات الاستوديو تحديدها.",
   tabBills: "فواتير الموردين",
+  tabInvoices: "الفواتير",
+  tabCredit: "الائتمان",
+  tabDunning: "التذكيرات",
+  dunningLevels: "تذكيرات السداد",
+  dunningLevelsLead: "عدد الأيام بعد تاريخ الاستحقاق التي يستحق عندها التذكير — الأول والثاني والأخير. تقترح الذمم المدينة ← التذكيرات التذكير التالي لكل فاتورة متأخرة.",
+  creditRefused: (e) => (e.error === "credit-hold"
+    ? "هذا العميل موقوف ائتمانيا. هل تصدرونها رغم ذلك؟ يسجل اسمكم على الفاتورة."
+    : `هذه الفاتورة ترفع مديونية العميل الى ${e.after} مقابل حد ${e.limit} (المستحق حاليا ${e.owed}). هل تصدرونها رغم ذلك؟ يسجل اسمكم على الفاتورة.`),
   tabExpenses: "المصروفات",
   tabReconcile: "التسوية",
   taxTitle: "الضرائب",

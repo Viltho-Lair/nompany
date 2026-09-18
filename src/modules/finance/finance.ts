@@ -15,6 +15,7 @@
 // plus expenses booked here. Nothing is copied into Finance and left to rot —
 // it is recomputed on every read.
 
+import { readDunningDays } from "./credit";
 import { requirePermission, ALL_PERMISSIONS } from "@/platform/access";
 import { seriesSetting } from "@/modules/administration/numbering";
 import { addDaysISO } from "@/shared/dates";
@@ -222,6 +223,11 @@ export async function saveFinanceSettings(ctx: FinanceContext, body: Record<stri
     next.paymentHold = cleanHold(body.paymentHold);
   }
 
+  // THE DUNNING LEVELS (./credit): whole days after the due date, ascending.
+  // Cleaned rather than refused — an empty or garbled list falls back to the
+  // defaults, which is always a working answer.
+  if (body?.dunningDays !== undefined) next.dunningDays = readDunningDays(body.dunningDays);
+
   // APPROVAL CHAINS ARE NOT EDITED HERE ANY MORE — Studio settings → Approvals
   // is their one door (platform/approval/store, STUDIO_EDITABLE_CHAINS). This
   // route accepted every type, replaced the whole blob on each save and was the
@@ -240,6 +246,7 @@ export async function saveFinanceSettings(ctx: FinanceContext, body: Record<stri
       approvalChains: readApprovalChains({ settings: next }),
       withholdingRules: readWithholdingRules({ settings: next }),
       paymentHold: readHold({ settings: next }),
+      dunningDays: readDunningDays(next.dunningDays),
     }
     : { error: "notfound" };
 }
@@ -487,6 +494,22 @@ export async function editInvoice(ctx: FinanceContext, id: string, body: Record<
   if (body?.dueDate !== undefined) patch.dueDate = day(body.dueDate);
   if (body?.issueDate !== undefined) patch.issueDate = day(body.issueDate);
   if (body?.notes !== undefined) patch.notes = str(body.notes, 2000);
+
+  // THE CUSTOMER'S CREDIT, CHECKED AT ISSUE — the moment the studio extends it
+  // (./credit). Over the limit or on hold is refused unless the person issuing
+  // says they mean it, and then their name goes on the invoice. Imported late:
+  // the credit service reads the invoice list from this file.
+  if (patch.status === "Sent" && current.status === "Draft") {
+    const { creditCheck } = await import("./creditService");
+    const problem = await creditCheck(ctx, { ...current, ...patch } as Invoice);
+    if (problem) {
+      if (body?.overrideCredit !== true) return problem;
+      patch.creditOverride = {
+        byCollaboratorId: ctx.collaborator.id, at: new Date().toISOString(), reason: problem.error,
+        ...("limit" in problem ? { limit: problem.limit, after: problem.after } : {}),
+      };
+    }
+  }
 
   const updated = await Invoices.update({ studio, section: cashSection }, id, patch);
   if (!updated) return { error: "notfound" };

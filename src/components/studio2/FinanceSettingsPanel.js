@@ -27,12 +27,14 @@ import { Field } from "@/components/fields/Field";
 // `withholdingProblems` is the authority and returns SENTENCES, so the refusal
 // a studio reads is the server's own words about their own edit rather than a
 // second copy of the rules here, free to disagree with the first.
-export default function FinanceSettingsPanel({ categories = [], rules = [], hold = null, canManage, locale = "en", onSave }) {
+export default function FinanceSettingsPanel({ categories = [], rules = [], hold = null, dunning = [], canManage, locale = "en", onSave }) {
   const tr = financeDict(locale);
   const [cats, setCats] = useState(() => [...categories]);
   const [rows, setRows] = useState(() => rules.map((r) => ({ ...r })));
   // THE PAYMENT HOLD, as the server stored it — off until somebody says otherwise.
   const [holdDraft, setHoldDraft] = useState(() => ({ mode: hold?.mode || "off", tolerancePct: hold?.tolerancePct ?? 0, toleranceAmount: hold?.toleranceAmount ?? 0 }));
+  // DUNNING LEVELS as typed: whole days after the due date, comma-separated.
+  const [dunningText, setDunningText] = useState(() => dunning.join(", "));
   const [adding, setAdding] = useState("");
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState("");
@@ -65,9 +67,12 @@ export default function FinanceSettingsPanel({ categories = [], rules = [], hold
   async function save() {
     setBusy(true);
     setProblem("");
-    const res = await onSave({ cashCategories: cats, withholdingRules: rows, paymentHold: holdDraft });
+    const dunningDays = dunningText.split(/[,s]+/).filter(Boolean).map(Number);
+    const res = await onSave({ cashCategories: cats, withholdingRules: rows, paymentHold: holdDraft, dunningDays });
     setBusy(false);
     if (res?.error) { setProblem(res.detail || res.error); return; }
+    // THE SERVER'S CLEANED LIST is shown, not what was typed.
+    if (Array.isArray(res?.dunningDays)) setDunningText(res.dunningDays.join(", "));
     setSaved(true);
   }
 
@@ -107,6 +112,13 @@ export default function FinanceSettingsPanel({ categories = [], rules = [], hold
               onClick={addCategory} disabled={!adding.trim()}>{tr.add}</button>
           </div>
         )}
+      </section>
+
+      <section className="space-y-3">
+        <h3 className="font-display text-sm font-700 text-slate-900 dark:text-white">{tr.dunningLevels}</h3>
+        <p className="max-w-2xl text-[13px] text-slate-500 dark:text-slate-400">{tr.dunningLevelsLead}</p>
+        <input className={`w-52 ${input}`} value={dunningText} disabled={!canManage} aria-label={tr.dunningLevels}
+          placeholder="1, 15, 30" onChange={(e) => { setDunningText(e.target.value); touched(); }} />
       </section>
 
       <section className="space-y-3">

@@ -122,6 +122,17 @@ export const InvoiceSchema = z.object({
    * only ids that are that project's own claims.
    */
   claimId: z.string().max(60).optional(),
+  /**
+   * WHO ISSUED THIS PAST THE CUSTOMER'S CREDIT LIMIT OR HOLD, and what it was
+   * (./credit). Absent on every invoice issued within its limit.
+   */
+  creditOverride: z.object({
+    byCollaboratorId: z.string(),
+    at: z.string(),
+    reason: z.string(),
+    limit: z.number().optional(),
+    after: z.number().optional(),
+  }).optional(),
   clientName: z.string().max(160),
   lines: z.array(InvoiceLineSchema),
   vatRate: z.number().min(0).max(100),

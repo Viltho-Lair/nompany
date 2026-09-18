@@ -355,8 +355,9 @@ requisitions, orders, supplier RFQs, expediting, subcontracts, receiving and sup
 - **FINANCE IS EIGHT SUB-SECTIONS since 18/09/2026** (the owner's Finance plan, step 3): General
   Ledger, Receivables, Payables & Expenses, Cash & Bank, Fixed assets, Tax, Reports, Settings.
   **No row moved**: invoices, credit notes and expenses stay filed under `finance-cash` (which
-  kept its key and became Cash & Bank) and the journal under `finance-ledger`; Receivables, Tax
-  and Reports own nothing and read through those. **Rights split with the screens** — the owner
+  kept its key and became Cash & Bank) and the journal under `finance-ledger`; Reports owns
+  nothing, and Receivables and Tax own only what was NEW after the split (credit limits and
+  reminders; tax returns and zakat worksheets) and read the documents through Cash. **Rights split with the screens** — the owner
   chose a right per sub-section: `finance.receivables` (invoices, credit notes, receipts, a
   project's PO number), `finance.expenses`, `finance.tax` (view) and `finance.reports` (view)
   are new; Payables & Expenses answers to `finance.payables` and `finance.expenses`. **Existing

@@ -44,6 +44,7 @@ const FinanceDashboard = nextDynamic(() => import("@/components/studio2/FinanceD
 // this module switches between, and only one of them is open at a time.
 const StudioLedger = nextDynamic(() => import("@/components/studio2/StudioLedger"));
 const TreasuryPanel = nextDynamic(() => import("@/components/studio2/TreasuryPanel"));
+const CreditPanel = nextDynamic(() => import("@/components/studio2/CreditPanel"));
 // Cash & Bank's and Tax's panels, lazily for the reason the others are.
 const ReconciliationPanel = nextDynamic(() => import("@/components/studio2/ReconciliationPanel"));
 const TaxReturnPanel = nextDynamic(() => import("@/components/studio2/TaxReturnPanel"));
@@ -126,6 +127,7 @@ export default function StudioFinance({ slug, view = "finance" }) {
   if (view === "finance-cash") return <CashAndBank slug={slug} />;
   if (view === "finance-tax") return <FinanceTax slug={slug} />;
   if (view === "finance-reports") return <FinanceReports slug={slug} />;
+  if (view === "finance-receivables") return <Receivables slug={slug} />;
   return <FinanceCash slug={slug} view={view} />;
 }
 
@@ -154,6 +156,10 @@ function CashAndBank({ slug }) {
   return (
     <div className="space-y-6">
       <TabBar tabs={[["treasury", treasuryDict(locale).tab], ["reconcile", tr.tabReconcile]]} tab={tab} setTab={setTab} />
+      {/* THE TREASURY TAB RENDERED NOTHING from the split (f0b64c1c) until
+          18/09/2026: the bar offered it and no branch drew it, so Cash & Bank
+          opened on an empty page. */}
+      {tab === "treasury" && <TreasuryPanel slug={slug} locale={locale} />}
       {tab === "reconcile" && <ReconciliationPanel slug={slug} locale={locale} />}
     </div>
   );
@@ -251,6 +257,21 @@ function FinanceReports({ slug }) {
   );
 }
 
+// RECEIVABLES — the invoices and credit notes (FinanceCash), and beside them
+// what each customer owes against its credit limit and who is due a reminder.
+function Receivables({ slug }) {
+  const locale = useStudioLocale();
+  const tr = financeDict(locale);
+  const [tab, setTab] = useState("documents");
+  return (
+    <div className="space-y-6">
+      <TabBar tabs={[["documents", tr.tabInvoices], ["credit", tr.tabCredit], ["dunning", tr.tabDunning]]} tab={tab} setTab={setTab} />
+      {tab === "documents" && <FinanceCash slug={slug} view="finance-receivables" />}
+      {tab !== "documents" && <CreditPanel slug={slug} locale={locale} tab={tab} />}
+    </div>
+  );
+}
+
 // PAYABLES & EXPENSES — bills and the money already spent, two rights on one
 // screen. A reader holding only the expenses right is refused the bills and
 // lands on Expenses rather than on the refusal.
@@ -308,6 +329,7 @@ function FinanceSettings({ slug }) {
       categories={data.cashCategories || []}
       rules={data.withholdingRules || []}
       hold={data.paymentHold || null}
+      dunning={data.dunningDays || []}
       canManage={Boolean(data.canManage)}
       locale={locale}
       onSave={save}
@@ -345,10 +367,19 @@ function FinanceCash({ slug, view = "finance", only = ["invoices", "credit-notes
 
   const send = useCallback(async (kind, method, payload) => {
     setError(""); setBusy(true);
-    const res = await fetch(`/api/studios/${slug}/finance/${kind}`, {
-      method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
-    });
-    const out = await res.json().catch(() => ({}));
+    const ask = async (body) => {
+      const r = await fetch(`/api/studios/${slug}/finance/${kind}`, {
+        method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+      });
+      return [r, await r.json().catch(() => ({}))];
+    };
+    let [res, out] = await ask(payload);
+    // OVER THE CUSTOMER'S CREDIT: the server refused and says by how much; the
+    // issuer may insist, and their name goes on the invoice.
+    if (!res.ok && (out.error === "credit-limit" || out.error === "credit-hold")
+      && window.confirm(tr.creditRefused(out))) {
+      [res, out] = await ask({ ...payload, overrideCredit: true });
+    }
     setBusy(false);
     if (!res.ok) { setError(message(out, tr)); return false; }
     await load();

@@ -1,5 +1,7 @@
 import { route, refused } from "@/platform/http/route";
 import { financeContext, saveFinanceSettings } from "@/modules/finance/finance";
+import { requirePermission } from "@/platform/access";
+import { dunningDaysFor } from "@/modules/finance/creditService";
 import type { FinanceContext } from "@/modules/finance/types";
 
 export const runtime = "nodejs";
@@ -23,8 +25,14 @@ const spec = { auth: "studio", context: financeContext, body: true, name: "finan
 
 export const GET = route({ ...spec, body: false }, async (c) => {
   const ctx = c as FinanceContext;
+  // THE READ ASKS FOR ITS RIGHT. It checked none, so any member could read the
+  // withholding rules and the payment-hold tolerances of a Finance they could
+  // not open.
+  const denied = requirePermission(ctx.access, "finance.settings.view");
+  if (denied) return denied;
   return {
     ok: true,
+    dunningDays: dunningDaysFor(ctx),
     cashCategories: ctx.cashCategories,
     withholdingRules: ctx.withholdingRules,
     paymentHold: ctx.paymentHold,
