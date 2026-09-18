@@ -103,6 +103,28 @@ const en = {
   pinNotSetSign: "This studio asks for a PIN on every signature, and you have none yet. Set one on your account's Security page.",
   signingPinTitle: "PIN on every signature",
   signingPinBody: "Ask every signer for their personal PIN before an approval is signed. Off, only people who have set a PIN are asked.",
+
+  // ---- two-factor sign-in -----------------------------------------------------
+  twoFactorTitle: "Two-factor sign-in",
+  twoFactorBlurb: "With an authenticator app, a device you haven't trusted asks for a code from your phone instead of your email.",
+  twoFactorOn: (left: number) => `On · ${left} recovery code${left === 1 ? "" : "s"} left`,
+  twoFactorOff: "Off",
+  turnOn: "Turn on",
+  turnOff: "Turn off",
+  scanQr: "Scan this with an authenticator app (Google Authenticator, Microsoft Authenticator, 1Password…), then type the 6-digit code it shows.",
+  secretKey: "Or type this key",
+  appCode: "Code from the app",
+  recoveryTitle: "Your recovery codes",
+  recoveryBody: "Each code signs you in once if you lose your phone. Keep them somewhere safe — they will not be shown again.",
+  savedThem: "I've saved them",
+  codeWrong: "That code isn't right.",
+  disableAsk: "Type a code from the app, or a recovery code, to turn two-factor off.",
+  twoFactorStepTitle: "Enter the code from your authenticator app",
+  twoFactorStepBody: "Or type one of your recovery codes.",
+  codeAttemptsLeft: (n: number) => `That code isn't right. ${n} tr${n === 1 ? "y" : "ies"} left.`,
+  codeLockedStart: "Too many wrong codes. Sign in again.",
+  trustDevice: "Trust this device for 30 days",
+  verify: "Verify",
 };
 
 const ar: typeof en = {
@@ -191,6 +213,27 @@ const ar: typeof en = {
   pinNotSetSign: "يطلب هذا الاستوديو رمزا شخصيا مع كل توقيع، وليس لديك رمز بعد. عيّنه في صفحة الأمان في حسابك.",
   signingPinTitle: "الرمز الشخصي مع كل توقيع",
   signingPinBody: "اطلب من كل موقّع رمزه الشخصي قبل توقيع أي موافقة. عند الإيقاف، يُطلب الرمز فقط ممن عيّنوا رمزا.",
+
+  twoFactorTitle: "التحقق بخطوتين",
+  twoFactorBlurb: "مع تطبيق مصادقة، يطلب الجهاز الذي لم تثق به رمزا من هاتفك بدلا من بريدك الإلكتروني.",
+  twoFactorOn: (left: number) => `مفعّل · تبقى ${left} من رموز الاسترداد`,
+  twoFactorOff: "غير مفعّل",
+  turnOn: "تفعيل",
+  turnOff: "إيقاف",
+  scanQr: "امسح هذا بتطبيق مصادقة (Google Authenticator أو Microsoft Authenticator أو 1Password…)، ثم اكتب الرمز المكوّن من 6 أرقام الذي يظهر.",
+  secretKey: "أو اكتب هذا المفتاح",
+  appCode: "الرمز من التطبيق",
+  recoveryTitle: "رموز الاسترداد",
+  recoveryBody: "كل رمز يسجّل دخولك مرة واحدة إذا فقدت هاتفك. احفظها في مكان آمن — لن تظهر مرة أخرى.",
+  savedThem: "حفظتها",
+  codeWrong: "هذا الرمز غير صحيح.",
+  disableAsk: "اكتب رمزا من التطبيق أو رمز استرداد لإيقاف التحقق بخطوتين.",
+  twoFactorStepTitle: "أدخل الرمز من تطبيق المصادقة",
+  twoFactorStepBody: "أو اكتب أحد رموز الاسترداد.",
+  codeAttemptsLeft: (n: number) => `هذا الرمز غير صحيح. تبقى ${n} محاولات.`,
+  codeLockedStart: "رموز خاطئة كثيرة. سجّل الدخول مرة أخرى.",
+  trustDevice: "الوثوق بهذا الجهاز لمدة 30 يوما",
+  verify: "تحقق",
 };
 
 const dict = { en, ar } as const;

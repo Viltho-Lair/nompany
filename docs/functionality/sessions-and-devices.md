@@ -168,5 +168,34 @@ no idle timeout, and is not counted in the session limit.
 The same PIN is asked before an approval is signed — `docs/functionality/approvals.md`, "The
 signer's PIN".
 
+## Two-factor sign-in with an authenticator app
+
+A person can switch on an authenticator app on the Security page (`platform/auth/twoFactor.ts`,
+`/api/identity/two-factor`). **It replaces the emailed code on a device the account has not
+trusted**: after the password, the sign-in pauses on a ticket (`stage: "totp"`) and asks for
+the app's six digits or one of ten recovery codes. A Google or Microsoft sign-in is asked the
+same on an untrusted device — the provider proving the address is the first factor, not the
+second. Five wrong codes spend the ticket and the person starts again from the password.
+After the code, the session limit still applies, and may ask which session to end next.
+
+It is the console's machinery (`superMfa.ts`), not a second copy: TOTP, the secret sealed at
+rest, recovery codes stored as digests and consumed in the same write that accepts one.
+**Switching it on is three steps** — the server hands out a secret and a QR (drawn on the
+server as SVG; a QR of the secret must never go to a third party) and stores nothing; the
+person sends back a code the app produced, **with their password**; only then is it stored and
+the recovery codes shown, once. Switching it off needs a current code or a recovery code.
+
+For sharing, this is what makes a new device need the owner's **phone**, not an inbox that can
+be forwarded to a team.
+
 ## Not built yet
-- Two-factor sign-in with an authenticator app, and passkeys.
+
+- **Passkeys (WebAuthn).** Next after the authenticator app in the owner's order; not built.
+  Verifying WebAuthn attestations and assertions by hand is not something to write without a
+  maintained library, and adding one is its own decision.
+- **Two-factor for the desktop client.** The login answer carries `totpRequired` and the
+  ticket id, and the desktop app has no screen for the code yet.
+- **A support reset for a lost phone with no recovery codes left.** The person cannot sign in
+  on a new device; nothing in `/super` can switch their two-factor off yet.
+- **The session limit is checked at sign-in only.** Two sign-ins at the same instant can both
+  pass and leave one session over the limit until the next sign-in.

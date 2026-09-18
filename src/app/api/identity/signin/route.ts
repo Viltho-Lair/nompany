@@ -1,8 +1,8 @@
 import { cookies } from "next/headers";
 import { route, refused } from "@/platform/http/route";
 import {
-  pendingSignIn, chooseSessionToEnd, sessionCookie, clearedPendingCookie, requestIsHttps,
-  publicUser, PENDING_COOKIE, isDesktopClient, pendingCookie,
+  pendingSignIn, chooseSessionToEnd, completeTwoFactor, sessionCookie, clearedPendingCookie, requestIsHttps,
+  publicUser, PENDING_COOKIE, isDesktopClient, pendingCookie, deviceCookie,
 } from "@/platform/auth/identity";
 
 export const runtime = "nodejs";
@@ -26,16 +26,27 @@ export const GET = route(spec, async () => {
   return { ok: true, ...result };
 });
 
-export const POST = route({ ...spec, body: true }, async ({ request, body }) => {
-  const result = await chooseSessionToEnd(await ticket(), body.sessionId, { desktop: isDesktopClient(request) });
+// Two ways to finish: `code` answers the authenticator, `sessionId` names the
+// session to end. Finishing the first can lead straight into the second.
+export const POST = route({ ...spec, body: true, status: { invalid: 401, locked: 429 } }, async ({ request, body }) => {
+  const desktop = isDesktopClient(request);
+  const result = body.code !== undefined
+    ? await completeTwoFactor(await ticket(), body.code, { trustThisDevice: Boolean(body.trustThisDevice), desktop })
+    : await chooseSessionToEnd(await ticket(), body.sessionId, { desktop });
   if (refused(result)) return result;
+  const recorded = "deviceId" in result ? String(result.deviceId || "") : "";
   // Still over the limit — somebody signed in again meanwhile. Ask again.
   if (result.chooseSession) {
     const res = Response.json({ ok: true, chooseSession: true, sessions: result.sessions });
     res.headers.append("Set-Cookie", pendingCookie(result.ticketId, requestIsHttps(request)));
+    if (recorded) res.headers.append("Set-Cookie", deviceCookie(recorded, requestIsHttps(request)));
     return res;
   }
-  const res = Response.json({ ok: true, user: publicUser(result.user) });
+  const res = Response.json({
+    ok: true, user: publicUser(result.user),
+    trustRefused: "trustRefused" in result ? Boolean(result.trustRefused) : false,
+  });
+  if (recorded) res.headers.append("Set-Cookie", deviceCookie(recorded, requestIsHttps(request)));
   res.headers.append("Set-Cookie", sessionCookie(result.token, result.ttl, requestIsHttps(request)));
   res.headers.append("Set-Cookie", clearedPendingCookie());
   return res;

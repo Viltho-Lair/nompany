@@ -52,11 +52,12 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
   // OVER THE SESSION LIMIT, the sign-in page asks which session to end — a
   // redirect cannot carry the question, so the page reads it back from the
   // paused sign-in the cookie names.
-  const choosing = Boolean(result.chooseSession);
-  const res = Response.redirect(new URL(choosing ? "/en/login?continue=1" : "/en/questionnaire", url.origin), 302);
+  // AND THE SAME FOR AN AUTHENTICATOR CODE that is owed (twoFactor.ts).
+  const paused = result.chooseSession || result.totpRequired ? result.ticketId : "";
+  const res = Response.redirect(new URL(paused ? "/en/login?continue=1" : "/en/questionnaire", url.origin), 302);
   const out = new Response(res.body, res);
-  if (result.chooseSession) out.headers.append("Set-Cookie", pendingCookie(result.ticketId, requestIsHttps(request)));
-  else out.headers.append("Set-Cookie", sessionCookie(result.token, result.ttl, requestIsHttps(request)));
+  if (paused) out.headers.append("Set-Cookie", pendingCookie(paused, requestIsHttps(request)));
+  else if (result.token) out.headers.append("Set-Cookie", sessionCookie(result.token, result.ttl, requestIsHttps(request)));
   // AND THE DEVICE COOKIE, or the id is never handed back and this browser
   // appears as a brand new device on every single sign-in — a Security page
   // that grows a row per visit is no more useful than one that stays empty.

@@ -10,6 +10,7 @@ import { useDeviceHints } from "@/components/public/deviceHints";
 import SessionChooser from "@/components/public/SessionChooser";
 import { LockCover } from "@/components/security/SessionLock";
 import TillCashierSwitch from "@/components/security/TillCashierSwitch";
+import TwoFactorStep from "@/components/public/TwoFactorStep";
 import { securityDict, endedMessage } from "@/shared/security";
 // The landing's floating-label field — label lifts on focus, an iris→cyan
 // hairline draws under the active field, a mint tick confirms a valid one. It
@@ -84,7 +85,7 @@ export default function LoginForm({ locale, dict, providers = [] }) {
   useDeviceHints();
   const [form, setForm] = useState({ email: "", password: "", remember: true });
   const sec = securityDict(useAccountLocale());
-  const [stage, setStage] = useState("credentials"); // credentials | otp | choose | trust-full
+  const [stage, setStage] = useState("credentials"); // credentials | otp | totp | choose | trust-full
   const [sessions, setSessions] = useState([]);
   // A PAIRED TILL (18/09/2026): this device is a till, so the cashier's name
   // and PIN come first and the email sign-in is one click away.
@@ -127,7 +128,11 @@ export default function LoginForm({ locale, dict, providers = [] }) {
     if (new URLSearchParams(window.location.search).get("continue") === "1") {
       fetch("/api/identity/signin", { cache: "no-store" })
         .then((r) => r.json())
-        .then((d) => { if (alive && d?.ok && d.sessions?.length) { setSessions(d.sessions); setStage("choose"); } })
+        .then((d) => {
+          if (!alive || !d?.ok) return;
+          if (d.stage === "totp") setStage("totp");
+          else if (d.sessions?.length) { setSessions(d.sessions); setStage("choose"); }
+        })
         .catch(() => {});
     }
     return () => { alive = false; };
@@ -174,6 +179,12 @@ export default function LoginForm({ locale, dict, providers = [] }) {
         setLoading(false);
         return;
       }
+      // An authenticator is switched on: its code replaces the emailed one.
+      if (data.totpRequired) {
+        setStage("totp");
+        setLoading(false);
+        return;
+      }
       if (data.otpRequired) {
         if (data.emailSent === false) setNotice(tr.couldnSendCodeEmail);
         setStage("otp");
@@ -209,6 +220,21 @@ export default function LoginForm({ locale, dict, providers = [] }) {
         <button type="button" className="landing-submit w-auto" onClick={() => window.location.assign(`/${locale}/questionnaire`)}>
           {sec.continueLabel}
         </button>
+      </div>
+    );
+  }
+
+  if (stage === "totp") {
+    return (
+      <div key="totp" className="auth-panel space-y-4">
+        <TwoFactorStep
+          onDone={(data) => {
+            if (data?.chooseSession) { setSessions(data.sessions || []); setStage("choose"); return; }
+            if (data?.trustRefused) { setStage("trust-full"); return; }
+            window.location.assign(`/${locale}/questionnaire`);
+          }}
+          onRestart={() => { setStage("credentials"); setLoading(false); }}
+        />
       </div>
     );
   }

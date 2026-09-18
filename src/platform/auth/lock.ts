@@ -44,7 +44,7 @@ export type UserSecurity = {
 
 export const getSecurity = (userId: string) => getJSON<UserSecurity>(U.security(userId));
 
-async function patchSecurity(userId: string, fn: (cur: UserSecurity) => UserSecurity) {
+export async function patchSecurity(userId: string, fn: (cur: UserSecurity) => UserSecurity) {
   return editJSON<UserSecurity, UserSecurity>(U.security(userId), (cur) => {
     const next = fn(cur || {});
     return { next, result: next };

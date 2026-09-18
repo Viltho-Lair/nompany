@@ -60,6 +60,14 @@ export async function POST(request: Request) {
     return res;
   }
 
+  // THE AUTHENTICATOR IS OWED (twoFactor.ts): the code comes next, on the
+  // paused sign-in the cookie names.
+  if (result.totpRequired) {
+    const res = Response.json({ ok: true, otpRequired: false, totpRequired: true, ...(desktop ? { ticketId: result.ticketId } : {}) });
+    res.headers.append("Set-Cookie", pendingCookie(result.ticketId, requestIsHttps(request)));
+    return res;
+  }
+
   // OVER THE SESSION LIMIT: the person chooses which session to end
   // (openSession). The ticket rides in a cookie like the code challenge does.
   if (result.chooseSession) {

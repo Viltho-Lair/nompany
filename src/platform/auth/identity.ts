@@ -21,6 +21,7 @@ import {
 } from "./users";
 import type { SessionState } from "./users";
 import { planSignIn, publicSession, isLocked, type PublicSession } from "./sessionPolicy";
+import { twoFactorEnabled, passTwoFactor } from "./twoFactor";
 import { OTP, ID, IX } from "@/platform/db/keys";
 import { getJSON, setJSONEx, getJSONMany, release } from "@/platform/db/store";
 import type { User, Questionnaire } from "./users";
@@ -286,7 +287,11 @@ export async function resendOtp({ challengeId, ip }: { challengeId: string; ip?:
 export async function signInWithProvider(
   { email, fullName, provider, deviceId, device }:
   { email?: string; fullName?: string; provider?: string; deviceId?: string; device?: DeviceFacts },
-): Promise<{ error: string } | ({ user: User; deviceId: string; error?: undefined } & OpenOutcome)> {
+): Promise<
+  | { error: string }
+  | ({ user: User; deviceId: string; error?: undefined; totpRequired?: undefined } & OpenOutcome)
+  | { user: User; deviceId: string; error?: undefined; totpRequired: true; ticketId: string; chooseSession?: undefined; token?: undefined }
+> {
   const mail = norm(email);
   if (!EMAIL_RE.test(mail)) return { error: "email" };
 
@@ -311,6 +316,17 @@ export async function signInWithProvider(
   // Provider-verified: stamp verification if it isn't already set.
   const v = (await getVerification(user.id)) || {};
   if (!v.emailVerifiedAt) await updateVerification(user.id, { emailVerifiedAt: new Date().toISOString() });
+
+  // AN AUTHENTICATOR BEATS THE PROVIDER on a device this account has not
+  // trusted (18/09/2026): Google proving the address is the first factor, not
+  // the second, so a person who switched two-factor on is asked for it here
+  // exactly as after a password.
+  if (!(await isTrustedDevice(user.id, deviceId || "", device || null)) && (await twoFactorEnabled(user.id))) {
+    const ticketId = await pauseSignIn({
+      userId: user.id, ttl: REMEMBER_TTL, deviceId: deviceId || "", device: device || {}, stage: "totp", trustProvider: true,
+    });
+    return { user, deviceId: deviceId || "", totpRequired: true as const, ticketId };
+  }
 
   // RECORD THE BROWSER, exactly as the OTP path does.
   //
@@ -352,9 +368,12 @@ export type LoginResult =
   | { error?: undefined; otpRequired: true; challengeId: string; emailSent: boolean;
       user?: undefined; token?: undefined; ttl?: undefined }
   | { error?: undefined; otpRequired?: undefined; user: User; token: string; ttl: number;
-      challengeId?: undefined; emailSent?: undefined; chooseSession?: undefined }
+      challengeId?: undefined; emailSent?: undefined; chooseSession?: undefined; totpRequired?: undefined }
   | { error?: undefined; otpRequired?: undefined; user: User; chooseSession: true; ticketId: string;
-      sessions: PublicSession[]; token?: undefined; ttl?: undefined; challengeId?: undefined; emailSent?: undefined };
+      sessions: PublicSession[]; token?: undefined; ttl?: undefined; challengeId?: undefined; emailSent?: undefined;
+      totpRequired?: undefined }
+  | { error?: undefined; otpRequired?: undefined; user: User; totpRequired: true; ticketId: string;
+      chooseSession?: undefined; token?: undefined; ttl?: undefined; challengeId?: undefined; emailSent?: undefined };
 
 export async function login(
   { email, password, remember, deviceId, ip, device, desktop }:
@@ -430,6 +449,15 @@ export async function login(
     return { user, ...opened };
   }
 
+  // AN AUTHENTICATOR REPLACES THE EMAILED CODE on a device this account has not
+  // trusted, when the person has switched one on (18/09/2026, twoFactor.ts).
+  if (await twoFactorEnabled(user.id)) {
+    const ticketId = await pauseSignIn({
+      userId: user.id, ttl: remember ? REMEMBER_TTL : SESSION_TTL, deviceId: deviceId || "", device: device || {}, stage: "totp",
+    });
+    return { user, totpRequired: true, ticketId };
+  }
+
   const challenge = await createChallenge({ purpose: "login", email: user.email, userId: user.id, ip });
   if (challenge.error) return { error: challenge.error };
   const profile = await getProfile(user.id);
@@ -484,9 +512,53 @@ type PendingSignIn = {
   ttl: number;
   deviceId: string;
   device: DeviceFacts;
-  stage: "choose";
+  /** choose — which session to end; totp — the authenticator code is owed. */
+  stage: "choose" | "totp";
   createdAt: number;
+  /** Wrong authenticator codes on this ticket. */
+  fails?: number;
+  /** A provider sign-in: its device is trusted once the code is right, as it always was. */
+  trustProvider?: boolean;
 };
+
+async function pauseSignIn(t: Omit<PendingSignIn, "createdAt">): Promise<string> {
+  const ticketId = ID.signinTicket();
+  await setJSONEx(OTP.pending(ticketId), { ...t, createdAt: Date.now() } satisfies PendingSignIn, CODE_TTL_SEC);
+  return ticketId;
+}
+
+/**
+ * FINISH A SIGN-IN PAUSED FOR THE AUTHENTICATOR: the app's code, or one of the
+ * recovery codes. Five wrong on one ticket spend it — start again from the
+ * password — so the six digits cannot be guessed at through one ticket.
+ */
+export async function completeTwoFactor(
+  ticketId: string, code: unknown, { trustThisDevice = false, desktop = false } = {},
+) {
+  const t = ticketId ? await getJSON<PendingSignIn>(OTP.pending(ticketId)) : null;
+  if (!t || t.stage !== "totp") return { error: "expired" as const };
+  const user = await getUserById(t.userId);
+  if (!user) return { error: "notfound" as const };
+  if (user.status === "suspended") return { error: "suspended" as const };
+
+  if (!(await passTwoFactor(t.userId, code))) {
+    const fails = (Number(t.fails) || 0) + 1;
+    if (fails >= MAX_ATTEMPTS) {
+      await release(OTP.pending(ticketId));
+      return { error: "locked" as const };
+    }
+    const left = Math.max(60, Math.floor((t.createdAt + CODE_TTL_SEC * 1000 - Date.now()) / 1000));
+    await setJSONEx(OTP.pending(ticketId), { ...t, fails } satisfies PendingSignIn, left);
+    return { error: "invalid" as const, attemptsLeft: MAX_ATTEMPTS - fails };
+  }
+
+  await release(OTP.pending(ticketId));
+  const recorded = await recordDevice(t.userId, t.deviceId, t.device || {}, {
+    trusted: Boolean(trustThisDevice) || Boolean(t.trustProvider),
+  });
+  const opened = await openSession({ userId: t.userId, ttl: t.ttl, deviceId: recorded.id, device: t.device, desktop });
+  return { user, deviceId: recorded.id, trustRefused: Boolean(trustThisDevice) && recorded.trustRefused, ...opened };
+}
 
 // WHY A SESSION ENDED, as the browser that lost it will be told.
 export const ENDED_ELSEWHERE = "signed-in-elsewhere";
@@ -503,11 +575,7 @@ export async function openSession(
   if (ending.length) await endForSignIn(userId, ending, facts);
 
   if (plan.choose.length && !desktop) {
-    const ticketId = ID.signinTicket();
-    const pending: PendingSignIn = {
-      userId, ttl, deviceId: deviceId || "", device: facts, stage: "choose", createdAt: Date.now(),
-    };
-    await setJSONEx(OTP.pending(ticketId), pending, CODE_TTL_SEC);
+    const ticketId = await pauseSignIn({ userId, ttl, deviceId: deviceId || "", device: facts, stage: "choose" });
     return { chooseSession: true, ticketId, sessions: plan.choose.map((r) => publicSession(r, hashToken)) };
   }
 
@@ -535,6 +603,7 @@ async function endForSignIn(userId: string, ids: string[], facts: DeviceFacts) {
 export async function pendingSignIn(ticketId: string) {
   const t = ticketId ? await getJSON<PendingSignIn>(OTP.pending(ticketId)) : null;
   if (!t) return { error: "expired" as const };
+  if (t.stage === "totp") return { stage: t.stage, sessions: [] as PublicSession[] };
   const plan = planSignIn(await listSessionRows(t.userId), deviceSlot(t.device?.deviceType), Date.now());
   return {
     stage: t.stage,
