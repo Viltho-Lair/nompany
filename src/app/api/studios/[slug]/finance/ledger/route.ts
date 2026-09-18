@@ -80,18 +80,18 @@ export const GET = route({ ...spec, body: false }, async (f) => {
     trialBalance: trialBalanceFrom(chart, entries, f.studio.currency),
     // THE P&L IS CUT WHEN A DIMENSION WAS ASKED FOR, and is the whole book
     // otherwise — one function, so the two answers cannot drift apart.
-    profitAndLoss: profitAndLoss(entries, chart, { from, to, dimension, value }),
+    profitAndLoss: profitAndLoss(entries, chart, { from, to, dimension, value, currency: f.studio.currency }),
     // THE BALANCE SHEET IS NEVER CUT, and that is a decision rather than an
     // omission. A balance sheet is a statement about the WHOLE entity: assets
     // equal liabilities plus equity because every posting is in it. Filter it to
     // one deal and the identity breaks — the deal's receivable is there, the
     // bank account that will collect it is not — so it would report itself
     // unbalanced and be right to.
-    balanceSheet: balanceSheet(entries, chart, asOf),
+    balanceSheet: balanceSheet(entries, chart, asOf, f.studio.currency),
     // WHAT EACH VALUE OF THE ASKED DIMENSION EARNED, so a reader can see the
     // deals beside each other rather than querying them one at a time. Absent
     // when no dimension was asked for: a breakdown by nothing is not a shape.
-    breakdown: dimension ? byDimension(entries, chart, dimension, { from, to }) : null,
+    breakdown: dimension ? byDimension(entries, chart, dimension, { from, to, currency: f.studio.currency }) : null,
     canPost: !requirePermission(f.access, "finance.ledger.post"),
     canReverse: !requirePermission(f.access, "finance.ledger.reverse"),
     // THE TAX RETURN'S TAB IS DRAWN ONLY FOR A STUDIO WITH A VAT RATE — the

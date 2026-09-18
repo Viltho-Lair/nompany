@@ -1,6 +1,7 @@
 // THE STATEMENTS — a profit and loss, and a balance sheet, out of the ledger.
 //
-// PURE, AND NO IMPORTS. The screen renders these and the server computes them,
+// PURE. Its one import is shared/money, the rounding rule, which is itself
+// pure. The screen renders these and the server computes them,
 // and a profit figure the two could disagree about is worse than no profit
 // figure at all. It is also what lets the arithmetic be asserted without a
 // store: every rule below is a line in tests/statements-model.mjs.
@@ -14,6 +15,8 @@
 // reconciles to the ledger", and it still cannot pass — not because the profit
 // is missing now, but because a journal line carries no deal. That is the
 // dimensions work, and it is named in "Not built yet" rather than implied away.
+
+import { toMinor, fromMinor } from "@/shared/money";
 
 export type StatementLine = {
   accountId?: unknown;
@@ -82,11 +85,18 @@ const day = (v: unknown) => {
   return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : "";
 };
 
-// WHOLE CENTS, NEVER FLOATS, the same rule the ledger posts under. A statement
-// that summed floats would stop balancing after enough postings, and "balanced"
-// is the one thing a balance sheet is for.
-const cents = (v: unknown) => Math.round((Number(v) || 0) * 100);
-const money = (c: number) => Math.round(c) / 100;
+// WHOLE MINOR UNITS, NEVER FLOATS, the same rule the ledger posts under. A
+// statement that summed floats would stop balancing after enough postings, and
+// "balanced" is the one thing a balance sheet is for.
+//
+// THE UNIT IS THE STUDIO'S CURRENCY'S, NOT A HUNDRED. This was `* 100`, so a
+// Jordanian, Kuwaiti, Bahraini or Omani studio's ledger kept the third decimal
+// of every posting and its P&L and balance sheet dropped it — 1.235 dinars of
+// revenue read as 1.24, and the two views of one book disagreed by fils. The
+// ledger had been fixed; the statements it feeds had not. With no currency the
+// unit is two places, which is what every caller passing none got before.
+const cents = (v: unknown, currency?: unknown) => toMinor(v, currency);
+const money = (c: number, currency?: unknown) => fromMinor(c, currency);
 
 /**
  * WHICH WAY ROUND AN ACCOUNT READS.
@@ -105,6 +115,7 @@ function netByAccount(
   entries: StatementEntry[],
   keep: (date: string) => boolean,
   keepLine: (line: StatementLine) => boolean = () => true,
+  currency?: unknown,
 ): Map<string, number> {
   const net = new Map<string, number>();
   for (const e of list<StatementEntry>(entries)) {
@@ -117,7 +128,7 @@ function netByAccount(
       const id = text(l?.accountId);
       if (!id) continue;
       if (!keepLine(l)) continue;
-      net.set(id, (net.get(id) || 0) + cents(l?.debit) - cents(l?.credit));
+      net.set(id, (net.get(id) || 0) + cents(l?.debit, currency) - cents(l?.credit, currency));
     }
   }
   return net;
@@ -127,6 +138,7 @@ function rowsFor(
   accounts: StatementAccount[],
   net: Map<string, number>,
   type: string,
+  currency?: unknown,
 ): { rows: StatementRow[]; total: number } {
   const rows: StatementRow[] = [];
   let total = 0;
@@ -142,7 +154,7 @@ function rowsFor(
     // among the fifty that did not.
     if (amount === 0) continue;
     total += amount;
-    rows.push({ accountId: id, code: text(a?.code), name: text(a?.name), amount: money(amount) });
+    rows.push({ accountId: id, code: text(a?.code), name: text(a?.name), amount: money(amount, currency) });
   }
   // By account code, which is the order a chart of accounts is read in and the
   // order every printed statement uses.
@@ -160,8 +172,9 @@ function rowsFor(
 export function profitAndLoss(
   entries: StatementEntry[],
   accounts: StatementAccount[],
-  window: { from?: unknown; to?: unknown; dimension?: Dimension; value?: unknown } = {},
+  window: { from?: unknown; to?: unknown; dimension?: Dimension; value?: unknown; currency?: unknown } = {},
 ): ProfitAndLoss {
+  const currency = window.currency;
   const from = day(window.from);
   const to = day(window.to);
   // CUT BY ONE DIMENSION, OR NOT AT ALL. A line that does not name the value is
@@ -174,19 +187,19 @@ export function profitAndLoss(
     ? (l: StatementLine) => text(l?.[dim]) === want
     : undefined;
   const net = netByAccount(
-    entries, (d) => (!from || d >= from) && (!to || d <= to), keepLine,
+    entries, (d) => (!from || d >= from) && (!to || d <= to), keepLine, currency,
   );
 
-  const income = rowsFor(accounts, net, "income");
-  const expense = rowsFor(accounts, net, "expense");
+  const income = rowsFor(accounts, net, "income", currency);
+  const expense = rowsFor(accounts, net, "expense", currency);
   return {
     from,
     to,
     income: income.rows,
     expense: expense.rows,
-    totalIncome: money(income.total),
-    totalExpense: money(expense.total),
-    profit: money(income.total - expense.total),
+    totalIncome: money(income.total, currency),
+    totalExpense: money(expense.total, currency),
+    profit: money(income.total - expense.total, currency),
   };
 }
 
@@ -208,15 +221,16 @@ export function balanceSheet(
   entries: StatementEntry[],
   accounts: StatementAccount[],
   asOfInput?: unknown,
+  currency?: unknown,
 ): BalanceSheet {
   const asOf = day(asOfInput);
-  const net = netByAccount(entries, (d) => !asOf || d <= asOf);
+  const net = netByAccount(entries, (d) => !asOf || d <= asOf, undefined, currency);
 
-  const asset = rowsFor(accounts, net, "asset");
-  const liability = rowsFor(accounts, net, "liability");
-  const equity = rowsFor(accounts, net, "equity");
-  const income = rowsFor(accounts, net, "income");
-  const expense = rowsFor(accounts, net, "expense");
+  const asset = rowsFor(accounts, net, "asset", currency);
+  const liability = rowsFor(accounts, net, "liability", currency);
+  const equity = rowsFor(accounts, net, "equity", currency);
+  const income = rowsFor(accounts, net, "income", currency);
+  const expense = rowsFor(accounts, net, "expense", currency);
 
   const retained = income.total - expense.total;
   const difference = asset.total - (liability.total + equity.total + retained);
@@ -226,11 +240,11 @@ export function balanceSheet(
     asset: asset.rows,
     liability: liability.rows,
     equity: equity.rows,
-    totalAssets: money(asset.total),
-    totalLiabilities: money(liability.total),
-    totalEquity: money(equity.total),
-    retainedResult: money(retained),
-    difference: money(difference),
+    totalAssets: money(asset.total, currency),
+    totalLiabilities: money(liability.total, currency),
+    totalEquity: money(equity.total, currency),
+    retainedResult: money(retained, currency),
+    difference: money(difference, currency),
     balanced: difference === 0,
   };
 }
@@ -252,7 +266,7 @@ export function byDimension(
   entries: StatementEntry[],
   accounts: StatementAccount[],
   dimension: Dimension,
-  window: { from?: unknown; to?: unknown } = {},
+  window: { from?: unknown; to?: unknown; currency?: unknown } = {},
 ): { value: string; income: number; expense: number; profit: number }[] {
   const seen = new Set<string>();
   for (const e of list<StatementEntry>(entries)) {
@@ -283,16 +297,18 @@ function residueFor(
   entries: StatementEntry[],
   accounts: StatementAccount[],
   dimension: Dimension,
-  window: { from?: unknown; to?: unknown },
+  window: { from?: unknown; to?: unknown; currency?: unknown },
 ) {
+  const currency = window.currency;
   const from = day(window.from);
   const to = day(window.to);
   const net = netByAccount(
     entries,
     (d) => (!from || d >= from) && (!to || d <= to),
     (l) => !text(l?.[dimension]),
+    currency,
   );
-  const income = rowsFor(accounts, net, "income").total;
-  const expense = rowsFor(accounts, net, "expense").total;
-  return { income: money(income), expense: money(expense), profit: money(income - expense) };
+  const income = rowsFor(accounts, net, "income", currency).total;
+  const expense = rowsFor(accounts, net, "expense", currency).total;
+  return { income: money(income, currency), expense: money(expense, currency), profit: money(income - expense, currency) };
 }

@@ -233,5 +233,24 @@ const summed = byDeal.reduce((t, r) => t + r.profit, 0);
 ok("THE BREAKDOWN RECONCILES TO THE WHOLE LEDGER", summed === whole.profit,
   `${summed} vs ${whole.profit}`);
 
+console.log("\n== a three-decimal currency ==\n");
+
+// THE STATEMENTS DROPPED THE THIRD DECIMAL. They rounded at `* 100` while the
+// ledger kept the studio's own unit, so a dinar studio's P&L read 1.24 for
+// revenue of 1.235 and disagreed with its own trial balance by fils.
+const dinar = [
+  { date: "2031-03-01", lines: [
+    { accountId: "a_recv", debit: 1.235, credit: 0 },
+    { accountId: "a_sales", debit: 0, credit: 1.235 },
+  ] },
+];
+const jodPl = S.profitAndLoss(dinar, accounts, { currency: "JOD" });
+ok("A JOD P&L KEEPS THE FILS", jodPl.totalIncome === 1.235, String(jodPl.totalIncome));
+const jodBs = S.balanceSheet(dinar, accounts, "", "JOD");
+ok("...and so does its balance sheet", jodBs.totalAssets === 1.235 && jodBs.balanced,
+  `${jodBs.totalAssets} ${jodBs.balanced}`);
+ok("with no currency it is still two places, as every caller had",
+  S.profitAndLoss(dinar, accounts, {}).totalIncome === 1.24);
+
 console.log(`\n${fails ? `${fails} FAILURES` : "all passed"}\n`);
 process.exit(fails ? 1 : 0);
