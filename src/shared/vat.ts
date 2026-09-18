@@ -103,9 +103,12 @@ export function previousMonth(today: string): { from: string; to: string } {
  * back, less VAT paid on purchases. Positive is owed to the authority; negative
  * is reclaimable.
  *
- * FROM THE DOCUMENTS, NOT THE LEDGER. Input and output tax post to one account
- * (2100), so the journal can say what is owed and cannot say how much of it was
- * charged and how much reclaimed — which is the whole of what a return asks.
+ * FROM THE DOCUMENTS, NOT THE LEDGER. Input and output tax posted to one account
+ * (2100) until 18/09/2026, so for those months the journal can say what is owed
+ * and cannot say how much of it was charged and how much reclaimed — which is
+ * the whole of what a return asks. Input VAT has its own account (1400) since,
+ * but a posted entry is never moved, so the documents stay the one source that
+ * answers for every month.
  *
  * A DOCUMENT IN ANOTHER CURRENCY IS SET ASIDE, NOT CONVERTED. A return is filed
  * in the studio's currency at the rate the authority prescribes for the date,

@@ -72,6 +72,12 @@ export const DEFAULT_CHART: { code: string; name: string; type: AccountType }[] 
   { code: "1010", name: "Bank", type: "asset" },
   { code: "1100", name: "Accounts Receivable", type: "asset" },
   { code: "1200", name: "Inventory", type: "asset" },
+  // INPUT VAT HAS ITS OWN ACCOUNT, 18/09/2026. It sat on 2100 beside output
+  // VAT, so the book could say what was owed net and never how much had been
+  // charged and how much reclaimed. An asset: it is money the authority owes
+  // back. Entries posted before this stay where they were — a posted entry is
+  // never edited — so 2100 still nets both for the months before it.
+  { code: "1400", name: "VAT Recoverable", type: "asset" },
   { code: "1500", name: "Fixed Assets", type: "asset" },
   { code: "1510", name: "Accumulated Depreciation", type: "asset" },
   { code: "2000", name: "Accounts Payable", type: "liability" },
@@ -492,6 +498,7 @@ export async function trialBalance(ctx: FinanceContext) {
 const AR = "1100";       // Accounts Receivable
 const REVENUE = "4000";
 const VAT_PAYABLE = "2100";
+const VAT_RECOVERABLE = "1400";
 const BANK = "1010";     // the default cash account a payment lands in / an
                          // expense leaves from. A studio with more than one bank
                          // account will want this configurable — noted for when
@@ -650,16 +657,19 @@ export async function postBill(ctx: FinanceContext, billId: string, options: Pos
 
   const totals = invoiceTotals(bill as { lines?: unknown; vatRate?: unknown; payments?: unknown }, ctx.studio.currency);
   const expenseCode = CATEGORY_ACCOUNT[bill.category || ""] || COST_OF_SALES;
-  const { byCode, missing } = await codesToIds(ctx, [expenseCode, VAT_PAYABLE, AP]);
+  const { byCode, missing } = await codesToIds(ctx, [expenseCode, VAT_RECOVERABLE, AP]);
   if (missing.length) return { error: "chart", missing };
 
   const lines: { accountId: string | undefined; debit?: number; credit?: number }[] = [
     { accountId: byCode.get(expenseCode), debit: totals.subtotal },
     { accountId: byCode.get(AP), credit: totals.total },
   ];
-  // Input VAT is reclaimable — it sits on the same VAT Payable account, reducing
-  // what is owed to the authority, so a bill DEBITS it where an invoice credits.
-  if (totals.vat > 0) lines.push({ accountId: byCode.get(VAT_PAYABLE), debit: totals.vat });
+  // INPUT VAT IS RECLAIMABLE, and it is debited to its OWN account rather than
+  // netted on VAT Payable. Netting it there made the balance right and the
+  // return unanswerable from the book: "how much did we charge, how much do we
+  // reclaim" is the whole of a VAT return, and one account holding both could
+  // only say the difference.
+  if (totals.vat > 0) lines.push({ accountId: byCode.get(VAT_RECOVERABLE), debit: totals.vat });
 
   return postEntry(ctx, {
     date: bill.billDate,

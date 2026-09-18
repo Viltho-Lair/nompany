@@ -2833,7 +2833,9 @@ console.log("\n== Finance 1b: a bill posts as the mirror of an invoice");
   const posted = { entry: await entryById(bill.posting.entryId) };
   // Dr Cost of Sales 200 + Dr VAT 30 = Cr Accounts Payable 230.
   ok("...debiting the expense for the net", posted.entry.lines.find((l) => l.accountId === idOf("5000"))?.debit === 200, JSON.stringify(posted.entry.lines));
-  ok("...debiting reclaimable VAT", posted.entry.lines.find((l) => l.accountId === idOf("2100"))?.debit === 30, JSON.stringify(posted.entry.lines));
+  // ITS OWN ACCOUNT since 18/09/2026 — input VAT netted on 2100 left the book
+  // unable to say how much was charged and how much reclaimed.
+  ok("...debiting reclaimable VAT to VAT Recoverable", posted.entry.lines.find((l) => l.accountId === idOf("1400"))?.debit === 30, JSON.stringify(posted.entry.lines));
   ok("...crediting accounts payable for the whole", posted.entry.lines.find((l) => l.accountId === idOf("2000"))?.credit === 230, JSON.stringify(posted.entry.lines));
   const twice = await postBill(fin, bill.bill.id);
   ok("a bill cannot be posted twice", twice.error === "already-posted", JSON.stringify(twice));
