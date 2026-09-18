@@ -19,11 +19,16 @@ import { unitsDict } from "@/shared/studio/units";
 // control that is always refused is a control that should not be drawn. Items
 // are already measured in those eight, and a unit nothing offers is a unit
 // nobody can edit an item out of.
+//
+// IT HAS A SWITCH INSTEAD (the owner, 18/09/2026): off means no longer OFFERED
+// for a new choice, which is a different act from removing it — an item already
+// measured in it keeps it.
 export default function UnitsPanel({ rows, canManage, locale = "en", onSave }) {
   const tr = unitsDict(locale);
   // The studio's own additions only. The defaults are never stored, so they are
   // never in the draft either.
   const [own, setOwn] = useState(() => rows.filter((r) => !r.builtin).map((r) => r.unit));
+  const [off, setOff] = useState(() => rows.filter((r) => r.builtin && r.on === false).map((r) => r.unit));
   const [adding, setAdding] = useState("");
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState("");
@@ -32,6 +37,10 @@ export default function UnitsPanel({ rows, canManage, locale = "en", onSave }) {
   const builtins = rows.filter((r) => r.builtin).map((r) => r.unit);
 
   const change = (next) => { setOwn(next); setSaved(false); setProblem(""); };
+  const toggle = (unit) => {
+    setOff((cur) => (cur.includes(unit) ? cur.filter((u) => u !== unit) : [...cur, unit]));
+    setSaved(false); setProblem("");
+  };
 
   function add() {
     const unit = adding.trim();
@@ -46,7 +55,7 @@ export default function UnitsPanel({ rows, canManage, locale = "en", onSave }) {
   async function save() {
     setBusy(true);
     setProblem("");
-    const res = await onSave({ units: own });
+    const res = await onSave({ units: own, unitsOff: off });
     setBusy(false);
     if (res?.error) { setProblem(res.detail || res.error); return; }
     setSaved(true);
@@ -63,15 +72,32 @@ export default function UnitsPanel({ rows, canManage, locale = "en", onSave }) {
       )}
 
       <div className="flex flex-wrap gap-2">
-        {builtins.map((unit) => (
-          <span
-            key={unit}
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm text-slate-700 dark:border-white/15 dark:bg-white/5 dark:text-slate-200"
-          >
-            {unit}
-            <span className="text-xs text-slate-400 dark:text-slate-500">{tr.isDefault}</span>
-          </span>
-        ))}
+        {builtins.map((unit) => {
+          const isOff = off.includes(unit);
+          return (
+            <span
+              key={unit}
+              className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm ${isOff
+                ? "border-dashed border-slate-300 text-slate-400 line-through dark:border-white/15 dark:text-slate-500"
+                : "border-slate-200 bg-slate-50 text-slate-700 dark:border-white/15 dark:bg-white/5 dark:text-slate-200"}`}
+            >
+              {unit}
+              <span className="text-xs text-slate-400 no-underline dark:text-slate-500">{isOff ? tr.off : tr.isDefault}</span>
+              {canManage && (
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={!isOff}
+                  aria-label={isOff ? tr.switchOn(unit) : tr.switchOff(unit)}
+                  onClick={() => toggle(unit)}
+                  className={`relative h-4 w-7 shrink-0 rounded-full transition-colors ${isOff ? "bg-slate-300 dark:bg-white/20" : "bg-brand-600"}`}
+                >
+                  <span className={`absolute top-0.5 h-3 w-3 rounded-full bg-white transition-all ${isOff ? "start-0.5" : "start-3.5"}`} />
+                </button>
+              )}
+            </span>
+          );
+        })}
         {own.map((unit) => (
           <span
             key={unit}

@@ -4,6 +4,7 @@
 // is mostly about what it may NOT do to the list somebody's items already use.
 import {
   DEFAULT_UNITS, unitProblems, cleanUnits, unitsFor, isUnit, unitsView,
+  cleanUnitsOff, unitsOffProblems,
 } from "../src/modules/administration/units.ts";
 
 let fails = 0;
@@ -74,6 +75,23 @@ ok("every unit in force has a row", view.length === DEFAULT_UNITS.length + 1);
 ok("a shipped default says so", view[0].builtin === true);
 ok("the studio's own says it is not", view[view.length - 1].builtin === false,
   JSON.stringify(view[view.length - 1]));
+
+// ---- switching a shipped unit off (the owner, 18/09/2026) -------------------
+// THE DEFECT GUARDED: a shop selling by the piece had "roll" and "m²" in every
+// item dropdown and no way to say otherwise. Off hides it from a NEW choice and
+// takes it off nothing.
+ok("a switched-off default is not offered", !unitsFor([], ["roll"]).includes("roll"));
+ok("the others still are, in order", unitsFor([], ["roll"]).join("|") === "pcs|box|m|m²|kg|L|set");
+ok("a studio's own unit cannot be switched off, only removed", unitsFor(["bag"], ["bag"]).includes("bag"));
+ok("only real defaults are stored as off", cleanUnitsOff(["roll", "bag", "nope", " kg "]).join("|") === "kg|roll");
+ok("nothing switched off is the default", unitsFor(["bag"]).length === DEFAULT_UNITS.length + 1);
+ok("a switched-off unit is not a unit a new item may take", isUnit("roll", [], ["roll"]) === false);
+ok("the editor says which defaults are off", unitsView([], ["roll"]).find((r) => r.unit === "roll").on === false
+  && unitsView([], ["roll"]).find((r) => r.unit === "kg").on === true);
+ok("every default off with nothing of the studio's own is refused",
+  unitsOffProblems([...DEFAULT_UNITS], []).length === 1);
+ok("…but allowed when the studio has a unit of its own", unitsOffProblems([...DEFAULT_UNITS], ["bag"]).length === 0);
+ok("a non-list is refused", unitsOffProblems("roll", []).length === 1);
 
 console.log(fails ? `\nunits model: ${fails} FAILURES\n` : "\nunits model: all passed\n");
 process.exit(fails ? 1 : 0);

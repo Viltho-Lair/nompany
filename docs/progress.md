@@ -1681,6 +1681,7 @@ Rows follow section H: deleted, deferred and dropped rows are removed, and the h
 | **A part month is a deduction, not a smaller basic** | ✅ BUILT (18/09/2026) | Pro-rated on the WHOLE slip — basic and allowances together — which is the opposite of the unpaid-leave rule and deliberately so: unpaid leave is a month somebody WAS employed for, while a person hired on the 20th had no contract for the fortnight before, car allowance included. Carried as a deduction so `basic + allowances − deductions = net` holds on a part month exactly as on a full one, and `basic` goes on meaning the contractual figure on every line of every run. Unpaid days are capped at the days employed, or the same money comes off twice. A part month scales the social-security BASE; a month with unpaid days does not — there is no wage to insure before somebody is hired, while unpaid leave leaves the contract standing. |
 | **A run records who it left out** | ✅ BUILT (18/09/2026) | Frozen onto the run with a reason in words, and shown under the payslips. A run that silently omits somebody is a run nobody can check: "why is this month short one person" has to be answerable from the run itself, months later, without replaying employment records as they stand today. `gone` — exited with NO leaving date — is its own reason, because it is a fact about the record rather than about the person, and paying a full month because a field was left blank is the worse of the two errors. |
 | **Notice is a plan, not a leaving date** | ✅ DECIDED (18/09/2026) | `noticeEndsOn` stops neither a payslip nor an accrual; only a recorded exit does. Reading the intention as the fact would give a studio two answers to "when did they leave", and the one that pays people would be the guess. The cost is that a studio which never records the exit keeps paying — which the run's exclusion list and the Lifecycle attention queue both surface, rather than the product inferring it. |
+| **Point of Sale: returns, repeat customers, discounts — six slices** | 🟡 PLANNED (18/09/2026) | The owner's decisions: (1) **each built-in unit can be switched off** in Master data → Units; an item already measured in it keeps it. (2) **A discount field at the till**, per line and on the whole basket, % or amount, behind `crmSales.pos.discount`, with a studio cap on the % a cashier may give; the receipt keeps the regular price and each discount per line, because returns and credit notes read it. (3) **A Code 128 barcode** of the number on the till receipt and on printed documents, for lookup by scanner; the QR waits (Open decisions). (4) **A phone number at the till registers a repeat customer** as a client with no name until somebody edits it; found again by a keyed hash of the number (a purpose subkey of `NOMPANY_DATA_KEY`), since every client field is sealed. (5) **Returns, a sub-section of Point of Sale**: against a till receipt found by its barcode; **every return waits for a manager's signature** (a fifth approval chain), and an approved return puts its units back into stock; the cashier chooses cash, card or transfer for the refund; a line cannot be returned twice. (6) **Invoice lines may name a registered item**, and a return against a Documents invoice restocks those lines and issues a credit note for what is refunded; free-text lines are refunded only. Slices in this order, one commit each. |
 | **Finance is measured against the owner's *Finance Section Implementation Plan*, and deepened in six steps** | 🟡 STEP 1 UNDER WAY (18/09/2026) | The plan (18/09/2026: nine sub-sections, one posting engine, Essential / Standard / Advanced tiers, country packages) compared with the code. **The engine is further along than "basic" suggests**: a real double-entry ledger, no edit after posting, mirror reversals, month locks, automatic posting of invoices, expenses, bills, both payment kinds, credit notes and payroll, a bill approval chain and the three-way-match payment hold. **What is wrong is that the books are incomplete and the sub-sections are one level deep.** Found: (1) money that moves and never reaches the ledger — depreciation, asset purchases and disposals, the withheld part of an invoice (its receivable never clears), cheques and deal-level payments; (2) a foreign-currency bill posts its raw amount into the studio-currency book (`money.md`); (3) `statements.ts` rounds at two places, so a JOD/KWD/BHD/OMR studio's P&L and balance sheet lose the third decimal the ledger kept; (4) input and output VAT share account 2100; (5) the Ledger screen only reads (no manual entry, no reversal, no chart editor), one bank account, no cash-flow statement, no year-end; (6) four of the plan's nine sub-sections do not exist (Tax, Budgets, Reporting & Close, Entities), and invoices sit under **Cash** where the plan has Receivables. **The six steps, in the owner's order:** 1 complete the books (post what moves, convert FX, fix the statements, split VAT) · 2 make the ledger usable (chart editor, manual entry, reversal button, several bank/cash accounts, transfers, credit-note screen, cheques LINKED to the invoice or bill they settle) · 3 re-file the sub-sections the Quotations/POS way (new nav keys, rows stay where they are filed) · 4 the Saudi essentials (ZATCA phase 2, withholding on bills, VAT return filing, zakat) · 5 Standard (payment runs, expense claims, dunning, credit limits, statement import and match rules, budgets on the four existing line dimensions, close checklist, year-end, cash flow) · 6 Advanced (multi-entity, IFRS 15/16, allocations). **Where the plan is adapted rather than followed:** its `/api/finance/*` + `X-Company-Id` shape contradicts invariant 2 and the studio route wrapper, so its entities are kept and its routes are not; approvals extend `platform/approval` rather than moving to the Task system; multi-entity needs a company layer INSIDE a studio, which is its own design. **Cheques and deal payments are NOT posted in step 1**: each is the same money an invoice or bill payment already posts, so posting them unlinked would count it twice — they post once they name the document they settle (step 2). |
 
 **How the API-only routes were found**, because the method is the reusable part: sweep every
@@ -2013,12 +2014,138 @@ show the taxable amount and the VAT per rate (VAT Directive art. 226).
 - Colombia: [DIAN Res. 165/2023](https://normograma.dian.gov.co/dian/compilacion/docs/resolucion_dian_0165_2023.htm)
 - Peru: [SUNAT, boleta](https://cpe.sunat.gob.pe/tipos_de_comprobantes/boleta)
 
+## Point of Sale pricing — reference, researched 18/09/2026
+
+The owner asked what kinds of POS exist and which market relations move a price at the till,
+leaning towards promotions. Reference, not a plan: nothing below is built unless a row in a
+ledger says so. Items marked **[unverified]** had no source confirming them.
+
+### What each kind of shop needs from pricing
+
+| Kind | What moves the price | What is unusual |
+|---|---|---|
+| Supermarket | Multi-buy, mix-and-match, member prices, near-expiry markdowns, supplier-funded offers, coupons | Weighed items and price-in-barcode labels (GS1 prefixes 20–29), unit-price display, bottle deposits, age checks, excise goods |
+| Convenience | Simple offers, meal deals (a bundle of categories) | Age checks, deposits, top-ups sold at face value |
+| Pharmacy | Regulated fixed prices; offers only on non-medicines | Saudi Arabia: medicine prices are fixed, printed on the pack and **may not be discounted** ([SFDA](https://www.sfda.gov.sa/en/regulations/66357)). Egypt fixes margins ([Mondaq](https://www.mondaq.com/food-and-drugs-law/820164/drug-pricing)). Needs a per-item "no discount" lock |
+| Fashion | Seasonal markdowns, % events, category BOGO | Size and colour share a price; the EU requires the lowest price of the last 30 days beside any "was/now" ([98/6/EC](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=celex%3A31998L0006)) |
+| Electronics | Price matching, bundles, warranties | Serials; price-match rules and price protection after the sale ([Best Buy](https://www.bestbuy.com/site/help-topics/price-match-guarantee/pcmcat290300050002.c?id=pcmcat290300050002)) |
+| Restaurant / café | Modifiers, combos, happy hour, dine-in vs takeaway lists | A combo price is split across its parts; happy hour is illegal in eight US states ([NBC Boston](https://www.nbcboston.com/news/local/will-massachusetts-happy-hour-ban-be-lifted-anytime-soon/3760788/)) |
+| Services / salon | Packages, memberships, price by staff grade | Prepaid package balances behave like stored value |
+| Wholesale | Quantity breaks, case vs unit price, trade price lists | Unit-of-measure conversion; credit accounts |
+| Fuel | Capped or announced pump prices | Saudi petrol is capped and re-set monthly ([Aramco](https://www.aramco.com/en/what-we-do/energy-products/retail-fuels)) |
+| Duty-free | Multi-currency display | Exemption by destination **[unverified]** |
+| Trade counter | Account and contract prices, quotes turned into sales | Named-buyer tax invoices, on-account payment ([Lightspeed](https://x-series-support.lightspeedhq.com/hc/en-us/articles/25534109945243-Customer-specific-pricing-in-Retail-POS-X-Series)) |
+| Self-checkout | Automatic offers only | No cashier discretion; attendant approves coupons |
+
+### The forces on a price
+
+**Promotions — the owner's lean, and the deepest part.**
+- **Kinds:** % or amount off; a fixed deal price; quantity breaks; N for a price; buy X get Y
+  (cheapest free); mix-and-match across a group; bundles; spend-over-a-threshold; time windows
+  (day, hour); coupons (a code or a single-use serial); loyalty earn and burn; member and
+  employee prices; clearance; near-expiry markdowns by batch; manual overrides with a reason and
+  a limit per role ([Oracle Xstore](https://docs.oracle.com/en/industries/retail/retail-xstore-point-of-service/22.0/rpxug/discounts-and-awards.htm), [Square](https://developer.squareup.com/docs/catalog-api/cookbook/auto-apply-discounts), [Odoo](https://www.odoo.com/documentation/17.0/applications/sales/sales/products_prices/loyalty_discount.html)).
+- **Stacking is the design decision.** Microsoft Dynamics 365 Commerce has the fullest model:
+  each promotion is *exclusive* (blocks the rest), *best price* (competes, largest wins) or
+  *compound* (stacks), plus a priority number and one studio-wide rule for crossing priorities
+  ([MS Learn](https://learn.microsoft.com/en-us/dynamics365/commerce/retail-discounts-overview)).
+  Square never stacks and gives the customer the best one; Shopify stacks by class; Lightspeed
+  adds a price-list discount to a promotion (10% + 10% = 20%), which surprises merchants.
+- **Every basket-level benefit must be spread back onto the lines** and stored there — the tax
+  on lines at different rates is apportioned ([HMRC 700/7](https://www.gov.uk/guidance/business-promotions-and-vat-notice-7007)),
+  and a return must refund what was actually paid.
+- **The BOGO return problem:** buy A, get B free, return A — a naive refund pays A's full price
+  and the customer keeps B free. The usual answer is to spread the discount across both at the
+  sale and refund the spread price ([WeSupply](https://wesupplylabs.com/how-to-handle-bogo-returns-without-charging-customers-for-the-free-item/)).
+- **Coupons and tax:** in VAT countries a discount given at the sale lowers the taxable amount;
+  one given afterwards needs a credit note (Saudi Arabia: within 15 days,
+  [VATupdate](https://www.vatupdate.com/2025/05/11/saudi-arabia-enforces-stricter-rules-for-credit-debit-notes-15-day-compliance-deadline-introduced/)).
+  In the US a manufacturer's coupon is usually taxed on the full price and a store's is not,
+  state by state ([TaxJar](https://www.taxjar.com/blog/calculations/2021-12-sales-tax-discounts-coupons-promotions)).
+- **Gift cards are a way to pay, not a discount** — modelling one as a discount gets the VAT
+  wrong ([vatcalc, EU vouchers](https://www.vatcalc.com/eu/eu-review-of-vat-on-vouchers/)).
+
+**Suppliers.** Cost changes move margin, not the shelf price. Supplier-funded promotions need
+who funded them and how much, to claim it back ([Oracle RMS deals](https://docs.oracle.com/cd/F22875_01/doc.190/f23695/dealsoverview.htm)).
+Rebates are back-office. Consignment and scan-based trading mean the supplier owns the stock
+until it is sold ([Fintech](https://fintech.com/scan-based-trading-sbt-guide)). A supplier's
+minimum resale price is lawful in the US and a hardcore restriction in the EU and UK
+([Bird & Bird](https://www.twobirds.com/en/insights/2020/global/retail-price-maintenance-in-the-eu)) —
+a general POS may offer a studio its OWN price floor, never enforce a supplier's.
+
+**Competitors.** Price matching is a manual override with a reason and the competitor named.
+Electronic shelf labels make frequent changes cheap; whatever changes a price must reach the
+shelf and the till together.
+
+**Customers.** Price lists per customer group, trade accounts and loyalty tiers decide the BASE
+price; promotions adjust it. A group discount lives in one of the two, never both.
+
+**Regulation.**
+- **Fixed prices and ceilings:** Saudi medicines (above); India's printed MRP includes all taxes
+  and may not be exceeded, and it can differ between batches ([Consumer Affairs](https://consumeraffairs.gov.in/public/upload/admin/cmsfiles/whatsnews/Frequently_Asked_Questions_on_Legal_Metrology_whatsnews.pdf)).
+- **Floors:** Scotland's minimum unit price on alcohol ([gov.scot](https://www.gov.scot/policies/alcohol-and-drugs/minimum-unit-pricing/)).
+- **The shelf price must include VAT and equal the till price** in Saudi Arabia, and a
+  mismatch is a reportable violation ([MC](https://mc.gov.sa/en/mediacenter/News/Pages/04-08-20-01.aspx)).
+- **Excise:** the GCC's sugary-drinks tax is by sugar per 100 ml from 01/01/2026 ([EY](https://taxnews.ey.com/news/2025-2415-saudi-arabia-to-implement-new-excise-tax-method-for-sweetened-beverages));
+  tobacco and energy drinks 100%.
+- **Cash rounding** (Canada: cash totals to 0.05) is a tender-level line, never a price
+  change ([Wikipedia](https://en.wikipedia.org/wiki/Cash_rounding)).
+- **Deposit schemes** are a separate line outside promotions ([TOMRA](https://www.tomra.com/reverse-vending/media-center/feature-articles/germany-deposit-return-scheme)).
+
+**Operational.** Multi-currency tills; seasonal price lists; markdowns by batch expiry;
+price-by-weight; price-in-barcode labels, whose layout differs by country and by shop and so
+must be a studio setting ([GS1](https://www.gs1.org/docs/barcodes/SummaryOfGS1MOPrefixes20-29.pdf)).
+
+### Returns and customer phone numbers
+
+- **A receipt carries a Code 128 barcode of its number** for lookup ([LS Central](https://help.lscentral.lsretail.com/Content/LS-Retail/POS/How-To/Printing-Receipt-Barcodes.htm)).
+  **A regulatory QR (ZATCA's TLV) cannot double as a lookup code** ([ZATCA QR guide](https://zatca.gov.sa/ar/E-Invoicing/SystemsDevelopers/Documents/QRCodeCreation.pdf)).
+- **A Saudi return of a simplified invoice needs a simplified credit note** referencing the
+  original, signed and reported ([Wafeq](https://www.wafeq.com/en-sa/tax-and-reporting/how-to-handle-credit-notes-in-ksa-e-invoicing)).
+- Return fraud is large (15% of US returns in 2024, [Appriss](https://www.businesswire.com/news/home/20241230601195/en/Appriss-Retail-Annual-Research-Fraudulent-Returns-and-Claims-Cost-Retailers-$103B-in-2024)):
+  refund to the original method, track what each line has already returned, reason codes.
+- **A phone number at the till is personal data.** Saudi PDPL art. 25 requires prior, opt-in,
+  per-channel consent for marketing ([ksapdpl.com](https://ksapdpl.com/ksa-saudi-pdpl-article-25-restrictions-on-direct-marketing-and-awareness-messages/));
+  the UAE PDPL similar ([Securiti](https://securiti.ai/uae-personal-data-protection-law/));
+  in the UK a receipt is not marketing, and marketing needs consent or the soft opt-in
+  ([ICO](https://ico.org.uk/for-organisations/direct-marketing-and-privacy-and-electronic-communications/guidance-on-direct-marketing-using-electronic-mail/how-do-we-comply-with-the-pecr-electronic-mail-marketing-rules/)).
+  Recognising a returning customer is not marketing; messaging them is.
+
+### What a general pricing engine needs, most valuable first
+
+1. A base price and tax mode per item and unit (built).
+2. **Every receipt line stores its regular price, each adjustment and where it came from, the
+   net and the tax** — returns, credit notes and margin read this; cheapest now, dearest later.
+3. Manual discount with a cap per role and a reason (the 18/09 slice below).
+4. Locks: a "no discount" item, a ceiling per batch, a floor.
+5. Simple automatic promotions: %, amount or fixed price on an item or category, dated, with
+   day and hour windows.
+6. Quantity breaks and mix-and-match (N for a price, buy X get Y).
+7. The stacking model (exclusive / best price / compound + priority), best for the customer
+   by default.
+8. Customer price lists, resolved before promotions.
+9. Basket-threshold promotions and coupons (single-use serials, who funds them).
+10. Price-in-barcode labels and weighed items.
+11. Batch-expiry markdowns.
+12. Loyalty earn and burn.
+13. Deposits and cash rounding.
+14. Multi-currency tills.
+15. Supplier funding and consignment on the sale line.
+16. Price history (the EU 30-day rule, audit).
+17. A price simulator: what this basket costs and why.
+
+Order of evaluation at the till: base price → locks → promotions (exclusive first, then best
+or compound by priority) → coupons and manual discount → locks again → spread over the lines →
+tax per line → tenders (gift card, loyalty, rounding). The receipt stores every step's result
+so a return replays it and never re-prices.
+
 ## Open decisions
 
 Things waiting on a person, not on work.
 
 | Decision | Why it is open |
 |---|---|
+| **A lookup QR on documents** (18/09/2026) | The owner: documents are found by a scanned code, and a QR was the first idea. **Barcodes (Code 128) are used for now, on receipts and documents alike.** The QR waits for the country packages, because Saudi Arabia, Jordan and Egypt put their own regulatory QR on a tax invoice and a second QR on the same page misleads a scanner and an auditor. Decide per country when its package is built. |
 | **How money is stored** (18/09/2026) | Amounts are stored as JS numbers rounded to the currency's minor unit (`shared/money`), and the ledger compares whole minor units at the balance check. The Finance plan recommends integer minor units in storage. Converting later means rewriting every financial row in every studio; staying means the rounding discipline (`toMinor` at every sum) must hold forever. Recommended: keep the stored shape, and make whole minor units the rule at every arithmetic seam — no migration, and the ledger already works that way. Waiting on the owner. |
 
 **Recently closed.**

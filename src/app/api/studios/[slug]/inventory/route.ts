@@ -84,7 +84,7 @@ export const GET = route(
       // what `createItem` will accept, which is the whole point of resolving
       // them in one pure place.
       orderStatuses: ORDER_STATUSES, deliveryStatuses: DELIVERY_STATUSES,
-      units: unitsFor(g.studio.units),
+      units: unitsFor(g.studio.units, g.studio.unitsOff),
       awbStatuses: AWB_STATUS,
       // The studio's own service actions, so the item form can offer a scope
       // checkbox per action rather than the two that used to be hardcoded.

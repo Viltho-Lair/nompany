@@ -125,6 +125,16 @@ item whose unit is not offered cannot be edited without changing something nobod
 change. A shipped default therefore has no remove button — absent rather than disabled,
 because a control that is always refused should not be drawn.
 
+**A default can be switched off instead** (the owner, 18/09/2026). The studio stores
+`unitsOff`, the defaults it has switched off (`cleanUnitsOff` keeps only real default names),
+and `unitsFor(studio.units, studio.unitsOff)` stops OFFERING them — to a new item, and to a
+change of unit on an existing one. **Off takes the unit off nothing**: an item already
+measured in rolls keeps "roll", `editItem` ignores a unit it no longer offers rather than
+replacing it, and the item form shows the item's own unit beside the offered ones. A
+studio's own unit has no switch — it is removed, as before. **At least one unit stays on**
+(`unitsOffProblems`), checked against the units saved beside it, or a new item would have
+nothing to be measured in.
+
 **No commas and no quotes**, because the item list exports as CSV and a comma inside a unit
 breaks the row. Internal spaces are fine ("sq ft" is a unit), a value is trimmed before it
 is judged (a pasted " kg" is the kg it looks like), and twelve characters is the cap.

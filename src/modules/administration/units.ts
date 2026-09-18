@@ -78,20 +78,45 @@ export function cleanUnits(units: unknown): string[] {
 }
 
 /**
- * THE LIST IN FORCE — the defaults, then the studio's own.
+ * THE SHIPPED DEFAULTS THIS STUDIO HAS SWITCHED OFF — the owner, 18/09/2026: a
+ * shop that sells by the piece has no use for "roll" in every dropdown.
  *
- * DEFAULTS FIRST AND NEVER REMOVED. A studio that stops using "roll" can leave
- * it alone; taking it out of the list would orphan every item already measured
- * in rolls, and an item whose unit is not offered is an item nobody can edit
- * without changing something they did not mean to.
+ * ONLY NAMES FROM THE DEFAULT LIST, and only as they are spelled there, so a
+ * stored list cannot switch off a studio's own unit (those are removed, not
+ * switched off) or a unit that does not exist.
  */
-export function unitsFor(stored: unknown): string[] {
-  return [...DEFAULT_UNITS, ...cleanUnits(stored)];
+export function cleanUnitsOff(off: unknown): string[] {
+  const list = Array.isArray(off) ? off.map(cleanUnit) : [];
+  return DEFAULT_UNITS.filter((u) => list.includes(u));
 }
 
-/** Is this a unit this studio uses? Case-sensitive, as stored. */
-export const isUnit = (unit: unknown, stored: unknown): boolean =>
-  unitsFor(stored).includes(cleanUnit(unit));
+/**
+ * THE LIST IN FORCE — the defaults still on, then the studio's own. This is
+ * what a picker OFFERS.
+ *
+ * SWITCHED OFF IS NOT REMOVED. An item already measured in rolls keeps "roll":
+ * the item edit ignores a unit it does not offer rather than replacing it, and
+ * the item form shows the item's own unit beside the offered ones. What a
+ * switch changes is what a NEW choice can be.
+ */
+export function unitsFor(stored: unknown, off: unknown = []): string[] {
+  const hidden = new Set(cleanUnitsOff(off));
+  return [...DEFAULT_UNITS.filter((u) => !hidden.has(u)), ...cleanUnits(stored)];
+}
+
+/** Is this a unit this studio offers? Case-sensitive, as stored. */
+export const isUnit = (unit: unknown, stored: unknown, off: unknown = []): boolean =>
+  unitsFor(stored, off).includes(cleanUnit(unit));
+
+/**
+ * WHAT IS WRONG WITH SWITCHING THESE OFF, or an empty array. One rule: a studio
+ * must be left with at least one unit, or a new item has nothing to be measured
+ * in and `createItem` would have no first unit to fall back to.
+ */
+export function unitsOffProblems(off: unknown, stored: unknown): string[] {
+  if (off !== undefined && !Array.isArray(off)) return ["switched-off units must be a list"];
+  return unitsFor(stored, off).length ? [] : ["at least one unit must stay on"];
+}
 
 /**
  * THE EDITOR'S ROWS — every unit in force, saying which are the studio's own.
@@ -100,9 +125,10 @@ export const isUnit = (unit: unknown, stored: unknown): boolean =>
  * cannot tell a shipped default from a choice somebody made presents both as
  * removable, and the person who removes "kg" discovers it is still there.
  */
-export function unitsView(stored: unknown): { unit: string; builtin: boolean }[] {
+export function unitsView(stored: unknown, off: unknown = []): { unit: string; builtin: boolean; on: boolean }[] {
+  const hidden = new Set(cleanUnitsOff(off));
   return [
-    ...DEFAULT_UNITS.map((unit) => ({ unit, builtin: true })),
-    ...cleanUnits(stored).map((unit) => ({ unit, builtin: false })),
+    ...DEFAULT_UNITS.map((unit) => ({ unit, builtin: true, on: !hidden.has(unit) })),
+    ...cleanUnits(stored).map((unit) => ({ unit, builtin: false, on: true })),
   ];
 }

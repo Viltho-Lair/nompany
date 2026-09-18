@@ -24,7 +24,7 @@ async function legacyChains(studioId: string): Promise<Record<string, unknown> |
   return raw && typeof raw === "object" ? (raw as Record<string, unknown>) : null;
 }
 import { numberingProblems, cleanNumbering, numberingView } from "@/modules/administration/numbering";
-import { unitProblems, cleanUnits, unitsView } from "@/modules/administration/units";
+import { unitProblems, cleanUnits, unitsView, cleanUnitsOff, unitsOffProblems } from "@/modules/administration/units";
 import { taxonomyProblems, cleanTaxonomies, taxonomyView, valuesFor } from "@/modules/administration/taxonomy";
 import { cleanEmploymentRules, employmentRulesOf } from "@/modules/hr/leaveBalance";
 import { cleanStatutory, statutoryRulesOf } from "@/modules/hr/statutory";
@@ -73,6 +73,9 @@ const FIELDS = [
   // holds the studio's ADDITIONS only; the shipped units are never stored,
   // so nothing an existing item is measured in can be written away.
   "units",
+  // WHICH SHIPPED UNITS ARE SWITCHED OFF (the owner, 18/09/2026). Hidden from
+  // the pickers, never taken off an item that already uses one.
+  "unitsOff",
   // WHAT THIS STUDIO CLASSIFIES THINGS BY. The same kind of thing as units
   // one axis along: six lists were hard-coded in five modules and no studio
   // could change any of them. Additions only, for units' reason — a studio
@@ -201,7 +204,7 @@ const clean = (studio: Record<string, unknown>, legacy: Record<string, unknown> 
   numbering: numberingView((studio as { numbering?: unknown }).numbering),
   // EVERY UNIT IN FORCE, saying which are shipped defaults — a screen that
   // cannot tell those from the studio's own choices offers to remove both.
-  units: unitsView((studio as { units?: unknown }).units),
+  units: unitsView((studio as { units?: unknown }).units, (studio as { unitsOff?: unknown }).unitsOff),
   // EVERY LIST IN FORCE, shipped values kept apart from the studio's own —
   // a screen that could not tell them apart would offer to remove both.
   taxonomies: taxonomyView((studio as { taxonomies?: unknown }).taxonomies),
@@ -432,8 +435,19 @@ export async function PUT(request: Request, ctx: { params: Promise<Record<string
     // a unit breaks a CSV export of the item list, and two spellings of one unit
     // divide every grouping in half. The studio hears about its own edit while
     // it is still their edit.
+    // CHECKED AGAINST THE UNITS BEING SAVED BESIDE IT when both travel, so a
+    // studio adding "bag" while switching every default off is not refused for
+    // a state it is leaving.
+    if (key === "unitsOff") {
+      const own = body.units !== undefined ? body.units : (studio as { units?: unknown }).units;
+      const problems = unitsOffProblems(body[key], own);
+      if (problems.length) return Response.json({ error: "refused", detail: problems.join("; ") }, { status: 400 });
+      patch[key] = cleanUnitsOff(body[key]);
+      continue;
+    }
     if (key === "units") {
-      const problems = unitProblems(body[key]);
+      const off = body.unitsOff !== undefined ? body.unitsOff : (studio as { unitsOff?: unknown }).unitsOff;
+      const problems = [...unitProblems(body[key]), ...unitsOffProblems(off, body[key])];
       if (problems.length) return Response.json({ error: "refused", detail: problems.join("; ") }, { status: 400 });
       patch[key] = cleanUnits(body[key]);
       continue;

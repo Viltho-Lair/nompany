@@ -483,7 +483,7 @@ export async function createItem(ctx: InventoryContext, body: Record<string, unk
   const customsCharges = charge(body?.customsCharges);
   if (foreign && (shippingCharges === "" || customsCharges === "")) return { error: "charges" };
 
-  const units = unitsFor(studio.units);
+  const units = unitsFor(studio.units, studio.unitsOff);
   const rows = await Items.find({ studio, section: itemsSection });
   const sku = str(body?.sku, 40).toUpperCase() || nextSku(rows);
   if (rows.some((i) => i.sku.toUpperCase() === sku)) return { error: "duplicate-sku" };
@@ -561,7 +561,10 @@ export async function editItem(ctx: InventoryContext, id: string, body: Record<s
     }
     patch.vendorId = vendorId;
   }
-  if (body?.unit !== undefined && unitsFor(studio.units).includes(String(body.unit))) patch.unit = String(body.unit);
+  // A unit the studio no longer OFFERS is ignored rather than refused: the form
+  // sends the item's own unit back unchanged, and a switched-off unit an item
+  // already has is kept (modules/administration/units).
+  if (body?.unit !== undefined && unitsFor(studio.units, studio.unitsOff).includes(String(body.unit))) patch.unit = String(body.unit);
   if (body?.modelNumber !== undefined) patch.modelNumber = str(body.modelNumber, 80);
   if (body?.itemType !== undefined) patch.itemType = str(body.itemType, 80);
   if (body?.deliveryWeeks !== undefined) patch.deliveryWeeks = weeks(body.deliveryWeeks);

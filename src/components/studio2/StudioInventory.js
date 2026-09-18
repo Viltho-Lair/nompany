@@ -459,7 +459,7 @@ function ItemForm({ row, vendors, units, serviceActions = [], studioCurrency = "
         <Field label={tr.name} required value={f.name} onChange={(v) => setF((s) => ({ ...s, name: v }))} />
         <Field label={tr.modelNumber} value={f.modelNumber} onChange={(v) => setF((s) => ({ ...s, modelNumber: v }))} hint={tr.vendorPartNumber} />
         <Field label="SKU" value={f.sku} onChange={(v) => setF((s) => ({ ...s, sku: v }))} hint={tr.assignedAutomaticallyIfLeft} />
-        <Field label={tr.unit} as="select" required value={f.unit} onChange={(v) => setF((s) => ({ ...s, unit: v }))} options={units} />
+        <Field label={tr.unit} as="select" required value={f.unit} onChange={(v) => setF((s) => ({ ...s, unit: v }))} options={row?.unit && !units.includes(row.unit) ? [row.unit, ...units] : units} />
         <Field label={tr.vendor} as="select" value={f.vendorId}
           onChange={(v) => setF((s) => ({ ...s, vendorId: v, itemType: "", deliveryWeeks: "" }))}
           options={vendors.map((v) => ({ value: v.id, label: v.name }))} />
