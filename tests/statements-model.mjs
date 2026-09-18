@@ -252,5 +252,82 @@ ok("...and so does its balance sheet", jodBs.totalAssets === 1.235 && jodBs.bala
 ok("with no currency it is still two places, as every caller had",
   S.profitAndLoss(dinar, accounts, {}).totalIncome === 1.24);
 
+// ── THE CASH FLOW ─────────────────────────────────────────────────────────
+{
+  const chart = [
+    { id: "bank", code: "1010", name: "Bank", type: "asset" },
+    { id: "till", code: "1000", name: "Cash", type: "asset" },
+    { id: "ar", code: "1100", name: "AR", type: "asset" },
+    { id: "fa", code: "1500", name: "Fixed Assets", type: "asset" },
+    { id: "ap", code: "2000", name: "AP", type: "liability" },
+    { id: "loan", code: "2500", name: "Loan", type: "liability" },
+    { id: "cap", code: "3000", name: "Capital", type: "equity" },
+    { id: "rev", code: "4000", name: "Revenue", type: "income" },
+    { id: "gain", code: "4900", name: "Gain", type: "income" },
+    { id: "rent", code: "5200", name: "Rent", type: "expense" },
+  ];
+  const isMoney = (a) => a.id === "bank" || a.id === "till";
+  const E = (date, lines, kind) => ({ date, lines, source: kind ? { kind } : undefined });
+  const book = [
+    E("2025-12-01", [{ accountId: "bank", debit: 1000 }, { accountId: "cap", credit: 1000 }]),
+    E("2026-01-05", [{ accountId: "bank", debit: 500 }, { accountId: "ar", credit: 500 }], "payment"),
+    E("2026-01-06", [{ accountId: "rent", debit: 200 }, { accountId: "bank", credit: 200 }], "expense"),
+    E("2026-01-07", [{ accountId: "fa", debit: 300 }, { accountId: "bank", credit: 300 }], "asset"),
+    E("2026-01-08", [{ accountId: "bank", debit: 400 }, { accountId: "loan", credit: 400 }]),
+    E("2026-01-09", [{ accountId: "till", debit: 50 }, { accountId: "bank", credit: 50 }], "transfer"),
+    // A disposal: proceeds 120 for an asset carried at 100 — the gain line is
+    // part of the proceeds, so the whole entry is investing.
+    E("2026-01-10", [{ accountId: "bank", debit: 120 }, { accountId: "fa", credit: 100 }, { accountId: "gain", credit: 20 }], "asset-disposal"),
+    // Not cash: an invoice.
+    E("2026-01-11", [{ accountId: "ar", debit: 900 }, { accountId: "rev", credit: 900 }], "invoice"),
+  ];
+  const cf = S.cashFlow(book, chart, isMoney, { from: "2026-01-01", to: "2026-01-31" });
+  ok("THE OPENING IS THE MONEY HELD BEFORE THE WINDOW", cf.opening === 1000, String(cf.opening));
+  ok("a receipt from customers is operating, attributed to AR", cf.operating.find((r) => r.accountId === "ar")?.amount === 500);
+  ok("rent paid is an operating outflow", cf.operating.find((r) => r.accountId === "rent")?.amount === -200);
+  ok("A FIXED ASSET BOUGHT IS INVESTING", cf.totalInvesting === -300 + 120, String(cf.totalInvesting));
+  ok("...and a disposal's gain travels with its proceeds, not into operating",
+    !cf.operating.some((r) => r.accountId === "gain"));
+  ok("...AS ONE ROW on the fixed-asset account, however many lines the entry had",
+    cf.investing.length === 1 && cf.investing[0].accountId === "fa", JSON.stringify(cf.investing));
+  ok("A LOAN IS FINANCING", cf.totalFinancing === 400, String(cf.totalFinancing));
+  ok("A TRANSFER BETWEEN MONEY ACCOUNTS IS NOT A FLOW", cf.net === 500 - 200 - 300 + 400 + 120, String(cf.net));
+  ok("an invoice moves no cash", !cf.operating.some((r) => r.accountId === "rev"));
+  ok("OPENING PLUS NET IS CLOSING", cf.reconciles && cf.closing === 1520, `${cf.closing} ${cf.reconciles}`);
+}
+
+// ── THE YEAR-END CLOSE ────────────────────────────────────────────────────
+{
+  const chart = [
+    { id: "bank", code: "1010", name: "Bank", type: "asset" },
+    { id: "re", code: "3900", name: "Retained", type: "equity" },
+    { id: "rev", code: "4000", name: "Revenue", type: "income" },
+    { id: "rent", code: "5200", name: "Rent", type: "expense" },
+  ];
+  const book = [
+    { id: "e1", date: "2025-03-01", lines: [{ accountId: "bank", debit: 900 }, { accountId: "rev", credit: 900 }] },
+    { id: "e2", date: "2025-04-01", lines: [{ accountId: "rent", debit: 300 }, { accountId: "bank", credit: 300 }] },
+    { id: "e3", date: "2026-02-01", lines: [{ accountId: "bank", debit: 50 }, { accountId: "rev", credit: 50 }] },
+  ];
+  const { lines, profit } = S.closingLines(book, chart, "2025-12-31", "re");
+  ok("THE CLOSE MOVES THE YEAR'S RESULT INTO RETAINED EARNINGS", profit === 600
+    && lines.find((l) => l.accountId === "re")?.credit === 600, JSON.stringify(lines));
+  ok("...and zeroes income and expense as at the year's end",
+    lines.find((l) => l.accountId === "rev")?.debit === 900 && lines.find((l) => l.accountId === "rent")?.credit === 300);
+  ok("a later year's trading is not closed with it", !lines.some((l) => l.debit === 950));
+  const closed = [...book, { id: "ye", date: "2025-12-31", lines, source: { kind: "year-end" } }];
+  const pl = S.profitAndLoss(closed, chart, { from: "2025-01-01", to: "2025-12-31" });
+  ok("A CLOSED YEAR'S P&L STILL SHOWS ITS PROFIT — the closing entry is not trading", pl.profit === 600, String(pl.profit));
+  const bs = S.balanceSheet(closed, chart, "2026-12-31");
+  ok("after the close the balance sheet carries the year in 3900 and still balances",
+    bs.balanced && bs.equity.find((r) => r.accountId === "re")?.amount === 600 && bs.retainedResult === 50,
+    JSON.stringify({ b: bs.balanced, r: bs.retainedResult }));
+  const reopened = [...closed, { id: "rv", date: "2025-12-31", reversalOfEntryId: "ye",
+    lines: lines.map((l) => ({ ...l, debit: l.credit, credit: l.debit })), source: { kind: "reversal" } }];
+  ok("a reopened year's reversal is not trading either",
+    S.profitAndLoss(reopened, chart, { from: "2025-01-01", to: "2025-12-31" }).profit === 600);
+  ok("a year with nothing in it closes nothing", S.closingLines([], chart, "2025-12-31", "re").lines.length === 0);
+}
+
 console.log(`\n${fails ? `${fails} FAILURES` : "all passed"}\n`);
 process.exit(fails ? 1 : 0);

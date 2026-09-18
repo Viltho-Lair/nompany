@@ -25,6 +25,15 @@ type Strings = {
   reopenLead: (period: string) => string;
   kind: (token: string) => string;
   problem: (code: string) => string;
+  yearTitle: string;
+  yearLead: string;
+  yearEndMonth: string;
+  closeYear: string;
+  reopenYear: string;
+  yearResult: (endMonth: string, profit: string) => string;
+  yearPreview: (profit: string, accounts: number) => string;
+  yearsClosed: string;
+  reopenYearLead: (endMonth: string) => string;
 };
 
 const EN_KIND: Record<string, string> = { invoice: "Invoice", bill: "Bill", withholding: "Tax withheld by a client", asset: "Fixed asset not on the books" };
@@ -53,7 +62,19 @@ const en: Strings = {
     code === "reason" ? "Say why you are reopening it."
       : code === "not-closed" ? "That month is not closed."
         : code === "future" ? "A month that has not happened cannot be closed."
-          : code || ""),
+          : code === "nothing-to-close" ? "Nothing to close: no income or expense is left in that year."
+            : code === "already-posted" ? "That year is already closed."
+              : code === "period-closed" ? "The year's last month is closed. Reopen it, then close the year."
+                : code || ""),
+  yearTitle: "Closing a year",
+  yearLead: "Moves the year's profit or loss into Retained Earnings (3900) on its last day and locks all twelve months. Name the year by its last month — a year ending in June is closed as June.",
+  yearEndMonth: "The year's last month",
+  closeYear: "Close the year",
+  reopenYear: "Reopen the year",
+  yearResult: (m, p) => `Year to ${m}: ${p} into Retained Earnings`,
+  yearPreview: (p, n) => `Closing it moves ${p} into Retained Earnings, from ${n} ${n === 1 ? "account" : "accounts"}.`,
+  yearsClosed: "Closed years",
+  reopenYearLead: (m) => `Reopening the year to ${m} reopens its last month and reverses the closing entry on that day. Recorded with your name.`,
 };
 
 // HAND-WRITTEN. NO DIACRITICS.
@@ -81,7 +102,19 @@ const ar: Strings = {
     code === "reason" ? "اذكروا سبب اعادة الفتح."
       : code === "not-closed" ? "هذا الشهر غير مقفل."
         : code === "future" ? "لا يمكن اقفال شهر لم يأت بعد."
-          : code || ""),
+          : code === "nothing-to-close" ? "لا شيء للاقفال: لا ايرادات ولا مصروفات متبقية في تلك السنة."
+            : code === "already-posted" ? "هذه السنة مقفلة بالفعل."
+              : code === "period-closed" ? "آخر شهر في السنة مقفل. أعيدوا فتحه ثم أقفلوا السنة."
+                : code || ""),
+  yearTitle: "اقفال السنة",
+  yearLead: "ينقل ربح السنة أو خسارتها الى الأرباح المحتجزة (3900) في آخر يوم منها ويقفل أشهرها الاثني عشر. سموا السنة بآخر شهر فيها — السنة التي تنتهي في يونيو تقفل باسم يونيو.",
+  yearEndMonth: "آخر شهر في السنة",
+  closeYear: "اقفال السنة",
+  reopenYear: "اعادة فتح السنة",
+  yearResult: (m, p) => `السنة حتى ${m}: ${p} الى الأرباح المحتجزة`,
+  yearPreview: (p, n) => `اقفالها ينقل ${p} الى الأرباح المحتجزة من ${n} ${n === 1 ? "حساب" : "حسابات"}.`,
+  yearsClosed: "السنوات المقفلة",
+  reopenYearLead: (m) => `اعادة فتح السنة حتى ${m} تعيد فتح آخر أشهرها وتعكس قيد الاقفال في ذلك اليوم. يسجل باسمكم.`,
 };
 
 const dict = { en, ar };

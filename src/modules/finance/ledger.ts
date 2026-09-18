@@ -37,6 +37,7 @@ import {
 import type { CodeLine } from "./depreciation";
 import type { WithholdingRule } from "./withholding";
 import { roundMoney, toMinor, fromMinor } from "@/shared/money";
+import { closingLines } from "./statements";
 import type { Account, JournalEntry, JournalLine, Invoice, Expense, FinanceContext, FixedAsset } from "./types";
 import type { Row } from "@/platform/db/store";
 
@@ -615,7 +616,7 @@ export type PostOptions = { system?: boolean };
 export const ENTRY_SOURCE_KINDS = [
   "invoice", "expense", "bill", "bill-payment", "payment", "credit-note", "payroll", "withholding",
   "asset", "depreciation", "asset-disposal", "transfer", "cheque", "bill-withholding",
-  "tax-return", "tax-payment", "zakat-provision", "zakat-payment", "manual",
+  "tax-return", "tax-payment", "zakat-provision", "zakat-payment", "year-end", "manual",
 ] as const;
 
 export type EntrySourceKind = (typeof ENTRY_SOURCE_KINDS)[number];
@@ -703,14 +704,14 @@ export async function reverseEntry(ctx: FinanceContext, id: string, reason?: unk
  * `departmentId`, so a reversal netted to zero on the trial balance and left
  * the deal, cost-code and department views off by the whole amount.
  */
-async function mirrorEntry(ctx: FinanceContext, original: JournalEntry, entries: JournalEntry[], reason: string) {
+async function mirrorEntry(ctx: FinanceContext, original: JournalEntry, entries: JournalEntry[], reason: string, on?: string) {
   const { studio, ledgerSection, collaborator } = ctx;
   const reference = await nextReference(studio.id, { rows: entries as Row[], field: "reference", ...seriesSetting("journal", studio.numbering) });
   const mirrored: JournalLine[] = (original.lines || []).map((l) => ({ ...l, debit: l.credit, credit: l.debit }));
 
   const reversal = await Entries.create({ studio, section: ledgerSection }, {
     reference,
-    date: new Date().toISOString().slice(0, 10),
+    date: on || new Date().toISOString().slice(0, 10),
     memo: reason || `Reversal of ${original.reference}`,
     lines: mirrored,
     source: { kind: "reversal", id: original.id },
@@ -743,19 +744,22 @@ async function mirrorEntry(ctx: FinanceContext, original: JournalEntry, entries:
  * lands in the month it is made — the original's month stays as it was closed —
  * and a closed CURRENT month refuses it by name, for the caller to say.
  */
-export async function reverseDocument(ctx: FinanceContext, kind: EntrySourceKind, id: string, reason: string) {
+export async function reverseDocument(ctx: FinanceContext, kind: EntrySourceKind, id: string, reason: string, on?: string) {
   const { studio, ledgerSection } = ctx;
   const entries = await Entries.find({ studio, section: ledgerSection });
   const live = entries.filter((e) => e.source?.kind === kind && e.source?.id === id
     && !e.reversedByEntryId && !e.reversalOfEntryId);
   if (!live.length) return { reversed: [] as JournalEntry[] };
 
-  const today = new Date().toISOString().slice(0, 10);
-  const locked = postingProblem(await Periods.find({ studio, section: ledgerSection }), today);
-  if (locked) return { error: locked, period: periodOf(today) };
+  // A YEAR-END'S REVERSAL IS DATED ON THE YEAR'S LAST DAY (`on`), not today:
+  // reopening 2025 must put 2025's result back into 2025's accounts, and a
+  // mirror dated in 2026 would hand it to the wrong year's balance sheet.
+  const date = day(on) || new Date().toISOString().slice(0, 10);
+  const locked = postingProblem(await Periods.find({ studio, section: ledgerSection }), date);
+  if (locked) return { error: locked, period: periodOf(date) };
 
   const reversed: JournalEntry[] = [];
-  for (const e of live) reversed.push(await mirrorEntry(ctx, e, entries, str(reason, 500)) as JournalEntry);
+  for (const e of live) reversed.push(await mirrorEntry(ctx, e, entries, str(reason, 500), day(on) || undefined) as JournalEntry);
   return { reversed };
 }
 
@@ -1807,4 +1811,35 @@ export function lastDayOf(period: string): string {
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(period)) return new Date().toISOString().slice(0, 10);
   const [y, m] = period.split("-").map(Number);
   return new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
+}
+
+const RETAINED_EARNINGS = "3900";
+
+/**
+ * CLOSE A YEAR INTO RETAINED EARNINGS: every income and expense account back to
+ * nought on the year's last day, the result into 3900. `endMonth` (`YYYY-MM`)
+ * is the year's LAST month, which is how a studio whose year ends in June
+ * closes without a fiscal-year setting nobody has had to set. Held to the
+ * period lock like every entry — the service closing the year posts this first
+ * and locks the months after.
+ */
+export async function postYearEnd(ctx: FinanceContext, endMonth: string, options: PostOptions = {}) {
+  if (!options.system) {
+    const denied = requirePermission(ctx.access, "finance.ledger.close");
+    if (denied) return denied;
+  }
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(endMonth)) return { error: "period" };
+  const entries = await Entries.find({ studio: ctx.studio, section: ctx.ledgerSection });
+  if (alreadyPosted(entries, "year-end", endMonth)) return { error: "already-posted" };
+  const { byCode, missing } = await codesToIds(ctx, [RETAINED_EARNINGS]);
+  if (missing.length) return { error: "chart", missing };
+  const asOf = lastDayOf(endMonth);
+  const { lines } = closingLines(entries, await ledgerAccounts(ctx), asOf, String(byCode.get(RETAINED_EARNINGS)), ctx.studio.currency);
+  if (!lines.length) return { error: "nothing-to-close" };
+  return postEntry(ctx, {
+    date: asOf,
+    memo: `Year-end close to ${asOf}`,
+    source: { kind: "year-end", id: endMonth },
+    lines,
+  }, options);
 }

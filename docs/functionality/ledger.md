@@ -99,10 +99,31 @@ a posting naming no day belongs to no period; including it would put it in every
 ever run.
 
 **The balance sheet's retained result is computed, not stored**, and it is what makes
-the sheet balance. No account holds it until a year-end closes the books, and periods
-and close are not built — so omitting the term would show every trading studio out of
-balance by exactly its own profit, which reads as a broken ledger rather than a missing
-feature.
+the sheet balance: the result earned since the last year-end close (below). Omitting it
+would show every trading studio out of balance by exactly its own profit.
+
+**The cash flow statement (18/09/2026), direct method, off the journal.** Every entry
+touching a money account moved cash, and since every entry balances, the cash it moved is
+the sum of (credit − debit) over its other lines — so each of those lines is a flow,
+attributed to the account it names (money from customers on AR, to suppliers on AP).
+Nothing is estimated. A transfer between two money accounts has no other line and is not
+a flow. **Classes:** an asset's acquisition or disposal is investing, as ONE row on its
+fixed-asset account (the disposal's depreciation and gain lines travel with the proceeds);
+otherwise a line on a fixed-asset account (15xx, not 151x) is investing, equity or a
+long-term liability (25xx–29xx) is financing, and the rest is operating. Opening + net =
+closing is checked and the screen says so when it does not hold (a money account retired
+mid-period). Finance → Reports → Cash flow, over the same From/To window as the P&L.
+
+**The year-end close (18/09/2026)** — Finance → Ledger → Periods. A year is named by its
+LAST MONTH (a June year-end closes "2026-06"; no fiscal-year setting needed). Closing posts
+one `year-end` entry on the year's last day that brings every income and expense account
+to nought — cumulatively, so an earlier year nobody closed is swept in rather than
+stranded — with the result into **3900 Retained Earnings**, then locks all twelve months.
+The year must be over and its last month open. **The P&L leaves closing entries (and
+their reversals) out**, or the closed year would report no profit; the balance sheet keeps
+them. **Reopening needs a reason**, reopens the last month and reverses the closing entry
+ON THE YEAR'S LAST DAY, so the result returns to the year it belongs to; the other eleven
+months stay locked. Closing again recloses whatever is there. `finance.ledger.close`.
 
 ### When a posted document changes
 
@@ -241,12 +262,11 @@ Stated in words, because a silent gap reads as a finished feature.
   missing is the other end**: nothing WRITES a dimension automatically, because nothing
   posts automatically — so a deal's figures are only as complete as the entries somebody
   keyed by hand against it.
-- **No year-end close.** Months can be closed and reopened (`periods.md`); nothing rolls
-  a year end, so the retained result is recomputed from the beginning of time on every
-  read rather than carried into equity.
-- **No cash flow statement.** The P&L and balance sheet are here; the third statement
-  needs cash movements classified as operating, investing or financing, which no
-  account or entry records.
+- **Cash flow classes follow account codes.** No account carries its own cash-flow class,
+  so a loan booked under a 2xxx code below 2500 reads as operating. No indirect-method
+  reconciliation (profit to operating cash) is shown.
+- **No year-end carry-forward of balance-sheet opening entries** (none is needed in one
+  continuous book), and no separate "period 13" for audit adjustments — reopen the year.
 - **Credit notes are raised only by a return.** Finance → Cash → Credit notes (18/09/2026) lists
   them and issues or cancels a draft, and issuing posts (`postCreditNote` reverses the invoice's
   revenue and VAT proportionally); the only thing that RAISES one is a signed return against an

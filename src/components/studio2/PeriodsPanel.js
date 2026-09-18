@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import { Field } from "@/components/fields/Field";
 import { periodsDict } from "@/shared/studio/periods";
 import { useReload } from "@/components/studio2/useReload";
+import { moneyText } from "@/shared/money";
 
 // A MONTH THAT IS FINISHED WITH.
 //
@@ -49,7 +50,7 @@ export default function PeriodsPanel({ slug, locale = "en" }) {
 
   if (!data) return <p className="text-sm text-slate-500 dark:text-slate-400">…</p>;
 
-  const { periods: rows = [], preview, canClose } = data;
+  const { periods: rows = [], preview, canClose, years } = data;
 
   return (
     <div className="space-y-5">
@@ -140,6 +141,8 @@ export default function PeriodsPanel({ slug, locale = "en" }) {
         </div>
       )}
 
+      {years && <YearEnd slug={slug} tr={tr} years={years} canClose={canClose} busy={busy} send={send} />}
+
       {/* ---- reopening needs a reason ------------------------------------- */}
       {reopening && (
         <div className="flex flex-wrap items-end gap-2 rounded-geex border border-amber-200 p-4 dark:border-amber-400/30">
@@ -160,6 +163,80 @@ export default function PeriodsPanel({ slug, locale = "en" }) {
             className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 dark:border-white/15 dark:text-slate-300"
             onClick={() => { setReopening(null); setProblem(""); }}
           >
+            {tr.cancel}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// A YEAR IS CLOSED BY ITS LAST MONTH: the closing entry moves the result into
+// Retained Earnings on that day and the twelve months lock behind it. The
+// preview says what would move before anybody presses anything.
+function YearEnd({ slug, tr, years, canClose, busy, send }) {
+  const [endMonth, setEndMonth] = useState(years.suggest || "");
+  const [preview, setPreview] = useState(years.preview);
+  const [reopening, setReopening] = useState(null);
+  const money = (n) => moneyText(n);
+
+  const ask = async (m) => {
+    setEndMonth(m);
+    if (!/^d{4}-(0[1-9]|1[0-2])$/.test(m)) { setPreview(null); return; }
+    const res = await fetch(`/api/studios/${slug}/finance/periods?yearEnd=${encodeURIComponent(m)}`, { cache: "no-store" });
+    const body = await res.json().catch(() => ({}));
+    setPreview(res.ok ? body.preview : null);
+  };
+
+  return (
+    <div className="space-y-3 rounded-geex border border-slate-200/70 p-4 dark:border-white/10">
+      <div>
+        <h3 className="font-display text-sm font-700 text-slate-900 dark:text-white">{tr.yearTitle}</h3>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{tr.yearLead}</p>
+      </div>
+      {(years.closed || []).length > 0 && (
+        <div>
+          <p className="text-xs font-600 text-slate-500 dark:text-slate-400">{tr.yearsClosed}</p>
+          <ul className="mt-1 space-y-1">
+            {years.closed.map((y) => (
+              <li key={y.endMonth} className="flex flex-wrap items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+                <span>{tr.yearResult(y.endMonth, money(y.profit))}</span>
+                <span className="font-mono text-xs text-slate-400">{y.reference}</span>
+                {canClose && (
+                  <button className="ms-auto rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-600 dark:border-white/15 dark:text-slate-300"
+                    onClick={() => setReopening({ period: y.endMonth, reason: "" })}>
+                    {tr.reopenYear}
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {canClose && (
+        <div className="flex flex-wrap items-end gap-2">
+          <Field label={tr.yearEndMonth} placeholder="2025-12" className="w-40"
+            value={endMonth} onChange={(v) => ask(String(v).trim())} />
+          <button className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-600 text-white disabled:opacity-50"
+            disabled={busy || !preview}
+            onClick={() => send({ action: "close-year", period: endMonth })}>
+            {tr.closeYear}
+          </button>
+          {preview && <p className="w-full text-sm text-slate-600 dark:text-slate-300">{tr.yearPreview(money(preview.profit), preview.accounts)}</p>}
+        </div>
+      )}
+      {reopening && (
+        <div className="flex flex-wrap items-end gap-2 rounded-geex border border-amber-200 p-3 dark:border-amber-400/30">
+          <p className="w-full text-sm text-slate-600 dark:text-slate-300">{tr.reopenYearLead(reopening.period)}</p>
+          <Field label={tr.reason} required className="w-full sm:w-80"
+            value={reopening.reason} onChange={(v) => setReopening({ ...reopening, reason: v })} />
+          <button className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-600 text-white disabled:opacity-50"
+            disabled={busy || !reopening.reason.trim()}
+            onClick={async () => { if (await send({ action: "reopen-year", ...reopening })) setReopening(null); }}>
+            {tr.reopenYear}
+          </button>
+          <button className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 dark:border-white/15 dark:text-slate-300"
+            onClick={() => setReopening(null)}>
             {tr.cancel}
           </button>
         </div>

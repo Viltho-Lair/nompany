@@ -1,11 +1,11 @@
 import { route } from "@/platform/http/route";
 import { requirePermission } from "@/platform/access";
 import { financeContext } from "@/modules/finance/finance";
-import { ledgerAccounts } from "@/modules/finance/ledger";
+import { ledgerAccounts, isMoneyAccount } from "@/modules/finance/ledger";
 import { setupFor } from "@/modules/finance/setup";
 import { repo } from "@/platform/db/repo";
 import {
-  profitAndLoss, balanceSheet, byDimension, DIMENSIONS,
+  profitAndLoss, balanceSheet, byDimension, cashFlow, DIMENSIONS,
 } from "@/modules/finance/statements";
 import type { Dimension } from "@/modules/finance/statements";
 import type { JournalEntry } from "@/modules/finance/types";
@@ -57,5 +57,9 @@ export const GET = route({ auth: "studio", context: financeContext, name: "finan
     balanceSheet: balanceSheet(entries, chart, asOf, currency),
     // What each value of the asked dimension earned; absent when none was asked.
     breakdown: dimension ? byDimension(entries, chart, dimension, { from, to, currency }) : null,
+    // THE CASH FLOW over the same window, read off the entries that touched a
+    // money account — the accounts `isMoneyAccount` names, the same test the
+    // Cash & Bank screen uses, so the two cannot disagree about what cash is.
+    cashFlow: cashFlow(entries, chart, (a) => isMoneyAccount(a as Parameters<typeof isMoneyAccount>[0]), { from, to, currency }),
   };
 });

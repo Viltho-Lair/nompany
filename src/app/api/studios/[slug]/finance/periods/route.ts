@@ -1,6 +1,8 @@
 import { route, refused } from "@/platform/http/route";
 import { financeContext } from "@/modules/finance/finance";
-import { periods, closePeriod, reopenPeriod } from "@/modules/finance/periodService";
+import {
+  periods, closePeriod, reopenPeriod, closeYear, reopenYear, yearEndPreview,
+} from "@/modules/finance/periodService";
 import type { FinanceContext } from "@/modules/finance/types";
 
 export const runtime = "nodejs";
@@ -18,7 +20,15 @@ export const dynamic = "force-dynamic";
 const spec = { auth: "studio", context: financeContext, body: true, name: "finance/periods" };
 
 export const GET = route({ ...spec, body: false }, async (c) => {
-  const period = new URL(c.request.url).searchParams.get("period") || "";
+  const url = new URL(c.request.url);
+  // A YEAR-END PREVIEW is its own question: what would closing the year that
+  // ends in this month move into Retained Earnings.
+  const year = url.searchParams.get("yearEnd");
+  if (year) {
+    const preview = await yearEndPreview(c as FinanceContext, year);
+    return refused(preview) ? preview : { ok: true, ...preview };
+  }
+  const period = url.searchParams.get("period") || "";
   const result = await periods(c as FinanceContext, period);
   return refused(result) ? result : { ok: true, ...result };
 });
@@ -32,6 +42,8 @@ export const POST = route(spec, async (c) => {
   const action = String(c.body?.action ?? "");
   const result = action === "close" ? await closePeriod(ctx, period)
     : action === "reopen" ? await reopenPeriod(ctx, period, c.body?.reason)
-      : { error: "action" };
+      : action === "close-year" ? await closeYear(ctx, period)
+        : action === "reopen-year" ? await reopenYear(ctx, period, c.body?.reason)
+          : { error: "action" };
   return refused(result) ? result : { ok: true, ...result };
 });

@@ -12,7 +12,7 @@
 // is "post this thing", and five endpoints would be five places to forget one.
 import {
   postInvoice, postExpense, postBill, postBillPayment, postPayment, postCreditNote,
-  postPayroll, postWithholding, postAsset, postDepreciation, postAssetDisposal, postCheque, postBillWithholding, billWithheldToClear, postTaxReturn, postTaxPayment, postZakatProvision, postZakatPayment, reverseDocument, invoiceWithheldToClear, postedAmount, ENTRY_SOURCE_KINDS,
+  postPayroll, postWithholding, postAsset, postDepreciation, postAssetDisposal, postCheque, postBillWithholding, billWithheldToClear, postTaxReturn, postTaxPayment, postZakatProvision, postZakatPayment, postYearEnd, reverseDocument, invoiceWithheldToClear, postedAmount, ENTRY_SOURCE_KINDS,
 } from "./ledger";
 import type { FinanceContext } from "./types";
 import type { PostOptions } from "./ledger";
@@ -80,6 +80,8 @@ export async function postDocument(
     case "tax-payment": return postTaxPayment(ctx, documentId, options);
     case "zakat-provision": return postZakatProvision(ctx, documentId, options);
     case "zakat-payment": return postZakatPayment(ctx, documentId, options);
+    // THE ID IS THE YEAR'S LAST MONTH (`YYYY-MM`): one close per year-end.
+    case "year-end": return postYearEnd(ctx, documentId, options);
     default: return { error: "kind" };
   }
 }

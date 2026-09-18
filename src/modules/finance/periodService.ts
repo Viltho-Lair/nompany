@@ -16,7 +16,9 @@ import {
   closeProblems, closePreview, periodList, cleanClose, isClosed, periodOf, PERIOD_RE,
 } from "./periods";
 import type { Period } from "./periods";
-import { invoiceWithheldToClear } from "./ledger";
+import { invoiceWithheldToClear, postYearEnd, reverseDocument, ledgerAccounts, lastDayOf } from "./ledger";
+import { closingLines } from "./statements";
+import { roundMoney } from "@/shared/money";
 import type { FinanceContext, Invoice } from "./types";
 import type { JournalEntry } from "./types";
 
@@ -114,6 +116,7 @@ export async function periods(ctx: FinanceContext, period: string) {
       ? closePreview(entries, await unpostedIn(ctx, entries), period)
       : null,
     canClose: !requirePermission(ctx.access, "finance.ledger.close"),
+    years: await yearEnds(ctx, entries),
   };
 }
 
@@ -182,4 +185,120 @@ export async function reopenPeriod(ctx: FinanceContext, period: string, reason: 
     reason: why,
   });
   return updated ? { period: updated } : { error: "notfound" };
+}
+
+// ── THE YEAR-END ───────────────────────────────────────────────────────────
+//
+// A YEAR IS NAMED BY ITS LAST MONTH. There is no fiscal-year setting and this
+// does not need one: a studio whose year ends in June closes "2026-06", and the
+// twelve months ending there are the year. The closing entry is posted FIRST,
+// into a month that must still be open, and the year's months are locked
+// after — so the one thing the lock exists to stop, a late entry changing a
+// reported year, cannot happen between the two.
+
+/** The twelve `YYYY-MM` months ending at `endMonth`, oldest first. */
+export function monthsOfYear(endMonth: string): string[] {
+  if (!PERIOD_RE.test(endMonth)) return [];
+  const [y, m] = endMonth.split("-").map(Number);
+  const out: string[] = [];
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(Date.UTC(y, m - 1 - i, 1));
+    out.push(d.toISOString().slice(0, 7));
+  }
+  return out;
+}
+
+/** The closed years, newest first, and what closing the latest open one would move. */
+async function yearEnds(ctx: FinanceContext, entries: JournalEntry[]) {
+  const accounts = await ledgerAccounts(ctx);
+  const retainedId = accounts.find((a) => a.code === "3900")?.id || "";
+  const live = entries.filter((e) => e.source?.kind === "year-end" && !e.reversedByEntryId);
+  const closed = live.map((e) => {
+    // THE YEAR'S RESULT IS WHAT WENT INTO RETAINED EARNINGS — read off the
+    // closing entry itself, not recomputed, so it is what was actually closed.
+    const r = (e.lines || []).find((l) => l.accountId === retainedId);
+    const profit = r ? roundMoney((Number(r.credit) || 0) - (Number(r.debit) || 0), ctx.studio.currency) : 0;
+    return { endMonth: String(e.source?.id || ""), entryId: e.id, reference: e.reference, date: e.date, profit };
+  }).sort((a, b) => b.endMonth.localeCompare(a.endMonth));
+  // THE SUGGESTION: the December before this one, unless it is closed already.
+  const thisYear = Number(new Date().toISOString().slice(0, 4));
+  const suggest = `${thisYear - 1}-12`;
+  const preview = (endMonth: string) => {
+    const { lines, profit } = closingLines(entries, accounts, lastDayOf(endMonth), retainedId, ctx.studio.currency);
+    return { endMonth, profit, accounts: lines.filter((l) => l.accountId !== retainedId).length };
+  };
+  return { closed, suggest, preview: closed.some((c) => c.endMonth === suggest) ? null : preview(suggest) };
+}
+
+/** A preview for any year-end month the screen asks about. */
+export async function yearEndPreview(ctx: FinanceContext, endMonth: string) {
+  const denied = requirePermission(ctx.access, "finance.ledger.view");
+  if (denied) return denied;
+  if (!PERIOD_RE.test(endMonth)) return { error: "period" };
+  const entries = await Entries.find(scope(ctx));
+  const accounts = await ledgerAccounts(ctx);
+  const retainedId = accounts.find((a) => a.code === "3900")?.id || "";
+  const { lines, profit } = closingLines(entries, accounts, lastDayOf(endMonth), retainedId, ctx.studio.currency);
+  return { preview: { endMonth, profit, accounts: lines.filter((l) => l.accountId !== retainedId).length } };
+}
+
+/** Lock each of these months, reusing a reopened month's row as `closePeriod` does. */
+async function lockMonths(ctx: FinanceContext, months: string[]) {
+  const rows = await Periods.find(scope(ctx));
+  const at = new Date().toISOString();
+  for (const period of months) {
+    if (isClosed(rows, period)) continue;
+    const existing = rows.find((r) => r.period === period);
+    if (existing) {
+      await Periods.update(scope(ctx), existing.id, () => ({
+        closedByCollaboratorId: ctx.collaborator.id, closedAt: at,
+        reopenedByCollaboratorId: "", reopenedAt: "", reason: "",
+      }));
+    } else {
+      await Periods.create(scope(ctx), cleanClose(period, { collaboratorId: ctx.collaborator.id, at }));
+    }
+  }
+}
+
+/**
+ * CLOSE A YEAR. The year must be over, and its last month open (the closing
+ * entry is dated in it). Posts the closing entry, then locks all twelve months.
+ */
+export async function closeYear(ctx: FinanceContext, endMonth: string) {
+  const denied = requirePermission(ctx.access, "finance.ledger.close");
+  if (denied) return denied;
+  if (!PERIOD_RE.test(endMonth)) return { error: "period" };
+  const now = periodOf(new Date().toISOString().slice(0, 10));
+  // A YEAR STILL RUNNING CANNOT BE CLOSED: its result is not known yet.
+  if (endMonth >= now) return { error: "future" };
+  const posted = await postYearEnd(ctx, endMonth, { system: true });
+  if ("error" in posted && posted.error) return posted;
+  await lockMonths(ctx, monthsOfYear(endMonth));
+  return { closed: endMonth, entry: (posted as { entry?: unknown }).entry };
+}
+
+/**
+ * REOPEN A CLOSED YEAR — with a reason, like a month. Its last month is
+ * reopened and the closing entry reversed ON THE YEAR'S LAST DAY, so the
+ * result goes back to the year it belongs to. The other eleven months stay
+ * locked: reopening a year is to correct it, and a correction goes in the
+ * month somebody reopens for it.
+ */
+export async function reopenYear(ctx: FinanceContext, endMonth: string, reason: unknown) {
+  const denied = requirePermission(ctx.access, "finance.ledger.close");
+  if (denied) return denied;
+  const why = str(reason, 300);
+  if (!why) return { error: "reason" };
+  const entries = await Entries.find(scope(ctx));
+  if (!entries.some((e) => e.source?.kind === "year-end" && e.source?.id === endMonth && !e.reversedByEntryId)) {
+    return { error: "not-closed" };
+  }
+  const rows = await Periods.find(scope(ctx));
+  if (isClosed(rows, endMonth)) {
+    const reopened = await reopenPeriod(ctx, endMonth, why);
+    if ("error" in reopened && reopened.error) return reopened;
+  }
+  const reversed = await reverseDocument(ctx, "year-end", endMonth, `Year reopened: ${why}`, lastDayOf(endMonth));
+  if ("error" in reversed && reversed.error) return reversed;
+  return { reopened: endMonth };
 }

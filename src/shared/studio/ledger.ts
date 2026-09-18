@@ -30,6 +30,15 @@ type Strings = {
   equity: string;
   retained: (n: number) => string;
   outBy: (n: number) => string;
+  cashFlow: string;
+  operating: string;
+  investing: string;
+  financing: string;
+  openingCash: string;
+  closingCash: string;
+  netCash: string;
+  cashFlowLead: string;
+  cashFlowOff: string;
   tax: string;
   taxLead: string;
   from: string;
@@ -108,6 +117,15 @@ const en: Strings = {
   equity: "Equity",
   retained: (n) => `Includes ${n} earned and not yet moved into equity.`,
   outBy: (n) => `Out by ${n}.`,
+  cashFlow: "Cash flow",
+  operating: "Operating activities",
+  investing: "Investing activities",
+  financing: "Financing activities",
+  openingCash: "Cash at the start",
+  closingCash: "Cash at the end",
+  netCash: "Net change in cash",
+  cashFlowLead: "Every movement through a money account, attributed to the account on the other side. Transfers between your own accounts are not flows.",
+  cashFlowOff: "Opening plus the net change does not equal closing — a money account was likely retired or unmarked during the period.",
   tax: "Tax return",
   taxLead: "VAT charged on sales, less what credit notes gave back, less VAT paid on purchases — read from the documents by their own dates. Drafts, cancelled documents and disputed bills are left out.",
   from: "From",
@@ -259,6 +277,15 @@ const ar: Strings = {
   equity: "حقوق الملكية",
   retained: (n) => `يشمل ${n} محققة ولم تنقل بعد الى حقوق الملكية.`,
   outBy: (n) => `فارق ${n}.`,
+  cashFlow: "التدفقات النقدية",
+  operating: "الأنشطة التشغيلية",
+  investing: "الأنشطة الاستثمارية",
+  financing: "الأنشطة التمويلية",
+  openingCash: "النقد في البداية",
+  closingCash: "النقد في النهاية",
+  netCash: "صافي التغير في النقد",
+  cashFlowLead: "كل حركة عبر حساب نقدي، منسوبة الى الحساب المقابل. التحويلات بين حساباتكم ليست تدفقات.",
+  cashFlowOff: "النقد في البداية مع صافي التغير لا يساوي النقد في النهاية — ربما أوقف حساب نقدي أو ألغي تصنيفه خلال الفترة.",
   tax: "الاقرار الضريبي",
   taxLead: "ضريبة القيمة المضافة على المبيعات، مطروحا منها ما ردته اشعارات الدائن والضريبة المدفوعة على المشتريات — من المستندات نفسها وبتواريخها. المسودات والمستندات الملغاة وفواتير الموردين المتنازع عليها مستبعدة.",
   from: "من",

@@ -183,19 +183,22 @@ function FinanceReports({ slug }) {
   const [tab, setTab] = useState("pl");
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
+  // THE WINDOW every statement is read over; the balance sheet is as at its end.
+  const [range, setRange] = useState({ from: "", to: "" });
   const load = useCallback(async () => {
-    const res = await fetch(`/api/studios/${slug}/finance/reports`, { cache: "no-store" });
+    const qs = new URLSearchParams(Object.entries(range).filter(([, v]) => /^d{4}-d{2}-d{2}$/.test(v))).toString();
+    const res = await fetch(`/api/studios/${slug}/finance/reports${qs ? `?${qs}` : ""}`, { cache: "no-store" });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) { setError(tr.noAccessThis); return; }
     setError(""); setData(body);
-  }, [slug, tr]);
+  }, [slug, tr, range]);
   useReload(load);
   // The statements move with every posting, which lands under the ledger.
   useLiveUpdates(slug, "finance-ledger", load);
 
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <ScreenSkeleton loadingLabel={tr.loadingFinance} />;
-  const { profitAndLoss: pl = {}, balanceSheet: bs = {} } = data;
+  const { profitAndLoss: pl = {}, balanceSheet: bs = {}, cashFlow: cf = null } = data;
   return (
     <div className="space-y-6">
       <div>
@@ -203,7 +206,13 @@ function FinanceReports({ slug }) {
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{tr.reportsLead}</p>
       </div>
       <FinanceSetupNotice items={data.setup} slug={slug} canFix={data.canFixSetup} />
-      <TabBar tabs={[["pl", lt.pl], ["bs", lt.bs], ["projects", tr.reportsProjects]]} tab={tab} setTab={setTab} />
+      <TabBar tabs={[["pl", lt.pl], ["bs", lt.bs], ["cf", lt.cashFlow], ["projects", tr.reportsProjects]]} tab={tab} setTab={setTab} />
+      {tab !== "projects" && (
+        <div className="flex flex-wrap gap-2">
+          <Field label={lt.from} type="date" className="w-44" value={range.from} onChange={(v) => setRange((r) => ({ ...r, from: v }))} />
+          <Field label={lt.to} type="date" className="w-44" value={range.to} onChange={(v) => setRange((r) => ({ ...r, to: v }))} />
+        </div>
+      )}
       {tab === "pl" && (
         <Statement tr={lt}
           groups={[[lt.income, pl.income, pl.totalIncome], [lt.expenses, pl.expense, pl.totalExpense]]}
@@ -217,6 +226,25 @@ function FinanceReports({ slug }) {
             [lt.equity, bs.equity, bs.totalEquity]]}
           total={bs.totalAssets} totalLabel={lt.assets}
           note={bs.balanced ? lt.retained(bs.retainedResult) : lt.outBy(bs.difference)} />
+      )}
+      {/* CASH FLOW: opening, the three classes, closing — and it says so when
+          the four do not add up rather than printing a closing figure that
+          does not follow from the rest. */}
+      {tab === "cf" && cf && (
+        <div className="space-y-4">
+          <p className="text-sm text-slate-500 dark:text-slate-400">{lt.cashFlowLead}</p>
+          <p className="flex justify-between text-sm font-600 text-slate-900 dark:text-white">
+            <span>{lt.openingCash}</span><span className="num">{money(cf.opening)}</span>
+          </p>
+          <Statement tr={lt}
+            groups={[[lt.operating, cf.operating, cf.totalOperating], [lt.investing, cf.investing, cf.totalInvesting],
+              [lt.financing, cf.financing, cf.totalFinancing]]}
+            total={cf.net} totalLabel={lt.netCash}
+            note={cf.reconciles ? "" : lt.cashFlowOff} />
+          <p className="flex justify-between border-t-2 border-slate-200 pt-2 font-display text-sm font-700 text-slate-900 dark:border-white/10 dark:text-white">
+            <span>{lt.closingCash}</span><span className="num">{money(cf.closing)}</span>
+          </p>
+        </div>
       )}
       {tab === "projects" && <FinanceCash slug={slug} view="finance-reports" only={["projects"]} embedded />}
     </div>

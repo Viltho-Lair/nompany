@@ -89,8 +89,9 @@ by opening the screen, which is the only instrument that could.
 
 ## Not built yet
 
-- **No year-end.** Nothing moves the retained result into equity, so the balance sheet
-  computes it on every read and says so. Closing twelve months is not closing a year.
+- **The year-end is built (18/09/2026)** and described in `ledger.md`: Periods → Closing a
+  year closes into Retained Earnings and locks the twelve months. What it does not do is
+  pick the year for you beyond suggesting last December — there is no fiscal-year setting.
 - **Nothing else consults the lock.** A closed month still accepts a new INVOICE or BILL
   dated in it — only the posting is refused — so a document can exist that can never reach
   the books until somebody reopens.

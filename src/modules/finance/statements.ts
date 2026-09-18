@@ -34,10 +34,37 @@ export const DIMENSIONS = ["projectId", "dealId", "costCodeId", "departmentId"] 
 export type Dimension = (typeof DIMENSIONS)[number];
 
 export type StatementEntry = {
+  id?: unknown;
   date?: unknown;
   lines?: unknown;
-  /** A reversal is an ordinary entry; nothing here needs to know. */
+  /** A reversal is an ordinary entry; only a YEAR-END's matters here (below). */
+  source?: { kind?: unknown } | null;
+  reversalOfEntryId?: unknown;
 };
+
+/**
+ * THE ENTRIES A YEAR-END CLOSE POSTED, and the reversals of them.
+ *
+ * A CLOSING ENTRY IS NOT A YEAR'S TRADING. It moves the year's income and
+ * expense into Retained Earnings on the year's last day, so counted in a P&L it
+ * would zero the very year it closes — the report somebody runs after closing
+ * December would say the company earned nothing. The P&L leaves these out; the
+ * balance sheet keeps them, because moving the result into equity is exactly
+ * what a balance sheet should show. A reopened year's reversal goes with its
+ * original, or the P&L would count the year twice the other way.
+ */
+export function closingEntryIds(entries: StatementEntry[]): Set<string> {
+  const ids = new Set<string>();
+  for (const e of list<StatementEntry>(entries)) {
+    if (text(e?.source?.kind) === "year-end") ids.add(text(e?.id));
+  }
+  for (const e of list<StatementEntry>(entries)) {
+    const of = text(e?.reversalOfEntryId);
+    if (of && ids.has(of)) ids.add(text(e?.id));
+  }
+  ids.delete("");
+  return ids;
+}
 
 export type StatementAccount = {
   id?: unknown;
@@ -116,9 +143,11 @@ function netByAccount(
   keep: (date: string) => boolean,
   keepLine: (line: StatementLine) => boolean = () => true,
   currency?: unknown,
+  skip: Set<string> = new Set(),
 ): Map<string, number> {
   const net = new Map<string, number>();
   for (const e of list<StatementEntry>(entries)) {
+    if (skip.size && skip.has(text(e?.id))) continue;
     // AN ENTRY WITH NO DATE IS NOT SILENTLY INCLUDED. A statement is a claim
     // about a period, and a posting that names no day belongs to no period —
     // counting it would put it in every report ever run.
@@ -187,7 +216,7 @@ export function profitAndLoss(
     ? (l: StatementLine) => text(l?.[dim]) === want
     : undefined;
   const net = netByAccount(
-    entries, (d) => (!from || d >= from) && (!to || d <= to), keepLine, currency,
+    entries, (d) => (!from || d >= from) && (!to || d <= to), keepLine, currency, closingEntryIds(entries),
   );
 
   const income = rowsFor(accounts, net, "income", currency);
@@ -208,7 +237,8 @@ export function profitAndLoss(
  *
  * THE RETAINED RESULT IS THE PIECE THAT MAKES IT BALANCE, and it is computed
  * rather than stored because no account holds it until a year-end closes the
- * books — and periods and close are not built. Assets equal liabilities plus
+ * books — and a year nobody has closed is every studio's first year. After a
+ * close it is what has been earned SINCE; the closed years sit in 3900. Assets equal liabilities plus
  * equity plus everything the business has earned and not yet moved into equity;
  * omitting that last term would show every trading studio out of balance by
  * exactly its own profit, which reads as a bug in the ledger rather than a
@@ -307,8 +337,187 @@ function residueFor(
     (d) => (!from || d >= from) && (!to || d <= to),
     (l) => !text(l?.[dimension]),
     currency,
+    closingEntryIds(entries),
   );
   const income = rowsFor(accounts, net, "income", currency).total;
   const expense = rowsFor(accounts, net, "expense", currency).total;
   return { income: money(income, currency), expense: money(expense, currency), profit: money(income - expense, currency) };
+}
+
+// ── THE CASH FLOW STATEMENT ────────────────────────────────────────────────
+//
+// THE DIRECT METHOD, READ OFF THE JOURNAL. Every entry that touches a money
+// account moved cash, and because every entry balances, the cash it moved is
+// exactly the sum of (credit − debit) over its OTHER lines. So each non-money
+// line of such an entry is a cash flow of its own, attributed to the account
+// it names: a receipt against Accounts Receivable is money from customers, a
+// payment against Accounts Payable is money to suppliers. Nothing is estimated
+// and nothing is apportioned — the entry already says where the money went.
+//
+// A TRANSFER BETWEEN TWO MONEY ACCOUNTS IS NOT A FLOW. Both its lines are
+// money, so it has no other line and contributes nothing, which is right: the
+// studio's cash did not change, it moved between drawers.
+//
+// THE CLASS OF A FLOW is decided per line, with one exception taken per entry:
+//   - an entry posted by a fixed asset's acquisition or disposal is INVESTING
+//     whole, on its fixed-asset account (its gain is part of the proceeds);
+//   - otherwise a line on a fixed-asset account (an asset coded 15xx) is
+//     investing, a line on equity or a long-term liability (coded 25xx–29xx)
+//     is financing, and everything else is operating.
+// The chart's codes are the convention the default chart already follows, so
+// a studio's own accounts classify by where it numbered them.
+//
+// OPENING PLUS NET MUST EQUAL CLOSING, and `reconciles` says whether it does.
+// It always should; a false here means a money account was retired or had its
+// flag changed mid-period, and the screen says so rather than hiding it.
+
+export type CashFlowClass = "operating" | "investing" | "financing";
+export type CashFlowEntry = StatementEntry & { source?: { kind?: unknown } | null };
+export type CashFlowRow = { accountId: string; code: string; name: string; amount: number };
+export type CashFlow = {
+  from: string;
+  to: string;
+  opening: number;
+  operating: CashFlowRow[];
+  investing: CashFlowRow[];
+  financing: CashFlowRow[];
+  totalOperating: number;
+  totalInvesting: number;
+  totalFinancing: number;
+  net: number;
+  closing: number;
+  reconciles: boolean;
+};
+
+const INVESTING_KINDS = new Set(["asset", "asset-disposal"]);
+
+/** The class a non-money line's flow belongs to. Exported for the test. */
+export function cashFlowClass(account: StatementAccount | undefined, entryKind: unknown): CashFlowClass {
+  if (INVESTING_KINDS.has(text(entryKind))) return "investing";
+  const type = text(account?.type);
+  const code = text(account?.code);
+  if (type === "asset" && code.startsWith("15")) return "investing";
+  if (type === "equity") return "financing";
+  if (type === "liability" && /^2[5-9]/.test(code)) return "financing";
+  return "operating";
+}
+
+export function cashFlow(
+  entries: CashFlowEntry[],
+  accounts: StatementAccount[],
+  isMoney: (a: StatementAccount) => boolean,
+  window: { from?: unknown; to?: unknown; currency?: unknown } = {},
+): CashFlow {
+  const currency = window.currency;
+  const from = day(window.from);
+  const to = day(window.to);
+  const byId = new Map(list<StatementAccount>(accounts).map((a) => [text(a?.id), a]));
+  const money = new Set([...byId.entries()].filter(([, a]) => isMoney(a)).map(([id]) => id));
+
+  let opening = 0;
+  let closing = 0;
+  const flows: Record<CashFlowClass, Map<string, number>> = {
+    operating: new Map(), investing: new Map(), financing: new Map(),
+  };
+  for (const e of list<CashFlowEntry>(entries)) {
+    const d = day(e?.date);
+    if (!d || (to && d > to)) continue;
+    const lines = list<StatementLine>(e?.lines);
+    const cash = lines
+      .filter((l) => money.has(text(l?.accountId)))
+      .reduce((n, l) => n + cents(l?.debit, currency) - cents(l?.credit, currency), 0);
+    closing += cash;
+    if (from && d < from) { opening += cash; continue; }
+    if (!lines.some((l) => money.has(text(l?.accountId)))) continue;
+    // AN ASSET'S PURCHASE OR SALE IS ONE FLOW, on its fixed-asset account. A
+    // disposal entry also carries its catch-up depreciation, the accumulated
+    // depreciation it releases and the gain — each real, none of them money —
+    // and spread line by line they read as three investing rows nobody made.
+    if (INVESTING_KINDS.has(text(e?.source?.kind))) {
+      const anchor = lines.find((l) => {
+        const a = byId.get(text(l?.accountId));
+        return text(a?.type) === "asset" && text(a?.code).startsWith("15") && !text(a?.code).startsWith("151");
+      });
+      if (anchor && cash) {
+        const id = text(anchor.accountId);
+        flows.investing.set(id, (flows.investing.get(id) || 0) + cash);
+        continue;
+      }
+    }
+    for (const l of lines) {
+      const id = text(l?.accountId);
+      if (!id || money.has(id)) continue;
+      const amount = cents(l?.credit, currency) - cents(l?.debit, currency);
+      if (!amount) continue;
+      const cls = cashFlowClass(byId.get(id), e?.source?.kind);
+      flows[cls].set(id, (flows[cls].get(id) || 0) + amount);
+    }
+  }
+
+  const rows = (cls: CashFlowClass) => {
+    let total = 0;
+    const out: CashFlowRow[] = [];
+    for (const [id, amount] of flows[cls]) {
+      if (!amount) continue;
+      total += amount;
+      const a = byId.get(id);
+      out.push({ accountId: id, code: text(a?.code), name: text(a?.name), amount: fromMinor(amount, currency) });
+    }
+    out.sort((x, y) => x.code.localeCompare(y.code));
+    return { out, total };
+  };
+  const op = rows("operating");
+  const inv = rows("investing");
+  const fin = rows("financing");
+  const net = op.total + inv.total + fin.total;
+  return {
+    from, to,
+    opening: fromMinor(opening, currency),
+    operating: op.out, investing: inv.out, financing: fin.out,
+    totalOperating: fromMinor(op.total, currency),
+    totalInvesting: fromMinor(inv.total, currency),
+    totalFinancing: fromMinor(fin.total, currency),
+    net: fromMinor(net, currency),
+    closing: fromMinor(closing, currency),
+    reconciles: opening + net === closing,
+  };
+}
+
+// ── THE YEAR-END CLOSE ─────────────────────────────────────────────────────
+//
+// WHAT A CLOSING ENTRY SAYS: every income and expense account back to nought as
+// at the year's last day, and the difference — the year's result — into
+// Retained Earnings. CUMULATIVE, not the year's movement: it zeroes whatever the
+// accounts hold on that day, so a year before it that nobody closed is swept in
+// with it rather than left stranded, and a reopened-and-reclosed year closes
+// exactly what is there now. Lines are in whole minor units; the entry balances
+// by construction and `postEntry` checks it anyway.
+export function closingLines(
+  entries: StatementEntry[],
+  accounts: StatementAccount[],
+  asOfInput: unknown,
+  retainedAccountId: string,
+  currency?: unknown,
+): { lines: { accountId: string; debit: number; credit: number }[]; profit: number } {
+  const asOf = day(asOfInput);
+  const net = netByAccount(entries, (d) => !asOf || d <= asOf, undefined, currency);
+  const lines: { accountId: string; debit: number; credit: number }[] = [];
+  let total = 0;
+  for (const a of list<StatementAccount>(accounts)) {
+    const type = text(a?.type);
+    if (type !== "income" && type !== "expense") continue;
+    const id = text(a?.id);
+    const n = net.get(id) || 0;
+    if (!n) continue;
+    total += n;
+    lines.push(n > 0
+      ? { accountId: id, debit: 0, credit: money(n, currency) }
+      : { accountId: id, debit: money(-n, currency), credit: 0 });
+  }
+  if (lines.length && total) {
+    lines.push(total > 0
+      ? { accountId: retainedAccountId, debit: money(total, currency), credit: 0 }
+      : { accountId: retainedAccountId, debit: 0, credit: money(-total, currency) });
+  }
+  return { lines, profit: money(-total, currency) };
 }
