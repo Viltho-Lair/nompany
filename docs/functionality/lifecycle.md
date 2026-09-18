@@ -95,13 +95,22 @@ the shape is what makes the second one a data change rather than a migration.
 | | Probation | Notice | Notable |
 |---|---|---|---|
 | Jordan | 3 months (max 3) | 30 days | Labour Law arts. 23, 35 |
-| Saudi Arabia | 3 months (max 6 in writing) | 60 days | Labour Law arts. 53, 75 |
+| Saudi Arabia | 3 months (max 180 days, in the contract) | **60 days from the employer, 30 from an employee who resigns** (since 19/02/2025; a flat 60 before) | Labour Law arts. 53, 75 |
 | UAE | 6 months | 30 days (max 90), **14 in probation** | Decree-Law 33/2021 arts. 8, 9, 43 |
 
 **The UAE offers no permanent contract**, because art. 8 abolished it — every contract there
 is fixed-term. That is the difference that proves the pack is doing something: the refusal is
 the country's, not the product's, and an Emirati studio is never offered a kind of contract
 its own law does not recognise.
+
+**Notice has a direction.** Saudi Arabia split it on 19/02/2025, and the pack held one
+figure — so every Saudi resignation's settlement claimed thirty days of notice the employee
+never owed. Found by the 18/09/2026 country research against code shipped the day before.
+`noticeDaysFor` is now the one place the question is answered, for the notice move and the
+settlement alike: probation's shortened notice first, then the employee-side figure for a
+resignation where the country sets one, then the contract's own. The amendment is a **second
+dated entry**, not an edit, so notice given before that date keeps the old flat sixty — and the
+settlement judges notice by the rule in force when it was GIVEN, not on the last day.
 
 **A country the product has not researched gets the fallback**, never one of the three.
 Picking Jordan's rules for Kenya would be a confident wrong answer; the fallback says plainly
@@ -214,6 +223,9 @@ under the sections they were written to (`hr-employees` and the HR root) — see
   somebody leaves, and no onboarding tasks are fanned out when they arrive.
 - **No recruitment**, so nobody is converted from a candidate — a person still arrives by
   joining the studio and being approved.
+- **A contract cannot agree a longer employee notice than the statute's.** A contract holds
+  one notice figure, the employer's; a resigning Saudi employee is held to the statutory
+  thirty days whatever the contract says. Giving the contract two figures is a shape change.
 - **The settlement reads no loans**, because the product models none; `deductions` is typed.
 - **Encashment is the ANNUAL balance at 1/30 of the monthly wage.** A studio counting leave in
   working days will want a different divisor, and no leave type is flagged encashable.

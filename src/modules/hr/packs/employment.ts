@@ -17,10 +17,12 @@
 // silently re-dates. So an entry here is effective-dated and `packFor` takes the
 // date it is being asked about.
 //
-// ONE ENTRY PER COUNTRY TODAY, and that is the point rather than a gap: the
-// shape is what makes the second entry a data change instead of a migration.
-// Add the new rule with its own `effectiveFrom` and leave the old one — a
-// contract signed under it keeps answering by it.
+// A LAW CHANGE IS A NEW ENTRY, NEVER AN EDIT. Saudi Arabia has two: the 2005
+// rule and the 19/02/2025 amendments, which split notice by who ends the
+// contract. That second entry was a data change rather than a migration, which
+// is exactly what the dated shape was for. Add the new rule with its own
+// `effectiveFrom` and leave the old one — anything dated under it keeps
+// answering by it.
 //
 // EVERY FIGURE CITES ITS ARTICLE. A rate nobody can check is a rate nobody can
 // correct, and `docs/functionality/lifecycle.md` says plainly that three
@@ -41,6 +43,18 @@ export type NoticeRule = {
   maxDays: number;
   /** During probation, where a country shortens it. 0 = the same as `days`. */
   probationDays: number;
+  /**
+   * WHAT AN EMPLOYEE WHO RESIGNS OWES, where the law makes it differ from what
+   * an employer who terminates owes. 0 = the same as `days`, both ways.
+   *
+   * NOTICE HAS A DIRECTION IN SOME COUNTRIES, and a single figure cannot say
+   * so. Saudi Arabia split it on 19/02/2025 — 60 days when the employer ends an
+   * indefinite contract, 30 when the employee does — and the pack held one 60,
+   * so a resigning employee's settlement claimed thirty days of unserved notice
+   * they never owed. `days` stays the EMPLOYER's figure because that is the one
+   * a contract is written with; this is the employee's side of the same rule.
+   */
+  employeeDays: number;
 };
 
 export type ProbationRule = {
@@ -93,6 +107,14 @@ export type ContractType = (typeof CONTRACT_TYPES)[number];
  * otherwise (art. 75) — sixty is the default here because this product pays
  * monthly.
  *
+ * SAUDI ARABIA, FROM 19/02/2025 — the amendments approved 06/08/2024. Notice on
+ * an indefinite contract splits by who ends it: SIXTY days from the employer,
+ * THIRTY from an employee who resigns. Probation is up to a hundred and eighty
+ * days and must be written into the contract. A SECOND ENTRY, not an edit to the
+ * first: notice given before that date is judged by the rule then in force, which
+ * is the whole reason packs are dated. (King & Spalding's summary, read
+ * 18/09/2026; the official text was not.)
+ *
  * UAE — Federal Decree-Law 33/2021. Probation up to six months (art. 9), and
  * fourteen days if the EMPLOYER ends it inside probation. Notice is whatever
  * the contract says between thirty and ninety days (art. 43). Every contract is
@@ -104,7 +126,7 @@ export const EMPLOYMENT_PACKS: readonly EmploymentPack[] = Object.freeze([
     effectiveFrom: "1996-06-16",
     source: "Jordan Labour Law No. 8 of 1996, arts. 23 and 35",
     probation: { months: 3, maxMonths: 3 },
-    notice: { days: 30, afterYears: 0, daysAfter: 0, maxDays: 0, probationDays: 0 },
+    notice: { days: 30, afterYears: 0, daysAfter: 0, maxDays: 0, probationDays: 0, employeeDays: 0 },
     contractTypes: ["Permanent", "Fixed term", "Part time", "Casual", "Internship", "Secondment"],
   },
   {
@@ -112,7 +134,15 @@ export const EMPLOYMENT_PACKS: readonly EmploymentPack[] = Object.freeze([
     effectiveFrom: "2005-09-27",
     source: "Saudi Labour Law (Royal Decree M/51), arts. 53 and 75",
     probation: { months: 3, maxMonths: 6 },
-    notice: { days: 60, afterYears: 0, daysAfter: 0, maxDays: 0, probationDays: 0 },
+    notice: { days: 60, afterYears: 0, daysAfter: 0, maxDays: 0, probationDays: 0, employeeDays: 0 },
+    contractTypes: ["Permanent", "Fixed term", "Part time", "Casual", "Internship", "Secondment"],
+  },
+  {
+    country: "SA",
+    effectiveFrom: "2025-02-19",
+    source: "Saudi Labour Law as amended (in force 19/02/2025), arts. 53 and 75",
+    probation: { months: 3, maxMonths: 6 },
+    notice: { days: 60, afterYears: 0, daysAfter: 0, maxDays: 0, probationDays: 0, employeeDays: 30 },
     contractTypes: ["Permanent", "Fixed term", "Part time", "Casual", "Internship", "Secondment"],
   },
   {
@@ -120,7 +150,7 @@ export const EMPLOYMENT_PACKS: readonly EmploymentPack[] = Object.freeze([
     effectiveFrom: "2022-02-02",
     source: "UAE Federal Decree-Law 33/2021, arts. 8, 9 and 43",
     probation: { months: 6, maxMonths: 6 },
-    notice: { days: 30, afterYears: 0, daysAfter: 0, maxDays: 90, probationDays: 14 },
+    notice: { days: 30, afterYears: 0, daysAfter: 0, maxDays: 90, probationDays: 14, employeeDays: 0 },
     // NO "Permanent": art. 8 makes every contract fixed-term.
     contractTypes: ["Fixed term", "Part time", "Casual", "Internship", "Secondment"],
   },
@@ -141,7 +171,7 @@ export const DEFAULT_EMPLOYMENT_PACK: EmploymentPack = Object.freeze({
   effectiveFrom: "1970-01-01",
   source: "No country pack — the studio's own defaults",
   probation: { months: 3, maxMonths: 6 },
-  notice: { days: 30, afterYears: 0, daysAfter: 0, maxDays: 0, probationDays: 0 },
+  notice: { days: 30, afterYears: 0, daysAfter: 0, maxDays: 0, probationDays: 0, employeeDays: 0 },
   contractTypes: [...CONTRACT_TYPES],
 });
 

@@ -26,7 +26,7 @@ import { notifyCollaborators, NOTIFY } from "@/platform/notify/notifications";
 import {
   EMPLOYMENT_STATUSES, EXIT_REASONS, MOVES, MOVE_KEYS, RECORD_EVENTS,
   attentionList, cleanContract, contractAt, contractProblems, contractsOf,
-  daysBetween, employmentPackFor, moveProblem, movesFrom, noticeEndsOn,
+  daysBetween, employmentPackFor, moveProblem, movesFrom, noticeDaysFor, noticeEndsOn,
   probationEndsOn, settlement, statusOf,
 } from "./lifecycle";
 import type { EmploymentContract, EmploymentStatus, LifecycleEvent, Move, Settlement } from "./lifecycle";
@@ -271,12 +271,14 @@ export async function moveEmployment(ctx: HrContext, body: MoveBody) {
     // wins — and what the contract WOULD have required is kept on the event,
     // because the difference between the two is exactly what the settlement
     // pays or claws back.
-    const required = noticeEndsOn(effectiveDate, current, pack, status);
+    // WHO IS ENDING IT DECIDES HOW LONG — see `noticeDaysFor`.
+    const reason = reasonOr(body?.reason);
+    const required = noticeEndsOn(effectiveDate, current, pack, status, reason);
     const ends = day(body?.lastWorkingDay) || required;
     patch.noticeGivenOn = effectiveDate;
     patch.noticeEndsOn = ends;
-    patch.exitReason = reasonOr(body?.reason);
-    payload.noticeDays = current?.noticeDays ?? pack.notice.days;
+    patch.exitReason = reason;
+    payload.noticeDays = noticeDaysFor(current, pack, status, reason);
     payload.noticeEndsOn = ends;
     payload.noticeDueOn = required;
   }
@@ -457,8 +459,12 @@ export async function settlementFor(ctx: HrContext, input: {
   const annual = balances.find((b) => b.type === DEFAULT_LEAVE_TYPE);
 
   const current = contractAt(contracts, collaboratorId, lastWorkingDay);
-  const noticeDaysRequired = current?.noticeDays ?? pack.notice.days;
   const givenOn = day(person.noticeGivenOn);
+  // JUDGED BY THE RULE IN FORCE WHEN NOTICE WAS GIVEN, not on the last day:
+  // notice given under Saudi Arabia's old flat sixty and served past 19/02/2025
+  // must not change rules halfway through. With no notice given, the last day
+  // is the only date there is.
+  const noticeDaysRequired = noticeDaysFor(current, givenOn ? packOn(ctx, givenOn) : pack, statusOf(person), reason);
   // NOTICE ACTUALLY SERVED, from the day it was given to the last working day.
   // No notice given means none served, which is the honest reading of somebody
   // walking out — not "the full period", which would quietly waive the shortfall.

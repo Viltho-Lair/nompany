@@ -475,10 +475,41 @@ export function probationEndsOn(contract: EmploymentContract | null): string {
  */
 export function noticeEndsOn(
   from: string, contract: EmploymentContract | null, pack: EmploymentPack, status: EmploymentStatus,
+  reason: unknown = "Termination",
 ): string {
-  const probation = status === "Probation" && pack.notice.probationDays > 0;
-  const days = probation ? pack.notice.probationDays : (contract?.noticeDays ?? pack.notice.days);
-  return addDays(from, days);
+  return addDays(from, noticeDaysFor(contract, pack, status, reason));
+}
+
+/**
+ * HOW MANY DAYS' NOTICE THIS ENDING CARRIES — the one place the question is
+ * answered, because two readers ask it: the notice move (when is the last day)
+ * and the settlement (how much notice went unserved). Both used to read
+ * `contract.noticeDays ?? pack.notice.days`, a single figure that could not say
+ * who was ending the contract.
+ *
+ * THREE RULES, most specific first:
+ *
+ *   ON PROBATION, the country's shortened probation notice where it names one
+ *   (the UAE's fourteen days) — whoever ends it.
+ *
+ *   AN EMPLOYEE RESIGNING owes the country's employee-side figure where the law
+ *   sets one apart (Saudi Arabia's thirty days since 19/02/2025). Not the
+ *   contract's: `noticeDays` on a contract is the figure it was written with,
+ *   which is the employer's sixty — the bug this function replaced read that
+ *   sixty straight into a resigning employee's settlement.
+ *
+ *   OTHERWISE the contract's own notice, falling back to the pack's.
+ *
+ * WHAT IS NOT MODELLED: a contract that agrees a LONGER employee notice than the
+ * statute's. The contract holds one figure; giving it two is a contract-shape
+ * change, and `lifecycle.md` lists it under "Not built yet".
+ */
+export function noticeDaysFor(
+  contract: EmploymentContract | null, pack: EmploymentPack, status: EmploymentStatus, reason: unknown,
+): number {
+  if (status === "Probation" && pack.notice.probationDays > 0) return pack.notice.probationDays;
+  if (reasonKind(reason) === "resignation" && pack.notice.employeeDays > 0) return pack.notice.employeeDays;
+  return contract?.noticeDays ?? pack.notice.days;
 }
 
 // ---- what needs attention ------------------------------------------------------

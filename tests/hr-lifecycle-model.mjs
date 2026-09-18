@@ -15,7 +15,7 @@ const {
   EMPLOYMENT_STATUSES, EMPLOYED, AT_WORK, MOVES, MOVE_KEYS, DEFAULT_STATUS,
   statusOf, movesFrom, moveProblem, reasonKind, EXIT_REASONS,
   contractProblems, cleanContract, contractAt, contractsOf,
-  addMonths, addDays, daysBetween, probationEndsOn, noticeEndsOn,
+  addMonths, addDays, daysBetween, probationEndsOn, noticeEndsOn, noticeDaysFor,
   attentionList, settlement, DAYS_IN_MONTH, employedBetween, employedOn,
 } = await import("@/modules/hr/lifecycle");
 const {
@@ -259,20 +259,54 @@ ok("a daily wage is a thirtieth of the monthly one, at the currency's decimals",
 ok("the divisor is named once", DAYS_IN_MONTH === 30);
 
 // SAUDI, RESIGNING AT THREE YEARS: half a month a year on the WAGE, reduced to a
-// third by art. 85 — and walking out with none of the sixty days served.
+// third by art. 85 — and walking out with none of the THIRTY days served. It
+// said sixty here until 18/09/2026: that is the employer's figure, and a
+// resigning employee has owed thirty since 19/02/2025 (see noticeDaysFor below).
 const saudi = settlement({
   dateOfJoin: "2023-01-01", lastWorkingDay: "2026-01-01", reason: "Resignation",
   basic: 8000, wage: 12000, eosRule: SA_EOS,
-  unusedLeaveDays: 10, noticeDaysRequired: 60, noticeDaysServed: 0, deductions: 0,
+  unusedLeaveDays: 10, noticeDaysRequired: 30, noticeDaysServed: 0, deductions: 0,
 }, "SAR");
 ok("resignation under five years is reduced to a third", saudi.endOfService.factor === 1 / 3);
 ok("the reduced award is a third of 1.5 months of wage", saudi.endOfService.amount === 6000, `got ${saudi.endOfService.amount}`);
 ok("ten days of unused leave is ten daily wages", saudi.encashment === 4000);
 // THE SIGN IS THE POINT. Somebody who resigns and walks out OWES the notice;
 // a settlement that always added it would pay them for failing to give it.
-ok("notice nobody served is owed BY somebody who resigned", saudi.noticeInLieu === -24000);
-ok("the shortfall is counted in days", saudi.noticeShortfallDays === 60);
-ok("the total nets the notice off", saudi.total === 6000 + 4000 - 24000);
+ok("notice nobody served is owed BY somebody who resigned", saudi.noticeInLieu === -12000);
+ok("the shortfall is counted in days", saudi.noticeShortfallDays === 30);
+ok("the total nets the notice off", saudi.total === 6000 + 4000 - 12000);
+
+// ---- notice has a direction -------------------------------------------------
+// THE BUG THIS BLOCK EXISTS FOR: since 19/02/2025 a Saudi employee who resigns
+// owes 30 days and an employer who terminates owes 60, and the pack held one
+// 60 — so every Saudi resignation's settlement claimed 30 days of unserved
+// notice the employee never owed. Found by the 18/09/2026 country research,
+// against code shipped the day before.
+const sa2026 = employmentPackFor("SA", "2026-01-01");
+const sa2024 = employmentPackFor("SA", "2024-06-01");
+const saContract = { noticeDays: 60 };
+ok("A SAUDI EMPLOYEE WHO RESIGNS OWES THIRTY DAYS",
+  noticeDaysFor(saContract, sa2026, "Active", "Resignation") === 30);
+ok("...and an employer who terminates owes sixty",
+  noticeDaysFor(saContract, sa2026, "Active", "Termination") === 60);
+// Retirement, redundancy and the rest are not resignations — reasonKind's rule.
+ok("...as does every ending that is not a resignation",
+  noticeDaysFor(saContract, sa2026, "Active", "Redundancy") === 60);
+// EFFECTIVE DATING IS WHAT MAKES THIS A FIX RATHER THAN A REWRITE: notice given
+// under the old flat sixty keeps answering by it.
+ok("notice given before 19/02/2025 keeps the old flat sixty",
+  noticeDaysFor(saContract, sa2024, "Active", "Resignation") === 60);
+ok("the amendment is its own dated entry, not an edit",
+  sa2026.effectiveFrom === "2025-02-19" && sa2024.effectiveFrom === "2005-09-27");
+// A country with no split answers the same both ways, from the contract.
+ok("Jordan's notice is the contract's either way",
+  noticeDaysFor({ noticeDays: 30 }, jo, "Active", "Resignation") === 30
+  && noticeDaysFor({ noticeDays: 30 }, jo, "Active", "Termination") === 30);
+// Probation's shortened notice still wins where a country names one.
+ok("the UAE's probation notice still wins over the direction",
+  noticeDaysFor({ noticeDays: 60 }, ae, "Probation", "Resignation") === 14);
+ok("the last day of a Saudi resignation is thirty days on",
+  noticeEndsOn("2026-09-01", saContract, sa2026, "Active", "Resignation") === "2026-10-01");
 
 // ...AND THE OTHER WAY ROUND for somebody dismissed without notice.
 const dismissed = settlement({
