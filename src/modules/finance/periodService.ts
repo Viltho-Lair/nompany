@@ -24,6 +24,7 @@ const Periods = repo<Period>("accountingPeriods");
 const Entries = repo<JournalEntry>("journalEntries");
 const Invoices = repo<Invoice>("invoices");
 const Bills = repo<{ id: string; billDate?: string; status?: string }>("bills");
+const Assets = repo<{ id: string; acquiredOn?: string }>("fixedAssets");
 
 const scope = (ctx: FinanceContext) => ({ studio: ctx.studio, section: ctx.ledgerSection });
 const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
@@ -37,9 +38,10 @@ const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
  */
 async function unpostedIn(ctx: FinanceContext, entries: JournalEntry[]) {
   const posted = new Set(entries.map((e) => `${e.source?.kind}:${e.source?.id}`));
-  const [invoices, bills] = await Promise.all([
+  const [invoices, bills, assets] = await Promise.all([
     Invoices.find({ studio: ctx.studio, section: ctx.cashSection }),
     Bills.find({ studio: ctx.studio, section: ctx.payablesSection }),
+    Assets.find({ studio: ctx.studio, section: ctx.assetsSection }),
   ]);
 
   const out: { document: { id: string }; date: string; kind: string }[] = [];
@@ -66,6 +68,15 @@ async function unpostedIn(ctx: FinanceContext, entries: JournalEntry[]) {
     if (bill.status === "Draft" || bill.status === "Cancelled") continue;
     if (!posted.has(`bill:${bill.id}`)) {
       out.push({ document: { id: bill.id }, date: String(bill.billDate || ""), kind: "bill" });
+    }
+  }
+  // A FIXED ASSET THE STUDIO OWNED IN THE MONTH AND THE BOOK DOES NOT HOLD —
+  // one nobody has said how it was paid for, or whose acquisition was refused.
+  // Its cost is missing from Fixed Assets and so is every month of its
+  // depreciation, which is the kind of thing a close exists to catch.
+  for (const asset of assets) {
+    if (!posted.has(`asset:${asset.id}`)) {
+      out.push({ document: { id: asset.id }, date: String(asset.acquiredOn || ""), kind: "asset" });
     }
   }
   return out;

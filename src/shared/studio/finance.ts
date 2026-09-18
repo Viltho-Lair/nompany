@@ -330,6 +330,24 @@ type Strings = CommonStrings & {
   dashOther: string;
   dashNoHistory: string;
   dashNoInvoices: string;
+  // ---- fixed assets in the books (18/09/2026) ----
+  paidFrom: string;
+  paidFromHint: string;
+  fundLabel: (source: string) => string;
+  whichBill: string;
+  offBooks: string;
+  putOnBooks: string;
+  putOnBooksLead: string;
+  depRunTitle: string;
+  depRunLead: string;
+  depMonth: string;
+  depPreview: string;
+  depPost: string;
+  depNothing: string;
+  depState: (state: string) => string;
+  mOnTheBooks: string;
+  mFunding: string;
+  mPeriod: string;
 };
 
 const en: Strings = {
@@ -491,6 +509,10 @@ const en: Strings = {
     chart: "the chart of accounts is missing an account this needs",
     "not-postable": "the document is not in a state that posts",
     unbalanced: "the entry did not balance",
+    "no-rate": "there is no exchange rate for this currency — type one on the bill",
+    "not-on-the-books": "the asset is not on the books — say how it was paid for",
+    "not-funded": "nobody has said how the asset was paid for",
+    "no-bill": "the bill the asset was bought on is not there",
   } as Record<string, string>)[why] || why}.`,
   mNotIssued: "Send the invoice before recording a payment.",
   mReadOnly: "You have view-only access to Finance.",
@@ -653,6 +675,34 @@ const en: Strings = {
   dashOther: "Other",
   dashNoHistory: "Not enough history yet.",
   dashNoInvoices: "No invoices yet.",
+  paidFrom: "Paid from",
+  paidFromHint: "Decides what the purchase is taken from in the books. An asset bought on a bill is moved out of that bill's expense, never paid for twice.",
+  fundLabel: (source) => ({
+    bank: "Paid from the bank",
+    payable: "Owed to a supplier (no bill entered here)",
+    bill: "Bought on a bill already entered",
+    opening: "Owned before these books began",
+  } as Record<string, string>)[source] || "Not yet — keep it off the books",
+  whichBill: "Which bill",
+  offBooks: "Not on the books",
+  putOnBooks: "Put on the books",
+  putOnBooksLead: "Say how this asset was paid for. Its cost is then posted to Fixed Assets, dated the day it was acquired.",
+  depRunTitle: "Depreciation run",
+  depRunLead: "Posts each asset's write-down up to the end of the month: what the schedule says, less what the books already hold.",
+  depMonth: "Month",
+  depPreview: "Preview",
+  depPost: "Post depreciation",
+  depNothing: "No assets to depreciate for that month.",
+  depState: (state) => ({
+    due: "To post",
+    posted: "Posted",
+    "nothing-due": "Nothing due",
+    "off-books": "Not on the books — put it on first",
+    refused: "Not posted",
+  } as Record<string, string>)[state] || state,
+  mOnTheBooks: "This asset has been depreciated in the books. Dispose of it instead of deleting it.",
+  mFunding: "Say how the asset was paid for, and which bill if it was bought on one.",
+  mPeriod: "Pick a month.",
 };
 
 const ar: Strings = {
@@ -814,6 +864,10 @@ const ar: Strings = {
     chart: "دليل الحسابات ينقصه حساب يلزم لهذا القيد",
     "not-postable": "المستند ليس في حالة تسمح بالترحيل",
     unbalanced: "القيد غير متوازن",
+    "no-rate": "لا يوجد سعر صرف لهذه العملة — أدخله على الفاتورة",
+    "not-on-the-books": "الأصل غير مقيد في الدفاتر — حدد كيف دفع ثمنه",
+    "not-funded": "لم يحدد أحد كيف دفع ثمن الأصل",
+    "no-bill": "فاتورة المورد التي اشتري بها الأصل غير موجودة",
   } as Record<string, string>)[why] || why}.`,
   mNotIssued: "أرسل الفاتورة قبل تسجيل دفعة.",
   mReadOnly: "لديك صلاحية عرض فقط على المالية.",
@@ -976,6 +1030,34 @@ const ar: Strings = {
   dashOther: "أخرى",
   dashNoHistory: "لا يوجد سجل كافٍ بعد.",
   dashNoInvoices: "لا توجد فواتير بعد.",
+  paidFrom: "مصدر الدفع",
+  paidFromHint: "يحدد من أين يخرج ثمن الشراء في الدفاتر. الأصل المشترى بفاتورة مورد ينقل من مصروف تلك الفاتورة، ولا يدفع ثمنه مرتين.",
+  fundLabel: (source) => ({
+    bank: "مدفوع من البنك",
+    payable: "مستحق لمورد (دون فاتورة مسجلة هنا)",
+    bill: "مشترى بفاتورة مورد مسجلة",
+    opening: "مملوك قبل بدء هذه الدفاتر",
+  } as Record<string, string>)[source] || "ليس بعد — أبقه خارج الدفاتر",
+  whichBill: "أي فاتورة",
+  offBooks: "غير مقيد في الدفاتر",
+  putOnBooks: "قيده في الدفاتر",
+  putOnBooksLead: "حدد كيف دفع ثمن هذا الأصل. عندها ترحل تكلفته إلى حساب الأصول الثابتة بتاريخ اقتنائه.",
+  depRunTitle: "ترحيل الإهلاك",
+  depRunLead: "يرحل إهلاك كل أصل حتى نهاية الشهر: ما يقوله الجدول ناقصا ما تحمله الدفاتر.",
+  depMonth: "الشهر",
+  depPreview: "معاينة",
+  depPost: "ترحيل الإهلاك",
+  depNothing: "لا توجد أصول تستهلك في ذلك الشهر.",
+  depState: (state) => ({
+    due: "للترحيل",
+    posted: "رحل",
+    "nothing-due": "لا شيء مستحق",
+    "off-books": "غير مقيد — قيده أولا",
+    refused: "لم يرحل",
+  } as Record<string, string>)[state] || state,
+  mOnTheBooks: "أهلك هذا الأصل في الدفاتر. استبعده بدلا من حذفه.",
+  mFunding: "حدد كيف دفع ثمن الأصل، وأي فاتورة إن كان مشترى بواحدة.",
+  mPeriod: "اختر شهرا.",
 };
 
 const finance = { en, ar };

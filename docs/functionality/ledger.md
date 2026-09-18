@@ -115,6 +115,36 @@ the corrected document post again. A reversal is dated today and held to the per
 closed current month refuses it by name. Until 11/09/2026 none of this happened: the document
 changed and its entry stood, so a cancelled invoice stayed in revenue.
 
+### What else reaches the book, 18/09/2026
+
+The Finance plan review (`docs/progress.md`, decision ledger) found money that moved and never
+posted. Step 1 closed four of those gaps:
+
+- **Fixed assets** (`modules/finance/depreciation.ts`, pure; `tests/asset-posting-model.mjs`).
+  *Acquisition* — Dr Fixed Assets (1500), credited to what the asset was paid from, which is
+  **asked and never assumed** (`fundedBy`: bank 1010, payable 2000, opening 3000, or a bill,
+  whose cost is moved OUT of that bill's expense account rather than paid again). An asset with
+  no source stays **off the books**, says so on the register, and is listed at the period
+  close. *Depreciation* — a monthly run, previewed first, posts per asset the DIFFERENCE between
+  the schedule's accumulated figure at the month end and what the book holds (Dr Depreciation
+  5400, Cr 1510), so a late run, a corrected life or an asset bought years ago all come right
+  in one entry, and a lengthened life posts the excess back. Source id `<assetId>:<YYYY-MM>`.
+  *Disposal* — one entry: the depreciation the runs had not reached, Accumulated Depreciation
+  cleared, proceeds into the bank, cost out, and the balance to Gain or Loss on Disposal (4900),
+  the same figure the register shows. A booked asset that has been depreciated cannot be
+  deleted; one only booked reverses its acquisition when deleted.
+- **Tax a client withheld** — see `withholding.md`: settled invoices move it to 1300.
+- **Foreign-currency bills** — converted at a rate frozen on the bill; see `money.md`.
+- **Input VAT** — its own account, VAT Recoverable (1400). Bills posted before stay on 2100.
+
+Five accounts joined the default chart (1300, 1400, 4900, 5400, 5800) and reach every studio
+the next time its chart is read, like 2200 did. The journal-entry schema's source kinds had
+been six while the ledger wrote eleven; it lists all fourteen now.
+
+**Not posted, on purpose:** cheques and the deal-level `payments` collection. Each is the same
+money an invoice or bill payment already posts, so posting either unlinked would count it
+twice. They post once they name the document they settle.
+
 **A refusal is said, not swallowed.** The invoices, expenses and bills routes hand back
 `posting: { posted: false, reason }` and the finance screens now show "Saved — but the books
 were not updated" with the reason. Before, the expenses and bills routes dropped it and both
@@ -201,10 +231,14 @@ Stated in words, because a silent gap reads as a finished feature.
   account or entry records.
 - **Credit notes post and have no screen.** `postCreditNote` reverses the invoice's
   revenue and VAT proportionally; nothing on screen raises one.
-- **No tax codes.** VAT is one studio rate that each document may change (`vat.md`), and
-  input and output tax still post to one account (2100) — which is why the Tax return tab
-  reads the documents rather than the journal. Withholding exists on invoices
-  (`withholding.md`), not on bills.
+- **No tax codes.** VAT is one studio rate that each document may change (`vat.md`). Input
+  tax has had its own account (1400) since 18/09/2026, but bills posted before then netted it
+  on 2100, so the Tax return tab still reads the documents rather than the journal.
+  Withholding exists on invoices (`withholding.md`), not on bills.
+- **Depreciation is not automatic.** Somebody runs the month from the Fixed assets screen;
+  no job runs it and the period close does not yet list a month's depreciation as missing
+  (it lists an asset that is off the books). Existing assets stay off the books until somebody
+  says how each was paid for.
 - **One bank account.** Reconciliation, post-dated cheques, guarantees and the cash
   forecast have their own files (`reconciliation.md`, `treasury.md`) and all read `1010`.
 - **Seeding the chart is not safe under concurrency.** `ledgerAccounts` creates the

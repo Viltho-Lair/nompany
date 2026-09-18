@@ -12,7 +12,7 @@
 // is "post this thing", and five endpoints would be five places to forget one.
 import {
   postInvoice, postExpense, postBill, postBillPayment, postPayment, postCreditNote,
-  postPayroll, postWithholding, reverseDocument, invoiceWithheldToClear, postedAmount, ENTRY_SOURCE_KINDS,
+  postPayroll, postWithholding, postAsset, postDepreciation, postAssetDisposal, reverseDocument, invoiceWithheldToClear, postedAmount, ENTRY_SOURCE_KINDS,
 } from "./ledger";
 import type { FinanceContext } from "./types";
 import type { PostOptions } from "./ledger";
@@ -69,6 +69,11 @@ export async function postDocument(
     // design working: a new kind is added once and both halves find out.
     case "payroll": return postPayroll(ctx, documentId, options);
     case "withholding": return postWithholding(ctx, documentId, options);
+    // THE DEPRECIATION ID CARRIES ITS MONTH (`<assetId>:<YYYY-MM>`), for the
+    // reason a payment's carries its parent: one asset posts once per month.
+    case "asset": return postAsset(ctx, documentId, options);
+    case "depreciation": return postDepreciation(ctx, documentId, options);
+    case "asset-disposal": return postAssetDisposal(ctx, documentId, options);
     default: return { error: "kind" };
   }
 }

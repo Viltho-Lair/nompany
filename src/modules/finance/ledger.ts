@@ -31,9 +31,13 @@ import { splitGross } from "@/shared/vat";
 import { withheldToClear } from "./withholding";
 import { isForeign, rateFor, inBase, settlePayment } from "./fx";
 import { getExchangeSnapshot } from "@/lib/data/exchangeRates";
+import {
+  acquisitionLines, depreciationDue, depreciationLines, disposalLines, fundingCode, isFunding, ASSET_CODES,
+} from "./depreciation";
+import type { CodeLine } from "./depreciation";
 import type { WithholdingRule } from "./withholding";
 import { roundMoney, toMinor, fromMinor } from "@/shared/money";
-import type { Account, JournalEntry, JournalLine, Invoice, Expense, FinanceContext } from "./types";
+import type { Account, JournalEntry, JournalLine, Invoice, Expense, FinanceContext, FixedAsset } from "./types";
 import type { Row } from "@/platform/db/store";
 
 const ACCOUNTS = "accounts";
@@ -98,10 +102,16 @@ export const DEFAULT_CHART: { code: string; name: string; type: AccountType }[] 
   { code: "3000", name: "Owner's Equity", type: "equity" },
   { code: "3900", name: "Retained Earnings", type: "equity" },
   { code: "4000", name: "Revenue", type: "income" },
+  // WHAT AN ASSET WAS SOLD FOR BEYOND WHAT IT WAS STILL WORTH, 18/09/2026 — a
+  // loss reads as a negative, the contra balance the statements already show.
+  { code: "4900", name: "Gain or Loss on Disposal", type: "income" },
   { code: "5000", name: "Cost of Sales", type: "expense" },
   { code: "5100", name: "Salaries", type: "expense" },
   { code: "5200", name: "Rent", type: "expense" },
   { code: "5300", name: "Utilities", type: "expense" },
+  // THE WRITE-DOWN OF FIXED ASSETS, posted by the depreciation run, 18/09/2026.
+  // The register had computed it all along and nothing put it in the book.
+  { code: "5400", name: "Depreciation", type: "expense" },
   // WHAT A FOREIGN-CURRENCY BILL COST MORE OR LESS THAN IT WAS BOOKED AT, by
   // the day it was paid, 18/09/2026. An expense account, so a gain reads as a
   // negative expense — the contra balance the statements already show.
@@ -270,7 +280,8 @@ export type PostOptions = { system?: boolean };
  * a new kind is added HERE, once, and both halves learn about it.
  */
 export const ENTRY_SOURCE_KINDS = [
-  "invoice", "expense", "bill", "bill-payment", "payment", "credit-note", "payroll", "withholding", "manual",
+  "invoice", "expense", "bill", "bill-payment", "payment", "credit-note", "payroll", "withholding",
+  "asset", "depreciation", "asset-disposal", "manual",
 ] as const;
 
 export type EntrySourceKind = (typeof ENTRY_SOURCE_KINDS)[number];
@@ -1039,8 +1050,194 @@ export async function postPayroll(ctx: FinanceContext, runId: string, options: P
   }, options);
 }
 
+// ============================================================================
+// FIXED ASSETS. The register computed cost, depreciation and book value from
+// the day it was built and none of it reached the book: Fixed Assets and
+// Accumulated Depreciation sat in the chart at nought on every studio.
+// ============================================================================
+
+const FixedAssets = repo<FixedAsset>("fixedAssets");
+
+/** Code lines to account-id lines, or the codes the chart is missing. */
+type ResolvedLines =
+  | { error: "chart"; missing: string[] }
+  | { lines: { accountId: string | undefined; debit?: number; credit?: number; projectId?: string }[] };
+
+async function resolveLines(ctx: FinanceContext, lines: CodeLine[], dims: { projectId?: string } = {}): Promise<ResolvedLines> {
+  const { byCode, missing } = await codesToIds(ctx, [...new Set(lines.map((l) => l.code))]);
+  if (missing.length) return { error: "chart" as const, missing };
+  return {
+    lines: lines.map((l) => ({
+      accountId: byCode.get(l.code),
+      ...(l.debit ? { debit: l.debit } : { credit: l.credit }),
+      // THE PROJECT RIDES ON THE EXPENSE AND GAIN LINES, so a project's P&L
+      // carries the write-down of the plant it used. The balance-sheet lines
+      // do not need it; the statements never cut the balance sheet.
+      ...(dims.projectId && (l.code === ASSET_CODES.charge || l.code === ASSET_CODES.disposal) ? { projectId: dims.projectId } : {}),
+    })),
+  };
+}
+
+/**
+ * WHERE EACH ASSET STANDS IN THE BOOK: whether its acquisition is posted, how
+ * much depreciation the book holds for it, and whether its disposal is posted.
+ * Read from the journal, never a flag on the asset — the same rule as
+ * `alreadyPosted`: the entry is the thing that matters.
+ */
+export async function assetBookState(ctx: FinanceContext) {
+  // THE CHART AS STORED, NOT `ledgerAccounts`: that one SEEDS, and this is
+  // read by the asset register's GET beside the ledger's own — two first reads
+  // of a brand-new studio each seeding is the duplicate-chart race the ledger
+  // route orders itself around. A studio with no 1510 yet has no depreciation
+  // posted against it either.
+  const [entries, accounts] = await Promise.all([
+    Entries.find({ studio: ctx.studio, section: ctx.ledgerSection }),
+    Accounts.find({ studio: ctx.studio, section: ctx.ledgerSection }),
+  ]);
+  const accumulatedId = accounts.find((a) => a.code === ASSET_CODES.accumulated)?.id;
+  const state = new Map<string, { booked: boolean; depreciated: number; disposed: boolean }>();
+  const of = (id: string) => {
+    let row = state.get(id);
+    if (!row) { row = { booked: false, depreciated: 0, disposed: false }; state.set(id, row); }
+    return row;
+  };
+  const minor = new Map<string, number>();
+  for (const e of entries) {
+    if (e.reversedByEntryId || e.reversalOfEntryId) continue;
+    const kind = e.source?.kind;
+    const id = String(e.source?.id || "");
+    if (kind === "asset") of(id).booked = true;
+    if (kind === "asset-disposal") of(id).disposed = true;
+    if (kind === "depreciation") {
+      const assetId = id.split(":")[0];
+      of(assetId);
+      for (const l of e.lines || []) {
+        if (l.accountId !== accumulatedId) continue;
+        minor.set(assetId, (minor.get(assetId) || 0) + cents(l.credit, ctx.studio.currency) - cents(l.debit, ctx.studio.currency));
+      }
+    }
+  }
+  for (const [id, m] of minor) of(id).depreciated = money(m, ctx.studio.currency);
+  return state;
+}
+
+async function findAsset(ctx: FinanceContext, id: string) {
+  return (await FixedAssets.find({ studio: ctx.studio, section: ctx.assetsSection })).find((a) => a.id === id);
+}
+
+/**
+ * PUT AN ASSET ON THE BOOKS: Dr Fixed Assets, Cr wherever it was paid from —
+ * which is asked, never assumed (see FUNDING_SOURCES). Dated the day it was
+ * acquired, because that is when the studio came to own it.
+ */
+export async function postAsset(ctx: FinanceContext, assetId: string, options: PostOptions = {}) {
+  if (!options.system) {
+    const denied = requirePermission(ctx.access, "finance.ledger.post");
+    if (denied) return denied;
+  }
+  const asset = await findAsset(ctx, assetId);
+  if (!asset) return { error: "notfound" };
+  if (!isFunding(asset.fundedBy)) return { error: "not-funded" };
+
+  const entries = await Entries.find({ studio: ctx.studio, section: ctx.ledgerSection });
+  if (alreadyPosted(entries, "asset", assetId)) return { error: "already-posted" };
+
+  // BOUGHT ON A BILL: the cost is already in the book as that bill's expense,
+  // so it is MOVED from the account the bill was booked to — the same choice
+  // `postBill` makes — and never taken from the bank a second time.
+  let billCode: string | undefined;
+  if (asset.fundedBy === "bill") {
+    const bill = (await repo<Row>("bills").find({ studio: ctx.studio, section: ctx.payablesSection }))
+      .find((b) => b.id === asset.fundedByBillId) as (Row & { category?: string }) | undefined;
+    if (!bill) return { error: "no-bill" };
+    billCode = CATEGORY_ACCOUNT[bill.category || ""] || COST_OF_SALES;
+  }
+  const credit = fundingCode(asset.fundedBy, billCode);
+  if (!credit) return { error: "no-bill" };
+  const resolved = await resolveLines(ctx, acquisitionLines(asset.cost, credit, ctx.studio.currency));
+  if ("error" in resolved) return resolved;
+
+  return postEntry(ctx, {
+    date: asset.acquiredOn,
+    memo: `Asset ${asset.reference} — ${asset.name}`,
+    source: { kind: "asset", id: assetId },
+    lines: resolved.lines,
+  }, options);
+}
+
+/**
+ * DEPRECIATE ONE ASSET TO THE END OF A MONTH. The source id is
+ * `<assetId>:<YYYY-MM>`, so a month posts once per asset, and what it posts is
+ * the DIFFERENCE between the schedule and the book (`depreciationDue`) — which
+ * is what lets a late run, a corrected life or an asset bought years ago all
+ * come right in one entry.
+ */
+export async function postDepreciation(ctx: FinanceContext, sourceId: string, options: PostOptions = {}) {
+  if (!options.system) {
+    const denied = requirePermission(ctx.access, "finance.ledger.post");
+    if (denied) return denied;
+  }
+  const [assetId, period] = sourceId.split(":");
+  if (!assetId || !/^\d{4}-(0[1-9]|1[0-2])$/.test(period || "")) return { error: "period" };
+  const asset = await findAsset(ctx, assetId);
+  if (!asset) return { error: "notfound" };
+  // A DISPOSED ASSET IS DEPRECIATED BY ITS DISPOSAL ENTRY, which charges
+  // whatever the runs had not reached by the day it went.
+  if (asset.disposedOn) return { error: "disposed" };
+
+  const entries = await Entries.find({ studio: ctx.studio, section: ctx.ledgerSection });
+  if (alreadyPosted(entries, "depreciation", sourceId)) return { error: "already-posted" };
+  const book = (await assetBookState(ctx)).get(assetId);
+  // NOT ON THE BOOKS, NOT DEPRECIATED. Writing down a cost the book never held
+  // would put Accumulated Depreciation against nothing.
+  if (!book?.booked) return { error: "not-on-the-books" };
+
+  const asOf = lastDayOf(period);
+  const due = depreciationDue(asset, book.depreciated, asOf, ctx.studio.currency);
+  const resolved = await resolveLines(ctx, depreciationLines(due), { projectId: asset.projectId });
+  if ("error" in resolved) return resolved;
+  if (!resolved.lines.length) return { error: "nothing-due" };
+
+  return postEntry(ctx, {
+    date: asOf,
+    memo: `Depreciation ${period} — ${asset.reference} ${asset.name}`,
+    source: { kind: "depreciation", id: sourceId },
+    lines: resolved.lines,
+  }, options);
+}
+
+/**
+ * TAKE A DISPOSED ASSET OFF THE BOOKS — cost out, depreciation cleared,
+ * proceeds in, and the gain or loss where it balances (`disposalLines`).
+ * Dated the day it went.
+ */
+export async function postAssetDisposal(ctx: FinanceContext, assetId: string, options: PostOptions = {}) {
+  if (!options.system) {
+    const denied = requirePermission(ctx.access, "finance.ledger.post");
+    if (denied) return denied;
+  }
+  const asset = await findAsset(ctx, assetId);
+  if (!asset) return { error: "notfound" };
+  if (!asset.disposedOn) return { error: "not-disposed" };
+
+  const entries = await Entries.find({ studio: ctx.studio, section: ctx.ledgerSection });
+  if (alreadyPosted(entries, "asset-disposal", assetId)) return { error: "already-posted" };
+  const book = (await assetBookState(ctx)).get(assetId);
+  if (!book?.booked) return { error: "not-on-the-books" };
+
+  const resolved = await resolveLines(ctx, disposalLines(asset, book.depreciated, ctx.studio.currency), { projectId: asset.projectId });
+  if ("error" in resolved) return resolved;
+
+  return postEntry(ctx, {
+    date: asset.disposedOn,
+    memo: `Disposal of ${asset.reference} — ${asset.name}`,
+    source: { kind: "asset-disposal", id: assetId },
+    lines: resolved.lines,
+  }, options);
+}
+
 /** The last day of a `YYYY-MM` period, or today when it is not one. */
-function lastDayOf(period: string): string {
+export function lastDayOf(period: string): string {
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(period)) return new Date().toISOString().slice(0, 10);
   const [y, m] = period.split("-").map(Number);
   return new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);

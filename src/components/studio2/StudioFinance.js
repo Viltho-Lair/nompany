@@ -293,6 +293,10 @@ function message(out, tr) {
   if (out.error === "lines") return tr.mLines;
   if (out.error === "client") return tr.mClient;
   if (out.error === "amount") return tr.mAmount;
+  // ---- fixed assets --------------------------------------------------------
+  if (out.error === "on-the-books") return tr.mOnTheBooks;
+  if (out.error === "funding") return tr.mFunding;
+  if (out.error === "period") return tr.mPeriod;
   // ---- accounts payable ----------------------------------------------------
   if (out.error === "vendor") return tr.mVendor;
   if (out.error === "same-signer") return tr.mSameSigner;
@@ -832,7 +836,7 @@ function useFinanceResource(slug, kind) {
     return true;
   }, [slug, kind, load]);
 
-  return { data, error, busy, send };
+  return { data, error, busy, send, load };
 }
 
 // ============================================================================
@@ -1312,7 +1316,7 @@ const assetMethodLabel = (tr) => ({ "straight-line": tr.straightLine, "reducing-
 
 function Assets({ slug }) {
   const tr = financeDict(useStudioLocale());
-  const { data, error, busy, send } = useFinanceResource(slug, "assets");
+  const { data, error, busy, send, load } = useFinanceResource(slug, "assets");
 
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <ScreenSkeleton loadingLabel={tr.loadingFixedAssets} />;
@@ -1328,7 +1332,73 @@ function Assets({ slug }) {
         {!canManage && <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-600 text-slate-500 dark:bg-white/5 dark:text-slate-400">{tr.viewOnly}</span>}
       </div>
       <AssetRegister rows={assets} vocab={vocabulary} slug={slug} nav={nav} canManage={canManage} busy={busy} send={send} />
+      {assets.length > 0 && <DepreciationRun slug={slug} canManage={canManage} onPosted={load} />}
     </div>
+  );
+}
+
+// THE MONTH'S DEPRECIATION, PREVIEWED BEFORE IT IS POSTED. The register has
+// always computed the write-down; this is what puts it in the book. It writes
+// one entry per asset, so the list is shown first and posting is its own act.
+// Last month by default — the one a studio is closing.
+function DepreciationRun({ slug, canManage, onPosted }) {
+  const tr = financeDict(useStudioLocale());
+  const [period, setPeriod] = useState(() => {
+    const d = new Date();
+    d.setUTCDate(1); d.setUTCMonth(d.getUTCMonth() - 1);
+    return d.toISOString().slice(0, 7);
+  });
+  const [run, setRun] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const ask = async (post) => {
+    setBusy(true); setError("");
+    const res = await fetch(`/api/studios/${slug}/finance/assets`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ depreciation: { period, post } }),
+    });
+    const out = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (!res.ok) { setError(message(out, tr)); return; }
+    setRun(out.run);
+    if (post) await onPosted?.();
+  };
+
+  const due = (run?.rows || []).filter((r) => r.state === "due");
+  return (
+    <section className={panel}>
+      <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">{tr.depRunTitle}</h3>
+      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{tr.depRunLead}</p>
+      <div className="mt-4 flex flex-wrap items-end gap-3">
+        <Field label={tr.depMonth} type="month" className="w-44" value={period} onChange={(v) => { setPeriod(v); setRun(null); }} />
+        <button className={btnGhost} disabled={busy || !period} onClick={() => ask(false)}>{tr.depPreview}</button>
+        {canManage && run && due.length > 0 && (
+          <button className={btn} disabled={busy} onClick={() => ask(true)}>{busy ? tr.saving : tr.depPost}</button>
+        )}
+      </div>
+      {error && <p className="mt-3 text-sm text-rose-600 dark:text-rose-300">{error}</p>}
+      {run && (run.rows.length === 0 ? (
+        <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">{tr.depNothing}</p>
+      ) : (
+        <ul className="mt-3 divide-y divide-slate-100 text-sm dark:divide-white/5">
+          {run.rows.map((r) => (
+            <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+              <span>
+                <span className="font-mono text-xs text-brand-700 dark:text-brand-300">{r.reference}</span>
+                <span className="ms-2 text-slate-900 dark:text-white">{r.name}</span>
+              </span>
+              <span className="flex items-center gap-3">
+                <span className={`text-xs ${r.state === "off-books" || r.state === "refused" ? "text-amber-700 dark:text-amber-300" : "text-slate-500 dark:text-slate-400"}`}>
+                  {tr.depState(r.state)}{r.state === "refused" && r.posting?.reason ? ` — ${r.posting.reason}` : ""}
+                </span>
+                <span className="num w-28 text-end text-slate-900 dark:text-white">{r.state === "off-books" ? "—" : money(r.due)}</span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      ))}
+    </section>
   );
 }
 
@@ -1361,6 +1431,7 @@ function AssetRegister({ rows, vocab, canManage, busy, send }) {
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState(null);
   const [disposing, setDisposing] = useState(null);
+  const [booking, setBooking] = useState(null);
   const [open, setOpen] = useState(null);
   const methods = vocab.assetMethods || Object.keys(assetMethodLabel(tr));
 
@@ -1374,12 +1445,18 @@ function AssetRegister({ rows, vocab, canManage, busy, send }) {
       {canManage && !form && !disposing && <button className={btn} onClick={() => setAdding(true)}>{tr.newAsset}</button>}
 
       {form && (
-        <AssetForm asset={editing} methods={methods} busy={busy}
+        <AssetForm asset={editing} methods={methods} vocab={vocab} busy={busy}
           onCancel={() => { setAdding(false); setEditing(null); }}
           onSave={async (v) => {
             const ok = editing ? await send("PUT", { id: editing.id, ...v }) : await send("POST", v);
             if (ok) { setAdding(false); setEditing(null); }
           }} />
+      )}
+
+      {booking && (
+        <BookAssetForm asset={booking} vocab={vocab} busy={busy}
+          onCancel={() => setBooking(null)}
+          onSave={async (v) => { if (await send("PUT", { id: booking.id, ...v })) setBooking(null); }} />
       )}
 
       {disposing && (
@@ -1416,10 +1493,17 @@ function AssetRegister({ rows, vocab, canManage, busy, send }) {
                       <td className={td}>
                         <StatusPill kind="asset" status={a.disposed ? "disposed" : "service"}
                           label={a.disposed ? tr.disposed2 : a.fullyDepreciated ? tr.fullyDepreciated : tr.service} />
+                        {/* NOT ON THE BOOKS IS SAID, not implied: the register's
+                            cost and book value are the schedule's, and the ledger
+                            holds none of it until somebody says how it was paid. */}
+                        {!a.onBooks && !a.disposed && (
+                          <span className="ms-2 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-600 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">{tr.offBooks}</span>
+                        )}
                       </td>
                       <td className={`${td} text-end`}>
                         {canManage && (
                           <span className="flex flex-wrap justify-end gap-2">
+                            {!a.disposed && !a.onBooks && <button className={btnGhost} onClick={() => setBooking(a)}>{tr.putOnBooks}</button>}
                             {!a.disposed && <button className={btnGhost} onClick={() => setEditing(a)}>{tr.edit}</button>}
                             {!a.disposed && <button className={btnGhost} onClick={() => setDisposing(a)}>{tr.dispose}</button>}
                           </span>
@@ -1469,7 +1553,51 @@ function Detail({ label: name, value, num, tone }) {
   );
 }
 
-function AssetForm({ asset, methods, busy, onCancel, onSave }) {
+// HOW AN ASSET WAS PAID FOR — asked, never defaulted. The empty choice keeps
+// it off the books, which is the honest state for "nobody has said yet".
+function FundingFields({ value, billId, vocab, onChange }) {
+  const tr = financeDict(useStudioLocale());
+  const sources = vocab.fundingSources || ["bank", "payable", "bill", "opening"];
+  const bills = vocab.bills || [];
+  return (
+    <>
+      <Field label={tr.paidFrom} as="select" value={value} hint={tr.paidFromHint}
+        onChange={(v) => onChange(v, v === "bill" ? billId : "")}
+        options={[{ value: "", label: tr.fundLabel("") }, ...sources
+          .filter((f) => f !== "bill" || bills.length > 0)
+          .map((f) => ({ value: f, label: tr.fundLabel(f) }))]} />
+      {value === "bill" && (
+        <Field label={tr.whichBill} as="select" required value={billId} onChange={(v) => onChange("bill", v)}
+          options={[{ value: "", label: "—" }, ...bills.map((b) => ({ value: b.id, label: `${b.reference} — ${b.vendorName}` }))]} />
+      )}
+    </>
+  );
+}
+
+function BookAssetForm({ asset, vocab, busy, onCancel, onSave }) {
+  const tr = financeDict(useStudioLocale());
+  const [fundedBy, setFundedBy] = useState("");
+  const [billId, setBillId] = useState("");
+  const ready = fundedBy && (fundedBy !== "bill" || billId);
+  return (
+    <section className={`${panel} border-brand-500/40`}>
+      <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">{tr.putOnBooks} — {asset.reference}</h3>
+      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{tr.putOnBooksLead}</p>
+      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <FundingFields value={fundedBy} billId={billId} vocab={vocab} onChange={(f, b) => { setFundedBy(f); setBillId(b); }} />
+      </div>
+      <div className="mt-5 flex flex-wrap gap-2">
+        <button className={btn} disabled={busy || !ready}
+          onClick={() => onSave({ fundedBy, ...(fundedBy === "bill" ? { fundedByBillId: billId } : {}) })}>
+          {busy ? tr.saving : tr.putOnBooks}
+        </button>
+        <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
+      </div>
+    </section>
+  );
+}
+
+function AssetForm({ asset, methods, vocab = {}, busy, onCancel, onSave }) {
   const tr = financeDict(useStudioLocale());
   const editing = !!asset;
   const [f, setF] = useState({
@@ -1480,9 +1608,15 @@ function AssetForm({ asset, methods, busy, onCancel, onSave }) {
     usefulLifeMonths: asset?.usefulLifeMonths != null ? String(asset.usefulLifeMonths) : "",
     method: asset?.method || methods[0] || "straight-line",
     acquiredOn: asset?.acquiredOn || "",
+    fundedBy: asset?.fundedBy || "",
+    fundedByBillId: asset?.fundedByBillId || "",
   });
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
-  const ready = f.name.trim() && Number(f.cost) > 0 && Number(f.usefulLifeMonths) > 0;
+  const ready = f.name.trim() && Number(f.cost) > 0 && Number(f.usefulLifeMonths) > 0
+    && (f.fundedBy !== "bill" || f.fundedByBillId);
+  // SENT ONLY WHEN IT CHANGED: the server re-posts the acquisition whenever it
+  // is given one, and an unchanged source is not a correction.
+  const fundingChanged = f.fundedBy && (f.fundedBy !== (asset?.fundedBy || "") || f.fundedByBillId !== (asset?.fundedByBillId || ""));
 
   return (
     <section className={`${panel} border-brand-500/40`}>
@@ -1498,6 +1632,8 @@ function AssetForm({ asset, methods, busy, onCancel, onSave }) {
         <Field label={tr.acquired2} filled={!!f.acquiredOn}>
           <StudioDate value={f.acquiredOn} onChange={(iso) => set("acquiredOn", iso)} />
         </Field>
+        <FundingFields value={f.fundedBy} billId={f.fundedByBillId} vocab={vocab}
+          onChange={(fundedBy, fundedByBillId) => setF((p) => ({ ...p, fundedBy, fundedByBillId }))} />
       </div>
       <div className="mt-5 flex flex-wrap gap-2">
         <button className={btn} disabled={busy || !ready}
@@ -1506,6 +1642,7 @@ function AssetForm({ asset, methods, busy, onCancel, onSave }) {
             cost: Number(f.cost) || 0,
             salvageValue: Number(f.salvageValue) || 0,
             usefulLifeMonths: Math.max(0, Math.floor(Number(f.usefulLifeMonths) || 0)),
+            ...(fundingChanged ? { fundedBy: f.fundedBy, ...(f.fundedBy === "bill" ? { fundedByBillId: f.fundedByBillId } : {}) } : {}),
           })}>
           {busy ? tr.saving : tr.save}
         </button>

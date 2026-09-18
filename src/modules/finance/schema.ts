@@ -233,7 +233,13 @@ export const JournalEntrySchema = z.object({
   memo: z.string().max(500).optional(),
   lines: z.array(JournalLineSchema).min(2),
   source: z.object({
-    kind: z.enum(["invoice", "bill", "expense", "payment", "manual", "reversal"]),
+    // EVERY KIND `ENTRY_SOURCE_KINDS` (./ledger) POSTS, plus `reversal`. This
+    // listed six while the ledger wrote eleven — credit notes, payroll, bill
+    // payments and withheld tax all stored kinds the type said could not exist.
+    kind: z.enum([
+      "invoice", "bill", "expense", "payment", "bill-payment", "credit-note", "payroll", "withholding",
+      "asset", "depreciation", "asset-disposal", "manual", "reversal",
+    ]),
     id: z.string().max(60).optional(),
   }),
   postedByCollaboratorId: z.string().optional(),
@@ -387,6 +393,16 @@ export const FixedAssetSchema = z.object({
   disposalProceeds: z.number().optional(),
   projectId: z.string().max(60).optional(),
   custodianCollaboratorId: z.string().max(60).optional(),
+  /**
+   * HOW IT WAS PAID FOR — bank, payable, bill or opening (see FUNDING_SOURCES in
+   * ./depreciation) — and so what its acquisition entry credits. ABSENT means
+   * nobody has said, and the asset is then NOT on the books: guessing would
+   * take the money out twice for an asset already booked as a bill's expense.
+   * Every asset raised before 18/09/2026 has none.
+   */
+  fundedBy: z.string().max(20).optional(),
+  /** The bill it was bought on, when `fundedBy` is "bill". */
+  fundedByBillId: z.string().max(60).optional(),
   createdAt: z.string().optional(),
   createdByCollaboratorId: z.string().optional(),
 
