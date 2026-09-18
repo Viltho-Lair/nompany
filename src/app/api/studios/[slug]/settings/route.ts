@@ -28,6 +28,7 @@ import { unitProblems, cleanUnits, unitsView, cleanUnitsOff, unitsOffProblems } 
 import { taxonomyProblems, cleanTaxonomies, taxonomyView, valuesFor } from "@/modules/administration/taxonomy";
 import { cleanEmploymentRules, employmentRulesOf } from "@/modules/hr/leaveBalance";
 import { cleanStatutory, statutoryRulesOf } from "@/modules/hr/statutory";
+import { payPresetFor } from "@/shared/compliance/rules";
 import { templateProblems as noticeProblems, cleanTemplates as cleanNotices, templateView as noticeView } from "@/modules/administration/notices";
 import { isValuationMethod } from "@/modules/inventory/valuation";
 import { cleanVatSetting, studioVatRate } from "@/shared/vat";
@@ -168,6 +169,10 @@ const clean = (studio: Record<string, unknown>, legacy: Record<string, unknown> 
   currency: studio.currency || "",
   vatRate: studioVatRate(studio) ?? "",
   employmentRules: { ...employmentRulesOf(studio), ...statutoryRulesOf(studio) },
+  // THE COUNTRY'S STARTING FIGURES for those rules, from its definition file
+  // (`rules.payPreset`), or null. Sent rather than imported by the screen, so
+  // the settings bundle does not carry every country's definition.
+  employmentPreset: payPresetFor(studio.country),
   // The leave types a rule may name — the studio's own list, additions included.
   leaveTypes: valuesFor("leaveTypes", studio.taxonomies),
   language: studioLocale(studio),

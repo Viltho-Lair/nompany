@@ -83,6 +83,9 @@ ok("SA: a short address is four letters and four digits", accepts("SA", "nationa
 ok("AE: a TRN is 15 digits", accepts("AE", "vat_registration_number", "100123456700003") && refuses("AE", "vat_registration_number", "10012345670000"));
 ok("AE: a licence expiry is a date", accepts("AE", "trade_licence_expiry", "2027-03-31") && refuses("AE", "trade_licence_expiry", "31/03/2027"));
 ok("AE: a trade licence is free text", accepts("AE", "trade_licence_number", "DED-123/456"));
+ok("AE: the MoHRE establishment ID for WPS is 13 digits",
+  accepts("AE", "mohre_establishment_id", "1234567890123") && refuses("AE", "mohre_establishment_id", "123456789012"));
+ok("AE: ...and prints on nothing — it is for the salary file", (field("AE", "mohre_establishment_id").showOn || []).length === 0);
 // Jordan
 ok("JO: a tax number is 8 to 12 digits", accepts("JO", "tax_number", "12345678") && refuses("JO", "tax_number", "1234567"));
 // Egypt
@@ -245,12 +248,33 @@ ok("...while a US contract carries its state of formation",
   ok("...and a US receipt carries nothing", officialForDocument(us, "receipt").length === 0);
 }
 
+// ---- department rules, read from the files (slice D) -----------------------------
+{
+  const R = await import("@/shared/compliance/rules");
+  ok("a file may carry rules and no fields", definitionProblems({ ...base, fields: [], rules: { tax: base.rules.tax } }).length === 0);
+  ok("...but not neither", definitionProblems({ ...base, fields: [], rules: undefined }).length > 0);
+  ok("a tax method that is neither document nor line is refused",
+    definitionProblems({ ...base, rules: { tax: { ...base.rules.tax, method: "sometimes" } } }).length > 0);
+  ok("two employment versions from one day are refused",
+    definitionProblems({ ...base, rules: { employment: [base.rules.employment[0], base.rules.employment[0]] } }).some((p) => p.includes("two versions")));
+  ok("the tax profile comes from the file", R.taxProfileFor("Saudi Arabia").taxName === base.rules.tax.taxName);
+  ok("a country whose file has fields and no tax rules gets the default", R.taxProfileFor("United Kingdom").country === "");
+  ok("a rules-only country offers no official values", officialValuesFor({ country: "Oman" }) && Object.keys(officialValuesFor({ country: "Oman" })).length === 0);
+  ok("...and its tax profile still answers", R.taxProfileFor("Oman").method === "line");
+  ok("every employment version is tagged with its country", R.EMPLOYMENT_RULES.every((e) => /^[A-Z]{2}$/.test(e.country)));
+  ok("a preset carries no WPS identifier — those are the Studio's own", ["JO", "SA", "AE"].every((c) => R.payPresetFor(c) && !("wps" in R.payPresetFor(c))));
+}
+
 // ---- no country's rules in shared code -------------------------------------------
 // The constraint the package was built under. A two-letter country code as a
 // string literal in the shared modules is the first sign of a rule written into
 // code instead of into a definition.
-const sharedFiles = ["checksums.ts", "definition.ts", "resolve.ts", "printing.ts", "countries/index.ts"]
-  .map((f) => [f, readFileSync(`src/shared/compliance/${f}`, "utf8")]);
+// SLICE D: the department rules left code for the files, so the modules that
+// read them are held to the same line — including shared/taxProfile, which held
+// a table keyed by country code until 18/09/2026.
+const sharedFiles = ["checksums.ts", "definition.ts", "resolve.ts", "printing.ts", "rules.ts", "countries/index.ts"]
+  .map((f) => [f, readFileSync(`src/shared/compliance/${f}`, "utf8")])
+  .concat([["shared/taxProfile.ts", readFileSync("src/shared/taxProfile.ts", "utf8")]]);
 const literal = /["'`](SA|AE|JO|EG|US|GB|DE)["'`]/;
 for (const [name, text] of sharedFiles) {
   ok(`${name} names no country`, !literal.test(text), (text.match(literal) || [])[0]);

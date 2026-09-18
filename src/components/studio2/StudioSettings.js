@@ -364,6 +364,7 @@ export default function StudioSettings({ slug, locale = "en" }) {
         rules={studio.employmentRules || {}}
         leaveTypes={studio.leaveTypes || []}
         country={studio.country || ""}
+        preset={studio.employmentPreset || null}
         canManage={canManage}
         onSave={save}
         tr={tr}

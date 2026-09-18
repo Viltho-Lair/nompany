@@ -32,8 +32,10 @@ three answers every module gives the same way: `studioVatRate`, `cleanVatSetting
 ## A line's tax category, and the country's method (16/09/2026)
 
 Layer 1 of the country rules (`docs/progress.md`, "Country document rules"): the arithmetic
-every priced document needs, whatever country the studio is in. `shared/taxProfile.ts` and
-`shared/documentTotals.ts`.
+every priced document needs, whatever country the studio is in. `shared/taxProfile.ts` (the
+categories and methods), `shared/documentTotals.ts`, and — since 18/09/2026 — each country's
+profile in its definition file's `rules.tax`, read by `shared/compliance/rules.ts`
+(`official-values.md`).
 
 **A line is standard, zero-rated or exempt** — not an arbitrary rate, which keeps the owner's
 rule: the studio sets ONE rate, and the only departures are the two every VAT law has.

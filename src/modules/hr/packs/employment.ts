@@ -2,8 +2,12 @@
 // contract a country actually recognises. Pure data with an effective date, read
 // by `lifecycle.ts` and by nothing that knows Postgres exists.
 //
-// WHY THIS IS NOT A THIRD SHAPE OF `COUNTRY_PRESETS`. `statutory.ts` holds the
-// PAY half — social security, end of service, the WPS file — as a single
+// THE DATA IS IN THE COUNTRY FILES NOW (`rules.employment`, 18/09/2026), so
+// adding a country's employment law is adding to its definition, not to this
+// file. What stays here is the shape, the fallback and the date lookup.
+//
+// WHY THIS IS NOT A THIRD SHAPE OF THE PAY PRESET. The country files' `payPreset`
+// holds the PAY half — social security, end of service, the WPS file — as a single
 // figure per country with an `asOf` STRING that nothing reads. That was correct
 // while the only consumer was a settings screen the studio confirms by hand:
 // nothing is used until the studio saves, so a stale figure is a bad default
@@ -27,6 +31,8 @@
 // EVERY FIGURE CITES ITS ARTICLE. A rate nobody can check is a rate nobody can
 // correct, and `docs/functionality/lifecycle.md` says plainly that three
 // countries is not the world.
+
+import { EMPLOYMENT_RULES } from "@/shared/compliance/rules";
 
 /**
  * HOW LONG NOTICE IS, in the same vocabulary the leave rules already use
@@ -94,8 +100,11 @@ export const CONTRACT_TYPES = [
 export type ContractType = (typeof CONTRACT_TYPES)[number];
 
 /**
- * THE SHIPPED PACKS — the same three countries `statutory.ts` researched, so a
- * studio that took a pay preset finds its employment rules already answering.
+ * THE PACKS, READ FROM THE COUNTRY FILES (`rules.employment` in
+ * shared/compliance/countries — slice D, 18/09/2026). They were a table here;
+ * the figures moved unchanged and the notes below are why each is what it is.
+ * The same three countries carry a pay preset, so a studio that took one finds
+ * its employment rules already answering.
  *
  * JORDAN — Labour Law No. 8 of 1996. Probation up to three months (art. 35);
  * one month's written notice to end an indefinite contract (art. 23). Both
@@ -120,41 +129,9 @@ export type ContractType = (typeof CONTRACT_TYPES)[number];
  * the contract says between thirty and ninety days (art. 43). Every contract is
  * fixed-term (art. 8), which is why "Permanent" is not on the list.
  */
-export const EMPLOYMENT_PACKS: readonly EmploymentPack[] = Object.freeze([
-  {
-    country: "JO",
-    effectiveFrom: "1996-06-16",
-    source: "Jordan Labour Law No. 8 of 1996, arts. 23 and 35",
-    probation: { months: 3, maxMonths: 3 },
-    notice: { days: 30, afterYears: 0, daysAfter: 0, maxDays: 0, probationDays: 0, employeeDays: 0 },
-    contractTypes: ["Permanent", "Fixed term", "Part time", "Casual", "Internship", "Secondment"],
-  },
-  {
-    country: "SA",
-    effectiveFrom: "2005-09-27",
-    source: "Saudi Labour Law (Royal Decree M/51), arts. 53 and 75",
-    probation: { months: 3, maxMonths: 6 },
-    notice: { days: 60, afterYears: 0, daysAfter: 0, maxDays: 0, probationDays: 0, employeeDays: 0 },
-    contractTypes: ["Permanent", "Fixed term", "Part time", "Casual", "Internship", "Secondment"],
-  },
-  {
-    country: "SA",
-    effectiveFrom: "2025-02-19",
-    source: "Saudi Labour Law as amended (in force 19/02/2025), arts. 53 and 75",
-    probation: { months: 3, maxMonths: 6 },
-    notice: { days: 60, afterYears: 0, daysAfter: 0, maxDays: 0, probationDays: 0, employeeDays: 30 },
-    contractTypes: ["Permanent", "Fixed term", "Part time", "Casual", "Internship", "Secondment"],
-  },
-  {
-    country: "AE",
-    effectiveFrom: "2022-02-02",
-    source: "UAE Federal Decree-Law 33/2021, arts. 8, 9 and 43",
-    probation: { months: 6, maxMonths: 6 },
-    notice: { days: 30, afterYears: 0, daysAfter: 0, maxDays: 90, probationDays: 14, employeeDays: 0 },
-    // NO "Permanent": art. 8 makes every contract fixed-term.
-    contractTypes: ["Fixed term", "Part time", "Casual", "Internship", "Secondment"],
-  },
-]);
+export const EMPLOYMENT_PACKS: readonly EmploymentPack[] = Object.freeze(
+  EMPLOYMENT_RULES.map((r) => r as EmploymentPack),
+);
 
 /**
  * WHAT EVERY COUNTRY THE PRODUCT HAS NOT RESEARCHED GETS, and it is deliberately

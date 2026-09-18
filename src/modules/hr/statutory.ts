@@ -1,5 +1,6 @@
-// STATUTORY PAY, PURELY (tier 6) — social security, end of service, the UAE's
-// WPS salary file, and the country presets that fill them.
+// STATUTORY PAY, PURELY (tier 6) — social security, end of service and the UAE's
+// WPS salary file. The country presets that fill them live in the country
+// definition files since 18/09/2026 (see below).
 //
 // THE OWNER'S CHOICE (11/09/2026): PRESETS THE STUDIO CONFIRMS. Jordan, Saudi
 // Arabia and the UAE ship figures below, each with its source; choosing one
@@ -72,7 +73,8 @@ export type CountryPreset = {
 
 /**
  * THE SHIPPED FIGURES, researched 11/09/2026 for 2026. Every one is a STARTING
- * VALUE the studio sees and may change before saving.
+ * VALUE the studio sees and may change before saving. (No longer a table here —
+ * see below.)
  *
  * JORDAN — Social Security Corporation: employee 7.5%, employer 14.25%, on the
  * insured wage up to JOD 3,733 a month in 2026 (ssc.gov.jo; PwC tax summaries);
@@ -96,40 +98,22 @@ export type CountryPreset = {
  * for five years, 30 after, from one year's service, capped at two years' wage,
  * no reduction for resignation. Annual leave 30 CALENDAR days (art. 29).
  */
-export const COUNTRY_PRESETS: Record<string, CountryPreset> = {
-  JO: {
-    code: "JO", asOf: "2026",
-    leave: { Annual: { days: 14, afterYears: 5, daysAfter: 21, carryOver: 0 } },
-    workingDays: true,
-    socialSecurity: { employeePct: 7.5, employerPct: 14.25, ceiling: 3733, coversEveryone: true },
-    endOfService: null,
-    wps: null,
-  },
-  SA: {
-    code: "SA", asOf: "2026",
-    leave: { Annual: { days: 21, afterYears: 5, daysAfter: 30, carryOver: 0 } },
-    workingDays: true,
-    socialSecurity: { employeePct: 9.75, employerPct: 11.75, ceiling: 45000, coversEveryone: true },
-    endOfService: {
-      firstYears: 5, firstMonths: 0.5, afterMonths: 1, base: "wage", minYears: 0, capMonths: 0,
-      resignation: [{ underYears: 2, factor: 0 }, { underYears: 5, factor: 1 / 3 }, { underYears: 10, factor: 2 / 3 }],
-    },
-    wps: null,
-  },
-  AE: {
-    code: "AE", asOf: "2026",
-    leave: { Annual: { days: 30, afterYears: 0, daysAfter: 0, carryOver: 0 } },
-    workingDays: false,
-    socialSecurity: { employeePct: 11, employerPct: 12.5, ceiling: 70000, coversEveryone: false },
-    endOfService: {
-      firstYears: 5, firstMonths: 0.7, afterMonths: 1, base: "basic", minYears: 1, capMonths: 24, resignation: [],
-    },
-    wps: null,
-  },
-};
+// THE FIGURES THEMSELVES ARE IN THE COUNTRY FILES (`rules.payPreset` in
+// shared/compliance/countries, 18/09/2026), read by `payPresetFor` in
+// shared/compliance/rules and sent to Employment rules by the settings route.
+// The notes above are why each figure is what it is; the files carry the
+// same sources in brief.
 
-export function presetFor(countryCode: unknown): CountryPreset | null {
-  return COUNTRY_PRESETS[String(countryCode || "").toUpperCase()] || null;
+/**
+ * THE WPS IDENTIFIERS THE SALARY FILE USES: the Studio's routing code and SCR
+ * order from Employment rules, and the employer ID from Official values when it
+ * is filled there — falling back to one saved in Employment rules before it
+ * moved (18/09/2026), so an existing studio's file keeps working unchanged.
+ * Null when the Studio has no WPS section at all.
+ */
+export function wpsWithEmployer(wps: Wps | null, officialEmployerId: string): Wps | null {
+  if (!wps) return null;
+  return { ...wps, employerId: String(officialEmployerId || "").trim() || wps.employerId };
 }
 
 // ---- reading and checking the rules ---------------------------------------------
@@ -177,7 +161,11 @@ export function statutoryProblems(v: unknown): StatutoryProblem[] {
     }
   }
   if (wps) {
-    if (!/^\d{13}$/.test(String(wps.employerId ?? "").trim())) out.push("wpsEmployer");
+    // THE EMPLOYER ID MAY BE BLANK HERE (18/09/2026): it is an official value
+    // now (`mohre_establishment_id` in the UAE's definition file), entered under
+    // Official values. A studio that saved one here before keeps it, so a typed
+    // one is still judged.
+    if (!blank(wps.employerId) && !/^\d{13}$/.test(String(wps.employerId ?? "").trim())) out.push("wpsEmployer");
     if (!/^\d{9}$/.test(String(wps.routingCode ?? "").trim())) out.push("wpsRouting");
   }
   return out;

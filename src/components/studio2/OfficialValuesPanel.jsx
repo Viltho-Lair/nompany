@@ -81,9 +81,12 @@ export default function OfficialValuesPanel({ slug, locale = "en", country }) {
 
   return (
     <SettingsFold heading={tr.heading} lead={lead} attention={Boolean(status && Object.keys(refused).length)}>
-      {!data.country ? (
+      {/* NO COUNTRY, NO FILE, OR A FILE THAT CARRIES ONLY RULES — a country
+          researched for its tax arithmetic and not yet for its official values
+          (slice D). All three offer nothing to fill in and say which. */}
+      {!data.country || !fields.length ? (
         <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">
-          {country ? tr.noDefinition(String(country)) : tr.noCountry}
+          {country ? tr.noDefinition(countryName || String(country)) : tr.noCountry}
         </p>
       ) : (
         <div className="mt-4 space-y-6">

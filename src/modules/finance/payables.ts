@@ -24,7 +24,7 @@ import { paymentHold, releaseProblem, payProblem, type PaymentHold } from "./hol
 import { threeWayMatch } from "@/modules/procurement/receivingModel";
 import { supplierQualification } from "@/modules/procurement/supplierModel";
 import { notifyHolders, signatureNotice } from "@/modules/people/holders";
-import { documentTaxMethod } from "@/shared/taxProfile";
+import { documentTaxMethod } from "@/shared/compliance/rules";
 import { isForeign, cleanRate, rateFor } from "./fx";
 
 const BILLS = "bills";

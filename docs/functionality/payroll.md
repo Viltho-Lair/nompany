@@ -133,8 +133,10 @@ nobody deciding it should. Studios elsewhere enter their own figures.
   day is exactly three. The Pay records list shows **what each person would be owed leaving
   today**, by termination. Jordan's preset has none: the Labour Law gives it only to
   employees the SSC does not cover.
-- **The UAE's WPS file**: with a 13-digit employer ID and a 9-digit bank routing code saved
-  and the studio's currency AED, an approved run offers a `.SIF` beside the CSV
+- **The UAE's WPS file**: with a 13-digit employer ID (an official value since 18/09/2026 —
+  the MoHRE establishment ID under Official values; one saved in Employment rules before
+  then is still used until that is filled), a 9-digit bank routing code saved, and the
+  studio's currency AED, an approved run offers a `.SIF` beside the CSV
   (`?format=sif`). One EDR per employee — labour-card ID (14 digits), their bank's routing
   code (9 digits), account, the period, the net as fixed income, unpaid-leave days — and one
   SCR, last by default and first if the studio's bank wants it first (the published guides

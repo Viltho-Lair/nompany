@@ -77,9 +77,11 @@ two answers to "when does this end" is one too many.
 ## The country pack
 
 `modules/hr/packs/employment.ts` — probation, notice and which kinds of contract a country
-recognises, **effective-dated**, per the owner's decision of 17/09/2026.
+recognises, **effective-dated**, per the owner's decision of 17/09/2026. **The versions
+themselves are in the country files** (`rules.employment`, `official-values.md`) since
+18/09/2026; this module holds the shape, the fallback and the date lookup.
 
-**Why this is dated where `COUNTRY_PRESETS` is not.** `statutory.ts` holds the PAY half as one
+**Why this is dated where the pay preset is not.** The pay preset (`rules.payPreset`) holds the PAY half as one
 current figure per country with an `asOf` string nothing reads, and that is correct there:
 nothing is used until the studio confirms it in Studio settings, so a stale figure is a bad
 default rather than a wrong answer. Employment rules are **not** confirmed by hand — a

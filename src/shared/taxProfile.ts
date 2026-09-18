@@ -9,9 +9,7 @@
 // country needs it, and none of it lives here.
 //
 // PURE, and shared: the screens that price a document must arrive at the
-// figure the server stores. Its imports are pure siblings.
-
-import { codeOfCountry } from "./countries";
+// figure the server stores. It imports nothing.
 
 /**
  * WHAT A LINE IS, FOR TAX. Three categories and not arbitrary rates, which is
@@ -97,67 +95,10 @@ export const DEFAULT_TAX_PROFILE: TaxProfile = {
   country: "", taxName: "VAT", method: "document", pricesIncludeTax: false, requiredLanguage: "",
 };
 
-const P = (country: string, taxName: string, method: TaxMethod, pricesIncludeTax: boolean, requiredLanguage = ""): TaxProfile =>
-  ({ country, taxName, method, pricesIncludeTax, requiredLanguage });
-
-/**
- * THE COUNTRIES RESEARCHED, 16/09/2026 — measurements with a date, not facts.
- * Re-check a country's entry against its tax authority before building its
- * fiscal adapter (docs/progress.md, "Country document rules").
- *
- * A country marked `document` without a stated rule is the EU's safe default
- * (the CJEU leaves rounding to each state — Ahold, C-484/06).
- */
-export const TAX_PROFILES: Readonly<Record<string, TaxProfile>> = {
-  // Gulf
-  SA: P("SA", "VAT", "document", true, "ar"),
-  AE: P("AE", "VAT", "line", true),
-  OM: P("OM", "VAT", "line", true),
-  BH: P("BH", "VAT", "line", true),
-  // Levant, North and East Africa
-  JO: P("JO", "General sales tax", "line", true),
-  EG: P("EG", "VAT", "line", true),
-  KE: P("KE", "VAT", "line", true),
-  TR: P("TR", "KDV", "line", true),
-  // Europe
-  ES: P("ES", "IVA", "document", true),
-  DE: P("DE", "USt", "document", true),
-  AT: P("AT", "USt", "document", true),
-  FR: P("FR", "TVA", "document", true),
-  IT: P("IT", "IVA", "document", true),
-  PT: P("PT", "IVA", "document", true),
-  PL: P("PL", "VAT", "document", true),
-  HR: P("HR", "PDV", "document", true),
-  // Latin America
-  BR: P("BR", "ICMS", "line", true),
-  MX: P("MX", "IVA", "line", true),
-  CL: P("CL", "IVA", "document", true),
-  CO: P("CO", "IVA", "line", true),
-  PE: P("PE", "IGV", "line", true),
-  // Where a sales tax is added at the till rather than shown in the price.
-  US: P("US", "Sales tax", "document", false),
-  CA: P("CA", "Sales tax", "document", false),
-};
-
-/** A country code, or a country NAME as a studio stores it, to its profile. */
-export function taxProfileFor(country: unknown): TaxProfile {
-  const raw = String(country ?? "").trim();
-  const code = raw.length === 2 ? raw.toUpperCase() : codeOfCountry(raw);
-  return TAX_PROFILES[code] || DEFAULT_TAX_PROFILE;
-}
-
-/** The studio's profile, from the country it stores in Studio settings. */
-export function studioTaxProfile(studio: unknown): TaxProfile {
-  return taxProfileFor((studio as { country?: unknown } | null | undefined)?.country);
-}
-
-/**
- * THE METHOD A NEW DOCUMENT FREEZES, or undefined. Only a studio placed in a
- * country this file knows gets that country's method; every other studio's
- * documents store none and total as they always did (`legacy` in
- * shared/documentTotals), so setting nothing changes nothing.
- */
-export function documentTaxMethod(studio: unknown): TaxMethod | undefined {
-  const profile = studioTaxProfile(studio);
-  return profile.country ? profile.method : undefined;
-}
+// WHICH COUNTRY GETS WHICH PROFILE IS NOT HERE ANY MORE (18/09/2026). The
+// table moved into the country definition files (`rules.tax`), and
+// `taxProfileFor`, `studioTaxProfile` and `documentTaxMethod` read it in
+// shared/compliance/rules. This file keeps what every priced screen needs — the
+// categories, the methods, the shape and the default — and imports no country,
+// so a browser bundle that totals a document does not carry every country's
+// definition with it.

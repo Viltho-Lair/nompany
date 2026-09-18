@@ -28,7 +28,8 @@ import type { Quotation } from "@/modules/technical/types";
 import { isClosed, isWon } from "./pipeline";
 import { isFinishedQuotation } from "@/modules/technical/quotations";
 import { engagementIdForLineage } from "@/platform/db/engagement";
-import { documentTaxMethod, taxCategoryField } from "@/shared/taxProfile";
+import { taxCategoryField } from "@/shared/taxProfile";
+import { documentTaxMethod } from "@/shared/compliance/rules";
 
 const Orders = repo<SalesOrder>("salesOrders");
 const Tickets = repo<SalesTicket>("salesTickets");

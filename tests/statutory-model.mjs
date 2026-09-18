@@ -12,6 +12,8 @@ const root = pathToFileURL(`${process.cwd()}/`).href;
 register(new URL("./loader.mjs", import.meta.url), { data: { root } });
 
 const S = await import("@/modules/hr/statutory");
+// THE PRESETS ARE THE COUNTRY FILES' (`rules.payPreset`) since 18/09/2026.
+const { payPresetFor: presetFor } = await import("@/shared/compliance/rules");
 const P = await import("@/modules/hr/payroll");
 
 let fails = 0;
@@ -21,15 +23,15 @@ const ok = (label, cond, extra = "") => {
 };
 
 console.log("\n== the presets");
-const JO = S.presetFor("jo");
-const SA = S.presetFor("SA");
-const AE = S.presetFor("AE");
+const JO = presetFor("jo");
+const SA = presetFor("SA");
+const AE = presetFor("AE");
 ok("Jordan: 7.5% and 14.25% up to JOD 3,733", JO.socialSecurity.employeePct === 7.5 && JO.socialSecurity.employerPct === 14.25 && JO.socialSecurity.ceiling === 3733);
 ok("Jordan gives no end of service to the SSC-covered", JO.endOfService === null);
 ok("Saudi Arabia: 21 days, 30 after five years", SA.leave.Annual.days === 21 && SA.leave.Annual.daysAfter === 30);
 ok("the UAE scheme covers nobody by default (Emiratis only)", AE.socialSecurity.coversEveryone === false);
 ok("the UAE counts leave in calendar days", AE.workingDays === false);
-ok("no preset for a country nompany has not researched", S.presetFor("EG") === null && S.presetFor("") === null);
+ok("no preset for a country nompany has not researched", presetFor("EG") === null && presetFor("") === null);
 ok("every preset passes the check it will be saved through",
   [JO, SA, AE].every((p) => S.statutoryProblems(p).length === 0));
 
@@ -102,6 +104,18 @@ ok("the file is named by employer, date and UAE time", sif.filename === "1234567
 ok("the SCR can come first", S.sifFile({ ...input, wps: { ...wps, scrFirst: true } }).text.startsWith("SCR,"));
 ok("a payroll not in AED is refused", S.sifFile({ ...input, currency: "JOD" }).error === "sif-currency");
 ok("without the employer's IDs it is refused", S.sifFile({ ...input, wps: null }).error === "sif-employer");
+
+// THE EMPLOYER ID MOVED TO OFFICIAL VALUES (18/09/2026, slice D). Employment
+// rules may now hold the routing code alone; the file takes the ID from the
+// official value, and one saved here before still works until that is filled.
+ok("Employment rules may leave the employer ID blank now", !S.statutoryProblems({ wps: { employerId: "", routingCode: "123456789" } }).includes("wpsEmployer"));
+ok("...but one typed there is still judged", S.statutoryProblems({ wps: { employerId: "12", routingCode: "123456789" } }).includes("wpsEmployer"));
+ok("the official value wins", S.wpsWithEmployer({ employerId: "1111111111111", routingCode: "123456789", scrFirst: false }, "2222222222222").employerId === "2222222222222");
+ok("...a studio that saved one before keeps it until the official one is filled",
+  S.wpsWithEmployer({ employerId: "1111111111111", routingCode: "123456789", scrFirst: false }, "").employerId === "1111111111111");
+ok("...no WPS section is still no WPS section", S.wpsWithEmployer(null, "2222222222222") === null);
+ok("a file with neither ID is refused, not written with a blank",
+  S.sifFile({ ...input, wps: S.wpsWithEmployer({ employerId: "", routingCode: "123456789", scrFirst: false }, "") }).error === "sif-employer");
 ok("a file with nobody in it is refused", S.sifFile({ ...input, lines: [input.lines[1]] }).error === "sif-empty");
 
 console.log(fails ? `\n${fails} failed` : "\nall passed");

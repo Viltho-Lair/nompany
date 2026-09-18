@@ -3,6 +3,61 @@
   "name": { "en": "Jordan", "ar": "الأردن" },
   "version": 1,
   "checked": "2026-09-18",
+  "rules": {
+    "tax": {
+      "taxName": "General sales tax",
+      "method": "line",
+      "pricesIncludeTax": true,
+      "checked": "2026-09-16",
+      "source": "Country document rules, docs/progress.md (researched 16/09/2026)"
+    },
+    "employment": [
+      {
+        "effectiveFrom": "1996-06-16",
+        "source": "Jordan Labour Law No. 8 of 1996, arts. 23 and 35",
+        "probation": {
+          "months": 3,
+          "maxMonths": 3
+        },
+        "notice": {
+          "days": 30,
+          "afterYears": 0,
+          "daysAfter": 0,
+          "maxDays": 0,
+          "probationDays": 0,
+          "employeeDays": 0
+        },
+        "contractTypes": [
+          "Permanent",
+          "Fixed term",
+          "Part time",
+          "Casual",
+          "Internship",
+          "Secondment"
+        ]
+      }
+    ],
+    "payPreset": {
+      "asOf": "2026",
+      "source": "Social Security Corporation 2026 (employee 7.5%, employer 14.25%, ceiling JOD 3,733); Labour Law art. 61 (leave). No end of service: art. 32 grants it only to employees the SSC does not cover",
+      "leave": {
+        "Annual": {
+          "days": 14,
+          "afterYears": 5,
+          "daysAfter": 21,
+          "carryOver": 0
+        }
+      },
+      "workingDays": true,
+      "socialSecurity": {
+        "employeePct": 7.5,
+        "employerPct": 14.25,
+        "ceiling": 3733,
+        "coversEveryone": true
+      },
+      "endOfService": null
+    }
+  },
   "fields": [
     {
       "key": "legal_name_ar",

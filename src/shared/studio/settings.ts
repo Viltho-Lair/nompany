@@ -81,6 +81,8 @@ type Strings = {
   wpsHeading: string;
   wpsLead: string;
   wpsEmployer: string;
+  wpsEmployerMoved: string;
+  wpsEmployerLegacy: string;
   wpsRouting: string;
   wpsScrFirst: string;
   statProblem: (code: string) => string;
@@ -343,6 +345,8 @@ const en: Strings = {
   wpsHeading: "UAE salary file (WPS)",
   wpsLead: "For a payroll paid through the UAE's Wage Protection System. With these set and the studio's currency AED, an approved run offers a .SIF file.",
   wpsEmployer: "Employer ID (13 digits)",
+  wpsEmployerMoved: "The employer ID is entered under Official values, as the MoHRE establishment ID.",
+  wpsEmployerLegacy: "Saved here before Official values existed. The file uses it until the Official values field is filled; clear it once that is done.",
   wpsRouting: "Employer's bank routing code (9 digits)",
   wpsScrFirst: "Put the control record first (banks differ — check with yours)",
   statProblem: (code) => ({
@@ -623,6 +627,8 @@ const ar: Strings = {
   wpsHeading: "ملف الرواتب في الامارات (WPS)",
   wpsLead: "للرواتب المدفوعة عبر نظام حماية الاجور في الامارات. عند تعبئتها وكون عملة الاستوديو درهما، تعرض الدورة المعتمدة ملف ‎.SIF.",
   wpsEmployer: "رقم المنشاة (13 رقما)",
+  wpsEmployerMoved: "يدخل رقم صاحب العمل في البيانات الرسمية، بوصفه رقم المنشأة لدى وزارة الموارد البشرية والتوطين.",
+  wpsEmployerLegacy: "حفظ هنا قبل وجود البيانات الرسمية. يستخدمه الملف حتى تعبأ خانة البيانات الرسمية؛ امسحوه بعد ذلك.",
   wpsRouting: "رمز توجيه بنك صاحب العمل (9 ارقام)",
   wpsScrFirst: "وضع سجل التحكم اولا (تختلف البنوك — تحقق مع بنكك)",
   statProblem: (code) => ({

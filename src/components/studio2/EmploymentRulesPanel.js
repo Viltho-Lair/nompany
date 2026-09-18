@@ -4,8 +4,7 @@ import { useMemo, useState } from "react";
 import SettingsFold from "@/components/studio2/SettingsFold";
 import SelectMenu from "@/components/fields/SelectMenu";
 import { employmentRuleProblems } from "@/modules/hr/leaveBalance";
-import { statutoryProblems, presetFor } from "@/modules/hr/statutory";
-import { codeOfCountry } from "@/shared/countries";
+import { statutoryProblems } from "@/modules/hr/statutory";
 
 // THE STUDIO'S EMPLOYMENT RULES — tier 6. Leave (allowances, the longer-service
 // figure, carry-over, working-day counting), then statutory pay: social
@@ -89,12 +88,13 @@ function Num({ label, value, onChange, disabled }) {
   );
 }
 
-export default function EmploymentRulesPanel({ rules, leaveTypes = [], country = "", canManage, onSave, tr }) {
+// `preset` IS THE COUNTRY'S, sent by the settings route from the country's
+// definition file (null when the file carries none).
+export default function EmploymentRulesPanel({ rules, leaveTypes = [], country = "", preset = null, canManage, onSave, tr }) {
   const [draft, setDraft] = useState(() => draftFrom(rules, leaveTypes));
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
   const [filled, setFilled] = useState(false);
-  const preset = presetFor(codeOfCountry(country));
 
   const problems = useMemo(() => {
     const payload = payloadOf(draft);
@@ -241,8 +241,18 @@ export default function EmploymentRulesPanel({ rules, leaveTypes = [], country =
       <section className="mt-6">
         <h4 className={h4}>{tr.wpsHeading}</h4>
         <p className={lead}>{tr.wpsLead}</p>
+        {/* THE EMPLOYER ID MOVED TO OFFICIAL VALUES (18/09/2026) — it is the
+            Studio's registration with MoHRE, not a payroll setting. A studio
+            that saved one here keeps it, shown so it can be cleared once the
+            Official values field is filled; nobody else is asked for it twice. */}
+        <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{tr.wpsEmployerMoved}</p>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <Num label={tr.wpsEmployer} value={draft.wps.employerId} disabled={off} onChange={(v) => change((d) => { d.wps.employerId = v; return d; })} />
+          {(rules?.wps?.employerId || draft.wps.employerId) && (
+            <div>
+              <Num label={tr.wpsEmployer} value={draft.wps.employerId} disabled={off} onChange={(v) => change((d) => { d.wps.employerId = v; return d; })} />
+              <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">{tr.wpsEmployerLegacy}</p>
+            </div>
+          )}
           <Num label={tr.wpsRouting} value={draft.wps.routingCode} disabled={off} onChange={(v) => change((d) => { d.wps.routingCode = v; return d; })} />
         </div>
         <label className="mt-3 flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">

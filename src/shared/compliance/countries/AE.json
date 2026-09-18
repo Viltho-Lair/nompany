@@ -3,6 +3,68 @@
   "name": { "en": "United Arab Emirates", "ar": "الإمارات العربية المتحدة" },
   "version": 1,
   "checked": "2026-09-18",
+  "rules": {
+    "tax": {
+      "taxName": "VAT",
+      "method": "line",
+      "pricesIncludeTax": true,
+      "checked": "2026-09-16",
+      "source": "Country document rules, docs/progress.md (researched 16/09/2026)"
+    },
+    "employment": [
+      {
+        "effectiveFrom": "2022-02-02",
+        "source": "UAE Federal Decree-Law 33/2021, arts. 8, 9 and 43",
+        "probation": {
+          "months": 6,
+          "maxMonths": 6
+        },
+        "notice": {
+          "days": 30,
+          "afterYears": 0,
+          "daysAfter": 0,
+          "maxDays": 90,
+          "probationDays": 14,
+          "employeeDays": 0
+        },
+        "contractTypes": [
+          "Fixed term",
+          "Part time",
+          "Casual",
+          "Internship",
+          "Secondment"
+        ]
+      }
+    ],
+    "payPreset": {
+      "asOf": "2026",
+      "source": "GPSSA, Emiratis only (Federal Decree-Law 57/2023: 11% / 12.5%, ceiling AED 70,000); Decree-Law 33/2021 art. 51 (end of service), art. 29 (30 calendar days' leave)",
+      "leave": {
+        "Annual": {
+          "days": 30,
+          "afterYears": 0,
+          "daysAfter": 0,
+          "carryOver": 0
+        }
+      },
+      "workingDays": false,
+      "socialSecurity": {
+        "employeePct": 11,
+        "employerPct": 12.5,
+        "ceiling": 70000,
+        "coversEveryone": false
+      },
+      "endOfService": {
+        "firstYears": 5,
+        "firstMonths": 0.7,
+        "afterMonths": 1,
+        "base": "basic",
+        "minYears": 1,
+        "capMonths": 24,
+        "resignation": []
+      }
+    }
+  },
   "fields": [
     {
       "key": "trade_licence_number",
@@ -85,6 +147,17 @@
       "maxLength": 30,
       "showOn": [],
       "source": { "label": "GPSSA", "url": "https://gpssa.gov.ae", "status": "not-rechecked" }
+    },
+    {
+      "key": "mohre_establishment_id",
+      "department": "hr",
+      "label": { "en": "MoHRE establishment ID (WPS)", "ar": "رقم المنشأة لدى وزارة الموارد البشرية والتوطين (WPS)" },
+      "hint": { "en": "13 digits. The employer ID in the Wage Protection System salary file.", "ar": "13 رقما. رقم صاحب العمل في ملف رواتب نظام حماية الأجور." },
+      "required": "conditional",
+      "normalize": "digits",
+      "patterns": ["^\\d{13}$"],
+      "showOn": [],
+      "source": { "label": "UAE Central Bank WPS salary file (SIF) specification — employer ID in the SCR record", "status": "earlier" }
     }
   ]
 }

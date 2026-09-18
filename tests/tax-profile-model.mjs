@@ -12,7 +12,10 @@ import { pathToFileURL } from "node:url";
 
 register(new URL("./loader.mjs", import.meta.url), { data: { root: pathToFileURL(`${process.cwd()}/`).href } });
 
-const T = await import("@/shared/taxProfile");
+// THE PROFILES MOVED INTO THE COUNTRY FILES (18/09/2026, slice D); the lookup
+// lives in shared/compliance/rules and the categories stay in shared/taxProfile.
+// The same figures are asserted, which is the point: the move changed nothing.
+const T = { ...(await import("@/shared/taxProfile")), ...(await import("@/shared/compliance/rules")) };
 const { documentTotals } = await import("@/shared/documentTotals");
 
 let fails = 0;

@@ -98,12 +98,42 @@ beside it for anything a country file does not name.
   one through the real fill and asserts the text: the Saudi one carries its VAT, CR and
   Arabic name, the US one only its company name.
 
+## The country's rules for each department
+
+Since 18/09/2026 (slice D) a country file also carries what the country's law decides,
+under `rules`, and the departments read it from there (`shared/compliance/rules.ts`)
+instead of from tables keyed by country code:
+
+- **`rules.tax`** — what the tax is called, whether it is added up per document or per
+  line, whether shelf prices include it, and a language the law requires. Read by
+  `taxProfileFor` / `studioTaxProfile` / `documentTaxMethod` (`vat.md`). Twenty-three
+  countries; the UK's file has fields and no tax rules, so a UK studio keeps the default
+  profile exactly as before.
+- **`rules.employment`** — the dated probation, notice and contract-type versions
+  (`lifecycle.md`). Jordan, Saudi Arabia (two versions) and the UAE.
+- **`rules.payPreset`** — the starting figures for Employment rules: leave, social
+  security, end of service (`payroll.md`). Sent to the screen by the settings route, so
+  no browser bundle carries every country's file. Jordan, Saudi Arabia and the UAE.
+
+**The figures did not change.** A script copied them out of the old tables, and the model
+tests that pinned them (`tax-profile-model`, `statutory-model`, `hr-lifecycle-model`)
+pass unchanged. **Seventeen files carry rules and no fields** — countries researched on
+16/09/2026 for their tax arithmetic and not for their official values. Their Official
+values panel says nothing is defined yet.
+
+**The UAE's WPS employer ID is an official value now** (`mohre_establishment_id`, 13
+digits, HR). The salary file reads it through the resolver; one saved under Employment
+rules before the move is still used until the official one is filled, and that form shows
+it only while it holds one, so it can be cleared.
+
 ## How to add a country
 
 1. Write `src/shared/compliance/countries/<ISO-3166 alpha-2>.json` with the shape of an
    existing file. Reuse an existing key wherever the concept is the same, so a Studio
    switching countries keeps the value. Give every field a `source` with a URL and a
    `checked` date. Mark anything unconfirmed `"status": "uncertain"`.
+   A file may carry `fields`, `rules` (see above), or both — a country can be added for its
+   tax arithmetic before anybody researches its official values.
 2. Import it and add it to `COUNTRY_DEFINITIONS` in `countries/index.ts`.
 3. Run `node tests/official-values-model.mjs`. It refuses a file on disk that is not
    registered, a malformed definition (unknown department, document kind or checksum, an
@@ -112,7 +142,8 @@ beside it for anything a country file does not name.
    algorithm name with a published vector in the test, never by country.
 
 No screen, route or migration changes. The next time the Studio settings page loads, the
-fields are there.
+fields are there, and documents, contracts and presets follow the rules from the next
+request.
 
 ## Not built yet
 
@@ -131,10 +162,11 @@ fields are there.
   composite line prints in the document's language.
 - **No ZATCA QR or e-invoice XML.** The values are ready for them; the QR waits on the
   open decision in `progress.md`.
-- **Department rules still live in code.** `taxProfile.ts`, the employment pack,
-  `COUNTRY_PRESETS` and the WPS employer id have not moved onto the definitions yet
-  (slice D). So the UAE's MoHRE/WPS employer id is deliberately absent from `AE.json`
-  until then.
+- **Some department rules are still code, because they are algorithms rather than
+  figures**: the WPS `.SIF` layout, Saudi GOSI's per-person splits, and the end-of-service
+  arithmetic all stay in `modules/hr/statutory.ts`. The figures they run on are in the
+  files. Leave minimums outside the pay preset, and a country's income tax, are not
+  modelled at all.
 - **Per-employee official fields** (national ids, IBAN for WPS, GOSI numbers per person)
   are not here. This covers the Studio's own values only.
 - **The US has no state layer.** Federal fields only, plus the state of formation and the

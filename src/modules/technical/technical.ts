@@ -44,7 +44,8 @@ import type { TechnicalContext, Rfq, Quotation, QuotationItem, QuotationSequence
 import type { SalesTicket } from "@/modules/sales/types";
 import type { Section } from "@/platform/db/sections";
 import type { Task } from "@/modules/tasks/types";
-import { documentTaxMethod, taxCategoryField } from "@/shared/taxProfile";
+import { taxCategoryField } from "@/shared/taxProfile";
+import { documentTaxMethod } from "@/shared/compliance/rules";
 
 export { RFQ_STATUSES, QUOTATION_STATUSES, DEFAULT_QUOTATION_STATUS, LEAD_INTERNAL,
   QUOTATION_LIVE_COLUMNS, DEFAULT_QUOTATION_LIVE_COLUMNS, cleanQuotationLiveColumns };

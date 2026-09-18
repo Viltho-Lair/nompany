@@ -40,7 +40,8 @@ import { nextReference } from "@/modules/main/references";
 import type { Invoice, InvoiceView, Expense, InvoiceLine, Payment, FinanceContext } from "./types";
 import type { Row } from "@/platform/db/store";
 import { readHold, holdProblems, cleanHold } from "./hold";
-import { documentTaxMethod, taxCategoryField } from "@/shared/taxProfile";
+import { taxCategoryField } from "@/shared/taxProfile";
+import { documentTaxMethod } from "@/shared/compliance/rules";
 
 const INVOICES = "invoices";
 const EXPENSES = "expenses";

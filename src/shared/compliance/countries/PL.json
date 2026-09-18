@@ -1,0 +1,16 @@
+{
+  "code": "PL",
+  "name": { "en": "Poland", "ar": "بولندا" },
+  "version": 1,
+  "checked": "2026-09-16",
+  "rules": {
+    "tax": {
+      "taxName": "VAT",
+      "method": "document",
+      "pricesIncludeTax": true,
+      "checked": "2026-09-16",
+      "source": "Country document rules, docs/progress.md (researched 16/09/2026)"
+    }
+  },
+  "fields": []
+}

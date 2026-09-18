@@ -98,8 +98,93 @@ export type CountryDefinition = {
   version: number;
   /** The day this version was researched. */
   checked: string;
+  /**
+   * WHAT THE COUNTRY'S LAW DECIDES FOR EACH DEPARTMENT — slice D. Each part is
+   * optional: a country researched for its tax arithmetic alone carries
+   * `rules.tax` and nothing else, and a part absent means the product's
+   * default, never another country's rule. The shapes are the departments'
+   * own; the modules that read them (shared/compliance/rules) own their
+   * meaning, and this file checks only that each part is there to read.
+   */
+  rules?: CountryRules;
+  /** EMPTY IS ALLOWED: a country may be defined for its rules before anybody researches its official values. */
   fields: OfficialField[];
 };
+
+export type TaxRules = {
+  /** What the tax is called on a document in that country. */
+  taxName: string;
+  /** "document": tax once per rate on the totals; "line": each line rounded on its own. */
+  method: "document" | "line";
+  /** Whether a consumer price is shown with tax in (how the till reads a shelf price). */
+  pricesIncludeTax: boolean;
+  /** A language the law requires on the readable document, if any. */
+  requiredLanguage?: string;
+  checked: string;
+  source: string;
+};
+
+/** One dated version of the country's employment law (modules/hr/packs/employment). */
+export type EmploymentRules = {
+  effectiveFrom: string;
+  source: string;
+  probation: { months: number; maxMonths: number };
+  notice: { days: number; afterYears: number; daysAfter: number; maxDays: number; probationDays: number; employeeDays: number };
+  contractTypes: string[];
+};
+
+/** Starting figures for Employment rules, which the Studio confirms before any are used (modules/hr/statutory). */
+export type PayPreset = {
+  asOf: string;
+  source: string;
+  leave: Record<string, { days: number; afterYears: number; daysAfter: number; carryOver: number }>;
+  workingDays: boolean;
+  socialSecurity: { employeePct: number; employerPct: number; ceiling: number; coversEveryone: boolean } | null;
+  endOfService: {
+    firstYears: number; firstMonths: number; afterMonths: number; base: "basic" | "wage";
+    minYears: number; capMonths: number; resignation: { underYears: number; factor: number }[];
+  } | null;
+};
+
+export type CountryRules = {
+  tax?: TaxRules;
+  employment?: EmploymentRules[];
+  payPreset?: PayPreset;
+};
+
+const DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** What is wrong with a country's rules, beside its fields. */
+function rulesProblems(rules: unknown): string[] {
+  if (rules === undefined) return [];
+  const r = rules as CountryRules | null;
+  if (!r || typeof r !== "object") return ["rules must be an object"];
+  const out: string[] = [];
+  if (r.tax) {
+    if (!r.tax.taxName) out.push("rules.tax: taxName is required");
+    if (r.tax.method !== "document" && r.tax.method !== "line") out.push("rules.tax: method must be document or line");
+    if (typeof r.tax.pricesIncludeTax !== "boolean") out.push("rules.tax: pricesIncludeTax must be true or false");
+    if (!DATE.test(String(r.tax.checked || ""))) out.push("rules.tax: checked must be YYYY-MM-DD");
+    if (!r.tax.source) out.push("rules.tax: source is required");
+  }
+  if (r.employment !== undefined) {
+    if (!Array.isArray(r.employment) || !r.employment.length) out.push("rules.employment must be a non-empty list");
+    const days = new Set<string>();
+    for (const e of Array.isArray(r.employment) ? r.employment : []) {
+      if (!DATE.test(String(e?.effectiveFrom || ""))) out.push("rules.employment: effectiveFrom must be YYYY-MM-DD");
+      if (days.has(e?.effectiveFrom)) out.push(`rules.employment: two versions from ${e.effectiveFrom}`);
+      days.add(e?.effectiveFrom);
+      if (!e?.source) out.push("rules.employment: source is required");
+      if (!e?.probation || !e?.notice) out.push("rules.employment: probation and notice are required");
+      if (!Array.isArray(e?.contractTypes) || !e.contractTypes.length) out.push("rules.employment: contractTypes must be a non-empty list");
+    }
+  }
+  if (r.payPreset) {
+    if (!r.payPreset.asOf || !r.payPreset.source) out.push("rules.payPreset: asOf and source are required");
+    if (!r.payPreset.leave || typeof r.payPreset.leave !== "object") out.push("rules.payPreset: leave is required");
+  }
+  return out;
+}
 
 const MAX_DEFAULT = 200;
 
@@ -151,7 +236,10 @@ export function definitionProblems(def: unknown): string[] {
   if (!d.name?.en || !d.name?.ar) out.push("name needs en and ar");
   if (!(Number(d.version) >= 1)) out.push("version must be 1 or more");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(d.checked || ""))) out.push("checked must be YYYY-MM-DD");
-  if (!Array.isArray(d.fields) || !d.fields.length) return [...out, "fields must be a non-empty list"];
+  out.push(...rulesProblems(d.rules));
+  if (!Array.isArray(d.fields)) return [...out, "fields must be a list"];
+  // A country with neither fields nor rules is a file that says nothing.
+  if (!d.fields.length && !d.rules) return [...out, "a definition needs fields, rules, or both"];
 
   const seen = new Set<string>();
   for (const f of d.fields) {

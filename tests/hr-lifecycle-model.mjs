@@ -21,7 +21,11 @@ const {
 const {
   employmentPackFor, EMPLOYMENT_PACKS, DEFAULT_EMPLOYMENT_PACK, CONTRACT_TYPES,
 } = await import("@/modules/hr/packs/employment");
-const { COUNTRY_PRESETS } = await import("@/modules/hr/statutory");
+// THE PAY PRESETS, from the country files (`rules.payPreset`) since 18/09/2026.
+const { payPresetFor } = await import("@/shared/compliance/rules");
+const { COUNTRY_DEFINITIONS } = await import("@/shared/compliance/countries");
+const COUNTRY_PRESETS = Object.fromEntries(Object.keys(COUNTRY_DEFINITIONS)
+  .map((c) => [c, payPresetFor(c)]).filter(([, p]) => p));
 
 let fails = 0;
 const ok = (what, cond, detail = "") => {

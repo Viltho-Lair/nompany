@@ -31,7 +31,7 @@ import { batchView, batchBalances, pickBatches, type Batch } from "@/modules/inv
 import { alertIfLow, reorderList, STOCK_ALERT_RIGHT } from "@/modules/inventory/stockAlerts";
 import type { Item, Movement } from "@/modules/inventory/types";
 import { studioVatRate } from "@/shared/vat";
-import { documentTaxMethod, studioTaxProfile } from "@/shared/taxProfile";
+import { documentTaxMethod, studioTaxProfile } from "@/shared/compliance/rules";
 import { roundMoney } from "@/shared/money";
 import {
   cleanPosLines, cleanPayments, posTotals, settle, shiftReport, unitsOf,

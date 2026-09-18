@@ -3,6 +3,107 @@
   "name": { "en": "Saudi Arabia", "ar": "المملكة العربية السعودية" },
   "version": 1,
   "checked": "2026-09-18",
+  "rules": {
+    "tax": {
+      "taxName": "VAT",
+      "method": "document",
+      "pricesIncludeTax": true,
+      "requiredLanguage": "ar",
+      "checked": "2026-09-16",
+      "source": "ZATCA e-invoicing rules: VAT rounded at document level, not per line; Arabic required on a tax invoice"
+    },
+    "employment": [
+      {
+        "effectiveFrom": "2005-09-27",
+        "source": "Saudi Labour Law (Royal Decree M/51), arts. 53 and 75",
+        "probation": {
+          "months": 3,
+          "maxMonths": 6
+        },
+        "notice": {
+          "days": 60,
+          "afterYears": 0,
+          "daysAfter": 0,
+          "maxDays": 0,
+          "probationDays": 0,
+          "employeeDays": 0
+        },
+        "contractTypes": [
+          "Permanent",
+          "Fixed term",
+          "Part time",
+          "Casual",
+          "Internship",
+          "Secondment"
+        ]
+      },
+      {
+        "effectiveFrom": "2025-02-19",
+        "source": "Saudi Labour Law as amended (in force 19/02/2025), arts. 53 and 75",
+        "probation": {
+          "months": 3,
+          "maxMonths": 6
+        },
+        "notice": {
+          "days": 60,
+          "afterYears": 0,
+          "daysAfter": 0,
+          "maxDays": 0,
+          "probationDays": 0,
+          "employeeDays": 30
+        },
+        "contractTypes": [
+          "Permanent",
+          "Fixed term",
+          "Part time",
+          "Casual",
+          "Internship",
+          "Secondment"
+        ]
+      }
+    ],
+    "payPreset": {
+      "asOf": "2026",
+      "source": "GOSI for a Saudi insured before 3 July 2024 (9.75% / 11.75%, ceiling SAR 45,000); Labour Law arts. 84-85 (end of service), art. 109 (leave). Later joiners and non-Saudis are per-person overrides",
+      "leave": {
+        "Annual": {
+          "days": 21,
+          "afterYears": 5,
+          "daysAfter": 30,
+          "carryOver": 0
+        }
+      },
+      "workingDays": true,
+      "socialSecurity": {
+        "employeePct": 9.75,
+        "employerPct": 11.75,
+        "ceiling": 45000,
+        "coversEveryone": true
+      },
+      "endOfService": {
+        "firstYears": 5,
+        "firstMonths": 0.5,
+        "afterMonths": 1,
+        "base": "wage",
+        "minYears": 0,
+        "capMonths": 0,
+        "resignation": [
+          {
+            "underYears": 2,
+            "factor": 0
+          },
+          {
+            "underYears": 5,
+            "factor": 0.3333333333333333
+          },
+          {
+            "underYears": 10,
+            "factor": 0.6666666666666666
+          }
+        ]
+      }
+    }
+  },
   "fields": [
     {
       "key": "legal_name_ar",

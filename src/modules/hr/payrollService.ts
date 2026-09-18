@@ -22,9 +22,9 @@ import type { PayRecord, PayslipLine, RunStatus } from "./payroll";
 import type { HrContext } from "./types";
 import { isAdministrator } from "@/platform/access";
 import { notifyHolders, signatureNotice } from "@/modules/people/holders";
-import { statutoryRulesOf, endOfService, sifFile } from "./statutory";
+import { statutoryRulesOf, endOfService, sifFile, wpsWithEmployer } from "./statutory";
 import { employedBetween, statusOf } from "./lifecycle";
-import { officialForDocument } from "@/shared/compliance/resolve";
+import { official, officialForDocument } from "@/shared/compliance/resolve";
 import { legalRowsBeside } from "@/shared/compliance/printing";
 
 /** Somebody with a pay record who is not in this run, and why in words. */
@@ -408,7 +408,9 @@ export async function sifFileFor(ctx: HrContext, id: string) {
     iban: r.iban || "", agentId: r.agentId || "", labourCardId: r.labourCardId || "",
   }]));
   return sifFile({
-    wps: statutoryRulesOf(ctx.studio).wps,
+    // THE EMPLOYER ID IS AN OFFICIAL VALUE (the UAE's definition file), read
+    // through the resolver like every other; the rest is Employment rules'.
+    wps: wpsWithEmployer(statutoryRulesOf(ctx.studio).wps, official(ctx.studio, "mohre_establishment_id")),
     currency: String((ctx.studio as { currency?: unknown }).currency || ""),
     period: run.period,
     lines: run.lines,

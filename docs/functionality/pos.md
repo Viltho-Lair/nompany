@@ -75,7 +75,7 @@ Three collections, all filed under `crm-sales-pos`:
   breakdown. A receipt is never edited or deleted.
 
 The till's settings live on the `crm-sales-pos` section: **whether shelf prices include tax**
-(default from the studio's country — `shared/taxProfile`) and **a footer** printed on every
+(default from the studio's country — its definition file's `rules.tax`, read by `shared/compliance/rules`) and **a footer** printed on every
 receipt.
 
 Every sale also writes **stock movements** in Inventory (`kind: "out"`, `sourceType: "pos"`,

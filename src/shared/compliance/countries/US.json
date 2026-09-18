@@ -3,6 +3,15 @@
   "name": { "en": "United States", "ar": "الولايات المتحدة" },
   "version": 1,
   "checked": "2026-09-18",
+  "rules": {
+    "tax": {
+      "taxName": "Sales tax",
+      "method": "document",
+      "pricesIncludeTax": false,
+      "checked": "2026-09-16",
+      "source": "Country document rules, docs/progress.md (researched 16/09/2026)"
+    }
+  },
   "fields": [
     {
       "key": "ein",
