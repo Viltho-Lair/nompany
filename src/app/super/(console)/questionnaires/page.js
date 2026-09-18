@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { currentSuperAdmin } from "@/platform/auth/superAuth";
+import { signedInAdmin } from "../../_components/adminSession";
 import QuestionnaireList from "@/components/super/QuestionnaireList";
 
 export const dynamic = "force-dynamic";
@@ -12,7 +12,7 @@ export const metadata = { title: "Questionnaires" };
 // The edge only knows whether the cookie exists; this is where the claim is
 // actually verified.
 export default async function QuestionnairesPage() {
-  const admin = await currentSuperAdmin();
+  const admin = await signedInAdmin();
   if (!admin) redirect("/super");
   return <QuestionnaireList />;
 }

@@ -535,6 +535,13 @@ export async function sRem(key: string, member: string): Promise<void> {
 export async function sMembers(key: string): Promise<string[]> {
   return asSet(await getJSON(key));
 }
+// MANY SETS, ONE STATEMENT — sMembers over getJSONMany, the set-shaped sibling
+// of hGetAllMany. The console's user table asked for every person's
+// collaboration back-pointers one set at a time, which was one round trip per
+// user on a page that already had every id in hand.
+export async function sMembersMany(keys: string[]): Promise<string[][]> {
+  return (await getJSONMany(keys)).map(asSet);
+}
 export async function sCard(key: string): Promise<number> {
   return asSet(await getJSON(key)).length;
 }

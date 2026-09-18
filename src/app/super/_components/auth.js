@@ -1,119 +1,90 @@
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
 import Icon from "./Icon";
 
-// THE SUPER-ADMIN SIGN-IN'S CHROME, and nothing else any more.
+// THE SUPER-ADMIN SIGN-IN'S CHROME, and nothing else.
 //
-// This file was the reference console's whole authentication kit: two layouts
-// (v1 centred card, v2 brand split) and nine assembled screens — login,
-// register, forgot, reset, verify, two-factor, lock, account-disabled,
-// password-changed — each rendered at /super/v1/* and /super/v2/*, eighteen
-// routes of inert markup with `onSubmit` prevented so no credential ever left
-// the page.
+// This file was the reference console's whole authentication kit — nine
+// assembled screens on eighteen routes — and then, once those were deleted, the
+// template's brand split: a blue gradient panel beside a card, carrying three
+// value props ("Enterprise Security", "Blazing Fast", "Powerful Analytics")
+// that were the template's words rather than ours and a letter "n" in a square
+// where the logo belongs. It looked like somebody else's admin kit because it
+// was. The owner, 18/09/2026: "it doesn't look like a nompany super admin
+// login".
 //
-// They are gone, and the one that mattered is the register pair: THERE IS NO
-// REGISTRATION FOR THE CONSOLE. A super admin is an existing user marked as
-// one — `superAuth` has no create path and never had — so a register form on
-// this surface described a door that does not exist. Inert markup is still a
-// claim, and a URL is still a URL: it invited a reviewer to ask which door it
-// opened, and the honest answer was "none, but you have to read the source to
-// know that".
+// IT WEARS THE BRAND NOW — the hexagon mark, the wordmark, and the marketing
+// site's ink/iris/gold palette and `.surface` card, the same things the account
+// sign-in at /<locale>/login is drawn with. Two deliberate differences from
+// that screen:
 //
-// What remains is what SignIn.js actually renders: the brand split, the two
-// form parts, and the logo. The v1 layout went with the pages that used it —
-// SignIn has always passed v2 — so `AuthShell` no longer takes a variant, and
-// the pulsing-blob background that only v1 drew is gone with it.
+//   IT IS ALWAYS DARK. The `dark` class on the frame scopes the ink palette to
+//   this subtree whatever theme the visitor last chose, because the console's
+//   door should look the same every time it is opened.
+//
+//   IT DOES NOT IMPORT `landing/AuthShell`. That shell animates with
+//   `motion/react` and a pointer-driven ambient layer; the console route would
+//   pay ~30 KB of first load for a login seen once a day, and `motion/react` is
+//   confined to `components/landing/` (tests/restructure.mjs). The background
+//   here is two blurred gradients on the CSS `blob` keyframes the landing
+//   already defines — the same look, and nothing crosses the wire for it.
+//
+// The template's value props are not replaced by ours. A sign-in for one
+// person has nobody to sell to; what it says instead is what this door is.
 
-export function Logo({ invert = false }) {
+export function Logo() {
   return (
     <span className="inline-flex items-center gap-2.5">
-      <span
-        className="flex h-9 w-9 items-center justify-center rounded-lg text-lg font-700 text-white"
-        style={{ backgroundColor: invert ? "rgb(var(--ad-primary-foreground-rgb) / 0.18)" : "var(--ad-primary)" }}
-      >
-        n
-      </span>
-      <span className="text-lg font-600" style={invert ? { color: "var(--ad-primary-foreground)" } : undefined}>
-        nompany
-      </span>
+      <Image src="/brand/logo-icon.png" alt="" width={34} height={34} priority className="h-[34px] w-[34px] object-contain" />
+      <span className="font-display text-[1.2rem] font-semibold tracking-tight text-fg">nompany</span>
     </span>
   );
 }
 
-const FEATURES = [
-  {
-    icon: "shield",
-    title: "Enterprise Security",
-    body: "Bank-grade encryption and two-factor authentication keep platform data safe.",
-  },
-  {
-    icon: "zap",
-    title: "Blazing Fast",
-    body: "Optimised performance with real-time updates and instant data access.",
-  },
-  {
-    icon: "chart",
-    title: "Powerful Analytics",
-    body: "Deep insights and customisable dashboards to drive better decisions.",
-  },
-];
-
-// The brand split: a gradient panel carrying the value props, and the sign-in
-// card beside it. One layout now, so there is no variant to choose.
-export function AuthShell({ title, sub, children, footer, width = 440 }) {
+export function AuthShell({ title, sub, children, footer }) {
   return (
-    <div className="flex min-h-screen w-full flex-col lg:flex-row">
-      <div
-        className="relative flex h-[60px] w-full shrink-0 items-center justify-center overflow-hidden lg:h-auto lg:w-[40%] lg:items-start lg:justify-start lg:px-12 lg:py-16"
-        style={{
-          backgroundImage:
-            "linear-gradient(135deg, var(--ad-primary), color-mix(in srgb, var(--ad-primary) 85%, var(--ad-foreground)) 55%, color-mix(in srgb, var(--ad-primary) 65%, var(--ad-foreground)))",
-        }}
-      >
-        <div className="pointer-events-none absolute inset-0" aria-hidden="true">
-          <span className="absolute start-[-10%] top-[-10%] h-[300px] w-[300px] rounded-full bg-white/5" />
-          <span className="absolute bottom-[-5%] end-[-5%] h-[250px] w-[250px] rounded-full bg-white/5" />
-        </div>
-        <div className="relative z-10 flex lg:block">
-          <Logo invert />
-        </div>
-        <div className="relative z-10 mt-12 hidden lg:block">
-          <h2 className="text-3xl font-700 text-white">Your all-in-one platform console</h2>
-          <p className="mt-3 text-base text-white/70">
-            Manage every studio, subscription and setting with clarity, speed and confidence.
-          </p>
-          <ul className="mt-10 space-y-6">
-            {FEATURES.map((f) => (
-              <li key={f.title} className="flex items-start gap-4">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/10 text-white">
-                  <Icon name={f.icon} className="h-5 w-5" />
-                </span>
-                <div>
-                  <p className="font-600 text-white">{f.title}</p>
-                  <p className="mt-0.5 text-sm text-white/70">{f.body}</p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
+    <div className="dark landing-page relative flex min-h-screen w-full flex-col items-center justify-center overflow-hidden bg-ink px-4 py-14 text-fg">
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+        <div
+          className="absolute -top-[20vh] start-[8vw] h-[60vh] w-[60vh] animate-blob-a rounded-full opacity-50 blur-[110px] motion-reduce:animate-none"
+          style={{ background: "radial-gradient(circle at 40% 40%, color-mix(in oklab, var(--color-iris) 80%, transparent), transparent 68%)" }}
+        />
+        <div
+          className="absolute -end-[12vw] top-[40vh] h-[65vh] w-[65vh] animate-blob-b rounded-full opacity-40 blur-[130px] motion-reduce:animate-none"
+          style={{ background: "radial-gradient(circle at 55% 45%, color-mix(in oklab, var(--color-violet) 65%, transparent), transparent 70%)" }}
+        />
+        {/* A faint grid, masked to the middle, so the page has depth without
+            anything competing with the form. */}
+        <div
+          className="absolute inset-0 opacity-[0.07]"
+          style={{
+            backgroundImage:
+              "linear-gradient(var(--color-fg) 1px, transparent 1px), linear-gradient(90deg, var(--color-fg) 1px, transparent 1px)",
+            backgroundSize: "56px 56px",
+            maskImage: "radial-gradient(ellipse at center, black 20%, transparent 70%)",
+            WebkitMaskImage: "radial-gradient(ellipse at center, black 20%, transparent 70%)",
+          }}
+        />
       </div>
-      <div className="relative flex flex-1 items-center justify-center overflow-hidden px-4 py-12 lg:px-12">
-        <div className="pointer-events-none absolute inset-0" aria-hidden="true">
-          <span className="absolute end-[10%] top-[10%] h-[200px] w-[200px] animate-pulse rounded-full bg-[var(--ad-primary)] opacity-[0.05]" />
-          <span className="absolute bottom-[15%] start-[5%] h-[150px] w-[150px] animate-pulse rounded-full bg-[var(--ad-primary)] opacity-[0.05] [animation-delay:1s]" />
+
+      <div className="relative z-10 w-full max-w-[420px]">
+        <div className="mb-8 flex flex-col items-center gap-4">
+          <Logo />
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-gold/30 bg-gold/10 px-3 py-1 text-[11px] font-600 uppercase tracking-[0.14em] text-gold">
+            <Icon name="shield" className="h-3.5 w-3.5" />
+            Platform console
+          </span>
         </div>
-        <div className="relative z-10 w-full px-4" style={{ maxWidth: width }}>
-          <div
-            className="rounded-lg border p-8 shadow-lg"
-            style={{ borderColor: "var(--ad-border)", backgroundColor: "var(--ad-card)" }}
-          >
-            <h4 className="mb-1 text-center text-xl font-500">{title}</h4>
-            {sub ? <p className="mb-6 text-center text-sm text-[var(--ad-muted-foreground)]">{sub}</p> : null}
-            {children}
-          </div>
-          {footer ? <div className="mt-6">{footer}</div> : null}
+
+        <div className="surface rounded-2xl p-7 shadow-[0_30px_80px_-30px_rgb(0_0_0/0.7)] sm:p-8">
+          <h1 className="text-center font-display text-2xl font-semibold tracking-tight">{title}</h1>
+          {sub ? <p className="mt-2 text-center text-sm text-fg-muted">{sub}</p> : null}
+          <div className="mt-7">{children}</div>
         </div>
+
+        {footer ? <div className="mt-6 text-center text-xs text-fg-dim">{footer}</div> : null}
       </div>
     </div>
   );
@@ -121,21 +92,17 @@ export function AuthShell({ title, sub, children, footer, width = 440 }) {
 
 /* ---- form parts ---------------------------------------------------------- */
 
-export function Field({ label, action, children }) {
+// The field look lives here once, rather than as a className string at each
+// input, so the three inputs on this screen cannot drift apart.
+export const inputClass =
+  "block h-11 w-full rounded-xl border border-line bg-ink-soft/70 px-3.5 text-sm text-fg placeholder:text-fg-dim outline-none transition-colors focus:border-iris-bright/70 focus:ring-2 focus:ring-iris/30";
+
+export function Field({ label, children }) {
   return (
-    <div className="grid gap-2">
-      {label ? (
-        action ? (
-          <div className="flex items-center justify-between">
-            <label className="ad-label mb-0">{label}</label>
-            {action}
-          </div>
-        ) : (
-          <label className="ad-label mb-0">{label}</label>
-        )
-      ) : null}
+    <label className="grid gap-2">
+      <span className="text-xs font-600 text-fg-muted">{label}</span>
       {children}
-    </div>
+    </label>
   );
 }
 
@@ -147,18 +114,17 @@ export function PasswordInput({ defaultValue = "", placeholder = "••••�
         type={show ? "text" : "password"}
         defaultValue={defaultValue}
         placeholder={placeholder}
-        className="ad-input pe-10"
+        className={`${inputClass} pe-11`}
         {...rest}
       />
       <button
         type="button"
         onClick={() => setShow((s) => !s)}
         aria-label={show ? "Hide password" : "Show password"}
-        className="absolute top-1/2 -translate-y-1/2 text-[var(--ad-muted-foreground)] hover:text-[var(--ad-foreground)] end-3"
+        className="absolute end-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-fg-dim transition-colors hover:text-fg"
       >
         <Icon name={show ? "eyeOff" : "eye"} className="h-4 w-4" />
       </button>
     </div>
   );
 }
-

@@ -13,7 +13,9 @@ import { ChartSkeleton } from "@/components/charts";
 // boxes. A KpiTile is a solid block with an 11×11 disc and three lines of text;
 // anything shorter and the whole page below it jumps when they land.
 
-function KpiTileSkeleton() {
+// Exported: the page reuses it as the Active Users tile's own fallback, so the
+// tile streams in at the height it was reserved at.
+export function KpiTileSkeleton() {
   return (
     <div className="rounded-geex bg-[var(--ad-muted)] p-6">
       <div className="flex items-center gap-4">

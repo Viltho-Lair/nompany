@@ -1,5 +1,5 @@
 import { redirect, notFound } from "next/navigation";
-import { currentSuperAdmin } from "@/platform/auth/superAuth";
+import { signedInAdmin } from "../../../../_components/adminSession";
 import { getQuestionnaireById } from "@/lib/data/questionnaires";
 import QuestionnaireResponses from "@/components/super/QuestionnaireResponses";
 
@@ -15,7 +15,7 @@ export async function generateMetadata({ params }) {
 // had a Responses column from the day it shipped and nothing behind it — the
 // answers were never recorded at all, so there was no screen to write.
 export default async function QuestionnaireResponsesPage({ params }) {
-  const admin = await currentSuperAdmin();
+  const admin = await signedInAdmin();
   if (!admin) redirect("/super");
   const { id } = await params;
   // Resolved server-side so a bad id is a 404 rather than a screen that spins,

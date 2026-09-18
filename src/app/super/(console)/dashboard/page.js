@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import {
   PageHeader,
   Card,
@@ -12,6 +13,7 @@ import {
   KpiTile,
   Table,
   Icon,
+  Skeleton,
   toneBg, toneInk,} from "../../_components/ui";
 import { AreaChart, ChartFrame, BarList, Radial } from "@/components/charts";
 import { BASE } from "../../_components/nav";
@@ -23,6 +25,8 @@ import { satisfaction } from "@/lib/data/ratings";
 import { listUsersForConsole } from "@/platform/auth/users";
 import { statusOf, STATUS } from "@/lib/platformRoles";
 import { recordActiveUsers, readActiveUsers, isoDay } from "@/lib/data/siteStats";
+import { withRequest } from "@/platform/http/observability";
+import { KpiTileSkeleton } from "./loading";
 
 export const metadata = { title: "Analytics" };
 
@@ -41,11 +45,11 @@ async function activeUsers() {
   const current = users.filter((u) => statusOf(u, now) === STATUS.active).length;
 
   // Today's count is written down for a future week to compare against. First
-  // writer of the day wins, so this and the daily cron cannot fight.
-  await recordActiveUsers(current);
-
+  // writer of the day wins, so this and the daily cron cannot fight. The write
+  // and last week's read touch different days, so they run side by side rather
+  // than one after the other.
   const weekAgo = isoDay(new Date(now - 7 * 24 * 60 * 60 * 1000));
-  const before = await readActiveUsers(weekAgo);
+  const [, before] = await Promise.all([recordActiveUsers(current), readActiveUsers(weekAgo)]);
 
   // A day nobody recorded, or a week with nobody in it, gives no percentage.
   // "+100%" off nothing claims more than it knows.
@@ -109,9 +113,68 @@ const GOALS = [
   { label: "Annual", value: 65, color: "var(--ad-chart-4)" },
 ];
 
-export default async function AnalyticsPage() {
-  const [active, sat] = await Promise.all([activeUsers(), satisfaction()]);
+// THE TWO SERVER-READ PARTS STREAM IN ON THEIR OWN. The page awaited both
+// before drawing anything, so every card — four of which fetch their own data
+// in the browser and have skeletons for it — waited on one tile and one card.
+// Each is its own async component behind <Suspense> now: the frame and the
+// client cards paint at once, and these two fill in when their reads land.
+// Each opens its own withRequest scope, because a component rendered inside a
+// Suspense boundary is not inside any scope its page opened.
+async function ActiveUsersTile() {
+  const active = await withRequest("super-dashboard-active", activeUsers);
+  return (
+    <KpiTile label="Active Users" value={active.current.toLocaleString()} delta={active.delta} deltaLabel={active.delta == null ? "· no reading from last week yet" : "from last week"} icon="users" tone="success" />
+  );
+}
 
+async function SatisfactionBody() {
+  const sat = await withRequest("super-dashboard-satisfaction", satisfaction);
+  // The share of RATINGS of 4 or 5 against those of 3 or below. People who
+  // closed the prompt without answering are excluded: a non-answer is not an
+  // unhappy customer, and counting it as one would let a quiet month look like
+  // a bad one.
+  if (sat.total === 0) {
+    return (
+      <p className="py-6 text-center text-sm text-[var(--ad-muted-foreground)]">
+        No ratings yet. Users are asked once, fifteen days in.
+      </p>
+    );
+  }
+  return (
+    <>
+      <div className="flex h-2.5 w-full overflow-hidden rounded-full">
+        <span style={{ width: `${sat.negativePct}%`, backgroundColor: "var(--ad-destructive)" }} />
+        <span style={{ width: `${sat.positivePct}%`, backgroundColor: "var(--ad-success)" }} />
+      </div>
+      <div className="mt-4 flex items-start justify-between">
+        <div>
+          <p className="text-[11px] font-600 uppercase tracking-wider text-[var(--ad-destructive)]">3 and below</p>
+          <p className="mt-0.5 text-lg font-600">{sat.negativePct}%</p>
+          <p className="text-xs text-[var(--ad-muted-foreground)]">{sat.negative} rating{sat.negative === 1 ? "" : "s"}</p>
+        </div>
+        <div className="text-end">
+          <p className="text-[11px] font-600 uppercase tracking-wider text-[var(--ad-success)]">4 and above</p>
+          <p className="mt-0.5 text-lg font-600">{sat.positivePct}%</p>
+          <p className="text-xs text-[var(--ad-muted-foreground)]">{sat.positive} rating{sat.positive === 1 ? "" : "s"}</p>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function SatisfactionSkeleton() {
+  return (
+    <div aria-busy="true">
+      <Skeleton className="h-2.5 w-full rounded-full" />
+      <div className="mt-4 flex justify-between">
+        <Skeleton className="h-10 w-20 rounded-md" />
+        <Skeleton className="h-10 w-20 rounded-md" />
+      </div>
+    </div>
+  );
+}
+
+export default function AnalyticsPage() {
   return (
     <>
       <PageHeader
@@ -124,7 +187,9 @@ export default async function AnalyticsPage() {
           <KpiTile label="Total Revenue" value="$2,965,515" delta={12.5} deltaLabel="from last month" icon="wallet" tone="primary" />
         </Col>
         <Col span={3}>
-          <KpiTile label="Active Users" value={active.current.toLocaleString()} delta={active.delta} deltaLabel={active.delta == null ? "· no reading from last week yet" : "from last week"} icon="users" tone="success" />
+          <Suspense fallback={<KpiTileSkeleton />}>
+            <ActiveUsersTile />
+          </Suspense>
         </Col>
         <Col span={3}>
           <KpiTile label="Orders" value="6,465" delta={-2.1} deltaLabel="from yesterday" icon="cart" tone="warning" />
@@ -185,34 +250,9 @@ export default async function AnalyticsPage() {
             <Card>
               <CardHead title="Customer Satisfaction" />
               <CardBody>
-                {/* The share of RATINGS of 4 or 5 against those of 3 or below.
-                    People who closed the prompt without answering are excluded:
-                    a non-answer is not an unhappy customer, and counting it as
-                    one would let a quiet month look like a bad one. */}
-                {sat.total === 0 ? (
-                  <p className="py-6 text-center text-sm text-[var(--ad-muted-foreground)]">
-                    No ratings yet. Users are asked once, fifteen days in.
-                  </p>
-                ) : (
-                  <>
-                    <div className="flex h-2.5 w-full overflow-hidden rounded-full">
-                      <span style={{ width: `${sat.negativePct}%`, backgroundColor: "var(--ad-destructive)" }} />
-                      <span style={{ width: `${sat.positivePct}%`, backgroundColor: "var(--ad-success)" }} />
-                    </div>
-                    <div className="mt-4 flex items-start justify-between">
-                      <div>
-                        <p className="text-[11px] font-600 uppercase tracking-wider text-[var(--ad-destructive)]">3 and below</p>
-                        <p className="mt-0.5 text-lg font-600">{sat.negativePct}%</p>
-                        <p className="text-xs text-[var(--ad-muted-foreground)]">{sat.negative} rating{sat.negative === 1 ? "" : "s"}</p>
-                      </div>
-                      <div className="text-end">
-                        <p className="text-[11px] font-600 uppercase tracking-wider text-[var(--ad-success)]">4 and above</p>
-                        <p className="mt-0.5 text-lg font-600">{sat.positivePct}%</p>
-                        <p className="text-xs text-[var(--ad-muted-foreground)]">{sat.positive} rating{sat.positive === 1 ? "" : "s"}</p>
-                      </div>
-                    </div>
-                  </>
-                )}
+                <Suspense fallback={<SatisfactionSkeleton />}>
+                  <SatisfactionBody />
+                </Suspense>
               </CardBody>
             </Card>
 

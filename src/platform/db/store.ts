@@ -84,6 +84,7 @@ export {
   sAdd,
   sRem,
   sMembers,
+  sMembersMany,
   sCard,
   zAdd,
   zRange,

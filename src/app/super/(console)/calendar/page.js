@@ -3,6 +3,7 @@ import { getConnection } from "@/lib/data/googleCalendar";
 import { providerConfigured } from "@/platform/auth/calendarProviders";
 import ConnectCalendar from "./ConnectCalendar";
 import CalendarBoard from "./CalendarBoard";
+import { withRequest } from "@/platform/http/observability";
 
 export const metadata = { title: "Calendar" };
 // The connection is read from the store on every request, and the board's own
@@ -20,7 +21,8 @@ export const dynamic = "force-dynamic";
 // chosen yet, and connected-and-chosen — ConnectCalendar renders the first two,
 // which are the same screen at different steps, and the board the third.
 export default async function CalendarPage() {
-  const connection = await getConnection();
+  // Scoped like every other console read, so its round trips are counted.
+  const connection = await withRequest("super-calendar", () => getConnection());
   // READ HERE, NOT SERVED FROM THE API. `providerConfigured` is purely
   // process.env, and putting it in the GET response would make that route's
   // golden depend on whichever developer's .env.local was loaded — the exact

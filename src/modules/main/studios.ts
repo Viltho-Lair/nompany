@@ -23,7 +23,7 @@
 import {
   REG, U, S, IX, ID, SECTION_DEFS, PRODUCT_SECTION_DEFS, isSystemSection, isFiledOnlySection, isValidSlug,
 } from "@/platform/db/keys";
-import { readArr, writeArr, editArr, setJSON, claim, getIndex, release, delPrefix, sMembers, hIncrBy, hGetAll, hDel } from "@/platform/db/store";
+import { readArr, writeArr, editArr, setJSON, claim, getIndex, release, delPrefix, sMembers, sMembersMany, hIncrBy, hGetAll, hDel } from "@/platform/db/store";
 import { addCollaborator } from "@/platform/auth/collaborators";
 import { listDepartments } from "@/modules/administration/departments";
 import { seedBuiltinTypes } from "@/platform/engine/builtins";
@@ -514,15 +514,18 @@ export async function listStudios() {
   return readArr(REG.studios);
 }
 
-// The collaboration back-pointer on its own, for callers that already hold the
-// studio registry and only need ids.
+// The collaboration back-pointers on their own, for callers that already hold
+// the studio registry and only need ids — MANY PEOPLE AT ONCE, aligned to
+// `userIds`, in one statement. It answered one person per call, and its one
+// caller asked for every user on the platform that way.
 //
 // ITS OWNERSHIP TWIN IS GONE. `ownedStudioId` was a getIndex per user, and its
 // one caller — listUsersForConsole — already held the entire studio registry
 // when it asked. Ownership is a field on the row it is holding, so that call was
 // a round trip to learn something already in memory; it derives now, and there
 // is nothing here to export.
-export const collaborationStudioIds = (userId: string) => sMembers(IX.collab(userId));
+export const collaborationStudioIdsMany = (userIds: string[]) =>
+  sMembersMany(userIds.map((id) => IX.collab(id)));
 
 // The studios a user COLLABORATES in (their own is via getOwnedStudio). Derived
 // from the ix:collab back-pointer set — never stored twice.

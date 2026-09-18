@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
-import { currentSuperAdmin, publicSuperAdmin } from "@/platform/auth/superAuth";
+import { publicSuperAdmin } from "@/platform/auth/superAuth";
+import { signedInAdmin } from "../_components/adminSession";
 import ConsoleChrome from "./ConsoleChrome";
 
 /* THE CONSOLE'S LAYOUT — every screen, the Pulse wall among them, and a URL that
@@ -29,7 +30,7 @@ import ConsoleChrome from "./ConsoleChrome";
    sign-out need. `publicSuperAdmin` is the id and the email and nothing else —
    the same shape the deleted `(shell)` layout passed to the deleted header. */
 export default async function ConsoleLayout({ children }) {
-  const admin = await currentSuperAdmin();
+  const admin = await signedInAdmin();
   if (!admin) redirect("/super");
   return (
     <div className="admindek ad-scope">

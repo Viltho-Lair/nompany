@@ -2,6 +2,7 @@ import { PageHeader, Row, Col, StatCard } from "../../_components/ui";
 import UsersTable from "./UsersTable";
 import { listUsersForConsole } from "@/platform/auth/users";
 import { listSuperAdminEmails } from "@/platform/auth/superAuth";
+import { withRequest } from "@/platform/http/observability";
 import {
   statusOf, compareUsers, lastAround, STATUS, SUPER_ROLE, MEMBER_ROLE, ACTIVE_WINDOW_DAYS,
 } from "@/lib/platformRoles";
@@ -34,7 +35,13 @@ function lastActiveLabel(t, now) {
   return `${m} month${m === 1 ? "" : "s"} ago`;
 }
 
+// Inside withRequest, so the reads this page shares with its helpers are
+// fetched once and the completion line reports its round trips.
 export default async function UsersPage() {
+  return withRequest("super-users", renderUsers);
+}
+
+async function renderUsers() {
   const [users, owners] = await Promise.all([listUsersForConsole(), listSuperAdminEmails()]);
   const now = Date.now();
 

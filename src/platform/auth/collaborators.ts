@@ -14,7 +14,7 @@
 // Row deletion goes through cascade.js (cascadeDeleteCollaborator).
 
 import { S, IX, ID } from "@/platform/db/keys";
-import { readArr, editArr, sAdd } from "@/platform/db/store";
+import { readArr, editArr, sAdd, getJSONMany } from "@/platform/db/store";
 import { emit, SCOPE, TYPE } from "@/platform/realtime/events";
 
 // HR fields carried on the merged row (studio-scoped, admin/HR-editable).
@@ -112,6 +112,14 @@ export async function addCollaborator(
 
 export async function listCollaborators(studioId: string) {
   return readArr(S.collaborators(studioId));
+}
+// EVERY STUDIO'S COLLABORATOR LIST IN ONE STATEMENT, aligned to `studioIds`.
+// The console's studio table counts each studio's members, and asked for the
+// lists one studio at a time — a round trip per studio on a page that already
+// held every id.
+export async function listCollaboratorsMany(studioIds: string[]) {
+  const lists = await getJSONMany<unknown[]>(studioIds.map((id) => S.collaborators(id)));
+  return lists.map((rows) => (Array.isArray(rows) ? rows : []));
 }
 export async function getCollaborator(studioId: string, collaboratorId: string) {
   const rows = await readArr(S.collaborators(studioId));

@@ -2,10 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { AuthShell, Field, PasswordInput } from "./auth";
+import { AuthShell, Field, PasswordInput, inputClass } from "./auth";
 import { BASE } from "./nav";
 import Icon from "./Icon";
-import { toneBg, toneInk } from "./ui";
 
 // The real /super sign-in — the only page of the console that is reachable
 // signed out.
@@ -86,14 +85,17 @@ export default function SignIn() {
   }
 
   return (
-    <AuthShell title="Sign in" sub="Super Admin console — authorised access only.">
+    <AuthShell
+      title={needsCode ? "Two-step verification" : "Welcome back"}
+      sub={needsCode ? "Enter the code from your authenticator app." : "Sign in to the nompany platform console."}
+      footer="Authorised nompany staff only."
+    >
       <form onSubmit={onSubmit} noValidate>
         <div className="flex flex-col gap-5">
           {error ? (
             <div
               role="alert"
-              className="flex items-start gap-2 rounded-md px-3 py-2.5 text-sm"
-              style={{ backgroundColor: toneBg("danger", 0.12), color: toneInk("danger") }}
+              className="flex items-start gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3.5 py-2.5 text-sm text-rose-300"
             >
               <Icon name="alert" className="mt-0.5 h-4 w-4 shrink-0" />
               <span>{error}</span>
@@ -106,8 +108,8 @@ export default function SignIn() {
               required
               autoComplete="username"
               autoFocus
-              className="ad-input"
-              placeholder="you@example.com"
+              className={inputClass}
+              placeholder="you@nompany.com"
             />
           </Field>
           <Field label="Password">
@@ -126,17 +128,21 @@ export default function SignIn() {
                 required
                 autoFocus
                 autoComplete="one-time-code"
-                className="ad-input"
+                className={inputClass}
                 placeholder="123456 or a recovery code"
                 aria-describedby="code-hint"
               />
-              <p id="code-hint" className="mt-1.5 text-xs opacity-70">
+              <p id="code-hint" className="text-xs text-fg-dim">
                 From your authenticator app. Lost your phone? Use one of your recovery codes.
               </p>
             </Field>
           ) : null}
 
-          <button type="submit" className="ad-btn ad-btn-primary" disabled={busy}>
+          <button
+            type="submit"
+            disabled={busy}
+            className="mt-1 inline-flex h-11 w-full items-center justify-center rounded-xl bg-iris text-sm font-600 text-white shadow-[0_10px_30px_-12px_rgb(var(--color-iris-rgb)/0.9)] transition-colors hover:bg-iris-bright focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-iris-bright focus-visible:ring-offset-2 focus-visible:ring-offset-ink disabled:cursor-not-allowed disabled:opacity-60"
+          >
             {busy ? "Signing in…" : needsCode ? "Verify" : "Sign In"}
           </button>
         </div>

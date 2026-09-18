@@ -7,6 +7,7 @@ import Icon from "../_components/Icon";
 import { BASE, CONSOLE_BAR, FULL_BLEED } from "../_components/nav";
 import ConsoleActions, { ConsoleSearch } from "../_components/ConsoleActions";
 import { ConsoleClock, PresentButton } from "../_components/Present";
+import SuperLiveProvider from "@/components/super/SuperLiveProvider";
 
 /* THE CONSOLE'S CHROME — one long header and one bar, identical on every screen.
    ------------------------------------------------------------------
@@ -47,6 +48,13 @@ export default function ConsoleChrome({ admin, children }) {
     pathname === b.href || (b.prefix && pathname.startsWith(`${b.href}/`)));
 
   return (
+    // THE CONSOLE'S ONE LIVE CONNECTION, opened here so the bell and every
+    // screen below share it. The old shell mounted it; when the screens moved
+    // into this chrome (8b421af1) it was left behind, and nothing failed: the
+    // bell's list loads only when the stream reports "live", so it sat empty
+    // and no screen heard a live event, with no error anywhere. Restored
+    // 18/09/2026.
+    <SuperLiveProvider>
     <div
       className="flex h-[100dvh] w-full flex-col"
       style={{ background: "var(--ad-background)", color: "var(--ad-foreground)" }}
@@ -125,5 +133,6 @@ export default function ConsoleChrome({ admin, children }) {
         })}
       </nav>
     </div>
+    </SuperLiveProvider>
   );
 }

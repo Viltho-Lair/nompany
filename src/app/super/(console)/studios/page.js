@@ -1,8 +1,9 @@
 import { PageHeader, Card, CardHead, Row, Col, Table } from "../../_components/ui";
 import { readArr } from "@/platform/db/store";
 import { REG } from "@/platform/db/keys";
-import { listCollaborators } from "@/platform/auth/collaborators";
-import { getUserById, getProfile } from "@/platform/auth/users";
+import { listCollaboratorsMany } from "@/platform/auth/collaborators";
+import { listUsers, getProfilesByIds } from "@/platform/auth/users";
+import { withRequest } from "@/platform/http/observability";
 import { loadCatalogues, planOf } from "@/lib/plans";
 import StudiosTable from "@/components/super/StudiosTable";
 // The pair that decides a public listing, asked through the shared predicate so
@@ -18,27 +19,35 @@ export const metadata = { title: "Studios" };
 // TABLE for the breakdown by plan and a TABLE WITH FOOTER TOTALS for status,
 // which is the one that has to add up. The full list follows underneath.
 //
-// Member counts mean reading each studio's collaborator list, which is one read
-// per studio. Fine for a console listing tens of studios; if it ever lists
-// thousands, this is the line that needs a stored count instead.
+// THREE BATCHED READS FOR THE WHOLE TABLE, not three per studio. Each row used
+// to ask for its collaborator list, its owner and the owner's profile on its
+// own — and the owner lookup (getUserById) reads the ENTIRE user registry, so a
+// table of N studios read every user N times. The registry is read once now and
+// indexed, and the lists and profiles are one statement each.
 const fmtDate = (iso) => {
   const t = Date.parse(iso || "");
   return Number.isFinite(t) ? new Date(t).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—";
 };
 
+// Inside withRequest, so a key two helpers both read is fetched once and the
+// completion line reports this page's round trips.
 export default async function StudiosPage() {
-  const [studios, { packages, tiers }] = await Promise.all([readArr(REG.studios), loadCatalogues()]);
+  return withRequest("super-studios", renderStudios);
+}
 
-  // Per studio: its members, and who owns it. Both are reads per row, which is
-  // fine for a console listing tens of studios and is the line to revisit if it
-  // ever lists thousands.
-  const extra = await Promise.all(studios.map(async (s) => {
-    const [members, owner, profile] = await Promise.all([
-      listCollaborators(s.id).then((c) => c.length),
-      getUserById(s.ownerUserId),
-      getProfile(s.ownerUserId),
-    ]);
-    return { members, owner, profile };
+async function renderStudios() {
+  const [studios, { packages, tiers }, users] = await Promise.all([
+    readArr(REG.studios), loadCatalogues(), listUsers(),
+  ]);
+  const userById = new Map(users.map((u) => [u.id, u]));
+  const [lists, profiles] = await Promise.all([
+    listCollaboratorsMany(studios.map((s) => s.id)),
+    getProfilesByIds(studios.map((s) => String(s.ownerUserId || ""))),
+  ]);
+  const extra = studios.map((s, i) => ({
+    members: lists[i].length,
+    owner: userById.get(s.ownerUserId) || null,
+    profile: s.ownerUserId ? profiles[i] : null,
   }));
 
   const rows = studios

@@ -1,5 +1,6 @@
 import { readPulse, readPulseLive } from "@/lib/data/pulseRead";
 import PulseWall from "./PulseWall";
+import { withRequest } from "@/platform/http/observability";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -24,7 +25,16 @@ export const metadata = { title: "Pulse" };
 // Component fetching its own API pays an HTTP hop to talk to itself. The
 // composition lives in lib/data/pulseRead so the first paint and every refresh
 // after it are computed by the same code.
+//
+// INSIDE withRequest, WHICH IS WHAT MAKES THE LINE ABOVE TRUE. readPulse's
+// readers ask for the same day keys several times over and rely on the request
+// cache to collapse them — but only API routes opened one, so on this page every
+// duplicate went to the database (ten queries where two would do). The page
+// opens the same scope the /api/super/pulse refresh already had. Still no
+// skeleton, for the reason above; the wall is fast because it stopped asking the
+// same question twice, not because it shows less.
 export default async function PulsePage() {
-  const [initial, initialLive] = await Promise.all([readPulse("30d"), readPulseLive()]);
+  const [initial, initialLive] = await withRequest("super-pulse", () =>
+    Promise.all([readPulse("30d"), readPulseLive()]));
   return <PulseWall initial={initial} initialLive={initialLive} />;
 }

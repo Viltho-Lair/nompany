@@ -1,5 +1,5 @@
 import { redirect, notFound } from "next/navigation";
-import { currentSuperAdmin } from "@/platform/auth/superAuth";
+import { signedInAdmin } from "../../../_components/adminSession";
 import { getQuestionnaireById } from "@/lib/data/questionnaires";
 import QuestionnaireBuilder from "@/components/super/QuestionnaireBuilder";
 
@@ -12,7 +12,7 @@ export async function generateMetadata({ params }) {
 }
 
 export default async function QuestionnaireBuilderPage({ params }) {
-  const admin = await currentSuperAdmin();
+  const admin = await signedInAdmin();
   if (!admin) redirect("/super");
   const { id } = await params;
   // Resolved server-side so a bad id is a 404 rather than a builder that spins.

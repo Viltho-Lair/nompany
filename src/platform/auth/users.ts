@@ -11,7 +11,7 @@
 import { REG, U, IX, ID, normEmail } from "@/platform/db/keys";
 import { readArr, editArr, editJSON, getJSON, getJSONMany, setJSON, claim, getIndex, release } from "@/platform/db/store";
 import { newSessionToken, hashToken } from "./passwords";
-import { listStudios, collaborationStudioIds } from "@/modules/main/studios";
+import { listStudios, collaborationStudioIdsMany } from "@/modules/main/studios";
 import { isAssignableRole } from "@/lib/platformRoles";
 import { emitPlatform, PLATFORM } from "@/platform/realtime/events";
 
@@ -154,27 +154,35 @@ export async function touchLastSeen(userId: string) {
 }
 
 // Every user with the fields the owner console lists. The studio registry is
-// read ONCE and shared; only the two per-user back-pointers are fetched per
-// person, in parallel.
+// read ONCE and shared.
+//
+// THREE STATEMENTS FOR EVERY USER, NOT THREE PER USER. This fetched profile,
+// activity and collaborations person by person — 3N round trips on a page, and
+// the console holds 3 pool connections (PGPOOL_MAX), so they queued three at a
+// time at ~280ms each. That was most of why /super/users and the dashboard
+// took seconds. Each of the three is one batched read now, keyed by the ids
+// already in hand.
 export async function listUsersForConsole() {
   const [rows, studios] = await Promise.all([readArr<User>(REG.users), listStudios()]);
+  const ids = rows.map((u) => u.id);
+  const [profiles, activities, collabs] = await Promise.all([
+    getProfilesByIds(ids),
+    // Activity moved off the registry row (R6). Read it here and fall back to
+    // whatever the old g:users row still carries, so a user last seen before
+    // the move is not suddenly shown as never having been around.
+    getActivitiesByIds(ids),
+    collaborationStudioIdsMany(ids),
+  ]);
   const byId = new Map(studios.map((s) => [String(s.id), s]));
   const nameOf = (id: unknown) => {
     const hit = byId.get(String(id || "")) as { name?: string; slug?: string } | undefined;
     return hit?.name || hit?.slug || "";
   };
 
-  return Promise.all(
-    rows.map(async (u) => {
-      const [profile, activity, collabIds] = await Promise.all([
-        getProfile(u.id),
-        // Activity moved off the registry row (R6). Read it here — where the
-        // profile is already fetched per person — and fall back to whatever the
-        // old g:users row still carries, so a user last seen before the move is
-        // not suddenly shown as never having been around.
-        getActivity(u.id),
-        collaborationStudioIds(u.id),
-      ]);
+  return rows.map((u, i) => {
+      const profile = profiles[i];
+      const activity = activities[i];
+      const collabIds = collabs[i];
       // Owned first — those are the studios that die with them — then the ones
       // they were let into, deduped since an owner also holds a collaborator row.
       //
@@ -200,8 +208,7 @@ export async function listUsersForConsole() {
         fullName: profile?.fullName || "",
         studios: [...new Set(names)],
       };
-    })
-  );
+    });
 }
 
 // ---- 1:1 satellites (merge-patch semantics) --------------------------------
@@ -249,6 +256,10 @@ export const getProfilesByIds = (userIds: string[]) =>
 export type UserActivity = { lastLoginAt?: string; lastSeenAt?: string };
 
 export const getActivity = (userId: string) => getJSON<UserActivity>(U.activity(userId));
+// Many people's activity in one statement — getProfilesByIds's twin, aligned
+// to `userIds`, null where a person has none.
+export const getActivitiesByIds = (userIds: string[]) =>
+  getJSONMany<UserActivity>(userIds.map((id) => U.activity(id)));
 
 // WHO IS AROUND, and nothing else about them.
 //
@@ -265,7 +276,9 @@ export const getActivity = (userId: string) => getJSON<UserActivity>(U.activity(
 // seconds and let the ANIMATION carry the liveness instead.
 export async function listPresence() {
   const rows = await readArr<User>(REG.users);
-  const activity = await Promise.all(rows.map((u) => getActivity(u.id)));
+  // ONE statement for everybody's stamp, not one per person — the wall's first
+  // paint waits on this.
+  const activity = await getActivitiesByIds(rows.map((u) => u.id));
   return rows.map((u, i) => ({
     email: u.email,
     createdAt: u.createdAt || "",
