@@ -27,7 +27,28 @@ export type PosLine = {
   /** The price of ONE of what was sold, as the shelf shows it. */
   price: number;
   taxCategory?: "zero" | "exempt";
+  /** A discount on this line alone, as the cashier typed it. */
+  discount?: PosDiscount;
+  // WHAT THE LINE CAME TO, written by `priceBasket` and stored on the receipt.
+  // A return refunds `net`, never a re-priced figure (see priceBasket).
+  /** The item's own price when the sale was made — what a discount is measured against. */
+  listPrice?: number;
+  /** count × price, rounded. */
+  gross?: number;
+  /** What the line's own discount took off. */
+  lineDiscount?: number;
+  /** This line's part of the basket discount. */
+  basketShare?: number;
+  /** What the customer paid for the line: gross − lineDiscount − basketShare. */
+  net?: number;
 };
+
+/**
+ * A DISCOUNT AS TYPED AT THE TILL — a percentage or an amount (the owner,
+ * 18/09/2026: per line and on the whole basket, either kind).
+ */
+export type PosDiscount = { kind: "percent" | "amount"; value: number };
+export const DISCOUNT_KINDS = ["percent", "amount"] as const;
 
 export type PosPayment = { method: PosPaymentMethod; amount: number; reference?: string };
 
@@ -44,6 +65,16 @@ const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
 /** Units of the item a line takes off the shelf — its count, in the item's unit. */
 export const unitsOf = (l: Pick<PosLine, "count">) => Math.round(num(l.count) * 1000) / 1000;
 
+/** A discount as stored, or null when there is none worth keeping. */
+export function cleanDiscount(raw: unknown): PosDiscount | null {
+  const d = (raw || {}) as Record<string, unknown>;
+  if (!(DISCOUNT_KINDS as readonly unknown[]).includes(d.kind)) return null;
+  const value = roundSum(num(d.value));
+  if (!(value > 0)) return null;
+  if (d.kind === "percent") return { kind: "percent", value: Math.min(100, value) };
+  return { kind: "amount", value };
+}
+
 /** A basket line as the server stores it. Anything unreadable is dropped. */
 export function cleanPosLines(list: unknown): PosLine[] {
   return (Array.isArray(list) ? list : [])
@@ -56,9 +87,91 @@ export function cleanPosLines(list: unknown): PosLine[] {
         count: Math.round(num(l.count) * 1000) / 1000,
         price: roundSum(Math.max(0, num(l.price))),
         ...taxCategoryField(l.taxCategory),
+        ...(cleanDiscount(l.discount) ? { discount: cleanDiscount(l.discount) as PosDiscount } : {}),
       };
     })
     .filter((l) => l.itemId && l.count > 0);
+}
+
+/**
+ * WHAT EACH LINE CAME TO ONCE THE DISCOUNTS ARE TAKEN — the one place a
+ * discount becomes money.
+ *
+ * THE LINE'S OWN DISCOUNT FIRST, then the basket's. A percentage is of what is
+ * left; an amount can never take a line (or the basket) below nought.
+ *
+ * THE BASKET DISCOUNT IS SPREAD BACK ONTO THE LINES, in proportion to what each
+ * came to after its own discount, and every line stores its share. Two things
+ * read that share and neither can work from the basket figure alone:
+ *  - TAX. Lines at different rates are taxed on what was actually charged for
+ *    each, so a discount on a basket of standard and zero-rated goods lowers
+ *    each rate's taxable amount by its own part.
+ *  - RETURNS. Buy two things with 10 off the basket and return one: the refund
+ *    is what that line was PAID, its share included. Refunding the full shelf
+ *    price would pay the customer the whole discount back and let them keep the
+ *    other item at a discount they no longer earned — the classic
+ *    buy-one-get-one return problem.
+ * Rounding each share to the currency's minor unit leaves a remainder; the
+ * LAST line with anything to share takes it, so the shares add up to the basket
+ * discount exactly.
+ */
+export function priceBasket(
+  lines: readonly PosLine[],
+  basket: PosDiscount | null | undefined,
+  currency: unknown,
+): { lines: PosLine[]; lineDiscounts: number; basketDiscount: number; discountTotal: number } {
+  const first = lines.map((l) => {
+    const gross = roundMoney(num(l.count) * num(l.price), currency);
+    const d = l.discount;
+    const off = !d ? 0
+      : d.kind === "percent" ? roundMoney((gross * Math.min(100, d.value)) / 100, currency)
+        : Math.min(gross, roundMoney(d.value, currency));
+    return { line: l, gross, lineDiscount: off, after: roundSum(gross - off) };
+  });
+  const base = roundSum(first.reduce((s, x) => s + x.after, 0));
+  const basketDiscount = !basket || base <= 0 ? 0
+    : basket.kind === "percent" ? roundMoney((base * Math.min(100, basket.value)) / 100, currency)
+      : Math.min(base, roundMoney(basket.value, currency));
+
+  let lastShared = -1;
+  first.forEach((x, i) => { if (x.after > 0) lastShared = i; });
+  let given = 0;
+  const priced = first.map((x, i) => {
+    let share = 0;
+    if (basketDiscount > 0 && x.after > 0) {
+      share = i === lastShared
+        ? roundSum(basketDiscount - given)
+        : roundMoney((basketDiscount * x.after) / base, currency);
+      given = roundSum(given + share);
+    }
+    return {
+      ...x.line,
+      listPrice: x.line.listPrice ?? x.line.price,
+      gross: x.gross,
+      lineDiscount: x.lineDiscount,
+      basketShare: share,
+      net: roundSum(x.after - share),
+    };
+  });
+  const lineDiscounts = roundSum(first.reduce((s, x) => s + x.lineDiscount, 0));
+  return { lines: priced, lineDiscounts, basketDiscount, discountTotal: roundSum(lineDiscounts + basketDiscount) };
+}
+
+/** What a line comes to — its net once priced, or count × price before. */
+const amountOf = (l: PosLine, currency: unknown) =>
+  typeof l.net === "number" ? l.net : roundMoney(num(l.count) * num(l.price), currency);
+
+/**
+ * HOW FAR BELOW ITS OWN PRICE A LINE WENT, as a percentage — typed price,
+ * line discount and basket share together, against the item's price at the
+ * time. This is what a studio's cap is checked against, so a lower typed price
+ * cannot walk round a cap on discounts.
+ */
+export function discountPercentOf(l: PosLine, currency: unknown): number {
+  const list = roundMoney(num(l.count) * num(l.listPrice ?? l.price), currency);
+  if (!(list > 0)) return 0;
+  const paid = amountOf(l, currency);
+  return Math.max(0, Math.round(((list - paid) / list) * 10000) / 100);
 }
 
 /**
@@ -75,9 +188,12 @@ export function posTotals(
   { vatRate, currency, method, pricesIncludeTax }:
   { vatRate: unknown; currency: unknown; method?: TotalsMethod; pricesIncludeTax: boolean },
 ): PosTotals {
+  // EACH LINE AT WHAT IT CAME TO: one "unit" at its net. For an undiscounted
+  // line that is count × price rounded, exactly the net the documents' function
+  // computed before discounts existed, so no stored receipt moves.
   const priced = lines.map((l) => ({
-    qty: num(l.count),
-    unitPrice: num(l.price),
+    qty: 1,
+    unitPrice: amountOf(l, currency),
     taxCategory: l.taxCategory,
   }));
   if (!pricesIncludeTax) {
@@ -150,6 +266,8 @@ export type ShiftReceipt = {
   change?: number;
   payments?: PosPayment[];
   breakdown?: TaxBreakdown[];
+  /** What the till's discounts took off this sale; absent on sales before discounts. */
+  discountTotal?: number;
 };
 
 /**
@@ -192,6 +310,9 @@ export function shiftReport(
     total: roundSum(sales.reduce((s, r) => s + num(r.total), 0)),
     subtotal: roundSum(sales.reduce((s, r) => s + num(r.subtotal), 0)),
     vat: roundSum(sales.reduce((s, r) => s + num(r.vat), 0)),
+    // WHAT WAS GIVEN AWAY, beside what was taken — a drawer that balances can
+    // still have been generous, and only this line says so.
+    discounts: roundSum(sales.reduce((s, r) => s + num(r.discountTotal), 0)),
     byMethod: PAYMENT_METHODS.map((method) => ({ method, amount: byMethod[method] || 0 })).filter((m) => m.amount > 0),
     change,
     byTax: [...byTax.values()].sort((a, b) => b.rate - a.rate || a.category.localeCompare(b.category)),

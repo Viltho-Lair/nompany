@@ -13,7 +13,7 @@ import { Field } from "@/components/fields/Field";
 import TaxTag from "@/components/studio2/TaxTag";
 import { btn, btnGhost, btnRow, btnRowDanger, Dialog, money, fmtDateTime, loadPref, savePref, prefKey } from "@/components/studio2/ui";
 import { findByBarcode } from "@/modules/inventory/barcodes";
-import { posTotals, settle, PAYMENT_METHODS } from "@/modules/sales/posModel";
+import { posTotals, settle, priceBasket, discountPercentOf, cleanDiscount, PAYMENT_METHODS } from "@/modules/sales/posModel";
 import { PRINT_CSS, Receipt, ShiftReport } from "@/components/studio2/posParts";
 
 // THE TILL — a full-screen page (shared/studioRoute), because a cashier works a
@@ -38,6 +38,8 @@ export default function StudioPos({ slug }) {
   const [error, setError] = useState("");
   const [picked, setPicked] = useState("");
   const [basket, setBasket] = useState([]);
+  // THE WHOLE BASKET'S DISCOUNT, as typed. Per-line discounts live on the rows.
+  const [basketOff, setBasketOff] = useState({ kind: "percent", value: "" });
   const [payments, setPayments] = useState([{ method: "cash", amount: "", reference: "" }]);
   const [busy, setBusy] = useState(false);
   const [receipt, setReceipt] = useState(null);
@@ -87,11 +89,24 @@ export default function StudioPos({ slug }) {
   const shift = terminal ? (data?.openShifts || []).find((s) => s.terminalId === terminal.id) : null;
   const terms = data?.terms;
 
-  const lines = useMemo(() => basket.map((b) => ({
-    itemId: b.itemId, description: b.description,
-    count: num(b.count), price: num(b.price), taxCategory: b.taxCategory,
-  })), [basket]);
-  const totals = useMemo(() => (terms ? posTotals(lines, terms) : null), [lines, terms]);
+  // PRICED EXACTLY AS THE SERVER PRICES IT — the same priceBasket, so the net
+  // on each row, the totals and the receipt the server writes are one figure.
+  const priced = useMemo(() => {
+    if (!terms) return null;
+    const lines = basket.map((b) => ({
+      itemId: b.itemId, description: b.description,
+      count: num(b.count), price: num(b.price), taxCategory: b.taxCategory,
+      ...(b.listPrice > 0 ? { listPrice: b.listPrice } : {}),
+      ...(cleanDiscount(b.discount) ? { discount: cleanDiscount(b.discount) } : {}),
+    }));
+    return priceBasket(lines, cleanDiscount(basketOff), terms.currency);
+  }, [basket, basketOff, terms]);
+  const totals = useMemo(() => (priced ? { ...posTotals(priced.lines, terms), discounts: priced.discountTotal } : null), [priced, terms]);
+  // THE CAP, said before the server says it. A holder of the settings right is
+  // not held to it (modules/sales/pos), so neither is the warning.
+  const cap = terms?.maxDiscountPercent;
+  const overCap = priced && cap !== null && cap !== undefined && !data?.can.manage
+    ? priced.lines.find((l) => discountPercentOf(l, terms.currency) > cap) : null;
 
   // ONE CASH ROW FOLLOWS THE TOTAL until somebody types in it, so the common
   // sale — cash, exact or with change — is one key press.
@@ -118,7 +133,9 @@ export default function StudioPos({ slug }) {
         key, itemId: hit.itemId,
         description: item.name, count: 1,
         price: hit.price ?? 0, unpriced: hit.price === null,
+        listPrice: hit.price ?? 0,
         taxCategory: item.taxCategory,
+        discount: { kind: "percent", value: "" },
       }];
     });
   };
@@ -128,12 +145,17 @@ export default function StudioPos({ slug }) {
   async function completeSale() {
     const out = await call("/receipts", "POST", {
       shiftId: shift.id,
-      lines: basket.map((b) => ({ itemId: b.itemId, count: num(b.count), price: num(b.price) })),
+      lines: basket.map((b) => ({
+        itemId: b.itemId, count: num(b.count), price: num(b.price),
+        ...(cleanDiscount(b.discount) ? { discount: cleanDiscount(b.discount) } : {}),
+      })),
+      ...(cleanDiscount(basketOff) ? { discount: cleanDiscount(basketOff) } : {}),
       payments: paying,
     });
     if (!out) return;
     setReceipt(out.receipt);
     setBasket([]);
+    setBasketOff({ kind: "percent", value: "" });
     setPayments([{ method: "cash", amount: "", reference: "" }]);
   }
 
@@ -185,16 +207,23 @@ export default function StudioPos({ slug }) {
           <div className="grid gap-4 lg:grid-cols-[1fr_380px]">
             <section className={`${card} p-4`}>
               <ScanBox tr={tr} items={data.items} onHit={addHit} disabled={!data.can.sell} />
-              <Basket tr={tr} rows={basket} currency={terms.currency} canReprice={data.can.discount}
+              <Basket tr={tr} rows={basket} priced={priced?.lines || []} currency={terms.currency} canReprice={data.can.discount}
                 onChange={(key, patch) => setBasket((rows) => rows.map((r) => (r.key === key ? { ...r, ...patch } : r)))}
                 onRemove={(key) => setBasket((rows) => rows.filter((r) => r.key !== key))} />
               {basket.length > 0 && (
-                <button type="button" className={`${btnGhost} mt-3`} onClick={() => setBasket([])}>{tr.clear}</button>
+                <button type="button" className={`${btnGhost} mt-3`} onClick={() => { setBasket([]); setBasketOff({ kind: "percent", value: "" }); }}>{tr.clear}</button>
               )}
             </section>
 
             <aside className={`${card} flex flex-col gap-3 p-4`}>
+              {data.can.discount && basket.length > 0 && (
+                <div>
+                  <p className="mb-1 text-xs font-700 uppercase tracking-wide text-slate-500 dark:text-slate-400">{tr.basketDiscount}</p>
+                  <DiscountInput tr={tr} value={basketOff} currency={terms.currency} wide onChange={setBasketOff} />
+                </div>
+              )}
               <Totals tr={tr} totals={totals} terms={terms} />
+              {overCap && <p className="text-xs text-amber-700 dark:text-amber-300">{tr.overCap(cap, overCap.description)}</p>}
               <div>
                 <p className="mb-2 text-xs font-700 uppercase tracking-wide text-slate-500 dark:text-slate-400">{tr.pay}</p>
                 {payments.map((p, i) => (
@@ -235,7 +264,7 @@ export default function StudioPos({ slug }) {
                 </p>
               )}
               <button type="button" className={`${btn} mt-auto py-3 text-base`}
-                disabled={busy || !basket.length || !data.can.sell || !settled || Boolean(settled.problem)}
+                disabled={busy || !basket.length || !data.can.sell || !settled || Boolean(settled.problem) || Boolean(overCap)}
                 onClick={completeSale}>
                 {busy ? tr.selling : tr.complete}
               </button>
@@ -421,7 +450,24 @@ function ScanBox({ tr, items, onHit, disabled }) {
   );
 }
 
-function Basket({ tr, rows, currency, canReprice, onChange, onRemove }) {
+// A DISCOUNT BOX: a number and whether it is a percentage or an amount.
+function DiscountInput({ tr, value, currency, onChange, wide = false }) {
+  const d = value || { kind: "percent", value: "" };
+  return (
+    <div className="flex items-center justify-end gap-1">
+      <input value={d.value} inputMode="decimal" aria-label={tr.discount} placeholder="0"
+        onChange={(e) => onChange({ ...d, value: e.target.value })}
+        className={`${wide ? "w-full" : "w-14"} rounded border border-slate-200 bg-transparent px-1 text-end dark:border-white/15`} />
+      <button type="button" className={btnRow}
+        aria-label={d.kind === "percent" ? tr.discountAsAmount : tr.discountAsPercent}
+        onClick={() => onChange({ ...d, kind: d.kind === "percent" ? "amount" : "percent" })}>
+        {d.kind === "percent" ? "%" : currency || "#"}
+      </button>
+    </div>
+  );
+}
+
+function Basket({ tr, rows, priced = [], currency, canReprice, onChange, onRemove }) {
   if (!rows.length) {
     return (
       <div className="py-10 text-center">
@@ -437,12 +483,13 @@ function Basket({ tr, rows, currency, canReprice, onChange, onRemove }) {
           <th className="py-2 text-start">{tr.item}</th>
           <th className="w-28 py-2 text-center">{tr.qty}</th>
           <th className="w-28 py-2 text-end">{tr.price}</th>
+          {canReprice && <th className="w-32 py-2 text-end">{tr.discount}</th>}
           <th className="w-28 py-2 text-end">{tr.amount}</th>
           <th className="w-10" />
         </tr>
       </thead>
       <tbody>
-        {rows.map((r) => (
+        {rows.map((r, i) => (
           <tr key={r.key} className="border-b border-slate-100 dark:border-white/5">
             <td className="py-2">{r.description}<TaxTag category={r.taxCategory} /></td>
             <td className="py-2">
@@ -465,7 +512,18 @@ function Basket({ tr, rows, currency, canReprice, onChange, onRemove }) {
                   ? <span className="text-xs text-amber-700 dark:text-amber-300">{tr.unpriced}</span>
                   : <span className="num">{money(r.price, currency)}</span>}
             </td>
-            <td className="num py-2 text-end">{money(num(r.price) * num(r.count), currency)}</td>
+            {canReprice && (
+              <td className="py-2 text-end">
+                <DiscountInput tr={tr} value={r.discount} currency={currency} onChange={(discount) => onChange(r.key, { discount })} />
+              </td>
+            )}
+            <td className="num py-2 text-end">
+              {/* WHAT THE LINE COMES TO, its share of the basket discount included. */}
+              {priced[i] && priced[i].net !== priced[i].gross && (
+                <span className="me-1 text-xs text-slate-400 line-through">{money(priced[i].gross, currency)}</span>
+              )}
+              {money(priced[i] ? priced[i].net : num(r.price) * num(r.count), currency)}
+            </td>
             <td className="py-2 text-end">
               <button type="button" className={btnRowDanger} aria-label={tr.remove} onClick={() => onRemove(r.key)}>×</button>
             </td>
@@ -483,6 +541,9 @@ function Totals({ tr, totals, terms }) {
   const row = "flex justify-between gap-4 text-sm text-slate-500 dark:text-slate-400";
   return (
     <div className="space-y-1">
+      {totals.discounts > 0 && (
+        <p className={row}><span>{tr.discounts}</span><span className="num">−{money(totals.discounts, terms.currency)}</span></p>
+      )}
       <p className={row}><span>{tr.subtotal}</span><span className="num">{money(totals.subtotal, terms.currency)}</span></p>
       {totals.breakdown.filter((b) => b.rate > 0).map((b) => (
         <p key={`${b.category}:${b.rate}`} className={row}>

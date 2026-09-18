@@ -31,7 +31,11 @@ export default function StudioPosSettings({ slug }) {
     if (!res.ok) { setError(body.error || "failed"); return; }
     setError("");
     setData(body);
-    setForm((f) => f || { pricesIncludeTax: Boolean(body.terms.pricesIncludeTax), footer: body.terms.footer || "" });
+    setForm((f) => f || {
+      pricesIncludeTax: Boolean(body.terms.pricesIncludeTax), footer: body.terms.footer || "",
+      // Blank means no limit, and saves as null so an emptied box lifts the cap.
+      maxDiscountPercent: body.terms.maxDiscountPercent ?? "",
+    });
   }, [slug]);
 
   useEffect(() => {
@@ -107,6 +111,8 @@ export default function StudioPosSettings({ slug }) {
         <div className="mt-4 max-w-xl">
           <Field label={till.footer} value={form.footer} disabled={!canEdit} hint={till.footerHint}
             onChange={(v) => setForm((f) => ({ ...f, footer: v }))} />
+          <Field label={till.maxDiscount} type="number" min="0" max="100" value={form.maxDiscountPercent} disabled={!canEdit}
+            hint={till.maxDiscountHint} onChange={(v) => setForm((f) => ({ ...f, maxDiscountPercent: v }))} />
         </div>
         {canEdit && (
           <button type="button" className={`${btn} mt-5`} disabled={busy}

@@ -35,9 +35,23 @@ export function Receipt({ tr, receipt, studio, terms, tillName }) {
       {receipt.lines.map((l, i) => (
         <div key={i} className="mb-1">
           <p>{l.description}{l.taxCategory ? ` (${taxDictShort(l.taxCategory)})` : ""}</p>
-          <p className={line}><span>{l.count} × {money(l.price, cur)}</span><span>{money(l.count * l.price, cur)}</span></p>
+          <p className={line}><span>{l.count} × {money(l.price, cur)}</span><span>{money(l.gross ?? l.count * l.price, cur)}</span></p>
+          {/* A LINE'S OWN DISCOUNT is printed on the line; the basket's share is
+              printed once, below, as the customer was offered it. */}
+          {l.lineDiscount > 0 && (
+            <p className={line}>
+              <span>{tr.discount}{l.discount?.kind === "percent" ? ` ${l.discount.value}%` : ""}</span>
+              <span>−{money(l.lineDiscount, cur)}</span>
+            </p>
+          )}
         </div>
       ))}
+      {receipt.basketDiscount > 0 && (
+        <p className={line}>
+          <span>{tr.basketDiscount}{receipt.discount?.kind === "percent" ? ` ${receipt.discount.value}%` : ""}</span>
+          <span>−{money(receipt.basketDiscount, cur)}</span>
+        </p>
+      )}
       <hr className="my-2 border-dashed border-black" />
       <p className={line}><span>{tr.subtotal}</span><span>{money(receipt.subtotal, cur)}</span></p>
       {(receipt.breakdown || []).filter((b) => b.rate > 0).map((b) => (
@@ -50,6 +64,7 @@ export function Receipt({ tr, receipt, studio, terms, tillName }) {
         <p key={i} className={line}><span>{tr.paidBy(p.method)}{p.reference ? ` ${p.reference}` : ""}</span><span>{money(p.amount, cur)}</span></p>
       ))}
       {receipt.change > 0 && <p className={line}><span>{tr.change}</span><span>{money(receipt.change, cur)}</span></p>}
+      {receipt.discountTotal > 0 && <p className="mt-2 text-center font-bold">{tr.youSaved} {money(receipt.discountTotal, cur)} {cur}</p>}
       <p className="mt-3 text-center">{terms.footer || tr.thankYou}</p>
     </div>
   );
@@ -81,6 +96,7 @@ export function ShiftReport({ tr, shift, report, studio, currency, tillName }) {
         <p key={m.method} className={line}><span>{tr.paidBy(m.method)}</span><span>{money(m.amount, currency)}</span></p>
       ))}
       <p className={line}><span>{tr.changeGiven}</span><span>{money(report.change, currency)}</span></p>
+      {report.discounts > 0 && <p className={line}><span>{tr.discounts}</span><span>{money(report.discounts, currency)}</span></p>}
       <hr className="my-2 border-dashed border-black" />
       <p className={line}><span>{tr.openingFloat}</span><span>{money(report.openingFloat, currency)}</span></p>
       <p className={line}><span>{tr.cashTaken}</span><span>{money(report.cashTaken, currency)}</span></p>

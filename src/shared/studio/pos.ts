@@ -23,6 +23,8 @@ type Strings = {
   pricesIncludeTaxHint: string;
   footer: string;
   footerHint: string;
+  maxDiscount: string;
+  maxDiscountHint: string;
   noInventory: string;
   noSell: string;
 
@@ -61,6 +63,13 @@ type Strings = {
   remove: string;
   clear: string;
   unpriced: string;
+  discount: string;
+  discountAsAmount: string;
+  discountAsPercent: string;
+  basketDiscount: string;
+  discounts: string;
+  overCap: (max: number, name: string) => string;
+  youSaved: string;
   subtotal: string;
   tax: (name: string, rate: number) => string;
   taxIncluded: string;
@@ -105,6 +114,8 @@ const en: Strings = {
   pricesIncludeTaxHint: "On: the item's sell price is what the customer pays, and the tax is taken out of it. Off: tax is added at the till.",
   footer: "Receipt footer",
   footerHint: "Printed at the foot of every receipt — opening hours, a returns policy.",
+  maxDiscount: "Largest discount a cashier may give (%)",
+  maxDiscountHint: "Measured on each line against the item's own price — a typed price, the line's discount and its share of a basket discount together. Leave blank for no limit. Whoever can change this setting is not held to it.",
   noInventory: "This studio has no Inventory, so there is nothing to sell. Items and stock are kept there.",
   noSell: "You can look at the till but not sell. Ask for the Point of sale right.",
 
@@ -141,6 +152,13 @@ const en: Strings = {
   remove: "Remove",
   clear: "Clear the basket",
   unpriced: "No price — type one",
+  discount: "Discount",
+  discountAsAmount: "Switch to an amount",
+  discountAsPercent: "Switch to a percentage",
+  basketDiscount: "Discount on the whole basket",
+  discounts: "Discounts",
+  overCap: (max, name) => `${name} is discounted by more than ${max}%, the most this till allows.`,
+  youSaved: "You saved",
   subtotal: "Subtotal",
   tax: (name, rate) => `${name} ${rate}%`,
   taxIncluded: "Prices include tax",
@@ -170,6 +188,7 @@ const en: Strings = {
       case "underpaid": return "The payments do not cover the total.";
       case "overpaid-card": return "A card or transfer cannot be for more than is due — only cash gives change.";
       case "unpriced": return `${String(x.name || "An item")} has no price. Somebody with the right to change prices has to type one.`;
+      case "discount-cap": return x.name ? `${String(x.name)} is discounted by more than ${x.max}%, the most this till allows.` : "The largest discount must be between 0 and 100%.";
       case "closed": return "That shift is already closed.";
       case "shift-open": return "This till already has an open shift.";
       case "inactive": return "That till is retired.";
@@ -202,6 +221,8 @@ const ar: Strings = {
   pricesIncludeTaxHint: "عند التفعيل يكون سعر بيع الصنف هو ما يدفعه العميل وتستخرج الضريبة منه، وعند الإيقاف تضاف الضريبة عند الصندوق.",
   footer: "تذييل الإيصال",
   footerHint: "يطبع أسفل كل إيصال — مواعيد العمل أو سياسة الإرجاع.",
+  maxDiscount: "أكبر خصم يمنحه الكاشير (%)",
+  maxDiscountHint: "يقاس على كل سطر مقابل سعر الصنف نفسه — السعر المكتوب وخصم السطر وحصته من خصم السلة معا. اتركه فارغا بلا حد. من يملك تغيير هذا الإعداد لا يتقيد به.",
   noInventory: "لا يوجد قسم مخزون في هذا الاستوديو، فلا شيء للبيع. الأصناف والمخزون تحفظ هناك.",
   noSell: "يمكنك الاطلاع على الصندوق دون البيع. اطلب صلاحية نقطة البيع.",
 
@@ -238,6 +259,13 @@ const ar: Strings = {
   remove: "إزالة",
   clear: "تفريغ السلة",
   unpriced: "بلا سعر — اكتب سعرا",
+  discount: "الخصم",
+  discountAsAmount: "التحويل إلى مبلغ",
+  discountAsPercent: "التحويل إلى نسبة",
+  basketDiscount: "خصم على السلة كلها",
+  discounts: "الخصومات",
+  overCap: (max, name) => `خصم ${name} أكبر من ${max}%، وهو أقصى ما يسمح به هذا الصندوق.`,
+  youSaved: "وفرتم",
   subtotal: "المجموع الفرعي",
   // The country's own name for the tax, in Arabic where there is one.
   tax: (name, rate) => `${name === "VAT" ? "ضريبة القيمة المضافة" : name === "General sales tax" ? "ضريبة المبيعات العامة" : "الضريبة"} ${rate}%`,
@@ -268,6 +296,7 @@ const ar: Strings = {
       case "underpaid": return "المدفوع لا يغطي الإجمالي.";
       case "overpaid-card": return "لا تكون البطاقة أو التحويل بأكثر من المستحق — النقد وحده يعطي باقيا.";
       case "unpriced": return `${String(x.name || "صنف")} بلا سعر، ويجب أن يكتب سعره من يملك صلاحية تغيير الأسعار.`;
+      case "discount-cap": return x.name ? `خصم ${String(x.name)} أكبر من ${x.max}%، وهو أقصى ما يسمح به هذا الصندوق.` : "يجب أن يكون أكبر خصم بين 0 و100%.";
       case "closed": return "هذه الوردية مغلقة بالفعل.";
       case "shift-open": return "لهذا الصندوق وردية مفتوحة بالفعل.";
       case "inactive": return "هذا الصندوق موقوف.";

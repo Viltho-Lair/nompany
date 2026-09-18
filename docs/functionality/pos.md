@@ -112,7 +112,7 @@ links here.
 ## What the till does
 
 **Rights.** `view` opens the till; `create` opens a shift and sells; `edit` manages tills and
-settings; the extras **`discount`** (change a price at the till) and **`closeShift`** (count and
+settings; the extras **`discount`** (change a price, or give a discount, at the till) and **`closeShift`** (count and
 close a drawer) are separate powers. Each is asked for in the service function that does the act.
 The Sales Manager shape holds all of it; the shift-leader shape sells and closes drawers but does
 not change prices.
@@ -123,6 +123,18 @@ not change prices.
   added.
 - **The server prices the basket from the items**, never from the screen. A typed price is used
   only when the seller holds `discount`; an item with no price is refused unless they do.
+- **Discounts** (the owner, 18/09/2026): a % or an amount on any line, and one more on the whole
+  basket, behind `discount`. `priceBasket` (`posModel`) is the one place a discount becomes money,
+  run by the screen and the server alike: the line's own discount first, then the basket's, which
+  is **spread back onto the lines** in proportion to what each came to, the last line taking the
+  rounding remainder so the shares add up exactly. **Every receipt line stores its list price,
+  gross, own discount, basket share and net** — the tax is taken on the net per rate, and a return
+  refunds a line's net, so returning one of two discounted items can neither pay the whole
+  discount back nor keep it. **A studio can cap the discount** (Point of Sale settings, "largest
+  discount a cashier may give"), measured per line against the item's own price with a typed
+  price, the line's discount and its basket share together, so a lower typed price cannot walk
+  round it; whoever holds `pos.settings.edit` is not held to it. The receipt prints each discount
+  and what the customer saved; the shift report prints what was given away.
 - **Stock is checked and taken by expiry** (`pickBatches`, `batches.md`): soonest to expire
   first, never an expired lot, then unbatched stock. A basket the stock cannot cover is refused
   by name, saying how much is available and how much more is expired.
@@ -143,7 +155,7 @@ is affected.
 
 **Closing a shift** takes the counted cash and stores the report: sales and takings, tax by rate,
 takings by method, change given, the opening float, **expected cash (float + cash taken − change)**,
-the counted cash and the difference. **A short or over drawer is reported, never corrected.**
+the counted cash, the difference, and the discounts given. **A short or over drawer is reported, never corrected.**
 
 **The screen** remembers which till this device uses, keeps the scan box focused, recomputes the
 basket with the server's own function, and refreshes when anybody else sells on the studio's tills.

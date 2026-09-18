@@ -163,6 +163,49 @@ ok("a formula-looking name is made text", csv.includes("'=HYPERLINK"));
 ok("a comma is quoted", csv.includes("\"Milk, fresh\""));
 ok("a negative number stays a number", csv.includes("\r\n-5,1"));
 
+console.log("\n== discounts at the till (the owner, 18/09/2026)");
+// THE DEFECTS THESE GUARD: a basket discount kept only as a basket figure
+// cannot be taxed per rate or refunded per line — return one of two items and
+// the refund either pays the whole discount back or none of it; and a cap
+// checked on the discount box alone is walked round by typing a lower price.
+ok("a discount needs a known kind and a positive value",
+  P.cleanDiscount({ kind: "percent", value: 0 }) === null && P.cleanDiscount({ kind: "x", value: 5 }) === null
+  && P.cleanDiscount({ kind: "percent", value: 150 }).value === 100);
+const lp = P.priceBasket([line(10, 2, { discount: { kind: "percent", value: 10 } })], null, "SAR");
+ok("a line's percentage comes off its own gross", lp.lines[0].gross === 20 && lp.lines[0].lineDiscount === 2 && lp.lines[0].net === 18, j(lp.lines[0]));
+const la = P.priceBasket([line(5, 1, { discount: { kind: "amount", value: 9 } })], null, "SAR");
+ok("an amount never takes a line below nought", la.lines[0].net === 0 && la.lines[0].lineDiscount === 5, j(la.lines[0]));
+const bs = P.priceBasket([line(10), line(20), line(30)], { kind: "amount", value: 10 }, "SAR");
+ok("a basket discount is spread by what each line came to",
+  bs.lines.map((l) => l.basketShare).join("|") === "1.67|3.33|5", j(bs.lines.map((l) => l.basketShare)));
+ok("…and the shares add up to it exactly", bs.basketDiscount === 10
+  && Math.round(bs.lines.reduce((s, l) => s + l.basketShare, 0) * 100) / 100 === 10);
+ok("each line stores what it was paid", bs.lines.map((l) => l.net).join("|") === "8.33|16.67|25");
+const omr = P.priceBasket([line(1, 1), line(1, 1), line(1, 1)], { kind: "amount", value: 1 }, "OMR");
+ok("three decimals for a three-decimal currency, remainder on the last line",
+  omr.lines.map((l) => l.basketShare).join("|") === "0.333|0.333|0.334", j(omr.lines.map((l) => l.basketShare)));
+const both = P.priceBasket([line(100, 1, { discount: { kind: "percent", value: 10 } }), line(100)], { kind: "percent", value: 10 }, "SAR");
+ok("a basket percentage is of what is left after the lines' own",
+  both.basketDiscount === 19 && both.discountTotal === 29, j(both));
+const taxed = P.posTotals(P.priceBasket([line(115)], { kind: "amount", value: 23 }, "SAR").lines,
+  { vatRate: 15, currency: "SAR", pricesIncludeTax: true });
+ok("the tax comes out of what was charged, not the shelf price", taxed.total === 92 && taxed.vat === 12 && taxed.subtotal === 80, j(taxed));
+const mixed = P.posTotals(P.priceBasket([line(115), line(100, 1, { taxCategory: "zero" })], { kind: "percent", value: 10 }, "SAR").lines,
+  { vatRate: 15, currency: "SAR", pricesIncludeTax: true });
+ok("each rate's taxable amount falls by its own share", mixed.total === 193.5
+  && mixed.breakdown.find((b) => b.rate === 15).tax === 13.5 && mixed.breakdown.find((b) => b.rate === 0).taxable === 90, j(mixed));
+const plain = [line(3.335, 3), line(1.2)];
+ok("an undiscounted basket totals exactly as before",
+  j(P.posTotals(plain, { vatRate: 15, currency: "SAR", pricesIncludeTax: true }))
+  === j(P.posTotals(P.priceBasket(plain, null, "SAR").lines, { vatRate: 15, currency: "SAR", pricesIncludeTax: true })));
+const typed = P.priceBasket([line(8, 1, { listPrice: 10 })], null, "SAR").lines[0];
+ok("a typed lower price counts against the cap", P.discountPercentOf(typed, "SAR") === 20);
+const stacked = P.priceBasket([line(10, 1, { discount: { kind: "percent", value: 10 } })], { kind: "percent", value: 10 }, "SAR").lines[0];
+ok("a line's discount and its basket share count together", P.discountPercentOf(stacked, "SAR") === 19);
+const zrep = P.shiftReport([{ total: 9, vat: 0, subtotal: 9, discountTotal: 1, payments: [{ method: "cash", amount: 9 }] }, { total: 5, vat: 0, subtotal: 5, payments: [] }],
+  { openingFloat: 0, currency: "SAR" });
+ok("the shift report says what was given away", zrep.discounts === 1, j(zrep));
+
 console.log(fails ? `\n${fails} FAILED\n` : "\nall passed\n");
 // exitCode, not exit(): exiting while the alias loader's thread is live crashes Node on Windows.
 process.exitCode = fails ? 1 : 0;

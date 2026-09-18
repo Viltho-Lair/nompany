@@ -35,6 +35,7 @@ import { documentTaxMethod, studioTaxProfile } from "@/shared/taxProfile";
 import { roundMoney } from "@/shared/money";
 import {
   cleanPosLines, cleanPayments, posTotals, settle, shiftReport, unitsOf,
+  cleanDiscount, priceBasket, discountPercentOf,
   type PosLine, type PosPayment, type ShiftReport,
 } from "./posModel";
 import type { TaxBreakdown } from "@/shared/documentTotals";
@@ -108,7 +109,12 @@ const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
 const now = () => new Date().toISOString();
 const scope = (ctx: PosContext) => ({ studio: ctx.studio, section: ctx.posSection });
 
-type PosSettings = { pricesIncludeTax?: boolean; footer?: string };
+// `maxDiscountPercent`: the most a till may take off any line, as a percentage
+// of the item's own price — typed price, line discount and basket share
+// together. Absent means no cap. Whoever may change this setting is not held
+// to it: they could raise it anyway, and a cap they had to lift and lower
+// again for one sale would be a cap nobody set back.
+type PosSettings = { pricesIncludeTax?: boolean; footer?: string; maxDiscountPercent?: number };
 const settingsOf = (ctx: PosContext): PosSettings =>
   ((ctx.posSection as { settings?: PosSettings }).settings) || {};
 
@@ -133,6 +139,7 @@ export function tillTerms(ctx: PosContext) {
     taxMethod: documentTaxMethod(ctx.studio) || "document",
     pricesIncludeTax: typeof s.pricesIncludeTax === "boolean" ? s.pricesIncludeTax : profile.pricesIncludeTax,
     footer: str(s.footer, 300),
+    maxDiscountPercent: typeof s.maxDiscountPercent === "number" ? s.maxDiscountPercent : null,
   };
 }
 
@@ -232,6 +239,15 @@ export async function savePosSettings(ctx: PosContext, body: Record<string, unkn
   const next: PosSettings = { ...current };
   if (body?.pricesIncludeTax !== undefined) next.pricesIncludeTax = body.pricesIncludeTax === true;
   if (body?.footer !== undefined) next.footer = str(body.footer, 300);
+  if (body?.maxDiscountPercent !== undefined) {
+    const raw = body.maxDiscountPercent;
+    if (raw === null || raw === "") delete next.maxDiscountPercent;
+    else {
+      const cap = Number(raw);
+      if (!Number.isFinite(cap) || cap < 0 || cap > 100) return { error: "discount-cap" as const };
+      next.maxDiscountPercent = Math.round(cap * 100) / 100;
+    }
+  }
   const section = await updateSection(ctx.studio.id, ctx.posSection.id, { settings: { ...(ctx.posSection.settings || {}), ...next } });
   if (!section) return { error: "notfound" as const };
   return { settings: next };
@@ -350,9 +366,26 @@ export async function createSale(ctx: PosContext, body: Record<string, unknown>)
       description: item.name,
       count: l.count,
       price,
+      ...(listed !== null ? { listPrice: listed } : {}),
       ...(item.taxCategory && item.taxCategory !== "standard" ? { taxCategory: item.taxCategory as "zero" | "exempt" } : {}),
+      ...(l.discount ? { discount: l.discount } : {}),
     });
   }
+
+  // ---- discounts ----------------------------------------------------------
+  // A DISCOUNT IS THE SAME POWER AS A LOWER PRICE, so it answers to the same
+  // right; and the cap is measured against the item's own price, so neither a
+  // typed price nor a stack of discounts can walk round it.
+  const basket = cleanDiscount(body?.discount);
+  const discounted = Boolean(basket) || lines.some((l) => l.discount);
+  if (discounted && !mayReprice) return { error: "forbidden" as const };
+  const basketPriced = priceBasket(lines, basket, terms.currency);
+  const cap = terms.maxDiscountPercent;
+  if (cap !== null && !can(ctx.access, "pos.settings.edit")) {
+    const over = basketPriced.lines.find((l) => discountPercentOf(l, terms.currency) > cap);
+    if (over) return { error: "discount-cap" as const, max: cap, name: over.description };
+  }
+  lines.splice(0, lines.length, ...basketPriced.lines);
 
   // THE STOCK, per item across every line of it, taken batch by batch.
   const onHand = balances(movements);
@@ -422,6 +455,10 @@ export async function createSale(ctx: PosContext, body: Record<string, unknown>)
     vat: totals.vat,
     total: totals.total,
     breakdown: totals.breakdown,
+    ...(basketPriced.discountTotal > 0 ? {
+      ...(basket ? { discount: basket, basketDiscount: basketPriced.basketDiscount } : {}),
+      discountTotal: basketPriced.discountTotal,
+    } : {}),
   });
 
   // ONE MOVEMENT PER BATCH TAKEN, plus one for units from no batch, each at the
