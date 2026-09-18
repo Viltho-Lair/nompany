@@ -101,6 +101,9 @@ export const DEFAULT_CHART: { code: string; name: string; type: AccountType }[] 
   // receivable it replaced nor money in the bank.
   { code: "2050", name: "Cheques Payable", type: "liability" },
   { code: "2100", name: "VAT Payable", type: "liability" },
+  // TAX THE STUDIO WITHHELD FROM A SUPPLIER and owes the authority until it is
+  // paid over, 18/09/2026 — the mirror of 1300 on the invoice side.
+  { code: "2150", name: "Withholding Tax Payable", type: "liability" },
   // ADDED WITH PAYROLL, and it needs no migration: `ledgerAccounts` seeds any
   // code from this chart that a studio is missing on every read, so an
   // existing studio gains it the next time its ledger is opened.
@@ -582,7 +585,7 @@ export type PostOptions = { system?: boolean };
  */
 export const ENTRY_SOURCE_KINDS = [
   "invoice", "expense", "bill", "bill-payment", "payment", "credit-note", "payroll", "withholding",
-  "asset", "depreciation", "asset-disposal", "transfer", "cheque", "manual",
+  "asset", "depreciation", "asset-disposal", "transfer", "cheque", "bill-withholding", "manual",
 ] as const;
 
 export type EntrySourceKind = (typeof ENTRY_SOURCE_KINDS)[number];
@@ -1027,8 +1030,57 @@ export async function postWithholding(ctx: FinanceContext, invoiceId: string, op
   }, options);
 }
 
-// AP is the mirror of AR: the accounts an invoice credits, a bill debits.
 const AP = "2000";       // Accounts Payable
+const WHT_PAYABLE = "2150";
+
+/** What of a bill's payable is tax the studio withheld — the invoice rule, asked of a bill. */
+export function billWithheldToClear(
+  bill: { status?: string; withholdingLabel?: string; lines?: unknown; vatRate?: unknown; payments?: unknown; currency?: unknown },
+  rules: readonly WithholdingRule[],
+  currency: unknown,
+): number {
+  if (bill.status === "Draft" || bill.status === "Cancelled") return 0;
+  const rule = rules.find((r) => r.label === String(bill.withholdingLabel || "")) || null;
+  return withheldToClear(invoiceTotals(bill, currency), rule, currency);
+}
+
+/**
+ * POST WHAT THE STUDIO WITHHELD FROM A SUPPLIER: debit Accounts Payable for
+ * the part it did not pay them, credit Withholding Tax Payable — the debt moves
+ * from the supplier to the authority. Dated on the payment that settled the
+ * bill. In the studio's own currency only: `editBill` refuses a rule on a
+ * foreign bill.
+ */
+export async function postBillWithholding(ctx: FinanceContext, billId: string, options: PostOptions = {}) {
+  if (!options.system) {
+    const denied = requirePermission(ctx.access, "finance.ledger.post");
+    if (denied) return denied;
+  }
+  const bill = (await repo<Row>("bills").find({ studio: ctx.studio, section: ctx.payablesSection }))
+    .find((b) => b.id === billId) as (Row & { status?: string; withholdingLabel?: string; currency?: string; reference?: string; payments?: { date?: string }[] }) | undefined;
+  if (!bill) return { error: "notfound" };
+  if (isForeign(bill.currency, ctx.studio.currency)) return { error: "foreign" };
+  const amount = billWithheldToClear(bill, ctx.withholdingRules || [], ctx.studio.currency);
+  if (!amount) return { error: "nothing-withheld" };
+
+  const entries = await Entries.find({ studio: ctx.studio, section: ctx.ledgerSection });
+  if (alreadyPosted(entries, "bill-withholding", billId)) return { error: "already-posted" };
+  const { byCode, missing } = await codesToIds(ctx, [AP, WHT_PAYABLE]);
+  if (missing.length) return { error: "chart", missing };
+
+  const dates = (bill.payments || []).map((p) => String(p.date || "")).filter(Boolean).sort();
+  return postEntry(ctx, {
+    date: dates[dates.length - 1],
+    memo: `Tax withheld on ${bill.reference}${bill.withholdingLabel ? ` — ${bill.withholdingLabel}` : ""}`,
+    source: { kind: "bill-withholding", id: billId },
+    lines: [
+      { accountId: byCode.get(AP), debit: amount },
+      { accountId: byCode.get(WHT_PAYABLE), credit: amount },
+    ],
+  }, options);
+}
+
+// AP is the mirror of AR: the accounts an invoice credits, a bill debits.
 
 const Bills = repo<Row>("bills");
 const FX_DIFFERENCES = "5800";

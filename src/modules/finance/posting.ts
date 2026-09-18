@@ -12,7 +12,7 @@
 // is "post this thing", and five endpoints would be five places to forget one.
 import {
   postInvoice, postExpense, postBill, postBillPayment, postPayment, postCreditNote,
-  postPayroll, postWithholding, postAsset, postDepreciation, postAssetDisposal, postCheque, reverseDocument, invoiceWithheldToClear, postedAmount, ENTRY_SOURCE_KINDS,
+  postPayroll, postWithholding, postAsset, postDepreciation, postAssetDisposal, postCheque, postBillWithholding, billWithheldToClear, reverseDocument, invoiceWithheldToClear, postedAmount, ENTRY_SOURCE_KINDS,
 } from "./ledger";
 import type { FinanceContext } from "./types";
 import type { PostOptions } from "./ledger";
@@ -75,6 +75,7 @@ export async function postDocument(
     case "depreciation": return postDepreciation(ctx, documentId, options);
     case "asset-disposal": return postAssetDisposal(ctx, documentId, options);
     case "cheque": return postCheque(ctx, documentId, options);
+    case "bill-withholding": return postBillWithholding(ctx, documentId, options);
     default: return { error: "kind" };
   }
 }
@@ -159,4 +160,20 @@ export async function settleWithholding(
   if (want === have) return null;
   if (!want) return autoReverse(ctx, "withholding", invoice.id, `Tax withheld on ${invoice.reference || ""} no longer applies`.trim());
   return have ? autoRepost(ctx, "withholding", invoice.id, `Tax withheld on ${invoice.reference || ""} changed`.trim()) : autoPost(ctx, "withholding", invoice.id);
+}
+
+/**
+ * KEEP A BILL'S WITHHELD TAX WHERE ITS PAYMENTS SAY IT IS — the supplier side of
+ * `settleWithholding`, and the same compare-then-move: right already, nothing;
+ * wrong, reversed and posted as it now stands.
+ */
+export async function settleBillWithholding(
+  ctx: FinanceContext,
+  bill: Parameters<typeof billWithheldToClear>[0] & { id: string; reference?: string },
+): Promise<LedgerAnswer | null> {
+  const want = billWithheldToClear(bill, ctx.withholdingRules || [], ctx.studio.currency);
+  const have = await postedAmount(ctx, "bill-withholding", bill.id);
+  if (want === have) return null;
+  if (!want) return autoReverse(ctx, "bill-withholding", bill.id, `Tax withheld on ${bill.reference || ""} no longer applies`.trim());
+  return have ? autoRepost(ctx, "bill-withholding", bill.id, `Tax withheld on ${bill.reference || ""} changed`.trim()) : autoPost(ctx, "bill-withholding", bill.id);
 }

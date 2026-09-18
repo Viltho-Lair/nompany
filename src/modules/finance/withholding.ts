@@ -170,6 +170,22 @@ export function unclaimed<T extends { id: string; reference?: string }>(
  * gross leaves nothing to move, whatever the rule says — the rule says what they
  * MAY withhold, the payments say what they did.
  */
+/**
+ * A DOCUMENT'S WITHHOLDING AND WHAT IS STILL EXPECTED ON IT, by the rule its
+ * label names — one answer for an invoice and a bill, so the two sides can
+ * never disagree about what "settled" means.
+ */
+export function documentWithholding(
+  doc: { withholdingLabel?: unknown },
+  totals: { subtotal: number; total: number; paid: number },
+  rules: readonly WithholdingRule[],
+  currency?: unknown,
+) {
+  const rule = rules.find((r) => r.label === str(doc.withholdingLabel, 80)) || null;
+  const withheld = withholdingOn(rule, totals, currency);
+  return { rule, withheld, settlement: settledWith(totals, withheld, currency) };
+}
+
 export function withheldToClear(
   totals: { subtotal: number; total: number; paid: number },
   rule: WithholdingRule | null,

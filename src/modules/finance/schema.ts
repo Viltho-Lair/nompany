@@ -266,7 +266,7 @@ export const JournalEntrySchema = z.object({
     // payments and withheld tax all stored kinds the type said could not exist.
     kind: z.enum([
       "invoice", "bill", "expense", "payment", "bill-payment", "credit-note", "payroll", "withholding",
-      "asset", "depreciation", "asset-disposal", "transfer", "cheque", "manual", "reversal",
+      "asset", "depreciation", "asset-disposal", "transfer", "cheque", "bill-withholding", "manual", "reversal",
     ]),
     id: z.string().max(60).optional(),
   }),
@@ -341,6 +341,14 @@ export const BillSchema = z.object({
    */
   exchangeRate: z.number().nullable().optional(),
   exchangeRateSource: z.enum(["entered", "market"]).nullable().optional(),
+  /**
+   * TAX THE STUDIO WITHHOLDS FROM THIS SUPPLIER, by the rule's label — the
+   * mirror of an invoice's (18/09/2026). The supplier is paid the net; the
+   * withheld part is owed to the authority (Withholding Tax Payable, 2150) and
+   * the studio issues the certificate that proves it, recorded here.
+   */
+  withholdingLabel: z.string().max(80).optional(),
+  certificateRef: z.string().max(80).optional(),
   exchangeRateAt: z.string().optional(),
   status: z.string(),                        // Draft|Received|Approved|Paid|Cancelled|Disputed
   /**

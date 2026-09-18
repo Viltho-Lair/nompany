@@ -50,7 +50,8 @@ export default function TaxReturnPanel({ slug, locale }) {
   if (!data.enabled) return (
     <div className="space-y-5">
       <p className="text-sm text-slate-500 dark:text-slate-400">{financeDict(locale).taxNoVat}</p>
-      <ToClaim rows={data.unclaimedWithholding} locale={locale} />
+      <ToClaim rows={data.unclaimedWithholding} locale={locale} slug={slug} canRecord={data.canRecordClaimed} onDone={load} />
+      <ToClaim rows={data.unissuedWithholding} locale={locale} slug={slug} canRecord={data.canRecordIssued} onDone={load} side="issue" />
     </div>
   );
 
@@ -114,7 +115,8 @@ export default function TaxReturnPanel({ slug, locale }) {
           <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{tr.foreignLead}</p>
         </div>
       )}
-      <ToClaim rows={data.unclaimedWithholding} locale={locale} />
+      <ToClaim rows={data.unclaimedWithholding} locale={locale} slug={slug} canRecord={data.canRecordClaimed} onDone={load} />
+      <ToClaim rows={data.unissuedWithholding} locale={locale} slug={slug} canRecord={data.canRecordIssued} onDone={load} side="issue" />
     </div>
   );
 }
@@ -158,24 +160,54 @@ function DocumentTable({ title, rows, tr, empty = "", showCurrency = false }) {
 // WHAT THE STUDIO CAN RECLAIM — computed since withholding shipped and shown
 // nowhere until Tax had a screen (18/09/2026). A list to CHASE: a withheld
 // amount is only worth anything once its certificate proves it was paid over.
-function ToClaim({ rows = [], locale }) {
+//
+// BOTH SIDES, ONE LIST SHAPE (18/09/2026): the certificates a studio must CHASE
+// from clients who withheld (invoices), and the ones it must ISSUE to suppliers
+// it withheld from (bills). Recording the number closes the line; it answers to
+// the right over the document it is written on.
+function ToClaim({ rows = [], locale, slug, canRecord, onDone, side = "claim" }) {
   const tr = financeDict(locale);
+  const issue = side === "issue";
   return (
     <section className="space-y-2">
-      <h3 className="font-display text-sm font-700 text-slate-900 dark:text-white">{tr.toClaimTitle}</h3>
-      <p className="text-sm text-slate-500 dark:text-slate-400">{tr.toClaimLead}</p>
+      <h3 className="font-display text-sm font-700 text-slate-900 dark:text-white">{issue ? tr.toIssueTitle : tr.toClaimTitle}</h3>
+      <p className="text-sm text-slate-500 dark:text-slate-400">{issue ? tr.toIssueLead : tr.toClaimLead}</p>
       {rows.length === 0 ? (
-        <p className="text-sm text-emerald-600 dark:text-emerald-300">{tr.toClaimNone}</p>
+        <p className="text-sm text-emerald-600 dark:text-emerald-300">{issue ? tr.toIssueNone : tr.toClaimNone}</p>
       ) : (
         <ul className="divide-y divide-slate-100 text-sm dark:divide-white/5">
-          {rows.map((r) => (
-            <li key={r.id} className="flex justify-between py-1.5">
-              <span className="font-mono text-slate-900 dark:text-white">{r.reference}</span>
-              <span className="num text-slate-700 dark:text-slate-200">{money(r.amount)}</span>
-            </li>
-          ))}
+          {rows.map((r) => <CertificateRow key={r.id} row={r} tr={tr} slug={slug} kind={issue ? "bills" : "invoices"} canRecord={canRecord} onDone={onDone} />)}
         </ul>
       )}
     </section>
+  );
+}
+
+function CertificateRow({ row, tr, slug, kind, canRecord, onDone }) {
+  const [ref, setRef] = useState("");
+  const [busy, setBusy] = useState(false);
+  return (
+    <li className="flex flex-wrap items-center justify-between gap-2 py-1.5">
+      <span className="font-mono text-slate-900 dark:text-white">{row.reference}</span>
+      <span className="flex items-center gap-2">
+        <span className="num text-slate-700 dark:text-slate-200">{money(row.amount)}</span>
+        {canRecord && (
+          <>
+            <input className="w-40 rounded-lg border border-slate-200 bg-transparent px-2 py-1 text-sm dark:border-white/10"
+              placeholder={tr.certificateNo} value={ref} onChange={(e) => setRef(e.target.value)} />
+            <button className="rounded-lg bg-brand-600 px-2 py-1 text-xs font-600 text-white disabled:opacity-50" disabled={busy || !ref.trim()}
+              onClick={async () => {
+                setBusy(true);
+                const res = await fetch(`/api/studios/${slug}/finance/${kind}`, {
+                  method: "PUT", headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ id: row.id, certificateRef: ref.trim() }),
+                });
+                setBusy(false);
+                if (res.ok) await onDone?.();
+              }}>{tr.recordCertificate}</button>
+          </>
+        )}
+      </span>
+    </li>
   );
 }

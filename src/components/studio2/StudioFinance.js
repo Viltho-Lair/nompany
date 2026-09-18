@@ -477,7 +477,7 @@ function Invoices({ rows, projects, milestones = [], items = [], vocab, slug, na
       {canManage && !drafting && !paying && <button className={btn} onClick={() => setDrafting(true)}>{tr.newInvoice}</button>}
 
       {drafting && (
-        <InvoiceForm projects={projects} milestones={milestones} items={items} defaultVat={vocab.defaultVatRate ?? 0} vatOn={!!vocab.vatEnabled} busy={busy}
+        <InvoiceForm projects={projects} milestones={milestones} items={items} rules={vocab.withholdingRules || []} defaultVat={vocab.defaultVatRate ?? 0} vatOn={!!vocab.vatEnabled} busy={busy}
           onCancel={() => setDrafting(false)}
           onSave={async (v) => { if (await send("invoices", "POST", v)) setDrafting(false); }} />
       )}
@@ -698,9 +698,22 @@ function LineItemsEditor({ lines, setLines, vatOn = false, items = [] }) {
   );
 }
 
-function InvoiceForm({ projects, milestones = [], items = [], defaultVat, vatOn, busy, onCancel, onSave }) {
+// WHICH WITHHOLDING RULE A DOCUMENT FALLS UNDER — offered only when the studio
+// has rules, and on both sides: a client withholding from an invoice, the
+// studio withholding from a supplier's bill. Until 18/09/2026 neither form had
+// it, so withholding could be set only through the API.
+function WithholdingField({ rules = [], value, onChange }) {
   const tr = financeDict(useStudioLocale());
-  const [head, setHead] = useState({ projectId: "", milestoneId: "", clientName: "", vatRate: String(defaultVat), issueDate: "", dueDate: "" });
+  if (!rules.length) return null;
+  return (
+    <Field label={tr.withholding} as="select" value={value || ""} onChange={onChange}
+      options={[{ value: "", label: tr.whtNone }, ...rules.map((r) => ({ value: r.label, label: tr.whtApplies(r.label, r.rate) }))]} />
+  );
+}
+
+function InvoiceForm({ projects, milestones = [], items = [], rules = [], defaultVat, vatOn, busy, onCancel, onSave }) {
+  const tr = financeDict(useStudioLocale());
+  const [head, setHead] = useState({ projectId: "", milestoneId: "", clientName: "", vatRate: String(defaultVat), issueDate: "", dueDate: "", withholdingLabel: "" });
   // THE PROJECT'S OWN MILESTONES. An invoice naming one is what marks that
   // milestone billed on the payment schedule; with no field for it, every
   // project invoice read as "unattributed" and no milestone ever came off.
@@ -736,6 +749,7 @@ function InvoiceForm({ projects, milestones = [], items = [], defaultVat, vatOn,
         <Field label={tr.dueDate} filled={!!head.dueDate}>
           <StudioDate value={head.dueDate} onChange={(iso) => setHead((h) => ({ ...h, dueDate: iso }))} />
         </Field>
+        <WithholdingField rules={rules} value={head.withholdingLabel} onChange={(v) => setHead((h) => ({ ...h, withholdingLabel: v }))} />
       </div>
 
       <LineItemsEditor lines={lines} setLines={setLines} vatOn={vatOn} items={items} />
@@ -777,6 +791,7 @@ function PaymentForm({ invoice, methods, accounts = [], busy, onCancel, onSave }
     <section className={`${panel} border-brand-500/40`}>
       <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">Record payment — {invoice.reference}</h3>
       <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{money(invoice.outstanding)} outstanding of {money(invoice.total)}.</p>
+      {invoice.withheld?.applies && <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{tr.withheldNote(money(invoice.withheld.amount), invoice.withheld.label)}</p>}
       <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Field label={tr.amount} type="number" value={form.amount} onChange={(v) => setForm((f) => ({ ...f, amount: v }))} />
         <Field label={tr.date} filled={!!form.date}>
@@ -1150,7 +1165,7 @@ function Bills({ rows, vocab, canManage, canRelease, busy, send, pickers = {} })
       {canManage && !form && !paying && <button className={btn} onClick={() => setDrafting(true)}>{tr.newBill}</button>}
 
       {form && (
-        <BillForm bill={editing} terms={terms} defaultVat={vocab.defaultVatRate ?? 0} vatOn={!!vocab.vatEnabled} busy={busy} pickers={pickers}
+        <BillForm bill={editing} terms={terms} rules={vocab.withholdingRules || []} defaultVat={vocab.defaultVatRate ?? 0} vatOn={!!vocab.vatEnabled} busy={busy} pickers={pickers}
           onCancel={() => { setDrafting(false); setEditing(null); }}
           onSave={async (v) => {
             const ok = editing
@@ -1297,7 +1312,7 @@ function Bills({ rows, vocab, canManage, canRelease, busy, send, pickers = {} })
   );
 }
 
-function BillForm({ bill, terms, defaultVat, vatOn, busy, pickers = {}, onCancel, onSave }) {
+function BillForm({ bill, terms, rules = [], defaultVat, vatOn, busy, pickers = {}, onCancel, onSave }) {
   const tr = financeDict(useStudioLocale());
   const editing = !!bill;
   const [head, setHead] = useState({
@@ -1314,6 +1329,7 @@ function BillForm({ bill, terms, defaultVat, vatOn, busy, pickers = {}, onCancel
     billDate: bill?.billDate || "",
     dueDate: bill?.dueDate || "",
     notes: bill?.notes || "",
+    withholdingLabel: bill?.withholdingLabel || "",
   });
   const [lines, setLines] = useState(
     bill?.lines?.length
@@ -1342,6 +1358,7 @@ function BillForm({ bill, terms, defaultVat, vatOn, busy, pickers = {}, onCancel
           }}
           options={supplierOptions(pickers)} />
         <Field label={tr.vendor} required value={head.vendorName} onChange={(v) => setHead((h) => ({ ...h, vendorName: v }))} />
+        <WithholdingField rules={rules} value={head.withholdingLabel} onChange={(v) => setHead((h) => ({ ...h, withholdingLabel: v }))} />
         {/* THE ORDER THIS BILL ANSWERS — the third leg of the match. Choosing
             one carries its project and cost code across where none is set,
             the inheritance the cost report already applies. */}
@@ -1447,6 +1464,7 @@ function BillPaymentForm({ bill, hold, methods, accounts = [], busy, onCancel, o
     <section className={`${panel} border-brand-500/40`}>
       <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">Record payment — {bill.reference}</h3>
       <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{money(bill.outstanding)} outstanding of {money(bill.total)} to {bill.vendorName}.</p>
+      {bill.withheld?.applies && <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{tr.withheldNote(money(bill.withheld.amount), bill.withheld.label)}</p>}
       {/* WARN MODE SAYS SO HERE, where the money is about to move: the row's pill
           is easy to scroll past, and this is the last place the reason can land. */}
       {hold && !hold.held && !hold.released && hold.reasons?.length > 0 && (

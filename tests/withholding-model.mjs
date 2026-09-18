@@ -11,7 +11,7 @@ import { pathToFileURL } from "node:url";
 register(new URL("./loader.mjs", import.meta.url), { data: { root: pathToFileURL(`${process.cwd()}/`).href } });
 
 const {
-  withholdingProblems, cleanWithholding, withholdingOn, settledWith, unclaimed, withheldToClear,
+  withholdingProblems, cleanWithholding, withholdingOn, settledWith, unclaimed, withheldToClear, documentWithholding,
 } = await import("../src/modules/finance/withholding.ts");
 
 let fails = 0;
@@ -113,6 +113,17 @@ ok("a client who paid the gross withheld nothing, so nothing moves",
 ok("a client who paid part of the tax leaves only the rest to move",
   withheldToClear({ ...inv, paid: 11200 }, wht, "SAR") === 300);
 ok("no rule, nothing to move", withheldToClear({ ...inv, paid: 11500 }, null, "SAR") === 0);
+
+// ---- one rule for both sides ------------------------------------------------
+// A BILL WITHHOLDS BY THE SAME RULE AN INVOICE DOES (18/09/2026): the supplier
+// is owed the net, and settled against it — the invoice's arithmetic, asked of
+// a bill, so the two sides cannot disagree about what "paid" means.
+const rules = [wht, { label: "Other", rate: 10, threshold: 0 }];
+const bill = documentWithholding({ withholdingLabel: "Contractor WHT" }, { ...inv, paid: 0 }, rules, "SAR");
+ok("A DOCUMENT FINDS ITS RULE BY LABEL", bill.rule?.label === "Contractor WHT" && bill.withheld.amount === 500);
+ok("...and is owed the net", bill.settlement.expected === 11000 && bill.settlement.outstanding === 11000);
+ok("a label that names no rule withholds nothing",
+  documentWithholding({ withholdingLabel: "Gone" }, { ...inv, paid: 0 }, rules, "SAR").withheld.applies === false);
 
 console.log(fails ? `\nwithholding model: ${fails} FAILURES\n` : "\nwithholding model: all passed\n");
 // exitCode, not exit(): exiting while the alias loader's thread is live crashes Node on Windows.

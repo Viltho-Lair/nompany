@@ -65,6 +65,8 @@ export const GET = route(
         defaultVatRate: studioVatRate(fin.studio) ?? 0,
         vatEnabled: studioVatRate(fin.studio) !== null,
         moneyAccounts: money.map((a) => ({ id: a.id, code: a.code, name: a.name })),
+        // What a bill may withhold from its supplier — the studio's own rules.
+        withholdingRules: fin.withholdingRules,
       },
     };
   },
@@ -103,7 +105,9 @@ export const PUT = route(spec, async (fin) => {
 
   if (refused(result)) return result;
   const posting = (result as { posting?: unknown }).posting;
-  return { ok: true, bill: result.bill, ...(posting ? { posting } : {}) };
+  // The withheld tax moves in its own entry and answers for itself.
+  const withholding = (result as { withholding?: unknown }).withholding;
+  return { ok: true, bill: result.bill, ...(posting ? { posting } : {}), ...(withholding ? { withholding } : {}) };
 });
 
 export const DELETE = route(spec, async (fin) => {

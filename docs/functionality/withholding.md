@@ -79,9 +79,16 @@ definition and switched on by a studio choosing it — ZATCA for a Saudi studio,
 country's for the next — not a product-wide decision for or against one market. Not built yet;
 it is step 4 of the Finance plan (`docs/progress.md`).
 
-- **Invoices only.** A BILL from a supplier can be subject to withholding the studio must
-  deduct and pay over, and nothing computes it — which is the half with a liability attached
-  rather than a receivable.
+- ~~**Invoices only.**~~ **Bills too, 18/09/2026.** A bill names a rule (`withholdingLabel`)
+  from the same list, the supplier is owed the net (`documentWithholding`, shared by both
+  sides), paying more than the net is refused, and the payment that settles the net moves
+  the withheld part from Accounts Payable to **Withholding Tax Payable (2150)**
+  (`postBillWithholding`, kind `bill-withholding`; a bounce moves it back). The studio issues
+  the certificate: the Tax screen lists **withheld tax to certify** beside **withheld tax to
+  claim**, and recording a certificate number closes a line on either side — the one edit an
+  approved or paid bill accepts. **Both forms offer the rule now**; until today neither did, so
+  withholding existed only through the API. **Not built:** withholding on a bill in a foreign
+  currency (refused, `foreign-withholding`); paying 2150 over to the authority is a hand entry.
 - ~~**Nothing posts it.**~~ **It posts, 18/09/2026.** The payment that settles a withheld
   invoice also moves the withheld tax from Accounts Receivable to **Withholding Tax
   Receivable (1300)**: Dr 1300, Cr 1100, dated on that payment. Until then the receivable

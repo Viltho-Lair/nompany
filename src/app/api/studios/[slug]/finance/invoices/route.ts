@@ -40,7 +40,11 @@ export const PUT = route(spec, async (fin) => {
   // "issued, but not posted" rather than let the studio find out months later
   // that its books are an entry short.
   const posting = (result as { posting?: unknown }).posting;
-  return { ok: true, invoice: result.invoice, ...(posting ? { posting } : {}) };
+  // AND THE WITHHELD TAX'S OWN ANSWER, which this dropped from the day the
+  // payment that settles an invoice began moving it (18/09/2026) — so a refused
+  // move could never reach the screen that says so.
+  const withholding = (result as { withholding?: unknown }).withholding;
+  return { ok: true, invoice: result.invoice, ...(posting ? { posting } : {}), ...(withholding ? { withholding } : {}) };
 });
 
 // An issued invoice is part of the record — cancel it rather than erasing what

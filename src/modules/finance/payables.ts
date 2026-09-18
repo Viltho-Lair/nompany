@@ -27,6 +27,8 @@ import { notifyHolders, signatureNotice } from "@/modules/people/holders";
 import { documentTaxMethod } from "@/shared/compliance/rules";
 import { isForeign, cleanRate, rateFor } from "./fx";
 import { moneyAccountProblem, paymentSource } from "./ledger";
+import { documentWithholding } from "./withholding";
+import { settleBillWithholding } from "./posting";
 
 const BILLS = "bills";
 const Bills = repo<Bill>(BILLS);
@@ -51,16 +53,24 @@ function statusFor(bill: Bill, totals: { total: number; paid: number }) {
   return bill.status;
 }
 
-export async function listBills({ studio, payablesSection }: Pick<FinanceContext, "studio" | "payablesSection">) {
+export async function listBills(
+  { studio, payablesSection, withholdingRules = [] }: Pick<FinanceContext, "studio" | "payablesSection"> & { withholdingRules?: FinanceContext["withholdingRules"] },
+) {
   const bills = await Bills.find({ studio, section: payablesSection });
   const today = new Date().toISOString().slice(0, 10);
   return [...bills]
     .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""))
     .map((bill) => {
       const totals = billTotals(bill, studio.currency);
-      const status = statusFor(bill, totals);
+      // WITHHOLDING SITS BESIDE THE TOTAL, as on an invoice: the bill is worth
+      // what it says, and the supplier is owed the net. Settled against the net.
+      const { withheld, settlement } = documentWithholding(bill, totals, withholdingRules, bill.currency || studio.currency);
+      const status = statusFor(bill, { ...totals, total: settlement.expected });
       return {
         ...bill, ...totals, status,
+        withheld,
+        expected: settlement.expected,
+        outstanding: settlement.outstanding,
         // Overdue only once it is a real obligation (approved/received), unpaid,
         // and past its due date — a draft is not yet owed.
         overdue: (status === "Approved" || status === "Received") && !!bill.dueDate && bill.dueDate < today && totals.outstanding > 0,
@@ -278,6 +288,8 @@ export async function createBill(ctx: FinanceContext, body: Record<string, unkno
     ...(isForeign(currency, studio.currency) && cleanRate(body?.exchangeRate)
       ? { exchangeRate: cleanRate(body?.exchangeRate), exchangeRateSource: "entered" }
       : {}),
+    // Withholding: a rule's label, on a bill in the studio's own money (editBill says why).
+    ...(str(body?.withholdingLabel, 80) && !isForeign(currency, studio.currency) ? { withholdingLabel: str(body?.withholdingLabel, 80) } : {}),
     vatRate,
     ...(taxMethod ? { taxMethod } : {}),
     approvals: [],
@@ -327,6 +339,13 @@ export async function editBill(ctx: FinanceContext, id: string, body: Record<str
   const { studio, payablesSection } = ctx;
   const current = (await Bills.find({ studio, section: payablesSection })).find((b) => b.id === id);
   if (!current) return { error: "notfound" };
+  // THE CERTIFICATE IS ISSUED AFTER THE PAYMENT, so recording its number is the
+  // one edit an approved or paid bill takes — it changes nothing that was
+  // authorised or paid.
+  if (Object.keys(body || {}).every((k) => k === "id" || k === "certificateRef")) {
+    const updated = await Bills.update({ studio, section: payablesSection }, id, { certificateRef: str(body?.certificateRef, 80) });
+    return updated ? { bill: { ...updated, ...billTotals(updated, studio.currency) } } : { error: "notfound" };
+  }
   // Once approved or paid it is part of the record — dispute or cancel it rather
   // than editing what was authorised.
   if (current.status === "Approved" || current.status === "Paid") return { error: "locked", status: current.status };
@@ -340,6 +359,12 @@ export async function editBill(ctx: FinanceContext, id: string, body: Record<str
   // the kind of thing corrected before anybody approves it, and the approval
   // engine re-derives its plan from whatever it now says.
   if (body?.currency !== undefined) patch.currency = str(body.currency, 8);
+  // WITHHOLDING ON A BILL IN THE STUDIO'S OWN MONEY ONLY: a foreign bill is
+  // settled at two rates (fx.ts), and splitting its last payment between the
+  // supplier and the authority is not built.
+  if (body?.withholdingLabel !== undefined) patch.withholdingLabel = str(body.withholdingLabel, 80);
+  if (body?.certificateRef !== undefined) patch.certificateRef = str(body.certificateRef, 80);
+  if (patch.withholdingLabel && isForeign(patch.currency ?? current.currency, studio.currency)) return { error: "foreign-withholding" };
   // THE BOOKING RATE FOLLOWS THE CURRENCY. A rate typed now replaces the one on
   // the bill; a currency changed without one CLEARS it, because a rate frozen
   // for euros is not a rate for dollars, and the re-post then books the new
@@ -534,7 +559,10 @@ export async function recordBillPayment(
   const wrongAccount = await moneyAccountProblem(ctx, accountId);
   if (wrongAccount) return { error: wrongAccount };
   const totals = billTotals(current, studio.currency);
-  if (amount > totals.outstanding) return { error: "overpayment", outstanding: totals.outstanding };
+  // AGAINST THE NET: a supplier whose tax the studio withholds is owed less
+  // than the bill says, and paying them the gross overpays them by that tax.
+  const due = documentWithholding(current, totals, ctx.withholdingRules || [], current.currency || studio.currency).settlement.outstanding;
+  if (amount > due) return { error: "overpayment", outstanding: due };
 
   // A FOREIGN BILL'S PAYMENT CARRIES THE DAY'S RATE, typed or from the market
   // table, because the bank side of its entry is converted at it. Without one
@@ -559,6 +587,7 @@ export async function recordBillPayment(
   const bill = await Bills.update({ studio, section: payablesSection }, id, { payments });
   if (!bill) return { error: "notfound" };
   const after = billTotals(bill, studio.currency);
+  const { settlement } = documentWithholding(bill, after, ctx.withholdingRules || [], bill.currency || studio.currency);
   // PAYING IS ITS OWN ENTRY, and it is not the accrual again. The bill created
   // the liability; this settles it, moving money out of the bank and the debt
   // off the balance sheet. `postBillPayment` needs BOTH ids because a bill can
@@ -566,7 +595,13 @@ export async function recordBillPayment(
   // wrong period.
   const paymentId = payments[payments.length - 1].id;
   const posting = await autoPost(ctx, "bill-payment", id, paymentId);
-  return { bill: { ...bill, ...after, status: statusFor(bill, after) }, posting };
+  // THE PAYMENT THAT SETTLES THE NET moves the withheld tax from the supplier's
+  // payable to the authority's.
+  const withholding = await settleBillWithholding(ctx, bill);
+  return {
+    bill: { ...bill, ...after, outstanding: settlement.outstanding, status: statusFor(bill, { ...after, total: settlement.expected }) },
+    posting, ...(withholding ? { withholding } : {}),
+  };
 }
 
 /** The bill-side twin of `setPaymentBounced`: our own cheque was refused or taken back. */
@@ -576,9 +611,11 @@ export async function setBillPaymentBounced(ctx: FinanceContext, billId: string,
     payments: ((row as Bill).payments || []).map((p) => (p.id === paymentId ? { ...p, bounced } : p)),
   }));
   if (!updated) return { posted: false as const, reason: "notfound" };
-  return bounced
-    ? autoReverse(ctx, "bill-payment", paymentSource(billId, paymentId), "Cheque bounced")
-    : autoPost(ctx, "bill-payment", billId, paymentId);
+  const posting = bounced
+    ? await autoReverse(ctx, "bill-payment", paymentSource(billId, paymentId), "Cheque bounced")
+    : await autoPost(ctx, "bill-payment", billId, paymentId);
+  await settleBillWithholding(ctx, updated as Bill & { id: string });
+  return posting;
 }
 
 /**

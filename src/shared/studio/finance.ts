@@ -372,6 +372,15 @@ type Strings = CommonStrings & {
   reportsTitle: string;
   reportsLead: string;
   reportsProjects: string;
+  // ---- withholding on both sides (18/09/2026) ----
+  whtNone: string;
+  whtApplies: (label: string, rate: number) => string;
+  withheldNote: (amount: string, label: string) => string;
+  toIssueTitle: string;
+  toIssueLead: string;
+  toIssueNone: string;
+  certificateNo: string;
+  recordCertificate: string;
 };
 
 const en: Strings = {
@@ -752,6 +761,14 @@ const en: Strings = {
   reportsTitle: "Reports",
   reportsLead: "The statements, read from the ledger, and what each project has made.",
   reportsProjects: "Projects",
+  whtNone: "Nothing withheld",
+  whtApplies: (label, rate) => `${label} (${rate}%)`,
+  withheldNote: (amount, label) => `${amount} is withheld under ${label}, so that much less is paid.`,
+  toIssueTitle: "Withheld tax to certify",
+  toIssueLead: "Bills where the studio withheld tax from the supplier and has not recorded the certificate it issued them.",
+  toIssueNone: "Every amount withheld from a supplier has its certificate.",
+  certificateNo: "Certificate number",
+  recordCertificate: "Record",
 };
 
 const ar: Strings = {
@@ -1132,6 +1149,14 @@ const ar: Strings = {
   reportsTitle: "التقارير",
   reportsLead: "القوائم المالية من دفتر الأستاذ، وما حققه كل مشروع.",
   reportsProjects: "المشاريع",
+  whtNone: "لا يستقطع شيء",
+  whtApplies: (label, rate) => `${label} (${rate}%)`,
+  withheldNote: (amount, label) => `يستقطع ${amount} وفق ${label}، فيدفع أقل بهذا القدر.`,
+  toIssueTitle: "ضريبة مستقطعة لاصدار شهادتها",
+  toIssueLead: "فواتير موردين استقطع الاستوديو منها ضريبة ولم يسجل الشهادة التي أصدرها لهم.",
+  toIssueNone: "لكل مبلغ استقطع من مورد شهادته.",
+  certificateNo: "رقم الشهادة",
+  recordCertificate: "تسجيل",
 };
 
 const finance = { en, ar };
