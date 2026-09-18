@@ -343,6 +343,7 @@ function FinanceSettings({ slug }) {
       rules={data.withholdingRules || []}
       hold={data.paymentHold || null}
       dunning={data.dunningDays || []}
+      closeTasks={data.closeTasks || []}
       canManage={Boolean(data.canManage)}
       locale={locale}
       onSave={save}

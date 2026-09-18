@@ -1,7 +1,7 @@
 import { route, refused } from "@/platform/http/route";
 import { financeContext } from "@/modules/finance/finance";
 import {
-  periods, closePeriod, reopenPeriod, closeYear, reopenYear, yearEndPreview,
+  periods, closePeriod, reopenPeriod, closeYear, reopenYear, yearEndPreview, tickCloseTask,
 } from "@/modules/finance/periodService";
 import type { FinanceContext } from "@/modules/finance/types";
 
@@ -44,6 +44,7 @@ export const POST = route(spec, async (c) => {
     : action === "reopen" ? await reopenPeriod(ctx, period, c.body?.reason)
       : action === "close-year" ? await closeYear(ctx, period)
         : action === "reopen-year" ? await reopenYear(ctx, period, c.body?.reason)
-          : { error: "action" };
+          : action === "tick" ? await tickCloseTask(ctx, period, c.body?.task, c.body?.done)
+            : { error: "action" };
   return refused(result) ? result : { ok: true, ...result };
 });

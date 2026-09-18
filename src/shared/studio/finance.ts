@@ -367,6 +367,8 @@ type Strings = CommonStrings & {
   tabDunning: string;
   dunningLevels: string;
   dunningLevelsLead: string;
+  closeTasks: string;
+  closeTasksLead: string;
   creditRefused: (e: { error: string; limit?: number; owed?: number; after?: number }) => string;
   tabExpenses: string;
   tabReconcile: string;
@@ -814,6 +816,8 @@ const en: Strings = {
   tabCredit: "Credit",
   tabDunning: "Reminders",
   dunningLevels: "Payment reminders",
+  closeTasks: "Month-end tasks",
+  closeTasksLead: "Your own checklist for closing a month, one task per line. Ledger → Periods lists them beside the checks the books answer by themselves, and whoever closes ticks them. A month closes whether or not they are ticked.",
   dunningLevelsLead: "Days after the due date at which a reminder is due — first, second, final. Receivables → Reminders proposes the next one for each late invoice.",
   creditRefused: (e) => (e.error === "credit-hold"
     ? "This customer is on credit hold. Issue it anyway? Your name is recorded on the invoice."
@@ -1273,6 +1277,8 @@ const ar: Strings = {
   tabCredit: "الائتمان",
   tabDunning: "التذكيرات",
   dunningLevels: "تذكيرات السداد",
+  closeTasks: "مهام نهاية الشهر",
+  closeTasksLead: "قائمتكم الخاصة لاقفال الشهر، مهمة في كل سطر. تعرضها صفحة دفتر الأستاذ ← الفترات بجانب الفحوص التي تجيب عنها الدفاتر بنفسها، ويؤشر عليها من يقفل. يقفل الشهر سواء أشر عليها أم لا.",
   dunningLevelsLead: "عدد الأيام بعد تاريخ الاستحقاق التي يستحق عندها التذكير — الأول والثاني والأخير. تقترح الذمم المدينة ← التذكيرات التذكير التالي لكل فاتورة متأخرة.",
   creditRefused: (e) => (e.error === "credit-hold"
     ? "هذا العميل موقوف ائتمانيا. هل تصدرونها رغم ذلك؟ يسجل اسمكم على الفاتورة."

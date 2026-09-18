@@ -16,6 +16,7 @@
 // it is recomputed on every read.
 
 import { readDunningDays } from "./credit";
+import { readCloseTasks } from "./closeChecklist";
 import { requirePermission, ALL_PERMISSIONS } from "@/platform/access";
 import { seriesSetting } from "@/modules/administration/numbering";
 import { addDaysISO } from "@/shared/dates";
@@ -228,6 +229,9 @@ export async function saveFinanceSettings(ctx: FinanceContext, body: Record<stri
   // Cleaned rather than refused — an empty or garbled list falls back to the
   // defaults, which is always a working answer.
   if (body?.dunningDays !== undefined) next.dunningDays = readDunningDays(body.dunningDays);
+  // THE STUDIO'S OWN CLOSE TASKS (./closeChecklist), one line each. An empty
+  // list is kept as empty — a studio that wants no manual tasks has none.
+  if (body?.closeTasks !== undefined) next.closeTasks = readCloseTasks(Array.isArray(body.closeTasks) ? body.closeTasks : []);
 
   // APPROVAL CHAINS ARE NOT EDITED HERE ANY MORE — Studio settings → Approvals
   // is their one door (platform/approval/store, STUDIO_EDITABLE_CHAINS). This
@@ -248,6 +252,7 @@ export async function saveFinanceSettings(ctx: FinanceContext, body: Record<stri
       withholdingRules: readWithholdingRules({ settings: next }),
       paymentHold: readHold({ settings: next }),
       dunningDays: readDunningDays(next.dunningDays),
+      closeTasks: readCloseTasks(next.closeTasks),
     }
     : { error: "notfound" };
 }

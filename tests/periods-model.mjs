@@ -6,6 +6,7 @@ import {
   periodOf, isClosed, postingProblem, closeProblems, closePreview, periodList, cleanClose,
   PERIOD_RE,
 } from "../src/modules/finance/periods.ts";
+import { closeChecks, readCloseTasks, returnCovers, DEFAULT_CLOSE_TASKS } from "../src/modules/finance/closeChecklist.ts";
 
 let fails = 0;
 const ok = (what, cond, detail = "") => {
@@ -95,6 +96,28 @@ ok("...and is not closed", reopenedList.find((r) => r.period === "2026-07").clos
 ok("the stored close carries who and when",
   cleanClose("2026-09", { collaboratorId: "c9", at: "2026-10-01T00:00:00.000Z" })
     .closedByCollaboratorId === "c9");
+
+// ── THE CLOSE CHECKLIST ──────────────────────────────────────────────────
+{
+  const base = { unposted: 0, accounts: [], depreciationDue: [], assetsOnBooks: 0, vatRequired: false, vatFiled: false, balanced: true };
+  const state = (input, key) => closeChecks({ ...base, ...input }).find((c) => c.key === key).state;
+  ok("A QUIET MONTH IS DONE WHERE IT CAN BE, AND SAYS WHAT DOES NOT APPLY",
+    state({}, "posted") === "done" && state({}, "reconciled") === "n/a" && state({}, "depreciated") === "n/a" && state({}, "vat") === "n/a");
+  ok("unposted documents are to do", state({ unposted: 2 }, "posted") === "todo");
+  ok("A MONEY ACCOUNT THAT MOVED WITH NO STATEMENT IS NOT RECONCILED",
+    state({ accounts: [{ code: "1010", lines: 0, unmatched: 0 }] }, "reconciled") === "todo");
+  ok("...nor one with an unmatched line", state({ accounts: [{ code: "1010", lines: 3, unmatched: 1 }] }, "reconciled") === "todo");
+  ok("...and one fully matched is", state({ accounts: [{ code: "1010", lines: 3, unmatched: 0 }] }, "reconciled") === "done");
+  ok("depreciation due and unposted is to do", state({ assetsOnBooks: 1, depreciationDue: ["FA-0001"] }, "depreciated") === "todo");
+  ok("A VAT STUDIO WITH NO FILED RETURN FOR THE MONTH IS TO DO", state({ vatRequired: true }, "vat") === "todo"
+    && state({ vatRequired: true, vatFiled: true }, "vat") === "done");
+  ok("an unbalanced trial balance is to do", state({ balanced: false }, "balanced") === "todo");
+  ok("a quarterly return covers each of its months", returnCovers({ from: "2026-07-01", to: "2026-09-30" }, "2026-08-01", "2026-08-31")
+    && !returnCovers({ from: "2026-08-15", to: "2026-09-30" }, "2026-08-01", "2026-08-31"));
+  ok("THE STUDIO'S TASKS DEFAULT UNTIL IT SETS ITS OWN", readCloseTasks(undefined).join() === DEFAULT_CLOSE_TASKS.join());
+  ok("...an empty list is kept empty, not defaulted", readCloseTasks([]).length === 0);
+  ok("...and duplicates and blanks go", readCloseTasks(["A", " a ", "", "B"]).join() === "A,B");
+}
 
 console.log(fails ? `\nperiods model: ${fails} FAILURES\n` : "\nperiods model: all passed\n");
 process.exit(fails ? 1 : 0);

@@ -50,7 +50,7 @@ export default function PeriodsPanel({ slug, locale = "en" }) {
 
   if (!data) return <p className="text-sm text-slate-500 dark:text-slate-400">…</p>;
 
-  const { periods: rows = [], preview, canClose, years } = data;
+  const { periods: rows = [], preview, canClose, years, checklist } = data;
 
   return (
     <div className="space-y-5">
@@ -142,6 +142,39 @@ export default function PeriodsPanel({ slug, locale = "en" }) {
       )}
 
       {years && <YearEnd slug={slug} tr={tr} years={years} canClose={canClose} busy={busy} send={send} />}
+
+      {/* ---- the checklist: what should be true, never a gate ------------ */}
+      {chosen && checklist && (
+        <div className="space-y-2 rounded-geex border border-slate-200/70 p-4 dark:border-white/10">
+          <h4 className="font-display text-sm font-700 text-slate-900 dark:text-white">{tr.checklist}</h4>
+          <p className="text-xs text-slate-500 dark:text-slate-400">{tr.checklistLead}</p>
+          <ul className="space-y-1">
+            {checklist.checks.map((c) => (
+              <li key={c.key} className="flex items-start gap-2 text-sm">
+                <span aria-hidden className={c.state === "done" ? "text-emerald-600 dark:text-emerald-300" : c.state === "todo" ? "text-amber-600 dark:text-amber-300" : "text-slate-400"}>
+                  {c.state === "done" ? "✓" : c.state === "todo" ? "•" : "–"}
+                </span>
+                <span className="text-slate-700 dark:text-slate-200">{tr.check(c.key, c.state, c.count || 0, c.detail || [])}</span>
+              </li>
+            ))}
+          </ul>
+          {checklist.tasks.length > 0 && (
+            <>
+              <p className="pt-1 text-xs font-600 text-slate-500 dark:text-slate-400">{tr.tasks}</p>
+              <ul className="space-y-1">
+                {checklist.tasks.map((t) => (
+                  <li key={t.task} className="flex flex-wrap items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+                    <input type="checkbox" checked={t.done} disabled={!canClose || busy} aria-label={t.task}
+                      onChange={(e) => send({ action: "tick", period: chosen, task: t.task, done: e.target.checked })} />
+                    <span>{t.task}</span>
+                    {t.done && t.by && <span className="text-xs text-slate-400">{tr.tickedBy(t.by)}</span>}
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </div>
+      )}
 
       {/* ---- reopening needs a reason ------------------------------------- */}
       {reopening && (

@@ -80,6 +80,25 @@ is the month of its first posting, and listing every month since the epoch would
 of empty rows nobody closes. The current month is included even when empty, because it is
 the one somebody is working in.
 
+### The close checklist (18/09/2026, Finance plan step 5)
+
+Choosing a month shows **"Before you close it"** under what a close would lock
+(`modules/finance/closeChecklist.ts`). It is **still not a gate** — the month closes whether or
+not it is all green, for the reason above. Five checks the books answer by themselves:
+
+- **Posted** — every document dated in the month is in the books (the list above it).
+- **Reconciled** — every money account that MOVED in the month has statement lines dated in it,
+  and none of them is unmatched. A money account that did not move is not asked about.
+- **Depreciated** — no fixed asset on the books has depreciation due to the month's end that is
+  not posted.
+- **VAT** — where the studio charges VAT, a FILED return covers the whole month.
+- **Balanced** — the trial balance balances.
+
+A check that does not apply (no VAT, no assets, no money moved) says so with a dash rather than
+reading as done. Beneath them, **the studio's own month-end tasks** — three by default, set one
+per line in Finance settings → Month-end tasks (an empty list is kept empty) — each ticked by
+whoever holds `finance.ledger.close`, with their name (`closeTicks`, filed under the ledger).
+
 ## What building it found
 
 **The trial balance's totals are `totalDebit` / `totalCredit`, not `debit` / `credit`** —

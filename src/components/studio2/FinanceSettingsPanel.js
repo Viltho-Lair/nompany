@@ -27,7 +27,7 @@ import { Field } from "@/components/fields/Field";
 // `withholdingProblems` is the authority and returns SENTENCES, so the refusal
 // a studio reads is the server's own words about their own edit rather than a
 // second copy of the rules here, free to disagree with the first.
-export default function FinanceSettingsPanel({ categories = [], rules = [], hold = null, dunning = [], canManage, locale = "en", onSave }) {
+export default function FinanceSettingsPanel({ categories = [], rules = [], hold = null, dunning = [], closeTasks = [], canManage, locale = "en", onSave }) {
   const tr = financeDict(locale);
   const [cats, setCats] = useState(() => [...categories]);
   const [rows, setRows] = useState(() => rules.map((r) => ({ ...r })));
@@ -35,6 +35,8 @@ export default function FinanceSettingsPanel({ categories = [], rules = [], hold
   const [holdDraft, setHoldDraft] = useState(() => ({ mode: hold?.mode || "off", tolerancePct: hold?.tolerancePct ?? 0, toleranceAmount: hold?.toleranceAmount ?? 0 }));
   // DUNNING LEVELS as typed: whole days after the due date, comma-separated.
   const [dunningText, setDunningText] = useState(() => dunning.join(", "));
+  // THE MONTH-END TASKS, one per line, as the studio words them.
+  const [tasksText, setTasksText] = useState(() => closeTasks.join("\n"));
   const [adding, setAdding] = useState("");
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState("");
@@ -68,11 +70,15 @@ export default function FinanceSettingsPanel({ categories = [], rules = [], hold
     setBusy(true);
     setProblem("");
     const dunningDays = dunningText.split(/[,s]+/).filter(Boolean).map(Number);
-    const res = await onSave({ cashCategories: cats, withholdingRules: rows, paymentHold: holdDraft, dunningDays });
+    const res = await onSave({
+      cashCategories: cats, withholdingRules: rows, paymentHold: holdDraft, dunningDays,
+      closeTasks: tasksText.split("\n").map((t) => t.trim()).filter(Boolean),
+    });
     setBusy(false);
     if (res?.error) { setProblem(res.detail || res.error); return; }
     // THE SERVER'S CLEANED LIST is shown, not what was typed.
     if (Array.isArray(res?.dunningDays)) setDunningText(res.dunningDays.join(", "));
+    if (Array.isArray(res?.closeTasks)) setTasksText(res.closeTasks.join("\n"));
     setSaved(true);
   }
 
@@ -112,6 +118,13 @@ export default function FinanceSettingsPanel({ categories = [], rules = [], hold
               onClick={addCategory} disabled={!adding.trim()}>{tr.add}</button>
           </div>
         )}
+      </section>
+
+      <section className="space-y-3">
+        <h3 className="font-display text-sm font-700 text-slate-900 dark:text-white">{tr.closeTasks}</h3>
+        <p className="max-w-2xl text-[13px] text-slate-500 dark:text-slate-400">{tr.closeTasksLead}</p>
+        <textarea className={`h-24 w-full max-w-xl ${input}`} value={tasksText} disabled={!canManage} aria-label={tr.closeTasks}
+          onChange={(e) => { setTasksText(e.target.value); touched(); }} />
       </section>
 
       <section className="space-y-3">

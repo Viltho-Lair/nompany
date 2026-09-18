@@ -2,6 +2,7 @@ import { route, refused } from "@/platform/http/route";
 import { financeContext, saveFinanceSettings } from "@/modules/finance/finance";
 import { requirePermission } from "@/platform/access";
 import { dunningDaysFor } from "@/modules/finance/creditService";
+import { readCloseTasks } from "@/modules/finance/closeChecklist";
 import type { FinanceContext } from "@/modules/finance/types";
 
 export const runtime = "nodejs";
@@ -33,6 +34,7 @@ export const GET = route({ ...spec, body: false }, async (c) => {
   return {
     ok: true,
     dunningDays: dunningDaysFor(ctx),
+    closeTasks: readCloseTasks((ctx.settingsSection?.settings as Record<string, unknown> | undefined)?.closeTasks),
     cashCategories: ctx.cashCategories,
     withholdingRules: ctx.withholdingRules,
     paymentHold: ctx.paymentHold,

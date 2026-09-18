@@ -34,6 +34,11 @@ type Strings = {
   yearPreview: (profit: string, accounts: number) => string;
   yearsClosed: string;
   reopenYearLead: (endMonth: string) => string;
+  checklist: string;
+  checklistLead: string;
+  check: (key: string, state: string, count: number, detail: string[]) => string;
+  tasks: string;
+  tickedBy: (alias: string) => string;
 };
 
 const EN_KIND: Record<string, string> = { invoice: "Invoice", bill: "Bill", withholding: "Tax withheld by a client", asset: "Fixed asset not on the books" };
@@ -75,6 +80,19 @@ const en: Strings = {
   yearPreview: (p, n) => `Closing it moves ${p} into Retained Earnings, from ${n} ${n === 1 ? "account" : "accounts"}.`,
   yearsClosed: "Closed years",
   reopenYearLead: (m) => `Reopening the year to ${m} reopens its last month and reverses the closing entry on that day. Recorded with your name.`,
+  checklist: "Before you close it",
+  checklistLead: "What the books can answer for themselves, and your own tasks. None of it stops the close.",
+  check: (key, state, n, d) => {
+    if (state === "n/a") return ({ reconciled: "Reconciled — no money account moved this month", depreciated: "Depreciation — no fixed assets on the books", vat: "VAT — the studio charges none" })[key] || key;
+    if (key === "posted") return state === "done" ? "Every document dated in the month is in the books" : `${n} ${n === 1 ? "document is" : "documents are"} not in the books`;
+    if (key === "reconciled") return state === "done" ? "Every money account that moved is reconciled" : [d.length ? `No statement for ${d.join(", ")}` : "", n ? `${n} statement ${n === 1 ? "line" : "lines"} unmatched` : ""].filter(Boolean).join("; ");
+    if (key === "depreciated") return state === "done" ? "Depreciation is posted to the month's end" : `Depreciation due and not posted: ${d.join(", ")}`;
+    if (key === "vat") return state === "done" ? "A filed VAT return covers the month" : "No filed VAT return covers the month";
+    if (key === "balanced") return state === "done" ? "The trial balance balances" : "The trial balance does not balance";
+    return key;
+  },
+  tasks: "Your tasks",
+  tickedBy: (a) => `ticked by ${a}`,
 };
 
 // HAND-WRITTEN. NO DIACRITICS.
@@ -115,6 +133,19 @@ const ar: Strings = {
   yearPreview: (p, n) => `اقفالها ينقل ${p} الى الأرباح المحتجزة من ${n} ${n === 1 ? "حساب" : "حسابات"}.`,
   yearsClosed: "السنوات المقفلة",
   reopenYearLead: (m) => `اعادة فتح السنة حتى ${m} تعيد فتح آخر أشهرها وتعكس قيد الاقفال في ذلك اليوم. يسجل باسمكم.`,
+  checklist: "قبل أن تقفلوه",
+  checklistLead: "ما تجيب عنه الدفاتر بنفسها، ومهامكم الخاصة. لا شيء منها يمنع الاقفال.",
+  check: (key, state, n, d) => {
+    if (state === "n/a") return ({ reconciled: "التسوية — لم يتحرك أي حساب نقدي هذا الشهر", depreciated: "الاستهلاك — لا أصول ثابتة في الدفاتر", vat: "ضريبة القيمة المضافة — لا يفرضها الاستوديو" })[key] || key;
+    if (key === "posted") return state === "done" ? "كل مستند يحمل تاريخ الشهر مرحل" : `${n} مستند غير مرحل`;
+    if (key === "reconciled") return state === "done" ? "كل حساب نقدي تحرك تمت تسويته" : [d.length ? `لا كشف لـ ${d.join("، ")}` : "", n ? `${n} سطر كشف غير مطابق` : ""].filter(Boolean).join("؛ ");
+    if (key === "depreciated") return state === "done" ? "الاستهلاك مرحل حتى نهاية الشهر" : `استهلاك مستحق غير مرحل: ${d.join("، ")}`;
+    if (key === "vat") return state === "done" ? "اقرار ضريبي مقدم يغطي الشهر" : "لا يوجد اقرار ضريبي مقدم يغطي الشهر";
+    if (key === "balanced") return state === "done" ? "ميزان المراجعة متوازن" : "ميزان المراجعة غير متوازن";
+    return key;
+  },
+  tasks: "مهامكم",
+  tickedBy: (a) => `أشر عليها ${a}`,
 };
 
 const dict = { en, ar };

@@ -16,17 +16,23 @@ import {
   closeProblems, closePreview, periodList, cleanClose, isClosed, periodOf, PERIOD_RE,
 } from "./periods";
 import type { Period } from "./periods";
-import { invoiceWithheldToClear, postYearEnd, reverseDocument, ledgerAccounts, lastDayOf } from "./ledger";
+import {
+  invoiceWithheldToClear, postYearEnd, reverseDocument, ledgerAccounts, lastDayOf,
+  isMoneyAccount, assetBookState, trialBalanceFrom,
+} from "./ledger";
+import { depreciationDue } from "./depreciation";
+import { closeChecks, readCloseTasks, returnCovers } from "./closeChecklist";
+import { studioVatRate } from "@/shared/vat";
 import { closingLines } from "./statements";
 import { roundMoney } from "@/shared/money";
-import type { FinanceContext, Invoice } from "./types";
+import type { FinanceContext, Invoice, FixedAsset } from "./types";
 import type { JournalEntry } from "./types";
 
 const Periods = repo<Period>("accountingPeriods");
 const Entries = repo<JournalEntry>("journalEntries");
 const Invoices = repo<Invoice>("invoices");
 const Bills = repo<{ id: string; billDate?: string; status?: string }>("bills");
-const Assets = repo<{ id: string; acquiredOn?: string }>("fixedAssets");
+const Assets = repo<FixedAsset>("fixedAssets");
 
 const scope = (ctx: FinanceContext) => ({ studio: ctx.studio, section: ctx.ledgerSection });
 const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
@@ -96,6 +102,7 @@ export async function periods(ctx: FinanceContext, period: string) {
   ]);
   const alias = Object.fromEntries(people.map((c) => [String(c.id), String(c.alias || "")]));
   const today = new Date().toISOString().slice(0, 10);
+  const preview = PERIOD_RE.test(period) ? closePreview(entries, await unpostedIn(ctx, entries), period) : null;
 
   return {
     today,
@@ -112,9 +119,9 @@ export async function periods(ctx: FinanceContext, period: string) {
     // THE PREVIEW IS THE POINT OF THE SCREEN: a close that only counted entries
     // would be a button, and one that names what is dated in the month and not
     // yet posted is a decision.
-    preview: PERIOD_RE.test(period)
-      ? closePreview(entries, await unpostedIn(ctx, entries), period)
-      : null,
+    preview,
+    // WHAT SHOULD BE TRUE BEFORE THE CHOSEN MONTH CLOSES — never a gate.
+    checklist: preview ? await checklistFor(ctx, entries, period, preview.unposted.length) : null,
     canClose: !requirePermission(ctx.access, "finance.ledger.close"),
     years: await yearEnds(ctx, entries),
   };
@@ -301,4 +308,86 @@ export async function reopenYear(ctx: FinanceContext, endMonth: string, reason: 
   const reversed = await reverseDocument(ctx, "year-end", endMonth, `Year reopened: ${why}`, lastDayOf(endMonth));
   if ("error" in reversed && reversed.error) return reversed;
   return { reopened: endMonth };
+}
+
+// ── THE CLOSE CHECKLIST (./closeChecklist) ─────────────────────────────────
+
+type Tick = { id: string; period: string; task: string; byCollaboratorId: string; at: string };
+const Ticks = repo<Tick>("closeTicks");
+const StatementLines = repo<{ id: string; date?: string; accountId?: string; matchedEntryId?: string }>("bankStatementLines");
+const TaxReturns = repo<{ id: string; from?: string; to?: string }>("taxReturns");
+
+/**
+ * WHAT SHOULD BE TRUE BEFORE `period` IS CLOSED: the five checks the books
+ * answer, and the studio's own tasks with who ticked each. Read-only; the
+ * close itself never waits on it.
+ */
+async function checklistFor(ctx: FinanceContext, entries: JournalEntry[], period: string, unposted: number) {
+  const first = `${period}-01`;
+  const last = lastDayOf(period);
+  const [accounts, lines, returns, assets, book, ticks, people] = await Promise.all([
+    ledgerAccounts(ctx),
+    StatementLines.find(scope(ctx)),
+    TaxReturns.find({ studio: ctx.studio, section: ctx.taxSection }),
+    Assets.find({ studio: ctx.studio, section: ctx.assetsSection }),
+    assetBookState(ctx),
+    Ticks.find(scope(ctx)),
+    listCollaborators(ctx.studio.id),
+  ]);
+  const bankId = accounts.find((a) => a.code === "1010")?.id || "";
+  const inMonth = (d: unknown) => periodOf(d) === period;
+  // A MONEY ACCOUNT THAT MOVED IN THE MONTH is one somebody must reconcile; one
+  // that did not has nothing on a statement to agree with.
+  const moved = new Set<string>();
+  for (const e of entries) {
+    if (!inMonth(e.date)) continue;
+    for (const l of e.lines || []) moved.add(l.accountId);
+  }
+  const money = accounts.filter((a) => isMoneyAccount(a) && moved.has(a.id)).map((a) => {
+    const own = lines.filter((l) => inMonth(l.date) && (l.accountId || bankId) === a.id);
+    return { code: a.code, lines: own.length, unmatched: own.filter((l) => !l.matchedEntryId).length };
+  });
+  let onBooks = 0;
+  const due: string[] = [];
+  for (const a of assets) {
+    if (a.disposedOn || (a.acquiredOn && a.acquiredOn > last)) continue;
+    const held = book.get(a.id);
+    if (!held?.booked) continue;
+    onBooks += 1;
+    if (depreciationDue(a, held.depreciated, last, ctx.studio.currency) > 0) due.push(String(a.reference || a.name || a.id));
+  }
+  const alias = Object.fromEntries(people.map((c) => [String(c.id), String(c.alias || "")]));
+  const tasks = readCloseTasks((ctx.settingsSection?.settings as Record<string, unknown> | undefined)?.closeTasks);
+  return {
+    checks: closeChecks({
+      unposted,
+      accounts: money,
+      depreciationDue: due,
+      assetsOnBooks: onBooks,
+      vatRequired: (studioVatRate(ctx.studio) || 0) > 0,
+      vatFiled: returns.some((r) => returnCovers(r, first, last)),
+      balanced: trialBalanceFrom(accounts, entries, ctx.studio.currency).balanced,
+    }),
+    tasks: tasks.map((task) => {
+      const t = ticks.find((x) => x.period === period && x.task === task);
+      return { task, done: Boolean(t), by: t ? alias[t.byCollaboratorId] || "" : "", at: t?.at || "" };
+    }),
+  };
+}
+
+/** Tick or untick one of the studio's own close tasks for a month. */
+export async function tickCloseTask(ctx: FinanceContext, period: string, task: unknown, done: unknown) {
+  const denied = requirePermission(ctx.access, "finance.ledger.close");
+  if (denied) return denied;
+  if (!PERIOD_RE.test(period)) return { error: "period" };
+  const name = str(task, 120);
+  const tasks = readCloseTasks((ctx.settingsSection?.settings as Record<string, unknown> | undefined)?.closeTasks);
+  if (!tasks.includes(name)) return { error: "task" };
+  const existing = (await Ticks.find(scope(ctx))).filter((t) => t.period === period && t.task === name);
+  if (done === true) {
+    if (existing.length) return { ticked: existing[0] };
+    return { ticked: await Ticks.create(scope(ctx), { period, task: name, byCollaboratorId: ctx.collaborator.id, at: new Date().toISOString() }) };
+  }
+  for (const t of existing) await Ticks.remove(scope(ctx), t.id);
+  return { unticked: name };
 }
