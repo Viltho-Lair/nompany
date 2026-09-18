@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { Card, CardBody } from "@/app/super/_components/ui";
+import { Card, toneBg, toneInk } from "@/app/super/_components/ui";
+import Icon from "@/app/super/_components/Icon";
 import SelectMenu from "@/components/fields/SelectMenu";
 import { useReload } from "@/components/studio2/useReload";
 import { NOVA_PROVIDERS, providerMeta } from "@/lib/nova/providers";
@@ -67,60 +68,71 @@ export default function NovaCredentials({ note = "" }) {
   }
 
   if (!config) {
-    return <Card><CardBody><p className="text-sm text-[var(--ad-muted-foreground)]">{error || "Loading…"}</p></CardBody></Card>;
+    return (
+      <Card className="p-5">
+        <p className="text-sm text-[var(--ad-muted-foreground)]">{error || "Loading…"}</p>
+      </Card>
+    );
   }
 
   const meta = providerMeta(config.provider);
-  const box = "w-full rounded-lg border border-[var(--ad-border)] bg-transparent px-3 py-2 text-sm";
+  const box = "h-10 w-full rounded-xl border border-[var(--ad-border)] bg-transparent px-3 text-sm outline-none focus:border-[var(--ad-primary)]";
 
   return (
-    <Card className="mb-6">
-      <CardBody>
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h3 className="font-600">AI key</h3>
-          <span className={`text-xs ${config.keySet ? "text-[var(--ad-muted-foreground)]" : "text-[var(--ad-destructive)]"}`}>
-            {config.keySet ? "A key is stored." : "Not set."}
-          </span>
-        </div>
+    <Card className="p-5">
+      <div className="flex items-center gap-3">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: toneBg("primary"), color: toneInk("primary") }}>
+          <Icon name="key" className="h-[18px] w-[18px]" />
+        </span>
+        <h3 className="min-w-0 flex-1 font-display text-sm font-700">AI key</h3>
+        {/* A PILL, NOT A SENTENCE: whether a key is stored is the first thing
+            anybody opening this card needs, so it reads before the form does. */}
+        <span
+          className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-600"
+          style={{ backgroundColor: toneBg(config.keySet ? "success" : "danger"), color: toneInk(config.keySet ? "success" : "danger") }}
+        >
+          <span className="h-1.5 w-1.5 rounded-full" style={{ background: "currentColor" }} />
+          {config.keySet ? "Key stored" : "Not set"}
+        </span>
+      </div>
 
-        {note && <p className="mt-2 text-sm text-[var(--ad-muted-foreground)]">{note}</p>}
+      {note && <p className="mt-3 text-xs leading-5 text-[var(--ad-muted-foreground)]">{note}</p>}
 
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          <label className="block">
-            <span className="mb-1 block text-xs text-[var(--ad-muted-foreground)]">Provider</span>
-            {/* THE PRODUCT'S OWN DROPDOWN, not the browser's. A native <select>
-                hands its open list to the operating system, which in dark mode
-                paints near-white ink onto a white popup — see the header of
-                SelectMenu. This one was native until it moved here, and the
-                architectural guard missed it because the tag ended its line. */}
-            <SelectMenu
-              className={box}
-              value={config.provider || "anthropic"}
-              aria-label="Provider"
-              onChange={(v) => setConfig({ ...config, provider: v, model: providerMeta(v).defaultModel })}
-              options={NOVA_PROVIDERS.map((p) => ({ value: p.id, label: p.label }))}
-            />
-          </label>
+      <div className="mt-4 grid gap-3">
+        <label className="block">
+          <span className="mb-1.5 block text-xs font-600 text-[var(--ad-muted-foreground)]">Provider</span>
+          {/* THE PRODUCT'S OWN DROPDOWN, not the browser's. A native <select>
+              hands its open list to the operating system, which in dark mode
+              paints near-white ink onto a white popup — see the header of
+              SelectMenu. This one was native until it moved here, and the
+              architectural guard missed it because the tag ended its line. */}
+          <SelectMenu
+            className={box}
+            value={config.provider || "anthropic"}
+            aria-label="Provider"
+            onChange={(v) => setConfig({ ...config, provider: v, model: providerMeta(v).defaultModel })}
+            options={NOVA_PROVIDERS.map((p) => ({ value: p.id, label: p.label }))}
+          />
+        </label>
 
-          {/* THE MODEL IS A FIELD, NOT A LIST. Providers ship new model ids
-              between our releases, and a hard-coded dropdown is a list that goes
-              stale the week after it is written — it would make reaching a new
-              model a deploy. It is pre-filled with the provider's default so it
-              is never empty. */}
-          <label className="block">
-            <span className="mb-1 block text-xs text-[var(--ad-muted-foreground)]">Model</span>
-            <input
-              value={config.model || ""}
-              onChange={(e) => setConfig({ ...config, model: e.target.value })}
-              placeholder={meta.defaultModel}
-              className={`${box} font-mono`}
-            />
-          </label>
-        </div>
+        {/* THE MODEL IS A FIELD, NOT A LIST. Providers ship new model ids
+            between our releases, and a hard-coded dropdown is a list that goes
+            stale the week after it is written — it would make reaching a new
+            model a deploy. It is pre-filled with the provider's default so it
+            is never empty. */}
+        <label className="block">
+          <span className="mb-1.5 block text-xs font-600 text-[var(--ad-muted-foreground)]">Model</span>
+          <input
+            value={config.model || ""}
+            onChange={(e) => setConfig({ ...config, model: e.target.value })}
+            placeholder={meta.defaultModel}
+            className={`${box} font-mono`}
+          />
+        </label>
 
-        <label className="mt-3 block">
-          <span className="mb-1 block text-xs text-[var(--ad-muted-foreground)]">
-            API key {config.keySet && <span>— leave blank to keep the stored one</span>}
+        <label className="block">
+          <span className="mb-1.5 block text-xs font-600 text-[var(--ad-muted-foreground)]">
+            API key {config.keySet && <span className="font-400">— leave blank to keep the stored one</span>}
           </span>
           <input
             type="password"
@@ -131,25 +143,25 @@ export default function NovaCredentials({ note = "" }) {
             className={`${box} font-mono`}
           />
         </label>
+      </div>
 
-        {error && <p className="mt-3 text-sm text-[var(--ad-destructive)]">{error}</p>}
+      {error && <p className="mt-3 text-sm text-[var(--ad-destructive)]">{error}</p>}
 
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <button type="button" onClick={() => save()} disabled={busy}
-            className="rounded-lg bg-[var(--ad-primary)] px-3 py-1.5 text-sm font-500 text-white disabled:opacity-50">
-            {busy ? "Saving…" : "Save"}
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <button type="button" onClick={() => save()} disabled={busy}
+          className="h-9 rounded-xl bg-[var(--ad-primary)] px-4 text-sm font-600 text-white transition-opacity hover:opacity-90 disabled:opacity-50">
+          {busy ? "Saving…" : "Save"}
+        </button>
+        {config.keySet && (
+          <button type="button" onClick={() => save("")} disabled={busy}
+            className="h-9 rounded-xl px-3 text-sm font-500 text-[var(--ad-destructive)] hover:bg-[var(--ad-muted)]">
+            Remove key
           </button>
-          {config.keySet && (
-            <button type="button" onClick={() => save("")} disabled={busy}
-              className="rounded-lg px-3 py-1.5 text-sm text-[var(--ad-destructive)]">
-              Remove key
-            </button>
-          )}
-          <span className="text-xs text-[var(--ad-muted-foreground)]">
-            Get one at {meta.docs}. Stored encrypted and never shown again.
-          </span>
-        </div>
-      </CardBody>
+        )}
+      </div>
+      <p className="mt-3 text-[11px] leading-5 text-[var(--ad-muted-foreground)]">
+        Get one at {meta.docs}. Stored encrypted and never shown again.
+      </p>
     </Card>
   );
 }
