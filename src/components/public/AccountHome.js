@@ -1059,6 +1059,9 @@ function Security({ devices, onChanged, locale, user }) {
             <div className="flex min-w-0 flex-col justify-center">
               <span className="flex flex-wrap items-center gap-2">
                 <span className={ROW_LABEL}>{d.label || "Unknown device"}</span>
+                {d.current && (
+                  <span className="rounded-full bg-brand-500/10 px-2 py-0.5 text-[11px] font-600 text-brand-700 dark:text-brand-300">{tr.thisDevice}</span>
+                )}
                 {/* Every browser that signs in is listed; only the ones marked
                     trusted skip the emailed code. Saying which is which is the
                     point of the list. */}

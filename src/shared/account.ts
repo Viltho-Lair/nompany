@@ -18,6 +18,7 @@ type Strings = {
   freeStudioLimit: (n: number) => string;
   askStudioAccessUsing: string;
   asksCode: string;
+  thisDevice: string;
   calendarAllDay: (date: string) => string;
   calendarCancelled: string;
   calendarConnectFailed: string;
@@ -260,6 +261,7 @@ const en: Strings = {
   freeStudioLimit: (n: number) => `You can own ${n} free studio${n === 1 ? "" : "s"}. Upgrade one of yours to create another.`,
   askStudioAccessUsing: "Ask a studio for access using its company code. Someone there approves the request.",
   asksCode: "Asks for a code",
+  thisDevice: "This device",
   calendarAllDay: (date: string) => `All day · ${date}`,
   calendarCancelled: "Connecting your calendar was cancelled.",
   calendarConnectFailed: "We couldn't connect your calendar. Try again.",
@@ -515,6 +517,7 @@ const ar: Strings = {
   freeStudioLimit: (n: number) => `يمكنك امتلاك ${n === 1 ? "استوديو مجاني واحد" : n === 2 ? "استوديوهين مجانيين" : n <= 10 ? `${n} استوديوهات مجانية` : `${n} استوديو مجاني`}. رق أحدها لإنشاء استوديو آخر.`,
   askStudioAccessUsing: "اطلب الوصول إلى استوديو برمز الشركة. وسيوافق أحدهم هناك على الطلب.",
   asksCode: "يطلب رمزا",
+  thisDevice: "هذا الجهاز",
   calendarAllDay: (date: string) => `طوال اليوم · ${date}`,
   calendarCancelled: "ألغي ربط تقويمك.",
   calendarConnectFailed: "تعذر ربط تقويمك. حاول مرة أخرى.",
