@@ -73,7 +73,7 @@ export type Tile = {
  */
 export const TILES: readonly Tile[] = Object.freeze([
   {
-    key: "invoiced", switch: "finance-cash", department: "finance", label: "Invoiced", dataset: "invoices", measure: "sum",
+    key: "invoiced", switch: "finance-receivables", department: "finance", label: "Invoiced", dataset: "invoices", measure: "sum",
     field: "total", dateField: "issueDate",
     excludeStatuses: ["Draft", "Cancelled"], goodWhen: "up", unit: "money",
   },

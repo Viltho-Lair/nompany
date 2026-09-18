@@ -107,7 +107,7 @@ export const STAGE_REGISTRY: Record<string, StageEntry> = {
   // that go with the engagement. Note what does NOT come back with it: the
   // invoice NUMBER stays spent (invariant 10 — reference numbers only move
   // forward), so deleting a deal can never reissue a number a client holds.
-  invoice:   { type: "invoice", objectClass: "money",   cardinality: "many", sectionKey: "finance-cash",         permission: "finance.cash.view",           unassignable: false, collection: "invoices",       label: "Invoice",        onDelete: "cascade" },
+  invoice:   { type: "invoice", objectClass: "money",   cardinality: "many", sectionKey: "finance-cash",         permission: "finance.receivables.view",    unassignable: false, collection: "invoices",       label: "Invoice",        onDelete: "cascade" },
   // ---- KEPT, DELIBERATELY --------------------------------------------------
   // Every type below can exist with NO deal at all (`unassignable`), is created
   // on its own department screen, and is assigned to a deal afterwards (§3.6.2's
@@ -124,7 +124,7 @@ export const STAGE_REGISTRY: Record<string, StageEntry> = {
   //   asset    studio property. A generator bought for one project is still the
   //            studio's generator after the project is deleted.
   task:      { type: "task", objectClass: "control",      cardinality: "many", sectionKey: "tasks",                 permission: "tasks.board.view",         unassignable: true,  collection: "tasks",          label: "Task",           onDelete: "keep" },
-  expense:   { type: "expense", objectClass: "money",   cardinality: "many", sectionKey: "finance-cash",          permission: "finance.cash.view",        unassignable: true,  collection: "expenses",       label: "Expense",        onDelete: "keep" },
+  expense:   { type: "expense", objectClass: "money",   cardinality: "many", sectionKey: "finance-cash",          permission: "finance.expenses.view",    unassignable: true,  collection: "expenses",       label: "Expense",        onDelete: "keep" },
   bill:      { type: "bill", objectClass: "money",      cardinality: "many", sectionKey: "finance-payables",      permission: "finance.payables.view",    unassignable: true,  collection: "bills",          label: "Bill",           onDelete: "keep" },
   asset:     { type: "asset", objectClass: "resource",     cardinality: "many", sectionKey: "finance-assets",        permission: "finance.assets.view",      unassignable: true,  collection: "fixedAssets",    label: "Fixed asset",    onDelete: "keep" },
 

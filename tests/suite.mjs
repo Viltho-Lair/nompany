@@ -1020,7 +1020,7 @@ console.log("\n== the handler is carried, never copied");
 
   // ---- the safety property ---------------------------------------------------
   // A collaborator holding engagements.view and a Sales right, but explicitly
-  // NOT finance.cash.view: the invoice must not surface anywhere in the
+  // NOT finance.receivables.view: the invoice must not surface anywhere in the
   // payload — not a card, not a ref, not a summary. The whole TYPE is
   // withheld, never blanked (spec §4, "What each person sees inside").
   const salesRole = await createRole(studio.id, {
@@ -1046,8 +1046,8 @@ console.log("\n== the handler is carried, never copied");
   const engager = await person("Engager", null);
   await updateCollaborator(studio.id, engager.collaborator.id, { roleIds: [salesRole.id] });
   const engagerAccess = (await studioContext(engager.user, slug)).access;
-  ok("the fixture role really does hold crmSales.tickets.view but not finance.cash.view",
-    engagerAccess.has("crmSales.tickets.view") && !engagerAccess.has("finance.cash.view"),
+  ok("the fixture role really does hold crmSales.tickets.view but not finance.receivables.view",
+    engagerAccess.has("crmSales.tickets.view") && !engagerAccess.has("finance.receivables.view"),
     JSON.stringify([...engagerAccess]));
 
   const engagerList = await listEngagements({ studio, access: engagerAccess });
@@ -1080,7 +1080,7 @@ console.log("\n== the handler is carried, never copied");
   // ---- C-1: the block's `context` must not leak the ticket's private fields -
   // A reader who holds engagements.view plus a Finance stage right (NOT
   // sales.tickets.view, NOT any Sales right at all) still opens this block —
-  // it holds finance.cash.view, which is what makes the attached invoice
+  // it holds finance.receivables.view, which is what makes the attached invoice
   // present-and-visible above. Before the fix, engagementBlock returned
   // root.context VERBATIM: nine ticket-sourced fields including contact.name
   // and the full site address, none of which this screen renders and none of
@@ -1089,13 +1089,13 @@ console.log("\n== the handler is carried, never copied");
   // assertion has something to catch — a blank field proves nothing.
   const financeOnlyRole = await createRole(studio.id, {
     name: `Finance-only ${rand()}`,
-    permissions: ["engagements.view", "finance.cash.view"],
+    permissions: ["engagements.view", "finance.receivables.view"],
   });
   const financeOnly = await person("FinanceOnly", null);
   await updateCollaborator(studio.id, financeOnly.collaborator.id, { roleIds: [financeOnlyRole.id] });
   const financeOnlyAccess = (await studioContext(financeOnly.user, slug)).access;
-  ok("the fixture role really does hold finance.cash.view but not crmSales.tickets.view",
-    financeOnlyAccess.has("finance.cash.view") && !financeOnlyAccess.has("crmSales.tickets.view"),
+  ok("the fixture role really does hold finance.receivables.view but not crmSales.tickets.view",
+    financeOnlyAccess.has("finance.receivables.view") && !financeOnlyAccess.has("crmSales.tickets.view"),
     JSON.stringify([...financeOnlyAccess]));
 
   const financeOnlyBlock = await engagementBlock({ studio, access: financeOnlyAccess }, engId);
@@ -2431,7 +2431,7 @@ console.log("\n== Nova's toolset is enabled ∩ mapped ∩ permitted — never m
 // access set — no model, no key.
 {
   // A user who can read Finance cash but nothing else.
-  const cashOnly = new Set(["finance.cash.view"]);
+  const cashOnly = new Set(["finance.receivables.view"]);
   const { tools } = buildToolset({ enabled: {} }, cashOnly);
   const names = new Set(tools.map((t) => t.name));
   ok("a permitted, mapped, enabled read is offered", names.has("read__finance__invoices"), [...names].join(", "));
@@ -2445,7 +2445,7 @@ console.log("\n== Nova's toolset is enabled ∩ mapped ∩ permitted — never m
 
   // A user holding a right whose capability is default-OFF is not offered it
   // until the switchboard enables it — the console gate is real.
-  const canCreate = new Set(["finance.cash.view", "finance.cash.create"]);
+  const canCreate = new Set(["finance.expenses.view", "finance.expenses.create"]);
   const defaultOff = buildToolset({ enabled: {} }, canCreate);
   // (log-expense is an action, default-off, and not yet mapped — so absent either way.)
   ok("a default-off capability is not offered by default", !defaultOff.tools.some((t) => t.name.includes("log__expense")), "default-off");
@@ -4302,7 +4302,7 @@ console.log("\n== the departments are joined in one place, and it is checkable")
 
   // ---- the gate ----
   const denied = await traverse("salesTicket", rows.salesTicket[0], "invoice", {
-    read, holds: (perm) => perm !== "finance.cash.view",
+    read, holds: (perm) => perm !== "finance.receivables.view",
   });
   ok("a hop the reader may not make is refused", denied.error === "forbidden" && denied.at === "invoice", JSON.stringify(denied));
   const allowed = await traverse("salesTicket", rows.salesTicket[0], "invoice", { read, holds: () => true });

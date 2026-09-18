@@ -557,8 +557,24 @@ console.log("\n== rights catch up by themselves");
 
   // NOBODY IS WIDENED WHO HELD NOTHING — the rule can only follow a right that
   // is already there.
-  const stranger = C.catchUpFor(role({ permissions: ["finance.cash.view"] }));
-  ok("a role that held none of it gains nothing", stranger?.permissions.join() === "finance.cash.view");
+  // FINANCE SPLIT INTO EIGHT (18/09/2026) AND NOBODY LOST A SCREEN. Invoices
+  // and expenses came out of Cash; the tax return and the statements out of
+  // the Ledger's tabs. Whoever held the old right gains the new ones, verb for
+  // verb, and a ledger reader gains READ only — tax and reports have no write.
+  const cashClerk = C.catchUpFor(role({ permissions: ["finance.cash.view", "finance.cash.create"] }));
+  const gainedCash = new Set(cashClerk?.permissions || []);
+  ok("A CASH CLERK KEEPS THE INVOICES AND EXPENSES THAT CAME OUT OF CASH",
+    ["finance.receivables.view", "finance.receivables.create", "finance.expenses.view", "finance.expenses.create"]
+      .every((k) => gainedCash.has(k)), [...gainedCash].join(","));
+  ok("...verb for verb — no delete they never had", !gainedCash.has("finance.receivables.delete"));
+  const bookkeeper = C.catchUpFor(role({ permissions: ["finance.ledger.view", "finance.ledger.post"] }));
+  const gainedLedger = new Set(bookkeeper?.permissions || []);
+  ok("A LEDGER READER READS THE TAX RETURN AND THE STATEMENTS WHERE THEY WENT",
+    gainedLedger.has("finance.tax.view") && gainedLedger.has("finance.reports.view"), [...gainedLedger].join(","));
+
+  // NOT finance.cash: since Finance split (18/09/2026) holding Cash IS a trigger.
+  const stranger = C.catchUpFor(role({ permissions: ["inventory.items.view"] }));
+  ok("a role that held none of it gains nothing", stranger?.permissions.join() === "inventory.items.view");
   ok("...and is still marked, so the question is asked once", stranger?.catchUps.join() === C.CATCH_UP_IDS.join());
 
   ok("asked already, nothing to do — so a read costs no write",

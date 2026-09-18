@@ -43,7 +43,7 @@ function untaxed(breakdown: TaxBreakdown[]): { zeroNet?: number; exemptNet?: num
 }
 
 export async function taxReturnView(ctx: FinanceContext, query: { from?: unknown; to?: unknown }) {
-  const denied = requirePermission(ctx.access, "finance.ledger.view");
+  const denied = requirePermission(ctx.access, "finance.tax.view");
   if (denied) return denied;
   const rate = studioVatRate(ctx.studio);
   if (rate === null) return { enabled: false as const };

@@ -29,7 +29,7 @@ const scope = (ctx: FinanceContext) => ({ studio: ctx.studio, section: ctx.cashS
 
 /** Every note, with the invoice each belongs to named. */
 export async function listCreditNotes(ctx: FinanceContext) {
-  const denied = requirePermission(ctx.access, "finance.cash.view");
+  const denied = requirePermission(ctx.access, "finance.receivables.view");
   if (denied) return denied;
   return { creditNotes: await Notes.find(scope(ctx)) };
 }
@@ -42,7 +42,7 @@ export async function listCreditNotes(ctx: FinanceContext) {
  * unfinished note must neither move the books nor block a real one.
  */
 export async function createCreditNote(ctx: FinanceContext, body: Record<string, unknown>) {
-  const denied = requirePermission(ctx.access, "finance.cash.create");
+  const denied = requirePermission(ctx.access, "finance.receivables.create");
   if (denied) return denied;
   return draftCreditNote({ studio: ctx.studio, section: ctx.cashSection, collaboratorId: ctx.collaborator.id }, body);
 }
@@ -54,7 +54,7 @@ export async function createCreditNote(ctx: FinanceContext, body: Record<string,
  * never disagree about headroom, numbering or what a note copies.
  *
  * ONLY A DRAFT, from either door. Issuing is what posts to the ledger, and it
- * stays Finance's act (`finance.cash.edit`): a Point of Sale manager signing a
+ * stays Finance's act (`finance.receivables.edit`): a Point of Sale manager signing a
  * return does not thereby hold the books.
  */
 export async function draftCreditNote(
@@ -119,7 +119,7 @@ export async function draftCreditNote(
  * receivable negative.
  */
 export async function issueCreditNote(ctx: FinanceContext, id: string) {
-  const denied = requirePermission(ctx.access, "finance.cash.edit");
+  const denied = requirePermission(ctx.access, "finance.receivables.edit");
   if (denied) return denied;
 
   const [invoices, notes] = await Promise.all([
@@ -165,7 +165,7 @@ export async function issueCreditNote(ctx: FinanceContext, id: string) {
  * cannot.
  */
 export async function cancelCreditNote(ctx: FinanceContext, id: string) {
-  const denied = requirePermission(ctx.access, "finance.cash.edit");
+  const denied = requirePermission(ctx.access, "finance.receivables.edit");
   if (denied) return denied;
 
   const note = (await Notes.find(scope(ctx))).find((n) => n.id === id);

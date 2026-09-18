@@ -136,16 +136,16 @@ export default function FinanceDashboard({ invoices = [], expenses = [], currenc
       {/* Basic — the summary everyone gets, before any detail. AR at a glance,
           then the two headline AP/FA figures (Finance 1b) beside them. */}
       <StatRow>
-        {sectionOn("finance-cash") && (
+        {sectionOn("finance-receivables") && (
           <StatTile label={tr.outstanding} value={amt(outstanding)} />
         )}
-        {sectionOn("finance-cash") && (
+        {sectionOn("finance-receivables") && (
           <StatTile label={tr.overdueCount(overdueCount)} value={amt(overdue)} tone={overdue > 0 ? "text-rose-600 dark:text-rose-400" : ""} />
         )}
-        {sectionOn("finance-cash") && (
+        {sectionOn("finance-receivables") && (
           <StatTile label={tr.collectedMonth} value={amt(collectedThisMonth)} tone="text-emerald-600 dark:text-emerald-400" />
         )}
-        {sectionOn("finance-cash") && (
+        {sectionOn("finance-payables") && (
           <StatTile label={tr.spentMonth} value={amt(expensesThisMonth)} />
         )}
         {sectionOn("finance-payables") && (

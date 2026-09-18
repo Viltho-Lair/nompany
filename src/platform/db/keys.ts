@@ -861,16 +861,32 @@ export const SECTION_DEFS = [
     { key: "hr-payroll", name: "Payroll" },
   ] },
 
+  // FINANCE IS EIGHT SUB-SECTIONS, the owner's Finance Section Implementation
+  // Plan (18/09/2026): General Ledger, Receivables, Payables & Expenses, Cash &
+  // Bank, Fixed assets, Tax, Reports, Settings. Budgets, Close and Entities are
+  // the plan's too and are not here, because a nav entry with no screen is a
+  // right nothing can exercise (invariant 16).
+  //
+  // THREE OF THEM OWN NOTHING, the HR split's rule again: a row is where a
+  // record is FILED, not what the nav calls it. Every invoice, credit note and
+  // expense in every live studio carries `finance-cash`'s SectionID, and the
+  // ledger's rows carry `finance-ledger`'s. Receivables, Tax and Reports read
+  // them through the sections that own them (SECTION_COLLECTIONS below), and
+  // what the split moved is which nav entry a screen hangs off and which right
+  // opens it (SECTION_AREAS).
+  //
+  // `finance-cash` KEEPS ITS KEY AND BECOMES CASH & BANK — the money accounts,
+  // transfers, the forecast, cheques, guarantees and reconciliation — while its
+  // invoices are shown under Receivables and its expenses under Payables &
+  // Expenses. Renaming the key would not move a row; it would hide every one.
   { key: "finance", name: "Finance & Accounting", children: [
-    // finance-cash is deliberately NOT renamed. Every existing invoice and
-    // expense carries its SectionID, and while a key rename does not orphan a
-    // record, the name is still what the drill-down and the insights read.
-    { key: "finance-cash", name: "Cash" },
-    { key: "finance-ledger", name: "Ledger" },
-    // Wave 4 Finance 1b: what we owe (AP) and what we own (fixed assets), each
-    // a section beside cash and the ledger, each with its own permission.
-    { key: "finance-payables", name: "Payables" },
+    { key: "finance-ledger", name: "General Ledger" },
+    { key: "finance-receivables", name: "Receivables" },
+    { key: "finance-payables", name: "Payables & Expenses" },
+    { key: "finance-cash", name: "Cash & Bank" },
     { key: "finance-assets", name: "Fixed assets" },
+    { key: "finance-tax", name: "Tax" },
+    { key: "finance-reports", name: "Reports" },
     { key: "finance-settings", name: "Settings" },
   ] },
 

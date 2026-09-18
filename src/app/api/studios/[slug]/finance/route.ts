@@ -1,8 +1,7 @@
 import { route } from "@/platform/http/route";
 import { requirePermission } from "@/platform/access";
-import { financeSetup } from "@/modules/finance/setup";
+import { setupFor as setupOf } from "@/modules/finance/setup";
 import { valuesFor } from "@/modules/administration/taxonomy";
-import { unclaimed } from "@/modules/finance/withholding";
 import {
   financeContext, listInvoices, listExpenses, profitability, billableProjects, summarise, saleItems,
   INVOICE_STATUSES, EXPENSE_CATEGORIES, PAYMENT_METHODS,
@@ -11,12 +10,6 @@ import { referencePickers } from "@/modules/procurement/pickers";
 import { studioVatRate } from "@/shared/vat";
 import { storedMoneyAccounts } from "@/modules/finance/ledger";
 
-// WHAT FINANCE NEEDS SET UP AND IS MISSING (modules/finance/setup), and whether
-// this reader can fix it — the notice links to Studio settings only for them.
-const setupOf = (f: { studio: unknown; on: (k: string) => boolean; access: unknown }) => ({
-  setup: financeSetup(f.studio, { sectionOn: f.on }),
-  canFixSetup: !requirePermission(f.access as Parameters<typeof requirePermission>[0], "administration.settings.edit"),
-});
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,26 +20,43 @@ export const dynamic = "force-dynamic";
 export const GET = route(
   { auth: "studio", context: financeContext, name: "finance" },
   async (g) => {
-  // EVERYTHING HERE IS FINANCE → CASH'S. This response draws the Cash screens
-  // and, on the landing page, the receivables half of the dashboard and the
-  // project margins — which are built from the same invoices and expenses. So
-  // with Cash switched off none of it is read, and the landing page keeps only
-  // what Payables and Fixed assets fetch for themselves.
-  const cashOn = g.on("finance-cash");
-  const [invoices, expenses, projects, { milestones = [] }] = cashOn ? await Promise.all([
-    listInvoices(g), listExpenses(g), billableProjects(g),
+  // EACH PART ANSWERS TO ITS OWN SUB-SECTION AND ITS OWN RIGHT (18/09/2026).
+  // This read serves the Receivables screen (invoices), the Expenses tab of
+  // Payables & Expenses, the project margins on Reports, and the Finance
+  // dashboard, which summarises all of it. Before the split it answered to the
+  // Cash switch alone and checked NO right — anybody who could open any part
+  // of Finance was handed every invoice and expense. Now each is read only for
+  // somebody who may see it there, or who holds the dashboard, which is the
+  // right that has always summarised them; and never while its screen is off.
+  const has = (key: string) => !requirePermission(g.access, key as Parameters<typeof requirePermission>[1]);
+  const arOn = g.on("finance-receivables");
+  const expOn = g.on("finance-payables");
+  const seeInvoices = arOn && (has("finance.receivables.view") || g.canViewDashboard);
+  const seeExpenses = expOn && (has("finance.expenses.view") || g.canViewDashboard);
+  // THE MARGINS ARE A REPORT: built from invoices and expenses, shown to whoever
+  // reads Reports (or the dashboard) whether or not they may open the documents
+  // one by one — an aggregate is what that right is for.
+  const seeMargins = g.on("finance-reports") && (has("finance.reports.view") || g.canViewDashboard);
+  const readInvoices = seeInvoices || seeMargins;
+  const readExpenses = seeExpenses || seeMargins;
+  const [allInvoices, allExpenses, projects, { milestones = [] }] = readInvoices || readExpenses ? await Promise.all([
+    readInvoices ? listInvoices(g) : Promise.resolve([]),
+    readExpenses ? listExpenses(g) : Promise.resolve([]),
+    billableProjects(g),
     // THE MILESTONES AN INVOICE CAN CLAIM. `milestoneId` has been on the
     // invoice since billing schedules shipped and no form set it, so every
     // project invoice landed in "unattributed" and no milestone ever read as
     // billed.
     referencePickers(g.studio, { projects: g.projectsListSection }, { milestones: true }),
   ]) : [[], [], [], { milestones: [] }];
-  const projectMargins = cashOn ? await profitability(g, { invoices, expenses }) : [];
+  const projectMargins = seeMargins ? await profitability(g, { invoices: allInvoices, expenses: allExpenses }) : [];
+  const invoices = seeInvoices ? allInvoices : [];
+  const expenses = seeExpenses ? allExpenses : [];
   // What an invoice line may name — only when somebody here can raise one.
-  const items = cashOn && g.canManage ? await saleItems(g) : [];
+  const items = seeInvoices && has("finance.receivables.create") ? await saleItems(g) : [];
   // WHERE MONEY CAN ARRIVE OR LEAVE — the bank, a till, a second bank. Only for
   // somebody who records money; a form offers it only when there is a choice.
-  const moneyAccounts = cashOn && g.canManage
+  const moneyAccounts = (seeInvoices || seeExpenses) && g.canManage
     ? (await storedMoneyAccounts(g)).map((a) => ({ id: a.id, code: a.code, name: a.name }))
     : [];
 
@@ -63,13 +73,9 @@ export const GET = route(
     ...setupOf(g),
     profitability: projectMargins,
     summary: summarise(invoices, expenses, g.studio.currency),
-    // WHAT THE STUDIO CAN RECLAIM. Tax withheld is only worth anything if the
-    // studio can prove it was paid over, so this lists the documents where tax
-    // was deducted and no certificate has been recorded — a list to CHASE,
-    // which is a different list from what was withheld.
-    unclaimedWithholding: unclaimed(invoices.map((inv) => ({
-      document: inv, withheld: inv.withheld, certificateRef: inv.certificateRef,
-    }))),
+    // What the reader may do on each screen this read serves.
+    canManageReceivables: has("finance.receivables.create") || has("finance.receivables.edit"),
+    canManageExpenses: has("finance.expenses.create") || has("finance.expenses.edit"),
     vocabulary: {
       invoiceStatuses: INVOICE_STATUSES,
       moneyAccounts,

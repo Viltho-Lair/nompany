@@ -95,7 +95,13 @@ export const cash = (v: unknown, currency: unknown) => {
 // different function, and the scope still cannot cross a studio.
 export const financeContext = moduleContext<FinanceContext>({
   root: "finance",
-  sub: { cash: "finance-cash", ledger: "finance-ledger", payables: "finance-payables", assets: "finance-assets", settings: "finance-settings" },
+  // RECEIVABLES, TAX AND REPORTS OWN NOTHING (keys.ts): invoices and expenses
+  // are still read through `cashSection` and the journal through
+  // `ledgerSection`. They are here for their flags — who may open them.
+  sub: {
+    cash: "finance-cash", ledger: "finance-ledger", payables: "finance-payables", assets: "finance-assets", settings: "finance-settings",
+    receivables: "finance-receivables", tax: "finance-tax", reports: "finance-reports",
+  },
   // Projects and Inventory sheets, when the studio has them. Read on the same
   // terms Sales reads Technical: what a project cost is part of the invoice's
   // own story, and a studio without those sections simply has no margin column.
@@ -116,7 +122,7 @@ export const financeContext = moduleContext<FinanceContext>({
     // — and a return against it can put that back. Nullable like the rest.
     items: ["inventory-items", "inventory"],
   },
-  flags: ["cash", "ledger", "payables", "assets", "settings"],
+  flags: ["cash", "ledger", "payables", "assets", "settings", "receivables", "tax", "reports"],
   extend: ({ settingsSection, studio }) => ({
     cashCategories: readCashCategories(settingsSection as { settings?: Record<string, unknown> }),
     withholdingRules: readWithholdingRules(settingsSection as { settings?: Record<string, unknown> }),
@@ -346,7 +352,7 @@ export async function listInvoices(
 
 export async function createInvoice(ctx: FinanceContext, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
-  const denied = requirePermission(ctx.access, "finance.cash.create");
+  const denied = requirePermission(ctx.access, "finance.receivables.create");
   if (denied) return denied;
 
   const { studio, cashSection, collaborator } = ctx;
@@ -430,7 +436,7 @@ export async function createInvoice(ctx: FinanceContext, body: Record<string, un
 
 export async function editInvoice(ctx: FinanceContext, id: string, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
-  const denied = requirePermission(ctx.access, "finance.cash.edit");
+  const denied = requirePermission(ctx.access, "finance.receivables.edit");
   if (denied) return denied;
 
   const { studio, cashSection } = ctx;
@@ -532,7 +538,7 @@ export async function recordPayment(
   ctx: FinanceContext, id: string, body: Record<string, unknown>, opts: { chequeId?: string } = {},
 ) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
-  const denied = requirePermission(ctx.access, "finance.cash.edit");
+  const denied = requirePermission(ctx.access, "finance.receivables.edit");
   if (denied) return denied;
 
   const { studio, cashSection, collaborator } = ctx;
@@ -611,7 +617,7 @@ export async function setPaymentBounced(ctx: FinanceContext, invoiceId: string, 
 // Only a draft can be deleted. Once issued it is part of the record — cancel it.
 export async function removeInvoice(ctx: FinanceContext, id: string) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
-  const denied = requirePermission(ctx.access, "finance.cash.delete");
+  const denied = requirePermission(ctx.access, "finance.receivables.delete");
   if (denied) return denied;
 
   const { studio, cashSection } = ctx;
@@ -652,7 +658,7 @@ export async function listExpenses({ studio, cashSection }: Pick<FinanceContext,
 
 export async function createExpense(ctx: FinanceContext, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
-  const denied = requirePermission(ctx.access, "finance.cash.create");
+  const denied = requirePermission(ctx.access, "finance.expenses.create");
   if (denied) return denied;
 
   const { studio, cashSection, collaborator } = ctx;
@@ -692,7 +698,7 @@ export async function createExpense(ctx: FinanceContext, body: Record<string, un
 
 export async function editExpense(ctx: FinanceContext, id: string, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
-  const denied = requirePermission(ctx.access, "finance.cash.edit");
+  const denied = requirePermission(ctx.access, "finance.expenses.edit");
   if (denied) return denied;
 
   const { studio, cashSection } = ctx;
@@ -734,7 +740,7 @@ export async function editExpense(ctx: FinanceContext, id: string, body: Record<
 
 export async function removeExpense(ctx: FinanceContext, id: string) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
-  const denied = requirePermission(ctx.access, "finance.cash.delete");
+  const denied = requirePermission(ctx.access, "finance.expenses.delete");
   if (denied) return denied;
 
   const removed = await Expenses.remove({ studio: ctx.studio, section: ctx.cashSection }, id);
@@ -863,7 +869,7 @@ export async function billableProjects(ctx: FinanceContext) {
 // two projects sharing one is not a cosmetic problem.
 export async function setCommercials(ctx: FinanceContext, id: string, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
-  const denied = requirePermission(ctx.access, "finance.cash.edit");
+  const denied = requirePermission(ctx.access, "finance.receivables.edit");
   if (denied) return denied;
 
   const { studio } = ctx;

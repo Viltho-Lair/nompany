@@ -350,8 +350,28 @@ requisitions, orders, supplier RFQs, expediting, subcontracts, receiving and sup
   Four of those already exist and live in Studio settings — relocating a working screen is a
   visibility decision each time, so they move in their own change. Two (UoM, cost codes) have no
   records at all yet, and a tab promising an empty registry reads as a finished feature.
-- **`finance-ledger` and `finance-settings` have no screens of their own** and currently fall
-  through to the Cash view. Pre-existing, and not caused by the restructure.
+- ~~**`finance-ledger` and `finance-settings` have no screens of their own.**~~ Both have had
+  screens since 08–09/09/2026; this bullet outlived them.
+- **FINANCE IS EIGHT SUB-SECTIONS since 18/09/2026** (the owner's Finance plan, step 3): General
+  Ledger, Receivables, Payables & Expenses, Cash & Bank, Fixed assets, Tax, Reports, Settings.
+  **No row moved**: invoices, credit notes and expenses stay filed under `finance-cash` (which
+  kept its key and became Cash & Bank) and the journal under `finance-ledger`; Receivables, Tax
+  and Reports own nothing and read through those. **Rights split with the screens** — the owner
+  chose a right per sub-section: `finance.receivables` (invoices, credit notes, receipts, a
+  project's PO number), `finance.expenses`, `finance.tax` (view) and `finance.reports` (view)
+  are new; Payables & Expenses answers to `finance.payables` and `finance.expenses`. **Existing
+  roles catch up by themselves** (`catchUps.ts`): holding `finance.cash` grants Receivables and
+  Expenses verb for verb, `finance.ledger.view` grants Tax and Reports view. **A person's own
+  override does not catch up** (as ever): somebody granted `finance.cash` individually rather
+  than through a role no longer opens invoices until somebody grants `finance.receivables`.
+  Stored names that were the old seeds are shown as the new ones (`RENAMED_SEEDS`: Cash → Cash &
+  Bank, Payables → Payables & Expenses, Ledger → General Ledger). Widgets, Main's outstanding
+  tile, the executive board's Invoiced tile and insights answer to the Receivables switch.
+  `seen()` now asks who may see a record of the section it is SHOWN in when that differs from
+  where it is stored. The `/finance` read, which checked no right at all, returns invoices only
+  to Receivables readers or the dashboard's, expenses only to Expenses readers or the
+  dashboard's, and project margins to Reports readers. Overdue-invoice notices already
+  delivered still link to `finance/cash` (Cash & Bank) — a sent link cannot be rewritten.
 - **The dead-capability audit in `tests/access.test.mjs` is largely blind.** It walks `src/lib`
   and `src/app/api`, `.js` only, and every department's permission-guarded write moved to
   `src/modules/<name>/**.ts` in Wave 3. It currently reports that no write permission reaches a

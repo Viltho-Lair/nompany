@@ -123,6 +123,24 @@ export const PERMISSION_CATCH_UPS: readonly PermissionCatchUp[] = [
     to: ["hr.lifecycle"],
     verbs: ["view", "create", "edit"],
   },
+  {
+    id: "finance-split-cash-2026-09-18",
+    // Finance split into eight sub-sections (18/09/2026). Invoices and expenses
+    // came out of `finance.cash`; whoever held it keeps them, verb for verb, and
+    // nobody else is widened.
+    note: "Whoever kept Cash keeps the invoices and expenses that came out of it",
+    from: "finance.cash",
+    to: ["finance.receivables", "finance.expenses"],
+  },
+  {
+    id: "finance-split-ledger-2026-09-18",
+    // The VAT return and the statements came out of the Ledger's tabs. Whoever
+    // could read the ledger reads them where they went.
+    note: "Whoever could read the ledger reads the tax return and the statements",
+    from: "finance.ledger",
+    to: ["finance.tax", "finance.reports"],
+    verbs: ["view"],
+  },
 ];
 
 /** Every id, for stamping a role that is created from now on. */

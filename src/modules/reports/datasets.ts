@@ -47,7 +47,7 @@ const col = (key: string, label: string) => ({ key, label });
 export const DATASETS: readonly DataSet[] = Object.freeze([
   {
     key: "invoices", label: "Invoices", group: "Finance & Accounting",
-    permission: "finance.cash.view",
+    permission: "finance.receivables.view",
     sectionKey: "finance-cash", parentSectionKey: "finance", collection: "invoices",
     columns: [
       col("reference", "Reference"), col("clientName", "Client"), col("status", "Status"),

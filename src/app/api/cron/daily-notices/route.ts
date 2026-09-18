@@ -159,7 +159,7 @@ async function noticesForStudio(studioId: string, todayISO: string, todayDate: D
   // word it. Employees ARE the collaborators — their identity document's expiry
   // sits on the collaborator row — so the HR scan reads no extra key.
   const jobs = [
-    { notices: overdueInvoiceNotices(invoices as never, todayISO, currency), key: "finance.cash.view", also: "", type: NOTIFY.invoiceOverdue, title: "Overdue invoices", href: "finance/cash", say: overdueDetail },
+    { notices: overdueInvoiceNotices(invoices as never, todayISO, currency), key: "finance.receivables.view", also: "", type: NOTIFY.invoiceOverdue, title: "Overdue invoices", href: "finance/receivables", say: overdueDetail },
     { notices: overdueBillNotices(bills as never, todayISO, currency), key: "finance.payables.view", also: "", type: NOTIFY.billOverdue, title: "Bills overdue", href: "finance/payables", say: overdueDetail },
     { notices: expiringDocumentNotices(collaborators as never, todayDate), key: "hr.employees.view", also: "", type: NOTIFY.documentExpiring, title: "Documents expiring", href: "hr/employees", say: expiryDetail((n) => `${n.name}'s ${identityDocumentLabel(n.kind, "en", { inSentence: true })}`) },
     // PERMITS ARE QUALITY & HSE'S (tier 5). Heard by the permit right AND by

@@ -193,12 +193,22 @@ export const SECTION_AREAS: Readonly<Record<string, readonly string[]>> = {
   "hr-time": ["hr.attendance"],
   "hr-leave": ["hr.vacations"],
   "hr-payroll": ["hr.payroll"],
+  // FINANCE SPLIT INTO EIGHT (18/09/2026), and the rights split with it — the
+  // owner chose a right per sub-section. Receivables, Expenses, Tax and Reports
+  // are new areas; every existing role that held what they came out of gains
+  // them by itself (modules/people/catchUps), so nobody loses a screen. Payables
+  // & Expenses answers to TWO areas, because a bill and an expense are different
+  // powers on one screen: a cash clerk who logs fuel receipts has no business
+  // approving a supplier's invoice.
   "finance-cash": ["finance.cash"],
+  "finance-receivables": ["finance.receivables"],
+  "finance-tax": ["finance.tax"],
+  "finance-reports": ["finance.reports"],
   // Gated by its own right — WITHOUT this line a leaf section has no areas, so
   // sectionViewable returns `!own` and shows it to everyone, flipping the whole
   // Finance parent visible for a no-role user. The goldens caught exactly that.
   "finance-ledger": ["finance.ledger"],
-  "finance-payables": ["finance.payables"],
+  "finance-payables": ["finance.payables", "finance.expenses"],
   "finance-assets": ["finance.assets"],
   "finance-settings": ["finance.settings"],
   // WHAT REMAINS OF OPERATIONS IS FIELD SERVICE: the rota that dispatches

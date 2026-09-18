@@ -5,7 +5,6 @@ import nextDynamic from "next/dynamic";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { ledgerDict } from "@/shared/studio/ledger";
-import { reconciliationDict } from "@/shared/studio/reconciliation";
 import { useReload } from "@/components/studio2/useReload";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { moneyText } from "@/shared/money";
@@ -41,13 +40,10 @@ async function write(url, method, body) {
 // the profit and the trial balance to be computed a second apart.
 const PeriodsPanel = nextDynamic(() => import("@/components/studio2/PeriodsPanel"),
   { loading: () => <ScreenSkeleton /> });
-const ReconciliationPanel = nextDynamic(() => import("@/components/studio2/ReconciliationPanel"),
-  { loading: () => <ScreenSkeleton /> });
-// THE TAX RETURN reads invoices, credit notes and bills — not the journal (vat.md
-// says why) — so it is its own panel with its own read, and it is drawn only
-// for a studio with a VAT rate.
-const TaxReturnPanel = nextDynamic(() => import("@/components/studio2/TaxReturnPanel"),
-  { loading: () => <ScreenSkeleton /> });
+// RECONCILIATION, THE TAX RETURN AND THE STATEMENTS LEFT THIS SCREEN when
+// Finance split (18/09/2026): they are Cash & Bank's, Tax's and Reports' now,
+// each on its own right. What stays is the book itself — the trial balance, the
+// journal, the chart and the months it is closed by.
 
 // Through shared/money, which shows a currency's own decimals: this was fixed
 // at two places and hid the third decimal of every dinar amount.
@@ -73,7 +69,7 @@ export default function StudioLedger({ slug }) {
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <ScreenSkeleton />;
 
-  const { trialBalance = {}, journal = [], profitAndLoss = {}, balanceSheet = {} } = data;
+  const { trialBalance = {}, journal = [] } = data;
   const rows = trialBalance.rows || [];
 
   return (
@@ -86,9 +82,7 @@ export default function StudioLedger({ slug }) {
       <FinanceSetupNotice items={data.setup} slug={slug} canFix={data.canFixSetup} />
 
       <div role="tablist" className="flex flex-wrap gap-2 border-b border-slate-200 dark:border-white/10">
-        {[["trial", tr.trial], ["journal", tr.journal], ["accounts", tr.accounts], ["pl", tr.pl], ["bs", tr.bs],
-          ...(data.taxEnabled ? [["tax", tr.tax]] : []),
-          ["reconcile", reconciliationDict(locale).tab], ["periods", tr.periods]]
+        {[["trial", tr.trial], ["journal", tr.journal], ["accounts", tr.accounts], ["periods", tr.periods]]
           .map(([k, label]) => (
             <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)}
               className={`-mb-px border-b-2 px-4 py-2 font-display text-sm font-600 transition-colors ${
@@ -184,67 +178,9 @@ export default function StudioLedger({ slug }) {
         </section>
       )}
 
-      {tab === "pl" && (
-        <Statement tr={tr}
-          groups={[[tr.income, profitAndLoss.income, profitAndLoss.totalIncome],
-            [tr.expenses, profitAndLoss.expense, profitAndLoss.totalExpense]]}
-          total={profitAndLoss.profit} totalLabel={tr.profit} />
-      )}
-      {/* THE RETAINED RESULT IS SHOWN rather than folded into equity: no
-          account holds it until a year-end moves it, so a sheet that hid it
-          would report every trading studio out of balance. */}
-      {tab === "bs" && (
-        <Statement tr={tr}
-          groups={[[tr.assets, balanceSheet.asset, balanceSheet.totalAssets],
-            [tr.liabilities, balanceSheet.liability, balanceSheet.totalLiabilities],
-            [tr.equity, balanceSheet.equity, balanceSheet.totalEquity]]}
-          total={balanceSheet.totalAssets} totalLabel={tr.assets}
-          note={balanceSheet.balanced ? tr.retained(balanceSheet.retainedResult) : tr.outBy(balanceSheet.difference)} />
-      )}
-
-      {tab === "reconcile" && <ReconciliationPanel slug={slug} locale={locale} />}
-
       {tab === "periods" && <PeriodsPanel slug={slug} locale={locale} />}
 
-      {tab === "tax" && data.taxEnabled && <TaxReturnPanel slug={slug} locale={locale} />}
     </div>
-  );
-}
-
-// ONE COMPONENT FOR BOTH STATEMENTS. They differ in what the sections are
-// called and what the closing figure means; the shape — named sections of
-// accounts with a total each — is identical, and two copies would be two places
-// a rounding choice could drift.
-function Statement({ groups, total, totalLabel, note, tr }) {
-  return (
-    <section className="space-y-4">
-      {groups.map(([name, rows, groupTotal]) => (
-        <div key={name}>
-          <h3 className="font-display text-sm font-700 text-slate-900 dark:text-white">{name}</h3>
-          {(rows || []).length === 0 ? (
-            <p className="mt-1 text-sm text-slate-400 dark:text-slate-500">{tr.nothingHere}</p>
-          ) : (
-            <ul className="mt-1 space-y-0.5">
-              {(rows || []).map((r) => (
-                <li key={r.accountId || r.code} className="flex justify-between text-sm text-slate-600 dark:text-slate-300">
-                  <span>
-                    <span className="font-mono text-xs text-slate-400 dark:text-slate-500">{r.code}</span> {r.name}
-                  </span>
-                  <span className="num">{money(r.amount)}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-          <p className="mt-1 flex justify-between border-t border-slate-100 pt-1 text-sm font-600 text-slate-900 dark:border-white/5 dark:text-white">
-            <span>{name}</span><span className="num">{money(groupTotal)}</span>
-          </p>
-        </div>
-      ))}
-      <p className="flex justify-between border-t-2 border-slate-200 pt-2 font-display text-sm font-700 text-slate-900 dark:border-white/10 dark:text-white">
-        <span>{totalLabel}</span><span className="num">{money(total)}</span>
-      </p>
-      {note && <p className="text-xs text-slate-400 dark:text-slate-500">{note}</p>}
-    </section>
   );
 }
 

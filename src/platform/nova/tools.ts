@@ -5,7 +5,7 @@
 // capability's leaf permission before returning anything. This is the coarse-
 // gate tightening the research called for: the department GET is gated once (any
 // child .view), so the aggregate over-shares — but Nova's invoices tool requires
-// finance.cash.view itself, not merely "can view some Finance". Nova is never
+// finance.receivables.view itself, not merely "can view some Finance". Nova is never
 // looser than the user's own screens.
 //
 // The toolset the model sees is ENABLED (switchboard) ∩ MAPPED (has an impl
@@ -68,7 +68,7 @@ const TOOL_IMPLS: Record<string, ToolImpl> = {
     run: async (user, slug) => {
       const ctx = await financeContext(user, slug);
       if ("error" in ctx) return { error: ctx.error };
-      const denied = requirePermission(ctx.access, "finance.cash.view");
+      const denied = requirePermission(ctx.access, "finance.receivables.view");
       if (refusal(denied)) return denied;
       return capped(await listInvoices(ctx));
     },
@@ -79,7 +79,7 @@ const TOOL_IMPLS: Record<string, ToolImpl> = {
     run: async (user, slug) => {
       const ctx = await financeContext(user, slug);
       if ("error" in ctx) return { error: ctx.error };
-      const denied = requirePermission(ctx.access, "finance.cash.view");
+      const denied = requirePermission(ctx.access, "finance.expenses.view");
       if (refusal(denied)) return denied;
       return capped(await listExpenses(ctx));
     },
@@ -90,7 +90,7 @@ const TOOL_IMPLS: Record<string, ToolImpl> = {
     run: async (user, slug) => {
       const ctx = await financeContext(user, slug);
       if ("error" in ctx) return { error: ctx.error };
-      const denied = requirePermission(ctx.access, "finance.cash.view");
+      const denied = requirePermission(ctx.access, "finance.receivables.view");
       if (refusal(denied)) return denied;
       const [invoices, expenses] = await Promise.all([listInvoices(ctx), listExpenses(ctx)]);
       return summarise(invoices, expenses, ctx.studio.currency);

@@ -526,7 +526,22 @@ const OWN_AREAS = [
   { key: "hr.attendance", group: "Human Resources", label: "Attendance", verbs: ["view", "create", "edit"],
     scoped: true },
 
-  { key: "finance.cash", group: "Finance & Accounting", label: "Cash", verbs: ["view", "create", "edit", "delete"] },
+  // CASH & BANK since the split (18/09/2026): the money accounts, transfers,
+  // cheques, guarantees and the forecast. Invoices left for Receivables and
+  // expenses for their own area; every role that held this gained both.
+  { key: "finance.cash", group: "Finance & Accounting", label: "Cash & Bank", verbs: ["view", "create", "edit", "delete"] },
+  // WHAT CUSTOMERS OWE: invoices, credit notes, the receipts recorded against
+  // them and the withheld tax that settles them.
+  { key: "finance.receivables", group: "Finance & Accounting", label: "Receivables", verbs: ["view", "create", "edit", "delete"] },
+  // MONEY ALREADY SPENT, recorded — shown beside the bills on Payables &
+  // Expenses and kept a right of its own, because logging a fuel receipt is not
+  // authority over a supplier's invoice.
+  { key: "finance.expenses", group: "Finance & Accounting", label: "Expenses", verbs: ["view", "create", "edit", "delete"] },
+  // READ-ONLY ON PURPOSE. A VAT return is computed from the documents and a
+  // statement from the journal; nothing on either screen writes, so a create or
+  // edit here would be a right nothing can exercise (invariant 16).
+  { key: "finance.tax", group: "Finance & Accounting", label: "Tax", verbs: ["view"] },
+  { key: "finance.reports", group: "Finance & Accounting", label: "Reports", verbs: ["view"] },
   // THE LEDGER HAS NO ORDINARY CRUD. An entry is posted and, if wrong, reversed;
   // it is never edited or deleted, because it is the record of a decision (the
   // same reasoning as a typed task). So `post` and `reverse` are `extra` powers
@@ -536,7 +551,7 @@ const OWN_AREAS = [
   // daily act; closing says a month is finished with and nothing else may land
   // in it — which is a decision about what the company has REPORTED, and the
   // person who makes it is usually not the person keying the entries.
-  { key: "finance.ledger", group: "Finance & Accounting", label: "Ledger", verbs: ["view"],
+  { key: "finance.ledger", group: "Finance & Accounting", label: "General Ledger", verbs: ["view"],
     extra: [
       { key: "post", label: "Post journal entries" },
       { key: "reverse", label: "Reverse entries" },
@@ -553,7 +568,7 @@ const OWN_AREAS = [
   // everybody who handles the small ones — a bottleneck, not a control. WHICH
   // amount counts as high is the STUDIO's to set (Finance settings, as an
   // approval chain); this key is only who may clear a bill once it is.
-  { key: "finance.payables", group: "Finance & Accounting", label: "Payables", verbs: ["view", "create", "edit", "delete"],
+  { key: "finance.payables", group: "Finance & Accounting", label: "Payables (bills)", verbs: ["view", "create", "edit", "delete"],
     extra: [
       { key: "approve", label: "Approve bills" },
       { key: "pay", label: "Record payments" },

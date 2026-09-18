@@ -1,23 +1,12 @@
 import { route, refused } from "@/platform/http/route";
-import { financeSetup } from "@/modules/finance/setup";
+import { setupFor as setupOf } from "@/modules/finance/setup";
 import { requirePermission } from "@/platform/access";
 import { financeContext } from "@/modules/finance/finance";
 import {
   ledgerAccounts, listJournal, trialBalanceFrom, postEntry, reverseEntry,
 } from "@/modules/finance/ledger";
 import { postDocument } from "@/modules/finance/posting";
-import {
-  profitAndLoss, balanceSheet, byDimension, DIMENSIONS,
-} from "@/modules/finance/statements";
-import type { Dimension } from "@/modules/finance/statements";
-import { studioVatRate } from "@/shared/vat";
 
-// WHAT FINANCE NEEDS SET UP AND IS MISSING (modules/finance/setup), and whether
-// this reader can fix it — the notice links to Studio settings only for them.
-const setupOf = (f: { studio: unknown; on: (k: string) => boolean; access: unknown }) => ({
-  setup: financeSetup(f.studio, { sectionOn: f.on }),
-  canFixSetup: !requirePermission(f.access as Parameters<typeof requirePermission>[0], "administration.settings.edit"),
-});
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -35,32 +24,13 @@ export const dynamic = "force-dynamic";
 // `finance.ledger.*` for itself; this layer decides HTTP shape and nothing else.
 const spec = { auth: "studio", context: financeContext, body: true, name: "finance-ledger" };
 
-// ONE READ FOR THE WHOLE LEDGER SCREEN: the chart, the journal, the trial
-// balance and the two statements. They all read the SAME entries, so serving
-// them separately would be four reads of one collection and four chances for
-// the screen to show a profit and a trial balance computed a second apart.
+// ONE READ FOR THE WHOLE LEDGER SCREEN: the chart, the journal and the trial
+// balance. THE STATEMENTS LEFT FOR REPORTS when Finance split (18/09/2026) and
+// are served by `/finance/reports` on `finance.reports.view` — computed there
+// from the same kind of single read, for the same reason.
 export const GET = route({ ...spec, body: false }, async (f) => {
   const denied = requirePermission(f.access, "finance.ledger.view");
   if (denied) return denied;
-
-  const url = new URL(f.request.url);
-  const from = url.searchParams.get("from");
-  const to = url.searchParams.get("to");
-
-  // THE CUT, TAKEN FROM THE URL AND CHECKED AGAINST THE CLOSED SET. A dimension
-  // is a property name the reader indexes lines by, so accepting whatever
-  // arrived would let a caller read an arbitrary field off every posting. Four
-  // names, declared beside the model that uses them.
-  const asked = String(url.searchParams.get("dimension") || "");
-  const dimension = (DIMENSIONS as readonly string[]).includes(asked)
-    ? (asked as Dimension)
-    : undefined;
-  const value = url.searchParams.get("value") || undefined;
-  // THE BALANCE SHEET'S DATE IS THE PERIOD'S END, not a third parameter. A sheet
-  // as at a date the P&L does not reach would be two statements about different
-  // worlds shown side by side.
-  const asOf = to;
-
   // THE CHART IS READ ONCE, AND EVERYTHING IS COMPUTED FROM THAT ONE READ.
   //
   // `ledgerAccounts` SEEDS the default chart when a studio has none, and
@@ -86,26 +56,11 @@ export const GET = route({ ...spec, body: false }, async (f) => {
     accounts: chart,
     journal: entries,
     trialBalance: trialBalanceFrom(chart, entries, f.studio.currency),
-    // THE P&L IS CUT WHEN A DIMENSION WAS ASKED FOR, and is the whole book
-    // otherwise — one function, so the two answers cannot drift apart.
-    profitAndLoss: profitAndLoss(entries, chart, { from, to, dimension, value, currency: f.studio.currency }),
-    // THE BALANCE SHEET IS NEVER CUT, and that is a decision rather than an
-    // omission. A balance sheet is a statement about the WHOLE entity: assets
-    // equal liabilities plus equity because every posting is in it. Filter it to
-    // one deal and the identity breaks — the deal's receivable is there, the
-    // bank account that will collect it is not — so it would report itself
-    // unbalanced and be right to.
-    balanceSheet: balanceSheet(entries, chart, asOf, f.studio.currency),
-    // WHAT EACH VALUE OF THE ASKED DIMENSION EARNED, so a reader can see the
-    // deals beside each other rather than querying them one at a time. Absent
-    // when no dimension was asked for: a breakdown by nothing is not a shape.
-    breakdown: dimension ? byDimension(entries, chart, dimension, { from, to, currency: f.studio.currency }) : null,
     ...setupOf(f),
     canPost: !requirePermission(f.access, "finance.ledger.post"),
     canReverse: !requirePermission(f.access, "finance.ledger.reverse"),
-    // THE TAX RETURN'S TAB IS DRAWN ONLY FOR A STUDIO WITH A VAT RATE — the
-    // owner's rule: a company that registered no tax has no return to file.
-    taxEnabled: studioVatRate(f.studio) !== null,
+    // Reconciliation moved to Cash & Bank; the ledger still answers whether this
+    // reader may match, because matching is a statement about the books.
   };
 });
 

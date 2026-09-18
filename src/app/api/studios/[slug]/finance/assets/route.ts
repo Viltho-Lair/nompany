@@ -1,18 +1,11 @@
 import { route, refused } from "@/platform/http/route";
-import { requirePermission } from "@/platform/access";
-import { financeSetup } from "@/modules/finance/setup";
+import { setupFor as setupOf } from "@/modules/finance/setup";
 import { financeContext } from "@/modules/finance/finance";
 import {
   listAssets, createAsset, editAsset, disposeAsset, removeAsset, depreciationRun, ASSET_METHODS, FUNDING_SOURCES,
 } from "@/modules/finance/assets";
 import { repo } from "@/platform/db/repo";
 
-// WHAT FINANCE NEEDS SET UP AND IS MISSING (modules/finance/setup), and whether
-// this reader can fix it — the notice links to Studio settings only for them.
-const setupOf = (f: { studio: unknown; on: (k: string) => boolean; access: unknown }) => ({
-  setup: financeSetup(f.studio, { sectionOn: f.on }),
-  canFixSetup: !requirePermission(f.access as Parameters<typeof requirePermission>[0], "administration.settings.edit"),
-});
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

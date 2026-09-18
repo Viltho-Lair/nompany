@@ -429,7 +429,7 @@ export const BLOCK_SOURCES = [
     group: "Finance",
     department: "finance",
     subject: "invoice",
-    permission: "finance.cash.view",
+    permission: "finance.receivables.view",
     // ONE GROUP, because an invoice's lines are one list — the shape is kept
     // the same as the quotation's so the print page draws both with one table.
     grouped: true,
@@ -446,7 +446,7 @@ export const BLOCK_SOURCES = [
     group: "Finance",
     department: "finance",
     subject: "invoice",
-    permission: "finance.cash.view",
+    permission: "finance.receivables.view",
     // FROM `invoiceTotals`, Finance's own arithmetic — the same function the
     // ledger and the aging report read, so the paper and the books agree.
     totals: true,

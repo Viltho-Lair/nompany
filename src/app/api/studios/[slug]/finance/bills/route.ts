@@ -1,5 +1,5 @@
 import { route, refused } from "@/platform/http/route";
-import { financeSetup } from "@/modules/finance/setup";
+import { setupFor as setupOf } from "@/modules/finance/setup";
 import { requirePermission } from "@/platform/access";
 import { financeContext, PAYMENT_METHODS } from "@/modules/finance/finance";
 import { valuesFor } from "@/modules/administration/taxonomy";
@@ -11,12 +11,6 @@ import { referencePickers } from "@/modules/procurement/pickers";
 import { studioVatRate } from "@/shared/vat";
 import { storedMoneyAccounts } from "@/modules/finance/ledger";
 
-// WHAT FINANCE NEEDS SET UP AND IS MISSING (modules/finance/setup), and whether
-// this reader can fix it — the notice links to Studio settings only for them.
-const setupOf = (f: { studio: unknown; on: (k: string) => boolean; access: unknown }) => ({
-  setup: financeSetup(f.studio, { sectionOn: f.on }),
-  canFixSetup: !requirePermission(f.access as Parameters<typeof requirePermission>[0], "administration.settings.edit"),
-});
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -30,7 +24,9 @@ const spec = { auth: "studio", context: financeContext, body: true, name: "finan
 export const GET = route(
   { auth: "studio", context: financeContext, name: "finance/bills" },
   async (fin) => {
-    if (!fin.canViewPayables) return { error: "forbidden" };
+    // THE BILLS' OWN RIGHT, not the screen's: Payables & Expenses opens for the
+    // expenses right too (18/09/2026), and an expense clerk is not shown bills.
+    if (requirePermission(fin.access, "finance.payables.view")) return { error: "forbidden" };
     const [bills, pickers, money] = await Promise.all([
       listBillsForScreen(fin),
       // WHAT A BILL IS FILED AGAINST: the supplier from the register, the order

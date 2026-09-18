@@ -30,6 +30,7 @@ import { taxDict, taxCategoryOptions } from "@/shared/studio/tax";
 import { documentTotals } from "@/shared/documentTotals";
 import TaxTag from "@/components/studio2/TaxTag";
 import FinanceSetupNotice from "@/components/studio2/FinanceSetupNotice";
+import { ledgerDict } from "@/shared/studio/ledger";
 
 // THE DASHBOARD LOADS WHEN IT IS SHOWN, not with this screen. It was a static
 // import, so every tenant page carried every department's dashboard and the
@@ -43,6 +44,9 @@ const FinanceDashboard = nextDynamic(() => import("@/components/studio2/FinanceD
 // this module switches between, and only one of them is open at a time.
 const StudioLedger = nextDynamic(() => import("@/components/studio2/StudioLedger"));
 const TreasuryPanel = nextDynamic(() => import("@/components/studio2/TreasuryPanel"));
+// Cash & Bank's and Tax's panels, lazily for the reason the others are.
+const ReconciliationPanel = nextDynamic(() => import("@/components/studio2/ReconciliationPanel"));
+const TaxReturnPanel = nextDynamic(() => import("@/components/studio2/TaxReturnPanel"));
 // The credit notes and the door that issues them (18/09/2026) — behind the same boundary.
 const CreditNotesPanel = nextDynamic(() => import("@/components/studio2/CreditNotesPanel"));
 
@@ -102,12 +106,133 @@ const StudioDataGrid = nextDynamic(() => import("@/components/studio2/StudioData
 // so in as many words. Found by sweeping every studio API route for a component
 // that fetches it; `tsc` cannot see a route nobody calls, and a menu entry that
 // opens the wrong screen looks like a screen rather than like a bug.
+//
+// FINANCE SPLIT INTO EIGHT (18/09/2026, the owner's Finance plan), and three of
+// the new screens own nothing: Receivables shows the invoices stored under
+// Cash, Tax reads the documents, Reports reads the journal. Cash & Bank keeps
+// the `finance-cash` key and shows the money itself.
+//   finance-receivables → invoices and credit notes (FinanceCash, two tabs)
+//   finance-payables    → bills and expenses (PayablesAndExpenses)
+//   finance-cash        → money accounts, forecast, cheques, reconciliation
+//   finance-tax         → the VAT return and the withheld tax to claim
+//   finance-reports     → P&L, balance sheet, project margins
 export default function StudioFinance({ slug, view = "finance" }) {
-  if (view === "finance-payables") return <Payables slug={slug} />;
+  if (view === "finance-payables") return <PayablesAndExpenses slug={slug} />;
   if (view === "finance-assets") return <Assets slug={slug} />;
   if (view === "finance-ledger") return <StudioLedger slug={slug} />;
   if (view === "finance-settings") return <FinanceSettings slug={slug} />;
+  if (view === "finance-cash") return <CashAndBank slug={slug} />;
+  if (view === "finance-tax") return <FinanceTax slug={slug} />;
+  if (view === "finance-reports") return <FinanceReports slug={slug} />;
   return <FinanceCash slug={slug} view={view} />;
+}
+
+// ONE TAB BAR for the split's small screens, the look the Cash screen's has.
+function TabBar({ tabs, tab, setTab }) {
+  return (
+    <div className="flex flex-wrap gap-1 rounded-full bg-slate-100 p-1 dark:bg-white/5">
+      {tabs.map(([k, text]) => (
+        <button key={k} type="button" onClick={() => setTab(k)}
+          className={`rounded-full px-4 py-2 text-sm font-600 transition-colors ${tab === k ? "bg-[var(--geex-surface)] text-brand-950 shadow-sm dark:text-white" : "text-slate-500 dark:text-slate-400"}`}>
+          {text}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// CASH & BANK — the money itself: every bank and till, transfers, where the
+// balance is going, cheques, guarantees, and the reconciliation that checks
+// the book against the bank. Reconciling answers to the ledger's right (it is
+// a statement about the books) and says so when the reader lacks it.
+function CashAndBank({ slug }) {
+  const locale = useStudioLocale();
+  const tr = financeDict(locale);
+  const [tab, setTab] = useState("treasury");
+  return (
+    <div className="space-y-6">
+      <TabBar tabs={[["treasury", treasuryDict(locale).tab], ["reconcile", tr.tabReconcile]]} tab={tab} setTab={setTab} />
+      {tab === "reconcile" && <ReconciliationPanel slug={slug} locale={locale} />}
+    </div>
+  );
+}
+
+// TAX — the VAT return and what the studio can reclaim. Read-only: both are
+// computed from the documents.
+function FinanceTax({ slug }) {
+  const locale = useStudioLocale();
+  const tr = financeDict(locale);
+  return (
+    <div className="space-y-6">
+      <h2 className="font-display text-lg font-800 text-slate-900 dark:text-white">{tr.taxTitle}</h2>
+      <TaxReturnPanel slug={slug} locale={locale} />
+    </div>
+  );
+}
+
+// REPORTS — the statements from the ledger, and what each project made. The
+// statements come from `/finance/reports` on `finance.reports.view`; the
+// project margins from the same read the dashboard uses.
+function FinanceReports({ slug }) {
+  const locale = useStudioLocale();
+  const tr = financeDict(locale);
+  const lt = ledgerDict(locale);
+  const [tab, setTab] = useState("pl");
+  const [data, setData] = useState(null);
+  const [error, setError] = useState("");
+  const load = useCallback(async () => {
+    const res = await fetch(`/api/studios/${slug}/finance/reports`, { cache: "no-store" });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) { setError(tr.noAccessThis); return; }
+    setError(""); setData(body);
+  }, [slug, tr]);
+  useReload(load);
+  // The statements move with every posting, which lands under the ledger.
+  useLiveUpdates(slug, "finance-ledger", load);
+
+  if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
+  if (!data) return <ScreenSkeleton loadingLabel={tr.loadingFinance} />;
+  const { profitAndLoss: pl = {}, balanceSheet: bs = {} } = data;
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="font-display text-lg font-800 text-slate-900 dark:text-white">{tr.reportsTitle}</h2>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{tr.reportsLead}</p>
+      </div>
+      <FinanceSetupNotice items={data.setup} slug={slug} canFix={data.canFixSetup} />
+      <TabBar tabs={[["pl", lt.pl], ["bs", lt.bs], ["projects", tr.reportsProjects]]} tab={tab} setTab={setTab} />
+      {tab === "pl" && (
+        <Statement tr={lt}
+          groups={[[lt.income, pl.income, pl.totalIncome], [lt.expenses, pl.expense, pl.totalExpense]]}
+          total={pl.profit} totalLabel={lt.profit} />
+      )}
+      {/* THE RETAINED RESULT IS SHOWN rather than folded into equity: no
+          account holds it until a year-end moves it. */}
+      {tab === "bs" && (
+        <Statement tr={lt}
+          groups={[[lt.assets, bs.asset, bs.totalAssets], [lt.liabilities, bs.liability, bs.totalLiabilities],
+            [lt.equity, bs.equity, bs.totalEquity]]}
+          total={bs.totalAssets} totalLabel={lt.assets}
+          note={bs.balanced ? lt.retained(bs.retainedResult) : lt.outBy(bs.difference)} />
+      )}
+      {tab === "projects" && <FinanceCash slug={slug} view="finance-reports" only={["projects"]} embedded />}
+    </div>
+  );
+}
+
+// PAYABLES & EXPENSES — bills and the money already spent, two rights on one
+// screen. A reader holding only the expenses right is refused the bills and
+// lands on Expenses rather than on the refusal.
+function PayablesAndExpenses({ slug }) {
+  const tr = financeDict(useStudioLocale());
+  const [tab, setTab] = useState("bills");
+  return (
+    <div className="space-y-6">
+      <TabBar tabs={[["bills", tr.tabBills], ["expenses", tr.tabExpenses]]} tab={tab} setTab={setTab} />
+      {tab === "bills" && <Payables slug={slug} onDenied={() => setTab("expenses")} />}
+      {tab === "expenses" && <FinanceCash slug={slug} view="finance-payables" only={["expenses"]} embedded />}
+    </div>
+  );
 }
 
 // FINANCE'S OWN SETTINGS. Its own fetch rather than a tab on the Cash screen,
@@ -162,19 +287,21 @@ function FinanceSettings({ slug }) {
 // FINANCE. Every number here is derived — invoice totals from their lines, the
 // amount paid from the payments recorded against them, project cost from
 // purchase orders plus booked expenses.
-function FinanceCash({ slug, view = "finance" }) {
+// `only` NAMES THE TABS A SCREEN SHOWS of the ones this read serves — two on
+// Receivables, one when Expenses or the project margins are embedded in
+// another screen, which also drops the summary and the setup notice there.
+function FinanceCash({ slug, view = "finance", only = ["invoices", "credit-notes"], embedded = false }) {
   const locale = useStudioLocale();
   const tr = financeDict(locale);
   const [data, setData] = useState(null);
-  const [tab, setTab] = useState("invoices");
-  useEffect(() => { if (view === "finance-cash") setTab("invoices"); }, [view]);
+  const [tab, setTab] = useState(only[0]);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const level = useAnalyticsLevel();
-  // Whether the studio runs Finance → Cash. The route reads nothing of Cash's
-  // while it is off; the flag is a dependency of `load` so switching it back on
-  // (the shell refreshes after a toggle) asks for the rows again.
-  const cashOn = useSectionOn()("finance-cash");
+  // Whether the studio runs Receivables. The route reads no invoice while it is
+  // off; the flag is a dependency of `load` so switching it back on (the shell
+  // refreshes after a toggle) asks for the rows again.
+  const cashOn = useSectionOn()("finance-receivables");
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/finance`, { cache: "no-store" });
@@ -202,24 +329,19 @@ function FinanceCash({ slug, view = "finance" }) {
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <ScreenSkeleton loadingLabel={tr.loadingFinance} />;
 
-  const { canManage: canManageParent, invoices, expenses, projects, profitability, summary, vocabulary, nav } = data;
-  // MANAGE IS ASKED OF THE SCREEN BEING SHOWN. `view` is the section key, and
-  // the map is keyed the same way, so a sub-section grant answers for its own
-  // screen and the parent's answer no longer stands in for all of them.
-  const canManage = data.manage?.[view] ?? canManageParent;
+  const { invoices, expenses, projects, profitability, summary, vocabulary, nav } = data;
+  // MANAGE IS ASKED OF THE RIGHT BEHIND THE TAB, not of the screen: Payables &
+  // Expenses answers to two rights, and a bill clerk is not an expense clerk.
+  const canManage = tab === "expenses" ? Boolean(data.canManageExpenses) : Boolean(data.canManageReceivables);
 
 
   const tabs = [
     ["invoices", `Invoices (${invoices.length})`],
     ["expenses", `Expenses (${expenses.length})`],
     ["projects", `Profitability (${profitability.length})`],
-    // CASH THAT HAS NOT MOVED YET — post-dated cheques, the forecast they feed
-    // and the guarantees holding money at the bank. It sits under Cash because
-    // the forecast is assembled from the receivables and payables beside it.
-    ["treasury", treasuryDict(locale).tab],
     // WHAT WAS GIVEN BACK ON AN INVOICE — including the drafts a signed return raises.
     ["credit-notes", creditNotesDict(locale).tab],
-  ];
+  ].filter(([k]) => only.includes(k));
 
   if (view === "finance") {
     return (
@@ -232,8 +354,8 @@ function FinanceCash({ slug, view = "finance" }) {
             <FinanceDashboard invoices={invoices} expenses={expenses} level={level} slug={slug} />
             {/* THE MARGINS ARE CASH'S: built from its invoices and expenses,
                 which the route does not read while Cash is switched off. */}
-            {cashOn && (
-              <FinanceProjects rows={profitability} slug={slug} nav={nav} canManage={canManage} busy={busy}
+            {profitability.length > 0 && (
+              <FinanceProjects rows={profitability} slug={slug} nav={nav} canManage={Boolean(data.canManageReceivables)} busy={busy}
                 onSave={(payload) => send("projects", "PUT", payload)} />
             )}
           </>
@@ -246,19 +368,12 @@ function FinanceCash({ slug, view = "finance" }) {
     <div className="space-y-6">
       {error && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>}
 
-      <FinanceSetupNotice items={data.setup} slug={slug} canFix={data.canFixSetup} />
-      <Summary summary={summary} />
+      {!embedded && <FinanceSetupNotice items={data.setup} slug={slug} canFix={data.canFixSetup} />}
+      {!embedded && <Summary summary={summary} />}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-1 rounded-full bg-slate-100 p-1 dark:bg-white/5">
-          {tabs.map(([k, text]) => (
-            <button key={k} type="button" onClick={() => setTab(k)}
-              className={`rounded-full px-4 py-2 text-sm font-600 transition-colors ${tab === k ? "bg-[var(--geex-surface)] text-brand-950 shadow-sm dark:text-white" : "text-slate-500 dark:text-slate-400"}`}>
-              {text}
-            </button>
-          ))}
-        </div>
-        {!canManage && <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-600 text-slate-500 dark:bg-white/5 dark:text-slate-400">{tr.viewOnly}</span>}
+        {tabs.length > 1 ? <TabBar tabs={tabs} tab={tab} setTab={setTab} /> : <span />}
+        {!canManage && tab !== "projects" && <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-600 text-slate-500 dark:bg-white/5 dark:text-slate-400">{tr.viewOnly}</span>}
       </div>
 
       {tab === "invoices" && (
@@ -332,7 +447,8 @@ function Summary({ summary }) {
     [tr.sumCollected, money(summary.collected), "text-emerald-600 dark:text-emerald-400"],
     [tr.sumOutstanding, money(summary.outstanding), ""],
     [tr.sumOverdue, money(summary.overdue), summary.overdue > 0 ? "text-rose-600 dark:text-rose-400" : ""],
-    [tr.sumExpenses, money(summary.expenses), ""],
+    // NO EXPENSES TILE: this summary heads Receivables since the split
+    // (18/09/2026), and what was spent is Payables & Expenses' figure.
   ];
   return (
     <section className={panel}>
@@ -960,9 +1076,11 @@ function BillApproval({ bill }) {
   );
 }
 
-function Payables({ slug }) {
+function Payables({ slug, onDenied }) {
   const tr = financeDict(useStudioLocale());
   const { data, error, busy, send } = useFinanceResource(slug, "bills");
+  // REFUSED THE BILLS (an expenses-only clerk): hand the screen to Expenses.
+  useEffect(() => { if (error && !data) onDenied?.(); }, [error, data, onDenied]);
 
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <ScreenSkeleton loadingLabel={tr.loadingAccountsPayable} />;
@@ -1924,5 +2042,42 @@ function Commercials({ row, busy, canManage, onSave, onCancel }) {
         <button className={btnGhost} onClick={onCancel}>{tr.close}</button>
       </div>
     </>
+  );
+}
+
+// ONE COMPONENT FOR BOTH STATEMENTS. They differ in what the sections are
+// called and what the closing figure means; the shape — named sections of
+// accounts with a total each — is identical, and two copies would be two places
+// a rounding choice could drift.
+function Statement({ groups, total, totalLabel, note, tr }) {
+  return (
+    <section className="space-y-4">
+      {groups.map(([name, rows, groupTotal]) => (
+        <div key={name}>
+          <h3 className="font-display text-sm font-700 text-slate-900 dark:text-white">{name}</h3>
+          {(rows || []).length === 0 ? (
+            <p className="mt-1 text-sm text-slate-400 dark:text-slate-500">{tr.nothingHere}</p>
+          ) : (
+            <ul className="mt-1 space-y-0.5">
+              {(rows || []).map((r) => (
+                <li key={r.accountId || r.code} className="flex justify-between text-sm text-slate-600 dark:text-slate-300">
+                  <span>
+                    <span className="font-mono text-xs text-slate-400 dark:text-slate-500">{r.code}</span> {r.name}
+                  </span>
+                  <span className="num">{money(r.amount)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="mt-1 flex justify-between border-t border-slate-100 pt-1 text-sm font-600 text-slate-900 dark:border-white/5 dark:text-white">
+            <span>{name}</span><span className="num">{money(groupTotal)}</span>
+          </p>
+        </div>
+      ))}
+      <p className="flex justify-between border-t-2 border-slate-200 pt-2 font-display text-sm font-700 text-slate-900 dark:border-white/10 dark:text-white">
+        <span>{totalLabel}</span><span className="num">{money(total)}</span>
+      </p>
+      {note && <p className="text-xs text-slate-400 dark:text-slate-500">{note}</p>}
+    </section>
   );
 }

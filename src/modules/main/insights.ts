@@ -433,7 +433,8 @@ export async function studioInsights(ctx: MainContext): Promise<Insight[]> {
     // the movements gets no stock insight rather than a wrong one — the same
     // pairing main.ts's `lowStock` headline makes.
     readIfVisible<Row>(ctx, "inventory-stock", "inventory", "inventoryStock"),
-    readIfAllowed<InvoiceRow>(ctx, "finance-cash", "finance", "invoices", "finance.cash.view"),
+    // STORED under Cash, WORKED under Receivables since the split (18/09/2026).
+    readIfAllowed<InvoiceRow>(ctx, "finance-cash", "finance", "invoices", "finance.receivables.view", "finance-receivables"),
     readIfAllowed<BillRow>(ctx, "finance-payables", "finance", "bills", "finance.payables.view"),
     readIfAllowed<Permit>(ctx, "field-service", null, "permits", "fieldService.tracking.view"),
     // LEAVE IS OFFERED ONLY TO SOMEBODY WHO MAY DECIDE IT. `listVacations`

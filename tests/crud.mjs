@@ -296,13 +296,13 @@ async function exportGates() {
   const refused = await get("invoices");
   ok("the export right alone does not reach a register", refused.status === 403,
     `got ${refused.status}`);
-  ok("...and names the right that is missing", refused.body?.key === "finance.cash.view",
+  ok("...and names the right that is missing", refused.body?.key === "finance.receivables.view",
     JSON.stringify(refused.body));
 
   // ---- the section right alone does not open the export --------------------
   // The other direction, and it is the half that makes the first right mean
   // something: somebody who may READ invoices still may not DOWNLOAD them.
-  const reader = await person(["finance.cash.view"], "cashonly");
+  const reader = await person(["finance.receivables.view"], "cashonly");
   await F.signIn(reader.id);
   const noExport = await get("invoices");
   ok("a section right alone does not confer exporting", noExport.status === 403,
@@ -311,7 +311,7 @@ async function exportGates() {
     JSON.stringify(noExport.body));
 
   // ---- both together ------------------------------------------------------
-  const both = await person(["reports.exports.view", "finance.cash.view"], "bothrights");
+  const both = await person(["reports.exports.view", "finance.receivables.view"], "bothrights");
   await F.signIn(both.id);
   const allowed = await get("invoices");
   ok("BOTH RIGHTS TOGETHER EXPORT", allowed.status === 200, `got ${allowed.status}`);

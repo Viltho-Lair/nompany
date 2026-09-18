@@ -23,7 +23,7 @@ export const GET = route({ ...spec, body: false }, async (projects) => {
     canDelete: !requirePermission(projects.access, "projects.billing.delete"),
     // RAISING THE INVOICE IS FINANCE'S ACT, through Finance's route; the button
     // is drawn only for somebody that route would let through.
-    canInvoice: !requirePermission(projects.access, "finance.cash.create"),
+    canInvoice: !requirePermission(projects.access, "finance.receivables.create"),
   };
 });
 

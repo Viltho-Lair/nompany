@@ -800,7 +800,9 @@ of `a2044ff`, one commit later, because that commit added a golden; then 365 and
 after that. A number nobody re-measures decays silently, and nothing fails when prose
 disagrees with a test. **Treat every figure in this file as a measurement with a date,
 not as a fact, and re-measure at the commit you are writing rather than the one you were
-reading.** `ALL_PERMISSIONS.length` is **235 over 74 areas, measured 17/09/2026** — it said 202 (10/09/2026)
+reading.** `ALL_PERMISSIONS.length` is **248 over 79 areas, measured 18/09/2026** — it said 235 over 74
+(17/09/2026), and ten of the thirteen since are Finance's split into eight sub-sections
+(`finance.receivables`, `finance.expenses`, `finance.tax`, `finance.reports`) — it said 202 (10/09/2026)
 until this line was re-measured, and the thirty-three since came from ordinary areas (POS,
 stock alerts, the HR lifecycle among them) — it said 181 the day
 before, and the twenty since came from ordinary areas (Manufacturing planning, HR payroll

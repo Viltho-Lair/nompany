@@ -39,8 +39,9 @@ console.log("\n== the second gate: you may export only what you may read");
 // section already required.
 const holds = (...keys) => (k) => keys.includes(k);
 
-const financeOnly = exportableFor(holds("finance.cash.view"));
-ok("a cash reader gets the invoice export", financeOnly.some((d) => d.key === "invoices"));
+// RECEIVABLES since Finance split (18/09/2026): invoices left the Cash right.
+const financeOnly = exportableFor(holds("finance.receivables.view"));
+ok("a receivables reader gets the invoice export", financeOnly.some((d) => d.key === "invoices"));
 ok("...and nothing else", financeOnly.length === 1,
   financeOnly.map((d) => d.key).join(", "));
 

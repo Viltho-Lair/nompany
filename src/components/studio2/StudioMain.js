@@ -61,7 +61,7 @@ export default function StudioMain({ slug }) {
     { key: "quotations-rfq", label: tr.openRfqs, value: headlines.openRfqs },
     { key: "quotations-register", label: tr.liveQuotations, value: headlines.liveQuotations },
     { key: "projects-list", label: tr.projectsRunning, value: headlines.liveProjects },
-    { key: "finance-cash", label: tr.outstanding, value: headlines.outstanding === null ? null : money(headlines.outstanding) },
+    { key: "finance-receivables", label: tr.outstanding, value: headlines.outstanding === null ? null : money(headlines.outstanding) },
     { key: "inventory-stock", label: tr.trackedItems, value: headlines.lowStock },
     { key: "hr-employees", label: tr.headcount, value: headlines.headcount },
   ].filter((tile) => tile.value !== null && tile.value !== undefined);

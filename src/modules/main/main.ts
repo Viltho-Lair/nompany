@@ -118,7 +118,14 @@ export async function mainContext(user: { id?: unknown } | null | undefined, slu
     if (!on(switchKey)) return null;
     const section = byKey[key] || (fallbackKey ? byKey[fallbackKey] : null);
     if (!section) return null;
-    return sectionViewable(access, section.key, sectionKeys, parentOf) ? section : null;
+    // WHO MAY SEE IT IS ASKED OF WHERE IT IS SHOWN, not where it is stored.
+    // Finance's split made the difference real (18/09/2026): invoices are filed
+    // under Cash & Bank and worked in Receivables, each with its own right, so
+    // asking the storage section would show a treasury clerk the outstanding
+    // invoices and hide them from the receivables clerk. Where the two agree —
+    // every caller naming no switch — nothing changes.
+    const shown = switchKey !== key ? byKey[switchKey] : undefined;
+    return sectionViewable(access, (shown || section).key, sectionKeys, parentOf) ? section : null;
   };
 
   return {
@@ -164,7 +171,8 @@ export async function headlines(ctx: MainContext) {
     // movements gets no answer rather than a wrong one.
     readIfVisible(ctx, "inventory-stock", "inventory", "inventoryStock"),
     readIfVisible<Task>(ctx, "tasks", null, "tasks"),
-    readIfVisible(ctx, "finance-cash", "finance", "invoices"),
+    // Stored under Cash, worked in Receivables since Finance split (18/09/2026).
+    readIfVisible(ctx, "finance-cash", "finance", "invoices", "finance-receivables"),
     // Stored on the Field Operations root, worked in Quality & HSE → Permits.
     readIfVisible<Permit>(ctx, "field-service", null, "permits", "quality-hse-permits"),
     ctx.seen("hr-employees", "hr") ? listCollaborators(ctx.studio.id) : null,

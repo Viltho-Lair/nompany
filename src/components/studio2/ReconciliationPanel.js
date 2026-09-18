@@ -47,7 +47,9 @@ export default function ReconciliationPanel({ slug, locale = "en" }) {
     return true;
   }, [slug, load, tr, setBusy, setProblem]);
 
-  if (!data) return <p className="text-sm text-slate-500 dark:text-slate-400">…</p>;
+  // A REFUSAL IS SAID. Reconciling needs the ledger's own right, and on Cash &
+  // Bank somebody may hold the cash right without it; this read "…" for ever.
+  if (!data) return <p className="text-sm text-slate-500 dark:text-slate-400">{problem ? tr.problem(problem) : "…"}</p>;
 
   const {
     hasBank, bookBalance, statementBalance, difference, matched,

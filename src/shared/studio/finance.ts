@@ -360,6 +360,18 @@ type Strings = CommonStrings & {
   setupOfficialInvalid: (labels: string) => string;
   setupFix: string;
   setupAsk: string;
+  // ---- the split's screens (18/09/2026) ----
+  tabBills: string;
+  tabExpenses: string;
+  tabReconcile: string;
+  taxTitle: string;
+  taxNoVat: string;
+  toClaimTitle: string;
+  toClaimLead: string;
+  toClaimNone: string;
+  reportsTitle: string;
+  reportsLead: string;
+  reportsProjects: string;
 };
 
 const en: Strings = {
@@ -729,6 +741,17 @@ const en: Strings = {
   setupOfficialInvalid: (labels) => `Filled in, but not in the form your country requires, so they print nowhere: ${labels}.`,
   setupFix: "Set these in Studio settings",
   setupAsk: "Ask whoever manages Studio settings to set these.",
+  tabBills: "Bills",
+  tabExpenses: "Expenses",
+  tabReconcile: "Reconcile",
+  taxTitle: "Tax",
+  taxNoVat: "No VAT rate is set, so there is no VAT return to prepare.",
+  toClaimTitle: "Withheld tax to claim",
+  toClaimLead: "Invoices where the client withheld tax and no certificate is recorded yet. The tax is only yours to claim once you can prove it was paid over.",
+  toClaimNone: "Nothing to chase — every withheld amount has its certificate.",
+  reportsTitle: "Reports",
+  reportsLead: "The statements, read from the ledger, and what each project has made.",
+  reportsProjects: "Projects",
 };
 
 const ar: Strings = {
@@ -1098,6 +1121,17 @@ const ar: Strings = {
   setupOfficialInvalid: (labels) => `معبأة، لكن ليس بالصيغة التي تشترطها دولتك، فلا تطبع في أي مكان: ${labels}.`,
   setupFix: "حددها في إعدادات الاستوديو",
   setupAsk: "اطلب ممن يدير إعدادات الاستوديو تحديدها.",
+  tabBills: "فواتير الموردين",
+  tabExpenses: "المصروفات",
+  tabReconcile: "التسوية",
+  taxTitle: "الضرائب",
+  taxNoVat: "لم تحدد نسبة ضريبة القيمة المضافة، فلا يوجد اقرار ضريبي لاعداده.",
+  toClaimTitle: "ضريبة مستقطعة للمطالبة بها",
+  toClaimLead: "فواتير استقطع فيها العميل ضريبة ولم تسجل شهادتها بعد. لا يحق لك المطالبة بالضريبة الا حين تثبت أنها وردت.",
+  toClaimNone: "لا شيء للمتابعة — لكل مبلغ مستقطع شهادته.",
+  reportsTitle: "التقارير",
+  reportsLead: "القوائم المالية من دفتر الأستاذ، وما حققه كل مشروع.",
+  reportsProjects: "المشاريع",
 };
 
 const finance = { en, ar };

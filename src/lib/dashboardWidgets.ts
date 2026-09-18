@@ -111,7 +111,7 @@ export const MAIN_SOURCES: readonly string[] = [
  * holds the two lists equal.
  */
 export const REPORT_SOURCES: readonly string[] = [
-  "finance-cash", "finance-payables", "crm-sales-tickets", "quotations-register",
+  "finance-receivables", "finance-payables", "crm-sales-tickets", "quotations-register",
   "projects-list", "procurement-orders", "tendering-register", "hr-leave",
 ];
 
@@ -215,20 +215,24 @@ export const DASHBOARD_WIDGETS: WidgetDef[] = [
   { key: "hr.leave-trend", label: "Leave days by month", section: "hr", rung: "moderate", needs: ["hr-leave"] },
   { key: "hr.away-forecast", label: "Who is away, next 30 days", section: "hr", rung: "moderate", needs: ["hr-leave"] },
   // Finance
-  { key: "finance.ar-aging", label: "Receivables aging", section: "finance", rung: "simple", needs: ["finance-cash"] },
-  { key: "finance.top-debtors", label: "Top debtors", section: "finance", rung: "simple", needs: ["finance-cash"] },
-  { key: "finance.collection-rate", label: "Collection rate", section: "finance", rung: "simple", needs: ["finance-cash"] },
-  { key: "finance.income-vs-expense", label: "Income vs expense", section: "finance", rung: "simple", needs: ["finance-cash"] },
-  { key: "finance.expense-mix", label: "Expense mix", section: "finance", rung: "simple", needs: ["finance-cash"] },
-  { key: "finance.dso", label: "Days sales outstanding", section: "finance", rung: "moderate", needs: ["finance-cash"] },
+  //
+  // RECEIVABLES AND EXPENSES NAME THE SUB-SECTION THEY ARE WORKED IN (18/09/2026),
+  // not `finance-cash` where both are still stored — the HR rule: name the
+  // switch, not the storage. Switching Receivables off takes the aging with it.
+  { key: "finance.ar-aging", label: "Receivables aging", section: "finance", rung: "simple", needs: ["finance-receivables"] },
+  { key: "finance.top-debtors", label: "Top debtors", section: "finance", rung: "simple", needs: ["finance-receivables"] },
+  { key: "finance.collection-rate", label: "Collection rate", section: "finance", rung: "simple", needs: ["finance-receivables"] },
+  { key: "finance.income-vs-expense", label: "Income vs expense", section: "finance", rung: "simple", needs: ["finance-receivables", "finance-payables"] },
+  { key: "finance.expense-mix", label: "Expense mix", section: "finance", rung: "simple", needs: ["finance-payables"] },
+  { key: "finance.dso", label: "Days sales outstanding", section: "finance", rung: "moderate", needs: ["finance-receivables"] },
   { key: "finance.top-vendors", label: "Top vendors owed", section: "finance", rung: "simple", needs: ["finance-payables"] },
   { key: "finance.ap-aging", label: "Payables aging", section: "finance", rung: "moderate", needs: ["finance-payables"] },
   { key: "finance.asset-register", label: "Fixed-asset register", section: "finance", rung: "simple", needs: ["finance-assets"] },
   { key: "finance.asset-breakdown", label: "Assets by category", section: "finance", rung: "moderate", needs: ["finance-assets"] },
   // Added 10/09/2026 with the dashboards' richer half — new keys, none renamed.
-  { key: "finance.invoice-status", label: "Invoices by state", section: "finance", rung: "simple", needs: ["finance-cash"] },
-  { key: "finance.receivable-vs-payable", label: "Owed to us vs owed by us", section: "finance", rung: "moderate", needs: ["finance-cash", "finance-payables"] },
-  { key: "finance.expense-trend", label: "Spend by category over time", section: "finance", rung: "moderate", needs: ["finance-cash"] },
+  { key: "finance.invoice-status", label: "Invoices by state", section: "finance", rung: "simple", needs: ["finance-receivables"] },
+  { key: "finance.receivable-vs-payable", label: "Owed to us vs owed by us", section: "finance", rung: "moderate", needs: ["finance-receivables", "finance-payables"] },
+  { key: "finance.expense-trend", label: "Spend by category over time", section: "finance", rung: "moderate", needs: ["finance-payables"] },
   // Operations
   { key: "operations.permits-by-status", label: "Permits by status", section: "field-service", rung: "simple", needs: ["quality-hse-permits"] },
   { key: "operations.shifts-by-location", label: "Shifts by location", section: "field-service", rung: "simple", needs: ["field-service"] },

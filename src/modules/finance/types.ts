@@ -62,6 +62,17 @@ export type FinanceContext = ModuleContext & {
   canManageAssets: boolean;
   canViewSettings: boolean;
   canManageSettings: boolean;
+  // THE SPLIT'S THREE SCREENS THAT OWN NOTHING (keys.ts). Their sections are
+  // for who may open them; their rows are read through cash and ledger.
+  receivablesSection: Section;
+  taxSection: Section;
+  reportsSection: Section;
+  canViewReceivables: boolean;
+  canManageReceivables: boolean;
+  canViewTax: boolean;
+  canManageTax: boolean;
+  canViewReports: boolean;
+  canManageReports: boolean;
   cashCategories: string[];
   /** The studio's withholding rules. Empty where the jurisdiction has none. */
   withholdingRules: WithholdingRule[];

@@ -7,6 +7,7 @@ import StudioDate from "@/components/fields/StudioDate";
 import { useReload } from "@/components/studio2/useReload";
 import { moneyText } from "@/shared/money";
 import { taxDict } from "@/shared/studio/tax";
+import { financeDict } from "@/shared/studio/finance";
 
 // THE TAX RETURN TAB (vat.md) — one period's VAT, read from the documents.
 //
@@ -44,7 +45,14 @@ export default function TaxReturnPanel({ slug, locale }) {
 
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <p className="text-sm text-slate-500 dark:text-slate-400">…</p>;
-  if (!data.enabled) return null;
+  // NO VAT, NO RETURN — and the withheld tax to claim is still said, because
+  // withholding does not depend on being registered for VAT.
+  if (!data.enabled) return (
+    <div className="space-y-5">
+      <p className="text-sm text-slate-500 dark:text-slate-400">{financeDict(locale).taxNoVat}</p>
+      <ToClaim rows={data.unclaimedWithholding} locale={locale} />
+    </div>
+  );
 
   const box = "rounded-geex border border-slate-200 p-4 dark:border-white/10";
   const figures = [
@@ -106,6 +114,7 @@ export default function TaxReturnPanel({ slug, locale }) {
           <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{tr.foreignLead}</p>
         </div>
       )}
+      <ToClaim rows={data.unclaimedWithholding} locale={locale} />
     </div>
   );
 }
@@ -141,6 +150,31 @@ function DocumentTable({ title, rows, tr, empty = "", showCurrency = false }) {
             </tbody>
           </table>
         </div>
+      )}
+    </section>
+  );
+}
+
+// WHAT THE STUDIO CAN RECLAIM — computed since withholding shipped and shown
+// nowhere until Tax had a screen (18/09/2026). A list to CHASE: a withheld
+// amount is only worth anything once its certificate proves it was paid over.
+function ToClaim({ rows = [], locale }) {
+  const tr = financeDict(locale);
+  return (
+    <section className="space-y-2">
+      <h3 className="font-display text-sm font-700 text-slate-900 dark:text-white">{tr.toClaimTitle}</h3>
+      <p className="text-sm text-slate-500 dark:text-slate-400">{tr.toClaimLead}</p>
+      {rows.length === 0 ? (
+        <p className="text-sm text-emerald-600 dark:text-emerald-300">{tr.toClaimNone}</p>
+      ) : (
+        <ul className="divide-y divide-slate-100 text-sm dark:divide-white/5">
+          {rows.map((r) => (
+            <li key={r.id} className="flex justify-between py-1.5">
+              <span className="font-mono text-slate-900 dark:text-white">{r.reference}</span>
+              <span className="num text-slate-700 dark:text-slate-200">{money(r.amount)}</span>
+            </li>
+          ))}
+        </ul>
       )}
     </section>
   );

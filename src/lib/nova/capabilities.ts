@@ -73,13 +73,13 @@ export const NOVA_CAPABILITIES: NovaCapability[] = [
   { key: "action.hr.cancel-leave", label: "Cancel my pending leave", department: "HR", kind: "action", permissionKey: "hr.vacations.view", defaultOn: true, writes: true },
 
   // ---- Finance ----
-  { key: "read.finance.invoices", label: "Invoices", department: "Finance", kind: "read", permissionKey: "finance.cash.view", defaultOn: true, scope: "all" },
-  { key: "read.finance.expenses", label: "Expenses", department: "Finance", kind: "read", permissionKey: "finance.cash.view", defaultOn: true, scope: "all" },
-  { key: "read.finance.summary", label: "Finance summary", department: "Finance", kind: "read", permissionKey: "finance.cash.view", defaultOn: true, scope: "all" },
+  { key: "read.finance.invoices", label: "Invoices", department: "Finance", kind: "read", permissionKey: "finance.receivables.view", defaultOn: true, scope: "all" },
+  { key: "read.finance.expenses", label: "Expenses", department: "Finance", kind: "read", permissionKey: "finance.expenses.view", defaultOn: true, scope: "all" },
+  { key: "read.finance.summary", label: "Finance summary", department: "Finance", kind: "read", permissionKey: "finance.receivables.view", defaultOn: true, scope: "all" },
   { key: "read.finance.bills", label: "Bills / payables", department: "Finance", kind: "read", permissionKey: "finance.payables.view", defaultOn: true, scope: "all" },
   { key: "read.finance.assets", label: "Fixed assets", department: "Finance", kind: "read", permissionKey: "finance.assets.view", defaultOn: true, scope: "all" },
-  { key: "action.finance.log-expense", label: "Log an expense", department: "Finance", kind: "action", permissionKey: "finance.cash.create", defaultOn: false, writes: true },
-  { key: "action.finance.create-invoice", label: "Raise an invoice (draft)", department: "Finance", kind: "action", permissionKey: "finance.cash.create", defaultOn: false, writes: true },
+  { key: "action.finance.log-expense", label: "Log an expense", department: "Finance", kind: "action", permissionKey: "finance.expenses.create", defaultOn: false, writes: true },
+  { key: "action.finance.create-invoice", label: "Raise an invoice (draft)", department: "Finance", kind: "action", permissionKey: "finance.receivables.create", defaultOn: false, writes: true },
   { key: "action.finance.create-bill", label: "Raise a bill", department: "Finance", kind: "action", permissionKey: "finance.payables.create", defaultOn: false, writes: true },
 
   // ---- Inventory ----

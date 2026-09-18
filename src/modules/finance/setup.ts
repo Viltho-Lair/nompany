@@ -20,6 +20,7 @@ import { definitionFor } from "@/shared/compliance/countries";
 import { isApplicable, type ResolveOptions } from "@/shared/compliance/resolve";
 import { valueProblem, type Localised } from "@/shared/compliance/definition";
 import { studioVatRate } from "@/shared/vat";
+import { requirePermission } from "@/platform/access";
 
 export type SetupItem = {
   /** A stable token the screen words: country, currency, vat, or `official:<key>`. */
@@ -77,4 +78,16 @@ export function financeSetup(studio: unknown, opts: ResolveOptions = {}): SetupI
     else if (valueProblem(f, raw)) items.push({ key: `official:${f.key}`, state: "invalid", label: f.label });
   }
   return items;
+}
+
+/**
+ * WHAT A FINANCE ROUTE HANDS ITS SCREEN: the missing setup, and whether this
+ * reader may fix it — the notice links to Studio settings only for them. One
+ * copy for every Finance route rather than one per route.
+ */
+export function setupFor(f: { studio: unknown; on: (k: string) => boolean; access: unknown }) {
+  return {
+    setup: financeSetup(f.studio, { sectionOn: f.on }),
+    canFixSetup: !requirePermission(f.access as Parameters<typeof requirePermission>[0], "administration.settings.edit"),
+  };
 }

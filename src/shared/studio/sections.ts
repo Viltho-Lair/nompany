@@ -148,10 +148,13 @@ const ar: SectionMap = {
   "hr-payroll": "الرواتب",
 
   finance: "المالية والمحاسبة",
-  "finance-cash": "النقد",
-  "finance-ledger": "دفتر الأستاذ",
-  "finance-payables": "الذمم الدائنة",
+  "finance-cash": "النقد والبنوك",
+  "finance-ledger": "دفتر الأستاذ العام",
+  "finance-receivables": "الذمم المدينة",
+  "finance-payables": "الذمم الدائنة والمصروفات",
   "finance-assets": "الأصول",
+  "finance-tax": "الضرائب",
+  "finance-reports": "التقارير",
   "finance-settings": "الإعدادات",
 
   // NEW ROOT, no children yet.
@@ -184,6 +187,11 @@ const maps: Partial<Record<Locale, SectionMap>> = { ar };
 const RENAMED_SEEDS: Record<string, { was: string; now: string }> = {
   "engineering-docs-live": { was: "Live view", now: "Quotations live view" },
   "engineering-docs-settings": { was: "Settings", now: "Quotation settings" },
+  // FINANCE SPLIT INTO EIGHT (18/09/2026): Cash kept its key and became Cash &
+  // Bank, Payables took the expenses, and the Ledger is the General Ledger.
+  "finance-cash": { was: "Cash", now: "Cash & Bank" },
+  "finance-payables": { was: "Payables", now: "Payables & Expenses" },
+  "finance-ledger": { was: "Ledger", now: "General Ledger" },
 };
 
 /** The section's name to SHOW. Falls back to the name stored on the record. */
