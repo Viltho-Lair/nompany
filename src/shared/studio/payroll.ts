@@ -43,6 +43,7 @@ type Strings = {
   negative: (n: number) => string;
   unpaid: (n: number) => string;
   partMonth: (n: number) => string;
+  nobodyEmployed: (who: string) => string;
   leftOut: string;
   leftOutWhy: (reason: string) => string;
   slipsFor: (period: string) => string;
@@ -128,6 +129,10 @@ const en: Strings = {
   // different things — one is a month they worked part of, the other a month
   // they were not here for.
   partMonth: (n) => `${n} ${n === 1 ? "day" : "days"} not employed`,
+  // NOT "nobody has a pay record": they have one, they simply were not
+  // employed in the month asked for. The old wording was a false statement the
+  // moment the run learned to ask about employment at all.
+  nobodyEmployed: (who) => `Nobody was employed in that month — ${who}.`,
   leftOut: "Not in this run",
   leftOutWhy: (reason) => ({
     "not-started": "has not started",
@@ -220,6 +225,7 @@ const ar: Strings = {
   people: (n) => `${n} ${n === 1 ? "موظف" : n === 2 ? "موظفان" : n <= 10 ? "موظفين" : "موظفا"}`,
   negative: (n) => `${n} تحت الصفر`,
   partMonth: (n) => `${n} ${n === 1 ? "يوم خارج الخدمة" : n === 2 ? "يومان خارج الخدمة" : n <= 10 ? "أيام خارج الخدمة" : "يوما خارج الخدمة"}`,
+  nobodyEmployed: (who) => `لم يكن أحد على رأس العمل في ذلك الشهر — ${who}.`,
   leftOut: "خارج هذا الكشف",
   leftOutWhy: (reason) => ({
     "not-started": "لم يباشر العمل بعد",

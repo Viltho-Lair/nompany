@@ -178,7 +178,18 @@ export default function PayrollPanel({ slug, locale = "en" }) {
     });
     const body = await res.json().catch(() => ({}));
     setBusy(false);
-    if (!res.ok) { setProblem(body.detail || tr.problem(body.error) || "failed"); return null; }
+    if (!res.ok) {
+      // A RUN WITH NOBODY IN IT NOW SAYS WHY. The service returns who it
+      // considered and what stopped each of them; without that this refusal read
+      // "nobody has a pay record yet" on a studio whose only record belongs to
+      // somebody who left last month — a false statement, and the exact
+      // confusion prepareRun's own comment warned about.
+      const who = (body.excluded || []).map((x) => `${x.alias} — ${tr.leftOutWhy(x.reason)}`).join("; ");
+      setProblem(body.detail
+        || (body.error === "nobody" && who ? tr.nobodyEmployed(who) : tr.problem(body.error))
+        || "failed");
+      return null;
+    }
     await load();
     return body;
   }, [slug, load, tr, setBusy, setProblem]);

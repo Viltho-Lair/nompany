@@ -169,6 +169,10 @@ line of every run.
 **Unpaid days are capped at the days employed.** A month somebody was here for ten days cannot
 carry twenty unpaid ones, and docking both would take the same money twice.
 
+**A run with nobody in it says why.** The refusal carries the same list, so "nobody has a pay
+record yet" — which was a false statement the moment the run learned to ask about employment —
+reads "Nobody was employed in that month — Nadia — had already left."
+
 **Who was left out is frozen on the run**, with a reason in words, and the screen shows it
 under the payslips. A run that silently omits somebody is a run nobody can check: "why is this
 month short one person" has to be answerable from the run itself, months later, without
