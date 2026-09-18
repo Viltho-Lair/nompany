@@ -104,6 +104,9 @@ export const DEFAULT_CHART: { code: string; name: string; type: AccountType }[] 
   // TAX THE STUDIO WITHHELD FROM A SUPPLIER and owes the authority until it is
   // paid over, 18/09/2026 — the mirror of 1300 on the invoice side.
   { code: "2150", name: "Withholding Tax Payable", type: "liability" },
+  // WHAT A FILED VAT RETURN SAID IS OWED (or due back) until it is paid,
+  // 18/09/2026: the settlement moves the period's VAT here out of 2100 and 1400.
+  { code: "2160", name: "VAT Due", type: "liability" },
   // ADDED WITH PAYROLL, and it needs no migration: `ledgerAccounts` seeds any
   // code from this chart that a studio is missing on every read, so an
   // existing studio gains it the next time its ledger is opened.
@@ -585,7 +588,8 @@ export type PostOptions = { system?: boolean };
  */
 export const ENTRY_SOURCE_KINDS = [
   "invoice", "expense", "bill", "bill-payment", "payment", "credit-note", "payroll", "withholding",
-  "asset", "depreciation", "asset-disposal", "transfer", "cheque", "bill-withholding", "manual",
+  "asset", "depreciation", "asset-disposal", "transfer", "cheque", "bill-withholding",
+  "tax-return", "tax-payment", "manual",
 ] as const;
 
 export type EntrySourceKind = (typeof ENTRY_SOURCE_KINDS)[number];
@@ -1077,6 +1081,107 @@ export async function postBillWithholding(ctx: FinanceContext, billId: string, o
       { accountId: byCode.get(AP), debit: amount },
       { accountId: byCode.get(WHT_PAYABLE), credit: amount },
     ],
+  }, options);
+}
+
+// ---------------------------------------------------------------------------
+// THE VAT RETURN IN THE BOOK
+// ---------------------------------------------------------------------------
+
+const VAT_DUE = "2160";
+const TaxReturns = repo<Row>("taxReturns");
+
+/**
+ * THE PERIOD'S VAT, AS THE LEDGER MOVED IT: what VAT Payable (2100) was
+ * credited net and VAT Recoverable (1400) debited net by entries dated in the
+ * period — leaving out the settlements themselves, or a second filing would
+ * count the first one's clearing. `due` is the first less the second.
+ */
+export async function vatMovement(ctx: FinanceContext, from: string, to: string) {
+  const [entries, accounts] = await Promise.all([
+    Entries.find({ studio: ctx.studio, section: ctx.ledgerSection }),
+    Accounts.find({ studio: ctx.studio, section: ctx.ledgerSection }),
+  ]);
+  const idOf = (code: string) => accounts.find((a) => a.code === code)?.id;
+  const payable = idOf(VAT_PAYABLE);
+  const recoverable = idOf(VAT_RECOVERABLE);
+  let owed = 0;
+  let back = 0;
+  for (const e of entries) {
+    const d = String(e.date || "");
+    if (!d || d < from || d > to) continue;
+    if (e.source?.kind === "tax-return" || e.source?.kind === "tax-payment") continue;
+    for (const l of e.lines || []) {
+      if (l.accountId === payable) owed += cents(l.credit, ctx.studio.currency) - cents(l.debit, ctx.studio.currency);
+      if (l.accountId === recoverable) back += cents(l.debit, ctx.studio.currency) - cents(l.credit, ctx.studio.currency);
+    }
+  }
+  const c = ctx.studio.currency;
+  return { payable: money(owed, c), recoverable: money(back, c), due: money(owed - back, c) };
+}
+
+/**
+ * SETTLE A FILED RETURN: clear the period's movement on VAT Payable and VAT
+ * Recoverable into VAT Due. Dated on the period's last day, because it is that
+ * period's VAT being settled — and held to the lock like any entry.
+ */
+export async function postTaxReturn(ctx: FinanceContext, returnId: string, options: PostOptions = {}) {
+  if (!options.system) {
+    const denied = requirePermission(ctx.access, "finance.ledger.post");
+    if (denied) return denied;
+  }
+  const r = (await TaxReturns.find({ studio: ctx.studio, section: ctx.taxSection })).find((x) => x.id === returnId) as (Row & { from?: string; to?: string }) | undefined;
+  if (!r) return { error: "notfound" };
+  const entries = await Entries.find({ studio: ctx.studio, section: ctx.ledgerSection });
+  if (alreadyPosted(entries, "tax-return", returnId)) return { error: "already-posted" };
+
+  const m = await vatMovement(ctx, String(r.from), String(r.to));
+  const { byCode, missing } = await codesToIds(ctx, [VAT_PAYABLE, VAT_RECOVERABLE, VAT_DUE]);
+  if (missing.length) return { error: "chart", missing };
+  const lines: { accountId: string | undefined; debit?: number; credit?: number }[] = [];
+  const side = (code: string, amount: number, debitWhenPositive: boolean) => {
+    if (!amount) return;
+    const debit = (amount > 0) === debitWhenPositive;
+    lines.push({ accountId: byCode.get(code), ...(debit ? { debit: Math.abs(amount) } : { credit: Math.abs(amount) }) });
+  };
+  side(VAT_PAYABLE, m.payable, true);        // clear what 2100 was credited
+  side(VAT_RECOVERABLE, m.recoverable, false); // clear what 1400 was debited
+  side(VAT_DUE, m.due, false);               // what is owed lands here
+  if (lines.length < 2) return { error: "nothing-due" };
+
+  return postEntry(ctx, {
+    date: r.to,
+    memo: `VAT return ${r.from} to ${r.to}`,
+    source: { kind: "tax-return", id: returnId },
+    lines,
+  }, options);
+}
+
+/** PAY A FILED RETURN (or take its refund): VAT Due against a money account. */
+export async function postTaxPayment(ctx: FinanceContext, returnId: string, options: PostOptions = {}) {
+  if (!options.system) {
+    const denied = requirePermission(ctx.access, "finance.ledger.post");
+    if (denied) return denied;
+  }
+  const r = (await TaxReturns.find({ studio: ctx.studio, section: ctx.taxSection })).find((x) => x.id === returnId) as (Row & { from?: string; to?: string; due?: number; paidOn?: string; accountId?: string; status?: string }) | undefined;
+  if (!r) return { error: "notfound" };
+  if (r.status !== "paid") return { error: "not-postable", status: r.status };
+  const entries = await Entries.find({ studio: ctx.studio, section: ctx.ledgerSection });
+  if (alreadyPosted(entries, "tax-payment", returnId)) return { error: "already-posted" };
+  const due = roundMoney(Number(r.due) || 0, ctx.studio.currency);
+  if (!due) return { error: "nothing-due" };
+  const { byCode, missing } = await codesToIds(ctx, [VAT_DUE]);
+  if (missing.length) return { error: "chart", missing };
+  const bank = await moneyAccountFor(ctx, r.accountId);
+  if ("error" in bank) return bank;
+  const owed = due > 0;
+  return postEntry(ctx, {
+    date: r.paidOn,
+    memo: `VAT ${owed ? "paid" : "refunded"} — return ${r.from} to ${r.to}`,
+    source: { kind: "tax-payment", id: returnId },
+    lines: owed
+      ? [{ accountId: byCode.get(VAT_DUE), debit: due }, { accountId: bank.id, credit: due }]
+      : [{ accountId: bank.id, debit: -due }, { accountId: byCode.get(VAT_DUE), credit: -due }],
   }, options);
 }
 

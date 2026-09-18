@@ -6,6 +6,8 @@ import { listBills } from "@/modules/finance/payables";
 import { requirePermission } from "@/platform/access";
 import { unclaimed } from "@/modules/finance/withholding";
 import { setupFor } from "@/modules/finance/setup";
+import { listTaxReturns, fileTaxReturn, payTaxReturn } from "@/modules/finance/taxFiling";
+import { vatMovement, storedMoneyAccounts } from "@/modules/finance/ledger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,9 +40,29 @@ export const GET = route(
       unissuedWithholding: unclaimed(bills.map((b) => ({
         document: b, withheld: b.withheld, certificateRef: b.certificateRef,
       }))),
+      // THE RETURNS FILED, and — for the period on screen — what the LEDGER moved,
+      // beside what the documents say, so a difference is seen rather than hidden.
+      filed: await listTaxReturns(f),
+      ledger: "from" in result && result.from ? await vatMovement(f, String(result.from), String(result.to)) : null,
+      canFile: !requirePermission(f.access, "finance.tax.file"),
+      moneyAccounts: (await storedMoneyAccounts(f)).map((a) => ({ id: a.id, code: a.code, name: a.name })),
       // Who may record a certificate number on each side.
       canRecordClaimed: !requirePermission(f.access, "finance.receivables.edit"),
       canRecordIssued: !requirePermission(f.access, "finance.payables.edit"),
     };
+  },
+);
+
+// FILE A RETURN, OR PAY ONE — two acts on the same right (`finance.tax.file`),
+// named in the body rather than guessed from its shape.
+export const POST = route(
+  { auth: "studio", context: financeContext, body: true, name: "finance-tax" },
+  async (f) => {
+    const action = String(f.body?.action ?? "");
+    const result = action === "file" ? await fileTaxReturn(f, f.body)
+      : action === "pay" ? await payTaxReturn(f, String(f.body?.id ?? ""), f.body)
+        : { error: "action" };
+    if (refused(result)) return result;
+    return { ok: true, ...result };
   },
 );

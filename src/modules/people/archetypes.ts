@@ -484,6 +484,8 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
       // held away from them: it is the moment they say the month is finished,
       // and nobody else in this library is in a position to say it.
       "finance.ledger.close",
+      // FILING THE RETURN goes with closing the period it covers.
+      "finance.tax.file",
       // Reversing a posting is the same job as making one, and disposing of an
       // asset is the ledger act that ends it.
       "finance.ledger.reverse", "finance.assets.dispose",

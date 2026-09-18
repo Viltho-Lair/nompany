@@ -115,9 +115,105 @@ export default function TaxReturnPanel({ slug, locale }) {
           <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{tr.foreignLead}</p>
         </div>
       )}
+      <FileReturn data={data} from={from} to={to} slug={slug} locale={locale} onDone={load} />
+      <FiledReturns data={data} slug={slug} locale={locale} onDone={load} />
       <ToClaim rows={data.unclaimedWithholding} locale={locale} slug={slug} canRecord={data.canRecordClaimed} onDone={load} />
       <ToClaim rows={data.unissuedWithholding} locale={locale} slug={slug} canRecord={data.canRecordIssued} onDone={load} side="issue" />
     </div>
+  );
+}
+
+async function post(slug, body) {
+  const res = await fetch(`/api/studios/${slug}/finance/tax`, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+  });
+  const out = await res.json().catch(() => ({}));
+  return res.ok ? { ok: true, out } : { ok: false, error: String(out.error || "failed") };
+}
+
+// FILING THE PERIOD ON SCREEN. The ledger's figure is shown beside the
+// documents' one, and when they differ the screen says so before anybody files
+// — the settlement moves what the LEDGER holds, and a difference means a
+// document the books never saw.
+function FileReturn({ data, from, to, slug, locale, onDone }) {
+  const tr = financeDict(locale);
+  const [ref, setRef] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState("");
+  if (!data.canFile) return null;
+  // A PERIOD ALREADY IN A FILED RETURN IS NOT OFFERED AGAIN — the server
+  // refuses the overlap, and a button that can only be refused is noise.
+  if ((data.filed || []).some((r) => r.from <= to && from <= r.to)) return null;
+  const ledger = data.ledger?.due ?? null;
+  const differs = ledger !== null && Math.abs(ledger - data.payable) > 0.0005;
+  return (
+    <section className="space-y-2 rounded-geex border border-brand-500/40 p-4">
+      <h3 className="font-display text-sm font-700 text-slate-900 dark:text-white">{tr.fileTitle}</h3>
+      <p className="text-sm text-slate-500 dark:text-slate-400">{tr.fileLead}</p>
+      {ledger !== null && (
+        <p className={`text-sm ${differs ? "text-amber-700 dark:text-amber-300" : "text-slate-600 dark:text-slate-300"}`}>
+          {differs ? tr.ledgerDiffers(money(ledger), money(data.payable)) : tr.ledgerSays(money(ledger))}
+        </p>
+      )}
+      <div className="flex flex-wrap items-end gap-2">
+        <span className="w-72"><Field label={tr.authorityRef} value={ref} onChange={setRef} /></span>
+        <button className="rounded-full bg-brand-600 px-4 py-2 text-sm font-600 text-white disabled:opacity-50" disabled={busy}
+          onClick={async () => {
+            setBusy(true); setProblem("");
+            const r = await post(slug, { action: "file", from, to, authorityReference: ref });
+            setBusy(false);
+            if (!r.ok) { setProblem(tr.fileProblem(r.error)); return; }
+            setRef(""); await onDone();
+          }}>{tr.fileReturn}</button>
+      </div>
+      {problem && <p className="text-sm text-rose-600 dark:text-rose-300">{problem}</p>}
+    </section>
+  );
+}
+
+function FiledReturns({ data, slug, locale, onDone }) {
+  const tr = financeDict(locale);
+  const rows = data.filed || [];
+  const accounts = data.moneyAccounts || [];
+  const [accountId, setAccountId] = useState("");
+  const [problem, setProblem] = useState("");
+  return (
+    <section className="space-y-2">
+      <h3 className="font-display text-sm font-700 text-slate-900 dark:text-white">{tr.filedTitle}</h3>
+      {rows.length === 0 ? <p className="text-sm text-slate-500 dark:text-slate-400">{tr.filedNone}</p> : (
+        <ul className="divide-y divide-slate-100 text-sm dark:divide-white/5">
+          {rows.map((r) => (
+            <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+              <span className="text-slate-900 dark:text-white">
+                {tr.filedRow(r.from, r.to)}
+                {r.authorityReference && <span className="ms-2 font-mono text-xs text-slate-500">{r.authorityReference}</span>}
+              </span>
+              <span className="flex items-center gap-3">
+                <span className="text-xs text-slate-500 dark:text-slate-400">{tr.dueLabel} <span className="num">{money(r.due)}</span></span>
+                <span className={`rounded-full px-2 py-0.5 text-xs ${r.status === "paid" ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300" : "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300"}`}>
+                  {r.status === "paid" ? tr.statusPaid : tr.statusFiled}
+                </span>
+                {data.canFile && r.status === "filed" && r.due !== 0 && (
+                  <button className="rounded-lg bg-brand-600 px-2 py-1 text-xs font-600 text-white" onClick={async () => {
+                    setProblem("");
+                    const res = await post(slug, { action: "pay", id: r.id, accountId });
+                    if (!res.ok) { setProblem(tr.fileProblem(res.error)); return; }
+                    await onDone();
+                  }}>{tr.payReturn}</button>
+                )}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {data.canFile && accounts.length > 1 && rows.some((r) => r.status === "filed") && (
+        <div className="w-72">
+          <Field label={tr.throughAccount} as="select" value={accountId} onChange={setAccountId}
+            options={accounts.map((a) => ({ value: a.code === "1010" ? "" : a.id, label: `${a.code} ${a.name}` }))} />
+        </div>
+      )}
+      {problem && <p className="text-sm text-rose-600 dark:text-rose-300">{problem}</p>}
+    </section>
   );
 }
 

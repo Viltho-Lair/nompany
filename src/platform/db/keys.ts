@@ -867,7 +867,8 @@ export const SECTION_DEFS = [
   // the plan's too and are not here, because a nav entry with no screen is a
   // right nothing can exercise (invariant 16).
   //
-  // THREE OF THEM OWN NOTHING, the HR split's rule again: a row is where a
+  // TWO OF THEM OWN NOTHING (Tax took its first records on the same day: the
+  // filed VAT returns, which are new), the HR split's rule again: a row is where a
   // record is FILED, not what the nav calls it. Every invoice, credit note and
   // expense in every live studio carries `finance-cash`'s SectionID, and the
   // ledger's rows carry `finance-ledger`'s. Receivables, Tax and Reports read
@@ -1189,6 +1190,9 @@ export const SECTION_COLLECTIONS = {
   // schedule collection.
   "finance-payables": ["bills"],
   "finance-assets": ["fixedAssets"],
+  // FILED VAT RETURNS, 18/09/2026 — the one Tax record that is new, so it is
+  // filed under Tax itself; there is nothing older stored elsewhere to mind.
+  "finance-tax": ["taxReturns"],
   // field-service — was Operations. LOCATIONS HAVE LEFT: Administration's
   // Master data screen exists now, so the condition this comment used to state
   // is met, and a collection is re-homed only into a section that can actually

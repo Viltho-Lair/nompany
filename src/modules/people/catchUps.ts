@@ -141,6 +141,17 @@ export const PERMISSION_CATCH_UPS: readonly PermissionCatchUp[] = [
     to: ["finance.tax", "finance.reports"],
     verbs: ["view"],
   },
+  {
+    id: "finance-tax-file-2026-09-18",
+    // Filing a VAT return became an act (18/09/2026). Whoever closes the
+    // accounting months — the person who says what the company has reported —
+    // files and settles what it declares.
+    note: "Whoever closes the books files and settles the VAT return",
+    from: "finance.ledger",
+    fromVerb: "close",
+    to: ["finance.tax"],
+    verbs: ["file"],
+  },
 ];
 
 /** Every id, for stamping a role that is created from now on. */

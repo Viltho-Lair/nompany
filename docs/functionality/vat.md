@@ -117,9 +117,19 @@ studio has a rate. The default period is the previous calendar month.
   when a studio in that country needs it.
 - **`pricesIncludeTax` and `requiredLanguage`** are recorded per country and read by
   nothing yet: the POS will read the first; a layout could warn on the second.
-- **Separate input and output VAT accounts** in the chart; both post to 2100.
-- **Filing**: no export in any authority's format, no locking of a filed period (closing the
-  month in `periods.md` is the nearest thing), no record that a return was filed.
+- ~~**Separate input and output VAT accounts**~~ **built 18/09/2026**: input VAT posts to VAT
+  Recoverable (1400); bills posted before then netted it on 2100.
+- ~~**Filing**~~ **Filing and settling, 18/09/2026** (`modules/finance/taxFiling.ts`, the Tax
+  screen, `finance.tax.file` — caught up from whoever may close the books). A filed return is a
+  stored SNAPSHOT of the period's declared figures, the authority's reference and who filed it;
+  no two filed returns may share a day (`overlap`). Filing posts the SETTLEMENT (`tax-return`,
+  dated the period's last day): the ledger's own movement on 2100 and 1400 for the period is
+  cleared into **VAT Due (2160)** — the ledger's, not the documents', so legacy bills netted on
+  2100 come out right, and the screen shows the two figures side by side and says so when they
+  differ (an unposted or a foreign document). Paying posts VAT Due against a money account
+  (`tax-payment`; a negative return is a refund the other way round). **Still not built:** an
+  export in any authority's format; amending a filed return; locking the documents in a filed
+  period (a bill still open may still change — the live figure then shows beside the filed one).
 - **Conversion** of documents in other currencies.
 - **Expenses** carry no VAT, so they are not in the return.
 - `companySettings.vatRate` / `currentVatRate()` (`lib/format.ts`) are an older, unread copy

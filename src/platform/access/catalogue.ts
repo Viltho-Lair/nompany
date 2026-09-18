@@ -540,7 +540,10 @@ const OWN_AREAS = [
   // READ-ONLY ON PURPOSE. A VAT return is computed from the documents and a
   // statement from the journal; nothing on either screen writes, so a create or
   // edit here would be a right nothing can exercise (invariant 16).
-  { key: "finance.tax", group: "Finance & Accounting", label: "Tax", verbs: ["view"] },
+  // FILING IS AN EXTRA, not a write verb: declaring a figure to the authority
+  // and settling it is its own act, held by whoever closes the books.
+  { key: "finance.tax", group: "Finance & Accounting", label: "Tax", verbs: ["view"],
+    extra: [{ key: "file", label: "File and settle tax returns" }] },
   { key: "finance.reports", group: "Finance & Accounting", label: "Reports", verbs: ["view"] },
   // THE LEDGER HAS NO ORDINARY CRUD. An entry is posted and, if wrong, reversed;
   // it is never edited or deleted, because it is the record of a decision (the

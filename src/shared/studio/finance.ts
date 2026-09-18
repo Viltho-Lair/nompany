@@ -381,6 +381,21 @@ type Strings = CommonStrings & {
   toIssueNone: string;
   certificateNo: string;
   recordCertificate: string;
+  // ---- filing the VAT return (18/09/2026) ----
+  fileTitle: string;
+  fileLead: string;
+  authorityRef: string;
+  fileReturn: string;
+  ledgerSays: (amount: string) => string;
+  ledgerDiffers: (ledger: string, docs: string) => string;
+  filedTitle: string;
+  filedNone: string;
+  filedRow: (from: string, to: string) => string;
+  dueLabel: string;
+  statusFiled: string;
+  statusPaid: string;
+  payReturn: string;
+  fileProblem: (code: string) => string;
 };
 
 const en: Strings = {
@@ -769,6 +784,27 @@ const en: Strings = {
   toIssueNone: "Every amount withheld from a supplier has its certificate.",
   certificateNo: "Certificate number",
   recordCertificate: "Record",
+  fileTitle: "File this return",
+  fileLead: "Filing keeps these figures as declared and moves the period's VAT out of VAT Payable and VAT Recoverable into VAT Due. A period can be filed once.",
+  authorityRef: "Reference from the tax authority",
+  fileReturn: "File return",
+  ledgerSays: (amount) => `The ledger moved ${amount} for this period, and filing settles that.`,
+  ledgerDiffers: (ledger, docs) => `The ledger moved ${ledger} and the documents say ${docs}. A document that is not posted, or one in another currency, makes the difference — find it before filing.`,
+  filedTitle: "Filed returns",
+  filedNone: "No return filed yet.",
+  filedRow: (from, to) => `${from} to ${to}`,
+  dueLabel: "Due",
+  statusFiled: "Filed",
+  statusPaid: "Paid",
+  payReturn: "Record payment",
+  fileProblem: (code) => ({
+    overlap: "Part of this period is already in a filed return.",
+    "no-vat": "No VAT rate is set, so there is nothing to file.",
+    period: "Choose a period whose start is before its end.",
+    "already-paid": "That return is already paid.",
+    "bank-account": "Choose one of the studio's bank or cash accounts.",
+    forbidden: "You do not have the right to file returns.",
+  } as Record<string, string>)[code] || "That did not work.",
 };
 
 const ar: Strings = {
@@ -1157,6 +1193,27 @@ const ar: Strings = {
   toIssueNone: "لكل مبلغ استقطع من مورد شهادته.",
   certificateNo: "رقم الشهادة",
   recordCertificate: "تسجيل",
+  fileTitle: "تقديم هذا الاقرار",
+  fileLead: "التقديم يحفظ هذه الأرقام كما صرح بها، وينقل ضريبة الفترة من حسابي الضريبة المستحقة والقابلة للاسترداد الى حساب الضريبة الواجبة السداد. تقدم الفترة مرة واحدة.",
+  authorityRef: "المرجع من الجهة الضريبية",
+  fileReturn: "تقديم الاقرار",
+  ledgerSays: (amount) => `حرك دفتر الأستاذ ${amount} لهذه الفترة، والتقديم يسوي ذلك.`,
+  ledgerDiffers: (ledger, docs) => `حرك دفتر الأستاذ ${ledger} والمستندات تقول ${docs}. مستند غير مرحل أو بعملة أخرى هو سبب الفرق — ابحث عنه قبل التقديم.`,
+  filedTitle: "الاقرارات المقدمة",
+  filedNone: "لم يقدم أي اقرار بعد.",
+  filedRow: (from, to) => `من ${from} الى ${to}`,
+  dueLabel: "المستحق",
+  statusFiled: "مقدم",
+  statusPaid: "مسدد",
+  payReturn: "تسجيل السداد",
+  fileProblem: (code) => ({
+    overlap: "جزء من هذه الفترة وارد في اقرار مقدم.",
+    "no-vat": "لم تحدد نسبة ضريبة، فلا شيء لتقديمه.",
+    period: "اختر فترة تبدأ قبل نهايتها.",
+    "already-paid": "هذا الاقرار مسدد بالفعل.",
+    "bank-account": "اختر أحد حسابات البنك أو النقد في الاستوديو.",
+    forbidden: "ليست لديك صلاحية تقديم الاقرارات.",
+  } as Record<string, string>)[code] || "لم ينجح ذلك.",
 };
 
 const finance = { en, ar };
