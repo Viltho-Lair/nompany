@@ -201,6 +201,9 @@ const KNOWN_COLLISIONS = {
   "src/components/studio2/StudioTechnical.js": [
     { value: "sales", reason: "icons.js's icon-name registry key for the quotation's origin badge" },
   ],
+  "src/components/super/NovaSwitchboard.js": [
+    { value: "sales", reason: "icons.js's icon-name registry key for the Sales department card's mark" },
+  ],
   // GONE, ALL THREE, and deliberately not replaced by a fourth. Every screen
   // drawing a ticket-stage pill named the pill's record-kind "sales", which is
   // spelled exactly like a retired SECTION key — so each needed an exemption
