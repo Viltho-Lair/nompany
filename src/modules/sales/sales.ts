@@ -261,6 +261,8 @@ export async function editClient(ctx: SalesContext, id: string, body: Record<str
     }
     patch.name = name;
     patch.code = clientSlug(name);
+    // A NAME SOMEBODY TYPED replaces the till's placeholder (modules/sales/pos).
+    patch.autoNamed = false;
   }
   for (const f of ["industry", "website", "notes"]) if (body?.[f] !== undefined) patch[f] = str(body[f], f === "notes" ? 2000 : 200);
   // "" is a real value — it is how a logo is removed.

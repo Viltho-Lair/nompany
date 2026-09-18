@@ -38,8 +38,24 @@ and the period picker, shared), routes under `/api/studios/<slug>/pos`.
 A till for a shop's **walk-in customers**: scan, basket, pay, print. **General retail, designed
 around no single trade** (the owner, 16/09/2026) — what a pharmacy or a supermarket needs beyond
 it is an add-on. **Online only**: a till with no connection stops selling. There is **no
-customer list**; a business customer who needs a full tax invoice gets one through Documents, as
-today.
+customer list** to pick from; a business customer who needs a full tax invoice gets one through
+Documents, as today.
+
+**A customer who gives a phone number is recognised next time** (the owner, 18/09/2026). The
+number is optional, on the payment side of the till. Every spelling of one number is reduced to
+one international form first (`shared/phone`: "055 123 4567", "0551234567" and "00966 55 123
+4567" are one customer in a Saudi studio; Arabic-Indic digits count), and the till says who it is
+("Huda — 2 earlier purchases") or that a new customer will be registered. **The sale registers
+the customer**, not the lookup, so a number typed and abandoned leaves nothing: an ordinary CRM
+client with a **placeholder name** ("Customer ···4567", in the studio's language, `autoNamed`)
+until somebody types a real one in CRM, the number as its only contact, `source: "pos"`, and the
+receipt names it (`clientId`). **The till's own right registers one** — a cashier holds
+`crmSales.pos.create`, not `crmSales.clients.create`, and what the till can make is only a
+nameless client with one number. **Found by a keyed hash** (`phoneKey`,
+`platform/db/lookupKeys`: HMAC of the studio and the number under a purpose subkey of
+`NOMPANY_DATA_KEY`), because every client field is sealed; every key in the keyring is tried, so
+a rotation does not turn regulars into new customers. A studio without CRM's client register
+does not offer the field.
 
 ## What it stores
 
@@ -178,6 +194,13 @@ picking.
 - **Card terminals**: a card payment is recorded with a typed reference; nothing talks to a
   payment device. **No cash drawer kick**, no customer display.
 - **Offline selling.**
+- **Customer consent**: a number taken at the till is used only to recognise the customer. No
+  consent is recorded, so nothing may message them — marketing needs per-channel, opt-in consent
+  in Saudi Arabia and the UAE (`docs/progress.md`, "Point of Sale pricing").
+- **Two first sales to one new number at the same moment make two clients**: registration is a
+  lookup and then a create, not one atomic step. Merging clients is not built either.
+- **No customer's purchase history on their CRM page yet** — the receipts name the client, and
+  nothing reads that from CRM's side.
 - **Weighed items, promotions, loyalty**, and trade add-ons (drug tracking, prescriptions, age
   checks).
 - **Stock is not locked between the check and the write**: two tills selling the last unit at

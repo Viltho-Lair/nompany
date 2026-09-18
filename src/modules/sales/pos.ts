@@ -44,6 +44,10 @@ import {
   type SalesFilter,
 } from "./posReports";
 import type { PosContext } from "./types";
+import { clientSlug } from "./salesClients";
+import { normalizePhone, maskPhone } from "@/shared/phone";
+import { studioLocale } from "@/shared/locale";
+import { phoneLookupKey, phoneLookupKeys } from "@/platform/db/lookupKeys";
 
 export type PosTerminal = { id: string; name: string; active: boolean; createdAt?: string };
 export type PosShift = {
@@ -66,6 +70,8 @@ export type PosReceipt = {
   number: string;
   kind: "sale";
   status: "Completed";
+  /** The customer the phone number named, when one was given (18/09/2026). */
+  clientId?: string;
   terminalId: string;
   shiftId: string;
   at: string;
@@ -90,6 +96,8 @@ const Receipts = repo<PosReceipt>("posReceipts");
 const Items = repo<Item>("inventoryItems");
 const Stock = repo<Movement>("inventoryStock");
 const Batches = repo<Batch>("stockBatches");
+type PosClient = { id: string; name: string; phoneKey?: string; source?: string; autoNamed?: boolean; contacts?: { name: string; phone: string }[]; createdAt: string };
+const Clients = repo<PosClient>("salesClients");
 
 export const posContext = moduleContext<PosContext>({
   // THE POINT OF SALE DEPARTMENT (17/09/2026). The records stay FILED under
@@ -101,6 +109,9 @@ export const posContext = moduleContext<PosContext>({
   foreign: {
     items: ["inventory-items", "inventory"],
     stock: ["inventory-stock", "inventory"],
+    // CRM'S CLIENTS, and therefore nullable too: a studio without them keeps
+    // selling and simply cannot register a customer's number.
+    clients: ["crm-sales-clients", "crm-sales"],
   },
   flags: ["pos"],
 });
@@ -185,6 +196,8 @@ export async function posView(ctx: PosContext) {
       manage: can(ctx.access, "pos.settings.edit"),
       discount: can(ctx.access, "crmSales.pos.discount"),
       closeShift: can(ctx.access, "crmSales.pos.closeShift"),
+      // A customer's number can be taken only where CRM keeps clients.
+      customers: Boolean(ctx.clientsSection),
     },
     me: ctx.collaborator.id,
     asOf: now(),
@@ -251,6 +264,71 @@ export async function savePosSettings(ctx: PosContext, body: Record<string, unkn
   const section = await updateSection(ctx.studio.id, ctx.posSection.id, { settings: { ...(ctx.posSection.settings || {}), ...next } });
   if (!section) return { error: "notfound" as const };
   return { settings: next };
+}
+
+// ---- customers --------------------------------------------------------------
+//
+// A PHONE NUMBER REGISTERS A REPEAT CUSTOMER (the owner, 18/09/2026). The till
+// still sells to walk-ins with no list to pick from; a number, when the
+// customer gives one, finds the client it belongs to or makes one. The client
+// is CRM's ordinary client, with a PLACEHOLDER name ("Customer ···4567", in the
+// studio's language, `autoNamed`) until somebody edits it in CRM.
+//
+// THE TILL'S OWN RIGHT IS ENOUGH to register one. A cashier holds
+// `crmSales.pos.create` and not `crmSales.clients.create`, and requiring the
+// second would mean the counter never recognises anybody — the same argument
+// that lets a record rule create with the studio's authority. What it can make
+// is narrow: a nameless client carrying one phone number, nothing else.
+//
+// FOUND BY A KEYED HASH, never by the number (platform/db/lookupKeys), because
+// every client field is sealed.
+
+const PLACEHOLDER = { en: "Customer", ar: "عميل" } as const;
+
+async function findCustomer(ctx: PosContext, phone: string): Promise<PosClient | null> {
+  if (!ctx.clientsSection) return null;
+  const keys = phoneLookupKeys(ctx.studio.id, phone);
+  if (!keys.length) return null;
+  const rows = await Clients.find({ studio: ctx.studio, section: ctx.clientsSection }, { where: { phoneKey: keys } });
+  return rows[0] || null;
+}
+
+/** Who this number belongs to, and how often they have bought — asked while the basket is open. */
+export async function customerLookup(ctx: PosContext, raw: unknown) {
+  const denied = requirePermission(ctx.access, "crmSales.pos.create");
+  if (denied) return denied;
+  if (!ctx.clientsSection) return { error: "no-clients" as const };
+  const phone = normalizePhone(raw, ctx.studio.country);
+  if (!phone) return { error: "phone" as const };
+  const masked = maskPhone(phone);
+  const client = await findCustomer(ctx, phone);
+  if (!client) return { known: false, masked };
+  const visits = (await Receipts.find(scope(ctx), { where: { clientId: client.id } })).length;
+  return { known: true, masked, clientId: client.id, name: client.name, autoNamed: client.autoNamed === true, visits };
+}
+
+/** The client a sale's number names — found, or made. Called after every check, just before the write. */
+async function customerFor(ctx: PosContext, phone: string): Promise<{ id: string } | { error: "customers-unavailable" }> {
+  const found = await findCustomer(ctx, phone);
+  if (found) return found;
+  const key = phoneLookupKey(ctx.studio.id, phone);
+  // NO KEY, NO REGISTRATION: an unhashed number could never be found again.
+  if (!key || !ctx.clientsSection) return { error: "customers-unavailable" };
+  const name = `${PLACEHOLDER[studioLocale(ctx.studio)] || PLACEHOLDER.en} ${maskPhone(phone)}`;
+  return Clients.create({ studio: ctx.studio, section: ctx.clientsSection }, {
+    name,
+    code: clientSlug(name),
+    industry: "",
+    website: "",
+    notes: "",
+    contacts: [{ name: "", email: "", phone, position: "" }],
+    locations: [],
+    source: "pos",
+    autoNamed: true,
+    phoneKey: key,
+    createdByCollaboratorId: ctx.collaborator.id,
+    createdAt: now(),
+  } as unknown as PosClient);
 }
 
 // ---- shifts -----------------------------------------------------------------
@@ -414,6 +492,19 @@ export async function createSale(ctx: PosContext, body: Record<string, unknown>)
   const settled = settle(totals.total, payments, terms.currency);
   if (settled.problem) return { error: settled.problem, total: totals.total, paid: settled.paid };
 
+  // THE CUSTOMER, LAST OF THE CHECKS AND FIRST OF THE WRITES: a number that
+  // is not one refuses the sale before anything is written, and a new client
+  // is made only for a sale that is otherwise certain to go through.
+  let clientId = "";
+  if (String(body?.phone ?? "").trim()) {
+    if (!ctx.clientsSection) return { error: "no-clients" as const };
+    const phone = normalizePhone(body?.phone, ctx.studio.country);
+    if (!phone) return { error: "phone" as const };
+    const customer = await customerFor(ctx, phone);
+    if ("error" in customer) return customer;
+    clientId = customer.id;
+  }
+
   // WHICH BATCH EACH LINE'S UNITS LEFT FROM, handed out line by line from the
   // item's picks so a recall can name the receipt line.
   const remaining = new Map([...picked].map(([k, v]) => [k, v.picks.map((p) => ({ ...p }))]));
@@ -443,6 +534,7 @@ export async function createSale(ctx: PosContext, body: Record<string, unknown>)
     shiftId: shift.id,
     at,
     cashierCollaboratorId: ctx.collaborator.id,
+    ...(clientId ? { clientId } : {}),
     currency: terms.currency,
     vatRate: terms.vatRate,
     taxMethod: terms.taxMethod,

@@ -58,6 +58,12 @@ import crypto from "crypto";
 // remembering to list it, which is what "by default" has to mean.
 const CLEAR_ON_CLIENT = new Set([
   "id", "studioId", "sectionId", "createdAt", "updatedAt", "createdByCollaboratorId",
+  // A KEYED HASH, NOT THE NUMBER (./lookupKeys): the till finds a repeat
+  // customer by it, which a sealed value cannot answer. Useless without the key.
+  "phoneKey",
+  // WHERE THE CLIENT CAME FROM ("pos"), and whether its name is still the
+  // placeholder the till gave it — neither says anything about the client.
+  "source", "autoNamed",
 ]);
 const WHOLE_ROW: Record<string, Set<string>> = {
   salesClients: CLEAR_ON_CLIENT,

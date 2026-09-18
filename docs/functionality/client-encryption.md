@@ -23,6 +23,12 @@ their way out. The table holds tokens (`ns1.d1.…`); a reader sees plain rows.
   `description` (`tasks`, "Approve quotation … · ACME"); a journal entry's `memo`
   ("Invoice INV-0003 — ACME").
 
+**Three client fields are clear on purpose** (18/09/2026): `phoneKey`, a keyed hash of the
+client's phone number that the till finds a repeat customer by (`platform/db/lookupKeys` —
+useless without the key, bound to the studio, and the number itself stays sealed in the
+client's contacts); `source` ("pos"); and `autoNamed`, whether the name is still the till's
+placeholder. None of the three says anything about who the client is.
+
 The list is `platform/db/sealCipher.ts`, and nowhere else.
 
 ## How

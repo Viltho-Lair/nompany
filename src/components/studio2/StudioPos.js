@@ -41,6 +41,9 @@ export default function StudioPos({ slug }) {
   // THE WHOLE BASKET'S DISCOUNT, as typed. Per-line discounts live on the rows.
   const [basketOff, setBasketOff] = useState({ kind: "percent", value: "" });
   const [payments, setPayments] = useState([{ method: "cash", amount: "", reference: "" }]);
+  // THE CUSTOMER'S NUMBER, when they give one, and who it turned out to be.
+  const [phone, setPhone] = useState("");
+  const [customer, setCustomer] = useState(null);
   const [busy, setBusy] = useState(false);
   const [receipt, setReceipt] = useState(null);
   const [closing, setClosing] = useState(false);
@@ -142,6 +145,16 @@ export default function StudioPos({ slug }) {
 
   const choose = (id) => { setPicked(id); savePref(pref, id); };
 
+  // WHO THE NUMBER BELONGS TO, asked when the cashier leaves the box — not on
+  // every key, which would ask once per digit. The sale registers a new one.
+  async function lookUp() {
+    const typed = phone.trim();
+    if (!typed) { setCustomer(null); return; }
+    const res = await fetch(`/api/studios/${slug}/pos/customer?phone=${encodeURIComponent(typed)}`, { cache: "no-store" });
+    const out = await res.json().catch(() => ({}));
+    setCustomer(res.ok && out?.ok ? out : { error: out?.error || "" });
+  }
+
   async function completeSale() {
     const out = await call("/receipts", "POST", {
       shiftId: shift.id,
@@ -150,12 +163,15 @@ export default function StudioPos({ slug }) {
         ...(cleanDiscount(b.discount) ? { discount: cleanDiscount(b.discount) } : {}),
       })),
       ...(cleanDiscount(basketOff) ? { discount: cleanDiscount(basketOff) } : {}),
+      ...(phone.trim() ? { phone: phone.trim() } : {}),
       payments: paying,
     });
     if (!out) return;
     setReceipt(out.receipt);
     setBasket([]);
     setBasketOff({ kind: "percent", value: "" });
+    setPhone("");
+    setCustomer(null);
     setPayments([{ method: "cash", amount: "", reference: "" }]);
   }
 
@@ -220,6 +236,20 @@ export default function StudioPos({ slug }) {
                 <div>
                   <p className="mb-1 text-xs font-700 uppercase tracking-wide text-slate-500 dark:text-slate-400">{tr.basketDiscount}</p>
                   <DiscountInput tr={tr} value={basketOff} currency={terms.currency} wide onChange={setBasketOff} />
+                </div>
+              )}
+              {data.can.customers && (
+                // React's onBlur bubbles; on the wrapper it leaves Field's own focus handling alone.
+                <div onBlur={lookUp}>
+                  <Field label={tr.customerPhone} type="tel" value={phone} hint={tr.customerPhoneHint}
+                    onChange={(v) => { setPhone(v); setCustomer(null); }} />
+                  {customer && (
+                    <p className={`mt-1 text-xs ${customer.error ? "text-amber-700 dark:text-amber-300" : "text-slate-500 dark:text-slate-400"}`}>
+                      {customer.error ? tr.refusal(customer.error, customer)
+                        : customer.known ? tr.customerKnown(customer.name, customer.visits)
+                          : tr.customerNew(customer.masked)}
+                    </p>
+                  )}
                 </div>
               )}
               <Totals tr={tr} totals={totals} terms={terms} />

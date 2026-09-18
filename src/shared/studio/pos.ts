@@ -70,6 +70,10 @@ type Strings = {
   discounts: string;
   overCap: (max: number, name: string) => string;
   youSaved: string;
+  customerPhone: string;
+  customerPhoneHint: string;
+  customerNew: (masked: string) => string;
+  customerKnown: (name: string, visits: number) => string;
   subtotal: string;
   tax: (name: string, rate: number) => string;
   taxIncluded: string;
@@ -159,6 +163,10 @@ const en: Strings = {
   discounts: "Discounts",
   overCap: (max, name) => `${name} is discounted by more than ${max}%, the most this till allows.`,
   youSaved: "You saved",
+  customerPhone: "Customer's phone (optional)",
+  customerPhoneHint: "A customer who gives their number is recognised next time. Leave blank for a walk-in.",
+  customerNew: (m) => `New customer ${m} — registered with this sale, without a name until somebody adds one in CRM.`,
+  customerKnown: (name, n) => `${name} — ${n === 0 ? "no purchases yet" : n === 1 ? "1 earlier purchase" : `${n} earlier purchases`}.`,
   subtotal: "Subtotal",
   tax: (name, rate) => `${name} ${rate}%`,
   taxIncluded: "Prices include tax",
@@ -188,6 +196,9 @@ const en: Strings = {
       case "underpaid": return "The payments do not cover the total.";
       case "overpaid-card": return "A card or transfer cannot be for more than is due — only cash gives change.";
       case "unpriced": return `${String(x.name || "An item")} has no price. Somebody with the right to change prices has to type one.`;
+      case "phone": return "That is not a phone number.";
+      case "no-clients": return "This studio keeps no client register, so a customer's number cannot be recorded.";
+      case "customers-unavailable": return "Customers cannot be registered right now. Leave the number blank to sell.";
       case "discount-cap": return x.name ? `${String(x.name)} is discounted by more than ${x.max}%, the most this till allows.` : "The largest discount must be between 0 and 100%.";
       case "closed": return "That shift is already closed.";
       case "shift-open": return "This till already has an open shift.";
@@ -266,6 +277,10 @@ const ar: Strings = {
   discounts: "الخصومات",
   overCap: (max, name) => `خصم ${name} أكبر من ${max}%، وهو أقصى ما يسمح به هذا الصندوق.`,
   youSaved: "وفرتم",
+  customerPhone: "هاتف العميل (اختياري)",
+  customerPhoneHint: "العميل الذي يعطي رقمه يُعرف في المرة القادمة. اتركه فارغا للعميل العابر.",
+  customerNew: (m) => `عميل جديد ${m} — يسجل مع هذا البيع بلا اسم حتى يضيفه أحد في إدارة العملاء.`,
+  customerKnown: (name, n) => `${name} — ${n === 0 ? "لا مشتريات بعد" : n === 1 ? "عملية شراء سابقة واحدة" : n === 2 ? "عمليتا شراء سابقتان" : n <= 10 ? `${n} عمليات شراء سابقة` : `${n} عملية شراء سابقة`}.`,
   subtotal: "المجموع الفرعي",
   // The country's own name for the tax, in Arabic where there is one.
   tax: (name, rate) => `${name === "VAT" ? "ضريبة القيمة المضافة" : name === "General sales tax" ? "ضريبة المبيعات العامة" : "الضريبة"} ${rate}%`,
@@ -296,6 +311,9 @@ const ar: Strings = {
       case "underpaid": return "المدفوع لا يغطي الإجمالي.";
       case "overpaid-card": return "لا تكون البطاقة أو التحويل بأكثر من المستحق — النقد وحده يعطي باقيا.";
       case "unpriced": return `${String(x.name || "صنف")} بلا سعر، ويجب أن يكتب سعره من يملك صلاحية تغيير الأسعار.`;
+      case "phone": return "هذا ليس رقم هاتف.";
+      case "no-clients": return "لا يحفظ هذا الاستوديو سجلا للعملاء، فلا يمكن تسجيل رقم العميل.";
+      case "customers-unavailable": return "لا يمكن تسجيل العملاء الآن. اترك الرقم فارغا لإتمام البيع.";
       case "discount-cap": return x.name ? `خصم ${String(x.name)} أكبر من ${x.max}%، وهو أقصى ما يسمح به هذا الصندوق.` : "يجب أن يكون أكبر خصم بين 0 و100%.";
       case "closed": return "هذه الوردية مغلقة بالفعل.";
       case "shift-open": return "لهذا الصندوق وردية مفتوحة بالفعل.";

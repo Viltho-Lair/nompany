@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 // disagreeing with the sale rather than a malformed request: 409.
 const spec = {
   auth: "studio", context: posContext, body: true, name: "crm-sales-pos",
-  status: { insufficient: 409, closed: 409, underpaid: 409, "overpaid-card": 409 },
+  status: { insufficient: 409, closed: 409, underpaid: 409, "overpaid-card": 409, "no-clients": 409, "customers-unavailable": 409 },
 };
 
 export const GET = route({ ...spec, body: false }, async (pos) => {

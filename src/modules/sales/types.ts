@@ -38,6 +38,8 @@ export type PosContext = ModuleContext & {
   posSection: Section;
   itemsSection: Section | null;
   stockSection: Section | null;
+  /** CRM's client register, where a phone number registers a repeat customer. Null when CRM is off. */
+  clientsSection: Section | null;
   canViewPos: boolean;
   canManagePos: boolean;
 };
