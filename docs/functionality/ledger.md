@@ -252,6 +252,19 @@ Stated in words, because a silent gap reads as a finished feature.
   reads, which is why that `await` sits alone above the `Promise.all`; nothing makes the
   seed itself atomic. It had never been reachable before this route existed, because
   nothing called `ledgerAccounts` at all.
-- **The screen reads and does not write.** Trial balance, journal, P&L, balance sheet,
-  reconciliation and periods render; there is no manual journal form, no reversal button
-  and no chart-of-accounts editor, so all three are API-only.
+- ~~**The screen reads and does not write.**~~ **It writes, 18/09/2026.** The Journal tab has
+  a **New entry** form (lines, a live balanced/out-by chip, retired accounts not offered) and
+  a **Reverse** button on every entry that is neither reversed nor itself a reversal, which
+  asks why and makes that the mirror's memo. An **Accounts** tab lists the chart with each
+  account's balance read on its own side (an overdrawn bank shows negative) and edits it
+  through `/finance/ledger/accounts` — add, rename, re-parent, retire, restore; never delete.
+  The rules, in `createAccount`/`editAccount`: a code is a short unique key and never changes;
+  a parent is the same type and never the account or anything beneath it; the TYPE moves
+  only while nothing is posted to it, and never on a default account; RETIRING refuses a
+  default account (the automatic postings name them — rename instead), an account with a
+  balance, and a parent with a live child. All of it answers to `finance.ledger.post`, the
+  right to keep the books by hand, rather than a new key: an account nobody may post to by
+  hand is only reached by the automatic postings, which name the default chart alone.
+  **Still not built:** reversing an AUTOMATIC entry by hand is allowed (it always was, by
+  API) and leaves its document unposted — the period close then lists it; a sub-account does
+  not yet roll up into its parent on the statements; no import of a chart from a file.

@@ -49,6 +49,35 @@ type Strings = {
   kind: { sale: string; credit: string; purchase: string };
   reference: string;
   date: string;
+  // ---- writing to the book (18/09/2026) ----
+  accounts: string;
+  code: string;
+  name: string;
+  type: string;
+  parent: string;
+  balance: string;
+  typeLabel: (t: string) => string;
+  retired: string;
+  retire: string;
+  restore: string;
+  rename: string;
+  save: string;
+  cancel: string;
+  addAccount: string;
+  noParent: string;
+  newEntry: string;
+  memo: string;
+  addLine: string;
+  difference: (n: string) => string;
+  balancedChip: string;
+  post: string;
+  posting: string;
+  reverse: string;
+  reverseReason: string;
+  reversed: string;
+  isReversal: string;
+  chooseAccount: string;
+  problem: (code: string) => string;
 };
 
 const en: Strings = {
@@ -96,10 +125,110 @@ const en: Strings = {
   kind: { sale: "Invoice", credit: "Credit note", purchase: "Bill" },
   reference: "Reference",
   date: "Date",
+  accounts: "Accounts",
+  code: "Code",
+  name: "Name",
+  type: "Type",
+  parent: "Rolls up into",
+  balance: "Balance",
+  typeLabel: (t) => ({ asset: "Asset", liability: "Liability", equity: "Equity", income: "Income", expense: "Expense" } as Record<string, string>)[t] || t,
+  retired: "Retired",
+  retire: "Retire",
+  restore: "Restore",
+  rename: "Edit",
+  save: "Save",
+  cancel: "Cancel",
+  addAccount: "Add an account",
+  noParent: "— none —",
+  newEntry: "New entry",
+  memo: "What it is for",
+  addLine: "Add a line",
+  difference: (n) => `Out by ${n}`,
+  balancedChip: "Balanced",
+  post: "Post",
+  posting: "Posting…",
+  reverse: "Reverse",
+  reverseReason: "Why is it being reversed?",
+  reversed: "Reversed",
+  isReversal: "Reversal",
+  chooseAccount: "Choose an account",
+  problem: (code) => ({
+    unbalanced: "The debits and credits do not agree.",
+    "period-closed": "That month is closed. Date the entry in an open month.",
+    account: "One line names an account that is not in the chart.",
+    inactive: "One line names a retired account.",
+    "one-side": "Each line is a debit or a credit — not both, not neither.",
+    lines: "An entry needs at least two lines.",
+    code: "A code is a short key: digits, letters, a dot or a dash.",
+    "code-taken": "Another account already has that code.",
+    name: "Give the account a name.",
+    type: "Choose what kind of account it is.",
+    parent: "That parent account is not in the chart.",
+    "parent-type": "An account can only roll up into one of the same kind.",
+    "parent-loop": "An account cannot roll up into itself or into one beneath it.",
+    "type-posted": "Its kind cannot change: entries are already posted to it.",
+    "type-default": "The standard accounts keep their kind — the automatic postings rely on it.",
+    "used-by-postings": "The automatic postings use this account, so it cannot be retired. Rename it instead.",
+    "has-balance": "It still holds a balance. Move it to another account first.",
+    "has-children": "Accounts still roll up into it. Retire or move them first.",
+    "already-reversed": "That entry has already been reversed.",
+    "is-a-reversal": "A reversal is not reversed again — post a new entry instead.",
+    forbidden: "You do not have the right to do that.",
+  } as Record<string, string>)[code] || "That did not work.",
 };
 
 // HAND-WRITTEN. NO DIACRITICS.
 const ar: Strings = {
+  accounts: "الحسابات",
+  code: "الرمز",
+  name: "الاسم",
+  type: "النوع",
+  parent: "يندرج تحت",
+  balance: "الرصيد",
+  typeLabel: (t) => ({ asset: "أصل", liability: "التزام", equity: "حقوق ملكية", income: "إيراد", expense: "مصروف" } as Record<string, string>)[t] || t,
+  retired: "موقوف",
+  retire: "إيقاف",
+  restore: "إعادة تفعيل",
+  rename: "تعديل",
+  save: "حفظ",
+  cancel: "إلغاء",
+  addAccount: "إضافة حساب",
+  noParent: "— لا شيء —",
+  newEntry: "قيد جديد",
+  memo: "البيان",
+  addLine: "إضافة سطر",
+  difference: (n) => `الفرق ${n}`,
+  balancedChip: "متوازن",
+  post: "ترحيل",
+  posting: "جار الترحيل…",
+  reverse: "عكس القيد",
+  reverseReason: "لماذا يعكس هذا القيد؟",
+  reversed: "معكوس",
+  isReversal: "قيد عكسي",
+  chooseAccount: "اختر حسابا",
+  problem: (code) => ({
+    unbalanced: "المدين والدائن غير متساويين.",
+    "period-closed": "هذا الشهر مغلق. أرخ القيد في شهر مفتوح.",
+    account: "أحد السطور يذكر حسابا ليس في الدليل.",
+    inactive: "أحد السطور يذكر حسابا موقوفا.",
+    "one-side": "كل سطر مدين أو دائن — لا الاثنان معا ولا أي منهما.",
+    lines: "يحتاج القيد سطرين على الأقل.",
+    code: "الرمز مفتاح قصير: أرقام أو حروف أو نقطة أو شرطة.",
+    "code-taken": "لحساب آخر الرمز نفسه.",
+    name: "أعط الحساب اسما.",
+    type: "اختر نوع الحساب.",
+    parent: "الحساب الأب ليس في الدليل.",
+    "parent-type": "لا يندرج الحساب إلا تحت حساب من نوعه.",
+    "parent-loop": "لا يندرج الحساب تحت نفسه ولا تحت حساب يندرج تحته.",
+    "type-posted": "لا يتغير نوعه: رحلت إليه قيود بالفعل.",
+    "type-default": "تحتفظ الحسابات الأساسية بنوعها — تعتمد عليه القيود التلقائية.",
+    "used-by-postings": "تستخدم القيود التلقائية هذا الحساب فلا يوقف. غير اسمه بدلا من ذلك.",
+    "has-balance": "ما زال فيه رصيد. انقله إلى حساب آخر أولا.",
+    "has-children": "ما زالت حسابات تندرج تحته. أوقفها أو انقلها أولا.",
+    "already-reversed": "عكس هذا القيد من قبل.",
+    "is-a-reversal": "القيد العكسي لا يعكس مرة أخرى — رحل قيدا جديدا بدلا من ذلك.",
+    forbidden: "ليست لديك صلاحية لذلك.",
+  } as Record<string, string>)[code] || "لم ينجح ذلك.",
   title: "دفتر الأستاذ",
   lead: "كل القيود، وما تجمعه. لا شيء هنا مكتوب مرتين — ميزان المراجعة والقائمتان تحسب من القراءة نفسها للسجل.",
   trial: "ميزان المراجعة",

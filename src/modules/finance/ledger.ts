@@ -169,6 +169,155 @@ export async function ledgerAccounts(ctx: FinanceContext): Promise<Account[]> {
   return byCode([...existing, ...seeded]);
 }
 
+// ---------------------------------------------------------------------------
+// EDITING THE CHART
+// ---------------------------------------------------------------------------
+
+/**
+ * THE ACCOUNTS THE AUTOMATIC POSTINGS NAME BY CODE. Every one of them is the
+ * credit or debit side of something a studio does without thinking about the
+ * ledger — issuing an invoice, paying a bill, running depreciation — so retiring
+ * one does not tidy the chart, it makes every such act refuse to post
+ * (`inactive`), silently from the point of view of whoever raised the document.
+ * So they may be renamed and never retired. The whole default chart is on it:
+ * a default nothing posts to yet is still a home a later posting may take.
+ */
+const DEFAULT_CODES = new Set(DEFAULT_CHART.map((a) => a.code));
+
+const ACCOUNT_TYPES: readonly AccountType[] = ["asset", "liability", "equity", "income", "expense"];
+// A CODE IS A SHORT KEY, not a sentence: digits, letters, a dot or a dash —
+// what every printed chart uses — so it sorts and reads the way the reports do.
+const CODE_RE = /^[0-9A-Za-z][0-9A-Za-z.-]{0,11}$/;
+
+/** Net minor units per account, over the whole journal. */
+function netByAccount(entries: JournalEntry[], currency: unknown) {
+  const net = new Map<string, number>();
+  const touched = new Set<string>();
+  for (const e of entries) {
+    for (const l of e.lines || []) {
+      touched.add(l.accountId);
+      net.set(l.accountId, (net.get(l.accountId) || 0) + cents(l.debit, currency) - cents(l.credit, currency));
+    }
+  }
+  return { net, touched };
+}
+
+/**
+ * A PARENT THAT CANNOT HOLD THIS ACCOUNT, or null. Same type — a sub-account
+ * rolls up into its parent on the reports, and an expense rolled into an asset
+ * would be added to the wrong side — and never the account itself or anything
+ * beneath it, or the tree has a loop no report can walk.
+ */
+function parentProblem(accounts: Account[], id: string | null, parentId: string, type: AccountType): string | null {
+  if (!parentId) return null;
+  const byId = new Map(accounts.map((a) => [a.id, a]));
+  const parent = byId.get(parentId);
+  if (!parent) return "parent";
+  if (parent.type !== type) return "parent-type";
+  for (let at: Account | undefined = parent, hops = 0; at && hops < 50; at = at.parentId ? byId.get(at.parentId) : undefined, hops++) {
+    if (id && at.id === id) return "parent-loop";
+  }
+  return null;
+}
+
+/**
+ * ADD AN ACCOUNT. `finance.ledger.post` — the right to keep the books by hand —
+ * because an account nobody may post to by hand is only ever reached by the
+ * automatic postings, which name the default chart and nothing else. A second
+ * right for the chart alone would be one more box nobody ticks.
+ */
+export async function createAccount(ctx: FinanceContext, body: Record<string, unknown>) {
+  const denied = requirePermission(ctx.access, "finance.ledger.post");
+  if (denied) return denied;
+
+  const code = str(body?.code, 20);
+  if (!CODE_RE.test(code)) return { error: "code" };
+  const name = str(body?.name, 120);
+  if (!name) return { error: "name" };
+  const type = ACCOUNT_TYPES.find((t) => t === body?.type);
+  if (!type) return { error: "type" };
+
+  const accounts = await ledgerAccounts(ctx);
+  // UNIQUE BY CODE, whatever the case: the postings find an account by its code,
+  // and two accounts answering to one would let a report and a posting choose
+  // differently.
+  if (accounts.some((a) => a.code.toLowerCase() === code.toLowerCase())) return { error: "code-taken" };
+  const parentId = str(body?.parentId, 60);
+  const wrong = parentProblem(accounts, null, parentId, type);
+  if (wrong) return { error: wrong };
+
+  const account = await Accounts.create({ studio: ctx.studio, section: ctx.ledgerSection }, {
+    code, name, type, active: true,
+    ...(parentId ? { parentId } : {}),
+    createdAt: new Date().toISOString(),
+    createdByCollaboratorId: ctx.collaborator.id,
+  });
+  return { account };
+}
+
+/**
+ * RENAME, RE-PARENT OR RETIRE AN ACCOUNT. Never deleted: its postings are
+ * history, and a report reading them needs the account to still say what it was.
+ *
+ * THE TYPE MOVES ONLY WHILE NOTHING IS POSTED TO IT. An account's type decides
+ * which statement its postings land on and which way round they read; changing
+ * it afterwards would move last year's figures from the P&L to the balance sheet
+ * without a single entry saying so.
+ *
+ * RETIRING NEEDS A NOUGHT BALANCE. A retired account with money on it still
+ * counts in every report, and nobody can post the entry that would clear it.
+ */
+export async function editAccount(ctx: FinanceContext, id: string, body: Record<string, unknown>) {
+  const denied = requirePermission(ctx.access, "finance.ledger.post");
+  if (denied) return denied;
+
+  const accounts = await ledgerAccounts(ctx);
+  const current = accounts.find((a) => a.id === id);
+  if (!current) return { error: "notfound" };
+
+  const patch: Record<string, unknown> = {};
+  if (body?.name !== undefined) {
+    const name = str(body.name, 120);
+    if (!name) return { error: "name" };
+    patch.name = name;
+  }
+
+  const entries = await Entries.find({ studio: ctx.studio, section: ctx.ledgerSection });
+  const { net, touched } = netByAccount(entries, ctx.studio.currency);
+
+  let type = current.type;
+  if (body?.type !== undefined && body.type !== current.type) {
+    const next = ACCOUNT_TYPES.find((t) => t === body.type);
+    if (!next) return { error: "type" };
+    if (touched.has(id)) return { error: "type-posted" };
+    // A DEFAULT ACCOUNT KEEPS ITS TYPE: the postings rely on Revenue being
+    // income and Accounts Payable a liability as much as on their codes.
+    if (DEFAULT_CODES.has(current.code)) return { error: "type-default" };
+    type = next;
+    patch.type = next;
+  }
+  if (body?.parentId !== undefined) {
+    const parentId = str(body.parentId, 60);
+    const wrong = parentProblem(accounts, id, parentId, type);
+    if (wrong) return { error: wrong };
+    patch.parentId = parentId;
+  }
+  if (body?.active !== undefined) {
+    const active = body.active !== false;
+    if (!active && current.active !== false) {
+      if (DEFAULT_CODES.has(current.code)) return { error: "used-by-postings" };
+      if (net.get(id)) return { error: "has-balance", balance: money(Math.abs(net.get(id) || 0), ctx.studio.currency) };
+      // A PARENT OF A LIVE ACCOUNT stays live, or the tree hangs a live account
+      // off a retired one and the reports roll it into nothing.
+      if (accounts.some((a) => a.parentId === id && a.active !== false)) return { error: "has-children" };
+    }
+    patch.active = active;
+  }
+
+  const account = await Accounts.update({ studio: ctx.studio, section: ctx.ledgerSection }, id, patch);
+  return account ? { account } : { error: "notfound" };
+}
+
 export async function listAccounts(ctx: FinanceContext) {
   const denied = requirePermission(ctx.access, "finance.ledger.view");
   if (denied) return denied;
