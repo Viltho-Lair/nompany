@@ -44,6 +44,8 @@ import {
 import type { Schedule } from "./schedules";
 import { leaseSchedule, leaseMonthLines } from "./leases";
 import type { Lease } from "./leases";
+import { unownedPool, revenueWeights, splitPool, allocationLines } from "./allocations";
+import type { AllocationRule } from "./allocations";
 import type { Account, JournalEntry, JournalLine, Invoice, Expense, FinanceContext, FixedAsset } from "./types";
 import type { Row } from "@/platform/db/store";
 
@@ -2144,5 +2146,54 @@ export async function postLeaseMonth(ctx: FinanceContext, sourceId: string, opti
       depreciation: String(byCode.get(LEASE_CODES.depreciation)), accumulated: String(byCode.get(LEASE_CODES.accumulated)),
       interest: String(byCode.get(LEASE_CODES.interest)), liability: String(byCode.get(LEASE_CODES.liability)), money: bank.id,
     }),
+  }, options);
+}
+
+// ---------------------------------------------------------------------------
+// ALLOCATIONS (./allocations)
+// ---------------------------------------------------------------------------
+
+const AllocationRules = repo<Row>("allocationRules");
+
+/**
+ * ONE RULE'S MONTH (`<ruleId>:<YYYY-MM>`): the account's unowned part shared
+ * along the rule's dimension, on the month's last day. The split is computed
+ * here from the books as they stand, so a preview and a post agree unless the
+ * books moved between them.
+ */
+export async function allocationFor(ctx: FinanceContext, sourceId: string) {
+  const [ruleId, period] = sourceId.split(":");
+  const rule = (await AllocationRules.find({ studio: ctx.studio, section: ctx.ledgerSection })).find((r) => r.id === ruleId) as
+    (Row & AllocationRule) | undefined;
+  if (!rule) return { error: "notfound" as const };
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(period || "")) return { error: "period" as const };
+  const [entries, chart] = await Promise.all([Entries.find({ studio: ctx.studio, section: ctx.ledgerSection }), ledgerAccounts(ctx)]);
+  const account = chart.find((a) => a.id === rule.accountId);
+  if (!account) return { error: "chart" as const };
+  const natural = DEBIT_NORMAL[account.type] ? "debit" as const : "credit" as const;
+  const currency = ctx.studio.currency;
+  const pool = unownedPool(entries, rule, period, natural, currency);
+  const weights = rule.basis === "revenue"
+    ? [...revenueWeights(entries, new Set(chart.filter((a) => a.type === "income").map((a) => a.id)), rule.dimension, period, currency)]
+      .map(([value, weight]) => ({ value, weight }))
+    : rule.shares.map((s) => ({ value: s.value, weight: Math.round(s.percent * 1000) }));
+  const split = splitPool(pool, weights);
+  return { rule, period, pool: money(Math.max(0, pool), currency), split: split.map((s) => ({ value: s.value, amount: money(s.amount, currency) })), natural, entries, rawSplit: split };
+}
+
+export async function postAllocation(ctx: FinanceContext, sourceId: string, options: PostOptions = {}) {
+  if (!options.system) {
+    const denied = requirePermission(ctx.access, "finance.ledger.post");
+    if (denied) return denied;
+  }
+  const a = await allocationFor(ctx, sourceId);
+  if (a.error !== undefined) return { error: a.error };
+  if (alreadyPosted(a.entries, "allocation", sourceId)) return { error: "already-posted" };
+  if (!a.rawSplit.length) return { error: a.pool > 0 ? "no-basis" : "nothing-to-share" };
+  return postEntry(ctx, {
+    date: lastDayOf(a.period),
+    memo: `Allocation ${a.period}: ${a.rule.name}`,
+    source: { kind: "allocation", id: sourceId },
+    lines: allocationLines(a.rule, a.rawSplit, a.natural, ctx.studio.currency),
   }, options);
 }

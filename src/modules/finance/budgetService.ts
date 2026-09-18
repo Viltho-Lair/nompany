@@ -22,6 +22,26 @@ const Budgets = repo<BudgetRecord>("budgets");
 const Entries = repo<JournalEntry>("journalEntries");
 const scope = (ctx: FinanceContext) => ({ studio: ctx.studio, section: ctx.budgetsSection });
 
+/**
+ * THE VALUES THE LEDGER HAS ACTUALLY POSTED, per dimension — what a budget or
+ * an allocation can name and still have something to be measured against. A
+ * project reads as its number and name; the rest show as the ledger holds them.
+ */
+export function dimensionValuesFor(
+  entries: JournalEntry[],
+  projects: { id?: unknown; number?: unknown; name?: unknown }[],
+): Record<string, { value: string; label: string }[]> {
+  const seen: Record<string, Set<string>> = Object.fromEntries(DIMENSIONS.map((d) => [d, new Set<string>()]));
+  for (const e of entries) for (const l of e.lines || []) {
+    for (const d of DIMENSIONS) { const v = String((l as Record<string, unknown>)[d] || ""); if (v) seen[d].add(v); }
+  }
+  for (const p of projects) seen.projectId.add(String(p.id));
+  const projectLabel = Object.fromEntries(projects.map((p) => [String(p.id), [p.number, p.name].filter(Boolean).join(" ")]));
+  return Object.fromEntries(DIMENSIONS.map((d) => [d, [...seen[d]].map((v) => ({
+    value: v, label: d === "projectId" ? projectLabel[v] || v : v,
+  }))]));
+}
+
 /** Every budget, each with its variance to this month (or its last, once it is over). */
 export async function budgetsView(ctx: FinanceContext) {
   const denied = requirePermission(ctx.access, "finance.budgets.view");
@@ -33,18 +53,7 @@ export async function budgetsView(ctx: FinanceContext) {
     projectRows(ctx),
   ]);
   const now = new Date().toISOString().slice(0, 7);
-  // THE VALUES THE LEDGER HAS ACTUALLY POSTED, per dimension — what a budget
-  // can be cut by and still have something to be measured against. A project
-  // reads as its number and name; the rest show as the ledger holds them.
-  const seen: Record<string, Set<string>> = Object.fromEntries(DIMENSIONS.map((d) => [d, new Set<string>()]));
-  for (const e of entries) for (const l of e.lines || []) {
-    for (const d of DIMENSIONS) { const v = String((l as Record<string, unknown>)[d] || ""); if (v) seen[d].add(v); }
-  }
-  for (const p of projects) seen.projectId.add(String(p.id));
-  const projectLabel = Object.fromEntries(projects.map((p) => [String(p.id), [p.number, p.name].filter(Boolean).join(" ")]));
-  const dimensionValues = Object.fromEntries(DIMENSIONS.map((d) => [d, [...seen[d]].map((v) => ({
-    value: v, label: d === "projectId" ? projectLabel[v] || v : v,
-  }))]));
+  const dimensionValues = dimensionValuesFor(entries, projects);
 
   return {
     budgets: budgets
