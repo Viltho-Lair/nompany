@@ -95,6 +95,13 @@ function tag(scope: Sentry.Scope, fields: Fields): void {
 export function startErrorTracking(): void {
   const dsn = process.env.SENTRY_DSN;
   if (!dsn) return;
+  // NOT DURING `next build`. The build prerenders pages, several of them read
+  // the database, and a build machine that cannot reach it logs "request
+  // failed" for each — measured on the first build with a DSN set. Reported,
+  // those arrive tagged as production errors that no user ever met. Vercel
+  // exposes the same variables to the build as to the runtime, so this is the
+  // one place to tell the two apart.
+  if (process.env.NEXT_PHASE === "phase-production-build") return;
   Sentry.init({
     dsn,
     environment: process.env.VERCEL_ENV || process.env.NODE_ENV,

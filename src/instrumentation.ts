@@ -15,7 +15,9 @@ export async function register() {
 // including the pages `withRequest` does not wrap. An error `withRequest`
 // already reported is the same object and the SDK sends it once.
 export async function onRequestError(...args: unknown[]) {
+  // The build's prerender is not a request anybody made — see startErrorTracking.
   if (process.env.NEXT_RUNTIME !== "nodejs" || !process.env.SENTRY_DSN) return;
+  if (process.env.NEXT_PHASE === "phase-production-build") return;
   const { captureRequestError } = await import("./platform/http/sentry");
   (captureRequestError as (...a: unknown[]) => void)(...args);
 }
