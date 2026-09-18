@@ -3,6 +3,7 @@
 import { Fragment, useCallback, useEffect, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
+import { paymentRunDict } from "@/shared/studio/paymentRun";
 import { financeDict } from "@/shared/studio/finance";
 import { documentsDict } from "@/shared/studio/documents";
 import Link from "next/link";
@@ -45,6 +46,7 @@ const FinanceDashboard = nextDynamic(() => import("@/components/studio2/FinanceD
 const StudioLedger = nextDynamic(() => import("@/components/studio2/StudioLedger"));
 const TreasuryPanel = nextDynamic(() => import("@/components/studio2/TreasuryPanel"));
 const CreditPanel = nextDynamic(() => import("@/components/studio2/CreditPanel"));
+const PaymentRunPanel = nextDynamic(() => import("@/components/studio2/PaymentRunPanel"));
 // Cash & Bank's and Tax's panels, lazily for the reason the others are.
 const ReconciliationPanel = nextDynamic(() => import("@/components/studio2/ReconciliationPanel"));
 const TaxReturnPanel = nextDynamic(() => import("@/components/studio2/TaxReturnPanel"));
@@ -276,12 +278,14 @@ function Receivables({ slug }) {
 // screen. A reader holding only the expenses right is refused the bills and
 // lands on Expenses rather than on the refusal.
 function PayablesAndExpenses({ slug }) {
-  const tr = financeDict(useStudioLocale());
+  const locale = useStudioLocale();
+  const tr = financeDict(locale);
   const [tab, setTab] = useState("bills");
   return (
     <div className="space-y-6">
-      <TabBar tabs={[["bills", tr.tabBills], ["expenses", tr.tabExpenses]]} tab={tab} setTab={setTab} />
+      <TabBar tabs={[["bills", tr.tabBills], ["run", paymentRunDict(locale).tab], ["expenses", tr.tabExpenses]]} tab={tab} setTab={setTab} />
       {tab === "bills" && <Payables slug={slug} onDenied={() => setTab("expenses")} />}
+      {tab === "run" && <PaymentRunPanel slug={slug} locale={locale} />}
       {tab === "expenses" && <FinanceCash slug={slug} view="finance-payables" only={["expenses"]} embedded />}
     </div>
   );

@@ -46,6 +46,7 @@ Three rules that keep this folder worth reading:
 | [zakat.md](zakat.md) | A fiscal year's zakat for a studio whose country levies it: the ledger's figures, the accountant's adjustments, the floor and the ceiling, provision and payment |
 | [einvoicing.md](einvoicing.md) | The e-invoicing framework: which countries require invoices to reach their authority, the adapter contract and its empty registry, and the queue on the Tax screen |
 | [credit-control.md](credit-control.md) | Customer credit limits checked when an invoice is issued (with a recorded override), and payment reminders at the studio's levels |
+| [payment-runs.md](payment-runs.md) | The approved bills due by a date, paid together from one money account, each through the bill's own pay door, with a record of every run |
 | [legal-pages.md](legal-pages.md) | The Terms and the Privacy Policy: one renderer, the Google disclosure shared by both, and what Google's OAuth verification requires |
 | [lifecycle.md](lifecycle.md) | Somebody's employment as against the person: the contract they are on, the six states it moves through, the effective-dated country pack behind probation and notice, and what the final settlement adds up to |
 | [list-tables.md](list-tables.md) | The department list tables: the shared Data Grid, and the search / filter / column controls above it |

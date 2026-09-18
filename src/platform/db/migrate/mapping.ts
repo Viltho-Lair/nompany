@@ -167,6 +167,7 @@ export const COLLECTION_TABLE: Readonly<Record<string, string>> = {
   zakatWorksheets: "ZakatWorksheet",
   customerCredit: "CustomerCredit",
   dunningNotices: "DunningNotice",
+  paymentRuns: "PaymentRun",
   expenses: "Expense",
   accounts: "Account",
   journalEntries: "JournalEntry",
