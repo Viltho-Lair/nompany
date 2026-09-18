@@ -115,8 +115,47 @@ falls off is the oldest *untrusted* history; an account that trusted more than t
 before the cap keeps them until they expire or are removed. A Google or Microsoft sign-in
 records its device as trusted only when there is room.
 
+## The screen lock, the idle timeout and the PIN
+
+**A lock button sits beside the profile** in the studio header and on the account page. It
+locks **the whole sign-in** — every studio and every tab on that device — without signing
+out; what was on the screen is still there when the PIN is typed. `platform/auth/lock.ts`
+holds it; `components/security/SessionLock.js` draws it.
+
+**The lock is enforced on the server.** A session's state (`IX.sessionState`, read in the
+same wave as the session index) carries `lockedAt`, the person's idle timeout and when they
+were last active. `currentUser` answers null for a locked session, so every route, page and
+the live stream refuse it at once; the route wrapper answers **423 `session-locked`** rather
+than 401 so a screen shows the lock instead of the sign-in page. The only door a locked
+session still reaches is `/api/identity/session/lock`: its status, lock, unlock, and the
+heartbeat. A locked tab that reloads a studio page is sent to the sign-in page with
+`?locked=1&next=<the page>`, which asks for the PIN and sends it back.
+
+**The cover is opaque** — a blurred page would still show what was on it. Every tab agrees:
+lock and unlock travel over a BroadcastChannel, and any request that comes back 423 locks
+the tab that made it (a response observer installed once on the page).
+
+**The idle timeout is the person's own choice** (the owner, 18/09/2026), on the account's
+Security page: off (the default), 5, 10, 15 or 30 minutes, or 1, 2, 4 or 8 hours — no
+"never" beyond off, nothing past a session's length. It needs a PIN, because nothing else
+could unlock it. The browser notes activity (pointer, key, wheel, touch) in shared storage
+and tells the server at most once a minute; the server locks the session when the timeout
+has run out plus 90 seconds' grace for one missed beat (`isLocked`). Changing the timeout
+rewrites every session the person has open. **A till's session and the desktop app's have
+no idle timeout** — cashiers change by PIN, and the desktop app has no heartbeat and sits
+behind its own operating system's lock.
+
+**The PIN** is 4 to 8 digits, not one digit repeated and not a straight run (1234, 9876)
+(`shared/pin.ts`, the same rule on both sides). It is stored as a bcrypt hash in
+`u:<id>:security` and can never be the account password. Setting, changing or removing it
+asks for the account password where the account has one; removing it switches the idle
+timeout off with it. **Five wrong PINs end the session and forget its device**, so signing
+in again there needs the password and the emailed code.
+
+A session minted before 18/09/2026 has no state document; it gets one the first time it is
+locked or given a timeout.
+
 ## Not built yet
-- The lock button, the idle timeout and the PIN.
 - Tills paired to a device, and cashiers switching by PIN.
 - The PIN asked again before signing an approval.
 - Two-factor sign-in with an authenticator app, and passkeys.

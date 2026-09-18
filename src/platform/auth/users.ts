@@ -445,7 +445,9 @@ export async function mintSession(userId: string, ttlSec: number, meta: SessionM
   const state: SessionState = {
     userId, lastActiveAt: now,
     ...(meta.scope ? { scope: meta.scope, studioId: meta.studioId || "", terminalId: meta.terminalId || "" } : {}),
-    ...(await idleOf(userId)),
+    // No idle timeout on a till (cashiers change by PIN) or in the desktop app
+    // (no heartbeat, and the operating system's own lock covers it).
+    ...(meta.scope || meta.client === "desktop" ? {} : await idleOf(userId)),
   };
   await setJSONEx(IX.sessionState(digest), state, ttlSec);
   // Atomic: signing in on two devices at once must list BOTH sessions. A lost
@@ -510,6 +512,28 @@ export async function endSessions(
     }
   }
   return removed;
+}
+
+/**
+ * A LIVE SESSION'S STATE, created if it has none. Sessions minted before
+ * 18/09/2026 have no state document; the first time one is locked or given an
+ * idle timeout it gets one, expiring when the session does.
+ */
+export async function ensureSessionState(digest: string): Promise<SessionState | null> {
+  if (!digest) return null;
+  const existing = await readSessionState(digest);
+  if (existing) return existing.ended ? null : existing;
+  const userId = await getIndex(IX.session(digest));
+  if (!userId) return null;
+  const row = (await listSessionRows(userId)).find((r) => digestOf(r) === digest);
+  const ttlSec = Math.floor(((row?.expiresAt || 0) - Date.now()) / 1000);
+  if (ttlSec <= 0) return null;
+  const state: SessionState = {
+    userId, lastActiveAt: Date.now(),
+    ...(row?.scope || row?.client === "desktop" ? {} : await idleOf(userId)),
+  };
+  await setJSONEx(IX.sessionState(digest), state, ttlSec);
+  return state;
 }
 
 /** A session's state by its token's digest — null when it never existed or has lapsed. */

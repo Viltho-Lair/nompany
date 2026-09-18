@@ -20,7 +20,7 @@ import {
   listSessionRows, endSessions, sessionId, recordSignal, readSessionState,
 } from "./users";
 import type { SessionState } from "./users";
-import { planSignIn, publicSession, type PublicSession } from "./sessionPolicy";
+import { planSignIn, publicSession, isLocked, type PublicSession } from "./sessionPolicy";
 import { OTP, ID, IX } from "@/platform/db/keys";
 import { getJSON, setJSONEx, getJSONMany, release } from "@/platform/db/store";
 import type { User, Questionnaire } from "./users";
@@ -516,6 +516,7 @@ export async function openSession(
     deviceType: normalizeDeviceType(facts.deviceType) || "Computer",
     label: facts.label || "",
     location: facts.location || "",
+    ...(desktop ? { client: "desktop" } : {}),
   });
   await touchLastLogin(userId);
   return { token, ttl };
@@ -643,11 +644,36 @@ export async function requestSessionToken(): Promise<string> {
   return (await cookies()).get(SESSION_COOKIE)?.value || "";
 }
 
-// The signed-in User for this request, or null.
-export async function currentUser() {
+/**
+ * THE SESSION THIS REQUEST CARRIES: who it belongs to and what it is doing,
+ * read in ONE wave — the state is keyed by the same digest as the index, so it
+ * never waits on the user id. A session minted before 18/09/2026 has no state,
+ * which reads as unlocked and unscoped: exactly what it was.
+ */
+export async function currentSession() {
   const token = await requestSessionToken();
-  if (!token) return null;
-  const user = await findUserBySession(token);
+  if (!token) return { user: null, state: null, digest: "" };
+  const digest = hashToken(token);
+  const [user, state] = await Promise.all([findUserBySession(token), readSessionState(digest)]);
+  return { user, state: state?.ended ? null : state, digest };
+}
+
+/** Is the session this request carries locked? The route wrapper's 423 asks this. */
+export async function currentSessionLocked(): Promise<boolean> {
+  const { user, state } = await currentSession();
+  return Boolean(user) && isLocked(state, Date.now());
+}
+
+// The signed-in User for this request, or null.
+//
+// NULL FOR A LOCKED SESSION (18/09/2026). This is the one place every request
+// learns who it is, so it is the one place a lock has to be for it to hold on
+// every route, every page and the live stream at once. The route wrapper tells
+// a locked session apart from no session (423, not 401) so a screen shows the
+// lock rather than the sign-in page.
+export async function currentUser() {
+  const { user, state } = await currentSession();
+  if (user && isLocked(state, Date.now())) return null;
   // Every authenticated request passes through here, which makes it the one
   // place that knows someone is actually around. Fire-and-forget and throttled
   // inside, so presence never costs a request its latency or fails it.

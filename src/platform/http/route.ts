@@ -32,7 +32,7 @@
 /** What a handler may hand back when a bare body is not enough. */
 type Shaped = { status: number; body: unknown; headers?: Record<string, unknown> };
 
-import { currentUser, currentIdentity, requestSessionToken } from "@/platform/auth/identity";
+import { currentUser, currentIdentity, requestSessionToken, currentSessionLocked } from "@/platform/auth/identity";
 import { studioContext } from "@/lib/studios";
 import { getStudioBySlug } from "@/modules/main/studios";
 import { currentSuperAdmin } from "@/platform/auth/superAuth";
@@ -188,6 +188,15 @@ function stamp(res: Response): Response {
 
 const refuse = (error: string, status: number) => stamp(Response.json({ error }, { status }));
 
+// NO USER, OR A LOCKED ONE. `currentUser` answers null for both, because a
+// locked session must be refused everywhere; this is where the two are told
+// apart, so a screen shows the lock and asks for the PIN (423) rather than
+// sending a signed-in person to the sign-in page (401) and losing their work.
+// Asked only on the refusal path: the reads are already in the request cache.
+async function noUser(): Promise<Response> {
+  return (await currentSessionLocked()) ? refuse("session-locked", 423) : refuse("unauthorized", 401);
+}
+
 /**
  * Record one mutation, after it happened.
  *
@@ -272,7 +281,7 @@ export function route<A = RouteArgs>(spec: RouteSpec<A>, handler: (args: A & Rou
     // cheap one. Routes ask for what they use so nobody pays for the other.
     if (auth === "identity") {
       const identity = await currentIdentity();
-      if (!identity) return { refusal: refuse("unauthorized", 401) };
+      if (!identity) return { refusal: await noUser() };
       // `identity.user || identity` is the original line, and it is defensive
       // rather than descriptive: currentIdentity always returns the fuller
       // shape, so the fallback covers a case that has never occurred. Kept as
@@ -319,7 +328,7 @@ export function route<A = RouteArgs>(spec: RouteSpec<A>, handler: (args: A & Rou
     }
 
     const user = await currentUser();
-    if (!user) return { refusal: refuse("unauthorized", 401) };
+    if (!user) return { refusal: await noUser() };
     if (auth === "user") return { args: { ...base, user }, identity: String(user.id) };
 
     // Joined so a rejected prefetch cannot surface as an unhandled rejection;

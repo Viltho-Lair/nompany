@@ -1,7 +1,7 @@
 import { cache } from "react";
 import { cookies, headers } from "next/headers";
 import { redirect, notFound } from "next/navigation";
-import { currentUser, needsQuestionnaire } from "@/platform/auth/identity";
+import { currentUser, needsQuestionnaire, currentSessionLocked } from "@/platform/auth/identity";
 import { studioContext, canAdminister, visibleSections, recordStudioVisit } from "@/lib/studios";
 import { getProfile } from "@/platform/auth/users";
 import { getIndex } from "@/platform/db/store";
@@ -91,6 +91,14 @@ export const studioRequest = cache(async () => {
   if (!(await getIndex(IX.slug(slug)))) notFound();
 
   const user = await currentUser();
+  // A LOCKED SESSION IS NOT A MISSING ONE (18/09/2026). `currentUser` refuses
+  // both, so this tells them apart: a locked person is sent to the PIN, with the
+  // page they were on, rather than to a sign-in that would ask for the password.
+  if (!user && (await currentSessionLocked())) {
+    const back = (await headers()).get("x-pathname") || "";
+    const next = back.startsWith("/") && !back.startsWith("//") ? `&next=${encodeURIComponent(back)}` : "";
+    redirect(`/${preferredLocale(uiLang)}/login?locked=1${next}`);
+  }
   // BOTH DESTINATIONS ARE LOCALE-ADDRESSED and both were pinned to /en, so an
   // Arabic reader bounced out of a studio landed on an English login and an
   // English survey. There is no studio record to consult on either path — the

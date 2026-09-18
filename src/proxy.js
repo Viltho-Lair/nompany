@@ -217,6 +217,9 @@ export function proxy(request) {
     url.pathname = `/studio${rest}`;
     const headers = new Headers(request.headers);
     headers.set("x-studio-slug", seg1);
+    // THE ADDRESS AS THE BROWSER SHOWS IT, so a locked session sent to the
+    // sign-in page for its PIN can be sent back to the page it was on.
+    headers.set("x-pathname", pathname);
     return NextResponse.rewrite(url, { request: { headers } });
   }
 

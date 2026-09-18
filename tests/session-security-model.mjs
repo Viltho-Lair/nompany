@@ -96,5 +96,24 @@ sig = sharingSignals({ newDevices: Array.from({ length: 5 }, (_, i) => NOW - i *
 ok("five new devices in a month is flagged", sig.flagged && sig.reasons.join() === "new-devices");
 ok("no activity at all is quiet", !sharingSignals(null, 0, NOW).flagged);
 
+// ---- the lock and the PIN -----------------------------------------------------
+// A LOCK THAT ONLY DREW OVER THE PAGE would leave every other tab and the API
+// open; the server's answer is `isLocked`, so its arithmetic is the lock.
+const { isLocked, IDLE_GRACE_MS } = await import("@/platform/auth/sessionPolicy");
+const { pinProblem, isIdleChoice } = await import("@/shared/pin");
+ok("a session nobody locked, with no timeout, is open", !isLocked({ lastActiveAt: NOW - 10 * DAY }, NOW));
+ok("pressing the lock locks it", isLocked({ lockedAt: NOW - 1 }, NOW));
+ok("an idle timeout locks it once it has run out",
+  isLocked({ idleMs: 5 * 60_000, lastActiveAt: NOW - 5 * 60_000 - IDLE_GRACE_MS - 1 }, NOW));
+ok("…but not inside the grace of one missed heartbeat",
+  !isLocked({ idleMs: 5 * 60_000, lastActiveAt: NOW - 5 * 60_000 - 1000 }, NOW));
+ok("a session from before states existed reads as open", !isLocked(null, NOW));
+
+ok("a 4-to-8 digit PIN is accepted", pinProblem("4827") === "" && pinProblem("90417263") === "");
+ok("letters and short PINs are refused", pinProblem("12a4") === "format" && pinProblem("123") === "format" && pinProblem("123456789") === "format");
+ok("one digit repeated is refused", pinProblem("0000") === "weak");
+ok("a straight run either way is refused", pinProblem("1234") === "weak" && pinProblem("98765") === "weak");
+ok("idle timeouts are a fixed list, off included", isIdleChoice(0) && isIdleChoice(15) && !isIdleChoice(7) && !isIdleChoice(10_000));
+
 console.log(fails ? `\nsession security model: ${fails} FAILURES\n` : "\nsession security model: all passed\n");
 process.exitCode = fails ? 1 : 0;

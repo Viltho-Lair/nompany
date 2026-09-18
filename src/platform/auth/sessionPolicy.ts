@@ -34,6 +34,8 @@ export type SessionRow = {
   location?: string;
   /** "till" — opened by a cashier's PIN on a paired till. */
   scope?: string;
+  /** "desktop" — the desktop app, which has no heartbeat and its own OS lock. */
+  client?: string;
   studioId?: string;
   terminalId?: string;
 };
@@ -108,4 +110,26 @@ export function sharingSignals(
   if (evictions7d >= SHARING_THRESHOLDS.evictions7d) reasons.push("evictions");
   if (newDevices30d >= SHARING_THRESHOLDS.newDevices30d) reasons.push("new-devices");
   return { evictions7d, newDevices30d, activeSessions, flagged: reasons.length > 0, reasons };
+}
+
+// ---- the lock ---------------------------------------------------------------------
+//
+// A SESSION IS LOCKED when somebody pressed the lock, or when the person's idle
+// timeout has run out since the last sign of them. The browser reports activity
+// at most once a minute (a heartbeat), so the grace covers one missed beat —
+// without it a session would lock itself between two beats of somebody typing.
+//
+// ENFORCED ON THE SERVER. A lock that only drew over the page would leave every
+// other tab, the developer tools and a direct API call working as before.
+export const IDLE_GRACE_MS = 90 * 1000;
+
+export function isLocked(
+  state: { lockedAt?: number; idleMs?: number; lastActiveAt?: number } | null | undefined,
+  now: number,
+): boolean {
+  if (!state) return false;
+  if (Number(state.lockedAt) > 0) return true;
+  const idle = Number(state.idleMs) || 0;
+  const last = Number(state.lastActiveAt) || 0;
+  return idle > 0 && last > 0 && now - last > idle + IDLE_GRACE_MS;
 }

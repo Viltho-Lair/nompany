@@ -8,6 +8,7 @@ import OtpStep from "@/components/public/OtpStep";
 import SocialButtons from "@/components/public/SocialButtons";
 import { useDeviceHints } from "@/components/public/deviceHints";
 import SessionChooser from "@/components/public/SessionChooser";
+import { LockCover } from "@/components/security/SessionLock";
 import { securityDict, endedMessage } from "@/shared/security";
 // The landing's floating-label field — label lifts on focus, an iris→cyan
 // hairline draws under the active field, a mint tick confirms a valid one. It
@@ -96,6 +97,17 @@ export default function LoginForm({ locale, dict, providers = [] }) {
   // visibly stop working. And a sign-in paused at the session limit by a
   // Google or Microsoft callback, which can only redirect here and cannot carry
   // the question itself (`?continue=1`).
+  // AND A LOCKED SESSION that reloaded a page lands here too — the PIN, not the
+  // password, is what it needs, and it goes back to where it was.
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/identity/session/lock", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => { if (alive && d?.signedIn && d.locked) setStage("locked"); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
+
   useEffect(() => {
     let alive = true;
     fetch("/api/identity/session/ended", { cache: "no-store" })
@@ -162,6 +174,16 @@ export default function LoginForm({ locale, dict, providers = [] }) {
       setError({ kind: "bad", message: t.errGeneric || "Something went wrong. Try again." });
       setLoading(false);
     }
+  }
+
+  if (stage === "locked") {
+    const next = new URLSearchParams(window.location.search).get("next") || "";
+    const safe = next.startsWith("/") && !next.startsWith("//") ? next : `/${locale}/account`;
+    return (
+      <div key="locked" className="auth-panel flex justify-center">
+        <LockCover t={sec} locale={locale} inline onUnlocked={() => window.location.assign(safe)} />
+      </div>
+    );
   }
 
   // THE BOX WAS TICKED AND THREE DEVICES ARE ALREADY TRUSTED. Signed in all the

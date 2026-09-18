@@ -23,6 +23,8 @@ import {
 } from "@/components/public/accountKit";
 import CreateStudioScreen from "@/components/public/CreateStudioScreen";
 import SecuritySessions from "@/components/public/SecuritySessions";
+import SecurityLock from "@/components/public/SecurityLock";
+import SessionLock from "@/components/security/SessionLock";
 
 // The account hub, laid out like the Google Account console:
 //   • brand mark top-left, ABOVE the fixed sidebar
@@ -157,6 +159,9 @@ export default function AccountHome({ locale, chrome, setup }) {
         <div className="flex items-center gap-2 sm:gap-3">
           <div className="hidden sm:block"><ThemeToggle labels={chrome?.theme} /></div>
           <LangMenu current={locale} options={langOptions} label={chrome?.language} align="end" />
+          {/* THE LOCK, beside the profile (18/09/2026): locks this sign-in
+              everywhere without signing out, and runs the idle timer. */}
+          <SessionLock locale={locale} />
           {/* The only sign-out in the product sits behind this avatar. */}
           <div className="relative" onClick={(e) => e.stopPropagation()}>
             <button
@@ -1086,6 +1091,7 @@ function Security({ devices, onChanged, locale, user }) {
         <button className={cn(BTN_GHOST, "mt-4")} onClick={revokeAll} disabled={busy}>{busy ? tr.removing : tr.removeAllDevices}</button>
       )}
 
+      <SecurityLock />
       <SecuritySessions />
     </div>
   );

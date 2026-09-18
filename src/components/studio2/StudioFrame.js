@@ -26,6 +26,7 @@ import RateNompany from "@/components/studio2/RateNompany";
 import LiveProvider from "@/components/studio2/LiveProvider";
 import NotificationBell from "@/components/studio2/NotificationBell";
 import ThemeToggle from "@/components/ThemeToggle";
+import SessionLock from "@/components/security/SessionLock";
 import { toneOf } from "@/lib/planColors";
 import DailyGreeting from "@/components/studio2/DailyGreeting";
 
@@ -1013,6 +1014,10 @@ export default function StudioFrame({
                 {me.role}
               </span>
             </span>
+            {/* THE LOCK, beside the profile (18/09/2026). It locks the whole
+                sign-in — every studio and every tab — without signing out, and
+                runs the person's idle timer. See platform/auth/lock.ts. */}
+            <SessionLock locale={locale} />
             {/* The avatar is a menu, not a link: going to the account and
                 signing out are both reachable from it, and sign-out lives
                 nowhere else in the studio. */}
