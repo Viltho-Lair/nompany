@@ -18,6 +18,9 @@ import { deviceSlot, normalizeDeviceType, type DeviceSlot } from "@/shared/devic
 
 export const SESSION_LIMITS: Record<DeviceSlot, number> = { computer: 2, mobile: 1 };
 
+/** Trusted devices — the ones that skip the emailed code — match the session total. */
+export const TRUSTED_DEVICE_LIMIT = SESSION_LIMITS.computer + SESSION_LIMITS.mobile;
+
 export type SessionRow = {
   id?: string;
   tokenHash?: string;

@@ -56,6 +56,9 @@ export async function POST(request: Request) {
   }
   const res = Response.json({
     ok: true, user: publicUser(result.user), deviceTrusted: !!result.deviceId,
+    // The box was ticked and three devices are already trusted: say so, rather
+    // than let the next sign-in ask for a code nobody expected.
+    trustRefused: Boolean(result.trustRefused),
     // Same reasoning as the login route: a client with no cookie jar is told the
     // values instead of being handed cookies it cannot keep.
     ...(desktop ? { token: result.token, expiresIn: result.ttl, deviceId: result.deviceId || "" } : {}),

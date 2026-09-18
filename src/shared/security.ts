@@ -39,6 +39,12 @@ const en = {
   signOutSession: "Sign out",
   signingOut: "Signing out…",
   unknownDevice: "Unknown device",
+
+  // ---- the trusted-device cap ------------------------------------------------
+  trustLimit: "Up to 3 devices can be trusted at once.",
+  trustFullTitle: "This device wasn't trusted",
+  trustFullBody: "You already trust 3 devices, so this one will ask for a code next time. To trust it, remove one on your account's Security page.",
+  continueLabel: "Continue",
 };
 
 const ar: typeof en = {
@@ -68,6 +74,11 @@ const ar: typeof en = {
   signOutSession: "تسجيل الخروج",
   signingOut: "جارٍ تسجيل الخروج…",
   unknownDevice: "جهاز غير معروف",
+
+  trustLimit: "يمكن الوثوق بثلاثة أجهزة كحد أقصى في الوقت نفسه.",
+  trustFullTitle: "لم يتم الوثوق بهذا الجهاز",
+  trustFullBody: "أنت تثق بثلاثة أجهزة بالفعل، لذا سيطلب هذا الجهاز رمزا في المرة القادمة. لتثق به، أزل جهازا من صفحة الأمان في حسابك.",
+  continueLabel: "متابعة",
 };
 
 const dict = { en, ar } as const;

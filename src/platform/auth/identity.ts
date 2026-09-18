@@ -263,9 +263,10 @@ export async function verifyOtp(
   //
   // RECORDED BEFORE THE SESSION OPENS, so the session can name its device —
   // which is what lets the list mark "This device" and the limit count slots.
-  const recordedId = await recordDevice(userId, deviceId, device || {}, { trusted: Boolean(trustThisDevice) });
-  const opened = await openSession({ userId, ttl, deviceId: recordedId, device, desktop });
-  return { user, deviceId: recordedId, ...opened };
+  const recorded = await recordDevice(userId, deviceId, device || {}, { trusted: Boolean(trustThisDevice) });
+  const opened = await openSession({ userId, ttl, deviceId: recorded.id, device, desktop });
+  // `trustRefused`: the box was ticked and three devices are already trusted.
+  return { user, deviceId: recorded.id, trustRefused: recorded.trustRefused, ...opened };
 }
 
 // Re-send the code for an in-flight challenge (new code, attempts reset).
@@ -323,9 +324,9 @@ export async function signInWithProvider(
   // step, and there is no OTP step here — the provider already proved the
   // address, which is the whole reason this path exists. Recording it as
   // untrusted would describe the sign-in inaccurately without changing anything.
-  const recordedId = await recordDevice(user.id, deviceId, device || {}, { trusted: true });
-  const opened = await openSession({ userId: user.id, ttl: REMEMBER_TTL, deviceId: recordedId, device });
-  return { user, deviceId: recordedId, ...opened };
+  const recorded = await recordDevice(user.id, deviceId, device || {}, { trusted: true });
+  const opened = await openSession({ userId: user.id, ttl: REMEMBER_TTL, deviceId: recorded.id, device });
+  return { user, deviceId: recorded.id, ...opened };
 }
 
 // ---- login (risk-based: OTP only from an unrecognised device) --------------

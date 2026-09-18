@@ -18,6 +18,7 @@ import { derivedSecret } from "@/platform/db/masterKeys";
 import { OTP, RL, U, makeId } from "@/platform/db/keys";
 import { getJSON, setJSONEx, consume, incrWithTTL, readArr, editArr, editJSON } from "@/platform/db/store";
 import { recordSignal } from "./users";
+import { TRUSTED_DEVICE_LIMIT } from "./sessionPolicy";
 
 export const CODE_TTL_SEC = 10 * 60;               // a code is valid 10 minutes
 export const MAX_ATTEMPTS = 5;                     // wrong guesses per challenge
@@ -200,7 +201,7 @@ export async function recordDevice(
   deviceId: string | null | undefined,
   { label = "", deviceType = "", location = "", ipHash = "" }: DeviceFacts = {},
   { trusted = true }: { trusted?: boolean } = {},
-): Promise<string> {
+): Promise<{ id: string; trusted: boolean; trustRefused: boolean }> {
   const id = deviceId && String(deviceId).startsWith("dev") ? deviceId : makeId("dev");
   const facts = {
     label: String(label).slice(0, 120),
@@ -210,25 +211,43 @@ export async function recordDevice(
     // never written here.
     ipHash: String(ipHash).slice(0, 64),
   };
-  const isNew = await editArr<DeviceRow, boolean>(U.devices(userId), (rows) => {
+  const outcome = await editArr<DeviceRow, { isNew: boolean; trusted: boolean }>(U.devices(userId), (rows) => {
     const live = liveDevices(rows);
     const existing = live.find((d) => d.id === id);
+    // AT MOST THREE TRUSTED DEVICES — the session limit's own total, two
+    // computers and a phone (18/09/2026). A fourth is recorded but NOT trusted:
+    // the person is told, and removes one on the Security page to make room.
+    // Nothing already trusted is dropped to make room for it, silently or
+    // otherwise; an account holding more than three from before the cap keeps
+    // them until they expire or are removed.
+    const trustedElsewhere = live.filter((d) => d.id !== id && d.trusted !== false).length;
+    const mayTrust = Boolean(trusted) && trustedElsewhere < TRUSTED_DEVICE_LIMIT;
     const row: DeviceRow = {
       ...existing,
       ...facts,
       id,
-      trusted: Boolean(trusted),
+      trusted: mayTrust,
       createdAt: existing?.createdAt || Date.now(),
       lastSeenAt: Date.now(),
       expiresAt: Date.now() + DEVICE_TTL_MS,
     };
-    return { next: [row, ...live.filter((d) => d.id !== id)].slice(0, MAX_DEVICES), result: !existing };
+    // THE LIST IS BOUNDED, AND WHAT FALLS OFF IS HISTORY: the oldest rows that
+    // were never trusted. A trusted device is never pushed off by a new one —
+    // that silent eviction is exactly what the cap replaced.
+    // Rows are newest first, so the untrusted ones past the room left are the
+    // oldest of them.
+    const others = live.filter((d) => d.id !== id);
+    const untrusted = others.filter((d) => d.trusted === false);
+    const room = Math.max(0, MAX_DEVICES - 1 - (others.length - untrusted.length));
+    const dropped = new Set(untrusted.slice(room).map((d) => d.id));
+    return { next: [row, ...others.filter((d) => !dropped.has(d.id))], result: { isNew: !existing, trusted: mayTrust } };
   });
+  const isNew = outcome.isNew;
   // A DEVICE THIS ACCOUNT HAD NEVER USED — one of the console's two sharing
   // signals. Counted where the row is first written, because that is the one
   // place that knows the difference between a new browser and a returning one.
   if (isNew) await recordSignal(userId, "newDevices");
-  return id;
+  return { id, trusted: outcome.trusted, trustRefused: Boolean(trusted) && !outcome.trusted };
 }
 
 // True only for a live, unexpired device belonging to THIS user — a device

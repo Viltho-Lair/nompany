@@ -82,7 +82,7 @@ export default function LoginForm({ locale, dict, providers = [] }) {
   useDeviceHints();
   const [form, setForm] = useState({ email: "", password: "", remember: true });
   const sec = securityDict(useAccountLocale());
-  const [stage, setStage] = useState("credentials"); // credentials | otp | choose
+  const [stage, setStage] = useState("credentials"); // credentials | otp | choose | trust-full
   const [sessions, setSessions] = useState([]);
   const [error, setError] = useState(null);           // { kind, message } | null
   const [notice, setNotice] = useState("");
@@ -164,6 +164,22 @@ export default function LoginForm({ locale, dict, providers = [] }) {
     }
   }
 
+  // THE BOX WAS TICKED AND THREE DEVICES ARE ALREADY TRUSTED. Signed in all the
+  // same; said now, so the code asked next time is not a surprise.
+  if (stage === "trust-full") {
+    return (
+      <div key="trust-full" className="auth-panel space-y-4">
+        <div>
+          <h2 className="font-display text-lg font-700 text-fg">{sec.trustFullTitle}</h2>
+          <p className="mt-1 text-sm text-fg-muted">{sec.trustFullBody}</p>
+        </div>
+        <button type="button" className="landing-submit w-auto" onClick={() => window.location.assign(`/${locale}/questionnaire`)}>
+          {sec.continueLabel}
+        </button>
+      </div>
+    );
+  }
+
   if (stage === "choose") {
     return (
       <div key="choose" className="auth-panel space-y-4">
@@ -188,6 +204,7 @@ export default function LoginForm({ locale, dict, providers = [] }) {
           onVerified={(data) => {
             // The code was right and the session limit is reached: choose.
             if (data?.chooseSession) { setSessions(data.sessions || []); setStage("choose"); return; }
+            if (data?.trustRefused) { setStage("trust-full"); return; }
             window.location.assign(`/${locale}/questionnaire`);
           }}
         />

@@ -101,8 +101,21 @@ because of one.
   suspend button in the console before this; the status existed and nothing set it. Super
   admins cannot be suspended from the menu.
 
+## Trusted devices
+
+A trusted device skips the emailed code for 30 days. **At most 3 devices are trusted at
+once** — the session limit's own total (`TRUSTED_DEVICE_LIMIT`). Ticking "trust this device"
+on a fourth still signs the person in, records the device **untrusted**, and says so ("You
+already trust 3 devices… remove one on your account's Security page"); the next sign-in there
+asks for a code. The Security page says the cap beside the list.
+
+**Nothing trusted is dropped to make room**, silently or otherwise. The list used to be
+capped at 10 by dropping the oldest row, trusted or not. It is still bounded at 10, but what
+falls off is the oldest *untrusted* history; an account that trusted more than three devices
+before the cap keeps them until they expire or are removed. A Google or Microsoft sign-in
+records its device as trusted only when there is room.
+
 ## Not built yet
-- A cap on trusted devices with no silent eviction.
 - The lock button, the idle timeout and the PIN.
 - Tills paired to a device, and cashiers switching by PIN.
 - The PIN asked again before signing an approval.
