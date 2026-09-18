@@ -52,8 +52,14 @@ function withDepreciation(asset: FixedAsset, currency: unknown, asOf?: string): 
   const out: FixedAsset & Depreciation & { gainOnDisposal?: number } = { ...asset, ...dep };
   // A disposed asset carries the gain or loss against its book value at disposal:
   // proceeds − what it was still worth. Positive is a gain, negative a loss.
+  //
+  // AT THE DISPOSAL DATE, not at `asOf`. This used the book value as of today,
+  // so a disposal dated after today showed a gain reckoned on fewer months of
+  // depreciation than the disposal entry posts — the register said 1,000 and
+  // the ledger 2,000 for the same sale, found in the sandbox.
   if (asset.disposedOn) {
-    out.gainOnDisposal = roundMoney((Number(asset.disposalProceeds) || 0) - dep.bookValue, currency);
+    const atDisposal = depreciationOf(asset, asset.disposedOn, currency);
+    out.gainOnDisposal = roundMoney((Number(asset.disposalProceeds) || 0) - atDisposal.bookValue, currency);
   }
   return out;
 }

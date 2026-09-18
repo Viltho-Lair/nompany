@@ -1524,7 +1524,7 @@ function AssetRegister({ rows, vocab, canManage, busy, send }) {
                             cost and book value are the schedule's, and the ledger
                             holds none of it until somebody says how it was paid. */}
                         {!a.onBooks && !a.disposed && (
-                          <span className="ms-2 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-600 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">{tr.offBooks}</span>
+                          <span className="mt-1 block w-fit whitespace-nowrap rounded-full bg-amber-50 px-2 py-0.5 text-xs font-600 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">{tr.offBooks}</span>
                         )}
                       </td>
                       <td className={`${td} text-end`}>
