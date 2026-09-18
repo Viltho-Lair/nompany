@@ -131,11 +131,36 @@ ok("...but a row that would create an item still does", one({ sku: "NEW-1", sell
 const known = env({ items: [{ id: "i2", sku: "ITM-0001", name: "Anchor bolt M12", vendorName: "Delta Steel" }] });
 ok("a SKU-less row matching an item's name AND supplier is already registered",
   one({ name: "anchor bolt m12", vendor: "Delta Steel" }, { createVendors: true }, known).refused[0]?.reason === "exists");
+// THE REPAIR PATH for the scientific-form barcode: the file had no SKUs, so
+// its items were numbered ITM-…, and re-importing it with Update on must
+// correct them rather than skip them.
+const repair = one({ name: "Anchor bolt M12", vendor: "Delta Steel", barcode: "6.251600002251E12" }, { update: true },
+  env({ vendorNames: ["Delta Steel"], items: known.items }));
+ok("with Update on, a SKU-less row updates the one item with its name and supplier",
+  repair.update[0]?.id === "i2" && repair.update[0]?.barcode === "6251600002251");
+const twoAlike = env({ items: [
+  { id: "a", sku: "ITM-1", name: "Bolt", vendorName: "X" }, { id: "b", sku: "ITM-2", name: "Bolt", vendorName: "X" },
+] });
+ok("...but when two items share them it is a guess, and refused",
+  one({ name: "Bolt", vendor: "X" }, { update: true }, twoAlike).refused[0]?.reason === "exists");
 ok("...but the same name from ANOTHER supplier is a different item",
   one({ name: "Anchor bolt M12", vendor: "Gulf AV Supply" }, {}, known).create.length === 1);
 ok("a barcode another item holds is refused", one({ name: "X", barcode: "6291000000017" }).refused[0]?.reason === "barcode");
 ok("...but an update may keep its own barcode",
   one({ sku: "CBL-001", name: "Cable", barcode: "6291000000017" }, { update: true }).update.length === 1);
+// A BARCODE READ AS 6.251600002251E12 reached a live studio on 18/09/2026 and
+// no scanner could find the item: Excel had written a 13-digit EAN in
+// scientific form. Every digit was there, so it is written back out in full.
+ok("a code in scientific form with every digit kept is written out in full",
+  one({ name: "Biodal", barcode: "6.251600002251E12" }).create[0]?.barcode === "6251600002251");
+ok("...the same for a SKU, with a plus sign in the exponent",
+  one({ name: "Biodal", sku: "6.251600002251E+12" }).create[0]?.sku === "6251600002251");
+// Excel's CSV keeps five digits and a scale: the rest are gone, and a guess
+// would be some other product's code.
+const shortened = one({ name: "Biodal", barcode: "6.2516E+12" });
+ok("a code Excel shortened is refused, never guessed",
+  shortened.refused[0]?.reason === "shortened" && shortened.create.length === 0);
+ok("a short number in a code column is left as written", one({ name: "X", sku: "1E3" }).create[0]?.sku === "1E3");
 ok("a malformed barcode is refused", one({ name: "X", barcode: "a b" }).refused[0]?.reason === "barcode");
 
 console.log("\n== suppliers the studio does not have");
@@ -205,6 +230,7 @@ const book = zip({
     + '<row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>1</v></c></row>'
     + '<row r="2"><c r="A2" t="s"><v>2</v></c><c r="B2"><v>12.5</v></c></row>'
     + '<row r="4"><c r="A4" t="s"><v>3</v></c><c r="C4" t="inlineStr"><is><t>inline</t></is></c></row>'
+    + '<row r="5"><c r="A5"><v>6.251600002251E12</v></c><c r="B5"><v>1.5E-3</v></c></row>'
     + '</sheetData></worksheet>',
   "xl/worksheets/sheet2.xml": '<worksheet><sheetData><row r="1"><c r="A1" t="b"><v>1</v></c></row></sheetData></worksheet>',
 });
@@ -215,6 +241,8 @@ ok("a number keeps its digits", sheets[0].rows[1][1] === "12.5");
 ok("Arabic survives", sheets[0].rows[3][0] === "كابل");
 ok("an empty row stays empty, so row numbers match Excel's", Array.isArray(sheets[0].rows[2]) && sheets[0].rows[2].length === 0);
 ok("a skipped column is a blank cell, not a shifted one", sheets[0].rows[3][1] === "" && sheets[0].rows[3][2] === "inline");
+ok("a number cell stored in scientific form reads as its digits", sheets[0].rows[4][0] === "6251600002251");
+ok("...but a fraction is left as the cell holds it", sheets[0].rows[4][1] === "1.5E-3");
 ok("an absolute relationship target resolves", sheets[1].rows[0][0] === "TRUE");
 let refusedCsv = false;
 try { await X.readXlsx(new TextEncoder().encode("Name,Cost\nPipe,3")); } catch { refusedCsv = true; }

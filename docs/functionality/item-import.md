@@ -70,6 +70,13 @@ server against what is stored by then. **Nothing is coerced:**
   **A row with no SKU is recognised by its name and supplier together**: re-importing a
   file must not register the same material again under a fresh number. The same name
   from another supplier is a different item.
+- **Codes are read digit for digit.** A barcode, SKU or model number that Excel wrote in
+  scientific form (`6.251600002251E12`) is written back out in full (`6251600002251`),
+  in the .xlsx reader and in the plan alike. One Excel SHORTENED (`6.2516E+12`, the form
+  its CSV saves) has lost its digits, and is refused with "format the column as Text":
+  guessing would store another product's code. **This reached a live studio on
+  18/09/2026**: an imported barcode read `6.251600002251E12` and no scanner could find
+  the item.
 - **Barcodes** must be well formed and not already another item's.
 - **A supplier the studio does not have** refuses the row unless the person ticks "Add the
   N suppliers this file names". Those are created before the items and tagged with the
@@ -90,6 +97,11 @@ With **Update items whose SKU is already registered** on, a matching row changes
 the fields the file carried**. A column the file lacks, or a blank cell, leaves the item as
 it is. So a price list of SKU and Sales Price, with no names, is a valid update file:
 **an update needs no name**, only a row that would create an item does.
+
+**A row with no SKU updates the ONE item with its name and supplier.** That is how a
+file with no SKUs corrects what an earlier import of it stored: its items were numbered
+ITM-…, so they can only be found by name. Two items sharing a name and supplier is a
+guess, and the row is refused.
 
 ## Running it
 

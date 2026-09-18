@@ -139,7 +139,7 @@ export function itemRows(grid: readonly string[][], mapping: ItemMapping, opts: 
 export type ImportRefusal = {
   line: number;
   reason: "name" | "number" | "unit" | "currency" | "charges" | "sku" | "duplicate-sku" | "exists"
-    | "barcode" | "vendor";
+    | "barcode" | "vendor" | "shortened";
   /** Which field, which value — whatever makes the reason actionable. */
   detail?: string;
 };
@@ -229,6 +229,34 @@ export function itemTypeOf(written: string | undefined): string {
 const nameVendorKey = (name: unknown, vendor: unknown) =>
   `${String(name ?? "").trim().toLowerCase()}|${String(vendor ?? "").trim().toLowerCase()}`;
 
+// FIELDS THAT ARE CODES, NOT QUANTITIES — read digit for digit.
+const IDENTIFIER_FIELDS: ItemField[] = ["sku", "barcode", "modelNumber"];
+
+/**
+ * A CODE EXCEL TURNED INTO A NUMBER. A barcode in a General-format column is a
+ * number to Excel, and a long one is written in scientific form:
+ *
+ *   "6.251600002251E12"  every digit is still there, so it is written out
+ *                        in full: 6251600002251.
+ *   "6.2516E+12"         eight digits are GONE — Excel kept five and a scale.
+ *                        No reading can recover them, and guessing would store
+ *                        a code belonging to some other product, so the row
+ *                        is refused and the person told to format the column
+ *                        as Text.
+ *
+ * Only long numbers (eleven digits or more) are touched: that is where Excel
+ * switches to this form, and a short "1E3" in a code column means what it says.
+ */
+export function identifierOf(written: unknown): { value: string; shortened: boolean } {
+  const s = String(written ?? "").trim();
+  const m = /^(\d)(?:[.,](\d+))?[eE]\+?(\d+)$/.exec(s);
+  if (!m || Number(m[3]) < 10) return { value: s, shortened: false };
+  const decimals = (m[2] || "").length;
+  const exp = Number(m[3]);
+  if (decimals === exp) return { value: m[1] + (m[2] || ""), shortened: false };
+  return { value: s, shortened: true };
+}
+
 const NUMERIC_FIELDS: ItemField[] = [
   "unitCost", "sellPrice", "shippingCharges", "customsCharges", "reorderLevel", "deliveryWeeks", "leadDays",
 ];
@@ -262,11 +290,28 @@ export function planItemImport(rows: readonly ItemImportRow[], env: ImportEnv, o
   // the same material from two suppliers is two items — but the same name from
   // the same supplier is the item already registered, and re-importing a file
   // must not register it again under a fresh ITM number.
-  const byNameVendor = new Set(env.items.map((i) => nameVendorKey(i.name, i.vendorName)));
+  const byNameVendor = new Map<string, ExistingItem[]>();
+  for (const i of env.items) {
+    const key = nameVendorKey(i.name, i.vendorName);
+    byNameVendor.set(key, [...(byNameVendor.get(key) || []), i]);
+  }
+  const nameVendorInFile = new Set<string>();
 
-  for (const row of rows) {
-    const line = row.line;
+  for (const raw of rows) {
+    const line = raw.line;
     const refuse = (reason: ImportRefusal["reason"], detail?: string) => { refused.push({ line, reason, ...(detail ? { detail } : {}) }); };
+
+    // IDENTIFIERS FIRST: a code Excel shortened cannot be recovered, and one
+    // it merely wrote in scientific form is written back out in full.
+    const row = { ...raw };
+    let lost = "";
+    for (const f of IDENTIFIER_FIELDS) {
+      if (row[f] === undefined) continue;
+      const id = identifierOf(row[f]);
+      if (id.shortened) { lost = `${f}: ${row[f]}`; break; }
+      row[f] = id.value;
+    }
+    if (lost) { refuse("shortened", lost); continue; }
 
     // AN UPDATE NEEDS NO NAME. A price list — SKU and Sales Price, nothing
     // else — is the commonest update there is, and the item already has a
@@ -303,12 +348,18 @@ export function planItemImport(rows: readonly ItemImportRow[], env: ImportEnv, o
     if (sku && skusInFile.has(sku)) { refuse("duplicate-sku", sku); continue; }
     if (sku) skusInFile.add(sku);
 
-    const existing = sku ? bySku.get(sku) : undefined;
+    let existing = sku ? bySku.get(sku) : undefined;
     if (existing && !opts.update) { refuse("exists", sku); continue; }
     if (!sku) {
       const key = nameVendorKey(name, row.vendor);
-      if (byNameVendor.has(key)) { refuse("exists", name); continue; }
-      byNameVendor.add(key);
+      if (nameVendorInFile.has(key)) { refuse("exists", name); continue; }
+      nameVendorInFile.add(key);
+      // WITH UPDATE ON, the ONE item this name and supplier already name is the
+      // one the row updates — which is how a file with no SKUs corrects what an
+      // earlier import of it stored. Two such items is a guess, so it is refused.
+      const matches = byNameVendor.get(key) || [];
+      if (matches.length && !(opts.update && matches.length === 1)) { refuse("exists", name); continue; }
+      existing = matches[0];
     }
 
     const barcode = cleanBarcode(row.barcode);

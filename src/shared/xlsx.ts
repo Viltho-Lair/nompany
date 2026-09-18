@@ -85,6 +85,18 @@ const attr = (tag: string, name: string) => {
 const textOf = (xml: string) => [...xml.replace(/<rPh\b[\s\S]*?<\/rPh>/g, "")
   .matchAll(/<t(?:\s[^>]*)?>([\s\S]*?)<\/t>/g)].map((m) => unescapeXml(m[1])).join("");
 
+/**
+ * A NUMBER CELL AS ITS DIGITS. Some writers store a long number the way a
+ * double prints — "6.251600002251E12" — and a barcode read that way is a code
+ * no scanner will ever produce. The value in the cell IS the number, so a whole
+ * one within exact range is written out in full; anything else is left as it is.
+ */
+function plainNumber(v: string): string {
+  if (!/e/i.test(v)) return v;
+  const n = Number(v);
+  return Number.isSafeInteger(n) ? String(n) : v;
+}
+
 /** "B" is column 1, "AA" is column 26. */
 function columnOf(ref: string): number {
   let n = 0;
@@ -143,7 +155,7 @@ export async function readXlsx(bytes: Uint8Array, inflate: Inflate = streamInfla
         if (type === "s") value = shared[Number(v)] ?? "";
         else if (type === "inlineStr") value = textOf(body);
         else if (type === "b") value = v === "1" ? "TRUE" : "FALSE";
-        else if (v !== undefined) value = unescapeXml(v);
+        else if (v !== undefined) value = plainNumber(unescapeXml(v));
         cells[i] = value;
       }
       rows[index] = Array.from(cells, (x) => x ?? "");

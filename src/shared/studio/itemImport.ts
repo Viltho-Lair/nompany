@@ -45,7 +45,7 @@ type Strings = {
   line: (n: number) => string;
   reasons: {
     name: string; number: string; unit: string; currency: string; charges: string; sku: string;
-    "duplicate-sku": string; exists: string; barcode: string; vendor: string;
+    "duplicate-sku": string; exists: string; barcode: string; vendor: string; shortened: string;
   };
   run: (n: number) => string;
   nothing: string;
@@ -133,6 +133,7 @@ const en: Strings = {
     exists: "already registered",
     barcode: "barcode malformed or already another item's",
     vendor: "supplier not on your list",
+    shortened: "Excel shortened this number and its digits are lost — format the column as Text in Excel and export again",
   },
   run: (n) => `Import ${items(n)}`,
   nothing: "Nothing to import",
@@ -210,6 +211,7 @@ const ar: Strings = {
     exists: "مسجل مسبقًا",
     barcode: "الباركود غير صالح أو لصنف آخر",
     vendor: "المورد ليس في قائمتك",
+    shortened: "اختصر Excel هذا الرقم وضاعت أرقامه — اجعل تنسيق العمود نصًا في Excel ثم صدّر الملف مجددًا",
   },
   run: (n) => `استيراد ${arItems(n)}`,
   nothing: "لا شيء للاستيراد",

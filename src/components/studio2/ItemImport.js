@@ -192,7 +192,7 @@ export default function ItemImport({ slug, items, vendors, units, studioCurrency
   }
 
   // A bad number's detail is "<field>: <value>"; the field is named in the reader's language.
-  const detailText = (r) => (r.reason === "number" ? String(r.detail || "").replace(/^(\w+):/, (m, f) => `${tr.fields[f] || f}:`) : r.detail);
+  const detailText = (r) => (r.reason === "number" || r.reason === "shortened" ? String(r.detail || "").replace(/^(\w+):/, (m, f) => `${tr.fields[f] || f}:`) : r.detail);
   const reasonText = (r) => `${tr.reasons[r.reason] || r.reason}${r.detail ? `: ${detailText(r)}` : ""}`;
   const labels = tr.fields;
   const width = grid.reduce((w, row) => Math.max(w, row.length), 0);
