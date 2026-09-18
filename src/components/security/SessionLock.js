@@ -20,7 +20,19 @@ const CHANNEL = "nompany-session";
 const LAST_ACTIVE = "nompany:lastActive";
 const LAST_BEAT = "nompany:lastBeat";
 const BEAT_MS = 60 * 1000;
-const CHECK_MS = 15 * 1000;
+// Checked every second — one localStorage read, so it costs nothing — because
+// the "still here?" warning counts down in seconds. It was every 15 s when the
+// lock gave no warning.
+const CHECK_MS = 1000;
+// How long before an idle lock the warning shows.
+const WARN_MS = 30 * 1000;
+// What counts as somebody being here. Clicks, keys, the wheel and touch were
+// the whole list until 19/09/2026, so a person READING — moving the mouse,
+// dragging a scrollbar, scrolling a list — was locked mid-page (the owner:
+// "it does not know if user is active"). `scroll` does not bubble, which is why
+// it is listened for in the capture phase: the studio scrolls inner panels, not
+// the window. All of it is throttled to one note per five seconds.
+const ACTIVITY = ["pointerdown", "pointermove", "keydown", "wheel", "touchstart", "scroll"];
 
 const readNum = (key) => { try { return Number(window.localStorage.getItem(key)) || 0; } catch { return 0; } };
 const writeNum = (key, v) => { try { window.localStorage.setItem(key, String(v)); } catch { /* private window */ } };
@@ -86,7 +98,10 @@ export default function SessionLock({ locale = "en", buttonClass = "" }) {
   const [needsPin, setNeedsPin] = useState(false);
   // A SIGNATURE WAITING ON THE PIN: what to say, and how to answer the request.
   const [ask, setAsk] = useState(null);
+  // Seconds left before an idle lock while the warning is showing, else 0.
+  const [warnLeft, setWarnLeft] = useState(0);
   const channel = useRef(null);
+  const stayRef = useRef(null);
 
   const showLocked = useCallback((idle = false) => { setByIdle(idle); setLocked(true); }, []);
 
@@ -144,22 +159,42 @@ export default function SessionLock({ locale = "en", buttonClass = "" }) {
   // THE IDLE TIMER AND THE HEARTBEAT, only for a person who chose a timeout.
   // Activity is noted at most every five seconds; the server hears of it at
   // most once a minute, from whichever tab gets there first.
+  //
+  // ACTIVITY NEVER REVIVES A SESSION THAT HAS ALREADY TIMED OUT. A background
+  // tab's timers are throttled to about once a minute, so somebody coming back
+  // after the timeout could move the mouse before the next check and quietly
+  // reset the clock. Every note looks at the clock first and locks instead.
+  // That is also what makes "coming back to the tab" safe to count.
   useEffect(() => {
     if (!idleMs || locked) return undefined;
     let noted = 0;
-    const note = () => {
+    const note = (force = false) => {
       const now = Date.now();
-      if (now - noted < 5000) return;
+      if (!force && now - noted < 5000) return;
+      // Stamped BEFORE the timed-out check, so a stream of mouse moves after
+      // the timeout asks for the lock once per throttle window, not per move.
       noted = now;
+      if (now - readNum(LAST_ACTIVE) > idleMs) { lock(true); return; }
       writeNum(LAST_ACTIVE, now);
+      setWarnLeft(0);
     };
+    stayRef.current = () => note(true);
+    const onActivity = () => note();
+    // Returning to the tab or the window is somebody being here.
+    const onVisible = () => { if (document.visibilityState === "visible") note(true); };
+    const onFocus = () => note(true);
     writeNum(LAST_ACTIVE, Math.max(readNum(LAST_ACTIVE), Date.now()));
-    const events = ["pointerdown", "keydown", "wheel", "touchstart"];
-    for (const e of events) window.addEventListener(e, note, { passive: true });
+    for (const e of ACTIVITY) window.addEventListener(e, onActivity, { passive: true, capture: true });
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onFocus);
     const timer = setInterval(async () => {
       const now = Date.now();
       const last = readNum(LAST_ACTIVE);
-      if (now - last > idleMs) { lock(true); return; }
+      if (now - last > idleMs) { setWarnLeft(0); lock(true); return; }
+      // The warning: the last WARN_MS before the lock, counting down. Another
+      // tab's activity moves LAST_ACTIVE too, which clears it here as well.
+      const left = idleMs - (now - last);
+      setWarnLeft(left <= WARN_MS ? Math.ceil(left / 1000) : 0);
       if (last > readNum(LAST_BEAT) && now - readNum(LAST_BEAT) >= BEAT_MS) {
         writeNum(LAST_BEAT, now);
         const { status } = await post({ action: "active" });
@@ -167,8 +202,11 @@ export default function SessionLock({ locale = "en", buttonClass = "" }) {
       }
     }, CHECK_MS);
     return () => {
-      for (const e of events) window.removeEventListener(e, note);
+      for (const e of ACTIVITY) window.removeEventListener(e, onActivity, { capture: true });
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onFocus);
       clearInterval(timer);
+      stayRef.current = null;
     };
   }, [idleMs, locked, lock, showLocked]);
 
@@ -195,6 +233,18 @@ export default function SessionLock({ locale = "en", buttonClass = "" }) {
       {needsPin && <NeedsPin t={t} locale={locale} message={needsPin === "sign" ? t.pinNotSetSign : t.lockNeedsPin} onClose={() => setNeedsPin(false)} />}
       {ask && <SignPrompt t={t} message={ask.message} onDone={(pin) => { ask.resolve(pin); setAsk(null); }} />}
       {locked && <LockCover t={t} locale={locale} byIdle={byIdle} onUnlocked={onUnlocked} />}
+      {!locked && warnLeft > 0 && (
+        // NOT A DIALOG: it takes no focus and covers nothing, so somebody
+        // mid-sentence is not interrupted — any movement dismisses it anyway.
+        <div role="status" aria-live="polite"
+          className="fixed bottom-4 start-1/2 z-[999] flex -translate-x-1/2 items-center gap-3 rounded-full bg-slate-900 px-4 py-2 text-sm text-white shadow-xl rtl:translate-x-1/2 dark:bg-white dark:text-slate-900">
+          <span className="num">{t.idleWarn(warnLeft)}</span>
+          <button type="button" onClick={() => stayRef.current?.()}
+            className="rounded-full bg-white/15 px-3 py-1 font-600 hover:bg-white/25 dark:bg-slate-900/10 dark:hover:bg-slate-900/20">
+            {t.idleStay}
+          </button>
+        </div>
+      )}
     </>
   );
 }

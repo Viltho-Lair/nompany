@@ -119,9 +119,16 @@ the tab that made it (a response observer installed once on the page).
 **The idle timeout is the person's own choice** (the owner, 18/09/2026), on the account's
 Security page: off (the default), 5, 10, 15 or 30 minutes, or 1, 2, 4 or 8 hours — no
 "never" beyond off, nothing past a session's length. It needs a PIN, because nothing else
-could unlock it. The browser notes activity (pointer, key, wheel, touch) in shared storage
-and tells the server at most once a minute; the server locks the session when the timeout
-has run out plus 90 seconds' grace for one missed beat (`isLocked`). Changing the timeout
+could unlock it. The browser notes activity in shared storage — a click, a key, the wheel, a
+touch, **moving the pointer and scrolling any panel** (added 2026-09-19: reading a page with
+the mouse used to count as idle), and **coming back to the tab or window** — at most once
+every five seconds, and tells the server at most once a minute; the server locks the session
+when the timeout has run out plus 90 seconds' grace for one missed beat (`isLocked`).
+**Activity never revives a session already timed out**: a background tab's timers are
+throttled, so a mouse move on returning is checked against the clock first and locks rather
+than resetting it. **Thirty seconds before an idle lock** a small "Locking in N seconds —
+still here?" bar counts down at the foot of the screen, with an "I'm here" button; any
+activity in any tab clears it. It takes no focus and covers nothing. Changing the timeout
 rewrites every session the person has open. **A till's session and the desktop app's have
 no idle timeout** — cashiers change by PIN, and the desktop app has no heartbeat and sits
 behind its own operating system's lock.
