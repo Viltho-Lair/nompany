@@ -194,6 +194,35 @@ export function passwordResetCodeEmail({ name, code }: { name?: string; code?: s
   return { subject, html: layout({ title: subject, bodyHtml, preheader: `Your reset code is ${code}` }), text };
 }
 
+// THE SHARED-LOGIN WARNING (18/09/2026), sent by nompany from the console when
+// an account's sign-ins look like more than one person. It states the rule and
+// what happens next, and accuses nobody: a flag is a reason to look, and the
+// person reading this may be the one whose password somebody else has.
+export function sharingWarningEmail({ name }: { name?: string } = {}) {
+  const greetingName = name || "there";
+  const subject = "Your nompany account looks like it is being shared";
+  const bodyHtml = `
+    <h1 style="margin:0 0 12px;font-size:20px;color:${BRAND.text};">One account, one person</h1>
+    <p style="margin:0 0 16px;font-size:14px;line-height:1.6;color:${BRAND.text};">
+      Hi ${esc(greetingName)}, your account has been signed in on many devices recently, and its sessions keep signing each other out. That usually means more than one person is using it.
+    </p>
+    <p style="margin:0 0 16px;font-size:14px;line-height:1.6;color:${BRAND.text};">
+      Each nompany seat is for one person, and our terms do not allow shared or generic logins. Everyone who needs access should have their own account, with their own sign-in.
+    </p>
+    <p style="margin:0;font-size:13px;line-height:1.6;color:${BRAND.muted};">
+      If this was not you, change your password and use "Sign out everywhere" on your account's Security page. An account that keeps being shared may be suspended.
+    </p>`;
+  const text = `One account, one person
+
+Hi ${greetingName},
+Your account has been signed in on many devices recently, and its sessions keep signing each other out. That usually means more than one person is using it.
+
+Each nompany seat is for one person, and our terms do not allow shared or generic logins. Everyone who needs access should have their own account.
+
+If this was not you, change your password and use "Sign out everywhere" on your account's Security page. An account that keeps being shared may be suspended.`;
+  return { subject, html: layout({ title: subject, bodyHtml, preheader: "Each nompany seat is for one person." }), text };
+}
+
 // Studio invitation — a manager invited this address to join their studio.
 // Names the person who invited them (and their email) per the studio's request.
 export function studioInviteEmail({ companyName, url, invitedByName, invitedByEmail }: { companyName?: string; url?: string; invitedByName?: string; invitedByEmail?: string } = {}) {

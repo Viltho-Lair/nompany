@@ -59,6 +59,13 @@ async function renderUsers() {
         status: statusOf(u, now),
         studios: u.studios,
         lastActive: lastActiveLabel(lastAround(u), now),
+        // The sharing flag's signals, worked out on the server like the status
+        // above so two viewers never disagree about who is flagged.
+        sessions: u.sharing.activeSessions,
+        flagged: u.sharing.flagged,
+        evictions7d: u.sharing.evictions7d,
+        newDevices30d: u.sharing.newDevices30d,
+        warned: u.sharing.warnedAt ? lastActiveLabel(Date.parse(u.sharing.warnedAt), now) : "",
       };
     })
     .sort(compareUsers);

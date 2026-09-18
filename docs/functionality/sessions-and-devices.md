@@ -72,9 +72,36 @@ day, which is the point, and every one of those sign-outs is counted
 session" marked, and a Sign out button on the others. A person at the limit can make room
 here before they are asked to.
 
-## Not built yet
+## The sharing flag, in the console
 
-- The console's sharing flag.
+`/super` → Users shows, for every person, **how many places they are signed in right now**
+(a till's session not counted) and a **Flagged** badge when their sign-ins look like more
+than one person. `sharingSignals` in `sessionPolicy.ts` decides it from two signals kept on
+`u:<id>:activity`:
+
+| Signal | Flagged at |
+|---|---|
+| Sessions ended because the account signed in elsewhere, last 7 days | 5 or more |
+| Devices this account had never used, last 30 days | 5 or more |
+
+A new device is counted where its row is first written (`recordDevice`). The badge's tooltip
+gives both counts. **A flag is a reason to look, never a verdict**: nothing suspends anybody
+because of one.
+
+- **Filters**: flagged, warned, and the number of active sessions (0, 1, 2, 3+). The card
+  heading says how many accounts are flagged.
+- **Send sharing warning** (row menu) emails the person a fixed warning — each seat is for
+  one person, the terms forbid shared logins, and what to do if it was not them
+  (`sharingWarningEmail`). The route wrapper writes the audit line (which console admin, to
+  whom, when); the date is kept on the person and shown as "Warned 2 days ago". A warning
+  the mail provider refused is not recorded (502).
+- **Suspend / Reactivate** (row menu) — a manual click with a confirmation, which **also ends
+  every session at once**: a suspended person is refused at sign-in already, but a session
+  opened yesterday with "keep me signed in" would otherwise last a month. There was no
+  suspend button in the console before this; the status existed and nothing set it. Super
+  admins cannot be suspended from the menu.
+
+## Not built yet
 - A cap on trusted devices with no silent eviction.
 - The lock button, the idle timeout and the PIN.
 - Tills paired to a device, and cashiers switching by PIN.

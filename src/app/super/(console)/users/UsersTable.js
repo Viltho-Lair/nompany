@@ -42,15 +42,16 @@ const roleTone = (role) => (role === SUPER_ROLE ? "danger" : role === MEMBER_ROL
 // definition was rebuilt — and the grid re-measured every column — the moment
 // anyone clicked a role. Only one row is ever in flight, and it is this one, so
 // it belongs here.
-function RoleMenu({ row, onPick }) {
+function RoleMenu({ row, onPick, onWarn, onStatus }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  const pick = async (role) => {
+  const pick = async (role) => run(() => onPick(role));
+  const run = async (act) => {
     setOpen(false);
     setBusy(true);
     try {
-      await onPick(role);
+      await act();
     } finally {
       setBusy(false);
     }
@@ -86,7 +87,7 @@ function RoleMenu({ row, onPick }) {
     const place = () => {
       const r = ref.current?.getBoundingClientRect();
       if (!r) return;
-      const W = 208, H = 200;
+      const W = 232, H = 340;
       setAt({
         // Flip above when the row is near the bottom, so the last user's menu is
         // not half off the window.
@@ -162,6 +163,24 @@ function RoleMenu({ row, onPick }) {
                   {row.role === MEMBER_ROLE ? <Icon name="check" className="h-4 w-4 text-[var(--ad-primary)]" /> : null}
                 </button>
               </div>
+              {/* THE SHARING FLAG'S TWO ANSWERS (18/09/2026). A warning email,
+                  written to the audit log; and suspension, which stays a
+                  person's click and is never taken because of a flag alone. */}
+              <div className="border-t py-1" style={{ borderColor: "var(--ad-border)" }}>
+                <button type="button" role="menuitem" className={item} onClick={() => run(onWarn)}>
+                  <span className="flex-1">Send sharing warning</span>
+                </button>
+                {row.status === STATUS.suspended ? (
+                  <button type="button" role="menuitem" className={item} onClick={() => run(() => onStatus("active"))}>
+                    <span className="flex-1">Reactivate</span>
+                  </button>
+                ) : (
+                  <button type="button" role="menuitem" className={item} style={{ color: "var(--ad-destructive)" }}
+                    onClick={() => { if (window.confirm(`Suspend ${row.name}? They are signed out everywhere and cannot sign in.`)) run(() => onStatus("suspended")); }}>
+                    <span className="flex-1">Suspend</span>
+                  </button>
+                )}
+              </div>
             </>
           )}
         </div>,
@@ -180,16 +199,25 @@ export default function UsersTable({ rows }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [role, setRole] = useState("");
+  // THE SHARING FILTERS (the owner, 18/09/2026): flagged accounts, and how
+  // many places a person is signed in right now.
+  const [sharing, setSharing] = useState("");
+  const [sessions, setSessions] = useState("");
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return rows.filter((r) => {
       if (role && r.role !== role) return false;
+      if (sharing === "flagged" && !r.flagged) return false;
+      if (sharing === "warned" && !r.warned) return false;
+      if (sessions && (sessions === "3" ? r.sessions < 3 : r.sessions !== Number(sessions))) return false;
       if (!q) return true;
       return r.name.toLowerCase().includes(q) || r.email.toLowerCase().includes(q);
     });
-  }, [rows, query, role]);
+  }, [rows, query, role, sharing, sessions]);
+  const flaggedCount = useMemo(() => rows.filter((r) => r.flagged).length, [rows]);
 
   const assignRole = useCallback(async (userId, platformRole) => {
     setError("");
@@ -206,6 +234,37 @@ export default function UsersTable({ rows }) {
       }
       // The server owns the ordering, and a role change moves the row, so re-read
       // rather than patching the copy in state.
+      router.refresh();
+    } catch {
+      setError("Couldn't reach the server.");
+    }
+  }, [router]);
+
+  const warn = useCallback(async (row) => {
+    setError(""); setNotice("");
+    try {
+      const res = await fetch(`/api/super/users/${row.id}/warn`, { method: "POST" });
+      if (!res.ok) { setError("Couldn't send the warning email."); return; }
+      setNotice(`Sharing warning sent to ${row.email}.`);
+      router.refresh();
+    } catch {
+      setError("Couldn't reach the server.");
+    }
+  }, [router]);
+
+  const setStatus = useCallback(async (row, status) => {
+    setError(""); setNotice("");
+    try {
+      const res = await fetch(`/api/super/users/${row.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error === "super" ? "A super admin cannot be suspended here." : "Couldn't change that account.");
+        return;
+      }
       router.refresh();
     } catch {
       setError("Couldn't reach the server.");
@@ -240,22 +299,40 @@ export default function UsersTable({ rows }) {
           <span className="truncate text-[var(--ad-muted-foreground)]">{row.lastActive}</span>
         ),
       },
+      sessions: {
+        renderCell: ({ row }) => <span className="num text-[var(--ad-muted-foreground)]">{row.sessions}</span>,
+      },
+      sharing: {
+        valueGetter: (_v, row) => (row.flagged ? 2 : row.warned ? 1 : 0),
+        renderCell: ({ row }) => (
+          <span className="flex min-w-0 flex-col leading-tight"
+            title={`${row.evictions7d} forced sign-outs in 7 days · ${row.newDevices30d} new devices in 30 days`}>
+            {row.flagged ? <Badge tone="danger">Flagged</Badge> : <span className="text-[var(--ad-muted-foreground)]">—</span>}
+            {row.warned ? <span className="mt-0.5 truncate text-xs text-[var(--ad-muted-foreground)]">Warned {row.warned}</span> : null}
+          </span>
+        ),
+      },
       actions: {
         sortable: false,
         align: "right",
-        renderCell: ({ row }) => <RoleMenu row={row} onPick={(r) => assignRole(row.id, r)} />,
+        renderCell: ({ row }) => (
+          <RoleMenu row={row} onPick={(r) => assignRole(row.id, r)}
+            onWarn={() => warn(row)} onStatus={(st) => setStatus(row, st)} />
+        ),
       },
     };
     // `skeleton` is stripped: it is metadata for the placeholder, and MUI warns
     // about props it does not recognise on a column definition.
     return USERS_COLUMNS.map(({ skeleton, ...col }) => ({ ...col, ...(render[col.field] || {}) }));
-  }, [assignRole]);
+  }, [assignRole, warn, setStatus]);
 
   return (
     <Card className="overflow-hidden">
       <CardHead
         title="All Users"
-        sub="Every identity that can sign in to nompany"
+        sub={flaggedCount
+          ? `Every identity that can sign in to nompany · ${flaggedCount} flagged for sharing`
+          : "Every identity that can sign in to nompany"}
         action={
           <div className="flex items-center gap-2">
             <div className="relative">
@@ -280,6 +357,30 @@ export default function UsersTable({ rows }) {
               onChange={setRole}
               options={[{ value: "", label: "All roles" }, ...ROLE_OPTIONS]}
             />
+            <SelectMenu
+              className="ad-select w-40"
+              aria-label="Filter by sharing"
+              value={sharing}
+              onChange={setSharing}
+              options={[
+                { value: "", label: "Any sharing" },
+                { value: "flagged", label: "Flagged" },
+                { value: "warned", label: "Warned" },
+              ]}
+            />
+            <SelectMenu
+              className="ad-select w-36"
+              aria-label="Filter by active sessions"
+              value={sessions}
+              onChange={setSessions}
+              options={[
+                { value: "", label: "Any sessions" },
+                { value: "0", label: "0 sessions" },
+                { value: "1", label: "1 session" },
+                { value: "2", label: "2 sessions" },
+                { value: "3", label: "3+ sessions" },
+              ]}
+            />
           </div>
         }
       />
@@ -289,6 +390,11 @@ export default function UsersTable({ rows }) {
           <p role="alert" className="text-sm" style={{ color: "var(--ad-destructive)" }}>{error}</p>
         </CardBody>
       ) : null}
+      {notice && !error ? (
+        <CardBody className="pt-0">
+          <p role="status" className="text-sm text-[var(--ad-muted-foreground)]">{notice}</p>
+        </CardBody>
+      ) : null}
 
       <SuperDataGrid
         rows={filtered}
@@ -296,7 +402,7 @@ export default function UsersTable({ rows }) {
         pageSize={USERS_PAGE_SIZE}
         ariaLabel="Users"
         emptyIcon="users"
-        emptyLabel={query || role ? "No users match that search." : "No users yet."}
+        emptyLabel={query || role || sharing || sessions ? "No users match that search." : "No users yet."}
       />
     </Card>
   );

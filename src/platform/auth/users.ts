@@ -10,7 +10,7 @@
 
 import { REG, U, IX, ID, normEmail } from "@/platform/db/keys";
 import { readArr, editArr, editJSON, getJSON, getJSONMany, setJSON, setJSONEx, claim, getIndex, release } from "@/platform/db/store";
-import { isLive, sessionIdOf, type SessionRow } from "./sessionPolicy";
+import { isLive, counts, sessionIdOf, sharingSignals, type SessionRow } from "./sessionPolicy";
 import { newSessionToken, hashToken } from "./passwords";
 import { listStudios, collaborationStudioIdsMany } from "@/modules/main/studios";
 import { isAssignableRole } from "@/lib/platformRoles";
@@ -113,6 +113,24 @@ export async function setPlatformRole(userId: string, role: unknown) {
   return updated ? { user: updated } : { error: "notfound" };
 }
 
+// SUSPEND OR REACTIVATE, from the console (18/09/2026). Suspending also ends
+// every session at once: a suspended person is refused at sign-in already, but a
+// session they opened yesterday would otherwise keep working until it expired,
+// which for "keep me signed in" is a month.
+export async function setUserStatus(userId: string, status: "active" | "suspended") {
+  const updated = await updateUser(userId, { status });
+  if (!updated) return { error: "notfound" as const };
+  if (status === "suspended") await revokeAllSessions(userId);
+  return { user: updated };
+}
+
+/** When nompany last sent this person the shared-login warning. */
+export async function markWarned(userId: string) {
+  const warnedAt = new Date().toISOString();
+  await updateActivity(userId, { warnedAt });
+  return warnedAt;
+}
+
 // Stamped at every sign-in, because nothing else can answer "active in the last
 // 30 days": a session lasts 8 hours and a device row 30 days, so both are gone or
 // stale long before the question stops mattering.
@@ -166,15 +184,19 @@ export async function touchLastSeen(userId: string) {
 export async function listUsersForConsole() {
   const [rows, studios] = await Promise.all([readArr<User>(REG.users), listStudios()]);
   const ids = rows.map((u) => u.id);
-  const [profiles, activities, collabs] = await Promise.all([
+  const [profiles, activities, collabs, sessionLists] = await Promise.all([
     getProfilesByIds(ids),
     // Activity moved off the registry row (R6). Read it here and fall back to
     // whatever the old g:users row still carries, so a user last seen before
     // the move is not suddenly shown as never having been around.
     getActivitiesByIds(ids),
     collaborationStudioIdsMany(ids),
+    // WHERE EACH PERSON IS SIGNED IN, for the sharing flag and the sessions
+    // filter (18/09/2026) — one batched read beside the other three.
+    getJSONMany<SessionRow[]>(ids.map((id) => U.sessions(id))),
   ]);
   const byId = new Map(studios.map((s) => [String(s.id), s]));
+  const now = Date.now();
   const nameOf = (id: unknown) => {
     const hit = byId.get(String(id || "")) as { name?: string; slug?: string } | undefined;
     return hit?.name || hit?.slug || "";
@@ -208,6 +230,11 @@ export async function listUsersForConsole() {
         lastSeenAt: activity?.lastSeenAt || u.lastSeenAt || "",
         fullName: profile?.fullName || "",
         studios: [...new Set(names)],
+        // A till's sessions are the company's device, not this person's.
+        sharing: {
+          ...sharingSignals(activity, (sessionLists[i] || []).filter((r) => isLive(r, now) && counts(r)).length, now),
+          warnedAt: activity?.warnedAt || "",
+        },
       };
     });
 }

@@ -18,6 +18,10 @@ export const USERS_COLUMNS = [
   { field: "studios", headerName: "Studios", flex: 1, minWidth: 160 },
   { field: "status", headerName: "Status", width: 130, skeleton: "pill" },
   { field: "lastActive", headerName: "Last active", width: 150 },
+  // WHERE THEY ARE SIGNED IN NOW, and whether their sign-ins look like more
+  // than one person (18/09/2026) — docs/functionality/sessions-and-devices.md.
+  { field: "sessions", headerName: "Sessions", width: 100 },
+  { field: "sharing", headerName: "Sharing", width: 150, skeleton: "pill" },
   { field: "actions", headerName: "", width: 72, skeleton: "pill" },
 ];
 

@@ -17,6 +17,7 @@ import crypto from "node:crypto";
 import { derivedSecret } from "@/platform/db/masterKeys";
 import { OTP, RL, U, makeId } from "@/platform/db/keys";
 import { getJSON, setJSONEx, consume, incrWithTTL, readArr, editArr, editJSON } from "@/platform/db/store";
+import { recordSignal } from "./users";
 
 export const CODE_TTL_SEC = 10 * 60;               // a code is valid 10 minutes
 export const MAX_ATTEMPTS = 5;                     // wrong guesses per challenge
@@ -209,7 +210,7 @@ export async function recordDevice(
     // never written here.
     ipHash: String(ipHash).slice(0, 64),
   };
-  await editArr<DeviceRow, void>(U.devices(userId), (rows) => {
+  const isNew = await editArr<DeviceRow, boolean>(U.devices(userId), (rows) => {
     const live = liveDevices(rows);
     const existing = live.find((d) => d.id === id);
     const row: DeviceRow = {
@@ -221,8 +222,12 @@ export async function recordDevice(
       lastSeenAt: Date.now(),
       expiresAt: Date.now() + DEVICE_TTL_MS,
     };
-    return { next: [row, ...live.filter((d) => d.id !== id)].slice(0, MAX_DEVICES) };
+    return { next: [row, ...live.filter((d) => d.id !== id)].slice(0, MAX_DEVICES), result: !existing };
   });
+  // A DEVICE THIS ACCOUNT HAD NEVER USED — one of the console's two sharing
+  // signals. Counted where the row is first written, because that is the one
+  // place that knows the difference between a new browser and a returning one.
+  if (isNew) await recordSignal(userId, "newDevices");
   return id;
 }
 

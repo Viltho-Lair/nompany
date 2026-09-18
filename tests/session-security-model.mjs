@@ -7,7 +7,7 @@ import { pathToFileURL } from "node:url";
 
 register(new URL("./loader.mjs", import.meta.url), { data: { root: pathToFileURL(`${process.cwd()}/`).href } });
 const { classifyDevice, deviceSlot, normalizeDeviceType, encodeHints, decodeHints } = await import("@/shared/deviceClass");
-const { planSignIn, SESSION_LIMITS, publicSession, sessionIdOf } = await import("@/platform/auth/sessionPolicy");
+const { planSignIn, SESSION_LIMITS, publicSession, sessionIdOf, sharingSignals } = await import("@/platform/auth/sessionPolicy");
 
 let fails = 0;
 const ok = (what, cond, detail = "") => {
@@ -81,6 +81,20 @@ ok("a row from before ids is named by its digest, never its token",
 const shown = publicSession({ ...sess("a", "Tablet", 1), token: "secret" }, (t) => t);
 ok("what a person is shown carries no token or digest",
   !JSON.stringify(shown).includes("secret") && !("tokenHash" in shown) && shown.deviceType === "Portable Device");
+
+// ---- the sharing flag ---------------------------------------------------------
+// A FLAG IS A REASON TO LOOK. It must not fire on one person with a laptop, a
+// home computer and a new phone, and must fire on a login that twenty share.
+const DAY = 24 * 3600_000;
+let sig = sharingSignals({ evictions: [NOW - DAY, NOW - 2 * DAY], newDevices: [NOW - 3 * DAY, NOW - 5 * DAY, NOW - 9 * DAY] }, 3, NOW);
+ok("one busy person is not flagged", !sig.flagged && sig.evictions7d === 2 && sig.newDevices30d === 3, JSON.stringify(sig));
+sig = sharingSignals({ evictions: Array.from({ length: 6 }, (_, i) => NOW - i * 3600_000) }, 3, NOW);
+ok("six forced sign-outs in a week is flagged", sig.flagged && sig.reasons.includes("evictions"));
+sig = sharingSignals({ evictions: Array.from({ length: 9 }, () => NOW - 8 * DAY) }, 1, NOW);
+ok("…but not when they are older than a week", !sig.flagged && sig.evictions7d === 0);
+sig = sharingSignals({ newDevices: Array.from({ length: 5 }, (_, i) => NOW - i * DAY) }, 1, NOW);
+ok("five new devices in a month is flagged", sig.flagged && sig.reasons.join() === "new-devices");
+ok("no activity at all is quiet", !sharingSignals(null, 0, NOW).flagged);
 
 console.log(fails ? `\nsession security model: ${fails} FAILURES\n` : "\nsession security model: all passed\n");
 process.exitCode = fails ? 1 : 0;

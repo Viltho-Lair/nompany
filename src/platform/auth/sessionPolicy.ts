@@ -76,3 +76,33 @@ export function publicSession(row: SessionRow, digest: (token: string) => string
   };
 }
 export type PublicSession = ReturnType<typeof publicSession>;
+
+// ---- the sharing flag -----------------------------------------------------------
+//
+// WHAT MAKES AN ACCOUNT LOOK SHARED, for the console (the owner, 18/09/2026:
+// raise a flag, filter on it, and email the person — suspending stays a
+// person's decision). A FLAG IS A REASON TO LOOK, never a verdict: a real person
+// with a laptop, a home computer and a new phone can trip one signal in a bad
+// week, which is why nothing here suspends anybody.
+//
+// The two thresholds are counts a single person does not reach by accident:
+// being pushed out of their own sessions five times in a week means five other
+// sign-ins raced theirs, and five devices this account had never used in a
+// month is five new machines.
+export const SHARING_THRESHOLDS = { evictions7d: 5, newDevices30d: 5 } as const;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+export function sharingSignals(
+  activity: { evictions?: unknown; newDevices?: unknown } | null | undefined,
+  activeSessions: number,
+  now: number,
+) {
+  const within = (list: unknown, days: number) =>
+    (Array.isArray(list) ? list : []).filter((t) => Number.isFinite(Number(t)) && now - Number(t) < days * DAY_MS).length;
+  const evictions7d = within(activity?.evictions, 7);
+  const newDevices30d = within(activity?.newDevices, 30);
+  const reasons: ("evictions" | "new-devices")[] = [];
+  if (evictions7d >= SHARING_THRESHOLDS.evictions7d) reasons.push("evictions");
+  if (newDevices30d >= SHARING_THRESHOLDS.newDevices30d) reasons.push("new-devices");
+  return { evictions7d, newDevices30d, activeSessions, flagged: reasons.length > 0, reasons };
+}
