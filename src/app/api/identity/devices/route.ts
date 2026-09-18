@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { currentUser, DEVICE_COOKIE, DEVICE_HEADER } from "@/platform/auth/identity";
 import { listDevices, revokeDevice, revokeAllDevices } from "@/platform/auth/otp";
+import { normalizeDeviceType } from "@/shared/deviceClass";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,7 +19,8 @@ export async function GET(request: Request) {
   const here = (await cookies()).get(DEVICE_COOKIE)?.value || request.headers.get(DEVICE_HEADER) || "";
   const devices = (await listDevices(user.id)).map((d) => ({
     current: Boolean(here) && d.id === here,
-    id: d.id, label: d.label, deviceType: d.deviceType || "", location: d.location || "",
+    // Rows written before 18/09/2026 say "Tablet", which is a Portable Device now.
+    id: d.id, label: d.label, deviceType: normalizeDeviceType(d.deviceType), location: d.location || "",
     // Missing flag = written before recording and trusting were separated, and
     // those rows only ever existed when the person ticked trust.
     trusted: d.trusted !== false,

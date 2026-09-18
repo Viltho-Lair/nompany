@@ -39,6 +39,7 @@ import { checkPassword } from "./passwordPolicy";
 import { sendEmail } from "@/platform/notify/email";
 import { verificationCodeEmail, passwordResetCodeEmail } from "@/platform/notify/emailTemplates";
 import { log } from "@/platform/http/observability";
+import { classifyDevice, decodeHints, DEVICE_HINTS_COOKIE } from "@/shared/deviceClass";
 
 // The ONE session cookie of the restructured model. Deliberately a new name so
 // it can never be confused with the old-structure cookies (nc_session/mt_admin)
@@ -108,10 +109,25 @@ export function deviceFingerprint(request: Request | null | undefined) {
   const country = h?.get?.("x-vercel-ip-country") || "";
   return {
     label: deviceLabel(request),
-    deviceType: /iPad|Tablet/i.test(ua) ? "Tablet" : /Mobi|Android|iPhone/i.test(ua) ? "Phone" : "Computer",
+    // The user agent AND what the sign-in page measured (touch points, screen
+    // size) — the user agent alone filed Android tablets as phones and iPads as
+    // computers. See shared/deviceClass.
+    deviceType: classifyDevice(ua, decodeHints(cookieFrom(request, DEVICE_HINTS_COOKIE))),
     location: [decodeURIComponent(city), country].filter(Boolean).join(", "),
     ipHash: ip ? hashIp(ip) : "",
   };
+}
+
+// One cookie off a request's header. The sign-in routes are plain handlers, and
+// the hints cookie is the only one read this way — it describes the request
+// rather than the person, so it belongs beside the other request facts here.
+function cookieFrom(request: Request | null | undefined, name: string): string {
+  const raw = request?.headers?.get?.("cookie") || "";
+  for (const part of raw.split(";")) {
+    const [k, ...v] = part.trim().split("=");
+    if (k === name) return decodeURIComponent(v.join("="));
+  }
+  return "";
 }
 
 // Keyed digest, truncated: enough to compare two sign-ins, useless as a lookup.
@@ -140,7 +156,7 @@ function hashIp(ip: unknown): string {
 export function deviceLabel(request: Request | null | undefined): string {
   const ua = request?.headers?.get?.("user-agent") || "";
   const browser = /Edg\//.test(ua) ? "Edge" : /Chrome\//.test(ua) ? "Chrome" : /Safari\//.test(ua) ? "Safari" : /Firefox\//.test(ua) ? "Firefox" : "Browser";
-  const os = /Windows/.test(ua) ? "Windows" : /Mac OS/.test(ua) ? "macOS" : /Android/.test(ua) ? "Android" : /iPhone|iPad/.test(ua) ? "iOS" : /Linux/.test(ua) ? "Linux" : "device";
+  const os = /Windows/.test(ua) ? "Windows" : /iPhone|iPad/.test(ua) ? "iOS" : /Mac OS/.test(ua) ? "macOS" : /Android/.test(ua) ? "Android" : /Linux/.test(ua) ? "Linux" : "device";
   return `${browser} on ${os}`;
 }
 // Caller IP for rate limiting (Vercel sets x-forwarded-for).

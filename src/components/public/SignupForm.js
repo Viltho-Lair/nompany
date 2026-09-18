@@ -6,6 +6,7 @@ import { accountDict } from "@/shared/account";
 import Link from "next/link";
 import OtpStep from "@/components/public/OtpStep";
 import SocialButtons from "@/components/public/SocialButtons";
+import { useDeviceHints } from "@/components/public/deviceHints";
 import PasswordInput from "@/components/public/PasswordInput";
 import { PASSWORD_RULES, checkPassword, describeFailures } from "@/platform/auth/passwordPolicy";
 
@@ -17,6 +18,8 @@ const label = "landing-label";
 export default function SignupForm({ locale, dict, providers = [] }) {
   const tr = accountDict(useAccountLocale());
   const t = dict?.auth || {};
+  // The device's touch points and screen size, for the session it will open.
+  useDeviceHints();
   const [form, setForm] = useState({ fullName: "", email: "", password: "", confirm: "" });
   const [stage, setStage] = useState("details"); // details | otp
   const [error, setError] = useState("");

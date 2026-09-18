@@ -6,6 +6,7 @@ import { accountDict, tooManyAttemptsIn } from "@/shared/account";
 import Link from "next/link";
 import OtpStep from "@/components/public/OtpStep";
 import SocialButtons from "@/components/public/SocialButtons";
+import { useDeviceHints } from "@/components/public/deviceHints";
 // The landing's floating-label field — label lifts on focus, an iris→cyan
 // hairline draws under the active field, a mint tick confirms a valid one. It
 // lives in components/landing because it draws on `motion/react`; importing the
@@ -74,6 +75,9 @@ function Alert({ kind, children }) {
 export default function LoginForm({ locale, dict, providers = [] }) {
   const tr = accountDict(useAccountLocale());
   const t = dict?.auth || {};
+  // The device's touch points and screen size, read by whichever route opens
+  // the session — this form's, the code step's, or a provider's callback.
+  useDeviceHints();
   const [form, setForm] = useState({ email: "", password: "", remember: true });
   const [stage, setStage] = useState("credentials"); // credentials | otp
   const [error, setError] = useState(null);           // { kind, message } | null

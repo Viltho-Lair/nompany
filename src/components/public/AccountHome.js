@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAccountLocale } from "@/components/public/locale";
 import { accountDict } from "@/shared/account";
+import { securityDict } from "@/shared/security";
 import Image from "next/image";
 import Link from "next/link";
 import { Icon } from "@/components/studio2/icons";
@@ -980,6 +981,7 @@ function SetPasswordDialog({ hasPassword, locale, onClose, onSaved }) {
 // ---- security ----------------------------------------------------------------
 function Security({ devices, onChanged, locale, user }) {
   const tr = accountDict(useAccountLocale());
+  const sec = securityDict(useAccountLocale());
   const [busy, setBusy] = useState(false);
   const [pwOpen, setPwOpen] = useState(false);
   async function revokeOne(deviceId) {
@@ -1053,7 +1055,7 @@ function Security({ devices, onChanged, locale, user }) {
         ) : devices.map((d) => (
           <div key={d.id} className={ROW}>
             <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center">
-              <Icon name={d.deviceType === "Phone" ? "call" : d.deviceType === "Tablet" ? "gallery" : "shield"}
+              <Icon name={d.deviceType === "Phone" ? "call" : d.deviceType === "Portable Device" ? "gallery" : "shield"}
                 className="h-[18px] w-[18px] text-slate-400 dark:text-slate-500" />
             </span>
             <div className="flex min-w-0 flex-col justify-center">
@@ -1072,7 +1074,7 @@ function Security({ devices, onChanged, locale, user }) {
                 )}
               </span>
               <span className={ROW_VALUE}>
-                {[d.deviceType, d.location || tr.locationUnknown,
+                {[sec.deviceType[d.deviceType] || "", d.location || tr.locationUnknown,
                   `last used ${new Date(d.lastSeenAt).toLocaleDateString("en-GB")}`].filter(Boolean).join(" · ")}
               </span>
             </div>
