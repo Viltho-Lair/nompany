@@ -82,7 +82,8 @@ const routes = walk("src/app/api")
 //   pricing/stats/showcase  the marketing site reads them before anyone signs in
 //   contact                 the public contact form
 //   applications            the public job application form
-//   fonts                   static assets
+//   fonts, fonts/css,       static assets: the editor's font catalogue, and
+//   fonts/file              its stylesheets and files proxied from Google
 //   dev-login               sandbox only; refuses outside development
 //   me/rating               ANSWERS A STRANGER ON PURPOSE, and this sweep found
 //                           it. The browser asks "should I show the rating
@@ -97,7 +98,8 @@ const routes = walk("src/app/api")
 //   cron/*                  guarded by CRON_SECRET rather than a session (invariant 15)
 const PUBLIC = new Set([
   "/api/pricing", "/api/stats", "/api/showcase", "/api/contact",
-  "/api/applications", "/api/fonts", "/api/dev-login", "/api/me/rating",
+  "/api/applications", "/api/fonts", "/api/fonts/css", "/api/fonts/file",
+  "/api/dev-login", "/api/me/rating",
 ]);
 const PUBLIC_PREFIX = ["/api/identity/", "/api/auth/", "/api/cron/"];
 const isPublic = (path) => PUBLIC.has(path) || PUBLIC_PREFIX.some((p) => path.startsWith(p));

@@ -1,20 +1,22 @@
 /**
- * Loading Google Fonts at runtime.
+ * Loading Google Fonts at runtime — through nompany, never from Google.
  *
  * The catalogue is ~1,950 families, so nothing is bundled. A family's webfont
- * is fetched from fonts.googleapis.com the first time it is needed — when it is
- * shown in the picker, or applied to text. Requests are batched into one
- * stylesheet per call and deduplicated across the session.
+ * is fetched the first time it is needed — when it is shown in the picker, or
+ * applied to text — from our own `/api/fonts/css`, which fetches it from Google
+ * server-side. The browser used to link fonts.googleapis.com directly, which
+ * sent every reader's IP address to Google; `fontProxy.ts` says why that is a
+ * legal exposure and not a style preference. One stylesheet per family, so
+ * each URL is shared by every reader and cached; deduplicated per session.
  *
  * Consequence: with no network, previously-unfetched families fall back to the
  * generic family in `fontStack()`.
  */
 
+import { proxyCssUrl } from "./fontProxy";
+
 /** Families already requested this session, so nothing is fetched twice. */
 const requested = new Set<string>();
-
-/** Weights worth having for document text; anything else is a wasted download. */
-const WEIGHTS = "400;700";
 
 export const DEFAULT_FONT_FAMILY = "Inter";
 export const DEFAULT_FONT_SIZE_PT = 11;
@@ -42,8 +44,8 @@ export function fontStack(family: string, category?: string): string {
 
 /**
  * Ensures stylesheets exist for the given families. Safe to call repeatedly —
- * already-requested families are skipped, and everything new goes out as a
- * single css2 request.
+ * already-requested families are skipped. The weights (400 and 700) are chosen
+ * by the route, not here.
  */
 export function loadFonts(families: string[]): void {
   if (typeof document === "undefined") return;
@@ -56,16 +58,11 @@ export function loadFonts(families: string[]): void {
 
   if (missing.length === 0) return;
 
-  const params = missing
-    .map(
-      (family) =>
-        `family=${encodeURIComponent(family).replace(/%20/g, "+")}:wght@${WEIGHTS}`,
-    )
-    .join("&");
-
-  const link = document.createElement("link");
-  link.rel = "stylesheet";
-  link.href = `https://fonts.googleapis.com/css2?${params}&display=swap`;
-  link.dataset.googleFonts = "";
-  document.head.appendChild(link);
+  for (const family of missing) {
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = proxyCssUrl(family);
+    link.dataset.fontFamily = family;
+    document.head.appendChild(link);
+  }
 }

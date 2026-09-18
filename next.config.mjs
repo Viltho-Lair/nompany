@@ -30,9 +30,12 @@ const CSP = [
   // 'unsafe-eval' is dev-only (React Refresh); production does not get it.
   `script-src 'self' 'unsafe-inline'${isProd ? "" : " 'unsafe-eval'"} https://maps.googleapis.com`,
   // MUI/emotion injects styles at runtime, so this one cannot be tightened
-  // without replacing the styling engine. Google Fonts serves the stylesheet.
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-  "font-src 'self' data: https://fonts.gstatic.com",
+  // without replacing the styling engine. No Google Fonts host: the marketing
+  // site's fonts are self-hosted at build time and the document editor's come
+  // through /api/fonts (lib/docs/fontProxy.ts), so a browser contacting Google
+  // for a font is now a violation worth hearing about.
+  "style-src 'self' 'unsafe-inline'",
+  "font-src 'self' data:",
   // data: and blob: cover uploaded previews and generated documents; the Google
   // hosts are map tiles; img.youtube.com is video thumbnails.
   "img-src 'self' data: blob: https://maps.gstatic.com https://maps.googleapis.com https://img.youtube.com",
