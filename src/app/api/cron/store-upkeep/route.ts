@@ -1,8 +1,7 @@
-import { cronDenied } from "@/platform/auth/cronAuth";
+import { cronJob } from "@/platform/http/cron";
 import { purgeExpired } from "@/platform/db/pgStore";
 import { pgQuery } from "@/platform/db/pg";
 import { TBL } from "@/platform/db/keys";
-import { withRequest } from "@/platform/http/observability";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -59,10 +58,7 @@ const MAX_PER_RUN = 20_000;
 // will never be written to again, which per-channel trimming cannot reach.
 const EVENT_HORIZON_DAYS = 7;
 
-async function upkeep(request: Request) {
-  // Fails closed when CRON_SECRET is unset — invariant 15, see cronAuth.
-  const denied = await cronDenied(request);
-  if (denied) return denied;
+async function upkeep() {
 
   const expiredDocumentsRemoved = await purgeExpired(MAX_PER_RUN);
 
@@ -89,6 +85,4 @@ async function upkeep(request: Request) {
   });
 }
 
-export async function GET(request: Request) {
-  return withRequest("cron/store-upkeep", () => upkeep(request));
-}
+export const GET = cronJob("store-upkeep", upkeep);

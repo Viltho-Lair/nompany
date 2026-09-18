@@ -1,7 +1,7 @@
-import { cronDenied } from "@/platform/auth/cronAuth";
+import { cronJob } from "@/platform/http/cron";
 import { sweepOrphans } from "@/platform/db/cascade";
 import { memoryPolicy } from "@/platform/db/store";
-import { log, withRequest } from "@/platform/http/observability";
+import { log } from "@/platform/http/observability";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -26,14 +26,7 @@ export const dynamic = "force-dynamic";
 // took and how many round trips it spent. The hop count on THIS route is also
 // the audit's M-10 in numbers: the sweep is O(N) sequential, and the completion
 // line is where that stops being a prediction.
-export async function GET(request: Request) {
-  return withRequest("cron/sweep-orphans", async () => {
-    const denied = cronDenied(request);
-    if (denied) return denied;
-
-    return runSweep();
-  });
-}
+export const GET = cronJob("sweep-orphans", runSweep);
 
 async function runSweep() {
   const [result, memory] = await Promise.all([sweepOrphans(), memoryPolicy().catch(() => null)]);

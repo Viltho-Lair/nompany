@@ -104,8 +104,40 @@ function emit(level: "info" | "warn" | "error", message: string, fields: Fields 
 export const log = {
   info: (message: string, fields?: Fields) => emit("info", message, fields),
   warn: (message: string, fields?: Fields) => emit("warn", message, fields),
-  error: (message: string, fields?: Fields) => emit("error", message, fields),
+  error: (message: string, fields?: Fields) => {
+    emit("error", message, fields);
+    report("message", message, fields);
+  },
 };
+
+// WHERE AN ERROR GOES BEYOND THE LOG. `sentry.ts` installs a reporter when
+// SENTRY_DSN is set, and until it does this is a no-op — which is also what
+// the test suite and every script get. It is read off `globalThis` because
+// `instrumentation.ts`, which installs it, is bundled apart from the routes
+// that call it and does not share this module's instance with them.
+//
+// `log.error` reports too, not only a thrown error: the crons and half the
+// services CATCH what went wrong and log it — a studio whose daily notices
+// failed is a caught error and a 200 — and those are the failures most likely
+// to go unseen, because nothing about the response says anything happened.
+export const REPORTER = Symbol.for("nompany.errorReporter");
+export type Reporter = {
+  exception: (error: unknown, fields: Fields) => void;
+  message: (message: string, fields: Fields) => void;
+};
+
+function report(kind: "exception" | "message", what: unknown, fields: Fields = {}): void {
+  const reporter = (globalThis as Record<symbol, unknown>)[REPORTER] as Reporter | undefined;
+  if (!reporter) return;
+  const request = storage.getStore();
+  const context = { ...(redact(fields) as Fields), ...(request ? { requestId: request.id, route: request.route } : {}) };
+  // A reporter that throws must not turn a logged error into a lost request —
+  // the same rule `safely` applies to the log line itself.
+  try {
+    if (kind === "exception") reporter.exception(what, context);
+    else reporter.message(String(what), context);
+  } catch { /* the log line above already carries it */ }
+}
 
 /** The current request's id, or "" outside one. Put it on error responses. */
 export const requestId = (): string => storage.getStore()?.id || "";
@@ -179,6 +211,9 @@ export async function withRequest<T>(route: string, fn: (scope: RequestScope) =>
       // request id, before whatever the caller does with it.
       const err = error as Error;
       emit("error", "request failed", { error: (err as Error)?.message, stack: (err as Error)?.stack?.split("\n")[1]?.trim() });
+      // Reported as the EXCEPTION, with its whole stack — not as the log line
+      // above, which would arrive as a message with one frame.
+      report("exception", error);
       finish(scope, "error", null);
       throw error;
     }

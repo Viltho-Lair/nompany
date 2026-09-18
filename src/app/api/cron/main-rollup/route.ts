@@ -1,10 +1,9 @@
-import { cronDenied } from "@/platform/auth/cronAuth";
+import { cronJob } from "@/platform/http/cron";
 import { listStudios } from "@/modules/main/studios";
 import { listSections, readCol } from "@/platform/db/sections";
 import { hGetAll, hSet, hDel } from "@/platform/db/store";
 import { S } from "@/platform/db/keys";
 import { MAIN_AGG_SOURCES, aggField } from "@/platform/db/mainAgg";
-import { withRequest } from "@/platform/http/observability";
 import { writePlatformStats, type PlatformStats } from "@/platform/db/platformStats";
 import { listCollaborators } from "@/platform/auth/collaborators";
 
@@ -26,14 +25,9 @@ export const dynamic = "force-dynamic";
 // by named hDel" — there is no scan, no prefix delete, no FLUSH. A stale
 // field (a section renamed away, a day that fell out of the horizon) is
 // removed one named field at a time, the same way a fresh one is added.
-export async function GET(request: Request) {
-  return withRequest("cron/main-rollup", () => reconcile(request));
-}
+export const GET = cronJob("main-rollup", reconcile);
 
-async function reconcile(request: Request) {
-  // Fails closed when CRON_SECRET is unset — see platform/auth/cronAuth.ts.
-  const denied = cronDenied(request);
-  if (denied) return denied;
+async function reconcile() {
 
   const now = new Date();
 

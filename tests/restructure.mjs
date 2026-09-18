@@ -1530,6 +1530,41 @@ const stripComments = (text) => text
   .replace(/\/\*[\s\S]*?\*\//g, "")
   .replace(/^\s*\/\/.*$/gm, "");
 
+export async function testSentryStaysOnTheServer(t) {
+  // The browser SDK is tens of kilobytes against a client budget with ~16 KB of
+  // headroom, and error tracking was set up SERVER-ONLY for that reason. One
+  // `import * as Sentry` in a client component would fail nothing — the build
+  // succeeds and the studio's first load quietly pays for it.
+  const ALLOWED = new Set(["src/instrumentation.ts", "src/platform/http/sentry.ts"]);
+  const sources = await sourceFiles();
+  const importers = sources
+    .filter((f) => /from\s+["']@sentry\/|import\(\s*["']@sentry\//.test(stripComments(f.text)))
+    .map((f) => f.path);
+  const leaked = importers.filter((p) => !ALLOWED.has(p));
+  t.equal(leaked.length, 0, `@sentry is imported only by the server's two files: ${leaked.join(", ")}`);
+  // ...and the scan can see the one import that should be there.
+  t.equal(importers.includes("src/platform/http/sentry.ts"), true, "the scan finds sentry.ts's own import");
+  t.equal(sources.some((f) => f.path === "src/instrumentation-client.ts"), false, "there is no browser instrumentation file");
+}
+
+export async function testEveryCronIsMonitored(t) {
+  // A cron that stops running fails nothing, which is why each one checks in
+  // with a monitor — and a monitor finds its schedule by the job's name. Three
+  // things must agree: vercel.json's path, the route's folder, and the name the
+  // route passes to cronJob. A route that went back to a hand-written GET would
+  // run unmonitored, and a name that drifted would check in against no schedule.
+  const { readFileSync, readdirSync, existsSync } = await import("node:fs");
+  const scheduled = JSON.parse(readFileSync("vercel.json", "utf8")).crons.map((c) => c.path.replace(/^\/api\/cron\//, ""));
+  const folders = readdirSync("src/app/api/cron").filter((d) => existsSync(`src/app/api/cron/${d}/route.ts`));
+  t.equal(folders.length > 0, true, `there are cron routes to check (${folders.length})`);
+  for (const name of folders) {
+    const text = readFileSync(`src/app/api/cron/${name}/route.ts`, "utf8");
+    t.equal(text.includes(`export const GET = cronJob("${name}", `), true, `cron/${name} is a cronJob under its own name`);
+    t.equal(scheduled.includes(name), true, `cron/${name} has a schedule in vercel.json`);
+  }
+  for (const name of scheduled) t.equal(folders.includes(name), true, `vercel.json's ${name} has a route`);
+}
+
 export async function testMotionStaysInsideTheLanding(t) {
   // THE ONE THAT ACTUALLY COSTS MONEY. `motion/react` is ~30 KB gzipped and is
   // confined to components/landing/**, which is the only reason the studio's
@@ -2130,6 +2165,8 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       testEmptySectionsDoNotRender,
       testEveryKeyWithNothingToShowIsDeclared,
       testMotionStaysInsideTheLanding,
+      testSentryStaysOnTheServer,
+      testEveryCronIsMonitored,
       testTheRoleLibraryNeverReachesABrowser,
       testTheSharedChartKitUsesNoConsoleOnlyToken,
       testTheSharedTokensAreOnRoot,

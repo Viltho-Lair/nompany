@@ -1,10 +1,10 @@
-import { cronDenied } from "@/platform/auth/cronAuth";
+import { cronJob } from "@/platform/http/cron";
 import { sendEmail } from "@/platform/notify/email";
 import { readDays, readPages, daysOfYear, recordActiveUsers } from "@/lib/data/siteStats";
 import { listUsersForConsole } from "@/platform/auth/users";
 import { listSuperAdminEmails } from "@/platform/auth/superAuth";
 import { statusOf, STATUS } from "@/lib/platformRoles";
-import { log, withRequest } from "@/platform/http/observability";
+import { log } from "@/platform/http/observability";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -28,14 +28,9 @@ export const dynamic = "force-dynamic";
 // COUNT, which nothing can reconstruct after the fact.
 // Wrapped for the same reason the sweep is: it runs unattended on a schedule,
 // so "which run wrote that line?" is a question somebody will need answered.
-export async function GET(request: Request) {
-  return withRequest("cron/year-rollover", () => rollover(request));
-}
+export const GET = cronJob("year-rollover", rollover);
 
-async function rollover(request: Request) {
-  // Fails closed when CRON_SECRET is unset — see platform/auth/cronAuth.js.
-  const denied = cronDenied(request);
-  if (denied) return denied;
+async function rollover() {
 
   const now = new Date();
   const today = now.toISOString().slice(0, 10);

@@ -1,5 +1,5 @@
-import { cronDenied } from "@/platform/auth/cronAuth";
-import { withRequest, log } from "@/platform/http/observability";
+import { cronJob } from "@/platform/http/cron";
+import { log } from "@/platform/http/observability";
 import { readArr } from "@/platform/db/store";
 import { REG } from "@/platform/db/keys";
 import { listSections } from "@/platform/db/sections";
@@ -33,9 +33,7 @@ export const dynamic = "force-dynamic";
 //
 // One slow or broken studio never sinks the run — each is wrapped, logged, and
 // the sweep goes on. Nothing is deleted or written except notifications.
-export async function GET(request: Request) {
-  return withRequest("cron/daily-notices", () => run(request));
-}
+export const GET = cronJob("daily-notices", run);
 
 const Invoices = repo("invoices");
 const Bills = repo("bills");
@@ -43,10 +41,7 @@ const Permits = repo("permits");
 const WorkOrders = repo("workOrders");
 const EngineRecords = repo("engineRecords");
 
-async function run(request: Request) {
-  // Fails closed when CRON_SECRET is unset — invariant 15, see cronAuth.
-  const denied = cronDenied(request);
-  if (denied) return denied;
+async function run() {
 
   const todayISO = new Date().toISOString().slice(0, 10);
   const todayDate = new Date(`${todayISO}T00:00:00Z`);
