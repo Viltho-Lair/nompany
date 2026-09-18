@@ -191,6 +191,17 @@ explicit selection derives its widgets from its rung and picks the new ones up b
 immediately. This is the registry working as designed, not a gap, and it is written here so it
 is not mistaken for one.
 
+### HR: every widget names a sub-section
+
+**Leave is stored on the HR root and switched by `hr-leave`.** When HR split into five
+sub-sections (17/09/2026) the five leave widgets went on declaring `needs: ["hr"]` — the
+storage answer — so a studio that switched Leave off kept its leave charts. They name
+`hr-leave` now, as do the executive board's Leave-days tile and Main's pending-leave card
+(which also links to Leave rather than to Employees), and the HR route reads no leave at all
+while Leave is off. Headcount and expiring documents stay on `hr-employees`.
+`tests/widget-sections-model.mjs` refuses any HR widget that names the bare root, because
+`hr` is a real switch and nothing else could tell the declaration was wrong.
+
 ## Not built yet
 
 Stated in words, because a silent gap reads as a finished feature.

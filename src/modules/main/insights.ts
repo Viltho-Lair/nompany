@@ -385,7 +385,9 @@ export function leaveInsights(vacations: VacationRow[], aliasById: Record<string
     .filter((v) => String(v.status || "") === "Pending")
     .sort((a, b) => String(a.createdAt || "").localeCompare(String(b.createdAt || "")));
   if (!pending.length) return [];
-  return [make("hr.leavePending", "warn", "hr-employees", "hr-employees", String(pending[0].id || ""),
+  // TO LEAVE, where it is decided since HR split — it pointed at Employees, a
+  // screen that no longer shows a single leave request.
+  return [make("hr.leavePending", "warn", "hr-leave", "hr-leave", String(pending[0].id || ""),
     { alias: aliasById[String(pending[0].collaboratorId || "")] || "", more: more(pending) })];
 }
 
@@ -439,7 +441,9 @@ export async function studioInsights(ctx: MainContext): Promise<Insight[]> {
     // collection, so the APPROVE right — not the view right — is what gates it:
     // "three requests are waiting" is a thing to say to an approver and an
     // over-share to everybody else.
-    readIfAllowed<VacationRow>(ctx, "hr", null, "vacations", "hr.vacations.approve"),
+    // STORED on the HR root, SWITCHED by Leave — the notes' "name the switch,
+    // not the storage". Switching Leave off must take this card with it.
+    readIfAllowed<VacationRow>(ctx, "hr", null, "vacations", "hr.vacations.approve", "hr-leave"),
     ctx.seen("hr-employees", "hr") && can(ctx.access, "hr.employees.view")
       ? listCollaborators(ctx.studio.id) : null,
     // Always: these are the caller's OWN, addressed to their CollaboratorID.

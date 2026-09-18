@@ -105,7 +105,7 @@ export const TILES: readonly Tile[] = Object.freeze([
     dateField: "createdAt", goodWhen: "up", unit: "count",
   },
   {
-    key: "leaveTaken", switch: "hr", department: "hr", label: "Leave days", dataset: "vacations", measure: "sum",
+    key: "leaveTaken", switch: "hr-leave", department: "hr", label: "Leave days", dataset: "vacations", measure: "sum",
     field: "days", dateField: "from",
     excludeStatuses: ["Declined", "Cancelled"], goodWhen: "down", unit: "days",
   },

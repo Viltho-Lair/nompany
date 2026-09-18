@@ -21,10 +21,13 @@ export const GET = route(
   // preceding them, so the screen costs the same round trips it did when the
   // list was derived from sections already in hand.
   //
-  // HUMAN RESOURCES → EMPLOYEES IS WHERE ALL BUT ONE OF THESE ARE SHOWN: its
-  // people, roles, certifications and leave tabs, and the dashboard's headcount
-  // and expiring-document figures. With it switched off only leave is read —
-  // it is kept on the HR root, and the dashboard's leave charts draw from it.
+  // EACH READ ANSWERS TO THE SWITCH OF THE SCREEN THAT SHOWS IT, not to where
+  // its rows are stored. Employees shows people, roles and certifications, and
+  // the dashboard's headcount and expiring-document figures; LEAVE shows the
+  // requests and the dashboard's leave charts. Leave is STORED on the HR root,
+  // but since HR split into sub-sections (17/09/2026) it is switched by
+  // `hr-leave` — so a studio that turns Leave off reads none of it, and one that
+  // turns Employees off still reads its leave.
   const employeesOn = g.on("hr-employees");
   const none = Promise.resolve([]);
   const [departments, roles, certifications, employees, vacations] = await Promise.all([
@@ -32,7 +35,7 @@ export const GET = route(
     employeesOn ? listHrRoles(g) : none,
     employeesOn ? listCertifications(g) : none,
     employeesOn ? listEmployees(g, g.collaborator.id) : none,
-    listVacations(g, { meId: g.collaborator.id }),
+    g.on("hr-leave") ? listVacations(g, { meId: g.collaborator.id }) : none,
   ]);
 
   return {

@@ -230,5 +230,21 @@ const studios = readFileSync("src/lib/studios.ts", "utf8");
 ok("…and those rows are the stored list, not the visible one",
   /const \[collaborator, roles, sections\] = await Promise\.all/.test(studios) && !/sections = visibleSections/.test(studios));
 
+
+// HR'S WIDGETS NAME A SUB-SECTION, NEVER THE BARE ROOT. HR split into five
+// sub-sections on 17/09/2026, and the five leave widgets went on declaring
+// `needs: ["hr"]` — the root, because that is where leave rows are STORED. So a
+// studio that switched Leave off kept four leave charts on its HR dashboard, and
+// no assertion above could see it: `hr` is a real switch, so the declaration
+// looked valid. Every HR widget is about one sub-section's data; the root is
+// only ever the storage answer, never the switch one.
+const hrWidgets = W.DASHBOARD_WIDGETS.filter((w) => w.section === "hr");
+ok("every HR widget names the sub-section it is about, never the HR root",
+  hrWidgets.length > 0 && hrWidgets.every((w) => (w.needs || []).length > 0
+    && (w.needs || []).every((k) => k.startsWith("hr-"))),
+  hrWidgets.filter((w) => !(w.needs || []).every((k) => k.startsWith("hr-"))).map((w) => w.key).join(","));
+ok("...and the leave widgets are switched by Leave",
+  hrWidgets.filter((w) => /leave|away/.test(w.key)).every((w) => w.needs.includes("hr-leave")));
+
 console.log(fails === 0 ? "\nwidget sections model: all passed\n" : `\nwidget sections model: ${fails} FAILED\n`);
 process.exit(fails === 0 ? 0 : 1);

@@ -112,7 +112,7 @@ export const MAIN_SOURCES: readonly string[] = [
  */
 export const REPORT_SOURCES: readonly string[] = [
   "finance-cash", "finance-payables", "crm-sales-tickets", "quotations-register",
-  "projects-list", "procurement-orders", "tendering-register", "hr",
+  "projects-list", "procurement-orders", "tendering-register", "hr-leave",
 ];
 
 // Every gated widget across the eight department dashboards. Keys are frozen —
@@ -197,15 +197,23 @@ export const DASHBOARD_WIDGETS: WidgetDef[] = [
   { key: "procurement.delivery-status", label: "Orders in flight", section: "procurement", rung: "simple", needs: ["procurement-orders"] },
   { key: "procurement.receiving-exceptions", label: "Receiving exceptions", section: "procurement", rung: "moderate", needs: ["procurement-receiving"] },
   // HR
+  //
+  // LEAVE NAMES `hr-leave`, NOT `hr`, and that is the whole rule rather than a
+  // detail: leave is STORED on the HR root, but since HR split into five
+  // sub-sections (17/09/2026) it is SHOWN under Leave, and a studio that switches
+  // Leave off must not keep four leave charts on its HR dashboard. Name the
+  // switch, not the storage. Payroll and attendance have no widgets yet; when they
+  // do they name `hr-payroll` and `hr-time`, though their rows sit under
+  // `hr-employees`.
   { key: "hr.headcount-by-dept", label: "Headcount by department", section: "hr", rung: "simple", needs: ["hr-employees"] },
-  { key: "hr.leave-by-type", label: "Leave by type", section: "hr", rung: "simple", needs: ["hr"] },
-  { key: "hr.leave-by-status", label: "Leave by status", section: "hr", rung: "simple", needs: ["hr"] },
+  { key: "hr.leave-by-type", label: "Leave by type", section: "hr", rung: "simple", needs: ["hr-leave"] },
+  { key: "hr.leave-by-status", label: "Leave by status", section: "hr", rung: "simple", needs: ["hr-leave"] },
   { key: "hr.expiring-documents", label: "Expiring documents", section: "hr", rung: "simple", needs: ["hr-employees"] },
-  { key: "hr.upcoming-leave", label: "Upcoming leave", section: "hr", rung: "moderate", needs: ["hr"] },
+  { key: "hr.upcoming-leave", label: "Upcoming leave", section: "hr", rung: "moderate", needs: ["hr-leave"] },
   // Added 10/09/2026 with the dashboards' richer half — new keys, none renamed.
   { key: "hr.expiry-by-week", label: "Documents expiring by week", section: "hr", rung: "simple", needs: ["hr-employees"] },
-  { key: "hr.leave-trend", label: "Leave days by month", section: "hr", rung: "moderate", needs: ["hr"] },
-  { key: "hr.away-forecast", label: "Who is away, next 30 days", section: "hr", rung: "moderate", needs: ["hr"] },
+  { key: "hr.leave-trend", label: "Leave days by month", section: "hr", rung: "moderate", needs: ["hr-leave"] },
+  { key: "hr.away-forecast", label: "Who is away, next 30 days", section: "hr", rung: "moderate", needs: ["hr-leave"] },
   // Finance
   { key: "finance.ar-aging", label: "Receivables aging", section: "finance", rung: "simple", needs: ["finance-cash"] },
   { key: "finance.top-debtors", label: "Top debtors", section: "finance", rung: "simple", needs: ["finance-cash"] },
