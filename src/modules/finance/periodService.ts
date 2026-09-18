@@ -16,12 +16,13 @@ import {
   closeProblems, closePreview, periodList, cleanClose, isClosed, periodOf, PERIOD_RE,
 } from "./periods";
 import type { Period } from "./periods";
-import type { FinanceContext } from "./types";
+import { invoiceWithheldToClear } from "./ledger";
+import type { FinanceContext, Invoice } from "./types";
 import type { JournalEntry } from "./types";
 
 const Periods = repo<Period>("accountingPeriods");
 const Entries = repo<JournalEntry>("journalEntries");
-const Invoices = repo<{ id: string; issueDate?: string; status?: string }>("invoices");
+const Invoices = repo<Invoice>("invoices");
 const Bills = repo<{ id: string; billDate?: string; status?: string }>("bills");
 
 const scope = (ctx: FinanceContext) => ({ studio: ctx.studio, section: ctx.ledgerSection });
@@ -49,6 +50,16 @@ async function unpostedIn(ctx: FinanceContext, entries: JournalEntry[]) {
     if (inv.status === "Draft" || inv.status === "Cancelled") continue;
     if (!posted.has(`invoice:${inv.id}`)) {
       out.push({ document: { id: inv.id }, date: String(inv.issueDate || ""), kind: "invoice" });
+    }
+    // THE TAX A CLIENT WITHHELD, on an invoice settled before 18/09/2026 — the
+    // day it started leaving Accounts Receivable on the settling payment. Those
+    // invoices are paid and will take no further payment, so nothing would ever
+    // move their withheld tax; a close lists them instead, on the day of the
+    // last payment, for somebody to post from the ledger.
+    if (!posted.has(`withholding:${inv.id}`)
+      && invoiceWithheldToClear(inv, ctx.withholdingRules || [], inv.currency || ctx.studio.currency) > 0) {
+      const paidOn = (inv.payments || []).map((p) => String(p.date || "")).filter(Boolean).sort();
+      out.push({ document: { id: inv.id }, date: paidOn[paidOn.length - 1] || "", kind: "withholding" });
     }
   }
   for (const bill of bills) {

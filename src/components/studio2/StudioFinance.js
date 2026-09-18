@@ -274,9 +274,12 @@ function FinanceCash({ slug, view = "finance" }) {
 // be refused — a closed month, a chart short an account — and the route hands
 // that back as `posting: { posted: false, reason }`. Both sends below threw it
 // away, so the books went an entry short with the screen reporting success.
+// THE WITHHELD TAX IS A SECOND ENTRY with its own answer — a payment can post
+// and the move of the client's withheld tax be refused — so either refusal is
+// said, the payment's first.
 function postingWarning(out, tr) {
-  const p = out?.posting;
-  return p && p.posted === false ? tr.notPosted(String(p.reason || "")) : "";
+  const refused = [out?.posting, out?.withholding].find((p) => p && p.posted === false);
+  return refused ? tr.notPosted(String(refused.reason || "")) : "";
 }
 
 function message(out, tr) {

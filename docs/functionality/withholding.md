@@ -79,8 +79,18 @@ market this is not in. Recorded as a decision, not an omission.
 - **Invoices only.** A BILL from a supplier can be subject to withholding the studio must
   deduct and pay over, and nothing computes it — which is the half with a liability attached
   rather than a receivable.
-- **Nothing posts it.** The withheld amount is reported and does not reach the ledger, so
-  the tax credit is not an account and cannot be reconciled against what the authority says.
+- ~~**Nothing posts it.**~~ **It posts, 18/09/2026.** The payment that settles a withheld
+  invoice also moves the withheld tax from Accounts Receivable to **Withholding Tax
+  Receivable (1300)**: Dr 1300, Cr 1100, dated on that payment. Until then the receivable
+  stayed open by exactly the tax, forever, owed by a client who may not pay it. Only what
+  is still open moves (a client who paid the gross moved nothing), it is re-worked when a
+  settled invoice's rule is changed, and a refusal (a closed month) comes back beside the
+  payment like any other. **Invoices settled before that day are not moved by themselves**
+  — they will take no further payment — so the period close lists each one as
+  "Tax withheld by a client", for somebody holding `finance.ledger.post` to post from the
+  ledger (`document: { kind: "withholding", id }`). **Still not built:** collecting the
+  certificate does nothing to the book, and nothing clears 1300 when the authority credits
+  the tax — that entry is keyed by hand.
 - **One rule per document.** No stacking, no per-line rates, and no rule chosen automatically
   from a client's or a supplier's category — somebody picks it on each invoice.
 - **No certificate record.** `certificateRef` is a typed string; there is no document, no

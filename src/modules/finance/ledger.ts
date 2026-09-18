@@ -28,6 +28,8 @@ import { repo } from "@/platform/db/repo";
 import { nextReference } from "@/modules/main/references";
 import { invoiceTotals } from "./finance";
 import { splitGross } from "@/shared/vat";
+import { withheldToClear } from "./withholding";
+import type { WithholdingRule } from "./withholding";
 import { roundMoney, toMinor, fromMinor } from "@/shared/money";
 import type { Account, JournalEntry, JournalLine, Invoice, Expense, FinanceContext } from "./types";
 import type { Row } from "@/platform/db/store";
@@ -72,6 +74,11 @@ export const DEFAULT_CHART: { code: string; name: string; type: AccountType }[] 
   { code: "1010", name: "Bank", type: "asset" },
   { code: "1100", name: "Accounts Receivable", type: "asset" },
   { code: "1200", name: "Inventory", type: "asset" },
+  // TAX A CLIENT WITHHELD, 18/09/2026: money the authority holds on the
+  // studio's behalf until the certificate is claimed. Without it the withheld
+  // part of every invoice stayed in Accounts Receivable for ever, owed by a
+  // client who is legally required not to pay it.
+  { code: "1300", name: "Withholding Tax Receivable", type: "asset" },
   // INPUT VAT HAS ITS OWN ACCOUNT, 18/09/2026. It sat on 2100 beside output
   // VAT, so the book could say what was owed net and never how much had been
   // charged and how much reclaimed. An asset: it is money the authority owes
@@ -257,7 +264,7 @@ export type PostOptions = { system?: boolean };
  * a new kind is added HERE, once, and both halves learn about it.
  */
 export const ENTRY_SOURCE_KINDS = [
-  "invoice", "expense", "bill", "bill-payment", "payment", "credit-note", "payroll", "manual",
+  "invoice", "expense", "bill", "bill-payment", "payment", "credit-note", "payroll", "withholding", "manual",
 ] as const;
 
 export type EntrySourceKind = (typeof ENTRY_SOURCE_KINDS)[number];
@@ -625,6 +632,75 @@ export async function postExpense(ctx: FinanceContext, expenseId: string, option
     lines: [
       { accountId: byCode.get(expenseCode), debit: expense.amount },
       { accountId: byCode.get(BANK), credit: expense.amount },
+    ],
+  }, options);
+}
+
+// ---------------------------------------------------------------------------
+// TAX WITHHELD BY THE CLIENT
+// ---------------------------------------------------------------------------
+
+const WHT_RECEIVABLE = "1300";
+
+/**
+ * WHAT OF THIS INVOICE'S RECEIVABLE IS TAX THE CLIENT WITHHELD — the pure rule
+ * (`withheldToClear` in ./withholding) asked of one stored invoice. A draft or
+ * a cancelled invoice has no receivable to move.
+ */
+export function invoiceWithheldToClear(
+  invoice: Invoice,
+  rules: readonly WithholdingRule[],
+  currency: unknown,
+): number {
+  if (invoice.status === "Draft" || invoice.status === "Cancelled") return 0;
+  const rule = rules.find((r) => r.label === String(invoice.withholdingLabel || "")) || null;
+  return withheldToClear(invoiceTotals(invoice, currency), rule, currency);
+}
+
+/** What the live entries of one document put on the books: the sum of their debits. */
+export async function postedAmount(ctx: FinanceContext, kind: EntrySourceKind, id: string): Promise<number> {
+  const entries = await Entries.find({ studio: ctx.studio, section: ctx.ledgerSection });
+  let total = 0;
+  for (const e of entries) {
+    if (e.source?.kind !== kind || e.source?.id !== id || e.reversedByEntryId || e.reversalOfEntryId) continue;
+    for (const l of e.lines || []) total += cents(l.debit, ctx.studio.currency);
+  }
+  return money(total, ctx.studio.currency);
+}
+
+/**
+ * POST WHAT THE CLIENT WITHHELD: debit Withholding Tax Receivable, credit
+ * Accounts Receivable. Dated on the payment that settled the invoice, because
+ * that is the day the client handed over less and the tax became the
+ * authority's to return rather than the client's to pay.
+ */
+export async function postWithholding(ctx: FinanceContext, invoiceId: string, options: PostOptions = {}) {
+  if (!options.system) {
+    const denied = requirePermission(ctx.access, "finance.ledger.post");
+    if (denied) return denied;
+  }
+
+  const invoice = (await Invoices.find({ studio: ctx.studio, section: ctx.cashSection }))
+    .find((i) => i.id === invoiceId);
+  if (!invoice) return { error: "notfound" };
+  const currency = invoice.currency || ctx.studio.currency;
+  const amount = invoiceWithheldToClear(invoice, ctx.withholdingRules || [], currency);
+  if (!amount) return { error: "nothing-withheld" };
+
+  const entries = await Entries.find({ studio: ctx.studio, section: ctx.ledgerSection });
+  if (alreadyPosted(entries, "withholding", invoiceId)) return { error: "already-posted" };
+
+  const { byCode, missing } = await codesToIds(ctx, [WHT_RECEIVABLE, AR]);
+  if (missing.length) return { error: "chart", missing };
+
+  const dates = (invoice.payments || []).map((p) => String(p.date || "")).filter(Boolean).sort();
+  return postEntry(ctx, {
+    date: dates[dates.length - 1],
+    memo: `Tax withheld on ${invoice.reference}${invoice.withholdingLabel ? ` — ${invoice.withholdingLabel}` : ""}`,
+    source: { kind: "withholding", id: invoiceId },
+    lines: [
+      { accountId: byCode.get(WHT_RECEIVABLE), debit: amount },
+      { accountId: byCode.get(AR), credit: amount },
     ],
   }, options);
 }

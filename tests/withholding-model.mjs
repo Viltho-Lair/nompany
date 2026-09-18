@@ -11,7 +11,7 @@ import { pathToFileURL } from "node:url";
 register(new URL("./loader.mjs", import.meta.url), { data: { root: pathToFileURL(`${process.cwd()}/`).href } });
 
 const {
-  withholdingProblems, cleanWithholding, withholdingOn, settledWith, unclaimed,
+  withholdingProblems, cleanWithholding, withholdingOn, settledWith, unclaimed, withheldToClear,
 } = await import("../src/modules/finance/withholding.ts");
 
 let fails = 0;
@@ -97,6 +97,22 @@ ok("a withheld document with no certificate is chased", chase.length === 1 && ch
 ok("one with a certificate is not", !chase.some((d) => d.id === "b"));
 ok("one where nothing was withheld is not", !chase.some((d) => d.id === "c"));
 ok("the biggest comes first", chase[0].amount === 500);
+
+// ---- what leaves the receivable ---------------------------------------------
+// THE WITHHELD PART NEVER LEFT ACCOUNTS RECEIVABLE. The invoice was settled
+// against the net, the ledger kept the gross, and the difference sat on the
+// receivable for ever — owed by a client who is legally required not to pay it.
+const wht = { label: "Contractor WHT", rate: 5, threshold: 0 };
+const inv = { subtotal: 10000, total: 11500 };
+ok("nothing moves while the net is still unpaid",
+  withheldToClear({ ...inv, paid: 5000 }, wht, "SAR") === 0);
+ok("THE WITHHELD TAX MOVES ONCE THE NET IS PAID",
+  withheldToClear({ ...inv, paid: 11000 }, wht, "SAR") === 500);
+ok("a client who paid the gross withheld nothing, so nothing moves",
+  withheldToClear({ ...inv, paid: 11500 }, wht, "SAR") === 0);
+ok("a client who paid part of the tax leaves only the rest to move",
+  withheldToClear({ ...inv, paid: 11200 }, wht, "SAR") === 300);
+ok("no rule, nothing to move", withheldToClear({ ...inv, paid: 11500 }, null, "SAR") === 0);
 
 console.log(fails ? `\nwithholding model: ${fails} FAILURES\n` : "\nwithholding model: all passed\n");
 // exitCode, not exit(): exiting while the alias loader's thread is live crashes Node on Windows.

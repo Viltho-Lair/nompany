@@ -27,7 +27,7 @@ type Strings = {
   problem: (code: string) => string;
 };
 
-const EN_KIND: Record<string, string> = { invoice: "Invoice", bill: "Bill" };
+const EN_KIND: Record<string, string> = { invoice: "Invoice", bill: "Bill", withholding: "Tax withheld by a client" };
 
 const en: Strings = {
   tab: "Periods",
@@ -57,7 +57,7 @@ const en: Strings = {
 };
 
 // HAND-WRITTEN. NO DIACRITICS.
-const AR_KIND: Record<string, string> = { invoice: "فاتورة", bill: "فاتورة مورد" };
+const AR_KIND: Record<string, string> = { invoice: "فاتورة", bill: "فاتورة مورد", withholding: "ضريبة استقطعها العميل" };
 
 const ar: Strings = {
   tab: "الفترات",

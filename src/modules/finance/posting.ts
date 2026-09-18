@@ -12,7 +12,7 @@
 // is "post this thing", and five endpoints would be five places to forget one.
 import {
   postInvoice, postExpense, postBill, postBillPayment, postPayment, postCreditNote,
-  postPayroll, reverseDocument, ENTRY_SOURCE_KINDS,
+  postPayroll, postWithholding, reverseDocument, invoiceWithheldToClear, postedAmount, ENTRY_SOURCE_KINDS,
 } from "./ledger";
 import type { FinanceContext } from "./types";
 import type { PostOptions } from "./ledger";
@@ -68,6 +68,7 @@ export async function postDocument(
     // arrived here the moment the ledger learned it. That is the one-list
     // design working: a new kind is added once and both halves find out.
     case "payroll": return postPayroll(ctx, documentId, options);
+    case "withholding": return postWithholding(ctx, documentId, options);
     default: return { error: "kind" };
   }
 }
@@ -127,4 +128,29 @@ export async function autoRepost(ctx: FinanceContext, kind: Postable, id: string
   const undone = await autoReverse(ctx, kind, id, reason);
   if (!undone.posted) return undone;
   return autoPost(ctx, kind, id);
+}
+
+/**
+ * KEEP AN INVOICE'S WITHHELD TAX WHERE ITS PAYMENTS SAY IT IS.
+ *
+ * Run after anything that can change the answer — a payment, or the rule an
+ * issued invoice falls under — and it compares what SHOULD have left Accounts
+ * Receivable with what the book says did. Equal: nothing, and null. Different:
+ * the old entry reversed and the right one posted, so a client who first
+ * withheld and then paid the tax after all ends with a receivable of nought
+ * rather than a negative one.
+ *
+ * Null when nothing moved, so a caller only reports an answer when there was a
+ * question.
+ */
+export async function settleWithholding(
+  ctx: FinanceContext,
+  invoice: Parameters<typeof invoiceWithheldToClear>[0],
+): Promise<LedgerAnswer | null> {
+  const currency = invoice.currency || ctx.studio.currency;
+  const want = invoiceWithheldToClear(invoice, ctx.withholdingRules || [], currency);
+  const have = await postedAmount(ctx, "withholding", invoice.id);
+  if (want === have) return null;
+  if (!want) return autoReverse(ctx, "withholding", invoice.id, `Tax withheld on ${invoice.reference || ""} no longer applies`.trim());
+  return have ? autoRepost(ctx, "withholding", invoice.id, `Tax withheld on ${invoice.reference || ""} changed`.trim()) : autoPost(ctx, "withholding", invoice.id);
 }

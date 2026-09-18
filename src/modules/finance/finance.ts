@@ -30,7 +30,7 @@ import { repo } from "@/platform/db/repo";
 import { TAXONOMIES, resolveValue, admits } from "@/modules/administration/taxonomy";
 import { getSectionByKey, updateSection } from "@/platform/db/sections";
 import { attachToProjectEngagement, detachFromItsEngagement } from "@/platform/db/engagement";
-import { autoPost, autoReverse, autoRepost } from "./posting";
+import { autoPost, autoReverse, autoRepost, settleWithholding } from "./posting";
 import { moduleContext } from "../context";
 
 import { listCollaborators } from "@/platform/auth/collaborators";
@@ -471,8 +471,18 @@ export async function editInvoice(ctx: FinanceContext, id: string, body: Record<
     : cancelledIssued
       ? await autoReverse(ctx, "invoice", id, `Invoice ${current.reference || ""} cancelled`.trim())
       : null;
+  // A SETTLED INVOICE MOVED ONTO ANOTHER WITHHOLDING RULE moves its withheld
+  // tax with it — the label is editable after issue, and the book has to follow
+  // what the invoice now says was withheld.
+  const withholding = patch.withholdingLabel !== undefined && patch.withholdingLabel !== current.withholdingLabel
+    ? await settleWithholding(ctx, updated)
+    : null;
 
-  return { invoice: { ...updated, ...invoiceTotals(updated, studio.currency) }, ...(posting ? { posting } : {}) };
+  return {
+    invoice: { ...updated, ...invoiceTotals(updated, studio.currency) },
+    ...(posting ? { posting } : {}),
+    ...(withholding ? { withholding } : {}),
+  };
 }
 
 // Recording a payment is append-only: the history of what was received, and
@@ -521,7 +531,11 @@ export async function recordPayment(ctx: FinanceContext, id: string, body: Recor
   // because a concurrent writer could have appended another by then.
   const paymentId = payments[payments.length - 1].id;
   const posting = await autoPost(ctx, "payment", id, paymentId);
-  return { invoice: { ...updated, ...after, status: statusFor(updated, after) }, posting };
+  // THE PAYMENT THAT SETTLES A WITHHELD INVOICE also moves the tax the client
+  // kept out of Accounts Receivable — or the receivable stays open by exactly
+  // that tax for ever, owed by somebody who is not allowed to pay it.
+  const withholding = await settleWithholding(ctx, updated);
+  return { invoice: { ...updated, ...after, status: statusFor(updated, after) }, posting, ...(withholding ? { withholding } : {}) };
 }
 
 // Only a draft can be deleted. Once issued it is part of the record — cancel it.

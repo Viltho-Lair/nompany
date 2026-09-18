@@ -157,3 +157,26 @@ export function unclaimed<T extends { id: string; reference?: string }>(
     }))
     .sort((a, b) => b.amount - a.amount);
 }
+
+/**
+ * HOW MUCH OF A SETTLED DOCUMENT'S RECEIVABLE IS TAX THE PAYER WITHHELD — what
+ * has to leave Accounts Receivable for Withholding Tax Receivable.
+ *
+ * ONLY ONCE IT IS SETTLED. Until the payer has sent the net, what is left open
+ * is still money they owe, and moving any of it would tell a credit controller a
+ * debt was cleared that was not.
+ *
+ * NEVER MORE THAN IS STILL OPEN. A payer who withholds nothing and sends the
+ * gross leaves nothing to move, whatever the rule says — the rule says what they
+ * MAY withhold, the payments say what they did.
+ */
+export function withheldToClear(
+  totals: { subtotal: number; total: number; paid: number },
+  rule: WithholdingRule | null,
+  currency?: unknown,
+): number {
+  const withheld = withholdingOn(rule, totals, currency);
+  if (!withheld.applies) return 0;
+  if (!settledWith(totals, withheld, currency).settled) return 0;
+  return money(Math.min(withheld.amount, Math.max(0, num(totals.total) - num(totals.paid))), currency);
+}
