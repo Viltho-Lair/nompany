@@ -49,6 +49,7 @@ Three rules that keep this folder worth reading:
 | [payment-runs.md](payment-runs.md) | The approved bills due by a date, paid together from one money account, each through the bill's own pay door, with a record of every run |
 | [expense-claims.md](expense-claims.md) | A person claims back what they spent, someone else approves it, and advances handed to staff are drawn down by their claims |
 | [budgets.md](budgets.md) | A year's income and costs planned per account, for the studio or one project, deal, cost code or department, against the ledger's actuals |
+| [deferral-schedules.md](deferral-schedules.md) | Revenue earned over time (IFRS 15) and prepaid costs, deferred on their day and recognised month by month |
 | [legal-pages.md](legal-pages.md) | The Terms and the Privacy Policy: one renderer, the Google disclosure shared by both, and what Google's OAuth verification requires |
 | [lifecycle.md](lifecycle.md) | Somebody's employment as against the person: the contract they are on, the six states it moves through, the effective-dated country pack behind probation and notice, and what the final settlement adds up to |
 | [list-tables.md](list-tables.md) | The department list tables: the shared Data Grid, and the search / filter / column controls above it |

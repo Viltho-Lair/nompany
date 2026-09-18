@@ -38,6 +38,10 @@ import type { CodeLine } from "./depreciation";
 import type { WithholdingRule } from "./withholding";
 import { roundMoney, toMinor, fromMinor } from "@/shared/money";
 import { closingLines } from "./statements";
+import {
+  DEFERRED_REVENUE, PREPAID_EXPENSES, deferralLines, recognitionLines, monthsFrom, evenShares,
+} from "./schedules";
+import type { Schedule } from "./schedules";
 import type { Account, JournalEntry, JournalLine, Invoice, Expense, FinanceContext, FixedAsset } from "./types";
 import type { Row } from "@/platform/db/store";
 
@@ -96,8 +100,16 @@ export const DEFAULT_CHART: { code: string; name: string; type: AccountType }[] 
   // back. Entries posted before this stay where they were — a posted entry is
   // never edited — so 2100 still nets both for the months before it.
   { code: "1400", name: "VAT Recoverable", type: "asset" },
+  // COSTS PAID FOR MONTHS NOT YET HAD (18/09/2026, ./schedules): a year's
+  // insurance paid in January is eleven months of asset, not a January cost.
+  { code: "1450", name: "Prepaid Expenses", type: "asset" },
   { code: "1500", name: "Fixed Assets", type: "asset" },
   { code: "1510", name: "Accumulated Depreciation", type: "asset" },
+  // A LEASED ASSET ON THE BALANCE SHEET (IFRS 16, 18/09/2026, ./leases): the
+  // right to use it, and what of that right has been used. 16xx, not 15xx, so
+  // the cash flow statement does not read a lease's recognition as a purchase.
+  { code: "1600", name: "Right-of-Use Assets", type: "asset" },
+  { code: "1610", name: "Accumulated Depreciation — Right-of-Use", type: "asset" },
   { code: "2000", name: "Accounts Payable", type: "liability" },
   // CHEQUES THE STUDIO HAS TAKEN OR WRITTEN AND THE BANK HAS NOT YET MOVED,
   // 18/09/2026. A post-dated cheque settles the debt the day it changes hands
@@ -121,6 +133,11 @@ export const DEFAULT_CHART: { code: string; name: string; type: AccountType }[] 
   // WHAT THE STUDIO OWES STAFF FOR APPROVED EXPENSE CLAIMS (18/09/2026) — its
   // own line, like payroll, not netted with what suppliers are owed.
   { code: "2210", name: "Staff Claims Payable", type: "liability" },
+  // REVENUE INVOICED BEFORE IT IS EARNED (IFRS 15, 18/09/2026, ./schedules).
+  { code: "2300", name: "Deferred Revenue", type: "liability" },
+  // WHAT A LEASE STILL OWES (IFRS 16). 25xx on purpose: the cash flow statement
+  // reads 25xx–29xx as financing, which is where a lease's repayments belong.
+  { code: "2500", name: "Lease Liabilities", type: "liability" },
   { code: "3000", name: "Owner's Equity", type: "equity" },
   { code: "3900", name: "Retained Earnings", type: "equity" },
   { code: "4000", name: "Revenue", type: "income" },
@@ -134,10 +151,12 @@ export const DEFAULT_CHART: { code: string; name: string; type: AccountType }[] 
   // THE WRITE-DOWN OF FIXED ASSETS, posted by the depreciation run, 18/09/2026.
   // The register had computed it all along and nothing put it in the book.
   { code: "5400", name: "Depreciation", type: "expense" },
+  { code: "5410", name: "Right-of-Use Depreciation", type: "expense" },
   // WHAT A FOREIGN-CURRENCY BILL COST MORE OR LESS THAN IT WAS BOOKED AT, by
   // the day it was paid, 18/09/2026. An expense account, so a gain reads as a
   // negative expense — the contra balance the statements already show.
   { code: "5800", name: "Exchange Differences", type: "expense" },
+  { code: "5810", name: "Lease Interest", type: "expense" },
   { code: "5900", name: "Other Expenses", type: "expense" },
   { code: "5950", name: "Zakat", type: "expense" },
 ];
@@ -623,7 +642,8 @@ export const ENTRY_SOURCE_KINDS = [
   "invoice", "expense", "bill", "bill-payment", "payment", "credit-note", "payroll", "withholding",
   "asset", "depreciation", "asset-disposal", "transfer", "cheque", "bill-withholding",
   "tax-return", "tax-payment", "zakat-provision", "zakat-payment", "year-end",
-  "claim", "claim-payment", "advance", "advance-return", "manual",
+  "claim", "claim-payment", "advance", "advance-return",
+  "deferral", "recognition", "lease", "lease-month", "allocation", "manual",
 ] as const;
 
 export type EntrySourceKind = (typeof ENTRY_SOURCE_KINDS)[number];
@@ -1995,5 +2015,68 @@ export async function postAdvanceReturn(ctx: FinanceContext, sourceId: string, o
     memo: `Staff advance ${adv.reference || ""} returned`.trim(),
     source: { kind: "advance-return", id: sourceId },
     lines: [{ accountId: bank.id, debit: amount }, { accountId: byCode.get(STAFF_ADVANCES), credit: amount }],
+  }, options);
+}
+
+// ---------------------------------------------------------------------------
+// DEFERRAL SCHEDULES (./schedules) — IFRS 15 revenue over time, and prepayments
+// ---------------------------------------------------------------------------
+
+const Schedules = repo<Row>("deferralSchedules");
+
+async function scheduleRow(ctx: FinanceContext, id: string) {
+  return (await Schedules.find({ studio: ctx.studio, section: ctx.ledgerSection })).find((s) => s.id === id) as
+    (Row & Schedule & { status?: string }) | undefined;
+}
+
+const holdingCode = (s: Schedule) => (s.kind === "revenue" ? DEFERRED_REVENUE : PREPAID_EXPENSES);
+
+/** THE DAY-ONE ENTRY: the whole amount out of the P&L into 2300 or 1450. */
+export async function postDeferral(ctx: FinanceContext, scheduleId: string, options: PostOptions = {}) {
+  if (!options.system) {
+    const denied = requirePermission(ctx.access, "finance.ledger.post");
+    if (denied) return denied;
+  }
+  const s = await scheduleRow(ctx, scheduleId);
+  if (!s) return { error: "notfound" };
+  if (s.status === "cancelled") return { error: "not-postable", status: s.status };
+  const entries = await Entries.find({ studio: ctx.studio, section: ctx.ledgerSection });
+  if (alreadyPosted(entries, "deferral", scheduleId)) return { error: "already-posted" };
+  const { byCode, missing } = await codesToIds(ctx, [holdingCode(s)]);
+  if (missing.length) return { error: "chart", missing };
+  return postEntry(ctx, {
+    date: s.deferredOn,
+    memo: `Deferred: ${s.description || s.reference || ""}`.trim(),
+    source: { kind: "deferral", id: scheduleId },
+    lines: deferralLines(s, String(byCode.get(holdingCode(s)))),
+  }, options);
+}
+
+/** ONE MONTH'S SHARE BACK INTO THE P&L (`<scheduleId>:<YYYY-MM>`), on that month's last day. */
+export async function postRecognition(ctx: FinanceContext, sourceId: string, options: PostOptions = {}) {
+  if (!options.system) {
+    const denied = requirePermission(ctx.access, "finance.ledger.post");
+    if (denied) return denied;
+  }
+  const [scheduleId, period] = sourceId.split(":");
+  const s = await scheduleRow(ctx, scheduleId);
+  if (!s) return { error: "notfound" };
+  if (s.status === "cancelled") return { error: "not-postable", status: s.status };
+  const entries = await Entries.find({ studio: ctx.studio, section: ctx.ledgerSection });
+  if (alreadyPosted(entries, "recognition", sourceId)) return { error: "already-posted" };
+  // NOT BEFORE THE DEFERRAL: recognising what was never deferred would count
+  // the revenue twice — once on the invoice, once here.
+  if (!alreadyPosted(entries, "deferral", scheduleId)) return { error: "not-deferred" };
+  const months = monthsFrom(s.from, s.months);
+  const i = months.indexOf(period);
+  if (i < 0) return { error: "period" };
+  const share = evenShares(s.amount, s.months, ctx.studio.currency)[i];
+  const { byCode, missing } = await codesToIds(ctx, [holdingCode(s)]);
+  if (missing.length) return { error: "chart", missing };
+  return postEntry(ctx, {
+    date: lastDayOf(period),
+    memo: `Recognised ${period}: ${s.description || s.reference || ""}`.trim(),
+    source: { kind: "recognition", id: sourceId },
+    lines: recognitionLines(s, share, String(byCode.get(holdingCode(s)))),
   }, options);
 }

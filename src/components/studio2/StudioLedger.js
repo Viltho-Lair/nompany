@@ -5,6 +5,7 @@ import nextDynamic from "next/dynamic";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { ledgerDict } from "@/shared/studio/ledger";
+import { schedulesDict } from "@/shared/studio/schedules";
 import { useReload } from "@/components/studio2/useReload";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { moneyText } from "@/shared/money";
@@ -39,6 +40,10 @@ async function write(url, method, body) {
 // journal — serving them separately would be four reads and four chances for
 // the profit and the trial balance to be computed a second apart.
 const PeriodsPanel = nextDynamic(() => import("@/components/studio2/PeriodsPanel"),
+  { loading: () => <ScreenSkeleton /> });
+// STEP 6 (18/09/2026): what spreads over months — revenue over time and
+// prepayments — each its own lazily loaded panel, read by its own route.
+const SchedulesPanel = nextDynamic(() => import("@/components/studio2/SchedulesPanel"),
   { loading: () => <ScreenSkeleton /> });
 // RECONCILIATION, THE TAX RETURN AND THE STATEMENTS LEFT THIS SCREEN when
 // Finance split (18/09/2026): they are Cash & Bank's, Tax's and Reports' now,
@@ -82,7 +87,7 @@ export default function StudioLedger({ slug }) {
       <FinanceSetupNotice items={data.setup} slug={slug} canFix={data.canFixSetup} />
 
       <div role="tablist" className="flex flex-wrap gap-2 border-b border-slate-200 dark:border-white/10">
-        {[["trial", tr.trial], ["journal", tr.journal], ["accounts", tr.accounts], ["periods", tr.periods]]
+        {[["trial", tr.trial], ["journal", tr.journal], ["accounts", tr.accounts], ["schedules", schedulesDict(locale).tab], ["periods", tr.periods]]
           .map(([k, label]) => (
             <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)}
               className={`-mb-px border-b-2 px-4 py-2 font-display text-sm font-600 transition-colors ${
@@ -178,6 +183,7 @@ export default function StudioLedger({ slug }) {
         </section>
       )}
 
+      {tab === "schedules" && <SchedulesPanel slug={slug} locale={locale} />}
       {tab === "periods" && <PeriodsPanel slug={slug} locale={locale} />}
 
     </div>
