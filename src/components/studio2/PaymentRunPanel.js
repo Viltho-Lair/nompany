@@ -93,14 +93,8 @@ export default function PaymentRunPanel({ slug, locale }) {
       {canPay && candidates.length > 0 && (
         <div className="flex flex-wrap items-end gap-2 rounded-geex border border-slate-200 p-3 dark:border-white/10">
           <Field label={tr.payOn} type="date" className="w-44" value={payOn} onChange={(v) => setPayOn(v)} />
-          <label className="flex flex-col gap-1 text-xs text-slate-500 dark:text-slate-400">
-            {tr.from}
-            <select className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 dark:border-white/15 dark:bg-[#191921] dark:text-white"
-              value={accountId} onChange={(e) => setAccountId(e.target.value)}>
-              <option value="">{tr.defaultBank}</option>
-              {moneyAccounts.filter((a) => a.code !== "1010").map((a) => <option key={a.id} value={a.id}>{a.code} {a.name}</option>)}
-            </select>
-          </label>
+          <Field label={tr.from} as="select" required className="w-56" value={accountId}
+            options={[{ value: "", label: tr.defaultBank }, ...moneyAccounts.filter((a) => a.code !== "1010").map((a) => ({ value: a.id, label: `${a.code} ${a.name}` }))]} onChange={setAccountId} />
           <p className="text-sm text-slate-600 dark:text-slate-300">
             {tr.total}: {Object.entries(totals).map(([cur, n]) => moneyText(n, cur)).join(" + ") || moneyText(0)}
           </p>

@@ -152,6 +152,25 @@ export const PERMISSION_CATCH_UPS: readonly PermissionCatchUp[] = [
     to: ["finance.tax"],
     verbs: ["file"],
   },
+  {
+    id: "finance-claims-2026-09-18",
+    // Expense claims arrived (18/09/2026). Whoever records expenses sees and
+    // raises claims, verb for verb; nobody else is widened — a person with no
+    // Finance right gains the right to claim when somebody grants it.
+    note: "Whoever records expenses sees and raises expense claims",
+    from: "finance.expenses",
+    to: ["finance.claims"],
+    verbs: ["view", "create"],
+  },
+  {
+    id: "finance-claims-approve-2026-09-18",
+    // Whoever approves supplier bills approves staff claims.
+    note: "Whoever approves bills approves expense claims",
+    from: "finance.payables",
+    fromVerb: "approve",
+    to: ["finance.claims"],
+    verbs: ["approve"],
+  },
 ];
 
 /** Every id, for stamping a role that is created from now on. */

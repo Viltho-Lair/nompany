@@ -290,7 +290,7 @@ export const JournalEntrySchema = z.object({
     // payments and withheld tax all stored kinds the type said could not exist.
     kind: z.enum([
       "invoice", "bill", "expense", "payment", "bill-payment", "credit-note", "payroll", "withholding",
-      "asset", "depreciation", "asset-disposal", "transfer", "cheque", "bill-withholding", "tax-return", "tax-payment", "zakat-provision", "zakat-payment", "year-end", "manual", "reversal",
+      "asset", "depreciation", "asset-disposal", "transfer", "cheque", "bill-withholding", "tax-return", "tax-payment", "zakat-provision", "zakat-payment", "year-end", "claim", "claim-payment", "advance", "advance-return", "manual", "reversal",
     ]),
     id: z.string().max(60).optional(),
   }),

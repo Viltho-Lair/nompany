@@ -12,7 +12,7 @@
 // is "post this thing", and five endpoints would be five places to forget one.
 import {
   postInvoice, postExpense, postBill, postBillPayment, postPayment, postCreditNote,
-  postPayroll, postWithholding, postAsset, postDepreciation, postAssetDisposal, postCheque, postBillWithholding, billWithheldToClear, postTaxReturn, postTaxPayment, postZakatProvision, postZakatPayment, postYearEnd, reverseDocument, invoiceWithheldToClear, postedAmount, ENTRY_SOURCE_KINDS,
+  postPayroll, postWithholding, postAsset, postDepreciation, postAssetDisposal, postCheque, postBillWithholding, billWithheldToClear, postTaxReturn, postTaxPayment, postZakatProvision, postZakatPayment, postYearEnd, postClaim, postClaimPayment, postAdvance, postAdvanceReturn, reverseDocument, invoiceWithheldToClear, postedAmount, ENTRY_SOURCE_KINDS,
 } from "./ledger";
 import type { FinanceContext } from "./types";
 import type { PostOptions } from "./ledger";
@@ -82,6 +82,11 @@ export async function postDocument(
     case "zakat-payment": return postZakatPayment(ctx, documentId, options);
     // THE ID IS THE YEAR'S LAST MONTH (`YYYY-MM`): one close per year-end.
     case "year-end": return postYearEnd(ctx, documentId, options);
+    case "claim": return postClaim(ctx, documentId, options);
+    case "claim-payment": return postClaimPayment(ctx, documentId, options);
+    case "advance": return postAdvance(ctx, documentId, options);
+    // THE ID CARRIES ITS ADVANCE (`<advanceId>:<returnId>`), as a payment's does.
+    case "advance-return": return postAdvanceReturn(ctx, documentId, options);
     default: return { error: "kind" };
   }
 }

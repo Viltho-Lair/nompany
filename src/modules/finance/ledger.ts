@@ -82,6 +82,9 @@ export const DEFAULT_CHART: { code: string; name: string; type: AccountType }[] 
   { code: "1100", name: "Accounts Receivable", type: "asset" },
   { code: "1150", name: "Cheques Receivable", type: "asset" },
   { code: "1200", name: "Inventory", type: "asset" },
+  // MONEY HANDED TO STAFF BEFORE THEY SPEND IT (18/09/2026): the studio's
+  // until a claim accounts for it or the person hands it back (./claims).
+  { code: "1250", name: "Staff Advances", type: "asset" },
   // TAX A CLIENT WITHHELD, 18/09/2026: money the authority holds on the
   // studio's behalf until the certificate is claimed. Without it the withheld
   // part of every invoice stayed in Accounts Receivable for ever, owed by a
@@ -115,6 +118,9 @@ export const DEFAULT_CHART: { code: string; name: string; type: AccountType }[] 
   // code from this chart that a studio is missing on every read, so an
   // existing studio gains it the next time its ledger is opened.
   { code: "2200", name: "Payroll Payable", type: "liability" },
+  // WHAT THE STUDIO OWES STAFF FOR APPROVED EXPENSE CLAIMS (18/09/2026) — its
+  // own line, like payroll, not netted with what suppliers are owed.
+  { code: "2210", name: "Staff Claims Payable", type: "liability" },
   { code: "3000", name: "Owner's Equity", type: "equity" },
   { code: "3900", name: "Retained Earnings", type: "equity" },
   { code: "4000", name: "Revenue", type: "income" },
@@ -616,7 +622,8 @@ export type PostOptions = { system?: boolean };
 export const ENTRY_SOURCE_KINDS = [
   "invoice", "expense", "bill", "bill-payment", "payment", "credit-note", "payroll", "withholding",
   "asset", "depreciation", "asset-disposal", "transfer", "cheque", "bill-withholding",
-  "tax-return", "tax-payment", "zakat-provision", "zakat-payment", "year-end", "manual",
+  "tax-return", "tax-payment", "zakat-provision", "zakat-payment", "year-end",
+  "claim", "claim-payment", "advance", "advance-return", "manual",
 ] as const;
 
 export type EntrySourceKind = (typeof ENTRY_SOURCE_KINDS)[number];
@@ -1841,5 +1848,152 @@ export async function postYearEnd(ctx: FinanceContext, endMonth: string, options
     memo: `Year-end close to ${asOf}`,
     source: { kind: "year-end", id: endMonth },
     lines,
+  }, options);
+}
+
+// ---------------------------------------------------------------------------
+// EXPENSE CLAIMS AND STAFF ADVANCES (./claims)
+// ---------------------------------------------------------------------------
+
+const STAFF_ADVANCES = "1250";
+const STAFF_CLAIMS_PAYABLE = "2210";
+const Claims = repo<Row>("expenseClaims");
+const Advances = repo<Row>("staffAdvances");
+
+type ClaimRow = Row & {
+  reference?: string; status?: string; approvedOn?: string; paidOn?: string; accountId?: string; fromAdvance?: number;
+  lines?: { date?: string; category?: string; description?: string; amount?: number }[]; projectId?: string;
+};
+type AdvanceRow = Row & {
+  reference?: string; status?: string; paidOn?: string; accountId?: string; amount?: number;
+  returns?: { id: string; amount: number; date: string; accountId?: string }[];
+};
+
+async function claimRow(ctx: FinanceContext, id: string) {
+  return (await Claims.find({ studio: ctx.studio, section: ctx.payablesSection })).find((c) => c.id === id) as ClaimRow | undefined;
+}
+
+/**
+ * AN APPROVED CLAIM: Dr each category's expense account, Cr Staff Advances for
+ * what the claimant's open advance cleared, Cr Staff Claims Payable for the
+ * rest. Dated the day it was approved — the day the studio accepted the debt.
+ */
+export async function postClaim(ctx: FinanceContext, claimId: string, options: PostOptions = {}) {
+  if (!options.system) {
+    const denied = requirePermission(ctx.access, "finance.ledger.post");
+    if (denied) return denied;
+  }
+  const claim = await claimRow(ctx, claimId);
+  if (!claim) return { error: "notfound" };
+  if (claim.status !== "Approved" && claim.status !== "Paid") return { error: "not-postable", status: claim.status };
+  const entries = await Entries.find({ studio: ctx.studio, section: ctx.ledgerSection });
+  if (alreadyPosted(entries, "claim", claimId)) return { error: "already-posted" };
+  const currency = ctx.studio.currency;
+  const byAccount = new Map<string, number>();
+  for (const l of claim.lines || []) {
+    const code = CATEGORY_ACCOUNT[String(l.category || "")] || OTHER_EXPENSE;
+    byAccount.set(code, (byAccount.get(code) || 0) + cents(l.amount, currency));
+  }
+  const total = [...byAccount.values()].reduce((a, b) => a + b, 0);
+  if (!total) return { error: "nothing-due" };
+  const fromAdvance = Math.min(total, cents(claim.fromAdvance, currency));
+  const { byCode, missing } = await codesToIds(ctx, [...byAccount.keys(), STAFF_ADVANCES, STAFF_CLAIMS_PAYABLE]);
+  if (missing.length) return { error: "chart", missing };
+  const project = str(claim.projectId, 60);
+  const lines: Record<string, unknown>[] = [...byAccount.entries()].map(([code, c]) => ({
+    accountId: byCode.get(code), debit: money(c, currency), ...(project ? { projectId: project } : {}),
+  }));
+  if (fromAdvance) lines.push({ accountId: byCode.get(STAFF_ADVANCES), credit: money(fromAdvance, currency) });
+  if (total - fromAdvance) lines.push({ accountId: byCode.get(STAFF_CLAIMS_PAYABLE), credit: money(total - fromAdvance, currency) });
+  return postEntry(ctx, {
+    date: claim.approvedOn,
+    memo: `Expense claim ${claim.reference || ""}`.trim(),
+    source: { kind: "claim", id: claimId },
+    lines,
+  }, options);
+}
+
+/** A CLAIM PAID: Dr Staff Claims Payable, Cr the money account, for the payable part. */
+export async function postClaimPayment(ctx: FinanceContext, claimId: string, options: PostOptions = {}) {
+  if (!options.system) {
+    const denied = requirePermission(ctx.access, "finance.ledger.post");
+    if (denied) return denied;
+  }
+  const claim = await claimRow(ctx, claimId);
+  if (!claim) return { error: "notfound" };
+  if (claim.status !== "Paid") return { error: "not-postable", status: claim.status };
+  const entries = await Entries.find({ studio: ctx.studio, section: ctx.ledgerSection });
+  if (alreadyPosted(entries, "claim-payment", claimId)) return { error: "already-posted" };
+  const currency = ctx.studio.currency;
+  const total = (claim.lines || []).reduce((s, l) => s + cents(l.amount, currency), 0);
+  const payable = total - Math.min(total, cents(claim.fromAdvance, currency));
+  if (!(payable > 0)) return { error: "nothing-due" };
+  const { byCode, missing } = await codesToIds(ctx, [STAFF_CLAIMS_PAYABLE]);
+  if (missing.length) return { error: "chart", missing };
+  const bank = await moneyAccountFor(ctx, claim.accountId);
+  if ("error" in bank) return bank;
+  return postEntry(ctx, {
+    date: claim.paidOn,
+    memo: `Expense claim ${claim.reference || ""} paid`.trim(),
+    source: { kind: "claim-payment", id: claimId },
+    lines: [
+      { accountId: byCode.get(STAFF_CLAIMS_PAYABLE), debit: money(payable, currency) },
+      { accountId: bank.id, credit: money(payable, currency) },
+    ],
+  }, options);
+}
+
+async function advanceRow(ctx: FinanceContext, id: string) {
+  return (await Advances.find({ studio: ctx.studio, section: ctx.payablesSection })).find((a) => a.id === id) as AdvanceRow | undefined;
+}
+
+/** AN ADVANCE HANDED OVER: Dr Staff Advances, Cr the money account. */
+export async function postAdvance(ctx: FinanceContext, advanceId: string, options: PostOptions = {}) {
+  if (!options.system) {
+    const denied = requirePermission(ctx.access, "finance.ledger.post");
+    if (denied) return denied;
+  }
+  const adv = await advanceRow(ctx, advanceId);
+  if (!adv) return { error: "notfound" };
+  if (adv.status !== "Paid") return { error: "not-postable", status: adv.status };
+  const entries = await Entries.find({ studio: ctx.studio, section: ctx.ledgerSection });
+  if (alreadyPosted(entries, "advance", advanceId)) return { error: "already-posted" };
+  const amount = roundMoney(Number(adv.amount) || 0, ctx.studio.currency);
+  if (!(amount > 0)) return { error: "nothing-due" };
+  const { byCode, missing } = await codesToIds(ctx, [STAFF_ADVANCES]);
+  if (missing.length) return { error: "chart", missing };
+  const bank = await moneyAccountFor(ctx, adv.accountId);
+  if ("error" in bank) return bank;
+  return postEntry(ctx, {
+    date: adv.paidOn,
+    memo: `Staff advance ${adv.reference || ""}`.trim(),
+    source: { kind: "advance", id: advanceId },
+    lines: [{ accountId: byCode.get(STAFF_ADVANCES), debit: amount }, { accountId: bank.id, credit: amount }],
+  }, options);
+}
+
+/** PART OF AN ADVANCE HANDED BACK (`<advanceId>:<returnId>`): Dr the money account, Cr Staff Advances. */
+export async function postAdvanceReturn(ctx: FinanceContext, sourceId: string, options: PostOptions = {}) {
+  if (!options.system) {
+    const denied = requirePermission(ctx.access, "finance.ledger.post");
+    if (denied) return denied;
+  }
+  const [advanceId, returnId] = sourceId.split(":");
+  const adv = await advanceRow(ctx, advanceId);
+  const ret = (adv?.returns || []).find((r) => r.id === returnId);
+  if (!adv || !ret) return { error: "notfound" };
+  const entries = await Entries.find({ studio: ctx.studio, section: ctx.ledgerSection });
+  if (alreadyPosted(entries, "advance-return", sourceId)) return { error: "already-posted" };
+  const amount = roundMoney(Number(ret.amount) || 0, ctx.studio.currency);
+  if (!(amount > 0)) return { error: "nothing-due" };
+  const { byCode, missing } = await codesToIds(ctx, [STAFF_ADVANCES]);
+  if (missing.length) return { error: "chart", missing };
+  const bank = await moneyAccountFor(ctx, ret.accountId);
+  if ("error" in bank) return bank;
+  return postEntry(ctx, {
+    date: ret.date,
+    memo: `Staff advance ${adv.reference || ""} returned`.trim(),
+    source: { kind: "advance-return", id: sourceId },
+    lines: [{ accountId: bank.id, debit: amount }, { accountId: byCode.get(STAFF_ADVANCES), credit: amount }],
   }, options);
 }

@@ -57,6 +57,8 @@ export const SERIES: readonly Series[] = Object.freeze([
   { key: "expense", prefix: "EXP", group: "Finance & Accounting", label: "Expenses" },
   { key: "journal", prefix: "JE", group: "Finance & Accounting", label: "Journal entries" },
   { key: "asset", prefix: "FA", group: "Finance & Accounting", label: "Fixed assets" },
+  { key: "expenseClaim", prefix: "ECL", group: "Finance & Accounting", label: "Expense claims" },
+  { key: "staffAdvance", prefix: "ADV", group: "Finance & Accounting", label: "Staff advances" },
   { key: "project", prefix: "PRJ", group: "Projects", label: "Projects" },
   { key: "siteReport", prefix: "DSR", group: "Projects", label: "Daily site reports" },
   { key: "tender", prefix: "TND", group: "Tendering & Estimating", label: "Tenders" },

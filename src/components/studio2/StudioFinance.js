@@ -4,6 +4,7 @@ import { Fragment, useCallback, useEffect, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { paymentRunDict } from "@/shared/studio/paymentRun";
+import { claimsDict } from "@/shared/studio/claims";
 import { financeDict } from "@/shared/studio/finance";
 import { documentsDict } from "@/shared/studio/documents";
 import Link from "next/link";
@@ -47,6 +48,7 @@ const StudioLedger = nextDynamic(() => import("@/components/studio2/StudioLedger
 const TreasuryPanel = nextDynamic(() => import("@/components/studio2/TreasuryPanel"));
 const CreditPanel = nextDynamic(() => import("@/components/studio2/CreditPanel"));
 const PaymentRunPanel = nextDynamic(() => import("@/components/studio2/PaymentRunPanel"));
+const ClaimsPanel = nextDynamic(() => import("@/components/studio2/ClaimsPanel"));
 // Cash & Bank's and Tax's panels, lazily for the reason the others are.
 const ReconciliationPanel = nextDynamic(() => import("@/components/studio2/ReconciliationPanel"));
 const TaxReturnPanel = nextDynamic(() => import("@/components/studio2/TaxReturnPanel"));
@@ -283,9 +285,12 @@ function PayablesAndExpenses({ slug }) {
   const [tab, setTab] = useState("bills");
   return (
     <div className="space-y-6">
-      <TabBar tabs={[["bills", tr.tabBills], ["run", paymentRunDict(locale).tab], ["expenses", tr.tabExpenses]]} tab={tab} setTab={setTab} />
-      {tab === "bills" && <Payables slug={slug} onDenied={() => setTab("expenses")} />}
+      <TabBar tabs={[["bills", tr.tabBills], ["run", paymentRunDict(locale).tab], ["expenses", tr.tabExpenses], ["claims", claimsDict(locale).tab]]} tab={tab} setTab={setTab} />
+      {/* A READER REFUSED THE BILLS lands on Claims (anybody may hold the right to
+          claim), and one refused Claims too lands on Expenses. */}
+      {tab === "bills" && <Payables slug={slug} onDenied={() => setTab("claims")} />}
       {tab === "run" && <PaymentRunPanel slug={slug} locale={locale} />}
+      {tab === "claims" && <ClaimsPanel slug={slug} locale={locale} onDenied={() => setTab("expenses")} />}
       {tab === "expenses" && <FinanceCash slug={slug} view="finance-payables" only={["expenses"]} embedded />}
     </div>
   );

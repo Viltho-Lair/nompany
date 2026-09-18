@@ -537,6 +537,13 @@ const OWN_AREAS = [
   // Expenses and kept a right of its own, because logging a fuel receipt is not
   // authority over a supplier's invoice.
   { key: "finance.expenses", group: "Finance & Accounting", label: "Expenses", verbs: ["view", "create", "edit", "delete"] },
+  // A PERSON ASKING TO BE PAID BACK (modules/finance/claims). `create` is
+  // raising, editing and submitting your OWN claims and seeing your own; `view`
+  // is seeing everybody's. APPROVING IS AN EXTRA, and nobody approves their own
+  // claim whatever they hold. Paying one, and handing over an advance, is
+  // `finance.payables.pay` — the right that pays suppliers.
+  { key: "finance.claims", group: "Finance & Accounting", label: "Expense claims", verbs: ["view", "create"],
+    extra: [{ key: "approve", label: "Approve expense claims" }] },
   // READ-ONLY ON PURPOSE. A VAT return is computed from the documents and a
   // statement from the journal; nothing on either screen writes, so a create or
   // edit here would be a right nothing can exercise (invariant 16).

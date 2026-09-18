@@ -459,7 +459,7 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
       ["finance.cash", "full"], ["finance.payables", "full"], ["finance.assets", "full"],
       // THE SPLIT'S NEW AREAS (18/09/2026), so a controller created from now on
       // holds what one who existed before gained by catching up.
-      ["finance.receivables", "full"], ["finance.expenses", "full"],
+      ["finance.receivables", "full"], ["finance.expenses", "full"], ["finance.claims", "full"],
       ["finance.tax", "view"], ["finance.reports", "view"],
       ["finance.ledger", "view"], ["finance.dashboard", "view"], ["projects.costs", "view"],
       // THE WAGE BILL IS THE CONTROLLER'S, not a separate profession's — there
@@ -479,7 +479,7 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
     // reads it. approveHigh is deliberately absent: signing above the studio's
     // own limit is a decision a studio makes about a person, not a default.
     extras: [
-      "finance.ledger.post", "finance.payables.approve", "finance.payables.pay",
+      "finance.ledger.post", "finance.payables.approve", "finance.payables.pay", "finance.claims.approve",
       // CLOSING THE PERIOD IS THE CONTROLLER'S OWN ACT rather than an approval
       // held away from them: it is the moment they say the month is finished,
       // and nobody else in this library is in a position to say it.

@@ -1188,7 +1188,7 @@ export const SECTION_COLLECTIONS = {
   // Payables: bills we owe vendors, with their own payment history. Assets: the
   // fixed-asset register — depreciation is derived, never stored, so there is no
   // schedule collection.
-  "finance-payables": ["bills", "paymentRuns"],
+  "finance-payables": ["bills", "paymentRuns", "expenseClaims", "staffAdvances"],
   "finance-assets": ["fixedAssets"],
   // FILED VAT RETURNS, 18/09/2026 — the one Tax record that is new, so it is
   // filed under Tax itself; there is nothing older stored elsewhere to mind.
