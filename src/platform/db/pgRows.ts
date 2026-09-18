@@ -341,6 +341,36 @@ export async function pgDeleteRow(
   return rowCount > 0;
 }
 
+/**
+ * MANY ROWS BY AN EXPLICIT ID LIST, in one statement. Returns how many went.
+ *
+ * The id list IS the scope — never a predicate — which is the shape invariant
+ * 17 asks of every deletion: whatever this removes, the caller named row by
+ * row. An empty list deletes nothing rather than meaning "all".
+ *
+ * ONE EVENT, NO `rowId`, the same shape `pgAddRows` announces: undoing an
+ * import of five thousand items one `rowDeleted` at a time would send every
+ * open board five thousand reloads.
+ */
+export async function pgDeleteRows(
+  studioId: string, sectionId: string, name: string, rowIds: readonly string[], opts: PgWriteOpts = {},
+): Promise<number> {
+  const ids = rowIds.filter((id) => typeof id === "string" && id !== "");
+  if (!ids.length) return 0;
+  const { rowCount } = await withTenant(studioId, (q) =>
+    q(
+      `DELETE FROM ${T} WHERE ${TBL.cols.tenant} = $1 AND ${TBL.cols.section} = $2 AND ${TBL.cols.collection} = $3 AND ${TBL.cols.id} = ANY($4::text[])`,
+      [studioId, sectionId, name, ids],
+    ));
+  if (rowCount) {
+    invalidate(cacheKey(studioId, sectionId, name));
+    if (opts.announce !== false) {
+      await emit(studioId, { type: TYPE.rowDeleted, sectionId, collection: name });
+    }
+  }
+  return rowCount || 0;
+}
+
 // ---- cascade bulk deletes ---------------------------------------------------
 // THE BULK DELETES cascade.ts (invariant 11's one legal deletion path) is
 // allowed to run against this table. Every one is an EXPLICIT, BOUNDED

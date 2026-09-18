@@ -45,6 +45,10 @@ const BatchesPanel = nextDynamic(() => import("@/components/studio2/BatchesPanel
 // same real lazy boundary for the same reason: nobody lands on it.
 const ValuationPanel = nextDynamic(() => import("@/components/studio2/ValuationPanel"),
   { loading: () => <ScreenSkeleton /> });
+// THE ITEM IMPORT DIALOG, with its .xlsx reader, its rules and its words —
+// fetched when somebody presses Import items, never on the way to the list.
+const ItemImport = nextDynamic(() => import("@/components/studio2/ItemImport"),
+  { loading: () => <ScreenSkeleton /> });
 import { binsDict } from "@/shared/studio/bins";
 import { batchesDict } from "@/shared/studio/batches";
 import { valuationDict } from "@/shared/studio/valuation";
@@ -135,8 +139,8 @@ export default function StudioInventory({ slug, view = "inventory" }) {
   const wrap = (children) => <div className="space-y-6">{banner}{children}</div>;
 
   if (view === "inventory-items") {
-    return wrap(<Items items={items} vendors={vendors} units={vocabulary.units} serviceActions={vocabulary.serviceActions || []}
-      studioCurrency={studioCurrency} canManage={canManageItems} busy={busy} send={send} />);
+    return wrap(<Items slug={slug} items={items} vendors={vendors} units={vocabulary.units} serviceActions={vocabulary.serviceActions || []}
+      studioCurrency={studioCurrency} canManage={canManageItems} busy={busy} send={send} reload={load} />);
   }
   if (view === "inventory-stock") {
     return wrap(<Stock slug={slug} items={items} movements={movements} canManage={canManageStock}
@@ -208,10 +212,12 @@ function message(out, tr) {
 }
 
 // ---- registered items (the catalogue) --------------------------------------
-function Items({ items, vendors, units, serviceActions, studioCurrency, canManage, busy, send }) {
+function Items({ slug, items, vendors, units, serviceActions, studioCurrency, canManage, busy, send, reload }) {
   const tr = inventoryDict(useStudioLocale());
   const [query, setQuery] = useState("");
   const [form, setForm] = useState(null);
+  const [importing, setImporting] = useState(false);
+  const [importBusy, setImportBusy] = useState(false);
   const closeForm = useCallback(() => setForm(null), []);
 
   const filtered = useMemo(() => {
@@ -222,7 +228,8 @@ function Items({ items, vendors, units, serviceActions, studioCurrency, canManag
 
   return (
     <>
-      <Toolbar canManage={canManage} label={tr.addItem} onAdd={() => setForm({ row: null })}>
+      <Toolbar canManage={canManage} label={tr.addItem} onAdd={() => setForm({ row: null })}
+        before={<button type="button" className={btnGhost} onClick={() => setImporting(true)}>{tr.importItems}</button>}>
         {items.length > 0 && (
           <Field label={tr.search} type="search" hintOverlay hint={tr.nameSkuModelVendor}
             value={query} onChange={(v) => setQuery(v)} className="sm:max-w-xs" />
@@ -235,6 +242,15 @@ function Items({ items, vendors, units, serviceActions, studioCurrency, canManag
           onClose={closeForm}>
           <ItemForm row={form.row} vendors={vendors} units={units} serviceActions={serviceActions} studioCurrency={studioCurrency} busy={busy} onCancel={closeForm}
             onSave={async (v) => { if (await send("items", form.row ? "PUT" : "POST", form.row ? { ...v, id: form.row.id } : v)) setForm(null); }} />
+        </Dialog>
+      )}
+
+      {importing && (
+        // CLOSING IS REFUSED WHILE A BATCH IS IN FLIGHT — Escape and the
+        // backdrop included. Nothing would be lost, but the count would be.
+        <Dialog title={tr.importItems} onClose={() => { if (!importBusy) setImporting(false); }} width="max-w-[960px]">
+          <ItemImport slug={slug} items={items} vendors={vendors} units={units} studioCurrency={studioCurrency}
+            onChanged={reload} onBusy={setImportBusy} onClose={() => setImporting(false)} />
         </Dialog>
       )}
 

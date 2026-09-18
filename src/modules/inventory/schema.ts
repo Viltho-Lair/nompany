@@ -50,6 +50,12 @@ export const VendorSchema = z.object({
     expiresAt: z.string(),
     mediaId: z.string().max(120),
   })).optional(),
+  /**
+   * The item import that added this supplier because the file named one the
+   * studio did not have. Undoing that import removes the supplier with it,
+   * unless something still names it. Absent on a supplier added any other way.
+   */
+  importId: z.string().optional(),
 });
 
 /**
@@ -119,6 +125,17 @@ export const ItemSchema = z.object({
   notes: z.string().max(1000).optional(),
   /** A stored data URI. Read by the quotation builder, never declared until now. */
   image: z.string().optional(),
+
+  // ---- where it came from, when it came from a file ------------------------
+  /**
+   * THE IMPORT THAT CREATED IT (./itemImport). What makes a whole import
+   * undoable, and what the import history is counted from — there is no
+   * import record, because everything one would hold is derivable from these.
+   * Absent on an item somebody typed.
+   */
+  importId: z.string().optional(),
+  /** The line in that file. With `importId`, what lets a resumed import skip what already landed. */
+  importLine: z.number().optional(),
 });
 
 /**

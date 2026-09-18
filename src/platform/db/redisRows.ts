@@ -79,7 +79,7 @@ export async function redisAddRows<T extends Row = Row>(
 // a flip instead of silently reverting someone else's change.
 export async function redisUpdateRow<T extends Row = Row>(
   studioId: string, sectionId: string, name: string, rowId: string,
-  patch: Row | ((row: T) => Row),
+  patch: Row | ((row: T) => Row), opts: { announce?: boolean } = {},
 ): Promise<T | null> {
   const updated = await editArr<T, T | null>(SEC.col(studioId, sectionId, name), (rows) => {
     let hit: T | null = null;
@@ -92,7 +92,8 @@ export async function redisUpdateRow<T extends Row = Row>(
     return hit ? { next, result: hit } : { result: null };
   });
   // Only a real change is announced — a miss changed nothing to tell anyone about.
-  if (updated) await emit(studioId, { type: TYPE.rowUpdated, sectionId, collection: name, rowId });
+  // `announce: false` is updateRows' — a batch says it changed once, at the end.
+  if (updated && opts.announce !== false) await emit(studioId, { type: TYPE.rowUpdated, sectionId, collection: name, rowId });
   return updated;
 }
 export async function redisDeleteRow(
@@ -103,5 +104,21 @@ export async function redisDeleteRow(
     return next.length === rows.length ? { result: false } : { next, result: true };
   });
   if (removed) await emit(studioId, { type: TYPE.rowDeleted, sectionId, collection: name, rowId });
+  return removed;
+}
+
+// Many rows by an explicit id list, one compare-and-set and one event — see
+// pgDeleteRows for why the list is the whole scope and why the event names no row.
+export async function redisDeleteRows(
+  studioId: string, sectionId: string, name: string, rowIds: readonly string[],
+): Promise<number> {
+  const drop = new Set(rowIds.filter((id) => typeof id === "string" && id !== ""));
+  if (!drop.size) return 0;
+  const removed = await editArr<Row, number>(SEC.col(studioId, sectionId, name), (rows) => {
+    const next = rows.filter((r) => !drop.has(r.id as string));
+    const gone = rows.length - next.length;
+    return gone ? { next, result: gone } : { result: 0 };
+  });
+  if (removed) await emit(studioId, { type: TYPE.rowDeleted, sectionId, collection: name });
   return removed;
 }

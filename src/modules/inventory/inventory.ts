@@ -63,6 +63,9 @@ import type { Task } from "@/modules/tasks/types";
 import { roundMoney, roundSum } from "@/shared/money";
 import { taxCategoryField } from "@/shared/taxProfile";
 import { barcodeProblems, cleanBarcode, type Barcoded } from "./barcodes";
+import {
+  ITEM_FIELDS, IMPORT_BATCH, planItemImport, type ImportRefusal, type ItemField, type ItemImportRow,
+} from "./itemImport";
 
 const VENDORS = "inventoryVendors";
 const ITEMS = "inventoryItems";
@@ -635,6 +638,230 @@ export async function removeItem(ctx: InventoryContext, id: string) {
 
   const removed = await Items.remove({ studio, section: itemsSection }, id);
   return removed ? { ok: true } : { error: "notfound" };
+}
+
+// ---- importing items from a file (./itemImport) ------------------------------
+
+// Minted by the server on an import's first batch and handed back with every
+// later one — so a resumed import is recognised, and a made-up id is refused
+// rather than being allowed to adopt another import's rows.
+const IMPORT_ID = /^imp_[a-z0-9]{8,40}$/;
+const mintImportId = () => `imp_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
+
+// One file row as the browser read it: text per field, nothing else, capped.
+function importRowOf(raw: unknown, i: number): ItemImportRow {
+  const r = (raw ?? {}) as Record<string, unknown>;
+  const n = Number(r.line);
+  const row: ItemImportRow = { line: Number.isFinite(n) && n > 0 ? Math.trunc(n) : i + 2 };
+  for (const f of ITEM_FIELDS) if (r[f] !== undefined && r[f] !== null) row[f] = String(r[f]).slice(0, 1000);
+  return row;
+}
+
+/**
+ * ONE BATCH OF AN ITEM IMPORT. The browser sends a file in batches of
+ * IMPORT_BATCH rows; each is planned here against what is stored NOW —
+ * including what the earlier batches wrote — with the same `planItemImport`
+ * the preview ran, so nothing is trusted for having been checked in a browser.
+ *
+ * RE-SENDING A BATCH CREATES NOTHING TWICE. Every item carries the import and
+ * the file line it came from, and a line already landed under this import is
+ * counted as done rather than planned again. That is what makes a dropped
+ * connection a "continue" instead of a clean-up.
+ *
+ * SUPPLIERS FIRST: a file naming a supplier the studio lacks either creates
+ * it (only when asked, and only with the right to) or refuses the row by name.
+ * Nothing is created silently.
+ */
+export async function importItems(ctx: InventoryContext, body: Record<string, unknown>) {
+  // Importing IS creating — the same right, not a new one (see importVendors).
+  const denied = requirePermission(ctx.access, "inventory.items.create");
+  if (denied) return denied;
+  const opts = { update: body?.update === true, createVendors: body?.createVendors === true };
+  // Each option asks the right its act needs, so the import is never a way
+  // round a grid that withholds editing items or adding suppliers.
+  if (opts.update) { const d = requirePermission(ctx.access, "inventory.items.edit"); if (d) return d; }
+  if (opts.createVendors) { const d = requirePermission(ctx.access, "procurement.suppliers.create"); if (d) return d; }
+
+  const list = Array.isArray(body?.rows) ? body.rows : [];
+  if (!list.length) return { error: "empty" };
+  if (list.length > IMPORT_BATCH) return { error: "too-many", max: IMPORT_BATCH };
+  const given = str(body?.importId, 60);
+  if (given && !IMPORT_ID.test(given)) return { error: "import" };
+  const importId = given || mintImportId();
+
+  const { studio, itemsSection, vendorsSection } = ctx;
+  const [items, vendors] = await Promise.all([
+    Items.find({ studio, section: itemsSection }),
+    Vendors.find({ studio, section: vendorsSection }),
+  ]);
+
+  const rows = list.map(importRowOf);
+  const mine = items.filter((i) => i.importId === importId);
+  const landed = new Set(mine.map((i) => i.importLine));
+  const fresh = rows.filter((r) => !landed.has(r.line));
+  // A SKU AN EARLIER BATCH OF THIS FILE ALREADY USED is the file naming it
+  // twice, not an item to update — the preview says so over the whole file,
+  // and this is the same answer given one batch at a time.
+  const skuOfLine = new Map(mine.map((i) => [String(i.sku).toUpperCase(), i.importLine]));
+  const early: ImportRefusal[] = [];
+  const toPlan = fresh.filter((r) => {
+    const sku = String(r.sku ?? "").trim().toUpperCase();
+    const at = sku ? skuOfLine.get(sku) : undefined;
+    if (at !== undefined && at !== r.line) { early.push({ line: r.line, reason: "duplicate-sku", detail: sku }); return false; }
+    return true;
+  });
+
+  const plan = planItemImport(toPlan, {
+    units: unitsFor(studio.units, studio.unitsOff),
+    studioCurrency: String(studio.currency || ""),
+    vendorNames: vendors.map((v) => v.name),
+    // With the supplier's NAME, as listItems hands the screen — the preview and
+    // this batch must recognise a SKU-less row by the same two things.
+    items: items.map((i) => ({ ...i, vendorName: vendors.find((v) => v.id === i.vendorId)?.name || "" })),
+  }, opts);
+
+  const at = new Date().toISOString();
+  let vendorsCreated = 0;
+  if (plan.newVendors.length) {
+    // The same fields in the same order as importVendors writes, tagged with
+    // the import so undoing it takes these away too.
+    const made = await Vendors.createMany({ studio, section: vendorsSection }, plan.newVendors.map((v) => ({
+      name: v.name, contactName: "", email: "", phone: "", notes: "",
+      itemTypes: cleanItemTypes(v.itemTypes.map((type) => ({ type, weeks: "" }))),
+      createdAt: at, importId,
+    })));
+    vendorsCreated = made.length;
+    vendors.push(...made);
+  }
+  const vendorIdOf = new Map(vendors.map((v) => [v.name.trim().toLowerCase(), v.id]));
+  const vendorOf = (name: string) => (name ? vendorIdOf.get(name.toLowerCase()) || "" : "");
+
+  // A blank SKU gets the next free ITM-number, counted past every one this
+  // batch hands out as well as every one already stored.
+  const taken = new Set(items.map((i) => String(i.sku || "").toUpperCase()));
+  for (const p of plan.create) if (p.sku) taken.add(p.sku);
+  let n = items.length;
+  const nextFree = () => {
+    for (;;) {
+      n += 1;
+      const candidate = `ITM-${String(n).padStart(4, "0")}`;
+      if (!taken.has(candidate)) { taken.add(candidate); return candidate; }
+    }
+  };
+
+  // Field order is createItem's, so an imported item and a typed one are the
+  // same shape; the two import fields come last.
+  const created = await Items.createMany({ studio, section: itemsSection }, plan.create.map((p) => ({
+    sku: p.sku || nextFree(), name: p.name, modelNumber: p.modelNumber, unit: p.unit,
+    vendorId: vendorOf(p.vendorName), itemType: p.itemType, deliveryWeeks: p.deliveryWeeks,
+    scope: [], serials: [], reorderLevel: p.reorderLevel, unitCost: p.unitCost, sellPrice: p.sellPrice,
+    ...(p.barcode ? { barcode: p.barcode } : {}),
+    currency: p.currency, shippingCharges: p.shippingCharges, customsCharges: p.customsCharges,
+    image: "", notes: p.notes, createdAt: at, importId, importLine: p.line,
+  })));
+
+  // AN UPDATE WRITES ONLY WHAT THE FILE CARRIED. A column the file left out,
+  // or a cell left blank, is not an instruction to clear the field.
+  // ONE EVENT FOR THE BATCH (repo.updateMany): an open register reloads on
+  // every event, and a price list announced row by row was a reload of the
+  // whole list per line, each queueing behind the import itself.
+  const updated = await Items.updateMany({ studio, section: itemsSection }, plan.update.map((q) => {
+    const has = (f: ItemField) => q.given.includes(f);
+    return {
+      id: q.id,
+      patch: (current: Item) => {
+        const patch: Record<string, unknown> = {};
+        if (has("name")) patch.name = q.name;
+        if (has("unit")) patch.unit = q.unit;
+        if (has("vendor")) patch.vendorId = vendorOf(q.vendorName);
+        if (has("itemType")) patch.itemType = q.itemType;
+        if (has("modelNumber")) patch.modelNumber = q.modelNumber;
+        if (has("barcode")) patch.barcode = q.barcode;
+        if (has("unitCost")) patch.unitCost = q.unitCost;
+        if (has("sellPrice")) patch.sellPrice = q.sellPrice;
+        if (has("reorderLevel")) patch.reorderLevel = q.reorderLevel;
+        if (has("deliveryWeeks") || has("leadDays")) patch.deliveryWeeks = q.deliveryWeeks;
+        if (has("notes")) patch.notes = q.notes;
+        // THE CURRENCY AND ITS TWO CHARGES MOVE TOGETHER, as in editItem: a
+        // named currency brings its charges (the plan refused a foreign one
+        // without them), and charges alone apply only to an item already
+        // bought in somebody else's money — at the figures the file gave.
+        if (has("currency")) {
+          patch.currency = q.currency;
+          patch.shippingCharges = q.shippingCharges;
+          patch.customsCharges = q.customsCharges;
+        } else if (foreignTo(cur(current.currency), studio.currency)) {
+          if (q.givenCharges.shipping != null) patch.shippingCharges = q.givenCharges.shipping;
+          if (q.givenCharges.customs != null) patch.customsCharges = q.givenCharges.customs;
+        }
+        return patch;
+      },
+    };
+  }));
+
+  return {
+    importId,
+    created: created.length,
+    updated,
+    vendorsCreated,
+    // Lines a previous attempt at this same batch already wrote.
+    already: rows.length - fresh.length,
+    refused: [...early, ...plan.refused],
+  };
+}
+
+/**
+ * UNDO AN IMPORT — every item it CREATED, and every supplier it added that
+ * nothing else names. Items it UPDATED are left as they now are: there is no
+ * record of what they held before, and pretending to restore them would be
+ * worse than saying so.
+ *
+ * ALL OR NOTHING. If any of its items has moved stock or sits on an order or a
+ * delivery note, nothing is removed and the refusal names them — the same test
+ * removeItem applies one item at a time. Half an undo is a studio holding
+ * part of a file and no way to tell which part.
+ */
+export async function undoItemImport(ctx: InventoryContext, importId: string) {
+  const denied = requirePermission(ctx.access, "inventory.items.delete");
+  if (denied) return denied;
+  if (!IMPORT_ID.test(String(importId || ""))) return { error: "import" };
+
+  const { studio, itemsSection, vendorsSection, sheetsSection, deliveriesSection, stockSection } = ctx;
+  const [items, vendors, movements, orders, deliveries] = await Promise.all([
+    Items.find({ studio, section: itemsSection }),
+    Vendors.find({ studio, section: vendorsSection }),
+    Stock.find({ studio, section: stockSection }),
+    Orders.find({ studio, section: sheetsSection }),
+    Deliveries.find({ studio, section: deliveriesSection as Section }),
+  ]);
+  const doomed = items.filter((i) => i.importId === importId);
+  if (!doomed.length) return { error: "notfound" };
+
+  const ids = new Set(doomed.map((i) => i.id));
+  const used = new Set<string>();
+  for (const m of movements) if (ids.has(m.itemId)) used.add(m.itemId);
+  for (const o of orders) for (const l of o.lines || []) if (ids.has(l.itemId)) used.add(l.itemId);
+  for (const d of deliveries) for (const l of d.lines || []) if (ids.has(l.itemId)) used.add(l.itemId);
+  if (used.size) {
+    const names = doomed.filter((i) => used.has(i.id)).slice(0, 5).map((i) => `${i.sku} ${i.name}`);
+    return { error: "in-use", count: used.size, names };
+  }
+
+  const removed = await Items.removeMany({ studio, section: itemsSection }, [...ids]);
+
+  // Its suppliers go too — but only one nothing else names, and only when the
+  // person may delete suppliers. Otherwise they stay, and the answer says so.
+  let vendorsRemoved = 0;
+  const added = vendors.filter((v) => v.importId === importId);
+  if (added.length && !requirePermission(ctx.access, "procurement.suppliers.delete")) {
+    const named = new Set([
+      ...items.filter((i) => !ids.has(i.id)).map((i) => i.vendorId),
+      ...orders.map((o) => o.vendorId),
+    ]);
+    const free = added.filter((v) => !named.has(v.id)).map((v) => v.id);
+    vendorsRemoved = await Vendors.removeMany({ studio, section: vendorsSection }, free);
+  }
+  return { removed, vendorsRemoved, vendorsKept: added.length - vendorsRemoved };
 }
 
 function nextSku(rows: Item[]) {

@@ -23,7 +23,7 @@
 // seam has failed at the only job it has. If a query cannot be expressed in this
 // vocabulary, widen the vocabulary — do not pass a callback.
 
-import { readCol, readColWhere, addRow, addRows, updateRow, deleteRow } from "./sections";
+import { readCol, readColWhere, addRow, addRows, updateRow, updateRows, deleteRow, deleteRows } from "./sections";
 import type { Row } from "./store";
 
 // ---- the vocabulary, as types ----------------------------------------------
@@ -289,10 +289,30 @@ export function repo<T extends Row = Row>(name: string) {
       return updateRow(studioId, sectionId, name, id, patch);
     },
 
+    /**
+     * Patch MANY rows, each exactly as `update` would (a function patch still
+     * re-runs on contention), announcing ONCE rather than per row — see
+     * updateRows. Returns how many were found and changed.
+     */
+    async updateMany(scope: Scope, changes: readonly { id: string; patch: Row | ((row: T) => Row) }[]): Promise<number> {
+      const { studioId, sectionId } = scopeOf(scope);
+      return updateRows<T>(studioId, sectionId, name, changes);
+    },
+
     /** Remove a row. Returns whether anything was removed. */
     async remove(scope: Scope, id: string): Promise<boolean> {
       const { studioId, sectionId } = scopeOf(scope);
       return deleteRow(studioId, sectionId, name, id);
+    },
+
+    /**
+     * Remove MANY rows by an explicit id list, in one write and one event —
+     * createMany's counterpart. Returns how many went. The list is the whole
+     * scope: an empty one removes nothing.
+     */
+    async removeMany(scope: Scope, ids: readonly string[]): Promise<number> {
+      const { studioId, sectionId } = scopeOf(scope);
+      return deleteRows(studioId, sectionId, name, ids);
     },
   };
 }

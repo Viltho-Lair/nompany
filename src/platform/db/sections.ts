@@ -16,6 +16,7 @@ import { readArr, editArr } from "./store";
 import type { Row } from "./store";
 import * as R from "./redisRows";
 import * as P from "./pgRows";
+import { emit, TYPE } from "@/platform/realtime/events";
 import { keysetFor, sealingConfigured } from "./sealing";
 import { isSealed, isSealedField, openRow, rowNeedsSealing, sealRow, tokenKeyId } from "./sealCipher";
 
@@ -493,6 +494,7 @@ export async function addRows<T extends Row = Row>(s: string, sec: string, n: st
 
 export async function updateRow<T extends Row = Row>(
   s: string, sec: string, n: string, id: string, plainPatch: Row | ((row: T) => Row),
+  opts: { announce?: boolean } = {},
 ): Promise<T | null> {
   // THE PATCH RUNS ON THE PLAIN ROW and hands the store a sealed one. It is a
   // function either way, because the primitive re-applies it on a contended
@@ -511,8 +513,8 @@ export async function updateRow<T extends Row = Row>(
     if (!keys) throw new Error("NOMPANY_DATA_KEY is not set — refusing to store client data unencrypted");
     return sealRow(keys, s, n, id, whole);
   };
-  if (DB_BACKEND === "postgres") return openOne(s, n, await P.pgUpdateRow<T>(s, sec, n, id, patch));
-  const a = await R.redisUpdateRow<T>(s, sec, n, id, patch);
+  if (DB_BACKEND === "postgres") return openOne(s, n, await P.pgUpdateRow<T>(s, sec, n, id, patch, opts));
+  const a = await R.redisUpdateRow<T>(s, sec, n, id, patch, opts);
   if (DB_BACKEND !== "parity") return openOne(s, n, a);
   // announce: false — see addRow above.
   const b = await second("updateRow", () => P.pgUpdateRow<T>(s, sec, n, id, patch, { announce: false }));
@@ -526,6 +528,41 @@ export async function deleteRow(s: string, sec: string, n: string, id: string): 
   // announce: false — see addRow above.
   const b = await second("deleteRow", () => P.pgDeleteRow(s, sec, n, id, { announce: false }));
   return same("deleteRow", a, b) as boolean;
+}
+
+/**
+ * MANY ROWS, EACH ITS OWN COMPARE-AND-SET, ONE EVENT. Every patch is applied
+ * exactly as `updateRow` applies it — a function patch still re-runs on a
+ * contended row — but nothing is announced per row: an open board reloads on
+ * every event, and a price list of three hundred lines was three hundred
+ * reloads of the whole register, each queueing behind the import itself.
+ * Returns how many rows were found and changed.
+ */
+export async function updateRows<T extends Row = Row>(
+  s: string, sec: string, n: string, changes: readonly { id: string; patch: Row | ((row: T) => Row) }[],
+): Promise<number> {
+  const queue = [...changes];
+  let done = 0;
+  // A few at a time: each is its own write, and eight in flight finishes a
+  // batch in seconds without queueing every other writer behind it.
+  const worker = async () => {
+    for (let c = queue.shift(); c; c = queue.shift()) {
+      if (await updateRow<T>(s, sec, n, c.id, c.patch, { announce: false })) done += 1;
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(8, queue.length) }, worker));
+  if (done) await emit(s, { type: TYPE.rowUpdated, sectionId: sec, collection: n });
+  return done;
+}
+
+/** Many rows by an explicit id list — see pgDeleteRows. Returns how many went. */
+export async function deleteRows(s: string, sec: string, n: string, ids: readonly string[]): Promise<number> {
+  if (DB_BACKEND === "postgres") return P.pgDeleteRows(s, sec, n, ids);
+  const a = await R.redisDeleteRows(s, sec, n, ids);
+  if (DB_BACKEND !== "parity") return a;
+  // announce: false — see addRow above.
+  const b = await second("deleteRows", () => P.pgDeleteRows(s, sec, n, ids, { announce: false }));
+  return same("deleteRows", a, b) as number;
 }
 
 // ---- access grants (removed) -----------------------------------------------

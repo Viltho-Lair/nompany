@@ -120,7 +120,7 @@ been understood. More than **500 rows** is `400 too-many` — counted over every
   at it, which `removeVendor` already enforces).
 - **No export.** Nothing writes a CSV *out*, so there is no round trip: you cannot download
   the current vendor list, edit it, and put it back.
-- **Vendors only.** Items, clients and every other list are still one-at-a-time. `addRows`
-  and `repo.createMany` are department-neutral and ready for the next one; `readCsvTable`
-  takes its field map as an argument for the same reason.
+- **Vendors and items only.** Items have their own importer (`item-import.md`), with Excel,
+  column matching, a preview, update and undo, none of which this one has yet. Clients and
+  every other list are still one at a time.
 - **No XLSX.** A spreadsheet must be saved as CSV first. See the bundle-budget reason above.

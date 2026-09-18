@@ -29,6 +29,7 @@ type Strings = CommonStrings & {
   add: string;
   addAirline: string;
   addItem: string;
+  importItems: string;
   addType: string;
   addVendor: string;
   adding: string;
@@ -309,6 +310,7 @@ const en: Strings = {
   add: "Add",
   addAirline: "Add airline",
   addItem: "Add item",
+  importItems: "Import items",
   addType: "Add type",
   addVendor: "Add vendor",
   adding: "Adding…",
@@ -594,6 +596,7 @@ const ar: Strings = {
   add: "إضافة",
   addAirline: "إضافة شركة طيران",
   addItem: "إضافة صنف",
+  importItems: "استيراد أصناف",
   addType: "إضافة نوع",
   addVendor: "إضافة مورد",
   adding: "جار الإضافة…",
