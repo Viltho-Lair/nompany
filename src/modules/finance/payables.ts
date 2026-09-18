@@ -26,7 +26,7 @@ import { supplierQualification } from "@/modules/procurement/supplierModel";
 import { notifyHolders, signatureNotice } from "@/modules/people/holders";
 import { documentTaxMethod } from "@/shared/compliance/rules";
 import { isForeign, cleanRate, rateFor } from "./fx";
-import { moneyAccountProblem } from "./ledger";
+import { moneyAccountProblem, paymentSource } from "./ledger";
 
 const BILLS = "bills";
 const Bills = repo<Bill>(BILLS);
@@ -503,7 +503,10 @@ export async function approveBill(ctx: FinanceContext, id: string) {
   return bill ? { bill: { ...bill, ...billTotals(bill, ctx.studio.currency) } } : { error: "notfound" };
 }
 
-export async function recordBillPayment(ctx: FinanceContext, id: string, body: Record<string, unknown>) {
+// `chequeId` is never read from the body — see recordPayment.
+export async function recordBillPayment(
+  ctx: FinanceContext, id: string, body: Record<string, unknown>, opts: { chequeId?: string } = {},
+) {
   const denied = requirePermission(ctx.access, "finance.payables.pay");
   if (denied) return denied;
 
@@ -546,6 +549,7 @@ export async function recordBillPayment(ctx: FinanceContext, id: string, body: R
     amount,
     ...(rate ? { rate } : {}),
     ...(accountId ? { accountId } : {}),
+    ...(opts.chequeId ? { chequeId: opts.chequeId } : {}),
     date: day(body?.date) || new Date().toISOString().slice(0, 10),
     method: str(body?.method, 40) || "Bank transfer",
     note: str(body?.note, 500),
@@ -563,6 +567,18 @@ export async function recordBillPayment(ctx: FinanceContext, id: string, body: R
   const paymentId = payments[payments.length - 1].id;
   const posting = await autoPost(ctx, "bill-payment", id, paymentId);
   return { bill: { ...bill, ...after, status: statusFor(bill, after) }, posting };
+}
+
+/** The bill-side twin of `setPaymentBounced`: our own cheque was refused or taken back. */
+export async function setBillPaymentBounced(ctx: FinanceContext, billId: string, paymentId: string, bounced: boolean) {
+  const { studio, payablesSection } = ctx;
+  const updated = await Bills.update({ studio, section: payablesSection }, billId, (row) => ({
+    payments: ((row as Bill).payments || []).map((p) => (p.id === paymentId ? { ...p, bounced } : p)),
+  }));
+  if (!updated) return { posted: false as const, reason: "notfound" };
+  return bounced
+    ? autoReverse(ctx, "bill-payment", paymentSource(billId, paymentId), "Cheque bounced")
+    : autoPost(ctx, "bill-payment", billId, paymentId);
 }
 
 /**

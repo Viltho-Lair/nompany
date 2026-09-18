@@ -49,8 +49,14 @@ export default function TreasuryPanel({ slug, locale = "en" }) {
 
   const {
     from, opening, cheques = [], guarantees = [], lockedUp = {}, buckets = [],
-    shortfall: gap, canManage, accounts = [],
+    shortfall: gap, canManage, accounts = [], settleable = { invoices: [], bills: [] },
   } = data;
+  // WHAT A CHEQUE CAN SETTLE, by its direction: money in pays an invoice, money
+  // out pays a bill. The label says what is still owed, which is the most the
+  // cheque may be for.
+  const settleOptions = (direction) => (direction === "in" ? settleable.invoices : settleable.bills)
+    .map((d) => ({ value: d.id, label: `${d.reference} — ${d.party} (${n(d.outstanding)})` }));
+  const refOf = (c) => c.documentRef || "";
   const n = (v) => new Intl.NumberFormat("en", { maximumFractionDigits: 0 }).format(Number(v) || 0);
 
   return (
@@ -181,7 +187,7 @@ export default function TreasuryPanel({ slug, locale = "en" }) {
                 positive — the rule a payslip's allowances and deductions
                 follow, and for the same reason. */}
             <Field label={tr.direction} as="select" className="w-full sm:w-36"
-              value={cheque.direction} onChange={(v) => setCheque({ ...cheque, direction: v })}
+              value={cheque.direction} onChange={(v) => setCheque({ ...cheque, direction: v, invoiceId: "", billId: "" })}
               options={[{ value: "in", label: tr.incoming }, { value: "out", label: tr.outgoing }]} />
             <Field label={tr.party} required className="w-full sm:w-52"
               value={cheque.party} onChange={(v) => setCheque({ ...cheque, party: v })} />
@@ -191,6 +197,25 @@ export default function TreasuryPanel({ slug, locale = "en" }) {
               value={cheque.amount} onChange={(v) => setCheque({ ...cheque, amount: v })} />
             <Field label={tr.dueOn} type="date" className="w-full sm:w-40"
               value={cheque.dueOn} onChange={(v) => setCheque({ ...cheque, dueOn: v })} />
+            <Field label={tr.settles} as="select" className="w-full sm:w-72"
+              value={(cheque.direction === "in" ? cheque.invoiceId : cheque.billId) || ""}
+              onChange={(v) => {
+                const doc = (cheque.direction === "in" ? settleable.invoices : settleable.bills).find((d) => d.id === v);
+                setCheque({
+                  ...cheque,
+                  ...(cheque.direction === "in" ? { invoiceId: v } : { billId: v }),
+                  // THE PARTY AND AMOUNT FOLLOW THE DOCUMENT when they are still blank.
+                  ...(doc && !cheque.party ? { party: doc.party } : {}),
+                  ...(doc && !cheque.amount ? { amount: String(doc.outstanding) } : {}),
+                });
+              }}
+              options={[{ value: "", label: tr.settlesNothing }, ...settleOptions(cheque.direction)]} />
+            {accounts.length > 1 && (
+              <Field label={tr.clearsInto} as="select" className="w-full sm:w-52"
+                value={cheque.accountId || ""} onChange={(v) => setCheque({ ...cheque, accountId: v })}
+                options={accounts.map((a) => ({ value: a.code === "1010" ? "" : a.id, label: `${a.code} ${a.name}` }))} />
+            )}
+            <p className="w-full text-xs text-slate-500 dark:text-slate-400">{tr.settlesLead}</p>
             <button className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-600 text-white disabled:opacity-50"
               disabled={busy}
               onClick={async () => {
@@ -215,14 +240,31 @@ export default function TreasuryPanel({ slug, locale = "en" }) {
                 <span className="font-mono text-slate-900 dark:text-white">{c.number}</span>
                 <span className="text-slate-600 dark:text-slate-300">{c.party}</span>
                 <span className="text-xs text-slate-400 dark:text-slate-500">{c.dueOn}</span>
+                {(c.invoiceId || c.billId) && (
+                  <span className="rounded-full bg-brand-50 px-2 py-0.5 text-xs text-brand-700 dark:bg-brand-500/10 dark:text-brand-300">
+                    {tr.settlesRef(refOf(c) || "…")}
+                  </span>
+                )}
                 <span className={`num ms-auto ${c.direction === "in" ? "text-emerald-600 dark:text-emerald-300" : "text-rose-600 dark:text-rose-300"}`}>
                   {c.direction === "in" ? "+" : "−"}{n(c.amount)}
                 </span>
                 <span className="w-20 text-end text-xs text-slate-500 dark:text-slate-400">{tr.status(c.status)}</span>
                 {canManage && c.status === "held" && (
+                  <>
+                    <button className="rounded-lg bg-brand-600 px-2 py-1 text-xs font-600 text-white" disabled={busy}
+                      onClick={() => send({ action: "move", id: c.id, status: "deposited" })}>
+                      {tr.deposit}
+                    </button>
+                    <button className="rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-600 dark:border-white/15 dark:text-slate-300" disabled={busy}
+                      onClick={() => send({ action: "move", id: c.id, status: "returned" })}>
+                      {tr.returnIt}
+                    </button>
+                  </>
+                )}
+                {canManage && c.status === "bounced" && (
                   <button className="rounded-lg bg-brand-600 px-2 py-1 text-xs font-600 text-white" disabled={busy}
                     onClick={() => send({ action: "move", id: c.id, status: "deposited" })}>
-                    {tr.deposit}
+                    {tr.depositAgain}
                   </button>
                 )}
                 {canManage && c.status === "deposited" && (

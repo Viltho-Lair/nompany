@@ -32,7 +32,7 @@ import { TAXONOMIES, resolveValue, admits } from "@/modules/administration/taxon
 import { getSectionByKey, updateSection } from "@/platform/db/sections";
 import { attachToProjectEngagement, detachFromItsEngagement } from "@/platform/db/engagement";
 import { autoPost, autoReverse, autoRepost, settleWithholding } from "./posting";
-import { moneyAccountProblem } from "./ledger";
+import { moneyAccountProblem, paymentSource } from "./ledger";
 import { moduleContext } from "../context";
 
 import { listCollaborators } from "@/platform/auth/collaborators";
@@ -259,7 +259,10 @@ export function invoiceTotals(
   const { subtotal, vat, total, breakdown } = documentTotals({
     lines: invoice?.lines, vatRate: invoice?.vatRate, currency, method: invoice?.taxMethod,
   });
+  // A BOUNCED CHEQUE'S PAYMENT IS NOT PAID. It stays on the document as
+  // history and counts in nothing (`bounced`, schema.ts).
   const paid = roundMoney((Array.isArray(invoice?.payments) ? invoice.payments : [])
+    .filter((p: Record<string, unknown>) => p?.bounced !== true)
     .reduce((s: number, p: Record<string, unknown>) => s + (Number(p.amount) || 0), 0), currency);
   return { subtotal, vat, total, breakdown, paid, outstanding: roundMoney(Math.max(0, total - paid), currency) };
 }
@@ -522,7 +525,12 @@ export async function editInvoice(ctx: FinanceContext, id: string, body: Record<
 
 // Recording a payment is append-only: the history of what was received, and
 // when, is what makes the balance defensible.
-export async function recordPayment(ctx: FinanceContext, id: string, body: Record<string, unknown>) {
+// `chequeId` IS NEVER READ FROM THE BODY. Only the cheque register passes it,
+// after creating the cheque it names — a request that could set it would turn
+// any payment into one that posts to Cheques Receivable instead of the bank.
+export async function recordPayment(
+  ctx: FinanceContext, id: string, body: Record<string, unknown>, opts: { chequeId?: string } = {},
+) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "finance.cash.edit");
   if (denied) return denied;
@@ -557,6 +565,7 @@ export async function recordPayment(ctx: FinanceContext, id: string, body: Recor
     method: resolveValue("paymentMethods", studio.taxonomies, body?.method, PAYMENT_METHODS[0]),
     reference: str(body?.reference, 120),
     ...(accountId ? { accountId } : {}),
+    ...(opts.chequeId ? { chequeId: opts.chequeId } : {}),
     byCollaboratorId: collaborator.id,
   }];
 
@@ -578,6 +587,25 @@ export async function recordPayment(ctx: FinanceContext, id: string, body: Recor
   // that tax for ever, owed by somebody who is not allowed to pay it.
   const withholding = await settleWithholding(ctx, updated);
   return { invoice: { ...updated, ...after, status: statusFor(updated, after) }, posting, ...(withholding ? { withholding } : {}) };
+}
+
+/**
+ * A CHEQUE PAYMENT DID NOT HAPPEN AFTER ALL — or, presented again, did. Flips
+ * `bounced` on the one payment (a function patch, invariant 8) and moves the
+ * book with it: reversed when it bounces, posted again when it is revived. The
+ * invoice owes what the totals now say, and its withheld tax follows.
+ */
+export async function setPaymentBounced(ctx: FinanceContext, invoiceId: string, paymentId: string, bounced: boolean) {
+  const { studio, cashSection } = ctx;
+  const updated = await Invoices.update({ studio, section: cashSection }, invoiceId, (row) => ({
+    payments: ((row as Invoice).payments || []).map((p) => (p.id === paymentId ? { ...p, bounced } : p)),
+  }));
+  if (!updated) return { posted: false as const, reason: "notfound" };
+  const posting = bounced
+    ? await autoReverse(ctx, "payment", paymentSource(invoiceId, paymentId), "Cheque bounced")
+    : await autoPost(ctx, "payment", invoiceId, paymentId);
+  await settleWithholding(ctx, updated);
+  return posting;
 }
 
 // Only a draft can be deleted. Once issued it is part of the record — cancel it.

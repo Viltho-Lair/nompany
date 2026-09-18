@@ -79,6 +79,7 @@ export const DEFAULT_CHART: { code: string; name: string; type: AccountType }[] 
   { code: "1000", name: "Cash", type: "asset" },
   { code: "1010", name: "Bank", type: "asset" },
   { code: "1100", name: "Accounts Receivable", type: "asset" },
+  { code: "1150", name: "Cheques Receivable", type: "asset" },
   { code: "1200", name: "Inventory", type: "asset" },
   // TAX A CLIENT WITHHELD, 18/09/2026: money the authority holds on the
   // studio's behalf until the certificate is claimed. Without it the withheld
@@ -94,6 +95,11 @@ export const DEFAULT_CHART: { code: string; name: string; type: AccountType }[] 
   { code: "1500", name: "Fixed Assets", type: "asset" },
   { code: "1510", name: "Accumulated Depreciation", type: "asset" },
   { code: "2000", name: "Accounts Payable", type: "liability" },
+  // CHEQUES THE STUDIO HAS TAKEN OR WRITTEN AND THE BANK HAS NOT YET MOVED,
+  // 18/09/2026. A post-dated cheque settles the debt the day it changes hands
+  // and moves money only when it clears; between the two it is neither the
+  // receivable it replaced nor money in the bank.
+  { code: "2050", name: "Cheques Payable", type: "liability" },
   { code: "2100", name: "VAT Payable", type: "liability" },
   // ADDED WITH PAYROLL, and it needs no migration: `ledgerAccounts` seeds any
   // code from this chart that a studio is missing on every read, so an
@@ -382,6 +388,50 @@ async function moneyAccountFor(ctx: FinanceContext, requested: unknown): Promise
   return bank ? { id: bank.id } : { error: "chart" };
 }
 
+async function chequesAccount(ctx: FinanceContext, code: string): Promise<{ id: string } | { error: string }> {
+  const { byCode, missing } = await codesToIds(ctx, [code]);
+  return missing.length ? { error: "chart" } : { id: String(byCode.get(code)) };
+}
+
+/**
+ * A LINKED CHEQUE CLEARS: the money finally moves. Incoming — Dr the account it
+ * cleared into, Cr Cheques Receivable; outgoing — Dr Cheques Payable, Cr the
+ * account it left. Dated the day it cleared, because that is the bank's date.
+ */
+export async function postCheque(ctx: FinanceContext, chequeId: string, options: PostOptions = {}) {
+  if (!options.system) {
+    const denied = requirePermission(ctx.access, "finance.ledger.post");
+    if (denied) return denied;
+  }
+  const cheque = (await repo<Row>("cheques").find({ studio: ctx.studio, section: ctx.cashSection }))
+    .find((c) => c.id === chequeId) as (Row & {
+      direction?: string; status?: string; amount?: number; number?: string; party?: string;
+      invoiceId?: string; billId?: string; accountId?: string; clearedOn?: string;
+    }) | undefined;
+  if (!cheque) return { error: "notfound" };
+  if (cheque.status !== "cleared") return { error: "not-postable", status: cheque.status };
+  if (!cheque.invoiceId && !cheque.billId) return { error: "not-linked" };
+
+  const entries = await Entries.find({ studio: ctx.studio, section: ctx.ledgerSection });
+  if (alreadyPosted(entries, "cheque", chequeId)) return { error: "already-posted" };
+
+  const incoming = cheque.direction === "in";
+  const holding = await chequesAccount(ctx, incoming ? CHEQUES_RECEIVABLE : CHEQUES_PAYABLE);
+  if ("error" in holding) return holding;
+  const money = await moneyAccountFor(ctx, cheque.accountId);
+  if ("error" in money) return money;
+  const amount = roundMoney(Number(cheque.amount) || 0, ctx.studio.currency);
+
+  return postEntry(ctx, {
+    date: cheque.clearedOn,
+    memo: `Cheque ${cheque.number} cleared — ${cheque.party || ""}`.trim(),
+    source: { kind: "cheque", id: chequeId },
+    lines: incoming
+      ? [{ accountId: money.id, debit: amount }, { accountId: holding.id, credit: amount }]
+      : [{ accountId: holding.id, debit: amount }, { accountId: money.id, credit: amount }],
+  }, options);
+}
+
 /**
  * MOVE MONEY BETWEEN TWO OF THE STUDIO'S OWN ACCOUNTS — the bank to the petty
  * cash box, one bank to another. Dr the account it arrives in, Cr the one it
@@ -532,7 +582,7 @@ export type PostOptions = { system?: boolean };
  */
 export const ENTRY_SOURCE_KINDS = [
   "invoice", "expense", "bill", "bill-payment", "payment", "credit-note", "payroll", "withholding",
-  "asset", "depreciation", "asset-disposal", "transfer", "manual",
+  "asset", "depreciation", "asset-disposal", "transfer", "cheque", "manual",
 ] as const;
 
 export type EntrySourceKind = (typeof ENTRY_SOURCE_KINDS)[number];
@@ -819,7 +869,9 @@ async function codesToIds(ctx: FinanceContext, codes: string[]) {
 //
 // NO MIGRATION. For the same reason: nothing has ever posted a payment, so no
 // stored entry carries the bare id this replaces.
-const paymentSource = (parentId: string, paymentId: string) => `${parentId}:${paymentId}`;
+export const paymentSource = (parentId: string, paymentId: string) => `${parentId}:${paymentId}`;
+const CHEQUES_RECEIVABLE = "1150";
+const CHEQUES_PAYABLE = "2050";
 
 // A REVERSED ENTRY IS NOT "POSTED". Cancelling, correcting or deleting a
 // document reverses what it posted (`reverseDocument`), and a corrected
@@ -1177,7 +1229,10 @@ export async function postBillPayment(ctx: FinanceContext, billId: string, payme
 
   const { byCode, missing } = await codesToIds(ctx, [AP]);
   if (missing.length) return { error: "chart", missing };
-  const paidFrom = await moneyAccountFor(ctx, (payment as { accountId?: unknown }).accountId);
+  // PAID BY OUR OWN CHEQUE: the debt moves to Cheques Payable until it clears.
+  const paidFrom = (payment as { chequeId?: string }).chequeId
+    ? await chequesAccount(ctx, CHEQUES_PAYABLE)
+    : await moneyAccountFor(ctx, (payment as { accountId?: unknown }).accountId);
   if ("error" in paidFrom) return paidFrom;
 
   return postEntry(ctx, {
@@ -1216,7 +1271,12 @@ export async function postPayment(ctx: FinanceContext, invoiceId: string, paymen
 
   const { byCode, missing } = await codesToIds(ctx, [AR]);
   if (missing.length) return { error: "chart", missing };
-  const paidInto = await moneyAccountFor(ctx, (payment as { accountId?: unknown }).accountId);
+  // PAID BY CHEQUE: the debt is settled and the money has not moved, so it lands
+  // on Cheques Receivable and the cheque's clearing moves it to the bank.
+  const viaCheque = (payment as { chequeId?: string }).chequeId;
+  const paidInto = viaCheque
+    ? await chequesAccount(ctx, CHEQUES_RECEIVABLE)
+    : await moneyAccountFor(ctx, (payment as { accountId?: unknown }).accountId);
   if ("error" in paidInto) return paidInto;
 
   return postEntry(ctx, {

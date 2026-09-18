@@ -91,11 +91,21 @@ is a typo, and it would overstate the cash a studio thinks is locked up.
 
 ## Not built yet
 
-- **Nothing posts a cheque.** Clearing one does not touch the ledger, so the bank balance
-  the forecast opens with does not move until somebody posts the payment separately.
-- **No link to an invoice or a bill.** A cheque names a party and a number, not the document
-  it settles, so "which invoices did this cheque cover" has no answer and the
-  double-counting rule relies on the invoice being marked paid.
+- ~~**Nothing posts a cheque.**~~ ~~**No link to an invoice or a bill.**~~ **Both, 18/09/2026,
+  for a cheque that names what it settles.** A cheque coming in may name an issued invoice,
+  one going out an approved bill (studio currency only — `foreign-document`), and the money
+  account it clears into. Saving it RECORDS THE PAYMENT through the document's own door, so
+  every rule there holds (no overpayment, an approved bill, the payment hold); refused, the
+  cheque is removed with it. The payment posts to **Cheques Receivable (1150)** or **Cheques
+  Payable (2050)** — the debt is settled, the money has not moved. `chequeLedgerAct` decides
+  the rest: **cleared** posts Dr the money account / Cr 1150 (or Dr 2050 / Cr the account),
+  dated the day it cleared; **bounced** or **returned** marks the payment `bounced` — kept as
+  history, left out of every total — so the document owes again, and reverses its entry;
+  **deposited again** after a bounce restores both. A linked cheque starts held whatever the
+  request says, and keeps its amount and direction; `chequeId` is never read from a request
+  body. **Still an unlinked cheque is a register line** and posts nothing, as before — a
+  studio that recorded the invoice payment separately keeps doing so. **Not built:** a cheque
+  settling several documents; a bounce fee; a cheque against a foreign-currency document.
 - **No cheque book or ranges.** Numbers are typed, and nothing notices a gap or a duplicate.
 - **Payroll and recurring costs are not in the forecast.** Only invoices, bills and cheques
   are, so the wage bill — usually the largest predictable outflow — is missing.

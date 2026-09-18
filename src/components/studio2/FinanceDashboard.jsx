@@ -87,7 +87,7 @@ export default function FinanceDashboard({ invoices = [], expenses = [], currenc
   const overdue = invoices.filter((i) => i.overdue).reduce((s, i) => s + (i.outstanding || 0), 0);
   const overdueCount = invoices.filter((i) => i.overdue).length;
   const collectedThisMonth = invoices.reduce(
-    (s, i) => s + (i.payments || []).filter((p) => monthKey(p.date) === thisMonth).reduce((a, p) => a + (Number(p.amount) || 0), 0),
+    (s, i) => s + (i.payments || []).filter((p) => p.bounced !== true && monthKey(p.date) === thisMonth).reduce((a, p) => a + (Number(p.amount) || 0), 0),
     0,
   );
   const expensesThisMonth = expenses.filter((e) => monthKey(e.date) === thisMonth).reduce((s, e) => s + (Number(e.amount) || 0), 0);

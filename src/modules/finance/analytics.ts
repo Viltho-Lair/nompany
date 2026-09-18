@@ -181,6 +181,8 @@ export function incomeVsExpense(invoices: InvoiceView[], expenses: Expense[], mo
 
   for (const inv of invoices) {
     for (const p of inv.payments || []) {
+      // A bounced cheque's payment brought nothing in.
+      if ((p as { bounced?: boolean }).bounced === true) continue;
       const k = String(p.date || "").slice(0, 7);
       const i = idx.get(k);
       if (i != null) rows[i].income = round(rows[i].income + (Number(p.amount) || 0));

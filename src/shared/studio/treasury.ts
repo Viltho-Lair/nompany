@@ -51,6 +51,13 @@ type Strings = {
   transferTo: string;
   memo: string;
   date: string;
+  settles: string;
+  settlesNothing: string;
+  settlesLead: string;
+  clearsInto: string;
+  returnIt: string;
+  depositAgain: string;
+  settlesRef: (ref: string) => string;
 };
 
 const EN_CHEQUE: Record<string, string> = {
@@ -106,7 +113,12 @@ const en: Strings = {
           : code === "bank-account" ? "Choose two of the studio's bank or cash accounts."
             : code === "amount" ? "Say how much moved."
               : code === "period-closed" ? "That month is closed. Date the transfer in an open month."
-                : code || ""),
+                : code === "linked" ? "This cheque settles a document, so its amount and direction stay as recorded."
+                  : code === "foreign-document" ? "A cheque can only settle a document in the studio's own currency."
+                    : code === "overpayment" ? "The cheque is for more than the document still owes."
+                      : code === "not-approved" ? "That bill is not approved for payment yet."
+                        : code === "forbidden" ? "You do not have the right to pay that document."
+                          : code || ""),
   accountsTitle: "Money accounts",
   accountsLead: "What the books say is in each bank, till and petty-cash box. The forecast below starts from their total. Mark more in Ledger → Accounts.",
   total: "Total",
@@ -115,6 +127,13 @@ const en: Strings = {
   transferTo: "To",
   memo: "What it is for",
   date: "Date",
+  settles: "Settles",
+  settlesNothing: "Nothing — just record the cheque",
+  settlesLead: "A cheque that settles an invoice or a bill records its payment now and moves the money in the books when it clears. If it bounces, the document owes again.",
+  clearsInto: "Clears into",
+  returnIt: "Return",
+  depositAgain: "Deposit again",
+  settlesRef: (ref) => `settles ${ref}`,
 };
 
 // HAND-WRITTEN. NO DIACRITICS.
@@ -169,7 +188,12 @@ const ar: Strings = {
           : code === "bank-account" ? "اختر حسابين من حسابات البنك أو النقد في الاستوديو."
             : code === "amount" ? "حدد المبلغ المنقول."
               : code === "period-closed" ? "هذا الشهر مغلق. أرخ التحويل في شهر مفتوح."
-                : code || ""),
+                : code === "linked" ? "هذا الشيك يسدد مستندا، فيبقى مبلغه واتجاهه كما سجلا."
+                  : code === "foreign-document" ? "لا يسدد الشيك إلا مستندا بعملة الاستوديو."
+                    : code === "overpayment" ? "مبلغ الشيك أكبر مما بقي على المستند."
+                      : code === "not-approved" ? "فاتورة المورد هذه غير معتمدة للدفع بعد."
+                        : code === "forbidden" ? "ليست لديك صلاحية دفع هذا المستند."
+                          : code || ""),
   accountsTitle: "حسابات النقد",
   accountsLead: "ما تقوله الدفاتر عن كل بنك وصندوق وعهدة نقدية. التوقعات أدناه تبدأ من مجموعها. حدد حسابات أخرى من الدفتر ← الحسابات.",
   total: "المجموع",
@@ -178,6 +202,13 @@ const ar: Strings = {
   transferTo: "الى",
   memo: "البيان",
   date: "التاريخ",
+  settles: "يسدد",
+  settlesNothing: "لا شيء — سجل الشيك فقط",
+  settlesLead: "الشيك الذي يسدد فاتورة أو فاتورة مورد يسجل دفعتها الآن، ويحرك المال في الدفاتر عند تحصيله. وإن ارتد عاد المستند مستحقا.",
+  clearsInto: "يحصل في",
+  returnIt: "اعادة",
+  depositAgain: "ايداع مجددا",
+  settlesRef: (ref) => `يسدد ${ref}`,
 };
 
 const dict = { en, ar };

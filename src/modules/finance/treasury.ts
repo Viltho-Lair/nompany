@@ -45,7 +45,41 @@ export type Cheque = {
   status: ChequeStatus;
   bank: string;
   notes: string;
+  /**
+   * THE DOCUMENT IT SETTLES, when somebody said — an invoice for a cheque
+   * coming in, a bill for one going out — and the payment it recorded there.
+   * A linked cheque is in the books (`chequeLedgerAct`); an unlinked one is a
+   * register line, as every cheque was before 18/09/2026.
+   */
+  invoiceId?: string;
+  billId?: string;
+  /** The settled document's reference, copied when the cheque was linked. */
+  documentRef?: string;
+  paymentId?: string;
+  /** The money account it clears into or out of. Absent is 1010 Bank. */
+  accountId?: string;
+  /** The day it was marked cleared — the date its clearing entry carries. */
+  clearedOn?: string;
 };
+
+/**
+ * WHAT A STATUS CHANGE DOES TO THE BOOKS, for a LINKED cheque. Pure.
+ *
+ *   clear  — the money arrived (or left): Cheques Receivable or Payable is
+ *            settled against the bank.
+ *   void   — it bounced, or was handed back: the payment it recorded did not
+ *            happen after all, so the document owes again and its entry is
+ *            reversed.
+ *   revive — a bounced cheque presented again: the payment stands once more.
+ *
+ * Anything else — deposited, or back to held — moves paper and no money.
+ */
+export function chequeLedgerAct(from: ChequeStatus, to: ChequeStatus): "clear" | "void" | "revive" | null {
+  if (to === "cleared") return "clear";
+  if (to === "bounced" || to === "returned") return "void";
+  if (from === "bounced" && to === "deposited") return "revive";
+  return null;
+}
 
 export type Guarantee = {
   id: string;

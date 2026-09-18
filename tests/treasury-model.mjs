@@ -12,7 +12,7 @@ register(new URL("./loader.mjs", import.meta.url), { data: { root: pathToFileURL
 const {
   chequeProblems, cleanCheque, chequeProblem, forecast, shortfall,
   guaranteeProblems, cleanGuarantee, guaranteeState, lockedUp,
-  CHEQUE_STATUSES, PENDING,
+  CHEQUE_STATUSES, PENDING, chequeLedgerAct,
 } = await import("../src/modules/finance/treasury.ts");
 
 let fails = 0;
@@ -121,6 +121,17 @@ ok("what the bank holds counts every unreleased guarantee", held.count === 2);
 // was free on the day it stopped being at risk and long before it came back.
 ok("AN EXPIRED GUARANTEE IS STILL LOCKED UP", held.margin === 10000, String(held.margin));
 ok("...and a released one is not", held.amount === 100000);
+
+// ---- what a linked cheque does to the books --------------------------------
+// A CHEQUE MOVED PAPER AND NEVER MONEY. The register tracked held, deposited
+// and cleared and the ledger saw none of it; a bounced cheque left its invoice
+// marked paid. These are the only three moves that touch the book.
+ok("clearing moves the money", chequeLedgerAct("deposited", "cleared") === "clear");
+ok("A BOUNCE UNDOES THE PAYMENT", chequeLedgerAct("deposited", "bounced") === "void");
+ok("...and so does handing it back", chequeLedgerAct("held", "returned") === "void");
+ok("presenting a bounced cheque again restores it", chequeLedgerAct("bounced", "deposited") === "revive");
+ok("depositing moves paper, not money", chequeLedgerAct("held", "deposited") === null);
+ok("...and so does the bank handing it back unpresented", chequeLedgerAct("deposited", "held") === null);
 
 console.log(fails ? `\ntreasury model: ${fails} FAILURES\n` : "\ntreasury model: all passed\n");
 // exitCode, not exit(): exiting while the alias loader's thread is live crashes Node on Windows.

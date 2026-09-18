@@ -42,6 +42,18 @@ export const PaymentSchema = z.object({
   /** Which money account it went through (`isMoneyAccount`). Absent is 1010 Bank. */
   accountId: z.string().max(60).optional(),
   /**
+   * PAID BY THIS CHEQUE (treasury.ts). The payment is recorded the day the
+   * cheque is taken — the debt is settled — and posts to Cheques Receivable or
+   * Payable rather than the bank, because the money has not moved yet.
+   */
+  chequeId: z.string().max(60).optional(),
+  /**
+   * THE CHEQUE BOUNCED OR WAS HANDED BACK, so this payment did not happen. Kept,
+   * not deleted — "they paid by cheque on the 3rd and it bounced" is history —
+   * and left out of every total (`livePayments`).
+   */
+  bounced: z.boolean().optional(),
+  /**
    * UNITS OF THE STUDIO'S CURRENCY FOR ONE OF THE DOCUMENT'S, on the day this
    * payment left — frozen on a payment of a FOREIGN bill, and what the bank
    * side of its ledger entry is converted at. Absent everywhere else.
@@ -254,7 +266,7 @@ export const JournalEntrySchema = z.object({
     // payments and withheld tax all stored kinds the type said could not exist.
     kind: z.enum([
       "invoice", "bill", "expense", "payment", "bill-payment", "credit-note", "payroll", "withholding",
-      "asset", "depreciation", "asset-disposal", "transfer", "manual", "reversal",
+      "asset", "depreciation", "asset-disposal", "transfer", "cheque", "manual", "reversal",
     ]),
     id: z.string().max(60).optional(),
   }),

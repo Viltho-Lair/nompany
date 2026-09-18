@@ -11,12 +11,15 @@
 
 import { requirePermission } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
-import { ledgerAccounts, isMoneyAccount } from "./ledger";
-import { invoiceTotals } from "./finance";
+import { ledgerAccounts, isMoneyAccount, moneyAccountProblem } from "./ledger";
+import { recordBillPayment, setBillPaymentBounced } from "./payables";
+import { autoPost } from "./posting";
+import { isForeign } from "./fx";
+import { invoiceTotals, recordPayment, setPaymentBounced } from "./finance";
 import {
   chequeProblems, cleanCheque, chequeProblem,
   guaranteeProblems, cleanGuarantee, guaranteeState, lockedUp,
-  forecast, shortfall, PENDING,
+  forecast, shortfall, PENDING, chequeLedgerAct,
 } from "./treasury";
 import type { Cheque, Guarantee, Due, ChequeStatus } from "./treasury";
 import type { FinanceContext, JournalEntry } from "./types";
@@ -125,6 +128,8 @@ export async function treasury(ctx: FinanceContext, { from, weeks = 12 }: { from
   const opening = balances.total;
 
   const buckets = forecast(opening, await dues(ctx, cheques), { from, buckets: weeks, days: 7 });
+  const canManage = !requirePermission(ctx.access, "finance.cash.edit");
+  const settleable = canManage ? await settleable_(ctx) : { invoices: [], bills: [] };
 
   return {
     from,
@@ -142,7 +147,27 @@ export async function treasury(ctx: FinanceContext, { from, weeks = 12 }: { from
     // NULL IS NOT "FINE" — it means nothing in the horizon takes the account
     // under, which the screen says by naming the horizon.
     shortfall: shortfall(buckets),
-    canManage: !requirePermission(ctx.access, "finance.cash.edit"),
+    canManage,
+    // WHAT A NEW CHEQUE CAN SETTLE: issued invoices still owed, approved bills
+    // still owed, in the studio's own currency. Reference, party and what is
+    // left — nothing more reaches the form.
+    settleable,
+  };
+}
+
+async function settleable_(ctx: FinanceContext) {
+  const [invoices, bills] = await Promise.all([
+    Invoices.find(cashScope(ctx)),
+    Bills.find({ studio: ctx.studio, section: ctx.payablesSection }),
+  ]);
+  const open = (rows: Record<string, unknown>[], ok: (r: Record<string, unknown>) => boolean, party: string) => rows
+    .filter((r) => ok(r) && !isForeign(r.currency, ctx.studio.currency))
+    .map((r) => ({ r, left: invoiceTotals(r as { lines?: unknown; vatRate?: unknown; payments?: unknown }, ctx.studio.currency).outstanding }))
+    .filter(({ left }) => left > 0)
+    .map(({ r, left }) => ({ id: String(r.id), reference: String(r.reference || ""), party: String(r[party] || ""), outstanding: left }));
+  return {
+    invoices: open(invoices, (r) => r.status !== "Draft" && r.status !== "Cancelled", "clientName"),
+    bills: open(bills, (r) => r.status === "Approved", "vendorName"),
   };
 }
 
@@ -162,11 +187,74 @@ export async function saveCheque(ctx: FinanceContext, body: Record<string, unkno
     const rows = await Cheques.find(cashScope(ctx));
     const current = rows.find((c) => c.id === id);
     if (!current) return { error: "notfound" };
-    const updated = await Cheques.update(cashScope(ctx), id,
-      { ...cleanCheque(body, ctx.studio.currency), status: current.status });
+    const clean = cleanCheque(body, ctx.studio.currency);
+    // A LINKED CHEQUE KEEPS ITS DIRECTION AND AMOUNT: both are what the payment
+    // it recorded says, and changing the paper would leave the invoice settled
+    // by a figure nobody wrote. Its number, party, date and bank can be fixed.
+    if ((current.invoiceId || current.billId)
+      && (clean.amount !== current.amount || clean.direction !== current.direction)) {
+      return { error: "linked" };
+    }
+    const updated = await Cheques.update(cashScope(ctx), id, {
+      ...clean, status: current.status,
+      ...(current.invoiceId || current.billId ? { amount: current.amount, direction: current.direction } : {}),
+    });
     return updated ? { cheque: updated } : { error: "notfound" };
   }
-  return { cheque: await Cheques.create(cashScope(ctx), cleanCheque(body, ctx.studio.currency)) };
+
+  // WHICH DOCUMENT IT SETTLES, if somebody said. A cheque coming in settles an
+  // invoice; one going out settles a bill. Only in the studio's own currency:
+  // a cheque is written in the book's money, and a foreign document's payment
+  // would need a rate the cheque does not carry.
+  const clean = cleanCheque(body, ctx.studio.currency);
+  const invoiceId = clean.direction === "in" ? str(body?.invoiceId, 60) : "";
+  const billId = clean.direction === "out" ? str(body?.billId, 60) : "";
+  const accountId = str(body?.accountId, 60);
+  const wrongAccount = await moneyAccountProblem(ctx, accountId);
+  if (wrongAccount) return { error: wrongAccount };
+
+  let documentRef = "";
+  if (invoiceId || billId) {
+    const doc = invoiceId
+      ? (await Invoices.find(cashScope(ctx))).find((i) => i.id === invoiceId)
+      : (await Bills.find({ studio: ctx.studio, section: ctx.payablesSection })).find((b) => b.id === billId);
+    if (!doc) return { error: "notfound" };
+    if (isForeign(doc.currency, ctx.studio.currency)) return { error: "foreign-document" };
+    // COPIED, so the register still says what it settled once that document is
+    // paid off and no longer among the ones a cheque could settle.
+    documentRef = String(doc.reference || "");
+  }
+
+  const cheque = await Cheques.create(cashScope(ctx), {
+    ...clean,
+    // A LINKED CHEQUE STARTS IN HAND. Its clearing is what moves the money, and
+    // one created already "cleared" would settle the invoice into Cheques
+    // Receivable and never leave it.
+    ...(invoiceId || billId ? { status: "held" as const } : {}),
+    ...(invoiceId ? { invoiceId } : {}),
+    ...(billId ? { billId } : {}),
+    ...(documentRef ? { documentRef } : {}),
+    ...(accountId ? { accountId } : {}),
+  });
+  if (!invoiceId && !billId) return { cheque };
+
+  // THE PAYMENT IS RECORDED NOW, through the document's own door — so every
+  // rule it keeps (an issued invoice, no overpayment; an approved bill, the
+  // payment hold) holds for a cheque too. Refused, the cheque goes with it:
+  // a cheque linked to a payment that was never made is the drift this exists
+  // to prevent.
+  const paid = invoiceId
+    ? await recordPayment(ctx, invoiceId, { amount: clean.amount, date: new Date().toISOString().slice(0, 10), method: "Cheque", reference: clean.number }, { chequeId: cheque.id })
+    : await recordBillPayment(ctx, billId, { amount: clean.amount, date: new Date().toISOString().slice(0, 10), method: "Cheque", note: `Cheque ${clean.number}` }, { chequeId: cheque.id });
+  const failed = paid as { error?: unknown; detail?: unknown };
+  if (failed?.error) {
+    await Cheques.remove(cashScope(ctx), cheque.id);
+    return failed;
+  }
+  const doc = (paid as { invoice?: { payments?: { id: string; chequeId?: string }[] }; bill?: { payments?: { id: string; chequeId?: string }[] } });
+  const paymentId = ((doc.invoice || doc.bill)?.payments || []).find((x) => x.chequeId === cheque.id)?.id || "";
+  const linked = await Cheques.update(cashScope(ctx), cheque.id, { paymentId });
+  return { cheque: linked || cheque, posting: (paid as { posting?: unknown }).posting };
 }
 
 export async function moveCheque(ctx: FinanceContext, id: string, next: ChequeStatus) {
@@ -180,8 +268,22 @@ export async function moveCheque(ctx: FinanceContext, id: string, next: ChequeSt
   const wrong = chequeProblem(cheque.status, next);
   if (wrong) return { error: wrong, from: cheque.status, to: next };
 
-  const updated = await Cheques.update(cashScope(ctx), id, { status: next });
-  return updated ? { cheque: updated } : { error: "notfound" };
+  const clearedOn = new Date().toISOString().slice(0, 10);
+  const updated = await Cheques.update(cashScope(ctx), id, {
+    status: next, ...(next === "cleared" ? { clearedOn } : {}),
+  });
+  if (!updated) return { error: "notfound" };
+
+  // A LINKED CHEQUE MOVES THE BOOKS WITH ITS PAPER (`chequeLedgerAct`). An
+  // unlinked one is a register line and moves nothing, as before.
+  const act = chequeLedgerAct(cheque.status, next);
+  if (!act || !cheque.paymentId || (!cheque.invoiceId && !cheque.billId)) return { cheque: updated };
+  const posting = act === "clear"
+    ? await autoPost(ctx, "cheque", id)
+    : cheque.invoiceId
+      ? await setPaymentBounced(ctx, cheque.invoiceId, cheque.paymentId, act === "void")
+      : await setBillPaymentBounced(ctx, String(cheque.billId), cheque.paymentId, act === "void");
+  return { cheque: updated, posting };
 }
 
 export async function saveGuarantee(ctx: FinanceContext, body: Record<string, unknown>) {
