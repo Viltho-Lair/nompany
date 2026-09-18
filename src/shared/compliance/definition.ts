@@ -159,11 +159,31 @@ export type ZakatRules = {
   source: string;
 };
 
+/**
+ * E-INVOICING, where a country requires invoices to reach its tax authority
+ * (18/09/2026, the Finance plan's step 4 — the framework only). `adapter` names
+ * the code that would submit them; none is built yet, and the product says so
+ * rather than implying invoices are being sent.
+ *   clearance — the authority must accept an invoice before it is valid
+ *   reporting — the invoice is valid at once and reported afterwards
+ *   mixed     — clearance for business invoices, reporting for consumer ones
+ */
+export type EInvoiceRules = {
+  authority: string;
+  system: string;
+  mode: "clearance" | "reporting" | "mixed";
+  inForce: string;
+  adapter: string;
+  checked: string;
+  source: string;
+};
+
 export type CountryRules = {
   tax?: TaxRules;
   employment?: EmploymentRules[];
   payPreset?: PayPreset;
   zakat?: ZakatRules;
+  einvoice?: EInvoiceRules;
 };
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -198,6 +218,12 @@ function rulesProblems(rules: unknown): string[] {
     if (!(r.zakat.hijriDays > 0)) out.push("rules.zakat: hijriDays must be above 0");
     if (!DATE.test(String(r.zakat.checked || ""))) out.push("rules.zakat: checked must be YYYY-MM-DD");
     if (!r.zakat.source) out.push("rules.zakat: source is required");
+  }
+  if (r.einvoice) {
+    if (!r.einvoice.authority || !r.einvoice.system || !r.einvoice.adapter) out.push("rules.einvoice: authority, system and adapter are required");
+    if (!["clearance", "reporting", "mixed"].includes(r.einvoice.mode)) out.push("rules.einvoice: mode must be clearance, reporting or mixed");
+    if (!DATE.test(String(r.einvoice.inForce || "")) || !DATE.test(String(r.einvoice.checked || ""))) out.push("rules.einvoice: inForce and checked must be YYYY-MM-DD");
+    if (!r.einvoice.source) out.push("rules.einvoice: source is required");
   }
   if (r.payPreset) {
     if (!r.payPreset.asOf || !r.payPreset.source) out.push("rules.payPreset: asOf and source are required");

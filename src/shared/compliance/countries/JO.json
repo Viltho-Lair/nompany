@@ -56,6 +56,15 @@
         "coversEveryone": true
       },
       "endOfService": null
+    },
+    "einvoice": {
+      "authority": "ISTD",
+      "system": "JoFotara",
+      "mode": "clearance",
+      "inForce": "2025-04-01",
+      "adapter": "jofotara",
+      "checked": "2026-09-16",
+      "source": "JoFotara, in force for all sales since 01/04/2025; the QR is returned by JoFotara on acceptance. Whether an invoice is valid before the answer is disputed between sources — designed for clearance (docs/progress.md, Country document rules)"
     }
   },
   "fields": [

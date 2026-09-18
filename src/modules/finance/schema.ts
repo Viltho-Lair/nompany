@@ -104,6 +104,19 @@ export const InvoiceSchema = z.object({
    */
   certificateRef: z.string().max(80).optional(),
   /**
+   * WHERE THIS INVOICE STANDS WITH THE STUDIO'S TAX AUTHORITY (modules/finance/
+   * einvoice), once anything has tried to send it. Absent is "not tried".
+   */
+  einvoice: z.object({
+    status: z.enum(["pending", "submitted", "accepted", "rejected", "failed"]),
+    adapter: z.string(),
+    attempts: z.number(),
+    uuid: z.string().optional(),
+    qr: z.string().optional(),
+    message: z.string().optional(),
+    at: z.string(),
+  }).nullable().optional(),
+  /**
    * THE PROGRESS CLAIM THIS INVOICE BILLS (tier 6), the counterpart of
    * `milestoneId` and unvalidated for its reason: Projects' reader attributes
    * only ids that are that project's own claims.

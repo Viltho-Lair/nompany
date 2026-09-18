@@ -426,6 +426,13 @@ type Strings = CommonStrings & {
   zakatPay: string;
   zakatStatus: (s: string) => string;
   zakatProblem: (code: string) => string;
+  // ---- e-invoicing (18/09/2026) ----
+  einvTitle: string;
+  einvRequired: (system: string, authority: string, mode: string, inForce: string) => string;
+  einvNotConnected: (system: string) => string;
+  einvQueueNone: string;
+  einvState: (s: string) => string;
+  einvSubmit: string;
 };
 
 const en: Strings = {
@@ -790,6 +797,7 @@ const en: Strings = {
     country: "Choose the studio's country. Its tax rules and what its invoices must carry come from it.",
     currency: "Set the studio's currency. The books are kept in it, and bills and bids cannot be approved without it.",
     vat: "No VAT rate is set, so no document carries tax. That is right only if the studio is not registered for VAT.",
+    einvoice: "Your country requires e-invoicing, and nompany does not submit invoices to the tax authority yet. Issue them through the authority's own system meanwhile — Finance → Tax lists what still needs to reach it.",
   } as Record<string, string>)[key] || key,
   setupOfficialMissing: (labels) => `Your country requires these on your documents, and they are not filled in: ${labels}.`,
   setupOfficialInvalid: (labels) => `Filled in, but not in the form your country requires, so they print nowhere: ${labels}.`,
@@ -870,6 +878,12 @@ const en: Strings = {
     "bank-account": "Choose one of the studio's bank or cash accounts.",
     forbidden: "You do not have the right to do that.",
   } as Record<string, string>)[code] || "That did not work.",
+  einvTitle: "E-invoicing",
+  einvRequired: (system, authority, mode, inForce) => `Your country requires invoices to reach ${authority} through ${system} (${({ clearance: "cleared before they are valid", reporting: "reported after issue", mixed: "business invoices cleared, consumer invoices reported" } as Record<string, string>)[mode] || mode}), since ${inForce}.`,
+  einvNotConnected: (system) => `nompany does not submit to ${system} yet. Until it does, issue these invoices through ${system} yourself; the list below is what still needs to reach it.`,
+  einvQueueNone: "Every issued invoice has reached the authority.",
+  einvState: (s) => ({ unsubmitted: "Not sent", pending: "Waiting", submitted: "Sent", accepted: "Accepted", rejected: "Rejected", failed: "Failed" } as Record<string, string>)[s] || s,
+  einvSubmit: "Send",
 };
 
 const ar: Strings = {
@@ -1234,6 +1248,7 @@ const ar: Strings = {
     country: "اختر دولة الاستوديو. منها تأتي قواعد الضريبة وما يجب أن تحمله فواتيره.",
     currency: "حدد عملة الاستوديو. بها تمسك الدفاتر، ولا تعتمد فواتير الموردين والعطاءات بدونها.",
     vat: "لم تحدد نسبة ضريبة القيمة المضافة، فلا يحمل أي مستند ضريبة. وهذا صحيح فقط إن لم يكن الاستوديو مسجلا فيها.",
+    einvoice: "تشترط دولتك الفوترة الالكترونية، ولا يرسل نومباني الفواتير الى الجهة الضريبية بعد. أصدرها عبر نظام الجهة نفسه في الأثناء — المالية ← الضرائب تعرض ما لم يصل بعد.",
   } as Record<string, string>)[key] || key,
   setupOfficialMissing: (labels) => `تشترط دولتك هذه على مستنداتك ولم تعبأ: ${labels}.`,
   setupOfficialInvalid: (labels) => `معبأة، لكن ليس بالصيغة التي تشترطها دولتك، فلا تطبع في أي مكان: ${labels}.`,
@@ -1314,6 +1329,12 @@ const ar: Strings = {
     "bank-account": "اختر أحد حسابات البنك أو النقد في الاستوديو.",
     forbidden: "ليست لديك صلاحية لذلك.",
   } as Record<string, string>)[code] || "لم ينجح ذلك.",
+  einvTitle: "الفوترة الالكترونية",
+  einvRequired: (system, authority, mode, inForce) => `تشترط دولتك وصول الفواتير الى ${authority} عبر ${system} (${({ clearance: "تعتمد قبل أن تصبح نافذة", reporting: "يبلغ عنها بعد اصدارها", mixed: "فواتير المنشآت تعتمد وفواتير المستهلكين يبلغ عنها" } as Record<string, string>)[mode] || mode})، منذ ${inForce}.`,
+  einvNotConnected: (system) => `لا يرسل نومباني الى ${system} بعد. الى أن يفعل، أصدر هذه الفواتير عبر ${system} بنفسك؛ القائمة أدناه هي ما لم يصل بعد.`,
+  einvQueueNone: "وصلت كل فاتورة صادرة الى الجهة.",
+  einvState: (s) => ({ unsubmitted: "لم ترسل", pending: "بالانتظار", submitted: "أرسلت", accepted: "مقبولة", rejected: "مرفوضة", failed: "فشلت" } as Record<string, string>)[s] || s,
+  einvSubmit: "ارسال",
 };
 
 const finance = { en, ar };

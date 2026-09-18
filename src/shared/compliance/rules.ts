@@ -19,7 +19,7 @@
 // the categories in shared/taxProfile, which import no country.
 
 import { COUNTRY_DEFINITIONS, definitionFor } from "./countries";
-import type { EmploymentRules, PayPreset, ZakatRules } from "./definition";
+import type { EmploymentRules, PayPreset, ZakatRules, EInvoiceRules } from "./definition";
 import { DEFAULT_TAX_PROFILE, type TaxMethod, type TaxProfile } from "../taxProfile";
 
 // ---- tax ----------------------------------------------------------------------
@@ -87,4 +87,11 @@ export function payPresetFor(country: unknown): (PayPreset & { code: string }) |
 /** The zakat rule of the studio's country, or null where the country levies none. */
 export function studioZakatRules(studio: unknown): ZakatRules | null {
   return definitionFor((studio as { country?: unknown } | null | undefined)?.country)?.rules?.zakat || null;
+}
+
+// ---- e-invoicing ------------------------------------------------------------------
+
+/** What the studio's country requires of its invoices, or null where it requires nothing. */
+export function studioEInvoiceRules(studio: unknown): EInvoiceRules | null {
+  return definitionFor((studio as { country?: unknown } | null | undefined)?.country)?.rules?.einvoice || null;
 }

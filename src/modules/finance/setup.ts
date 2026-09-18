@@ -20,6 +20,7 @@ import { definitionFor } from "@/shared/compliance/countries";
 import { isApplicable, type ResolveOptions } from "@/shared/compliance/resolve";
 import { valueProblem, type Localised } from "@/shared/compliance/definition";
 import { studioVatRate } from "@/shared/vat";
+import { adapterFor } from "./einvoice";
 import { requirePermission } from "@/platform/access";
 
 export type SetupItem = {
@@ -61,6 +62,10 @@ export function financeSetup(studio: unknown, opts: ResolveOptions = {}): SetupI
   // registered one that forgot issues every invoice without tax. So it is
   // flagged to CHECK, never as wrong.
   if (def?.rules?.tax && studioVatRate(studio) === null) items.push({ key: "vat", state: "check" });
+  // THE COUNTRY REQUIRES E-INVOICING AND NOMPANY DOES NOT SUBMIT YET — said,
+  // because an invoice issued here and never sent to the authority is the one
+  // gap a studio would otherwise find out about from the authority.
+  if (def?.rules?.einvoice && !adapterFor(def.rules.einvoice)) items.push({ key: "einvoice", state: "check" });
 
   // WHAT THIS COUNTRY REQUIRES ON FINANCE'S DOCUMENTS, applicable to this
   // studio, and blank or malformed. A malformed one is as absent as a blank one

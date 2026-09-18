@@ -7,6 +7,7 @@ import { requirePermission } from "@/platform/access";
 import { unclaimed } from "@/modules/finance/withholding";
 import { setupFor } from "@/modules/finance/setup";
 import { listTaxReturns, fileTaxReturn, payTaxReturn } from "@/modules/finance/taxFiling";
+import { einvoiceQueue, submitEInvoice } from "@/modules/finance/einvoiceService";
 import { vatMovement, storedMoneyAccounts } from "@/modules/finance/ledger";
 
 export const runtime = "nodejs";
@@ -43,6 +44,9 @@ export const GET = route(
       // THE RETURNS FILED, and — for the period on screen — what the LEDGER moved,
       // beside what the documents say, so a difference is seen rather than hidden.
       filed: await listTaxReturns(f),
+      // E-INVOICING: what the country requires, whether nompany is connected,
+      // and the issued invoices still to reach the authority.
+      einvoice: await einvoiceQueue(f),
       ledger: "from" in result && result.from ? await vatMovement(f, String(result.from), String(result.to)) : null,
       canFile: !requirePermission(f.access, "finance.tax.file"),
       moneyAccounts: (await storedMoneyAccounts(f)).map((a) => ({ id: a.id, code: a.code, name: a.name })),
@@ -61,7 +65,8 @@ export const POST = route(
     const action = String(f.body?.action ?? "");
     const result = action === "file" ? await fileTaxReturn(f, f.body)
       : action === "pay" ? await payTaxReturn(f, String(f.body?.id ?? ""), f.body)
-        : { error: "action" };
+        : action === "einvoice" ? await submitEInvoice(f, String(f.body?.id ?? ""))
+          : { error: "action" };
     if (refused(result)) return result;
     return { ok: true, ...result };
   },

@@ -108,6 +108,15 @@
       "hijriDays": 354,
       "checked": "2026-09-18",
       "source": "ZATCA Implementing Regulations for Zakat Collection 1445H (MR 1007, 29/02/2024): 2.5% for a Hijri year, prorated to the actual days of any other fiscal year; base from year-end balances, not below adjusted net profit, capped at year-end equity"
+    },
+    "einvoice": {
+      "authority": "ZATCA",
+      "system": "Fatoora",
+      "mode": "mixed",
+      "inForce": "2021-12-04",
+      "adapter": "zatca",
+      "checked": "2026-09-16",
+      "source": "ZATCA E-Invoicing Detailed Guideline and XML Implementation Standard: tax invoices (B2B) cleared before issue, simplified invoices (B2C) reported within 24 hours; phase 2 integration in waves (docs/progress.md, Country document rules)"
     }
   },
   "fields": [

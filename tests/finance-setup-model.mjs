@@ -30,6 +30,9 @@ ok("a country with a sales tax and no rate is flagged to CHECK, not as wrong", j
 ok("THE COUNTRY'S MANDATORY VALUES ARE NAMED", jo.includes("official:tax_number:missing")
   && jo.includes("official:commercial_registration_number:missing"), jo.join(","));
 ok("nothing about currency once it is set", !jo.some((k) => k.startsWith("currency")));
+// E-INVOICING IS REQUIRED THERE AND NOT CONNECTED: said, never implied away.
+ok("A COUNTRY THAT REQUIRES E-INVOICING, WITH NO ADAPTER, IS ANNOTATED", jo.includes("einvoice:check"), jo.join(","));
+ok("...and a country that requires none is not", !keys({ country: "Germany", currency: "EUR" }).includes("einvoice:check"));
 
 // Saudi Arabia: the VAT number is conditional on being registered.
 const unregistered = keys({ country: "Saudi Arabia", currency: "SAR" });

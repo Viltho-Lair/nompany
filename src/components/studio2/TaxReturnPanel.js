@@ -50,6 +50,7 @@ export default function TaxReturnPanel({ slug, locale }) {
   if (!data.enabled) return (
     <div className="space-y-5">
       <p className="text-sm text-slate-500 dark:text-slate-400">{financeDict(locale).taxNoVat}</p>
+      <EInvoicing data={data} slug={slug} locale={locale} onDone={load} />
       <ToClaim rows={data.unclaimedWithholding} locale={locale} slug={slug} canRecord={data.canRecordClaimed} onDone={load} />
       <ToClaim rows={data.unissuedWithholding} locale={locale} slug={slug} canRecord={data.canRecordIssued} onDone={load} side="issue" />
     </div>
@@ -115,6 +116,7 @@ export default function TaxReturnPanel({ slug, locale }) {
           <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{tr.foreignLead}</p>
         </div>
       )}
+      <EInvoicing data={data} slug={slug} locale={locale} onDone={load} />
       <FileReturn data={data} from={from} to={to} slug={slug} locale={locale} onDone={load} />
       <FiledReturns data={data} slug={slug} locale={locale} onDone={load} />
       <ToClaim rows={data.unclaimedWithholding} locale={locale} slug={slug} canRecord={data.canRecordClaimed} onDone={load} />
@@ -305,5 +307,50 @@ function CertificateRow({ row, tr, slug, kind, canRecord, onDone }) {
         )}
       </span>
     </li>
+  );
+}
+
+// E-INVOICING — what the studio's country requires, whether nompany is
+// connected to it, and the issued invoices that still need to reach it. With no
+// adapter the list is the studio's to-do in the authority's own portal, and the
+// screen says exactly that rather than offering a Send that could only refuse.
+function EInvoicing({ data, slug, locale, onDone }) {
+  const tr = financeDict(locale);
+  const e = data.einvoice;
+  const [problem, setProblem] = useState("");
+  if (!e || !e.required) return null;
+  return (
+    <section className="space-y-2 rounded-geex border border-slate-200 p-4 dark:border-white/10">
+      <h3 className="font-display text-sm font-700 text-slate-900 dark:text-white">{tr.einvTitle}</h3>
+      <p className="text-sm text-slate-600 dark:text-slate-300">{tr.einvRequired(e.system, e.authority, e.mode, e.inForce)}</p>
+      {!e.connected && <p className="text-sm text-amber-700 dark:text-amber-300">{tr.einvNotConnected(e.system)}</p>}
+      {e.queue.length === 0 ? (
+        <p className="text-sm text-emerald-600 dark:text-emerald-300">{tr.einvQueueNone}</p>
+      ) : (
+        <ul className="divide-y divide-slate-100 text-sm dark:divide-white/5">
+          {e.queue.map((q) => (
+            <li key={q.id} className="flex flex-wrap items-center justify-between gap-2 py-1.5">
+              <span>
+                <span className="font-mono text-slate-900 dark:text-white">{q.reference}</span>
+                <span className="ms-2 text-slate-500 dark:text-slate-400">{q.clientName}</span>
+                <span className="ms-2 text-xs text-slate-400">{q.issueDate}</span>
+              </span>
+              <span className="flex items-center gap-2">
+                <span className="text-xs text-slate-500 dark:text-slate-400">{tr.einvState(q.state)}{q.message ? ` — ${q.message}` : ""}</span>
+                {e.connected && e.canSubmit && (
+                  <button className="rounded-lg bg-brand-600 px-2 py-1 text-xs font-600 text-white" onClick={async () => {
+                    setProblem("");
+                    const r = await post(slug, { action: "einvoice", id: q.id });
+                    if (!r.ok) { setProblem(r.error); return; }
+                    await onDone();
+                  }}>{tr.einvSubmit}</button>
+                )}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {problem && <p className="text-sm text-rose-600 dark:text-rose-300">{problem}</p>}
+    </section>
   );
 }
