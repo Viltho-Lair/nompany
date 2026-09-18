@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import {
   verifyOtp, sessionCookie, clearedOtpCookie, deviceCookie, deviceFingerprint,
   requestIsHttps, publicUser, OTP_COOKIE, DEVICE_COOKIE,
-  DEVICE_HEADER, isDesktopClient,
+  DEVICE_HEADER, isDesktopClient, pendingCookie,
 } from "@/platform/auth/identity";
 
 export const runtime = "nodejs";
@@ -36,6 +36,7 @@ export async function POST(request: Request) {
     // Reuse this client's existing row rather than adding a duplicate — cookie
     // for a browser, header for the desktop app.
     deviceId: jar.get(DEVICE_COOKIE)?.value || request.headers.get(DEVICE_HEADER) || "",
+    desktop,
   });
   if (refused(result)) {
     const status = result.error === "suspended" ? 403 : result.error === "notfound" ? 404 : 400;
@@ -43,6 +44,16 @@ export async function POST(request: Request) {
   }
 
   const isHttps = requestIsHttps(request);
+  // THE CODE WAS RIGHT, AND THE SESSION LIMIT IS REACHED: the challenge is
+  // spent and the device recorded either way; what is left is choosing which
+  // session to end (openSession).
+  if (result.chooseSession) {
+    const res = Response.json({ ok: true, chooseSession: true, sessions: result.sessions });
+    res.headers.append("Set-Cookie", pendingCookie(result.ticketId, isHttps));
+    res.headers.append("Set-Cookie", clearedOtpCookie());
+    if (result.deviceId) res.headers.append("Set-Cookie", deviceCookie(result.deviceId, isHttps));
+    return res;
+  }
   const res = Response.json({
     ok: true, user: publicUser(result.user), deviceTrusted: !!result.deviceId,
     // Same reasoning as the login route: a client with no cookie jar is told the

@@ -2,7 +2,7 @@ import { refused } from "@/platform/http/route";
 import { cookies } from "next/headers";
 import {
   login, sessionCookie, otpCookie, requestIsHttps, clientIp, publicUser, deviceFingerprint, DEVICE_COOKIE,
-  DEVICE_HEADER, isDesktopClient,
+  DEVICE_HEADER, isDesktopClient, pendingCookie,
 } from "@/platform/auth/identity";
 
 export const runtime = "nodejs";
@@ -30,6 +30,7 @@ export async function POST(request: Request) {
     // label, type and coarse location — so a recognised device's row is kept
     // current instead of frozen at whenever it was first trusted.
     device: deviceFingerprint(request),
+    desktop,
   });
 
   if (refused(result)) {
@@ -56,6 +57,14 @@ export async function POST(request: Request) {
       ...(desktop ? { challengeId: result.challengeId } : {}),
     });
     res.headers.append("Set-Cookie", otpCookie(result.challengeId, requestIsHttps(request)));
+    return res;
+  }
+
+  // OVER THE SESSION LIMIT: the person chooses which session to end
+  // (openSession). The ticket rides in a cookie like the code challenge does.
+  if (result.chooseSession) {
+    const res = Response.json({ ok: true, otpRequired: false, chooseSession: true, sessions: result.sessions });
+    res.headers.append("Set-Cookie", pendingCookie(result.ticketId, requestIsHttps(request)));
     return res;
   }
 

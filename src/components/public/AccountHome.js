@@ -19,8 +19,10 @@ import { fmtDate, fmtDateTime } from "@/lib/format";
 import { useReload } from "@/components/studio2/useReload";
 import {
   H2, SUB, INPUT, LABEL, BTN, BTN_GHOST, BANNER_BAD, BANNER_GOOD,
+  STACK, ROW, ROW_TAP, ROW_LABEL, ROW_VALUE,
 } from "@/components/public/accountKit";
 import CreateStudioScreen from "@/components/public/CreateStudioScreen";
+import SecuritySessions from "@/components/public/SecuritySessions";
 
 // The account hub, laid out like the Google Account console:
 //   • brand mark top-left, ABOVE the fixed sidebar
@@ -41,14 +43,7 @@ const PAGE = "flex h-screen flex-col overflow-hidden bg-geex-bg dark:bg-[#141420
 const RAIL_W = "lg:w-[280px]";
 const PANEL = "rounded-geex border border-slate-200/70 bg-white p-6 dark:border-white/10 dark:bg-[#20202c]";
 
-// Google Account's grouped "stack": 20px on the outer corners, 4px inside, 2px
-// between rows, 56px min-height, 12px/16px padding, 12px icon gap.
-const STACK = "flex flex-col gap-[2px]";
-const ROW =
-  "flex min-h-[56px] w-full items-center gap-3 rounded-[4px] bg-white px-4 py-3 text-start first:rounded-t-[20px] last:rounded-b-[20px] dark:bg-[#20202c]";
-const ROW_TAP = "transition-colors hover:bg-slate-50 dark:hover:bg-white/5";
-const ROW_LABEL = "text-base font-500 leading-normal text-slate-900 dark:text-white";
-const ROW_VALUE = "truncate text-sm leading-[1.4286] text-slate-500 dark:text-slate-400";
+// The grouped-stack row styles live in accountKit, shared with the Security blocks.
 
 // Every sidebar destination carries its own icon colour, so the rail reads as a
 // set of distinct places rather than a uniform list.
@@ -1089,6 +1084,8 @@ function Security({ devices, onChanged, locale, user }) {
       {devices.length > 0 && (
         <button className={cn(BTN_GHOST, "mt-4")} onClick={revokeAll} disabled={busy}>{busy ? tr.removing : tr.removeAllDevices}</button>
       )}
+
+      <SecuritySessions />
     </div>
   );
 }

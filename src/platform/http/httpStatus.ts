@@ -48,6 +48,10 @@ const FORBIDDEN = [
   "unverified",        // the email behind it was never confirmed
   "cross-site",        // a write arriving from somebody else's page
   "sales-required",    // the Technical action needs Sales:manage, which you lack
+  // A TILL'S SESSION is good for its till and nothing else (18/09/2026).
+  "till-only",
+  // POS on a device nobody paired to a till (18/09/2026).
+  "not-a-till",
 ];
 
 // 404 — IT IS NOT THERE, or you are not allowed to know that it is. Membership
@@ -134,6 +138,11 @@ const CONFLICT = [
 // a permission refusal is not, and a client should treat them differently.
 const RATE_LIMITED = ["rate-limited", "rate-email", "rate-ip", "cooldown", "rate"];
 
+// 423 — THE SESSION IS LOCKED (18/09/2026). Not 401: the person is signed in,
+// and a client that read 401 would send them to the sign-in page and lose
+// what was on the screen. 423 tells it to show the lock and ask for the PIN.
+const SESSION_LOCKED = ["session-locked"];
+
 // 413 — the upload is bigger than the ceiling.
 const TOO_LARGE = ["too-large"];
 
@@ -151,6 +160,7 @@ const build = (): Readonly<Record<string, number>> => {
   put(NOT_FOUND, 404);
   put(CONFLICT, 409);
   put(TOO_LARGE, 413);
+  put(SESSION_LOCKED, 423);
   put(RATE_LIMITED, 429);
   put(SERVER_FAULT, 500);
   return Object.freeze(table);

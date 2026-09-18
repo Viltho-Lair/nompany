@@ -9,7 +9,8 @@
 // Deletion goes through cascade.js (cascadeDeleteUser), never this file.
 
 import { REG, U, IX, ID, normEmail } from "@/platform/db/keys";
-import { readArr, editArr, editJSON, getJSON, getJSONMany, setJSON, claim, getIndex, release } from "@/platform/db/store";
+import { readArr, editArr, editJSON, getJSON, getJSONMany, setJSON, setJSONEx, claim, getIndex, release } from "@/platform/db/store";
+import { isLive, sessionIdOf, type SessionRow } from "./sessionPolicy";
 import { newSessionToken, hashToken } from "./passwords";
 import { listStudios, collaborationStudioIdsMany } from "@/modules/main/studios";
 import { isAssignableRole } from "@/lib/platformRoles";
@@ -253,7 +254,30 @@ export const getProfilesByIds = (userIds: string[]) =>
  * same way. See touchLastLogin/touchLastSeen and U.activity in keys.ts for why
  * this is not on the g:users registry row (R6).
  */
-export type UserActivity = { lastLoginAt?: string; lastSeenAt?: string };
+export type UserActivity = {
+  lastLoginAt?: string;
+  lastSeenAt?: string;
+  // THE SHARING SIGNALS (18/09/2026), as timestamps rather than counts so a
+  // window can be read off them: when a session of this person's was ended
+  // because the account signed in elsewhere, and when a device this account
+  // had never used appeared. Kept here because the console's user list already
+  // reads this document for every person — the flag costs it nothing.
+  evictions?: number[];
+  newDevices?: number[];
+  /** When nompany last sent this person the shared-login warning. */
+  warnedAt?: string;
+};
+
+/** A security event, appended and trimmed to the last 30 days. */
+const SIGNAL_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+export async function recordSignal(userId: string, field: "evictions" | "newDevices", times = 1) {
+  if (!userId || times <= 0) return;
+  const now = Date.now();
+  await editJSON<UserActivity, void>(U.activity(userId), (cur) => {
+    const kept = (Array.isArray(cur?.[field]) ? (cur?.[field] as number[]) : []).filter((t) => now - t < SIGNAL_WINDOW_MS);
+    return { next: { ...(cur || {}), [field]: [...kept, ...Array(times).fill(now)].slice(-200) } };
+  });
+}
 
 export const getActivity = (userId: string) => getJSON<UserActivity>(U.activity(userId));
 // Many people's activity in one statement — getProfilesByIds's twin, aligned
@@ -354,23 +378,128 @@ export const updateQuestionnaire = patchDoc<Questionnaire>(U.questionnaire);
 // Plain SHA-256 rather than bcrypt, deliberately: the input is 32 bytes of
 // CSPRNG output, not something a person chose, so there is no dictionary to slow
 // down and no reason to pay a work factor on every authenticated request.
-export async function mintSession(userId: string, ttlSec: number) {
+
+/** What a session is minted with, beyond who it belongs to. */
+export type SessionMeta = Omit<SessionRow, "id" | "tokenHash" | "token" | "createdAt" | "expiresAt">;
+
+/**
+ * WHAT ONE SESSION IS DOING, beside the index that names its owner. Written at
+ * mint with the same expiry, read in the same wave as the index on every
+ * request. An ENDED session's state outlives it by a week, so the browser that
+ * was signed out can be told why rather than just sent to the sign-in page.
+ */
+export type SessionState = {
+  userId: string;
+  lastActiveAt?: number;
+  lockedAt?: number;
+  /** The person's idle timeout, copied here so a request needs no second read. */
+  idleMs?: number;
+  pinFails?: number;
+  scope?: string;
+  studioId?: string;
+  terminalId?: string;
+  ended?: { at: number; reason: string; byLabel?: string; byType?: string };
+};
+export const ENDED_STATE_TTL = 7 * 24 * 60 * 60;
+
+// A LIST BOUND, NOT A POLICY. The limit a person is held to is the sign-in's
+// (sessionPolicy); this only stops the list growing without end. What falls off
+// it is ENDED — its index released — because a row that fell off the list while
+// its token still worked was exactly the "live session sign-out-everywhere
+// cannot see" this list exists to prevent. It used to be sliced off silently.
+const SESSION_LIST_BOUND = 25;
+
+// Mint a session. The comment at the head of this section is about this function.
+export async function mintSession(userId: string, ttlSec: number, meta: SessionMeta = {}) {
   const token = newSessionToken();
   const digest = hashToken(token);
   const now = Date.now();
   await claim(IX.session(digest), userId, ttlSec); // fresh random token — claim always succeeds
+  const state: SessionState = {
+    userId, lastActiveAt: now,
+    ...(meta.scope ? { scope: meta.scope, studioId: meta.studioId || "", terminalId: meta.terminalId || "" } : {}),
+    ...(await idleOf(userId)),
+  };
+  await setJSONEx(IX.sessionState(digest), state, ttlSec);
   // Atomic: signing in on two devices at once must list BOTH sessions. A lost
   // row here leaves a live session that "sign out everywhere" cannot see.
-  // ONE SESSION ROW. `token` is absent by design and `tokenHash` is what is
-  // stored — see the note on sessionKeys for why both spellings still have to
-  // be readable.
-  type SessionRow = { tokenHash?: string; token?: string; createdAt: number; expiresAt: number };
-  await editArr<SessionRow, void>(U.sessions(userId), (sessions) => ({
-    next: [{ tokenHash: digest, createdAt: now, expiresAt: now + ttlSec * 1000 }, ...sessions]
-      .filter((s) => s.expiresAt > now)
-      .slice(0, 10), // bound per user
-  }));
+  const row: SessionRow = { id: ID.session(), tokenHash: digest, createdAt: now, expiresAt: now + ttlSec * 1000, ...meta };
+  const dropped = await editArr<SessionRow, SessionRow[]>(U.sessions(userId), (sessions) => {
+    const live = [row, ...sessions].filter((s) => isLive(s, now));
+    return { next: live.slice(0, SESSION_LIST_BOUND), result: live.slice(SESSION_LIST_BOUND) };
+  });
+  for (const s of dropped) await releaseSession(s);
   return token;
+}
+
+// The person's idle timeout, stamped onto a new session's state. A till's
+// session has none — cashiers change by PIN, and a till that locked itself
+// mid-queue would be a till nobody could sell on.
+async function idleOf(userId: string): Promise<{ idleMs?: number }> {
+  const sec = await getJSON<{ idleMinutes?: number }>(U.security(userId));
+  const minutes = Number(sec?.idleMinutes) || 0;
+  return minutes > 0 ? { idleMs: minutes * 60 * 1000 } : {};
+}
+
+/** Every live session row of this person's, newest first. */
+export async function listSessionRows(userId: string): Promise<SessionRow[]> {
+  const now = Date.now();
+  return (await readArr<SessionRow>(U.sessions(userId))).filter((s) => isLive(s, now));
+}
+
+export const sessionId = (row: SessionRow) => sessionIdOf(row, hashToken);
+export const digestOf = (row: SessionRow | { tokenHash?: string; token?: string }) =>
+  row.tokenHash || (row.token ? hashToken(row.token) : "");
+
+async function releaseSession(row: SessionRow) {
+  for (const key of sessionKeys(row)) await release(key);
+}
+
+/**
+ * END SOME OF A PERSON'S SESSIONS, by id, and say why.
+ *
+ * Removed from the list, then released from the index — the order
+ * revokeAllSessions uses — and each gets an ENDED state the browser holding it
+ * can read: "signed out because this account signed in on another device" is
+ * what makes a shared login visibly stop working.
+ */
+export async function endSessions(
+  userId: string, ids: readonly string[], ended: { reason: string; byLabel?: string; byType?: string },
+): Promise<SessionRow[]> {
+  if (!ids.length) return [];
+  const want = new Set(ids);
+  const removed = await editArr<SessionRow, SessionRow[]>(U.sessions(userId), (rows) => {
+    const hit = rows.filter((r) => want.has(sessionId(r)));
+    if (!hit.length) return { result: [] };
+    return { next: rows.filter((r) => !want.has(sessionId(r))), result: hit };
+  });
+  const at = Date.now();
+  for (const row of removed) {
+    await releaseSession(row);
+    const digest = digestOf(row);
+    if (digest) {
+      const endedState: SessionState = { userId, ended: { at, ...ended } };
+      await setJSONEx(IX.sessionState(digest), endedState, ENDED_STATE_TTL);
+    }
+  }
+  return removed;
+}
+
+/** A session's state by its token's digest — null when it never existed or has lapsed. */
+export const readSessionState = (digest: string) => getJSON<SessionState>(IX.sessionState(digest));
+
+/**
+ * Change a LIVE session's state. Refuses (null) once the session has ended, so
+ * a late heartbeat can never bring back the state of a signed-out session.
+ */
+export async function patchSessionState(
+  digest: string, fn: (cur: SessionState) => SessionState | null,
+): Promise<SessionState | null> {
+  return editJSON<SessionState, SessionState | null>(IX.sessionState(digest), (cur) => {
+    if (!cur || cur.ended) return { result: null };
+    const next = fn(cur);
+    return next ? { next, result: next } : { result: cur };
+  }, { keepTTL: true });
 }
 
 // EVERY KEY A SESSION ROW COULD BE UNDER, old shape and new.
@@ -413,7 +542,7 @@ export async function findUserBySession(token: string): Promise<User | null> {
 }
 export async function revokeSession(userId: string, token: string) {
   const digest = hashToken(token);
-  await Promise.all([release(IX.session(digest)), release(IX.session(token))]);
+  await Promise.all([release(IX.session(digest)), release(IX.session(token)), release(IX.sessionState(digest))]);
   await editArr(U.sessions(userId), (sessions) => ({
     next: sessions.filter((s) => s.tokenHash !== digest && s.token !== token),
   }));
@@ -424,5 +553,9 @@ export async function revokeSession(userId: string, token: string) {
 export async function revokeAllSessions(userId: string) {
   const revoked = await editArr<{ tokenHash?: string; token?: string }, { tokenHash?: string; token?: string }[]>(
     U.sessions(userId), (sessions) => ({ next: [], result: sessions }));
-  for (const s of revoked) for (const key of sessionKeys(s)) await release(key);
+  for (const s of revoked) {
+    for (const key of sessionKeys(s)) await release(key);
+    const digest = digestOf(s);
+    if (digest) await release(IX.sessionState(digest));
+  }
 }

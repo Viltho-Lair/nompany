@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAccountLocale } from "@/components/public/locale";
 import { accountDict, tooManyAttemptsIn } from "@/shared/account";
 import Link from "next/link";
 import OtpStep from "@/components/public/OtpStep";
 import SocialButtons from "@/components/public/SocialButtons";
 import { useDeviceHints } from "@/components/public/deviceHints";
+import SessionChooser from "@/components/public/SessionChooser";
+import { securityDict, endedMessage } from "@/shared/security";
 // The landing's floating-label field — label lifts on focus, an iris→cyan
 // hairline draws under the active field, a mint tick confirms a valid one. It
 // lives in components/landing because it draws on `motion/react`; importing the
@@ -79,11 +81,34 @@ export default function LoginForm({ locale, dict, providers = [] }) {
   // the session — this form's, the code step's, or a provider's callback.
   useDeviceHints();
   const [form, setForm] = useState({ email: "", password: "", remember: true });
-  const [stage, setStage] = useState("credentials"); // credentials | otp
+  const sec = securityDict(useAccountLocale());
+  const [stage, setStage] = useState("credentials"); // credentials | otp | choose
+  const [sessions, setSessions] = useState([]);
   const [error, setError] = useState(null);           // { kind, message } | null
   const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPw, setShowPw] = useState(false);
+
+  // TWO THINGS THIS PAGE MAY HAVE TO SAY BEFORE ANYBODY TYPES.
+  //
+  // Why this browser was signed out, when it was ended rather than expired —
+  // "this account signed in on another device" is what makes a shared login
+  // visibly stop working. And a sign-in paused at the session limit by a
+  // Google or Microsoft callback, which can only redirect here and cannot carry
+  // the question itself (`?continue=1`).
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/identity/session/ended", { cache: "no-store" })
+      .then((r) => r.json()).then((d) => { if (alive && d?.ended) setNotice(endedMessage(sec, d.ended)); })
+      .catch(() => {});
+    if (new URLSearchParams(window.location.search).get("continue") === "1") {
+      fetch("/api/identity/signin", { cache: "no-store" })
+        .then((r) => r.json())
+        .then((d) => { if (alive && d?.ok && d.sessions?.length) { setSessions(d.sessions); setStage("choose"); } })
+        .catch(() => {});
+    }
+    return () => { alive = false; };
+  }, [sec]);
 
   async function onSubmit(e) {
     e.preventDefault();
@@ -120,6 +145,12 @@ export default function LoginForm({ locale, dict, providers = [] }) {
         setLoading(false);
         return;
       }
+      if (data.chooseSession) {
+        setSessions(data.sessions || []);
+        setStage("choose");
+        setLoading(false);
+        return;
+      }
       if (data.otpRequired) {
         if (data.emailSent === false) setNotice(tr.couldnSendCodeEmail);
         setStage("otp");
@@ -133,6 +164,18 @@ export default function LoginForm({ locale, dict, providers = [] }) {
     }
   }
 
+  if (stage === "choose") {
+    return (
+      <div key="choose" className="auth-panel space-y-4">
+        <SessionChooser
+          sessions={sessions}
+          onDone={() => window.location.assign(`/${locale}/questionnaire`)}
+          onCancel={() => { setStage("credentials"); setLoading(false); }}
+        />
+      </div>
+    );
+  }
+
   if (stage === "otp") {
     return (
       // `key` restarts the enter animation, so stepping to the code panel reads
@@ -142,7 +185,11 @@ export default function LoginForm({ locale, dict, providers = [] }) {
         <OtpStep
           email={form.email}
           submitLabel={tr.sign}
-          onVerified={() => window.location.assign(`/${locale}/questionnaire`)}
+          onVerified={(data) => {
+            // The code was right and the session limit is reached: choose.
+            if (data?.chooseSession) { setSessions(data.sessions || []); setStage("choose"); return; }
+            window.location.assign(`/${locale}/questionnaire`);
+          }}
         />
         <button
           type="button"
@@ -193,6 +240,7 @@ export default function LoginForm({ locale, dict, providers = [] }) {
         </div>
 
         {error && <Alert kind={error.kind}>{error.message}</Alert>}
+        {!error && notice && <Alert kind="wait">{notice}</Alert>}
 
         <button type="submit" disabled={loading} className="landing-submit">
           {loading ? (t.loginLoading || "Signing in…") : (t.loginCta || "Sign in")}

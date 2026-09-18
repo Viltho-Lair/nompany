@@ -34,10 +34,47 @@ Rows written before 18/09/2026 say "Tablet"; they read as Portable Device.
 office machine is "Chrome on Windows", so without it nobody tidying the list could tell
 their own browser from the one they meant to remove.
 
+## The session limit
+
+**A person may be signed in on 2 Computers and 1 Phone or Portable Device at a time.**
+Phones and portable devices share the one slot. `platform/auth/sessionPolicy.ts` holds the
+numbers and the rule; `openSession` in `identity.ts` is the one door every sign-in goes
+through — the password on a trusted device, the emailed code, and a Google or Microsoft
+callback — so the limit cannot be missing from one of them.
+
+**Over the limit, the person is asked which session to sign out**, the oldest chosen for
+them. The sign-in is paused on a ten-minute ticket (`nc_pend`, HttpOnly, `OTP.pending`),
+and `POST /api/identity/signin` finishes it by ending the session named. The ticket can end
+only a session the limit is asking about, and it is spent before the new session opens. A
+Google or Microsoft callback cannot ask a question, so it redirects to
+`/login?continue=1`, where the page reads the question back. **The desktop client has no
+screen for it and ends the oldest session instead.**
+
+**The session that was ended is told why.** Ending one writes an ended state
+(`IX.sessionState`, kept seven days) naming the device that signed in; the sign-in page asks
+`GET /api/identity/session/ended` and says "You were signed out because this account signed
+in on another device (Chrome on Windows)." Twenty people on one login meet that message all
+day, which is the point, and every one of those sign-outs is counted
+(`u:<id>:activity.evictions`) for the console's sharing flag.
+
+- **A till's session is not counted** — a paired till is the company's device.
+- **Sessions from before 18/09/2026 carry no device and take Computer slots.** When a slot is
+  over its limit by more than one, the oldest of the excess end without asking; nobody is
+  asked to pick eight sessions one at a time.
+- **Two sign-ins at the same instant can both pass the check** and leave one session over the
+  limit until the next sign-in. The limit is enforced at sign-in, not on every request.
+- **The session list no longer drops rows silently.** It was capped at 10 by slicing, and a
+  sliced-off session's token still worked while "sign out everywhere" could no longer see it.
+  Rows past the list's bound (25) are now ended — their index released.
+
+**The Security page lists where the person is signed in** (`GET/DELETE
+/api/identity/sessions`): each session's device, type, place and last activity, "This
+session" marked, and a Sign out button on the others. A person at the limit can make room
+here before they are asked to.
+
 ## Not built yet
 
-- The session limit, the sign-in step that asks which session to end, and the console's
-  sharing flag.
+- The console's sharing flag.
 - A cap on trusted devices with no silent eviction.
 - The lock button, the idle timeout and the PIN.
 - Tills paired to a device, and cashiers switching by PIN.

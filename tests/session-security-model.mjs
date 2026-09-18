@@ -7,6 +7,7 @@ import { pathToFileURL } from "node:url";
 
 register(new URL("./loader.mjs", import.meta.url), { data: { root: pathToFileURL(`${process.cwd()}/`).href } });
 const { classifyDevice, deviceSlot, normalizeDeviceType, encodeHints, decodeHints } = await import("@/shared/deviceClass");
+const { planSignIn, SESSION_LIMITS, publicSession, sessionIdOf } = await import("@/platform/auth/sessionPolicy");
 
 let fails = 0;
 const ok = (what, cond, detail = "") => {
@@ -41,6 +42,45 @@ ok("a Phone and a Portable Device share the mobile slot",
   deviceSlot("Phone") === "mobile" && deviceSlot("Portable Device") === "mobile" && deviceSlot("Computer") === "computer");
 ok("a stored \"Tablet\" reads as a Portable Device", normalizeDeviceType("Tablet") === "Portable Device" && deviceSlot("Tablet") === "mobile");
 ok("an unknown type takes the computer slot", deviceSlot("") === "computer");
+
+// ---- the session limit --------------------------------------------------------
+// THE LOOPHOLE: nothing counted sessions, so one login served twenty people.
+const NOW = 1_800_000_000_000;
+const sess = (id, deviceType, createdAt, extra = {}) =>
+  ({ id, tokenHash: `h${id}`, deviceType, createdAt, expiresAt: NOW + 3600_000, ...extra });
+ok("the limit is two computers and one phone-or-portable", SESSION_LIMITS.computer === 2 && SESSION_LIMITS.mobile === 1);
+
+let plan = planSignIn([sess("a", "Computer", 1)], "computer", NOW);
+ok("a second computer fits", plan.autoEnd.length === 0 && plan.choose.length === 0);
+
+plan = planSignIn([sess("a", "Computer", 2), sess("b", "Computer", 1)], "computer", NOW);
+ok("a third computer must choose between the two, oldest first",
+  plan.autoEnd.length === 0 && plan.choose.map((r) => r.id).join() === "b,a", JSON.stringify(plan));
+
+plan = planSignIn([sess("a", "Computer", 1), sess("b", "Computer", 2)], "mobile", NOW);
+ok("a phone beside two computers fits — the slots are separate", plan.choose.length === 0);
+
+plan = planSignIn([sess("p", "Phone", 1)], "mobile", NOW);
+ok("a tablet after a phone must replace it — they share the slot", plan.choose.map((r) => r.id).join() === "p");
+
+plan = planSignIn([
+  sess("t1", "Computer", 1, { scope: "till" }), sess("t2", "Computer", 2, { scope: "till" }), sess("a", "Computer", 3),
+], "computer", NOW);
+ok("a till's sessions are not counted against the person", plan.choose.length === 0);
+
+plan = planSignIn([sess("x", "Computer", 1, { expiresAt: NOW - 1 }), sess("y", "Computer", 2, { expiresAt: NOW - 1 })], "computer", NOW);
+ok("an expired session holds no slot", plan.choose.length === 0);
+
+plan = planSignIn([sess("old1", undefined, 1), sess("old2", undefined, 2), sess("old3", undefined, 3), sess("old4", undefined, 4)], "computer", NOW);
+ok("sessions from before the limit take computer slots, and the excess ends without asking",
+  plan.autoEnd.map((r) => r.id).join() === "old1,old2" && plan.choose.map((r) => r.id).join() === "old3,old4", JSON.stringify(plan));
+
+const legacyId = sessionIdOf({ token: "plain-token", createdAt: 1, expiresAt: NOW + 1 }, () => "abcdef0123456789ffff");
+ok("a row from before ids is named by its digest, never its token",
+  legacyId === "habcdef0123456789" && !legacyId.includes("plain"), legacyId);
+const shown = publicSession({ ...sess("a", "Tablet", 1), token: "secret" }, (t) => t);
+ok("what a person is shown carries no token or digest",
+  !JSON.stringify(shown).includes("secret") && !("tokenHash" in shown) && shown.deviceType === "Portable Device");
 
 console.log(fails ? `\nsession security model: ${fails} FAILURES\n` : "\nsession security model: all passed\n");
 process.exitCode = fails ? 1 : 0;

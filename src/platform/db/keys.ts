@@ -82,6 +82,12 @@ export const ID = {
   // An engagement — the umbrella a Tier-B record (project, job, …) opens over
   // the Tier-A records it draws in. See the approved engagement storage spec.
   engagement: () => makeId("eng"),
+  // One signed-in session, as the person sees it in their list. The token's
+  // digest stays the lookup key; this is the id a screen may hold and send back.
+  session: () => makeId("ses"),
+  // A sign-in paused between proving who you are and being let in — to ask
+  // which session to end, or for an authenticator code. Short-lived.
+  signinTicket: () => makeId("sgn"),
 };
 
 // ---- global registries -----------------------------------------------------
@@ -187,6 +193,9 @@ export const U = {
   // Trusted devices are USER data (this person's remembered browsers), so they
   // live under the user prefix and die with the user automatically.
   devices: (userId: string) => `${P}u:${userId}:devices`,
+  // THIS PERSON'S OWN SECURITY SETTINGS — the lock PIN's hash, their idle
+  // timeout, and their authenticator secret. User data, so it dies with them.
+  security: (userId: string) => `${P}u:${userId}:security`,
   // How often THIS person has opened each studio: a hash of StudioID -> count.
   // It is a property of the person, not of any studio, so it belongs under the
   // user prefix and is reaped by the user cascade like everything else here.
@@ -219,6 +228,9 @@ export const U = {
 // EX expires it for free (nothing to clean up, nothing to cascade).
 export const OTP = {
   challenge: (challengeId: string) => `${P}otp:${challengeId}`,
+  // A PAUSED SIGN-IN (ID.signinTicket), the same kind of thing as a challenge:
+  // auth state from before a session exists, expired by its own TTL.
+  pending: (ticketId: string) => `${P}otp-pending:${ticketId}`,
 };
 
 // ---- live chat rooms (ephemeral, like OTP: owned by nobody) ----------------
@@ -576,6 +588,11 @@ export const IX = {
   email: (email: string) => `${P}ix:email:${normEmail(email)}`,     // → UserID (uniqueness of login email)
   slug: (slug: string) => `${P}ix:slug:${String(slug || "").toLowerCase()}`, // → StudioID
   session: (token: string) => `${P}ix:session:${token}`,            // → UserID (EX = real expiry)
+  // WHAT ONE SESSION IS DOING — locked, last active, a till's session — keyed
+  // by the same digest as the index so a request reads both in ONE wave rather
+  // than learning the user id first. Outlives an ended session for a week, to
+  // tell that browser why it was signed out.
+  sessionState: (tokenHash: string) => `${P}ix:session-state:${tokenHash}`,
   // → SuperAdminID (EX = real expiry). Takes the DIGEST, not the token: this
   // module is imported by a client component, so it must not pull node:crypto
   // into the browser bundle. platform/auth/superAuth.js hashes before calling.

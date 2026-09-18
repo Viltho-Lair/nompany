@@ -17,7 +17,12 @@ import {
   getVerification, updateVerification,
   getQuestionnaire, updateQuestionnaire,
   mintSession, findUserBySession, revokeSession, revokeAllSessions, touchLastLogin, touchLastSeen,
+  listSessionRows, endSessions, sessionId, recordSignal, readSessionState,
 } from "./users";
+import type { SessionState } from "./users";
+import { planSignIn, publicSession, type PublicSession } from "./sessionPolicy";
+import { OTP, ID, IX } from "@/platform/db/keys";
+import { getJSON, setJSONEx, getJSONMany, release } from "@/platform/db/store";
 import type { User, Questionnaire } from "./users";
 import type { DeviceFacts } from "./otp";
 import { listOwnedStudios, listUserCollaborations } from "@/modules/main/studios";
@@ -27,7 +32,7 @@ import {
   recordDevice, isTrustedDevice, revokeAllDevices,
   CODE_TTL_SEC, DEVICE_TTL_MS, MAX_ATTEMPTS,
 } from "./otp";
-import { hashPassword, verifyPassword, generatePassword, needsRehash } from "./passwords";
+import { hashPassword, verifyPassword, generatePassword, needsRehash, hashToken } from "./passwords";
 import { encryptField } from "./fieldCrypto";
 import { derivedSecret } from "@/platform/db/masterKeys";
 import { cleanProvider } from "@/lib/nova/providers";
@@ -39,7 +44,7 @@ import { checkPassword } from "./passwordPolicy";
 import { sendEmail } from "@/platform/notify/email";
 import { verificationCodeEmail, passwordResetCodeEmail } from "@/platform/notify/emailTemplates";
 import { log } from "@/platform/http/observability";
-import { classifyDevice, decodeHints, DEVICE_HINTS_COOKIE } from "@/shared/deviceClass";
+import { classifyDevice, decodeHints, DEVICE_HINTS_COOKIE, deviceSlot, normalizeDeviceType } from "@/shared/deviceClass";
 
 // The ONE session cookie of the restructured model. Deliberately a new name so
 // it can never be confused with the old-structure cookies (nc_session/mt_admin)
@@ -85,6 +90,17 @@ export function otpCookie(challengeId: string, isHttps: boolean) {
 }
 export function clearedOtpCookie() {
   return `${OTP_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`;
+}
+// A SIGN-IN PAUSED between proving who you are and being let in (openSession):
+// which session to end, or an authenticator code. HttpOnly like the challenge,
+// and as short-lived.
+export const PENDING_COOKIE = "nc_pend";
+export function pendingCookie(ticketId: string, isHttps: boolean) {
+  const secure = isHttps ? "; Secure" : "";
+  return `${PENDING_COOKIE}=${ticketId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${CODE_TTL_SEC}${secure}`;
+}
+export function clearedPendingCookie() {
+  return `${PENDING_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`;
 }
 export function deviceCookie(deviceId: string, isHttps: boolean) {
   const secure = isHttps ? "; Secure" : "";
@@ -222,10 +238,10 @@ async function deliverCode(
 // Success always proves control of the address, so it stamps emailVerifiedAt
 // for both purposes, mints the session, and optionally remembers the device.
 export async function verifyOtp(
-  { challengeId, code, remember, trustThisDevice, device, deviceId }:
+  { challengeId, code, remember, trustThisDevice, device, deviceId, desktop }:
   {
     challengeId: string; code: unknown; remember?: boolean; trustThisDevice?: boolean;
-    device?: DeviceFacts; deviceId?: string;
+    device?: DeviceFacts; deviceId?: string; desktop?: boolean;
   },
 ) {
   const result = await verifyChallenge(challengeId, code);
@@ -240,14 +256,16 @@ export async function verifyOtp(
   if (!v.emailVerifiedAt) await updateVerification(userId, { emailVerifiedAt: new Date().toISOString() });
 
   const ttl = remember ? REMEMBER_TTL : SESSION_TTL;
-  const token = await mintSession(userId, ttl);
-  await touchLastLogin(userId);
   // ALWAYS record the browser, so Security can show where this account has been
   // signed in from. The checkbox decides only whether it may skip the code next
   // time, not whether it is remembered at all — the two used to be the same
   // decision, which is why a regular sign-in left the list empty.
+  //
+  // RECORDED BEFORE THE SESSION OPENS, so the session can name its device —
+  // which is what lets the list mark "This device" and the limit count slots.
   const recordedId = await recordDevice(userId, deviceId, device || {}, { trusted: Boolean(trustThisDevice) });
-  return { user, token, ttl, deviceId: recordedId };
+  const opened = await openSession({ userId, ttl, deviceId: recordedId, device, desktop });
+  return { user, deviceId: recordedId, ...opened };
 }
 
 // Re-send the code for an in-flight challenge (new code, attempts reset).
@@ -267,7 +285,7 @@ export async function resendOtp({ challengeId, ip }: { challengeId: string; ip?:
 export async function signInWithProvider(
   { email, fullName, provider, deviceId, device }:
   { email?: string; fullName?: string; provider?: string; deviceId?: string; device?: DeviceFacts },
-) {
+): Promise<{ error: string } | ({ user: User; deviceId: string; error?: undefined } & OpenOutcome)> {
   const mail = norm(email);
   if (!EMAIL_RE.test(mail)) return { error: "email" };
 
@@ -293,9 +311,6 @@ export async function signInWithProvider(
   const v = (await getVerification(user.id)) || {};
   if (!v.emailVerifiedAt) await updateVerification(user.id, { emailVerifiedAt: new Date().toISOString() });
 
-  const token = await mintSession(user.id, REMEMBER_TTL);
-  await touchLastLogin(user.id);
-
   // RECORD THE BROWSER, exactly as the OTP path does.
   //
   // It did not, and the result was worse than a missing feature: an account that
@@ -309,7 +324,8 @@ export async function signInWithProvider(
   // address, which is the whole reason this path exists. Recording it as
   // untrusted would describe the sign-in inaccurately without changing anything.
   const recordedId = await recordDevice(user.id, deviceId, device || {}, { trusted: true });
-  return { user, token, ttl: REMEMBER_TTL, deviceId: recordedId };
+  const opened = await openSession({ userId: user.id, ttl: REMEMBER_TTL, deviceId: recordedId, device });
+  return { user, deviceId: recordedId, ...opened };
 }
 
 // ---- login (risk-based: OTP only from an unrecognised device) --------------
@@ -335,13 +351,15 @@ export type LoginResult =
   | { error?: undefined; otpRequired: true; challengeId: string; emailSent: boolean;
       user?: undefined; token?: undefined; ttl?: undefined }
   | { error?: undefined; otpRequired?: undefined; user: User; token: string; ttl: number;
-      challengeId?: undefined; emailSent?: undefined };
+      challengeId?: undefined; emailSent?: undefined; chooseSession?: undefined }
+  | { error?: undefined; otpRequired?: undefined; user: User; chooseSession: true; ticketId: string;
+      sessions: PublicSession[]; token?: undefined; ttl?: undefined; challengeId?: undefined; emailSent?: undefined };
 
 export async function login(
-  { email, password, remember, deviceId, ip, device }:
+  { email, password, remember, deviceId, ip, device, desktop }:
   {
     email?: string; password?: string; remember?: boolean;
-    deviceId?: string; ip?: string; device?: DeviceFacts;
+    deviceId?: string; ip?: string; device?: DeviceFacts; desktop?: boolean;
   },
 ): Promise<LoginResult> {
   // THE GATE COMES FIRST — before the lookup, before bcrypt, and identically
@@ -407,9 +425,8 @@ export async function login(
   // first was. It cannot grant trust — only the code step can do that.
   if (await isTrustedDevice(user.id, deviceId || "", device)) {
     const ttl = remember ? REMEMBER_TTL : SESSION_TTL;
-    const token = await mintSession(user.id, ttl);
-    await touchLastLogin(user.id);
-    return { user, token, ttl };
+    const opened = await openSession({ userId: user.id, ttl, deviceId, device, desktop });
+    return { user, ...opened };
   }
 
   const challenge = await createChallenge({ purpose: "login", email: user.email, userId: user.id, ip });
@@ -445,6 +462,154 @@ export async function logoutEverywhere(token: string) {
   await revokeAllSessions(user.id);
   await revokeAllDevices(user.id);
 }
+
+// ---- opening a session: the limit on where one person is signed in --------
+//
+// EVERY SIGN-IN ENDS HERE — the password on a trusted device, the emailed
+// code, a Google or Microsoft callback, and a paused sign-in resumed. One door,
+// so the limit cannot be missing from one of them (sessionPolicy says what the
+// limit is and why it exists).
+//
+// OVER THE LIMIT, THE PERSON IS ASKED which session to end rather than having
+// one ended behind their back: the answer comes back as `chooseSession` with a
+// ticket, and `chooseSessionToEnd` finishes the sign-in. The desktop client has
+// no screen for that question, so it ends the oldest instead.
+export type OpenOutcome =
+  | { token: string; ttl: number; chooseSession?: undefined; ticketId?: undefined; sessions?: undefined }
+  | { chooseSession: true; ticketId: string; sessions: PublicSession[]; token?: undefined; ttl?: undefined };
+
+type PendingSignIn = {
+  userId: string;
+  ttl: number;
+  deviceId: string;
+  device: DeviceFacts;
+  stage: "choose";
+  createdAt: number;
+};
+
+// WHY A SESSION ENDED, as the browser that lost it will be told.
+export const ENDED_ELSEWHERE = "signed-in-elsewhere";
+export const ENDED_BY_OWNER = "ended-by-you";
+
+export async function openSession(
+  { userId, ttl, deviceId, device, desktop }:
+  { userId: string; ttl: number; deviceId?: string; device?: DeviceFacts; desktop?: boolean },
+): Promise<OpenOutcome> {
+  const facts = device || {};
+  const plan = planSignIn(await listSessionRows(userId), deviceSlot(facts.deviceType), Date.now());
+  const ending = plan.autoEnd.map(sessionId);
+  if (plan.choose.length && desktop) ending.push(sessionId(plan.choose[0]));
+  if (ending.length) await endForSignIn(userId, ending, facts);
+
+  if (plan.choose.length && !desktop) {
+    const ticketId = ID.signinTicket();
+    const pending: PendingSignIn = {
+      userId, ttl, deviceId: deviceId || "", device: facts, stage: "choose", createdAt: Date.now(),
+    };
+    await setJSONEx(OTP.pending(ticketId), pending, CODE_TTL_SEC);
+    return { chooseSession: true, ticketId, sessions: plan.choose.map((r) => publicSession(r, hashToken)) };
+  }
+
+  const token = await mintSession(userId, ttl, {
+    deviceId: deviceId || "",
+    deviceType: normalizeDeviceType(facts.deviceType) || "Computer",
+    label: facts.label || "",
+    location: facts.location || "",
+  });
+  await touchLastLogin(userId);
+  return { token, ttl };
+}
+
+// Ended because this account signed in somewhere else — the one kind of ending
+// the console's sharing flag counts.
+async function endForSignIn(userId: string, ids: string[], facts: DeviceFacts) {
+  const ended = await endSessions(userId, ids, {
+    reason: ENDED_ELSEWHERE, byLabel: facts.label || "", byType: normalizeDeviceType(facts.deviceType) || "",
+  });
+  await recordSignal(userId, "evictions", ended.length);
+}
+
+/** A paused sign-in, as its screen needs it: which sessions it may end. */
+export async function pendingSignIn(ticketId: string) {
+  const t = ticketId ? await getJSON<PendingSignIn>(OTP.pending(ticketId)) : null;
+  if (!t) return { error: "expired" as const };
+  const plan = planSignIn(await listSessionRows(t.userId), deviceSlot(t.device?.deviceType), Date.now());
+  return {
+    stage: t.stage,
+    device: { label: t.device?.label || "", deviceType: normalizeDeviceType(t.device?.deviceType) || "Computer" },
+    sessions: plan.choose.map((r) => publicSession(r, hashToken)),
+  };
+}
+
+/**
+ * FINISH A PAUSED SIGN-IN by ending the session the person chose.
+ *
+ * Only a session the limit is actually asking about may be named — a ticket
+ * is not a licence to end any session of this account's. The ticket is spent
+ * before the session opens, so it cannot be replayed to end a second one.
+ */
+export async function chooseSessionToEnd(ticketId: string, endId: unknown, { desktop = false } = {}) {
+  const t = ticketId ? await getJSON<PendingSignIn>(OTP.pending(ticketId)) : null;
+  if (!t || t.stage !== "choose") return { error: "expired" as const };
+  const user = await getUserById(t.userId);
+  if (!user) return { error: "notfound" as const };
+  if (user.status === "suspended") return { error: "suspended" as const };
+
+  const plan = planSignIn(await listSessionRows(t.userId), deviceSlot(t.device?.deviceType), Date.now());
+  const candidates = new Set(plan.choose.map(sessionId));
+  const id = String(endId || "");
+  // The session may already be gone — ended from another screen meanwhile —
+  // in which case there is nothing left to choose and the sign-in just opens.
+  if (candidates.size && !candidates.has(id)) return { error: "invalid" as const };
+
+  await release(OTP.pending(ticketId));
+  if (candidates.has(id)) await endForSignIn(t.userId, [id], t.device || {});
+  const opened = await openSession({ userId: t.userId, ttl: t.ttl, deviceId: t.deviceId, device: t.device, desktop });
+  return { user, ...opened };
+}
+
+/** The digest of the session this request carries, or "" when it carries none. */
+export async function currentSessionDigest(): Promise<string> {
+  const token = await requestSessionToken();
+  return token ? hashToken(token) : "";
+}
+
+/**
+ * WHY THIS BROWSER IS NO LONGER SIGNED IN, when it was ended rather than
+ * expired: read off the ended state its session left behind. The sign-in page
+ * asks, so a person pushed out by someone else's sign-in is told so.
+ */
+export async function endedReason() {
+  const digest = await currentSessionDigest();
+  if (!digest) return null;
+  const state = await readSessionState(digest);
+  return state?.ended ? { reason: state.ended.reason, byLabel: state.ended.byLabel || "", byType: state.ended.byType || "" } : null;
+}
+
+/** Where this person is signed in, with the one this request is marked. */
+export async function mySessions(userId: string) {
+  const [rows, here] = await Promise.all([listSessionRows(userId), currentSessionDigest()]);
+  const states = await getJSONMany<SessionState>(rows.map((r) => IX.sessionState(r.tokenHash || (r.token ? hashToken(r.token) : ""))));
+  return rows
+    .map((r, i) => ({
+      ...publicSession(r, hashToken),
+      current: Boolean(here) && (r.tokenHash || (r.token ? hashToken(r.token) : "")) === here,
+      lastActiveAt: Number(states[i]?.lastActiveAt) || Number(r.createdAt) || 0,
+    }))
+    .sort((a, b) => Number(b.current) - Number(a.current) || b.lastActiveAt - a.lastActiveAt);
+}
+
+/** End one of this person's OTHER sessions. Their own is ended by signing out. */
+export async function endMySession(userId: string, id: unknown) {
+  const target = String(id || "");
+  const mine = await mySessions(userId);
+  const row = mine.find((s) => s.id === target);
+  if (!row) return { error: "notfound" as const };
+  if (row.current) return { error: "current" as const };
+  await endSessions(userId, [target], { reason: ENDED_BY_OWNER });
+  return { ok: true as const };
+}
+
 
 // The marker the desktop client sends. Not a credential and it grants nothing —
 // it only decides whether the token comes back in the body instead of a cookie.

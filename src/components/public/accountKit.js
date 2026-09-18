@@ -12,6 +12,15 @@ export const LABEL = "mb-1 block text-xs font-600 uppercase tracking-wide text-s
 export const BTN = "rounded-full bg-brand-700 px-4 py-2 font-display text-sm font-600 text-white transition-colors hover:bg-brand-950 disabled:opacity-60";
 export const BTN_GHOST = "rounded-full border border-slate-200 px-4 py-2 font-display text-sm font-600 text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-60 dark:border-white/15 dark:text-slate-300 dark:hover:bg-white/5";
 export const BANNER_BAD = "rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300";
+// Google Account's grouped "stack": 20px on the outer corners, 4px inside, 2px
+// between rows, 56px min-height, 12px/16px padding, 12px icon gap. Shared since
+// the Security page's blocks moved into their own files (18/09/2026).
+export const STACK = "flex flex-col gap-[2px]";
+export const ROW =
+  "flex min-h-[56px] w-full items-center gap-3 rounded-[4px] bg-white px-4 py-3 text-start first:rounded-t-[20px] last:rounded-b-[20px] dark:bg-[#20202c]";
+export const ROW_TAP = "transition-colors hover:bg-slate-50 dark:hover:bg-white/5";
+export const ROW_LABEL = "text-base font-500 leading-normal text-slate-900 dark:text-white";
+export const ROW_VALUE = "truncate text-sm leading-[1.4286] text-slate-500 dark:text-slate-400";
 export const BANNER_GOOD = "rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300";
 
 // A studio address is Latin letters, digits and hyphens (SLUG_RE in keys.ts),
