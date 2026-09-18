@@ -155,7 +155,7 @@ export default function QuestionnaireList() {
           </div>
         </div>
 
-        {error && <p className="mt-4 rounded-lg bg-[rgb(var(--ad-destructive-rgb)/0.1)] px-4 py-3 text-sm text-[var(--ad-destructive)]">{error}</p>}
+        {error && <p className="mt-4 rounded-lg bg-[rgb(var(--ad-destructive-rgb)/0.1)] px-4 py-3 text-sm text-[var(--ad-destructive-ink)]">{error}</p>}
 
         {rows === null ? (
           <ListSkeleton view={view} />
@@ -284,7 +284,7 @@ function RowMenu({ open, onToggle, href, onDuplicate, onDelete }) {
           <Link href={`${href}/responses`} role="menuitem" className="block px-3 py-2 text-sm hover:bg-[var(--ad-muted)]">Responses</Link>
           <button type="button" role="menuitem" className="block w-full px-3 py-2 text-start text-sm hover:bg-[var(--ad-muted)]"
             onClick={onDuplicate}>Duplicate</button>
-          <button type="button" role="menuitem" className="block w-full px-3 py-2 text-start text-sm text-[var(--ad-destructive)] hover:bg-[rgb(var(--ad-destructive-rgb)/0.1)]"
+          <button type="button" role="menuitem" className="block w-full px-3 py-2 text-start text-sm text-[var(--ad-destructive-ink)] hover:bg-[rgb(var(--ad-destructive-rgb)/0.1)]"
             onClick={onDelete}>Delete</button>
         </div>,
         document.body)}

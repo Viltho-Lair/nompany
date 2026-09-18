@@ -210,12 +210,12 @@ export default function QuestionnaireBuilder({ id }) {
           contract. */}
       {registration.length > 0 && (
         <div className="shrink-0 border-b border-[rgb(var(--ad-destructive-rgb)/0.3)] bg-[rgb(var(--ad-destructive-rgb)/0.08)] px-4 py-2.5">
-          <p className="text-xs font-700 uppercase tracking-wide text-[var(--ad-destructive)]">
+          <p className="text-xs font-700 uppercase tracking-wide text-[var(--ad-destructive-ink)]">
             Nobody can finish registering with this form
           </p>
           <ul className="mt-1 space-y-0.5">
             {registration.map((p, i) => (
-              <li key={i} className="text-xs leading-snug text-[var(--ad-destructive)]">{p}</li>
+              <li key={i} className="text-xs leading-snug text-[var(--ad-destructive-ink)]">{p}</li>
             ))}
           </ul>
           <p className="mt-1.5 text-[11px] text-[var(--ad-muted-foreground)]">
@@ -247,7 +247,7 @@ export default function QuestionnaireBuilder({ id }) {
                   </span>
                 </button>
                 <button type="button" onClick={() => removePage(i)}
-                  className="ms-7 mt-1 hidden text-[11px] text-[var(--ad-destructive)] hover:underline group-hover:inline">Remove page</button>
+                  className="ms-7 mt-1 hidden text-[11px] text-[var(--ad-destructive-ink)] hover:underline group-hover:inline">Remove page</button>
               </div>
             ))}
           </div>
@@ -360,7 +360,7 @@ function QuestionPreview({ q, n }) {
         <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded bg-[var(--ad-foreground)] text-[10px] font-700 text-[var(--ad-background)]">{n}</span>
         <span className="font-display text-lg font-600">
           {q.label || def?.label}
-          {q.required && <span className="ms-1 text-[var(--ad-destructive)]">*</span>}
+          {q.required && <span className="ms-1 text-[var(--ad-destructive-ink)]">*</span>}
         </span>
       </p>
       {q.description && <p className="ms-7 mt-1 text-sm text-[var(--ad-muted-foreground)]">{q.description}</p>}
@@ -552,7 +552,7 @@ function Settings({ q, everyQuestion = [], problems = [], onPatch, onRemove }) {
 
       <LogicEditor q={q} everyQuestion={everyQuestion} problems={problems} onPatch={onPatch} />
 
-      <button type="button" onClick={onRemove} className="w-full rounded-lg border border-[rgb(var(--ad-destructive-rgb)/0.3)] px-3 py-2 text-sm font-600 text-[var(--ad-destructive)] hover:bg-[rgb(var(--ad-destructive-rgb)/0.1)]">
+      <button type="button" onClick={onRemove} className="w-full rounded-lg border border-[rgb(var(--ad-destructive-rgb)/0.3)] px-3 py-2 text-sm font-600 text-[var(--ad-destructive-ink)] hover:bg-[rgb(var(--ad-destructive-rgb)/0.1)]">
         Delete element
       </button>
     </div>
@@ -589,7 +589,7 @@ function LogicMarks({ rules = [], conditional, problems = [] }) {
         </span>
       )}
       {problems.length > 0 && (
-        <span className={`${CHIP} bg-[rgb(var(--ad-destructive-rgb)/0.12)] text-[var(--ad-destructive)]`}>
+        <span className={`${CHIP} bg-[rgb(var(--ad-destructive-rgb)/0.12)] text-[var(--ad-destructive-ink)]`}>
           {problems.length === 1 ? "1 problem" : `${problems.length} problems`}
         </span>
       )}
@@ -625,7 +625,7 @@ function LogicEditor({ q, everyQuestion = [], problems = [], onPatch }) {
       {problems.length > 0 && (
         <ul className="mt-2 space-y-1 rounded-lg bg-[rgb(var(--ad-destructive-rgb)/0.08)] px-2.5 py-2">
           {problems.map((p, i) => (
-            <li key={i} className="text-[11px] leading-snug text-[var(--ad-destructive)]">{p.problem}</li>
+            <li key={i} className="text-[11px] leading-snug text-[var(--ad-destructive-ink)]">{p.problem}</li>
           ))}
         </ul>
       )}
@@ -638,7 +638,7 @@ function LogicEditor({ q, everyQuestion = [], problems = [], onPatch }) {
                 When the answer
               </span>
               <button type="button" aria-label="Remove rule"
-                className="px-1 text-[var(--ad-muted-foreground)] hover:text-[var(--ad-destructive)]"
+                className="px-1 text-[var(--ad-muted-foreground)] hover:text-[var(--ad-destructive-ink)]"
                 onClick={() => write(rules.filter((_, j) => j !== i))}>×</button>
             </div>
 
@@ -787,7 +787,7 @@ function OptionEditor({ options, values, notes, allowNotes, onChange }) {
                 <input value={at(values, i)} className={`${field} w-24 font-mono text-xs`} placeholder="value"
                   onChange={(e) => emit(options, values.map((x, j) => (j === i ? e.target.value : x)), notes)} />
               )}
-              <button type="button" aria-label="Remove choice" className="px-1.5 text-[var(--ad-muted-foreground)] hover:text-[var(--ad-destructive)]"
+              <button type="button" aria-label="Remove choice" className="px-1.5 text-[var(--ad-muted-foreground)] hover:text-[var(--ad-destructive-ink)]"
                 onClick={() => emit(
                   options.filter((_, j) => j !== i),
                   paired ? values.filter((_, j) => j !== i) : values,
@@ -876,9 +876,9 @@ function ElementPicker({ onPick, onClose }) {
 }
 
 const GROUP_TONE = {
-  "Contact info": "bg-[rgb(var(--ad-destructive-rgb)/0.14)] text-[var(--ad-destructive)]",
-  Choice: "bg-[rgb(var(--ad-primary-rgb)/0.14)] text-[var(--ad-primary)]",
-  "Rating & ranking": "bg-[rgb(var(--ad-success-rgb)/0.14)] text-[var(--ad-success)]",
+  "Contact info": "bg-[rgb(var(--ad-destructive-rgb)/0.14)] text-[var(--ad-destructive-ink)]",
+  Choice: "bg-[rgb(var(--ad-primary-rgb)/0.14)] text-[var(--ad-primary-ink)]",
+  "Rating & ranking": "bg-[rgb(var(--ad-success-rgb)/0.14)] text-[var(--ad-success-ink)]",
   Text: "bg-[rgb(var(--ad-info-rgb)/0.14)] text-[var(--ad-info)]",
   Other: "bg-[rgb(var(--ad-warning-rgb)/0.14)] text-[var(--ad-warning)]",
   Structure: "bg-[var(--ad-border)] text-[var(--ad-foreground)]",

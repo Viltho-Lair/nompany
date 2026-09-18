@@ -148,12 +148,12 @@ async function SatisfactionBody() {
       </div>
       <div className="mt-4 flex items-start justify-between">
         <div>
-          <p className="text-[11px] font-600 uppercase tracking-wider text-[var(--ad-destructive)]">3 and below</p>
+          <p className="text-[11px] font-600 uppercase tracking-wider text-[var(--ad-destructive-ink)]">3 and below</p>
           <p className="mt-0.5 text-lg font-600">{sat.negativePct}%</p>
           <p className="text-xs text-[var(--ad-muted-foreground)]">{sat.negative} rating{sat.negative === 1 ? "" : "s"}</p>
         </div>
         <div className="text-end">
-          <p className="text-[11px] font-600 uppercase tracking-wider text-[var(--ad-success)]">4 and above</p>
+          <p className="text-[11px] font-600 uppercase tracking-wider text-[var(--ad-success-ink)]">4 and above</p>
           <p className="mt-0.5 text-lg font-600">{sat.positivePct}%</p>
           <p className="text-xs text-[var(--ad-muted-foreground)]">{sat.positive} rating{sat.positive === 1 ? "" : "s"}</p>
         </div>
@@ -333,7 +333,7 @@ export default function AnalyticsPage() {
             <CardHead
               title="Live Activity Feed"
               action={
-                <span className="inline-flex items-center gap-1.5 text-xs font-500 text-[var(--ad-success)]">
+                <span className="inline-flex items-center gap-1.5 text-xs font-500 text-[var(--ad-success-ink)]">
                   <span className="relative flex h-2 w-2">
                     <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--ad-success)] opacity-75" />
                     <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--ad-success)]" />
@@ -362,7 +362,7 @@ export default function AnalyticsPage() {
               </ul>
               <Link
                 href={`${BASE}/settings?tab=notifications`}
-                className="mt-6 flex items-center justify-center gap-1.5 text-sm font-500 text-[var(--ad-primary)] hover:underline"
+                className="mt-6 flex items-center justify-center gap-1.5 text-sm font-500 text-[var(--ad-primary-ink)] hover:underline"
               >
                 View All Activities <Icon name="chevronRight" className="h-3.5 w-3.5" />
               </Link>
@@ -457,7 +457,7 @@ export default function AnalyticsPage() {
                       </div>
                       <span
                         className="inline-flex shrink-0 items-center gap-1 text-xs font-500"
-                        style={{ color: r.delta >= 0 ? "var(--ad-success)" : "var(--ad-destructive)" }}
+                        style={{ color: r.delta >= 0 ? "var(--ad-success-ink)" : "var(--ad-destructive-ink)" }}
                       >
                         <Icon name={r.delta >= 0 ? "trendUp" : "trendDown"} className="h-3.5 w-3.5" />
                         {r.delta > 0 ? "+" : ""}

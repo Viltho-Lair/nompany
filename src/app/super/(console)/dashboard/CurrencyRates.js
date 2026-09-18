@@ -139,7 +139,7 @@ function CurrencyPicker({ value, codes, exclude = [], onPick, compact = false, t
                     <span className="w-10 shrink-0 font-600">{c.code}</span>
                     <span className="min-w-0 flex-1 truncate text-[var(--ad-muted-foreground)]">{c.name}</span>
                     {c.code === value ? (
-                      <Icon name="check" className="h-3.5 w-3.5 shrink-0 text-[var(--ad-primary)]" />
+                      <Icon name="check" className="h-3.5 w-3.5 shrink-0 text-[var(--ad-primary-ink)]" />
                     ) : null}
                   </button>
                 </li>

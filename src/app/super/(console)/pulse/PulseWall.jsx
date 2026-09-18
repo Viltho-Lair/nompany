@@ -349,7 +349,7 @@ export default function PulseWall({ initial, initialLive }) {
               onClick={() => setRange(r.key)}
               className={`${chip} pointer-events-auto border`}
               style={range === r.key
-                ? { borderColor: "var(--ad-primary)", color: "var(--ad-primary)" }
+                ? { borderColor: "var(--ad-primary)", color: "var(--ad-primary-ink)" }
                 : { borderColor: "var(--ad-border)", color: "var(--ad-muted-foreground)" }}
             >
               {r.label}
@@ -488,7 +488,7 @@ function Kpi({ label, value, delta, sub }) {
         {/* NULL IS NOT ZERO: no arrow at all when there was nothing to compare
             against, rather than a confident 0%. */}
         {delta != null ? (
-          <span className="num text-[11px]" style={{ color: delta >= 0 ? "var(--ad-success)" : "var(--ad-destructive)" }}>
+          <span className="num text-[11px]" style={{ color: delta >= 0 ? "var(--ad-success-ink)" : "var(--ad-destructive-ink)" }}>
             {delta >= 0 ? "▲" : "▼"}{Math.abs(delta)}%
           </span>
         ) : null}

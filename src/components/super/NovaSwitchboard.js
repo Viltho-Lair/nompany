@@ -112,7 +112,7 @@ export default function NovaSwitchboard() {
                 key={k.id} type="button" role="tab" aria-selected={kind === k.id}
                 onClick={() => setKind(k.id)}
                 className={`rounded-lg px-3.5 py-1.5 text-sm font-600 transition-colors ${
-                  kind === k.id ? "bg-[var(--ad-primary)] text-white" : "text-[var(--ad-muted-foreground)] hover:text-[var(--ad-foreground)]"
+                  kind === k.id ? "bg-[var(--ad-primary)] text-[var(--ad-primary-foreground)]" : "text-[var(--ad-muted-foreground)] hover:text-[var(--ad-foreground)]"
                 }`}
               >
                 {k.label}
@@ -158,7 +158,7 @@ export default function NovaSwitchboard() {
                       <Icon name={DEPT_ICON[g.department] || "dot"} className="h-[18px] w-[18px]" />
                     </span>
                     <h2 className="min-w-0 flex-1 truncate font-display text-base font-700">{g.department}</h2>
-                    <span className="num rounded-full bg-[var(--ad-muted)] px-2.5 py-0.5 text-xs font-600 text-[var(--ad-muted-foreground)]">
+                    <span className="num rounded-full bg-[var(--ad-muted)] px-2.5 py-0.5 text-xs font-600 text-[var(--ad-foreground)]">
                       {onHere} / {g.capabilities.length} on
                     </span>
                   </div>
@@ -202,7 +202,7 @@ function Summary({ totals, loading }) {
       />
       <div className="relative flex flex-wrap items-center gap-6">
         <div className="flex min-w-0 flex-1 items-start gap-4">
-          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-white" style={{ background: "var(--ad-primary)" }}>
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-[var(--ad-primary-foreground)]" style={{ background: "var(--ad-primary)" }}>
             <Icon name="wizard" className="h-6 w-6" />
           </span>
           <div className="min-w-0">
@@ -277,7 +277,7 @@ function CapabilityRow({ cap, on, overridden, busy, onToggle }) {
 
 function Chip({ children }) {
   return (
-    <span className="rounded-md bg-[var(--ad-muted)] px-1.5 py-0.5 text-[10.5px] font-600 text-[var(--ad-muted-foreground)]">
+    <span className="rounded-md bg-[var(--ad-muted)] px-1.5 py-0.5 text-[10.5px] font-600 text-[var(--ad-foreground)]">
       {children}
     </span>
   );

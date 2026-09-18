@@ -608,10 +608,19 @@ html.studio-chrome [class*="text-xs"] {
   line-height: 1.5 !important;
 }
 
-/* Branded scrollbars inside the Studio panel only (class toggled by StudioShell).
-   Track is transparent (shows the page background); the thumb is brand navy. */
+/* Scrollbars inside the Studio panel only (class toggled by StudioShell).
+   Track is transparent (shows the page background); the thumb is a NEUTRAL
+   MID-GREY — the owner, 18/09/2026: the brand-navy thumb read as a bright blue
+   stripe down the dark sidebar and fitted neither theme. One grey sits quietly
+   on both the lavender page and the charcoal one.
+
+   `scrollbar-color` is not only Firefox's any more: Chrome 121+ honours it and
+   then IGNORES the ::-webkit-scrollbar rules below, so the two must agree or
+   Chrome and Safari draw different colours. Both read --scrollbar-thumb. */
 html.studio-chrome {
-  scrollbar-color: #022e72 transparent; /* Firefox: thumb track */
+  --scrollbar-thumb: #8b8b96;
+  --scrollbar-thumb-hover: #a3a3ad;
+  scrollbar-color: var(--scrollbar-thumb) transparent; /* thumb track */
   scrollbar-width: thin;
 }
 html.studio-chrome::-webkit-scrollbar,
@@ -625,14 +634,14 @@ html.studio-chrome ::-webkit-scrollbar-track {
 }
 html.studio-chrome::-webkit-scrollbar-thumb,
 html.studio-chrome ::-webkit-scrollbar-thumb {
-  background-color: #022e72;
+  background-color: var(--scrollbar-thumb);
   border-radius: 9999px;
   border: 3px solid transparent;
   background-clip: content-box;
 }
 html.studio-chrome::-webkit-scrollbar-thumb:hover,
 html.studio-chrome ::-webkit-scrollbar-thumb:hover {
-  background-color: #033a92;
+  background-color: var(--scrollbar-thumb-hover);
 }
 html.studio-chrome::-webkit-scrollbar-corner,
 html.studio-chrome ::-webkit-scrollbar-corner {

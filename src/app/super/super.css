@@ -11,9 +11,11 @@
    same tokens the Studio and the document editor read. Nothing here invents a
    colour. Two consequences worth stating:
 
-     1. There is no `.dark .admindek` block any more. `--doc-*` already switch
-        under `.dark`, so aliasing them means the console follows the theme from
-        ONE definition rather than two that drift apart.
+     1. Brand and status colours follow the theme through `--doc-*` alone, from
+        ONE definition rather than two that drift apart. The exception is the
+        dark SURFACES and greys: one `.dark .admindek` block re-points those to
+        the studio's charcoal, because `--doc-*`'s dark is the document editor's
+        navy and the console should look like the studio (see that block).
      2. Every token exists twice: `--ad-x-rgb` (the raw triple) and `--ad-x`
         (the same wrapped in rgb()). Call sites that need a flat colour read the
         second; anything that needs a tint reads the first as
@@ -119,6 +121,19 @@
   --ad-input: rgb(var(--ad-input-rgb));
   --ad-ring: rgb(var(--ad-ring-rgb));
 
+  /* THE INKS: each status colour as TEXT, stepped toward the foreground.
+     The raw tokens are FILL colours — a button, a bar, a dot — and on the dark
+     theme they are the 500 shades, which put blue and red text on a dark card
+     at 3.98:1 (the owner, 18/09/2026: "some texts are unreadable"). The same
+     65% oklab mix `toneInk` in _components/ui gives every badge, measured
+     there at 4.57:1 or better in both themes. Use an ink for words and the
+     token for surfaces; one colour cannot be both on both themes. */
+  --ad-primary-ink: color-mix(in oklab, var(--ad-primary) 65%, var(--ad-foreground));
+  --ad-destructive-ink: color-mix(in oklab, var(--ad-destructive) 65%, var(--ad-foreground));
+  --ad-success-ink: color-mix(in oklab, var(--ad-success) 65%, var(--ad-foreground));
+  --ad-warning-ink: color-mix(in oklab, var(--ad-warning) 65%, var(--ad-foreground));
+  --ad-info-ink: color-mix(in oklab, var(--ad-info) 65%, var(--ad-foreground));
+
   --ad-chart-1: rgb(var(--ad-chart-1-rgb));
   --ad-chart-2: rgb(var(--ad-chart-2-rgb));
   --ad-chart-3: rgb(var(--ad-chart-3-rgb));
@@ -204,7 +219,11 @@
   color: var(--ad-foreground);
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
-  scrollbar-color: rgb(var(--ad-primary-rgb) / 0.5) transparent;
+  /* The studio's mid-grey thumb (globals.css, html.studio-chrome), so the two
+     surfaces scroll alike — the brand-blue thumb this was clashed with both. */
+  --scrollbar-thumb: #8b8b96;
+  --scrollbar-thumb-hover: #a3a3ad;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
   scrollbar-width: thin;
 }
 
@@ -243,13 +262,62 @@
   background: transparent;
 }
 .admindek ::-webkit-scrollbar-thumb {
-  background-color: rgb(var(--ad-primary-rgb) / 0.5);
+  background-color: var(--scrollbar-thumb);
   border-radius: 9999px;
   border: 3px solid transparent;
   background-clip: content-box;
 }
 .admindek ::-webkit-scrollbar-thumb:hover {
-  background-color: rgb(var(--ad-primary-rgb) / 0.75);
+  background-color: var(--scrollbar-thumb-hover);
+}
+
+/* ---- dark: the STUDIO's charcoal, not the editor's navy ------------------ */
+
+/* THE ONE `.dark .admindek` BLOCK, and it is deliberate. The header of this file
+   says the console follows the theme through `--doc-*` alone — and it did,
+   which is exactly the problem: `--doc-*` is the DOCUMENT EDITOR's dark, navy
+   slate (#0f172a page, #1e293b card), while the studio and the account pages
+   are dark in the studio's own charcoal (`--p-charcoal*` in globals.css). So the
+   console looked like a different product the moment the lights went off (the
+   owner, 18/09/2026: "studio looks better").
+
+   Only SURFACES, LINES and GREYS are re-pointed — the page, cards, popovers,
+   muted fills and borders, as the studio's `html.studio-chrome.dark` block maps
+   them. Brand and status colours still come from `--doc-*`, so a primary
+   button is the same blue in both places. Channel triples because every
+   `--ad-*` is one: #141420 page, #20202c card, #191921 inset, and the studio's
+   white-at-7% hairline flattened onto the card so `rgb(var(--ad-border-rgb))`
+   still works as a solid colour. */
+.dark .admindek {
+  --ad-background-rgb: 20 20 32;
+  --ad-foreground-rgb: 241 241 246;
+  --ad-card-rgb: 32 32 44;
+  --ad-card-foreground-rgb: 241 241 246;
+  --ad-popover-rgb: 32 32 44;
+  --ad-popover-foreground-rgb: 241 241 246;
+  --ad-secondary-rgb: 44 44 58;
+  --ad-secondary-foreground-rgb: 241 241 246;
+  --ad-muted-rgb: 44 44 58;
+  --ad-muted-foreground-rgb: 160 164 184;
+  --ad-accent-rgb: 44 44 58;
+  --ad-accent-foreground-rgb: 241 241 246;
+  --ad-border-rgb: 48 48 62;
+  --ad-input-rgb: 48 48 62;
+  --ad-sidebar-rgb: 32 32 44;
+  --ad-sidebar-border-rgb: 48 48 62;
+}
+
+/* THE DATA GRID'S SURFACES. MUI declares its four `--DataGrid-t-*` backgrounds
+   (as `background.paper` — the navy #1e293b on dark) in an UNLAYERED stylesheet
+   of its own (`.MuiDataGridVariables-*`), and unlayered CSS beats everything in
+   `@layer mui`, which is where a grid's `sx` lands, whatever its specificity.
+   So it is answered here, unlayered and one class more specific. Without it the
+   console's tables sat as a navy slab inside a charcoal card. */
+.admindek .MuiDataGrid-root {
+  --DataGrid-t-color-background-base: var(--ad-card);
+  --DataGrid-t-color-background-overlay: var(--ad-card);
+  --DataGrid-t-header-background-base: var(--ad-card);
+  --DataGrid-t-cell-background-pinned: var(--ad-card);
 }
 
 /* ---- components ---------------------------------------------------------- */
@@ -265,6 +333,18 @@
     background-color: var(--ad-card);
     color: var(--ad-card-foreground);
     box-shadow: var(--ad-shadow-card);
+  }
+  /* A CARD HOLDING A TABLE CLIPS TO ITS OWN CORNERS. A full-bleed table's rows
+     are square, so a filled row at the card's edge — the "Total" footer, a
+     hovered or selected row — painted straight through the rounded corner (the
+     owner, 18/09/2026: "the corners are not contained in the row").
+
+     ONLY those cards, not every card: a card that floats a dropdown out of
+     itself (the dashboard's currency picker is absolutely positioned inside
+     one) would have it cut off. The table menus that exist are portalled to
+     <body> with `position: fixed`, so clipping never reaches them. */
+  .ad-card:has(table, .MuiDataGrid-root) {
+    overflow: hidden;
   }
   .ad-card-head {
     display: flex;

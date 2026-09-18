@@ -145,16 +145,16 @@ export default function NovaCredentials({ note = "" }) {
         </label>
       </div>
 
-      {error && <p className="mt-3 text-sm text-[var(--ad-destructive)]">{error}</p>}
+      {error && <p className="mt-3 text-sm text-[var(--ad-destructive-ink)]">{error}</p>}
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <button type="button" onClick={() => save()} disabled={busy}
-          className="h-9 rounded-xl bg-[var(--ad-primary)] px-4 text-sm font-600 text-white transition-opacity hover:opacity-90 disabled:opacity-50">
+          className="h-9 rounded-xl bg-[var(--ad-primary)] px-4 text-sm font-600 text-[var(--ad-primary-foreground)] transition-opacity hover:opacity-90 disabled:opacity-50">
           {busy ? "Saving…" : "Save"}
         </button>
         {config.keySet && (
           <button type="button" onClick={() => save("")} disabled={busy}
-            className="h-9 rounded-xl px-3 text-sm font-500 text-[var(--ad-destructive)] hover:bg-[var(--ad-muted)]">
+            className="h-9 rounded-xl px-3 text-sm font-500 text-[var(--ad-destructive-ink)] hover:bg-[var(--ad-muted)]">
             Remove key
           </button>
         )}

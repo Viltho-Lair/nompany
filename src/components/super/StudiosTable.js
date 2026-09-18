@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Card, CardHead, Button, Num, Icon } from "@/app/super/_components/ui";
 import SuperDataGrid from "@/components/super/SuperDataGrid";
 import { STUDIOS_COLUMNS, STUDIOS_PAGE_SIZE } from "@/components/super/studiosColumns";
-import { toneOf } from "@/lib/planColors";
+import { planTagStyle } from "@/lib/planColors";
 import SelectMenu from "@/components/fields/SelectMenu";
 
 // Every studio, searchable, with its plan editable in place.
@@ -22,17 +22,11 @@ import SelectMenu from "@/components/fields/SelectMenu";
 // different plans have to be told apart at a glance. Every other colour on this
 // screen is a token.
 
-const Tag = ({ name, color }) => {
-  const t = toneOf(color);
-  return (
-    <span
-      className="inline-flex rounded-full px-2.5 py-1 text-xs font-600"
-      style={{ backgroundColor: t.bg, color: t.fg }}
-    >
-      {name}
-    </span>
-  );
-};
+const Tag = ({ name, color }) => (
+  <span className="plan-tag inline-flex rounded-full px-2.5 py-1 text-xs font-600" style={planTagStyle(color)}>
+    {name}
+  </span>
+);
 
 export default function StudiosTable({ rows, packages, tiers }) {
   const [query, setQuery] = useState("");
@@ -296,7 +290,7 @@ function StudioDialog({ studio, packages, tiers, onClose, onSaved }) {
             </div>
           </div>
 
-          {error && <p className="text-sm text-[var(--ad-destructive)]">{error}</p>}
+          {error && <p className="text-sm text-[var(--ad-destructive-ink)]">{error}</p>}
         </div>
 
         <div className="flex gap-3 border-t px-5 py-4" style={{ borderColor: "var(--ad-border)" }}>

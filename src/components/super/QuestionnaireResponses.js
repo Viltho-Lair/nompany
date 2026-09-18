@@ -48,7 +48,7 @@ export default function QuestionnaireResponses({ id }) {
 
   if (failed) {
     return (
-      <div className="flex min-h-full w-full items-center justify-center bg-[var(--ad-muted)] p-6 text-sm text-[var(--ad-destructive)]">
+      <div className="flex min-h-full w-full items-center justify-center bg-[var(--ad-muted)] p-6 text-sm text-[var(--ad-destructive-ink)]">
         Couldn&apos;t load the responses.
       </div>
     );

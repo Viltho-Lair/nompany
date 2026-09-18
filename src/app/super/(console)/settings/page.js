@@ -75,7 +75,7 @@ export default async function SettingsPage({ searchParams }) {
               aria-current={on ? "page" : undefined}
               className={`rounded-md px-3 py-1.5 text-xs font-500 transition-colors ${
                 on
-                  ? "bg-[var(--ad-primary)] text-white"
+                  ? "bg-[var(--ad-primary)] text-[var(--ad-primary-foreground)]"
                   : "text-[var(--ad-muted-foreground)] hover:bg-[var(--ad-accent)]"
               }`}
             >

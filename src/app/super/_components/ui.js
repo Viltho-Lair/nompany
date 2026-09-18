@@ -38,7 +38,7 @@ export function PageHeader({ title, breadcrumb = [], actions }) {
                     </span>
                   )}
                   {c.href ? (
-                    <Link href={c.href} className="transition-colors hover:text-[var(--ad-primary)]">
+                    <Link href={c.href} className="transition-colors hover:text-[var(--ad-primary-ink)]">
                       {c.label}
                     </Link>
                   ) : (
@@ -251,7 +251,7 @@ export function Delta({ value, suffix = "", invert = false }) {
   return (
     <span
       className="inline-flex items-center gap-1 text-xs font-500"
-      style={{ color: good ? "var(--ad-success)" : "var(--ad-destructive)" }}
+      style={{ color: good ? "var(--ad-success-ink)" : "var(--ad-destructive-ink)" }}
     >
       <Icon name={up ? "trendUp" : "trendDown"} className="h-3.5 w-3.5" />
       <Num>
@@ -266,12 +266,21 @@ export function Delta({ value, suffix = "", invert = false }) {
 /* Solid coloured KPI tile — the four blocks at the top of a dashboard.
    `tone` names a semantic token; `color` is the legacy escape hatch the
    subscription screens still pass and is left working on purpose rather than
-   silently repainting a page this phase does not own. */
+   silently repainting a page this phase does not own.
+
+   THE FILL IS THE TONE DEEPENED, NOT THE TONE ITSELF. White on the raw token
+   measured 1.8:1 on amber, 2.1 on green and 2.3 on sky in dark mode — the dark
+   theme steps every token UP a shade (amber-600 → amber-500) so it reads as
+   ink on a dark card, which is exactly what makes it a poor ground for white
+   text (the owner, 18/09/2026: "some texts are unreadable"). Mixing 36% black
+   in oklab keeps the hue and lands every tone above 4.5:1 in both themes. */
+const kpiFill = (c) => `color-mix(in oklab, ${c} 64%, black)`;
+
 export function KpiTile({ label, value, delta, deltaLabel, icon, tone = "primary", color }) {
   return (
     <div
       className="rounded-geex p-6 text-white"
-      style={{ backgroundColor: color || toneFg(tone) }}
+      style={{ backgroundColor: kpiFill(color || toneFg(tone)) }}
     >
       <div className="flex items-center gap-4">
         {icon ? (
@@ -280,7 +289,7 @@ export function KpiTile({ label, value, delta, deltaLabel, icon, tone = "primary
           </span>
         ) : null}
         <div className="min-w-0">
-          <p className="text-sm text-white/80">{label}</p>
+          <p className="text-sm text-white/90">{label}</p>
           <Num as="p" className="mt-0.5 text-2xl font-700 leading-tight">
             {value}
           </Num>
@@ -288,7 +297,7 @@ export function KpiTile({ label, value, delta, deltaLabel, icon, tone = "primary
               to say there. Dropping the line entirely made the tile change
               height and told the reader nothing about why. */}
           {delta != null ? (
-            <p className="mt-1 text-xs text-white/75">
+            <p className="mt-1 text-xs text-white/85">
               <Num>
                 {delta >= 0 ? "+" : ""}
                 {delta}%
@@ -296,7 +305,7 @@ export function KpiTile({ label, value, delta, deltaLabel, icon, tone = "primary
               {deltaLabel}
             </p>
           ) : deltaLabel ? (
-            <p className="mt-1 text-xs text-white/60">{deltaLabel}</p>
+            <p className="mt-1 text-xs text-white/85">{deltaLabel}</p>
           ) : null}
         </div>
       </div>

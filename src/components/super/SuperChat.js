@@ -224,7 +224,7 @@ export default function SuperChat() {
                     ? "Pick one of your chats on the left."
                     : "Chats opened from a studio land here. Nothing is stored — accept one to read it."}
               </p>
-              {error ? <p className="mt-4 text-sm" style={{ color: "var(--ad-destructive)" }}>{error}</p> : null}
+              {error ? <p className="mt-4 text-sm" style={{ color: "var(--ad-destructive-ink)" }}>{error}</p> : null}
             </div>
           ) : (
             <>
@@ -263,7 +263,7 @@ export default function SuperChat() {
               </div>
 
               {error ? (
-                <p className="px-5 pt-3 text-xs" style={{ color: "var(--ad-destructive)" }}>{error}</p>
+                <p className="px-5 pt-3 text-xs" style={{ color: "var(--ad-destructive-ink)" }}>{error}</p>
               ) : null}
 
               <div ref={threadRef} className="ad-scrollarea flex-1 space-y-4 p-5">

@@ -147,7 +147,7 @@ function RoleMenu({ row, onPick, onWarn, onStatus, onReset }) {
                   onClick={() => pick(r)}
                 >
                   <span className="flex-1">{r}</span>
-                  {row.role === r ? <Icon name="check" className="h-4 w-4 text-[var(--ad-primary)]" /> : null}
+                  {row.role === r ? <Icon name="check" className="h-4 w-4 text-[var(--ad-primary-ink)]" /> : null}
                 </button>
               ))}
               <div className="border-t py-1" style={{ borderColor: "var(--ad-border)" }}>
@@ -160,7 +160,7 @@ function RoleMenu({ row, onPick, onWarn, onStatus, onReset }) {
                   onClick={() => pick("")}
                 >
                   <span className="flex-1">Remove role (Member)</span>
-                  {row.role === MEMBER_ROLE ? <Icon name="check" className="h-4 w-4 text-[var(--ad-primary)]" /> : null}
+                  {row.role === MEMBER_ROLE ? <Icon name="check" className="h-4 w-4 text-[var(--ad-primary-ink)]" /> : null}
                 </button>
               </div>
               {/* THE SHARING FLAG'S TWO ANSWERS (18/09/2026). A warning email,
@@ -187,7 +187,7 @@ function RoleMenu({ row, onPick, onWarn, onStatus, onReset }) {
                     <span className="flex-1">Reactivate</span>
                   </button>
                 ) : (
-                  <button type="button" role="menuitem" className={item} style={{ color: "var(--ad-destructive)" }}
+                  <button type="button" role="menuitem" className={item} style={{ color: "var(--ad-destructive-ink)" }}
                     onClick={() => { if (window.confirm(`Suspend ${row.name}? They are signed out everywhere and cannot sign in.`)) run(() => onStatus("suspended")); }}>
                     <span className="flex-1">Suspend</span>
                   </button>
@@ -419,7 +419,7 @@ export default function UsersTable({ rows }) {
 
       {error ? (
         <CardBody className="pt-0">
-          <p role="alert" className="text-sm" style={{ color: "var(--ad-destructive)" }}>{error}</p>
+          <p role="alert" className="text-sm" style={{ color: "var(--ad-destructive-ink)" }}>{error}</p>
         </CardBody>
       ) : null}
       {notice && !error ? (

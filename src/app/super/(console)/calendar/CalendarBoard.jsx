@@ -281,7 +281,7 @@ export default function CalendarBoard({ connection }) {
               <span className="flex h-12 w-12 items-center justify-center rounded-full" style={{ backgroundColor: TONE_BG.danger, color: TONE_FG.danger }}>
                 <Icon name="alert" className="h-5 w-5" />
               </span>
-              <p className="max-w-md text-sm text-[var(--ad-destructive)]">{problem}</p>
+              <p className="max-w-md text-sm text-[var(--ad-destructive-ink)]">{problem}</p>
             </div>
           ) : (
             <div className="overflow-x-auto">

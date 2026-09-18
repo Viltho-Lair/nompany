@@ -27,7 +27,7 @@ import LiveProvider from "@/components/studio2/LiveProvider";
 import NotificationBell from "@/components/studio2/NotificationBell";
 import ThemeToggle from "@/components/ThemeToggle";
 import SessionLock from "@/components/security/SessionLock";
-import { toneOf } from "@/lib/planColors";
+import { planTagStyle } from "@/lib/planColors";
 import DailyGreeting from "@/components/studio2/DailyGreeting";
 
 // Studio chrome for the restructured model: the studio's identity, its sections
@@ -359,17 +359,10 @@ const iconClass = (key, parentKey) => `h-[18px] w-[18px] ${accentOf(key, parentK
 // rather than set inline, because which text colour is readable depends on the
 // theme and inline styles cannot answer that — the stylesheet picks (.plan-tag).
 function PlanTag({ color, label, children }) {
-  const tone = toneOf(color);
   return (
     <span
       className="plan-tag inline-flex rounded-full px-2 py-0.5 text-[10px] font-700"
-      style={{
-        "--tag-bg": tone.bg,
-        "--tag-bg-dark": tone.bgDark,
-        "--tag-fg": tone.fg,
-        "--tag-fg-dark": tone.fgDark,
-        "--tag-metal": tone.metal,
-      }}
+      style={planTagStyle(color)}
       title={label}
     >
       {children}

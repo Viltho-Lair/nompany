@@ -68,6 +68,8 @@ export default function SuperDataGrid({
     () => ({
       // MUI's own grid variables, pointed at ours.
       "--DataGrid-containerBackground": "transparent",
+      // The grid's own SURFACE (--DataGrid-t-color-background-base) is set in
+      // super.css, NOT here — see the note there on why sx cannot reach it.
       "--DataGrid-rowBorderColor": "var(--ad-border)",
       "--DataGrid-overlayHeight": `${GRID_ROW_HEIGHT * 4}px`,
 
@@ -146,7 +148,7 @@ export default function SuperDataGrid({
       "& .MuiIconButton-root": { color: "var(--ad-muted-foreground)" },
       "& .MuiIconButton-root.Mui-disabled": { color: "var(--ad-muted-foreground)", opacity: 0.4 },
       "& .MuiCheckbox-root": { color: "var(--ad-muted-foreground)" },
-      "& .MuiCheckbox-root.Mui-checked": { color: "var(--ad-primary)" },
+      "& .MuiCheckbox-root.Mui-checked": { color: "var(--ad-primary-ink)" },
     }),
     [],
   );

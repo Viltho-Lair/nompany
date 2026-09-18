@@ -69,3 +69,20 @@ export function toneOf(color: unknown) {
     hex,
   };
 }
+
+// THE TAG'S COLOURS AS CSS VARIABLES, for the `.plan-tag` rule in globals.css.
+// Which text colour is readable depends on the THEME, and an inline
+// `color: t.fg` cannot know it: the console's plan and tier chips set the
+// light pair inline and were unreadable in dark mode — dark text on a dark wash
+// (the owner, 18/09/2026). The stylesheet picks the pair; every tag, in the
+// studio and the console, hands it the same four variables through here.
+export function planTagStyle(color: unknown): Record<string, string> {
+  const t = toneOf(color);
+  return {
+    "--tag-bg": t.bg,
+    "--tag-bg-dark": t.bgDark,
+    "--tag-fg": t.fg,
+    "--tag-fg-dark": t.fgDark,
+    "--tag-metal": t.metal,
+  };
+}

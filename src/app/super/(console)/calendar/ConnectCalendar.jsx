@@ -179,7 +179,7 @@ export default function ConnectCalendar({ configured, connected, accountEmail })
             {loading ? (
               <p className="mt-4 text-sm text-[var(--ad-muted-foreground)]">Loading calendars…</p>
             ) : problem ? (
-              <p className="mt-4 text-sm text-[var(--ad-destructive)]">{problem}</p>
+              <p className="mt-4 text-sm text-[var(--ad-destructive-ink)]">{problem}</p>
             ) : calendars.length === 0 ? (
               <p className="mt-4 text-sm text-[var(--ad-muted-foreground)]">
                 That account has no calendars this console can read.
@@ -199,7 +199,7 @@ export default function ConnectCalendar({ configured, connected, accountEmail })
                 </button>
               </form>
             )}
-            {error ? <p className="mt-2 text-sm text-[var(--ad-destructive)]">{error}</p> : null}
+            {error ? <p className="mt-2 text-sm text-[var(--ad-destructive-ink)]">{error}</p> : null}
 
             <button
               type="button"

@@ -71,7 +71,7 @@ function Stops({ title, hint, stops, onChange }) {
               <button
                 type="button" onClick={() => onChange(stops.filter((_, j) => j !== i))}
                 aria-label={`Remove ${title.toLowerCase()} ${i + 1}`}
-                className="text-xs text-[var(--ad-muted-foreground)] hover:text-[var(--ad-destructive)]"
+                className="text-xs text-[var(--ad-muted-foreground)] hover:text-[var(--ad-destructive-ink)]"
               >×</button>
             )}
           </span>
@@ -108,7 +108,7 @@ function Detail({ message, generated, problems, keySet, busy, onChange, onSend, 
   return (
     <div className="h-full overflow-y-auto p-5">
       <div className="mb-6 flex flex-wrap items-center justify-end gap-2">
-        <span className={`text-sm font-600 ${sent ? "text-[var(--ad-success)]" : "text-[var(--ad-muted-foreground)]"}`}>
+        <span className={`text-sm font-600 ${sent ? "text-[var(--ad-success-ink)]" : "text-[var(--ad-muted-foreground)]"}`}>
           {sent ? "Sent" : "Draft"}
         </span>
         {sent && message.sentAt && <span className="num text-sm text-[var(--ad-muted-foreground)]">{stamp(message.sentAt)}</span>}
@@ -116,12 +116,12 @@ function Detail({ message, generated, problems, keySet, busy, onChange, onSend, 
         {/* RE-SENDING IS THE SAME ACT WITH A FRESH STAMP, which is what reaches
             the readers who already closed this message. */}
         <button type="button" onClick={onSend} disabled={busy}
-          className="rounded-lg bg-[var(--ad-primary)] px-3 py-1.5 text-sm font-500 text-white disabled:opacity-50">
+          className="rounded-lg bg-[var(--ad-primary)] px-3 py-1.5 text-sm font-500 text-[var(--ad-primary-foreground)] disabled:opacity-50">
           {sent ? "Send again" : "Broadcast"}
         </button>
         {sent && <button type="button" onClick={onWithdraw} disabled={busy} className={btn}>Withdraw</button>}
         <button type="button" onClick={onRemove} disabled={busy}
-          className="rounded-lg px-2 py-1.5 text-sm text-[var(--ad-destructive)] disabled:opacity-50">Remove</button>
+          className="rounded-lg px-2 py-1.5 text-sm text-[var(--ad-destructive-ink)] disabled:opacity-50">Remove</button>
       </div>
 
       <div className="grid gap-8 lg:grid-cols-[2fr_1fr]">
@@ -169,7 +169,7 @@ function Detail({ message, generated, problems, keySet, busy, onChange, onSend, 
                            found" and "invalid api key" are the same red box
                            otherwise, and only one of them is about the key. */
                         <div className="mt-1">
-                          <p className="text-sm text-[var(--ad-destructive)]">
+                          <p className="text-sm text-[var(--ad-destructive-ink)]">
                             {!keySet
                               ? "No key is set — add one under Settings. Nothing shows in a studio until then."
                               : problems?.[`${message.id}:${dp}`]
@@ -338,7 +338,7 @@ export default function GreetingEditor() {
     <div className="flex h-full flex-col">
       <header className="flex shrink-0 flex-wrap items-center gap-2 border-b border-[var(--ad-border)] px-4 py-3">
         <h1 className="font-display text-base font-800 tracking-tight">Broadcast</h1>
-        {error && <span className="text-sm text-[var(--ad-destructive)]">{error}</span>}
+        {error && <span className="text-sm text-[var(--ad-destructive-ink)]">{error}</span>}
         {saved && <span className="text-xs text-[var(--ad-muted-foreground)]">Saved. Nothing sent — use Broadcast.</span>}
         <div className="ms-auto flex flex-wrap items-center gap-2">
           {ai?.keySet && messages.some((m) => m.status === "Sent" && m.source === "ai") && (
@@ -347,7 +347,7 @@ export default function GreetingEditor() {
             </button>
           )}
           <button type="button" onClick={() => setSettings(!settings)} disabled={!!busy}
-            className={`${btn} ${settings ? "bg-[var(--ad-primary)] text-white" : ""}`}>Settings</button>
+            className={`${btn} ${settings ? "bg-[var(--ad-primary)] text-[var(--ad-primary-foreground)]" : ""}`}>Settings</button>
           <button type="button" onClick={save} disabled={!!busy} className={btn}>
             {busy === "save" ? "Saving…" : "Save Drafts"}
           </button>

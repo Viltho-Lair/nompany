@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Card, CardHead, CardBody, Table, Button, Badge, Icon } from "@/app/super/_components/ui";
-import { toneOf, normalizeColor, PRESETS, DEFAULT_HEX } from "@/lib/planColors";
+import { toneOf, planTagStyle, normalizeColor, PRESETS, DEFAULT_HEX } from "@/lib/planColors";
 import { widgetsBySection, widgetsForRung } from "@/lib/dashboardWidgets";
 import { ANALYTICS_LEVELS } from "@/lib/analytics";
 import SelectMenu from "@/components/fields/SelectMenu";
@@ -104,7 +104,7 @@ export default function CatalogEditor({ kind, title, fields, services = null, on
           }
         />
         <CardBody full>
-          {error && <p className="px-5 pb-3 text-sm text-[var(--ad-destructive)]">{error}</p>}
+          {error && <p className="px-5 pb-3 text-sm text-[var(--ad-destructive-ink)]">{error}</p>}
           {items !== null && items.length === 0 && !draft ? (
             <p className="px-5 pb-5 text-sm text-[var(--ad-muted-foreground)]">Nothing here yet.</p>
           ) : (
@@ -292,7 +292,7 @@ function render(f, it, services) {
     const t = toneOf(v);
     return (
       <span className="inline-flex items-center gap-2">
-        <span className="inline-flex rounded-full px-2 py-0.5 text-xs font-600" style={{ backgroundColor: t.bg, color: t.fg }}>
+        <span className="plan-tag inline-flex rounded-full px-2 py-0.5 text-xs font-600" style={planTagStyle(v)}>
           {it.name || "Package"}
         </span>
         <span className="font-mono text-[11px] text-[var(--ad-muted-foreground)]">{t.hex}</span>
@@ -314,7 +314,6 @@ function render(f, it, services) {
 // on it will be readable, and the badge is derived from the same value.
 function ColorField({ id, value, onChange }) {
   const hex = normalizeColor(value) || DEFAULT_HEX;
-  const t = toneOf(hex);
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2">
@@ -334,7 +333,7 @@ function ColorField({ id, value, onChange }) {
           placeholder={DEFAULT_HEX}
           aria-label="Colour hex"
         />
-        <span className="inline-flex rounded-full px-2.5 py-1 text-xs font-600" style={{ backgroundColor: t.bg, color: t.fg }}>
+        <span className="plan-tag inline-flex rounded-full px-2.5 py-1 text-xs font-600" style={planTagStyle(hex)}>
           Preview
         </span>
       </div>
@@ -438,7 +437,7 @@ function DashboardWidgetPicker({ picked, onChange }) {
               <h4 className="text-sm font-600">{g.label}</h4>
               <button
                 type="button" onClick={() => setSection(g, !on)}
-                className="text-xs text-[var(--ad-primary)] hover:underline"
+                className="text-xs text-[var(--ad-primary-ink)] hover:underline"
               >
                 {on ? "Clear" : "Select all"}
               </button>
@@ -552,7 +551,7 @@ function CategoryRows({ rows, onChange }) {
             {/* Shown, not typed — the same rule the package total follows. */}
             <span className="px-1 text-sm text-[var(--ad-muted-foreground)]">{total.toLocaleString()}</span>
             <button type="button" onClick={() => remove(i)} aria-label={`Remove category ${i + 1}`}
-              className="px-1 text-[var(--ad-muted-foreground)] hover:text-[var(--ad-destructive)]">×</button>
+              className="px-1 text-[var(--ad-muted-foreground)] hover:text-[var(--ad-destructive-ink)]">×</button>
           </div>
         );
       })}

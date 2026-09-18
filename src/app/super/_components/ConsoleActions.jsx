@@ -210,7 +210,7 @@ export default function ConsoleActions({ admin }) {
           <div className="flex items-center justify-between border-b px-4 py-3" style={{ borderColor: "var(--ad-border)" }}>
             <span className="text-sm font-600">Notifications</span>
             {unread ? (
-              <button type="button" onClick={markAllRead} className="text-xs text-[var(--ad-primary)] hover:underline">
+              <button type="button" onClick={markAllRead} className="text-xs text-[var(--ad-primary-ink)] hover:underline">
                 Mark all read
               </button>
             ) : null}
@@ -250,7 +250,7 @@ export default function ConsoleActions({ admin }) {
           </ul>
           <Link
             href={ALL_NOTIFICATIONS}
-            className="block border-t px-4 py-3 text-center text-sm font-500 text-[var(--ad-primary)]"
+            className="block border-t px-4 py-3 text-center text-sm font-500 text-[var(--ad-primary-ink)]"
             style={{ borderColor: "var(--ad-border)" }}
           >
             View all notifications
@@ -291,7 +291,7 @@ export default function ConsoleActions({ admin }) {
             </Link>
           </div>
           <div className="border-t py-1" style={{ borderColor: "var(--ad-border)" }}>
-            <button type="button" onClick={signOut} className={menuItem} style={{ color: "var(--ad-destructive)" }}>
+            <button type="button" onClick={signOut} className={menuItem} style={{ color: "var(--ad-destructive-ink)" }}>
               <Icon name="logout" className="h-4 w-4" /> Sign out
             </button>
           </div>

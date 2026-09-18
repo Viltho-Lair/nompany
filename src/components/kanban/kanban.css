@@ -330,13 +330,13 @@
   background: transparent;
 }
 .kanban-root *::-webkit-scrollbar-thumb {
-  background-color: hsl(var(--muted-foreground) / 0.25);
+  background-color: var(--scrollbar-thumb, #8b8b96);
   border-radius: 999px;
   border: 2px solid transparent;
   background-clip: content-box;
 }
 .kanban-root *::-webkit-scrollbar-thumb:hover {
-  background-color: hsl(var(--muted-foreground) / 0.45);
+  background-color: var(--scrollbar-thumb-hover, #a3a3ad);
 }
 
 /* -------------------------------------------------------------------------- */

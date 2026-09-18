@@ -64,13 +64,16 @@ export default function GlobalDistribution() {
       <div className="mb-1 flex items-center justify-between">
         <span className="text-xs text-[var(--ad-muted-foreground)]">Visits by continent · last 30 days</span>
       </div>
+      {/* Each figure takes its series colour as INK — the raw chart colour is a
+          fill, and as text on a dark card it measured 3.98:1. Same mix as the
+          console's --ad-*-ink tokens. */}
       <div className="grid gap-6 sm:grid-cols-4">
         {columns.map((c) => (
           <div key={c.name}>
             {loading ? (
               <Skeleton className="h-6 w-20 rounded-md" />
             ) : (
-              <p className="num text-xl font-700" style={{ color: c.color }}>
+              <p className="num text-xl font-700" style={{ color: `color-mix(in oklab, ${c.color} 65%, var(--ad-foreground))` }}>
                 {fmt(c.visits)}
               </p>
             )}
