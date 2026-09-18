@@ -39,7 +39,7 @@ type Strings = {
 
 const EN_DEPARTMENTS: Record<string, string> = {
   company: "Company and legal", finance: "Finance and tax", hr: "People and payroll",
-  sales: "Sales and invoicing", logistics: "Logistics and fleet",
+  invoicing: "Sales and invoicing", logistics: "Logistics and fleet",
 };
 const EN_REQUIRED: Record<string, string> = {
   mandatory: "Required", conditional: "If it applies", optional: "Optional",
@@ -82,7 +82,7 @@ const en: Strings = {
 // HAND-WRITTEN. NO DIACRITICS.
 const AR_DEPARTMENTS: Record<string, string> = {
   company: "الشركة والشؤون القانونية", finance: "المالية والضرائب", hr: "الموظفون والرواتب",
-  sales: "المبيعات والفوترة", logistics: "الخدمات اللوجستية والأسطول",
+  invoicing: "المبيعات والفوترة", logistics: "الخدمات اللوجستية والأسطول",
 };
 const AR_REQUIRED: Record<string, string> = {
   mandatory: "مطلوب", conditional: "عند الانطباق", optional: "اختياري",

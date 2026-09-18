@@ -723,6 +723,7 @@ const AR_FIELD_LABELS: Record<string, string> = {
   "company.city": "المدينة",
   "company.logo": "شعار الشركة",
   "company.legal": "المعلومات القانونية",
+  "company.official": "بيانات التسجيل الرسمية",
   "document.code": "رمز الوثيقة",
   "document.title": "العنوان",
   "document.revision": "المراجعة",

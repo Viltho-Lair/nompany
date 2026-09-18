@@ -24,6 +24,7 @@ import { NODES, pathBetween, MANY } from "@/platform/relations";
 // (shared/studio/insights.ts) — a second, un-updated copy here is exactly how
 // this file would have drifted the moment the map above changed again.
 import { departmentOf } from "@/shared/studio/insights";
+import { OFFICIAL_BLOCK_KEY, officialFieldChoices } from "@/shared/compliance/printing";
 
 // ---- subjects ---------------------------------------------------------------
 //
@@ -89,6 +90,8 @@ export type MergeField = {
   via?: string;
   /** A studio's own legal row, keyed by a slug of its label. */
   legal?: boolean;
+  /** One of the country's official values (shared/compliance), `official.<key>`. */
+  official?: boolean;
 };
 
 const SALES_TICKET = [
@@ -132,6 +135,11 @@ const ALWAYS = [
   // wants the lot without the author placing each row, and that picks up a row
   // the studio adds later. The rows one by one are offered beside it.
   { key: "company.legal", label: "Legal information", group: "Company", subject: null, kind: "scalar" },
+  // EVERY OFFICIAL VALUE THIS KIND OF DOCUMENT PRINTS, one "Label: value" each —
+  // the country file decides which (`showOn`), the resolver decides whether
+  // each is filled and applies. A letterhead places this once, and a Saudi
+  // invoice gets its VAT and CR numbers while a US one gets neither.
+  { key: OFFICIAL_BLOCK_KEY, label: "Official registration details", group: "Company", subject: null, kind: "scalar" },
   { key: "document.code", label: "Document code", group: "Document", subject: null, kind: "scalar" },
   { key: "document.title", label: "Title", group: "Document", subject: null, kind: "scalar" },
   { key: "document.revision", label: "Revision", group: "Document", subject: null, kind: "scalar" },
@@ -167,6 +175,16 @@ const STATIC_KEY_SET = new Set(STATIC_FIELDS.map((f) => f.key));
 // allow a set nobody can enumerate in advance.
 export const LEGAL_PREFIX = "legal.";
 const LEGAL_KEY = /^legal\.[a-z0-9][a-z0-9-]{0,48}$/;
+// BY SHAPE TOO, not by the current country's list: a layout written in one
+// country keeps its official placeholders across a switch, and they print as
+// nothing until the new country defines them (shared/compliance/printing).
+const OFFICIAL_KEY = /^official\.[a-z0-9][a-z0-9_]{0,63}$/;
+
+/** The current country's official values as picker entries, under Company. */
+export const officialFieldsFor = (studio: unknown): MergeField[] =>
+  officialFieldChoices(studio as { country?: unknown }).map((f) => ({
+    ...f, group: "Company", subject: null, kind: "scalar", official: true,
+  }));
 
 // A studio's label ("VAT Number") becomes a stable key ("legal.vat-number"), so
 // renaming the label does not orphan every document that pointed at it.
@@ -196,7 +214,7 @@ export const legalFieldsFrom = (legalInfo: unknown): MergeField[] =>
 // dropped rather than stored and rendered as a gap later.
 export function isFieldKey(key: string) {
   const k = String(key || "");
-  return STATIC_KEY_SET.has(k) || LEGAL_KEY.test(k);
+  return STATIC_KEY_SET.has(k) || LEGAL_KEY.test(k) || OFFICIAL_KEY.test(k);
 }
 
 export const fieldByKey = (key: string) => STATIC_FIELDS.find((f) => f.key === key) || null;
@@ -258,20 +276,23 @@ export function reachOf(
 export function availableFields({
   subjectType = null,
   legalInfo = [],
+  official = [],
   hasLogo = false,
   holds = () => true,
 }: {
   subjectType?: string | null;
   legalInfo?: unknown[];
+  official?: MergeField[];
   hasLogo?: boolean;
   holds?: (permission: string) => boolean;
 }) {
   const legal = legalFieldsFrom(legalInfo);
-  return [...STATIC_FIELDS, ...legal].filter((f) => {
+  return [...STATIC_FIELDS, ...official, ...legal].filter((f) => {
     // Offered only when there is something to print: a logo field on a studio
     // with no logo, or a legal block on one with no legal rows, is a blank.
     if (f.key === "company.logo") return hasLogo;
     if (f.key === "company.legal") return legal.length > 0;
+    if (f.key === OFFICIAL_BLOCK_KEY) return official.length > 0;
     if (!f.subject) return true;
     if (!subjectType) return false;
     return Boolean(reachOf(subjectType, f.subject, holds));

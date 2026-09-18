@@ -18,9 +18,16 @@
 // reported. One that resolved to an empty value prints a dash. Those are two
 // different facts — "we could not read this" and "this is blank" — and a gap
 // cannot say which.
+//
+// EXCEPT AN OFFICIAL VALUE, which prints NOTHING when empty — the owner's rule
+// (shared/compliance/printing): a VAT number that does not apply is no line at
+// all, not "VAT number: —". And a paragraph that held nothing but empty
+// official values goes with them, so a letterhead does not grow a blank line
+// for every number the Studio's country does not ask for.
 
 import { FIELD_NODE, BLOCK_NODE, FIELD_IMAGE_NODE, IMAGE_FIELD_KEYS } from "./qualityFields";
 import { currencyDecimals } from "@/shared/money";
+import { isOfficialMergeKey } from "@/shared/compliance/printing";
 
 type Json = {
   type?: string;
@@ -177,6 +184,7 @@ export function fillTemplate(
       // A PICTURE, inline so it sits in the paragraph the placeholder was in —
       // header bands hold paragraphs, not block images. No logo prints nothing:
       // a dash where a logo belongs reads as a mistake in the letterhead.
+      if (isOfficialMergeKey(key) && !String(values[key] ?? "").trim()) return [];
       if (IMAGE_FIELD_KEYS.has(key)) {
         return values[key] ? [{ type: FIELD_IMAGE_NODE, attrs: { src: values[key] } }] : [];
       }
@@ -187,7 +195,11 @@ export function fillTemplate(
       return blockNodes(key, String(node.attrs?.label || key), blocks[key] as BlockValue | undefined, words, currency, missing);
     }
     if (!Array.isArray(node.content)) return [node];
-    return [{ ...node, content: node.content.flatMap(fill) }];
+    const content = node.content.flatMap(fill);
+    const onlyOfficial = node.type === "paragraph" && content.length === 0
+      && node.content.some((c) => c.type === FIELD_NODE && isOfficialMergeKey(String(c.attrs?.key ?? "")));
+    if (onlyOfficial) return [];
+    return [{ ...node, content }];
   };
 
   const root = (doc && typeof doc === "object" ? doc : { type: "doc", content: [] }) as Json;

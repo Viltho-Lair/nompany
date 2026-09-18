@@ -6,6 +6,7 @@
 
 import { useMemo, useState } from "react";
 import Barcode from "@/components/studio2/Barcode";
+import { useStudioLocale } from "@/components/studio2/locale";
 import { money, fmtDate, fmtDateTime, btnRow } from "@/components/studio2/ui";
 import { PERIODS, periodRange } from "@/modules/sales/posReports";
 
@@ -21,13 +22,18 @@ export const PRINT_CSS = `@media print {
 // THE SLIP, laid out for an 80 mm printer. It prints what the server stored —
 // never the basket — so a reprint reads exactly as the first.
 export function Receipt({ tr, receipt, studio, terms, tillName }) {
+  const locale = useStudioLocale();
   const cur = receipt.currency;
   const line = "flex justify-between gap-2";
   return (
     <div className="pos-print mx-auto max-w-[300px] bg-white p-3 font-mono text-[12px] leading-snug text-black">
       <div className="text-center">
         <p className="text-[14px] font-bold">{studio.name}</p>
-        {studio.legal.map((r) => <p key={r.key}>{r.key}: {r.value}</p>)}
+        {/* The country's official values first (the server sends only what
+            is selected, filled and applies), then the Studio's own legal rows,
+            already cleared of any that repeat one. */}
+        {(studio.official || []).map((p) => <p key={p.key}>{(locale === "ar" && p.label.ar) || p.label.en}: {p.value}</p>)}
+        {(studio.legal || []).map((r) => <p key={r.key}>{r.key}: {r.value}</p>)}
         <p className="mt-1">{tr.receipt} {receipt.number}</p>
         <p>{fmtDateTime(receipt.at)}</p>
         {tillName && <p>{tr.till}: {tillName}</p>}

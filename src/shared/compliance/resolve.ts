@@ -37,10 +37,15 @@ export type ResolveOptions = {
   sectionOn?: (sectionKey: string) => boolean;
 };
 
-type StudioLike = { country?: unknown; officialValues?: unknown; vatRate?: unknown } | null | undefined;
+// ANY STUDIO-SHAPED VALUE, the way `studioVatRate` takes one: a module
+// context's `StudioRef`, a raw row and a test's literal all pass, and only the
+// three fields below are ever read.
+type StudioFields = { country?: unknown; officialValues?: unknown; vatRate?: unknown };
+type StudioLike = unknown;
+const countryOf = (studio: StudioLike) => (studio as StudioFields | null | undefined)?.country;
 
 const storedOf = (studio: StudioLike): Record<string, unknown> => {
-  const v = studio?.officialValues;
+  const v = (studio as StudioFields | null | undefined)?.officialValues;
   return v && typeof v === "object" ? (v as Record<string, unknown>) : {};
 };
 
@@ -61,7 +66,7 @@ export function isApplicable(studio: StudioLike, field: OfficialField, opts: Res
  * the number the authority issued.
  */
 export function official(studio: StudioLike, key: string, opts: ResolveOptions = {}): string {
-  const def = definitionFor(studio?.country);
+  const def = definitionFor(countryOf(studio));
   if (!def) return "";
   const field = def.fields.find((f) => f.key === key);
   if (!field) return "";
@@ -90,7 +95,7 @@ export type PrintedValue = { key: string; label: { en: string; ar: string }; val
  * neither because US.json does not.
  */
 export function officialForDocument(studio: StudioLike, kind: DocumentKind, opts: ResolveOptions = {}): PrintedValue[] {
-  const def = definitionFor(studio?.country);
+  const def = definitionFor(countryOf(studio));
   if (!def) return [];
   return def.fields
     .filter((f) => (f.showOn || []).includes(kind))
@@ -104,7 +109,7 @@ export function officialForDocument(studio: StudioLike, kind: DocumentKind, opts
  * filled and render nothing for it when it is not.
  */
 export function officialValuesFor(studio: StudioLike, opts: ResolveOptions = {}): Record<string, string> {
-  const def = definitionFor(studio?.country);
+  const def = definitionFor(countryOf(studio));
   if (!def) return {};
   return Object.fromEntries(def.fields.map((f) => [f.key, official(studio, f.key, opts)]));
 }

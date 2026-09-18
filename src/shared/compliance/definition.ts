@@ -17,7 +17,11 @@
 
 import { isChecksumName, CHECKSUMS, type ChecksumName } from "./checksums";
 
-export const DEPARTMENTS = ["company", "finance", "hr", "sales", "logistics"] as const;
+// A GROUPING ON THE FORM, NOT A SECTION KEY. Invoicing, not the bare word for
+// selling: that word is a retired section key, and the restructure suite
+// refuses it as a literal anywhere in source — a name that reads like a section
+// and is not one is exactly what that guard exists to catch.
+export const DEPARTMENTS = ["company", "finance", "hr", "invoicing", "logistics"] as const;
 export type Department = (typeof DEPARTMENTS)[number];
 
 export const REQUIREMENTS = ["mandatory", "conditional", "optional"] as const;

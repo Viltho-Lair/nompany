@@ -178,11 +178,71 @@ ok("...even with a Saudi value somehow stored",
 ok("...while a US contract carries its state of formation",
   officialForDocument(us, "contract").map((p) => p.key).join(",") === "state_of_formation,state_entity_number");
 
+// ---- printed: the same two invoices, through the real layout and the real fill ---
+// SLICE B. What a client actually receives: the starter invoice layout a Studio
+// is offered, filled by the same `fillTemplate` the print route runs, with the
+// merge values `mergeValuesFor` adds for the official fields. Asserted on the
+// printed TEXT, because that is what a tax inspector reads.
+{
+  const L = await import("@/modules/quality/layouts");
+  const { fillTemplate } = await import("@/modules/quality/fill");
+  const { documentsDict } = await import("@/shared/studio/documents");
+  const P = await import("@/shared/compliance/printing");
+
+  const words = (lang) => ({ ...documentsDict(lang).starter, title: documentsDict(lang).kindTitle("invoice") });
+  const textOf = (node) => (node?.text || "") + (node?.content || []).map(textOf).join("\n");
+  const print = (studio, lang = "en", legalInfo = []) => {
+    const layout = L.starterLayout("invoice", words(lang), legalInfo);
+    const values = { "company.name": "Example Co", ...P.officialMergeValues(studio, "invoice", lang, {}) };
+    // As mergeValuesFor builds it: the legal rows, less any repeating an official value.
+    values["company.legal"] = P.legalRowsBeside(legalInfo, officialForDocument(studio, "invoice"))
+      .map((r) => `${r.key}: ${r.value}`).join(" · ");
+    const out = fillTemplate(JSON.parse(layout.header), values, {}, { columns: {}, totals: {}, vatAt: () => "", taxableAt: () => "", rtl: lang === "ar" });
+    return { text: textOf(out.doc), missing: out.missing, doc: out.doc };
+  };
+
+  const saPrinted = print(sa);
+  ok("A SAUDI INVOICE PRINTS ITS VAT NUMBER", saPrinted.text.includes("300012345678903"), saPrinted.text);
+  ok("...its CR number and Arabic legal name", saPrinted.text.includes("7001234567") && saPrinted.text.includes("شركة المثال"));
+  ok("...labelled in the document's language",
+    print(sa, "ar").text.includes(field("SA", "vat_registration_number").label.ar));
+  ok("...and nothing it did not fill — no empty label, no dash", !/: —|: ·|: $|\[/m.test(saPrinted.text), saPrinted.text);
+  ok("...with no placeholder left unresolved", saPrinted.missing.length === 0, saPrinted.missing.join(","));
+
+  const usPrinted = print(us);
+  ok("A US INVOICE PRINTS NONE OF IT", !usPrinted.text.includes("300012345678903") && !usPrinted.text.includes("7001234567"));
+  ok("...and its letterhead is the company name alone, not a blank line per missing number",
+    usPrinted.text.trim() === "Example Co" && usPrinted.doc.content.length === 1, JSON.stringify(usPrinted.doc.content.length));
+  ok("...still with no placeholder left unresolved", usPrinted.missing.length === 0, usPrinted.missing.join(","));
+
+  // A LAYOUT WRITTEN IN ONE COUNTRY, PRINTED IN ANOTHER: a Saudi-only field
+  // placed on its own still resolves — to nothing — rather than printing its
+  // bracketed name on a UK invoice.
+  const placed = { type: "doc", content: [{ type: "paragraph", content: [{ type: "mergeField", attrs: { key: "official.zakat_tin", label: "Zakat TIN" } }] }] };
+  const inGB = fillTemplate(placed, P.officialMergeValues(switchedToGB, "invoice", "en", {}), {}, { columns: {}, totals: {}, vatAt: () => "", taxableAt: () => "", rtl: false });
+  ok("a Saudi-only placeholder printed in the UK is empty, not '[Zakat TIN]'",
+    inGB.missing.length === 0 && textOf(inGB.doc) === "", textOf(inGB.doc));
+
+  // NOTHING PRINTS TWICE: a VAT number typed into Legal information before the
+  // country's fields existed is dropped where the official one prints…
+  const legal = [{ key: "VAT No.", value: "300 0123 4567 8903" }, { key: "Bank", value: "IBAN SA00 0000" }];
+  const both = print(sa, "en", legal);
+  ok("A VAT NUMBER IN BOTH PLACES PRINTS ONCE", both.text.split(/3000\s?1234\s?5678\s?903|300 0123 4567 8903/).length - 1 === 1, both.text);
+  ok("...while a legal row with nothing official beside it still prints", both.text.includes("Bank: IBAN SA00 0000"));
+  // …and kept where it does not: no VAT rate, so no official VAT number.
+  ok("...and the legal row is kept when the official one does not apply",
+    print({ ...sa, vatRate: "" }, "en", legal).text.includes("VAT No.: 300 0123 4567 8903"));
+
+  // THE RECEIPT reads the same resolver for its own kind.
+  ok("a Saudi receipt carries the VAT number", officialForDocument(sa, "receipt").some((p) => p.value === "300012345678903"));
+  ok("...and a US receipt carries nothing", officialForDocument(us, "receipt").length === 0);
+}
+
 // ---- no country's rules in shared code -------------------------------------------
 // The constraint the package was built under. A two-letter country code as a
 // string literal in the shared modules is the first sign of a rule written into
 // code instead of into a definition.
-const sharedFiles = ["checksums.ts", "definition.ts", "resolve.ts", "countries/index.ts"]
+const sharedFiles = ["checksums.ts", "definition.ts", "resolve.ts", "printing.ts", "countries/index.ts"]
   .map((f) => [f, readFileSync(`src/shared/compliance/${f}`, "utf8")]);
 const literal = /["'`](SA|AE|JO|EG|US|GB|DE)["'`]/;
 for (const [name, text] of sharedFiles) {

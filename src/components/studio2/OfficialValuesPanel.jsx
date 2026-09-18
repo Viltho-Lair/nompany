@@ -22,7 +22,7 @@ import { valueProblem } from "@/shared/compliance/definition";
 // this section on the next load, and a value typed into a field both countries
 // share is still there.
 
-const DEPARTMENT_ORDER = ["company", "finance", "hr", "sales", "logistics"];
+const DEPARTMENT_ORDER = ["company", "finance", "hr", "invoicing", "logistics"];
 
 // MOUNTED WITH `key={country}` BY THE PARENT, so changing the country on the
 // row above remounts this section and it reads the new country's fields. That is

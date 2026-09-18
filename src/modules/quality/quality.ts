@@ -34,8 +34,12 @@ import { departmentsAsStored } from "@/modules/administration/departments";
 import { NODES, traverse } from "@/platform/relations";
 import {
   STATIC_FIELDS, BLOCK_SOURCES, availableFields, availableBlocks, groupFields,
-  legalKeyFor, subjectById, SUBJECTS, reachOf,
+  legalKeyFor, subjectById, SUBJECTS, reachOf, officialFieldsFor,
 } from "./qualityFields";
+import { officialMergeValues, legalRowsBeside } from "@/shared/compliance/printing";
+import { officialForDocument } from "@/shared/compliance/resolve";
+import type { DocumentKind as OfficialDocumentKind } from "@/shared/compliance/definition";
+import { switchboard } from "@/lib/dashboardWidgets";
 import type { QualityContext, QualityDocument } from "./types";
 import type { MergeField } from "./qualityFields";
 import { netUnitPrice, discountPct } from "@/modules/technical/quotations";
@@ -182,7 +186,7 @@ async function subjectRecord(ctx: QualityContext, document: QualityDocument | nu
 export async function mergeValuesFor(
   ctx: QualityContext,
   document: QualityDocument,
-  { rev = null }: { rev?: number | null } = {},
+  { rev = null, language = "en" }: { rev?: number | null; language?: string } = {},
 ) {
   const [people, departments] = await Promise.all([
     listCollaborators(ctx.studio.id),
@@ -216,13 +220,29 @@ export async function mergeValuesFor(
   const legalRows = (Array.isArray(ctx.studio.legalInfo)
     ? ctx.studio.legalInfo
     : []) as { key?: unknown; value?: unknown }[];
-  const legalLines: string[] = [];
   for (const row of legalRows) {
     if (!row?.key) continue;
     values[legalKeyFor(row.key)] = String(row.value ?? "");
-    if (String(row.value ?? "").trim()) legalLines.push(`${String(row.key)}: ${String(row.value)}`);
   }
-  values["company.legal"] = legalLines.join(" · ");
+
+  // THE COUNTRY'S OFFICIAL VALUES (shared/compliance). Which ones this document
+  // prints is its kind's — a quotation is a "quote" to the country files, and
+  // anything that is not a customer document prints what a letter would.
+  // Section switches are the Studio's own, so a fleet licence prints only while
+  // Logistics & Fleet is on.
+  const officialKind: OfficialDocumentKind =
+    document.subjectType === "invoice" ? "invoice" : document.subjectType === "quotation" ? "quote" : "letter";
+  const locale = language === "ar" ? "ar" : "en";
+  const resolveOpts = { sectionOn: switchboard(ctx.sections) };
+  Object.assign(values, officialMergeValues(ctx.studio, officialKind, locale, resolveOpts));
+
+  // THE LEGAL ROWS ALL AT ONCE, less any that repeat an official value printing
+  // on this same document — a VAT number typed into Legal information before
+  // the country's fields existed must not print twice. The rows one by one
+  // (`legal.*`) are untouched: an author who placed one asked for it.
+  values["company.legal"] = legalRowsBeside(legalRows, officialForDocument(ctx.studio, officialKind, resolveOpts))
+    .map((row) => `${String(row.key)}: ${String(row.value)}`)
+    .join(" · ");
 
   // And every department field this document can REACH — its own record's, and
   // anything a declared path leads to. A cover letter held at a quotation
@@ -389,6 +409,7 @@ export function fieldsFor(ctx: QualityContext, document: QualityDocument | null 
   const fields = availableFields({
     subjectType: document?.subjectType || null,
     legalInfo: ctx.studio.legalInfo as unknown[],
+    official: officialFieldsFor(ctx.studio),
     hasLogo: Boolean(ctx.studio.logo),
     holds,
   }).map((f) => ({ ...f, kind: "field" }));

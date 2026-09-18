@@ -47,9 +47,12 @@ an issued document with no revision open, exactly as the body is.
 **Insert field** (the editor's toolbar) lists what the server says this author may place on
 this document, grouped: Company — name, address, city, country, **the studio's logo** (offered
 only while one is uploaded, and printed as the picture, capped at 3.5rem high; a logo removed
-later prints nothing where it was), **Legal information** (every legal row as
-"Label: value", joined, offered once the studio has any) and each legal row on its own, as
-typed — the document itself, and — once bound — the quotation's or invoice's own fields. A *block* is a
+later prints nothing where it was), **Official registration details** (every official value
+the country's file marks for this kind of document, as "Label: value", joined —
+`official-values.md`), each official value on its own (`official.<key>`), **Legal
+information** (every legal row as "Label: value", joined, offered once the studio has any, and
+**less any row repeating an official value on the same document**, so a VAT number typed in
+both places prints once) and each legal row on its own, as typed — the document itself, and — once bound — the quotation's or invoice's own fields. A *block* is a
 field that resolves to rows: a quotation's tables and totals, an invoice's lines and totals.
 Blocks go in the body only; the header and footer take inline fields, which is where a
 letterhead's company name and VAT number belong.
@@ -133,7 +136,9 @@ the browser's Save as PDF produces exactly what is drawn, Arabic shaped by the b
 
 **A studio with no layout** is told so, with *Create a starter layout* for somebody who may
 create register documents: a draft bound to the type, in the chosen language, with a
-letterhead carrying the company name and **its legal rows as placeholders**, the record's
+letterhead carrying the company name, **the official registration details** and **the legal
+rows as one composite** (a line each until 18/09/2026 — a row placed on its own cannot drop
+itself when it repeats an official number), the record's
 number, date, client and expiry or due date, the lines and totals, and a terms section. It is
 still a draft — edited, published and chosen before anything prints from it.
 `tests/customer-documents.mjs` asserts every starter passes the save-time allowlist.

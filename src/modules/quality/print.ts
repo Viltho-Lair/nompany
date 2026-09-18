@@ -95,7 +95,7 @@ export async function printDocument(
   // render only — exactly the use `subjectId` was always documented for.
   const bound = { ...template, subjectType: kind, subjectId: id } as QualityDocument;
   const [values, blocks] = await Promise.all([
-    mergeValuesFor(ctx, bound, { rev: Number(issued.rev) || null }),
+    mergeValuesFor(ctx, bound, { rev: Number(issued.rev) || null, language }),
     resolveBlocks(ctx, bound),
   ]);
   // A found record always yields its status (present, perhaps empty); a record

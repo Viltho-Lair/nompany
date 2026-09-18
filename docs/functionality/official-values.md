@@ -69,6 +69,33 @@ beside it for anything a country file does not name.
   `tests/official-values-model.mjs` asserts that no country-code literal appears in the
   shared compliance code.
 
+## What prints them
+
+- **Quotations and invoices** print through the studio's published layout
+  (`customer-documents.md`). `mergeValuesFor` adds every `official.<key>` any country
+  defines — empty unless this Studio's country defines it and it resolves — and
+  `company.official`, the lines the country's file marks for that kind (`quote` or
+  `invoice`; any other document prints what a `letter` would), labelled in the language
+  the document prints in. Section switches are the Studio's own, so a fleet licence prints
+  only while Logistics & Fleet is on.
+- **An empty official value prints nothing** — no dash, no bracketed name — and a paragraph
+  holding only empty official values is dropped with them (`fill.ts`). Every other field
+  still prints a dash when blank; this rule is the owner's for official values alone.
+- **A layout written in one country keeps working in another.** Its `official.*`
+  placeholders are accepted by shape and resolve to nothing when the new country does not
+  define them.
+- **The starter letterhead** places `company.official` and, when the studio has legal rows,
+  `company.legal` — not a line per legal row.
+- **Nothing prints twice.** The `company.legal` composite and the receipt's legal rows drop
+  any row whose value is the same number (letters and digits compared) as an official value
+  printing on the same document. A row placed on its own (`legal.<label>`) is untouched —
+  an author who placed it asked for it.
+- **The POS receipt** (`pos.md`) prints the official values marked `receipt`, then the
+  remaining legal rows, on the till's slip and on every reprint.
+- `tests/official-values-model.mjs` prints the starter invoice for a Saudi studio and a US
+  one through the real fill and asserts the text: the Saudi one carries its VAT, CR and
+  Arabic name, the US one only its company name.
+
 ## How to add a country
 
 1. Write `src/shared/compliance/countries/<ISO-3166 alpha-2>.json` with the shape of an
@@ -87,11 +114,18 @@ fields are there.
 
 ## Not built yet
 
-- **No document prints these values yet.** Invoices, quotes, sales orders and POS receipts
-  (slice B), and payslips, HR letters and the documentation system's `company.*` merge
-  fields (slice C), still read `legalInfo` and the Studio's own fields. They move to the
-  resolver in those slices, which also decide how a value is kept from printing twice
-  when it is also in `legalInfo`.
+- **Payslips and HR letters do not print them yet** (slice C). Neither has a layout of its
+  own yet.
+- **Sales orders are not printed at all** — there is no print view for one — so there is
+  nothing for the official values to appear on.
+- **An existing layout does not gain them by itself.** A studio's published quotation or
+  invoice layout prints official values only once somebody places
+  *Official registration details* on it; only a new starter carries it already. Its legal
+  rows placed one by one keep printing as they did, duplicates included.
+- **The picker labels individual official fields in English**, in both languages; the
+  composite line prints in the document's language.
+- **No ZATCA QR or e-invoice XML.** The values are ready for them; the QR waits on the
+  open decision in `progress.md`.
 - **Department rules still live in code.** `taxProfile.ts`, the employment pack,
   `COUNTRY_PRESETS` and the WPS employer id have not moved onto the definitions yet
   (slice D). So the UAE's MoHRE/WPS employer id is deliberately absent from `AE.json`
@@ -103,5 +137,8 @@ fields are there.
   on the owner's decision.
 - **No expiry reminders.** The UAE trade-licence expiry is stored as a date and nothing
   reads it yet.
-- **Not yet opened in the sandbox.** The panel was built and its checks pass, but the
-  screen has not been looked at in a browser.
+- **A printed quotation or invoice has not been opened in the sandbox.** The panel was
+  (18/09/2026: Saudi fields, live refusal of a bad VAT number, a save normalising
+  spaces, the history naming the Owner, the VAT note once the rate was cleared), and so was
+  the till's receipt heading through its API, dedupe included. A layout printed end to
+  end is asserted by the model test only.

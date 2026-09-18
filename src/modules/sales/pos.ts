@@ -48,6 +48,8 @@ import { clientSlug } from "./salesClients";
 import { refundsByShift } from "./posReturns";
 import { normalizePhone, maskPhone } from "@/shared/phone";
 import { studioLocale } from "@/shared/locale";
+import { officialForDocument } from "@/shared/compliance/resolve";
+import { legalRowsBeside } from "@/shared/compliance/printing";
 import { phoneLookupKey, phoneLookupKeys } from "@/platform/db/lookupKeys";
 
 export type PosTerminal = { id: string; name: string; active: boolean; createdAt?: string };
@@ -172,18 +174,13 @@ export async function posView(ctx: PosContext) {
     Shifts.find(scope(ctx), { where: { status: "Open" } }),
     ctx.itemsSection ? Items.find({ studio: ctx.studio, section: ctx.itemsSection }) : Promise.resolve([]),
   ]);
-  const legal = Array.isArray(ctx.studio.legalInfo) ? ctx.studio.legalInfo as { key?: unknown; value?: unknown }[] : [];
 
   return {
     terms: tillTerms(ctx),
     studio: {
       name: String(ctx.studio.name || ""),
       logo: String(ctx.studio.logo || ""),
-      // The legal rows the studio prints on its documents — its VAT number
-      // among them — carried onto the receipt the same way.
-      legal: legal
-        .map((r) => ({ key: String(r.key ?? ""), value: String(r.value ?? "") }))
-        .filter((r) => r.key && r.value.trim()),
+      ...receiptHeading(ctx),
     },
     terminals,
     openShifts: shifts,
@@ -652,6 +649,25 @@ export async function salesList(ctx: PosContext, raw: Record<string, unknown> | 
   };
 }
 
+/**
+ * WHAT THE TOP OF A RECEIPT SAYS ABOUT THE STUDIO, for the till and for a
+ * reprint alike. First the country's OFFICIAL VALUES that a receipt prints
+ * (shared/compliance: the country file decides which, the resolver whether each
+ * is filled and applies — a Saudi receipt carries the VAT number once the
+ * Studio has a VAT rate, a US one carries none). Then the Studio's own Legal
+ * information rows, less any that repeat an official number, so a VAT number
+ * typed in both places prints once. Labels in both languages: the slip prints in
+ * the reader's.
+ */
+function receiptHeading(ctx: PosContext) {
+  const official = officialForDocument(ctx.studio, "receipt", { sectionOn: ctx.on });
+  const legal = legalRowsBeside(ctx.studio.legalInfo as { key?: unknown; value?: unknown }[] | undefined, official);
+  return {
+    official: official.map((p) => ({ key: p.key, label: p.label, value: p.value })),
+    legal: legal.map((r) => ({ key: String(r.key ?? ""), value: String(r.value ?? "") })),
+  };
+}
+
 /** One sale, as stored, with the names and the studio's heading for a reprint. */
 export async function receiptDetail(ctx: PosContext, id: string) {
   if (!can(ctx.access, "pos.sales.view") && !can(ctx.access, "crmSales.pos.view")) {
@@ -661,7 +677,6 @@ export async function receiptDetail(ctx: PosContext, id: string) {
   if (!receipt) return { error: "notfound" as const };
   const names = await namesFor(ctx);
   const shift = await Shifts.byId(scope(ctx), receipt.shiftId);
-  const legal = Array.isArray(ctx.studio.legalInfo) ? ctx.studio.legalInfo as { key?: unknown; value?: unknown }[] : [];
   return {
     receipt: {
       ...receipt,
@@ -672,7 +687,7 @@ export async function receiptDetail(ctx: PosContext, id: string) {
     terms: tillTerms(ctx),
     studio: {
       name: String(ctx.studio.name || ""),
-      legal: legal.map((r) => ({ key: String(r.key ?? ""), value: String(r.value ?? "") })).filter((r) => r.key && r.value.trim()),
+      ...receiptHeading(ctx),
     },
   };
 }

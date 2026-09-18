@@ -13,6 +13,7 @@
 // so there is never a second door free to store a layout nobody could print.
 
 import { BLOCK_NODE, FIELD_NODE, legalFieldsFrom } from "./qualityFields";
+import { OFFICIAL_BLOCK_KEY } from "@/shared/compliance/printing";
 
 export const DOCUMENT_KINDS = ["quotation", "invoice"] as const;
 export type DocumentKind = (typeof DOCUMENT_KINDS)[number];
@@ -94,9 +95,14 @@ const para = (...content: Json[]): Json => ({ type: "paragraph", content });
 const labelled = (label: string, key: string) => para(text(`${label}: `, true), field(key, label));
 
 /**
- * The starter's body and bands as stored JSON strings. `legalInfo` is the
- * studio's own rows, so the letterhead carries its VAT and CR numbers from the
- * first print — as placeholders, so a changed number reaches every document.
+ * The starter's body and bands as stored JSON strings. The letterhead carries
+ * the country's OFFICIAL VALUES (shared/compliance) — as one placeholder, so
+ * the country file decides which print on this kind of document, a changed
+ * number reaches every document, and a value that does not apply prints
+ * nothing. Then the Studio's own Legal information rows, as ONE composite
+ * rather than a line each: the composite drops a row that repeats an official
+ * value, which a row placed on its own cannot, so a VAT number typed in both
+ * places prints once.
  */
 export function starterLayout(kind: DocumentKind, w: StarterWords, legalInfo: unknown) {
   const body: Json[] = [{ type: "heading", attrs: { level: 1 }, content: [text(w.title)] }];
@@ -125,7 +131,8 @@ export function starterLayout(kind: DocumentKind, w: StarterWords, legalInfo: un
   }
 
   const header: Json[] = [para(field("company.name", "company.name", true))];
-  for (const legal of legalFieldsFrom(legalInfo)) header.push(labelled(legal.label, legal.key));
+  header.push(para(field(OFFICIAL_BLOCK_KEY, OFFICIAL_BLOCK_KEY)));
+  if (legalFieldsFrom(legalInfo).length) header.push(para(field("company.legal", "company.legal")));
   const footer: Json[] = [para(field("company.address", "company.address"), text(" · "), field("company.city", "company.city"))];
 
   return {
