@@ -22,6 +22,10 @@ export default function ReconciliationPanel({ slug, locale = "en" }) {
   const [problem, setProblem] = useState("");
   const [busy, setBusy] = useState(false);
   const [draft, setDraft] = useState({ date: "", description: "", amount: "" });
+  const [csv, setCsv] = useState("");
+  const [dateOrder, setDateOrder] = useState("dmy");
+  const [importNote, setImportNote] = useState("");
+  const [rule, setRule] = useState({ contains: "", accountId: "", direction: "any", memo: "" });
   // ONE MONEY ACCOUNT AT A TIME: a statement is one account's. Empty is the
   // bank (1010), which is what every statement before this was typed against.
   const [accountId, setAccountId] = useState("");
@@ -54,7 +58,12 @@ export default function ReconciliationPanel({ slug, locale = "en" }) {
   const {
     hasBank, bookBalance, statementBalance, difference, matched,
     onStatementOnly = [], inBooksOnly = [], suggestions = [], book = [], canMatch,
+    rules = [], ruleHits = {}, ruleAccounts = [],
   } = data;
+  const accountName = (id) => { const a = ruleAccounts.find((x) => x.id === id); return a ? `${a.code} ${a.name}` : ""; };
+  const ruleOf = (lineId) => rules.find((r) => r.id === ruleHits[lineId]);
+  // A RULE IS OFFERED only where no posting already answers the line.
+  const byRule = onStatementOnly.filter((l) => ruleOf(l.id) && !suggestions.some((s) => s.lineId === l.id));
 
   const suggestionFor = (lineId) => suggestions.find((s) => s.lineId === lineId);
   const entryOf = (id) => book.find((b) => b.entryId === id);
@@ -129,6 +138,13 @@ export default function ReconciliationPanel({ slug, locale = "en" }) {
                       {tr.matchWith(entry.memo, s.daysApart)}
                     </button>
                   )}
+                  {canMatch && !entry && ruleOf(l.id) && (
+                    <button className="rounded-lg border border-brand-300 px-2 py-1 text-xs font-600 text-brand-700 dark:border-brand-400/40 dark:text-brand-200"
+                      disabled={busy}
+                      onClick={() => send("POST", { action: "post-by-rules", accountId: data.accountId, lineIds: [l.id] })}>
+                      {tr.postByRule(accountName(ruleOf(l.id).accountId))}
+                    </button>
+                  )}
                   {canMatch && (
                     <button
                       className="rounded-lg px-2 py-1 text-xs text-slate-400 hover:text-rose-500"
@@ -144,6 +160,13 @@ export default function ReconciliationPanel({ slug, locale = "en" }) {
           </ul>
         )}
       </div>
+
+      {canMatch && byRule.length > 1 && (
+        <button className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-600 text-white disabled:opacity-50" disabled={busy}
+          onClick={() => send("POST", { action: "post-by-rules", accountId: data.accountId, lineIds: byRule.map((l) => l.id) })}>
+          {tr.applyAll(byRule.length)}
+        </button>
+      )}
 
       {/* ---- in the books, not on the statement --------------------------- */}
       <div>
@@ -165,6 +188,74 @@ export default function ReconciliationPanel({ slug, locale = "en" }) {
           </ul>
         )}
       </div>
+
+      {/* ---- import a statement ------------------------------------------ */}
+      {canMatch && (
+        <div className="space-y-2 rounded-xl border border-slate-200 p-4 dark:border-white/10">
+          <h4 className="font-display text-sm font-700 text-slate-900 dark:text-white">{tr.importTitle}</h4>
+          <p className="text-sm text-slate-500 dark:text-slate-400">{tr.importLead}</p>
+          <textarea className="h-28 w-full rounded-lg border border-slate-200 bg-white p-2 font-mono text-xs text-slate-800 dark:border-white/15 dark:bg-[#191921] dark:text-slate-100"
+            aria-label={tr.importPaste} placeholder={tr.importPaste} value={csv} onChange={(e) => setCsv(e.target.value)} />
+          <div className="flex flex-wrap items-end gap-2">
+            <input type="file" accept=".csv,text/csv,text/plain" aria-label={tr.importPaste} className="text-xs"
+              onChange={async (e) => { const f = e.target.files?.[0]; if (f) setCsv(await f.text()); }} />
+            <Field label={tr.dateOrder} as="select" required className="w-48" value={dateOrder} onChange={setDateOrder}
+              options={Object.entries(tr.dateOrders).map(([value, label]) => ({ value, label }))} />
+            <button className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-600 text-white disabled:opacity-50"
+              disabled={busy || !csv.trim()}
+              onClick={async () => {
+                setBusy(true); setProblem(""); setImportNote("");
+                const res = await fetch(`/api/studios/${slug}/finance/reconciliation`, {
+                  method: "POST", headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ action: "import", accountId: data.accountId, csv, dateOrder }),
+                });
+                const body = await res.json().catch(() => ({}));
+                setBusy(false);
+                if (!res.ok) { setProblem(body.detail || tr.problem(body.error)); return; }
+                setImportNote(tr.imported(body.imported, body.skipped, (body.refused || []).length));
+                setCsv("");
+                await load();
+              }}>
+              {tr.importButton}
+            </button>
+          </div>
+          {importNote && <p className="text-sm text-emerald-700 dark:text-emerald-300">{importNote}</p>}
+        </div>
+      )}
+
+      {/* ---- rules ------------------------------------------------------- */}
+      {canMatch && (
+        <div className="space-y-2 rounded-xl border border-slate-200 p-4 dark:border-white/10">
+          <h4 className="font-display text-sm font-700 text-slate-900 dark:text-white">{tr.rulesTitle}</h4>
+          <p className="text-sm text-slate-500 dark:text-slate-400">{tr.rulesLead}</p>
+          {rules.length === 0 ? <p className="text-sm text-slate-400">{tr.noRules}</p> : (
+            <ul className="space-y-1">
+              {rules.map((r) => (
+                <li key={r.id} className="flex flex-wrap items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+                  <span className="font-mono text-xs">“{r.contains}”</span>
+                  <span>→ {accountName(r.accountId)}</span>
+                  <span className="text-xs text-slate-400">{tr.directions[r.direction] || r.direction}</span>
+                  <button className="ms-auto rounded-lg px-2 py-1 text-xs text-slate-400 hover:text-rose-500" disabled={busy}
+                    onClick={() => send("POST", { action: "rule-remove", id: r.id })}>{tr.remove}</button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="flex flex-wrap items-end gap-2">
+            <Field label={tr.contains} className="w-48" value={rule.contains} onChange={(v) => setRule({ ...rule, contains: v })} />
+            <Field label={tr.postTo} as="select" className="w-56" value={rule.accountId} onChange={(v) => setRule({ ...rule, accountId: v })}
+              options={ruleAccounts.map((a) => ({ value: a.id, label: `${a.code} ${a.name}` }))} />
+            <Field label={tr.direction} as="select" required className="w-44" value={rule.direction} onChange={(v) => setRule({ ...rule, direction: v })}
+              options={Object.entries(tr.directions).map(([value, label]) => ({ value, label }))} />
+            <Field label={tr.memo} className="w-48" value={rule.memo} onChange={(v) => setRule({ ...rule, memo: v })} />
+            <button className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-600 text-slate-700 disabled:opacity-50 dark:border-white/15 dark:text-slate-200"
+              disabled={busy || rule.contains.trim().length < 3 || !rule.accountId}
+              onClick={async () => { if (await send("POST", { action: "rule", ...rule })) setRule({ contains: "", accountId: "", direction: "any", memo: "" }); }}>
+              {tr.addRule}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ---- add a line --------------------------------------------------- */}
       {canMatch && (

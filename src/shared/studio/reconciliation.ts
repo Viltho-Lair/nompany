@@ -29,6 +29,24 @@ type Strings = {
   matchWith: (memo: string, days: number) => string;
   problem: (code: string) => string;
   account: string;
+  importTitle: string;
+  importLead: string;
+  importPaste: string;
+  dateOrder: string;
+  dateOrders: Record<string, string>;
+  importButton: string;
+  imported: (n: number, skipped: number, refused: number) => string;
+  rulesTitle: string;
+  rulesLead: string;
+  contains: string;
+  postTo: string;
+  direction: string;
+  directions: Record<string, string>;
+  memo: string;
+  addRule: string;
+  noRules: string;
+  postByRule: (account: string) => string;
+  applyAll: (n: number) => string;
 };
 
 const en: Strings = {
@@ -59,8 +77,28 @@ const en: Strings = {
       : code === "entry-taken" ? "That posting is already matched to another line."
         : code === "already-matched" ? "That line is already matched."
           : code === "bank-account" ? "That is not one of the studio's bank or cash accounts."
-            : code || ""),
+            : code === "rule-account" ? "A rule posts to an account that is not money and still in use."
+              : code === "books-may-have-it" ? "The books may already hold this — match it instead."
+                : code || ""),
   account: "Account",
+  importTitle: "Import a statement",
+  importLead: "A CSV from your bank: the first row must name a date, a description and an amount (or debit and credit) column. Lines already on the statement are skipped, so importing an overlapping export adds only what is new.",
+  importPaste: "Paste the CSV, or choose the file",
+  dateOrder: "Dates read as",
+  dateOrders: { dmy: "day/month/year", mdy: "month/day/year", ymd: "year-month-day" },
+  importButton: "Import",
+  imported: (n, s, r) => `${n} imported, ${s} already there${r ? `, ${r} rows not read` : ""}.`,
+  rulesTitle: "Rules for what the books never hold",
+  rulesLead: "Bank charges, interest, standing orders: a line whose description contains the words is posted to the account you choose, and paired, when you apply the rule. Nothing is posted until you press it; a line the books may already hold is left for matching.",
+  contains: "Description contains",
+  postTo: "Post to",
+  direction: "Applies to",
+  directions: { any: "Money in or out", in: "Money in", out: "Money out" },
+  memo: "Memo (optional)",
+  addRule: "Add rule",
+  noRules: "No rules yet.",
+  postByRule: (a) => `Post to ${a} and match`,
+  applyAll: (n) => `Apply rules to ${n} ${n === 1 ? "line" : "lines"}`,
 };
 
 // HAND-WRITTEN. NO DIACRITICS.
@@ -89,8 +127,29 @@ const ar: Strings = {
     code === "amount" ? "المبلغان مختلفان، فهما حدثان لا مطابقة."
       : code === "entry-taken" ? "هذا القيد مطابق لسطر آخر بالفعل."
         : code === "already-matched" ? "هذا السطر مطابق بالفعل."
-          : code || ""),
+          : code === "bank-account" ? "هذا ليس من حسابات البنك أو النقد لدى الاستوديو."
+            : code === "rule-account" ? "القاعدة ترحل الى حساب غير نقدي ولا يزال مستخدما."
+              : code === "books-may-have-it" ? "قد تكون الدفاتر تحتويه بالفعل — طابقوه بدلا من ذلك."
+                : code || ""),
   account: "الحساب",
+  importTitle: "استيراد كشف",
+  importLead: "ملف CSV من البنك: يجب أن يسمي الصف الأول عمود التاريخ والبيان والمبلغ (أو المدين والدائن). السطور الموجودة في الكشف تتخطى، فاستيراد ملف متداخل يضيف الجديد فقط.",
+  importPaste: "الصقوا الملف أو اختاروه",
+  dateOrder: "تقرأ التواريخ",
+  dateOrders: { dmy: "يوم/شهر/سنة", mdy: "شهر/يوم/سنة", ymd: "سنة-شهر-يوم" },
+  importButton: "استيراد",
+  imported: (n, s, r) => `استورد ${n}، و${s} موجود بالفعل${r ? `، و${r} صفوف لم تقرأ` : ""}.`,
+  rulesTitle: "قواعد لما لا تحتويه الدفاتر أبدا",
+  rulesLead: "رسوم البنك والفوائد والأوامر الدائمة: السطر الذي يحتوي بيانه على الكلمات يرحل الى الحساب الذي تختارونه ويطابق عند تطبيق القاعدة. لا يرحل شيء حتى تضغطوا؛ والسطر الذي قد تحتويه الدفاتر يترك للمطابقة.",
+  contains: "البيان يحتوي",
+  postTo: "الترحيل الى",
+  direction: "ينطبق على",
+  directions: { any: "الوارد أو الصادر", in: "الوارد", out: "الصادر" },
+  memo: "ملاحظة (اختياري)",
+  addRule: "اضافة قاعدة",
+  noRules: "لا توجد قواعد بعد.",
+  postByRule: (a) => `ترحيل الى ${a} ومطابقة`,
+  applyAll: (n) => `تطبيق القواعد على ${n} ${n === 1 ? "سطر" : "سطور"}`,
 };
 
 const dict = { en, ar };

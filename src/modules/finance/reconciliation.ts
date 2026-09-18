@@ -183,3 +183,183 @@ export function matchProblem(line: StatementLine | undefined, entry: BookLine | 
   if (money(line.amount) !== money(entry.amount)) return "amount";
   return null;
 }
+
+// ── IMPORTING A STATEMENT ──────────────────────────────────────────────────
+//
+// A BANK EXPORTS CSV, and no two banks agree on its columns. So the header is
+// READ rather than assumed: a date column, a description column, and either one
+// signed amount or a debit/credit pair. The order of day and month is the
+// studio's to say (dd/mm by default), because 03/04 is a different day in each
+// reading and guessing would move money a month.
+//
+// A LINE ALREADY ON THE STATEMENT IS SKIPPED — same account, same day, same
+// amount, same description — so importing a month twice, or an export that
+// overlaps the last one, adds nothing. Two genuinely identical lines on one
+// day (two coffees) are kept as two: the count is compared, not the presence.
+
+export type DateOrder = "dmy" | "mdy" | "ymd";
+export type ParsedLine = { date: string; description: string; amount: number };
+
+const HEAD = {
+  date: /^(date|transaction date|posting date|value date|booking date|تاريخ|التاريخ)$/i,
+  description: /^(description|details|narrative|narration|memo|reference|particulars|البيان|الوصف|التفاصيل)$/i,
+  amount: /^(amount|value|المبلغ)$/i,
+  debit: /^(debit|withdrawal|withdrawals|paid out|money out|مدين|سحب)$/i,
+  credit: /^(credit|deposit|deposits|paid in|money in|دائن|ايداع|إيداع)$/i,
+};
+
+/** Split one CSV row, honouring quotes ("a, b" is one field; "" is a quote). */
+export function csvRow(row: string): string[] {
+  const out: string[] = [];
+  let cur = "";
+  let quoted = false;
+  for (let i = 0; i < row.length; i++) {
+    const ch = row[i];
+    if (quoted) {
+      if (ch === "\"" && row[i + 1] === "\"") { cur += "\""; i++; }
+      else if (ch === "\"") quoted = false;
+      else cur += ch;
+    } else if (ch === "\"") quoted = true;
+    else if (ch === "," || ch === ";" || ch === "\t") { out.push(cur.trim()); cur = ""; }
+    else cur += ch;
+  }
+  out.push(cur.trim());
+  return out;
+}
+
+/** A bank's date as `YYYY-MM-DD`, or "" when it is not one. */
+export function bankDate(raw: string, order: DateOrder = "dmy"): string {
+  const s = String(raw || "").trim();
+  const iso = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(s);
+  const parts = iso ? [iso[1], iso[2], iso[3]] : (/^(\d{1,4})[/.-](\d{1,2})[/.-](\d{1,4})$/.exec(s) || []).slice(1);
+  if (parts.length !== 3) return "";
+  let [y, m, d] = ["", "", ""];
+  if (iso || order === "ymd") [y, m, d] = parts;
+  else if (order === "mdy") [m, d, y] = parts;
+  else [d, m, y] = parts;
+  if (y.length === 2) y = `20${y}`;
+  const out = `${y.padStart(4, "0")}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+  const t = Date.parse(`${out}T00:00:00Z`);
+  return Number.isFinite(t) && new Date(t).toISOString().slice(0, 10) === out ? out : "";
+}
+
+/** A bank's number: thousands separators, a trailing minus, brackets for negative. */
+export function bankAmount(raw: string): number | null {
+  let s = String(raw || "").replace(/[\s ]/g, "").replace(/[^\d.,()+-]/g, "");
+  if (!s) return null;
+  let sign = 1;
+  if (/^\(.*\)$/.test(s)) { sign = -1; s = s.slice(1, -1); }
+  if (s.endsWith("-")) { sign = -sign; s = s.slice(0, -1); }
+  // A COMMA AS THE ONLY SEPARATOR, one to three digits from the end, is a
+  // decimal comma; anywhere else commas are thousands.
+  if (!s.includes(".") && /,\d{1,3}$/.test(s) && (s.match(/,/g) || []).length === 1 && !/,\d{3}$/.test(s)) s = s.replace(",", ".");
+  else s = s.replace(/,/g, "");
+  const n = Number(s);
+  return Number.isFinite(n) ? sign * n : null;
+}
+
+export function parseStatementCsv(
+  text: string,
+  { dateOrder = "dmy" as DateOrder } = {},
+): { lines: ParsedLine[]; problems: { row: number; detail: string }[]; columns: string | null } {
+  const rows = String(text || "").split(/\r?\n/).filter((r) => r.trim());
+  const problems: { row: number; detail: string }[] = [];
+  if (!rows.length) return { lines: [], problems: [{ row: 0, detail: "the file is empty" }], columns: null };
+  const head = csvRow(rows[0]).map((h) => h.replace(/^﻿/, "").trim());
+  const col = (re: RegExp) => head.findIndex((h) => re.test(h));
+  const at = {
+    date: col(HEAD.date), description: col(HEAD.description), amount: col(HEAD.amount),
+    debit: col(HEAD.debit), credit: col(HEAD.credit),
+  };
+  if (at.date < 0 || at.description < 0 || (at.amount < 0 && at.debit < 0 && at.credit < 0)) {
+    return {
+      lines: [],
+      problems: [{ row: 1, detail: "the first row must name a date, a description and an amount (or debit and credit) column" }],
+      columns: null,
+    };
+  }
+  const lines: ParsedLine[] = [];
+  rows.slice(1).forEach((r, i) => {
+    const cells = csvRow(r);
+    const date = bankDate(cells[at.date] || "", dateOrder);
+    const description = String(cells[at.description] || "").slice(0, 200);
+    let amount: number | null;
+    if (at.amount >= 0) amount = bankAmount(cells[at.amount] || "");
+    else {
+      const out = at.debit >= 0 ? bankAmount(cells[at.debit] || "") : null;
+      const inn = at.credit >= 0 ? bankAmount(cells[at.credit] || "") : null;
+      amount = (inn ? Math.abs(inn) : 0) - (out ? Math.abs(out) : 0);
+    }
+    if (!date) { problems.push({ row: i + 2, detail: "no date this reads as a day" }); return; }
+    if (!amount) { problems.push({ row: i + 2, detail: "no amount" }); return; }
+    lines.push({ date, description: description || "—", amount: Math.round(amount * 1000) / 1000 });
+  });
+  return { lines, problems, columns: head.join(", ") };
+}
+
+/** The identity a line is de-duplicated by. */
+export const statementKey = (l: { date: string; description: string; amount: number }) =>
+  `${l.date}|${money(l.amount)}|${String(l.description || "").trim().toLowerCase()}`;
+
+/**
+ * THE LINES OF AN IMPORT NOT ALREADY ON THE STATEMENT. Counted, so a file with
+ * two identical coffees against a statement holding one adds exactly one.
+ */
+export function newLines(
+  incoming: ParsedLine[],
+  existing: { date: string; description: string; amount: number }[],
+): ParsedLine[] {
+  const have = new Map<string, number>();
+  for (const l of existing) have.set(statementKey(l), (have.get(statementKey(l)) || 0) + 1);
+  const out: ParsedLine[] = [];
+  for (const l of incoming) {
+    const k = statementKey(l);
+    const n = have.get(k) || 0;
+    if (n > 0) { have.set(k, n - 1); continue; }
+    out.push(l);
+  }
+  return out;
+}
+
+// ── MATCH RULES ────────────────────────────────────────────────────────────
+//
+// THE LINES NOBODY POSTED ARE MOSTLY THE SAME EVERY MONTH — the bank's charge,
+// its interest, a standing order. A rule says "a line whose description
+// contains X is posted to account Y", so those stop being keyed by hand. A RULE
+// PROPOSES; a person applies it, and applying it POSTS the entry and pairs it
+// in one act. It never touches a line the books already answer and never fires
+// by itself — the posture the suggestions above take, for their reason.
+
+export type BankRule = { id: string; contains: string; accountId: string; direction: "in" | "out" | "any"; memo?: string };
+
+export function cleanRule(body: Record<string, unknown>): { rule: Omit<BankRule, "id"> } | { problems: string[] } {
+  const contains = str(body?.contains, 80);
+  const accountId = str(body?.accountId, 60);
+  const asked = String(body?.direction ?? "");
+  const direction: BankRule["direction"] = asked === "in" || asked === "out" ? asked : "any";
+  const problems: string[] = [];
+  // THREE CHARACTERS AT LEAST: a rule matching "a" would claim half the statement.
+  if (contains.length < 3) problems.push("a rule needs at least three characters to look for");
+  if (!accountId) problems.push("a rule needs an account to post to");
+  return problems.length ? { problems } : { rule: { contains, accountId, direction, memo: str(body?.memo, 120) } };
+}
+
+/** The first rule a line answers to, or null. First written wins, so the order is the studio's. */
+export function ruleFor(line: Pick<StatementLine, "description" | "amount">, rules: BankRule[]): BankRule | null {
+  const text = String(line.description || "").toLowerCase();
+  for (const r of rules) {
+    if (!r.contains || !text.includes(r.contains.toLowerCase())) continue;
+    if (r.direction === "in" && !(line.amount > 0)) continue;
+    if (r.direction === "out" && !(line.amount < 0)) continue;
+    return r;
+  }
+  return null;
+}
+
+/** The entry a rule posts for a line: money in debits the money account, money out credits it. */
+export function ruleEntryLines(line: Pick<StatementLine, "amount">, rule: Pick<BankRule, "accountId">, moneyAccountId: string) {
+  const amount = money(Math.abs(num(line.amount)));
+  return line.amount > 0
+    ? [{ accountId: moneyAccountId, debit: amount }, { accountId: rule.accountId, credit: amount }]
+    : [{ accountId: rule.accountId, debit: amount }, { accountId: moneyAccountId, credit: amount }];
+}

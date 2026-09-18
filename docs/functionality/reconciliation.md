@@ -67,16 +67,40 @@ through a list, not a decision about the books — unlike reopening a closed per
 **Partial is reported, not rolled back.** A pasted statement with one bad row records the
 rest and says which, rather than making somebody paste again.
 
+### Importing a statement, and rules (18/09/2026, Finance plan step 5)
+
+**A bank's CSV is imported** (pasted or chosen as a file) into the chosen money account. The
+header is READ, not assumed: a date column, a description column, and one signed amount or a
+debit/credit pair — English and Arabic column names are recognised; quoted commas, thousands
+separators, a decimal comma, a trailing minus and brackets for negative are all read. **Day and
+month order is the studio's to say** (day/month/year by default), because 03/04 is a different day
+in each reading. A row that does not read is reported by its row number and the rest are kept.
+**A line already on the statement is skipped** — same day, amount and description, compared by
+COUNT so two identical coffees stay two — so importing an overlapping export adds only what is
+new. Nothing is matched by the import.
+
+**Rules post what the books never hold** (`bankRules`, filed under the ledger): "a line whose
+description contains X, money in / out / either, posts to account Y". A rule PROPOSES — the line
+shows "Post to Y and match", and "Apply rules to N lines" does several — and applying it posts a
+manual entry dated the bank's day (Dr the money account for money in, Cr it for money out) and
+pairs the line with it, in one act. **A line the books may already answer (a suggestion exists)
+is left alone** (`books-may-have-it`): posting it too would count the money twice. A rule cannot
+post to a money account (that would be a transfer dressed as a charge), needs three characters to
+look for, and the first rule written wins. Importing, rules and applying them are
+`finance.ledger.post`, like matching.
+
 ## Not built yet
 
-- **No import.** Lines are typed or posted as a list through the API; there is no CSV, OFX
-  or bank feed, and the sweep is capped at 500 because past that it is an import.
+- **No OFX, MT940 or CAMT import and no live bank feed** — CSV only. Typed lines are still capped
+  at 500 per paste; an import at 2000 lines.
 - ~~**One bank account.**~~ **One money account at a time, 18/09/2026.** The panel picks which
   of the studio's money accounts (`ledger.md`) it reconciles; a statement line carries the
   account it was entered against, and a line with none is 1010's — every line entered before.
   A line is only ever matched against its own account's postings.
-- **Nothing posts the unrecorded.** A bank charge on the statement is listed and cannot be
-  turned into a journal entry from this screen — the fix is named and not offered.
+- **Only rules post the unrecorded.** A one-off line no rule answers is still posted from the
+  Ledger by hand and then matched.
+- **Rules match on the description only** — not on an amount range, a reference pattern or a
+  counterparty — and cannot split a line across accounts or carry VAT.
 - **No statement balance carried forward.** The "statement says" figure is the sum of the
   lines entered, not a closing balance the bank printed, so a missing line is invisible
   unless it is also missing from the books.

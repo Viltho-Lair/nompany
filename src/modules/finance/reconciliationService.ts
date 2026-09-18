@@ -11,11 +11,12 @@
 
 import { requirePermission } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
-import { ledgerAccounts, isMoneyAccount } from "./ledger";
+import { ledgerAccounts, isMoneyAccount, postEntry } from "./ledger";
 import {
   statementProblems, cleanStatementLine, suggestMatches, reconcile, matchProblem,
+  parseStatementCsv, newLines, cleanRule, ruleFor, ruleEntryLines,
 } from "./reconciliation";
-import type { StatementLine, BookLine } from "./reconciliation";
+import type { StatementLine, BookLine, BankRule, DateOrder } from "./reconciliation";
 import type { FinanceContext, JournalEntry } from "./types";
 import { roundSum } from "@/shared/money";
 
@@ -77,6 +78,7 @@ async function sides(ctx: FinanceContext, requested?: unknown) {
     hasBank: Boolean(account),
     account,
     accounts: accounts.filter(isMoneyAccount).map((a) => ({ id: a.id, code: a.code, name: a.name })),
+    chart: accounts,
   };
 }
 
@@ -85,7 +87,10 @@ export async function reconciliation(ctx: FinanceContext, accountId?: unknown) {
   const denied = requirePermission(ctx.access, "finance.ledger.view");
   if (denied) return denied;
 
-  const { lines, book, hasBank, account, accounts } = await sides(ctx, accountId);
+  // THE CHART ONCE: `sides` already read it, and two first reads seed twice.
+  const [{ lines, book, hasBank, account, accounts, chart }, rules] = await Promise.all([
+    sides(ctx, accountId), bankRules(ctx),
+  ]);
   if (String(accountId ?? "").trim() && !account) return { error: "bank-account" };
   return {
     accountId: account?.id || "",
@@ -97,6 +102,12 @@ export async function reconciliation(ctx: FinanceContext, accountId?: unknown) {
     ...reconcile(lines, book),
     book,
     suggestions: suggestMatches(lines, book),
+    // WHAT A RULE WOULD POST each unmatched line to — proposed, never applied.
+    rules,
+    ruleHits: Object.fromEntries(lines.filter((l) => !l.matchedEntryId)
+      .map((l) => [l.id, ruleFor(l, rules)?.id || ""]).filter(([, r]) => r)),
+    ruleAccounts: chart.filter((a) => a.active !== false && !isMoneyAccount(a))
+      .map((a) => ({ id: a.id, code: a.code, name: a.name })),
     canMatch: !requirePermission(ctx.access, "finance.ledger.post"),
   };
 }
@@ -178,4 +189,98 @@ export async function removeStatementLine(ctx: FinanceContext, id: string) {
   if (!lines.some((l) => l.id === id)) return { error: "notfound" };
   await Statement.remove(scope(ctx), id);
   return { ok: true };
+}
+
+// ── IMPORT AND RULES ───────────────────────────────────────────────────────
+
+const Rules = repo<BankRule>("bankRules");
+
+/** The studio's rules, oldest first — first written wins (./reconciliation). */
+export async function bankRules(ctx: FinanceContext): Promise<BankRule[]> {
+  return (await Rules.find(scope(ctx))).sort((a, b) =>
+    String((a as { createdAt?: string }).createdAt || "").localeCompare(String((b as { createdAt?: string }).createdAt || "")));
+}
+
+/**
+ * IMPORT A BANK'S CSV into one money account's statement. Lines already there
+ * are skipped by count (`newLines`), rows that do not read are reported by
+ * number, and nothing is matched — the suggestions and rules do that, with a
+ * person confirming.
+ */
+export async function importStatement(ctx: FinanceContext, body: Record<string, unknown>) {
+  const denied = requirePermission(ctx.access, "finance.ledger.post");
+  if (denied) return denied;
+  const text = String(body?.csv ?? "");
+  if (text.length > 2_000_000) return { error: "too-large" };
+  const order = ["dmy", "mdy", "ymd"].includes(String(body?.dateOrder)) ? String(body.dateOrder) as DateOrder : "dmy";
+  const parsed = parseStatementCsv(text, { dateOrder: order });
+  if (!parsed.columns) return { error: "refused" as const, detail: parsed.problems.map((p) => p.detail).join("; ") };
+  if (parsed.lines.length > 2000) return { error: "too-many" };
+
+  const { account, lines } = await sides(ctx, body?.accountId);
+  if (!account) return { error: "bank-account" };
+  const fresh = newLines(parsed.lines, lines);
+  for (const l of fresh) {
+    await Statement.create(scope(ctx), {
+      ...cleanStatementLine(l, ctx.studio.currency),
+      ...(account.code === BANK ? {} : { accountId: account.id }),
+    });
+  }
+  return {
+    imported: fresh.length,
+    skipped: parsed.lines.length - fresh.length,
+    refused: parsed.problems,
+    columns: parsed.columns,
+  };
+}
+
+/** Add a rule. The account it posts to must be a live account that is not money. */
+export async function saveRule(ctx: FinanceContext, body: Record<string, unknown>) {
+  const denied = requirePermission(ctx.access, "finance.ledger.post");
+  if (denied) return denied;
+  const cleaned = cleanRule(body);
+  if ("problems" in cleaned) return { error: "refused" as const, detail: cleaned.problems.join("; ") };
+  const target = (await ledgerAccounts(ctx)).find((a) => a.id === cleaned.rule.accountId);
+  // A RULE POSTING TO A MONEY ACCOUNT would be a transfer dressed as a charge.
+  if (!target || target.active === false || isMoneyAccount(target)) return { error: "rule-account" };
+  return { rule: await Rules.create(scope(ctx), { ...cleaned.rule, createdAt: new Date().toISOString() } as Omit<BankRule, "id">) };
+}
+
+export async function removeRule(ctx: FinanceContext, id: string) {
+  const denied = requirePermission(ctx.access, "finance.ledger.post");
+  if (denied) return denied;
+  return (await Rules.remove(scope(ctx), id)) ? { removed: id } : { error: "notfound" };
+}
+
+/**
+ * APPLY THE RULES TO THESE LINES: for each unmatched line a rule answers, post
+ * the entry the rule describes, dated the bank's day, and pair the line with it.
+ * A line the books may already answer (a suggestion exists) is left alone —
+ * posting it again would count the money twice.
+ */
+export async function postByRules(ctx: FinanceContext, body: Record<string, unknown>) {
+  const denied = requirePermission(ctx.access, "finance.ledger.post");
+  if (denied) return denied;
+  const wanted = new Set((Array.isArray(body?.lineIds) ? body.lineIds : []).map((v) => String(v)));
+  if (!wanted.size) return { error: "missing" };
+  const [{ lines, book, account }, rules] = await Promise.all([sides(ctx, body?.accountId), bankRules(ctx)]);
+  if (!account) return { error: "bank-account" };
+  const suggested = new Set(suggestMatches(lines, book).map((s) => s.lineId));
+
+  const done: { lineId: string; entryId?: string; error?: string }[] = [];
+  for (const line of lines) {
+    if (!wanted.has(line.id) || line.matchedEntryId) continue;
+    if (suggested.has(line.id)) { done.push({ lineId: line.id, error: "books-may-have-it" }); continue; }
+    const rule = ruleFor(line, rules);
+    if (!rule) { done.push({ lineId: line.id, error: "no-rule" }); continue; }
+    const posted = await postEntry(ctx, {
+      date: line.date,
+      memo: rule.memo || line.description,
+      lines: ruleEntryLines(line, rule, account.id),
+    }) as { entry?: { id: string }; error?: string };
+    if (!posted.entry) { done.push({ lineId: line.id, error: String(posted.error || "failed") }); continue; }
+    await Statement.update(scope(ctx), line.id, () => ({ matchedEntryId: posted.entry!.id }));
+    done.push({ lineId: line.id, entryId: posted.entry.id });
+  }
+  return { done };
 }

@@ -115,6 +115,48 @@ ok("a line already matched is refused",
 ok("a missing line is refused", matchProblem(undefined, BOOK[0]) === "line");
 ok("a missing entry is refused", matchProblem(LINES[0], undefined) === "entry");
 
+// ── IMPORTING A STATEMENT, AND RULES ─────────────────────────────────────
+{
+  const R = await import("../src/modules/finance/reconciliation.ts");
+  const csv = [
+    "\uFEFFDate,Description,Debit,Credit",
+    "03/04/2026,\"ACME, LTD payment\",,1250.50",
+    "04/04/2026,BANK CHARGE,15.00,",
+    "05/04/2026,Coffee,3.5,",
+    "05/04/2026,Coffee,3.5,",
+    "not a date,Nothing,1,",
+  ].join("\n");
+  const parsed = R.parseStatementCsv(csv);
+  ok("A BANK'S CSV IS READ BY ITS HEADER — debit and credit columns become one signed amount",
+    parsed.lines.length === 4 && parsed.lines[0].amount === 1250.5 && parsed.lines[1].amount === -15, JSON.stringify(parsed.lines));
+  ok("A QUOTED COMMA STAYS IN THE DESCRIPTION", parsed.lines[0].description === "ACME, LTD payment");
+  ok("DAY/MONTH BY DEFAULT: 03/04 is the third of April", parsed.lines[0].date === "2026-04-03");
+  ok("...and month/day when the studio says so", R.parseStatementCsv(csv, { dateOrder: "mdy" }).lines[0].date === "2026-03-04");
+  ok("a row that does not read is reported by its number", parsed.problems.length === 1 && parsed.problems[0].row === 6, JSON.stringify(parsed.problems));
+  ok("a file with no recognisable header is refused whole", R.parseStatementCsv("a,b,c\n1,2,3").columns === null);
+  ok("a signed amount column is read as it is", R.parseStatementCsv("Date,Details,Amount\n2026-04-01,X,(20.00)").lines[0].amount === -20);
+  ok("a decimal comma reads as a decimal", R.bankAmount("12,50") === 12.5 && R.bankAmount("1,250") === 1250);
+  ok("an impossible day is not a day", R.bankDate("31/02/2026") === "");
+
+  const existing = [{ date: "2026-04-05", description: "Coffee", amount: -3.5 }, { date: "2026-04-04", description: "bank charge", amount: -15 }];
+  const fresh = R.newLines(parsed.lines, existing);
+  ok("A LINE ALREADY ON THE STATEMENT IS SKIPPED — an overlapping export adds only what is new",
+    fresh.length === 2 && fresh.some((l) => l.description === "Coffee") && !fresh.some((l) => l.description === "BANK CHARGE"), JSON.stringify(fresh));
+
+  ok("a rule needs three characters and an account", "problems" in R.cleanRule({ contains: "ab", accountId: "x" }) && "problems" in R.cleanRule({ contains: "abc" }));
+  const rules = [
+    { id: "r1", contains: "charge", accountId: "fees", direction: "out" },
+    { id: "r2", contains: "interest", accountId: "income", direction: "in" },
+  ];
+  ok("A RULE ANSWERS A LINE WHOSE DESCRIPTION CONTAINS ITS WORDS, whatever the case", R.ruleFor({ description: "BANK CHARGE", amount: -15 }, rules)?.id === "r1");
+  ok("...in the direction it names", R.ruleFor({ description: "charge refund", amount: 15 }, rules) === null);
+  ok("no rule, no answer", R.ruleFor({ description: "Coffee", amount: -3.5 }, rules) === null);
+  const out = R.ruleEntryLines({ amount: -15 }, rules[0], "bank");
+  ok("MONEY OUT: Dr the rule's account, Cr the money account", out[0].accountId === "fees" && out[0].debit === 15 && out[1].accountId === "bank" && out[1].credit === 15);
+  const inn = R.ruleEntryLines({ amount: 4.2 }, rules[1], "bank");
+  ok("money in: Dr the money account, Cr the rule's account", inn[0].accountId === "bank" && inn[0].debit === 4.2 && inn[1].credit === 4.2);
+}
+
 console.log(fails ? `\nreconciliation model: ${fails} FAILURES\n` : "\nreconciliation model: all passed\n");
 // exitCode, not exit(): exiting while the alias loader's thread is live crashes Node on Windows.
 process.exitCode = fails ? 1 : 0;

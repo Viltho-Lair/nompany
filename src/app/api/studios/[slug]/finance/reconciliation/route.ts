@@ -1,7 +1,7 @@
 import { route, refused } from "@/platform/http/route";
 import { financeContext } from "@/modules/finance/finance";
 import {
-  reconciliation, addStatementLines, matchLine, removeStatementLine,
+  reconciliation, addStatementLines, matchLine, removeStatementLine, importStatement, saveRule, removeRule, postByRules,
 } from "@/modules/finance/reconciliationService";
 import type { FinanceContext } from "@/modules/finance/types";
 
@@ -30,7 +30,11 @@ export const POST = route(spec, async (c) => {
   const result = action === "match"
     ? await matchLine(ctx, String(c.body?.lineId ?? ""), String(c.body?.entryId ?? ""))
     : action === "add" ? await addStatementLines(ctx, c.body)
-      : { error: "action" };
+      : action === "import" ? await importStatement(ctx, c.body)
+        : action === "rule" ? await saveRule(ctx, c.body)
+          : action === "rule-remove" ? await removeRule(ctx, String(c.body?.id ?? ""))
+            : action === "post-by-rules" ? await postByRules(ctx, c.body)
+              : { error: "action" };
   return refused(result) ? result : { ok: true, ...result };
 });
 

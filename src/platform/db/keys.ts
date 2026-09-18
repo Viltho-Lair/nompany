@@ -1184,7 +1184,7 @@ export const SECTION_COLLECTIONS = {
   // posted — only reversed by a mirror entry — so there is no separate
   // "reversals" collection: a reversal is just another journalEntry.
   // A CLOSED MONTH is a row under the ledger it locks.
-  "finance-ledger": ["accounts", "journalEntries", "accountingPeriods", "bankStatementLines"],
+  "finance-ledger": ["accounts", "journalEntries", "accountingPeriods", "bankStatementLines", "bankRules"],
   // Payables: bills we owe vendors, with their own payment history. Assets: the
   // fixed-asset register — depreciation is derived, never stored, so there is no
   // schedule collection.
