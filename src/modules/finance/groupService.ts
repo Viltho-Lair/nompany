@@ -67,6 +67,10 @@ export async function groupView(ctx: FinanceContext, user: unknown) {
 
 /** Create a group with this studio in it. The owner's act. */
 export async function createGroup(ctx: FinanceContext, user: unknown, body: Record<string, unknown>) {
+  // THE RIGHT TO THE SCREEN FIRST, then ownership: holding the reports right in
+  // this studio is what brings anybody here, and only the owner may group.
+  const denied = requirePermission(ctx.access, "finance.reports.view");
+  if (denied) return denied;
   if (!isOwner(ctx, user)) return { error: "owner-only" as const };
   if (groupIdOf(ctx.studio)) return { error: "already-grouped" };
   const name = str(body?.name);
@@ -79,6 +83,10 @@ export async function createGroup(ctx: FinanceContext, user: unknown, body: Reco
 
 /** Add one of the owner's own studios to this studio's group. */
 export async function addToGroup(ctx: FinanceContext, user: unknown, studioId: unknown) {
+  // THE RIGHT TO THE SCREEN FIRST, then ownership: holding the reports right in
+  // this studio is what brings anybody here, and only the owner may group.
+  const denied = requirePermission(ctx.access, "finance.reports.view");
+  if (denied) return denied;
   if (!isOwner(ctx, user)) return { error: "owner-only" as const };
   const group = await groupOf(ctx);
   if (!group) return { error: "no-group" };
@@ -93,6 +101,10 @@ export async function addToGroup(ctx: FinanceContext, user: unknown, studioId: u
 
 /** Take a studio out of the group — any member, the owner's act. */
 export async function removeFromGroup(ctx: FinanceContext, user: unknown, studioId: unknown) {
+  // THE RIGHT TO THE SCREEN FIRST, then ownership: holding the reports right in
+  // this studio is what brings anybody here, and only the owner may group.
+  const denied = requirePermission(ctx.access, "finance.reports.view");
+  if (denied) return denied;
   if (!isOwner(ctx, user)) return { error: "owner-only" as const };
   const group = await groupOf(ctx);
   if (!group) return { error: "no-group" };

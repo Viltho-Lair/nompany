@@ -70,8 +70,10 @@ export function testVisibleStageTypes() {
   assert.ok(!types.includes("invoice"), "no finance right, no invoice stage");
   assert.ok(!types.includes("project"), "no projects right, no project stage");
 
-  // Finance sees its own and not Sales'.
-  const finance = new Set(["engagements.view", "finance.cash.view"]);
+  // Finance sees its own and not Sales'. INVOICES ANSWER TO RECEIVABLES since
+  // Finance split into sub-sections (18/09/2026) — this held `finance.cash.view`,
+  // the right invoices used to answer to, and failed the day they moved.
+  const finance = new Set(["engagements.view", "finance.receivables.view"]);
   assert.ok(visibleStageTypes(finance).includes("invoice"));
   assert.ok(!visibleStageTypes(finance).includes("ticket"));
 }
