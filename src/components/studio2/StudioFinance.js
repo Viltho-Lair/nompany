@@ -5,6 +5,7 @@ import { useStudioLocale } from "@/components/studio2/locale";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { paymentRunDict } from "@/shared/studio/paymentRun";
 import { claimsDict } from "@/shared/studio/claims";
+import { leasesDict } from "@/shared/studio/leases";
 import { financeDict } from "@/shared/studio/finance";
 import { documentsDict } from "@/shared/studio/documents";
 import Link from "next/link";
@@ -50,6 +51,7 @@ const CreditPanel = nextDynamic(() => import("@/components/studio2/CreditPanel")
 const PaymentRunPanel = nextDynamic(() => import("@/components/studio2/PaymentRunPanel"));
 const ClaimsPanel = nextDynamic(() => import("@/components/studio2/ClaimsPanel"));
 const BudgetsPanel = nextDynamic(() => import("@/components/studio2/BudgetsPanel"));
+const LeasesPanel = nextDynamic(() => import("@/components/studio2/LeasesPanel"));
 // Cash & Bank's and Tax's panels, lazily for the reason the others are.
 const ReconciliationPanel = nextDynamic(() => import("@/components/studio2/ReconciliationPanel"));
 const TaxReturnPanel = nextDynamic(() => import("@/components/studio2/TaxReturnPanel"));
@@ -1575,7 +1577,21 @@ function BillPaymentForm({ bill, hold, methods, accounts = [], busy, onCancel, o
 // The STORED value is the hyphenated key; the words beside it are display.
 const assetMethodLabel = (tr) => ({ "straight-line": tr.straightLine, "reducing-balance": tr.reducingBalance });
 
+// FIXED ASSETS: the register and its depreciation, and — IFRS 16, step 6 —
+// the leases on the balance sheet, each tab its own read.
 function Assets({ slug }) {
+  const locale = useStudioLocale();
+  const [tab, setTab] = useState("register");
+  const lt = leasesDict(locale);
+  return (
+    <div className="space-y-6">
+      <TabBar tabs={[["register", lt.tabRegister], ["leases", lt.tab]]} tab={tab} setTab={setTab} />
+      {tab === "register" ? <AssetRegisterScreen slug={slug} /> : <LeasesPanel slug={slug} locale={locale} />}
+    </div>
+  );
+}
+
+function AssetRegisterScreen({ slug }) {
   const tr = financeDict(useStudioLocale());
   const { data, error, busy, send, load } = useFinanceResource(slug, "assets");
 

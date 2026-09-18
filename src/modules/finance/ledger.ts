@@ -42,6 +42,8 @@ import {
   DEFERRED_REVENUE, PREPAID_EXPENSES, deferralLines, recognitionLines, monthsFrom, evenShares,
 } from "./schedules";
 import type { Schedule } from "./schedules";
+import { leaseSchedule, leaseMonthLines } from "./leases";
+import type { Lease } from "./leases";
 import type { Account, JournalEntry, JournalLine, Invoice, Expense, FinanceContext, FixedAsset } from "./types";
 import type { Row } from "@/platform/db/store";
 
@@ -2078,5 +2080,69 @@ export async function postRecognition(ctx: FinanceContext, sourceId: string, opt
     memo: `Recognised ${period}: ${s.description || s.reference || ""}`.trim(),
     source: { kind: "recognition", id: sourceId },
     lines: recognitionLines(s, share, String(byCode.get(holdingCode(s)))),
+  }, options);
+}
+
+// ---------------------------------------------------------------------------
+// LEASES — IFRS 16 (./leases)
+// ---------------------------------------------------------------------------
+
+const Leases = repo<Row>("leases");
+const LEASE_CODES = { rou: "1600", accumulated: "1610", liability: "2500", depreciation: "5410", interest: "5810" };
+
+async function leaseRow(ctx: FinanceContext, id: string) {
+  return (await Leases.find({ studio: ctx.studio, section: ctx.assetsSection })).find((l) => l.id === id) as
+    (Row & Lease & { status?: string }) | undefined;
+}
+
+/** THE DAY A LEASE STARTS: Dr Right-of-Use Assets, Cr Lease Liabilities, at the present value. */
+export async function postLease(ctx: FinanceContext, leaseId: string, options: PostOptions = {}) {
+  if (!options.system) {
+    const denied = requirePermission(ctx.access, "finance.ledger.post");
+    if (denied) return denied;
+  }
+  const lease = await leaseRow(ctx, leaseId);
+  if (!lease) return { error: "notfound" };
+  const entries = await Entries.find({ studio: ctx.studio, section: ctx.ledgerSection });
+  if (alreadyPosted(entries, "lease", leaseId)) return { error: "already-posted" };
+  const { byCode, missing } = await codesToIds(ctx, [LEASE_CODES.rou, LEASE_CODES.liability]);
+  if (missing.length) return { error: "chart", missing };
+  const { initial } = leaseSchedule(lease, ctx.studio.currency);
+  return postEntry(ctx, {
+    date: lease.start,
+    memo: `Lease recognised — ${lease.name}`,
+    source: { kind: "lease", id: leaseId },
+    lines: [{ accountId: byCode.get(LEASE_CODES.rou), debit: initial }, { accountId: byCode.get(LEASE_CODES.liability), credit: initial }],
+  }, options);
+}
+
+/** ONE MONTH OF A LEASE (`<leaseId>:<YYYY-MM>`): depreciation, interest and the payment, as one entry on the month's last day. */
+export async function postLeaseMonth(ctx: FinanceContext, sourceId: string, options: PostOptions = {}) {
+  if (!options.system) {
+    const denied = requirePermission(ctx.access, "finance.ledger.post");
+    if (denied) return denied;
+  }
+  const [leaseId, period] = sourceId.split(":");
+  const lease = await leaseRow(ctx, leaseId);
+  if (!lease) return { error: "notfound" };
+  const entries = await Entries.find({ studio: ctx.studio, section: ctx.ledgerSection });
+  if (alreadyPosted(entries, "lease-month", sourceId)) return { error: "already-posted" };
+  // NOT BEFORE THE LEASE IS ON THE BOOKS: interest on a liability nobody
+  // recognised would drive it negative.
+  if (!alreadyPosted(entries, "lease", leaseId)) return { error: "not-recognised" };
+  const month = leaseSchedule(lease, ctx.studio.currency).months.find((m) => m.period === period);
+  if (!month) return { error: "period" };
+  const { byCode, missing } = await codesToIds(ctx, Object.values(LEASE_CODES));
+  if (missing.length) return { error: "chart", missing };
+  const bank = await moneyAccountFor(ctx, lease.accountId);
+  if ("error" in bank) return bank;
+  return postEntry(ctx, {
+    date: lastDayOf(period),
+    memo: `Lease ${period} — ${lease.name}`,
+    source: { kind: "lease-month", id: sourceId },
+    lines: leaseMonthLines(month, {
+      depreciation: String(byCode.get(LEASE_CODES.depreciation)), accumulated: String(byCode.get(LEASE_CODES.accumulated)),
+      interest: String(byCode.get(LEASE_CODES.interest)), liability: String(byCode.get(LEASE_CODES.liability)), money: bank.id,
+    }),
   }, options);
 }

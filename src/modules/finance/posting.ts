@@ -12,7 +12,7 @@
 // is "post this thing", and five endpoints would be five places to forget one.
 import {
   postInvoice, postExpense, postBill, postBillPayment, postPayment, postCreditNote,
-  postPayroll, postWithholding, postAsset, postDepreciation, postAssetDisposal, postCheque, postBillWithholding, billWithheldToClear, postTaxReturn, postTaxPayment, postZakatProvision, postZakatPayment, postYearEnd, postClaim, postClaimPayment, postAdvance, postAdvanceReturn, postDeferral, postRecognition, reverseDocument, invoiceWithheldToClear, postedAmount, ENTRY_SOURCE_KINDS,
+  postPayroll, postWithholding, postAsset, postDepreciation, postAssetDisposal, postCheque, postBillWithholding, billWithheldToClear, postTaxReturn, postTaxPayment, postZakatProvision, postZakatPayment, postYearEnd, postClaim, postClaimPayment, postAdvance, postAdvanceReturn, postDeferral, postRecognition, postLease, postLeaseMonth, reverseDocument, invoiceWithheldToClear, postedAmount, ENTRY_SOURCE_KINDS,
 } from "./ledger";
 import type { FinanceContext } from "./types";
 import type { PostOptions } from "./ledger";
@@ -90,6 +90,8 @@ export async function postDocument(
     case "deferral": return postDeferral(ctx, documentId, options);
     // THE ID CARRIES ITS MONTH (`<scheduleId>:<YYYY-MM>`), as depreciation's does.
     case "recognition": return postRecognition(ctx, documentId, options);
+    case "lease": return postLease(ctx, documentId, options);
+    case "lease-month": return postLeaseMonth(ctx, documentId, options);
     default: return { error: "kind" };
   }
 }
