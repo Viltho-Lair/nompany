@@ -1,4 +1,5 @@
 import { route, refused } from "@/platform/http/route";
+import { signingPinProblem } from "@/platform/auth/lock";
 import { requirePermission } from "@/platform/access";
 import {
   procurementContext, listRequisitions, createRequisition,
@@ -88,6 +89,12 @@ export const PUT = route(spec, async (procurement) => {
   }
 
   if (action === "approve" || action === "reject") {
+    // THE SIGNER'S PIN, before a signature (platform/auth/lock.ts). Rejecting
+    // commits nobody to anything and is not asked.
+    if (action === "approve") {
+      const pinGate = await signingPinProblem(procurement.studio, procurement.user.id, procurement.body.pin);
+      if (pinGate) return pinGate;
+    }
     // THE BOOLEAN IS COMPUTED HERE, never the body forwarded. Passing
     // `procurement.body` where a boolean is expected is exactly how rejecting a
     // variation came to approve it: an object is truthy, the compiler cannot

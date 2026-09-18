@@ -66,6 +66,10 @@ const FIELDS = [
   // It sits beside `currency` because approval already depends on that one:
   // an amount cannot be judged against a limit without it.
   "approvalChains",
+  // WHETHER EVERY SIGNER MUST TYPE THEIR PIN (18/09/2026) — beside the chains
+  // because it is a rule about signing them. Off, only a person who has set a
+  // PIN is asked for it (platform/auth/lock.ts, signingPinProblem).
+  "signingPin",
   // WHAT THIS STUDIO'S DOCUMENTS ARE CALLED. Beside the chains for the same
   // reason: a numbering policy is the company's, not a department's, and one
   // right over it beats fourteen modules each owning their own prefix.
@@ -203,6 +207,7 @@ const clean = (studio: Record<string, unknown>, legacy: Record<string, unknown> 
   // section shows the chain a record would actually walk. All four types are
   // edited here (STUDIO_EDITABLE_CHAINS); Finance refuses them since tier 5.
   approvalChains: approvalChainsFor(studio, legacy),
+  signingPin: Boolean((studio as { signingPin?: unknown }).signingPin),
   // EVERY SERIES WITH THE SETTING IN FORCE, defaults included, so the editor
   // can show its rows without knowing the catalogue — and can say which are the
   // studio's own choice rather than presenting shipped defaults as though
@@ -392,6 +397,10 @@ export async function PUT(request: Request, ctx: { params: Promise<Record<string
     // doubt — so the studio hears about its own edit while it is still their
     // edit and in words about the edit. This is the same door
     // saveFinanceSettings held for bills; it moved here with the store.
+    if (key === "signingPin") {
+      patch[key] = body[key] === true;
+      continue;
+    }
     if (key === "approvalChains") {
       const incoming = approvalChainOverrides(body[key], undefined, await legacyChains(studio.id));
       if ("error" in incoming) return Response.json({ error: "refused", detail: incoming.error }, { status: 400 });

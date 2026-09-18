@@ -159,6 +159,23 @@ and reject it. `listAdjustments`, `approveAdjustment` and `rejectAdjustment` ask
 Everybody else still needs a second person. Until 11/09/2026 no screen read `GET /inventory/adjustments`: the dialog closed as if the
 adjustment had worked, and `inventory.stock.approve` was a right nobody could exercise.
 
+## The signer's PIN (18/09/2026)
+
+**Approving asks the signer's personal PIN** — a bill, a bid, a requisition, a stock
+adjustment and a till return, in their five routes (`signingPinProblem`,
+`platform/auth/lock.ts`). Rejecting is not asked: it commits nobody to anything. It is asked
+of a person who has set a PIN, and of **everybody** when the studio switches on **PIN on every
+signature** (Studio settings, beside the chains; `signingPin` on the studio), in which case a
+signer with no PIN is refused `pin-not-set` (409) and told to set one.
+
+A request without the PIN answers `pin-required` (**428**). No screen was changed for it: the
+page's response observer (`components/security/SessionLock.js`) asks for the PIN and sends
+**the same request** again with it, so the screen that asked to sign gets the signature's answer.
+A wrong PIN asks again with the tries left; five wrong in a row stop the PIN working on
+signatures and at tills for fifteen minutes (`pin-locked`, 429). The reason is sharing: a login
+handed round a team signs as one person, and the PIN typed at the moment of signing is the one
+thing the named person has and the others do not.
+
 ## Not built yet
 
 Stated in words, because a silent gap reads as a finished feature.

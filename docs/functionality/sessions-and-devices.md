@@ -163,6 +163,10 @@ A till is paired to one device, opens only there, and cashiers take it over with
 elsewhere by the route wrapper (`till-only`, 403) and redirected back by the studio shell, has
 no idle timeout, and is not counted in the session limit.
 
+## The PIN on a signature
+
+The same PIN is asked before an approval is signed — `docs/functionality/approvals.md`, "The
+signer's PIN".
+
 ## Not built yet
-- The PIN asked again before signing an approval.
 - Two-factor sign-in with an authenticator app, and passkeys.

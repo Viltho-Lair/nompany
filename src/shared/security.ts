@@ -95,6 +95,14 @@ const en = {
   pinLockedFor: "Too many wrong PINs. Try again in 15 minutes.",
   pinNotSetTill: "You have no PIN yet. Set one on your account's Security page, then come back.",
   noCashiers: "Nobody here may sell at this till yet.",
+
+  // ---- the PIN on a signature -------------------------------------------------
+  signTitle: "Sign with your PIN",
+  signBody: "Your PIN confirms it is you signing this approval.",
+  sign: "Sign",
+  pinNotSetSign: "This studio asks for a PIN on every signature, and you have none yet. Set one on your account's Security page.",
+  signingPinTitle: "PIN on every signature",
+  signingPinBody: "Ask every signer for their personal PIN before an approval is signed. Off, only people who have set a PIN are asked.",
 };
 
 const ar: typeof en = {
@@ -176,6 +184,13 @@ const ar: typeof en = {
   pinLockedFor: "رموز خاطئة كثيرة. حاول مرة أخرى بعد 15 دقيقة.",
   pinNotSetTill: "ليس لديك رمز شخصي بعد. عيّنه في صفحة الأمان في حسابك ثم عد.",
   noCashiers: "لا يوجد أحد هنا يملك صلاحية البيع على هذا الصندوق بعد.",
+
+  signTitle: "وقّع برمزك الشخصي",
+  signBody: "يؤكد رمزك الشخصي أنك أنت من يوقّع هذه الموافقة.",
+  sign: "توقيع",
+  pinNotSetSign: "يطلب هذا الاستوديو رمزا شخصيا مع كل توقيع، وليس لديك رمز بعد. عيّنه في صفحة الأمان في حسابك.",
+  signingPinTitle: "الرمز الشخصي مع كل توقيع",
+  signingPinBody: "اطلب من كل موقّع رمزه الشخصي قبل توقيع أي موافقة. عند الإيقاف، يُطلب الرمز فقط ممن عيّنوا رمزا.",
 };
 
 const dict = { en, ar } as const;

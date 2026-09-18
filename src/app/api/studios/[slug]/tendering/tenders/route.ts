@@ -1,4 +1,5 @@
 import { route, refused } from "@/platform/http/route";
+import { signingPinProblem } from "@/platform/auth/lock";
 import { tenderingContext, tendersView, createTender, editTender, removeTender } from "@/modules/tendering/tenders";
 import { approveBid } from "@/modules/tendering/bid";
 
@@ -35,6 +36,9 @@ export const PUT = route(spec, async (tendering) => {
   // `editTender` opens on `tendering.tenders.edit`; a signature must NOT, or
   // whoever priced the bid could sign it by sending one more key.
   if (tendering.body.approve) {
+    // THE SIGNER'S PIN, before a signature (platform/auth/lock.ts).
+    const pinGate = await signingPinProblem(tendering.studio, tendering.user.id, tendering.body.pin);
+    if (pinGate) return pinGate;
     const signed = await approveBid(tendering, id);
     if (refused(signed)) return signed;
     return { ok: true, tender: signed.tender, approved: signed.approved, signed: signed.signed, required: signed.required };

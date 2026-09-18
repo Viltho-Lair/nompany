@@ -26,17 +26,49 @@ const readNum = (key) => { try { return Number(window.localStorage.getItem(key))
 const writeNum = (key, v) => { try { window.localStorage.setItem(key, String(v)); } catch { /* private window */ } };
 
 // ONE OBSERVER FOR THE WHOLE PAGE. Every screen fetches on its own, and none of
-// them knows about the lock; watching responses here is what lets any of them
-// trigger it without each learning a new status code.
+// them knows about the lock or the signing PIN; watching responses here is
+// what lets any of them meet both without each learning a new status code.
+//
+//   423 session-locked  → this tab shows the lock.
+//   428 pin-required    → a signature needs the signer's PIN (18/09/2026): ask
+//                         for it and send THE SAME REQUEST again with it, so the
+//                         screen that asked to sign gets the signature's answer
+//                         and never knew there was a question.
+//   409 pin-not-set     → the studio asks for a PIN and this person has none.
 function installLockObserver() {
   if (typeof window === "undefined" || window.__nompanyLockObserver) return;
   window.__nompanyLockObserver = true;
   const original = window.fetch.bind(window);
-  window.fetch = async (...args) => {
-    const res = await original(...args);
+  window.fetch = async (input, init) => {
+    const res = await original(input, init);
     if (res.status === 423) window.dispatchEvent(new Event("nompany:locked"));
+    if (res.status === 428 && typeof init?.body === "string" && typeof window.__nompanyAskPin === "function") {
+      return signWithPin(original, input, init, res);
+    }
+    if (res.status === 409) {
+      const data = await res.clone().json().catch(() => ({}));
+      if (data?.error === "pin-not-set") window.dispatchEvent(new Event("nompany:pin-not-set"));
+    }
     return res;
   };
+}
+
+// Ask, resend, and ask again on a wrong PIN until it is right, cancelled, or
+// the PIN is locked for a while. A cancelled prompt hands back the original 428.
+async function signWithPin(original, input, init, first) {
+  let body;
+  try { body = JSON.parse(init.body); } catch { return first; }
+  let message = null;
+  for (;;) {
+    const pin = await window.__nompanyAskPin(message);
+    if (!pin) return first;
+    const res = await original(input, { ...init, body: JSON.stringify({ ...body, pin }) });
+    if (res.status === 423) { window.dispatchEvent(new Event("nompany:locked")); return res; }
+    const data = await res.clone().json().catch(() => ({}));
+    if (data?.error === "pin-invalid") { message = { kind: "invalid", left: Number(data.attemptsLeft) || 1 }; continue; }
+    if (data?.error === "pin-locked") { await window.__nompanyAskPin({ kind: "locked" }); return res; }
+    return res;
+  }
 }
 
 async function post(body) {
@@ -52,6 +84,8 @@ export default function SessionLock({ locale = "en", buttonClass = "" }) {
   const [locked, setLocked] = useState(false);
   const [byIdle, setByIdle] = useState(false);
   const [needsPin, setNeedsPin] = useState(false);
+  // A SIGNATURE WAITING ON THE PIN: what to say, and how to answer the request.
+  const [ask, setAsk] = useState(null);
   const channel = useRef(null);
 
   const showLocked = useCallback((idle = false) => { setByIdle(idle); setLocked(true); }, []);
@@ -79,6 +113,17 @@ export default function SessionLock({ locale = "en", buttonClass = "" }) {
       .catch(() => {});
     return () => { alive = false; };
   }, [showLocked]);
+
+  // THE SIGNING PROMPT, offered to the page's response observer.
+  useEffect(() => {
+    window.__nompanyAskPin = (message) => new Promise((resolve) => setAsk({ message, resolve }));
+    const onNoPin = () => setNeedsPin("sign");
+    window.addEventListener("nompany:pin-not-set", onNoPin);
+    return () => {
+      delete window.__nompanyAskPin;
+      window.removeEventListener("nompany:pin-not-set", onNoPin);
+    };
+  }, []);
 
   // The other tabs, the fetch observer, and the button.
   useEffect(() => {
@@ -147,22 +192,56 @@ export default function SessionLock({ locale = "en", buttonClass = "" }) {
           <path d="M8 11V8a4 4 0 118 0v3" />
         </svg>
       </button>
-      {needsPin && <NeedsPin t={t} locale={locale} onClose={() => setNeedsPin(false)} />}
+      {needsPin && <NeedsPin t={t} locale={locale} message={needsPin === "sign" ? t.pinNotSetSign : t.lockNeedsPin} onClose={() => setNeedsPin(false)} />}
+      {ask && <SignPrompt t={t} message={ask.message} onDone={(pin) => { ask.resolve(pin); setAsk(null); }} />}
       {locked && <LockCover t={t} locale={locale} byIdle={byIdle} onUnlocked={onUnlocked} />}
     </>
   );
 }
 
-function NeedsPin({ t, locale, onClose }) {
+function NeedsPin({ t, locale, message, onClose }) {
   return (
     <div role="dialog" aria-modal="true" className="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-950/40 p-4">
       <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl dark:bg-[#20202c]">
-        <p className="text-sm text-slate-700 dark:text-slate-200">{t.lockNeedsPin}</p>
+        <p className="text-sm text-slate-700 dark:text-slate-200">{message}</p>
         <div className="mt-4 flex items-center justify-end gap-2">
           <button type="button" onClick={onClose} className="rounded-full px-3 py-1.5 text-sm font-600 text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/5">{t.dismiss}</button>
           <a href={`/${locale}/account?view=security`} className="rounded-full bg-brand-700 px-4 py-1.5 text-sm font-600 text-white hover:bg-brand-950">{t.openSecurity}</a>
         </div>
       </div>
+    </div>
+  );
+}
+
+// THE PIN BEFORE A SIGNATURE. Not a lock — the page stays visible behind it —
+// and cancelling it simply leaves the document unsigned.
+function SignPrompt({ t, message, onDone }) {
+  const [pin, setPin] = useState("");
+  const locked = message?.kind === "locked";
+  return (
+    <div role="dialog" aria-modal="true" aria-label={t.signTitle}
+      className="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-950/40 p-4">
+      <form onSubmit={(e) => { e.preventDefault(); if (pin.length >= 4) onDone(pin); }}
+        className="w-full max-w-sm rounded-2xl bg-white p-5 text-start shadow-xl dark:bg-[#20202c]">
+        <h2 className="font-display text-lg font-700 text-slate-900 dark:text-white">{t.signTitle}</h2>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{locked ? t.pinLockedFor : t.signBody}</p>
+        {!locked && (
+          <input type="password" inputMode="numeric" autoComplete="off" autoFocus maxLength={8} dir="ltr"
+            aria-label={t.pinLabel} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
+            className="mt-4 w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-center font-display text-2xl tracking-[0.4em] text-slate-900 focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-white/15 dark:bg-[#191921] dark:text-white" />
+        )}
+        {message?.kind === "invalid" && <p role="alert" className="mt-2 text-sm text-rose-600 dark:text-rose-300">{t.pinWrong(message.left)}</p>}
+        <div className="mt-4 flex items-center justify-end gap-2">
+          <button type="button" onClick={() => onDone(null)}
+            className="rounded-full px-3 py-1.5 text-sm font-600 text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/5">
+            {locked ? t.dismiss : t.cancel}
+          </button>
+          {!locked && (
+            <button type="submit" disabled={pin.length < 4}
+              className="rounded-full bg-brand-700 px-4 py-1.5 text-sm font-600 text-white hover:bg-brand-950 disabled:opacity-60">{t.sign}</button>
+          )}
+        </div>
+      </form>
     </div>
   );
 }

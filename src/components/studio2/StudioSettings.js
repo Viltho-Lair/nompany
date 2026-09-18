@@ -18,6 +18,7 @@ import { actionsForField, OTHER_FIELD } from "@/shared/fieldsOfWork";
 import StudioFlowEditor from "@/components/studio2/StudioFlowEditor";
 import SettingsFold from "@/components/studio2/SettingsFold";
 import ApprovalChainsPanel from "@/components/studio2/ApprovalChainsPanel";
+import SigningPinSetting from "@/components/security/SigningPinSetting";
 import EmploymentRulesPanel from "@/components/studio2/EmploymentRulesPanel";
 import OfficialValuesPanel from "@/components/studio2/OfficialValuesPanel";
 import { officialValuesDict } from "@/shared/studio/officialValues";
@@ -355,6 +356,9 @@ export default function StudioSettings({ slug, locale = "en" }) {
         onSave={save}
         tr={tr}
       />
+
+      {/* THE PIN ON A SIGNATURE — whether every signer must type theirs. */}
+      <SigningPinSetting value={studio.signingPin} canManage={canManage} onSave={save} locale={locale} />
 
       {/* THE EMPLOYMENT RULES — leave allowances, carry-over, how leave days are
           counted. Keyed on what the server stored so a save re-seeds the editor

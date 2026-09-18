@@ -207,3 +207,28 @@ async function endAfterPinFailures(state: SessionState, digest: string) {
   await endSessions(state.userId, [sessionId(row)], { reason: "pin-failed" });
   if (row.deviceId) await revokeDevice(state.userId, row.deviceId);
 }
+
+// ---- the PIN on a signature (18/09/2026) -------------------------------------
+//
+// SIGNING AN APPROVAL ASKS THE SIGNER'S PIN — a bill, a bid, a requisition, a
+// stock adjustment, a till return. A login handed round a team produces
+// signatures nobody can attribute; a PIN typed at the moment of signing is the
+// one thing the person whose name is on the signature has and the others do
+// not. Asked when the person has set a PIN, and of EVERYBODY when the studio
+// has switched `signingPin` on (Studio settings → Approvals), in which case a
+// signer with no PIN is told to set one. Only approving asks; turning a
+// document down commits nobody to anything.
+//
+// A request without the PIN answers `pin-required` (428), and the page asks
+// for it and sends the same request again (components/security/SessionLock).
+export async function signingPinProblem(
+  studio: object | null | undefined, userId: string, pin: unknown,
+) {
+  const sec = await getSecurity(userId);
+  const required = Boolean((studio as { signingPin?: unknown } | null)?.signingPin) || Boolean(sec?.pinHash);
+  if (!required) return null;
+  if (!sec?.pinHash) return { error: "pin-not-set" as const };
+  if (pin === undefined || pin === null || String(pin) === "") return { error: "pin-required" as const };
+  const checked = await checkPinForAct(userId, pin);
+  return "error" in checked ? checked : null;
+}

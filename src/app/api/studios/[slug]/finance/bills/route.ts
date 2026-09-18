@@ -1,4 +1,5 @@
 import { route, refused } from "@/platform/http/route";
+import { signingPinProblem } from "@/platform/auth/lock";
 import { setupFor as setupOf } from "@/modules/finance/setup";
 import { requirePermission } from "@/platform/access";
 import { financeContext, PAYMENT_METHODS } from "@/modules/finance/finance";
@@ -85,6 +86,11 @@ export const POST = route(spec, async (fin) => {
 export const PUT = route(spec, async (fin) => {
   if (!fin.body.id) return { error: "missing" };
 
+  // THE SIGNER'S PIN, before a signature (platform/auth/lock.ts).
+  if (fin.body.approve === true) {
+    const pinGate = await signingPinProblem(fin.studio, fin.user.id, fin.body.pin);
+    if (pinGate) return pinGate;
+  }
   const result = fin.body.approve === true
     ? await approveBill(fin, fin.body.id)
     : fin.body.payment

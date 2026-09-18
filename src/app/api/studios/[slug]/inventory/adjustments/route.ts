@@ -1,4 +1,5 @@
 import { route, refused } from "@/platform/http/route";
+import { signingPinProblem } from "@/platform/auth/lock";
 import { inventoryContext, applyApprovedAdjustment } from "@/modules/inventory/inventory";
 import {
   listAdjustments, approveAdjustment, rejectAdjustment,
@@ -36,6 +37,9 @@ export const PATCH = route(spec, async (c) => {
 
   const action = String(c.body?.action ?? "");
   if (action === "approve") {
+    // THE SIGNER'S PIN, before a signature (platform/auth/lock.ts).
+    const pinGate = await signingPinProblem(ctx.studio, c.user.id, c.body?.pin);
+    if (pinGate) return pinGate;
     const result = await approveAdjustment(ctx, id, (row) => applyApprovedAdjustment(ctx, row));
     if (refused(result)) return result;
     return { ok: true, ...result };

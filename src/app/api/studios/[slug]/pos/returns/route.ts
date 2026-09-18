@@ -1,4 +1,5 @@
 import { route, refused } from "@/platform/http/route";
+import { signingPinProblem } from "@/platform/auth/lock";
 import { posContext } from "@/modules/sales/pos";
 import { returnsView, findSale, requestReturn, approveReturn, rejectReturn } from "@/modules/sales/posReturns";
 
@@ -33,6 +34,11 @@ export const PATCH = route(spec, async (pos) => {
   const id = String(pos.body?.id ?? "").trim();
   if (!id) return { error: "missing" };
   const action = String(pos.body?.action ?? "");
+  // THE SIGNER'S PIN, before a signature (platform/auth/lock.ts).
+  if (action === "approve") {
+    const pinGate = await signingPinProblem(pos.studio, pos.user.id, pos.body?.pin);
+    if (pinGate) return pinGate;
+  }
   const result = action === "approve" ? await approveReturn(pos, id)
     : action === "reject" ? await rejectReturn(pos, id, pos.body?.reason)
       : { error: "action" as const };
