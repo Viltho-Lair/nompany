@@ -49,11 +49,10 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
   });
   if (refused(result)) return Response.redirect(back(request, result.error), 302);
 
-  // OVER THE SESSION LIMIT, the sign-in page asks which session to end — a
-  // redirect cannot carry the question, so the page reads it back from the
+  // AN AUTHENTICATOR CODE IS OWED (twoFactor.ts): the sign-in page asks for it
+  // — a redirect cannot carry the question, so the page reads it back from the
   // paused sign-in the cookie names.
-  // AND THE SAME FOR AN AUTHENTICATOR CODE that is owed (twoFactor.ts).
-  const paused = result.chooseSession || result.totpRequired ? result.ticketId : "";
+  const paused = result.totpRequired ? result.ticketId : "";
   const res = Response.redirect(new URL(paused ? "/en/login?continue=1" : "/en/questionnaire", url.origin), 302);
   const out = new Response(res.body, res);
   if (paused) out.headers.append("Set-Cookie", pendingCookie(paused, requestIsHttps(request)));

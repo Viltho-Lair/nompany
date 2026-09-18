@@ -1,6 +1,5 @@
 import { route, refused } from "@/platform/http/route";
 import { mySessions, endMySession } from "@/platform/auth/identity";
-import { SESSION_LIMITS } from "@/platform/auth/sessionPolicy";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,7 +10,7 @@ export const dynamic = "force-dynamic";
 const spec = { auth: "user", name: "identity/sessions", status: { current: 409 } };
 
 export const GET = route(spec, async ({ user }) => ({
-  ok: true, sessions: await mySessions(user.id), limits: SESSION_LIMITS,
+  ok: true, sessions: await mySessions(user.id),
 }));
 
 export const DELETE = route({ ...spec, body: true }, async ({ user, body }) => {

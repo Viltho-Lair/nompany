@@ -1014,7 +1014,6 @@ function Security({ devices, onChanged, locale, user }) {
       <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
         How you sign in, and the browsers that stay trusted. A device that isn&apos;t on this list
         has to pass a one-time code before it can sign in. Removing one sends it back through that check.
-        {" "}{sec.trustLimit}
       </p>
 
       <div className={cn(STACK, "mt-4")}>

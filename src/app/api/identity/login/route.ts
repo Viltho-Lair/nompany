@@ -68,14 +68,6 @@ export async function POST(request: Request) {
     return res;
   }
 
-  // OVER THE SESSION LIMIT: the person chooses which session to end
-  // (openSession). The ticket rides in a cookie like the code challenge does.
-  if (result.chooseSession) {
-    const res = Response.json({ ok: true, otpRequired: false, chooseSession: true, sessions: result.sessions });
-    res.headers.append("Set-Cookie", pendingCookie(result.ticketId, requestIsHttps(request)));
-    return res;
-  }
-
   const res = Response.json({
     ok: true, otpRequired: false, user: publicUser(result.user),
     ...(desktop ? { token: result.token, expiresIn: result.ttl } : {}),

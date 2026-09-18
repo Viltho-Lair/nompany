@@ -18,7 +18,6 @@ import { derivedSecret } from "@/platform/db/masterKeys";
 import { OTP, RL, U, makeId } from "@/platform/db/keys";
 import { getJSON, setJSONEx, consume, incrWithTTL, readArr, editArr, editJSON } from "@/platform/db/store";
 import { recordSignal } from "./users";
-import { TRUSTED_DEVICE_LIMIT } from "./sessionPolicy";
 
 export const CODE_TTL_SEC = 10 * 60;               // a code is valid 10 minutes
 export const MAX_ATTEMPTS = 5;                     // wrong guesses per challenge
@@ -203,7 +202,7 @@ export async function recordDevice(
   // "keep": record the sign-in and leave the device's trust as it was — a
   // passkey sign-in says nothing about whether this browser may skip a code.
   { trusted = true }: { trusted?: boolean | "keep" } = {},
-): Promise<{ id: string; trusted: boolean; trustRefused: boolean }> {
+): Promise<{ id: string; trusted: boolean }> {
   const id = deviceId && String(deviceId).startsWith("dev") ? deviceId : makeId("dev");
   const facts = {
     label: String(label).slice(0, 120),
@@ -216,18 +215,10 @@ export async function recordDevice(
   const outcome = await editArr<DeviceRow, { isNew: boolean; trusted: boolean }>(U.devices(userId), (rows) => {
     const live = liveDevices(rows);
     const existing = live.find((d) => d.id === id);
-    // AT MOST THREE TRUSTED DEVICES — the session limit's own total, two
-    // computers and a phone (18/09/2026). A fourth is recorded but NOT trusted:
-    // the person is told, and removes one on the Security page to make room.
-    // Nothing already trusted is dropped to make room for it, silently or
-    // otherwise; an account holding more than three from before the cap keeps
-    // them until they expire or are removed.
-    const trustedElsewhere = live.filter((d) => d.id !== id && d.trusted !== false).length;
-    const wants = trusted === "keep" ? Boolean(existing && existing.trusted !== false) : Boolean(trusted);
-    // A device already trusted keeps its place: the cap stops a NEW one, it never
-    // evicts one an account held before the cap existed.
-    const already = Boolean(existing && existing.trusted !== false);
-    const mayTrust = wants && (already || trustedElsewhere < TRUSTED_DEVICE_LIMIT);
+    // NO CAP ON TRUSTED DEVICES (the owner, 19/09/2026: a cap of three shipped
+    // with the session limit on 18/09/2026 and went with it). "keep" leaves the
+    // device's trust as it was.
+    const mayTrust = trusted === "keep" ? Boolean(existing && existing.trusted !== false) : Boolean(trusted);
     const row: DeviceRow = {
       ...existing,
       ...facts,
@@ -239,7 +230,8 @@ export async function recordDevice(
     };
     // THE LIST IS BOUNDED, AND WHAT FALLS OFF IS HISTORY: the oldest rows that
     // were never trusted. A trusted device is never pushed off by a new one —
-    // that silent eviction is exactly what the cap replaced.
+    // the list used to drop its oldest row, trusted or not, and a person lost
+    // a trusted browser without being told.
     // Rows are newest first, so the untrusted ones past the room left are the
     // oldest of them.
     const others = live.filter((d) => d.id !== id);
@@ -253,7 +245,7 @@ export async function recordDevice(
   // signals. Counted where the row is first written, because that is the one
   // place that knows the difference between a new browser and a returning one.
   if (isNew) await recordSignal(userId, "newDevices");
-  return { id, trusted: outcome.trusted, trustRefused: trusted === true && !outcome.trusted };
+  return { id, trusted: outcome.trusted };
 }
 
 // True only for a live, unexpired device belonging to THIS user — a device

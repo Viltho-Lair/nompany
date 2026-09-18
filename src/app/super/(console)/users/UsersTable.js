@@ -333,7 +333,7 @@ export default function UsersTable({ rows }) {
         valueGetter: (_v, row) => (row.flagged ? 2 : row.warned ? 1 : 0),
         renderCell: ({ row }) => (
           <span className="flex min-w-0 flex-col leading-tight"
-            title={`${row.evictions7d} forced sign-outs in 7 days · ${row.newDevices30d} new devices in 30 days`}>
+            title={`${row.newDevices30d} new devices in 30 days`}>
             {row.flagged ? <Badge tone="danger">Flagged</Badge> : <span className="text-[var(--ad-muted-foreground)]">—</span>}
             {row.warned ? <span className="mt-0.5 truncate text-xs text-[var(--ad-muted-foreground)]">Warned {row.warned}</span> : null}
           </span>

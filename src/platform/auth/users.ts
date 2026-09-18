@@ -292,12 +292,12 @@ export const getProfilesByIds = (userIds: string[]) =>
 export type UserActivity = {
   lastLoginAt?: string;
   lastSeenAt?: string;
-  // THE SHARING SIGNALS (18/09/2026), as timestamps rather than counts so a
-  // window can be read off them: when a session of this person's was ended
-  // because the account signed in elsewhere, and when a device this account
-  // had never used appeared. Kept here because the console's user list already
-  // reads this document for every person — the flag costs it nothing.
-  evictions?: number[];
+  // THE SHARING SIGNAL (18/09/2026), as timestamps rather than a count so a
+  // window can be read off them: when a device this account had never used
+  // appeared. Kept here because the console's user list already reads this
+  // document for every person — the flag costs it nothing. (An `evictions`
+  // list beside it counted sessions ended by the session limit; the limit was
+  // removed on 19/09/2026 and a stored list is simply no longer read.)
   newDevices?: number[];
   /** When nompany last sent this person the shared-login warning. */
   warnedAt?: string;
@@ -305,7 +305,7 @@ export type UserActivity = {
 
 /** A security event, appended and trimmed to the last 30 days. */
 const SIGNAL_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
-export async function recordSignal(userId: string, field: "evictions" | "newDevices", times = 1) {
+export async function recordSignal(userId: string, field: "newDevices", times = 1) {
   if (!userId || times <= 0) return;
   const now = Date.now();
   await editJSON<UserActivity, void>(U.activity(userId), (cur) => {
@@ -437,11 +437,12 @@ export type SessionState = {
 };
 export const ENDED_STATE_TTL = 7 * 24 * 60 * 60;
 
-// A LIST BOUND, NOT A POLICY. The limit a person is held to is the sign-in's
-// (sessionPolicy); this only stops the list growing without end. What falls off
-// it is ENDED — its index released — because a row that fell off the list while
-// its token still worked was exactly the "live session sign-out-everywhere
-// cannot see" this list exists to prevent. It used to be sliced off silently.
+// A LIST BOUND, NOT A POLICY. There is no limit on where a person may be
+// signed in (sessionPolicy); this only stops one list growing without end —
+// twenty-five live sessions is far past anybody's desk. What falls off it is
+// ENDED — its index released — because a row that fell off the list while its
+// token still worked was exactly the "live session sign-out-everywhere cannot
+// see" this list exists to prevent. It used to be sliced off silently at ten.
 const SESSION_LIST_BOUND = 25;
 
 // Mint a session. The comment at the head of this section is about this function.

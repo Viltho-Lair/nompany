@@ -6,8 +6,7 @@ import { securityDict } from "@/shared/security";
 
 // THE AUTHENTICATOR STEP OF A SIGN-IN (platform/auth/twoFactor.ts): the app's
 // six digits, or a recovery code. It finishes the paused sign-in the HttpOnly
-// cookie names, and hands back whatever the finish answered — a session, or
-// the session limit's question.
+// cookie names.
 export default function TwoFactorStep({ onDone, onRestart }) {
   const t = securityDict(useAccountLocale());
   const [code, setCode] = useState("");

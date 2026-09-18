@@ -158,7 +158,7 @@ cashier picks theirs and types their personal PIN (`/api/identity/till`). They g
 session**: eight hours, good for this till and nothing else — the route wrapper refuses it
 anywhere but this studio's Point of Sale and what the shell needs (the live stream,
 notifications, the greeting), and the studio shell sends every other address back to the till —
-and **counted against nobody's device limit**, because a paired till is the company's device.
+and **left out of the person's own session count**, because a paired till is the company's device.
 Whoever was on the till before is signed out of it. Five wrong PINs stop that person's PIN
 working at tills and on signatures for fifteen minutes (`checkPinForAct`). A cashier with no PIN
 is told to set one on their account's Security page.

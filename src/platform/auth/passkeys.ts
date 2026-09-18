@@ -4,8 +4,7 @@
 // A PASSKEY IS A WHOLE SIGN-IN. It proves the device holds a private key that
 // never leaves it, and the device's own unlock (a fingerprint, a face, the
 // phone's PIN) proves the person — so a passkey sign-in asks neither the
-// emailed code nor the authenticator. The session limit still applies: a
-// passkey decides who you are, not how many places you may be.
+// emailed code nor the authenticator.
 //
 // WHY IT MATTERS FOR SHARING: a password and a forwarded code can be handed to
 // twenty people; a passkey lives in one phone or one security key.

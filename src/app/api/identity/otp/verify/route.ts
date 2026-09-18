@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import {
   verifyOtp, sessionCookie, clearedOtpCookie, deviceCookie, deviceFingerprint,
   requestIsHttps, publicUser, OTP_COOKIE, DEVICE_COOKIE,
-  DEVICE_HEADER, isDesktopClient, pendingCookie,
+  DEVICE_HEADER, isDesktopClient,
 } from "@/platform/auth/identity";
 
 export const runtime = "nodejs";
@@ -44,21 +44,8 @@ export async function POST(request: Request) {
   }
 
   const isHttps = requestIsHttps(request);
-  // THE CODE WAS RIGHT, AND THE SESSION LIMIT IS REACHED: the challenge is
-  // spent and the device recorded either way; what is left is choosing which
-  // session to end (openSession).
-  if (result.chooseSession) {
-    const res = Response.json({ ok: true, chooseSession: true, sessions: result.sessions });
-    res.headers.append("Set-Cookie", pendingCookie(result.ticketId, isHttps));
-    res.headers.append("Set-Cookie", clearedOtpCookie());
-    if (result.deviceId) res.headers.append("Set-Cookie", deviceCookie(result.deviceId, isHttps));
-    return res;
-  }
   const res = Response.json({
     ok: true, user: publicUser(result.user), deviceTrusted: !!result.deviceId,
-    // The box was ticked and three devices are already trusted: say so, rather
-    // than let the next sign-in ask for a code nobody expected.
-    trustRefused: Boolean(result.trustRefused),
     // Same reasoning as the login route: a client with no cookie jar is told the
     // values instead of being handed cookies it cannot keep.
     ...(desktop ? { token: result.token, expiresIn: result.ttl, deviceId: result.deviceId || "" } : {}),

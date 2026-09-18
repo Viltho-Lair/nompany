@@ -1,7 +1,12 @@
 # Sessions and devices — sign-in, the devices a person uses, and seats kept to one person
 
 The owner's plan of 18/09/2026 (the decision ledger in `docs/progress.md`): a seat is
-for one person, and a login handed to a team should stop working as a team login.
+for one person. **There is no limit on how many places a person may be signed in** — a
+limit of two computers and one phone, and a cap of three trusted devices, shipped on
+18/09/2026 and were removed on the owner's instruction the next day ("remove limitations for
+users"). What stays against a shared login is what stops nobody working: the console sees
+where each person is signed in and flags an account meeting many new devices, a signature
+asks the signer's PIN, and a till opens only on its paired device.
 
 Code: `src/platform/auth/identity.ts` (sign-in), `src/platform/auth/users.ts` (sessions),
 `src/platform/auth/otp.ts` (devices), `src/shared/deviceClass.ts` (device types).
@@ -25,8 +30,8 @@ Computer (Safari on an iPad has described itself as a Mac since iPadOS 13); an i
 "Mac" with a touch screen, and a touch screen under 600px on its short side is a phone
 whatever the user agent says.
 
-**All of it is reported by the browser and can be faked.** That is why the session limit
-(below) holds on the total; the type only decides which slot a sign-in takes.
+**All of it is reported by the browser and can be faked**, so a type describes a sign-in and
+controls nothing.
 
 Rows written before 18/09/2026 say "Tablet"; they read as Portable Device.
 
@@ -34,61 +39,41 @@ Rows written before 18/09/2026 say "Tablet"; they read as Portable Device.
 office machine is "Chrome on Windows", so without it nobody tidying the list could tell
 their own browser from the one they meant to remove.
 
-## The session limit
+## Every sign-in, one door
 
-**A person may be signed in on 2 Computers and 1 Phone or Portable Device at a time.**
-Phones and portable devices share the one slot. `platform/auth/sessionPolicy.ts` holds the
-numbers and the rule; `openSession` in `identity.ts` is the one door every sign-in goes
-through — the password on a trusted device, the emailed code, and a Google or Microsoft
-callback — so the limit cannot be missing from one of them.
+`openSession` in `identity.ts` is the one place every sign-in ends — the password on a
+trusted device, the emailed code, a Google or Microsoft callback, a passkey, and a sign-in
+resumed after the authenticator — so what a session is minted with (its device, the desktop
+app's marker) is the same whichever way in was taken. **It asks nothing about how many
+sessions the person already has.**
 
-**Over the limit, the person is asked which session to sign out**, the oldest chosen for
-them. The sign-in is paused on a ten-minute ticket (`nc_pend`, HttpOnly, `OTP.pending`),
-and `POST /api/identity/signin` finishes it by ending the session named. The ticket can end
-only a session the limit is asking about, and it is spent before the new session opens. A
-Google or Microsoft callback cannot ask a question, so it redirects to
-`/login?continue=1`, where the page reads the question back. **The desktop client has no
-screen for it and ends the oldest session instead.**
-
-**The session that was ended is told why.** Ending one writes an ended state
-(`IX.sessionState`, kept seven days) naming the device that signed in; the sign-in page asks
-`GET /api/identity/session/ended` and says "You were signed out because this account signed
-in on another device (Chrome on Windows)." Twenty people on one login meet that message all
-day, which is the point, and every one of those sign-outs is counted
-(`u:<id>:activity.evictions`) for the console's sharing flag.
-
-- **A till's session is not counted** — a paired till is the company's device.
-- **Sessions from before 18/09/2026 carry no device and take Computer slots.** When a slot is
-  over its limit by more than one, the oldest of the excess end without asking; nobody is
-  asked to pick eight sessions one at a time.
-- **Two sign-ins at the same instant can both pass the check** and leave one session over the
-  limit until the next sign-in. The limit is enforced at sign-in, not on every request.
 - **The session list no longer drops rows silently.** It was capped at 10 by slicing, and a
   sliced-off session's token still worked while "sign out everywhere" could no longer see it.
-  Rows past the list's bound (25) are now ended — their index released.
+  The list is bounded at 25 live sessions now — a storage bound far past anybody's desk, not a
+  policy — and a row past it is ENDED, its index released.
+- **A session that was ended is told why.** Ending one writes an ended state
+  (`IX.sessionState`, kept seven days); the sign-in page asks `GET /api/identity/session/ended`
+  and says "This session was signed out from another of your devices."
 
 **The Security page lists where the person is signed in** (`GET/DELETE
 /api/identity/sessions`): each session's device, type, place and last activity, "This
-session" marked, and a Sign out button on the others. A person at the limit can make room
-here before they are asked to.
+session" marked, and a Sign out button on the others — the answer to "I left myself signed in
+somewhere".
 
 ## The sharing flag, in the console
 
 `/super` → Users shows, for every person, **how many places they are signed in right now**
 (a till's session not counted) and a **Flagged** badge when their sign-ins look like more
-than one person. `sharingSignals` in `sessionPolicy.ts` decides it from two signals kept on
-`u:<id>:activity`:
-
-| Signal | Flagged at |
-|---|---|
-| Sessions ended because the account signed in elsewhere, last 7 days | 5 or more |
-| Devices this account had never used, last 30 days | 5 or more |
-
-A new device is counted where its row is first written (`recordDevice`). The badge's tooltip
-gives both counts. **A flag is a reason to look, never a verdict**: nothing suspends anybody
+than one person. `sharingSignals` in `sessionPolicy.ts` decides it from one signal kept on
+`u:<id>:activity`: **five or more devices this account had never used, in the last 30 days.**
+A new device is counted where its row is first written (`recordDevice`), and the badge's
+tooltip gives the count. (A second signal — sessions ended by another sign-in — went with the
+session limit that produced it, 19/09/2026.) How many places a person is signed in is shown
+beside the flag and filterable, but is not a trigger: with no limit it is a fact to read, not
+a rule broken. **A flag is a reason to look, never a verdict**: nothing suspends anybody
 because of one.
 
-- **Filters**: flagged, warned, and the number of active sessions (0, 1, 2, 3+). The card
+- **Filters**: flagged, warned, and the number of active sessions (0, 1, 2, 3 or more). The card
   heading says how many accounts are flagged.
 - **Send sharing warning** (row menu) emails the person a fixed warning — each seat is for
   one person, the terms forbid shared logins, and what to do if it was not them
@@ -103,17 +88,13 @@ because of one.
 
 ## Trusted devices
 
-A trusted device skips the emailed code for 30 days. **At most 3 devices are trusted at
-once** — the session limit's own total (`TRUSTED_DEVICE_LIMIT`). Ticking "trust this device"
-on a fourth still signs the person in, records the device **untrusted**, and says so ("You
-already trust 3 devices… remove one on your account's Security page"); the next sign-in there
-asks for a code. The Security page says the cap beside the list.
+A trusted device skips the emailed code for 30 days. **There is no cap on how many** — a cap of
+three shipped with the session limit and was removed with it (19/09/2026).
 
-**Nothing trusted is dropped to make room**, silently or otherwise. The list used to be
-capped at 10 by dropping the oldest row, trusted or not. It is still bounded at 10, but what
-falls off is the oldest *untrusted* history; an account that trusted more than three devices
-before the cap keeps them until they expire or are removed. A Google or Microsoft sign-in
-records its device as trusted only when there is room.
+**Nothing trusted is dropped to make room**, silently or otherwise. The list used to be capped
+at 10 by dropping the oldest row, trusted or not. It is still bounded at 10, but what falls off
+is the oldest *untrusted* history. A passkey sign-in records its device and leaves the device's
+trust as it was: trust is about skipping the code after a password.
 
 ## The screen lock, the idle timeout and the PIN
 
@@ -161,7 +142,7 @@ A till is paired to one device, opens only there, and cashiers take it over with
 `docs/functionality/pos.md` has the whole of it. For sessions: **a till's session is scoped**
 (`scope: "till"` on the session and its state) to one studio's Point of Sale, refused
 elsewhere by the route wrapper (`till-only`, 403) and redirected back by the studio shell, has
-no idle timeout, and is not counted in the session limit.
+no idle timeout, and is left out of the person's session count in the console.
 
 ## The PIN on a signature
 
@@ -176,7 +157,6 @@ trusted**: after the password, the sign-in pauses on a ticket (`stage: "totp"`) 
 the app's six digits or one of ten recovery codes. A Google or Microsoft sign-in is asked the
 same on an untrusted device — the provider proving the address is the first factor, not the
 second. Five wrong codes spend the ticket and the person starts again from the password.
-After the code, the session limit still applies, and may ask which session to end next.
 
 It is the console's machinery (`superMfa.ts`), not a second copy: TOTP, the secret sealed at
 rest, recovery codes stored as digests and consumed in the same write that accepts one.
@@ -193,8 +173,7 @@ be forwarded to a team.
 A person can add passkeys on the Security page and **sign in with one** from the sign-in
 page (`platform/auth/passkeys.ts`, through `@simplewebauthn/server` and `/browser`). **A
 passkey is a whole sign-in**: the device holds a private key that never leaves it and its own
-unlock proves the person, so neither the emailed code nor the authenticator is asked. The
-session limit still applies. Nothing is typed — the passkeys are discoverable, and the user id
+unlock proves the person, so neither the emailed code nor the authenticator is asked. Nothing is typed — the passkeys are discoverable, and the user id
 travels inside each one and comes back as its user handle, which is how the server knows
 whose it is.
 
@@ -206,8 +185,7 @@ whose it is.
 - **The relying party is the site's domain without "www."**, so a passkey made on
   www.nompany.com works on nompany.com where studios live; `PASSKEY_RP_ID` overrides it.
 - A passkey sign-in records the device like any sign-in and **leaves its trust as it was**;
-  trust is about skipping the code after a password. (The same change stops the trusted-device
-  cap from ever untrusting a device that was already trusted.)
+  trust is about skipping the code after a password.
 - The browser library is loaded only when a passkey is used or made, so the sign-in page does
   not pay for it up front.
 
@@ -230,5 +208,3 @@ a lost security key.
 
 - **Two-factor and passkeys in the desktop app** — left aside on the owner's instruction,
   18/09/2026. Its login answer carries `totpRequired` and the ticket id; it has no screen for them.
-- **The session limit is checked at sign-in only.** Two sign-ins at the same instant can both
-  pass and leave one session over the limit until the next sign-in.

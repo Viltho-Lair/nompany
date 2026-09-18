@@ -63,7 +63,6 @@ async function renderUsers() {
         // above so two viewers never disagree about who is flagged.
         sessions: u.sharing.activeSessions,
         flagged: u.sharing.flagged,
-        evictions7d: u.sharing.evictions7d,
         newDevices30d: u.sharing.newDevices30d,
         warned: u.sharing.warnedAt ? lastActiveLabel(Date.parse(u.sharing.warnedAt), now) : "",
         // What sign-in security they have set up, for the reset menu.

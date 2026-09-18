@@ -12,8 +12,8 @@ import { STACK, ROW, ROW_LABEL, ROW_VALUE } from "@/components/public/accountKit
 //
 // A SESSION IS NOT A DEVICE. The device list below this says which browsers
 // this account has used and which may skip the emailed code; this says which of
-// them is signed in RIGHT NOW, which is what the limit counts. Somebody at the
-// limit comes here to choose which to sign out before they are asked to.
+// them is signed in RIGHT NOW, and signs any of the others out — the answer to
+// "I left myself signed in somewhere".
 export default function SecuritySessions() {
   const t = securityDict(useAccountLocale());
   const [sessions, setSessions] = useState(null);
@@ -44,7 +44,7 @@ export default function SecuritySessions() {
   return (
     <section className="mt-8">
       <h3 className="font-display text-lg font-500 text-slate-900 dark:text-white">{t.sessionsTitle}</h3>
-      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t.limitRule}</p>
+      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t.sessionsBlurb}</p>
       <div className={cn(STACK, "mt-4")}>
         {(sessions || []).map((s) => (
           <div key={s.id} className={ROW}>

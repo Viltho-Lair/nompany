@@ -7,7 +7,6 @@ import Link from "next/link";
 import OtpStep from "@/components/public/OtpStep";
 import SocialButtons from "@/components/public/SocialButtons";
 import { useDeviceHints } from "@/components/public/deviceHints";
-import SessionChooser from "@/components/public/SessionChooser";
 import { LockCover } from "@/components/security/SessionLock";
 import TillCashierSwitch from "@/components/security/TillCashierSwitch";
 import TwoFactorStep from "@/components/public/TwoFactorStep";
@@ -86,8 +85,7 @@ export default function LoginForm({ locale, dict, providers = [] }) {
   useDeviceHints();
   const [form, setForm] = useState({ email: "", password: "", remember: true });
   const sec = securityDict(useAccountLocale());
-  const [stage, setStage] = useState("credentials"); // credentials | otp | totp | choose | trust-full
-  const [sessions, setSessions] = useState([]);
+  const [stage, setStage] = useState("credentials"); // credentials | otp | totp | locked
   // A PAIRED TILL (18/09/2026): this device is a till, so the cashier's name
   // and PIN come first and the email sign-in is one click away.
   const [tillMode, setTillMode] = useState(false);
@@ -106,10 +104,9 @@ export default function LoginForm({ locale, dict, providers = [] }) {
   // TWO THINGS THIS PAGE MAY HAVE TO SAY BEFORE ANYBODY TYPES.
   //
   // Why this browser was signed out, when it was ended rather than expired —
-  // "this account signed in on another device" is what makes a shared login
-  // visibly stop working. And a sign-in paused at the session limit by a
-  // Google or Microsoft callback, which can only redirect here and cannot carry
-  // the question itself (`?continue=1`).
+  // from another of the person's devices, say. And a sign-in paused for the
+  // authenticator code by a Google or Microsoft callback, which can only
+  // redirect here and cannot carry the question itself (`?continue=1`).
   // AND A LOCKED SESSION that reloaded a page lands here too — the PIN, not the
   // password, is what it needs, and it goes back to where it was.
   useEffect(() => {
@@ -130,9 +127,7 @@ export default function LoginForm({ locale, dict, providers = [] }) {
       fetch("/api/identity/signin", { cache: "no-store" })
         .then((r) => r.json())
         .then((d) => {
-          if (!alive || !d?.ok) return;
-          if (d.stage === "totp") setStage("totp");
-          else if (d.sessions?.length) { setSessions(d.sessions); setStage("choose"); }
+          if (alive && d?.ok && d.stage === "totp") setStage("totp");
         })
         .catch(() => {});
     }
@@ -174,12 +169,6 @@ export default function LoginForm({ locale, dict, providers = [] }) {
         setLoading(false);
         return;
       }
-      if (data.chooseSession) {
-        setSessions(data.sessions || []);
-        setStage("choose");
-        setLoading(false);
-        return;
-      }
       // An authenticator is switched on: its code replaces the emailed one.
       if (data.totpRequired) {
         setStage("totp");
@@ -209,44 +198,12 @@ export default function LoginForm({ locale, dict, providers = [] }) {
     );
   }
 
-  // THE BOX WAS TICKED AND THREE DEVICES ARE ALREADY TRUSTED. Signed in all the
-  // same; said now, so the code asked next time is not a surprise.
-  if (stage === "trust-full") {
-    return (
-      <div key="trust-full" className="auth-panel space-y-4">
-        <div>
-          <h2 className="font-display text-lg font-700 text-fg">{sec.trustFullTitle}</h2>
-          <p className="mt-1 text-sm text-fg-muted">{sec.trustFullBody}</p>
-        </div>
-        <button type="button" className="landing-submit w-auto" onClick={() => window.location.assign(`/${locale}/questionnaire`)}>
-          {sec.continueLabel}
-        </button>
-      </div>
-    );
-  }
-
   if (stage === "totp") {
     return (
       <div key="totp" className="auth-panel space-y-4">
         <TwoFactorStep
-          onDone={(data) => {
-            if (data?.chooseSession) { setSessions(data.sessions || []); setStage("choose"); return; }
-            if (data?.trustRefused) { setStage("trust-full"); return; }
-            window.location.assign(`/${locale}/questionnaire`);
-          }}
-          onRestart={() => { setStage("credentials"); setLoading(false); }}
-        />
-      </div>
-    );
-  }
-
-  if (stage === "choose") {
-    return (
-      <div key="choose" className="auth-panel space-y-4">
-        <SessionChooser
-          sessions={sessions}
           onDone={() => window.location.assign(`/${locale}/questionnaire`)}
-          onCancel={() => { setStage("credentials"); setLoading(false); }}
+          onRestart={() => { setStage("credentials"); setLoading(false); }}
         />
       </div>
     );
@@ -261,12 +218,7 @@ export default function LoginForm({ locale, dict, providers = [] }) {
         <OtpStep
           email={form.email}
           submitLabel={tr.sign}
-          onVerified={(data) => {
-            // The code was right and the session limit is reached: choose.
-            if (data?.chooseSession) { setSessions(data.sessions || []); setStage("choose"); return; }
-            if (data?.trustRefused) { setStage("trust-full"); return; }
-            window.location.assign(`/${locale}/questionnaire`);
-          }}
+          onVerified={() => window.location.assign(`/${locale}/questionnaire`)}
         />
         <button
           type="button"
@@ -293,10 +245,7 @@ export default function LoginForm({ locale, dict, providers = [] }) {
     <div key="credentials" className="auth-panel space-y-5">
       <SocialButtons providers={providers} mode="login" />
       {/* A passkey is a whole sign-in: no password, no code. */}
-      <PasskeySignIn onDone={(data) => {
-        if (data?.chooseSession) { setSessions(data.sessions || []); setStage("choose"); return; }
-        window.location.assign(`/${locale}/questionnaire`);
-      }} />
+      <PasskeySignIn onDone={() => window.location.assign(`/${locale}/questionnaire`)} />
       <form onSubmit={onSubmit} className="space-y-4">
         <FloatingField
           label={t.emailLabel || "Work email"}

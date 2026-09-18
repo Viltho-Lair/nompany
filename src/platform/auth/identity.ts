@@ -17,10 +17,10 @@ import {
   getVerification, updateVerification,
   getQuestionnaire, updateQuestionnaire,
   mintSession, findUserBySession, revokeSession, revokeAllSessions, touchLastLogin, touchLastSeen,
-  listSessionRows, endSessions, sessionId, recordSignal, readSessionState,
+  listSessionRows, endSessions, readSessionState,
 } from "./users";
 import type { SessionState } from "./users";
-import { planSignIn, publicSession, isLocked, type PublicSession } from "./sessionPolicy";
+import { publicSession, isLocked } from "./sessionPolicy";
 import { twoFactorEnabled, passTwoFactor } from "./twoFactor";
 import { verifySignIn as verifyPasskey } from "./passkeys";
 import { OTP, ID, IX } from "@/platform/db/keys";
@@ -46,7 +46,7 @@ import { checkPassword } from "./passwordPolicy";
 import { sendEmail } from "@/platform/notify/email";
 import { verificationCodeEmail, passwordResetCodeEmail } from "@/platform/notify/emailTemplates";
 import { log } from "@/platform/http/observability";
-import { classifyDevice, decodeHints, DEVICE_HINTS_COOKIE, deviceSlot, normalizeDeviceType } from "@/shared/deviceClass";
+import { classifyDevice, decodeHints, DEVICE_HINTS_COOKIE, normalizeDeviceType } from "@/shared/deviceClass";
 
 // The ONE session cookie of the restructured model. Deliberately a new name so
 // it can never be confused with the old-structure cookies (nc_session/mt_admin)
@@ -264,11 +264,10 @@ export async function verifyOtp(
   // decision, which is why a regular sign-in left the list empty.
   //
   // RECORDED BEFORE THE SESSION OPENS, so the session can name its device —
-  // which is what lets the list mark "This device" and the limit count slots.
+  // which is what lets the list mark "This device" and say what each one is.
   const recorded = await recordDevice(userId, deviceId, device || {}, { trusted: Boolean(trustThisDevice) });
   const opened = await openSession({ userId, ttl, deviceId: recorded.id, device, desktop });
-  // `trustRefused`: the box was ticked and three devices are already trusted.
-  return { user, deviceId: recorded.id, trustRefused: recorded.trustRefused, ...opened };
+  return { user, deviceId: recorded.id, ...opened };
 }
 
 // Re-send the code for an in-flight challenge (new code, attempts reset).
@@ -291,7 +290,7 @@ export async function signInWithProvider(
 ): Promise<
   | { error: string }
   | ({ user: User; deviceId: string; error?: undefined; totpRequired?: undefined } & OpenOutcome)
-  | { user: User; deviceId: string; error?: undefined; totpRequired: true; ticketId: string; chooseSession?: undefined; token?: undefined }
+  | { user: User; deviceId: string; error?: undefined; totpRequired: true; ticketId: string; token?: undefined }
 > {
   const mail = norm(email);
   if (!EMAIL_RE.test(mail)) return { error: "email" };
@@ -369,12 +368,9 @@ export type LoginResult =
   | { error?: undefined; otpRequired: true; challengeId: string; emailSent: boolean;
       user?: undefined; token?: undefined; ttl?: undefined }
   | { error?: undefined; otpRequired?: undefined; user: User; token: string; ttl: number;
-      challengeId?: undefined; emailSent?: undefined; chooseSession?: undefined; totpRequired?: undefined }
-  | { error?: undefined; otpRequired?: undefined; user: User; chooseSession: true; ticketId: string;
-      sessions: PublicSession[]; token?: undefined; ttl?: undefined; challengeId?: undefined; emailSent?: undefined;
-      totpRequired?: undefined }
+      challengeId?: undefined; emailSent?: undefined; totpRequired?: undefined }
   | { error?: undefined; otpRequired?: undefined; user: User; totpRequired: true; ticketId: string;
-      chooseSession?: undefined; token?: undefined; ttl?: undefined; challengeId?: undefined; emailSent?: undefined };
+      token?: undefined; ttl?: undefined; challengeId?: undefined; emailSent?: undefined };
 
 export async function login(
   { email, password, remember, deviceId, ip, device, desktop }:
@@ -493,28 +489,26 @@ export async function logoutEverywhere(token: string) {
   await revokeAllDevices(user.id);
 }
 
-// ---- opening a session: the limit on where one person is signed in --------
+// ---- opening a session -------------------------------------------------------
 //
 // EVERY SIGN-IN ENDS HERE — the password on a trusted device, the emailed
-// code, a Google or Microsoft callback, and a paused sign-in resumed. One door,
-// so the limit cannot be missing from one of them (sessionPolicy says what the
-// limit is and why it exists).
+// code, a Google or Microsoft callback, a passkey, and a sign-in resumed after
+// the authenticator. One door, so what a session is minted with (its device,
+// the desktop app's marker) cannot differ between them.
 //
-// OVER THE LIMIT, THE PERSON IS ASKED which session to end rather than having
-// one ended behind their back: the answer comes back as `chooseSession` with a
-// ticket, and `chooseSessionToEnd` finishes the sign-in. The desktop client has
-// no screen for that question, so it ends the oldest instead.
-export type OpenOutcome =
-  | { token: string; ttl: number; chooseSession?: undefined; ticketId?: undefined; sessions?: undefined }
-  | { chooseSession: true; ticketId: string; sessions: PublicSession[]; token?: undefined; ttl?: undefined };
+// THERE IS NO LIMIT ON HOW MANY (the owner, 19/09/2026). A limit of two
+// computers and one phone, with a step asking which session to end, shipped
+// on 18/09/2026 and was removed the next day — sessionPolicy.ts says what
+// stays against a shared login instead.
+export type OpenOutcome = { token: string; ttl: number };
 
 type PendingSignIn = {
   userId: string;
   ttl: number;
   deviceId: string;
   device: DeviceFacts;
-  /** choose — which session to end; totp — the authenticator code is owed. */
-  stage: "choose" | "totp";
+  /** The authenticator code is owed. */
+  stage: "totp";
   createdAt: number;
   /** Wrong authenticator codes on this ticket. */
   fails?: number;
@@ -558,11 +552,10 @@ export async function completeTwoFactor(
     trusted: Boolean(trustThisDevice) || Boolean(t.trustProvider),
   });
   const opened = await openSession({ userId: t.userId, ttl: t.ttl, deviceId: recorded.id, device: t.device, desktop });
-  return { user, deviceId: recorded.id, trustRefused: Boolean(trustThisDevice) && recorded.trustRefused, ...opened };
+  return { user, deviceId: recorded.id, ...opened };
 }
 
 // WHY A SESSION ENDED, as the browser that lost it will be told.
-export const ENDED_ELSEWHERE = "signed-in-elsewhere";
 export const ENDED_BY_OWNER = "ended-by-you";
 
 export async function openSession(
@@ -570,16 +563,6 @@ export async function openSession(
   { userId: string; ttl: number; deviceId?: string; device?: DeviceFacts; desktop?: boolean },
 ): Promise<OpenOutcome> {
   const facts = device || {};
-  const plan = planSignIn(await listSessionRows(userId), deviceSlot(facts.deviceType), Date.now());
-  const ending = plan.autoEnd.map(sessionId);
-  if (plan.choose.length && desktop) ending.push(sessionId(plan.choose[0]));
-  if (ending.length) await endForSignIn(userId, ending, facts);
-
-  if (plan.choose.length && !desktop) {
-    const ticketId = await pauseSignIn({ userId, ttl, deviceId: deviceId || "", device: facts, stage: "choose" });
-    return { chooseSession: true, ticketId, sessions: plan.choose.map((r) => publicSession(r, hashToken)) };
-  }
-
   const token = await mintSession(userId, ttl, {
     deviceId: deviceId || "",
     deviceType: normalizeDeviceType(facts.deviceType) || "Computer",
@@ -591,61 +574,19 @@ export async function openSession(
   return { token, ttl };
 }
 
-// Ended because this account signed in somewhere else — the one kind of ending
-// the console's sharing flag counts.
-async function endForSignIn(userId: string, ids: string[], facts: DeviceFacts) {
-  const ended = await endSessions(userId, ids, {
-    reason: ENDED_ELSEWHERE, byLabel: facts.label || "", byType: normalizeDeviceType(facts.deviceType) || "",
-  });
-  await recordSignal(userId, "evictions", ended.length);
-}
-
-/** A paused sign-in, as its screen needs it: which sessions it may end. */
+/** A paused sign-in, as its screen needs it: which step it is waiting on. */
 export async function pendingSignIn(ticketId: string) {
   const t = ticketId ? await getJSON<PendingSignIn>(OTP.pending(ticketId)) : null;
   // A passkey ceremony shares the ticket store and is none of this function's business.
-  if (!t || (t.stage !== "totp" && t.stage !== "choose")) return { error: "expired" as const };
-  if (t.stage === "totp") return { stage: t.stage, sessions: [] as PublicSession[] };
-  const plan = planSignIn(await listSessionRows(t.userId), deviceSlot(t.device?.deviceType), Date.now());
-  return {
-    stage: t.stage,
-    device: { label: t.device?.label || "", deviceType: normalizeDeviceType(t.device?.deviceType) || "Computer" },
-    sessions: plan.choose.map((r) => publicSession(r, hashToken)),
-  };
-}
-
-/**
- * FINISH A PAUSED SIGN-IN by ending the session the person chose.
- *
- * Only a session the limit is actually asking about may be named — a ticket
- * is not a licence to end any session of this account's. The ticket is spent
- * before the session opens, so it cannot be replayed to end a second one.
- */
-export async function chooseSessionToEnd(ticketId: string, endId: unknown, { desktop = false } = {}) {
-  const t = ticketId ? await getJSON<PendingSignIn>(OTP.pending(ticketId)) : null;
-  if (!t || t.stage !== "choose") return { error: "expired" as const };
-  const user = await getUserById(t.userId);
-  if (!user) return { error: "notfound" as const };
-  if (user.status === "suspended") return { error: "suspended" as const };
-
-  const plan = planSignIn(await listSessionRows(t.userId), deviceSlot(t.device?.deviceType), Date.now());
-  const candidates = new Set(plan.choose.map(sessionId));
-  const id = String(endId || "");
-  // The session may already be gone — ended from another screen meanwhile —
-  // in which case there is nothing left to choose and the sign-in just opens.
-  if (candidates.size && !candidates.has(id)) return { error: "invalid" as const };
-
-  await release(OTP.pending(ticketId));
-  if (candidates.has(id)) await endForSignIn(t.userId, [id], t.device || {});
-  const opened = await openSession({ userId: t.userId, ttl: t.ttl, deviceId: t.deviceId, device: t.device, desktop });
-  return { user, ...opened };
+  if (!t || t.stage !== "totp") return { error: "expired" as const };
+  return { stage: t.stage };
 }
 
 /**
  * SIGN IN WITH A PASSKEY (passkeys.ts). The passkey is both factors, so neither
  * the emailed code nor the authenticator is asked; the device is recorded like
  * any sign-in with its trust left as it was — trust is about skipping the code
- * after a PASSWORD — and the session limit applies as it does everywhere.
+ * after a PASSWORD.
  */
 export async function signInWithPasskey(
   ticketId: string, request: Request, response: unknown,
@@ -667,7 +608,7 @@ export async function currentSessionDigest(): Promise<string> {
 /**
  * WHY THIS BROWSER IS NO LONGER SIGNED IN, when it was ended rather than
  * expired: read off the ended state its session left behind. The sign-in page
- * asks, so a person pushed out by someone else's sign-in is told so.
+ * asks, so a person signed out from another of their devices is told so.
  */
 export async function endedReason() {
   const digest = await currentSessionDigest();

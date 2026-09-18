@@ -1,8 +1,8 @@
 // WHAT KIND OF DEVICE SIGNED IN — Computer, Phone or Portable Device.
 //
-// The owner's three types (18/09/2026). A person may hold two Computer sessions
-// and one more on a Phone OR a Portable Device, which share a slot, so the type
-// decides WHICH slot a sign-in takes (`deviceSlot`).
+// The owner's three types (18/09/2026). What the Security page and the
+// console's session list say about each sign-in. (They also decided which slot
+// a sign-in took under the session limit, removed 19/09/2026.)
 //
 // IT WAS DECIDED FROM THE USER AGENT ALONE, and wrong both ways:
 // `/Mobi|Android|iPhone/` put every Android tablet under Phone, because a
@@ -15,13 +15,11 @@
 // has and its short side in CSS pixels. A "Mac" with touch is an iPad; a touch
 // screen under 600px on its short side is a phone whatever it claims to be.
 //
-// ALL OF IT IS SELF-REPORTED and a browser can claim to be anything. That is
-// why the session limit holds on the TOTAL; the type only decides which slot is
-// taken and what the device list says.
+// ALL OF IT IS SELF-REPORTED and a browser can claim to be anything, so a type
+// is a description, never a control.
 
 export const DEVICE_TYPES = ["Computer", "Phone", "Portable Device"] as const;
 export type DeviceType = (typeof DEVICE_TYPES)[number];
-export type DeviceSlot = "computer" | "mobile";
 export type DeviceHints = { touchPoints?: number; shortSide?: number };
 
 /** A phone's short side is under this; a tablet's is over it (CSS pixels). */
@@ -70,10 +68,4 @@ export function normalizeDeviceType(value: unknown): DeviceType | "" {
   const v = String(value || "");
   if (v === "Tablet") return "Portable Device";
   return (DEVICE_TYPES as readonly string[]).includes(v) ? (v as DeviceType) : "";
-}
-
-/** Phones and portable devices share one slot (the owner, 18/09/2026). */
-export function deviceSlot(type: unknown): DeviceSlot {
-  const t = normalizeDeviceType(type);
-  return t === "Phone" || t === "Portable Device" ? "mobile" : "computer";
 }

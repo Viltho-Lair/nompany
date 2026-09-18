@@ -1,25 +1,20 @@
-// HOW MANY PLACES ONE PERSON MAY BE SIGNED IN AT ONCE — pure, no store.
+// ONE PERSON'S SESSIONS — the row shape and the pure rules read over it.
 //
-// THE LOOPHOLE (the owner, 18/09/2026): a company paying for five seats could
-// hand one login to twenty people. Every one of them was a live session and
-// nothing counted them. So a person holds at most TWO Computer sessions and ONE
-// on a Phone or Portable Device (they share the slot, `shared/deviceClass`).
-// Twenty people on one login keep signing each other out, which is the point,
-// and every sign-out they cause is counted for the console's sharing flag.
+// THERE IS NO LIMIT ON HOW MANY PLACES A PERSON MAY BE SIGNED IN (the owner,
+// 19/09/2026: "remove limitations for users"). A limit of two computers and one
+// phone shipped on 18/09/2026, with a sign-in step asking which session to end
+// and a cap of three trusted devices beside it; all of it was taken out the
+// next day. `git log -p -- src/platform/auth/sessionPolicy.ts` has it.
 //
-// A TILL'S SESSION IS NOT COUNTED. A paired till is the company's device, not
-// the person's, and a cashier switching in by PIN must not end their own phone.
+// What stays against a shared login is what does not stop anybody working: the
+// console SEES where each person is signed in and how many new devices their
+// account has met (`sharingSignals` below), the PIN is asked at a signature,
+// and a till opens only on its paired device.
 //
-// A SESSION WITH NO RECORDED DEVICE predates this rule and takes a computer
-// slot — the only honest guess, and the one that costs a person least: most
-// of those are the office machine they signed in on last month.
+// A TILL'S SESSION IS NOT COUNTED as the person's. A paired till is the
+// company's device, so the console's session count leaves it out.
 
-import { deviceSlot, normalizeDeviceType, type DeviceSlot } from "@/shared/deviceClass";
-
-export const SESSION_LIMITS: Record<DeviceSlot, number> = { computer: 2, mobile: 1 };
-
-/** Trusted devices — the ones that skip the emailed code — match the session total. */
-export const TRUSTED_DEVICE_LIMIT = SESSION_LIMITS.computer + SESSION_LIMITS.mobile;
+import { normalizeDeviceType } from "@/shared/deviceClass";
 
 export type SessionRow = {
   id?: string;
@@ -41,26 +36,7 @@ export type SessionRow = {
 };
 
 export const isLive = (row: SessionRow, now: number) => Number(row?.expiresAt) > now;
-export const slotOf = (row: SessionRow): DeviceSlot => deviceSlot(row?.deviceType);
 export const counts = (row: SessionRow) => row?.scope !== "till";
-
-/**
- * WHAT A NEW SIGN-IN IN `slot` MUST END FIRST.
- *
- * `autoEnd` goes without asking; `choose` is the list the person picks ONE
- * from, oldest first so the default is the obvious one. When the slot is over
- * its limit by more than one — sessions left from before this rule — the
- * oldest of the excess end by themselves, because asking somebody to pick
- * eight sessions one at a time is not a question anybody can answer usefully.
- */
-export function planSignIn(rows: readonly SessionRow[], slot: DeviceSlot, now: number) {
-  const inSlot = rows
-    .filter((r) => isLive(r, now) && counts(r) && slotOf(r) === slot)
-    .sort((a, b) => Number(a.createdAt) - Number(b.createdAt));
-  const mustGo = inSlot.length - SESSION_LIMITS[slot] + 1;
-  if (mustGo <= 0) return { autoEnd: [] as SessionRow[], choose: [] as SessionRow[] };
-  return { autoEnd: inSlot.slice(0, mustGo - 1), choose: inSlot.slice(mustGo - 1) };
-}
 
 /** The id a screen holds. Rows from before ids existed are named by their digest. */
 export function sessionIdOf(row: SessionRow, digest: (token: string) => string): string {
@@ -86,30 +62,28 @@ export type PublicSession = ReturnType<typeof publicSession>;
 //
 // WHAT MAKES AN ACCOUNT LOOK SHARED, for the console (the owner, 18/09/2026:
 // raise a flag, filter on it, and email the person — suspending stays a
-// person's decision). A FLAG IS A REASON TO LOOK, never a verdict: a real person
-// with a laptop, a home computer and a new phone can trip one signal in a bad
-// week, which is why nothing here suspends anybody.
+// person's decision). A FLAG IS A REASON TO LOOK, never a verdict.
 //
-// The two thresholds are counts a single person does not reach by accident:
-// being pushed out of their own sessions five times in a week means five other
-// sign-ins raced theirs, and five devices this account had never used in a
-// month is five new machines.
-export const SHARING_THRESHOLDS = { evictions7d: 5, newDevices30d: 5 } as const;
+// ONE SIGNAL NOW: devices this account had never used, five or more in a
+// month — five new machines is not one person's month. The second signal,
+// sessions ended by another sign-in, went with the session limit that produced
+// it (19/09/2026). How many places a person is signed in right now is shown
+// beside the flag and filterable, not a trigger: with no limit, a number is a
+// fact about somebody's desk, and the console reads it with the rest.
+export const SHARING_THRESHOLDS = { newDevices30d: 5 } as const;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export function sharingSignals(
-  activity: { evictions?: unknown; newDevices?: unknown } | null | undefined,
+  activity: { newDevices?: unknown } | null | undefined,
   activeSessions: number,
   now: number,
 ) {
   const within = (list: unknown, days: number) =>
     (Array.isArray(list) ? list : []).filter((t) => Number.isFinite(Number(t)) && now - Number(t) < days * DAY_MS).length;
-  const evictions7d = within(activity?.evictions, 7);
   const newDevices30d = within(activity?.newDevices, 30);
-  const reasons: ("evictions" | "new-devices")[] = [];
-  if (evictions7d >= SHARING_THRESHOLDS.evictions7d) reasons.push("evictions");
+  const reasons: "new-devices"[] = [];
   if (newDevices30d >= SHARING_THRESHOLDS.newDevices30d) reasons.push("new-devices");
-  return { evictions7d, newDevices30d, activeSessions, flagged: reasons.length > 0, reasons };
+  return { newDevices30d, activeSessions, flagged: reasons.length > 0, reasons };
 }
 
 // ---- the lock ---------------------------------------------------------------------
