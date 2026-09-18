@@ -353,6 +353,13 @@ type Strings = CommonStrings & {
   // ---- money accounts (18/09/2026) ----
   throughAccount: string;
   mBankAccount: string;
+  // ---- setup the studio has not done (18/09/2026) ----
+  setupTitle: string;
+  setupItem: (key: string) => string;
+  setupOfficialMissing: (labels: string) => string;
+  setupOfficialInvalid: (labels: string) => string;
+  setupFix: string;
+  setupAsk: string;
 };
 
 const en: Strings = {
@@ -712,6 +719,16 @@ const en: Strings = {
   mPeriod: "Pick a month.",
   throughAccount: "Account",
   mBankAccount: "Choose one of the studio's bank or cash accounts.",
+  setupTitle: "Finance is not fully set up yet",
+  setupItem: (key) => ({
+    country: "Choose the studio's country. Its tax rules and what its invoices must carry come from it.",
+    currency: "Set the studio's currency. The books are kept in it, and bills and bids cannot be approved without it.",
+    vat: "No VAT rate is set, so no document carries tax. That is right only if the studio is not registered for VAT.",
+  } as Record<string, string>)[key] || key,
+  setupOfficialMissing: (labels) => `Your country requires these on your documents, and they are not filled in: ${labels}.`,
+  setupOfficialInvalid: (labels) => `Filled in, but not in the form your country requires, so they print nowhere: ${labels}.`,
+  setupFix: "Set these in Studio settings",
+  setupAsk: "Ask whoever manages Studio settings to set these.",
 };
 
 const ar: Strings = {
@@ -1071,6 +1088,16 @@ const ar: Strings = {
   mPeriod: "اختر شهرا.",
   throughAccount: "الحساب",
   mBankAccount: "اختر أحد حسابات البنك أو النقد في الاستوديو.",
+  setupTitle: "إعداد المالية لم يكتمل بعد",
+  setupItem: (key) => ({
+    country: "اختر دولة الاستوديو. منها تأتي قواعد الضريبة وما يجب أن تحمله فواتيره.",
+    currency: "حدد عملة الاستوديو. بها تمسك الدفاتر، ولا تعتمد فواتير الموردين والعطاءات بدونها.",
+    vat: "لم تحدد نسبة ضريبة القيمة المضافة، فلا يحمل أي مستند ضريبة. وهذا صحيح فقط إن لم يكن الاستوديو مسجلا فيها.",
+  } as Record<string, string>)[key] || key,
+  setupOfficialMissing: (labels) => `تشترط دولتك هذه على مستنداتك ولم تعبأ: ${labels}.`,
+  setupOfficialInvalid: (labels) => `معبأة، لكن ليس بالصيغة التي تشترطها دولتك، فلا تطبع في أي مكان: ${labels}.`,
+  setupFix: "حددها في إعدادات الاستوديو",
+  setupAsk: "اطلب ممن يدير إعدادات الاستوديو تحديدها.",
 };
 
 const finance = { en, ar };

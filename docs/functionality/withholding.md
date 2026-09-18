@@ -71,10 +71,13 @@ now (`/finance/settings`).
 
 ## Not built yet
 
-**No ZATCA adapter, deliberately.** The programme list names one; this product is based in
-Jordan and sells across the region as a generalist SME tool, so a Saudi e-invoicing adapter
-is a country integration rather than a tax engine — building it now would be building for a
-market this is not in. Recorded as a decision, not an omission.
+~~**No ZATCA adapter, deliberately** — "this product is based in Jordan".~~ **CHANGED, the
+owner, 18/09/2026: "there is no home market — the studio sets the home market when the country
+is selected."** The product has no country of its own; each studio's country decides its rules
+(`shared/compliance`). So an e-invoicing adapter is a COUNTRY's, built into that country's
+definition and switched on by a studio choosing it — ZATCA for a Saudi studio, and the next
+country's for the next — not a product-wide decision for or against one market. Not built yet;
+it is step 4 of the Finance plan (`docs/progress.md`).
 
 - **Invoices only.** A BILL from a supplier can be subject to withholding the studio must
   deduct and pay over, and nothing computes it — which is the half with a liability attached

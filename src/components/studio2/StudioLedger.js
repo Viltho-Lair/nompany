@@ -11,6 +11,7 @@ import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { moneyText } from "@/shared/money";
 import { Field } from "@/components/fields/Field";
 import StudioDate from "@/components/fields/StudioDate";
+import FinanceSetupNotice from "@/components/studio2/FinanceSetupNotice";
 
 const btn = "rounded-full bg-brand-600 px-4 py-2 text-sm font-600 text-white hover:bg-brand-700 disabled:opacity-50";
 const btnGhost = "rounded-full border border-slate-200 px-4 py-2 text-sm font-600 text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:border-white/10 dark:text-slate-200 dark:hover:bg-white/5";
@@ -81,6 +82,8 @@ export default function StudioLedger({ slug }) {
         <h2 className="font-display text-lg font-800 text-slate-900 dark:text-white">{tr.title}</h2>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{tr.lead}</p>
       </div>
+
+      <FinanceSetupNotice items={data.setup} slug={slug} canFix={data.canFixSetup} />
 
       <div role="tablist" className="flex flex-wrap gap-2 border-b border-slate-200 dark:border-white/10">
         {[["trial", tr.trial], ["journal", tr.journal], ["accounts", tr.accounts], ["pl", tr.pl], ["bs", tr.bs],

@@ -1,4 +1,6 @@
 import { route } from "@/platform/http/route";
+import { requirePermission } from "@/platform/access";
+import { financeSetup } from "@/modules/finance/setup";
 import { valuesFor } from "@/modules/administration/taxonomy";
 import { unclaimed } from "@/modules/finance/withholding";
 import {
@@ -8,6 +10,13 @@ import {
 import { referencePickers } from "@/modules/procurement/pickers";
 import { studioVatRate } from "@/shared/vat";
 import { storedMoneyAccounts } from "@/modules/finance/ledger";
+
+// WHAT FINANCE NEEDS SET UP AND IS MISSING (modules/finance/setup), and whether
+// this reader can fix it — the notice links to Studio settings only for them.
+const setupOf = (f: { studio: unknown; on: (k: string) => boolean; access: unknown }) => ({
+  setup: financeSetup(f.studio, { sectionOn: f.on }),
+  canFixSetup: !requirePermission(f.access as Parameters<typeof requirePermission>[0], "administration.settings.edit"),
+});
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -51,6 +60,7 @@ export const GET = route(
     // than being handed the parent section's answer.
     manage: g.manage,
     invoices, expenses, projects, milestones, items,
+    ...setupOf(g),
     profitability: projectMargins,
     summary: summarise(invoices, expenses, g.studio.currency),
     // WHAT THE STUDIO CAN RECLAIM. Tax withheld is only worth anything if the

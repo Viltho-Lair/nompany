@@ -145,6 +145,24 @@ been six while the ledger wrote eleven; it lists all fourteen now.
 money an invoice or bill payment already posts, so posting either unlinked would count it
 twice. They post once they name the document they settle.
 
+### Setup the studio has not done, said before it bites (18/09/2026)
+
+The owner's rule: **there is no home market** — the studio's country sets it — and **important
+setup is annotated for users**. `financeSetup` (`modules/finance/setup.ts`, pure,
+`tests/finance-setup-model.mjs`) reads the studio row and its country's definition
+(`shared/compliance`) and lists what Finance needs and does not have: **no country** (tax rules
+and what documents must carry come from it); **no currency** (the books are kept in it, and bill
+and bid approval refuse without it); **a country with a sales tax and no VAT rate**, flagged to
+*check* rather than as wrong, because an unregistered business is right to have none; and every
+official value the country marks mandatory — or conditional, once its condition holds, like a
+VAT number for a registered studio — in the company, finance or invoicing departments that is
+blank or not in the country's format (the resolver prints neither). `FinanceSetupNotice` shows
+it at the top of the Cash, Payables, Fixed assets and Ledger screens, the country's values
+grouped into one line, with a link to Studio settings for somebody holding
+`administration.settings.edit` and a sentence for everybody else. **It blocks nothing**: the
+refusals stay where they are; this is what makes them unsurprising. **Not built:** the same
+annotation for other departments (HR's official values, Logistics' licences); a dismiss.
+
 **A refusal is said, not swallowed.** The invoices, expenses and bills routes hand back
 `posting: { posted: false, reason }` and the finance screens now show "Saved — but the books
 were not updated" with the reason. Before, the expenses and bills routes dropped it and both

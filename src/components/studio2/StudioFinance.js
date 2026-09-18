@@ -29,6 +29,7 @@ import { moneyText } from "@/shared/money";
 import { taxDict, taxCategoryOptions } from "@/shared/studio/tax";
 import { documentTotals } from "@/shared/documentTotals";
 import TaxTag from "@/components/studio2/TaxTag";
+import FinanceSetupNotice from "@/components/studio2/FinanceSetupNotice";
 
 // THE DASHBOARD LOADS WHEN IT IS SHOWN, not with this screen. It was a static
 // import, so every tenant page carried every department's dashboard and the
@@ -245,6 +246,7 @@ function FinanceCash({ slug, view = "finance" }) {
     <div className="space-y-6">
       {error && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>}
 
+      <FinanceSetupNotice items={data.setup} slug={slug} canFix={data.canFixSetup} />
       <Summary summary={summary} />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -970,6 +972,7 @@ function Payables({ slug }) {
 
   return (
     <div className="space-y-6">
+      <FinanceSetupNotice items={data.setup} slug={slug} canFix={data.canFixSetup} />
       {error && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>}
       <PayablesSummary bills={bills} />
       <div className="flex items-center justify-end">
@@ -1373,6 +1376,7 @@ function Assets({ slug }) {
   return (
     <div className="space-y-6">
       {error && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>}
+      <FinanceSetupNotice items={data.setup} slug={slug} canFix={data.canFixSetup} />
       <AssetsSummary assets={assets} />
       <div className="flex items-center justify-end">
         {!canManage && <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-600 text-slate-500 dark:bg-white/5 dark:text-slate-400">{tr.viewOnly}</span>}

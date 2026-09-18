@@ -1,4 +1,5 @@
 import { route, refused } from "@/platform/http/route";
+import { financeSetup } from "@/modules/finance/setup";
 import { requirePermission } from "@/platform/access";
 import { financeContext } from "@/modules/finance/finance";
 import {
@@ -10,6 +11,13 @@ import {
 } from "@/modules/finance/statements";
 import type { Dimension } from "@/modules/finance/statements";
 import { studioVatRate } from "@/shared/vat";
+
+// WHAT FINANCE NEEDS SET UP AND IS MISSING (modules/finance/setup), and whether
+// this reader can fix it — the notice links to Studio settings only for them.
+const setupOf = (f: { studio: unknown; on: (k: string) => boolean; access: unknown }) => ({
+  setup: financeSetup(f.studio, { sectionOn: f.on }),
+  canFixSetup: !requirePermission(f.access as Parameters<typeof requirePermission>[0], "administration.settings.edit"),
+});
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -92,6 +100,7 @@ export const GET = route({ ...spec, body: false }, async (f) => {
     // deals beside each other rather than querying them one at a time. Absent
     // when no dimension was asked for: a breakdown by nothing is not a shape.
     breakdown: dimension ? byDimension(entries, chart, dimension, { from, to, currency: f.studio.currency }) : null,
+    ...setupOf(f),
     canPost: !requirePermission(f.access, "finance.ledger.post"),
     canReverse: !requirePermission(f.access, "finance.ledger.reverse"),
     // THE TAX RETURN'S TAB IS DRAWN ONLY FOR A STUDIO WITH A VAT RATE — the
