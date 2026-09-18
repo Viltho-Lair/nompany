@@ -7,6 +7,7 @@ import { pinProblem, IDLE_CHOICES } from "@/shared/pin";
 import { Icon } from "@/components/studio2/icons";
 import { fmtDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import SelectMenu from "@/components/fields/SelectMenu";
 import { STACK, ROW, ROW_LABEL, ROW_VALUE, INPUT, LABEL, BTN, BTN_GHOST } from "@/components/public/accountKit";
 
 // THE SCREEN LOCK'S SETTINGS: the personal PIN and the idle timeout
@@ -99,15 +100,15 @@ export default function SecurityLock() {
             <span className={ROW_LABEL}>{t.idleLabel}</span>
             {!info.hasPin && <span className={ROW_VALUE}>{t.idleNeedsPin}</span>}
           </label>
-          <select
+          <SelectMenu
             id="idle-minutes"
-            value={info.idleMinutes}
+            aria-label={t.idleLabel}
+            className="ms-auto w-40"
+            value={String(info.idleMinutes)}
             disabled={!info.hasPin || busy}
-            onChange={(e) => send("PATCH", { idleMinutes: Number(e.target.value) })}
-            className="ms-auto rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm text-slate-900 disabled:opacity-60 dark:border-white/15 dark:bg-[#191921] dark:text-white"
-          >
-            {IDLE_CHOICES.map((m) => <option key={m} value={m}>{m === 0 ? t.idleOff : t.idleMinutes(m)}</option>)}
-          </select>
+            onChange={(v) => send("PATCH", { idleMinutes: Number(v) })}
+            options={IDLE_CHOICES.map((m) => ({ value: String(m), label: m === 0 ? t.idleOff : t.idleMinutes(m) }))}
+          />
         </div>
       </div>
 
