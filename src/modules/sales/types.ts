@@ -36,6 +36,8 @@ export type SalesContext = ModuleContext & {
 // and therefore nullable: a studio with no Inventory has nothing to sell.
 export type PosContext = ModuleContext & {
   posSection: Section;
+  /** Where returns are filed. Falls back to the root while a studio awaits its planting. */
+  returnsSection: Section;
   itemsSection: Section | null;
   stockSection: Section | null;
   /** CRM's client register, where a phone number registers a repeat customer. Null when CRM is off. */

@@ -45,6 +45,7 @@ import {
 } from "./posReports";
 import type { PosContext } from "./types";
 import { clientSlug } from "./salesClients";
+import { refundsByShift } from "./posReturns";
 import { normalizePhone, maskPhone } from "@/shared/phone";
 import { studioLocale } from "@/shared/locale";
 import { phoneLookupKey, phoneLookupKeys } from "@/platform/db/lookupKeys";
@@ -103,7 +104,8 @@ export const posContext = moduleContext<PosContext>({
   // THE POINT OF SALE DEPARTMENT (17/09/2026). The records stay FILED under
   // `crm-sales-pos`, unchanged; the root is where the counter is run from.
   root: "pos",
-  sub: { pos: "crm-sales-pos" },
+  // Returns own their rows under `pos-returns` (18/09/2026).
+  sub: { pos: "crm-sales-pos", returns: "pos-returns" },
   // INVENTORY'S, and therefore nullable: a studio with no Inventory has nothing
   // to sell, and the screen says so rather than failing.
   foreign: {
@@ -215,7 +217,10 @@ export async function shiftDetail(ctx: PosContext, id: string) {
   const receipts = await Receipts.find(scope(ctx), { where: { shiftId: shift.id }, order: { field: "at", dir: "desc" } });
   const report = shift.status === "Closed" && shift.report
     ? shift.report
-    : shiftReport(receipts, { openingFloat: shift.openingFloat, currency: ctx.studio.currency });
+    : shiftReport(receipts, {
+      openingFloat: shift.openingFloat, currency: ctx.studio.currency,
+      refunds: (await refundsByShift(ctx, [shift.id])).get(shift.id) || [],
+    });
   return { shift, receipts, report };
 }
 
@@ -376,8 +381,15 @@ export async function closeShift(ctx: PosContext, id: string, body: Record<strin
   const counted = Number(body?.countedCash);
   if (!Number.isFinite(counted) || counted < 0) return { error: "counted" as const };
 
-  const receipts = await Receipts.find(scope(ctx), { where: { shiftId: shift.id } });
-  const report = shiftReport(receipts, { openingFloat: shift.openingFloat, countedCash: counted, currency: ctx.studio.currency });
+  const [receipts, refunds] = await Promise.all([
+    Receipts.find(scope(ctx), { where: { shiftId: shift.id } }),
+    refundsByShift(ctx, [shift.id]),
+  ]);
+  // CASH PAID BACK FOR A RETURN LEFT THIS DRAWER, so it is not expected in it.
+  const report = shiftReport(receipts, {
+    openingFloat: shift.openingFloat, countedCash: counted, currency: ctx.studio.currency,
+    refunds: refunds.get(shift.id) || [],
+  });
   const closed = await Shifts.update(scope(ctx), shift.id, (row) => (row.status !== "Open" ? row : {
     ...row,
     status: "Closed",
@@ -672,6 +684,8 @@ export async function shiftsList(ctx: PosContext, raw: Record<string, unknown> |
   const [shifts, receipts, names] = await Promise.all([Shifts.find(scope(ctx)), allReceipts(ctx), namesFor(ctx)]);
   const byShift = new Map<string, PosReceipt[]>();
   for (const r of receipts) byShift.set(r.shiftId, [...(byShift.get(r.shiftId) || []), r]);
+  // Only an OPEN shift's report is computed here; a closed one's is stored.
+  const refunds = await refundsByShift(ctx, shifts.filter((sh) => sh.status === "Open").map((sh) => sh.id));
   const rows = shifts
     .filter((sh) => (!filter.from || sh.openedAt >= filter.from) && (!filter.to || sh.openedAt < filter.to))
     .filter((sh) => !filter.terminalIds?.length || filter.terminalIds.includes(sh.terminalId))
@@ -683,7 +697,7 @@ export async function shiftsList(ctx: PosContext, raw: Record<string, unknown> |
       closedBy: sh.closedByCollaboratorId ? names.cashiers[sh.closedByCollaboratorId] || "" : "",
       report: sh.status === "Closed" && sh.report
         ? sh.report
-        : shiftReport(byShift.get(sh.id) || [], { openingFloat: sh.openingFloat, currency: ctx.studio.currency }),
+        : shiftReport(byShift.get(sh.id) || [], { openingFloat: sh.openingFloat, currency: ctx.studio.currency, refunds: refunds.get(sh.id) || [] }),
     }));
   return {
     terms: tillTerms(ctx),

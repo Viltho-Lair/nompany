@@ -674,6 +674,10 @@ export const SECTION_DEFS = [
     { key: "pos-shifts", name: "Shift history" },
     // THE TILLS AND HOW THEY PRICE, moved out of the till's own screen.
     { key: "pos-settings", name: "Settings" },
+    // RETURNS (18/09/2026). Unlike its siblings it OWNS its rows: a return is a
+    // record of its own — asked for, signed by a manager, paid out — filed
+    // where it is written. Its sales stay filed under `crm-sales-pos`.
+    { key: "pos-returns", name: "Returns" },
   ] },
 
   // THE FIRST OF TENDERING'S FIVE. The root was declared for ordering alone at
@@ -988,6 +992,9 @@ export const SECTION_COLLECTIONS = {
   "crm-sales-quotations": ["quotations", "generatedDocuments", "contracts", "changeOrders", "salesOrders"],
   // The till's own records, filed under the till.
   "crm-sales-pos": ["posTerminals", "posShifts", "posReceipts"],
+  // Returns against a till's sales (and, later, against invoices), owned by
+  // the Returns screen's own section.
+  "pos-returns": ["posReturns"],
   // tendering. The register OWNS its records — unlike crm-sales-contracts,
   // which is a destination over somebody else's rows — so deleting the section
   // takes the tenders with it (invariant 11, children first).

@@ -227,13 +227,15 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
       // its drawers, and manages the tills.
       ["crmSales.pos", "edit"],
       ["pos.dashboard", "view"], ["pos.sales", "view"], ["pos.shifts", "view"], ["pos.settings", "edit"],
+      // …and signs the returns (18/09/2026).
+      ["pos.returns", "edit"],
       ["engineeringDocs.rfq", "edit"],
     ],
     // Turning an enquiry into a quotation is the selling motion, and locking a
     // quotation is finishing it. UNLOCK is deliberately not here: it reopens
     // something already committed, and Gate A pins that holding one does not
     // imply the other.
-    extras: ["crmSales.quotations.lock", "engineeringDocs.rfq.convert", "crmSales.pos.discount", "crmSales.pos.closeShift", "pos.sales.export"],
+    extras: ["crmSales.quotations.lock", "engineeringDocs.rfq.convert", "crmSales.pos.discount", "crmSales.pos.closeShift", "pos.sales.export", "pos.returns.approve"],
   },
   {
     id: "bidder",
@@ -334,6 +336,8 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
       // shift; changing a price and managing the tills stay with the manager.
       ["crmSales.pos", "edit"],
       ["pos.sales", "view"], ["pos.shifts", "view"],
+      // A SHIFT LEADER TAKES A RETURN AT THE COUNTER; a manager signs it.
+      ["pos.returns", "edit"],
     ],
     extras: ["crmSales.pos.closeShift"],
   },

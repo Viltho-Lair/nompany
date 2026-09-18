@@ -54,7 +54,7 @@ import { log } from "@/platform/http/observability";
 // and moving code on a hunch is how the last split came to look like it worked.
 import {
   DocumentList, DocumentView, DocumentPrint, StudioPlanner, StudioPlannerList, StudioPos,
-  PosDashboard, StudioPosSales, StudioPosShifts, StudioPosSettings,
+  PosDashboard, StudioPosSales, StudioPosShifts, StudioPosSettings, StudioPosReturns,
 } from "@/components/studio2/HeavyScreens";
 
 const StudioDocs = nextDynamic(() => import("@/components/studio2/StudioDocs"));
@@ -935,6 +935,8 @@ async function renderStudio(params) {
           ? <StudioPosShifts slug={studio.slug} />
         : active?.key === "pos-settings"
           ? <StudioPosSettings slug={studio.slug} />
+        : active?.key === "pos-returns"
+          ? <StudioPosReturns slug={studio.slug} />
         : active?.key === "maintenance-requests"
           ? <StudioWorkRequests slug={studio.slug} />
         : active?.key === "maintenance-orders"

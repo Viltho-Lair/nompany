@@ -95,6 +95,7 @@ export const COLLECTION_TABLE: Readonly<Record<string, string>> = {
   posTerminals: "PosTerminal",
   posShifts: "PosShift",
   posReceipts: "PosReceipt",
+  posReturns: "PosReturn",
   boqItems: "BoqItem",
   tenderRates: "TenderRate",
   projectCosts: "ProjectCost",

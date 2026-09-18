@@ -137,6 +137,7 @@ export const SECTION_AREAS: Readonly<Record<string, readonly string[]>> = {
   "pos-sales": ["pos.sales"],
   "pos-shifts": ["pos.shifts"],
   "pos-settings": ["pos.settings"],
+  "pos-returns": ["pos.returns"],
   "engineering-docs-live": ["engineeringDocs.live"],
   "engineering-docs-settings": ["engineeringDocs.settings"],
   // The cost breakdown hangs off the project list's own section, so somebody

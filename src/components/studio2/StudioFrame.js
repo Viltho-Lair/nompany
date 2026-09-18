@@ -99,6 +99,7 @@ const SECTION_ICONS = {
   "pos-sales": "invoice",
   "pos-shifts": "clock",
   "pos-settings": "gears",
+  "pos-returns": "refresh",
   "maintenance-orders": "tool",
   "maintenance-plans": "calendar",
   "maintenance-contracts": "contract",

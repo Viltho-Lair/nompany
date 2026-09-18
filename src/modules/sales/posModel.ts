@@ -274,14 +274,17 @@ export type ShiftReceipt = {
  * WHAT A SHIFT TOOK — the end-of-day ("Z") report.
  *
  * EXPECTED CASH is the float the drawer opened with, plus cash taken, less the
- * change handed back. The counted figure is typed at close, and the difference
+ * change handed back, less cash refunded for returns out of THIS drawer (a
+ * return is paid by the shift open when its manager signed it, which need not
+ * be the shift that made the sale). The counted figure is typed at close, and the difference
  * is REPORTED, never corrected: a drawer that is short is a fact somebody has to
  * look at, and an ERP that quietly reconciled it would hide the one number the
  * report exists for.
  */
 export function shiftReport(
   receipts: readonly ShiftReceipt[],
-  { openingFloat, countedCash, currency }: { openingFloat: unknown; countedCash?: unknown; currency: unknown },
+  { openingFloat, countedCash, currency, refunds = [] }:
+  { openingFloat: unknown; countedCash?: unknown; currency: unknown; refunds?: readonly { method: string; amount: number }[] },
 ) {
   const sales = receipts.filter((r) => (r.kind || "sale") === "sale" && r.status !== "Voided");
   const byMethod: Record<string, number> = {};
@@ -302,7 +305,10 @@ export function shiftReport(
   }
   const float = roundMoney(num(openingFloat), currency);
   const cashTaken = roundSum((byMethod.cash || 0) - change);
-  const expectedCash = roundSum(float + cashTaken);
+  const refundedBy: Record<string, number> = {};
+  for (const r of refunds) refundedBy[r.method] = roundSum((refundedBy[r.method] || 0) + num(r.amount));
+  const cashRefunded = refundedBy.cash || 0;
+  const expectedCash = roundSum(float + cashTaken - cashRefunded);
   const counted = countedCash === undefined || countedCash === null || countedCash === ""
     ? null : roundMoney(num(countedCash), currency);
   return {
@@ -315,6 +321,11 @@ export function shiftReport(
     discounts: roundSum(sales.reduce((s, r) => s + num(r.discountTotal), 0)),
     byMethod: PAYMENT_METHODS.map((method) => ({ method, amount: byMethod[method] || 0 })).filter((m) => m.amount > 0),
     change,
+    // RETURNS PAID OUT OF THIS SHIFT, by how they were paid — the cash part is
+    // already out of the expected figure.
+    refunds: roundSum(refunds.reduce((s, r) => s + num(r.amount), 0)),
+    refundsByMethod: PAYMENT_METHODS.map((method) => ({ method, amount: refundedBy[method] || 0 })).filter((m) => m.amount > 0),
+    cashRefunded,
     byTax: [...byTax.values()].sort((a, b) => b.rate - a.rate || a.category.localeCompare(b.category)),
     openingFloat: float,
     cashTaken,

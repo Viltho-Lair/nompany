@@ -10,6 +10,7 @@
 | Sales | `pos-sales` | `pos.sales.view`; `pos.sales.export` downloads |
 | Shift history | `pos-shifts` | `pos.shifts.view` |
 | Settings | `pos-settings` | `pos.settings.view` / `.edit` |
+| Returns | `pos-returns` | `pos.returns.view` / `.create`; `.approve` signs |
 
 `modules/sales/pos.ts` (service), `modules/sales/posModel.ts` (the till's arithmetic),
 `modules/sales/posReports.ts` (periods, filters, totals, what sold, the CSV — pure),
@@ -125,6 +126,42 @@ says so. Each opens its report (printable) and its sales.
 tax, and the receipt footer. Moved here from a dialog on the till; the till's Settings button
 links here.
 
+## Returns (18/09/2026)
+
+**Where:** Point of Sale → Returns (`pos-returns`), `modules/sales/posReturns.ts` (service),
+`modules/sales/posReturnModel.ts` (the arithmetic, pure, run by the screen and the server),
+`components/studio2/StudioPosReturns.js`, `/api/studios/<slug>/pos/returns`. Numbered `RTN`.
+**Filed under `pos-returns` itself** (`posReturns`), unlike the till's records.
+
+- **Find the sale by its receipt**: the box takes a scanned barcode (the receipt prints its
+  number as one) or a typed number, in any case. Each line shows what was sold, what has already
+  come back, and what is left.
+- **Ask**: how many of each line, **why** (required — a return with no reason is the one a fraud
+  report cannot read), how the money goes back — **cash, card or transfer, the cashier's choice**
+  (the sale's own method is the default) — and which till's drawer pays a cash refund.
+  **Nothing moves when it is asked.** A waiting return **reserves** its units, so two cashiers
+  cannot each take back the same last one; a turned-down return frees them.
+- **Every return waits for a manager** (the owner): `pos.returns.approve`. **Whoever asked does
+  not sign** (invariant 7); **the Admin is the exception**, as for bills and stock adjustments —
+  a one-person shop could otherwise take nothing back. Signing is **once**: two managers signing
+  at the same moment get one refund and one "already decided". What is left is checked again at
+  the signature.
+- **The refund is what was paid**: each line's stored net (its discount and its share of the
+  basket's already off), pro rata by units, and **the last unit takes the remainder** — a line
+  returned in pieces refunds exactly what it was charged. The tax is the SALE's (its rate, method
+  and whether its prices included tax), so returning everything refunds the sale's total and its
+  tax to the minor unit.
+- **Signed, the units go back into stock**, into the batches the sale took them from, the last
+  taken first (`restockPlan`), each movement naming the return (`sourceType: "pos-return"`).
+- **A cash refund comes out of a drawer**: signing needs a shift open on the return's till
+  (`no-shift` otherwise), and the shift's report takes the cash out of what it expects and lists
+  refunds by method. A card or transfer refund is recorded against the open shift when there is
+  one.
+- **Who reaches it**: roles that could open the till see Returns and may ask for one; roles that
+  managed the till (`crmSales.pos.edit`) may sign — both by catch-up, with nothing run per studio.
+
+`tests/pos-return-model.mjs` covers the arithmetic and the restocking.
+
 ## What the till does
 
 **Rights.** `view` opens the till; `create` opens a shift and sells; `edit` manages tills and
@@ -181,8 +218,17 @@ picking.
 
 ## Not built yet
 
-- **Returns and refunds**, and **voiding** a sale. A receipt cannot be reversed from the till; a
-  stock correction goes through Inventory.
+- **Returns against a Documents invoice** — the next slice (invoice lines naming an item first).
+- **Voiding** a sale, and exchanges (a return and a sale as one act).
+- **A printed return slip**, and a notice to the managers who can sign; the Returns screen is live
+  and shows what is waiting.
+- **A credit note for a returned sale**: a return is not a tax document yet — in Saudi Arabia a
+  simplified credit note referencing the receipt is required (`docs/progress.md`).
+- **Returns without a receipt**, return windows, restocking fees, and a condition per line
+  (everything signed goes back on the shelf, on the owner's decision; damaged goods are written
+  off in Inventory).
+- **Two returns asked at the same moment for the same last unit** can both be recorded as
+  waiting; the signature re-checks, so only one can be signed.
 - **The ledger**: a shift posts nothing to the books yet — no revenue, VAT, cash or cost of sales
   entry. (Planned as one entry per shift.)
 - **Sending the receipt by WhatsApp** as a PDF from the till's share menu; the server does not

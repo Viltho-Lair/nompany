@@ -100,6 +100,10 @@ export function ShiftReport({ tr, shift, report, studio, currency, tillName }) {
       ))}
       <p className={line}><span>{tr.changeGiven}</span><span>{money(report.change, currency)}</span></p>
       {report.discounts > 0 && <p className={line}><span>{tr.discounts}</span><span>{money(report.discounts, currency)}</span></p>}
+      {/* RETURNS PAID OUT OF THIS DRAWER — the cash part is already out of the expected figure. */}
+      {(report.refundsByMethod || []).map((m) => (
+        <p key={m.method} className={line}><span>{tr.refunded} · {tr.paidBy(m.method)}</span><span>−{money(m.amount, currency)}</span></p>
+      ))}
       <hr className="my-2 border-dashed border-black" />
       <p className={line}><span>{tr.openingFloat}</span><span>{money(report.openingFloat, currency)}</span></p>
       <p className={line}><span>{tr.cashTaken}</span><span>{money(report.cashTaken, currency)}</span></p>

@@ -91,6 +91,26 @@ export const PERMISSION_CATCH_UPS: readonly PermissionCatchUp[] = [
     verbs: ["view", "edit"],
   },
   {
+    id: "pos-returns-2026-09-18",
+    // Returns (18/09/2026): whoever sells at the till may ask for a return,
+    // and whoever could see the till may see the returns.
+    note: "The till's cashiers reach Returns, to see and to ask for one",
+    from: "crmSales.pos",
+    to: ["pos.returns"],
+    verbs: ["view", "create"],
+  },
+  {
+    id: "pos-returns-approve-2026-09-18",
+    // SIGNING A RETURN IS A MANAGER'S (the owner: every return waits for one).
+    // Whoever managed the till — `crmSales.pos.edit` — signs; a cashier who
+    // only sells does not.
+    note: "The till's managers may approve a return",
+    from: "crmSales.pos",
+    fromVerb: "edit",
+    to: ["pos.returns"],
+    verbs: ["approve"],
+  },
+  {
     id: "hr-lifecycle-2026-09-17",
     // HR split into five sub-sections (17/09/2026) and the employment spine —
     // contracts, probation, notice, exit — arrived with them. Whoever already

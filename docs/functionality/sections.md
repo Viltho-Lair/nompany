@@ -21,8 +21,9 @@ ever called with `settings`). Because they are code rather than tenant data, sec
 Arabic studio wearing an English sidebar.
 
 **Point of Sale is the seventeenth department (17/09/2026)** — `pos`, with `pos-till`,
-`pos-sales`, `pos-shifts` and `pos-settings`. Its records stay filed under `crm-sales-pos`,
-now filed-only; `docs/functionality/pos.md` has the rest.
+`pos-sales`, `pos-shifts`, `pos-settings` and (18/09/2026) `pos-returns`. Its records stay filed
+under `crm-sales-pos`, now filed-only — except returns, which `pos-returns` owns (`posReturns`);
+`docs/functionality/pos.md` has the rest.
 
 **An existing studio gains a new section by itself** — the owner's instruction, 11/09/2026:
 "it is a system, it must take updates." `listSections`, the read every request passes through,

@@ -117,6 +117,11 @@ export const StudioPosSettings = nextDynamic(
   () => import("@/components/studio2/StudioPosSettings"),
   { loading: () => <ScreenSkeleton /> },
 );
+// RETURNS (18/09/2026), behind the same boundary for the same reason.
+export const StudioPosReturns = nextDynamic(
+  () => import("@/components/studio2/StudioPosReturns"),
+  { loading: () => <ScreenSkeleton /> },
+);
 
 export const ExecutiveBoard = nextDynamic(
   () => import("@/components/studio2/ExecutiveBoard"),

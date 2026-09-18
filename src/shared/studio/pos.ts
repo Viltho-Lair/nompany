@@ -70,6 +70,7 @@ type Strings = {
   discounts: string;
   overCap: (max: number, name: string) => string;
   youSaved: string;
+  refunded: string;
   customerPhone: string;
   customerPhoneHint: string;
   customerNew: (masked: string) => string;
@@ -163,6 +164,7 @@ const en: Strings = {
   discounts: "Discounts",
   overCap: (max, name) => `${name} is discounted by more than ${max}%, the most this till allows.`,
   youSaved: "You saved",
+  refunded: "Refunded for returns",
   customerPhone: "Customer's phone (optional)",
   customerPhoneHint: "A customer who gives their number is recognised next time. Leave blank for a walk-in.",
   customerNew: (m) => `New customer ${m} — registered with this sale, without a name until somebody adds one in CRM.`,
@@ -277,6 +279,7 @@ const ar: Strings = {
   discounts: "الخصومات",
   overCap: (max, name) => `خصم ${name} أكبر من ${max}%، وهو أقصى ما يسمح به هذا الصندوق.`,
   youSaved: "وفرتم",
+  refunded: "مبالغ مستردة للمرتجعات",
   customerPhone: "هاتف العميل (اختياري)",
   customerPhoneHint: "العميل الذي يعطي رقمه يُعرف في المرة القادمة. اتركه فارغا للعميل العابر.",
   customerNew: (m) => `عميل جديد ${m} — يسجل مع هذا البيع بلا اسم حتى يضيفه أحد في إدارة العملاء.`,
