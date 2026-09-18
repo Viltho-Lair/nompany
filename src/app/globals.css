@@ -1384,6 +1384,21 @@ html.dark { color-scheme: dark; }
 
 /* The stamp across a customer document that is not final — DRAFT, CANCELLED.
    Fixed, so a printed copy carries it on every sheet, and never clickable. */
+/* A printed document's reference as a barcode (document-print.tsx). Hidden on
+   screen, where the toolbar shows it; fixed in print so it repeats on every
+   sheet, in the bottom inline-end corner inside the page's margin. */
+.print-barcode { display: none; }
+@media print {
+  .print-barcode {
+    display: block;
+    position: fixed;
+    bottom: 5mm;
+    inset-inline-end: 8mm;
+    z-index: 40;
+    background: #fff;
+  }
+}
+
 .print-watermark {
   position: fixed;
   inset: 0;

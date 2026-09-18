@@ -16,6 +16,7 @@ import { useCallback, useState } from "react";
 import { ChevronLeft, Printer } from "lucide-react";
 
 import { useStudioLocale } from "@/components/studio2/locale";
+import Barcode from "@/components/studio2/Barcode";
 import { useReload } from "@/components/studio2/useReload";
 import { documentsDict } from "@/shared/studio/documents";
 import { Editor } from "@/components/quality/editor/editor";
@@ -101,6 +102,7 @@ export function DocumentPrint({
           {tr.kindTitle(kind)}
           {ready?.reference ? <span className="ms-2 font-mono text-xs text-muted-foreground">{ready.reference}</span> : null}
         </p>
+        {ready?.reference ? <Barcode value={ready.reference} height={28} module={1} showText={false} className="hidden sm:inline-flex" /> : null}
         <div className="flex items-center gap-1 rounded-md border border-border p-0.5 text-xs" role="group" aria-label={tr.language}>
           {(["en", "ar"] as const).map((l) => (
             <button
@@ -163,6 +165,14 @@ export function DocumentPrint({
               printed sheet. */}
           {ready.watermark && (
             <div aria-hidden className="print-watermark">{printWords.watermark[ready.watermark]}</div>
+          )}
+          {/* THE REFERENCE AS A BARCODE on every printed sheet, in the bottom
+              corner inside the margin, so a return or a payment finds this
+              document by scanning it (the owner, 18/09/2026). Print only: on
+              screen it sits in the toolbar above. The QR waits for the country
+              packages — docs/progress.md, Open decisions. */}
+          {ready.reference && (
+            <div className="print-barcode"><Barcode value={ready.reference} height={34} module={1.1} /></div>
           )}
           <Editor
             key={`${language}:${ready.reference}`}

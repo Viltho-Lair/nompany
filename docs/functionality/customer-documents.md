@@ -138,6 +138,15 @@ number, date, client and expiry or due date, the lines and totals, and a terms s
 still a draft — edited, published and chosen before anything prints from it.
 `tests/customer-documents.mjs` asserts every starter passes the save-time allowlist.
 
+**The reference prints as a barcode** (the owner, 18/09/2026) — Code 128 (`shared/barcode`,
+`components/studio2/Barcode`), in the bottom inline-end corner of every printed sheet
+(`.print-barcode`, fixed in print like the watermark) and in the toolbar on screen — so a
+return or a payment finds the document by scanning it. A barcode rather than a QR until the
+country packages decide where a lookup QR may sit beside a regulatory one (`docs/progress.md`,
+Open decisions). **Not seen printed in the sandbox**: publishing a layout needs a reviewer and
+a different approver, and the sandbox has one account; the same component on the till's slip
+was decoded by an independent reader.
+
 ## Not built yet
 
 Stated in words, because a silent gap reads as a finished feature.

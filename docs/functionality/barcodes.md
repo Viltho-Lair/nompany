@@ -29,13 +29,23 @@ On the item (`inventoryItems`): `barcode`, absent when none.
 
 `tests/barcode-model.mjs` is the coverage.
 
+## Printing one
+
+**A reference is printed as a Code 128 barcode** (18/09/2026): the till's receipt number on the
+slip (`posParts`), and a quotation's or invoice's reference on the printed document. The
+encoder is hand-written and pure (`shared/barcode.ts`, set B, printable ASCII up to 40
+characters; anything else — Arabic, an empty value — draws nothing rather than a wrong code),
+and `components/studio2/Barcode.js` draws it as black-on-white SVG. `tests/barcode128-model.mjs`
+checks the table's shape and the checksum; when it was written, an independent reader (ZXing)
+decoded the slip's code and all 95 printable characters exactly.
+
 ## Not built yet
 
 - **Weighed and priced barcodes** (GS1 prefixes 20–29, which carry a weight or a price inside
   the code, printed by a shop's scale). A supermarket add-on.
 - **GS1 DataMatrix** (a medicine's product number, serial, batch and expiry in one code). A
   pharmacy add-on; the batch and expiry it carries are not read from the scan.
-- **No barcode search on the item grid**, and no label printing.
+- **No barcode search on the item grid**, and no item label printing (references print; items do not).
 - **One code per item**: a product with two printed codes (an old and a new pack) answers to one.
 - **Codes are not checked against a GS1 check digit** — a mistyped EAN is accepted if it is
   well-formed and unused.

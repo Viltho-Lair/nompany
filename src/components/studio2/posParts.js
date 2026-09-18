@@ -5,6 +5,7 @@
 // report opened from the shift history is the same slip the till printed.
 
 import { useMemo, useState } from "react";
+import Barcode from "@/components/studio2/Barcode";
 import { money, fmtDate, fmtDateTime, btnRow } from "@/components/studio2/ui";
 import { PERIODS, periodRange } from "@/modules/sales/posReports";
 
@@ -66,6 +67,8 @@ export function Receipt({ tr, receipt, studio, terms, tillName }) {
       {receipt.change > 0 && <p className={line}><span>{tr.change}</span><span>{money(receipt.change, cur)}</span></p>}
       {receipt.discountTotal > 0 && <p className="mt-2 text-center font-bold">{tr.youSaved} {money(receipt.discountTotal, cur)} {cur}</p>}
       <p className="mt-3 text-center">{terms.footer || tr.thankYou}</p>
+      {/* THE NUMBER AS A BARCODE, so a return finds this sale by scanning the slip. */}
+      <div className="mt-2 flex justify-center"><Barcode value={receipt.number} height={36} module={1.2} /></div>
     </div>
   );
 }
