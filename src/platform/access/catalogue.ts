@@ -602,10 +602,9 @@ const OWN_AREAS = [
   { key: "finance.payables", group: "Finance & Accounting", label: "Payables (bills)", verbs: ["view", "create", "edit", "delete"],
     extra: [
       { key: "pay", label: "Record payments" },
-      // RELEASING A HELD PAYMENT, kept away from whoever pays: department-head
-      // holds it and `money` does not, because a second signature the payer can
-      // give is not a second signature. See modules/finance/hold.ts.
-      { key: "release", label: "Release a held payment" },
+      // RELEASING A HELD PAYMENT is answered on the Approvals page since
+      // 19/09/2026 (`payment-release`), and whoever releases one may still not
+      // pay it — see modules/finance/hold.ts.
     ] },
   { key: "finance.assets", group: "Finance & Accounting", label: "Fixed assets", verbs: ["view", "create", "edit"],
     extra: [{ key: "dispose", label: "Dispose of an asset" }] },

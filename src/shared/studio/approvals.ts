@@ -78,6 +78,7 @@ const TYPES_EN: Record<string, string> = {
   "change-order": "Change order",
   timesheet: "Timesheet",
   "document-revision": "Document revision",
+  "payment-release": "Payment release",
   carried: "Carried over",
 };
 const TYPES_AR: Record<string, string> = {
@@ -98,6 +99,7 @@ const TYPES_AR: Record<string, string> = {
   "change-order": "أمر تغيير",
   timesheet: "كشف ساعات",
   "document-revision": "مراجعة مستند",
+  "payment-release": "رفع إيقاف دفعة",
   carried: "منقولة",
 };
 

@@ -208,9 +208,6 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
     extras: [
       "hr.vacations.approve",
       "engagements.lock",
-      // ...and releasing a held payment, which `money` makes and must not also
-      // release: the same separation, one act later.
-      "finance.payables.release",
     ],
   },
   {

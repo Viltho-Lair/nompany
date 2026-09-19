@@ -161,11 +161,18 @@ export async function listBillsForScreen(ctx: FinanceContext) {
   }
 
   const mayAsk = !requirePermission(ctx.access, "finance.payables.edit");
+  const mayAskRelease = mayAsk || !requirePermission(ctx.access, "finance.payables.pay");
   return bills.map((bill) => {
     const approval = approvalSummary(approvals, BILL_APPROVAL, bill.id);
+    const release = approvalSummary(approvals, RELEASE_APPROVAL, bill.id);
+    const hold = paymentHolds.get(bill.id) || null;
     return {
       ...bill,
       approval,
+      // A HELD BILL'S RELEASE, while it is asked for — and whether this reader
+      // may ask: held, and nothing waiting.
+      releaseApproval: release,
+      canRequestRelease: mayAskRelease && Boolean(hold?.held) && (!release || release.status !== "Pending"),
       // A RECEIVED BILL NOBODY HAS ASKED ABOUT, or one whose last request was
       // turned down (asking again is a new request; the refusal stays on file).
       canRequestApproval: mayAsk && bill.status === "Received" && (!approval || approval.rejected),
@@ -536,22 +543,27 @@ export async function setBillPaymentBounced(ctx: FinanceContext, billId: string,
   return posting;
 }
 
+/** The approval type a held payment's release asks for. Its key is stored — see modules/approvals/registry. */
+export const RELEASE_APPROVAL = "payment-release";
+
 /**
- * RELEASE A HELD PAYMENT — its own act, with a reason, and not the payer's.
+ * ASK FOR A HELD PAYMENT TO BE RELEASED — with a reason, answered on the
+ * Approvals page (19/09/2026).
  *
  * A hold nobody can release is a product that stops working, so there is an
- * override; it is its own right (`finance.payables.release`, held by
- * department-head and not by `money`), it needs a reason, and the person who
- * gives it may not then record the payment (`payProblem`). What is stored is
- * who, why, when, and WHICH reasons it covered — a reason that appears later
- * holds the bill again.
+ * override; it needs a reason, the people who may give it are Approvals
+ * settings' (until a studio saves the type, whoever held the old
+ * `finance.payables.release`, which is gone), and whoever gives it may not then
+ * record the payment (`payProblem`). What is stored when it is given is who,
+ * why, when, and WHICH reasons it covered — a reason that appears later holds
+ * the bill again. Asked by whoever runs or pays bills.
  */
-export async function releaseBillHold(ctx: FinanceContext, id: string, body: Record<string, unknown>) {
-  const denied = requirePermission(ctx.access, "finance.payables.release");
+export async function requestHoldRelease(ctx: FinanceContext, id: string, body: Record<string, unknown>) {
+  const denied = requirePermission(ctx.access, "finance.payables.pay") && requirePermission(ctx.access, "finance.payables.edit");
   if (denied) return denied;
 
-  const { studio, payablesSection, collaborator } = ctx;
-  const current = (await Bills.find({ studio, section: payablesSection })).find((b) => b.id === id);
+  const { studio, payablesSection } = ctx;
+  const current = await Bills.byId({ studio, section: payablesSection }, str(id, 60));
   if (!current) return { error: "notfound" };
 
   const hold = (await holdsFor(ctx, [current])).get(current.id);
@@ -560,12 +572,55 @@ export async function releaseBillHold(ctx: FinanceContext, id: string, body: Rec
   const wrong = releaseProblem(hold, reason);
   if (wrong) return { error: wrong };
 
-  const bill = await Bills.update({ studio, section: payablesSection }, id, {
-    holdRelease: { byCollaboratorId: collaborator.id, reason, at: new Date().toISOString(), reasons: hold.reasons },
+  const { outstanding } = billTotals(current, studio.currency);
+  const asked = await requestApproval({ studio, collaborator: ctx.collaborator, roles: ctx.roles }, {
+    type: RELEASE_APPROVAL,
+    source: {
+      sectionKey: "finance-payables", recordId: current.id, ref: String(current.reference || ""),
+      title: `${current.reference || ""} · ${current.vendorName || ""}`, path: "finance-payables",
+    },
+    // THE REASON IS THE REQUEST'S OWN, and it is what the release records.
+    note: `${reason}\n— held for: ${hold.reasons.join(", ")}`,
+    amount: { value: Number(outstanding) || 0, currency: str(current.currency, 8) || str(studio.currency, 8) },
   });
-  if (!bill) return { error: "notfound" };
-  return { bill };
+  if (asked.error) return { ...asked, error: asked.error };
+  // UNDER EVERY LIMIT THE STUDIO SET, nothing is asked: released as asked.
+  if (asked.notNeeded) {
+    const bill = await writeRelease(ctx, current, String(ctx.collaborator.id), reason);
+    return bill ? { bill } : { error: "notfound" };
+  }
+  return { bill: current, approval: asked.approval ?? null };
 }
+
+/** The release, as the bill has always stored it. */
+async function writeRelease(ctx: FinanceContext, bill: Bill, by: string, reason: string) {
+  const hold = (await holdsFor(ctx, [bill])).get(bill.id);
+  if (!hold || !hold.held) return null;
+  return Bills.update({ studio: ctx.studio, section: ctx.payablesSection }, bill.id, {
+    holdRelease: { byCollaboratorId: by, reason, at: new Date().toISOString(), reasons: hold.reasons },
+  });
+}
+
+/**
+ * WHAT DECIDING A `payment-release` APPROVAL DOES — see modules/approvals/effects.
+ * The yes writes the release in the approver's name, with the requester's
+ * reason; the approver is then the one person who may not record the payment.
+ * A no changes nothing: the bill stays held.
+ */
+export const releaseApproval = {
+  ready: async (studio: StudioRef, approval: Approval, by: string) => {
+    const found = await billFor(studio, approval, by);
+    if ("error" in found) return found;
+    const hold = (await holdsFor(found.ctx, [found.bill])).get(found.bill.id);
+    return hold?.held ? null : ({ error: "not-held" } as Refusal);
+  },
+  approved: async (studio: StudioRef, approval: Approval, by: string) => {
+    const found = await billFor(studio, approval, by);
+    if ("error" in found) return found;
+    const reason = String(approval.note || "").split("\n— held for:")[0].trim();
+    return (await writeRelease(found.ctx, found.bill, by, reason)) ? ("done" as const) : ({ error: "not-held" } as Refusal);
+  },
+};
 
 export async function removeBill(ctx: FinanceContext, id: string) {
   const denied = requirePermission(ctx.access, "finance.payables.delete");

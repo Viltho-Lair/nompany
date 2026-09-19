@@ -1247,7 +1247,7 @@ function Payables({ slug, onDenied }) {
       <div className="flex items-center justify-end">
         {!canManage && <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-600 text-slate-500 dark:bg-white/5 dark:text-slate-400">{tr.viewOnly}</span>}
       </div>
-      <Bills slug={slug} rows={bills} vocab={vocabulary} canManage={canManage} canRelease={Boolean(data.canRelease)} busy={busy} send={send}
+      <Bills slug={slug} rows={bills} vocab={vocabulary} canManage={canManage} busy={busy} send={send}
         pickers={data.pickers || {}} />
     </div>
   );
@@ -1280,7 +1280,7 @@ function PayablesSummary({ bills }) {
   );
 }
 
-function Bills({ slug, rows, vocab, canManage, canRelease, busy, send, pickers = {} }) {
+function Bills({ slug, rows, vocab, canManage, busy, send, pickers = {} }) {
   const tr = financeDict(useStudioLocale());
   const [drafting, setDrafting] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -1384,7 +1384,12 @@ function Bills({ slug, rows, vocab, canManage, canRelease, busy, send, pickers =
                               {/* A HELD BILL OFFERS RELEASE, NOT PAYMENT: the pay door would refuse it,
                                   and a button that always fails reads as a broken screen. */}
                               {payable && !b.hold?.held && <button className={btn} onClick={() => setPaying(b)}>{tr.recordPayment}</button>}
-                              {payable && b.hold?.held && canRelease && <button className={btnGhost} disabled={busy} onClick={() => setReleasing(b)}>{tr.holdRelease}</button>}
+                              {/* A HELD BILL'S RELEASE IS ASKED FOR HERE and given on the
+                                  Approvals page (19/09/2026); the server says when asking applies. */}
+                              {payable && b.canRequestRelease && <button className={btnGhost} disabled={busy} onClick={() => setReleasing(b)}>{tr.holdRelease}</button>}
+                              {b.releaseApproval?.status === "Pending" && (
+                                <a href={`/${slug}/approvals`} className="self-center text-xs font-600 text-brand-700 hover:underline dark:text-brand-300">{tr.holdReleasePending}</a>
+                              )}
                               {editable && <button className={btnGhost} onClick={() => setEditing(b)}>{tr.edit}</button>}
                               {b.status === "Received" && <button className={btnGhost} disabled={busy} onClick={() => send("PUT", { id: b.id, status: "Disputed" })}>{tr.dispute}</button>}
                               {["Received", "Disputed"].includes(b.status) && noHistory && <button className={btnGhost} disabled={busy} onClick={() => send("PUT", { id: b.id, status: "Cancelled" })}>{tr.cancel}</button>}
@@ -1561,8 +1566,9 @@ function HoldPill({ hold, tr }) {
   );
 }
 
-// RELEASING A HELD PAYMENT — a reason and nothing else. The server refuses an
-// empty one, and refuses the releaser as the payer; this form only asks.
+// ASKING FOR A HELD PAYMENT TO BE RELEASED — a reason and nothing else. The
+// server refuses an empty one; the release is given on the Approvals page, and
+// whoever gives it may not then record the payment.
 function ReleaseHoldForm({ bill, busy, onCancel, onSave }) {
   const tr = financeDict(useStudioLocale());
   const [reason, setReason] = useState("");

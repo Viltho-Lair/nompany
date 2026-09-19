@@ -4,7 +4,7 @@ import { requirePermission } from "@/platform/access";
 import { financeContext, PAYMENT_METHODS } from "@/modules/finance/finance";
 import { valuesFor } from "@/modules/administration/taxonomy";
 import {
-  listBillsForScreen, createBill, editBill, requestBillApproval, recordBillPayment, releaseBillHold, removeBill,
+  listBillsForScreen, createBill, editBill, requestBillApproval, recordBillPayment, requestHoldRelease, removeBill,
   BILL_STATUSES, BILL_TERMS,
 } from "@/modules/finance/payables";
 import { referencePickers } from "@/modules/procurement/pickers";
@@ -50,9 +50,6 @@ export const GET = route(
       bills,
       pickers,
       ...setupOf(fin),
-      // WHETHER THIS VIEWER MAY RELEASE A HELD PAYMENT — the button's gate, from
-      // the same right the service asks.
-      canRelease: !requirePermission(fin.access, "finance.payables.release"),
       vocabulary: {
         billStatuses: BILL_STATUSES,
         billTerms: BILL_TERMS,
@@ -91,10 +88,10 @@ export const PUT = route(spec, async (fin) => {
     ? await requestBillApproval(fin, fin.body.id)
     : fin.body.payment
       ? await recordBillPayment(fin, fin.body.id, fin.body.payment)
-      // RELEASING A HELD PAYMENT is a fourth act on the same row, its right
-      // asked by the service like the other three.
+      // ASKING FOR A HELD PAYMENT TO BE RELEASED is a fourth act on the same
+      // row; the release itself is given on the Approvals page (19/09/2026).
       : fin.body.release
-        ? await releaseBillHold(fin, fin.body.id, fin.body.release)
+        ? await requestHoldRelease(fin, fin.body.id, fin.body.release)
         : await editBill(fin, fin.body.id, fin.body);
 
   if (refused(result)) return result;

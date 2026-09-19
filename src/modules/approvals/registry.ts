@@ -138,6 +138,13 @@ export const APPROVAL_TYPES: readonly ApprovalTypeDef[] = [
       { permission: "engineeringDocs.register.approve", from: 0, label: "Approval" },
     ],
   },
+  // RELEASING A HELD PAYMENT (Finance → Payables, when the payment hold is on).
+  // Asked for with a reason; the release is written in the approver's name, and
+  // the approver may then not record that payment.
+  {
+    key: "payment-release", label: "Payment release", requestable: true, amounted: true,
+    legacy: [{ permission: "finance.payables.release", from: 0, label: "Release" }],
+  },
   { key: "carried", label: "Carried over", requestable: false },
 ];
 

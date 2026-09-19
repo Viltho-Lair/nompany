@@ -252,6 +252,7 @@ type Strings = CommonStrings & {
   holdReleaseLead: string;
   holdReleaseReason: string;
   holdReleasing: string;
+  holdReleasePending: string;
   holdPayWarning: string;
   holdSettingsHeading: string;
   holdSettingsLead: string;
@@ -691,10 +692,11 @@ const en: Strings = {
     "match-billed-not-received": "billed for goods not received",
     "match-over-billed": "billed for more than was received",
   },
-  holdRelease: "Release payment",
-  holdReleaseLead: "Releasing lets this bill be paid despite the hold. Someone other than you records the payment, and your reason is kept with the bill.",
+  holdRelease: "Request release",
+  holdReleaseLead: "Releasing lets this bill be paid despite the hold. It is approved on the Approvals page; whoever approves it may not then record the payment, and your reason is kept with the bill.",
   holdReleaseReason: "Why it may be paid",
-  holdReleasing: "Releasing…",
+  holdReleasing: "Sending…",
+  holdReleasePending: "Release waiting for approval",
   holdPayWarning: "The payment hold flags this bill:",
   holdSettingsHeading: "Payment hold",
   holdSettingsLead: "Stop a supplier bill being paid when it bills for more than was received, or names a supplier whose paperwork has lapsed. A bill with no purchase order is checked against its supplier only.",
@@ -1157,10 +1159,11 @@ const ar: Strings = {
     "match-billed-not-received": "فوترة بضائع لم تستلم",
     "match-over-billed": "فوترة بأكثر مما استلم",
   },
-  holdRelease: "رفع إيقاف الدفع",
-  holdReleaseLead: "رفع الإيقاف يسمح بدفع هذه الفاتورة رغم الإيقاف. يسجل الدفعة شخص آخر غيرك، ويحفظ سببك مع الفاتورة.",
+  holdRelease: "طلب رفع الإيقاف",
+  holdReleaseLead: "رفع الإيقاف يسمح بدفع هذه الفاتورة رغم الإيقاف. يعتمد في صفحة الموافقات، ولا يسجل الدفعة من اعتمده، ويحفظ سببك مع الفاتورة.",
   holdReleaseReason: "سبب السماح بالدفع",
-  holdReleasing: "جار رفع الإيقاف…",
+  holdReleasing: "جار الإرسال…",
+  holdReleasePending: "رفع الإيقاف بانتظار الاعتماد",
   holdPayWarning: "إيقاف الدفع ينبه على هذه الفاتورة:",
   holdSettingsHeading: "إيقاف الدفع",
   holdSettingsLead: "منع دفع فاتورة مورد تتجاوز ما استلم فعلا، أو تسمي موردا انتهت صلاحية وثائقه. الفاتورة بلا أمر شراء تفحص مقابل المورد فقط.",

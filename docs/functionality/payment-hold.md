@@ -46,9 +46,11 @@ amount alone is wrong across order sizes.
 
 ## Releasing a held payment
 
-- **Its own right, `finance.payables.release`**, held by the department-head archetype and not
-  by `money`, which pays.
-- **A reason is required**, and kept on the bill with who gave it and when.
+- **Asked for on the bill and given on the Approvals page** (19/09/2026). **Request release**
+  (whoever runs or pays bills) files a **Payment release** approval carrying the reason; the people
+  who give it are Approvals settings' — until a studio saves the type, whoever held the old
+  `finance.payables.release` (now gone) plus the owner and Admins.
+- **A reason is required**, and kept on the bill with who gave the release and when.
 - **The person who released it may not record the payment.** Holding both rights is allowed;
   using both on one bill is not — the invariant-7 shape.
 - **A release covers the reasons it was given for.** A supplier whose certificate lapses after
@@ -67,8 +69,11 @@ the document would mean a studio could not record an invoice it has genuinely re
   before that it took a typed name only, so the hold could not fire on any bill entered on screen),
   but a bill carrying only a typed supplier name is still not checked.
 - **The amount tolerance does not convert currencies.** It applies in the bill's own currency.
-- **Nobody is told when a bill becomes held or is released.** The row and the dialog say so; no
-  notification is sent.
+- **Nobody is told when a bill becomes held.** The row and the dialog say so; the people who can
+  release it hear only when somebody asks.
+- **An owner running the studio alone cannot pay a bill they released.** The releaser is never the
+  payer, and unlike approvals there is no Admin exception on that — so with the hold switched on,
+  a one-person studio fixes the cause rather than releasing.
 - **A bill naming an order that no longer exists is not matched**, and so not held over it.
 - **Releases are not listed anywhere but on the bill.** There is no register of overrides.
 - **Each part payment is checked when it is made.** A bill part-paid before the hold was switched
