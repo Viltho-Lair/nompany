@@ -12,6 +12,11 @@ import type { ChangeOrder } from "./changeOrderSchema";
 import { CHANGE_ORDER_STATUSES } from "./changeOrderSchema";
 
 import type { SalesContext } from "./types";
+import { approvalPreflight, approvalRows, requestApproval } from "@/modules/approvals/approvals";
+import { approvalSummary } from "@/modules/approvals/reads";
+import type { Refusal } from "@/modules/approvals/effects";
+import type { Approval } from "@/modules/approvals/schema";
+import type { StudioRef } from "@/modules/context";
 
 // NO `isStatus` GUARD HERE, unlike contracts.ts's `isFeeBasis`, because no
 // status ever arrives from a request body: every value this field takes is
@@ -61,10 +66,23 @@ export async function listChangeOrders(ctx: SalesContext) {
   // (Law 4): somebody renamed after answering a variation reads correctly on
   // it, which a stored copy cannot do. One read for the whole list, not one per
   // row.
-  const [rows, people] = await Promise.all([
+  const [rows, people, approvals] = await Promise.all([
     ChangeOrders.find({ studio, section: quotationsSection }),
     listCollaborators(studio.id),
+    approvalRows(studio, ctx.approvalsSection),
   ]);
+  // A VARIATION SUBMITTED BEFORE 19/09/2026 was already asking, so it is given
+  // its approval here, in its submitter's name. Once: a filed one is found next time.
+  const stranded = rows.filter((co) => co.status === "submitted" && !approvalSummary(approvals, CHANGE_ORDER_APPROVAL, co.id));
+  if (stranded.length && ctx.approvalsSection) {
+    const byId = new Map((people as { id?: unknown }[]).map((c) => [String(c.id), c]));
+    for (const co of stranded) {
+      const who = byId.get(String(co.submittedByCollaboratorId || ""));
+      if (!who) continue;
+      const asked = await askForChangeOrder({ studio, collaborator: who as SalesContext["collaborator"], roles: ctx.roles }, co);
+      if (asked.approval) approvals.push(asked.approval);
+    }
+  }
   const aliasOf = new Map(
     (people as { id?: unknown; alias?: unknown }[])
       .map((c) => [String(c?.id ?? ""), String(c?.alias ?? "")] as const),
@@ -77,6 +95,8 @@ export async function listChangeOrders(ctx: SalesContext) {
       // called the same thing apart.
       submittedByAlias: aliasOf.get(String(co.submittedByCollaboratorId || "")) || "",
       approvedByAlias: aliasOf.get(String(co.approvedByCollaboratorId || "")) || "",
+      // HOW FAR ITS APPROVAL HAS GOT, read from the approval.
+      approval: approvalSummary(approvals, CHANGE_ORDER_APPROVAL, co.id),
     })),
   };
 }
@@ -206,9 +226,41 @@ export async function updateChangeOrder(ctx: SalesContext, id: string, body: Rec
   return changeOrder ? { changeOrder } : { error: "notfound" };
 }
 
+/** The approval type a variation asks for. Its key is stored — see modules/approvals/registry. */
+export const CHANGE_ORDER_APPROVAL = "change-order";
+
 /**
- * PUT THE VARIATION TO ITS APPROVER — and record WHO put it, because that is
- * half of the invariant-7 check below.
+ * WHAT A VARIATION IS WORTH to an approval limit: its value delta, ABSOLUTE —
+ * a deduction of 100,000 is as material as an addition of 100,000, the stock
+ * adjustment's rule, and a limit only on additions could be walked round.
+ */
+const amountOf = (studio: StudioRef, co: Pick<ChangeOrder, "valueDelta" | "currency">) => ({
+  value: Math.abs(Number(co.valueDelta) || 0),
+  currency: String(co.currency || studio.currency || ""),
+});
+
+type Requester = { studio: StudioRef; collaborator: SalesContext["collaborator"]; roles: SalesContext["roles"] };
+
+function askForChangeOrder(requester: Requester, co: ChangeOrder) {
+  return requestApproval(requester, {
+    type: CHANGE_ORDER_APPROVAL,
+    source: {
+      sectionKey: "crm-sales-contracts", recordId: co.id, ref: String(co.number || ""),
+      title: `${co.number ? `${co.number} · ` : ""}${co.title || ""}`, path: "crm-sales-contracts",
+    },
+    note: [
+      `Value ${Number(co.valueDelta) >= 0 ? "+" : ""}${Number(co.valueDelta) || 0}`,
+      Number(co.timeDeltaDays) ? `Time ${Number(co.timeDeltaDays) >= 0 ? "+" : ""}${co.timeDeltaDays} days` : "",
+      String(co.scope || ""),
+    ].filter(Boolean).join("\n"),
+    amount: amountOf(requester.studio, co),
+  });
+}
+
+/**
+ * PUT THE VARIATION TO ITS APPROVERS — which asks for its approval (19/09/2026),
+ * answered on the Approvals page. The submitter is recorded, and is never asked
+ * to answer their own (the Admin excepted, the owner's rule).
  */
 export async function submitChangeOrder(ctx: SalesContext, id: string) {
   const denied = requirePermission(ctx.access, "crmSales.contracts.edit");
@@ -221,60 +273,77 @@ export async function submitChangeOrder(ctx: SalesContext, id: string) {
   if (!current) return { error: "notfound" };
   if (current.status !== "draft") return { error: "already", status: current.status };
 
+  // ASKED FIRST WHETHER ANYBODY COULD ANSWER IT, so a studio whose variations
+  // nobody approves refuses in words rather than parking one for ever.
+  const requester = { studio, collaborator, roles: ctx.roles };
+  const preflight = await approvalPreflight(requester, { type: CHANGE_ORDER_APPROVAL, amount: amountOf(studio, current) });
+  if ("error" in preflight) return preflight;
+
   // CAPTURED ONCE, OUTSIDE THE CLOSURE. This is a function patch (invariant 8),
   // so updateRow may invoke it more than once — a CAS retry under contention, or
   // once per store under NOMPANY_DB=parity — and a `new Date()` called inside
   // would disagree between those invocations by whatever time separated them.
   const at = new Date().toISOString();
   const changeOrder = await ChangeOrders.update({ studio, section: quotationsSection }, id, () => ({
-    status: "submitted" satisfies ChangeOrderStatus,
+    status: (preflight.needed ? "submitted" : "approved") satisfies ChangeOrderStatus,
     submittedByCollaboratorId: collaborator.id,
     submittedAt: at,
+    // UNDER EVERY LIMIT THE STUDIO SET, nothing is asked: approved as submitted.
+    ...(preflight.needed ? {} : { approvedByCollaboratorId: collaborator.id, approvedAt: at }),
     updatedAt: at,
   }));
-  return changeOrder ? { changeOrder } : { error: "notfound" };
+  if (!changeOrder) return { error: "notfound" };
+  if (preflight.needed) {
+    const asked = await askForChangeOrder(requester, changeOrder);
+    if (asked.error) return { changeOrder, approvalProblem: asked.error };
+  }
+  return { changeOrder };
+}
+
+/** The variation an approval names, in a context carrying the studio's authority. */
+async function changeOrderFor(studio: StudioRef, approval: Approval, byCollaboratorId: string) {
+  // IMPORTED WHEN NEEDED: ./sales imports the services beside it.
+  const { salesContext } = await import("./sales");
+  const ctx = await salesContext.asApprover(studio.id, byCollaboratorId);
+  if (ctx.error) return { error: ctx.error } as Refusal;
+  if (!ctx.quotationsSection) return { error: "no-section" } as Refusal;
+  const where = { studio: ctx.studio, section: ctx.quotationsSection };
+  const co = await ChangeOrders.byId(where, approval.source.recordId);
+  return co ? { where, co } : ({ error: "notfound" } as Refusal);
 }
 
 /**
- * ANSWER THE VARIATION — and INVARIANT 7 lives here, at the transition rather
- * than in the permission model: the person who submitted a variation may not be
- * the one who approves it. Holding both rights is legitimate; using both on one
- * record is not.
+ * ANSWER A VARIATION — what deciding a `change-order` approval does (see
+ * modules/approvals/effects). Only from `submitted`, once, under a function
+ * patch; only an APPROVED variation moves the contract value.
  *
- * ITS OWN VERB NOW. This was guarded by `edit` on crmSales.quotations, and the
- * note here said that was a deliberate limit rather than an oversight: minting
- * an area for a record with no screen would have moved the permission matrix
- * and every golden pinning it, in order to gate something nobody could open.
- * The screen exists, so the debt is paid — crmSales.contracts.approve.
+ * STAMPED ON A REJECTION TOO. "Nobody answered" and "this person said no" are
+ * different states, and a rejection with no signatory is the first one wearing
+ * the second one's status. The approver's reason travels with it.
  *
- * WHY IT IS A SEPARATE POWER. Answering a variation is not raising one, and a
- * studio that lets a coordinator draft change orders does not thereby let them
- * approve their own. Invariant 7 still does the real work at the transition
- * below — the submitter may not answer, whatever they hold — and the right only
- * decides who may be in that position at all.
+ * THE DEFECT THIS ONCE HAD — a route handing its whole request body where a
+ * boolean was wanted, so rejecting a variation APPROVED it — cannot recur: there
+ * is no route for this any more, only the approval's own verdict.
  */
-export async function answerChangeOrder(ctx: SalesContext, id: string, approve: boolean) {
-  const denied = requirePermission(ctx.access, "crmSales.contracts.approve");
-  if (denied) return denied;
-
-  const { studio, quotationsSection, collaborator } = ctx;
-  if (!quotationsSection) return { error: "no-section" };
-
-  const current = await ChangeOrders.byId({ studio, section: quotationsSection }, id);
-  if (!current) return { error: "notfound" };
-  if (current.status !== "submitted") return { error: "not-submitted", status: current.status };
-  if (current.submittedByCollaboratorId === collaborator.id) return { error: "same-signer" };
-
+async function answer(studio: StudioRef, approval: Approval, by: string, approve: boolean, reason: string) {
+  const found = await changeOrderFor(studio, approval, by);
+  if ("error" in found) return found;
+  if (found.co.status !== "submitted") return approve ? ({ error: "already-decided" } as Refusal) : ("done" as const);
   const at = new Date().toISOString();
   const status: ChangeOrderStatus = approve ? "approved" : "rejected";
-  const changeOrder = await ChangeOrders.update({ studio, section: quotationsSection }, id, () => ({
-    status,
-    // STAMPED ON A REJECTION TOO. "Nobody answered" and "this person said no"
-    // are different states, and a rejection with no signatory is the first one
-    // wearing the second one's status.
-    approvedByCollaboratorId: collaborator.id,
-    approvedAt: at,
-    updatedAt: at,
+  const updated = await ChangeOrders.update(found.where, found.co.id, (cur) => ((cur as ChangeOrder).status !== "submitted" ? cur : {
+    ...cur, status, approvedByCollaboratorId: by, approvedAt: at, updatedAt: at,
+    ...(approve ? {} : { rejectedReason: String(reason || "").slice(0, 1000) }),
   }));
-  return changeOrder ? { changeOrder } : { error: "notfound" };
+  return updated && (updated as ChangeOrder).approvedAt === at ? ("done" as const) : ({ error: "already-decided" } as Refusal);
 }
+
+export const changeOrderApproval = {
+  ready: async (studio: StudioRef, approval: Approval, by: string) => {
+    const found = await changeOrderFor(studio, approval, by);
+    if ("error" in found) return found;
+    return found.co.status === "submitted" ? null : ({ error: "already-decided", status: found.co.status } as Refusal);
+  },
+  approved: (studio: StudioRef, approval: Approval, by: string) => answer(studio, approval, by, true, ""),
+  rejected: (studio: StudioRef, approval: Approval, by: string, reason: string) => answer(studio, approval, by, false, reason),
+};

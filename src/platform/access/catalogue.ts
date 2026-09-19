@@ -298,12 +298,10 @@ const OWN_AREAS = [
   // change order or ended, never removed, which is the same reasoning that
   // keeps a ledger entry reversible rather than editable.
   //
-  // `approve` IS ITS OWN POWER because answering a variation is not raising
-  // one. Invariant 7 is enforced at the transition — the person who submitted
-  // a change order may not answer it — and holding both rights stays
-  // legitimate; using both on one record does not.
-  { key: "crmSales.contracts", group: "CRM & Sales", label: "Contracts", verbs: ["view", "create", "edit"],
-    extra: [{ key: "approve", label: "Answer a change order" }] },
+  // ANSWERING A VARIATION IS NOT A RIGHT ANY MORE (19/09/2026): submitting one
+  // asks the people Approvals settings name, on the Approvals page, where the
+  // submitter is never asked about their own.
+  { key: "crmSales.contracts", group: "CRM & Sales", label: "Contracts", verbs: ["view", "create", "edit"] },
   // AN ORDER HAS A DELETE VERB AND A CONTRACT DOES NOT, which is the whole
   // difference between them. A contract is a value baseline other records
   // claim against, so it is never removed; a DRAFT order is a mistake

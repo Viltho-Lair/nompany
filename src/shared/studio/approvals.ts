@@ -75,6 +75,7 @@ const TYPES_EN: Record<string, string> = {
   requisition: "Purchase requisition",
   payroll: "Payroll run",
   claim: "Expense claim",
+  "change-order": "Change order",
   carried: "Carried over",
 };
 const TYPES_AR: Record<string, string> = {
@@ -92,6 +93,7 @@ const TYPES_AR: Record<string, string> = {
   requisition: "طلب شراء",
   payroll: "مسير رواتب",
   claim: "مطالبة مصروفات",
+  "change-order": "أمر تغيير",
   carried: "منقولة",
 };
 

@@ -72,7 +72,6 @@ export default function StudioContracts({ slug }) {
     setRights({
       canCreate: cj.canCreate ?? false,
       canEdit: cj.canEdit ?? false,
-      canApprove: cj.canApprove ?? false,
     });
   }, [slug]);
 
@@ -82,6 +81,8 @@ export default function StudioContracts({ slug }) {
   // `crm-sales-quotations`; the register this screen IS owns only the
   // destination, no collection — so its own key would never fire.
   useLiveUpdates(slug, "crm-sales-quotations", load);
+  // A variation's approval is answered on the Approvals page and written there.
+  useLiveUpdates(slug, "approvals", load);
 
   const send = useCallback(async (path, method, payload) => {
     setError(""); setBusy(true);
@@ -91,11 +92,11 @@ export default function StudioContracts({ slug }) {
     const out = await res.json().catch(() => ({}));
     setBusy(false);
     if (!res.ok) {
-      // `same-signer` is invariant 7 speaking, and it deserves its own sentence
-      // rather than a raw token: the person reading it submitted this variation.
+      // SUBMITTING ASKS FOR ITS APPROVAL (19/09/2026), so the refusals worth a
+      // sentence are the ones that say nobody could answer it.
       setError(
-        out.error === "same-signer" ? tr.cannotAnswerYourOwn
-          : out.error === "not-submitted" ? tr.refuseNotSubmittedVariation
+        out.error === "not-configured" ? tr.refuseVariationNotConfigured
+          : out.error === "no-approver" ? tr.refuseVariationNoApprover
             : out.error === "already" ? tr.refuseAlreadyAnswered
               : (out.error || "failed"),
       );
@@ -239,23 +240,16 @@ export default function StudioContracts({ slug }) {
                                       </button>
                                     </>
                                   )}
-                                  {/* ANSWERING IS OFFERED ONLY WHERE IT WOULD BE
-                                      ACCEPTED. The route refuses the submitter
-                                      (invariant 7) whatever they hold, and this
-                                      cannot know who submitted from here alone —
-                                      so the button is shown on the right and the
-                                      refusal is surfaced in words if it comes. */}
-                                  {rights.canApprove && co.status === "submitted" && (
-                                    <>
-                                      <button className={btn} disabled={busy}
-                                        onClick={() => send("change-orders", "PATCH", { id: co.id, action: "approve" })}>
-                                        {tr.approve}
-                                      </button>
-                                      <button className={btnGhost} disabled={busy}
-                                        onClick={() => send("change-orders", "PATCH", { id: co.id, action: "reject" })}>
-                                        {tr.reject}
-                                      </button>
-                                    </>
+                                  {/* HOW FAR ITS APPROVAL HAS GOT, read from the
+                                      approval — answered on the Approvals page,
+                                      where the submitter is never asked about
+                                      their own (19/09/2026). */}
+                                  {co.approval && (co.status === "submitted" || co.status === "rejected") && (
+                                    <span className={`text-xs ${co.approval.rejected ? "text-rose-600 dark:text-rose-300" : "text-slate-500 dark:text-slate-400"}`}>
+                                      {co.approval.rejected ? tr.variationRejected(co.approval.reason) : tr.variationStepsOf(co.approval.granted, co.approval.required)}
+                                      {" · "}
+                                      <a href={`/${slug}/approvals`} className="font-600 text-brand-700 hover:underline dark:text-brand-300">{tr.variationOpenApprovals}</a>
+                                    </span>
                                   )}
                                 </span>
                               </li>

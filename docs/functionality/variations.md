@@ -33,16 +33,19 @@ Both are fixed here, and the Gate A block that proves the fix is the coverage th
 
 **No new permission area.** Variations answer to `crmSales.contracts`, which is right on the
 same argument the BOQ makes about its tender: a variation *is* a contract's content. `create`
-raises one, `edit` amends and submits a draft, and **`approve` answers it** — a right minted when
-the contracts register shipped precisely so that answering could be a separate power from
-raising.
+raises one, `edit` amends and submits a draft. **Answering is the Approvals page's** since
+19/09/2026: submitting a variation asks for its approval (type `change-order`), and the people who
+answer are Approvals settings'. Until a studio saves the type they are whoever held the old
+`crmSales.contracts.approve` (now gone) plus the owner and Admins.
 
 ## What it does
 
-**Three acts, three verbs**, matching the service: raise and edit (POST and PUT), **submit**
-(draft → submitted), **answer** (approve or reject). Only the last carries invariant 7, and only
-it is a PATCH — a generic PUT accepting a status would route an approval through the edit path,
-where the submitter check is not.
+**Two acts here and one on the Approvals page**: raise and edit (POST and PUT) and **submit**
+(PATCH, draft → submitted, which files the approval, carrying the value delta as an ABSOLUTE
+amount — a deduction is as material as an addition). **The answer** is given on the Approvals
+page, and the last yes or a no writes `approved` or `rejected` here. A PATCH with
+`approve`/`reject` is refused (`not-answerable`). A variation submitted before 19/09/2026 gets
+its approval the first time the register is read.
 
 **Always born a draft.** The create path takes no status and the screen sends none. A status
 accepted from a request body would be the side entrance around the transition.
@@ -50,10 +53,9 @@ accepted from a request body would be the side entrance around the transition.
 **A draft is the only thing that edits.** Once submitted, the thing somebody was asked to answer
 must not change underneath them.
 
-**Invariant 7 lives at the transition, not in the permission model.** The person who submitted a
-variation may not answer it — holding both rights is legitimate, using both on one record is not.
-Gate A asks it of the **owner**, who holds every right in the product and is refused on identity
-alone.
+**Invariant 7 lives on the Approvals page.** The person who submitted a variation is never asked to
+answer it — **unless they are the studio's Admin**, the owner's rule for every approval since
+19/09/2026. (Before it, the owner was refused on identity alone.)
 
 **Both deltas are signed.** An omission is a variation too, so a negative `valueDelta` is the
 only honest way to record one, and `timeDeltaDays` follows the same rule. Neither is ever an
@@ -82,8 +84,6 @@ Stated in words, because a silent gap reads as a finished feature.
 - **No delete.** The service has no remove at all, so a draft raised by mistake stays for ever.
   Rejected ones are kept deliberately; a never-submitted draft is a different case and has no
   answer yet.
-- **Nothing is notified.** A variation waiting for an answer tells nobody; the register has to be
-  looked at.
 - **The time delta moves nothing.** `timeDeltaDays` is recorded and read and no date anywhere
   changes because of it — not the contract's end date, not the deal's deadline, not the project's.
   Moving a deadline a contract established is an explicit, audited edit rather than something a

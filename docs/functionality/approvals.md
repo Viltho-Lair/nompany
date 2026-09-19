@@ -28,11 +28,12 @@ files it, naming the record (`source`: its section, id, reference, title, and th
 | Submit for approval | Procurement → Requisitions: submitting a draft is asking | **Purchase requisition**, carrying its estimate — or no amount while any line is unestimated, which walks every step | Approved, it may become a purchase order; a no makes it Rejected with the reason (`requisitionApproval` in `modules/procurement/approval`) |
 | Request approval | HR → Payroll, on a draft run | **Payroll run**, carrying its net | the run becomes Approved, so its bank files are made and it can be paid (`payrollApproval` in `modules/hr/payrollService`) |
 | Submit | Finance → Payables & Expenses → Claims: submitting a draft claim is asking | **Expense claim**, carrying its total | the open advance takes its part, it posts, and it is settled if nothing is left to pay (`claimApproval` in `modules/finance/claimsService`); a no makes it Rejected with the reason |
+| Submit | CRM & Sales → Contracts, on a draft variation | **Change order**, carrying its value delta as an absolute amount | the variation is `approved` and counts in the contract value; a no makes it `rejected` with the reason (`changeOrderApproval` in `modules/sales/changeOrders`) |
 | Record adjustment | Inventory → Stock: an adjustment worth more than the lowest limit asks; under it the stock moves at once | **Stock adjustment**, valued at units × unit cost (absolute) | the movement is written (`adjustmentApproval` in `modules/inventory/adjustmentApproval`); rejected, it is closed with the reason and nothing moves |
 
 **MOVING EVERY APPROVAL HERE, one type at a time** (the owner, 19/09/2026): the request stays
 where it is made today and the answer moves to this page. The till return, the stock
-adjustment, the bill, the bid, the requisition, payroll and expense claims have moved; change orders, timesheets,
+adjustment, the bill, the bid, the requisition, payroll, expense claims and change orders have moved; timesheets,
 document revisions, held-payment releases and leave follow. Each move drops the type's
 `approve` right — a right to do what the settings decide would be a second answer (invariant
 16) — and the steps it had come with it:
@@ -147,7 +148,7 @@ Stated in words, because a silent gap reads as a finished feature.
 
 - **Five types have no record to ask from yet:** Material PO, Delivery, Delivery return, ID update
   and Permit request. They appear in Approvals settings and nothing can raise one.
-- **Change orders, timesheets, document revisions, held-payment releases
+- **Timesheets, document revisions, held-payment releases
   and leave still answer where they are**, on their own rights. Each moves here in turn; requests
   already waiting on it are carried when it does.
 - **No reminders, no delegation, no out-of-office reassignment, and no withdrawing a request.**

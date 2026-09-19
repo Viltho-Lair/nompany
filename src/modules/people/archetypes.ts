@@ -305,18 +305,15 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
       // be a manager rewriting somebody else's evidence.
       ["projects.reports", "view"],
     ],
-    // A variation IS the contract's content, and the project manager whose job
-    // it changes is who answers it — which is the act crmSales.contracts.approve
-    // was minted for when the register shipped.
-    //
-    // CERTIFYING A SUBCONTRACTOR'S PAYMENT IS THE SAME ACT: attesting that work
-    // was done. It sits here rather than on `buyer` for the reason a
+    // CERTIFYING A SUBCONTRACTOR'S PAYMENT: attesting that work was done.
+    // (Answering a variation to the contract is named in Approvals settings
+    // since 19/09/2026, not held as a right.) It sits here rather than on `buyer` for the reason a
     // requisition's approval sits away from the buyer — writing the valuation is
     // administration, agreeing it creates a debt, and the person who can say
     // the work happened is the one running the job rather than the one who
     // placed the order. `buyer` holds `procurement.subcontracts` at edit and
     // deliberately not this.
-    extras: ["crmSales.contracts.approve", "procurement.subcontracts.certify"],
+    extras: ["procurement.subcontracts.certify"],
   },
   {
     id: "front-line",

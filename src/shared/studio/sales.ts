@@ -99,7 +99,9 @@ type Strings = CommonStrings & {
   variations: string;
   noVariationsYet: string;
   nVariationsWaiting: (n: number) => string;
-  cannotAnswerYourOwn: string;
+  variationStepsOf: (granted: number, required: number) => string;
+  variationRejected: (reason: string) => string;
+  variationOpenApprovals: string;
   raiseVariation: string;
   editVariation: string;
   submitVariation: string;
@@ -114,8 +116,9 @@ type Strings = CommonStrings & {
   submittedByOn: (who: string, when: string) => string;
   answeredByOn: (who: string, when: string) => string;
   awaitingAnAnswer: string;
-  refuseNotSubmittedVariation: string;
   refuseAlreadyAnswered: string;
+  refuseVariationNotConfigured: string;
+  refuseVariationNoApprover: string;
   onlyApprovedCount: string;
   approve: string;
   reject: string;
@@ -313,7 +316,9 @@ const en: Strings = {
   // INVARIANT 7, in words somebody can act on. The route refuses the person who
   // submitted a variation, however much they hold, so the message says who
   // rather than what.
-  cannotAnswerYourOwn: "You submitted this variation, so somebody else has to answer it.",
+  variationStepsOf: (g, r) => `${g} of ${r} approval step${r === 1 ? "" : "s"}`,
+  variationRejected: (reason) => `Turned down${reason ? `: “${reason}”` : ""}`,
+  variationOpenApprovals: "Open in Approvals",
   raiseVariation: "Raise a variation",
   editVariation: "Edit variation",
   submitVariation: "Submit for an answer",
@@ -328,8 +333,9 @@ const en: Strings = {
   submittedByOn: (who, when) => `Submitted by ${who} · ${when}`,
   answeredByOn: (who, when) => `Answered by ${who} · ${when}`,
   awaitingAnAnswer: "Waiting for an answer",
-  refuseNotSubmittedVariation: "That variation has not been submitted, so there is nothing to answer.",
-  refuseAlreadyAnswered: "That variation has already been answered.",
+  refuseAlreadyAnswered: "That variation has already been submitted.",
+  refuseVariationNotConfigured: "Nobody has been named to approve change orders. The owner or an Admin names them in Approvals settings.",
+  refuseVariationNoApprover: "You are the only person who approves change orders, so you cannot submit one yourself. Ask the owner to name somebody else in Approvals settings.",
   onlyApprovedCount: "Only approved variations move the contract value. A submitted one is a claim.",
   approve: "Approve",
   reject: "Reject",
@@ -521,7 +527,9 @@ const ar: Strings = {
   variations: "التغييرات",
   noVariationsYet: "لا توجد تغييرات على هذا العقد.",
   nVariationsWaiting: (n) => `${n} بانتظار الرد`,
-  cannotAnswerYourOwn: "أنت من قدم هذا التغيير، فيجيب عليه شخص آخر.",
+  variationStepsOf: (g, r) => `${g} من ${r} مراحل اعتماد`,
+  variationRejected: (reason) => `رفض${reason ? `: «${reason}»` : ""}`,
+  variationOpenApprovals: "فتح في الموافقات",
   raiseVariation: "إضافة تغيير",
   editVariation: "تعديل التغيير",
   submitVariation: "إرسال للرد",
@@ -536,8 +544,9 @@ const ar: Strings = {
   submittedByOn: (who, when) => `قدمه ${who} · ${when}`,
   answeredByOn: (who, when) => `أجاب ${who} · ${when}`,
   awaitingAnAnswer: "بانتظار الرد",
-  refuseNotSubmittedVariation: "لم يرسل هذا التغيير، فلا شيء يجاب عليه.",
-  refuseAlreadyAnswered: "أجيب عن هذا التغيير بالفعل.",
+  refuseAlreadyAnswered: "قدم هذا التغيير بالفعل.",
+  refuseVariationNotConfigured: "لم يحدد أحد لاعتماد أوامر التغيير. يحددهم المالك أو المشرف في إعدادات الموافقات.",
+  refuseVariationNoApprover: "أنت الوحيد الذي يعتمد أوامر التغيير، فلا يمكنك تقديم أمر بنفسك. اطلب من المالك تحديد شخص آخر في إعدادات الموافقات.",
   onlyApprovedCount: "لا تحرك قيمة العقد إلا التغييرات المعتمدة. المرسل مجرد مطالبة.",
   approve: "اعتماد",
   reject: "رفض",

@@ -2,7 +2,7 @@ import { route, refused } from "@/platform/http/route";
 import { salesContext } from "@/modules/sales/sales";
 import {
   listChangeOrders, createChangeOrder, updateChangeOrder,
-  submitChangeOrder, answerChangeOrder,
+  submitChangeOrder,
 } from "@/modules/sales/changeOrders";
 
 export const runtime = "nodejs";
@@ -33,14 +33,11 @@ export const PUT = route(spec, async (sales) => {
   return { ok: true, changeOrder: result.changeOrder };
 });
 
-// SUBMIT AND ANSWER ARE THEIR OWN VERBS, not a status field on PUT.
-//
-// A variation moving from draft to submitted to approved is a TRANSITION, and
-// invariant 7 lives on the transition rather than in the permission model:
-// holding both rights is legitimate, using both on one change order is not. A
-// generic PUT accepting an approved status would route an approval through the
-// edit path, where the submitter check is not — and the person who raised a
-// variation could approve their own.
+// SUBMITTING IS ITS OWN VERB, not a status field on PUT, and it asks for the
+// variation's approval. ANSWERING is not here at all since 19/09/2026: it is
+// given on the Approvals page, where the submitter is never asked about their
+// own. A generic PUT accepting an approved status would route an approval
+// around its approvers.
 export const PATCH = route(spec, async (sales) => {
   const id = String(sales.body.id || "");
   if (!id) return { error: "missing" };
@@ -49,16 +46,9 @@ export const PATCH = route(spec, async (sales) => {
   const result = action === "submit"
     ? await submitChangeOrder(sales, id)
     : action === "approve" || action === "reject"
-      // THE THIRD ARGUMENT IS A BOOLEAN, and it used to be `sales.body` — the
-      // whole request object, which is truthy, so REJECTING A VARIATION
-      // APPROVED IT. Nothing caught it: the handler's `body` is not statically
-      // typed, so the compiler saw no mismatch; no test reached the transition
-      // because a variation cannot become `submitted` without a screen to
-      // submit it, and one that never reaches `submitted` can never be
-      // answered. The feature was unreachable, so the defect was invisible.
-      ? await answerChangeOrder(sales, id, action === "approve")
-      : { error: "action" };
+      ? { error: "not-answerable" as const }
+      : { error: "action" as const };
 
   if (refused(result)) return result;
-  return { ok: true, changeOrder: result.changeOrder };
+  return { ok: true, changeOrder: result.changeOrder, ...(result.approvalProblem ? { approvalProblem: result.approvalProblem } : {}) };
 });

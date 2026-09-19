@@ -37,7 +37,6 @@ export const GET = route({ ...spec, body: false }, async (sales) => {
     contracts: result.contracts,
     canCreate: !requirePermission(sales.access, "crmSales.contracts.create"),
     canEdit: !requirePermission(sales.access, "crmSales.contracts.edit"),
-    canApprove: !requirePermission(sales.access, "crmSales.contracts.approve"),
   };
 });
 

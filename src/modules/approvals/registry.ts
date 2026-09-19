@@ -114,6 +114,12 @@ export const APPROVAL_TYPES: readonly ApprovalTypeDef[] = [
     key: "claim", label: "Expense claim", requestable: true, amounted: true,
     legacy: [{ permission: "finance.claims.approve", from: 0, label: "Finance" }],
   },
+  // A VARIATION to a contract (CRM & Sales → Contracts). Submitting it is
+  // asking; only an approved one moves the contract value.
+  {
+    key: "change-order", label: "Change order", requestable: true, amounted: true,
+    legacy: [{ permission: "crmSales.contracts.approve", from: 0, label: "Contracts" }],
+  },
   { key: "carried", label: "Carried over", requestable: false },
 ];
 
