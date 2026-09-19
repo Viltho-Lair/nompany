@@ -21,13 +21,23 @@
 // leaves. Fields travel through the same `redact` every log line does — one
 // rule, not a second list free to disagree with it.
 
-import * as Sentry from "@sentry/nextjs";
+import * as SentryModule from "@sentry/nextjs";
 import { after } from "next/server";
 import vercel from "../../../vercel.json";
 import { redact, REPORTER, type Fields, type Reporter } from "./observability";
 
-type SentryEvent = Parameters<NonNullable<Sentry.NodeOptions["beforeSend"]>>[0];
-type SentryBreadcrumb = Parameters<NonNullable<Sentry.NodeOptions["beforeBreadcrumb"]>>[0];
+// THE SDK IS A COMMONJS PACKAGE, AND NODE'S ESM LOADER SEES ONLY PART OF IT.
+// Next's bundler hands back every export; plain Node (the test suite runs
+// routes under it) reads the names with a static lexer that cannot follow the
+// SDK's re-exports, so the namespace carried 30 names and `captureCheckIn` and
+// `flush` were undefined — every cron route threw the moment a test called it.
+// The whole module is on `default` there. Same trap as stylis-plugin-rtl
+// (CLAUDE.md, Styling): take `default` when it exists, the namespace otherwise.
+const Sentry: typeof SentryModule =
+  (SentryModule as unknown as { default?: typeof SentryModule }).default ?? SentryModule;
+
+type SentryEvent = Parameters<NonNullable<SentryModule.NodeOptions["beforeSend"]>>[0];
+type SentryBreadcrumb = Parameters<NonNullable<SentryModule.NodeOptions["beforeBreadcrumb"]>>[0];
 
 const withoutQuery = (url: unknown) => (typeof url === "string" ? url.split("?")[0] : url);
 
@@ -86,7 +96,7 @@ const reporter: Reporter = {
 
 // The request id is a TAG, so an event in Sentry and its lines in the Vercel
 // log are one search apart — which is the whole reason the id exists.
-function tag(scope: Sentry.Scope, fields: Fields): void {
+function tag(scope: SentryModule.Scope, fields: Fields): void {
   if (typeof fields.requestId === "string" && fields.requestId) scope.setTag("requestId", fields.requestId);
   if (typeof fields.route === "string" && fields.route) scope.setTag("route", fields.route);
 }

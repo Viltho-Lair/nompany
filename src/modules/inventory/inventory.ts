@@ -621,6 +621,11 @@ export async function editItem(ctx: InventoryContext, id: string, body: Record<s
 // An item with movement history is never deleted — that would erase the record
 // of stock that really moved. Items with a clean history can go.
 export async function removeItem(ctx: InventoryContext, id: string) {
+  // Guarded HERE as well as in `removeItems`: every write guards itself before
+  // it does anything (platform/access/resolve.ts), and a refusal that depended
+  // on the function it hands off to would silently go if that ever changed.
+  const denied = requirePermission(ctx.access, "inventory.items.delete");
+  if (denied) return denied;
   const out = await removeItems(ctx, [id]);
   if ("error" in out) return out;
   // One item asked for keeps the answer it always had: the refusal names what
