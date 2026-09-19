@@ -32,6 +32,8 @@ export default function ClaimsPanel({ slug, locale, onDenied }) {
   }, [slug, tr]);
   useReload(load);
   useLiveUpdates(slug, "finance-payables", load);
+  // A claim's approval is answered on the Approvals page and written there.
+  useLiveUpdates(slug, "approvals", load);
   useEffect(() => { if (denied && !data) onDenied?.(); }, [denied, data, onDenied]);
 
   const post = useCallback(async (payload) => {
@@ -50,7 +52,7 @@ export default function ClaimsPanel({ slug, locale, onDenied }) {
   return (
     <div className="space-y-8">
       {problem && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{problem}</p>}
-      <Claims tr={tr} data={data} busy={busy} post={post} />
+      <Claims slug={slug} tr={tr} data={data} busy={busy} post={post} />
       <Advances tr={tr} data={data} busy={busy} post={post} />
     </div>
   );
@@ -83,10 +85,9 @@ function ClaimForm({ tr, categories, initial, busy, onSave, onCancel }) {
   );
 }
 
-function Claims({ tr, data, busy, post }) {
-  const { claims = [], me, canCreate, canApprove, canPay, categories = [], moneyAccounts = [] } = data;
+function Claims({ slug, tr, data, busy, post }) {
+  const { claims = [], me, canCreate, canPay, categories = [], moneyAccounts = [] } = data;
   const [editing, setEditing] = useState(null);
-  const [rejecting, setRejecting] = useState(null);
   const [paying, setPaying] = useState(null);
   const save = async (body) => { if (await post({ action: "save", ...(editing?.id ? { id: editing.id } : {}), ...body })) setEditing(null); };
   return (
@@ -116,6 +117,14 @@ function Claims({ tr, data, busy, post }) {
                       {tr.status(c.status)}
                       {c.status === "Rejected" && c.rejectedReason && <p className="text-xs text-slate-500">{c.rejectedReason}</p>}
                       {c.paidOn && <p className="text-xs text-slate-500">{fmtDate(c.paidOn)}</p>}
+                      {/* HOW FAR ITS APPROVAL HAS GOT, while it waits — answered on
+                          the Approvals page since 19/09/2026. */}
+                      {c.status === "Submitted" && c.approval && (
+                        <p className="text-xs text-slate-500">
+                          {tr.approvalStepsOf(c.approval.granted, c.approval.required)} ·{" "}
+                          <a href={`/${slug}/approvals`} className="font-600 text-brand-700 hover:underline dark:text-brand-300">{tr.openApprovals}</a>
+                        </p>
+                      )}
                     </td>
                     <td className="py-2 text-end">
                       <span className="flex flex-wrap justify-end gap-1">
@@ -129,13 +138,6 @@ function Claims({ tr, data, busy, post }) {
                         {own && canCreate && (c.status === "Submitted" || c.status === "Rejected") && (
                           <button className={ghost} disabled={busy} onClick={() => post({ action: "move", id: c.id, to: "Draft" })}>{tr.withdraw}</button>
                         )}
-                        {/* NOBODY APPROVES THEIR OWN — the buttons are not drawn, and the server refuses anyway. */}
-                        {!own && canApprove && c.status === "Submitted" && (
-                          <>
-                            <button className={ghost} disabled={busy} onClick={() => post({ action: "move", id: c.id, to: "Approved" })}>{tr.approve}</button>
-                            <button className={ghost} onClick={() => setRejecting({ id: c.id, reason: "" })}>{tr.reject}</button>
-                          </>
-                        )}
                         {canPay && c.status === "Approved" && (
                           <button className={ghost} onClick={() => setPaying({ id: c.id, date: "", accountId: "" })}>{tr.pay}</button>
                         )}
@@ -146,14 +148,6 @@ function Claims({ tr, data, busy, post }) {
               })}
             </tbody>
           </table>
-        </div>
-      )}
-      {rejecting && (
-        <div className="flex flex-wrap items-end gap-2">
-          <Field label={tr.why} className="w-80" value={rejecting.reason} onChange={(v) => setRejecting({ ...rejecting, reason: v })} />
-          <button className={primary} disabled={busy || !rejecting.reason.trim()}
-            onClick={async () => { if (await post({ action: "move", id: rejecting.id, to: "Rejected", reason: rejecting.reason })) setRejecting(null); }}>{tr.reject}</button>
-          <button className={ghost} onClick={() => setRejecting(null)}>{tr.cancel}</button>
         </div>
       )}
       {paying && (

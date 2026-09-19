@@ -1,7 +1,7 @@
 import { route, refused } from "@/platform/http/route";
 import { financeContext } from "@/modules/finance/finance";
 import {
-  claimsView, saveClaim, removeClaim, moveClaim, payClaim, giveAdvance, returnAdvance,
+  claimsView, saveClaim, removeClaim, moveExpenseClaim, payClaim, giveAdvance, returnAdvance,
 } from "@/modules/finance/claimsService";
 import type { FinanceContext } from "@/modules/finance/types";
 
@@ -25,7 +25,7 @@ export const POST = route(spec, async (c) => {
   const action = String(b.action ?? "");
   const result = action === "save" ? await saveClaim(ctx, b)
     : action === "remove" ? await removeClaim(ctx, id)
-      : action === "move" ? await moveClaim(ctx, id, String(b.to ?? ""), b.reason)
+      : action === "move" ? await moveExpenseClaim(ctx, id, String(b.to ?? ""))
         : action === "pay" ? await payClaim(ctx, id, b)
           : action === "advance" ? await giveAdvance(ctx, b)
             : action === "advance-return" ? await returnAdvance(ctx, id, b)

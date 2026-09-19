@@ -108,6 +108,12 @@ export const APPROVAL_TYPES: readonly ApprovalTypeDef[] = [
     key: "payroll", label: "Payroll run", requestable: true, amounted: true,
     legacy: [{ permission: "hr.payroll.approve", from: 0, label: "Payroll" }],
   },
+  // AN EXPENSE CLAIM (Finance → Payables & Expenses). Submitting it is asking;
+  // approved, the open advance takes its part and it posts.
+  {
+    key: "claim", label: "Expense claim", requestable: true, amounted: true,
+    legacy: [{ permission: "finance.claims.approve", from: 0, label: "Finance" }],
+  },
   { key: "carried", label: "Carried over", requestable: false },
 ];
 

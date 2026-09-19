@@ -5,10 +5,12 @@
 //   - `finance.claims.create`  — raise, edit, submit and withdraw your OWN claims,
 //                                 and see your own claims and advances;
 //   - `finance.claims.view`    — see everybody's;
-//   - `finance.claims.approve` — agree or reject somebody ELSE's claim;
 //   - `finance.payables.pay`   — pay an approved claim, hand over an advance,
 //                                 take one back (the right that pays suppliers).
-// NOBODY APPROVES THEIR OWN CLAIM, and nobody hands themselves an advance.
+// AGREEING OR REJECTING A CLAIM is the Approvals page's since 19/09/2026:
+// submitting one asks for its approval (type `claim`), and the people who
+// answer are Approvals settings'. Nobody answers their own claim — the Admin
+// excepted, the owner's rule — and nobody hands themselves an advance.
 
 import { requirePermission } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
@@ -23,6 +25,14 @@ import {
 import type { Claim, Advance, ClaimStatus } from "./claims";
 import type { FinanceContext } from "./types";
 import type { Row } from "@/platform/db/store";
+import { approvalPreflight, approvalRows, requestApproval } from "@/modules/approvals/approvals";
+import { approvalSummary } from "@/modules/approvals/reads";
+import type { Refusal } from "@/modules/approvals/effects";
+import type { Approval } from "@/modules/approvals/schema";
+import type { StudioRef } from "@/modules/context";
+
+/** The approval type a claim asks for. Its key is stored — see modules/approvals/registry. */
+export const CLAIM_APPROVAL = "claim";
 
 type ClaimRecord = Claim & {
   reference: string; note?: string; projectId?: string; createdAt: string;
@@ -43,10 +53,9 @@ const can = (ctx: FinanceContext, key: string) => !requirePermission(ctx.access,
 
 function rights(ctx: FinanceContext) {
   const create = can(ctx, "finance.claims.create");
-  const approve = can(ctx, "finance.claims.approve");
   const pay = can(ctx, "finance.payables.pay");
-  const seeAll = can(ctx, "finance.claims.view") || approve || pay;
-  return { create, approve, pay, seeAll, any: create || seeAll };
+  const seeAll = can(ctx, "finance.claims.view") || pay;
+  return { create, pay, seeAll, any: create || seeAll };
 }
 
 /** The claims and advances the reader may see, and what each person still holds. */
@@ -54,9 +63,22 @@ export async function claimsView(ctx: FinanceContext) {
   const r = rights(ctx);
   if (!r.any) return { error: "forbidden" as const };
   const me = ctx.collaborator.id;
-  const [claims, advances, people, accounts] = await Promise.all([
+  const [claims, advances, people, accounts, approvals] = await Promise.all([
     Claims.find(scope(ctx)), Advances.find(scope(ctx)), listCollaborators(ctx.studio.id), storedMoneyAccounts(ctx),
+    approvalRows(ctx.studio, ctx.approvalsSection),
   ]);
+  // A CLAIM SUBMITTED BEFORE 19/09/2026 was already asking, so it is given its
+  // approval here, in its claimant's name. Once: a filed one is found next time.
+  const stranded = claims.filter((c) => c.status === "Submitted" && !approvalSummary(approvals, CLAIM_APPROVAL, c.id));
+  if (stranded.length && ctx.approvalsSection) {
+    const byId = new Map((people as { id?: unknown }[]).map((c) => [String(c.id), c]));
+    for (const c of stranded) {
+      const claimant = byId.get(c.claimantCollaboratorId);
+      if (!claimant) continue;
+      const asked = await askForClaim({ studio: ctx.studio, collaborator: claimant as FinanceContext["collaborator"], roles: ctx.roles }, c);
+      if (asked.approval) approvals.push(asked.approval);
+    }
+  }
   const mine = (id: string) => r.seeAll || id === me;
   const alias = Object.fromEntries(people.map((c) => [String(c.id), String(c.alias || "")]));
   const holders = [...new Set(advances.map((a) => a.collaboratorId))].filter(mine);
@@ -66,6 +88,8 @@ export async function claimsView(ctx: FinanceContext) {
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
       .map((c) => ({
         ...c, total: claimTotal(c), payable: claimPayable(c), claimantAlias: alias[c.claimantCollaboratorId] || "",
+        // HOW FAR ITS APPROVAL HAS GOT, read from the approval.
+        approval: approvalSummary(approvals, CLAIM_APPROVAL, c.id),
       })),
     advances: advances.filter((a) => mine(a.collaboratorId))
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
@@ -75,7 +99,7 @@ export async function claimsView(ctx: FinanceContext) {
     people: r.pay ? people.filter((p) => String(p.id) !== me).map((p) => ({ id: String(p.id), alias: String(p.alias || "") })) : [],
     categories: ctx.cashCategories,
     moneyAccounts: accounts.map((a) => ({ id: a.id, code: a.code, name: a.name })),
-    canCreate: r.create, canApprove: r.approve, canPay: r.pay, canSeeAll: r.seeAll,
+    canCreate: r.create, canPay: r.pay, canSeeAll: r.seeAll,
   };
 }
 
@@ -122,42 +146,119 @@ export async function removeClaim(ctx: FinanceContext, id: string) {
   return (await Claims.remove(scope(ctx), id)) ? { removed: id } : { error: "notfound" };
 }
 
+/** File a claim's approval, in its claimant's name, carrying its total. */
+function askForClaim(requester: { studio: StudioRef; collaborator: FinanceContext["collaborator"]; roles: FinanceContext["roles"] }, claim: ClaimRecord) {
+  return requestApproval(requester, {
+    type: CLAIM_APPROVAL,
+    source: {
+      sectionKey: "finance-payables", recordId: claim.id, ref: claim.reference,
+      title: `${claim.reference}${claim.note ? ` · ${claim.note}` : ""}`, path: "finance-payables",
+    },
+    note: (claim.lines || []).map((l) => `${l.category || ""} — ${l.description || ""}: ${l.amount}`).join("\n"),
+    amount: { value: claimTotal(claim), currency: String(requester.studio.currency || "") },
+  });
+}
+
 /**
- * MOVE A CLAIM: submit or withdraw your own, or agree or reject somebody
- * else's. Agreeing takes what the claimant still holds of an advance, freezes
- * it on the claim, and posts; a claim the advance covers entirely is settled
- * there and then, because nothing is left to pay.
+ * MOVE A CLAIM: submit or withdraw your own. SUBMITTING IS ASKING FOR ITS
+ * APPROVAL (19/09/2026); agreeing and rejecting are answered on the Approvals
+ * page, and a move to either sent here is refused by name rather than routed
+ * around the approvers.
  */
-export async function moveClaim(ctx: FinanceContext, id: string, to: string, reason?: unknown) {
-  const deciding = to === "Approved" || to === "Rejected";
-  const denied = requirePermission(ctx.access, deciding ? "finance.claims.approve" : "finance.claims.create");
+export async function moveExpenseClaim(ctx: FinanceContext, id: string, to: string) {
+  if (to === "Approved" || to === "Rejected") return { error: "not-answerable" };
+  const denied = requirePermission(ctx.access, "finance.claims.create");
   if (denied) return denied;
   const current = await claimById(ctx, id);
   if (!current) return { error: "notfound" };
   const problem = claimMoveProblem(current, to, ctx.collaborator.id);
   if (problem) return { error: problem };
 
-  if (to === "Rejected" && !str(reason)) return { error: "reason" };
+  // ASKED FIRST WHETHER ANYBODY COULD ANSWER IT, so a studio whose claims
+  // nobody approves refuses in words rather than parking one for ever.
+  const requester = { studio: ctx.studio, collaborator: ctx.collaborator, roles: ctx.roles };
+  if (to === "Submitted") {
+    const preflight = await approvalPreflight(requester, {
+      type: CLAIM_APPROVAL, amount: { value: claimTotal(current), currency: String(ctx.studio.currency || "") },
+    });
+    if ("error" in preflight) return preflight;
+  }
+
   const now = today();
   let patch: Partial<ClaimRecord> = { status: to as ClaimStatus };
   if (to === "Submitted") patch.submittedOn = now;
   if (to === "Draft") patch = { ...patch, rejectedReason: "" };
-  if (to === "Rejected") patch.rejectedReason = str(reason, 300);
-  if (to === "Approved") {
-    const [claims, advances] = await Promise.all([Claims.find(scope(ctx)), Advances.find(scope(ctx))]);
-    const fromAdvance = advanceTakes(claimTotal(current), openAdvance(advances, claims, current.claimantCollaboratorId));
-    patch = { ...patch, fromAdvance, approvedOn: now, approvedByCollaboratorId: ctx.collaborator.id };
-    if (claimPayable({ lines: current.lines, fromAdvance }) === 0) patch = { ...patch, status: "Paid", paidOn: now };
-  }
-  // A FUNCTION PATCH THAT RE-CHECKS THE STATUS (invariant 8): two approvers
-  // pressing at once must not both approve and both post.
   const from = current.status;
   const updated = await Claims.update(scope(ctx), id, (row) => ((row as ClaimRecord).status === from ? patch : {}));
   if (!updated) return { error: "notfound" };
   if ((updated as ClaimRecord).status !== patch.status) return { error: "status" };
-  const posting = to === "Approved" ? await autoPost(ctx, "claim", id) : null;
-  return { claim: updated, ...(posting ? { posting } : {}) };
+  if (to === "Submitted") {
+    const asked = await askForClaim(requester, updated as ClaimRecord);
+    // UNDER EVERY LIMIT THE STUDIO SET, nothing is asked: agreed as submitted.
+    if (asked.notNeeded) return agree(ctx, id, String(ctx.collaborator.id));
+    if (asked.error) return { claim: updated, approvalProblem: asked.error };
+  }
+  return { claim: updated };
 }
+
+/**
+ * AGREE IT: take what the claimant still holds of an advance, freeze it on the
+ * claim, and post; a claim the advance covers entirely is settled there and
+ * then, because nothing is left to pay. Once — a function patch that re-checks
+ * the status (invariant 8), so two answers at once post once.
+ */
+async function agree(ctx: FinanceContext, id: string, by: string) {
+  const current = await claimById(ctx, id);
+  if (!current) return { error: "notfound" };
+  if (current.status !== "Submitted") return { error: "already-decided" };
+  const now = today();
+  const [claims, advances] = await Promise.all([Claims.find(scope(ctx)), Advances.find(scope(ctx))]);
+  const fromAdvance = advanceTakes(claimTotal(current), openAdvance(advances, claims, current.claimantCollaboratorId));
+  let patch: Partial<ClaimRecord> = { status: "Approved", fromAdvance, approvedOn: now, approvedByCollaboratorId: by };
+  if (claimPayable({ lines: current.lines, fromAdvance }) === 0) patch = { ...patch, status: "Paid", paidOn: now };
+  const updated = await Claims.update(scope(ctx), id, (row) => ((row as ClaimRecord).status === "Submitted" ? patch : {}));
+  if (!updated || (updated as ClaimRecord).status !== patch.status) return { error: "already-decided" };
+  const posting = await autoPost(ctx, "claim", id);
+  return { claim: updated, posting };
+}
+
+/** The claim an approval names, in a context carrying the studio's authority. */
+async function claimFor(studio: StudioRef, approval: Approval, byCollaboratorId: string) {
+  // IMPORTED WHEN NEEDED: ./finance imports the services beside it.
+  const { financeContext } = await import("./finance");
+  const ctx = await financeContext.asApprover(studio.id, byCollaboratorId);
+  if (ctx.error) return { error: ctx.error } as Refusal;
+  const claim = await claimById(ctx, approval.source.recordId);
+  return claim ? { ctx, claim } : ({ error: "notfound" } as Refusal);
+}
+
+/**
+ * WHAT DECIDING A `claim` APPROVAL DOES — see modules/approvals/effects. A yes
+ * agrees it (above); a no makes it Rejected with the approver's reason. Only
+ * from Submitted: a claim its claimant withdrew while the approval waited is not
+ * brought back by a late yes.
+ */
+export const claimApproval = {
+  ready: async (studio: StudioRef, approval: Approval, by: string) => {
+    const found = await claimFor(studio, approval, by);
+    if ("error" in found) return found;
+    return found.claim.status === "Submitted" ? null : ({ error: "already-decided", status: found.claim.status } as Refusal);
+  },
+  approved: async (studio: StudioRef, approval: Approval, by: string) => {
+    const found = await claimFor(studio, approval, by);
+    if ("error" in found) return found;
+    const done = await agree(found.ctx, found.claim.id, by);
+    return "error" in done && done.error ? ({ error: done.error } as Refusal) : ("done" as const);
+  },
+  rejected: async (studio: StudioRef, approval: Approval, by: string, reason: string) => {
+    const found = await claimFor(studio, approval, by);
+    if ("error" in found) return found;
+    if (found.claim.status !== "Submitted") return "done" as const;
+    const updated = await Claims.update(scope(found.ctx), found.claim.id, (row) => ((row as ClaimRecord).status === "Submitted"
+      ? { status: "Rejected" as ClaimStatus, rejectedReason: str(reason, 300) } : {}));
+    return updated ? ("done" as const) : ({ error: "notfound" } as Refusal);
+  },
+};
 
 /** Pay an approved claim's cash part from a money account. */
 export async function payClaim(ctx: FinanceContext, id: string, body: Record<string, unknown>) {

@@ -563,8 +563,9 @@ const OWN_AREAS = [
   // is seeing everybody's. APPROVING IS AN EXTRA, and nobody approves their own
   // claim whatever they hold. Paying one, and handing over an advance, is
   // `finance.payables.pay` — the right that pays suppliers.
-  { key: "finance.claims", group: "Finance & Accounting", label: "Expense claims", verbs: ["view", "create"],
-    extra: [{ key: "approve", label: "Approve expense claims" }] },
+  // AGREEING A CLAIM IS NOT A RIGHT ANY MORE (19/09/2026): submitting one asks
+  // the people Approvals settings name, on the Approvals page.
+  { key: "finance.claims", group: "Finance & Accounting", label: "Expense claims", verbs: ["view", "create"] },
   // READ-ONLY ON PURPOSE. A VAT return is computed from the documents and a
   // statement from the journal; nothing on either screen writes, so a create or
   // edit here would be a right nothing can exercise (invariant 16).

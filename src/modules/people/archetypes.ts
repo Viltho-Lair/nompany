@@ -499,7 +499,7 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
     // reads it. approveHigh is deliberately absent: signing above the studio's
     // own limit is a decision a studio makes about a person, not a default.
     extras: [
-      "finance.ledger.post", "finance.payables.pay", "finance.claims.approve",
+      "finance.ledger.post", "finance.payables.pay",
       // CLOSING THE PERIOD IS THE CONTROLLER'S OWN ACT rather than an approval
       // held away from them: it is the moment they say the month is finished,
       // and nobody else in this library is in a position to say it.

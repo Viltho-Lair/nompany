@@ -143,7 +143,6 @@ const extras: Record<Locale, Record<string, string>> = {
     "finance.ledger.reverse": "عكس القيود",
     "finance.ledger.close": "اقفال الفترات المحاسبية واعادة فتحها",
     "finance.payables.pay": "تسجيل المدفوعات",
-    "finance.claims.approve": "اعتماد مطالبات المصروفات",
     "finance.tax.file": "تقديم الاقرارات الضريبية وتسويتها",
     "finance.assets.dispose": "استبعاد أصل",
     "engineeringDocs.register.review": "التوقيع كمراجع",

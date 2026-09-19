@@ -74,6 +74,7 @@ const TYPES_EN: Record<string, string> = {
   bid: "Bid",
   requisition: "Purchase requisition",
   payroll: "Payroll run",
+  claim: "Expense claim",
   carried: "Carried over",
 };
 const TYPES_AR: Record<string, string> = {
@@ -90,6 +91,7 @@ const TYPES_AR: Record<string, string> = {
   bid: "عطاء",
   requisition: "طلب شراء",
   payroll: "مسير رواتب",
+  claim: "مطالبة مصروفات",
   carried: "منقولة",
 };
 

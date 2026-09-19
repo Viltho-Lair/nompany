@@ -17,26 +17,32 @@ spend it, which their claims then account for.
 - `finance.claims.create` — raise, edit, submit, withdraw and delete your OWN claims; see your own
   claims and advances.
 - `finance.claims.view` — see everybody's.
-- `finance.claims.approve` (extra) — agree or reject somebody ELSE's claim.
+- **Agreeing or rejecting a claim is answered on the Approvals page** (19/09/2026). Submitting a
+  claim asks for its approval (type `claim`, carrying its total); the people who answer are
+  Approvals settings', and until a studio saves the type, whoever held the old
+  `finance.claims.approve` right (now gone) plus the owner and Admins.
 - Paying a claim, handing over an advance and taking one back answer to **`finance.payables.pay`**,
   the right that pays suppliers.
 
-**Nobody approves their own claim and nobody hands themselves an advance**, whatever they hold —
-refused as `own-claim` / `own-advance`, and the screen does not draw the button. There is no Admin
-exception (unlike bills, payroll and stock adjustments): a one-person studio has nobody to claim
-from.
+**Nobody answers their own claim — except the studio's Admin**, the owner's rule for every
+approval since 19/09/2026 (before it, claims kept no Admin exception) — **and nobody hands
+themselves an advance** (`own-advance`).
 
 **Catch-ups** (`catchUps.ts`): a role holding `finance.expenses` gains `finance.claims` view/create
-verb for verb; a role holding `finance.payables.approve` gains `finance.claims.approve` (bills moved to the Approvals page on 19/09/2026 and that right left the catalogue; roles asked before then kept what they gained). The
-`money` archetype holds the area in full and approves. **A person with no Finance right cannot
+verb for verb. (The entry that handed `finance.claims.approve` to whoever approved bills left with
+that right.) The `money` archetype holds the area in full. **A person with no Finance right cannot
 claim until somebody grants `finance.claims.create`** — a catch-up can only widen a role that
 already holds something (see "Not built yet").
 
 ## The ladder
 
 Draft → Submitted → Approved or Rejected → Paid. The claimant edits and deletes only a draft,
-withdraws a submitted or rejected claim to draft; a rejection needs a reason. Approving re-checks
-the status inside a function patch (invariant 8), so two approvers pressing at once post once.
+withdraws a submitted or rejected claim to draft. Approved and Rejected are what its approval's
+answer writes, never moves on the claims door (`not-answerable`); a rejection carries the
+approver's reason. Agreeing re-checks the status inside a function patch (invariant 8), so two
+answers at once post once. A claim withdrawn while its approval waits refuses a later yes
+(`already-decided`); the approver turns it down instead. A claim submitted before 19/09/2026 gets
+its approval the first time the claims list is read.
 
 ## The books — two new default accounts
 

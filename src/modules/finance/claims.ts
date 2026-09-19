@@ -75,18 +75,16 @@ export const claimPayable = (claim: Pick<Claim, "lines" | "fromAdvance">): numbe
 
 /**
  * MAY `actor` MOVE THIS CLAIM TO `to`? A reason, or null.
- * `Paid` is not a move: it is what paying does.
+ * `Paid` is not a move: it is what paying does. Nor are `Approved` and
+ * `Rejected` since 19/09/2026: they are the answers to its approval, given on
+ * the Approvals page, where the claimant is never asked about their own claim
+ * (the Admin excepted).
  */
 export function claimMoveProblem(claim: Pick<Claim, "status" | "claimantCollaboratorId">, to: string, actor: string): string | null {
   const own = claim.claimantCollaboratorId === actor;
   const from = claim.status;
   if (to === "Submitted") return from === "Draft" ? (own ? null : "not-yours") : "status";
   if (to === "Draft") return (from === "Submitted" || from === "Rejected") ? (own ? null : "not-yours") : "status";
-  if (to === "Approved" || to === "Rejected") {
-    if (from !== "Submitted") return "status";
-    // THE CLAIMANT NEVER AGREES THEIR OWN CLAIM — whatever rights they hold.
-    return own ? "own-claim" : null;
-  }
   return "status";
 }
 

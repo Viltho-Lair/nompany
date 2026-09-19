@@ -61,8 +61,8 @@ const DEFAULT_VERBS = ["view", "create", "edit", "delete"] as const;
  *
  * AN ENTRY LEAVES WHEN THE RIGHT IT GIVES LEAVES THE PRODUCT, and only then:
  * handing out a right nothing can exercise is invariant 16's bug. The till
- * return's `approve` went this way on 19/09/2026, when approving moved to the
- * Approvals page (`git log -p` has the entry).
+ * return's `approve` and the expense claim's went this way on 19/09/2026, when
+ * approving moved to the Approvals page (`git log -p` has the entries).
  */
 export const PERMISSION_CATCH_UPS: readonly PermissionCatchUp[] = [
   {
@@ -173,15 +173,6 @@ export const PERMISSION_CATCH_UPS: readonly PermissionCatchUp[] = [
     fromVerb: "close",
     to: ["finance.budgets"],
     verbs: ["create", "edit", "delete"],
-  },
-  {
-    id: "finance-claims-approve-2026-09-18",
-    // Whoever approves supplier bills approves staff claims.
-    note: "Whoever approves bills approves expense claims",
-    from: "finance.payables",
-    fromVerb: "approve",
-    to: ["finance.claims"],
-    verbs: ["approve"],
   },
   {
     id: "sales-lead-assign-2026-09-19",

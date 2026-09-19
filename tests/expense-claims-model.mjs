@@ -29,10 +29,11 @@ const draft = { status: "Draft", claimantCollaboratorId: "ann" };
 ok("the claimant submits their own draft", C.claimMoveProblem(draft, "Submitted", "ann") === null);
 ok("nobody else submits it", C.claimMoveProblem(draft, "Submitted", "bob") === "not-yours");
 const submitted = { ...draft, status: "Submitted" };
-ok("SOMEBODY ELSE APPROVES A SUBMITTED CLAIM", C.claimMoveProblem(submitted, "Approved", "bob") === null);
-ok("THE CLAIMANT NEVER APPROVES THEIR OWN", C.claimMoveProblem(submitted, "Approved", "ann") === "own-claim");
-ok("...nor rejects it", C.claimMoveProblem(submitted, "Rejected", "ann") === "own-claim");
-ok("a draft cannot be approved", C.claimMoveProblem(draft, "Approved", "bob") === "status");
+// APPROVING AND REJECTING ARE NOT MOVES since 19/09/2026 — they are the answers
+// to the claim's approval, on the Approvals page (tests/approvals-model.mjs holds
+// who may give them). Refused here for everybody, the claimant included.
+ok("APPROVED IS NOT A MOVE — it is what its approval does", C.claimMoveProblem(submitted, "Approved", "bob") === "status");
+ok("...nor is Rejected", C.claimMoveProblem(submitted, "Rejected", "bob") === "status");
 ok("the claimant withdraws a submitted claim to draft", C.claimMoveProblem(submitted, "Draft", "ann") === null);
 ok("PAID IS NOT A MOVE — it is what paying does", C.claimMoveProblem({ ...draft, status: "Approved" }, "Paid", "bob") === "status");
 

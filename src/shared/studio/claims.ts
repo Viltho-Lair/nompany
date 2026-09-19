@@ -21,9 +21,8 @@ type Strings = {
   submit: string;
   withdraw: string;
   remove: string;
-  approve: string;
-  reject: string;
-  why: string;
+  approvalStepsOf: (granted: number, required: number) => string;
+  openApprovals: string;
   pay: string;
   from: string;
   defaultBank: string;
@@ -50,11 +49,11 @@ const EN_STATUS: Record<string, string> = { Draft: "Draft", Submitted: "Submitte
 const AR_STATUS: Record<string, string> = { Draft: "مسودة", Submitted: "مقدمة", Approved: "معتمدة", Rejected: "مرفوضة", Paid: "مدفوعة" };
 
 const EN_PROBLEM: Record<string, string> = {
-  "own-claim": "Nobody approves their own claim — someone else must.",
+  "not-configured": "Nobody has been named to approve expense claims. The owner or an Admin names them in Approvals settings.",
+  "no-approver": "You are the only person who approves expense claims, so you cannot submit one yourself. Ask the owner to name somebody else in Approvals settings.",
   "own-advance": "You cannot hand yourself an advance.",
   "not-yours": "Only the person who raised this claim can do that.",
   status: "The claim has moved on since you opened it.",
-  reason: "Say why it is rejected.",
   amount: "Enter an amount above nought.",
   person: "Choose who receives it.",
   "more-than-held": "That is more than the person still holds of this advance.",
@@ -62,11 +61,11 @@ const EN_PROBLEM: Record<string, string> = {
   forbidden: "You do not have access to expense claims.",
 };
 const AR_PROBLEM: Record<string, string> = {
-  "own-claim": "لا يعتمد أحد مطالبته بنفسه — يجب أن يعتمدها شخص آخر.",
+  "not-configured": "لم يحدد أحد لاعتماد مطالبات المصروفات. يحددهم المالك أو المشرف في إعدادات الموافقات.",
+  "no-approver": "أنتم الوحيدون الذين يعتمدون مطالبات المصروفات، فلا يمكنكم تقديم مطالبة بأنفسكم. اطلبوا من المالك تحديد شخص آخر في إعدادات الموافقات.",
   "own-advance": "لا يمكنكم صرف سلفة لأنفسكم.",
   "not-yours": "وحده من أنشأ المطالبة يستطيع ذلك.",
   status: "تغيرت حالة المطالبة منذ فتحتموها.",
-  reason: "اذكروا سبب الرفض.",
   amount: "أدخلوا مبلغا أكبر من الصفر.",
   person: "اختاروا المستلم.",
   "more-than-held": "هذا أكثر مما تبقى لدى الشخص من هذه السلفة.",
@@ -91,9 +90,8 @@ const en: Strings = {
   submit: "Submit",
   withdraw: "Withdraw",
   remove: "Delete",
-  approve: "Approve",
-  reject: "Reject",
-  why: "Why",
+  approvalStepsOf: (g, r) => `${g} of ${r} approval step${r === 1 ? "" : "s"}`,
+  openApprovals: "Open in Approvals",
   pay: "Pay",
   from: "From",
   defaultBank: "Bank (1010)",
@@ -134,9 +132,8 @@ const ar: Strings = {
   submit: "تقديم",
   withdraw: "سحب",
   remove: "حذف",
-  approve: "اعتماد",
-  reject: "رفض",
-  why: "السبب",
+  approvalStepsOf: (g, r) => `${g} من ${r} مراحل اعتماد`,
+  openApprovals: "فتح في الموافقات",
   pay: "دفع",
   from: "من حساب",
   defaultBank: "البنك (1010)",
