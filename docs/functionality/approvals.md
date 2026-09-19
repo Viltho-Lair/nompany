@@ -2,7 +2,7 @@
 
 Two things share this file while one replaces the other. **The Approvals page** (below, 2026-09-19)
 is where every approval in the product is going. **The amount chains**
-(the rest of the file) are how bills, bids, requisitions and stock adjustments are signed today;
+(the rest of the file) are how bills, bids and requisitions are signed today;
 each moves onto the page as its Request approval button is built.
 
 ## The Approvals page (2026-09-19)
@@ -24,10 +24,11 @@ files it, naming the record (`source`: its section, id, reference, title, and th
 | Send for Approval | a Sales ticket, for its latest finished quotation; Technical, for an internal quotation | **Quotation approval** | the quotation reads Approved everywhere, can be locked, opens a project, and ends the RFQ asking |
 | Submit PO | a Sales ticket, once its quotation is approved | **Client PO approval**, carrying what the client sent (a description, a file, or both) | the **project number is issued** (`effects.ts` → `issueProjectNumber`), as Finance's signature on the old board did |
 | Request approval | Point of Sale → Returns: asking for a return is asking for its approval | **Till return**, carrying the refund as its amount | the units go back into stock and the refund is paid (`returnApproval` in `modules/sales/posReturns`); rejected, the return is closed with the reason |
+| Record adjustment | Inventory → Stock: an adjustment worth more than the lowest limit asks; under it the stock moves at once | **Stock adjustment**, valued at units × unit cost (absolute) | the movement is written (`adjustmentApproval` in `modules/inventory/adjustmentApproval`); rejected, it is closed with the reason and nothing moves |
 
 **MOVING EVERY APPROVAL HERE, one type at a time** (the owner, 19/09/2026): the request stays
-where it is made today and the answer moves to this page. The till return is the first; bills,
-bids, requisitions, stock adjustments, payroll, expense claims, change orders, timesheets,
+where it is made today and the answer moves to this page. The till return and the stock
+adjustment have moved; bills, bids, requisitions, payroll, expense claims, change orders, timesheets,
 document revisions, held-payment releases and leave follow. Each move drops the type's
 `approve` right — a right to do what the settings decide would be a second answer (invariant
 16) — and the steps it had come with it:
@@ -47,6 +48,10 @@ document revisions, held-payment releases and leave follow. Each move drops the 
   would finish an approval is asked of the record first, so a return that can no longer be paid
   out is refused while the answer is still the approver's. If the record's write still fails
   afterwards, the approval says so (`finish`) and offers **Try again**.
+- **Signatures already given are carried.** A record waiting under the old engine when its type
+  moves gets its approval the first time its list is read, in its requester's name, with the
+  signatures it had placed on the first steps in order — nobody signs twice (`carried` on
+  `requestApproval`). Nothing is deleted: the old fields stay on the record as history.
 - **Reviewer ≠ approver stays where the steps are two acts** (`distinctSigners`, for document
   revisions): nobody answers two steps of one such request, the owner included.
 
@@ -98,7 +103,7 @@ once it had run. What it deleted is in the export the owner holds.
 
 **Not built yet on the page:** only the three records above ask — Material PO, Delivery,
 Delivery return, ID update and Permit request have no record to ask from yet, and bills, bids,
-requisitions, stock adjustments, payroll, expense claims, change orders, timesheets, document
+requisitions, payroll, expense claims, change orders, timesheets, document
 revisions, held-payment releases and leave still answer where they are, through the amount
 chains below and their own rights; requests already waiting on those are converted when each
 type moves (export first, two confirmations); Nova reads a person's approvals but cannot answer
@@ -249,27 +254,15 @@ display, so an Arabic studio does not get an English apology.
 
 ### Stock adjustments
 
-The engine's adjustment chain (`modules/inventory/adjustmentApproval.ts`) parks an adjustment
-above the studio's limit and moves nothing until the last step is signed. The Stock tab now
-shows that queue — "Waiting for a signature" — with Approve and Reject drawn only where
-`listAdjustments` says the reader may sign (not the raiser, not an earlier signer, the step's
-right held), and the Adjust dialog says when an adjustment went to the queue instead of moving
-stock.
-
-**The Admin may sign an adjustment they raised, since 17/09/2026** — the owner's
-instruction, *"I am an Owner by default, I must have every access."* Until then the rule held
-on identity alone and refused the owner too, so an adjustment over the limit in a one-person
-studio could be neither signed nor turned down by anybody, and the stock never moved. The
-owner or a holder of the Admin role may now sign it, sign a later step after an earlier one,
-and reject it. `listAdjustments`, `approveAdjustment` and `rejectAdjustment` ask
-`isAdministrator` identically, so the buttons appear exactly where the act is accepted.
-Everybody else still needs a second person. Until 11/09/2026 no screen read `GET /inventory/adjustments`: the dialog closed as if the
-adjustment had worked, and `inventory.stock.approve` was a right nobody could exercise.
+**Moved to the Approvals page on 19/09/2026** — see the table at the top. The chain editor in
+Studio settings no longer offers it; a limit a studio had moved there is read as the type's
+default steps until the studio saves it in Approvals settings. `inventory.stock.approve` and
+`.approveHigh` are gone from the catalogue.
 
 ## The signer's PIN (18/09/2026)
 
-**Approving asks the signer's personal PIN** — a bill, a bid, a requisition, a stock
-adjustment and a till return, in their five routes (`signingPinProblem`,
+**Approving asks the signer's personal PIN** — a bill, a bid and a requisition in their own
+routes, and every approval on the Approvals page (`signingPinProblem`,
 `platform/auth/lock.ts`). Rejecting is not asked: it commits nobody to anything. It is asked
 of a person who has set a PIN, and of **everybody** when the studio switches on **PIN on every
 signature** (Studio settings, beside the chains; `signingPin` on the studio), in which case a

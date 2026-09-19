@@ -381,8 +381,6 @@ const OWN_AREAS = [
   { key: "inventory.stock", group: "Inventory & Warehouse", label: "Stock",
     verbs: ["view", "create", "edit", "delete"],
     extra: [
-      { key: "approve", label: "Approve a stock adjustment" },
-      { key: "approveHigh", label: "Approve an adjustment above the limit" },
       // TOLD WHEN AN ITEM FALLS TO ITS REORDER LEVEL, and shown the list of what
       // is low (17/09/2026). The owner holds it by default and chooses who else
       // does — modules/inventory/stockAlerts.

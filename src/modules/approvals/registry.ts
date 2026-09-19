@@ -63,6 +63,16 @@ export const APPROVAL_TYPES: readonly ApprovalTypeDef[] = [
     key: "pos-return", label: "Till return", requestable: true, amounted: true,
     legacy: [{ permission: "pos.returns.approve", from: 0, label: "Returns" }],
   },
+  // A STOCK ADJUSTMENT over the studio's limit (Inventory → Stock). Recording it
+  // is asking; approving it writes the movement. The old chain's limits come
+  // with it — a studio that had moved them keeps its own (`legacyChain`).
+  {
+    key: "adjustment", label: "Stock adjustment", requestable: true, amounted: true, legacyChain: "adjustment",
+    legacy: [
+      { permission: "inventory.stock.approve", from: 1000, label: "Stock control" },
+      { permission: "inventory.stock.approveHigh", from: 25000, label: "Above the limit" },
+    ],
+  },
   { key: "carried", label: "Carried over", requestable: false },
 ];
 

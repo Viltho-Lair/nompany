@@ -83,7 +83,6 @@ fact) goes to whoever can answer the next step, resolved from the right that ste
   every signature that is not the last;
 - a **requisition** when it is submitted and after every signature that is not the last;
 - a **bid** after every signature that is not the last;
-- a **stock adjustment** when it is parked for approval and after every non-final signature;
 - every **approval**, to the people named on each step as it opens (Approval settings), and
   to the requester when it is approved or rejected;
 - a **payroll run** when it is prepared, to holders of `hr.payroll.approve`.

@@ -49,6 +49,7 @@ const HANDLERS: Record<string, () => Promise<Handler>> = {
     },
   }),
   "pos-return": async () => (await import("@/modules/sales/posReturns")).returnApproval,
+  adjustment: async () => (await import("@/modules/inventory/adjustmentApproval")).adjustmentApproval,
 };
 
 const handlerFor = async (type: string): Promise<Handler | null> => (HANDLERS[type] ? HANDLERS[type]() : null);

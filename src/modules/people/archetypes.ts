@@ -208,13 +208,12 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
       "hr.vacations.approve", "tendering.tenders.approve",
       "procurement.requisitions.approve", "engineeringDocs.register.approve",
       "engagements.lock",
-      // TWO MORE ANSWERS, both away from whoever raises the thing answered,
-      // which is the rule every extra above already follows:
-      //   — stock.approve, because a write-off "needs somebody other than the
-      //     person typing it" and custodian is the one typing it;
-      //   — payroll.approve, because `money` runs the payroll and a second
-      //     signature that the same person can give is not a second signature.
-      "inventory.stock.approve", "hr.payroll.approve",
+      // ONE MORE ANSWER, away from whoever raises the thing answered, which is
+      // the rule every extra above already follows: payroll.approve, because
+      // `money` runs the payroll and a second signature that the same person
+      // can give is not a second signature. (Stock adjustments are answered on
+      // the Approvals page since 19/09/2026 and carry no right.)
+      "hr.payroll.approve",
       // ...and releasing a held payment, which `money` makes and must not also
       // release: the same separation, one act later.
       "finance.payables.release",

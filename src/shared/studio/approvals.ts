@@ -69,6 +69,7 @@ const TYPES_EN: Record<string, string> = {
   "id-update": "ID update",
   "permit-request": "Permit request",
   "pos-return": "Till return",
+  adjustment: "Stock adjustment",
   carried: "Carried over",
 };
 const TYPES_AR: Record<string, string> = {
@@ -80,6 +81,7 @@ const TYPES_AR: Record<string, string> = {
   "id-update": "تحديث الهوية",
   "permit-request": "طلب تصريح",
   "pos-return": "مرتجع الصندوق",
+  adjustment: "تسوية مخزون",
   carried: "منقولة",
 };
 
@@ -105,6 +107,7 @@ const en: Strings = {
     "no-shift": "a cash refund needs a shift open on its till",
     "too-many": "those units have already gone back on another return",
     "over-credit": "the invoice has too little left to credit",
+    insufficient: "there is not enough on the shelf any more",
     notfound: "the record no longer exists",
     "already-decided": "the record had already been decided",
   } as Record<string, string>)[code] || "something went wrong"}.`,
@@ -163,6 +166,7 @@ const en: Strings = {
       case "signed-another-step": return "You answered an earlier step of this request; somebody else has to answer this one.";
       case "no-shift": return "A cash refund comes out of a drawer: a shift has to be open on that till before this can be approved.";
       case "too-many": return "Those units have already gone back on another return.";
+      case "insufficient": return "There is not enough on the shelf any more for this write-off.";
       case "over-credit": return "The invoice has too little left to credit for this return.";
       case "already-decided": return "The record has already been decided.";
       case "not-unfinished": return "The record has already been completed.";
@@ -195,6 +199,7 @@ const ar: Strings = {
     "no-shift": "الاسترداد النقدي يحتاج وردية مفتوحة على صندوقه",
     "too-many": "هذه الوحدات أرجعت في مرتجع آخر",
     "over-credit": "لم يتبق في الفاتورة ما يكفي لقيده دائنا",
+    insufficient: "لم يعد في الرف ما يكفي",
     notfound: "السجل لم يعد موجودا",
     "already-decided": "بت في السجل سابقا",
   } as Record<string, string>)[code] || "حدث خطأ"}.`,
@@ -253,6 +258,7 @@ const ar: Strings = {
       case "signed-another-step": return "رددت على خطوة سابقة من هذا الطلب؛ يجب أن يرد غيرك على هذه.";
       case "no-shift": return "الاسترداد النقدي يخرج من درج: يجب فتح وردية على ذلك الصندوق قبل الاعتماد.";
       case "too-many": return "هذه الوحدات أرجعت في مرتجع آخر.";
+      case "insufficient": return "لم يعد في الرف ما يكفي لهذا الشطب.";
       case "over-credit": return "لم يتبق في الفاتورة ما يكفي لقيد هذا المرتجع دائنا.";
       case "already-decided": return "بت في السجل سابقا.";
       case "not-unfinished": return "أتم السجل سابقا.";

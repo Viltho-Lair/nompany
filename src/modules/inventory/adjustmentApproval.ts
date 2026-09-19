@@ -1,57 +1,61 @@
-// A STOCK ADJUSTMENT BIG ENOUGH TO NEED A SECOND SIGNATURE.
+// A STOCK ADJUSTMENT BIG ENOUGH TO NEED APPROVING.
 //
 // `adjustStock` is the one write in Inventory with no document behind it. A
 // bill has a supplier's invoice, a receipt has a lorry; an adjustment is a
 // person typing a number into the ledger every on-hand figure in the section is
-// summed from. It has always asked `inventory.stock.create` and nothing else —
-// which is the right somebody needs to do their job counting shelves, and is
-// therefore held by more people than should be able to write off a container.
+// summed from. It asks `inventory.stock.create` — the right somebody needs to
+// count shelves, and therefore held by more people than should be able to write
+// off a container.
 //
-// IT IS P2'S APPROVAL ENGINE'S FIFTH DOCUMENT TYPE, not a fifth engine. The
-// chain is seeded in `platform/approval/chains`; invariant 7 is enforced twice
-// (the raiser never signs, and nobody signs two steps of one record); and the
-// threshold is the studio's dial.
+// IT IS APPROVED ON THE APPROVALS PAGE (the owner, 19/09/2026: the request stays
+// where it is made, the answer moves to Approvals). Recording an adjustment over
+// the studio's limit IS the request (type `adjustment`); the people who answer,
+// and the amount each step starts at, are Approvals settings'. Until a studio
+// saves the type they are whoever could sign one before — `inventory.stock.
+// approve` from 1,000 and `.approveHigh` from 25,000, or the limits the studio
+// had moved — plus the owner and Admins. The last yes writes the movement
+// (`adjustmentApproval`, run by modules/approvals/effects).
 //
-// THE ONE THING THAT DIFFERS FROM THE OTHER FOUR: a bill, a bid and a
-// requisition all EXIST as documents before anybody signs. An adjustment does
-// not — it is an intention to move stock — so below the threshold it applies
-// immediately and no record is kept beyond the movement itself. A studio
-// correcting a shelf by one unit should not acquire an approval queue.
+// THE ONE THING THAT DIFFERS FROM A BILL: an adjustment does not EXIST as a
+// document before anybody answers — it is an intention to move stock — so under
+// every limit it applies immediately and no record is kept beyond the movement.
+// A studio correcting a shelf by one unit does not acquire an approval queue.
+//
+// A LIMIT NEEDS NO CURRENCY HERE. The value is units times the item's own cost,
+// already in whatever the studio counts in, so nothing is converted — which is
+// what once let every adjustment through in a studio with no currency set, when
+// the old engine read "cannot resolve" as "nobody has to sign". Approvals never
+// asks for a rate when the amount is already the studio's.
 
-import { requirePermission, isAdministrator } from "@/platform/access";
+import { requirePermission } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
-import { firstUnsignedStep, planSatisfied } from "@/platform/approval/resolve";
-import type { ResolvedPlan, PlanRefusal, ApprovalSignature } from "@/platform/approval/resolve";
-import { approvalChainsFor } from "@/platform/approval/store";
-import type { InventoryContext } from "./types";
-import type { PermissionKey } from "@/platform/access";
-import { notifyHolders, signatureNotice } from "@/modules/people/holders";
+import { listCollaborators } from "@/platform/auth/collaborators";
 import { roundMoney } from "@/shared/money";
+import { approvalRows, requestApproval } from "@/modules/approvals/approvals";
+import { approvalSummary } from "@/modules/approvals/reads";
+import type { Refusal } from "@/modules/approvals/effects";
+import type { Approval } from "@/modules/approvals/schema";
+import type { StudioRef } from "@/modules/context";
+import type { InventoryContext } from "./types";
 
-/** Ring whoever holds this adjustment's next outstanding step. */
-async function announceNextStep(
-  ctx: InventoryContext, row: Record<string, unknown>, signatures: ApprovalSignature[],
-) {
-  const step = firstUnsignedStep(row.approvalPlan as ResolvedPlan | PlanRefusal | null, signatures);
-  if (!step) return;
-  // AN ADJUSTMENT HAS NO REFERENCE of its own, so the notice carries what was
-  // moved and why — the same two facts the queue row leads with.
-  const qty = Number(row.qty) || 0;
-  const label = `${qty > 0 ? "+" : ""}${qty} · ${String(row.reason || "")}`.trim();
-  await notifyHolders(ctx.studio.id, step.permission, signatureNotice(label, "inventory-stock"),
-    [String(row.createdByCollaboratorId || ""), ...signatures.map((s) => s.byCollaboratorId)]);
-}
+export const ADJUSTMENT_APPROVAL = "adjustment";
 
-const Adjustments = repo("stockAdjustments");
+type Adjustment = {
+  id: string; itemId: string; qty: number; reason: string; unitCost: number; value: number;
+  status: "Pending" | "Approved" | "Rejected";
+  createdByCollaboratorId: string; createdAt: string;
+  /** Signatures given under the old engine, before 19/09/2026 — carried onto its approval. */
+  approvals?: { byCollaboratorId?: string; at?: string }[];
+  [field: string]: unknown;
+};
+
+const Adjustments = repo<Adjustment>("stockAdjustments");
 const Items = repo("inventoryItems");
 
 export const ADJUSTMENT_STATUSES = ["Pending", "Approved", "Rejected"] as const;
 
 const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
 const num = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : 0);
-// In the studio's currency — a dinar adjustment is valued in fils, so a
-// threshold at a fils boundary routes the way the studio set it.
-const money = (n: number, currency?: unknown) => roundMoney(n, currency);
 
 const scope = (ctx: InventoryContext) => ({ studio: ctx.studio, section: ctx.stockSection });
 
@@ -60,239 +64,12 @@ const scope = (ctx: InventoryContext) => ({ studio: ctx.studio, section: ctx.sto
  *
  * THE ABSOLUTE VALUE, so writing 500 units ON is as material as writing 500
  * OFF. A studio that only reviewed write-offs would have a control anybody
- * could walk round by adjusting up and then down.
- *
- * NO FX. An adjustment carries no currency of its own — the item's cost is
- * already in the studio's — so the plan is resolved with the studio's currency
- * on both sides and no rate table, which is the same shape a requisition uses
- * and for the same reason.
+ * could walk round by adjusting up and then down. In the studio's currency — a
+ * dinar adjustment is valued in fils, so a limit at a fils boundary routes the
+ * way the studio set it.
  */
 export function adjustmentValue(qty: number, unitCost: number, currency?: unknown): number {
-  return money(Math.abs(num(qty)) * Math.max(0, num(unitCost)), currency);
-}
-
-/**
- * THE PLAN, BUILT DIRECTLY RATHER THAN THROUGH `resolveApprovalPlan`.
- *
- * THE FX RESOLVER REFUSES A STUDIO WITH NO CURRENCY, and that refusal is right
- * for a bill — an amount in euros cannot be judged against a limit in riyals
- * without a rate. An adjustment has NO currency: its value is units times the
- * item's own cost, which is already in whatever the studio counts in, and there
- * is nothing to convert.
- *
- * ROUTING IT THROUGH THE RESOLVER ANYWAY OPENED A SILENT HOLE, which is why
- * this is written out rather than quietly changed. `createStudio` has never set
- * a currency, so the resolver returned `ok: false` for every studio that had
- * not set one; `needsApproval` reads a refusal as "no plan, so nobody has to
- * sign", and every adjustment of every size applied immediately with the
- * control switched off and nothing saying so. A gate that fails open is worse
- * than no gate, because somebody believes in it.
- *
- * So the steps are selected here, on the amount alone, which is the only thing
- * an adjustment's plan ever depended on. `firstUnsignedStep` and
- * `planSatisfied` take this shape unchanged.
- */
-export function planForAdjustment(
-  ctx: InventoryContext,
-  value: number,
-): ResolvedPlan | PlanRefusal {
-  const chain = approvalChainsFor(ctx.studio).adjustment;
-  if (!chain?.steps?.length) {
-    return { ok: false, reason: "no-chain", detail: "No approval chain is configured for stock adjustments." };
-  }
-  return {
-    ok: true,
-    steps: chain.steps.filter((step) => value >= Number(step.from || 0)),
-    amountInBase: value,
-    // Null because nothing was converted — the record was already in the
-    // studio's own money, which for an adjustment is always true.
-    rate: null,
-    updatedAt: Date.now(),
-    stale: false,
-  };
-}
-
-/**
- * DOES THIS ADJUSTMENT NEED ANYBODY?
- *
- * A plan whose steps are all below the amount resolves to NO steps, and
- * `planSatisfied` is then true with no signatures — which is exactly the
- * "apply it now" case. Reading it that way rather than comparing the amount to
- * a threshold here means the chain is the single authority: a studio that sets
- * its first step to 0 gets every adjustment reviewed, with nothing in this file
- * to change.
- */
-export const needsApproval = (plan: ResolvedPlan | PlanRefusal): boolean =>
-  plan.ok === true && !planSatisfied(plan, []);
-
-/**
- * A PLAN THAT COULD NOT BE BUILT MUST STOP THE WRITE, not wave it through.
- *
- * The only way `planForAdjustment` refuses now is a studio with no adjustment
- * chain at all, which means somebody emptied it. Reading that as "nobody has to
- * sign" is the failure this pair exists to keep apart: "no signature is
- * required" and "we cannot tell whether one is required" look identical to a
- * boolean and are opposite answers.
- */
-export const planUnusable = (plan: ResolvedPlan | PlanRefusal): boolean => plan.ok !== true;
-
-/**
- * The queue, each row saying whether THIS reader may sign it.
- *
- * `canSign` asks exactly what `approveAdjustment` asks — not the raiser, not a
- * previous signer, a step still outstanding, and its right held — so the screen
- * draws a button only where pressing it would succeed. Nothing on screen read
- * this route, so an adjustment over the limit parked here and nobody could see
- * it, sign it or turn it down.
- */
-export async function listAdjustments(ctx: InventoryContext) {
-  const denied = requirePermission(ctx.access, "inventory.stock.view");
-  if (denied) return denied;
-  const rows = await Adjustments.find(scope(ctx));
-  const me = ctx.collaborator.id;
-  // The same exception approveAdjustment applies, asked once for the whole
-  // queue — the screen must draw a button exactly where pressing it succeeds.
-  const admin = isAdministrator(ctx.collaborator, ctx.roles);
-  const adjustments = [...rows]
-    .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")))
-    .map((row) => {
-      const signatures = (row.approvals || []) as ApprovalSignature[];
-      const step = row.status === "Pending"
-        ? firstUnsignedStep(row.approvalPlan as ResolvedPlan | PlanRefusal | null, signatures)
-        : null;
-      // WHY THIS READER CANNOT SIGN, when they cannot — said rather than left
-      // as a row with no button, which is what the queue showed before.
-      const blockedBy = !step ? ""
-        : !admin && row.createdByCollaboratorId === me ? "raised"
-          : !admin && signatures.some((s) => s.byCollaboratorId === me) ? "signed"
-            : requirePermission(ctx.access, step.permission as PermissionKey) ? "right"
-              : "";
-      const canSign = Boolean(step) && !blockedBy;
-      return {
-        ...row, canSign, blockedBy,
-        nextStep: step ? { label: String(step.label || ""), permission: String(step.permission) } : null,
-      };
-    });
-  return { adjustments };
-}
-
-/** Park one for signature. Moves no stock — that is the whole point. */
-export async function raiseAdjustment(
-  ctx: InventoryContext,
-  input: { itemId: string; qty: number; reason: string; unitCost: number; value: number; plan: ResolvedPlan },
-) {
-  const row = await Adjustments.create(scope(ctx), {
-    itemId: input.itemId,
-    qty: input.qty,
-    reason: input.reason,
-    unitCost: input.unitCost,
-    value: input.value,
-    // THE PLAN IS STORED ON THE RECORD, the way a bill's is: a threshold moved
-    // overnight must not re-route an adjustment already waiting for somebody.
-    approvalPlan: input.plan,
-    approvals: [],
-    status: "Pending",
-    createdByCollaboratorId: ctx.collaborator.id,
-    createdAt: new Date().toISOString(),
-  });
-  await announceNextStep(ctx, row, []);
-  return row;
-}
-
-/**
- * SIGN ONE STEP, and move the stock when the last one is signed.
- *
- * @param applyMovement - what actually writes the movement. Injected rather than
- *   imported so this file does not reach back into `inventory.ts`, which
- *   imports it — and so the test can assert the signing rules without a store.
- */
-export async function approveAdjustment(
-  ctx: InventoryContext,
-  id: string,
-  applyMovement: (row: Record<string, unknown>) => Promise<unknown>,
-) {
-  const rows = await Adjustments.find(scope(ctx));
-  const row = rows.find((r) => r.id === id);
-  if (!row) return { error: "notfound" };
-  if (row.status !== "Pending") return { error: "already-decided", status: row.status };
-
-  // INVARIANT 7, FIRST HALF: the person who raised it never signs it.
-  //
-  // THE ADMIN IS THE EXCEPTION — the owner's instruction, 17/09/2026: "I am an
-  // Owner by default, I must have every access." The same exception payroll
-  // (10/09) and bills (11/09) already carry, and for the same reason: this
-  // held on identity alone and refused the owner too, so an adjustment over
-  // the limit raised in a studio run by one person could be neither signed
-  // nor turned down by anybody, and the stock never moved. The owner or a
-  // holder of the Admin role may sign what they raised, and a later step after
-  // an earlier one. Everybody else still needs a second person on both counts.
-  const admin = isAdministrator(ctx.collaborator, ctx.roles);
-  if (!admin && row.createdByCollaboratorId === ctx.collaborator.id) return { error: "same-signer" };
-
-  const signatures = (row.approvals || []) as ApprovalSignature[];
-  // SECOND HALF: somebody who signed an earlier step may not sign a later one.
-  // Invariant 7 is about the RECORD rather than about the pair of rights, and a
-  // second step the first signer can clear is not a second step.
-  if (!admin && signatures.some((s) => s.byCollaboratorId === ctx.collaborator.id)) return { error: "same-signer" };
-
-  const plan = row.approvalPlan as ResolvedPlan | PlanRefusal | null;
-  const step = firstUnsignedStep(plan, signatures);
-  if (!step) return { error: "not-approved" };
-
-  // THE PERMISSION IS CHOSEN AT RUNTIME, which is the feature. Access is still
-  // resolved once (invariant 3); this asks a different question of the set that
-  // was already resolved.
-  const denied = requirePermission(ctx.access, step.permission as PermissionKey);
-  if (denied) return denied;
-
-  const approvals = [...signatures, {
-    permission: step.permission,
-    byCollaboratorId: ctx.collaborator.id,
-    byAlias: str(ctx.collaborator.alias, 60),
-    at: new Date().toISOString(),
-  }];
-  const done = planSatisfied(plan, approvals);
-
-  const updated = await Adjustments.update(scope(ctx), id, {
-    approvals,
-    ...(done ? { status: "Approved", approvedAt: new Date().toISOString() } : {}),
-  });
-  if (!updated) return { error: "notfound" };
-
-  // THE STOCK MOVES ON THE LAST SIGNATURE AND NOT BEFORE. Writing it on the
-  // first would make a two-step chain a one-step one that also logs a second
-  // name.
-  const movement = done ? await applyMovement(updated) : null;
-  if (!done) await announceNextStep(ctx, updated, approvals);
-  return { adjustment: updated, ...(movement ? { movement } : {}) };
-}
-
-/** Turn one down. It moves nothing and stays on the record. */
-export async function rejectAdjustment(ctx: InventoryContext, id: string, reason: string) {
-  const rows = await Adjustments.find(scope(ctx));
-  const row = rows.find((r) => r.id === id);
-  if (!row) return { error: "notfound" };
-  if (row.status !== "Pending") return { error: "already-decided", status: row.status };
-  // Turning one down answers to the same people who could sign it, Admin
-  // exception included — otherwise the one person who may approve their own
-  // adjustment could not withdraw it.
-  if (!isAdministrator(ctx.collaborator, ctx.roles) && row.createdByCollaboratorId === ctx.collaborator.id) {
-    return { error: "same-signer" };
-  }
-
-  const plan = row.approvalPlan as ResolvedPlan | PlanRefusal | null;
-  const step = firstUnsignedStep(plan, (row.approvals || []) as ApprovalSignature[]);
-  if (!step) return { error: "not-approved" };
-  const denied = requirePermission(ctx.access, step.permission as PermissionKey);
-  if (denied) return denied;
-
-  const updated = await Adjustments.update(scope(ctx), id, {
-    status: "Rejected",
-    rejectedReason: str(reason, 300),
-    rejectedByCollaboratorId: ctx.collaborator.id,
-    rejectedAt: new Date().toISOString(),
-  });
-  return updated ? { adjustment: updated } : { error: "notfound" };
+  return roundMoney(Math.abs(num(qty)) * Math.max(0, num(unitCost)), currency);
 }
 
 /** What one unit of this item costs, for valuing an adjustment. */
@@ -300,3 +77,149 @@ export async function unitCostOf(ctx: InventoryContext, itemId: string): Promise
   const items = await Items.find({ studio: ctx.studio, section: ctx.itemsSection });
   return Math.max(0, num(items.find((i) => i.id === itemId)?.unitCost));
 }
+
+const requesterOf = (ctx: InventoryContext) => ({ studio: ctx.studio, collaborator: ctx.collaborator, roles: ctx.roles });
+const amountOf = (ctx: InventoryContext, value: number) => ({ value, currency: String(ctx.studio.currency || "") });
+
+/** What the approval calls it: what moved, and why — an adjustment has no reference. */
+const titleOf = (row: Pick<Adjustment, "qty" | "reason">, itemName: string) =>
+  `${row.qty > 0 ? "+" : ""}${row.qty} × ${itemName}${row.reason ? ` · ${row.reason}` : ""}`;
+
+/**
+ * FILE THE ADJUSTMENT AND ASK FOR ITS APPROVAL. Moves no stock — that is the
+ * whole point. The caller (`adjustStock`) has already asked `approvalPreflight`
+ * whether one is needed and possible, so the request refusing here means the
+ * settings moved in between; the adjustment is then on file and says so.
+ */
+export async function raiseAdjustment(
+  ctx: InventoryContext,
+  input: { itemId: string; itemName: string; qty: number; reason: string; unitCost: number; value: number },
+) {
+  const row = await Adjustments.create(scope(ctx), {
+    itemId: input.itemId,
+    qty: input.qty,
+    reason: input.reason,
+    unitCost: input.unitCost,
+    value: input.value,
+    status: "Pending",
+    createdByCollaboratorId: ctx.collaborator.id,
+    createdAt: new Date().toISOString(),
+  });
+  const asked = await requestApproval(requesterOf(ctx), {
+    type: ADJUSTMENT_APPROVAL,
+    source: { sectionKey: "inventory-stock", recordId: row.id, ref: "", title: titleOf(row, input.itemName), path: "inventory-stock" },
+    note: input.reason,
+    amount: amountOf(ctx, input.value),
+  });
+  return "error" in asked ? { adjustment: row, approvalProblem: asked.error } : { adjustment: row };
+}
+
+/**
+ * THE ADJUSTMENTS, each with how far its approval has got — read from the
+ * approval (./reads), never a copy.
+ *
+ * AN ADJUSTMENT WAITING FROM BEFORE APPROVALS TOOK IT OVER is given its approval
+ * here, in the name of whoever raised it, carrying the signatures it already had
+ * so nobody signs twice. Once: a filed one is found on the next read. The
+ * owner's rule of 12/09/2026: an update reaches every studio by itself.
+ */
+export async function listAdjustments(ctx: InventoryContext) {
+  const denied = requirePermission(ctx.access, "inventory.stock.view");
+  if (denied) return denied;
+  const [rows, approvals] = await Promise.all([
+    Adjustments.find(scope(ctx)),
+    approvalRows(ctx.studio, ctx.approvalsSection),
+  ]);
+
+  const stranded = rows.filter((r) => r.status === "Pending" && !approvalSummary(approvals, ADJUSTMENT_APPROVAL, r.id));
+  if (stranded.length && ctx.approvalsSection) {
+    const [people, items] = await Promise.all([
+      listCollaborators(ctx.studio.id),
+      Items.find({ studio: ctx.studio, section: ctx.itemsSection }),
+    ]);
+    const byId = new Map((people as { id?: unknown }[]).map((c) => [String(c.id), c]));
+    const names = new Map(items.map((i) => [String(i.id), String(i.name || "")]));
+    for (const r of stranded) {
+      const requester = byId.get(r.createdByCollaboratorId);
+      if (!requester) continue;
+      const asked = await requestApproval(
+        { studio: ctx.studio, collaborator: requester as InventoryContext["collaborator"], roles: ctx.roles },
+        {
+          type: ADJUSTMENT_APPROVAL,
+          source: { sectionKey: "inventory-stock", recordId: r.id, ref: "", title: titleOf(r, names.get(r.itemId) || ""), path: "inventory-stock" },
+          note: r.reason,
+          amount: amountOf(ctx, num(r.value)),
+          carried: (r.approvals || []).map((s) => ({ collaboratorId: String(s.byCollaboratorId || ""), at: String(s.at || "") }))
+            .filter((s) => s.collaboratorId),
+        },
+      );
+      if ("approval" in asked && asked.approval) approvals.push(asked.approval);
+    }
+  }
+
+  const adjustments = [...rows]
+    .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")))
+    .map((row) => ({ ...row, approval: approvalSummary(approvals, ADJUSTMENT_APPROVAL, row.id) }));
+  return { adjustments };
+}
+
+// ---- what deciding its approval does — modules/approvals/effects -------------
+
+/** The adjustment an approval names, in a context carrying the studio's authority. */
+async function adjustmentFor(studio: StudioRef, approval: Approval, byCollaboratorId: string) {
+  // IMPORTED WHEN NEEDED: ./inventory imports this file.
+  const inv = await import("./inventory");
+  const ctx = await inv.inventoryContext.asApprover(studio.id, byCollaboratorId);
+  if (ctx.error) return { error: ctx.error } as Refusal;
+  const row = await Adjustments.byId(scope(ctx), approval.source.recordId);
+  return row ? { ctx, row, inv } : ({ error: "notfound" } as Refusal);
+}
+
+/**
+ * CAN THIS STOCK MOVE NOW. A write-off approved days after it was asked for may
+ * find the shelf emptied in between; the approver hears that while their yes
+ * has not landed, rather than the ledger going below nought.
+ */
+async function adjustmentProblem(found: Exclude<Awaited<ReturnType<typeof adjustmentFor>>, Refusal>): Promise<Refusal | null> {
+  const { ctx, row, inv } = found;
+  if (row.status !== "Pending") return { error: "already-decided", status: row.status };
+  if (row.qty < 0) {
+    const have = Number(inv.balances(await inv.stockMovements(ctx))[row.itemId]) || 0;
+    if (have + row.qty < 0) return { error: "insufficient", have, needed: Math.abs(row.qty) };
+  }
+  return null;
+}
+
+/** What deciding an `adjustment` approval does — see modules/approvals/effects. */
+export const adjustmentApproval = {
+  ready: async (studio: StudioRef, approval: Approval, by: string) => {
+    const found = await adjustmentFor(studio, approval, by);
+    return "error" in found ? found : adjustmentProblem(found);
+  },
+  // THE STOCK MOVES ON THE LAST YES AND NOT BEFORE, and once: the status flips
+  // under a function patch first, and only the write that flipped it moves stock.
+  approved: async (studio: StudioRef, approval: Approval, by: string) => {
+    const found = await adjustmentFor(studio, approval, by);
+    if ("error" in found) return found;
+    const problem = await adjustmentProblem(found);
+    if (problem) return problem;
+    const { ctx, row, inv } = found;
+    const at = new Date().toISOString();
+    const flipped = await Adjustments.update(scope(ctx), row.id, (cur) => (cur.status !== "Pending" ? cur : {
+      ...cur, status: "Approved", approvedAt: at, approvedByCollaboratorId: by,
+    }));
+    if (!flipped || flipped.status !== "Approved" || flipped.approvedAt !== at) return { error: "already-decided" };
+    await inv.applyApprovedAdjustment(ctx, flipped);
+    return "done" as const;
+  },
+  rejected: async (studio: StudioRef, approval: Approval, by: string, reason: string) => {
+    const found = await adjustmentFor(studio, approval, by);
+    if ("error" in found) return found;
+    const { ctx, row } = found;
+    if (row.status !== "Pending") return "done" as const;
+    const done = await Adjustments.update(scope(ctx), row.id, (cur) => (cur.status !== "Pending" ? cur : {
+      ...cur, status: "Rejected", rejectedReason: str(reason, 300), rejectedByCollaboratorId: by, rejectedAt: new Date().toISOString(),
+    }));
+    return done ? ("done" as const) : ({ error: "notfound" } as Refusal);
+  },
+};

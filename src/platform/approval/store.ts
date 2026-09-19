@@ -81,7 +81,12 @@ export function approvalChainsFor(
  * `saveFinanceSettings` stopped accepting chains in that same commit, which is
  * what this comment always said the move would take.
  */
-export const STUDIO_EDITABLE_CHAINS: readonly string[] = ["bill", "tender", "requisition", "adjustment"];
+//
+// ONE TYPE FEWER AT A TIME, as each moves onto the Approvals page (19/09/2026):
+// its steps and limits are set in Approvals settings from then on, and a chain
+// stored here is read only as that type's default steps until a studio saves
+// them there. `adjustment` has moved.
+export const STUDIO_EDITABLE_CHAINS: readonly string[] = ["bill", "tender", "requisition"];
 
 /**
  * What may be STORED, out of what a settings screen sent — the overrides alone.

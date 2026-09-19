@@ -352,7 +352,7 @@ async function exportGates() {
 
 await exportGates().catch((e) => ok("the export-gate case threw", false, e?.message || String(e)));
 
-// ---- A STOCK ADJUSTMENT BIG ENOUGH TO NEED A SIGNATURE ----------------------
+// ---- A STOCK ADJUSTMENT BIG ENOUGH TO NEED APPROVING ------------------------
 // `adjustStock` was the one write in Inventory with no document behind it: a
 // person typing a number into the ledger every on-hand figure is summed from,
 // asking only `inventory.stock.create` — the right somebody needs to count
@@ -360,10 +360,13 @@ await exportGates().catch((e) => ok("the export-gate case threw", false, e?.mess
 //
 // THE THRESHOLD IS THE WHOLE DESIGN. Below it an adjustment applies at once, or
 // a studio doing routine stock control acquires a queue nobody clears and turns
-// the control off.
+// the control off. ABOVE IT THE APPROVAL IS ANSWERED ON THE APPROVALS PAGE
+// (19/09/2026): nobody here has saved the type in Approvals settings, so its
+// steps are the defaults — whoever holds the old right, plus the owner.
 async function adjustmentApproval() {
   const STOCK = await import("../src/app/api/studios/[slug]/inventory/stock/route.ts");
   const ADJ = await import("../src/app/api/studios/[slug]/inventory/adjustments/route.ts");
+  const APPROVALS = await import("../src/app/api/studios/[slug]/approvals/route.ts");
   const ITEMS = await import("../src/app/api/studios/[slug]/inventory/items/route.ts");
   const { createUser } = await import("@/platform/auth/users");
   const { createRole } = await import("@/modules/people/roles");
@@ -377,9 +380,12 @@ async function adjustmentApproval() {
   const itemId = made.body?.item?.id;
   if (!ok("fixture: an item with a unit cost", Boolean(itemId), JSON.stringify(made.body).slice(0, 140))) return;
 
-  const adjust = (qty, reason) => call(
-    STOCK.POST, body("POST", { itemId, qty, reason }), P(),
-  );
+  const adjust = (qty, reason) => call(STOCK.POST, body("POST", { itemId, qty, reason }), P());
+  const adjustment = async (id) => ((await call(ADJ.GET, req(`/api/studios/${F.slug}/x`), P())).body?.adjustments || []).find((a) => a.id === id);
+  // THE APPROVAL FOR THIS ADJUSTMENT, as the signed-in reader's page lists it.
+  const approvalOf = async (id, list) => ((await call(APPROVALS.GET, req(`/api/studios/${F.slug}/x`), P())).body?.[list] || [])
+    .find((x) => x.type === "adjustment" && x.source?.recordId === id);
+  const answer = (id, verdict, note = "") => call(APPROVALS.PUT, body("PUT", { id, verdict, note }), P());
 
   // ---- below the limit applies at once -------------------------------------
   const small = await adjust(5, "Recount");            // 5 x 50 = 250
@@ -387,47 +393,40 @@ async function adjustmentApproval() {
     small.status === 201 && !small.body?.pending && Boolean(small.body?.movement),
     JSON.stringify(small.body).slice(0, 140));
 
-  // ---- above it parks and moves nothing ------------------------------------
+  // ---- above it asks for approval and moves nothing -------------------------
   const big = await adjust(100, "Pallet found");        // 100 x 50 = 5000
   const adjustmentId = big.body?.adjustment?.id;
-  ok("a large adjustment parks for signature",
+  ok("a large adjustment waits for approval",
     big.body?.pending === true && big.body?.adjustment?.status === "Pending",
     JSON.stringify(big.body).slice(0, 160));
   ok("...valued at units times unit cost", big.body?.adjustment?.value === 5000,
     String(big.body?.adjustment?.value));
-  // THE STEPS IT ACTUALLY NEEDS: 5,000 clears the first threshold and not the
-  // second, so one signature rather than two.
-  ok("...and needs exactly the steps its amount reaches",
-    (big.body?.adjustment?.approvalPlan?.steps || []).length === 1,
-    JSON.stringify(big.body?.adjustment?.approvalPlan?.steps));
   ok("...and moved no stock", !big.body?.movement);
+  const mine = await approvalOf(adjustmentId, "requested");
+  // THE STEPS IT ACTUALLY NEEDS: 5,000 reaches the first default step (from
+  // 1,000) and not the second (from 25,000).
+  ok("ITS APPROVAL IS FILED, with exactly the steps its amount reaches",
+    mine?.steps?.length === 1 && mine?.amount?.value === 5000, JSON.stringify(mine?.steps || null).slice(0, 200));
 
-  // ---- THE OWNER SIGNS WHAT THEY RAISED — the owner's instruction, 17/09 ----
-  // "I am an Owner by default, I must have every access." This asserted the
-  // opposite until that day: the raiser never signs, owner included — which
-  // left an adjustment raised in a one-person studio with nobody able to sign
-  // or reject it. Payroll (10/09) and bills (11/09) already carried the same
-  // exception.
-  const self = await call(ADJ.PATCH, body("PATCH", { id: adjustmentId, action: "approve" }), P());
-  ok("THE OWNER MAY SIGN AN ADJUSTMENT THEY RAISED", self.status === 200,
+  // ---- THE OWNER ANSWERS WHAT THEY RAISED — the owner's instruction ---------
+  // "I am an Owner by default, I must have every access."
+  const self = await answer(mine?.id, "Approved");
+  ok("THE OWNER MAY APPROVE AN ADJUSTMENT THEY RAISED", self.status === 200 && self.body?.approval?.status === "Approved",
     JSON.stringify(self.body).slice(0, 160));
-  ok("...the adjustment is approved", self.body?.adjustment?.status === "Approved");
-  // THE STOCK MOVES ON THE LAST SIGNATURE AND NOT BEFORE.
-  ok("...and the stock moves only now", Boolean(self.body?.movement),
-    JSON.stringify(self.body?.movement || null).slice(0, 120));
+  ok("...the adjustment is approved, and says it finished", (await adjustment(adjustmentId))?.status === "Approved"
+    && self.body?.approval?.finish?.error === "", JSON.stringify(self.body?.approval?.finish || null));
 
   // ---- and not twice -------------------------------------------------------
-  const again = await call(ADJ.PATCH, body("PATCH", { id: adjustmentId, action: "approve" }), P());
-  ok("an approved adjustment cannot be approved again",
-    again.body?.error === "already-decided", JSON.stringify(again.body));
+  const again = await answer(mine?.id, "Approved");
+  ok("an approved adjustment cannot be approved again", again.body?.error === "not-pending", JSON.stringify(again.body));
 
   // ---- INVARIANT 7 STILL HOLDS FOR EVERYBODY WHO IS NOT AN ADMIN -----------
-  // The exception is the Admin's alone. A stock controller who can both raise
-  // and sign still needs a second person on their own adjustment.
+  // Somebody holding the old right is on the default step — and is taken off it
+  // for their own request, so a second person answers.
   const u = (await createUser({ email: `sc-${F.rand()}@test.invalid`, passwordHash: "x" })).user;
   const role = await createRole(F.studio.id, {
     name: `stock-control-${F.rand()}`,
-    permissions: ["inventory.stock.view", "inventory.stock.create", "inventory.stock.approve"],
+    permissions: ["inventory.stock.view", "inventory.stock.create"],
   });
   await addCollaborator(F.studio.id, { userId: u.id, alias: "stockcontrol", role: "member", roleIds: [role.id] });
   await F.signIn(u.id);
@@ -436,27 +435,33 @@ async function adjustmentApproval() {
   const theirsId = theirs.body?.adjustment?.id;
   ok("fixture: a non-admin raises an adjustment over the limit", theirs.body?.pending === true,
     JSON.stringify(theirs.body).slice(0, 160));
-  const ownSign = await call(ADJ.PATCH, body("PATCH", { id: theirsId, action: "approve" }), P());
-  ok("A NON-ADMIN WHO RAISED IT CANNOT SIGN IT", ownSign.body?.error === "same-signer",
-    JSON.stringify(ownSign.body));
-  const ownReject = await call(ADJ.PATCH, body("PATCH", { id: theirsId, action: "reject", reason: "mine" }), P());
-  ok("...nor turn it down", ownReject.body?.error === "same-signer",
-    JSON.stringify(ownReject.body));
+  const theirApproval = await approvalOf(theirsId, "requested");
+  const ownSign = await answer(theirApproval?.id, "Approved");
+  ok("A NON-ADMIN WHO RAISED IT CANNOT APPROVE IT", ownSign.body?.error === "own-request", JSON.stringify(ownSign.body));
+  const ownReject = await answer(theirApproval?.id, "Rejected", "mine");
+  ok("...nor turn it down", ownReject.body?.error === "own-request", JSON.stringify(ownReject.body));
 
-  // ---- somebody else, holding the step's right ----------------------------
+  // ---- somebody named on the step answers it ------------------------------
   await F.signIn(F.owner.id);
-  const signed = await call(ADJ.PATCH, body("PATCH", { id: theirsId, action: "approve" }), P());
-  ok("SOMEBODY ELSE HOLDING THE RIGHT SIGNS IT", signed.status === 200,
-    JSON.stringify(signed.body).slice(0, 160));
-  ok("...and the stock moves", Boolean(signed.body?.movement));
+  const waiting = await approvalOf(theirsId, "waiting");
+  ok("IT IS WAITING ON THE PEOPLE NAMED, not on the one who asked", Boolean(waiting));
+  const signed = await answer(waiting?.id, "Approved");
+  ok("SOMEBODY NAMED APPROVES IT", signed.status === 200, JSON.stringify(signed.body).slice(0, 160));
+  ok("...and the stock moves", (await adjustment(theirsId))?.status === "Approved");
 
-  // ---- somebody without the right cannot sign -----------------------------
-  await F.signIn(F.owner.id);
+  // ---- somebody not named cannot answer -----------------------------------
   const second = await adjust(200, "Another pallet");
+  const secondApproval = await approvalOf(second.body?.adjustment?.id, "requested");
   await F.signIn(F.memberUser.id);
-  const noRight = await call(ADJ.PATCH, body("PATCH", { id: second.body?.adjustment?.id, action: "approve" }), P());
-  ok("a member holding no stock right cannot sign", noRight.status >= 400,
-    `got ${noRight.status}`);
+  const notNamed = await answer(secondApproval?.id, "Approved");
+  ok("a member not named on the step cannot answer it", notNamed.status >= 400, `got ${notNamed.status}`);
+
+  // ---- a no closes it and moves nothing -----------------------------------
+  await F.signIn(F.owner.id);
+  const no = await answer(secondApproval?.id, "Rejected", "Counted wrong");
+  const closed = await adjustment(second.body?.adjustment?.id);
+  ok("A REJECTED ADJUSTMENT IS CLOSED WITH THE REASON, and moves nothing",
+    no.status === 200 && closed?.status === "Rejected" && closed?.rejectedReason === "Counted wrong", JSON.stringify(closed || null).slice(0, 160));
 }
 
 await adjustmentApproval().catch((e) => ok("the adjustment case threw", false, e?.message || String(e)));

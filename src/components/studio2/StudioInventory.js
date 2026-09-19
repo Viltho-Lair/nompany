@@ -144,7 +144,7 @@ export default function StudioInventory({ slug, view = "inventory" }) {
   }
   if (view === "inventory-stock") {
     return wrap(<Stock slug={slug} items={items} movements={movements} canManage={canManageStock}
-      busy={busy} send={send} reload={load} currency={studioCurrency} />);
+      busy={busy} send={send} currency={studioCurrency} />);
   }
   // NO BRANCH FOR procurement-suppliers. The register moved to the supplier
   // screen with the qualification and performance it now carries; the CRUD
@@ -176,6 +176,7 @@ export default function StudioInventory({ slug, view = "inventory" }) {
 // ranges a stock ledger reaches), and the joining word is not "and" either.
 function message(out, tr) {
   if (out.error === "read-only") return tr.mReadOnly;
+  if (tr.mApproval(out.error)) return tr.mApproval(out.error);
   if (out.error === "duplicate") return tr.mDuplicate;
   if (out.error === "duplicate-sku") return tr.mDuplicateSku;
   // Said by name, the way a bin or batch refusal is: which code, and whose.
@@ -620,7 +621,7 @@ function ItemForm({ row, vendors, units, serviceActions = [], studioCurrency = "
 }
 
 // ---- stock management ------------------------------------------------------
-function Stock({ slug, items, movements, canManage, busy, send, reload, currency = "" }) {
+function Stock({ slug, items, movements, canManage, busy, send, currency = "" }) {
   const locale = useStudioLocale();
   const tr = inventoryDict(locale);
   const [tab, setTab] = useState("onhand");
@@ -671,7 +672,7 @@ function Stock({ slug, items, movements, canManage, busy, send, reload, currency
               const out = await send("stock", "POST", { ...v, itemId: adjusting.id });
               if (!out) return;
               setAdjusting(null);
-              setNotice(out.pending ? tr.adjustmentSentForApproval : "");
+              setNotice(out.pending ? (out.approvalProblem ? tr.mApproval(out.approvalProblem) || tr.adjustmentSentForApproval : tr.adjustmentSentForApproval) : "");
             }} />
         </Dialog>
       )}
@@ -680,7 +681,7 @@ function Stock({ slug, items, movements, canManage, busy, send, reload, currency
         <p role="status" className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">{notice}</p>
       )}
 
-      {tab === "onhand" && <PendingAdjustments slug={slug} items={items} onDecided={reload} />}
+      {tab === "onhand" && <PendingAdjustments slug={slug} items={items} />}
 
       {serialsFor && (
         <Dialog title={`Serial numbers — ${serialsFor.name}`}
@@ -772,16 +773,12 @@ function Stock({ slug, items, movements, canManage, busy, send, reload, currency
   );
 }
 
-// THE ADJUSTMENTS WAITING FOR A SIGNATURE. The queue route existed, complete
-// with approve and reject, and no screen read it — so an adjustment over the
-// studio's limit vanished into it and `inventory.stock.approve` was a right
-// nobody could exercise (invariant 16). Drawn only when something is waiting.
-function PendingAdjustments({ slug, items, onDecided }) {
+// THE ADJUSTMENTS WAITING FOR APPROVAL — how far each has got, read from its
+// approval. Answered on the Approvals page since 19/09/2026, so there is
+// nothing to press here but the way there. Drawn only when something is waiting.
+function PendingAdjustments({ slug, items }) {
   const tr = inventoryDict(useStudioLocale());
   const [rows, setRows] = useState([]);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const [rejecting, setRejecting] = useState(null);
 
   const read = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/inventory/adjustments`, { cache: "no-store" });
@@ -791,20 +788,9 @@ function PendingAdjustments({ slug, items, onDecided }) {
   }, [slug]);
   useReload(read);
   // Adjustments live under the stock sub-section; the Inventory root hears it.
+  // How far each approval has got is written under Approvals.
   useLiveUpdates(slug, "inventory", read);
-
-  const decide = async (body) => {
-    setBusy(true); setError("");
-    const res = await fetch(`/api/studios/${slug}/inventory/adjustments`, {
-      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
-    });
-    const out = await res.json().catch(() => ({}));
-    setBusy(false);
-    if (!res.ok) { setError(out.error === "same-signer" ? tr.youRaisedThis : String(out.error || "failed")); return; }
-    setRejecting(null);
-    await read();
-    await onDecided?.();
-  };
+  useLiveUpdates(slug, "approvals", read);
 
   if (!rows.length) return null;
   const nameOf = (id) => items.find((i) => i.id === id)?.name || id;
@@ -813,52 +799,20 @@ function PendingAdjustments({ slug, items, onDecided }) {
     <section className={panel}>
       <h3 className="font-display text-sm font-700 text-slate-900 dark:text-white">{tr.pendingAdjustments}</h3>
       <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{tr.pendingAdjustmentsSub}</p>
-      {error && <p className="mt-3 text-sm text-rose-600 dark:text-rose-300">{error}</p>}
       <ul className="mt-3 divide-y divide-slate-100 dark:divide-white/5">
-        {rows.map((a) => {
-          const required = a.approvalPlan?.steps?.length || 0;
-          const signed = (a.approvals || []).length;
-          return (
-            <li key={a.id} className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm">
-              <span className="min-w-0">
-                <span className="font-600 text-slate-900 dark:text-white">{nameOf(a.itemId)}</span>
-                <span className="num ms-2">{a.qty > 0 ? "+" : ""}{num(a.qty)}</span>
-                <span className="num ms-2 text-slate-500 dark:text-slate-400">({num(a.value)})</span>
-                {a.reason && <span className="ms-2 text-slate-500 dark:text-slate-400">— {a.reason}</span>}
-                {required > 0 && <span className="ms-2 text-xs text-slate-400">{tr.signaturesOf(signed, required)}</span>}
-              </span>
-              {!a.canSign && a.nextStep && (
-                <span className="basis-full text-xs text-slate-500 dark:text-slate-400">
-                  {tr.nextStep(a.nextStep.label, tr.rightName(a.nextStep.permission))}
-                  {" "}
-                  {a.blockedBy === "raised" ? tr.youRaisedThis
-                    : a.blockedBy === "signed" ? tr.youSignedEarlier
-                      : a.blockedBy === "right" ? tr.needsRight(tr.rightName(a.nextStep.permission)) : ""}
-                </span>
-              )}
-              {a.canSign && (
-                <span className="flex gap-2">
-                  <button type="button" className={btn} disabled={busy}
-                    onClick={() => decide({ id: a.id, action: "approve" })}>{tr.approveAdjustment}</button>
-                  <button type="button" className={btnGhost} disabled={busy}
-                    onClick={() => setRejecting({ id: a.id, reason: "" })}>{tr.rejectAdjustment}</button>
-                </span>
-              )}
-            </li>
-          );
-        })}
+        {rows.map((a) => (
+          <li key={a.id} className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm">
+            <span className="min-w-0">
+              <span className="font-600 text-slate-900 dark:text-white">{nameOf(a.itemId)}</span>
+              <span className="num ms-2">{a.qty > 0 ? "+" : ""}{num(a.qty)}</span>
+              <span className="num ms-2 text-slate-500 dark:text-slate-400">({num(a.value)})</span>
+              {a.reason && <span className="ms-2 text-slate-500 dark:text-slate-400">— {a.reason}</span>}
+              {a.approval && <span className="ms-2 text-xs text-slate-400">{tr.stepsOf(a.approval.granted, a.approval.required)}</span>}
+            </span>
+            <a href={`/${slug}/approvals`} className="text-xs font-600 text-brand-700 hover:underline dark:text-brand-300">{tr.openApprovals}</a>
+          </li>
+        ))}
       </ul>
-      {rejecting && (
-        <Dialog title={tr.rejectAdjustment} onClose={() => setRejecting(null)} width="max-w-[480px]">
-          <Field label={tr.rejectReason} as="textarea" value={rejecting.reason}
-            onChange={(v) => setRejecting((r) => ({ ...r, reason: v }))} />
-          <div className="mt-4 flex justify-end gap-2">
-            <button type="button" className={btnGhost} onClick={() => setRejecting(null)}>{tr.cancel}</button>
-            <button type="button" className={btn} disabled={busy}
-              onClick={() => decide({ id: rejecting.id, action: "reject", reason: rejecting.reason })}>{tr.rejectAdjustment}</button>
-          </div>
-        </Dialog>
-      )}
     </section>
   );
 }

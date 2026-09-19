@@ -186,23 +186,14 @@ type Strings = CommonStrings & {
   recentStockMovements: string;
   record: string;
   recordAdjustment: string;
-  // THE ADJUSTMENT QUEUE — adjustments above the studio's limit, parked until
-  // somebody other than the person who typed them signs.
+  // THE ADJUSTMENT QUEUE — adjustments above the studio's limit, waiting for
+  // their approval, which is answered on the Approvals page (19/09/2026).
   pendingAdjustments: string;
   pendingAdjustmentsSub: string;
   adjustmentSentForApproval: string;
-  approveAdjustment: string;
-  rejectAdjustment: string;
-  rejectReason: string;
-  signaturesOf: (signed: number, required: number) => string;
-  youRaisedThis: string;
-  // WHY THERE IS NO BUTTON. The queue used to show a row with nothing to press
-  // and no word on why, so the person who raised a write-off could not tell who
-  // had to sign it.
-  nextStep: (label: string, right: string) => string;
-  youSignedEarlier: string;
-  needsRight: (right: string) => string;
-  rightName: (permission: string) => string;
+  stepsOf: (granted: number, required: number) => string;
+  openApprovals: string;
+  mApproval: (code: string) => string;
   recordMilestone: string;
   recording: string;
   registerItemsFirstThen: string;
@@ -487,19 +478,15 @@ Here is my vendor list:`,
   recentStockMovements: "Recent stock movements",
   record: "Record",
   recordAdjustment: "Record adjustment",
-  pendingAdjustments: "Waiting for a signature",
-  pendingAdjustmentsSub: "Adjustments above the studio's limit. The stock moves when the last step is signed.",
-  adjustmentSentForApproval: "That adjustment is above the studio's limit, so it is waiting for a signature. The stock has not moved yet.",
-  approveAdjustment: "Approve",
-  rejectAdjustment: "Reject",
-  rejectReason: "Why is it turned down?",
-  signaturesOf: (signed, required) => `${signed} of ${required} signed`,
-  youRaisedThis: "You raised this, so somebody else signs it.",
-  nextStep: (label, right) => `Next signature: ${label} — somebody holding ${right}.`,
-  youSignedEarlier: "You signed an earlier step, so somebody else signs this one.",
-  needsRight: (right) => `You do not hold ${right}.`,
-  rightName: (p) => (p === "inventory.stock.approveHigh" ? "Stock → Approve above the limit"
-    : p === "inventory.stock.approve" ? "Stock → Approve" : p),
+  pendingAdjustments: "Waiting for approval",
+  pendingAdjustmentsSub: "Adjustments above the studio's limit. They are answered on the Approvals page, and the stock moves when the last step is approved.",
+  adjustmentSentForApproval: "That adjustment is above the studio's limit, so it is waiting for approval. The stock has not moved yet.",
+  stepsOf: (g, r) => `${g} of ${r} step${r === 1 ? "" : "s"} approved`,
+  openApprovals: "Open in Approvals",
+  mApproval: (code) => ({
+    "not-configured": "Adjustments this size need approving, and nobody has been named to approve them. The owner or an Admin names them in Approvals settings.",
+    "no-approver": "You are the only person who approves adjustments this size, so you cannot raise one yourself. Ask the owner to name somebody else in Approvals settings.",
+  } as Record<string, string>)[code] || "",
   recordMilestone: "Record a milestone",
   recording: "Recording…",
   registerItemsFirstThen: "Register items first, then receive an order against them — that is what brings stock in.",
@@ -780,19 +767,15 @@ Name,Contact Name,Email,Phone,Item Types
   recentStockMovements: "حركات المخزون الأخيرة",
   record: "تسجيل",
   recordAdjustment: "تسجيل تسوية",
-  pendingAdjustments: "بانتظار التوقيع",
-  pendingAdjustmentsSub: "تسويات تتجاوز حد الاستوديو. يتحرك المخزون عند توقيع آخر خطوة.",
-  adjustmentSentForApproval: "هذه التسوية تتجاوز حد الاستوديو، فهي بانتظار التوقيع. لم يتحرك المخزون بعد.",
-  approveAdjustment: "اعتماد",
-  rejectAdjustment: "رفض",
-  rejectReason: "لماذا رفضت؟",
-  signaturesOf: (signed, required) => `${signed} من ${required} موقعة`,
-  youRaisedThis: "أنت من سجل هذه التسوية، فيوقعها شخص آخر.",
-  nextStep: (label, right) => `التوقيع التالي: ${label} — من يملك صلاحية ${right}.`,
-  youSignedEarlier: "وقعت خطوة سابقة، فيوقع هذه الخطوة شخص آخر.",
-  needsRight: (right) => `لا تملك صلاحية ${right}.`,
-  rightName: (p) => (p === "inventory.stock.approveHigh" ? "المخزون ← الاعتماد فوق الحد"
-    : p === "inventory.stock.approve" ? "المخزون ← الاعتماد" : p),
+  pendingAdjustments: "بانتظار الاعتماد",
+  pendingAdjustmentsSub: "تسويات تتجاوز حد الاستوديو. يجاب عليها في صفحة الموافقات، ويتحرك المخزون عند اعتماد آخر خطوة.",
+  adjustmentSentForApproval: "هذه التسوية تتجاوز حد الاستوديو، فهي بانتظار الاعتماد. لم يتحرك المخزون بعد.",
+  stepsOf: (g, r) => `اعتمدت ${g} من ${r} مراحل`,
+  openApprovals: "فتح في الموافقات",
+  mApproval: (code) => ({
+    "not-configured": "تسويات بهذا الحجم تحتاج اعتمادا، ولم يحدد أحد لاعتمادها. يحددهم المالك أو المشرف في إعدادات الموافقات.",
+    "no-approver": "أنت الوحيد الذي يعتمد تسويات بهذا الحجم، فلا يمكنك تسجيل واحدة بنفسك. اطلب من المالك تحديد شخص آخر في إعدادات الموافقات.",
+  } as Record<string, string>)[code] || "",
   recordMilestone: "تسجيل محطة",
   recording: "جار التسجيل…",
   registerItemsFirstThen: "سجل الأصناف أولا، ثم استلم أمر شراء عليها — فهذا ما يدخل المخزون.",

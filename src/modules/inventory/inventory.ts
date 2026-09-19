@@ -20,9 +20,8 @@
 import { requirePermission } from "@/platform/access";
 import { alertIfLow } from "./stockAlerts";
 import {
-  adjustmentValue, planForAdjustment, needsApproval, planUnusable, raiseAdjustment, unitCostOf,
+  adjustmentValue, raiseAdjustment, unitCostOf, ADJUSTMENT_APPROVAL,
 } from "./adjustmentApproval";
-import type { ResolvedPlan } from "@/platform/approval/resolve";
 import { seriesSetting } from "@/modules/administration/numbering";
 import { unitsFor } from "@/modules/administration/units";
 // PROCUREMENT DECIDES WHO MAY BE BOUGHT FROM, and this is the one place
@@ -59,7 +58,7 @@ import { WORKORDER_SOURCE, returnProblem, averageIssuedCost } from "@/modules/ma
 import type { WorkOrder } from "@/modules/maintenance/schema";
 import type { BoqItem } from "@/modules/tendering/schema";
 import type { Row } from "@/platform/db/store";
-import { approvalRows } from "@/modules/approvals/approvals";
+import { approvalPreflight, approvalRows } from "@/modules/approvals/approvals";
 import { approvalSummary, CLIENT_PO_APPROVAL } from "@/modules/approvals/reads";
 import type { Approval } from "@/modules/approvals/schema";
 import { roundMoney, roundSum } from "@/shared/money";
@@ -1022,21 +1021,26 @@ export async function adjustStock(ctx: InventoryContext, body: Record<string, un
   // could be walked round by adjusting up and then down.
   const unitCost = await unitCostOf(ctx, itemId);
   const value = adjustmentValue(amount, unitCost, ctx.studio.currency);
-  const plan = planForAdjustment(ctx, value);
-  // A PLAN THAT COULD NOT BE BUILT STOPS THE WRITE. "No signature required" and
-  // "we cannot tell whether one is required" are opposite answers, and a control
-  // that failed open would be worse than none because somebody believes in it.
-  if (planUnusable(plan)) return { error: "no-chain" };
-  if (needsApproval(plan)) {
-    const adjustment = await raiseAdjustment(ctx, {
-      itemId, qty: amount, unitCost, value,
+  // ASKED OF APPROVALS (docs/functionality/approvals.md): whether this amount
+  // reaches a step, and whether anybody could answer it. A refusal STOPS THE
+  // WRITE — "no approval is needed" and "we cannot tell whether one is" are
+  // opposite answers, and a control that failed open would be worse than none
+  // because somebody believes in it.
+  const preflight = await approvalPreflight(
+    { studio, collaborator: ctx.collaborator, roles: ctx.roles },
+    { type: ADJUSTMENT_APPROVAL, amount: { value, currency: String(studio.currency || "") } },
+  );
+  if ("error" in preflight) return preflight;
+  if (preflight.needed) {
+    const itemName = String(items.find((i) => i.id === itemId)?.name || "");
+    const raised = await raiseAdjustment(ctx, {
+      itemId, itemName, qty: amount, unitCost, value,
       reason: str(body?.reason, 300) || "Manual adjustment",
-      plan: plan as ResolvedPlan,
     });
     // NO `movement` IN THE ANSWER, deliberately: a caller that ignored the
     // status and read `movement` would find nothing rather than something that
     // looks like a completed adjustment.
-    return { adjustment, pending: true };
+    return { ...raised, pending: true };
   }
 
   const movement = await record(ctx, {
@@ -1113,12 +1117,15 @@ export async function moveForWorkOrder(ctx: InventoryContext, body: Record<strin
   return { movement };
 }
 
+/** Every movement in the stock ledger — what an adjustment's approval checks the shelf against. */
+export async function stockMovements(ctx: InventoryContext) {
+  return Stock.find({ studio: ctx.studio, section: ctx.stockSection });
+}
+
 /**
- * WRITE THE MOVEMENT AN APPROVED ADJUSTMENT ASKED FOR.
- *
- * Handed to `approveAdjustment` rather than imported by it, so the approval
- * module never reaches back into this file — and so the movement is written by
- * the same `record` every other movement in the section goes through.
+ * WRITE THE MOVEMENT AN APPROVED ADJUSTMENT ASKED FOR — called by its approval
+ * (./adjustmentApproval), through the same `record` every other movement in the
+ * section goes through. `ctx.collaborator` is whoever gave the last yes.
  */
 export async function applyApprovedAdjustment(ctx: InventoryContext, row: Record<string, unknown>) {
   return record(ctx, {

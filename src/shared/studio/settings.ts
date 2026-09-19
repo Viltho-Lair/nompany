@@ -864,13 +864,11 @@ const EN_CHAINS: Record<string, string> = {
   bill: "Supplier bills",
   tender: "Bids",
   requisition: "Purchase requisitions",
-  adjustment: "Stock adjustments",
 };
 const AR_CHAINS: Record<string, string> = {
   bill: "فواتير الموردين",
   tender: "العطاءات",
   requisition: "طلبات الشراء",
-  adjustment: "تسويات المخزون",
 };
 const EN_RIGHTS: Record<string, string> = {
   "finance.payables.approve": "Approve bills",
@@ -879,8 +877,6 @@ const EN_RIGHTS: Record<string, string> = {
   "tendering.tenders.approveHigh": "Approve bids above the limit",
   "procurement.requisitions.approve": "Approve requisitions",
   "procurement.requisitions.approveHigh": "Approve requisitions above the limit",
-  "inventory.stock.approve": "Approve stock adjustments",
-  "inventory.stock.approveHigh": "Approve stock adjustments above the limit",
 };
 const AR_RIGHTS: Record<string, string> = {
   "finance.payables.approve": "اعتماد الفواتير",
@@ -889,8 +885,6 @@ const AR_RIGHTS: Record<string, string> = {
   "tendering.tenders.approveHigh": "اعتماد العطاءات فوق الحد",
   "procurement.requisitions.approve": "اعتماد طلبات الشراء",
   "procurement.requisitions.approveHigh": "اعتماد طلبات الشراء فوق الحد",
-  "inventory.stock.approve": "اعتماد تسويات المخزون",
-  "inventory.stock.approveHigh": "اعتماد تسويات المخزون فوق الحد",
 };
 
 export function settingsDict(locale: string): Strings {

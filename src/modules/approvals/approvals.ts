@@ -24,7 +24,7 @@ import { NOTIFY } from "@/platform/notify/notifications";
 import { notifyCollaboratorIds, signatureNotice } from "@/modules/people/holders";
 import { moduleContext, type ModuleContext } from "../context";
 import {
-  applyDecision, cleanSetting, decisionProblem, defaultSetting, latestFor, planFor, requestProblem, stepStates, waitingOn,
+  applyDecision, cleanSetting, decisionProblem, defaultSetting, latestFor, overallFrom, planFor, requestProblem, stepStates, waitingOn,
   type Actor, type Person, type RoleRow,
 } from "./model";
 import { APPROVAL_TYPES, approvalType } from "./registry";
@@ -302,6 +302,13 @@ type RequestInput = {
   attachment?: { url: string; name: string } | null;
   /** For a type that carries one — see `amounted` in ./registry. */
   amount?: { value: unknown; currency: unknown } | null;
+  /**
+   * SIGNATURES A RECORD ALREADY HAD under the engine it is leaving, in the order
+   * they were given — carried onto the steps in that order, so nobody signs
+   * twice. A signer no longer named on the step is added to it: the signature
+   * was valid when given, and it stays attributed to them.
+   */
+  carried?: readonly { collaboratorId: string; at: string }[];
 };
 
 /**
@@ -350,19 +357,35 @@ export async function requestApproval(requester: Requester, input: RequestInput)
   if ("error" in plan) return plan;
   if ("notNeeded" in plan) return { notNeeded: true as const };
 
+  const steps = plan.steps.map((s) => ({ ...s, approverIds: [...s.approverIds] }));
+  const decisions: Approval["decisions"] = [];
+  (input.carried || []).forEach((c, i) => {
+    const step = steps[i];
+    if (!step || !c.collaboratorId) return;
+    if (!step.approverIds.includes(c.collaboratorId)) step.approverIds.push(c.collaboratorId);
+    decisions.push({ stepId: step.id, collaboratorId: c.collaboratorId, verdict: "Approved", at: c.at || new Date().toISOString(), note: "" });
+  });
+  const status = decisions.length ? overallFrom(steps, decisions) : "Pending";
+
   const approval = await Approvals.create(scope, {
     type: input.type,
-    status: "Pending",
     source,
     requestedByCollaboratorId: me.collaboratorId,
     requestedAt: new Date().toISOString(),
-    steps: plan.steps,
-    decisions: [],
-    decidedAt: "",
+    steps,
+    decisions,
+    status,
+    decidedAt: status === "Pending" ? "" : new Date().toISOString(),
     note: text(input.note, 4000),
     ...(judged.amount ? { amount: judged.amount } : {}),
     ...(input.attachment?.url ? { attachment: { url: text(input.attachment.url, 2000), name: text(input.attachment.name, 200) } } : {}),
   });
+  // CARRIED SIGNATURES CAN ALREADY ADD UP — a plan with fewer steps than the
+  // record was signed for. Then it is finished like any other approved one.
+  if (approval.status !== "Pending") {
+    const last = decisions[decisions.length - 1]?.collaboratorId || me.collaboratorId;
+    return { approval: await finish(scope, approval, last) };
+  }
   await notifyCollaboratorIds(studio.id, waitingOn(approval), signatureNotice(source.ref || source.title, "approvals"), [me.collaboratorId]);
   return { approval };
 }
