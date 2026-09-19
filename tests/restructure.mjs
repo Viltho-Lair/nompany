@@ -229,6 +229,9 @@ const KNOWN_COLLISIONS = {
   "src/modules/tasks/taskRouting.ts": [
     { value: "sales", reason: "a STORED Task-settings authority code (types.ts's TaskAssignees)" },
   ],
+  "src/modules/approvals/fromTasks.ts": [
+    { value: "sales", reason: "the same stored authority code, read once when the old board converts to approvals; leaves with that file" },
+  ],
   "src/lib/dashboardWidgets.ts": [
     { value: "technical.rfq-funnel", reason: "a FROZEN per-tier dashboard-widget key (renaming one is a data migration)" },
   ],
