@@ -3,12 +3,15 @@
 Multi-tenant ERP. Next.js 16 · React 19 · Postgres · Tailwind v3 + shadcn/ui + MUI v9 · Vercel.
 Three surfaces in one app: the tenant ERP at `nompany.com/<slug>/…` (rewritten by
 `src/proxy.js` → `src/app/studio`), account pages at `/{en,ar}/…`, and nompany's own
-console at `/super`. **SEVENTEEN sections**, plus Main and Tasks, which are not sections —
+console at `/super`. **EIGHTEEN sections**, plus Main and Tasks, which are not sections —
 Main is the home surface and Tasks is a cross-cutting control: CRM & Sales, Quotations,
 Tendering & Estimating, Projects, Engineering & Documents, Procurement & Subcontracting,
 Inventory & Warehouse, Manufacturing & Production, Field Operations & Service, Logistics &
 Fleet, Assets & Equipment, Maintenance, Quality & HSE, Human Resources, Finance &
-Accounting, Reports & BI. (**Maintenance is the fifteenth, 11/09/2026**, decided with the
+Accounting, Reports & BI, Marketing. (**Marketing is the eighteenth, 19/09/2026** — the owner's
+Marketing plan has seventeen subsections; only Campaigns has a screen, so only `marketing-campaigns`
+is declared and the rest join as their screens ship. Leads stay Sales tickets and Marketing reads
+them — `docs/functionality/marketing.md`. **Maintenance is the fifteenth, 11/09/2026**, decided with the
 owner — `docs/functionality/maintenance.md`. The equipment register stays under Assets.
 **Point of Sale is the seventeenth, 17/09/2026** — the counter is run by different people from the
 deal-working sales team; its tills, shifts and receipts stay FILED under `crm-sales-pos`, now
@@ -800,7 +803,8 @@ of `a2044ff`, one commit later, because that commit added a golden; then 365 and
 after that. A number nobody re-measures decays silently, and nothing fails when prose
 disagrees with a test. **Treat every figure in this file as a measurement with a date,
 not as a fact, and re-measure at the commit you are writing rather than the one you were
-reading.** `ALL_PERMISSIONS.length` is **256 over 81 areas, measured 18/09/2026** — it said 248 over 79 the same
+reading.** `ALL_PERMISSIONS.length` is **261 over 83 areas, measured 19/09/2026** (Marketing's dashboard and
+campaigns); it said 256 over 81 on 18/09/2026, and 248 over 79 the same
 day; seven of the eight since are expense claims (`finance.claims`, three) and budgets
 (`finance.budgets`, four); before that 235 over 74
 (17/09/2026), and ten of the thirteen since are Finance's split into eight sub-sections

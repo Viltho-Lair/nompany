@@ -25,6 +25,12 @@ Arabic studio wearing an English sidebar.
 under `crm-sales-pos`, now filed-only — except returns, which `pos-returns` owns (`posReturns`);
 `docs/functionality/pos.md` has the rest.
 
+**Marketing is the eighteenth department (19/09/2026)** — `marketing` (its dashboard) and
+`marketing-campaigns`, which owns `marketingCampaigns`. The owner's plan has seventeen
+subsections; only Campaigns has a screen, so only Campaigns is declared, and the rest join as
+their screens ship. It is on for every trade by default (`UNIVERSAL_SECTION_KEYS`) and asked
+about at creation. `docs/functionality/marketing.md` has the rest.
+
 **An existing studio gains a new section by itself** — the owner's instruction, 11/09/2026:
 "it is a system, it must take updates." `listSections`, the read every request passes through,
 plants any seeded section the studio is short of the first time it is opened after a deploy

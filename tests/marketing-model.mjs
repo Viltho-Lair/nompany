@@ -54,8 +54,9 @@ console.log("\n== the departments a visitor is told exist");
 // the assertions below exist to catch. On the first move the copy said
 // fourteen while fifteen rendered. Back to fifteen on 11/09/2026, when
 // Maintenance became a department of its own; sixteen on 13/09/2026, when
-// Quotations did; seventeen on 17/09/2026, when Point of Sale did.
-ok("seventeen of them", D.LIVE_DEPARTMENT_KEYS.length === 17,
+// Quotations did; seventeen on 17/09/2026, when Point of Sale did; eighteen
+// on 19/09/2026, when Marketing did.
+ok("eighteen of them", D.LIVE_DEPARTMENT_KEYS.length === 18,
   String(D.LIVE_DEPARTMENT_KEYS.length));
 
 // AND ADMINISTRATION IS NOT ONE, asserted by name rather than left to the count
@@ -135,6 +136,7 @@ const CHECKS = {
       15: ["Fifteen", "خمسة عشر"],
       16: ["Sixteen", "ستة عشر"],
       17: ["Seventeen", "سبعة عشر"],
+      18: ["Eighteen", "ثمانية عشر"],
     }[n];
     if (!words) return false;
     const claim = C.CLAIMS["live-departments"];

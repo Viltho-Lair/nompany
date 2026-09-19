@@ -119,6 +119,9 @@ const DASHBOARD_MODULES = [
   // POINT OF SALE (17/09/2026): its root is a summary of the counter — takings,
   // what sells most, what is running low.
   ["pos", "Point of Sale"],
+  // MARKETING (19/09/2026): its root is the department's dashboard — what is
+  // running, what starts this week, what needs somebody, the budget planned.
+  ["marketing", "Marketing"],
 ] as const;
 type DashboardModule = (typeof DASHBOARD_MODULES)[number][0];
 
@@ -205,6 +208,11 @@ const OWN_AREAS = [
   // `maintenance.orders.create`, because accepting a request is raising a work
   // order. No extra verb: a second right over the same act would be free to
   // disagree with the first about who dispatches technicians.
+  // MARKETING — the campaign register, the parent of every marketing activity
+  // (19/09/2026). Moving a campaign along its ladder is an EDIT: nobody may run
+  // a campaign they may not change. Cloning is a create.
+  { key: "marketing.campaigns", group: "Marketing", label: "Campaigns",
+    verbs: ["view", "create", "edit", "delete"] },
   { key: "maintenance.requests", group: "Maintenance", label: "Work requests",
     verbs: ["view", "create", "edit", "delete"] },
   { key: "maintenance.orders", group: "Maintenance", label: "Work orders",

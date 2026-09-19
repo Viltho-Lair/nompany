@@ -84,8 +84,13 @@ export const ACTION_SECTION: Readonly<Record<string, string>> = {
 // a counter: the till sat under CRM & Sales until it became a department, so it
 // was on wherever CRM & Sales was — everywhere. Keeping it universal keeps every
 // trade's default exactly as it was; the owner switches it off at creation.
+//
+// MARKETING IS THE EIGHTH (19/09/2026). No service action is marketing — every
+// trade finds its customers somehow — so no action could turn it on, and
+// leaving it off would hide it from the very studios that asked for it. The
+// owner switches it off at creation like any other.
 export const UNIVERSAL_SECTION_KEYS = [
-  "crm-sales", "quotations", "pos", "tendering", "hr", "finance", "reports",
+  "crm-sales", "quotations", "pos", "marketing", "tendering", "hr", "finance", "reports",
 ] as const;
 
 // NOT SECTIONS, AND NEVER OFF. Main is the home surface — without it a member

@@ -178,6 +178,16 @@ const MaintenanceDashboard = nextDynamic(
   () => import("@/components/studio2/MaintenanceDashboard"),
   { loading: () => <ScreenSkeleton /> },
 );
+// MARKETING (19/09/2026) — its dashboard at the root, the campaign register
+// beneath it.
+const MarketingDashboard = nextDynamic(
+  () => import("@/components/studio2/MarketingDashboard"),
+  { loading: () => <ScreenSkeleton /> },
+);
+const StudioCampaigns = nextDynamic(
+  () => import("@/components/studio2/StudioCampaigns"),
+  { loading: () => <ScreenSkeleton /> },
+);
 // The purchase order register (tier 5) — see StudioPurchaseOrders.
 const StudioPurchaseOrders = nextDynamic(
   () => import("@/components/studio2/StudioPurchaseOrders"),
@@ -929,6 +939,12 @@ async function renderStudio(params) {
         // returned above; its root is a summary, and three screens sit under it.
         : active?.key === "pos"
           ? <PosDashboard slug={studio.slug} />
+        // THE MARKETING DEPARTMENT (19/09/2026): its dashboard at the root and
+        // the campaign register beneath it — the one sub-section with a screen.
+        : active?.key === "marketing"
+          ? <MarketingDashboard slug={studio.slug} />
+        : active?.key === "marketing-campaigns"
+          ? <StudioCampaigns slug={studio.slug} />
         : active?.key === "pos-sales"
           ? <StudioPosSales slug={studio.slug} />
         : active?.key === "pos-shifts"

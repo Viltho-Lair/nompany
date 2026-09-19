@@ -715,6 +715,17 @@ export const SECTION_DEFS = [
     { key: "pos-returns", name: "Returns" },
   ] },
 
+  // MARKETING IS ITS OWN DEPARTMENT — the owner, 19/09/2026, the eighteenth,
+  // against the owner's Marketing plan (seventeen subsections behind one
+  // dashboard). Its root is that dashboard. ONLY THE SUB-SECTIONS THAT HAVE A
+  // SCREEN ARE DECLARED: a nav row that opens nothing is a right nothing can
+  // exercise (invariant 16), so Campaigns — the parent of every other part —
+  // ships alone and the other sixteen join as each screen does
+  // (docs/functionality/marketing.md lists them as not built).
+  { key: "marketing", name: "Marketing", children: [
+    { key: "marketing-campaigns", name: "Campaigns" },
+  ] },
+
   // THE FIRST OF TENDERING'S FIVE. The root was declared for ordering alone at
   // the restructure — "a nav row that opens nothing is worse than an absent
   // one" — and was hidden by NO_SCREEN_YET until it had one. The register is
@@ -1050,6 +1061,9 @@ export const SECTION_COLLECTIONS = {
   // Returns against a till's sales (and, later, against invoices), owned by
   // the Returns screen's own section.
   "pos-returns": ["posReturns"],
+  // THE CAMPAIGN REGISTER OWNS ITS ROWS, born under its own section, so nothing
+  // is filed anywhere else (19/09/2026).
+  "marketing-campaigns": ["marketingCampaigns"],
   // tendering. The register OWNS its records — unlike crm-sales-contracts,
   // which is a destination over somebody else's rows — so deleting the section
   // takes the tenders with it (invariant 11, children first).

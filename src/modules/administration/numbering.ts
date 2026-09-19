@@ -68,6 +68,7 @@ export const SERIES: readonly Series[] = Object.freeze([
   { key: "posReceipt", prefix: "RCT", group: "Point of Sale", label: "POS receipts" },
   { key: "posShift", prefix: "SHF", group: "Point of Sale", label: "POS shifts" },
   { key: "posReturn", prefix: "RTN", group: "Point of Sale", label: "POS returns" },
+  { key: "campaign", prefix: "CMP", group: "Marketing", label: "Campaigns" },
   { key: "requisition", prefix: "PR", group: "Procurement & Subcontracting", label: "Purchase requisitions" },
   { key: "rfq", prefix: "SRQ", group: "Procurement & Subcontracting", label: "Requests for quotation" },
   { key: "subcontract", prefix: "SC", group: "Procurement & Subcontracting", label: "Subcontracts" },

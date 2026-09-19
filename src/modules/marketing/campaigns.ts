@@ -1,0 +1,360 @@
+// MARKETING — the department, and its first register: campaigns.
+//
+// THE CAMPAIGN IS THE PARENT OF THE SECTION (the owner's Marketing plan,
+// 19/09/2026). Every later subsection — email, messaging, social, ads, forms,
+// events — records its work against one, and the dashboard reads money, leads
+// and revenue by campaign. So it ships first, and alone: a sub-section appears
+// only when its screen does (invariant 16), and the other sixteen are written
+// down in docs/functionality/marketing.md as not built.
+//
+// ONE RIGHT FOR THE REGISTER (`marketing.campaigns`), one for the summary
+// (`marketing.dashboard`). A status move is an EDIT: nobody may run a campaign
+// they may not change, and a second right over the same act would be free to
+// disagree with the first.
+//
+// LEADS ARE SALES'S — the owner's answer, 19/09/2026: a lead stays a Sales
+// ticket at the Lead stage and Marketing reads it. Nothing here writes a lead.
+//
+// THE RULES ARE IN ./model, which is pure, so the screen refuses exactly what
+// the server refuses.
+import { moduleContext } from "../context";
+import { requirePermission, type PermissionKey } from "@/platform/access";
+import { repo } from "@/platform/db/repo";
+import { nextReference } from "@/modules/main/references";
+import { seriesSetting } from "@/modules/administration/numbering";
+import { listCollaborators } from "@/platform/auth/collaborators";
+import { notifyCollaboratorIds } from "@/modules/people/holders";
+import { NOTIFY } from "@/platform/notify/notifications";
+import { roundMoney } from "@/shared/money";
+import {
+  CHANNELS, OBJECTIVES, campaignProblem, campaignEditable, campaignDeletable, moveProblem, utmSlug,
+  landingUrlProblem, taggedLink, budgetSplit, attention, campaignFigures, isFinal,
+} from "./model";
+import type { Campaign } from "./schema";
+import type { MarketingContext } from "./types";
+
+const Campaigns = repo<Campaign>("marketingCampaigns");
+
+export const marketingContext = moduleContext<MarketingContext>({
+  root: "marketing",
+  sub: { campaigns: "marketing-campaigns" },
+  flags: ["campaigns"],
+});
+
+const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
+const day = (v: unknown) => {
+  const s = str(v, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : "";
+};
+const now = () => new Date().toISOString();
+/** THE SERVER'S DAY, handed to the screen as `asOf` so "late" is judged by one clock. */
+const today = () => now().slice(0, 10);
+const oneOf = <T extends string>(list: readonly T[], v: unknown, fallback: T): T =>
+  (list as readonly string[]).includes(String(v)) ? (String(v) as T) : fallback;
+// BLANK IS "NOBODY HAS SAID", which is not nought.
+const amount = (v: unknown, currency: unknown): number | null => {
+  if (v === null || v === undefined || String(v).trim() === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 0 ? roundMoney(Math.min(n, 1e12), currency) : null;
+};
+const count = (v: unknown): number | null => {
+  if (v === null || v === undefined || String(v).trim() === "") return null;
+  const n = Math.floor(Number(v));
+  return Number.isFinite(n) && n >= 0 ? Math.min(n, 1e9) : null;
+};
+const channels = (v: unknown): string[] =>
+  [...new Set((Array.isArray(v) ? v : []).map((x) => String(x)))].filter((c) => (CHANNELS as readonly string[]).includes(c));
+
+const scope = (ctx: MarketingContext) => ({ studio: ctx.studio, section: ctx.campaignsSection });
+const may = (ctx: MarketingContext, key: PermissionKey) => !requirePermission(ctx.access, key);
+
+type Person = { id: string; alias?: string };
+
+/** The people a campaign may be given to — this studio's collaborators. */
+async function people(ctx: MarketingContext): Promise<Person[]> {
+  return (await listCollaborators(ctx.studio.id) as Person[]).map((c) => ({ id: String(c.id), alias: c.alias || "" }));
+}
+
+/**
+ * EVERY FIELD A WRITE MAY SET, coerced. Only what the body names is returned,
+ * so an edit touches exactly what it sent. Status is not here: it moves only
+ * through `moveCampaign`, the ladder's one door — routing a status through a
+ * generic edit is the shape that once let a rejected change order approve itself.
+ */
+function campaignFields(body: Record<string, unknown>, currency: unknown) {
+  const out: Partial<Campaign> = {};
+  const has = (k: string) => body?.[k] !== undefined;
+  if (has("description")) out.description = str(body.description, 4000);
+  if (has("objective")) out.objective = oneOf(OBJECTIVES, body.objective, "other");
+  if (has("channels")) out.channels = channels(body.channels);
+  if (has("parentId")) out.parentId = str(body.parentId, 60);
+  if (has("startOn")) out.startOn = day(body.startOn);
+  if (has("endOn")) out.endOn = day(body.endOn);
+  if (has("ownerCollaboratorId")) out.ownerCollaboratorId = str(body.ownerCollaboratorId, 60);
+  if (has("budget")) out.budget = amount(body.budget, currency);
+  if (has("expectedLeads")) out.expectedLeads = count(body.expectedLeads);
+  if (has("expectedCustomers")) out.expectedCustomers = count(body.expectedCustomers);
+  if (has("expectedRevenue")) out.expectedRevenue = amount(body.expectedRevenue, currency);
+  if (has("utmSource")) out.utmSource = str(body.utmSource, 100);
+  if (has("utmMedium")) out.utmMedium = str(body.utmMedium, 100);
+  if (has("utmCampaign")) out.utmCampaign = utmSlug(str(body.utmCampaign, 100)) || str(body.utmCampaign, 100);
+  if (has("utmContent")) out.utmContent = str(body.utmContent, 100);
+  if (has("utmTerm")) out.utmTerm = str(body.utmTerm, 100);
+  if (has("landingUrl")) out.landingUrl = str(body.landingUrl, 1000);
+  return out;
+}
+
+/** "" or the refusal token for a campaign about to be written as `next`. */
+async function shapeProblem(ctx: MarketingContext, next: Partial<Campaign> & { id?: string }, rows: Campaign[]) {
+  const problem = campaignProblem(next, rows);
+  if (problem) return problem;
+  if (next.landingUrl && landingUrlProblem(next.landingUrl)) return "landing-url";
+  // THE OWNER MUST BE ONE OF THIS STUDIO'S PEOPLE — an id from anywhere else
+  // would notify nobody and read as an owner nobody can find.
+  if (next.ownerCollaboratorId && !(await people(ctx)).some((p) => p.id === next.ownerCollaboratorId)) return "owner";
+  return "";
+}
+
+/** Tell a newly named owner — never the person who named them, who knows. */
+async function announceOwner(ctx: MarketingContext, c: Campaign, before: string) {
+  if (!c.ownerCollaboratorId || c.ownerCollaboratorId === before) return;
+  await notifyCollaboratorIds(ctx.studio.id, [c.ownerCollaboratorId], {
+    type: NOTIFY.campaignAssigned,
+    title: "You own a campaign",
+    body: `${c.reference} · ${c.name}`,
+    params: { reference: c.reference, name: c.name },
+    href: "marketing-campaigns",
+    tone: "primary",
+  }, [ctx.collaborator.id]);
+}
+
+// ---- the register ----------------------------------------------------------------
+
+/**
+ * EVERY CAMPAIGN, open ones first by start date, finished ones after. Each row
+ * carries what the screen would otherwise work out for itself — its tagged link,
+ * what its sub-campaigns took from its budget, and whether it needs somebody —
+ * so the list and the dashboard cannot disagree about any of it.
+ */
+export async function listCampaigns(ctx: MarketingContext) {
+  const denied = requirePermission(ctx.access, "marketing.campaigns.view");
+  if (denied) return denied;
+  const [rows, team] = await Promise.all([Campaigns.find(scope(ctx)), people(ctx)]);
+  const aliasOf = new Map(team.map((p) => [p.id, p.alias || ""]));
+  const asOf = today();
+  const nameOf = new Map(rows.map((c) => [c.id, `${c.reference} · ${c.name}`]));
+
+  const campaigns = rows.map((c) => ({
+    ...c,
+    parentName: c.parentId ? nameOf.get(c.parentId) || "" : "",
+    children: rows.filter((x) => x.parentId === c.id).length,
+    split: budgetSplit(c, rows),
+    link: c.landingUrl ? taggedLink(c.landingUrl, utmOf(c)) : "",
+    attention: attention(c, asOf),
+    ownerAlias: aliasOf.get(c.ownerCollaboratorId) || "",
+    createdByAlias: aliasOf.get(c.createdByCollaboratorId) || "",
+  })).sort((a, b) =>
+    Number(isFinal(a.status)) - Number(isFinal(b.status))
+    || (a.startOn || "9999").localeCompare(b.startOn || "9999")
+    || b.createdAt.localeCompare(a.createdAt));
+
+  return {
+    campaigns, asOf,
+    currency: String(ctx.studio.currency || ""),
+    people: team,
+    canCreate: may(ctx, "marketing.campaigns.create"),
+    canEdit: may(ctx, "marketing.campaigns.edit"),
+    canDelete: may(ctx, "marketing.campaigns.delete"),
+  };
+}
+
+/** The UTM set a campaign's links carry — its own name when nobody typed one. */
+function utmOf(c: Campaign) {
+  return {
+    source: c.utmSource, medium: c.utmMedium,
+    campaign: c.utmCampaign || utmSlug(c.name) || c.reference.toLowerCase(),
+    content: c.utmContent, term: c.utmTerm,
+  };
+}
+
+export async function createCampaign(ctx: MarketingContext, body: Record<string, unknown>) {
+  const denied = requirePermission(ctx.access, "marketing.campaigns.create");
+  if (denied) return denied;
+  const name = str(body?.name, 200);
+  if (!name) return { error: "name" };
+  const fields = campaignFields(body || {}, ctx.studio.currency);
+  const rows = await Campaigns.find(scope(ctx));
+  const problem = await shapeProblem(ctx, fields, rows);
+  if (problem) return { error: problem };
+
+  const at = now();
+  const campaign = await Campaigns.create(scope(ctx), {
+    reference: await nextReference(ctx.studio.id, { rows, field: "reference", ...seriesSetting("campaign", ctx.studio.numbering) }),
+    name,
+    description: "",
+    objective: "leads",
+    channels: [],
+    parentId: "",
+    startOn: "",
+    endOn: "",
+    // WHOEVER RAISES IT OWNS IT until somebody says otherwise: a campaign with
+    // no owner is one nobody is answerable for.
+    ownerCollaboratorId: ctx.collaborator.id,
+    budget: null,
+    expectedLeads: null,
+    expectedCustomers: null,
+    expectedRevenue: null,
+    utmSource: "",
+    utmMedium: "",
+    utmCampaign: "",
+    utmContent: "",
+    utmTerm: "",
+    landingUrl: "",
+    ...fields,
+    status: "Draft",
+    createdByCollaboratorId: ctx.collaborator.id,
+    createdAt: at,
+    updatedAt: at,
+  });
+  await announceOwner(ctx, campaign, ctx.collaborator.id);
+  return { campaign };
+}
+
+export async function editCampaign(ctx: MarketingContext, id: string, body: Record<string, unknown>) {
+  const denied = requirePermission(ctx.access, "marketing.campaigns.edit");
+  if (denied) return denied;
+  const rows = await Campaigns.find(scope(ctx));
+  const current = rows.find((c) => c.id === id);
+  if (!current) return { error: "notfound" };
+  if (!campaignEditable(current.status)) return { error: "campaign-final" };
+  const patch = campaignFields(body || {}, ctx.studio.currency);
+  if (body?.name !== undefined) {
+    const name = str(body.name, 200);
+    if (!name) return { error: "name" };
+    patch.name = name;
+  }
+  const problem = await shapeProblem(ctx, { ...current, ...patch, id }, rows);
+  if (problem) return { error: problem };
+  patch.updatedAt = now();
+  // A FUNCTION PATCH that re-checks finality against the row being written
+  // (invariant 8): a colleague completing the campaign a moment ago wins.
+  const campaign = await Campaigns.update(scope(ctx), id, (row: Campaign) =>
+    campaignEditable(row.status) ? patch : {});
+  if (!campaign) return { error: "notfound" };
+  if (!campaignEditable(campaign.status) && campaign.updatedAt !== patch.updatedAt) return { error: "campaign-final" };
+  await announceOwner(ctx, campaign, current.ownerCollaboratorId);
+  return { campaign };
+}
+
+/** MOVE IT ALONG THE LADDER — the only way a status changes. */
+export async function moveCampaign(ctx: MarketingContext, id: string, next: string) {
+  const denied = requirePermission(ctx.access, "marketing.campaigns.edit");
+  if (denied) return denied;
+  const current = await Campaigns.byId(scope(ctx), id);
+  if (!current) return { error: "notfound" };
+  const problem = moveProblem(current.status, next);
+  if (problem) return { error: problem };
+  const at = now();
+  // JUDGED AGAINST THE ROW BEING WRITTEN, not the one read above, so two people
+  // pressing different buttons cannot both win.
+  let refused = "";
+  const campaign = await Campaigns.update(scope(ctx), id, (row: Campaign) => {
+    refused = moveProblem(row.status, next);
+    return refused ? {} : { status: next, updatedAt: at };
+  });
+  if (refused) return { error: refused };
+  return campaign ? { campaign } : { error: "notfound" };
+}
+
+/**
+ * RUN IT AGAIN. A copy of everything that describes the campaign — never its
+ * dates, which belong to the run it copies, and never its status, which starts
+ * over at Draft. Sub-campaigns are not copied: each is its own run.
+ */
+export async function cloneCampaign(ctx: MarketingContext, id: string) {
+  const denied = requirePermission(ctx.access, "marketing.campaigns.create");
+  if (denied) return denied;
+  const rows = await Campaigns.find(scope(ctx));
+  const source = rows.find((c) => c.id === id);
+  if (!source) return { error: "notfound" };
+  const at = now();
+  const campaign = await Campaigns.create(scope(ctx), {
+    reference: await nextReference(ctx.studio.id, { rows, field: "reference", ...seriesSetting("campaign", ctx.studio.numbering) }),
+    name: source.name.slice(0, 200),
+    description: source.description,
+    objective: source.objective,
+    channels: source.channels,
+    // A copy of a sub-campaign stays under the same parent, if it still exists.
+    parentId: rows.some((c) => c.id === source.parentId) ? source.parentId : "",
+    startOn: "",
+    endOn: "",
+    ownerCollaboratorId: ctx.collaborator.id,
+    budget: source.budget,
+    expectedLeads: source.expectedLeads,
+    expectedCustomers: source.expectedCustomers,
+    expectedRevenue: source.expectedRevenue,
+    utmSource: source.utmSource,
+    utmMedium: source.utmMedium,
+    // THE UTM CAMPAIGN IS NOT COPIED: two runs reporting under one name are one
+    // run in every ad platform's report.
+    utmCampaign: "",
+    utmContent: source.utmContent,
+    utmTerm: source.utmTerm,
+    landingUrl: source.landingUrl,
+    clonedFromId: source.id,
+    status: "Draft",
+    createdByCollaboratorId: ctx.collaborator.id,
+    createdAt: at,
+    updatedAt: at,
+  });
+  return { campaign };
+}
+
+export async function removeCampaign(ctx: MarketingContext, id: string) {
+  const denied = requirePermission(ctx.access, "marketing.campaigns.delete");
+  if (denied) return denied;
+  const rows = await Campaigns.find(scope(ctx));
+  const current = rows.find((c) => c.id === id);
+  if (!current) return { error: "notfound" };
+  const problem = campaignDeletable(current.status, rows.some((c) => c.parentId === id));
+  if (problem) return { error: problem };
+  await Campaigns.remove(scope(ctx), id);
+  return { ok: true };
+}
+
+// ---- the dashboard -----------------------------------------------------------------
+
+/**
+ * THE SECTION'S LANDING PAGE. `marketing.dashboard` opens the figures; the rows
+ * behind them are listed only for somebody who may open the register, and every
+ * link to it travels with that flag.
+ */
+export async function marketingDashboard(ctx: MarketingContext) {
+  const denied = requirePermission(ctx.access, "marketing.dashboard.view");
+  if (denied) return denied;
+  const rows = await Campaigns.find(scope(ctx));
+  const asOf = today();
+  const canOpen = may(ctx, "marketing.campaigns.view");
+  const figures = campaignFigures(rows, asOf);
+  // WHAT NEEDS SOMEBODY, soonest first — late starts and overruns before
+  // launches, because those are already wrong.
+  const rank: Record<string, number> = { "late-start": 0, "past-end": 1, starting: 2 };
+  const attentionList = rows
+    .map((c) => ({ id: c.id, reference: c.reference, name: c.name, status: c.status, startOn: c.startOn, endOn: c.endOn, why: attention(c, asOf) }))
+    .filter((c) => c.why)
+    .sort((a, b) => rank[a.why] - rank[b.why] || (a.startOn || "").localeCompare(b.startOn || ""))
+    .slice(0, 10);
+  const running = rows
+    .filter((c) => c.status === "Active")
+    .sort((a, b) => (a.endOn || "9999").localeCompare(b.endOn || "9999"))
+    .slice(0, 10)
+    .map((c) => ({ id: c.id, reference: c.reference, name: c.name, endOn: c.endOn, budget: c.budget, channels: c.channels }));
+  return {
+    asOf,
+    currency: String(ctx.studio.currency || ""),
+    figures,
+    attention: attentionList,
+    running,
+    may: { campaigns: canOpen, create: may(ctx, "marketing.campaigns.create") },
+  };
+}

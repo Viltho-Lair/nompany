@@ -160,6 +160,7 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
     grants: [
       ["crmSales.dashboard", "view"], ["projects.dashboard", "view"], ["hr.dashboard", "view"],
       ["engineeringDocs.dashboard", "view"], ["inventory.dashboard", "view"],
+      ["marketing.dashboard", "view"],
       ["projects.list", "full"], ["projects.planner", "edit"], ["projects.sla", "edit"],
       ["tasks.board", "full"], ["hr.employees", "view"], ["hr.vacations", "edit"],
       // THEIR TEAM'S CONTRACTS AND PROBATIONS, read-only and scoped to their own
@@ -229,6 +230,10 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
       ["pos.dashboard", "view"], ["pos.sales", "view"], ["pos.shifts", "view"], ["pos.settings", "edit"],
       // …and signs the returns (18/09/2026).
       ["pos.returns", "edit"],
+      // FINDING CUSTOMERS IS WINNING WORK (19/09/2026). Every marketing title in
+      // the role library — Marketing Manager, Digital Marketing Specialist,
+      // Head of Marketing — resolves to this shape, so it runs the campaigns.
+      ["marketing.dashboard", "view"], ["marketing.campaigns", "full"],
       ["engineeringDocs.rfq", "edit"],
     ],
     // Turning an enquiry into a quotation is the selling motion, and locking a

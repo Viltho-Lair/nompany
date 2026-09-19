@@ -58,6 +58,9 @@ const ar: SectionMap = {
   "quotations-settings": "الإعدادات",
 
   // POINT OF SALE, ITS OWN DEPARTMENT (17/09/2026).
+  // MARKETING, ITS OWN DEPARTMENT (19/09/2026).
+  marketing: "التسويق",
+  "marketing-campaigns": "الحملات",
   pos: "نقطة البيع",
   "pos-till": "الصندوق",
   "pos-sales": "المبيعات",

@@ -364,6 +364,7 @@ const en: Strings = {
     questions: {
       "crm-sales": { q: "Do you sell to customers?", d: "Clients, deals, the sales pipeline, contracts, sales orders and a point of sale." },
       quotations: { q: "Do you send customers priced offers before they order?", d: "Requests for quotation, quotations and their revisions." },
+      marketing: { q: "Do you run campaigns to find customers?", d: "Campaigns with their channels, dates, owner, budget and tracked links." },
       tendering: { q: "Do you bid for work through tenders?", d: "A tender register, bills of quantities and a rate library." },
       projects: { q: "Do you deliver work as projects?", d: "Projects, plans and schedules, costs, billing and overtime." },
       "engineering-docs": { q: "Do you produce drawings or technical documents?", d: "Controlled documents, transmittals, requests for information and submittals." },
@@ -613,6 +614,7 @@ const ar: Strings = {
     questions: {
       "crm-sales": { q: "هل تبيع للعملاء؟", d: "العملاء والصفقات ومسار المبيعات والعقود وأوامر البيع ونقطة البيع." },
       quotations: { q: "هل ترسل للعملاء عروض أسعار قبل أن يطلبوا؟", d: "طلبات عروض الأسعار وعروض الأسعار ومراجعاتها." },
+      marketing: { q: "هل تدير حملات لجذب العملاء؟", d: "الحملات بقنواتها وتواريخها ومسؤولها وميزانيتها وروابطها المتتبعة." },
       tendering: { q: "هل تتقدم للأعمال عبر المناقصات؟", d: "سجل المناقصات وجداول الكميات ومكتبة الأسعار." },
       projects: { q: "هل تنفذ أعمالك على شكل مشاريع؟", d: "المشاريع والخطط والجداول الزمنية والتكاليف والفوترة والعمل الإضافي." },
       "engineering-docs": { q: "هل تنتج مخططات أو مستندات فنية؟", d: "المستندات المضبوطة وخطابات الإحالة وطلبات الاستيضاح والتقديمات." },

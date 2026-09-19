@@ -80,6 +80,12 @@ export const NOTICE_TEMPLATES: readonly NoticeTemplate[] = Object.freeze([
     ar: { title: "تم الإبلاغ عن عطل", body: "{reference} · {title}" },
   },
   {
+    type: "campaign.assigned",
+    fields: ["reference", "name"],
+    en: { title: "You own a campaign", body: "{reference} · {name}" },
+    ar: { title: "حملة مسندة إليكم", body: "{reference} · {name}" },
+  },
+  {
     type: "workorder.assigned",
     fields: ["reference", "title"],
     en: { title: "You have been assigned a work order", body: "{reference} · {title}" },

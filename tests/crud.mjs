@@ -58,6 +58,15 @@ const RESOURCES = [
     patch: (id) => ({ id, name: `Unit renamed ${F.rand()}` }),
     check: (row, sent) => row?.name === sent.name,
   },
+  // MARKETING. A fresh campaign is a Draft, and a Draft deletes.
+  {
+    name: "marketingCampaigns",
+    module: "marketing/campaigns",
+    list: (b) => b?.campaigns || [],
+    make: () => ({ name: `Spring push ${F.rand()}`, objective: "leads", channels: ["email"] }),
+    patch: (id) => ({ id, name: `Spring push renamed ${F.rand()}` }),
+    check: (row, sent) => row?.name === sent.name,
+  },
   // MAINTENANCE. A fresh request and a fresh order are both deletable — an
   // unanswered report and never-started work — so the whole lifecycle runs.
   {

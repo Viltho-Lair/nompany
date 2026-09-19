@@ -66,6 +66,7 @@ export const NOTIFY = {
   permitExpiring: "permit.expiring",
   workRequestRaised: "workrequest.raised",
   workOrderAssigned: "workorder.assigned",
+  campaignAssigned: "campaign.assigned",
   workOrderDue: "workorder.due",
   calibrationDue: "calibration.due",
   // An item fell to its reorder level (modules/inventory/stockAlerts).

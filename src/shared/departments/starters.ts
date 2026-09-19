@@ -94,7 +94,7 @@ export const DEPARTMENT_STARTERS: Record<string, readonly DepartmentSeed[]> = {
     { name: "Agronomy & Technical", code: "AGR", parent: "FARM", sectionKeys: ["engineering-docs"] },
     { name: "Irrigation & Machinery", code: "IRR", parent: "FARM", sectionKeys: ["assets", "field-service"] },
     { name: "Packhouse & Post-Harvest", code: "PACK", parent: "", sectionKeys: ["inventory", "quality-hse"] },
-    { name: "Sales & Marketing", code: "SLS", parent: "", sectionKeys: ["crm-sales"] },
+    { name: "Sales & Marketing", code: "SLS", parent: "", sectionKeys: ["crm-sales", "marketing"] },
   ),
 
   "Mining & Quarrying": trading(
@@ -104,7 +104,7 @@ export const DEPARTMENT_STARTERS: Record<string, readonly DepartmentSeed[]> = {
     { name: "Geology & Survey", code: "GEO", parent: "", sectionKeys: ["engineering-docs"] },
     { name: "Mine Engineering & Maintenance", code: "MNT", parent: "", sectionKeys: ["assets", "maintenance", "field-service"] },
     { name: "HSE & Community", code: "HSE", parent: "", sectionKeys: ["quality-hse"] },
-    { name: "Sales & Logistics", code: "SLS", parent: "", sectionKeys: ["crm-sales", "logistics"] },
+    { name: "Sales & Logistics", code: "SLS", parent: "", sectionKeys: ["crm-sales", "logistics", "marketing"] },
   ),
 
   "Manufacturing": trading(
@@ -115,7 +115,7 @@ export const DEPARTMENT_STARTERS: Record<string, readonly DepartmentSeed[]> = {
     { name: "Production Planning", code: "PPC", parent: "", sectionKeys: ["projects"] },
     { name: "Maintenance", code: "MNT", parent: "", sectionKeys: ["assets", "maintenance"] },
     { name: "Quality Assurance", code: "QA", parent: "", sectionKeys: ["quality-hse"] },
-    { name: "Sales & After-Sales", code: "SLS", parent: "", sectionKeys: ["crm-sales", "field-service"] },
+    { name: "Sales & After-Sales", code: "SLS", parent: "", sectionKeys: ["crm-sales", "field-service", "marketing"] },
     { name: "Dispatch & Logistics", code: "LOG", parent: "", sectionKeys: ["logistics"] },
   ),
 
@@ -126,7 +126,7 @@ export const DEPARTMENT_STARTERS: Record<string, readonly DepartmentSeed[]> = {
     { name: "Project Delivery", code: "PRJ", parent: "", sectionKeys: ["projects"] },
     { name: "Installation & Commissioning", code: "CMS", parent: "PRJ", sectionKeys: ["field-service"] },
     { name: "Service & Support", code: "SVC", parent: "", sectionKeys: ["field-service"] },
-    { name: "Sales & Applications", code: "SLS", parent: "", sectionKeys: ["crm-sales", "tendering", "quotations"] },
+    { name: "Sales & Applications", code: "SLS", parent: "", sectionKeys: ["crm-sales", "tendering", "quotations", "marketing"] },
   ),
 
   "Automotive & Aerospace Manufacturing": trading(
@@ -192,7 +192,7 @@ export const DEPARTMENT_STARTERS: Record<string, readonly DepartmentSeed[]> = {
     { name: "Wholesale & Key Accounts", code: "WHL", parent: "", sectionKeys: ["crm-sales"] },
     { name: "Distribution & Delivery", code: "DIS", parent: "", sectionKeys: ["logistics"] },
     { name: "Installation & Service", code: "SVC", parent: "", sectionKeys: ["field-service"] },
-    { name: "Customer Service", code: "CS", parent: "", sectionKeys: ["crm-sales"] },
+    { name: "Customer Service", code: "CS", parent: "", sectionKeys: ["crm-sales", "marketing"] },
   ),
 
   "Transportation, Logistics & Storage": trading(
@@ -208,7 +208,7 @@ export const DEPARTMENT_STARTERS: Record<string, readonly DepartmentSeed[]> = {
   "Hospitality & Food Services": trading(
     { name: "Food & Beverage", code: "FNB", parent: "", sectionKeys: ["field-service", "pos"] },
     { name: "Kitchen", code: "KIT", parent: "FNB", sectionKeys: ["manufacturing"] },
-    { name: "Front Office", code: "FO", parent: "", sectionKeys: ["crm-sales", "pos"] },
+    { name: "Front Office", code: "FO", parent: "", sectionKeys: ["crm-sales", "pos", "marketing"] },
     { name: "Housekeeping", code: "HK", parent: "", sectionKeys: ["field-service"] },
     { name: "Banqueting & Events", code: "EVT", parent: "", sectionKeys: ["projects", "crm-sales"] },
     { name: "Engineering & Maintenance", code: "MNT", parent: "", sectionKeys: ["assets", "maintenance", "field-service"] },
@@ -223,7 +223,7 @@ export const DEPARTMENT_STARTERS: Record<string, readonly DepartmentSeed[]> = {
     { name: "Support & Managed Services", code: "SUP", parent: "", sectionKeys: ["field-service"] },
     { name: "Infrastructure & Security", code: "INF", parent: "", sectionKeys: ["assets"] },
     { name: "Quality Engineering", code: "QA", parent: "", sectionKeys: ["quality-hse"] },
-    { name: "Sales & Presales", code: "SLS", parent: "", sectionKeys: ["crm-sales", "tendering", "quotations"] },
+    { name: "Sales & Presales", code: "SLS", parent: "", sectionKeys: ["crm-sales", "tendering", "quotations", "marketing"] },
   ),
 
   "Telecommunications": trading(
@@ -241,7 +241,7 @@ export const DEPARTMENT_STARTERS: Record<string, readonly DepartmentSeed[]> = {
     { name: "Production", code: "PRD", parent: "", sectionKeys: ["projects"] },
     { name: "Post-Production", code: "POST", parent: "PRD", sectionKeys: ["projects"] },
     { name: "Editorial", code: "EDT", parent: "", sectionKeys: ["engineering-docs"] },
-    { name: "Client Services", code: "CS", parent: "", sectionKeys: ["crm-sales"] },
+    { name: "Client Services", code: "CS", parent: "", sectionKeys: ["crm-sales", "marketing"] },
     { name: "Studio & Equipment", code: "STU", parent: "", sectionKeys: ["assets", "inventory"] },
   ),
 
@@ -259,7 +259,7 @@ export const DEPARTMENT_STARTERS: Record<string, readonly DepartmentSeed[]> = {
     { name: "Development", code: "DEV", parent: "", sectionKeys: ["projects"] },
     { name: "Design & Delivery", code: "DEL", parent: "DEV", sectionKeys: ["engineering-docs", "projects"] },
     { name: "Cost & Commercial", code: "QS", parent: "DEV", sectionKeys: ["tendering", "finance"] },
-    { name: "Sales & Leasing", code: "SLS", parent: "", sectionKeys: ["crm-sales"] },
+    { name: "Sales & Leasing", code: "SLS", parent: "", sectionKeys: ["crm-sales", "marketing"] },
     { name: "Property Management", code: "PM", parent: "", sectionKeys: ["field-service", "assets"] },
     { name: "Facilities & Maintenance", code: "FM", parent: "PM", sectionKeys: ["field-service", "maintenance"] },
   ),
@@ -305,7 +305,7 @@ export const DEPARTMENT_STARTERS: Record<string, readonly DepartmentSeed[]> = {
     { name: "Curriculum & Assessment", code: "CUR", parent: "ACD", sectionKeys: ["engineering-docs"] },
     { name: "Corporate Training", code: "TRN", parent: "", sectionKeys: ["projects", "crm-sales"] },
     { name: "Student Services", code: "STU", parent: "", sectionKeys: ["crm-sales"] },
-    { name: "Admissions", code: "ADS", parent: "STU", sectionKeys: ["crm-sales"] },
+    { name: "Admissions", code: "ADS", parent: "STU", sectionKeys: ["crm-sales", "marketing"] },
     { name: "Campus & Facilities", code: "FAC", parent: "", sectionKeys: ["assets", "maintenance", "field-service"] },
     { name: "Quality & Accreditation", code: "QA", parent: "", sectionKeys: ["quality-hse"] },
   ),
@@ -326,7 +326,7 @@ export const DEPARTMENT_STARTERS: Record<string, readonly DepartmentSeed[]> = {
     { name: "Fabrication & Workshop", code: "FAB", parent: "", sectionKeys: ["manufacturing"] },
     { name: "Design & Creative", code: "CRE", parent: "", sectionKeys: ["engineering-docs"] },
     { name: "Venue Operations", code: "VEN", parent: "", sectionKeys: ["field-service", "assets"] },
-    { name: "Sales & Sponsorship", code: "SLS", parent: "", sectionKeys: ["crm-sales"] },
+    { name: "Sales & Sponsorship", code: "SLS", parent: "", sectionKeys: ["crm-sales", "marketing"] },
     { name: "Safety & Crowd Management", code: "HSE", parent: "", sectionKeys: ["quality-hse"] },
   ),
 
@@ -334,7 +334,7 @@ export const DEPARTMENT_STARTERS: Record<string, readonly DepartmentSeed[]> = {
     { name: "Service Operations", code: "OPS", parent: "", sectionKeys: ["field-service"] },
     { name: "Workshop & Repairs", code: "WKS", parent: "OPS", sectionKeys: ["manufacturing", "field-service"] },
     { name: "Collection & Delivery", code: "DEL", parent: "", sectionKeys: ["logistics"] },
-    { name: "Customer Service", code: "CS", parent: "", sectionKeys: ["crm-sales"] },
+    { name: "Customer Service", code: "CS", parent: "", sectionKeys: ["crm-sales", "marketing"] },
   ),
 };
 

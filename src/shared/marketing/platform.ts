@@ -34,7 +34,7 @@ type PlatformStrings = {
 
 const en: PlatformStrings = {
   title: "The platform",
-  lead: "Seventeen departments on one data model. A quotation becomes a contract, a contract opens a project, a project raises requisitions and bills — and none of it is re-typed, because it is all the same record.",
+  lead: "Eighteen departments on one data model. A quotation becomes a contract, a contract opens a project, a project raises requisitions and bills — and none of it is re-typed, because it is all the same record.",
   departmentsHeading: "The departments",
   departmentsLead: "Every one of these is built and running today. Nothing on this page describes something you cannot open.",
   foundationHeading: "True of all of them",
@@ -61,6 +61,8 @@ const en: PlatformStrings = {
       "Leads, deals and the board they move across. Customers with their own page — what they have bought, what is open, what was won and lost, and the rates they were promised. A won quotation becomes a contract with its variations tracked against it.",
     quotations:
       "The presales team's own desk. RFQs raised from a deal arrive in one intake, are directed to the people who will price them, and go back to the deal as a quotation built by the people who understand the work — priced from the customer's agreed rates rather than from cost, sent for approval, and locked once a client is holding it.",
+    marketing:
+      "Campaigns as the parent of everything marketing does: what each is for, the channels it runs on, its dates, its owner, its budget and what it should bring in. Sub-campaigns share out a parent's budget without it being counted twice, every campaign builds its own UTM-tagged link, and the dashboard shows what is running, what starts this week and what has slipped.",
     pos:
       "A till for the counter: scan, basket, pay by cash, card or transfer, and print. Stock leaves by expiry, and tax is taken out of shelf prices rather than added to them. Every sale is listed with who rang it up, drawers close with a report that says whether they are short, and what sells most is on the dashboard.",
     tendering:
@@ -96,7 +98,7 @@ const en: PlatformStrings = {
 // HAND-WRITTEN. NO DIACRITICS.
 const ar: PlatformStrings = {
   title: "المنصة",
-  lead: "سبعة عشر قسما على نموذج بيانات واحد. عرض السعر يصبح عقدا، والعقد يفتح مشروعا، والمشروع يصدر طلبات شراء وفواتير — دون إعادة إدخال شيء، لأن الجميع يعمل على السجل نفسه.",
+  lead: "ثمانية عشر قسما على نموذج بيانات واحد. عرض السعر يصبح عقدا، والعقد يفتح مشروعا، والمشروع يصدر طلبات شراء وفواتير — دون إعادة إدخال شيء، لأن الجميع يعمل على السجل نفسه.",
   departmentsHeading: "الأقسام",
   departmentsLead: "كل قسم هنا مبني ويعمل اليوم، وكل ما تقرأه في هذه الصفحة يمكنك فتحه.",
   foundationHeading: "صحيح في كل الأقسام",
@@ -123,6 +125,8 @@ const ar: PlatformStrings = {
       "العملاء المحتملون والصفقات واللوحة التي تتحرك عليها. ولكل عميل صفحته: ما اشتراه، وما هو مفتوح، وما ربح وما خسر، والأسعار التي وعد بها. وعرض السعر الفائز يصبح عقدا تتبع تغييراته عليه.",
     quotations:
       "مكتب فريق ما قبل البيع. طلبات عروض الأسعار المرفوعة من الصفقات تصل إلى نقطة استقبال واحدة، وتوجه إلى من سيسعرها، وتعود إلى الصفقة عرض سعر يبنيه من يفهم العمل — مسعرا من أسعار العميل المتفق عليها لا من التكلفة، ومرسلا للاعتماد، ومقفلا حين يكون بيد العميل.",
+    marketing:
+      "الحملة أصل كل ما يقوم به التسويق: هدفها والقنوات التي تعمل عليها وتواريخها ومسؤولها وميزانيتها وما يتوقع أن تحققه. الحملات الفرعية تتقاسم ميزانية الحملة الأم دون أن تحسب مرتين، ولكل حملة رابط موسوم بوسوم UTM، ولوحة القسم تبين ما يجري الآن وما يبدأ هذا الأسبوع وما تأخر.",
     pos:
       "صندوق للبيع المباشر: مسح وسلة ودفع نقدا أو ببطاقة أو تحويل ثم طباعة. يخرج المخزون حسب تاريخ الانتهاء، وتستخرج الضريبة من سعر الرف بدل أن تضاف إليه. وكل بيعة مسجلة باسم من أجراها، والأدراج تغلق بتقرير يبين العجز أو الزيادة، والأكثر مبيعا على لوحة القسم.",
     tendering:

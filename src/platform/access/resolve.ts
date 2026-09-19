@@ -101,6 +101,9 @@ export const SECTION_AREAS: Readonly<Record<string, readonly string[]>> = {
   // `sectionViewable` asks this first and still falls through to the children,
   // so withholding the summary hides the figures without closing the registers
   // underneath it.
+  // MARKETING (19/09/2026): the dashboard at the root, the register beneath.
+  marketing: ["marketing.dashboard"],
+  "marketing-campaigns": ["marketing.campaigns"],
   maintenance: ["maintenance.dashboard"],
   "maintenance-requests": ["maintenance.requests"],
   "maintenance-orders": ["maintenance.orders"],
