@@ -89,7 +89,34 @@ function ApprovalList({ slug }) {
 
       {rows.length === 0
         ? <Empty title={emptyText} />
-        : <ul className="space-y-4">{rows.map((a) => <li key={a.id}><ApprovalCard slug={slug} approval={a} tr={tr} onAnswer={answer} /></li>)}</ul>}
+        : (
+          <Segregated rows={rows} tr={tr} lead={tr.offLead}>
+            {(list) => <ul className="space-y-4">{list.map((a) => <li key={a.id}><ApprovalCard slug={slug} approval={a} tr={tr} onAnswer={answer} /></li>)}</ul>}
+          </Segregated>
+        )}
+    </div>
+  );
+}
+
+// WHAT THE STUDIO RUNS FIRST, the rest beneath — never hidden (the owner,
+// 19/09/2026). The server marks each row `available` from the Sections
+// switches, so switching a department off or on moves its approvals between the
+// two lists by itself. A row the server did not mark counts as available.
+function Segregated({ rows, tr, lead, children }) {
+  const on = rows.filter((r) => r.available !== false);
+  const off = rows.filter((r) => r.available === false);
+  return (
+    <div className="space-y-8">
+      {on.length > 0 && children(on)}
+      {off.length > 0 && (
+        <section aria-label={tr.offHeading} className="space-y-3">
+          <div className="border-t border-slate-200 pt-5 dark:border-white/10">
+            <h2 className={h2}>{tr.offHeading} <span className="num text-slate-400">({off.length})</span></h2>
+            <p className={sub}>{lead}</p>
+          </div>
+          {children(off)}
+        </section>
+      )}
     </div>
   );
 }
@@ -235,8 +262,10 @@ function ApprovalSettings({ slug }) {
         {!data.canEdit && <p className={`${sub} font-600`}>{tr.readOnly}</p>}
       </div>
 
+      <Segregated rows={data.types} tr={tr} lead={tr.offSettingsLead}>
+        {(types) => (
       <ul className="space-y-4">
-        {data.types.map((t) => (
+        {types.map((t) => (
           <li key={t.key} className={panel}>
             {editing === t.key ? (
               <StepEditor
@@ -272,6 +301,8 @@ function ApprovalSettings({ slug }) {
           </li>
         ))}
       </ul>
+        )}
+      </Segregated>
     </div>
   );
 }

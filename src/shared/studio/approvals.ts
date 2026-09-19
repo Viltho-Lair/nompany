@@ -15,6 +15,9 @@ type Strings = {
   emptyWaiting: string;
   emptyRequested: string;
   emptyAll: string;
+  offHeading: string;
+  offLead: string;
+  offSettingsLead: string;
   typeLabel: (key: string) => string;
   requestedBy: (who: string, when: string) => string;
   someone: string;
@@ -115,6 +118,9 @@ const en: Strings = {
   emptyWaiting: "Nothing is waiting on you.",
   emptyRequested: "You have not asked for any approvals.",
   emptyAll: "No approvals yet.",
+  offHeading: "Departments switched off",
+  offLead: "These come from departments this studio has switched off in Sections. They are still here to be answered.",
+  offSettingsLead: "These belong to departments this studio has switched off. They can be set up now and apply once the department is switched on.",
   typeLabel: (key) => TYPES_EN[key] || key,
   requestedBy: (who, when) => `Requested by ${who} · ${when}`,
   someone: "Someone",
@@ -209,6 +215,9 @@ const ar: Strings = {
   emptyWaiting: "لا شيء ينتظر ردك.",
   emptyRequested: "لم تطلب أي موافقة بعد.",
   emptyAll: "لا توجد موافقات بعد.",
+  offHeading: "أقسام موقوفة",
+  offLead: "هذه من أقسام أوقفتها المنشأة في الأقسام. ما زالت هنا للرد عليها.",
+  offSettingsLead: "هذه تخص أقساماً أوقفتها المنشأة. يمكن إعدادها الآن وتسري عند تشغيل القسم.",
   typeLabel: (key) => TYPES_AR[key] || key,
   requestedBy: (who, when) => `طلبها ${who} · ${when}`,
   someone: "أحدهم",

@@ -47,27 +47,36 @@ export type ApprovalTypeDef = {
    * approved). Everywhere else the same person may be named on two steps.
    */
   readonly distinctSigners?: boolean;
+  /**
+   * THE DEPARTMENT THIS TYPE IS WORKED IN — the section the Sections panel
+   * switches, never a filed-only row. The Approvals page lists a switched-off
+   * department's approvals BELOW the rest rather than hiding them (the owner,
+   * 19/09/2026): a request already made still has to be answered, and hiding it
+   * would strand whoever is waiting. Absent only on `carried`, which belongs to
+   * no department and is always listed with the available ones.
+   */
+  readonly section?: string;
 };
 
 export const APPROVAL_TYPES: readonly ApprovalTypeDef[] = [
-  { key: "quotation", label: "Quotation approval", requestable: true },
-  { key: "client-po", label: "Client purchase order", requestable: true },
-  { key: "material-po", label: "Material purchase order", requestable: true },
-  { key: "delivery", label: "Delivery request", requestable: true },
-  { key: "delivery-return", label: "Delivery return", requestable: true },
-  { key: "id-update", label: "ID update", requestable: true },
-  { key: "permit-request", label: "Permit request", requestable: true },
+  { key: "quotation", section: "quotations-register", label: "Quotation approval", requestable: true },
+  { key: "client-po", section: "crm-sales-tickets", label: "Client purchase order", requestable: true },
+  { key: "material-po", section: "procurement-orders", label: "Material purchase order", requestable: true },
+  { key: "delivery", section: "logistics-shipments", label: "Delivery request", requestable: true },
+  { key: "delivery-return", section: "logistics-shipments", label: "Delivery return", requestable: true },
+  { key: "id-update", section: "hr-employees", label: "ID update", requestable: true },
+  { key: "permit-request", section: "field-service-tracking", label: "Permit request", requestable: true },
   // A RETURN AT THE COUNTER (Point of Sale → Returns). Asked for when the
   // return is; approving it puts the units back and pays the refund.
   {
-    key: "pos-return", label: "Till return", requestable: true, amounted: true,
+    key: "pos-return", section: "pos-returns", label: "Till return", requestable: true, amounted: true,
     legacy: [{ permission: "pos.returns.approve", from: 0, label: "Returns" }],
   },
   // A STOCK ADJUSTMENT over the studio's limit (Inventory → Stock). Recording it
   // is asking; approving it writes the movement. The old chain's limits come
   // with it — a studio that had moved them keeps its own (`legacyChain`).
   {
-    key: "adjustment", label: "Stock adjustment", requestable: true, amounted: true, legacyChain: "adjustment",
+    key: "adjustment", section: "inventory-stock", label: "Stock adjustment", requestable: true, amounted: true, legacyChain: "adjustment",
     legacy: [
       { permission: "inventory.stock.approve", from: 1000, label: "Stock control" },
       { permission: "inventory.stock.approveHigh", from: 25000, label: "Above the limit" },
@@ -76,7 +85,7 @@ export const APPROVAL_TYPES: readonly ApprovalTypeDef[] = [
   // A SUPPLIER'S BILL (Finance → Payables). Asked for from the bill once it is
   // received; approving it is what payment waits on.
   {
-    key: "bill", label: "Supplier bill", requestable: true, amounted: true, legacyChain: "bill",
+    key: "bill", section: "finance-payables", label: "Supplier bill", requestable: true, amounted: true, legacyChain: "bill",
     legacy: [
       { permission: "finance.payables.approve", from: 0, label: "Finance" },
       { permission: "finance.payables.approveHigh", from: 50000, label: "Above the limit" },
@@ -86,7 +95,7 @@ export const APPROVAL_TYPES: readonly ApprovalTypeDef[] = [
   // bill; approved, the tender may be submitted — while the bill still has the
   // value the approval was for.
   {
-    key: "bid", label: "Bid", requestable: true, amounted: true, legacyChain: "tender",
+    key: "bid", section: "tendering-register", label: "Bid", requestable: true, amounted: true, legacyChain: "tender",
     legacy: [
       { permission: "tendering.tenders.approve", from: 0, label: "Estimating" },
       { permission: "tendering.tenders.approveHigh", from: 500000, label: "Above the limit" },
@@ -96,7 +105,7 @@ export const APPROVAL_TYPES: readonly ApprovalTypeDef[] = [
   // asking; approved, it may become a purchase order. An estimate with a blank
   // line walks every step — an amount nobody knows is under no limit.
   {
-    key: "requisition", label: "Purchase requisition", requestable: true, amounted: true, legacyChain: "requisition",
+    key: "requisition", section: "procurement-requisitions", label: "Purchase requisition", requestable: true, amounted: true, legacyChain: "requisition",
     legacy: [
       { permission: "procurement.requisitions.approve", from: 0, label: "Procurement" },
       { permission: "procurement.requisitions.approveHigh", from: 10000, label: "Above the limit" },
@@ -105,26 +114,26 @@ export const APPROVAL_TYPES: readonly ApprovalTypeDef[] = [
   // A PAYROLL RUN (HR → Payroll). Asked for on a draft run; approved, its bank
   // files are made and it can be paid.
   {
-    key: "payroll", label: "Payroll run", requestable: true, amounted: true,
+    key: "payroll", section: "hr-payroll", label: "Payroll run", requestable: true, amounted: true,
     legacy: [{ permission: "hr.payroll.approve", from: 0, label: "Payroll" }],
   },
   // AN EXPENSE CLAIM (Finance → Payables & Expenses). Submitting it is asking;
   // approved, the open advance takes its part and it posts.
   {
-    key: "claim", label: "Expense claim", requestable: true, amounted: true,
+    key: "claim", section: "finance-payables", label: "Expense claim", requestable: true, amounted: true,
     legacy: [{ permission: "finance.claims.approve", from: 0, label: "Finance" }],
   },
   // A VARIATION to a contract (CRM & Sales → Contracts). Submitting it is
   // asking; only an approved one moves the contract value.
   {
-    key: "change-order", label: "Change order", requestable: true, amounted: true,
+    key: "change-order", section: "crm-sales-contracts", label: "Change order", requestable: true, amounted: true,
     legacy: [{ permission: "crmSales.contracts.approve", from: 0, label: "Contracts" }],
   },
   // A TIMESHEET (Projects). Submitting it is asking. It had no approve right
   // of its own — whoever could edit projects answered it — so that is who its
   // default step names until a studio saves the type.
   {
-    key: "timesheet", label: "Timesheet", requestable: true, amounted: true,
+    key: "timesheet", section: "projects-list", label: "Timesheet", requestable: true, amounted: true,
     legacy: [{ permission: "projects.list.edit", from: 0, label: "Projects" }],
   },
   // A REVISION OF A CONTROLLED DOCUMENT (Engineering & Documents → register).
@@ -132,7 +141,7 @@ export const APPROVAL_TYPES: readonly ApprovalTypeDef[] = [
   // the two are different acts, so nobody answers both — the owner included.
   // A document that names its own reviewer and approver asks exactly them.
   {
-    key: "document-revision", label: "Document revision", requestable: true, distinctSigners: true,
+    key: "document-revision", section: "engineering-docs-register", label: "Document revision", requestable: true, distinctSigners: true,
     legacy: [
       { permission: "engineeringDocs.register.review", from: 0, label: "Review" },
       { permission: "engineeringDocs.register.approve", from: 0, label: "Approval" },
@@ -142,14 +151,14 @@ export const APPROVAL_TYPES: readonly ApprovalTypeDef[] = [
   // Asked for with a reason; the release is written in the approver's name, and
   // the approver may then not record that payment.
   {
-    key: "payment-release", label: "Payment release", requestable: true, amounted: true,
+    key: "payment-release", section: "finance-payables", label: "Payment release", requestable: true, amounted: true,
     legacy: [{ permission: "finance.payables.release", from: 0, label: "Release" }],
   },
   // A LEAVE REQUEST (HR → Leave). Asking for leave is asking; a yes makes it
   // Approved and a no Declined. A manager filing somebody else's leave has
   // already decided and asks nobody.
   {
-    key: "leave", label: "Leave request", requestable: true,
+    key: "leave", section: "hr-leave", label: "Leave request", requestable: true,
     legacy: [{ permission: "hr.vacations.approve", from: 0, label: "Leave" }],
   },
   { key: "carried", label: "Carried over", requestable: false },
@@ -158,3 +167,14 @@ export const APPROVAL_TYPES: readonly ApprovalTypeDef[] = [
 export const APPROVAL_TYPE_KEYS = APPROVAL_TYPES.map((t) => t.key);
 
 export const approvalType = (key: unknown) => APPROVAL_TYPES.find((t) => t.key === key) || null;
+
+/**
+ * IS THIS TYPE'S DEPARTMENT ONE THE STUDIO RUNS, asked of the studio's own
+ * switches (`switchboard` in lib/dashboardWidgets, the one the dashboards use).
+ * A type naming no department, or one this build no longer knows, is available:
+ * the answer only ever moves an approval down the page, so "unknown" must not.
+ */
+export function approvalAvailable(type: unknown, on: (sectionKey: string) => boolean): boolean {
+  const section = approvalType(type)?.section;
+  return section ? on(section) : true;
+}

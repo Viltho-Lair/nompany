@@ -206,5 +206,29 @@ ok("a personal deny is honoured, and a cashier is not asked", !seeded.steps[0].a
 ok("any one of them may answer, as one signature did before", seeded.steps[0].requireAll === false);
 ok("a type with no old right has no default: it waits to be set up", M.defaultSetting("quotation", {}, people, roles) === null);
 
+// ---- which department a type is worked in (19/09/2026) ----------------------
+// The Approvals page lists a switched-off department's approvals BENEATH the
+// rest. A type naming a key that is not a section, or a filed-only row nobody
+// switches, would sit in the wrong list for ever and nothing would say so.
+{
+  const K = await import("@/platform/db/keys");
+  const { switchboard } = await import("@/lib/dashboardWidgets");
+  const known = new Set(K.ALL_SECTION_KEYS);
+  const wrong = R.APPROVAL_TYPES.filter((t) => t.requestable && (!t.section || !known.has(t.section) || K.isFiledOnlySection(t.section)));
+  ok("every requestable type names a real, switchable department", wrong.length === 0, wrong.map((t) => `${t.key}:${t.section}`).join(", "));
+
+  const on = switchboard([
+    { id: "p", key: "pos", enabled: false },
+    { id: "r", key: "pos-returns", parentId: "p", enabled: true },
+    { id: "h", key: "hr", enabled: true },
+    { id: "l", key: "hr-leave", parentId: "h", enabled: false },
+  ]);
+  ok("a till return is not available when Point of Sale is off, even with Returns on", R.approvalAvailable("pos-return", on) === false);
+  ok("leave is not available when Leave is off under a running HR", R.approvalAvailable("leave", on) === false);
+  ok("payroll is available while HR runs", R.approvalAvailable("payroll", on) === true);
+  ok("a carried-over item belongs to no department and stays available", R.approvalAvailable("carried", on) === true);
+  ok("a type this build does not know stays available rather than sinking", R.approvalAvailable("no-such-type", on) === true);
+}
+
 console.log(fails ? `\n${fails} FAILED` : "\napprovals model: all passed");
 process.exit(fails ? 1 : 0);

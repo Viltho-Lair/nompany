@@ -27,7 +27,8 @@ import {
   applyDecision, cleanSetting, decisionProblem, defaultSetting, latestFor, overallFrom, planFor, requestProblem, stepStates, waitingOn,
   type Actor, type Person, type RoleRow,
 } from "./model";
-import { APPROVAL_TYPES, approvalType } from "./registry";
+import { APPROVAL_TYPES, approvalType, approvalAvailable } from "./registry";
+import { switchboard } from "@/lib/dashboardWidgets";
 import { finishApproved, finishRejected, readyToFinish, stepFinished } from "./effects";
 import type { Approval, ApprovalAmount, ApprovalSetting, ApprovalSource, Verdict } from "./schema";
 import type { StudioRef, CollaboratorRef } from "../context";
@@ -116,6 +117,10 @@ export async function listApprovals(ctx: ApprovalsContext) {
   const [rows, people] = await Promise.all([Approvals.find(ctx), listCollaborators(ctx.studio.id)]);
   const alias = Object.fromEntries(people.map((c) => [String(c.id), String(c.alias || "")]));
   const everything = seesEverything(ctx);
+  // WHAT THE STUDIO RUNS decides the ORDER, never whether something is shown:
+  // a switched-off department's approvals are listed below the rest (the owner,
+  // 19/09/2026), because one already asked for still has somebody waiting on it.
+  const on = switchboard(ctx.sections);
 
   const view = (a: Approval) => ({
     id: a.id,
@@ -141,6 +146,8 @@ export async function listApprovals(ctx: ApprovalsContext) {
     // Asked of the same function the write enforces with, so the buttons appear
     // exactly where pressing them succeeds.
     canAnswer: decisionProblem(a, me, "Approved", "") === null,
+    // FALSE when its department is switched off — the screen lists it beneath.
+    available: approvalAvailable(a.type, on),
   });
 
   // Pending first, then newest — what can still move leads.
@@ -442,10 +449,14 @@ export async function approvalSettingsView(ctx: ApprovalsContext) {
   const denied = requirePermission(ctx.access, "approvals.settings.view");
   if (denied) return denied;
   const { settings, people } = await settingsFor(ctx.studio, ctx.settingsSection, ctx.roles);
+  const on = switchboard(ctx.sections);
   return {
     types: APPROVAL_TYPES.filter((t) => t.requestable).map((t) => ({
       key: t.key,
       label: t.label,
+      // Listed beneath the rest when its department is switched off — still
+      // editable, so a studio can set it up before switching the department on.
+      available: approvalAvailable(t.key, on),
       amounted: Boolean(t.amounted),
       steps: settings[t.key]?.steps || [],
       // NOT SAVED YET: today's right holders, worked out on each read. The screen

@@ -16,6 +16,16 @@ files it, naming the record (`source`: its section, id, reference, title, and th
 **The record reads its status from the approval**, never a copy of it — through
 `modules/approvals/reads.ts`, the one place every module asks "is this approved".
 
+**Switched-off departments are listed beneath, never hidden (2026-09-19, the owner).** Every
+type names the department it is worked in (`section` in `modules/approvals/registry.ts`), and
+the page asks the studio's Sections switches — the same `switchboard` the dashboards use. On
+every tab, and in Approvals settings, approvals from departments the studio runs come first; the
+rest follow under **Departments switched off**, still whole and still answerable, because a
+request already made has somebody waiting on it. Switching a department off or on moves its
+approvals between the two lists by itself. A part switched off under a running department
+(Leave under HR) counts as off; so does a running part under a department that is off. Carried
+items and a type this build does not know stay with the available ones.
+
 **The records that ask (2026-09-19):**
 
 | Button | Where | Files | When approved |
