@@ -79,8 +79,8 @@ The other sixteen subsections of the plan, and everything the dashboard's plan n
 - **Audiences & Consent**: lists, segments, per-channel consent ledger, suppression, preference
   centre, data-subject requests. Nothing records marketing consent yet.
 - **Email**, **Messaging** (SMS, WhatsApp, push), **Social Media**, **Paid Ads**: nothing is sent,
-  posted or imported. The owner's open decisions on providers (build or buy, the studio's own
-  accounts or resold credits) are not answered.
+  posted or imported. The owner, 2026-09-19: companies use their own email and SMS
+  tools for now, and nompany does not resell messaging or ad credits (both ledger rows, for later).
 - **Web, Forms & Landing Pages**: no forms, no hosted pages, no visitor tracking. The tracked
   link is built, but nothing reads the tags back when a visitor arrives.
 - **Leads & Scoring**: the owner decided leads stay Sales tickets at the Lead stage and Marketing
