@@ -12,8 +12,6 @@ register(new URL("./loader.mjs", import.meta.url), { data: { root } });
 
 const M = await import("@/modules/approvals/model");
 const R = await import("@/modules/approvals/registry");
-const T = await import("@/modules/approvals/fromTasks");
-const { ApprovalSchema } = await import("@/modules/approvals/schema");
 const Q = await import("@/modules/approvals/reads");
 
 let fails = 0;
@@ -122,50 +120,9 @@ const history = [
 ok("the newest of that type, not the newest of any type", M.latestFor(history, "quotation", "q1").status === "Pending");
 ok("a record with none has none", M.latestFor(history, "quotation", "q9") === null);
 
-console.log("\n== the old board converts as the owner set it");
-const holders = { sales: ["bob"], mng: ["cat", "dan"], fin: ["eve"] };
-const q = T.approvalFromTask({
-  type: "approval", status: "In progress", title: "Approve Q-0042", subjectRef: "Q-0042", quotationId: "q42",
-  createdByCollaboratorId: "ann", createdAt: "2026-09-10T08:00:00Z", completedAt: "",
-  approvals: { sales: { approved: true, byCollaboratorId: "bob", at: "2026-09-11T09:00:00Z" } },
-}, holders);
-ok("a quotation approval keeps its two authorities as ordered steps",
-  q.type === "quotation" && q.steps.map((s) => s.id).join() === "sales,mng" && q.steps[1].approverIds.join() === "cat,dan");
-ok("In progress becomes Pending, and the Sales signature is carried as bob's answer",
-  q.status === "Pending" && q.decisions.length === 1 && q.decisions[0].collaboratorId === "bob");
-ok("the converted approval is now waiting on Management", M.waitingOn(q).join() === "cat,dan");
-ok("it links back to its quotation", q.source.sectionKey === "crm-sales-quotations" && q.source.recordId === "q42");
-ok("it fits the schema", ApprovalSchema.safeParse({ ...q, id: "x", studioId: "s", sectionId: "c" }).success);
-
-const po = T.approvalFromTask({
-  type: "po", status: "Done", title: "PO", createdByCollaboratorId: "ann", createdAt: "c", completedAt: "d",
-  approvals: { mng: { approved: true, byCollaboratorId: "zed", at: "a1" }, fin: { approved: true, byCollaboratorId: "eve", at: "a2" } },
-  po: { description: "Client PO 77", attachmentUrl: "https://blob/x.pdf", attachmentName: "po.pdf" },
-}, holders);
-ok("Done becomes Approved, decided when it was completed", po.status === "Approved" && po.decidedAt === "d");
-ok("a manager who signed for an authority they did not hold stays attributed",
-  po.steps[0].approverIds.includes("zed") && M.overallFrom(po.steps, po.decisions) === "Approved");
-ok("the client's PO document is carried", po.attachment?.name === "po.pdf" && po.note.includes("Client PO 77"));
-
-const hand = T.approvalFromTask({
-  type: "", status: "Blocked", title: "Fix the gate", description: "North gate", assigneeCollaboratorId: "bob",
-  createdByCollaboratorId: "ann", createdAt: "c2", completedAt: "", dueDate: "2026-09-30", projectId: "p1",
-  checklist: [{ id: "k1", text: "Buy hinge", done: true }],
-}, holders);
-ok("a hand-written task is carried, never requestable", hand.type === "carried" && R.approvalType("carried").requestable === false);
-ok("Blocked becomes Rejected", hand.status === "Rejected" && hand.decidedAt === "c2");
-ok("the writer requested it and the assignee approves it",
-  hand.requestedByCollaboratorId === "ann" && hand.steps[0].approverIds.join() === "bob");
-ok("what was written down is kept in words", hand.note.includes("North gate") && hand.note.includes("Due 2026-09-30") && hand.note.includes("[x] Buy hinge"));
-ok("it links to its project", hand.source.sectionKey === "projects-list" && hand.source.recordId === "p1");
-ok("a rejected carried task shows no step waiting", M.stepStates(hand)[0].state === "Closed");
-
-const orphan = T.approvalFromTask({ type: "", status: "Open", title: "x", createdByCollaboratorId: "ann", createdAt: "c" }, {});
-ok("an unassigned hand-written task converts with an empty step that never approves itself",
-  orphan.status === "Pending" && orphan.steps[0].approverIds.length === 0 && M.overallFrom(orphan.steps, []) === "Pending");
-ok("every old type converts to a registered one",
-  ["approval", "po", "material-po", "delivery", "delivery-return", "id-update", "permit-request"]
-    .every((type) => R.APPROVAL_TYPE_KEYS.includes(T.approvalFromTask({ type, status: "Open" }, {}).type)));
+console.log("\n== approvals carried over from the old board stay answerable and never asked for again");
+ok("a carried approval is a registered type nobody can request",
+  R.APPROVAL_TYPE_KEYS.includes("carried") && R.approvalType("carried").requestable === false);
 
 console.log("\n== a record reads its status from its approval, never a copy");
 const qApproval = (status, at, recordId = "q1", requestedAt = "2026-09-10") => ({

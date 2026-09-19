@@ -62,16 +62,17 @@ is the authority. Two rights exist, held by the owner and Admins and given to ot
 **Who is told.** The people on a step when it opens; the requester when it is decided either way.
 
 **The code:** `modules/approvals/` — `model.ts` (the rules, pure, `tests/approvals-model.mjs`),
-`registry.ts` (the types — a new one is a row there plus its button), `approvals.ts` (the store),
-`fromTasks.ts` (the one-off conversion of the old board, deleted once it has run). Screen:
-`components/studio2/StudioApprovals.js`.
+`registry.ts` (the types — a new one is a row there plus its button), `approvals.ts` (the store).
+Screen: `components/studio2/StudioApprovals.js`.
+
+**The old board's items were converted on 19/09/2026** and the board's stored rows removed from
+every studio. What it had left became approvals of their own types, and the hand-written ones
+became `carried` approvals, which can be answered but never requested. The conversion code went
+once it had run. What it deleted is in the export the owner holds.
 
 **Not built yet on the page:** only the two buttons above exist — Material PO, Delivery,
 Delivery return, ID update and Permit request have no record to ask from yet, and neither do the
-records the amount chains sign; **the old board's items are not converted until the
-conversion runs** (`scripts/migrate/tasks-to-approvals.mjs`, then `remove-tasks.mjs` — the order
-is in `docs/progress.md`), and until then a quotation approved on the old board reads as not
-approved; Nova reads a person's approvals but cannot answer one; the amount chains above have not moved onto it; no signer PIN, no amount limits, no reminders, no delegation, and no withdrawing a
+records the amount chains sign; Nova reads a person's approvals but cannot answer one; the amount chains above have not moved onto it; no signer PIN, no amount limits, no reminders, no delegation, and no withdrawing a
 request. **A step whose only approver leaves the studio cannot be answered by anybody**, and
 an approval waiting on it waits for ever — there is no reassigning yet.
 

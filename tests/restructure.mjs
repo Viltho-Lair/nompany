@@ -225,9 +225,6 @@ const KNOWN_COLLISIONS = {
   "src/shared/marketing/enquiry.ts": [
     { value: "sales", reason: "where the mailbox code is defined and returned" },
   ],
-  "src/modules/approvals/fromTasks.ts": [
-    { value: "sales", reason: "a stored authority code of the old board, read once when it converts to approvals; leaves with that file" },
-  ],
   "src/lib/dashboardWidgets.ts": [
     { value: "technical.rfq-funnel", reason: "a FROZEN per-tier dashboard-widget key (renaming one is a data migration)" },
   ],
