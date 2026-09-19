@@ -26,9 +26,6 @@ import { roundMoney } from "@/shared/money";
 import { creditedSoFar } from "./creditNotes";
 import { withholdingProblems, cleanWithholding, withholdingOn, settledWith } from "./withholding";
 import type { WithholdingRule } from "./withholding";
-import { approvalChainsFor } from "@/platform/approval/store";
-import { SEEDED_CHAINS, chainProblems } from "@/platform/approval/chains";
-import type { ApprovalChain } from "@/platform/approval/chains";
 import { repo } from "@/platform/db/repo";
 import { TAXONOMIES, resolveValue, admits } from "@/modules/administration/taxonomy";
 import { getSectionByKey, updateSection } from "@/platform/db/sections";
@@ -129,13 +126,10 @@ export const financeContext = moduleContext<FinanceContext>({
     approvals: "approvals",
   },
   flags: ["cash", "ledger", "payables", "assets", "settings", "receivables", "tax", "reports", "budgets"],
-  extend: ({ settingsSection, studio }) => ({
+  extend: ({ settingsSection }) => ({
     cashCategories: readCashCategories(settingsSection as { settings?: Record<string, unknown> }),
     withholdingRules: readWithholdingRules(settingsSection as { settings?: Record<string, unknown> }),
     paymentHold: readHold(settingsSection as { settings?: Record<string, unknown> }),
-    // The studio's own chains layered over what Finance stored before the
-    // store moved — see readApprovalChains.
-    approvalChains: readApprovalChains(settingsSection as { settings?: Record<string, unknown> }, studio),
   }),
 });
 
@@ -170,31 +164,6 @@ export function readCashCategories(settingsSection: { settings?: Record<string, 
     out.push(t);
   }
   return out.length ? out : [...DEFAULT_CASH_CATEGORIES];
-}
-
-/**
- * THE APPROVAL CHAINS THIS STUDIO USES — now read from the STUDIO, not from
- * here.
- *
- * THE MOVE POINT ARRIVED, exactly as this comment used to predict it would: a
- * chain governing a record outside Finance does not belong in Finance's
- * settings, and Tendering's bid review is that record. The store is
- * `platform/approval/store`, on the studio beside its currency; this function
- * is now the COMPATIBILITY READ for what a studio configured before the move.
- *
- * It stays rather than being migrated because a manual backfill gets forgotten
- * — `administration-access` shipped and was still missing from two of three
- * live studios two days later with nothing complaining. `approvalChainsFor`
- * layers the studio's own OVER this, so the first edit in Studio settings
- * becomes the answer and stays it.
- */
-export function readApprovalChains(
-  settingsSection: { settings?: Record<string, unknown> } | null | undefined,
-  // An index-signature bag, not a declared optional field — see store.ts.
-  studio?: { readonly [key: string]: unknown } | null,
-): Record<string, ApprovalChain> {
-  const raw = settingsSection?.settings?.approvalChains;
-  return approvalChainsFor(studio, (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>);
 }
 
 export async function saveFinanceSettings(ctx: FinanceContext, body: Record<string, unknown>) {
@@ -236,22 +205,20 @@ export async function saveFinanceSettings(ctx: FinanceContext, body: Record<stri
   // list is kept as empty — a studio that wants no manual tasks has none.
   if (body?.closeTasks !== undefined) next.closeTasks = readCloseTasks(Array.isArray(body.closeTasks) ? body.closeTasks : []);
 
-  // APPROVAL CHAINS ARE NOT EDITED HERE ANY MORE — Studio settings → Approvals
-  // is their one door (platform/approval/store, STUDIO_EDITABLE_CHAINS). This
-  // route accepted every type, replaced the whole blob on each save and was the
-  // only writer for stock adjustments, with no screen calling it. REFUSED rather
-  // than ignored, before anything is written: a client still sending chains
-  // here must hear that they were not saved, not see a success that governs
-  // nothing. What Finance stored before stays READ (`readApprovalChains`).
+  // APPROVAL CHAINS ARE NOT EDITED HERE — nor anywhere since 19/09/2026: who
+  // approves what, and above what amount, is Approvals settings'. This route
+  // once accepted every type and replaced the whole blob on each save. REFUSED
+  // rather than ignored, before anything is written: a client still sending
+  // chains must hear that they were not saved, not see a success that governs
+  // nothing.
   if (body?.approvalChains !== undefined) {
-    return { error: "refused" as const, detail: "Approval chains are edited in Studio settings → Approvals." };
+    return { error: "refused" as const, detail: "Who approves what is set in Approvals → Approval settings." };
   }
 
   const updated = await updateSection(studio.id, settingsSection.id, { settings: next });
   return updated
     ? {
       cashCategories: readCashCategories({ settings: next }),
-      approvalChains: readApprovalChains({ settings: next }),
       withholdingRules: readWithholdingRules({ settings: next }),
       paymentHold: readHold({ settings: next }),
       dunningDays: readDunningDays(next.dunningDays),

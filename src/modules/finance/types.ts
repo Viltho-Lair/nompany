@@ -9,7 +9,6 @@ export type { Account, JournalLine, JournalEntry } from "./schema";
 export type { Bill, FixedAsset } from "./schema";
 
 import type { Invoice } from "./schema";
-import type { ApprovalChain } from "@/platform/approval/chains";
 import type { HoldSettings } from "./hold";
 
 /** What `invoiceTotals` computes. Derived on every read, never stored. */
@@ -82,8 +81,6 @@ export type FinanceContext = ModuleContext & {
   cashCategories: string[];
   /** The studio's withholding rules. Empty where the jurisdiction has none. */
   withholdingRules: WithholdingRule[];
-  /** The bill approval chains this studio uses — seeds merged with its overrides. */
-  approvalChains: Record<string, ApprovalChain>;
   /** Whether a bill that disagrees with its order, or names a lapsed supplier, may be paid. Off by default. */
   paymentHold: HoldSettings;
 };

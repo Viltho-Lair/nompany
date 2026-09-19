@@ -1,11 +1,8 @@
 import { route, refused } from "@/platform/http/route";
-import { signingPinProblem } from "@/platform/auth/lock";
-import { requirePermission } from "@/platform/access";
 import {
   procurementContext, listRequisitions, createRequisition,
   editRequisition, moveRequisition, removeRequisition,
 } from "@/modules/procurement/requisitions";
-import { requisitionReview, answerRequisition, notifyNextSigner } from "@/modules/procurement/approval";
 import { referencePickers } from "@/modules/procurement/pickers";
 import { raiseFromBulk } from "@/modules/procurement/fromBulk";
 
@@ -21,25 +18,18 @@ export const GET = route({ ...spec, body: false }, async (procurement) => {
   const result = await listRequisitions(procurement);
   if (refused(result)) return result;
 
-  // THE REVIEW TRAVELS WITH THE LIST, so the screen can draw how far each
-  // request has got and whether this reader could sign it — without a second
-  // call per row. It costs no round trip: `requisitionPlan` reads no store and
-  // makes no FX call, because a requisition is already in the studio's
-  // currency (see modules/procurement/approval.ts).
-  const [reviews, pickers] = await Promise.all([
-    Promise.all(result.requisitions.map((r) => requisitionReview(procurement, r))),
-    // WHAT THE FORM PICKS FROM: the supplier, the project and its cost codes,
-    // and each line's Registered Item — all typed as raw ids until now.
-    referencePickers(procurement.studio, {
-      suppliers: procurement.suppliersSection,
-      projects: procurement.projectsListSection,
-      items: procurement.itemsSection,
-    }, { suppliers: true, projects: true, costCodes: true, items: true }),
-  ]);
+  // WHAT THE FORM PICKS FROM: the supplier, the project and its cost codes,
+  // and each line's Registered Item — all typed as raw ids until now. Each
+  // request already carries how far its approval has got (listRequisitions).
+  const pickers = await referencePickers(procurement.studio, {
+    suppliers: procurement.suppliersSection,
+    projects: procurement.projectsListSection,
+    items: procurement.itemsSection,
+  }, { suppliers: true, projects: true, costCodes: true, items: true });
 
   return {
     ok: true,
-    requisitions: result.requisitions.map((r, i) => ({ ...r, review: reviews[i] })),
+    requisitions: result.requisitions,
     asOf: result.asOf,
     // THE RIGHTS TRAVEL WITH THE ANSWER, so the screen draws a control only
     // where the service would accept what is behind it.
@@ -49,11 +39,6 @@ export const GET = route({ ...spec, body: false }, async (procurement) => {
     canOrder: result.canOrder,
     canPlace: result.canPlace,
     pickers,
-    // Holding an approval right does not mean this person may sign THIS
-    // request — `review.next` answers that per row, and this only says whether
-    // to draw the column at all.
-    canApprove: !requirePermission(procurement.access, "procurement.requisitions.approve")
-      || !requirePermission(procurement.access, "procurement.requisitions.approveHigh"),
   };
 });
 
@@ -75,36 +60,15 @@ export const PUT = route(spec, async (procurement) => {
   const id = String(procurement.body.id);
   const action = String(procurement.body.action || "");
 
-  // THREE ACTS, THREE BRANCHES, matching the service. Only the last carries
-  // invariant 7, and it is deliberately not reachable through the edit path —
-  // a generic PUT accepting a status would route an approval around the
-  // submitter check, which is the defect the change-order route shipped with.
+  // TWO ACTS BESIDE THE EDIT: submit (which asks for the request's approval)
+  // and cancel. APPROVING IS NOT HERE: it is answered on the Approvals page
+  // (19/09/2026), and a generic PUT accepting a status would route an approval
+  // around its approvers — the defect the change-order route shipped with.
   if (action === "submit" || action === "cancel") {
     const moved = await moveRequisition(
       procurement, id, action === "submit" ? "Submitted" : "Cancelled");
     if (refused(moved)) return moved;
-    // A SUBMITTED REQUEST IS A QUESTION, so whoever answers the first step hears it.
-    if (action === "submit" && moved.requisition) await notifyNextSigner(procurement, moved.requisition);
-    return { ok: true, requisition: moved.requisition };
-  }
-
-  if (action === "approve" || action === "reject") {
-    // THE SIGNER'S PIN, before a signature (platform/auth/lock.ts). Rejecting
-    // commits nobody to anything and is not asked.
-    if (action === "approve") {
-      const pinGate = await signingPinProblem(procurement.studio, procurement.user.id, procurement.body.pin);
-      if (pinGate) return pinGate;
-    }
-    // THE BOOLEAN IS COMPUTED HERE, never the body forwarded. Passing
-    // `procurement.body` where a boolean is expected is exactly how rejecting a
-    // variation came to approve it: an object is truthy, the compiler cannot
-    // see it, and no test could reach the transition.
-    const answered = await answerRequisition(
-      procurement, id, action === "approve", String(procurement.body.reason || ""));
-    if (refused(answered)) return answered;
-    // A signature that was not the last hands the request to the next step.
-    if (action === "approve" && answered.requisition) await notifyNextSigner(procurement, answered.requisition);
-    return { ok: true, requisition: answered.requisition, approved: answered.approved };
+    return { ok: true, requisition: moved.requisition, ...(moved.approvalProblem ? { approvalProblem: moved.approvalProblem } : {}) };
   }
 
   const result = await editRequisition(procurement, id, procurement.body);

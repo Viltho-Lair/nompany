@@ -52,6 +52,7 @@ const HANDLERS: Record<string, () => Promise<Handler>> = {
   adjustment: async () => (await import("@/modules/inventory/adjustmentApproval")).adjustmentApproval,
   bill: async () => (await import("@/modules/finance/payables")).billApproval,
   bid: async () => (await import("@/modules/tendering/bid")).bidApproval,
+  requisition: async () => (await import("@/modules/procurement/approval")).requisitionApproval,
 };
 
 const handlerFor = async (type: string): Promise<Handler | null> => (HANDLERS[type] ? HANDLERS[type]() : null);

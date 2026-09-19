@@ -137,20 +137,6 @@ type Strings = {
   legalLead: string;
   legalLabelFor: (i: number) => string;
   legalValueFor: (i: number) => string;
-  // ---- approvals (tier 5) ----
-  approvalsHeading: string;
-  approvalsLead: string;
-  chainName: (type: string) => string;
-  rightName: (permission: string) => string;
-  stepLabel: string;
-  stepRight: string;
-  stepFrom: string;
-  stepFromHint: string;
-  addStep: string;
-  removeStep: string;
-  noneBelowFirst: string;
-  saveApprovals: string;
-  approvalsSaved: string;
   removeNamed: (what: string) => string;
   rowNumber: (i: number) => string;
   addAnother: string;
@@ -414,19 +400,6 @@ const en: Strings = {
     "Whatever this studio has to state about itself — registration number, VAT number, licence. Each one is a label and what it says.",
   legalLabelFor: (i) => `Legal information label ${i}`,
   legalValueFor: (i) => `Legal information value ${i}`,
-  approvalsHeading: "Approvals",
-  approvalsLead: "Who signs what, and above which amount. Each step is a right, not a person: whoever holds it may sign, and nobody signs two steps of one record. Amounts are in the studio's currency.",
-  chainName: (type) => EN_CHAINS[type] || type,
-  rightName: (permission) => EN_RIGHTS[permission] || permission,
-  stepLabel: "Step name",
-  stepRight: "Who may sign",
-  stepFrom: "From amount",
-  stepFromHint: "Applies at or above this amount. 0 means always.",
-  addStep: "Add a step",
-  removeStep: "Remove step",
-  noneBelowFirst: "Nothing below the first step needs a signature",
-  saveApprovals: "Save approvals",
-  approvalsSaved: "Saved",
   removeNamed: (what) => `Remove ${what}`,
   rowNumber: (i) => `row ${i}`,
   addAnother: "Add another",
@@ -700,19 +673,6 @@ const ar: Strings = {
     "ما يلزم هذا الاستوديو الإفصاح عنه — رقم السجل، الرقم الضريبي، الترخيص. كل واحدة عنوان وما يقابله.",
   legalLabelFor: (i) => `عنوان المعلومة القانونية ${i}`,
   legalValueFor: (i) => `قيمة المعلومة القانونية ${i}`,
-  approvalsHeading: "الاعتمادات",
-  approvalsLead: "من يوقع على ماذا، وفوق أي مبلغ. كل خطوة صلاحية وليست شخصا: من يملكها يوقع، ولا يوقع أحد خطوتين في السجل نفسه. المبالغ بعملة الاستوديو.",
-  chainName: (type) => AR_CHAINS[type] || type,
-  rightName: (permission) => AR_RIGHTS[permission] || permission,
-  stepLabel: "اسم الخطوة",
-  stepRight: "من يوقع",
-  stepFrom: "من مبلغ",
-  stepFromHint: "تسري عند هذا المبلغ أو أعلى. 0 تعني دائما.",
-  addStep: "إضافة خطوة",
-  removeStep: "حذف الخطوة",
-  noneBelowFirst: "لا يحتاج ما دون الخطوة الأولى إلى توقيع",
-  saveApprovals: "حفظ الاعتمادات",
-  approvalsSaved: "حُفظ",
   removeNamed: (what) => `إزالة ${what}`,
   rowNumber: (i) => `الصف ${i}`,
   addAnother: "إضافة صف آخر",
@@ -855,25 +815,6 @@ const ar: Strings = {
 };
 
 const settings = { en, ar };
-
-// THE FOUR CHAINS AND THE RIGHTS THEIR STEPS NAME, in words — a permission key
-// on a settings screen is a string nobody outside this codebase reads. Keyed by
-// the stored token so a relabel cannot orphan a translation. HAND-WRITTEN, NO
-// DIACRITICS. A step label is the studio's own and is never translated.
-const EN_CHAINS: Record<string, string> = {
-  requisition: "Purchase requisitions",
-};
-const AR_CHAINS: Record<string, string> = {
-  requisition: "طلبات الشراء",
-};
-const EN_RIGHTS: Record<string, string> = {
-  "procurement.requisitions.approve": "Approve requisitions",
-  "procurement.requisitions.approveHigh": "Approve requisitions above the limit",
-};
-const AR_RIGHTS: Record<string, string> = {
-  "procurement.requisitions.approve": "اعتماد طلبات الشراء",
-  "procurement.requisitions.approveHigh": "اعتماد طلبات الشراء فوق الحد",
-};
 
 export function settingsDict(locale: string): Strings {
   return settings[locale as Locale] || settings[defaultLocale];

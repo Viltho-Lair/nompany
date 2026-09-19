@@ -17,9 +17,6 @@ const root = pathToFileURL(`${process.cwd()}/`).href;
 register(new URL("./loader.mjs", import.meta.url), { data: { root } });
 
 const B = await import("@/modules/tendering/bid");
-const S = await import("@/platform/approval/store");
-const C = await import("@/platform/approval/chains");
-const { ALL_PERMISSIONS } = await import("@/platform/access/catalogue");
 
 let fails = 0;
 const ok = (label, cond, extra = "") => {
@@ -60,108 +57,10 @@ const nil = B.bidValue(tender(), [line(1, 0.0000001)]);
 ok("a bill exists even when it totals nothing", nil.basis === "boq");
 ok("nonsense does not crash the value", B.bidValue(tender({ estimatedValue: "x" }), null).amount === 0);
 
-console.log("\n== whose chain routes it");
-
-// SEEDED, so a studio that has configured nothing is still governed. A tender
-// chain resolving to nothing would mean every bid needing no signature at all.
-ok("a tender chain is seeded", (C.SEEDED_CHAINS.tender?.steps || []).length === 2);
-ok("...and its first step is always-on",
-  C.SEEDED_CHAINS.tender.steps[0].from === 0, String(C.SEEDED_CHAINS.tender.steps[0].from));
-// A CHAIN NAMING A RIGHT THE PRODUCT DOES NOT HAVE blocks every record reaching
-// it, silently and forever. The seeds are the one chain nobody validates on
-// write, so they are validated here instead — the ones a studio can still edit.
-// A type that moved onto the Approvals page lost its rights with the move, and
-// its seed is only the default steps there (modules/approvals/model).
-for (const [type, chain] of Object.entries(C.SEEDED_CHAINS).filter(([t]) => S.STUDIO_EDITABLE_CHAINS.includes(t))) {
-  ok(`the seeded ${type} chain is one a studio could have saved`,
-    C.chainProblems(chain, ALL_PERMISSIONS).length === 0,
-    C.chainProblems(chain, ALL_PERMISSIONS).join("; "));
-}
-
-// A CHAIN THAT SIGNS NOTHING AT THE BOTTOM IS STILL REFUSED unless it says it
-// meant to. The stock adjustment chain deliberately starts at 1000 — a shelf
-// corrected by one is not a write-off — and until `noApprovalBelowFirstStep`
-// existed the product shipped a seed its own editor would have rejected. The
-// pair below is what stops that flag becoming a blanket excuse: without it the
-// same chain is still a hole.
-const holed = { type: "requisition", steps: [{ permission: "procurement.requisitions.approve", from: 500, label: "Procurement" }] };
-ok("a chain with nothing at the bottom is refused",
-  C.chainProblems(holed, ALL_PERMISSIONS).some((p) => /no approval at all/.test(p)));
-ok("...and accepted once it says that is the policy",
-  C.chainProblems({ ...holed, noApprovalBelowFirstStep: true }, ALL_PERMISSIONS).length === 0,
-  C.chainProblems({ ...holed, noApprovalBelowFirstStep: true }, ALL_PERMISSIONS).join("; "));
-// THE FLAG EXCUSES ONE THING ONLY. It must not wave through a chain that names
-// a right the product does not have, which is the refusal most worth keeping.
-ok("...but it excuses nothing else",
-  C.chainProblems({ type: "bill", noApprovalBelowFirstStep: true,
-    steps: [{ permission: "finance.madeup.approve", from: 500, label: "X" }] }, ALL_PERMISSIONS)
-    .some((p) => /not a permission this product has/.test(p)));
-
-console.log("\n== where a studio's chains come from");
-
-const seedFirst = S.approvalChainsFor(null);
-ok("no studio at all still gets the built-ins",
-  Boolean(seedFirst.bill && seedFirst.tender));
-
-const legacy = { bill: { type: "bill", steps: [{ permission: "finance.payables.approve", from: 0, label: "Old" }] } };
-// FINANCE'S OLD BLOB IS READ RATHER THAN MIGRATED, because a manual backfill
-// gets forgotten. A studio that configured a bill chain before the store moved
-// keeps it with nobody running anything.
-ok("what Finance stored before the move still governs",
-  S.approvalChainsFor(null, legacy).bill.steps[0].label === "Old");
-
-const own = { bill: { type: "bill", steps: [{ permission: "finance.payables.approve", from: 0, label: "New" }] } };
-// AND THE STUDIO'S OWN WINS, so the first edit in Studio settings becomes the
-// answer and stays it. Layered rather than either-or: reading is deterministic
-// even while two places can hold something.
-ok("the studio's own overrides the legacy blob",
-  S.approvalChainsFor({ approvalChains: own }, legacy).bill.steps[0].label === "New");
-ok("...and an untouched type still falls through to its seed",
-  S.approvalChainsFor({ approvalChains: own }, legacy).tender.steps.length === 2);
-
-// A STORED CHAIN WITH NO STEPS IS A BROKEN ROW, not an override. Honouring it
-// would leave the studio approving nothing — the exact hole chainProblems
-// refuses on write.
-ok("an empty stored chain does not blank the seed",
-  S.approvalChainsFor({ approvalChains: { tender: { type: "tender", steps: [] } } }).tender.steps.length === 2);
-ok("nonsense on the studio is ignored",
-  S.approvalChainsFor({ approvalChains: "x" }).tender.steps.length === 2);
-
-console.log("\n== what studio settings may write");
-
-const edited = { requisition: { type: "requisition", steps: [{ permission: "procurement.requisitions.approve", from: 0, label: "Me" }] } };
-const saved = S.approvalChainOverrides(edited);
-ok("a requisition chain may be saved there", saved.chains?.requisition?.steps.length === 1);
-// BIDS LEFT THIS EDITOR on 19/09/2026 too, for Approvals settings.
-const tenderHere = S.approvalChainOverrides({ tender: C.SEEDED_CHAINS.tender });
-ok("a bid chain is refused here now", typeof tenderHere.error === "string", JSON.stringify(tenderHere));
-
-// ONE DOOR PER TYPE. Bills and stock adjustments LEFT this editor on
-// 19/09/2026 for Approvals settings, where their steps name people; saving one
-// here would show a limit that governs nothing, so it is refused by name.
-const billHere = S.approvalChainOverrides({ bill: C.SEEDED_CHAINS.bill });
-ok("a bill chain is refused here now — bills are set up in Approvals settings",
-  typeof billHere.error === "string" && !("chains" in billHere), JSON.stringify(billHere));
-const adjustmentHere = S.approvalChainOverrides({ adjustment: C.SEEDED_CHAINS.adjustment });
-ok("...and so is the stock adjustment chain",
-  typeof adjustmentHere.error === "string" && !("chains" in adjustmentHere), JSON.stringify(adjustmentHere));
-const nonsense = S.approvalChainOverrides({ payroll: C.SEEDED_CHAINS.bill });
-ok("a type nothing approves is refused rather than dropped, so nobody saves a screen governing nothing",
-  typeof nonsense.error === "string" && !("chains" in nonsense), JSON.stringify(nonsense));
-
-// SETTING A CHAIN BACK TO ITS SEED OVER FINANCE'S OLD BLOB MUST BE STORED — the
-// legacy layer sits beneath the studio's, so dropping it would keep enforcing
-// the old chain behind a screen that says the built-in is in force.
-const legacyReq = { requisition: { type: "requisition", steps: [{ permission: "procurement.requisitions.approve", from: 0, label: "Old" }] } };
-const reset = S.approvalChainOverrides({ requisition: C.SEEDED_CHAINS.requisition }, undefined, legacyReq);
-ok("a reset to the seed over a legacy chain is kept", reset.chains?.requisition?.steps.length === 2, JSON.stringify(reset));
-ok("...and wins when read", S.approvalChainsFor({ approvalChains: reset.chains }, legacyReq).requisition.steps.length === 2);
-
-// SAVING WITHOUT CHANGING ANYTHING MUST NOT FORK THE BUILT-IN, or merely
-// looking at the editor would stop a studio ever receiving a correction to it.
-const untouched = S.approvalChainOverrides({ requisition: C.SEEDED_CHAINS.requisition });
-ok("a chain identical to its seed is not stored at all",
-  Object.keys(untouched.chains || {}).length === 0, JSON.stringify(untouched.chains));
+// THE CHAIN THAT ROUTED A BID, THE STORE BENEATH IT AND THE EDITOR THAT WROTE
+// IT were asserted here until bids moved onto the Approvals page (19/09/2026).
+// What is left of them — the seeds read as a type's default steps — is asserted
+// in tests/approval-model.mjs; who answers is tests/approvals-model.mjs'.
 
 console.log("\n== the refusal a bid adds to the ladder");
 

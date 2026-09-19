@@ -24,6 +24,22 @@ The only control a studio had over its spending was **who held `inventory.stock.
 a right cannot express a limit. "The FD sees the big ones" therefore meant withholding
 ordering from everybody who handles the small ones: a bottleneck, not a control.
 
+## Since 19/09/2026 — approved on the Approvals page
+
+**Submitting a draft is asking for its approval** (type `requisition`), answered on the Approvals
+page by the people Approvals settings name, amount limits included. Until a studio saves the
+type they are whoever held `procurement.requisitions.approve` (from 0) and `.approveHigh`
+(from 10,000, or the studio's own), plus the owner and Admins; both rights are gone from the
+catalogue. The last yes makes it **Approved**; a no makes it **Rejected** with the reason.
+Nobody named refuses the submit in words (`not-configured`, `no-approver`) and leaves it a
+draft. **A request with an unestimated line is asked of every step**, because an amount nobody
+knows is under no limit — the audit's gap 9, where blank prices routed a request low. A request
+submitted before that day gets its approval the first time the register is read, carrying its
+signatures. **A request cancelled while its approval waits** refuses a later yes on the
+Approvals page (`already-decided`); the approver turns it down instead.
+
+The sections below describe the engine that signed requisitions until then.
+
 ## Who may do what
 
 **One area, `procurement.requisitions`**, with `approve` and `approveHigh` as **extras**

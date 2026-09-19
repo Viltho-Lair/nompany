@@ -37,6 +37,9 @@ function refusal(tr, token) {
     case "requisition-no-items": return tr.refuseNoItems;
     case "requisition-ordered": return tr.refuseAlreadyOrdered;
     case "not-answerable": return tr.refuseNotAnswerable;
+    // Submitting asks for its approval (19/09/2026): nobody named, or only the asker.
+    case "not-configured": return tr.refuseNotConfigured;
+    case "no-approver": return tr.refuseNoApprover;
     default: return token;
   }
 }
@@ -49,7 +52,6 @@ export default function StudioRequisitions({ slug }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState(null);
-  const [rejecting, setRejecting] = useState(null);
 
   const read = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/procurement/requisitions`, { cache: "no-store" });
@@ -78,6 +80,8 @@ export default function StudioRequisitions({ slug }) {
   // this list, and only the second watch can tell it.
   useLiveUpdates(slug, "procurement-requisitions", reload);
   useLiveUpdates(slug, "inventory-sheets", reload);
+  // Submitting asks for an approval, answered on the Approvals page and written there.
+  useLiveUpdates(slug, "approvals", reload);
 
   const send = useCallback(async (method, payload, path = "procurement/requisitions") => {
     setError(""); setBusy(true);
@@ -160,7 +164,7 @@ export default function StudioRequisitions({ slug }) {
       ) : (
         <div className="space-y-3">
           {requisitions.map((r) => {
-            const rv = r.review || {};
+            const ap = r.approval;
             return (
               <section key={r.id} className={panel}>
                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -196,9 +200,12 @@ export default function StudioRequisitions({ slug }) {
                         ? tr.estimatedValue
                         : tr.partEstimated}
                     </p>
-                    {rv.required > 0 && (
-                      <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
-                        {tr.awaitingSignatures(rv.signed || 0, rv.required)}
+                    {/* HOW FAR ITS APPROVAL HAS GOT, read from the approval. */}
+                    {ap && (
+                      <p className={`mt-1 text-xs ${ap.rejected ? "text-rose-600 dark:text-rose-300" : "text-slate-400 dark:text-slate-500"}`}>
+                        {ap.rejected ? tr.approvalRejected(ap.reason) : tr.approvalStepsOf(ap.granted, ap.required)}
+                        {" · "}
+                        <a href={`/${slug}/approvals`} className="font-600 text-brand-700 hover:underline dark:text-brand-300">{tr.openApprovals}</a>
                       </p>
                     )}
                   </div>
@@ -224,22 +231,6 @@ export default function StudioRequisitions({ slug }) {
                       onClick={() => send("PUT", { id: r.id, action: "cancel" })}>
                       {tr.cancelRequest}
                     </button>
-                  )}
-                  {/* OFFERED ONLY WHERE THE SERVER WOULD ACCEPT IT. `review.next`
-                      is the step THIS reader could sign — it already accounts
-                      for having raised the request and for having signed an
-                      earlier step. */}
-                  {rv.next && (
-                    <>
-                      <button type="button" className={btn} disabled={busy}
-                        onClick={() => send("PUT", { id: r.id, action: "approve" })}>
-                        {tr.approve}
-                      </button>
-                      <button type="button" className={btnRowDanger} disabled={busy}
-                        onClick={() => setRejecting({ id: r.id, reason: "" })}>
-                        {tr.reject}
-                      </button>
-                    </>
                   )}
                   {canOrder && r.status === "Approved" && !r.ordered && (
                     <button type="button" className={btn} disabled={busy}
@@ -372,30 +363,6 @@ export default function StudioRequisitions({ slug }) {
               <button type="button" className={btnGhost} onClick={() => setForm(null)}>{tr.cancel}</button>
               <button type="button" className={btn} disabled={busy || !form.title?.trim()}
                 onClick={saveForm}>{tr.save}</button>
-            </div>
-          </div>
-        </Dialog>
-      )}
-
-      {rejecting && (
-        <Dialog title={tr.reject} onClose={() => setRejecting(null)} width="max-w-[520px]">
-          <div className="space-y-4">
-            {/* A REFUSAL WITH NO REASON TEACHES THE REQUESTER NOTHING, which is
-                why the field is here even though the server accepts a blank. */}
-            <Field label={tr.rejectReason} as="textarea" value={rejecting.reason}
-              onChange={(v) => setRejecting((f) => ({ ...f, reason: v }))}
-              inputProps={{ maxLength: 1000 }} />
-            <div className="flex justify-end gap-2">
-              <button type="button" className={btnGhost} onClick={() => setRejecting(null)}>{tr.cancel}</button>
-              <button type="button" className={btnRowDanger} disabled={busy}
-                onClick={async () => {
-                  const done = await send("PUT", {
-                    id: rejecting.id, action: "reject", reason: rejecting.reason,
-                  });
-                  if (done) setRejecting(null);
-                }}>
-                {tr.reject}
-              </button>
             </div>
           </div>
         </Dialog>

@@ -1,11 +1,12 @@
-// WHAT AN APPROVAL CHAIN IS — the vocabulary, the seeds, and what makes one
-// impossible. Spec: docs/superpowers/specs/2026-09-03-approval-workflow-engine-design.md
+// WHAT AN APPROVAL CHAIN WAS — the vocabulary and the seeds of the engine that
+// signed bills, bids, requisitions and stock adjustments until 19/09/2026.
+// Spec: docs/superpowers/specs/2026-09-03-approval-workflow-engine-design.md
 //
-// PURE, AND THAT IS THE POINT. Nothing here touches the store, so the settings
-// screen imports this file and validates a studio's edit with THE SAME function
-// the server refuses it with. A second copy of the rules is free to disagree
-// with the first, and the copy is what goes stale — the same reasoning that
-// keeps templateProblems in platform/engagement/templates.ts.
+// EVERY ONE OF THOSE IS ANSWERED ON THE APPROVALS PAGE NOW (modules/approvals),
+// by named people in steps. What is left here is read for ONE thing: a type's
+// DEFAULT steps until a studio saves it in Approvals settings — the rights
+// each step named, and the amount it started at (`defaultSetting`, model.ts).
+// The walker, the validator and the editor are gone with the engine.
 //
 // WHY THIS EXISTS AT ALL. Every approval in the product was one step, and one
 // step cannot express a limit: a 200-unit stationery bill and a 2,000,000
@@ -124,66 +125,3 @@ export const SEEDED_CHAINS: Record<string, ApprovalChain> = {
     ],
   },
 };
-
-/**
- * WHY A CHAIN COULD NOT WORK — actionable sentences, never a boolean.
- *
- * Refused ON WRITE, never on read, for flows.ts's stated reason: a studio hears
- * about its own edit while it is still their edit and in words about the edit,
- * rather than discovering it on somebody else's screen at the worst moment.
- *
- * Each of these is invisible at runtime and none of them throws, which is
- * exactly why they are checked here.
- *
- * `knownKeys` is injected rather than imported so this file stays free of the
- * catalogue: a caller already holding ALL_PERMISSIONS passes it, and nothing
- * here has to know how permissions are assembled.
- */
-export function chainProblems(
-  chain: ApprovalChain | null | undefined,
-  knownKeys: readonly string[],
-): string[] {
-  const out: string[] = [];
-  const steps = chain?.steps || [];
-
-  if (!steps.length) {
-    out.push("An approval chain needs at least one step; an empty one would approve nothing.");
-    return out;
-  }
-
-  const known = new Set(knownKeys);
-  const seen = new Set<string>();
-  let previousFrom = -1;
-
-  for (const [i, step] of steps.entries()) {
-    const at = `Step ${i + 1}`;
-
-    if (!known.has(step.permission)) {
-      // A step nobody can ever satisfy blocks every record that reaches it,
-      // silently and forever. This is the refusal most worth having.
-      out.push(`${at} names "${step.permission}", which is not a permission this product has.`);
-    }
-    if (seen.has(step.permission)) {
-      out.push(`${at} names "${step.permission}" twice. One person may not sign two steps of one record, so a repeated right makes the chain unwalkable.`);
-    }
-    seen.add(step.permission);
-
-    if (!Number.isFinite(step.from) || step.from < 0) {
-      out.push(`${at} has no usable threshold. Use 0 for a step that always applies.`);
-    } else if (step.from < previousFrom) {
-      out.push(`${at} starts at ${step.from}, below the step before it (${previousFrom}). Thresholds must ascend, or the order is one nobody can read.`);
-    } else {
-      previousFrom = step.from;
-    }
-  }
-
-  if (!steps.some((s) => s.from === 0) && !chain?.noApprovalBelowFirstStep) {
-    // Without one, an amount below the lowest threshold needs no approval at
-    // all — a hole rather than a policy, and one nobody would notice until a
-    // small bill sailed through. UNLESS THE CHAIN SAYS IT MEANT IT, which is
-    // what the flag is for; see the type.
-    out.push("No step has `from: 0`, so an amount below the lowest threshold would need no approval at all. If that is the policy rather than an oversight, set `noApprovalBelowFirstStep`.");
-  }
-
-  return out;
-}

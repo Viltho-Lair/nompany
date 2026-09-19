@@ -92,6 +92,16 @@ export const APPROVAL_TYPES: readonly ApprovalTypeDef[] = [
       { permission: "tendering.tenders.approveHigh", from: 500000, label: "Above the limit" },
     ],
   },
+  // A PURCHASE REQUISITION (Procurement → Requisitions). Submitting it is
+  // asking; approved, it may become a purchase order. An estimate with a blank
+  // line walks every step — an amount nobody knows is under no limit.
+  {
+    key: "requisition", label: "Purchase requisition", requestable: true, amounted: true, legacyChain: "requisition",
+    legacy: [
+      { permission: "procurement.requisitions.approve", from: 0, label: "Procurement" },
+      { permission: "procurement.requisitions.approveHigh", from: 10000, label: "Above the limit" },
+    ],
+  },
   { key: "carried", label: "Carried over", requestable: false },
 ];
 

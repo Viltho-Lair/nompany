@@ -41,6 +41,8 @@ export type ProcurementContext = ModuleContext & {
   projectsListSection: Section | null;
   itemsSection: Section | null;
   billsSection: Section | null;
+  /** Where a request's approval is filed. */
+  approvalsSection: Section | null;
   canViewSubcontracts: boolean;
   canManageSubcontracts: boolean;
   canViewExpediting: boolean;

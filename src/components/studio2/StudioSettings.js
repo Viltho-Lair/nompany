@@ -17,7 +17,6 @@ import SelectMenu from "@/components/fields/SelectMenu";
 import { actionsForField, OTHER_FIELD } from "@/shared/fieldsOfWork";
 import StudioFlowEditor from "@/components/studio2/StudioFlowEditor";
 import SettingsFold from "@/components/studio2/SettingsFold";
-import ApprovalChainsPanel from "@/components/studio2/ApprovalChainsPanel";
 import SigningPinSetting from "@/components/security/SigningPinSetting";
 import EmploymentRulesPanel from "@/components/studio2/EmploymentRulesPanel";
 import OfficialValuesPanel from "@/components/studio2/OfficialValuesPanel";
@@ -344,25 +343,15 @@ export default function StudioSettings({ slug, locale = "en" }) {
         onSave={save}
       />
 
-      {/* THE FOUR APPROVAL CHAINS, on the settings PUT like every row above.
-          Keyed on the stored chains so a save re-seeds the editor from what the
-          server kept (a chain identical to its seed is dropped there). `tr` is
-          handed down for StudioFlowEditor's reason: the words context here is
-          not exported. */}
-      <ApprovalChainsPanel
-        key={JSON.stringify(studio.approvalChains || {})}
-        chains={studio.approvalChains || {}}
-        canManage={canManage}
-        onSave={save}
-        tr={tr}
-      />
-
-      {/* THE PIN ON A SIGNATURE — whether every signer must type theirs. */}
+      {/* WHO APPROVES WHAT, AND ABOVE WHAT AMOUNT, is Approvals settings' since
+          19/09/2026 — steps of named people, per type. The four amount chains
+          that were edited here moved there, one type at a time.
+          THE PIN ON A SIGNATURE — whether every signer must type theirs. */}
       <SigningPinSetting value={studio.signingPin} canManage={canManage} onSave={save} locale={locale} />
 
       {/* THE EMPLOYMENT RULES — leave allowances, carry-over, how leave days are
           counted. Keyed on what the server stored so a save re-seeds the editor
-          from what was kept, like the chains above. */}
+          from what was kept. */}
       <EmploymentRulesPanel
         key={JSON.stringify(studio.employmentRules || {})}
         rules={studio.employmentRules || {}}

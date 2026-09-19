@@ -1,4 +1,10 @@
-// WHERE A STUDIO'S APPROVAL CHAINS LIVE — one place, for every document type.
+// WHERE A STUDIO'S APPROVAL CHAINS LIVED — one place, for every document type.
+//
+// READ-ONLY SINCE 19/09/2026. The four types they governed moved onto the
+// Approvals page, and the Studio settings editor that wrote them went with the
+// last of them. A chain a studio stored is still READ, for one purpose: a type's
+// default steps in Approvals settings keep the limits that studio had moved,
+// until it saves the type there (`defaultSetting`, modules/approvals/model).
 //
 // THEY USED TO LIVE IN FINANCE'S SETTINGS, and that was correct while bills
 // were the only type there was. `docs/functionality/approvals.md` named the
@@ -67,60 +73,4 @@ export function approvalChainsFor(
     }
   }
   return out;
-}
-
-/**
- * THE TYPES STUDIO SETTINGS MAY EDIT — all four, since 11/09/2026.
- *
- * ONE DOOR PER TYPE, or the two are free to disagree. This said `bill` stayed
- * out because "Finance's settings screen is still the bill chain's editor" —
- * and no such screen had ever existed: the only bill-chain writer was
- * `saveFinanceSettings`'s API, which also accepted every other type and was the
- * ONLY writer for `adjustment`. Tier 5 gave the chains one screen (Studio
- * settings → Approvals); `bill` and `adjustment` joined this list and
- * `saveFinanceSettings` stopped accepting chains in that same commit, which is
- * what this comment always said the move would take.
- */
-//
-// ONE TYPE FEWER AT A TIME, as each moves onto the Approvals page (19/09/2026):
-// its steps and limits are set in Approvals settings from then on, and a chain
-// stored here is read only as that type's default steps until a studio saves
-// them there. `adjustment`, `bill` and `tender` have moved.
-export const STUDIO_EDITABLE_CHAINS: readonly string[] = ["requisition"];
-
-/**
- * What may be STORED, out of what a settings screen sent — the overrides alone.
- *
- * A chain identical to its seed is dropped rather than written, so a studio that
- * opens the editor and saves without changing anything keeps following the
- * built-in and still receives corrections to it. Without this, merely LOOKING
- * at the screen would fork every chain in the product.
- *
- * A type outside `allow` is REFUSED rather than dropped: silently ignoring a
- * chain somebody typed would show them a saved screen governing nothing.
- *
- * `legacy` IS FINANCE'S OLD BLOB, and it changes what "identical to the seed"
- * means. A studio that once stored a bill chain through Finance and now sets it
- * back to the built-in here must have that choice STORED — dropped, the legacy
- * layer underneath would keep winning, and the screen would save the seed and
- * go on enforcing the old chain.
- */
-export function approvalChainOverrides(
-  incoming: unknown,
-  allow: readonly string[] = STUDIO_EDITABLE_CHAINS,
-  legacy?: Record<string, unknown> | null,
-): { chains: Record<string, ApprovalChain> } | { error: string } {
-  const out: Record<string, ApprovalChain> = {};
-  const rows = (incoming && typeof incoming === "object" ? incoming : {}) as Record<string, unknown>;
-  for (const [type, chain] of Object.entries(rows)) {
-    if (!allow.includes(type)) {
-      return { error: `"${type}" chains are not edited here.` };
-    }
-    if (!usable(chain)) continue;
-    const seed = SEEDED_CHAINS[type];
-    const shadowed = usable(legacy?.[type]);
-    if (seed && !shadowed && JSON.stringify(seed) === JSON.stringify(chain)) continue;
-    out[type] = chain;
-  }
-  return { chains: out };
 }

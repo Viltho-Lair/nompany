@@ -52,7 +52,7 @@ export const BID_APPROVAL = "bid";
  * which it was given against — the two are the same digits on screen and mean
  * completely different things.
  *
- * `complete` TRAVELS TOO, and the approval refuses on it. See approveBid.
+ * `complete` TRAVELS TOO, and asking refuses on it — see requestBidApproval.
  */
 export type BidValue = {
   amount: number;

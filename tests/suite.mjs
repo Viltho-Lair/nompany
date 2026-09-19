@@ -2689,37 +2689,25 @@ console.log("\n== Administration is reached by its own keys, and the old paths s
     studioSegments(`/${slug}/people/col_1`, slug).length === 2);
 }
 
-console.log("\n== bill approval chains: seeded, overridable, validated on write");
-// P2's approval engine. A chain is the studio's own answer to "who signs
-// this, and above what amount" - stored as an override over the seeded one,
-// so a corrected built-in still reaches a studio that never edited theirs.
+console.log("\n== finance settings refuse an approval chain, and store nothing");
+// FINANCE ONCE WROTE THE AMOUNT CHAINS, then Studio settings did, and since
+// 19/09/2026 nothing does: who approves what is Approvals settings'. A client
+// still sending chains here must hear they were not saved — REFUSED, not
+// ignored — and the refusal must write nothing beside them.
 {
   const fin = await financeContext(owner, slug);
-
-  // A STUDIO THAT HAS NEVER TOUCHED THEM STILL HAS THEM. The seed is the
-  // answer, not an empty object: a studio with no chain would approve nothing,
-  // which is the hole chainProblems refuses on write.
-  ok("a fresh studio has the seeded bill chain",
-    fin.approvalChains?.bill?.steps?.length === 2, JSON.stringify(fin.approvalChains?.bill));
-
-  // FINANCE NO LONGER WRITES CHAINS (tier 5). Studio settings → Approvals is
-  // the one door for all four types; this route accepted every type, replaced
-  // the whole blob on each save, and no screen ever called it for chains.
-  // REFUSED, not ignored: a client still sending them must hear it.
+  const before = (await financeContext(owner, slug)).settingsSection?.settings || {};
   const refusedHere = await saveFinanceSettings(fin, {
-    approvalChains: { bill: { type: "bill", steps: [
-      { permission: "finance.payables.approve", from: 0, label: "Finance" },
-      { permission: "finance.payables.approveHigh", from: 5000, label: "Director" },
-    ] } },
+    cashCategories: ["Should not land"],
+    approvalChains: { bill: { type: "bill", steps: [{ permission: "finance.payables.pay", from: 0, label: "Finance" }] } },
   });
   ok("finance settings refuse an approval chain", refusedHere.error === "refused", JSON.stringify(refusedHere));
-  ok("...and say where chains are edited now", /Studio settings/.test(refusedHere.detail || ""), refusedHere.detail);
-
-  // AND THE REFUSAL WROTE NOTHING — neither the chain nor anything beside it.
-  const after = await financeContext(owner, slug);
-  ok("a refused chain was not stored",
-    after.approvalChains?.bill?.steps?.[1]?.from === 50000,
-    JSON.stringify(after.approvalChains?.bill));
+  ok("...and say where approvers are set now", /Approval settings/.test(refusedHere.detail || ""), refusedHere.detail);
+  const after = (await financeContext(owner, slug)).settingsSection?.settings || {};
+  ok("...and wrote nothing, the category beside it included",
+    JSON.stringify(after.cashCategories ?? null) === JSON.stringify(before.cashCategories ?? null)
+      && after.approvalChains === before.approvalChains,
+    JSON.stringify({ before: before.cashCategories, after: after.cashCategories }));
 }
 
 // ============================================================================

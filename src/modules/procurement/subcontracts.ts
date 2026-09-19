@@ -3,7 +3,7 @@
 //
 // GUARDED BY `procurement.subcontracts`, whose `certify` verb is an extra:
 // writing a valuation is administration and AGREEING it creates a debt, which
-// is the same separation `procurement.requisitions.approve` draws.
+// is the same separation a requisition's approval draws.
 //
 // THE ARITHMETIC IS IN ./subcontractModel, which reuses `retentionOn` from
 // modules/projects/billing rather than restating what a percentage means.

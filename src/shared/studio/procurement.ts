@@ -317,15 +317,17 @@ type Strings = {
   partEstimatedHint: string;
   submit: string;
   cancelRequest: string;
-  approve: string;
-  reject: string;
-  rejectReason: string;
+
   createOrder: string;
   orderedAs: string;
   raisedBy: string;
   submittedBy: string;
   answeredBy: string;
-  awaitingSignatures: (signed: number, required: number) => string;
+  approvalStepsOf: (granted: number, required: number) => string;
+  approvalRejected: (reason: string) => string;
+  openApprovals: string;
+  refuseNotConfigured: string;
+  refuseNoApprover: string;
   status: (token: string) => string;
   refuseNotDraft: string;
   refuseNoLines: string;
@@ -694,18 +696,19 @@ const en: Strings = {
   addLine: "Add a line",
   removeLine: "Remove",
   partEstimated: "Part estimated",
-  partEstimatedHint: "Some lines carry no estimate, so this total is not what the request is worth. It cannot be approved until every line has one.",
+  partEstimatedHint: "Some lines carry no estimate, so this total is not what the request is worth — and submitted like this it is asked of every approval step, whatever the limits.",
   submit: "Submit for approval",
   cancelRequest: "Withdraw",
-  approve: "Approve",
-  reject: "Reject",
-  rejectReason: "Why it is refused",
   createOrder: "Create purchase order",
   orderedAs: "Ordered as",
   raisedBy: "Raised by",
   submittedBy: "Submitted by",
   answeredBy: "Answered by",
-  awaitingSignatures: (signed, required) => `${signed} of ${required} signatures`,
+  approvalStepsOf: (g, r) => `${g} of ${r} approval step${r === 1 ? "" : "s"}`,
+  approvalRejected: (reason) => `Turned down${reason ? `: “${reason}”` : ""}`,
+  openApprovals: "Open in Approvals",
+  refuseNotConfigured: "Nobody has been named to approve requisitions. The owner or an Admin names them in Approvals settings.",
+  refuseNoApprover: "You are the only person who approves requisitions, so you cannot submit one yourself. Ask the owner to name somebody else in Approvals settings.",
   status: (token) => EN_STATUS[token] || token,
   refuseNotDraft: "Only a draft can be changed. Withdraw it, or raise a new one.",
   refuseNoLines: "A requisition with no lines asks somebody to approve the purchase of nothing.",
@@ -1056,18 +1059,19 @@ const ar: Strings = {
   addLine: "إضافة بند",
   removeLine: "حذف",
   partEstimated: "مقدر جزئيا",
-  partEstimatedHint: "بعض البنود بلا تقدير، فهذا الإجمالي ليس قيمة الطلب. ولا يمكن اعتماده حتى يحمل كل بند تقديره.",
+  partEstimatedHint: "بعض البنود بلا تقدير، فهذا الإجمالي ليس قيمة الطلب — وإن قدم هكذا فيطلب من كل مراحل الاعتماد مهما كانت الحدود.",
   submit: "إرسال للاعتماد",
   cancelRequest: "سحب الطلب",
-  approve: "اعتماد",
-  reject: "رفض",
-  rejectReason: "سبب الرفض",
   createOrder: "إنشاء أمر شراء",
   orderedAs: "صدر به الأمر",
   raisedBy: "طلبه",
   submittedBy: "أرسله",
   answeredBy: "أجاب عليه",
-  awaitingSignatures: (signed, required) => `${signed} من ${required} توقيعات`,
+  approvalStepsOf: (g, r) => `${g} من ${r} مراحل اعتماد`,
+  approvalRejected: (reason) => `رفض${reason ? `: «${reason}»` : ""}`,
+  openApprovals: "فتح في الموافقات",
+  refuseNotConfigured: "لم يحدد أحد لاعتماد طلبات الشراء. يحددهم المالك أو المشرف في إعدادات الموافقات.",
+  refuseNoApprover: "أنت الوحيد الذي يعتمد طلبات الشراء، فلا يمكنك تقديم طلب بنفسك. اطلب من المالك تحديد شخص آخر في إعدادات الموافقات.",
   status: (token) => AR_STATUS[token] || token,
   refuseNotDraft: "لا يعدل إلا المسودة. اسحب الطلب أو أنشئ طلبا جديدا.",
   refuseNoLines: "طلب بلا بنود يسأل أحدهم أن يعتمد شراء لا شيء.",

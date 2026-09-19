@@ -134,7 +134,13 @@ ok(`at most ${PRINCIPAL_ONLY_AREAS} areas are reachable by no archetype but prin
 // whoever runs HR. Note that `home: "full"` cannot reach it either: a level
 // walks an area's VERBS and an extra is not one, which is what makes leaving it
 // out a real decision rather than an omission with the same effect.
-const PRINCIPAL_ONLY_EXTRAS = 8;
+//
+// 8 -> 4 on 19/09/2026, and not by seeding anything: the four approveHigh keys
+// LEFT THE PRODUCT, with every approve right, when bills, bids, requisitions
+// and stock adjustments moved onto the Approvals page — who signs above a
+// limit is named there, per step. The residue is the four decisions about a
+// person that are still rights. Lowered rather than banked as headroom.
+const PRINCIPAL_ONLY_EXTRAS = 4;
 const lonelyExtras = EXTRA_KEYS.filter((k) => !nonPrincipal.has(k));
 ok(`at most ${PRINCIPAL_ONLY_EXTRAS} extras are held by no archetype but principal`,
   lonelyExtras.length <= PRINCIPAL_ONLY_EXTRAS, `${lonelyExtras.length}: ${lonelyExtras.join(", ")}`);

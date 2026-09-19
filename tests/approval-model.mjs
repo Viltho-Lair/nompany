@@ -1,12 +1,16 @@
-// THE APPROVAL ENGINE, PURELY. No store, no server, no fixtures: a chain is a
-// list of values and resolving one is arithmetic, so this runs in milliseconds
-// beside tests/access.test.mjs rather than inside the seven-minute suite.
+// THE OLD AMOUNT CHAINS, AS THEY ARE STILL READ — purely. No store, no server.
 //
-// Spec: docs/superpowers/specs/2026-09-03-approval-workflow-engine-design.md
+// Bills, bids, requisitions and stock adjustments were signed by a chain engine
+// until 19/09/2026, when each moved onto the Approvals page. The engine's walker,
+// validator and editor went with the last of them. What is left is the SEEDS
+// (platform/approval/chains) and the studio's stored overrides
+// (platform/approval/store), read for one purpose: a type's DEFAULT steps in
+// Approvals settings until the studio saves it (`defaultSetting`,
+// modules/approvals/model). So what is asserted here is that the defaults a
+// studio meets on the day a type moves are the limits it had the day before.
 //
 // The loader preamble is access.test.mjs's, and it is what lets a .mjs test
-// import a .ts module — the alternative was string-loading the source, which
-// asserted against a mangled copy rather than the module the app imports.
+// import a .ts module.
 
 import { register } from "node:module";
 import { pathToFileURL } from "node:url";
@@ -14,8 +18,10 @@ import { pathToFileURL } from "node:url";
 const root = pathToFileURL(`${process.cwd()}/`).href;
 register(new URL("./loader.mjs", import.meta.url), { data: { root } });
 
-const { SEEDED_CHAINS, chainProblems } = await import("@/platform/approval/chains");
-const { ALL_PERMISSIONS } = await import("@/platform/access");
+const { SEEDED_CHAINS } = await import("@/platform/approval/chains");
+const { approvalChainsFor } = await import("@/platform/approval/store");
+const { APPROVAL_TYPES } = await import("@/modules/approvals/registry");
+const M = await import("@/modules/approvals/model");
 
 let fails = 0;
 const ok = (label, cond, extra = "") => {
@@ -23,129 +29,43 @@ const ok = (label, cond, extra = "") => {
   console.log(`${cond ? "  ok  " : " FAIL "} ${label}${extra ? "  " + extra : ""}`);
 };
 
-console.log("\n== a chain's shape");
+console.log("\n== every type that left the chain engine names the chain it left");
+const moved = APPROVAL_TYPES.filter((t) => t.legacyChain);
+ok("the four amount chains all moved", ["adjustment", "bill", "requisition", "tender"]
+  .every((c) => moved.some((t) => t.legacyChain === c)), moved.map((t) => t.legacyChain).join());
+for (const t of moved) {
+  const seed = SEEDED_CHAINS[t.legacyChain];
+  ok(`${t.key}: its old chain is still seeded`, Boolean(seed?.steps?.length));
+  // THE REGISTRY'S OWN COPY MUST AGREE WITH THE SEED, or a studio with no
+  // stored chain and one with the seed stored would meet different defaults.
+  ok(`${t.key}: the registry's steps are the seed's — the same rights at the same amounts`,
+    JSON.stringify(seed.steps.map((s) => [s.permission, s.from])) === JSON.stringify(t.legacy.map((s) => [s.permission, s.from])),
+    JSON.stringify({ seed: seed.steps.map((s) => [s.permission, s.from]), registry: t.legacy.map((s) => [s.permission, s.from]) }));
+  ok(`${t.key}: carries an amount, so its limits can apply`, t.amounted === true);
+}
 
-// THE SEED MUST BE VALID BY ITS OWN RULES while a studio can still edit it. A
-// seeded chain its own validator refuses is the one failure no studio can
-// catch, because no studio writes it. The bill's is no longer one: bills are
-// approved on the Approvals page (19/09/2026), their rights left the catalogue,
-// and the seed is read only as the default steps there.
-ok("the seeded requisition chain passes its own validator",
-  chainProblems(SEEDED_CHAINS.requisition, ALL_PERMISSIONS).length === 0,
-  JSON.stringify(chainProblems(SEEDED_CHAINS.requisition, ALL_PERMISSIONS)));
+console.log("\n== a studio's own limits survive the move");
+const people = [{ id: "own", role: "owner" }, { id: "fd", roleIds: ["fd"] }];
+const roles = [{ id: "fd", permissions: ["finance.payables.approve", "finance.payables.approveHigh"] }];
+const seeded = M.defaultSetting("bill", {}, people, roles);
+ok("with nothing stored, a bill's default second step starts at the seed's 50,000",
+  seeded.steps[1]?.from === 50000, JSON.stringify(seeded.steps));
+const moved5k = { approvalChains: { bill: { type: "bill", steps: [
+  { permission: "finance.payables.approve", from: 0, label: "Finance" },
+  { permission: "finance.payables.approveHigh", from: 5000, label: "Director" },
+] } } };
+const own = M.defaultSetting("bill", moved5k, people, roles);
+ok("a studio that had moved it to 5,000 keeps 5,000, and its own step names",
+  own.steps[1]?.from === 5000 && own.steps[1]?.label === "Director", JSON.stringify(own.steps));
+ok("the first step still starts at nothing, and names nobody's limit", own.steps[0].from === undefined);
 
-ok("the seeded bill chain has two steps", SEEDED_CHAINS.bill.steps.length === 2);
-ok("...the first of which always applies", SEEDED_CHAINS.bill.steps[0].from === 0);
-
-const problem = (steps) => chainProblems({ type: "bill", steps }, ALL_PERMISSIONS);
-
-ok("an empty chain is refused", problem([]).length === 1, JSON.stringify(problem([])));
-
-ok("a step naming an unknown permission is refused",
-  problem([{ permission: "finance.payables.nuke", from: 0, label: "x" }])
-    .some((p) => p.includes("finance.payables.nuke")));
-
-ok("thresholds that do not ascend are refused",
-  problem([
-    { permission: "finance.payables.approve", from: 500, label: "a" },
-    { permission: "finance.payables.pay", from: 100, label: "b" },
-  ]).some((p) => p.includes("ascend")));
-
-ok("a chain with no always-on step is refused",
-  problem([{ permission: "finance.payables.approve", from: 100, label: "a" }])
-    .some((p) => p.includes("from: 0")));
-
-ok("the same permission twice is refused",
-  problem([
-    { permission: "finance.payables.approve", from: 0, label: "a" },
-    { permission: "finance.payables.approve", from: 100, label: "b" },
-  ]).some((p) => p.includes("twice")));
-
-// A REFUSAL IS A SENTENCE SOMEBODY READS. Asserted because the whole reason
-// chainProblems returns strings rather than a boolean is that a studio is shown
-// them, and a message naming nothing actionable is a boolean with extra steps.
-ok("every refusal names what is wrong, not that something is",
-  problem([{ permission: "nope.nope.nope", from: 5, label: "a" }])
-    .every((p) => p.length > 20 && /[a-z]/.test(p)));
-
-const { resolveApprovalPlan, firstUnsignedStep } = await import("@/platform/approval/resolve");
-
-console.log("\n== resolving a plan");
-
-const CHAIN = SEEDED_CHAINS.bill;
-// A rate table in the shape shared/currencies expects: every code against USD.
-const RATES = { USD: 1, SAR: 3.75, EUR: 0.92 };
-const base = (amount, currency = "SAR") => resolveApprovalPlan({
-  chain: CHAIN, amount, currency, studioCurrency: "SAR",
-  rates: RATES, updatedAt: 1756800000000, stale: false,
-});
-
-ok("an amount under the threshold needs one step", base(10000).ok && base(10000).steps.length === 1);
-ok("an amount over it needs two", base(200000).steps.length === 2);
-// THE BOUNDARY IS INCLUSIVE, asserted because "over 50000" and "at 50000" are
-// the two readings of one sentence and only one of them is the code.
-ok("exactly the threshold needs two — `from` is at-or-above", base(50000).steps.length === 2);
-ok("one unit under it needs one", base(49999).steps.length === 1);
-
-ok("the studio's own currency needs no rate at all", base(10000).rate === null);
-
-const foreign = resolveApprovalPlan({
-  chain: CHAIN, amount: 20000, currency: "EUR", studioCurrency: "SAR",
-  rates: RATES, updatedAt: 1756800000000, stale: false,
-});
-// 20000 EUR at 3.75/0.92 is about 81522 SAR — over the threshold though the
-// raw number is under it. This is the whole reason conversion exists.
-ok("a foreign amount is judged converted, not raw", foreign.ok && foreign.steps.length === 2,
-  String(foreign.amountInBase));
-ok("...and the rate that decided it is carried on the plan", foreign.rate !== null);
-
-console.log("\n== the four refusals");
-
-const refusal = (over) => resolveApprovalPlan({
-  chain: CHAIN, amount: 20000, currency: "EUR", studioCurrency: "SAR",
-  rates: RATES, updatedAt: 1756800000000, stale: false, ...over,
-});
-
-ok("no studio currency refuses by that name",
-  refusal({ studioCurrency: "" }).reason === "no-studio-currency");
-// AND NAMES THE FIX. "your studio has no currency" is fixed in Settings and an
-// unquoted pair is not; the two send whoever hits them to different places, so
-// the detail has to distinguish them.
-ok("...and its detail names the setting",
-  /settings/i.test(refusal({ studioCurrency: "" }).detail));
-
-ok("an unquoted pair refuses by that name",
-  refusal({ rates: { USD: 1, SAR: 3.75 } }).reason === "unquoted");
-ok("...and its detail names the pair",
-  refusal({ rates: { USD: 1, SAR: 3.75 } }).detail.includes("EUR"));
-
-ok("no chain refuses by that name",
-  resolveApprovalPlan({ chain: null, amount: 10, currency: "SAR", studioCurrency: "SAR",
-    rates: RATES, updatedAt: 0, stale: false }).reason === "no-chain");
-
-// A STALE SNAPSHOT WITH A REAL RATE STILL ROUTES. Yesterday's rate with an
-// honest stamp beats blocking every foreign bill because one fetch failed —
-// only a MISSING rate refuses.
-const stale = refusal({ stale: true });
-ok("a stale but real rate routes, flagged", stale.ok === true && stale.stale === true);
-
-console.log("\n== walking a plan");
-
-const plan = base(200000);
-const sig = (permission) => ({ permission, byCollaboratorId: "col_1", byAlias: "A", at: "2026-09-03T00:00:00.000Z" });
-
-ok("nothing signed yet gives the first step",
-  firstUnsignedStep(plan, []).permission === "finance.payables.approve");
-ok("the first signed gives the second step",
-  firstUnsignedStep(plan, [sig("finance.payables.approve")]).permission === "finance.payables.approveHigh");
-ok("both signed gives nothing left",
-  firstUnsignedStep(plan, [sig("finance.payables.approve"), sig("finance.payables.approveHigh")]) === null);
-// A SIGNATURE FOR A STEP THIS PLAN NO LONGER HAS is not a signature for the
-// step that IS next. A bill re-planned across the threshold must not credit an
-// old signature to a step it was never given for.
-ok("a signature naming a step this plan does not have counts for nothing",
-  firstUnsignedStep(base(10000), [sig("finance.payables.approveHigh")]).permission
-    === "finance.payables.approve");
+console.log("\n== what a stored chain can and cannot do to the defaults");
+ok("no studio at all still gets the built-ins", Boolean(approvalChainsFor(null).bill && approvalChainsFor(null).tender));
+// A STORED CHAIN WITH NO STEPS IS A BROKEN ROW, not an override: honouring it
+// would leave a type with no default steps at all.
+ok("an empty stored chain does not blank the seed",
+  approvalChainsFor({ approvalChains: { tender: { type: "tender", steps: [] } } }).tender.steps.length === 2);
+ok("nonsense on the studio is ignored", approvalChainsFor({ approvalChains: "x" }).tender.steps.length === 2);
 
 console.log(fails ? `\n${fails} FAILED\n` : "\napproval model: all passed\n");
 process.exit(fails ? 1 : 0);

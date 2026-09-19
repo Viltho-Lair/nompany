@@ -135,9 +135,10 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
     // justified excluding administration.access while saying nothing about
     // them — which is what marks it as an oversight rather than a decision.
     //
-    // IT LEFT THE APPROVAL CHAINS UNWALKABLE, and that is the part that makes
+    // IT LEFT THE APPROVAL CHAINS UNWALKABLE, and that is the part that made
     // this a defect rather than a preference. A bill over the studio's limit
-    // needs finance.payables.approveHigh; no archetype held it, so no library
+    // needed finance.payables.approveHigh (until 19/09/2026, when approving
+    // moved to the Approvals page); no archetype held it, so no library
     // role could be the second signature and only the account holder — who
     // short-circuits effectivePermissions on role === "owner" — could sign at
     // all. Same for a bid over 500000 and a requisition over 10000.
@@ -205,8 +206,7 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
     //   — register.approve, because checker holds `review` and invariant 7 is
     //     the reason it stops there.
     extras: [
-      "hr.vacations.approve",
-      "procurement.requisitions.approve", "engineeringDocs.register.approve",
+      "hr.vacations.approve", "engineeringDocs.register.approve",
       "engagements.lock",
       // ONE MORE ANSWER, away from whoever raises the thing answered, which is
       // the rule every extra above already follows: payroll.approve, because
@@ -316,8 +316,8 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
     // was minted for when the register shipped.
     //
     // CERTIFYING A SUBCONTRACTOR'S PAYMENT IS THE SAME ACT: attesting that work
-    // was done. It sits here rather than on `buyer` for the reason
-    // `procurement.requisitions.approve` does — writing the valuation is
+    // was done. It sits here rather than on `buyer` for the reason a
+    // requisition's approval sits away from the buyer — writing the valuation is
     // administration, agreeing it creates a debt, and the person who can say
     // the work happened is the one running the job rather than the one who
     // placed the order. `buyer` holds `procurement.subcontracts` at edit and
@@ -460,8 +460,8 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
       ["procurement.receiving", "view"],
     ],
     // AWARDING IS THE ONE THING A BUYER DOES, so it is here even though this
-    // archetype deliberately holds no `procurement.requisitions.approve`. The
-    // two extras are not the same kind of power: approving a requisition
+    // archetype approves no requisition (the Approvals page names who does).
+    // The two are not the same kind of power: approving a requisition
     // authorises somebody else's spend, which is why it sits away from the
     // person who does the buying; awarding chooses between quotes for a spend
     // that has ALREADY been authorised, which is the buying itself. A buyer who

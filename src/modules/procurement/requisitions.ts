@@ -21,6 +21,7 @@ import {
 import type { Requisition, RequisitionLine } from "./schema";
 import type { Order } from "@/modules/inventory/schema";
 import type { ProcurementContext } from "./types";
+import { askForRequisition, requisitionApprovals, submitPreflight } from "./approval";
 
 const Requisitions = repo<Requisition>("requisitions");
 const Orders = repo<Order>("materialOrders");
@@ -46,6 +47,9 @@ export const procurementContext = moduleContext<ProcurementContext>({
     // no Finance section has no bills, and the match still answers on the two
     // legs it has rather than refusing.
     bills: ["finance-payables", "finance"],
+    // APPROVALS', where a request's approval is filed (19/09/2026). Nullable
+    // like every foreign section, only while a studio awaits its planting.
+    approvals: "approvals",
   },
   flags: ["requisitions", "rfq", "expediting", "subcontracts", "suppliers", "receiving"],
 });
@@ -156,9 +160,11 @@ export async function listRequisitions(ctx: ProcurementContext) {
   // NEWEST FIRST. A requisition is read to answer "what is waiting on me",
   // which is a question about the recent ones — unlike a tender, which is read
   // by deadline.
+  // HOW FAR EACH REQUEST'S APPROVAL HAS GOT, read from the approval.
+  const approvals = await requisitionApprovals(ctx, rows, people as unknown[]);
   const requisitions = [...rows]
     .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")))
-    .map((r) => decorate(r, orders.get(r.id), aliasOf, studio.currency));
+    .map((r) => ({ ...decorate(r, orders.get(r.id), aliasOf, studio.currency), approval: approvals.get(r.id) || null }));
 
   return {
     requisitions,
@@ -270,15 +276,33 @@ export async function moveRequisition(ctx: ProcurementContext, id: string, next:
   const problem = requisitionProblem(current, next);
   if (problem) return { error: problem };
 
+  // SUBMITTING IS ASKING FOR ITS APPROVAL (19/09/2026). Asked first whether
+  // anybody could answer it, so a studio whose requests nobody approves refuses
+  // in words rather than parking one in Submitted for ever.
+  const requester = { studio, collaborator, roles: ctx.roles };
+  const preflight = next === "Submitted" ? await submitPreflight(requester, current) : null;
+  if (preflight && "error" in preflight) return preflight;
+
   const at = now();
-  const patch: Record<string, unknown> = { status: next, updatedAt: at };
+  // UNDER EVERY LIMIT THE STUDIO SET, nothing is asked and it is approved as
+  // submitted — what the last yes would have written.
+  const straightThrough = preflight?.needed === false;
+  const patch: Record<string, unknown> = { status: straightThrough ? "Approved" : next, updatedAt: at };
   if (next === "Submitted") {
     patch.submittedByCollaboratorId = collaborator.id;
     patch.submittedAt = at;
+    if (straightThrough) Object.assign(patch, { answeredByCollaboratorId: collaborator.id, answeredAt: at });
   }
 
   const requisition = await Requisitions.update({ studio, section: requisitionsSection }, id, patch);
-  return requisition ? { requisition } : { error: "notfound" };
+  if (!requisition) return { error: "notfound" };
+  if (next === "Submitted" && !straightThrough) {
+    const asked = await askForRequisition(requester, requisition);
+    // The preflight said yes a moment ago; a refusal now means the settings
+    // moved in between. The request is Submitted and says why it is not asked.
+    if (asked.error) return { requisition, approvalProblem: asked.error };
+  }
+  return { requisition };
 }
 
 export async function removeRequisition(ctx: ProcurementContext, id: string) {

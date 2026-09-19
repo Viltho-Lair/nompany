@@ -72,6 +72,7 @@ const TYPES_EN: Record<string, string> = {
   adjustment: "Stock adjustment",
   bill: "Supplier bill",
   bid: "Bid",
+  requisition: "Purchase requisition",
   carried: "Carried over",
 };
 const TYPES_AR: Record<string, string> = {
@@ -86,6 +87,7 @@ const TYPES_AR: Record<string, string> = {
   adjustment: "تسوية مخزون",
   bill: "فاتورة مورد",
   bid: "عطاء",
+  requisition: "طلب شراء",
   carried: "منقولة",
 };
 

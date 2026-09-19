@@ -1,9 +1,8 @@
 # Approvals
 
-Two things share this file while one replaces the other. **The Approvals page** (below, 2026-09-19)
-is where every approval in the product is going. **The amount chains**
-(the rest of the file) are how requisitions are signed today;
-each moves onto the page as its Request approval button is built.
+**The Approvals page** (2026-09-19) is where approvals are answered. The amount chains that
+signed bills, bids, requisitions and stock adjustments are gone; each of those is asked for from
+its record and answered here.
 
 ## The Approvals page (2026-09-19)
 
@@ -26,11 +25,12 @@ files it, naming the record (`source`: its section, id, reference, title, and th
 | Request approval | Point of Sale → Returns: asking for a return is asking for its approval | **Till return**, carrying the refund as its amount | the units go back into stock and the refund is paid (`returnApproval` in `modules/sales/posReturns`); rejected, the return is closed with the reason |
 | Request approval | Finance → Payables, on a received bill (or one whose last request was turned down) | **Supplier bill**, carrying its total in its own currency | the bill becomes Approved, which payment waits on (`billApproval` in `modules/finance/payables`); a no changes nothing on the bill — it is corrected and asked about again, disputed or cancelled |
 | Request approval | Tendering → a tender's bill, once fully priced and before it goes out | **Bid**, carrying its value in the tender's currency | the tender may be submitted — while the bill still has the value the approval was for (`bidApproved` in `modules/tendering/bid`); nothing is written on the tender |
+| Submit for approval | Procurement → Requisitions: submitting a draft is asking | **Purchase requisition**, carrying its estimate — or no amount while any line is unestimated, which walks every step | Approved, it may become a purchase order; a no makes it Rejected with the reason (`requisitionApproval` in `modules/procurement/approval`) |
 | Record adjustment | Inventory → Stock: an adjustment worth more than the lowest limit asks; under it the stock moves at once | **Stock adjustment**, valued at units × unit cost (absolute) | the movement is written (`adjustmentApproval` in `modules/inventory/adjustmentApproval`); rejected, it is closed with the reason and nothing moves |
 
 **MOVING EVERY APPROVAL HERE, one type at a time** (the owner, 19/09/2026): the request stays
 where it is made today and the answer moves to this page. The till return, the stock
-adjustment, the bill and the bid have moved; requisitions, payroll, expense claims, change orders, timesheets,
+adjustment, the bill, the bid and the requisition have moved; payroll, expense claims, change orders, timesheets,
 document revisions, held-payment releases and leave follow. Each move drops the type's
 `approve` right — a right to do what the settings decide would be a second answer (invariant
 16) — and the steps it had come with it:
@@ -106,178 +106,29 @@ every studio. What it had left became approvals of their own types, and the hand
 became `carried` approvals, which can be answered but never requested. The conversion code went
 once it had run. What it deleted is in the export the owner holds.
 
-**Not built yet on the page:** only the three records above ask — Material PO, Delivery,
-Delivery return, ID update and Permit request have no record to ask from yet, and
-requisitions, payroll, expense claims, change orders, timesheets, document
-revisions, held-payment releases and leave still answer where they are, through the amount
-chains below and their own rights; requests already waiting on those are converted when each
-type moves (export first, two confirmations); Nova reads a person's approvals but cannot answer
-one; no reminders, no delegation, and no withdrawing a request. **A step whose only approver leaves the studio cannot be answered by anybody**, and
-an approval waiting on it waits for ever — there is no reassigning yet.
+## The amount chains (until 19/09/2026)
 
-## The amount chains — who signs a requisition, and above what amount
+Bills, bids, requisitions and stock adjustments were signed by P2's chain engine
+(`docs/superpowers/specs/2026-09-03-approval-workflow-engine-design.md`): an ordered list of
+steps, each naming a RIGHT and the amount it started at, edited in Studio settings → Approvals,
+walked one signature at a time. **All four moved onto the Approvals page on 19/09/2026 and the
+engine went with the last of them** — its walker (`platform/approval/resolve.ts`), its validator
+and its editor. Their `approve`/`approveHigh` rights left the catalogue.
 
-**BILLS AND BIDS LEFT THIS ENGINE ON 19/09/2026** for the Approvals page (the table at the top),
-and stock adjustments before them. What follows still describes requisitions; where it says
-"bill" or "bid", it is how those were signed until then. `tendering.tenders.approve` and
-`.approveHigh` are gone too. `finance.payables.approve` and
-`.approveHigh` are gone from the catalogue, and the bill chain is no longer offered in Studio
-settings — a limit a studio had moved there is read as the bill type's default steps.
-
-**Spec:** `docs/superpowers/specs/2026-09-03-approval-workflow-engine-design.md`.
-**Bills and bids.** Bids came second — see `bid-review.md`, which is where the chain store
-moved out of Finance. Every other approval in the product is unchanged — see "Not built yet".
-
-## What it is
-
-An **approval chain** is an ordered list of steps. Each step names a **permission** and the
-amount **at or above which it applies**, in the studio's own currency:
-
-```
-bill: [ { permission: "finance.payables.approve",     from: 0,     label: "Finance" },
-        { permission: "finance.payables.approveHigh", from: 50000, label: "Above the limit" } ]
-```
-
-`from: 0` means "always". A 10,000 bill walks step one alone; a 200,000 bill walks both, in
-order, and needs two different people.
-
-**A step names a right, not a person and not a role.** That reuses the whole existing access
-model — `escalates()` applies unchanged, `requirePermission` is the check — and nothing new
-can leave the company and block a chain that named them.
-
-**The boundary is at-or-above, not above.** "Bills over 50,000 need the FD" and "bills at
-50,000 need the FD" are two readings of one sentence; the code takes the safer, and both
-sides of the line are asserted.
-
-Before this existed, `finance.payables.approve` approved any amount. A 200-unit stationery
-bill and a 2,000,000 subcontractor bill took the same path, so the only way a studio could
-say "the FD sees the big ones" was to withhold approval from everybody who handles the small
-ones — a bottleneck, not a control.
-
-## What it stores
-
-**The chains live on the STUDIO record now**, beside `currency`, read through
-`platform/approval/store` — see `bid-review.md` for why they left Finance. What Finance stored
-before that move is still READ, layered underneath the studio's own, so a studio that
-configured a bill chain keeps it with nobody running a backfill. No new key builder and no new
-collection.
-
-**All four are edited in one place: Studio settings → Approvals** (11/09/2026), behind
-`administration.settings.edit`. This file used to say Finance's settings screen edited the bill
-chain; **no screen had ever edited any chain** — the only bill-chain writer was
-`saveFinanceSettings`'s API, which accepted every type, replaced the whole stored set on each
-save, and was the only door for stock adjustments. It refuses chains now, with a sentence
-naming where they are edited, and `bill` and `adjustment` joined `STUDIO_EDITABLE_CHAINS` in
-the same commit — one writer per type, as this file always said the move would need.
-
-The section shows **what is in force**, Finance's old layer included (the settings route
-used to show a Finance-stored bill chain as the seed while payables enforced the stored one).
-A step offers its own chain's rights by name — *Approve bills*, *Approve bills above the
-limit* — rather than the whole catalogue, and the screen validates with the server's own
-`chainProblems` before saving. **Setting a chain back to its seed over a Finance-stored one is
-kept**, not dropped, or the old chain underneath would go on winning.
-
-They are **overrides merged over the seed**, the way flow templates are: a studio stores only
-what it changed, so a later correction to the built-in still reaches every studio that never
-touched it.
-
-**A chain is refused on write**, never on read, and the refusal is a sentence the studio is
-shown. Five things are refused, each invisible at runtime and none of which throws: a step
-naming a permission that does not exist (it would block every bill reaching it, silently and
-forever), thresholds that descend, no always-on step (a hole rather than a policy), the same
-right twice (nobody may sign two steps, so the chain would be unwalkable), and an empty chain.
-
-**A bill stores two things**: `approvals`, one entry per signature, and `approvalPlan` — the
-steps it was routed under, the converted amount, and **the rate that decided it**. Both are
-optional, because every bill raised before this feature has neither.
-
-**`status` is not extended.** `BILL_STATUSES` gained no value. `Approved` is written only
-when the last required step is signed, so a part-signed bill reads `Received` and everything
-deriving from status — the aging flag, the edit lock — keeps working unchanged.
-
-**A bill is paid only once it is Approved** (the owner's decision, 11/09/2026).
-`recordBillPayment` used to refuse only a Draft, so the claim above — "the refusal to pay an
-unapproved bill" — was not true: a Received bill nobody had signed could be paid, and the
-chain authorised nothing. It refuses `not-approved` now, and the screen offers Record payment
-on an Approved bill only.
-
-**The Admin may sign a bill they raised**, and a later step after an earlier one — the same
-exception payroll carries (invariant 7 in CLAUDE.md). Without it the payment gate would leave
-a one-person studio unable to pay a supplier at all. `approveBill` and `availableApproval`
-ask `isAdministrator` identically, so the button appears exactly where the signature is
-accepted. Everybody else still needs a second person on both counts.
-
-## What it does
-
-**Approving is a walk.** Each call clears the first step still outstanding: resolve the plan,
-find that step, require *its* permission, record the signature. The permission is chosen at
-runtime; access is still resolved once, this only asks a different question of the set that
-was already resolved.
-
-**Invariant 7 is enforced twice, and they are two different rules.** The person who raised
-the bill never signs it. And somebody who signed an earlier step may not sign a later one —
-invariant 7 is about the record rather than the pair of rights, and a second step the first
-signer can clear is not a second step. Holding both rights stays legitimate.
-
-**Amounts convert to the studio's currency** through the daily FX snapshot, so a foreign
-supplier invoice is judged by what it is really worth: 20,000 EUR is over a 50,000 SAR limit
-even though the raw number is under it. A threshold comparing unconverted amounts would
-under-route every foreign bill in a weaker currency, silently.
-
-The rate is fetched **only when something needs it** — a bill already in the studio's currency
-adds no round trip, and a list takes one fetch for the whole set rather than one per row.
-
-**The plan is frozen onto the bill.** The rate that routed a bill is recorded with it, so a
-rate moving overnight cannot re-route a bill already mid-chain. The plan is re-derived when
-the bill's amount or currency is edited, which is the one way this could otherwise be wrong
-without anything looking wrong.
-
-**Four things stop a plan resolving,** and they are distinct because they send people to
-different places:
-
-| Reason | Means | Fixed by |
-|---|---|---|
-| `no-studio-currency` | The studio never set its own currency | An owner or admin, in Studio settings |
-| `unquoted` | Today's rates do not quote this pair | Waiting, or billing in a quoted currency |
-| `no-chain` | Nothing configured for this type | Cannot arise for bills |
-| — | A stale snapshot with a real rate **still routes**, flagged | Nothing; yesterday's rate beats blocking |
-
-**A bill is still raised when its plan cannot be resolved**, and stores none. Recording an
-obligation that already exists must not wait on an exchange rate — only authorising payment
-refuses.
-
-### The one thing that will surprise you
-
-**`createStudio` has never set a currency**, and approval refuses without one. So **every
-studio that has not set a currency cannot approve a bill** until an owner or admin sets it in
-Studio settings. That is deliberate: an amount cannot be judged against a limit without one.
-The Payables screen says so in place of the button, in both languages, naming the setting.
-
-### On screen
-
-Payables draws the button only where pressing it would succeed — the server answers "which
-step could *this* person sign", from the same function the walk enforces with, so the two
-cannot disagree. A part-signed bill shows how far it has got ("1 of 2 signed"), who signed,
-and what it still needs. A blocked bill explains itself instead of offering nothing.
-
-The **step's label is tenant-authored and never translated** — a studio names its own steps,
-and a name somebody typed is data. The refusals travel as tokens and are translated on
-display, so an Arabic studio does not get an English apology.
-
-### Stock adjustments
-
-**Moved to the Approvals page on 19/09/2026** — see the table at the top. The chain editor in
-Studio settings no longer offers it; a limit a studio had moved there is read as the type's
-default steps until the studio saves it in Approvals settings. `inventory.stock.approve` and
-`.approveHigh` are gone from the catalogue.
+**What is left is read for one purpose:** the seeds (`platform/approval/chains.ts`) and any
+chain a studio had stored (`platform/approval/store.ts`) are a moved type's DEFAULT steps until
+the studio saves it in Approvals settings — so a studio that had moved the bill limit to 5,000
+still meets 5,000 on the day bills moved. Records part-signed under the engine carried their
+signatures onto their approvals (`carried`). Everything the engine's sections of this file said
+is in `git log -p -- docs/functionality/approvals.md`.
 
 ## The signer's PIN (18/09/2026)
 
-**Approving asks the signer's personal PIN** — a requisition in its own route, and every
-approval on the Approvals page (`signingPinProblem`,
+**Approving asks the signer's personal PIN** — every approval on the Approvals page
+(`signingPinProblem`,
 `platform/auth/lock.ts`). Rejecting is not asked: it commits nobody to anything. It is asked
 of a person who has set a PIN, and of **everybody** when the studio switches on **PIN on every
-signature** (Studio settings, beside the chains; `signingPin` on the studio), in which case a
+signature** (Studio settings; `signingPin` on the studio), in which case a
 signer with no PIN is refused `pin-not-set` (409) and told to set one.
 
 A request without the PIN answers `pin-required` (**428**). No screen was changed for it: the
@@ -292,19 +143,21 @@ thing the named person has and the others do not.
 
 Stated in words, because a silent gap reads as a finished feature.
 
-- **Bills and bids only.** Invoices, expenses, change orders, timesheets, vacations and
-  controlled documents keep the approval they already had. The controlled-document ladder
-  (`moveSignable`) and the submit/answer pairs are untouched.
-- **No parallel steps, no delegation, no out-of-office reassignment, and no reminder** on a
-  step that has waited. Each is a real requirement of a mature approval system; none is
-  needed to express a value limit.
-- **No approval inbox.** "What is waiting for me" is a screen nobody has built. The data for
-  it exists.
-- **No condition other than amount.** Supplier, cost code and deal are not expressible; that
-  is a predicate language, and the spec asked for value limits.
-- **The studio's currency is not mandatory product-wide** — only for approving a bill.
-- **AP reporting is not revalued.** A bill carries a currency now, but the aging report still
-  sums raw totals. That is P3's job.
-- **Finance's old stored chains are read forever, never cleaned up.** A studio that configured
-  one through Finance's API keeps it beneath its own layer until it saves Approvals; nothing
-  deletes the old blob, deliberately — a migration nobody runs is worse than a layer that reads.
+- **Five types have no record to ask from yet:** Material PO, Delivery, Delivery return, ID update
+  and Permit request. They appear in Approvals settings and nothing can raise one.
+- **Payroll, expense claims, change orders, timesheets, document revisions, held-payment releases
+  and leave still answer where they are**, on their own rights. Each moves here in turn; requests
+  already waiting on it are carried when it does.
+- **No reminders, no delegation, no out-of-office reassignment, and no withdrawing a request.**
+  Only a no ends a request early.
+- **A step whose only approver leaves the studio cannot be answered by anybody**, and an approval
+  waiting on it waits for ever — there is no reassigning yet.
+- **No condition other than amount.** Supplier, cost code, project or deal cannot decide the steps.
+- **Nova reads a person's approvals but cannot answer one.**
+- **Editing a bid's bill while its approval waits is allowed** (the approval then no longer
+  covers the bid); a bill instead refuses the edit. The two should agree.
+- **A cancelled requisition leaves its approval waiting** until somebody turns it down.
+- **A chain a studio stored before 11/09/2026 through Finance's old API is not read** for the
+  default steps — only the studio's own layer is. Nothing on a studio saved since then is affected.
+- **AP reporting is not revalued.** A bill carries a currency, but the aging report still sums
+  raw totals.

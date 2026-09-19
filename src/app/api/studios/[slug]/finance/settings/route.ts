@@ -18,10 +18,9 @@ export const dynamic = "force-dynamic";
 // whatever the defaults said and could not be changed. The same defect the five
 // posting functions carried, found the same way: by needing one of them.
 //
-// THE APPROVAL CHAINS ARE NOT WRITTEN HERE ANY MORE. They moved to the studio
-// record (`platform/approval/store`), and `saveFinanceSettings` still accepts
-// them for the studios that stored them before the move — see the note in that
-// file about there never being a moment with two writers.
+// THE APPROVAL CHAINS ARE NOT WRITTEN HERE, nor read: who approves what is
+// Approvals settings' since 19/09/2026, and `saveFinanceSettings` refuses a
+// chain by name.
 const spec = { auth: "studio", context: financeContext, body: true, name: "finance/settings" };
 
 export const GET = route({ ...spec, body: false }, async (c) => {
@@ -38,7 +37,6 @@ export const GET = route({ ...spec, body: false }, async (c) => {
     cashCategories: ctx.cashCategories,
     withholdingRules: ctx.withholdingRules,
     paymentHold: ctx.paymentHold,
-    approvalChains: ctx.approvalChains,
     canManage: ctx.canManageSettings,
   };
 });

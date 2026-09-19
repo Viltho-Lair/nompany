@@ -47,11 +47,11 @@ ok("A KEY WITH NO PERMISSIONS IS REFUSED",
   keyProblems({ name: "Empty", scopes: [] }, [], OWNER).some((p) => /at least one/.test(p)));
 // INVARIANT 5 AT MINTING: nobody grants what they do not hold.
 ok("NOBODY MINTS A KEY BEYOND THEIR OWN RIGHTS",
-  keyProblems({ name: "Too much", scopes: ["hr.employees.view", "finance.payables.approve"] }, [], OWNER)
+  keyProblems({ name: "Too much", scopes: ["hr.employees.view", "finance.payables.pay"] }, [], OWNER)
     .some((p) => /rights you do not hold/.test(p)));
 ok("...and the refusal names which ones",
-  keyProblems({ name: "Too much", scopes: ["finance.payables.approve"] }, [], OWNER)
-    .some((p) => /finance\.payables\.approve/.test(p)));
+  keyProblems({ name: "Too much", scopes: ["finance.payables.pay"] }, [], OWNER)
+    .some((p) => /finance\.payables\.pay/.test(p)));
 ok("too many live keys is refused",
   keyProblems({ name: "One more", scopes: ["hr.employees.view"] },
     Array.from({ length: MAX_KEYS }, (_, i) => ({ name: `k${i}`, scopes: [] })), OWNER)

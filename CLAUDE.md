@@ -225,7 +225,7 @@ the `allowJs` escape hatch are still holding open.
 | `src/platform/realtime/**` | The event stream, the doorbell bus, live patches |
 | `src/platform/notify/**` | Notifications and email |
 | `src/platform/http/**` | The route wrapper, the status table, idempotency, audit, observability |
-| `src/platform/approval/**` | The approval chain store and walker (bills, bids, requisitions) |
+| `src/platform/approval/**` | The old amount chains, read only as a moved type's default steps (approvals themselves are `src/modules/approvals/`) |
 | `src/platform/engagement/**` | The stage registry and the engagement backfill |
 | `src/platform/nova/**` | Nova |
 | `src/modules/<name>/**` | The departments, one folder each — fifteen today |

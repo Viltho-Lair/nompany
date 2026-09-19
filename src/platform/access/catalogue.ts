@@ -391,15 +391,13 @@ const OWN_AREAS = [
   // ASKING AND AUTHORISING ARE DIFFERENT POWERS, which is why `approve` and
   // `approveHigh` are extras on the same area rather than the CRUD verbs
   // covering them: everybody who buys anything raises requisitions, and the
-  // point of the record is that somebody else says yes. `approveHigh` is the
-  // second step, and it is deliberately NOT seeded to the Manager role — the
-  // step exists to reach past whoever runs the department.
+  // point of the record is that somebody else says yes.
+  //
+  // APPROVING ONE IS NOT A RIGHT ANY MORE (19/09/2026): submitting it asks the
+  // people Approvals settings name, on the Approvals page, and `approve`/
+  // `approveHigh` would be a second answer to "who approves this" (invariant 16).
   { key: "procurement.requisitions", group: "Procurement & Subcontracting", label: "Requisitions",
-    verbs: ["view", "create", "edit", "delete"],
-    extra: [
-      { key: "approve", label: "Approve a requisition" },
-      { key: "approveHigh", label: "Approve a requisition above the limit" },
-    ] },
+    verbs: ["view", "create", "edit", "delete"] },
   // ASKING AND AWARDING ARE DIFFERENT POWERS over the same record, which is
   // what an extra verb is for — `award` names a supplier and a price and is the
   // act that decides where the money goes, while view/create/edit is the work of
@@ -423,8 +421,8 @@ const OWN_AREAS = [
     verbs: ["view", "edit"] },
   // CERTIFY IS AN EXTRA, and it is the verb that matters here: writing a
   // valuation is administration, and AGREEING it is the act that creates a debt
-  // — the same separation `procurement.requisitions.approve` draws, and the
-  // reason neither is a rung on the view/edit ladder.
+  // — the same separation a requisition's approval draws — and the reason it
+  // is not a rung on the view/edit ladder.
   { key: "procurement.subcontracts", group: "Procurement & Subcontracting", label: "Subcontracts",
     verbs: ["view", "create", "edit", "delete"],
     extra: [
