@@ -531,8 +531,9 @@ const OWN_AREAS = [
   // `approve` IS AN EXTRA on the same area because approving is an act ON a
   // run, and invariant 7 is enforced at the transition rather than here — the
   // person who prepared it never approves it, whichever rights they hold.
-  { key: "hr.payroll", group: "Human Resources", label: "Payroll", verbs: ["view", "create", "edit"],
-    extra: [{ key: "approve", label: "Approve a payroll run" }] },
+  // APPROVING A RUN IS NOT A RIGHT ANY MORE (19/09/2026): it is answered on the
+  // Approvals page by the people Approvals settings name. Asking for it is `edit`.
+  { key: "hr.payroll", group: "Human Resources", label: "Payroll", verbs: ["view", "create", "edit"] },
 
   // ATTENDANCE IS SCOPED WHERE PAYROLL IS NOT, and the difference is the shape
   // of the two jobs. A supervisor marks their own team every morning, which is

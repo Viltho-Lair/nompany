@@ -62,6 +62,8 @@ export type HrContext = ModuleContext & {
    * section" is a real answer meaning it has no departments yet.
    */
   masterSection: Section | null;
+  /** Where a payroll run's approval is filed. */
+  approvalsSection: Section | null;
   canViewEmployees: boolean;
   canManageEmployees: boolean;
   canAssignRoles: boolean;

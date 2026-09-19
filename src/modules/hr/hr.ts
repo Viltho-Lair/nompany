@@ -116,7 +116,12 @@ export const hrContext = moduleContext<HrContext>({
   // MANPOWER PLANNING HANGS A HEADCOUNT ON A PROJECT, so the project register
   // is read here — foreign and nullable, so a studio that has not opened
   // Projects can still see its roles and simply has no project to plan for.
-  foreign: { master: "administration-master", projectsList: ["projects-list", "projects"] },
+  foreign: {
+    master: "administration-master", projectsList: ["projects-list", "projects"],
+    // APPROVALS', where a payroll run's approval is filed (19/09/2026).
+    // Nullable like every foreign section, only while a studio awaits planting.
+    approvals: "approvals",
+  },
   flags: ["employees"],
   extend: ({ access }) => ({
     // Handing somebody a role is an ACCESS act, not an HR one, so it is gated on

@@ -357,25 +357,6 @@ export function runProblem(status: RunStatus, next: RunStatus): string | null {
   return null;
 }
 
-/**
- * MAY THIS PERSON APPROVE IT? Invariant 7, at the transition rather than in the
- * permission model: holding both rights is legitimate, using both on one run is
- * not. Preparing payroll and authorising it are the two halves of the oldest
- * control there is.
- */
-export function approvalProblem(
-  run: { status: RunStatus; preparedByCollaboratorId: string },
-  collaboratorId: string,
-  opts: { admin?: boolean } = {},
-): string | null {
-  if (run.status !== "Draft") return "already-approved";
-  // THE ADMIN IS THE EXCEPTION — the owner's instruction, 10/09/2026. The
-  // studio's owner or a holder of the Admin role has full authority, and a
-  // studio run by one person could otherwise never pay itself. Everybody else
-  // still needs a second person: preparing and authorising stay two acts.
-  if (run.preparedByCollaboratorId === collaboratorId && !opts.admin) return "same-signer";
-  return null;
-}
 
 /**
  * THE BANK FILE'S ROWS.

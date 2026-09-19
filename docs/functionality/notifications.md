@@ -83,7 +83,6 @@ fact) goes to whoever can answer the next step, resolved from the right that ste
 - a **bid** after every signature that is not the last;
 - every **approval**, to the people named on each step as it opens (Approval settings), and
   to the requester when it is approved or rejected;
-- a **payroll run** when it is prepared, to holders of `hr.payroll.approve`.
 
 Never the raiser, who knows, and never anybody who signed an earlier step — invariant 7
 refuses them the next one. Until 11/09/2026 none of these rang anybody: only the raiser was

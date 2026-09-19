@@ -14,7 +14,10 @@ type Strings = {
   period: string;
   prepare: string;
   slips: string;
-  approve: string;
+  requestApproval: string;
+  approvalStepsOf: (granted: number, required: number) => string;
+  approvalRejected: (reason: string) => string;
+  openApprovals: string;
   markPaid: string;
   bankFile: string;
   close: string;
@@ -63,7 +66,6 @@ type Strings = {
   viewPay: string;
   gross: string;
   preparedBy: string;
-  waitingOther: string;
   hideSlips: string;
   total: string;
   account: string;
@@ -115,7 +117,10 @@ const en: Strings = {
   period: "Month",
   prepare: "Prepare run",
   slips: "Payslips",
-  approve: "Approve",
+  requestApproval: "Request approval",
+  approvalStepsOf: (g, r) => `${g} of ${r} approval step${r === 1 ? "" : "s"}`,
+  approvalRejected: (reason) => `Turned down${reason ? `: “${reason}”` : ""}`,
+  openApprovals: "Open in Approvals",
   markPaid: "Mark paid",
   bankFile: "Bank file",
   close: "Close",
@@ -174,7 +179,6 @@ const en: Strings = {
   viewPay: "Pay records",
   gross: "Gross",
   preparedBy: "Prepared by",
-  waitingOther: "Needs another approver",
   hideSlips: "Hide payslips",
   total: "Total",
   account: "Bank account",
@@ -183,12 +187,14 @@ const en: Strings = {
   stateCol: "Status",
   peopleCol: "People",
   problem: (code) => (
-    code === "same-signer" ? "You prepared this run, so somebody else has to approve it."
+    code === "not-configured" ? "Nobody has been named to approve payroll. The owner or an Admin names them in Approvals settings."
+      : code === "no-approver" ? "You are the only person who approves payroll, so you cannot ask for it yourself. Ask the owner to name somebody else in Approvals settings."
+      : code === "already-pending" ? "This run is already waiting for approval."
       : code === "duplicate" ? "There is already a run for that month."
         : code === "nobody" ? "Nobody has a pay record yet."
           : code === "period" ? "Pick a month."
             : code === "transition" ? "A run cannot go back."
-              : code === "not-approved" ? "Approve the run first."
+              : code === "not-approved" ? "The run has to be approved first."
                 : code || ""),
   ssShort: (amount) => `incl. ${amount} social security`,
   employerCost: (amount) => `Employer's social security on top of gross: ${amount}`,
@@ -232,7 +238,10 @@ const ar: Strings = {
   period: "الشهر",
   prepare: "تجهيز دورة",
   slips: "قسائم الرواتب",
-  approve: "اعتماد",
+  requestApproval: "طلب الاعتماد",
+  approvalStepsOf: (g, r) => `${g} من ${r} مراحل اعتماد`,
+  approvalRejected: (reason) => `رفض${reason ? `: «${reason}»` : ""}`,
+  openApprovals: "فتح في الموافقات",
   markPaid: "تعليم كمدفوع",
   bankFile: "ملف البنك",
   close: "اغلاق",
@@ -285,7 +294,6 @@ const ar: Strings = {
   viewPay: "سجلات الرواتب",
   gross: "الإجمالي",
   preparedBy: "جهزها",
-  waitingOther: "تحتاج معتمدا آخر",
   hideSlips: "اخفاء القسائم",
   total: "المجموع",
   account: "الحساب البنكي",
@@ -294,12 +302,14 @@ const ar: Strings = {
   stateCol: "الحالة",
   peopleCol: "الموظفون",
   problem: (code) => (
-    code === "same-signer" ? "أنتم من جهز هذه الدورة، فيجب أن يعتمدها شخص آخر."
+    code === "not-configured" ? "لم يحدد أحد لاعتماد الرواتب. يحددهم المالك أو المشرف في إعدادات الموافقات."
+      : code === "no-approver" ? "أنتم الوحيدون الذين يعتمدون الرواتب، فلا يمكنكم طلب الاعتماد بأنفسكم. اطلبوا من المالك تحديد شخص آخر في إعدادات الموافقات."
+      : code === "already-pending" ? "هذه الدورة بانتظار الاعتماد بالفعل."
       : code === "duplicate" ? "توجد دورة لهذا الشهر بالفعل."
         : code === "nobody" ? "لا يوجد أحد لديه سجل راتب بعد."
           : code === "period" ? "اختاروا شهرا."
             : code === "transition" ? "الدورة لا تعود الى الوراء."
-              : code === "not-approved" ? "اعتمدوا الدورة أولا."
+              : code === "not-approved" ? "يجب اعتماد الدورة أولا."
                 : code || ""),
   ssShort: (amount) => `منها ${amount} ضمان اجتماعي`,
   employerCost: (amount) => `حصة صاحب العمل من الضمان الاجتماعي فوق الاجمالي: ${amount}`,

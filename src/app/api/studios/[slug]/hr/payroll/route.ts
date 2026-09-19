@@ -1,7 +1,7 @@
 import { route, refused } from "@/platform/http/route";
 import { hrContext } from "@/modules/hr/hr";
 import {
-  listPay, savePay, prepareRun, readRun, moveRun, bankFile, payslipDocument,
+  listPay, savePay, prepareRun, readRun, moveRun, requestRunApproval, bankFile, payslipDocument,
 } from "@/modules/hr/payrollService";
 import type { HrContext } from "@/modules/hr/types";
 import type { RunStatus } from "@/modules/hr/payroll";
@@ -35,10 +35,10 @@ export const GET = route({ ...spec, body: false }, async (c) => {
   return refused(result) ? result : { ok: true, ...result };
 });
 
-// EVERY ACT IS NAMED IN THE BODY. A payroll run's transitions are not edits —
-// approving one is the second half of the oldest control there is — and routing
-// them through a generic PUT is the shape that let a rejected change order
-// approve itself.
+// EVERY ACT IS NAMED IN THE BODY. A payroll run's transitions are not edits,
+// and routing them through a generic PUT is the shape that let a rejected change
+// order approve itself. APPROVING is asked for here (`request-approval`) and
+// answered on the Approvals page (19/09/2026).
 export const POST = route(spec, async (c) => {
   const ctx = c as HrContext;
   const action = String(c.body?.action ?? "");
@@ -46,6 +46,8 @@ export const POST = route(spec, async (c) => {
     : action === "prepare" ? await prepareRun(ctx, c.body)
       : action === "move"
         ? await moveRun(ctx, String(c.body?.id ?? ""), String(c.body?.status ?? "") as RunStatus)
-        : { error: "action" };
+        : action === "request-approval"
+          ? await requestRunApproval(ctx, String(c.body?.id ?? ""))
+          : { error: "action" };
   return refused(result) ? result : { ok: true, ...result };
 });

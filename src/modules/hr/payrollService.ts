@@ -15,13 +15,16 @@ import { requirePermission } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
 import { listCollaborators } from "@/platform/auth/collaborators";
 import {
-  payProblems, cleanPay, payslipFor, runTotals, runProblem, approvalProblem,
+  payProblems, cleanPay, payslipFor, runTotals, runProblem,
   bankRows, PERIOD_RE, periodRange,
 } from "./payroll";
 import type { PayRecord, PayslipLine, RunStatus } from "./payroll";
 import type { HrContext } from "./types";
-import { isAdministrator } from "@/platform/access";
-import { notifyHolders, signatureNotice } from "@/modules/people/holders";
+import { approvalRows, requestApproval } from "@/modules/approvals/approvals";
+import { approvalSummary } from "@/modules/approvals/reads";
+import type { Refusal } from "@/modules/approvals/effects";
+import type { Approval } from "@/modules/approvals/schema";
+import type { StudioRef } from "@/modules/context";
 import { statutoryRulesOf, endOfService, sifFile, wpsWithEmployer } from "./statutory";
 import { employedBetween, statusOf } from "./lifecycle";
 import { official, officialForDocument } from "@/shared/compliance/resolve";
@@ -97,11 +100,13 @@ export async function listPay(ctx: HrContext) {
   const denied = requirePermission(ctx.access, "hr.payroll.view");
   if (denied) return denied;
 
-  const [records, runs, people] = await Promise.all([
+  const [records, runs, people, approvals] = await Promise.all([
     Pay.find(scope(ctx)),
     Runs.find(scope(ctx)),
     listCollaborators(ctx.studio.id),
+    approvalRows(ctx.studio, ctx.approvalsSection),
   ]);
+  const mayAsk = !requirePermission(ctx.access, "hr.payroll.edit");
   const alias = Object.fromEntries(people.map((c) => [String(c.id), String(c.alias || "Unnamed")]));
   const rules = statutoryRulesOf(ctx.studio);
   const today = new Date().toISOString().slice(0, 10);
@@ -162,13 +167,15 @@ export async function listPay(ctx: HrContext) {
       .map((r) => ({
         id: r.id, period: r.period, status: r.status, totals: r.totals,
         preparedByAlias: alias[r.preparedByCollaboratorId] || "",
-        // SO THE SCREEN CAN SAY "needs another approver" instead of offering
-        // a button the server would refuse.
-        preparedByMe: r.preparedByCollaboratorId === ctx.collaborator.id,
+        // HOW FAR ITS APPROVAL HAS GOT, read from the approval — answered on the
+        // Approvals page since 19/09/2026 — and whether this reader may ask:
+        // a draft nobody has asked about, or whose last request was turned down.
+        ...(() => {
+          const approval = approvalSummary(approvals, PAYROLL_APPROVAL, r.id);
+          return { approval, canRequestApproval: mayAsk && r.status === "Draft" && (!approval || approval.rejected) };
+        })(),
       })),
-    canManage: !requirePermission(ctx.access, "hr.payroll.edit"),
-    canApprove: !requirePermission(ctx.access, "hr.payroll.approve"),
-    isAdmin: isAdministrator(ctx.collaborator, ctx.roles),
+    canManage: mayAsk,
   };
 }
 
@@ -269,9 +276,8 @@ export async function prepareRun(ctx: HrContext, body: Record<string, unknown>) 
     preparedByCollaboratorId: ctx.collaborator.id,
     preparedAt: new Date().toISOString(),
   });
-  // WHOEVER APPROVES PAYROLL IS TOLD A RUN IS READY — not the preparer, who
-  // knows. (An Admin may still approve their own run; see `approvalProblem`.)
-  await notifyHolders(ctx.studio.id, "hr.payroll.approve", signatureNotice(period, "hr"), [ctx.collaborator.id]);
+  // NOBODY IS TOLD YET: approving a run is asked for from the run (Request
+  // approval), and whoever it names hears then.
   return { run };
 }
 
@@ -335,15 +341,19 @@ export async function payslipDocument(ctx: HrContext, runId: string, collaborato
 }
 
 /**
- * APPROVE OR PAY. Two transitions, one door, and the ladder never runs
- * backwards — a payroll that could be reopened after approval is a payroll
- * whose payslips are not evidence of anything.
+ * PAY IT. The one move left on this door, and the ladder never runs backwards —
+ * a payroll that could be reopened after approval is a payroll whose payslips
+ * are not evidence of anything.
+ *
+ * APPROVING IS NOT A MOVE HERE (19/09/2026): it is asked for with
+ * `requestRunApproval` and answered on the Approvals page, where preparing and
+ * authorising stay two people (the Admin excepted — the owner's rule). A move
+ * to Approved sent here is refused by name rather than routed around it.
  */
 export async function moveRun(ctx: HrContext, id: string, next: RunStatus) {
-  const denied = requirePermission(
-    ctx.access, next === "Approved" ? "hr.payroll.approve" : "hr.payroll.edit",
-  );
+  const denied = requirePermission(ctx.access, "hr.payroll.edit");
   if (denied) return denied;
+  if (next === "Approved") return { error: "not-answerable" };
 
   const run = (await Runs.find(scope(ctx))).find((r) => r.id === id);
   if (!run) return { error: "notfound" };
@@ -351,23 +361,84 @@ export async function moveRun(ctx: HrContext, id: string, next: RunStatus) {
   const wrong = runProblem(run.status, next);
   if (wrong) return { error: wrong, from: run.status, to: next };
 
-  if (next === "Approved") {
-    // INVARIANT 7, at the transition: preparing payroll and authorising it are
-    // the two halves of the oldest control there is, and holding both rights is
-    // legitimate while using both on one run is not — EXCEPT for the Admin, who
-    // may approve a run they prepared (see `approvalProblem`).
-    const blocked = approvalProblem(run, ctx.collaborator.id, { admin: isAdministrator(ctx.collaborator, ctx.roles) });
-    if (blocked) return { error: blocked };
-  }
-
   const at = new Date().toISOString();
   const updated = await Runs.update(scope(ctx), id, {
     status: next,
-    ...(next === "Approved" ? { approvedByCollaboratorId: ctx.collaborator.id, approvedAt: at } : {}),
     ...(next === "Paid" ? { paidAt: at } : {}),
   });
   return updated ? { run: updated } : { error: "notfound" };
 }
+
+/** The approval type a payroll run asks for. Its key is stored — see modules/approvals/registry. */
+export const PAYROLL_APPROVAL = "payroll";
+
+/**
+ * ASK FOR A RUN'S APPROVAL — the Request approval button on a draft run. The
+ * approval carries the run's net, in the studio's currency; its people are
+ * Approvals settings', and until the studio saves the type, whoever held
+ * `hr.payroll.approve` plus the owner and Admins.
+ */
+export async function requestRunApproval(ctx: HrContext, id: string) {
+  const denied = requirePermission(ctx.access, "hr.payroll.edit");
+  if (denied) return denied;
+  const run = await Runs.byId(scope(ctx), String(id));
+  if (!run) return { error: "notfound" };
+  if (run.status !== "Draft") return { error: "already-approved" };
+  const asked = await requestApproval({ studio: ctx.studio, collaborator: ctx.collaborator, roles: ctx.roles }, {
+    type: PAYROLL_APPROVAL,
+    source: {
+      sectionKey: "hr-payroll", recordId: run.id, ref: run.period,
+      title: `Payroll ${run.period} · ${run.totals?.people ?? run.lines.length} people`, path: "hr-payroll",
+    },
+    amount: { value: Number(run.totals?.net) || 0, currency: String(ctx.studio.currency || "") },
+  });
+  if (asked.error) return { ...asked, error: asked.error };
+  // UNDER EVERY LIMIT THE STUDIO SET, nothing is asked and it is approved as the
+  // one who asked — what the last yes would have written.
+  if (asked.notNeeded) {
+    const run2 = await markRunApproved(scope(ctx), run.id, String(ctx.collaborator.id));
+    return { run: run2 || run, approval: null };
+  }
+  return { run, approval: asked.approval ?? null };
+}
+
+/** Approved, once, and only from Draft. `approvedByCollaboratorId` is whoever gave the last yes. */
+async function markRunApproved(where: { studio: StudioRef; section: HrContext["employeesSection"] }, id: string, by: string) {
+  const at = new Date().toISOString();
+  const run = await Runs.update(where, id, (cur) => ((cur as Run).status !== "Draft" ? cur : {
+    ...cur, status: "Approved", approvedByCollaboratorId: by, approvedAt: at,
+  }));
+  return run && run.status === "Approved" && run.approvedAt === at ? run : null;
+}
+
+/** The run an approval names, in a context carrying the studio's authority. */
+async function runFor(studio: StudioRef, approval: Approval, byCollaboratorId: string) {
+  // IMPORTED WHEN NEEDED: ./hr imports the services beside it.
+  const { hrContext } = await import("./hr");
+  const ctx = await hrContext.asApprover(studio.id, byCollaboratorId);
+  if (ctx.error) return { error: ctx.error } as Refusal;
+  const run = await Runs.byId(scope(ctx), approval.source.recordId);
+  return run ? { ctx, run } : ({ error: "notfound" } as Refusal);
+}
+
+/**
+ * WHAT DECIDING A `payroll` APPROVAL DOES — see modules/approvals/effects. A
+ * yes makes the run Approved, which is what the bank files and paying wait on;
+ * a no leaves it a draft, read as turned down, to be prepared again or asked
+ * about again.
+ */
+export const payrollApproval = {
+  ready: async (studio: StudioRef, approval: Approval, by: string) => {
+    const found = await runFor(studio, approval, by);
+    if ("error" in found) return found;
+    return found.run.status === "Draft" ? null : ({ error: "already-decided", status: found.run.status } as Refusal);
+  },
+  approved: async (studio: StudioRef, approval: Approval, by: string) => {
+    const found = await runFor(studio, approval, by);
+    if ("error" in found) return found;
+    return (await markRunApproved(scope(found.ctx), found.run.id, by)) ? ("done" as const) : ({ error: "already-decided" } as Refusal);
+  },
+};
 
 /** The bank file's rows, and everybody it could not pay. */
 export async function bankFile(ctx: HrContext, id: string) {

@@ -674,12 +674,24 @@ async function payrollRun() {
   ok("a draft run has no bank file", early.body?.error === "not-approved",
     JSON.stringify(early.body));
 
-  // ---- THE OWNER APPROVES A RUN THEY PREPARED — the owner's rule, 10/09 ----
-  // This asserted the opposite until 17/09/2026 and failed from the day the
-  // rule changed: an Admin may approve a payroll run they prepared, or a
-  // one-person studio could never pay itself (invariant 7 in CLAUDE.md).
-  const self = await call(PAY.POST, body("POST", { action: "move", id: runId, status: "Approved" }), P());
-  ok("THE OWNER MAY APPROVE A RUN THEY PREPARED", self.body?.run?.status === "Approved",
+  // ---- APPROVED ON THE APPROVALS PAGE since 19/09/2026 ---------------------
+  // Asked for from the run, answered there. A move to Approved sent to the
+  // payroll door is refused by name rather than routed around the approvers.
+  const APPROVALS = await import("../src/app/api/studios/[slug]/approvals/route.ts");
+  const runApproval = async (id, list) => ((await call(APPROVALS.GET, req(`/api/studios/${F.slug}/x`), P())).body?.[list] || [])
+    .find((a) => a.type === "payroll" && a.source?.recordId === id);
+  const answer = (id, verdict = "Approved") => call(APPROVALS.PUT, body("PUT", { id, verdict }), P());
+  const direct = await call(PAY.POST, body("POST", { action: "move", id: runId, status: "Approved" }), P());
+  ok("a run is not approved by moving it", direct.body?.error === "not-answerable", JSON.stringify(direct.body));
+  const asked = await call(PAY.POST, body("POST", { action: "request-approval", id: runId }), P());
+  ok("its approval is asked for, carrying the net", asked.body?.approval?.amount?.value === 3300,
+    JSON.stringify(asked.body).slice(0, 160));
+  // THE OWNER ANSWERS WHAT THEY PREPARED — the owner's rule, 10/09/2026: an
+  // Admin may, or a one-person studio could never pay itself.
+  const self = await answer(asked.body?.approval?.id);
+  const afterSelf = await call(PAY.GET, req(`/api/studios/${F.slug}/x`), P());
+  ok("THE OWNER MAY APPROVE A RUN THEY PREPARED",
+    self.body?.approval?.status === "Approved" && afterSelf.body?.runs?.find((r) => r.id === runId)?.status === "Approved",
     JSON.stringify(self.body).slice(0, 160));
 
   // THE LADDER NEVER RUNS BACKWARDS: a payroll that could be reopened after
@@ -692,7 +704,7 @@ async function payrollRun() {
   const role = await createRole(F.studio.id, {
     name: `payroll-${F.rand()}`,
     permissions: [
-      "hr.payroll.view", "hr.payroll.create", "hr.payroll.edit", "hr.payroll.approve",
+      "hr.payroll.view", "hr.payroll.create", "hr.payroll.edit",
       "finance.ledger.post", "finance.ledger.view",
     ],
   });
@@ -703,14 +715,16 @@ async function payrollRun() {
   const theirs = await call(PAY.POST, body("POST", { action: "prepare", period: "2031-08" }), P());
   const theirRunId = theirs.body?.run?.id;
   ok("fixture: a non-admin prepares a run", Boolean(theirRunId), JSON.stringify(theirs.body).slice(0, 160));
-  const ownApprove = await call(PAY.POST, body("POST", { action: "move", id: theirRunId, status: "Approved" }), P());
-  ok("A NON-ADMIN WHO PREPARED THE RUN CANNOT APPROVE IT", ownApprove.body?.error === "same-signer",
+  const theirAsk = await call(PAY.POST, body("POST", { action: "request-approval", id: theirRunId }), P());
+  const ownApprove = await answer(theirAsk.body?.approval?.id);
+  ok("A NON-ADMIN WHO PREPARED THE RUN CANNOT APPROVE IT", ownApprove.body?.error === "own-request",
     JSON.stringify(ownApprove.body));
 
-  // ---- somebody else approves it -------------------------------------------
+  // ---- somebody named on the step approves it -------------------------------
   await F.signIn(F.owner.id);
-  const approved = await call(PAY.POST, body("POST", { action: "move", id: theirRunId, status: "Approved" }), P());
-  ok("SOMEBODY ELSE APPROVES IT", approved.body?.run?.status === "Approved",
+  const waiting = await runApproval(theirRunId, "waiting");
+  const approved = await answer(waiting?.id);
+  ok("SOMEBODY ELSE APPROVES IT", approved.body?.approval?.status === "Approved",
     JSON.stringify(approved.body).slice(0, 160));
 
   // The ledger half posts as the payroll holder, who holds finance.ledger.post.

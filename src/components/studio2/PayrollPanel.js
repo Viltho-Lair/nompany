@@ -223,7 +223,7 @@ export default function PayrollPanel({ slug, locale = "en" }) {
 
   if (!data) return <p className="text-sm text-slate-500 dark:text-slate-400">…</p>;
 
-  const { people = [], runs = [], canManage, canApprove, isAdmin, ssEnabled, eosEnabled, wpsEnabled, sifReady } = data;
+  const { people = [], runs = [], canManage, ssEnabled, eosEnabled, wpsEnabled, sifReady } = data;
   const withPay = people.filter((p) => p.basic !== null);
   const missing = people.length - withPay.length;
   const latest = runs[0];
@@ -324,18 +324,23 @@ export default function PayrollPanel({ slug, locale = "en" }) {
                             <button type="button" className={btnRow} onClick={() => toggleRun(r.id)}>
                               {open?.id === r.id ? tr.hideSlips : tr.slips}
                             </button>
-                            {/* THE PREPARER WAITS FOR SOMEBODY ELSE unless they are
-                                the Admin — the server enforces it at the
-                                transition; this only stops offering a button that
-                                would be refused. */}
-                            {canApprove && r.status === "Draft" && (r.preparedByMe && !isAdmin
-                              ? <span className="text-xs text-slate-400 dark:text-slate-500">{tr.waitingOther}</span>
-                              : (
-                                <button type="button" className={btnRowPrimary} disabled={busy}
-                                  onClick={() => send({ action: "move", id: r.id, status: "Approved" })}>
-                                  {tr.approve}
-                                </button>
-                              ))}
+                            {/* APPROVING IS ASKED FOR HERE AND ANSWERED ON THE
+                                APPROVALS PAGE (19/09/2026), where the preparer is
+                                never asked to authorise their own run (the Admin
+                                excepted). The server says when asking applies. */}
+                            {r.approval && r.status === "Draft" && (
+                              <span className={`text-xs ${r.approval.rejected ? "text-rose-600 dark:text-rose-300" : "text-slate-500 dark:text-slate-400"}`}>
+                                {r.approval.rejected ? tr.approvalRejected(r.approval.reason) : tr.approvalStepsOf(r.approval.granted, r.approval.required)}
+                                {" · "}
+                                <a href={`/${slug}/approvals`} className="font-600 text-brand-700 hover:underline dark:text-brand-300">{tr.openApprovals}</a>
+                              </span>
+                            )}
+                            {r.canRequestApproval && (
+                              <button type="button" className={btnRowPrimary} disabled={busy}
+                                onClick={() => send({ action: "request-approval", id: r.id })}>
+                                {tr.requestApproval}
+                              </button>
+                            )}
                             {canManage && r.status === "Approved" && (
                               <>
                                 <a className={btnRow} href={`/api/studios/${slug}/hr/payroll/bank?run=${encodeURIComponent(r.id)}`}

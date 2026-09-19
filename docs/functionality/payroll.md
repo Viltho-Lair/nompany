@@ -21,11 +21,14 @@ manager and the second to whoever runs payroll, and they are rarely the same per
 **`hr.payroll` is deliberately NOT scoped.** A payroll run is the studio's, and a
 departmental view of it would be a partial total nobody could reconcile against the ledger.
 
-**`approve` is an extra on the same area**, because approving is an act ON a run — and
-invariant 7 is enforced at the transition rather than in the permission model: the person who prepared a run does not approve it, whichever rights they hold — **unless
-they are the studio's Admin** (its owner, or a holder of the Admin role), who may approve a
-run they prepared: the owner's instruction, 10/09/2026, because a one-person studio could
-otherwise never pay itself. `isAdministrator` in `platform/access/resolve.ts` is the test.
+**Approving a run is answered on the Approvals page** (19/09/2026). A draft run has a
+**Request approval** button (`hr.payroll.edit`), which files a **Payroll run** approval
+carrying the run's net; the people who answer are Approvals settings', and until the studio
+saves the type, whoever held the old `hr.payroll.approve` right (now gone) plus the owner and
+Admins. The last yes makes the run Approved. **The person who prepared a run is never asked to
+approve it — unless they are the studio's Admin**, the owner's instruction of 10/09/2026, because
+a one-person studio could otherwise never pay itself. A move to Approved sent to the payroll
+door is refused (`not-answerable`); a no leaves the run a draft.
 
 ### A pay record is now; a run is a snapshot
 

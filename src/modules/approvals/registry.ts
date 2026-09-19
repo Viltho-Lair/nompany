@@ -102,6 +102,12 @@ export const APPROVAL_TYPES: readonly ApprovalTypeDef[] = [
       { permission: "procurement.requisitions.approveHigh", from: 10000, label: "Above the limit" },
     ],
   },
+  // A PAYROLL RUN (HR → Payroll). Asked for on a draft run; approved, its bank
+  // files are made and it can be paid.
+  {
+    key: "payroll", label: "Payroll run", requestable: true, amounted: true,
+    legacy: [{ permission: "hr.payroll.approve", from: 0, label: "Payroll" }],
+  },
   { key: "carried", label: "Carried over", requestable: false },
 ];
 

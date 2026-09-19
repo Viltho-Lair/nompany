@@ -11,7 +11,7 @@ register(new URL("./loader.mjs", import.meta.url), { data: { root } });
 
 const {
   payProblems, cleanPay, daysInPeriod, periodRange, payslipFor, runTotals,
-  runProblem, approvalProblem, bankRows, RUN_STATUSES, PERIOD_RE,
+  runProblem, bankRows, RUN_STATUSES, PERIOD_RE,
 } = await import("@/modules/hr/payroll");
 
 let fails = 0;
@@ -105,20 +105,9 @@ ok("A PAID RUN GOES NOWHERE", runProblem("Paid", "Approved") === "transition");
 ok("an approved run cannot go back to draft", runProblem("Approved", "Draft") === "transition");
 ok("a draft cannot skip to paid", runProblem("Draft", "Paid") === "transition");
 
-// INVARIANT 7 AT THE TRANSITION: preparing payroll and authorising it are the
-// two halves of the oldest control there is.
-const run = { status: "Draft", preparedByCollaboratorId: "prep" };
-ok("THE PERSON WHO PREPARED IT CANNOT APPROVE IT",
-  approvalProblem(run, "prep") === "same-signer");
-ok("somebody else can", approvalProblem(run, "boss") === null);
-// THE ADMIN IS THE EXCEPTION (the owner's instruction, 10/09/2026): full
-// authority, and a one-person studio could otherwise never pay itself.
-ok("AN ADMIN MAY APPROVE A RUN THEY PREPARED", approvalProblem(run, "prep", { admin: true }) === null);
-ok("...a non-admin still may not", approvalProblem(run, "prep", { admin: false }) === "same-signer");
-ok("...and nobody may approve twice, Admin included",
-  approvalProblem({ status: "Approved", preparedByCollaboratorId: "prep" }, "prep", { admin: true }) === "already-approved");
-ok("an approved run cannot be approved again",
-  approvalProblem({ status: "Approved", preparedByCollaboratorId: "prep" }, "boss") === "already-approved");
+// WHO MAY AUTHORISE A RUN is the Approvals page's since 19/09/2026: the preparer
+// is never asked to approve their own (the Admin excepted), and that is asserted
+// in tests/approvals-model.mjs and, end to end, in tests/crud.mjs.
 
 // ---- the bank file ----------------------------------------------------------
 const accounts = { c1: { iban: "JO94CBJO0010", bank: "Housing Bank" } };
