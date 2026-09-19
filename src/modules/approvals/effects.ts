@@ -2,13 +2,16 @@
 // anything. A type with no entry moves nothing: its record reads its approval
 // (./reads) and that is the whole story, as for a quotation.
 //
-// THREE QUESTIONS PER TYPE, all optional:
+// FOUR QUESTIONS PER TYPE, all optional:
 //   ready     — asked BEFORE the yes that would finish the approval lands. The
 //               approver is refused with the record's own reason (the drawer is
 //               closed, the units went back already) while their answer can still
 //               be not given, rather than after it is on the record.
 //   approved  — the record's write once the last yes has landed.
 //   rejected  — the record's write once somebody said no.
+//   stepped   — a step finished and the approval moved on to the next, for a
+//               record whose own state follows its steps (a document goes from
+//               review to approval when its reviewer says yes).
 //
 // EACH RUNS WITH THE STUDIO'S AUTHORITY, not the approver's — being named on the
 // step IS the authority (the owner, 19/09/2026), and the person answering may
@@ -32,6 +35,7 @@ type Handler = {
   ready?: (studio: StudioRef, approval: Approval, byCollaboratorId: string) => Promise<Refusal | null>;
   approved?: (studio: StudioRef, approval: Approval, byCollaboratorId: string) => Promise<"done" | Refusal>;
   rejected?: (studio: StudioRef, approval: Approval, byCollaboratorId: string, reason: string) => Promise<"done" | Refusal>;
+  stepped?: (studio: StudioRef, approval: Approval, stepIndex: number, byCollaboratorId: string) => Promise<unknown>;
 };
 
 const HANDLERS: Record<string, () => Promise<Handler>> = {
@@ -57,9 +61,16 @@ const HANDLERS: Record<string, () => Promise<Handler>> = {
   claim: async () => (await import("@/modules/finance/claimsService")).claimApproval,
   "change-order": async () => (await import("@/modules/sales/changeOrders")).changeOrderApproval,
   timesheet: async () => (await import("@/modules/projects/timesheets")).timesheetApproval,
+  "document-revision": async () => (await import("@/modules/quality/qualityDocRevisions")).documentApproval,
 };
 
 const handlerFor = async (type: string): Promise<Handler | null> => (HANDLERS[type] ? HANDLERS[type]() : null);
+
+/** Tell the record a step finished. Best-effort: the approval has already moved on. */
+export async function stepFinished(studio: StudioRef, approval: Approval, stepIndex: number, byCollaboratorId: string) {
+  const h = await handlerFor(approval.type);
+  if (h?.stepped) await h.stepped(studio, approval, stepIndex, byCollaboratorId);
+}
 
 /** Why the yes that would finish this approval cannot be given now, or null. */
 export async function readyToFinish(studio: StudioRef, approval: Approval, byCollaboratorId: string): Promise<Refusal | null> {

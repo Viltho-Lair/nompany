@@ -145,8 +145,6 @@ const extras: Record<Locale, Record<string, string>> = {
     "finance.payables.pay": "تسجيل المدفوعات",
     "finance.tax.file": "تقديم الاقرارات الضريبية وتسويتها",
     "finance.assets.dispose": "استبعاد أصل",
-    "engineeringDocs.register.review": "التوقيع كمراجع",
-    "engineeringDocs.register.approve": "التوقيع كمعتمد",
     "engineeringDocs.register.publish": "إصدار مراجعة",
     "engineeringDocs.register.obsolete": "سحب وثيقة",
     "engagements.lock": "قفل صفقة وفتحها",

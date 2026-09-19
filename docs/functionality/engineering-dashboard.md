@@ -39,7 +39,7 @@ is missing counts as absent rather than falling back to the root's rows.
 
 | Tile | What it counts |
 |---|---|
-| Waiting on you | Documents whose open revision is at review with you as reviewer, or at approval with you as approver — beside how many are in review or approval at all |
+| Waiting on you | Documents whose open revision is at review with you as reviewer, or at approval with you as approver — beside how many are in review or approval at all. It counts the reviewer and approver the DOCUMENT names, which nothing writes today; since 19/09/2026 who answers a revision is the Approvals page's, and that page lists what is waiting on you there |
 | Open RFIs | Status Open, with how many are past *Needed by*. **Answered is not open** — the asker has not accepted the answer yet — and has its own tile |
 | Submittals out for review | Submitted or Under review, with how many are past *Response due*. A draft or a sent-back submittal is not late on the reviewer |
 | Document reviews due | **Effective** documents whose next review falls in the next 30 days or has passed. A draft has nothing issued to review; an obsolete one is not worked to |

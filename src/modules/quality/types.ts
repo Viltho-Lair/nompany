@@ -13,4 +13,6 @@ export type { QualityDocument, QualityRevision } from "./schema";
 export type QualityContext = ModuleContext & {
   /** Master data, read to name a document's owning department. Nullable, like every foreign section. */
   masterSection: Section | null;
+  /** Where a revision's approval is filed. Nullable, like every foreign section. */
+  approvalsSection: Section | null;
 };

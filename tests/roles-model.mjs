@@ -171,8 +171,8 @@ ok("a doer deletes nothing",
 // THE ARCHETYPE NO STARTER ROLE EVER COVERED. A checker reads widely and
 // signs; building one by hand meant assembling view rights plus a review
 // extra, which is why nobody did.
-ok("a checker reads and signs but creates nothing",
-  A.permissionsFor("checker").includes("engineeringDocs.register.review")
+ok("a checker reads and issues but creates nothing",
+  A.permissionsFor("checker").includes("engineeringDocs.register.publish")
   && !A.permissionsFor("checker").some((k) => k.endsWith(".create")),
   A.permissionsFor("checker").filter((k) => k.endsWith(".create")).join(", "));
 

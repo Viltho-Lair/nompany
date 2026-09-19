@@ -77,6 +77,7 @@ const TYPES_EN: Record<string, string> = {
   claim: "Expense claim",
   "change-order": "Change order",
   timesheet: "Timesheet",
+  "document-revision": "Document revision",
   carried: "Carried over",
 };
 const TYPES_AR: Record<string, string> = {
@@ -96,6 +97,7 @@ const TYPES_AR: Record<string, string> = {
   claim: "مطالبة مصروفات",
   "change-order": "أمر تغيير",
   timesheet: "كشف ساعات",
+  "document-revision": "مراجعة مستند",
   carried: "منقولة",
 };
 

@@ -8,8 +8,11 @@
 // the first time either changes.
 //
 // WHAT IS GENERIC is the part that must never differ: which moves are legal from
-// which state, which right each one needs, that a signature carries a name and a
-// role and a moment, and that nobody signs both halves of the same thing.
+// which state, and which right each one needs. THE SIGNATURES themselves — the
+// review and the approval, and that nobody signs both halves — are the
+// Approvals page's since 19/09/2026 (the `document-revision` type, with
+// `distinctSigners`); what is left here is the roles a signature is recorded
+// under, which the revision still stores.
 //
 // WHAT IS NOT GENERIC is what a move MEANS. Publishing a procedure supersedes
 // its predecessor and tells the people who work to it; publishing a delivery
@@ -19,15 +22,9 @@
 import { requirePermission } from "@/platform/access";
 import type { PermissionKey, PermissionSet } from "@/platform/access";
 
-// KEYED BY STRING: `action` arrives off a request body, and these tables exist
-// precisely to answer "is this one of the two?" — a literal-keyed lookup would
-// need a cast before it could be asked.
-export const SIGNATURE_SLOTS: Record<string, string | undefined> = { review: "review", approve: "approval" };
+// The role a signature slot is recorded under, as the revision stores it.
 export const SIGNATURE_ROLES: Record<string, string | undefined> = { review: "Reviewed by", approval: "Approved by" };
 
-// A signature graphic may only ever be something we already hold. The same
-// shape putMedia hands back, checked here rather than trusted from the request.
-const MEDIA_URL = /^\/api\/media\/[a-f0-9]{32}$/i;
 const text = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
 
 /**
@@ -85,39 +82,8 @@ export async function moveSignable(
   if (!row) return { error: "no-revision" };
   if (!move.from.includes(String(row.state))) return { error: "wrong-state", state: row.state };
 
-  // NOBODY SIGNS BOTH HALVES. Review and approval are two rights precisely so
-  // they can be two people, and something carrying one person's name in both
-  // slots has been reviewed by nobody. It belongs here rather than in the
-  // permission model, because holding both rights is legitimate and using both
-  // on one record is not.
-  if (action === "approve" && (row.review as { byCollaboratorId?: string })?.byCollaboratorId === spec.actor?.id) {
-    return { error: "same-signer" };
-  }
-
   const now = new Date().toISOString();
   const patch: Record<string, unknown> = { state: move.to, updatedAt: now };
-
-  const slot = SIGNATURE_SLOTS[action];
-  if (slot) {
-    patch[slot] = {
-      byCollaboratorId: spec.actor?.id || "",
-      byAlias: spec.actor?.alias || "",
-      role: SIGNATURE_ROLES[slot],
-      at: now,
-      note: text(body?.note, 400),
-      // Optional, and optional on purpose: a signature is a name, a role and a
-      // moment. The graphic is decoration on top of that record, so a signature
-      // without one is not a lesser signature.
-      signatureUrl: MEDIA_URL.test(String(body?.signatureUrl || "")) ? String(body.signatureUrl) : "",
-    };
-  }
-
-  if (action === "reject") {
-    patch.rejection = {
-      byCollaboratorId: spec.actor?.id || "", byAlias: spec.actor?.alias || "",
-      at: now, note: text(body?.note, 400),
-    };
-  }
 
   const updated = await spec.apply(patch);
   if (!updated) return { error: "notfound" };

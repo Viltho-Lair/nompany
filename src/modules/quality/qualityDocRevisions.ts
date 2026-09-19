@@ -21,8 +21,13 @@
 
 import { requirePermission } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
-import { moveSignable, availableMoves } from "@/modules/technical/signables";
-import { notifyCollaborators, NOTIFY } from "@/platform/notify/notifications";
+import { moveSignable, availableMoves, SIGNATURE_ROLES } from "@/modules/technical/signables";
+import { approvalPreflight, approvalRows, requestApproval } from "@/modules/approvals/approvals";
+import { approvalSummary } from "@/modules/approvals/reads";
+import type { Refusal } from "@/modules/approvals/effects";
+import type { Approval } from "@/modules/approvals/schema";
+import type { StudioRef } from "@/modules/context";
+import { getCollaborator } from "@/platform/auth/collaborators";
 import { TRANSITIONS, REV_LABELS, isOpen, documentState } from "./qualityDocuments";
 import { DOCS, REVISIONS } from "./qualityDocs";
 import type { QualityContext, QualityDocument, QualityRevision } from "./types";
@@ -120,8 +125,24 @@ export async function workflowFor(
   // document's own state rather than a row that does not exist yet.
   const state = open?.state || (effective ? "effective" : "draft");
 
+  // HOW FAR THE OPEN REVISION'S APPROVAL HAS GOT, read from the approval. A
+  // revision sent for review before 19/09/2026 is given its approval here,
+  // carrying the review it already had.
+  let approval: ReturnType<typeof approvalSummary> = null;
+  if (open && (open.state === "review" || open.state === "approval")) {
+    const rows = await approvalRows(ctx.studio, ctx.approvalsSection);
+    if (!approvalSummary(rows, DOCUMENT_APPROVAL, open.id) && ctx.approvalsSection) {
+      const reviewed = (open as { review?: { byCollaboratorId?: string; at?: string } }).review;
+      const asked = await askForRevision(ctx, document, open, open.state === "approval" && reviewed?.byCollaboratorId
+        ? [{ collaboratorId: reviewed.byCollaboratorId, at: String(reviewed.at || "") }] : []);
+      if (asked.approval) rows.push(asked.approval);
+    }
+    approval = approvalSummary(rows, DOCUMENT_APPROVAL, open.id);
+  }
+
   return {
     state: documentState(document, revisions),
+    approval,
     revision: open || effective,
     revisions: (mine as QualityRevision[]).sort((a, b) => (Number(b.rev) || 0) - (Number(a.rev) || 0)),
     moves: availableMoves(TRANSITIONS, state as string, holds),
@@ -197,6 +218,10 @@ export async function moveRevision(
   action: string,
   body: Record<string, unknown> = {},
 ) {
+  // THE ANSWERS ARE THE APPROVALS PAGE'S (19/09/2026). Refused by name rather
+  // than routed around the reviewer and the approver.
+  if (action === "review" || action === "approve" || action === "reject") return { error: "not-answerable" };
+
   const [docs, revisions] = await Promise.all([
     Docs.find(ctx),
     Revisions.find(ctx),
@@ -221,6 +246,14 @@ export async function moveRevision(
 
     const snapshot = snapshotOf(document);
     if (!snapshot.content) return { error: "empty" };
+
+    // ASKED FIRST WHETHER ANYBODY COULD REVIEW AND APPROVE IT, so a document
+    // nobody may sign refuses in words and freezes nothing.
+    const preflight = await approvalPreflight(
+      { studio: ctx.studio, collaborator: ctx.collaborator, roles: ctx.roles },
+      { type: DOCUMENT_APPROVAL, stepPeople: namedSigners(document) },
+    );
+    if ("error" in preflight) return preflight;
 
     if (current) {
       // A rejected revision goes round again, carrying whatever the author has
@@ -300,22 +333,126 @@ export async function moveRevision(
       detail: `Rev ${revision.rev}${entry.note ? ` - ${entry.note}` : ""}`,
     }),
 
-    notify: async (state) => {
-      const next = waitingOn(document, state);
-      if (!next || next === ctx.collaborator.id) return;
-      await notifyCollaborators(ctx.studio.id, [next], {
-        type: NOTIFY.system,
-        title: `${document.code} needs you`,
-        body: `${REV_LABELS[state]} - ${document.title}`,
-        // STUDIO-RELATIVE, per the contract on notifyCollaborators. This wrote
-        // the slug in too, and the bell prefixes the slug it is on — so the one
-        // notice telling somebody a revision needs them built
-        // /acme//acme/engineering-docs-register/doc_1 and went nowhere.
-        href: `engineering-docs-register/${documentId}`,
-      }).catch(() => {});
-    },
   }, action, body);
 
   if ("error" in result) return result;
+  // SENT FOR REVIEW IS ASKING: the review step, then the approval step.
+  if (action === "submit") {
+    const asked = await askForRevision(ctx, document, result.row as QualityRevision);
+    if (asked.error) return { revision: result.row, approvalProblem: asked.error };
+  }
   return { revision: result.row };
 }
+
+/** The approval type a revision asks for. Its key is stored — see modules/approvals/registry. */
+export const DOCUMENT_APPROVAL = "document-revision";
+
+/**
+ * THE PEOPLE THE DOCUMENT ITSELF NAMES — its reviewer for the first step, its
+ * approver for the second. A document that names them is asked of exactly them;
+ * one that names nobody is asked of whoever Approvals settings name.
+ */
+const namedSigners = (document: QualityDocument) => [
+  document.reviewerCollaboratorId ? [String(document.reviewerCollaboratorId)] : null,
+  document.approverCollaboratorId ? [String(document.approverCollaboratorId)] : null,
+];
+
+function askForRevision(
+  ctx: Pick<QualityContext, "studio" | "collaborator" | "roles">, document: QualityDocument, revision: QualityRevision,
+  carried: { collaboratorId: string; at: string }[] = [],
+) {
+  return requestApproval({ studio: ctx.studio, collaborator: ctx.collaborator, roles: ctx.roles }, {
+    type: DOCUMENT_APPROVAL,
+    source: {
+      sectionKey: "engineering-docs-register", recordId: String(revision.id), ref: String(document.code || ""),
+      title: `${document.code || ""} Rev ${revision.rev} · ${document.title || ""}`,
+      path: `engineering-docs-register/${document.id}`,
+    },
+    stepPeople: namedSigners(document),
+    carried,
+  });
+}
+
+/** The revision an approval names, and its document, in a context carrying the studio's authority. */
+async function revisionFor(studio: StudioRef, approval: Approval, byCollaboratorId: string) {
+  // IMPORTED WHEN NEEDED: ./quality imports the services beside it.
+  const { qualityContext } = await import("./quality");
+  const ctx = await qualityContext.asApprover(studio.id, byCollaboratorId);
+  if (ctx.error) return { error: ctx.error } as Refusal;
+  const revision = await Revisions.byId(ctx, approval.source.recordId);
+  if (!revision) return { error: "notfound" } as Refusal;
+  return { ctx, revision };
+}
+
+/** A signature, as the revision has always stored one: a name, a role, a moment, a note. */
+async function signature(studio: StudioRef, approval: Approval, stepIndex: number, slot: "review" | "approval") {
+  const step = approval.steps[stepIndex];
+  const yes = [...approval.decisions].reverse().find((d) => d.stepId === step?.id && d.verdict === "Approved");
+  // THE NAME AS IT STANDS NOW, beside the id the signature is keyed by.
+  const who = yes?.collaboratorId ? await getCollaborator(studio.id, yes.collaboratorId) : null;
+  return {
+    byCollaboratorId: yes?.collaboratorId || "",
+    byAlias: String((who as { alias?: unknown } | null)?.alias || ""),
+    role: SIGNATURE_ROLES[slot],
+    at: yes?.at || new Date().toISOString(),
+    note: yes?.note || "",
+    signatureUrl: "",
+  };
+}
+
+/**
+ * WHAT THE REVISION'S APPROVAL DOES TO IT — see modules/approvals/effects.
+ *   the review step answered yes → `approval`, with the reviewer's signature;
+ *   the last yes                 → `approved`, with the approver's; issuing it
+ *                                  stays `engineeringDocs.register.publish`'s;
+ *   a no at either step          → `rejected`, with who and why, to go round
+ *                                  again once the author has fixed it.
+ * The reviewer is never the approver (`distinctSigners`), the owner included.
+ */
+export const documentApproval = {
+  ready: async (studio: StudioRef, approval: Approval, by: string) => {
+    const found = await revisionFor(studio, approval, by);
+    if ("error" in found) return found;
+    return found.revision.state === "review" || found.revision.state === "approval"
+      ? null : ({ error: "already-decided", status: found.revision.state } as Refusal);
+  },
+  stepped: async (studio: StudioRef, approval: Approval, stepIndex: number, by: string) => {
+    if (stepIndex !== 0) return;
+    const found = await revisionFor(studio, approval, by);
+    if ("error" in found || found.revision.state !== "review") return;
+    const review = await signature(studio, approval, 0, "review");
+    await Revisions.update(found.ctx, found.revision.id, (cur) => ((cur as QualityRevision).state !== "review" ? cur : {
+      ...cur, state: "approval", review, updatedAt: new Date().toISOString(),
+    }));
+  },
+  approved: async (studio: StudioRef, approval: Approval, by: string) => {
+    const found = await revisionFor(studio, approval, by);
+    if ("error" in found) return found;
+    const at = new Date().toISOString();
+    const last = approval.steps.length - 1;
+    const review = last > 0 ? await signature(studio, approval, 0, "review") : null;
+    const approvalSig = await signature(studio, approval, last, "approval");
+    const updated = await Revisions.update(found.ctx, found.revision.id, (cur) => (
+      (cur as QualityRevision).state !== "review" && (cur as QualityRevision).state !== "approval" ? cur : {
+        ...cur,
+        state: "approved",
+        ...(review && !(cur as { review?: unknown }).review ? { review } : {}),
+        approval: approvalSig,
+        updatedAt: at,
+      }));
+    if (!updated || (updated as QualityRevision).state !== "approved") return { error: "already-decided" } as Refusal;
+    await audit(found.ctx, { documentId: String(found.revision.documentId), revisionId: String(found.revision.id), action: "revision.approve", detail: `Rev ${found.revision.rev}` });
+    return "done" as const;
+  },
+  rejected: async (studio: StudioRef, approval: Approval, by: string, reason: string) => {
+    const found = await revisionFor(studio, approval, by);
+    if ("error" in found) return found;
+    const at = new Date().toISOString();
+    await Revisions.update(found.ctx, found.revision.id, (cur) => (
+      (cur as QualityRevision).state !== "review" && (cur as QualityRevision).state !== "approval" ? cur : {
+        ...cur, state: "rejected", rejection: { byCollaboratorId: by, byAlias: String(found.ctx.collaborator.alias || ""), at, note: String(reason || "").slice(0, 400) }, updatedAt: at,
+      }));
+    await audit(found.ctx, { documentId: String(found.revision.documentId), revisionId: String(found.revision.id), action: "revision.reject", detail: `Rev ${found.revision.rev}${reason ? ` - ${reason}` : ""}` });
+    return "done" as const;
+  },
+};

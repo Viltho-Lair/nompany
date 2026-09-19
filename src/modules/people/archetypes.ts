@@ -206,7 +206,7 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
     //   — register.approve, because checker holds `review` and invariant 7 is
     //     the reason it stops there.
     extras: [
-      "hr.vacations.approve", "engineeringDocs.register.approve",
+      "hr.vacations.approve",
       "engagements.lock",
       // ...and releasing a held payment, which `money` makes and must not also
       // release: the same separation, one act later.
@@ -525,13 +525,11 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
     note: "QA/QC Inspector, Safety Officer, Auditor, Airworthiness Signatory.",
     // THE ARCHETYPE NO STARTER ROLE EVER COVERED, and the reason it was worth
     // finding: a studio wanting a pure inspector had to assemble one out of
-    // view rights plus engineeringDocs.register.review, which is why nobody
-    // did. Every regulated field in the research has at least one statutory
-    // checker and four of them have several.
-    //
-    // Reviewer is never approver (invariant 7), so this holds `review` and not
-    // `approve` — a checker who could also sign off their own review is the
-    // thing that invariant exists to stop.
+    // view rights and a signing extra, which is why nobody did. Every regulated
+    // field in the research has at least one statutory checker and four of them
+    // have several. (Reviewing a document is named on the document or in
+    // Approvals settings since 19/09/2026, not held as a right — and the
+    // reviewer is never the approver there, the owner included.)
     grants: [
       ["engineeringDocs.register", "view"], ["projects.list", "view"],
       ["fieldService.tracking", "view"], ["inventory.sheets", "view"], ["crmSales.contracts", "view"],
@@ -541,8 +539,7 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
     // document that has ALREADY been approved by somebody else. They are not
     // the approval decision, which is why they sit here and `approve` does not.
     extras: [
-      "engineeringDocs.register.review", "engineeringDocs.register.publish",
-      "engineeringDocs.register.obsolete",
+      "engineeringDocs.register.publish", "engineeringDocs.register.obsolete",
     ],
   },
 ]);

@@ -109,7 +109,11 @@ export const qualityContext = moduleContext<QualityContext>({
   // resolved here and the rows are read at the one place that needs them,
   // `mergeValuesFor`, rather than on every quality request whether or not a
   // document is being rendered.
-  foreign: { master: "administration-master" },
+  foreign: {
+    master: "administration-master",
+    // APPROVALS', where a revision's review-and-approval is filed (19/09/2026).
+    approvals: "approvals",
+  },
 });
 
 // ---- rendering a document ---------------------------------------------------

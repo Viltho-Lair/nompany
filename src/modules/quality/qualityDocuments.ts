@@ -183,11 +183,13 @@ export type Transition = {
 };
 
 export const TRANSITIONS: Record<string, Transition> = {
+  // REVIEWING, APPROVING AND SENDING BACK ARE NOT MOVES HERE since 19/09/2026:
+  // sending for review files the revision's approval — a review step, then an
+  // approval step, answered on the Approvals page by different people — and
+  // its answers move the revision to `approval`, `approved` or `rejected`
+  // (`documentApproval`, ./qualityDocRevisions).
   submit:   { from: ["draft", "rejected"], to: "review",    permission: "engineeringDocs.register.edit",     label: "Send for review" },
-  review:   { from: ["review"],            to: "approval",  permission: "engineeringDocs.register.review",   label: "Sign as reviewer" },
-  approve:  { from: ["approval"],          to: "approved",  permission: "engineeringDocs.register.approve",  label: "Sign as approver" },
   publish:  { from: ["approved"],          to: "effective", permission: "engineeringDocs.register.publish",  label: "Issue this revision" },
-  reject:   { from: ["review", "approval"], to: "rejected", permission: "engineeringDocs.register.review",   label: "Send back" },
   withdraw: { from: ["effective"],         to: "superseded", permission: "engineeringDocs.register.obsolete", label: "Withdraw the document" },
 };
 

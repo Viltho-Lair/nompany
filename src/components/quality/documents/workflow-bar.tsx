@@ -13,7 +13,9 @@ type Workflow = {
   state: string;
   label: string;
   moves: Move[];
-  revision: { rev?: number; state?: string } | null;
+  revision: { rev?: number; state?: string; rejection?: { note?: string; byAlias?: string } } | null;
+  /** How far the open revision's review and approval have got — the Approvals page answers them. */
+  approval: { granted: number; required: number; rejected: boolean; reason: string } | null;
   revisions: { id: string; rev: number; state: string; effectiveDate?: string }[];
 };
 
@@ -101,6 +103,18 @@ export function WorkflowBar({
         </Button>
       )}
 
+      {/* REVIEW AND APPROVAL ARE ANSWERED ON THE APPROVALS PAGE (19/09/2026):
+          this says how far they have got and where to answer them. */}
+      {workflow.approval && (
+        <span className={workflow.approval.rejected ? "text-rose-600 dark:text-rose-400" : "text-muted-foreground"}>
+          {workflow.approval.rejected
+            ? tr.wbSentBack(workflow.approval.reason)
+            : tr.wbStepsOf(workflow.approval.granted, workflow.approval.required)}
+          {" · "}
+          <a href={`/${slug}/approvals`} className="font-medium text-primary hover:underline">{tr.wbOpenApprovals}</a>
+        </span>
+      )}
+
       <span className="ms-auto flex flex-wrap items-center gap-2">
         {workflow.moves.map((m) => (
           <Button
@@ -121,12 +135,13 @@ export function WorkflowBar({
   );
 }
 
-// A refusal a person can act on. "wrong-state" and "same-signer" are the two
-// that actually happen, and neither is obvious from the word alone.
-// A FUNCTION OF THE DICTIONARY — see QualityWorkflow.
+// A refusal a person can act on. "wrong-state" is the one that actually
+// happens, and it is not obvious from the word alone. A FUNCTION OF THE
+// DICTIONARY, so the words follow the studio's language.
 const messagesFor = (tr: ReturnType<typeof qualityDict>): Record<string, string> => ({
   "wrong-state": tr.wbWrongState,
-  "same-signer": tr.wbSameSigner,
+  "not-configured": tr.wbNotConfigured,
+  "no-approver": tr.wbNoApprover,
   "already-open": tr.alreadyOpen,
   "not-issued": tr.wbNotIssued,
   obsolete: tr.obsolete,

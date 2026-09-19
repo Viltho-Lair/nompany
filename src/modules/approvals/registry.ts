@@ -127,6 +127,17 @@ export const APPROVAL_TYPES: readonly ApprovalTypeDef[] = [
     key: "timesheet", label: "Timesheet", requestable: true, amounted: true,
     legacy: [{ permission: "projects.list.edit", from: 0, label: "Projects" }],
   },
+  // A REVISION OF A CONTROLLED DOCUMENT (Engineering & Documents → register).
+  // Sending it for review is asking: a review step, then an approval step, and
+  // the two are different acts, so nobody answers both — the owner included.
+  // A document that names its own reviewer and approver asks exactly them.
+  {
+    key: "document-revision", label: "Document revision", requestable: true, distinctSigners: true,
+    legacy: [
+      { permission: "engineeringDocs.register.review", from: 0, label: "Review" },
+      { permission: "engineeringDocs.register.approve", from: 0, label: "Approval" },
+    ],
+  },
   { key: "carried", label: "Carried over", requestable: false },
 ];
 

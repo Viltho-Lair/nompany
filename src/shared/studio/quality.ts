@@ -229,7 +229,11 @@ type Strings = CommonStrings & {
   wbDenied: string;
   wbEmpty: string;
   wbNotIssued: string;
-  wbSameSigner: string;
+  wbStepsOf: (granted: number, required: number) => string;
+  wbSentBack: (reason: string) => string;
+  wbOpenApprovals: string;
+  wbNotConfigured: string;
+  wbNoApprover: string;
   wbWrongState: string;
   whatNeedsChanging: string;
   whereStands: string;
@@ -460,7 +464,11 @@ const en: Strings = {
   wbDenied: "You do not have the right for that.",
   wbEmpty: "There is nothing written yet to send for review.",
   wbNotIssued: "Nothing has been issued yet, so there is no next revision to draft.",
-  wbSameSigner: "The same person cannot both review and approve a revision.",
+  wbStepsOf: (g, r) => `${g} of ${r} approval step${r === 1 ? "" : "s"}`,
+  wbSentBack: (reason) => `Sent back${reason ? `: “${reason}”` : ""}`,
+  wbOpenApprovals: "Open in Approvals",
+  wbNotConfigured: "Nobody has been named to review and approve documents. The owner or an Admin names them in Approvals settings, or name them on the document.",
+  wbNoApprover: "You are the only person named to review or approve this, so you cannot send it yourself. Name somebody else on the document or in Approvals settings.",
   wbWrongState: "Somebody moved this while you were looking at it. Reload and try again.",
   whatNeedsChanging: "What needs changing?",
   whereStands: "Where it stands",
@@ -692,7 +700,11 @@ const ar: Strings = {
   wbDenied: "لا تملك الصلاحية لذلك.",
   wbEmpty: "لا يوجد شيء مكتوب بعد لإرساله للمراجعة.",
   wbNotIssued: "لم يصدر شيء بعد، فلا توجد مراجعة تالية لصياغتها.",
-  wbSameSigner: "لا يمكن للشخص نفسه أن يراجع ويعتمد مراجعة واحدة.",
+  wbStepsOf: (g, r) => `${g} من ${r} مراحل اعتماد`,
+  wbSentBack: (reason) => `أعيد${reason ? `: «${reason}»` : ""}`,
+  wbOpenApprovals: "فتح في الموافقات",
+  wbNotConfigured: "لم يحدد أحد لمراجعة المستندات واعتمادها. يحددهم المالك أو المشرف في إعدادات الموافقات، أو حددوهم على المستند.",
+  wbNoApprover: "أنتم الوحيدون المحددون لمراجعة هذا أو اعتماده، فلا يمكنكم إرساله بأنفسكم. حددوا شخصا آخر على المستند أو في إعدادات الموافقات.",
   wbWrongState: "حركها أحدهم بينما كنت تنظر إليها. أعد التحميل وحاول مجددا.",
   whatNeedsChanging: "ما الذي يحتاج إلى تغيير؟",
   whereStands: "وضعها الحالي",

@@ -167,6 +167,24 @@ ok("a bad threshold is refused on save",
 ok("a threshold on a type with no amount is dropped — it could never apply",
   M.cleanSetting("quotation", { steps: [{ label: "A", approverIds: ["bob"], from: 500 }] }, ["bob"]).setting?.steps[0].from === undefined);
 
+console.log("\n== reviewer is never approver where the steps are two acts (document revisions)");
+const docApproval = {
+  type: "document-revision", status: "Pending", requestedByCollaboratorId: "ann",
+  steps: [
+    { id: "s1", label: "Review", approverIds: ["bob", "own"], requireAll: false },
+    { id: "s2", label: "Approval", approverIds: ["bob", "own"], requireAll: false },
+  ],
+  decisions: [{ stepId: "s1", collaboratorId: "bob", verdict: "Approved", at: "t1", note: "" }],
+};
+ok("whoever reviewed may not approve the same revision",
+  M.decisionProblem(docApproval, { collaboratorId: "bob" }, "Approved", "") === "signed-another-step");
+ok("...the owner included — it is two acts, not self-approval",
+  M.decisionProblem({ ...docApproval, decisions: [{ ...docApproval.decisions[0], collaboratorId: "own" }] },
+    { collaboratorId: "own", isAdmin: true }, "Approved", "") === "signed-another-step");
+ok("somebody else named on the step may", M.decisionProblem(docApproval, { collaboratorId: "own", isAdmin: true }, "Approved", "") === null);
+ok("a type without the rule lets one person answer two steps",
+  M.decisionProblem({ ...docApproval, type: "bill" }, { collaboratorId: "bob" }, "Approved", "") === null);
+
 console.log("\n== until a studio sets a type up, today's right holders answer it");
 const roles = [
   { id: "admin", wildcard: true, permissions: [] },

@@ -28,7 +28,7 @@ import {
   type Actor, type Person, type RoleRow,
 } from "./model";
 import { APPROVAL_TYPES, approvalType } from "./registry";
-import { finishApproved, finishRejected, readyToFinish } from "./effects";
+import { finishApproved, finishRejected, readyToFinish, stepFinished } from "./effects";
 import type { Approval, ApprovalAmount, ApprovalSetting, ApprovalSource, Verdict } from "./schema";
 import type { StudioRef, CollaboratorRef } from "../context";
 
@@ -197,6 +197,11 @@ export async function decideApproval(ctx: ApprovalsContext, id: string, body: Re
   if (approval.status !== "Pending" && current.status === "Pending") {
     return { approval: await finish(ctx, approval, me.collaboratorId) };
   }
+  // A STEP FINISHED AND ANOTHER OPENED: a record whose own state follows its
+  // steps (a document moves from review to approval) is told which one.
+  const doneBefore = stepStates(current).filter((s) => s.state === "Approved").length;
+  const doneAfter = stepStates(approval).filter((s) => s.state === "Approved").length;
+  if (doneAfter > doneBefore) await stepFinished(ctx.studio, approval, doneAfter - 1, me.collaboratorId);
   return { approval };
 }
 
@@ -309,7 +314,26 @@ type RequestInput = {
    * was valid when given, and it stays attributed to them.
    */
   carried?: readonly { collaboratorId: string; at: string }[];
+  /**
+   * THE PEOPLE A RECORD NAMES FOR ITS OWN STEPS, by position — a controlled
+   * document names its reviewer and its approver. Where one is given, it
+   * replaces that step's people from the settings for this request only; a
+   * null leaves the settings' step as it is. The requester is still taken off.
+   */
+  stepPeople?: readonly (readonly string[] | null | undefined)[];
 };
+
+/** The settings' steps with the record's own people put on the steps it names. */
+function withStepPeople(setting: ApprovalSetting | null | undefined, people: RequestInput["stepPeople"]) {
+  if (!setting || !people?.length) return setting;
+  return {
+    ...setting,
+    steps: setting.steps.map((s, i) => {
+      const named = (people[i] || []).map(String).filter(Boolean);
+      return named.length ? { ...s, approverIds: [...new Set(named)] } : s;
+    }),
+  };
+}
 
 /**
  * CAN THIS BE ASKED FOR, and does it need asking at all — the answers
@@ -318,11 +342,11 @@ type RequestInput = {
  * refused. `{ needed: false }` is an amount under every threshold: the record
  * goes ahead as though approved.
  */
-export async function approvalPreflight(requester: Requester, input: Pick<RequestInput, "type" | "amount">) {
+export async function approvalPreflight(requester: Requester, input: Pick<RequestInput, "type" | "amount" | "stepPeople">) {
   const { studio, collaborator, roles } = requester;
   const settingsSection = await getSectionByKey(studio.id, "approvals-settings");
   const { settings } = await settingsFor(studio, settingsSection, roles);
-  const setting = settings[input.type];
+  const setting = withStepPeople(settings[input.type], input.stepPeople);
   const judged = await judge(studio, setting, input.amount);
   if ("error" in judged) return judged;
   const plan = planFor(setting, actorOf(collaborator, roles), judged.amount ? judged.amount.inBase : null);
@@ -360,7 +384,7 @@ export async function requestApproval(requester: Requester, input: RequestInput)
 
   const me = actorOf(collaborator, roles);
   const { settings } = await settingsFor(studio, settingsSection, roles);
-  const setting = settings[input.type];
+  const setting = withStepPeople(settings[input.type], input.stepPeople);
   const judged = await judge(studio, setting, input.amount);
   if ("error" in judged) return judged;
   const plan = planFor(setting, me, judged.amount ? judged.amount.inBase : null);

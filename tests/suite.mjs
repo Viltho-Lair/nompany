@@ -37,7 +37,7 @@ import { SESSION_COOKIE, login as identityLogin } from "@/platform/auth/identity
 import { studioContext, canAdminister, studiosForUser } from "@/lib/studios";
 import { explain, ADMIN_ROLE_ID, ALL_PERMISSIONS, isPermission, NO_SCREEN_YET } from "@/platform/access";
 import { listForCollaborator, NOTIFY } from "@/platform/notify/notifications";
-import { approvalsContext, decideApproval, requestApproval, saveApprovalSetting } from "@/modules/approvals/approvals";
+import { approvalsContext, decideApproval, listApprovals, requestApproval, saveApprovalSetting } from "@/modules/approvals/approvals";
 import {
   salesContext, createTicket, requestTicketRfq, listTickets, sendTicketForApproval,
   submitTicketPo, editClient, listClients,
@@ -3887,18 +3887,23 @@ console.log("\n== the working copy, and the revision that freezes it");
 {
   await signInAs(owner.id);
 
-  // The owner holds everything, so a second person is needed for the second
-  // signature. Review and approve are separate rights precisely so they can be
-  // two people, which means they have to be granted separately.
+  // A second person for the second signature. Review and approval are answered
+  // on the Approvals page (19/09/2026), by the people its settings name — both
+  // steps name the member and the owner here, so the rule that the reviewer is
+  // never the approver is what decides who may give the second.
   await updateCollaborator(studio.id, member.collaborator.id, {
     overrides: {
-      allow: [
-        "engineeringDocs.register.view", "engineeringDocs.register.create", "engineeringDocs.register.edit",
-        "engineeringDocs.register.review", "engineeringDocs.register.approve",
-      ],
+      allow: ["engineeringDocs.register.view", "engineeringDocs.register.create", "engineeringDocs.register.edit"],
       deny: [],
     },
   });
+  {
+    const ownerApprovals = await approvalsContext(owner, slug);
+    await saveApprovalSetting(ownerApprovals, { type: "document-revision", setting: { steps: [
+      { label: "Review", approverIds: [member.collaborator.id, ownerApprovals.collaborator.id] },
+      { label: "Approval", approverIds: [member.collaborator.id, ownerApprovals.collaborator.id] },
+    ] } });
+  }
 
   const q = await qualityContext(owner, slug);
   const doc = (await createDoc(q, { title: "Calibration", prefix: "SOP", dept: "QA" })).document;
@@ -3937,12 +3942,21 @@ console.log("\n== the working copy, and the revision that freezes it");
   ok("...freezing a copy of the text as it stood", snapshot.content === body("First"), snapshot.content);
   ok("...and of the paper it is set up for", snapshot.pageSize === "a4", String(snapshot.pageSize));
 
-  ok("the reviewer signs",
-    !(await moveDocRevision(await qualityContext(member.user, slug), id, "review", { note: "Reads correctly." })).error);
-  ok("the reviewer may not also approve",
-    (await moveDocRevision(await qualityContext(member.user, slug), id, "approve")).error === "same-signer");
-  ok("...but somebody else may",
-    !(await moveDocRevision(await qualityContext(owner, slug), id, "approve")).error);
+  // THE ANSWERS ARE THE APPROVALS PAGE'S. A move named here is refused.
+  ok("a revision is not reviewed by moving it",
+    (await moveDocRevision(await qualityContext(member.user, slug), id, "review")).error === "not-answerable");
+  const revApproval = (await listApprovals(await approvalsContext(owner, slug))).all
+    .find((a) => a.type === "document-revision" && a.source?.recordId === snapshot.id);
+  ok("sending it for review filed its approval: a review step, then an approval step",
+    revApproval?.steps?.length === 2, JSON.stringify(revApproval?.steps?.map((x) => x.label)));
+  const answer = async (who, verdict = "Approved", note = "") =>
+    decideApproval(await approvalsContext(who, slug), revApproval?.id, { verdict, note });
+  ok("the reviewer signs", (await answer(member.user, "Approved", "Reads correctly.")).approval?.status === "Pending");
+  ok("...and the revision moves on to approval, carrying the review",
+    (await listDocRevisions(await qualityContext(owner, slug), id))[0]?.state === "approval");
+  ok("the reviewer may not also approve", (await answer(member.user)).error === "signed-another-step");
+  ok("...but somebody else may approve", (await answer(owner)).approval?.status === "Approved");
+  ok("...and the revision is approved", (await listDocRevisions(await qualityContext(owner, slug), id))[0]?.state === "approved");
 
   ok("it is issued",
     !(await moveDocRevision(await qualityContext(owner, slug), id, "publish", { effectiveDate: "2026-09-01" })).error);
@@ -3973,17 +3987,27 @@ console.log("\n== the working copy, and the revision that freezes it");
     reopened.issued === null && reopened.canEdit === true, JSON.stringify({ i: reopened.issued, c: reopened.canEdit }));
 
   // ---- rejection re-snapshots ----
+  // THE OPEN REVISION'S APPROVAL, whichever it is now — each submit files a new one.
+  const openApproval = async () => {
+    const open = (await listDocRevisions(await qualityContext(owner, slug), id)).find((r) => r.state === "review" || r.state === "approval");
+    return (await listApprovals(await approvalsContext(owner, slug))).all
+      .filter((a) => a.type === "document-revision" && a.source?.recordId === open?.id && a.status === "Pending")[0];
+  };
+  const answerOpen = async (who, verdict = "Approved", note = "") =>
+    decideApproval(await approvalsContext(who, slug), (await openApproval())?.id, { verdict, note });
   await moveDocRevision(await qualityContext(owner, slug), id, "submit");
   ok("a reviewer can send it back",
-    !(await moveDocRevision(await qualityContext(member.user, slug), id, "reject", { note: "Clause 3." })).error);
+    (await answerOpen(member.user, "Rejected", "Clause 3.")).approval?.status === "Rejected");
+  ok("...and the revision reads as sent back",
+    (await listDocRevisions(await qualityContext(owner, slug), id)).find((r) => r.rev === 2)?.state === "rejected");
   await saveContent(await qualityContext(owner, slug), id, { content: body("Third") });
   await moveDocRevision(await qualityContext(owner, slug), id, "submit");
   const resent = (await listDocRevisions(await qualityContext(owner, slug), id)).find((r) => r.rev === 2);
   ok("...and resubmitting sends the FIXED text, not the text they turned down",
     resent.content === body("Third"), resent.content);
 
-  await moveDocRevision(await qualityContext(member.user, slug), id, "review");
-  await moveDocRevision(await qualityContext(owner, slug), id, "approve");
+  await answerOpen(member.user);
+  await answerOpen(owner);
   await moveDocRevision(await qualityContext(owner, slug), id, "publish", { effectiveDate: "2026-10-01" });
 
   const both = await listDocRevisions(await qualityContext(owner, slug), id);

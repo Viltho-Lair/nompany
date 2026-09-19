@@ -666,9 +666,10 @@ const OWN_AREAS = [
   // audits, incidents, permits), not the record itself. Relabelled to match
   // engineering-docs-register, "Document register", in keys.ts's SECTION_DEFS.
   { key: "engineeringDocs.register", group: "Engineering & Documents", label: "Document register", verbs: ["view", "create", "edit", "delete"],
+    // REVIEWING AND APPROVING A REVISION ARE NOT RIGHTS ANY MORE (19/09/2026):
+    // sending it for review asks the people the document or Approvals settings
+    // name, on the Approvals page. Issuing and withdrawing stay rights.
     extra: [
-      { key: "review", label: "Sign as reviewer" },
-      { key: "approve", label: "Sign as approver" },
       { key: "publish", label: "Issue a revision" },
       { key: "obsolete", label: "Withdraw a document" },
       // NO `share`. External share links were declared here, given a key
