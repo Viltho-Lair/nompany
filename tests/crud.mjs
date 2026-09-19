@@ -58,6 +58,15 @@ const RESOURCES = [
     patch: (id) => ({ id, name: `Unit renamed ${F.rand()}` }),
     check: (row, sent) => row?.name === sent.name,
   },
+  // MARKETING FORMS. A fresh form is a Draft nobody has answered, so it deletes.
+  {
+    name: "marketingForms",
+    module: "marketing/forms",
+    list: (b) => b?.forms || [],
+    make: () => ({ name: `Enquiry ${F.rand()}`, template: "enquiry", locale: "en" }),
+    patch: (id) => ({ id, name: `Enquiry renamed ${F.rand()}` }),
+    check: (row, sent) => row?.name === sent.name,
+  },
   // MARKETING. A fresh campaign is a Draft, and a Draft deletes.
   {
     name: "marketingCampaigns",

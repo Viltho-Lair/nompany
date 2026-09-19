@@ -11,10 +11,14 @@ export type { Campaign } from "./schema";
 // and is always present.
 export type MarketingContext = ModuleContext & {
   campaignsSection: Section;
+  /** Forms and their answers (19/09/2026). */
+  formsSection: Section;
   /** Sales' tickets and clients — where a lead is written, and what a campaign's results read. */
   ticketsSection: Section | null;
   clientsSection: Section | null;
   quotationsSection: Section | null;
   canViewCampaigns: boolean;
   canManageCampaigns: boolean;
+  canViewForms: boolean;
+  canManageForms: boolean;
 };

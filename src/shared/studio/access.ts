@@ -83,6 +83,7 @@ const areas: Record<Locale, Record<string, string>> = {
     "pos.dashboard": "لوحة نقطة البيع",
     "marketing.dashboard": "لوحة التسويق",
     "marketing.campaigns": "الحملات",
+    "marketing.forms": "النماذج",
     "crmSales.pos": "الصندوق",
     "pos.sales": "المبيعات",
     "pos.shifts": "سجل الورديات",

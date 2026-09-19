@@ -188,6 +188,15 @@ const StudioCampaigns = nextDynamic(
   () => import("@/components/studio2/StudioCampaigns"),
   { loading: () => <ScreenSkeleton /> },
 );
+// Forms (19/09/2026): the list, and one form's editor at /marketing-forms/<id>.
+const StudioForms = nextDynamic(
+  () => import("@/components/studio2/StudioForms"),
+  { loading: () => <ScreenSkeleton /> },
+);
+const StudioFormEditor = nextDynamic(
+  () => import("@/components/studio2/StudioFormEditor"),
+  { loading: () => <ScreenSkeleton /> },
+);
 // The purchase order register (tier 5) — see StudioPurchaseOrders.
 const StudioPurchaseOrders = nextDynamic(
   () => import("@/components/studio2/StudioPurchaseOrders"),
@@ -583,6 +592,10 @@ async function renderStudio(params) {
   // block by the rights over those records — see modules/sales/customer.ts.
   const customerId = requested === "crm-sales-clients" ? (segments[1] || "") : "";
 
+  // AND A SECOND SEGMENT ON marketing-forms NAMES ONE FORM: its editor, reached
+  // from the list and resolving through the same section and right.
+  const formId = requested === "marketing-forms" ? (segments[1] || "") : "";
+
   // AND A SECOND SEGMENT ON tendering-register NAMES ONE TENDER'S BILL. The
   // same shape the ticket and the customer use, resolving through the same
   // section — a bill belongs to one tender and is reached from it, which is why
@@ -945,6 +958,8 @@ async function renderStudio(params) {
           ? <MarketingDashboard slug={studio.slug} />
         : active?.key === "marketing-campaigns"
           ? <StudioCampaigns slug={studio.slug} />
+        : active?.key === "marketing-forms"
+          ? (formId ? <StudioFormEditor slug={studio.slug} formId={formId} /> : <StudioForms slug={studio.slug} />)
         : active?.key === "pos-sales"
           ? <StudioPosSales slug={studio.slug} />
         : active?.key === "pos-shifts"

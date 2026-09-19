@@ -94,6 +94,10 @@ const BY_COLLECTION: Record<string, Set<string>> = {
   approvals: new Set(["source", "note", "attachment"]),
   // "Invoice INV-0003 — ACME".
   journalEntries: new Set(["memo"]),
+  // A STRANGER'S ANSWERS TO A STUDIO'S FORM (19/09/2026) — a name, a phone, an
+  // email, what they want. Sealed WHOLE: the answers are one field, and nothing
+  // queries inside them (responses are found by `formId`).
+  marketingFormResponses: new Set(["answers"]),
 };
 
 export function isSealedField(collection: string, field: string): boolean {

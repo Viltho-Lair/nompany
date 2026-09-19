@@ -412,6 +412,12 @@ export const RL = {
   // two; three in an hour is not a candidate.
   applyIp: (ip: string) => `${P}rl:apply:i:${String(ip || "unknown")}`,
 
+  // A STUDIO'S PUBLIC FORMS, per IP (19/09/2026). The FOURTH such endpoint, and
+  // what it writes can become a Sales lead, so a flood is a flood of fake leads
+  // in somebody's queue. Shared across every form: one address filling in forty
+  // forms is the same abuse as one form forty times.
+  formIp: (ip: string) => `${P}rl:form:i:${String(ip || "unknown")}`,
+
   // FAILED CREDENTIAL ATTEMPTS — password sign-in and password reset.
   //
   // Three counters rather than one, and the SPREAD between them is the design:
@@ -724,6 +730,9 @@ export const SECTION_DEFS = [
   // (docs/functionality/marketing.md lists them as not built).
   { key: "marketing", name: "Marketing", children: [
     { key: "marketing-campaigns", name: "Campaigns" },
+    // FORMS (19/09/2026): what a studio puts in front of the public — an
+    // enquiry that becomes a Sales lead, an event registration, a survey.
+    { key: "marketing-forms", name: "Forms" },
   ] },
 
   // THE FIRST OF TENDERING'S FIVE. The root was declared for ordering alone at
@@ -1068,6 +1077,9 @@ export const SECTION_COLLECTIONS = {
   // THE CAMPAIGN REGISTER OWNS ITS ROWS, born under its own section, so nothing
   // is filed anywhere else (19/09/2026).
   "marketing-campaigns": ["marketingCampaigns"],
+  // A FORM AND ITS ANSWERS, together: an answer means nothing apart from the
+  // questions it answers, so deleting the section takes both (children first).
+  "marketing-forms": ["marketingForms", "marketingFormResponses"],
   // tendering. The register OWNS its records — unlike crm-sales-contracts,
   // which is a destination over somebody else's rows — so deleting the section
   // takes the tenders with it (invariant 11, children first).
@@ -1322,6 +1334,10 @@ export const RESERVED_SLUGS = new Set([
   "app", "mail", "onboarding", "subscribe", "team", "verify", "reset", "forgot",
   "en", "ar", "robots", "sitemap", "manifest", "icon", "favicon", "brand",
   "_next", "c", "q",
+  // A studio's public forms, /f/<slug>/<code> (19/09/2026). A slug is three
+  // characters at least, so this could never be one; it is listed so the two
+  // lists agree.
+  "f",
   // the public site: built, retired, and reserved for later
   "about", "careers", "contact", "customers", "platform", "pricing", "privacy",
   "security", "terms",

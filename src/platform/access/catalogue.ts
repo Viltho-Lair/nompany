@@ -214,6 +214,10 @@ const OWN_AREAS = [
   //
   // CHOOSING WHO OWNS A CAMPAIGN is the Marketing manager's (the owner,
   // 19/09/2026), so it is an extra rather than part of edit.
+  // FORMS (19/09/2026): building them, opening them to the public, and reading
+  // what people answered. One right: a form and its answers are one register.
+  { key: "marketing.forms", group: "Marketing", label: "Forms",
+    verbs: ["view", "create", "edit", "delete"] },
   { key: "marketing.campaigns", group: "Marketing", label: "Campaigns",
     verbs: ["view", "create", "edit", "delete"],
     extra: [{ key: "assign", label: "Choose who owns a campaign" }] },

@@ -139,7 +139,17 @@ const nextConfig = {
   // nothing in return.
   poweredByHeader: false,
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    return [
+      { source: "/:path*", headers: securityHeaders },
+      // A STUDIO'S PUBLIC FORM MAY BE EMBEDDED ON ITS OWN WEBSITE (19/09/2026)
+      // — that is what the embed code is for — so these pages, and only these,
+      // may be framed by anyone. Later entries win for the same key, and an
+      // enforced `frame-ancestors` makes browsers ignore X-Frame-Options.
+      { source: "/f/:path*", headers: [
+        { key: "Content-Security-Policy", value: `${CSP_ENFORCED}; frame-ancestors *` },
+        { key: "Content-Security-Policy-Report-Only", value: CSP.replace("frame-ancestors 'none'", "frame-ancestors *") },
+      ] },
+    ];
   },
 };
 

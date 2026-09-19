@@ -243,6 +243,8 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
       // the role library — Marketing Manager, Digital Marketing Specialist,
       // Head of Marketing — resolves to this shape, so it runs the campaigns.
       ["marketing.dashboard", "view"], ["marketing.campaigns", "full"],
+      // …and builds the forms that bring leads in (19/09/2026).
+      ["marketing.forms", "full"],
       ["engineeringDocs.rfq", "edit"],
     ],
     // Turning an enquiry into a quotation is the selling motion, and locking a

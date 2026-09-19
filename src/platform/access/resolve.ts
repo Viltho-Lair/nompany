@@ -104,6 +104,7 @@ export const SECTION_AREAS: Readonly<Record<string, readonly string[]>> = {
   // MARKETING (19/09/2026): the dashboard at the root, the register beneath.
   marketing: ["marketing.dashboard"],
   "marketing-campaigns": ["marketing.campaigns"],
+  "marketing-forms": ["marketing.forms"],
   maintenance: ["maintenance.dashboard"],
   "maintenance-requests": ["maintenance.requests"],
   "maintenance-orders": ["maintenance.orders"],

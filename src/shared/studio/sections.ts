@@ -61,6 +61,7 @@ const ar: SectionMap = {
   // MARKETING, ITS OWN DEPARTMENT (19/09/2026).
   marketing: "التسويق",
   "marketing-campaigns": "الحملات",
+  "marketing-forms": "النماذج",
   pos: "نقطة البيع",
   "pos-till": "الصندوق",
   "pos-sales": "المبيعات",

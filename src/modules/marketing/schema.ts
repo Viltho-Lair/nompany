@@ -61,3 +61,54 @@ export const CampaignSchema = z.object({
   updatedAt: z.string(),
 });
 export type Campaign = z.infer<typeof CampaignSchema>;
+
+/**
+ * A FORM THE STUDIO BUILDS AND THE PUBLIC ANSWERS (19/09/2026, ./formsModel).
+ * Filed under `marketing-forms`. `definition` is the questionnaire builder's
+ * shape (pages of questions), cleaned by `cleanDefinition` on every write.
+ */
+export const MarketingFormSchema = z.object({
+  id: z.string(),
+  studioId: z.string(),
+  sectionId: z.string(),
+  name: z.string().max(200),
+  /** Draft (not answerable), Open (answerable), Closed. */
+  status: z.string(),
+  /** The language the public page speaks: "en" or "ar". */
+  locale: z.string(),
+  /** The public address's code — `/f/<slug>/<code>`. Unguessable, never reused. */
+  code: z.string(),
+  template: z.string(),
+  definition: z.object({ pages: z.array(z.unknown()) }),
+  settings: z.object({
+    campaignId: z.string(),
+    createLead: z.boolean(),
+    leadFields: z.object({ name: z.string(), company: z.string(), phone: z.string(), email: z.string() }),
+    confirmation: z.string(),
+    closesOn: z.string(),
+  }),
+  createdByCollaboratorId: z.string(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export type MarketingForm = z.infer<typeof MarketingFormSchema>;
+
+/**
+ * ONE PERSON'S ANSWERS TO A FORM. `answers` is SEALED at rest
+ * (platform/db/sealCipher — it is a stranger's name, phone and email). `asked`
+ * records the questions as they were put, so a reply survives the form being
+ * reworded, which is the questionnaire's own rule.
+ */
+export const FormResponseSchema = z.object({
+  id: z.string(),
+  studioId: z.string(),
+  sectionId: z.string(),
+  formId: z.string(),
+  answers: z.record(z.string(), z.unknown()),
+  asked: z.array(z.object({ field: z.string(), label: z.string(), type: z.string() })),
+  /** The Sales ticket it became, when the form makes leads. */
+  ticketId: z.string().optional(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export type FormResponse = z.infer<typeof FormResponseSchema>;

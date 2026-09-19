@@ -45,7 +45,7 @@ const QuotationRows = repo<Quotation>("quotations");
 
 export const marketingContext = moduleContext<MarketingContext>({
   root: "marketing",
-  sub: { campaigns: "marketing-campaigns" },
+  sub: { campaigns: "marketing-campaigns", forms: "marketing-forms" },
   // SALES', for the leads a campaign sends and the deals they became. Foreign,
   // so a studio with Sales switched off simply has nowhere to send a lead.
   foreign: {
@@ -53,7 +53,7 @@ export const marketingContext = moduleContext<MarketingContext>({
     clients: ["crm-sales-clients", "crm-sales"],
     quotations: ["crm-sales-quotations", "crm-sales"],
   },
-  flags: ["campaigns"],
+  flags: ["campaigns", "forms"],
 });
 
 const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);

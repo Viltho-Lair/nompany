@@ -1,10 +1,10 @@
 # Marketing
 
 The eighteenth department (2026-09-19), from the owner's *Marketing Section — ERP Requirements
-& Implementation Plan*: seventeen subsections behind one dashboard, in six phases. **One of the
-seventeen is built: Campaigns**, because the plan makes the campaign the parent of everything
-else. A sub-section appears in the sidebar only when its screen exists (invariant 16), so the
-other sixteen are not declared yet; they are listed at the end of this file.
+& Implementation Plan*: seventeen subsections behind one dashboard, in six phases. **Two of the
+seventeen are built: Campaigns**, because the plan makes the campaign the parent of everything
+else, **and Forms** (2026-09-19, `docs/functionality/forms.md`). A sub-section appears in the sidebar only when its screen exists (invariant 16), so the
+other fifteen are not declared yet; they are listed at the end of this file.
 
 Section keys: `marketing` (the dashboard) and `marketing-campaigns` (the register, which owns
 the `marketingCampaigns` collection). Code: `src/modules/marketing/` (`model.ts` holds the rules,
@@ -77,7 +77,7 @@ date, and open campaigns by channel. Spend is still a plan: it arrives with Budg
 
 ## Not built yet
 
-The other sixteen subsections of the plan, and everything the dashboard's plan needs from them:
+The other fifteen subsections of the plan, and everything the dashboard's plan needs from them:
 
 - **Planning & Calendar** (plans by period, briefs, a view-only calendar across channels).
 - **Budget & Spend**: actual and committed spend from Finance (purchase orders, bills, ad spend),
@@ -88,8 +88,8 @@ The other sixteen subsections of the plan, and everything the dashboard's plan n
 - **Email**, **Messaging** (SMS, WhatsApp, push), **Social Media**, **Paid Ads**: nothing is sent,
   posted or imported. The owner, 2026-09-19: companies use their own email and SMS
   tools for now, and nompany does not resell messaging or ad credits (both ledger rows, for later).
-- **Web, Forms & Landing Pages**: no forms, no hosted pages, no visitor tracking. The tracked
-  link is built, but nothing reads the tags back when a visitor arrives.
+- **Web, Forms & Landing Pages**: forms are built (`forms.md`). Not built: landing pages, visitor
+  tracking with a consent banner, reading the UTM tags back when a visitor arrives.
 - **Leads & Scoring**: leads are Sales tickets (the owner, 2026-09-19) and campaigns send them
   (`leads.md`). Not built: scoring, lifecycle stages beyond the pipeline's, lead enrichment and
   duplicate merging.

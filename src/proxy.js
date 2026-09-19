@@ -103,7 +103,8 @@ const LOGIN_PATH = `/${defaultLocale}/login`;
 // removed on 2026-08-12 — studios have no public site under nompany.com. It
 // stays reserved here (and in RESERVED_SLUGS) so the prefix can never be
 // claimed as a studio slug, which would resurrect the collision it prevented.
-const PLATFORM = new Set(["api", "_next", "super", "brand", "favicon.ico", "robots.txt", "sitemap.xml", "manifest.webmanifest", "studio", "c", "q"]);
+// "f" is a studio's public forms, /f/<slug>/<code> (19/09/2026).
+const PLATFORM = new Set(["api", "_next", "super", "brand", "favicon.ico", "robots.txt", "sitemap.xml", "manifest.webmanifest", "studio", "c", "q", "f"]);
 
 export function proxy(request) {
   const { pathname } = request.nextUrl;

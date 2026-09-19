@@ -200,6 +200,14 @@ export const PERMISSION_CATCH_UPS: readonly PermissionCatchUp[] = [
     verbs: ["assign"],
   },
   {
+    id: "marketing-forms-2026-09-19",
+    // Forms arrived in Marketing (19/09/2026). Whoever works campaigns works
+    // the forms that feed them, verb for verb.
+    note: "Whoever works campaigns works Marketing's forms",
+    from: "marketing.campaigns",
+    to: ["marketing.forms"],
+  },
+  {
     id: "marketing-campaign-assign-2026-09-19",
     // Whoever may delete campaigns manages them, and chooses their owners.
     note: "Whoever manages campaigns chooses who owns them",
