@@ -10,11 +10,34 @@ each moves onto the page as its Request approval button is built.
 The owner's design; the decision ledger in `docs/progress.md` holds it and the build order.
 
 **An approval exists only because a record asked for one.** A record's Request approval button
-files it, naming the record (`source`: its section, id, reference and title) and who asked.
-Nothing is typed in by hand, and there is no "new" button on the page. **No record has the
-button yet** — that is the next step — so the page is empty in every studio today.
+files it, naming the record (`source`: its section, id, reference, title, and the `path` its
+"Open the record" link lands on) and who asked. Nothing is typed in by hand, and there is no
+"new" button on the page.
 
-**The record reads its status from the approval** (`approvalFor`), never a copy of it.
+**The record reads its status from the approval**, never a copy of it — through
+`modules/approvals/reads.ts`, the one place every module asks "is this approved".
+
+**Two records have their button (2026-09-19):**
+
+| Button | Where | Files | When approved |
+|---|---|---|---|
+| Send for Approval | a Sales ticket, for its latest finished quotation; Technical, for an internal quotation | **Quotation approval** | the quotation reads Approved everywhere, can be locked, opens a project, and ends the RFQ asking |
+| Submit PO | a Sales ticket, once its quotation is approved | **Client PO approval**, carrying what the client sent (a description, a file, or both) | the **project number is issued** (`onApproved` → `issueProjectNumber`), as Finance's signature on the old board did |
+
+**A quotation is approved by its approval and by nothing else.** Editing a quotation's status to
+Approved is refused (`needs-approval`) — it was how anybody who could edit one skipped the people
+who approve it. A quotation stored Approved before this, by that edit, stays approved.
+
+**A rejection is answered by asking again.** The ticket offers "Rejected — send again" (and
+"PO rejected — submit again"); the rejected approval stays on the Approvals page as the record
+of it. While one is pending, a second is refused (`already-pending`).
+
+**Nobody named, nothing filed.** A type with no steps set up refuses the request with a sentence
+(`not-configured`) rather than filing an approval that would wait for ever — the Tasks board
+filed those and reported them as "unrouted".
+
+**"Awaiting you" on Main** lists and counts the approvals waiting on the reader, through the
+same `waitingOn` the Approvals page uses.
 
 **Each type is answered in ordered steps** (Approvals → Approval settings). A step names
 specific studio members and says whether ALL of them must approve or ANY ONE is enough. The
@@ -43,9 +66,12 @@ is the authority. Two rights exist, held by the owner and Admins and given to ot
 `fromTasks.ts` (the one-off conversion of the old board, deleted once it has run). Screen:
 `components/studio2/StudioApprovals.js`.
 
-**Not built yet on the page:** no record has a Request approval button; the Tasks board still
-exists beside it and its tasks have not been converted; the amount chains above have not moved
-onto it; no signer PIN, no amount limits, no reminders, no delegation, and no withdrawing a
+**Not built yet on the page:** only the two buttons above exist — Material PO, Delivery,
+Delivery return, ID update and Permit request have no record to ask from yet, and neither do the
+records the amount chains sign; the Tasks board still exists beside it and its tasks have not been
+converted, so **a quotation approved on the old board reads as not approved until the conversion
+runs** (step 6 of the build in `docs/progress.md`); Nova's bubble still speaks of tasks, not
+approvals; the amount chains above have not moved onto it; no signer PIN, no amount limits, no reminders, no delegation, and no withdrawing a
 request. **A step whose only approver leaves the studio cannot be answered by anybody**, and
 an approval waiting on it waits for ever — there is no reassigning yet.
 

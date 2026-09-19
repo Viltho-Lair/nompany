@@ -3,7 +3,6 @@
 
 import type { ModuleContext } from "../context";
 import type { Section } from "@/platform/db/sections";
-import type { TaskAssignees } from "@/modules/tasks/types";
 
 export type { Client, SalesTicket, Contact, Site } from "./schema";
 
@@ -20,8 +19,7 @@ export type SalesContext = ModuleContext & {
   technicalSection: Section | null;
   rfqSection: Section | null;
   quotationsSection: Section | null;
-  tasksSection: Section | null;
-  tasksSettingsSection: Section | null;
+  approvalsSection: Section | null;
   projectsSection: Section | null;
   canViewTickets: boolean;
   canManageTickets: boolean;
@@ -29,7 +27,6 @@ export type SalesContext = ModuleContext & {
   canManageClients: boolean;
   canViewSettings: boolean;
   canManageSettings: boolean;
-  taskAssignees: TaskAssignees;
 };
 
 // THE TILL'S CONTEXT (modules/sales/pos). Inventory's two sections are foreign
@@ -89,19 +86,21 @@ export type QuotationRow = {
   completedAt: string;
 };
 
-/** How far an approval task has got. Null when nobody has been asked. */
+/** How far the quotation's approval has got. Null when nobody has been asked. */
 export type ApprovalSummary = {
-  taskId: string;
+  approvalId: string;
   quotationId: string;
+  status: string;
   approved: boolean;
   required: number;
   granted: number;
   at: string;
 };
 
-/** The client's purchase order, read off the `po` task raised against a quotation. */
+/** The client's purchase order, read off the Client PO approval raised against a quotation. */
 export type PoSummary = {
-  taskId: string;
+  approvalId: string;
+  status: string;
   description: string;
   attachmentUrl: string;
   attachmentName: string;

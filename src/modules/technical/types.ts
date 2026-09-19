@@ -34,7 +34,7 @@ export type TechnicalContext = ModuleContext & {
   salesTicketsSection: Section | null;
   salesClientsSection: Section | null;
   inventoryItemsSection: Section | null;
-  tasksSection: Section | null;
+  approvalsSection: Section | null;
   canViewQuotations: boolean;
   canManageQuotations: boolean;
   canViewRfq: boolean;
@@ -46,10 +46,4 @@ export type TechnicalContext = ModuleContext & {
   // Sales-ticket conversion uses by default. See readSequences.
   sequences: QuotationSequence[];
   defaultSequenceId: string;
-  // NOT taskAssignees / tasksSettingsSection — deliberately absent from the
-  // shared context. Only sendQuotationForApproval needs who holds each
-  // approval authority, and resolving it here would put a Task-settings
-  // lookup on every technicalContext build, including the list/GET route that
-  // never sends anything for approval. See sendQuotationForApproval for where
-  // it is resolved instead, and why that costs nothing extra.
 };

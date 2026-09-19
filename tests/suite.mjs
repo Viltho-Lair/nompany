@@ -38,7 +38,7 @@ import { studioContext, canAdminister, studiosForUser } from "@/lib/studios";
 import { explain, ADMIN_ROLE_ID, ALL_PERMISSIONS, isPermission, NO_SCREEN_YET } from "@/platform/access";
 import { tasksContext, createTask, updateTask, removeTask, decideTask } from "@/modules/tasks/tasks";
 import { listForCollaborator, NOTIFY } from "@/platform/notify/notifications";
-import { TASK_TYPE_AUTHORITIES } from "@/modules/tasks/taskRouting";
+import { approvalsContext, decideApproval, saveApprovalSetting } from "@/modules/approvals/approvals";
 import {
   salesContext, createTicket, requestTicketRfq, listTickets, sendTicketForApproval,
   submitTicketPo, editClient, listClients,
@@ -47,7 +47,7 @@ import { resolveClientFor, normaliseClientName, clientSlug } from "@/modules/sal
 import { projectsContext, openProject, listProjects, approvedQuotations, removeProject } from "@/modules/projects/projects";
 import {
   technicalContext, requestRfq, convertRfq, createQuotation, updateRfq, updateQuotation, listQuotations,
-  removeQuotation,
+  removeQuotation, sendQuotationForApproval,
 } from "@/modules/technical/technical";
 import { rfqInfo } from "@/modules/sales/salesAnalytics";
 import { landedUnitCost, crossRate } from "@/shared/currencies";
@@ -577,18 +577,34 @@ console.log("\n== the handler is carried, never copied");
   ok("...beside the quotation, not the RFQ", line.ref === conv.quotation?.number,
     `${line.ref} vs ${conv.quotation?.number}`);
 
-  // And the whole point of the button: ONE task, needing BOTH authorities.
+  // And the whole point of the button: ONE approval, answered step by step by
+  // the people Approval settings name (the owner, 19/09/2026).
+  //
+  // NOBODY NAMED, NOTHING FILED. The Tasks board filed an approval nobody could
+  // answer and reported it as "unrouted"; an approval with no approver would
+  // wait for ever, so it is refused with a sentence instead.
+  const unset = await sendTicketForApproval(await salesContext(owner, slug), { ticketId: made.ticket?.id });
+  ok("an approval nobody is named to answer is refused, not filed", unset.error === "not-configured", JSON.stringify(unset));
+
+  // Two steps: the Member for Sales, then the owner for Management — which is
+  // also the owner/Admin exception, because the owner is asking.
+  const ownerId = (await salesContext(owner, slug)).collaborator.id;
+  const setUp = await saveApprovalSetting(await approvalsContext(owner, slug), { type: "quotation", setting: { steps: [
+    { label: "Sales", approverIds: [member.collaborator.id] },
+    { label: "Management", approverIds: [ownerId] },
+  ] } });
+  ok("Approval settings name who answers a quotation", setUp.setting?.steps?.length === 2, JSON.stringify(setUp));
+
   const sent = await sendTicketForApproval(await salesContext(owner, slug), { ticketId: made.ticket?.id });
-  ok("sending for approval raises an approval task", sent.task?.type === "approval", JSON.stringify(sent.error));
-  ok("...routed to Sales and Management",
-    JSON.stringify(TASK_TYPE_AUTHORITIES.approval) === JSON.stringify(["sales", "mng"]),
-    JSON.stringify(TASK_TYPE_AUTHORITIES.approval));
-  ok("...and says so when nobody is appointed to either",
-    JSON.stringify(sent.unrouted) === JSON.stringify(["Sales", "Management"]),
-    JSON.stringify(sent.unrouted));
+  ok("sending for approval files a quotation approval",
+    sent.approval?.type === "quotation" && sent.approval?.status === "Pending", JSON.stringify(sent.error));
+  ok("...about THIS quotation, opened from its ticket",
+    sent.approval?.source?.recordId === conv.quotation?.id && sent.approval?.source?.path === `crm-sales-tickets/${made.ticket?.id}`,
+    JSON.stringify(sent.approval?.source));
+  ok("...with the steps as they stood, frozen onto it", sent.approval?.steps?.length === 2, JSON.stringify(sent.approval?.steps));
 
   const twice = await sendTicketForApproval(await salesContext(owner, slug), { ticketId: made.ticket?.id });
-  ok("...once per quotation, not once per press", twice.error === "already", JSON.stringify(twice));
+  ok("...once at a time, not once per press", twice.error === "already-pending", JSON.stringify(twice));
 
   // ---- the rest of the chain: PO -> project -> number ----------------------
   // A PO cannot be booked against a quotation nobody signed off, and cannot be
@@ -597,13 +613,18 @@ console.log("\n== the handler is carried, never copied");
   const early = await submitTicketPo(salesCtx, { ticketId: made.ticket?.id, description: "PO-1" });
   ok("a PO needs an approved quotation", early.error === "not-approved", JSON.stringify(early));
 
-  // APPROVED IS CARRIED FROM THE APPROVAL TASK, not written onto the quotation.
+  // APPROVED IS CARRIED FROM THE APPROVAL, not written onto the quotation.
   // Nothing wrote it back, so a quotation Sales and Management had both signed
   // still read "Completed" — and openProject, asked from the very screen that
   // had just approved it, answered "That quotation is not approved".
-  const approvalTask = sent.task;
-  await decideTask(await tasksContext(owner, slug), approvalTask?.id, { authority: "sales", approved: true });
-  await decideTask(await tasksContext(owner, slug), approvalTask?.id, { authority: "mng", approved: true });
+  const approvalId = sent.approval?.id;
+  const early2 = await decideApproval(await approvalsContext(owner, slug), approvalId, { verdict: "Approved" });
+  ok("the second step cannot answer before the first", early2.error === "not-yours", JSON.stringify(early2));
+  const first = await decideApproval(await approvalsContext(member.user, slug), approvalId, { verdict: "Approved" });
+  ok("the first step's approver answers, and it moves on", first.approval?.status === "Pending", JSON.stringify(first.error));
+  const second = await decideApproval(await approvalsContext(owner, slug), approvalId, { verdict: "Approved" });
+  ok("the owner may answer their own request (the owner/Admin exception)",
+    second.approval?.status === "Approved", JSON.stringify(second.error));
 
   const listed = (await listQuotations(await technicalContext(owner, slug)))
     .find((q) => q.id === conv.quotation?.id);
@@ -660,15 +681,21 @@ console.log("\n== the handler is carried, never copied");
   const empty = await submitTicketPo(await salesContext(owner, slug), { ticketId: made.ticket?.id });
   ok("...and evidence: neither a file nor a description is refused", empty.error === "evidence", JSON.stringify(empty));
 
+  // The client's PO is its own approval type, answered by its own steps:
+  // Management (the Member here), then Finance (the owner).
+  await saveApprovalSetting(await approvalsContext(owner, slug), { type: "client-po", setting: { steps: [
+    { label: "Management", approverIds: [member.collaborator.id] },
+    { label: "Finance", approverIds: [ownerId] },
+  ] } });
   const po = await submitTicketPo(await salesContext(owner, slug), {
     ticketId: made.ticket?.id, description: "PO-99 signed by the client",
   });
-  ok("a described PO goes to Finance", po.task?.type === "po", JSON.stringify(po.error));
-  ok("...carrying keys, not copies",
-    po.task?.ticketId === made.ticket?.id && po.task?.quotationId === conv.quotation?.id,
-    JSON.stringify({ ticketId: po.task?.ticketId, quotationId: po.task?.quotationId }));
+  ok("a described PO goes for approval", po.approval?.type === "client-po", JSON.stringify(po.error));
+  ok("...about the quotation it answers, carrying what the client sent",
+    po.approval?.source?.recordId === conv.quotation?.id && po.approval?.note === "PO-99 signed by the client",
+    JSON.stringify({ source: po.approval?.source, note: po.approval?.note }));
   const poTwice = await submitTicketPo(await salesContext(owner, slug), { ticketId: made.ticket?.id, description: "again" });
-  ok("...once per quotation", poTwice.error === "already", JSON.stringify(poTwice));
+  ok("...once at a time", poTwice.error === "already-pending", JSON.stringify(poTwice));
 
   // THE PROJECT IS OPENED WITHOUT A NUMBER. It exists, it has a handler, and
   // its sheet is drawn from the quotation — but the number is Finance's to
@@ -875,28 +902,25 @@ console.log("\n== the handler is carried, never copied");
   ok("...but cannot write a sheet column", outsider.error === "forbidden", JSON.stringify(outsider));
 
 
-  // FINANCE SIGNING IS WHAT ISSUES THE NUMBER. Both authorities have to sign,
-  // so the first one alone leaves it blank.
-  const tctx = await tasksContext(owner, slug);
-  await decideTask(tctx, po.task?.id, { authority: "mng", approved: true });
+  // THE PO APPROVED IS WHAT ISSUES THE NUMBER. Every step has to answer, so
+  // the first one alone leaves it blank.
+  await decideApproval(await approvalsContext(member.user, slug), po.approval?.id, { verdict: "Approved" });
   const halfWay = (await listProjects(proj)).find((p) => p.id === opened.project?.id);
-  ok("one authority is not enough to issue a number", halfWay?.number === "", JSON.stringify(halfWay?.number));
+  ok("one step is not enough to issue a number", halfWay?.number === "", JSON.stringify(halfWay?.number));
 
-  const finished = await decideTask(await tasksContext(owner, slug), po.task?.id, { authority: "fin", approved: true });
-  ok("the second signature completes the PO", finished.task?.status === "Done", JSON.stringify(finished.error));
-  ok("...and issues the project number", /^PRJ-\d+$/.test(finished.numberIssued || ""), JSON.stringify(finished.numberIssued));
+  const finished = await decideApproval(await approvalsContext(owner, slug), po.approval?.id, { verdict: "Approved" });
+  ok("the last step approves the PO", finished.approval?.status === "Approved", JSON.stringify(finished.error));
   const numbered = (await listProjects(proj)).find((p) => p.id === opened.project?.id);
-  ok("...which really landed on the project", numbered?.number === finished.numberIssued, JSON.stringify(numbered?.number));
+  ok("...and issues the project number, which really landed on the project",
+    /^PRJ-\d+$/.test(numbered?.number || ""), JSON.stringify(numbered?.number));
 
-  // Withdrawing and re-approving must not mint a second number: the first one
-  // is already on documents the client is holding.
-  await decideTask(await tasksContext(owner, slug), po.task?.id, { authority: "fin", approved: false });
-  const again = await decideTask(await tasksContext(owner, slug), po.task?.id, { authority: "fin", approved: true });
-  ok("re-approving does not issue a second number", again.numberIssued === numbered?.number,
-    JSON.stringify({ again: again.numberIssued, was: numbered?.number }));
+  // An answer is final, so an approved PO takes no second one — and no second
+  // number can be minted: the first is on documents the client is holding.
+  const again = await decideApproval(await approvalsContext(owner, slug), po.approval?.id, { verdict: "Approved" });
+  ok("an approved PO takes no further answer", again.error === "not-pending", JSON.stringify(again));
   // EVERYTHING THE TAB SEARCH LOOKS THROUGH is carried, not stored on the
   // sheet: the project number comes from the project, the quotation number from
-  // the quotation, the PO number from the `po` task raised against it, and the
+  // the quotation, the PO number from the Client PO approval raised against it, and the
   // serials off Registered Items. A sheet holding copies of those four would be
   // four things to keep in step.
   const forSearch = (await listProjectSheets(await inventoryContext(owner, slug)))
@@ -1305,13 +1329,17 @@ console.log("\n== a project opened from a quotation knows whose work it is (Task
   ok("an internal quotation can be raised with a full client block",
     !!internal.quotation?.clientId, JSON.stringify(internal.error || internal.quotation));
 
-  // The commercial gate asks the approval TASK first and the stored status
-  // second (quotationApproved) — a hand-set Approved status still counts, and
-  // is the simplest way to approve a quotation with no ticket-approval task
-  // behind it at all.
-  const approved = await updateQuotation(tech, internal.quotation?.id, { status: "Approved" });
-  ok("the internal quotation can be approved directly", approved.quotation?.status === "Approved",
-    JSON.stringify(approved.error));
+  // APPROVED IS GIVEN BY AN APPROVAL, NEVER TYPED. Setting the status by hand
+  // was the simplest way to approve a quotation, and the way anybody who could
+  // edit one skipped the people who approve it (19/09/2026).
+  const typed = await updateQuotation(tech, internal.quotation?.id, { status: "Approved" });
+  ok("a quotation cannot be approved by editing its status", typed.error === "needs-approval", JSON.stringify(typed));
+  await updateQuotation(tech, internal.quotation?.id, { status: "Completed" });
+  const asked = await sendQuotationForApproval(await technicalContext(owner, slug), { quotationId: internal.quotation?.id });
+  ok("an internal quotation goes for approval from Technical", asked.approval?.type === "quotation", JSON.stringify(asked.error));
+  await decideApproval(await approvalsContext(member.user, slug), asked.approval?.id, { verdict: "Approved" });
+  const approved = await decideApproval(await approvalsContext(owner, slug), asked.approval?.id, { verdict: "Approved" });
+  ok("...and is approved by it", approved.approval?.status === "Approved", JSON.stringify(approved.error));
 
   const proj = await projectsContext(owner, slug);
   const openedInternal = await openProject(proj, { quotationId: internal.quotation?.id });

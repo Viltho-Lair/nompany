@@ -2,12 +2,12 @@
 
 import { isFinishedQuotation } from "./quotations";
 import type { Rfq, Quotation } from "./types";
-import type { Task } from "@/modules/tasks/types";
+import type { Approval } from "@/modules/approvals/schema";
 // Client-safe, like this file: platform/relations.js declares the edges and
 // imports nothing, taking its rows from the caller.
 import { traverseIn } from "@/platform/relations";
 // Also client-safe, and for the same reason this file is — see its header.
-import { quotationApproved } from "@/modules/tasks/taskRouting";
+import { quotationApproved } from "@/modules/approvals/reads";
 
 export const RFQ_STATUSES = ["New", "In-review", "Converted", "Rejected"];
 
@@ -58,13 +58,13 @@ export function latestTicketQuotation(ticketId: string, quotations: Quotation[] 
 // other. A client who wants something different after signing is a new ticket.
 //
 // Asked of the APPROVAL and not of the document's own status — see
-// quotationApproved — so a quotation signed on the board counts, which is how
-// most of them are approved.
+// quotationApproved — so a quotation approved by its approval counts, which is
+// how every one is approved now.
 export function approvedQuotationFor(
   ticketId: string,
   quotations: Quotation[] | null | undefined,
-  tasks: Task[] | null | undefined,
+  approvals: Approval[] | null | undefined,
 ) {
   const latest = latestTicketQuotation(ticketId, quotations);
-  return quotationApproved(latest, tasks) ? latest : null;
+  return quotationApproved(latest, approvals) ? latest : null;
 }

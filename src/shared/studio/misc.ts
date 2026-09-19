@@ -107,7 +107,7 @@ type Strings = CommonStrings & {
   quotationApproved: string;
   quotationApprovedBeforePo: string;
   quotationSent: string;
-  waitingOnApprovers: (left: number, total: number) => string;
+  waitingOnSteps: (left: number, total: number) => string;
   quotations: string;
   rateNompany: string;
   reference: string;
@@ -130,8 +130,14 @@ type Strings = CommonStrings & {
   starting: string;
   status: string;
   studioAssistant: string;
-  studioNoTasksSection: string;
-  studioNoTasksSection2: string;
+  studioNoApprovals: string;
+  studioNoApprovals2: string;
+  approvalNotConfigured: string;
+  approvalNoApprover: string;
+  approvalAlreadyPending: string;
+  pendingApproval: (granted: number, required: number) => string;
+  approvalRejectedSendAgain: string;
+  poRejectedSendAgain: string;
   studioNoTechnicalSection: string;
   submitPo: string;
   submitPoFinance: string;
@@ -180,7 +186,7 @@ const en: Strings = {
   askNova: "Ask Nova",
   askNova2: "Ask Nova…",
   attachPoDescribeBoth: "Attach the PO, describe it, or both — one of the two is needed.",
-  attachPoDescribeFinance: "Attach the PO or describe it — Finance can't authorise nothing.",
+  attachPoDescribeFinance: "Attach the PO or describe it — nobody can approve nothing.",
   back: "Back",
   backSales: "Back to Sales",
   backStudio: "Back to the studio",
@@ -270,7 +276,7 @@ const en: Strings = {
   quotationApproved: "Quotation approved",
   quotationApprovedBeforePo: "The quotation has to be approved before a PO can be booked against it.",
   quotationSent: "Quotation Sent",
-  waitingOnApprovers: (left, total) => `Waiting on ${left} of ${total} approver${total === 1 ? "" : "s"}`,
+  waitingOnSteps: (left, total) => `Waiting on ${left} of ${total} step${total === 1 ? "" : "s"}`,
   quotations: "Quotations",
   rateNompany: "Rate nompany",
   reference: "Reference",
@@ -280,7 +286,7 @@ const en: Strings = {
   saving: "Saving…",
   send: "Send",
   sendApproval: "Send for Approval",
-  sendLatestQuotationAppointed: "Send the latest quotation to the appointed Sales and Management approvers",
+  sendLatestQuotationAppointed: "Send the latest quotation to the people Approval settings name",
   sendTicketBackTechnical: "Send this ticket back to Quotations to have the last quotation revised",
   sending: "Sending…",
   shownToUsAs: "You'll be shown to us as",
@@ -293,11 +299,17 @@ const en: Strings = {
   starting: "Starting…",
   status: "Status",
   studioAssistant: "Your studio assistant",
-  studioNoTasksSection: "This studio has no Tasks section to send the approval to.",
-  studioNoTasksSection2: "This studio has no Tasks section to send the PO to.",
+  studioNoApprovals: "This studio has no Approvals section to send the approval to.",
+  studioNoApprovals2: "This studio has no Approvals section to send the PO to.",
+  approvalNotConfigured: "Nobody is named to approve this yet — an Admin sets that up in Approval settings.",
+  approvalNoApprover: "You are the only approver on one of its steps, so somebody else must be named in Approval settings.",
+  approvalAlreadyPending: "It is already waiting for approval.",
+  pendingApproval: (granted, required) => `Pending approval (${granted}/${required})`,
+  approvalRejectedSendAgain: "Rejected — send again",
+  poRejectedSendAgain: "PO rejected — submit again",
   studioNoTechnicalSection: "This studio has no Technical section to send an RFQ to.",
   submitPo: "Submit PO",
-  submitPoFinance: "Submit PO to Finance",
+  submitPoFinance: "Submit PO for approval",
   technicalTicketCanRequest: "Technical has this ticket. You can request another RFQ once the quotation comes back.",
   technicalTicketQuotationWill: "Technical has this ticket — the quotation will appear here once it is raised.",
   thankNoted: "Thank you — noted.",
@@ -335,7 +347,7 @@ const ar: Strings = {
   askNova: "اسأل نوفا",
   askNova2: "اسأل نوفا…",
   attachPoDescribeBoth: "أرفق أمر الشراء أو صفه أو كليهما — أحد الاثنين مطلوب.",
-  attachPoDescribeFinance: "أرفق أمر الشراء أو صفه — لا تستطيع المالية اعتماد لا شيء.",
+  attachPoDescribeFinance: "أرفق أمر الشراء أو صفه — لا يمكن اعتماد لا شيء.",
   back: "رجوع",
   backSales: "العودة إلى المبيعات",
   backStudio: "العودة إلى الاستوديو",
@@ -425,13 +437,13 @@ const ar: Strings = {
   quotationApproved: "اعتمد عرض السعر",
   quotationApprovedBeforePo: "يجب اعتماد عرض السعر قبل أن يقيد عليه أمر شراء.",
   quotationSent: "أرسل عرض السعر",
-  waitingOnApprovers: (left, total) => {
-    const who =
-      total === 1 ? "معتمد واحد"
-      : total === 2 ? "معتمدين"
-      : total <= 10 ? `${total} معتمدين`
-      : `${total} معتمدا`;
-    return `بانتظار ${left} من ${who}`;
+  waitingOnSteps: (left, total) => {
+    const steps =
+      total === 1 ? "خطوة واحدة"
+      : total === 2 ? "خطوتين"
+      : total <= 10 ? `${total} خطوات`
+      : `${total} خطوة`;
+    return `بانتظار ${left} من ${steps}`;
   },
   quotations: "عروض الأسعار",
   rateNompany: "قيم nompany",
@@ -442,7 +454,7 @@ const ar: Strings = {
   saving: "جار الحفظ…",
   send: "إرسال",
   sendApproval: "إرسال للاعتماد",
-  sendLatestQuotationAppointed: "أرسل أحدث عرض سعر إلى معتمدي المبيعات والإدارة المعينين",
+  sendLatestQuotationAppointed: "أرسل أحدث عرض سعر إلى من تسميهم إعدادات الموافقات",
   sendTicketBackTechnical: "أعد هذه التذكرة إلى قسم عروض الأسعار لمراجعة آخر عرض سعر",
   sending: "جار الإرسال…",
   shownToUsAs: "ستظهر لنا باسم",
@@ -455,11 +467,17 @@ const ar: Strings = {
   starting: "جار البدء…",
   status: "الحالة",
   studioAssistant: "مساعد الاستوديو الخاص بك",
-  studioNoTasksSection: "لا يوجد قسم مهام في هذا الاستوديو لإرسال الاعتماد إليه.",
-  studioNoTasksSection2: "لا يوجد قسم مهام في هذا الاستوديو لإرسال أمر الشراء إليه.",
+  studioNoApprovals: "لا يوجد قسم موافقات في هذا الاستوديو لإرسال الاعتماد إليه.",
+  studioNoApprovals2: "لا يوجد قسم موافقات في هذا الاستوديو لإرسال أمر الشراء إليه.",
+  approvalNotConfigured: "لم يُسمَّ أحد لاعتماد هذا بعد — يعدّ ذلك المسؤول في إعدادات الموافقات.",
+  approvalNoApprover: "أنت المعتمد الوحيد في إحدى خطواته، لذا يجب تسمية شخص آخر في إعدادات الموافقات.",
+  approvalAlreadyPending: "إنه بانتظار الاعتماد بالفعل.",
+  pendingApproval: (granted, required) => `بانتظار الاعتماد (${granted}/${required})`,
+  approvalRejectedSendAgain: "مرفوض — أرسله مجددًا",
+  poRejectedSendAgain: "رُفض أمر الشراء — قدّمه مجددًا",
   studioNoTechnicalSection: "لا يوجد قسم فني في هذا الاستوديو لإرسال طلب عرض سعر إليه.",
   submitPo: "أرسل أمر الشراء",
-  submitPoFinance: "إرسال أمر الشراء إلى المالية",
+  submitPoFinance: "إرسال أمر الشراء للاعتماد",
   technicalTicketCanRequest: "التذكرة لدى القسم الفني. يمكنك طلب عرض سعر آخر بعد عودة العرض الحالي.",
   technicalTicketQuotationWill: "التذكرة لدى القسم الفني — سيظهر عرض السعر هنا بمجرد رفعه.",
   thankNoted: "شكرا لك — سجل ذلك.",

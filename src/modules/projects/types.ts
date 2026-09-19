@@ -32,7 +32,7 @@ export type ProjectsContext = ModuleContext & {
   sheetsSection: Section | null;
   itemsSection: Section | null;
   vendorsSection: Section | null;
-  tasksSection: Section | null;
+  approvalsSection: Section | null;
   canViewList: boolean;
   canManageList: boolean;
   canViewOvertimes: boolean;

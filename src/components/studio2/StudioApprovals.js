@@ -120,7 +120,7 @@ function ApprovalCard({ slug, approval: a, tr, onAnswer }) {
 
       {a.type === "carried" && <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">{tr.carried}</p>}
       {a.source?.sectionKey && a.source?.recordId && (
-        <Link href={`/${slug}/${a.source.sectionKey}`} className="mt-3 inline-flex items-center gap-1 text-sm font-600 text-brand-700 hover:underline dark:text-brand-400">
+        <Link href={`/${slug}/${a.source.path || a.source.sectionKey}`} className="mt-3 inline-flex items-center gap-1 text-sm font-600 text-brand-700 hover:underline dark:text-brand-400">
           {tr.openRecord}
         </Link>
       )}

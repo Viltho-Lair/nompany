@@ -59,6 +59,13 @@ export const ApprovalSourceSchema = z.object({
   recordId: z.string().max(60),
   ref: z.string().max(80),
   title: z.string().max(200),
+  /**
+   * WHERE "Open the record" LANDS, under the studio — `crm-sales-tickets/<id>`
+   * for a quotation raised from a ticket. Optional: without it the link opens
+   * the section. The record is still named by `sectionKey` and `recordId`;
+   * this is only the door a person walks through.
+   */
+  path: z.string().max(200).optional(),
 });
 
 export const ApprovalSchema = z.object({

@@ -80,9 +80,9 @@ export default function StudioTicketProfile({ slug, ticketId }) {
   useReload(load);
   useLiveUpdates(slug, "crm-sales", load);
   useLiveUpdates(slug, "engineering-docs", load);
-  // An approver signing off is what turns "Send for Approval" into "Quotation
-  // Approved", and that happens on the Tasks board.
-  useLiveUpdates(slug, "tasks", load);
+  // An approver answering is what turns "Send for Approval" into "Quotation
+  // Approved", and that happens on the Approvals page.
+  useLiveUpdates(slug, "approvals", load);
 
   const ticket = data?.tickets?.find((t) => t.id === ticketId) || null;
   const client = data?.clients?.find((c) => c.id === ticket?.clientId) || null;
@@ -112,19 +112,16 @@ export default function StudioTicketProfile({ slug, ticketId }) {
         : out.error === "approved" ? tr.ticketQuotationApprovedNothing
         : out.error === "rfq-pending" ? tr.newRfqOutstandingWait
         : out.error === "not-quoted" ? tr.noFinishedQuotationTicket
-        : out.error === "no-tasks" ? tr.studioNoTasksSection
+        : out.error === "no-approvals" ? tr.studioNoApprovals
+        : out.error === "not-configured" ? tr.approvalNotConfigured
+        : out.error === "no-approver" ? tr.approvalNoApprover
+        : out.error === "already-pending" ? tr.approvalAlreadyPending
         : out.error === "no-technical" ? tr.studioNoTechnicalSection
         : out.error === "read-only" || out.error === "forbidden" ? tr.viewOnlyAccessSales
         : out.error === "ticket" ? tr.ticketNoLongerExists2
         : tr.didnGoThrough,
       );
       return;
-    }
-    // Nobody has been appointed to an authority this approval routes to, so it
-    // can never complete. Worth saying at the moment of sending rather than
-    // leaving somebody to wonder why it never moves.
-    if (out.unrouted?.length) {
-      setNote(`Sent — but nobody is appointed to ${out.unrouted.join(" and ")} in Task settings, so it cannot be approved until somebody is.`);
     }
     await load();
   }
@@ -160,14 +157,14 @@ export default function StudioTicketProfile({ slug, ticketId }) {
         : out.error === "already" ? tr.poAlreadySubmittedQuotation
         : out.error === "not-approved" ? tr.quotationApprovedBeforePo
         : out.error === "not-quoted" ? tr.noQuotationTicketYet
-        : out.error === "no-tasks" ? tr.studioNoTasksSection2
+        : out.error === "no-approvals" ? tr.studioNoApprovals2
+        : out.error === "not-configured" ? tr.approvalNotConfigured
+        : out.error === "no-approver" ? tr.approvalNoApprover
+        : out.error === "already-pending" ? tr.approvalAlreadyPending
         : out.error === "read-only" || out.error === "forbidden" ? tr.viewOnlyAccessSales
         : tr.didnGoThrough,
       );
       return false;
-    }
-    if (out.unrouted?.length) {
-      setNote(`Sent — but nobody is appointed to ${out.unrouted.join(" and ")} in Task settings, so the PO cannot be approved until somebody is.`);
     }
     setPoOpen(false);
     await load();
@@ -212,13 +209,13 @@ export default function StudioTicketProfile({ slug, ticketId }) {
   // button is never drawn where pressing it would be turned down.
   const canRequestRfq = canAct && canRequestRfqStatus(ticket.status) && !ticket.quotationApproved;
   const approval = ticket.approval;
-  const showApproval = canAct && data.hasTasks && !ticket.rfqPending
+  const showApproval = canAct && data.hasApprovals && !ticket.rfqPending
     && (ticket.hasFinishedQuotation || approval);
   // The PO follows the approval: it is offered once the quotation this ticket
   // is priced from has been signed off, and it reports its own progress after
   // that. `po` is null until one is sent.
   const po = ticket.po;
-  const showPo = canAct && data.hasTasks && (approval?.approved || po);
+  const showPo = canAct && data.hasApprovals && (approval?.approved || po);
 
   // The timeline is built from what the ticket already records, so it cannot
   // drift from the row: no separate event log to keep in step.
@@ -399,16 +396,18 @@ export default function StudioTicketProfile({ slug, ticketId }) {
                   <button type="button" className={btnApproved} disabled>
                     <Icon name="checkDouble" className="h-4 w-4" /> {tr.quotationApproved}
                   </button>
-                ) : approval ? (
+                ) : approval && !approval.rejected ? (
                   <button type="button" className={btnActionOff} disabled
-                    title={tr.waitingOnApprovers(approval.required - approval.granted, approval.required)}>
-                    Pending Approval ({approval.granted}/{approval.required})
+                    title={tr.waitingOnSteps(approval.required - approval.granted, approval.required)}>
+                    {tr.pendingApproval(approval.granted, approval.required)}
                   </button>
                 ) : (
+                  // A REJECTED approval is answered by asking again — the
+                  // rejection stays on the Approvals page as the record of it.
                   <button type="button" className={btnApprove} disabled={acting === "approval"}
                     title={tr.sendLatestQuotationAppointed}
                     onClick={() => act("approval")}>
-                    {acting === "approval" ? tr.sending : tr.sendApproval}
+                    {acting === "approval" ? tr.sending : approval?.rejected ? tr.approvalRejectedSendAgain : tr.sendApproval}
                   </button>
                 )
               )}
@@ -424,15 +423,15 @@ export default function StudioTicketProfile({ slug, ticketId }) {
                   <button type="button" className={btnApproved} disabled>
                     <Icon name="checkDouble" className="h-4 w-4" /> {tr.poApproved}
                   </button>
-                ) : po ? (
+                ) : po && po.status !== "Rejected" ? (
                   <button type="button" className={btnActionOff} disabled
-                    title={tr.waitingOnApprovers(po.required - po.granted, po.required)}>
+                    title={tr.waitingOnSteps(po.required - po.granted, po.required)}>
                     {tr.poSubmitted} ({po.granted}/{po.required})
                   </button>
                 ) : (
                   <button type="button" className={btnAction + " bg-brand-700 text-white hover:bg-brand-950"}
                     onClick={() => setPoOpen(true)}>
-                    {tr.submitPo}
+                    {po ? tr.poRejectedSendAgain : tr.submitPo}
                   </button>
                 )
               )}

@@ -188,14 +188,17 @@ type Strings = CommonStrings & {
   searchNumberTitleClient: string;
   searchRfqs: string;
   sendQuotationInternalApproval: string;
-  sentApprovalButNo: string;
   sequence: string;
   start: string;
   validDays: string;
   validUntil: string;
   status: string;
   studioKeepsModuleDashboards: string;
-  studioNoTasksBoard: string;
+  studioNoApprovals: string;
+  approvalNotConfigured: string;
+  approvalNoApprover: string;
+  approvalAlreadyPending: string;
+  approvedByApprovalOnly: string;
   studioNotSetCurrency: string;
   submitted: string;
   subtotal: string;
@@ -424,14 +427,17 @@ const en: Strings = {
   searchNumberTitleClient: "Search number, title, client or description",
   searchRfqs: "Search RFQs",
   sendQuotationInternalApproval: "Send this quotation for internal approval",
-  sentApprovalButNo: "Sent for approval, but no approver is set up to receive it — appoint approvers in Tasks settings.",
   sequence: "Sequence",
   start: "Start",
   validDays: "Valid for (days)",
   validUntil: "Valid until",
   status: "Status",
   studioKeepsModuleDashboards: "This studio keeps its module dashboards behind a right of their own. The screens underneath are unaffected — pick one from the sidebar.",
-  studioNoTasksBoard: "This studio has no Tasks board to route approvals to.",
+  studioNoApprovals: "This studio has no Approvals section to send approvals to.",
+  approvalNotConfigured: "Nobody is named to approve quotations yet — an Admin sets that up in Approval settings.",
+  approvalNoApprover: "You are the only approver on one of its steps, so somebody else must be named in Approval settings.",
+  approvalAlreadyPending: "It is already waiting for approval.",
+  approvedByApprovalOnly: "A quotation is approved by sending it for approval, not by changing its status.",
   studioNotSetCurrency: "this studio has not set the currency it counts in, so there is nothing to convert a foreign price into. Set it in Settings.",
   submitted: "Submitted",
   subtotal: "Subtotal",
@@ -664,14 +670,17 @@ const ar: Strings = {
   searchNumberTitleClient: "ابحث بالرقم أو العنوان أو العميل أو الوصف",
   searchRfqs: "ابحث في طلبات عروض الأسعار",
   sendQuotationInternalApproval: "أرسل عرض السعر هذا للاعتماد الداخلي",
-  sentApprovalButNo: "أرسل للاعتماد، لكن لا يوجد معتمد مهيأ لاستلامه — عين معتمدين من إعدادات المهام.",
   sequence: "التسلسل",
   start: "البداية",
   validDays: "مدة الصلاحية (أيام)",
   validUntil: "صالح حتى",
   status: "الحالة",
   studioKeepsModuleDashboards: "يبقي هذا الاستوديو لوحات معلومات الوحدات خلف صلاحية خاصة بها. الشاشات التي تحتها غير متأثرة — اختر واحدة من الشريط الجانبي.",
-  studioNoTasksBoard: "لا توجد لوحة مهام في هذا الاستوديو لتوجيه الاعتمادات إليها.",
+  studioNoApprovals: "لا يوجد قسم موافقات في هذا الاستوديو لإرسال الاعتمادات إليه.",
+  approvalNotConfigured: "لم يُسمَّ أحد لاعتماد عروض الأسعار بعد — يعدّ ذلك المسؤول في إعدادات الموافقات.",
+  approvalNoApprover: "أنت المعتمد الوحيد في إحدى خطواته، لذا يجب تسمية شخص آخر في إعدادات الموافقات.",
+  approvalAlreadyPending: "إنه بانتظار الاعتماد بالفعل.",
+  approvedByApprovalOnly: "يُعتمد عرض السعر بإرساله للاعتماد، لا بتغيير حالته.",
   studioNotSetCurrency: "لم يحدد هذا الاستوديو العملة التي يحتسب بها، فلا يوجد ما يحول إليه السعر الأجنبي. حددها من الإعدادات.",
   submitted: "مقدم",
   subtotal: "المجموع الفرعي",

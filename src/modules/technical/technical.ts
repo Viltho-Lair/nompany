@@ -25,9 +25,8 @@ import { RFQ_STATUSES, pendingRfq, approvedQuotationFor, latestTicketQuotation }
 import { DEFAULT_STATUS, RFQ_REJECTED_TICKET_STATUS } from "@/modules/sales/tickets";
 import { stagePatch, CHAIN_LOST_REASON } from "@/modules/sales/pipeline";
 import { resolveClientFor } from "@/modules/sales/salesClients";
-import {
-  quotationApproved, readTaskAssignees, resolveTaskAssignees, TASK_AUTHORITIES,
-} from "@/modules/tasks/taskRouting";
+import { approvalRows, requestApproval } from "@/modules/approvals/approvals";
+import { quotationApproved, quotationApprovedAt, QUOTATION_APPROVAL } from "@/modules/approvals/reads";
 import { getExchangeSnapshot } from "@/lib/data/exchangeRates";
 import { landedUnitCost } from "@/shared/currencies";
 import { resolveUnitPrice, ratesByItem } from "@/shared/pricing";
@@ -43,7 +42,6 @@ import {
 import type { TechnicalContext, Rfq, Quotation, QuotationItem, QuotationSequence } from "./types";
 import type { SalesTicket } from "@/modules/sales/types";
 import type { Section } from "@/platform/db/sections";
-import type { Task } from "@/modules/tasks/types";
 import { taxCategoryField } from "@/shared/taxProfile";
 import { documentTaxMethod } from "@/shared/compliance/rules";
 
@@ -55,7 +53,6 @@ const QUOTATIONS = "quotations";
 const INVENTORY_ITEMS = "inventoryItems";
 const TICKETS = "salesTickets";
 const CLIENTS = "salesClients";
-const TASKS = "tasks";
 
 // THE COLLECTIONS THIS MODULE QUERIES, named once. A repository binds a
 // collection, not a scope — the studio and section arrive per call, which is
@@ -65,7 +62,6 @@ const Clients = repo(CLIENTS);
 const InventoryItems = repo(INVENTORY_ITEMS);
 const Quotations = repo<Quotation>(QUOTATIONS);
 const Rfqs = repo<Rfq>(RFQS);
-const Tasks = repo<Task>(TASKS);
 const Tickets = repo<SalesTicket>(TICKETS);
 const str = (v: unknown, max = 300) => String(v ?? "").trim().slice(0, max);
 const num = (v: unknown) => (Number.isFinite(Number(v)) && Number(v) >= 0 ? Number(v) : 0);
@@ -80,23 +76,16 @@ export const technicalContext = moduleContext<TechnicalContext>({
     quotations: "crm-sales-quotations", rfq: "engineering-docs-rfq", settings: "engineering-docs-settings",
   },
   // Sales, because a quotation answers a Sales ticket; Inventory items because a
-  // quotation line can name one; Tasks because sending one for approval raises
-  // one. All read-only and none gated on that department's grant — this is the
-  // state of Technical's own record, not a window into somebody else's queue.
-  //
-  // NOT tasksSettings. Task-routing (who holds each approval authority) is
-  // needed by exactly one function — sendQuotationForApproval — and resolving
-  // it here would put it on EVERY technicalContext build, including the
-  // list/GET route that never sends anything for approval. It used to live
-  // here and cost that route an extra wave for a value it never read; see the
-  // note on sendQuotationForApproval for where it moved and why that costs
-  // nothing (ctx.sections already holds the section it looks up).
+  // quotation line can name one; Approvals because a quotation is approved by
+  // one and reads its status back from it. All read-only and none gated on that
+  // department's grant — this is the state of Technical's own record, not a
+  // window into somebody else's queue.
   foreign: {
     sales: "crm-sales",
     salesTickets: ["crm-sales-tickets", "crm-sales"],
     salesClients: ["crm-sales-clients", "crm-sales"],
     inventoryItems: ["inventory-items", "inventory"],
-    tasks: "tasks",
+    approvals: "approvals",
   },
   flags: ["quotations", "rfq", "settings"],
   extend: ({ access, sections, salesSection, settingsSection }) => ({
@@ -291,14 +280,14 @@ export async function requestRfq(ctx: TechnicalContext, body: Record<string, unk
   // No CLIENTS read any more: the client was only read to copy its name onto the
   // RFQ, and the name is now read back from the client record at display time.
   const ticketId = str(body?.ticketId, 60);
-  const [tickets, existing, quotations, tasks] = await Promise.all([
+  const [tickets, existing, quotations, approvals] = await Promise.all([
     Tickets.find({ studio, section: salesTicketsSection }),
     Rfqs.find({ studio, section: rfqSection }),
     Quotations.find({ studio, section: quotationsSection }),
     // Only to ask whether the current quotation is approved, and only through
-    // the helper below. A studio with no Tasks section has no approvals to read,
+    // the helper below. A studio with no Approvals section has none to read,
     // so nothing here refuses on their absence.
-    ctx.tasksSection ? Tasks.find({ studio, section: ctx.tasksSection }) : [],
+    approvalRows(studio, ctx.approvalsSection),
   ]);
   const ticket = tickets.find((t) => t.id === ticketId);
   if (!ticket) return { error: "ticket" };
@@ -311,7 +300,7 @@ export async function requestRfq(ctx: TechnicalContext, body: Record<string, unk
   // AND NOT ONCE IT IS APPROVED. Both doors, so the Technical screen's "Raise
   // RFQ" cannot do what the Sales button has stopped offering — see
   // approvedQuotationFor for why an approved quotation ends the asking.
-  if (approvedQuotationFor(ticketId, quotations, tasks)) return { error: "approved" };
+  if (approvedQuotationFor(ticketId, quotations, approvals)) return { error: "approved" };
 
   const rfq = await Rfqs.create({ studio, section: rfqSection }, {
     // One ticket can be sent over more than once — a second RFQ after the first
@@ -629,10 +618,10 @@ const quotationHandler = (q: Quotation | null | undefined, rfq: Rfq | null | und
   String(rfq?.handledByCollaboratorId || q?.handledByCollaboratorId || q?.handledBy || "");
 
 export async function listQuotations(ctx: TechnicalContext) {
-  const [rows, rfqRows, tasks, { factsFor, clientsById }] = await Promise.all([
+  const [rows, rfqRows, approvals, { factsFor, clientsById }] = await Promise.all([
     Quotations.find({ studio: ctx.studio, section: ctx.quotationsSection }),
     ctx.rfqSection ? Rfqs.find({ studio: ctx.studio, section: ctx.rfqSection }) : [],
-    ctx.tasksSection ? Tasks.find({ studio: ctx.studio, section: ctx.tasksSection }) : [],
+    approvalRows(ctx.studio, ctx.approvalsSection),
     // clientsById is the SAME read ticketFacts already does for a converted
     // quotation's client — reused here rather than a second Clients.find, which
     // is what keeps an INTERNAL quotation's clientId resolution from adding a
@@ -646,20 +635,16 @@ export async function listQuotations(ctx: TechnicalContext) {
       const handledBy = quotationHandler(q, rfqById.get(q.rfqId || ""));
       // APPROVED IS CARRIED FROM THE APPROVAL, never copied onto the document.
       // The list showed whatever `status` said, so a quotation Sales and
-      // Management had both signed still read "Completed" — the decision was on
-      // the board and nothing brought it back. `status` is what the row now
-      // READS AS; `storedStatus` is what is on file, for anything that still
+      // Management had both signed still read "Completed" — the decision was
+      // made elsewhere and nothing brought it back. `status` is what the row
+      // now READS AS; `storedStatus` is what is on file, for anything that still
       // needs to know the difference.
-      const approved = quotationApproved(q, tasks);
+      const approved = quotationApproved(q, approvals);
       const shown = approved ? "Approved" : q.status;
-      // WHEN it was approved, carried the same way. `completedAt` is stamped
-      // only when somebody hand-sets the status, so a quotation approved on the
-      // board had no date at all — and that date is what the dashboard measures
-      // turnaround from and what the viewer prints as "Approved". The task that
-      // made the decision knows when it was made.
-      const decidedAt = q.completedAt
-        || tasks.find((t) => t.type === "approval" && t.quotationId === q.id && t.status === "Done")?.completedAt
-        || "";
+      // WHEN it was approved, carried the same way — the date the dashboard
+      // measures turnaround from and the viewer prints as "Approved". The
+      // approval that made the decision knows when it was made.
+      const decidedAt = quotationApprovedAt(q, approvals);
       // WHETHER THIS CAME OFF A SALES TICKET, spelled out rather than left for
       // the frontend to infer from ticketId's presence — the same fact, but a
       // caller reading for "did Sales raise this" should not have to know that
@@ -985,6 +970,12 @@ export async function updateQuotation(ctx: TechnicalContext, id: string, body: R
   if (body?.title !== undefined) patch.title = str(body.title, 200);
   if (body?.status !== undefined) {
     if (!QUOTATION_STATUSES.includes(String(body.status))) return { error: "status" };
+    // APPROVED IS GIVEN BY AN APPROVAL, NEVER TYPED. Anybody who could edit a
+    // quotation could set it Approved and skip the people who approve one —
+    // the hole the approvals inventory found first (19/09/2026). Re-saving a
+    // quotation that is already Approved changes nothing and is let through;
+    // those were approved by hand before Approvals and stay so.
+    if (body.status === "Approved" && current.status !== "Approved") return { error: "needs-approval" };
     patch.status = String(body.status);
     // When it lands on Approved, stamp WHEN — that date is what the dashboard
     // measures turnaround from, and it must not move if it is approved twice.
@@ -1057,8 +1048,7 @@ export async function updateQuotation(ctx: TechnicalContext, id: string, body: R
   // quotation can be locked". The Lock button was even offered, because the
   // list it is drawn from already carried the right answer.
   if (body?.locked === true) {
-    const approvedNow = patch.status === "Approved"
-      || quotationApproved(current, ctx.tasksSection ? await Tasks.find({ studio, section: ctx.tasksSection }) : []);
+    const approvedNow = quotationApproved(current, await approvalRows(studio, ctx.approvalsSection));
     if (!approvedNow) return { error: "not-approved" };
     patch.locked = true;
   }
@@ -1100,52 +1090,36 @@ export async function removeQuotation(ctx: TechnicalContext, id: string) {
 
 // SEND AN INTERNAL QUOTATION'S FINISHED DOCUMENT UP FOR APPROVAL — the
 // ticket-less twin of Sales' sendTicketForApproval (modules/sales/sales.ts).
-// There is no ticket here to ask "is a revision pending" of, and no ticket
-// status to move; everything else about the decision is identical, which is
-// why this raises the SAME task type rather than one of its own — one
-// approval queue in the studio, not two.
+// There is no ticket here to ask "is a revision pending" of; everything else
+// about the decision is identical, which is why it files the SAME approval
+// type — one kind of quotation approval in the studio, not two.
 //
 // A TECHNICAL ACT ON A TECHNICAL RECORD: the document was built here and never
-// touched a Sales ticket, so the right asked for is technical.quotations.edit
-// — not sales.tickets.edit, which is what the converted twin asks because
+// touched a Sales ticket, so the right asked for is crmSales.quotations.edit
+// — not crmSales.tickets.edit, which is what the converted twin asks because
 // THAT decision belongs to the ticket it is sending up.
 export async function sendQuotationForApproval(ctx: TechnicalContext, body: Record<string, unknown>) {
   // THE GUARD, BEFORE ANYTHING IS READ OR WRITTEN.
   const denied = requirePermission(ctx.access, "crmSales.quotations.edit");
   if (denied) return denied;
 
-  const { studio, sections, quotationsSection, tasksSection, salesClientsSection, collaborator } = ctx;
-  if (!tasksSection) return { error: "no-tasks" };
-
-  // WHO HOLDS EACH APPROVAL AUTHORITY — resolved HERE rather than carried on
-  // every TechnicalContext, and it costs nothing extra: `sections` is the same
-  // array studioContext already read once for this whole request, so this is
-  // an in-memory lookup, not a Redis read — the same fallback moduleContext's
-  // `foreign` would have used had this stayed there. It stayed off the shared
-  // context specifically so the list/GET route, which never sends anything for
-  // approval, does not pay a wave for a value it never reads.
-  const tasksSettingsSection = sections.find((s) => s.key === "tasks-settings")
-    || sections.find((s) => s.key === "tasks") || null;
-  const taskAssignees = readTaskAssignees(tasksSettingsSection);
+  const { studio, quotationsSection, approvalsSection, salesClientsSection } = ctx;
+  if (!approvalsSection) return { error: "no-approvals" };
 
   const quotationId = str(body?.quotationId, 60);
-  const [quotations, tasks, clients] = await Promise.all([
+  const [quotations, approvals, clients] = await Promise.all([
     Quotations.find({ studio, section: quotationsSection }),
-    Tasks.find({ studio, section: tasksSection }),
+    approvalRows(studio, approvalsSection),
     salesClientsSection ? Clients.find({ studio, section: salesClientsSection }) : [],
   ]);
   const quotation = quotations.find((q) => q.id === quotationId);
   if (!quotation) return { error: "notfound" };
   // A CONVERTED QUOTATION GOES UP THROUGH ITS TICKET, not here — Sales' own
-  // button asks the identical question of the identical task type, and a
-  // second door onto the same document would let it be sent twice under two
-  // different guards.
+  // button asks the identical question, and a second door onto the same
+  // document would let it be sent twice under two different guards.
   if (quotation.ticketId) return { error: "has-ticket" };
   if (!isFinishedQuotation(quotation) || quotation.status === "Rejected") return { error: "not-completed" };
-  if (quotationApproved(quotation, tasks)) return { error: "approved" };
-  // Sent once per quotation — same rule as the converted twin: a second press
-  // must not put the same document in front of the approvers twice.
-  if (tasks.some((t) => t.type === "approval" && t.quotationId === quotation.id)) return { error: "already" };
+  if (quotationApproved(quotation, approvals)) return { error: "approved" };
 
   // THE CLIENT, resolved the same way listQuotations resolves one: an id names
   // a real Sales client and the name is read back live off that record; free
@@ -1155,58 +1129,32 @@ export async function sendQuotationForApproval(ctx: TechnicalContext, body: Reco
 
   const revision = Number(quotation.revision) || 1;
   const name = `${quotation.number || "Quotation"}${revision > 1 ? ` Rev ${revision}` : ""}`;
-  const task = await Tasks.create({ studio, section: tasksSection }, {
-    type: "approval",
-    title: `Approve quotation ${name}${clientName ? ` · ${clientName}` : ""}`.trim(),
-    description: quotation.title || "",
-    // ROUTED, NOT ASSIGNED. Who decides comes from Task settings on every read,
-    // so appointing somebody there hands them this the moment they are named.
-    assigneeCollaboratorId: "",
-    approvals: {},
-    approvalWithdrawnAt: "",
-    status: "Open",
-    priority: "Normal",
-    // NO ticketId — the field every reader already uses to tell a converted
-    // quotation's approval from this one. quotationId is still the tie every
-    // reader (quotationApproved, the ticket's own approval box) asks with.
-    quotationId: quotation.id,
-    quotationNumber: quotation.number || "",
-    quotationRevision: revision,
-    quotationTotal: Number(quotation.total) || 0,
-    clientName,
-    createdByCollaboratorId: collaborator.id,
-    createdAt: new Date().toISOString(),
-    completedAt: "",
+  return requestApproval(ctx, {
+    type: QUOTATION_APPROVAL,
+    source: {
+      sectionKey: quotationsSection.key,
+      recordId: quotation.id,
+      ref: name,
+      title: [clientName, quotation.title].filter(Boolean).join(" · "),
+      path: "quotations",
+    },
   });
-
-  const { authorities, assigneeIds } = resolveTaskAssignees(task, taskAssignees);
-  // THE APPOINTED APPROVERS ARE TOLD, as the ticket-side twin now does.
-  await notifyCollaboratorIds(studio.id, assigneeIds, signatureNotice(name, "tasks"), [collaborator.id]);
-  return {
-    task,
-    // Reported rather than refused: an authority nobody has been appointed to
-    // can never sign off, and the screen should say so instead of leaving the
-    // request to sit there looking sent — same as sendTicketForApproval.
-    unrouted: authorities
-      .filter((c) => (taskAssignees?.[c] || []).length === 0)
-      .map((c) => TASK_AUTHORITIES.find((a) => a.code === c)?.label || c),
-  };
 }
 
 // Sales tickets with nothing outstanding — what "raise an RFQ" can pick. Same
 // rule the Sales button obeys, so the two doors offer exactly the same tickets.
 export async function openTickets({
   studio, salesSection, salesTicketsSection, salesClientsSection,
-  rfqSection, quotationsSection, tasksSection,
+  rfqSection, quotationsSection, approvalsSection,
 }: Pick<TechnicalContext,
   | "studio" | "salesSection" | "salesTicketsSection" | "salesClientsSection"
-  | "rfqSection" | "quotationsSection" | "tasksSection">) {
+  | "rfqSection" | "quotationsSection" | "approvalsSection">) {
   if (!salesSection || !salesTicketsSection) return [];
-  const [tickets, rfqs, quotations, tasks] = await Promise.all([
+  const [tickets, rfqs, quotations, approvals] = await Promise.all([
     Tickets.find({ studio, section: salesTicketsSection }),
     Rfqs.find({ studio, section: rfqSection }),
     Quotations.find({ studio, section: quotationsSection }),
-    tasksSection ? Tasks.find({ studio, section: tasksSection }) : [],
+    approvalRows(studio, approvalsSection),
   ]);
   return tickets
     // BOTH RULES requestRfq refuses on, not just the first. A ticket whose
@@ -1214,7 +1162,7 @@ export async function openTickets({
     // then be turned down on save — which is the failure the Sales button was
     // just fixed for, arriving through the other door.
     .filter((t) => !pendingRfq(String(t.id), rfqs, quotations)
-      && !approvedQuotationFor(String(t.id), quotations, tasks))
+      && !approvedQuotationFor(String(t.id), quotations, approvals))
     .map((t) => ({ id: t.id, ref: t.ref, title: t.title }));
 }
 

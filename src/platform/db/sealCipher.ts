@@ -90,6 +90,10 @@ const BY_COLLECTION: Record<string, Set<string>> = {
   rfqs: new Set(["reference"]),
   // "Approve quotation Q-0004 · ACME" — tasks are titled from the deal.
   tasks: new Set(["title", "description"]),
+  // The same deal copied onto its approval — "Q-0004 · ACME", the client's PO
+  // and its file name. Sealed WHOLE: `source` is one field holding the title,
+  // and nothing queries inside it (approvals are found by `type`).
+  approvals: new Set(["source", "note", "attachment"]),
   // "Invoice INV-0003 — ACME".
   journalEntries: new Set(["memo"]),
 };

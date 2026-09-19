@@ -20,6 +20,8 @@ import { sectionViewable } from "@/platform/access";
 import { listCollaborators } from "@/platform/auth/collaborators";
 import { enrichTask, readTaskAssignees } from "@/modules/tasks/taskRouting";
 import type { Task } from "@/modules/tasks/types";
+import type { Approval } from "@/modules/approvals/schema";
+import { approvalQueueFrom } from "./awaiting";
 import type { Permit } from "@/modules/operations/types";
 // The sections' OWN definitions of "below reorder level" and "expiring", so the
 // front door cannot quietly disagree with the screen it is summarising.
@@ -159,7 +161,7 @@ export async function headlines(ctx: MainContext) {
   const meId = ctx.collaborator.id;
   const today = new Date().toISOString().slice(0, 10);
 
-  const [tickets, quotations, rfqs, projects, items, movements, tasks, invoices, permits, people] = await Promise.all([
+  const [tickets, quotations, rfqs, projects, items, movements, tasks, invoices, permits, people, approvals] = await Promise.all([
     readIfVisible(ctx, "crm-sales-tickets", "crm-sales", "salesTickets"),
     readIfVisible(ctx, "crm-sales-quotations", "crm-sales", "quotations", "quotations-register"),
     readIfVisible(ctx, "engineering-docs-rfq", "engineering-docs", "rfqs", "quotations-rfq"),
@@ -176,6 +178,7 @@ export async function headlines(ctx: MainContext) {
     // Stored on the Field Operations root, worked in Quality & HSE → Permits.
     readIfVisible<Permit>(ctx, "field-service", null, "permits", "quality-hse-permits"),
     ctx.seen("hr-employees", "hr") ? listCollaborators(ctx.studio.id) : null,
+    readIfVisible<Approval>(ctx, "approvals", null, "approvals"),
   ]);
 
   // Derived exactly as the Inventory screen derives it, from the same helper.
@@ -194,6 +197,9 @@ export async function headlines(ctx: MainContext) {
       .filter((t) => t.assigneeCollaboratorId === meId || (t.myAuthorities || []).some((c) => !t.approvals?.[c]?.approved))
       .length;
   }
+  // AND THE APPROVALS WAITING ON ME, counted by the same function the "Awaiting
+  // you" list uses, so the number and the list agree.
+  if (approvals) awaitingMe = (awaitingMe || 0) + approvalQueueFrom(approvals, meId).length;
 
   return {
     openTickets: tickets ? tickets.filter((t) => t.status !== "Closed Won" && t.status !== "Closed Lost" && t.status !== "Dropped").length : null,

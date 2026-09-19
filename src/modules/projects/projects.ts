@@ -35,14 +35,14 @@ import { ticketFacts } from "@/modules/technical/technical";
 import { departmentsAsStored } from "@/modules/administration/departments";
 // Whether a quotation is approved is answered by its APPROVAL, not by a copy of
 // one — see the note on quotationApproved.
-import { quotationApproved } from "@/modules/tasks/taskRouting";
+import { quotationApproved } from "@/modules/approvals/reads";
+import { approvalRows } from "@/modules/approvals/approvals";
 import { isWonTender } from "@/modules/tendering/stages";
 import { boqTotals, valueFromBoq } from "@/modules/tendering/boq";
 import type { Tender, BoqItem } from "@/modules/tendering/schema";
 import type { ProjectsContext, Project, Overtime } from "./types";
 import type { Section } from "@/platform/db/sections";
 import type { Row } from "@/platform/db/store";
-import type { Task } from "@/modules/tasks/types";
 
 export const PROJECT_STAGES = ["Received", "In Progress", "On Hold", "Completed"];
 export const DEFAULT_STAGE = "Received";
@@ -60,7 +60,6 @@ const CLIENTS = "salesClients";
 // Two sheets per project, and they are two READINGS of the quotation's rows
 // rather than two copies of them — see openProject.
 export const SHEET_KINDS = ["main", "bulk"];
-const TASKS = "tasks";
 
 // THE COLLECTIONS THIS MODULE QUERIES, named once. A repository binds a
 // collection, not a scope — the studio and section arrive per call, which is
@@ -76,7 +75,6 @@ const Clients = repo<Client>(CLIENTS);
 // Projects writes the project sheet under Inventory's section when a project is
 // opened and never reads it back, so this binds the collection without a type.
 const Sheets = repo(SHEETS);
-const Tasks = repo<Task>(TASKS);
 // The overtime picker's department filter is the studio's own org chart, read
 // from Master data through a foreign section — never seeded from here, because
 // a list route must not write one as a side effect of being read. See
@@ -127,7 +125,7 @@ export const projectsContext = moduleContext<ProjectsContext>({
     sheets: ["inventory-sheets", "inventory"],
     items: ["inventory-items", "inventory"],
     vendors: ["procurement-suppliers", "inventory"],
-    tasks: "tasks",
+    approvals: "approvals",
   },
   flags: ["list", "overtimes", "settings"],
   extend: ({ settingsSection }) => ({
@@ -209,19 +207,19 @@ export async function listProjects(ctx: ProjectsContext) {
 // Quotations that are Approved and not already delivering — what "open a
 // project" can choose from.
 export async function approvedQuotations(ctx: ProjectsContext) {
-  const { studio, listSection, quotationsSection, tasksSection } = ctx;
+  const { studio, listSection, quotationsSection, approvalsSection } = ctx;
   if (!quotationsSection) return [];
-  const [quotes, projects, tasks, { factsFor, clientsById }] = await Promise.all([
+  const [quotes, projects, approvals, { factsFor, clientsById }] = await Promise.all([
     Quotations.find({ studio, section: quotationsSection }),
     Projects.find({ studio, section: listSection }),
-    tasksSection ? Tasks.find({ studio, section: tasksSection }) : [],
+    approvalRows(studio, approvalsSection),
     ticketFacts(ctx),
   ]);
   const used = new Set(projects.map((p) => p.quotationId).filter(Boolean));
   return quotes
-    // Approved BY THE TASK or by hand — the picker offers what may actually be
-    // opened, which is the same question openProject asks below.
-    .filter((q) => quotationApproved(q, tasks) && !used.has(String(q.id)))
+    // Approved by its approval (or by hand, before Approvals) — the picker
+    // offers what may actually be opened, the same question openProject asks.
+    .filter((q) => quotationApproved(q, approvals) && !used.has(String(q.id)))
     // Title and client are the TICKET'S, reached through the quotation's
     // ticketId. An Internal quotation has no ticket and titles itself.
     .map((q) => {
@@ -461,7 +459,7 @@ async function tenderSource(
 async function quotationSource(
   ctx: ProjectsContext, body: Record<string, unknown>,
 ): Promise<ProjectSource | { error: string }> {
-  const { studio, listSection, technicalSection, quotationsSection, tasksSection, salesClientsSection, salesTicketsSection } = ctx;
+  const { studio, listSection, technicalSection, quotationsSection, approvalsSection, salesClientsSection, salesTicketsSection } = ctx;
   if (!technicalSection) return { error: "no-technical" };
 
   const quotationId = str(body?.quotationId, 60);
@@ -472,12 +470,11 @@ async function quotationSource(
   const quote = quotes.find((q) => q.id === quotationId);
   if (!quote) return { error: "quotation" };
   // THE COMMERCIAL GATE: only approved work becomes a project. Asked of the
-  // approval task rather than of the quotation's own status — the decision is
-  // made on the board, and nothing writes it back onto the document. This is
-  // exactly what refused every project opened from a quotation the studio had
-  // just approved.
-  const tasks = tasksSection ? await Tasks.find({ studio, section: tasksSection }) : [];
-  if (!quotationApproved(quote, tasks)) return { error: "not-approved" };
+  // quotation's APPROVAL rather than of its own status — the decision is made
+  // there, and nothing writes it back onto the document. Reading the status is
+  // exactly what once refused every project opened from a quotation the studio
+  // had just approved.
+  if (!quotationApproved(quote, await approvalRows(studio, approvalsSection))) return { error: "not-approved" };
 
   const existing = await Projects.find({ studio, section: listSection });
   if (existing.some((p) => p.quotationId === quotationId)) return { error: "already" };

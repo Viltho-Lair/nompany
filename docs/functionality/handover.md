@@ -21,7 +21,7 @@ at each other.
 
 | Head | Decided by | Commercial gate |
 |---|---|---|
-| From a quotation | `quotationId` in the body | the `po` approval task is decided |
+| From a quotation | `quotationId` in the body | the quotation's approval is Approved |
 | **From a tender** | **`tenderId` in the body** | **the tender is Won** |
 | Directly | neither | none |
 

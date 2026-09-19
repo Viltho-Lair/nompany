@@ -5,9 +5,9 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 // Send an INTERNAL quotation's finished document up for approval — the
-// ticket-less twin of sales/tickets/approval/route.ts. Both raise into the
-// SAME task type, so Sales and Management see one approval queue rather than
-// two for what is, to them, the identical decision.
+// ticket-less twin of sales/tickets/approval/route.ts. Both file the SAME
+// approval type, so the approvers answer one kind of quotation approval rather
+// than two for what is, to them, the identical decision.
 //
 // A TECHNICAL act on a Technical record: the permission that matters is
 // Technical:manage, not Sales:manage — sendQuotationForApproval guards the
@@ -23,5 +23,5 @@ export const POST = route(spec, async (ctx) => {
 
   const result = await sendQuotationForApproval(ctx, ctx.body);
   if (refused(result)) return result;
-  return { status: 201, body: { ok: true, task: result.task, unrouted: result.unrouted } };
+  return { status: 201, body: { ok: true, approval: result.approval } };
 });

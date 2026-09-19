@@ -8,6 +8,8 @@ import { repo } from "@/platform/db/repo";
 import { enrichTask, readTaskAssignees } from "@/modules/tasks/taskRouting";
 import type { MainContext } from "./main";
 import type { Task } from "@/modules/tasks/types";
+import { waitingOn } from "@/modules/approvals/model";
+import type { Approval } from "@/modules/approvals/schema";
 import type { Row } from "@/platform/db/store";
 
 // A NARROW LOCAL TYPE, not `any`: quotations are not yet a typed module (unlike
@@ -66,6 +68,23 @@ export function taskQueueFrom(
   return out;
 }
 
+/**
+ * THE APPROVALS WAITING ON ME — the open step names me and I have not answered.
+ * The same `waitingOn` the Approvals page lists with, so the home page and the
+ * page cannot disagree about what is mine.
+ */
+export function approvalQueueFrom(approvals: readonly Approval[], meId: string): QueueItem[] {
+  return approvals
+    .filter((a) => waitingOn(a).includes(meId))
+    .map((a) => ({
+      kind: "approval" as const,
+      section: "approvals",
+      id: String(a.id),
+      label: a.source?.ref || a.source?.title || "",
+      at: a.requestedAt || "",
+    }));
+}
+
 /** Which assignee table the studio's Tasks settings hold, for `taskQueueFrom`. */
 export function taskAssigneesOf(ctx: MainContext) {
   return readTaskAssignees(ctx.byKey["tasks-settings"] || ctx.byKey["tasks"]);
@@ -80,6 +99,14 @@ export async function awaitingQueue(ctx: MainContext): Promise<QueueItem[]> {
   if (tasksSection) {
     const tasks = await repo<Task>("tasks").find({ studio: ctx.studio, section: tasksSection });
     out.push(...taskQueueFrom(tasks, taskAssigneesOf(ctx), meId));
+  }
+
+  // Approvals waiting on me — every member may open Approvals, so this is read
+  // for everybody who has the section at all.
+  const approvalsSection = ctx.seen("approvals", null);
+  if (approvalsSection) {
+    const approvals = await repo<Approval>("approvals").find({ studio: ctx.studio, section: approvalsSection });
+    out.push(...approvalQueueFrom(approvals, meId));
   }
 
   // Quotations awaiting the viewer's action (Draft/Sent handled by Technical).

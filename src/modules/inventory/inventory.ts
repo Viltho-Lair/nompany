@@ -59,7 +59,9 @@ import { WORKORDER_SOURCE, returnProblem, averageIssuedCost } from "@/modules/ma
 import type { WorkOrder } from "@/modules/maintenance/schema";
 import type { BoqItem } from "@/modules/tendering/schema";
 import type { Row } from "@/platform/db/store";
-import type { Task } from "@/modules/tasks/types";
+import { approvalRows } from "@/modules/approvals/approvals";
+import { approvalSummary, CLIENT_PO_APPROVAL } from "@/modules/approvals/reads";
+import type { Approval } from "@/modules/approvals/schema";
 import { roundMoney, roundSum } from "@/shared/money";
 import { taxCategoryField } from "@/shared/taxProfile";
 import { barcodeProblems, cleanBarcode, type Barcoded } from "./barcodes";
@@ -104,7 +106,6 @@ const ORDERS = "materialOrders";
 const SHEETS = "projectSheets";
 const DELIVERIES = "deliveries";
 const PROJECTS = "projects";
-const TASKS = "tasks";
 const QUOTATIONS = "quotations";
 
 // THE COLLECTIONS THIS MODULE QUERIES, named once. A repository binds a
@@ -126,7 +127,6 @@ const Quotations = repo(QUOTATIONS);
 const BoqItems = repo<BoqItem>("boqItems");
 const Sheets = repo<Sheet>(SHEETS);
 const Stock = repo<Movement>(STOCK);
-const Tasks = repo<Task>(TASKS);
 const Vendors = repo<Vendor>(VENDORS);
 // Read-only, and never written from here: Maintenance owns the register.
 const WorkOrders = repo<WorkOrder>("workOrders");
@@ -224,7 +224,7 @@ export const inventoryContext = moduleContext<InventoryContext>({
     // composes from the BILL, because it has no quotation. Foreign and
     // therefore nullable — a studio that does not tender simply has none.
     tenderRegister: ["tendering-register", "tendering"],
-    tasks: "tasks",
+    approvals: "approvals",
     // The work orders parts are issued to — read to check one exists and is
     // still open. Foreign and nullable: a studio with no Maintenance has none.
     maintenanceOrders: ["maintenance-orders"],
@@ -1358,7 +1358,7 @@ export type SheetReader = {
   quotationsSection: Section | null;
   itemsSection: Section | null;
   vendorsSection: Section | null;
-  tasksSection?: Section | null;
+  approvalsSection?: Section | null;
   /**
    * The tender register, for a project handed over from a won bid. OPTIONAL,
    * because `SheetReader` is a structural type several callers satisfy by
@@ -1378,16 +1378,16 @@ export async function listProjectSheets(ctx: SheetReader) {
   // migrate and nothing to guess: the pair is created the first time anybody
   // looks, and a project that already has them is left alone.
   await ensureSheetsExist(ctx);
-  const [sheets, projects, quotes, items, vendors, tasks] = await Promise.all([
+  const [sheets, projects, quotes, items, vendors, approvals] = await Promise.all([
     Sheets.find({ studio, section: sheetsSection }),
     projectsListSection ? Projects.find({ studio, section: projectsListSection }) : ([] as Project[]),
     quotationsSection ? Quotations.find({ studio, section: quotationsSection }) : ([] as Quotation[]),
     itemsSection ? Items.find({ studio, section: itemsSection }) : ([] as Item[]),
     vendorsSection ? Vendors.find({ studio, section: vendorsSection }) : ([] as Vendor[]),
-    // The PO the client sent lives on the `po` TASK raised against this
-    // sheet's quotation. Read back through quotationId like everything else,
-    // so searching a PO number finds the sheet it belongs to.
-    ctx.tasksSection ? Tasks.find({ studio, section: ctx.tasksSection as Section }) : ([] as Task[]),
+    // The PO the client sent lives on the Client PO APPROVAL raised against
+    // this sheet's quotation. Read back through the quotation like everything
+    // else, so searching a PO number finds the sheet it belongs to.
+    approvalRows(studio, ctx.approvalsSection) as Promise<Approval[]>,
   ]);
   // THE ELEMENT TYPE IS NAMED ON EACH MAP, because `new Map(rows.map(...))`
   // infers a tuple type from the callback and loses which side is the key. The
@@ -1445,7 +1445,7 @@ export async function listProjectSheets(ctx: SheetReader) {
     const pool = all.filter((sn) => own.has(sn) || !spoken.has(sn));
     return { pool, onHand: pool.filter((sn) => !own.has(sn)).length };
   };
-  const poFor = (quotationId: string) => tasks.find((t) => t.type === "po" && t.quotationId === quotationId) || null;
+  const poFor = (quotationId: string) => approvalSummary(approvals, CLIENT_PO_APPROVAL, quotationId);
 
   return [...sheets]
     .sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || ""))
@@ -1479,7 +1479,7 @@ export async function listProjectSheets(ctx: SheetReader) {
         tenderRef: project?.tenderRef || "",
         // What the client's own order says — the PO's description is where a PO
         // number is written, since a PO is a document rather than a field.
-        poNumber: poFor(sheet.quotationId)?.po?.description || "",
+        poNumber: poFor(sheet.quotationId)?.note || "",
         tables,
         lineCount: tables.reduce((n, t) => n + t.rows.length, 0),
         // The serials held for the items on this sheet, so a search for one

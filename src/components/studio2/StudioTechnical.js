@@ -93,9 +93,6 @@ export default function StudioTechnical({ slug, view = "quotations", sectionName
   const level = useAnalyticsLevel();
   const focusQuote = useFocusedRecord("quotation");
   const [error, setError] = useState("");
-  // A non-error notice — an action that succeeded but left something for the
-  // studio to finish (an approval task with no approver to route to).
-  const [notice, setNotice] = useState("");
   const [creatingQuote, setCreatingQuote] = useState(false);
   const [raising, setRaising] = useState(false);
   const [converting, setConverting] = useState(null);
@@ -166,6 +163,9 @@ export default function StudioTechnical({ slug, view = "quotations", sectionName
   // SECTION_KEY_MAP moved technical-quotations to crm-sales-quotations), where
   // it used to publish on "engineering-docs" alongside the RFQ above.
   useLiveUpdates(slug, "crm-sales", load);
+  // A quotation is approved on the Approvals page, and the list reads its
+  // status from the approval — so an answer there moves a row here.
+  useLiveUpdates(slug, "approvals", load);
 
   // keepOpen is for the BUILDER. Every other caller is a dialog that should
   // close once its one job is done; the builder saves repeatedly and must stay
@@ -173,7 +173,6 @@ export default function StudioTechnical({ slug, view = "quotations", sectionName
   // spread across every caller.
   async function send(kind, method, payload, keepOpen = false) {
     setError("");
-    setNotice("");
     const url = kind ? `/api/studios/${slug}/technical/${kind}` : `/api/studios/${slug}/technical`;
     const res = await fetch(url, {
       method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
@@ -206,7 +205,11 @@ export default function StudioTechnical({ slug, view = "quotations", sectionName
         : out.error === "prefix" ? tr.giveEverySequencePrefix
         : out.error === "prefix-duplicate" ? tr.twoSequencesSharePrefix
         // Internal approval routing.
-        : out.error === "no-tasks" ? tr.studioNoTasksBoard
+        : out.error === "no-approvals" ? tr.studioNoApprovals
+        : out.error === "not-configured" ? tr.approvalNotConfigured
+        : out.error === "no-approver" ? tr.approvalNoApprover
+        : out.error === "already-pending" ? tr.approvalAlreadyPending
+        : out.error === "needs-approval" ? tr.approvedByApprovalOnly
         : out.error === "has-ticket" ? tr.quotationLinkedSalesTicket
         : out.error === "not-completed" ? tr.completeQuotationBeforeSending
         : out.error === "notfound" ? tr.quotationNoLongerExists
@@ -217,8 +220,8 @@ export default function StudioTechnical({ slug, view = "quotations", sectionName
     if (!keepOpen) { setRaising(false); setConverting(null); setEditingQuote(null); setCreatingQuote(false); }
     await load();
     // The parsed body is returned (a truthy object), not a bare true, so a
-    // caller can read what the action reported — e.g. an approval's `unrouted`
-    // — while every `if (ok)` / `!ok` check still reads it as success.
+    // caller can read what the action reported, while every `if (ok)` / `!ok`
+    // check still reads it as success.
     return out;
   }
 
@@ -242,7 +245,6 @@ export default function StudioTechnical({ slug, view = "quotations", sectionName
 
   const banner = error && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>;
   // Amber, not rose: the action worked, but there is a follow-up to do.
-  const noticeBanner = notice && <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">{notice}</p>;
 
   if (view === "quotations-settings") {
     return (
@@ -293,7 +295,6 @@ export default function StudioTechnical({ slug, view = "quotations", sectionName
     return (
       <div className="space-y-6">
         {banner}
-        {noticeBanner}
         {creatingQuote && (
           <Dialog title={tr.newQuotation} description={tr.createdWithoutRfqMarked} onClose={closeCreate} width="max-w-[560px]">
             <NewQuotation people={people} sequences={sequences} defaultSequenceId={defaultSequenceId}
@@ -326,12 +327,9 @@ export default function StudioTechnical({ slug, view = "quotations", sectionName
           // so Technical sends it for approval itself. `send` builds the URL as
           // /api/studios/<slug>/technical/quotations/approval — the endpoint the
           // backend exposes — and reloads, so the row's approved flag reflects
-          // the result. `unrouted` means the task was created but Tasks settings
-          // name no approver to receive it, so the studio is told to appoint one.
-          onRequestApproval={async (q) => {
-            const out = await send("quotations/approval", "POST", { quotationId: q.id });
-            if (out && out.unrouted) setNotice(tr.sentApprovalButNo);
-          }}
+          // the result. An approval nobody is named to answer is refused with a
+          // sentence rather than filed to wait for ever.
+          onRequestApproval={(q) => send("quotations/approval", "POST", { quotationId: q.id })}
           onLock={(q) => send("quotations", "PUT", { id: q.id, locked: true })}
           // ONLY the unlock, nothing beside it — the server refuses a request
           // that unlocks and edits in the same write.

@@ -25,6 +25,7 @@ import {
   type Actor,
 } from "./model";
 import { APPROVAL_TYPES, approvalType } from "./registry";
+import { CLIENT_PO_APPROVAL } from "./reads";
 import type { Approval, ApprovalSetting, ApprovalSource, Verdict } from "./schema";
 import type { StudioRef, CollaboratorRef } from "../context";
 
@@ -72,6 +73,15 @@ const actorOf = (collaborator: CollaboratorRef, roles: readonly Role[]): Actor =
   collaboratorId: String(collaborator.id),
   isAdmin: isAdministrator(collaborator, roles),
 });
+
+/**
+ * EVERY APPROVAL IN THE STUDIO, for a module showing its records' approvals
+ * through ./reads. The section is the caller's foreign `approvals` section;
+ * a studio without one has none, and every record reads as never asked.
+ */
+export async function approvalRows(studio: StudioRef, section: Section | null | undefined): Promise<Approval[]> {
+  return section ? Approvals.find({ studio, section }) : [];
+}
 
 /** May this reader see every approval in the studio, not only their own. */
 export const seesEverything = (ctx: Pick<ModuleContext, "access">) => can(ctx.access, "approvals.overview.view");
@@ -155,7 +165,28 @@ export async function decideApproval(ctx: ApprovalsContext, id: string, body: Re
   if (!landed) return { error: "not-pending" };
 
   await announce(ctx.studio.id, current, approval, me.collaboratorId);
+  if (approval.status === "Approved" && current.status === "Pending") await onApproved(ctx.studio, approval);
   return { approval };
+}
+
+/**
+ * WHAT AN APPROVAL CAUSES, beside the record reading it as approved.
+ *
+ * A CLIENT'S PO, APPROVED, ISSUES THE PROJECT NUMBER it will be billed under —
+ * what Finance's signature on the old board did. Done here, next to the write
+ * that causes it, because a screen cannot be trusted to remember it. Best-effort
+ * and idempotent: the project may not be open yet, in which case there is
+ * nothing to number and `issueProjectNumber` numbers nothing.
+ *
+ * IMPORTED WHEN NEEDED, because Projects reads approvals too and a module-level
+ * import would make the two modules load each other.
+ */
+async function onApproved(studio: StudioRef, approval: Approval) {
+  if (approval.type !== CLIENT_PO_APPROVAL || !approval.source?.recordId) return;
+  const listSection = (await getSectionByKey(studio.id, "projects-list")) || (await getSectionByKey(studio.id, "projects"));
+  if (!listSection) return;
+  const { issueProjectNumber } = await import("@/modules/projects/projects");
+  await issueProjectNumber({ studio, listSection }, approval.source.recordId);
 }
 
 /**
@@ -202,6 +233,7 @@ export async function requestApproval(
     recordId: text(input.source?.recordId, 60),
     ref: text(input.source?.ref, 80),
     title: text(input.source?.title, 200),
+    ...(text(input.source?.path, 200) ? { path: text(input.source?.path, 200) } : {}),
   };
   const existing = await Approvals.find(scope, { where: { type: input.type } });
   const refused = requestProblem(input.type, existing, source.recordId);

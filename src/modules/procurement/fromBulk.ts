@@ -40,7 +40,7 @@ export async function raiseFromBulk(ctx: ProcurementContext, body: Record<string
     quotationsSection: byKey("crm-sales-quotations"),
     itemsSection: ctx.itemsSection,
     vendorsSection: ctx.suppliersSection,
-    tasksSection: byKey("tasks"),
+    approvalsSection: byKey("approvals"),
     tenderRegisterSection: byKey("tendering-register"),
   });
   const bulk = (sheets as { projectId?: unknown; kind?: unknown; tables?: unknown; projectNumber?: unknown; projectTitle?: unknown }[])

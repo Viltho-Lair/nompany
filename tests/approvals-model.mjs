@@ -14,6 +14,7 @@ const M = await import("@/modules/approvals/model");
 const R = await import("@/modules/approvals/registry");
 const T = await import("@/modules/approvals/fromTasks");
 const { ApprovalSchema } = await import("@/modules/approvals/schema");
+const Q = await import("@/modules/approvals/reads");
 
 let fails = 0;
 const ok = (label, cond, extra = "") => {
@@ -165,6 +166,29 @@ ok("an unassigned hand-written task converts with an empty step that never appro
 ok("every old type converts to a registered one",
   ["approval", "po", "material-po", "delivery", "delivery-return", "id-update", "permit-request"]
     .every((type) => R.APPROVAL_TYPE_KEYS.includes(T.approvalFromTask({ type, status: "Open" }, {}).type)));
+
+console.log("\n== a record reads its status from its approval, never a copy");
+const qApproval = (status, at, recordId = "q1", requestedAt = "2026-09-10") => ({
+  id: `a-${status}-${requestedAt}`, type: "quotation", status, decidedAt: at, requestedAt, note: "",
+  source: { recordId },
+  steps: [{ id: "s1", label: "", approverIds: ["bob"], requireAll: false }],
+  decisions: status === "Pending" ? [] : [{ stepId: "s1", collaboratorId: "bob", verdict: status, at, note: status === "Rejected" ? "no" : "" }],
+});
+const quote = { id: "q1", status: "Completed", completedAt: "" };
+ok("a quotation nobody asked about is not approved", Q.quotationApproved(quote, []) === false && Q.approvalSummary([], "quotation", "q1") === null);
+ok("a pending approval does not approve it", Q.quotationApproved(quote, [qApproval("Pending", "")]) === false);
+ok("an approved approval does, and says when", Q.quotationApproved(quote, [qApproval("Approved", "t9")])
+  && Q.quotationApprovedAt(quote, [qApproval("Approved", "t9")]) === "t9");
+ok("a rejection followed by a new pending request reads as the new one",
+  Q.approvalSummary([qApproval("Rejected", "t1", "q1", "2026-09-01"), qApproval("Pending", "", "q1", "2026-09-02")], "quotation", "q1").status === "Pending");
+ok("an approval of ANOTHER quotation says nothing about this one", Q.quotationApproved(quote, [qApproval("Approved", "t9", "q2")]) === false);
+ok("a client PO approval is not a quotation approval",
+  Q.quotationApproved(quote, [{ ...qApproval("Approved", "t9"), type: "client-po" }]) === false);
+ok("a quotation approved by hand before Approvals stays approved, on its own date",
+  Q.quotationApproved({ id: "q1", status: "Approved", completedAt: "t0" }, [])
+  && Q.quotationApprovedAt({ id: "q1", status: "Approved", completedAt: "t0" }, []) === "t0");
+const carry = Q.approvalSummary([qApproval("Approved", "t9")], "quotation", "q1");
+ok("the summary counts steps", carry.required === 1 && carry.granted === 1 && carry.approved && !carry.rejected);
 
 console.log(fails ? `\n${fails} FAILED` : "\napprovals model: all passed");
 process.exit(fails ? 1 : 0);

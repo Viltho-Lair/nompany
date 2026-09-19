@@ -103,10 +103,10 @@ backfill.ts`) sets `context.industry` from `clientById.get(p.clientId)
 
 **`number` is `""` on both paths, by design.** It is quoted on invoices,
 purchase orders and delivery notes — the studio's commitment to bill the
-work — and issuing it is Finance's act, taken when the `po` approval task
-is fully decided (`issueProjectNumber`, called from `decideTask`, not
-guarded by a Projects permission: it is the *consequence* of an authority
-signing, not an action somebody takes on the Projects screen). It is
+work — and it is issued when the quotation's **Client PO approval** is approved
+(`issueProjectNumber`, called from `onApproved` in `modules/approvals/approvals.ts`, not
+guarded by a Projects permission: it is the *consequence* of the approval,
+not an action somebody takes on the Projects screen). It is
 idempotent — a project that already has a number keeps it — and derived from
 the highest already issued (`nextReference`), never from a count, so a
 deleted project cannot have its number reused. A direct project is no
@@ -187,8 +187,8 @@ which can never fill from this screen (`noQuotationBehindProject`).
   members and context into it — they would remain two separate deals for the
   same work, one of them orphaned from any ticket. Nothing detects the
   collision, either.
-- **Nothing outside Finance's `po`-approval path issues a project number.**
+- **Nothing outside an approved Client PO issues a project number.**
   There is no manual override, no route, and no screen control that lets
   anyone else set or force one — a direct project with no quotation, and
-  therefore no `po` task, keeps `number: ""` for as long as it exists, with
+  therefore no Client PO approval, keeps `number: ""` for as long as it exists, with
   no way to give it one.
