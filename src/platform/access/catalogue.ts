@@ -676,6 +676,14 @@ const OWN_AREAS = [
       // externally. It returns when the transition that exercises it exists.
     ] },
 
+  // APPROVALS HOLDS TWO RIGHTS, AND NEITHER IS NEEDED TO USE IT. Everybody opens
+  // the page and sees what they asked for and what is waiting on them; answering
+  // needs no right at all, because being named on the step is the authority.
+  // What the owner and Admins hold, and may give in Access (19/09/2026), is
+  // seeing EVERY approval in the studio and setting who answers each type.
+  { key: "approvals.overview", group: "Approvals", label: "See every approval", verbs: ["view"] },
+  { key: "approvals.settings", group: "Approvals", label: "Settings", verbs: ["view", "edit"] },
+
   { key: "tasks.board", group: "Tasks", label: "Task board", verbs: ["view", "create", "edit", "delete"] },
   { key: "tasks.settings", group: "Tasks", label: "Settings", verbs: ["view", "edit"] },
 

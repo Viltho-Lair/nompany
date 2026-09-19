@@ -42,12 +42,19 @@ ok("step ids never collide, because a decision names its step", good.steps[0].id
 ok("'all must approve' is off unless ticked", good.steps[1].requireAll === false && good.steps[0].requireAll === true);
 
 console.log("\n== nothing is self-approved");
-ok("nothing configured cannot be requested", M.planFor(null, "ann").error === "not-configured");
-const plan = M.planFor(good, "ann");
+ok("nothing configured cannot be requested", M.planFor(null, { collaboratorId: "ann" }).error === "not-configured");
+const plan = M.planFor(good, { collaboratorId: "ann" });
 ok("the requester is taken off a step others share", plan.steps[0].approverIds.join() === "bob");
-const selfOnly = M.planFor({ steps: [{ id: "s1", label: "Boss", approverIds: ["cat"], requireAll: false }] }, "cat");
+const selfOnly = M.planFor({ steps: [{ id: "s1", label: "Boss", approverIds: ["cat"], requireAll: false }] }, { collaboratorId: "cat" });
 ok("a step where the requester is the only approver cannot be requested",
   selfOnly.error === "no-approver" && selfOnly.step === 1 && selfOnly.label === "Boss");
+const bossStep = { steps: [{ id: "s1", label: "Boss", approverIds: ["cat"], requireAll: false }] };
+const adminPlan = M.planFor(bossStep, { collaboratorId: "cat", isAdmin: true });
+ok("…except the owner or an Admin, who stays on the step (the owner, 19/09/2026)", adminPlan.steps?.[0].approverIds.join() === "cat");
+const adminOwn = { status: "Pending", steps: adminPlan.steps, decisions: [], requestedByCollaboratorId: "cat", decidedAt: "" };
+ok("…and may answer their own request", M.decisionProblem(adminOwn, { collaboratorId: "cat", isAdmin: true }, "Approved", "") === null
+  && M.applyDecision(adminOwn, { collaboratorId: "cat", isAdmin: true }, "Approved", "", "t0").status === "Approved");
+ok("somebody who is not an Admin still may not", M.decisionProblem(adminOwn, { collaboratorId: "cat" }, "Approved", "") === "own-request");
 
 console.log("\n== one open request per record");
 ok("an unknown type is refused", M.requestProblem("nope", [], "r1") === "unknown-type");
@@ -68,40 +75,40 @@ const twoSteps = base([
   { id: "b", label: "Management", approverIds: ["dan", "eve"], requireAll: false },
 ]);
 ok("the first step is the one open", M.currentStep(twoSteps).id === "a");
-ok("the second step's people cannot answer yet", M.decisionProblem(twoSteps, "dan", "Approved", "") === "not-yours");
+ok("the second step's people cannot answer yet", M.decisionProblem(twoSteps, { collaboratorId: "dan" }, "Approved", "") === "not-yours");
 ok("it is waiting on everybody on the first step", M.waitingOn(twoSteps).join() === "bob,cat");
-let row = { ...twoSteps, ...M.applyDecision(twoSteps, "bob", "Approved", "", "t1") };
+let row = { ...twoSteps, ...M.applyDecision(twoSteps, { collaboratorId: "bob" }, "Approved", "", "t1") };
 ok("'all must approve': one yes is not enough", row.status === "Pending" && M.currentStep(row).id === "a");
 ok("…and it is now waiting on the one who has not answered", M.waitingOn(row).join() === "cat");
-ok("nobody answers twice", M.decisionProblem(row, "bob", "Approved", "") === "already-answered");
-row = { ...row, ...M.applyDecision(row, "cat", "Approved", "", "t2") };
+ok("nobody answers twice", M.decisionProblem(row, { collaboratorId: "bob" }, "Approved", "") === "already-answered");
+row = { ...row, ...M.applyDecision(row, { collaboratorId: "cat" }, "Approved", "", "t2") };
 ok("everyone said yes, so the next step opens", row.status === "Pending" && M.currentStep(row).id === "b");
-row = { ...row, ...M.applyDecision(row, "eve", "Approved", "", "t3") };
+row = { ...row, ...M.applyDecision(row, { collaboratorId: "eve" }, "Approved", "", "t3") };
 ok("'any one': a single yes finishes the step, and the last step finishes the approval",
   row.status === "Approved" && row.decidedAt === "t3");
-ok("an approved approval takes no more answers", M.decisionProblem(row, "dan", "Approved", "") === "not-pending");
+ok("an approved approval takes no more answers", M.decisionProblem(row, { collaboratorId: "dan" }, "Approved", "") === "not-pending");
 ok("each person's own answer is kept", M.stepStates(row)[1].people.find((p) => p.collaboratorId === "dan").verdict === null
   && M.stepStates(row)[1].people.find((p) => p.collaboratorId === "eve").verdict === "Approved");
 
 console.log("\n== a no ends it, and says why");
-ok("the requester can never answer their own request", M.decisionProblem(twoSteps, "ann", "Approved", "") === "own-request");
-ok("a rejection needs a reason", M.decisionProblem(twoSteps, "bob", "Rejected", "  ") === "reason-required");
-ok("a verdict is Approved or Rejected", M.decisionProblem(twoSteps, "bob", "Maybe", "") === "verdict");
-const no = { ...twoSteps, ...M.applyDecision(twoSteps, "bob", "Rejected", "Price too low", "t4") };
+ok("the requester can never answer their own request", M.decisionProblem(twoSteps, { collaboratorId: "ann" }, "Approved", "") === "own-request");
+ok("a rejection needs a reason", M.decisionProblem(twoSteps, { collaboratorId: "bob" }, "Rejected", "  ") === "reason-required");
+ok("a verdict is Approved or Rejected", M.decisionProblem(twoSteps, { collaboratorId: "bob" }, "Maybe", "") === "verdict");
+const no = { ...twoSteps, ...M.applyDecision(twoSteps, { collaboratorId: "bob" }, "Rejected", "Price too low", "t4") };
 ok("one no at the open step rejects the whole approval", no.status === "Rejected" && no.decidedAt === "t4");
 ok("the steps it never reached read Closed, not Waiting", M.stepStates(no).map((s) => s.state).join() === "Rejected,Closed");
 const anyNo = base([{ id: "a", label: "", approverIds: ["bob", "cat"], requireAll: false }]);
-const anyNoRow = { ...anyNo, ...M.applyDecision(anyNo, "bob", "Rejected", "No budget", "t5") };
+const anyNoRow = { ...anyNo, ...M.applyDecision(anyNo, { collaboratorId: "bob" }, "Rejected", "No budget", "t5") };
 ok("under 'any one' a no is still final — a later yes does not outvote it",
-  anyNoRow.status === "Rejected" && M.decisionProblem(anyNoRow, "cat", "Approved", "") === "not-pending");
+  anyNoRow.status === "Rejected" && M.decisionProblem(anyNoRow, { collaboratorId: "cat" }, "Approved", "") === "not-pending");
 
 console.log("\n== a decision is a function patch (invariant 8)");
-const stale = { ...twoSteps, ...M.applyDecision(twoSteps, "bob", "Rejected", "x", "t6") };
+const stale = { ...twoSteps, ...M.applyDecision(twoSteps, { collaboratorId: "bob" }, "Rejected", "x", "t6") };
 ok("an answer arriving after somebody else closed the approval writes nothing",
-  Object.keys(M.applyDecision(stale, "cat", "Approved", "", "t7")).length === 0);
-const once = M.applyDecision(twoSteps, "bob", "Approved", "", "t8");
-ok("the same call twice computes the same write", JSON.stringify(once) === JSON.stringify(M.applyDecision(twoSteps, "bob", "Approved", "", "t8")));
-ok("an answer from somebody not on the step writes nothing", Object.keys(M.applyDecision(twoSteps, "eve", "Approved", "", "t9")).length === 0);
+  Object.keys(M.applyDecision(stale, { collaboratorId: "cat" }, "Approved", "", "t7")).length === 0);
+const once = M.applyDecision(twoSteps, { collaboratorId: "bob" }, "Approved", "", "t8");
+ok("the same call twice computes the same write", JSON.stringify(once) === JSON.stringify(M.applyDecision(twoSteps, { collaboratorId: "bob" }, "Approved", "", "t8")));
+ok("an answer from somebody not on the step writes nothing", Object.keys(M.applyDecision(twoSteps, { collaboratorId: "eve" }, "Approved", "", "t9")).length === 0);
 const emptyStep = base([{ id: "a", label: "", approverIds: [], requireAll: true }]);
 ok("a step with nobody on it never approves itself", M.overallFrom(emptyStep.steps, []) === "Pending");
 

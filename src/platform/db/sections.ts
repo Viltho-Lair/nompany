@@ -278,7 +278,12 @@ export async function appendSection(
 export async function updateSection(
   studioId: string,
   sectionId: string,
-  patch: Partial<Section> | null | undefined,
+  // A FUNCTION PATCH IS APPLIED TO THE LIVE ROW inside the compare-and-set
+  // (invariant 8). A settings blob holding several independent entries  one
+  // per approval type, say  must be merged into what is stored NOW, or two
+  // people saving two different entries at once each overwrite the other with
+  // the copy they read before they started.
+  patch: Partial<Section> | ((section: Section) => Partial<Section>) | null | undefined,
 ): Promise<Section | null> {
   return editArr<Section, Section | null>(S.sections(studioId), (rows) => {
     let updated: Section | null = null;
@@ -286,7 +291,8 @@ export async function updateSection(
       if (s.id !== sectionId) return s;
       // The four destructured out are the immutable ones; naming them is how
       // they are excluded, which is why none is read.
-      const { id: _id, studioId: _sid, key: _key, parentId: _parentId, ...safe } = patch || {};
+      const { id: _id, studioId: _sid, key: _key, parentId: _parentId, ...safe } =
+        (typeof patch === "function" ? patch(s) : patch) || {};
       updated = { ...s, ...safe, id: s.id, studioId: s.studioId, key: s.key, parentId: s.parentId ?? null };
       return updated;
     });

@@ -285,6 +285,10 @@ const StudioFinance = nextDynamic(
   () => import("@/components/studio2/StudioFinance"),
   { loading: () => <ScreenSkeleton /> },
 );
+const StudioApprovals = nextDynamic(
+  () => import("@/components/studio2/StudioApprovals"),
+  { loading: () => <ScreenSkeleton /> },
+);
 const StudioTasks = nextDynamic(
   () => import("@/components/studio2/StudioTasks"),
   { loading: () => <ScreenSkeleton /> },
@@ -986,6 +990,7 @@ async function renderStudio(params) {
         : screenKey === "inventory" ? <StudioInventory slug={studio.slug} view={active?.key} />
         : screenKey === "finance" ? <StudioFinance slug={studio.slug} view={active?.key} />
         : screenKey === "tasks" ? <StudioTasks slug={studio.slug} view={active?.key} />
+        : screenKey === "approvals" ? <StudioApprovals slug={studio.slug} view={active?.key} />
         : screenKey === "field-service" ? <StudioOperations slug={studio.slug} view={active?.key} />
         : screenKey === "reports"
           ? <StudioReports slug={studio.slug} access={access} locale={locale} />

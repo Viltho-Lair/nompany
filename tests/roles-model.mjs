@@ -94,10 +94,15 @@ const nonPrincipal = new Set(
   A.ARCHETYPES.filter((a) => a.id !== "principal").flatMap((a) => A.permissionsFor(a.id)),
 );
 
-// The nine are every *.settings area plus the three administration ones:
+// The eleven are every *.settings area plus the three administration ones:
 // configuring a department and deciding who may do what are administrative
 // acts, not jobs a trade has a title for.
-const PRINCIPAL_ONLY_AREAS = 9;
+//
+// 9 → 11 FOR THE TWO APPROVALS AREAS (19/09/2026), and they are reachable by
+// principal too — not at all: seeing every approval in the studio and setting
+// who answers each type are the owner's and Admins', given to anybody else by a
+// person in Access (the owner's rule; ADMIN_ONLY_AREAS in archetypes.ts).
+const PRINCIPAL_ONLY_AREAS = 11;
 const lonelyAreas = AREAS
   .map((a) => a.key)
   .filter((key) => ![...nonPrincipal].some((k) => k.startsWith(`${key}.`)));

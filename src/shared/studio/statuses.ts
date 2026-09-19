@@ -46,6 +46,7 @@ const ar: StatusMap = {
     "Cancelled by Client": "ألغاه العميل", "On-Hold": "معلق", Dropped: "متروك",
   },
   task: { Open: "مفتوحة", "In progress": "قيد التنفيذ", Blocked: "متوقفة", Done: "منجزة" },
+  approval: { Pending: "بانتظار الرد", Approved: "معتمدة", Rejected: "مرفوضة" },
   movement: { in: "وارد", out: "صادر", adjust: "تسوية" },
   order: {
     Draft: "مسودة", Ordered: "مطلوب", "Partly received": "مستلم جزئيا",

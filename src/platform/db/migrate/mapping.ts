@@ -189,6 +189,7 @@ export const COLLECTION_TABLE: Readonly<Record<string, string>> = {
   shifts: "Shift",
   trackingPositions: "TrackingPosition",
   tasks: "Task",
+  approvals: "Approval",
   qualityDocuments: "QualityDocument",
   qualityTypes: "QualityType",
   qualityRevisions: "QualityRevision",

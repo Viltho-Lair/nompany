@@ -248,6 +248,8 @@ export const SECTION_AREAS: Readonly<Record<string, readonly string[]>> = {
   "engineering-docs-register": ["engineeringDocs.register"],
   "tasks-settings": ["tasks.settings"],
   tasks: ["tasks.board"],
+  approvals: ["approvals.overview"],
+  "approvals-settings": ["approvals.settings"],
 };
 
 
@@ -601,6 +603,12 @@ const childrenOf = (
   return [...seen];
 };
 
+// SECTIONS EVERY MEMBER OPENS, whatever they hold. Approvals is one because
+// everybody asks for approvals and is asked for them (the owner, 19/09/2026) —
+// what each person SEES on it is decided by the page, not by the door. Its own
+// area (`approvals.overview`) widens what the page shows; it does not open it.
+export const EVERY_MEMBER_SECTION_KEYS = ["approvals"] as const;
+
 // A section is worth showing if the person may see anything in it.
 //
 // A section with no areas of its own is a HEADING — "Sales" — and is shown when
@@ -623,6 +631,7 @@ export function sectionViewable(
   allKeys: readonly string[] = [],
   parentOf?: Readonly<Record<string, string>>,
 ): boolean {
+  if ((EVERY_MEMBER_SECTION_KEYS as readonly string[]).includes(sectionKey)) return true;
   const engine = engineSectionRight(access, sectionKey, ["view"]);
   if (engine !== null) return engine;
   const own = SECTION_AREAS[sectionKey];

@@ -331,6 +331,7 @@ console.log("\n== wiring");
   // an unexplained entry here is the next hole.
   const EXEMPT = {
     decideTask: "gated on holding the authority the task routes to, from Task settings",
+    decideApproval: "being named on the open step IS the authority (the owner, 19/09/2026); decisionProblem refuses everybody else by name",
     decideVacation: "cancelling your OWN pending request needs no approve right",
     requestTicketRfq: "delegates to requestRfq, which guards both doors itself",
     reportPosition: "you may always report your own position; the id is the session's",

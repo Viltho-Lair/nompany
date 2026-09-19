@@ -178,6 +178,8 @@ const ar: SectionMap = {
 
   tasks: "المهام",
   "tasks-settings": "إعدادات المهام",
+  approvals: "الموافقات",
+  "approvals-settings": "إعدادات الموافقات",
 };
 
 const maps: Partial<Record<Locale, SectionMap>> = { ar };

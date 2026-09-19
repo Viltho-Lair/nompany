@@ -92,6 +92,15 @@ const level = (areaKey: string, lvl: Level): string[] => {
   return keysForLevel(area, lvl);
 };
 
+// AREAS NO ARCHETYPE IS BORN WITH — held by the owner and Admins (the wildcard)
+// and given to anybody else by a person, in Access. Deciding who may do what is
+// one; seeing every approval in the studio and setting who answers each type
+// are two more (the owner, 19/09/2026). `principal` takes "every area" and would
+// otherwise take these with it.
+export const ADMIN_ONLY_AREAS: ReadonlySet<string> = new Set([
+  "administration.access", "approvals.overview", "approvals.settings",
+]);
+
 export const ARCHETYPES: readonly Archetype[] = Object.freeze([
   {
     id: "principal",
@@ -117,7 +126,7 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
     // do what are different acts, and the second is the one that can hand
     // somebody else everything.
     grants: AREAS
-      .filter((a) => a.key !== "administration.access")
+      .filter((a) => !ADMIN_ONLY_AREAS.has(a.key))
       .map((a) => [a.key, "full"] as const),
     // AND EVERY EXTRA, which was ABSENT rather than declined. `keysForLevel`
     // walks an area's `verbs`, and VERBS is exactly view/create/edit/delete;
@@ -138,7 +147,7 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
     // rights is legitimate while using both on one record is not. Withholding
     // the key buys none of that separation; it only breaks the role.
     extras: AREAS
-      .filter((a) => a.key !== "administration.access")
+      .filter((a) => !ADMIN_ONLY_AREAS.has(a.key))
       .flatMap((a) => (a.extra || []).map((x) => `${a.key}.${x.key}`)),
   },
   {

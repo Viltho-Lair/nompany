@@ -937,6 +937,14 @@ export const SECTION_DEFS = [
     { key: "administration-settings", name: "Studio settings" },
   ] },
 
+  // APPROVALS — the owner, 19/09/2026. Like Tasks beside it, a control that cuts
+  // across every department rather than a department: the sidebar shows it as a
+  // mark beside the logo, and nobody puts it on an org chart. It replaces Tasks,
+  // which leaves once its rows have been carried over.
+  { key: "approvals", name: "Approvals", children: [
+    { key: "approvals-settings", name: "Approval settings" },
+  ] },
+
   { key: "tasks", name: "Tasks", children: [
     { key: "tasks-settings", name: "Task settings" },
   ] },
@@ -1291,6 +1299,10 @@ export const SECTION_COLLECTIONS = {
   "administration-settings": ["recordTypes"],
   // tasks
   tasks: ["tasks"],
+  // Every approval, of every type, whatever section its record is filed under —
+  // the record links back through `source`, and the approval lives here so one
+  // page can list them all. Each type's steps are the settings sub-section's.
+  approvals: ["approvals"],
 };
 
 // ---- studio slug rules -----------------------------------------------------

@@ -89,6 +89,13 @@ export const STATUS_TONES = {
   changeOrder: { draft: "neutral", submitted: "warning", approved: "progress", rejected: "danger" },
   // StudioTasks — task board (STATUS_TONE).
   task:      { Open: "neutral", "In progress": "progress", Blocked: "danger", Done: "success" },
+  // StudioApprovals — an approval's overall status, and each of its steps.
+  // Pending is amber because it is WAITING ON SOMEBODY; a step not yet reached
+  // and one closed without being reached are both neutral — nobody owes them.
+  // A step's WORDS come from the approvals dictionary, not statuses.ts: its
+  // tokens (Current, Waiting) are states of a step, not words anybody reads.
+  approval:     { Pending: "warning", Approved: "success", Rejected: "danger" },
+  approvalStep: { Approved: "success", Rejected: "danger", Current: "warning", Waiting: "neutral", Closed: "neutral" },
   // StudioInventory + InventoryDashboard — stock-move kind (MOVE_TONE).
   movement:  { in: "success", out: "danger", adjust: "warning" },
   // StudioInventory — purchase-order status (ORDER_TONE). Currently no render

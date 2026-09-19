@@ -30,10 +30,13 @@ console.log("\n== what may be asked");
 
 ok("Main is never asked about", !cat.roots.includes("main"));
 ok("Tasks is never asked about", !cat.roots.includes("tasks"));
+ok("Approvals is never asked about — every studio has it", !cat.roots.includes("approvals"));
 ok("Administration is never asked about — it is Settings, not a department",
   !cat.roots.some((k) => K.isSystemSection(k)));
+// READ FROM NEVER_GATED_KEYS, not a hand-typed ["main", "tasks"]: Approvals
+// joined that list and this copy went red for saying it should be asked about.
 ok("every other product department is asked about",
-  K.PRODUCT_SECTION_DEFS.filter((d) => !["main", "tasks"].includes(d.key)).every((d) => cat.roots.includes(d.key)));
+  K.PRODUCT_SECTION_DEFS.filter((d) => !T.NEVER_GATED_KEYS.includes(d.key)).every((d) => cat.roots.includes(d.key)));
 // POINT OF SALE IS ITS OWN DEPARTMENT since 17/09/2026: asked about as a root,
 // its sales list and shift history offered as its parts, and its old row under
 // CRM & Sales (where the receipts are filed) offered nowhere.

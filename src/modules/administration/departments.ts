@@ -86,7 +86,7 @@ const str = (v: unknown, max = 300) => String(v ?? "").trim().slice(0, max);
  * assignable without anybody remembering this file — the same reason
  * tests/restructure.mjs stopped keeping a hand-typed copy of that list.
  */
-const NEVER_A_DEPARTMENTS_SECTION = new Set(["main", "tasks"]);
+const NEVER_A_DEPARTMENTS_SECTION = new Set(["main", "tasks", "approvals"]);
 
 // Widened to `readonly string[]` on purpose: NO_SCREEN_YET is a tuple of
 // literals, which is what makes it useful to the resolver and useless to a

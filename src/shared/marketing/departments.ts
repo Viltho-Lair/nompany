@@ -38,7 +38,7 @@ import { sectionName } from "@/shared/studio/sections";
 // product cannot drift about what counts as a department; the key stays in the
 // set below as well, where it is redundant and harmless, so that reading either
 // one alone still gives the right answer.
-const NOT_A_DEPARTMENT = new Set<string>(["main", "tasks", "administration"]);
+const NOT_A_DEPARTMENT = new Set<string>(["main", "tasks", "approvals", "administration"]);
 
 export const LIVE_DEPARTMENT_KEYS: readonly string[] = SECTION_DEFS
   .map((d) => d.key)

@@ -1,4 +1,55 @@
-# Approvals — who signs a bill, and above what amount
+# Approvals
+
+Two things share this file while one replaces the other. **The Approvals page** (below, 2026-09-19)
+is where every approval in the product is going, replacing the Tasks board. **The amount chains**
+(the rest of the file) are how bills, bids, requisitions and stock adjustments are signed today;
+each moves onto the page as its Request approval button is built.
+
+## The Approvals page (2026-09-19)
+
+The owner's design; the decision ledger in `docs/progress.md` holds it and the build order.
+
+**An approval exists only because a record asked for one.** A record's Request approval button
+files it, naming the record (`source`: its section, id, reference and title) and who asked.
+Nothing is typed in by hand, and there is no "new" button on the page. **No record has the
+button yet** — that is the next step — so the page is empty in every studio today.
+
+**The record reads its status from the approval** (`approvalFor`), never a copy of it.
+
+**Each type is answered in ordered steps** (Approvals → Approval settings). A step names
+specific studio members and says whether ALL of them must approve or ANY ONE is enough. The
+steps are frozen onto an approval when it is requested, so changing the settings never changes
+who was asked on one already running.
+
+**Nothing is self-approved.** The requester is taken off any step others share, and a request
+where they would be the only approver on a step is refused (`no-approver`). **The owner and
+Admins are the exception**: they stay on their steps and may answer their own request.
+
+**A no from anybody at the open step rejects the whole approval**, under "any one" as well as
+"all", and must give a reason. Answers are final. Asking again is a new approval; the rejected
+one stays as the record of it.
+
+**Who sees what.** Everybody opens the page (`EVERY_MEMBER_SECTION_KEYS`) and sees two lists:
+what is waiting on them — only the open step, never a later one — and what they asked for, with
+every step and every person's answer. **Answering needs no right**: being named on the open step
+is the authority. Two rights exist, held by the owner and Admins and given to others in Access:
+`approvals.overview.view` (a third list, every approval in the studio) and `approvals.settings`
+(view and edit the steps). No library role is born with either (`ADMIN_ONLY_AREAS`).
+
+**Who is told.** The people on a step when it opens; the requester when it is decided either way.
+
+**The code:** `modules/approvals/` — `model.ts` (the rules, pure, `tests/approvals-model.mjs`),
+`registry.ts` (the types — a new one is a row there plus its button), `approvals.ts` (the store),
+`fromTasks.ts` (the one-off conversion of the old board, deleted once it has run). Screen:
+`components/studio2/StudioApprovals.js`.
+
+**Not built yet on the page:** no record has a Request approval button; the Tasks board still
+exists beside it and its tasks have not been converted; the amount chains above have not moved
+onto it; no signer PIN, no amount limits, no reminders, no delegation, and no withdrawing a
+request. **A step whose only approver leaves the studio cannot be answered by anybody**, and
+an approval waiting on it waits for ever — there is no reassigning yet.
+
+## The amount chains — who signs a bill, and above what amount
 
 **Spec:** `docs/superpowers/specs/2026-09-03-approval-workflow-engine-design.md`.
 **Bills and bids.** Bids came second — see `bid-review.md`, which is where the chain store

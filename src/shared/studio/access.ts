@@ -43,6 +43,7 @@ const groups: Record<Locale, Record<string, string>> = {
     "Quality & HSE": "الجودة والسلامة",
     "Administration & Settings": "الإدارة والإعدادات",
     Tasks: "المهام",
+    Approvals: "الموافقات",
   },
 };
 
@@ -111,6 +112,8 @@ const areas: Record<Locale, Record<string, string>> = {
     "engineeringDocs.register": "الوثائق",
     "tasks.board": "لوحة المهام",
     "tasks.settings": "الإعدادات",
+    "approvals.overview": "الاطلاع على كل الموافقات",
+    "approvals.settings": "الإعدادات",
     "administration.members": "الأشخاص",
     "administration.access": "الأدوار والصلاحيات",
     "administration.master": "البيانات الأساسية",

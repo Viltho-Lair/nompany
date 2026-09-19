@@ -11,6 +11,9 @@
 //     of them must approve or ANY ONE is enough.
 //   - Nothing is self-approved: the requester is never one of the people asked,
 //     and a step whose only approver is the requester cannot be requested at all.
+//     THE ONE EXCEPTION is the owner or an Admin (invariant 7's, as for payroll,
+//     bills and stock adjustments): "I am an Owner by default, I must have every
+//     access", and a one-person studio could otherwise approve nothing at all.
 //   - An approval has an OVERALL status, and each person asked has their own.
 //
 // A REJECTION FROM ANYBODY AT THE OPEN STEP REJECTS THE WHOLE APPROVAL. Under
@@ -80,6 +83,9 @@ export function cleanSetting(
   return problems.length ? { problems } : { setting: { steps } };
 }
 
+/** Who is asking or answering, as the rules need to know them. */
+export type Actor = { collaboratorId: string; isAdmin?: boolean };
+
 /**
  * THE STEPS A NEW REQUEST WILL WALK, frozen from the setting with the requester
  * taken off every step — or why it cannot be requested.
@@ -89,14 +95,18 @@ export function cleanSetting(
  * answer it. Under "all must approve" that means all of the OTHERS. Only a step
  * where the requester was the ONLY person asked has nobody left, and that request
  * is refused — nothing is self-approved.
+ *
+ * AN OWNER OR ADMIN STAYS ON THEIR STEPS, and so may answer their own request.
  */
 export function planFor(
   setting: ApprovalSetting | null | undefined,
-  requesterId: string,
+  requester: Actor,
 ): { steps: ApprovalStep[] } | { error: "not-configured" } | { error: "no-approver"; step: number; label: string } {
   const steps = setting?.steps || [];
   if (!steps.length) return { error: "not-configured" };
-  const planned = steps.map((s) => ({ ...s, approverIds: s.approverIds.filter((id) => id !== requesterId) }));
+  const planned = requester.isAdmin
+    ? steps.map((s) => ({ ...s }))
+    : steps.map((s) => ({ ...s, approverIds: s.approverIds.filter((id) => id !== requester.collaboratorId) }));
   const empty = planned.findIndex((s) => !s.approverIds.length);
   if (empty >= 0) return { error: "no-approver", step: empty + 1, label: planned[empty].label };
   return { steps: planned };
@@ -199,16 +209,18 @@ export function waitingOn(approval: Pick<Approval, "status" | "steps" | "decisio
  * disagree with the settings.
  *
  * The requester is refused by name even though planFor already took them off
- * every step — a frozen plan is data, and data can be wrong.
+ * every step — a frozen plan is data, and data can be wrong. Except the owner or
+ * an Admin, who planFor left on their steps for that reason.
  */
 export function decisionProblem(
   approval: Pick<Approval, "status" | "steps" | "decisions" | "requestedByCollaboratorId">,
-  collaboratorId: string,
+  actor: Actor,
   verdict: unknown,
   note: unknown,
 ): string | null {
+  const collaboratorId = actor.collaboratorId;
   if (approval.status !== "Pending") return "not-pending";
-  if (collaboratorId === approval.requestedByCollaboratorId) return "own-request";
+  if (collaboratorId === approval.requestedByCollaboratorId && !actor.isAdmin) return "own-request";
   if (verdict !== "Approved" && verdict !== "Rejected") return "verdict";
   const step = currentStep(approval);
   if (!step || !step.approverIds.includes(collaboratorId)) return "not-yours";
@@ -231,12 +243,13 @@ export function decisionProblem(
  */
 export function applyDecision(
   row: Pick<Approval, "status" | "steps" | "decisions" | "requestedByCollaboratorId" | "decidedAt">,
-  collaboratorId: string,
+  actor: Actor,
   verdict: Verdict,
   note: string,
   at: string,
 ): Partial<Approval> {
-  if (decisionProblem(row, collaboratorId, verdict, note)) return {};
+  if (decisionProblem(row, actor, verdict, note)) return {};
+  const collaboratorId = actor.collaboratorId;
   const step = currentStep(row) as ApprovalStep;
   const decisions: Decision[] = [...row.decisions, { stepId: step.id, collaboratorId, verdict, at, note: text(note, 1000) }];
   const status = overallFrom(row.steps, decisions);

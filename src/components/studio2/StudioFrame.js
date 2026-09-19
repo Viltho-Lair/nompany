@@ -52,6 +52,7 @@ import DailyGreeting from "@/components/studio2/DailyGreeting";
 const SECTION_ICONS = {
   main: "home",
   tasks: "tasks",
+  approvals: "verified",
   "crm-sales": "sales",
   tendering: "tender",
   projects: "projects",
@@ -227,6 +228,7 @@ const SECTION_ICONS = {
   "finance-settings": "gears",
   "field-service-settings": "gears",
   "tasks-settings": "gears",
+  "approvals-settings": "gears",
 };
 
 /* A SECTION A STUDIO INVENTED STILL GETS A MARK.
@@ -274,6 +276,7 @@ function sectionIcon(key) {
 const SECTION_ACCENTS = {
   main: "text-blue-600 dark:text-blue-400",
   tasks: "text-violet-600 dark:text-violet-400",
+  approvals: "text-emerald-600 dark:text-emerald-400",
   "crm-sales": "text-sky-600 dark:text-sky-400",
   tendering: "text-purple-600 dark:text-purple-400",
   projects: "text-indigo-600 dark:text-indigo-400",
@@ -520,7 +523,10 @@ export default function StudioFrame({
   // and two non-departments sitting in it taught every reader that the list is
   // "everything", which is what made Tasks look like a sixteenth section on the
   // org chart the departments register had to correct.
-  const HEADER_KEYS = ["tasks", "administration"];
+  //
+  // APPROVALS IS THE THIRD, and the one that replaces Tasks (the owner,
+  // 19/09/2026): the same kind of control, reached the same way.
+  const HEADER_KEYS = ["approvals", "tasks", "administration"];
   const tree = fullTree.filter((n) => !HEADER_KEYS.includes(n.key));
 
   // `/administration` IS A NAVIGATION NODE AND NOT A DESTINATION, so its own
@@ -529,7 +535,10 @@ export default function StudioFrame({
   // leads its own menu under a name that says which of the two it is. The
   // asymmetry is in the data, not a special case: a parent is included only
   // where the parent is a screen.
-  const PARENT_IS_A_SCREEN = { tasks: true, administration: false };
+  const PARENT_IS_A_SCREEN = { approvals: true, tasks: true, administration: false };
+  // What the parent's own row is called in its menu — the list, named for what
+  // it is so it cannot be confused with the section's name.
+  const PARENT_LABEL = { approvals: tr.approvalList, tasks: tr.taskList };
 
   const headerMenus = HEADER_KEYS
     .map((key) => {
@@ -539,7 +548,7 @@ export default function StudioFrame({
         // The parent's own screen, where it has one. `taskList` rather than the
         // section's name: "Tasks > Tasks" says nothing about which is which.
         ...(PARENT_IS_A_SCREEN[key]
-          ? [{ key: node.key, href: `/${studio.slug}/${node.key}`, label: tr.taskList }]
+          ? [{ key: node.key, href: `/${studio.slug}/${node.key}`, label: PARENT_LABEL[key] }]
           : []),
         ...node.children.map((c) => ({
           key: c.key,

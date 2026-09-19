@@ -35,7 +35,7 @@ const {
 const { SECTION_DEFS, ALL_SECTION_KEYS, SECTION_COLLECTIONS,
   SYSTEM_SECTION_KEYS, PRODUCT_SECTION_KEYS, isSystemSection } = await import("../src/platform/db/keys.ts");
 const { REQUIRED_SECTIONS } = await import("../src/platform/db/sections.ts");
-const { ARCHETYPES, permissionsFor } = await import("../src/modules/people/archetypes.ts");
+const { ARCHETYPES, permissionsFor, ADMIN_ONLY_AREAS } = await import("../src/modules/people/archetypes.ts");
 const { engineSectionKey } = await import("../src/platform/access/catalogue.ts");
 const { INDUSTRIES, industryByField } = await import("../src/platform/engagement/industries.ts");
 const { FIELD_ACTION_MATRIX, SERVICE_ACTIONS, actionsForField } = await import("../src/shared/fieldsOfWork.ts");
@@ -1854,6 +1854,11 @@ export async function testEverySectionWithAScreenIsReachableBySomeSeededRole(t) 
   const unreachable = allKeys.filter((key) => {
     if (isSystemSection(key)) return false;      // settings, not a section
     if (NO_SCREEN_YET.includes(key)) return false; // declared, renders nothing, hidden
+    // THE OWNER'S AND ADMINS' BY DECISION, given to others in Access — Approval
+    // settings (19/09/2026). Read from the one list that says so, never typed
+    // here, so a section is exempt only while every right on it is admin-only.
+    const own = SECTION_AREAS[key] || [];
+    if (own.length && own.every((area) => ADMIN_ONLY_AREAS.has(area))) return false;
     return !seeded.some((r) => sectionViewable(r.access, key, allKeys, parentOf));
   });
 

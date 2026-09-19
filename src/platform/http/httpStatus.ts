@@ -54,6 +54,9 @@ const FORBIDDEN = [
   "not-a-till",
   // A personal PIN typed wrong at a till or on a signature (18/09/2026).
   "pin-invalid",
+  // Answering your own approval request. No grant makes it succeed — only
+  // being the owner or an Admin does, and that is not a grant.
+  "own-request",
 ];
 
 // 404 — IT IS NOT THERE, or you are not allowed to know that it is. Membership
@@ -128,6 +131,11 @@ const CONFLICT = [
   // and `reason-required` are 400 by default and belong there — both say the
   // caller must send something different.
   "already-closed",
+  // APPROVALS (19/09/2026). All the world moving on rather than the caller being
+  // wrong: the approval was decided, you already answered this step, this record
+  // is already waiting on one, or nobody has been named to answer it yet — each
+  // needs a refresh or somebody's settings, not a different request.
+  "not-pending", "already-answered", "already-pending", "no-approver", "not-configured", "not-requestable",
   // SERVICE CONTRACTS (11/09/2026), each the record having moved on: the
   // contract has raised work (so it is cancelled, not deleted), a visit already
   // has its order, the contract is cancelled, today is outside its term, or its
