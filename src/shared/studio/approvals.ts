@@ -79,6 +79,7 @@ const TYPES_EN: Record<string, string> = {
   timesheet: "Timesheet",
   "document-revision": "Document revision",
   "payment-release": "Payment release",
+  leave: "Leave request",
   carried: "Carried over",
 };
 const TYPES_AR: Record<string, string> = {
@@ -100,6 +101,7 @@ const TYPES_AR: Record<string, string> = {
   timesheet: "كشف ساعات",
   "document-revision": "مراجعة مستند",
   "payment-release": "رفع إيقاف دفعة",
+  leave: "طلب إجازة",
   carried: "منقولة",
 };
 

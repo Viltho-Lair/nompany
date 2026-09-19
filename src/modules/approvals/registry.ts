@@ -145,6 +145,13 @@ export const APPROVAL_TYPES: readonly ApprovalTypeDef[] = [
     key: "payment-release", label: "Payment release", requestable: true, amounted: true,
     legacy: [{ permission: "finance.payables.release", from: 0, label: "Release" }],
   },
+  // A LEAVE REQUEST (HR → Leave). Asking for leave is asking; a yes makes it
+  // Approved and a no Declined. A manager filing somebody else's leave has
+  // already decided and asks nobody.
+  {
+    key: "leave", label: "Leave request", requestable: true,
+    legacy: [{ permission: "hr.vacations.approve", from: 0, label: "Leave" }],
+  },
   { key: "carried", label: "Carried over", requestable: false },
 ];
 

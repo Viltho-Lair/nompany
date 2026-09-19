@@ -47,7 +47,10 @@ import { TAXONOMIES, resolveValue } from "@/modules/administration/taxonomy";
 import { subtreeIds } from "@/shared/departments/tree";
 import { getProfilesByIds } from "@/platform/auth/users";
 import { notifyCollaborators, NOTIFY } from "@/platform/notify/notifications";
-import { collaboratorsHolding } from "@/modules/people/holders";
+import { approvalPreflight, approvalRows, requestApproval } from "@/modules/approvals/approvals";
+import { approvalSummary } from "@/modules/approvals/reads";
+import type { Refusal } from "@/modules/approvals/effects";
+import type { Approval } from "@/modules/approvals/schema";
 import { getMedia } from "@/lib/media";
 import { isIdentityDocumentType, MEDIA_PATH } from "@/shared/identityDocuments";
 import type { Certification, Vacation, ExpiringDocument, HrContext } from "./types";
@@ -687,7 +690,7 @@ export function expiringDocuments(employees: Record<string, unknown>[], today = 
 // ---- leave -----------------------------------------------------------------
 export async function listVacations(ctx: HrContext, { meId }: { meId?: string }) {
   const { studio, section } = ctx;
-  const [rows, people, departments] = await Promise.all([
+  const [rows, people, departments, approvals] = await Promise.all([
     Vacations.find({ studio, section }),
     listCollaborators(studio.id),
     // READ EVEN WHEN THE SCOPE IS `own` OR `all`, because scopeFor has not been
@@ -696,8 +699,23 @@ export async function listVacations(ctx: HrContext, { meId }: { meId?: string })
     // context already resolved; branching to save that read is the kind of
     // cleverness that leaves the department arm untested.
     listDepartments(ctx),
+    approvalRows(studio, ctx.approvalsSection),
   ]);
   const aliasById = Object.fromEntries(people.map((c) => [c.id, c.alias || "Unnamed"]));
+
+  // A REQUEST PENDING BEFORE 19/09/2026 was already asking, so it is given its
+  // approval here, in the name of whoever asked. Once: a filed one is found
+  // next time.
+  const stranded = rows.filter((v) => v.status === "Pending" && !approvalSummary(approvals, LEAVE_APPROVAL, v.id));
+  if (stranded.length && ctx.approvalsSection) {
+    const byId = new Map(people.map((c) => [String(c.id), c]));
+    for (const v of stranded) {
+      const asker = byId.get(String(v.requestedByCollaboratorId || v.collaboratorId));
+      if (!asker) continue;
+      const asked = await askForLeave({ studio, collaborator: asker as HrContext["collaborator"], roles: ctx.roles }, v, aliasById[v.collaboratorId] || "");
+      if (asked.approval) approvals.push(asked.approval);
+    }
+  }
 
   // WHOSE LEAVE, answered by the model rather than by a boolean invented here.
   // This was `canManage || it is mine`, which could only ever express two of the
@@ -722,15 +740,24 @@ export async function listVacations(ctx: HrContext, { meId }: { meId?: string })
   return rows
     .filter(inScope)
     .sort((a, b) => (b.from || "").localeCompare(a.from || ""))
-    .map((v) => ({ ...v, alias: aliasById[v.collaboratorId] || "Unknown" }));
+    .map((v) => ({
+      ...v, alias: aliasById[v.collaboratorId] || "Unknown",
+      // HOW FAR ITS APPROVAL HAS GOT, read from the approval.
+      approval: approvalSummary(approvals, LEAVE_APPROVAL, v.id),
+    }));
 }
 
-// WHO CAN APPROVE LEAVE, resolved from the same right the screen enforces
-// (`hr.vacations.approve`) rather than a flag — a request announced to somebody
-// who cannot act on it wastes the one person who saw it, exactly as with a join
-// request. Returns collaborators, so the caller has their UserIDs for the bell.
-async function leaveApprovers(studioId: string) {
-  return collaboratorsHolding(studioId, "hr.vacations.approve");
+/** The approval type a leave request asks for. Its key is stored — see modules/approvals/registry. */
+export const LEAVE_APPROVAL = "leave";
+
+/** File a leave request's approval, in the name of whoever asked. */
+function askForLeave(requester: { studio: StudioRef; collaborator: HrContext["collaborator"]; roles: HrContext["roles"] }, v: Vacation, who: string) {
+  const dates = `${v.from}${v.to && v.to !== v.from ? ` – ${v.to}` : ""}`;
+  return requestApproval(requester, {
+    type: LEAVE_APPROVAL,
+    source: { sectionKey: "hr-leave", recordId: v.id, ref: dates, title: `${who || "Leave"} · ${v.type} · ${dates}`, path: "hr-leave" },
+    note: [`${v.days} day${v.days === 1 ? "" : "s"}`, v.reason || ""].filter(Boolean).join("\n"),
+  });
 }
 
 // Anyone who can open HR may request their OWN leave; only a manager may file
@@ -775,6 +802,17 @@ export async function requestVacation(ctx: HrContext, body: Record<string, unkno
   const days = countLeaveDays(from, to, leaveOpenDays(studio));
   if (days === 0) return { error: "no-working-days" };
 
+  // A REQUEST IS AN APPROVAL ASKED FOR (19/09/2026) — so it is asked first
+  // whether anybody could answer it, and a studio whose leave nobody approves
+  // refuses in words rather than parking a request for ever. A manager filing
+  // for somebody else has already made the decision and asks nobody.
+  const direct = canManage && target !== collaborator.id;
+  const requester = { studio, collaborator, roles: ctx.roles };
+  if (!direct) {
+    const preflight = await approvalPreflight(requester, { type: LEAVE_APPROVAL });
+    if ("error" in preflight) return preflight;
+  }
+
   // Overlapping leave for the same person is almost always a double entry.
   const rows = await Vacations.find({ studio, section });
   const clash = rows.find((v) => v.collaboratorId === target
@@ -791,101 +829,87 @@ export async function requestVacation(ctx: HrContext, body: Record<string, unkno
     from, to, days,
     reason: str(body?.reason, 1000),
     // A manager filing leave directly has already made the decision.
-    status: canManage && target !== collaborator.id ? "Approved" : "Pending",
-    decidedByCollaboratorId: canManage && target !== collaborator.id ? collaborator.id : "",
+    status: direct ? "Approved" : "Pending",
+    decidedByCollaboratorId: direct ? collaborator.id : "",
     requestedByCollaboratorId: collaborator.id,
     createdAt: new Date().toISOString(),
   });
-  // A request that is already Approved (a manager filing for someone else) has
-  // nobody to ask, so only a genuinely Pending one rings the approvers — and
-  // never the requester's own bell for a request they just filed.
+  // ASKED ON THE APPROVALS PAGE, which rings the people who may answer it — the
+  // leave bell this used to ring by hand is that page's now.
   if (vacation?.status === "Pending") {
-    const approvers = (await leaveApprovers(studio.id)).filter((c) => c.id !== collaborator.id);
-    if (approvers.length) {
-      const userIdOf = new Map(approvers.map((c) => [String(c.id), String(c.userId)]));
-      await notifyCollaborators(
-        studio.id,
-        approvers.map((c) => String(c.id)),
-        {
-          type: NOTIFY.leaveRequested,
-          title: "A leave request is waiting",
-          body: `${person.alias || "Someone"} requested ${days} day${days === 1 ? "" : "s"} off.`,
-          // PRE-FORMATTED, because only the producer knows "3 days" is
-          // three days rather than the 3rd, and a template cannot format
-          // what it is handed.
-          params: {
-            who: String(person.alias || "Someone"),
-            days: `${days} day${days === 1 ? "" : "s"}`,
-          },
-          href: "hr",
-          tone: "primary",
-        },
-        { userIdOf: (id) => userIdOf.get(id) },
-      );
-    }
+    const asked = await askForLeave(requester, vacation, String(person.alias || ""));
+    if (asked.notNeeded) return decideLeave(ctx, vacation.id, "Approved", String(collaborator.id));
+    if (asked.error) return { vacation, approvalProblem: asked.error };
   }
   return { vacation };
 }
 
+/**
+ * TAKE BACK YOUR OWN PENDING REQUEST — the one move on a request left here.
+ * Approving and declining are answered on the Approvals page (19/09/2026), and a
+ * move to either sent here is refused by name rather than routed around the
+ * people who answer it. A withdrawn request's approval is not answered by a
+ * late yes: `leaveApproval.ready` refuses anything no longer Pending.
+ */
 export async function decideVacation(ctx: HrContext, id: string, decision: unknown) {
-  const { studio, section, collaborator, canManage } = ctx;
-  const rows = await Vacations.find({ studio, section });
-  const row = rows.find((v) => v.id === id);
+  if (decision === "Approved" || decision === "Declined") return { error: "not-answerable" };
+  if (decision !== "Cancelled") return { error: "status" };
+  const { studio, section, collaborator } = ctx;
+  const row = await Vacations.byId({ studio, section }, str(id, 60));
   if (!row) return { error: "notfound" };
-
-  // TAKING BACK YOUR OWN REQUEST IS NOT A DECISION ABOUT SOMEBODY'S LEAVE.
-  //
-  // The approve guard used to sit above this line, which made the branch it
-  // exists for unreachable: withdrawing your own pending request needed the
-  // right to approve other people's, so anybody without it was stuck with a
-  // request they could not take back.
-  const isSelfCancel = decision === "Cancelled" && row.collaboratorId === collaborator.id;
-
-  if (!isSelfCancel) {
-    // Approving somebody's leave is its own power, not a bigger edit — which is
-    // why the catalogue gives it a key rather than folding it into hr.vacations.
-    const denied = requirePermission(ctx.access, "hr.vacations.approve");
-    if (denied) return denied;
-    if (!canManage) return { error: "forbidden" };
-  }
-  if (!LEAVE_STATUSES.includes(String(decision))) return { error: "status" };
+  if (row.collaboratorId !== collaborator.id) return { error: "forbidden" };
   if (row.status !== "Pending") return { error: "already-decided", status: row.status };
-
-  const vacation = await Vacations.update({ studio, section }, id, {
-    status: decision,
-    decidedByCollaboratorId: collaborator.id,
-    decidedAt: new Date().toISOString(),
-  });
+  const vacation = await Vacations.update({ studio, section }, row.id, (cur) => ((cur as Vacation).status === "Pending"
+    ? { status: "Cancelled", decidedByCollaboratorId: collaborator.id, decidedAt: new Date().toISOString() } : {}));
   if (!vacation) return { error: "notfound" };
-
-  // THE HALF OF THE SCENARIO THAT MATTERS: the requester hears the outcome. Not
-  // on a self-cancel — you do not notify yourself that you withdrew your own
-  // request — and the recipient is whoever ASKED, which on a manager-filed
-  // request is the employee, not the manager who typed it.
-  const requesterId = row.requestedByCollaboratorId || row.collaboratorId;
-  if (!isSelfCancel && requesterId && requesterId !== collaborator.id) {
-    const requester = await getCollaborator(studio.id, requesterId);
-    if (requester) {
-      await notifyCollaborators(
-        studio.id,
-        [requesterId],
-        {
-          type: NOTIFY.leaveDecided,
-          title: `Your leave was ${String(decision).toLowerCase()}`,
-          body: `${row.from}${row.to && row.to !== row.from ? ` – ${row.to}` : ""}`,
-          params: {
-            outcome: String(decision).toLowerCase(),
-            dates: `${row.from}${row.to && row.to !== row.from ? ` – ${row.to}` : ""}`,
-          },
-          href: "hr",
-          tone: decision === "Approved" ? "success" : "warning",
-        },
-        { userIdOf: (id) => (id === requester.id ? String(requester.userId) : undefined) },
-      );
-    }
-  }
+  if (vacation.status !== "Cancelled") return { error: "already-decided", status: vacation.status };
   return { vacation };
 }
+
+/** Write the answer onto a pending request — once (a function patch, invariant 8). */
+async function decideLeave(ctx: HrContext, id: string, to: "Approved" | "Declined", by: string) {
+  const scope = { studio: ctx.studio, section: ctx.section };
+  const vacation = await Vacations.update(scope, id, (cur) => ((cur as Vacation).status === "Pending"
+    ? { status: to, decidedByCollaboratorId: by, decidedAt: new Date().toISOString() } : {}));
+  if (!vacation) return { error: "notfound" };
+  if (vacation.status !== to) return { error: "already-decided", status: vacation.status };
+  return { vacation };
+}
+
+/** The request an approval names, in a context carrying the studio's authority. */
+async function leaveFor(studio: StudioRef, approval: Approval, byCollaboratorId: string) {
+  const ctx = await hrContext.asApprover(studio.id, byCollaboratorId);
+  if (ctx.error) return { error: ctx.error } as Refusal;
+  const vacation = await Vacations.byId({ studio: ctx.studio, section: ctx.section }, approval.source.recordId);
+  return vacation ? { ctx, vacation } : ({ error: "notfound" } as Refusal);
+}
+
+/**
+ * WHAT DECIDING A `leave` APPROVAL DOES — see modules/approvals/effects. A yes
+ * makes the request Approved, a no Declined, both in the approver's name; the
+ * requester hears it from the Approvals page. Only from Pending: a request its
+ * owner withdrew while the approval waited is not brought back by a late yes.
+ */
+export const leaveApproval = {
+  ready: async (studio: StudioRef, approval: Approval, by: string) => {
+    const found = await leaveFor(studio, approval, by);
+    if ("error" in found) return found;
+    return found.vacation.status === "Pending" ? null : ({ error: "already-decided", status: found.vacation.status } as Refusal);
+  },
+  approved: async (studio: StudioRef, approval: Approval, by: string) => {
+    const found = await leaveFor(studio, approval, by);
+    if ("error" in found) return found;
+    const done = await decideLeave(found.ctx, found.vacation.id, "Approved", by);
+    return done.error ? ({ error: done.error } as Refusal) : ("done" as const);
+  },
+  rejected: async (studio: StudioRef, approval: Approval, by: string) => {
+    const found = await leaveFor(studio, approval, by);
+    if ("error" in found) return found;
+    if (found.vacation.status !== "Pending") return "done" as const;
+    const done = await decideLeave(found.ctx, found.vacation.id, "Declined", by);
+    return done.error ? ({ error: done.error } as Refusal) : ("done" as const);
+  },
+};
 
 export async function removeVacation(ctx: HrContext, id: string) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.

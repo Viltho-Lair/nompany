@@ -114,7 +114,7 @@ const LABEL_EN: Record<string, string> = {
   "invoice.overdue": "Invoice", "invoice.draft": "Invoice",
   "bill.overdue": "Bill",
   "permit.expired": "Permit", "permit.expiring": "Permit",
-  "hr.docExpiring": "Documents", "hr.leavePending": "Leave",
+  "hr.docExpiring": "Documents",
   "notifications.unread": "Notifications",
 };
 
@@ -171,10 +171,6 @@ function textEn(kind: string, v: InsightVars, money: MoneyFmt): string | null {
       if (d === 0) return `${s(v.alias)}’s ${doc} expires today.${tail}`;
       return `${s(v.alias)}’s ${doc} expires in ${daysEn(d)}.${tail}`;
     }
-    case "hr.leavePending":
-      return s(v.alias)
-        ? `${s(v.alias)}’s leave request is waiting on a decision.${tail}`
-        : `A leave request is waiting on a decision.${tail}`;
     case "notifications.unread":
       return `You have ${n(v.n)} unread notification${n(v.n) === 1 ? "" : "s"}.`;
     default:
@@ -209,7 +205,7 @@ const LABEL_AR: Record<string, string> = {
   "invoice.overdue": "فاتورة", "invoice.draft": "فاتورة",
   "bill.overdue": "ذمة دائنة",
   "permit.expired": "تصريح", "permit.expiring": "تصريح",
-  "hr.docExpiring": "الوثائق", "hr.leavePending": "إجازة",
+  "hr.docExpiring": "الوثائق",
   "notifications.unread": "الإشعارات",
 };
 
@@ -266,10 +262,6 @@ function textAr(kind: string, v: InsightVars, money: MoneyFmt): string | null {
       if (d === 0) return `${doc} الخاصة بـ${s(v.alias)} تنتهي اليوم.${tail}`;
       return `${doc} الخاصة بـ${s(v.alias)} تنتهي خلال ${daysAr(d)}.${tail}`;
     }
-    case "hr.leavePending":
-      return s(v.alias)
-        ? `طلب إجازة ${s(v.alias)} بانتظار القرار.${tail}`
-        : `طلب إجازة بانتظار القرار.${tail}`;
     case "notifications.unread": {
       const c = n(v.n);
       const word = c === 1 ? "إشعار واحد" : c === 2 ? "إشعاران" : c <= 10 ? `${c} إشعارات` : `${c} إشعارا`;

@@ -355,20 +355,6 @@ export function documentInsights(people: Record<string, unknown>[], today: Date)
     top.collaboratorId, { alias: top.alias, docKind: top.kind, days: top.daysLeft, more: more(due) }, 15)];
 }
 
-type VacationRow = Row & { status?: string; collaboratorId?: string; createdAt?: string };
-
-/** Leave nobody has decided — only ever offered to somebody who may decide it. */
-export function leaveInsights(vacations: VacationRow[], aliasById: Record<string, string>): Insight[] {
-  const pending = vacations
-    .filter((v) => String(v.status || "") === "Pending")
-    .sort((a, b) => String(a.createdAt || "").localeCompare(String(b.createdAt || "")));
-  if (!pending.length) return [];
-  // TO LEAVE, where it is decided since HR split — it pointed at Employees, a
-  // screen that no longer shows a single leave request.
-  return [make("hr.leavePending", "warn", "hr-leave", "hr-leave", String(pending[0].id || ""),
-    { alias: aliasById[String(pending[0].collaboratorId || "")] || "", more: more(pending) })];
-}
-
 // ---- the read ---------------------------------------------------------------
 
 /**
@@ -400,7 +386,7 @@ export async function studioInsights(ctx: MainContext): Promise<Insight[]> {
   const meId = String(ctx.collaborator.id);
 
   const [approvals, quotations, rfqs, tickets, projects, items, movements,
-    invoices, bills, permits, vacations, people, notifications] = await Promise.all([
+    invoices, bills, permits, people, notifications] = await Promise.all([
     readIfVisible<Approval>(ctx, "approvals", null, "approvals"),
     readIfVisible<QuotationRow>(ctx, "crm-sales-quotations", "crm-sales", "quotations", "quotations-register"),
     readIfVisible<RfqRow>(ctx, "engineering-docs-rfq", "engineering-docs", "rfqs", "quotations-rfq"),
@@ -415,14 +401,6 @@ export async function studioInsights(ctx: MainContext): Promise<Insight[]> {
     readIfAllowed<InvoiceRow>(ctx, "finance-cash", "finance", "invoices", "finance.receivables.view", "finance-receivables"),
     readIfAllowed<BillRow>(ctx, "finance-payables", "finance", "bills", "finance.payables.view"),
     readIfAllowed<Permit>(ctx, "field-service", null, "permits", "fieldService.tracking.view"),
-    // LEAVE IS OFFERED ONLY TO SOMEBODY WHO MAY DECIDE IT. `listVacations`
-    // narrows by scope (mine / my department / all) and this reads the raw
-    // collection, so the APPROVE right — not the view right — is what gates it:
-    // "three requests are waiting" is a thing to say to an approver and an
-    // over-share to everybody else.
-    // STORED on the HR root, SWITCHED by Leave — the notes' "name the switch,
-    // not the storage". Switching Leave off must take this card with it.
-    readIfAllowed<VacationRow>(ctx, "hr", null, "vacations", "hr.vacations.approve", "hr-leave"),
     ctx.seen("hr-employees", "hr") && can(ctx.access, "hr.employees.view")
       ? listCollaborators(ctx.studio.id) : null,
     // Always: these are the caller's OWN, addressed to their CollaboratorID.
@@ -441,15 +419,8 @@ export async function studioInsights(ctx: MainContext): Promise<Insight[]> {
   if (bills) out.push(...billInsights(bills, todayISO, ctx.studio.currency));
   if (permits) out.push(...permitInsights(permits, todayISO));
   if (people) out.push(...documentInsights(people as unknown as Record<string, unknown>[], now));
-  // NO SECOND READ FOR THE NAMES. Leave is gated on `hr.vacations.approve` and
-  // the roll on `hr.employees.view`, so an approver who may not read the
-  // employee roll reaches here with `people` null — and the request is still
-  // worth announcing without a name attached. Fetching the roll anyway to fill
-  // one in would be reading past the gate that just refused.
-  if (vacations) {
-    const aliasById = Object.fromEntries((people || []).map((c) => [c.id, c.alias || ""]));
-    out.push(...leaveInsights(vacations, aliasById));
-  }
+  // LEAVE WAITING ON SOMEBODY is the Approvals bubble above since 19/09/2026 —
+  // a request is an approval, and one bubble per waiting thing is the rule.
 
   const unread = notifications.filter((n) => !n.readAt).length;
   if (unread > 0) {

@@ -31,13 +31,14 @@ files it, naming the record (`source`: its section, id, reference, title, and th
 | Submit | CRM & Sales → Contracts, on a draft variation | **Change order**, carrying its value delta as an absolute amount | the variation is `approved` and counts in the contract value; a no makes it `rejected` with the reason (`changeOrderApproval` in `modules/sales/changeOrders`) |
 | Submit (the timesheets route — no screen yet) | Projects, on a draft timesheet | **Timesheet**, carrying its labour cost | the sheet is `approved`; a no makes it `rejected` with the reason (`timesheetApproval` in `modules/projects/timesheets`). It never had an approve right: until a studio saves the type, whoever holds `projects.list.edit` answers |
 | Send for review | Engineering & Documents → the document register, on a revision | **Document revision** — a review step, then an approval step, and nobody answers both, the owner included (`distinctSigners`) | the review yes moves the revision to `approval` with the reviewer's signature; the last yes makes it `approved` with the approver's (issuing stays `engineeringDocs.register.publish`); a no at either step sends it back (`rejected`) with the reason (`documentApproval` in `modules/quality/qualityDocRevisions`) |
+| Request leave | HR → Leave, for your own leave (a manager filing somebody else's has decided already and asks nobody) | **Leave request**, carrying the days and the reason | the request is Approved in the approver's name; a no makes it Declined; the requester may still withdraw it while it waits, and a late yes then changes nothing (`leaveApproval` in `modules/hr/hr`) |
 | Request release | Finance → Payables, on a bill the payment hold is holding | **Payment release**, carrying the reason and the amount outstanding | the release is written on the bill in the approver's name with the reason, and the approver may then not record that payment (`releaseApproval` in `modules/finance/payables`); a no leaves it held |
 | Record adjustment | Inventory → Stock: an adjustment worth more than the lowest limit asks; under it the stock moves at once | **Stock adjustment**, valued at units × unit cost (absolute) | the movement is written (`adjustmentApproval` in `modules/inventory/adjustmentApproval`); rejected, it is closed with the reason and nothing moves |
 
 **MOVING EVERY APPROVAL HERE, one type at a time** (the owner, 19/09/2026): the request stays
-where it is made today and the answer moves to this page. The till return, the stock
-adjustment, the bill, the bid, the requisition, payroll, expense claims, change orders, timesheets, document revisions and held-payment
-releases have moved; leave follows. Each move drops the type's
+where it is made today and the answer moves to this page. Every type has moved — the till
+return, the stock adjustment, the bill, the bid, the requisition, payroll, expense claims, change
+orders, timesheets, document revisions, held-payment releases and leave (the last on 19/09/2026). Each move drops the type's
 `approve` right — a right to do what the settings decide would be a second answer (invariant
 16) — and the steps it had come with it:
 
@@ -151,10 +152,9 @@ Stated in words, because a silent gap reads as a finished feature.
 
 - **Five types have no record to ask from yet:** Material PO, Delivery, Delivery return, ID update
   and Permit request. They appear in Approvals settings and nothing can raise one.
-- **Leave still answers where it is**, on its own right. It moves here next; requests already
-  waiting are carried when it does.
-- **No reminders, no delegation, no out-of-office reassignment, and no withdrawing a request.**
-  Only a no ends a request early.
+- **No reminders, no delegation, no out-of-office reassignment, and no withdrawing a request**
+  from this page. Only a no ends a request early here; leave and expense claims can be
+  withdrawn on their own screens, and their approval then refuses a late yes.
 - **A step whose only approver leaves the studio cannot be answered by anybody**, and an approval
   waiting on it waits for ever — there is no reassigning yet.
 - **No condition other than amount.** Supplier, cost code, project or deal cannot decide the steps.

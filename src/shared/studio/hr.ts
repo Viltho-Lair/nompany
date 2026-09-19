@@ -80,6 +80,7 @@ type Strings = CommonStrings & {
   keep: string;
   leaveNow: string;
   leavePending: string;
+  leaveWaitingApproval: string;
   leaveStatus: string;
   leaveType: string;
   loadingHumanResources: string;
@@ -253,6 +254,7 @@ const en: Strings = {
   keep: "Keep",
   leaveNow: "On leave now",
   leavePending: "Leave pending",
+  leaveWaitingApproval: "Waiting for approval",
   leaveStatus: "Leave by status",
   leaveType: "Leave by type",
   loadingHumanResources: "Loading Human Resources…",
@@ -427,6 +429,7 @@ const ar: Strings = {
   keep: "إبقاء",
   leaveNow: "في إجازة الآن",
   leavePending: "إجازات قيد الانتظار",
+  leaveWaitingApproval: "بانتظار الاعتماد",
   leaveStatus: "الإجازات حسب الحالة",
   leaveType: "الإجازات حسب النوع",
   loadingHumanResources: "جار تحميل الموارد البشرية…",

@@ -169,7 +169,7 @@ export default function StudioHr({ slug, view = "hr" }) {
     return (
       <div className="space-y-6">
         {banner}
-        <Leave rows={vacations} employees={employees} types={vocabulary.leaveTypes} leave={data.leave}
+        <Leave slug={slug} rows={vacations} employees={employees} types={vocabulary.leaveTypes} leave={data.leave}
           canManage={canManage} meId={me.collaboratorId} busy={busy} send={send} />
       </div>
     );
@@ -956,7 +956,7 @@ function Certifications({ rows, employees, canManage, busy, send }) {
 }
 
 // ---- leave -----------------------------------------------------------------
-function Leave({ rows, employees, types, leave, canManage, meId, busy, send }) {
+function Leave({ slug, rows, employees, types, leave, canManage, meId, busy, send }) {
   const tr = hrDict(useStudioLocale());
   const [asking, setAsking] = useState(false);
   const closeAsk = useCallback(() => setAsking(false), []);
@@ -1005,11 +1005,9 @@ function Leave({ rows, employees, types, leave, canManage, meId, busy, send }) {
                     <td className={`${td} text-end`}>
                       {v.status === "Pending" && (
                         <span className="flex flex-wrap justify-end gap-2">
-                          {canManage && (
-                            <>
-                              <button className={btnGhost} disabled={busy} onClick={() => send("vacations", "PUT", { id: v.id, status: "Approved" })}>{tr.approve}</button>
-                              <button className={btnGhost} disabled={busy} onClick={() => send("vacations", "PUT", { id: v.id, status: "Declined" })}>{tr.decline}</button>
-                            </>
+                          {/* APPROVED OR DECLINED ON THE APPROVALS PAGE (19/09/2026). */}
+                          {v.approval?.status === "Pending" && (
+                            <a href={`/${slug}/approvals`} className="self-center text-xs font-600 text-brand-700 hover:underline dark:text-brand-300">{tr.leaveWaitingApproval}</a>
                           )}
                           {v.collaboratorId === meId && (
                             <button className={btnGhost} disabled={busy} onClick={() => send("vacations", "PUT", { id: v.id, status: "Cancelled" })}>{tr.cancel}</button>

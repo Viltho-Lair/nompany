@@ -138,7 +138,6 @@ const extras: Record<Locale, Record<string, string>> = {
     "pos.sales.export": "تنزيل المبيعات والأصناف المبيعة",
     "inventory.stock.alerts": "تنبيهات المخزون (حد إعادة الطلب)",
     "hr.employees.salary": "الاطلاع على الأجر والراتب",
-    "hr.vacations.approve": "اعتماد الطلبات",
     "finance.ledger.post": "ترحيل القيود",
     "finance.ledger.reverse": "عكس القيود",
     "finance.ledger.close": "اقفال الفترات المحاسبية واعادة فتحها",

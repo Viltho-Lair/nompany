@@ -89,7 +89,7 @@ import { getNovaConfig, saveNovaConfig } from "@/lib/data/novaConfig";
 import { buildToolset } from "@/platform/nova/tools";
 import { inventoryContext, createItem, editItem, createVendor, createOrder, editOrder, receiveOrder, adjustStock, listProjectSheets, saveSheetLine } from "@/modules/inventory/inventory";
 import {
-  hrContext, requestVacation, decideVacation,
+  hrContext, requestVacation, decideVacation, listVacations,
   listDepartments, listHrRoles, createHrRole, editHrRole, removeHrRole,
   listEmployees, saveEmployment, addLibraryRoles, libraryRolesFor,
 } from "@/modules/hr/hr";
@@ -3039,59 +3039,59 @@ console.log("\n== a purchase order lands, and the person who raised it hears");
 }
 
 console.log("\n== leave: taking back your own request");
-// REGRESSION: the hr.vacations.approve guard sat above the self-cancel branch
-// it was written for, so withdrawing your own pending request required the
-// right to decide other people's — and nobody without it could ever withdraw.
+// REGRESSION: an approve guard once sat above the self-cancel branch it was
+// written for, so withdrawing your own pending request needed the right to
+// decide other people's. Since 19/09/2026 deciding is the Approvals page's and
+// withdrawing is the one move left on the request itself.
 {
   const hr = await hrContext(member.user, slug);
   ok("a member can open HR", !hr.error, hr.error);
-  ok("...and does NOT hold approve", !hr.access.has("hr.vacations.approve"));
 
   const asked = await requestVacation(hr, { from: "2026-09-01", to: "2026-09-03", type: "Annual" });
   ok("a member can request their own leave", asked.vacation?.status === "Pending", JSON.stringify(asked));
 
-  // A PENDING REQUEST RINGS THE PEOPLE WHO CAN APPROVE IT, not the person who
-  // filed it. Owner holds hr.vacations.approve; the member does not.
-  const ownerCollabId = (await hrContext(owner, slug)).collaborator.id;
-  const approverNote = (await listForCollaborator(studio.id, ownerCollabId))
-    .find((n) => n.type === NOTIFY.leaveRequested);
-  ok("a pending leave request reaches an approver", Boolean(approverNote), NOTIFY.leaveRequested);
-  ok("...and not the requester's own bell",
-    !(await listForCollaborator(studio.id, member.collaborator.id)).some((n) => n.type === NOTIFY.leaveRequested),
-    "you do not notify yourself of your own request");
+  // ASKING IS AN APPROVAL, filed in the member's name and waiting on somebody.
+  const filed = (await listApprovals(await approvalsContext(owner, slug))).all
+    .find((x) => x.type === "leave" && x.source?.recordId === asked.vacation?.id);
+  ok("the request filed a leave approval", filed?.status === "Pending", JSON.stringify(filed?.status));
+  ok("...in the requester's name", filed?.requestedByCollaboratorId === member.collaborator.id);
+
+  // APPROVING IT HERE IS REFUSED BY NAME, rather than routed around the approvers.
+  const around = await decideVacation(await hrContext(owner, slug), asked.vacation?.id, "Approved");
+  ok("approving leave outside the Approvals page is refused", around.error === "not-answerable", JSON.stringify(around));
 
   const withdrawn = await decideVacation(hr, asked.vacation?.id, "Cancelled");
-  ok("...and can cancel it without the approve right", withdrawn.vacation?.status === "Cancelled",
-    JSON.stringify(withdrawn));
-  // A SELF-CANCEL TELLS NOBODY. Withdrawing your own request is not a decision
-  // somebody else made about your leave, so it produces no "your leave was …".
-  ok("...and withdrawing your own request notifies no one",
-    !(await listForCollaborator(studio.id, member.collaborator.id)).some((n) => n.type === NOTIFY.leaveDecided),
-    "a self-cancel is not a decision handed down");
+  ok("...and the requester can withdraw it", withdrawn.vacation?.status === "Cancelled", JSON.stringify(withdrawn));
+
+  // A LATE YES DOES NOT BRING A WITHDRAWN REQUEST BACK.
+  const late = await decideApproval(await approvalsContext(owner, slug), filed?.id, { verdict: "Approved" });
+  ok("...and a late yes on its approval is refused", Boolean(late.error), JSON.stringify(late));
 }
 
 // ============================================================================
-console.log("\n== leave: the requester hears the verdict");
-// THE HALF OF THE VACATION SCENARIO THAT MATTERS: someone asks, someone with the
-// right decides, and the asker is told the outcome without refreshing anything.
+console.log("\n== leave: answered on the Approvals page");
+// Someone asks, someone named on the approval answers, and the request moves.
 {
   const hr = await hrContext(member.user, slug);
   const asked = await requestVacation(hr, { from: "2026-10-05", to: "2026-10-06", type: "Annual" });
   ok("the member filed a fresh request", asked.vacation?.status === "Pending", JSON.stringify(asked));
 
-  // Owner holds the approve right; deciding somebody else's leave is a decision,
-  // so the requester should hear it.
-  const ownerHr = await hrContext(owner, slug);
-  const decided = await decideVacation(ownerHr, asked.vacation?.id, "Approved");
-  ok("an approver can approve it", decided.vacation?.status === "Approved", JSON.stringify(decided));
+  const ownerApprovals = await approvalsContext(owner, slug);
+  const filed = (await listApprovals(ownerApprovals)).all
+    .find((x) => x.type === "leave" && x.source?.recordId === asked.vacation?.id);
+  const decided = await decideApproval(ownerApprovals, filed?.id, { verdict: "Approved" });
+  ok("the owner answers it on the Approvals page", decided.approval?.status === "Approved", JSON.stringify(decided.error));
 
-  const verdict = (await listForCollaborator(studio.id, member.collaborator.id))
-    .find((n) => n.type === NOTIFY.leaveDecided);
-  ok("the requester is told the outcome", Boolean(verdict), NOTIFY.leaveDecided);
-  ok("...and the notice names the verdict", /approved/i.test(String(verdict?.title || "")), JSON.stringify(verdict?.title));
-  ok("...and the approver did not notify themselves",
-    !(await listForCollaborator(studio.id, ownerHr.collaborator.id)).some((n) => n.type === NOTIFY.leaveDecided),
-    "the decider is not the audience");
+  const after = (await listVacations(await hrContext(owner, slug), { meId: "" })).find((v) => v.id === asked.vacation?.id);
+  ok("...and the request is Approved in the approver's name",
+    after?.status === "Approved" && after?.decidedByCollaboratorId === ownerApprovals.collaborator.id, JSON.stringify(after?.status));
+
+  const again = await requestVacation(hr, { from: "2026-11-02", to: "2026-11-02", type: "Annual" });
+  const filed2 = (await listApprovals(ownerApprovals)).all
+    .find((x) => x.type === "leave" && x.source?.recordId === again.vacation?.id);
+  await decideApproval(ownerApprovals, filed2?.id, { verdict: "Rejected", note: "Month-end close" });
+  const declined = (await listVacations(await hrContext(owner, slug), { meId: "" })).find((v) => v.id === again.vacation?.id);
+  ok("a no declines it", declined?.status === "Declined", JSON.stringify(declined?.status));
 }
 
 // ============================================================================
@@ -5893,7 +5893,7 @@ console.log("\n== what Nova volunteers, before anybody asks");
       "stock.out", "stock.low",
       "invoice.overdue", "invoice.draft", "bill.overdue",
       "permit.expired", "permit.expiring",
-      "hr.docExpiring", "hr.leavePending", "notifications.unread",
+      "hr.docExpiring", "notifications.unread",
     ];
     const missing = EMITTED.filter((k) =>
       ["en", "ar"].some((l) => !COPY.insightCopy(k, { n: 1, days: 2, more: 0 }, l, money)));

@@ -490,8 +490,9 @@ const OWN_AREAS = [
   // and nobody else's, and salary is a separate right from the record itself.
   { key: "hr.employees", group: "Human Resources", label: "Employees", verbs: ["view", "create", "edit", "delete"],
     scoped: true, extra: [{ key: "salary", label: "See pay and salary" }] },
+  // APPROVING LEAVE is answered on the Approvals page since 19/09/2026 (`leave`).
   { key: "hr.vacations", group: "Human Resources", label: "Vacations", verbs: ["view", "create", "edit"],
-    scoped: true, extra: [{ key: "approve", label: "Approve requests" }] },
+    scoped: true },
 
   // THE EMPLOYMENT, AS AGAINST THE PERSON. `hr.employees` is who somebody is —
   // their name, their department, their document, their code. This is their

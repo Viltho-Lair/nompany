@@ -51,7 +51,6 @@ feed and nothing precomputed.
 | `permit.expired` | `permitState` says Expired | Operations |
 | `permit.expiring` | `permitState` says Expiring | Operations |
 | `hr.docExpiring` | an ID or passport inside the expiry window | HR |
-| `hr.leavePending` | leave waiting on a decision | HR |
 | `notifications.unread` | your own unread notifications | the bell's own store |
 
 Each names the single most pressing record and says how many others there are — *"Q-0041 is
@@ -77,8 +76,9 @@ RFQ" is a statement about Technical, and "this project was never invoiced" is a 
 about Finance — so each is only made when both sections are visible. A `null` list means *not
 yours to know*, never *there are none*.
 
-Leave is gated on `hr.vacations.approve` rather than on view: "three requests are waiting" is
-a thing to say to an approver and an over-share to everybody else.
+Leave waiting on a decision had its own bubble, gated on `hr.vacations.approve`; since
+19/09/2026 a leave request is an approval, and the `approval.awaiting` bubble says it to the
+people it is waiting on.
 
 ## Language
 

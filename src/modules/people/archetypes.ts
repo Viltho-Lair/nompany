@@ -206,7 +206,6 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
     //   — register.approve, because checker holds `review` and invariant 7 is
     //     the reason it stops there.
     extras: [
-      "hr.vacations.approve",
       "engagements.lock",
     ],
   },

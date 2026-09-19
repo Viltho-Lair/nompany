@@ -4,12 +4,17 @@
 and an approval and nothing else: no entitlement, no carry-over, and nothing subtracted a day
 taken from anything, so nobody could be told how much leave they had left.
 
-## Requests and approval (unchanged)
+## Requests and approval
 
 `vacations` (`modules/hr/hr.ts`). Anyone who can open HR asks for their own leave; a manager
-(`hr.vacations.approve`) may file it for somebody else, which is approved on the spot.
-Pending → Approved, Declined, or Cancelled by the requester; overlapping leave for one
-person is refused. The requester is told the outcome. Approved **Unpaid** leave docks pay
+(whoever may manage HR) may file it for somebody else, which is approved on the spot.
+**Asking is an approval (19/09/2026):** a request files a **Leave request** on the Approvals
+page, and the yes or no is given there — Pending → Approved or Declined, in the approver's
+name. The people who answer are Approvals settings'; until a studio saves the type, whoever held
+the old `hr.vacations.approve` (now gone) plus the owner and Admins. The requester may cancel
+their own while it waits, and a late yes then changes nothing. Overlapping leave for one
+person is refused. The requester is told the outcome by the Approvals page. A request pending
+from before is given its approval the first time Leave is read. Approved **Unpaid** leave docks pay
 (`payroll.md`).
 
 ## The rules

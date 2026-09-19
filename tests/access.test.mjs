@@ -331,7 +331,7 @@ console.log("\n== wiring");
   // an unexplained entry here is the next hole.
   const EXEMPT = {
     decideApproval: "being named on the open step IS the authority (the owner, 19/09/2026); decisionProblem refuses everybody else by name",
-    decideVacation: "cancelling your OWN pending request needs no approve right",
+    decideVacation: "only withdraws your OWN pending request; approving and declining are the Approvals page's (19/09/2026)",
     requestTicketRfq: "delegates to requestRfq, which guards both doors itself",
     reportPosition: "you may always report your own position; the id is the session's",
     clearPosition: "your own always; somebody else's checks canManageTracking",
